@@ -57,12 +57,6 @@ pub fn render(target: &mut glium::Frame, puzzle: &Puzzle) -> Result<(), glium::D
     let t = target_h as f32 / min_dimen;
     let f = 17.0;
     let n = 3.0;
-    // let perspective_matrix: [[f32; 4]; 4] = [
-    //     [1.0 / r, 0.0, 0.05, 0.0],
-    //     [0.0, 1.0 / t, 0.05, 0.0],
-    //     [0.0, 0.0, -2 / , -10.0],
-    //     [0.0, 0.0, -1.0, 0.0],
-    // ];
     let model_matrix =
         Matrix4::from_translation([0.0, 0.0, -10.0].into()) * Matrix4::from_angle_x(Deg(35.0));
     let perspective_matrix = Matrix4::from(Perspective {
@@ -79,15 +73,12 @@ pub fn render(target: &mut glium::Frame, puzzle: &Puzzle) -> Result<(), glium::D
     target.draw(
         &*vbo,
         &*STICKERS_INDICES.borrow(),
-        // &STICKERS_INDICES
-        //     .borrow()
-        //     .slice((6 * t)..(6 * t + 5))
-        //     .unwrap(),
         &shaders::TRIS,
         &uniform! {
             matrix: matrix,
         },
         &DrawParameters {
+            blend: glium::Blend::alpha_blending(),
             depth: glium::Depth {
                 test: glium::DepthTest::IfLess,
                 write: true,

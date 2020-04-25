@@ -2,16 +2,35 @@ use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::common::*;
 
-pub mod faces {
+pub mod twists {
     use super::*;
 
     lazy_static! {
-        pub static ref R: Sticker = Face::new(Axis::X, Sign::Pos).center_sticker();
-        pub static ref L: Sticker = Face::new(Axis::X, Sign::Neg).center_sticker();
-        pub static ref U: Sticker = Face::new(Axis::Y, Sign::Pos).center_sticker();
-        pub static ref D: Sticker = Face::new(Axis::Y, Sign::Neg).center_sticker();
-        pub static ref F: Sticker = Face::new(Axis::Z, Sign::Pos).center_sticker();
-        pub static ref B: Sticker = Face::new(Axis::Z, Sign::Neg).center_sticker();
+        pub static ref R: Twist = Twist::new(Axis::X, Sign::Pos, TwistDirection::CW);
+        pub static ref L: Twist = Twist::new(Axis::X, Sign::Neg, TwistDirection::CW);
+        pub static ref U: Twist = Twist::new(Axis::Y, Sign::Pos, TwistDirection::CW);
+        pub static ref D: Twist = Twist::new(Axis::Y, Sign::Neg, TwistDirection::CW);
+        pub static ref F: Twist = Twist::new(Axis::Z, Sign::Pos, TwistDirection::CW);
+        pub static ref B: Twist = Twist::new(Axis::Z, Sign::Neg, TwistDirection::CW);
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Twist {
+    pub face: Face,
+    pub direction: TwistDirection,
+}
+impl Twist {
+    pub fn new(axis: Axis, sign: Sign, direction: TwistDirection) -> Self {
+        let face = Face { axis, sign };
+        Self { face, direction }
+    }
+    #[must_use]
+    pub fn rev(self) -> Self {
+        Self {
+            face: self.face,
+            direction: self.direction.rev(),
+        }
     }
 }
 
@@ -53,18 +72,14 @@ impl Puzzle {
             prev = current;
         }
     }
-    pub fn twist(&mut self, pos: Sticker, direction: TwistDirection) {
-        // Cannot rotate around core.
-        if pos.piece().sticker_count() == 0 {
-            panic!("Cannot rotate around core");
-        }
+    pub fn twist(&mut self, twist: Twist) {
         // Get face.
-        let face = pos.face();
+        let face = twist.face;
         // Get perpendicular axes.
         let (ax1, ax2) = face.perpendiculars();
         let mut rot = Orientation::rot90(ax1, ax2);
         // Reverse rotation if rotation is CCW.
-        if direction == TwistDirection::CCW {
+        if twist.direction == TwistDirection::CCW {
             rot = rot.rev();
         }
         // Cycle edges.
@@ -173,8 +188,8 @@ impl Sticker {
         let (ax1, ax2) = self.axis().perpendiculars();
         let mut ret = [center; 4];
         let mut i = 0;
-        for &u in &[-0.3, 0.3] {
-            for &v in &[-0.3, 0.3] {
+        for &u in &[-0.45, 0.45] {
+            for &v in &[-0.45, 0.45] {
                 ret[i][ax1.int()] = u + self.piece()[ax1].float();
                 ret[i][ax2.int()] = v + self.piece()[ax2].float();
                 i += 1;
@@ -258,17 +273,17 @@ impl Face {
     pub fn color(self) -> [f32; 4] {
         match (self.axis, self.sign) {
             // Right = red
-            (Axis::X, Sign::Pos) => [0.8, 0.0, 0.0, 1.0],
+            (Axis::X, Sign::Pos) => [0.8, 0.0, 0.0, 0.75],
             // Left = orange
-            (Axis::X, Sign::Neg) => [0.6, 0.2, 0.0, 1.0],
+            (Axis::X, Sign::Neg) => [0.6, 0.2, 0.0, 0.75],
             // Up = white
-            (Axis::Y, Sign::Pos) => [0.8, 0.8, 0.8, 1.0],
+            (Axis::Y, Sign::Pos) => [0.8, 0.8, 0.8, 0.75],
             // Down = yellow
-            (Axis::Y, Sign::Neg) => [0.8, 0.8, 0.0, 1.0],
+            (Axis::Y, Sign::Neg) => [0.8, 0.8, 0.0, 0.75],
             // Front = green
-            (Axis::Z, Sign::Pos) => [0.0, 0.8, 0.0, 1.0],
+            (Axis::Z, Sign::Pos) => [0.0, 0.8, 0.0, 0.75],
             // Back = blue
-            (Axis::Z, Sign::Neg) => [0.0, 0.4, 0.8, 1.0],
+            (Axis::Z, Sign::Neg) => [0.0, 0.4, 0.8, 0.75],
             // Invalid
             (_, Sign::Zero) => panic!("Invalid face"),
         }

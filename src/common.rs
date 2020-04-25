@@ -98,3 +98,12 @@ impl Default for TwistDirection {
         Self::CW
     }
 }
+impl TwistDirection {
+    #[must_use]
+    pub fn rev(self) -> Self {
+        match self {
+            Self::CW => Self::CCW,
+            Self::CCW => Self::CW,
+        }
+    }
+}

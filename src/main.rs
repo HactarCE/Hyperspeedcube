@@ -14,8 +14,7 @@ mod puzzle3d;
 mod render3d;
 mod shaders;
 
-use common::TwistDirection::{CCW, CW};
-use puzzle3d::faces;
+use puzzle3d::twists;
 
 /// The title of the window.
 const TITLE: &str = "Keyboard Speedcube";
@@ -49,18 +48,18 @@ fn main() {
                         use glutin::VirtualKeyCode as Vk;
                         match keycode {
                             Vk::Escape => closed = true,
-                            Vk::U => cube.twist(*faces::R, CW),
-                            Vk::E => cube.twist(*faces::R, CCW),
-                            Vk::N => cube.twist(*faces::U, CW),
-                            Vk::T => cube.twist(*faces::U, CCW),
-                            Vk::S => cube.twist(*faces::L, CW),
-                            Vk::F => cube.twist(*faces::L, CCW),
-                            Vk::R => cube.twist(*faces::D, CW),
-                            Vk::I => cube.twist(*faces::D, CCW),
-                            Vk::H => cube.twist(*faces::F, CW),
-                            Vk::D => cube.twist(*faces::F, CCW),
-                            Vk::W => cube.twist(*faces::B, CW),
-                            Vk::Y => cube.twist(*faces::B, CCW),
+                            Vk::U => cube.twist(*twists::R),
+                            Vk::E => cube.twist(twists::R.rev()),
+                            Vk::N => cube.twist(*twists::U),
+                            Vk::T => cube.twist(twists::U.rev()),
+                            Vk::S => cube.twist(*twists::L),
+                            Vk::F => cube.twist(twists::L.rev()),
+                            Vk::R => cube.twist(*twists::D),
+                            Vk::I => cube.twist(twists::D.rev()),
+                            Vk::H => cube.twist(*twists::F),
+                            Vk::D => cube.twist(twists::F.rev()),
+                            Vk::W => cube.twist(*twists::B),
+                            Vk::Y => cube.twist(twists::B.rev()),
                             _ => (),
                         }
                     }
