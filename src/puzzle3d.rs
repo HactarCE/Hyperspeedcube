@@ -124,6 +124,12 @@ pub struct Sticker {
     axis: Axis,
 }
 impl StickerTrait<Puzzle> for Sticker {
+    const VERTEX_COUNT: usize = 4;
+    const VERTEX_INDICES: &'static [usize] = &[
+        0, 1, 2, 3, 2, 1, // Outside face (counterclockwise from outside).
+        1, 2, 3, 2, 1, 0, // Inside face (clockwise from outside).
+    ];
+
     fn piece(self) -> Piece {
         self.piece
     }
@@ -133,14 +139,15 @@ impl StickerTrait<Puzzle> for Sticker {
             sign: self.sign(),
         }
     }
-    fn verts(self) -> [[f32; 3]; 4] {
-        let mut center = [0.0; 3];
+    fn verts(self, size: f32) -> Vec<[f32; 4]> {
+        let radius = size / 2.0;
+        let mut center = [0.0; 4];
         center[self.axis().int()] = 1.5 * self.sign().float();
         let (ax1, ax2) = self.axis().perpendiculars();
-        let mut ret = [center; 4];
+        let mut ret = vec![center; 4];
         let mut i = 0;
-        for &u in &[-0.45, 0.45] {
-            for &v in &[-0.45, 0.45] {
+        for &u in &[-radius, radius] {
+            for &v in &[-radius, radius] {
                 ret[i][ax1.int()] = u + self.piece()[ax1].float();
                 ret[i][ax2.int()] = v + self.piece()[ax2].float();
                 i += 1;

@@ -9,6 +9,7 @@ const YELLOW: [f32; 3] = [0.8, 0.8, 0.0];
 const GREEN: [f32; 3] = [0.0, 0.8, 0.0];
 const BLUE: [f32; 3] = [0.0, 0.4, 0.8];
 
+/// Returns the color for the face with the given index.
 pub fn get_color(i: usize) -> [f32; 4] {
     let [r, g, b] = match i {
         0 => RED,

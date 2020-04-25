@@ -75,12 +75,21 @@ pub mod traits {
 
     /// The location of a sticker in a twisty puzzle.
     pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq {
+        /// The number of vertices used to render a single sticker.
+        const VERTEX_COUNT: usize;
+        /// The indices of vertices used to render a single sticker with the
+        /// GL_TRIANGLES setting.
+        const VERTEX_INDICES: &'static [usize];
+
         /// Returns the piece that this sticker is on.
         fn piece(self) -> P::Piece;
         /// Returns the face that this sticker is on.
         fn face(self) -> P::Face;
-        /// Returns the 3D vertices that this sticker is composed of.
-        fn verts(self) -> [[f32; 3]; 4];
+        /// Returns the 4D vertices used to render this sticker with the given
+        /// size between 0 and 1.
+        ///
+        /// The W component will be 0.0 if this is puzzle is only 3-dimensional.
+        fn verts(self, margins: f32) -> Vec<[f32; 4]>;
         /// Returns an iterator over all the stickers on this puzzle.
         fn iter() -> Box<dyn Iterator<Item = P::Sticker>> {
             Box::new(P::Piece::iter().flat_map(P::Piece::stickers))
