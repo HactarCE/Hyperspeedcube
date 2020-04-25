@@ -1,10 +1,11 @@
 //! Rendering logic.
 
-use cgmath::{Deg, Matrix4, Perspective, SquareMatrix};
+use cgmath::{Deg, Matrix4, Perspective};
 use glium::{index::PrimitiveType, DrawParameters, IndexBuffer, Surface, VertexBuffer};
 use send_wrapper::SendWrapper;
 use std::cell::RefCell;
 
+use super::colors;
 use super::common::traits::*;
 use super::shaders;
 use super::DISPLAY;
@@ -45,7 +46,7 @@ pub fn render<P: PuzzleTrait>(
     puzzle: &P,
 ) -> Result<(), glium::DrawError> {
     let (target_w, target_h) = target.get_dimensions();
-    target.clear_color_srgb_and_depth((0.2, 0.2, 0.2, 1.0), 1.0);
+    target.clear_color_srgb_and_depth(colors::get_bg(), 1.0);
 
     let mut verts = Vec::with_capacity(3 * 3 * 6 * 4);
     for sticker in P::Sticker::iter() {

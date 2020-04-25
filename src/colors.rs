@@ -2,12 +2,20 @@
 
 const ALPHA: f32 = 0.75;
 
+const BACKGROUND: [f32; 3] = [0.1, 0.1, 0.1];
+
 const RED: [f32; 3] = [0.8, 0.0, 0.0];
 const ORANGE: [f32; 3] = [0.6, 0.2, 0.0];
 const WHITE: [f32; 3] = [0.8, 0.8, 0.8];
 const YELLOW: [f32; 3] = [0.8, 0.8, 0.0];
 const GREEN: [f32; 3] = [0.0, 0.8, 0.0];
 const BLUE: [f32; 3] = [0.0, 0.4, 0.8];
+
+/// Returns the background color.
+pub fn get_bg() -> (f32, f32, f32, f32) {
+    let [r, g, b] = BACKGROUND;
+    (r, g, b, 1.0)
+}
 
 /// Returns the color for the face with the given index.
 pub fn get_color(i: usize) -> [f32; 4] {
