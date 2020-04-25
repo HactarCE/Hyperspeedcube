@@ -13,14 +13,11 @@ use glium::glutin;
 use send_wrapper::SendWrapper;
 
 pub mod animator;
-pub mod colors;
-pub mod common;
-pub mod puzzle3d;
-mod render3d;
-mod shaders;
+pub mod puzzle;
+mod render;
 
-use common::traits::*;
-use puzzle3d::twists;
+use puzzle::rubiks3d::twists;
+use puzzle::traits::*;
 
 /// The title of the window.
 const TITLE: &str = "Keyboard Speedcube";
@@ -36,7 +33,7 @@ lazy_static! {
 }
 
 fn main() {
-    let mut cube = puzzle3d::Puzzle::new();
+    let mut cube = puzzle::Rubiks3D::new();
 
     let mut closed = false;
     while !closed {
@@ -76,9 +73,9 @@ fn main() {
             _ => (),
         });
 
-        // Render.
+        // Render the puzzle.
         let mut target = DISPLAY.draw();
-        render3d::render(&mut target, &cube).expect("Draw error");
+        render::draw_puzzle(&mut target, &cube).expect("Draw error");
         target.finish().unwrap();
     }
 }

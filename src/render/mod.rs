@@ -5,9 +5,10 @@ use glium::{index::PrimitiveType, DrawParameters, IndexBuffer, Surface, VertexBu
 use send_wrapper::SendWrapper;
 use std::cell::RefCell;
 
-use super::colors;
-use super::common::traits::*;
-use super::shaders;
+mod colors;
+mod shaders;
+
+use super::puzzle::traits::*;
 use super::DISPLAY;
 
 const STICKER_SIZE: f32 = 0.9;
@@ -41,7 +42,7 @@ struct StickerVertex {
 }
 implement_vertex!(StickerVertex, pos, color);
 
-pub fn render<P: PuzzleTrait>(
+pub fn draw_puzzle<P: PuzzleTrait>(
     target: &mut glium::Frame,
     puzzle: &P,
 ) -> Result<(), glium::DrawError> {
@@ -51,7 +52,7 @@ pub fn render<P: PuzzleTrait>(
     let mut verts = Vec::with_capacity(3 * 3 * 6 * 4);
     for sticker in P::Sticker::iter() {
         // Generate vertices.
-        let color = super::colors::get_color(puzzle.get_sticker(sticker).idx());
+        let color = colors::get_color(puzzle.get_sticker(sticker).idx());
         verts.extend(
             sticker
                 .verts(STICKER_SIZE)

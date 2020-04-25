@@ -2,7 +2,7 @@
 
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
-use super::common::*;
+use super::*;
 
 /// Some pre-baked twists that can be applied to a 3x3x3 puzzle cube.
 pub mod twists {
@@ -26,8 +26,8 @@ pub mod twists {
 
 /// The state of 3x3x3 puzzle cube.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct Puzzle([[[Orientation; 3]; 3]; 3]);
-impl PuzzleTrait for Puzzle {
+pub struct Rubiks3D([[[Orientation; 3]; 3]; 3]);
+impl PuzzleTrait for Rubiks3D {
     type Piece = Piece;
     type Sticker = Sticker;
     type Face = Face;
@@ -48,7 +48,7 @@ impl PuzzleTrait for Puzzle {
 /// A piece location in a 3x3x3 puzzle cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Piece(pub [Sign; 3]);
-impl PieceTrait<Puzzle> for Piece {
+impl PieceTrait<Rubiks3D> for Piece {
     fn sticker_count(self) -> usize {
         self.x().abs() + self.y().abs() + self.z().abs()
     }
@@ -123,7 +123,7 @@ pub struct Sticker {
     piece: Piece,
     axis: Axis,
 }
-impl StickerTrait<Puzzle> for Sticker {
+impl StickerTrait<Rubiks3D> for Sticker {
     const VERTEX_COUNT: usize = 4;
     const VERTEX_INDICES: &'static [usize] = &[
         0, 1, 2, 3, 2, 1, // Outside face (counterclockwise from outside).
@@ -187,7 +187,7 @@ pub struct Twist {
     face: Face,
     direction: TwistDirection,
 }
-impl TwistTrait<Puzzle> for Twist {
+impl TwistTrait<Rubiks3D> for Twist {
     fn rotation(self) -> Orientation {
         // Get the axes of the plane of rotation.
         let (ax1, ax2) = self.face.parallels();
@@ -273,7 +273,7 @@ pub struct Face {
     axis: Axis,
     sign: Sign,
 }
-impl FaceTrait<Puzzle> for Face {
+impl FaceTrait<Rubiks3D> for Face {
     const COUNT: usize = 6;
 
     fn idx(self) -> usize {
@@ -364,7 +364,7 @@ impl Face {
 /// An orientation of a 3D cube (i.e. a single piece of a 3D cube/cuboid).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Orientation([Face; 3]);
-impl OrientationTrait<Puzzle> for Orientation {
+impl OrientationTrait<Rubiks3D> for Orientation {
     fn rev(self) -> Self {
         let mut ret = Self::default();
         for &axis in Axis::iter() {
