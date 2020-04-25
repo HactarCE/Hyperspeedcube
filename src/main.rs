@@ -1,4 +1,7 @@
+//! A keyboard-controlled speedcube simulator.
+
 #![allow(dead_code)]
+#![warn(missing_docs)]
 
 #[macro_use]
 extern crate glium;
@@ -9,11 +12,14 @@ use core::cell::RefCell;
 use glium::glutin;
 use send_wrapper::SendWrapper;
 
-mod common;
-mod puzzle3d;
+pub mod animator;
+pub mod colors;
+pub mod common;
+pub mod puzzle3d;
 mod render3d;
 mod shaders;
 
+use common::traits::*;
 use puzzle3d::twists;
 
 /// The title of the window.
@@ -22,7 +28,7 @@ const TITLE: &str = "Keyboard Speedcube";
 lazy_static! {
     static ref EVENTS_LOOP: SendWrapper<RefCell<glutin::EventsLoop>> =
         SendWrapper::new(RefCell::new(glutin::EventsLoop::new()));
-    pub static ref DISPLAY: SendWrapper<glium::Display> = SendWrapper::new({
+    static ref DISPLAY: SendWrapper<glium::Display> = SendWrapper::new({
         let wb = glutin::WindowBuilder::new().with_title(TITLE.to_owned());
         let cb = glutin::ContextBuilder::new().with_vsync(true);
         glium::Display::new(wb, cb, &EVENTS_LOOP.borrow()).expect("Failed to initialize display")

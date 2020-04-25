@@ -1,8 +1,11 @@
+//! Rendering logic.
+
 use cgmath::{Deg, Matrix4, Perspective};
 use glium::{index::PrimitiveType, DrawParameters, IndexBuffer, Surface, VertexBuffer};
 use send_wrapper::SendWrapper;
 use std::cell::RefCell;
 
+use super::common::traits::*;
 use super::puzzle3d::*;
 use super::shaders;
 use super::DISPLAY;
@@ -41,7 +44,7 @@ pub fn render(target: &mut glium::Frame, puzzle: &Puzzle) -> Result<(), glium::D
     let mut verts = Vec::with_capacity(3 * 3 * 6 * 4);
     for sticker in Sticker::iter() {
         // Generate vertices.
-        let color = puzzle.get_sticker(sticker).color();
+        let color = super::colors::get_color(puzzle.get_sticker(sticker).idx());
         verts.extend(
             sticker
                 .verts()

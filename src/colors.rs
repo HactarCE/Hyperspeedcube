@@ -1,0 +1,23 @@
+//! Color constants.
+
+const ALPHA: f32 = 0.75;
+
+const RED: [f32; 3] = [0.8, 0.0, 0.0];
+const ORANGE: [f32; 3] = [0.6, 0.2, 0.0];
+const WHITE: [f32; 3] = [0.8, 0.8, 0.8];
+const YELLOW: [f32; 3] = [0.8, 0.8, 0.0];
+const GREEN: [f32; 3] = [0.0, 0.8, 0.0];
+const BLUE: [f32; 3] = [0.0, 0.4, 0.8];
+
+pub fn get_color(i: usize) -> [f32; 4] {
+    let [r, g, b] = match i {
+        0 => RED,
+        1 => ORANGE,
+        2 => WHITE,
+        3 => YELLOW,
+        4 => GREEN,
+        5 => BLUE,
+        _ => panic!("Invalid color index"),
+    };
+    [r, g, b, ALPHA]
+}

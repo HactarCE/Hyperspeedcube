@@ -1,99 +1,73 @@
+//! A 3x3x3 puzzle cube.
+
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::common::*;
 
+/// Some pre-baked twists that can be applied to a 3x3x3 puzzle cube.
 pub mod twists {
     use super::*;
 
     lazy_static! {
+        /// Turn the right face clockwise 90 degrees.
         pub static ref R: Twist = Twist::new(Axis::X, Sign::Pos, TwistDirection::CW);
+        /// Turn the left face clockwise 90 degrees.
         pub static ref L: Twist = Twist::new(Axis::X, Sign::Neg, TwistDirection::CW);
+        /// Turn the top face clockwise 90 degrees.
         pub static ref U: Twist = Twist::new(Axis::Y, Sign::Pos, TwistDirection::CW);
+        /// Turn the bottom face clockwise 90 degrees.
         pub static ref D: Twist = Twist::new(Axis::Y, Sign::Neg, TwistDirection::CW);
+        /// Turn the front face clockwise 90 degrees.
         pub static ref F: Twist = Twist::new(Axis::Z, Sign::Pos, TwistDirection::CW);
+        /// Turn the back face clockwise 90 degrees.
         pub static ref B: Twist = Twist::new(Axis::Z, Sign::Neg, TwistDirection::CW);
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Twist {
-    pub face: Face,
-    pub direction: TwistDirection,
-}
-impl Twist {
-    pub fn new(axis: Axis, sign: Sign, direction: TwistDirection) -> Self {
-        let face = Face { axis, sign };
-        Self { face, direction }
-    }
-    #[must_use]
-    pub fn rev(self) -> Self {
-        Self {
-            face: self.face,
-            direction: self.direction.rev(),
-        }
-    }
-}
-
-/// A 3x3x3 Rubik's cube.
+/// The state of 3x3x3 puzzle cube.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Puzzle([[[Orientation; 3]; 3]; 3]);
-impl Index<Piece> for Puzzle {
-    type Output = Orientation;
-    fn index(&self, pos: Piece) -> &Orientation {
+impl PuzzleTrait for Puzzle {
+    type Piece = Piece;
+    type Sticker = Sticker;
+    type Face = Face;
+    type Twist = Twist;
+    type Orientation = Orientation;
+
+    fn get_piece(&self, pos: Self::Piece) -> &Self::Orientation {
         &self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
     }
-}
-impl IndexMut<Piece> for Puzzle {
-    fn index_mut(&mut self, pos: Piece) -> &mut Orientation {
+    fn get_piece_mut(&mut self, pos: Self::Piece) -> &mut Self::Orientation {
         &mut self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
     }
-}
-impl Puzzle {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    pub fn get_sticker(&self, pos: Sticker) -> Face {
-        self[pos.piece()][pos.axis()] * pos.sign()
-    }
-    pub fn swap(&mut self, pos1: Piece, pos2: Piece, rot: Orientation) {
-        let tmp = self[pos1];
-        self[pos1] = rot * self[pos2];
-        self[pos2] = rot.rev() * tmp;
-    }
-    pub fn cycle(&mut self, start: Piece, rot: Orientation) {
-        let rot = rot.rev();
-        let mut prev = start;
-        loop {
-            let current = rot * prev;
-            if current == start {
-                break;
-            }
-            self.swap(current, prev, rot);
-            prev = current;
-        }
-    }
-    pub fn twist(&mut self, twist: Twist) {
-        // Get face.
-        let face = twist.face;
-        // Get perpendicular axes.
-        let (ax1, ax2) = face.perpendiculars();
-        let mut rot = Orientation::rot90(ax1, ax2);
-        // Reverse rotation if rotation is CCW.
-        if twist.direction == TwistDirection::CCW {
-            rot = rot.rev();
-        }
-        // Cycle edges.
-        let edge_start = face.center() + Face::new(ax1, Sign::Pos);
-        self.cycle(edge_start, rot);
-        // Cycle corners.
-        let corner_start = face.center() + Face::new(ax1, Sign::Pos) + Face::new(ax2, Sign::Pos);
-        self.cycle(corner_start, rot);
+    fn get_sticker(&self, pos: Sticker) -> Face {
+        self.get_piece(pos.piece())[pos.axis()] * pos.sign()
     }
 }
 
-/// Unique identifier of a piece of the puzzle, or the location of a piece.
+/// A piece location in a 3x3x3 puzzle cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Piece(pub [Sign; 3]);
+impl PieceTrait<Puzzle> for Piece {
+    fn sticker_count(self) -> usize {
+        self.x().abs() + self.y().abs() + self.z().abs()
+    }
+    fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
+        Box::new(
+            Axis::iter()
+                .filter(move |&&axis| self[axis].is_nonzero())
+                .map(move |&axis| Sticker { piece: self, axis }),
+        )
+    }
+    fn iter() -> Box<dyn Iterator<Item = Self>> {
+        Box::new(
+            Sign::iter()
+                .flat_map(|&z| Sign::iter().map(move |&y| (y, z)))
+                .flat_map(|(y, z)| Sign::iter().map(move |&x| Self([x, y, z])))
+                .filter(|&p| p != Self::core()),
+        )
+    }
+}
 impl Index<Axis> for Piece {
     type Output = Sign;
     fn index(&self, axis: Axis) -> &Sign {
@@ -113,76 +87,53 @@ impl Add<Face> for Piece {
     }
 }
 impl Piece {
-    pub const fn core() -> Self {
+    /// Returns the piece at the center of the puzzle, which has no stickers.
+    pub fn core() -> Self {
         Self([Sign::Zero; 3])
     }
+    /// Returns the X coordinate of this piece.
     pub fn x(self) -> Sign {
         self[Axis::X]
     }
+    /// Returns the Y coordinate of this piece.
     pub fn y(self) -> Sign {
         self[Axis::Y]
     }
+    /// Returns the Z coordinate of the piece.
     pub fn z(self) -> Sign {
         self[Axis::Z]
     }
+    /// Returns the X coordinate of this piece, in the range 0..3.
     fn x_idx(self) -> usize {
         (self.x().int() + 1) as usize
     }
+    /// Returns the Y coordinate of this piece, in the range 0..3.
     fn y_idx(self) -> usize {
         (self.y().int() + 1) as usize
     }
+    /// Returns the Z coordinate of this piece, in the range 0..3.
     fn z_idx(self) -> usize {
         (self.z().int() + 1) as usize
     }
-    pub fn sticker_count(self) -> usize {
-        self.x().abs() + self.y().abs() + self.z().abs()
-    }
-    pub fn stickers(self) -> impl Iterator<Item = Sticker> + 'static {
-        Axis::iter()
-            .filter(move |&&axis| self[axis].is_nonzero())
-            .map(move |&axis| Sticker { piece: self, axis })
-    }
-    pub fn iter() -> impl Iterator<Item = Self> {
-        Sign::iter()
-            .flat_map(|&z| Sign::iter().map(move |&y| (y, z)))
-            .flat_map(|(y, z)| Sign::iter().map(move |&x| Self([x, y, z])))
-            .filter(|&p| p != Self::core())
-    }
 }
 
-/// Unique identifier of a sticker on the puzzle, or the location of a sticker.
+/// A sticker location on a 3x3x3 puzzle cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Sticker {
-    pub piece: Piece,
-    pub axis: Axis,
+    piece: Piece,
+    axis: Axis,
 }
-impl Sticker {
-    pub fn new(piece: Piece, axis: Axis) -> Self {
-        if piece[axis].is_zero() {
-            panic!("{:?} does not have sticker on {:?}", piece, axis);
-        }
-        Self { piece, axis }
-    }
-    pub fn piece(self) -> Piece {
+impl StickerTrait<Puzzle> for Sticker {
+    fn piece(self) -> Piece {
         self.piece
     }
-    pub fn axis(self) -> Axis {
-        self.axis
-    }
-    /// Returns the sign of the normal of the sticker. (E.g. if the sticker is
-    /// facing the positive direction along its axis, then this returns
-    /// Sign::Pos; if it is facing the negative direction, this returns
-    /// Sign::Neg).
-    pub fn sign(self) -> Sign {
-        self.piece()[self.axis()]
-    }
-    pub fn face(self) -> Face {
+    fn face(self) -> Face {
         Face {
             axis: self.axis(),
             sign: self.sign(),
         }
     }
-    pub fn verts(self) -> [[f32; 3]; 4] {
+    fn verts(self) -> [[f32; 3]; 4] {
         let mut center = [0.0; 3];
         center[self.axis().int()] = 1.5 * self.sign().float();
         let (ax1, ax2) = self.axis().perpendiculars();
@@ -197,18 +148,91 @@ impl Sticker {
         }
         ret
     }
-    pub fn iter() -> impl Iterator<Item = Self> {
-        Piece::iter().flat_map(Piece::stickers)
+}
+impl Sticker {
+    /// Returns the sticker on the given piece along the given axis. Panics if
+    /// the given sticker does not exist.
+    pub fn new(piece: Piece, axis: Axis) -> Self {
+        assert!(
+            piece[axis].is_nonzero(),
+            "{:?} does not have sticker on {:?}",
+            piece,
+            axis
+        );
+        Self { piece, axis }
+    }
+    /// Returns the axis perpendicular to this sticker.
+    pub fn axis(self) -> Axis {
+        self.axis
+    }
+    /// Returns the sign of the normal of the sticker. (E.g. if the sticker is
+    /// facing the positive direction along its axis, then this returns
+    /// Sign::Pos; if it is facing the negative direction, this returns
+    /// Sign::Neg).
+    pub fn sign(self) -> Sign {
+        self.piece()[self.axis()]
     }
 }
 
+/// A twist of a single face on a 3x3x3 puzzle cube.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Twist {
+    face: Face,
+    direction: TwistDirection,
+}
+impl TwistTrait<Puzzle> for Twist {
+    fn rotation(self) -> Orientation {
+        // Get the axes of the plane of rotation.
+        let (ax1, ax2) = self.face.parallels();
+        let mut rot = Orientation::rot90(ax1, ax2);
+        // Reverse orientation if counterclockwise.
+        if self.direction == TwistDirection::CCW {
+            rot = rot.rev();
+        }
+        rot
+    }
+    fn rev(self) -> Self {
+        Self {
+            face: self.face,
+            direction: self.direction.rev(),
+        }
+    }
+    fn initial_pieces(self) -> Vec<Piece> {
+        let (ax1, ax2) = self.face.parallels();
+        let center = self.face.center();
+        let mut edge = center;
+        edge[ax1] = Sign::Neg;
+        let mut corner = edge;
+        corner[ax2] = Sign::Neg;
+        vec![center, edge, corner]
+    }
+}
+impl From<Sticker> for Twist {
+    fn from(sticker: Sticker) -> Self {
+        Self::new(sticker.axis(), sticker.sign(), TwistDirection::CW)
+    }
+}
+impl Twist {
+    /// Returns a twist of the face with the given axis and sign in the given
+    /// direction.
+    pub fn new(axis: Axis, sign: Sign, direction: TwistDirection) -> Self {
+        let face = Face { axis, sign };
+        Self { face, direction }
+    }
+}
+
+/// A 3-dimensional axis.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Axis {
+    /// X axis (right).
     X = 0,
+    /// Y axis (up).
     Y = 1,
+    /// Z axis (towards the camera).
     Z = 2,
 }
 impl Axis {
+    /// Returns an integer index for this axis; X = 0, Y = 1, Z = 2.
     pub fn int(self) -> usize {
         match self {
             Self::X => 0,
@@ -216,6 +240,10 @@ impl Axis {
             Self::Z => 2,
         }
     }
+    /// Returns the perpendicular axes from this one, using the left-hand rule.
+    /// (The cross product of the returned axes is the opposite of the input.)
+    /// This is more convenient for twisty puzzles, where clockwise rotations
+    /// are the default.
     pub fn perpendiculars(self) -> (Axis, Axis) {
         match self {
             // X+ => rotate from Z+ to Y+.
@@ -226,16 +254,47 @@ impl Axis {
             Axis::Z => (Axis::Y, Axis::X),
         }
     }
+    /// Returns an iterator over all axes.
     pub fn iter() -> impl Iterator<Item = &'static Axis> {
         [Axis::X, Axis::Y, Axis::Z].iter()
     }
 }
 
-/// A face of the puzzle.
+/// A face of a 3D cube/cuboid.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Face {
     axis: Axis,
     sign: Sign,
+}
+impl FaceTrait<Puzzle> for Face {
+    const COUNT: usize = 6;
+
+    fn idx(self) -> usize {
+        match (self.axis, self.sign) {
+            (Axis::X, Sign::Pos) => 0, // Right
+            (Axis::X, Sign::Neg) => 1, // Left
+            (Axis::Y, Sign::Pos) => 2, // Up
+            (Axis::Y, Sign::Neg) => 3, // Down
+            (Axis::Z, Sign::Pos) => 4, // Front
+            (Axis::Z, Sign::Neg) => 5, // Back
+            (_, Sign::Zero) => panic!("Invalid face"),
+        }
+    }
+    fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
+        let mut piece = self.center();
+        let axis = self.axis;
+        let (ax1, ax2) = self.axis.perpendiculars();
+        Box::new(Sign::iter().flat_map(move |&u| {
+            piece[ax1] = u;
+            Sign::iter().map(move |&v| {
+                piece[ax2] = v;
+                Sticker { piece, axis }
+            })
+        }))
+    }
+    fn iter() -> Box<dyn Iterator<Item = Self>> {
+        Box::new(Axis::iter().flat_map(|&axis| Sign::iter().map(move |&sign| Self { axis, sign })))
+    }
 }
 impl Neg for Face {
     type Output = Face;
@@ -256,39 +315,36 @@ impl Mul<Sign> for Face {
     }
 }
 impl Face {
+    /// Returns the face on the given axis with the given sign. Panics if given
+    /// Sign::Zero.
     pub fn new(axis: Axis, sign: Sign) -> Self {
+        assert!(sign.is_nonzero(), "Invalid sign for face");
         Self { axis, sign }
     }
+    /// Returns the axis perpendicular to this face.
+    pub fn axis(self) -> Axis {
+        self.axis
+    }
+    /// Returns the sign of this face along its perpendicular axis.
+    pub fn sign(self) -> Sign {
+        self.sign
+    }
+    /// Returns the piece at the center of this face.
     pub fn center(self) -> Piece {
         let mut ret = Piece::core();
         ret[self.axis] = self.sign;
         ret
     }
+    /// Returns the sticker at the center of this face.
     pub fn center_sticker(self) -> Sticker {
         Sticker {
             piece: self.center(),
             axis: self.axis,
         }
     }
-    pub fn color(self) -> [f32; 4] {
-        match (self.axis, self.sign) {
-            // Right = red
-            (Axis::X, Sign::Pos) => [0.8, 0.0, 0.0, 0.75],
-            // Left = orange
-            (Axis::X, Sign::Neg) => [0.6, 0.2, 0.0, 0.75],
-            // Up = white
-            (Axis::Y, Sign::Pos) => [0.8, 0.8, 0.8, 0.75],
-            // Down = yellow
-            (Axis::Y, Sign::Neg) => [0.8, 0.8, 0.0, 0.75],
-            // Front = green
-            (Axis::Z, Sign::Pos) => [0.0, 0.8, 0.0, 0.75],
-            // Back = blue
-            (Axis::Z, Sign::Neg) => [0.0, 0.4, 0.8, 0.75],
-            // Invalid
-            (_, Sign::Zero) => panic!("Invalid face"),
-        }
-    }
-    pub fn perpendiculars(self) -> (Axis, Axis) {
+    /// Returns the axes parallel to this face (all except the perpendicular
+    /// axis).
+    pub fn parallels(self) -> (Axis, Axis) {
         let (ax1, ax2) = self.axis.perpendiculars();
         match self.sign {
             Sign::Neg => (ax2, ax1),
@@ -296,26 +352,20 @@ impl Face {
             Sign::Pos => (ax1, ax2),
         }
     }
-    pub fn iter() -> impl Iterator<Item = Self> {
-        Axis::iter().flat_map(|&axis| Sign::iter().map(move |&sign| Self { axis, sign }))
-    }
-    pub fn stickers(self) -> impl Iterator<Item = Sticker> + 'static {
-        let mut piece = self.center();
-        let axis = self.axis;
-        let (ax1, ax2) = self.axis.perpendiculars();
-        Sign::iter().flat_map(move |&u| {
-            piece[ax1] = u;
-            Sign::iter().map(move |&v| {
-                piece[ax2] = v;
-                Sticker { piece, axis }
-            })
-        })
-    }
 }
 
-/// An orientation of a cube (i.e. a single piece).
+/// An orientation of a 3D cube (i.e. a single piece of a 3D cube/cuboid).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Orientation([Face; 3]);
+impl OrientationTrait<Puzzle> for Orientation {
+    fn rev(self) -> Self {
+        let mut ret = Self::default();
+        for &axis in Axis::iter() {
+            ret[self[axis].axis] = Face::new(axis, self[axis].sign);
+        }
+        ret
+    }
+}
 impl Default for Orientation {
     fn default() -> Self {
         Self([
@@ -360,15 +410,8 @@ impl Mul<Piece> for Orientation {
     }
 }
 impl Orientation {
-    #[must_use]
-    pub fn rev(self) -> Self {
-        let mut ret = Self::default();
-        for &axis in Axis::iter() {
-            ret[self[axis].axis] = Face::new(axis, self[axis].sign);
-        }
-        ret
-    }
-    /// Rotates this orientation 90 degrees from one axis to another.
+    /// Returns an orientation representing a 90-degree rotation from one axis
+    /// to another.
     #[must_use]
     pub fn rot90(axis1: Axis, axis2: Axis) -> Self {
         let mut ret = Self::default();
