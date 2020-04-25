@@ -1,4 +1,4 @@
-use cgmath::{Matrix4, Perspective};
+use cgmath::{Deg, Matrix4, Perspective};
 use glium::{index::PrimitiveType, DrawParameters, IndexBuffer, Surface, VertexBuffer};
 use send_wrapper::SendWrapper;
 use std::cell::RefCell;
@@ -36,7 +36,7 @@ implement_vertex!(StickerVertex, pos, color);
 
 pub fn render(target: &mut glium::Frame, puzzle: &Puzzle) -> Result<(), glium::DrawError> {
     let (target_w, target_h) = target.get_dimensions();
-    target.clear_color_srgb(0.2, 0.2, 0.2, 1.0);
+    target.clear_color_srgb_and_depth((0.2, 0.2, 0.2, 1.0), 1.0);
 
     let mut verts = Vec::with_capacity(3 * 3 * 6 * 4);
     for sticker in Sticker::iter() {
@@ -53,17 +53,18 @@ pub fn render(target: &mut glium::Frame, puzzle: &Puzzle) -> Result<(), glium::D
     vbo.write(&verts);
 
     let min_dimen = std::cmp::min(target_w, target_h) as f32;
-    let r = target_w as f32 / min_dimen * 0.1;
-    let t = target_h as f32 / min_dimen * 0.1;
-    let f = 10.0;
-    let n = 0.1;
+    let r = target_w as f32 / min_dimen;
+    let t = target_h as f32 / min_dimen;
+    let f = 17.0;
+    let n = 3.0;
     // let perspective_matrix: [[f32; 4]; 4] = [
     //     [1.0 / r, 0.0, 0.05, 0.0],
     //     [0.0, 1.0 / t, 0.05, 0.0],
     //     [0.0, 0.0, -2 / , -10.0],
     //     [0.0, 0.0, -1.0, 0.0],
     // ];
-    let model_matrix = Matrix4::from_translation([0.0, 0.0, -4.0].into());
+    let model_matrix =
+        Matrix4::from_translation([0.0, 0.0, -10.0].into()) * Matrix4::from_angle_x(Deg(35.0));
     let perspective_matrix = Matrix4::from(Perspective {
         left: -r,
         right: r,
@@ -86,6 +87,13 @@ pub fn render(target: &mut glium::Frame, puzzle: &Puzzle) -> Result<(), glium::D
         &uniform! {
             matrix: matrix,
         },
-        &DrawParameters::default(),
+        &DrawParameters {
+            depth: glium::Depth {
+                test: glium::DepthTest::IfLess,
+                write: true,
+                ..glium::Depth::default()
+            },
+            ..DrawParameters::default()
+        },
     )
 }
