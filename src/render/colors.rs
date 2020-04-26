@@ -1,8 +1,11 @@
 //! Color constants.
 
-const ALPHA: f32 = 0.8;
+const ALPHA: f32 = 0.75;
 
 const BACKGROUND: [f32; 3] = [0.3, 0.3, 0.3];
+
+pub const OUTLINE_BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+pub const OUTLINE_WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 const RED: [f32; 3] = [0.8, 0.0, 0.0];
 const ORANGE: [f32; 3] = [0.6, 0.2, 0.0];

@@ -60,16 +60,15 @@ impl<P: PuzzleTrait> Animator<P> {
         // TWIST_DURATION is in seconds; speed is per frame. (60 FPS)
         let base_speed = 1.0 / (TWIST_DURATION * 60.0);
         // Move exponentially faster if there are/were more moves in the queue.
-        let speed_mod = ((self.queue_max - 1) as f32).exp();
-        let speed = base_speed * speed_mod;
-        // Do instant moves if it's too fast.
+        let mut speed_mod = ((self.queue_max - 1) as f32).exp();
+        // Set a speed limit.
         if speed_mod > TWIST_DURATION / MIN_DURATION {
+            speed_mod = TWIST_DURATION / MIN_DURATION;
+        }
+        let speed = base_speed * speed_mod;
+        self.progress += speed;
+        if self.progress >= 1.0 {
             self.progress = 1.0;
-        } else {
-            self.progress += speed;
-            if self.progress >= 1.0 {
-                self.progress = 1.0;
-            }
         }
     }
     pub fn displayed(&self) -> &P {

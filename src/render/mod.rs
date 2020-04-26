@@ -1,6 +1,6 @@
 //! Rendering logic.
 
-use cgmath::{Deg, Matrix4, Perspective, SquareMatrix, Vector4};
+use cgmath::{Deg, Matrix4, Perspective, Vector4};
 use glium::{DrawParameters, Surface};
 use std::collections::HashSet;
 
@@ -19,8 +19,11 @@ const STICKER_SIZE: f32 = 0.9;
 const NEAR_PLANE: f32 = 3.0;
 const FAR_PLANE: f32 = 20.0;
 
-const DRAW_OUTLINE: bool = true;
-const LINE_WIDTH: f32 = 1.5;
+const VIEW_ANGLE: f32 = 35.0;
+// const OUTLINE_COLOR: Option<[f32; 4]> = None;
+const OUTLINE_COLOR: Option<[f32; 4]> = Some(colors::OUTLINE_BLACK);
+// const OUTLINE_COLOR: Option<[f32; 4]> = colors::OUTLINE_WHITE;
+const LINE_WIDTH: f32 = 2.0;
 
 pub fn setup_puzzle<P: PuzzleTrait>() {
     let mut c = CACHE.borrow_mut();
@@ -55,33 +58,50 @@ pub fn draw_puzzle<P: PuzzleTrait>(
 
     animator.next_frame();
 
-    // Animate current move.
+    // Prepare model matrices, which must be done here on the CPU so that we can do proper Z ordering.
+    let stationary_model_matrix = Matrix4::from_angle_x(Deg(VIEW_ANGLE));
+    let moving_model_matrix;
     let moving_pieces: HashSet<P::Piece>;
-    let moving_matrix;
     if let Some((twist, progress)) = animator.current_twist() {
+        moving_model_matrix = stationary_model_matrix * twist.matrix(progress);
         moving_pieces = twist.pieces().collect();
-        moving_matrix = twist.matrix(progress);
     } else {
+        moving_model_matrix = stationary_model_matrix;
         moving_pieces = HashSet::new();
-        moving_matrix = Matrix4::identity();
     };
 
-    let mut verts = vec![];
+    // Each sticker has a Vec<StickerVertex> with all of its vertices and a
+    // single f32 containing the average Z value.
+    let mut verts_by_sticker: Vec<(Vec<StickerVertex>, f32)> = vec![];
     // Generate vertices.
     for piece in P::Piece::iter() {
         let moving = moving_pieces.contains(&piece);
         for sticker in piece.stickers() {
             let color = colors::get_color(animator.displayed().get_sticker(sticker).idx());
-            verts.extend(sticker.verts(STICKER_SIZE).iter().map(|&vert_pos| {
-                let pos = if moving {
-                    (moving_matrix * Vector4::from(vert_pos)).into()
-                } else {
-                    vert_pos
-                };
-                StickerVertex { pos, color }
-            }));
+            let sticker_verts: Vec<StickerVertex> = sticker
+                .verts(STICKER_SIZE)
+                .iter()
+                .map(|&vert_pos| {
+                    let matrix = if moving {
+                        moving_model_matrix
+                    } else {
+                        stationary_model_matrix
+                    };
+                    let pos: [f32; 4] = (matrix * Vector4::from(vert_pos)).into();
+                    StickerVertex { pos, color }
+                })
+                .collect();
+            let average_z =
+                sticker_verts.iter().map(|v| v.pos[2]).sum::<f32>() / sticker_verts.len() as f32;
+            verts_by_sticker.push((sticker_verts, average_z));
         }
     }
+    // // Sort by average Z position for proper transparency.
+    verts_by_sticker.sort_by(|(_, z1), (_, z2)| z1.partial_cmp(z2).unwrap());
+    let verts: Vec<StickerVertex> = verts_by_sticker
+        .into_iter()
+        .flat_map(|(verts, _)| verts)
+        .collect();
 
     // Write sticker vertices.
     let stickers_vbo = cache.stickers_vbo.get(verts.len());
@@ -89,9 +109,6 @@ pub fn draw_puzzle<P: PuzzleTrait>(
 
     // To avoid dealing with 5x5 matrices, we'll do translation and rotation in
     // GLSL in separate steps.
-
-    // Create the model matrix.
-    let model_matrix: [[f32; 4]; 4] = Matrix4::from_angle_x(Deg(35.0)).into();
 
     // Create the view translation vector, which just distances the puzzle from
     // the camera along both Z and W. TODO: W component should be -10.0?. Need
@@ -113,20 +130,19 @@ pub fn draw_puzzle<P: PuzzleTrait>(
         perspective_matrix.into()
     };
 
-    let mut draw_params = DrawParameters {
+    let draw_params = DrawParameters {
         blend: glium::Blend::alpha_blending(),
-        smooth: Some(if DRAW_OUTLINE {
-            glium::Smooth::Fastest
-        } else {
-            glium::Smooth::Nicest
-        }),
+        smooth: Some(glium::Smooth::Nicest),
         depth: glium::Depth {
             test: glium::DepthTest::IfLessOrEqual,
             write: true,
             ..glium::Depth::default()
         },
+        line_width: Some(LINE_WIDTH),
         ..DrawParameters::default()
     };
+
+    let override_color: [f32; 4] = OUTLINE_COLOR.unwrap_or_default();
 
     // Draw triangles.
     target.draw(
@@ -134,30 +150,27 @@ pub fn draw_puzzle<P: PuzzleTrait>(
         &*cache.tri_indices.unwrap(),
         &shaders::BASIC,
         &uniform! {
-            lines: false,
-            model_matrix: model_matrix,
+            use_override_color: false,
+            override_color: override_color,
             view_translation: view_vector,
             perspective_matrix: perspective_matrix,
         },
         &draw_params,
     )?;
 
-    if DRAW_OUTLINE {
-        draw_params.smooth = Some(glium::Smooth::Nicest);
-        // Draw lines.
-        target.draw(
-            &*stickers_vbo,
-            &*cache.line_indices.unwrap(),
-            &shaders::BASIC,
-            &uniform! {
-                lines: true,
-                model_matrix: model_matrix,
-                view_vector: view_vector,
-                perspective_matrix: perspective_matrix,
-            },
-            &draw_params,
-        )?;
-    }
+    // Draw smooth outline.
+    target.draw(
+        &*stickers_vbo,
+        &*cache.line_indices.unwrap(),
+        &shaders::BASIC,
+        &uniform! {
+            use_override_color: OUTLINE_COLOR.is_some(),
+            override_color: override_color,
+            view_vector: view_vector,
+            perspective_matrix: perspective_matrix,
+        },
+        &draw_params,
+    )?;
 
     Ok(())
 }
