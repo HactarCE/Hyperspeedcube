@@ -1,3 +1,5 @@
+<img align="center" src="img/screenshot.png" alt="Screenshot of a solved Rubik's cube">
+
 # Keyboard Speedcube
 
 Keyboard-controlled speedcube simulator
