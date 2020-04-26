@@ -1,11 +1,11 @@
-//! A 3x3x3 puzzle cube.
+//! A 3x3x3 Rubik's cube.
 
 use std::f32::consts::FRAC_PI_2;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::*;
 
-/// Some pre-baked twists that can be applied to a 3x3x3 puzzle cube.
+/// Some pre-baked twists that can be applied to a 3x3x3 Rubik's cube.
 pub mod twists {
     use super::*;
 
@@ -39,7 +39,7 @@ pub mod twists {
     }
 }
 
-/// The state of 3x3x3 puzzle cube.
+/// The state of a 3x3x3 Rubik's cube.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Rubiks3D([[[Orientation; 3]; 3]; 3]);
 impl PuzzleTrait for Rubiks3D {
@@ -60,7 +60,7 @@ impl PuzzleTrait for Rubiks3D {
     }
 }
 
-/// A piece location in a 3x3x3 puzzle cube.
+/// A piece location in a 3x3x3 Rubik's cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Piece(pub [Sign; 3]);
 impl PieceTrait<Rubiks3D> for Piece {
@@ -132,7 +132,7 @@ impl Piece {
     }
 }
 
-/// A sticker location on a 3x3x3 puzzle cube.
+/// A sticker location on a 3x3x3 Rubik's cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Sticker {
     piece: Piece,
@@ -197,7 +197,7 @@ impl Sticker {
     }
 }
 
-/// A twist of a single face on a 3x3x3 puzzle cube.
+/// A twist of a single face on a 3x3x3 Rubik's cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Twist {
     face: Face,
