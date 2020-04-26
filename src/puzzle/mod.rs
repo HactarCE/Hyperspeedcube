@@ -2,13 +2,48 @@
 
 use std::ops::{Add, Mul, Neg};
 
-pub mod animator;
+pub mod controller;
 pub mod rubiks3d;
 pub mod traits;
 
-pub use animator::*;
+pub use controller::*;
 pub use rubiks3d::Rubiks3D;
 pub use traits::*;
+
+/// An enumeration of all puzzle types.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum PuzzleType {
+    /// A 3D Rubik's cube.
+    Rubiks3D,
+}
+impl PuzzleType {
+    /// Creates a new puzzle of this type.
+    pub fn new(self) -> PuzzleEnum {
+        match self {
+            Self::Rubiks3D => PuzzleEnum::Rubiks3D(Default::default()),
+        }
+    }
+}
+
+/// A PuzzleController of any puzzle type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PuzzleEnum {
+    /// A 3D Rubik's cube.
+    Rubiks3D(PuzzleController<Rubiks3D>),
+}
+impl From<PuzzleType> for PuzzleEnum {
+    fn from(puzzle_type: PuzzleType) -> Self {
+        puzzle_type.new()
+    }
+}
+impl PuzzleEnum {
+    /// Returns the PuzzleType of this puzzle.
+    fn puzzle_type(&self) -> PuzzleType {
+        match self {
+            Self::Rubiks3D(_) => PuzzleType::Rubiks3D,
+        }
+    }
+}
 
 /// Positive, negative, or zero.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]

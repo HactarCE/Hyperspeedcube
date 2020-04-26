@@ -11,12 +11,13 @@ extern crate lazy_static;
 use core::cell::RefCell;
 use glium::glutin;
 use send_wrapper::SendWrapper;
+use std::time;
 
 pub mod puzzle;
 mod render;
 
 use puzzle::traits::*;
-use puzzle::{animator::Animator, rubiks3d::twists};
+use puzzle::{rubiks3d::twists, PuzzleController};
 
 /// The title of the window.
 const TITLE: &str = "Keyboard Speedcube";
@@ -32,10 +33,11 @@ lazy_static! {
 }
 
 fn main() {
-    let mut cube = Animator::<puzzle::Rubiks3D>::new();
+    let mut cube = PuzzleController::<puzzle::Rubiks3D>::new();
 
     render::setup_puzzle::<puzzle::Rubiks3D>();
 
+    let mut last_frame = time::Instant::now();
     let mut closed = false;
     while !closed {
         // Handle events.
@@ -83,6 +85,12 @@ fn main() {
             },
             _ => (),
         });
+
+        {
+            let this_frame = time::Instant::now();
+            cube.advance(this_frame - last_frame);
+            last_frame = this_frame;
+        }
 
         // Render the puzzle.
         let mut target = DISPLAY.draw();

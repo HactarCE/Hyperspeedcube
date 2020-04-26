@@ -9,7 +9,7 @@ mod colors;
 mod shaders;
 mod verts;
 
-use super::puzzle::{traits::*, Animator};
+use super::puzzle::{traits::*, PuzzleController};
 use super::DISPLAY;
 use cache::CACHE;
 use verts::*;
@@ -48,20 +48,18 @@ pub fn setup_puzzle<P: PuzzleTrait>() {
 
 pub fn draw_puzzle<P: PuzzleTrait>(
     target: &mut glium::Frame,
-    animator: &mut Animator<P>,
+    puzzle: &mut PuzzleController<P>,
 ) -> Result<(), glium::DrawError> {
     let (target_w, target_h) = target.get_dimensions();
     target.clear_color_srgb_and_depth(colors::get_bg(), 1.0);
 
     let cache = &mut *CACHE.borrow_mut();
 
-    animator.next_frame();
-
     // Prepare model matrices, which must be done here on the CPU so that we can do proper Z ordering.
     let stationary_model_matrix = Matrix4::from_angle_x(Deg(VIEW_ANGLE));
     let moving_model_matrix;
     let moving_pieces: HashSet<P::Piece>;
-    if let Some((twist, progress)) = animator.current_twist() {
+    if let Some((twist, progress)) = puzzle.current_twist() {
         moving_model_matrix = stationary_model_matrix * twist.matrix(progress);
         moving_pieces = twist.pieces().collect();
     } else {
@@ -76,7 +74,7 @@ pub fn draw_puzzle<P: PuzzleTrait>(
     for piece in P::Piece::iter() {
         let moving = moving_pieces.contains(&piece);
         for sticker in piece.stickers() {
-            let color = colors::get_color(animator.displayed().get_sticker(sticker).idx());
+            let color = colors::get_color(puzzle.displayed().get_sticker(sticker).idx());
             let sticker_verts: Vec<StickerVertex> = sticker
                 .verts(STICKER_SIZE)
                 .iter()
