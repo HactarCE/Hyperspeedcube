@@ -9,7 +9,7 @@ pub use rubiks3d::Rubiks3D;
 pub use traits::*;
 
 /// Positive, negative, or zero.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Sign {
     /// Negative.
     Neg = -1,
@@ -25,10 +25,7 @@ impl Default for Sign {
 }
 impl From<TwistDirection> for Sign {
     fn from(direction: TwistDirection) -> Self {
-        match direction {
-            TwistDirection::CW => Self::Pos,
-            TwistDirection::CCW => Self::Neg,
-        }
+        direction.sign()
     }
 }
 impl Neg for Sign {
@@ -105,7 +102,7 @@ impl Sign {
 }
 
 /// A rotation direction; clockwise or counterclockwise.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TwistDirection {
     /// Clockwise.
     CW,
@@ -124,6 +121,15 @@ impl TwistDirection {
         match self {
             Self::CW => Self::CCW,
             Self::CCW => Self::CW,
+        }
+    }
+    /// Returns the sign of this rotation, according to the speedsolving
+    /// convention of clockwise being positive and counterclockwise being
+    /// negative.
+    pub fn sign(self) -> Sign {
+        match self {
+            Self::CW => Sign::Pos,
+            Self::CCW => Sign::Neg,
         }
     }
 }

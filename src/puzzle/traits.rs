@@ -1,10 +1,11 @@
 //! Common traits used for puzzles.
 
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::ops::Mul;
 
 /// A twisty puzzle.
-pub trait PuzzleTrait: 'static + Debug + Default + Clone + Eq {
+pub trait PuzzleTrait: 'static + Debug + Default + Clone + Eq + Hash {
     /// The location of a piece of the puzzle.
     type Piece: PieceTrait<Self>;
     /// The location of a sticker of the puzzle.
@@ -57,7 +58,7 @@ pub trait PuzzleTrait: 'static + Debug + Default + Clone + Eq {
 }
 
 /// The location of a piece in a twisty puzzle.
-pub trait PieceTrait<P: PuzzleTrait>: Debug + Copy + Eq {
+pub trait PieceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
     /// Returns the number of stickers on this piece (i.e. the length of
     /// self.stickers()).
     fn sticker_count(self) -> usize;
@@ -68,7 +69,7 @@ pub trait PieceTrait<P: PuzzleTrait>: Debug + Copy + Eq {
 }
 
 /// The location of a sticker in a twisty puzzle.
-pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq {
+pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq + Hash {
     /// The number of vertices used to render a single sticker.
     const VERTEX_COUNT: u16;
     /// The indices of vertices used to render the surface of a single sticker
@@ -94,7 +95,7 @@ pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq {
 }
 
 /// A face of a twisty puzzle.
-pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq {
+pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
     /// The number of faces on this puzzle.
     const COUNT: usize;
 
@@ -108,7 +109,9 @@ pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq {
 }
 
 /// A twist that can be applied to a twisty puzzle.
-pub trait TwistTrait<P: PuzzleTrait>: 'static + Debug + Copy + Eq + From<P::Sticker> {
+pub trait TwistTrait<P: PuzzleTrait>:
+    'static + Debug + Copy + Eq + From<P::Sticker> + Hash
+{
     /// Returns the orientation that would result from applying this twist
     /// to a piece in the default orientation.
     fn rotation(self) -> P::Orientation;
@@ -141,10 +144,14 @@ pub trait TwistTrait<P: PuzzleTrait>: 'static + Debug + Copy + Eq + From<P::Stic
     fn stickers(self) -> Box<dyn Iterator<Item = P::Sticker>> {
         Box::new(self.pieces().flat_map(P::Piece::stickers))
     }
+    /// Returns a 4x4 rotation matrix for a portion of this twist, `portion`
+    /// ranges from 0.0 to 1.0. 0.0 gives the identity matrix; 1.0 gives the
+    /// result of this twist, and intermediate values interpolate.
+    fn matrix(self, portion: f32) -> cgmath::Matrix4<f32>;
 }
 
 /// An orientation for a piece of a twisty puzzle, relative to some default.
-pub trait OrientationTrait<P: PuzzleTrait>:
+pub trait OrientationTrait<P: PuzzleTrait + Hash>:
     Debug + Default + Copy + Eq + Mul<Self, Output = Self> + Mul<P::Piece, Output = P::Piece>
 {
     /// Reverses this orientation.

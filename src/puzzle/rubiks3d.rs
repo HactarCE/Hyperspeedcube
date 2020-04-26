@@ -1,5 +1,6 @@
 //! A 3x3x3 puzzle cube.
 
+use std::f32::consts::FRAC_PI_2;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::*;
@@ -25,7 +26,7 @@ pub mod twists {
 }
 
 /// The state of 3x3x3 puzzle cube.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Rubiks3D([[[Orientation; 3]; 3]; 3]);
 impl PuzzleTrait for Rubiks3D {
     type Piece = Piece;
@@ -46,7 +47,7 @@ impl PuzzleTrait for Rubiks3D {
 }
 
 /// A piece location in a 3x3x3 puzzle cube.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Piece(pub [Sign; 3]);
 impl PieceTrait<Rubiks3D> for Piece {
     fn sticker_count(self) -> usize {
@@ -118,7 +119,7 @@ impl Piece {
 }
 
 /// A sticker location on a 3x3x3 puzzle cube.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Sticker {
     piece: Piece,
     axis: Axis,
@@ -183,7 +184,7 @@ impl Sticker {
 }
 
 /// A twist of a single face on a 3x3x3 puzzle cube.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Twist {
     face: Face,
     direction: TwistDirection,
@@ -214,6 +215,20 @@ impl TwistTrait<Rubiks3D> for Twist {
         corner[ax2] = Sign::Neg;
         vec![center, edge, corner]
     }
+    fn matrix(self, portion: f32) -> cgmath::Matrix4<f32> {
+        use cgmath::*;
+
+        let (ax1, ax2) = self.face.parallels();
+        let angle = portion * FRAC_PI_2 * self.direction.sign().float();
+
+        let mut ret = Matrix4::identity();
+        ret[ax1.int()][ax1.int()] = angle.cos();
+        ret[ax1.int()][ax2.int()] = angle.sin();
+        ret[ax2.int()][ax1.int()] = -angle.sin();
+        ret[ax2.int()][ax2.int()] = angle.cos();
+
+        ret
+    }
 }
 impl From<Sticker> for Twist {
     fn from(sticker: Sticker) -> Self {
@@ -230,7 +245,7 @@ impl Twist {
 }
 
 /// A 3-dimensional axis.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Axis {
     /// X axis (right).
     X = 0,
@@ -269,7 +284,7 @@ impl Axis {
 }
 
 /// A face of a 3D cube/cuboid.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Face {
     axis: Axis,
     sign: Sign,
@@ -363,7 +378,7 @@ impl Face {
 }
 
 /// An orientation of a 3D cube (i.e. a single piece of a 3D cube/cuboid).
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Orientation([Face; 3]);
 impl OrientationTrait<Rubiks3D> for Orientation {
     fn rev(self) -> Self {

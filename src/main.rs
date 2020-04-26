@@ -16,6 +16,7 @@ pub mod animator;
 pub mod puzzle;
 mod render;
 
+use animator::Animator;
 use puzzle::rubiks3d::twists;
 use puzzle::traits::*;
 
@@ -33,7 +34,7 @@ lazy_static! {
 }
 
 fn main() {
-    let mut cube = puzzle::Rubiks3D::new();
+    let mut cube = Animator::<puzzle::Rubiks3D>::new();
 
     render::setup_puzzle::<puzzle::Rubiks3D>();
 
@@ -77,7 +78,7 @@ fn main() {
 
         // Render the puzzle.
         let mut target = DISPLAY.draw();
-        render::draw_puzzle(&mut target, &cube).expect("Draw error");
+        render::draw_puzzle(&mut target, &mut cube).expect("Draw error");
         target.finish().unwrap();
     }
 }
