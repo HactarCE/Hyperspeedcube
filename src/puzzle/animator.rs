@@ -7,6 +7,7 @@ use super::traits::*;
 
 const TWIST_DURATION: f32 = 0.2;
 const MIN_DURATION: f32 = 0.05;
+const MAX_BACKLOG: usize = 10;
 
 // Use cosine from 0.0 to PI for interpolation.
 const INTERPOLATION_FN: fn(f32) -> f32 = |x| (1.0 - (x * PI).cos()) / 2.0;
@@ -65,7 +66,11 @@ impl<P: PuzzleTrait> Animator<P> {
         if speed_mod > TWIST_DURATION / MIN_DURATION {
             speed_mod = TWIST_DURATION / MIN_DURATION;
         }
-        let speed = base_speed * speed_mod;
+        let mut speed = base_speed * speed_mod;
+        // But ignore the speed limit if we've hit max backlog.
+        if self.queue_max >= MAX_BACKLOG {
+            speed = 1.0;
+        }
         self.progress += speed;
         if self.progress >= 1.0 {
             self.progress = 1.0;

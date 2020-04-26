@@ -22,6 +22,20 @@ pub mod twists {
         pub static ref F: Twist = Twist::new(Axis::Z, Sign::Pos, TwistDirection::CW);
         /// Turn the back face clockwise 90 degrees.
         pub static ref B: Twist = Twist::new(Axis::Z, Sign::Neg, TwistDirection::CW);
+
+        /// Turn the middle layer down 90 degrees.
+        pub static ref M: Twist = L.slice();
+        /// Turn the equitorial layer to the right 90 degrees.
+        pub static ref E: Twist = D.slice();
+        /// Turn the standing layer clockwise 90 degrees.
+        pub static ref S: Twist = F.slice();
+
+        /// Turn the whole cube 90 degrees up.
+        pub static ref X: Twist = R.whole_cube();
+        /// Turn the whole cube 90 degrees to left.
+        pub static ref Y: Twist = U.whole_cube();
+        /// Turn the whole cube 90 degrees clockwise.
+        pub static ref Z: Twist = F.whole_cube();
     }
 }
 
@@ -188,6 +202,7 @@ impl Sticker {
 pub struct Twist {
     face: Face,
     direction: TwistDirection,
+    layers: [bool; 3],
 }
 impl TwistTrait<Rubiks3D> for Twist {
     fn rotation(self) -> Orientation {
@@ -204,16 +219,31 @@ impl TwistTrait<Rubiks3D> for Twist {
         Self {
             face: self.face,
             direction: self.direction.rev(),
+            layers: self.layers,
         }
     }
     fn initial_pieces(self) -> Vec<Piece> {
         let (ax1, ax2) = self.face.parallels();
-        let center = self.face.center();
+        let opposite = -self.face;
+        let mut center = self.face.center();
         let mut edge = center;
         edge[ax1] = Sign::Neg;
         let mut corner = edge;
         corner[ax2] = Sign::Neg;
-        vec![center, edge, corner]
+        let mut ret = vec![];
+        // Fencepost behavior.
+        if self.layers[0] {
+            ret.extend(&[center, edge, corner]);
+        }
+        for layer in 1..=2 {
+            center = center + opposite;
+            edge = edge + opposite;
+            corner = corner + opposite;
+            if self.layers[layer] {
+                ret.extend(&[center, edge, corner]);
+            }
+        }
+        ret
     }
     fn matrix(self, portion: f32) -> cgmath::Matrix4<f32> {
         use cgmath::*;
@@ -239,8 +269,28 @@ impl Twist {
     /// Returns a twist of the face with the given axis and sign in the given
     /// direction.
     pub fn new(axis: Axis, sign: Sign, direction: TwistDirection) -> Self {
-        let face = Face { axis, sign };
-        Self { face, direction }
+        Self {
+            face: Face { axis, sign },
+            direction,
+            layers: [true, false, false],
+        }
+    }
+    /// Make a fat (2-layer) move from this move.
+    pub fn fat(self) -> Self {
+        self.layers([true, true, false])
+    }
+    /// Make a slice move from this move.
+    pub fn slice(self) -> Self {
+        self.layers([false, true, false])
+    }
+    /// Make a whole cube rotation from this move.
+    pub fn whole_cube(self) -> Self {
+        self.layers([true, true, true])
+    }
+    /// Twist different layers.
+    pub fn layers(mut self, layers: [bool; 3]) -> Self {
+        self.layers = layers;
+        self
     }
 }
 
