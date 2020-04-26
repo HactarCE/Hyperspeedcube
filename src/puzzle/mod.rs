@@ -2,9 +2,11 @@
 
 use std::ops::{Add, Mul, Neg};
 
+pub mod animator;
 pub mod rubiks3d;
 pub mod traits;
 
+pub use animator::*;
 pub use rubiks3d::Rubiks3D;
 pub use traits::*;
 

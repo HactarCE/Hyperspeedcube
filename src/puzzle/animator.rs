@@ -1,9 +1,9 @@
 //! Animation logic.
 
+use std::collections::VecDeque;
 use std::f32::consts::PI;
 
-use super::puzzle::traits::*;
-use std::collections::VecDeque;
+use super::traits::*;
 
 const TWIST_DURATION: f32 = 0.2;
 const MIN_DURATION: f32 = 0.05;

@@ -9,8 +9,7 @@ mod colors;
 mod shaders;
 mod verts;
 
-use super::animator::Animator;
-use super::puzzle::traits::*;
+use super::puzzle::{traits::*, Animator};
 use super::DISPLAY;
 use cache::CACHE;
 use verts::*;

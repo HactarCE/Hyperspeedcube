@@ -12,13 +12,11 @@ use core::cell::RefCell;
 use glium::glutin;
 use send_wrapper::SendWrapper;
 
-pub mod animator;
 pub mod puzzle;
 mod render;
 
-use animator::Animator;
-use puzzle::rubiks3d::twists;
 use puzzle::traits::*;
+use puzzle::{animator::Animator, rubiks3d::twists};
 
 /// The title of the window.
 const TITLE: &str = "Keyboard Speedcube";
