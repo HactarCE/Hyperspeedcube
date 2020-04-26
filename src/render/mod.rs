@@ -1,46 +1,46 @@
 //! Rendering logic.
 
 use cgmath::{Deg, Matrix4, Perspective};
-use glium::{index::PrimitiveType, DrawParameters, IndexBuffer, Surface, VertexBuffer};
-use send_wrapper::SendWrapper;
-use std::cell::RefCell;
+use glium::{DrawParameters, Surface};
 
+mod cache;
 mod colors;
 mod shaders;
+mod verts;
 
 use super::puzzle::traits::*;
 use super::DISPLAY;
+use cache::CACHE;
+use verts::*;
 
 const STICKER_SIZE: f32 = 0.9;
 const NEAR_PLANE: f32 = 3.0;
 const FAR_PLANE: f32 = 20.0;
 
-lazy_static! {
-    static ref STICKERS_VBO: SendWrapper<RefCell<VertexBuffer<StickerVertex>>> =
-        SendWrapper::new(RefCell::new(
-            VertexBuffer::empty_dynamic(&**DISPLAY, 3 * 3 * 6 * 4)
-                .expect("Failed to create vertex buffer")
-        ));
-    static ref STICKERS_INDICES: SendWrapper<RefCell<IndexBuffer<u8>>> =
-        SendWrapper::new(RefCell::new({
-            let indices: Vec<_> = (0u8..(6 * 9))
-                .flat_map(|base| {
-                    [0, 1, 2, 3, 2, 1, 1, 2, 3, 2, 1, 0]
-                        .iter()
-                        .map(move |i| base * 4 + i)
-                })
-                .collect();
-            IndexBuffer::new(&**DISPLAY, PrimitiveType::TrianglesList, &indices)
-                .expect("Failed to create index buffer")
-        }));
-}
+const DRAW_OUTLINE: bool = true;
+const LINE_WIDTH: f32 = 1.5;
 
-#[derive(Debug, Default, Copy, Clone)]
-struct StickerVertex {
-    pub pos: [f32; 4],
-    pub color: [f32; 4],
+pub fn setup_puzzle<P: PuzzleTrait>() {
+    let mut c = CACHE.borrow_mut();
+    let mut surface_indices = vec![];
+    let mut outline_indices = vec![];
+    let mut base = 0;
+    for _ in P::Sticker::iter() {
+        // Prepare triangle indices.
+        surface_indices.extend(P::Sticker::SURFACE_INDICES.iter().map(|&i| base + i));
+        // Prepare line indices.
+        outline_indices.extend(P::Sticker::OUTLINE_INDICES.iter().map(|&i| base + i));
+        base += P::Sticker::VERTEX_COUNT;
+    }
+    // Write triangle indices.
+    c.tri_indices
+        .get(surface_indices.len())
+        .write(&surface_indices);
+    // Write line indices.
+    c.line_indices
+        .get(outline_indices.len())
+        .write(&outline_indices);
 }
-implement_vertex!(StickerVertex, pos, color);
 
 pub fn draw_puzzle<P: PuzzleTrait>(
     target: &mut glium::Frame,
@@ -49,7 +49,9 @@ pub fn draw_puzzle<P: PuzzleTrait>(
     let (target_w, target_h) = target.get_dimensions();
     target.clear_color_srgb_and_depth(colors::get_bg(), 1.0);
 
-    let mut verts = Vec::with_capacity(3 * 3 * 6 * 4);
+    let cache = &mut *CACHE.borrow_mut();
+
+    let mut verts = vec![];
     for sticker in P::Sticker::iter() {
         // Generate vertices.
         let color = colors::get_color(puzzle.get_sticker(sticker).idx());
@@ -60,8 +62,8 @@ pub fn draw_puzzle<P: PuzzleTrait>(
                 .map(|&pos| StickerVertex { pos, color }),
         );
     }
-    let vbo = STICKERS_VBO.borrow_mut();
-    vbo.write(&verts);
+    let stickers_vbo = cache.stickers_vbo.get(verts.len());
+    stickers_vbo.write(&verts);
 
     // To avoid dealing with 5x5 matrices, we'll do translation and rotation in
     // GLSL in separate steps.
@@ -88,23 +90,58 @@ pub fn draw_puzzle<P: PuzzleTrait>(
         perspective_matrix.into()
     };
 
+    // Draw triangles.
     target.draw(
-        &*vbo,
-        &*STICKERS_INDICES.borrow(),
-        &shaders::TRIS,
+        &*stickers_vbo,
+        &*cache.tri_indices.unwrap(),
+        &shaders::BASIC,
         &uniform! {
+            lines: false,
             model_matrix: model,
             view_translation: view,
             perspective_matrix: perspective
         },
         &DrawParameters {
             blend: glium::Blend::alpha_blending(),
+            smooth: Some(if DRAW_OUTLINE {
+                glium::Smooth::Fastest
+            } else {
+                glium::Smooth::Nicest
+            }),
             depth: glium::Depth {
-                test: glium::DepthTest::IfLess,
+                test: glium::DepthTest::IfLessOrEqual,
                 write: true,
                 ..glium::Depth::default()
             },
             ..DrawParameters::default()
         },
-    )
+    )?;
+
+    if DRAW_OUTLINE {
+        // Draw lines.
+        target.draw(
+            &*stickers_vbo,
+            &*cache.line_indices.unwrap(),
+            &shaders::BASIC,
+            &uniform! {
+                lines: true,
+                model_matrix: model,
+                view_translation: view,
+                perspective_matrix: perspective
+            },
+            &DrawParameters {
+                blend: glium::Blend::alpha_blending(),
+                smooth: Some(glium::Smooth::Nicest),
+                depth: glium::Depth {
+                    test: glium::DepthTest::IfLessOrEqual,
+                    write: false,
+                    ..glium::Depth::default()
+                },
+                line_width: Some(LINE_WIDTH),
+                ..DrawParameters::default()
+            },
+        )?;
+    }
+
+    Ok(())
 }

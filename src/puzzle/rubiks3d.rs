@@ -124,11 +124,12 @@ pub struct Sticker {
     axis: Axis,
 }
 impl StickerTrait<Rubiks3D> for Sticker {
-    const VERTEX_COUNT: usize = 4;
-    const VERTEX_INDICES: &'static [usize] = &[
+    const VERTEX_COUNT: u16 = 4;
+    const SURFACE_INDICES: &'static [u16] = &[
         0, 1, 2, 3, 2, 1, // Outside face (counterclockwise from outside).
         1, 2, 3, 2, 1, 0, // Inside face (clockwise from outside).
     ];
+    const OUTLINE_INDICES: &'static [u16] = &[0, 1, 1, 3, 3, 2, 2, 0];
 
     fn piece(self) -> Piece {
         self.piece

@@ -1,9 +1,9 @@
 #version 140
 
-in vec4 tri_color;
+in vec4 vert_color;
 
 out vec4 color;
 
 void main() {
-    color = tri_color;
+    color = vert_color;
 }

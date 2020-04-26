@@ -35,6 +35,8 @@ lazy_static! {
 fn main() {
     let mut cube = puzzle::Rubiks3D::new();
 
+    render::setup_puzzle::<puzzle::Rubiks3D>();
+
     let mut closed = false;
     while !closed {
         // Handle events.

@@ -70,10 +70,13 @@ pub trait PieceTrait<P: PuzzleTrait>: Debug + Copy + Eq {
 /// The location of a sticker in a twisty puzzle.
 pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq {
     /// The number of vertices used to render a single sticker.
-    const VERTEX_COUNT: usize;
-    /// The indices of vertices used to render a single sticker with the
-    /// GL_TRIANGLES setting.
-    const VERTEX_INDICES: &'static [usize];
+    const VERTEX_COUNT: u16;
+    /// The indices of vertices used to render the surface of a single sticker
+    /// with the GL_TRIANGLES setting.
+    const SURFACE_INDICES: &'static [u16];
+    /// The inidices of vertices used to render the outline for a single sticker
+    /// with the GL_LINES setting.
+    const OUTLINE_INDICES: &'static [u16];
 
     /// Returns the piece that this sticker is on.
     fn piece(self) -> P::Piece;

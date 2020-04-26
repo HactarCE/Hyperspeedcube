@@ -19,5 +19,5 @@ macro_rules! load_shader {
 }
 
 lazy_static! {
-    pub static ref TRIS: SendWrapper<Program> = load_shader!(tris, 140, srgb = false);
+    pub static ref BASIC: SendWrapper<Program> = load_shader!(basic, 140, srgb = false);
 }
