@@ -38,9 +38,16 @@ impl From<PuzzleType> for PuzzleEnum {
 }
 impl PuzzleEnum {
     /// Returns the PuzzleType of this puzzle.
-    fn puzzle_type(&self) -> PuzzleType {
+    pub fn puzzle_type(&self) -> PuzzleType {
         match self {
             Self::Rubiks3D(_) => PuzzleType::Rubiks3D,
+        }
+    }
+    /// Advance to the next frame, using the given time delta between this frame
+    /// and the last.
+    pub fn advance(&mut self, delta: std::time::Duration) {
+        match self {
+            Self::Rubiks3D(cube) => cube.advance(delta),
         }
     }
 }

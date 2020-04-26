@@ -9,7 +9,7 @@ mod colors;
 mod shaders;
 mod verts;
 
-use super::puzzle::{traits::*, PuzzleController};
+use super::puzzle::{self, traits::*, PuzzleController, PuzzleEnum, PuzzleType};
 use super::DISPLAY;
 use cache::CACHE;
 use verts::*;
@@ -24,7 +24,19 @@ const OUTLINE_COLOR: Option<[f32; 4]> = Some(colors::OUTLINE_BLACK);
 // const OUTLINE_COLOR: Option<[f32; 4]> = colors::OUTLINE_WHITE;
 const LINE_WIDTH: f32 = 2.0;
 
-pub fn setup_puzzle<P: PuzzleTrait>() {
+pub fn setup_puzzle(puzzle_type: PuzzleType) {
+    match puzzle_type {
+        PuzzleType::Rubiks3D => _setup_puzzle::<puzzle::Rubiks3D>(),
+    }
+}
+
+pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &PuzzleEnum) -> Result<(), glium::DrawError> {
+    match puzzle {
+        PuzzleEnum::Rubiks3D(cube) => _draw_puzzle(target, cube),
+    }
+}
+
+fn _setup_puzzle<P: PuzzleTrait>() {
     let mut c = CACHE.borrow_mut();
     let mut surface_indices = vec![];
     let mut outline_indices = vec![];
@@ -46,9 +58,9 @@ pub fn setup_puzzle<P: PuzzleTrait>() {
         .write(&outline_indices);
 }
 
-pub fn draw_puzzle<P: PuzzleTrait>(
+fn _draw_puzzle<P: PuzzleTrait>(
     target: &mut glium::Frame,
-    puzzle: &mut PuzzleController<P>,
+    puzzle: &PuzzleController<P>,
 ) -> Result<(), glium::DrawError> {
     let (target_w, target_h) = target.get_dimensions();
     target.clear_color_srgb_and_depth(colors::get_bg(), 1.0);

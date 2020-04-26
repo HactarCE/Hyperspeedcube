@@ -17,7 +17,7 @@ pub mod puzzle;
 mod render;
 
 use puzzle::traits::*;
-use puzzle::{rubiks3d::twists, PuzzleController};
+use puzzle::{rubiks3d::twists, PuzzleEnum, PuzzleType};
 
 /// The title of the window.
 const TITLE: &str = "Keyboard Speedcube";
@@ -33,9 +33,9 @@ lazy_static! {
 }
 
 fn main() {
-    let mut cube = PuzzleController::<puzzle::Rubiks3D>::new();
+    let mut puzzle = PuzzleType::Rubiks3D.new();
 
-    render::setup_puzzle::<puzzle::Rubiks3D>();
+    render::setup_puzzle(puzzle.puzzle_type());
 
     let mut last_frame = time::Instant::now();
     let mut closed = false;
@@ -52,31 +52,33 @@ fn main() {
                         ..
                     } => {
                         use glutin::VirtualKeyCode as Vk;
-                        match keycode {
-                            Vk::Escape => closed = true,
-                            Vk::U => cube.twist(*twists::R),
-                            Vk::E => cube.twist(twists::R.rev()),
-                            Vk::L => cube.twist(twists::R.fat()),
-                            Vk::M => cube.twist(twists::R.fat().rev()),
-                            Vk::N => cube.twist(*twists::U),
-                            Vk::T => cube.twist(twists::U.rev()),
-                            Vk::S => cube.twist(*twists::L),
-                            Vk::F => cube.twist(twists::L.rev()),
-                            Vk::V => cube.twist(twists::L.fat()),
-                            Vk::P => cube.twist(twists::L.fat().rev()),
-                            Vk::R => cube.twist(*twists::D),
-                            Vk::I => cube.twist(twists::D.rev()),
-                            Vk::H => cube.twist(*twists::F),
-                            Vk::D => cube.twist(twists::F.rev()),
-                            Vk::W => cube.twist(*twists::B),
-                            Vk::Y => cube.twist(twists::B.rev()),
-                            Vk::G | Vk::J => cube.twist(*twists::X),
-                            Vk::B | Vk::K => cube.twist(twists::X.rev()),
-                            Vk::O => cube.twist(*twists::Y),
-                            Vk::A => cube.twist(twists::Y.rev()),
-                            Vk::Semicolon => cube.twist(*twists::Z),
-                            Vk::Q => cube.twist(twists::Z.rev()),
-                            _ => (),
+                        match &mut puzzle {
+                            PuzzleEnum::Rubiks3D(cube) => match keycode {
+                                Vk::Escape => closed = true,
+                                Vk::U => cube.twist(*twists::R),
+                                Vk::E => cube.twist(twists::R.rev()),
+                                Vk::L => cube.twist(twists::R.fat()),
+                                Vk::M => cube.twist(twists::R.fat().rev()),
+                                Vk::N => cube.twist(*twists::U),
+                                Vk::T => cube.twist(twists::U.rev()),
+                                Vk::S => cube.twist(*twists::L),
+                                Vk::F => cube.twist(twists::L.rev()),
+                                Vk::V => cube.twist(twists::L.fat()),
+                                Vk::P => cube.twist(twists::L.fat().rev()),
+                                Vk::R => cube.twist(*twists::D),
+                                Vk::I => cube.twist(twists::D.rev()),
+                                Vk::H => cube.twist(*twists::F),
+                                Vk::D => cube.twist(twists::F.rev()),
+                                Vk::W => cube.twist(*twists::B),
+                                Vk::Y => cube.twist(twists::B.rev()),
+                                Vk::G | Vk::J => cube.twist(*twists::X),
+                                Vk::B | Vk::K => cube.twist(twists::X.rev()),
+                                Vk::O => cube.twist(*twists::Y),
+                                Vk::A => cube.twist(twists::Y.rev()),
+                                Vk::Semicolon => cube.twist(*twists::Z),
+                                Vk::Q => cube.twist(twists::Z.rev()),
+                                _ => (),
+                            },
                         }
                     }
                     _ => (),
@@ -88,13 +90,13 @@ fn main() {
 
         {
             let this_frame = time::Instant::now();
-            cube.advance(this_frame - last_frame);
+            puzzle.advance(this_frame - last_frame);
             last_frame = this_frame;
         }
 
         // Render the puzzle.
         let mut target = DISPLAY.draw();
-        render::draw_puzzle(&mut target, &mut cube).expect("Draw error");
+        render::draw_puzzle(&mut target, &mut puzzle).expect("Draw error");
         target.finish().unwrap();
     }
 }
