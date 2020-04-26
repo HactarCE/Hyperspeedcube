@@ -1,20 +1,28 @@
 //! Animation logic.
 
 use std::collections::VecDeque;
-use std::f32::consts::PI;
 
 use super::traits::*;
 
 const TWIST_DURATION: f32 = 0.2;
 const MIN_DURATION: f32 = 0.05;
 const MAX_BACKLOG: usize = 10;
+const INTERPOLATION_FN: Interpolator = interpolate::COSINE;
 
-// Use cosine from 0.0 to PI for interpolation.
-const INTERPOLATION_FN: fn(f32) -> f32 = |x| (1.0 - (x * PI).cos()) / 2.0;
-// // Use cosine from 0.0 to PI/2.0 for interpolation.
-// const INTERPOLATION_FN: fn(f32) -> f32 = |x| 1.0 - (x * PI / 2.0).cos();
-// // Use cosine from PI/2.0 to 0.0 for interpolation.
-// const INTERPOLATION_FN: fn(f32) -> f32 = |x| ((1.0 - x) * PI / 2.0).cos();
+use interpolate::Interpolator;
+/// Interpolation functions.
+pub mod interpolate {
+    use std::f32::consts::PI;
+
+    pub type Interpolator = fn(f32) -> f32;
+
+    /// Interpolate using cosine from 0.0 to PI.
+    pub const COSINE: Interpolator = |x| (1.0 - (x * PI).cos()) / 2.0;
+    /// Interpolate using cosine from 0.0 to PI/2.0.
+    pub const COSINE_ACCEL: Interpolator = |x| 1.0 - (x * PI / 2.0).cos();
+    /// Interpolate using cosine from PI/2.0 to 0.0.
+    pub const COSINE_DECEL: Interpolator = |x| ((1.0 - x) * PI / 2.0).cos();
+}
 
 #[derive(Debug, Clone)]
 pub struct Animator<P: PuzzleTrait> {
@@ -40,6 +48,17 @@ impl<P: PuzzleTrait> Default for Animator<P> {
             queue_max: 0,
             progress: 0.0,
         }
+    }
+}
+impl<P: PuzzleTrait> Eq for Animator<P> {}
+impl<P: PuzzleTrait> PartialEq for Animator<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.latest == other.latest
+    }
+}
+impl<P: PuzzleTrait> PartialEq<P> for Animator<P> {
+    fn eq(&self, other: &P) -> bool {
+        self.latest == *other
     }
 }
 impl<P: PuzzleTrait> Animator<P> {
