@@ -2,12 +2,12 @@
 name = "keyboard_speedcube"
 version = "0.1.0"
 authors = ["HactarCE"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cgmath = "0.17"
-glium = "0.25"
+cgmath = "0.18"
+glium = "0.30"
 lazy_static = "1.4"
-send_wrapper = "0.4"
+send_wrapper = "0.5"
