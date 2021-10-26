@@ -9,5 +9,6 @@ edition = "2021"
 [dependencies]
 cgmath = "0.18"
 glium = "0.30"
+itertools = "0.10"
 lazy_static = "1.4"
 send_wrapper = "0.5"
