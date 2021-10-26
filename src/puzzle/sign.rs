@@ -56,10 +56,7 @@ impl Add<Sign> for Sign {
     }
 }
 impl Sign {
-    /// All signs, in ascending order.
-    pub const ALL: [Sign; 3] = [Sign::Neg, Sign::Zero, Sign::Pos];
-
-    /// Returns an integer representation of this sign (either -1, 0, or 1).
+    /// Returns an integer representation of the sign (either -1, 0, or 1).
     pub fn int(self) -> isize {
         match self {
             Sign::Neg => -1,
@@ -67,24 +64,30 @@ impl Sign {
             Sign::Pos => 1,
         }
     }
-    /// Returns a floating-point representation of this sign (either -1.0, 0.0,
+    /// Returns a floating-point representation of the sign (either -1.0, 0.0,
     /// or 1.0).
     pub fn float(self) -> f32 {
         self.int() as f32
     }
-    /// Returns the absolute value of the integer representation of this sign (either 0 or 1).
+    /// Returns the absolute value of the integer representation of the sign
+    /// (either 0 or 1).
     pub fn abs(self) -> usize {
         match self {
             Sign::Neg | Sign::Pos => 1,
             Sign::Zero => 0,
         }
     }
-    /// Returns true if this is Sign::Zero or false otherwise.
+    /// Returns true if `Sign::Zero` or false otherwise.
     pub fn is_zero(self) -> bool {
         self == Sign::Zero
     }
-    /// Returns false if this is Sign::Zero or true otherwise.
+    /// Returns false if `Sign::Zero` or true otherwise.
     pub fn is_nonzero(self) -> bool {
         self != Sign::Zero
+    }
+
+    /// Returns an iterator over all signs.
+    pub fn iter() -> impl Clone + Iterator<Item = Sign> {
+        [Sign::Neg, Sign::Zero, Sign::Pos].into_iter()
     }
 }

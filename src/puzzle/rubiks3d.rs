@@ -69,15 +69,14 @@ impl PieceTrait<Rubiks3D> for Piece {
     }
     fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
         Box::new(
-            Axis::ALL
-                .into_iter()
+            Axis::iter()
                 .filter(move |&axis| self[axis].is_nonzero())
                 .map(move |axis| Sticker { piece: self, axis }),
         )
     }
     fn iter() -> Box<dyn Iterator<Item = Self>> {
         Box::new(
-            itertools::iproduct!(Sign::ALL, Sign::ALL, Sign::ALL)
+            itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter())
                 .map(|(x, y, z)| Self([x, y, z]))
                 .filter(|&p| p != Self::core()),
         )
@@ -305,9 +304,6 @@ pub enum Axis {
     Z = 2,
 }
 impl Axis {
-    /// All axes, in order.
-    pub const ALL: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
-
     /// Returns the perpendicular axes from this one, using the left-hand rule.
     /// (The cross product of the returned axes is the opposite of the input.)
     /// This is more convenient for twisty puzzles, where clockwise rotations
@@ -319,6 +315,11 @@ impl Axis {
             Y => (X, Z), // Y+ => rotate from X+ to Z+.
             Z => (Y, X), // Z+ => rotate from Y+ to X+.
         }
+    }
+
+    /// Returns an iterator over all axes.
+    pub fn iter() -> impl Iterator<Item = Axis> {
+        [Axis::X, Axis::Y, Axis::Z].into_iter()
     }
 }
 
@@ -349,7 +350,7 @@ impl FaceTrait<Rubiks3D> for Face {
         let axis = self.axis;
         let (ax1, ax2) = self.axis.perpendiculars();
         Box::new(
-            itertools::iproduct!(Sign::ALL, Sign::ALL).map(move |(u, v)| {
+            itertools::iproduct!(Sign::iter(), Sign::iter()).map(move |(u, v)| {
                 piece[ax1] = u;
                 piece[ax2] = v;
                 Sticker { piece, axis }
@@ -357,7 +358,10 @@ impl FaceTrait<Rubiks3D> for Face {
         )
     }
     fn iter() -> Box<dyn Iterator<Item = Self>> {
-        Box::new(itertools::iproduct!(Axis::ALL, Sign::ALL).map(|(axis, sign)| Self { axis, sign }))
+        Box::new(
+            itertools::iproduct!(Axis::iter(), Sign::iter())
+                .map(|(axis, sign)| Self { axis, sign }),
+        )
     }
 }
 impl Neg for Face {
@@ -424,7 +428,7 @@ pub struct Orientation([Face; 3]);
 impl OrientationTrait<Rubiks3D> for Orientation {
     fn rev(self) -> Self {
         let mut ret = Self::default();
-        for axis in Axis::ALL {
+        for axis in Axis::iter() {
             ret[self[axis].axis] = Face::new(axis, self[axis].sign);
         }
         ret
@@ -457,7 +461,7 @@ impl Mul<Orientation> for Orientation {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
         let mut ret = Self::default();
-        for axis in Axis::ALL {
+        for axis in Axis::iter() {
             ret[axis] = rhs[self[axis].axis] * self[axis].sign;
         }
         ret
@@ -467,7 +471,7 @@ impl Mul<Piece> for Orientation {
     type Output = Piece;
     fn mul(self, rhs: Piece) -> Piece {
         let mut ret = Piece::core();
-        for axis in Axis::ALL {
+        for axis in Axis::iter() {
             ret[axis] = rhs[self[axis].axis] * self[axis].sign;
         }
         ret
