@@ -1,53 +1,56 @@
-//! 3x3x3 Rubik's cube.
+//! 3x3x3x3 Rubik's cube.
 
 use std::f32::consts::FRAC_PI_2;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::*;
 
-/// Some pre-baked twists that can be applied to a 3x3x3 Rubik's cube.
+/// Some pre-baked twists that can be applied to a 3x3x3x3 Rubik's cube.
 pub mod twists {
     use super::*;
 
-    lazy_static! {
-        /// Turn the right face clockwise 90 degrees.
-        pub static ref R: Twist = Twist::new(Axis::X, Sign::Pos, TwistDirection::CW);
-        /// Turn the left face clockwise 90 degrees.
-        pub static ref L: Twist = Twist::new(Axis::X, Sign::Neg, TwistDirection::CW);
-        /// Turn the top face clockwise 90 degrees.
-        pub static ref U: Twist = Twist::new(Axis::Y, Sign::Pos, TwistDirection::CW);
-        /// Turn the bottom face clockwise 90 degrees.
-        pub static ref D: Twist = Twist::new(Axis::Y, Sign::Neg, TwistDirection::CW);
-        /// Turn the front face clockwise 90 degrees.
-        pub static ref F: Twist = Twist::new(Axis::Z, Sign::Pos, TwistDirection::CW);
-        /// Turn the back face clockwise 90 degrees.
-        pub static ref B: Twist = Twist::new(Axis::Z, Sign::Neg, TwistDirection::CW);
+    // lazy_static! {
+    //     /// Turn the right face clockwise 90 degrees.
+    //     pub static ref R: Twist = Twist::new(Axis::X, Sign::Pos, TwistDirection::CW);
+    //     /// Turn the left face clockwise 90 degrees.
+    //     pub static ref L: Twist = Twist::new(Axis::X, Sign::Neg, TwistDirection::CW);
+    //     /// Turn the top face clockwise 90 degrees.
+    //     pub static ref U: Twist = Twist::new(Axis::Y, Sign::Pos, TwistDirection::CW);
+    //     /// Turn the bottom face clockwise 90 degrees.
+    //     pub static ref D: Twist = Twist::new(Axis::Y, Sign::Neg, TwistDirection::CW);
+    //     /// Turn the front face clockwise 90 degrees.
+    //     pub static ref F: Twist = Twist::new(Axis::Z, Sign::Pos, TwistDirection::CW);
+    //     /// Turn the back face clockwise 90 degrees.
+    //     pub static ref B: Twist = Twist::new(Axis::Z, Sign::Neg, TwistDirection::CW);
 
-        /// Turn the middle layer down 90 degrees.
-        pub static ref M: Twist = L.slice();
-        /// Turn the equitorial layer to the right 90 degrees.
-        pub static ref E: Twist = D.slice();
-        /// Turn the standing layer clockwise 90 degrees.
-        pub static ref S: Twist = F.slice();
+    //     /// Turn the middle layer down 90 degrees.
+    //     pub static ref M: Twist = L.slice();
+    //     /// Turn the equitorial layer to the right 90 degrees.
+    //     pub static ref E: Twist = D.slice();
+    //     /// Turn the standing layer clockwise 90 degrees.
+    //     pub static ref S: Twist = F.slice();
 
-        /// Turn the whole cube 90 degrees up.
-        pub static ref X: Twist = R.whole_cube();
-        /// Turn the whole cube 90 degrees to left.
-        pub static ref Y: Twist = U.whole_cube();
-        /// Turn the whole cube 90 degrees clockwise.
-        pub static ref Z: Twist = F.whole_cube();
-    }
+    //     /// Turn the whole cube 90 degrees up.
+    //     pub static ref X: Twist = R.whole_cube();
+    //     /// Turn the whole cube 90 degrees to left.
+    //     pub static ref Y: Twist = U.whole_cube();
+    //     /// Turn the whole cube 90 degrees clockwise.
+    //     pub static ref Z: Twist = F.whole_cube();
+    // }
 }
 
-/// State of a 3x3x3 Rubik's cube.
+/// State of a 3x3x3x3 Rubik's cube.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct Rubiks3D([[[Orientation; 3]; 3]; 3]);
-impl PuzzleTrait for Rubiks3D {
+pub struct Rubiks4D([[[Orientation; 3]; 3]; 3]);
+impl PuzzleTrait for Rubiks4D {
     type Piece = Piece;
     type Sticker = Sticker;
     type Face = Face;
     type Twist = Twist;
     type Orientation = Orientation;
+
+    const VIEW_DIST_Z: f32 = 3.0;
+    const VIEW_DIST_W: f32 = 4.0;
 
     fn get_piece(&self, pos: Piece) -> &Orientation {
         &self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
@@ -60,10 +63,10 @@ impl PuzzleTrait for Rubiks3D {
     }
 }
 
-/// Piece location in a 3x3x3 Rubik's cube.
+/// Piece location in a 3x3x3x3 Rubik's cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Piece(pub [Sign; 3]);
-impl PieceTrait<Rubiks3D> for Piece {
+pub struct Piece(pub [Sign; 4]);
+impl PieceTrait<Rubiks4D> for Piece {
     fn sticker_count(self) -> usize {
         self.x().abs() + self.y().abs() + self.z().abs()
     }
@@ -76,8 +79,8 @@ impl PieceTrait<Rubiks3D> for Piece {
     }
     fn iter() -> Box<dyn Iterator<Item = Self>> {
         Box::new(
-            itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter())
-                .map(|(z, y, x)| Self([x, y, z]))
+            itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter(), Sign::iter())
+                .map(|(w, z, y, x)| Self([x, y, z, w]))
                 .filter(|&p| p != Self::core()),
         )
     }
@@ -103,7 +106,7 @@ impl Add<Face> for Piece {
 impl Piece {
     /// Returns the piece at the center of the puzzle, which has no stickers.
     pub fn core() -> Self {
-        Self([Sign::Zero; 3])
+        Self([Sign::Zero; 4])
     }
     /// Returns the X coordinate of this piece.
     pub fn x(self) -> Sign {
@@ -117,6 +120,10 @@ impl Piece {
     pub fn z(self) -> Sign {
         self[Axis::Z]
     }
+    /// Returns the W coordinate of the piece.
+    pub fn w(self) -> Sign {
+        self[Axis::W]
+    }
     /// Returns the X coordinate of this piece, in the range 0..=2.
     fn x_idx(self) -> usize {
         (self.x().int() + 1) as usize
@@ -129,21 +136,36 @@ impl Piece {
     fn z_idx(self) -> usize {
         (self.z().int() + 1) as usize
     }
+    /// Returns the W coordinate of this piece, in the range 0..=2.
+    fn w_idx(self) -> usize {
+        (self.w().int() + 1) as usize
+    }
 }
 
-/// Sticker location on a 3x3x3 Rubik's cube.
+/// Sticker location on a 3x3x3x3 Rubik's cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Sticker {
     piece: Piece,
     axis: Axis,
 }
-impl StickerTrait<Rubiks3D> for Sticker {
-    const VERTEX_COUNT: u16 = 4;
+impl StickerTrait<Rubiks4D> for Sticker {
+    const VERTEX_COUNT: u16 = 8;
     const SURFACE_INDICES: &'static [u16] = &[
-        0, 1, 2, 3, 2, 1, // Outside face (counterclockwise from outside).
-        1, 2, 3, 2, 1, 0, // Inside face (clockwise from outside).
+        0, 1, 2, 3, 2, 1, // Z-
+        7, 6, 5, 4, 5, 6, // Z+
+        0, 1, 4, 5, 4, 1, // Y-
+        7, 6, 3, 2, 3, 6, // Y+
+        0, 2, 4, 6, 4, 2, // X-
+        7, 5, 3, 1, 3, 5, // X+
     ];
-    const OUTLINE_INDICES: &'static [u16] = &[0, 1, 1, 3, 3, 2, 2, 0];
+    const OUTLINE_INDICES: &'static [u16] = &[
+        0, 1, 1, 3, 3, 2, 2, 0, // Z-
+        7, 6, 6, 4, 4, 5, 5, 7, // Z+
+        0, 1, 1, 5, 5, 4, 4, 0, // Y-
+        7, 6, 6, 2, 2, 3, 3, 7, // Y+
+        0, 2, 2, 6, 6, 4, 4, 0, // X-
+        7, 5, 5, 1, 1, 3, 3, 7, // X+
+    ];
 
     fn piece(self) -> Piece {
         self.piece
@@ -158,12 +180,13 @@ impl StickerTrait<Rubiks3D> for Sticker {
         let radius = size / 2.0;
         let mut center = [0.0; 4];
         center[self.axis() as usize] = 1.5 * self.sign().float();
-        let (ax1, ax2) = self.axis().perpendiculars();
-        itertools::iproduct!([-radius, radius], [-radius, radius])
-            .map(|(v, u)| {
+        let (ax1, ax2, ax3) = self.axis().perpendiculars();
+        itertools::iproduct!([-radius, radius], [-radius, radius], [-radius, radius])
+            .map(|(v, u, t)| {
                 let mut vert = center;
-                vert[ax1 as usize] = u + self.piece()[ax1].float();
-                vert[ax2 as usize] = v + self.piece()[ax2].float();
+                vert[ax1 as usize] = t + self.piece()[ax1].float();
+                vert[ax2 as usize] = u + self.piece()[ax2].float();
+                vert[ax3 as usize] = v + self.piece()[ax3].float();
                 vert
             })
             .collect()
@@ -194,102 +217,60 @@ impl Sticker {
     }
 }
 
-/// Twist of a single face on a 3x3x3 Rubik's cube.
+/// Twist of a single face on a 3x3x3x3 Rubik's cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Twist {
-    face: Face,
-    direction: TwistDirection,
-    layers: [bool; 3],
+    //     face: Face,
+//     direction: TwistDirection,
+//     layers: [bool; 3],
 }
-impl TwistTrait<Rubiks3D> for Twist {
+impl TwistTrait<Rubiks4D> for Twist {
     fn rotation(self) -> Orientation {
-        // Get the axes of the plane of rotation.
-        let (ax1, ax2) = self.face.parallels();
-        let mut rot = Orientation::rot90(ax1, ax2);
-        // Reverse orientation if counterclockwise.
-        if self.direction == TwistDirection::CCW {
-            rot = rot.rev();
-        }
-        rot
+        todo!()
     }
     fn rev(self) -> Self {
-        Self {
-            face: self.face,
-            direction: self.direction.rev(),
-            layers: self.layers,
-        }
+        todo!()
     }
     fn initial_pieces(self) -> Vec<Piece> {
-        let (ax1, ax2) = self.face.parallels();
-        let opposite = -self.face;
-        let mut center = self.face.center();
-        let mut edge = center;
-        edge[ax1] = Sign::Neg;
-        let mut corner = edge;
-        corner[ax2] = Sign::Neg;
-        let mut ret = vec![];
-        // Fencepost behavior.
-        if self.layers[0] {
-            ret.extend(&[center, edge, corner]);
-        }
-        for layer in 1..=2 {
-            center = center + opposite;
-            edge = edge + opposite;
-            corner = corner + opposite;
-            if self.layers[layer] {
-                ret.extend(&[center, edge, corner]);
-            }
-        }
-        ret
+        todo!()
     }
     fn matrix(self, portion: f32) -> cgmath::Matrix4<f32> {
-        use cgmath::*;
-
-        let (ax1, ax2) = self.face.parallels();
-        let angle = portion * FRAC_PI_2 * self.direction.sign().float();
-
-        let mut ret = Matrix4::identity();
-        ret[ax1 as usize][ax1 as usize] = angle.cos();
-        ret[ax1 as usize][ax2 as usize] = angle.sin();
-        ret[ax2 as usize][ax1 as usize] = -angle.sin();
-        ret[ax2 as usize][ax2 as usize] = angle.cos();
-
-        ret
+        todo!()
     }
 }
 impl From<Sticker> for Twist {
     fn from(sticker: Sticker) -> Self {
-        Self::new(sticker.axis(), sticker.sign(), TwistDirection::CW)
+        todo!()
     }
 }
-impl Twist {
-    /// Returns a twist of the face with the given axis and sign in the given
-    /// direction.
-    pub fn new(axis: Axis, sign: Sign, direction: TwistDirection) -> Self {
-        Self {
-            face: Face { axis, sign },
-            direction,
-            layers: [true, false, false],
-        }
-    }
-    /// Make a fat (2-layer) move from this move.
-    pub fn fat(self) -> Self {
-        self.layers([true, true, false])
-    }
-    /// Make a slice move from this move.
-    pub fn slice(self) -> Self {
-        self.layers([false, true, false])
-    }
-    /// Make a whole cube rotation from this move.
-    pub fn whole_cube(self) -> Self {
-        self.layers([true, true, true])
-    }
-    /// Twist different layers.
-    pub fn layers(mut self, layers: [bool; 3]) -> Self {
-        self.layers = layers;
-        self
-    }
-}
+// impl Twist {
+//     /// Returns a twist of the face with the given axis and sign in the given
+//     /// direction.
+//     pub fn new(axis: Axis, sign: Sign, direction: TwistDirection) -> Self {
+//         Self {
+//             face: Face { axis, sign },
+//             direction,
+//             layers: [true, false, false],
+//         }
+//     }
+//     /// Make a fat (2-layer) move from this move.
+//     pub fn fat(self) -> Self {
+//         self.layers([true, true, false])
+//     }
+//     /// Make a slice move from this move.
+//     pub fn slice(self) -> Self {
+//         self.layers([false, true, false])
+//     }
+//     /// Make a whole cube rotation from this move.
+//     pub fn whole_cube(self) -> Self {
+//         self.layers([true, true, true])
+//     }
+//     /// Twist different layers.
+//     pub fn layers(mut self, layers: [bool; 3]) -> Self {
+//         self.layers = layers;
+//         self
+//     }
+// }
 
 /// 3-dimensional axis.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -300,24 +281,24 @@ pub enum Axis {
     Y = 1,
     /// Z axis (towards the camera).
     Z = 2,
+    /// W axis (towards the 4D eye).
+    W = 3,
 }
 impl Axis {
-    /// Returns the perpendicular axes from this one, using the left-hand rule.
-    /// (The cross product of the returned axes is the opposite of the input.)
-    /// This is more convenient for twisty puzzles, where clockwise rotations
-    /// are the default.
-    pub fn perpendiculars(self) -> (Axis, Axis) {
+    /// Returns the perpendicular axes from this one.
+    pub fn perpendiculars(self) -> (Axis, Axis, Axis) {
         use Axis::*;
         match self {
-            X => (Z, Y), // X+ => rotate from Z+ to Y+.
-            Y => (X, Z), // Y+ => rotate from X+ to Z+.
-            Z => (Y, X), // Z+ => rotate from Y+ to X+.
+            X => (Y, Z, W),
+            Y => (X, Z, W),
+            Z => (X, Y, W),
+            W => (X, Y, Z),
         }
     }
 
     /// Returns an iterator over all axes.
     pub fn iter() -> impl Iterator<Item = Axis> {
-        [Axis::X, Axis::Y, Axis::Z].into_iter()
+        [Axis::X, Axis::Y, Axis::Z, Axis::W].into_iter()
     }
 }
 
@@ -327,40 +308,45 @@ pub struct Face {
     axis: Axis,
     sign: Sign,
 }
-impl FaceTrait<Rubiks3D> for Face {
+impl FaceTrait<Rubiks4D> for Face {
     const COUNT: usize = 6;
 
     fn idx(self) -> usize {
         use Axis::*;
         use Sign::*;
         match (self.axis, self.sign) {
-            (Z, Neg) => 0, // Back
-            (Y, Neg) => 1, // Down
-            (X, Neg) => 2, // Left
-            (X, Pos) => 3, // Right
-            (Y, Pos) => 4, // Up
-            (Z, Pos) => 5, // Front
+            (W, Neg) => 0, // In
+            (Z, Neg) => 1, // Back
+            (Y, Neg) => 2, // Down
+            (X, Neg) => 3, // Left
+            (X, Pos) => 4, // Right
+            (Y, Pos) => 5, // Up
+            (Z, Pos) => 6, // Front
+            (W, Pos) => 7, // Out
             (_, Zero) => panic!("Invalid face"),
         }
     }
     fn color(self) -> [f32; 3] {
         [
-            crate::colors::BLUE,   // Back
-            crate::colors::YELLOW, // Down
+            crate::colors::PURPLE, // In
+            crate::colors::YELLOW, // Back
+            crate::colors::GREEN,  // Down
             crate::colors::ORANGE, // Left
             crate::colors::RED,    // Right
-            crate::colors::WHITE,  // Up
-            crate::colors::GREEN,  // Front
+            crate::colors::BLUE,   // Up
+            crate::colors::WHITE,  // Front
+            crate::colors::PINK,   // Out
         ][self.idx()]
     }
     fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
         let mut piece = self.center();
         let axis = self.axis;
-        let (ax1, ax2) = self.axis.perpendiculars();
+        let (ax1, ax2, ax3) = self.axis.perpendiculars();
         Box::new(
-            itertools::iproduct!(Sign::iter(), Sign::iter()).map(move |(v, u)| {
-                piece[ax1] = u;
-                piece[ax2] = v;
+            itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter()).map(move |(v, u, t)| {
+                piece[ax1] = t;
+                piece[ax2] = u;
+                piece[ax3] = v;
                 Sticker { piece, axis }
             }),
         )
@@ -370,12 +356,14 @@ impl FaceTrait<Rubiks3D> for Face {
         use Sign::*;
         Box::new(
             [
+                Self { axis: W, sign: Neg }, // In
                 Self { axis: Z, sign: Neg }, // Back
                 Self { axis: Y, sign: Neg }, // Down
                 Self { axis: X, sign: Neg }, // Left
                 Self { axis: X, sign: Pos }, // Right
                 Self { axis: Y, sign: Pos }, // Up
                 Self { axis: Z, sign: Pos }, // Front
+                Self { axis: W, sign: Pos }, // Out
             ]
             .into_iter(),
         )
@@ -427,22 +415,12 @@ impl Face {
             axis: self.axis,
         }
     }
-    /// Returns the axes parallel to this face (all except the perpendicular
-    /// axis).
-    pub fn parallels(self) -> (Axis, Axis) {
-        let (ax1, ax2) = self.axis.perpendiculars();
-        match self.sign {
-            Sign::Neg => (ax2, ax1),
-            Sign::Zero => panic!("Invalid face"),
-            Sign::Pos => (ax1, ax2),
-        }
-    }
 }
 
-/// Orientation of a 3D cube (i.e. a single piece of a 3D cube/cuboid).
+/// Orientation of a 4D cube (i.e. a single piece of a 4D cube/cuboid).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Orientation([Face; 3]);
-impl OrientationTrait<Rubiks3D> for Orientation {
+pub struct Orientation([Face; 4]);
+impl OrientationTrait<Rubiks4D> for Orientation {
     fn rev(self) -> Self {
         let mut ret = Self::default();
         for axis in Axis::iter() {
@@ -454,12 +432,14 @@ impl OrientationTrait<Rubiks3D> for Orientation {
 impl Default for Orientation {
     fn default() -> Self {
         Self([
-            // Face color on the right side.
+            // Face color on the right cell.
             Face::new(Axis::X, Sign::Pos),
-            // Face color on the top side.
+            // Face color on the top cell.
             Face::new(Axis::Y, Sign::Pos),
-            // Face color on the front side.
+            // Face color on the front cell.
             Face::new(Axis::Z, Sign::Pos),
+            // Face color on the outer cell.
+            Face::new(Axis::W, Sign::Pos),
         ])
     }
 }

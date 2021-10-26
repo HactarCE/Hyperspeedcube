@@ -18,6 +18,11 @@ pub trait PuzzleTrait: 'static + Debug + Default + Clone + Eq + Hash {
     /// to an orientation.
     type Orientation: OrientationTrait<Self>;
 
+    /// Z axis view offset.
+    const VIEW_DIST_Z: f32 = 10.0;
+    /// W axis view offset.
+    const VIEW_DIST_W: f32 = 3.0;
+
     /// Returns a new solved puzzle in the default orientation.
     fn new() -> Self {
         Self::default()
@@ -87,7 +92,7 @@ pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq + Hash {
     /// size between 0 and 1.
     ///
     /// The W component will be 0.0 if this is puzzle is only 3-dimensional.
-    fn verts(self, margins: f32) -> Vec<[f32; 4]>;
+    fn verts(self, size: f32) -> Vec<[f32; 4]>;
     /// Returns an iterator over all the stickers on this puzzle.
     fn iter() -> Box<dyn Iterator<Item = P::Sticker>> {
         Box::new(P::Piece::iter().flat_map(P::Piece::stickers))
@@ -102,6 +107,8 @@ pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
     /// Returns a unique number corresponding to this face in the range
     /// 0..Self::COUNT.
     fn idx(self) -> usize;
+    /// Returns the color for this face.
+    fn color(self) -> [f32; 3];
     /// Returns an iterator over all the stickers on this face.
     fn stickers(self) -> Box<dyn Iterator<Item = P::Sticker> + 'static>;
     /// Returns an iterator over all the faces on this puzzle.

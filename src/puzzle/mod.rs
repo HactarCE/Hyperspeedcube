@@ -2,13 +2,13 @@
 
 pub mod controller;
 pub mod rubiks3d;
-// pub mod rubiks4d;
+pub mod rubiks4d;
 pub mod sign;
 pub mod traits;
 
 pub use controller::*;
 pub use rubiks3d::Rubiks3D;
-// pub use rubiks4d::Rubiks4D;
+pub use rubiks4d::Rubiks4D;
 pub use sign::Sign;
 pub use traits::*;
 
@@ -17,12 +17,15 @@ pub use traits::*;
 pub enum PuzzleType {
     /// A 3D Rubik's cube.
     Rubiks3D,
+    /// A 4D Rubik's cube.
+    Rubiks4D,
 }
 impl PuzzleType {
     /// Creates a new puzzle of this type.
     pub fn new(self) -> PuzzleEnum {
         match self {
             Self::Rubiks3D => PuzzleEnum::Rubiks3D(Default::default()),
+            Self::Rubiks4D => PuzzleEnum::Rubiks4D(Default::default()),
         }
     }
 }
@@ -32,6 +35,8 @@ impl PuzzleType {
 pub enum PuzzleEnum {
     /// A 3D Rubik's cube.
     Rubiks3D(PuzzleController<Rubiks3D>),
+    /// A 4D Rubik's cube.
+    Rubiks4D(PuzzleController<Rubiks4D>),
 }
 impl From<PuzzleType> for PuzzleEnum {
     fn from(puzzle_type: PuzzleType) -> Self {
@@ -43,6 +48,7 @@ impl PuzzleEnum {
     pub fn puzzle_type(&self) -> PuzzleType {
         match self {
             Self::Rubiks3D(_) => PuzzleType::Rubiks3D,
+            Self::Rubiks4D(_) => PuzzleType::Rubiks4D,
         }
     }
     /// Advance to the next frame, using the given time delta between this frame
@@ -50,6 +56,7 @@ impl PuzzleEnum {
     pub fn advance(&mut self, delta: std::time::Duration) {
         match self {
             Self::Rubiks3D(cube) => cube.advance(delta),
+            Self::Rubiks4D(cube) => cube.advance(delta),
         }
     }
 }

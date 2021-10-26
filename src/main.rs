@@ -19,6 +19,7 @@ use send_wrapper::SendWrapper;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
+mod colors;
 pub mod puzzle;
 mod render;
 
@@ -44,7 +45,7 @@ lazy_static! {
 
 fn main() {
     // Initialize runtime data.
-    let mut puzzle = PuzzleType::Rubiks3D.new();
+    let mut puzzle = PuzzleType::Rubiks4D.new();
     let mut events_buffer = VecDeque::new();
 
     render::setup_puzzle(puzzle.puzzle_type());
