@@ -12,7 +12,7 @@ macro_rules! load_shader {
                         fragment: include_str!(concat!(stringify!($name), ".frag")),
                         outputs_srgb: $srgb,
                     },
-                ).expect(&format!("Failed to compile '{}' shader in {}", stringify!($name), std::module_path!()))
+                ).expect(&format!("failed to compile '{}' shader in {}", stringify!($name), std::module_path!()))
             )
         }
     };

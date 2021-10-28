@@ -1,7 +1,7 @@
 //! Rendering logic.
 
-use cgmath::{Deg, Matrix4, Perspective, Vector4};
-use glium::{DrawParameters, Surface};
+use cgmath::{Matrix4, Rad, Vector4};
+use glium::{BackfaceCullingMode, DrawParameters, Surface};
 use std::collections::HashSet;
 
 mod cache;
@@ -9,45 +9,27 @@ mod shaders;
 mod verts;
 
 use crate::colors;
-use crate::puzzle::{self, traits::*, PuzzleController, PuzzleEnum, PuzzleType};
+use crate::config::get_config;
+use crate::puzzle::{traits::*, PuzzleController, PuzzleEnum};
 use crate::DISPLAY;
-use cache::CACHE;
+use cache::RenderCache;
 use verts::*;
 
-const STICKER_SIZE: f32 = 0.5;
-// const STICKER_SIZE: f32 = 0.9;
-const NEAR_PLANE: f32 = 3.0;
-const FAR_PLANE: f32 = 20.0;
-
-const VIEW_ANGLE: f32 = 35.0;
 // const OUTLINE_COLOR: Option<[f32; 4]> = None;
 const OUTLINE_COLOR: Option<[f32; 4]> = Some(colors::OUTLINE_BLACK);
 // const OUTLINE_COLOR: Option<[f32; 4]> = colors::OUTLINE_WHITE;
 const LINE_WIDTH: f32 = 2.0;
 
-const W_CULL: f32 = -2.75;
-
-pub fn setup_puzzle(puzzle_type: PuzzleType) {
-    match puzzle_type {
-        PuzzleType::Rubiks3D => _setup_puzzle::<puzzle::Rubiks3D>(),
-        PuzzleType::Rubiks4D => _setup_puzzle::<puzzle::Rubiks4D>(),
-    }
-}
-
-pub fn draw_puzzle(
-    target: &mut glium::Frame,
-    puzzle: &PuzzleEnum,
-    t: f32,
-    p: [f32; 4],
-) -> Result<(), glium::DrawError> {
+pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &PuzzleEnum) -> Result<(), glium::DrawError> {
     match puzzle {
-        PuzzleEnum::Rubiks3D(cube) => _draw_puzzle(target, cube, t, p),
-        PuzzleEnum::Rubiks4D(cube) => _draw_puzzle(target, cube, t, p),
+        PuzzleEnum::Rubiks3D(cube) => _draw_puzzle(target, cube),
+        PuzzleEnum::Rubiks4D(cube) => _draw_puzzle(target, cube),
     }
 }
 
-fn _setup_puzzle<P: PuzzleTrait>() {
-    let mut c = CACHE.borrow_mut();
+fn setup_puzzle<P: PuzzleTrait>(cache: &mut RenderCache) {
+    cache.last_puzzle_type = Some(P::TYPE);
+
     let mut surface_indices = vec![];
     let mut outline_indices = vec![];
     let mut base = 0;
@@ -59,29 +41,45 @@ fn _setup_puzzle<P: PuzzleTrait>() {
         base += P::Sticker::VERTEX_COUNT;
     }
     // Write triangle indices.
-    c.tri_indices
-        .get(surface_indices.len())
+    cache
+        .tri_indices
+        .slice(surface_indices.len())
         .write(&surface_indices);
     // Write line indices.
-    c.line_indices
-        .get(outline_indices.len())
+    cache
+        .line_indices
+        .slice(outline_indices.len())
         .write(&outline_indices);
 }
 
 fn _draw_puzzle<P: PuzzleTrait>(
     target: &mut glium::Frame,
     puzzle: &PuzzleController<P>,
-    t: f32,
-    p: [f32; 4],
 ) -> Result<(), glium::DrawError> {
+    let config = get_config();
+
+    let mut cache_ = cache::borrow_cache();
+    let cache = &mut *cache_;
+
+    let sticker_scale = 1.0 - config.gfx.sticker_spacing;
+    // let face_scale = config.gfx.face_scale + (1.0 - sticker_scale) / 6.0;
+    let face_scale = (1.0 - config.gfx.face_spacing) * 3.0 / (2.0 + sticker_scale);
+
+    let geometry_params = GeometryParams {
+        sticker_scale,
+        face_scale,
+    };
+
     let (target_w, target_h) = target.get_dimensions();
     target.clear_color_srgb_and_depth(colors::get_bg(), 1.0);
 
-    let cache = &mut *CACHE.borrow_mut();
+    if cache.last_puzzle_type != Some(P::TYPE) {
+        setup_puzzle::<P>(&mut *cache);
+    }
 
     // Prepare model matrices, which must be done here on the CPU so that we can do proper Z ordering.
     let stationary_model_matrix =
-        Matrix4::from_angle_x(Deg(VIEW_ANGLE)) * Matrix4::from_angle_y(Deg(t));
+        Matrix4::from_angle_x(Rad(config.gfx.theta)) * Matrix4::from_angle_y(Rad(config.gfx.phi));
     let moving_model_matrix;
     let moving_pieces: HashSet<P::Piece>;
     if let Some((twist, progress)) = puzzle.current_twist() {
@@ -96,7 +94,7 @@ fn _draw_puzzle<P: PuzzleTrait>(
     // single f32 containing the average Z value.
     let mut verts_by_sticker: Vec<(Vec<StickerVertex>, f32)> = vec![];
     // Generate vertices.
-    'piece: for piece in P::Piece::iter() {
+    for piece in P::Piece::iter() {
         let matrix = if moving_pieces.contains(&piece) {
             moving_model_matrix
         } else {
@@ -105,27 +103,39 @@ fn _draw_puzzle<P: PuzzleTrait>(
 
         for sticker in piece.stickers() {
             let [r, g, b] = puzzle.displayed().get_sticker(sticker).color();
-            let color = [r, g, b, 1.0];
+            let color = [r, g, b, config.gfx.opacity];
             let mut sticker_verts = vec![];
-            for vert_pos in sticker.verts(STICKER_SIZE) {
-                let [x, y, z, w]: [f32; 4] =
-                    (matrix * Vector4::from(vert_pos) + Vector4::from(p)).into();
 
-                // Subtract W distance.
-                let w = w - P::VIEW_DIST_W;
-                if w > W_CULL {
-                    continue 'piece;
-                }
-                // Apply 4D perspective and subtract Z distance.
-                let pos = [x / -w, y / -w, z / -w - P::VIEW_DIST_Z, 1.0];
+            let radius = P::radius(geometry_params);
+            let pre_scale = 1.0 / radius;
+            let post_scale = 1.0 / pre_scale / (radius * radius * P::NDIM as f32).sqrt();
+            let mut z_sum = 0.0;
+            let mut w_sum = 0.0;
+            for vert_pos in sticker.verts(geometry_params) {
+                let pos = matrix * Vector4::from(vert_pos) * pre_scale;
+                let w = -pos.w;
+                w_sum += w;
+                let mut pos = pos.truncate() * post_scale;
+                if P::NDIM == 4 {
+                    let fov = config.gfx.fov_4d;
+                    pos *= post_scale / (1.0 + (fov.signum() + w) * (fov / 2.0).tan());
+                };
+                z_sum += pos.z;
+                let pos = pos.extend(1.0).into(); // w = 1.0
 
                 sticker_verts.push(StickerVertex { pos, color });
             }
-            let average_z =
-                sticker_verts.iter().map(|v| v.pos[2]).sum::<f32>() / sticker_verts.len() as f32;
-            verts_by_sticker.push((sticker_verts, average_z));
+
+            let avg_z = z_sum / sticker_verts.len() as f32;
+            let avg_w = w_sum / sticker_verts.len() as f32;
+
+            // Clip W coordinates too close to the camera.
+            if avg_z.is_finite() && avg_w > -0.99 {
+                verts_by_sticker.push((sticker_verts, avg_z));
+            }
         }
     }
+    let sticker_count = verts_by_sticker.len();
     // Sort by average Z position for proper transparency.
     verts_by_sticker.sort_by(|(_, z1), (_, z2)| z1.partial_cmp(z2).unwrap());
     let verts: Vec<StickerVertex> = verts_by_sticker
@@ -134,8 +144,7 @@ fn _draw_puzzle<P: PuzzleTrait>(
         .collect();
 
     // Write sticker vertices.
-    let stickers_vbo = cache.stickers_vbo.get(verts.len());
-    stickers_vbo.write(&verts);
+    cache.stickers_vbo.slice(verts.len()).write(&verts);
 
     // To avoid dealing with 5x5 matrices, we'll do translation and rotation in
     // GLSL in separate steps.
@@ -143,17 +152,21 @@ fn _draw_puzzle<P: PuzzleTrait>(
     // Create the perspective matrix.
     let perspective_matrix: [[f32; 4]; 4] = {
         let min_dimen = std::cmp::min(target_w, target_h) as f32;
-        let r = target_w as f32 / min_dimen;
-        let t = target_h as f32 / min_dimen;
-        let perspective_matrix = Matrix4::from(Perspective {
-            left: -r,
-            right: r,
-            bottom: -t,
-            top: t,
-            near: NEAR_PLANE,
-            far: FAR_PLANE,
-        });
-        perspective_matrix.into()
+        let scale = min_dimen * config.gfx.scale;
+
+        let xx = scale / target_w as f32;
+        let yy = scale / target_h as f32;
+
+        let fov = config.gfx.fov_3d;
+        let zw = (fov / 2.0).tan(); // `tan(fov/2)` is the factor of how much the Z coordinate affects the XY coordinates.
+        let ww = 1.0 + fov.signum() * zw;
+
+        [
+            [xx, 0.0, 0.0, 0.0],
+            [0.0, yy, 0.0, 0.0],
+            [0.0, 0.0, -1.0, -zw],
+            [0.0, 0.0, 0.0, ww],
+        ]
     };
 
     let draw_params = DrawParameters {
@@ -165,15 +178,20 @@ fn _draw_puzzle<P: PuzzleTrait>(
             ..glium::Depth::default()
         },
         line_width: Some(LINE_WIDTH),
+        backface_culling: BackfaceCullingMode::CullClockwise,
         ..DrawParameters::default()
     };
 
     let override_color: [f32; 4] = OUTLINE_COLOR.unwrap_or_default();
 
     // Draw triangles.
+    let sticker_verts = cache.stickers_vbo.slice(verts.len());
+    let tri_indices = cache
+        .tri_indices
+        .slice(P::Sticker::SURFACE_INDICES.len() * sticker_count);
     target.draw(
-        &*stickers_vbo,
-        &*cache.tri_indices.unwrap(),
+        sticker_verts,
+        tri_indices,
         &shaders::BASIC,
         &uniform! {
             use_override_color: false,
@@ -185,8 +203,10 @@ fn _draw_puzzle<P: PuzzleTrait>(
 
     // Draw smooth outline.
     target.draw(
-        &*stickers_vbo,
-        &*cache.line_indices.unwrap(),
+        cache.stickers_vbo.slice(verts.len()),
+        cache
+            .line_indices
+            .slice(P::Sticker::OUTLINE_INDICES.len() * sticker_count),
         &shaders::BASIC,
         &uniform! {
             use_override_color: OUTLINE_COLOR.is_some(),

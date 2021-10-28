@@ -4,6 +4,8 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::Mul;
 
+use super::PuzzleType;
+
 /// A twisty puzzle.
 pub trait PuzzleTrait: 'static + Debug + Default + Clone + Eq + Hash {
     /// The location of a piece of the puzzle.
@@ -18,10 +20,10 @@ pub trait PuzzleTrait: 'static + Debug + Default + Clone + Eq + Hash {
     /// to an orientation.
     type Orientation: OrientationTrait<Self>;
 
-    /// Z axis view offset.
-    const VIEW_DIST_Z: f32 = 10.0;
-    /// W axis view offset.
-    const VIEW_DIST_W: f32 = 3.0;
+    /// Number of dimensions of the puzzle.
+    const NDIM: usize;
+    /// [`PuzzleType`] enum value.
+    const TYPE: PuzzleType;
 
     /// Returns a new solved puzzle in the default orientation.
     fn new() -> Self {
@@ -60,6 +62,10 @@ pub trait PuzzleTrait: 'static + Debug + Default + Clone + Eq + Hash {
             self.cycle(initial, twist.rotation())
         }
     }
+
+    /// Returns the maximum extent of any single coordinate along the X, Y, or Z
+    /// axes (after 4D projection).
+    fn radius(p: GeometryParams) -> f32;
 }
 
 /// The location of a piece in a twisty puzzle.
@@ -88,11 +94,12 @@ pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq + Hash {
     fn piece(self) -> P::Piece;
     /// Returns the face that this sticker is on.
     fn face(self) -> P::Face;
-    /// Returns the 4D vertices used to render this sticker with the given
-    /// size between 0 and 1.
+    /// Returns the 4D coordinates of the center of this sticker.
+    fn center(self, p: GeometryParams) -> [f32; 4];
+    /// Returns the 4D vertices used to render this sticker.
     ///
     /// The W component will be 0.0 if this is puzzle is only 3-dimensional.
-    fn verts(self, size: f32) -> Vec<[f32; 4]>;
+    fn verts(self, p: GeometryParams) -> Vec<[f32; 4]>;
     /// Returns an iterator over all the stickers on this puzzle.
     fn iter() -> Box<dyn Iterator<Item = P::Sticker>> {
         Box::new(P::Piece::iter().flat_map(P::Piece::stickers))
@@ -164,4 +171,21 @@ pub trait OrientationTrait<P: PuzzleTrait + Hash>:
     /// Reverses this orientation.
     #[must_use]
     fn rev(self) -> Self;
+}
+
+/// Geometry parameters.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct GeometryParams {
+    /// Sticker scale factor (0.0 to 1.0).
+    pub sticker_scale: f32,
+    /// Face scale factor (0.0 to 1.0).
+    pub face_scale: f32,
+}
+impl Default for GeometryParams {
+    fn default() -> Self {
+        Self {
+            sticker_scale: 0.8,
+            face_scale: 1.0,
+        }
+    }
 }

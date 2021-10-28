@@ -49,6 +49,9 @@ impl PuzzleTrait for Rubiks3D {
     type Twist = Twist;
     type Orientation = Orientation;
 
+    const NDIM: usize = 3;
+    const TYPE: PuzzleType = PuzzleType::Rubiks3D;
+
     fn get_piece(&self, pos: Piece) -> &Orientation {
         &self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
     }
@@ -57,6 +60,10 @@ impl PuzzleTrait for Rubiks3D {
     }
     fn get_sticker(&self, pos: Sticker) -> Face {
         self.get_piece(pos.piece())[pos.axis()] * pos.sign()
+    }
+
+    fn radius(_p: GeometryParams) -> f32 {
+        1.5
     }
 }
 
@@ -154,16 +161,23 @@ impl StickerTrait<Rubiks3D> for Sticker {
             sign: self.sign(),
         }
     }
-    fn verts(self, size: f32) -> Vec<[f32; 4]> {
-        let radius = size / 2.0;
-        let mut center = [0.0; 4];
-        center[self.axis() as usize] = 1.5 * self.sign().float();
-        let (ax1, ax2) = self.axis().perpendiculars();
+    fn center(self, p: GeometryParams) -> [f32; 4] {
+        let (ax1, ax2) = self.face().parallel_axes();
+        let mut ret = [0.0; 4];
+        ret[self.axis() as usize] = 1.5 * self.sign().float();
+        ret[ax1 as usize] = p.face_scale * self.piece()[ax1].float();
+        ret[ax2 as usize] = p.face_scale * self.piece()[ax2].float();
+        ret
+    }
+    fn verts(self, p: GeometryParams) -> Vec<[f32; 4]> {
+        let (ax1, ax2) = self.face().parallel_axes();
+        let radius = p.face_scale * p.sticker_scale / 2.0;
+        let center = self.center(p);
         itertools::iproduct!([-radius, radius], [-radius, radius])
             .map(|(v, u)| {
                 let mut vert = center;
-                vert[ax1 as usize] = u + self.piece()[ax1].float();
-                vert[ax2 as usize] = v + self.piece()[ax2].float();
+                vert[ax1 as usize] += u;
+                vert[ax2 as usize] += v;
                 vert
             })
             .collect()
@@ -204,7 +218,7 @@ pub struct Twist {
 impl TwistTrait<Rubiks3D> for Twist {
     fn rotation(self) -> Orientation {
         // Get the axes of the plane of rotation.
-        let (ax1, ax2) = self.face.parallels();
+        let (ax1, ax2) = self.face.parallel_axes();
         let mut rot = Orientation::rot90(ax1, ax2);
         // Reverse orientation if counterclockwise.
         if self.direction == TwistDirection::CCW {
@@ -220,7 +234,7 @@ impl TwistTrait<Rubiks3D> for Twist {
         }
     }
     fn initial_pieces(self) -> Vec<Piece> {
-        let (ax1, ax2) = self.face.parallels();
+        let (ax1, ax2) = self.face.parallel_axes();
         let opposite = -self.face;
         let mut center = self.face.center();
         let mut edge = center;
@@ -245,7 +259,7 @@ impl TwistTrait<Rubiks3D> for Twist {
     fn matrix(self, portion: f32) -> cgmath::Matrix4<f32> {
         use cgmath::*;
 
-        let (ax1, ax2) = self.face.parallels();
+        let (ax1, ax2) = self.face.parallel_axes();
         let angle = portion * FRAC_PI_2 * self.direction.sign().float();
 
         let mut ret = Matrix4::identity();
@@ -340,7 +354,7 @@ impl FaceTrait<Rubiks3D> for Face {
             (X, Pos) => 3, // Right
             (Y, Pos) => 4, // Up
             (Z, Pos) => 5, // Front
-            (_, Zero) => panic!("Invalid face"),
+            (_, Zero) => panic!("invalid face"),
         }
     }
     fn color(self) -> [f32; 3] {
@@ -403,7 +417,7 @@ impl Face {
     /// Returns the face on the given axis with the given sign. Panics if given
     /// Sign::Zero.
     pub fn new(axis: Axis, sign: Sign) -> Self {
-        assert!(sign.is_nonzero(), "Invalid sign for face");
+        assert!(sign.is_nonzero(), "invalid sign for face");
         Self { axis, sign }
     }
     /// Returns the axis perpendicular to this face.
@@ -429,11 +443,11 @@ impl Face {
     }
     /// Returns the axes parallel to this face (all except the perpendicular
     /// axis).
-    pub fn parallels(self) -> (Axis, Axis) {
+    pub fn parallel_axes(self) -> (Axis, Axis) {
         let (ax1, ax2) = self.axis.perpendiculars();
         match self.sign {
             Sign::Neg => (ax2, ax1),
-            Sign::Zero => panic!("Invalid face"),
+            Sign::Zero => panic!("invalid face"),
             Sign::Pos => (ax1, ax2),
         }
     }

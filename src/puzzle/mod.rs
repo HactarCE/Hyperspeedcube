@@ -1,5 +1,7 @@
 //! Common types and traits used for any puzzle.
 
+use std::fmt;
+
 pub mod controller;
 pub mod rubiks3d;
 pub mod rubiks4d;
@@ -19,6 +21,19 @@ pub enum PuzzleType {
     Rubiks3D,
     /// A 4D Rubik's cube.
     Rubiks4D,
+}
+impl Default for PuzzleType {
+    fn default() -> Self {
+        PuzzleType::Rubiks3D
+    }
+}
+impl fmt::Display for PuzzleType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PuzzleType::Rubiks3D => write!(f, "Rubik's 3D"),
+            PuzzleType::Rubiks4D => write!(f, "Rubik's 4D"),
+        }
+    }
 }
 impl PuzzleType {
     /// Creates a new puzzle of this type.

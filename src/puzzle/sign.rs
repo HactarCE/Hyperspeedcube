@@ -42,7 +42,7 @@ impl Add<Sign> for Sign {
     fn add(self, rhs: Sign) -> Sign {
         match self {
             Sign::Neg => match rhs {
-                Sign::Neg => panic!("Too negative"),
+                Sign::Neg => panic!("too negative"),
                 Sign::Zero => Sign::Neg,
                 Sign::Pos => Sign::Zero,
             },
@@ -50,7 +50,7 @@ impl Add<Sign> for Sign {
             Sign::Pos => match rhs {
                 Sign::Neg => Sign::Zero,
                 Sign::Zero => Sign::Pos,
-                Sign::Pos => panic!("Too positive"),
+                Sign::Pos => panic!("too positive"),
             },
         }
     }

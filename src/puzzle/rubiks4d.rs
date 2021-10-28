@@ -49,8 +49,8 @@ impl PuzzleTrait for Rubiks4D {
     type Twist = Twist;
     type Orientation = Orientation;
 
-    const VIEW_DIST_Z: f32 = 3.0;
-    const VIEW_DIST_W: f32 = 4.0;
+    const NDIM: usize = 4;
+    const TYPE: PuzzleType = PuzzleType::Rubiks4D;
 
     fn get_piece(&self, pos: Piece) -> &Orientation {
         &self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
@@ -60,6 +60,10 @@ impl PuzzleTrait for Rubiks4D {
     }
     fn get_sticker(&self, pos: Sticker) -> Face {
         self.get_piece(pos.piece())[pos.axis()] * pos.sign()
+    }
+
+    fn radius(p: GeometryParams) -> f32 {
+        p.face_scale * (1.0 + p.sticker_scale / 2.0)
     }
 }
 
@@ -151,11 +155,11 @@ pub struct Sticker {
 impl StickerTrait<Rubiks4D> for Sticker {
     const VERTEX_COUNT: u16 = 8;
     const SURFACE_INDICES: &'static [u16] = &[
-        0, 1, 2, 3, 2, 1, // Z-
+        1, 2, 3, 2, 1, 0, // Z-
         7, 6, 5, 4, 5, 6, // Z+
         0, 1, 4, 5, 4, 1, // Y-
-        7, 6, 3, 2, 3, 6, // Y+
-        0, 2, 4, 6, 4, 2, // X-
+        6, 3, 2, 3, 6, 7, // Y+
+        2, 4, 6, 4, 2, 0, // X-
         7, 5, 3, 1, 3, 5, // X+
     ];
     const OUTLINE_INDICES: &'static [u16] = &[
@@ -176,17 +180,25 @@ impl StickerTrait<Rubiks4D> for Sticker {
             sign: self.sign(),
         }
     }
-    fn verts(self, size: f32) -> Vec<[f32; 4]> {
-        let radius = size / 2.0;
-        let mut center = [0.0; 4];
-        center[self.axis() as usize] = 1.5 * self.sign().float();
-        let (ax1, ax2, ax3) = self.axis().perpendiculars();
+    fn center(self, p: GeometryParams) -> [f32; 4] {
+        let (ax1, ax2, ax3) = self.face().parallel_axes();
+        let mut ret = [0.0; 4];
+        ret[self.axis() as usize] = 1.5 * self.sign().float();
+        ret[ax1 as usize] = p.face_scale * self.piece()[ax1].float();
+        ret[ax2 as usize] = p.face_scale * self.piece()[ax2].float();
+        ret[ax3 as usize] = p.face_scale * self.piece()[ax3].float();
+        ret
+    }
+    fn verts(self, p: GeometryParams) -> Vec<[f32; 4]> {
+        let (ax1, ax2, ax3) = self.face().parallel_axes();
+        let radius = p.face_scale * p.sticker_scale / 2.0;
+        let center = self.center(p);
         itertools::iproduct!([-radius, radius], [-radius, radius], [-radius, radius])
             .map(|(v, u, t)| {
                 let mut vert = center;
-                vert[ax1 as usize] = t + self.piece()[ax1].float();
-                vert[ax2 as usize] = u + self.piece()[ax2].float();
-                vert[ax3 as usize] = v + self.piece()[ax3].float();
+                vert[ax1 as usize] += t;
+                vert[ax2 as usize] += u;
+                vert[ax3 as usize] += v;
                 vert
             })
             .collect()
@@ -285,9 +297,12 @@ pub enum Axis {
     W = 3,
 }
 impl Axis {
-    /// Returns the perpendicular axes from this one.
-    pub fn perpendiculars(self) -> (Axis, Axis, Axis) {
+    /// Returns the perpendicular axes from this one, in the order used for
+    /// calculating sticker indices.
+    pub fn sticker_order_perpendiculars(self) -> (Axis, Axis, Axis) {
         use Axis::*;
+        // This ordering is necessary in order to maintain compatibility with
+        // MC4D sticker indices.
         match self {
             X => (Y, Z, W),
             Y => (X, Z, W),
@@ -323,7 +338,7 @@ impl FaceTrait<Rubiks4D> for Face {
             (Y, Pos) => 5, // Up
             (Z, Pos) => 6, // Front
             (W, Pos) => 7, // Out
-            (_, Zero) => panic!("Invalid face"),
+            (_, Zero) => panic!("invalid face"),
         }
     }
     fn color(self) -> [f32; 3] {
@@ -341,7 +356,7 @@ impl FaceTrait<Rubiks4D> for Face {
     fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
         let mut piece = self.center();
         let axis = self.axis;
-        let (ax1, ax2, ax3) = self.axis.perpendiculars();
+        let (ax1, ax2, ax3) = self.axis.sticker_order_perpendiculars();
         Box::new(
             itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter()).map(move |(v, u, t)| {
                 piece[ax1] = t;
@@ -413,6 +428,22 @@ impl Face {
         Sticker {
             piece: self.center(),
             axis: self.axis,
+        }
+    }
+    /// Returns the axes parallel to this face (all except the perpendicular
+    /// axis).
+    pub fn parallel_axes(self) -> (Axis, Axis, Axis) {
+        use Axis::*;
+        let (ax1, ax2, ax3) = match self.axis {
+            X => (Y, Z, W),
+            Y => (X, W, Z),
+            Z => (W, X, Y),
+            W => (Z, Y, X),
+        };
+        match self.sign {
+            Sign::Neg => (ax2, ax1, ax3),
+            Sign::Zero => panic!("invalid face"),
+            Sign::Pos => (ax1, ax2, ax3),
         }
     }
 }
