@@ -24,7 +24,7 @@ pub enum PuzzleType {
 }
 impl Default for PuzzleType {
     fn default() -> Self {
-        PuzzleType::Rubiks3D
+        PuzzleType::Rubiks4D
     }
 }
 impl fmt::Display for PuzzleType {

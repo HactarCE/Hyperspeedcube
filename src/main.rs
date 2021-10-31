@@ -191,18 +191,10 @@ fn main() {
                                             Vk::Key4 => cube.twist(Twist::from_sticker_idx(23)),
                                             Vk::Key5 => cube.twist(Twist::from_sticker_idx(24)),
                                             Vk::Key6 => cube.twist(Twist::from_sticker_idx(25)),
-                                            Vk::Key7 => {
-                                                cube.twist(Twist::from_sticker_idx(23 + 27))
-                                            }
-                                            Vk::Key8 => {
-                                                cube.twist(Twist::from_sticker_idx(20 + 27 * 2))
-                                            }
-                                            Vk::Key9 => {
-                                                cube.twist(Twist::from_sticker_idx(20 + 27 * 3))
-                                            }
-                                            Vk::Key0 => {
-                                                cube.twist(Twist::from_sticker_idx(20 + 27 * 4))
-                                            }
+                                            Vk::Key7 => cube.twist(Twist::from_sticker_idx(8)),
+                                            Vk::Key8 => cube.twist(Twist::from_sticker_idx(9)),
+                                            Vk::Key9 => cube.twist(Twist::from_sticker_idx(0)),
+                                            Vk::Key0 => cube.twist(Twist::from_sticker_idx(1)),
                                             _ => (),
                                         }
                                     }
