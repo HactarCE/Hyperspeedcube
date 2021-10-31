@@ -115,4 +115,18 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
         ui.set_next_item_width(ui.window_content_region_width());
         Slider::new("##opacity_slider", 0.0, 1.0).build(ui, &mut config.gfx.opacity);
     });
+
+    // Debug window.
+    #[cfg(debug_assertions)]
+    {
+        let mut debug_info = crate::debug::FRAME_DEBUG_INFO.lock().unwrap();
+        if !debug_info.is_empty() {
+            Window::new(&ImString::new("Debug values"))
+                .size([400.0, 300.0], Condition::FirstUseEver)
+                .build(&ui, || {
+                    ui.text(&*debug_info);
+                    *debug_info = String::new();
+                });
+        }
+    }
 }

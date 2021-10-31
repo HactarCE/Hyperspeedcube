@@ -89,6 +89,14 @@ impl Default for TwistDirection {
         Self::CW
     }
 }
+impl fmt::Display for TwistDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TwistDirection::CW => Ok(()),
+            TwistDirection::CCW => write!(f, "'"),
+        }
+    }
+}
 impl TwistDirection {
     /// Returns the reverse direction.
     #[must_use]

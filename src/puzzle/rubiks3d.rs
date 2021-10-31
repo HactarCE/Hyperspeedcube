@@ -1,6 +1,7 @@
 //! 3x3x3 Rubik's cube.
 
 use cgmath::{Deg, Matrix3, SquareMatrix, Vector3, Zero};
+use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::*;
@@ -226,6 +227,34 @@ pub struct Twist {
     /// Layer mask.
     pub layers: [bool; 3],
 }
+impl fmt::Display for Twist {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.layers {
+            // Simple moves and wide moves.
+            [true, wide, false] => {
+                let wide = if wide { "w" } else { "" };
+                write!(f, "{}{}{}", self.face.symbol(), wide, self.direction)
+            }
+
+            // Slice moves.
+            [false, true, false] => match self.face.axis() {
+                Axis::X => write!(f, "M{}", self.direction.rev()),
+                Axis::Y => write!(f, "E{}", self.direction.rev()),
+                Axis::Z => write!(f, "S{}", self.direction),
+            },
+
+            // Whole cube rotations.
+            [true, true, true] => match self.face.axis() {
+                Axis::X => write!(f, "x{}", self.direction),
+                Axis::Y => write!(f, "y{}", self.direction),
+                Axis::Z => write!(f, "z{}", self.direction),
+            },
+
+            // Anything else has a bad layer mask.
+            _ => write!(f, "<unknown twist>"),
+        }
+    }
+}
 impl TwistTrait<Rubiks3D> for Twist {
     fn rotation(self) -> Orientation {
         // Get the axes of the plane of rotation.
@@ -358,6 +387,9 @@ impl FaceTrait<Rubiks3D> for Face {
             crate::colors::GREEN,  // Front
         ][self.idx()]
     }
+    fn symbol(self) -> char {
+        b"BDLRUF"[self.idx()] as char
+    }
     fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
         let mut piece = self.center();
         let axis = self.axis;
@@ -418,6 +450,14 @@ impl Face {
     /// Returns the sign of this face along its perpendicular axis.
     pub fn sign(self) -> Sign {
         self.sign
+    }
+    /// Returns the opposite face.
+    #[must_use]
+    pub fn opposite(self) -> Self {
+        Self {
+            axis: self.axis,
+            sign: -self.sign,
+        }
     }
     /// Returns the piece at the center of this face.
     pub fn center(self) -> Piece {

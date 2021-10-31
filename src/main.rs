@@ -22,6 +22,9 @@ use send_wrapper::SendWrapper;
 use std::collections::VecDeque;
 use std::time::Instant;
 
+#[macro_use]
+mod debug;
+
 mod colors;
 mod config;
 pub mod puzzle;

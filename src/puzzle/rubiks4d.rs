@@ -589,6 +589,9 @@ impl FaceTrait<Rubiks4D> for Face {
             crate::colors::PINK,   // Out
         ][self.idx()]
     }
+    fn symbol(self) -> char {
+        b"IBDLRUFO"[self.idx()] as char
+    }
     fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
         let mut piece = self.center();
         let axis = self.axis;
