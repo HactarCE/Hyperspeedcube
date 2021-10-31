@@ -1,6 +1,6 @@
 //! 3x3x3 Rubik's cube.
 
-use cgmath::{Deg, Matrix4, Vector3, Vector4, Zero};
+use cgmath::{Deg, Matrix3, SquareMatrix, Vector3, Zero};
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::*;
@@ -45,6 +45,18 @@ pub mod twists {
 /// State of a 3x3x3 Rubik's cube.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Rubiks3D([[[Orientation; 3]; 3]; 3]);
+impl Index<Piece> for Rubiks3D {
+    type Output = Orientation;
+
+    fn index(&self, pos: Piece) -> &Self::Output {
+        &self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
+    }
+}
+impl IndexMut<Piece> for Rubiks3D {
+    fn index_mut(&mut self, pos: Piece) -> &mut Self::Output {
+        &mut self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
+    }
+}
 impl PuzzleTrait for Rubiks3D {
     type Piece = Piece;
     type Sticker = Sticker;
@@ -55,14 +67,8 @@ impl PuzzleTrait for Rubiks3D {
     const NDIM: usize = 3;
     const TYPE: PuzzleType = PuzzleType::Rubiks3D;
 
-    fn get_piece(&self, pos: Piece) -> &Orientation {
-        &self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
-    }
-    fn get_piece_mut(&mut self, pos: Piece) -> &mut Orientation {
-        &mut self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
-    }
     fn get_sticker(&self, pos: Sticker) -> Face {
-        self.get_piece(pos.piece())[pos.axis()] * pos.sign()
+        self[pos.piece()][pos.axis()] * pos.sign()
     }
 }
 
@@ -155,16 +161,17 @@ impl StickerTrait<Rubiks3D> for Sticker {
         self.piece
     }
     fn face(self) -> Face {
-        Face {
-            axis: self.axis(),
-            sign: self.sign(),
-        }
+        Face::new(self.axis(), self.sign())
     }
-    fn verts(self, p: GeometryParams, matrix: Matrix4<f32>) -> Option<Vec<Vector3<f32>>> {
+    fn verts(self, p: GeometryParams<Rubiks3D>) -> Option<Vec<Vector3<f32>>> {
         let (ax1, ax2) = self.face().parallel_axes();
+        let matrix = match p.anim {
+            Some((twist, t)) if twist.affects_piece(self.piece) => twist.matrix(t),
+            _ => Matrix3::identity(),
+        };
 
         // Compute the center of the sticker.
-        let mut center = Vector4::zero();
+        let mut center = Vector3::zero();
         center[self.axis() as usize] = 1.5 * self.sign().float();
         center[ax1 as usize] = p.face_scale() * self.piece()[ax1].float();
         center[ax2 as usize] = p.face_scale() * self.piece()[ax2].float();
@@ -179,7 +186,7 @@ impl StickerTrait<Rubiks3D> for Sticker {
             let mut vert = center;
             vert[ax1 as usize] += u;
             vert[ax2 as usize] += v;
-            Some((matrix * vert).truncate() / PUZZLE_RADIUS)
+            Some(matrix * vert / PUZZLE_RADIUS)
         })
         .collect()
     }
@@ -212,20 +219,23 @@ impl Sticker {
 /// Twist of a single face on a 3x3x3 Rubik's cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Twist {
-    face: Face,
-    direction: TwistDirection,
-    layers: [bool; 3],
+    /// Face to twist.
+    pub face: Face,
+    /// Direction to twist the face.
+    pub direction: TwistDirection,
+    /// Layer mask.
+    pub layers: [bool; 3],
 }
 impl TwistTrait<Rubiks3D> for Twist {
     fn rotation(self) -> Orientation {
         // Get the axes of the plane of rotation.
         let (ax1, ax2) = self.face.parallel_axes();
-        let mut rot = Orientation::rot90(ax1, ax2);
+        let rot = Orientation::rot90(ax1, ax2);
         // Reverse orientation if counterclockwise.
-        if self.direction == TwistDirection::CCW {
-            rot = rot.rev();
+        match self.direction {
+            TwistDirection::CW => rot,
+            TwistDirection::CCW => rot.rev(),
         }
-        rot
     }
     fn rev(self) -> Self {
         Self {
@@ -234,34 +244,12 @@ impl TwistTrait<Rubiks3D> for Twist {
             layers: self.layers,
         }
     }
-    fn initial_pieces(self) -> Vec<Piece> {
-        let (ax1, ax2) = self.face.parallel_axes();
-        let opposite = -self.face;
-        let mut center = self.face.center();
-        let mut edge = center;
-        edge[ax1] = Sign::Neg;
-        let mut corner = edge;
-        corner[ax2] = Sign::Neg;
-        let mut ret = vec![];
-        // Fencepost behavior.
-        if self.layers[0] {
-            ret.extend(&[center, edge, corner]);
+    fn affects_piece(self, piece: Piece) -> bool {
+        match piece[self.face.axis()] * self.face.sign() {
+            Sign::Neg => self.layers[2],
+            Sign::Zero => self.layers[1],
+            Sign::Pos => self.layers[0],
         }
-        for layer in 1..=2 {
-            center = center + opposite;
-            edge = edge + opposite;
-            corner = corner + opposite;
-            if self.layers[layer] {
-                ret.extend(&[center, edge, corner]);
-            }
-        }
-        ret
-    }
-    fn matrix(self, portion: f32) -> Matrix4<f32> {
-        let mut axis = Vector3::zero();
-        axis[self.face.axis() as usize] = self.face.sign().float();
-        let angle = Deg(portion * 90.0 * self.direction.sign().float());
-        Matrix4::from_axis_angle(axis, angle)
     }
 }
 impl From<Sticker> for Twist {
@@ -295,6 +283,16 @@ impl Twist {
     pub fn layers(mut self, layers: [bool; 3]) -> Self {
         self.layers = layers;
         self
+    }
+
+    /// Returns a 4x4 rotation matrix for a portion of this twist, `t` ranges
+    /// from 0.0 to 1.0. 0.0 gives the identity matrix; 1.0 gives the result of
+    /// this twist, and intermediate values interpolate.
+    fn matrix(self, t: f32) -> Matrix3<f32> {
+        let mut axis = Vector3::zero();
+        axis[self.face.axis() as usize] = self.face.sign().float();
+        let angle = Deg(t * 90.0 * self.direction.sign().float());
+        Matrix3::from_axis_angle(axis, angle)
     }
 }
 
@@ -507,14 +505,8 @@ impl Orientation {
     #[must_use]
     pub fn rot90(axis1: Axis, axis2: Axis) -> Self {
         let mut ret = Self::default();
-        ret[axis2] = Face {
-            axis: axis1,
-            sign: Sign::Pos,
-        };
-        ret[axis1] = Face {
-            axis: axis2,
-            sign: Sign::Neg,
-        };
+        ret[axis2] = Face::new(axis1, Sign::Pos);
+        ret[axis1] = Face::new(axis2, Sign::Neg);
         ret
     }
 }

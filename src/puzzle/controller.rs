@@ -126,8 +126,8 @@ impl<P: PuzzleTrait> PuzzleController<P> {
     }
     /// Returns the twist currently being animated, along with a float between
     /// 0.0 and 1.0 indicating the progress on that animation.
-    pub fn current_twist(&self) -> Option<(&P::Twist, f32)> {
-        if let Some(twist) = self.twists.get(0) {
+    pub fn current_twist(&self) -> Option<(P::Twist, f32)> {
+        if let Some(&twist) = self.twists.get(0) {
             Some((twist, INTERPOLATION_FN(self.progress)))
         } else {
             None

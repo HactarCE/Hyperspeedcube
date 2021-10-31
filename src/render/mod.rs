@@ -1,9 +1,8 @@
 //! Rendering logic.
 
-use cgmath::{Matrix4, Rad};
+use cgmath::{Matrix3, Rad};
 use glium::{BackfaceCullingMode, DrawParameters, Surface};
 use itertools::Itertools;
-use std::collections::HashSet;
 
 mod cache;
 mod shaders;
@@ -68,6 +67,8 @@ fn _draw_puzzle<P: PuzzleTrait>(
         sticker_spacing: config.gfx.sticker_spacing,
         face_spacing: config.gfx.face_spacing,
         fov_4d: config.gfx.fov_4d,
+
+        anim: puzzle.current_twist(),
     };
 
     let (target_w, target_h) = target.get_dimensions();
@@ -77,42 +78,28 @@ fn _draw_puzzle<P: PuzzleTrait>(
         setup_puzzle::<P>(&mut *cache);
     }
 
-    // Prepare model matrices, which must be done here on the CPU so that we can do proper Z ordering.
-    let stationary_model_matrix =
-        Matrix4::from_angle_x(Rad(config.gfx.theta)) * Matrix4::from_angle_y(Rad(config.gfx.phi));
-    let moving_model_matrix;
-    let moving_pieces: HashSet<P::Piece>;
-    if let Some((twist, progress)) = puzzle.current_twist() {
-        moving_model_matrix = stationary_model_matrix * twist.matrix(progress);
-        moving_pieces = twist.pieces().collect();
-    } else {
-        moving_model_matrix = stationary_model_matrix;
-        moving_pieces = HashSet::new();
-    };
+    // Prepare model matrices, which must be done here on the CPU so that we can
+    // do proper Z ordering.
+    let model_matrix =
+        Matrix3::from_angle_x(Rad(config.gfx.theta)) * Matrix3::from_angle_y(Rad(config.gfx.phi));
 
     // Each sticker has a Vec<StickerVertex> with all of its vertices and a
     // single f32 containing the average Z value.
     let mut verts_by_sticker: Vec<(Vec<StickerVertex>, f32)> = vec![];
     // Generate vertices.
     for piece in P::Piece::iter() {
-        let matrix = if moving_pieces.contains(&piece) {
-            moving_model_matrix
-        } else {
-            stationary_model_matrix
-        };
-
         for sticker in piece.stickers() {
             let [r, g, b] = puzzle.displayed().get_sticker(sticker).color();
             let color = [r, g, b, config.gfx.opacity];
 
-            if let Some(verts) = sticker.verts(geometry_params, matrix) {
+            if let Some(verts) = sticker.verts(geometry_params) {
                 let mut z_sum = 0.0;
 
                 let sticker_verts = verts
                     .into_iter()
                     .map(|vert_pos| {
                         // Divide by clipping radius.
-                        let pos = vert_pos.extend(CLIPPING_RADIUS);
+                        let pos = (model_matrix * vert_pos).extend(CLIPPING_RADIUS);
                         z_sum += pos.z;
                         let pos = pos.into();
                         StickerVertex { pos, color }
