@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
-pub fn get_config<'a>() -> MutexGuard<'a, Config> {
+pub(crate) fn get_config<'a>() -> MutexGuard<'a, Config> {
     CONFIG.lock().unwrap()
 }
 

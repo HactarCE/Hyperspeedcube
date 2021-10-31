@@ -10,7 +10,7 @@ extern crate lazy_static;
 
 use core::cell::RefCell;
 use glium::glutin::{
-    event::{ElementState, Event, KeyboardInput, StartCause, VirtualKeyCode, WindowEvent},
+    event::{Event, StartCause, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
     ContextBuilder,
@@ -27,12 +27,13 @@ mod debug;
 
 mod colors;
 mod config;
+mod input;
 pub mod puzzle;
 mod render;
 mod window;
 
 use config::get_config;
-use puzzle::{traits::*, PuzzleEnum, PuzzleType};
+use puzzle::PuzzleType;
 
 /// The title of the window.
 const TITLE: &str = "Keyboard Speedcube";
@@ -53,6 +54,7 @@ lazy_static! {
 fn main() {
     // Initialize runtime data.
     let mut puzzle = PuzzleType::default().new();
+    let mut input_state = input::State::default();
     let mut events_buffer = VecDeque::new();
 
     // Initialize imgui.
@@ -136,79 +138,27 @@ fn main() {
                 }
                 last_frame_time = now;
 
+                // Prep the puzzle for event handling.
+                let mut input_frame = input_state.frame(&mut puzzle, &imgui_io);
+
                 for ev in events_buffer.drain(..) {
                     // Let imgui handle events.
                     platform.handle_event(imgui_io, gl_window.window(), &ev);
+                    // Handle events for the puzzle.
+                    input_frame.handle_event(&ev);
                     // Handle events ourself.
                     match ev {
                         Event::WindowEvent { event, .. } => match event {
                             // Handle window close event.
                             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                            WindowEvent::KeyboardInput { input, .. } => match input {
-                                KeyboardInput {
-                                    state: ElementState::Pressed,
-                                    virtual_keycode: Some(keycode),
-                                    ..
-                                } => match &mut puzzle {
-                                    PuzzleEnum::Rubiks3D(cube) => {
-                                        use puzzle::rubiks3d::twists;
-                                        use VirtualKeyCode as Vk;
-
-                                        match keycode {
-                                            Vk::Escape => *control_flow = ControlFlow::Exit,
-                                            Vk::U => cube.twist(*twists::R),
-                                            Vk::E => cube.twist(twists::R.rev()),
-                                            Vk::L => cube.twist(twists::R.fat()),
-                                            Vk::M => cube.twist(twists::R.fat().rev()),
-                                            Vk::N => cube.twist(*twists::U),
-                                            Vk::T => cube.twist(twists::U.rev()),
-                                            Vk::S => cube.twist(*twists::L),
-                                            Vk::F => cube.twist(twists::L.rev()),
-                                            Vk::V => cube.twist(twists::L.fat()),
-                                            Vk::P => cube.twist(twists::L.fat().rev()),
-                                            Vk::R => cube.twist(*twists::D),
-                                            Vk::I => cube.twist(twists::D.rev()),
-                                            Vk::H => cube.twist(*twists::F),
-                                            Vk::D => cube.twist(twists::F.rev()),
-                                            Vk::W => cube.twist(*twists::B),
-                                            Vk::Y => cube.twist(twists::B.rev()),
-                                            Vk::G | Vk::J => cube.twist(*twists::X),
-                                            Vk::B | Vk::K => cube.twist(twists::X.rev()),
-                                            Vk::O => cube.twist(*twists::Y),
-                                            Vk::A => cube.twist(twists::Y.rev()),
-                                            Vk::Semicolon => cube.twist(*twists::Z),
-                                            Vk::Q => cube.twist(twists::Z.rev()),
-                                            _ => (),
-                                        }
-                                    }
-
-                                    PuzzleEnum::Rubiks4D(cube) => {
-                                        use puzzle::rubiks4d::Twist;
-                                        use VirtualKeyCode as Vk;
-
-                                        match keycode {
-                                            Vk::Escape => *control_flow = ControlFlow::Exit,
-                                            Vk::Key1 => cube.twist(Twist::from_sticker_idx(20)),
-                                            Vk::Key2 => cube.twist(Twist::from_sticker_idx(21)),
-                                            Vk::Key3 => cube.twist(Twist::from_sticker_idx(22)),
-                                            Vk::Key4 => cube.twist(Twist::from_sticker_idx(23)),
-                                            Vk::Key5 => cube.twist(Twist::from_sticker_idx(24)),
-                                            Vk::Key6 => cube.twist(Twist::from_sticker_idx(25)),
-                                            Vk::Key7 => cube.twist(Twist::from_sticker_idx(8)),
-                                            Vk::Key8 => cube.twist(Twist::from_sticker_idx(9)),
-                                            Vk::Key9 => cube.twist(Twist::from_sticker_idx(0)),
-                                            Vk::Key0 => cube.twist(Twist::from_sticker_idx(1)),
-                                            _ => (),
-                                        }
-                                    }
-                                },
-                                _ => (),
-                            },
                             _ => (),
                         },
                         _ => (),
                     }
                 }
+
+                // Finish handling events for the puzzle.
+                input_frame.finish();
 
                 // Prep imgui for rendering.
                 let ui = imgui.frame();

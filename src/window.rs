@@ -1,12 +1,12 @@
 use imgui::*;
 
-use crate::config::{get_config, Msaa};
+use crate::config::Msaa;
 use crate::puzzle::{PuzzleEnum, PuzzleType};
 
 /// Builds the window.
 pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
     Window::new(&ImString::new(crate::TITLE)).build(&ui, || {
-        let mut config = get_config();
+        let mut config = crate::get_config();
 
         ui.text(format!("KeyboardSpeedcube v{}", env!("CARGO_PKG_VERSION")));
         ui.text("");

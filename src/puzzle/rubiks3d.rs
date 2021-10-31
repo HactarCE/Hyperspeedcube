@@ -13,34 +13,32 @@ const PUZZLE_RADIUS: f32 = 1.5;
 pub mod twists {
     use super::*;
 
-    lazy_static! {
-        /// Turn the right face clockwise 90 degrees.
-        pub static ref R: Twist = Twist::new(Axis::X, Sign::Pos, TwistDirection::CW);
-        /// Turn the left face clockwise 90 degrees.
-        pub static ref L: Twist = Twist::new(Axis::X, Sign::Neg, TwistDirection::CW);
-        /// Turn the top face clockwise 90 degrees.
-        pub static ref U: Twist = Twist::new(Axis::Y, Sign::Pos, TwistDirection::CW);
-        /// Turn the bottom face clockwise 90 degrees.
-        pub static ref D: Twist = Twist::new(Axis::Y, Sign::Neg, TwistDirection::CW);
-        /// Turn the front face clockwise 90 degrees.
-        pub static ref F: Twist = Twist::new(Axis::Z, Sign::Pos, TwistDirection::CW);
-        /// Turn the back face clockwise 90 degrees.
-        pub static ref B: Twist = Twist::new(Axis::Z, Sign::Neg, TwistDirection::CW);
+    /// Turn the right face clockwise 90 degrees.
+    pub const R: Twist = Twist::new(Axis::X, Sign::Pos, TwistDirection::CW);
+    /// Turn the left face clockwise 90 degrees.
+    pub const L: Twist = Twist::new(Axis::X, Sign::Neg, TwistDirection::CW);
+    /// Turn the top face clockwise 90 degrees.
+    pub const U: Twist = Twist::new(Axis::Y, Sign::Pos, TwistDirection::CW);
+    /// Turn the bottom face clockwise 90 degrees.
+    pub const D: Twist = Twist::new(Axis::Y, Sign::Neg, TwistDirection::CW);
+    /// Turn the front face clockwise 90 degrees.
+    pub const F: Twist = Twist::new(Axis::Z, Sign::Pos, TwistDirection::CW);
+    /// Turn the back face clockwise 90 degrees.
+    pub const B: Twist = Twist::new(Axis::Z, Sign::Neg, TwistDirection::CW);
 
-        /// Turn the middle layer down 90 degrees.
-        pub static ref M: Twist = L.slice();
-        /// Turn the equitorial layer to the right 90 degrees.
-        pub static ref E: Twist = D.slice();
-        /// Turn the standing layer clockwise 90 degrees.
-        pub static ref S: Twist = F.slice();
+    /// Turn the middle layer down 90 degrees.
+    pub const M: Twist = L.slice();
+    /// Turn the equitorial layer to the right 90 degrees.
+    pub const E: Twist = D.slice();
+    /// Turn the standing layer clockwise 90 degrees.
+    pub const S: Twist = F.slice();
 
-        /// Turn the whole cube 90 degrees up.
-        pub static ref X: Twist = R.whole_cube();
-        /// Turn the whole cube 90 degrees to left.
-        pub static ref Y: Twist = U.whole_cube();
-        /// Turn the whole cube 90 degrees clockwise.
-        pub static ref Z: Twist = F.whole_cube();
-    }
+    /// Turn the whole cube 90 degrees up.
+    pub const X: Twist = R.whole_cube();
+    /// Turn the whole cube 90 degrees to left.
+    pub const Y: Twist = U.whole_cube();
+    /// Turn the whole cube 90 degrees clockwise.
+    pub const Z: Twist = F.whole_cube();
 }
 
 /// State of a 3x3x3 Rubik's cube.
@@ -289,7 +287,7 @@ impl From<Sticker> for Twist {
 impl Twist {
     /// Returns a twist of the face with the given axis and sign in the given
     /// direction.
-    pub fn new(axis: Axis, sign: Sign, direction: TwistDirection) -> Self {
+    pub const fn new(axis: Axis, sign: Sign, direction: TwistDirection) -> Self {
         Self {
             face: Face { axis, sign },
             direction,
@@ -297,19 +295,19 @@ impl Twist {
         }
     }
     /// Make a fat (2-layer) move from this move.
-    pub fn fat(self) -> Self {
+    pub const fn fat(self) -> Self {
         self.layers([true, true, false])
     }
     /// Make a slice move from this move.
-    pub fn slice(self) -> Self {
+    pub const fn slice(self) -> Self {
         self.layers([false, true, false])
     }
     /// Make a whole cube rotation from this move.
-    pub fn whole_cube(self) -> Self {
+    pub const fn whole_cube(self) -> Self {
         self.layers([true, true, true])
     }
     /// Twist different layers.
-    pub fn layers(mut self, layers: [bool; 3]) -> Self {
+    pub const fn layers(mut self, layers: [bool; 3]) -> Self {
         self.layers = layers;
         self
     }
