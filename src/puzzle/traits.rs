@@ -4,6 +4,8 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::Mul;
 
+use cgmath::{Matrix4, Vector3};
+
 use super::PuzzleType;
 
 /// A twisty puzzle.
@@ -62,10 +64,6 @@ pub trait PuzzleTrait: 'static + Debug + Default + Clone + Eq + Hash {
             self.cycle(initial, twist.rotation())
         }
     }
-
-    /// Returns the maximum extent of any single coordinate along the X, Y, or Z
-    /// axes (after 4D projection).
-    fn radius(p: GeometryParams) -> f32;
 }
 
 /// The location of a piece in a twisty puzzle.
@@ -94,12 +92,11 @@ pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq + Hash {
     fn piece(self) -> P::Piece;
     /// Returns the face that this sticker is on.
     fn face(self) -> P::Face;
-    /// Returns the 4D coordinates of the center of this sticker.
-    fn center(self, p: GeometryParams) -> [f32; 4];
-    /// Returns the 4D vertices used to render this sticker.
+    /// Returns the 3D vertices used to render this sticker, or `None` if the
+    /// sticker is not visible.
     ///
-    /// The W component will be 0.0 if this is puzzle is only 3-dimensional.
-    fn verts(self, p: GeometryParams) -> Vec<[f32; 4]>;
+    /// All vertices should be within the cube from (-1, -1, -1) to (1, 1, 1).
+    fn verts(self, p: GeometryParams, matrix: Matrix4<f32>) -> Option<Vec<Vector3<f32>>>;
     /// Returns an iterator over all the stickers on this puzzle.
     fn iter() -> Box<dyn Iterator<Item = P::Sticker>> {
         Box::new(P::Piece::iter().flat_map(P::Piece::stickers))
@@ -161,7 +158,7 @@ pub trait TwistTrait<P: PuzzleTrait>:
     /// Returns a 4x4 rotation matrix for a portion of this twist, `portion`
     /// ranges from 0.0 to 1.0. 0.0 gives the identity matrix; 1.0 gives the
     /// result of this twist, and intermediate values interpolate.
-    fn matrix(self, portion: f32) -> cgmath::Matrix4<f32>;
+    fn matrix(self, portion: f32) -> Matrix4<f32>;
 }
 
 /// An orientation for a piece of a twisty puzzle, relative to some default.
@@ -176,16 +173,29 @@ pub trait OrientationTrait<P: PuzzleTrait + Hash>:
 /// Geometry parameters.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct GeometryParams {
-    /// Sticker scale factor (0.0 to 1.0).
-    pub sticker_scale: f32,
-    /// Face scale factor (0.0 to 1.0).
-    pub face_scale: f32,
+    /// Sticker spacing factor.
+    pub sticker_spacing: f32,
+    /// Face spacing factor.
+    pub face_spacing: f32,
+    /// 4D FOV
+    pub fov_4d: f32,
 }
 impl Default for GeometryParams {
     fn default() -> Self {
         Self {
-            sticker_scale: 0.8,
-            face_scale: 1.0,
+            sticker_spacing: 0.2,
+            face_spacing: 0.1,
+            fov_4d: 0.0,
         }
+    }
+}
+impl GeometryParams {
+    /// Computes the sticker scale factor (0.0 to 1.0).
+    pub fn sticker_scale(self) -> f32 {
+        1.0 - self.sticker_spacing
+    }
+    /// Computes the sace scale factor (0.0 to 1.0).
+    pub fn face_scale(self) -> f32 {
+        (1.0 - self.face_spacing) * 3.0 / (2.0 + self.sticker_scale())
     }
 }

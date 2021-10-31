@@ -1,9 +1,16 @@
 //! 3x3x3x3 Rubik's cube.
 
-use std::f32::consts::FRAC_PI_2;
+use cgmath::{Deg, InnerSpace, Matrix3, Matrix4, SquareMatrix, Vector3, Vector4, Zero};
+use itertools::Itertools;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::*;
+
+/// Maximum extent of any single coordinate along the X, Y, Z, or W axes.
+const PUZZLE_RADIUS: f32 = 1.5;
+
+/// Threshold for clipping geometry that is too close to the 4D camera.
+const W_CLIP: f32 = 0.99;
 
 /// Some pre-baked twists that can be applied to a 3x3x3x3 Rubik's cube.
 pub mod twists {
@@ -60,10 +67,6 @@ impl PuzzleTrait for Rubiks4D {
     }
     fn get_sticker(&self, pos: Sticker) -> Face {
         self.get_piece(pos.piece())[pos.axis()] * pos.sign()
-    }
-
-    fn radius(p: GeometryParams) -> f32 {
-        p.face_scale * (1.0 + p.sticker_scale / 2.0)
     }
 }
 
@@ -180,28 +183,53 @@ impl StickerTrait<Rubiks4D> for Sticker {
             sign: self.sign(),
         }
     }
-    fn center(self, p: GeometryParams) -> [f32; 4] {
-        let (ax1, ax2, ax3) = self.face().parallel_axes();
-        let mut ret = [0.0; 4];
-        ret[self.axis() as usize] = 1.5 * self.sign().float();
-        ret[ax1 as usize] = p.face_scale * self.piece()[ax1].float();
-        ret[ax2 as usize] = p.face_scale * self.piece()[ax2].float();
-        ret[ax3 as usize] = p.face_scale * self.piece()[ax3].float();
-        ret
-    }
-    fn verts(self, p: GeometryParams) -> Vec<[f32; 4]> {
-        let (ax1, ax2, ax3) = self.face().parallel_axes();
-        let radius = p.face_scale * p.sticker_scale / 2.0;
-        let center = self.center(p);
-        itertools::iproduct!([-radius, radius], [-radius, radius], [-radius, radius])
-            .map(|(v, u, t)| {
-                let mut vert = center;
-                vert[ax1 as usize] += t;
-                vert[ax2 as usize] += u;
-                vert[ax3 as usize] += v;
-                vert
-            })
-            .collect()
+    fn verts(self, p: GeometryParams, matrix: Matrix4<f32>) -> Option<Vec<Vector3<f32>>> {
+        let [ax1, ax2, ax3] = self.face().parallel_axes();
+
+        // Compute the maximum extent along any axis from the origin in the 3D
+        // projection of the puzzle. At the very end of this function, we will
+        // divide all XYZ coordinates by this to normalize the puzzle size.
+        let projection_radius = project_4d(cgmath::vec4(1.0, 0.0, 0.0, 1.0), p.fov_4d).magnitude();
+
+        // Compute the center of the sticker.
+        let mut center = Vector4::zero();
+        center[self.axis() as usize] = 1.5 * self.sign().float();
+        center[ax1 as usize] = p.face_scale() * self.piece()[ax1].float();
+        center[ax2 as usize] = p.face_scale() * self.piece()[ax2].float();
+        center[ax3 as usize] = p.face_scale() * self.piece()[ax3].float();
+
+        // Add a radius to the sticker along each axis.
+        let sticker_radius = p.face_scale() * p.sticker_scale() / 2.0;
+        let mut verts = vec![];
+        for (v, u, t) in itertools::iproduct!(
+            [-sticker_radius, sticker_radius],
+            [-sticker_radius, sticker_radius],
+            [-sticker_radius, sticker_radius]
+        ) {
+            let mut vert = center;
+            vert[ax1 as usize] += t;
+            vert[ax2 as usize] += u;
+            vert[ax3 as usize] += v;
+            let mut vert = matrix * vert;
+            vert /= PUZZLE_RADIUS;
+            vert.w /= 1.0 - p.face_spacing;
+
+            verts.push(project_4d(vert, p.fov_4d) / projection_radius);
+        }
+
+        // Cull this sticker if its 3D volume is negative.
+        if Matrix3::from_cols(
+            verts[1] - verts[0],
+            verts[2] - verts[0],
+            verts[4] - verts[0],
+        )
+        .determinant()
+        .is_sign_negative()
+        {
+            return None;
+        }
+
+        Some(verts)
     }
 }
 impl Sticker {
@@ -293,21 +321,34 @@ pub enum Axis {
     Y = 1,
     /// Z axis (towards the camera).
     Z = 2,
-    /// W axis (towards the 4D eye).
+    /// W axis (towards the 4D camera).
     W = 3,
 }
 impl Axis {
     /// Returns the perpendicular axes from this one, in the order used for
     /// calculating sticker indices.
-    pub fn sticker_order_perpendiculars(self) -> (Axis, Axis, Axis) {
+    pub fn sticker_order_perpendiculars(self) -> [Axis; 3] {
         use Axis::*;
         // This ordering is necessary in order to maintain compatibility with
         // MC4D sticker indices.
         match self {
-            X => (Y, Z, W),
-            Y => (X, Z, W),
-            Z => (X, Y, W),
-            W => (X, Y, Z),
+            X => [Y, Z, W],
+            Y => [X, Z, W],
+            Z => [X, Y, W],
+            W => [X, Y, Z],
+        }
+    }
+    /// Returns the axes of the oriented plane perpendicular to two other axes.
+    pub fn perpendicular_plane(axis1: Axis, axis2: Axis) -> (Axis, Axis) {
+        let [t, u, v] = axis1.sticker_order_perpendiculars();
+        if axis2 == t {
+            (u, v)
+        } else if axis2 == u {
+            (v, t)
+        } else if axis2 == v {
+            (t, u)
+        } else {
+            panic!("no perpendicular plane")
         }
     }
 
@@ -356,7 +397,7 @@ impl FaceTrait<Rubiks4D> for Face {
     fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
         let mut piece = self.center();
         let axis = self.axis;
-        let (ax1, ax2, ax3) = self.axis.sticker_order_perpendiculars();
+        let [ax1, ax2, ax3] = self.axis.sticker_order_perpendiculars();
         Box::new(
             itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter()).map(move |(v, u, t)| {
                 piece[ax1] = t;
@@ -432,18 +473,18 @@ impl Face {
     }
     /// Returns the axes parallel to this face (all except the perpendicular
     /// axis).
-    pub fn parallel_axes(self) -> (Axis, Axis, Axis) {
+    pub fn parallel_axes(self) -> [Axis; 3] {
         use Axis::*;
-        let (ax1, ax2, ax3) = match self.axis {
-            X => (Y, Z, W),
-            Y => (X, W, Z),
-            Z => (W, X, Y),
-            W => (Z, Y, X),
+        let [ax1, ax2, ax3] = match self.axis {
+            X => [Y, Z, W],
+            Y => [X, W, Z],
+            Z => [W, X, Y],
+            W => [Z, Y, X],
         };
         match self.sign {
-            Sign::Neg => (ax2, ax1, ax3),
+            Sign::Neg => [ax2, ax1, ax3],
             Sign::Zero => panic!("invalid face"),
-            Sign::Pos => (ax1, ax2, ax3),
+            Sign::Pos => [ax1, ax2, ax3],
         }
     }
 }

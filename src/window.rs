@@ -78,7 +78,7 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
         ui.text("4D FOV");
         ui.set_next_item_width(ui.window_content_region_width());
         AngleSlider::new("##4d_fov_slider")
-            .range_degrees(10.0, 170.0)
+            .range_degrees(0.0, 120.0)
             .build(ui, &mut config.gfx.fov_4d);
 
         // 3D FOV
@@ -113,6 +113,6 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
         // Opacity
         ui.text("Opacity");
         ui.set_next_item_width(ui.window_content_region_width());
-        Slider::new("##opacity_slider", 0.0, 0.9).build(ui, &mut config.gfx.opacity);
+        Slider::new("##opacity_slider", 0.0, 1.0).build(ui, &mut config.gfx.opacity);
     });
 }

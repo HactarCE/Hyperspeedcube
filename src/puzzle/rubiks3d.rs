@@ -1,9 +1,13 @@
 //! 3x3x3 Rubik's cube.
 
+use cgmath::{Deg, Matrix4, Vector3, Vector4, Zero};
 use std::f32::consts::FRAC_PI_2;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::*;
+
+/// Maximum extent of any single coordinate along the X, Y, or Z axes.
+const PUZZLE_RADIUS: f32 = 1.5;
 
 /// Some pre-baked twists that can be applied to a 3x3x3 Rubik's cube.
 pub mod twists {
@@ -60,10 +64,6 @@ impl PuzzleTrait for Rubiks3D {
     }
     fn get_sticker(&self, pos: Sticker) -> Face {
         self.get_piece(pos.piece())[pos.axis()] * pos.sign()
-    }
-
-    fn radius(_p: GeometryParams) -> f32 {
-        1.5
     }
 }
 
@@ -161,26 +161,28 @@ impl StickerTrait<Rubiks3D> for Sticker {
             sign: self.sign(),
         }
     }
-    fn center(self, p: GeometryParams) -> [f32; 4] {
+    fn verts(self, p: GeometryParams, matrix: Matrix4<f32>) -> Option<Vec<Vector3<f32>>> {
         let (ax1, ax2) = self.face().parallel_axes();
-        let mut ret = [0.0; 4];
-        ret[self.axis() as usize] = 1.5 * self.sign().float();
-        ret[ax1 as usize] = p.face_scale * self.piece()[ax1].float();
-        ret[ax2 as usize] = p.face_scale * self.piece()[ax2].float();
-        ret
-    }
-    fn verts(self, p: GeometryParams) -> Vec<[f32; 4]> {
-        let (ax1, ax2) = self.face().parallel_axes();
-        let radius = p.face_scale * p.sticker_scale / 2.0;
-        let center = self.center(p);
-        itertools::iproduct!([-radius, radius], [-radius, radius])
-            .map(|(v, u)| {
-                let mut vert = center;
-                vert[ax1 as usize] += u;
-                vert[ax2 as usize] += v;
-                vert
-            })
-            .collect()
+
+        // Compute the center of the sticker.
+        let mut center = Vector4::zero();
+        center[self.axis() as usize] = 1.5 * self.sign().float();
+        center[ax1 as usize] = p.face_scale() * self.piece()[ax1].float();
+        center[ax2 as usize] = p.face_scale() * self.piece()[ax2].float();
+
+        // Add a radius to the sticker along each axis.
+        let sticker_radius = p.face_scale() * p.sticker_scale() / 2.0;
+        itertools::iproduct!(
+            [-sticker_radius, sticker_radius],
+            [-sticker_radius, sticker_radius]
+        )
+        .map(|(v, u)| {
+            let mut vert = center;
+            vert[ax1 as usize] += u;
+            vert[ax2 as usize] += v;
+            Some((matrix * vert).truncate() / PUZZLE_RADIUS)
+        })
+        .collect()
     }
 }
 impl Sticker {

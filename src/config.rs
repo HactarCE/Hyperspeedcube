@@ -49,7 +49,7 @@ impl Default for GfxConfig {
             msaa: Msaa::_8,
 
             theta: 35_f32.to_radians(),
-            phi: 45_f32.to_radians(),
+            phi: -40_f32.to_radians(),
 
             fov_3d: 30_f32.to_radians(),
             fov_4d: 30_f32.to_radians(),

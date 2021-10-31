@@ -1,7 +1,8 @@
 //! Rendering logic.
 
-use cgmath::{Matrix4, Rad, Vector4};
+use cgmath::{Matrix4, Rad};
 use glium::{BackfaceCullingMode, DrawParameters, Surface};
+use itertools::Itertools;
 use std::collections::HashSet;
 
 mod cache;
@@ -19,6 +20,8 @@ use verts::*;
 const OUTLINE_COLOR: Option<[f32; 4]> = Some(colors::OUTLINE_BLACK);
 // const OUTLINE_COLOR: Option<[f32; 4]> = colors::OUTLINE_WHITE;
 const LINE_WIDTH: f32 = 2.0;
+
+const CLIPPING_RADIUS: f32 = 2.0;
 
 pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &PuzzleEnum) -> Result<(), glium::DrawError> {
     match puzzle {
@@ -61,13 +64,10 @@ fn _draw_puzzle<P: PuzzleTrait>(
     let mut cache_ = cache::borrow_cache();
     let cache = &mut *cache_;
 
-    let sticker_scale = 1.0 - config.gfx.sticker_spacing;
-    // let face_scale = config.gfx.face_scale + (1.0 - sticker_scale) / 6.0;
-    let face_scale = (1.0 - config.gfx.face_spacing) * 3.0 / (2.0 + sticker_scale);
-
     let geometry_params = GeometryParams {
-        sticker_scale,
-        face_scale,
+        sticker_spacing: config.gfx.sticker_spacing,
+        face_spacing: config.gfx.face_spacing,
+        fov_4d: config.gfx.fov_4d,
     };
 
     let (target_w, target_h) = target.get_dimensions();
@@ -104,33 +104,22 @@ fn _draw_puzzle<P: PuzzleTrait>(
         for sticker in piece.stickers() {
             let [r, g, b] = puzzle.displayed().get_sticker(sticker).color();
             let color = [r, g, b, config.gfx.opacity];
-            let mut sticker_verts = vec![];
 
-            let radius = P::radius(geometry_params);
-            let pre_scale = 1.0 / radius;
-            let post_scale = 1.0 / pre_scale / (radius * radius * P::NDIM as f32).sqrt();
-            let mut z_sum = 0.0;
-            let mut w_sum = 0.0;
-            for vert_pos in sticker.verts(geometry_params) {
-                let pos = matrix * Vector4::from(vert_pos) * pre_scale;
-                let w = -pos.w;
-                w_sum += w;
-                let mut pos = pos.truncate() * post_scale;
-                if P::NDIM == 4 {
-                    let fov = config.gfx.fov_4d;
-                    pos *= post_scale / (1.0 + (fov.signum() + w) * (fov / 2.0).tan());
-                };
-                z_sum += pos.z;
-                let pos = pos.extend(1.0).into(); // w = 1.0
+            if let Some(verts) = sticker.verts(geometry_params, matrix) {
+                let mut z_sum = 0.0;
 
-                sticker_verts.push(StickerVertex { pos, color });
-            }
+                let sticker_verts = verts
+                    .into_iter()
+                    .map(|vert_pos| {
+                        // Divide by clipping radius.
+                        let pos = vert_pos.extend(CLIPPING_RADIUS);
+                        z_sum += pos.z;
+                        let pos = pos.into();
+                        StickerVertex { pos, color }
+                    })
+                    .collect_vec();
 
-            let avg_z = z_sum / sticker_verts.len() as f32;
-            let avg_w = w_sum / sticker_verts.len() as f32;
-
-            // Clip W coordinates too close to the camera.
-            if avg_z.is_finite() && avg_w > -0.99 {
+                let avg_z = z_sum / sticker_verts.len() as f32;
                 verts_by_sticker.push((sticker_verts, avg_z));
             }
         }
@@ -145,9 +134,6 @@ fn _draw_puzzle<P: PuzzleTrait>(
 
     // Write sticker vertices.
     cache.stickers_vbo.slice(verts.len()).write(&verts);
-
-    // To avoid dealing with 5x5 matrices, we'll do translation and rotation in
-    // GLSL in separate steps.
 
     // Create the perspective matrix.
     let perspective_matrix: [[f32; 4]; 4] = {
