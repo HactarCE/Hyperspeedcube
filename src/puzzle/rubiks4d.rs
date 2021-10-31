@@ -16,34 +16,28 @@ const PUZZLE_RADIUS: f32 = 1.5;
 pub mod twists {
     use super::*;
 
-    // lazy_static! {
-    //     /// Turn the right face clockwise 90 degrees.
-    //     pub static ref R: Twist = Twist::new(Axis::X, Sign::Pos, TwistDirection::CW);
-    //     /// Turn the left face clockwise 90 degrees.
-    //     pub static ref L: Twist = Twist::new(Axis::X, Sign::Neg, TwistDirection::CW);
-    //     /// Turn the top face clockwise 90 degrees.
-    //     pub static ref U: Twist = Twist::new(Axis::Y, Sign::Pos, TwistDirection::CW);
-    //     /// Turn the bottom face clockwise 90 degrees.
-    //     pub static ref D: Twist = Twist::new(Axis::Y, Sign::Neg, TwistDirection::CW);
-    //     /// Turn the front face clockwise 90 degrees.
-    //     pub static ref F: Twist = Twist::new(Axis::Z, Sign::Pos, TwistDirection::CW);
-    //     /// Turn the back face clockwise 90 degrees.
-    //     pub static ref B: Twist = Twist::new(Axis::Z, Sign::Neg, TwistDirection::CW);
+    /// Constructs a twist that reorients the whole puzzle to put `face` in the
+    /// center of the view.
+    pub fn recenter(face: Face) -> Option<Twist> {
+        if face.axis() == Axis::W {
+            return None;
+        }
+        let (axis1, axis2) = Axis::perpendicular_plane(face.axis(), Axis::W);
+        let mut sticker = Face::new(axis1, face.sign()).center_sticker();
+        sticker.piece[axis2] = Sign::Pos;
+        Some(Twist::new(sticker, TwistDirection::CCW).whole_cube())
+    }
 
-    //     /// Turn the middle layer down 90 degrees.
-    //     pub static ref M: Twist = L.slice();
-    //     /// Turn the equitorial layer to the right 90 degrees.
-    //     pub static ref E: Twist = D.slice();
-    //     /// Turn the standing layer clockwise 90 degrees.
-    //     pub static ref S: Twist = F.slice();
-
-    //     /// Turn the whole cube 90 degrees up.
-    //     pub static ref X: Twist = R.whole_cube();
-    //     /// Turn the whole cube 90 degrees to left.
-    //     pub static ref Y: Twist = U.whole_cube();
-    //     /// Turn the whole cube 90 degrees clockwise.
-    //     pub static ref Z: Twist = F.whole_cube();
-    // }
+    /// Constructs a twist of `face` along `axis`
+    pub fn by_3d_view(face: Face, axis: Axis, direction: TwistDirection) -> Twist {
+        let mut sticker = face.center_sticker();
+        if axis == face.axis() {
+            sticker.piece[Axis::W] = face.sign();
+        } else {
+            sticker.piece[axis] = Sign::Pos;
+        }
+        Twist::new(sticker, direction)
+    }
 }
 
 lazy_static! {
