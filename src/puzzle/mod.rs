@@ -98,13 +98,13 @@ impl TwistDirection {
             Self::CCW => Self::CW,
         }
     }
-    /// Returns the sign of this rotation, according to the speedsolving
-    /// convention of clockwise being positive and counterclockwise being
+    /// Returns the sign of this rotation, according to the mathematical
+    /// convention of counterclockwise being positive and clockwise being
     /// negative.
     pub fn sign(self) -> Sign {
         match self {
-            Self::CW => Sign::Pos,
-            Self::CCW => Sign::Neg,
+            Self::CW => Sign::Neg,
+            Self::CCW => Sign::Pos,
         }
     }
 }

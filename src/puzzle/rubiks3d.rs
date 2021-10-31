@@ -1,7 +1,6 @@
 //! 3x3x3 Rubik's cube.
 
 use cgmath::{Deg, Matrix4, Vector3, Vector4, Zero};
-use std::f32::consts::FRAC_PI_2;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::*;
@@ -258,19 +257,11 @@ impl TwistTrait<Rubiks3D> for Twist {
         }
         ret
     }
-    fn matrix(self, portion: f32) -> cgmath::Matrix4<f32> {
-        use cgmath::*;
-
-        let (ax1, ax2) = self.face.parallel_axes();
-        let angle = portion * FRAC_PI_2 * self.direction.sign().float();
-
-        let mut ret = Matrix4::identity();
-        ret[ax1 as usize][ax1 as usize] = angle.cos();
-        ret[ax1 as usize][ax2 as usize] = angle.sin();
-        ret[ax2 as usize][ax1 as usize] = -angle.sin();
-        ret[ax2 as usize][ax2 as usize] = angle.cos();
-
-        ret
+    fn matrix(self, portion: f32) -> Matrix4<f32> {
+        let mut axis = Vector3::zero();
+        axis[self.face.axis() as usize] = self.face.sign().float();
+        let angle = Deg(portion * 90.0 * self.direction.sign().float());
+        Matrix4::from_axis_angle(axis, angle)
     }
 }
 impl From<Sticker> for Twist {
