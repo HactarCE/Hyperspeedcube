@@ -212,3 +212,24 @@ impl<P: PuzzleTrait> GeometryParams<P> {
         point.truncate() / (1.0 + (1.0 - w) * (self.fov_4d / 2.0).tan())
     }
 }
+
+/// Facet of the puzzle.
+#[allow(missing_docs)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Facet<P: PuzzleTrait> {
+    Whole,
+    Face(P::Face),
+    Piece(P::Piece),
+    Sticker(P::Sticker),
+}
+impl<P: PuzzleTrait> Facet<P> {
+    /// Returns the 3D-projected center of the facet.
+    pub fn projection_center(self, p: GeometryParams<P>) -> Vector3<f32> {
+        match self {
+            Facet::Whole => Vector3::zero(),
+            Facet::Face(face) => face.projection_center(p),
+            Facet::Piece(piece) => piece.projection_center(p),
+            Facet::Sticker(sticker) => sticker.projection_center(p),
+        }
+    }
+}
