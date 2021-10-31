@@ -70,6 +70,11 @@ impl PuzzleTrait for Rubiks3D {
         self[pos.piece()][pos.axis()] * pos.sign()
     }
 }
+impl Rubiks3D {
+    fn transform_point(point: Vector3<f32>, _p: GeometryParams<Rubiks3D>) -> Vector3<f32> {
+        point / PUZZLE_RADIUS
+    }
+}
 
 /// Piece location in a 3x3x3 Rubik's cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -91,6 +96,10 @@ impl PieceTrait<Rubiks3D> for Piece {
                 .map(|(z, y, x)| Self([x, y, z]))
                 .filter(|&p| p != Self::core()),
         )
+    }
+
+    fn projection_center(self, p: GeometryParams<Rubiks3D>) -> Vector3<f32> {
+        Rubiks3D::transform_point(self.center_3d(p), p)
     }
 }
 impl Index<Axis> for Piece {
@@ -140,6 +149,14 @@ impl Piece {
     fn z_idx(self) -> usize {
         (self.z().int() + 1) as usize
     }
+
+    fn center_3d(self, p: GeometryParams<Rubiks3D>) -> Vector3<f32> {
+        let mut ret = Vector3::zero();
+        for axis in Axis::iter() {
+            ret[axis as usize] = p.face_scale() * self[axis].float();
+        }
+        ret
+    }
 }
 
 /// Sticker location on a 3x3x3 Rubik's cube.
@@ -162,6 +179,10 @@ impl StickerTrait<Rubiks3D> for Sticker {
     fn face(self) -> Face {
         Face::new(self.axis(), self.sign())
     }
+
+    fn projection_center(self, p: GeometryParams<Rubiks3D>) -> Vector3<f32> {
+        Rubiks3D::transform_point(self.center_3d(p), p)
+    }
     fn verts(self, p: GeometryParams<Rubiks3D>) -> Option<Vec<Vector3<f32>>> {
         let (ax1, ax2) = self.face().parallel_axes();
         let matrix = match p.anim {
@@ -170,10 +191,7 @@ impl StickerTrait<Rubiks3D> for Sticker {
         };
 
         // Compute the center of the sticker.
-        let mut center = Vector3::zero();
-        center[self.axis() as usize] = 1.5 * self.sign().float();
-        center[ax1 as usize] = p.face_scale() * self.piece()[ax1].float();
-        center[ax2 as usize] = p.face_scale() * self.piece()[ax2].float();
+        let center = self.center_3d(p);
 
         // Add a radius to the sticker along each axis.
         let sticker_radius = p.face_scale() * p.sticker_scale() / 2.0;
@@ -185,7 +203,7 @@ impl StickerTrait<Rubiks3D> for Sticker {
             let mut vert = center;
             vert[ax1 as usize] += u;
             vert[ax2 as usize] += v;
-            Some(matrix * vert / PUZZLE_RADIUS)
+            Some(Rubiks3D::transform_point(matrix * vert, p))
         })
         .collect()
     }
@@ -212,6 +230,12 @@ impl Sticker {
     /// Sign::Neg).
     pub fn sign(self) -> Sign {
         self.piece()[self.axis()]
+    }
+
+    fn center_3d(self, p: GeometryParams<Rubiks3D>) -> Vector3<f32> {
+        let mut ret = self.piece().center_3d(p);
+        ret[self.axis() as usize] = 1.5 * self.sign().float();
+        ret
     }
 }
 
@@ -375,6 +399,9 @@ impl FaceTrait<Rubiks3D> for Face {
             (_, Zero) => panic!("invalid face"),
         }
     }
+    fn symbol(self) -> char {
+        b"BDLRUF"[self.idx()] as char
+    }
     fn color(self) -> [f32; 3] {
         [
             crate::colors::BLUE,   // Back
@@ -384,9 +411,6 @@ impl FaceTrait<Rubiks3D> for Face {
             crate::colors::WHITE,  // Up
             crate::colors::GREEN,  // Front
         ][self.idx()]
-    }
-    fn symbol(self) -> char {
-        b"BDLRUF"[self.idx()] as char
     }
     fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
         let mut piece = self.center();
@@ -414,6 +438,11 @@ impl FaceTrait<Rubiks3D> for Face {
             ]
             .into_iter(),
         )
+    }
+
+    fn projection_center(self, mut p: GeometryParams<Rubiks3D>) -> Vector3<f32> {
+        p.anim = None;
+        self.center_sticker().projection_center(p)
     }
 }
 impl Neg for Face {

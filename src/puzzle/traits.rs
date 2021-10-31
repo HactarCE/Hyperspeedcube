@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
 
-use cgmath::Vector3;
+use cgmath::{Vector3, Vector4, Zero};
 
 use super::PuzzleType;
 
@@ -85,6 +85,9 @@ pub trait PieceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
     fn stickers(self) -> Box<dyn Iterator<Item = P::Sticker> + 'static>;
     /// Returns an iterator over all the pieces in this puzzle.
     fn iter() -> Box<dyn Iterator<Item = Self>>;
+
+    /// Returns the 3D-projected center of the piece.
+    fn projection_center(self, p: GeometryParams<P>) -> Vector3<f32>;
 }
 
 /// The location of a sticker in a twisty puzzle.
@@ -102,15 +105,18 @@ pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq + Hash {
     fn piece(self) -> P::Piece;
     /// Returns the face that this sticker is on.
     fn face(self) -> P::Face;
+    /// Returns an iterator over all the stickers on this puzzle.
+    fn iter() -> Box<dyn Iterator<Item = P::Sticker>> {
+        Box::new(P::Piece::iter().flat_map(P::Piece::stickers))
+    }
+
+    /// Returns the 3D-projected center of the sticker.
+    fn projection_center(self, p: GeometryParams<P>) -> Vector3<f32>;
     /// Returns the 3D vertices used to render this sticker, or `None` if the
     /// sticker is not visible.
     ///
     /// All vertices should be within the cube from (-1, -1, -1) to (1, 1, 1).
     fn verts(self, p: GeometryParams<P>) -> Option<Vec<Vector3<f32>>>;
-    /// Returns an iterator over all the stickers on this puzzle.
-    fn iter() -> Box<dyn Iterator<Item = P::Sticker>> {
-        Box::new(P::Piece::iter().flat_map(P::Piece::stickers))
-    }
 }
 
 /// A face of a twisty puzzle.
@@ -129,14 +135,17 @@ pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
     fn stickers(self) -> Box<dyn Iterator<Item = P::Sticker> + 'static>;
     /// Returns an iterator over all the faces on this puzzle.
     fn iter() -> Box<dyn Iterator<Item = P::Face>>;
+
+    /// Returns the 3D-projected center of the face.
+    fn projection_center(self, p: GeometryParams<P>) -> Vector3<f32>;
 }
 
 /// A twist that can be applied to a twisty puzzle.
 pub trait TwistTrait<P: PuzzleTrait>:
     'static + Debug + Copy + Eq + From<P::Sticker> + Hash
 {
-    /// Returns the orientation that would result from applying this twist
-    /// to a piece in the default orientation.
+    /// Returns the orientation that would result from applying this twist to a
+    /// piece in the default orientation.
     fn rotation(self) -> P::Orientation;
     /// Returns the reverse of this twist.
     #[must_use]
@@ -193,5 +202,13 @@ impl<P: PuzzleTrait> GeometryParams<P> {
     /// Computes the sace scale factor (0.0 to 1.0).
     pub fn face_scale(self) -> f32 {
         (1.0 - self.face_spacing) * 3.0 / (2.0 + self.sticker_scale())
+    }
+
+    /// Projects a 4D point down to 3D. W coordinates are clipped to the range
+    /// from -1 to 1.
+    pub fn project_4d(self, point: Vector4<f32>) -> Vector3<f32> {
+        // This formula assumes that W is between -1 and 1.
+        let w = point.w.clamp(-1.0, 1.0);
+        point.truncate() / (1.0 + (1.0 - w) * (self.fov_4d / 2.0).tan())
     }
 }

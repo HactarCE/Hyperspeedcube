@@ -94,6 +94,18 @@ impl PuzzleTrait for Rubiks4D {
         self[pos.piece()][pos.axis()] * pos.sign()
     }
 }
+impl Rubiks4D {
+    fn transform_point(mut point: Vector4<f32>, p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
+        // Compute the maximum extent along any axis from the origin in the 3D
+        // projection of the puzzle. At the very end of this function, we will
+        // divide all XYZ coordinates by this to normalize the puzzle size.
+        let projection_radius = p.project_4d(cgmath::vec4(1.0, 0.0, 0.0, 1.0)).magnitude();
+
+        point /= PUZZLE_RADIUS;
+        point.w /= 1.0 - p.face_spacing;
+        p.project_4d(point) / projection_radius
+    }
+}
 
 /// Piece location in a 3x3x3x3 Rubik's cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -115,6 +127,10 @@ impl PieceTrait<Rubiks4D> for Piece {
                 .map(|(w, z, y, x)| Self([x, y, z, w]))
                 .filter(|&p| p != Self::core()),
         )
+    }
+
+    fn projection_center(self, p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
+        Rubiks4D::transform_point(self.center_4d(p), p)
     }
 }
 impl Index<Axis> for Piece {
@@ -172,6 +188,14 @@ impl Piece {
     fn w_idx(self) -> usize {
         (self.w().int() + 1) as usize
     }
+
+    fn center_4d(self, p: GeometryParams<Rubiks4D>) -> Vector4<f32> {
+        let mut ret = Vector4::zero();
+        for axis in Axis::iter() {
+            ret[axis as usize] = p.face_scale() * self[axis].float();
+        }
+        ret
+    }
 }
 
 /// Sticker location on a 3x3x3x3 Rubik's cube.
@@ -205,6 +229,10 @@ impl StickerTrait<Rubiks4D> for Sticker {
     fn face(self) -> Face {
         Face::new(self.axis(), self.sign())
     }
+
+    fn projection_center(self, p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
+        p.project_4d(self.center_4d(p))
+    }
     fn verts(self, p: GeometryParams<Rubiks4D>) -> Option<Vec<Vector3<f32>>> {
         let [ax1, ax2, ax3] = self.face().parallel_axes();
         let matrix = match p.anim {
@@ -212,17 +240,8 @@ impl StickerTrait<Rubiks4D> for Sticker {
             _ => Matrix4::identity(),
         };
 
-        // Compute the maximum extent along any axis from the origin in the 3D
-        // projection of the puzzle. At the very end of this function, we will
-        // divide all XYZ coordinates by this to normalize the puzzle size.
-        let projection_radius = project_4d(cgmath::vec4(1.0, 0.0, 0.0, 1.0), p.fov_4d).magnitude();
-
         // Compute the center of the sticker.
-        let mut center = Vector4::zero();
-        center[self.axis() as usize] = 1.5 * self.sign().float();
-        center[ax1 as usize] = p.face_scale() * self.piece()[ax1].float();
-        center[ax2 as usize] = p.face_scale() * self.piece()[ax2].float();
-        center[ax3 as usize] = p.face_scale() * self.piece()[ax3].float();
+        let center = self.center_4d(p);
 
         // Add a radius to the sticker along each axis.
         let sticker_radius = p.face_scale() * p.sticker_scale() / 2.0;
@@ -236,11 +255,7 @@ impl StickerTrait<Rubiks4D> for Sticker {
             vert[ax1 as usize] += t;
             vert[ax2 as usize] += u;
             vert[ax3 as usize] += v;
-            let mut vert = matrix * vert;
-            vert /= PUZZLE_RADIUS;
-            vert.w /= 1.0 - p.face_spacing;
-
-            verts.push(project_4d(vert, p.fov_4d) / projection_radius);
+            verts.push(Rubiks4D::transform_point(matrix * vert, p));
         }
 
         // Only show this sticker if the 3D volume is positive. (Cull it if its
@@ -327,6 +342,12 @@ impl Sticker {
     pub fn vec3_within_face(self) -> [Sign; 3] {
         let [ax1, ax2, ax3] = self.axis().sticker_order_perpendiculars();
         [self.piece()[ax1], self.piece()[ax2], self.piece()[ax3]]
+    }
+
+    fn center_4d(self, p: GeometryParams<Rubiks4D>) -> Vector4<f32> {
+        let mut ret = self.piece().center_4d(p);
+        ret[self.axis() as usize] = 1.5 * self.sign().float();
+        ret
     }
 }
 
@@ -577,6 +598,9 @@ impl FaceTrait<Rubiks4D> for Face {
             (_, Zero) => panic!("invalid face"),
         }
     }
+    fn symbol(self) -> char {
+        b"IBDLRUFO"[self.idx()] as char
+    }
     fn color(self) -> [f32; 3] {
         [
             crate::colors::PURPLE, // In
@@ -588,9 +612,6 @@ impl FaceTrait<Rubiks4D> for Face {
             crate::colors::WHITE,  // Front
             crate::colors::PINK,   // Out
         ][self.idx()]
-    }
-    fn symbol(self) -> char {
-        b"IBDLRUFO"[self.idx()] as char
     }
     fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
         let mut piece = self.center();
@@ -621,6 +642,11 @@ impl FaceTrait<Rubiks4D> for Face {
             ]
             .into_iter(),
         )
+    }
+
+    fn projection_center(self, mut p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
+        p.anim = None;
+        self.center_sticker().projection_center(p)
     }
 }
 impl Neg for Face {
@@ -789,10 +815,4 @@ impl Orientation {
         }
         self
     }
-}
-
-fn project_4d(p: Vector4<f32>, fov_4d: f32) -> Vector3<f32> {
-    // This formula assumes that W is between -1 and 1.
-    let w = p.w.clamp(-1.0, 1.0);
-    p.truncate() / (1.0 + (1.0 - w) * (fov_4d / 2.0).tan())
 }
