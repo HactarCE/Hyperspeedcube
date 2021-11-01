@@ -17,6 +17,16 @@ const PUZZLE_RADIUS: f32 = 1.5;
 pub mod twists {
     use super::*;
 
+    lazy_static! {
+        /// Turn the whole cube 90 degrees up.
+        pub static ref X: Twist = by_3d_view(Face::I, Axis::X, TwistDirection::CW).whole_cube();
+        /// Turn the whole cube 90 degrees to the left.
+        pub static ref Y: Twist = by_3d_view(Face::I, Axis::Y, TwistDirection::CW).whole_cube();
+        /// Turn the whole cube 90 degrees clockwise.
+        pub static ref Z: Twist = by_3d_view(Face::I, Axis::Z, TwistDirection::CW).whole_cube();
+
+    }
+
     /// Constructs a twist that reorients the whole puzzle to put `face` in the
     /// center of the view.
     pub fn recenter(face: Face) -> Option<Twist> {
@@ -32,8 +42,10 @@ pub mod twists {
     /// Constructs a twist of `face` along `axis`
     pub fn by_3d_view(face: Face, axis: Axis, direction: TwistDirection) -> Twist {
         let mut sticker = face.center_sticker();
-        if axis == face.axis() {
+        if face.axis() == axis {
             sticker.piece[Axis::W] = face.sign();
+        } else if face == Face::O {
+            sticker.piece[axis] = Sign::Neg;
         } else {
             sticker.piece[axis] = Sign::Pos;
         }
@@ -477,7 +489,7 @@ impl Twist {
     }
     /// Returns a twist of the face from the given sticker and in the given
     /// direction.
-    pub fn new(sticker: Sticker, direction: TwistDirection) -> Self {
+    pub const fn new(sticker: Sticker, direction: TwistDirection) -> Self {
         Self {
             sticker,
             direction,
@@ -485,19 +497,19 @@ impl Twist {
         }
     }
     /// Make a fat (2-layer) move from this move.
-    pub fn fat(self) -> Self {
+    pub const fn fat(self) -> Self {
         self.layers([true, true, false])
     }
     /// Make a slice move from this move.
-    pub fn slice(self) -> Self {
+    pub const fn slice(self) -> Self {
         self.layers([false, true, false])
     }
     /// Make a whole cube rotation from this move.
-    pub fn whole_cube(self) -> Self {
+    pub const fn whole_cube(self) -> Self {
         self.layers([true, true, true])
     }
     /// Twist different layers.
-    pub fn layers(mut self, layers: [bool; 3]) -> Self {
+    pub const fn layers(mut self, layers: [bool; 3]) -> Self {
         self.layers = layers;
         self
     }
@@ -507,7 +519,11 @@ impl Twist {
     /// this twist, and intermediate values interpolate.
     fn matrix(self, t: f32) -> Matrix4<f32> {
         let [s1, s2, s3] = self.sticker.vec3_within_face();
-        let axis = cgmath::vec3(s1.float(), s2.float(), s3.float()).normalize();
+        let face = self.sticker.face();
+        let mut axis = cgmath::vec3(s1.float(), s2.float(), s3.float()).normalize();
+        if "LUBO".contains(face.symbol()) {
+            axis *= -1.0;
+        }
         let angle = Deg(t * 360.0 / self.symmetry_order() as f32 * self.direction.sign().float());
         let mat3 = Matrix3::from_axis_angle(axis, angle);
 

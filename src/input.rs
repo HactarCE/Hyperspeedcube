@@ -199,7 +199,7 @@ fn handle_key_rubiks3d(
     keycode: VirtualKeyCode,
     state: &mut State,
 ) {
-    use rubiks3d::twists;
+    use rubiks3d::*;
     use VirtualKeyCode as Vk;
 
     if state.modifiers.shift() {
@@ -240,17 +240,53 @@ fn handle_key_rubiks4d(
     keycode: VirtualKeyCode,
     state: &mut State,
 ) {
-    use rubiks4d::twists;
+    use crate::puzzle::TwistDirection::*;
+    use rubiks4d::*;
     use VirtualKeyCode as Vk;
 
-    if state.modifiers.shift() {
+    let face_keys = [
+        (Face::L, Vk::W, "W"),
+        (Face::U, Vk::F, "F"),
+        (Face::B, Vk::P, "P"),
+        (Face::F, Vk::R, "R"),
+        (Face::I, Vk::S, "S"),
+        (Face::R, Vk::T, "T"),
+        (Face::D, Vk::C, "C"),
+        (Face::O, Vk::V, "V"),
+    ];
+
+    if let Ok((face, _, _)) = face_keys
+        .into_iter()
+        .filter(|(_, vk, _)| state.keys[*vk])
+        .exactly_one()
+    {
+        let twist = match keycode {
+            Vk::U => twists::by_3d_view(face, Axis::X, CW),
+            Vk::E => twists::by_3d_view(face, Axis::X, CCW),
+            Vk::N => twists::by_3d_view(face, Axis::Y, CW),
+            Vk::I => twists::by_3d_view(face, Axis::Y, CCW),
+            Vk::Y => twists::by_3d_view(face, Axis::Z, CW),
+            Vk::L => twists::by_3d_view(face, Axis::Z, CCW),
+            _ => return,
+        };
+        if state.modifiers.shift() {
+            cube.twist(twist.fat());
+        } else {
+            cube.twist(twist);
+        }
+    } else if state.modifiers.shift() {
         match keycode {
             // TODO
             _ => (),
         }
     } else {
         match keycode {
-            // TODO
+            Vk::G | Vk::J => cube.twist(*twists::X),
+            Vk::B | Vk::K => cube.twist(twists::X.rev()),
+            Vk::O => cube.twist(*twists::Y),
+            Vk::A => cube.twist(twists::Y.rev()),
+            Vk::Semicolon => cube.twist(*twists::Z),
+            Vk::Q => cube.twist(twists::Z.rev()),
             _ => (),
         }
     }

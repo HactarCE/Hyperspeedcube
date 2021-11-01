@@ -36,7 +36,7 @@ pub mod twists {
 
     /// Turn the whole cube 90 degrees up.
     pub const X: Twist = R.whole_cube();
-    /// Turn the whole cube 90 degrees to left.
+    /// Turn the whole cube 90 degrees to the left.
     pub const Y: Twist = U.whole_cube();
     /// Turn the whole cube 90 degrees clockwise.
     pub const Z: Twist = F.whole_cube();
