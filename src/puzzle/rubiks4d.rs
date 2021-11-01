@@ -225,7 +225,7 @@ impl StickerTrait<Rubiks4D> for Sticker {
     }
 
     fn projection_center(self, p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
-        p.project_4d(self.center_4d(p))
+        Rubiks4D::transform_point(self.center_4d(p), p)
     }
     fn verts(self, p: GeometryParams<Rubiks4D>) -> Option<Vec<Vector3<f32>>> {
         let [ax1, ax2, ax3] = self.face().parallel_axes();
@@ -607,18 +607,21 @@ impl FaceTrait<Rubiks4D> for Face {
             crate::colors::PINK,   // Out
         ][self.idx()]
     }
-    fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
+    fn pieces(self) -> Box<dyn Iterator<Item = Piece> + 'static> {
         let mut piece = self.center();
-        let axis = self.axis;
         let [ax1, ax2, ax3] = self.axis.sticker_order_perpendiculars();
         Box::new(
             itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter()).map(move |(v, u, t)| {
                 piece[ax1] = t;
                 piece[ax2] = u;
                 piece[ax3] = v;
-                Sticker { piece, axis }
+                piece
             }),
         )
+    }
+    fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
+        let axis = self.axis;
+        Box::new(self.pieces().map(move |piece| Sticker::new(piece, axis)))
     }
     fn iter() -> Box<dyn Iterator<Item = Self>> {
         use Axis::*;
@@ -662,18 +665,35 @@ impl Mul<Sign> for Face {
     }
 }
 impl Face {
+    /// Right face.
+    pub const R: Face = Face::new(Axis::X, Sign::Pos);
+    /// Left face.
+    pub const L: Face = Face::new(Axis::X, Sign::Neg);
+    /// Top face.
+    pub const U: Face = Face::new(Axis::Y, Sign::Pos);
+    /// Bottom face.
+    pub const D: Face = Face::new(Axis::Y, Sign::Neg);
+    /// Front face.
+    pub const F: Face = Face::new(Axis::Z, Sign::Pos);
+    /// Back face.
+    pub const B: Face = Face::new(Axis::Z, Sign::Neg);
+    /// Outer face.
+    pub const O: Face = Face::new(Axis::W, Sign::Pos);
+    /// Inner face.
+    pub const I: Face = Face::new(Axis::W, Sign::Neg);
+
     /// Returns the face on the given axis with the given sign. Panics if given
     /// Sign::Zero.
-    pub fn new(axis: Axis, sign: Sign) -> Self {
-        assert!(sign.is_nonzero(), "Invalid sign for face");
+    pub const fn new(axis: Axis, sign: Sign) -> Self {
+        // assert!(sign.is_nonzero(), "invalid sign for face"); // TODO: panicking in const functions is unstable
         Self { axis, sign }
     }
     /// Returns the axis perpendicular to this face.
-    pub fn axis(self) -> Axis {
+    pub const fn axis(self) -> Axis {
         self.axis
     }
     /// Returns the sign of this face along its perpendicular axis.
-    pub fn sign(self) -> Sign {
+    pub const fn sign(self) -> Sign {
         self.sign
     }
     /// Returns the piece at the center of this face.

@@ -131,6 +131,8 @@ pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
     fn symbol(self) -> char;
     /// Returns the color for this face.
     fn color(self) -> [f32; 3];
+    /// Returns an iterator over all the pieces on this face.
+    fn pieces(self) -> Box<dyn Iterator<Item = P::Piece> + 'static>;
     /// Returns an iterator over all the stickers on this face.
     fn stickers(self) -> Box<dyn Iterator<Item = P::Sticker> + 'static>;
     /// Returns an iterator over all the faces on this puzzle.
@@ -215,13 +217,14 @@ impl<P: PuzzleTrait> GeometryParams<P> {
 
 /// Facet of the puzzle.
 #[allow(missing_docs)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Facet<P: PuzzleTrait> {
     Whole,
     Face(P::Face),
     Piece(P::Piece),
     Sticker(P::Sticker),
 }
+impl<P: PuzzleTrait> Copy for Facet<P> {}
 impl<P: PuzzleTrait> Facet<P> {
     /// Returns the 3D-projected center of the facet.
     pub fn projection_center(self, p: GeometryParams<P>) -> Vector3<f32> {

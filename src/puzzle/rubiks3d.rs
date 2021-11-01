@@ -14,17 +14,17 @@ pub mod twists {
     use super::*;
 
     /// Turn the right face clockwise 90 degrees.
-    pub const R: Twist = Twist::new(Axis::X, Sign::Pos, TwistDirection::CW);
+    pub const R: Twist = Twist::new(Face::R, TwistDirection::CW);
     /// Turn the left face clockwise 90 degrees.
-    pub const L: Twist = Twist::new(Axis::X, Sign::Neg, TwistDirection::CW);
+    pub const L: Twist = Twist::new(Face::L, TwistDirection::CW);
     /// Turn the top face clockwise 90 degrees.
-    pub const U: Twist = Twist::new(Axis::Y, Sign::Pos, TwistDirection::CW);
+    pub const U: Twist = Twist::new(Face::U, TwistDirection::CW);
     /// Turn the bottom face clockwise 90 degrees.
-    pub const D: Twist = Twist::new(Axis::Y, Sign::Neg, TwistDirection::CW);
+    pub const D: Twist = Twist::new(Face::D, TwistDirection::CW);
     /// Turn the front face clockwise 90 degrees.
-    pub const F: Twist = Twist::new(Axis::Z, Sign::Pos, TwistDirection::CW);
+    pub const F: Twist = Twist::new(Face::F, TwistDirection::CW);
     /// Turn the back face clockwise 90 degrees.
-    pub const B: Twist = Twist::new(Axis::Z, Sign::Neg, TwistDirection::CW);
+    pub const B: Twist = Twist::new(Face::B, TwistDirection::CW);
 
     /// Turn the middle layer down 90 degrees.
     pub const M: Twist = L.slice();
@@ -305,15 +305,15 @@ impl TwistTrait<Rubiks3D> for Twist {
 }
 impl From<Sticker> for Twist {
     fn from(sticker: Sticker) -> Self {
-        Self::new(sticker.axis(), sticker.sign(), TwistDirection::CW)
+        Self::new(sticker.face(), TwistDirection::CW)
     }
 }
 impl Twist {
     /// Returns a twist of the face with the given axis and sign in the given
     /// direction.
-    pub const fn new(axis: Axis, sign: Sign, direction: TwistDirection) -> Self {
+    pub const fn new(face: Face, direction: TwistDirection) -> Self {
         Self {
-            face: Face { axis, sign },
+            face,
             direction,
             layers: [true, false, false],
         }
@@ -412,17 +412,20 @@ impl FaceTrait<Rubiks3D> for Face {
             crate::colors::GREEN,  // Front
         ][self.idx()]
     }
-    fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
+    fn pieces(self) -> Box<dyn Iterator<Item = Piece> + 'static> {
         let mut piece = self.center();
-        let axis = self.axis;
         let (ax1, ax2) = self.axis.perpendiculars();
         Box::new(
             itertools::iproduct!(Sign::iter(), Sign::iter()).map(move |(v, u)| {
                 piece[ax1] = u;
                 piece[ax2] = v;
-                Sticker { piece, axis }
+                piece
             }),
         )
+    }
+    fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
+        let axis = self.axis;
+        Box::new(self.pieces().map(move |piece| Sticker::new(piece, axis)))
     }
     fn iter() -> Box<dyn Iterator<Item = Self>> {
         use Axis::*;
@@ -464,18 +467,31 @@ impl Mul<Sign> for Face {
     }
 }
 impl Face {
+    /// Right face.
+    pub const R: Face = Face::new(Axis::X, Sign::Pos);
+    /// Left face.
+    pub const L: Face = Face::new(Axis::X, Sign::Neg);
+    /// Top face.
+    pub const U: Face = Face::new(Axis::Y, Sign::Pos);
+    /// Bottom face.
+    pub const D: Face = Face::new(Axis::Y, Sign::Neg);
+    /// Front face.
+    pub const F: Face = Face::new(Axis::Z, Sign::Pos);
+    /// Back face.
+    pub const B: Face = Face::new(Axis::Z, Sign::Neg);
+
     /// Returns the face on the given axis with the given sign. Panics if given
     /// Sign::Zero.
-    pub fn new(axis: Axis, sign: Sign) -> Self {
-        assert!(sign.is_nonzero(), "invalid sign for face");
+    pub const fn new(axis: Axis, sign: Sign) -> Self {
+        // assert!(sign.is_nonzero(), "invalid sign for face"); // TODO: panicking in const functions is unstable
         Self { axis, sign }
     }
     /// Returns the axis perpendicular to this face.
-    pub fn axis(self) -> Axis {
+    pub const fn axis(self) -> Axis {
         self.axis
     }
     /// Returns the sign of this face along its perpendicular axis.
-    pub fn sign(self) -> Sign {
+    pub const fn sign(self) -> Sign {
         self.sign
     }
     /// Returns the opposite face.
