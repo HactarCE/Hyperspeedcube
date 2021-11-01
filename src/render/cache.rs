@@ -6,19 +6,16 @@ use send_wrapper::SendWrapper;
 use std::cell::{RefCell, RefMut};
 
 use super::verts::*;
-use crate::puzzle::PuzzleType;
 use crate::DISPLAY;
+
 lazy_static! {
     pub static ref FONT: Font<'static> =
         Font::from_bytes(include_bytes!("../../resources/font/NotoSans-Regular.ttf"))
             .expect("failed to load font");
     static ref CACHE: SendWrapper<RefCell<RenderCache>> =
         SendWrapper::new(RefCell::new(RenderCache {
-            last_puzzle_type: None,
             stickers_vbo: CachedVbo::new(),
             label_backdrops_vbo: CachedVbo::new(),
-            tri_indices: CachedIbo::new(PrimitiveType::TrianglesList),
-            line_indices: CachedIbo::new(PrimitiveType::LinesList),
             glyph_brush: GlyphBrush::new(&**DISPLAY, vec![FONT.clone()])
         }));
 }
@@ -28,11 +25,8 @@ pub fn borrow_cache<'a>() -> RefMut<'a, RenderCache> {
 }
 
 pub struct RenderCache {
-    pub last_puzzle_type: Option<PuzzleType>,
-    pub stickers_vbo: CachedVbo<RgbaVertex>,
+    pub stickers_vbo: CachedVbo<WireframeVertex>,
     pub label_backdrops_vbo: CachedVbo<RgbaVertex>,
-    pub tri_indices: CachedIbo<u16>,
-    pub line_indices: CachedIbo<u16>,
     pub glyph_brush: GlyphBrush<'static, 'static>,
 }
 

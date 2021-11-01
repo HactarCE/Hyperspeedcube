@@ -1,12 +1,12 @@
 //! Common traits used for puzzles.
 
+use cgmath::{Matrix3, SquareMatrix, Vector3, Vector4, Zero};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
 
-use cgmath::{Vector3, Vector4, Zero};
-
 use super::PuzzleType;
+use crate::render::WireframeVertex;
 
 /// A twisty puzzle.
 ///
@@ -115,8 +115,9 @@ pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq + Hash {
     /// Returns the 3D vertices used to render this sticker, or `None` if the
     /// sticker is not visible.
     ///
-    /// All vertices should be within the cube from (-1, -1, -1) to (1, 1, 1).
-    fn verts(self, p: GeometryParams<P>) -> Option<Vec<Vector3<f32>>>;
+    /// All vertices should be within the cube from (-1, -1, -1) to (1, 1, 1)
+    /// before having `p.transform` applied.
+    fn verts(self, p: GeometryParams<P>) -> Option<Vec<WireframeVertex>>;
 }
 
 /// A face of a twisty puzzle.
@@ -183,6 +184,13 @@ pub struct GeometryParams<P: PuzzleTrait> {
 
     /// Animation state (twist to animate, and time value from 0.0 to 1.0).
     pub anim: Option<(P::Twist, f32)>,
+    /// Model transformation matrix.
+    pub transform: Matrix3<f32>,
+
+    /// Sticker fill color.
+    pub fill_color: [f32; 4],
+    /// Wireframe color.
+    pub wire_color: [f32; 4],
 }
 impl<P: PuzzleTrait> Copy for GeometryParams<P> {}
 impl<P: PuzzleTrait> Default for GeometryParams<P> {
@@ -193,6 +201,10 @@ impl<P: PuzzleTrait> Default for GeometryParams<P> {
             fov_4d: 0.0,
 
             anim: None,
+            transform: Matrix3::identity(),
+
+            fill_color: [1.0, 1.0, 1.0, 1.0],
+            wire_color: [0.0, 0.0, 0.0, 1.0],
         }
     }
 }

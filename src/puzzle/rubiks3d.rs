@@ -5,6 +5,7 @@ use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::*;
+use crate::render::WireframeVertex;
 
 /// Maximum extent of any single coordinate along the X, Y, or Z axes.
 const PUZZLE_RADIUS: f32 = 1.5;
@@ -71,8 +72,8 @@ impl PuzzleTrait for Rubiks3D {
     }
 }
 impl Rubiks3D {
-    fn transform_point(point: Vector3<f32>, _p: GeometryParams<Rubiks3D>) -> Vector3<f32> {
-        point / PUZZLE_RADIUS
+    fn transform_point(point: Vector3<f32>, p: GeometryParams<Rubiks3D>) -> Vector3<f32> {
+        p.transform * (point / PUZZLE_RADIUS)
     }
 }
 
@@ -183,7 +184,7 @@ impl StickerTrait<Rubiks3D> for Sticker {
     fn projection_center(self, p: GeometryParams<Rubiks3D>) -> Vector3<f32> {
         Rubiks3D::transform_point(self.center_3d(p), p)
     }
-    fn verts(self, p: GeometryParams<Rubiks3D>) -> Option<Vec<Vector3<f32>>> {
+    fn verts(self, p: GeometryParams<Rubiks3D>) -> Option<Vec<WireframeVertex>> {
         let (ax1, ax2) = self.face().parallel_axes();
         let matrix = match p.anim {
             Some((twist, t)) if twist.affects_piece(self.piece) => twist.matrix(t),
@@ -195,17 +196,19 @@ impl StickerTrait<Rubiks3D> for Sticker {
 
         // Add a radius to the sticker along each axis.
         let sticker_radius = p.face_scale() * p.sticker_scale() / 2.0;
-        itertools::iproduct!(
-            [-sticker_radius, sticker_radius],
-            [-sticker_radius, sticker_radius]
-        )
-        .map(|(v, u)| {
+        let get_corner = |v, u| {
             let mut vert = center;
-            vert[ax1 as usize] += u;
-            vert[ax2 as usize] += v;
-            Some(Rubiks3D::transform_point(matrix * vert, p))
-        })
-        .collect()
+            vert[ax1 as usize] += u * sticker_radius;
+            vert[ax2 as usize] += v * sticker_radius;
+            Rubiks3D::transform_point(matrix * vert, p)
+        };
+        let corners = [
+            get_corner(-1.0, -1.0),
+            get_corner(-1.0, 1.0),
+            get_corner(1.0, -1.0),
+            get_corner(1.0, 1.0),
+        ];
+        Some(WireframeVertex::double_quad(corners, p.fill_color, p.wire_color).collect())
     }
 }
 impl Sticker {

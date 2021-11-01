@@ -167,7 +167,7 @@ fn main() {
                 let mut target = DISPLAY.draw();
 
                 // Render the puzzle.
-                render::draw_puzzle(&mut target, &mut puzzle).expect("draw error");
+                render::draw_puzzle(&mut target, &mut puzzle);
 
                 // Render imgui.
                 platform.prepare_render(&ui, gl_window.window());

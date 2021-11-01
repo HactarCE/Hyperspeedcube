@@ -1,12 +1,11 @@
 //! Rendering logic.
 
-use cgmath::{Matrix4, Rad, Transform};
+use cgmath::{Matrix3, Matrix4, Rad, Transform};
 use glium::{BackfaceCullingMode, DrawParameters, Surface};
 use glium_glyph::glyph_brush::{
     rusttype, BuiltInLineBreaker, HorizontalAlign, Layout, SectionText, VariedSection,
     VerticalAlign,
 };
-use itertools::Itertools;
 
 mod cache;
 mod shaders;
@@ -16,77 +15,34 @@ use crate::colors;
 use crate::config::get_config;
 use crate::puzzle::{traits::*, PuzzleController, PuzzleEnum};
 use crate::DISPLAY;
-use cache::{RenderCache, FONT};
+use cache::FONT;
+pub use verts::WireframeVertex;
 use verts::*;
-
-// const OUTLINE_COLOR: Option<[f32; 4]> = None;
-const OUTLINE_COLOR: Option<[f32; 4]> = Some(colors::OUTLINE_BLACK);
-// const OUTLINE_COLOR: Option<[f32; 4]> = colors::OUTLINE_WHITE;
-const LINE_WIDTH: f32 = 2.0;
 
 const CLIPPING_RADIUS: f32 = 2.0;
 
-pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &PuzzleEnum) -> Result<(), glium::DrawError> {
+pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &PuzzleEnum) {
     match puzzle {
         PuzzleEnum::Rubiks3D(cube) => _draw_puzzle(target, cube),
         PuzzleEnum::Rubiks4D(cube) => _draw_puzzle(target, cube),
     }
 }
 
-fn setup_puzzle<P: PuzzleTrait>(cache: &mut RenderCache) {
-    cache.last_puzzle_type = Some(P::TYPE);
-
-    let mut surface_indices = vec![];
-    let mut outline_indices = vec![];
-    let mut base = 0;
-    for _ in P::Sticker::iter() {
-        // Prepare triangle indices.
-        surface_indices.extend(P::Sticker::SURFACE_INDICES.iter().map(|&i| base + i));
-        // Prepare line indices.
-        outline_indices.extend(P::Sticker::OUTLINE_INDICES.iter().map(|&i| base + i));
-        base += P::Sticker::VERTEX_COUNT;
-    }
-    // Write triangle indices.
-    cache
-        .tri_indices
-        .slice(surface_indices.len())
-        .write(&surface_indices);
-    // Write line indices.
-    cache
-        .line_indices
-        .slice(outline_indices.len())
-        .write(&outline_indices);
-}
-
-fn _draw_puzzle<P: PuzzleTrait>(
-    target: &mut glium::Frame,
-    puzzle: &PuzzleController<P>,
-) -> Result<(), glium::DrawError> {
+fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleController<P>) {
     let config = get_config();
 
     let mut cache_ = cache::borrow_cache();
     let cache = &mut *cache_;
 
-    let geometry_params = GeometryParams {
-        sticker_spacing: config.gfx.sticker_spacing,
-        face_spacing: config.gfx.face_spacing,
-        fov_4d: config.gfx.fov_4d,
-
-        anim: puzzle.current_twist(),
-    };
-
     let (target_w, target_h) = target.get_dimensions();
     target.clear_color_srgb_and_depth(colors::get_bg(), 1.0);
 
-    if cache.last_puzzle_type != Some(P::TYPE) {
-        setup_puzzle::<P>(&mut *cache);
-    }
-
     // Compute the model transform, which must be applied here on the CPU so that we
     // can do proper Z ordering.
-    let model_transform =
-        Matrix4::from_angle_x(Rad(config.gfx.theta)) * Matrix4::from_angle_y(Rad(config.gfx.phi));
-    // Compute the perspective transform, which we will also apply on the CPU.
+    let model_transform = Matrix3::from_angle_x(Rad(config.gfx.theta))
+        * Matrix3::from_angle_y(Rad(config.gfx.phi))
+        / CLIPPING_RADIUS;
+    // Compute the perspective transform, which we will apply on the GPU.
     let perspective_transform = {
         let min_dimen = std::cmp::min(target_w, target_h) as f32;
         let scale = min_dimen * config.gfx.scale;
@@ -105,17 +61,27 @@ fn _draw_puzzle<P: PuzzleTrait>(
             cgmath::vec4(0.0, 0.0, 0.0, ww),
         )
     };
-    let transform = perspective_transform * model_transform;
+    let perspective_transform_matrix: [[f32; 4]; 4] = perspective_transform.into();
+
+    let mut geo_params = GeometryParams {
+        sticker_spacing: config.gfx.sticker_spacing,
+        face_spacing: config.gfx.face_spacing,
+        fov_4d: config.gfx.fov_4d,
+
+        anim: puzzle.current_twist(),
+        transform: model_transform,
+
+        ..GeometryParams::default()
+    };
 
     /*
      * Generate sticker vertices and write them to the VBO.
      */
-    let sticker_count;
-    let vertex_count;
+    let stickers_vbo;
     {
         // Each sticker has a `Vec<StickerVertex>` with all of its vertices and
         // a single f32 containing the average Z value.
-        let mut verts_by_sticker: Vec<(Vec<RgbaVertex>, f32)> = vec![];
+        let mut verts_by_sticker: Vec<(Vec<WireframeVertex>, f32)> = vec![];
         for piece in P::Piece::iter() {
             for sticker in piece.stickers() {
                 let alpha = if puzzle.highlight_set.is_empty() {
@@ -127,39 +93,26 @@ fn _draw_puzzle<P: PuzzleTrait>(
                 };
 
                 let [r, g, b] = puzzle.displayed().get_sticker(sticker).color();
-                let color = [r, g, b, alpha];
+                geo_params.fill_color = [r, g, b, alpha];
+                geo_params.wire_color = colors::WIREFRAME.unwrap_or(geo_params.fill_color);
+                geo_params.wire_color[3] = alpha;
 
-                if let Some(verts) = sticker.verts(geometry_params) {
-                    let mut z_sum = 0.0;
-
-                    let sticker_verts = verts
-                        .into_iter()
-                        .map(|vert_pos| {
-                            // Divide by clipping radius by setting it as the W
-                            // coordinate.
-                            let pos = transform * vert_pos.extend(CLIPPING_RADIUS);
-                            z_sum += pos.z;
-                            let pos = pos.into();
-                            RgbaVertex { pos, color }
-                        })
-                        .collect_vec();
-
-                    let avg_z = z_sum / sticker_verts.len() as f32;
-                    verts_by_sticker.push((sticker_verts, avg_z));
+                if let Some(verts) = sticker.verts(geo_params) {
+                    let avg_z = verts.iter().map(|v| v.avg_z()).sum::<f32>() / verts.len() as f32;
+                    verts_by_sticker.push((verts, avg_z));
                 }
             }
         }
-        sticker_count = verts_by_sticker.len();
         // Sort by average Z position for proper transparency.
         verts_by_sticker.sort_by(|(_, z1), (_, z2)| z1.partial_cmp(z2).unwrap().reverse());
-        let verts: Vec<RgbaVertex> = verts_by_sticker
+        let verts: Vec<WireframeVertex> = verts_by_sticker
             .into_iter()
             .flat_map(|(verts, _)| verts)
             .collect();
-        vertex_count = verts.len();
 
         // Write sticker vertices to the VBO.
-        cache.stickers_vbo.slice(verts.len()).write(&verts);
+        stickers_vbo = cache.stickers_vbo.slice(verts.len());
+        stickers_vbo.write(&verts);
     }
 
     let draw_params = DrawParameters {
@@ -170,48 +123,26 @@ fn _draw_puzzle<P: PuzzleTrait>(
             write: true,
             ..glium::Depth::default()
         },
-        line_width: Some(LINE_WIDTH),
         backface_culling: BackfaceCullingMode::CullClockwise,
         ..DrawParameters::default()
     };
 
-    let override_color: [f32; 4] = OUTLINE_COLOR.unwrap_or_default();
-
     /*
-     * Draw triangles.
+     * Draw puzzle geometry.
      */
-    let sticker_verts = cache.stickers_vbo.slice(vertex_count);
-    let tri_indices = cache
-        .tri_indices
-        .slice(P::Sticker::SURFACE_INDICES.len() * sticker_count);
-    target.draw(
-        sticker_verts,
-        tri_indices,
-        &shaders::BASIC,
-        &uniform! {
-            use_override_color: false,
-            override_color: override_color,
-        },
-        &draw_params,
-    )?;
-
-    /*
-     * Draw smooth outline.
-     */
-    let sticker_verts = cache.stickers_vbo.slice(vertex_count);
-    let line_indices = cache
-        .line_indices
-        .slice(P::Sticker::OUTLINE_INDICES.len() * sticker_count);
-    target.draw(
-        sticker_verts,
-        line_indices,
-        &shaders::BASIC,
-        &uniform! {
-            use_override_color: OUTLINE_COLOR.is_some(),
-            override_color: override_color,
-        },
-        &draw_params,
-    )?;
+    target
+        .draw(
+            stickers_vbo,
+            glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+            &shaders::OUTLINED,
+            &uniform! {
+                target_size: [target_w as f32, target_h as f32],
+                transform: perspective_transform_matrix,
+                wire_width: 1.0_f32,
+            },
+            &draw_params,
+        )
+        .expect("draw error");
 
     /*
      * Draw text labels.
@@ -223,15 +154,12 @@ fn _draw_puzzle<P: PuzzleTrait>(
 
         let post_transform =
             Matrix4::from_nonuniform_scale(2.0 / target_w as f32, 2.0 / target_h as f32, 1.0);
-        let pre_transform = post_transform.inverse_transform().unwrap() * transform;
+        let pre_transform = post_transform.inverse_transform().unwrap() * perspective_transform;
 
         for (facet, text) in &puzzle.labels {
             // let screen_position
 
-            let mut text_center = pre_transform
-                * facet
-                    .projection_center(geometry_params)
-                    .extend(CLIPPING_RADIUS);
+            let mut text_center = pre_transform * facet.projection_center(geo_params).extend(1.0);
             text_center /= text_center.w;
             text_center.z = -1.0;
 
@@ -275,24 +203,21 @@ fn _draw_puzzle<P: PuzzleTrait>(
         // Draw backdrops.
         let backdrop_vbo = cache.label_backdrops_vbo.slice(backdrop_verts.len());
         backdrop_vbo.write(&backdrop_verts);
-        target.draw(
-            backdrop_vbo,
-            glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-            &shaders::BASIC,
-            &uniform! {
-                use_override_color: false,
-                override_color: override_color,
-            },
-            &draw_params,
-        )?;
+        target
+            .draw(
+                backdrop_vbo,
+                glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+                &shaders::BASIC,
+                &uniform! {},
+                &draw_params,
+            )
+            .expect("draw error");
 
         // Draw text.
         cache
             .glyph_brush
             .draw_queued_with_transform(post_transform.into(), &**DISPLAY, target);
     }
-
-    Ok(())
 }
 
 fn label_size(text: &str, scale: rusttype::Scale) -> (f32, f32) {

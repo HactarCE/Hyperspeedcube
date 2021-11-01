@@ -8,6 +8,7 @@ use std::ops::{Add, Index, IndexMut, Mul, Neg};
 use std::str::FromStr;
 
 use super::*;
+use crate::render::WireframeVertex;
 
 /// Maximum extent of any single coordinate along the X, Y, Z, or W axes.
 const PUZZLE_RADIUS: f32 = 1.5;
@@ -97,7 +98,7 @@ impl Rubiks4D {
 
         point /= PUZZLE_RADIUS;
         point.w /= 1.0 - p.face_spacing;
-        p.project_4d(point) / projection_radius
+        p.transform * (p.project_4d(point) / projection_radius)
     }
 }
 
@@ -227,7 +228,7 @@ impl StickerTrait<Rubiks4D> for Sticker {
     fn projection_center(self, p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
         Rubiks4D::transform_point(self.center_4d(p), p)
     }
-    fn verts(self, p: GeometryParams<Rubiks4D>) -> Option<Vec<Vector3<f32>>> {
+    fn verts(self, p: GeometryParams<Rubiks4D>) -> Option<Vec<WireframeVertex>> {
         let [ax1, ax2, ax3] = self.face().parallel_axes();
         let matrix = match p.anim {
             Some((twist, t)) if twist.affects_piece(self.piece) => twist.matrix(t),
@@ -239,29 +240,33 @@ impl StickerTrait<Rubiks4D> for Sticker {
 
         // Add a radius to the sticker along each axis.
         let sticker_radius = p.face_scale() * p.sticker_scale() / 2.0;
-        let mut verts = vec![];
-        for (v, u, t) in itertools::iproduct!(
-            [-sticker_radius, sticker_radius],
-            [-sticker_radius, sticker_radius],
-            [-sticker_radius, sticker_radius]
-        ) {
+        let get_corner = |v, u, t| {
             let mut vert = center;
-            vert[ax1 as usize] += t;
-            vert[ax2 as usize] += u;
-            vert[ax3 as usize] += v;
-            verts.push(Rubiks4D::transform_point(matrix * vert, p));
-        }
-
+            vert[ax1 as usize] += t * sticker_radius;
+            vert[ax2 as usize] += u * sticker_radius;
+            vert[ax3 as usize] += v * sticker_radius;
+            Rubiks4D::transform_point(matrix * vert, p)
+        };
+        let corners = [
+            get_corner(-1.0, -1.0, -1.0),
+            get_corner(-1.0, -1.0, 1.0),
+            get_corner(-1.0, 1.0, -1.0),
+            get_corner(-1.0, 1.0, 1.0),
+            get_corner(1.0, -1.0, -1.0),
+            get_corner(1.0, -1.0, 1.0),
+            get_corner(1.0, 1.0, -1.0),
+            get_corner(1.0, 1.0, 1.0),
+        ];
         // Only show this sticker if the 3D volume is positive. (Cull it if its
         // 3D volume is negative.)
         Matrix3::from_cols(
-            verts[1] - verts[0],
-            verts[2] - verts[0],
-            verts[4] - verts[0],
+            corners[1] - corners[0],
+            corners[2] - corners[0],
+            corners[4] - corners[0],
         )
         .determinant()
         .is_sign_positive()
-        .then(|| verts)
+        .then(|| WireframeVertex::cube(corners, p.fill_color, p.wire_color).collect())
     }
 }
 impl Sticker {
