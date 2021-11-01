@@ -1,6 +1,6 @@
 //! Animation logic.
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::time;
 
 use super::traits::*;
@@ -42,6 +42,11 @@ pub struct PuzzleController<P: PuzzleTrait> {
     queue_max: usize,
     /// The progress of the animation in the current twist, from 0.0 to 1.0.
     progress: f32,
+
+    /// Set of pieces to highlight.
+    pub highlight_set: HashSet<P::Sticker>,
+    /// Labels.
+    pub labels: Vec<(Facet<P>, String)>,
 }
 impl<P: PuzzleTrait> Default for PuzzleController<P> {
     fn default() -> Self {
@@ -51,6 +56,9 @@ impl<P: PuzzleTrait> Default for PuzzleController<P> {
             twists: VecDeque::new(),
             queue_max: 0,
             progress: 0.0,
+
+            highlight_set: HashSet::new(),
+            labels: vec![],
         }
     }
 }

@@ -14,6 +14,9 @@ pub const BLUE: [f32; 3] = [0.0, 0.3, 0.75];
 pub const PURPLE: [f32; 3] = [0.5, 0.2, 0.75];
 pub const PINK: [f32; 3] = [0.75, 0.45, 0.6];
 
+pub const LABEL_FG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+pub const LABEL_BG: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+
 /// Returns the background color.
 pub fn get_bg() -> (f32, f32, f32, f32) {
     let [r, g, b] = BACKGROUND;

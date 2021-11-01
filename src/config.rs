@@ -38,6 +38,8 @@ pub struct GfxConfig {
     pub sticker_spacing: f32,
 
     pub opacity: f32,
+
+    pub label_size: f32,
 }
 impl Default for GfxConfig {
     fn default() -> Self {
@@ -59,6 +61,8 @@ impl Default for GfxConfig {
             sticker_spacing: 0.6,
 
             opacity: 1.0,
+
+            label_size: 24.0,
         }
     }
 }

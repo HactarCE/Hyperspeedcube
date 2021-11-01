@@ -1,4 +1,4 @@
-use super::DISPLAY;
+use crate::DISPLAY;
 use glium::Program;
 use send_wrapper::SendWrapper;
 

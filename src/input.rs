@@ -1,8 +1,11 @@
 use glium::glutin::event::*;
+use itertools::Itertools;
 use std::collections::HashSet;
 use std::ops::Index;
 
-use crate::puzzle::{traits::*, PuzzleController, PuzzleEnum, Rubiks3D, Rubiks4D};
+use crate::puzzle::{
+    rubiks3d, rubiks4d, traits::*, PuzzleController, PuzzleEnum, Rubiks3D, Rubiks4D,
+};
 
 const SHIFT: ModifiersState = ModifiersState::SHIFT;
 const CTRL: ModifiersState = ModifiersState::CTRL;
@@ -196,7 +199,7 @@ fn handle_key_rubiks3d(
     keycode: VirtualKeyCode,
     state: &mut State,
 ) {
-    use crate::puzzle::rubiks3d::twists;
+    use rubiks3d::twists;
     use VirtualKeyCode as Vk;
 
     if state.modifiers.shift() {
@@ -237,7 +240,7 @@ fn handle_key_rubiks4d(
     keycode: VirtualKeyCode,
     state: &mut State,
 ) {
-    use crate::puzzle::rubiks4d::twists;
+    use rubiks4d::twists;
     use VirtualKeyCode as Vk;
 
     if state.modifiers.shift() {
@@ -253,8 +256,59 @@ fn handle_key_rubiks4d(
     }
 }
 
-fn update_display_rubiks3d(_cube: &mut PuzzleController<Rubiks3D>, _state: &mut State) {}
+fn update_display_rubiks3d(cube: &mut PuzzleController<Rubiks3D>, state: &mut State) {
+    use rubiks3d::*;
+    use VirtualKeyCode as Vk;
+
+    if !state.has_keyboard {
+        return;
+    }
+
+    cube.labels = vec![];
+    if state.keys[Vk::Tab] {
+        for face in Face::iter() {
+            cube.labels
+                .push((Facet::Face(face), face.symbol().to_string()));
+        }
+    }
+}
 
 fn update_display_rubiks4d(cube: &mut PuzzleController<Rubiks4D>, state: &mut State) {
-    // TODO
+    use rubiks4d::*;
+    use VirtualKeyCode as Vk;
+
+    cube.labels = vec![];
+    cube.highlight_set = HashSet::new();
+
+    if !state.has_keyboard {
+        return;
+    }
+
+    let face_keys = [
+        (Face::L, Vk::W, "W"),
+        (Face::U, Vk::F, "F"),
+        (Face::B, Vk::P, "P"),
+        (Face::F, Vk::R, "R"),
+        (Face::I, Vk::S, "S"),
+        (Face::R, Vk::T, "T"),
+        (Face::D, Vk::C, "C"),
+        (Face::O, Vk::V, "V"),
+    ];
+
+    if let Ok((face, _, _)) = face_keys
+        .into_iter()
+        .filter(|(_, vk, _)| state.keys[*vk])
+        .exactly_one()
+    {
+        cube.highlight_set
+            .extend(face.pieces().flat_map(|piece| piece.stickers()));
+        cube.labels
+            .push((Facet::Face(face), face.symbol().to_string()));
+    } else if state.keys[Vk::Tab] || state.keys[Vk::Space] {
+        for (face, _, text) in face_keys {
+            if face != Face::O {
+                cube.labels.push((Facet::Face(face), text.to_owned()));
+            }
+        }
+    }
 }

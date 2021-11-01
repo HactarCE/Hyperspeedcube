@@ -1,7 +1,11 @@
 //! Rendering logic.
 
-use cgmath::{Matrix3, Rad};
+use cgmath::{Matrix4, Rad, Transform};
 use glium::{BackfaceCullingMode, DrawParameters, Surface};
+use glium_glyph::glyph_brush::{
+    rusttype, BuiltInLineBreaker, HorizontalAlign, Layout, SectionText, VariedSection,
+    VerticalAlign,
+};
 use itertools::Itertools;
 
 mod cache;
@@ -12,7 +16,7 @@ use crate::colors;
 use crate::config::get_config;
 use crate::puzzle::{traits::*, PuzzleController, PuzzleEnum};
 use crate::DISPLAY;
-use cache::RenderCache;
+use cache::{RenderCache, FONT};
 use verts::*;
 
 // const OUTLINE_COLOR: Option<[f32; 4]> = None;
@@ -78,52 +82,12 @@ fn _draw_puzzle<P: PuzzleTrait>(
         setup_puzzle::<P>(&mut *cache);
     }
 
-    // Prepare model matrices, which must be done here on the CPU so that we can
-    // do proper Z ordering.
-    let model_matrix =
-        Matrix3::from_angle_x(Rad(config.gfx.theta)) * Matrix3::from_angle_y(Rad(config.gfx.phi));
-
-    // Each sticker has a Vec<StickerVertex> with all of its vertices and a
-    // single f32 containing the average Z value.
-    let mut verts_by_sticker: Vec<(Vec<StickerVertex>, f32)> = vec![];
-    // Generate vertices.
-    for piece in P::Piece::iter() {
-        for sticker in piece.stickers() {
-            let [r, g, b] = puzzle.displayed().get_sticker(sticker).color();
-            let color = [r, g, b, config.gfx.opacity];
-
-            if let Some(verts) = sticker.verts(geometry_params) {
-                let mut z_sum = 0.0;
-
-                let sticker_verts = verts
-                    .into_iter()
-                    .map(|vert_pos| {
-                        // Divide by clipping radius.
-                        let pos = (model_matrix * vert_pos).extend(CLIPPING_RADIUS);
-                        z_sum += pos.z;
-                        let pos = pos.into();
-                        StickerVertex { pos, color }
-                    })
-                    .collect_vec();
-
-                let avg_z = z_sum / sticker_verts.len() as f32;
-                verts_by_sticker.push((sticker_verts, avg_z));
-            }
-        }
-    }
-    let sticker_count = verts_by_sticker.len();
-    // Sort by average Z position for proper transparency.
-    verts_by_sticker.sort_by(|(_, z1), (_, z2)| z1.partial_cmp(z2).unwrap());
-    let verts: Vec<StickerVertex> = verts_by_sticker
-        .into_iter()
-        .flat_map(|(verts, _)| verts)
-        .collect();
-
-    // Write sticker vertices.
-    cache.stickers_vbo.slice(verts.len()).write(&verts);
-
-    // Create the perspective matrix.
-    let perspective_matrix: [[f32; 4]; 4] = {
+    // Compute the model transform, which must be applied here on the CPU so that we
+    // can do proper Z ordering.
+    let model_transform =
+        Matrix4::from_angle_x(Rad(config.gfx.theta)) * Matrix4::from_angle_y(Rad(config.gfx.phi));
+    // Compute the perspective transform, which we will also apply on the CPU.
+    let perspective_transform = {
         let min_dimen = std::cmp::min(target_w, target_h) as f32;
         let scale = min_dimen * config.gfx.scale;
 
@@ -134,13 +98,69 @@ fn _draw_puzzle<P: PuzzleTrait>(
         let zw = (fov / 2.0).tan(); // `tan(fov/2)` is the factor of how much the Z coordinate affects the XY coordinates.
         let ww = 1.0 + fov.signum() * zw;
 
-        [
-            [xx, 0.0, 0.0, 0.0],
-            [0.0, yy, 0.0, 0.0],
-            [0.0, 0.0, -1.0, -zw],
-            [0.0, 0.0, 0.0, ww],
-        ]
+        Matrix4::from_cols(
+            cgmath::vec4(xx, 0.0, 0.0, 0.0),
+            cgmath::vec4(0.0, yy, 0.0, 0.0),
+            cgmath::vec4(0.0, 0.0, -1.0, -zw),
+            cgmath::vec4(0.0, 0.0, 0.0, ww),
+        )
     };
+    let transform = perspective_transform * model_transform;
+
+    /*
+     * Generate sticker vertices and write them to the VBO.
+     */
+    let sticker_count;
+    let vertex_count;
+    {
+        // Each sticker has a `Vec<StickerVertex>` with all of its vertices and
+        // a single f32 containing the average Z value.
+        let mut verts_by_sticker: Vec<(Vec<RgbaVertex>, f32)> = vec![];
+        for piece in P::Piece::iter() {
+            for sticker in piece.stickers() {
+                let alpha = if puzzle.highlight_set.is_empty() {
+                    config.gfx.opacity
+                } else if puzzle.highlight_set.contains(&sticker) {
+                    1.0
+                } else {
+                    0.1
+                };
+
+                let [r, g, b] = puzzle.displayed().get_sticker(sticker).color();
+                let color = [r, g, b, alpha];
+
+                if let Some(verts) = sticker.verts(geometry_params) {
+                    let mut z_sum = 0.0;
+
+                    let sticker_verts = verts
+                        .into_iter()
+                        .map(|vert_pos| {
+                            // Divide by clipping radius by setting it as the W
+                            // coordinate.
+                            let pos = transform * vert_pos.extend(CLIPPING_RADIUS);
+                            z_sum += pos.z;
+                            let pos = pos.into();
+                            RgbaVertex { pos, color }
+                        })
+                        .collect_vec();
+
+                    let avg_z = z_sum / sticker_verts.len() as f32;
+                    verts_by_sticker.push((sticker_verts, avg_z));
+                }
+            }
+        }
+        sticker_count = verts_by_sticker.len();
+        // Sort by average Z position for proper transparency.
+        verts_by_sticker.sort_by(|(_, z1), (_, z2)| z1.partial_cmp(z2).unwrap().reverse());
+        let verts: Vec<RgbaVertex> = verts_by_sticker
+            .into_iter()
+            .flat_map(|(verts, _)| verts)
+            .collect();
+        vertex_count = verts.len();
+
+        // Write sticker vertices to the VBO.
+        cache.stickers_vbo.slice(verts.len()).write(&verts);
+    }
 
     let draw_params = DrawParameters {
         blend: glium::Blend::alpha_blending(),
@@ -157,8 +177,10 @@ fn _draw_puzzle<P: PuzzleTrait>(
 
     let override_color: [f32; 4] = OUTLINE_COLOR.unwrap_or_default();
 
-    // Draw triangles.
-    let sticker_verts = cache.stickers_vbo.slice(verts.len());
+    /*
+     * Draw triangles.
+     */
+    let sticker_verts = cache.stickers_vbo.slice(vertex_count);
     let tri_indices = cache
         .tri_indices
         .slice(P::Sticker::SURFACE_INDICES.len() * sticker_count);
@@ -169,25 +191,121 @@ fn _draw_puzzle<P: PuzzleTrait>(
         &uniform! {
             use_override_color: false,
             override_color: override_color,
-            perspective_matrix: perspective_matrix,
         },
         &draw_params,
     )?;
 
-    // Draw smooth outline.
+    /*
+     * Draw smooth outline.
+     */
+    let sticker_verts = cache.stickers_vbo.slice(vertex_count);
+    let line_indices = cache
+        .line_indices
+        .slice(P::Sticker::OUTLINE_INDICES.len() * sticker_count);
     target.draw(
-        cache.stickers_vbo.slice(verts.len()),
-        cache
-            .line_indices
-            .slice(P::Sticker::OUTLINE_INDICES.len() * sticker_count),
+        sticker_verts,
+        line_indices,
         &shaders::BASIC,
         &uniform! {
             use_override_color: OUTLINE_COLOR.is_some(),
             override_color: override_color,
-            perspective_matrix: perspective_matrix,
         },
         &draw_params,
     )?;
 
+    /*
+     * Draw text labels.
+     */
+    if !puzzle.labels.is_empty() {
+        let scale = rusttype::Scale::uniform(config.gfx.label_size);
+
+        let mut backdrop_verts = vec![];
+
+        let post_transform =
+            Matrix4::from_nonuniform_scale(2.0 / target_w as f32, 2.0 / target_h as f32, 1.0);
+        let pre_transform = post_transform.inverse_transform().unwrap() * transform;
+
+        for (facet, text) in &puzzle.labels {
+            // let screen_position
+
+            let mut text_center = pre_transform
+                * facet
+                    .projection_center(geometry_params)
+                    .extend(CLIPPING_RADIUS);
+            text_center /= text_center.w;
+            text_center.z = -1.0;
+
+            // Queue backdrop.
+            let (w, h) = label_size(text, scale);
+            for (dx, dy) in [
+                (-0.5, -0.5),
+                (0.5, -0.5),
+                (-0.5, 0.5),
+                (0.5, 0.5),
+                (-0.5, 0.5),
+                (0.5, -0.5),
+            ] {
+                let pos = text_center + cgmath::vec4(dx * w, dy * h, 0.0, 0.0);
+                backdrop_verts.push(RgbaVertex {
+                    pos: (post_transform * pos).into(),
+                    color: colors::LABEL_BG,
+                });
+            }
+
+            // Queue text.
+            cache.glyph_brush.queue(VariedSection {
+                screen_position: (text_center.x, -text_center.y),
+                // bounds: todo!(),
+                z: text_center.z,
+                layout: Layout::SingleLine {
+                    line_breaker: BuiltInLineBreaker::default(),
+                    h_align: HorizontalAlign::Center,
+                    v_align: VerticalAlign::Center,
+                },
+                text: vec![SectionText {
+                    text,
+                    scale,
+                    color: colors::LABEL_FG,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            });
+        }
+
+        // Draw backdrops.
+        let backdrop_vbo = cache.label_backdrops_vbo.slice(backdrop_verts.len());
+        backdrop_vbo.write(&backdrop_verts);
+        target.draw(
+            backdrop_vbo,
+            glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+            &shaders::BASIC,
+            &uniform! {
+                use_override_color: false,
+                override_color: override_color,
+            },
+            &draw_params,
+        )?;
+
+        // Draw text.
+        cache
+            .glyph_brush
+            .draw_queued_with_transform(post_transform.into(), &**DISPLAY, target);
+    }
+
     Ok(())
+}
+
+fn label_size(text: &str, scale: rusttype::Scale) -> (f32, f32) {
+    const PADDING: f32 = 16.0; // 16 pixels
+
+    let layout = FONT.layout(text, scale, rusttype::Point::default());
+    let bounding_boxes = layout.filter_map(|g| g.pixel_bounding_box());
+    let min_x = bounding_boxes.clone().map(|b| b.min.x).min().unwrap_or(0);
+    let min_y = bounding_boxes.clone().map(|b| b.min.y).max().unwrap_or(0);
+    let max_x = bounding_boxes.clone().map(|b| b.max.x).min().unwrap_or(0);
+    let max_y = bounding_boxes.clone().map(|b| b.max.y).max().unwrap_or(0);
+    (
+        (max_x - min_x) as f32 + PADDING,
+        (max_y - min_y) as f32 + PADDING,
+    )
 }
