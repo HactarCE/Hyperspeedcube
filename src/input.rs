@@ -300,10 +300,20 @@ fn update_display_rubiks4d(cube: &mut PuzzleController<Rubiks4D>, state: &mut St
         .filter(|(_, vk, _)| state.keys[*vk])
         .exactly_one()
     {
-        cube.highlight_set
-            .extend(face.pieces().flat_map(|piece| piece.stickers()));
-        cube.labels
-            .push((Facet::Face(face), face.symbol().to_string()));
+        if state.modifiers.shift() {
+            cube.highlight_set.extend(
+                Piece::iter()
+                    .filter(|piece| piece[face.axis()] != -face.sign())
+                    .flat_map(|piece| piece.stickers()),
+            );
+            cube.labels
+                .push((Facet::Face(face), format!("{}w", face.symbol())));
+        } else {
+            cube.highlight_set
+                .extend(face.pieces().flat_map(|piece| piece.stickers()));
+            cube.labels
+                .push((Facet::Face(face), face.symbol().to_string()));
+        }
     } else if state.keys[Vk::Tab] || state.keys[Vk::Space] {
         for (face, _, text) in face_keys {
             if face != Face::O {
