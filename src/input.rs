@@ -260,20 +260,21 @@ fn handle_key_rubiks4d(
         .filter(|(_, vk, _)| state.keys[*vk])
         .exactly_one()
     {
+        let layers = [true, state.modifiers.shift(), false];
         let twist = match keycode {
-            Vk::U => twists::by_3d_view(face, Axis::X, CW),
-            Vk::E => twists::by_3d_view(face, Axis::X, CCW),
-            Vk::N => twists::by_3d_view(face, Axis::Y, CW),
-            Vk::I => twists::by_3d_view(face, Axis::Y, CCW),
-            Vk::Y => twists::by_3d_view(face, Axis::Z, CW),
-            Vk::L => twists::by_3d_view(face, Axis::Z, CCW),
+            Vk::U => twists::by_3d_view(face, Axis::X, CW).layers(layers),
+            Vk::E => twists::by_3d_view(face, Axis::X, CCW).layers(layers),
+            Vk::N => twists::by_3d_view(face, Axis::Y, CW).layers(layers),
+            Vk::I => twists::by_3d_view(face, Axis::Y, CCW).layers(layers),
+            Vk::Y => twists::by_3d_view(face, Axis::Z, CW).layers(layers),
+            Vk::L => twists::by_3d_view(face, Axis::Z, CCW).layers(layers),
+            Vk::Space => match twists::recenter(face) {
+                Some(twist) => twist,
+                None => return,
+            },
             _ => return,
         };
-        if state.modifiers.shift() {
-            cube.twist(twist.fat());
-        } else {
-            cube.twist(twist);
-        }
+        cube.twist(twist);
     } else if state.modifiers.shift() {
         match keycode {
             // TODO

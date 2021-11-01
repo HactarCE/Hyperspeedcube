@@ -35,8 +35,13 @@ pub mod twists {
         }
         let (axis1, axis2) = Axis::perpendicular_plane(face.axis(), Axis::W);
         let mut sticker = Face::new(axis1, face.sign()).center_sticker();
-        sticker.piece[axis2] = Sign::Pos;
-        Some(Twist::new(sticker, TwistDirection::CCW).whole_cube())
+        sticker.piece[axis2] = match face.axis() {
+            Axis::X => Sign::Pos,
+            Axis::Y => Sign::Neg,
+            Axis::Z => Sign::Pos,
+            Axis::W => return None,
+        };
+        Some(Twist::new(sticker, TwistDirection::CW).whole_cube())
     }
 
     /// Constructs a twist of `face` along `axis`
