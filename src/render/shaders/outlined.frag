@@ -6,7 +6,7 @@
 
 in vec4 vert_fill_color;
 in vec4 vert_wire_color;
-in noperspective vec3 dist;
+noperspective in vec3 dist;
 
 out vec4 color;
 

@@ -13,7 +13,7 @@ in vec3 line_mask;
 
 out vec4 vert_fill_color;
 out vec4 vert_wire_color;
-out noperspective vec3 dist;
+noperspective out vec3 dist;
 
 uniform vec2 target_size;
 uniform mat4 transform;

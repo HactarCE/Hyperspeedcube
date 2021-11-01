@@ -86,7 +86,7 @@ impl WireframeVertex {
     }
 
     pub fn avg_z(self) -> f32 {
-        (self.v0[3] + self.v1[3] + self.v2[3]) / 3.0
+        (self.v0[2] + self.v1[2] + self.v2[2]) / 3.0
     }
 }
 

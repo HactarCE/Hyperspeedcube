@@ -104,7 +104,7 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
             }
         }
         // Sort by average Z position for proper transparency.
-        verts_by_sticker.sort_by(|(_, z1), (_, z2)| z1.partial_cmp(z2).unwrap().reverse());
+        verts_by_sticker.sort_by(|(_, z1), (_, z2)| z1.partial_cmp(z2).unwrap());
         let verts: Vec<WireframeVertex> = verts_by_sticker
             .into_iter()
             .flat_map(|(verts, _)| verts)
