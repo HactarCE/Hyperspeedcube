@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::ops::Index;
 
 use crate::puzzle::{
-    rubiks3d, rubiks4d, traits::*, PuzzleController, PuzzleEnum, Rubiks3D, Rubiks4D,
+    rubiks3d, rubiks4d, traits::*, PuzzleController, PuzzleEnum, Rubiks3D, Rubiks4D, Sign,
 };
 
 const SHIFT: ModifiersState = ModifiersState::SHIFT;
@@ -48,7 +48,7 @@ impl FrameInProgress<'_> {
         // the bits that don't specify left vs. right.
         let modifiers = self.state.modifiers & (SHIFT | CTRL | ALT | LOGO);
 
-        if (modifiers & (CTRL | ALT | LOGO)).is_empty() {
+        if (modifiers & (CTRL | LOGO)).is_empty() {
             if let KeyboardInput {
                 state: ElementState::Pressed,
                 virtual_keycode: Some(keycode),
@@ -131,6 +131,8 @@ pub struct State {
     modifiers: ModifiersState,
     /// Whether to handle keyboard input (false if it is captured by imgui).
     has_keyboard: bool,
+
+    perma_layer_hide_mask: [bool; 4],
 }
 impl State {
     pub fn frame<'a>(
@@ -244,7 +246,7 @@ fn handle_key_rubiks4d(
     use rubiks4d::*;
     use VirtualKeyCode as Vk;
 
-    let face_keys = [
+    const FACE_KEYS: [(Face, Vk, &str); 8] = [
         (Face::L, Vk::W, "W"),
         (Face::U, Vk::F, "F"),
         (Face::B, Vk::P, "P"),
@@ -255,12 +257,14 @@ fn handle_key_rubiks4d(
         (Face::O, Vk::V, "V"),
     ];
 
-    if let Ok((face, _, _)) = face_keys
+    if let Ok((face, _, _)) = FACE_KEYS
         .into_iter()
         .filter(|(_, vk, _)| state.keys[*vk])
         .exactly_one()
     {
-        let layers = [true, state.modifiers.shift(), false];
+        let layer0 = !state.modifiers.alt();
+        let layer1 = state.modifiers.alt() || state.modifiers.shift();
+        let layers = [layer0, layer1, false];
         let twist = match keycode {
             Vk::U => twists::by_3d_view(face, Axis::X, CW).layers(layers),
             Vk::E => twists::by_3d_view(face, Axis::X, CCW).layers(layers),
@@ -277,7 +281,10 @@ fn handle_key_rubiks4d(
         cube.twist(twist);
     } else if state.modifiers.shift() {
         match keycode {
-            // TODO
+            Vk::Key1 => state.perma_layer_hide_mask[0] = !state.perma_layer_hide_mask[0],
+            Vk::Key2 => state.perma_layer_hide_mask[1] = !state.perma_layer_hide_mask[1],
+            Vk::Key3 => state.perma_layer_hide_mask[2] = !state.perma_layer_hide_mask[2],
+            Vk::Key4 => state.perma_layer_hide_mask[3] = !state.perma_layer_hide_mask[3],
             _ => (),
         }
     } else {
@@ -314,14 +321,7 @@ fn update_display_rubiks4d(cube: &mut PuzzleController<Rubiks4D>, state: &mut St
     use rubiks4d::*;
     use VirtualKeyCode as Vk;
 
-    cube.labels = vec![];
-    cube.highlight_set = HashSet::new();
-
-    if !state.has_keyboard {
-        return;
-    }
-
-    let face_keys = [
+    const FACE_KEYS: [(Face, Vk, &str); 8] = [
         (Face::L, Vk::W, "W"),
         (Face::U, Vk::F, "F"),
         (Face::B, Vk::P, "P"),
@@ -332,30 +332,74 @@ fn update_display_rubiks4d(cube: &mut PuzzleController<Rubiks4D>, state: &mut St
         (Face::O, Vk::V, "V"),
     ];
 
-    if let Ok((face, _, _)) = face_keys
+    let has_keyboard = state.has_keyboard;
+
+    let highlight_face = FACE_KEYS
         .into_iter()
         .filter(|(_, vk, _)| state.keys[*vk])
         .exactly_one()
-    {
-        if state.modifiers.shift() {
-            cube.highlight_set.extend(
-                Piece::iter()
-                    .filter(|piece| piece[face.axis()] != -face.sign())
-                    .flat_map(|piece| piece.stickers()),
-            );
-            cube.labels
-                .push((Facet::Face(face), format!("{}w", face.symbol())));
-        } else {
-            cube.highlight_set
-                .extend(face.pieces().flat_map(|piece| piece.stickers()));
-            cube.labels
-                .push((Facet::Face(face), face.symbol().to_string()));
-        }
-    } else if state.keys[Vk::Tab] || state.keys[Vk::Space] {
-        for (face, _, text) in face_keys {
+        .ok()
+        .map(|(f, _, _)| f);
+    let layer0 = !state.modifiers.alt();
+    let layer1 = state.modifiers.alt() || state.modifiers.shift();
+
+    cube.labels = vec![];
+    // if let Some(face) = highlight_face {
+    //     cube.labels.push((
+    //         Facet::Face(face),
+    //         format!("{}{}", face.symbol(), if wide { "w" } else { "" }),
+    //     ));
+    // }
+    if state.keys[Vk::Tab] {
+        for (face, _, text) in FACE_KEYS {
             if face != Face::O {
                 cube.labels.push((Facet::Face(face), text.to_owned()));
             }
         }
     }
+
+    let show_1c = state.keys[Vk::Key1];
+    let show_2c = state.keys[Vk::Key2];
+    let show_3c = state.keys[Vk::Key3];
+    let show_4c = state.keys[Vk::Key4];
+    let temp_highlight = (show_1c || show_2c || show_3c || show_4c) && !state.modifiers.shift();
+    let highlight_piece_types = [
+        if temp_highlight {
+            show_1c
+        } else {
+            !state.perma_layer_hide_mask[0]
+        },
+        if temp_highlight {
+            show_2c
+        } else {
+            !state.perma_layer_hide_mask[1]
+        },
+        if temp_highlight {
+            show_3c
+        } else {
+            !state.perma_layer_hide_mask[2]
+        },
+        if temp_highlight {
+            show_4c
+        } else {
+            !state.perma_layer_hide_mask[3]
+        },
+    ];
+
+    cube.highlight_filter = Box::new(move |sticker| {
+        if !has_keyboard {
+            return true;
+        }
+
+        if let Some(face) = highlight_face {
+            match sticker.piece()[face.axis()] * face.sign() {
+                Sign::Neg => return false,
+                Sign::Zero if !layer1 => return false,
+                Sign::Pos if !layer0 => return false,
+                _ => (),
+            }
+        }
+
+        highlight_piece_types[sticker.piece().sticker_count() - 1]
+    });
 }

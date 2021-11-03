@@ -11,6 +11,7 @@ const MIN_DURATION: f32 = 0.05;
 const MAX_BACKLOG: usize = 10;
 const INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 
+use cgmath::{Matrix4, SquareMatrix};
 use interpolate::InterpolateFn;
 /// Interpolation functions.
 pub mod interpolate {
@@ -52,6 +53,8 @@ pub struct PuzzleController<P: PuzzleTrait> {
     /// Redo history.
     pub redo_buffer: Vec<P::Twist>,
 
+    /// Sticker highlight filters.
+    pub highlight_filter: Box<dyn Fn(P::Sticker) -> bool>,
     /// Labels.
     pub labels: Vec<(Facet<P>, String)>,
 }
@@ -69,6 +72,7 @@ impl<P: PuzzleTrait> Default for PuzzleController<P> {
             undo_buffer: vec![],
             redo_buffer: vec![],
 
+            highlight_filter: Box::new(|_| true),
             labels: vec![],
         }
     }

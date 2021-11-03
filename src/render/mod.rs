@@ -84,10 +84,8 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
         let mut verts_by_sticker: Vec<(Vec<WireframeVertex>, f32)> = vec![];
         for piece in P::Piece::iter() {
             for sticker in piece.stickers() {
-                let alpha = if puzzle.highlight_set.is_empty() {
+                let alpha = if (puzzle.highlight_filter)(sticker) {
                     config.gfx.opacity
-                } else if puzzle.highlight_set.contains(&sticker) {
-                    1.0
                 } else {
                     0.1
                 };
