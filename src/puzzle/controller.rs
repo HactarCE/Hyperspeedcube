@@ -43,8 +43,11 @@ pub struct PuzzleController<P: PuzzleTrait> {
     /// The progress of the animation in the current twist, from 0.0 to 1.0.
     progress: f32,
 
-    /// Set of pieces to highlight.
-    pub highlight_set: HashSet<P::Sticker>,
+    /// Undo history.
+    pub undo_buffer: Vec<P::Twist>,
+    /// Redo history.
+    pub redo_buffer: Vec<P::Twist>,
+
     /// Labels.
     pub labels: Vec<(Facet<P>, String)>,
 }
@@ -57,7 +60,9 @@ impl<P: PuzzleTrait> Default for PuzzleController<P> {
             queue_max: 0,
             progress: 0.0,
 
-            highlight_set: HashSet::new(),
+            undo_buffer: vec![],
+            redo_buffer: vec![],
+
             labels: vec![],
         }
     }
@@ -121,8 +126,14 @@ impl<P: PuzzleTrait> PuzzleController<P> {
     }
     /// Adds a twist to the back of the twist queue.
     pub fn twist(&mut self, twist: P::Twist) {
-        self.twists.push_back(twist);
-        self.latest.twist(twist);
+        self.redo_buffer.clear();
+        if self.undo_buffer.last() == Some(&twist.rev()) {
+            self.undo();
+        } else {
+            self.undo_buffer.push(twist);
+            self.twists.push_back(twist);
+            self.latest.twist(twist);
+        }
     }
     /// Skips the animations for all twists in the queue.
     pub fn catch_up(&mut self) {
@@ -139,6 +150,23 @@ impl<P: PuzzleTrait> PuzzleController<P> {
             Some((twist, INTERPOLATION_FN(self.progress)))
         } else {
             None
+        }
+    }
+
+    /// Undoes one twist.
+    pub fn undo(&mut self) {
+        if let Some(twist) = self.undo_buffer.pop() {
+            self.redo_buffer.push(twist);
+            self.twists.push_back(twist.rev());
+            self.latest.twist(twist.rev());
+        }
+    }
+    /// Redoes one twist.
+    pub fn redo(&mut self) {
+        if let Some(twist) = self.redo_buffer.pop() {
+            self.undo_buffer.push(twist);
+            self.twists.push_back(twist);
+            self.latest.twist(twist);
         }
     }
 }

@@ -64,9 +64,9 @@ impl FrameInProgress<'_> {
             if modifiers == CTRL {
                 match input.virtual_keycode {
                     // Undo.
-                    Some(VirtualKeyCode::Z) => println!("TODO undo"),
+                    Some(VirtualKeyCode::Z) => self.puzzle.undo(),
                     // Redo.
-                    Some(VirtualKeyCode::Y) => println!("TODO redo"),
+                    Some(VirtualKeyCode::Y) => self.puzzle.redo(),
                     // Reset.
                     Some(VirtualKeyCode::R) => println!("TODO reset puzzle state"),
                     // Copy puzzle state.
@@ -91,7 +91,7 @@ impl FrameInProgress<'_> {
             if modifiers == SHIFT | CTRL {
                 match input.virtual_keycode {
                     // Redo.
-                    Some(VirtualKeyCode::Z) => println!("TODO redo"),
+                    Some(VirtualKeyCode::Z) => self.puzzle.redo(),
                     _ => (),
                 }
             }

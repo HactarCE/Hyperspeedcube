@@ -74,6 +74,21 @@ impl PuzzleEnum {
             Self::Rubiks4D(cube) => cube.advance(delta),
         }
     }
+
+    /// Undoes one twist.
+    pub fn undo(&mut self) {
+        match self {
+            Self::Rubiks3D(cube) => cube.undo(),
+            Self::Rubiks4D(cube) => cube.undo(),
+        }
+    }
+    /// Redoes one twist.
+    pub fn redo(&mut self) {
+        match self {
+            Self::Rubiks3D(cube) => cube.redo(),
+            Self::Rubiks4D(cube) => cube.redo(),
+        }
+    }
 }
 
 /// A rotation direction; clockwise or counterclockwise.
