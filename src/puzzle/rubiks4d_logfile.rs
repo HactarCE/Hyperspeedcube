@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use cgmath::Matrix4;
 use itertools::Itertools;
 use std::fmt;

@@ -182,6 +182,7 @@ impl<P: PuzzleTrait> PuzzleController<P> {
 }
 
 impl PuzzleController<Rubiks4D> {
+    /// Loads a log file and returns the puzzle state.
     pub fn load_file(path: &str) -> Result<Self, String> {
         let contents = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
         let logfile = contents
@@ -202,6 +203,7 @@ impl PuzzleController<Rubiks4D> {
 
         Ok(ret)
     }
+    /// Saves the puzzle state to a log file.
     pub fn save_file(&self, path: &str) -> Result<(), String> {
         let logfile = LogFile {
             scramble_state: self.scramble_state,
