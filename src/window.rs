@@ -30,6 +30,25 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
 
         ui.text("");
 
+        if ui.button("Load from puzzle.log") {
+            match crate::puzzle::PuzzleController::load_file("puzzle.log") {
+                Ok(p) => *puzzle = PuzzleEnum::Rubiks4D(p),
+                Err(e) => eprintln!("error: {}", e),
+            }
+        }
+        if ui.button("Save to puzzle.log") {
+            match puzzle {
+                PuzzleEnum::Rubiks3D(_) => eprintln!("error: can't save 3D cube"),
+                PuzzleEnum::Rubiks4D(cube) => {
+                    if let Err(e) = cube.save_file("puzzle.log") {
+                        eprintln!("error: {}", e);
+                    }
+                }
+            }
+        }
+
+        ui.text("");
+
         // FPS limit
         ui.text("FPS limit");
         ui.set_next_item_width(ui.window_content_region_width());

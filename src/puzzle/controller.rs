@@ -1,9 +1,10 @@
 //! Animation logic.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::time;
 
-use super::traits::*;
+use super::rubiks4d_logfile::*;
+use super::{traits::*, Rubiks4D};
 
 const TWIST_DURATION: f32 = 0.2;
 const MIN_DURATION: f32 = 0.05;
@@ -28,7 +29,6 @@ pub mod interpolate {
 }
 
 /// A structure to manage twists applied to a puzzle and their animation.
-#[derive(Debug, Clone)]
 pub struct PuzzleController<P: PuzzleTrait> {
     /// The state of the puzzle right before the twist being animated right now.
     displayed: P,
@@ -43,6 +43,10 @@ pub struct PuzzleController<P: PuzzleTrait> {
     /// The progress of the animation in the current twist, from 0.0 to 1.0.
     progress: f32,
 
+    /// Whether the puzzle has been scrambled.
+    pub scramble_state: ScrambleState,
+    /// Scrmable twists.
+    pub scramble: Vec<P::Twist>,
     /// Undo history.
     pub undo_buffer: Vec<P::Twist>,
     /// Redo history.
@@ -60,6 +64,8 @@ impl<P: PuzzleTrait> Default for PuzzleController<P> {
             queue_max: 0,
             progress: 0.0,
 
+            scramble_state: ScrambleState::default(),
+            scramble: vec![],
             undo_buffer: vec![],
             redo_buffer: vec![],
 
@@ -168,5 +174,56 @@ impl<P: PuzzleTrait> PuzzleController<P> {
             self.twists.push_back(twist);
             self.latest.twist(twist);
         }
+    }
+}
+
+impl PuzzleController<Rubiks4D> {
+    pub fn load_file(path: &str) -> Result<Self, String> {
+        let contents = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+        let logfile = contents
+            .parse::<super::rubiks4d_logfile::LogFile>()
+            .map_err(|e| e.to_string())?;
+
+        let mut ret = Self::default();
+        ret.scramble_state = logfile.scramble_state;
+        for twist in logfile.scramble_twists {
+            ret.twist(twist);
+        }
+        ret.scramble = ret.undo_buffer;
+        ret.undo_buffer = vec![];
+        ret.catch_up();
+        for twist in logfile.solve_twists {
+            ret.twist(twist);
+        }
+
+        Ok(ret)
+    }
+    pub fn save_file(&self, path: &str) -> Result<(), String> {
+        let logfile = LogFile {
+            scramble_state: self.scramble_state,
+            view_matrix: Matrix4::identity(),
+            scramble_twists: self.scramble.clone(),
+            solve_twists: self.undo_buffer.clone(),
+        };
+
+        std::fs::write(path, logfile.to_string()).map_err(|e| e.to_string())
+    }
+}
+
+/// Whether the puzzle has been scrambled.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ScrambleState {
+    /// Unscrambled.
+    None = 0,
+    /// Some small number of scramble twists.
+    Partial = 1,
+    /// Fully scrambled.
+    Full = 2,
+    /// Was solved by user even if not currently solved.
+    Solved = 3,
+}
+impl Default for ScrambleState {
+    fn default() -> Self {
+        ScrambleState::None
     }
 }

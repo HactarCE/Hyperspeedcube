@@ -5,6 +5,7 @@ use std::fmt;
 pub mod controller;
 pub mod rubiks3d;
 pub mod rubiks4d;
+pub mod rubiks4d_logfile;
 pub mod sign;
 pub mod traits;
 
@@ -46,7 +47,7 @@ impl PuzzleType {
 }
 
 /// A PuzzleController of any puzzle type.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub enum PuzzleEnum {
     /// A 3D Rubik's cube.
     Rubiks3D(PuzzleController<Rubiks3D>),

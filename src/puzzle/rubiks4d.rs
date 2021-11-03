@@ -124,7 +124,7 @@ impl Rubiks4D {
 pub struct Piece(pub [Sign; 4]);
 impl PieceTrait<Rubiks4D> for Piece {
     fn sticker_count(self) -> usize {
-        self.x().abs() + self.y().abs() + self.z().abs()
+        self.x().abs() + self.y().abs() + self.z().abs() + self.w().abs()
     }
     fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
         Box::new(
@@ -391,7 +391,7 @@ pub struct Twist {
 impl fmt::Display for Twist {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let sticker_id = STICKER_IDS[&self.sticker];
-        let direction = -self.direction.sign().int();
+        let direction = self.direction.sign().int();
         let layer_mask =
             (self.layers[0] as u8) | ((self.layers[1] as u8) << 1) | ((self.layers[2] as u8) << 2);
         write!(f, "{},{},{}", sticker_id, direction, layer_mask)
@@ -854,5 +854,30 @@ impl Orientation {
             self[axis] = -self[axis];
         }
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_4d_twist_serialization() {
+        for sticker in Sticker::iter() {
+            for layer_mask in 0..8 {
+                for direction in [TwistDirection::CCW, TwistDirection::CW] {
+                    let twist = Twist {
+                        sticker,
+                        direction,
+                        layers: [
+                            (layer_mask & 1) != 0,
+                            (layer_mask & 2) != 0,
+                            (layer_mask & 4) != 0,
+                        ],
+                    };
+                    assert_eq!(twist, twist.to_string().parse().unwrap());
+                }
+            }
+        }
     }
 }

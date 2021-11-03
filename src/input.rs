@@ -73,17 +73,17 @@ impl FrameInProgress<'_> {
                     Some(VirtualKeyCode::C) => println!("TODO copy puzzle state"),
                     // Paste puzzle state.
                     Some(VirtualKeyCode::V) => println!("TODO paste puzzle state"),
+                    // Save file.
+                    Some(VirtualKeyCode::S) => match self.puzzle {
+                        PuzzleEnum::Rubiks3D(_) => eprintln!("error: can't save 3D puzzle"),
+                        PuzzleEnum::Rubiks4D(cube) => {
+                            if let Err(e) = cube.save_file("puzzle.log") {
+                                eprintln!("error: {}", e);
+                            }
+                        }
+                    },
                     // Full scramble.
                     Some(VirtualKeyCode::F) => println!("TODO full scramble"),
-                    // Partial scramble.
-                    Some(VirtualKeyCode::Key1) => println!("TODO scramble 1"),
-                    Some(VirtualKeyCode::Key2) => println!("TODO scramble 2"),
-                    Some(VirtualKeyCode::Key3) => println!("TODO scramble 3"),
-                    Some(VirtualKeyCode::Key4) => println!("TODO scramble 4"),
-                    Some(VirtualKeyCode::Key5) => println!("TODO scramble 5"),
-                    Some(VirtualKeyCode::Key6) => println!("TODO scramble 6"),
-                    Some(VirtualKeyCode::Key7) => println!("TODO scramble 7"),
-                    Some(VirtualKeyCode::Key8) => println!("TODO scramble 8"),
                     _ => (),
                 }
             }
