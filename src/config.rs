@@ -55,10 +55,10 @@ impl Default for GfxConfig {
 
             fov_3d: 30_f32.to_radians(),
             fov_4d: 30_f32.to_radians(),
-            scale: 1.0,
+            scale: 2.0,
 
             face_spacing: 0.7,
-            sticker_spacing: 0.6,
+            sticker_spacing: 0.5,
 
             opacity: 1.0,
 
