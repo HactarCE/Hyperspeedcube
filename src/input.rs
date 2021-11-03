@@ -363,10 +363,26 @@ fn update_display_rubiks4d(cube: &mut PuzzleController<Rubiks4D>, state: &mut St
     let show_4c = state.keys[Vk::Key4];
     let temp_highlight = (show_1c || show_2c || show_3c || show_4c) && !state.modifiers.shift();
     let highlight_piece_types = [
-        temp_highlight && show_1c || !state.perma_layer_hide_mask[0],
-        temp_highlight && show_2c || !state.perma_layer_hide_mask[1],
-        temp_highlight && show_3c || !state.perma_layer_hide_mask[2],
-        temp_highlight && show_4c || !state.perma_layer_hide_mask[3],
+        if temp_highlight {
+            show_1c
+        } else {
+            !state.perma_layer_hide_mask[0]
+        },
+        if temp_highlight {
+            show_2c
+        } else {
+            !state.perma_layer_hide_mask[1]
+        },
+        if temp_highlight {
+            show_3c
+        } else {
+            !state.perma_layer_hide_mask[2]
+        },
+        if temp_highlight {
+            show_4c
+        } else {
+            !state.perma_layer_hide_mask[3]
+        },
     ];
 
     cube.highlight_filter = Box::new(move |sticker| {
