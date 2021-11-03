@@ -5,7 +5,7 @@ use crate::puzzle::{PuzzleEnum, PuzzleType};
 
 /// Builds the window.
 pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
-    Window::new(&ImString::new(crate::TITLE)).build(&ui, || {
+    Window::new(&ImString::new(crate::TITLE)).build(ui, || {
         let mut config = crate::get_config();
 
         ui.text(format!("KeyboardSpeedcube v{}", env!("CARGO_PKG_VERSION")));
@@ -142,7 +142,7 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
         if !debug_info.is_empty() {
             Window::new(&ImString::new("Debug values"))
                 .size([400.0, 300.0], Condition::FirstUseEver)
-                .build(&ui, || {
+                .build(ui, || {
                     ui.text(&*debug_info);
                     *debug_info = String::new();
                 });

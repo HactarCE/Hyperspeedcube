@@ -32,10 +32,14 @@ pub mod interpolate {
 /// A structure to manage twists applied to a puzzle and their animation.
 pub struct PuzzleController<P: PuzzleTrait> {
     /// The state of the puzzle right before the twist being animated right now.
-    displayed: P,
+    ///
+    /// `Box`ed so that this struct is always the same size.
+    displayed: Box<P>,
     /// The state of the puzzle with all twists applied to it (used for timing
     /// and undo).
-    latest: P,
+    ///
+    /// `Box`ed so that this struct is always the same size.
+    latest: Box<P>,
     /// A queue of twists that transform the displayed state into the latest
     /// state.
     twists: VecDeque<P::Twist>,
@@ -61,8 +65,8 @@ pub struct PuzzleController<P: PuzzleTrait> {
 impl<P: PuzzleTrait> Default for PuzzleController<P> {
     fn default() -> Self {
         Self {
-            displayed: P::default(),
-            latest: P::default(),
+            displayed: Box::new(P::default()),
+            latest: Box::new(P::default()),
             twists: VecDeque::new(),
             queue_max: 0,
             progress: 0.0,
@@ -85,7 +89,7 @@ impl<P: PuzzleTrait> PartialEq for PuzzleController<P> {
 }
 impl<P: PuzzleTrait> PartialEq<P> for PuzzleController<P> {
     fn eq(&self, other: &P) -> bool {
-        self.latest == *other
+        *self.latest == *other
     }
 }
 impl<P: PuzzleTrait> PuzzleController<P> {
@@ -100,7 +104,7 @@ impl<P: PuzzleTrait> PuzzleController<P> {
             self.queue_max = 0;
             return;
         }
-        if self.progress == 1.0 {
+        if self.progress >= 1.0 {
             self.displayed.twist(self.twists.pop_front().unwrap());
             self.progress = 0.0;
             return;

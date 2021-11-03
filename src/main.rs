@@ -139,7 +139,7 @@ fn main() {
                 last_frame_time = now;
 
                 // Prep the puzzle for event handling.
-                let mut input_frame = input_state.frame(&mut puzzle, &imgui_io);
+                let mut input_frame = input_state.frame(&mut puzzle, imgui_io);
 
                 for ev in events_buffer.drain(..) {
                     // Let imgui handle events.
@@ -167,7 +167,7 @@ fn main() {
                 let mut target = DISPLAY.draw();
 
                 // Render the puzzle.
-                render::draw_puzzle(&mut target, &mut puzzle);
+                render::draw_puzzle(&mut target, &puzzle);
 
                 // Render imgui.
                 platform.prepare_render(&ui, gl_window.window());

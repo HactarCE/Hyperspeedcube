@@ -50,8 +50,8 @@ impl FromStr for LogFile {
         }
 
         let mut view_matrix = [[0.0; 4]; 4];
-        for j in 0..4 {
-            view_matrix[j] = lines
+        for row in &mut view_matrix {
+            *row = lines
                 .next()
                 .ok_or(LogFileError::BadViewMatrix)?
                 .split_whitespace()

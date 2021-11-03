@@ -36,7 +36,7 @@ impl<T: Vertex> CachedVbo<T> {
     fn new() -> Self {
         Self(None)
     }
-    pub fn slice<'a>(&'a mut self, len: usize) -> VertexBufferSlice<'a, T> {
+    pub fn slice(&mut self, len: usize) -> VertexBufferSlice<'_, T> {
         if self.0.is_none() || self.0.as_ref().unwrap().len() < len {
             self.0 = Some(
                 VertexBuffer::empty_dynamic(&**DISPLAY, len)
@@ -60,7 +60,7 @@ impl<T: Index> CachedIbo<T> {
     fn new(prim: PrimitiveType) -> Self {
         Self { prim, ibo: None }
     }
-    pub fn slice<'a>(&'a mut self, len: usize) -> IndexBufferSlice<'a, T> {
+    pub fn slice(&mut self, len: usize) -> IndexBufferSlice<'_, T> {
         if self.ibo.is_none() || self.ibo.as_ref().unwrap().len() < len {
             self.ibo = Some(
                 IndexBuffer::empty_dynamic(&**DISPLAY, self.prim, len)

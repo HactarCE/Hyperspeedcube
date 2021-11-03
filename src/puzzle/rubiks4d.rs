@@ -585,7 +585,7 @@ impl Axis {
     }
     /// Returns the axis perpendicular to three other axes.
     pub fn perpendicular_axis(axes: [Axis; 3]) -> Axis {
-        Axis::iter().filter(|ax| !axes.contains(ax)).next().unwrap()
+        Axis::iter().find(|ax| !axes.contains(ax)).unwrap()
     }
 
     /// Returns an iterator over all axes.
