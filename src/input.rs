@@ -334,12 +334,11 @@ fn update_display_rubiks4d(cube: &mut PuzzleController<Rubiks4D>, state: &mut St
 
     let has_keyboard = state.has_keyboard;
 
-    let highlight_face = FACE_KEYS
+    let highlight_faces = FACE_KEYS
         .into_iter()
         .filter(|(_, vk, _)| state.keys[*vk])
-        .exactly_one()
-        .ok()
-        .map(|(f, _, _)| f);
+        .map(|(f, _, _)| f)
+        .collect_vec();
     let layer0 = !state.modifiers.alt();
     let layer1 = state.modifiers.alt() || state.modifiers.shift();
 
@@ -364,26 +363,10 @@ fn update_display_rubiks4d(cube: &mut PuzzleController<Rubiks4D>, state: &mut St
     let show_4c = state.keys[Vk::Key4];
     let temp_highlight = (show_1c || show_2c || show_3c || show_4c) && !state.modifiers.shift();
     let highlight_piece_types = [
-        if temp_highlight {
-            show_1c
-        } else {
-            !state.perma_layer_hide_mask[0]
-        },
-        if temp_highlight {
-            show_2c
-        } else {
-            !state.perma_layer_hide_mask[1]
-        },
-        if temp_highlight {
-            show_3c
-        } else {
-            !state.perma_layer_hide_mask[2]
-        },
-        if temp_highlight {
-            show_4c
-        } else {
-            !state.perma_layer_hide_mask[3]
-        },
+        temp_highlight && show_1c || !state.perma_layer_hide_mask[0],
+        temp_highlight && show_2c || !state.perma_layer_hide_mask[1],
+        temp_highlight && show_3c || !state.perma_layer_hide_mask[2],
+        temp_highlight && show_4c || !state.perma_layer_hide_mask[3],
     ];
 
     cube.highlight_filter = Box::new(move |sticker| {
@@ -391,7 +374,7 @@ fn update_display_rubiks4d(cube: &mut PuzzleController<Rubiks4D>, state: &mut St
             return true;
         }
 
-        if let Some(face) = highlight_face {
+        for face in &highlight_faces {
             match sticker.piece()[face.axis()] * face.sign() {
                 Sign::Neg => return false,
                 Sign::Zero if !layer1 => return false,
