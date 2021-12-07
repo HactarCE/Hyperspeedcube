@@ -1,8 +1,11 @@
 <img align="center" src="img/screenshot.png" alt="Screenshot of a solved Rubik's cube">
 
-# Keyboard Speedcube
+# Hyperspeedcube
 
-Keyboard-controlled speedcube simulator
+Keyboard-controlled speedcube simulator, with support for the following puzzles:
+
+- 3x3x3 (standard Rubik's cube)
+- 3x3x3x3 (4D "Rubik's hypercube")
 
 # Controls
 

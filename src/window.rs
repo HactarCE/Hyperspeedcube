@@ -8,7 +8,7 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
     Window::new(&ImString::new(crate::TITLE)).build(ui, || {
         let mut config = crate::get_config();
 
-        ui.text(format!("KeyboardSpeedcube v{}", env!("CARGO_PKG_VERSION")));
+        ui.text(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
         ui.text("");
 
         ui.text("Puzzle");

@@ -631,6 +631,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperspeedcube"
+version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "glium",
+ "glium-glyph",
+ "imgui",
+ "imgui-glium-renderer",
+ "imgui-winit-support",
+ "itertools",
+ "lazy_static",
+ "send_wrapper",
+]
+
+[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -700,21 +715,6 @@ name = "jni-sys"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
-
-[[package]]
-name = "keyboard_speedcube"
-version = "0.1.0"
-dependencies = [
- "cgmath",
- "glium",
- "glium-glyph",
- "imgui",
- "imgui-glium-renderer",
- "imgui-winit-support",
- "itertools",
- "lazy_static",
- "send_wrapper",
-]
 
 [[package]]
 name = "khronos_api"

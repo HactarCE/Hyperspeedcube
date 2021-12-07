@@ -36,7 +36,7 @@ use config::get_config;
 use puzzle::PuzzleType;
 
 /// The title of the window.
-const TITLE: &str = "Keyboard Speedcube";
+const TITLE: &str = "Hyperspeedcube";
 
 lazy_static! {
     static ref EVENTS_LOOP: SendWrapper<RefCell<Option<EventLoop<()>>>> =
