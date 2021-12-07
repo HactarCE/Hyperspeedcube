@@ -52,7 +52,7 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
         // FPS limit
         ui.text("FPS limit");
         ui.set_next_item_width(ui.window_content_region_width());
-        Slider::new("##fps_slider", 5, 255)
+        config.needs_save |= Slider::new("##fps_slider", 5, 255)
             .flags(SliderFlags::LOGARITHMIC)
             .build(ui, &mut config.gfx.fps);
 
@@ -70,6 +70,7 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
                         .selected(config.gfx.msaa == option)
                         .build(ui)
                     {
+                        config.needs_save = true;
                         config.gfx.msaa = option;
                     }
                 }
@@ -80,14 +81,14 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
         // Theta
         ui.text("Theta");
         ui.set_next_item_width(ui.window_content_region_width());
-        AngleSlider::new("##theta_slider")
+        config.needs_save |= AngleSlider::new("##theta_slider")
             .range_degrees(-180.0, 180.0)
             .build(ui, &mut config.gfx.theta);
 
         // Phi
         ui.text("Phi");
         ui.set_next_item_width(ui.window_content_region_width());
-        AngleSlider::new("##phi_slider")
+        config.needs_save |= AngleSlider::new("##phi_slider")
             .range_degrees(-180.0, 180.0)
             .build(ui, &mut config.gfx.phi);
 
@@ -96,14 +97,14 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
         // 4D FOV
         ui.text("4D FOV");
         ui.set_next_item_width(ui.window_content_region_width());
-        AngleSlider::new("##4d_fov_slider")
+        config.needs_save |= AngleSlider::new("##4d_fov_slider")
             .range_degrees(0.0, 120.0)
             .build(ui, &mut config.gfx.fov_4d);
 
         // 3D FOV
         ui.text("3D FOV");
         ui.set_next_item_width(ui.window_content_region_width());
-        AngleSlider::new("##3d_fov_slider")
+        config.needs_save |= AngleSlider::new("##3d_fov_slider")
             .range_degrees(-120.0, 120.0)
             .build(ui, &mut config.gfx.fov_3d);
 
@@ -112,19 +113,20 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
         // Scale
         ui.text("Scale");
         ui.set_next_item_width(ui.window_content_region_width());
-        Slider::new("##scale_slider", 0.1, 5.0)
+        config.needs_save |= Slider::new("##scale_slider", 0.1, 5.0)
             .flags(SliderFlags::LOGARITHMIC)
             .build(ui, &mut config.gfx.scale);
 
         // Face spacing
         ui.text("Face spacing");
         ui.set_next_item_width(ui.window_content_region_width());
-        Slider::new("##face_spacing_slider", 0.0, 0.9).build(ui, &mut config.gfx.face_spacing);
+        config.needs_save |=
+            Slider::new("##face_spacing_slider", 0.0, 0.9).build(ui, &mut config.gfx.face_spacing);
 
         // Sticker spacing
         ui.text("Sticker spacing");
         ui.set_next_item_width(ui.window_content_region_width());
-        Slider::new("##sticker_spacing_slider", 0.0, 0.9)
+        config.needs_save |= Slider::new("##sticker_spacing_slider", 0.0, 0.9)
             .build(ui, &mut config.gfx.sticker_spacing);
 
         ui.text("");
@@ -132,7 +134,10 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
         // Opacity
         ui.text("Opacity");
         ui.set_next_item_width(ui.window_content_region_width());
-        Slider::new("##opacity_slider", 0.0, 1.0).build(ui, &mut config.gfx.opacity);
+        config.needs_save |=
+            Slider::new("##opacity_slider", 0.0, 1.0).build(ui, &mut config.gfx.opacity);
+
+        config.save();
     });
 
     // Debug window.
