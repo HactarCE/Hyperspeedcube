@@ -1,6 +1,9 @@
 //! Animation logic.
 
 use std::collections::VecDeque;
+use std::error::Error;
+use std::io;
+use std::path::Path;
 use std::time;
 
 use super::rubiks4d_logfile::*;
@@ -48,6 +51,10 @@ pub struct PuzzleController<P: PuzzleTrait> {
     /// The progress of the animation in the current twist, from 0.0 to 1.0.
     progress: f32,
 
+    /// Whether the puzzle has been modified since the last time the log file
+    /// was saved.
+    pub needs_save: bool,
+
     /// Whether the puzzle has been scrambled.
     pub scramble_state: ScrambleState,
     /// Scrmable twists.
@@ -70,6 +77,8 @@ impl<P: PuzzleTrait> Default for PuzzleController<P> {
             twists: VecDeque::new(),
             queue_max: 0,
             progress: 0.0,
+
+            needs_save: false,
 
             scramble_state: ScrambleState::default(),
             scramble: vec![],
@@ -140,6 +149,7 @@ impl<P: PuzzleTrait> PuzzleController<P> {
     }
     /// Adds a twist to the back of the twist queue.
     pub fn twist(&mut self, twist: P::Twist) {
+        self.needs_save = true;
         self.redo_buffer.clear();
         if self.undo_buffer.last() == Some(&twist.rev()) {
             self.undo();
@@ -170,6 +180,7 @@ impl<P: PuzzleTrait> PuzzleController<P> {
     /// Undoes one twist.
     pub fn undo(&mut self) {
         if let Some(twist) = self.undo_buffer.pop() {
+            self.needs_save = true;
             self.redo_buffer.push(twist);
             self.twists.push_back(twist.rev());
             self.latest.twist(twist.rev());
@@ -178,6 +189,7 @@ impl<P: PuzzleTrait> PuzzleController<P> {
     /// Redoes one twist.
     pub fn redo(&mut self) {
         if let Some(twist) = self.redo_buffer.pop() {
+            self.needs_save = true;
             self.undo_buffer.push(twist);
             self.twists.push_back(twist);
             self.latest.twist(twist);
@@ -187,11 +199,9 @@ impl<P: PuzzleTrait> PuzzleController<P> {
 
 impl PuzzleController<Rubiks4D> {
     /// Loads a log file and returns the puzzle state.
-    pub fn load_file(path: &str) -> Result<Self, String> {
+    pub fn load_file(path: &Path) -> Result<Self, Box<dyn Error>> {
         let contents = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-        let logfile = contents
-            .parse::<super::rubiks4d_logfile::LogFile>()
-            .map_err(|e| e.to_string())?;
+        let logfile = contents.parse::<super::rubiks4d_logfile::LogFile>()?;
 
         let mut ret = Self::default();
         ret.scramble_state = logfile.scramble_state;
@@ -208,15 +218,16 @@ impl PuzzleController<Rubiks4D> {
         Ok(ret)
     }
     /// Saves the puzzle state to a log file.
-    pub fn save_file(&self, path: &str) -> Result<(), String> {
+    pub fn save_file(&mut self, path: &Path) -> Result<(), io::Error> {
         let logfile = LogFile {
             scramble_state: self.scramble_state,
             view_matrix: Matrix4::identity(),
             scramble_twists: self.scramble.clone(),
             solve_twists: self.undo_buffer.clone(),
         };
-
-        std::fs::write(path, logfile.to_string()).map_err(|e| e.to_string())
+        std::fs::write(path, logfile.to_string())?;
+        self.needs_save = false;
+        Ok(())
     }
 }
 

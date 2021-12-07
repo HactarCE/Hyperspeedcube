@@ -32,18 +32,29 @@ impl fmt::Display for NoConfigPath {
 }
 impl Error for NoConfigPath {}
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(default)]
 pub struct Config {
     #[serde(skip)]
     pub needs_save: bool,
 
+    pub log_file: PathBuf,
     // pub ctrl: CtrlConfig,
     pub gfx: GfxConfig,
     // pub hist: HistoryConfig,
     // pub keys: KeyConfig,
     // pub mouse: MouseConfig,
     // pub sim: SimConfig,
+}
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            needs_save: true,
+
+            log_file: PathBuf::from("puzzle.log"),
+            gfx: GfxConfig::default(),
+        }
+    }
 }
 impl Config {
     pub fn load() -> Self {

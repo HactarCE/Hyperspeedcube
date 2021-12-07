@@ -76,6 +76,15 @@ impl PuzzleEnum {
         }
     }
 
+    /// Returns whether the puzzle has been modified since the last time the log
+    /// file was saved.
+    pub fn needs_save(&self) -> bool {
+        match self {
+            PuzzleEnum::Rubiks3D(cube) => cube.needs_save,
+            PuzzleEnum::Rubiks4D(cube) => cube.needs_save,
+        }
+    }
+
     /// Undoes one twist.
     pub fn undo(&mut self) {
         match self {

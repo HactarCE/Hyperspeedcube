@@ -2,6 +2,7 @@
 
 use cgmath::Matrix4;
 use itertools::Itertools;
+use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
 
@@ -46,7 +47,10 @@ impl FromStr for LogFile {
         // ignore move count (`segments[3]`)
 
         if segments[4] != SCHLAFLI_SYMBOL || segments[5] != EDGE_LENGTH {
-            return Err(LogFileError::UnsupportedPuzzle);
+            return Err(LogFileError::UnsupportedPuzzle(format!(
+                "{} {}",
+                segments[4], segments[5],
+            )));
         }
 
         let mut view_matrix = [[0.0; 4]; 4];
@@ -133,12 +137,12 @@ impl fmt::Display for LogFile {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LogFileError {
     MissingHeader,
     BadHeader,
     UnsupportedLogVersion,
-    UnsupportedPuzzle,
+    UnsupportedPuzzle(String),
     BadViewMatrix,
     MissingSep,
     BadTwists,
@@ -146,13 +150,14 @@ pub enum LogFileError {
 impl fmt::Display for LogFileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingHeader => write!(f, "missing header"),
-            Self::BadHeader => write!(f, "bad header"),
-            Self::UnsupportedLogVersion => write!(f, "unsupported log version"),
-            Self::UnsupportedPuzzle => write!(f, "unsupported puzzle"),
-            Self::BadViewMatrix => write!(f, "bad view matrix"),
-            Self::MissingSep => write!(f, "missing sep"),
-            Self::BadTwists => write!(f, "bad twists"),
+            Self::MissingHeader => write!(f, "Missing header"),
+            Self::BadHeader => write!(f, "Invalid header"),
+            Self::UnsupportedLogVersion => write!(f, "Unsupported log version"),
+            Self::UnsupportedPuzzle(name) => write!(f, "Unsupported puzzle: {}", name),
+            Self::BadViewMatrix => write!(f, "Invalid view matrix"),
+            Self::MissingSep => write!(f, "Missing sep"),
+            Self::BadTwists => write!(f, "Invalid twists"),
         }
     }
 }
+impl Error for LogFileError {}

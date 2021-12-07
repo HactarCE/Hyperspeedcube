@@ -27,10 +27,10 @@ mod debug;
 
 mod colors;
 mod config;
+mod gui;
 mod input;
 pub mod puzzle;
 mod render;
-mod window;
 
 use config::get_config;
 use puzzle::PuzzleType;
@@ -139,6 +139,7 @@ fn main() {
                 last_frame_time = now;
 
                 // Prep the puzzle for event handling.
+                let puzzle_needs_save = puzzle.needs_save();
                 let mut input_frame = input_state.frame(&mut puzzle, imgui_io);
 
                 for ev in events_buffer.drain(..) {
@@ -150,7 +151,9 @@ fn main() {
                     match ev {
                         Event::WindowEvent { event, .. } => match event {
                             // Handle window close event.
-                            WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                            WindowEvent::CloseRequested => {
+                                gui::request_close(puzzle_needs_save, control_flow)
+                            }
                             _ => (),
                         },
                         _ => (),
@@ -162,7 +165,7 @@ fn main() {
 
                 // Prep imgui for rendering.
                 let ui = imgui.frame();
-                window::build(&ui, &mut puzzle);
+                gui::build(&ui, &mut puzzle, control_flow);
 
                 let mut target = DISPLAY.draw();
 

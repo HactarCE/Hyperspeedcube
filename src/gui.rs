@@ -1,13 +1,85 @@
+use glium::glutin::event_loop::ControlFlow;
 use imgui::*;
+use rfd::{FileDialog, MessageButtons, MessageDialog};
+use std::fmt;
+use std::path::Path;
 
 use crate::config::Msaa;
 use crate::puzzle::{PuzzleEnum, PuzzleType};
 
-/// Builds the window.
-pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
-    Window::new(&ImString::new(crate::TITLE)).build(ui, || {
-        let mut config = crate::get_config();
+fn file_dialog() -> FileDialog {
+    FileDialog::new()
+        .add_filter("Magic Cube 4D Log Files", &["log"])
+        .add_filter("All files", &["*"])
+}
+fn error_dialog(title: &str, e: impl fmt::Display) {
+    MessageDialog::new()
+        .set_title(title)
+        .set_description(&e.to_string())
+        .show();
+}
 
+fn try_save(puzzle: &mut PuzzleEnum, path: &Path) {
+    match puzzle {
+        PuzzleEnum::Rubiks4D(p) => match p.save_file(&path) {
+            Ok(()) => (),
+            Err(e) => error_dialog("Unable to save log file", e),
+        },
+        _ => error_dialog(
+            "Unable to save log file",
+            "Only 3x3x3x3 puzzle supports log files.",
+        ),
+    }
+}
+
+pub fn request_close(puzzle_needs_save: bool, control_flow: &mut ControlFlow) {
+    if !puzzle_needs_save
+        || MessageDialog::new()
+            .set_title("Unsaved changes")
+            .set_description("Discard changes and quit?")
+            .set_buttons(MessageButtons::YesNo)
+            .show()
+    {
+        *control_flow = ControlFlow::Exit;
+    }
+}
+
+/// Builds the GUI.
+pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut ControlFlow) {
+    let mut config = crate::get_config();
+
+    // Build the menu bar.
+    ui.main_menu_bar(|| {
+        ui.menu("File", || {
+            let can_save = puzzle.puzzle_type() == PuzzleType::Rubiks4D;
+
+            if MenuItem::new("Open").build(ui) {
+                if let Some(path) = file_dialog().pick_file() {
+                    match crate::puzzle::PuzzleController::load_file(&path) {
+                        Ok(p) => *puzzle = PuzzleEnum::Rubiks4D(p),
+                        Err(e) => error_dialog("Unable to open log file", e),
+                    }
+                }
+            }
+            ui.separator();
+            if MenuItem::new("Save").enabled(can_save).build(ui) {
+                try_save(puzzle, &config.log_file);
+            }
+            if MenuItem::new("Save As...").enabled(can_save).build(ui) {
+                if let Some(path) = file_dialog().save_file() {
+                    config.needs_save = true;
+                    config.log_file = path;
+                    try_save(puzzle, &config.log_file);
+                }
+            }
+            ui.separator();
+            if MenuItem::new("Quit").build(ui) {
+                request_close(puzzle.needs_save(), control_flow);
+            }
+        });
+    });
+
+    Window::new(&ImString::new(crate::TITLE)).build(ui, || {
         ui.text(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
         ui.text("");
 
@@ -27,25 +99,6 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum) {
                     }
                 }
             });
-
-        ui.text("");
-
-        if ui.button("Load from puzzle.log") {
-            match crate::puzzle::PuzzleController::load_file("puzzle.log") {
-                Ok(p) => *puzzle = PuzzleEnum::Rubiks4D(p),
-                Err(e) => eprintln!("error: {}", e),
-            }
-        }
-        if ui.button("Save to puzzle.log") {
-            match puzzle {
-                PuzzleEnum::Rubiks3D(_) => eprintln!("error: can't save 3D cube"),
-                PuzzleEnum::Rubiks4D(cube) => {
-                    if let Err(e) = cube.save_file("puzzle.log") {
-                        eprintln!("error: {}", e);
-                    }
-                }
-            }
-        }
 
         ui.text("");
 

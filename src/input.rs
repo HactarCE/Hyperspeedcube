@@ -77,7 +77,7 @@ impl FrameInProgress<'_> {
                     Some(VirtualKeyCode::S) => match self.puzzle {
                         PuzzleEnum::Rubiks3D(_) => eprintln!("error: can't save 3D puzzle"),
                         PuzzleEnum::Rubiks4D(cube) => {
-                            if let Err(e) = cube.save_file("puzzle.log") {
+                            if let Err(e) = cube.save_file(&crate::get_config().log_file) {
                                 eprintln!("error: {}", e);
                             }
                         }
