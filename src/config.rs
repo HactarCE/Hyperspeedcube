@@ -91,7 +91,8 @@ impl Config {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(default)]
 pub struct GfxConfig {
-    pub dpi: f64,
+    pub auto_dpi: bool,
+    pub font_scaling: f64,
     pub fps: u32,
     pub font_size: f32,
 
@@ -114,7 +115,8 @@ pub struct GfxConfig {
 impl Default for GfxConfig {
     fn default() -> Self {
         Self {
-            dpi: 1.0,
+            auto_dpi: true,
+            font_scaling: 1.0,
             fps: 60,
             font_size: 16.0,
 

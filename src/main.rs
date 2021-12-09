@@ -63,11 +63,20 @@ fn main() {
     let mut platform = WinitPlatform::init(&mut imgui);
     let gl_window = DISPLAY.gl_window();
     let window = gl_window.window();
-    // Imgui DPI handling is a mess.
-    platform.attach_window(imgui.io_mut(), window, HiDpiMode::Default);
+
+    // Imgui DPI handling isn't great; give the user the option to override it.
+    let hidpi_mode;
+    let mut font_size = get_config().gfx.font_size as f32;
+    if get_config().gfx.auto_dpi {
+        hidpi_mode = HiDpiMode::Default;
+    } else {
+        hidpi_mode = HiDpiMode::Locked(1.0);
+        font_size *= get_config().gfx.font_scaling as f32;
+    };
+
+    platform.attach_window(imgui.io_mut(), window, hidpi_mode);
 
     // Initialize imgui fonts.
-    let font_size = get_config().gfx.font_size as f32;
     imgui.fonts().add_font(&[FontSource::TtfData {
         data: include_bytes!("../resources/font/NotoSans-Regular.ttf"),
         size_pixels: font_size,
