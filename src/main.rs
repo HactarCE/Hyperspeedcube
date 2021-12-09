@@ -64,7 +64,7 @@ fn main() {
     let gl_window = DISPLAY.gl_window();
     let window = gl_window.window();
     // Imgui DPI handling is a mess.
-    platform.attach_window(imgui.io_mut(), window, HiDpiMode::Locked(1.0));
+    platform.attach_window(imgui.io_mut(), window, HiDpiMode::Default);
 
     // Initialize imgui fonts.
     let font_size = get_config().gfx.font_size as f32;
