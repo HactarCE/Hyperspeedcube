@@ -37,6 +37,9 @@ impl fmt::Display for PuzzleType {
     }
 }
 impl PuzzleType {
+    /// List of all puzzle types.
+    pub const ALL: &'static [Self] = &[Self::Rubiks3D, Self::Rubiks4D];
+
     /// Creates a new puzzle of this type.
     pub fn new(self) -> PuzzleEnum {
         match self {
@@ -97,6 +100,21 @@ impl PuzzleEnum {
         match self {
             Self::Rubiks3D(cube) => cube.redo(),
             Self::Rubiks4D(cube) => cube.redo(),
+        }
+    }
+
+    /// Returns whether there is a twist to undo.
+    pub fn has_undo(&self) -> bool {
+        match self {
+            PuzzleEnum::Rubiks3D(cube) => !cube.undo_buffer.is_empty(),
+            PuzzleEnum::Rubiks4D(cube) => !cube.undo_buffer.is_empty(),
+        }
+    }
+    /// Returns whether there is a twist to redo.
+    pub fn has_redo(&self) -> bool {
+        match self {
+            PuzzleEnum::Rubiks3D(cube) => !cube.redo_buffer.is_empty(),
+            PuzzleEnum::Rubiks4D(cube) => !cube.redo_buffer.is_empty(),
         }
     }
 }

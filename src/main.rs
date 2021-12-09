@@ -152,7 +152,9 @@ fn main() {
                         Event::WindowEvent { event, .. } => match event {
                             // Handle window close event.
                             WindowEvent::CloseRequested => {
-                                gui::request_close(puzzle_needs_save, control_flow)
+                                if gui::confirm_discard_changes(puzzle_needs_save, "quit") {
+                                    *control_flow = ControlFlow::Exit;
+                                }
                             }
                             _ => (),
                         },

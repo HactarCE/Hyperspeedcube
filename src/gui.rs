@@ -32,16 +32,13 @@ fn try_save(puzzle: &mut PuzzleEnum, path: &Path) {
     }
 }
 
-pub fn request_close(puzzle_needs_save: bool, control_flow: &mut ControlFlow) {
-    if !puzzle_needs_save
+pub fn confirm_discard_changes(puzzle_needs_save: bool, action: &str) -> bool {
+    !puzzle_needs_save
         || MessageDialog::new()
             .set_title("Unsaved changes")
-            .set_description("Discard changes and quit?")
+            .set_description(&format!("Discard changes and {}?", action))
             .set_buttons(MessageButtons::YesNo)
             .show()
-    {
-        *control_flow = ControlFlow::Exit;
-    }
 }
 
 /// Builds the GUI.
@@ -73,33 +70,35 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
                 }
             }
             ui.separator();
-            if MenuItem::new("Quit").build(ui) {
-                request_close(puzzle.needs_save(), control_flow);
+            if MenuItem::new("Quit").build(ui)
+                && confirm_discard_changes(puzzle.needs_save(), "quit")
+            {
+                *control_flow = ControlFlow::Exit;
+            }
+        });
+
+        ui.menu("Edit", || {
+            if MenuItem::new("Undo").enabled(puzzle.has_undo()).build(ui) {
+                puzzle.undo();
+            }
+            if MenuItem::new("Redo").enabled(puzzle.has_redo()).build(ui) {
+                puzzle.redo();
+            }
+        });
+
+        ui.menu("Puzzle", || {
+            for puz_type in PuzzleType::ALL {
+                if MenuItem::new(&puz_type.to_string()).build(ui)
+                    && confirm_discard_changes(puzzle.needs_save(), "load new puzzle")
+                {
+                    *puzzle = puz_type.new();
+                }
             }
         });
     });
 
     Window::new(&ImString::new(crate::TITLE)).build(ui, || {
         ui.text(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
-        ui.text("");
-
-        ui.text("Puzzle");
-        ui.set_next_item_width(ui.window_content_region_width());
-        let current_puz_type = puzzle.puzzle_type();
-        ComboBox::new("##puzzle")
-            .preview_mode(ComboBoxPreviewMode::Full)
-            .preview_value(current_puz_type.to_string())
-            .build(ui, || {
-                for puz_type in [PuzzleType::Rubiks3D, PuzzleType::Rubiks4D] {
-                    if Selectable::new(puz_type.to_string())
-                        .selected(puz_type == current_puz_type)
-                        .build(ui)
-                    {
-                        *puzzle = puz_type.new();
-                    }
-                }
-            });
-
         ui.text("");
 
         // FPS limit
