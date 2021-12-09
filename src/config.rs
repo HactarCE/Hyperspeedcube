@@ -37,6 +37,8 @@ impl Error for NoConfigPath {}
 pub struct Config {
     #[serde(skip)]
     pub needs_save: bool,
+    #[serde(skip)]
+    pub window_states: WindowStates,
 
     pub log_file: PathBuf,
     // pub ctrl: CtrlConfig,
@@ -50,6 +52,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             needs_save: true,
+            window_states: WindowStates::default(),
 
             log_file: PathBuf::from("puzzle.log"),
             gfx: GfxConfig::default(),
@@ -86,6 +89,14 @@ impl Config {
         serde_json::to_writer_pretty(File::create(path)?, self)?;
         Ok(())
     }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct WindowStates {
+    pub graphics: bool,
+    pub view: bool,
+    pub colors: bool,
+    pub keybinds: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -44,6 +44,7 @@ pub fn confirm_discard_changes(puzzle_needs_save: bool, action: &str) -> bool {
 /// Builds the GUI.
 pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut ControlFlow) {
     let mut config = crate::get_config();
+    let config = &mut *config;
 
     // Build the menu bar.
     ui.main_menu_bar(|| {
@@ -95,38 +96,59 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
                 }
             }
         });
+
+        ui.menu("Settings", || {
+            config.window_states.graphics ^= MenuItem::new("Graphics...").build(ui);
+            config.window_states.view ^= MenuItem::new("View...").build(ui);
+            config.window_states.colors ^= MenuItem::new("Colors...").build(ui);
+            config.window_states.keybinds ^= MenuItem::new("Keybinds...").build(ui);
+        })
     });
+
+    if config.window_states.graphics {
+        Window::new("Graphics")
+            .opened(&mut config.window_states.graphics)
+            .resizable(false)
+            .always_auto_resize(true)
+            .build(ui, || {
+                // FPS limit
+                config.needs_save ^= Slider::new("FPS limit", 5, 255)
+                    .flags(SliderFlags::LOGARITHMIC)
+                    .build(ui, &mut config.gfx.fps);
+
+                // MSAA
+                ComboBox::new("MSAA (requires restart)")
+                    .preview_mode(ComboBoxPreviewMode::Full)
+                    .preview_value(config.gfx.msaa.to_string())
+                    .build(ui, || {
+                        for option in [Msaa::Off, Msaa::_2, Msaa::_4, Msaa::_8] {
+                            if Selectable::new(option.to_string())
+                                .selected(config.gfx.msaa == option)
+                                .build(ui)
+                            {
+                                config.needs_save = true;
+                                config.gfx.msaa = option;
+                            }
+                        }
+                    });
+
+                ui.separator();
+
+                // Scaling settings
+                config.needs_save |=
+                    ui.checkbox("Auto DPI (requires restart)", &mut config.gfx.auto_dpi);
+                ui.disabled(config.gfx.auto_dpi, || {
+                    config.needs_save |= Slider::new("Font scaling (reqiures restart)", 0.5, 4.0)
+                        .flags(SliderFlags::LOGARITHMIC)
+                        .display_format("%.1f")
+                        .build(ui, &mut config.gfx.font_scaling);
+                });
+            });
+    }
 
     Window::new(&ImString::new(crate::TITLE)).build(ui, || {
         ui.text(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
         ui.text("");
-
-        // FPS limit
-        ui.text("FPS limit");
-        ui.set_next_item_width(ui.window_content_region_width());
-        config.needs_save |= Slider::new("##fps_slider", 5, 255)
-            .flags(SliderFlags::LOGARITHMIC)
-            .build(ui, &mut config.gfx.fps);
-
-        ui.text("");
-
-        // MSAA
-        ui.text("MSAA (requires restart)");
-        ui.set_next_item_width(ui.window_content_region_width());
-        ComboBox::new("##msaa")
-            .preview_mode(ComboBoxPreviewMode::Full)
-            .preview_value(config.gfx.msaa.to_string())
-            .build(ui, || {
-                for option in [Msaa::Off, Msaa::_2, Msaa::_4, Msaa::_8] {
-                    if Selectable::new(option.to_string())
-                        .selected(config.gfx.msaa == option)
-                        .build(ui)
-                    {
-                        config.needs_save = true;
-                        config.gfx.msaa = option;
-                    }
-                }
-            });
 
         ui.text("");
 
