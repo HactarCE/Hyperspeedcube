@@ -47,7 +47,7 @@ pub struct Config {
     pub log_file: PathBuf,
 
     pub gfx: GfxConfig,
-    pub view: ViewConfig,
+    pub view: PerPuzzle<ViewConfig>,
     pub colors: ColorsConfig,
     pub keybinds: KeybindsConfig,
 }
@@ -60,7 +60,7 @@ impl Default for Config {
             log_file: PathBuf::from("puzzle.log"),
 
             gfx: GfxConfig::default(),
-            view: ViewConfig::default(),
+            view: PerPuzzle::<ViewConfig>::default(),
             colors: ColorsConfig::default(),
             keybinds: KeybindsConfig::default(),
         }
@@ -140,7 +140,6 @@ impl GfxConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(default)]
 pub struct ViewConfig {
     pub theta: f32,
     pub phi: f32,
@@ -154,20 +153,35 @@ pub struct ViewConfig {
 
     pub enable_wireframe: bool,
 }
-impl Default for ViewConfig {
-    fn default() -> Self {
-        Self {
-            theta: 35_f32.to_radians(),
-            phi: -40_f32.to_radians(),
+impl PerPuzzleDefault for ViewConfig {
+    fn default(puz_type: PuzzleType) -> Self {
+        match puz_type {
+            PuzzleType::Rubiks3D => Self {
+                theta: 35_f32.to_radians(),
+                phi: 0_f32.to_radians(),
 
-            scale: 2.0,
-            fov_3d: 30_f32.to_radians(),
-            fov_4d: 30_f32.to_radians(),
+                scale: 1.25,
+                fov_3d: 30_f32.to_radians(),
+                fov_4d: 30_f32.to_radians(),
 
-            face_spacing: 0.7,
-            sticker_spacing: 0.5,
+                face_spacing: 0.025,
+                sticker_spacing: 0.05,
 
-            enable_wireframe: true,
+                enable_wireframe: true,
+            },
+            PuzzleType::Rubiks4D => Self {
+                theta: 35_f32.to_radians(),
+                phi: -40_f32.to_radians(),
+
+                scale: 2.0,
+                fov_3d: 30_f32.to_radians(),
+                fov_4d: 30_f32.to_radians(),
+
+                face_spacing: 0.7,
+                sticker_spacing: 0.5,
+
+                enable_wireframe: true,
+            },
         }
     }
 }

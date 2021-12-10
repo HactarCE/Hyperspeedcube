@@ -152,38 +152,40 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
             .resizable(false)
             .always_auto_resize(true)
             .build(ui, || {
+                let view_config = &mut config.view[puzzle.puzzle_type()];
+
                 // View angle settings
                 config.needs_save |= AngleSlider::new("Theta")
                     .range_degrees(-180.0, 180.0)
-                    .build(ui, &mut config.view.theta);
+                    .build(ui, &mut view_config.theta);
                 config.needs_save |= AngleSlider::new("Phi")
                     .range_degrees(-45.0, 45.0)
-                    .build(ui, &mut config.view.phi);
+                    .build(ui, &mut view_config.phi);
 
                 ui.separator();
 
                 // Projection settings
                 config.needs_save |= Slider::new("Scale", 0.1, 5.0)
                     .flags(SliderFlags::LOGARITHMIC)
-                    .build(ui, &mut config.view.scale);
+                    .build(ui, &mut view_config.scale);
                 config.needs_save |= AngleSlider::new("4D FOV")
                     .range_degrees(0.0, 120.0)
-                    .build(ui, &mut config.view.fov_4d);
+                    .build(ui, &mut view_config.fov_4d);
                 config.needs_save |= AngleSlider::new("3D FOV")
                     .range_degrees(-120.0, 120.0)
-                    .build(ui, &mut config.view.fov_3d);
+                    .build(ui, &mut view_config.fov_3d);
 
                 ui.separator();
 
                 // Geometry settings
                 config.needs_save |=
-                    Slider::new("Face spacing", 0.0, 0.9).build(ui, &mut config.view.face_spacing);
+                    Slider::new("Face spacing", 0.0, 0.9).build(ui, &mut view_config.face_spacing);
                 config.needs_save |= Slider::new("Sticker spacing", 0.0, 0.9)
-                    .build(ui, &mut config.view.sticker_spacing);
+                    .build(ui, &mut view_config.sticker_spacing);
 
                 // Wireframe settings
                 config.needs_save |=
-                    ui.checkbox("Enable wireframe", &mut config.view.enable_wireframe);
+                    ui.checkbox("Enable wireframe", &mut view_config.enable_wireframe);
             });
     }
 

@@ -103,17 +103,19 @@ impl FrameInProgress<'_> {
 
         let speed = 1.0_f32.to_radians();
 
+        let view_config = &mut config.view[self.puzzle.puzzle_type()];
+
         if self.state.keys[VirtualKeyCode::Up] {
-            config.view.theta += speed;
+            view_config.theta += speed;
         }
         if self.state.keys[VirtualKeyCode::Down] {
-            config.view.theta -= speed;
+            view_config.theta -= speed;
         }
         if self.state.keys[VirtualKeyCode::Right] {
-            config.view.phi += speed;
+            view_config.phi += speed;
         }
         if self.state.keys[VirtualKeyCode::Left] {
-            config.view.phi -= speed;
+            view_config.phi -= speed;
         }
 
         match self.puzzle {
