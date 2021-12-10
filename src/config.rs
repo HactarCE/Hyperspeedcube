@@ -140,6 +140,7 @@ impl GfxConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(default)]
 pub struct ViewConfig {
     pub theta: f32,
     pub phi: f32,
@@ -152,6 +153,11 @@ pub struct ViewConfig {
     pub sticker_spacing: f32,
 
     pub enable_outline: bool,
+}
+impl Default for ViewConfig {
+    fn default() -> Self {
+        PerPuzzleDefault::default(PuzzleType::default())
+    }
 }
 impl PerPuzzleDefault for ViewConfig {
     fn default(puz_type: PuzzleType) -> Self {
@@ -253,7 +259,7 @@ impl<'de, T: Deserialize<'de> + PerPuzzleDefault> Deserialize<'de> for PerPuzzle
     where
         D: Deserializer<'de>,
     {
-        let mut ret = HashMap::deserialize(deserializer)?;
+        let mut ret = HashMap::deserialize(deserializer).unwrap_or_default();
         for &puz_type in PuzzleType::ALL {
             ret.entry(puz_type)
                 .or_insert_with(|| T::default(puz_type))
