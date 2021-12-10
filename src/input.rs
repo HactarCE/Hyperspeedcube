@@ -104,16 +104,16 @@ impl FrameInProgress<'_> {
         let speed = 1.0_f32.to_radians();
 
         if self.state.keys[VirtualKeyCode::Up] {
-            config.gfx.theta += speed;
+            config.view.theta += speed;
         }
         if self.state.keys[VirtualKeyCode::Down] {
-            config.gfx.theta -= speed;
+            config.view.theta -= speed;
         }
         if self.state.keys[VirtualKeyCode::Right] {
-            config.gfx.phi += speed;
+            config.view.phi += speed;
         }
         if self.state.keys[VirtualKeyCode::Left] {
-            config.gfx.phi -= speed;
+            config.view.phi -= speed;
         }
 
         match self.puzzle {

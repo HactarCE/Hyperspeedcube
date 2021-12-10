@@ -39,18 +39,18 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
 
     // Compute the model transform, which must be applied here on the CPU so that we
     // can do proper Z ordering.
-    let model_transform = Matrix3::from_angle_x(Rad(config.gfx.theta))
-        * Matrix3::from_angle_y(Rad(config.gfx.phi))
+    let model_transform = Matrix3::from_angle_x(Rad(config.view.theta))
+        * Matrix3::from_angle_y(Rad(config.view.phi))
         / CLIPPING_RADIUS;
     // Compute the perspective transform, which we will apply on the GPU.
     let perspective_transform = {
         let min_dimen = std::cmp::min(target_w, target_h) as f32;
-        let scale = min_dimen * config.gfx.scale;
+        let scale = min_dimen * config.view.scale;
 
         let xx = scale / target_w as f32;
         let yy = scale / target_h as f32;
 
-        let fov = config.gfx.fov_3d;
+        let fov = config.view.fov_3d;
         let zw = (fov / 2.0).tan(); // `tan(fov/2)` is the factor of how much the Z coordinate affects the XY coordinates.
         let ww = 1.0 + fov.signum() * zw;
 
@@ -64,9 +64,9 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
     let perspective_transform_matrix: [[f32; 4]; 4] = perspective_transform.into();
 
     let mut geo_params = GeometryParams {
-        sticker_spacing: config.gfx.sticker_spacing,
-        face_spacing: config.gfx.face_spacing,
-        fov_4d: config.gfx.fov_4d,
+        sticker_spacing: config.view.sticker_spacing,
+        face_spacing: config.view.face_spacing,
+        fov_4d: config.view.fov_4d,
 
         anim: puzzle.current_twist(),
         transform: model_transform,
@@ -85,7 +85,7 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
         for piece in P::Piece::iter() {
             for sticker in piece.stickers() {
                 let alpha = if (puzzle.highlight_filter)(sticker) {
-                    config.gfx.opacity
+                    config.colors.opacity
                 } else {
                     0.1
                 };

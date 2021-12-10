@@ -41,12 +41,11 @@ pub struct Config {
     pub window_states: WindowStates,
 
     pub log_file: PathBuf,
-    // pub ctrl: CtrlConfig,
+
     pub gfx: GfxConfig,
-    // pub hist: HistoryConfig,
-    // pub keys: KeyConfig,
-    // pub mouse: MouseConfig,
-    // pub sim: SimConfig,
+    pub view: ViewConfig,
+    pub colors: ColorsConfig,
+    pub keybinds: KeybindsConfig,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -55,7 +54,11 @@ impl Default for Config {
             window_states: WindowStates::default(),
 
             log_file: PathBuf::from("puzzle.log"),
+
             gfx: GfxConfig::default(),
+            view: ViewConfig::default(),
+            colors: ColorsConfig::default(),
+            keybinds: KeybindsConfig::default(),
         }
     }
 }
@@ -109,19 +112,7 @@ pub struct GfxConfig {
 
     pub msaa: Msaa,
 
-    pub theta: f32,
-    pub phi: f32,
-
-    pub fov_3d: f32,
-    pub fov_4d: f32,
-    pub scale: f32,
-
-    pub face_spacing: f32,
-    pub sticker_spacing: f32,
-
-    pub opacity: f32,
-
-    pub label_size: f32,
+    pub label_size: f32, // TODO: remove or move this
 }
 impl Default for GfxConfig {
     fn default() -> Self {
@@ -133,18 +124,6 @@ impl Default for GfxConfig {
 
             msaa: Msaa::_8,
 
-            theta: 35_f32.to_radians(),
-            phi: -40_f32.to_radians(),
-
-            fov_3d: 30_f32.to_radians(),
-            fov_4d: 30_f32.to_radians(),
-            scale: 2.0,
-
-            face_spacing: 0.7,
-            sticker_spacing: 0.5,
-
-            opacity: 1.0,
-
             label_size: 24.0,
         }
     }
@@ -153,6 +132,52 @@ impl GfxConfig {
     /// Returns the duration of one frame based on the configured FPS value.
     pub fn frame_duration(&self) -> std::time::Duration {
         std::time::Duration::from_secs_f64(1.0 / self.fps as f64)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ViewConfig {
+    pub theta: f32,
+    pub phi: f32,
+
+    pub scale: f32,
+    pub fov_3d: f32,
+    pub fov_4d: f32,
+
+    pub face_spacing: f32,
+    pub sticker_spacing: f32,
+}
+impl Default for ViewConfig {
+    fn default() -> Self {
+        Self {
+            theta: 35_f32.to_radians(),
+            phi: -40_f32.to_radians(),
+
+            scale: 2.0,
+            fov_3d: 30_f32.to_radians(),
+            fov_4d: 30_f32.to_radians(),
+
+            face_spacing: 0.7,
+            sticker_spacing: 0.5,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ColorsConfig {
+    pub opacity: f32,
+}
+impl Default for ColorsConfig {
+    fn default() -> Self {
+        Self { opacity: 1.0 }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct KeybindsConfig {}
+impl Default for KeybindsConfig {
+    fn default() -> Self {
+        Self {}
     }
 }
 

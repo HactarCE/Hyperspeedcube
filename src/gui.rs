@@ -146,70 +146,51 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
             });
     }
 
+    if config.window_states.view {
+        Window::new("View")
+            .opened(&mut config.window_states.view)
+            .resizable(false)
+            .always_auto_resize(true)
+            .build(ui, || {
+                // View angle settings
+                config.needs_save |= AngleSlider::new("Theta")
+                    .range_degrees(-180.0, 180.0)
+                    .build(ui, &mut config.view.theta);
+                config.needs_save |= AngleSlider::new("Phi")
+                    .range_degrees(-45.0, 45.0)
+                    .build(ui, &mut config.view.phi);
+
+                ui.separator();
+
+                // Projection settings
+                config.needs_save |= Slider::new("Scale", 0.1, 5.0)
+                    .flags(SliderFlags::LOGARITHMIC)
+                    .build(ui, &mut config.view.scale);
+                config.needs_save |= AngleSlider::new("4D FOV")
+                    .range_degrees(0.0, 120.0)
+                    .build(ui, &mut config.view.fov_4d);
+                config.needs_save |= AngleSlider::new("3D FOV")
+                    .range_degrees(-120.0, 120.0)
+                    .build(ui, &mut config.view.fov_3d);
+
+                ui.separator();
+
+                // Geometry settings
+                config.needs_save |=
+                    Slider::new("Face spacing", 0.0, 0.9).build(ui, &mut config.view.face_spacing);
+                config.needs_save |= Slider::new("Sticker spacing", 0.0, 0.9)
+                    .build(ui, &mut config.view.sticker_spacing);
+            });
+    }
+
     Window::new(&ImString::new(crate::TITLE)).build(ui, || {
         ui.text(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
-        ui.text("");
-
-        ui.text("");
-
-        // Theta
-        ui.text("Theta");
-        ui.set_next_item_width(ui.window_content_region_width());
-        config.needs_save |= AngleSlider::new("##theta_slider")
-            .range_degrees(-180.0, 180.0)
-            .build(ui, &mut config.gfx.theta);
-
-        // Phi
-        ui.text("Phi");
-        ui.set_next_item_width(ui.window_content_region_width());
-        config.needs_save |= AngleSlider::new("##phi_slider")
-            .range_degrees(-180.0, 180.0)
-            .build(ui, &mut config.gfx.phi);
-
-        ui.text("");
-
-        // 4D FOV
-        ui.text("4D FOV");
-        ui.set_next_item_width(ui.window_content_region_width());
-        config.needs_save |= AngleSlider::new("##4d_fov_slider")
-            .range_degrees(0.0, 120.0)
-            .build(ui, &mut config.gfx.fov_4d);
-
-        // 3D FOV
-        ui.text("3D FOV");
-        ui.set_next_item_width(ui.window_content_region_width());
-        config.needs_save |= AngleSlider::new("##3d_fov_slider")
-            .range_degrees(-120.0, 120.0)
-            .build(ui, &mut config.gfx.fov_3d);
-
-        ui.text("");
-
-        // Scale
-        ui.text("Scale");
-        ui.set_next_item_width(ui.window_content_region_width());
-        config.needs_save |= Slider::new("##scale_slider", 0.1, 5.0)
-            .flags(SliderFlags::LOGARITHMIC)
-            .build(ui, &mut config.gfx.scale);
-
-        // Face spacing
-        ui.text("Face spacing");
-        ui.set_next_item_width(ui.window_content_region_width());
-        config.needs_save |=
-            Slider::new("##face_spacing_slider", 0.0, 0.9).build(ui, &mut config.gfx.face_spacing);
-
-        // Sticker spacing
-        ui.text("Sticker spacing");
-        ui.set_next_item_width(ui.window_content_region_width());
-        config.needs_save |= Slider::new("##sticker_spacing_slider", 0.0, 0.9)
-            .build(ui, &mut config.gfx.sticker_spacing);
-
-        ui.text("");
 
         // Opacity
         ui.text("Opacity");
         ui.set_next_item_width(ui.window_content_region_width());
         config.needs_save |=
-            Slider::new("##opacity_slider", 0.0, 1.0).build(ui, &mut config.gfx.opacity);
+            Slider::new("##opacity_slider", 0.0, 1.0).build(ui, &mut config.colors.opacity);
 
         config.save();
     });
