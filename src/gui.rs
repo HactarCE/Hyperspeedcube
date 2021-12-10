@@ -1,5 +1,6 @@
 use glium::glutin::event_loop::ControlFlow;
 use imgui::*;
+use itertools::Itertools;
 use rfd::{FileDialog, MessageButtons, MessageDialog};
 use std::fmt;
 use std::path::Path;
@@ -102,7 +103,11 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
             config.window_states.view ^= MenuItem::new("View...").build(ui);
             config.window_states.colors ^= MenuItem::new("Colors...").build(ui);
             config.window_states.keybinds ^= MenuItem::new("Keybinds...").build(ui);
-        })
+        });
+
+        ui.menu("Help", || {
+            config.window_states.about ^= MenuItem::new("About").build(ui);
+        });
     });
 
     if config.window_states.graphics {
@@ -232,15 +237,22 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
             .build(ui, || {});
     }
 
-    Window::new(&ImString::new(crate::TITLE)).build(ui, || {
-        ui.text(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
-
-        // Opacity
-        ui.text("Opacity");
-        ui.set_next_item_width(ui.window_content_region_width());
-
-        config.save();
-    });
+    if config.window_states.about {
+        Window::new("About")
+            .opened(&mut config.window_states.about)
+            .resizable(false)
+            .always_auto_resize(true)
+            .build(ui, || {
+                ui.text(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
+                ui.text(format!("{}", env!("CARGO_PKG_DESCRIPTION")));
+                ui.text("");
+                ui.text(format!("License: {}", env!("CARGO_PKG_LICENSE")));
+                ui.text(format!(
+                    "Created by {}",
+                    env!("CARGO_PKG_AUTHORS").split(':').join(", "),
+                ));
+            });
+    }
 
     // Debug window.
     #[cfg(debug_assertions)]
@@ -255,4 +267,7 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
                 });
         }
     }
+
+    // Save any configuration changes.
+    config.save();
 }

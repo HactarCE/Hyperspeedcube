@@ -104,6 +104,8 @@ pub struct WindowStates {
     pub view: bool,
     pub colors: bool,
     pub keybinds: bool,
+
+    pub about: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
