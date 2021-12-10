@@ -388,6 +388,16 @@ pub struct Face {
 }
 impl FaceTrait<Rubiks3D> for Face {
     const COUNT: usize = 6;
+    const SYMBOLS: &'static [&'static str] = &["B", "D", "L", "R", "U", "F"];
+    const NAMES: &'static [&'static str] = &["Back", "Down", "Left", "Right", "Up", "Front"];
+    const DEFAULT_COLORS: &'static [[f32; 3]] = &[
+        crate::colors::BLUE,   // Back
+        crate::colors::YELLOW, // Down
+        crate::colors::ORANGE, // Left
+        crate::colors::RED,    // Right
+        crate::colors::WHITE,  // Up
+        crate::colors::GREEN,  // Front
+    ];
 
     fn idx(self) -> usize {
         use Axis::*;
@@ -401,19 +411,6 @@ impl FaceTrait<Rubiks3D> for Face {
             (Z, Pos) => 5, // Front
             (_, Zero) => panic!("invalid face"),
         }
-    }
-    fn symbol(self) -> char {
-        b"BDLRUF"[self.idx()] as char
-    }
-    fn color(self) -> [f32; 3] {
-        [
-            crate::colors::BLUE,   // Back
-            crate::colors::YELLOW, // Down
-            crate::colors::ORANGE, // Left
-            crate::colors::RED,    // Right
-            crate::colors::WHITE,  // Up
-            crate::colors::GREEN,  // Front
-        ][self.idx()]
     }
     fn pieces(self) -> Box<dyn Iterator<Item = Piece> + 'static> {
         let mut piece = self.center();

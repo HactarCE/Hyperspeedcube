@@ -1,10 +1,13 @@
 use directories::ProjectDirs;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
+
+use crate::puzzle::PuzzleType;
 
 pub(crate) fn get_config<'a>() -> MutexGuard<'a, Config> {
     CONFIG.lock().unwrap()
@@ -136,6 +139,7 @@ impl GfxConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(default)]
 pub struct ViewConfig {
     pub theta: f32,
     pub phi: f32,
@@ -146,6 +150,8 @@ pub struct ViewConfig {
 
     pub face_spacing: f32,
     pub sticker_spacing: f32,
+
+    pub enable_wireframe: bool,
 }
 impl Default for ViewConfig {
     fn default() -> Self {
@@ -159,21 +165,77 @@ impl Default for ViewConfig {
 
             face_spacing: 0.7,
             sticker_spacing: 0.5,
+
+            enable_wireframe: true,
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(default, remote = "Self")]
 pub struct ColorsConfig {
     pub opacity: f32,
+
+    pub stickers: HashMap<PuzzleType, Vec<[f32; 3]>>,
+
+    pub background: [f32; 3],
+    pub wireframe: [f32; 3],
+
+    pub label_fg: [f32; 4],
+    pub label_bg: [f32; 4],
+}
+impl Serialize for ColorsConfig {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // I don't understand exactly how this works, but according to this
+        // comment it does:
+        // https://github.com/serde-rs/serde/issues/1220#issuecomment-382589140
+        ColorsConfig::serialize(self, serializer)
+    }
+}
+impl<'de> Deserialize<'de> for ColorsConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // I don't understand exactly how this works, but according to this
+        // comment it does:
+        // https://github.com/serde-rs/serde/issues/1220#issuecomment-382589140
+        let mut ret = ColorsConfig::deserialize(deserializer)?;
+        // Check that each puzzle type has the correct number of sticker colors.
+        for &puz_type in PuzzleType::ALL {
+            ret.stickers
+                .entry(puz_type)
+                .or_insert_with(|| puz_type.default_colors().to_vec())
+                .resize(puz_type.face_count(), Default::default());
+        }
+        println!("{:?}", ret.stickers);
+        Ok(ret)
+    }
 }
 impl Default for ColorsConfig {
     fn default() -> Self {
-        Self { opacity: 1.0 }
+        Self {
+            opacity: 1.0,
+
+            stickers: PuzzleType::ALL
+                .iter()
+                .map(|&puz_type| (puz_type, puz_type.default_colors().to_vec()))
+                .collect(),
+
+            background: [0.3, 0.3, 0.3],
+            wireframe: [0.0, 0.0, 0.0],
+
+            label_fg: [1.0, 1.0, 1.0, 1.0],
+            label_bg: [0.0, 0.0, 0.0, 1.0],
+        }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(default)]
 pub struct KeybindsConfig {}
 impl Default for KeybindsConfig {
     fn default() -> Self {

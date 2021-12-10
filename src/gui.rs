@@ -180,7 +180,60 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
                     Slider::new("Face spacing", 0.0, 0.9).build(ui, &mut config.view.face_spacing);
                 config.needs_save |= Slider::new("Sticker spacing", 0.0, 0.9)
                     .build(ui, &mut config.view.sticker_spacing);
+
+                // Wireframe settings
+                config.needs_save |=
+                    ui.checkbox("Enable wireframe", &mut config.view.enable_wireframe);
             });
+    }
+
+    if config.window_states.colors {
+        Window::new("Colors")
+            .opened(&mut config.window_states.colors)
+            .resizable(false)
+            .always_auto_resize(true)
+            .build(ui, || {
+                // Sticker opacity
+                config.needs_save |=
+                    Slider::new("Puzzle opacity", 0.0, 1.0).build(ui, &mut config.colors.opacity);
+
+                ui.separator();
+
+                // Special colors
+                config.needs_save |=
+                    ColorEdit::new("Background", &mut config.colors.background).build(ui);
+                config.needs_save =
+                    ColorEdit::new("Wireframe", &mut config.colors.wireframe).build(ui);
+
+                ui.separator();
+
+                // Label colors
+                config.needs_save |=
+                    ColorEdit::new("Label fg", &mut config.colors.label_fg).build(ui);
+                config.needs_save =
+                    ColorEdit::new("Label bg", &mut config.colors.label_bg).build(ui);
+
+                ui.separator();
+
+                // Sticker colors
+                let puz_type = puzzle.puzzle_type();
+                let sticker_colors = config
+                    .colors
+                    .stickers
+                    .get_mut(&puz_type)
+                    .expect("missing sticker colors");
+                for (face_name, color) in puz_type.face_names().iter().zip(sticker_colors) {
+                    config.needs_save |= ColorEdit::new(face_name, color).build(ui);
+                }
+            });
+    }
+
+    if config.window_states.keybinds {
+        Window::new("Keybinds")
+            .opened(&mut config.window_states.keybinds)
+            .resizable(false)
+            .always_auto_resize(true)
+            .build(ui, || {});
     }
 
     Window::new(&ImString::new(crate::TITLE)).build(ui, || {
@@ -189,8 +242,6 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
         // Opacity
         ui.text("Opacity");
         ui.set_next_item_width(ui.window_content_region_width());
-        config.needs_save |=
-            Slider::new("##opacity_slider", 0.0, 1.0).build(ui, &mut config.colors.opacity);
 
         config.save();
     });

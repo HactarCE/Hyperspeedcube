@@ -122,16 +122,26 @@ pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq + Hash {
 
 /// A face of a twisty puzzle.
 pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
-    /// The number of faces on this puzzle.
+    /// Number of faces on this puzzle.
     const COUNT: usize;
+    /// Short name for each face.
+    const SYMBOLS: &'static [&'static str];
+    /// Full name of each face.
+    const NAMES: &'static [&'static str];
+    /// Default color for each face.
+    const DEFAULT_COLORS: &'static [[f32; 3]];
 
     /// Returns a unique number corresponding to this face in the range
     /// 0..Self::COUNT.
     fn idx(self) -> usize;
-    /// Returns the symbol for this face.
-    fn symbol(self) -> char;
-    /// Returns the color for this face.
-    fn color(self) -> [f32; 3];
+    /// Returns the short name for this face.
+    fn symbol(self) -> &'static str {
+        Self::SYMBOLS[self.idx()]
+    }
+    /// Returns the full name for this face.
+    fn name(self) -> &'static str {
+        Self::NAMES[self.idx()]
+    }
     /// Returns an iterator over all the pieces on this face.
     fn pieces(self) -> Box<dyn Iterator<Item = P::Piece> + 'static>;
     /// Returns an iterator over all the stickers on this face.

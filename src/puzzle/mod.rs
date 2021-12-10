@@ -1,5 +1,6 @@
 //! Common types and traits used for any puzzle.
 
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 pub mod controller;
@@ -16,7 +17,7 @@ pub use sign::Sign;
 pub use traits::*;
 
 /// An enumeration of all puzzle types.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PuzzleType {
     /// A 3D Rubik's cube.
     Rubiks3D,
@@ -45,6 +46,28 @@ impl PuzzleType {
         match self {
             Self::Rubiks3D => PuzzleEnum::Rubiks3D(Default::default()),
             Self::Rubiks4D => PuzzleEnum::Rubiks4D(Default::default()),
+        }
+    }
+
+    /// Returns the number of faces on a puzzle of this type.
+    pub fn face_count(self) -> usize {
+        match self {
+            PuzzleType::Rubiks3D => rubiks3d::Face::COUNT,
+            PuzzleType::Rubiks4D => rubiks4d::Face::COUNT,
+        }
+    }
+    /// Returns the names of faces for a puzzle of this type.
+    pub fn face_names(self) -> &'static [&'static str] {
+        match self {
+            PuzzleType::Rubiks3D => rubiks3d::Face::NAMES,
+            PuzzleType::Rubiks4D => rubiks4d::Face::NAMES,
+        }
+    }
+    /// Returns the default colors for a puzzle of this type.
+    pub fn default_colors(self) -> &'static [[f32; 3]] {
+        match self {
+            PuzzleType::Rubiks3D => rubiks3d::Face::DEFAULT_COLORS,
+            PuzzleType::Rubiks4D => rubiks4d::Face::DEFAULT_COLORS,
         }
     }
 }

@@ -11,7 +11,6 @@ mod cache;
 mod shaders;
 mod verts;
 
-use crate::colors;
 use crate::config::get_config;
 use crate::puzzle::{traits::*, PuzzleController, PuzzleEnum};
 use crate::DISPLAY;
@@ -35,7 +34,8 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
     let cache = &mut *cache_;
 
     let (target_w, target_h) = target.get_dimensions();
-    target.clear_color_srgb_and_depth(colors::get_bg(), 1.0);
+    let [r, g, b] = config.colors.background;
+    target.clear_color_srgb_and_depth((r, g, b, 1.0), 1.0);
 
     // Compute the model transform, which must be applied here on the CPU so that we
     // can do proper Z ordering.
@@ -79,6 +79,7 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
      */
     let stickers_vbo;
     {
+        let face_colors = &config.colors.stickers[&P::TYPE];
         // Each sticker has a `Vec<StickerVertex>` with all of its vertices and
         // a single f32 containing the average Z value.
         let mut verts_by_sticker: Vec<(Vec<WireframeVertex>, f32)> = vec![];
@@ -90,10 +91,12 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
                     0.1
                 };
 
-                let [r, g, b] = puzzle.displayed().get_sticker(sticker).color();
+                let [r, g, b] = face_colors[puzzle.displayed().get_sticker(sticker).idx()];
                 geo_params.fill_color = [r, g, b, alpha];
-                geo_params.wire_color = colors::WIREFRAME.unwrap_or(geo_params.fill_color);
-                geo_params.wire_color[3] = alpha;
+                geo_params.wire_color = geo_params.fill_color;
+                if config.view.enable_wireframe {
+                    geo_params.wire_color[..3].copy_from_slice(&config.colors.wireframe);
+                }
 
                 if let Some(verts) = sticker.verts(geo_params) {
                     let avg_z = verts.iter().map(|v| v.avg_z()).sum::<f32>() / verts.len() as f32;
@@ -174,7 +177,7 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
                 let pos = text_center + cgmath::vec4(dx * w, dy * h, 0.0, 0.0);
                 backdrop_verts.push(RgbaVertex {
                     pos: (post_transform * pos).into(),
-                    color: colors::LABEL_BG,
+                    color: config.colors.label_bg,
                 });
             }
 
@@ -191,7 +194,7 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
                 text: vec![SectionText {
                     text,
                     scale,
-                    color: colors::LABEL_FG,
+                    color: config.colors.label_fg,
                     ..Default::default()
                 }],
                 ..Default::default()
