@@ -7,6 +7,7 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
+use crate::colors;
 use crate::puzzle::PuzzleType;
 
 pub(crate) fn get_config<'a>() -> MutexGuard<'a, Config> {
@@ -189,13 +190,13 @@ impl Default for ColorsConfig {
         Self {
             opacity: 1.0,
 
-            stickers: PerPuzzle::default(),
+            stickers: PerPuzzle::<StickerColors>::default(),
 
-            background: [0.3, 0.3, 0.3],
-            wireframe: [0.0, 0.0, 0.0],
+            background: colors::DEFAULT_BACKGROUND,
+            wireframe: colors::DEFAULT_WIREFRAME,
 
-            label_fg: [1.0, 1.0, 1.0, 1.0],
-            label_bg: [0.0, 0.0, 0.0, 1.0],
+            label_fg: colors::DEFAULT_LABEL_FG,
+            label_bg: colors::DEFAULT_LABEL_BG,
         }
     }
 }
