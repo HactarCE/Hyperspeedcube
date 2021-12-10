@@ -10,7 +10,7 @@ pub const PURPLE: [f32; 3] = [0.5, 0.2, 0.75];
 pub const PINK: [f32; 3] = [0.75, 0.45, 0.6];
 
 pub const DEFAULT_BACKGROUND: [f32; 3] = [0.3, 0.3, 0.3];
-pub const DEFAULT_WIREFRAME: [f32; 3] = [0.0, 0.0, 0.0];
+pub const DEFAULT_OUTLINE: [f32; 3] = [0.0, 0.0, 0.0];
 
 pub const DEFAULT_LABEL_FG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 pub const DEFAULT_LABEL_BG: [f32; 4] = [0.0, 0.0, 0.0, 1.0];

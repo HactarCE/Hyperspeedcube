@@ -183,9 +183,8 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
                 config.needs_save |= Slider::new("Sticker spacing", 0.0, 0.9)
                     .build(ui, &mut view_config.sticker_spacing);
 
-                // Wireframe settings
-                config.needs_save |=
-                    ui.checkbox("Enable wireframe", &mut view_config.enable_wireframe);
+                // Outline settings
+                config.needs_save |= ui.checkbox("Enable outline", &mut view_config.enable_outline);
             });
     }
 
@@ -204,8 +203,7 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
                 // Special colors
                 config.needs_save |=
                     ColorEdit::new("Background", &mut config.colors.background).build(ui);
-                config.needs_save =
-                    ColorEdit::new("Wireframe", &mut config.colors.wireframe).build(ui);
+                config.needs_save = ColorEdit::new("Outline", &mut config.colors.outline).build(ui);
 
                 ui.separator();
 

@@ -151,7 +151,7 @@ pub struct ViewConfig {
     pub face_spacing: f32,
     pub sticker_spacing: f32,
 
-    pub enable_wireframe: bool,
+    pub enable_outline: bool,
 }
 impl PerPuzzleDefault for ViewConfig {
     fn default(puz_type: PuzzleType) -> Self {
@@ -167,7 +167,7 @@ impl PerPuzzleDefault for ViewConfig {
                 face_spacing: 0.025,
                 sticker_spacing: 0.05,
 
-                enable_wireframe: true,
+                enable_outline: true,
             },
             PuzzleType::Rubiks4D => Self {
                 theta: 35_f32.to_radians(),
@@ -180,7 +180,7 @@ impl PerPuzzleDefault for ViewConfig {
                 face_spacing: 0.7,
                 sticker_spacing: 0.5,
 
-                enable_wireframe: true,
+                enable_outline: true,
             },
         }
     }
@@ -194,7 +194,7 @@ pub struct ColorsConfig {
     pub stickers: PerPuzzle<StickerColors>,
 
     pub background: [f32; 3],
-    pub wireframe: [f32; 3],
+    pub outline: [f32; 3],
 
     pub label_fg: [f32; 4],
     pub label_bg: [f32; 4],
@@ -207,7 +207,7 @@ impl Default for ColorsConfig {
             stickers: PerPuzzle::<StickerColors>::default(),
 
             background: colors::DEFAULT_BACKGROUND,
-            wireframe: colors::DEFAULT_WIREFRAME,
+            outline: colors::DEFAULT_OUTLINE,
 
             label_fg: colors::DEFAULT_LABEL_FG,
             label_bg: colors::DEFAULT_LABEL_BG,

@@ -283,7 +283,7 @@ impl StickerTrait<Rubiks4D> for Sticker {
         )
         .determinant()
         .is_sign_positive()
-        .then(|| WireframeVertex::cube(corners, p.fill_color, p.wire_color).collect())
+        .then(|| WireframeVertex::cube(corners, p.fill_color, p.line_color).collect())
     }
 }
 impl Sticker {

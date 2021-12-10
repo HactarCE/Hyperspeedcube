@@ -95,9 +95,9 @@ fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
 
                 let [r, g, b] = face_colors[puzzle.displayed().get_sticker(sticker).idx()];
                 geo_params.fill_color = [r, g, b, alpha];
-                geo_params.wire_color = geo_params.fill_color;
-                if view_config.enable_wireframe {
-                    geo_params.wire_color[..3].copy_from_slice(&config.colors.wireframe);
+                geo_params.line_color = geo_params.fill_color;
+                if view_config.enable_outline {
+                    geo_params.line_color[..3].copy_from_slice(&config.colors.outline);
                 }
 
                 if let Some(verts) = sticker.verts(geo_params) {

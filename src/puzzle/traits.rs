@@ -199,8 +199,8 @@ pub struct GeometryParams<P: PuzzleTrait> {
 
     /// Sticker fill color.
     pub fill_color: [f32; 4],
-    /// Wireframe color.
-    pub wire_color: [f32; 4],
+    /// Outline color.
+    pub line_color: [f32; 4],
 }
 impl<P: PuzzleTrait> Copy for GeometryParams<P> {}
 impl<P: PuzzleTrait> Default for GeometryParams<P> {
@@ -214,7 +214,7 @@ impl<P: PuzzleTrait> Default for GeometryParams<P> {
             transform: Matrix3::identity(),
 
             fill_color: [1.0, 1.0, 1.0, 1.0],
-            wire_color: [0.0, 0.0, 0.0, 1.0],
+            line_color: [0.0, 0.0, 0.0, 1.0],
         }
     }
 }

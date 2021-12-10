@@ -208,7 +208,7 @@ impl StickerTrait<Rubiks3D> for Sticker {
             get_corner(1.0, -1.0),
             get_corner(1.0, 1.0),
         ];
-        Some(WireframeVertex::double_quad(corners, p.fill_color, p.wire_color).collect())
+        Some(WireframeVertex::double_quad(corners, p.fill_color, p.line_color).collect())
     }
 }
 impl Sticker {
