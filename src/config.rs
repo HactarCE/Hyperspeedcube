@@ -172,11 +172,11 @@ impl Default for ViewConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(default, remote = "Self")]
+#[serde(default)]
 pub struct ColorsConfig {
     pub opacity: f32,
 
-    pub stickers: HashMap<PuzzleType, Vec<[f32; 3]>>,
+    pub stickers: PerPuzzle<StickerColors>,
 
     pub background: [f32; 3],
     pub wireframe: [f32; 3],
@@ -184,46 +184,12 @@ pub struct ColorsConfig {
     pub label_fg: [f32; 4],
     pub label_bg: [f32; 4],
 }
-impl Serialize for ColorsConfig {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        // I don't understand exactly how this works, but according to this
-        // comment it does:
-        // https://github.com/serde-rs/serde/issues/1220#issuecomment-382589140
-        ColorsConfig::serialize(self, serializer)
-    }
-}
-impl<'de> Deserialize<'de> for ColorsConfig {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // I don't understand exactly how this works, but according to this
-        // comment it does:
-        // https://github.com/serde-rs/serde/issues/1220#issuecomment-382589140
-        let mut ret = ColorsConfig::deserialize(deserializer)?;
-        // Check that each puzzle type has the correct number of sticker colors.
-        for &puz_type in PuzzleType::ALL {
-            ret.stickers
-                .entry(puz_type)
-                .or_insert_with(|| puz_type.default_colors().to_vec())
-                .resize(puz_type.face_count(), Default::default());
-        }
-        println!("{:?}", ret.stickers);
-        Ok(ret)
-    }
-}
 impl Default for ColorsConfig {
     fn default() -> Self {
         Self {
             opacity: 1.0,
 
-            stickers: PuzzleType::ALL
-                .iter()
-                .map(|&puz_type| (puz_type, puz_type.default_colors().to_vec()))
-                .collect(),
+            stickers: PerPuzzle::default(),
 
             background: [0.3, 0.3, 0.3],
             wireframe: [0.0, 0.0, 0.0],
@@ -232,6 +198,80 @@ impl Default for ColorsConfig {
             label_bg: [0.0, 0.0, 0.0, 1.0],
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StickerColors(pub Vec<[f32; 3]>);
+impl std::ops::Index<usize> for StickerColors {
+    type Output = [f32; 3];
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+impl std::ops::IndexMut<usize> for StickerColors {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+impl PerPuzzleDefault for StickerColors {
+    fn default(puz_type: PuzzleType) -> Self {
+        Self(puz_type.default_colors().to_vec())
+    }
+    fn validate(&mut self, puz_type: PuzzleType) {
+        self.0.resize(puz_type.face_count(), Default::default());
+    }
+}
+
+#[derive(Debug)]
+pub struct PerPuzzle<T>(HashMap<PuzzleType, T>);
+impl<T: Serialize> Serialize for PerPuzzle<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+impl<'de, T: Deserialize<'de> + PerPuzzleDefault> Deserialize<'de> for PerPuzzle<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mut ret = HashMap::deserialize(deserializer)?;
+        for &puz_type in PuzzleType::ALL {
+            ret.entry(puz_type)
+                .or_insert_with(|| T::default(puz_type))
+                .validate(puz_type);
+        }
+        Ok(Self(ret))
+    }
+}
+impl<T: PerPuzzleDefault> Default for PerPuzzle<T> {
+    fn default() -> Self {
+        Self(
+            PuzzleType::ALL
+                .iter()
+                .map(|&puz_type| (puz_type, T::default(puz_type)))
+                .collect(),
+        )
+    }
+}
+impl<T> std::ops::Index<PuzzleType> for PerPuzzle<T> {
+    type Output = T;
+
+    fn index(&self, puz_type: PuzzleType) -> &Self::Output {
+        self.0.get(&puz_type).unwrap()
+    }
+}
+impl<T> std::ops::IndexMut<PuzzleType> for PerPuzzle<T> {
+    fn index_mut(&mut self, puz_type: PuzzleType) -> &mut Self::Output {
+        self.0.get_mut(&puz_type).unwrap()
+    }
+}
+pub trait PerPuzzleDefault {
+    fn default(puz_type: PuzzleType) -> Self;
+    fn validate(&mut self, _puz_type: PuzzleType) {}
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -217,11 +217,7 @@ pub fn build(ui: &imgui::Ui<'_>, puzzle: &mut PuzzleEnum, control_flow: &mut Con
 
                 // Sticker colors
                 let puz_type = puzzle.puzzle_type();
-                let sticker_colors = config
-                    .colors
-                    .stickers
-                    .get_mut(&puz_type)
-                    .expect("missing sticker colors");
+                let sticker_colors = &mut config.colors.stickers[puz_type].0;
                 for (face_name, color) in puz_type.face_names().iter().zip(sticker_colors) {
                     config.needs_save |= ColorEdit::new(face_name, color).build(ui);
                 }
