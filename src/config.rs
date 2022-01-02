@@ -5,13 +5,17 @@ use std::error::Error;
 use std::fmt;
 use std::fs::File;
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Mutex, MutexGuard, TryLockError};
 
 use crate::colors;
 use crate::puzzle::PuzzleType;
 
 pub(crate) fn get_config<'a>() -> MutexGuard<'a, Config> {
-    CONFIG.lock().unwrap()
+    match CONFIG.try_lock() {
+        Ok(config) => config,
+        Err(TryLockError::Poisoned(e)) => panic!("config mutex poisoned: {}", e),
+        Err(TryLockError::WouldBlock) => panic!("config mutex double-locked"),
+    }
 }
 
 lazy_static! {
