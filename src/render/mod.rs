@@ -11,7 +11,6 @@ mod cache;
 mod shaders;
 mod verts;
 
-use crate::config::get_config;
 use crate::puzzle::{traits::*, PuzzleController, PuzzleEnum};
 use crate::DISPLAY;
 use cache::FONT;
@@ -22,13 +21,13 @@ const CLIPPING_RADIUS: f32 = 2.0;
 
 pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &PuzzleEnum) {
     match puzzle {
-        PuzzleEnum::Rubiks3D(cube) => _draw_puzzle(target, cube),
-        PuzzleEnum::Rubiks4D(cube) => _draw_puzzle(target, cube),
+        PuzzleEnum::Rubiks3D(cube) => draw_puzzle_(target, cube),
+        PuzzleEnum::Rubiks4D(cube) => draw_puzzle_(target, cube),
     }
 }
 
-fn _draw_puzzle<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleController<P>) {
-    let config = get_config();
+fn draw_puzzle_<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleController<P>) {
+    let config = crate::get_config();
 
     let mut cache_ = cache::borrow_cache();
     let cache = &mut *cache_;
