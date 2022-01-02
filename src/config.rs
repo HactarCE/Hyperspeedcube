@@ -1,4 +1,10 @@
+//! Configuration file
+//!
+//! For a list of key names, see `VirtualKeyCode` in this file:
+//! https://github.com/rust-windowing/winit/blob/master/src/event.rs
+
 use directories::ProjectDirs;
+use glium::glutin::event::{ScanCode, VirtualKeyCode};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -6,8 +12,10 @@ use std::fmt;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, TryLockError};
+use winit::event::ModifiersState;
 
 use crate::colors;
+use crate::puzzle::commands::Command;
 use crate::puzzle::PuzzleType;
 
 pub(crate) fn get_config<'a>() -> MutexGuard<'a, Config> {
@@ -53,7 +61,7 @@ pub struct Config {
     pub gfx: GfxConfig,
     pub view: PerPuzzle<ViewConfig>,
     pub colors: ColorsConfig,
-    pub keybinds: KeybindsConfig,
+    pub keybinds: PerPuzzle<Vec<Keybind>>,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -66,7 +74,7 @@ impl Default for Config {
             gfx: GfxConfig::default(),
             view: PerPuzzle::<ViewConfig>::default(),
             colors: ColorsConfig::default(),
-            keybinds: KeybindsConfig::default(),
+            keybinds: PerPuzzle::<Vec<Keybind>>::default(),
         }
     }
 }
@@ -250,6 +258,102 @@ impl PerPuzzleDefault for StickerColors {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+pub struct Keybind {
+    pub ctrl: bool,
+    pub shift: bool,
+    pub alt: bool,
+    pub logo: bool,
+
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<Key>,
+
+    pub command: Command,
+}
+impl fmt::Display for Keybind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.ctrl {
+            write!(f, "Ctrl + ")?;
+        }
+        if self.shift {
+            write!(f, "Shift + ")?;
+        }
+        if self.alt {
+            if cfg!(target_os = "macos") {
+                write!(f, "Option + ")?;
+            } else {
+                write!(f, "Alt + ")?;
+            }
+        }
+        if self.logo {
+            if cfg!(target_os = "macos") {
+                write!(f, "Cmd + ")?;
+            } else if cfg!(target_os = "windows") {
+                write!(f, "Win + ")?;
+            } else {
+                write!(f, "Super + ")?;
+            }
+        }
+        match self.key {
+            Some(Key::Sc(sc)) => write!(f, "Sc{}", sc),
+            Some(Key::Vk(vk)) => match vk {
+                VirtualKeyCode::Key1 => write!(f, "1"),
+                VirtualKeyCode::Key2 => write!(f, "2"),
+                VirtualKeyCode::Key3 => write!(f, "3"),
+                VirtualKeyCode::Key4 => write!(f, "4"),
+                VirtualKeyCode::Key5 => write!(f, "5"),
+                VirtualKeyCode::Key6 => write!(f, "6"),
+                VirtualKeyCode::Key7 => write!(f, "7"),
+                VirtualKeyCode::Key8 => write!(f, "8"),
+                VirtualKeyCode::Key9 => write!(f, "9"),
+                VirtualKeyCode::Key0 => write!(f, "0"),
+                VirtualKeyCode::Scroll => write!(f, "ScrollLock"),
+                VirtualKeyCode::Back => write!(f, "Backspace"),
+                VirtualKeyCode::Return => write!(f, "Enter"),
+                VirtualKeyCode::Capital => write!(f, "CapsLock"),
+                other => write!(f, "{:?}", other),
+            },
+            None => write!(f, "(no key set)"),
+        }
+    }
+}
+impl Keybind {
+    pub fn new(key: Option<Key>, mods: ModifiersState, command: Command) -> Self {
+        let mut ret = Self {
+            ctrl: mods.ctrl(),
+            shift: mods.shift(),
+            alt: mods.alt(),
+            logo: mods.logo(),
+
+            key,
+
+            command,
+        };
+        ret.validate_keybind();
+        ret
+    }
+    pub fn validate_keybind(&mut self) {
+        if let Some(Key::Vk(vk)) = self.key {
+            use VirtualKeyCode::*;
+
+            match vk {
+                // Remove redundant modifiers.
+                LControl | RControl => self.ctrl = false,
+                LShift | RShift => self.shift = false,
+                LAlt | RAlt => self.alt = false,
+                LWin | RWin => self.logo = false,
+                _ => (),
+            }
+        }
+    }
+}
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum Key {
+    Sc(ScanCode),
+    Vk(VirtualKeyCode),
+}
+
 #[derive(Debug)]
 pub struct PerPuzzle<T>(HashMap<PuzzleType, T>);
 impl<T: Serialize> Serialize for PerPuzzle<T> {
@@ -300,13 +404,16 @@ pub trait PerPuzzleDefault {
     fn default(puz_type: PuzzleType) -> Self;
     fn validate(&mut self, _puz_type: PuzzleType) {}
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(default)]
-pub struct KeybindsConfig {}
-impl Default for KeybindsConfig {
-    fn default() -> Self {
-        Self {}
+impl PerPuzzleDefault for Vec<Keybind> {
+    fn default(_puz_type: PuzzleType) -> Self {
+        vec![]
+    }
+    fn validate(&mut self, puz_type: PuzzleType) {
+        for keybind in &mut *self {
+            keybind.validate_keybind();
+            keybind.command.validate(puz_type);
+        }
+        self.retain(|keybind| keybind.key.is_some());
     }
 }
 

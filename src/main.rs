@@ -152,11 +152,15 @@ fn main() {
                 let mut input_frame = input_state.frame(&mut puzzle, imgui_io);
 
                 for ev in events_buffer.drain(..) {
+                    // Let the keybind popup handle events.
+                    if gui::keybind_popup_handle_event(&ev) {
+                        continue;
+                    }
                     // Let imgui handle events.
                     platform.handle_event(imgui_io, gl_window.window(), &ev);
                     // Handle events for the puzzle.
                     input_frame.handle_event(&ev);
-                    // Handle events ourself.
+                    // Handle events here.
                     match ev {
                         Event::WindowEvent { event, .. } => match event {
                             // Handle window close event.
@@ -175,8 +179,15 @@ fn main() {
                 input_frame.finish();
 
                 // Prep imgui for rendering.
+                let mouse_pos = imgui_io.mouse_pos;
                 let ui = imgui.frame();
-                gui::build(&ui, &mut puzzle, control_flow);
+                let mut app = gui::AppState {
+                    ui: &ui,
+                    mouse_pos,
+                    puzzle: &mut puzzle,
+                    control_flow,
+                };
+                gui::build(&mut app);
 
                 let mut target = DISPLAY.draw();
 

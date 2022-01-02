@@ -44,6 +44,9 @@ impl FrameInProgress<'_> {
     }
 
     fn handle_key(&mut self, input: KeyboardInput) {
+        #[cfg(debug_assertions)]
+        println!("Handling input: {:?}", input);
+
         // We don't care about left vs. right modifiers, so just extract
         // the bits that don't specify left vs. right.
         let modifiers = self.state.modifiers & (SHIFT | CTRL | ALT | LOGO);

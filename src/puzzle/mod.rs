@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+pub mod commands;
 pub mod controller;
 pub mod rubiks3d;
 pub mod rubiks4d;
@@ -10,6 +11,7 @@ pub mod rubiks4d_logfile;
 pub mod sign;
 pub mod traits;
 
+pub use commands::{FaceId, LayerMask};
 pub use controller::*;
 pub use rubiks3d::Rubiks3D;
 pub use rubiks4d::Rubiks4D;

@@ -807,6 +807,7 @@ dependencies = [
  "send_wrapper",
  "serde",
  "serde_json",
+ "winit",
 ]
 
 [[package]]
@@ -1996,6 +1997,7 @@ dependencies = [
  "percent-encoding",
  "raw-window-handle 0.3.3",
  "scopeguard",
+ "serde",
  "smithay-client-toolkit",
  "wayland-client",
  "winapi",
