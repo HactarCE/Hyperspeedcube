@@ -57,11 +57,11 @@ pub mod twists {
         Twist::new(sticker, direction)
     }
 }
-
 lazy_static! {
     /// Iterator over stickers in order.
-    static ref STICKERS_BY_ID: Vec<Sticker> = Face::iter()
-        .flat_map(|face| {
+    static ref STICKERS_BY_ID: Vec<Sticker> = Face::ALL
+        .iter()
+        .flat_map(|&face| {
             std::iter::empty()
                 .chain(face.stickers().filter(|s| matches!(s.adj_faces(), StickerAdjFaces::_3 { .. })))
                 .chain(face.stickers().filter(|s| matches!(s.adj_faces(), StickerAdjFaces::_2 { .. })))
@@ -101,6 +101,7 @@ impl PuzzleTrait for Rubiks4D {
 
     const NDIM: usize = 4;
     const TYPE: PuzzleType = PuzzleType::Rubiks4D;
+    const LAYER_COUNT: usize = 3;
 
     fn get_sticker(&self, pos: Sticker) -> Face {
         self[pos.piece()][pos.axis()] * pos.sign()
@@ -426,6 +427,34 @@ impl FromStr for Twist {
     }
 }
 impl TwistTrait<Rubiks4D> for Twist {
+    const DIRECTIONS: &'static [&'static str] = &["x", "x'", "y", "y'", "z", "z'"];
+
+    fn from_command(
+        face_id: FaceId,
+        direction: &str,
+        layer_mask: LayerMask,
+    ) -> Result<Twist, &str> {
+        let face = *Face::ALL.get(face_id.0 as usize).ok_or("invalid face ID")?;
+        let (axis, direction) = match direction {
+            "x" => (Axis::X, TwistDirection::CW),
+            "x'" => (Axis::X, TwistDirection::CCW),
+            "y" => (Axis::Y, TwistDirection::CW),
+            "y'" => (Axis::Y, TwistDirection::CCW),
+            "z" => (Axis::Z, TwistDirection::CW),
+            "z'" => (Axis::Z, TwistDirection::CCW),
+            _ => Err("invalid direction")?,
+        };
+        if layer_mask.0 > 0b111 {
+            return Err("invaild layer mask");
+        }
+        let layers = [
+            layer_mask.0 & 0b001 != 0,
+            layer_mask.0 & 0b010 != 0,
+            layer_mask.0 & 0b100 != 0,
+        ];
+        Ok(twists::by_3d_view(face, axis, direction).layers(layers))
+    }
+
     fn rotation(self) -> Orientation {
         let rot = match self.sticker.adj_faces() {
             StickerAdjFaces::_0 { .. } => Orientation::default(),
@@ -601,7 +630,20 @@ pub struct Face {
     sign: Sign,
 }
 impl FaceTrait<Rubiks4D> for Face {
-    const COUNT: usize = 8;
+    const ALL: &'static [Self] = {
+        use Axis::*;
+        use Sign::*;
+        &[
+            Self { axis: W, sign: Neg }, // In
+            Self { axis: Z, sign: Neg }, // Back
+            Self { axis: Y, sign: Neg }, // Down
+            Self { axis: X, sign: Neg }, // Left
+            Self { axis: X, sign: Pos }, // Right
+            Self { axis: Y, sign: Pos }, // Up
+            Self { axis: Z, sign: Pos }, // Front
+            Self { axis: W, sign: Pos }, // Out
+        ]
+    };
     const SYMBOLS: &'static [&'static str] = &["I", "B", "D", "L", "R", "U", "F", "O"];
     const NAMES: &'static [&'static str] =
         &["In", "Back", "Down", "Left", "Right", "Up", "Front", "Out"];
@@ -616,23 +658,11 @@ impl FaceTrait<Rubiks4D> for Face {
         crate::colors::PINK,   // Out
     ];
 
-    fn idx(self) -> usize {
-        use Axis::*;
-        use Sign::*;
-        match (self.axis, self.sign) {
-            (W, Neg) => 0, // In
-            (Z, Neg) => 1, // Back
-            (Y, Neg) => 2, // Down
-            (X, Neg) => 3, // Left
-            (X, Pos) => 4, // Right
-            (Y, Pos) => 5, // Up
-            (Z, Pos) => 6, // Front
-            (W, Pos) => 7, // Out
-            (_, Zero) => panic!("invalid face"),
-        }
-    }
-    fn pieces(self) -> Box<dyn Iterator<Item = Piece> + 'static> {
+    fn pieces(self, layer: usize) -> Box<dyn Iterator<Item = Piece> + 'static> {
         let mut piece = self.center();
+        for _ in 0..layer {
+            piece = piece + self.opposite();
+        }
         let [ax1, ax2, ax3] = self.axis.sticker_order_perpendiculars();
         Box::new(
             itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter()).map(move |(v, u, t)| {
@@ -645,24 +675,7 @@ impl FaceTrait<Rubiks4D> for Face {
     }
     fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
         let axis = self.axis;
-        Box::new(self.pieces().map(move |piece| Sticker::new(piece, axis)))
-    }
-    fn iter() -> Box<dyn Iterator<Item = Self>> {
-        use Axis::*;
-        use Sign::*;
-        Box::new(
-            [
-                Self { axis: W, sign: Neg }, // In
-                Self { axis: Z, sign: Neg }, // Back
-                Self { axis: Y, sign: Neg }, // Down
-                Self { axis: X, sign: Neg }, // Left
-                Self { axis: X, sign: Pos }, // Right
-                Self { axis: Y, sign: Pos }, // Up
-                Self { axis: Z, sign: Pos }, // Front
-                Self { axis: W, sign: Pos }, // Out
-            ]
-            .into_iter(),
-        )
+        Box::new(self.pieces(0).map(move |piece| Sticker::new(piece, axis)))
     }
 
     fn projection_center(self, mut p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
@@ -719,6 +732,14 @@ impl Face {
     /// Returns the sign of this face along its perpendicular axis.
     pub const fn sign(self) -> Sign {
         self.sign
+    }
+    /// Returns the opposite face.
+    #[must_use]
+    pub fn opposite(self) -> Self {
+        Self {
+            axis: self.axis,
+            sign: -self.sign,
+        }
     }
     /// Returns the piece at the center of this face.
     pub fn center(self) -> Piece {

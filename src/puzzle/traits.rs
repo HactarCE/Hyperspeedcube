@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
 
-use super::PuzzleType;
+use super::{FaceId, LayerMask, PuzzleType};
 use crate::render::WireframeVertex;
 
 /// A twisty puzzle.
@@ -38,6 +38,9 @@ pub trait PuzzleTrait:
     const NDIM: usize;
     /// [`PuzzleType`] enum value.
     const TYPE: PuzzleType;
+    /// Maximum number of layers that any twist can manipulate. Each layer must
+    /// be able to be moved independently.
+    const LAYER_COUNT: usize;
 
     /// Returns a new solved puzzle in the default orientation.
     fn new() -> Self {
@@ -121,9 +124,9 @@ pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq + Hash {
 }
 
 /// A face of a twisty puzzle.
-pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
-    /// Number of faces on this puzzle.
-    const COUNT: usize;
+pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + PartialEq<P::Face> + Eq + Hash {
+    /// List of faces on this puzzle.
+    const ALL: &'static [P::Face];
     /// Short name for each face.
     const SYMBOLS: &'static [&'static str];
     /// Full name of each face.
@@ -132,8 +135,13 @@ pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
     const DEFAULT_COLORS: &'static [[f32; 3]];
 
     /// Returns a unique number corresponding to this face in the range
-    /// 0..Self::COUNT.
-    fn idx(self) -> usize;
+    /// `0..Self::ALL.len()`.
+    fn idx(self) -> usize {
+        Self::ALL
+            .iter()
+            .position(|&f| self == f)
+            .expect("invalid face")
+    }
     /// Returns the short name for this face.
     fn symbol(self) -> &'static str {
         Self::SYMBOLS[self.idx()]
@@ -142,12 +150,10 @@ pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
     fn name(self) -> &'static str {
         Self::NAMES[self.idx()]
     }
-    /// Returns an iterator over all the pieces on this face.
-    fn pieces(self) -> Box<dyn Iterator<Item = P::Piece> + 'static>;
+    /// Returns an iterator over all the pieces on this face at one layer.
+    fn pieces(self, layer: usize) -> Box<dyn Iterator<Item = P::Piece> + 'static>;
     /// Returns an iterator over all the stickers on this face.
     fn stickers(self) -> Box<dyn Iterator<Item = P::Sticker> + 'static>;
-    /// Returns an iterator over all the faces on this puzzle.
-    fn iter() -> Box<dyn Iterator<Item = P::Face>>;
 
     /// Returns the 3D-projected center of the face.
     fn projection_center(self, p: GeometryParams<P>) -> Vector3<f32>;
@@ -157,6 +163,12 @@ pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
 pub trait TwistTrait<P: PuzzleTrait>:
     'static + Debug + Copy + Eq + From<P::Sticker> + Hash
 {
+    /// List of twist directions, not including the identity twist.
+    const DIRECTIONS: &'static [&'static str];
+
+    /// Constructs a new twist from a keybind.
+    fn from_command(face_id: FaceId, direction: &str, layers: LayerMask) -> Result<P::Twist, &str>;
+
     /// Returns the orientation that would result from applying this twist to a
     /// piece in the default orientation.
     fn rotation(self) -> P::Orientation;

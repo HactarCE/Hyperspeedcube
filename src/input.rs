@@ -312,7 +312,7 @@ fn update_display_rubiks3d(cube: &mut PuzzleController<Rubiks3D>, state: &mut St
 
     cube.labels = vec![];
     if state.keys[Vk::Tab] {
-        for face in Face::iter() {
+        for &face in Face::ALL {
             cube.labels
                 .push((Facet::Face(face), face.symbol().to_string()));
         }

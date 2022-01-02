@@ -51,10 +51,7 @@ impl PuzzleType {
 
     /// Returns the number of faces on a puzzle of this type.
     pub fn face_count(self) -> usize {
-        match self {
-            PuzzleType::Rubiks3D => rubiks3d::Face::COUNT,
-            PuzzleType::Rubiks4D => rubiks4d::Face::COUNT,
-        }
+        self.face_names().len()
     }
     /// Returns the names of faces for a puzzle of this type.
     pub fn face_names(self) -> &'static [&'static str] {
@@ -63,6 +60,28 @@ impl PuzzleType {
             PuzzleType::Rubiks4D => rubiks4d::Face::NAMES,
         }
     }
+    /// Returns the number of layesr on a puzzle of this type.
+    pub fn layer_count(self) -> usize {
+        match self {
+            PuzzleType::Rubiks3D => Rubiks3D::LAYER_COUNT,
+            PuzzleType::Rubiks4D => Rubiks4D::LAYER_COUNT,
+        }
+    }
+    /// Returns the possible directions for a twist on a puzzle of this type.
+    pub fn twist_directions(self) -> &'static [&'static str] {
+        match self {
+            PuzzleType::Rubiks3D => rubiks3d::Twist::DIRECTIONS,
+            PuzzleType::Rubiks4D => rubiks4d::Twist::DIRECTIONS,
+        }
+    }
+    /// Returns the piece types in a puzzle of this type.
+    pub fn piece_types(self) -> &'static [&'static str] {
+        match self {
+            PuzzleType::Rubiks3D => &["center", "edge", "corner"],
+            PuzzleType::Rubiks4D => &["1c", "2c", "3c", "4c"],
+        }
+    }
+
     /// Returns the default colors for a puzzle of this type.
     pub fn default_colors(self) -> &'static [[f32; 3]] {
         match self {
