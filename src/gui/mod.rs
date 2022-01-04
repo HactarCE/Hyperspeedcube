@@ -328,6 +328,7 @@ fn build_keybind_table(app: &mut AppState, config: &mut Config) {
 
     // Table contents
     let mut drag_to = None;
+    let mut delete_idx = None;
     let w = ui.calc_text_size("Ctrl + Shift + Alt")[0] * 3.0;
     let keybinds = &mut config.keybinds[puzzle_type];
 
@@ -346,7 +347,8 @@ fn build_keybind_table(app: &mut AppState, config: &mut Config) {
             .build(ui);
         ui.align_text_to_frame_padding(); // after Selectable so that Selectable uses the full height
         if ui.is_item_hovered() {
-            ui.set_mouse_cursor(Some(MouseCursor::ResizeNS));
+            ui.set_mouse_cursor(Some(MouseCursor::ResizeAll));
+            // ui.tooltip_text("Drag to reorder"); // TODO maybe show after tooltip delay
         }
         if ui.is_item_active() {
             ui.set_mouse_cursor(Some(MouseCursor::ResizeNS));
@@ -364,6 +366,10 @@ fn build_keybind_table(app: &mut AppState, config: &mut Config) {
         }
 
         table::next_column();
+        if ui.button(&format!("X##delete_keybind{}", i)) {
+            delete_idx = Some(i);
+        }
+        ui.same_line();
         if ui.button_with_size(format!("{}##change_keybind{}", keybind, i), [w, 0.0]) {
             popups::open_keybind_popup(keybind.clone(), move |new_keybind| {
                 let mut config = crate::get_config();
@@ -385,6 +391,10 @@ fn build_keybind_table(app: &mut AppState, config: &mut Config) {
     if let Some(((_start, ref mut from), to)) = drag.as_mut().zip(drag_to) {
         keybinds.swap(*from, to);
         *from = to;
+        config.needs_save = true;
+    }
+    if let Some(i) = delete_idx {
+        keybinds.remove(i);
         config.needs_save = true;
     }
 
@@ -450,7 +460,7 @@ fn build_command_select_ui(
 
     fn combo_label(ui: &Ui<'_>, s: &str) {
         ui.same_line();
-        ui.text(&format!("    {}:", s));
+        ui.text(&format!("{}:", s));
         ui.same_line();
     }
 
