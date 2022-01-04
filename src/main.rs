@@ -31,6 +31,7 @@ mod gui;
 mod input;
 pub mod puzzle;
 mod render;
+mod serde_impl;
 
 use config::get_config;
 use puzzle::PuzzleType;

@@ -1,4 +1,5 @@
 use imgui::*;
+use key_names::KeyMappingCode;
 use rfd::{FileDialog, MessageButtons, MessageDialog};
 use std::fmt;
 use std::sync::Mutex;
@@ -24,21 +25,21 @@ struct KeybindPopupState {
 
     mods: ModifiersState,
     last_vk_pressed: Option<VirtualKeyCode>,
-    last_sc_pressed: Option<u32>,
+    last_sc_pressed: Option<KeyMappingCode>,
 
-    use_sc: bool,
+    use_vk: bool,
 }
 impl KeybindPopupState {
     fn update_keybind(&mut self) {
         let sc = self.last_sc_pressed.map(Key::Sc);
         let vk = self.last_vk_pressed.map(Key::Vk);
-        let key = if self.use_sc { sc.or(vk) } else { vk.or(sc) };
+        let key = if self.use_vk { vk.or(sc) } else { sc.or(vk) };
         let command = self.keybind.take().unwrap_or_default().command;
 
         self.keybind = Some(Keybind::new(key, self.mods, command));
     }
-    fn set_bare_vk(&mut self, vk: VirtualKeyCode) {
-        self.last_sc_pressed = None;
+    fn set_key(&mut self, sc: KeyMappingCode, vk: VirtualKeyCode) {
+        self.last_sc_pressed = Some(sc);
         self.last_vk_pressed = Some(vk);
         self.update_keybind();
     }
@@ -93,7 +94,7 @@ pub(super) fn open_keybind_popup(
         last_vk_pressed: None,
         last_sc_pressed: None,
 
-        use_sc: popup.use_sc,
+        use_vk: popup.use_vk,
     };
 }
 pub(super) fn build_keybind_popup(app: &mut AppState) {
@@ -146,18 +147,20 @@ pub(super) fn build_keybind_popup(app: &mut AppState) {
             TreeNode::new("Advanced").build(ui, || {
                 // TODO: tooltip explaining what this checkbox means and why
                 // it's useful
+                let mut use_sc = !popup.use_vk;
                 if ui.checkbox(
                     "Use scancode (location-based) instead of virtual keycode",
-                    &mut popup.use_sc,
+                    &mut use_sc,
                 ) {
+                    popup.use_vk = !use_sc;
                     popup.update_keybind();
                 }
                 if ui.button("Bind Enter key") {
-                    popup.set_bare_vk(VirtualKeyCode::Return);
+                    popup.set_key(KeyMappingCode::Enter, VirtualKeyCode::Return);
                 }
                 ui.same_line();
                 if ui.button("Bind Escape key") {
-                    popup.set_bare_vk(VirtualKeyCode::Escape);
+                    popup.set_key(KeyMappingCode::Escape, VirtualKeyCode::Escape);
                 }
             });
         });
@@ -184,7 +187,7 @@ pub fn keybind_popup_handle_event(ev: &Event<()>) -> bool {
                             true
                         }
                         _ => {
-                            popup.last_sc_pressed = Some(input.scancode);
+                            popup.last_sc_pressed = key_names::sc_to_key(input.scancode as u16);
                             popup.last_vk_pressed = input.virtual_keycode;
                             popup.update_keybind();
                             true

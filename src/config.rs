@@ -4,7 +4,8 @@
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
 use directories::ProjectDirs;
-use glium::glutin::event::{ScanCode, VirtualKeyCode};
+use glium::glutin::event::VirtualKeyCode;
+use key_names::KeyMappingCode;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -260,9 +261,13 @@ impl PerPuzzleDefault for StickerColors {
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Keybind {
+    #[serde(skip_serializing_if = "is_false")]
     pub ctrl: bool,
+    #[serde(skip_serializing_if = "is_false")]
     pub shift: bool,
+    #[serde(skip_serializing_if = "is_false")]
     pub alt: bool,
+    #[serde(skip_serializing_if = "is_false")]
     pub logo: bool,
 
     #[serde(flatten)]
@@ -273,30 +278,13 @@ pub struct Keybind {
 }
 impl fmt::Display for Keybind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.ctrl {
-            write!(f, "Ctrl + ")?;
-        }
-        if self.shift {
-            write!(f, "Shift + ")?;
-        }
-        if self.alt {
-            if cfg!(target_os = "macos") {
-                write!(f, "Option + ")?;
-            } else {
-                write!(f, "Alt + ")?;
-            }
-        }
-        if self.logo {
-            if cfg!(target_os = "macos") {
-                write!(f, "Cmd + ")?;
-            } else if cfg!(target_os = "windows") {
-                write!(f, "Win + ")?;
-            } else {
-                write!(f, "Super + ")?;
-            }
-        }
+        let mods = key_names::mods_prefix_string(self.shift, self.ctrl, self.alt, self.logo);
+        write!(f, "{}", mods)?;
+
         match self.key {
-            Some(Key::Sc(sc)) => write!(f, "Sc{}", sc),
+            Some(Key::Sc(sc)) => write!(f, "{}", key_names::key_name(sc)),
+            // TODO: virtual key code names aren't platform-aware and might not
+            // match scancode names
             Some(Key::Vk(vk)) => match vk {
                 VirtualKeyCode::Key1 => write!(f, "1"),
                 VirtualKeyCode::Key2 => write!(f, "2"),
@@ -334,23 +322,36 @@ impl Keybind {
         ret
     }
     pub fn validate_keybind(&mut self) {
-        if let Some(Key::Vk(vk)) = self.key {
-            use VirtualKeyCode::*;
+        if let Some(key) = self.key {
+            use KeyMappingCode as Sc;
+            use VirtualKeyCode as Vk;
 
-            match vk {
-                // Remove redundant modifiers.
-                LControl | RControl => self.ctrl = false,
-                LShift | RShift => self.shift = false,
-                LAlt | RAlt => self.alt = false,
-                LWin | RWin => self.logo = false,
+            // Remove redundant modifiers.
+            match key {
+                Key::Sc(Sc::ControlLeft | Sc::ControlRight) => self.ctrl = false,
+                Key::Sc(Sc::ShiftLeft | Sc::ShiftRight) => self.shift = false,
+                Key::Sc(Sc::AltLeft | Sc::AltRight) => self.alt = false,
+                Key::Sc(Sc::MetaLeft | Sc::MetaRight) => self.logo = false,
+
+                Key::Vk(Vk::LControl | Vk::RControl) => self.ctrl = false,
+                Key::Vk(Vk::LShift | Vk::RShift) => self.shift = false,
+                Key::Vk(Vk::LAlt | Vk::RAlt) => self.alt = false,
+                Key::Vk(Vk::LWin | Vk::RWin) => self.logo = false,
+
                 _ => (),
             }
         }
     }
 }
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
 pub enum Key {
-    Sc(ScanCode),
+    /// OS-independent "key mapping code" which corresponds to OS-dependent
+    /// scan code (i.e., physical location of key on keyboard).
+    #[serde(with = "crate::serde_impl::KeyMappingCodeSerde")]
+    Sc(KeyMappingCode),
+    /// OS-independent "virtual key code" (i.e., semantic meaning of key on
+    /// keyboard, taking into account the current layout).
     Vk(VirtualKeyCode),
 }
 
@@ -433,4 +434,8 @@ impl fmt::Display for Msaa {
             Msaa::_8 => write!(f, "8x"),
         }
     }
+}
+
+fn is_false(x: &bool) -> bool {
+    !x
 }
