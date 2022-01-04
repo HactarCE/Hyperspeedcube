@@ -138,7 +138,7 @@ impl Default for GfxConfig {
             auto_dpi: true,
             font_scaling: 1.0,
             fps: 60,
-            font_size: 16.0,
+            font_size: 17.0,
 
             msaa: Msaa::_8,
 
