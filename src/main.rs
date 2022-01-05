@@ -12,7 +12,7 @@ use core::cell::RefCell;
 use glium::glutin::{
     event::{Event, StartCause, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{Icon, WindowBuilder},
     ContextBuilder,
 };
 use imgui::FontSource;
@@ -43,7 +43,9 @@ lazy_static! {
     static ref EVENTS_LOOP: SendWrapper<RefCell<Option<EventLoop<()>>>> =
         SendWrapper::new(RefCell::new(Some(EventLoop::new())));
     static ref DISPLAY: SendWrapper<glium::Display> = SendWrapper::new({
-        let wb = WindowBuilder::new().with_title(TITLE.to_owned());
+        let wb = WindowBuilder::new()
+            .with_title(TITLE.to_owned())
+            .with_window_icon(load_application_icon());
         let cb = ContextBuilder::new()
             .with_vsync(false)
             .with_multisampling(get_config().gfx.msaa as u16);
@@ -206,4 +208,39 @@ fn main() {
                 target.finish().expect("failed to swap buffers");
             }
         });
+}
+
+fn load_application_icon() -> Option<Icon> {
+    let icon_png_data = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
+    let png_decoder = png::Decoder::new(&icon_png_data[..]);
+    match png_decoder.read_info() {
+        Ok(mut reader) => match reader.output_color_type() {
+            (png::ColorType::Rgba, png::BitDepth::Eight) => {
+                let mut img_data = vec![0_u8; reader.output_buffer_size()];
+                if let Err(err) = reader.next_frame(&mut img_data) {
+                    eprintln!("Failed to read icon data: {:?}", err);
+                    return None;
+                };
+                let info = reader.info();
+                match Icon::from_rgba(img_data, info.width, info.height) {
+                    Ok(icon) => Some(icon),
+                    Err(err) => {
+                        eprintln!("Failed to construct icon: {:?}", err);
+                        None
+                    }
+                }
+            }
+            other => {
+                eprintln!(
+                    "Failed to load icon data due to unknown color format: {:?}",
+                    other,
+                );
+                None
+            }
+        },
+        Err(err) => {
+            eprintln!("Failed to load icon data: {:?}", err);
+            None
+        }
+    }
 }
