@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
 
-use super::{FaceId, LayerMask, PuzzleType};
+use super::{FaceId, LayerMask, PieceTypeId, PuzzleType};
 use crate::render::WireframeVertex;
 
 /// A twisty puzzle.
@@ -81,6 +81,20 @@ pub trait PuzzleTrait:
 
 /// The location of a piece in a twisty puzzle.
 pub trait PieceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
+    /// Names of piece types.
+    const TYPE_NAMES: &'static [&'static str];
+
+    /// Returns the piece type ID.
+    fn piece_type_id(self) -> PieceTypeId;
+    /// Returns the name of the piece type.
+    fn piece_type_name(self) -> &'static str {
+        Self::TYPE_NAMES[self.piece_type_id().0 as usize]
+    }
+
+    /// Returns the layer of this piece, relative to a face (or `None` if this
+    /// does not make sense for this puzzle).
+    fn layer_from_face(self, face: P::Face) -> Option<usize>;
+
     /// Returns the number of stickers on this piece (i.e. the length of
     /// self.stickers()).
     fn sticker_count(self) -> usize;
@@ -124,9 +138,11 @@ pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq + Hash {
 }
 
 /// A face of a twisty puzzle.
-pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + PartialEq<P::Face> + Eq + Hash {
+pub trait FaceTrait<P: PuzzleTrait>:
+    'static + Debug + Copy + PartialEq<P::Face> + Eq + Hash
+{
     /// List of faces on this puzzle.
-    const ALL: &'static [P::Face];
+    const ALL: &'static [Self];
     /// Short name for each face.
     const SYMBOLS: &'static [&'static str];
     /// Full name of each face.
@@ -141,6 +157,12 @@ pub trait FaceTrait<P: PuzzleTrait>: Debug + Copy + PartialEq<P::Face> + Eq + Ha
             .iter()
             .position(|&f| self == f)
             .expect("invalid face")
+    }
+    fn from_id(id: FaceId) -> Result<Self, &'static str> {
+        Self::ALL
+            .get(id.0 as usize)
+            .map(|f| *f)
+            .ok_or("invalid face ID")
     }
     /// Returns the short name for this face.
     fn symbol(self) -> &'static str {
@@ -166,8 +188,14 @@ pub trait TwistTrait<P: PuzzleTrait>:
     /// List of twist directions, not including the identity twist.
     const DIRECTIONS: &'static [&'static str];
 
-    /// Constructs a new twist from a keybind.
-    fn from_command(face_id: FaceId, direction: &str, layers: LayerMask) -> Result<P::Twist, &str>;
+    /// Constructs a new twist from a 'twist' command.
+    fn from_twist_command(
+        face_id: FaceId,
+        direction: &str,
+        layers: LayerMask,
+    ) -> Result<P::Twist, &'static str>;
+    /// Constructs a twist from a 'recenter' command.
+    fn from_recenter_command(face_id: FaceId) -> Result<P::Twist, &'static str>;
 
     /// Returns the orientation that would result from applying this twist to a
     /// piece in the default orientation.

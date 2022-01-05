@@ -10,7 +10,7 @@ mod util;
 
 use crate::config::{Keybind, Msaa};
 use crate::puzzle::commands::Command;
-use crate::puzzle::{LayerMask, PuzzleEnum, PuzzleType};
+use crate::puzzle::{LayerMask, PieceTypeId, PuzzleEnum, PuzzleType};
 pub use popups::keybind_popup_handle_event;
 
 pub struct AppState<'a> {
@@ -434,23 +434,24 @@ fn build_command_select_ui(
     command: &mut Command,
     needs_save: &mut bool,
 ) {
+    use Command as Cmd;
+
     let mut command_idx = match command {
-        Command::None => 0,
+        Cmd::None => 0,
 
-        Command::Twist { .. } => 1,
-        Command::Recenter { .. } => 2,
+        Cmd::Twist { .. } => 1,
+        Cmd::Recenter { .. } => 2,
 
-        Command::HoldSelectFace(_)
-        | Command::HoldSelectLayers(_)
-        | Command::HoldSelectPieceType(_) => 3,
-        Command::ToggleSelectFace(_)
-        | Command::ToggleSelectLayers(_)
-        | Command::ToggleSelectPieceType(_) => 4,
-        Command::ClearToggleSelectFaces
-        | Command::ClearToggleSelectLayers
-        | Command::ClearToggleSelectPieceType => 5,
+        Cmd::HoldSelectFace(_) | Cmd::HoldSelectLayers(_) | Cmd::HoldSelectPieceType(_) => 3,
+        Cmd::ToggleSelectFace(_) | Cmd::ToggleSelectLayers(_) | Cmd::ToggleSelectPieceType(_) => 4,
+        Cmd::ClearToggleSelectFaces
+        | Cmd::ClearToggleSelectLayers
+        | Cmd::ClearToggleSelectPieceType => 5,
     };
     let old_command_idx = command_idx;
+
+    let default_direction = puzzle_type.twist_directions()[0].to_owned();
+    let default_face = puzzle_type.face_names()[0].to_owned();
 
     if build_autosize_combo(
         ui,
@@ -467,24 +468,113 @@ fn build_command_select_ui(
     ) && command_idx != old_command_idx
     {
         *needs_save = true;
-        let default_direction = puzzle_type.twist_directions()[0].to_owned();
-        let default_face = puzzle_type.face_names()[0].to_owned();
         match command_idx {
-            0 => *command = Command::None,
+            0 => *command = Cmd::None,
 
             1 => {
-                *command = Command::Twist {
+                *command = Cmd::Twist {
                     face: None,
                     layers: LayerMask(1),
                     direction: default_direction,
                 }
             }
-            2 => *command = Command::Recenter { face: None },
+            2 => *command = Cmd::Recenter { face: None },
 
-            3 => *command = Command::HoldSelectFace(default_face),
-            4 => *command = Command::ToggleSelectFace(default_face),
-            5 => *command = Command::ClearToggleSelectFaces,
-            _ => *command = Command::None, // should be unreachable
+            3 => {
+                *command = match command {
+                    Cmd::ToggleSelectFace(f) => Cmd::HoldSelectFace(f.clone()),
+                    Cmd::ToggleSelectLayers(l) => Cmd::HoldSelectLayers(*l),
+                    Cmd::ToggleSelectPieceType(p) => Cmd::HoldSelectPieceType(*p),
+                    Cmd::ClearToggleSelectFaces => Cmd::HoldSelectFace(default_face.clone()),
+                    Cmd::ClearToggleSelectLayers => Cmd::HoldSelectLayers(LayerMask(1)),
+                    Cmd::ClearToggleSelectPieceType => Cmd::HoldSelectPieceType(PieceTypeId(0)),
+                    _ => Cmd::HoldSelectFace(default_face.clone()),
+                }
+            }
+            4 => {
+                *command = match command {
+                    Cmd::HoldSelectFace(f) => Cmd::ToggleSelectFace(f.clone()),
+                    Cmd::HoldSelectLayers(l) => Cmd::ToggleSelectLayers(*l),
+                    Cmd::HoldSelectPieceType(p) => Cmd::ToggleSelectPieceType(*p),
+                    Cmd::ClearToggleSelectFaces => Cmd::ToggleSelectFace(default_face.clone()),
+                    Cmd::ClearToggleSelectLayers => Cmd::ToggleSelectLayers(LayerMask(1)),
+                    Cmd::ClearToggleSelectPieceType => Cmd::ToggleSelectPieceType(PieceTypeId(0)),
+                    _ => Cmd::ToggleSelectFace(default_face.clone()),
+                }
+            }
+            5 => {
+                *command = match command {
+                    Cmd::HoldSelectFace(_) | Cmd::ToggleSelectFace(_) => {
+                        Cmd::ClearToggleSelectFaces
+                    }
+                    Cmd::HoldSelectLayers(_) | Cmd::ToggleSelectLayers(_) => {
+                        Cmd::ClearToggleSelectLayers
+                    }
+                    Cmd::HoldSelectPieceType(_) | Cmd::ToggleSelectPieceType(_) => {
+                        Cmd::ClearToggleSelectPieceType
+                    }
+                    _ => Cmd::ClearToggleSelectFaces,
+                }
+            }
+            _ => *command = Cmd::None, // should be unreachable
+        }
+    }
+
+    let is_hold_select_command = matches!(
+        command,
+        Cmd::HoldSelectFace(_) | Cmd::HoldSelectLayers(_) | Cmd::HoldSelectPieceType(_)
+    );
+    let is_toggle_select_command = matches!(
+        command,
+        Cmd::ToggleSelectFace(_) | Cmd::ToggleSelectLayers(_) | Cmd::ToggleSelectPieceType(_)
+    );
+    let is_clear_toggle_select_command = matches!(
+        command,
+        Cmd::ClearToggleSelectFaces
+            | Cmd::ClearToggleSelectLayers
+            | Cmd::ClearToggleSelectPieceType
+    );
+    if is_hold_select_command || is_toggle_select_command || is_clear_toggle_select_command {
+        let mut current_item = match command {
+            Cmd::HoldSelectFace(_) | Cmd::ToggleSelectFace(_) | Cmd::ClearToggleSelectFaces => 0,
+            Cmd::HoldSelectLayers(_)
+            | Cmd::ToggleSelectLayers(_)
+            | Cmd::ClearToggleSelectLayers => 1,
+            Cmd::HoldSelectPieceType(_)
+            | Cmd::ToggleSelectPieceType(_)
+            | Cmd::ClearToggleSelectPieceType => 2,
+            _ => unreachable!(),
+        };
+        ui.same_line();
+        if build_autosize_combo(
+            ui,
+            &format!("##select_what{}", i),
+            &mut current_item,
+            &["Face", "Layers", "Piece type"],
+        ) {
+            *needs_save = true;
+            if is_hold_select_command {
+                match current_item {
+                    0 => *command = Cmd::HoldSelectFace(default_face),
+                    1 => *command = Cmd::HoldSelectLayers(LayerMask(1)),
+                    2 => *command = Cmd::HoldSelectPieceType(PieceTypeId(0)),
+                    _ => (), // should be unreachable
+                }
+            } else if is_toggle_select_command {
+                match current_item {
+                    0 => *command = Cmd::ToggleSelectFace(default_face),
+                    1 => *command = Cmd::ToggleSelectLayers(LayerMask(1)),
+                    2 => *command = Cmd::ToggleSelectPieceType(PieceTypeId(0)),
+                    _ => (), // should be unreachable
+                }
+            } else if is_clear_toggle_select_command {
+                match current_item {
+                    0 => *command = Cmd::ClearToggleSelectFaces,
+                    1 => *command = Cmd::ClearToggleSelectLayers,
+                    2 => *command = Cmd::ClearToggleSelectPieceType,
+                    _ => (), // should be unreachable
+                }
+            }
         }
     }
 
@@ -495,9 +585,9 @@ fn build_command_select_ui(
     }
 
     match command {
-        Command::None => (),
+        Cmd::None => (),
 
-        Command::Twist {
+        Cmd::Twist {
             face,
             layers,
             direction,
@@ -526,7 +616,7 @@ fn build_command_select_ui(
                 puzzle_type.twist_directions(),
             );
         }
-        Command::Recenter { face } => {
+        Cmd::Recenter { face } => {
             combo_label(ui, "Face");
             *needs_save |= build_optional_string_select_combo(
                 ui,
@@ -535,8 +625,9 @@ fn build_command_select_ui(
                 puzzle_type.face_names(),
             );
         }
-        Command::HoldSelectFace(face) | Command::ToggleSelectFace(face) => {
-            combo_label(ui, "Face");
+
+        Cmd::HoldSelectFace(face) | Cmd::ToggleSelectFace(face) => {
+            ui.same_line();
             *needs_save |= build_string_select_combo(
                 ui,
                 &format!("##face{}", i),
@@ -544,8 +635,8 @@ fn build_command_select_ui(
                 puzzle_type.face_names(),
             );
         }
-        Command::HoldSelectLayers(layers) | Command::ToggleSelectLayers(layers) => {
-            combo_label(ui, "Layers");
+        Cmd::HoldSelectLayers(layers) | Cmd::ToggleSelectLayers(layers) => {
+            ui.same_line();
             *needs_save |= build_layer_mask_select_checkboxes(
                 ui,
                 &format!("##layers{}", i),
@@ -553,20 +644,20 @@ fn build_command_select_ui(
                 puzzle_type.layer_count(),
             );
         }
-        Command::HoldSelectPieceType(piece_type) | Command::ToggleSelectPieceType(piece_type) => {
-            let mut i = piece_type.0 as usize;
-            combo_label(ui, "Piecetype:");
+        Cmd::HoldSelectPieceType(piece_type) | Cmd::ToggleSelectPieceType(piece_type) => {
+            let mut piece_type_id = piece_type.0 as usize;
+            ui.same_line();
             *needs_save |= build_autosize_combo(
                 ui,
                 &format!("##piece_type{}", i),
-                &mut i,
+                &mut piece_type_id,
                 puzzle_type.piece_types(),
             );
-            piece_type.0 = i as u32;
+            piece_type.0 = piece_type_id as u32;
         }
-        Command::ClearToggleSelectFaces
-        | Command::ClearToggleSelectLayers
-        | Command::ClearToggleSelectPieceType => (),
+        Cmd::ClearToggleSelectFaces
+        | Cmd::ClearToggleSelectLayers
+        | Cmd::ClearToggleSelectPieceType => (),
     }
 }
 

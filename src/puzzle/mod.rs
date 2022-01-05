@@ -11,7 +11,7 @@ pub mod rubiks4d_logfile;
 pub mod sign;
 pub mod traits;
 
-pub use commands::{FaceId, LayerMask};
+pub use commands::{Command, FaceId, LayerMask, PieceTypeId};
 pub use controller::*;
 pub use rubiks3d::Rubiks3D;
 pub use rubiks4d::Rubiks4D;
@@ -79,8 +79,8 @@ impl PuzzleType {
     /// Returns the piece types in a puzzle of this type.
     pub fn piece_types(self) -> &'static [&'static str] {
         match self {
-            PuzzleType::Rubiks3D => &["center", "edge", "corner"],
-            PuzzleType::Rubiks4D => &["1c", "2c", "3c", "4c"],
+            PuzzleType::Rubiks3D => rubiks3d::Piece::TYPE_NAMES,
+            PuzzleType::Rubiks4D => rubiks4d::Piece::TYPE_NAMES,
         }
     }
 
@@ -160,6 +160,44 @@ impl PuzzleEnum {
             PuzzleEnum::Rubiks3D(cube) => !cube.redo_buffer.is_empty(),
             PuzzleEnum::Rubiks4D(cube) => !cube.redo_buffer.is_empty(),
         }
+    }
+
+    pub fn twist_from_command<'a>(
+        &mut self,
+        face_name: &str,
+        layers: LayerMask,
+        direction: &str,
+    ) -> Result<(), &'static str> {
+        let f = FaceId(
+            self.puzzle_type()
+                .face_names()
+                .iter()
+                .position(|&s| s == face_name)
+                .ok_or("invalid face")? as u32,
+        );
+        match self {
+            PuzzleEnum::Rubiks3D(cube) => {
+                cube.twist(rubiks3d::Twist::from_twist_command(f, direction, layers)?)
+            }
+            PuzzleEnum::Rubiks4D(cube) => {
+                cube.twist(rubiks4d::Twist::from_twist_command(f, direction, layers)?)
+            }
+        }
+        Ok(())
+    }
+    pub fn recenter_from_command(&mut self, face_name: &str) -> Result<(), &'static str> {
+        let f = FaceId(
+            self.puzzle_type()
+                .face_names()
+                .iter()
+                .position(|&s| s == face_name)
+                .ok_or("invalid face")? as u32,
+        );
+        match self {
+            PuzzleEnum::Rubiks3D(cube) => cube.twist(rubiks3d::Twist::from_recenter_command(f)?),
+            PuzzleEnum::Rubiks4D(cube) => cube.twist(rubiks4d::Twist::from_recenter_command(f)?),
+        }
+        Ok(())
     }
 }
 

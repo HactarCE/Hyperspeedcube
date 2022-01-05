@@ -82,6 +82,20 @@ impl Rubiks3D {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Piece(pub [Sign; 3]);
 impl PieceTrait<Rubiks3D> for Piece {
+    const TYPE_NAMES: &'static [&'static str] = &["center", "edge", "corner"];
+
+    fn piece_type_id(self) -> PieceTypeId {
+        PieceTypeId(self.sticker_count() as u32 - 1)
+    }
+
+    fn layer_from_face(self, face: Face) -> Option<usize> {
+        match self[face.axis()] * face.sign() {
+            Sign::Neg => Some(2),
+            Sign::Zero => Some(1),
+            Sign::Pos => Some(0),
+        }
+    }
+
     fn sticker_count(self) -> usize {
         self.x().abs() + self.y().abs() + self.z().abs()
     }
@@ -284,11 +298,15 @@ impl fmt::Display for Twist {
 impl TwistTrait<Rubiks3D> for Twist {
     const DIRECTIONS: &'static [&'static str] = &["CW", "CCW"];
 
-    fn from_command(face_id: FaceId, direction: &str, layer_mask: LayerMask) -> Result<Self, &str> {
-        let face = *Face::ALL.get(face_id.0 as usize).ok_or("invalid face ID")?;
+    fn from_twist_command(
+        face_id: FaceId,
+        direction: &str,
+        layer_mask: LayerMask,
+    ) -> Result<Self, &'static str> {
+        let face = Face::from_id(face_id)?;
         let direction = match direction {
             "CW" => TwistDirection::CW,
-            "CCW" => TwistDirection::CW,
+            "CCW" => TwistDirection::CCW,
             _ => Err("invalid direction")?,
         };
         if layer_mask.0 > 0b111 {
@@ -300,6 +318,18 @@ impl TwistTrait<Rubiks3D> for Twist {
             layer_mask.0 & 0b100 != 0,
         ];
         Ok(Self::new(face, direction).layers(layers))
+    }
+    fn from_recenter_command(face_id: FaceId) -> Result<Twist, &'static str> {
+        let face = Face::from_id(face_id)?;
+        match face {
+            Face::R => Ok(twists::Y),
+            Face::L => Ok(twists::Y.rev()),
+            Face::U => Ok(twists::X.rev()),
+            Face::D => Ok(twists::X),
+            Face::F => Err("cannot recenter near face"),
+            Face::B => Err("cannot recenter far face"),
+            _ => Err("invalid face"),
+        }
     }
 
     fn rotation(self) -> Orientation {

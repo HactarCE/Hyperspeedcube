@@ -388,6 +388,44 @@ pub enum Key {
     /// keyboard, taking into account the current layout).
     Vk(VirtualKeyCode),
 }
+impl Key {
+    pub fn is_shift(self) -> bool {
+        use KeyMappingCode as Sc;
+        use VirtualKeyCode as Vk;
+        match self {
+            Self::Sc(Sc::ShiftLeft | Sc::ShiftRight) => true,
+            Self::Vk(Vk::LShift | Vk::RShift) => true,
+            _ => false,
+        }
+    }
+    pub fn is_ctrl(self) -> bool {
+        use KeyMappingCode as Sc;
+        use VirtualKeyCode as Vk;
+        match self {
+            Self::Sc(Sc::ControlLeft | Sc::ControlRight) => true,
+            Self::Vk(Vk::LControl | Vk::RControl) => true,
+            _ => false,
+        }
+    }
+    pub fn is_alt(self) -> bool {
+        use KeyMappingCode as Sc;
+        use VirtualKeyCode as Vk;
+        match self {
+            Self::Sc(Sc::AltLeft | Sc::AltRight) => true,
+            Self::Vk(Vk::LAlt | Vk::RAlt) => true,
+            _ => false,
+        }
+    }
+    pub fn is_logo(self) -> bool {
+        use KeyMappingCode as Sc;
+        use VirtualKeyCode as Vk;
+        match self {
+            Self::Sc(Sc::MetaLeft | Sc::MetaRight) => true,
+            Self::Vk(Vk::LWin | Vk::RWin) => true,
+            _ => false,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct PerPuzzle<T>(HashMap<PuzzleType, T>);

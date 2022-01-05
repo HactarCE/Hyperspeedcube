@@ -27,23 +27,6 @@ pub mod twists {
 
     }
 
-    /// Constructs a twist that reorients the whole puzzle to put `face` in the
-    /// center of the view.
-    pub fn recenter(face: Face) -> Option<Twist> {
-        if face.axis() == Axis::W {
-            return None;
-        }
-        let (axis1, axis2) = Axis::perpendicular_plane(face.axis(), Axis::W);
-        let mut sticker = Face::new(axis1, face.sign()).center_sticker();
-        sticker.piece[axis2] = match face.axis() {
-            Axis::X => Sign::Pos,
-            Axis::Y => Sign::Neg,
-            Axis::Z => Sign::Pos,
-            Axis::W => return None,
-        };
-        Some(Twist::new(sticker, TwistDirection::CW).whole_cube())
-    }
-
     /// Constructs a twist of `face` along `axis`
     pub fn by_3d_view(face: Face, axis: Axis, direction: TwistDirection) -> Twist {
         let mut sticker = face.center_sticker();
@@ -124,6 +107,20 @@ impl Rubiks4D {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Piece(pub [Sign; 4]);
 impl PieceTrait<Rubiks4D> for Piece {
+    const TYPE_NAMES: &'static [&'static str] = &["1c", "2c", "3c", "4c"];
+
+    fn piece_type_id(self) -> PieceTypeId {
+        PieceTypeId(self.sticker_count() as u32 - 1)
+    }
+
+    fn layer_from_face(self, face: Face) -> Option<usize> {
+        match self[face.axis()] * face.sign() {
+            Sign::Neg => Some(2),
+            Sign::Zero => Some(1),
+            Sign::Pos => Some(0),
+        }
+    }
+
     fn sticker_count(self) -> usize {
         self.x().abs() + self.y().abs() + self.z().abs() + self.w().abs()
     }
@@ -429,12 +426,12 @@ impl FromStr for Twist {
 impl TwistTrait<Rubiks4D> for Twist {
     const DIRECTIONS: &'static [&'static str] = &["x", "x'", "y", "y'", "z", "z'"];
 
-    fn from_command(
+    fn from_twist_command(
         face_id: FaceId,
         direction: &str,
         layer_mask: LayerMask,
-    ) -> Result<Twist, &str> {
-        let face = *Face::ALL.get(face_id.0 as usize).ok_or("invalid face ID")?;
+    ) -> Result<Twist, &'static str> {
+        let face = Face::from_id(face_id)?;
         let (axis, direction) = match direction {
             "x" => (Axis::X, TwistDirection::CW),
             "x'" => (Axis::X, TwistDirection::CCW),
@@ -453,6 +450,21 @@ impl TwistTrait<Rubiks4D> for Twist {
             layer_mask.0 & 0b100 != 0,
         ];
         Ok(twists::by_3d_view(face, axis, direction).layers(layers))
+    }
+    fn from_recenter_command(face_id: FaceId) -> Result<Twist, &'static str> {
+        let face = Face::from_id(face_id)?;
+        if face.axis() == Axis::W {
+            return Err("cannot recenter near or far face");
+        }
+        let (axis1, axis2) = Axis::perpendicular_plane(face.axis(), Axis::W);
+        let mut sticker = Face::new(axis1, face.sign()).center_sticker();
+        sticker.piece[axis2] = match face.axis() {
+            Axis::X => Sign::Pos,
+            Axis::Y => Sign::Neg,
+            Axis::Z => Sign::Pos,
+            Axis::W => return Err("cannot recenter near or far face"),
+        };
+        Ok(Twist::new(sticker, TwistDirection::CW).whole_cube())
     }
 
     fn rotation(self) -> Orientation {
