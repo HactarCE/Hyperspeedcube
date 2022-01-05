@@ -5,19 +5,19 @@ use serde::{Deserialize, Serialize};
 use super::PuzzleType;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "lowercase")]
 #[allow(missing_docs)]
 pub enum Command {
     None,
 
     Twist {
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         face: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        layers: Option<LayerMask>,
+        layers: LayerMask,
         direction: String,
     },
     Recenter {
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         face: Option<String>,
     },
 
@@ -52,7 +52,7 @@ impl Command {
                 direction,
             } => {
                 f = face.as_mut();
-                l = layers.as_mut();
+                l = Some(layers);
                 d = Some(direction);
             }
             Command::Recenter { face } => f = face.as_mut(),
