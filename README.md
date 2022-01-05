@@ -1,4 +1,4 @@
-<img align="center" src="img/screenshot.png" alt="Screenshot of a solved Rubik's cube">
+<img src="https://raw.githubusercontent.com/HactarCE/Hyperspeedcube/main/resources/icon/hyperspeedcube.svg?sanitize=true" alt="Hyperspeedcube logo" width="150" align="right">
 
 # Hyperspeedcube
 
@@ -6,6 +6,10 @@ Keyboard-controlled twisty puzzle simulator, with support for the following puzz
 
 - 3x3x3 (standard Rubik's cube)
 - 3x3x3x3 (4D "Rubik's hypercube")
+
+## Screenshots
+
+<img src="img/screenshot.png" alt="Screenshot of a solved Rubik's cube">
 
 ## Controls
 
