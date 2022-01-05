@@ -45,7 +45,6 @@ pub fn build(app: &mut AppState) {
 
     // Build the menu bar.
     ui.main_menu_bar(|| {
-        ui.show_demo_window(&mut true);
         ui.menu("File", || {
             let can_save = app.puzzle.puzzle_type() == PuzzleType::Rubiks4D;
 
@@ -114,6 +113,12 @@ pub fn build(app: &mut AppState) {
             checkbox_menu_item("View", &mut config.window_states.view);
             checkbox_menu_item("Colors", &mut config.window_states.colors);
             checkbox_menu_item("Keybinds", &mut config.window_states.keybinds);
+
+            #[cfg(debug_assertions)]
+            {
+                ui.separator();
+                checkbox_menu_item("Imgui Demo", &mut config.window_states.demo);
+            }
         });
 
         ui.menu("Help", || {
@@ -284,6 +289,10 @@ pub fn build(app: &mut AppState) {
                     env!("CARGO_PKG_AUTHORS").split(':').join(", "),
                 ));
             });
+    }
+
+    if config.window_states.demo {
+        ui.show_demo_window(&mut config.window_states.demo);
     }
 
     // Bulid the keybind popup.
