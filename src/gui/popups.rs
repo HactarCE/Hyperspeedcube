@@ -67,7 +67,7 @@ pub(super) fn error_dialog(title: &str, e: impl fmt::Display) {
 pub(super) fn confirm_discard_changes_dialog(action: &str) -> MessageDialog {
     MessageDialog::new()
         .set_title("Unsaved changes")
-        .set_description(&format!("Discard changes and {}?", action))
+        .set_description(&format!("Discard puzzle state and {}?", action))
         .set_buttons(MessageButtons::YesNo)
 }
 
@@ -143,7 +143,7 @@ pub(super) fn build_keybind_popup(app: &mut AppState) {
             util::text_with_inline_key_names(ui, "Press {Enter} to confirm or {Escape} to cancel.");
             ui.spacing();
 
-            let _style_stack_tokens = util::push_style_compact(ui);
+            let compact_style = util::push_style_compact(ui);
             TreeNode::new("Advanced").build(ui, || {
                 // TODO: tooltip explaining what this checkbox means and why
                 // it's useful
@@ -163,6 +163,7 @@ pub(super) fn build_keybind_popup(app: &mut AppState) {
                     popup.set_key(KeyMappingCode::Escape, VirtualKeyCode::Escape);
                 }
             });
+            drop(compact_style)
         });
 }
 
