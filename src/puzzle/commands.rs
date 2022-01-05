@@ -5,11 +5,9 @@ use serde::{Deserialize, Serialize};
 use super::PuzzleType;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 #[allow(missing_docs)]
 pub enum Command {
-    None,
-
     Twist {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         face: Option<String>,
@@ -30,6 +28,9 @@ pub enum Command {
     ClearToggleSelectFaces,
     ClearToggleSelectLayers,
     ClearToggleSelectPieceType,
+
+    #[serde(other)]
+    None,
 }
 impl Default for Command {
     fn default() -> Self {
@@ -56,12 +57,14 @@ impl Command {
                 d = Some(direction);
             }
             Command::Recenter { face } => f = face.as_mut(),
+
             Command::HoldSelectFace(face) => f = Some(face),
             Command::HoldSelectLayers(layers) => l = Some(layers),
             Command::HoldSelectPieceType(pieces) => p = Some(pieces),
             Command::ToggleSelectFace(face) => f = Some(face),
             Command::ToggleSelectLayers(layers) => l = Some(layers),
             Command::ToggleSelectPieceType(pieces) => p = Some(pieces),
+
             _ => (),
         }
 

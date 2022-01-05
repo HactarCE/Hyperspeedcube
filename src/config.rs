@@ -27,13 +27,16 @@ pub(crate) fn get_config<'a>() -> MutexGuard<'a, Config> {
     }
 }
 
+const CONFIG_FILE_NAME: &str = "hyperspeedcube";
+const CONFIG_FILE_EXTENSION: &str = "yaml";
+
 lazy_static! {
     static ref CONFIG: Mutex<Config> = Mutex::new(Config::load());
     static ref PROJECT_DIRS: Option<ProjectDirs> = ProjectDirs::from("", "", "Hyperspeedcube");
     static ref CONFIG_FILE_PATH: Result<PathBuf, NoConfigPath> = match &*PROJECT_DIRS {
         Some(proj_dirs) => {
             let mut p = proj_dirs.config_dir().to_owned();
-            p.push("hyperspeedcube.json");
+            p.push(format!("{}.{}", CONFIG_FILE_NAME, CONFIG_FILE_EXTENSION));
             Ok(p)
         }
         None => Err(NoConfigPath),
@@ -83,13 +86,39 @@ impl Config {
     pub fn load() -> Self {
         Self::_load().unwrap_or_else(|e| {
             eprintln!("Unable to load config: {}", e);
+            if let Ok(config_path) = &*CONFIG_FILE_PATH {
+                let datetime = time::OffsetDateTime::now_local()
+                    .unwrap_or_else(|_| time::OffsetDateTime::now_utc());
+                let mut backup_path = config_path.clone();
+                backup_path.pop();
+                backup_path.push(format!(
+                    "{}_{:04}-{:02}-{:02}_{:02}-{:02}-{:02}_bak.{}",
+                    CONFIG_FILE_NAME,
+                    datetime.year(),
+                    datetime.month() as u8 ,
+                    datetime.day(),
+                    datetime.hour(),
+                    datetime.minute(),
+                    datetime.second(),
+                    CONFIG_FILE_EXTENSION,
+                ));
+                if std::fs::rename(config_path, &backup_path).is_ok() {
+                    eprintln!(
+                        "Backup of old config stored at {}",
+                        backup_path.to_str().unwrap_or(
+                            "some path with invalid Unicode. Seriously what have you done to your filesystem?"
+                        ),
+                    );
+                }
+            }
             eprintln!("Using default config");
             Config::default()
         })
     }
     fn _load() -> Result<Self, Box<dyn Error>> {
+        // TODO: use try block
         let path = CONFIG_FILE_PATH.as_ref()?;
-        let ret = serde_json::from_reader(File::open(path)?)?;
+        let ret = serde_yaml::from_reader(File::open(path)?)?;
         Ok(ret)
     }
 
@@ -101,12 +130,13 @@ impl Config {
         }
     }
     fn _save(&mut self) -> Result<(), Box<dyn Error>> {
+        // TODO: use try block
         self.needs_save = false;
         let path = CONFIG_FILE_PATH.as_ref()?;
         if let Some(p) = path.parent() {
             std::fs::create_dir_all(p)?;
         }
-        serde_json::to_writer_pretty(File::create(path)?, self)?;
+        serde_yaml::to_writer(File::create(path)?, self)?;
         Ok(())
     }
 }
@@ -119,6 +149,9 @@ pub struct WindowStates {
     pub keybinds: bool,
 
     pub about: bool,
+
+    #[cfg(debug_assertions)]
+    pub demo: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -260,20 +293,21 @@ impl PerPuzzleDefault for StickerColors {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(default)]
 pub struct Keybind {
-    #[serde(skip_serializing_if = "is_false")]
-    pub ctrl: bool,
-    #[serde(skip_serializing_if = "is_false")]
-    pub shift: bool,
-    #[serde(skip_serializing_if = "is_false")]
-    pub alt: bool,
-    #[serde(skip_serializing_if = "is_false")]
-    pub logo: bool,
-
-    #[serde(flatten)]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, flatten, skip_serializing_if = "Option::is_none")]
     pub key: Option<Key>,
 
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub ctrl: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub shift: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub alt: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub logo: bool,
+
+    #[serde(default)]
     pub command: Command,
 }
 impl fmt::Display for Keybind {
@@ -309,12 +343,12 @@ impl fmt::Display for Keybind {
 impl Keybind {
     pub fn new(key: Option<Key>, mods: ModifiersState, command: Command) -> Self {
         let mut ret = Self {
+            key,
+
             ctrl: mods.ctrl(),
             shift: mods.shift(),
             alt: mods.alt(),
             logo: mods.logo(),
-
-            key,
 
             command,
         };
@@ -344,7 +378,7 @@ impl Keybind {
     }
 }
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum Key {
     /// OS-independent "key mapping code" which corresponds to OS-dependent
     /// scan code (i.e., physical location of key on keyboard).
@@ -420,9 +454,13 @@ impl PerPuzzleDefault for Vec<Keybind> {
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Msaa {
+    #[serde(rename = "0")]
     Off = 0,
+    #[serde(rename = "2")]
     _2 = 2,
+    #[serde(rename = "4")]
     _4 = 4,
+    #[serde(other, rename = "8")]
     _8 = 8,
 }
 impl fmt::Display for Msaa {

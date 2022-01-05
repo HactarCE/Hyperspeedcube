@@ -436,8 +436,10 @@ fn build_command_select_ui(
 ) {
     let mut command_idx = match command {
         Command::None => 0,
+
         Command::Twist { .. } => 1,
         Command::Recenter { .. } => 2,
+
         Command::HoldSelectFace(_)
         | Command::HoldSelectLayers(_)
         | Command::HoldSelectPieceType(_) => 3,
@@ -469,6 +471,7 @@ fn build_command_select_ui(
         let default_face = puzzle_type.face_names()[0].to_owned();
         match command_idx {
             0 => *command = Command::None,
+
             1 => {
                 *command = Command::Twist {
                     face: None,
@@ -477,6 +480,7 @@ fn build_command_select_ui(
                 }
             }
             2 => *command = Command::Recenter { face: None },
+
             3 => *command = Command::HoldSelectFace(default_face),
             4 => *command = Command::ToggleSelectFace(default_face),
             5 => *command = Command::ClearToggleSelectFaces,
@@ -492,6 +496,7 @@ fn build_command_select_ui(
 
     match command {
         Command::None => (),
+
         Command::Twist {
             face,
             layers,
