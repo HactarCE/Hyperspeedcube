@@ -291,6 +291,7 @@ pub fn build(app: &mut AppState) {
             });
     }
 
+    #[cfg(debug_assertions)]
     if config.window_states.demo {
         ui.show_demo_window(&mut config.window_states.demo);
     }
