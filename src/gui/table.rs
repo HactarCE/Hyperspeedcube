@@ -13,6 +13,10 @@ impl<'a> Column<'a> {
             ..Self::default()
         }
     }
+    pub fn flags(mut self, flags: imgui::sys::ImGuiTableColumnFlags_) -> Self {
+        self.flags = flags;
+        self
+    }
 }
 
 #[must_use]

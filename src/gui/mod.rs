@@ -8,7 +8,7 @@ mod popups;
 mod table;
 mod util;
 
-use crate::config::{Config, Keybind, Msaa};
+use crate::config::{Keybind, Msaa};
 use crate::puzzle::commands::Command;
 use crate::puzzle::{PuzzleEnum, PuzzleType};
 pub use popups::keybind_popup_handle_event;
@@ -240,19 +240,32 @@ pub fn build(app: &mut AppState) {
             });
     }
 
-    if config.window_states.keybinds || true {
+    if config.window_states.keybinds {
+        const MIN_WIDTH: f32 = 200.0; // TODO use a better value
+        const MIN_HEIGHT: f32 = 100.0;
+
+        lazy_static! {
+            static ref KEYBINDS_WINDOW_MIN_WIDTH: Mutex<f32> = Mutex::new(MIN_WIDTH);
+        }
+
+        let mut min_window_width = KEYBINDS_WINDOW_MIN_WIDTH.lock().unwrap();
         Window::new("Keybinds")
-            .size_constraints([300.0, 200.0], [f32::MAX, f32::MAX])
-            // .opened(&mut config.window_states.keybinds)
-            // .resizable(false)
-            // .always_auto_resize(true)
-            // .size([400.0, 300.0], Condition::Appearing)
+            .opened(&mut config.window_states.keybinds)
+            .size_constraints([*min_window_width, 200.0], [f32::MAX, f32::MAX])
             .build(ui, || {
+                let current_window_width = ui.window_size()[0];
+                let mut extra_width = current_window_width - MIN_WIDTH;
                 if ui.button("Add keybind") {
                     config.keybinds[app.puzzle.puzzle_type()].push(Keybind::default());
                     config.needs_save = true;
                 }
-                build_keybind_table(app, config);
+                build_keybind_table(
+                    app,
+                    &mut config.keybinds[app.puzzle.puzzle_type()],
+                    &mut config.needs_save,
+                    &mut extra_width,
+                );
+                *min_window_width = current_window_width - extra_width;
             });
     }
 
@@ -297,19 +310,24 @@ pub fn build(app: &mut AppState) {
     config.save();
 }
 
-fn build_keybind_table(app: &mut AppState, config: &mut Config) {
+fn build_keybind_table(
+    app: &mut AppState,
+    keybinds: &mut Vec<Keybind>,
+    needs_save: &mut bool,
+    extra_width: &mut f32,
+) {
     let ui = app.ui;
     let puzzle_type = app.puzzle.puzzle_type();
 
     let show_table = table::begin(
         "keybinds",
         imgui::sys::ImGuiTableFlags_Borders
-            | imgui::sys::ImGuiTableFlags_ScrollX
+            | imgui::sys::ImGuiTableFlags_SizingFixedFit
             | imgui::sys::ImGuiTableFlags_ScrollY,
         &[
             table::Column::new(""),
             table::Column::new("Keybind"),
-            table::Column::new("Command"),
+            table::Column::new("Command").flags(imgui::sys::ImGuiTableColumnFlags_WidthStretch),
         ],
     );
     if !show_table {
@@ -330,7 +348,6 @@ fn build_keybind_table(app: &mut AppState, config: &mut Config) {
     let mut drag_to = None;
     let mut delete_idx = None;
     let w = ui.calc_text_size("Ctrl + Shift + Alt")[0] * 3.0;
-    let keybinds = &mut config.keybinds[puzzle_type];
 
     for (i, keybind) in keybinds.iter_mut().enumerate() {
         table::next_row();
@@ -379,23 +396,23 @@ fn build_keybind_table(app: &mut AppState, config: &mut Config) {
         }
 
         table::next_column();
-        build_command_select_ui(
-            ui,
-            puzzle_type,
-            i,
-            &mut keybind.command,
-            &mut config.needs_save,
-        );
+        build_command_select_ui(ui, puzzle_type, i, &mut keybind.command, needs_save);
+
+        ui.same_line();
+        let extra_width_in_col = ui.content_region_avail()[0];
+        if *extra_width > extra_width_in_col {
+            *extra_width = extra_width_in_col
+        }
     }
 
     if let Some(((_start, ref mut from), to)) = drag.as_mut().zip(drag_to) {
         keybinds.swap(*from, to);
         *from = to;
-        config.needs_save = true;
+        *needs_save = true;
     }
     if let Some(i) = delete_idx {
         keybinds.remove(i);
-        config.needs_save = true;
+        *needs_save = true;
     }
 
     table::end();
