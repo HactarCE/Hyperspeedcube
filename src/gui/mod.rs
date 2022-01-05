@@ -10,7 +10,7 @@ mod util;
 
 use crate::config::{Keybind, Msaa};
 use crate::puzzle::commands::Command;
-use crate::puzzle::{PuzzleEnum, PuzzleType};
+use crate::puzzle::{LayerMask, PuzzleEnum, PuzzleType};
 pub use popups::keybind_popup_handle_event;
 
 pub struct AppState<'a> {
@@ -472,7 +472,7 @@ fn build_command_select_ui(
             1 => {
                 *command = Command::Twist {
                     face: None,
-                    layers: None,
+                    layers: LayerMask(1),
                     direction: default_direction,
                 }
             }
@@ -504,7 +504,15 @@ fn build_command_select_ui(
                 face,
                 puzzle_type.face_names(),
             );
-            // TODO layer mask
+
+            combo_label(ui, "Layers");
+            *needs_save |= build_layer_mask_select_checkboxes(
+                ui,
+                &format!("##layers{}", i),
+                layers,
+                puzzle_type.layer_count(),
+            );
+
             combo_label(ui, "Direction");
             *needs_save |= build_string_select_combo(
                 ui,
@@ -532,7 +540,13 @@ fn build_command_select_ui(
             );
         }
         Command::HoldSelectLayers(layers) | Command::ToggleSelectLayers(layers) => {
-            // TODO layer select mask
+            combo_label(ui, "Layers");
+            *needs_save |= build_layer_mask_select_checkboxes(
+                ui,
+                &format!("##layers{}", i),
+                layers,
+                puzzle_type.layer_count(),
+            );
         }
         Command::HoldSelectPieceType(piece_type) | Command::ToggleSelectPieceType(piece_type) => {
             let mut i = piece_type.0 as usize;
@@ -577,6 +591,27 @@ fn build_optional_string_select_combo<'a>(
     } else {
         false
     }
+}
+
+#[must_use]
+fn build_layer_mask_select_checkboxes(
+    ui: &Ui<'_>,
+    label: &str,
+    layers: &mut LayerMask,
+    layer_count: usize,
+) -> bool {
+    let mut needs_save = false;
+
+    let checkbox_padding = ui.clone_style().frame_padding[0];
+    for l in 0..layer_count {
+        needs_save |= ui.checkbox_flags(&format!("{}##{}", label, l), &mut layers.0, 1 << l);
+        ui.same_line_with_spacing(0.0, checkbox_padding);
+        if ui.is_item_hovered() {
+            ui.tooltip_text(format!("Layer {}", l + 1));
+        }
+    }
+
+    needs_save
 }
 
 #[must_use]
