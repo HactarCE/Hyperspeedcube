@@ -65,6 +65,7 @@ pub struct Config {
     pub gfx: GfxConfig,
     pub view: PerPuzzle<ViewConfig>,
     pub colors: ColorsConfig,
+    #[serde(default = "default_keybinds")]
     pub keybinds: PerPuzzle<Vec<Keybind>>,
 }
 impl Default for Config {
@@ -78,7 +79,7 @@ impl Default for Config {
             gfx: GfxConfig::default(),
             view: PerPuzzle::<ViewConfig>::default(),
             colors: ColorsConfig::default(),
-            keybinds: PerPuzzle::<Vec<Keybind>>::default(),
+            keybinds: default_keybinds(),
         }
     }
 }
@@ -425,6 +426,13 @@ impl Key {
             _ => false,
         }
     }
+}
+
+fn default_keybinds() -> PerPuzzle<Vec<Keybind>> {
+    serde_yaml::from_str(include_str!("../resources/default_keybinds.yaml")).unwrap_or_else(|e| {
+        eprintln!("Unable to load default keybinds: {}", e);
+        Default::default()
+    })
 }
 
 #[derive(Debug)]
