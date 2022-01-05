@@ -907,7 +907,7 @@ dependencies = [
 
 [[package]]
 name = "hyperspeedcube"
-version = "0.1.0-dev"
+version = "0.1.0"
 dependencies = [
  "cgmath",
  "directories",
