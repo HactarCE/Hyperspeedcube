@@ -15,7 +15,7 @@ cgmath = "0.18"
 glium = "0.30"
 glium-glyph = "0.11"
 itertools = "0.10"
-imgui = "0.8"
+imgui = { version = "0.8", features = ["tables-api"] }
 imgui-glium-renderer = "0.8"
 imgui-winit-support = "0.8"
 key-names = { git = "https://github.com/HactarCE/key-names" }

@@ -5,7 +5,6 @@ use std::path::Path;
 use std::sync::Mutex;
 
 mod popups;
-mod table;
 mod util;
 
 use crate::config::{Keybind, Msaa};
@@ -326,22 +325,22 @@ fn build_keybind_table(
     let ui = app.ui;
     let puzzle_type = app.puzzle.puzzle_type();
 
-    let show_table = table::begin(
-        "keybinds",
-        imgui::sys::ImGuiTableFlags_Borders
-            | imgui::sys::ImGuiTableFlags_SizingFixedFit
-            | imgui::sys::ImGuiTableFlags_ScrollY,
-        &[
-            table::Column::new(""),
-            table::Column::new("Keybind"),
-            table::Column::new("Command").flags(imgui::sys::ImGuiTableColumnFlags_WidthStretch),
-        ],
-    );
-    if !show_table {
-        return;
-    }
-    table::scroll_freeze(1, 1);
-    table::headers_row();
+    let flags = TableFlags::BORDERS | TableFlags::SIZING_FIXED_FIT | TableFlags::SCROLL_Y;
+    let table_token = match ui.begin_table_with_flags("keybinds", 3, flags) {
+        Some(tok) => tok,
+        None => return,
+    };
+
+    ui.table_setup_column("##reorder_column");
+    ui.table_setup_column("Keybind##column");
+    ui.table_setup_column_with(TableColumnSetup {
+        name: "Command##column",
+        flags: TableColumnFlags::WIDTH_STRETCH,
+        ..Default::default()
+    });
+
+    ui.table_setup_scroll_freeze(0, 1);
+    ui.table_headers_row();
 
     lazy_static! {
         static ref DRAG: Mutex<Option<(usize, usize)>> = Mutex::new(None);
@@ -357,9 +356,9 @@ fn build_keybind_table(
     let w = ui.calc_text_size("Ctrl + Shift + Alt")[0] * 3.0;
 
     for (i, keybind) in keybinds.iter_mut().enumerate() {
-        table::next_row();
+        ui.table_next_row();
 
-        table::next_column();
+        ui.table_next_column();
         let label_prefix = " = ##reorder";
         let reorder_selectable_label = match *drag {
             Some((start, end)) if i == end => format!("{}{}", label_prefix, start),
@@ -389,7 +388,7 @@ fn build_keybind_table(
             }
         }
 
-        table::next_column();
+        ui.table_next_column();
         if ui.button(&format!("X##delete_keybind{}", i)) {
             delete_idx = Some(i);
         }
@@ -402,7 +401,7 @@ fn build_keybind_table(
             });
         }
 
-        table::next_column();
+        ui.table_next_column();
         build_command_select_ui(ui, puzzle_type, i, &mut keybind.command, needs_save);
 
         ui.same_line();
@@ -422,7 +421,7 @@ fn build_keybind_table(
         *needs_save = true;
     }
 
-    table::end();
+    drop(table_token);
 }
 
 fn build_command_select_ui(
