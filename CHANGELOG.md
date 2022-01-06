@@ -4,6 +4,13 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), except for minor stylistic changes to organize features and accomodate named versions. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with respect to the Rust API for `hyperspeedcube`, but the minor and patch numbers may also be incremented for changes that only affect the GUI application.
 
+## [Unreleased]
+
+### Fixed
+
+- HiDPI / display scaling ([#2](https://github.com/HactarCE/Hyperspeedcube/issues/2))
+- Configuring font size no longer requires restart
+
 ## [0.1.0] - 2022-01-05
 
 ### Added

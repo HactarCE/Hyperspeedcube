@@ -8,7 +8,6 @@ extern crate glium;
 #[macro_use]
 extern crate lazy_static;
 
-use core::cell::RefCell;
 use glium::glutin::{
     event::{Event, StartCause, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -19,6 +18,7 @@ use imgui::FontSource;
 use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use send_wrapper::SendWrapper;
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::time::Instant;
 
@@ -66,29 +66,10 @@ fn main() {
     let mut platform = WinitPlatform::init(&mut imgui);
     let gl_window = DISPLAY.gl_window();
     let window = gl_window.window();
-
-    // Imgui DPI handling isn't great; give the user the option to override it.
-    let hidpi_mode;
-    let mut font_size = get_config().gfx.font_size as f32;
-    if get_config().gfx.auto_dpi {
-        hidpi_mode = HiDpiMode::Default;
-    } else {
-        hidpi_mode = HiDpiMode::Locked(1.0);
-        font_size *= get_config().gfx.font_scaling as f32;
-    };
-
-    platform.attach_window(imgui.io_mut(), window, hidpi_mode);
-
-    // Initialize imgui fonts.
-    imgui.fonts().add_font(&[FontSource::TtfData {
-        data: include_bytes!("../resources/font/NotoSans-Regular.ttf"),
-        size_pixels: font_size,
-        config: None,
-    }]);
-
-    // Initialize imgui renderer.
-    let mut renderer =
-        Renderer::init(&mut imgui, &**DISPLAY).expect("failed to initialize renderer");
+    platform.attach_window(imgui.io_mut(), window, HiDpiMode::Locked(1.0));
+    let mut renderer = None; // We'll initialize it on the first frame.
+    let mut old_scale_factor = 1.0;
+    let mut old_font_size = 1.0;
 
     // Main loop
     let mut last_frame_time = Instant::now();
@@ -137,6 +118,43 @@ fn main() {
                     next_frame_time = Instant::now() + frame_duration;
                 }
                 *control_flow = ControlFlow::WaitUntil(next_frame_time);
+
+                // Initialize imgui renderer before the first frame, or whenever
+                // the scale factor or font size is updated.
+                let renderer = {
+                    // Has the scale factor changed?
+                    let new_scale_factor = gl_window.window().scale_factor() as f32;
+                    if old_scale_factor != new_scale_factor {
+                        // If so, invalidate the renderer.
+                        renderer = None;
+                    }
+
+                    // Has the font size changed?
+                    let new_font_size = get_config().gfx.font_size;
+                    if old_font_size != new_font_size && !get_config().gfx.lock_font_size {
+                        // If so, invalidate the renderer.
+                        renderer = None;
+                    }
+
+                    renderer.get_or_insert_with(|| {
+                        imgui
+                            .style_mut()
+                            .scale_all_sizes(new_scale_factor / old_scale_factor);
+
+                        imgui.fonts().clear();
+                        imgui.fonts().add_font(&[FontSource::TtfData {
+                            data: include_bytes!("../resources/font/NotoSans-Regular.ttf"),
+                            size_pixels: (new_font_size * new_scale_factor).floor(),
+                            config: None,
+                        }]);
+
+                        old_scale_factor = new_scale_factor;
+                        old_font_size = new_font_size;
+
+                        Renderer::init(&mut imgui, &**DISPLAY)
+                            .expect("failed to initialize renderer")
+                    })
+                };
 
                 // Prep imgui for event handling.
                 let imgui_io = imgui.io_mut();

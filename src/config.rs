@@ -4,7 +4,6 @@
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
 use directories::ProjectDirs;
-use glium::glutin::event::VirtualKeyCode;
 use key_names::KeyMappingCode;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
@@ -13,7 +12,7 @@ use std::fmt;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, TryLockError};
-use winit::event::ModifiersState;
+use winit::event::{ModifiersState, VirtualKeyCode};
 
 use crate::colors;
 use crate::puzzle::commands::Command;
@@ -158,10 +157,10 @@ pub struct WindowStates {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(default)]
 pub struct GfxConfig {
-    pub auto_dpi: bool,
-    pub font_scaling: f64,
     pub fps: u32,
     pub font_size: f32,
+    #[serde(skip)]
+    pub lock_font_size: bool,
 
     pub msaa: Msaa,
 
@@ -170,10 +169,9 @@ pub struct GfxConfig {
 impl Default for GfxConfig {
     fn default() -> Self {
         Self {
-            auto_dpi: true,
-            font_scaling: 1.0,
             fps: 60,
             font_size: 17.0,
+            lock_font_size: false,
 
             msaa: Msaa::_8,
 

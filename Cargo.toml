@@ -1,6 +1,6 @@
 [package]
 name = "hyperspeedcube"
-version = "0.1.0"
+version = "0.2.0-dev"
 authors = ["HactarCE"]
 edition = "2021"
 description = "Keyboard-driven multidimensional twisty puzzle simulator"

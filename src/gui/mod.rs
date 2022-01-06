@@ -155,15 +155,12 @@ pub fn build(app: &mut AppState) {
 
                 ui.separator();
 
-                // Scaling settings
-                config.needs_save |=
-                    ui.checkbox("Auto DPI (requires restart)", &mut config.gfx.auto_dpi);
-                ui.disabled(config.gfx.auto_dpi, || {
-                    config.needs_save |= Slider::new("Font scaling (requires restart)", 0.5, 4.0)
-                        .flags(SliderFlags::LOGARITHMIC)
-                        .display_format("%.1f")
-                        .build(ui, &mut config.gfx.font_scaling);
-                });
+                // Font size
+                config.needs_save |= Slider::new("Font size", 6.0, 36.0)
+                    .flags(SliderFlags::LOGARITHMIC)
+                    .display_format("%.0f")
+                    .build(ui, &mut config.gfx.font_size);
+                config.gfx.lock_font_size = ui.is_item_active();
             });
     }
 
