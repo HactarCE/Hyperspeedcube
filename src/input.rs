@@ -270,7 +270,7 @@ impl State {
             .held_selections
             .values()
             .copied()
-            .fold1(|a, b| a | b)
+            .reduce(|a, b| a | b)
             .unwrap_or(self.toggle_selections);
         ret.faces_mask |= self.toggle_selections.faces_mask;
         if ret.layers_mask == 0 {
