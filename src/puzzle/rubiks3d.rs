@@ -89,7 +89,7 @@ impl PuzzleState for Rubiks3D {
                 .filter(|&p| p != Piece::core())
         }
         fn stickers() -> &'static [Sticker] {
-            Rubiks3D::pieces().into_iter().copied().flat_map(Piece::stickers)
+            Rubiks3D::pieces().iter().copied().flat_map(Piece::stickers)
         }
     }
     fn faces() -> &'static [Face] {
@@ -459,7 +459,7 @@ impl TwistTrait<Rubiks3D> for Twist {
         let direction = match direction {
             "CW" => TwistDirection::CW,
             "CCW" => TwistDirection::CCW,
-            _ => Err("invalid direction")?,
+            _ => return Err("invalid direction"),
         };
         if layer_mask.0 > 0b111 {
             return Err("invaild layer mask");

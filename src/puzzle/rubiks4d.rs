@@ -595,7 +595,7 @@ impl TwistTrait<Rubiks4D> for Twist {
             "y'" => (Axis::Y, TwistDirection::CCW),
             "z" => (Axis::Z, TwistDirection::CW),
             "z'" => (Axis::Z, TwistDirection::CCW),
-            _ => Err("invalid direction")?,
+            _ => return Err("invalid direction"),
         };
         if layer_mask.0 > 0b111 {
             return Err("invaild layer mask");

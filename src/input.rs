@@ -1,3 +1,5 @@
+#![allow(clippy::nonminimal_bool)]
+
 use glium::glutin::event::*;
 use itertools::Itertools;
 use std::collections::HashMap;
@@ -36,6 +38,9 @@ impl FrameInProgress<'_> {
                         // least in my testing on Windows 11) so clean that up
                         // here just in case.
                         self.state.held_selections.retain(|&k, _v| {
+                            // If the selection requires a modifier and that
+                            // modifier is not pressed, then remove the
+                            // selection.
                             !(k.is_shift() && !self.state.modifiers.shift()
                                 || k.is_ctrl() && !self.state.modifiers.ctrl()
                                 || k.is_alt() && !self.state.modifiers.alt()
@@ -111,7 +116,7 @@ impl FrameInProgress<'_> {
                     } => {
                         if let Some(face) = face
                             .as_deref()
-                            .or(selection.exactly_one_face_name(puzzle_type))
+                            .or_else(|| selection.exactly_one_face_name(puzzle_type))
                         {
                             let layers = selection.layers_mask_or_default(layers.0);
                             if let Err(e) = self.puzzle.twist_from_command(
@@ -132,7 +137,7 @@ impl FrameInProgress<'_> {
                     Command::Recenter { face } => {
                         if let Some(face) = face
                             .as_deref()
-                            .or(selection.exactly_one_face_name(puzzle_type))
+                            .or_else(|| selection.exactly_one_face_name(puzzle_type))
                         {
                             if let Err(e) = self.puzzle.recenter_from_command(face) {
                                 // TODO handle error
@@ -360,7 +365,7 @@ impl Selection {
     fn exactly_one_face_name(&self, puzzle_type: PuzzleType) -> Option<&'static str> {
         if self.faces_mask.count_ones() == 1 {
             let face_id = self.faces_mask.trailing_zeros() as usize; // index of first `1` bit
-            puzzle_type.face_names().get(face_id).map(|&s| s)
+            puzzle_type.face_names().get(face_id).copied()
         } else {
             None
         }

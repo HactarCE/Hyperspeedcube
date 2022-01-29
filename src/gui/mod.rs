@@ -20,7 +20,7 @@ pub struct AppState<'a> {
 
 fn try_save(puzzle: &mut Puzzle, path: &Path) {
     match puzzle {
-        Puzzle::Rubiks4D(p) => match p.save_file(&path) {
+        Puzzle::Rubiks4D(p) => match p.save_file(path) {
             Ok(()) => (),
             Err(e) => popups::error_dialog("Unable to save log file", e),
         },
@@ -276,7 +276,7 @@ pub fn build(app: &mut AppState) {
             .always_auto_resize(true)
             .build(ui, || {
                 ui.text(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
-                ui.text(format!("{}", env!("CARGO_PKG_DESCRIPTION")));
+                ui.text(env!("CARGO_PKG_DESCRIPTION"));
                 ui.text("");
                 ui.text(format!("License: {}", env!("CARGO_PKG_LICENSE")));
                 ui.text(format!(
@@ -716,7 +716,7 @@ fn build_string_select_combo(
     // Find the index of the currently selected item.
     let mut i = items.iter().position(|&x| x == selected).unwrap_or(0);
 
-    if build_autosize_combo(ui, label, &mut i, &items) {
+    if build_autosize_combo(ui, label, &mut i, items) {
         *selected = items[i].to_owned();
         true
     } else {

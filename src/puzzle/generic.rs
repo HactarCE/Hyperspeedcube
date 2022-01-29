@@ -52,7 +52,7 @@ impl Puzzle {
     }
 
     /// TODO: refactor/remove this
-    pub fn twist_from_command<'a>(
+    pub fn twist_from_command(
         &mut self,
         face_id: FaceId,
         layers: LayerMask,

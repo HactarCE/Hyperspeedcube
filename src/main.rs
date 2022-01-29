@@ -2,6 +2,11 @@
 
 #![allow(dead_code)]
 #![warn(missing_docs)]
+#![allow(
+    clippy::collapsible_match,
+    clippy::match_like_matches_macro,
+    clippy::single_match
+)]
 
 #[macro_use]
 extern crate delegate;

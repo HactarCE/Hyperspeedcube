@@ -234,8 +234,10 @@ impl PuzzleController<Rubiks4D> {
         let contents = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
         let logfile = contents.parse::<super::rubiks4d_logfile::LogFile>()?;
 
-        let mut ret = Self::default();
-        ret.scramble_state = logfile.scramble_state;
+        let mut ret = Self {
+            scramble_state: logfile.scramble_state,
+            ..Self::default()
+        };
         for twist in logfile.scramble_twists {
             ret.twist(twist);
         }

@@ -178,6 +178,7 @@ pub trait PuzzleState:
     fn twist_direction_names() -> &'static [&'static str];
 }
 
+/// Common functionality for puzzle type enumerations.
 pub trait PuzzleTypeTrait {
     /// Returns the name of the puzzle.
     fn name(&self) -> &'static str;
@@ -203,6 +204,7 @@ pub trait PuzzleTypeTrait {
     fn default_face_colors(&self) -> &'static [[f32; 3]];
 }
 
+/// Common functionality for all facets (stickers, pieces, and faces).
 pub trait FacetTrait: Debug + Copy + Eq + Hash {
     /// Returns the ID of the facet.
     fn id(self) -> usize;
