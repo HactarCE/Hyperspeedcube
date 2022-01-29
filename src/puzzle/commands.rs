@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::PuzzleType;
+use super::{traits::*, PuzzleType};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -74,15 +74,15 @@ impl Command {
             }
         }
         if let Some(d) = d {
-            if !puz_type.twist_directions().contains(&d.as_str()) {
-                *d = puz_type.twist_directions()[0].to_owned();
+            if !puz_type.twist_direction_names().contains(&d.as_str()) {
+                *d = puz_type.twist_direction_names()[0].to_owned();
             }
         }
         if let Some(l) = l {
             l.0 &= (1 << puz_type.layer_count()) - 1;
         }
         if let Some(p) = p {
-            p.0 &= (1 << puz_type.piece_types().len()) - 1;
+            p.0 &= (1 << puz_type.piece_type_names().len()) - 1;
         }
     }
 }

@@ -4,6 +4,10 @@
 #![warn(missing_docs)]
 
 #[macro_use]
+extern crate delegate;
+#[macro_use]
+extern crate enum_dispatch;
+#[macro_use]
 extern crate glium;
 #[macro_use]
 extern crate lazy_static;
@@ -34,7 +38,7 @@ mod render;
 mod serde_impl;
 
 use config::get_config;
-use puzzle::PuzzleType;
+use puzzle::{Puzzle, PuzzleControllerTrait};
 
 /// The title of the window.
 const TITLE: &str = "Hyperspeedcube";
@@ -56,7 +60,7 @@ lazy_static! {
 
 fn main() {
     // Initialize runtime data.
-    let mut puzzle = PuzzleType::default().new();
+    let mut puzzle = Puzzle::default();
     let mut input_state = input::State::default();
     let mut events_buffer = VecDeque::new();
 
@@ -169,7 +173,7 @@ fn main() {
                 last_frame_time = now;
 
                 // Prep the puzzle for event handling.
-                let puzzle_needs_save = puzzle.needs_save();
+                let is_unsaved = puzzle.is_unsaved();
                 let mut input_frame = input_state.frame(&mut puzzle, imgui_io);
 
                 for ev in events_buffer.drain(..) {
@@ -186,7 +190,7 @@ fn main() {
                         Event::WindowEvent { event, .. } => match event {
                             // Handle window close event.
                             WindowEvent::CloseRequested => {
-                                if gui::confirm_discard_changes(puzzle_needs_save, "quit") {
+                                if gui::confirm_discard_changes(is_unsaved, "quit") {
                                     *control_flow = ControlFlow::Exit;
                                 }
                             }

@@ -1,18 +1,69 @@
 //! Common traits used for puzzles.
 
-use cgmath::{Matrix3, SquareMatrix, Vector3, Vector4, Zero};
+use cgmath::{Matrix3, Matrix4, SquareMatrix, Vector3, Vector4, Zero};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
+use std::time::Duration;
 
-use super::{FaceId, LayerMask, PieceTypeId, PuzzleType};
+use super::{Face, FaceId, LayerMask, Piece, PuzzleType, Sticker};
 use crate::render::WireframeVertex;
+
+macro_rules! lazy_static_array_methods {
+    ( $( $( #[$attr:meta] )* fn $method_name:ident() -> $ret:ty { $($body:tt)* } )* ) => {
+        $(
+            $( #[$attr] )*
+            fn $method_name() -> $ret {
+                static STATIC_ARRAY: once_cell::sync::OnceCell<$ret> =
+                    once_cell::sync::OnceCell::new();
+                STATIC_ARRAY.get_or_init(|| {
+                    $($body)*.collect::<Vec<_>>().leak()
+                })
+            }
+        )*
+    };
+}
+
+/// Methods for `PuzzleController` that do not depend on puzzle type.
+#[enum_dispatch]
+pub trait PuzzleControllerTrait {
+    /// Returns the puzzle type.
+    fn ty(&self) -> PuzzleType;
+
+    /// Advances to the next frame, using the given time delta between this
+    /// frame and the last.
+    fn advance(&mut self, delta: Duration);
+    /// Skips the animations for all twists in the queue.
+    fn catch_up(&mut self);
+
+    /// Returns whether there is a move to undo.
+    fn has_undo(&self) -> bool;
+    /// Returns whether there is a move to redo.
+    fn has_redo(&self) -> bool;
+    /// Undoes one twist.
+    fn undo(&mut self);
+    /// Redoes one twist.
+    fn redo(&mut self);
+
+    /// Returns whether the puzzle has been modified since the lasts time the
+    /// log file was saved.
+    fn is_unsaved(&self) -> bool;
+
+    /// Returns the model transform for a piece, based on the current animation
+    /// in progress.
+    fn model_transform_for_piece(&self, piece: Piece) -> Matrix4<f32>;
+    /// Returns whether a sticker is hightlighted.
+    fn is_hightlighted(&self, sticker: Sticker) -> bool;
+    /// Returns the face where the sticker at the given location belongs (i.e.
+    /// corresponding to its color).
+    fn get_sticker_color(&self, sticker: Sticker) -> Face;
+}
 
 /// A twisty puzzle.
 ///
 /// - `puzzle[piece]` is the orientation of the piece at the location given by
 ///   `piece`.
-pub trait PuzzleTrait:
+pub trait PuzzleState:
     'static
     + Debug
     + Default
@@ -22,33 +73,45 @@ pub trait PuzzleTrait:
     + Index<Self::Piece, Output = Self::Orientation>
     + IndexMut<Self::Piece>
 {
-    /// The location of a piece of the puzzle.
+    /// Location of a piece of the puzzle.
     type Piece: PieceTrait<Self>;
-    /// The location of a sticker of the puzzle.
+    /// Location of a sticker of the puzzle.
     type Sticker: StickerTrait<Self>;
-    /// The location of a face of the puzzle.
+    /// Location of a face of the puzzle.
     type Face: FaceTrait<Self>;
-    /// A twist that can be applied to the puzzle.
+    /// Twist that can be applied to the puzzle.
     type Twist: TwistTrait<Self>;
-    /// An orientation for a puzzle piece, or a rotation that can be applied
-    /// to an orientation.
+    /// Orientation of a puzzle piece, or a rotation that can be applied to an
+    /// orientation.
     type Orientation: OrientationTrait<Self>;
 
-    /// Number of dimensions of the puzzle.
-    const NDIM: usize;
+    /// User-friendly name for the puzzle.
+    const NAME: &'static str;
     /// [`PuzzleType`] enum value.
     const TYPE: PuzzleType;
+    /// Number of dimensions of the puzzle.
+    const NDIM: usize;
     /// Maximum number of layers that any twist can manipulate. Each layer must
     /// be able to be moved independently.
     const LAYER_COUNT: usize;
+
+    /// Names of piece types.
+    const PIECE_TYPE_NAMES: &'static [&'static str];
+
+    /// Number of vertices used to render a single sticker.
+    const STICKER_MODEL_VERTEX_COUNT: u16;
+    /// Indices of vertices used to render the surface of a single sticker with
+    /// the `GL_TRIANGLES` setting.
+    const STICKER_MODEL_SURFACE_INDICES: &'static [u16];
+    /// Inidices of vertices used to render the outline for a single sticker
+    /// with the `GL_LINES` setting.
+    const STICKER_MODEL_OUTLINE_INDICES: &'static [u16];
 
     /// Returns a new solved puzzle in the default orientation.
     fn new() -> Self {
         Self::default()
     }
-    /// Returns the face where the sticker at the given location belongs
-    /// (i.e. corresponding to its color).
-    fn get_sticker(&self, pos: Self::Sticker) -> Self::Face;
+
     /// Swaps two pieces on the puzzle by rotating the first through the
     /// given rotation and rotating the second in the reverse direction.
     fn swap(&mut self, pos1: Self::Piece, pos2: Self::Piece, rot: Self::Orientation) {
@@ -69,7 +132,7 @@ pub trait PuzzleTrait:
             prev = current;
         }
     }
-    /// Applies a twist to this puzzle.
+    /// Applies a twist to the puzzle.
     fn twist(&mut self, twist: Self::Twist) {
         let old = self.clone();
         let rot = twist.rotation();
@@ -77,117 +140,163 @@ pub trait PuzzleTrait:
             self[rot * piece] = rot * old[piece];
         }
     }
+
+    /// Returns the face where the sticker at the given location belongs
+    /// (i.e. corresponding to its color).
+    fn get_sticker_color(&self, pos: Self::Sticker) -> Self::Face;
+
+    /// Returns a list of pieces in the puzzle.
+    fn pieces() -> &'static [Self::Piece];
+    /// Returns a list of stickers on the puzzle.
+    fn stickers() -> &'static [Self::Sticker];
+    /// Returns a list of faces on the puzzle.
+    fn faces() -> &'static [Self::Face];
+
+    lazy_static_array_methods! {
+        /// Returns a list of pieces in the puzzle.
+        fn generic_pieces() -> &'static [Piece] {
+            Self::pieces().iter().map(|&p| p.into())
+        }
+        /// Returns a list of stickers in the puzzle.
+        fn generic_stickers() -> &'static [Sticker] {
+            Self::stickers().iter().map(|&s| s.into())
+        }
+        /// Returns a list of faces in the puzzle.
+        fn generic_faces() -> &'static [Face] {
+            Self::faces().iter().map(|&f| f.into())
+        }
+    }
+
+    /// Returns the short name for each face.
+    fn face_symbols() -> &'static [&'static str];
+    /// Returns the full name of each face.
+    fn face_names() -> &'static [&'static str];
+    /// Returns the default color for each face.
+    fn default_face_colors() -> &'static [[f32; 3]];
+
+    /// Returns a list of twist directions, not including the identity twist.
+    fn twist_direction_names() -> &'static [&'static str];
+}
+
+pub trait PuzzleTypeTrait {
+    /// Returns the name of the puzzle.
+    fn name(&self) -> &'static str;
+    /// Returns the number of dimensions.
+    fn ndim(&self) -> usize;
+    /// Returns the number of layers.
+    fn layer_count(&self) -> usize;
+
+    /// Returns a list of all pieces in the puzzle.
+    fn pieces(&self) -> &'static [Piece];
+    /// Returns a list of all stickers in the puzzle.
+    fn stickers(&self) -> &'static [Sticker];
+    /// Returns a list of all faces in the puzzle.
+    fn faces(&self) -> &'static [Face];
+
+    /// Returns the names of faces.
+    fn face_names(&self) -> &'static [&'static str];
+    /// Returns the names of piece types.
+    fn piece_type_names(&self) -> &'static [&'static str];
+    /// Returns the names of twist directions.
+    fn twist_direction_names(&self) -> &'static [&'static str];
+    /// Returns the default face colors.
+    fn default_face_colors(&self) -> &'static [[f32; 3]];
+}
+
+pub trait FacetTrait: Debug + Copy + Eq + Hash {
+    /// Returns the ID of the facet.
+    fn id(self) -> usize;
+    /// Returns the facet of this type with the given ID, or `None` if the ID is
+    /// invalid.
+    fn from_id(id: usize) -> Option<Self>;
+
+    /// Returns the 3D-projected center of the facet.
+    fn projection_center(self, p: GeometryParams) -> Vector3<f32>;
+}
+macro_rules! impl_facet_trait_id_methods {
+    ($facet_type:ty, $facet_list_expr:expr) => {
+        fn id(self) -> usize {
+            lazy_static! {
+                static ref MAP: std::collections::HashMap<$facet_type, usize> = $facet_list_expr
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .map(|(i, facet)| (facet, i))
+                    .collect();
+            }
+            *MAP.get(&self).expect("invalid facet")
+        }
+
+        fn from_id(id: usize) -> Option<Self> {
+            $facet_list_expr.get(id).copied()
+        }
+    };
 }
 
 /// The location of a piece in a twisty puzzle.
-pub trait PieceTrait<P: PuzzleTrait>: Debug + Copy + Eq + Hash {
-    /// Names of piece types.
-    const TYPE_NAMES: &'static [&'static str];
-
+pub trait PieceTrait<P: PuzzleState>:
+    FacetTrait + Into<P::Piece> + From<P::Piece> + Into<Piece>
+{
     /// Returns the piece type ID.
-    fn piece_type_id(self) -> PieceTypeId;
+    fn piece_type_id(self) -> usize;
     /// Returns the name of the piece type.
     fn piece_type_name(self) -> &'static str {
-        Self::TYPE_NAMES[self.piece_type_id().0 as usize]
+        P::PIECE_TYPE_NAMES[self.piece_type_id()]
     }
 
     /// Returns the layer of this piece, relative to a face (or `None` if this
-    /// does not make sense for this puzzle).
-    fn layer_from_face(self, face: P::Face) -> Option<usize>;
+    /// does not make sense for the puzzle).
+    fn layer(self, face: P::Face) -> Option<usize>;
 
     /// Returns the number of stickers on this piece (i.e. the length of
-    /// self.stickers()).
-    fn sticker_count(self) -> usize;
-    /// Returns an iterator over all the stickers on this piece.
-    fn stickers(self) -> Box<dyn Iterator<Item = P::Sticker> + 'static>;
-    /// Returns an iterator over all the pieces in this puzzle.
-    fn iter() -> Box<dyn Iterator<Item = Self>>;
-
-    /// Returns the 3D-projected center of the piece.
-    fn projection_center(self, p: GeometryParams<P>) -> Vector3<f32>;
+    /// `self.stickers()`).
+    fn sticker_count(self) -> usize {
+        self.stickers().len()
+    }
+    /// Returns a list of the stickers on this piece.
+    fn stickers(self) -> Vec<P::Sticker>;
 }
 
 /// The location of a sticker in a twisty puzzle.
-pub trait StickerTrait<P: 'static + PuzzleTrait>: Debug + Copy + Eq + Hash {
-    /// The number of vertices used to render a single sticker.
-    const VERTEX_COUNT: u16;
-    /// The indices of vertices used to render the surface of a single sticker
-    /// with the GL_TRIANGLES setting.
-    const SURFACE_INDICES: &'static [u16];
-    /// The inidices of vertices used to render the outline for a single sticker
-    /// with the GL_LINES setting.
-    const OUTLINE_INDICES: &'static [u16];
-
+pub trait StickerTrait<P: PuzzleState>:
+    FacetTrait + Into<P::Sticker> + From<P::Sticker> + Into<Sticker>
+{
     /// Returns the piece that this sticker is on.
     fn piece(self) -> P::Piece;
     /// Returns the face that this sticker is on.
     fn face(self) -> P::Face;
-    /// Returns an iterator over all the stickers on this puzzle.
-    fn iter() -> Box<dyn Iterator<Item = P::Sticker>> {
-        Box::new(P::Piece::iter().flat_map(P::Piece::stickers))
-    }
 
-    /// Returns the 3D-projected center of the sticker.
-    fn projection_center(self, p: GeometryParams<P>) -> Vector3<f32>;
     /// Returns the 3D vertices used to render this sticker, or `None` if the
     /// sticker is not visible.
     ///
     /// All vertices should be within the cube from (-1, -1, -1) to (1, 1, 1)
     /// before having `p.transform` applied.
-    fn verts(self, p: GeometryParams<P>) -> Option<Vec<WireframeVertex>>;
+    fn verts(self, p: GeometryParams) -> Option<Vec<WireframeVertex>>;
 }
 
 /// A face of a twisty puzzle.
-pub trait FaceTrait<P: PuzzleTrait>:
-    'static + Debug + Copy + PartialEq<P::Face> + Eq + Hash
+pub trait FaceTrait<P: PuzzleState>:
+    'static + FacetTrait + Into<P::Face> + From<P::Face> + Into<Face>
 {
-    /// List of faces on this puzzle.
-    const ALL: &'static [Self];
-    /// Short name for each face.
-    const SYMBOLS: &'static [&'static str];
-    /// Full name of each face.
-    const NAMES: &'static [&'static str];
-    /// Default color for each face.
-    const DEFAULT_COLORS: &'static [[f32; 3]];
-
-    /// Returns a unique number corresponding to this face in the range
-    /// `0..Self::ALL.len()`.
-    fn idx(self) -> usize {
-        Self::ALL
-            .iter()
-            .position(|&f| self == f)
-            .expect("invalid face")
-    }
-    fn from_id(id: FaceId) -> Result<Self, &'static str> {
-        Self::ALL
-            .get(id.0 as usize)
-            .map(|f| *f)
-            .ok_or("invalid face ID")
-    }
     /// Returns the short name for this face.
     fn symbol(self) -> &'static str {
-        Self::SYMBOLS[self.idx()]
+        P::face_symbols()[self.id()]
     }
     /// Returns the full name for this face.
     fn name(self) -> &'static str {
-        Self::NAMES[self.idx()]
+        P::face_names()[self.id()]
     }
-    /// Returns an iterator over all the pieces on this face at one layer.
-    fn pieces(self, layer: usize) -> Box<dyn Iterator<Item = P::Piece> + 'static>;
-    /// Returns an iterator over all the stickers on this face.
-    fn stickers(self) -> Box<dyn Iterator<Item = P::Sticker> + 'static>;
 
-    /// Returns the 3D-projected center of the face.
-    fn projection_center(self, p: GeometryParams<P>) -> Vector3<f32>;
+    /// Returns a list of all the pieces on this face at one layer.
+    fn pieces(self, layer: usize) -> Vec<P::Piece>;
+    /// Returns a list of all the stickers on this face.
+    fn stickers(self) -> Vec<P::Sticker>;
 }
 
 /// A twist that can be applied to a twisty puzzle.
-pub trait TwistTrait<P: PuzzleTrait>:
+pub trait TwistTrait<P: PuzzleState>:
     'static + Debug + Copy + Eq + From<P::Sticker> + Hash
 {
-    /// List of twist directions, not including the identity twist.
-    const DIRECTIONS: &'static [&'static str];
-
     /// Constructs a new twist from a 'twist' command.
     fn from_twist_command(
         face_id: FaceId,
@@ -196,6 +305,12 @@ pub trait TwistTrait<P: PuzzleTrait>:
     ) -> Result<P::Twist, &'static str>;
     /// Constructs a twist from a 'recenter' command.
     fn from_recenter_command(face_id: FaceId) -> Result<P::Twist, &'static str>;
+
+    /// Returns the matrix to apply to pieces affected by this twist, given a
+    /// time parameter `t` from 0.0 to 1.0. `t=0.0` gives the identity matrix,
+    /// `t=1.0` gives the result of the twist, and intermediate values
+    /// interpolate.
+    fn model_matrix(self, t: f32) -> Matrix4<f32>;
 
     /// Returns the orientation that would result from applying this twist to a
     /// piece in the default orientation.
@@ -207,14 +322,16 @@ pub trait TwistTrait<P: PuzzleTrait>:
     fn affects_piece(self, piece: P::Piece) -> bool;
     /// Returns a list of all the pieces affected by this twist.
     fn pieces(self) -> Vec<P::Piece> {
-        P::Piece::iter()
+        P::pieces()
+            .iter()
+            .copied()
             .filter(|&piece| self.affects_piece(piece))
             .collect()
     }
 }
 
 /// An orientation for a piece of a twisty puzzle, relative to some default.
-pub trait OrientationTrait<P: PuzzleTrait + Hash>:
+pub trait OrientationTrait<P: PuzzleState + Hash>:
     Debug + Default + Copy + Eq + Mul<Self, Output = Self> + Mul<P::Piece, Output = P::Piece>
 {
     /// Reverses this orientation.
@@ -223,8 +340,8 @@ pub trait OrientationTrait<P: PuzzleTrait + Hash>:
 }
 
 /// Geometry parameters.
-#[derive(Debug, Clone, PartialEq)]
-pub struct GeometryParams<P: PuzzleTrait> {
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct GeometryParams {
     /// Sticker spacing factor.
     pub sticker_spacing: f32,
     /// Face spacing factor.
@@ -232,33 +349,32 @@ pub struct GeometryParams<P: PuzzleTrait> {
     /// 4D FOV
     pub fov_4d: f32,
 
-    /// Animation state (twist to animate, and time value from 0.0 to 1.0).
-    pub anim: Option<(P::Twist, f32)>,
-    /// Model transformation matrix.
-    pub transform: Matrix3<f32>,
+    /// Model transformation matrix, including the active twist if applicable.
+    pub model_transform: Matrix4<f32>,
+    /// View transformation matrix.
+    pub view_transform: Matrix3<f32>,
 
     /// Sticker fill color.
     pub fill_color: [f32; 4],
     /// Outline color.
     pub line_color: [f32; 4],
 }
-impl<P: PuzzleTrait> Copy for GeometryParams<P> {}
-impl<P: PuzzleTrait> Default for GeometryParams<P> {
+impl Default for GeometryParams {
     fn default() -> Self {
         Self {
             sticker_spacing: 0.2,
             face_spacing: 0.1,
             fov_4d: 0.0,
 
-            anim: None,
-            transform: Matrix3::identity(),
+            model_transform: Matrix4::identity(),
+            view_transform: Matrix3::identity(),
 
             fill_color: [1.0, 1.0, 1.0, 1.0],
             line_color: [0.0, 0.0, 0.0, 1.0],
         }
     }
 }
-impl<P: PuzzleTrait> GeometryParams<P> {
+impl GeometryParams {
     /// Computes the sticker scale factor (0.0 to 1.0).
     pub fn sticker_scale(self) -> f32 {
         1.0 - self.sticker_spacing
@@ -280,16 +396,16 @@ impl<P: PuzzleTrait> GeometryParams<P> {
 /// Facet of the puzzle.
 #[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Facet<P: PuzzleTrait> {
+pub enum Facet<P: PuzzleState> {
     Whole,
     Face(P::Face),
     Piece(P::Piece),
     Sticker(P::Sticker),
 }
-impl<P: PuzzleTrait> Copy for Facet<P> {}
-impl<P: PuzzleTrait> Facet<P> {
+impl<P: PuzzleState> Copy for Facet<P> {}
+impl<P: PuzzleState> Facet<P> {
     /// Returns the 3D-projected center of the facet.
-    pub fn projection_center(self, p: GeometryParams<P>) -> Vector3<f32> {
+    pub fn projection_center(self, p: GeometryParams) -> Vector3<f32> {
         match self {
             Facet::Whole => Vector3::zero(),
             Facet::Face(face) => face.projection_center(p),

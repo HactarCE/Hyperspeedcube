@@ -2,12 +2,11 @@
 
 use cgmath::{Deg, InnerSpace, Matrix3, Matrix4, SquareMatrix, Vector3, Vector4, Zero};
 use itertools::Itertools;
-use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 use std::str::FromStr;
 
-use super::*;
+use super::{traits::*, FaceId, LayerMask, PuzzleType, Sign, TwistDirection};
 use crate::render::WireframeVertex;
 
 /// Maximum extent of any single coordinate along the X, Y, Z, or W axes.
@@ -40,25 +39,6 @@ pub mod twists {
         Twist::new(sticker, direction)
     }
 }
-lazy_static! {
-    /// Iterator over stickers in order.
-    static ref STICKERS_BY_ID: Vec<Sticker> = Face::ALL
-        .iter()
-        .flat_map(|&face| {
-            std::iter::empty()
-                .chain(face.stickers().filter(|s| matches!(s.adj_faces(), StickerAdjFaces::_3 { .. })))
-                .chain(face.stickers().filter(|s| matches!(s.adj_faces(), StickerAdjFaces::_2 { .. })))
-                .chain(face.stickers().filter(|s| matches!(s.adj_faces(), StickerAdjFaces::_1 { .. })))
-                .chain(std::iter::once(face.center_sticker()))
-        })
-        .collect();
-
-    static ref STICKER_IDS: HashMap<Sticker, usize> = STICKERS_BY_ID
-        .iter()
-        .enumerate()
-        .map(|(id, &sticker)| (sticker, id))
-        .collect();
-}
 
 /// State of a 3x3x3x3 Rubik's cube.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
@@ -75,45 +55,126 @@ impl IndexMut<Piece> for Rubiks4D {
         &mut self.0[pos.w_idx()][pos.z_idx()][pos.y_idx()][pos.x_idx()]
     }
 }
-impl PuzzleTrait for Rubiks4D {
+impl PuzzleState for Rubiks4D {
     type Piece = Piece;
     type Sticker = Sticker;
     type Face = Face;
     type Twist = Twist;
     type Orientation = Orientation;
 
-    const NDIM: usize = 4;
+    const NAME: &'static str = "Rubik's 4D";
     const TYPE: PuzzleType = PuzzleType::Rubiks4D;
+    const NDIM: usize = 4;
     const LAYER_COUNT: usize = 3;
 
-    fn get_sticker(&self, pos: Sticker) -> Face {
+    const PIECE_TYPE_NAMES: &'static [&'static str] = &["1c", "2c", "3c", "4c"];
+
+    const STICKER_MODEL_VERTEX_COUNT: u16 = 8;
+    const STICKER_MODEL_SURFACE_INDICES: &'static [u16] = &[
+        1, 2, 3, 2, 1, 0, // Z-
+        7, 6, 5, 4, 5, 6, // Z+
+        0, 1, 4, 5, 4, 1, // Y-
+        6, 3, 2, 3, 6, 7, // Y+
+        2, 4, 6, 4, 2, 0, // X-
+        7, 5, 3, 1, 3, 5, // X+
+    ];
+    const STICKER_MODEL_OUTLINE_INDICES: &'static [u16] = &[
+        0, 1, 1, 3, 3, 2, 2, 0, // Z-
+        7, 6, 6, 4, 4, 5, 5, 7, // Z+
+        0, 1, 1, 5, 5, 4, 4, 0, // Y-
+        7, 6, 6, 2, 2, 3, 3, 7, // Y+
+        0, 2, 2, 6, 6, 4, 4, 0, // X-
+        7, 5, 5, 1, 1, 3, 3, 7, // X+
+    ];
+
+    fn get_sticker_color(&self, pos: Sticker) -> Face {
         self[pos.piece()][pos.axis()] * pos.sign()
+    }
+
+    lazy_static_array_methods! {
+        fn pieces() -> &'static [Piece] {
+            itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter(), Sign::iter())
+                .map(|(w, z, y, x)| Piece([x, y, z, w]))
+                .filter(|&p| p != Piece::core())
+        }
+        fn stickers() -> &'static [Sticker] {
+            Rubiks4D::faces().iter().flat_map(|&face| {
+                let mut stickers = face.stickers();
+                // Sort in the same order that MC4D uses (decreasing order of
+                // piece type).
+                stickers.sort_by_key(|s| -(s.piece.sticker_count() as i32));
+                stickers
+            })
+        }
+    }
+
+    fn faces() -> &'static [Face] {
+        const RET: &[Face] = &[
+            Face::new(Axis::W, Sign::Neg), // In
+            Face::new(Axis::Z, Sign::Neg), // Back
+            Face::new(Axis::Y, Sign::Neg), // Down
+            Face::new(Axis::X, Sign::Neg), // Left
+            Face::new(Axis::X, Sign::Pos), // Right
+            Face::new(Axis::Y, Sign::Pos), // Up
+            Face::new(Axis::Z, Sign::Pos), // Front
+            Face::new(Axis::W, Sign::Pos), // Out
+        ];
+        RET
+    }
+
+    fn face_symbols() -> &'static [&'static str] {
+        &["I", "B", "D", "L", "R", "U", "F", "O"]
+    }
+    fn face_names() -> &'static [&'static str] {
+        &["In", "Back", "Down", "Left", "Right", "Up", "Front", "Out"]
+    }
+    fn default_face_colors() -> &'static [[f32; 3]] {
+        &[
+            crate::colors::PURPLE, // In
+            crate::colors::YELLOW, // Back
+            crate::colors::GREEN,  // Down
+            crate::colors::ORANGE, // Left
+            crate::colors::RED,    // Right
+            crate::colors::BLUE,   // Up
+            crate::colors::WHITE,  // Front
+            crate::colors::PINK,   // Out
+        ]
+    }
+
+    fn twist_direction_names() -> &'static [&'static str] {
+        &["x", "x'", "y", "y'", "z", "z'"]
     }
 }
 impl Rubiks4D {
-    fn transform_point(mut point: Vector4<f32>, p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
+    fn transform_point(mut point: Vector4<f32>, p: GeometryParams) -> Vector3<f32> {
         // Compute the maximum extent along any axis from the origin in the 3D
-        // projection of the puzzle. At the very end of this function, we will
-        // divide all XYZ coordinates by this to normalize the puzzle size.
+        // projection of the puzzle. We will divide all XYZ coordinates by this
+        // to normalize the puzzle size.
         let projection_radius = p.project_4d(cgmath::vec4(1.0, 0.0, 0.0, 1.0)).magnitude();
 
+        point = p.model_transform * point;
         point /= PUZZLE_RADIUS;
         point.w /= 1.0 - p.face_spacing;
-        p.transform * (p.project_4d(point) / projection_radius)
+        p.view_transform * (p.project_4d(point) / projection_radius)
     }
 }
 
 /// Piece location in a 3x3x3x3 Rubik's cube.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Piece(pub [Sign; 4]);
-impl PieceTrait<Rubiks4D> for Piece {
-    const TYPE_NAMES: &'static [&'static str] = &["1c", "2c", "3c", "4c"];
+impl FacetTrait for Piece {
+    impl_facet_trait_id_methods!(Piece, Rubiks4D::pieces());
 
-    fn piece_type_id(self) -> PieceTypeId {
-        PieceTypeId(self.sticker_count() as u32 - 1)
+    fn projection_center(self, p: GeometryParams) -> Vector3<f32> {
+        Rubiks4D::transform_point(self.center_4d(p), p)
+    }
+}
+impl PieceTrait<Rubiks4D> for Piece {
+    fn piece_type_id(self) -> usize {
+        self.sticker_count() - 1
     }
 
-    fn layer_from_face(self, face: Face) -> Option<usize> {
+    fn layer(self, face: Face) -> Option<usize> {
         match self[face.axis()] * face.sign() {
             Sign::Neg => Some(2),
             Sign::Zero => Some(1),
@@ -124,23 +185,11 @@ impl PieceTrait<Rubiks4D> for Piece {
     fn sticker_count(self) -> usize {
         self.x().abs() + self.y().abs() + self.z().abs() + self.w().abs()
     }
-    fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
-        Box::new(
-            Axis::iter()
-                .filter(move |&axis| self[axis].is_nonzero())
-                .map(move |axis| Sticker { piece: self, axis }),
-        )
-    }
-    fn iter() -> Box<dyn Iterator<Item = Self>> {
-        Box::new(
-            itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter(), Sign::iter())
-                .map(|(w, z, y, x)| Self([x, y, z, w]))
-                .filter(|&p| p != Self::core()),
-        )
-    }
-
-    fn projection_center(self, p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
-        Rubiks4D::transform_point(self.center_4d(p), p)
+    fn stickers(self) -> Vec<Sticker> {
+        Axis::iter()
+            .filter(move |&axis| self[axis].is_nonzero())
+            .map(move |axis| Sticker { piece: self, axis })
+            .collect()
     }
 }
 impl Index<Axis> for Piece {
@@ -199,7 +248,7 @@ impl Piece {
         (self.w().int() + 1) as usize
     }
 
-    fn center_4d(self, p: GeometryParams<Rubiks4D>) -> Vector4<f32> {
+    fn center_4d(self, p: GeometryParams) -> Vector4<f32> {
         let mut ret = Vector4::zero();
         for axis in Axis::iter() {
             ret[axis as usize] = p.face_scale() * self[axis].float();
@@ -214,25 +263,14 @@ pub struct Sticker {
     piece: Piece,
     axis: Axis,
 }
-impl StickerTrait<Rubiks4D> for Sticker {
-    const VERTEX_COUNT: u16 = 8;
-    const SURFACE_INDICES: &'static [u16] = &[
-        1, 2, 3, 2, 1, 0, // Z-
-        7, 6, 5, 4, 5, 6, // Z+
-        0, 1, 4, 5, 4, 1, // Y-
-        6, 3, 2, 3, 6, 7, // Y+
-        2, 4, 6, 4, 2, 0, // X-
-        7, 5, 3, 1, 3, 5, // X+
-    ];
-    const OUTLINE_INDICES: &'static [u16] = &[
-        0, 1, 1, 3, 3, 2, 2, 0, // Z-
-        7, 6, 6, 4, 4, 5, 5, 7, // Z+
-        0, 1, 1, 5, 5, 4, 4, 0, // Y-
-        7, 6, 6, 2, 2, 3, 3, 7, // Y+
-        0, 2, 2, 6, 6, 4, 4, 0, // X-
-        7, 5, 5, 1, 1, 3, 3, 7, // X+
-    ];
+impl FacetTrait for Sticker {
+    impl_facet_trait_id_methods!(Sticker, Rubiks4D::stickers());
 
+    fn projection_center(self, p: GeometryParams) -> Vector3<f32> {
+        Rubiks4D::transform_point(self.center_4d(p), p)
+    }
+}
+impl StickerTrait<Rubiks4D> for Sticker {
     fn piece(self) -> Piece {
         self.piece
     }
@@ -240,15 +278,8 @@ impl StickerTrait<Rubiks4D> for Sticker {
         Face::new(self.axis(), self.sign())
     }
 
-    fn projection_center(self, p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
-        Rubiks4D::transform_point(self.center_4d(p), p)
-    }
-    fn verts(self, p: GeometryParams<Rubiks4D>) -> Option<Vec<WireframeVertex>> {
+    fn verts(self, p: GeometryParams) -> Option<Vec<WireframeVertex>> {
         let [ax1, ax2, ax3] = self.face().parallel_axes();
-        let matrix = match p.anim {
-            Some((twist, t)) if twist.affects_piece(self.piece) => twist.matrix(t),
-            _ => Matrix4::identity(),
-        };
 
         // Compute the center of the sticker.
         let center = self.center_4d(p);
@@ -260,7 +291,7 @@ impl StickerTrait<Rubiks4D> for Sticker {
             vert[ax1 as usize] += t * sticker_radius;
             vert[ax2 as usize] += u * sticker_radius;
             vert[ax3 as usize] += v * sticker_radius;
-            Rubiks4D::transform_point(matrix * vert, p)
+            Rubiks4D::transform_point(vert, p)
         };
         let corners = [
             get_corner(-1.0, -1.0, -1.0),
@@ -358,7 +389,7 @@ impl Sticker {
         [self.piece()[ax1], self.piece()[ax2], self.piece()[ax3]]
     }
 
-    fn center_4d(self, p: GeometryParams<Rubiks4D>) -> Vector4<f32> {
+    fn center_4d(self, p: GeometryParams) -> Vector4<f32> {
         let mut ret = self.piece().center_4d(p);
         ret[self.axis() as usize] = 1.5 * self.sign().float();
         ret
@@ -376,323 +407,42 @@ enum StickerAdjFaces {
     _3 { adjacent: [Face; 3] },
 }
 
-/// Twist of a single face on a 3x3x3x3 Rubik's cube.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Twist {
-    /// Sticker to twist around.
-    pub sticker: Sticker,
-    /// Direction to twist the face.
-    pub direction: TwistDirection,
-    /// Layer mask.
-    pub layers: [bool; 3],
-}
-impl fmt::Display for Twist {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let sticker_id = STICKER_IDS[&self.sticker];
-        let direction = self.direction.sign().int();
-        let layer_mask =
-            (self.layers[0] as u8) | ((self.layers[1] as u8) << 1) | ((self.layers[2] as u8) << 2);
-        write!(f, "{},{},{}", sticker_id, direction, layer_mask)
-    }
-}
-impl FromStr for Twist {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let [s1, s2, s3]: [&str; 3] = s.split(',').collect_vec().try_into().map_err(|_| ())?;
-        let sticker_id: usize = s1.parse().map_err(|_| ())?;
-        let direction: isize = s2.parse().map_err(|_| ())?;
-        let layer_mask: usize = s3.parse().map_err(|_| ())?;
-
-        let sticker = *STICKERS_BY_ID.get(sticker_id).ok_or(())?;
-        let direction = match direction {
-            -1 => TwistDirection::CW,
-            1 => TwistDirection::CCW,
-            _ => return Err(()),
-        };
-        let layers = [
-            layer_mask & 1 != 0,
-            layer_mask & 2 != 0,
-            layer_mask & 4 != 0,
-        ];
-
-        Ok(Self {
-            sticker,
-            direction,
-            layers,
-        })
-    }
-}
-impl TwistTrait<Rubiks4D> for Twist {
-    const DIRECTIONS: &'static [&'static str] = &["x", "x'", "y", "y'", "z", "z'"];
-
-    fn from_twist_command(
-        face_id: FaceId,
-        direction: &str,
-        layer_mask: LayerMask,
-    ) -> Result<Twist, &'static str> {
-        let face = Face::from_id(face_id)?;
-        let (axis, direction) = match direction {
-            "x" => (Axis::X, TwistDirection::CW),
-            "x'" => (Axis::X, TwistDirection::CCW),
-            "y" => (Axis::Y, TwistDirection::CW),
-            "y'" => (Axis::Y, TwistDirection::CCW),
-            "z" => (Axis::Z, TwistDirection::CW),
-            "z'" => (Axis::Z, TwistDirection::CCW),
-            _ => Err("invalid direction")?,
-        };
-        if layer_mask.0 > 0b111 {
-            return Err("invaild layer mask");
-        }
-        let layers = [
-            layer_mask.0 & 0b001 != 0,
-            layer_mask.0 & 0b010 != 0,
-            layer_mask.0 & 0b100 != 0,
-        ];
-        Ok(twists::by_3d_view(face, axis, direction).layers(layers))
-    }
-    fn from_recenter_command(face_id: FaceId) -> Result<Twist, &'static str> {
-        let face = Face::from_id(face_id)?;
-        if face.axis() == Axis::W {
-            return Err("cannot recenter near or far face");
-        }
-        let (axis1, axis2) = Axis::perpendicular_plane(face.axis(), Axis::W);
-        let mut sticker = Face::new(axis1, face.sign()).center_sticker();
-        sticker.piece[axis2] = match face.axis() {
-            Axis::X => Sign::Pos,
-            Axis::Y => Sign::Neg,
-            Axis::Z => Sign::Pos,
-            Axis::W => return Err("cannot recenter near or far face"),
-        };
-        Ok(Twist::new(sticker, TwistDirection::CW).whole_cube())
-    }
-
-    fn rotation(self) -> Orientation {
-        let rot = match self.sticker.adj_faces() {
-            StickerAdjFaces::_0 { .. } => Orientation::default(),
-
-            StickerAdjFaces::_1 {
-                adjacent: _,
-                centered: [axis1, axis2],
-            } => Orientation::rot90(axis1, axis2),
-
-            StickerAdjFaces::_2 {
-                adjacent: [face1, face2],
-                centered,
-            } => Orientation::rot180(face1, face2, centered),
-
-            StickerAdjFaces::_3 {
-                adjacent: [face1, face2, face3],
-            } => Orientation::rot120(face3, face2, face1),
-        };
-
-        // Reverse orientation if counterclockwise.
-        match self.direction {
-            TwistDirection::CW => rot,
-            TwistDirection::CCW => rot.rev(),
-        }
-    }
-    fn rev(self) -> Self {
-        Self {
-            sticker: self.sticker,
-            direction: self.direction.rev(),
-            layers: self.layers,
-        }
-    }
-    fn affects_piece(self, piece: Piece) -> bool {
-        let face = self.sticker.face();
-        match piece[face.axis()] * face.sign() {
-            Sign::Neg => self.layers[2],
-            Sign::Zero => self.layers[1],
-            Sign::Pos => self.layers[0],
-        }
-    }
-}
-impl From<Sticker> for Twist {
-    fn from(sticker: Sticker) -> Self {
-        Self {
-            sticker,
-            direction: TwistDirection::default(),
-            layers: [true, false, false],
-        }
-    }
-}
-impl Twist {
-    /// Returns the sticker with the given ID.
-    pub fn from_sticker_idx(i: usize) -> Self {
-        Self::from(STICKERS_BY_ID[i])
-    }
-
-    /// Returns the number of repetitions of this twist required before the
-    /// puzzle returns to the original state.
-    fn symmetry_order(self) -> usize {
-        match self.sticker.adj_faces() {
-            StickerAdjFaces::_0 { .. } => 1, // invalid
-            StickerAdjFaces::_1 { .. } => 4, // 90-degree rotation
-            StickerAdjFaces::_2 { .. } => 2, // 180-degree rotation
-            StickerAdjFaces::_3 { .. } => 3, // 120-degree rotation
-        }
-    }
-    /// Returns a twist of the face from the given sticker and in the given
-    /// direction.
-    pub const fn new(sticker: Sticker, direction: TwistDirection) -> Self {
-        Self {
-            sticker,
-            direction,
-            layers: [true, false, false],
-        }
-    }
-    /// Make a fat (2-layer) move from this move.
-    pub const fn fat(self) -> Self {
-        self.layers([true, true, false])
-    }
-    /// Make a slice move from this move.
-    pub const fn slice(self) -> Self {
-        self.layers([false, true, false])
-    }
-    /// Make a whole cube rotation from this move.
-    pub const fn whole_cube(self) -> Self {
-        self.layers([true, true, true])
-    }
-    /// Twist different layers.
-    pub const fn layers(mut self, layers: [bool; 3]) -> Self {
-        self.layers = layers;
-        self
-    }
-
-    /// Returns a 4x4 rotation matrix for a portion of this twist, `t` ranges
-    /// from 0.0 to 1.0. 0.0 gives the identity matrix; 1.0 gives the result of
-    /// this twist, and intermediate values interpolate.
-    fn matrix(self, t: f32) -> Matrix4<f32> {
-        let [s1, s2, s3] = self.sticker.vec3_within_face();
-        let face = self.sticker.face();
-        let mut axis = cgmath::vec3(s1.float(), s2.float(), s3.float()).normalize();
-        if "LUBO".contains(face.symbol()) {
-            axis *= -1.0;
-        }
-        let angle = Deg(t * 360.0 / self.symmetry_order() as f32 * self.direction.sign().float());
-        let mat3 = Matrix3::from_axis_angle(axis, angle);
-
-        // Rearrange rows and columns.
-        let mut ret = Matrix4::identity();
-        let axes = self.sticker.axis().sticker_order_perpendiculars();
-        for (row1, row2) in axes.into_iter().enumerate() {
-            for (col1, col2) in axes.into_iter().enumerate() {
-                ret[col2 as usize][row2 as usize] = mat3[col1][row1];
-            }
-        }
-        ret
-    }
-}
-
-/// 3-dimensional axis.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum Axis {
-    /// X axis (right).
-    X = 0,
-    /// Y axis (up).
-    Y = 1,
-    /// Z axis (towards the camera).
-    Z = 2,
-    /// W axis (towards the 4D camera).
-    W = 3,
-}
-impl Axis {
-    /// Returns the perpendicular axes from this one, in the order used for
-    /// calculating sticker indices.
-    pub fn sticker_order_perpendiculars(self) -> [Axis; 3] {
-        use Axis::*;
-        // This ordering is necessary in order to maintain compatibility with
-        // MC4D sticker indices.
-        match self {
-            X => [Y, Z, W],
-            Y => [X, Z, W],
-            Z => [X, Y, W],
-            W => [X, Y, Z],
-        }
-    }
-    /// Returns the axes of the oriented plane perpendicular to two other axes.
-    pub fn perpendicular_plane(axis1: Axis, axis2: Axis) -> (Axis, Axis) {
-        let [t, u, v] = axis1.sticker_order_perpendiculars();
-        if axis2 == t {
-            (u, v)
-        } else if axis2 == u {
-            (v, t)
-        } else if axis2 == v {
-            (t, u)
-        } else {
-            panic!("no perpendicular plane")
-        }
-    }
-    /// Returns the axis perpendicular to three other axes.
-    pub fn perpendicular_axis(axes: [Axis; 3]) -> Axis {
-        Axis::iter().find(|ax| !axes.contains(ax)).unwrap()
-    }
-
-    /// Returns an iterator over all axes.
-    pub fn iter() -> impl Iterator<Item = Axis> {
-        [Axis::X, Axis::Y, Axis::Z, Axis::W].into_iter()
-    }
-}
-
 /// Face of a 3D cube/cuboid.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Face {
     axis: Axis,
     sign: Sign,
 }
-impl FaceTrait<Rubiks4D> for Face {
-    const ALL: &'static [Self] = {
-        use Axis::*;
-        use Sign::*;
-        &[
-            Self { axis: W, sign: Neg }, // In
-            Self { axis: Z, sign: Neg }, // Back
-            Self { axis: Y, sign: Neg }, // Down
-            Self { axis: X, sign: Neg }, // Left
-            Self { axis: X, sign: Pos }, // Right
-            Self { axis: Y, sign: Pos }, // Up
-            Self { axis: Z, sign: Pos }, // Front
-            Self { axis: W, sign: Pos }, // Out
-        ]
-    };
-    const SYMBOLS: &'static [&'static str] = &["I", "B", "D", "L", "R", "U", "F", "O"];
-    const NAMES: &'static [&'static str] =
-        &["In", "Back", "Down", "Left", "Right", "Up", "Front", "Out"];
-    const DEFAULT_COLORS: &'static [[f32; 3]] = &[
-        crate::colors::PURPLE, // In
-        crate::colors::YELLOW, // Back
-        crate::colors::GREEN,  // Down
-        crate::colors::ORANGE, // Left
-        crate::colors::RED,    // Right
-        crate::colors::BLUE,   // Up
-        crate::colors::WHITE,  // Front
-        crate::colors::PINK,   // Out
-    ];
+impl FacetTrait for Face {
+    impl_facet_trait_id_methods!(Face, Rubiks4D::faces());
 
-    fn pieces(self, layer: usize) -> Box<dyn Iterator<Item = Piece> + 'static> {
+    fn projection_center(self, p: GeometryParams) -> Vector3<f32> {
+        self.center_sticker().projection_center(p)
+    }
+}
+impl FaceTrait<Rubiks4D> for Face {
+    fn pieces(self, layer: usize) -> Vec<Piece> {
         let mut piece = self.center();
         for _ in 0..layer {
             piece = piece + self.opposite();
         }
         let [ax1, ax2, ax3] = self.axis.sticker_order_perpendiculars();
-        Box::new(
-            itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter()).map(move |(v, u, t)| {
+
+        itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter())
+            .map(move |(v, u, t)| {
                 piece[ax1] = t;
                 piece[ax2] = u;
                 piece[ax3] = v;
                 piece
-            }),
-        )
+            })
+            .collect()
     }
-    fn stickers(self) -> Box<dyn Iterator<Item = Sticker> + 'static> {
+    fn stickers(self) -> Vec<Sticker> {
         let axis = self.axis;
-        Box::new(self.pieces(0).map(move |piece| Sticker::new(piece, axis)))
-    }
-
-    fn projection_center(self, mut p: GeometryParams<Rubiks4D>) -> Vector3<f32> {
-        p.anim = None;
-        self.center_sticker().projection_center(p)
+        self.pieces(0)
+            .into_iter()
+            .map(move |piece| Sticker::new(piece, axis))
+            .collect()
     }
 }
 impl Neg for Face {
@@ -781,6 +531,260 @@ impl Face {
             Sign::Zero => panic!("invalid face"),
             Sign::Pos => [ax1, ax2, ax3],
         }
+    }
+}
+
+/// Twist of a single face on a 3x3x3x3 Rubik's cube.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct Twist {
+    /// Sticker to twist around.
+    pub sticker: Sticker,
+    /// Direction to twist the face.
+    pub direction: TwistDirection,
+    /// Layer mask.
+    pub layers: [bool; 3],
+}
+impl fmt::Display for Twist {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sticker_id = self.sticker.id();
+        let direction = self.direction.sign().int();
+        let layer_mask =
+            (self.layers[0] as u8) | ((self.layers[1] as u8) << 1) | ((self.layers[2] as u8) << 2);
+        write!(f, "{},{},{}", sticker_id, direction, layer_mask)
+    }
+}
+impl FromStr for Twist {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let [s1, s2, s3]: [&str; 3] = s.split(',').collect_vec().try_into().map_err(|_| ())?;
+        let sticker_id: usize = s1.parse().map_err(|_| ())?;
+        let direction: isize = s2.parse().map_err(|_| ())?;
+        let layer_mask: usize = s3.parse().map_err(|_| ())?;
+
+        let sticker = Sticker::from_id(sticker_id).ok_or(())?;
+        let direction = match direction {
+            -1 => TwistDirection::CW,
+            1 => TwistDirection::CCW,
+            _ => return Err(()),
+        };
+        let layers = [
+            layer_mask & 1 != 0,
+            layer_mask & 2 != 0,
+            layer_mask & 4 != 0,
+        ];
+
+        Ok(Self {
+            sticker,
+            direction,
+            layers,
+        })
+    }
+}
+impl TwistTrait<Rubiks4D> for Twist {
+    fn from_twist_command(
+        face_id: FaceId,
+        direction: &str,
+        layer_mask: LayerMask,
+    ) -> Result<Twist, &'static str> {
+        let face = Face::from_id(face_id.0 as usize).ok_or("invalid face")?;
+        let (axis, direction) = match direction {
+            "x" => (Axis::X, TwistDirection::CW),
+            "x'" => (Axis::X, TwistDirection::CCW),
+            "y" => (Axis::Y, TwistDirection::CW),
+            "y'" => (Axis::Y, TwistDirection::CCW),
+            "z" => (Axis::Z, TwistDirection::CW),
+            "z'" => (Axis::Z, TwistDirection::CCW),
+            _ => Err("invalid direction")?,
+        };
+        if layer_mask.0 > 0b111 {
+            return Err("invaild layer mask");
+        }
+        let layers = [
+            layer_mask.0 & 0b001 != 0,
+            layer_mask.0 & 0b010 != 0,
+            layer_mask.0 & 0b100 != 0,
+        ];
+        Ok(twists::by_3d_view(face, axis, direction).layers(layers))
+    }
+    fn from_recenter_command(face_id: FaceId) -> Result<Twist, &'static str> {
+        let face = Face::from_id(face_id.0 as usize).ok_or("invalid face")?;
+        if face.axis() == Axis::W {
+            return Err("cannot recenter near or far face");
+        }
+        let (axis1, axis2) = Axis::perpendicular_plane(face.axis(), Axis::W);
+        let mut sticker = Face::new(axis1, face.sign()).center_sticker();
+        sticker.piece[axis2] = match face.axis() {
+            Axis::X => Sign::Pos,
+            Axis::Y => Sign::Neg,
+            Axis::Z => Sign::Pos,
+            Axis::W => return Err("cannot recenter near or far face"),
+        };
+        Ok(Twist::new(sticker, TwistDirection::CW).whole_cube())
+    }
+
+    fn model_matrix(self, t: f32) -> Matrix4<f32> {
+        let [s1, s2, s3] = self.sticker.vec3_within_face();
+        let face = self.sticker.face();
+        let mut axis = cgmath::vec3(s1.float(), s2.float(), s3.float()).normalize();
+        if "LUBO".contains(face.symbol()) {
+            axis *= -1.0;
+        }
+        let angle = Deg(t * 360.0 / self.symmetry_order() as f32 * self.direction.sign().float());
+        let mat3 = Matrix3::from_axis_angle(axis, angle);
+
+        // Rearrange rows and columns.
+        let mut ret = Matrix4::identity();
+        let axes = self.sticker.axis().sticker_order_perpendiculars();
+        for (row1, row2) in axes.into_iter().enumerate() {
+            for (col1, col2) in axes.into_iter().enumerate() {
+                ret[col2 as usize][row2 as usize] = mat3[col1][row1];
+            }
+        }
+        ret
+    }
+
+    fn rotation(self) -> Orientation {
+        let rot = match self.sticker.adj_faces() {
+            StickerAdjFaces::_0 { .. } => Orientation::default(),
+
+            StickerAdjFaces::_1 {
+                adjacent: _,
+                centered: [axis1, axis2],
+            } => Orientation::rot90(axis1, axis2),
+
+            StickerAdjFaces::_2 {
+                adjacent: [face1, face2],
+                centered,
+            } => Orientation::rot180(face1, face2, centered),
+
+            StickerAdjFaces::_3 {
+                adjacent: [face1, face2, face3],
+            } => Orientation::rot120(face3, face2, face1),
+        };
+
+        // Reverse orientation if counterclockwise.
+        match self.direction {
+            TwistDirection::CW => rot,
+            TwistDirection::CCW => rot.rev(),
+        }
+    }
+    fn rev(self) -> Self {
+        Self {
+            sticker: self.sticker,
+            direction: self.direction.rev(),
+            layers: self.layers,
+        }
+    }
+    fn affects_piece(self, piece: Piece) -> bool {
+        let face = self.sticker.face();
+        match piece[face.axis()] * face.sign() {
+            Sign::Neg => self.layers[2],
+            Sign::Zero => self.layers[1],
+            Sign::Pos => self.layers[0],
+        }
+    }
+}
+impl From<Sticker> for Twist {
+    fn from(sticker: Sticker) -> Self {
+        Self {
+            sticker,
+            direction: TwistDirection::default(),
+            layers: [true, false, false],
+        }
+    }
+}
+impl Twist {
+    /// Returns the sticker with the given ID.
+    pub fn from_sticker_idx(i: usize) -> Self {
+        Self::from(Sticker::from_id(i).unwrap())
+    }
+
+    /// Returns the number of repetitions of this twist required before the
+    /// puzzle returns to the original state.
+    fn symmetry_order(self) -> usize {
+        match self.sticker.adj_faces() {
+            StickerAdjFaces::_0 { .. } => 1, // invalid
+            StickerAdjFaces::_1 { .. } => 4, // 90-degree rotation
+            StickerAdjFaces::_2 { .. } => 2, // 180-degree rotation
+            StickerAdjFaces::_3 { .. } => 3, // 120-degree rotation
+        }
+    }
+    /// Returns a twist of the face from the given sticker and in the given
+    /// direction.
+    pub const fn new(sticker: Sticker, direction: TwistDirection) -> Self {
+        Self {
+            sticker,
+            direction,
+            layers: [true, false, false],
+        }
+    }
+    /// Make a fat (2-layer) move from this move.
+    pub const fn fat(self) -> Self {
+        self.layers([true, true, false])
+    }
+    /// Make a slice move from this move.
+    pub const fn slice(self) -> Self {
+        self.layers([false, true, false])
+    }
+    /// Make a whole cube rotation from this move.
+    pub const fn whole_cube(self) -> Self {
+        self.layers([true, true, true])
+    }
+    /// Twist different layers.
+    pub const fn layers(mut self, layers: [bool; 3]) -> Self {
+        self.layers = layers;
+        self
+    }
+}
+
+/// 3-dimensional axis.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Axis {
+    /// X axis (right).
+    X = 0,
+    /// Y axis (up).
+    Y = 1,
+    /// Z axis (towards the camera).
+    Z = 2,
+    /// W axis (towards the 4D camera).
+    W = 3,
+}
+impl Axis {
+    /// Returns the perpendicular axes from this one, in the order used for
+    /// calculating sticker indices.
+    pub fn sticker_order_perpendiculars(self) -> [Axis; 3] {
+        use Axis::*;
+        // This ordering is necessary in order to maintain compatibility with
+        // MC4D sticker indices.
+        match self {
+            X => [Y, Z, W],
+            Y => [X, Z, W],
+            Z => [X, Y, W],
+            W => [X, Y, Z],
+        }
+    }
+    /// Returns the axes of the oriented plane perpendicular to two other axes.
+    pub fn perpendicular_plane(axis1: Axis, axis2: Axis) -> (Axis, Axis) {
+        let [t, u, v] = axis1.sticker_order_perpendiculars();
+        if axis2 == t {
+            (u, v)
+        } else if axis2 == u {
+            (v, t)
+        } else if axis2 == v {
+            (t, u)
+        } else {
+            panic!("no perpendicular plane")
+        }
+    }
+    /// Returns the axis perpendicular to three other axes.
+    pub fn perpendicular_axis(axes: [Axis; 3]) -> Axis {
+        Axis::iter().find(|ax| !axes.contains(ax)).unwrap()
+    }
+
+    /// Returns an iterator over all axes.
+    pub fn iter() -> impl Iterator<Item = Axis> {
+        [Axis::X, Axis::Y, Axis::Z, Axis::W].into_iter()
     }
 }
 
@@ -894,7 +898,7 @@ mod tests {
 
     #[test]
     fn test_4d_twist_serialization() {
-        for sticker in Sticker::iter() {
+        for &sticker in Rubiks4D::stickers() {
             for layer_mask in 0..8 {
                 for direction in [TwistDirection::CCW, TwistDirection::CW] {
                     let twist = Twist {

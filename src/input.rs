@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::config::Key;
 use crate::puzzle::{
-    traits::*, Command, FaceId, LayerMask, PieceTypeId, PuzzleController, PuzzleEnum, PuzzleType,
+    traits::*, Command, FaceId, LayerMask, PieceTypeId, Puzzle, PuzzleController, PuzzleType,
 };
 
 const SHIFT: ModifiersState = ModifiersState::SHIFT;
@@ -15,7 +15,7 @@ const LOGO: ModifiersState = ModifiersState::LOGO;
 #[must_use = "call finish()"]
 pub struct FrameInProgress<'a> {
     state: &'a mut State,
-    puzzle: &'a mut PuzzleEnum,
+    puzzle: &'a mut Puzzle,
 }
 impl FrameInProgress<'_> {
     pub fn handle_event(&mut self, ev: &Event<'_, ()>) {
@@ -74,7 +74,7 @@ impl FrameInProgress<'_> {
             return;
         }
 
-        let puzzle_type = self.puzzle.puzzle_type();
+        let puzzle_type = self.puzzle.ty();
 
         // We don't care about left vs. right modifiers, so just extract
         // the bits that don't specify left vs. right.
@@ -114,10 +114,17 @@ impl FrameInProgress<'_> {
                             .or(selection.exactly_one_face_name(puzzle_type))
                         {
                             let layers = selection.layers_mask_or_default(layers.0);
-                            if let Err(e) =
-                                self.puzzle
-                                    .twist_from_command(face, LayerMask(layers), direction)
-                            {
+                            if let Err(e) = self.puzzle.twist_from_command(
+                                FaceId(
+                                    self.puzzle
+                                        .face_names()
+                                        .iter()
+                                        .position(|&s| s == face)
+                                        .unwrap() as u32,
+                                ),
+                                LayerMask(layers),
+                                direction,
+                            ) {
                                 // TODO handle error
                             }
                         }
@@ -191,8 +198,8 @@ impl FrameInProgress<'_> {
                 Some(VirtualKeyCode::V) => println!("TODO paste puzzle state"),
                 // Save file.
                 Some(VirtualKeyCode::S) => match self.puzzle {
-                    PuzzleEnum::Rubiks3D(_) => eprintln!("error: can't save 3D puzzle"),
-                    PuzzleEnum::Rubiks4D(cube) => {
+                    Puzzle::Rubiks3D(_) => eprintln!("error: can't save 3D puzzle"),
+                    Puzzle::Rubiks4D(cube) => {
                         if let Err(e) = cube.save_file(&crate::get_config().log_file) {
                             eprintln!("error: {}", e);
                         }
@@ -216,12 +223,11 @@ impl FrameInProgress<'_> {
     pub fn finish(self) {
         let mut config = crate::get_config();
 
-        let speed = 1.0_f32.to_radians();
-
-        let view_config = &mut config.view[self.puzzle.puzzle_type()];
+        let view_config = &mut config.view[self.puzzle.ty()];
 
         // TODO
 
+        // let speed = 1.0_f32.to_radians();
         // if self.state.keys[VirtualKeyCode::Up] {
         //     view_config.theta += speed;
         // }
@@ -236,8 +242,8 @@ impl FrameInProgress<'_> {
         // }
 
         match self.puzzle {
-            PuzzleEnum::Rubiks3D(cube) => update_puzzle_display(cube, self.state.total_selection()),
-            PuzzleEnum::Rubiks4D(cube) => update_puzzle_display(cube, self.state.total_selection()),
+            Puzzle::Rubiks3D(cube) => update_puzzle_display(cube, self.state.total_selection()),
+            Puzzle::Rubiks4D(cube) => update_puzzle_display(cube, self.state.total_selection()),
         }
     }
 }
@@ -255,7 +261,7 @@ pub struct State {
 impl State {
     pub fn frame<'a>(
         &'a mut self,
-        puzzle: &'a mut PuzzleEnum,
+        puzzle: &'a mut Puzzle,
         imgui_io: &imgui::Io,
     ) -> FrameInProgress<'a> {
         self.has_keyboard = !imgui_io.want_capture_keyboard;
@@ -520,13 +526,13 @@ impl Selection {
 //     }
 // }
 
-fn update_puzzle_display<P: PuzzleTrait>(cube: &mut PuzzleController<P>, selection: Selection) {
+fn update_puzzle_display<P: PuzzleState>(cube: &mut PuzzleController<P>, selection: Selection) {
     let selected_piece_types_mask = selection.piece_types_mask;
 
     let selected_faces = std::iter::successors(Some(selection.faces_mask), |mask| Some(mask >> 1))
         .take_while(|&mask| mask != 0)
         .positions(|mask| mask & 1 != 0)
-        .filter_map(|id| P::Face::from_id(FaceId(id as u32)).ok())
+        .filter_map(P::Face::from_id)
         .collect_vec();
 
     let selected_layers_mask = selection.layers_mask_or_default(1);
@@ -535,13 +541,13 @@ fn update_puzzle_display<P: PuzzleTrait>(cube: &mut PuzzleController<P>, selecti
         let piece = sticker.piece();
 
         // Filter by piece type.
-        if selected_piece_types_mask & (1 << piece.piece_type_id().0) == 0 {
+        if selected_piece_types_mask & (1 << piece.piece_type_id()) == 0 {
             return false;
         }
 
         // Filter by face and layer.
         for &face in &selected_faces {
-            if let Some(layer) = piece.layer_from_face(face) {
+            if let Some(layer) = piece.layer(face) {
                 if selected_layers_mask & (1 << layer) != 0 {
                     continue;
                 }

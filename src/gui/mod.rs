@@ -8,20 +8,19 @@ mod popups;
 mod util;
 
 use crate::config::{Keybind, Msaa};
-use crate::puzzle::commands::Command;
-use crate::puzzle::{LayerMask, PieceTypeId, PuzzleEnum, PuzzleType};
+use crate::puzzle::{traits::*, Command, LayerMask, PieceTypeId, Puzzle, PuzzleType};
 pub use popups::keybind_popup_handle_event;
 
 pub struct AppState<'a> {
     pub ui: &'a Ui<'a>,
     pub mouse_pos: [f32; 2],
-    pub puzzle: &'a mut PuzzleEnum,
+    pub puzzle: &'a mut Puzzle,
     pub control_flow: &'a mut ControlFlow,
 }
 
-fn try_save(puzzle: &mut PuzzleEnum, path: &Path) {
+fn try_save(puzzle: &mut Puzzle, path: &Path) {
     match puzzle {
-        PuzzleEnum::Rubiks4D(p) => match p.save_file(&path) {
+        Puzzle::Rubiks4D(p) => match p.save_file(&path) {
             Ok(()) => (),
             Err(e) => popups::error_dialog("Unable to save log file", e),
         },
@@ -32,8 +31,8 @@ fn try_save(puzzle: &mut PuzzleEnum, path: &Path) {
     }
 }
 
-pub fn confirm_discard_changes(puzzle_needs_save: bool, action: &str) -> bool {
-    !puzzle_needs_save || popups::confirm_discard_changes_dialog(action).show()
+pub fn confirm_discard_changes(is_unsaved: bool, action: &str) -> bool {
+    !is_unsaved || popups::confirm_discard_changes_dialog(action).show()
 }
 
 /// Builds the GUI.
@@ -45,12 +44,12 @@ pub fn build(app: &mut AppState) {
     // Build the menu bar.
     ui.main_menu_bar(|| {
         ui.menu("File", || {
-            let can_save = app.puzzle.puzzle_type() == PuzzleType::Rubiks4D;
+            let can_save = app.puzzle.ty() == PuzzleType::Rubiks4D;
 
             if MenuItem::new("Open").build(ui) {
                 if let Some(path) = popups::file_dialog().pick_file() {
                     match crate::puzzle::PuzzleController::load_file(&path) {
-                        Ok(p) => *app.puzzle = PuzzleEnum::Rubiks4D(p),
+                        Ok(p) => *app.puzzle = Puzzle::Rubiks4D(p),
                         Err(e) => popups::error_dialog("Unable to open log file", e),
                     }
                 }
@@ -68,7 +67,7 @@ pub fn build(app: &mut AppState) {
             }
             ui.separator();
             if MenuItem::new("Quit").build(ui)
-                && confirm_discard_changes(app.puzzle.needs_save(), "quit")
+                && confirm_discard_changes(app.puzzle.is_unsaved(), "quit")
             {
                 *app.control_flow = ControlFlow::Exit;
             }
@@ -90,11 +89,11 @@ pub fn build(app: &mut AppState) {
         });
 
         ui.menu("Puzzle", || {
-            for puz_type in PuzzleType::ALL {
-                if MenuItem::new(&puz_type.to_string()).build(ui)
-                    && confirm_discard_changes(app.puzzle.needs_save(), "load new puzzle")
+            for &puz_type in PuzzleType::ALL {
+                if MenuItem::new(puz_type.name()).build(ui)
+                    && confirm_discard_changes(app.puzzle.is_unsaved(), "load new puzzle")
                 {
-                    *app.puzzle = puz_type.new();
+                    *app.puzzle = Puzzle::new(puz_type);
                 }
             }
         });
@@ -169,7 +168,7 @@ pub fn build(app: &mut AppState) {
             .resizable(false)
             .always_auto_resize(true)
             .build(ui, || {
-                let view_config = &mut config.view[app.puzzle.puzzle_type()];
+                let view_config = &mut config.view[app.puzzle.ty()];
 
                 // View angle settings
                 config.needs_save |= AngleSlider::new("Theta")
@@ -233,7 +232,7 @@ pub fn build(app: &mut AppState) {
                 ui.separator();
 
                 // Sticker colors
-                let puzzle_type = app.puzzle.puzzle_type();
+                let puzzle_type = app.puzzle.ty();
                 let sticker_colors = &mut config.colors.stickers[puzzle_type].0;
                 for (face_name, color) in puzzle_type.face_names().iter().zip(sticker_colors) {
                     config.needs_save |= ColorEdit::new(face_name, color).build(ui);
@@ -257,12 +256,12 @@ pub fn build(app: &mut AppState) {
                 let current_window_width = ui.window_size()[0];
                 let mut extra_width = current_window_width - MIN_WIDTH;
                 if ui.button("Add keybind") {
-                    config.keybinds[app.puzzle.puzzle_type()].push(Keybind::default());
+                    config.keybinds[app.puzzle.ty()].push(Keybind::default());
                     config.needs_save = true;
                 }
                 build_keybind_table(
                     app,
-                    &mut config.keybinds[app.puzzle.puzzle_type()],
+                    &mut config.keybinds[app.puzzle.ty()],
                     &mut config.needs_save,
                     &mut extra_width,
                 );
@@ -323,7 +322,7 @@ fn build_keybind_table(
     extra_width: &mut f32,
 ) {
     let ui = app.ui;
-    let puzzle_type = app.puzzle.puzzle_type();
+    let puzzle_type = app.puzzle.ty();
 
     let flags = TableFlags::BORDERS | TableFlags::SIZING_FIXED_FIT | TableFlags::SCROLL_Y;
     let table_token = match ui.begin_table_with_flags("keybinds", 3, flags) {
@@ -447,7 +446,7 @@ fn build_command_select_ui(
     };
     let old_command_idx = command_idx;
 
-    let default_direction = puzzle_type.twist_directions()[0].to_owned();
+    let default_direction = puzzle_type.twist_direction_names()[0].to_owned();
     let default_face = puzzle_type.face_names()[0].to_owned();
 
     if build_autosize_combo(
@@ -610,7 +609,7 @@ fn build_command_select_ui(
                 ui,
                 &format!("##direction{}", i),
                 direction,
-                puzzle_type.twist_directions(),
+                puzzle_type.twist_direction_names(),
             );
         }
         Cmd::Recenter { face } => {
@@ -648,7 +647,7 @@ fn build_command_select_ui(
                 ui,
                 &format!("##piece_type{}", i),
                 &mut piece_type_id,
-                puzzle_type.piece_types(),
+                puzzle_type.piece_type_names(),
             );
             piece_type.0 = piece_type_id as u32;
         }

@@ -1,21 +1,12 @@
-//! Animation logic.
+//! Puzzle wrapper that adds animation and undo history functionality.
 
+use cgmath::{Matrix4, SquareMatrix};
 use std::collections::VecDeque;
 use std::error::Error;
 use std::io;
 use std::path::Path;
-use std::time;
+use std::time::Duration;
 
-use super::rubiks4d_logfile::*;
-use super::{traits::*, Rubiks4D};
-
-const TWIST_DURATION: f32 = 0.2;
-const MIN_DURATION: f32 = 0.05;
-const MAX_BACKLOG: usize = 10;
-const INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
-
-use cgmath::{Matrix4, SquareMatrix};
-use interpolate::InterpolateFn;
 /// Interpolation functions.
 pub mod interpolate {
     use std::f32::consts::PI;
@@ -32,8 +23,17 @@ pub mod interpolate {
     pub const COSINE_DECEL: InterpolateFn = |x| ((1.0 - x) * PI / 2.0).cos();
 }
 
-/// A structure to manage twists applied to a puzzle and their animation.
-pub struct PuzzleController<P: PuzzleTrait> {
+use super::{rubiks4d_logfile::*, Face, Piece, Sticker};
+use super::{traits::*, PuzzleType, Rubiks4D};
+use interpolate::InterpolateFn;
+
+const TWIST_DURATION: f32 = 0.2;
+const MIN_DURATION: f32 = 0.05;
+const MAX_BACKLOG: usize = 10;
+const INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
+
+/// Puzzle wrapper that adds animation and undo history functionality.
+pub struct PuzzleController<P: PuzzleState> {
     /// The state of the puzzle right before the twist being animated right now.
     ///
     /// `Box`ed so that this struct is always the same size.
@@ -53,7 +53,7 @@ pub struct PuzzleController<P: PuzzleTrait> {
 
     /// Whether the puzzle has been modified since the last time the log file
     /// was saved.
-    pub needs_save: bool,
+    pub is_unsaved: bool,
 
     /// Whether the puzzle has been scrambled.
     pub scramble_state: ScrambleState,
@@ -69,7 +69,7 @@ pub struct PuzzleController<P: PuzzleTrait> {
     /// Labels.
     pub labels: Vec<(Facet<P>, String)>,
 }
-impl<P: PuzzleTrait> Default for PuzzleController<P> {
+impl<P: PuzzleState> Default for PuzzleController<P> {
     fn default() -> Self {
         Self {
             displayed: Box::new(P::default()),
@@ -78,7 +78,7 @@ impl<P: PuzzleTrait> Default for PuzzleController<P> {
             queue_max: 0,
             progress: 0.0,
 
-            needs_save: false,
+            is_unsaved: false,
 
             scramble_state: ScrambleState::default(),
             scramble: vec![],
@@ -90,25 +90,62 @@ impl<P: PuzzleTrait> Default for PuzzleController<P> {
         }
     }
 }
-impl<P: PuzzleTrait> Eq for PuzzleController<P> {}
-impl<P: PuzzleTrait> PartialEq for PuzzleController<P> {
+impl<P: PuzzleState> Eq for PuzzleController<P> {}
+impl<P: PuzzleState> PartialEq for PuzzleController<P> {
     fn eq(&self, other: &Self) -> bool {
         self.latest == other.latest
     }
 }
-impl<P: PuzzleTrait> PartialEq<P> for PuzzleController<P> {
+impl<P: PuzzleState> PartialEq<P> for PuzzleController<P> {
     fn eq(&self, other: &P) -> bool {
         *self.latest == *other
     }
 }
-impl<P: PuzzleTrait> PuzzleController<P> {
-    /// Make a new PuzzleController with a solved puzzle.
+impl<P: PuzzleState> PuzzleController<P> {
+    /// Constructs a new PuzzleController with a solved puzzle.
     pub fn new() -> Self {
         Self::default()
     }
-    /// Advance to the next frame, using the given time delta between this frame
-    /// and the last.
-    pub fn advance(&mut self, delta: time::Duration) {
+
+    /// Adds a twist to the back of the twist queue.
+    pub fn twist(&mut self, twist: P::Twist) {
+        self.is_unsaved = true;
+        self.redo_buffer.clear();
+        if self.undo_buffer.last() == Some(&twist.rev()) {
+            self.undo();
+        } else {
+            self.undo_buffer.push(twist);
+            self.twists.push_back(twist);
+            self.latest.twist(twist);
+        }
+    }
+    /// Returns the twist currently being animated, along with a float between
+    /// 0.0 and 1.0 indicating the progress on that animation.
+    pub fn current_twist(&self) -> Option<(P::Twist, f32)> {
+        if let Some(&twist) = self.twists.get(0) {
+            Some((twist, INTERPOLATION_FN(self.progress)))
+        } else {
+            None
+        }
+    }
+
+    /// Returns the state of the cube that should be displayed, not including
+    /// the twist currently being animated.
+    pub fn displayed(&self) -> &P {
+        &self.displayed
+    }
+    /// Returns the state of the cube after all queued twists have been applied.
+    pub fn latest(&self) -> &P {
+        &self.latest
+    }
+}
+
+impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
+    fn ty(&self) -> PuzzleType {
+        P::TYPE
+    }
+
+    fn advance(&mut self, delta: Duration) {
         if self.twists.is_empty() {
             self.queue_max = 0;
             return;
@@ -138,62 +175,56 @@ impl<P: PuzzleTrait> PuzzleController<P> {
             self.progress = 1.0;
         }
     }
-    /// Returns the state of the cube that should be displayed, not including
-    /// the twist currently being animated.
-    pub fn displayed(&self) -> &P {
-        &self.displayed
-    }
-    /// Returns the state of the cube after all queued twists have been applied.
-    pub fn latest(&self) -> &P {
-        &self.latest
-    }
-    /// Adds a twist to the back of the twist queue.
-    pub fn twist(&mut self, twist: P::Twist) {
-        self.needs_save = true;
-        self.redo_buffer.clear();
-        if self.undo_buffer.last() == Some(&twist.rev()) {
-            self.undo();
-        } else {
-            self.undo_buffer.push(twist);
-            self.twists.push_back(twist);
-            self.latest.twist(twist);
-        }
-    }
-    /// Skips the animations for all twists in the queue.
-    pub fn catch_up(&mut self) {
+    fn catch_up(&mut self) {
         for twist in self.twists.drain(..) {
             self.displayed.twist(twist);
         }
         self.progress = 0.0;
         assert_eq!(self.displayed, self.latest);
     }
-    /// Returns the twist currently being animated, along with a float between
-    /// 0.0 and 1.0 indicating the progress on that animation.
-    pub fn current_twist(&self) -> Option<(P::Twist, f32)> {
-        if let Some(&twist) = self.twists.get(0) {
-            Some((twist, INTERPOLATION_FN(self.progress)))
-        } else {
-            None
-        }
-    }
 
-    /// Undoes one twist.
-    pub fn undo(&mut self) {
+    fn has_undo(&self) -> bool {
+        !self.undo_buffer.is_empty()
+    }
+    fn has_redo(&self) -> bool {
+        !self.redo_buffer.is_empty()
+    }
+    fn undo(&mut self) {
         if let Some(twist) = self.undo_buffer.pop() {
-            self.needs_save = true;
+            self.is_unsaved = true;
             self.redo_buffer.push(twist);
             self.twists.push_back(twist.rev());
             self.latest.twist(twist.rev());
         }
     }
-    /// Redoes one twist.
-    pub fn redo(&mut self) {
+    fn redo(&mut self) {
         if let Some(twist) = self.redo_buffer.pop() {
-            self.needs_save = true;
+            self.is_unsaved = true;
             self.undo_buffer.push(twist);
             self.twists.push_back(twist);
             self.latest.twist(twist);
         }
+    }
+
+    fn is_unsaved(&self) -> bool {
+        self.is_unsaved
+    }
+
+    fn model_transform_for_piece(&self, piece: Piece) -> Matrix4<f32> {
+        if let Some((twist, t)) = self.current_twist() {
+            let p = piece.try_into::<P>().unwrap();
+            if twist.affects_piece(p) {
+                return twist.model_matrix(t);
+            }
+        }
+        Matrix4::identity()
+    }
+    fn is_hightlighted(&self, sticker: Sticker) -> bool {
+        (self.highlight_filter)(sticker.try_into::<P>().unwrap())
+    }
+    fn get_sticker_color(&self, sticker: Sticker) -> Face {
+        let s = sticker.try_into::<P>().unwrap();
+        self.displayed().get_sticker_color(s).into()
     }
 }
 
@@ -226,7 +257,7 @@ impl PuzzleController<Rubiks4D> {
             solve_twists: self.undo_buffer.clone(),
         };
         std::fs::write(path, logfile.to_string())?;
-        self.needs_save = false;
+        self.is_unsaved = false;
         Ok(())
     }
 }

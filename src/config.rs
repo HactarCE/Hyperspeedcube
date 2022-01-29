@@ -12,11 +12,11 @@ use std::fmt;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, TryLockError};
+use std::time::Duration;
 use winit::event::{ModifiersState, VirtualKeyCode};
 
 use crate::colors;
-use crate::puzzle::commands::Command;
-use crate::puzzle::PuzzleType;
+use crate::puzzle::{traits::*, Command, PuzzleType};
 
 pub(crate) fn get_config<'a>() -> MutexGuard<'a, Config> {
     match CONFIG.try_lock() {
@@ -181,8 +181,8 @@ impl Default for GfxConfig {
 }
 impl GfxConfig {
     /// Returns the duration of one frame based on the configured FPS value.
-    pub fn frame_duration(&self) -> std::time::Duration {
-        std::time::Duration::from_secs_f64(1.0 / self.fps as f64)
+    pub fn frame_duration(&self) -> Duration {
+        Duration::from_secs_f64(1.0 / self.fps as f64)
     }
 }
 
@@ -284,10 +284,11 @@ impl std::ops::IndexMut<usize> for StickerColors {
 }
 impl PerPuzzleDefault for StickerColors {
     fn default(puz_type: PuzzleType) -> Self {
-        Self(puz_type.default_colors().to_vec())
+        Self(puz_type.default_face_colors().to_vec())
     }
     fn validate(&mut self, puz_type: PuzzleType) {
-        self.0.resize(puz_type.face_count(), Default::default());
+        self.0
+            .resize(puz_type.face_names().len(), Default::default());
     }
 }
 

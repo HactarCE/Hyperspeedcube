@@ -1,6 +1,6 @@
 //! Rendering logic.
 
-use cgmath::{Matrix3, Matrix4, Rad, Transform};
+use cgmath::{Matrix3, Matrix4, Rad, SquareMatrix, Transform};
 use glium::{BackfaceCullingMode, DrawParameters, Surface};
 use glium_glyph::glyph_brush::{
     rusttype, BuiltInLineBreaker, HorizontalAlign, Layout, SectionText, VariedSection,
@@ -11,7 +11,7 @@ mod cache;
 mod shaders;
 mod verts;
 
-use crate::puzzle::{traits::*, PuzzleController, PuzzleEnum};
+use crate::puzzle::{traits::*, Puzzle, PuzzleController};
 use crate::DISPLAY;
 use cache::FONT;
 pub use verts::WireframeVertex;
@@ -19,14 +19,7 @@ use verts::*;
 
 const CLIPPING_RADIUS: f32 = 2.0;
 
-pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &PuzzleEnum) {
-    match puzzle {
-        PuzzleEnum::Rubiks3D(cube) => draw_puzzle_(target, cube),
-        PuzzleEnum::Rubiks4D(cube) => draw_puzzle_(target, cube),
-    }
-}
-
-fn draw_puzzle_<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleController<P>) {
+pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
     let config = crate::get_config();
 
     let mut cache_ = cache::borrow_cache();
@@ -36,11 +29,11 @@ fn draw_puzzle_<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
     let [r, g, b] = config.colors.background;
     target.clear_color_srgb_and_depth((r, g, b, 1.0), 1.0);
 
-    let view_config = &config.view[P::TYPE];
+    let view_config = &config.view[puzzle.ty()];
 
     // Compute the model transform, which must be applied here on the CPU so that we
     // can do proper Z ordering.
-    let model_transform = Matrix3::from_angle_x(Rad(view_config.theta))
+    let view_transform = Matrix3::from_angle_x(Rad(view_config.theta))
         * Matrix3::from_angle_y(Rad(view_config.phi))
         / CLIPPING_RADIUS;
     // Compute the perspective transform, which we will apply on the GPU.
@@ -69,8 +62,7 @@ fn draw_puzzle_<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
         face_spacing: view_config.face_spacing,
         fov_4d: view_config.fov_4d,
 
-        anim: puzzle.current_twist(),
-        transform: model_transform,
+        view_transform,
 
         ..GeometryParams::default()
     };
@@ -80,19 +72,21 @@ fn draw_puzzle_<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
      */
     let stickers_vbo;
     {
-        let face_colors = &config.colors.stickers[P::TYPE];
+        let face_colors = &config.colors.stickers[puzzle.ty()];
         // Each sticker has a `Vec<StickerVertex>` with all of its vertices and
         // a single f32 containing the average Z value.
         let mut verts_by_sticker: Vec<(Vec<WireframeVertex>, f32)> = vec![];
-        for piece in P::Piece::iter() {
+        for piece in puzzle.pieces() {
+            geo_params.model_transform = puzzle.model_transform_for_piece(*piece);
+
             for sticker in piece.stickers() {
-                let alpha = if (puzzle.highlight_filter)(sticker) {
+                let alpha = if puzzle.is_hightlighted(sticker) {
                     config.colors.opacity
                 } else {
                     0.1
                 };
 
-                let [r, g, b] = face_colors[puzzle.displayed().get_sticker(sticker).idx()];
+                let [r, g, b] = face_colors[puzzle.get_sticker_color(sticker).id()];
                 geo_params.fill_color = [r, g, b, alpha];
                 geo_params.line_color = geo_params.fill_color;
                 if view_config.enable_outline {
@@ -149,77 +143,77 @@ fn draw_puzzle_<P: PuzzleTrait>(target: &mut glium::Frame, puzzle: &PuzzleContro
     /*
      * Draw text labels.
      */
-    if !puzzle.labels.is_empty() {
-        let scale = rusttype::Scale::uniform(config.gfx.label_size);
+    // if !puzzle.labels.is_empty() {
+    //     let scale = rusttype::Scale::uniform(config.gfx.label_size);
 
-        let mut backdrop_verts = vec![];
+    //     let mut backdrop_verts = vec![];
 
-        let post_transform =
-            Matrix4::from_nonuniform_scale(2.0 / target_w as f32, 2.0 / target_h as f32, 1.0);
-        let pre_transform = post_transform.inverse_transform().unwrap() * perspective_transform;
+    //     let post_transform =
+    //         Matrix4::from_nonuniform_scale(2.0 / target_w as f32, 2.0 / target_h as f32, 1.0);
+    //     let pre_transform = post_transform.inverse_transform().unwrap() * perspective_transform;
 
-        for (facet, text) in &puzzle.labels {
-            // let screen_position
+    //     for (facet, text) in &puzzle.labels {
+    //         // let screen_position
 
-            let mut text_center = pre_transform * facet.projection_center(geo_params).extend(1.0);
-            text_center /= text_center.w;
-            text_center.z = -1.0;
+    //         let mut text_center = pre_transform * facet.projection_center(geo_params).extend(1.0);
+    //         text_center /= text_center.w;
+    //         text_center.z = -1.0;
 
-            // Queue backdrop.
-            let (w, h) = label_size(text, scale);
-            for (dx, dy) in [
-                (-0.5, -0.5),
-                (0.5, -0.5),
-                (-0.5, 0.5),
-                (0.5, 0.5),
-                (-0.5, 0.5),
-                (0.5, -0.5),
-            ] {
-                let pos = text_center + cgmath::vec4(dx * w, dy * h, 0.0, 0.0);
-                backdrop_verts.push(RgbaVertex {
-                    pos: (post_transform * pos).into(),
-                    color: config.colors.label_bg,
-                });
-            }
+    //         // Queue backdrop.
+    //         let (w, h) = label_size(text, scale);
+    //         for (dx, dy) in [
+    //             (-0.5, -0.5),
+    //             (0.5, -0.5),
+    //             (-0.5, 0.5),
+    //             (0.5, 0.5),
+    //             (-0.5, 0.5),
+    //             (0.5, -0.5),
+    //         ] {
+    //             let pos = text_center + cgmath::vec4(dx * w, dy * h, 0.0, 0.0);
+    //             backdrop_verts.push(RgbaVertex {
+    //                 pos: (post_transform * pos).into(),
+    //                 color: config.colors.label_bg,
+    //             });
+    //         }
 
-            // Queue text.
-            cache.glyph_brush.queue(VariedSection {
-                screen_position: (text_center.x, -text_center.y),
-                // bounds: todo!(),
-                z: text_center.z,
-                layout: Layout::SingleLine {
-                    line_breaker: BuiltInLineBreaker::default(),
-                    h_align: HorizontalAlign::Center,
-                    v_align: VerticalAlign::Center,
-                },
-                text: vec![SectionText {
-                    text,
-                    scale,
-                    color: config.colors.label_fg,
-                    ..Default::default()
-                }],
-                ..Default::default()
-            });
-        }
+    //         // Queue text.
+    //         cache.glyph_brush.queue(VariedSection {
+    //             screen_position: (text_center.x, -text_center.y),
+    //             // bounds: todo!(),
+    //             z: text_center.z,
+    //             layout: Layout::SingleLine {
+    //                 line_breaker: BuiltInLineBreaker::default(),
+    //                 h_align: HorizontalAlign::Center,
+    //                 v_align: VerticalAlign::Center,
+    //             },
+    //             text: vec![SectionText {
+    //                 text,
+    //                 scale,
+    //                 color: config.colors.label_fg,
+    //                 ..Default::default()
+    //             }],
+    //             ..Default::default()
+    //         });
+    //     }
 
-        // Draw backdrops.
-        let backdrop_vbo = cache.label_backdrops_vbo.slice(backdrop_verts.len());
-        backdrop_vbo.write(&backdrop_verts);
-        target
-            .draw(
-                backdrop_vbo,
-                glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-                &shaders::BASIC,
-                &uniform! {},
-                &draw_params,
-            )
-            .expect("draw error");
+    //     // Draw backdrops.
+    //     let backdrop_vbo = cache.label_backdrops_vbo.slice(backdrop_verts.len());
+    //     backdrop_vbo.write(&backdrop_verts);
+    //     target
+    //         .draw(
+    //             backdrop_vbo,
+    //             glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+    //             &shaders::BASIC,
+    //             &uniform! {},
+    //             &draw_params,
+    //         )
+    //         .expect("draw error");
 
-        // Draw text.
-        cache
-            .glyph_brush
-            .draw_queued_with_transform(post_transform.into(), &**DISPLAY, target);
-    }
+    //     // Draw text.
+    //     cache
+    //         .glyph_brush
+    //         .draw_queued_with_transform(post_transform.into(), &**DISPLAY, target);
+    // }
 }
 
 fn label_size(text: &str, scale: rusttype::Scale) -> (f32, f32) {

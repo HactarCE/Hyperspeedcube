@@ -57,7 +57,7 @@ impl Add<Sign> for Sign {
 }
 impl Sign {
     /// Returns an integer representation of the sign (either -1, 0, or 1).
-    pub fn int(self) -> isize {
+    pub const fn int(self) -> isize {
         match self {
             Sign::Neg => -1,
             Sign::Zero => 0,
@@ -66,24 +66,24 @@ impl Sign {
     }
     /// Returns a floating-point representation of the sign (either -1.0, 0.0,
     /// or 1.0).
-    pub fn float(self) -> f32 {
+    pub const fn float(self) -> f32 {
         self.int() as f32
     }
     /// Returns the absolute value of the integer representation of the sign
     /// (either 0 or 1).
-    pub fn abs(self) -> usize {
+    pub const fn abs(self) -> usize {
         match self {
             Sign::Neg | Sign::Pos => 1,
             Sign::Zero => 0,
         }
     }
     /// Returns true if `Sign::Zero` or false otherwise.
-    pub fn is_zero(self) -> bool {
-        self == Sign::Zero
+    pub const fn is_zero(self) -> bool {
+        matches!(self, Sign::Zero)
     }
     /// Returns false if `Sign::Zero` or true otherwise.
-    pub fn is_nonzero(self) -> bool {
-        self != Sign::Zero
+    pub const fn is_nonzero(self) -> bool {
+        !self.is_zero()
     }
 
     /// Returns an iterator over all signs.
