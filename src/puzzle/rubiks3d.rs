@@ -104,6 +104,8 @@ impl PuzzleState for Rubiks3D {
         RET
     }
 
+    lazy_static_generic_array_methods! {}
+
     fn face_symbols() -> &'static [&'static str] {
         &["B", "D", "L", "R", "U", "F"]
     }

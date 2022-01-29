@@ -107,7 +107,6 @@ impl PuzzleState for Rubiks4D {
             })
         }
     }
-
     fn faces() -> &'static [Face] {
         const RET: &[Face] = &[
             Face::new(Axis::W, Sign::Neg), // In
@@ -121,6 +120,8 @@ impl PuzzleState for Rubiks4D {
         ];
         RET
     }
+
+    lazy_static_generic_array_methods! {}
 
     fn face_symbols() -> &'static [&'static str] {
         &["I", "B", "D", "L", "R", "U", "F", "O"]

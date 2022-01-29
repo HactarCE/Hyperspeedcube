@@ -23,6 +23,21 @@ macro_rules! lazy_static_array_methods {
         )*
     };
 }
+macro_rules! lazy_static_generic_array_methods {
+    () => {
+        lazy_static_array_methods! {
+            fn generic_pieces() -> &'static [crate::puzzle::generic::Piece] {
+                Self::pieces().iter().map(|&p| p.into())
+            }
+            fn generic_stickers() -> &'static [crate::puzzle::generic::Sticker] {
+                Self::stickers().iter().map(|&s| s.into())
+            }
+            fn generic_faces() -> &'static [crate::puzzle::generic::Face] {
+                Self::faces().iter().map(|&f| f.into())
+            }
+        }
+    };
+}
 
 /// Methods for `PuzzleController` that do not depend on puzzle type.
 #[enum_dispatch]
@@ -152,20 +167,12 @@ pub trait PuzzleState:
     /// Returns a list of faces on the puzzle.
     fn faces() -> &'static [Self::Face];
 
-    lazy_static_array_methods! {
-        /// Returns a list of pieces in the puzzle.
-        fn generic_pieces() -> &'static [Piece] {
-            Self::pieces().iter().map(|&p| p.into())
-        }
-        /// Returns a list of stickers in the puzzle.
-        fn generic_stickers() -> &'static [Sticker] {
-            Self::stickers().iter().map(|&s| s.into())
-        }
-        /// Returns a list of faces in the puzzle.
-        fn generic_faces() -> &'static [Face] {
-            Self::faces().iter().map(|&f| f.into())
-        }
-    }
+    /// Returns a list of pieces in the puzzle.
+    fn generic_pieces() -> &'static [Piece];
+    /// Returns a list of stickers in the puzzle.
+    fn generic_stickers() -> &'static [Sticker];
+    /// Returns a list of faces in the puzzle.
+    fn generic_faces() -> &'static [Face];
 
     /// Returns the short name for each face.
     fn face_symbols() -> &'static [&'static str];
