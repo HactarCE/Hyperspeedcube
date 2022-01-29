@@ -68,7 +68,7 @@ pub trait PuzzleControllerTrait {
     /// in progress.
     fn model_transform_for_piece(&self, piece: Piece) -> Matrix4<f32>;
     /// Returns whether a sticker is hightlighted.
-    fn is_hightlighted(&self, sticker: Sticker) -> bool;
+    fn is_highlighted(&self, sticker: Sticker) -> bool;
     /// Returns the face where the sticker at the given location belongs (i.e.
     /// corresponding to its color).
     fn get_sticker_color(&self, sticker: Sticker) -> Face;

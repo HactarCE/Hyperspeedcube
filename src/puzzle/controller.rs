@@ -219,7 +219,7 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
         }
         Matrix4::identity()
     }
-    fn is_hightlighted(&self, sticker: Sticker) -> bool {
+    fn is_highlighted(&self, sticker: Sticker) -> bool {
         (self.highlight_filter)(sticker.try_into::<P>().unwrap())
     }
     fn get_sticker_color(&self, sticker: Sticker) -> Face {
