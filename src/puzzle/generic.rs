@@ -1,11 +1,9 @@
 use cgmath::Matrix4;
+use std::fmt;
 use std::time::Duration;
 use thiserror::Error;
 
-use super::{
-    rubiks3d, rubiks4d, traits::*, FaceId, LayerMask, PuzzleController, PuzzleType, Rubiks3D,
-    Rubiks4D,
-};
+use super::{rubiks3d, rubiks4d, traits::*, PuzzleController, PuzzleType, Rubiks3D, Rubiks4D};
 use crate::render::WireframeVertex;
 
 /// A PuzzleController of any puzzle type.
@@ -54,32 +52,33 @@ impl Puzzle {
     /// TODO: refactor/remove this
     pub fn twist_from_command(
         &mut self,
-        face_id: FaceId,
+        face: Face,
         layers: LayerMask,
-        direction: &str,
+        direction: TwistDirection,
     ) -> Result<(), &'static str> {
         match self {
             Puzzle::Rubiks3D(cube) => cube.twist(rubiks3d::Twist::from_twist_command(
-                face_id, direction, layers,
+                face.try_into::<Rubiks3D>().unwrap(),
+                direction.name(),
+                layers,
             )?),
             Puzzle::Rubiks4D(cube) => cube.twist(rubiks4d::Twist::from_twist_command(
-                face_id, direction, layers,
+                face.try_into::<Rubiks4D>().unwrap(),
+                direction.name(),
+                layers,
             )?),
         }
         Ok(())
     }
     /// TODO: refactor/remove this
-    pub fn recenter_from_command(&mut self, face_name: &str) -> Result<(), &'static str> {
-        let f = FaceId(
-            self.ty()
-                .face_names()
-                .iter()
-                .position(|&s| s == face_name)
-                .ok_or("invalid face")? as u32,
-        );
+    pub fn recenter_from_command(&mut self, face: Face) -> Result<(), &'static str> {
         match self {
-            Puzzle::Rubiks3D(cube) => cube.twist(rubiks3d::Twist::from_recenter_command(f)?),
-            Puzzle::Rubiks4D(cube) => cube.twist(rubiks4d::Twist::from_recenter_command(f)?),
+            Puzzle::Rubiks3D(cube) => cube.twist(rubiks3d::Twist::from_recenter_command(
+                face.try_into::<Rubiks3D>().unwrap(),
+            )?),
+            Puzzle::Rubiks4D(cube) => cube.twist(rubiks4d::Twist::from_recenter_command(
+                face.try_into::<Rubiks4D>().unwrap(),
+            )?),
         }
         Ok(())
     }
@@ -143,21 +142,15 @@ macro_rules! generic_facet_from {
         )*
     };
 }
-generic_facet!(pub struct Piece, piece, PieceTrait);
-generic_facet!(pub struct Sticker, sticker, StickerTrait);
-generic_facet!(pub struct Face, face, FaceTrait);
 
+generic_facet!(pub struct Piece, piece, PieceTrait);
 impl Piece {
     delegate_fn_to_puzzle_type! {
         type P = match self.ty();
 
-        /// Returns the piece type ID.
-        pub fn piece_type_id(self) -> usize {
-            self.try_into::<P>().unwrap().piece_type_id()
-        }
-        /// Returns the name of the piece type.
-        pub fn piece_type_name(self) -> &'static str {
-            self.try_into::<P>().unwrap().piece_type_name()
+        /// Returns the piece type.
+        pub fn piece_type(self) -> PieceType {
+            self.try_into::<P>().unwrap().piece_type()
         }
 
         /// Returns the layer of this piece, relative to a face (or `None` if this
@@ -183,6 +176,7 @@ impl Piece {
     }
 }
 
+generic_facet!(pub struct Sticker, sticker, StickerTrait);
 impl Sticker {
     delegate_fn_to_puzzle_type! {
         type P = match self.ty();
@@ -207,7 +201,30 @@ impl Sticker {
     }
 }
 
+generic_facet!(pub struct Face, face, FaceTrait);
+impl fmt::Display for Face {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+impl AsRef<str> for Face {
+    fn as_ref(&self) -> &str {
+        self.name()
+    }
+}
 impl Face {
+    /// Returns the face with a particular name, or a default if none exists.
+    pub fn from_name(ty: PuzzleType, name: &str) -> Self {
+        Self::try_from_name(ty, name).unwrap_or_else(|| ty.faces()[0])
+    }
+    /// Returns the face with a particular name, if one exists.
+    pub fn try_from_name(ty: PuzzleType, name: &str) -> Option<Self> {
+        ty.face_names()
+            .iter()
+            .position(|&s| s == name)
+            .map(|id| Self { ty, id })
+    }
+
     delegate_fn_to_puzzle_type! {
         type P = match self.ty();
 
@@ -241,14 +258,117 @@ impl Face {
     }
 }
 
-// pub struct Twist {
-//     ty: PuzzleType,
-//     todo: (),
-// }
-// pub struct Orientation {
-//     ty: PuzzleType,
-//     todo: (),
-// }
+/// Piece type, for use in a keybind.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct PieceType {
+    pub(super) ty: PuzzleType,
+    pub(super) id: usize,
+}
+impl fmt::Display for PieceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+impl PieceType {
+    /// Returns a default piece type.
+    pub fn default(ty: PuzzleType) -> Self {
+        Self { ty, id: 0 }
+    }
+
+    /// Returns an iterator over all piece types of a puzzle.
+    pub fn iter(ty: PuzzleType) -> impl Iterator<Item = Self> {
+        (0..ty.piece_type_names().len()).map(move |id| Self { ty, id })
+    }
+    /// Returns the piece type with a particular name, or a default if none
+    /// exists.
+    pub fn from_name(ty: PuzzleType, name: &str) -> Self {
+        Self::try_from_name(ty, name).unwrap_or_else(|| Self::default(ty))
+    }
+    /// Returns the piece type with a particular name, if one exists.
+    pub fn try_from_name(ty: PuzzleType, name: &str) -> Option<Self> {
+        ty.piece_type_names()
+            .iter()
+            .position(|&s| s == name)
+            .map(move |id| Self { ty, id })
+    }
+
+    /// Returns the puzzle type.
+    pub fn ty(self) -> PuzzleType {
+        self.ty
+    }
+    /// Returns the piece type ID.
+    pub fn id(self) -> usize {
+        self.id
+    }
+
+    /// Returns the name of the piece type.
+    pub fn name(self) -> &'static str {
+        self.ty.piece_type_names()[self.id]
+    }
+}
+
+/// Twist direction, for use in a keybind.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct TwistDirection {
+    pub(super) ty: PuzzleType,
+    pub(super) id: usize,
+}
+impl fmt::Display for TwistDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+impl AsRef<str> for TwistDirection {
+    fn as_ref(&self) -> &str {
+        self.name()
+    }
+}
+impl TwistDirection {
+    /// Returns a default twist direction.
+    pub fn default(ty: PuzzleType) -> Self {
+        Self { ty, id: 0 }
+    }
+
+    /// Returns an iterator over all twist directions of a puzzle.
+    pub fn iter(ty: PuzzleType) -> impl Iterator<Item = Self> {
+        (0..ty.twist_direction_names().len()).map(move |id| Self { ty, id })
+    }
+    /// Returns the twist direction with a particular name, or a default if none
+    /// exists.
+    pub fn from_name(ty: PuzzleType, name: &str) -> Self {
+        Self::try_from_name(ty, name).unwrap_or_else(|| Self::default(ty))
+    }
+    /// Returns the twist direction with a particular name, if one exists.
+    pub fn try_from_name(ty: PuzzleType, name: &str) -> Option<Self> {
+        ty.twist_direction_names()
+            .iter()
+            .position(|&s| s == name)
+            .map(|id| Self { ty, id })
+    }
+
+    /// Returns the puzzle type.
+    pub fn ty(self) -> PuzzleType {
+        self.ty
+    }
+    /// Returns the twist direction ID.
+    pub fn id(self) -> usize {
+        self.id
+    }
+
+    /// Returns the name of the twist direction.
+    pub fn name(self) -> &'static str {
+        self.ty.twist_direction_names()[self.id]
+    }
+}
+
+/// Layer mask, for use in a keybind.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct LayerMask(pub u32);
+impl Default for LayerMask {
+    fn default() -> Self {
+        Self(1)
+    }
+}
 
 #[derive(Error, Debug)]
 #[allow(missing_docs)]

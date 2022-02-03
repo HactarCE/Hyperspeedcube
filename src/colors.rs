@@ -9,6 +9,8 @@ pub const BLUE: [f32; 3] = [0.0, 0.3, 0.75];
 pub const PURPLE: [f32; 3] = [0.5, 0.2, 0.75];
 pub const PINK: [f32; 3] = [0.75, 0.45, 0.6];
 
+pub const GRAY: [f32; 3] = [0.5, 0.5, 0.5];
+
 pub const DEFAULT_BACKGROUND: [f32; 3] = [0.3, 0.3, 0.3];
 pub const DEFAULT_OUTLINE: [f32; 3] = [0.0, 0.0, 0.0];
 

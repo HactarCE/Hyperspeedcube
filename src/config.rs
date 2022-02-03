@@ -5,17 +5,19 @@
 
 use directories::ProjectDirs;
 use key_names::KeyMappingCode;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
+use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, TryLockError};
 use std::time::Duration;
 use winit::event::{ModifiersState, VirtualKeyCode};
 
 use crate::colors;
+use crate::puzzle::commands::CommandSerde;
 use crate::puzzle::{traits::*, Command, PuzzleType};
 
 pub(crate) fn get_config<'a>() -> MutexGuard<'a, Config> {
@@ -46,7 +48,7 @@ lazy_static! {
 struct NoConfigPath;
 impl fmt::Display for NoConfigPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Unable to get config file path.")
+        write!(f, "unable to get config file path")
     }
 }
 impl Error for NoConfigPath {}
@@ -64,21 +66,20 @@ pub struct Config {
     pub gfx: GfxConfig,
     pub view: PerPuzzle<ViewConfig>,
     pub colors: ColorsConfig,
-    #[serde(default = "default_keybinds")]
     pub keybinds: PerPuzzle<Vec<Keybind>>,
 }
 impl Default for Config {
     fn default() -> Self {
         Self {
             needs_save: true,
-            window_states: WindowStates::default(),
+            window_states: Default::default(),
 
             log_file: PathBuf::from("puzzle.log"),
 
-            gfx: GfxConfig::default(),
-            view: PerPuzzle::<ViewConfig>::default(),
-            colors: ColorsConfig::default(),
-            keybinds: default_keybinds(),
+            gfx: Default::default(),
+            view: Default::default(),
+            colors: Default::default(),
+            keybinds: Default::default(),
         }
     }
 }
@@ -203,48 +204,34 @@ pub struct ViewConfig {
 }
 impl Default for ViewConfig {
     fn default() -> Self {
-        PerPuzzleDefault::default(PuzzleType::default())
+        Self {
+            theta: 0_f32,
+            phi: 0_f32,
+
+            scale: 1.0,
+            fov_3d: 30_f32.to_radians(),
+            fov_4d: 30_f32.to_radians(),
+
+            face_spacing: 0.0,
+            sticker_spacing: 0.0,
+
+            enable_outline: true,
+        }
     }
 }
-impl PerPuzzleDefault for ViewConfig {
-    fn default(puz_type: PuzzleType) -> Self {
-        match puz_type {
-            PuzzleType::Rubiks3D => Self {
-                theta: 35_f32.to_radians(),
-                phi: 0_f32.to_radians(),
+impl DeserializePerPuzzle<'_> for ViewConfig {
+    type Proxy = Self;
 
-                scale: 1.25,
-                fov_3d: 30_f32.to_radians(),
-                fov_4d: 30_f32.to_radians(),
-
-                face_spacing: 0.025,
-                sticker_spacing: 0.05,
-
-                enable_outline: true,
-            },
-            PuzzleType::Rubiks4D => Self {
-                theta: 35_f32.to_radians(),
-                phi: -40_f32.to_radians(),
-
-                scale: 2.0,
-                fov_3d: 30_f32.to_radians(),
-                fov_4d: 30_f32.to_radians(),
-
-                face_spacing: 0.7,
-                sticker_spacing: 0.5,
-
-                enable_outline: true,
-            },
-        }
+    fn deserialize_from(value: Self::Proxy, _ty: PuzzleType) -> Self {
+        value
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(default)]
 pub struct ColorsConfig {
     pub opacity: f32,
 
-    pub stickers: PerPuzzle<StickerColors>,
+    pub faces: PerPuzzle<FaceColors>,
 
     pub background: [f32; 3],
     pub outline: [f32; 3],
@@ -257,7 +244,7 @@ impl Default for ColorsConfig {
         Self {
             opacity: 1.0,
 
-            stickers: PerPuzzle::<StickerColors>::default(),
+            faces: PerPuzzle::default(),
 
             background: colors::DEFAULT_BACKGROUND,
             outline: colors::DEFAULT_OUTLINE,
@@ -268,47 +255,96 @@ impl Default for ColorsConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct StickerColors(pub Vec<[f32; 3]>);
-impl std::ops::Index<usize> for StickerColors {
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct FaceColors(pub Vec<[f32; 3]>);
+impl std::ops::Index<usize> for FaceColors {
     type Output = [f32; 3];
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
     }
 }
-impl std::ops::IndexMut<usize> for StickerColors {
+impl std::ops::IndexMut<usize> for FaceColors {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.0[index]
     }
 }
-impl PerPuzzleDefault for StickerColors {
-    fn default(puz_type: PuzzleType) -> Self {
-        Self(puz_type.default_face_colors().to_vec())
+impl DeserializePerPuzzle<'_> for FaceColors {
+    type Proxy = Self;
+
+    fn deserialize_from(mut face_colors: Self, ty: PuzzleType) -> Self {
+        face_colors.0.resize(ty.faces().len(), colors::GRAY);
+        face_colors
     }
-    fn validate(&mut self, puz_type: PuzzleType) {
-        self.0
-            .resize(puz_type.face_names().len(), Default::default());
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct Keybind {
+    pub key: Option<Key>,
+
+    pub ctrl: bool,
+    pub shift: bool,
+    pub alt: bool,
+    pub logo: bool,
+
+    pub command: Command,
+}
+impl Serialize for Keybind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        KeybindSerde::from(self).serialize(serializer)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
-pub struct Keybind {
-    #[serde(default, flatten, skip_serializing_if = "Option::is_none")]
+pub struct KeybindSerde<'a> {
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub key: Option<Key>,
 
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false")]
     pub ctrl: bool,
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false")]
     pub shift: bool,
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false")]
     pub alt: bool,
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false")]
     pub logo: bool,
 
-    #[serde(default)]
-    pub command: Command,
+    #[serde(borrow)]
+    pub command: CommandSerde<'a>,
+}
+impl<'a> From<&'a Keybind> for KeybindSerde<'_> {
+    fn from(keybind: &'a Keybind) -> Self {
+        KeybindSerde {
+            key: keybind.key,
+
+            ctrl: keybind.ctrl,
+            shift: keybind.shift,
+            alt: keybind.alt,
+            logo: keybind.logo,
+
+            command: (&keybind.command).into(),
+        }
+    }
+}
+impl<'de> DeserializePerPuzzle<'de> for Keybind {
+    type Proxy = KeybindSerde<'de>;
+
+    fn deserialize_from(keybind: KeybindSerde<'de>, ty: PuzzleType) -> Self {
+        Self {
+            key: keybind.key,
+
+            ctrl: keybind.ctrl,
+            shift: keybind.shift,
+            alt: keybind.alt,
+            logo: keybind.logo,
+
+            command: Command::deserialize_from(keybind.command, ty),
+        }
+    }
 }
 impl fmt::Display for Keybind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -377,6 +413,7 @@ impl Keybind {
         }
     }
 }
+
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum Key {
@@ -427,45 +464,57 @@ impl Key {
     }
 }
 
-fn default_keybinds() -> PerPuzzle<Vec<Keybind>> {
-    serde_yaml::from_str(include_str!("../resources/default_keybinds.yaml")).unwrap_or_else(|e| {
-        eprintln!("Unable to load default keybinds: {}", e);
-        Default::default()
-    })
-}
-
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
+#[serde(transparent)]
 pub struct PerPuzzle<T>(HashMap<PuzzleType, T>);
-impl<T: Serialize> Serialize for PerPuzzle<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.0.serialize(serializer)
-    }
-}
-impl<'de, T: Deserialize<'de> + PerPuzzleDefault> Deserialize<'de> for PerPuzzle<T> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let mut ret = HashMap::deserialize(deserializer).unwrap_or_default();
-        for &puz_type in PuzzleType::ALL {
-            ret.entry(puz_type)
-                .or_insert_with(|| T::default(puz_type))
-                .validate(puz_type);
-        }
-        Ok(Self(ret))
-    }
-}
-impl<T: PerPuzzleDefault> Default for PerPuzzle<T> {
+impl<'de, T: DeserializePerPuzzle<'de>> Default for PerPuzzle<T>
+where
+    T::Proxy: Default,
+{
     fn default() -> Self {
         Self(
             PuzzleType::ALL
                 .iter()
-                .map(|&puz_type| (puz_type, T::default(puz_type)))
+                .map(|&puzzle_type| {
+                    let default = T::deserialize_from(T::Proxy::default(), puzzle_type);
+                    (puzzle_type, default)
+                })
                 .collect(),
         )
+    }
+}
+impl<'de, T: DeserializePerPuzzle<'de>> Deserialize<'de> for PerPuzzle<T>
+where
+    Self: Default,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Visitor<T>(PhantomData<T>);
+        impl<'de, T: DeserializePerPuzzle<'de>> de::Visitor<'de> for Visitor<T>
+        where
+            PerPuzzle<T>: Default,
+        {
+            type Value = PerPuzzle<T>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a map containing a value per puzzle type")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                let mut ret = PerPuzzle::default();
+                while let Some(puzzle_type) = map.next_key()? {
+                    ret[puzzle_type] = T::deserialize_from(map.next_value()?, puzzle_type);
+                }
+                Ok(ret)
+            }
+        }
+
+        deserializer.deserialize_map(Visitor(PhantomData))
     }
 }
 impl<T> std::ops::Index<PuzzleType> for PerPuzzle<T> {
@@ -480,20 +529,22 @@ impl<T> std::ops::IndexMut<PuzzleType> for PerPuzzle<T> {
         self.0.get_mut(&puz_type).unwrap()
     }
 }
-pub trait PerPuzzleDefault {
-    fn default(puz_type: PuzzleType) -> Self;
-    fn validate(&mut self, _puz_type: PuzzleType) {}
+
+pub trait DeserializePerPuzzle<'de> {
+    type Proxy: Deserialize<'de>;
+
+    fn deserialize_from(value: Self::Proxy, ty: PuzzleType) -> Self;
 }
-impl PerPuzzleDefault for Vec<Keybind> {
-    fn default(_puz_type: PuzzleType) -> Self {
-        vec![]
-    }
-    fn validate(&mut self, puz_type: PuzzleType) {
-        for keybind in &mut *self {
-            keybind.validate_keybind();
-            keybind.command.validate(puz_type);
-        }
-        self.retain(|keybind| keybind.key.is_some());
+
+impl<'de> DeserializePerPuzzle<'de> for Vec<Keybind> {
+    type Proxy = Vec<KeybindSerde<'de>>;
+
+    fn deserialize_from(value: Vec<KeybindSerde<'de>>, ty: PuzzleType) -> Self {
+        value
+            .into_iter()
+            .filter(|keybind| keybind.key.is_some())
+            .map(|keybind| Keybind::deserialize_from(keybind, ty))
+            .collect()
     }
 }
 

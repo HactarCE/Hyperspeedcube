@@ -72,7 +72,7 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
      */
     let stickers_vbo;
     {
-        let face_colors = &config.colors.stickers[puzzle.ty()];
+        let face_colors = &config.colors.faces[puzzle.ty()];
         // Each sticker has a `Vec<StickerVertex>` with all of its vertices and
         // a single f32 containing the average Z value.
         let mut verts_by_sticker: Vec<(Vec<WireframeVertex>, f32)> = vec![];

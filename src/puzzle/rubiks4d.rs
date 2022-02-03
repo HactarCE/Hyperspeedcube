@@ -6,7 +6,7 @@ use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 use std::str::FromStr;
 
-use super::{traits::*, FaceId, LayerMask, PuzzleType, Sign, TwistDirection};
+use super::{traits::*, LayerMask, PieceType, PuzzleType, Sign, TwistDirection2D};
 use crate::render::WireframeVertex;
 
 /// Maximum extent of any single coordinate along the X, Y, Z, or W axes.
@@ -18,16 +18,16 @@ pub mod twists {
 
     lazy_static! {
         /// Turn the whole cube 90 degrees up.
-        pub static ref X: Twist = by_3d_view(Face::I, Axis::X, TwistDirection::CW).whole_cube();
+        pub static ref X: Twist = by_3d_view(Face::I, Axis::X, TwistDirection2D::CW).whole_cube();
         /// Turn the whole cube 90 degrees to the left.
-        pub static ref Y: Twist = by_3d_view(Face::I, Axis::Y, TwistDirection::CW).whole_cube();
+        pub static ref Y: Twist = by_3d_view(Face::I, Axis::Y, TwistDirection2D::CW).whole_cube();
         /// Turn the whole cube 90 degrees clockwise.
-        pub static ref Z: Twist = by_3d_view(Face::I, Axis::Z, TwistDirection::CW).whole_cube();
+        pub static ref Z: Twist = by_3d_view(Face::I, Axis::Z, TwistDirection2D::CW).whole_cube();
 
     }
 
     /// Constructs a twist of `face` along `axis`
-    pub fn by_3d_view(face: Face, axis: Axis, direction: TwistDirection) -> Twist {
+    pub fn by_3d_view(face: Face, axis: Axis, direction: TwistDirection2D) -> Twist {
         let mut sticker = face.center_sticker();
         if face.axis() == axis {
             sticker.piece[Axis::W] = face.sign();
@@ -171,8 +171,11 @@ impl FacetTrait for Piece {
     }
 }
 impl PieceTrait<Rubiks4D> for Piece {
-    fn piece_type_id(self) -> usize {
-        self.sticker_count() - 1
+    fn piece_type(self) -> PieceType {
+        PieceType {
+            ty: Rubiks4D::TYPE,
+            id: self.sticker_count() - 1,
+        }
     }
 
     fn layer(self, face: Face) -> Option<usize> {
@@ -541,7 +544,7 @@ pub struct Twist {
     /// Sticker to twist around.
     pub sticker: Sticker,
     /// Direction to twist the face.
-    pub direction: TwistDirection,
+    pub direction: TwistDirection2D,
     /// Layer mask.
     pub layers: [bool; 3],
 }
@@ -565,8 +568,8 @@ impl FromStr for Twist {
 
         let sticker = Sticker::from_id(sticker_id).ok_or(())?;
         let direction = match direction {
-            -1 => TwistDirection::CW,
-            1 => TwistDirection::CCW,
+            -1 => TwistDirection2D::CW,
+            1 => TwistDirection2D::CCW,
             _ => return Err(()),
         };
         let layers = [
@@ -584,18 +587,17 @@ impl FromStr for Twist {
 }
 impl TwistTrait<Rubiks4D> for Twist {
     fn from_twist_command(
-        face_id: FaceId,
+        face: Face,
         direction: &str,
         layer_mask: LayerMask,
     ) -> Result<Twist, &'static str> {
-        let face = Face::from_id(face_id.0 as usize).ok_or("invalid face")?;
         let (axis, direction) = match direction {
-            "x" => (Axis::X, TwistDirection::CW),
-            "x'" => (Axis::X, TwistDirection::CCW),
-            "y" => (Axis::Y, TwistDirection::CW),
-            "y'" => (Axis::Y, TwistDirection::CCW),
-            "z" => (Axis::Z, TwistDirection::CW),
-            "z'" => (Axis::Z, TwistDirection::CCW),
+            "x" => (Axis::X, TwistDirection2D::CW),
+            "x'" => (Axis::X, TwistDirection2D::CCW),
+            "y" => (Axis::Y, TwistDirection2D::CW),
+            "y'" => (Axis::Y, TwistDirection2D::CCW),
+            "z" => (Axis::Z, TwistDirection2D::CW),
+            "z'" => (Axis::Z, TwistDirection2D::CCW),
             _ => return Err("invalid direction"),
         };
         if layer_mask.0 > 0b111 {
@@ -608,8 +610,7 @@ impl TwistTrait<Rubiks4D> for Twist {
         ];
         Ok(twists::by_3d_view(face, axis, direction).layers(layers))
     }
-    fn from_recenter_command(face_id: FaceId) -> Result<Twist, &'static str> {
-        let face = Face::from_id(face_id.0 as usize).ok_or("invalid face")?;
+    fn from_recenter_command(face: Face) -> Result<Twist, &'static str> {
         if face.axis() == Axis::W {
             return Err("cannot recenter near or far face");
         }
@@ -621,7 +622,7 @@ impl TwistTrait<Rubiks4D> for Twist {
             Axis::Z => Sign::Pos,
             Axis::W => return Err("cannot recenter near or far face"),
         };
-        Ok(Twist::new(sticker, TwistDirection::CW).whole_cube())
+        Ok(Twist::new(sticker, TwistDirection2D::CW).whole_cube())
     }
 
     fn model_matrix(self, t: f32) -> Matrix4<f32> {
@@ -666,8 +667,8 @@ impl TwistTrait<Rubiks4D> for Twist {
 
         // Reverse orientation if counterclockwise.
         match self.direction {
-            TwistDirection::CW => rot,
-            TwistDirection::CCW => rot.rev(),
+            TwistDirection2D::CW => rot,
+            TwistDirection2D::CCW => rot.rev(),
         }
     }
     fn rev(self) -> Self {
@@ -690,7 +691,7 @@ impl From<Sticker> for Twist {
     fn from(sticker: Sticker) -> Self {
         Self {
             sticker,
-            direction: TwistDirection::default(),
+            direction: TwistDirection2D::default(),
             layers: [true, false, false],
         }
     }
@@ -713,7 +714,7 @@ impl Twist {
     }
     /// Returns a twist of the face from the given sticker and in the given
     /// direction.
-    pub const fn new(sticker: Sticker, direction: TwistDirection) -> Self {
+    pub const fn new(sticker: Sticker, direction: TwistDirection2D) -> Self {
         Self {
             sticker,
             direction,
@@ -901,7 +902,7 @@ mod tests {
     fn test_4d_twist_serialization() {
         for &sticker in Rubiks4D::stickers() {
             for layer_mask in 0..8 {
-                for direction in [TwistDirection::CCW, TwistDirection::CW] {
+                for direction in [TwistDirection2D::CCW, TwistDirection2D::CW] {
                     let twist = Twist {
                         sticker,
                         direction,

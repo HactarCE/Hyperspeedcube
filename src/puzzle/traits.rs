@@ -6,7 +6,7 @@ use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
 use std::time::Duration;
 
-use super::{Face, FaceId, LayerMask, Piece, PuzzleType, Sticker};
+use super::{Face, LayerMask, Piece, PieceType, PuzzleType, Sticker};
 use crate::render::WireframeVertex;
 
 macro_rules! lazy_static_array_methods {
@@ -246,12 +246,8 @@ macro_rules! impl_facet_trait_id_methods {
 pub trait PieceTrait<P: PuzzleState>:
     FacetTrait + Into<P::Piece> + From<P::Piece> + Into<Piece>
 {
-    /// Returns the piece type ID.
-    fn piece_type_id(self) -> usize;
-    /// Returns the name of the piece type.
-    fn piece_type_name(self) -> &'static str {
-        P::PIECE_TYPE_NAMES[self.piece_type_id()]
-    }
+    /// Returns the piece type of the piece.
+    fn piece_type(self) -> PieceType;
 
     /// Returns the layer of this piece, relative to a face (or `None` if this
     /// does not make sense for the puzzle).
@@ -308,12 +304,12 @@ pub trait TwistTrait<P: PuzzleState>:
 {
     /// Constructs a new twist from a 'twist' command.
     fn from_twist_command(
-        face_id: FaceId,
+        face: P::Face,
         direction: &str,
         layers: LayerMask,
     ) -> Result<P::Twist, &'static str>;
     /// Constructs a twist from a 'recenter' command.
-    fn from_recenter_command(face_id: FaceId) -> Result<P::Twist, &'static str>;
+    fn from_recenter_command(face: P::Face) -> Result<P::Twist, &'static str>;
 
     /// Returns the matrix to apply to pieces affected by this twist, given a
     /// time parameter `t` from 0.0 to 1.0. `t=0.0` gives the identity matrix,

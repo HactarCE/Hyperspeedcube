@@ -4,7 +4,7 @@ use cgmath::{Deg, Matrix4, Vector3, Zero};
 use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
-use super::{traits::*, FaceId, LayerMask, PuzzleType, Sign, TwistDirection};
+use super::{traits::*, LayerMask, PieceType, PuzzleType, Sign, TwistDirection2D};
 use crate::render::WireframeVertex;
 
 /// Maximum extent of any single coordinate along the X, Y, or Z axes.
@@ -15,17 +15,17 @@ pub mod twists {
     use super::*;
 
     /// Turn the right face clockwise 90 degrees.
-    pub const R: Twist = Twist::new(Face::R, TwistDirection::CW);
+    pub const R: Twist = Twist::new(Face::R, TwistDirection2D::CW);
     /// Turn the left face clockwise 90 degrees.
-    pub const L: Twist = Twist::new(Face::L, TwistDirection::CW);
+    pub const L: Twist = Twist::new(Face::L, TwistDirection2D::CW);
     /// Turn the top face clockwise 90 degrees.
-    pub const U: Twist = Twist::new(Face::U, TwistDirection::CW);
+    pub const U: Twist = Twist::new(Face::U, TwistDirection2D::CW);
     /// Turn the bottom face clockwise 90 degrees.
-    pub const D: Twist = Twist::new(Face::D, TwistDirection::CW);
+    pub const D: Twist = Twist::new(Face::D, TwistDirection2D::CW);
     /// Turn the front face clockwise 90 degrees.
-    pub const F: Twist = Twist::new(Face::F, TwistDirection::CW);
+    pub const F: Twist = Twist::new(Face::F, TwistDirection2D::CW);
     /// Turn the back face clockwise 90 degrees.
-    pub const B: Twist = Twist::new(Face::B, TwistDirection::CW);
+    pub const B: Twist = Twist::new(Face::B, TwistDirection2D::CW);
 
     /// Turn the middle layer down 90 degrees.
     pub const M: Twist = L.slice();
@@ -146,8 +146,11 @@ impl FacetTrait for Piece {
     }
 }
 impl PieceTrait<Rubiks3D> for Piece {
-    fn piece_type_id(self) -> usize {
-        self.sticker_count() - 1
+    fn piece_type(self) -> PieceType {
+        PieceType {
+            ty: Rubiks3D::TYPE,
+            id: self.sticker_count() - 1,
+        }
     }
 
     fn layer(self, face: Face) -> Option<usize> {
@@ -419,7 +422,7 @@ pub struct Twist {
     /// Face to twist.
     pub face: Face,
     /// Direction to twist the face.
-    pub direction: TwistDirection,
+    pub direction: TwistDirection2D,
     /// Layer mask.
     pub layers: [bool; 3],
 }
@@ -453,14 +456,13 @@ impl fmt::Display for Twist {
 }
 impl TwistTrait<Rubiks3D> for Twist {
     fn from_twist_command(
-        face_id: FaceId,
+        face: Face,
         direction: &str,
         layer_mask: LayerMask,
     ) -> Result<Self, &'static str> {
-        let face = Face::from_id(face_id.0 as usize).ok_or("invalid face")?;
         let direction = match direction {
-            "CW" => TwistDirection::CW,
-            "CCW" => TwistDirection::CCW,
+            "CW" => TwistDirection2D::CW,
+            "CCW" => TwistDirection2D::CCW,
             _ => return Err("invalid direction"),
         };
         if layer_mask.0 > 0b111 {
@@ -473,8 +475,7 @@ impl TwistTrait<Rubiks3D> for Twist {
         ];
         Ok(Self::new(face, direction).layers(layers))
     }
-    fn from_recenter_command(face_id: FaceId) -> Result<Twist, &'static str> {
-        let face = Face::from_id(face_id.0 as usize).ok_or("invalid face")?;
+    fn from_recenter_command(face: Face) -> Result<Twist, &'static str> {
         match face {
             Face::R => Ok(twists::Y),
             Face::L => Ok(twists::Y.rev()),
@@ -499,8 +500,8 @@ impl TwistTrait<Rubiks3D> for Twist {
         let rot = Orientation::rot90(ax1, ax2);
         // Reverse orientation if counterclockwise.
         match self.direction {
-            TwistDirection::CW => rot,
-            TwistDirection::CCW => rot.rev(),
+            TwistDirection2D::CW => rot,
+            TwistDirection2D::CCW => rot.rev(),
         }
     }
     fn rev(self) -> Self {
@@ -520,13 +521,13 @@ impl TwistTrait<Rubiks3D> for Twist {
 }
 impl From<Sticker> for Twist {
     fn from(sticker: Sticker) -> Self {
-        Self::new(sticker.face(), TwistDirection::CW)
+        Self::new(sticker.face(), TwistDirection2D::CW)
     }
 }
 impl Twist {
     /// Returns a twist of the face with the given axis and sign in the given
     /// direction.
-    pub const fn new(face: Face, direction: TwistDirection) -> Self {
+    pub const fn new(face: Face, direction: TwistDirection2D) -> Self {
         Self {
             face,
             direction,

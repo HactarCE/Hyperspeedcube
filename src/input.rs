@@ -6,7 +6,8 @@ use std::collections::HashMap;
 
 use crate::config::Key;
 use crate::puzzle::{
-    traits::*, Command, FaceId, LayerMask, PieceTypeId, Puzzle, PuzzleController, PuzzleType,
+    traits::*, Command, Face, LayerMask, Puzzle, PuzzleController, PuzzleType, SelectCategory,
+    SelectThing,
 };
 
 const SHIFT: ModifiersState = ModifiersState::SHIFT;
@@ -114,30 +115,17 @@ impl FrameInProgress<'_> {
                         layers,
                         direction,
                     } => {
-                        if let Some(face) = face
-                            .as_deref()
-                            .or_else(|| selection.exactly_one_face_name(puzzle_type))
+                        if let Some(face) = face.or_else(|| selection.exactly_one_face(puzzle_type))
                         {
-                            let layers = selection.layers_mask_or_default(layers.0);
-                            if let Err(e) = self.puzzle.twist_from_command(
-                                FaceId(
-                                    self.puzzle
-                                        .face_names()
-                                        .iter()
-                                        .position(|&s| s == face)
-                                        .unwrap() as u32,
-                                ),
-                                LayerMask(layers),
-                                direction,
-                            ) {
+                            let layers = selection.layers_mask_or_default(*layers);
+                            if let Err(e) = self.puzzle.twist_from_command(face, layers, *direction)
+                            {
                                 // TODO handle error
                             }
                         }
                     }
                     Command::Recenter { face } => {
-                        if let Some(face) = face
-                            .as_deref()
-                            .or_else(|| selection.exactly_one_face_name(puzzle_type))
+                        if let Some(face) = face.or_else(|| selection.exactly_one_face(puzzle_type))
                         {
                             if let Err(e) = self.puzzle.recenter_from_command(face) {
                                 // TODO handle error
@@ -145,41 +133,24 @@ impl FrameInProgress<'_> {
                         }
                     }
 
-                    Command::HoldSelectFace(face) => {
+                    Command::HoldSelect(thing) => {
                         self.state
                             .held_selections
-                            .insert(bind_key, Selection::from_face(puzzle_type, face));
+                            .insert(bind_key, Selection::from(*thing));
                     }
-                    Command::HoldSelectLayers(layers) => {
-                        self.state
-                            .held_selections
-                            .insert(bind_key, Selection::from_layers(*layers));
+                    Command::ToggleSelect(thing) => {
+                        self.state.toggle_selections ^= Selection::from(*thing);
                     }
-                    Command::HoldSelectPieceType(piece_type) => {
-                        self.state
-                            .held_selections
-                            .insert(bind_key, Selection::from_piece_type(*piece_type));
-                    }
-                    Command::ToggleSelectFace(face) => {
-                        self.state.toggle_selections ^= Selection::from_face(puzzle_type, face);
-                    }
-                    Command::ToggleSelectLayers(layers) => {
-                        self.state.toggle_selections ^= Selection::from_layers(*layers);
-                    }
-                    Command::ToggleSelectPieceType(piece_type) => {
-                        self.state.toggle_selections ^= Selection::from_piece_type(*piece_type);
-                    }
-                    Command::ClearToggleSelectFaces => {
-                        let default = Selection::default().faces_mask;
-                        self.state.toggle_selections.faces_mask = default;
-                    }
-                    Command::ClearToggleSelectLayers => {
-                        let default = Selection::default().layers_mask;
-                        self.state.toggle_selections.layers_mask = default;
-                    }
-                    Command::ClearToggleSelectPieceType => {
-                        let default = Selection::default().piece_types_mask;
-                        self.state.toggle_selections.piece_types_mask = default;
+                    Command::ClearToggleSelect(category) => {
+                        let default = Selection::default();
+                        let tog_sel = &mut self.state.toggle_selections;
+
+                        use SelectCategory::*;
+                        match category {
+                            Face => tog_sel.faces_mask = default.faces_mask,
+                            Layers => tog_sel.layers_mask = default.layers_mask,
+                            PieceType => tog_sel.piece_types_mask = default.piece_types_mask,
+                        }
                     }
 
                     Command::None => break, // Do not try to match other keybinds.
@@ -331,48 +302,33 @@ impl std::ops::BitXorAssign for Selection {
         self.piece_types_mask ^= rhs.piece_types_mask;
     }
 }
-impl Selection {
-    fn from_face(puzzle_type: PuzzleType, face_name: &str) -> Self {
-        let face_id = puzzle_type
-            .face_names()
-            .iter()
-            .position(|&s| s == face_name);
-        let faces_mask = match face_id {
-            Some(i) => 1 << i,
-            None => 0,
+impl From<SelectThing> for Selection {
+    fn from(thing: SelectThing) -> Self {
+        let mut ret = Self {
+            faces_mask: 0,
+            layers_mask: 0,
+            piece_types_mask: 0,
         };
-        Self {
-            faces_mask,
-            layers_mask: 0,
-            piece_types_mask: 0,
+        match thing {
+            SelectThing::Face(face) => ret.faces_mask = 1 << face.id(),
+            SelectThing::Layers(layers) => ret.layers_mask = layers.0,
+            SelectThing::PieceType(piece_type) => ret.piece_types_mask = 1 << piece_type.id(),
         }
+        ret
     }
-    fn from_layers(layers: LayerMask) -> Self {
-        Self {
-            faces_mask: 0,
-            layers_mask: layers.0,
-            piece_types_mask: 0,
-        }
-    }
-    fn from_piece_type(piece_type: PieceTypeId) -> Self {
-        Self {
-            faces_mask: 0,
-            layers_mask: 0,
-            piece_types_mask: 1 << piece_type.0,
-        }
-    }
-
-    fn exactly_one_face_name(&self, puzzle_type: PuzzleType) -> Option<&'static str> {
+}
+impl Selection {
+    fn exactly_one_face(&self, puzzle_type: PuzzleType) -> Option<Face> {
         if self.faces_mask.count_ones() == 1 {
             let face_id = self.faces_mask.trailing_zeros() as usize; // index of first `1` bit
-            puzzle_type.face_names().get(face_id).copied()
+            puzzle_type.faces().get(face_id).copied()
         } else {
             None
         }
     }
-    fn layers_mask_or_default(self, default: u32) -> u32 {
+    fn layers_mask_or_default(self, default: LayerMask) -> LayerMask {
         if self.layers_mask != 0 {
-            self.layers_mask
+            LayerMask(self.layers_mask)
         } else {
             default
         }
@@ -540,20 +496,20 @@ fn update_puzzle_display<P: PuzzleState>(cube: &mut PuzzleController<P>, selecti
         .filter_map(P::Face::from_id)
         .collect_vec();
 
-    let selected_layers_mask = selection.layers_mask_or_default(1);
+    let selected_layers_mask = selection.layers_mask_or_default(LayerMask::default());
 
     cube.highlight_filter = Box::new(move |sticker| {
         let piece = sticker.piece();
 
         // Filter by piece type.
-        if selected_piece_types_mask & (1 << piece.piece_type_id()) == 0 {
+        if selected_piece_types_mask & (1 << piece.piece_type().id()) == 0 {
             return false;
         }
 
         // Filter by face and layer.
         for &face in &selected_faces {
             if let Some(layer) = piece.layer(face) {
-                if selected_layers_mask & (1 << layer) != 0 {
+                if selected_layers_mask.0 & (1 << layer) != 0 {
                     continue;
                 }
             }

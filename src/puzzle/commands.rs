@@ -1,36 +1,110 @@
 //! Commands to select and manipulate parts of the puzzle.
 
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
-use super::{traits::*, PuzzleType};
+use super::{traits::*, Face, LayerMask, PieceType, PuzzleType, TwistDirection};
+use crate::config::DeserializePerPuzzle;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SelectThing {
+    Face(Face),
+    Layers(LayerMask),
+    PieceType(PieceType),
+}
+impl SelectThing {
+    fn category(self) -> SelectCategory {
+        match self {
+            Self::Face(_) => SelectCategory::Face,
+            Self::Layers(_) => SelectCategory::Layers,
+            Self::PieceType(_) => SelectCategory::PieceType,
+        }
+    }
+    pub(crate) fn default(category: SelectCategory, ty: PuzzleType) -> Self {
+        match category {
+            SelectCategory::Face => Self::Face(ty.faces()[0]),
+            SelectCategory::Layers => Self::Layers(LayerMask(1)),
+            SelectCategory::PieceType => Self::PieceType(PieceType::default(ty)),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
+pub enum SelectThingSerde<'a> {
+    Face(Cow<'a, str>),
+    Layers(u32),
+    PieceType(Cow<'a, str>),
+}
+impl From<SelectThing> for SelectThingSerde<'_> {
+    fn from(thing: SelectThing) -> Self {
+        match thing {
+            SelectThing::Face(face) => Self::Face(face.name().into()),
+            SelectThing::Layers(layers) => Self::Layers(layers.0),
+            SelectThing::PieceType(piece_type) => Self::PieceType(piece_type.name().into()),
+        }
+    }
+}
+impl<'de> DeserializePerPuzzle<'de> for SelectThing {
+    type Proxy = SelectThingSerde<'de>;
+
+    fn deserialize_from(thing: SelectThingSerde<'de>, ty: PuzzleType) -> Self {
+        let layer_mask = (1 << ty.layer_count()) - 1;
+        match thing {
+            SelectThingSerde::Face(face) => Self::Face(Face::from_name(ty, &face)),
+            SelectThingSerde::Layers(layers) => Self::Layers(LayerMask(layers & layer_mask)),
+            SelectThingSerde::PieceType(piece_type) => {
+                Self::PieceType(PieceType::from_name(ty, &piece_type))
+            }
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Display, EnumIter, Copy, Clone, PartialEq, Eq)]
+pub enum SelectCategory {
+    Face,
+    Layers,
+    #[strum(serialize = "Piece type")]
+    PieceType,
+}
+impl Default for SelectCategory {
+    fn default() -> Self {
+        Self::Face
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SelectHow {
+    Hold,
+    Toggle,
+    Clear,
+}
+
+#[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub enum Command {
     Twist {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        face: Option<String>,
+        face: Option<Face>,
         layers: LayerMask,
-        direction: String,
+        direction: TwistDirection,
     },
     Recenter {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        face: Option<String>,
+        face: Option<Face>,
     },
 
-    HoldSelectFace(String),
-    HoldSelectLayers(LayerMask),
-    HoldSelectPieceType(PieceTypeId),
-    ToggleSelectFace(String),
-    ToggleSelectLayers(LayerMask),
-    ToggleSelectPieceType(PieceTypeId),
-    ClearToggleSelectFaces,
-    ClearToggleSelectLayers,
-    ClearToggleSelectPieceType,
+    HoldSelect(SelectThing),
+    ToggleSelect(SelectThing),
+    ClearToggleSelect(SelectCategory),
 
-    #[serde(other)]
     None,
+}
+impl Serialize for Command {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        CommandSerde::from(self).serialize(serializer)
+    }
 }
 impl Default for Command {
     fn default() -> Self {
@@ -38,73 +112,111 @@ impl Default for Command {
     }
 }
 impl Command {
-    /// Checks that the command is valid, and modifies it to make it valid if it
-    /// is not.
-    pub fn validate(&mut self, puz_type: PuzzleType) {
-        let mut f = None;
-        let mut l = None;
-        let mut d = None;
-        let mut p = None;
-
+    pub(crate) fn get_select_category(&self) -> SelectCategory {
         match self {
+            Command::HoldSelect(thing) | Command::ToggleSelect(thing) => thing.category(),
+            Command::ClearToggleSelect(category) => *category,
+            _ => SelectCategory::default(),
+        }
+    }
+    pub(crate) fn get_select_thing(&self, ty: PuzzleType) -> SelectThing {
+        match self {
+            Command::HoldSelect(thing) | Command::ToggleSelect(thing) => *thing,
+            Command::ClearToggleSelect(category) => SelectThing::default(*category, ty),
+            _ => SelectThing::Face(ty.faces()[0]),
+        }
+    }
+    pub(crate) fn get_select_how(&self) -> Option<SelectHow> {
+        match self {
+            Command::HoldSelect(_) => Some(SelectHow::Hold),
+            Command::ToggleSelect(_) => Some(SelectHow::Toggle),
+            Command::ClearToggleSelect(_) => Some(SelectHow::Clear),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum CommandSerde<'a> {
+    Twist {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        face: Option<Cow<'a, str>>,
+        layers: u32,
+        direction: Cow<'a, str>,
+    },
+    Recenter {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        face: Option<Cow<'a, str>>,
+    },
+
+    HoldSelect(SelectThingSerde<'a>),
+    ToggleSelect(SelectThingSerde<'a>),
+    ClearToggleSelect(SelectCategory),
+
+    #[serde(other)]
+    None,
+}
+impl Default for CommandSerde<'_> {
+    fn default() -> Self {
+        Self::None
+    }
+}
+impl<'a> From<&'a Command> for CommandSerde<'_> {
+    fn from(command: &'a Command) -> Self {
+        match command {
             Command::Twist {
                 face,
                 layers,
                 direction,
-            } => {
-                f = face.as_mut();
-                l = Some(layers);
-                d = Some(direction);
-            }
-            Command::Recenter { face } => f = face.as_mut(),
+            } => Self::Twist {
+                face: face.map(|f| f.name().into()),
+                layers: layers.0,
+                direction: direction.name().into(),
+            },
+            Command::Recenter { face } => Self::Recenter {
+                face: face.map(|f| f.name().into()),
+            },
 
-            Command::HoldSelectFace(face) => f = Some(face),
-            Command::HoldSelectLayers(layers) => l = Some(layers),
-            Command::HoldSelectPieceType(pieces) => p = Some(pieces),
-            Command::ToggleSelectFace(face) => f = Some(face),
-            Command::ToggleSelectLayers(layers) => l = Some(layers),
-            Command::ToggleSelectPieceType(pieces) => p = Some(pieces),
+            Command::HoldSelect(thing) => Self::HoldSelect((*thing).into()),
+            Command::ToggleSelect(thing) => Self::ToggleSelect((*thing).into()),
+            Command::ClearToggleSelect(category) => Self::ClearToggleSelect(*category),
 
-            _ => (),
-        }
-
-        if let Some(f) = f {
-            if !puz_type.face_names().contains(&f.as_str()) {
-                *f = puz_type.face_names()[0].to_owned();
-            }
-        }
-        if let Some(d) = d {
-            if !puz_type.twist_direction_names().contains(&d.as_str()) {
-                *d = puz_type.twist_direction_names()[0].to_owned();
-            }
-        }
-        if let Some(l) = l {
-            l.0 &= (1 << puz_type.layer_count()) - 1;
-        }
-        if let Some(p) = p {
-            p.0 &= (1 << puz_type.piece_type_names().len()) - 1;
+            Command::None => Self::None,
         }
     }
 }
+impl<'de> DeserializePerPuzzle<'de> for Command {
+    type Proxy = CommandSerde<'de>;
 
-/// ID of a face, for use in a keybind.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct FaceId(pub u32);
+    /// Checks that the command is valid, and modifies it to make it valid if it
+    /// is not.
+    fn deserialize_from(command: CommandSerde<'de>, ty: PuzzleType) -> Command {
+        let layer_mask = (1 << ty.layer_count()) - 1;
 
-/// Layer mask, for use in a keybind.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct LayerMask(pub u32);
-impl Default for LayerMask {
-    fn default() -> Self {
-        Self(1)
-    }
-}
+        match command {
+            CommandSerde::Twist {
+                face,
+                layers,
+                direction,
+            } => Self::Twist {
+                face: face.map(|f| Face::from_name(ty, &f)),
+                layers: LayerMask(layers & layer_mask),
+                direction: TwistDirection::from_name(ty, &direction),
+            },
+            CommandSerde::Recenter { face } => Self::Recenter {
+                face: face.map(|f| Face::from_name(ty, &f)),
+            },
 
-/// Piece type mask, for use in a keybind.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct PieceTypeId(pub u32);
-impl Default for PieceTypeId {
-    fn default() -> Self {
-        Self(u32::MAX)
+            CommandSerde::HoldSelect(thing) => {
+                Self::HoldSelect(SelectThing::deserialize_from(thing, ty))
+            }
+            CommandSerde::ToggleSelect(thing) => {
+                Self::ToggleSelect(SelectThing::deserialize_from(thing, ty))
+            }
+            CommandSerde::ClearToggleSelect(category) => Self::ClearToggleSelect(category),
+
+            CommandSerde::None => Self::None,
+        }
     }
 }

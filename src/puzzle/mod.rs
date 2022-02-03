@@ -15,7 +15,7 @@ pub mod rubiks4d;
 pub mod rubiks4d_logfile;
 pub mod sign;
 
-pub use commands::{Command, FaceId, LayerMask, PieceTypeId};
+pub use commands::*;
 pub use controller::{PuzzleController, ScrambleState};
 pub use generic::*;
 pub use rubiks3d::Rubiks3D;
@@ -26,26 +26,26 @@ pub use types::PuzzleType;
 
 /// A rotation direction; clockwise or counterclockwise.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum TwistDirection {
+pub enum TwistDirection2D {
     /// Clockwise.
     CW,
     /// Counterclockwise.
     CCW,
 }
-impl Default for TwistDirection {
+impl Default for TwistDirection2D {
     fn default() -> Self {
         Self::CW
     }
 }
-impl fmt::Display for TwistDirection {
+impl fmt::Display for TwistDirection2D {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TwistDirection::CW => Ok(()),
-            TwistDirection::CCW => write!(f, "'"),
+            TwistDirection2D::CW => Ok(()),
+            TwistDirection2D::CCW => write!(f, "'"),
         }
     }
 }
-impl TwistDirection {
+impl TwistDirection2D {
     /// Returns the reverse direction.
     #[must_use]
     pub fn rev(self) -> Self {
@@ -64,8 +64,8 @@ impl TwistDirection {
         }
     }
 }
-impl From<TwistDirection> for Sign {
-    fn from(direction: TwistDirection) -> Self {
+impl From<TwistDirection2D> for Sign {
+    fn from(direction: TwistDirection2D) -> Self {
         direction.sign()
     }
 }

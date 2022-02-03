@@ -1,11 +1,13 @@
-//! See https://serde.rs/remote-derive.html for an explanation of what's going
-//! on here.
+//! Manual Serde implementations and other ser/deser infrastructure.
 
 use key_names::KeyMappingCode;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 
 /// Taken from docs here:
 /// https://docs.rs/keycode/0.3.0/keycode/enum.KeyMappingCode.html
+///
+/// See https://serde.rs/remote-derive.html for an explanation of what's going
+/// on here.
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "KeyMappingCode")]
 pub enum KeyMappingCodeSerde {

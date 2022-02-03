@@ -16,6 +16,8 @@ extern crate enum_dispatch;
 extern crate glium;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate strum;
 
 use glium::glutin::{
     event::{Event, StartCause, WindowEvent},

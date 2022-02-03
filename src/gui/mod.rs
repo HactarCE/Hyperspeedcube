@@ -3,12 +3,16 @@ use imgui::*;
 use itertools::Itertools;
 use std::path::Path;
 use std::sync::Mutex;
+use strum::IntoEnumIterator;
 
 mod popups;
 mod util;
 
 use crate::config::{Keybind, Msaa};
-use crate::puzzle::{traits::*, Command, LayerMask, PieceTypeId, Puzzle, PuzzleType};
+use crate::puzzle::{
+    traits::*, Command, LayerMask, PieceType, Puzzle, PuzzleType, SelectCategory, SelectHow,
+    SelectThing, TwistDirection,
+};
 pub use popups::keybind_popup_handle_event;
 
 pub struct AppState<'a> {
@@ -233,7 +237,7 @@ pub fn build(app: &mut AppState) {
 
                 // Sticker colors
                 let puzzle_type = app.puzzle.ty();
-                let sticker_colors = &mut config.colors.stickers[puzzle_type].0;
+                let sticker_colors = &mut config.colors.faces[puzzle_type].0;
                 for (face_name, color) in puzzle_type.face_names().iter().zip(sticker_colors) {
                     config.needs_save |= ColorEdit::new(face_name, color).build(ui);
                 }
@@ -432,145 +436,74 @@ fn build_command_select_ui(
 ) {
     use Command as Cmd;
 
-    let mut command_idx = match command {
-        Cmd::None => 0,
+    #[derive(Display, EnumIter, Copy, Clone, PartialEq, Eq)]
+    enum CmdType {
+        None,
+        Twist,
+        Recenter,
+        #[strum(serialize = "Select")]
+        HoldSelect,
+        #[strum(serialize = "Toggle select")]
+        ToggleSelect,
+        #[strum(serialize = "Clear selected")]
+        ClearToggleSelect,
+    }
 
-        Cmd::Twist { .. } => 1,
-        Cmd::Recenter { .. } => 2,
+    let mut cmd_type = match command {
+        Cmd::Twist { .. } => CmdType::Twist,
+        Cmd::Recenter { .. } => CmdType::Recenter,
 
-        Cmd::HoldSelectFace(_) | Cmd::HoldSelectLayers(_) | Cmd::HoldSelectPieceType(_) => 3,
-        Cmd::ToggleSelectFace(_) | Cmd::ToggleSelectLayers(_) | Cmd::ToggleSelectPieceType(_) => 4,
-        Cmd::ClearToggleSelectFaces
-        | Cmd::ClearToggleSelectLayers
-        | Cmd::ClearToggleSelectPieceType => 5,
+        Cmd::HoldSelect(_) => CmdType::HoldSelect,
+        Cmd::ToggleSelect(_) => CmdType::ToggleSelect,
+        Cmd::ClearToggleSelect(_) => CmdType::ClearToggleSelect,
+
+        Cmd::None => CmdType::None,
     };
-    let old_command_idx = command_idx;
+    let old_cmd_type = cmd_type;
 
-    let default_direction = puzzle_type.twist_direction_names()[0].to_owned();
-    let default_face = puzzle_type.face_names()[0].to_owned();
+    let default_thing = SelectThing::Face(puzzle_type.faces()[0]);
+    let default_direction = TwistDirection::default(puzzle_type);
 
-    if build_autosize_combo(
+    if build_select_combo_iter(
         ui,
         &format!("##command{}", i),
-        &mut command_idx,
-        &[
-            "None",
-            "Twist",
-            "Recenter",
-            "Select",
-            "Toggle select",
-            "Clear selected",
-        ],
-    ) && command_idx != old_command_idx
+        &mut cmd_type,
+        CmdType::iter(),
+    ) && cmd_type != old_cmd_type
     {
         *needs_save = true;
-        match command_idx {
-            0 => *command = Cmd::None,
+        *command = match cmd_type {
+            CmdType::None => Cmd::None,
 
-            1 => {
-                *command = Cmd::Twist {
-                    face: None,
-                    layers: LayerMask(1),
-                    direction: default_direction,
-                }
-            }
-            2 => *command = Cmd::Recenter { face: None },
+            CmdType::Twist => Cmd::Twist {
+                face: None,
+                layers: LayerMask(1),
+                direction: default_direction,
+            },
+            CmdType::Recenter => Cmd::Recenter { face: None },
 
-            3 => {
-                *command = match command {
-                    Cmd::ToggleSelectFace(f) => Cmd::HoldSelectFace(f.clone()),
-                    Cmd::ToggleSelectLayers(l) => Cmd::HoldSelectLayers(*l),
-                    Cmd::ToggleSelectPieceType(p) => Cmd::HoldSelectPieceType(*p),
-                    Cmd::ClearToggleSelectFaces => Cmd::HoldSelectFace(default_face.clone()),
-                    Cmd::ClearToggleSelectLayers => Cmd::HoldSelectLayers(LayerMask(1)),
-                    Cmd::ClearToggleSelectPieceType => Cmd::HoldSelectPieceType(PieceTypeId(0)),
-                    _ => Cmd::HoldSelectFace(default_face.clone()),
-                }
-            }
-            4 => {
-                *command = match command {
-                    Cmd::HoldSelectFace(f) => Cmd::ToggleSelectFace(f.clone()),
-                    Cmd::HoldSelectLayers(l) => Cmd::ToggleSelectLayers(*l),
-                    Cmd::HoldSelectPieceType(p) => Cmd::ToggleSelectPieceType(*p),
-                    Cmd::ClearToggleSelectFaces => Cmd::ToggleSelectFace(default_face.clone()),
-                    Cmd::ClearToggleSelectLayers => Cmd::ToggleSelectLayers(LayerMask(1)),
-                    Cmd::ClearToggleSelectPieceType => Cmd::ToggleSelectPieceType(PieceTypeId(0)),
-                    _ => Cmd::ToggleSelectFace(default_face.clone()),
-                }
-            }
-            5 => {
-                *command = match command {
-                    Cmd::HoldSelectFace(_) | Cmd::ToggleSelectFace(_) => {
-                        Cmd::ClearToggleSelectFaces
-                    }
-                    Cmd::HoldSelectLayers(_) | Cmd::ToggleSelectLayers(_) => {
-                        Cmd::ClearToggleSelectLayers
-                    }
-                    Cmd::HoldSelectPieceType(_) | Cmd::ToggleSelectPieceType(_) => {
-                        Cmd::ClearToggleSelectPieceType
-                    }
-                    _ => Cmd::ClearToggleSelectFaces,
-                }
-            }
-            _ => *command = Cmd::None, // should be unreachable
+            CmdType::HoldSelect => Cmd::HoldSelect(command.get_select_thing(puzzle_type)),
+            CmdType::ToggleSelect => Cmd::ToggleSelect(command.get_select_thing(puzzle_type)),
+            CmdType::ClearToggleSelect => Cmd::ClearToggleSelect(command.get_select_category()),
         }
     }
 
-    let is_hold_select_command = matches!(
-        command,
-        Cmd::HoldSelectFace(_) | Cmd::HoldSelectLayers(_) | Cmd::HoldSelectPieceType(_)
-    );
-    let is_toggle_select_command = matches!(
-        command,
-        Cmd::ToggleSelectFace(_) | Cmd::ToggleSelectLayers(_) | Cmd::ToggleSelectPieceType(_)
-    );
-    let is_clear_toggle_select_command = matches!(
-        command,
-        Cmd::ClearToggleSelectFaces
-            | Cmd::ClearToggleSelectLayers
-            | Cmd::ClearToggleSelectPieceType
-    );
-    if is_hold_select_command || is_toggle_select_command || is_clear_toggle_select_command {
-        let mut current_item = match command {
-            Cmd::HoldSelectFace(_) | Cmd::ToggleSelectFace(_) | Cmd::ClearToggleSelectFaces => 0,
-            Cmd::HoldSelectLayers(_)
-            | Cmd::ToggleSelectLayers(_)
-            | Cmd::ClearToggleSelectLayers => 1,
-            Cmd::HoldSelectPieceType(_)
-            | Cmd::ToggleSelectPieceType(_)
-            | Cmd::ClearToggleSelectPieceType => 2,
-            _ => unreachable!(),
-        };
+    if let Some(select_how) = command.get_select_how() {
         ui.same_line();
-        if build_autosize_combo(
+
+        let mut category = command.get_select_category();
+        if build_select_combo_iter(
             ui,
-            &format!("##select_what{}", i),
-            &mut current_item,
-            &["Face", "Layers", "Piece type"],
+            &format!("##select_category{}", i),
+            &mut category,
+            SelectCategory::iter(),
         ) {
             *needs_save = true;
-            if is_hold_select_command {
-                match current_item {
-                    0 => *command = Cmd::HoldSelectFace(default_face),
-                    1 => *command = Cmd::HoldSelectLayers(LayerMask(1)),
-                    2 => *command = Cmd::HoldSelectPieceType(PieceTypeId(0)),
-                    _ => (), // should be unreachable
-                }
-            } else if is_toggle_select_command {
-                match current_item {
-                    0 => *command = Cmd::ToggleSelectFace(default_face),
-                    1 => *command = Cmd::ToggleSelectLayers(LayerMask(1)),
-                    2 => *command = Cmd::ToggleSelectPieceType(PieceTypeId(0)),
-                    _ => (), // should be unreachable
-                }
-            } else if is_clear_toggle_select_command {
-                match current_item {
-                    0 => *command = Cmd::ClearToggleSelectFaces,
-                    1 => *command = Cmd::ClearToggleSelectLayers,
-                    2 => *command = Cmd::ClearToggleSelectPieceType,
-                    _ => (), // should be unreachable
-                }
-            }
+            *command = match select_how {
+                SelectHow::Hold => Cmd::HoldSelect(SelectThing::default(category, puzzle_type)),
+                SelectHow::Toggle => Cmd::ToggleSelect(SelectThing::default(category, puzzle_type)),
+                SelectHow::Clear => Cmd::ClearToggleSelect(category),
+            };
         }
     }
 
@@ -589,12 +522,8 @@ fn build_command_select_ui(
             direction,
         } => {
             combo_label(ui, "Face");
-            *needs_save |= build_optional_string_select_combo(
-                ui,
-                &format!("##face{}", i),
-                face,
-                puzzle_type.face_names(),
-            );
+            *needs_save |=
+                build_optional_select_combo(ui, &format!("##face{}", i), face, puzzle_type.faces());
 
             combo_label(ui, "Layers");
             *needs_save |= build_layer_mask_select_checkboxes(
@@ -605,83 +534,45 @@ fn build_command_select_ui(
             );
 
             combo_label(ui, "Direction");
-            *needs_save |= build_string_select_combo(
+            *needs_save |= build_select_combo_iter(
                 ui,
                 &format!("##direction{}", i),
                 direction,
-                puzzle_type.twist_direction_names(),
+                TwistDirection::iter(puzzle_type),
             );
         }
         Cmd::Recenter { face } => {
             combo_label(ui, "Face");
-            *needs_save |= build_optional_string_select_combo(
-                ui,
-                &format!("##face{}", i),
-                face,
-                puzzle_type.face_names(),
-            );
+            *needs_save |=
+                build_optional_select_combo(ui, &format!("##face{}", i), face, puzzle_type.faces());
         }
 
-        Cmd::HoldSelectFace(face) | Cmd::ToggleSelectFace(face) => {
+        Cmd::HoldSelect(thing) | Cmd::ToggleSelect(thing) => {
             ui.same_line();
-            *needs_save |= build_string_select_combo(
-                ui,
-                &format!("##face{}", i),
-                face,
-                puzzle_type.face_names(),
-            );
+            match thing {
+                SelectThing::Face(face) => {
+                    *needs_save |=
+                        build_select_combo(ui, &format!("##face{}", i), face, puzzle_type.faces())
+                }
+                SelectThing::Layers(layers) => {
+                    *needs_save |= build_layer_mask_select_checkboxes(
+                        ui,
+                        &format!("##layers{}", i),
+                        layers,
+                        puzzle_type.layer_count(),
+                    )
+                }
+                SelectThing::PieceType(piece_type) => {
+                    *needs_save |= build_select_combo_iter(
+                        ui,
+                        &format!("##piece_type{}", i),
+                        piece_type,
+                        PieceType::iter(puzzle_type),
+                    )
+                }
+            }
         }
-        Cmd::HoldSelectLayers(layers) | Cmd::ToggleSelectLayers(layers) => {
-            ui.same_line();
-            *needs_save |= build_layer_mask_select_checkboxes(
-                ui,
-                &format!("##layers{}", i),
-                layers,
-                puzzle_type.layer_count(),
-            );
-        }
-        Cmd::HoldSelectPieceType(piece_type) | Cmd::ToggleSelectPieceType(piece_type) => {
-            let mut piece_type_id = piece_type.0 as usize;
-            ui.same_line();
-            *needs_save |= build_autosize_combo(
-                ui,
-                &format!("##piece_type{}", i),
-                &mut piece_type_id,
-                puzzle_type.piece_type_names(),
-            );
-            piece_type.0 = piece_type_id as u32;
-        }
-        Cmd::ClearToggleSelectFaces
-        | Cmd::ClearToggleSelectLayers
-        | Cmd::ClearToggleSelectPieceType => (),
-    }
-}
-
-#[must_use]
-fn build_optional_string_select_combo<'a>(
-    ui: &Ui<'_>,
-    label: &str,
-    current_item: &mut Option<String>,
-    items: impl Into<Vec<&'a str>>,
-) -> bool {
-    let mut items = items.into();
-    items.insert(0, "(selected)");
-
-    // Find the index of the currently selected item.
-    let mut i = current_item
-        .as_ref()
-        .and_then(|item_name| items.iter().position(|&x| x == item_name))
-        .unwrap_or(0);
-
-    if build_autosize_combo(ui, label, &mut i, &items) {
-        *current_item = if i == 0 {
-            None
-        } else {
-            Some(items[i].to_owned())
-        };
-        true
-    } else {
-        false
+        Cmd::ClearToggleSelect(_) => (),
     }
 }
 
@@ -707,36 +598,69 @@ fn build_layer_mask_select_checkboxes(
 }
 
 #[must_use]
-fn build_string_select_combo(
+fn build_optional_select_combo<T: AsRef<str> + Clone + PartialEq>(
     ui: &Ui<'_>,
     label: &str,
-    selected: &mut String,
-    items: &[&str],
+    selected: &mut Option<T>,
+    items: &[T],
 ) -> bool {
-    // Find the index of the currently selected item.
-    let mut i = items.iter().position(|&x| x == selected).unwrap_or(0);
+    let mut choices = vec![None];
+    choices.extend(items.iter().cloned().map(Some));
 
-    if build_autosize_combo(ui, label, &mut i, items) {
-        *selected = items[i].to_owned();
-        true
-    } else {
-        false
+    fn to_string<'a, T: AsRef<str>>(item: &'a Option<T>) -> &'a str {
+        match item {
+            Some(x) => x.as_ref(),
+            None => "(selected)",
+        }
     }
+
+    build_autosize_combo(ui, label, selected, &choices, to_string::<T>)
 }
 
 #[must_use]
-fn build_autosize_combo(
+fn build_select_combo_iter<T: ToString + Clone + PartialEq>(
     ui: &Ui<'_>,
     label: &str,
-    current_item: &mut usize,
-    items: &[&str],
+    selected: &mut T,
+    items: impl IntoIterator<Item = T>,
 ) -> bool {
-    let w = items
+    build_select_combo(ui, label, selected, &items.into_iter().collect_vec())
+}
+
+#[must_use]
+fn build_select_combo<T: ToString + Clone + PartialEq>(
+    ui: &Ui<'_>,
+    label: &str,
+    selected: &mut T,
+    items: &[T],
+) -> bool {
+    build_autosize_combo(ui, label, selected, items, |x| x.to_string())
+}
+
+#[must_use]
+fn build_autosize_combo<'s, 't, T: Clone + PartialEq, S: 's + AsRef<str>>(
+    ui: &Ui<'_>,
+    label: &str,
+    current_item: &mut T,
+    items: &'t [T],
+    to_string: fn(&'t T) -> S,
+) -> bool {
+    let strings = items.iter().map(to_string).collect_vec();
+    let w = strings
         .iter()
         .map(|s| ui.calc_text_size(s)[0])
         .fold(0.0, |a, b| if b > a { b } else { a })
         + ui.text_line_height_with_spacing()
         + ui.clone_style().frame_padding[0] * 3.0;
     ui.set_next_item_width(w);
-    ui.combo(label, current_item, items, |&s| s.into())
+    let mut i = items
+        .iter()
+        .position(|item| item == current_item)
+        .unwrap_or(0);
+    if ui.combo(label, &mut i, &strings, |s| s.as_ref().into()) {
+        *current_item = items[i].clone();
+        true
+    } else {
+        false
+    }
 }
