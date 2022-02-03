@@ -8,7 +8,7 @@ use strum::IntoEnumIterator;
 mod popups;
 mod util;
 
-use crate::config::{Keybind, Msaa};
+use crate::preferences::{Keybind, Msaa};
 use crate::puzzle::{
     traits::*, Command, LayerMask, PieceType, Puzzle, PuzzleType, SelectCategory, SelectHow,
     SelectThing, TwistDirection,
@@ -41,8 +41,8 @@ pub fn confirm_discard_changes(is_unsaved: bool, action: &str) -> bool {
 
 /// Builds the GUI.
 pub fn build(app: &mut AppState) {
-    let mut config_guard = crate::get_config();
-    let config = &mut *config_guard;
+    let mut prefs_guard = crate::get_prefs();
+    let prefs = &mut *prefs_guard;
     let ui = app.ui;
 
     // Build the menu bar.
@@ -60,13 +60,13 @@ pub fn build(app: &mut AppState) {
             }
             ui.separator();
             if MenuItem::new("Save").enabled(can_save).build(ui) {
-                try_save(app.puzzle, &config.log_file);
+                try_save(app.puzzle, &prefs.log_file);
             }
             if MenuItem::new("Save As...").enabled(can_save).build(ui) {
                 if let Some(path) = popups::file_dialog().save_file() {
-                    config.needs_save = true;
-                    config.log_file = path;
-                    try_save(app.puzzle, &config.log_file);
+                    prefs.needs_save = true;
+                    prefs.log_file = path;
+                    try_save(app.puzzle, &prefs.log_file);
                 }
             }
             ui.separator();
@@ -111,46 +111,46 @@ pub fn build(app: &mut AppState) {
                 *window_bool ^= MenuItem::new(name).selected(*window_bool).build(ui)
             };
 
-            checkbox_menu_item("Graphics", &mut config.window_states.graphics);
-            checkbox_menu_item("View", &mut config.window_states.view);
-            checkbox_menu_item("Colors", &mut config.window_states.colors);
-            checkbox_menu_item("Keybinds", &mut config.window_states.keybinds);
+            checkbox_menu_item("Graphics", &mut prefs.window_states.graphics);
+            checkbox_menu_item("View", &mut prefs.window_states.view);
+            checkbox_menu_item("Colors", &mut prefs.window_states.colors);
+            checkbox_menu_item("Keybinds", &mut prefs.window_states.keybinds);
 
             #[cfg(debug_assertions)]
             {
                 ui.separator();
-                checkbox_menu_item("Imgui Demo", &mut config.window_states.demo);
+                checkbox_menu_item("Imgui Demo", &mut prefs.window_states.demo);
             }
         });
 
         ui.menu("Help", || {
-            config.window_states.about ^= MenuItem::new("About").build(ui);
+            prefs.window_states.about ^= MenuItem::new("About").build(ui);
         });
     });
 
-    if config.window_states.graphics {
+    if prefs.window_states.graphics {
         Window::new("Graphics")
-            .opened(&mut config.window_states.graphics)
+            .opened(&mut prefs.window_states.graphics)
             .resizable(false)
             .always_auto_resize(true)
             .build(ui, || {
                 // FPS limit
-                config.needs_save ^= Slider::new("FPS limit", 5, 255)
+                prefs.needs_save ^= Slider::new("FPS limit", 5, 255)
                     .flags(SliderFlags::LOGARITHMIC)
-                    .build(ui, &mut config.gfx.fps);
+                    .build(ui, &mut prefs.gfx.fps);
 
                 // MSAA
                 ComboBox::new("MSAA (requires restart)")
                     .preview_mode(ComboBoxPreviewMode::Full)
-                    .preview_value(config.gfx.msaa.to_string())
+                    .preview_value(prefs.gfx.msaa.to_string())
                     .build(ui, || {
                         for option in [Msaa::Off, Msaa::_2, Msaa::_4, Msaa::_8] {
                             if Selectable::new(option.to_string())
-                                .selected(config.gfx.msaa == option)
+                                .selected(prefs.gfx.msaa == option)
                                 .build(ui)
                             {
-                                config.needs_save = true;
-                                config.gfx.msaa = option;
+                                prefs.needs_save = true;
+                                prefs.gfx.msaa = option;
                             }
                         }
                     });
@@ -158,93 +158,92 @@ pub fn build(app: &mut AppState) {
                 ui.separator();
 
                 // Font size
-                config.needs_save |= Slider::new("Font size", 6.0, 36.0)
+                prefs.needs_save |= Slider::new("Font size", 6.0, 36.0)
                     .flags(SliderFlags::LOGARITHMIC)
                     .display_format("%.0f")
-                    .build(ui, &mut config.gfx.font_size);
-                config.gfx.lock_font_size = ui.is_item_active();
+                    .build(ui, &mut prefs.gfx.font_size);
+                prefs.gfx.lock_font_size = ui.is_item_active();
             });
     }
 
-    if config.window_states.view {
+    if prefs.window_states.view {
         Window::new("View")
-            .opened(&mut config.window_states.view)
+            .opened(&mut prefs.window_states.view)
             .resizable(false)
             .always_auto_resize(true)
             .build(ui, || {
-                let view_config = &mut config.view[app.puzzle.ty()];
+                let view_prefs = &mut prefs.view[app.puzzle.ty()];
 
                 // View angle settings
-                config.needs_save |= AngleSlider::new("Theta")
+                prefs.needs_save |= AngleSlider::new("Theta")
                     .range_degrees(-180.0, 180.0)
-                    .build(ui, &mut view_config.theta);
-                config.needs_save |= AngleSlider::new("Phi")
+                    .build(ui, &mut view_prefs.theta);
+                prefs.needs_save |= AngleSlider::new("Phi")
                     .range_degrees(-45.0, 45.0)
-                    .build(ui, &mut view_config.phi);
+                    .build(ui, &mut view_prefs.phi);
 
                 ui.separator();
 
                 // Projection settings
-                config.needs_save |= Slider::new("Scale", 0.1, 5.0)
+                prefs.needs_save |= Slider::new("Scale", 0.1, 5.0)
                     .flags(SliderFlags::LOGARITHMIC)
-                    .build(ui, &mut view_config.scale);
-                config.needs_save |= AngleSlider::new("4D FOV")
+                    .build(ui, &mut view_prefs.scale);
+                prefs.needs_save |= AngleSlider::new("4D FOV")
                     .range_degrees(0.0, 120.0)
-                    .build(ui, &mut view_config.fov_4d);
-                config.needs_save |= AngleSlider::new("3D FOV")
+                    .build(ui, &mut view_prefs.fov_4d);
+                prefs.needs_save |= AngleSlider::new("3D FOV")
                     .range_degrees(-120.0, 120.0)
-                    .build(ui, &mut view_config.fov_3d);
+                    .build(ui, &mut view_prefs.fov_3d);
 
                 ui.separator();
 
                 // Geometry settings
-                config.needs_save |=
-                    Slider::new("Face spacing", 0.0, 0.9).build(ui, &mut view_config.face_spacing);
-                config.needs_save |= Slider::new("Sticker spacing", 0.0, 0.9)
-                    .build(ui, &mut view_config.sticker_spacing);
+                prefs.needs_save |=
+                    Slider::new("Face spacing", 0.0, 0.9).build(ui, &mut view_prefs.face_spacing);
+                prefs.needs_save |= Slider::new("Sticker spacing", 0.0, 0.9)
+                    .build(ui, &mut view_prefs.sticker_spacing);
 
                 // Outline settings
-                config.needs_save |= ui.checkbox("Enable outline", &mut view_config.enable_outline);
+                prefs.needs_save |= ui.checkbox("Enable outline", &mut view_prefs.enable_outline);
             });
     }
 
-    if config.window_states.colors {
+    if prefs.window_states.colors {
         Window::new("Colors")
-            .opened(&mut config.window_states.colors)
+            .opened(&mut prefs.window_states.colors)
             .resizable(false)
             .always_auto_resize(true)
             .build(ui, || {
                 // Sticker opacity
-                config.needs_save |=
-                    Slider::new("Puzzle opacity", 0.0, 1.0).build(ui, &mut config.colors.opacity);
+                prefs.needs_save |=
+                    Slider::new("Puzzle opacity", 0.0, 1.0).build(ui, &mut prefs.colors.opacity);
 
                 ui.separator();
 
                 // Special colors
-                config.needs_save |=
-                    ColorEdit::new("Background", &mut config.colors.background).build(ui);
-                config.needs_save = ColorEdit::new("Outline", &mut config.colors.outline).build(ui);
+                prefs.needs_save |=
+                    ColorEdit::new("Background", &mut prefs.colors.background).build(ui);
+                prefs.needs_save = ColorEdit::new("Outline", &mut prefs.colors.outline).build(ui);
 
                 ui.separator();
 
                 // Label colors
-                config.needs_save |=
-                    ColorEdit::new("Label fg", &mut config.colors.label_fg).build(ui);
-                config.needs_save =
-                    ColorEdit::new("Label bg", &mut config.colors.label_bg).build(ui);
+                prefs.needs_save |=
+                    ColorEdit::new("Label fg", &mut prefs.colors.label_fg).build(ui);
+                prefs.needs_save = ColorEdit::new("Label bg", &mut prefs.colors.label_bg).build(ui);
 
                 ui.separator();
 
                 // Sticker colors
                 let puzzle_type = app.puzzle.ty();
-                let sticker_colors = &mut config.colors.faces[puzzle_type].0;
+                let sticker_colors = &mut prefs.colors.faces[puzzle_type].0;
                 for (face_name, color) in puzzle_type.face_names().iter().zip(sticker_colors) {
-                    config.needs_save |= ColorEdit::new(face_name, color).build(ui);
+                    prefs.needs_save |= ColorEdit::new(face_name, color).build(ui);
                 }
             });
     }
 
-    if config.window_states.keybinds {
+    if prefs.window_states.keybinds {
         const MIN_WIDTH: f32 = 200.0; // TODO use a better value
         const MIN_HEIGHT: f32 = 100.0;
 
@@ -254,28 +253,28 @@ pub fn build(app: &mut AppState) {
 
         let mut min_window_width = KEYBINDS_WINDOW_MIN_WIDTH.lock().unwrap();
         Window::new("Keybinds")
-            .opened(&mut config.window_states.keybinds)
+            .opened(&mut prefs.window_states.keybinds)
             .size_constraints([*min_window_width, 200.0], [f32::MAX, f32::MAX])
             .build(ui, || {
                 let current_window_width = ui.window_size()[0];
                 let mut extra_width = current_window_width - MIN_WIDTH;
                 if ui.button("Add keybind") {
-                    config.keybinds[app.puzzle.ty()].push(Keybind::default());
-                    config.needs_save = true;
+                    prefs.keybinds[app.puzzle.ty()].push(Keybind::default());
+                    prefs.needs_save = true;
                 }
                 build_keybind_table(
                     app,
-                    &mut config.keybinds[app.puzzle.ty()],
-                    &mut config.needs_save,
+                    &mut prefs.keybinds[app.puzzle.ty()],
+                    &mut prefs.needs_save,
                     &mut extra_width,
                 );
                 *min_window_width = current_window_width - extra_width;
             });
     }
 
-    if config.window_states.about {
+    if prefs.window_states.about {
         Window::new("About")
-            .opened(&mut config.window_states.about)
+            .opened(&mut prefs.window_states.about)
             .resizable(false)
             .always_auto_resize(true)
             .build(ui, || {
@@ -291,15 +290,15 @@ pub fn build(app: &mut AppState) {
     }
 
     #[cfg(debug_assertions)]
-    if config.window_states.demo {
-        ui.show_demo_window(&mut config.window_states.demo);
+    if prefs.window_states.demo {
+        ui.show_demo_window(&mut prefs.window_states.demo);
     }
 
     // Bulid the keybind popup.
-    drop(config_guard);
+    drop(prefs_guard);
     popups::build_keybind_popup(app);
-    let mut config_guard = crate::get_config();
-    let config = &mut config_guard;
+    let mut prefs_guard = crate::get_prefs();
+    let prefs = &mut prefs_guard;
 
     // Debug window.
     #[cfg(debug_assertions)]
@@ -316,7 +315,7 @@ pub fn build(app: &mut AppState) {
     }
 
     // Save any configuration changes.
-    config.save();
+    prefs.save();
 }
 
 fn build_keybind_table(
@@ -398,9 +397,9 @@ fn build_keybind_table(
         ui.same_line();
         if ui.button_with_size(format!("{}##change_keybind{}", keybind, i), [w, 0.0]) {
             popups::open_keybind_popup(keybind.clone(), move |new_keybind| {
-                let mut config = crate::get_config();
-                config.keybinds[puzzle_type][i] = new_keybind;
-                config.needs_save = true;
+                let mut prefs = crate::get_prefs();
+                prefs.keybinds[puzzle_type][i] = new_keybind;
+                prefs.needs_save = true;
             });
         }
 

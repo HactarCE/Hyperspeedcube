@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 use super::{traits::*, Face, LayerMask, PieceType, PuzzleType, TwistDirection};
-use crate::config::DeserializePerPuzzle;
+use crate::preferences::DeserializePerPuzzle;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SelectThing {

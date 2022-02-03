@@ -37,14 +37,14 @@ use std::time::Instant;
 mod debug;
 
 mod colors;
-mod config;
 mod gui;
 mod input;
+mod preferences;
 pub mod puzzle;
 mod render;
 mod serde_impl;
 
-use config::get_config;
+use preferences::get_prefs;
 use puzzle::{Puzzle, PuzzleControllerTrait};
 
 /// The title of the window.
@@ -59,7 +59,7 @@ lazy_static! {
             .with_window_icon(load_application_icon());
         let cb = ContextBuilder::new()
             .with_vsync(false)
-            .with_multisampling(get_config().gfx.msaa as u16);
+            .with_multisampling(get_prefs().gfx.msaa as u16);
         glium::Display::new(wb, cb, EVENTS_LOOP.borrow().as_ref().unwrap())
             .expect("failed to initialize display")
     });
@@ -122,7 +122,7 @@ fn main() {
             };
 
             if do_frame && next_frame_time <= now {
-                let frame_duration = get_config().gfx.frame_duration();
+                let frame_duration = get_prefs().gfx.frame_duration();
                 next_frame_time = now + frame_duration;
                 if next_frame_time < Instant::now() {
                     // Skip a frame (or several).
@@ -141,8 +141,8 @@ fn main() {
                     }
 
                     // Has the font size changed?
-                    let new_font_size = get_config().gfx.font_size;
-                    if old_font_size != new_font_size && !get_config().gfx.lock_font_size {
+                    let new_font_size = get_prefs().gfx.font_size;
+                    if old_font_size != new_font_size && !get_prefs().gfx.lock_font_size {
                         // If so, invalidate the renderer.
                         renderer = None;
                     }

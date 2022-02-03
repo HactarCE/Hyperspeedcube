@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use winit::event::{ElementState, Event, ModifiersState, VirtualKeyCode};
 
 use super::{util, AppState};
-use crate::config::{Key, Keybind};
+use crate::preferences::{Key, Keybind};
 
 const KEYBIND_POPUP_TITLE: &str = "Press a key combination";
 

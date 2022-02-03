@@ -20,31 +20,31 @@ use verts::*;
 const CLIPPING_RADIUS: f32 = 2.0;
 
 pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
-    let config = crate::get_config();
+    let prefs = crate::get_prefs();
 
     let mut cache_ = cache::borrow_cache();
     let cache = &mut *cache_;
 
     let (target_w, target_h) = target.get_dimensions();
-    let [r, g, b] = config.colors.background;
+    let [r, g, b] = prefs.colors.background;
     target.clear_color_srgb_and_depth((r, g, b, 1.0), 1.0);
 
-    let view_config = &config.view[puzzle.ty()];
+    let view_prefs = &prefs.view[puzzle.ty()];
 
     // Compute the model transform, which must be applied here on the CPU so that we
     // can do proper Z ordering.
-    let view_transform = Matrix3::from_angle_x(Rad(view_config.theta))
-        * Matrix3::from_angle_y(Rad(view_config.phi))
+    let view_transform = Matrix3::from_angle_x(Rad(view_prefs.theta))
+        * Matrix3::from_angle_y(Rad(view_prefs.phi))
         / CLIPPING_RADIUS;
     // Compute the perspective transform, which we will apply on the GPU.
     let perspective_transform = {
         let min_dimen = std::cmp::min(target_w, target_h) as f32;
-        let scale = min_dimen * view_config.scale;
+        let scale = min_dimen * view_prefs.scale;
 
         let xx = scale / target_w as f32;
         let yy = scale / target_h as f32;
 
-        let fov = view_config.fov_3d;
+        let fov = view_prefs.fov_3d;
         let zw = (fov / 2.0).tan(); // `tan(fov/2)` is the factor of how much the Z coordinate affects the XY coordinates.
         let ww = 1.0 + fov.signum() * zw;
 
@@ -58,9 +58,9 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
     let perspective_transform_matrix: [[f32; 4]; 4] = perspective_transform.into();
 
     let mut geo_params = GeometryParams {
-        sticker_spacing: view_config.sticker_spacing,
-        face_spacing: view_config.face_spacing,
-        fov_4d: view_config.fov_4d,
+        sticker_spacing: view_prefs.sticker_spacing,
+        face_spacing: view_prefs.face_spacing,
+        fov_4d: view_prefs.fov_4d,
 
         view_transform,
 
@@ -72,7 +72,7 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
      */
     let stickers_vbo;
     {
-        let face_colors = &config.colors.faces[puzzle.ty()];
+        let face_colors = &prefs.colors.faces[puzzle.ty()];
         // Each sticker has a `Vec<StickerVertex>` with all of its vertices and
         // a single f32 containing the average Z value.
         let mut verts_by_sticker: Vec<(Vec<WireframeVertex>, f32)> = vec![];
@@ -81,7 +81,7 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
 
             for sticker in piece.stickers() {
                 let alpha = if puzzle.is_highlighted(sticker) {
-                    config.colors.opacity
+                    prefs.colors.opacity
                 } else {
                     0.1
                 };
@@ -89,8 +89,8 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
                 let [r, g, b] = face_colors[puzzle.get_sticker_color(sticker).id()];
                 geo_params.fill_color = [r, g, b, alpha];
                 geo_params.line_color = geo_params.fill_color;
-                if view_config.enable_outline {
-                    geo_params.line_color[..3].copy_from_slice(&config.colors.outline);
+                if view_prefs.enable_outline {
+                    geo_params.line_color[..3].copy_from_slice(&prefs.colors.outline);
                 }
 
                 if let Some(verts) = sticker.verts(geo_params) {
@@ -144,7 +144,7 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
      * Draw text labels.
      */
     // if !puzzle.labels.is_empty() {
-    //     let scale = rusttype::Scale::uniform(config.gfx.label_size);
+    //     let scale = rusttype::Scale::uniform(prefs.gfx.label_size);
 
     //     let mut backdrop_verts = vec![];
 
@@ -172,7 +172,7 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
     //             let pos = text_center + cgmath::vec4(dx * w, dy * h, 0.0, 0.0);
     //             backdrop_verts.push(RgbaVertex {
     //                 pos: (post_transform * pos).into(),
-    //                 color: config.colors.label_bg,
+    //                 color: prefs.colors.label_bg,
     //             });
     //         }
 
@@ -189,7 +189,7 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
     //             text: vec![SectionText {
     //                 text,
     //                 scale,
-    //                 color: config.colors.label_fg,
+    //                 color: prefs.colors.label_fg,
     //                 ..Default::default()
     //             }],
     //             ..Default::default()

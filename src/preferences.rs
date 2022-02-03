@@ -1,4 +1,4 @@
-//! Configuration file
+//! User preferences.
 //!
 //! For a list of key names, see `VirtualKeyCode` in this file:
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
@@ -20,42 +20,42 @@ use crate::colors;
 use crate::puzzle::commands::CommandSerde;
 use crate::puzzle::{traits::*, Command, PuzzleType};
 
-pub(crate) fn get_config<'a>() -> MutexGuard<'a, Config> {
-    match CONFIG.try_lock() {
-        Ok(config) => config,
-        Err(TryLockError::Poisoned(e)) => panic!("config mutex poisoned: {}", e),
-        Err(TryLockError::WouldBlock) => panic!("config mutex double-locked"),
+pub(crate) fn get_prefs<'a>() -> MutexGuard<'a, Preferences> {
+    match PREFERENCES.try_lock() {
+        Ok(prefs) => prefs,
+        Err(TryLockError::Poisoned(e)) => panic!("preferences mutex poisoned: {}", e),
+        Err(TryLockError::WouldBlock) => panic!("preferences mutex double-locked"),
     }
 }
 
-const CONFIG_FILE_NAME: &str = "hyperspeedcube";
-const CONFIG_FILE_EXTENSION: &str = "yaml";
+const PREFS_FILE_NAME: &str = "hyperspeedcube";
+const PREFS_FILE_EXTENSION: &str = "yaml";
 
 lazy_static! {
-    static ref CONFIG: Mutex<Config> = Mutex::new(Config::load());
+    static ref PREFERENCES: Mutex<Preferences> = Mutex::new(Preferences::load());
     static ref PROJECT_DIRS: Option<ProjectDirs> = ProjectDirs::from("", "", "Hyperspeedcube");
-    static ref CONFIG_FILE_PATH: Result<PathBuf, NoConfigPath> = match &*PROJECT_DIRS {
+    static ref PREFERENCES_FILE_PATH: Result<PathBuf, NoPreferencesPath> = match &*PROJECT_DIRS {
         Some(proj_dirs) => {
             let mut p = proj_dirs.config_dir().to_owned();
-            p.push(format!("{}.{}", CONFIG_FILE_NAME, CONFIG_FILE_EXTENSION));
+            p.push(format!("{}.{}", PREFS_FILE_NAME, PREFS_FILE_EXTENSION));
             Ok(p)
         }
-        None => Err(NoConfigPath),
+        None => Err(NoPreferencesPath),
     };
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-struct NoConfigPath;
-impl fmt::Display for NoConfigPath {
+struct NoPreferencesPath;
+impl fmt::Display for NoPreferencesPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "unable to get config file path")
+        write!(f, "unable to get preferences file path")
     }
 }
-impl Error for NoConfigPath {}
+impl Error for NoPreferencesPath {}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(default)]
-pub struct Config {
+pub struct Preferences {
     #[serde(skip)]
     pub needs_save: bool,
     #[serde(skip)]
@@ -63,12 +63,12 @@ pub struct Config {
 
     pub log_file: PathBuf,
 
-    pub gfx: GfxConfig,
-    pub view: PerPuzzle<ViewConfig>,
-    pub colors: ColorsConfig,
+    pub gfx: GfxPreferences,
+    pub view: PerPuzzle<ViewPreferences>,
+    pub colors: ColorPreferences,
     pub keybinds: PerPuzzle<Vec<Keybind>>,
 }
-impl Default for Config {
+impl Default for Preferences {
     fn default() -> Self {
         Self {
             needs_save: true,
@@ -83,42 +83,42 @@ impl Default for Config {
         }
     }
 }
-impl Config {
+impl Preferences {
     pub fn load() -> Self {
         Self::_load().unwrap_or_else(|e| {
-            eprintln!("Unable to load config: {}", e);
-            if let Ok(config_path) = &*CONFIG_FILE_PATH {
+            eprintln!("Unable to load preferences: {}", e);
+            if let Ok(prefs_path) = &*PREFERENCES_FILE_PATH {
                 let datetime = time::OffsetDateTime::now_local()
                     .unwrap_or_else(|_| time::OffsetDateTime::now_utc());
-                let mut backup_path = config_path.clone();
+                let mut backup_path = prefs_path.clone();
                 backup_path.pop();
                 backup_path.push(format!(
                     "{}_{:04}-{:02}-{:02}_{:02}-{:02}-{:02}_bak.{}",
-                    CONFIG_FILE_NAME,
+                    PREFS_FILE_NAME,
                     datetime.year(),
                     datetime.month() as u8 ,
                     datetime.day(),
                     datetime.hour(),
                     datetime.minute(),
                     datetime.second(),
-                    CONFIG_FILE_EXTENSION,
+                    PREFS_FILE_EXTENSION,
                 ));
-                if std::fs::rename(config_path, &backup_path).is_ok() {
+                if std::fs::rename(prefs_path, &backup_path).is_ok() {
                     eprintln!(
-                        "Backup of old config stored at {}",
+                        "Backup of old preferences stored at {}",
                         backup_path.to_str().unwrap_or(
                             "some path with invalid Unicode. Seriously what have you done to your filesystem?"
                         ),
                     );
                 }
             }
-            eprintln!("Using default config");
-            Config::default()
+            eprintln!("Using default preferences");
+            Preferences::default()
         })
     }
     fn _load() -> Result<Self, Box<dyn Error>> {
         // TODO: use try block
-        let path = CONFIG_FILE_PATH.as_ref()?;
+        let path = PREFERENCES_FILE_PATH.as_ref()?;
         let ret = serde_yaml::from_reader(File::open(path)?)?;
         Ok(ret)
     }
@@ -126,14 +126,14 @@ impl Config {
     pub fn save(&mut self) {
         if self.needs_save {
             if let Err(e) = self._save() {
-                eprintln!("Unable to save config: {}", e);
+                eprintln!("Unable to save preferences: {}", e);
             }
         }
     }
     fn _save(&mut self) -> Result<(), Box<dyn Error>> {
         // TODO: use try block
         self.needs_save = false;
-        let path = CONFIG_FILE_PATH.as_ref()?;
+        let path = PREFERENCES_FILE_PATH.as_ref()?;
         if let Some(p) = path.parent() {
             std::fs::create_dir_all(p)?;
         }
@@ -157,7 +157,7 @@ pub struct WindowStates {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(default)]
-pub struct GfxConfig {
+pub struct GfxPreferences {
     pub fps: u32,
     pub font_size: f32,
     #[serde(skip)]
@@ -167,7 +167,7 @@ pub struct GfxConfig {
 
     pub label_size: f32, // TODO: remove or move this
 }
-impl Default for GfxConfig {
+impl Default for GfxPreferences {
     fn default() -> Self {
         Self {
             fps: 60,
@@ -180,7 +180,7 @@ impl Default for GfxConfig {
         }
     }
 }
-impl GfxConfig {
+impl GfxPreferences {
     /// Returns the duration of one frame based on the configured FPS value.
     pub fn frame_duration(&self) -> Duration {
         Duration::from_secs_f64(1.0 / self.fps as f64)
@@ -189,7 +189,7 @@ impl GfxConfig {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(default)]
-pub struct ViewConfig {
+pub struct ViewPreferences {
     pub theta: f32,
     pub phi: f32,
 
@@ -202,7 +202,7 @@ pub struct ViewConfig {
 
     pub enable_outline: bool,
 }
-impl Default for ViewConfig {
+impl Default for ViewPreferences {
     fn default() -> Self {
         Self {
             theta: 0_f32,
@@ -219,7 +219,7 @@ impl Default for ViewConfig {
         }
     }
 }
-impl DeserializePerPuzzle<'_> for ViewConfig {
+impl DeserializePerPuzzle<'_> for ViewPreferences {
     type Proxy = Self;
 
     fn deserialize_from(value: Self::Proxy, _ty: PuzzleType) -> Self {
@@ -228,7 +228,7 @@ impl DeserializePerPuzzle<'_> for ViewConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ColorsConfig {
+pub struct ColorPreferences {
     pub opacity: f32,
 
     pub faces: PerPuzzle<FaceColors>,
@@ -239,7 +239,7 @@ pub struct ColorsConfig {
     pub label_fg: [f32; 4],
     pub label_bg: [f32; 4],
 }
-impl Default for ColorsConfig {
+impl Default for ColorPreferences {
     fn default() -> Self {
         Self {
             opacity: 1.0,

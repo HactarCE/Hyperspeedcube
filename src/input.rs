@@ -4,7 +4,7 @@ use glium::glutin::event::*;
 use itertools::Itertools;
 use std::collections::HashMap;
 
-use crate::config::Key;
+use crate::preferences::Key;
 use crate::puzzle::{
     traits::*, Command, Face, LayerMask, Puzzle, PuzzleController, PuzzleType, SelectCategory,
     SelectThing,
@@ -86,7 +86,7 @@ impl FrameInProgress<'_> {
         // the bits that don't specify left vs. right.
         let modifiers = self.state.modifiers & (SHIFT | CTRL | ALT | LOGO);
 
-        let config = crate::get_config();
+        let prefs = crate::get_prefs();
 
         let ignore_shift = is_shift || self.state.held_selections.keys().any(|k| k.is_shift());
         let ignore_ctrl = is_ctrl || self.state.held_selections.keys().any(|k| k.is_ctrl());
@@ -98,7 +98,7 @@ impl FrameInProgress<'_> {
 
         let mut selection = self.state.total_selection();
 
-        for bind in &config.keybinds[puzzle_type] {
+        for bind in &prefs.keybinds[puzzle_type] {
             let bind_key = match bind.key {
                 Some(k) => k,
                 None => continue,
@@ -176,7 +176,7 @@ impl FrameInProgress<'_> {
                 Some(VirtualKeyCode::S) => match self.puzzle {
                     Puzzle::Rubiks3D(_) => eprintln!("error: can't save 3D puzzle"),
                     Puzzle::Rubiks4D(cube) => {
-                        if let Err(e) = cube.save_file(&crate::get_config().log_file) {
+                        if let Err(e) = cube.save_file(&crate::get_prefs().log_file) {
                             eprintln!("error: {}", e);
                         }
                     }
@@ -197,24 +197,24 @@ impl FrameInProgress<'_> {
     }
 
     pub fn finish(self) {
-        let mut config = crate::get_config();
+        let mut prefs = crate::get_prefs();
 
-        let view_config = &mut config.view[self.puzzle.ty()];
+        let view_prefs = &mut prefs.view[self.puzzle.ty()];
 
         // TODO
 
         // let speed = 1.0_f32.to_radians();
         // if self.state.keys[VirtualKeyCode::Up] {
-        //     view_config.theta += speed;
+        //     view_prefs.theta += speed;
         // }
         // if self.state.keys[VirtualKeyCode::Down] {
-        //     view_config.theta -= speed;
+        //     view_prefs.theta -= speed;
         // }
         // if self.state.keys[VirtualKeyCode::Right] {
-        //     view_config.phi += speed;
+        //     view_prefs.phi += speed;
         // }
         // if self.state.keys[VirtualKeyCode::Left] {
-        //     view_config.phi -= speed;
+        //     view_prefs.phi -= speed;
         // }
 
         match self.puzzle {
