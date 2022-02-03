@@ -24,6 +24,7 @@ imgui-glium-renderer = "0.8"
 imgui-winit-support = "0.8"
 key-names = { git = "https://github.com/HactarCE/key-names" }
 lazy_static = "1.4"
+notify = "4.0"
 once_cell = "1.9"
 png = "0.17"
 rfd = "0.6"

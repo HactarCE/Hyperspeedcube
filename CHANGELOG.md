@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Automatic reloading of preferences file when modified externally
+
 ### Changed
 
 - **Preferences file format is not backwards-compatible. Existing custom keybindings will be erased when loading for the first time.**

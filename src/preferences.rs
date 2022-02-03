@@ -6,6 +6,8 @@
 use directories::ProjectDirs;
 use enum_map::EnumMap;
 use key_names::KeyMappingCode;
+use notify::{DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use send_wrapper::SendWrapper;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -13,7 +15,7 @@ use std::fmt;
 use std::io::Write;
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard, TryLockError};
+use std::sync::{mpsc, Mutex, MutexGuard, TryLockError};
 use std::time::Duration;
 use winit::event::{ModifiersState, VirtualKeyCode};
 
@@ -21,20 +23,13 @@ use crate::colors;
 use crate::puzzle::commands::CommandSerde;
 use crate::puzzle::{traits::*, Command, PuzzleType};
 
-pub(crate) fn get_prefs<'a>() -> MutexGuard<'a, Preferences> {
-    match PREFERENCES.try_lock() {
-        Ok(prefs) => prefs,
-        Err(TryLockError::Poisoned(e)) => panic!("preferences mutex poisoned: {}", e),
-        Err(TryLockError::WouldBlock) => panic!("preferences mutex double-locked"),
-    }
-}
-
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
 const PREFS_FILE_EXTENSION: &str = "yaml";
+const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS: &str = include_str!("../resources/default.yaml");
 
 lazy_static! {
-    static ref PREFERENCES: Mutex<Preferences> = Mutex::new(Preferences::load());
+    static ref PREFERENCES: Mutex<Preferences> = Mutex::new(Preferences::load(None));
     static ref PROJECT_DIRS: Option<ProjectDirs> = ProjectDirs::from("", "", "Hyperspeedcube");
     static ref PREFS_FILE_PATH: Result<PathBuf, NoPreferencesPath> = match &*PROJECT_DIRS {
         Some(proj_dirs) => {
@@ -46,6 +41,62 @@ lazy_static! {
     };
 }
 
+lazy_static! {
+    static ref RX: Mutex<mpsc::Receiver<DebouncedEvent>> = {
+        let (tx, rx) = mpsc::channel();
+        match Watcher::new(tx, Duration::from_secs_f64(0.5)) {
+            Ok(w) => *WATCHER.lock().unwrap() = Some(w),
+            Err(e) => eprintln!("Error initializing preferences file watcher: {}", e),
+        }
+        unwatch_during(|| ());
+
+        Mutex::new(rx)
+    };
+    static ref WATCHER: Mutex<Option<RecommendedWatcher>> = Mutex::new(None);
+}
+fn unwatch_during<T>(f: impl FnOnce() -> T) -> T {
+    if let Some(path) = PREFS_FILE_PATH.as_ref().ok().and_then(|p| p.parent()) {
+        if let Ok(mut w) = WATCHER.lock() {
+            if let Some(w) = &mut *w {
+                let _ = w.unwatch(path);
+                let ret = f();
+                if let Err(e) = w.watch(path, RecursiveMode::NonRecursive) {
+                    eprintln!("Error initializing preferences file watcher: {}", e);
+                }
+                return ret;
+            }
+        }
+    }
+    f()
+}
+
+pub(crate) fn get_prefs<'a>() -> MutexGuard<'a, Preferences> {
+    match PREFERENCES.try_lock() {
+        Ok(mut prefs) => {
+            let rx = RX.lock().unwrap();
+            while let Ok(event) = rx.try_recv() {
+                match event {
+                    DebouncedEvent::Create(path)
+                    | DebouncedEvent::Write(path)
+                    | DebouncedEvent::Rename(_, path) => {
+                        if let Ok(prefs_path) = &*PREFS_FILE_PATH {
+                            if path == *prefs_path {
+                                eprintln!("Reloading preferences from file");
+                                *prefs = Preferences::load(Some(&*prefs));
+                            }
+                        }
+                    }
+                    _ => (),
+                }
+            }
+
+            prefs
+        }
+        Err(TryLockError::Poisoned(e)) => panic!("preferences mutex poisoned: {}", e),
+        Err(TryLockError::WouldBlock) => panic!("preferences mutex double-locked"),
+    }
+}
+
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 struct NoPreferencesPath;
 impl fmt::Display for NoPreferencesPath {
@@ -55,7 +106,7 @@ impl fmt::Display for NoPreferencesPath {
 }
 impl Error for NoPreferencesPath {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct Preferences {
     #[serde(skip)]
@@ -86,23 +137,17 @@ impl Default for Preferences {
     }
 }
 impl Preferences {
-    pub fn load() -> Self {
+    pub fn load(backup: Option<&Self>) -> Self {
         let mut config = config::Config::new();
 
         // Load default preferences.
-        if let Err(e) = config.merge(config::File::from_str(
-            DEFAULT_PREFS,
-            config::FileFormat::Yaml,
-        )) {
-            eprintln!("Error loading default preferences: {}", e);
-        }
+        let default_config_source = config::File::from_str(DEFAULT_PREFS, PREFS_FILE_FORMAT);
+        let _ = config.merge(default_config_source.clone());
 
         // Load user preferences.
         match &*PREFS_FILE_PATH {
             Ok(path) => {
-                if let Err(e) = config.merge(config::File::from(path.as_ref())) {
-                    eprintln!("Error loading user preferences: {}", e);
-                }
+                let _ = config.merge(config::File::from(path.as_ref()));
             }
             Err(e) => eprintln!("Error loading user preferences: {}", e),
         }
@@ -134,7 +179,13 @@ impl Preferences {
                     );
                 }
             }
-            Preferences::default()
+
+            // Try backup
+            backup.cloned()
+            // Try just default config
+.            or_else(||
+                config::Config::new().with_merged(default_config_source).unwrap().try_into().ok()
+            ).unwrap_or_else(Preferences::default)
         })
     }
 
@@ -149,11 +200,13 @@ impl Preferences {
         // TODO: use try block
         self.needs_save = false;
         let path = PREFS_FILE_PATH.as_ref()?;
-        if let Some(p) = path.parent() {
-            std::fs::create_dir_all(p)?;
-        }
-        serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
-        Ok(())
+        unwatch_during(|| {
+            if let Some(p) = path.parent() {
+                std::fs::create_dir_all(p)?;
+            }
+            serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
+            Ok(())
+        })
     }
 }
 
@@ -170,7 +223,7 @@ pub struct WindowStates {
     pub demo: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct GfxPreferences {
     pub fps: u32,
@@ -202,7 +255,7 @@ impl GfxPreferences {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct ViewPreferences {
     pub theta: f32,
@@ -242,7 +295,7 @@ impl DeserializePerPuzzle<'_> for ViewPreferences {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ColorPreferences {
     pub opacity: f32,
 
@@ -270,7 +323,7 @@ impl Default for ColorPreferences {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct FaceColors(pub Vec<[f32; 3]>);
 impl std::ops::Index<usize> for FaceColors {
     type Output = [f32; 3];
@@ -479,7 +532,7 @@ impl Key {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(transparent)]
 pub struct PerPuzzle<T>(EnumMap<PuzzleType, T>);
 impl<'de, T: Default + DeserializePerPuzzle<'de>> Default for PerPuzzle<T>
