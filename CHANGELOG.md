@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Preferences file format is not backwards-compatible. Existing custom keybindings will be erased when loading for the first time.**
+- Preferences loading is now more lenient with handling invalid/missing values
+
 ### Fixed
 
 - HiDPI / display scaling ([#2](https://github.com/HactarCE/Hyperspeedcube/issues/2))

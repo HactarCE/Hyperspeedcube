@@ -61,6 +61,7 @@ impl<'de> DeserializePerPuzzle<'de> for SelectThing {
 }
 
 #[derive(Serialize, Deserialize, Debug, Display, EnumIter, Copy, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum SelectCategory {
     Face,
     Layers,

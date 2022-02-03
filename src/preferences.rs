@@ -4,12 +4,13 @@
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
 use directories::ProjectDirs;
+use enum_map::EnumMap;
 use key_names::KeyMappingCode;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-use std::fs::File;
+use std::io::Write;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, TryLockError};
@@ -30,11 +31,12 @@ pub(crate) fn get_prefs<'a>() -> MutexGuard<'a, Preferences> {
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
 const PREFS_FILE_EXTENSION: &str = "yaml";
+const DEFAULT_PREFS: &str = include_str!("../resources/default.yaml");
 
 lazy_static! {
     static ref PREFERENCES: Mutex<Preferences> = Mutex::new(Preferences::load());
     static ref PROJECT_DIRS: Option<ProjectDirs> = ProjectDirs::from("", "", "Hyperspeedcube");
-    static ref PREFERENCES_FILE_PATH: Result<PathBuf, NoPreferencesPath> = match &*PROJECT_DIRS {
+    static ref PREFS_FILE_PATH: Result<PathBuf, NoPreferencesPath> = match &*PROJECT_DIRS {
         Some(proj_dirs) => {
             let mut p = proj_dirs.config_dir().to_owned();
             p.push(format!("{}.{}", PREFS_FILE_NAME, PREFS_FILE_EXTENSION));
@@ -85,9 +87,29 @@ impl Default for Preferences {
 }
 impl Preferences {
     pub fn load() -> Self {
-        Self::_load().unwrap_or_else(|e| {
-            eprintln!("Unable to load preferences: {}", e);
-            if let Ok(prefs_path) = &*PREFERENCES_FILE_PATH {
+        let mut config = config::Config::new();
+
+        // Load default preferences.
+        if let Err(e) = config.merge(config::File::from_str(
+            DEFAULT_PREFS,
+            config::FileFormat::Yaml,
+        )) {
+            eprintln!("Error loading default preferences: {}", e);
+        }
+
+        // Load user preferences.
+        match &*PREFS_FILE_PATH {
+            Ok(path) => {
+                if let Err(e) = config.merge(config::File::from(path.as_ref())) {
+                    eprintln!("Error loading user preferences: {}", e);
+                }
+            }
+            Err(e) => eprintln!("Error loading user preferences: {}", e),
+        }
+
+        config.try_into::<Self>().unwrap_or_else(|e| {
+            eprintln!("Error loading preferences: {}", e);
+            if let Ok(prefs_path) = &*PREFS_FILE_PATH {
                 let datetime = time::OffsetDateTime::now_local()
                     .unwrap_or_else(|_| time::OffsetDateTime::now_utc());
                 let mut backup_path = prefs_path.clone();
@@ -107,37 +129,30 @@ impl Preferences {
                     eprintln!(
                         "Backup of old preferences stored at {}",
                         backup_path.to_str().unwrap_or(
-                            "some path with invalid Unicode. Seriously what have you done to your filesystem?"
+                            "some path with invalid Unicode. Seriously, what have you done to your filesystem?"
                         ),
                     );
                 }
             }
-            eprintln!("Using default preferences");
             Preferences::default()
         })
-    }
-    fn _load() -> Result<Self, Box<dyn Error>> {
-        // TODO: use try block
-        let path = PREFERENCES_FILE_PATH.as_ref()?;
-        let ret = serde_yaml::from_reader(File::open(path)?)?;
-        Ok(ret)
     }
 
     pub fn save(&mut self) {
         if self.needs_save {
             if let Err(e) = self._save() {
-                eprintln!("Unable to save preferences: {}", e);
+                eprintln!("Error saving preferences: {}", e);
             }
         }
     }
     fn _save(&mut self) -> Result<(), Box<dyn Error>> {
         // TODO: use try block
         self.needs_save = false;
-        let path = PREFERENCES_FILE_PATH.as_ref()?;
+        let path = PREFS_FILE_PATH.as_ref()?;
         if let Some(p) = path.parent() {
             std::fs::create_dir_all(p)?;
         }
-        serde_yaml::to_writer(File::create(path)?, self)?;
+        serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
         Ok(())
     }
 }
@@ -466,8 +481,8 @@ impl Key {
 
 #[derive(Serialize, Debug)]
 #[serde(transparent)]
-pub struct PerPuzzle<T>(HashMap<PuzzleType, T>);
-impl<'de, T: DeserializePerPuzzle<'de>> Default for PerPuzzle<T>
+pub struct PerPuzzle<T>(EnumMap<PuzzleType, T>);
+impl<'de, T: Default + DeserializePerPuzzle<'de>> Default for PerPuzzle<T>
 where
     T::Proxy: Default,
 {
@@ -521,12 +536,12 @@ impl<T> std::ops::Index<PuzzleType> for PerPuzzle<T> {
     type Output = T;
 
     fn index(&self, puz_type: PuzzleType) -> &Self::Output {
-        self.0.get(&puz_type).unwrap()
+        &self.0[puz_type]
     }
 }
 impl<T> std::ops::IndexMut<PuzzleType> for PerPuzzle<T> {
     fn index_mut(&mut self, puz_type: PuzzleType) -> &mut Self::Output {
-        self.0.get_mut(&puz_type).unwrap()
+        &mut self.0[puz_type]
     }
 }
 
