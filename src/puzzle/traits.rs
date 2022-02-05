@@ -351,12 +351,13 @@ pub struct GeometryParams {
     pub sticker_spacing: f32,
     /// Face spacing factor.
     pub face_spacing: f32,
-    /// 4D FOV
+    /// 4D FOV, in degrees.
     pub fov_4d: f32,
 
-    /// Model transformation matrix, including the active twist if applicable.
+    /// Model transformation matrix for an individual sticker, before 4D
+    /// projection.
     pub model_transform: Matrix4<f32>,
-    /// View transformation matrix.
+    /// View transformation matrix for the whole puzzle, after 4D projection.
     pub view_transform: Matrix3<f32>,
 
     /// Sticker fill color.
@@ -394,7 +395,7 @@ impl GeometryParams {
     pub fn project_4d(self, point: Vector4<f32>) -> Vector3<f32> {
         // This formula assumes that W is between -1 and 1.
         let w = point.w.clamp(-1.0, 1.0);
-        point.truncate() / (1.0 + (1.0 - w) * (self.fov_4d / 2.0).tan())
+        point.truncate() / (1.0 + (1.0 - w) * (self.fov_4d.to_radians() / 2.0).tan())
     }
 }
 

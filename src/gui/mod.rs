@@ -175,12 +175,9 @@ pub fn build(app: &mut AppState) {
                 let view_prefs = &mut prefs.view[app.puzzle.ty()];
 
                 // View angle settings
-                prefs.needs_save |= AngleSlider::new("Theta")
-                    .range_degrees(-180.0, 180.0)
-                    .build(ui, &mut view_prefs.theta);
-                prefs.needs_save |= AngleSlider::new("Phi")
-                    .range_degrees(-45.0, 45.0)
-                    .build(ui, &mut view_prefs.phi);
+                prefs.needs_save |=
+                    Slider::new("Theta", -180.0, 180.0).build(ui, &mut view_prefs.theta);
+                prefs.needs_save |= Slider::new("Phi", -45.0, 45.0).build(ui, &mut view_prefs.phi);
 
                 ui.separator();
 
@@ -188,12 +185,10 @@ pub fn build(app: &mut AppState) {
                 prefs.needs_save |= Slider::new("Scale", 0.1, 5.0)
                     .flags(SliderFlags::LOGARITHMIC)
                     .build(ui, &mut view_prefs.scale);
-                prefs.needs_save |= AngleSlider::new("4D FOV")
-                    .range_degrees(0.0, 120.0)
-                    .build(ui, &mut view_prefs.fov_4d);
-                prefs.needs_save |= AngleSlider::new("3D FOV")
-                    .range_degrees(-120.0, 120.0)
-                    .build(ui, &mut view_prefs.fov_3d);
+                prefs.needs_save |=
+                    Slider::new("4D FOV", 0.0, 120.0).build(ui, &mut view_prefs.fov_4d);
+                prefs.needs_save |=
+                    Slider::new("3D FOV", -120.0, 120.0).build(ui, &mut view_prefs.fov_3d);
 
                 ui.separator();
 

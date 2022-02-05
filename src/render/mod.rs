@@ -1,6 +1,6 @@
 //! Rendering logic.
 
-use cgmath::{Matrix3, Matrix4, Rad, SquareMatrix, Transform};
+use cgmath::{Deg, Matrix3, Matrix4, SquareMatrix, Transform};
 use glium::{BackfaceCullingMode, DrawParameters, Surface};
 use glium_glyph::glyph_brush::{
     rusttype, BuiltInLineBreaker, HorizontalAlign, Layout, SectionText, VariedSection,
@@ -33,8 +33,8 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
 
     // Compute the model transform, which must be applied here on the CPU so that we
     // can do proper Z ordering.
-    let view_transform = Matrix3::from_angle_x(Rad(view_prefs.theta))
-        * Matrix3::from_angle_y(Rad(view_prefs.phi))
+    let view_transform = Matrix3::from_angle_x(Deg(view_prefs.theta))
+        * Matrix3::from_angle_y(Deg(view_prefs.phi))
         / CLIPPING_RADIUS;
     // Compute the perspective transform, which we will apply on the GPU.
     let perspective_transform = {
@@ -45,7 +45,7 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
         let yy = scale / target_h as f32;
 
         let fov = view_prefs.fov_3d;
-        let zw = (fov / 2.0).tan(); // `tan(fov/2)` is the factor of how much the Z coordinate affects the XY coordinates.
+        let zw = (fov.to_radians() / 2.0).tan(); // `tan(fov/2)` is the factor of how much the Z coordinate affects the XY coordinates.
         let ww = 1.0 + fov.signum() * zw;
 
         Matrix4::from_cols(

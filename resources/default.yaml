@@ -2,25 +2,25 @@
 log_file: puzzle.log
 gfx:
   fps: 60
-  font_size: 24.0
+  font_size: 16.0
   msaa: "8"
   label_size: 24.0
 view:
   Rubiks3D:
-    theta: 0.61086524
+    theta: 35.0
     phi: 0.0
     scale: 1.25
-    fov_3d: 0.5235988
-    fov_4d: 0.5235988
+    fov_3d: 30.0
+    fov_4d: 30.0
     face_spacing: 0.025
     sticker_spacing: 0.05
     enable_outline: true
   Rubiks4D:
-    theta: 0.6108653
-    phi: -0.69813174
+    theta: 30.0
+    phi: -35.0
     scale: 2.0
-    fov_3d: 0.5235988
-    fov_4d: 0.5235988
+    fov_3d: 30.0
+    fov_4d: 30.0
     face_spacing: 0.7
     sticker_spacing: 0.5
     enable_outline: true
