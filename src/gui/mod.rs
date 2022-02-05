@@ -107,14 +107,16 @@ pub fn build(app: &mut AppState) {
             // - PushItemFlag() / PopItemFlag()
             // - ImGuiMenuFlags_MenuItemDontCloseMenu
 
-            let checkbox_menu_item = |name: &str, window_bool: &mut bool| {
-                *window_bool ^= MenuItem::new(name).selected(*window_bool).build(ui)
+            let checkbox_menu_item = |name: &str, window_bool: &mut bool| -> bool {
+                let ret = MenuItem::new(name).selected(*window_bool).build(ui);
+                *window_bool ^= ret;
+                ret
             };
 
-            checkbox_menu_item("Graphics", &mut prefs.window_states.graphics);
-            checkbox_menu_item("View", &mut prefs.window_states.view);
-            checkbox_menu_item("Colors", &mut prefs.window_states.colors);
-            checkbox_menu_item("Keybinds", &mut prefs.window_states.keybinds);
+            prefs.needs_save |= checkbox_menu_item("Graphics", &mut prefs.window_states.graphics);
+            prefs.needs_save |= checkbox_menu_item("View", &mut prefs.window_states.view);
+            prefs.needs_save |= checkbox_menu_item("Colors", &mut prefs.window_states.colors);
+            prefs.needs_save |= checkbox_menu_item("Keybinds", &mut prefs.window_states.keybinds);
 
             #[cfg(debug_assertions)]
             {
@@ -135,7 +137,7 @@ pub fn build(app: &mut AppState) {
             .always_auto_resize(true)
             .build(ui, || {
                 // FPS limit
-                prefs.needs_save ^= Slider::new("FPS limit", 5, 255)
+                prefs.needs_save |= Slider::new("FPS limit", 5, 255)
                     .flags(SliderFlags::LOGARITHMIC)
                     .build(ui, &mut prefs.gfx.fps);
 
@@ -164,6 +166,8 @@ pub fn build(app: &mut AppState) {
                     .build(ui, &mut prefs.gfx.font_size);
                 prefs.gfx.lock_font_size = ui.is_item_active();
             });
+        // If the window closed, update preferences.
+        prefs.needs_save |= !prefs.window_states.graphics;
     }
 
     if prefs.window_states.view {
@@ -201,6 +205,8 @@ pub fn build(app: &mut AppState) {
                 // Outline settings
                 prefs.needs_save |= ui.checkbox("Enable outline", &mut view_prefs.enable_outline);
             });
+        // If the window closed, update preferences.
+        prefs.needs_save |= !prefs.window_states.view;
     }
 
     if prefs.window_states.colors {
@@ -236,6 +242,8 @@ pub fn build(app: &mut AppState) {
                     prefs.needs_save |= ColorEdit::new(face_name, color).build(ui);
                 }
             });
+        // If the window closed, update preferences.
+        prefs.needs_save |= !prefs.window_states.colors;
     }
 
     if prefs.window_states.keybinds {
@@ -265,6 +273,8 @@ pub fn build(app: &mut AppState) {
                 );
                 *min_window_width = current_window_width - extra_width;
             });
+        // If the window closed, update preferences.
+        prefs.needs_save |= !prefs.window_states.keybinds;
     }
 
     if prefs.window_states.about {
@@ -282,6 +292,8 @@ pub fn build(app: &mut AppState) {
                     env!("CARGO_PKG_AUTHORS").split(':').join(", "),
                 ));
             });
+        // If the window closed, update preferences.
+        prefs.needs_save |= !prefs.window_states.about;
     }
 
     #[cfg(debug_assertions)]
