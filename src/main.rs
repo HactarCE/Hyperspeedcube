@@ -214,20 +214,11 @@ fn main() {
                 // Prep imgui for rendering.
                 let mouse_pos = imgui_io.mouse_pos;
                 let ui = imgui.frame();
-                let status_bar = gui::StatusBarState {
-                    left_segments: vec!["Loading things ...".to_owned()],
-                    right_segments: vec![
-                        format!("Twists: {}", puzzle.twist_count()),
-                        format!("Time: {:?}", std::time::SystemTime::now()),
-                    ],
-                };
                 let mut app = gui::AppState {
                     ui: &ui,
                     mouse_pos,
                     puzzle: &mut puzzle,
                     control_flow,
-
-                    status_bar: &status_bar,
                 };
                 gui::build(&mut app);
 

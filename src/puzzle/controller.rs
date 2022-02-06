@@ -1,11 +1,14 @@
 //! Puzzle wrapper that adds animation and undo history functionality.
 
 use cgmath::{Matrix4, SquareMatrix};
+use itertools::Itertools;
 use std::collections::VecDeque;
 use std::error::Error;
 use std::io;
 use std::path::Path;
 use std::time::Duration;
+
+use super::TwistMetric;
 
 /// Interpolation functions.
 pub mod interpolate {
@@ -225,6 +228,16 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
     fn get_sticker_color(&self, sticker: Sticker) -> Face {
         let s = sticker.try_into::<P>().unwrap();
         self.displayed().get_sticker_color(s).into()
+    }
+
+    fn twist_count(&self, metric: TwistMetric) -> usize {
+        let twists = self.undo_buffer.iter().copied();
+        let prev_twists = itertools::put_back(twists.clone().map(Some)).with_value(None);
+
+        twists
+            .zip(prev_twists)
+            .filter(|&(this, prev)| !this.can_combine(prev, metric))
+            .count()
     }
 }
 

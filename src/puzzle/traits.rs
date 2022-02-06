@@ -6,7 +6,7 @@ use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
 use std::time::Duration;
 
-use super::{Face, LayerMask, Piece, PieceType, PuzzleType, Sticker};
+use super::{Face, LayerMask, Piece, PieceType, PuzzleType, Sticker, TwistMetric};
 use crate::render::WireframeVertex;
 
 macro_rules! lazy_static_array_methods {
@@ -72,6 +72,9 @@ pub trait PuzzleControllerTrait {
     /// Returns the face where the sticker at the given location belongs (i.e.
     /// corresponding to its color).
     fn get_sticker_color(&self, sticker: Sticker) -> Face;
+
+    /// Returns the number of twists applied to the puzzle.
+    fn twist_count(&self, metric: TwistMetric) -> usize;
 }
 
 /// A twisty puzzle.
@@ -333,6 +336,12 @@ pub trait TwistTrait<P: PuzzleState>:
             .filter(|&piece| self.affects_piece(piece))
             .collect()
     }
+
+    /// Returns whether the two moves are counted as a single move in `metric`.
+    fn can_combine(self, previous: Option<Self>, metric: TwistMetric) -> bool;
+    /// Returns whether the move is a whole-puzzle rotation, which is not
+    /// counted in most turn metrics.
+    fn is_whole_puzzle_rotation(self) -> bool;
 }
 
 /// An orientation for a piece of a twisty puzzle, relative to some default.

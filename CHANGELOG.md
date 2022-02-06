@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- **Status bar**
+  - Twist count [(QSTM, FTM, STM, ETM)](https://www.speedsolving.com/wiki/index.php/Metric)
 - Automatic reloading of preferences file when modified externally
 
 ### Changed

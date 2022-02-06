@@ -6,7 +6,7 @@ use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 use std::str::FromStr;
 
-use super::{traits::*, LayerMask, PieceType, PuzzleType, Sign, TwistDirection2D};
+use super::{traits::*, TwistMetric,LayerMask, PieceType, PuzzleType, Sign, TwistDirection2D};
 use crate::render::WireframeVertex;
 
 /// Maximum extent of any single coordinate along the X, Y, Z, or W axes.
@@ -685,6 +685,29 @@ impl TwistTrait<Rubiks4D> for Twist {
             Sign::Zero => self.layers[1],
             Sign::Pos => self.layers[0],
         }
+    }
+
+    fn can_combine(self, previous: Option<Self>, metric: TwistMetric) -> bool {
+        if self.is_whole_puzzle_rotation() {
+            match metric {
+                TwistMetric::Qstm | TwistMetric::Ftm | TwistMetric::Stm => true,
+                TwistMetric::Etm => false,
+            }
+        } else if let Some(prev) = previous {
+            match metric {
+                TwistMetric::Qstm => false,
+                TwistMetric::Ftm => {
+                    self.sticker.face() == prev.sticker.face() && self.layers == prev.layers
+                }
+                TwistMetric::Stm => self.sticker.face() == prev.sticker.face(),
+                TwistMetric::Etm => false,
+            }
+        } else {
+            false
+        }
+    }
+    fn is_whole_puzzle_rotation(self) -> bool {
+        self.layers == [true; 3]
     }
 }
 impl From<Sticker> for Twist {

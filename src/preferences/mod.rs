@@ -18,11 +18,13 @@ use std::sync::{mpsc, Mutex, MutexGuard, TryLockError};
 use std::time::Duration;
 
 mod colors;
+mod info;
 mod keybinds;
 
 use crate::puzzle::commands::CommandSerde;
 use crate::puzzle::{traits::*, Command, PuzzleType};
 pub use colors::ColorPreferences;
+pub use info::InfoPreferences;
 pub use keybinds::{Key, Keybind};
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
@@ -118,6 +120,7 @@ pub struct Preferences {
     pub log_file: PathBuf,
 
     pub gfx: GfxPreferences,
+    pub info: InfoPreferences,
     pub view: PerPuzzle<ViewPreferences>,
     pub colors: ColorPreferences,
     pub keybinds: PerPuzzle<Vec<Keybind>>,
@@ -131,6 +134,7 @@ impl Default for Preferences {
             log_file: PathBuf::from("puzzle.log"),
 
             gfx: Default::default(),
+            info: Default::default(),
             view: Default::default(),
             colors: Default::default(),
             keybinds: Default::default(),

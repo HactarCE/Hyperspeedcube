@@ -8,10 +8,10 @@ use strum::IntoEnumIterator;
 mod popups;
 mod util;
 
-use crate::preferences::{Keybind, Msaa};
+use crate::preferences::{Keybind, Msaa, Preferences};
 use crate::puzzle::{
     traits::*, Command, LayerMask, PieceType, Puzzle, PuzzleType, SelectCategory, SelectHow,
-    SelectThing, TwistDirection,
+    SelectThing, TwistDirection, TwistMetric,
 };
 pub use popups::keybind_popup_handle_event;
 
@@ -130,6 +130,33 @@ pub fn build(app: &mut AppState) {
         });
     });
 
+    // Build the status bar.
+    build_status_bar(
+        ui,
+        |tok| {
+            // Display twist count.
+            {
+                let metric = prefs.info.metric;
+                let twist_count = app.puzzle.twist_count(metric);
+                let metric = tok.right_segment(ui, format!("{}: {}", metric, twist_count));
+                if ui.is_item_clicked() || ui.is_item_clicked_with_button(MouseButton::Right) {
+                    ui.open_popup("turn_metric_popup");
+                }
+                ui.popup("turn_metric_popup", || {
+                    for metric in TwistMetric::iter() {
+                        if Selectable::new(metric).build(ui) {
+                            prefs.info.metric = metric;
+                            prefs.needs_save = true;
+                        }
+                    }
+                });
+            }
+        },
+        |tok| {
+            tok.left_segment(ui, "Status text here ...");
+        },
+    );
+
     if prefs.window_states.graphics {
         Window::new("Graphics")
             .opened(&mut prefs.window_states.graphics)
@@ -151,8 +178,8 @@ pub fn build(app: &mut AppState) {
                                 .selected(prefs.gfx.msaa == option)
                                 .build(ui)
                             {
-                                prefs.needs_save = true;
                                 prefs.gfx.msaa = option;
+                                prefs.needs_save = true;
                             }
                         }
                     });
@@ -323,6 +350,107 @@ pub fn build(app: &mut AppState) {
 
     // Save any configuration changes.
     prefs.save();
+}
+
+struct RightStatusBarToken {
+    sep_width: f32,
+    start_x: f32,
+    x: f32,
+    y: f32,
+    done: bool,
+}
+impl RightStatusBarToken {
+    pub fn right_segment(&mut self, ui: &Ui<'_>, s: impl AsRef<str>) {
+        let w = ui.calc_text_size(&s)[0] + self.sep_width;
+        if self.x - w <= self.start_x {
+            self.done = true;
+        }
+        if self.done {
+            ui.text(""); // Reset "last item"
+        } else {
+            self.x -= w;
+            ui.set_cursor_pos([self.x, self.y]);
+            ui.separator();
+            ui.text(s);
+        }
+    }
+}
+struct LeftStatusBarToken {
+    sep_width: f32,
+    end_x: f32,
+    first: bool,
+    done: bool,
+}
+impl LeftStatusBarToken {
+    pub fn left_segment(&mut self, ui: &Ui<'_>, s: impl AsRef<str>) {
+        if self.end_x < ui.cursor_pos()[0] + self.sep_width {
+            self.done = true;
+        }
+        if self.done {
+            ui.text(""); // Reset "last item"
+        } else {
+            if !self.first {
+                self.first = false;
+                ui.separator();
+            }
+            ui.push_text_wrap_pos_with_pos(self.end_x - ui.cursor_pos()[0]);
+            ui.text_wrapped(s);
+        }
+    }
+}
+fn build_status_bar(
+    ui: &Ui<'_>,
+    build_right_segments: impl FnOnce(&mut RightStatusBarToken),
+    build_left_segments: impl FnOnce(&mut LeftStatusBarToken),
+) {
+    let viewport_pos;
+    let viewport_size;
+    unsafe {
+        let viewport = *imgui::sys::igGetMainViewport();
+        viewport_pos = viewport.Pos;
+        viewport_size = viewport.Size;
+    }
+    let w = viewport_size.x;
+    let h = ui.frame_height();
+    let x = viewport_pos.x;
+    let y = viewport_pos.y + viewport_size.y - h;
+    Window::new("Status bar")
+        .position([x, y], Condition::Always)
+        .size([w, h], Condition::Always)
+        .flags(
+            WindowFlags::NO_TITLE_BAR
+                | WindowFlags::NO_RESIZE
+                | WindowFlags::NO_MOVE
+                | WindowFlags::NO_SCROLLBAR
+                | WindowFlags::MENU_BAR,
+        )
+        .build(ui, || {
+            ui.menu_bar(|| {
+                let sep_width = ui.clone_style().item_spacing[0] * 2.0;
+
+                // Display right segments, right-to-left.
+                let [start_x, y] = ui.cursor_pos();
+                let x = ui.content_region_max()[0];
+                let mut tok = RightStatusBarToken {
+                    sep_width,
+                    start_x,
+                    x,
+                    y,
+                    done: false,
+                };
+                build_right_segments(&mut tok);
+
+                // Display left segments, left-to-right.
+                ui.set_cursor_pos([start_x, y]);
+                let mut tok = LeftStatusBarToken {
+                    sep_width,
+                    end_x: tok.x,
+                    first: true,
+                    done: false,
+                };
+                build_left_segments(&mut tok);
+            });
+        });
 }
 
 fn build_keybind_table(
