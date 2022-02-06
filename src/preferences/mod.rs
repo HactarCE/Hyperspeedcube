@@ -196,22 +196,19 @@ impl Preferences {
 
     pub fn save(&mut self) {
         if self.needs_save {
-            if let Err(e) = self._save() {
+            self.needs_save = false;
+            let result = unwatch_during(|| -> Result<(), Box<dyn Error>> {
+                let path = PREFS_FILE_PATH.as_ref()?;
+                if let Some(p) = path.parent() {
+                    std::fs::create_dir_all(p)?;
+                }
+                serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
+                Ok(())
+            });
+            if let Err(e) = result {
                 eprintln!("Error saving preferences: {}", e);
             }
         }
-    }
-    fn _save(&mut self) -> Result<(), Box<dyn Error>> {
-        // TODO: use try block
-        self.needs_save = false;
-        let path = PREFS_FILE_PATH.as_ref()?;
-        unwatch_during(|| {
-            if let Some(p) = path.parent() {
-                std::fs::create_dir_all(p)?;
-            }
-            serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
-            Ok(())
-        })
     }
 }
 

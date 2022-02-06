@@ -27,7 +27,6 @@ impl FrameInProgress<'_> {
             Event::WindowEvent { event, .. } => {
                 match event {
                     WindowEvent::KeyboardInput { input, .. } => {
-                        // self.state.keys.update(*input); // TODO: probably delete this
                         if self.state.has_keyboard {
                             self.handle_key(*input);
                         }
@@ -62,15 +61,10 @@ impl FrameInProgress<'_> {
     fn handle_key(&mut self, input: KeyboardInput) {
         let sc = key_names::sc_to_key(input.scancode as u16).map(Key::Sc);
         let vk = input.virtual_keycode.map(Key::Vk);
-        // TODO: this is massive and ugly and I hate it.
-        let is_shift = sc.map(|sc| sc.is_shift()).unwrap_or_default()
-            || vk.map(|vk| vk.is_shift()).unwrap_or_default();
-        let is_ctrl = sc.map(|sc| sc.is_ctrl()).unwrap_or_default()
-            || vk.map(|vk| vk.is_ctrl()).unwrap_or_default();
-        let is_alt = sc.map(|sc| sc.is_alt()).unwrap_or_default()
-            || vk.map(|vk| vk.is_alt()).unwrap_or_default();
-        let is_logo = sc.map(|sc| sc.is_logo()).unwrap_or_default()
-            || vk.map(|vk| vk.is_logo()).unwrap_or_default();
+        let is_shift = sc.map_or(false, |k| k.is_shift()) || vk.map_or(false, |k| k.is_shift());
+        let is_ctrl = sc.map_or(false, |k| k.is_ctrl()) || vk.map_or(false, |k| k.is_ctrl());
+        let is_alt = sc.map_or(false, |k| k.is_alt()) || vk.map_or(false, |k| k.is_alt());
+        let is_logo = sc.map_or(false, |k| k.is_logo()) || vk.map_or(false, |k| k.is_logo());
 
         if input.state == ElementState::Released {
             // Remove selections for this held key.
@@ -173,14 +167,7 @@ impl FrameInProgress<'_> {
                 // Paste puzzle state.
                 Some(VirtualKeyCode::V) => println!("TODO paste puzzle state"),
                 // Save file.
-                Some(VirtualKeyCode::S) => match self.puzzle {
-                    Puzzle::Rubiks3D(_) => eprintln!("error: can't save 3D puzzle"),
-                    Puzzle::Rubiks4D(cube) => {
-                        if let Err(e) = cube.save_file(&prefs.log_file) {
-                            eprintln!("error: {}", e);
-                        }
-                    }
-                },
+                Some(VirtualKeyCode::S) => crate::gui::try_save(&mut self.puzzle, &prefs.log_file),
                 // Full scramble.
                 Some(VirtualKeyCode::F) => println!("TODO full scramble"),
                 _ => (),
@@ -335,158 +322,6 @@ impl Selection {
     }
 }
 
-// // TODO: document this
-// #[derive(Debug, Default)]
-// struct KeysPressed {
-//     /// The set of scancodes for keys that are held.
-//     scancodes: HashSet<u32>,
-//     /// The set of virtual keycodes for keys that are held.
-//     virtual_keycodes: HashSet<VirtualKeyCode>,
-// }
-// impl KeysPressed {
-//     /// Updates internal key state based on a KeyboardInput event.
-//     pub fn update(&mut self, input: KeyboardInput) {
-//         match input.state {
-//             ElementState::Pressed => {
-//                 self.scancodes.insert(input.scancode);
-//                 if let Some(virtual_keycode) = input.virtual_keycode {
-//                     self.virtual_keycodes.insert(virtual_keycode);
-//                 }
-//             }
-//             ElementState::Released => {
-//                 self.scancodes.remove(&input.scancode);
-//                 if let Some(virtual_keycode) = input.virtual_keycode {
-//                     self.virtual_keycodes.remove(&virtual_keycode);
-//                 }
-//             }
-//         }
-//     }
-// }
-// impl Index<u32> for KeysPressed {
-//     type Output = bool;
-//     fn index(&self, scancode: u32) -> &bool {
-//         if self.scancodes.contains(&scancode) {
-//             &true
-//         } else {
-//             &false
-//         }
-//     }
-// }
-// impl Index<VirtualKeyCode> for KeysPressed {
-//     type Output = bool;
-//     fn index(&self, virtual_keycode: VirtualKeyCode) -> &bool {
-//         if self.virtual_keycodes.contains(&virtual_keycode) {
-//             &true
-//         } else {
-//             &false
-//         }
-//     }
-// }
-
-// fn handle_key_rubiks3d(
-//     cube: &mut PuzzleController<Rubiks3D>,
-//     keycode: VirtualKeyCode,
-//     state: &mut State,
-// ) {
-//     use rubiks3d::*;
-//     use VirtualKeyCode as Vk;
-
-//     if state.modifiers.shift() {
-//         match keycode {
-//             _ => (),
-//         }
-//     } else {
-//         match keycode {
-//             Vk::U => cube.twist(twists::R),
-//             Vk::E => cube.twist(twists::R.rev()),
-//             Vk::L => cube.twist(twists::R.fat()),
-//             Vk::M => cube.twist(twists::R.fat().rev()),
-//             Vk::N => cube.twist(twists::U),
-//             Vk::T => cube.twist(twists::U.rev()),
-//             Vk::S => cube.twist(twists::L),
-//             Vk::F => cube.twist(twists::L.rev()),
-//             Vk::V => cube.twist(twists::L.fat()),
-//             Vk::P => cube.twist(twists::L.fat().rev()),
-//             Vk::R => cube.twist(twists::D),
-//             Vk::I => cube.twist(twists::D.rev()),
-//             Vk::H => cube.twist(twists::F),
-//             Vk::D => cube.twist(twists::F.rev()),
-//             Vk::W => cube.twist(twists::B),
-//             Vk::Y => cube.twist(twists::B.rev()),
-//             Vk::G | Vk::J => cube.twist(twists::X),
-//             Vk::B | Vk::K => cube.twist(twists::X.rev()),
-//             Vk::O => cube.twist(twists::Y),
-//             Vk::A => cube.twist(twists::Y.rev()),
-//             Vk::Semicolon => cube.twist(twists::Z),
-//             Vk::Q => cube.twist(twists::Z.rev()),
-//             _ => (),
-//         }
-//     }
-// }
-
-// fn handle_key_rubiks4d(
-//     cube: &mut PuzzleController<Rubiks4D>,
-//     keycode: VirtualKeyCode,
-//     state: &mut State,
-// ) {
-//     use crate::puzzle::TwistDirection::*;
-//     use rubiks4d::*;
-//     use VirtualKeyCode as Vk;
-
-//     const FACE_KEYS: [(Face, Vk, &str); 8] = [
-//         (Face::L, Vk::W, "W"),
-//         (Face::U, Vk::F, "F"),
-//         (Face::B, Vk::P, "P"),
-//         (Face::F, Vk::R, "R"),
-//         (Face::I, Vk::S, "S"),
-//         (Face::R, Vk::T, "T"),
-//         (Face::D, Vk::C, "C"),
-//         (Face::O, Vk::V, "V"),
-//     ];
-
-//     if let Ok((face, _, _)) = FACE_KEYS
-//         .into_iter()
-//         .filter(|(_, vk, _)| state.keys[*vk])
-//         .exactly_one()
-//     {
-//         let layer0 = !state.modifiers.alt();
-//         let layer1 = state.modifiers.alt() || state.modifiers.shift();
-//         let layers = [layer0, layer1, false];
-//         let twist = match keycode {
-//             Vk::U => twists::by_3d_view(face, Axis::X, CW).layers(layers),
-//             Vk::E => twists::by_3d_view(face, Axis::X, CCW).layers(layers),
-//             Vk::N => twists::by_3d_view(face, Axis::Y, CW).layers(layers),
-//             Vk::I => twists::by_3d_view(face, Axis::Y, CCW).layers(layers),
-//             Vk::Y => twists::by_3d_view(face, Axis::Z, CW).layers(layers),
-//             Vk::L => twists::by_3d_view(face, Axis::Z, CCW).layers(layers),
-//             Vk::Space => match twists::recenter(face) {
-//                 Some(twist) => twist,
-//                 None => return,
-//             },
-//             _ => return,
-//         };
-//         cube.twist(twist);
-//     } else if state.modifiers.shift() {
-//         match keycode {
-//             Vk::Key1 => state.perma_layer_hide_mask[0] = !state.perma_layer_hide_mask[0],
-//             Vk::Key2 => state.perma_layer_hide_mask[1] = !state.perma_layer_hide_mask[1],
-//             Vk::Key3 => state.perma_layer_hide_mask[2] = !state.perma_layer_hide_mask[2],
-//             Vk::Key4 => state.perma_layer_hide_mask[3] = !state.perma_layer_hide_mask[3],
-//             _ => (),
-//         }
-//     } else {
-//         match keycode {
-//             Vk::G | Vk::J => cube.twist(*twists::X),
-//             Vk::B | Vk::K => cube.twist(twists::X.rev()),
-//             Vk::O => cube.twist(*twists::Y),
-//             Vk::A => cube.twist(twists::Y.rev()),
-//             Vk::Semicolon => cube.twist(*twists::Z),
-//             Vk::Q => cube.twist(twists::Z.rev()),
-//             _ => (),
-//         }
-//     }
-// }
-
 fn update_puzzle_display<P: PuzzleState>(cube: &mut PuzzleController<P>, selection: Selection) {
     let selected_piece_types_mask = selection.piece_types_mask;
 
@@ -518,6 +353,8 @@ fn update_puzzle_display<P: PuzzleState>(cube: &mut PuzzleController<P>, selecti
 
         true
     });
+
+    // TODO: remove this old cruft
 
     // cube.labels = vec![];
     // if state.keys[Vk::Tab] {

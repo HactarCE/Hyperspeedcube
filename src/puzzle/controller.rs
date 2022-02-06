@@ -273,6 +273,7 @@ impl PuzzleController<Rubiks4D> {
         };
         std::fs::write(path, logfile.to_string())?;
         self.is_unsaved = false;
+
         Ok(())
     }
 }

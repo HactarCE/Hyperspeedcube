@@ -22,7 +22,7 @@ pub struct AppState<'a> {
     pub control_flow: &'a mut ControlFlow,
 }
 
-fn try_save(puzzle: &mut Puzzle, path: &Path) {
+pub(crate) fn try_save(puzzle: &mut Puzzle, path: &Path) {
     match puzzle {
         Puzzle::Rubiks4D(p) => match p.save_file(path) {
             Ok(()) => (),

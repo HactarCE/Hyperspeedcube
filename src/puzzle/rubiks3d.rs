@@ -375,7 +375,7 @@ impl Face {
     /// Returns the face on the given axis with the given sign. Panics if given
     /// Sign::Zero.
     pub const fn new(axis: Axis, sign: Sign) -> Self {
-        assert!(sign.is_nonzero(), "invalid sign for face"); // TODO: panicking in const functions is unstable
+        assert!(sign.is_nonzero(), "invalid sign for face");
         Self { axis, sign }
     }
     /// Returns the axis perpendicular to this face.
