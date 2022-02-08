@@ -1,80 +1,55 @@
 use key_names::KeyMappingCode;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 use winit::event::{ModifiersState, VirtualKeyCode};
 
 use super::{is_false, DeserializePerPuzzle};
-use crate::puzzle::{Command, CommandSerde, PuzzleType};
+use crate::commands::{Command, PuzzleCommand, PuzzleCommandSerde};
+use crate::puzzle::PuzzleType;
 
-#[derive(Debug, Default, Clone)]
-pub struct Keybind {
-    pub key: Option<Key>,
-
-    pub ctrl: bool,
-    pub shift: bool,
-    pub alt: bool,
-    pub logo: bool,
-
-    pub command: Command,
-}
-impl Serialize for Keybind {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        KeybindSerde::from(self).serialize(serializer)
-    }
-}
+pub type PuzzleKeybind = Keybind<PuzzleCommand>;
+pub type GeneralKeybind = Keybind<Command>;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
+pub struct Keybind<C> {
+    #[serde(flatten, deserialize_with = "deser_valid_key_combo")]
+    pub key: KeyCombo,
+    pub command: C,
+}
+fn deser_valid_key_combo<'de, D: Deserializer<'de>>(deserializer: D) -> Result<KeyCombo, D::Error> {
+    KeyCombo::deserialize(deserializer).map(KeyCombo::validate)
+}
+
+impl<'de> DeserializePerPuzzle<'de> for Vec<Keybind<PuzzleCommand>> {
+    type Proxy = Vec<Keybind<PuzzleCommandSerde<'de>>>;
+
+    fn deserialize_from(value: Vec<Keybind<PuzzleCommandSerde<'de>>>, ty: PuzzleType) -> Self {
+        value
+            .into_iter()
+            .map(|keybind| Keybind {
+                key: keybind.key,
+                command: PuzzleCommand::deserialize_from(keybind.command, ty),
+            })
+            .collect()
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone)]
 #[serde(default)]
-pub struct KeybindSerde<'a> {
+pub struct KeyCombo {
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub key: Option<Key>,
+    key: Option<Key>,
 
     #[serde(skip_serializing_if = "is_false")]
-    pub ctrl: bool,
+    ctrl: bool,
     #[serde(skip_serializing_if = "is_false")]
-    pub shift: bool,
+    shift: bool,
     #[serde(skip_serializing_if = "is_false")]
-    pub alt: bool,
+    alt: bool,
     #[serde(skip_serializing_if = "is_false")]
-    pub logo: bool,
-
-    #[serde(borrow)]
-    pub command: CommandSerde<'a>,
+    logo: bool,
 }
-impl<'a> From<&'a Keybind> for KeybindSerde<'_> {
-    fn from(keybind: &'a Keybind) -> Self {
-        KeybindSerde {
-            key: keybind.key,
-
-            ctrl: keybind.ctrl,
-            shift: keybind.shift,
-            alt: keybind.alt,
-            logo: keybind.logo,
-
-            command: (&keybind.command).into(),
-        }
-    }
-}
-impl<'de> DeserializePerPuzzle<'de> for Keybind {
-    type Proxy = KeybindSerde<'de>;
-
-    fn deserialize_from(keybind: KeybindSerde<'de>, ty: PuzzleType) -> Self {
-        Self {
-            key: keybind.key,
-
-            ctrl: keybind.ctrl,
-            shift: keybind.shift,
-            alt: keybind.alt,
-            logo: keybind.logo,
-
-            command: Command::deserialize_from(keybind.command, ty),
-        }
-    }
-}
-impl fmt::Display for Keybind {
+impl fmt::Display for KeyCombo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mods = key_names::mods_prefix_string(self.shift, self.ctrl, self.alt, self.logo);
         write!(f, "{}", mods)?;
@@ -104,41 +79,44 @@ impl fmt::Display for Keybind {
         }
     }
 }
-impl Keybind {
-    pub fn new(key: Option<Key>, mods: ModifiersState, command: Command) -> Self {
-        let mut ret = Self {
+impl KeyCombo {
+    pub fn new(key: Option<Key>, mods: ModifiersState) -> Self {
+        Self {
             key,
-
             ctrl: mods.ctrl(),
             shift: mods.shift(),
             alt: mods.alt(),
             logo: mods.logo(),
-
-            command,
-        };
-        ret.validate_keybind();
-        ret
-    }
-    pub fn validate_keybind(&mut self) {
-        if let Some(key) = self.key {
-            use KeyMappingCode as Sc;
-            use VirtualKeyCode as Vk;
-
-            // Remove redundant modifiers.
-            match key {
-                Key::Sc(Sc::ControlLeft | Sc::ControlRight) => self.ctrl = false,
-                Key::Sc(Sc::ShiftLeft | Sc::ShiftRight) => self.shift = false,
-                Key::Sc(Sc::AltLeft | Sc::AltRight) => self.alt = false,
-                Key::Sc(Sc::MetaLeft | Sc::MetaRight) => self.logo = false,
-
-                Key::Vk(Vk::LControl | Vk::RControl) => self.ctrl = false,
-                Key::Vk(Vk::LShift | Vk::RShift) => self.shift = false,
-                Key::Vk(Vk::LAlt | Vk::RAlt) => self.alt = false,
-                Key::Vk(Vk::LWin | Vk::RWin) => self.logo = false,
-
-                _ => (),
-            }
         }
+        .validate()
+    }
+    #[must_use]
+    pub fn validate(self) -> Self {
+        Self {
+            key: self.key(),
+
+            // If `key` is equivalent to a modifier key, exclude it from the
+            // modifier booleans.
+            ctrl: self.ctrl() && self.key().map_or(true, |k| !k.is_ctrl()),
+            shift: self.shift() && self.key().map_or(true, |k| !k.is_shift()),
+            alt: self.alt() && self.key().map_or(true, |k| !k.is_alt()),
+            logo: self.logo() && self.key().map_or(true, |k| !k.is_logo()),
+        }
+    }
+    pub fn key(self) -> Option<Key> {
+        self.key
+    }
+    pub fn ctrl(self) -> bool {
+        self.ctrl
+    }
+    pub fn shift(self) -> bool {
+        self.shift
+    }
+    pub fn alt(self) -> bool {
+        self.alt
+    }
+    pub fn logo(self) -> bool {
+        self.logo
     }
 }
 
@@ -189,17 +167,5 @@ impl Key {
             Self::Vk(Vk::LWin | Vk::RWin) => true,
             _ => false,
         }
-    }
-}
-
-impl<'de> DeserializePerPuzzle<'de> for Vec<Keybind> {
-    type Proxy = Vec<KeybindSerde<'de>>;
-
-    fn deserialize_from(value: Vec<KeybindSerde<'de>>, ty: PuzzleType) -> Self {
-        value
-            .into_iter()
-            .filter(|keybind| keybind.key.is_some())
-            .map(|keybind| Keybind::deserialize_from(keybind, ty))
-            .collect()
     }
 }

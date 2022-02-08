@@ -80,7 +80,7 @@ pub fn draw_puzzle(target: &mut glium::Frame, puzzle: &Puzzle) {
             geo_params.model_transform = puzzle.model_transform_for_piece(*piece);
 
             for sticker in piece.stickers() {
-                let alpha = if puzzle.is_highlighted(sticker) {
+                let alpha = if puzzle.highlight().has_sticker(sticker) {
                     prefs.colors.opacity
                 } else {
                     0.1

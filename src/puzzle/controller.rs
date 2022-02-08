@@ -8,7 +8,7 @@ use std::io;
 use std::path::Path;
 use std::time::Duration;
 
-use super::TwistMetric;
+use super::{LayerMask, Selection, TwistDirection, TwistMetric};
 
 /// Interpolation functions.
 pub mod interpolate {
@@ -49,47 +49,46 @@ pub struct PuzzleController<P: PuzzleState> {
     /// A queue of twists that transform the displayed state into the latest
     /// state.
     twists: VecDeque<P::Twist>,
-    /// Maximum number of moves in the queue (reset when queue is empty).
+    /// Maximum number of twists in the queue (reset when queue is empty).
     queue_max: usize,
     /// The progress of the animation in the current twist, from 0.0 to 1.0.
     progress: f32,
 
     /// Whether the puzzle has been modified since the last time the log file
     /// was saved.
-    pub is_unsaved: bool,
+    is_unsaved: bool,
 
     /// Whether the puzzle has been scrambled.
-    pub scramble_state: ScrambleState,
+    scramble_state: ScrambleState,
     /// Scrmable twists.
-    pub scramble: Vec<P::Twist>,
+    scramble: Vec<P::Twist>,
     /// Undo history.
-    pub undo_buffer: Vec<P::Twist>,
+    undo_buffer: Vec<P::Twist>,
     /// Redo history.
-    pub redo_buffer: Vec<P::Twist>,
+    redo_buffer: Vec<P::Twist>,
 
-    /// Sticker highlight filters.
-    pub highlight_filter: Box<dyn Fn(P::Sticker) -> bool>,
-    /// Labels.
-    pub labels: Vec<(Facet<P>, String)>,
+    /// Highlighted selection.
+    highlight: Selection,
 }
 impl<P: PuzzleState> Default for PuzzleController<P> {
     fn default() -> Self {
+        // #[derive(Default)] doesn't work because it uses bounds that are too
+        // strict (`P::Twist: Default`).
         Self {
-            displayed: Box::new(P::default()),
-            latest: Box::new(P::default()),
-            twists: VecDeque::new(),
-            queue_max: 0,
-            progress: 0.0,
+            displayed: Default::default(),
+            latest: Default::default(),
+            twists: Default::default(),
+            queue_max: Default::default(),
+            progress: Default::default(),
 
-            is_unsaved: false,
+            is_unsaved: Default::default(),
 
-            scramble_state: ScrambleState::default(),
-            scramble: vec![],
-            undo_buffer: vec![],
-            redo_buffer: vec![],
+            scramble_state: Default::default(),
+            scramble: Default::default(),
+            undo_buffer: Default::default(),
+            redo_buffer: Default::default(),
 
-            highlight_filter: Box::new(|_| true),
-            labels: vec![],
+            highlight: Default::default(),
         }
     }
 }
@@ -143,9 +142,77 @@ impl<P: PuzzleState> PuzzleController<P> {
     }
 }
 
+/// Methods for `PuzzleController` that do not depend on puzzle type.
+#[enum_dispatch]
+pub trait PuzzleControllerTrait {
+    /// Returns the puzzle type.
+    fn ty(&self) -> PuzzleType;
+
+    /// Performs a twist on the puzzle.
+    fn do_twist_command(
+        &mut self,
+        face: Face,
+        direction: TwistDirection,
+        layer_mask: LayerMask,
+    ) -> Result<(), Box<dyn Error>>;
+    /// Rotates the whole puzzle to put a face in the center of the view.
+    fn do_recenter_command(&mut self, face: Face) -> Result<(), Box<dyn Error>>;
+
+    /// Advances to the next frame, using the given time delta between this
+    /// frame and the last.
+    fn advance(&mut self, delta: Duration);
+    /// Skips the animations for all twists in the queue.
+    fn catch_up(&mut self);
+
+    /// Returns whether there is a twist to undo.
+    fn has_undo(&self) -> bool;
+    /// Returns whether there is a twist to redo.
+    fn has_redo(&self) -> bool;
+    /// Undoes one twist. Returns whether a twist was undone.
+    fn undo(&mut self) -> bool;
+    /// Redoes one twist. Returns whether a twist was redone.
+    fn redo(&mut self) -> bool;
+
+    /// Returns whether the puzzle has been modified since the lasts time the
+    /// log file was saved.
+    fn is_unsaved(&self) -> bool;
+
+    /// Returns the model transform for a piece, based on the current animation
+    /// in progress.
+    fn model_transform_for_piece(&self, piece: Piece) -> Matrix4<f32>;
+    /// Returns the face where the sticker at the given location belongs (i.e.
+    /// corresponding to its color).
+    fn get_sticker_color(&self, sticker: Sticker) -> Face;
+
+    /// Returns the selection to highlight.
+    fn highlight(&self) -> Selection;
+    /// Sets the selection to highlight.
+    fn set_highlight(&mut self, sel: Selection);
+
+    /// Returns the number of twists applied to the puzzle.
+    fn twist_count(&self, metric: TwistMetric) -> usize;
+}
 impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
     fn ty(&self) -> PuzzleType {
         P::TYPE
+    }
+
+    fn do_twist_command(
+        &mut self,
+        face: Face,
+        direction: TwistDirection,
+        layer_mask: LayerMask,
+    ) -> Result<(), Box<dyn Error>> {
+        self.twist(P::Twist::from_twist_command(
+            face.try_into::<P>()?,
+            direction.name(),
+            layer_mask,
+        )?);
+        Ok(())
+    }
+    fn do_recenter_command(&mut self, face: Face) -> Result<(), Box<dyn Error>> {
+        self.twist(P::Twist::from_recenter_command(face.try_into::<P>()?)?);
+        Ok(())
     }
 
     fn advance(&mut self, delta: Duration) {
@@ -162,7 +229,7 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
         self.queue_max = std::cmp::max(self.queue_max, self.twists.len());
         // TWIST_DURATION is in seconds (per one twist); speed is (fraction of twist) per frame.
         let base_speed = delta.as_secs_f32() / TWIST_DURATION;
-        // Move exponentially faster if there are/were more moves in the queue.
+        // Twist exponentially faster if there are/were more twists in the queue.
         let mut speed_mod = ((self.queue_max - 1) as f32).exp();
         // Set a speed limit.
         if speed_mod > TWIST_DURATION / MIN_DURATION {
@@ -192,20 +259,26 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
     fn has_redo(&self) -> bool {
         !self.redo_buffer.is_empty()
     }
-    fn undo(&mut self) {
+    fn undo(&mut self) -> bool {
         if let Some(twist) = self.undo_buffer.pop() {
             self.is_unsaved = true;
             self.redo_buffer.push(twist);
             self.twists.push_back(twist.rev());
             self.latest.twist(twist.rev());
+            true
+        } else {
+            false
         }
     }
-    fn redo(&mut self) {
+    fn redo(&mut self) -> bool {
         if let Some(twist) = self.redo_buffer.pop() {
             self.is_unsaved = true;
             self.undo_buffer.push(twist);
             self.twists.push_back(twist);
             self.latest.twist(twist);
+            true
+        } else {
+            false
         }
     }
 
@@ -222,12 +295,16 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
         }
         Matrix4::identity()
     }
-    fn is_highlighted(&self, sticker: Sticker) -> bool {
-        (self.highlight_filter)(sticker.try_into::<P>().unwrap())
-    }
     fn get_sticker_color(&self, sticker: Sticker) -> Face {
         let s = sticker.try_into::<P>().unwrap();
         self.displayed().get_sticker_color(s).into()
+    }
+
+    fn highlight(&self) -> Selection {
+        self.highlight
+    }
+    fn set_highlight(&mut self, sel: Selection) {
+        self.highlight = sel;
     }
 
     fn twist_count(&self, metric: TwistMetric) -> usize {

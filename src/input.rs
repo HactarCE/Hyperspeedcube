@@ -4,11 +4,9 @@ use glium::glutin::event::*;
 use itertools::Itertools;
 use std::collections::HashMap;
 
+use crate::commands::{Command, PuzzleCommand, SelectCategory, SelectThing};
 use crate::preferences::Key;
-use crate::puzzle::{
-    traits::*, Command, Face, LayerMask, Puzzle, PuzzleController, PuzzleType, SelectCategory,
-    SelectThing,
-};
+use crate::puzzle::{traits::*, Face, LayerMask, Puzzle, PuzzleController, PuzzleType, Selection};
 
 const SHIFT: ModifiersState = ModifiersState::SHIFT;
 const CTRL: ModifiersState = ModifiersState::CTRL;
@@ -16,16 +14,20 @@ const ALT: ModifiersState = ModifiersState::ALT;
 const LOGO: ModifiersState = ModifiersState::LOGO;
 
 #[must_use = "call finish()"]
-pub struct FrameInProgress<'a> {
+pub struct InputFrame<'a> {
     state: &'a mut State,
-    puzzle: &'a mut Puzzle,
+    puzzle: &'a Puzzle,
+    command_queue: &'a mut Vec<Command>,
 }
-impl FrameInProgress<'_> {
+impl InputFrame<'_> {
     pub fn handle_event(&mut self, ev: &Event<'_, ()>) {
         match ev {
             // Handle WindowEvents.
             Event::WindowEvent { event, .. } => {
                 match event {
+                    WindowEvent::CloseRequested => {
+                        self.command_queue.push(Command::Quit);
+                    }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if self.state.has_keyboard {
                             self.handle_key(*input);
@@ -90,76 +92,77 @@ impl FrameInProgress<'_> {
         // All other modifiers must exactly match those of the keybind.
         let mods = self.state.modifiers;
 
-        let mut selection = self.state.total_selection();
-
-        for bind in &prefs.keybinds[puzzle_type] {
-            let bind_key = match bind.key {
+        for bind in &prefs.puzzle_keybinds[puzzle_type] {
+            let k = bind.key;
+            let key = match k.key() {
                 Some(k) => k,
                 None => continue,
             };
-            if (Some(bind_key) == sc || Some(bind_key) == vk)
-                && (bind.shift == mods.shift() || ignore_shift)
-                && (bind.ctrl == mods.ctrl() || ignore_ctrl)
-                && (bind.alt == mods.alt() || ignore_alt)
-                && (bind.logo == mods.logo() || ignore_logo)
+            if (Some(key) == sc || Some(key) == vk)
+                && (k.shift() == mods.shift() || ignore_shift)
+                && (k.ctrl() == mods.ctrl() || ignore_ctrl)
+                && (k.alt() == mods.alt() || ignore_alt)
+                && (k.logo() == mods.logo() || ignore_logo)
             {
+                let sel = self.state.total_selection();
+
                 match &bind.command {
-                    Command::Twist {
+                    PuzzleCommand::Twist {
                         face,
-                        layers,
                         direction,
+                        layer_mask,
                     } => {
-                        if let Some(face) = face.or_else(|| selection.exactly_one_face(puzzle_type))
-                        {
-                            let layers = selection.layers_mask_or_default(*layers);
-                            if let Err(e) = self.puzzle.twist_from_command(face, layers, *direction)
-                            {
-                                // TODO handle error
-                            }
+                        if let Some(face) = face.or_else(|| sel.exactly_one_face(puzzle_type)) {
+                            self.command_queue.push(Command::Twist {
+                                face,
+                                direction: *direction,
+                                layer_mask: sel.layer_mask_or_default(*layer_mask),
+                            });
+                        } else {
+                            self.command_queue
+                                .push(Command::ErrorMsg("No face selected".to_string()))
                         }
                     }
-                    Command::Recenter { face } => {
-                        if let Some(face) = face.or_else(|| selection.exactly_one_face(puzzle_type))
-                        {
-                            if let Err(e) = self.puzzle.recenter_from_command(face) {
-                                // TODO handle error
-                            }
+                    PuzzleCommand::Recenter { face } => {
+                        if let Some(face) = face.or_else(|| sel.exactly_one_face(puzzle_type)) {
+                            self.command_queue.push(Command::Recenter(face));
+                        } else {
+                            self.command_queue
+                                .push(Command::ErrorMsg("No face selected".to_string()))
                         }
                     }
 
-                    Command::HoldSelect(thing) => {
+                    PuzzleCommand::HoldSelect(thing) => {
                         self.state
                             .held_selections
-                            .insert(bind_key, Selection::from(*thing));
+                            .insert(key, Selection::from(*thing));
                     }
-                    Command::ToggleSelect(thing) => {
+                    PuzzleCommand::ToggleSelect(thing) => {
                         self.state.toggle_selections ^= Selection::from(*thing);
                     }
-                    Command::ClearToggleSelect(category) => {
+                    PuzzleCommand::ClearToggleSelect(category) => {
                         let default = Selection::default();
                         let tog_sel = &mut self.state.toggle_selections;
 
                         use SelectCategory::*;
                         match category {
-                            Face => tog_sel.faces_mask = default.faces_mask,
-                            Layers => tog_sel.layers_mask = default.layers_mask,
-                            PieceType => tog_sel.piece_types_mask = default.piece_types_mask,
+                            Face => tog_sel.face_mask = default.face_mask,
+                            Layers => tog_sel.layer_mask = default.layer_mask,
+                            PieceType => tog_sel.piece_type_mask = default.piece_type_mask,
                         }
                     }
 
-                    Command::None => break, // Do not try to match other keybinds.
+                    PuzzleCommand::None => break, // Do not try to match other keybinds.
                 }
-
-                selection = self.state.total_selection();
             }
         }
 
         if modifiers == CTRL {
             match input.virtual_keycode {
                 // Undo.
-                Some(VirtualKeyCode::Z) => self.puzzle.undo(),
+                Some(VirtualKeyCode::Z) => self.command_queue.push(Command::Undo),
                 // Redo.
-                Some(VirtualKeyCode::Y) => self.puzzle.redo(),
+                Some(VirtualKeyCode::Y) => self.command_queue.push(Command::Redo),
                 // Reset.
                 Some(VirtualKeyCode::R) => println!("TODO reset puzzle state"),
                 // Copy puzzle state.
@@ -167,7 +170,7 @@ impl FrameInProgress<'_> {
                 // Paste puzzle state.
                 Some(VirtualKeyCode::V) => println!("TODO paste puzzle state"),
                 // Save file.
-                Some(VirtualKeyCode::S) => crate::gui::try_save(&mut self.puzzle, &prefs.log_file),
+                Some(VirtualKeyCode::S) => self.command_queue.push(Command::Save),
                 // Full scramble.
                 Some(VirtualKeyCode::F) => println!("TODO full scramble"),
                 _ => (),
@@ -177,38 +180,13 @@ impl FrameInProgress<'_> {
         if modifiers == SHIFT | CTRL {
             match input.virtual_keycode {
                 // Redo.
-                Some(VirtualKeyCode::Z) => self.puzzle.redo(),
+                Some(VirtualKeyCode::Z) => self.command_queue.push(Command::Redo),
                 _ => (),
             }
         }
     }
 
-    pub fn finish(self) {
-        let mut prefs = crate::get_prefs();
-
-        let view_prefs = &mut prefs.view[self.puzzle.ty()];
-
-        // TODO
-
-        // let speed = 1.0_f32.to_radians();
-        // if self.state.keys[VirtualKeyCode::Up] {
-        //     view_prefs.theta += speed;
-        // }
-        // if self.state.keys[VirtualKeyCode::Down] {
-        //     view_prefs.theta -= speed;
-        // }
-        // if self.state.keys[VirtualKeyCode::Right] {
-        //     view_prefs.phi += speed;
-        // }
-        // if self.state.keys[VirtualKeyCode::Left] {
-        //     view_prefs.phi -= speed;
-        // }
-
-        match self.puzzle {
-            Puzzle::Rubiks3D(cube) => update_puzzle_display(cube, self.state.total_selection()),
-            Puzzle::Rubiks4D(cube) => update_puzzle_display(cube, self.state.total_selection()),
-        }
-    }
+    pub fn finish(self) {}
 }
 
 #[derive(Debug, Default)]
@@ -224,258 +202,36 @@ pub struct State {
 impl State {
     pub fn frame<'a>(
         &'a mut self,
-        puzzle: &'a mut Puzzle,
+        puzzle: &'a Puzzle,
         imgui_io: &imgui::Io,
-    ) -> FrameInProgress<'a> {
+        command_queue: &'a mut Vec<Command>,
+    ) -> InputFrame<'a> {
         self.has_keyboard = !imgui_io.want_capture_keyboard;
-        FrameInProgress {
+        InputFrame {
             state: self,
             puzzle,
+            command_queue,
         }
     }
 
-    fn total_selection(&self) -> Selection {
+    pub(crate) fn total_selection(&self) -> Selection {
         let mut ret = self
             .held_selections
             .values()
             .copied()
             .reduce(|a, b| a | b)
             .unwrap_or(self.toggle_selections);
-        ret.faces_mask |= self.toggle_selections.faces_mask;
-        if ret.layers_mask == 0 {
-            ret.layers_mask = self.toggle_selections.layers_mask;
+        ret.face_mask |= self.toggle_selections.face_mask;
+        if ret.layer_mask == 0 {
+            ret.layer_mask = self.toggle_selections.layer_mask;
         }
         if self
             .held_selections
             .values()
-            .all(|s| s.piece_types_mask == 0)
+            .all(|s| s.piece_type_mask == 0)
         {
-            ret.piece_types_mask = self.toggle_selections.piece_types_mask;
+            ret.piece_type_mask = self.toggle_selections.piece_type_mask;
         }
         ret
     }
 }
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-struct Selection {
-    faces_mask: u32,
-    layers_mask: u32,
-    piece_types_mask: u32,
-}
-impl Default for Selection {
-    fn default() -> Self {
-        Self {
-            faces_mask: 0,
-            layers_mask: 0,
-            piece_types_mask: u32::MAX,
-        }
-    }
-}
-impl std::ops::BitOr for Selection {
-    type Output = Self;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Self {
-            faces_mask: self.faces_mask | rhs.faces_mask,
-            layers_mask: self.layers_mask | rhs.layers_mask,
-            piece_types_mask: self.piece_types_mask | rhs.piece_types_mask,
-        }
-    }
-}
-impl std::ops::BitXorAssign for Selection {
-    fn bitxor_assign(&mut self, rhs: Self) {
-        self.faces_mask ^= rhs.faces_mask;
-        self.layers_mask ^= rhs.layers_mask;
-        self.piece_types_mask ^= rhs.piece_types_mask;
-    }
-}
-impl From<SelectThing> for Selection {
-    fn from(thing: SelectThing) -> Self {
-        let mut ret = Self {
-            faces_mask: 0,
-            layers_mask: 0,
-            piece_types_mask: 0,
-        };
-        match thing {
-            SelectThing::Face(face) => ret.faces_mask = 1 << face.id(),
-            SelectThing::Layers(layers) => ret.layers_mask = layers.0,
-            SelectThing::PieceType(piece_type) => ret.piece_types_mask = 1 << piece_type.id(),
-        }
-        ret
-    }
-}
-impl Selection {
-    fn exactly_one_face(&self, puzzle_type: PuzzleType) -> Option<Face> {
-        if self.faces_mask.count_ones() == 1 {
-            let face_id = self.faces_mask.trailing_zeros() as usize; // index of first `1` bit
-            puzzle_type.faces().get(face_id).copied()
-        } else {
-            None
-        }
-    }
-    fn layers_mask_or_default(self, default: LayerMask) -> LayerMask {
-        if self.layers_mask != 0 {
-            LayerMask(self.layers_mask)
-        } else {
-            default
-        }
-    }
-}
-
-fn update_puzzle_display<P: PuzzleState>(cube: &mut PuzzleController<P>, selection: Selection) {
-    let selected_piece_types_mask = selection.piece_types_mask;
-
-    let selected_faces = std::iter::successors(Some(selection.faces_mask), |mask| Some(mask >> 1))
-        .take_while(|&mask| mask != 0)
-        .positions(|mask| mask & 1 != 0)
-        .filter_map(P::Face::from_id)
-        .collect_vec();
-
-    let selected_layers_mask = selection.layers_mask_or_default(LayerMask::default());
-
-    cube.highlight_filter = Box::new(move |sticker| {
-        let piece = sticker.piece();
-
-        // Filter by piece type.
-        if selected_piece_types_mask & (1 << piece.piece_type().id()) == 0 {
-            return false;
-        }
-
-        // Filter by face and layer.
-        for &face in &selected_faces {
-            if let Some(layer) = piece.layer(face) {
-                if selected_layers_mask.0 & (1 << layer) != 0 {
-                    continue;
-                }
-            }
-            return false;
-        }
-
-        true
-    });
-
-    // TODO: remove this old cruft
-
-    // cube.labels = vec![];
-    // if state.keys[Vk::Tab] {
-    //     for &face in Face::ALL {
-    //         cube.labels
-    //             .push((Facet::Face(face), face.symbol().to_string()));
-    //     }
-    // }
-}
-
-// fn update_display_rubiks4d(cube: &mut PuzzleController<Rubiks4D>, selection: Selection) {
-//     use rubiks4d::*;
-
-//     cube.highlight_filter = Box::new(move |sticker| {
-//         let piece = sticker.piece();
-
-//         // Filter by piece type.
-//         if selection.piece_types_mask & (1 << piece.piece_type_id()) == 0 {
-//             return false;
-//         }
-
-//         let selected_face_indices =
-//             std::iter::successors(Some(selection.faces_mask), |mask| Some(mask >> 1))
-//                 .take_while(|&mask| mask != 0)
-//                 .positions(|&mask| mask & 1 != 0);
-
-//         let selected_layers = if selection.layers_mask == 0 {
-//             1
-//         } else {
-//             selection.layers_mask
-//         };
-
-//         // Filter by face and layer.
-//         for face_id in selected_face_indices {
-//             let layer = piece.layer_from_face(rubiks4d::Face::from_id(FaceId(id as u32)));
-//             if selection.layers_mask & (1 << layer) == 0 {
-//                 return false;
-//             }
-//         }
-
-//         true
-//     });
-
-//     // const FACE_KEYS: [(Face, Vk, &str); 8] = [
-//     //     (Face::L, Vk::W, "W"),
-//     //     (Face::U, Vk::F, "F"),
-//     //     (Face::B, Vk::P, "P"),
-//     //     (Face::F, Vk::R, "R"),
-//     //     (Face::I, Vk::S, "S"),
-//     //     (Face::R, Vk::T, "T"),
-//     //     (Face::D, Vk::C, "C"),
-//     //     (Face::O, Vk::V, "V"),
-//     // ];
-
-//     // let has_keyboard = state.has_keyboard;
-
-//     // let highlight_faces = FACE_KEYS
-//     //     .into_iter()
-//     //     .filter(|(_, vk, _)| state.keys[*vk])
-//     //     .map(|(f, _, _)| f)
-//     //     .collect_vec();
-//     // let layer0 = !state.modifiers.alt();
-//     // let layer1 = state.modifiers.alt() || state.modifiers.shift();
-
-//     // cube.labels = vec![];
-//     // // if let Some(face) = highlight_face {
-//     // //     cube.labels.push((
-//     // //         Facet::Face(face),
-//     // //         format!("{}{}", face.symbol(), if wide { "w" } else { "" }),
-//     // //     ));
-//     // // }
-//     // if state.keys[Vk::Tab] {
-//     //     for (face, _, text) in FACE_KEYS {
-//     //         if face != Face::O {
-//     //             cube.labels.push((Facet::Face(face), text.to_owned()));
-//     //         }
-//     //     }
-//     // }
-
-//     // let show_1c = state.keys[Vk::Key1];
-//     // let show_2c = state.keys[Vk::Key2];
-//     // let show_3c = state.keys[Vk::Key3];
-//     // let show_4c = state.keys[Vk::Key4];
-//     // let temp_highlight = (show_1c || show_2c || show_3c || show_4c) && !state.modifiers.shift();
-//     // let highlight_piece_types = [
-//     //     if temp_highlight {
-//     //         show_1c
-//     //     } else {
-//     //         !state.perma_layer_hide_mask[0]
-//     //     },
-//     //     if temp_highlight {
-//     //         show_2c
-//     //     } else {
-//     //         !state.perma_layer_hide_mask[1]
-//     //     },
-//     //     if temp_highlight {
-//     //         show_3c
-//     //     } else {
-//     //         !state.perma_layer_hide_mask[2]
-//     //     },
-//     //     if temp_highlight {
-//     //         show_4c
-//     //     } else {
-//     //         !state.perma_layer_hide_mask[3]
-//     //     },
-//     // ];
-
-//     // cube.highlight_filter = Box::new(move |sticker| {
-//     //     if !has_keyboard {
-//     //         return true;
-//     //     }
-
-//     //     for face in &highlight_faces {
-//     //         match sticker.piece()[face.axis()] * face.sign() {
-//     //             Sign::Neg => return false,
-//     //             Sign::Zero if !layer1 => return false,
-//     //             Sign::Pos if !layer0 => return false,
-//     //             _ => (),
-//     //         }
-//     //     }
-
-//     //     highlight_piece_types[sticker.piece().sticker_count() - 1]
-//     // });
-// }

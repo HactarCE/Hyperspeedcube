@@ -89,7 +89,7 @@ colors:
     - 0.0
     - 0.0
     - 1.0
-keybinds:
+puzzle_keybinds:
   Rubiks3D:
     - sc: ShiftLeft
       command:

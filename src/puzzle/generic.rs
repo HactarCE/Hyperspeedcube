@@ -1,4 +1,5 @@
 use cgmath::Matrix4;
+use std::error::Error;
 use std::fmt;
 use std::time::Duration;
 use thiserror::Error;
@@ -49,40 +50,6 @@ impl Puzzle {
             type_name = {[ P ]}
             foreach = {[ Self::from(PuzzleController::<P>::new()) ]}
         }
-    }
-
-    /// TODO: refactor/remove this
-    pub fn twist_from_command(
-        &mut self,
-        face: Face,
-        layers: LayerMask,
-        direction: TwistDirection,
-    ) -> Result<(), &'static str> {
-        match self {
-            Puzzle::Rubiks3D(cube) => cube.twist(rubiks3d::Twist::from_twist_command(
-                face.try_into::<Rubiks3D>().unwrap(),
-                direction.name(),
-                layers,
-            )?),
-            Puzzle::Rubiks4D(cube) => cube.twist(rubiks4d::Twist::from_twist_command(
-                face.try_into::<Rubiks4D>().unwrap(),
-                direction.name(),
-                layers,
-            )?),
-        }
-        Ok(())
-    }
-    /// TODO: refactor/remove this
-    pub fn recenter_from_command(&mut self, face: Face) -> Result<(), &'static str> {
-        match self {
-            Puzzle::Rubiks3D(cube) => cube.twist(rubiks3d::Twist::from_recenter_command(
-                face.try_into::<Rubiks3D>().unwrap(),
-            )?),
-            Puzzle::Rubiks4D(cube) => cube.twist(rubiks4d::Twist::from_recenter_command(
-                face.try_into::<Rubiks4D>().unwrap(),
-            )?),
-        }
-        Ok(())
     }
 }
 
@@ -394,4 +361,80 @@ pub enum FacetType {
     Piece,
     Sticker,
     Face,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct Selection {
+    pub face_mask: u32,
+    pub layer_mask: u32,
+    pub piece_type_mask: u32,
+}
+impl Default for Selection {
+    fn default() -> Self {
+        Self {
+            face_mask: 0,
+            layer_mask: 0,
+            piece_type_mask: u32::MAX,
+        }
+    }
+}
+impl std::ops::BitOr for Selection {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self {
+            face_mask: self.face_mask | rhs.face_mask,
+            layer_mask: self.layer_mask | rhs.layer_mask,
+            piece_type_mask: self.piece_type_mask | rhs.piece_type_mask,
+        }
+    }
+}
+impl std::ops::BitXorAssign for Selection {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.face_mask ^= rhs.face_mask;
+        self.layer_mask ^= rhs.layer_mask;
+        self.piece_type_mask ^= rhs.piece_type_mask;
+    }
+}
+impl Selection {
+    pub fn exactly_one_face(&self, puzzle_type: PuzzleType) -> Option<Face> {
+        if self.face_mask.count_ones() == 1 {
+            let face_id = self.face_mask.trailing_zeros() as usize; // index of first `1` bit
+            puzzle_type.faces().get(face_id).copied()
+        } else {
+            None
+        }
+    }
+    pub fn layer_mask_or_default(self, default: LayerMask) -> LayerMask {
+        if self.layer_mask != 0 {
+            LayerMask(self.layer_mask)
+        } else {
+            default
+        }
+    }
+
+    pub fn has_sticker(self, sticker: Sticker) -> bool {
+        let puzzle_type = sticker.ty();
+        let piece = sticker.piece();
+
+        // Filter by piece type.
+        if self.piece_type_mask & (1 << piece.piece_type().id()) == 0 {
+            return false;
+        }
+
+        // Filter by face and layer.
+        let layer_mask = self.layer_mask_or_default(LayerMask::default());
+        for (i, &face) in puzzle_type.faces().iter().enumerate() {
+            if (self.face_mask >> i) & 1 != 0 {
+                if let Some(l) = piece.layer(face) {
+                    if (layer_mask.0 >> l) & 1 != 0 {
+                        continue;
+                    }
+                }
+                return false;
+            }
+        }
+
+        true
+    }
 }

@@ -21,11 +21,11 @@ mod colors;
 mod info;
 mod keybinds;
 
-use crate::puzzle::commands::CommandSerde;
-use crate::puzzle::{traits::*, Command, PuzzleType};
+use crate::commands::{Command, PuzzleCommand, PuzzleCommandSerde};
+use crate::puzzle::{traits::*, PuzzleType};
 pub use colors::ColorPreferences;
 pub use info::InfoPreferences;
-pub use keybinds::{Key, Keybind};
+pub use keybinds::{GeneralKeybind, Key, KeyCombo, Keybind, PuzzleKeybind};
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
 const PREFS_FILE_EXTENSION: &str = "yaml";
@@ -123,7 +123,8 @@ pub struct Preferences {
     pub info: InfoPreferences,
     pub view: PerPuzzle<ViewPreferences>,
     pub colors: ColorPreferences,
-    pub keybinds: PerPuzzle<Vec<Keybind>>,
+    pub general_keybinds: Vec<Keybind<Command>>,
+    pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -137,7 +138,8 @@ impl Default for Preferences {
             info: Default::default(),
             view: Default::default(),
             colors: Default::default(),
-            keybinds: Default::default(),
+            general_keybinds: Default::default(),
+            puzzle_keybinds: Default::default(),
         }
     }
 }
@@ -364,13 +366,13 @@ where
 impl<T> std::ops::Index<PuzzleType> for PerPuzzle<T> {
     type Output = T;
 
-    fn index(&self, puz_type: PuzzleType) -> &Self::Output {
-        &self.0[puz_type]
+    fn index(&self, puzzle_type: PuzzleType) -> &Self::Output {
+        &self.0[puzzle_type]
     }
 }
 impl<T> std::ops::IndexMut<PuzzleType> for PerPuzzle<T> {
-    fn index_mut(&mut self, puz_type: PuzzleType) -> &mut Self::Output {
-        &mut self.0[puz_type]
+    fn index_mut(&mut self, puzzle_type: PuzzleType) -> &mut Self::Output {
+        &mut self.0[puzzle_type]
     }
 }
 

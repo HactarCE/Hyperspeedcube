@@ -6,7 +6,8 @@ use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
 use std::time::Duration;
 
-use super::{Face, LayerMask, Piece, PieceType, PuzzleType, Sticker, TwistMetric};
+pub use super::PuzzleControllerTrait;
+use super::{Face, LayerMask, Piece, PieceType, PuzzleType, Selection, Sticker, TwistMetric};
 use crate::render::WireframeVertex;
 
 macro_rules! lazy_static_array_methods {
@@ -37,44 +38,6 @@ macro_rules! lazy_static_generic_array_methods {
             }
         }
     };
-}
-
-/// Methods for `PuzzleController` that do not depend on puzzle type.
-#[enum_dispatch]
-pub trait PuzzleControllerTrait {
-    /// Returns the puzzle type.
-    fn ty(&self) -> PuzzleType;
-
-    /// Advances to the next frame, using the given time delta between this
-    /// frame and the last.
-    fn advance(&mut self, delta: Duration);
-    /// Skips the animations for all twists in the queue.
-    fn catch_up(&mut self);
-
-    /// Returns whether there is a move to undo.
-    fn has_undo(&self) -> bool;
-    /// Returns whether there is a move to redo.
-    fn has_redo(&self) -> bool;
-    /// Undoes one twist.
-    fn undo(&mut self);
-    /// Redoes one twist.
-    fn redo(&mut self);
-
-    /// Returns whether the puzzle has been modified since the lasts time the
-    /// log file was saved.
-    fn is_unsaved(&self) -> bool;
-
-    /// Returns the model transform for a piece, based on the current animation
-    /// in progress.
-    fn model_transform_for_piece(&self, piece: Piece) -> Matrix4<f32>;
-    /// Returns whether a sticker is hightlighted.
-    fn is_highlighted(&self, sticker: Sticker) -> bool;
-    /// Returns the face where the sticker at the given location belongs (i.e.
-    /// corresponding to its color).
-    fn get_sticker_color(&self, sticker: Sticker) -> Face;
-
-    /// Returns the number of twists applied to the puzzle.
-    fn twist_count(&self, metric: TwistMetric) -> usize;
 }
 
 /// A twisty puzzle.
@@ -309,7 +272,7 @@ pub trait TwistTrait<P: PuzzleState>:
     fn from_twist_command(
         face: P::Face,
         direction: &str,
-        layers: LayerMask,
+        layer_mask: LayerMask,
     ) -> Result<P::Twist, &'static str>;
     /// Constructs a twist from a 'recenter' command.
     fn from_recenter_command(face: P::Face) -> Result<P::Twist, &'static str>;

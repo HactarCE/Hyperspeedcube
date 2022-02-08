@@ -7,7 +7,6 @@ mod types;
 #[macro_use]
 pub mod traits;
 
-pub mod commands;
 pub mod controller;
 mod generic;
 mod metric;
@@ -16,8 +15,7 @@ pub mod rubiks4d;
 pub mod rubiks4d_logfile;
 pub mod sign;
 
-pub use commands::*;
-pub use controller::{PuzzleController, ScrambleState};
+pub use controller::{PuzzleController, PuzzleControllerTrait, ScrambleState};
 pub use generic::*;
 pub use metric::TwistMetric;
 pub use rubiks3d::Rubiks3D;

@@ -8,35 +8,19 @@ use strum::IntoEnumIterator;
 mod popups;
 mod util;
 
-use crate::preferences::{Keybind, Msaa, Preferences};
+use crate::commands::{Command, PuzzleCommand, SelectCategory, SelectHow, SelectThing};
+use crate::preferences::{KeyCombo, Keybind, Msaa, Preferences};
 use crate::puzzle::{
-    traits::*, Command, LayerMask, PieceType, Puzzle, PuzzleType, SelectCategory, SelectHow,
-    SelectThing, TwistDirection, TwistMetric,
+    traits::*, LayerMask, PieceType, Puzzle, PuzzleType, TwistDirection, TwistMetric,
 };
 pub use popups::keybind_popup_handle_event;
 
 pub struct AppState<'a> {
     pub ui: &'a Ui<'a>,
     pub mouse_pos: [f32; 2],
-    pub puzzle: &'a mut Puzzle,
+    pub puzzle: &'a Puzzle,
     pub control_flow: &'a mut ControlFlow,
-}
-
-pub(crate) fn try_save(puzzle: &mut Puzzle, path: &Path) {
-    match puzzle {
-        Puzzle::Rubiks4D(p) => match p.save_file(path) {
-            Ok(()) => (),
-            Err(e) => popups::error_dialog("Unable to save log file", e),
-        },
-        _ => popups::error_dialog(
-            "Unable to save log file",
-            "Only 3x3x3x3 puzzle supports log files.",
-        ),
-    }
-}
-
-pub fn confirm_discard_changes(is_unsaved: bool, action: &str) -> bool {
-    !is_unsaved || popups::confirm_discard_changes_dialog(action).show()
+    pub command_queue: &'a mut Vec<Command>,
 }
 
 /// Builds the GUI.
@@ -51,29 +35,18 @@ pub fn build(app: &mut AppState) {
             let can_save = app.puzzle.ty() == PuzzleType::Rubiks4D;
 
             if MenuItem::new("Open").build(ui) {
-                if let Some(path) = popups::file_dialog().pick_file() {
-                    match crate::puzzle::PuzzleController::load_file(&path) {
-                        Ok(p) => *app.puzzle = Puzzle::Rubiks4D(p),
-                        Err(e) => popups::error_dialog("Unable to open log file", e),
-                    }
-                }
+                app.command_queue.push(Command::Open);
             }
             ui.separator();
             if MenuItem::new("Save").enabled(can_save).build(ui) {
-                try_save(app.puzzle, &prefs.log_file);
+                app.command_queue.push(Command::Save);
             }
             if MenuItem::new("Save As...").enabled(can_save).build(ui) {
-                if let Some(path) = popups::file_dialog().save_file() {
-                    prefs.needs_save = true;
-                    prefs.log_file = path;
-                    try_save(app.puzzle, &prefs.log_file);
-                }
+                app.command_queue.push(Command::SaveAs);
             }
             ui.separator();
-            if MenuItem::new("Quit").build(ui)
-                && confirm_discard_changes(app.puzzle.is_unsaved(), "quit")
-            {
-                *app.control_flow = ControlFlow::Exit;
+            if MenuItem::new("Quit").build(ui) {
+                app.command_queue.push(Command::Quit);
             }
         });
 
@@ -82,22 +55,20 @@ pub fn build(app: &mut AppState) {
                 .enabled(app.puzzle.has_undo())
                 .build(ui)
             {
-                app.puzzle.undo();
+                app.command_queue.push(Command::Undo);
             }
             if MenuItem::new("Redo")
                 .enabled(app.puzzle.has_redo())
                 .build(ui)
             {
-                app.puzzle.redo();
+                app.command_queue.push(Command::Redo);
             }
         });
 
         ui.menu("Puzzle", || {
-            for &puz_type in PuzzleType::ALL {
-                if MenuItem::new(puz_type.name()).build(ui)
-                    && confirm_discard_changes(app.puzzle.is_unsaved(), "load new puzzle")
-                {
-                    *app.puzzle = Puzzle::new(puz_type);
+            for &puzzle_type in PuzzleType::ALL {
+                if MenuItem::new(puzzle_type.name()).build(ui) {
+                    app.command_queue.push(Command::NewPuzzle(puzzle_type))
                 }
             }
         });
@@ -152,9 +123,7 @@ pub fn build(app: &mut AppState) {
                 });
             }
         },
-        |tok| {
-            tok.left_segment(ui, "Status text here ...");
-        },
+        |tok| tok.left_segment(ui, &*crate::status_msg()),
     );
 
     if prefs.window_states.graphics {
@@ -282,24 +251,29 @@ pub fn build(app: &mut AppState) {
         }
 
         let mut min_window_width = KEYBINDS_WINDOW_MIN_WIDTH.lock().unwrap();
+        let mut open = prefs.window_states.keybinds;
         Window::new("Keybinds")
-            .opened(&mut prefs.window_states.keybinds)
+            .opened(&mut open)
             .size_constraints([*min_window_width, 200.0], [f32::MAX, f32::MAX])
             .build(ui, || {
+                let puzzle_type = app.puzzle.ty();
+
                 let current_window_width = ui.window_size()[0];
                 let mut extra_width = current_window_width - MIN_WIDTH;
                 if ui.button("Add keybind") {
-                    prefs.keybinds[app.puzzle.ty()].push(Keybind::default());
+                    prefs.puzzle_keybinds[puzzle_type].push(Keybind::default());
                     prefs.needs_save = true;
                 }
-                build_keybind_table(
+                prefs.needs_save |= build_keybind_table(
                     app,
-                    &mut prefs.keybinds[app.puzzle.ty()],
-                    &mut prefs.needs_save,
                     &mut extra_width,
+                    prefs,
+                    move |prefs| &mut prefs.puzzle_keybinds[puzzle_type],
+                    |i, command| build_puzzle_command_select_ui(ui, puzzle_type, i, command),
                 );
                 *min_window_width = current_window_width - extra_width;
             });
+        prefs.window_states.keybinds = open;
         // If the window closed, update preferences.
         prefs.needs_save |= !prefs.window_states.keybinds;
     }
@@ -453,19 +427,22 @@ fn build_status_bar(
         });
 }
 
-fn build_keybind_table(
+#[must_use]
+fn build_keybind_table<C>(
     app: &mut AppState,
-    keybinds: &mut Vec<Keybind>,
-    needs_save: &mut bool,
     extra_width: &mut f32,
-) {
+    prefs: &mut Preferences,
+    get_keybinds: impl 'static + Send + Clone + Fn(&mut Preferences) -> &mut Vec<Keybind<C>>,
+    mut build_command_select_ui: impl FnMut(usize, &mut C) -> bool,
+) -> bool {
+    let mut needs_save = false;
+
     let ui = app.ui;
-    let puzzle_type = app.puzzle.ty();
 
     let flags = TableFlags::BORDERS | TableFlags::SIZING_FIXED_FIT | TableFlags::SCROLL_Y;
     let table_token = match ui.begin_table_with_flags("keybinds", 3, flags) {
         Some(tok) => tok,
-        None => return,
+        None => return needs_save,
     };
 
     ui.table_setup_column("##reorder_column");
@@ -492,7 +469,9 @@ fn build_keybind_table(
     let mut delete_idx = None;
     let w = ui.calc_text_size("Ctrl + Shift + Alt")[0] * 3.0;
 
-    for (i, keybind) in keybinds.iter_mut().enumerate() {
+    let keybind_list = get_keybinds(prefs);
+
+    for (i, keybind) in keybind_list.iter_mut().enumerate() {
         ui.table_next_row();
 
         ui.table_next_column();
@@ -530,16 +509,17 @@ fn build_keybind_table(
             delete_idx = Some(i);
         }
         ui.same_line();
-        if ui.button_with_size(format!("{}##change_keybind{}", keybind, i), [w, 0.0]) {
-            popups::open_keybind_popup(keybind.clone(), move |new_keybind| {
+        if ui.button_with_size(format!("{}##change_keybind{}", keybind.key, i), [w, 0.0]) {
+            let get_keybinds = get_keybinds.clone();
+            popups::open_keybind_popup(keybind.key, move |new_key| {
                 let mut prefs = crate::get_prefs();
-                prefs.keybinds[puzzle_type][i] = new_keybind;
+                get_keybinds(&mut *prefs)[i].key = new_key;
                 prefs.needs_save = true;
             });
         }
 
         ui.table_next_column();
-        build_command_select_ui(ui, puzzle_type, i, &mut keybind.command, needs_save);
+        needs_save |= build_command_select_ui(i, &mut keybind.command);
 
         ui.same_line();
         let extra_width_in_col = ui.content_region_avail()[0];
@@ -549,26 +529,30 @@ fn build_keybind_table(
     }
 
     if let Some(((_start, ref mut from), to)) = drag.as_mut().zip(drag_to) {
-        keybinds.swap(*from, to);
+        keybind_list.swap(*from, to);
         *from = to;
-        *needs_save = true;
+        needs_save = true;
     }
     if let Some(i) = delete_idx {
-        keybinds.remove(i);
-        *needs_save = true;
+        keybind_list.remove(i);
+        needs_save = true;
     }
 
     drop(table_token);
+
+    needs_save
 }
 
-fn build_command_select_ui(
+#[must_use]
+fn build_puzzle_command_select_ui(
     ui: &Ui<'_>,
     puzzle_type: PuzzleType,
     i: usize,
-    command: &mut Command,
-    needs_save: &mut bool,
-) {
-    use Command as Cmd;
+    command: &mut PuzzleCommand,
+) -> bool {
+    use PuzzleCommand as Cmd;
+
+    let mut needs_save = false;
 
     #[derive(Display, EnumIter, Copy, Clone, PartialEq, Eq)]
     enum CmdType {
@@ -605,14 +589,14 @@ fn build_command_select_ui(
         CmdType::iter(),
     ) && cmd_type != old_cmd_type
     {
-        *needs_save = true;
+        needs_save = true;
         *command = match cmd_type {
             CmdType::None => Cmd::None,
 
             CmdType::Twist => Cmd::Twist {
                 face: None,
-                layers: LayerMask(1),
                 direction: default_direction,
+                layer_mask: LayerMask(1),
             },
             CmdType::Recenter => Cmd::Recenter { face: None },
 
@@ -632,7 +616,7 @@ fn build_command_select_ui(
             &mut category,
             SelectCategory::iter(),
         ) {
-            *needs_save = true;
+            needs_save = true;
             *command = match select_how {
                 SelectHow::Hold => Cmd::HoldSelect(SelectThing::default(category, puzzle_type)),
                 SelectHow::Toggle => Cmd::ToggleSelect(SelectThing::default(category, puzzle_type)),
@@ -652,23 +636,23 @@ fn build_command_select_ui(
 
         Cmd::Twist {
             face,
-            layers,
             direction,
+            layer_mask,
         } => {
             combo_label(ui, "Face");
-            *needs_save |=
+            needs_save |=
                 build_optional_select_combo(ui, &format!("##face{}", i), face, puzzle_type.faces());
 
             combo_label(ui, "Layers");
-            *needs_save |= build_layer_mask_select_checkboxes(
+            needs_save |= build_layer_mask_select_checkboxes(
                 ui,
-                &format!("##layers{}", i),
-                layers,
+                &format!("##layer_mask{}", i),
+                layer_mask,
                 puzzle_type.layer_count(),
             );
 
             combo_label(ui, "Direction");
-            *needs_save |= build_select_combo_iter(
+            needs_save |= build_select_combo_iter(
                 ui,
                 &format!("##direction{}", i),
                 direction,
@@ -677,7 +661,7 @@ fn build_command_select_ui(
         }
         Cmd::Recenter { face } => {
             combo_label(ui, "Face");
-            *needs_save |=
+            needs_save |=
                 build_optional_select_combo(ui, &format!("##face{}", i), face, puzzle_type.faces());
         }
 
@@ -685,19 +669,19 @@ fn build_command_select_ui(
             ui.same_line();
             match thing {
                 SelectThing::Face(face) => {
-                    *needs_save |=
+                    needs_save |=
                         build_select_combo(ui, &format!("##face{}", i), face, puzzle_type.faces())
                 }
-                SelectThing::Layers(layers) => {
-                    *needs_save |= build_layer_mask_select_checkboxes(
+                SelectThing::Layers(layer_mask) => {
+                    needs_save |= build_layer_mask_select_checkboxes(
                         ui,
-                        &format!("##layers{}", i),
-                        layers,
+                        &format!("##layer_mask{}", i),
+                        layer_mask,
                         puzzle_type.layer_count(),
                     )
                 }
                 SelectThing::PieceType(piece_type) => {
-                    *needs_save |= build_select_combo_iter(
+                    needs_save |= build_select_combo_iter(
                         ui,
                         &format!("##piece_type{}", i),
                         piece_type,
@@ -708,20 +692,22 @@ fn build_command_select_ui(
         }
         Cmd::ClearToggleSelect(_) => (),
     }
+
+    needs_save
 }
 
 #[must_use]
 fn build_layer_mask_select_checkboxes(
     ui: &Ui<'_>,
     label: &str,
-    layers: &mut LayerMask,
+    layer_mask: &mut LayerMask,
     layer_count: usize,
 ) -> bool {
     let mut needs_save = false;
 
     let checkbox_padding = ui.clone_style().frame_padding[0];
     for l in 0..layer_count {
-        needs_save |= ui.checkbox_flags(&format!("{}##{}", label, l), &mut layers.0, 1 << l);
+        needs_save |= ui.checkbox_flags(&format!("{}##{}", label, l), &mut layer_mask.0, 1 << l);
         ui.same_line_with_spacing(0.0, checkbox_padding);
         if ui.is_item_hovered() {
             ui.tooltip_text(format!("Layer {}", l + 1));

@@ -30,14 +30,17 @@ use imgui::FontSource;
 use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use send_wrapper::SendWrapper;
-use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::fmt;
+use std::sync::{Mutex, MutexGuard};
 use std::time::Instant;
+use std::{cell::RefCell, path::Path};
 
 #[macro_use]
 mod debug;
 
 mod colors;
+mod commands;
 mod gui;
 mod input;
 mod preferences;
@@ -46,25 +49,10 @@ mod render;
 mod serde_impl;
 
 use preferences::get_prefs;
-use puzzle::{Puzzle, PuzzleControllerTrait};
+use puzzle::{Puzzle, PuzzleControllerTrait, PuzzleType};
 
 /// The title of the window.
 const TITLE: &str = "Hyperspeedcube";
-
-lazy_static! {
-    static ref EVENTS_LOOP: SendWrapper<RefCell<Option<EventLoop<()>>>> =
-        SendWrapper::new(RefCell::new(Some(EventLoop::new())));
-    static ref DISPLAY: SendWrapper<glium::Display> = SendWrapper::new({
-        let wb = WindowBuilder::new()
-            .with_title(TITLE.to_owned())
-            .with_window_icon(load_application_icon());
-        let cb = ContextBuilder::new()
-            .with_vsync(false)
-            .with_multisampling(get_prefs().gfx.msaa as u16);
-        glium::Display::new(wb, cb, EVENTS_LOOP.borrow().as_ref().unwrap())
-            .expect("failed to initialize display")
-    });
-}
 
 fn main() {
     // Initialize runtime data.
@@ -91,10 +79,10 @@ fn main() {
         .take()
         .unwrap()
         .run(move |event, _ev_loop, control_flow| {
-            // Handle events.
             let mut now = Instant::now();
             let mut do_frame = false;
 
+            // Handle events.
             match event.to_static() {
                 Some(Event::NewEvents(cause)) => match cause {
                     StartCause::ResumeTimeReached {
@@ -122,6 +110,7 @@ fn main() {
                 None => (),
             };
 
+            // Update and draw.
             if do_frame && next_frame_time <= now {
                 let frame_duration = get_prefs().gfx.frame_duration();
                 next_frame_time = now + frame_duration;
@@ -180,35 +169,23 @@ fn main() {
                 }
                 last_frame_time = now;
 
+                let mut command_queue = vec![];
+
                 // Prep the puzzle for event handling.
-                let is_unsaved = puzzle.is_unsaved();
-                let mut input_frame = input_state.frame(&mut puzzle, imgui_io);
+                let mut input_frame = input_state.frame(&puzzle, imgui_io, &mut command_queue);
 
                 for ev in events_buffer.drain(..) {
                     // Let the keybind popup handle events.
                     if gui::keybind_popup_handle_event(&ev) {
                         continue;
                     }
-                    // Let imgui handle events.
+                    // Handle events for imgui.
                     platform.handle_event(imgui_io, gl_window.window(), &ev);
-                    // Handle events for the puzzle.
+                    // Handle events for the application.
                     input_frame.handle_event(&ev);
-                    // Handle events here.
-                    match ev {
-                        Event::WindowEvent { event, .. } => match event {
-                            // Handle window close event.
-                            WindowEvent::CloseRequested => {
-                                if gui::confirm_discard_changes(is_unsaved, "quit") {
-                                    *control_flow = ControlFlow::Exit;
-                                }
-                            }
-                            _ => (),
-                        },
-                        _ => (),
-                    }
                 }
 
-                // Finish handling events for the puzzle.
+                // Finish handling events for the application.
                 input_frame.finish();
 
                 // Prep imgui for rendering.
@@ -217,10 +194,85 @@ fn main() {
                 let mut app = gui::AppState {
                     ui: &ui,
                     mouse_pos,
-                    puzzle: &mut puzzle,
+                    puzzle: &puzzle,
                     control_flow,
+                    command_queue: &mut command_queue,
                 };
                 gui::build(&mut app);
+
+                // Execute commands.
+                puzzle.set_highlight(input_state.total_selection());
+                for command in command_queue {
+                    *crate::status_msg() = String::new();
+                    let mut prefs = get_prefs();
+
+                    use commands::Command;
+                    match command {
+                        Command::Open => {
+                            if confirm_discard_changes(puzzle.is_unsaved(), "quit") {
+                                if let Some(path) = file_dialog().pick_file() {
+                                    match crate::puzzle::PuzzleController::load_file(&path) {
+                                        Ok(p) => {
+                                            puzzle = Puzzle::Rubiks4D(p);
+                                            *crate::status_msg() =
+                                                format!("Loaded log file from {}", path.display());
+                                        }
+                                        Err(e) => error_dialog("Unable to load log file", e),
+                                    }
+                                }
+                            }
+                        }
+                        Command::Save => try_save(&mut puzzle, &prefs.log_file),
+                        Command::SaveAs => {
+                            if let Some(path) = file_dialog().save_file() {
+                                prefs.needs_save = true;
+                                prefs.log_file = path;
+                                try_save(&mut puzzle, &prefs.log_file);
+                            }
+                        }
+                        Command::Quit => {
+                            if confirm_discard_changes(puzzle.is_unsaved(), "quit") {
+                                *control_flow = ControlFlow::Exit;
+                            }
+                        }
+
+                        Command::Undo => {
+                            if !puzzle.undo() {
+                                status_error("Nothing to undo");
+                            }
+                        }
+                        Command::Redo => {
+                            if !puzzle.redo() {
+                                status_error("Nothing to redo");
+                            }
+                        }
+                        Command::NewPuzzle(puzzle_type) => {
+                            if confirm_discard_changes(puzzle.is_unsaved(), "load new puzzle") {
+                                puzzle = Puzzle::new(puzzle_type);
+                                *crate::status_msg() = format!("Loaded {}", puzzle_type);
+                            }
+                        }
+
+                        Command::Twist {
+                            face,
+                            direction,
+                            layer_mask,
+                        } => {
+                            if let Err(e) = puzzle.do_twist_command(face, direction, layer_mask) {
+                                status_error(e);
+                            }
+                        }
+                        Command::Recenter(face) => {
+                            if let Err(e) = puzzle.do_recenter_command(face) {
+                                status_error(e);
+                            }
+                        }
+
+                        Command::ErrorMsg(e) => status_error(e),
+
+                        Command::None => todo!(),
+                    }
+                }
 
                 let mut target = DISPLAY.draw();
 
@@ -238,6 +290,29 @@ fn main() {
                 target.finish().expect("failed to swap buffers");
             }
         });
+}
+
+lazy_static! {
+    static ref EVENTS_LOOP: SendWrapper<RefCell<Option<EventLoop<()>>>> =
+        SendWrapper::new(RefCell::new(Some(EventLoop::new())));
+    static ref DISPLAY: SendWrapper<glium::Display> = SendWrapper::new({
+        let wb = WindowBuilder::new()
+            .with_title(TITLE.to_owned())
+            .with_window_icon(load_application_icon());
+        let cb = ContextBuilder::new()
+            .with_vsync(false)
+            .with_multisampling(get_prefs().gfx.msaa as u16);
+        glium::Display::new(wb, cb, EVENTS_LOOP.borrow().as_ref().unwrap())
+            .expect("failed to initialize display")
+    });
+    static ref STATUS_MSG: Mutex<String> = Mutex::new(String::new());
+}
+
+fn status_msg<'a>() -> MutexGuard<'a, String> {
+    STATUS_MSG.lock().unwrap()
+}
+fn status_error(msg: impl fmt::Display) {
+    *status_msg() = format!("Error: {}", msg);
 }
 
 fn load_application_icon() -> Option<Icon> {
@@ -272,5 +347,40 @@ fn load_application_icon() -> Option<Icon> {
             eprintln!("Failed to load icon data: {:?}", err);
             None
         }
+    }
+}
+
+fn file_dialog() -> rfd::FileDialog {
+    rfd::FileDialog::new()
+        .add_filter("Magic Cube 4D Log Files", &["log"])
+        .add_filter("All files", &["*"])
+}
+fn error_dialog(title: &str, e: impl fmt::Display) {
+    rfd::MessageDialog::new()
+        .set_title(title)
+        .set_description(&e.to_string())
+        .show();
+}
+fn confirm_discard_changes(is_unsaved: bool, action: &str) -> bool {
+    !is_unsaved
+        || rfd::MessageDialog::new()
+            .set_title("Unsaved changes")
+            .set_description(&format!("Discard puzzle state and {}?", action))
+            .set_buttons(rfd::MessageButtons::YesNo)
+            .show()
+}
+
+fn try_save(puzzle: &mut Puzzle, path: &Path) {
+    match puzzle {
+        Puzzle::Rubiks4D(p) => match p.save_file(path) {
+            Ok(()) => {
+                *crate::status_msg() = format!("Saved log file to {}", path.display());
+            }
+            Err(e) => error_dialog("Unable to save log file", e),
+        },
+        _ => error_dialog(
+            "Unable to save log file",
+            format!("Log files are only supported for {}.", PuzzleType::Rubiks4D),
+        ),
     }
 }

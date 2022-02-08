@@ -1,12 +1,11 @@
 use imgui::*;
 use key_names::KeyMappingCode;
-use rfd::{FileDialog, MessageButtons, MessageDialog};
 use std::fmt;
 use std::sync::Mutex;
 use winit::event::{ElementState, Event, ModifiersState, VirtualKeyCode};
 
 use super::{util, AppState};
-use crate::preferences::{Key, Keybind};
+use crate::preferences::{Key, KeyCombo};
 
 const KEYBIND_POPUP_TITLE: &str = "Press a key combination";
 
@@ -19,9 +18,9 @@ lazy_static! {
 struct KeybindPopupState {
     open_this_frame: bool,
     is_open: bool,
-    callback: Option<Box<dyn Send + FnOnce(Keybind)>>,
+    callback: Option<Box<dyn Send + FnOnce(KeyCombo)>>,
 
-    keybind: Option<Keybind>,
+    key: Option<KeyCombo>,
 
     mods: ModifiersState,
     last_vk_pressed: Option<VirtualKeyCode>,
@@ -34,9 +33,8 @@ impl KeybindPopupState {
         let sc = self.last_sc_pressed.map(Key::Sc);
         let vk = self.last_vk_pressed.map(Key::Vk);
         let key = if self.use_vk { vk.or(sc) } else { sc.or(vk) };
-        let command = self.keybind.take().unwrap_or_default().command;
 
-        self.keybind = Some(Keybind::new(key, self.mods, command));
+        self.key = Some(KeyCombo::new(key, self.mods));
     }
     fn set_key(&mut self, sc: KeyMappingCode, vk: VirtualKeyCode) {
         self.last_sc_pressed = Some(sc);
@@ -44,7 +42,7 @@ impl KeybindPopupState {
         self.update_keybind();
     }
     fn confirm(&mut self) {
-        let keybind = self.keybind.take().unwrap_or_default();
+        let keybind = self.key.take().unwrap_or_default();
         self.callback.take().expect("no keybind callback")(keybind);
         self.is_open = false;
     }
@@ -53,27 +51,9 @@ impl KeybindPopupState {
     }
 }
 
-pub(super) fn file_dialog() -> FileDialog {
-    FileDialog::new()
-        .add_filter("Magic Cube 4D Log Files", &["log"])
-        .add_filter("All files", &["*"])
-}
-pub(super) fn error_dialog(title: &str, e: impl fmt::Display) {
-    MessageDialog::new()
-        .set_title(title)
-        .set_description(&e.to_string())
-        .show();
-}
-pub(super) fn confirm_discard_changes_dialog(action: &str) -> MessageDialog {
-    MessageDialog::new()
-        .set_title("Unsaved changes")
-        .set_description(&format!("Discard puzzle state and {}?", action))
-        .set_buttons(MessageButtons::YesNo)
-}
-
 pub(super) fn open_keybind_popup(
-    old_keybind: Keybind,
-    set_new_keybind_callback: impl 'static + Send + FnOnce(Keybind),
+    old_key: KeyCombo,
+    set_new_key_callback: impl 'static + Send + FnOnce(KeyCombo),
 ) {
     // We can't actually open the popup here; it has to be opened at the same
     // imgui stack level as where it's created. From the perspective of an
@@ -86,9 +66,9 @@ pub(super) fn open_keybind_popup(
     *popup = KeybindPopupState {
         open_this_frame: true,
         is_open: true,
-        callback: Some(Box::new(set_new_keybind_callback)),
+        callback: Some(Box::new(set_new_key_callback)),
 
-        keybind: Some(old_keybind),
+        key: Some(old_key),
 
         mods: ModifiersState::default(),
         last_vk_pressed: None,
@@ -123,8 +103,8 @@ pub(super) fn build_keybind_popup(app: &mut AppState) {
     PopupModal::new(&*KEYBIND_POPUP_TITLE)
         .resizable(false)
         .build(ui, || {
-            let keybind = popup.keybind.clone().unwrap_or_default();
-            if keybind.key.is_some() {
+            let keybind = popup.key.clone().unwrap_or_default();
+            if keybind.key().is_some() {
                 ui.text(&keybind.to_string());
             } else {
                 ui.text("(press a key)")
