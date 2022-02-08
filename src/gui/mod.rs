@@ -243,23 +243,26 @@ pub fn build(app: &mut AppState) {
     }
 
     if prefs.window_states.keybinds {
-        const MIN_WIDTH: f32 = 200.0; // TODO use a better value
-        const MIN_HEIGHT: f32 = 100.0;
+        let keybinds_min_width: f32 = ui.frame_height() * 10.0;
+        let keybinds_min_height: f32 = ui.frame_height() * 10.0;
 
         lazy_static! {
-            static ref KEYBINDS_WINDOW_MIN_WIDTH: Mutex<f32> = Mutex::new(MIN_WIDTH);
+            static ref KEYBINDS_WINDOW_MIN_WIDTH: Mutex<f32> = Mutex::new(1.0);
         }
 
-        let mut min_window_width = KEYBINDS_WINDOW_MIN_WIDTH.lock().unwrap();
+        let mut required_window_width = KEYBINDS_WINDOW_MIN_WIDTH.lock().unwrap();
         let mut open = prefs.window_states.keybinds;
         Window::new("Keybinds")
             .opened(&mut open)
-            .size_constraints([*min_window_width, 200.0], [f32::MAX, f32::MAX])
+            .size_constraints(
+                [*required_window_width, keybinds_min_height],
+                [f32::MAX, f32::MAX],
+            )
             .build(ui, || {
                 let puzzle_type = app.puzzle.ty();
 
                 let current_window_width = ui.window_size()[0];
-                let mut extra_width = current_window_width - MIN_WIDTH;
+                let mut extra_width = current_window_width - keybinds_min_width;
                 if ui.button("Add keybind") {
                     prefs.puzzle_keybinds[puzzle_type].push(Keybind::default());
                     prefs.needs_save = true;
@@ -271,7 +274,7 @@ pub fn build(app: &mut AppState) {
                     move |prefs| &mut prefs.puzzle_keybinds[puzzle_type],
                     |i, command| build_puzzle_command_select_ui(ui, puzzle_type, i, command),
                 );
-                *min_window_width = current_window_width - extra_width;
+                *required_window_width = current_window_width - extra_width;
             });
         prefs.window_states.keybinds = open;
         // If the window closed, update preferences.
