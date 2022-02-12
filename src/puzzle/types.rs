@@ -40,12 +40,22 @@ macro_rules! puzzle_type_enum {
 }
 puzzle_type_enum! {
     /// Enumeration of all puzzle types.
-    #[derive(Debug, Display, Enum, EnumString, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
+    #[derive(Enum, EnumIter, EnumString, Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
     pub enum PuzzleType {
         /// 3D Rubik's cube.
         Rubiks3D,
         /// 4D Rubik's cube.
         Rubiks4D,
+    }
+}
+impl fmt::Display for PuzzleType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+impl AsRef<str> for PuzzleType {
+    fn as_ref(&self) -> &str {
+        self.name()
     }
 }
 
