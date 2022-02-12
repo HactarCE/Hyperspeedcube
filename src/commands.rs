@@ -13,7 +13,7 @@ pub enum Command {
     Open,
     Save,
     SaveAs,
-    Quit,
+    Exit,
 
     // Edit menu
     Undo,

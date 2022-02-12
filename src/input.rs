@@ -26,7 +26,7 @@ impl InputFrame<'_> {
             Event::WindowEvent { event, .. } => {
                 match event {
                     WindowEvent::CloseRequested => {
-                        self.command_queue.push(Command::Quit);
+                        self.command_queue.push(Command::Exit);
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if self.state.has_keyboard {

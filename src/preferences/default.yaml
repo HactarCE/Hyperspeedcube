@@ -102,7 +102,7 @@ general_keybinds:
     command: save_as
   - vk: Q
     ctrl: true
-    command: quit
+    command: exit
   - vk: Z
     ctrl: true
     command: undo

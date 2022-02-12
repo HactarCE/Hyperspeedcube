@@ -46,8 +46,8 @@ pub fn build(app: &mut AppState) {
                 app.command_queue.push(Command::SaveAs);
             }
             ui.separator();
-            if MenuItem::new("Quit").build(ui) {
-                app.command_queue.push(Command::Quit);
+            if MenuItem::new("Exit").build(ui) {
+                app.command_queue.push(Command::Exit);
             }
         });
 
@@ -609,7 +609,7 @@ fn build_command_select_ui(ui: &Ui<'_>, i: usize, command: &mut Command) -> bool
         Save,
         #[strum(serialize = "Save As...")]
         SaveAs,
-        Quit,
+        Exit,
         Undo,
         Redo,
         Reset,
@@ -621,7 +621,7 @@ fn build_command_select_ui(ui: &Ui<'_>, i: usize, command: &mut Command) -> bool
         Cmd::Open => CmdType::Open,
         Cmd::Save => CmdType::Save,
         Cmd::SaveAs => CmdType::SaveAs,
-        Cmd::Quit => CmdType::Quit,
+        Cmd::Exit => CmdType::Exit,
 
         Cmd::Undo => CmdType::Undo,
         Cmd::Redo => CmdType::Redo,
@@ -647,7 +647,7 @@ fn build_command_select_ui(ui: &Ui<'_>, i: usize, command: &mut Command) -> bool
             CmdType::Open => Cmd::Open,
             CmdType::Save => Cmd::Save,
             CmdType::SaveAs => Cmd::SaveAs,
-            CmdType::Quit => Cmd::Quit,
+            CmdType::Exit => Cmd::Exit,
 
             CmdType::Undo => Cmd::Undo,
             CmdType::Redo => Cmd::Redo,

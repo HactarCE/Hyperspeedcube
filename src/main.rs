@@ -209,7 +209,7 @@ fn main() {
                     use commands::Command;
                     match command {
                         Command::Open => {
-                            if confirm_discard_changes(puzzle.is_unsaved(), "quit") {
+                            if confirm_discard_changes(puzzle.is_unsaved(), "open another file") {
                                 if let Some(path) = file_dialog().pick_file() {
                                     match crate::puzzle::PuzzleController::load_file(&path) {
                                         Ok(p) => {
@@ -230,8 +230,8 @@ fn main() {
                                 try_save(&mut puzzle, &prefs.log_file);
                             }
                         }
-                        Command::Quit => {
-                            if confirm_discard_changes(puzzle.is_unsaved(), "quit") {
+                        Command::Exit => {
+                            if confirm_discard_changes(puzzle.is_unsaved(), "exit") {
                                 *control_flow = ControlFlow::Exit;
                             }
                         }
