@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  HYPERSPEEDCUBE_VERSION: 0.1.0
+  HYPERSPEEDCUBE_VERSION: 0.2.0
 
 jobs:
 
@@ -55,12 +55,14 @@ jobs:
             toolchain: stable
             components: clippy
             override: true
+      - name: Update apt
+        run: sudo apt update
       - name: Install ImGui dependencies
         run: sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev
       - name: Install Rusty File Dialog dependencies
-        run: sudo apt-get install libgtk-3-dev
+        run: sudo apt install libgtk-3-dev
       - name: Install XKB/XCB dev dependencies
-        run: sudo apt-get install libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libxcb-xinput-dev
+        run: sudo apt install libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libxcb-xinput-dev
       - name: Build Hyperspeedcube
         run: cargo build --release
       - name: Make tarball
