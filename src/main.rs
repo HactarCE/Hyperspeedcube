@@ -246,6 +246,12 @@ fn main() {
                                 status_error("Nothing to redo");
                             }
                         }
+                        Command::Reset => {
+                            if confirm_discard_changes(puzzle.is_unsaved(), "reset puzzle") {
+                                puzzle = Puzzle::new(puzzle.ty());
+                            }
+                        }
+
                         Command::NewPuzzle(puzzle_type) => {
                             if confirm_discard_changes(puzzle.is_unsaved(), "load new puzzle") {
                                 puzzle = Puzzle::new(puzzle_type);

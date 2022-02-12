@@ -5,7 +5,7 @@ use itertools::Itertools;
 use std::collections::HashMap;
 
 use crate::commands::{Command, PuzzleCommand, SelectCategory, SelectThing};
-use crate::preferences::Key;
+use crate::preferences::{Key, KeyCombo};
 use crate::puzzle::{traits::*, Face, LayerMask, Puzzle, PuzzleController, PuzzleType, Selection};
 
 const SHIFT: ModifiersState = ModifiersState::SHIFT;
@@ -92,18 +92,19 @@ impl InputFrame<'_> {
         // All other modifiers must exactly match those of the keybind.
         let mods = self.state.modifiers;
 
+        let key_combo_matches = |key_combo: KeyCombo| match key_combo.key() {
+            Some(k) => {
+                (Some(k) == sc || Some(k) == vk)
+                    && (key_combo.shift() == mods.shift() || ignore_shift)
+                    && (key_combo.ctrl() == mods.ctrl() || ignore_ctrl)
+                    && (key_combo.alt() == mods.alt() || ignore_alt)
+                    && (key_combo.logo() == mods.logo() || ignore_logo)
+            }
+            None => false,
+        };
+
         for bind in &prefs.puzzle_keybinds[puzzle_type] {
-            let k = bind.key;
-            let key = match k.key() {
-                Some(k) => k,
-                None => continue,
-            };
-            if (Some(key) == sc || Some(key) == vk)
-                && (k.shift() == mods.shift() || ignore_shift)
-                && (k.ctrl() == mods.ctrl() || ignore_ctrl)
-                && (k.alt() == mods.alt() || ignore_alt)
-                && (k.logo() == mods.logo() || ignore_logo)
-            {
+            if key_combo_matches(bind.key) {
                 let sel = self.state.total_selection();
 
                 match &bind.command {
@@ -135,7 +136,7 @@ impl InputFrame<'_> {
                     PuzzleCommand::HoldSelect(thing) => {
                         self.state
                             .held_selections
-                            .insert(key, Selection::from(*thing));
+                            .insert(bind.key.key().unwrap(), Selection::from(*thing));
                     }
                     PuzzleCommand::ToggleSelect(thing) => {
                         self.state.toggle_selections ^= Selection::from(*thing);
@@ -152,36 +153,17 @@ impl InputFrame<'_> {
                         }
                     }
 
-                    PuzzleCommand::None => break, // Do not try to match other keybinds.
+                    PuzzleCommand::None => return, // Do not try to match other keybinds.
                 }
             }
         }
 
-        if modifiers == CTRL {
-            match input.virtual_keycode {
-                // Undo.
-                Some(VirtualKeyCode::Z) => self.command_queue.push(Command::Undo),
-                // Redo.
-                Some(VirtualKeyCode::Y) => self.command_queue.push(Command::Redo),
-                // Reset.
-                Some(VirtualKeyCode::R) => println!("TODO reset puzzle state"),
-                // Copy puzzle state.
-                Some(VirtualKeyCode::C) => println!("TODO copy puzzle state"),
-                // Paste puzzle state.
-                Some(VirtualKeyCode::V) => println!("TODO paste puzzle state"),
-                // Save file.
-                Some(VirtualKeyCode::S) => self.command_queue.push(Command::Save),
-                // Full scramble.
-                Some(VirtualKeyCode::F) => println!("TODO full scramble"),
-                _ => (),
-            }
-        }
-
-        if modifiers == SHIFT | CTRL {
-            match input.virtual_keycode {
-                // Redo.
-                Some(VirtualKeyCode::Z) => self.command_queue.push(Command::Redo),
-                _ => (),
+        for bind in &prefs.general_keybinds {
+            if key_combo_matches(bind.key) {
+                match &bind.command {
+                    Command::None => return, // Do not try to match other keybinds.
+                    other => self.command_queue.push(other.clone()),
+                }
             }
         }
     }

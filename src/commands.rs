@@ -18,6 +18,7 @@ pub enum Command {
     // Edit menu
     Undo,
     Redo,
+    Reset,
 
     // Puzzle menu
     NewPuzzle(PuzzleType),
@@ -40,6 +41,15 @@ pub enum Command {
 impl Default for Command {
     fn default() -> Self {
         Self::None
+    }
+}
+impl Command {
+    pub(crate) fn get_puzzle_type(&self) -> PuzzleType {
+        match self {
+            Command::NewPuzzle(puzzle_type) => *puzzle_type,
+            Command::Recenter(face) | Command::Twist { face, .. } => face.ty(),
+            _ => PuzzleType::default(),
+        }
     }
 }
 

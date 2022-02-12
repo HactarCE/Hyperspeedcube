@@ -1,6 +1,7 @@
 use glium::glutin::event_loop::ControlFlow;
 use imgui::*;
 use itertools::Itertools;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
 use strum::IntoEnumIterator;
@@ -63,11 +64,15 @@ pub fn build(app: &mut AppState) {
             {
                 app.command_queue.push(Command::Redo);
             }
+            ui.separator();
+            if MenuItem::new("Reset").build(ui) {
+                app.command_queue.push(Command::Reset);
+            }
         });
 
         ui.menu("Puzzle", || {
             for &puzzle_type in PuzzleType::ALL {
-                if MenuItem::new(puzzle_type.name()).build(ui) {
+                if MenuItem::new(puzzle_type).build(ui) {
                     app.command_queue.push(Command::NewPuzzle(puzzle_type))
                 }
             }
@@ -87,7 +92,13 @@ pub fn build(app: &mut AppState) {
             prefs.needs_save |= checkbox_menu_item("Graphics", &mut prefs.window_states.graphics);
             prefs.needs_save |= checkbox_menu_item("View", &mut prefs.window_states.view);
             prefs.needs_save |= checkbox_menu_item("Colors", &mut prefs.window_states.colors);
-            prefs.needs_save |= checkbox_menu_item("Keybinds", &mut prefs.window_states.keybinds);
+            ui.separator();
+            prefs.needs_save |= checkbox_menu_item(
+                "General keybinds",
+                &mut prefs.window_states.general_keybinds,
+            );
+            prefs.needs_save |=
+                checkbox_menu_item("Puzzle keybinds", &mut prefs.window_states.puzzle_keybinds);
 
             #[cfg(debug_assertions)]
             {
@@ -242,43 +253,35 @@ pub fn build(app: &mut AppState) {
         prefs.needs_save |= !prefs.window_states.colors;
     }
 
-    if prefs.window_states.keybinds {
-        let keybinds_min_width: f32 = ui.frame_height() * 10.0;
-        let keybinds_min_height: f32 = ui.frame_height() * 10.0;
-
+    if prefs.window_states.general_keybinds {
         lazy_static! {
-            static ref KEYBINDS_WINDOW_MIN_WIDTH: Mutex<f32> = Mutex::new(1.0);
+            static ref REQUIRED_WINDOW_WIDTH: Mutex<f32> = Mutex::new(1.0);
         }
+        build_keybinds_window(
+            app,
+            prefs,
+            &mut REQUIRED_WINDOW_WIDTH.lock().unwrap(),
+            "General keybinds",
+            move |prefs| &mut prefs.window_states.general_keybinds,
+            move |prefs| &mut prefs.general_keybinds,
+            |i, command| build_command_select_ui(ui, i, command),
+        )
+    }
 
-        let mut required_window_width = KEYBINDS_WINDOW_MIN_WIDTH.lock().unwrap();
-        let mut open = prefs.window_states.keybinds;
-        Window::new("Keybinds")
-            .opened(&mut open)
-            .size_constraints(
-                [*required_window_width, keybinds_min_height],
-                [f32::MAX, f32::MAX],
-            )
-            .build(ui, || {
-                let puzzle_type = app.puzzle.ty();
-
-                let current_window_width = ui.window_size()[0];
-                let mut extra_width = current_window_width - keybinds_min_width;
-                if ui.button("Add keybind") {
-                    prefs.puzzle_keybinds[puzzle_type].push(Keybind::default());
-                    prefs.needs_save = true;
-                }
-                prefs.needs_save |= build_keybind_table(
-                    app,
-                    &mut extra_width,
-                    prefs,
-                    move |prefs| &mut prefs.puzzle_keybinds[puzzle_type],
-                    |i, command| build_puzzle_command_select_ui(ui, puzzle_type, i, command),
-                );
-                *required_window_width = current_window_width - extra_width;
-            });
-        prefs.window_states.keybinds = open;
-        // If the window closed, update preferences.
-        prefs.needs_save |= !prefs.window_states.keybinds;
+    if prefs.window_states.puzzle_keybinds {
+        let puzzle_type = app.puzzle.ty();
+        lazy_static! {
+            static ref REQUIRED_WINDOW_WIDTH: Mutex<f32> = Mutex::new(1.0);
+        }
+        build_keybinds_window(
+            app,
+            prefs,
+            &mut REQUIRED_WINDOW_WIDTH.lock().unwrap(),
+            "Puzzle keybinds",
+            move |prefs| &mut prefs.window_states.puzzle_keybinds,
+            move |prefs| &mut prefs.puzzle_keybinds[puzzle_type],
+            |i, command| build_puzzle_command_select_ui(ui, puzzle_type, i, command),
+        )
     }
 
     if prefs.window_states.about {
@@ -430,28 +433,69 @@ fn build_status_bar(
         });
 }
 
-#[must_use]
-fn build_keybind_table<C>(
+fn build_keybinds_window<C: Default>(
+    app: &mut AppState,
+    prefs: &mut Preferences,
+    required_window_width: &mut f32,
+    window_title: &str,
+    get_window_open: impl Fn(&mut Preferences) -> &mut bool,
+    get_keybinds: impl 'static + Send + Clone + Fn(&mut Preferences) -> &mut Vec<Keybind<C>>,
+    build_command_select_ui: impl FnMut(usize, &mut C) -> bool,
+) {
+    let ui = app.ui;
+
+    let keybinds_min_width = ui.frame_height() * 10.0;
+    let keybinds_min_height = ui.frame_height() * 10.0;
+
+    let mut open = *get_window_open(prefs);
+    Window::new(window_title)
+        .opened(&mut open)
+        .size_constraints(
+            [*required_window_width, keybinds_min_height],
+            [f32::MAX, f32::MAX],
+        )
+        .build(ui, || {
+            let current_window_width = ui.window_size()[0];
+            let mut extra_width = current_window_width - keybinds_min_width;
+            if ui.button("Add keybind") {
+                get_keybinds(prefs).push(Keybind::default());
+                prefs.needs_save = true;
+            }
+            build_keybinds_table(
+                app,
+                &mut extra_width,
+                prefs,
+                &format!("table_{}", window_title),
+                get_keybinds,
+                build_command_select_ui,
+            );
+            *required_window_width = current_window_width - extra_width;
+        });
+    *get_window_open(prefs) = open;
+    // If the window closed, update preferences.
+    prefs.needs_save |= !*get_window_open(prefs);
+}
+
+fn build_keybinds_table<C>(
     app: &mut AppState,
     extra_width: &mut f32,
     prefs: &mut Preferences,
+    table_id: &str,
     get_keybinds: impl 'static + Send + Clone + Fn(&mut Preferences) -> &mut Vec<Keybind<C>>,
     mut build_command_select_ui: impl FnMut(usize, &mut C) -> bool,
-) -> bool {
-    let mut needs_save = false;
-
+) {
     let ui = app.ui;
 
     let flags = TableFlags::BORDERS | TableFlags::SIZING_FIXED_FIT | TableFlags::SCROLL_Y;
-    let table_token = match ui.begin_table_with_flags("keybinds", 3, flags) {
+    let table_token = match ui.begin_table_with_flags(table_id, 3, flags) {
         Some(tok) => tok,
-        None => return needs_save,
+        None => return,
     };
 
-    ui.table_setup_column("##reorder_column");
-    ui.table_setup_column("Keybind##column");
+    ui.table_setup_column(&format!("##reorder_column_{}", table_id));
+    ui.table_setup_column(&format!("Keybind##column_{}", table_id));
     ui.table_setup_column_with(TableColumnSetup {
-        name: "Command##column",
+        name: format!("Command##column_{}", table_id),
         flags: TableColumnFlags::WIDTH_STRETCH,
         ..Default::default()
     });
@@ -460,11 +504,11 @@ fn build_keybind_table<C>(
     ui.table_headers_row();
 
     lazy_static! {
-        static ref DRAG: Mutex<Option<(usize, usize)>> = Mutex::new(None);
+        static ref DRAGS: Mutex<HashMap<String, (usize, usize)>> = Mutex::new(HashMap::new());
     }
-    let mut drag = DRAG.lock().unwrap();
+    let mut drags = DRAGS.lock().unwrap();
     if !ui.is_mouse_dragging(MouseButton::Left) {
-        *drag = None;
+        drags.remove(table_id);
     }
 
     // Table contents
@@ -474,16 +518,19 @@ fn build_keybind_table<C>(
 
     let keybind_list = get_keybinds(prefs);
 
+    let mut needs_save = false;
     for (i, keybind) in keybind_list.iter_mut().enumerate() {
         ui.table_next_row();
 
         ui.table_next_column();
-        let label_prefix = " = ##reorder";
-        let reorder_selectable_label = match *drag {
-            Some((start, end)) if i == end => format!("{}{}", label_prefix, start),
-            Some((start, _)) if i == start => format!("{}_tmp", label_prefix),
-            _ => format!("{}{}", label_prefix, i),
+        let mut reorder_selectable_label = " = ##reorder_".to_string();
+        reorder_selectable_label += &match drags.get(table_id) {
+            Some(&(start, end)) if i == end => start.to_string(),
+            Some(&(start, _)) if i == start => "tmp".to_string(),
+            _ => i.to_string(),
         };
+        reorder_selectable_label += "_";
+        reorder_selectable_label += table_id;
         Selectable::new(&reorder_selectable_label)
             .size([0.0, ui.frame_height()])
             .build(ui);
@@ -494,11 +541,11 @@ fn build_keybind_table<C>(
         }
         if ui.is_item_active() {
             ui.set_mouse_cursor(Some(MouseCursor::ResizeNS));
-            if drag.is_none() {
-                *drag = Some((i, i));
+            if !drags.contains_key(table_id) {
+                drags.insert(table_id.to_owned(), (i, i));
             }
         }
-        if let Some((_, drag_end)) = *drag {
+        if let Some(&(_, drag_end)) = drags.get(table_id) {
             let mouse_y = app.mouse_pos[1];
             if (drag_end == i + 1 && mouse_y < ui.item_rect_max()[1])
                 || (drag_end + 1 == i && mouse_y > ui.item_rect_min()[1])
@@ -508,11 +555,14 @@ fn build_keybind_table<C>(
         }
 
         ui.table_next_column();
-        if ui.button(&format!("X##delete_keybind{}", i)) {
+        if ui.button(&format!("X##delete_keybind{}_{}", i, table_id)) {
             delete_idx = Some(i);
         }
         ui.same_line();
-        if ui.button_with_size(format!("{}##change_keybind{}", keybind.key, i), [w, 0.0]) {
+        if ui.button_with_size(
+            format!("{}##change_keybind{}_{}", keybind.key, i, table_id),
+            [w, 0.0],
+        ) {
             let get_keybinds = get_keybinds.clone();
             popups::open_keybind_popup(keybind.key, move |new_key| {
                 let mut prefs = crate::get_prefs();
@@ -531,7 +581,7 @@ fn build_keybind_table<C>(
         }
     }
 
-    if let Some(((_start, ref mut from), to)) = drag.as_mut().zip(drag_to) {
+    if let Some(((_start, ref mut from), to)) = drags.get_mut(table_id).zip(drag_to) {
         keybind_list.swap(*from, to);
         *from = to;
         needs_save = true;
@@ -540,8 +590,86 @@ fn build_keybind_table<C>(
         keybind_list.remove(i);
         needs_save = true;
     }
+    prefs.needs_save |= needs_save;
 
     drop(table_token);
+}
+
+#[must_use]
+fn build_command_select_ui(ui: &Ui<'_>, i: usize, command: &mut Command) -> bool {
+    use Command as Cmd;
+
+    let mut needs_save = false;
+
+    #[derive(Display, EnumIter, Copy, Clone, PartialEq, Eq)]
+    enum CmdType {
+        None,
+        #[strum(serialize = "Open...")]
+        Open,
+        Save,
+        #[strum(serialize = "Save As...")]
+        SaveAs,
+        Quit,
+        Undo,
+        Redo,
+        Reset,
+        #[strum(serialize = "New puzzle")]
+        NewPuzzle,
+    }
+
+    let mut cmd_type = match command {
+        Cmd::Open => CmdType::Open,
+        Cmd::Save => CmdType::Save,
+        Cmd::SaveAs => CmdType::SaveAs,
+        Cmd::Quit => CmdType::Quit,
+
+        Cmd::Undo => CmdType::Undo,
+        Cmd::Redo => CmdType::Redo,
+        Cmd::Reset => CmdType::Reset,
+
+        Cmd::NewPuzzle(_) => CmdType::NewPuzzle,
+
+        Cmd::Twist { .. } | Cmd::Recenter(_) | Cmd::ErrorMsg(_) | Cmd::None => CmdType::None,
+    };
+    let old_cmd_type = cmd_type;
+
+    if build_select_combo_iter(
+        ui,
+        &format!("##command{}", i),
+        &mut cmd_type,
+        CmdType::iter(),
+    ) && cmd_type != old_cmd_type
+    {
+        needs_save = true;
+        *command = match cmd_type {
+            CmdType::None => Cmd::None,
+
+            CmdType::Open => Cmd::Open,
+            CmdType::Save => Cmd::Save,
+            CmdType::SaveAs => Cmd::SaveAs,
+            CmdType::Quit => Cmd::Quit,
+
+            CmdType::Undo => Cmd::Undo,
+            CmdType::Redo => Cmd::Redo,
+            CmdType::Reset => Cmd::Reset,
+
+            CmdType::NewPuzzle => Cmd::NewPuzzle(command.get_puzzle_type()),
+        }
+    }
+
+    match command {
+        Cmd::NewPuzzle(puzzle_type) => {
+            same_line_combo_label(ui, "Type");
+            needs_save |= build_select_combo_iter(
+                ui,
+                &format!("##puzzle_type{}", i),
+                puzzle_type,
+                PuzzleType::iter(),
+            );
+        }
+
+        _ => (),
+    }
 
     needs_save
 }
@@ -628,12 +756,6 @@ fn build_puzzle_command_select_ui(
         }
     }
 
-    fn combo_label(ui: &Ui<'_>, s: &str) {
-        ui.same_line();
-        ui.text(&format!("{}:", s));
-        ui.same_line();
-    }
-
     match command {
         Cmd::None => (),
 
@@ -642,11 +764,11 @@ fn build_puzzle_command_select_ui(
             direction,
             layer_mask,
         } => {
-            combo_label(ui, "Face");
+            same_line_combo_label(ui, "Face");
             needs_save |=
                 build_optional_select_combo(ui, &format!("##face{}", i), face, puzzle_type.faces());
 
-            combo_label(ui, "Layers");
+            same_line_combo_label(ui, "Layers");
             needs_save |= build_layer_mask_select_checkboxes(
                 ui,
                 &format!("##layer_mask{}", i),
@@ -654,7 +776,7 @@ fn build_puzzle_command_select_ui(
                 puzzle_type.layer_count(),
             );
 
-            combo_label(ui, "Direction");
+            same_line_combo_label(ui, "Direction");
             needs_save |= build_select_combo_iter(
                 ui,
                 &format!("##direction{}", i),
@@ -663,7 +785,7 @@ fn build_puzzle_command_select_ui(
             );
         }
         Cmd::Recenter { face } => {
-            combo_label(ui, "Face");
+            same_line_combo_label(ui, "Face");
             needs_save |=
                 build_optional_select_combo(ui, &format!("##face{}", i), face, puzzle_type.faces());
         }
@@ -697,6 +819,12 @@ fn build_puzzle_command_select_ui(
     }
 
     needs_save
+}
+
+fn same_line_combo_label(ui: &Ui<'_>, s: &str) {
+    ui.same_line();
+    ui.text(&format!("{}:", s));
+    ui.same_line();
 }
 
 #[must_use]

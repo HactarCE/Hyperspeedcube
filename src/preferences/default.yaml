@@ -89,6 +89,39 @@ colors:
     - 0.0
     - 0.0
     - 1.0
+general_keybinds:
+  - vk: O
+    ctrl: true
+    command: open
+  - vk: S
+    ctrl: true
+    command: save
+  - vk: S
+    ctrl: true
+    shift: true
+    command: save_as
+  - vk: Q
+    ctrl: true
+    command: quit
+  - vk: Z
+    ctrl: true
+    command: undo
+  - vk: Z
+    ctrl: true
+    shift: true
+    command: redo
+  - vk: Y
+    ctrl: true
+    command: redo
+  - vk: R
+    ctrl: true
+    command: reset
+  - vk: F3
+    command:
+      new_puzzle: Rubiks3D
+  - vk: F4
+    command:
+      new_puzzle: Rubiks4D
 puzzle_keybinds:
   Rubiks3D:
     - sc: ShiftLeft

@@ -123,6 +123,7 @@ pub struct Preferences {
     pub info: InfoPreferences,
     pub view: PerPuzzle<ViewPreferences>,
     pub colors: ColorPreferences,
+
     pub general_keybinds: Vec<Keybind<Command>>,
     pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
 }
@@ -223,8 +224,11 @@ pub struct WindowStates {
     pub view: bool,
     #[serde(skip_serializing_if = "is_false")]
     pub colors: bool,
+
     #[serde(skip_serializing_if = "is_false")]
-    pub keybinds: bool,
+    pub general_keybinds: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    pub puzzle_keybinds: bool,
 
     #[serde(skip_serializing_if = "is_false")]
     pub about: bool,
