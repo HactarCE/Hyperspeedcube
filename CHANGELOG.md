@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Text indicating puzzle save/load and other events
   - Twist count [(QSTM, FTM, STM, ETM)](https://www.speedsolving.com/wiki/index.php/Metric)
 - Automatic reloading of preferences file when modified externally
+- Customizable keybinds for undo, redo, etc.
+- Reset (<kbd>Ctrl</kbd>+<kbd>R</kbd>)
+- New Rubik's 3D (<kbd>F3</kbd>)
+- New Rubik's 4D (<kbd>F4</kbd>)
 
 ### Changed
 
