@@ -4,6 +4,15 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), except for minor stylistic changes to organize features and accomodate named versions. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with respect to the Rust API for `hyperspeedcube`, but the minor and patch numbers may also be incremented for changes that only affect the GUI application.
 
+## Unreleased
+
+### Changed
+
+- **Preferences are now saved in `hyperspeedcube.yaml` in the same directory as `hyperspeedcube.exe` by default.** To continue using the old location, create a file named `nonportable` (no file extension) in the same directory as `hyperspeedcube.exe`. The old preferences file can be found in the following locations:
+  - Linux: `/home/<user>/.config/hyperspeedcube/hyperspeedcube.yaml`
+  - macOS: `/Users/<user>/Library/Application Support/Hyperspeedcube/hyperspeedcube.yaml`
+  - Windows: `%APPDATA%\Hyperspeedcube\config\hyperspeedcube.yaml`
+
 ## [0.2.0] - 2022-02-12
 
 ### Added

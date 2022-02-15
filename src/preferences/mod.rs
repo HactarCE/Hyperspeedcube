@@ -33,15 +33,39 @@ const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS: &str = include_str!("default.yaml");
 
 lazy_static! {
+    static ref LOCAL_DIR: Result<PathBuf, PrefsError> = (|| Some(
+        // IIFE to mimic `try_block`
+        std::env::current_exe()
+            .ok()?
+            .canonicalize()
+            .ok()?
+            .parent()?
+            .to_owned()
+    ))()
+    .ok_or(PrefsError::NoExecutablePath);
+    static ref NONPORTABLE: bool = {
+        if let Ok(mut p) = LOCAL_DIR.clone() {
+            p.push("nonportable");
+            p.exists()
+        } else {
+            false
+        }
+    };
     static ref PREFERENCES: Mutex<Preferences> = Mutex::new(Preferences::load(None));
     static ref PROJECT_DIRS: Option<ProjectDirs> = ProjectDirs::from("", "", "Hyperspeedcube");
-    static ref PREFS_FILE_PATH: Result<PathBuf, NoPreferencesPath> = match &*PROJECT_DIRS {
-        Some(proj_dirs) => {
-            let mut p = proj_dirs.config_dir().to_owned();
-            p.push(format!("{}.{}", PREFS_FILE_NAME, PREFS_FILE_EXTENSION));
-            Ok(p)
-        }
-        None => Err(NoPreferencesPath),
+    static ref PREFS_FILE_PATH: Result<PathBuf, PrefsError> = {
+        let mut p = if *NONPORTABLE {
+            println!("Using non-portable preferences path");
+            match &*PROJECT_DIRS {
+                Some(proj_dirs) => proj_dirs.config_dir().to_owned(),
+                None => return Err(PrefsError::NoPreferencesPath),
+            }
+        } else {
+            println!("Using portable preferences path");
+            LOCAL_DIR.clone()?
+        };
+        p.push(format!("{}.{}", PREFS_FILE_NAME, PREFS_FILE_EXTENSION));
+        Ok(p)
     };
 }
 
@@ -101,14 +125,14 @@ pub(crate) fn get_prefs<'a>() -> MutexGuard<'a, Preferences> {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-struct NoPreferencesPath;
-impl fmt::Display for NoPreferencesPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "unable to get preferences file path")
-    }
+#[derive(Display, Debug, Copy, Clone, PartialEq, Eq)]
+enum PrefsError {
+    #[strum(serialize = "unable to get executable file path")]
+    NoExecutablePath,
+    #[strum(serialize = "unable to get preferences file path")]
+    NoPreferencesPath,
 }
-impl Error for NoPreferencesPath {}
+impl Error for PrefsError {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
