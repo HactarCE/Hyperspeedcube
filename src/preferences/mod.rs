@@ -141,7 +141,8 @@ pub struct Preferences {
     pub needs_save: bool,
     pub window_states: WindowStates,
 
-    pub log_file: PathBuf,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_file: Option<PathBuf>,
 
     pub gfx: GfxPreferences,
     pub info: InfoPreferences,
@@ -157,7 +158,7 @@ impl Default for Preferences {
             needs_save: true,
             window_states: Default::default(),
 
-            log_file: PathBuf::from("puzzle.log"),
+            log_file: None,
 
             gfx: Default::default(),
             info: Default::default(),

@@ -30,11 +30,12 @@ use imgui::FontSource;
 use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use send_wrapper::SendWrapper;
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 use std::time::Instant;
-use std::{cell::RefCell, path::Path};
 
 #[macro_use]
 mod debug;
@@ -48,7 +49,8 @@ pub mod puzzle;
 mod render;
 mod serde_impl;
 
-use preferences::get_prefs;
+use commands::Command;
+use preferences::{get_prefs, Preferences};
 use puzzle::{Puzzle, PuzzleControllerTrait, PuzzleType};
 
 /// The title of the window.
@@ -70,6 +72,14 @@ fn main() {
     let mut renderer = None; // We'll initialize it on the first frame.
     let mut old_scale_factor = 1.0;
     let mut old_font_size = 1.0;
+
+    // Load last open file.
+    {
+        let mut prefs = get_prefs();
+        if let Some(path) = prefs.log_file.take() {
+            try_load(&mut puzzle, &mut prefs, path.to_owned());
+        }
+    }
 
     // Main loop
     let mut last_frame_time = Instant::now();
@@ -206,30 +216,19 @@ fn main() {
                     *crate::status_msg() = String::new();
                     let mut prefs = get_prefs();
 
-                    use commands::Command;
                     match command {
                         Command::Open => {
                             if confirm_discard_changes(puzzle.is_unsaved(), "open another file") {
                                 if let Some(path) = file_dialog().pick_file() {
-                                    match crate::puzzle::PuzzleController::load_file(&path) {
-                                        Ok(p) => {
-                                            puzzle = Puzzle::Rubiks4D(p);
-                                            *crate::status_msg() =
-                                                format!("Loaded log file from {}", path.display());
-                                        }
-                                        Err(e) => error_dialog("Unable to load log file", e),
-                                    }
+                                    try_load(&mut puzzle, &mut prefs, path.to_owned());
                                 }
                             }
                         }
-                        Command::Save => try_save(&mut puzzle, &prefs.log_file),
-                        Command::SaveAs => {
-                            if let Some(path) = file_dialog().save_file() {
-                                prefs.needs_save = true;
-                                prefs.log_file = path;
-                                try_save(&mut puzzle, &prefs.log_file);
-                            }
-                        }
+                        Command::Save => match &prefs.log_file {
+                            Some(path) => try_save(&mut puzzle, path),
+                            None => try_save_as(&mut puzzle, &mut prefs),
+                        },
+                        Command::SaveAs => try_save_as(&mut puzzle, &mut prefs),
                         Command::Exit => {
                             if confirm_discard_changes(puzzle.is_unsaved(), "exit") {
                                 *control_flow = ControlFlow::Exit;
@@ -255,6 +254,7 @@ fn main() {
                         Command::NewPuzzle(puzzle_type) => {
                             if confirm_discard_changes(puzzle.is_unsaved(), "load new puzzle") {
                                 puzzle = Puzzle::new(puzzle_type);
+                                prefs.log_file = None;
                                 *crate::status_msg() = format!("Loaded {}", puzzle_type);
                             }
                         }
@@ -276,7 +276,7 @@ fn main() {
 
                         Command::ErrorMsg(e) => status_error(e),
 
-                        Command::None => todo!(),
+                        Command::None => (),
                     }
                 }
 
@@ -376,6 +376,25 @@ fn confirm_discard_changes(is_unsaved: bool, action: &str) -> bool {
             .show()
 }
 
+fn try_load(puzzle: &mut Puzzle, prefs: &mut Preferences, path: PathBuf) {
+    match crate::puzzle::PuzzleController::load_file(&path) {
+        Ok(p) => {
+            *puzzle = Puzzle::Rubiks4D(p);
+            *crate::status_msg() = format!("Loaded log file from {}", path.display());
+            prefs.log_file = Some(path);
+            prefs.needs_save = true;
+        }
+        Err(e) => error_dialog("Unable to load log file", e),
+    }
+}
+
+fn try_save_as(puzzle: &mut Puzzle, prefs: &mut Preferences) {
+    if let Some(path) = file_dialog().save_file() {
+        try_save(puzzle, &path);
+        prefs.log_file = Some(path);
+        prefs.needs_save = true;
+    }
+}
 fn try_save(puzzle: &mut Puzzle, path: &Path) {
     match puzzle {
         Puzzle::Rubiks4D(p) => match p.save_file(path) {

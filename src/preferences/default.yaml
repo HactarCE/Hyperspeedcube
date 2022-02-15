@@ -1,5 +1,4 @@
 ---
-log_file: puzzle.log
 gfx:
   fps: 60
   font_size: 16.0
