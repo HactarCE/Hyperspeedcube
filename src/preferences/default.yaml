@@ -26,6 +26,7 @@ view:
 colors:
   sticker_opacity: 1.0
   outline_opacity: 1.0
+  hidden_opacity: 0.1
   faces:
     Rubiks3D:
       - - 0.0

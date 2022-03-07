@@ -4,10 +4,11 @@ use super::{DeserializePerPuzzle, PerPuzzle};
 use crate::colors;
 use crate::puzzle::{PuzzleType, PuzzleTypeTrait};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct ColorPreferences {
     pub sticker_opacity: f32,
     pub outline_opacity: f32,
+    pub hidden_opacity: f32,
 
     pub faces: PerPuzzle<FaceColors>,
 
@@ -16,22 +17,6 @@ pub struct ColorPreferences {
 
     pub label_fg: [f32; 4],
     pub label_bg: [f32; 4],
-}
-impl Default for ColorPreferences {
-    fn default() -> Self {
-        Self {
-            sticker_opacity: 1.0,
-            outline_opacity: 1.0,
-
-            faces: PerPuzzle::default(),
-
-            background: colors::DEFAULT_BACKGROUND,
-            outline: colors::DEFAULT_OUTLINE,
-
-            label_fg: colors::DEFAULT_LABEL_FG,
-            label_bg: colors::DEFAULT_LABEL_BG,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]

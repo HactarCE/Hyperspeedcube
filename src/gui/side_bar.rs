@@ -20,13 +20,29 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
 
     let mut changed = false;
 
-    // Special colors
+    // Opacity
+    let r = ui.add(PercentDragValueWithReset {
+        label: "Sticker opacity",
+        value: &mut app.prefs.colors.sticker_opacity,
+        reset_value: default_prefs.colors.sticker_opacity,
+    });
+    changed |= r.changed();
     let r = ui.add(PercentDragValueWithReset {
         label: "Outline opacity",
         value: &mut app.prefs.colors.outline_opacity,
         reset_value: default_prefs.colors.outline_opacity,
     });
     changed |= r.changed();
+    let r = ui.add(PercentDragValueWithReset {
+        label: "Hidden opacity",
+        value: &mut app.prefs.colors.hidden_opacity,
+        reset_value: default_prefs.colors.hidden_opacity,
+    });
+    changed |= r.changed();
+
+    ui.separator();
+
+    // Special colors
     let r = ui.add(WidgetWithReset {
         label: "Background",
         value: &mut app.prefs.colors.background,
@@ -47,12 +63,6 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     ui.separator();
 
     // Sticker colors
-    let r = ui.add(PercentDragValueWithReset {
-        label: "Sticker opacity",
-        value: &mut app.prefs.colors.sticker_opacity,
-        reset_value: default_prefs.colors.sticker_opacity,
-    });
-    changed |= r.changed();
     let sticker_colors = &mut app.prefs.colors.faces[puzzle_type].0;
     let default_sticker_colors = &default_prefs.colors.faces[puzzle_type].0;
     let face_names = puzzle_type.face_names().iter();

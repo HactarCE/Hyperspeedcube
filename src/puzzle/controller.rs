@@ -7,7 +7,7 @@ use std::io;
 use std::path::Path;
 use std::time::Duration;
 
-use super::{LayerMask, Selection, TwistDirection, TwistMetric};
+use super::{LayerMask, TwistDirection, TwistMetric};
 
 /// Interpolation functions.
 pub mod interpolate {
@@ -65,9 +65,6 @@ pub struct PuzzleController<P: PuzzleState> {
     undo_buffer: Vec<P::Twist>,
     /// Redo history.
     redo_buffer: Vec<P::Twist>,
-
-    /// Highlighted selection.
-    highlight: Selection,
 }
 impl<P: PuzzleState> Default for PuzzleController<P> {
     fn default() -> Self {
@@ -86,8 +83,6 @@ impl<P: PuzzleState> Default for PuzzleController<P> {
             scramble: Default::default(),
             undo_buffer: Default::default(),
             redo_buffer: Default::default(),
-
-            highlight: Default::default(),
         }
     }
 }
@@ -182,11 +177,6 @@ pub trait PuzzleControllerTrait {
     /// Returns the face where the sticker at the given location belongs (i.e.
     /// corresponding to its color).
     fn get_sticker_color(&self, sticker: Sticker) -> Face;
-
-    /// Returns the selection to highlight.
-    fn highlight(&self) -> Selection;
-    /// Sets the selection to highlight.
-    fn set_highlight(&mut self, sel: Selection);
 
     /// Returns the number of twists applied to the puzzle.
     fn twist_count(&self, metric: TwistMetric) -> usize;
@@ -300,13 +290,6 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
     fn get_sticker_color(&self, sticker: Sticker) -> Face {
         let s = sticker.try_into::<P>().unwrap();
         self.displayed().get_sticker_color(s).into()
-    }
-
-    fn highlight(&self) -> Selection {
-        self.highlight
-    }
-    fn set_highlight(&mut self, sel: Selection) {
-        self.highlight = sel;
     }
 
     fn twist_count(&self, metric: TwistMetric) -> usize {

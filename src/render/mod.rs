@@ -31,6 +31,7 @@ pub fn draw_puzzle(
     let prefs = &app.prefs;
     let puzzle = &app.puzzle;
     let view_prefs = &prefs.view[puzzle.ty()];
+    let puzzle_highlight = app.puzzle_selection();
     let cache = &mut app.render_cache;
 
     let [r, g, b] = prefs.colors.background;
@@ -74,7 +75,6 @@ pub fn draw_puzzle(
         ..GeometryParams::default()
     };
     geo_params.line_color[..3].copy_from_slice(&prefs.colors.outline);
-    geo_params.line_color[3] = prefs.colors.outline_opacity;
 
     /*
      * Generate sticker vertices and write them to the VBO.
@@ -89,17 +89,19 @@ pub fn draw_puzzle(
             geo_params.model_transform = puzzle.model_transform_for_piece(*piece);
 
             for sticker in piece.stickers() {
-                let alpha = if puzzle.highlight().has_sticker(sticker) {
-                    prefs.colors.sticker_opacity
+                let alpha = if puzzle_highlight.has_sticker(sticker) {
+                    1.0
                 } else {
-                    0.1
+                    prefs.colors.hidden_opacity
                 };
 
-                let [r, g, b] = face_colors[puzzle.get_sticker_color(sticker).id()];
-                geo_params.fill_color = [r, g, b, alpha];
+                let sticker_color = face_colors[puzzle.get_sticker_color(sticker).id()];
+                geo_params.fill_color[..3].copy_from_slice(&sticker_color);
                 if view_prefs.outline_width <= 0.0 {
                     geo_params.line_color = geo_params.fill_color;
                 }
+                geo_params.fill_color[3] = prefs.colors.sticker_opacity * alpha;
+                geo_params.line_color[3] = prefs.colors.outline_opacity * alpha;
 
                 if let Some(verts) = sticker.verts(geo_params) {
                     let avg_z = verts.iter().map(|v| v.avg_z()).sum::<f32>() / verts.len() as f32;

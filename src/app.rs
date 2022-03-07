@@ -1,13 +1,15 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use winit::event::WindowEvent;
+use winit::event::{ElementState, ModifiersState, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
-use crate::commands::Command;
-use crate::preferences::Preferences;
+use crate::commands::{Command, PuzzleCommand, SelectCategory};
+use crate::preferences::{Key, KeyCombo, Preferences};
 use crate::puzzle::{
-    Face, LayerMask, Puzzle, PuzzleController, PuzzleControllerTrait, PuzzleType, TwistDirection,
+    Face, LayerMask, Puzzle, PuzzleController, PuzzleControllerTrait, PuzzleType, Selection,
+    TwistDirection,
 };
 use crate::render::PuzzleRenderCache;
 
@@ -20,6 +22,13 @@ pub struct App {
     pub(crate) render_cache: PuzzleRenderCache,
     pub(crate) puzzle_texture_size: (u32, u32),
     pub(crate) wants_repaint: bool,
+
+    /// Set of pressed modifier keys.
+    modifiers: ModifiersState,
+    /// Selections tied to a held key.
+    held_selections: HashMap<Key, Selection>,
+    /// Semi-permanent selections.
+    toggle_selections: Selection,
 
     status_msg: String,
 }
@@ -34,6 +43,10 @@ impl App {
             render_cache: PuzzleRenderCache::default(),
             puzzle_texture_size: (1, 1),
             wants_repaint: true,
+
+            modifiers: ModifiersState::default(),
+            held_selections: HashMap::new(),
+            toggle_selections: Selection::default(),
 
             status_msg: String::new(),
         };
@@ -119,58 +132,149 @@ impl App {
                     self.set_status_err(e);
                 }
             }
+
+            AppEvent::StatusError(msg) => self.set_status_err(msg),
         }
     }
     pub(crate) fn handle_window_event(&mut self, event: &WindowEvent) {
         match event {
             WindowEvent::CloseRequested => self.event(Command::Exit),
-            WindowEvent::DroppedFile(_) => println!("dropped file!"),
-            WindowEvent::HoveredFile(_) => println!("hovered file!"),
-            WindowEvent::HoveredFileCancelled => println!("nvm hovered file"),
-            WindowEvent::ReceivedCharacter(_) => (/* todo */),
-            WindowEvent::Focused(_) => (/* todo */),
-            WindowEvent::KeyboardInput {
-                device_id,
-                input,
-                is_synthetic,
-            } => (/* todo */),
-            WindowEvent::ModifiersChanged(_) => (/* todo */),
-            WindowEvent::CursorMoved {
-                device_id,
-                position,
-                modifiers,
-            } => (/* todo */),
-            WindowEvent::CursorEntered { device_id } => (/* todo */),
-            WindowEvent::CursorLeft { device_id } => (/* todo */),
-            WindowEvent::MouseWheel {
-                device_id,
-                delta,
-                phase,
-                modifiers,
-            } => (/* todo */),
-            WindowEvent::MouseInput {
-                device_id,
-                state,
-                button,
-                modifiers,
-            } => (/* todo */),
-            WindowEvent::TouchpadPressure {
-                device_id,
-                pressure,
-                stage,
-            } => (/* todo */),
-            WindowEvent::AxisMotion {
-                device_id,
-                axis,
-                value,
-            } => (/* todo */),
-            WindowEvent::Touch(_) => (/* todo */),
-            WindowEvent::ScaleFactorChanged {
-                scale_factor,
-                new_inner_size,
-            } => (/* todo */),
-            // WindowEvent::ThemeChanged(theme) => match theme {
-            // },
+
+            WindowEvent::DroppedFile(path) => {
+                if self.confirm_discard_changes("open another file") {
+                    self.try_load_puzzle(path.to_owned());
+                }
+            }
+
+            WindowEvent::ModifiersChanged(mods) => {
+                self.modifiers = *mods;
+                // Sometimes we miss key events for modifiers when the left and
+                // right modifiers are both pressed at once (at least in my
+                // testing on Windows 11) so clean that up here just in case.
+                self.remove_held_selections(|k| {
+                    // If the selection requires a modifier and that modifier is
+                    // not pressed, then remove the selection.
+                    k.is_shift() && !mods.shift()
+                        || k.is_ctrl() && !mods.ctrl()
+                        || k.is_alt() && !mods.alt()
+                        || k.is_logo() && !mods.logo()
+                });
+            }
+
+            WindowEvent::KeyboardInput { input, .. } => {
+                let sc = key_names::sc_to_key(input.scancode as u16).map(Key::Sc);
+                let vk = input.virtual_keycode.map(Key::Vk);
+                let is_shift =
+                    sc.map_or(false, |k| k.is_shift()) || vk.map_or(false, |k| k.is_shift());
+                let is_ctrl =
+                    sc.map_or(false, |k| k.is_ctrl()) || vk.map_or(false, |k| k.is_ctrl());
+                let is_alt = sc.map_or(false, |k| k.is_alt()) || vk.map_or(false, |k| k.is_alt());
+                let is_logo =
+                    sc.map_or(false, |k| k.is_logo()) || vk.map_or(false, |k| k.is_logo());
+
+                if input.state == ElementState::Released {
+                    // Remove selections for this held key.
+                    self.remove_held_selections(|k| Some(k) == sc || Some(k) == vk);
+                    return;
+                }
+
+                let ignore_shift = is_shift || self.held_selections.keys().any(|k| k.is_shift());
+                let ignore_ctrl = is_ctrl || self.held_selections.keys().any(|k| k.is_ctrl());
+                let ignore_alt = is_alt || self.held_selections.keys().any(|k| k.is_alt());
+                let ignore_logo = is_logo || self.held_selections.keys().any(|k| k.is_logo());
+
+                // We don't care about left vs. right modifiers, so just extract
+                // the bits that don't specify left vs. right.
+                let mods = self.modifiers
+                    & (ModifiersState::SHIFT
+                        | ModifiersState::CTRL
+                        | ModifiersState::ALT
+                        | ModifiersState::LOGO);
+
+                let key_combo_matches = |key_combo: KeyCombo| match key_combo.key() {
+                    Some(k) => {
+                        (Some(k) == sc || Some(k) == vk)
+                            && (key_combo.shift() == mods.shift() || ignore_shift)
+                            && (key_combo.ctrl() == mods.ctrl() || ignore_ctrl)
+                            && (key_combo.alt() == mods.alt() || ignore_alt)
+                            && (key_combo.logo() == mods.logo() || ignore_logo)
+                    }
+                    None => false,
+                };
+
+                for bind in &self.prefs.puzzle_keybinds[self.puzzle.ty()] {
+                    if key_combo_matches(bind.key) {
+                        let sel = self.puzzle_selection();
+
+                        match &bind.command {
+                            PuzzleCommand::Twist {
+                                face,
+                                direction,
+                                layer_mask,
+                            } => {
+                                if let Some(face) =
+                                    face.or_else(|| sel.exactly_one_face(self.puzzle.ty()))
+                                {
+                                    self.event(AppEvent::Twist {
+                                        face,
+                                        direction: *direction,
+                                        layer_mask: sel.layer_mask_or_default(*layer_mask),
+                                    });
+                                } else {
+                                    self.event(AppEvent::StatusError(
+                                        "No face selected".to_string(),
+                                    ));
+                                }
+                            }
+                            PuzzleCommand::Recenter { face } => {
+                                if let Some(face) =
+                                    face.or_else(|| sel.exactly_one_face(self.puzzle.ty()))
+                                {
+                                    self.event(AppEvent::Recenter(face));
+                                } else {
+                                    self.event(AppEvent::StatusError(
+                                        "No face selected".to_string(),
+                                    ));
+                                }
+                            }
+
+                            PuzzleCommand::HoldSelect(thing) => {
+                                self.held_selections
+                                    .insert(bind.key.key().unwrap(), Selection::from(*thing));
+                                self.wants_repaint = true;
+                            }
+                            PuzzleCommand::ToggleSelect(thing) => {
+                                self.toggle_selections ^= Selection::from(*thing);
+                                self.wants_repaint = true;
+                            }
+                            PuzzleCommand::ClearToggleSelect(category) => {
+                                let default = Selection::default();
+                                let tog_sel = &mut self.toggle_selections;
+
+                                use SelectCategory::*;
+                                match category {
+                                    Face => tog_sel.face_mask = default.face_mask,
+                                    Layers => tog_sel.layer_mask = default.layer_mask,
+                                    PieceType => tog_sel.piece_type_mask = default.piece_type_mask,
+                                }
+                                self.wants_repaint = true;
+                            }
+
+                            PuzzleCommand::None => return, // Do not try to match other keybinds.
+                        }
+                    }
+                }
+
+                for bind in &self.prefs.general_keybinds {
+                    if key_combo_matches(bind.key) {
+                        match &bind.command {
+                            Command::None => return, // Do not try to match other keybinds.
+                            other => self.event(other.clone()),
+                        }
+                    }
+                }
+            }
+
             _ => (),
         }
     }
@@ -234,6 +338,31 @@ impl App {
     fn set_status_err(&mut self, msg: impl fmt::Display) {
         self.status_msg = format!("Error: {}", msg)
     }
+
+    pub(crate) fn puzzle_selection(&self) -> Selection {
+        let mut ret = self
+            .held_selections
+            .values()
+            .copied()
+            .reduce(|a, b| a | b)
+            .unwrap_or(self.toggle_selections);
+        ret.face_mask |= self.toggle_selections.face_mask;
+        if ret.layer_mask == 0 {
+            ret.layer_mask = self.toggle_selections.layer_mask;
+        }
+        if self
+            .held_selections
+            .values()
+            .all(|s| s.piece_type_mask == 0)
+        {
+            ret.piece_type_mask = self.toggle_selections.piece_type_mask;
+        }
+        ret
+    }
+    fn remove_held_selections(&mut self, mut remove_if: impl FnMut(Key) -> bool) {
+        self.held_selections.retain(|&k, _v| !remove_if(k));
+        self.wants_repaint = true;
+    }
 }
 
 #[derive(Debug)]
@@ -246,6 +375,8 @@ pub(crate) enum AppEvent {
         layer_mask: LayerMask,
     },
     Recenter(Face),
+
+    StatusError(String),
 }
 impl From<Command> for AppEvent {
     fn from(c: Command) -> Self {
