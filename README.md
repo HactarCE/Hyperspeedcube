@@ -9,7 +9,7 @@ Keyboard-controlled twisty puzzle simulator, with support for the following puzz
 
 ## Screenshots
 
-<img src="img/screenshot.png" alt="Screenshot of a solved Rubik's cube">
+![Screenshot of a solved 4D Rubik's cube](https://user-images.githubusercontent.com/6060305/156954725-cb0f12ac-4198-4e71-8745-5517a1fbce98.png)
 
 ## Controls
 
