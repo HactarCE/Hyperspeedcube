@@ -73,6 +73,8 @@ pub fn draw_puzzle(
 
         ..GeometryParams::default()
     };
+    geo_params.line_color[..3].copy_from_slice(&prefs.colors.outline);
+    geo_params.line_color[3] = prefs.colors.outline_opacity;
 
     /*
      * Generate sticker vertices and write them to the VBO.
@@ -88,16 +90,15 @@ pub fn draw_puzzle(
 
             for sticker in piece.stickers() {
                 let alpha = if puzzle.highlight().has_sticker(sticker) {
-                    prefs.colors.opacity
+                    prefs.colors.sticker_opacity
                 } else {
                     0.1
                 };
 
                 let [r, g, b] = face_colors[puzzle.get_sticker_color(sticker).id()];
                 geo_params.fill_color = [r, g, b, alpha];
-                geo_params.line_color = geo_params.fill_color;
-                if view_prefs.enable_outline {
-                    geo_params.line_color[..3].copy_from_slice(&prefs.colors.outline);
+                if view_prefs.outline_width <= 0.0 {
+                    geo_params.line_color = geo_params.fill_color;
                 }
 
                 if let Some(verts) = sticker.verts(geo_params) {
@@ -141,7 +142,7 @@ pub fn draw_puzzle(
             &glium::uniform! {
                 target_size: [width as f32, height as f32],
                 transform: perspective_transform_matrix,
-                wire_width: 1.0_f32 * pixels_per_point,
+                wire_width: view_prefs.outline_width * pixels_per_point,
             },
             &draw_params,
         )

@@ -6,7 +6,8 @@ use crate::puzzle::{PuzzleType, PuzzleTypeTrait};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ColorPreferences {
-    pub opacity: f32,
+    pub sticker_opacity: f32,
+    pub outline_opacity: f32,
 
     pub faces: PerPuzzle<FaceColors>,
 
@@ -19,7 +20,8 @@ pub struct ColorPreferences {
 impl Default for ColorPreferences {
     fn default() -> Self {
         Self {
-            opacity: 1.0,
+            sticker_opacity: 1.0,
+            outline_opacity: 1.0,
 
             faces: PerPuzzle::default(),
 

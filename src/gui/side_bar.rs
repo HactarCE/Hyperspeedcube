@@ -20,17 +20,13 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
 
     let mut changed = false;
 
-    // Puzzle opacity
+    // Special colors
     let r = ui.add(PercentDragValueWithReset {
-        label: "Puzzle opacity",
-        value: &mut app.prefs.colors.opacity,
-        reset_value: default_prefs.colors.opacity,
+        label: "Outline opacity",
+        value: &mut app.prefs.colors.outline_opacity,
+        reset_value: default_prefs.colors.outline_opacity,
     });
     changed |= r.changed();
-
-    ui.separator();
-
-    // Special colors
     let r = ui.add(WidgetWithReset {
         label: "Background",
         value: &mut app.prefs.colors.background,
@@ -51,6 +47,12 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     ui.separator();
 
     // Sticker colors
+    let r = ui.add(PercentDragValueWithReset {
+        label: "Sticker opacity",
+        value: &mut app.prefs.colors.sticker_opacity,
+        reset_value: default_prefs.colors.sticker_opacity,
+    });
+    changed |= r.changed();
     let sticker_colors = &mut app.prefs.colors.faces[puzzle_type].0;
     let default_sticker_colors = &default_prefs.colors.faces[puzzle_type].0;
     let face_names = puzzle_type.face_names().iter();
@@ -207,11 +209,18 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         },
     });
     changed |= r.changed();
-    // Enable outline
-    let r = ui.add(CheckboxWithReset {
-        label: "Enable outline",
-        value: &mut view_prefs.enable_outline,
-        reset_value: default_view_prefs.enable_outline,
+    // Outline width
+    let r = ui.add(WidgetWithReset {
+        label: "Outline width",
+        value: &mut view_prefs.outline_width,
+        reset_value: default_view_prefs.outline_width,
+        reset_value_str: &default_view_prefs.outline_width.to_string(),
+        make_widget: |value| {
+            egui::DragValue::new(value)
+                .fixed_decimals(1)
+                .clamp_range(0.0..=5.0_f32)
+                .speed(0.05)
+        },
     });
     changed |= r.changed();
 

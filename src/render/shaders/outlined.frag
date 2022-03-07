@@ -32,9 +32,18 @@ void main() {
     // know its derivation or where it's even written.
     float a = exp2(-2.0 * d * d);
 
+    // Premultiply alpha.
+    vec4 fill = vert_fill_color;
+    fill.rgb *= vert_fill_color.a;
+    vec4 wire = vert_wire_color;
+    wire.rgb *= vert_wire_color.a;
+
     color = linear_to_srgb(mix(
-        srgb_to_linear(vert_fill_color),
-        srgb_to_linear(vert_wire_color),
+        srgb_to_linear(fill),
+        srgb_to_linear(wire),
         a
     ));
+    if (color.a != 0.0) {
+      color.rgb /= color.a;
+    }
 }

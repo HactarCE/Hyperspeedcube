@@ -311,7 +311,7 @@ pub struct ViewPreferences {
     pub face_spacing: f32,
     pub sticker_spacing: f32,
 
-    pub enable_outline: bool,
+    pub outline_width: f32,
 }
 impl Default for ViewPreferences {
     fn default() -> Self {
@@ -326,7 +326,7 @@ impl Default for ViewPreferences {
             face_spacing: 0.0,
             sticker_spacing: 0.0,
 
-            enable_outline: true,
+            outline_width: 1.0,
         }
     }
 }
