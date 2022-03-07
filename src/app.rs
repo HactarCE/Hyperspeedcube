@@ -69,6 +69,7 @@ impl App {
     }
 
     pub(crate) fn handle_app_event(&mut self, event: AppEvent, control_flow: &mut ControlFlow) {
+        self.clear_status();
         match event {
             AppEvent::Command(c) => match c {
                 Command::Open => {
@@ -331,6 +332,9 @@ impl App {
 
     pub(crate) fn status_msg(&self) -> &str {
         &self.status_msg
+    }
+    fn clear_status(&mut self) {
+        self.status_msg = String::new();
     }
     fn set_status_ok(&mut self, msg: impl fmt::Display) {
         self.status_msg = msg.to_string()
