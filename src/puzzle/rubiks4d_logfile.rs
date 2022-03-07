@@ -73,11 +73,11 @@ impl FromStr for LogFile {
         let mut scramble_twists = vec![];
         let mut solve_twists = vec![];
         for line in lines {
-            for mut move_str in line.split_whitespace() {
-                if move_str.ends_with('.') {
-                    move_str = &move_str[..move_str.len() - 1];
-                }
-
+            for move_str in line
+                .split_whitespace()
+                .map(|s| s.trim_end_matches('.').trim())
+                .filter(|s| !s.is_empty())
+            {
                 if move_str == "m|" {
                     scramble_twists = solve_twists;
                     solve_twists = vec![];
