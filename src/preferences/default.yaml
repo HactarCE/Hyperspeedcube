@@ -351,15 +351,15 @@ puzzle_keybinds:
     - sc: Digit2
       command:
         hold_select:
-          piece_type: 1c
+          piece_type: 2c
     - sc: Digit3
       command:
         hold_select:
-          piece_type: 1c
+          piece_type: 3c
     - sc: Digit4
       command:
         hold_select:
-          piece_type: 1c
+          piece_type: 4c
     - sc: Digit1
       shift: true
       command:
@@ -369,17 +369,17 @@ puzzle_keybinds:
       shift: true
       command:
         toggle_select:
-          piece_type: 1c
+          piece_type: 2c
     - sc: Digit3
       shift: true
       command:
         toggle_select:
-          piece_type: 1c
+          piece_type: 3c
     - sc: Digit4
       shift: true
       command:
         toggle_select:
-          piece_type: 1c
+          piece_type: 4c
     - sc: Escape
       command:
         clear_toggle_select: piece_type
