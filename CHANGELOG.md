@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Every preferences item has a reset button
   - Help tooltips
 - Opacity outline and width settings
+- Hidden pieces opacity setting
 
 ### Changed
 
