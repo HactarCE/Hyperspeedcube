@@ -224,7 +224,7 @@ impl Preferences {
     pub fn save(&mut self) {
         if self.needs_save {
             self.needs_save = false;
-            let result = unwatch_during(|| -> Result<(), Box<dyn Error>> {
+            let result = unwatch_during(|| -> anyhow::Result<()> {
                 let path = PREFS_FILE_PATH.as_ref()?;
                 if let Some(p) = path.parent() {
                     std::fs::create_dir_all(p)?;
@@ -410,15 +410,18 @@ pub trait DeserializePerPuzzle<'de> {
     fn deserialize_from(value: Self::Proxy, ty: PuzzleType) -> Self;
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(AsRefStr, Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Msaa {
     #[serde(rename = "0")]
-    Off = 0,
+    Off = 1,
     #[serde(rename = "2")]
+    #[strum(serialize = "2")]
     _2 = 2,
     #[serde(rename = "4")]
+    #[strum(serialize = "4")]
     _4 = 4,
     #[serde(other, rename = "8")]
+    #[strum(serialize = "8")]
     _8 = 8,
 }
 impl fmt::Display for Msaa {

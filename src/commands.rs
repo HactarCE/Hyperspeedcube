@@ -23,18 +23,6 @@ pub enum Command {
     // Puzzle menu
     NewPuzzle(PuzzleType),
 
-    #[serde(skip)]
-    Twist {
-        face: Face,
-        direction: TwistDirection,
-        layer_mask: LayerMask,
-    },
-    #[serde(skip)]
-    Recenter(Face),
-
-    #[serde(skip)]
-    ErrorMsg(String),
-
     #[serde(other)]
     None,
 }
@@ -47,7 +35,6 @@ impl Command {
     pub(crate) fn get_puzzle_type(&self) -> PuzzleType {
         match self {
             Command::NewPuzzle(puzzle_type) => *puzzle_type,
-            Command::Recenter(face) | Command::Twist { face, .. } => face.ty(),
             _ => PuzzleType::default(),
         }
     }

@@ -3,7 +3,9 @@
 use glium::glutin::event::*;
 use itertools::Itertools;
 use std::collections::HashMap;
+use winit::event_loop::EventLoopProxy;
 
+use crate::app::AppEvent;
 use crate::commands::{Command, PuzzleCommand, SelectCategory, SelectThing};
 use crate::preferences::{Key, KeyCombo};
 use crate::puzzle::{traits::*, Face, LayerMask, Puzzle, PuzzleController, PuzzleType, Selection};
@@ -17,7 +19,7 @@ const LOGO: ModifiersState = ModifiersState::LOGO;
 pub struct InputFrame<'a> {
     state: &'a mut State,
     puzzle: &'a Puzzle,
-    command_queue: &'a mut Vec<Command>,
+    events: &'a EventLoopProxy<AppEvent>,
 }
 impl InputFrame<'_> {
     pub fn handle_event(&mut self, ev: &Event<'_, ()>) {
@@ -26,7 +28,7 @@ impl InputFrame<'_> {
             Event::WindowEvent { event, .. } => {
                 match event {
                     WindowEvent::CloseRequested => {
-                        self.command_queue.push(Command::Exit);
+                        self.events.send_event(Command::Exit.into());
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if self.state.has_keyboard {
@@ -114,11 +116,14 @@ impl InputFrame<'_> {
                         layer_mask,
                     } => {
                         if let Some(face) = face.or_else(|| sel.exactly_one_face(puzzle_type)) {
-                            self.command_queue.push(Command::Twist {
-                                face,
-                                direction: *direction,
-                                layer_mask: sel.layer_mask_or_default(*layer_mask),
-                            });
+                            self.events.send_event(
+                                Command::Twist {
+                                    face,
+                                    direction: *direction,
+                                    layer_mask: sel.layer_mask_or_default(*layer_mask),
+                                }
+                                .into(),
+                            );
                         } else {
                             self.command_queue
                                 .push(Command::ErrorMsg("No face selected".to_string()))
@@ -126,10 +131,11 @@ impl InputFrame<'_> {
                     }
                     PuzzleCommand::Recenter { face } => {
                         if let Some(face) = face.or_else(|| sel.exactly_one_face(puzzle_type)) {
-                            self.command_queue.push(Command::Recenter(face));
+                            self.events.send_event(Command::Recenter(face).into());
                         } else {
-                            self.command_queue
-                                .push(Command::ErrorMsg("No face selected".to_string()))
+                            self.events.send_event(
+                                Command::ErrorMsg("No face selected".to_string()).into(),
+                            )
                         }
                     }
 
@@ -162,7 +168,7 @@ impl InputFrame<'_> {
             if key_combo_matches(bind.key) {
                 match &bind.command {
                     Command::None => return, // Do not try to match other keybinds.
-                    other => self.command_queue.push(other.clone()),
+                    other => self.events.send_event(other.clone().into()),
                 }
             }
         }
@@ -185,14 +191,13 @@ impl State {
     pub fn frame<'a>(
         &'a mut self,
         puzzle: &'a Puzzle,
-        imgui_io: &imgui::Io,
-        command_queue: &'a mut Vec<Command>,
+        has_keyboard: bool,
+        events: &'a EventLoopProxy<AppEvent>,
     ) -> InputFrame<'a> {
-        self.has_keyboard = !imgui_io.want_capture_keyboard;
         InputFrame {
             state: self,
             puzzle,
-            command_queue,
+            events,
         }
     }
 

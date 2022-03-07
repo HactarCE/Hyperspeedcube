@@ -9,7 +9,7 @@ pub struct WireframeVertex {
     pub wire_color: [f32; 4],
     pub line_mask: [f32; 3],
 }
-implement_vertex!(
+glium::implement_vertex!(
     WireframeVertex,
     v0,
     v1,
@@ -95,4 +95,4 @@ pub struct RgbaVertex {
     pub pos: [f32; 4],
     pub color: [f32; 4],
 }
-implement_vertex!(RgbaVertex, pos, color);
+glium::implement_vertex!(RgbaVertex, pos, color);
