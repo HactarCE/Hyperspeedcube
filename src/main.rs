@@ -2,7 +2,6 @@
 
 #![allow(dead_code)]
 // #![warn(missing_docs)]
-#![allow(unused_imports, unused_variables)]
 #![allow(
     clippy::collapsible_match,
     clippy::match_like_matches_macro,

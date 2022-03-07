@@ -4,10 +4,9 @@ use cgmath::{Matrix3, Matrix4, SquareMatrix, Vector3, Vector4, Zero};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
-use std::time::Duration;
 
 pub use super::PuzzleControllerTrait;
-use super::{Face, LayerMask, Piece, PieceType, PuzzleType, Selection, Sticker, TwistMetric};
+use super::{Face, LayerMask, Piece, PieceType, PuzzleType, Sticker, TwistMetric};
 use crate::render::WireframeVertex;
 
 macro_rules! lazy_static_array_methods {
