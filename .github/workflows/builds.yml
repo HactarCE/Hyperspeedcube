@@ -14,8 +14,6 @@ jobs:
   windows:
     name: Build Windows latest
     runs-on: windows-latest
-    env:
-      LLVM_SYS_100_PREFIX: C:\LLVM
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -76,8 +74,6 @@ jobs:
   macos:
     name: Build macOS latest
     runs-on: macos-latest
-    env:
-      LLVM_SYS_100_PREFIX: /tmp/LLVM
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
