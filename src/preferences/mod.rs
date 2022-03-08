@@ -410,7 +410,7 @@ pub trait DeserializePerPuzzle<'de> {
     fn deserialize_from(value: Self::Proxy, ty: PuzzleType) -> Self;
 }
 
-#[derive(AsRefStr, Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(AsRefStr, EnumIter, Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Msaa {
     #[serde(rename = "0")]
     Off = 1,

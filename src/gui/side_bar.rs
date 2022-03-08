@@ -1,4 +1,5 @@
 use std::ops::RangeInclusive;
+use strum::IntoEnumIterator;
 
 use crate::app::App;
 use crate::preferences::Msaa;
@@ -111,9 +112,8 @@ fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
                 let mut r = egui::ComboBox::from_id_source("msaa")
                     .selected_text(value.as_ref())
                     .show_ui(ui, |ui| {
-                        changed |= [Msaa::Off, Msaa::_2, Msaa::_4, Msaa::_8]
-                            .iter()
-                            .map(|&option| ui.selectable_value(value, option, option.as_ref()))
+                        changed |= Msaa::iter()
+                            .map(|option| ui.selectable_value(value, option, option.as_ref()))
                             .any(|r| r.changed());
                     })
                     .response;
