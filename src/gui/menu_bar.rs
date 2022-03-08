@@ -45,7 +45,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             ui.separator();
             if ui.button("Reset").clicked() {
                 ui.close_menu();
-                app.event(Command::Redo);
+                app.event(Command::Reset);
             }
         });
 
