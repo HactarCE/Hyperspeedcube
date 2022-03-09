@@ -10,12 +10,17 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         ui.collapsing("Graphics", |ui| build_graphics_section(ui, app));
         ui.collapsing("View", |ui| build_view_section(ui, app));
         ui.collapsing("Keybinds", |ui| {
-            if ui.button("General Keybinds").clicked() {
-                super::open_general_keybinds(ui.ctx());
-            }
-            if ui.button("Puzzle Keybinds").clicked() {
-                super::open_puzzle_keybinds(ui.ctx());
-            }
+            ui.with_layout(
+                egui::Layout::top_down_justified(egui::Align::Center),
+                |ui| {
+                    if ui.button("Edit general keybinds").clicked() {
+                        super::toggle_general_keybinds(ui.ctx());
+                    }
+                    if ui.button("Edit puzzle keybinds").clicked() {
+                        super::toggle_puzzle_keybinds(ui.ctx());
+                    }
+                },
+            )
         });
     });
 }

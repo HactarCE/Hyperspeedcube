@@ -1,6 +1,6 @@
 use strum::EnumMessage;
 
-use super::util::{self, ResponseExt};
+use super::util::ResponseExt;
 use crate::app::App;
 use crate::puzzle::PuzzleControllerTrait;
 

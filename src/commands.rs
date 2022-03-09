@@ -125,7 +125,7 @@ impl Default for SelectCategory {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Display, Copy, Clone, PartialEq, Eq)]
 pub enum SelectHow {
     Hold,
     Toggle,
