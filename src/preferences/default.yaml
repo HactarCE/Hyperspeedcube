@@ -13,7 +13,7 @@ view:
     fov_4d: 30.0
     face_spacing: 0.025
     sticker_spacing: 0.05
-    outline_thickness: 1.0
+    outline_thickness: 2.0
   Rubiks4D:
     pitch: 30.0
     yaw: -35.0
@@ -21,8 +21,8 @@ view:
     fov_3d: 30.0
     fov_4d: 30.0
     face_spacing: 0.7
-    sticker_spacing: 0.5
-    outline_thickness: 1.0
+    sticker_spacing: 0.3
+    outline_thickness: 1.5
 colors:
   sticker_opacity: 1.0
   hidden_opacity: 0.1
