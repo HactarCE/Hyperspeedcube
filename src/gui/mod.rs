@@ -2,6 +2,7 @@ mod keybinds_window;
 mod menu_bar;
 mod side_bar;
 mod status_bar;
+mod util;
 
 use crate::app::App;
 use keybinds_window::KeybindsWindow;

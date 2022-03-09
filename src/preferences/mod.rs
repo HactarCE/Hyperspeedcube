@@ -13,7 +13,6 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::sync::{mpsc, Mutex, MutexGuard, TryLockError};
 use std::time::Duration;
-use strum::AsRefStr;
 
 mod colors;
 mod info;
@@ -298,9 +297,9 @@ impl GfxPreferences {
 #[serde(default)]
 pub struct ViewPreferences {
     /// Puzzle angle around Y axis, in degrees.
-    pub theta: f32,
+    pub pitch: f32,
     /// Puzzle angle around X axis, in degrees.
-    pub phi: f32,
+    pub yaw: f32,
 
     pub scale: f32,
     /// 3D FOV, in degrees (may be negative).
@@ -311,13 +310,13 @@ pub struct ViewPreferences {
     pub face_spacing: f32,
     pub sticker_spacing: f32,
 
-    pub outline_width: f32,
+    pub outline_thickness: f32,
 }
 impl Default for ViewPreferences {
     fn default() -> Self {
         Self {
-            theta: 0_f32,
-            phi: 0_f32,
+            pitch: 0_f32,
+            yaw: 0_f32,
 
             scale: 1.0,
             fov_3d: 30_f32,
@@ -326,7 +325,7 @@ impl Default for ViewPreferences {
             face_spacing: 0.0,
             sticker_spacing: 0.0,
 
-            outline_width: 1.0,
+            outline_thickness: 1.0,
         }
     }
 }
@@ -410,7 +409,7 @@ pub trait DeserializePerPuzzle<'de> {
     fn deserialize_from(value: Self::Proxy, ty: PuzzleType) -> Self;
 }
 
-#[derive(AsRefStr, EnumIter, Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, EnumIter, Copy, Clone, PartialEq, Eq)]
 pub enum Msaa {
     #[serde(rename = "0")]
     Off = 1,

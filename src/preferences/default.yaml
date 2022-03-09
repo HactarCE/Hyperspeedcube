@@ -6,26 +6,25 @@ gfx:
   label_size: 24.0
 view:
   Rubiks3D:
-    theta: 35.0
-    phi: 0.0
+    pitch: 35.0
+    yaw: 0.0
     scale: 1.25
     fov_3d: 30.0
     fov_4d: 30.0
     face_spacing: 0.025
     sticker_spacing: 0.05
-    outline_width: 1.0
+    outline_thickness: 1.0
   Rubiks4D:
-    theta: 30.0
-    phi: -35.0
+    pitch: 30.0
+    yaw: -35.0
     scale: 2.0
     fov_3d: 30.0
     fov_4d: 30.0
     face_spacing: 0.7
     sticker_spacing: 0.5
-    outline_width: 1.0
+    outline_thickness: 1.0
 colors:
   sticker_opacity: 1.0
-  outline_opacity: 1.0
   hidden_opacity: 0.1
   faces:
     Rubiks3D:

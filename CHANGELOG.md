@@ -13,8 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Preferences are now docked to the left side of the window
   - Every preferences item has a reset button
   - Help tooltips
-- Opacity outline and width settings
-- Hidden pieces opacity setting
+- Outline width setting
+- Hidden stickers opacity setting
 
 ### Changed
 

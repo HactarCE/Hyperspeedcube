@@ -41,8 +41,8 @@ pub fn draw_puzzle(
 
     // Compute the model transform, which must be applied here on the CPU so
     // that we can do proper Z ordering.
-    let view_transform = Matrix3::from_angle_x(Deg(view_prefs.theta))
-        * Matrix3::from_angle_y(Deg(view_prefs.phi))
+    let view_transform = Matrix3::from_angle_x(Deg(view_prefs.pitch))
+        * Matrix3::from_angle_y(Deg(view_prefs.yaw))
         / CLIPPING_RADIUS;
     // Compute the perspective transform, which we will apply on the GPU.
     let perspective_transform = {
@@ -93,15 +93,15 @@ pub fn draw_puzzle(
                     1.0
                 } else {
                     prefs.colors.hidden_opacity
-                };
+                } * prefs.colors.sticker_opacity;
 
                 let sticker_color = face_colors[puzzle.get_sticker_color(sticker).id()];
                 geo_params.fill_color[..3].copy_from_slice(&sticker_color);
-                if view_prefs.outline_width <= 0.0 {
+                if view_prefs.outline_thickness <= 0.0 {
                     geo_params.line_color = geo_params.fill_color;
                 }
-                geo_params.fill_color[3] = prefs.colors.sticker_opacity * alpha;
-                geo_params.line_color[3] = prefs.colors.outline_opacity * alpha;
+                geo_params.fill_color[3] = alpha;
+                geo_params.line_color[3] = alpha;
 
                 if let Some(verts) = sticker.verts(geo_params) {
                     let avg_z = verts.iter().map(|v| v.avg_z()).sum::<f32>() / verts.len() as f32;
@@ -144,7 +144,7 @@ pub fn draw_puzzle(
             &glium::uniform! {
                 target_size: [width as f32, height as f32],
                 transform: perspective_transform_matrix,
-                wire_width: view_prefs.outline_width * pixels_per_point,
+                wire_width: view_prefs.outline_thickness * pixels_per_point,
             },
             &draw_params,
         )

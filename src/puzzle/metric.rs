@@ -1,19 +1,8 @@
 use serde::{Deserialize, Serialize};
-use strum::{AsRefStr, Display, EnumIter, EnumMessage};
+use strum::{Display, EnumIter, EnumMessage};
 
 #[derive(
-    AsRefStr,
-    Display,
-    EnumIter,
-    EnumMessage,
-    Serialize,
-    Deserialize,
-    Debug,
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
+    Serialize, Deserialize, Debug, Display, EnumIter, EnumMessage, Copy, Clone, PartialEq, Eq, Hash,
 )]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TwistMetric {
