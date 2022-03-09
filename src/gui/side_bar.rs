@@ -1,4 +1,4 @@
-use super::util;
+use super::util::{self, ResponseExt};
 use crate::app::App;
 use crate::puzzle::{PuzzleControllerTrait, PuzzleTypeTrait};
 
@@ -69,12 +69,17 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         make_percent_drag_value,
     ));
     changed |= r.changed();
-    let r = ui.add(resettable!(
-        "Hidden opacity",
-        |x| format!("{:.0}%", x * 100.0),
-        (prefs.colors.hidden_opacity),
-        make_percent_drag_value,
-    ));
+    let r = ui
+        .add(resettable!(
+            "Hidden opacity",
+            |x| format!("{:.0}%", x * 100.0),
+            (prefs.colors.hidden_opacity),
+            make_percent_drag_value,
+        ))
+        .on_hover_explanation(
+            "",
+            "Opacity of hidden stickers (multiplied by base sticker opacity)",
+        );
     changed |= r.changed();
 
     ui.separator();
@@ -115,17 +120,24 @@ fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
 
     // FPS limit
-    let r = ui.add(resettable!("FPS limit", (prefs.gfx.fps), |value| {
-        egui::DragValue::new(value)
-            .clamp_range(5..=255_u32)
-            .speed(0.5)
-    }));
+    let r = ui
+        .add(resettable!("FPS limit", (prefs.gfx.fps), |value| {
+            egui::DragValue::new(value)
+                .clamp_range(5..=255_u32)
+                .speed(0.5)
+        }))
+        .on_hover_explanation("Frames Per Second", "");
     prefs.needs_save |= r.changed();
 
     // MSAA
-    let r = ui.add(resettable!("MSAA", (prefs.gfx.msaa), |value| {
-        util::BasicComboBox::new_enum("msaa", value)
-    }));
+    let r = ui
+        .add(resettable!("MSAA", (prefs.gfx.msaa), |value| {
+            util::BasicComboBox::new_enum("msaa", value)
+        }))
+        .on_hover_explanation(
+            "Multisample Anti-Aliasing",
+            "Higher values result in a higher quality image, but worse performance.",
+        );
     prefs.needs_save |= r.changed();
     app.wants_repaint |= r.changed();
 }

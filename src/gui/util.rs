@@ -1,6 +1,8 @@
 use std::hash::Hash;
 use strum::IntoEnumIterator;
 
+const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
+
 pub(super) struct BasicComboBox<'a, T> {
     combo_box: egui::ComboBox,
     options: Vec<T>,
@@ -52,5 +54,27 @@ impl<T: ToString + Eq> egui::Widget for BasicComboBox<'_, T> {
         }
 
         response
+    }
+}
+
+pub(super) trait ResponseExt {
+    fn on_hover_explanation(self, strong_text: &str, detailed_message: &str) -> Self;
+}
+impl ResponseExt for egui::Response {
+    fn on_hover_explanation(self, strong_text: &str, detailed_message: &str) -> Self {
+        self.on_hover_ui(|ui| {
+            ui.allocate_ui_with_layout(
+                egui::vec2(EXPLANATION_TOOLTIP_WIDTH, 0.0),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    if !strong_text.is_empty() {
+                        ui.label(egui::RichText::new(strong_text).strong());
+                    }
+                    if !detailed_message.is_empty() {
+                        ui.label(detailed_message);
+                    }
+                },
+            );
+        })
     }
 }
