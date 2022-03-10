@@ -3,9 +3,10 @@ use std::hash::Hash;
 use strum::IntoEnumIterator;
 
 use super::util::{self, ComboBoxExt};
+use crate::app::App;
 use crate::commands::{Command, PuzzleCommand, SelectHow, SelectThing};
 use crate::gui::util::BasicComboBox;
-use crate::preferences::Keybind;
+use crate::preferences::{Keybind, Preferences};
 use crate::puzzle::{LayerMask, PieceType, PuzzleType, PuzzleTypeTrait, TwistDirection};
 
 #[derive(Debug, Copy, Clone)]
@@ -17,66 +18,108 @@ struct DragData {
 const SQUARE_BUTTON_SIZE: egui::Vec2 = egui::vec2(24.0, 24.0);
 const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
 
-pub(super) fn window_id(title: &str) -> egui::Id {
-    unique_id!().with(title)
+pub(super) trait KeybindSet: 'static + Copy + Send + Sync {
+    type Command: Default + Clone + Eq;
+
+    fn name(self) -> &'static str;
+
+    fn get(self, prefs: &Preferences) -> &[Keybind<Self::Command>];
+    fn get_mut(self, prefs: &mut Preferences) -> &mut Vec<Keybind<Self::Command>>;
+    fn get_defaults(self) -> &'static [Keybind<Self::Command>] {
+        self.get(&crate::preferences::DEFAULT_PREFS)
+    }
+
+    fn use_vk_by_default(self) -> bool;
 }
 
-/// Builds a keybinds configuration window and returns the index of the key
-/// combo that the user wants to edit, if any.
-pub(super) fn build<T, C>(
-    ctx: &egui::Context,
-    title: &str,
-    keybinds: &mut Vec<Keybind<T>>,
-    keybinds_context: C,
-    needs_save: &mut bool,
-) -> Option<usize>
-where
-    for<'a> KeybindsTable<'a, T, C>: egui::Widget,
-{
-    let id = window_id(title);
-    let mut open = ctx.data().get_persisted(id).unwrap_or(false);
-    let mut edit_key_combo_index = None;
-    egui::Window::new(title).open(&mut open).show(ctx, |ui| {
-        *needs_save |= ui
-            .add(KeybindsTable {
-                keybinds,
-                context: keybinds_context,
-                edit_index: &mut edit_key_combo_index,
-            })
-            .changed();
-    });
-    ctx.data().insert_persisted(id, open);
-    edit_key_combo_index
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(super) struct PuzzleKeybinds(pub(super) PuzzleType);
+impl KeybindSet for PuzzleKeybinds {
+    type Command = PuzzleCommand;
+
+    fn name(self) -> &'static str {
+        self.0.name()
+    }
+
+    fn get(self, prefs: &Preferences) -> &[Keybind<PuzzleCommand>] {
+        &prefs.puzzle_keybinds[self.0]
+    }
+    fn get_mut(self, prefs: &mut Preferences) -> &mut Vec<Keybind<PuzzleCommand>> {
+        &mut prefs.puzzle_keybinds[self.0]
+    }
+
+    fn use_vk_by_default(self) -> bool {
+        false // Position is more important for puzzle keybinds
+    }
 }
 
-pub(super) struct KeybindsTable<'a, T, C = ()> {
-    /// List of keybinds.
-    keybinds: &'a mut Vec<Keybind<T>>,
-    /// Context that depends on the command type (e.g., `PuzzleCommand` requires
-    /// `PuzzleType` for context).
-    context: C,
-    /// Index of the key combo that the user wants to change, if any.
-    edit_index: &'a mut Option<usize>,
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub(super) struct GeneralKeybinds;
+impl KeybindSet for GeneralKeybinds {
+    type Command = Command;
+
+    fn name(self) -> &'static str {
+        "general"
+    }
+
+    fn get(self, prefs: &Preferences) -> &[Keybind<Self::Command>] {
+        &prefs.general_keybinds
+    }
+    fn get_mut(self, prefs: &mut Preferences) -> &mut Vec<Keybind<Self::Command>> {
+        &mut prefs.general_keybinds
+    }
+
+    fn use_vk_by_default(self) -> bool {
+        true // Shortcuts like ctrl+Z should move depending on keyboard layout
+    }
 }
-impl<T, C> egui::Widget for KeybindsTable<'_, T, C>
+
+pub(super) struct KeybindsTable<'a, S> {
+    app: &'a mut App,
+    keybind_set: S,
+}
+impl<'a, S> KeybindsTable<'a, S> {
+    pub(super) fn new(app: &'a mut App, keybind_set: S) -> Self {
+        Self { app, keybind_set }
+    }
+}
+impl<S: KeybindSet> egui::Widget for KeybindsTable<'_, S>
 where
-    T: Default,
-    C: Copy,
-    for<'a> CommandSelectWidget<'a, T, C>: egui::Widget,
+    for<'a> CommandSelectWidget<'a, S>: egui::Widget,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
 
         let mut r = ui.scope(|ui| {
+            let keybinds = self.keybind_set.get_mut(&mut self.app.prefs);
+            let default_keybinds = self.keybind_set.get_defaults();
+
             ui.horizontal(|ui| {
-                // Placeholder for resize handle
-                ui.allocate_exact_size(SQUARE_BUTTON_SIZE, egui::Sense::hover());
+                ui.add_enabled_ui(keybinds != default_keybinds, |ui| {
+                    let r = ui
+                        .add_sized(SQUARE_BUTTON_SIZE, egui::Button::new("⟲"))
+                        .on_hover_text(format!("Reset all {} keybinds", self.keybind_set.name()));
+                    if r.clicked() {
+                        if rfd::MessageDialog::new()
+                            .set_title(&format!("Reset {} keybinds", self.keybind_set.name()))
+                            .set_description(&format!(
+                                "Restore {} keybinds to defaults?",
+                                self.keybind_set.name(),
+                            ))
+                            .set_buttons(rfd::MessageButtons::YesNo)
+                            .show()
+                        {
+                            *keybinds = default_keybinds.to_vec();
+                            changed = true;
+                        }
+                    }
+                });
 
                 let r = ui
                     .add_sized(SQUARE_BUTTON_SIZE, egui::Button::new("➕"))
                     .on_hover_text("Add a new keybind");
                 if r.clicked() {
-                    self.keybinds.push(Keybind::default());
+                    keybinds.push(Keybind::default());
                     changed = true;
                 };
 
@@ -101,7 +144,7 @@ where
                 let mut reorder_responses = vec![];
                 let mut delete_idx = None;
 
-                for (i, keybind) in self.keybinds.iter_mut().enumerate() {
+                for (i, keybind) in keybinds.iter_mut().enumerate() {
                     let is_being_dragged = drag_data.map_or(false, |drag| drag.from == i);
 
                     ui.horizontal(|ui| {
@@ -137,14 +180,19 @@ where
                         let r = ui
                             .add_sized(KEY_BUTTON_SIZE, egui::Button::new(keybind.key.to_string()));
                         if r.clicked() {
-                            // Open a popup for this keybind.
-                            *self.edit_index = Some(i);
+                            super::key_combo_popup::open(
+                                ui.ctx(),
+                                Some(keybind.key),
+                                self.keybind_set,
+                                i,
+                            )
                         }
 
                         let r = ui.add(CommandSelectWidget {
-                            idx: i,
                             cmd: &mut keybind.command,
-                            context: self.context,
+
+                            keybind_set: self.keybind_set,
+                            idx: i,
                         });
                         changed |= r.changed();
 
@@ -184,12 +232,12 @@ where
                 if let Some(DragData { mut from, to }) = drag_data {
                     // do those swaps
                     while from < to {
-                        self.keybinds.swap(from, from + 1);
+                        keybinds.swap(from, from + 1);
                         from += 1;
                         changed = true;
                     }
                     while to < from {
-                        self.keybinds.swap(from, from - 1);
+                        keybinds.swap(from, from - 1);
                         from -= 1;
                         changed = true;
                     }
@@ -199,7 +247,7 @@ where
                 }
 
                 if let Some(i) = delete_idx {
-                    self.keybinds.remove(i);
+                    keybinds.remove(i);
                     changed = true;
                 }
             });
@@ -216,13 +264,14 @@ where
     }
 }
 
-struct CommandSelectWidget<'a, T, C = ()> {
+struct CommandSelectWidget<'a, S: KeybindSet> {
+    cmd: &'a mut S::Command,
+
+    keybind_set: S,
     idx: usize,
-    cmd: &'a mut T,
-    context: C,
 }
 
-impl egui::Widget for CommandSelectWidget<'_, Command> {
+impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         use Command as Cmd;
 
@@ -315,11 +364,11 @@ impl egui::Widget for CommandSelectWidget<'_, Command> {
     }
 }
 
-impl egui::Widget for CommandSelectWidget<'_, PuzzleCommand, PuzzleType> {
+impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         use PuzzleCommand as Cmd;
 
-        let puzzle_type = self.context;
+        let puzzle_type = self.keybind_set.0;
 
         let mut changed = false;
 

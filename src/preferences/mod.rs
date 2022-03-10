@@ -144,7 +144,6 @@ impl Error for PrefsError {}
 pub struct Preferences {
     #[serde(skip)]
     pub needs_save: bool,
-    pub window_states: WindowStates,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
@@ -236,29 +235,6 @@ impl Preferences {
             }
         }
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(default)]
-pub struct WindowStates {
-    #[serde(skip_serializing_if = "is_false")]
-    pub graphics: bool,
-    #[serde(skip_serializing_if = "is_false")]
-    pub view: bool,
-    #[serde(skip_serializing_if = "is_false")]
-    pub colors: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
-    pub general_keybinds: bool,
-    #[serde(skip_serializing_if = "is_false")]
-    pub puzzle_keybinds: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
-    pub about: bool,
-
-    #[cfg(debug_assertions)]
-    #[serde(skip)]
-    pub demo: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

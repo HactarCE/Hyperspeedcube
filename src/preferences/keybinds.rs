@@ -10,7 +10,7 @@ use crate::puzzle::PuzzleType;
 pub type PuzzleKeybind = Keybind<PuzzleCommand>;
 pub type GeneralKeybind = Keybind<Command>;
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct Keybind<C> {
     #[serde(flatten, deserialize_with = "deser_valid_key_combo")]
     pub key: KeyCombo,
@@ -34,7 +34,7 @@ impl<'de> DeserializePerPuzzle<'de> for Vec<Keybind<PuzzleCommand>> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, Eq)]
 #[serde(default)]
 pub struct KeyCombo {
     #[serde(flatten, skip_serializing_if = "Option::is_none")]

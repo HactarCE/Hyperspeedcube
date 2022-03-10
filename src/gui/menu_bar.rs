@@ -59,22 +59,26 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
 
         ui.menu_button("Settings", |ui| {
-            let win_states = &mut app.prefs.window_states;
-            app.prefs.needs_save |= ui
-                .checkbox(&mut win_states.graphics, "Preferences")
-                .changed();
+            if ui.button("Preferences").clicked() {
+                ui.close_menu();
+                super::Window::SidePanel.toggle(ui.ctx());
+            }
             ui.separator();
-            app.prefs.needs_save |= ui
-                .checkbox(&mut win_states.general_keybinds, "General keybinds")
-                .changed();
-            app.prefs.needs_save |= ui
-                .checkbox(&mut win_states.puzzle_keybinds, "Puzzle keybinds")
-                .changed();
+            if ui.button("General keybinds").clicked() {
+                ui.close_menu();
+                super::Window::GeneralKeybinds.toggle(ui.ctx());
+            }
+            if ui.button("Puzzle keybinds").clicked() {
+                ui.close_menu();
+                super::Window::PuzzleKeybinds.toggle(ui.ctx());
+            }
         });
 
         ui.menu_button("Help", |ui| {
-            let win_states = &mut app.prefs.window_states;
-            app.prefs.needs_save |= ui.checkbox(&mut win_states.about, "About").changed();
+            if ui.button("About").clicked() {
+                ui.close_menu();
+                super::Window::About.toggle(ui.ctx());
+            }
         });
     });
 }

@@ -1,6 +1,3 @@
-use crate::app::App;
-use crate::puzzle::PuzzleControllerTrait;
-
 macro_rules! unique_id {
     ($($args:tt)*) => {
         egui::Id::new((file!(), line!(), column!(), $($args)*))
@@ -14,59 +11,46 @@ mod side_bar;
 mod status_bar;
 mod util;
 
+use crate::app::App;
+use crate::puzzle::PuzzleControllerTrait;
 pub(super) use key_combo_popup::key_combo_popup_handle_event;
+
+use self::keybinds_table::KeybindsTable;
 
 const GENERAL_KEYBINDS_TITLE: &str = "Keybinds";
 const PUZZLE_KEYBINDS_TITLE: &str = "Puzzle Keybinds";
 
 pub fn build(ctx: &egui::Context, app: &mut App) {
-    let window_state_id = egui::Id::new("hyperspeedcube::window_state");
-
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| menu_bar::build(ui, app));
 
     egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| status_bar::build(ui, app));
 
-    let open = ctx
-        .data()
-        .get_persisted(window_state_id.with("side_panel"))
-        .unwrap_or(true);
-    if open {
+    if Window::SidePanel.is_open(ctx) {
         egui::SidePanel::left("side_panel").show(ctx, |ui| side_bar::build(ui, app));
     }
 
     let puzzle_type = app.puzzle.ty();
 
-    let edit_key_combo_index = keybinds_table::build(
-        ctx,
-        GENERAL_KEYBINDS_TITLE,
-        &mut app.prefs.general_keybinds,
-        (),
-        &mut app.prefs.needs_save,
-    );
-    if let Some(i) = edit_key_combo_index {
-        key_combo_popup::open(
-            ctx,
-            app,
-            move |app| &mut app.prefs.general_keybinds[i].key,
-            true,
-        );
-    }
+    let mut open = Window::GeneralKeybinds.is_open(ctx);
+    egui::Window::new(GENERAL_KEYBINDS_TITLE)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            let r = ui.add(KeybindsTable::new(app, keybinds_table::GeneralKeybinds));
+            app.prefs.needs_save |= r.changed();
+        });
+    Window::GeneralKeybinds.set_open(ctx, open);
 
-    let edit_key_combo_index = keybinds_table::build(
-        ctx,
-        PUZZLE_KEYBINDS_TITLE,
-        &mut app.prefs.puzzle_keybinds[puzzle_type],
-        app.puzzle.ty(),
-        &mut app.prefs.needs_save,
-    );
-    if let Some(i) = edit_key_combo_index {
-        key_combo_popup::open(
-            ctx,
-            app,
-            move |app| &mut app.prefs.puzzle_keybinds[puzzle_type][i].key,
-            false,
-        );
-    }
+    let mut open = Window::PuzzleKeybinds.is_open(ctx);
+    egui::Window::new(PUZZLE_KEYBINDS_TITLE)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            let r = ui.add(KeybindsTable::new(
+                app,
+                keybinds_table::PuzzleKeybinds(puzzle_type),
+            ));
+            app.prefs.needs_save |= r.changed();
+        });
+    Window::PuzzleKeybinds.set_open(ctx, open);
 
     key_combo_popup::build(ctx, app);
 
@@ -82,11 +66,31 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
     }
 }
 
-fn toggle_general_keybinds(ctx: &egui::Context) {
-    let id = keybinds_table::window_id(GENERAL_KEYBINDS_TITLE);
-    *ctx.data().get_persisted_mut_or_default::<bool>(id) ^= true;
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+enum Window {
+    GeneralKeybinds,
+    PuzzleKeybinds,
+    SidePanel,
+    About,
+    Debug,
 }
-fn toggle_puzzle_keybinds(ctx: &egui::Context) {
-    let id = keybinds_table::window_id(PUZZLE_KEYBINDS_TITLE);
-    *ctx.data().get_persisted_mut_or_default::<bool>(id) ^= true;
+impl Window {
+    fn id(self) -> egui::Id {
+        egui::Id::new("hyperspeedcube::window_states").with(self)
+    }
+    fn open(self, ctx: &egui::Context) {
+        self.set_open(ctx, true);
+    }
+    fn close(self, ctx: &egui::Context) {
+        self.set_open(ctx, false);
+    }
+    fn toggle(self, ctx: &egui::Context) {
+        *ctx.data().get_persisted_mut_or_default::<bool>(self.id()) ^= true;
+    }
+    fn is_open(self, ctx: &egui::Context) -> bool {
+        ctx.data().get_persisted(self.id()).unwrap_or(false)
+    }
+    fn set_open(self, ctx: &egui::Context, open: bool) {
+        ctx.data().insert_persisted(self.id(), open);
+    }
 }

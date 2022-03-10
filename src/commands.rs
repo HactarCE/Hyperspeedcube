@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use crate::preferences::DeserializePerPuzzle;
 use crate::puzzle::{traits::*, Face, LayerMask, PieceType, PuzzleType, Selection, TwistDirection};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Command {
     // File menu
@@ -132,7 +132,7 @@ pub enum SelectHow {
     Clear,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub enum PuzzleCommand {
     Twist {

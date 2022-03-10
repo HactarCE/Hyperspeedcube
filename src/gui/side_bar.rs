@@ -14,10 +14,10 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 egui::Layout::top_down_justified(egui::Align::Center),
                 |ui| {
                     if ui.button("Edit general keybinds").clicked() {
-                        super::toggle_general_keybinds(ui.ctx());
+                        super::Window::GeneralKeybinds.toggle(ui.ctx());
                     }
                     if ui.button("Edit puzzle keybinds").clicked() {
-                        super::toggle_puzzle_keybinds(ui.ctx());
+                        super::Window::PuzzleKeybinds.toggle(ui.ctx());
                     }
                 },
             )

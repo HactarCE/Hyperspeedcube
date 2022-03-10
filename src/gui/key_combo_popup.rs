@@ -2,6 +2,7 @@ use key_names::KeyMappingCode;
 use std::sync::Arc;
 use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 
+use super::keybinds_table::KeybindSet;
 use super::util::ResponseExt;
 use crate::app::App;
 use crate::preferences::{Key, KeyCombo};
@@ -60,29 +61,29 @@ fn popup_state_id() -> egui::Id {
 
 pub(super) fn open(
     ctx: &egui::Context,
-    app: &mut App,
-    get_mut_key_combo: impl 'static + Send + Sync + Fn(&mut App) -> &mut KeyCombo,
-    default_use_vk: bool,
+    key: Option<KeyCombo>,
+    keybind_set: impl KeybindSet,
+    idx: usize,
 ) {
-    let old_key_combo = *get_mut_key_combo(app);
-
     let mut data = ctx.data();
 
     // General keybinds should use virtual keycodes by default, while puzzle
     // keybinds should use scancodes by default. If the user manually overrides
     // one, remember that decision for as long as the application is running.
-    let use_vk_id = unique_id!().with(default_use_vk);
-    let use_vk = data.get_temp(use_vk_id).unwrap_or(default_use_vk);
+    let use_vk_id = unique_id!().with(keybind_set.use_vk_by_default());
+    let use_vk = data
+        .get_temp(use_vk_id)
+        .unwrap_or(keybind_set.use_vk_by_default());
 
     *popup_state_mut(&mut data) = State {
         callback: Some(Arc::new(move |app, new_key_combo| {
-            *get_mut_key_combo(app) = new_key_combo;
+            keybind_set.get_mut(&mut app.prefs)[idx].key = new_key_combo;
             app.prefs.needs_save = true;
         })),
 
-        key: Some(old_key_combo),
+        key,
 
-        mods: app.modifiers(),
+        mods: ModifiersState::empty(),
         last_vk_pressed: None,
         last_sc_pressed: None,
 
@@ -95,6 +96,8 @@ pub(super) fn build(ctx: &egui::Context, app: &mut App) -> Option<egui::Response
     if popup_state(ctx).callback.is_none() {
         return None;
     }
+
+    popup_state_mut(&mut ctx.data()).mods = app.modifiers();
 
     let r = egui::Area::new("keybind_popup")
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
