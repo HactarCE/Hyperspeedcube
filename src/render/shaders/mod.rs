@@ -1,11 +1,11 @@
 use crate::DISPLAY;
-use glium::Program;
+use glium::{program, Program};
 use send_wrapper::SendWrapper;
 
 macro_rules! load_shader {
     ($name:expr, $version:expr, srgb = $srgb:expr) => {
         {
-            SendWrapper::new(glium::program!(
+            SendWrapper::new(program!(
                     &**DISPLAY,
                     $version => {
                         vertex: include_str!(concat!(stringify!($name), ".vert")),

@@ -1,5 +1,4 @@
 ---
-log_file: puzzle.log
 gfx:
   fps: 60
   font_size: 16.0
@@ -7,25 +6,26 @@ gfx:
   label_size: 24.0
 view:
   Rubiks3D:
-    theta: 35.0
-    phi: 0.0
+    pitch: 35.0
+    yaw: 0.0
     scale: 1.25
     fov_3d: 30.0
     fov_4d: 30.0
     face_spacing: 0.025
     sticker_spacing: 0.05
-    enable_outline: true
+    outline_thickness: 2.0
   Rubiks4D:
-    theta: 30.0
-    phi: -35.0
+    pitch: 30.0
+    yaw: -35.0
     scale: 2.0
     fov_3d: 30.0
     fov_4d: 30.0
     face_spacing: 0.7
-    sticker_spacing: 0.5
-    enable_outline: true
+    sticker_spacing: 0.3
+    outline_thickness: 1.5
 colors:
-  opacity: 1.0
+  sticker_opacity: 1.0
+  hidden_opacity: 0.1
   faces:
     Rubiks3D:
       - - 0.0
@@ -346,41 +346,53 @@ puzzle_keybinds:
         hold_select:
           face: Out
     - sc: Digit1
+      shift: true
       command:
-        hold_select:
+        toggle_select:
           piece_type: 1c
     - sc: Digit2
+      shift: true
       command:
-        hold_select:
-          piece_type: 1c
+        toggle_select:
+          piece_type: 2c
     - sc: Digit3
+      shift: true
       command:
-        hold_select:
-          piece_type: 1c
+        toggle_select:
+          piece_type: 3c
     - sc: Digit4
+      shift: true
       command:
-        hold_select:
-          piece_type: 1c
+        toggle_select:
+          piece_type: 4c
     - sc: Digit1
       shift: true
-      command:
-        toggle_select:
-          piece_type: 1c
+      command: none
     - sc: Digit2
       shift: true
-      command:
-        toggle_select:
-          piece_type: 1c
+      command: none
     - sc: Digit3
       shift: true
-      command:
-        toggle_select:
-          piece_type: 1c
+      command: none
     - sc: Digit4
       shift: true
+      command: none
+    - sc: Digit1
       command:
-        toggle_select:
+        hold_select:
           piece_type: 1c
+    - sc: Digit2
+      command:
+        hold_select:
+          piece_type: 2c
+    - sc: Digit3
+      command:
+        hold_select:
+          piece_type: 3c
+    - sc: Digit4
+      command:
+        hold_select:
+          piece_type: 4c
     - sc: Escape
       command:
         clear_toggle_select: piece_type

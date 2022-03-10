@@ -1,51 +1,127 @@
-use imgui::*;
+use egui::NumExt;
+use itertools::Itertools;
+use std::hash::Hash;
+use strum::IntoEnumIterator;
 
-pub fn get_viewport(_ui: &Ui<'_>) -> sys::ImGuiViewport {
-    unsafe { *imgui::sys::igGetMainViewport() }
-}
-pub fn get_viewport_center(ui: &Ui<'_>) -> imgui::sys::ImVec2 {
-    let viewport = get_viewport(ui);
-    let work_pos = viewport.WorkPos;
-    let work_size = viewport.WorkSize;
-    imgui::sys::ImVec2::new(
-        work_pos.x + work_size.x / 2.0,
-        work_pos.y + work_size.y / 2.0,
-    )
-}
+const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 
-/// Displays text with inline key names. E.g. "Press {Enter} to confirm."
-pub fn text_with_inline_key_names(ui: &Ui<'_>, mut s: &str) {
-    let _style_stack_tokens = (
-        ui.push_style_var(StyleVar::FrameRounding(3.0)),
-        ui.push_style_var(StyleVar::FrameBorderSize(1.0)),
-        ui.push_style_var(StyleVar::ItemSpacing([2.0, 4.0])),
-        ui.push_style_color(StyleColor::Button, [0.0, 0.0, 0.0, 0.0]),
-        ui.push_style_color(StyleColor::ButtonActive, [0.0, 0.0, 0.0, 0.0]),
-        ui.push_style_color(StyleColor::ButtonHovered, [0.0, 0.0, 0.0, 0.0]),
-        ui.push_style_color(StyleColor::Border, ui.style_color(StyleColor::Text)),
-    );
-    loop {
-        if let Some((normal, remaining)) = s.split_once("{") {
-            if let Some((key_name, remaining)) = remaining.split_once("}") {
-                ui.text(normal);
-                ui.same_line();
-                ui.small_button(key_name);
-                ui.same_line();
-                s = remaining;
-                continue;
-            }
+pub(super) struct BasicComboBox<'a, T> {
+    combo_box: egui::ComboBox,
+    selected: &'a mut T,
+    options: Vec<T>,
+}
+impl<'a, T: IntoEnumIterator> BasicComboBox<'a, T> {
+    pub(super) fn new_enum(id_source: impl Hash, selected: &'a mut T) -> Self {
+        Self::new(id_source, selected, T::iter().collect_vec())
+    }
+    pub(super) fn new_enum_with_label(
+        id_source: impl Hash,
+        label: impl Into<egui::WidgetText>,
+        selected: &'a mut T,
+    ) -> Self {
+        Self {
+            combo_box: egui::ComboBox::new(id_source, label),
+            selected,
+            options: T::iter().collect(),
         }
-        ui.text(s);
-        break;
+    }
+}
+impl<'a, T> BasicComboBox<'a, T> {
+    pub(super) fn new(
+        id_source: impl Hash,
+        selected: &'a mut T,
+        options: impl Into<Vec<T>>,
+    ) -> Self {
+        Self {
+            combo_box: egui::ComboBox::from_id_source(id_source),
+            options: options.into(),
+            selected,
+        }
+    }
+}
+impl<T: ToString + Eq> egui::Widget for BasicComboBox<'_, T> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let mut changed = false;
+
+        let mut r = self
+            .combo_box
+            .selected_text(self.selected.to_string())
+            .width_to_fit(ui, self.options.iter().map(|s| s.to_string()).collect())
+            .show_ui(ui, |ui| {
+                for option in self.options {
+                    let is_selected = option == *self.selected;
+                    if ui
+                        .selectable_label(is_selected, option.to_string())
+                        .clicked()
+                    {
+                        *self.selected = option;
+                        changed = true;
+                    }
+                }
+            });
+
+        if changed {
+            r.response.mark_changed();
+        }
+        r.response
     }
 }
 
-pub fn push_style_compact<'ui>(ui: &'ui Ui<'ui>) -> impl 'ui + Sized {
-    let style = ui.clone_style();
-    let [fp_x, fp_y] = style.frame_padding;
-    let [is_x, is_y] = style.item_spacing;
-    (
-        ui.push_style_var(StyleVar::FramePadding([fp_x, (fp_y * 0.60).floor()])),
-        ui.push_style_var(StyleVar::ItemSpacing([is_x, (is_y * 0.60).floor()])),
-    )
+pub(super) trait ResponseExt {
+    fn on_hover_explanation(self, strong_text: &str, detailed_message: &str) -> Self;
+}
+impl ResponseExt for egui::Response {
+    fn on_hover_explanation(self, strong_text: &str, detailed_message: &str) -> Self {
+        self.on_hover_ui(|ui| {
+            ui.allocate_ui_with_layout(
+                egui::vec2(EXPLANATION_TOOLTIP_WIDTH, 0.0),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    if !strong_text.is_empty() {
+                        ui.strong(strong_text);
+                    }
+                    if !detailed_message.is_empty() {
+                        ui.label(detailed_message);
+                    }
+                },
+            );
+        })
+    }
+}
+
+pub(super) trait ComboBoxExt {
+    /// Workaround for egui being *not fabulous* at sizing combo boxes.
+    fn width_to_fit(self, ui: &egui::Ui, options: Vec<String>) -> Self;
+}
+impl ComboBoxExt for egui::ComboBox {
+    fn width_to_fit(self, ui: &egui::Ui, options: Vec<String>) -> Self {
+        let spacing = ui.spacing();
+
+        let text_width = options
+            .into_iter()
+            .map(|option| {
+                egui::WidgetText::from(option)
+                    .into_galley(ui, Some(false), f32::INFINITY, egui::TextStyle::Button)
+                    .size()
+                    .x
+            })
+            .reduce(f32::max)
+            .unwrap_or(0.0);
+
+        let mut desired_width = text_width
+            + spacing.item_spacing.x
+            + f32::max(
+                spacing.icon_width,
+                spacing.window_margin.left
+                    + spacing.scroll_bar_width
+                    + spacing.window_margin.right
+                    + 1.0, // not sure why, but text wraps without the +1.0
+            );
+
+        if ui.layout().horizontal_justify() {
+            desired_width = desired_width.at_least(ui.available_width() - spacing.item_spacing.x);
+        }
+
+        self.width(desired_width)
+    }
 }

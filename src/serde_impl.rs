@@ -1,7 +1,7 @@
 //! Manual Serde implementations and other ser/deser infrastructure.
 
 use key_names::KeyMappingCode;
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// Taken from docs here:
 /// https://docs.rs/keycode/0.3.0/keycode/enum.KeyMappingCode.html

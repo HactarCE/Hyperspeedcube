@@ -7,15 +7,13 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  HYPERSPEEDCUBE_VERSION: 0.2.0
+  HYPERSPEEDCUBE_VERSION: 0.3.0
 
 jobs:
 
   windows:
     name: Build Windows latest
     runs-on: windows-latest
-    env:
-      LLVM_SYS_100_PREFIX: C:\LLVM
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -57,8 +55,8 @@ jobs:
             override: true
       - name: Update apt
         run: sudo apt update
-      - name: Install ImGui dependencies
-        run: sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Install egui dependencies
+        run: sudo apt install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
       - name: Install Rusty File Dialog dependencies
         run: sudo apt install libgtk-3-dev
       - name: Install XKB/XCB dev dependencies
@@ -76,8 +74,6 @@ jobs:
   macos:
     name: Build macOS latest
     runs-on: macos-latest
-    env:
-      LLVM_SYS_100_PREFIX: /tmp/LLVM
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2

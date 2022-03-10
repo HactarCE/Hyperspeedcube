@@ -1,12 +1,9 @@
 use cgmath::Matrix4;
-use std::error::Error;
 use std::fmt;
 use std::time::Duration;
 use thiserror::Error;
 
-use super::{
-    rubiks3d, rubiks4d, traits::*, PuzzleController, PuzzleType, Rubiks3D, Rubiks4D, TwistMetric,
-};
+use super::{traits::*, PuzzleController, PuzzleType, Rubiks3D, Rubiks4D, TwistMetric};
 use crate::render::WireframeVertex;
 
 /// A PuzzleController of any puzzle type.

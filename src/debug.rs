@@ -1,6 +1,4 @@
 #[cfg(debug_assertions)]
-use lazy_static::lazy_static;
-#[cfg(debug_assertions)]
 use std::sync::Mutex;
 
 #[cfg(debug_assertions)]

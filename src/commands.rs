@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use crate::preferences::DeserializePerPuzzle;
 use crate::puzzle::{traits::*, Face, LayerMask, PieceType, PuzzleType, Selection, TwistDirection};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Command {
     // File menu
@@ -23,18 +23,6 @@ pub enum Command {
     // Puzzle menu
     NewPuzzle(PuzzleType),
 
-    #[serde(skip)]
-    Twist {
-        face: Face,
-        direction: TwistDirection,
-        layer_mask: LayerMask,
-    },
-    #[serde(skip)]
-    Recenter(Face),
-
-    #[serde(skip)]
-    ErrorMsg(String),
-
     #[serde(other)]
     None,
 }
@@ -47,7 +35,6 @@ impl Command {
     pub(crate) fn get_puzzle_type(&self) -> PuzzleType {
         match self {
             Command::NewPuzzle(puzzle_type) => *puzzle_type,
-            Command::Recenter(face) | Command::Twist { face, .. } => face.ty(),
             _ => PuzzleType::default(),
         }
     }
@@ -138,14 +125,14 @@ impl Default for SelectCategory {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Display, Copy, Clone, PartialEq, Eq)]
 pub enum SelectHow {
     Hold,
     Toggle,
     Clear,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub enum PuzzleCommand {
     Twist {

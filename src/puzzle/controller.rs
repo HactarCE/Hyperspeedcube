@@ -1,14 +1,13 @@
 //! Puzzle wrapper that adds animation and undo history functionality.
 
+use anyhow::anyhow;
 use cgmath::{Matrix4, SquareMatrix};
-use itertools::Itertools;
 use std::collections::VecDeque;
-use std::error::Error;
 use std::io;
 use std::path::Path;
 use std::time::Duration;
 
-use super::{LayerMask, Selection, TwistDirection, TwistMetric};
+use super::{LayerMask, TwistDirection, TwistMetric};
 
 /// Interpolation functions.
 pub mod interpolate {
@@ -66,9 +65,6 @@ pub struct PuzzleController<P: PuzzleState> {
     undo_buffer: Vec<P::Twist>,
     /// Redo history.
     redo_buffer: Vec<P::Twist>,
-
-    /// Highlighted selection.
-    highlight: Selection,
 }
 impl<P: PuzzleState> Default for PuzzleController<P> {
     fn default() -> Self {
@@ -87,8 +83,6 @@ impl<P: PuzzleState> Default for PuzzleController<P> {
             scramble: Default::default(),
             undo_buffer: Default::default(),
             redo_buffer: Default::default(),
-
-            highlight: Default::default(),
         }
     }
 }
@@ -154,13 +148,13 @@ pub trait PuzzleControllerTrait {
         face: Face,
         direction: TwistDirection,
         layer_mask: LayerMask,
-    ) -> Result<(), Box<dyn Error>>;
+    ) -> anyhow::Result<()>;
     /// Rotates the whole puzzle to put a face in the center of the view.
-    fn do_recenter_command(&mut self, face: Face) -> Result<(), Box<dyn Error>>;
+    fn do_recenter_command(&mut self, face: Face) -> anyhow::Result<()>;
 
     /// Advances to the next frame, using the given time delta between this
-    /// frame and the last.
-    fn advance(&mut self, delta: Duration);
+    /// frame and the last. Returns whether the puzzle needs to be repainted.
+    fn advance(&mut self, delta: Duration) -> bool;
     /// Skips the animations for all twists in the queue.
     fn catch_up(&mut self);
 
@@ -184,11 +178,6 @@ pub trait PuzzleControllerTrait {
     /// corresponding to its color).
     fn get_sticker_color(&self, sticker: Sticker) -> Face;
 
-    /// Returns the selection to highlight.
-    fn highlight(&self) -> Selection;
-    /// Sets the selection to highlight.
-    fn set_highlight(&mut self, sel: Selection);
-
     /// Returns the number of twists applied to the puzzle.
     fn twist_count(&self, metric: TwistMetric) -> usize;
 }
@@ -202,28 +191,29 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
         face: Face,
         direction: TwistDirection,
         layer_mask: LayerMask,
-    ) -> Result<(), Box<dyn Error>> {
-        self.twist(P::Twist::from_twist_command(
-            face.try_into::<P>()?,
-            direction.name(),
-            layer_mask,
-        )?);
+    ) -> anyhow::Result<()> {
+        self.twist(
+            P::Twist::from_twist_command(face.try_into::<P>()?, direction.name(), layer_mask)
+                .map_err(|e| anyhow!(e))?,
+        );
         Ok(())
     }
-    fn do_recenter_command(&mut self, face: Face) -> Result<(), Box<dyn Error>> {
-        self.twist(P::Twist::from_recenter_command(face.try_into::<P>()?)?);
+    fn do_recenter_command(&mut self, face: Face) -> anyhow::Result<()> {
+        self.twist(P::Twist::from_recenter_command(face.try_into::<P>()?).map_err(|e| anyhow!(e))?);
         Ok(())
     }
 
-    fn advance(&mut self, delta: Duration) {
+    fn advance(&mut self, delta: Duration) -> bool {
         if self.twists.is_empty() {
             self.queue_max = 0;
-            return;
+            // Absolutely nothing has changed, so don't request a repaint.
+            return false;
         }
         if self.progress >= 1.0 {
             self.displayed.twist(self.twists.pop_front().unwrap());
             self.progress = 0.0;
-            return;
+            // Request repaint to finalize the twist.
+            return true;
         }
         // Update queue_max.
         self.queue_max = std::cmp::max(self.queue_max, self.twists.len());
@@ -244,6 +234,8 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
         if self.progress >= 1.0 {
             self.progress = 1.0;
         }
+        // Request repaint.
+        true
     }
     fn catch_up(&mut self) {
         for twist in self.twists.drain(..) {
@@ -300,13 +292,6 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
         self.displayed().get_sticker_color(s).into()
     }
 
-    fn highlight(&self) -> Selection {
-        self.highlight
-    }
-    fn set_highlight(&mut self, sel: Selection) {
-        self.highlight = sel;
-    }
-
     fn twist_count(&self, metric: TwistMetric) -> usize {
         let twists = self.undo_buffer.iter().copied();
         let prev_twists = itertools::put_back(twists.clone().map(Some)).with_value(None);
@@ -320,8 +305,8 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
 
 impl PuzzleController<Rubiks4D> {
     /// Loads a log file and returns the puzzle state.
-    pub fn load_file(path: &Path) -> Result<Self, Box<dyn Error>> {
-        let contents = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    pub fn load_file(path: &Path) -> anyhow::Result<Self> {
+        let contents = std::fs::read_to_string(path)?;
         let logfile = contents.parse::<super::rubiks4d_logfile::LogFile>()?;
 
         let mut ret = Self {
@@ -341,7 +326,7 @@ impl PuzzleController<Rubiks4D> {
         Ok(ret)
     }
     /// Saves the puzzle state to a log file.
-    pub fn save_file(&mut self, path: &Path) -> Result<(), io::Error> {
+    pub fn save_file(&mut self, path: &Path) -> io::Result<()> {
         let logfile = LogFile {
             scramble_state: self.scramble_state,
             view_matrix: Matrix4::identity(),
