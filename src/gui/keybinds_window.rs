@@ -536,11 +536,11 @@ impl egui::Widget for LayerMaskCheckboxes<'_> {
             ui.spacing_mut().button_padding.x = 0.0;
 
             for i in 0..self.layer_count {
-                let mut flag = self.layer_mask.0 & (1 << i) & 1 != 0;
+                let mut flag = self.layer_mask.0 & (1 << i) != 0;
 
                 let r = ui
                     .checkbox(&mut flag, "")
-                    .on_hover_text(format!("Layer {}", i + 1));
+                    .on_hover_text(format!("{}", i + 1));
                 if r.changed() {
                     self.layer_mask.0 ^= 1 << i;
                     changed = true;
