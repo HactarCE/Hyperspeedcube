@@ -79,6 +79,15 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 ui.close_menu();
                 super::Window::About.toggle(ui.ctx());
             }
+
+            #[cfg(debug_assertions)]
+            {
+                if ui.button("Debug").clicked() {
+                    ui.close_menu();
+                    super::Window::Debug.toggle(ui.ctx());
+                }
+                ui.separator();
+            }
         });
     });
 }

@@ -54,15 +54,30 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
 
     key_combo_popup::build(ctx, app);
 
+    let mut open = Window::About.is_open(ctx);
+    egui::Window::new("About").open(&mut open).show(ctx, |ui| {
+        ui.vertical_centered(|ui| {
+            ui.strong(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
+            ui.label(env!("CARGO_PKG_DESCRIPTION"));
+            ui.hyperlink(env!("CARGO_PKG_REPOSITORY"));
+            ui.label("");
+            ui.label(format!("Created by {}", env!("CARGO_PKG_AUTHORS")));
+            ui.label(format!("Licensed under {}", env!("CARGO_PKG_LICENSE")));
+        });
+    });
+    Window::About.set_open(ctx, open);
+
     #[cfg(debug_assertions)]
     {
+        let mut open = Window::Debug.is_open(ctx);
         let mut debug_info = crate::debug::FRAME_DEBUG_INFO.lock().unwrap();
-        if !debug_info.is_empty() {
-            egui::Window::new("Debug values").show(ctx, |ui| {
+        egui::Window::new("Debug values")
+            .open(&mut open)
+            .show(ctx, |ui| {
                 ui.add(egui::TextEdit::multiline(&mut *debug_info).code_editor());
             });
-            *debug_info = String::new();
-        }
+        *debug_info = String::new();
+        Window::Debug.set_open(ctx, open);
     }
 }
 
