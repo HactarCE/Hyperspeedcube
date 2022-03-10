@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Help tooltips
 - Outline width setting
 - Hidden stickers opacity setting
+- About window
 
 ### Changed
 
