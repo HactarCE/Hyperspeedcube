@@ -31,19 +31,19 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
         ui.menu_button("Edit", |ui| {
             ui.add_enabled_ui(app.puzzle.has_undo(), |ui| {
-                if ui.button("Undo").clicked() {
+                if ui.button("Undo twist").clicked() {
                     ui.close_menu();
                     app.event(Command::Undo);
                 }
             });
             ui.add_enabled_ui(app.puzzle.has_redo(), |ui| {
-                if ui.button("Redo").clicked() {
+                if ui.button("Redo twist").clicked() {
                     ui.close_menu();
                     app.event(Command::Redo);
                 }
             });
             ui.separator();
-            if ui.button("Reset").clicked() {
+            if ui.button("Reset puzzle").clicked() {
                 ui.close_menu();
                 app.event(Command::Reset);
             }
