@@ -92,11 +92,11 @@ impl CachedSrgbTexture2d {
         Self(None)
     }
 
-    pub(super) fn get<'a>(
-        &'a mut self,
+    pub(super) fn get(
+        &mut self,
         width: u32,
         height: u32,
-    ) -> (SimpleFrameBuffer<'a>, Rc<SrgbTexture2d>) {
+    ) -> (SimpleFrameBuffer<'_>, Rc<SrgbTexture2d>) {
         // Invalidate the texture if the size has changed.
         if let Some(tex) = &self.0 {
             if tex.width() != width || tex.height() != height {
@@ -139,12 +139,12 @@ impl CachedMsaaRenderBuffer {
         }
     }
 
-    pub(super) fn get<'a>(
-        &'a mut self,
+    pub(super) fn get(
+        &mut self,
         width: u32,
         height: u32,
         samples: u32,
-    ) -> (SimpleFrameBuffer<'a>, Rc<SrgbTexture2dMultisample>) {
+    ) -> (SimpleFrameBuffer<'_>, Rc<SrgbTexture2dMultisample>) {
         // Invalidate the textures if the size or sample count has changed.
         if let Some(tex) = &self.color_texture {
             if tex.width() != width || tex.height() != height || tex.samples() != samples {

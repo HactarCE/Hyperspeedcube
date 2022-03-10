@@ -21,6 +21,8 @@ const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
 pub(super) trait KeybindSet: 'static + Copy + Send + Sync {
     type Command: Default + Clone + Eq;
 
+    const USE_VK_BY_DEFAULT: bool;
+
     fn name(self) -> &'static str;
 
     fn get(self, prefs: &Preferences) -> &[Keybind<Self::Command>];
@@ -28,14 +30,14 @@ pub(super) trait KeybindSet: 'static + Copy + Send + Sync {
     fn get_defaults(self) -> &'static [Keybind<Self::Command>] {
         self.get(&crate::preferences::DEFAULT_PREFS)
     }
-
-    fn use_vk_by_default(self) -> bool;
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(super) struct PuzzleKeybinds(pub(super) PuzzleType);
 impl KeybindSet for PuzzleKeybinds {
     type Command = PuzzleCommand;
+
+    const USE_VK_BY_DEFAULT: bool = false; // Position is more important for puzzle keybinds
 
     fn name(self) -> &'static str {
         self.0.name()
@@ -47,16 +49,14 @@ impl KeybindSet for PuzzleKeybinds {
     fn get_mut(self, prefs: &mut Preferences) -> &mut Vec<Keybind<PuzzleCommand>> {
         &mut prefs.puzzle_keybinds[self.0]
     }
-
-    fn use_vk_by_default(self) -> bool {
-        false // Position is more important for puzzle keybinds
-    }
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub(super) struct GeneralKeybinds;
 impl KeybindSet for GeneralKeybinds {
     type Command = Command;
+
+    const USE_VK_BY_DEFAULT: bool = true; // Shortcuts like ctrl+Z should move depending on keyboard layout
 
     fn name(self) -> &'static str {
         "general"
@@ -67,10 +67,6 @@ impl KeybindSet for GeneralKeybinds {
     }
     fn get_mut(self, prefs: &mut Preferences) -> &mut Vec<Keybind<Self::Command>> {
         &mut prefs.general_keybinds
-    }
-
-    fn use_vk_by_default(self) -> bool {
-        true // Shortcuts like ctrl+Z should move depending on keyboard layout
     }
 }
 

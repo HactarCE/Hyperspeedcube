@@ -4,10 +4,10 @@ use cgmath::{Deg, Matrix3, Matrix4};
 use glium::texture::SrgbTexture2d;
 use glium::uniforms::MagnifySamplerFilter;
 use glium::{BackfaceCullingMode, BlitTarget, DrawParameters, Surface};
-use glium_glyph::glyph_brush::{
-    rusttype, BuiltInLineBreaker, HorizontalAlign, Layout, SectionText, VariedSection,
-    VerticalAlign,
-};
+// use glium_glyph::glyph_brush::{
+//     rusttype, BuiltInLineBreaker, HorizontalAlign, Layout, SectionText, VariedSection,
+//     VerticalAlign,
+// };
 use std::rc::Rc;
 
 pub mod cache;
@@ -17,7 +17,7 @@ mod verts;
 use crate::app::App;
 use crate::puzzle::traits::*;
 pub use cache::PuzzleRenderCache;
-use cache::FONT;
+// use cache::FONT;
 pub use verts::WireframeVertex;
 
 const CLIPPING_RADIUS: f32 = 2.0;
@@ -238,19 +238,17 @@ pub fn draw_puzzle(
     out_texture
 }
 
-// fn draw_puzzle_to_target(app: &mut App, target: &mut dyn Surface) {}
+// fn label_size(text: &str, scale: rusttype::Scale) -> (f32, f32) {
+//     const PADDING: f32 = 16.0; // 16 pixels
 
-fn label_size(text: &str, scale: rusttype::Scale) -> (f32, f32) {
-    const PADDING: f32 = 16.0; // 16 pixels
-
-    let layout = FONT.layout(text, scale, rusttype::Point::default());
-    let bounding_boxes = layout.filter_map(|g| g.pixel_bounding_box());
-    let min_x = bounding_boxes.clone().map(|b| b.min.x).min().unwrap_or(0);
-    let min_y = bounding_boxes.clone().map(|b| b.min.y).max().unwrap_or(0);
-    let max_x = bounding_boxes.clone().map(|b| b.max.x).min().unwrap_or(0);
-    let max_y = bounding_boxes.clone().map(|b| b.max.y).max().unwrap_or(0);
-    (
-        (max_x - min_x) as f32 + PADDING,
-        (max_y - min_y) as f32 + PADDING,
-    )
-}
+//     let layout = FONT.layout(text, scale, rusttype::Point::default());
+//     let bounding_boxes = layout.filter_map(|g| g.pixel_bounding_box());
+//     let min_x = bounding_boxes.clone().map(|b| b.min.x).min().unwrap_or(0);
+//     let min_y = bounding_boxes.clone().map(|b| b.min.y).max().unwrap_or(0);
+//     let max_x = bounding_boxes.clone().map(|b| b.max.x).min().unwrap_or(0);
+//     let max_y = bounding_boxes.clone().map(|b| b.max.y).max().unwrap_or(0);
+//     (
+//         (max_x - min_x) as f32 + PADDING,
+//         (max_y - min_y) as f32 + PADDING,
+//     )
+// }

@@ -49,6 +49,7 @@ macro_rules! resettable {
     ) => {{
         let value = &mut $prefs $($prefs_tok)*;
         let reset_value = &crate::preferences::DEFAULT_PREFS $($prefs_tok)*;
+        #[allow(clippy::redundant_closure_call)]
         let reset_value_str = ($format_fn)(reset_value);
         WidgetWithReset {
             label: $label,

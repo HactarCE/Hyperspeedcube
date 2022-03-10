@@ -56,7 +56,7 @@ impl App {
 
         // Load last open file.
         if let Some(path) = this.prefs.log_file.take() {
-            this.try_load_puzzle(path.to_owned());
+            this.try_load_puzzle(path);
         }
 
         this
@@ -75,7 +75,7 @@ impl App {
                 Command::Open => {
                     if self.confirm_discard_changes("open another file") {
                         if let Some(path) = file_dialog().pick_file() {
-                            self.try_load_puzzle(path.to_owned());
+                            self.try_load_puzzle(path);
                         }
                     }
                 }

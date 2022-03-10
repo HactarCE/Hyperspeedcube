@@ -59,10 +59,10 @@ fn popup_state_id() -> egui::Id {
     unique_id!()
 }
 
-pub(super) fn open(
+pub(super) fn open<S: KeybindSet>(
     ctx: &egui::Context,
     key: Option<KeyCombo>,
-    keybind_set: impl KeybindSet,
+    keybind_set: S,
     idx: usize,
 ) {
     let mut data = ctx.data();
@@ -70,10 +70,8 @@ pub(super) fn open(
     // General keybinds should use virtual keycodes by default, while puzzle
     // keybinds should use scancodes by default. If the user manually overrides
     // one, remember that decision for as long as the application is running.
-    let use_vk_id = unique_id!().with(keybind_set.use_vk_by_default());
-    let use_vk = data
-        .get_temp(use_vk_id)
-        .unwrap_or(keybind_set.use_vk_by_default());
+    let use_vk_id = unique_id!().with(S::USE_VK_BY_DEFAULT);
+    let use_vk = data.get_temp(use_vk_id).unwrap_or(S::USE_VK_BY_DEFAULT);
 
     *popup_state_mut(&mut data) = State {
         callback: Some(Arc::new(move |app, new_key_combo| {
