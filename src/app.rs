@@ -280,6 +280,10 @@ impl App {
         }
     }
 
+    pub(crate) fn modifiers(&self) -> ModifiersState {
+        self.modifiers
+    }
+
     pub(crate) fn frame(&mut self, delta: Duration) {
         self.wants_repaint |= self.puzzle.advance(delta);
     }

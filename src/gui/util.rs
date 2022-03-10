@@ -78,7 +78,7 @@ impl ResponseExt for egui::Response {
                 egui::Layout::top_down(egui::Align::Min),
                 |ui| {
                     if !strong_text.is_empty() {
-                        ui.label(egui::RichText::new(strong_text).strong());
+                        ui.strong(strong_text);
                     }
                     if !detailed_message.is_empty() {
                         ui.label(detailed_message);

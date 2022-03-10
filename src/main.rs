@@ -91,9 +91,6 @@ fn main() {
 
             // Handle window events.
             Event::WindowEvent { event, .. } => {
-                // Let the keybind popup handle events.
-                // todo!("let keybind popup handle events");
-                let consumed = egui.on_event(&event);
                 match &event {
                     WindowEvent::ThemeChanged(theme) => egui.egui_ctx.set_visuals(match theme {
                         winit::window::Theme::Light => egui::Visuals::light(),
@@ -101,9 +98,12 @@ fn main() {
                     }),
                     _ => (),
                 }
+
+                // Let the keybind popup and egui handle events.
+                let consumed = gui::key_combo_popup_handle_event(&egui.egui_ctx, &mut app, &event)
+                    || egui.on_event(&event);
                 if !consumed {
                     app.handle_window_event(&event);
-                    // todo!("handle event for application")
                 }
             }
 

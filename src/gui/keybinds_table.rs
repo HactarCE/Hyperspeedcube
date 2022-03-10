@@ -8,12 +8,6 @@ use crate::gui::util::BasicComboBox;
 use crate::preferences::Keybind;
 use crate::puzzle::{LayerMask, PieceType, PuzzleType, PuzzleTypeTrait, TwistDirection};
 
-macro_rules! unique_id {
-    ($($args:tt)*) => {
-        (std::file!(), std::line!(), std::column!(), $($args)*)
-    };
-}
-
 #[derive(Debug, Copy, Clone)]
 struct DragData {
     from: usize,
@@ -23,35 +17,46 @@ struct DragData {
 const SQUARE_BUTTON_SIZE: egui::Vec2 = egui::vec2(24.0, 24.0);
 const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
 
-pub(super) fn keybinds_window_id(title: &str) -> egui::Id {
-    egui::Id::new(unique_id!()).with(title)
+pub(super) fn window_id(title: &str) -> egui::Id {
+    unique_id!().with(title)
 }
 
+/// Builds a keybinds configuration window and returns the index of the key
+/// combo that the user wants to edit, if any.
 pub(super) fn build<T, C>(
     ctx: &egui::Context,
     title: &str,
     keybinds: &mut Vec<Keybind<T>>,
     keybinds_context: C,
     needs_save: &mut bool,
-) where
+) -> Option<usize>
+where
     for<'a> KeybindsTable<'a, T, C>: egui::Widget,
 {
-    let id = keybinds_window_id(title);
+    let id = window_id(title);
     let mut open = ctx.data().get_persisted(id).unwrap_or(false);
+    let mut edit_key_combo_index = None;
     egui::Window::new(title).open(&mut open).show(ctx, |ui| {
         *needs_save |= ui
             .add(KeybindsTable {
                 keybinds,
                 context: keybinds_context,
+                edit_index: &mut edit_key_combo_index,
             })
             .changed();
     });
     ctx.data().insert_persisted(id, open);
+    edit_key_combo_index
 }
 
 pub(super) struct KeybindsTable<'a, T, C = ()> {
-    pub keybinds: &'a mut Vec<Keybind<T>>,
-    pub context: C,
+    /// List of keybinds.
+    keybinds: &'a mut Vec<Keybind<T>>,
+    /// Context that depends on the command type (e.g., `PuzzleCommand` requires
+    /// `PuzzleType` for context).
+    context: C,
+    /// Index of the key combo that the user wants to change, if any.
+    edit_index: &'a mut Option<usize>,
 }
 impl<T, C> egui::Widget for KeybindsTable<'_, T, C>
 where
@@ -64,6 +69,7 @@ where
 
         let mut r = ui.scope(|ui| {
             ui.horizontal(|ui| {
+                // Placeholder for resize handle
                 ui.allocate_exact_size(SQUARE_BUTTON_SIZE, egui::Sense::hover());
 
                 let r = ui
@@ -77,12 +83,10 @@ where
                 ui.allocate_ui_with_layout(
                     KEY_BUTTON_SIZE,
                     egui::Layout::centered_and_justified(egui::Direction::TopDown),
-                    |ui| {
-                        ui.label(egui::RichText::new("Keybind").strong());
-                    },
+                    |ui| ui.strong("Keybind"),
                 );
 
-                ui.label(egui::RichText::new("Command").strong());
+                ui.strong("Command");
             });
 
             ui.separator();
@@ -130,11 +134,11 @@ where
                             delete_idx = Some(i);
                         }
 
-                        if ui
-                            .add_sized(KEY_BUTTON_SIZE, egui::Button::new(keybind.key.to_string()))
-                            .clicked()
-                        {
-                            println!("TODO keybind popup");
+                        let r = ui
+                            .add_sized(KEY_BUTTON_SIZE, egui::Button::new(keybind.key.to_string()));
+                        if r.clicked() {
+                            // Open a popup for this keybind.
+                            *self.edit_index = Some(i);
                         }
 
                         let r = ui.add(CommandSelectWidget {
