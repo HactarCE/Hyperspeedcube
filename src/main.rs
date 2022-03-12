@@ -1,5 +1,6 @@
 //! A keyboard-controlled speedcube simulator.
 
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(dead_code)]
 // #![warn(missing_docs)]
 #![allow(
