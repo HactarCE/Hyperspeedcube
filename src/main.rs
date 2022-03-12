@@ -130,21 +130,35 @@ fn main() {
                 egui::CentralPanel::default()
                     .frame(egui::Frame::none())
                     .show(ctx, |ui| {
-                        ui.set_min_size(egui::vec2(10.0, 10.0)); // TODO: not working
+                        let dpi = ui.ctx().pixels_per_point();
 
-                        let img_size = ui.available_size_before_wrap();
-                        let new_puzzle_texture_size = (
-                            (img_size.x * ui.ctx().pixels_per_point()) as u32,
-                            (img_size.y * ui.ctx().pixels_per_point()) as u32,
-                        );
+                        // Round rectangle to pixel boundary for crisp image.
+                        let mut pixels_rect = ui.available_rect_before_wrap();
+                        pixels_rect.set_left((dpi * pixels_rect.left()).floor());
+                        pixels_rect.set_bottom((dpi * pixels_rect.bottom()).floor());
+                        pixels_rect.set_right((dpi * pixels_rect.right()).ceil());
+                        pixels_rect.set_top((dpi * pixels_rect.top()).ceil());
+
+                        let new_puzzle_texture_size =
+                            (pixels_rect.width() as u32, pixels_rect.height() as u32);
                         if puzzle_texture_size != new_puzzle_texture_size {
                             puzzle_texture_size = new_puzzle_texture_size;
                             app.wants_repaint = true;
                         }
+
+                        // Convert back from pixel coordinates to egui
+                        // coordinates.
+                        let mut egui_rect = pixels_rect;
+                        *egui_rect.left_mut() /= dpi;
+                        *egui_rect.bottom_mut() /= dpi;
+                        *egui_rect.right_mut() /= dpi;
+                        *egui_rect.top_mut() /= dpi;
+
                         // egui uses the top left as (0, 0), but OpenGL uses the
-                        // bottom left, so we have to invert the coordinates.
-                        ui.add(
-                            egui::Image::new(puzzle_texture_id, img_size).uv(egui::Rect {
+                        // bottom left, so we have to invert the Y axis.
+                        ui.put(
+                            egui_rect,
+                            egui::Image::new(puzzle_texture_id, egui_rect.size()).uv(egui::Rect {
                                 min: egui::Pos2 { x: 0.0, y: 1.0 },
                                 max: egui::Pos2 { x: 1.0, y: 0.0 },
                             }),
