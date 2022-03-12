@@ -81,12 +81,9 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             }
 
             #[cfg(debug_assertions)]
-            {
-                if ui.button("Debug").clicked() {
-                    ui.close_menu();
-                    super::Window::Debug.toggle(ui.ctx());
-                }
-                ui.separator();
+            if ui.button("Debug").clicked() {
+                ui.close_menu();
+                super::Window::Debug.toggle(ui.ctx());
             }
         });
     });
