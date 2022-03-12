@@ -1,7 +1,7 @@
-use glium::framebuffer::SimpleFrameBuffer;
+use glium::framebuffer::{DepthRenderBuffer, RenderBuffer, SimpleFrameBuffer};
 use glium::index::{Index, IndexBuffer, IndexBufferSlice, PrimitiveType};
 use glium::texture::{
-    DepthTexture2dMultisample, MipmapsOption, SrgbFormat, SrgbTexture2d, SrgbTexture2dMultisample,
+    DepthFormat, MipmapsOption, SrgbFormat, SrgbTexture2d, UncompressedFloatFormat,
 };
 use glium::vertex::{Vertex, VertexBuffer, VertexBufferSlice};
 use glium_glyph::glyph_brush::rusttype::Font;
@@ -40,7 +40,6 @@ impl Default for PuzzleRenderCache {
     }
 }
 
-#[derive(Debug)]
 pub(super) struct CachedVbo<T: Vertex>(Option<VertexBuffer<T>>);
 impl<T: Vertex> CachedVbo<T> {
     fn new() -> Self {
@@ -61,7 +60,6 @@ impl<T: Vertex> CachedVbo<T> {
     }
 }
 
-#[derive(Debug)]
 pub(super) struct CachedIbo<T: Index> {
     prim: PrimitiveType,
     ibo: Option<IndexBuffer<T>>,
@@ -85,7 +83,6 @@ impl<T: Index> CachedIbo<T> {
     }
 }
 
-#[derive(Debug)]
 pub(super) struct CachedSrgbTexture2d(Option<Rc<SrgbTexture2d>>);
 impl CachedSrgbTexture2d {
     fn new() -> Self {
@@ -126,63 +123,45 @@ impl CachedSrgbTexture2d {
     }
 }
 
-#[derive(Debug)]
 pub(super) struct CachedMsaaRenderBuffer {
-    color_texture: Option<Rc<SrgbTexture2dMultisample>>,
-    depth_texture: Option<DepthTexture2dMultisample>,
+    color: Option<RenderBuffer>,
+    depth: Option<DepthRenderBuffer>,
 }
 impl CachedMsaaRenderBuffer {
     fn new() -> Self {
         Self {
-            color_texture: None,
-            depth_texture: None,
+            color: None,
+            depth: None,
         }
     }
 
-    pub(super) fn get(
-        &mut self,
-        width: u32,
-        height: u32,
-        samples: u32,
-    ) -> (SimpleFrameBuffer<'_>, Rc<SrgbTexture2dMultisample>) {
+    pub(super) fn get(&mut self, width: u32, height: u32, samples: u32) -> SimpleFrameBuffer<'_> {
         // Invalidate the textures if the size or sample count has changed.
-        if let Some(tex) = &self.color_texture {
-            if tex.width() != width || tex.height() != height || tex.samples() != samples {
-                self.color_texture = None;
-                self.depth_texture = None;
+        if let Some(buf) = &self.color {
+            if buf.get_dimensions() != (width, height) || buf.get_samples() != Some(samples) {
+                self.color = None;
+                self.depth = None;
             }
         }
 
-        let color = self.color_texture.get_or_insert_with(|| {
-            Rc::new(
-                SrgbTexture2dMultisample::empty_with_format(
-                    &**DISPLAY,
-                    SrgbFormat::U8U8U8,
-                    MipmapsOption::NoMipmap,
-                    width,
-                    height,
-                    samples,
-                )
-                .expect("failed to create color texture"),
-            )
-        });
-        let depth = self.depth_texture.get_or_insert_with(|| {
-            DepthTexture2dMultisample::empty_with_format(
+        let color = self.color.get_or_insert_with(|| {
+            RenderBuffer::new_multisample(
                 &**DISPLAY,
-                glium::texture::DepthFormat::F32,
-                MipmapsOption::NoMipmap,
+                UncompressedFloatFormat::U8U8U8,
                 width,
                 height,
                 samples,
             )
-            .expect("failed to create depth texture")
+            .expect("failed to create color render buffer")
+        });
+        let depth = self.depth.get_or_insert_with(|| {
+            DepthRenderBuffer::new_multisample(&**DISPLAY, DepthFormat::F32, width, height, samples)
+                .expect("failed to create depth render buffer")
         });
 
         // Don't worry! glium caches the FBO so we aren't *really* recreating
         // the FBO every frame.
-        let fbo = SimpleFrameBuffer::with_depth_buffer(&**DISPLAY, &**color, &*depth)
-            .expect("failed to create frame buffer");
-
-        (fbo, Rc::clone(color))
+        SimpleFrameBuffer::with_depth_buffer(&**DISPLAY, &*color, &*depth)
+            .expect("failed to create frame buffer")
     }
 }

@@ -36,7 +36,7 @@ pub fn draw_puzzle(
 
     let [r, g, b] = prefs.colors.background;
 
-    let (mut target, _target_texture) = cache.target.get(width, height, app.prefs.gfx.msaa as u32);
+    let mut target = cache.target.get(width, height, app.prefs.gfx.msaa as u32);
     target.clear_color_srgb_and_depth((r, g, b, 1.0), 1.0);
 
     // Compute the model transform, which must be applied here on the CPU so
