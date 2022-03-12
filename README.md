@@ -1,11 +1,21 @@
 <img src="https://raw.githubusercontent.com/HactarCE/Hyperspeedcube/main/resources/icon/hyperspeedcube.svg?sanitize=true" alt="Hyperspeedcube logo" width="150" align="right">
 
-# Hyperspeedcube
+# Hyperspeedcube [![Release badge]][Release link]
+
+[Dependencies badge]: https://deps.rs/repo/github/HactarCE/Hyperspeedcube/status.svg "Dependencies status"
+[Release badge]: https://img.shields.io/github/v/release/HactarCE/Hyperspeedcube
+[Release link]: https://github.com/HactarCE/Hyperspeedcube/releases/latest
 
 Keyboard-controlled twisty puzzle simulator, with support for the following puzzles:
 
 - 3x3x3 (standard Rubik's cube)
 - 3x3x3x3 (4D "Rubik's hypercube")
+
+## Downloads
+
+Download the **[latest release][Release link]**.
+
+To build Hyperspeedcube yourself, see [BUILDING.md](BUILDING.md).
 
 ## Screenshots
 
