@@ -38,6 +38,9 @@ thiserror = "1.0"
 time = { version = "0.3.7", features = ["local-offset"] }
 winit = { version = "*", features = ["serde"] }
 
+[patch.crates-io]
+glium = { git = "https://github.com/glium/glium", rev = "4634642" }
+
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
 
@@ -51,6 +54,3 @@ LegalCopyright = "Copyright © 2022 HactarCE"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
 tracing-wasm = "0.2"
-
-[patch.crates-io]
-glium = { git = "https://github.com/HactarCE/glium" }

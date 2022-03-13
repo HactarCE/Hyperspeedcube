@@ -1216,7 +1216,7 @@ dependencies = [
 [[package]]
 name = "glium"
 version = "0.31.0"
-source = "git+https://github.com/HactarCE/glium#1b022e084b0fec100f2283fd78068848d13b4d94"
+source = "git+https://github.com/glium/glium?rev=4634642#4634642843769ba0c464c670e3571b4f22ad520b"
 dependencies = [
  "backtrace",
  "fnv",
