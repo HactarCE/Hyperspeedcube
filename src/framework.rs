@@ -3,9 +3,8 @@ use send_wrapper::SendWrapper;
 use std::cell::RefCell;
 use winit::window::Icon;
 
-use crate::preferences::Preferences;
 
-pub(crate) fn init<T>(prefs: &Preferences) -> EventLoop<T> {
+pub(crate) fn init<T>() -> EventLoop<T> {
     use glium::glutin::window::WindowBuilder;
     use glium::glutin::ContextBuilder;
 
@@ -14,7 +13,7 @@ pub(crate) fn init<T>(prefs: &Preferences) -> EventLoop<T> {
         .with_window_icon(load_application_icon());
     let cb = ContextBuilder::new()
         .with_vsync(false)
-        .with_multisampling(prefs.gfx.msaa as u16);
+        .with_multisampling(0);
 
     let event_loop = EventLoop::with_user_event();
 

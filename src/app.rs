@@ -32,9 +32,9 @@ pub struct App {
     status_msg: String,
 }
 impl App {
-    pub(crate) fn new(prefs: Preferences, event_loop: &EventLoop<AppEvent>) -> Self {
+    pub(crate) fn new(event_loop: &EventLoop<AppEvent>) -> Self {
         let mut this = Self {
-            prefs,
+            prefs: Preferences::load(None),
 
             events: event_loop.create_proxy(),
 

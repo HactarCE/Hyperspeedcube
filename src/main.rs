@@ -37,15 +37,13 @@ mod serde_impl;
 
 use app::App;
 use framework::DISPLAY;
-use preferences::Preferences;
 
 const TITLE: &str = "Hyperspeedcube";
 const ICON_32: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
 
 fn main() {
-    let prefs = Preferences::load(None);
-
-    let event_loop = framework::init(&prefs);
+    // Initialize window.
+    let event_loop = framework::init();
 
     // Initialize egui.
     let mut egui = egui_glium::EguiGlium::new(&DISPLAY);
@@ -55,7 +53,7 @@ fn main() {
     });
 
     // Initialize app state.
-    let mut app = App::new(prefs, &event_loop);
+    let mut app = App::new(&event_loop);
 
     // Set up texture for rendering puzzle.
     let puzzle_texture_id = egui
