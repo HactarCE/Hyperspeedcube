@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumMessage};
 
+/// Convention for counting moves.
 #[derive(
     Serialize, Deserialize, Debug, Display, EnumIter, EnumMessage, Copy, Clone, PartialEq, Eq, Hash,
 )]
@@ -48,6 +49,7 @@ impl Default for TwistMetric {
     }
 }
 impl TwistMetric {
+    /// Returns the next twist metric in a cycle.
     pub fn next(self) -> Self {
         match self {
             Self::Qstm => Self::Ftm,

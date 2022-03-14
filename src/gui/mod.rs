@@ -93,12 +93,6 @@ impl Window {
     fn id(self) -> egui::Id {
         egui::Id::new("hyperspeedcube::window_states").with(self)
     }
-    fn open(self, ctx: &egui::Context) {
-        self.set_open(ctx, true);
-    }
-    fn close(self, ctx: &egui::Context) {
-        self.set_open(ctx, false);
-    }
     fn toggle(self, ctx: &egui::Context) {
         *ctx.data().get_persisted_mut_or_default::<bool>(self.id()) ^= true;
     }

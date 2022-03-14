@@ -359,10 +359,14 @@ pub enum FacetType {
     Face,
 }
 
+/// Selection of faces, layers, and piece types.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Selection {
+    /// Bitmask of selected faces.
     pub face_mask: u32,
+    /// Bitmask of selected layers.
     pub layer_mask: u32,
+    /// Bitmask of selected piece types.
     pub piece_type_mask: u32,
 }
 impl Default for Selection {
@@ -393,6 +397,8 @@ impl std::ops::BitXorAssign for Selection {
     }
 }
 impl Selection {
+    /// Returns the face selected if exactly one face is selected; otherwise
+    /// returns `None`.
     pub fn exactly_one_face(&self, puzzle_type: PuzzleType) -> Option<Face> {
         if self.face_mask.count_ones() == 1 {
             let face_id = self.face_mask.trailing_zeros() as usize; // index of first `1` bit
@@ -401,6 +407,8 @@ impl Selection {
             None
         }
     }
+    /// Returns the layer mask if any layers are selected, or a default layer
+    /// mask (generally just one layer) otherwise.
     pub fn layer_mask_or_default(self, default: LayerMask) -> LayerMask {
         if self.layer_mask != 0 {
             LayerMask(self.layer_mask)
@@ -409,6 +417,7 @@ impl Selection {
         }
     }
 
+    /// Returns whether the selection includes a particular sticker.
     pub fn has_sticker(self, sticker: Sticker) -> bool {
         let puzzle_type = sticker.ty();
         let piece = sticker.piece();

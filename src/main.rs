@@ -1,8 +1,7 @@
 //! A keyboard-controlled speedcube simulator.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![allow(dead_code)]
-// #![warn(missing_docs)]
+#![warn(missing_docs)]
 #![allow(
     clippy::collapsible_match,
     clippy::match_like_matches_macro,

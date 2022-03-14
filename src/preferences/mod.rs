@@ -11,7 +11,7 @@ use std::error::Error;
 use std::fmt;
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use std::sync::{mpsc, Mutex, MutexGuard, TryLockError};
+use std::sync::{mpsc, Mutex};
 use std::time::Duration;
 
 mod colors;
@@ -22,12 +22,17 @@ use crate::commands::{Command, PuzzleCommand};
 use crate::puzzle::PuzzleType;
 pub use colors::ColorPreferences;
 pub use info::InfoPreferences;
-pub use keybinds::{GeneralKeybind, Key, KeyCombo, Keybind, PuzzleKeybind};
+pub use keybinds::{Key, KeyCombo, Keybind};
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
 const PREFS_FILE_EXTENSION: &str = "yaml";
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
+
+lazy_static! {
+    pub static ref DEFAULT_PREFS: Preferences =
+        serde_yaml::from_str(DEFAULT_PREFS_STR).unwrap_or_default();
+}
 
 // File paths
 lazy_static! {
@@ -67,13 +72,6 @@ lazy_static! {
 
 }
 
-// Preferences
-lazy_static! {
-    static ref PREFERENCES: Mutex<Preferences> = Mutex::new(Preferences::load(None));
-    pub static ref DEFAULT_PREFS: Preferences =
-        serde_yaml::from_str(DEFAULT_PREFS_STR).unwrap_or_default();
-}
-
 lazy_static! {
     static ref RX: Mutex<mpsc::Receiver<DebouncedEvent>> = {
         let (tx, rx) = mpsc::channel();
@@ -101,33 +99,6 @@ fn unwatch_during<T>(f: impl FnOnce() -> T) -> T {
         }
     }
     f()
-}
-
-pub(crate) fn get_prefs<'a>() -> MutexGuard<'a, Preferences> {
-    match PREFERENCES.try_lock() {
-        Ok(mut prefs) => {
-            let rx = RX.lock().unwrap();
-            while let Ok(event) = rx.try_recv() {
-                match event {
-                    DebouncedEvent::Create(path)
-                    | DebouncedEvent::Write(path)
-                    | DebouncedEvent::Rename(_, path) => {
-                        if let Ok(prefs_path) = &*PREFS_FILE_PATH {
-                            if path == *prefs_path {
-                                eprintln!("Reloading preferences from file");
-                                *prefs = Preferences::load(Some(&*prefs));
-                            }
-                        }
-                    }
-                    _ => (),
-                }
-            }
-
-            prefs
-        }
-        Err(TryLockError::Poisoned(e)) => panic!("preferences mutex poisoned: {}", e),
-        Err(TryLockError::WouldBlock) => panic!("preferences mutex double-locked"),
-    }
 }
 
 #[derive(Display, Debug, Copy, Clone, PartialEq, Eq)]

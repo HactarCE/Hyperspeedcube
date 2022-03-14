@@ -392,6 +392,7 @@ impl Sticker {
 ///
 /// Order is only guaranteed for stickers with 3 adjacent faces.
 #[derive(Debug, Copy, Clone)]
+#[allow(unused)]
 enum StickerAdjFaces {
     _0 { centered: [Axis; 3] },
     _1 { adjacent: Face, centered: [Axis; 2] },
@@ -893,15 +894,6 @@ impl Orientation {
     #[must_use]
     pub fn rot120(face1: Face, face2: Face, face3: Face) -> Self {
         Self::rot90_faces(face1, face2) * Self::rot90_faces(face2, face3)
-    }
-
-    /// Negates all axes.
-    #[must_use]
-    fn invert(mut self) -> Self {
-        for axis in Axis::iter() {
-            self[axis] = -self[axis];
-        }
-        self
     }
 }
 
