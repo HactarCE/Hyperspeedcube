@@ -48,8 +48,6 @@ colors:
   blind_face: "#000000"
   background: "#666666"
   outline: "#000000"
-  label_fg: "#000000"
-  label_bg: "#000000"
 general_keybinds:
   - vk: O
     ctrl: true
