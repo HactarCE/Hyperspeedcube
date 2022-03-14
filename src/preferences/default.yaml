@@ -4,6 +4,8 @@ gfx:
   font_size: 16.0
   msaa: "8"
   label_size: 24.0
+info:
+  metric: QSTM
 view:
   Rubiks3D:
     pitch: 35.0
