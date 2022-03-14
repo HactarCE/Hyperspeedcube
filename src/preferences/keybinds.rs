@@ -4,11 +4,8 @@ use std::fmt;
 use winit::event::{ModifiersState, VirtualKeyCode};
 
 use super::{is_false, DeserializePerPuzzle};
-use crate::commands::{Command, PuzzleCommand, PuzzleCommandSerde};
+use crate::commands::{PuzzleCommand, PuzzleCommandSerde};
 use crate::puzzle::PuzzleType;
-
-pub type PuzzleKeybind = Keybind<PuzzleCommand>;
-pub type GeneralKeybind = Keybind<Command>;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct Keybind<C> {

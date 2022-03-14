@@ -14,17 +14,6 @@ impl<'a, T: IntoEnumIterator> BasicComboBox<'a, T> {
     pub(super) fn new_enum(id_source: impl Hash, selected: &'a mut T) -> Self {
         Self::new(id_source, selected, T::iter().collect_vec())
     }
-    pub(super) fn new_enum_with_label(
-        id_source: impl Hash,
-        label: impl Into<egui::WidgetText>,
-        selected: &'a mut T,
-    ) -> Self {
-        Self {
-            combo_box: egui::ComboBox::new(id_source, label),
-            selected,
-            options: T::iter().collect(),
-        }
-    }
 }
 impl<'a, T> BasicComboBox<'a, T> {
     pub(super) fn new(
