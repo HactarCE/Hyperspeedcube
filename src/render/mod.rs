@@ -1,14 +1,10 @@
 //! Rendering logic.
 
 use cgmath::{Deg, Matrix3, Matrix4};
-use egui::{Color32, Rgba};
+use egui::Rgba;
 use glium::texture::SrgbTexture2d;
 use glium::uniforms::MagnifySamplerFilter;
 use glium::{BackfaceCullingMode, BlitTarget, DrawParameters, Surface};
-// use glium_glyph::glyph_brush::{
-//     rusttype, BuiltInLineBreaker, HorizontalAlign, Layout, SectionText, VariedSection,
-//     VerticalAlign,
-// };
 use std::rc::Rc;
 
 pub mod cache;
@@ -18,7 +14,6 @@ mod verts;
 use crate::app::App;
 use crate::puzzle::traits::*;
 pub use cache::PuzzleRenderCache;
-// use cache::FONT;
 pub use verts::WireframeVertex;
 
 const CLIPPING_RADIUS: f32 = 2.0;
@@ -56,6 +51,12 @@ pub fn draw_puzzle(
         let zw = (fov.to_radians() / 2.0).tan(); // `tan(fov/2)` is the factor of how much the Z coordinate affects the XY coordinates.
         let ww = 1.0 + fov.signum() * zw;
 
+        // We've already normalize all puzzle coordinates, so the near and far
+        // planes are z=-1 and z=+1 respectively. This makes constructing the
+        // perspective transformation matrix relatively easy.
+        //
+        // NOTE: This call constructs a matrix from **columns**, so it appears
+        // transposed in code.
         Matrix4::from_cols(
             cgmath::vec4(xx, 0.0, 0.0, 0.0),
             cgmath::vec4(0.0, yy, 0.0, 0.0),
@@ -120,18 +121,6 @@ pub fn draw_puzzle(
         stickers_vbo.write(&verts);
     }
 
-    let draw_params = DrawParameters {
-        blend: glium::Blend::alpha_blending(),
-        smooth: Some(glium::Smooth::Nicest),
-        depth: glium::Depth {
-            test: glium::DepthTest::IfLessOrEqual,
-            write: true,
-            ..glium::Depth::default()
-        },
-        backface_culling: BackfaceCullingMode::CullClockwise,
-        ..DrawParameters::default()
-    };
-
     /*
      * Draw puzzle geometry.
      */
@@ -145,86 +134,23 @@ pub fn draw_puzzle(
                 transform: perspective_transform_matrix,
                 wire_width: view_prefs.outline_thickness * pixels_per_point,
             },
-            &draw_params,
+            &DrawParameters {
+                blend: glium::Blend::alpha_blending(),
+                smooth: Some(glium::Smooth::Nicest),
+                depth: glium::Depth {
+                    test: glium::DepthTest::IfLessOrEqual,
+                    write: true,
+                    ..glium::Depth::default()
+                },
+                backface_culling: BackfaceCullingMode::CullClockwise,
+                ..DrawParameters::default()
+            },
         )
         .expect("draw error");
 
     /*
-     * Draw text labels.
+     * Blit to non-multisampled buffer.
      */
-    // if !puzzle.labels.is_empty() {
-    //     let scale = rusttype::Scale::uniform(prefs.gfx.label_size);
-
-    //     let mut backdrop_verts = vec![];
-
-    //     let post_transform =
-    //         Matrix4::from_nonuniform_scale(2.0 / width as f32, 2.0 / height as f32, 1.0);
-    //     let pre_transform = post_transform.inverse_transform().unwrap() * perspective_transform;
-
-    //     for (facet, text) in &puzzle.labels {
-    //         // let screen_position
-
-    //         let mut text_center = pre_transform * facet.projection_center(geo_params).extend(1.0);
-    //         text_center /= text_center.w;
-    //         text_center.z = -1.0;
-
-    //         // Queue backdrop.
-    //         let (w, h) = label_size(text, scale);
-    //         for (dx, dy) in [
-    //             (-0.5, -0.5),
-    //             (0.5, -0.5),
-    //             (-0.5, 0.5),
-    //             (0.5, 0.5),
-    //             (-0.5, 0.5),
-    //             (0.5, -0.5),
-    //         ] {
-    //             let pos = text_center + cgmath::vec4(dx * w, dy * h, 0.0, 0.0);
-    //             backdrop_verts.push(RgbaVertex {
-    //                 pos: (post_transform * pos).into(),
-    //                 color: prefs.colors.label_bg,
-    //             });
-    //         }
-
-    //         // Queue text.
-    //         cache.glyph_brush.queue(VariedSection {
-    //             screen_position: (text_center.x, -text_center.y),
-    //             // bounds: todo!(),
-    //             z: text_center.z,
-    //             layout: Layout::SingleLine {
-    //                 line_breaker: BuiltInLineBreaker::default(),
-    //                 h_align: HorizontalAlign::Center,
-    //                 v_align: VerticalAlign::Center,
-    //             },
-    //             text: vec![SectionText {
-    //                 text,
-    //                 scale,
-    //                 color: prefs.colors.label_fg,
-    //                 ..Default::default()
-    //             }],
-    //             ..Default::default()
-    //         });
-    //     }
-
-    //     // Draw backdrops.
-    //     let backdrop_vbo = cache.label_backdrops_vbo.slice(backdrop_verts.len());
-    //     backdrop_vbo.write(&backdrop_verts);
-    //     target
-    //         .draw(
-    //             backdrop_vbo,
-    //             glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-    //             &shaders::BASIC,
-    //             &uniform! {},
-    //             &draw_params,
-    //         )
-    //         .expect("draw error");
-
-    //     // Draw text.
-    //     cache
-    //         .glyph_brush
-    //         .draw_queued_with_transform(post_transform.into(), &**DISPLAY, target);
-    // }
-
-    // Blit to non-multisampled buffer.
     let (out_fbo, out_texture) = cache.out_tex.get(width, height);
     let blit_target = BlitTarget {
         left: 0,
@@ -236,18 +162,3 @@ pub fn draw_puzzle(
 
     out_texture
 }
-
-// fn label_size(text: &str, scale: rusttype::Scale) -> (f32, f32) {
-//     const PADDING: f32 = 16.0; // 16 pixels
-
-//     let layout = FONT.layout(text, scale, rusttype::Point::default());
-//     let bounding_boxes = layout.filter_map(|g| g.pixel_bounding_box());
-//     let min_x = bounding_boxes.clone().map(|b| b.min.x).min().unwrap_or(0);
-//     let min_y = bounding_boxes.clone().map(|b| b.min.y).max().unwrap_or(0);
-//     let max_x = bounding_boxes.clone().map(|b| b.max.x).min().unwrap_or(0);
-//     let max_y = bounding_boxes.clone().map(|b| b.max.y).max().unwrap_or(0);
-//     (
-//         (max_x - min_x) as f32 + PADDING,
-//         (max_y - min_y) as f32 + PADDING,
-//     )
-// }
