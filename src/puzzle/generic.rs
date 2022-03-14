@@ -31,11 +31,10 @@ impl PuzzleTypeTrait for Puzzle {
             fn stickers(&self) -> &'static [Sticker];
             fn faces(&self) -> &'static [Face];
 
+            fn face_symbols(&self) -> &'static [&'static str];
             fn face_names(&self) -> &'static [&'static str];
             fn piece_type_names(&self) -> &'static [&'static str];
             fn twist_direction_names(&self) -> &'static [&'static str];
-            fn default_face_colors(&self) -> &'static [[f32; 3]];
-
         }
     }
 }

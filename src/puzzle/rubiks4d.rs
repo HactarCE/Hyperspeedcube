@@ -129,18 +129,6 @@ impl PuzzleState for Rubiks4D {
     fn face_names() -> &'static [&'static str] {
         &["In", "Back", "Down", "Left", "Right", "Up", "Front", "Out"]
     }
-    fn default_face_colors() -> &'static [[f32; 3]] {
-        &[
-            crate::colors::PURPLE, // In
-            crate::colors::YELLOW, // Back
-            crate::colors::GREEN,  // Down
-            crate::colors::ORANGE, // Left
-            crate::colors::RED,    // Right
-            crate::colors::BLUE,   // Up
-            crate::colors::WHITE,  // Front
-            crate::colors::PINK,   // Out
-        ]
-    }
 
     fn twist_direction_names() -> &'static [&'static str] {
         &["x", "x'", "y", "y'", "z", "z'"]

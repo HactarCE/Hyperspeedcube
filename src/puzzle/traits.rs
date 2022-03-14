@@ -125,26 +125,24 @@ pub trait PuzzleState:
     /// (i.e. corresponding to its color).
     fn get_sticker_color(&self, pos: Self::Sticker) -> Self::Face;
 
-    /// Returns a list of pieces in the puzzle.
+    /// Returns a list of all pieces in the puzzle.
     fn pieces() -> &'static [Self::Piece];
-    /// Returns a list of stickers on the puzzle.
+    /// Returns a list of all stickers on the puzzle.
     fn stickers() -> &'static [Self::Sticker];
-    /// Returns a list of faces on the puzzle.
+    /// Returns a list of all faces on the puzzle.
     fn faces() -> &'static [Self::Face];
 
-    /// Returns a list of pieces in the puzzle.
+    /// Returns a list of all pieces in the puzzle.
     fn generic_pieces() -> &'static [Piece];
-    /// Returns a list of stickers in the puzzle.
+    /// Returns a list of all stickers in the puzzle.
     fn generic_stickers() -> &'static [Sticker];
-    /// Returns a list of faces in the puzzle.
+    /// Returns a list of all faces in the puzzle.
     fn generic_faces() -> &'static [Face];
 
-    /// Returns the short name for each face.
+    /// Returns the short names of faces.
     fn face_symbols() -> &'static [&'static str];
-    /// Returns the full name of each face.
+    /// Returns the full names of faces.
     fn face_names() -> &'static [&'static str];
-    /// Returns the default color for each face.
-    fn default_face_colors() -> &'static [[f32; 3]];
 
     /// Returns a list of twist directions, not including the identity twist.
     fn twist_direction_names() -> &'static [&'static str];
@@ -166,14 +164,14 @@ pub trait PuzzleTypeTrait {
     /// Returns a list of all faces in the puzzle.
     fn faces(&self) -> &'static [Face];
 
-    /// Returns the names of faces.
+    /// Returns the short names of faces.
+    fn face_symbols(&self) -> &'static [&'static str];
+    /// Returns the full names of faces.
     fn face_names(&self) -> &'static [&'static str];
     /// Returns the names of piece types.
     fn piece_type_names(&self) -> &'static [&'static str];
     /// Returns the names of twist directions.
     fn twist_direction_names(&self) -> &'static [&'static str];
-    /// Returns the default face colors.
-    fn default_face_colors(&self) -> &'static [[f32; 3]];
 }
 
 /// Common functionality for all facets (stickers, pieces, and faces).

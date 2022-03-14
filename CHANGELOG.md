@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Color format in preferences file
+
 ## [0.3.1] - 2022-03-12
 
 ### Fixed

@@ -95,26 +95,26 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         "Background",
         "{:?}",
         (prefs.colors.background),
-        |value| |ui: &mut egui::Ui| ui.color_edit_button_rgb(value),
+        |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
     changed |= r.changed();
     let r = ui.add(resettable!(
         "Outline",
         "{:?}",
         (prefs.colors.outline),
-        |value| |ui: &mut egui::Ui| ui.color_edit_button_rgb(value),
+        |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
     changed |= r.changed();
 
     ui.separator();
 
     // Sticker colors
-    for (i, &face_name) in puzzle_type.face_names().iter().enumerate() {
+    for &face in puzzle_type.faces() {
         let r = ui.add(resettable!(
-            face_name,
+            face.name(),
             "{:?}",
-            (prefs.colors.faces[puzzle_type].0[i]),
-            |value| |ui: &mut egui::Ui| ui.color_edit_button_rgb(value),
+            (prefs.colors[face]),
+            |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
         ));
         changed |= r.changed();
     }

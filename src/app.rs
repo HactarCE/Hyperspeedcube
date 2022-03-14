@@ -20,7 +20,6 @@ pub struct App {
 
     pub(crate) puzzle: Puzzle,
     pub(crate) render_cache: PuzzleRenderCache,
-    pub(crate) puzzle_texture_size: (u32, u32),
     pub(crate) wants_repaint: bool,
 
     /// Set of pressed modifier keys.
@@ -41,7 +40,6 @@ impl App {
 
             puzzle: Puzzle::default(),
             render_cache: PuzzleRenderCache::default(),
-            puzzle_texture_size: (1, 1),
             wants_repaint: true,
 
             modifiers: ModifiersState::default(),
@@ -240,9 +238,10 @@ impl App {
                             }
 
                             PuzzleCommand::HoldSelect(thing) => {
-                                self.held_selections
-                                    .insert(bind.key.key().unwrap(), Selection::from(*thing));
-                                self.wants_repaint = true;
+                                let sel = Selection::from(*thing);
+                                let old_sel =
+                                    self.held_selections.insert(bind.key.key().unwrap(), sel);
+                                self.wants_repaint = old_sel != Some(sel);
                             }
                             PuzzleCommand::ToggleSelect(thing) => {
                                 self.toggle_selections ^= Selection::from(*thing);
@@ -251,6 +250,7 @@ impl App {
                             PuzzleCommand::ClearToggleSelect(category) => {
                                 let default = Selection::default();
                                 let tog_sel = &mut self.toggle_selections;
+                                let old_tog_sel = *tog_sel;
 
                                 use SelectCategory::*;
                                 match category {
@@ -258,7 +258,7 @@ impl App {
                                     Layers => tog_sel.layer_mask = default.layer_mask,
                                     PieceType => tog_sel.piece_type_mask = default.piece_type_mask,
                                 }
-                                self.wants_repaint = true;
+                                self.wants_repaint |= old_tog_sel != *tog_sel;
                             }
 
                             PuzzleCommand::None => return, // Do not try to match other keybinds.

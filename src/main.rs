@@ -27,7 +27,6 @@ use winit::event_loop::ControlFlow;
 #[macro_use]
 mod debug;
 mod app;
-mod colors;
 mod commands;
 mod framework;
 mod gui;

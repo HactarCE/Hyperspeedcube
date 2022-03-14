@@ -1,6 +1,7 @@
 //! Rendering logic.
 
 use cgmath::{Deg, Matrix3, Matrix4};
+use egui::{Color32, Rgba};
 use glium::texture::SrgbTexture2d;
 use glium::uniforms::MagnifySamplerFilter;
 use glium::{BackfaceCullingMode, BlitTarget, DrawParameters, Surface};
@@ -34,10 +35,9 @@ pub fn draw_puzzle(
     let puzzle_highlight = app.puzzle_selection();
     let cache = &mut app.render_cache;
 
-    let [r, g, b] = prefs.colors.background;
-
     let mut target = cache.target.get(width, height, app.prefs.gfx.msaa as u32);
-    target.clear_color_srgb_and_depth((r, g, b, 1.0), 1.0);
+    let clear_color = Rgba::from(prefs.colors.background).to_tuple();
+    target.clear_color_srgb_and_depth(clear_color, 1.0);
 
     // Compute the model transform, which must be applied here on the CPU so
     // that we can do proper Z ordering.
@@ -74,14 +74,13 @@ pub fn draw_puzzle(
 
         ..GeometryParams::default()
     };
-    geo_params.line_color[..3].copy_from_slice(&prefs.colors.outline);
+    geo_params.line_color = Rgba::from(prefs.colors.outline).to_array();
 
     /*
      * Generate sticker vertices and write them to the VBO.
      */
     let stickers_vbo;
     {
-        let face_colors = &prefs.colors.faces[puzzle.ty()];
         // Each sticker has a `Vec<StickerVertex>` with all of its vertices and
         // a single f32 containing the average Z value.
         let mut verts_by_sticker: Vec<(Vec<WireframeVertex>, f32)> = vec![];
@@ -95,8 +94,8 @@ pub fn draw_puzzle(
                     prefs.colors.hidden_opacity
                 } * prefs.colors.sticker_opacity;
 
-                let sticker_color = face_colors[puzzle.get_sticker_color(sticker).id()];
-                geo_params.fill_color[..3].copy_from_slice(&sticker_color);
+                let sticker_color = prefs.colors[puzzle.get_sticker_color(sticker)];
+                geo_params.fill_color = Rgba::from(sticker_color).to_array();
                 if view_prefs.outline_thickness <= 0.0 {
                     geo_params.line_color = geo_params.fill_color;
                 }

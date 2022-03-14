@@ -112,16 +112,6 @@ impl PuzzleState for Rubiks3D {
     fn face_names() -> &'static [&'static str] {
         &["Back", "Down", "Left", "Right", "Up", "Front"]
     }
-    fn default_face_colors() -> &'static [[f32; 3]] {
-        &[
-            crate::colors::BLUE,   // Back
-            crate::colors::YELLOW, // Down
-            crate::colors::ORANGE, // Left
-            crate::colors::RED,    // Right
-            crate::colors::WHITE,  // Up
-            crate::colors::GREEN,  // Front
-        ]
-    }
 
     fn twist_direction_names() -> &'static [&'static str] {
         &["CW", "CCW"]

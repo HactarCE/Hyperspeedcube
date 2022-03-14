@@ -38,11 +38,7 @@ void main() {
     vec4 wire = vert_wire_color;
     wire.rgb *= vert_wire_color.a;
 
-    color = linear_to_srgb(mix(
-        srgb_to_linear(fill),
-        srgb_to_linear(wire),
-        a
-    ));
+    color = mix(fill, wire, a);
     if (color.a != 0.0) {
       color.rgb /= color.a;
     }

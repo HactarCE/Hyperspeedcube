@@ -200,13 +200,12 @@ impl PuzzleTypeTrait for PuzzleType {
             P::generic_faces()
         }
 
+        fn face_symbols(&self) -> &'static [&'static str];
         fn face_names(&self) -> &'static [&'static str];
         fn piece_type_names(&self) -> &'static [&'static str] {
             P::PIECE_TYPE_NAMES
         }
         fn twist_direction_names(&self) -> &'static [&'static str];
-        fn default_face_colors(&self) -> &'static [[f32; 3]] ;
-
     }
 }
 

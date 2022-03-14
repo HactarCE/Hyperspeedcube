@@ -23,6 +23,7 @@ enum-map = { version = "2.0.1", features = ["serde"] }
 epi = "0.17.0"
 glium = "0.31.0"
 glium-glyph = { git = "https://github.com/est31/glium-glyph", rev = "8cfd2f7" }
+hex = "0.4.3"
 itertools = "0.10.3"
 key-names = { git = "https://github.com/HactarCE/key-names" }
 lazy_static = "1.4.0"
