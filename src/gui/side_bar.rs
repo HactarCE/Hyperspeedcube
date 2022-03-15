@@ -190,7 +190,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         "Pitch",
         "{}°",
         (prefs.view[puzzle_type].pitch),
-        |value| make_degrees_drag_value(value).clamp_range(-180.0..=180.0),
+        |value| make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
     ));
     changed |= r.changed();
     // Yaw
@@ -224,7 +224,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         (prefs.view[puzzle_type].fov_4d),
         |value| {
             make_degrees_drag_value(value)
-                .clamp_range(0.0..=120.0)
+                .clamp_range(1.0..=120.0)
                 .speed(0.5)
         },
     ));
