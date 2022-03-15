@@ -1,6 +1,6 @@
 //! Rendering logic.
 
-use cgmath::{Deg, Matrix3, Matrix4};
+use cgmath::{Deg, Matrix3, Matrix4, Vector3};
 use egui::Rgba;
 use glium::texture::SrgbTexture2d;
 use glium::uniforms::MagnifySamplerFilter;
@@ -77,6 +77,16 @@ pub fn draw_puzzle(
     };
     geo_params.line_color = Rgba::from(prefs.colors.outline).to_array();
 
+    let wire_width = if view_prefs.outline_thickness <= 0.0 {
+        -1.0
+    } else {
+        pixels_per_point * view_prefs.outline_thickness
+    };
+    let light_direction = Matrix3::from_angle_y(Deg(view_prefs.light_yaw))
+        * Matrix3::from_angle_x(Deg(view_prefs.light_pitch))
+        * Vector3::unit_z();
+    let light_direction: [f32; 3] = light_direction.into();
+
     /*
      * Generate sticker vertices and write them to the VBO.
      */
@@ -100,9 +110,6 @@ pub fn draw_puzzle(
                     true => prefs.colors.blind_face,
                 };
                 geo_params.fill_color = Rgba::from(sticker_color).to_array();
-                if view_prefs.outline_thickness <= 0.0 {
-                    geo_params.line_color = geo_params.fill_color;
-                }
                 geo_params.fill_color[3] = alpha;
                 geo_params.line_color[3] = alpha;
 
@@ -135,7 +142,11 @@ pub fn draw_puzzle(
             &glium::uniform! {
                 target_size: [width as f32, height as f32],
                 transform: perspective_transform_matrix,
-                wire_width: view_prefs.outline_thickness * pixels_per_point,
+
+                light_direction: light_direction,
+                min_light: 1.0 - view_prefs.light_intensity,
+
+                wire_width: wire_width,
             },
             &DrawParameters {
                 blend: glium::Blend::alpha_blending(),

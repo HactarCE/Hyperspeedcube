@@ -21,6 +21,10 @@ pub struct ViewPreferences {
     pub sticker_spacing: f32,
 
     pub outline_thickness: f32,
+
+    pub light_intensity: f32,
+    pub light_pitch: f32,
+    pub light_yaw: f32,
 }
 impl Default for ViewPreferences {
     fn default() -> Self {
@@ -36,6 +40,10 @@ impl Default for ViewPreferences {
             sticker_spacing: 0.0,
 
             outline_thickness: 1.0,
+
+            light_intensity: 0.0,
+            light_pitch: 0.0,
+            light_yaw: 0.0,
         }
     }
 }
