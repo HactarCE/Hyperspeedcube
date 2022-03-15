@@ -32,13 +32,9 @@ void main() {
     // know its derivation or where it's even written.
     float a = exp2(-2.0 * d * d);
 
-    // Premultiply alpha.
-    vec4 fill = vert_fill_color;
-    fill.rgb *= vert_fill_color.a;
-    vec4 wire = vert_wire_color;
-    wire.rgb *= vert_wire_color.a;
+    color = mix(vert_fill_color, vert_wire_color, a);
 
-    color = mix(fill, wire, a);
+    // Unpremultiply alpha.
     if (color.a != 0.0) {
       color.rgb /= color.a;
     }

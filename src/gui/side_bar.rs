@@ -282,6 +282,34 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     ));
     changed |= r.changed();
 
+    ui.separator();
+
+    ui.label("Lighting:");
+    // Pitch
+    let r = ui.add(resettable!(
+        "Pitch",
+        "{}°",
+        (prefs.view[puzzle_type].light_pitch),
+        |value| make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
+    ));
+    changed |= r.changed();
+    // Yaw
+    let r = ui.add(resettable!(
+        "Yaw",
+        "{}°",
+        (prefs.view[puzzle_type].light_yaw),
+        |value| make_degrees_drag_value(value).clamp_range(-180.0..=180.0),
+    ));
+    changed |= r.changed();
+    // Intensity
+    let r = ui.add(resettable!(
+        "Intensity",
+        |x| format!("{:.0}%", x * 100.0),
+        (prefs.view[puzzle_type].light_intensity),
+        make_percent_drag_value,
+    ));
+    changed |= r.changed();
+
     prefs.needs_save |= changed;
     app.wants_repaint |= changed;
 }
