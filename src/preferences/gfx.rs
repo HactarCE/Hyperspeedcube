@@ -6,8 +6,6 @@ use std::{fmt, time::Duration};
 pub struct GfxPreferences {
     pub fps: u32,
     pub font_size: f32,
-    #[serde(skip)]
-    pub lock_font_size: bool,
 
     pub msaa: Msaa,
 
@@ -18,7 +16,6 @@ impl Default for GfxPreferences {
         Self {
             fps: 60,
             font_size: 17.0,
-            lock_font_size: false,
 
             msaa: Msaa::_8,
 
