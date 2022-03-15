@@ -27,18 +27,19 @@ The controls for the 3D Rubik's cube are mostly based on [Ryan Heise's speedcube
 
 ## Potential future features
 
-- [ ] Help tooltips everywhere
+- [x] Help tooltips everywhere
 - [x] Status bar:
   - [x] Twist count
   - [ ] Timer
-  - [ ] Blindfold mode
+  - [x] Blindfold mode
   - [ ] How many pieces/stickers solved/permuted/oriented?
   - [ ] Selection description
 - [ ] Dynamic highlighting (e.g., highlight unsolved pieces/stickers)
-- [ ] Optional lighting
+- [x] Optional lighting
 - [ ] Scrambler (random moves)
 - [ ] Keybind hints on puzzle
 - [ ] Keybind hints in menus
 - [ ] Keymap display
 - [ ] Adjust 3D view using mouse
 - [ ] Mouse controls for puzzle
+- [ ] Timeline
