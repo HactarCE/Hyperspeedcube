@@ -1,6 +1,7 @@
 use super::util::{self, ResponseExt};
 use crate::app::App;
 use crate::puzzle::{PuzzleControllerTrait, PuzzleTypeTrait};
+use crate::serde_impl::hex_color;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.spacing_mut().interact_size.x *= 1.5;
@@ -96,14 +97,14 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     // Special colors
     let r = ui.add(resettable!(
         "Background",
-        "{:?}",
+        hex_color::to_str,
         (prefs.colors.background),
         |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
     changed |= r.changed();
     let r = ui.add(resettable!(
         "Outline",
-        "{:?}",
+        hex_color::to_str,
         (prefs.colors.outline),
         |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
@@ -115,7 +116,7 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     for &face in puzzle_type.faces() {
         let r = ui.add(resettable!(
             face.name(),
-            "{:?}",
+            hex_color::to_str,
             (prefs.colors[face]),
             |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
         ));
@@ -126,7 +127,7 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     ui.separator();
     let r = ui.add(resettable!(
         "Blindfolded stickers",
-        "{:?}",
+        hex_color::to_str,
         (prefs.colors.blind_face),
         |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
