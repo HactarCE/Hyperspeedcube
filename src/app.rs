@@ -291,7 +291,7 @@ impl App {
     }
 
     pub(crate) fn frame(&mut self, delta: Duration) {
-        self.wants_repaint |= self.puzzle.advance(delta);
+        self.wants_repaint |= self.puzzle.advance(delta, &self.prefs);
     }
 
     fn confirm_discard_changes(&self, action: &str) -> bool {

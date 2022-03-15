@@ -17,16 +17,18 @@ use std::time::Duration;
 mod colors;
 mod gfx;
 mod info;
+mod interaction;
 mod keybinds;
 mod view;
 
 use crate::commands::{Command, PuzzleCommand};
 use crate::puzzle::PuzzleType;
-pub use colors::ColorPreferences;
-pub use gfx::{GfxPreferences, Msaa};
-pub use info::InfoPreferences;
-pub use keybinds::{Key, KeyCombo, Keybind};
-pub use view::ViewPreferences;
+pub use colors::*;
+pub use gfx::*;
+pub use info::*;
+pub use interaction::*;
+pub use keybinds::*;
+pub use view::*;
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
 const PREFS_FILE_EXTENSION: &str = "yaml";
@@ -127,6 +129,7 @@ pub struct Preferences {
     pub info: InfoPreferences,
     pub view: PerPuzzle<ViewPreferences>,
     pub colors: ColorPreferences,
+    pub interaction: InteractionPreferences,
 
     pub general_keybinds: Vec<Keybind<Command>>,
     pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,

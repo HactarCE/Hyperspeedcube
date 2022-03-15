@@ -49,6 +49,9 @@ colors:
       O: "#ff55ff"
   blind_face: "#cccccc"
   blindfold: false
+interaction:
+  twist_duration: 0.2
+  dynamic_twist_speed: true
 general_keybinds:
   - vk: O
     ctrl: true

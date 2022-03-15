@@ -1,5 +1,8 @@
+use egui::NumExt;
+
 use super::util::{self, ResponseExt};
 use crate::app::App;
+use crate::preferences::DEFAULT_PREFS;
 use crate::puzzle::{PuzzleControllerTrait, PuzzleTypeTrait};
 use crate::serde_impl::hex_color;
 
@@ -13,7 +16,12 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         ui.collapsing("Colors", |ui| build_colors_section(ui, app));
         ui.collapsing("Graphics", |ui| build_graphics_section(ui, app));
         ui.collapsing("View", |ui| build_view_section(ui, app));
-        ui.collapsing("Keybinds", |ui| {
+        ui.collapsing("Interaction", |ui| {
+            build_interaction_section(ui, app);
+
+            ui.separator();
+
+            ui.label("Keybinds:");
             ui.with_layout(
                 egui::Layout::top_down_justified(egui::Align::Center),
                 |ui| {
@@ -88,7 +96,8 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         ))
         .on_hover_explanation(
             "",
-            "Opacity of hidden stickers (multiplied by base sticker opacity)",
+            "Opacity of hidden stickers (multiplied \
+             by base sticker opacity)",
         );
     changed |= r.changed();
 
@@ -123,8 +132,9 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         changed |= r.changed();
     }
 
-    // Blindfold colors
     ui.separator();
+
+    // Blindfold colors
     let r = ui.add(resettable!(
         "Blindfolded stickers",
         hex_color::to_str,
@@ -135,7 +145,7 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     let r = ui.add(CheckboxWithReset {
         label: "Blindfold mode",
         value: &mut prefs.colors.blindfold,
-        reset_value: crate::preferences::DEFAULT_PREFS.colors.blindfold,
+        reset_value: DEFAULT_PREFS.colors.blindfold,
     });
     changed |= r.changed();
 
@@ -162,7 +172,8 @@ fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
         }))
         .on_hover_explanation(
             "Multisample Anti-Aliasing",
-            "Higher values result in a higher quality image, but worse performance.",
+            "Higher values result in a higher \
+             quality image, but worse performance.",
         );
     prefs.needs_save |= r.changed();
     app.wants_repaint |= r.changed();
@@ -232,6 +243,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     changed |= r.changed();
 
     ui.separator();
+
     ui.label("Geometry:");
     // Face spacing
     let r = ui.add(resettable!(
@@ -272,6 +284,40 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
 
     prefs.needs_save |= changed;
     app.wants_repaint |= changed;
+}
+fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
+    let prefs = &mut app.prefs;
+
+    let mut changed = false;
+
+    ui.label("Twist speed:");
+    let r = ui.add(resettable!(
+        "Twist duration",
+        (prefs.interaction.twist_duration),
+        |value| {
+            let speed = value.at_least(0.1) / 100.0; // logarithmic speed
+            egui::DragValue::new(value)
+                .fixed_decimals(2)
+                .clamp_range(0.0..=5.0_f32)
+                .speed(speed)
+        },
+    ));
+    changed |= r.changed();
+    let r = ui
+        .add(CheckboxWithReset {
+            label: "Dynamic twist speed",
+            value: &mut prefs.interaction.dynamic_twist_speed,
+            reset_value: DEFAULT_PREFS.interaction.dynamic_twist_speed,
+        })
+        .on_hover_explanation(
+            "",
+            "When enabled, the puzzle twists faster when \
+             many moves are queued up. When all queued \
+             moves are complete, the twist speed resets.",
+        );
+    changed |= r.changed();
+
+    prefs.needs_save |= changed;
 }
 
 fn make_degrees_drag_value(value: &mut f32) -> egui::DragValue {
