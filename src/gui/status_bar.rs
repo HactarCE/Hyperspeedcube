@@ -18,6 +18,17 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 metric.get_message().unwrap_or(""),
                 metric.get_detailed_message().unwrap_or(""),
             );
+        {
+            let mut data = ui.data();
+            let last_frame_metric = data.get_temp_mut_or_default(unique_id!());
+            if *last_frame_metric != Some(*metric) {
+                // The selected value changed between this frame and the last, so
+                // request another repaint to handle the tooltip size change.
+                *last_frame_metric = Some(*metric);
+                drop(data);
+                ui.ctx().request_repaint();
+            }
+        }
         if r.clicked() {
             *metric = metric.next();
             app.prefs.needs_save = true;
