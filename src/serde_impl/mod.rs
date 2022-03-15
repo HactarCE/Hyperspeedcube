@@ -3,6 +3,8 @@
 use key_names::KeyMappingCode;
 use serde::{Deserialize, Serialize};
 
+pub(crate) mod hex_color;
+
 /// Taken from docs here:
 /// https://docs.rs/keycode/0.3.0/keycode/enum.KeyMappingCode.html
 ///

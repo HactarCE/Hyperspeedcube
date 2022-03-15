@@ -11,7 +11,7 @@ pub enum TwistMetric {
     /// rotations are not counted.
     #[strum(
         serialize = "QSTM",
-        message = "Quarter Slice Turn Metric",
+        message = "Quarter Slice Turn Metric (default)",
         detailed_message = "Each twist counts separately. Whole-puzzle rotations are not counted."
     )]
     Qstm,

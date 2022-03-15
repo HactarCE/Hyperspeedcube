@@ -1,9 +1,13 @@
 use super::util::{self, ResponseExt};
 use crate::app::App;
 use crate::puzzle::{PuzzleControllerTrait, PuzzleTypeTrait};
+use crate::serde_impl::hex_color;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    ui.heading("Preferences"); // TODO: disable wrap?
+    ui.spacing_mut().interact_size.x *= 1.5;
+    ui.style_mut().wrap = Some(false);
+
+    ui.heading("Preferences");
     ui.separator();
     egui::ScrollArea::new([false, true]).show(ui, |ui| {
         ui.collapsing("Colors", |ui| build_colors_section(ui, app));
@@ -93,14 +97,14 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     // Special colors
     let r = ui.add(resettable!(
         "Background",
-        "{:?}",
+        hex_color::to_str,
         (prefs.colors.background),
         |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
     changed |= r.changed();
     let r = ui.add(resettable!(
         "Outline",
-        "{:?}",
+        hex_color::to_str,
         (prefs.colors.outline),
         |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
@@ -112,7 +116,7 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     for &face in puzzle_type.faces() {
         let r = ui.add(resettable!(
             face.name(),
-            "{:?}",
+            hex_color::to_str,
             (prefs.colors[face]),
             |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
         ));
@@ -123,7 +127,7 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     ui.separator();
     let r = ui.add(resettable!(
         "Blindfolded stickers",
-        "{:?}",
+        hex_color::to_str,
         (prefs.colors.blind_face),
         |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
@@ -307,13 +311,7 @@ where
             self.reset_value,
             &self.reset_value_str,
             |ui, value| {
-                let widget_resp = ui
-                    .allocate_ui_with_layout(
-                        ui.spacing().interact_size * egui::vec2(1.5, 1.0),
-                        egui::Layout::centered_and_justified(egui::Direction::TopDown),
-                        |ui| ui.add((self.make_widget)(value)),
-                    )
-                    .inner;
+                let widget_resp = ui.add((self.make_widget)(value));
                 let mut label_resp = ui.label(self.label);
 
                 // Return the label response so that the caller can add hover
