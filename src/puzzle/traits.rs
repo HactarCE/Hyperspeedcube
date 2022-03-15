@@ -1,6 +1,7 @@
 //! Common traits used for puzzles.
 
 use cgmath::{Matrix3, Matrix4, SquareMatrix, Vector3, Vector4, Zero};
+use egui::NumExt;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
@@ -359,11 +360,20 @@ impl GeometryParams {
         (1.0 - self.face_spacing) * 3.0 / (2.0 + self.sticker_scale())
     }
 
-    /// Projects a 4D point down to 3D. W coordinates are clipped to the range
-    /// from -1 to 1.
+    /// Projects a 4D point down to 3D.
     pub fn project_4d(self, point: Vector4<f32>) -> Vector3<f32> {
-        // This formula assumes that W is between -1 and 1.
-        let w = point.w.clamp(-1.0, 1.0);
+        // Clipping the W coordinate creates some slightly awkward effects for
+        // vertices with W>1 that *should* be visible (such as during a
+        // rotation) but overall it works fairly well, and otherwise it's
+        // challenging to filter out vertices that shouldn't be visible.
+        //
+        // The proper solution would be to make a cutting plane at W=1 and add
+        // additional vertices wherever that plane intersects an edge, so that
+        // all the geometry at W<1 is rendered faithfully. Unfortunately that's
+        // overkill for this application.
+        let w = point.w.at_most(1.0);
+
+        // This formula was designed for -1 <= W <= 1.
         point.truncate() / (1.0 + (1.0 - w) * (self.fov_4d.to_radians() / 2.0).tan())
     }
 }
