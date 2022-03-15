@@ -5,14 +5,11 @@
 
 use directories::ProjectDirs;
 use enum_map::EnumMap;
-use notify::{DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::error::Error;
 use std::fmt;
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use std::sync::{mpsc, Mutex};
-use std::time::Duration;
 
 mod colors;
 mod gfx;
@@ -76,35 +73,6 @@ lazy_static! {
         Ok(p)
     };
 
-}
-
-lazy_static! {
-    static ref RX: Mutex<mpsc::Receiver<DebouncedEvent>> = {
-        let (tx, rx) = mpsc::channel();
-        match Watcher::new(tx, Duration::from_secs_f64(0.5)) {
-            Ok(w) => *WATCHER.lock().unwrap() = Some(w),
-            Err(e) => eprintln!("Error initializing preferences file watcher: {}", e),
-        }
-        unwatch_during(|| ()); // Start watching
-
-        Mutex::new(rx)
-    };
-    static ref WATCHER: Mutex<Option<RecommendedWatcher>> = Mutex::new(None);
-}
-fn unwatch_during<T>(f: impl FnOnce() -> T) -> T {
-    if let Some(path) = PREFS_FILE_PATH.as_ref().ok().and_then(|p| p.parent()) {
-        if let Ok(mut w) = WATCHER.lock() {
-            if let Some(w) = &mut *w {
-                let _ = w.unwatch(path);
-                let ret = f();
-                if let Err(e) = w.watch(path, RecursiveMode::NonRecursive) {
-                    eprintln!("Error initializing preferences file watcher: {}", e);
-                }
-                return ret;
-            }
-        }
-    }
-    f()
 }
 
 #[derive(Display, Debug, Copy, Clone, PartialEq, Eq)]
@@ -200,14 +168,15 @@ impl Preferences {
     pub fn save(&mut self) {
         if self.needs_save {
             self.needs_save = false;
-            let result = unwatch_during(|| -> anyhow::Result<()> {
+            let result = (|| -> anyhow::Result<()> {
+                // IIFE to mimic try block
                 let path = PREFS_FILE_PATH.as_ref()?;
                 if let Some(p) = path.parent() {
                     std::fs::create_dir_all(p)?;
                 }
                 serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
                 Ok(())
-            });
+            })();
             if let Err(e) = result {
                 eprintln!("Error saving preferences: {}", e);
             }
