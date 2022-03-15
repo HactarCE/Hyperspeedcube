@@ -23,6 +23,8 @@ pub enum Command {
     // Puzzle menu
     NewPuzzle(PuzzleType),
 
+    ToggleBlindfold,
+
     #[serde(other)]
     None,
 }

@@ -95,7 +95,10 @@ pub fn draw_puzzle(
                     prefs.colors.hidden_opacity
                 } * prefs.colors.sticker_opacity;
 
-                let sticker_color = prefs.colors[puzzle.get_sticker_color(sticker)];
+                let sticker_color = match prefs.colors.blindfold {
+                    false => prefs.colors[puzzle.get_sticker_color(sticker)],
+                    true => prefs.colors.blind_face,
+                };
                 geo_params.fill_color = Rgba::from(sticker_color).to_array();
                 if view_prefs.outline_thickness <= 0.0 {
                     geo_params.line_color = geo_params.fill_color;

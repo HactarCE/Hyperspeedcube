@@ -114,6 +114,12 @@ impl App {
                     }
                 }
 
+                Command::ToggleBlindfold => {
+                    self.prefs.colors.blindfold ^= true;
+                    self.prefs.needs_save = true;
+                    self.wants_repaint = true;
+                }
+
                 Command::None => (),
             },
 

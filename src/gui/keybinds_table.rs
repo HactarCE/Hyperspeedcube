@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use std::hash::Hash;
-use strum::IntoEnumIterator;
 
 use super::util::{self, ComboBoxExt};
 use crate::app::App;
@@ -286,6 +285,8 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                 Undo,
                 Redo,
                 Reset,
+                #[strum(serialize = "Toggle blindfold")]
+                ToggleBlindfold,
                 #[strum(serialize = "New puzzle")]
                 NewPuzzle,
             }
@@ -302,20 +303,17 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
 
                 Cmd::NewPuzzle(_) => CmdType::NewPuzzle,
 
+                Cmd::ToggleBlindfold => CmdType::ToggleBlindfold,
+
                 Cmd::None => CmdType::None,
             };
-            let old_cmd_type = cmd_type;
 
-            egui::ComboBox::from_id_source(unique_id!(self.idx))
-                .selected_text(cmd_type.to_string())
-                .show_ui(ui, |ui| {
-                    for option in CmdType::iter() {
-                        changed |= ui
-                            .selectable_value(&mut cmd_type, option, option.to_string())
-                            .changed();
-                    }
-                });
-            if cmd_type != old_cmd_type {
+            let r = ui.add(util::BasicComboBox::new_enum(
+                unique_id!(self.idx),
+                &mut cmd_type,
+            ));
+            changed |= r.changed();
+            if r.changed() {
                 *self.cmd = match cmd_type {
                     CmdType::None => Cmd::None,
 
@@ -329,6 +327,8 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                     CmdType::Reset => Cmd::Reset,
 
                     CmdType::NewPuzzle => Cmd::NewPuzzle(self.cmd.get_puzzle_type()),
+
+                    CmdType::ToggleBlindfold => Cmd::ToggleBlindfold,
                 }
             }
 
@@ -337,15 +337,8 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                     add_pre_label_space(ui);
                     ui.horizontal(|ui| {
                         ui.label("Type:");
-                        egui::ComboBox::from_id_source(unique_id!(self.idx))
-                            .selected_text(puzzle_type.name())
-                            .show_ui(ui, |ui| {
-                                for option in PuzzleType::iter() {
-                                    changed |= ui
-                                        .selectable_value(puzzle_type, option, option.name())
-                                        .changed();
-                                }
-                            });
+                        let r = ui.add(BasicComboBox::new_enum(unique_id!(self.idx), puzzle_type));
+                        changed |= r.changed();
                     });
                 }
 
