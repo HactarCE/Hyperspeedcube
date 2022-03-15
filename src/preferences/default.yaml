@@ -47,6 +47,8 @@ colors:
       U: "#33aaff"
       F: "#ffffff"
       O: "#ff55ff"
+  blind_face: "#cccccc"
+  blindfold: false
 general_keybinds:
   - vk: O
     ctrl: true
@@ -74,6 +76,9 @@ general_keybinds:
   - vk: R
     ctrl: true
     command: reset
+  - vk: B
+    ctrl: true
+    command: toggle_blindfold
   - vk: F3
     command:
       new_puzzle: Rubiks3D

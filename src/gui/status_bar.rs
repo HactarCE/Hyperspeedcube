@@ -5,8 +5,21 @@ use crate::app::App;
 use crate::puzzle::PuzzleControllerTrait;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
+    let mut changed = false;
+
     ui.with_layout(egui::Layout::right_to_left(), |ui| {
-        // Display twist count.
+        // BLD toggle
+        let bld = &mut app.prefs.colors.blindfold;
+        let r = ui
+            .selectable_label(*bld, "BLD")
+            .on_hover_explanation("Blindfold mode", "Hides sticker colors");
+        if r.clicked() {
+            *bld ^= true;
+            changed = true;
+        }
+        ui.separator();
+
+        // Twist count
         let metric = &mut app.prefs.info.metric;
         let twist_count = app.puzzle.twist_count(*metric);
         let r = ui
@@ -31,13 +44,16 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         }
         if r.clicked() {
             *metric = metric.next();
-            app.prefs.needs_save = true;
+            changed = true;
         }
         ui.separator();
 
-        // Display status message (left-aligned).
+        // Status message (left-aligned)
         ui.with_layout(egui::Layout::left_to_right(), |ui| {
             ui.label(app.status_msg());
         });
     });
+
+    app.prefs.needs_save |= changed;
+    app.wants_repaint |= changed;
 }

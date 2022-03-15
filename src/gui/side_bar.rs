@@ -119,6 +119,22 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         changed |= r.changed();
     }
 
+    // Blindfold colors
+    ui.separator();
+    let r = ui.add(resettable!(
+        "Blindfolded stickers",
+        "{:?}",
+        (prefs.colors.blind_face),
+        |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
+    ));
+    changed |= r.changed();
+    let r = ui.add(CheckboxWithReset {
+        label: "Blindfold mode",
+        value: &mut prefs.colors.blindfold,
+        reset_value: crate::preferences::DEFAULT_PREFS.colors.blindfold,
+    });
+    changed |= r.changed();
+
     prefs.needs_save |= changed;
     app.wants_repaint |= changed;
 }
