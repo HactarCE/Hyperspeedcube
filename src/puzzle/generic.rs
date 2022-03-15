@@ -4,6 +4,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 use super::{traits::*, PuzzleController, PuzzleType, Rubiks3D, Rubiks4D, TwistMetric};
+use crate::preferences::Preferences;
 use crate::render::WireframeVertex;
 
 /// A PuzzleController of any puzzle type.

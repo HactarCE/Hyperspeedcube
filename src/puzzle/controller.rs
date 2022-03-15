@@ -8,6 +8,11 @@ use std::path::Path;
 use std::time::Duration;
 
 use super::{LayerMask, TwistDirection, TwistMetric};
+use crate::preferences::Preferences;
+
+/// If at least this much of a twist is animated in one frame, just skip the
+/// animation to reduce unnecessary flashing.
+const MIN_TWIST_DELTA: f32 = 1.0 / 3.0;
 
 /// Interpolation functions.
 pub mod interpolate {
@@ -29,9 +34,6 @@ use super::{rubiks4d_logfile::*, Face, Piece, Sticker};
 use super::{traits::*, PuzzleType, Rubiks4D};
 use interpolate::InterpolateFn;
 
-const TWIST_DURATION: f32 = 0.2;
-const MIN_DURATION: f32 = 0.05;
-const MAX_BACKLOG: usize = 10;
 const INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 
 /// Puzzle wrapper that adds animation and undo history functionality.
@@ -154,7 +156,7 @@ pub trait PuzzleControllerTrait {
 
     /// Advances to the next frame, using the given time delta between this
     /// frame and the last. Returns whether the puzzle needs to be repainted.
-    fn advance(&mut self, delta: Duration) -> bool;
+    fn advance(&mut self, delta: Duration, prefs: &Preferences) -> bool;
     /// Skips the animations for all twists in the queue.
     fn catch_up(&mut self);
 
@@ -203,10 +205,10 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
         Ok(())
     }
 
-    fn advance(&mut self, delta: Duration) -> bool {
+    fn advance(&mut self, delta: Duration, prefs: &Preferences) -> bool {
         if self.twists.is_empty() {
             self.queue_max = 0;
-            // Absolutely nothing has changed, so don't request a repaint.
+            // Nothing has changed, so don't request a repaint.
             return false;
         }
         if self.progress >= 1.0 {
@@ -217,20 +219,20 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
         }
         // Update queue_max.
         self.queue_max = std::cmp::max(self.queue_max, self.twists.len());
-        // TWIST_DURATION is in seconds (per one twist); speed is (fraction of twist) per frame.
-        let base_speed = delta.as_secs_f32() / TWIST_DURATION;
+        // duration is in seconds (per one twist); speed is (fraction of twist) per frame.
+        let base_speed = delta.as_secs_f32() / prefs.interaction.twist_duration;
         // Twist exponentially faster if there are/were more twists in the queue.
-        let mut speed_mod = ((self.queue_max - 1) as f32).exp();
-        // Set a speed limit.
-        if speed_mod > TWIST_DURATION / MIN_DURATION {
-            speed_mod = TWIST_DURATION / MIN_DURATION;
+        let speed_mod = match prefs.interaction.dynamic_twist_speed {
+            true => ((self.queue_max - 1) as f32).exp(),
+            false => 1.0,
+        };
+        let mut twist_delta = base_speed * speed_mod;
+        // Cap the twist delta at 1.0, and also handle the case where something
+        // went wrong with the calculation (e.g., division by zero).
+        if !(0.0..MIN_TWIST_DELTA).contains(&twist_delta) {
+            twist_delta = 1.0; // Instantly complete the twist.
         }
-        let mut speed = base_speed * speed_mod;
-        // But ignore the speed limit if we've hit max backlog.
-        if self.queue_max >= MAX_BACKLOG {
-            speed = 1.0;
-        }
-        self.progress += speed;
+        self.progress += twist_delta;
         if self.progress >= 1.0 {
             self.progress = 1.0;
         }
