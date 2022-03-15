@@ -15,14 +15,18 @@ use std::sync::{mpsc, Mutex};
 use std::time::Duration;
 
 mod colors;
+mod gfx;
 mod info;
 mod keybinds;
+mod view;
 
 use crate::commands::{Command, PuzzleCommand};
 use crate::puzzle::PuzzleType;
 pub use colors::ColorPreferences;
+pub use gfx::{GfxPreferences, Msaa};
 pub use info::InfoPreferences;
 pub use keybinds::{Key, KeyCombo, Keybind};
+pub use view::ViewPreferences;
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
 const PREFS_FILE_EXTENSION: &str = "yaml";
@@ -208,82 +212,6 @@ impl Preferences {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(default)]
-pub struct GfxPreferences {
-    pub fps: u32,
-    pub font_size: f32,
-    #[serde(skip)]
-    pub lock_font_size: bool,
-
-    pub msaa: Msaa,
-
-    pub label_size: f32, // TODO: remove or move this
-}
-impl Default for GfxPreferences {
-    fn default() -> Self {
-        Self {
-            fps: 60,
-            font_size: 17.0,
-            lock_font_size: false,
-
-            msaa: Msaa::_8,
-
-            label_size: 24.0,
-        }
-    }
-}
-impl GfxPreferences {
-    /// Returns the duration of one frame based on the configured FPS value.
-    pub fn frame_duration(&self) -> Duration {
-        Duration::from_secs_f64(1.0 / self.fps as f64)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(default)]
-pub struct ViewPreferences {
-    /// Puzzle angle around Y axis, in degrees.
-    pub pitch: f32,
-    /// Puzzle angle around X axis, in degrees.
-    pub yaw: f32,
-
-    pub scale: f32,
-    /// 3D FOV, in degrees (may be negative).
-    pub fov_3d: f32,
-    /// 4D FOV, in degrees.
-    pub fov_4d: f32,
-
-    pub face_spacing: f32,
-    pub sticker_spacing: f32,
-
-    pub outline_thickness: f32,
-}
-impl Default for ViewPreferences {
-    fn default() -> Self {
-        Self {
-            pitch: 0_f32,
-            yaw: 0_f32,
-
-            scale: 1.0,
-            fov_3d: 30_f32,
-            fov_4d: 30_f32,
-
-            face_spacing: 0.0,
-            sticker_spacing: 0.0,
-
-            outline_thickness: 1.0,
-        }
-    }
-}
-impl DeserializePerPuzzle<'_> for ViewPreferences {
-    type Proxy = Self;
-
-    fn deserialize_from(value: Self::Proxy, _ty: PuzzleType) -> Self {
-        value
-    }
-}
-
 #[derive(Serialize, Debug, Clone)]
 #[serde(transparent)]
 pub struct PerPuzzle<T>(EnumMap<PuzzleType, T>);
@@ -354,31 +282,6 @@ pub trait DeserializePerPuzzle<'de> {
     type Proxy: Deserialize<'de>;
 
     fn deserialize_from(value: Self::Proxy, ty: PuzzleType) -> Self;
-}
-
-#[derive(Serialize, Deserialize, Debug, EnumIter, Copy, Clone, PartialEq, Eq)]
-pub enum Msaa {
-    #[serde(rename = "0")]
-    Off = 1,
-    #[serde(rename = "2")]
-    #[strum(serialize = "2")]
-    _2 = 2,
-    #[serde(rename = "4")]
-    #[strum(serialize = "4")]
-    _4 = 4,
-    #[serde(other, rename = "8")]
-    #[strum(serialize = "8")]
-    _8 = 8,
-}
-impl fmt::Display for Msaa {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Msaa::Off => write!(f, "Off"),
-            Msaa::_2 => write!(f, "2x"),
-            Msaa::_4 => write!(f, "4x"),
-            Msaa::_8 => write!(f, "8x"),
-        }
-    }
 }
 
 fn is_false(x: &bool) -> bool {
