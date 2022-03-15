@@ -111,6 +111,8 @@ impl ComboBoxExt for egui::ComboBox {
             desired_width = desired_width.at_least(ui.available_width() - spacing.item_spacing.x);
         }
 
+        desired_width = desired_width.at_least(spacing.interact_size.x - spacing.item_spacing.x);
+
         self.width(desired_width)
     }
 }

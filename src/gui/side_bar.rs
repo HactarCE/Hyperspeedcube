@@ -3,7 +3,10 @@ use crate::app::App;
 use crate::puzzle::{PuzzleControllerTrait, PuzzleTypeTrait};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    ui.heading("Preferences"); // TODO: disable wrap?
+    ui.spacing_mut().interact_size.x *= 1.5;
+    ui.style_mut().wrap = Some(false);
+
+    ui.heading("Preferences");
     ui.separator();
     egui::ScrollArea::new([false, true]).show(ui, |ui| {
         ui.collapsing("Colors", |ui| build_colors_section(ui, app));
@@ -307,13 +310,7 @@ where
             self.reset_value,
             &self.reset_value_str,
             |ui, value| {
-                let widget_resp = ui
-                    .allocate_ui_with_layout(
-                        ui.spacing().interact_size * egui::vec2(1.5, 1.0),
-                        egui::Layout::centered_and_justified(egui::Direction::TopDown),
-                        |ui| ui.add((self.make_widget)(value)),
-                    )
-                    .inner;
+                let widget_resp = ui.add((self.make_widget)(value));
                 let mut label_resp = ui.label(self.label);
 
                 // Return the label response so that the caller can add hover
