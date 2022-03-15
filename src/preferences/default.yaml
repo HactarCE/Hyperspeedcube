@@ -28,6 +28,8 @@ view:
 colors:
   sticker_opacity: 1.0
   hidden_opacity: 0.1
+  background: "#666666"
+  outline: "#000000"
   faces:
     Rubiks3D:
       B: "#4488ff"
@@ -45,9 +47,6 @@ colors:
       U: "#33aaff"
       F: "#ffffff"
       O: "#ff55ff"
-  blind_face: "#000000"
-  background: "#666666"
-  outline: "#000000"
 general_keybinds:
   - vk: O
     ctrl: true
@@ -95,122 +94,122 @@ puzzle_keybinds:
       command:
         twist:
           face: Left
-          layers: 1
           direction: CCW
+          layers: 1
     - sc: KeyD
       command:
         twist:
           face: Left
-          layers: 1
           direction: CW
+          layers: 1
     - sc: KeyI
       command:
         twist:
           face: Right
-          layers: 1
           direction: CW
+          layers: 1
     - sc: KeyK
       command:
         twist:
           face: Right
-          layers: 1
           direction: CCW
+          layers: 1
     - sc: KeyR
       command:
         twist:
           face: Left
-          layers: 2
           direction: CCW
+          layers: 2
     - sc: KeyV
       command:
         twist:
           face: Left
-          layers: 2
           direction: CW
+          layers: 2
     - sc: KeyU
       command:
         twist:
           face: Right
-          layers: 2
           direction: CW
+          layers: 2
     - sc: KeyM
       command:
         twist:
           face: Right
-          layers: 2
           direction: CCW
+          layers: 2
     - sc: KeyF
       command:
         twist:
           face: Up
-          layers: 1
           direction: CCW
+          layers: 1
     - sc: KeyJ
       command:
         twist:
           face: Up
-          layers: 1
           direction: CW
+          layers: 1
     - sc: KeyS
       command:
         twist:
           face: Down
-          layers: 1
           direction: CW
+          layers: 1
     - sc: KeyL
       command:
         twist:
           face: Down
-          layers: 1
           direction: CCW
+          layers: 1
     - sc: KeyG
       command:
         twist:
           face: Front
-          layers: 1
           direction: CCW
+          layers: 1
     - sc: KeyH
       command:
         twist:
           face: Front
-          layers: 1
           direction: CW
+          layers: 1
     - sc: KeyW
       command:
         twist:
           face: Back
-          layers: 1
           direction: CW
+          layers: 1
     - sc: KeyO
       command:
         twist:
           face: Back
-          layers: 1
           direction: CCW
+          layers: 1
     - sc: KeyT
       command:
         twist:
           face: Left
-          layers: 7
           direction: CCW
+          layers: 7
     - sc: KeyB
       command:
         twist:
           face: Left
-          layers: 7
           direction: CW
+          layers: 7
     - sc: KeyY
       command:
         twist:
           face: Right
-          layers: 7
           direction: CW
+          layers: 7
     - sc: KeyN
       command:
         twist:
           face: Right
-          layers: 7
           direction: CCW
+          layers: 7
     - sc: KeyA
       command:
         recenter:
@@ -223,38 +222,38 @@ puzzle_keybinds:
       command:
         twist:
           face: Front
-          layers: 7
           direction: CCW
+          layers: 7
     - sc: KeyP
       command:
         twist:
           face: Front
-          layers: 7
           direction: CW
+          layers: 7
     - sc: KeyZ
       command:
         twist:
           face: Front
-          layers: 2
           direction: CCW
+          layers: 2
     - sc: Slash
       command:
         twist:
           face: Front
-          layers: 2
           direction: CW
+          layers: 2
     - sc: KeyX
       command:
         twist:
           face: Down
-          layers: 2
           direction: CW
+          layers: 2
     - sc: Period
       command:
         twist:
           face: Down
-          layers: 2
           direction: CCW
+          layers: 2
   Rubiks4D:
     - sc: ShiftLeft
       command:
@@ -358,33 +357,33 @@ puzzle_keybinds:
     - sc: KeyI
       command:
         twist:
-          layers: 1
           direction: x
+          layers: 1
     - sc: KeyK
       command:
         twist:
-          layers: 1
           direction: "x'"
+          layers: 1
     - sc: KeyJ
       command:
         twist:
-          layers: 1
           direction: y
+          layers: 1
     - sc: KeyL
       command:
         twist:
-          layers: 1
           direction: "y'"
+          layers: 1
     - sc: KeyU
       command:
         twist:
-          layers: 1
           direction: "z'"
+          layers: 1
     - sc: KeyO
       command:
         twist:
-          layers: 1
           direction: z
+          layers: 1
     - sc: Space
       command:
         recenter: {}
@@ -392,47 +391,47 @@ puzzle_keybinds:
       command:
         twist:
           face: In
-          layers: 7
           direction: x
+          layers: 7
     - sc: KeyY
       command:
         twist:
           face: In
-          layers: 7
           direction: x
+          layers: 7
     - sc: KeyB
       command:
         twist:
           face: In
-          layers: 7
           direction: "x'"
+          layers: 7
     - sc: KeyN
       command:
         twist:
           face: In
-          layers: 7
           direction: "x'"
+          layers: 7
     - sc: KeyA
       command:
         twist:
           face: In
-          layers: 7
           direction: "y'"
+          layers: 7
     - sc: Semicolon
       command:
         twist:
           face: In
-          layers: 7
           direction: y
+          layers: 7
     - sc: KeyQ
       command:
         twist:
           face: In
-          layers: 7
           direction: "z'"
+          layers: 7
     - sc: KeyP
       command:
         twist:
           face: In
-          layers: 7
           direction: z
+          layers: 7
