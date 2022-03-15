@@ -48,11 +48,6 @@ pub struct ColorPreferences {
     pub background: egui::Color32,
     #[serde(with = "hex_color")]
     pub outline: egui::Color32,
-
-    #[serde(with = "hex_color")]
-    pub label_fg: egui::Color32,
-    #[serde(with = "hex_color")]
-    pub label_bg: egui::Color32,
 }
 impl std::ops::Index<Face> for ColorPreferences {
     type Output = egui::Color32;
