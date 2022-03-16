@@ -23,7 +23,11 @@ pub fn draw_puzzle(
     width: u32,
     height: u32,
     pixels_per_point: f32,
-) -> Rc<SrgbTexture2d> {
+) -> Option<Rc<SrgbTexture2d>> {
+    if width == 0 || height == 0 {
+        return None;
+    }
+
     let prefs = &app.prefs;
     let puzzle = &app.puzzle;
     let view_prefs = &prefs.view[puzzle.ty()];
@@ -174,5 +178,5 @@ pub fn draw_puzzle(
     };
     target.blit_whole_color_to(&out_fbo, &blit_target, MagnifySamplerFilter::Linear);
 
-    out_texture
+    Some(out_texture)
 }

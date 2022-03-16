@@ -7,7 +7,8 @@ macro_rules! unique_id {
 mod key_combo_popup;
 mod keybinds_table;
 mod menu_bar;
-mod side_bar;
+mod prefs;
+mod puzzle_controls;
 mod status_bar;
 mod util;
 
@@ -25,8 +26,13 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
 
     egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| status_bar::build(ui, app));
 
-    if Window::SidePanel.is_open(ctx) {
-        egui::SidePanel::left("side_panel").show(ctx, |ui| side_bar::build(ui, app));
+    if Window::PrefsPanel.is_open(ctx) {
+        egui::SidePanel::left("prefs_panel").show(ctx, |ui| prefs::build(ui, app));
+    }
+
+    if Window::PuzzleControlsPanel.is_open(ctx) {
+        egui::SidePanel::right("puzzle_controls_panel")
+            .show(ctx, |ui| puzzle_controls::build(ui, app));
     }
 
     let puzzle_type = app.puzzle.ty();
@@ -85,7 +91,8 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
 enum Window {
     GeneralKeybinds,
     PuzzleKeybinds,
-    SidePanel,
+    PrefsPanel,
+    PuzzleControlsPanel,
     About,
     Debug,
 }
@@ -97,7 +104,10 @@ impl Window {
         *ctx.data().get_persisted_mut_or_default::<bool>(self.id()) ^= true;
     }
     fn is_open(self, ctx: &egui::Context) -> bool {
-        ctx.data().get_persisted(self.id()).unwrap_or(false)
+        ctx.data().get_persisted(self.id()).unwrap_or(match self {
+            Window::PuzzleControlsPanel => true,
+            _ => false,
+        })
     }
     fn set_open(self, ctx: &egui::Context, open: bool) {
         ctx.data().insert_persisted(self.id(), open);

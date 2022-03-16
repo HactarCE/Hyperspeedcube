@@ -27,7 +27,7 @@ pub struct App {
     /// Selections tied to a held key.
     held_selections: HashMap<Key, Selection>,
     /// Semi-permanent selections.
-    toggle_selections: Selection,
+    pub(crate) toggle_selections: Selection,
 
     status_msg: String,
 }
@@ -209,39 +209,13 @@ impl App {
 
                 for bind in &self.prefs.puzzle_keybinds[self.puzzle.ty()] {
                     if key_combo_matches(bind.key) {
-                        let sel = self.puzzle_selection();
-
                         match &bind.command {
                             PuzzleCommand::Twist {
                                 face,
                                 direction,
                                 layer_mask,
-                            } => {
-                                if let Some(face) =
-                                    face.or_else(|| sel.exactly_one_face(self.puzzle.ty()))
-                                {
-                                    self.event(AppEvent::Twist {
-                                        face,
-                                        direction: *direction,
-                                        layer_mask: sel.layer_mask_or_default(*layer_mask),
-                                    });
-                                } else {
-                                    self.event(AppEvent::StatusError(
-                                        "No face selected".to_string(),
-                                    ));
-                                }
-                            }
-                            PuzzleCommand::Recenter { face } => {
-                                if let Some(face) =
-                                    face.or_else(|| sel.exactly_one_face(self.puzzle.ty()))
-                                {
-                                    self.event(AppEvent::Recenter(face));
-                                } else {
-                                    self.event(AppEvent::StatusError(
-                                        "No face selected".to_string(),
-                                    ));
-                                }
-                            }
+                            } => self.do_twist(*face, *direction, *layer_mask),
+                            PuzzleCommand::Recenter { face } => self.do_recenter(*face),
 
                             PuzzleCommand::HoldSelect(thing) => {
                                 let sel = Selection::from(*thing);
@@ -283,6 +257,34 @@ impl App {
             }
 
             _ => (),
+        }
+    }
+
+    pub(crate) fn do_twist(
+        &self,
+        face: Option<Face>,
+        direction: TwistDirection,
+        layer_mask: LayerMask,
+    ) {
+        let sel = self.puzzle_selection();
+
+        if let Some(face) = face.or_else(|| sel.exactly_one_face(self.puzzle.ty())) {
+            self.event(AppEvent::Twist {
+                face,
+                direction,
+                layer_mask: sel.layer_mask_or_default(layer_mask),
+            });
+        } else {
+            self.event(AppEvent::StatusError("No face selected".to_string()));
+        }
+    }
+    pub(crate) fn do_recenter(&self, face: Option<Face>) {
+        let sel = self.puzzle_selection();
+
+        if let Some(face) = face.or_else(|| sel.exactly_one_face(self.puzzle.ty())) {
+            self.event(AppEvent::Recenter(face));
+        } else {
+            self.event(AppEvent::StatusError("No face selected".to_string()));
         }
     }
 

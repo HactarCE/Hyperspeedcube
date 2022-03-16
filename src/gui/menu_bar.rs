@@ -47,6 +47,11 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 ui.close_menu();
                 app.event(Command::Reset);
             }
+            ui.separator();
+            if ui.button("Puzzle controls...").clicked() {
+                ui.close_menu();
+                super::Window::PuzzleControlsPanel.toggle(ui.ctx());
+            }
         });
 
         ui.menu_button("Puzzle", |ui| {
@@ -59,16 +64,16 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
 
         ui.menu_button("Settings", |ui| {
-            if ui.button("Preferences").clicked() {
+            if ui.button("Preferences...").clicked() {
                 ui.close_menu();
-                super::Window::SidePanel.toggle(ui.ctx());
+                super::Window::PrefsPanel.toggle(ui.ctx());
             }
             ui.separator();
-            if ui.button("General keybinds").clicked() {
+            if ui.button("General keybinds...").clicked() {
                 ui.close_menu();
                 super::Window::GeneralKeybinds.toggle(ui.ctx());
             }
-            if ui.button("Puzzle keybinds").clicked() {
+            if ui.button("Puzzle keybinds...").clicked() {
                 ui.close_menu();
                 super::Window::PuzzleKeybinds.toggle(ui.ctx());
             }

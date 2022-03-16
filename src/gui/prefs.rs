@@ -21,7 +21,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
             ui.separator();
 
-            ui.label("Keybinds:");
+            ui.strong("Keybinds");
             ui.with_layout(
                 egui::Layout::top_down_justified(egui::Align::Center),
                 |ui| {
@@ -63,7 +63,7 @@ macro_rules! resettable {
         let reset_value = &crate::preferences::DEFAULT_PREFS $($prefs_tok)*;
         #[allow(clippy::redundant_closure_call)]
         let reset_value_str = ($format_fn)(reset_value);
-        WidgetWithReset {
+        crate::gui::util::WidgetWithReset {
             label: $label,
             value,
             reset_value: reset_value.clone(),
@@ -84,7 +84,7 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         "Sticker opacity",
         |x| format!("{:.0}%", x * 100.0),
         (prefs.colors.sticker_opacity),
-        make_percent_drag_value,
+        util::make_percent_drag_value,
     ));
     changed |= r.changed();
     let r = ui
@@ -92,7 +92,7 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
             "Hidden opacity",
             |x| format!("{:.0}%", x * 100.0),
             (prefs.colors.hidden_opacity),
-            make_percent_drag_value,
+            util::make_percent_drag_value,
         ))
         .on_hover_explanation(
             "",
@@ -142,7 +142,7 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
     changed |= r.changed();
-    let r = ui.add(CheckboxWithReset {
+    let r = ui.add(util::CheckboxWithReset {
         label: "Blindfold mode",
         value: &mut prefs.colors.blindfold,
         reset_value: DEFAULT_PREFS.colors.blindfold,
@@ -184,13 +184,13 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
 
     let mut changed = false;
 
-    ui.label("View angle:");
+    ui.strong("View angle");
     // Pitch
     let r = ui.add(resettable!(
         "Pitch",
         "{}°",
         (prefs.view[puzzle_type].pitch),
-        |value| make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
+        |value| util::make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
     ));
     changed |= r.changed();
     // Yaw
@@ -198,12 +198,12 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         "Yaw",
         "{}°",
         (prefs.view[puzzle_type].yaw),
-        |value| make_degrees_drag_value(value).clamp_range(-45.0..=45.0),
+        |value| util::make_degrees_drag_value(value).clamp_range(-45.0..=45.0),
     ));
     changed |= r.changed();
 
     ui.separator();
-    ui.label("Projection:");
+    ui.strong("Projection");
     // Scale
     let r = ui.add(resettable!(
         "Scale",
@@ -223,7 +223,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         "{}°",
         (prefs.view[puzzle_type].fov_4d),
         |value| {
-            make_degrees_drag_value(value)
+            util::make_degrees_drag_value(value)
                 .clamp_range(1.0..=120.0)
                 .speed(0.5)
         },
@@ -235,7 +235,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         "{}°",
         (prefs.view[puzzle_type].fov_3d),
         |value| {
-            make_degrees_drag_value(value)
+            util::make_degrees_drag_value(value)
                 .clamp_range(-120.0..=120.0)
                 .speed(0.5)
         },
@@ -244,7 +244,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
-    ui.label("Geometry:");
+    ui.strong("Geometry");
     // Face spacing
     let r = ui.add(resettable!(
         "Face spacing",
@@ -284,13 +284,13 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
-    ui.label("Lighting:");
+    ui.strong("Lighting");
     // Pitch
     let r = ui.add(resettable!(
         "Pitch",
         "{}°",
         (prefs.view[puzzle_type].light_pitch),
-        |value| make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
+        |value| util::make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
     ));
     changed |= r.changed();
     // Yaw
@@ -298,7 +298,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         "Yaw",
         "{}°",
         (prefs.view[puzzle_type].light_yaw),
-        |value| make_degrees_drag_value(value).clamp_range(-180.0..=180.0),
+        |value| util::make_degrees_drag_value(value).clamp_range(-180.0..=180.0),
     ));
     changed |= r.changed();
     // Intensity
@@ -306,7 +306,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         "Intensity",
         |x| format!("{:.0}%", x * 100.0),
         (prefs.view[puzzle_type].light_intensity),
-        make_percent_drag_value,
+        util::make_percent_drag_value,
     ));
     changed |= r.changed();
 
@@ -318,7 +318,7 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
 
     let mut changed = false;
 
-    ui.label("Twist speed:");
+    ui.strong("Twist speed");
     let r = ui.add(resettable!(
         "Twist duration",
         (prefs.interaction.twist_duration),
@@ -332,7 +332,7 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     ));
     changed |= r.changed();
     let r = ui
-        .add(CheckboxWithReset {
+        .add(util::CheckboxWithReset {
             label: "Dynamic twist speed",
             value: &mut prefs.interaction.dynamic_twist_speed,
             reset_value: DEFAULT_PREFS.interaction.dynamic_twist_speed,
@@ -346,96 +346,4 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     changed |= r.changed();
 
     prefs.needs_save |= changed;
-}
-
-fn make_degrees_drag_value(value: &mut f32) -> egui::DragValue {
-    egui::DragValue::new(value).suffix("°").fixed_decimals(0)
-}
-fn make_percent_drag_value(value: &mut f32) -> egui::DragValue {
-    egui::DragValue::from_get_set(|new_value| {
-        if let Some(x) = new_value {
-            *value = x as f32 / 100.0;
-        }
-        *value as f64 * 100.0
-    })
-    .suffix("%")
-    .fixed_decimals(0)
-    .clamp_range(0.0..=100.0_f32)
-    .speed(0.5)
-}
-
-#[must_use]
-struct WidgetWithReset<'a, V, W: 'a + egui::Widget, F: FnOnce(&'a mut V) -> W> {
-    label: &'a str,
-    value: &'a mut V,
-    reset_value: V,
-    reset_value_str: String,
-    make_widget: F,
-}
-impl<'a, V, W, F> egui::Widget for WidgetWithReset<'a, V, W, F>
-where
-    V: PartialEq,
-    W: 'a + egui::Widget,
-    F: FnOnce(&'a mut V) -> W,
-{
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        with_reset_button(
-            ui,
-            self.value,
-            self.reset_value,
-            &self.reset_value_str,
-            |ui, value| {
-                let widget_resp = ui.add((self.make_widget)(value));
-                let mut label_resp = ui.label(self.label);
-
-                // Return the label response so that the caller can add hover
-                // text to the label if they want.
-                if widget_resp.changed() {
-                    label_resp.mark_changed();
-                }
-                label_resp
-            },
-        )
-    }
-}
-
-#[must_use]
-struct CheckboxWithReset<'a> {
-    label: &'a str,
-    value: &'a mut bool,
-    reset_value: bool,
-}
-impl egui::Widget for CheckboxWithReset<'_> {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        with_reset_button(ui, self.value, self.reset_value, "", |ui, value| {
-            ui.checkbox(value, self.label)
-        })
-    }
-}
-
-fn with_reset_button<'a, T: PartialEq>(
-    ui: &mut egui::Ui,
-    value: &'a mut T,
-    reset_value: T,
-    reset_value_str: &str,
-    widget: impl FnOnce(&mut egui::Ui, &'a mut T) -> egui::Response,
-) -> egui::Response {
-    ui.horizontal(|ui| {
-        let hover_text = match reset_value_str {
-            "" => "Reset".to_owned(),
-            s => format!("Reset to {}", s),
-        };
-        let reset_resp = ui
-            .add_enabled(*value != reset_value, egui::Button::new("⟲"))
-            .on_hover_text(&hover_text);
-        if reset_resp.clicked() {
-            *value = reset_value;
-        }
-        let mut r = widget(ui, value);
-        if reset_resp.clicked() {
-            r.mark_changed();
-        }
-        r
-    })
-    .inner
 }

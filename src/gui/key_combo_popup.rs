@@ -110,7 +110,7 @@ pub(super) fn build(ctx: &egui::Context, app: &mut App) -> Option<egui::Response
                 .show(ui, |ui| {
                     ui.allocate_ui_with_layout(
                         KEYBIND_POPUP_SIZE,
-                        egui::Layout::top_down_justified(egui::Align::Min),
+                        egui::Layout::top_down_justified(egui::Align::LEFT),
                         |ui| {
                             ui.vertical_centered(|ui| {
                                 ui.spacing_mut().item_spacing.y = 20.0;
@@ -126,7 +126,7 @@ pub(super) fn build(ctx: &egui::Context, app: &mut App) -> Option<egui::Response
 
                                 ui.columns(2, |columns| {
                                     let r = columns[0].with_layout(
-                                        egui::Layout::top_down(egui::Align::Max),
+                                        egui::Layout::top_down(egui::Align::RIGHT),
                                         |ui| ui.add_sized([60.0, 30.0], egui::Button::new("OK")),
                                     );
                                     if r.inner.clicked() {
@@ -134,7 +134,7 @@ pub(super) fn build(ctx: &egui::Context, app: &mut App) -> Option<egui::Response
                                     }
 
                                     let r = columns[1].with_layout(
-                                        egui::Layout::top_down(egui::Align::Min),
+                                        egui::Layout::top_down(egui::Align::LEFT),
                                         |ui| {
                                             ui.add_sized([60.0, 30.0], egui::Button::new("Cancel"))
                                         },

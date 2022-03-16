@@ -168,14 +168,15 @@ fn main() {
             }
 
             if app.wants_repaint {
-                let puzzle_texture = render::draw_puzzle(
+                if let Some(puzzle_texture) = render::draw_puzzle(
                     &mut app,
                     puzzle_texture_size.0,
                     puzzle_texture_size.1,
                     egui.egui_ctx.pixels_per_point(),
-                );
-                egui.painter
-                    .replace_native_texture(puzzle_texture_id, puzzle_texture);
+                ) {
+                    egui.painter
+                        .replace_native_texture(puzzle_texture_id, puzzle_texture);
+                }
             }
 
             if app.wants_repaint || egui_wants_repaint {
