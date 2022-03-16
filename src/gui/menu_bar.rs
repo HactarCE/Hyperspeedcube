@@ -47,11 +47,6 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 ui.close_menu();
                 app.event(Command::Reset);
             }
-            ui.separator();
-            if ui.button("Puzzle controls...").clicked() {
-                ui.close_menu();
-                super::Window::PuzzleControlsPanel.toggle(ui.ctx());
-            }
         });
 
         ui.menu_button("Puzzle", |ui| {
@@ -76,6 +71,13 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             if ui.button("Puzzle keybinds...").clicked() {
                 ui.close_menu();
                 super::Window::PuzzleKeybinds.toggle(ui.ctx());
+            }
+        });
+
+        ui.menu_button("Tools", |ui| {
+            if ui.button("Puzzle controls...").clicked() {
+                ui.close_menu();
+                super::Window::PuzzleControlsPanel.toggle(ui.ctx());
             }
         });
 

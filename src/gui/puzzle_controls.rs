@@ -16,7 +16,7 @@ fn build_select_section(ui: &mut egui::Ui, app: &mut App) {
     let sel = &mut app.toggle_selections;
     ui.horizontal(|ui| {
         ui.style_mut().wrap = Some(false);
-        ui.heading("Select");
+        ui.heading("Puzzle Controls");
         let r = util::reset_button(ui, sel, Selection::default(), "");
         changed |= r.clicked();
     });
@@ -85,7 +85,7 @@ fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
         .exactly_one_face(puzzle_type)
         .is_some();
 
-    ui.heading("Twist");
+    ui.strong("Twist");
     ui.add_enabled_ui(can_twist, |ui| {
         ui.with_layout(h_layout, |ui| {
             for &twist_direction in puzzle_type.twist_direction_names() {

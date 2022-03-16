@@ -101,15 +101,22 @@ impl Window {
         egui::Id::new("hyperspeedcube::window_states").with(self)
     }
     fn toggle(self, ctx: &egui::Context) {
-        *ctx.data().get_persisted_mut_or_default::<bool>(self.id()) ^= true;
+        *ctx.data()
+            .get_persisted_mut_or_insert_with(self.id(), || self.default_is_open()) ^= true;
     }
     fn is_open(self, ctx: &egui::Context) -> bool {
-        ctx.data().get_persisted(self.id()).unwrap_or(match self {
-            Window::PuzzleControlsPanel => true,
-            _ => false,
-        })
+        ctx.data()
+            .get_persisted(self.id())
+            .unwrap_or_else(|| self.default_is_open())
     }
     fn set_open(self, ctx: &egui::Context, open: bool) {
         ctx.data().insert_persisted(self.id(), open);
+    }
+
+    fn default_is_open(self) -> bool {
+        match self {
+            Window::PuzzleControlsPanel => true,
+            _ => false,
+        }
     }
 }
