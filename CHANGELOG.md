@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Automatic reloading of preferences file when modified externally
 
+### Fixed
+
+- Transparent stickers now have the correct color
+
 ## [0.4.0] - 2022-03-15
 
 ### Added

@@ -33,9 +33,4 @@ void main() {
     float a = exp2(-2.0 * d * d);
 
     color = mix(vert_fill_color, vert_wire_color, a);
-
-    // Unpremultiply alpha.
-    if (color.a != 0.0) {
-      color.rgb /= color.a;
-    }
 }
