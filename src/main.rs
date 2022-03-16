@@ -53,6 +53,9 @@ fn main() {
 
     // Initialize app state.
     let mut app = App::new(&event_loop);
+    if let Some(egui_memory) = app.prefs.egui.take() {
+        *egui.egui_ctx.memory() = egui_memory;
+    }
 
     // Set up texture for rendering puzzle.
     let puzzle_texture_id = egui
@@ -102,6 +105,11 @@ fn main() {
                 if !consumed {
                     app.handle_window_event(&event);
                 }
+            }
+
+            Event::LoopDestroyed => {
+                app.prefs.egui = Some(egui.egui_ctx.memory().clone());
+                app.prefs.save();
             }
 
             // Ignore this event.

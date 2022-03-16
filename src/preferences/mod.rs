@@ -101,6 +101,9 @@ pub struct Preferences {
 
     pub general_keybinds: Vec<Keybind<Command>>,
     pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub egui: Option<egui::Memory>,
 }
 impl Preferences {
     pub fn load(backup: Option<&Self>) -> Self {
@@ -166,20 +169,18 @@ impl Preferences {
     }
 
     pub fn save(&mut self) {
-        if self.needs_save {
-            self.needs_save = false;
-            let result = (|| -> anyhow::Result<()> {
-                // IIFE to mimic try block
-                let path = PREFS_FILE_PATH.as_ref()?;
-                if let Some(p) = path.parent() {
-                    std::fs::create_dir_all(p)?;
-                }
-                serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
-                Ok(())
-            })();
-            if let Err(e) = result {
-                eprintln!("Error saving preferences: {}", e);
+        self.needs_save = false;
+        let result = (|| -> anyhow::Result<()> {
+            // IIFE to mimic try block
+            let path = PREFS_FILE_PATH.as_ref()?;
+            if let Some(p) = path.parent() {
+                std::fs::create_dir_all(p)?;
             }
+            serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
+            Ok(())
+        })();
+        if let Err(e) = result {
+            eprintln!("Error saving preferences: {}", e);
         }
     }
 }

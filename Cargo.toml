@@ -16,7 +16,7 @@ config = "0.12.0"
 delegate = "0.6.2"
 dark-light = "0.2.1"
 directories = "4.0.1"
-egui = "0.17.0"
+egui = { version = "0.17.0", features = ["persistence"] }
 egui_glium = "0.17.0"
 enum_dispatch = "0.3.8"
 enum-map = { version = "2.0.1", features = ["serde"] }
