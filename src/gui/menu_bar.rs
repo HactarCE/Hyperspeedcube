@@ -82,6 +82,13 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
 
         ui.menu_button("Help", |ui| {
+            if ui.button("Keybinds reference...").clicked() {
+                ui.close_menu();
+                super::Window::KeybindsReference.toggle(ui.ctx());
+            }
+
+            ui.separator();
+
             if ui.button("About").clicked() {
                 ui.close_menu();
                 super::Window::About.toggle(ui.ctx());

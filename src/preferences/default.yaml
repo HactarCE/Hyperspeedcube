@@ -449,3 +449,9 @@ puzzle_keybinds:
           face: In
           direction: z
           layers: 7
+gui:
+  keybinds_reference:
+    function: false
+    navigation: false
+    numpad: false
+    opacity: 1.0

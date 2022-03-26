@@ -13,6 +13,7 @@ use std::path::PathBuf;
 
 mod colors;
 mod gfx;
+mod gui;
 mod info;
 mod interaction;
 mod keybinds;
@@ -22,6 +23,7 @@ use crate::commands::{Command, PuzzleCommand};
 use crate::puzzle::PuzzleType;
 pub use colors::*;
 pub use gfx::*;
+pub use gui::*;
 pub use info::*;
 pub use interaction::*;
 pub use keybinds::*;
@@ -101,6 +103,8 @@ pub struct Preferences {
 
     pub general_keybinds: Vec<Keybind<Command>>,
     pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
+
+    pub gui: GuiPreferences,
 }
 impl Preferences {
     pub fn load(backup: Option<&Self>) -> Self {

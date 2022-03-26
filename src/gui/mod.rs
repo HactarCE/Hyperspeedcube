@@ -5,6 +5,7 @@ macro_rules! unique_id {
 }
 
 mod key_combo_popup;
+mod keybinds_reference;
 mod keybinds_table;
 mod menu_bar;
 mod prefs;
@@ -33,6 +34,15 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
     if Window::PuzzleControlsPanel.is_open(ctx) {
         egui::SidePanel::right("puzzle_controls_panel")
             .show(ctx, |ui| puzzle_controls::build(ui, app));
+    }
+
+    if Window::KeybindsReference.is_open(ctx) {
+        let alpha = app.prefs.gui.keybinds_reference.opacity;
+        let frame = egui::Frame::window(&ctx.style());
+        egui::Window::new("Keybinds Reference")
+            .title_bar(false)
+            .frame(frame.fill(frame.fill.linear_multiply(alpha)))
+            .show(ctx, |ui| keybinds_reference::build(ui, app));
     }
 
     let puzzle_type = app.puzzle.ty();
@@ -95,6 +105,7 @@ enum Window {
     PuzzleKeybinds,
     PrefsPanel,
     PuzzleControlsPanel,
+    KeybindsReference,
     About,
     Debug,
 }
