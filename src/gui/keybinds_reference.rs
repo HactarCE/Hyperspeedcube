@@ -1,8 +1,11 @@
 use egui::NumExt;
+use itertools::Itertools;
 use key_names::KeyMappingCode;
 
 use crate::app::App;
-use crate::preferences::DEFAULT_PREFS;
+use crate::commands::{PuzzleCommand, SelectThing};
+use crate::preferences::Key;
+use crate::puzzle::PuzzleControllerTrait;
 
 const KEY_PADDING: f32 = 0.05;
 
@@ -66,16 +69,15 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     });
 
     ui.collapsing("Settings", |ui| {
+        let default_prefs = crate::preferences::DEFAULT_PREFS.gui.keybinds_reference;
+
         let mut changed = false;
 
         let r = ui.add(super::util::WidgetWithReset {
             label: "Opacity",
             value: &mut app.prefs.gui.keybinds_reference.opacity,
-            reset_value: DEFAULT_PREFS.gui.keybinds_reference.opacity,
-            reset_value_str: format!(
-                "{:.0}%",
-                DEFAULT_PREFS.gui.keybinds_reference.opacity * 100.0,
-            ),
+            reset_value: default_prefs.opacity,
+            reset_value_str: format!("{:.0}%", default_prefs.opacity * 100.0,),
             make_widget: super::util::make_percent_drag_value,
         });
         changed |= r.changed();
@@ -100,13 +102,92 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::Rect) {
-    let text = autosize_button_text(ui, get_key_name(key), rect.size());
+    let matching_keybinds = app
+        .resolve_keypress(&app.prefs.puzzle_keybinds[app.puzzle.ty()], Some(key), None)
+        .into_iter()
+        .take_while(|bind| bind.command != PuzzleCommand::None)
+        .collect_vec();
+
+    let s = matching_keybinds
+        .first()
+        .map(|bind| bind.command.short_description())
+        .unwrap_or_default();
+    // let s = get_key_name(key);
+
+    let text = autosize_button_text(ui, s, rect.size());
+
     let mut button = egui::Button::new(text).sense(egui::Sense::hover());
-    // if app.pressed_key_codes.contains(&key) {
-    //     // button = button.fill(egui::Color32::DARK_RED);
-    //     button = button.stroke(ui.style().noninteractive().fg_stroke);
-    // }
-    ui.put(rect, button);
+    if app.pressed_keys().contains(&Key::Sc(key)) {
+        // button = button.fill(egui::Color32::DARK_RED);
+        button = button.stroke(ui.style().noninteractive().fg_stroke);
+    }
+    let r = ui.put(rect, button);
+    if !matching_keybinds.is_empty() {
+        r.on_hover_ui(|ui| {
+            // Adjust spacing so we don't have to add spaces manually.
+            let space_width = ui
+                .fonts()
+                .glyph_width(&egui::TextStyle::Body.resolve(ui.style()), ' ');
+            ui.spacing_mut().item_spacing.x = space_width;
+
+            for bind in matching_keybinds {
+                ui.horizontal_wrapped(|ui| match &bind.command {
+                    PuzzleCommand::Twist {
+                        face,
+                        direction,
+                        layer_mask,
+                    } => {
+                        ui.label("Twist");
+                        ui.strong(face.map(|f| f.name()).unwrap_or("selected"));
+                        ui.label("face in");
+                        ui.strong(direction.name());
+                        ui.label("direction");
+                        if !layer_mask.is_default() {
+                            ui.label("(layer");
+                            ui.strong(layer_mask.long_description());
+                            ui.add_space(-space_width);
+                            ui.label(")");
+                        }
+                    }
+                    PuzzleCommand::Recenter { face } => {
+                        ui.label("Recenter");
+                        ui.strong(face.map(|f| f.name()).unwrap_or("selected"));
+                        ui.label("face");
+                    }
+
+                    PuzzleCommand::HoldSelect(thing) | PuzzleCommand::ToggleSelect(thing) => {
+                        ui.label(match &bind.command {
+                            PuzzleCommand::HoldSelect(_) => "Hold select",
+                            PuzzleCommand::ToggleSelect(_) => "Toggle select",
+                            _ => unreachable!(),
+                        });
+
+                        match thing {
+                            SelectThing::Face(f) => {
+                                ui.strong(f.name());
+                                ui.label("face");
+                            }
+                            SelectThing::Layers(l) => {
+                                ui.label("layer");
+                                ui.strong(l.long_description());
+                            }
+                            SelectThing::PieceType(p) => {
+                                ui.strong(p.name());
+                                ui.label("pieces");
+                            }
+                        }
+                    }
+                    PuzzleCommand::ClearToggleSelect(category) => {
+                        ui.label(format!(
+                            "Clear selected {}s",
+                            category.to_string().to_ascii_lowercase(),
+                        ));
+                    }
+                    PuzzleCommand::None => unreachable!(),
+                });
+            }
+        });
+    }
 }
 
 fn autosize_button_text(

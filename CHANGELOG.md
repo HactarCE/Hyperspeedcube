@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- Interactive keybinds reference
 - Puzzle controls panel
 
 ### Changed
@@ -26,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Transparent stickers now have the correct color
 - Stickers now render in the correct order
+- Single keypress can no longer perform multiple twists at once
 
 ## [0.4.0] - 2022-03-15
 

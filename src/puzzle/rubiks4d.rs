@@ -132,8 +132,11 @@ impl PuzzleState for Rubiks4D {
         &["In", "Back", "Down", "Left", "Right", "Up", "Front", "Out"]
     }
 
-    fn twist_direction_names() -> &'static [&'static str] {
+    fn twist_direction_symbols() -> &'static [&'static str] {
         &["x", "x'", "y", "y'", "z", "z'"]
+    }
+    fn twist_direction_names() -> &'static [&'static str] {
+        Self::twist_direction_symbols()
     }
 }
 impl Rubiks4D {

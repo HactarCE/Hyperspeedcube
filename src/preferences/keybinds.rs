@@ -115,6 +115,23 @@ impl KeyCombo {
     pub fn logo(self) -> bool {
         self.logo
     }
+
+    pub fn mods(self) -> ModifiersState {
+        let mut ret = ModifiersState::empty();
+        if self.shift() {
+            ret |= ModifiersState::SHIFT;
+        }
+        if self.ctrl() {
+            ret |= ModifiersState::CTRL;
+        }
+        if self.alt() {
+            ret |= ModifiersState::ALT;
+        }
+        if self.logo() {
+            ret |= ModifiersState::LOGO;
+        }
+        ret
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -163,6 +180,16 @@ impl Key {
             Self::Sc(Sc::MetaLeft | Sc::MetaRight) => true,
             Self::Vk(Vk::LWin | Vk::RWin) => true,
             _ => false,
+        }
+    }
+
+    pub fn modifier_bit(self) -> ModifiersState {
+        match self {
+            _ if self.is_shift() => ModifiersState::SHIFT,
+            _ if self.is_ctrl() => ModifiersState::CTRL,
+            _ if self.is_alt() => ModifiersState::ALT,
+            _ if self.is_logo() => ModifiersState::LOGO,
+            _ => ModifiersState::empty(),
         }
     }
 }

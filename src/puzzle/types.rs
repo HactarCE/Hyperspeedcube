@@ -2,7 +2,7 @@ use enum_map::Enum;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use super::{traits::*, Face, Piece, Rubiks3D, Rubiks4D, Sticker};
+use super::{traits::*, Face, LayerMask, Piece, Rubiks3D, Rubiks4D, Sticker, TwistDirection};
 
 /// Declare the `PuzzleType` enum and also generate a `with_puzzle_types` macro.
 macro_rules! puzzle_type_enum {
@@ -175,6 +175,45 @@ macro_rules! puzzle_type_list {
 impl PuzzleType {
     /// List of all puzzle types.
     pub const ALL: &'static [Self] = &puzzle_type_list!();
+
+    /// Returns a human-friendly string describing a twist.
+    pub fn twist_to_string(
+        self,
+        face: Face,
+        direction: TwistDirection,
+        layer_mask: LayerMask,
+    ) -> String {
+        delegate_to_puzzle_type! {
+            match_expr = {[ self ]}
+            type_name = {[ P ]}
+            foreach = {[
+                match <P as PuzzleState>::Twist::from_twist_command(
+                    face.try_into::<P>().unwrap(),
+                    direction.name(),
+                    layer_mask,
+                ) {
+                    Ok(twist) => twist.to_string(),
+                    Err(_) => "(invalid twist)".to_string(),
+                }
+            ]}
+        }
+    }
+
+    /// Returns a human-friendly string describing a recenter command.
+    pub fn recenter_to_string(self, face: Face) -> String {
+        delegate_to_puzzle_type! {
+            match_expr = {[ self ]}
+            type_name = {[ P ]}
+            foreach = {[
+                match <P as PuzzleState>::Twist::from_recenter_command(
+                    face.try_into::<P>().unwrap(),
+                ) {
+                    Ok(twist) => twist.to_string(),
+                    Err(_) => "(invalid twist)".to_string(),
+                }
+            ]}
+        }
+    }
 }
 impl PuzzleTypeTrait for PuzzleType {
     delegate_fn_to_puzzle_type! {
@@ -205,6 +244,8 @@ impl PuzzleTypeTrait for PuzzleType {
         fn piece_type_names(&self) -> &'static [&'static str] {
             P::PIECE_TYPE_NAMES
         }
+
+        fn twist_direction_symbols(&self) -> &'static [&'static str];
         fn twist_direction_names(&self) -> &'static [&'static str];
     }
 }

@@ -1,12 +1,13 @@
-use std::collections::HashMap;
+use key_names::KeyMappingCode;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use winit::event::{ElementState, ModifiersState, WindowEvent};
+use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
 use crate::commands::{Command, PuzzleCommand, SelectCategory};
-use crate::preferences::{Key, KeyCombo, Preferences};
+use crate::preferences::{Key, Keybind, Preferences};
 use crate::puzzle::{
     Face, LayerMask, Puzzle, PuzzleController, PuzzleControllerTrait, PuzzleType, Selection,
     TwistDirection,
@@ -22,8 +23,10 @@ pub struct App {
     pub(crate) render_cache: PuzzleRenderCache,
     pub(crate) wants_repaint: bool,
 
+    /// Set of pressed keys.
+    pressed_keys: HashSet<Key>,
     /// Set of pressed modifier keys.
-    modifiers: ModifiersState,
+    pressed_modifiers: ModifiersState,
     /// Selections tied to a held key.
     held_selections: HashMap<Key, Selection>,
     /// Semi-permanent selections.
@@ -42,7 +45,8 @@ impl App {
             render_cache: PuzzleRenderCache::default(),
             wants_repaint: true,
 
-            modifiers: ModifiersState::default(),
+            pressed_keys: HashSet::default(),
+            pressed_modifiers: ModifiersState::default(),
             held_selections: HashMap::default(),
             toggle_selections: Selection::default(),
 
@@ -152,7 +156,7 @@ impl App {
             }
 
             WindowEvent::ModifiersChanged(mods) => {
-                self.modifiers = *mods;
+                self.pressed_modifiers = *mods;
                 // Sometimes we miss key events for modifiers when the left and
                 // right modifiers are both pressed at once (at least in my
                 // testing on Windows 11) so clean that up here just in case.
@@ -167,97 +171,142 @@ impl App {
             }
 
             WindowEvent::KeyboardInput { input, .. } => {
-                let sc = key_names::sc_to_key(input.scancode as u16).map(Key::Sc);
-                let vk = input.virtual_keycode.map(Key::Vk);
-                let is_shift =
-                    sc.map_or(false, |k| k.is_shift()) || vk.map_or(false, |k| k.is_shift());
-                let is_ctrl =
-                    sc.map_or(false, |k| k.is_ctrl()) || vk.map_or(false, |k| k.is_ctrl());
-                let is_alt = sc.map_or(false, |k| k.is_alt()) || vk.map_or(false, |k| k.is_alt());
-                let is_logo =
-                    sc.map_or(false, |k| k.is_logo()) || vk.map_or(false, |k| k.is_logo());
+                let sc = key_names::sc_to_key(input.scancode as u16);
+                let vk = input.virtual_keycode;
 
-                if input.state == ElementState::Released {
-                    // Remove selections for this held key.
-                    self.remove_held_selections(|k| Some(k) == sc || Some(k) == vk);
-                    return;
-                }
+                match input.state {
+                    ElementState::Pressed => {
+                        if let Some(sc) = sc {
+                            self.pressed_keys.insert(Key::Sc(sc));
+                        }
+                        if let Some(vk) = vk {
+                            self.pressed_keys.insert(Key::Vk(vk));
+                        }
 
-                let ignore_shift = is_shift || self.held_selections.keys().any(|k| k.is_shift());
-                let ignore_ctrl = is_ctrl || self.held_selections.keys().any(|k| k.is_ctrl());
-                let ignore_alt = is_alt || self.held_selections.keys().any(|k| k.is_alt());
-                let ignore_logo = is_logo || self.held_selections.keys().any(|k| k.is_logo());
+                        // Only allow one twist command per keypress. Macros are
+                        // icky.
+                        let mut done_twist_command = false;
 
-                // We don't care about left vs. right modifiers, so just extract
-                // the bits that don't specify left vs. right.
-                let mods = self.modifiers
-                    & (ModifiersState::SHIFT
-                        | ModifiersState::CTRL
-                        | ModifiersState::ALT
-                        | ModifiersState::LOGO);
-
-                let key_combo_matches = |key_combo: KeyCombo| match key_combo.key() {
-                    Some(k) => {
-                        (Some(k) == sc || Some(k) == vk)
-                            && (key_combo.shift() == mods.shift() || ignore_shift)
-                            && (key_combo.ctrl() == mods.ctrl() || ignore_ctrl)
-                            && (key_combo.alt() == mods.alt() || ignore_alt)
-                            && (key_combo.logo() == mods.logo() || ignore_logo)
-                    }
-                    None => false,
-                };
-
-                for bind in &self.prefs.puzzle_keybinds[self.puzzle.ty()] {
-                    if key_combo_matches(bind.key) {
-                        match &bind.command {
-                            PuzzleCommand::Twist {
-                                face,
-                                direction,
-                                layer_mask,
-                            } => self.do_twist(*face, *direction, *layer_mask),
-                            PuzzleCommand::Recenter { face } => self.do_recenter(*face),
-
-                            PuzzleCommand::HoldSelect(thing) => {
-                                let sel = Selection::from(*thing);
-                                let old_sel =
-                                    self.held_selections.insert(bind.key.key().unwrap(), sel);
-                                self.wants_repaint = old_sel != Some(sel);
-                            }
-                            PuzzleCommand::ToggleSelect(thing) => {
-                                self.toggle_selections ^= Selection::from(*thing);
-                                self.wants_repaint = true;
-                            }
-                            PuzzleCommand::ClearToggleSelect(category) => {
-                                let default = Selection::default();
-                                let tog_sel = &mut self.toggle_selections;
-                                let old_tog_sel = *tog_sel;
-
-                                use SelectCategory::*;
-                                match category {
-                                    Face => tog_sel.face_mask = default.face_mask,
-                                    Layers => tog_sel.layer_mask = default.layer_mask,
-                                    PieceType => tog_sel.piece_type_mask = default.piece_type_mask,
+                        let puzzle_keybinds = &self.prefs.puzzle_keybinds[self.puzzle.ty()];
+                        for bind in self.resolve_keypress(puzzle_keybinds, sc, vk) {
+                            match &bind.command {
+                                PuzzleCommand::Twist {
+                                    face,
+                                    direction,
+                                    layer_mask,
+                                } => {
+                                    if !done_twist_command {
+                                        done_twist_command = true;
+                                        self.do_twist(*face, *direction, *layer_mask);
+                                    }
                                 }
-                                self.wants_repaint |= old_tog_sel != *tog_sel;
-                            }
+                                PuzzleCommand::Recenter { face } => {
+                                    if !done_twist_command {
+                                        done_twist_command = true;
+                                        self.do_recenter(*face);
+                                    }
+                                }
 
-                            PuzzleCommand::None => return, // Do not try to match other keybinds.
+                                PuzzleCommand::HoldSelect(thing) => {
+                                    let sel = Selection::from(*thing);
+                                    let old_sel =
+                                        self.held_selections.insert(bind.key.key().unwrap(), sel);
+                                    self.wants_repaint = old_sel != Some(sel);
+                                }
+                                PuzzleCommand::ToggleSelect(thing) => {
+                                    self.toggle_selections ^= Selection::from(*thing);
+                                    self.wants_repaint = true;
+                                }
+                                PuzzleCommand::ClearToggleSelect(category) => {
+                                    let default = Selection::default();
+                                    let tog_sel = &mut self.toggle_selections;
+                                    let old_tog_sel = *tog_sel;
+
+                                    use SelectCategory::*;
+                                    match category {
+                                        Face => tog_sel.face_mask = default.face_mask,
+                                        Layers => tog_sel.layer_mask = default.layer_mask,
+                                        PieceType => {
+                                            tog_sel.piece_type_mask = default.piece_type_mask
+                                        }
+                                    }
+                                    self.wants_repaint |= old_tog_sel != *tog_sel;
+                                }
+
+                                PuzzleCommand::None => return, // Do not try to match other keybinds.
+                            }
+                        }
+
+                        for bind in self.resolve_keypress(&self.prefs.general_keybinds, sc, vk) {
+                            match &bind.command {
+                                Command::None => return, // Do not try to match other keybinds.
+
+                                _ => self.event(bind.command.clone()),
+                            }
                         }
                     }
-                }
 
-                for bind in &self.prefs.general_keybinds {
-                    if key_combo_matches(bind.key) {
-                        match &bind.command {
-                            Command::None => return, // Do not try to match other keybinds.
-                            other => self.event(other.clone()),
+                    ElementState::Released => {
+                        if let Some(sc) = sc {
+                            self.pressed_keys.remove(&Key::Sc(sc));
                         }
+                        if let Some(vk) = vk {
+                            self.pressed_keys.remove(&Key::Vk(vk));
+                        }
+
+                        // Remove selections for this held key.
+                        self.remove_held_selections(|k| {
+                            Some(k) == sc.map(Key::Sc) || Some(k) == vk.map(Key::Vk)
+                        });
                     }
                 }
             }
 
             _ => (),
         }
+    }
+
+    pub(crate) fn resolve_keypress<'a, C>(
+        &self,
+        keybinds: &'a [Keybind<C>],
+        sc: Option<KeyMappingCode>,
+        vk: Option<VirtualKeyCode>,
+    ) -> Vec<&'a Keybind<C>> {
+        let sc = sc.map(Key::Sc);
+        let vk = vk.map(Key::Vk);
+
+        // Sometimes, we want to ignore certain modifier keys when resolving a
+        // keypress -- in particular, if another keybind has already consumed
+        // the modifier.
+        //
+        // For example, if `Shift` is bound to "select layer 2," then a keybind
+        // bound to `A` will still match `Shift`+`A` because `Shift` is in the
+        // "ignored modifiers" set.
+        //
+        // A modifier is also ignored when matching its own key, hence
+        // `.chain(&sc).chain(&vk)`. For example, the shift modifier is ignored
+        // when matching the shift key.
+        let modifiers_mask = self.held_selections.keys().chain(&sc).chain(&vk).fold(
+            // Consider all modifiers, but don't distinguish left vs. right.
+            ModifiersState::SHIFT
+                | ModifiersState::CTRL
+                | ModifiersState::ALT
+                | ModifiersState::LOGO,
+            // Ignore held selections and the key currently being pressed.
+            |mods, key| mods & !key.modifier_bit(),
+        );
+
+        keybinds
+            .iter()
+            .filter(move |bind| {
+                let key_combo = bind.key;
+                let key = key_combo.key();
+                let key_matches = (sc.is_some() && sc == key) || (vk.is_some() && vk == key);
+                let mods_match =
+                    key_combo.mods() & modifiers_mask == self.pressed_modifiers() & modifiers_mask;
+                key_matches && mods_match
+            })
+            .collect()
     }
 
     pub(crate) fn do_twist(
@@ -288,8 +337,11 @@ impl App {
         }
     }
 
-    pub(crate) fn modifiers(&self) -> ModifiersState {
-        self.modifiers
+    pub(crate) fn pressed_keys(&self) -> &HashSet<Key> {
+        &self.pressed_keys
+    }
+    pub(crate) fn pressed_modifiers(&self) -> ModifiersState {
+        self.pressed_modifiers
     }
 
     pub(crate) fn frame(&mut self, delta: Duration) {

@@ -78,6 +78,14 @@ impl SelectThing {
             SelectCategory::PieceType => Self::PieceType(PieceType::default(ty)),
         }
     }
+
+    pub(crate) fn short_description(self) -> String {
+        match self {
+            SelectThing::Face(f) => f.symbol().to_string(),
+            SelectThing::Layers(l) => format!("L{}", l.short_description()),
+            SelectThing::PieceType(p) => p.name().to_string(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -188,6 +196,45 @@ impl PuzzleCommand {
             PuzzleCommand::ToggleSelect(_) => Some(SelectHow::Toggle),
             PuzzleCommand::ClearToggleSelect(_) => Some(SelectHow::Clear),
             _ => None,
+        }
+    }
+
+    pub fn short_description(&self) -> String {
+        match self {
+            PuzzleCommand::Twist {
+                face,
+                direction,
+                layer_mask,
+            } => {
+                if let Some(f) = face {
+                    f.ty().twist_to_string(*f, *direction, *layer_mask)
+                } else {
+                    let l = if layer_mask.is_default() {
+                        String::new()
+                    } else {
+                        layer_mask.short_description()
+                    };
+                    match face {
+                        Some(f) => format!("{l}{}{}", f.symbol(), direction.symbol()),
+                        None => format!("{l}Ø{}", direction.name()),
+                    }
+                }
+            }
+            PuzzleCommand::Recenter { face } => match face {
+                Some(f) => {
+                    // format!("Recenter {}", f.symbol())
+                    f.ty().recenter_to_string(*f)
+                }
+                None => format!("Recenter"),
+            },
+
+            PuzzleCommand::HoldSelect(thing) => thing.short_description(),
+            PuzzleCommand::ToggleSelect(thing) => thing.short_description(),
+            PuzzleCommand::ClearToggleSelect(category) => {
+                format!("Clear {}s", category.to_string().to_ascii_lowercase())
+            }
+
+            PuzzleCommand::None => String::new(),
         }
     }
 }

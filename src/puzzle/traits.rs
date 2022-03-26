@@ -147,7 +147,11 @@ pub trait PuzzleState:
     /// Returns the full names of faces.
     fn face_names() -> &'static [&'static str];
 
-    /// Returns a list of twist directions, not including the identity twist.
+    /// Returns the short names of twist directions, not including the identity
+    /// twist.
+    fn twist_direction_symbols() -> &'static [&'static str];
+    /// Returns the full names of twist directions, not including the identity
+    /// twist.
     fn twist_direction_names() -> &'static [&'static str];
 }
 
@@ -173,7 +177,12 @@ pub trait PuzzleTypeTrait {
     fn face_names(&self) -> &'static [&'static str];
     /// Returns the names of piece types.
     fn piece_type_names(&self) -> &'static [&'static str];
-    /// Returns the names of twist directions.
+
+    /// Returns the short names of twist directions, not including the identity
+    /// twist.
+    fn twist_direction_symbols(&self) -> &'static [&'static str];
+    /// Returns the full names of twist directions, not including the identity
+    /// twist.
     fn twist_direction_names(&self) -> &'static [&'static str];
 }
 

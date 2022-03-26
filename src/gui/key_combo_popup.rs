@@ -95,7 +95,7 @@ pub(super) fn build(ctx: &egui::Context, app: &mut App) -> Option<egui::Response
         return None;
     }
 
-    popup_state_mut(&mut ctx.data()).mods = app.modifiers();
+    popup_state_mut(&mut ctx.data()).mods = app.pressed_modifiers();
 
     let r = egui::Area::new("keybind_popup")
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)

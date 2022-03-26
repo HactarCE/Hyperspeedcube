@@ -112,6 +112,9 @@ impl PuzzleState for Rubiks3D {
         &["Back", "Down", "Left", "Right", "Up", "Front"]
     }
 
+    fn twist_direction_symbols() -> &'static [&'static str] {
+        &["", "'"]
+    }
     fn twist_direction_names() -> &'static [&'static str] {
         &["CW", "CCW"]
     }

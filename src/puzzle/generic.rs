@@ -1,4 +1,5 @@
 use cgmath::Matrix4;
+use itertools::Itertools;
 use std::fmt;
 use std::time::Duration;
 use thiserror::Error;
@@ -34,6 +35,8 @@ impl PuzzleTypeTrait for Puzzle {
             fn face_symbols(&self) -> &'static [&'static str];
             fn face_names(&self) -> &'static [&'static str];
             fn piece_type_names(&self) -> &'static [&'static str];
+
+            fn twist_direction_symbols(&self) -> &'static [&'static str];
             fn twist_direction_names(&self) -> &'static [&'static str];
         }
     }
@@ -193,11 +196,11 @@ impl Face {
     delegate_fn_to_puzzle_type! {
         type P = match self.ty();
 
-        /// Returns the short name for this face.
+        /// Returns the short name of the face.
         pub fn symbol(self) -> &'static str {
             P::face_symbols()[self.id()]
         }
-        /// Returns the full name for this face.
+        /// Returns the full name of the face.
         pub fn name(self) -> &'static str {
             P::face_names()[self.id()]
         }
@@ -320,7 +323,11 @@ impl TwistDirection {
         self.id
     }
 
-    /// Returns the name of the twist direction.
+    /// Returns the short name of the twist direction.
+    pub fn symbol(self) -> &'static str {
+        self.ty.twist_direction_symbols()[self.id]
+    }
+    /// Returns the full name of the twist direction.
     pub fn name(self) -> &'static str {
         self.ty.twist_direction_names()[self.id]
     }
@@ -332,6 +339,23 @@ pub struct LayerMask(pub u32);
 impl Default for LayerMask {
     fn default() -> Self {
         Self(1)
+    }
+}
+impl LayerMask {
+    pub(crate) fn is_default(self) -> bool {
+        self == Self::default()
+    }
+    pub(crate) fn short_description(self) -> String {
+        (0..9)
+            .filter(|i| self.0 & (1 << i) != 0)
+            .map(|i| (i as u8 + '1' as u8) as char)
+            .collect()
+    }
+    pub(crate) fn long_description(self) -> String {
+        (0..32)
+            .filter(|i| self.0 & (1 << i) != 0)
+            .map(|i| i + 1)
+            .join(", ")
     }
 }
 
