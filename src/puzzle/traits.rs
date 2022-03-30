@@ -42,7 +42,7 @@ macro_rules! lazy_static_generic_array_methods {
     };
 }
 
-/// A twisty puzzle.
+/// Twisty puzzle.
 ///
 /// - `puzzle[piece]` is the orientation of the piece at the location given by
 ///   `piece`.
@@ -217,7 +217,7 @@ macro_rules! impl_facet_trait_id_methods {
     };
 }
 
-/// The location of a piece in a twisty puzzle.
+/// Location of a piece in a twisty puzzle.
 pub trait PieceTrait<P: PuzzleState>:
     FacetTrait + Into<P::Piece> + From<P::Piece> + Into<Piece>
 {
@@ -237,7 +237,7 @@ pub trait PieceTrait<P: PuzzleState>:
     fn stickers(self) -> Vec<P::Sticker>;
 }
 
-/// The location of a sticker in a twisty puzzle.
+/// Location of a sticker in a twisty puzzle.
 pub trait StickerTrait<P: PuzzleState>:
     FacetTrait + Into<P::Sticker> + From<P::Sticker> + Into<Sticker>
 {
@@ -254,7 +254,7 @@ pub trait StickerTrait<P: PuzzleState>:
     fn geometry(self, p: StickerGeometryParams) -> Option<StickerGeometry>;
 }
 
-/// A face of a twisty puzzle.
+/// Face of a twisty puzzle.
 pub trait FaceTrait<P: PuzzleState>:
     'static + FacetTrait + Into<P::Face> + From<P::Face> + Into<Face>
 {
@@ -273,7 +273,7 @@ pub trait FaceTrait<P: PuzzleState>:
     fn stickers(self) -> Vec<P::Sticker>;
 }
 
-/// A twist that can be applied to a twisty puzzle.
+/// Twist that can be applied to a twisty puzzle.
 pub trait TwistTrait<P: PuzzleState>:
     'static + Debug + Copy + Eq + From<P::Sticker> + Hash
 {
@@ -316,7 +316,7 @@ pub trait TwistTrait<P: PuzzleState>:
     fn is_whole_puzzle_rotation(self) -> bool;
 }
 
-/// An orientation for a piece of a twisty puzzle, relative to some default.
+/// Orientation for a piece of a twisty puzzle, relative to some default.
 pub trait OrientationTrait<P: PuzzleState + Hash>:
     Debug + Default + Copy + Eq + Mul<Self, Output = Self> + Mul<P::Piece, Output = P::Piece>
 {

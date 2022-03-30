@@ -18,7 +18,7 @@ const MIN_TWIST_DELTA: f32 = 1.0 / 3.0;
 pub mod interpolate {
     use std::f32::consts::PI;
 
-    /// A function that maps a float from the range 0.0 to 1.0 to another float
+    /// Function that maps a float from the range 0.0 to 1.0 to another float
     /// from 0.0 to 1.0.
     pub type InterpolateFn = fn(f32) -> f32;
 
@@ -38,21 +38,21 @@ const INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 
 /// Puzzle wrapper that adds animation and undo history functionality.
 pub struct PuzzleController<P: PuzzleState> {
-    /// The state of the puzzle right before the twist being animated right now.
+    /// State of the puzzle right before the twist being animated right now.
     ///
     /// `Box`ed so that this struct is always the same size.
     displayed: Box<P>,
-    /// The state of the puzzle with all twists applied to it (used for timing
+    /// State of the puzzle with all twists applied to it (used for timing
     /// and undo).
     ///
     /// `Box`ed so that this struct is always the same size.
     latest: Box<P>,
-    /// A queue of twists that transform the displayed state into the latest
+    /// Queue of twists that transform the displayed state into the latest
     /// state.
     twists: VecDeque<P::Twist>,
     /// Maximum number of twists in the queue (reset when queue is empty).
     queue_max: usize,
-    /// The progress of the animation in the current twist, from 0.0 to 1.0.
+    /// Progress of the animation in the current twist, from 0.0 to 1.0.
     progress: f32,
 
     /// Whether the puzzle has been modified since the last time the log file

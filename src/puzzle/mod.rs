@@ -24,7 +24,7 @@ pub use sign::Sign;
 pub use traits::*;
 pub use types::PuzzleType;
 
-/// A rotation direction; clockwise or counterclockwise.
+/// Rotation direction; clockwise or counterclockwise.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TwistDirection2D {
     /// Clockwise.

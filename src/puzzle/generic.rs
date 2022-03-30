@@ -7,13 +7,13 @@ use thiserror::Error;
 use super::{traits::*, PuzzleController, PuzzleType, Rubiks3D, Rubiks4D, TwistMetric};
 use crate::preferences::Preferences;
 
-/// A PuzzleController of any puzzle type.
+/// `PuzzleController of any puzzle type.
 #[derive(PartialEq, Eq)]
 #[enum_dispatch(PuzzleControllerTrait)]
 pub enum Puzzle {
-    /// A 3D Rubik's cube.
+    /// 3D Rubik's cube.
     Rubiks3D(PuzzleController<Rubiks3D>),
-    /// A 4D Rubik's cube.
+    /// 4D Rubik's cube.
     Rubiks4D(PuzzleController<Rubiks4D>),
 }
 impl Default for Puzzle {
