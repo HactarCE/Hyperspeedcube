@@ -14,7 +14,7 @@ mod util;
 
 use crate::app::App;
 use crate::puzzle::PuzzleControllerTrait;
-pub(super) use key_combo_popup::key_combo_popup_handle_event;
+pub(super) use key_combo_popup::{key_combo_popup_captures_event, key_combo_popup_handle_event};
 
 use self::keybinds_table::KeybindsTable;
 

@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use super::{traits::*, PuzzleController, PuzzleType, Rubiks3D, Rubiks4D, TwistMetric};
 use crate::preferences::Preferences;
-use crate::render::WireframeVertex;
+use crate::render::RgbaVertex;
 
 /// A PuzzleController of any puzzle type.
 #[derive(PartialEq, Eq)]
@@ -161,7 +161,7 @@ impl Sticker {
         ///
         /// All vertices should be within the cube from (-1, -1, -1) to (1, 1, 1)
         /// before having `p.transform` applied.
-        pub fn verts(self, p: GeometryParams) -> Option<Vec<WireframeVertex>> {
+        pub fn verts(self, p: StickerGeometryParams) -> Option<Vec<RgbaVertex>> {
             self.try_into::<P>().unwrap().verts(p)
         }
     }

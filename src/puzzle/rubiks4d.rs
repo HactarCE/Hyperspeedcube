@@ -7,7 +7,7 @@ use std::ops::{Add, Index, IndexMut, Mul, Neg};
 use std::str::FromStr;
 
 use super::{traits::*, LayerMask, PieceType, PuzzleType, Sign, TwistDirection2D, TwistMetric};
-use crate::render::WireframeVertex;
+use crate::render::RgbaVertex;
 
 /// Maximum extent of any single coordinate along the X, Y, Z, or W axes.
 const PUZZLE_RADIUS: f32 = 1.5;
@@ -135,7 +135,7 @@ impl PuzzleState for Rubiks4D {
     }
 }
 impl Rubiks4D {
-    fn transform_point(mut point: Vector4<f32>, p: GeometryParams) -> Vector3<f32> {
+    fn transform_point(mut point: Vector4<f32>, p: StickerGeometryParams) -> Vector3<f32> {
         // Compute the maximum extent along any axis from the origin in the 3D
         // projection of the puzzle. We will divide all XYZ coordinates by this
         // to normalize the puzzle size.
@@ -154,7 +154,7 @@ pub struct Piece(pub [Sign; 4]);
 impl FacetTrait for Piece {
     impl_facet_trait_id_methods!(Piece, Rubiks4D::pieces());
 
-    fn projection_center(self, p: GeometryParams) -> Vector3<f32> {
+    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
         Rubiks4D::transform_point(self.center_4d(p), p)
     }
 }
@@ -240,7 +240,7 @@ impl Piece {
         (self.w().int() + 1) as usize
     }
 
-    fn center_4d(self, p: GeometryParams) -> Vector4<f32> {
+    fn center_4d(self, p: StickerGeometryParams) -> Vector4<f32> {
         let mut ret = Vector4::zero();
         for axis in Axis::iter() {
             ret[axis as usize] = p.face_scale() * self[axis].float();
@@ -258,7 +258,7 @@ pub struct Sticker {
 impl FacetTrait for Sticker {
     impl_facet_trait_id_methods!(Sticker, Rubiks4D::stickers());
 
-    fn projection_center(self, p: GeometryParams) -> Vector3<f32> {
+    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
         Rubiks4D::transform_point(self.center_4d(p), p)
     }
 }
@@ -270,7 +270,7 @@ impl StickerTrait<Rubiks4D> for Sticker {
         Face::new(self.axis(), self.sign())
     }
 
-    fn verts(self, p: GeometryParams) -> Option<Vec<WireframeVertex>> {
+    fn verts(self, p: StickerGeometryParams) -> Option<Vec<RgbaVertex>> {
         let [ax1, ax2, ax3] = self.face().parallel_axes();
 
         // Compute the center of the sticker.
@@ -304,7 +304,7 @@ impl StickerTrait<Rubiks4D> for Sticker {
         )
         .determinant()
         .is_sign_positive()
-        .then(|| WireframeVertex::cube(corners, p.fill_color, p.line_color).collect())
+        .then(|| RgbaVertex::cube(corners, p.color).collect())
     }
 }
 impl Sticker {
@@ -381,7 +381,7 @@ impl Sticker {
         [self.piece()[ax1], self.piece()[ax2], self.piece()[ax3]]
     }
 
-    fn center_4d(self, p: GeometryParams) -> Vector4<f32> {
+    fn center_4d(self, p: StickerGeometryParams) -> Vector4<f32> {
         let mut ret = self.piece().center_4d(p);
         ret[self.axis() as usize] = 1.5 * self.sign().float();
         ret
@@ -409,7 +409,7 @@ pub struct Face {
 impl FacetTrait for Face {
     impl_facet_trait_id_methods!(Face, Rubiks4D::faces());
 
-    fn projection_center(self, p: GeometryParams) -> Vector3<f32> {
+    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
         self.center_sticker().projection_center(p)
     }
 }

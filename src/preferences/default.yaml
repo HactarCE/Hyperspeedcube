@@ -2,7 +2,7 @@
 gfx:
   fps: 60
   font_size: 16.0
-  msaa: "8"
+  msaa: true
   label_size: 24.0
 info:
   metric: QSTM
@@ -29,12 +29,12 @@ view:
     sticker_spacing: 0.3
     outline_thickness: 1.0
     light_intensity: 1.0
-    light_pitch: 70.0
-    light_yaw: -90.0
+    light_pitch: 65.0
+    light_yaw: -55.0
 colors:
   sticker_opacity: 1.0
   hidden_opacity: 0.1
-  background: "#666666"
+  background: "#222222"
   outline: "#000000"
   faces:
     Rubiks3D:
@@ -45,14 +45,14 @@ colors:
       U: "#ffffff"
       F: "#66cc44"
     Rubiks4D:
-      I: "#9944dd"
+      I: "#8822cc"
       B: "#ffff00"
       D: "#88ee66"
       L: "#ff9922"
       R: "#cc3333"
       U: "#33aaff"
       F: "#ffffff"
-      O: "#ff55ff"
+      O: "#ff66ff"
   blind_face: "#cccccc"
   blindfold: false
 interaction:

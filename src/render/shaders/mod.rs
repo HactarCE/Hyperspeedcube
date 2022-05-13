@@ -1,24 +1,13 @@
-use crate::DISPLAY;
-use glium::{program, Program};
-use send_wrapper::SendWrapper;
-
-macro_rules! load_shader {
-    ($name:expr, $version:expr, srgb = $srgb:expr) => {
-        {
-            SendWrapper::new(program!(
-                    &**DISPLAY,
-                    $version => {
-                        vertex: include_str!(concat!(stringify!($name), ".vert")),
-                        fragment: include_str!(concat!(stringify!($name), ".frag")),
-                        outputs_srgb: $srgb,
-                    },
-                ).expect(&format!("failed to compile '{}' shader in {}", stringify!($name), std::module_path!()))
-            )
-        }
-    };
+#[derive(Default)]
+pub(super) struct Shaders {
+    basic: Option<wgpu::ShaderModule>,
 }
-
-lazy_static! {
-    pub static ref BASIC: SendWrapper<Program> = load_shader!(basic, 140, srgb = false);
-    pub static ref OUTLINED: SendWrapper<Program> = load_shader!(outlined, 140, srgb = false);
+impl Shaders {
+    pub(super) fn new() -> Self {
+        Self::default()
+    }
+    pub(super) fn basic(&mut self, device: &wgpu::Device) -> &wgpu::ShaderModule {
+        self.basic
+            .get_or_insert_with(|| device.create_shader_module(&wgpu::include_wgsl!("basic.wgsl")))
+    }
 }

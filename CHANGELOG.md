@@ -10,9 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Puzzle controls panel
 
+### Changed
+
+- Tweaked default colors
+
 ### Removed
 
 - Automatic reloading of preferences file when modified externally
+- 2x and 8x MSAA settings
 
 ### Fixed
 

@@ -192,42 +192,45 @@ pub(super) fn build(ctx: &egui::Context, app: &mut App) -> Option<egui::Response
     Some(r.response)
 }
 
+/// Returns `true` if the key combo popup should handle the event exclusively.
+/// Always call `key_combo_popup_handle_event()`, even if this function returns
+/// `false`.
+pub(crate) fn key_combo_popup_captures_event(ctx: &egui::Context, event: &WindowEvent) -> bool {
+    let mut data = ctx.data();
+    let popup = popup_state_mut(&mut data);
+
+    popup.callback.is_some() && matches!(event, WindowEvent::KeyboardInput { .. })
+}
+
 /// Handles keyboard events for the keybind popup, if it is open. Returns `true`
 /// if the event is consumed.
 pub(crate) fn key_combo_popup_handle_event(
     ctx: &egui::Context,
     app: &mut App,
     event: &WindowEvent,
-) -> bool {
+) {
     let mut data = ctx.data();
     let popup = popup_state_mut(&mut data);
 
-    popup.callback.is_some()
-        && match event {
+    if popup.callback.is_some() {
+        match event {
             winit::event::WindowEvent::KeyboardInput { input, .. }
                 if input.state == ElementState::Pressed =>
             {
                 match input.virtual_keycode {
-                    Some(VirtualKeyCode::Return) if popup.mods.is_empty() => {
-                        popup.confirm(app);
-                        true
-                    }
-                    Some(VirtualKeyCode::Escape) if popup.mods.is_empty() => {
-                        popup.cancel();
-                        true
-                    }
+                    Some(VirtualKeyCode::Return) if popup.mods.is_empty() => popup.confirm(app),
+                    Some(VirtualKeyCode::Escape) if popup.mods.is_empty() => popup.cancel(),
                     _ => {
                         popup.last_sc_pressed = key_names::sc_to_key(input.scancode as u16);
                         popup.last_vk_pressed = input.virtual_keycode;
                         popup.update_keybind();
-                        true
                     }
                 }
             }
-            winit::event::WindowEvent::ModifiersChanged(mods) => {
-                popup.mods = *mods;
-                false
-            }
-            _ => false,
+
+            winit::event::WindowEvent::ModifiersChanged(mods) => popup.mods = *mods,
+
+            _ => (),
         }
+    }
 }

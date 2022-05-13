@@ -8,7 +8,7 @@ use std::ops::{Index, IndexMut, Mul};
 
 pub use super::PuzzleControllerTrait;
 use super::{Face, LayerMask, Piece, PieceType, PuzzleType, Sticker, TwistMetric};
-use crate::render::WireframeVertex;
+use crate::render::RgbaVertex;
 
 macro_rules! lazy_static_array_methods {
     ( $( $( #[$attr:meta] )* fn $method_name:ident() -> $ret:ty { $($body:tt)* } )* ) => {
@@ -184,7 +184,7 @@ pub trait FacetTrait: Debug + Copy + Eq + Hash {
     fn from_id(id: usize) -> Option<Self>;
 
     /// Returns the 3D-projected center of the facet.
-    fn projection_center(self, p: GeometryParams) -> Vector3<f32>;
+    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32>;
 }
 macro_rules! impl_facet_trait_id_methods {
     ($facet_type:ty, $facet_list_expr:expr) => {
@@ -240,7 +240,7 @@ pub trait StickerTrait<P: PuzzleState>:
     ///
     /// All vertices should be within the cube from (-1, -1, -1) to (1, 1, 1)
     /// before having `p.transform` applied.
-    fn verts(self, p: GeometryParams) -> Option<Vec<WireframeVertex>>;
+    fn verts(self, p: StickerGeometryParams) -> Option<Vec<RgbaVertex>>;
 }
 
 /// A face of a twisty puzzle.
@@ -316,7 +316,7 @@ pub trait OrientationTrait<P: PuzzleState + Hash>:
 
 /// Geometry parameters.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct GeometryParams {
+pub struct StickerGeometryParams {
     /// Sticker spacing factor.
     pub sticker_spacing: f32,
     /// Face spacing factor.
@@ -331,11 +331,9 @@ pub struct GeometryParams {
     pub view_transform: Matrix3<f32>,
 
     /// Sticker fill color.
-    pub fill_color: [f32; 4],
-    /// Outline color.
-    pub line_color: [f32; 4],
+    pub color: [f32; 4],
 }
-impl Default for GeometryParams {
+impl Default for StickerGeometryParams {
     fn default() -> Self {
         Self {
             sticker_spacing: 0.2,
@@ -345,12 +343,11 @@ impl Default for GeometryParams {
             model_transform: Matrix4::identity(),
             view_transform: Matrix3::identity(),
 
-            fill_color: [1.0, 1.0, 1.0, 1.0],
-            line_color: [0.0, 0.0, 0.0, 1.0],
+            color: [1.0, 1.0, 1.0, 1.0],
         }
     }
 }
-impl GeometryParams {
+impl StickerGeometryParams {
     /// Computes the sticker scale factor (0.0 to 1.0).
     pub fn sticker_scale(self) -> f32 {
         1.0 - self.sticker_spacing
@@ -390,7 +387,7 @@ pub enum Facet<P: PuzzleState> {
 impl<P: PuzzleState> Copy for Facet<P> {}
 impl<P: PuzzleState> Facet<P> {
     /// Returns the 3D-projected center of the facet.
-    pub fn projection_center(self, p: GeometryParams) -> Vector3<f32> {
+    pub fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
         match self {
             Facet::Whole => Vector3::zero(),
             Facet::Face(face) => face.projection_center(p),

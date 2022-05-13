@@ -11,23 +11,27 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1.0.55"
+bytemuck = { version = "1.9.1", features = ["derive"] }
 cgmath = "0.18.0"
 config = "0.12.0"
 delegate = "0.6.2"
 dark-light = "0.2.1"
 directories = "4.0.1"
 egui = "0.17.0"
-egui_glium = "0.17.0"
+egui_winit_platform = { version = "0.14.0", features = ["clipboard", "webbrowser"] }
+egui_wgpu_backend = "0.17.0"
 enum_dispatch = "0.3.8"
 enum-map = { version = "2.0.1", features = ["serde"] }
+env_logger = "0.9.0"
 epi = "0.17.0"
-glium = "0.31.0"
 hex = "0.4.3"
 itertools = "0.10.3"
 key-names = { git = "https://github.com/HactarCE/key-names" }
 lazy_static = "1.4.0"
+log = "0.4.16"
 once_cell = "1.9.0"
 png = "0.17.5"
+pollster = "0.2.5"
 rfd = "0.8.0"
 send_wrapper = "0.5.0"
 serde = { version = "1.0.136", features = ["derive"] }
@@ -35,10 +39,20 @@ serde_yaml = "0.8.23"
 strum = { version = "0.24.0", features = ["derive"] }
 thiserror = "1.0"
 time = { version = "0.3.7", features = ["local-offset"] }
-winit = { version = "*", features = ["serde"] }
+wgpu = "0.12.0"
+winit = { version = "0.26.1", features = ["serde"] }
 
-[patch.crates-io]
-glium = { git = "https://github.com/glium/glium", rev = "4634642" }
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.6"
+console_log = "0.2.0"
+wgpu = { version = "0.12", features = ["webgl"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = [
+    "Document",
+    "Window",
+    "Element",
+]}
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
@@ -49,7 +63,3 @@ ProductName = "Hyperspeedcube"
 ProductVersion = "0.5.0-dev"
 OriginalFilename = "hyperspeedcube.exe"
 LegalCopyright = "Copyright © 2022 HactarCE"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1.6"
-tracing-wasm = "0.2"

@@ -167,13 +167,15 @@ fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
 
     // MSAA
     let r = ui
-        .add(resettable!("MSAA", (prefs.gfx.msaa), |value| {
-            util::BasicComboBox::new_enum("msaa", value)
-        }))
+        .add(util::CheckboxWithReset {
+            label: "MSAA",
+            value: &mut prefs.gfx.msaa,
+            reset_value: DEFAULT_PREFS.gfx.msaa,
+        })
         .on_hover_explanation(
             "Multisample Anti-Aliasing",
-            "Higher values result in a higher \
-             quality image, but worse performance.",
+            "Makes edges less jagged, \
+             but may worsen performance.",
         );
     prefs.needs_save |= r.changed();
     app.wants_repaint |= r.changed();

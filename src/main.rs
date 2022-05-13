@@ -17,17 +17,15 @@ extern crate lazy_static;
 #[macro_use]
 extern crate strum;
 
-use epi::NativeTexture;
-use std::rc::Rc;
 use std::time::Instant;
-use winit::event::{Event, StartCause, WindowEvent};
-use winit::event_loop::ControlFlow;
+use winit::event::{Event, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::Icon;
 
 #[macro_use]
 mod debug;
 mod app;
 mod commands;
-mod framework;
 mod gui;
 mod preferences;
 pub mod puzzle;
@@ -35,107 +33,138 @@ mod render;
 mod serde_impl;
 
 use app::App;
-use framework::DISPLAY;
 
 const TITLE: &str = "Hyperspeedcube";
 const ICON_32: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
 
 fn main() {
+    pollster::block_on(run());
+}
+
+async fn run() {
+    // Initialize logger.
+    env_logger::init();
+
     // Initialize window.
-    let event_loop = framework::init();
+    let event_loop = EventLoop::with_user_event();
+    let window = winit::window::WindowBuilder::new()
+        .with_title(crate::TITLE)
+        .with_window_icon(load_application_icon())
+        .build(&event_loop)
+        .expect("failed to initialize window");
+
+    // Initialize graphics state.
+    let mut gfx = render::GraphicsState::new(&window).await;
 
     // Initialize egui.
-    let mut egui = egui_glium::EguiGlium::new(&DISPLAY);
-    egui.egui_ctx.set_visuals(match dark_light::detect() {
+    let window_size = window.inner_size();
+    let mut egui = egui_winit_platform::Platform::new(egui_winit_platform::PlatformDescriptor {
+        physical_width: window_size.width,
+        physical_height: window_size.height,
+        scale_factor: window.scale_factor(),
+        font_definitions: egui::FontDefinitions::default(),
+        style: egui::Style::default(),
+    });
+    egui.context().set_visuals(match dark_light::detect() {
         dark_light::Mode::Light => egui::Visuals::light(),
         dark_light::Mode::Dark => egui::Visuals::dark(),
     });
+    let mut egui_render_pass =
+        egui_wgpu_backend::RenderPass::new(&gfx.device, gfx.config.format, 1);
+    let puzzle_texture_id = egui_render_pass.egui_texture_from_wgpu_texture(
+        &gfx.device,
+        &gfx.dummy_texture_view(),
+        wgpu::FilterMode::Linear,
+    );
+    let mut puzzle_texture_size = (0, 0);
 
     // Initialize app state.
     let mut app = App::new(&event_loop);
 
-    // Set up texture for rendering puzzle.
-    let puzzle_texture_id = egui
-        .painter
-        .register_native_texture(Rc::clone(&render::cache::DUMMY_TEXTURE));
-    let mut puzzle_texture_size = (1, 1);
-
     // Begin main loop.
-    let mut next_frame_time = Instant::now();
+    let start_time = Instant::now();
+    let mut last_frame_time = Instant::now();
     event_loop.run(move |ev, _ev_loop, control_flow| {
-        let mut now = Instant::now();
-        let mut do_frame = false;
+        let mut event_has_been_captured = false;
 
-        // Handle events.
+        // Prioritize sending events to the key combo popup.
+        match &ev {
+            Event::WindowEvent { window_id, event } if *window_id == window.id() => {
+                gui::key_combo_popup_handle_event(&egui.context(), &mut app, &event);
+                event_has_been_captured |=
+                    gui::key_combo_popup_captures_event(&egui.context(), &event);
+            }
+            _ => (),
+        }
+
+        // If the key combo popup didn't capture the event, then let egui handle
+        // it before anything else.
+        if !event_has_been_captured {
+            egui.handle_event(&ev);
+            event_has_been_captured |= egui.captures_event(&ev);
+        }
+
+        // Handle events for the app.
         match ev {
-            Event::NewEvents(cause) => match cause {
-                StartCause::ResumeTimeReached {
-                    start: _,
-                    requested_resume,
+            // Handle window events.
+            Event::WindowEvent { window_id, event } if window_id == window.id() => match &event {
+                WindowEvent::Resized(new_size) => gfx.resize(*new_size),
+                WindowEvent::ScaleFactorChanged {
+                    scale_factor,
+                    new_inner_size,
                 } => {
-                    now = requested_resume;
-                    do_frame = true;
+                    gfx.set_scale_factor(*scale_factor);
+                    gfx.resize(**new_inner_size);
                 }
-                StartCause::Init => {
-                    next_frame_time = now;
-                    do_frame = true;
+                WindowEvent::ThemeChanged(theme) => egui.context().set_visuals(match theme {
+                    winit::window::Theme::Light => egui::Visuals::light(),
+                    winit::window::Theme::Dark => egui::Visuals::dark(),
+                }),
+                _ => {
+                    if !event_has_been_captured {
+                        app.handle_window_event(&event);
+                    }
                 }
-                _ => (),
             },
 
             // Handle application-specific events.
             Event::UserEvent(event) => app.handle_app_event(event, control_flow),
 
-            // Handle window events.
-            Event::WindowEvent { event, .. } => {
-                match &event {
-                    WindowEvent::ThemeChanged(theme) => egui.egui_ctx.set_visuals(match theme {
-                        winit::window::Theme::Light => egui::Visuals::light(),
-                        winit::window::Theme::Dark => egui::Visuals::dark(),
-                    }),
-                    _ => (),
-                }
-
-                // Let the keybind popup and egui handle events.
-                let consumed = gui::key_combo_popup_handle_event(&egui.egui_ctx, &mut app, &event)
-                    || egui.on_event(&event);
-                if !consumed {
-                    app.handle_window_event(&event);
-                }
+            Event::MainEventsCleared => {
+                // RedrawRequested will only trigger once unless we manually
+                // request it.
+                window.request_redraw();
             }
 
-            // Ignore this event.
-            _ => (),
-        };
+            Event::RedrawRequested(window_id) if window_id == window.id() => {
+                // Update delta time.
+                {
+                    let new_frame_time = Instant::now();
+                    egui.update_time((new_frame_time - start_time).as_secs_f64());
+                    app.frame(new_frame_time - last_frame_time);
+                    last_frame_time = new_frame_time;
+                }
 
-        if do_frame && next_frame_time <= now {
-            let frame_duration = app.prefs.gfx.frame_duration();
-            next_frame_time = now + frame_duration;
-            if next_frame_time < Instant::now() {
-                // Skip a frame (or several).
-                next_frame_time = Instant::now() + frame_duration;
-            }
-            *control_flow = ControlFlow::WaitUntil(next_frame_time);
+                // Start egui frame.
+                egui.begin_frame();
 
-            app.frame(frame_duration);
+                // Build all the UI except the puzzle view in the center.
+                gui::build(&egui.context(), &mut app);
 
-            let egui_wants_repaint = egui.run(&DISPLAY, |ctx| {
-                // Build most of the GUI.
-                gui::build(ctx, &mut app);
-
-                // Draw puzzle in central panel.
                 egui::CentralPanel::default()
-                    .frame(egui::Frame::none())
-                    .show(ctx, |ui| {
+                    .frame(egui::Frame::none().fill(app.prefs.colors.background))
+                    .show(&egui.context(), |ui| {
                         let dpi = ui.ctx().pixels_per_point();
 
-                        // Round rectangle to pixel boundary for crisp image.
+                        // Round rectangle to pixel boundary for crisp
+                        // image.
                         let mut pixels_rect = ui.available_rect_before_wrap();
-                        pixels_rect.set_left((dpi * pixels_rect.left()).floor());
+                        pixels_rect.set_left((dpi * pixels_rect.left()).ceil());
                         pixels_rect.set_bottom((dpi * pixels_rect.bottom()).floor());
-                        pixels_rect.set_right((dpi * pixels_rect.right()).ceil());
+                        pixels_rect.set_right((dpi * pixels_rect.right()).floor());
                         pixels_rect.set_top((dpi * pixels_rect.top()).ceil());
 
+                        // Request repaint if the texture size changed.
                         let new_puzzle_texture_size =
                             (pixels_rect.width() as u32, pixels_rect.height() as u32);
                         if puzzle_texture_size != new_puzzle_texture_size {
@@ -151,41 +180,142 @@ fn main() {
                         *egui_rect.right_mut() /= dpi;
                         *egui_rect.top_mut() /= dpi;
 
-                        // egui uses the top left as (0, 0), but OpenGL uses the
-                        // bottom left, so we have to invert the Y axis.
                         ui.put(
                             egui_rect,
-                            egui::Image::new(puzzle_texture_id, egui_rect.size()).uv(egui::Rect {
-                                min: egui::Pos2 { x: 0.0, y: 1.0 },
-                                max: egui::Pos2 { x: 1.0, y: 0.0 },
-                            }),
+                            egui::Image::new(puzzle_texture_id, egui_rect.size()),
                         );
                     });
-            });
 
-            if app.prefs.needs_save {
-                app.prefs.save();
-            }
+                if app.prefs.needs_save {
+                    app.prefs.save();
+                }
 
-            if app.wants_repaint {
-                if let Some(puzzle_texture) = render::draw_puzzle(
-                    &mut app,
-                    puzzle_texture_size.0,
-                    puzzle_texture_size.1,
-                    egui.egui_ctx.pixels_per_point(),
-                ) {
-                    egui.painter
-                        .replace_native_texture(puzzle_texture_id, puzzle_texture);
+                if app.wants_repaint {
+                    // Draw puzzle.
+                    let puzzle_texture = render::draw_puzzle(
+                        &mut app,
+                        &mut gfx,
+                        puzzle_texture_size.0,
+                        puzzle_texture_size.1,
+                    );
+                    // Update texture for egui.
+                    egui_render_pass
+                        .update_egui_texture_from_wgpu_texture(
+                            &gfx.device,
+                            &puzzle_texture,
+                            wgpu::FilterMode::Linear,
+                            puzzle_texture_id,
+                        )
+                        .unwrap();
+                    // Request a repaint.
+                    egui.context().request_repaint();
+                }
+
+                let egui_output = egui.end_frame(Some(&window));
+
+                if egui_output.needs_repaint {
+                    let output_frame = match gfx.surface.get_current_texture() {
+                        Ok(tex) => tex,
+                        // Log other errors to the console.
+                        Err(e) => {
+                            match e {
+                                // This error occurs when the app is minimized on
+                                // Windows. Silently return here to prevent spamming
+                                // the console with "The underlying surface has
+                                // changed, and therefore the swap chain must be
+                                // updated."
+                                wgpu::SurfaceError::Outdated => (),
+                                // Reconfigure the surface if lost.
+                                wgpu::SurfaceError::Lost => gfx.resize(gfx.size),
+                                // The system is out of memory, so quit.
+                                wgpu::SurfaceError::OutOfMemory => {
+                                    *control_flow = ControlFlow::Exit
+                                }
+                                // Log other errors to the console.
+                                _ => eprintln!("Dropped frame with error: {:?}", e),
+                            }
+                            return;
+                        }
+                    };
+
+                    let paint_jobs = egui.context().tessellate(egui_output.shapes);
+                    let mut encoder =
+                        gfx.device
+                            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                                label: Some("egui_command_encoder"),
+                            });
+                    let screen_descriptor = egui_wgpu_backend::ScreenDescriptor {
+                        physical_width: gfx.config.width,
+                        physical_height: gfx.config.height,
+                        scale_factor: gfx.scale_factor as f32,
+                    };
+                    egui_render_pass
+                        .add_textures(&gfx.device, &gfx.queue, &egui_output.textures_delta)
+                        .unwrap();
+                    egui_render_pass.update_buffers(
+                        &gfx.device,
+                        &gfx.queue,
+                        &paint_jobs,
+                        &screen_descriptor,
+                    );
+                    // Record all render passes.
+                    egui_render_pass
+                        .execute(
+                            &mut encoder,
+                            &output_frame
+                                .texture
+                                .create_view(&wgpu::TextureViewDescriptor::default()),
+                            &paint_jobs,
+                            &screen_descriptor,
+                            Some(wgpu::Color::BLACK),
+                        )
+                        .unwrap();
+                    egui_render_pass
+                        .remove_textures(egui_output.textures_delta)
+                        .unwrap();
+                    // Submit the commands.
+                    gfx.queue.submit(std::iter::once(encoder.finish()));
+
+                    // Present the frame.
+                    output_frame.present();
                 }
             }
 
-            if app.wants_repaint || egui_wants_repaint {
-                let mut target = DISPLAY.draw();
-                egui.paint(&DISPLAY, &mut target);
-                target.finish().expect("failed to swap buffersr");
-            }
-
-            app.wants_repaint = false;
-        }
+            // Ignore other events.
+            _ => (),
+        };
     });
+}
+
+fn load_application_icon() -> Option<Icon> {
+    match png::Decoder::new(crate::ICON_32).read_info() {
+        Ok(mut reader) => match reader.output_color_type() {
+            (png::ColorType::Rgba, png::BitDepth::Eight) => {
+                let mut img_data = vec![0_u8; reader.output_buffer_size()];
+                if let Err(err) = reader.next_frame(&mut img_data) {
+                    eprintln!("Failed to read icon data: {:?}", err);
+                    return None;
+                };
+                let info = reader.info();
+                match Icon::from_rgba(img_data, info.width, info.height) {
+                    Ok(icon) => Some(icon),
+                    Err(err) => {
+                        eprintln!("Failed to construct icon: {:?}", err);
+                        None
+                    }
+                }
+            }
+            other => {
+                eprintln!(
+                    "Failed to load icon data due to unknown color format: {:?}",
+                    other,
+                );
+                None
+            }
+        },
+        Err(err) => {
+            eprintln!("Failed to load icon data: {:?}", err);
+            None
+        }
+    }
 }
