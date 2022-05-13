@@ -80,7 +80,9 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
         egui::Window::new("Debug values")
             .open(&mut open)
             .show(ctx, |ui| {
-                ui.add(egui::TextEdit::multiline(&mut *debug_info).code_editor());
+                egui::ScrollArea::new([false, true]).show(ui, |ui| {
+                    ui.add(egui::TextEdit::multiline(&mut *debug_info).code_editor());
+                });
             });
         *debug_info = String::new();
         Window::Debug.set_open(ctx, open);
