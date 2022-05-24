@@ -64,3 +64,10 @@ ProductName = "Hyperspeedcube"
 ProductVersion = "0.5.0-dev"
 OriginalFilename = "hyperspeedcube.exe"
 LegalCopyright = "Copyright © 2022 HactarCE"
+
+[package.metadata.bundle]
+name = "Hyperspeedcube"
+identifier = "io.github.hactarce.hyperspeedcube"
+icon = ["resources/icon/*.png", "resources/icon/*.ico"]
+copyright = "Copyright © 2022 HactarCE"
+category = "Puzzle Game"

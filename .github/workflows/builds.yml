@@ -88,15 +88,18 @@ jobs:
             toolchain: stable
             components: clippy
             override: true
+      - name: Install cargo-bundle
+        uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-bundle
+          version: latest
+          use-tool-cache: true
       - name: Build Hyperspeedcube
         run: cargo build --release
       - name: Make app
-        run: |
-          git clone https://github.com/Xeoncross/macappshell.git
-          ./macappshell/setup.sh Hyperspeedcube resources/icon/hyperspeedcube_512x512.png
-          mv target/release/hyperspeedcube Hyperspeedcube.app/Contents/MacOS/Hyperspeedcube
+        run: cargo bundle --release
       - name: Make tarball
-        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz Hyperspeedcube.app
+        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz target/release/bundle/osx/Hyperspeedcube.app
       - name: Upload app
         uses: actions/upload-artifact@v2
         with:
