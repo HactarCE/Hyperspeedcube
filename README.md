@@ -19,7 +19,9 @@ To build Hyperspeedcube yourself, see [BUILDING.md](BUILDING.md).
 
 ## Screenshots
 
-![Screenshot of a solved 4D Rubik's cube](https://user-images.githubusercontent.com/6060305/156954725-cb0f12ac-4198-4e71-8745-5517a1fbce98.png)
+![3x3x3x3 with one cell mid-twist](https://i.imgur.com/w2vKUM4.png)
+
+[More screenshots](https://imgur.com/a/6UlgI8v)
 
 ## Controls
 
