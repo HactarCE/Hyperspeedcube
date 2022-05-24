@@ -36,6 +36,7 @@ rfd = "0.8.0"
 send_wrapper = "0.5.0"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_yaml = "0.8.23"
+smallvec = "1.8.0"
 strum = { version = "0.24.0", features = ["derive"] }
 thiserror = "1.0"
 time = { version = "0.3.7", features = ["local-offset"] }

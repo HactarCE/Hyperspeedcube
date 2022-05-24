@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Improved battery usage when idling
+- Improved outline rendering
+- Improved 4D projection clipping at extreme values
 - Tweaked default colors
 
 ### Removed
@@ -22,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Transparent stickers now have the correct color
+- Stickers now render in the correct order
 
 ## [0.4.0] - 2022-03-15
 

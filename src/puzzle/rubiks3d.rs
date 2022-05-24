@@ -1,11 +1,10 @@
 //! 3x3x3 Rubik's cube.
 
-use cgmath::{Deg, Matrix4, Vector3, Zero};
+use cgmath::{Deg, EuclideanSpace, Matrix4, Point3, Transform, Vector3, Zero};
 use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
 use super::{traits::*, LayerMask, PieceType, PuzzleType, Sign, TwistDirection2D, TwistMetric};
-use crate::render::RgbaVertex;
 
 /// Maximum extent of any single coordinate along the X, Y, or Z axes.
 const PUZZLE_RADIUS: f32 = 1.5;
@@ -118,10 +117,9 @@ impl PuzzleState for Rubiks3D {
     }
 }
 impl Rubiks3D {
-    fn transform_point(point: Vector3<f32>, p: StickerGeometryParams) -> Vector3<f32> {
-        let xyzw = p.model_transform * point.extend(1.0);
-        let point = xyzw.truncate();
-        p.view_transform * (point / PUZZLE_RADIUS)
+    fn transform_point(point: Point3<f32>, p: StickerGeometryParams) -> Point3<f32> {
+        let point = p.model_transform.transform_point(point);
+        p.view_transform.transform_point(point / PUZZLE_RADIUS)
     }
 }
 
@@ -131,8 +129,8 @@ pub struct Piece(pub [Sign; 3]);
 impl FacetTrait for Piece {
     impl_facet_trait_id_methods!(Piece, Rubiks3D::pieces());
 
-    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
-        Rubiks3D::transform_point(self.center_3d(p), p)
+    fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
+        Some(Rubiks3D::transform_point(self.center_3d(p), p))
     }
 }
 impl PieceTrait<Rubiks3D> for Piece {
@@ -209,8 +207,8 @@ impl Piece {
         (self.z().int() + 1) as usize
     }
 
-    fn center_3d(self, p: StickerGeometryParams) -> Vector3<f32> {
-        let mut ret = Vector3::zero();
+    fn center_3d(self, p: StickerGeometryParams) -> Point3<f32> {
+        let mut ret = Point3::origin();
         for axis in Axis::iter() {
             ret[axis as usize] = p.face_scale() * self[axis].float();
         }
@@ -227,8 +225,8 @@ pub struct Sticker {
 impl FacetTrait for Sticker {
     impl_facet_trait_id_methods!(Sticker, Rubiks3D::stickers());
 
-    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
-        Rubiks3D::transform_point(self.center_3d(p), p)
+    fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
+        Some(Rubiks3D::transform_point(self.center_3d(p), p))
     }
 }
 impl StickerTrait<Rubiks3D> for Sticker {
@@ -241,7 +239,7 @@ impl StickerTrait<Rubiks3D> for Sticker {
         Face::new(axis, sign)
     }
 
-    fn verts(self, p: StickerGeometryParams) -> Option<Vec<RgbaVertex>> {
+    fn geometry(self, p: StickerGeometryParams) -> Option<StickerGeometry> {
         let (ax1, ax2) = self.face().parallel_axes();
 
         // Compute the center of the sticker.
@@ -255,13 +253,13 @@ impl StickerTrait<Rubiks3D> for Sticker {
             vert[ax2 as usize] += v * sticker_radius;
             Rubiks3D::transform_point(vert, p)
         };
-        let corners = [
+
+        Some(StickerGeometry::new_double_quad([
             get_corner(-1.0, -1.0),
             get_corner(-1.0, 1.0),
             get_corner(1.0, -1.0),
             get_corner(1.0, 1.0),
-        ];
-        Some(RgbaVertex::double_quad(corners, p.color).collect())
+        ]))
     }
 }
 impl Sticker {
@@ -288,7 +286,7 @@ impl Sticker {
         self.piece()[self.axis()]
     }
 
-    fn center_3d(self, p: StickerGeometryParams) -> Vector3<f32> {
+    fn center_3d(self, p: StickerGeometryParams) -> Point3<f32> {
         let mut ret = self.piece().center_3d(p);
         ret[self.axis() as usize] = 1.5 * self.sign().float();
         ret
@@ -304,7 +302,7 @@ pub struct Face {
 impl FacetTrait for Face {
     impl_facet_trait_id_methods!(Face, Rubiks3D::faces());
 
-    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
+    fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
         self.center_sticker().projection_center(p)
     }
 }

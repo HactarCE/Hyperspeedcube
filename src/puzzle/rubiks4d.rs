@@ -1,13 +1,15 @@
 //! 3x3x3x3 Rubik's cube.
 
-use cgmath::{Deg, InnerSpace, Matrix3, Matrix4, SquareMatrix, Vector3, Vector4, Zero};
+use cgmath::{
+    Deg, EuclideanSpace, InnerSpace, Matrix3, Matrix4, MetricSpace, Point3, SquareMatrix,
+    Transform, Vector4, Zero,
+};
 use itertools::Itertools;
 use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 use std::str::FromStr;
 
 use super::{traits::*, LayerMask, PieceType, PuzzleType, Sign, TwistDirection2D, TwistMetric};
-use crate::render::RgbaVertex;
 
 /// Maximum extent of any single coordinate along the X, Y, Z, or W axes.
 const PUZZLE_RADIUS: f32 = 1.5;
@@ -135,16 +137,21 @@ impl PuzzleState for Rubiks4D {
     }
 }
 impl Rubiks4D {
-    fn transform_point(mut point: Vector4<f32>, p: StickerGeometryParams) -> Vector3<f32> {
+    fn transform_point(mut point: Vector4<f32>, p: StickerGeometryParams) -> Option<Point3<f32>> {
         // Compute the maximum extent along any axis from the origin in the 3D
         // projection of the puzzle. We will divide all XYZ coordinates by this
         // to normalize the puzzle size.
-        let projection_radius = p.project_4d(cgmath::vec4(1.0, 0.0, 0.0, 1.0)).magnitude();
+        let projection_radius = p
+            .project_4d(cgmath::vec4(1.0, 0.0, 0.0, 1.0))?
+            .distance(Point3::origin());
 
         point = p.model_transform * point;
         point /= PUZZLE_RADIUS;
         point.w /= 1.0 - p.face_spacing;
-        p.view_transform * (p.project_4d(point) / projection_radius)
+        Some(
+            p.view_transform
+                .transform_point(p.project_4d(point)? / projection_radius),
+        )
     }
 }
 
@@ -154,7 +161,7 @@ pub struct Piece(pub [Sign; 4]);
 impl FacetTrait for Piece {
     impl_facet_trait_id_methods!(Piece, Rubiks4D::pieces());
 
-    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
+    fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
         Rubiks4D::transform_point(self.center_4d(p), p)
     }
 }
@@ -258,7 +265,7 @@ pub struct Sticker {
 impl FacetTrait for Sticker {
     impl_facet_trait_id_methods!(Sticker, Rubiks4D::stickers());
 
-    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
+    fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
         Rubiks4D::transform_point(self.center_4d(p), p)
     }
 }
@@ -270,7 +277,7 @@ impl StickerTrait<Rubiks4D> for Sticker {
         Face::new(self.axis(), self.sign())
     }
 
-    fn verts(self, p: StickerGeometryParams) -> Option<Vec<RgbaVertex>> {
+    fn geometry(self, p: StickerGeometryParams) -> Option<StickerGeometry> {
         let [ax1, ax2, ax3] = self.face().parallel_axes();
 
         // Compute the center of the sticker.
@@ -285,26 +292,26 @@ impl StickerTrait<Rubiks4D> for Sticker {
             vert[ax3 as usize] += v * sticker_radius;
             Rubiks4D::transform_point(vert, p)
         };
-        let corners = [
-            get_corner(-1.0, -1.0, -1.0),
-            get_corner(-1.0, -1.0, 1.0),
-            get_corner(-1.0, 1.0, -1.0),
-            get_corner(-1.0, 1.0, 1.0),
-            get_corner(1.0, -1.0, -1.0),
-            get_corner(1.0, -1.0, 1.0),
-            get_corner(1.0, 1.0, -1.0),
-            get_corner(1.0, 1.0, 1.0),
+        let verts = [
+            get_corner(-1.0, -1.0, -1.0)?,
+            get_corner(-1.0, -1.0, 1.0)?,
+            get_corner(-1.0, 1.0, -1.0)?,
+            get_corner(-1.0, 1.0, 1.0)?,
+            get_corner(1.0, -1.0, -1.0)?,
+            get_corner(1.0, -1.0, 1.0)?,
+            get_corner(1.0, 1.0, -1.0)?,
+            get_corner(1.0, 1.0, 1.0)?,
         ];
         // Only show this sticker if the 3D volume is positive. (Cull it if its
         // 3D volume is negative.)
         Matrix3::from_cols(
-            corners[1] - corners[0],
-            corners[2] - corners[0],
-            corners[4] - corners[0],
+            verts[1] - verts[0],
+            verts[2] - verts[0],
+            verts[4] - verts[0],
         )
         .determinant()
         .is_sign_positive()
-        .then(|| RgbaVertex::cube(corners, p.color).collect())
+        .then(|| StickerGeometry::new_cube(verts))
     }
 }
 impl Sticker {
@@ -409,7 +416,7 @@ pub struct Face {
 impl FacetTrait for Face {
     impl_facet_trait_id_methods!(Face, Rubiks4D::faces());
 
-    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
+    fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
         self.center_sticker().projection_center(p)
     }
 }

@@ -1,14 +1,16 @@
 //! Common traits used for puzzles.
 
-use cgmath::{Matrix3, Matrix4, SquareMatrix, Vector3, Vector4, Zero};
-use egui::NumExt;
+use cgmath::{Deg, EuclideanSpace, Matrix3, Matrix4, Point3, SquareMatrix, Vector4};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
 
 pub use super::PuzzleControllerTrait;
 use super::{Face, LayerMask, Piece, PieceType, PuzzleType, Sticker, TwistMetric};
-use crate::render::RgbaVertex;
+use crate::preferences::ViewPreferences;
+
+const W_NEAR_CLIPPING_DIVISOR: f32 = 0.1;
+const Z_NEAR_CLIPPING_DIVISOR: f32 = 0.0;
 
 macro_rules! lazy_static_array_methods {
     ( $( $( #[$attr:meta] )* fn $method_name:ident() -> $ret:ty { $($body:tt)* } )* ) => {
@@ -184,7 +186,7 @@ pub trait FacetTrait: Debug + Copy + Eq + Hash {
     fn from_id(id: usize) -> Option<Self>;
 
     /// Returns the 3D-projected center of the facet.
-    fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32>;
+    fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>>;
 }
 macro_rules! impl_facet_trait_id_methods {
     ($facet_type:ty, $facet_list_expr:expr) => {
@@ -235,12 +237,12 @@ pub trait StickerTrait<P: PuzzleState>:
     /// Returns the face that this sticker is on.
     fn face(self) -> P::Face;
 
-    /// Returns the 3D vertices used to render this sticker, or `None` if the
-    /// sticker is not visible.
+    /// Returns the 3D vertex positions used to render this sticker, or `None`
+    /// if the sticker is not visible.
     ///
     /// All vertices should be within the cube from (-1, -1, -1) to (1, 1, 1)
-    /// before having `p.transform` applied.
-    fn verts(self, p: StickerGeometryParams) -> Option<Vec<RgbaVertex>>;
+    /// before having `p.view_transform` applied.
+    fn geometry(self, p: StickerGeometryParams) -> Option<StickerGeometry>;
 }
 
 /// A face of a twisty puzzle.
@@ -314,40 +316,58 @@ pub trait OrientationTrait<P: PuzzleState + Hash>:
     fn rev(self) -> Self;
 }
 
-/// Geometry parameters.
+/// Parameters for constructing sticker geometry.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct StickerGeometryParams {
     /// Sticker spacing factor.
     pub sticker_spacing: f32,
     /// Face spacing factor.
     pub face_spacing: f32,
+
     /// 4D FOV, in degrees.
     pub fov_4d: f32,
+    /// 3D FOV, in degrees.
+    pub fov_3d: f32,
+
+    /// Factor of how much the W coordinate affects the XYZ coordinates. This is
+    /// computed from the 4D FOV.
+    pub w_factor_4d: f32,
+    /// Factor of how much the Z coordinate affects the XY coordinates. This is
+    /// computed from the 3D FOV.
+    pub w_factor_3d: f32,
 
     /// Model transformation matrix for an individual sticker, before 4D
     /// projection.
     pub model_transform: Matrix4<f32>,
     /// View transformation matrix for the whole puzzle, after 4D projection.
     pub view_transform: Matrix3<f32>,
-
-    /// Sticker fill color.
-    pub color: [f32; 4],
-}
-impl Default for StickerGeometryParams {
-    fn default() -> Self {
-        Self {
-            sticker_spacing: 0.2,
-            face_spacing: 0.1,
-            fov_4d: 0.0,
-
-            model_transform: Matrix4::identity(),
-            view_transform: Matrix3::identity(),
-
-            color: [1.0, 1.0, 1.0, 1.0],
-        }
-    }
 }
 impl StickerGeometryParams {
+    /// Radius within which all puzzle geometry is expected to be.
+    pub const CLIPPING_RADIUS: f32 = 2.0;
+
+    /// Constructs sticker geometry parameters for a set of view preferences.
+    pub fn new(view_prefs: &ViewPreferences) -> Self {
+        // Compute the view and perspective transforms, which must be applied here
+        // on the CPU so that we can do proper depth sorting.
+        let view_transform = Matrix3::from_angle_x(Deg(view_prefs.pitch))
+            * Matrix3::from_angle_y(Deg(view_prefs.yaw))
+            / Self::CLIPPING_RADIUS;
+
+        Self {
+            sticker_spacing: view_prefs.sticker_spacing,
+            face_spacing: view_prefs.face_spacing,
+
+            fov_4d: view_prefs.fov_4d,
+            fov_3d: view_prefs.fov_3d,
+            w_factor_4d: (view_prefs.fov_4d.to_radians() / 2.0).tan(),
+            w_factor_3d: (view_prefs.fov_3d.to_radians() / 2.0).tan(),
+
+            model_transform: Matrix4::identity(),
+            view_transform,
+        }
+    }
+
     /// Computes the sticker scale factor (0.0 to 1.0).
     pub fn sticker_scale(self) -> f32 {
         1.0 - self.sticker_spacing
@@ -358,20 +378,73 @@ impl StickerGeometryParams {
     }
 
     /// Projects a 4D point down to 3D.
-    pub fn project_4d(self, point: Vector4<f32>) -> Vector3<f32> {
-        // Clipping the W coordinate creates some slightly awkward effects for
-        // vertices with W>1 that *should* be visible (such as during a
-        // rotation) but overall it works fairly well, and otherwise it's
-        // challenging to filter out vertices that shouldn't be visible.
-        //
-        // The proper solution would be to make a cutting plane at W=1 and add
-        // additional vertices wherever that plane intersects an edge, so that
-        // all the geometry at W<1 is rendered faithfully. Unfortunately that's
-        // overkill for this application.
-        let w = point.w.at_most(1.0);
+    pub fn project_4d(self, point: Vector4<f32>) -> Option<Point3<f32>> {
+        // See `project_3d()` for an explanation of this formula. The only
+        // difference here is that we assume the 4D FOV is positive.
+        let divisor = 1.0 + (1.0 - point.w) * self.w_factor_4d;
 
-        // This formula was designed for -1 <= W <= 1.
-        point.truncate() / (1.0 + (1.0 - w) * (self.fov_4d.to_radians() / 2.0).tan())
+        // Clip geometry that is behind the 4D camera.
+        if divisor < W_NEAR_CLIPPING_DIVISOR {
+            return None;
+        }
+
+        Some(Point3::from_vec(point.truncate()) / divisor)
+    }
+
+    /// Projects a 3D point according to the perspective projection.
+    pub fn project_3d(self, point: Point3<f32>) -> Option<Point3<f32>> {
+        // This formula gives us a divisor (which we would store in the W
+        // coordinate, if we were doing this using the normal computer graphics
+        // methods) that applies the desired FOV but keeps Z=1 fixed for
+        // positive FOV, or Z=-1 fixed for negative FOV. This creates a really
+        // awesome dolly zoom effect, where the puzzle stays roughly the same
+        // size on the viewport even as the FOV changes.
+        //
+        // This Desmos graph shows how this divisor varies with respect to Z
+        // (shown along the X axis) and the FOV (controlled by a slider):
+        // https://www.desmos.com/calculator/ocztouh1h0
+        let divisor = 1.0 + (self.fov_3d.signum() - point.z) * self.w_factor_3d;
+
+        // Clip geometry that is behind the 3D camera.
+        if divisor < Z_NEAR_CLIPPING_DIVISOR {
+            return None;
+        }
+
+        // Wgpu wants a Z coordinate from 0 to 1, but because of the weird
+        // rendering pipeline this program uses the GPU won't ever see this Z
+        // coordinate. If you want to implement this dolly zoom effect yourself,
+        // though, you'll probably need to consider that.
+
+        Some(point / divisor)
+    }
+}
+
+/// Vertices for a sticker in 3D space.
+pub struct StickerGeometry {
+    /// Vertex positions, after 4D projection but before 3D projection.
+    pub verts: Vec<Point3<f32>>,
+    /// Indices for sticker faces.
+    pub polygon_indices: Vec<Box<[u16]>>,
+}
+impl StickerGeometry {
+    pub(super) fn new_double_quad(verts: [Point3<f32>; 4]) -> Self {
+        Self {
+            verts: verts.to_vec(),
+            polygon_indices: vec![Box::new([0, 1, 3, 2]), Box::new([2, 3, 1, 0])],
+        }
+    }
+    pub(super) fn new_cube(verts: [Point3<f32>; 8]) -> Self {
+        Self {
+            verts: verts.to_vec(),
+            polygon_indices: vec![
+                Box::new([0, 1, 3, 2]),
+                Box::new([4, 6, 7, 5]),
+                Box::new([0, 2, 6, 4]),
+                Box::new([1, 5, 7, 3]),
+                Box::new([0, 4, 5, 1]),
+                Box::new([2, 3, 7, 6]),
+            ],
+        }
     }
 }
 
@@ -387,9 +460,9 @@ pub enum Facet<P: PuzzleState> {
 impl<P: PuzzleState> Copy for Facet<P> {}
 impl<P: PuzzleState> Facet<P> {
     /// Returns the 3D-projected center of the facet.
-    pub fn projection_center(self, p: StickerGeometryParams) -> Vector3<f32> {
+    pub fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
         match self {
-            Facet::Whole => Vector3::zero(),
+            Facet::Whole => Some(Point3::origin()),
             Facet::Face(face) => face.projection_center(p),
             Facet::Piece(piece) => piece.projection_center(p),
             Facet::Sticker(sticker) => sticker.projection_center(p),

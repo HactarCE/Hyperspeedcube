@@ -278,7 +278,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         |value| {
             egui::DragValue::new(value)
                 .fixed_decimals(1)
-                .clamp_range(0.0..=3.0_f32)
+                .clamp_range(0.0..=5.0_f32)
                 .speed(0.01)
         },
     ));
