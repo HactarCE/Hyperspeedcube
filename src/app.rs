@@ -43,10 +43,10 @@ impl App {
             wants_repaint: true,
 
             modifiers: ModifiersState::default(),
-            held_selections: HashMap::new(),
+            held_selections: HashMap::default(),
             toggle_selections: Selection::default(),
 
-            status_msg: String::new(),
+            status_msg: String::default(),
         };
 
         // Always save preferences after opening.
