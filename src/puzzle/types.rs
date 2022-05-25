@@ -188,7 +188,7 @@ impl PuzzleType {
             type_name = {[ P ]}
             foreach = {[
                 match <P as PuzzleState>::Twist::from_twist_command(
-                    face.try_into::<P>().unwrap(),
+                    face.of_type::<P>().unwrap(),
                     direction.name(),
                     layer_mask,
                 ) {
@@ -206,7 +206,7 @@ impl PuzzleType {
             type_name = {[ P ]}
             foreach = {[
                 match <P as PuzzleState>::Twist::from_recenter_command(
-                    face.try_into::<P>().unwrap(),
+                    face.of_type::<P>().unwrap(),
                 ) {
                     Ok(twist) => twist.to_string(),
                     Err(_) => "(invalid twist)".to_string(),

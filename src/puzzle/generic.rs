@@ -71,7 +71,7 @@ macro_rules! generic_facet {
             }
 
             /// Converts a generic $name_lower into a $name_lower of a specific puzzle.
-            pub fn try_into<P: PuzzleState>(self) -> Result<P::$name_upper, FacetConvertError> {
+            pub fn of_type<P: PuzzleState>(self) -> Result<P::$name_upper, FacetConvertError> {
                 if self.ty != P::TYPE {
                     return Err(FacetConvertError::PuzzleTypeMismatch {
                         expected: P::TYPE,
@@ -118,23 +118,23 @@ impl Piece {
 
         /// Returns the piece type.
         pub fn piece_type(self) -> PieceType {
-            self.try_into::<P>().unwrap().piece_type()
+            self.of_type::<P>().unwrap().piece_type()
         }
 
         /// Returns the layer of this piece, relative to a face (or `None` if this
         /// does not make sense for the puzzle).
         pub fn layer(self, face: Face) -> Option<usize> {
-            self.try_into::<P>().unwrap().layer(face.try_into::<P>().unwrap())
+            self.of_type::<P>().unwrap().layer(face.of_type::<P>().unwrap())
         }
 
         /// Returns the number of stickers on this piece (i.e. the length of
         /// `self.stickers()`).
         pub fn sticker_count(self) -> usize {
-            self.try_into::<P>().unwrap().sticker_count()
+            self.of_type::<P>().unwrap().sticker_count()
         }
         /// Returns a list of the stickers on this piece.
         pub fn stickers(self) -> Vec<Sticker> {
-            self.try_into::<P>()
+            self.of_type::<P>()
                 .unwrap()
                 .stickers()
                 .into_iter()
@@ -151,11 +151,11 @@ impl Sticker {
 
         /// Returns the piece that this sticker is on.
         pub fn piece(self) -> Piece {
-            self.try_into::<P>().unwrap().piece().into()
+            self.of_type::<P>().unwrap().piece().into()
         }
         /// Returns the face that this sticker is on.
         pub fn face(self) -> Face {
-            self.try_into::<P>().unwrap().face().into()
+            self.of_type::<P>().unwrap().face().into()
         }
 
         /// Returns the 3D vertices used to render this sticker, or `None` if the
@@ -164,7 +164,7 @@ impl Sticker {
         /// All vertices should be within the cube from (-1, -1, -1) to (1, 1, 1)
         /// before having `p.transform` applied.
         pub fn geometry(self, p: StickerGeometryParams) -> Option<StickerGeometry> {
-            self.try_into::<P>().unwrap().geometry(p)
+            self.of_type::<P>().unwrap().geometry(p)
         }
     }
 }
@@ -207,7 +207,7 @@ impl Face {
 
         /// Returns a list of all the pieces on this face at one layer.
         pub fn pieces(self, layer: usize) -> Vec<Piece> {
-            self.try_into::<P>()
+            self.of_type::<P>()
                 .unwrap()
                 .pieces(layer)
                 .into_iter()
@@ -216,7 +216,7 @@ impl Face {
         }
         /// Returns a list of all the stickers on this face.
         pub fn stickers(self) -> Vec<Sticker> {
-            self.try_into::<P>()
+            self.of_type::<P>()
                 .unwrap()
                 .stickers()
                 .into_iter()

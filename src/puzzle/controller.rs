@@ -195,13 +195,13 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
         layer_mask: LayerMask,
     ) -> anyhow::Result<()> {
         self.twist(
-            P::Twist::from_twist_command(face.try_into::<P>()?, direction.name(), layer_mask)
+            P::Twist::from_twist_command(face.of_type::<P>()?, direction.name(), layer_mask)
                 .map_err(|e| anyhow!(e))?,
         );
         Ok(())
     }
     fn do_recenter_command(&mut self, face: Face) -> anyhow::Result<()> {
-        self.twist(P::Twist::from_recenter_command(face.try_into::<P>()?).map_err(|e| anyhow!(e))?);
+        self.twist(P::Twist::from_recenter_command(face.of_type::<P>()?).map_err(|e| anyhow!(e))?);
         Ok(())
     }
 
@@ -282,7 +282,7 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
 
     fn model_transform_for_piece(&self, piece: Piece) -> Matrix4<f32> {
         if let Some((twist, t)) = self.current_twist() {
-            let p = piece.try_into::<P>().unwrap();
+            let p = piece.of_type::<P>().unwrap();
             if twist.affects_piece(p) {
                 return twist.model_matrix(t);
             }
@@ -290,7 +290,7 @@ impl<P: PuzzleState> PuzzleControllerTrait for PuzzleController<P> {
         Matrix4::identity()
     }
     fn get_sticker_color(&self, sticker: Sticker) -> Face {
-        let s = sticker.try_into::<P>().unwrap();
+        let s = sticker.of_type::<P>().unwrap();
         self.displayed().get_sticker_color(s).into()
     }
 
