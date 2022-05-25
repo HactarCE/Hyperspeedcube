@@ -333,6 +333,87 @@ impl TwistDirection {
     }
 }
 
+/// Twist of a puzzle.
+#[derive(Debug)]
+pub struct Twist {
+    pub(super) ty: PuzzleType,
+    pub(super) inner: Box<dyn Any>,
+}
+impl Clone for Twist {
+    delegate_fn_to_puzzle_type! {
+        type P = match self.ty;
+
+        fn clone(&self) -> Self {
+            Self {
+                ty: self.ty,
+                inner: Box::new(self.of_type::<P>().unwrap().clone()),
+            }
+        }
+    }
+}
+macro_rules! generic_twist_from {
+    (
+        puzzle_types = {[ $($puzzle_type:ident),* ]}
+    ) => {
+        $(
+            impl From<<$puzzle_type as PuzzleState>::Twist> for Twist {
+                fn from(twist: <$puzzle_type as PuzzleState>::Twist) -> Self {
+                    Self {
+                        ty: PuzzleType::$puzzle_type,
+                        inner: Box::new(twist),
+                    }
+                }
+            }
+        )*
+    };
+}
+with_puzzle_types! { generic_twist_from! { puzzle_types = PUZZLE_TYPES } }
+impl fmt::Display for Twist {
+    delegate_fn_to_puzzle_type! {
+        type P = match self.ty;
+
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            self.of_type::<P>().unwrap().fmt(f)
+        }
+    }
+}
+impl Twist {
+    /// Converts a generic twist into a twist of a specific puzzle.
+    pub fn of_type<P: PuzzleState>(&self) -> Result<P::Twist, &'static str> {
+        if self.ty != P::TYPE {
+            return Err("puzzle type mismatch");
+        }
+        self.inner
+            .downcast_ref::<P::Twist>()
+            .cloned()
+            .ok_or("internal error when downcasting twist")
+    }
+
+    delegate_fn_to_puzzle_type! {
+        type P = match self.ty;
+
+        /// Returns the reverse of this twist.
+        #[must_use]
+        pub fn rev(&self) -> Self {
+            self.of_type::<P>().unwrap().rev().into()
+        }
+        /// Returns whether a piece is affected by this twist.
+        pub fn affects_piece(&self, piece: Piece) -> bool {
+            self.of_type::<P>().unwrap().affects_piece(piece.of_type::<P>().unwrap())
+        }
+    }
+
+    /// Returns a list of all the pieces affected by this twist.
+    pub fn pieces(&self) -> Vec<Piece> {
+        self.ty
+            .pieces()
+            .iter()
+            .copied()
+            .filter(|&piece| self.affects_piece(piece))
+            .collect()
+    }
+}
+
 /// Layer mask, for use in a keybind.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LayerMask(pub u32);
