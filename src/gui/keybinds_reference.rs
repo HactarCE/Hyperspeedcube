@@ -5,7 +5,6 @@ use key_names::KeyMappingCode;
 use crate::app::App;
 use crate::commands::{PuzzleCommand, SelectThing};
 use crate::preferences::Key;
-use crate::puzzle::PuzzleControllerTrait;
 
 const KEY_PADDING: f32 = 0.05;
 

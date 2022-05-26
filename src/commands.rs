@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 use crate::preferences::DeserializePerPuzzle;
-use crate::puzzle::{traits::*, Face, LayerMask, PieceType, PuzzleType, Selection, TwistDirection};
+use crate::puzzle::{
+    traits::*, Face, LayerMask, PieceType, PuzzleType, Selection, Twist, TwistDirection,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -74,7 +76,7 @@ impl SelectThing {
     pub(crate) fn default(category: SelectCategory, ty: PuzzleType) -> Self {
         match category {
             SelectCategory::Face => Self::Face(ty.faces()[0]),
-            SelectCategory::Layers => Self::Layers(LayerMask(1)),
+            SelectCategory::Layers => Self::Layers(LayerMask::default()),
             SelectCategory::PieceType => Self::PieceType(PieceType::default(ty)),
         }
     }
@@ -207,7 +209,10 @@ impl PuzzleCommand {
                 layer_mask,
             } => {
                 if let Some(f) = face {
-                    f.ty().twist_to_string(*f, *direction, *layer_mask)
+                    match Twist::from_face_with_layers(*f, direction.name(), *layer_mask) {
+                        Ok(twist) => twist.to_string(),
+                        Err(e) => format!("<invalid twist: {e}>"),
+                    }
                 } else {
                     let l = if layer_mask.is_default() {
                         String::new()
@@ -221,10 +226,10 @@ impl PuzzleCommand {
                 }
             }
             PuzzleCommand::Recenter { face } => match face {
-                Some(f) => {
-                    // format!("Recenter {}", f.symbol())
-                    f.ty().recenter_to_string(*f)
-                }
+                Some(f) => match Twist::from_face_recenter(*f) {
+                    Ok(twist) => twist.to_string(),
+                    Err(e) => format!("<invalid twist: {e}>"),
+                },
                 None => format!("Recenter"),
             },
 

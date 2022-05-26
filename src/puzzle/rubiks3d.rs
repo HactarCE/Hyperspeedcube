@@ -13,32 +13,34 @@ const PUZZLE_RADIUS: f32 = 1.5;
 pub mod twists {
     use super::*;
 
-    /// Turn the right face clockwise 90 degrees.
-    pub const R: Twist = Twist::new(Face::R, TwistDirection2D::CW);
-    /// Turn the left face clockwise 90 degrees.
-    pub const L: Twist = Twist::new(Face::L, TwistDirection2D::CW);
-    /// Turn the top face clockwise 90 degrees.
-    pub const U: Twist = Twist::new(Face::U, TwistDirection2D::CW);
-    /// Turn the bottom face clockwise 90 degrees.
-    pub const D: Twist = Twist::new(Face::D, TwistDirection2D::CW);
-    /// Turn the front face clockwise 90 degrees.
-    pub const F: Twist = Twist::new(Face::F, TwistDirection2D::CW);
-    /// Turn the back face clockwise 90 degrees.
-    pub const B: Twist = Twist::new(Face::B, TwistDirection2D::CW);
+    lazy_static! {
+        /// Turn the right face clockwise 90 degrees.
+        pub static ref R: Twist = Twist::from_face(Face::R, "CW").unwrap();
+        /// Turn the left face clockwise 90 degrees.
+        pub static ref L: Twist = Twist::from_face(Face::L, "CW").unwrap();
+        /// Turn the top face clockwise 90 degrees.
+        pub static ref U: Twist = Twist::from_face(Face::U, "CW").unwrap();
+        /// Turn the bottom face clockwise 90 degrees.
+        pub static ref D: Twist = Twist::from_face(Face::D, "CW").unwrap();
+        /// Turn the front face clockwise 90 degrees.
+        pub static ref F: Twist = Twist::from_face(Face::F, "CW").unwrap();
+        /// Turn the back face clockwise 90 degrees.
+        pub static ref B: Twist = Twist::from_face(Face::B, "CW").unwrap();
 
-    /// Turn the middle layer down 90 degrees.
-    pub const M: Twist = L.slice();
-    /// Turn the equitorial layer to the right 90 degrees.
-    pub const E: Twist = D.slice();
-    /// Turn the standing layer clockwise 90 degrees.
-    pub const S: Twist = F.slice();
+        /// Turn the middle layer down 90 degrees.
+        pub static ref M: Twist = L.slice();
+        /// Turn the equitorial layer to the right 90 degrees.
+        pub static ref E: Twist = D.slice();
+        /// Turn the standing layer clockwise 90 degrees.
+        pub static ref S: Twist = F.slice();
 
-    /// Turn the whole cube 90 degrees up.
-    pub const X: Twist = R.whole_cube();
-    /// Turn the whole cube 90 degrees to the left.
-    pub const Y: Twist = U.whole_cube();
-    /// Turn the whole cube 90 degrees clockwise.
-    pub const Z: Twist = F.whole_cube();
+        /// Turn the whole cube 90 degrees up.
+        pub static ref X: Twist = R.whole_cube();
+        /// Turn the whole cube 90 degrees to the left.
+        pub static ref Y: Twist = U.whole_cube();
+        /// Turn the whole cube 90 degrees clockwise.
+        pub static ref Z: Twist = F.whole_cube();
+    }
 }
 
 /// State of a 3x3x3 Rubik's cube.
@@ -69,13 +71,6 @@ impl PuzzleState for Rubiks3D {
     const LAYER_COUNT: usize = 3;
 
     const PIECE_TYPE_NAMES: &'static [&'static str] = &["center", "edge", "corner"];
-
-    const STICKER_MODEL_VERTEX_COUNT: u16 = 4;
-    const STICKER_MODEL_SURFACE_INDICES: &'static [u16] = &[
-        0, 1, 2, 3, 2, 1, // Outside face (counterclockwise from outside).
-        1, 2, 3, 2, 1, 0, // Inside face (clockwise from outside).
-    ];
-    const STICKER_MODEL_OUTLINE_INDICES: &'static [u16] = &[0, 1, 1, 3, 3, 2, 2, 0];
 
     fn get_sticker_color(&self, pos: Sticker) -> Face {
         self[pos.piece()][pos.axis()] * pos.sign()
@@ -415,26 +410,26 @@ pub struct Twist {
     /// Direction to twist the face.
     pub direction: TwistDirection2D,
     /// Layer mask.
-    pub layers: [bool; 3],
+    pub layers: LayerMask,
 }
 impl fmt::Display for Twist {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.layers {
-            // Simple moves and wide moves.
-            [true, wide, false] => {
-                let wide = if wide { "w" } else { "" };
-                write!(f, "{}{}{}", self.face.symbol(), wide, self.direction)
-            }
+        match self.layers.0 {
+            // Simple moves.
+            0b001 => write!(f, "{}{}", self.face.symbol(), self.direction),
+
+            // Wide moves.
+            0b011 => write!(f, "{}w{}", self.face.symbol(), self.direction),
 
             // Slice moves.
-            [false, true, false] => match self.face.axis() {
+            0b010 => match self.face.axis() {
                 Axis::X => write!(f, "M{}", self.direction.rev()),
                 Axis::Y => write!(f, "E{}", self.direction.rev()),
                 Axis::Z => write!(f, "S{}", self.direction),
             },
 
             // Whole cube rotations.
-            [true, true, true] => match self.face.axis() {
+            0b111 => match self.face.axis() {
                 Axis::X => write!(f, "x{}", self.direction),
                 Axis::Y => write!(f, "y{}", self.direction),
                 Axis::Z => write!(f, "z{}", self.direction),
@@ -446,39 +441,48 @@ impl fmt::Display for Twist {
     }
 }
 impl TwistTrait<Rubiks3D> for Twist {
-    fn from_twist_command(
+    fn from_face_with_layers(
         face: Face,
         direction: &str,
-        layer_mask: LayerMask,
-    ) -> Result<Self, &'static str> {
+        layers: LayerMask,
+    ) -> Result<Twist, &'static str> {
         let direction = match direction {
             "CW" => TwistDirection2D::CW,
             "CCW" => TwistDirection2D::CCW,
             _ => return Err("invalid direction"),
         };
-        if layer_mask.0 > 0b111 {
-            return Err("invaild layer mask");
-        }
-        let layers = [
-            layer_mask.0 & 0b001 != 0,
-            layer_mask.0 & 0b010 != 0,
-            layer_mask.0 & 0b100 != 0,
-        ];
-        Ok(Self::new(face, direction).layers(layers))
+        layers.validate::<Rubiks3D>()?;
+        Ok(Self {
+            face,
+            direction,
+            layers,
+        })
     }
-    fn from_recenter_command(face: Face) -> Result<Twist, &'static str> {
+    fn from_face_recenter(face: Face) -> Result<Twist, &'static str> {
         match face {
-            Face::R => Ok(twists::Y),
+            Face::R => Ok(*twists::Y),
             Face::L => Ok(twists::Y.rev()),
             Face::U => Ok(twists::X.rev()),
-            Face::D => Ok(twists::X),
+            Face::D => Ok(*twists::X),
             Face::F => Err("cannot recenter near face"),
             Face::B => Err("cannot recenter far face"),
             _ => Err("invalid face"),
         }
     }
+    fn from_sticker(
+        sticker: Sticker,
+        direction: TwistDirection2D,
+        layers: LayerMask,
+    ) -> Result<Twist, &'static str> {
+        layers.validate::<Rubiks3D>()?;
+        Ok(Self {
+            face: sticker.face(),
+            direction,
+            layers,
+        })
+    }
 
-    fn model_matrix(self, t: f32) -> cgmath::Matrix4<f32> {
+    fn model_transform(self, t: f32) -> cgmath::Matrix4<f32> {
         let mut axis = Vector3::zero();
         axis[self.face.axis() as usize] = self.face.sign().float();
         let angle = Deg(t * 90.0 * self.direction.sign().float());
@@ -528,40 +532,30 @@ impl TwistTrait<Rubiks3D> for Twist {
         }
     }
     fn is_whole_puzzle_rotation(self) -> bool {
-        self.layers == [true; 3]
-    }
-}
-impl From<Sticker> for Twist {
-    fn from(sticker: Sticker) -> Self {
-        Self::new(sticker.face(), TwistDirection2D::CW)
+        self.layers == LayerMask::all::<Rubiks3D>()
     }
 }
 impl Twist {
-    /// Returns a twist of the face with the given axis and sign in the given
-    /// direction.
-    pub const fn new(face: Face, direction: TwistDirection2D) -> Self {
-        Self {
-            face,
-            direction,
-            layers: [true, false, false],
-        }
-    }
-    /// Make a fat (2-layer) move from this move.
-    pub const fn fat(self) -> Self {
-        self.layers([true, true, false])
+    /// Make a wide (2-layer) move from this move.
+    pub const fn wide(mut self) -> Self {
+        self.layers = LayerMask(0b011);
+        self
     }
     /// Make a slice move from this move.
-    pub const fn slice(self) -> Self {
-        self.layers([false, true, false])
+    pub const fn slice(mut self) -> Self {
+        self.layers = LayerMask(0b011);
+        self
     }
     /// Make a whole cube rotation from this move.
-    pub const fn whole_cube(self) -> Self {
-        self.layers([true, true, true])
+    pub const fn whole_cube(mut self) -> Self {
+        self.layers = LayerMask::all::<Rubiks3D>();
+        self
     }
     /// Twist different layers.
-    pub const fn layers(mut self, layers: [bool; 3]) -> Self {
+    pub fn layers(mut self, layers: LayerMask) -> Result<Self, &'static str> {
+        layers.validate::<Rubiks3D>()?;
         self.layers = layers;
-        self
+        Ok(self)
     }
 }
 

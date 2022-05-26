@@ -7,11 +7,9 @@ use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
 use crate::commands::{Command, PuzzleCommand, SelectCategory};
+use crate::controller::PuzzleController;
 use crate::preferences::{Key, Keybind, Preferences};
-use crate::puzzle::{
-    Face, LayerMask, Puzzle, PuzzleController, PuzzleControllerTrait, PuzzleType, Selection,
-    TwistDirection,
-};
+use crate::puzzle::{Face, LayerMask, Selection, TwistDirection};
 use crate::render::PuzzleRenderCache;
 
 pub struct App {
@@ -19,7 +17,7 @@ pub struct App {
 
     events: EventLoopProxy<AppEvent>,
 
-    pub(crate) puzzle: Puzzle,
+    pub(crate) puzzle: PuzzleController,
     pub(crate) render_cache: PuzzleRenderCache,
     pub(crate) wants_repaint: bool,
 
@@ -41,7 +39,7 @@ impl App {
 
             events: event_loop.create_proxy(),
 
-            puzzle: Puzzle::default(),
+            puzzle: PuzzleController::default(),
             render_cache: PuzzleRenderCache::default(),
             wants_repaint: true,
 
@@ -93,25 +91,25 @@ impl App {
                 }
 
                 Command::Undo => {
-                    if !self.puzzle.undo() {
-                        self.set_status_err("Nothing to undo");
+                    if let Err(e) = self.puzzle.undo() {
+                        self.set_status_err(e);
                     }
                 }
                 Command::Redo => {
-                    if !self.puzzle.redo() {
-                        self.set_status_err("Nothing to redo");
+                    if let Err(e) = self.puzzle.redo() {
+                        self.set_status_err(e);
                     }
                 }
                 Command::Reset => {
                     if self.confirm_discard_changes("reset puzzle") {
-                        self.puzzle = Puzzle::new(self.puzzle.ty());
+                        self.puzzle = PuzzleController::new(self.puzzle.ty());
                         self.wants_repaint = true;
                     }
                 }
 
                 Command::NewPuzzle(puzzle_type) => {
                     if self.confirm_discard_changes("reset puzzle") {
-                        self.puzzle = Puzzle::new(puzzle_type);
+                        self.puzzle = PuzzleController::new(puzzle_type);
                         self.wants_repaint = true;
                         self.prefs.log_file = None;
                         self.set_status_ok(format!("Loaded {}", puzzle_type));
@@ -360,7 +358,7 @@ impl App {
     fn try_load_puzzle(&mut self, path: PathBuf) {
         match PuzzleController::load_file(&path) {
             Ok(p) => {
-                self.puzzle = Puzzle::Rubiks4D(p);
+                self.puzzle = p;
                 self.wants_repaint = true;
 
                 self.set_status_ok(format!("Loaded log file from {}", path.display()));
@@ -372,20 +370,14 @@ impl App {
         }
     }
     fn try_save_puzzle(&mut self, path: &Path) {
-        match &mut self.puzzle {
-            Puzzle::Rubiks4D(p) => match p.save_file(path) {
-                Ok(()) => {
-                    self.prefs.log_file = Some(path.to_path_buf());
-                    self.prefs.needs_save = true;
+        match self.puzzle.save_file(path) {
+            Ok(()) => {
+                self.prefs.log_file = Some(path.to_path_buf());
+                self.prefs.needs_save = true;
 
-                    self.set_status_ok(format!("Saved log file to {}", path.display()));
-                }
-                Err(e) => show_error_dialog("Unable to save log file", e),
-            },
-            _ => show_error_dialog(
-                "Unable to save log file",
-                format!("Log files are only supported for {}.", PuzzleType::Rubiks4D),
-            ),
+                self.set_status_ok(format!("Saved log file to {}", path.display()));
+            }
+            Err(e) => show_error_dialog("Unable to save log file", e),
         }
     }
     fn try_save_puzzle_as(&mut self) {

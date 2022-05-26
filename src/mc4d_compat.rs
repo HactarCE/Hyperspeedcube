@@ -6,7 +6,7 @@ use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
 
-use crate::puzzle::controller::ScrambleState;
+use crate::controller::ScrambleState;
 use crate::puzzle::rubiks4d::*;
 
 const MAGIC_STRING: &str = "MagicCube4D";

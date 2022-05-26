@@ -2,7 +2,6 @@ use strum::EnumMessage;
 
 use super::util::ResponseExt;
 use crate::app::App;
-use crate::puzzle::PuzzleControllerTrait;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;

@@ -17,28 +17,17 @@ const PUZZLE_RADIUS: f32 = 1.5;
 /// Some pre-baked twists that can be applied to a 3x3x3x3 Rubik's cube.
 pub mod twists {
     use super::*;
+    use TwistDirection2D::*;
 
     lazy_static! {
+        static ref LAYERS: LayerMask = LayerMask::all::<Rubiks4D>();
+
         /// Turn the whole cube 90 degrees up.
-        pub static ref X: Twist = by_3d_view(Face::I, Axis::X, TwistDirection2D::CW).whole_cube();
+        pub static ref X: Twist = Twist::by_3d_view(Face::I, Axis::X, CW, *LAYERS).unwrap();
         /// Turn the whole cube 90 degrees to the left.
-        pub static ref Y: Twist = by_3d_view(Face::I, Axis::Y, TwistDirection2D::CW).whole_cube();
+        pub static ref Y: Twist = Twist::by_3d_view(Face::I, Axis::Y, CW, *LAYERS).unwrap();
         /// Turn the whole cube 90 degrees clockwise.
-        pub static ref Z: Twist = by_3d_view(Face::I, Axis::Z, TwistDirection2D::CW).whole_cube();
-
-    }
-
-    /// Constructs a twist of `face` along `axis`
-    pub fn by_3d_view(face: Face, axis: Axis, direction: TwistDirection2D) -> Twist {
-        let mut sticker = face.center_sticker();
-        if face.axis() == axis {
-            sticker.piece[Axis::W] = face.sign();
-        } else if face == Face::O {
-            sticker.piece[axis] = Sign::Neg;
-        } else {
-            sticker.piece[axis] = Sign::Pos;
-        }
-        Twist::new(sticker, direction)
+        pub static ref Z: Twist = Twist::by_3d_view(Face::I, Axis::Z, CW, *LAYERS).unwrap();
     }
 }
 
@@ -70,24 +59,6 @@ impl PuzzleState for Rubiks4D {
     const LAYER_COUNT: usize = 3;
 
     const PIECE_TYPE_NAMES: &'static [&'static str] = &["1c", "2c", "3c", "4c"];
-
-    const STICKER_MODEL_VERTEX_COUNT: u16 = 8;
-    const STICKER_MODEL_SURFACE_INDICES: &'static [u16] = &[
-        1, 2, 3, 2, 1, 0, // Z-
-        7, 6, 5, 4, 5, 6, // Z+
-        0, 1, 4, 5, 4, 1, // Y-
-        6, 3, 2, 3, 6, 7, // Y+
-        2, 4, 6, 4, 2, 0, // X-
-        7, 5, 3, 1, 3, 5, // X+
-    ];
-    const STICKER_MODEL_OUTLINE_INDICES: &'static [u16] = &[
-        0, 1, 1, 3, 3, 2, 2, 0, // Z-
-        7, 6, 6, 4, 4, 5, 5, 7, // Z+
-        0, 1, 1, 5, 5, 4, 4, 0, // Y-
-        7, 6, 6, 2, 2, 3, 3, 7, // Y+
-        0, 2, 2, 6, 6, 4, 4, 0, // X-
-        7, 5, 5, 1, 1, 3, 3, 7, // X+
-    ];
 
     fn get_sticker_color(&self, pos: Sticker) -> Face {
         self[pos.piece()][pos.axis()] * pos.sign()
@@ -545,37 +516,38 @@ pub struct Twist {
     /// Direction to twist the face.
     pub direction: TwistDirection2D,
     /// Layer mask.
-    pub layers: [bool; 3],
+    pub layers: LayerMask,
 }
 impl fmt::Display for Twist {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let sticker_id = self.sticker.id();
         let direction = self.direction.sign().int();
-        let layer_mask =
+        let layers =
             (self.layers[0] as u8) | ((self.layers[1] as u8) << 1) | ((self.layers[2] as u8) << 2);
-        write!(f, "{},{},{}", sticker_id, direction, layer_mask)
+        write!(f, "{},{},{}", sticker_id, direction, layers)
     }
 }
 impl FromStr for Twist {
-    type Err = ();
+    type Err = &'static str;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let [s1, s2, s3]: [&str; 3] = s.split(',').collect_vec().try_into().map_err(|_| ())?;
-        let sticker_id: usize = s1.parse().map_err(|_| ())?;
-        let direction: isize = s2.parse().map_err(|_| ())?;
-        let layer_mask: usize = s3.parse().map_err(|_| ())?;
+        let [s1, s2, s3]: [&str; 3] = s
+            .split(',')
+            .collect_vec()
+            .try_into()
+            .map_err(|_| "invalid twist")?;
+        let sticker_id: usize = s1.parse().map_err(|_| "invalid sticker ID")?;
+        let direction: isize = s2.parse().map_err(|_| "invalid direction")?;
+        let layers: u32 = s3.parse().map_err(|_| "invalid layer mask")?;
 
-        let sticker = Sticker::from_id(sticker_id).ok_or(())?;
+        let sticker = Sticker::from_id(sticker_id).ok_or("invalid sticker ID")?;
         let direction = match direction {
             -1 => TwistDirection2D::CW,
             1 => TwistDirection2D::CCW,
-            _ => return Err(()),
+            _ => return Err("invalid direction ID"),
         };
-        let layers = [
-            layer_mask & 1 != 0,
-            layer_mask & 2 != 0,
-            layer_mask & 4 != 0,
-        ];
+        let layers = LayerMask(layers);
+        layers.validate::<Rubiks4D>()?;
 
         Ok(Self {
             sticker,
@@ -585,31 +557,27 @@ impl FromStr for Twist {
     }
 }
 impl TwistTrait<Rubiks4D> for Twist {
-    fn from_twist_command(
+    fn from_face_with_layers(
         face: Face,
         direction: &str,
-        layer_mask: LayerMask,
+        layers: LayerMask,
     ) -> Result<Twist, &'static str> {
+        use Axis::*;
+        use TwistDirection2D::*;
+
         let (axis, direction) = match direction {
-            "x" => (Axis::X, TwistDirection2D::CW),
-            "x'" => (Axis::X, TwistDirection2D::CCW),
-            "y" => (Axis::Y, TwistDirection2D::CW),
-            "y'" => (Axis::Y, TwistDirection2D::CCW),
-            "z" => (Axis::Z, TwistDirection2D::CW),
-            "z'" => (Axis::Z, TwistDirection2D::CCW),
+            "x" => (X, CW),
+            "x'" => (X, CCW),
+            "y" => (Y, CW),
+            "y'" => (Y, CCW),
+            "z" => (Z, CW),
+            "z'" => (Z, CCW),
             _ => return Err("invalid direction"),
         };
-        if layer_mask.0 > 0b111 {
-            return Err("invaild layer mask");
-        }
-        let layers = [
-            layer_mask.0 & 0b001 != 0,
-            layer_mask.0 & 0b010 != 0,
-            layer_mask.0 & 0b100 != 0,
-        ];
-        Ok(twists::by_3d_view(face, axis, direction).layers(layers))
+        layers.validate::<Rubiks4D>()?;
+        Self::by_3d_view(face, axis, direction, layers)
     }
-    fn from_recenter_command(face: Face) -> Result<Twist, &'static str> {
+    fn from_face_recenter(face: Face) -> Result<Twist, &'static str> {
         if face.axis() == Axis::W {
             return Err("cannot recenter near or far face");
         }
@@ -621,10 +589,24 @@ impl TwistTrait<Rubiks4D> for Twist {
             Axis::Z => Sign::Pos,
             Axis::W => return Err("cannot recenter near or far face"),
         };
-        Ok(Twist::new(sticker, TwistDirection2D::CW).whole_cube())
+        Ok(Twist::from_sticker(sticker, TwistDirection2D::CW, LayerMask::default())?.whole_cube())
+    }
+    fn from_sticker(
+        sticker: Sticker,
+        direction: TwistDirection2D,
+        layers: LayerMask,
+    ) -> Result<Twist, &'static str> {
+        if let StickerAdjFaces::_0 { .. } = sticker.adj_faces() {
+            return Err("cannot twist around center sticker");
+        }
+        Ok(Self {
+            sticker,
+            direction,
+            layers,
+        })
     }
 
-    fn model_matrix(self, t: f32) -> Matrix4<f32> {
+    fn model_transform(self, t: f32) -> Matrix4<f32> {
         let [s1, s2, s3] = self.sticker.vec3_within_face();
         let face = self.sticker.face();
         let mut axis = cgmath::vec3(s1.float(), s2.float(), s3.float()).normalize();
@@ -706,22 +688,27 @@ impl TwistTrait<Rubiks4D> for Twist {
         }
     }
     fn is_whole_puzzle_rotation(self) -> bool {
-        self.layers == [true; 3]
-    }
-}
-impl From<Sticker> for Twist {
-    fn from(sticker: Sticker) -> Self {
-        Self {
-            sticker,
-            direction: TwistDirection2D::default(),
-            layers: [true, false, false],
-        }
+        self.layers == LayerMask::all::<Rubiks4D>()
     }
 }
 impl Twist {
-    /// Returns the sticker with the given ID.
-    pub fn from_sticker_idx(i: usize) -> Self {
-        Self::from(Sticker::from_id(i).unwrap())
+    /// Constructs a twist of `face` around `axis`
+    pub fn by_3d_view(
+        face: Face,
+        axis: Axis,
+        direction: TwistDirection2D,
+        layers: LayerMask,
+    ) -> Result<Self, &'static str> {
+        let mut sticker = face.center_sticker();
+        if face.axis() == axis {
+            sticker.piece[Axis::W] = face.sign();
+        } else if face == Face::O {
+            sticker.piece[axis] = Sign::Neg;
+        } else {
+            sticker.piece[axis] = Sign::Pos;
+        }
+        layers.validate::<Rubiks4D>()?;
+        Self::from_sticker(sticker, direction, layers)
     }
 
     /// Returns the number of repetitions of this twist required before the
@@ -734,31 +721,26 @@ impl Twist {
             StickerAdjFaces::_3 { .. } => 3, // 120-degree rotation
         }
     }
-    /// Returns a twist of the face from the given sticker and in the given
-    /// direction.
-    pub const fn new(sticker: Sticker, direction: TwistDirection2D) -> Self {
-        Self {
-            sticker,
-            direction,
-            layers: [true, false, false],
-        }
-    }
-    /// Make a fat (2-layer) move from this move.
-    pub const fn fat(self) -> Self {
-        self.layers([true, true, false])
+    /// Make a wide (2-layer) move from this move.
+    pub const fn wide(mut self) -> Self {
+        self.layers = LayerMask(0b011);
+        self
     }
     /// Make a slice move from this move.
-    pub const fn slice(self) -> Self {
-        self.layers([false, true, false])
+    pub const fn slice(mut self) -> Self {
+        self.layers = LayerMask(0b011);
+        self
     }
     /// Make a whole cube rotation from this move.
-    pub const fn whole_cube(self) -> Self {
-        self.layers([true, true, true])
+    pub const fn whole_cube(mut self) -> Self {
+        self.layers = LayerMask::all::<Rubiks4D>();
+        self
     }
     /// Twist different layers.
-    pub const fn layers(mut self, layers: [bool; 3]) -> Self {
+    pub fn layers(mut self, layers: LayerMask) -> Result<Self, &'static str> {
+        layers.validate::<Rubiks4D>()?;
         self.layers = layers;
-        self
+        Ok(self)
     }
 }
 
@@ -914,16 +896,12 @@ mod tests {
     #[test]
     fn test_4d_twist_serialization() {
         for &sticker in Rubiks4D::stickers() {
-            for layer_mask in 0..8 {
+            for layers in (0..8).map(LayerMask) {
                 for direction in [TwistDirection2D::CCW, TwistDirection2D::CW] {
                     let twist = Twist {
                         sticker,
                         direction,
-                        layers: [
-                            (layer_mask & 1) != 0,
-                            (layer_mask & 2) != 0,
-                            (layer_mask & 4) != 0,
-                        ],
+                        layers,
                     };
                     assert_eq!(twist, twist.to_string().parse().unwrap());
                 }

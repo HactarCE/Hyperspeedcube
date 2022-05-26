@@ -3,7 +3,7 @@ use egui::NumExt;
 use super::util::{self, ResponseExt};
 use crate::app::App;
 use crate::preferences::DEFAULT_PREFS;
-use crate::puzzle::{PuzzleControllerTrait, PuzzleTypeTrait};
+use crate::puzzle::PuzzleTypeTrait;
 use crate::serde_impl::hex_color;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {

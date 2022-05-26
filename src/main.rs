@@ -11,8 +11,6 @@
 #[macro_use]
 extern crate delegate;
 #[macro_use]
-extern crate enum_dispatch;
-#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate strum;
@@ -26,7 +24,9 @@ use winit::window::Icon;
 mod debug;
 mod app;
 mod commands;
+pub mod controller;
 mod gui;
+mod mc4d_compat;
 mod preferences;
 pub mod puzzle;
 mod render;

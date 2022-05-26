@@ -1,6 +1,6 @@
 use super::util;
 use crate::app::App;
-use crate::puzzle::{LayerMask, PuzzleControllerTrait, PuzzleTypeTrait, Selection, TwistDirection};
+use crate::puzzle::{LayerMask, PuzzleTypeTrait, Selection, TwistDirection};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::ScrollArea::new([false, true]).show(ui, |ui| {

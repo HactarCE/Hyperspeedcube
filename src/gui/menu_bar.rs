@@ -1,6 +1,6 @@
 use crate::app::App;
 use crate::commands::Command;
-use crate::puzzle::{PuzzleControllerTrait, PuzzleType, PuzzleTypeTrait};
+use crate::puzzle::{PuzzleType, PuzzleTypeTrait};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {

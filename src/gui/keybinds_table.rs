@@ -400,7 +400,7 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
                     CmdType::Twist => Cmd::Twist {
                         face: None,
                         direction: default_direction,
-                        layer_mask: LayerMask(1),
+                        layer_mask: LayerMask::default(),
                     },
                     CmdType::Recenter => Cmd::Recenter { face: None },
 

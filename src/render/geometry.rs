@@ -21,7 +21,7 @@ pub(super) fn generate_puzzle_geometry(app: &mut App) -> (Vec<RgbaVertex>, Vec<u
     // Project stickers.
     let mut sticker_geometries: Vec<ProjectedStickerGeometry> = vec![];
     let mut outline_color = egui::Rgba::from(prefs.colors.outline).to_array();
-    for piece in puzzle.pieces() {
+    for piece in puzzle.displayed().pieces() {
         sticker_geometry_params.model_transform = puzzle.model_transform_for_piece(*piece);
 
         for sticker in piece.stickers() {
@@ -36,7 +36,10 @@ pub(super) fn generate_puzzle_geometry(app: &mut App) -> (Vec<RgbaVertex>, Vec<u
 
             // Compute fill and outline colors.
             let mut fill_color = egui::Rgba::from(match prefs.colors.blindfold {
-                false => prefs.colors[puzzle.get_sticker_color(sticker)],
+                false => match puzzle.displayed().get_sticker_color(sticker) {
+                    Ok(face) => prefs.colors[face],
+                    Err(_) => prefs.colors.blind_face, // fallback
+                },
                 true => prefs.colors.blind_face,
             })
             .to_array();

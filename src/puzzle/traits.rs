@@ -5,8 +5,9 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
 
-pub use super::PuzzleControllerTrait;
-use super::{Face, LayerMask, Piece, PieceType, PuzzleType, Sticker, TwistMetric};
+use super::{
+    Face, LayerMask, Piece, PieceType, PuzzleType, Sticker, Twist, TwistDirection2D, TwistMetric,
+};
 use crate::preferences::ViewPreferences;
 
 const W_NEAR_CLIPPING_DIVISOR: f32 = 0.1;
@@ -80,15 +81,6 @@ pub trait PuzzleState:
 
     /// Names of piece types.
     const PIECE_TYPE_NAMES: &'static [&'static str];
-
-    /// Number of vertices used to render a single sticker.
-    const STICKER_MODEL_VERTEX_COUNT: u16;
-    /// Indices of vertices used to render the surface of a single sticker with
-    /// the `GL_TRIANGLES` setting.
-    const STICKER_MODEL_SURFACE_INDICES: &'static [u16];
-    /// Inidices of vertices used to render the outline for a single sticker
-    /// with the `GL_LINES` setting.
-    const STICKER_MODEL_OUTLINE_INDICES: &'static [u16];
 
     /// Returns a new solved puzzle in the default orientation.
     fn new() -> Self {
@@ -275,22 +267,32 @@ pub trait FaceTrait<P: PuzzleState>:
 
 /// Twist that can be applied to a twisty puzzle.
 pub trait TwistTrait<P: PuzzleState>:
-    'static + Debug + Copy + Eq + From<P::Sticker> + Hash
+    'static + Debug + Copy + Eq + Hash + Into<P::Twist> + From<P::Twist> + Into<Twist>
 {
-    /// Constructs a new twist from a 'twist' command.
-    fn from_twist_command(
+    /// Constructs a twist of the outermost layer of a single face.
+    fn from_face(face: P::Face, direction: &str) -> Result<P::Twist, &'static str> {
+        Self::from_face_with_layers(face, direction, LayerMask::default())
+    }
+    /// Constructs a twist of a single face.
+    fn from_face_with_layers(
         face: P::Face,
         direction: &str,
-        layer_mask: LayerMask,
+        layers: LayerMask,
     ) -> Result<P::Twist, &'static str>;
-    /// Constructs a twist from a 'recenter' command.
-    fn from_recenter_command(face: P::Face) -> Result<P::Twist, &'static str>;
+    /// Constructs a twist that recenters a face.
+    fn from_face_recenter(face: P::Face) -> Result<P::Twist, &'static str>;
+    /// Constructs a twist of a face around a sticker.
+    fn from_sticker(
+        sticker: P::Sticker,
+        direction: TwistDirection2D,
+        layers: LayerMask,
+    ) -> Result<P::Twist, &'static str>;
 
     /// Returns the matrix to apply to pieces affected by this twist, given a
     /// time parameter `t` from 0.0 to 1.0. `t=0.0` gives the identity matrix,
     /// `t=1.0` gives the result of the twist, and intermediate values
     /// interpolate.
-    fn model_matrix(self, t: f32) -> Matrix4<f32>;
+    fn model_transform(self, t: f32) -> Matrix4<f32>;
 
     /// Returns the orientation that would result from applying this twist to a
     /// piece in the default orientation.

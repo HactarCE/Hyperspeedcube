@@ -1,20 +1,51 @@
 use cgmath::Matrix4;
 use itertools::Itertools;
+use std::any::Any;
 use std::fmt;
-use std::time::Duration;
 use thiserror::Error;
 
-use super::{traits::*, PuzzleController, PuzzleType, Rubiks3D, Rubiks4D, TwistMetric};
-use crate::preferences::Preferences;
+use super::{traits::*, PuzzleType, Rubiks3D, Rubiks4D, TwistDirection2D, TwistMetric};
 
-/// `PuzzleController of any puzzle type.
-#[derive(PartialEq, Eq)]
-#[enum_dispatch(PuzzleControllerTrait)]
+macro_rules! delegate_to_inner_puzzle {
+    (
+        puzzle_types = {[ $($puzzle_type:ident),* ]}
+        match_expr = {[ $match_expr:expr ]}
+        type_name = {[ $type_name:ident ]}
+        var_name = {[ $var_name:ident ]}
+        foreach = {[ $foreach:tt ]}
+    ) => {
+        match $match_expr {
+            $(
+                Puzzle::$puzzle_type($var_name) => {
+                    type $type_name = $puzzle_type;
+                    $foreach
+                }
+            )*
+        }
+    };
+    (
+        match $match_expr:expr;
+        let $var_name:ident: $type_name:ident => $foreach:expr
+    ) => {
+        with_puzzle_types! {
+            delegate_to_inner_puzzle! {
+                puzzle_types = PUZZLE_TYPES
+                match_expr = {[ $match_expr ]}
+                type_name = {[ $type_name ]}
+                var_name = {[ $var_name ]}
+                foreach = {[ $foreach ]}
+            }
+        }
+    };
+}
+
+/// `Puzzle` of any puzzle type, boxed so that they are always the same size.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Puzzle {
     /// 3D Rubik's cube.
-    Rubiks3D(PuzzleController<Rubiks3D>),
+    Rubiks3D(Box<Rubiks3D>),
     /// 4D Rubik's cube.
-    Rubiks4D(PuzzleController<Rubiks4D>),
+    Rubiks4D(Box<Rubiks4D>),
 }
 impl Default for Puzzle {
     fn default() -> Self {
@@ -41,14 +72,46 @@ impl PuzzleTypeTrait for Puzzle {
         }
     }
 }
+macro_rules! impl_from_puzzle {
+    ( puzzle_types = {[ $($puzzle_type:ident),* ]} ) => {
+        $(
+            impl From<$puzzle_type> for Puzzle {
+                fn from(p: $puzzle_type) -> Self {
+                    Self::$puzzle_type(Box::new(p))
+                }
+            }
+        )*
+    };
+}
+with_puzzle_types!(impl_from_puzzle! { puzzle_types = PUZZLE_TYPES });
 impl Puzzle {
-    /// Creates a new puzzle of this type.
+    /// Creates a new puzzle of a particular type.
     pub fn new(ty: PuzzleType) -> Puzzle {
         delegate_to_puzzle_type! {
             match_expr = {[ ty ]}
             type_name = {[ P ]}
-            foreach = {[ Self::from(PuzzleController::<P>::new()) ]}
+            foreach = {[ Self::from(P::new()) ]}
         }
+    }
+
+    /// Returns the type of the puzzle.
+    pub fn ty(&self) -> PuzzleType {
+        delegate_to_inner_puzzle!(match self; let _p: P => P::TYPE)
+    }
+
+    /// Applies a twist to the puzzle.
+    pub fn twist(&mut self, twist: Twist) -> Result<(), &'static str> {
+        delegate_to_inner_puzzle!(match self; let p: P => {
+            Ok(p.twist(twist.of_type::<P>()?))
+        })
+    }
+
+    /// Returns the face where the sticker at the given location belongs (i.e.
+    /// corresponding to its color).
+    pub fn get_sticker_color(&self, sticker: Sticker) -> Result<Face, FacetConvertError> {
+        delegate_to_inner_puzzle!(match self; let p: P => {
+            Ok(p.get_sticker_color(sticker.of_type::<P>()?).into())
+        })
     }
 }
 
@@ -70,7 +133,8 @@ macro_rules! generic_facet {
                 self.id
             }
 
-            /// Converts a generic $name_lower into a $name_lower of a specific puzzle.
+            /// Converts a generic $name_lower into a $name_lower of a specific
+            /// puzzle.
             pub fn of_type<P: PuzzleState>(self) -> Result<P::$name_upper, FacetConvertError> {
                 if self.ty != P::TYPE {
                     return Err(FacetConvertError::PuzzleTypeMismatch {
@@ -83,6 +147,12 @@ macro_rules! generic_facet {
                     facet: FacetType::$name_upper,
                     id: self.id,
                 })
+            }
+
+            /// Converts a generic $name_lower into a $name_lower of a specific
+            /// puzzle, panicking if it fails.
+            pub fn unwrap<P: PuzzleState>(self) -> P::$name_upper {
+                self.of_type::<P>().unwrap()
             }
         }
         with_puzzle_types! {
@@ -118,24 +188,23 @@ impl Piece {
 
         /// Returns the piece type.
         pub fn piece_type(self) -> PieceType {
-            self.of_type::<P>().unwrap().piece_type()
+            self.unwrap::<P>().piece_type()
         }
 
         /// Returns the layer of this piece, relative to a face (or `None` if this
         /// does not make sense for the puzzle).
         pub fn layer(self, face: Face) -> Option<usize> {
-            self.of_type::<P>().unwrap().layer(face.of_type::<P>().unwrap())
+            self.unwrap::<P>().layer(face.unwrap::<P>())
         }
 
         /// Returns the number of stickers on this piece (i.e. the length of
         /// `self.stickers()`).
         pub fn sticker_count(self) -> usize {
-            self.of_type::<P>().unwrap().sticker_count()
+            self.unwrap::<P>().sticker_count()
         }
         /// Returns a list of the stickers on this piece.
         pub fn stickers(self) -> Vec<Sticker> {
-            self.of_type::<P>()
-                .unwrap()
+            self.unwrap::<P>()
                 .stickers()
                 .into_iter()
                 .map(|s| s.into())
@@ -151,11 +220,11 @@ impl Sticker {
 
         /// Returns the piece that this sticker is on.
         pub fn piece(self) -> Piece {
-            self.of_type::<P>().unwrap().piece().into()
+            self.unwrap::<P>().piece().into()
         }
         /// Returns the face that this sticker is on.
         pub fn face(self) -> Face {
-            self.of_type::<P>().unwrap().face().into()
+            self.unwrap::<P>().face().into()
         }
 
         /// Returns the 3D vertices used to render this sticker, or `None` if the
@@ -164,7 +233,7 @@ impl Sticker {
         /// All vertices should be within the cube from (-1, -1, -1) to (1, 1, 1)
         /// before having `p.transform` applied.
         pub fn geometry(self, p: StickerGeometryParams) -> Option<StickerGeometry> {
-            self.of_type::<P>().unwrap().geometry(p)
+            self.unwrap::<P>().geometry(p)
         }
     }
 }
@@ -207,8 +276,7 @@ impl Face {
 
         /// Returns a list of all the pieces on this face at one layer.
         pub fn pieces(self, layer: usize) -> Vec<Piece> {
-            self.of_type::<P>()
-                .unwrap()
+            self.unwrap::<P>()
                 .pieces(layer)
                 .into_iter()
                 .map(|f| f.into())
@@ -216,8 +284,7 @@ impl Face {
         }
         /// Returns a list of all the stickers on this face.
         pub fn stickers(self) -> Vec<Sticker> {
-            self.of_type::<P>()
-                .unwrap()
+            self.unwrap::<P>()
                 .stickers()
                 .into_iter()
                 .map(|s| s.into())
@@ -346,9 +413,20 @@ impl Clone for Twist {
         fn clone(&self) -> Self {
             Self {
                 ty: self.ty,
-                inner: Box::new(self.of_type::<P>().unwrap().clone()),
+                inner: Box::new(self.unwrap::<P>()),
             }
         }
+    }
+}
+impl Eq for Twist {}
+impl PartialEq for Twist {
+    fn eq(&self, other: &Self) -> bool {
+        self.ty() == other.ty()
+            && delegate_to_puzzle_type! {
+                match_expr = {[ self.ty() ]}
+                type_name = {[ P ]}
+                foreach = {[ self.unwrap::<P>() == other.unwrap::<P>() ]}
+            }
     }
 }
 macro_rules! generic_twist_from {
@@ -373,7 +451,7 @@ impl fmt::Display for Twist {
         type P = match self.ty;
 
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            self.of_type::<P>().unwrap().fmt(f)
+            self.unwrap::<P>().fmt(f)
         }
     }
 }
@@ -388,6 +466,74 @@ impl Twist {
             .cloned()
             .ok_or("internal error when downcasting twist")
     }
+    /// Converts a generic twist into a twist of a specific puzzle, panicking if
+    /// it fails.
+    pub fn unwrap<P: PuzzleState>(&self) -> P::Twist {
+        self.of_type::<P>().unwrap()
+    }
+
+    /// Constructs a twist of the outermost layer of a single face.
+    pub fn from_face(face: Face, direction: &str) -> Result<Twist, &'static str> {
+        delegate_to_puzzle_type! {
+            match_expr = {[ face.ty() ]}
+            type_name = {[ P ]}
+            foreach = {[
+                Ok(<P as PuzzleState>::Twist::from_face(face.unwrap::<P>(), direction)?.into())
+            ]}
+        }
+    }
+    /// Constructs a twist of a single face.
+    pub fn from_face_with_layers(
+        face: Face,
+        direction: &str,
+        layers: LayerMask,
+    ) -> Result<Twist, &'static str> {
+        delegate_to_puzzle_type! {
+            match_expr = {[ face.ty() ]}
+            type_name = {[ P ]}
+            foreach = {[
+                Ok(<P as PuzzleState>::Twist::from_face_with_layers(face.unwrap::<P>(), direction, layers)?.into())
+            ]}
+        }
+    }
+    /// Constructs a twist that recenters a face.
+    pub fn from_face_recenter(face: Face) -> Result<Twist, &'static str> {
+        delegate_to_puzzle_type! {
+            match_expr = {[ face.ty() ]}
+            type_name = {[ P ]}
+            foreach = {[
+                Ok(<P as PuzzleState>::Twist::from_face_recenter(face.unwrap::<P>())?.into())
+            ]}
+        }
+    }
+    /// Constructs a twist of a face around a sticker.
+    pub fn from_sticker(
+        sticker: Sticker,
+        direction: TwistDirection2D,
+        layers: LayerMask,
+    ) -> Result<Twist, &'static str> {
+        delegate_to_puzzle_type! {
+            match_expr = {[ sticker.ty() ]}
+            type_name = {[ P ]}
+            foreach = {[
+                Ok(<P as PuzzleState>::Twist::from_sticker(sticker.unwrap::<P>(), direction, layers)?.into())
+            ]}
+        }
+    }
+
+    /// Returns the matrix to apply to pieces affected by this twist, given a
+    /// time parameter `t` from 0.0 to 1.0. `t=0.0` gives the identity matrix,
+    /// `t=1.0` gives the result of the twist, and intermediate values
+    /// interpolate.
+    pub fn model_transform(&self, t: f32) -> Matrix4<f32> {
+        delegate_to_puzzle_type! {
+            match_expr = {[ self.ty() ]}
+            type_name = {[ P ]}
+            foreach = {[
+                self.unwrap::<P>().model_transform(t)
+            ]}
+        }
+    }
 
     delegate_fn_to_puzzle_type! {
         type P = match self.ty;
@@ -395,11 +541,16 @@ impl Twist {
         /// Returns the reverse of this twist.
         #[must_use]
         pub fn rev(&self) -> Self {
-            self.of_type::<P>().unwrap().rev().into()
+            self.unwrap::<P>().rev().into()
         }
         /// Returns whether a piece is affected by this twist.
         pub fn affects_piece(&self, piece: Piece) -> bool {
-            self.of_type::<P>().unwrap().affects_piece(piece.of_type::<P>().unwrap())
+            self.unwrap::<P>().affects_piece(piece.unwrap::<P>())
+        }
+        /// Returns whether the two moves are counted as a single move in `metric`.
+        pub fn can_combine(&self, previous: Option<&Self>, metric: TwistMetric) -> bool {
+            self.unwrap::<P>()
+                .can_combine(previous.and_then(|t| t.of_type::<P>().ok()), metric)
         }
     }
 
@@ -412,6 +563,11 @@ impl Twist {
             .filter(|&piece| self.affects_piece(piece))
             .collect()
     }
+
+    /// Returns the puzzle type.
+    pub fn ty(&self) -> PuzzleType {
+        self.ty
+    }
 }
 
 /// Layer mask, for use in a keybind.
@@ -422,21 +578,40 @@ impl Default for LayerMask {
         Self(1)
     }
 }
+impl std::ops::Index<usize> for LayerMask {
+    type Output = bool;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match self.0 & (1 << index) {
+            0 => &false,
+            _ => &true,
+        }
+    }
+}
 impl LayerMask {
     pub(crate) fn is_default(self) -> bool {
         self == Self::default()
     }
     pub(crate) fn short_description(self) -> String {
+        // Just give up if there's more than 9 layers.
         (0..9)
-            .filter(|i| self.0 & (1 << i) != 0)
+            .filter(|&i| self[i])
             .map(|i| (i as u8 + '1' as u8) as char)
             .collect()
     }
     pub(crate) fn long_description(self) -> String {
-        (0..32)
-            .filter(|i| self.0 & (1 << i) != 0)
-            .map(|i| i + 1)
-            .join(", ")
+        (0..32).filter(|&i| self[i]).map(|i| i + 1).join(", ")
+    }
+
+    pub(crate) fn validate<P: PuzzleState>(self) -> Result<(), &'static str> {
+        if self.0 > 0 || self.0 < 1 << P::LAYER_COUNT {
+            Ok(())
+        } else {
+            Err("invalid layer mask")
+        }
+    }
+    pub(crate) const fn all<P: PuzzleState>() -> Self {
+        Self((1 << P::LAYER_COUNT as u32) - 1)
     }
 }
 
