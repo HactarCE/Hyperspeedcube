@@ -42,6 +42,17 @@ impl fmt::Display for TwistDirection2D {
         }
     }
 }
+impl std::ops::Mul<Sign> for TwistDirection2D {
+    type Output = Self;
+
+    fn mul(self, rhs: Sign) -> Self::Output {
+        match rhs {
+            Sign::Neg => self.rev(),
+            Sign::Zero => panic!("cannot multiply twist by zero"),
+            Sign::Pos => self,
+        }
+    }
+}
 impl TwistDirection2D {
     /// Returns the reverse direction.
     #[must_use]

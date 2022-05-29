@@ -423,16 +423,16 @@ impl fmt::Display for Twist {
 
             // Slice moves.
             0b010 => match self.face.axis() {
-                Axis::X => write!(f, "M{}", self.direction.rev()),
-                Axis::Y => write!(f, "E{}", self.direction.rev()),
-                Axis::Z => write!(f, "S{}", self.direction),
+                Axis::X => write!(f, "M{}", self.direction * -self.face.sign()),
+                Axis::Y => write!(f, "E{}", self.direction * -self.face.sign()),
+                Axis::Z => write!(f, "S{}", self.direction * self.face.sign()),
             },
 
             // Whole cube rotations.
             0b111 => match self.face.axis() {
-                Axis::X => write!(f, "x{}", self.direction),
-                Axis::Y => write!(f, "y{}", self.direction),
-                Axis::Z => write!(f, "z{}", self.direction),
+                Axis::X => write!(f, "x{}", self.direction * self.face.sign()),
+                Axis::Y => write!(f, "y{}", self.direction * self.face.sign()),
+                Axis::Z => write!(f, "z{}", self.direction * self.face.sign()),
             },
 
             // Anything else has a bad layer mask.
