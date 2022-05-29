@@ -42,6 +42,21 @@ impl Command {
             _ => PuzzleType::default(),
         }
     }
+
+    pub(crate) fn short_description(&self) -> String {
+        match self {
+            Command::Open => "Open".to_owned(),
+            Command::Save => "Save".to_owned(),
+            Command::SaveAs => "Save As".to_owned(),
+            Command::Exit => "Exit".to_owned(),
+            Command::Undo => "Undo".to_owned(),
+            Command::Redo => "Redo".to_owned(),
+            Command::Reset => "Reset".to_owned(),
+            Command::NewPuzzle(ty) => format!("New {}", ty.name()),
+            Command::ToggleBlindfold => "BLD".to_owned(),
+            Command::None => String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

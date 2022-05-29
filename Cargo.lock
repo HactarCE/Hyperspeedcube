@@ -1350,13 +1350,14 @@ dependencies = [
 [[package]]
 name = "key-names"
 version = "0.1.0"
-source = "git+https://github.com/HactarCE/key-names#836e49543f5811e38e069bf85cbd762ba9bb50e6"
+source = "git+https://github.com/HactarCE/key-names?rev=4cdd234#4cdd234bcb40c19db8d6a365e9873109536522d6"
 dependencies = [
  "cty",
  "keycode",
  "thiserror",
  "wayland-client",
  "winapi",
+ "winit",
  "xcb 0.8.2",
  "xkbcommon",
 ]

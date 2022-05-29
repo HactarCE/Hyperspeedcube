@@ -101,17 +101,28 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::Rect) {
-    let matching_keybinds = app
-        .resolve_keypress(&app.prefs.puzzle_keybinds[app.puzzle.ty()], Some(key), None)
+    let vk = key_names::key_to_winit_vkey(key);
+    let matching_puzzle_keybinds: Vec<&Keybind<PuzzleCommand>> = app
+        .resolve_keypress(&app.prefs.puzzle_keybinds[app.puzzle.ty()], Some(key), vk)
         .into_iter()
         .take_while(|bind| bind.command != PuzzleCommand::None)
-        .collect_vec();
+        .collect();
+    let matching_global_keybinds: Vec<&Keybind<Command>> = app
+        .resolve_keypress(&app.prefs.general_keybinds, Some(key), vk)
+        .into_iter()
+        .take_while(|bind| bind.command != Command::None)
+        .collect();
 
-    let s = matching_keybinds
-        .first()
+    let s = matching_puzzle_keybinds
+        .iter()
         .map(|bind| bind.command.short_description())
+        .chain(
+            matching_global_keybinds
+                .iter()
+                .map(|bind| bind.command.short_description()),
+        )
+        .next()
         .unwrap_or_default();
-    // let s = get_key_name(key);
 
     let text = autosize_button_text(ui, s, rect.size());
 
@@ -121,7 +132,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
         button = button.stroke(ui.style().noninteractive().fg_stroke);
     }
     let r = ui.put(rect, button);
-    if !matching_keybinds.is_empty() {
+    if !matching_puzzle_keybinds.is_empty() || !matching_global_keybinds.is_empty() {
         r.on_hover_ui(|ui| {
             // Adjust spacing so we don't have to add spaces manually.
             let space_width = ui
@@ -129,7 +140,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                 .glyph_width(&egui::TextStyle::Body.resolve(ui.style()), ' ');
             ui.spacing_mut().item_spacing.x = space_width;
 
-            for bind in matching_keybinds {
+            for bind in matching_puzzle_keybinds {
                 ui.horizontal_wrapped(|ui| match &bind.command {
                     PuzzleCommand::Twist {
                         face,
@@ -183,6 +194,25 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         ));
                     }
                     PuzzleCommand::None => unreachable!(),
+                });
+            }
+
+            for bind in matching_global_keybinds {
+                ui.horizontal_wrapped(|ui| match &bind.command {
+                    Command::Open => ui.label("Open"),
+                    Command::Save => ui.label("Save"),
+                    Command::SaveAs => ui.label("Save As"),
+                    Command::Exit => ui.label("Exit"),
+                    Command::Undo => ui.label("Undo"),
+                    Command::Redo => ui.label("Redo"),
+                    Command::Reset => ui.label("Reset"),
+                    Command::NewPuzzle(ty) => {
+                        ui.label("Load new");
+                        ui.strong(ty.name());
+                        ui.label("puzzle")
+                    }
+                    Command::ToggleBlindfold => ui.label("Toggle blindfold"),
+                    Command::None => unreachable!(),
                 });
             }
         });
