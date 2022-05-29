@@ -613,6 +613,9 @@ impl LayerMask {
     pub(crate) const fn all<P: PuzzleState>() -> Self {
         Self((1 << P::LAYER_COUNT as u32) - 1)
     }
+    pub(crate) fn is_all(self, ty: PuzzleType) -> bool {
+        self.0 == (1 << ty.layer_count() as u32) - 1
+    }
 }
 
 #[derive(Error, Debug)]

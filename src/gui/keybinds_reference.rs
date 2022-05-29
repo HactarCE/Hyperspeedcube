@@ -1,12 +1,13 @@
 use egui::NumExt;
-use itertools::Itertools;
 use key_names::KeyMappingCode;
 
 use crate::app::App;
-use crate::commands::{PuzzleCommand, SelectThing};
-use crate::preferences::Key;
+use crate::commands::{Command, PuzzleCommand, SelectThing};
+use crate::preferences::{Key, Keybind};
+use crate::puzzle::PuzzleTypeTrait;
 
-const KEY_PADDING: f32 = 0.05;
+const SCALED_KEY_PADDING: f32 = 0.0;
+const MIN_KEY_PADDING: f32 = 4.0;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     let prefs = app.prefs.gui.keybinds_reference;
@@ -35,7 +36,8 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             }
         }
 
-        let min_scale = ui.spacing().button_padding.y * 2.0 + ui.spacing().interact_size.y;
+        let min_scale =
+            ui.spacing().button_padding.y * 2.0 + ui.spacing().interact_size.y + MIN_KEY_PADDING;
 
         if let Some(total_rect) = areas.iter().map(|area| area.rect).reduce(egui::Rect::union) {
             // How much space is available?
@@ -52,7 +54,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                             KeyboardElement::Key(key) => {
                                 let key_size = get_key_size(key) * scale;
                                 let key_rect = egui::Rect::from_min_size(origin + cursor, key_size)
-                                    .shrink(KEY_PADDING * scale);
+                                    .shrink(MIN_KEY_PADDING + SCALED_KEY_PADDING * scale);
                                 draw_key(ui, app, key, key_rect);
                                 cursor.x += key_size.x;
                             }
@@ -128,12 +130,14 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
 
     let mut button = egui::Button::new(text).sense(egui::Sense::hover());
     if app.pressed_keys().contains(&Key::Sc(key)) {
-        // button = button.fill(egui::Color32::DARK_RED);
+        button = button.fill(egui::Color32::DARK_GREEN);
         button = button.stroke(ui.style().noninteractive().fg_stroke);
     }
     let r = ui.put(rect, button);
     if !matching_puzzle_keybinds.is_empty() || !matching_global_keybinds.is_empty() {
         r.on_hover_ui(|ui| {
+            ui.heading(get_key_name(key));
+
             // Adjust spacing so we don't have to add spaces manually.
             let space_width = ui
                 .fonts()
@@ -147,16 +151,26 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         direction,
                         layer_mask,
                     } => {
-                        ui.label("Twist");
-                        ui.strong(face.map(|f| f.name()).unwrap_or("selected"));
-                        ui.label("face in");
-                        ui.strong(direction.name());
-                        ui.label("direction");
-                        if !layer_mask.is_default() {
-                            ui.label("(layer");
-                            ui.strong(layer_mask.long_description());
-                            ui.add_space(-space_width);
-                            ui.label(")");
+                        if layer_mask.is_all(app.puzzle.ty()) {
+                            ui.label("Rotate");
+                            ui.strong("whole puzzle");
+                            ui.label("in");
+                            ui.strong(direction.name());
+                            ui.label("direction relative to");
+                            ui.strong(face.map(|f| f.name()).unwrap_or("selected"));
+                            ui.label("face");
+                        } else {
+                            ui.label("Twist");
+                            ui.strong(face.map(|f| f.name()).unwrap_or("selected"));
+                            ui.label("face in");
+                            ui.strong(direction.name());
+                            ui.label("direction");
+                            if !layer_mask.is_default() {
+                                ui.label("(layer");
+                                ui.strong(layer_mask.long_description());
+                                ui.add_space(-space_width);
+                                ui.label(")");
+                            }
                         }
                     }
                     PuzzleCommand::Recenter { face } => {
