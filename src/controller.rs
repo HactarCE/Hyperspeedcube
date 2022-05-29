@@ -1,14 +1,10 @@
 //! Puzzle wrapper that adds animation and undo history functionality.
 
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use cgmath::{Matrix4, SquareMatrix};
 use std::collections::VecDeque;
-use std::io;
 use std::path::Path;
 use std::time::Duration;
-
-use crate::preferences::Preferences;
-use crate::puzzle::{LayerMask, Puzzle, Twist, TwistDirection, TwistMetric};
 
 /// If at least this much of a twist is animated in one frame, just skip the
 /// animation to reduce unnecessary flashing.
@@ -33,8 +29,12 @@ pub mod interpolate {
     pub const COSINE_DECEL: InterpolateFn = |x| ((1.0 - x) * PI / 2.0).cos();
 }
 
-use crate::mc4d_compat::*;
-use crate::puzzle::{traits::*, Face, Piece, PuzzleType};
+use crate::mc4d_compat;
+use crate::preferences::Preferences;
+use crate::puzzle::{
+    traits::*, Face, LayerMask, Piece, Puzzle, PuzzleType, Rubiks4D, Twist, TwistDirection,
+    TwistMetric,
+};
 use interpolate::InterpolateFn;
 
 const INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
@@ -279,40 +279,55 @@ impl PuzzleController {
 
     /// Loads a log file and returns the puzzle state.
     pub fn load_file(path: &Path) -> anyhow::Result<Self> {
-        // let contents = std::fs::read_to_string(path)?;
-        // let logfile = contents.parse::<super::rubiks4d_logfile::LogFile>()?;
+        let contents = std::fs::read_to_string(path)?;
+        let logfile = contents.parse::<mc4d_compat::LogFile>()?;
 
-        // let mut ret = Self {
-        //     scramble_state: logfile.scramble_state,
-        //     ..Self::default()
-        // };
-        // for twist in logfile.scramble_twists {
-        //     ret.twist(twist);
-        // }
-        // ret.scramble = ret.undo_buffer;
-        // ret.undo_buffer = vec![];
-        // ret.catch_up();
-        // for twist in logfile.solve_twists {
-        //     ret.twist(twist);
-        // }
+        let mut ret = Self {
+            displayed: Rubiks4D::new().into(),
+            latest: Rubiks4D::new().into(),
 
-        // Ok(ret)
-        bail!("NOT YET IMPLEMENTED")
+            scramble_state: logfile.scramble_state,
+
+            ..Self::default()
+        };
+        for twist in logfile.scramble_twists {
+            ret.twist(twist.into()).map_err(|e| anyhow!(e))?;
+        }
+        ret.scramble = ret.undo_buffer;
+        ret.undo_buffer = vec![];
+        ret.catch_up();
+        for twist in logfile.solve_twists {
+            ret.twist(twist.into()).map_err(|e| anyhow!(e))?;
+        }
+
+        Ok(ret)
     }
 
     /// Saves the puzzle state to a log file.
     pub fn save_file(&mut self, path: &Path) -> anyhow::Result<()> {
-        // let logfile = LogFile {
-        //     scramble_state: self.scramble_state,
-        //     view_matrix: Matrix4::identity(),
-        //     scramble_twists: self.scramble.clone(),
-        //     solve_twists: self.undo_buffer.clone(),
-        // };
-        // std::fs::write(path, logfile.to_string())?;
-        // self.is_unsaved = false;
+        match self.latest {
+            Puzzle::Rubiks3D(_) => bail!("log files only supported for Rubik's 4D"),
+            Puzzle::Rubiks4D(_) => {
+                let logfile = mc4d_compat::LogFile {
+                    scramble_state: self.scramble_state,
+                    view_matrix: Matrix4::identity(),
+                    scramble_twists: self
+                        .scramble
+                        .iter()
+                        .map(|t| t.unwrap::<Rubiks4D>())
+                        .collect(),
+                    solve_twists: self
+                        .undo_buffer
+                        .iter()
+                        .map(|t| t.unwrap::<Rubiks4D>())
+                        .collect(),
+                };
+                std::fs::write(path, logfile.to_string())?;
+                self.is_unsaved = false;
 
-        // Ok(())
-        bail!("NOT YET IMPLEMENTED")
+                Ok(())
+            }
+        }
     }
 }
 
