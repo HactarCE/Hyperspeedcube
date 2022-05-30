@@ -106,6 +106,7 @@ enum Window {
     PuzzleControlsPanel,
     KeybindsReference,
     About,
+    #[cfg(debug_assertions)]
     Debug,
 }
 impl Window {
