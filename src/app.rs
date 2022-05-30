@@ -207,18 +207,14 @@ impl App {
 
                                 PuzzleCommand::HoldSelect(thing) => {
                                     let sel = Selection::from(*thing);
-                                    let old_sel =
-                                        self.held_selections.insert(bind.key.key().unwrap(), sel);
-                                    self.wants_repaint = old_sel != Some(sel);
+                                    self.held_selections.insert(bind.key.key().unwrap(), sel);
                                 }
                                 PuzzleCommand::ToggleSelect(thing) => {
                                     self.toggle_selections ^= Selection::from(*thing);
-                                    self.wants_repaint = true;
                                 }
                                 PuzzleCommand::ClearToggleSelect(category) => {
                                     let default = Selection::default();
                                     let tog_sel = &mut self.toggle_selections;
-                                    let old_tog_sel = *tog_sel;
 
                                     use SelectCategory::*;
                                     match category {
@@ -228,7 +224,6 @@ impl App {
                                             tog_sel.piece_type_mask = default.piece_type_mask
                                         }
                                     }
-                                    self.wants_repaint |= old_tog_sel != *tog_sel;
                                 }
 
                                 PuzzleCommand::None => return, // Do not try to match other keybinds.
@@ -343,6 +338,7 @@ impl App {
     }
 
     pub(crate) fn frame(&mut self, delta: Duration) {
+        self.puzzle.set_selection(self.puzzle_selection());
         self.wants_repaint |= self.puzzle.advance(delta, &self.prefs);
     }
 
@@ -421,7 +417,6 @@ impl App {
     }
     fn remove_held_selections(&mut self, mut remove_if: impl FnMut(Key) -> bool) {
         self.held_selections.retain(|&k, _v| !remove_if(k));
-        self.wants_repaint = true;
     }
 }
 

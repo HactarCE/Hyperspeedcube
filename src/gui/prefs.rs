@@ -346,6 +346,18 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
              moves are complete, the twist speed resets.",
         );
     changed |= r.changed();
+    let r = ui.add(resettable!(
+        "Fade duration",
+        (prefs.interaction.fade_duration),
+        |value| {
+            let speed = value.at_least(0.01) / 100.0; // logarithmic speed
+            egui::DragValue::new(value)
+                .fixed_decimals(2)
+                .clamp_range(0.0..=1.0_f32)
+                .speed(speed)
+        },
+    ));
+    changed |= r.changed();
 
     prefs.needs_save |= changed;
 }

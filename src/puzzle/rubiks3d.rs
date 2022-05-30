@@ -644,6 +644,15 @@ impl Mul<Piece> for Orientation {
         ret
     }
 }
+impl Mul<Sticker> for Orientation {
+    type Output = Sticker;
+    fn mul(self, rhs: Sticker) -> Self::Output {
+        let mut ret = rhs;
+        ret.piece = self * rhs.piece;
+        ret.axis = self[rhs.axis].axis;
+        ret
+    }
+}
 impl Orientation {
     /// Returns an orientation representing a 90-degree rotation from one axis
     /// to another.

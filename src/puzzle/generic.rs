@@ -547,7 +547,13 @@ impl Twist {
         pub fn affects_piece(&self, piece: Piece) -> bool {
             self.unwrap::<P>().affects_piece(piece.unwrap::<P>())
         }
-        /// Returns whether the two moves are counted as a single move in `metric`.
+        /// Returns the destination where a sticker will land after this twist.
+        pub fn destination_sticker(&self, sticker: Sticker) -> Sticker {
+            self.unwrap::<P>().destination_sticker(sticker.unwrap::<P>()).into()
+        }
+
+        /// Returns whether the two moves are counted as a single move in
+        /// `metric`.
         pub fn can_combine(&self, previous: Option<&Self>, metric: TwistMetric) -> bool {
             self.unwrap::<P>()
                 .can_combine(previous.and_then(|t| t.of_type::<P>().ok()), metric)

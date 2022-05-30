@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Selection fading
+
 ## [0.5.0] - 2022-05-29
 
 ### Added

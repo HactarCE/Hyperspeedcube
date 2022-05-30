@@ -11,7 +11,6 @@ const OUTLINE_WEDGE_VERTS_PER_RADIAN: f32 = 3.0;
 pub(super) fn generate_puzzle_geometry(app: &mut App) -> (Vec<RgbaVertex>, Vec<u16>) {
     let prefs = &app.prefs;
     let puzzle = &app.puzzle;
-    let puzzle_selection = app.puzzle_selection();
     let view_prefs = &prefs.view[puzzle.ty()];
 
     let mut sticker_geometry_params = StickerGeometryParams::new(view_prefs);
@@ -26,13 +25,7 @@ pub(super) fn generate_puzzle_geometry(app: &mut App) -> (Vec<RgbaVertex>, Vec<u
 
         for sticker in piece.stickers() {
             // Compute opacity.
-            let selected = puzzle_selection.has_sticker(sticker);
-            let alpha = prefs.colors.sticker_opacity
-                * if selected {
-                    1.0
-                } else {
-                    prefs.colors.hidden_opacity
-                };
+            let alpha = puzzle.sticker_alpha(sticker);
 
             // Compute fill and outline colors.
             let mut fill_color = egui::Rgba::from(match prefs.colors.blindfold {

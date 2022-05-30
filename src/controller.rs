@@ -32,15 +32,15 @@ pub mod interpolate {
 use crate::mc4d_compat;
 use crate::preferences::Preferences;
 use crate::puzzle::{
-    traits::*, Face, LayerMask, Piece, Puzzle, PuzzleType, Rubiks4D, Twist, TwistDirection,
-    TwistMetric,
+    traits::*, Face, LayerMask, Piece, Puzzle, PuzzleType, Rubiks4D, Selection, Sticker, Twist,
+    TwistDirection, TwistMetric,
 };
 use interpolate::InterpolateFn;
 
-const INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
+const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 
 /// Puzzle wrapper that adds animation and undo history functionality.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct PuzzleController {
     /// State of the puzzle right before the twist being animated right now.
     ///
@@ -71,6 +71,16 @@ pub struct PuzzleController {
     undo_buffer: Vec<Twist>,
     /// Redo history.
     redo_buffer: Vec<Twist>,
+
+    /// Selected pieces/stickers.
+    selection: Selection,
+    /// Displayed alpha values for pieces.
+    sticker_alphas: Vec<f32>,
+}
+impl Default for PuzzleController {
+    fn default() -> Self {
+        Self::new(PuzzleType::default())
+    }
 }
 impl Eq for PuzzleController {}
 impl PartialEq for PuzzleController {
@@ -99,6 +109,9 @@ impl PuzzleController {
             scramble: vec![],
             undo_buffer: vec![],
             redo_buffer: vec![],
+
+            selection: Selection::default(),
+            sticker_alphas: vec![1.0; ty.stickers().len()],
         }
     }
 
@@ -122,7 +135,7 @@ impl PuzzleController {
     /// 0.0 and 1.0 indicating the progress on that animation.
     pub fn current_twist(&self) -> Option<(&Twist, f32)> {
         if let Some(twist) = self.twist_queue.get(0) {
-            Some((twist, INTERPOLATION_FN(self.progress)))
+            Some((twist, TWIST_INTERPOLATION_FN(self.progress)))
         } else {
             None
         }
@@ -161,9 +174,34 @@ impl PuzzleController {
         self.twist(Twist::from_face_recenter(face)?)
     }
 
+    /// Sets the puzzle selection.
+    pub fn set_selection(&mut self, selection: Selection) {
+        self.selection = selection;
+    }
+    /// Returns the opacity for a sticker.
+    pub fn sticker_alpha(&self, sticker: Sticker) -> f32 {
+        if let Some((twist, t)) = self.current_twist() {
+            if twist.affects_piece(sticker.piece()) {
+                let start = sticker;
+                let end = twist.destination_sticker(start);
+                return t * self.sticker_alphas[end.id()]
+                    + (1.0 - t) * self.sticker_alphas[start.id()];
+            }
+        }
+        self.sticker_alphas[sticker.id()]
+    }
+
     /// Advances to the next frame, using the given time delta between this
     /// frame and the last. Returns whether the puzzle needs to be repainted.
     pub fn advance(&mut self, delta: Duration, prefs: &Preferences) -> bool {
+        // Note that we can't just use `||` because that will short-circuit.
+        let mut wants_repaint = false;
+        wants_repaint |= self.advance_twist(delta, prefs);
+        wants_repaint |= self.advance_alpha(delta, prefs);
+        wants_repaint
+    }
+
+    fn advance_twist(&mut self, delta: Duration, prefs: &Preferences) -> bool {
         if self.twist_queue.is_empty() {
             self.queue_max = 0;
             // Nothing has changed, so don't request a repaint.
@@ -198,6 +236,33 @@ impl PuzzleController {
         }
         // Request repaint.
         true
+    }
+    fn advance_alpha(&mut self, delta: Duration, prefs: &Preferences) -> bool {
+        let mut wants_repaint = false;
+
+        let max_delta_alpha = delta.as_secs_f32() / prefs.interaction.fade_duration;
+        for (sticker, alpha) in self.ty().stickers().iter().zip(&mut self.sticker_alphas) {
+            let target = prefs.colors.sticker_opacity
+                * if self.selection.has_sticker(*sticker) {
+                    1.0
+                } else {
+                    prefs.colors.hidden_opacity
+                };
+
+            let diff = target - *alpha;
+
+            if diff == 0.0 {
+                continue;
+            }
+            wants_repaint = true;
+            if diff.abs() <= max_delta_alpha {
+                *alpha = target;
+            } else {
+                *alpha += max_delta_alpha.copysign(diff);
+            }
+        }
+
+        wants_repaint
     }
 
     /// Skips the animations for all twists in the queue.

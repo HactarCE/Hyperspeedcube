@@ -310,6 +310,14 @@ pub trait TwistTrait<P: PuzzleState>:
             .filter(|&piece| self.affects_piece(piece))
             .collect()
     }
+    /// Returns the destination where a sticker will land after this twist.
+    fn destination_sticker(self, sticker: P::Sticker) -> P::Sticker {
+        if self.affects_piece(sticker.piece()) {
+            self.rotation() * sticker
+        } else {
+            sticker
+        }
+    }
 
     /// Returns whether the two moves are counted as a single move in `metric`.
     fn can_combine(self, previous: Option<Self>, metric: TwistMetric) -> bool;
@@ -320,7 +328,13 @@ pub trait TwistTrait<P: PuzzleState>:
 
 /// Orientation for a piece of a twisty puzzle, relative to some default.
 pub trait OrientationTrait<P: PuzzleState + Hash>:
-    Debug + Default + Copy + Eq + Mul<Self, Output = Self> + Mul<P::Piece, Output = P::Piece>
+    Debug
+    + Default
+    + Copy
+    + Eq
+    + Mul<Self, Output = Self>
+    + Mul<P::Piece, Output = P::Piece>
+    + Mul<P::Sticker, Output = P::Sticker>
 {
     /// Reverses this orientation.
     #[must_use]
