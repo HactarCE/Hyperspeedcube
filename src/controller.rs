@@ -355,6 +355,28 @@ impl PuzzleController {
             }
         }
     }
+    /// Returns whether the puzzle has been solved at some point.
+    pub fn has_been_solved(&self) -> bool {
+        self.scramble_state == ScrambleState::Solved
+    }
+    /// Returns whether the puzzle is currently in a solved configuration.
+    pub fn is_solved(&self) -> bool {
+        self.displayed.is_solved()
+    }
+    /// Checks whether the puzzle was scrambled and is now solved. If so,
+    /// updates the scramble state, and returns `true`.
+    pub fn check_just_solved(&mut self) -> bool {
+        let has_been_scrambled = matches!(
+            self.scramble_state,
+            ScrambleState::Partial | ScrambleState::Full,
+        );
+        if has_been_scrambled && self.is_solved() {
+            self.scramble_state = ScrambleState::Solved;
+            true
+        } else {
+            false
+        }
+    }
 
     /// Returns the model transform for a piece, based on the current animation
     /// in progress.

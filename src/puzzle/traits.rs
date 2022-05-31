@@ -1,6 +1,7 @@
 //! Common traits used for puzzles.
 
 use cgmath::{Deg, EuclideanSpace, Matrix3, Matrix4, Point3, SquareMatrix, Vector4};
+use itertools::Itertools;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
@@ -122,6 +123,16 @@ pub trait PuzzleState:
     /// Returns the face where the sticker at the given location belongs
     /// (i.e. corresponding to its color).
     fn get_sticker_color(&self, pos: Self::Sticker) -> Self::Face;
+    /// Returns whether the puzzle is solved. The default implementation returns
+    /// whether all the stickers on each face are the same color.
+    fn is_solved(&self) -> bool {
+        Self::faces().iter().all(|face| {
+            face.stickers()
+                .iter()
+                .map(|&sticker| self.get_sticker_color(sticker))
+                .all_equal()
+        })
+    }
 
     /// Returns a list of all pieces in the puzzle.
     fn pieces() -> &'static [Self::Piece];

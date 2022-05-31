@@ -16,7 +16,9 @@ macro_rules! delegate_to_inner_puzzle {
     ) => {
         match $match_expr {
             $(
+                #[allow(unused)]
                 Puzzle::$puzzle_type($var_name) => {
+                    #[allow(unused)]
                     type $type_name = $puzzle_type;
                     $foreach
                 }
@@ -97,7 +99,7 @@ impl Puzzle {
 
     /// Returns the type of the puzzle.
     pub fn ty(&self) -> PuzzleType {
-        delegate_to_inner_puzzle!(match self; let _p: P => P::TYPE)
+        delegate_to_inner_puzzle!(match self; let p: P => P::TYPE)
     }
 
     /// Applies a twist to the puzzle.
@@ -113,6 +115,10 @@ impl Puzzle {
         delegate_to_inner_puzzle!(match self; let p: P => {
             Ok(p.get_sticker_color(sticker.of_type::<P>()?).into())
         })
+    }
+    /// Returns whether the puzzle is solved.
+    pub fn is_solved(&self) -> bool {
+        delegate_to_inner_puzzle!(match self; let p: P => p.is_solved())
     }
 }
 

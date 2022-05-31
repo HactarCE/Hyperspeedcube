@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - Scrambling (<kbd>Ctrl</kbd>+<kbd>F</kbd>)
+- Solved state detection
 - Selection fading
 - Option to confirm discard only when the puzzle has been fully scrambled
 

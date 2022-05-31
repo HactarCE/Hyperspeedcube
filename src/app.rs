@@ -367,6 +367,9 @@ impl App {
     pub(crate) fn frame(&mut self, delta: Duration) {
         self.puzzle.set_selection(self.puzzle_selection());
         self.wants_repaint |= self.puzzle.advance(delta, &self.prefs);
+        if self.puzzle.check_just_solved() {
+            self.set_status_ok("Solved!");
+        }
     }
 
     fn confirm_discard_changes(&self, action: &str) -> bool {
