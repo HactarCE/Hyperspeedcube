@@ -38,10 +38,10 @@ The controls for the 3D Rubik's cube are mostly based on [Ryan Heise's speedcube
   - [ ] Selection description
 - [ ] Dynamic highlighting (e.g., highlight unsolved pieces/stickers)
 - [x] Optional lighting
-- [ ] Scrambler (random moves)
+- [x] Scrambler (random moves)
 - [ ] Keybind hints on puzzle
 - [ ] Keybind hints in menus
-- [ ] Keymap display
+- [x] Keymap display
 - [ ] Adjust 3D view using mouse
 - [ ] Mouse controls for puzzle
 - [ ] Timeline
