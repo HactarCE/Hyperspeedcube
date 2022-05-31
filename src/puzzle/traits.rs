@@ -82,6 +82,9 @@ pub trait PuzzleState:
     /// Names of piece types.
     const PIECE_TYPE_NAMES: &'static [&'static str];
 
+    /// Number of random moves to fully scramble the puzzle.
+    const SCRAMBLE_MOVES_COUNT: usize;
+
     /// Returns a new solved puzzle in the default orientation.
     fn new() -> Self {
         Self::default()
@@ -155,6 +158,8 @@ pub trait PuzzleTypeTrait {
     fn ndim(&self) -> usize;
     /// Returns the number of layers.
     fn layer_count(&self) -> usize;
+    /// Returns the number of moves to fully scramble the puzzle.
+    fn scramble_moves_count(&self) -> usize;
 
     /// Returns a list of all pieces in the puzzle.
     fn pieces(&self) -> &'static [Piece];
@@ -287,6 +292,8 @@ pub trait TwistTrait<P: PuzzleState>:
         direction: TwistDirection2D,
         layers: LayerMask,
     ) -> Result<P::Twist, &'static str>;
+    /// Returns a random twist.
+    fn from_rng() -> P::Twist;
 
     /// Returns the matrix to apply to pieces affected by this twist, given a
     /// time parameter `t` from 0.0 to 1.0. `t=0.0` gives the identity matrix,

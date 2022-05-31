@@ -189,6 +189,9 @@ impl PuzzleTypeTrait for PuzzleType {
         fn layer_count(&self) -> usize {
             P::LAYER_COUNT
         }
+        fn scramble_moves_count(&self) -> usize {
+            P::SCRAMBLE_MOVES_COUNT
+        }
 
         fn pieces(&self) -> &'static [Piece] {
             P::generic_pieces()

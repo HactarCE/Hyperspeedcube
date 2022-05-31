@@ -49,6 +49,20 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             }
         });
 
+        ui.menu_button("Scramble", |ui| {
+            for n in 1..=8 {
+                if ui.button(n.to_string()).clicked() {
+                    ui.close_menu();
+                    app.event(Command::ScrambleN(n));
+                }
+            }
+            ui.separator();
+            if ui.button(format!("Full")).clicked() {
+                ui.close_menu();
+                app.event(Command::ScrambleFull);
+            }
+        });
+
         ui.menu_button("Puzzle", |ui| {
             for &puzzle_type in PuzzleType::ALL {
                 if ui.button(puzzle_type.name()).clicked() {

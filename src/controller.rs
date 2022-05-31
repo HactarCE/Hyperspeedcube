@@ -114,6 +114,30 @@ impl PuzzleController {
             sticker_alphas: vec![1.0; ty.stickers().len()],
         }
     }
+    /// Resets the puzzle.
+    pub fn reset(&mut self) {
+        *self = Self::new(self.ty());
+    }
+
+    /// Scramble some small number of moves.
+    pub fn scramble_n(&mut self, n: usize) -> Result<(), &'static str> {
+        self.reset();
+        // Use a `while` loop instead of a `for` loop because moves may cancel.
+        while self.undo_buffer.len() < n {
+            self.twist(Twist::from_rng(self.ty()))?;
+        }
+        self.catch_up();
+        self.scramble = std::mem::replace(&mut self.undo_buffer, vec![]);
+        self.scramble_state = ScrambleState::Partial;
+        Ok(())
+    }
+    /// Scramble the puzzle completely.
+    pub fn scramble_full(&mut self) -> Result<(), &'static str> {
+        self.reset();
+        self.scramble_n(self.ty().scramble_moves_count())?;
+        self.scramble_state = ScrambleState::Full;
+        Ok(())
+    }
 
     /// Adds a twist to the back of the twist queue.
     pub fn twist(&mut self, twist: Twist) -> Result<(), &'static str> {
@@ -299,7 +323,6 @@ impl PuzzleController {
             Err("Nothing to undo")
         }
     }
-
     /// Redoes one twist. Returns an error if there was nothing to redo or the
     /// twist could not be applied to the puzzle.
     pub fn redo(&mut self) -> Result<(), &'static str> {

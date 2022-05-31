@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- Scrambling (<kbd>Ctrl</kbd>+<kbd>F</kbd>)
 - Selection fading
 
 ## [0.5.0] - 2022-05-29

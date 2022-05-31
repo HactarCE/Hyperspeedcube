@@ -1,6 +1,7 @@
 //! 3x3x3 Rubik's cube.
 
 use cgmath::{Deg, EuclideanSpace, Matrix4, Point3, Transform, Vector3, Zero};
+use rand::Rng;
 use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
@@ -71,6 +72,8 @@ impl PuzzleState for Rubiks3D {
     const LAYER_COUNT: usize = 3;
 
     const PIECE_TYPE_NAMES: &'static [&'static str] = &["center", "edge", "corner"];
+
+    const SCRAMBLE_MOVES_COUNT: usize = 30; // pulled from thin air
 
     fn get_sticker_color(&self, pos: Sticker) -> Face {
         self[pos.piece()][pos.axis()] * pos.sign()
@@ -480,6 +483,18 @@ impl TwistTrait<Rubiks3D> for Twist {
             direction,
             layers,
         })
+    }
+    fn from_rng() -> Self {
+        let mut rng = rand::thread_rng();
+        Self {
+            face: Rubiks3D::faces()[rng.gen_range(0..Rubiks3D::faces().len())],
+            direction: if rng.gen() {
+                TwistDirection2D::CW
+            } else {
+                TwistDirection2D::CCW
+            },
+            layers: LayerMask(rng.gen_range(1..((1 << Rubiks3D::LAYER_COUNT) - 1))),
+        }
     }
 
     fn model_transform(self, t: f32) -> cgmath::Matrix4<f32> {

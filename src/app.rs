@@ -102,7 +102,34 @@ impl App {
                 }
                 Command::Reset => {
                     if self.confirm_discard_changes("reset puzzle") {
-                        self.puzzle = PuzzleController::new(self.puzzle.ty());
+                        self.puzzle.reset();
+                        self.wants_repaint = true;
+                    }
+                }
+
+                Command::ScrambleN(n) => {
+                    if self.confirm_discard_changes("scramble") {
+                        // TODO: `n` is not validated. It may be `0` (which is
+                        // harmless) or `usize::MAX` (which will freeze the
+                        // program).
+                        match self.puzzle.scramble_n(n) {
+                            Ok(()) => self.set_status_ok(format!(
+                                "Scrambled {} random {}",
+                                n,
+                                if n == 1 { "move" } else { "moves" }
+                            )),
+                            Err(e) => self.set_status_err(e),
+                        }
+
+                        self.wants_repaint = true;
+                    }
+                }
+                Command::ScrambleFull => {
+                    if self.confirm_discard_changes("scramble") {
+                        match self.puzzle.scramble_full() {
+                            Ok(()) => self.set_status_ok(format!("Scrambled fully",)),
+                            Err(e) => self.set_status_err(e),
+                        }
                         self.wants_repaint = true;
                     }
                 }

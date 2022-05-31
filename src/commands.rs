@@ -8,6 +8,11 @@ use crate::puzzle::{
     traits::*, Face, LayerMask, PieceType, PuzzleType, Selection, Twist, TwistDirection,
 };
 
+/// Minimum number of moves for a partial scramble.
+pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MIN: usize = 1;
+/// Maximum number of moves for a partial scramble.
+pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MAX: usize = 20;
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Command {
@@ -21,6 +26,10 @@ pub enum Command {
     Undo,
     Redo,
     Reset,
+
+    // Scramble menu
+    ScrambleN(usize),
+    ScrambleFull,
 
     // Puzzle menu
     NewPuzzle(PuzzleType),
@@ -49,11 +58,18 @@ impl Command {
             Command::Save => "Save".to_owned(),
             Command::SaveAs => "Save As".to_owned(),
             Command::Exit => "Exit".to_owned(),
+
             Command::Undo => "Undo".to_owned(),
             Command::Redo => "Redo".to_owned(),
             Command::Reset => "Reset".to_owned(),
+
+            Command::ScrambleN(n) => format!("Scramble {n}"),
+            Command::ScrambleFull => "Scramble fully".to_owned(),
+
             Command::NewPuzzle(ty) => format!("New {}", ty.name()),
+
             Command::ToggleBlindfold => "BLD".to_owned(),
+
             Command::None => String::new(),
         }
     }

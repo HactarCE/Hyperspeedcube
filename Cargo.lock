@@ -1256,6 +1256,7 @@ dependencies = [
  "once_cell",
  "png",
  "pollster",
+ "rand",
  "rfd",
  "send_wrapper",
  "serde",

@@ -95,6 +95,9 @@ general_keybinds:
   - vk: F4
     command:
       new_puzzle: Rubiks4D
+  - vk: F
+    ctrl: true
+    command: scramble_full
 puzzle_keybinds:
   Rubiks3D:
     - sc: ShiftLeft

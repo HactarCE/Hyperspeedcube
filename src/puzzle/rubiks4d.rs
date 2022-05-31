@@ -5,6 +5,7 @@ use cgmath::{
     Transform, Vector4, Zero,
 };
 use itertools::Itertools;
+use rand::Rng;
 use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 use std::str::FromStr;
@@ -59,6 +60,8 @@ impl PuzzleState for Rubiks4D {
     const LAYER_COUNT: usize = 3;
 
     const PIECE_TYPE_NAMES: &'static [&'static str] = &["1c", "2c", "3c", "4c"];
+
+    const SCRAMBLE_MOVES_COUNT: usize = 46; // based on what MC4D does
 
     fn get_sticker_color(&self, pos: Sticker) -> Face {
         self[pos.piece()][pos.axis()] * pos.sign()
@@ -604,6 +607,22 @@ impl TwistTrait<Rubiks4D> for Twist {
             direction,
             layers,
         })
+    }
+    fn from_rng() -> Self {
+        let mut rng = rand::thread_rng();
+        loop {
+            if let Ok(ret) = Self::from_sticker(
+                Rubiks4D::stickers()[rng.gen_range(0..Rubiks4D::stickers().len())],
+                if rng.gen() {
+                    TwistDirection2D::CW
+                } else {
+                    TwistDirection2D::CCW
+                },
+                LayerMask(rng.gen_range(1..((1 << Rubiks4D::LAYER_COUNT) - 1))),
+            ) {
+                return ret;
+            }
+        }
     }
 
     fn model_transform(self, t: f32) -> Matrix4<f32> {

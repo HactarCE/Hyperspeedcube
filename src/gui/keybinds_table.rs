@@ -3,7 +3,10 @@ use std::hash::Hash;
 
 use super::util::{self, ComboBoxExt};
 use crate::app::App;
-use crate::commands::{Command, PuzzleCommand, SelectHow, SelectThing};
+use crate::commands::{
+    Command, PuzzleCommand, SelectHow, SelectThing, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX,
+    PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
+};
 use crate::gui::util::BasicComboBox;
 use crate::preferences::{Keybind, Preferences};
 use crate::puzzle::{LayerMask, PieceType, PuzzleType, PuzzleTypeTrait, TwistDirection};
@@ -285,6 +288,10 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                 Undo,
                 Redo,
                 Reset,
+                #[strum(serialize = "Scramble partially")]
+                ScrambleN,
+                #[strum(serialize = "Scramble fully")]
+                ScrambleFull,
                 #[strum(serialize = "Toggle blindfold")]
                 ToggleBlindfold,
                 #[strum(serialize = "New puzzle")]
@@ -300,6 +307,9 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                 Cmd::Undo => CmdType::Undo,
                 Cmd::Redo => CmdType::Redo,
                 Cmd::Reset => CmdType::Reset,
+
+                Cmd::ScrambleN(_) => CmdType::ScrambleN,
+                Cmd::ScrambleFull => CmdType::ScrambleFull,
 
                 Cmd::NewPuzzle(_) => CmdType::NewPuzzle,
 
@@ -326,6 +336,9 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                     CmdType::Redo => Cmd::Redo,
                     CmdType::Reset => Cmd::Reset,
 
+                    CmdType::ScrambleN => Cmd::ScrambleN(PARTIAL_SCRAMBLE_MOVE_COUNT_MIN),
+                    CmdType::ScrambleFull => Cmd::ScrambleFull,
+
                     CmdType::NewPuzzle => Cmd::NewPuzzle(self.cmd.get_puzzle_type()),
 
                     CmdType::ToggleBlindfold => Cmd::ToggleBlindfold,
@@ -333,6 +346,17 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
             }
 
             match self.cmd {
+                Cmd::ScrambleN(n) => {
+                    add_pre_label_space(ui);
+                    ui.horizontal(|ui| {
+                        ui.label("Moves:");
+                        let r = ui.add(egui::DragValue::new(n).clamp_range(
+                            PARTIAL_SCRAMBLE_MOVE_COUNT_MIN..=PARTIAL_SCRAMBLE_MOVE_COUNT_MAX,
+                        ));
+                        changed |= r.changed();
+                    });
+                }
+
                 Cmd::NewPuzzle(puzzle_type) => {
                     add_pre_label_space(ui);
                     ui.horizontal(|ui| {

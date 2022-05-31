@@ -58,6 +58,7 @@ impl PuzzleTypeTrait for Puzzle {
             fn name(&self) -> &'static str;
             fn ndim(&self) -> usize;
             fn layer_count(&self) -> usize;
+            fn scramble_moves_count(&self) -> usize;
 
             fn pieces(&self) -> &'static [Piece];
             fn stickers(&self) -> &'static [Sticker];
@@ -517,6 +518,16 @@ impl Twist {
             type_name = {[ P ]}
             foreach = {[
                 Ok(<P as PuzzleState>::Twist::from_sticker(sticker.unwrap::<P>(), direction, layers)?.into())
+            ]}
+        }
+    }
+    /// Returns a random twist.
+    pub fn from_rng(ty: PuzzleType) -> Twist {
+        delegate_to_puzzle_type! {
+            match_expr = {[ ty ]}
+            type_name = {[ P ]}
+            foreach = {[
+                <P as PuzzleState>::Twist::from_rng().into()
             ]}
         }
     }

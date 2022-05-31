@@ -217,15 +217,25 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                     Command::Save => ui.label("Save"),
                     Command::SaveAs => ui.label("Save As"),
                     Command::Exit => ui.label("Exit"),
+
                     Command::Undo => ui.label("Undo"),
                     Command::Redo => ui.label("Redo"),
                     Command::Reset => ui.label("Reset"),
+
+                    Command::ScrambleN(n) => {
+                        ui.label("Scramble");
+                        ui.strong(n.to_string())
+                    }
+                    Command::ScrambleFull => ui.label("Scramble fully"),
+
                     Command::NewPuzzle(ty) => {
                         ui.label("Load new");
                         ui.strong(ty.name());
                         ui.label("puzzle")
                     }
+
                     Command::ToggleBlindfold => ui.label("Toggle blindfold"),
+
                     Command::None => unreachable!(),
                 });
             }
