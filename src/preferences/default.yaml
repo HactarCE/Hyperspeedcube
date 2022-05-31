@@ -59,6 +59,7 @@ interaction:
   twist_duration: 0.2
   dynamic_twist_speed: true
   fade_duration: 0.1
+  confirm_discard_only_when_scrambled: true
 general_keybinds:
   - vk: O
     ctrl: true

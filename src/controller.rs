@@ -29,6 +29,7 @@ pub mod interpolate {
     pub const COSINE_DECEL: InterpolateFn = |x| ((1.0 - x) * PI / 2.0).cos();
 }
 
+use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::mc4d_compat;
 use crate::preferences::Preferences;
 use crate::puzzle::{
@@ -341,6 +342,18 @@ impl PuzzleController {
     /// log file was saved.
     pub fn is_unsaved(&self) -> bool {
         self.is_unsaved
+    }
+    /// Returns whether the puzzle has been fully scrambled, even if it has been solved.
+    pub fn has_been_fully_scrambled(&self) -> bool {
+        match self.scramble_state {
+            ScrambleState::None => false,
+            ScrambleState::Partial => false,
+            ScrambleState::Full => true,
+            ScrambleState::Solved => {
+                self.scramble.len() >= self.ty().scramble_moves_count()
+                    || self.scramble.len() > PARTIAL_SCRAMBLE_MOVE_COUNT_MAX
+            }
+        }
     }
 
     /// Returns the model transform for a piece, based on the current animation

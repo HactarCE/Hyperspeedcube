@@ -320,6 +320,23 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
 
     let mut changed = false;
 
+    ui.add(util::CheckboxWithReset {
+        label: "Confirm discard only when scrambled",
+        value: &mut prefs.interaction.confirm_discard_only_when_scrambled,
+        reset_value: DEFAULT_PREFS
+            .interaction
+            .confirm_discard_only_when_scrambled,
+    })
+    .on_hover_explanation(
+        "",
+        "When enabled, a confirmation dialog before \
+        destructive actions (like resetting the puzzle) \
+        is only shown when the puzzle has been fully \
+        scrambled.",
+    );
+
+    ui.separator();
+
     ui.strong("Twist speed");
     let r = ui.add(resettable!(
         "Twist duration",

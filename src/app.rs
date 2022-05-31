@@ -370,7 +370,15 @@ impl App {
     }
 
     fn confirm_discard_changes(&self, action: &str) -> bool {
-        !self.puzzle.is_unsaved()
+        let mut needs_save = self.puzzle.is_unsaved();
+
+        if self.prefs.interaction.confirm_discard_only_when_scrambled
+            && !self.puzzle.has_been_fully_scrambled()
+        {
+            needs_save = false;
+        }
+
+        !needs_save
             || rfd::MessageDialog::new()
                 .set_title("Unsaved changes")
                 .set_description(&format!("Discard puzzle state and {}?", action))

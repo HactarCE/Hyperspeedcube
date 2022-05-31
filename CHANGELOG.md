@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Scrambling (<kbd>Ctrl</kbd>+<kbd>F</kbd>)
 - Selection fading
+- Option to confirm discard only when the puzzle has been fully scrambled
 
 ## [0.5.0] - 2022-05-29
 
