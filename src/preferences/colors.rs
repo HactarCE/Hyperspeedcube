@@ -8,19 +8,17 @@ use crate::serde_impl::hex_color;
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct ColorPreferences {
-    pub sticker_opacity: f32,
+    pub default_opacity: f32,
     pub hidden_opacity: f32,
+    pub hovered_opacity: f32,
 
     #[serde(with = "hex_color")]
     pub background: egui::Color32,
     #[serde(with = "hex_color")]
-    pub outline: egui::Color32,
-
-    pub faces: PerPuzzle<FaceColors>,
-
-    #[serde(with = "hex_color")]
     pub blind_face: egui::Color32,
     pub blindfold: bool,
+
+    pub faces: PerPuzzle<FaceColors>,
 }
 impl std::ops::Index<Face> for ColorPreferences {
     type Output = egui::Color32;

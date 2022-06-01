@@ -199,20 +199,26 @@ impl PuzzleController {
         self.twist(Twist::from_face_recenter(face)?)
     }
 
+    /// Returns the puzzle selection.
+    pub fn selection(&self) -> Selection {
+        self.selection
+    }
     /// Sets the puzzle selection.
     pub fn set_selection(&mut self, selection: Selection) {
         self.selection = selection;
     }
+
+    /// If a twist is in progress, returns the new location of `sticker` after
+    /// the twist and the progress of the twist from `0.0` to `1.0`. If there is
+    /// no twist in progress, or the current twist does not affect `sticker`,
+    /// returns `None`.
+    pub fn sticker_animation(&self, sticker: Sticker) -> Option<(Sticker, f32)> {
+        self.current_twist()
+            .filter(|(twist, _)| twist.affects_piece(sticker.piece()))
+            .map(|(twist, t)| (twist.destination_sticker(sticker), t))
+    }
     /// Returns the opacity for a sticker.
     pub fn sticker_alpha(&self, sticker: Sticker) -> f32 {
-        if let Some((twist, t)) = self.current_twist() {
-            if twist.affects_piece(sticker.piece()) {
-                let start = sticker;
-                let end = twist.destination_sticker(start);
-                return t * self.sticker_alphas[end.id()]
-                    + (1.0 - t) * self.sticker_alphas[start.id()];
-            }
-        }
         self.sticker_alphas[sticker.id()]
     }
 
@@ -225,7 +231,6 @@ impl PuzzleController {
         wants_repaint |= self.advance_alpha(delta, prefs);
         wants_repaint
     }
-
     fn advance_twist(&mut self, delta: Duration, prefs: &Preferences) -> bool {
         if self.twist_queue.is_empty() {
             self.queue_max = 0;
@@ -267,7 +272,7 @@ impl PuzzleController {
 
         let max_delta_alpha = delta.as_secs_f32() / prefs.interaction.fade_duration;
         for (sticker, alpha) in self.ty().stickers().iter().zip(&mut self.sticker_alphas) {
-            let target = prefs.colors.sticker_opacity
+            let target = prefs.colors.default_opacity
                 * if self.selection.has_sticker(*sticker) {
                     1.0
                 } else {

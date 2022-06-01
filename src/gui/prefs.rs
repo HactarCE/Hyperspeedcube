@@ -13,9 +13,10 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.heading("Preferences");
     ui.separator();
     egui::ScrollArea::new([false, true]).show(ui, |ui| {
-        ui.collapsing("Colors", |ui| build_colors_section(ui, app));
         ui.collapsing("Graphics", |ui| build_graphics_section(ui, app));
         ui.collapsing("View", |ui| build_view_section(ui, app));
+        ui.collapsing("Outlines", |ui| build_outlines_section(ui, app));
+        ui.collapsing("Colors", |ui| build_colors_section(ui, app));
         ui.collapsing("Interaction", |ui| {
             build_interaction_section(ui, app);
 
@@ -80,16 +81,17 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
     // Opacity
+    ui.strong("Opacity");
     let r = ui.add(resettable!(
-        "Sticker opacity",
+        "Default",
         |x| format!("{:.0}%", x * 100.0),
-        (prefs.colors.sticker_opacity),
+        (prefs.colors.default_opacity),
         util::make_percent_drag_value,
     ));
     changed |= r.changed();
     let r = ui
         .add(resettable!(
-            "Hidden opacity",
+            "Hidden",
             |x| format!("{:.0}%", x * 100.0),
             (prefs.colors.hidden_opacity),
             util::make_percent_drag_value,
@@ -97,13 +99,21 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         .on_hover_explanation(
             "",
             "Opacity of hidden stickers (multiplied \
-             by base sticker opacity)",
+             by default sticker opacity)",
         );
+    changed |= r.changed();
+    let r = ui.add(resettable!(
+        "Hovered",
+        |x| format!("{:.0}%", x * 100.0),
+        (prefs.colors.hovered_opacity),
+        util::make_percent_drag_value,
+    ));
     changed |= r.changed();
 
     ui.separator();
 
     // Special colors
+    ui.strong("Special");
     let r = ui.add(resettable!(
         "Background",
         hex_color::to_str,
@@ -111,30 +121,6 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
     changed |= r.changed();
-    let r = ui.add(resettable!(
-        "Outline",
-        hex_color::to_str,
-        (prefs.colors.outline),
-        |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
-    ));
-    changed |= r.changed();
-
-    ui.separator();
-
-    // Sticker colors
-    for &face in puzzle_type.faces() {
-        let r = ui.add(resettable!(
-            face.name(),
-            hex_color::to_str,
-            (prefs.colors[face]),
-            |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
-        ));
-        changed |= r.changed();
-    }
-
-    ui.separator();
-
-    // Blindfold colors
     let r = ui.add(resettable!(
         "Blindfolded stickers",
         hex_color::to_str,
@@ -148,6 +134,20 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         reset_value: DEFAULT_PREFS.colors.blindfold,
     });
     changed |= r.changed();
+
+    ui.separator();
+
+    // Face colors
+    ui.strong("Faces");
+    for &face in puzzle_type.faces() {
+        let r = ui.add(resettable!(
+            face.name(),
+            hex_color::to_str,
+            (prefs.colors[face]),
+            |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
+        ));
+        changed |= r.changed();
+    }
 
     prefs.needs_save |= changed;
     app.wants_repaint |= changed;
@@ -271,18 +271,6 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         },
     ));
     changed |= r.changed();
-    // Outline thickness
-    let r = ui.add(resettable!(
-        "Outline thickness",
-        (prefs.view[puzzle_type].outline_thickness),
-        |value| {
-            egui::DragValue::new(value)
-                .fixed_decimals(1)
-                .clamp_range(0.0..=5.0_f32)
-                .speed(0.01)
-        },
-    ));
-    changed |= r.changed();
 
     ui.separator();
 
@@ -337,7 +325,34 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
-    ui.strong("Twist speed");
+    let r = ui
+        .add(util::CheckboxWithReset {
+            label: "Highlight whole piece",
+            value: &mut prefs.interaction.highlight_piece_on_hover,
+            reset_value: DEFAULT_PREFS.interaction.highlight_piece_on_hover,
+        })
+        .on_hover_explanation(
+            "",
+            "When enabled, hovering over a sticker \
+            highlights all stickers on the same piece.",
+        );
+    changed |= r.changed();
+
+    ui.separator();
+
+    ui.strong("Animations");
+    let r = ui.add(resettable!(
+        "Fade duration",
+        (prefs.interaction.fade_duration),
+        |value| {
+            let speed = value.at_least(0.01) / 100.0; // logarithmic speed
+            egui::DragValue::new(value)
+                .fixed_decimals(2)
+                .clamp_range(0.0..=1.0_f32)
+                .speed(speed)
+        },
+    ));
+    changed |= r.changed();
     let r = ui.add(resettable!(
         "Twist duration",
         (prefs.interaction.twist_duration),
@@ -363,18 +378,65 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
              moves are complete, the twist speed resets.",
         );
     changed |= r.changed();
+
+    prefs.needs_save |= changed;
+}
+fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
+    let prefs = &mut app.prefs;
+
+    let mut changed = false;
+
+    ui.strong("Outline size");
+    let outline_size_drag_value_fn = |value| {
+        egui::DragValue::new(value)
+            .fixed_decimals(1)
+            .clamp_range(0.0..=5.0_f32)
+            .speed(0.01)
+    };
     let r = ui.add(resettable!(
-        "Fade duration",
-        (prefs.interaction.fade_duration),
-        |value| {
-            let speed = value.at_least(0.01) / 100.0; // logarithmic speed
-            egui::DragValue::new(value)
-                .fixed_decimals(2)
-                .clamp_range(0.0..=1.0_f32)
-                .speed(speed)
-        },
+        "Default",
+        (prefs.outlines.default_size),
+        outline_size_drag_value_fn,
+    ));
+    changed |= r.changed();
+    let r = ui.add(resettable!(
+        "Hidden",
+        (prefs.outlines.hidden_size),
+        outline_size_drag_value_fn,
+    ));
+    changed |= r.changed();
+    let r = ui.add(resettable!(
+        "Hovered",
+        (prefs.outlines.hovered_size),
+        outline_size_drag_value_fn,
+    ));
+    changed |= r.changed();
+
+    ui.separator();
+
+    ui.strong("Outline color");
+    let r = ui.add(resettable!(
+        "Default",
+        hex_color::to_str,
+        (prefs.outlines.default_color),
+        |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
+    ));
+    changed |= r.changed();
+    let r = ui.add(resettable!(
+        "Hidden",
+        hex_color::to_str,
+        (prefs.outlines.hidden_color),
+        |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
+    ));
+    changed |= r.changed();
+    let r = ui.add(resettable!(
+        "Hovered",
+        hex_color::to_str,
+        (prefs.outlines.hovered_color),
+        |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
     ));
     changed |= r.changed();
 
     prefs.needs_save |= changed;
+    app.wants_repaint |= changed;
 }

@@ -10,8 +10,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Scrambling (<kbd>Ctrl</kbd>+<kbd>F</kbd>)
 - Solved state detection
-- Selection fading
+- Animated opacity and outline changes
+- Fine-grained outline settings
 - Option to confirm discard only when the puzzle has been fully scrambled
+
+### Changed
+
+- Reorganized preferences
 
 ## [0.5.0] - 2022-05-29
 

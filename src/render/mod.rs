@@ -1,5 +1,6 @@
 //! Rendering logic.
 
+use cgmath::Point2;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -12,7 +13,7 @@ mod structs;
 mod util;
 
 use crate::app::App;
-use crate::puzzle::traits::*;
+use crate::puzzle::{traits::*, PuzzleType, Sticker};
 use cache::{CachedDynamicBuffer, CachedUniformBuffer};
 pub(crate) use state::GraphicsState;
 use structs::*;
@@ -81,6 +82,7 @@ impl PuzzleRenderCache {
             self.out_texture = None;
             self.depth_texture = None;
         }
+
         if new.sample_count != old.sample_count {
             self.multisample_texture = None;
             self.depth_texture = None;
@@ -90,29 +92,72 @@ impl PuzzleRenderCache {
     }
 }
 
+pub(crate) struct PuzzleRenderResult {
+    pub texture: wgpu::TextureView,
+
+    puzzle_type: PuzzleType,
+    sticker_geometries: Vec<ProjectedStickerGeometry>,
+    scale: [f32; 2],
+}
+impl PuzzleRenderResult {
+    pub(crate) fn get_stickers_at_pixel<'a>(
+        &'a self,
+        pixel: Point2<f32>,
+    ) -> impl 'a + Iterator<Item = Sticker> {
+        let point = cgmath::point2(pixel.x / self.scale[0], pixel.y / self.scale[1]);
+        self.sticker_geometries
+            .iter()
+            .rev()
+            .filter(move |projected_sticker_geometry| {
+                projected_sticker_geometry.contains_point(point)
+            })
+            .map(|projected_sticker_geometry| {
+                Sticker::from_id(self.puzzle_type, projected_sticker_geometry.sticker_id)
+            })
+            .filter_map(|result| result.ok())
+    }
+}
+
 pub(crate) fn draw_puzzle(
     app: &mut App,
     gfx: &mut GraphicsState,
     width: u32,
     height: u32,
-) -> wgpu::TextureView {
+) -> PuzzleRenderResult {
+    let puzzle_type = app.puzzle.ty();
+
     // Avoid divide-by-zero errors.
     if width == 0 || height == 0 {
-        return gfx.dummy_texture_view();
+        return PuzzleRenderResult {
+            texture: gfx.dummy_texture_view(),
+
+            puzzle_type,
+            sticker_geometries: vec![],
+            scale: [1.0, 1.0],
+        };
     }
 
+    // Invalidate cache if parameters changed.
+    app.render_cache
+        .set_params_and_invalidate(PuzzleRenderParams {
+            target_w: width,
+            target_h: height,
+            sample_count: app.prefs.gfx.sample_count(),
+        });
+
     // Generate puzzle geometry.
-    let (mut verts, mut indices) = geometry::generate_puzzle_geometry(app);
+    let sticker_geometries = geometry::generate_puzzle_geometry(app);
+    let (mut verts, mut indices) = geometry::triangulate_puzzle_geometry(&sticker_geometries);
 
     let prefs = &app.prefs;
     let cache = &mut app.render_cache;
 
-    // Invalidate cache if parameters changed.
-    cache.set_params_and_invalidate(PuzzleRenderParams {
-        target_w: width,
-        target_h: height,
-        sample_count: prefs.gfx.sample_count(),
-    });
+    // Calculate scale.
+    let scale = {
+        let min_dimen = f32::min(width as f32, height as f32);
+        let pixel_scale = min_dimen * prefs.view[app.puzzle.ty()].scale;
+        [pixel_scale / width as f32, pixel_scale / height as f32]
+    };
 
     // Create "out" texture that will ultimately be returned.
     let (out_texture, out_texture_view) = cache.out_texture.get_or_insert_with(|| {
@@ -267,13 +312,8 @@ pub(crate) fn draw_puzzle(
         render_pass.set_index_buffer(index_buffer, wgpu::IndexFormat::Uint16);
 
         // Populate and bind uniform.
-        {
-            let min_dimen = f32::min(width as f32, height as f32);
-            let pixel_scale = min_dimen * prefs.view[app.puzzle.ty()].scale;
-            let scale = [pixel_scale / width as f32, pixel_scale / height as f32];
-            cache.uniform_buffer.write(gfx, &BasicUniform { scale });
-            render_pass.set_bind_group(0, &cache.uniform_buffer.bind_group(gfx), &[]);
-        }
+        cache.uniform_buffer.write(gfx, &BasicUniform { scale });
+        render_pass.set_bind_group(0, &cache.uniform_buffer.bind_group(gfx), &[]);
 
         // Draw stickers.
         render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
@@ -283,7 +323,13 @@ pub(crate) fn draw_puzzle(
 
     gfx.queue.submit(std::iter::once(encoder.finish()));
 
-    out_texture.create_view(&wgpu::TextureViewDescriptor::default())
+    PuzzleRenderResult {
+        texture: out_texture.create_view(&wgpu::TextureViewDescriptor::default()),
+
+        puzzle_type,
+        sticker_geometries,
+        scale,
+    }
 }
 
 fn extent3d(width: u32, height: u32) -> wgpu::Extent3d {

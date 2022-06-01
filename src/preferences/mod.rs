@@ -13,20 +13,20 @@ use std::path::PathBuf;
 
 mod colors;
 mod gfx;
-mod gui;
 mod info;
 mod interaction;
 mod keybinds;
+mod outlines;
 mod view;
 
 use crate::commands::{Command, PuzzleCommand};
 use crate::puzzle::PuzzleType;
 pub use colors::*;
 pub use gfx::*;
-pub use gui::*;
 pub use info::*;
 pub use interaction::*;
 pub use keybinds::*;
+pub use outlines::*;
 pub use view::*;
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
@@ -95,16 +95,17 @@ pub struct Preferences {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
 
-    pub gfx: GfxPreferences,
     pub info: InfoPreferences,
+
+    pub gfx: GfxPreferences,
     pub view: PerPuzzle<ViewPreferences>,
+    pub outlines: OutlinePreferences,
     pub colors: ColorPreferences,
     pub interaction: InteractionPreferences,
 
     pub general_keybinds: Vec<Keybind<Command>>,
     pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
 
-    pub gui: GuiPreferences,
 }
 impl Preferences {
     pub fn load(backup: Option<&Self>) -> Self {

@@ -140,6 +140,19 @@ macro_rules! generic_facet {
                 self.id
             }
 
+            /// Returns the $name_lower with a specific ID.
+            pub fn from_id(ty: PuzzleType, id: usize) -> Result<Self, FacetConvertError> {
+                if id < ty.stickers().len() {
+                    Ok(Self { ty, id })
+                } else {
+                    Err(FacetConvertError::InvalidId {
+                        puzzle: ty,
+                        facet: FacetType::$name_upper,
+                        id,
+                    })
+                }
+            }
+
             /// Converts a generic $name_lower into a $name_lower of a specific
             /// puzzle.
             pub fn of_type<P: PuzzleState>(self) -> Result<P::$name_upper, FacetConvertError> {
@@ -155,7 +168,6 @@ macro_rules! generic_facet {
                     id: self.id,
                 })
             }
-
             /// Converts a generic $name_lower into a $name_lower of a specific
             /// puzzle, panicking if it fails.
             pub fn unwrap<P: PuzzleState>(self) -> P::$name_upper {

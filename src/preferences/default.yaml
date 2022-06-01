@@ -1,15 +1,11 @@
 ---
 gfx:
   fps: 60
-  font_size: 16.0
   msaa: true
-  label_size: 24.0
-info:
-  metric: QSTM
 view:
   Rubiks3D:
     pitch: 35.0
-    yaw: 0.0
+    yaw: -27.0
     scale: 1.25
     fov_3d: 30.0
     fov_4d: 30.0
@@ -31,11 +27,20 @@ view:
     light_intensity: 1.0
     light_pitch: 65.0
     light_yaw: -55.0
+outlines:
+  default_size: 1.0
+  hidden_size: 0.0
+  hovered_size: 1.0
+  default_color: "#000000"
+  hidden_color: "#000000"
+  hovered_color: "#ffffff"
 colors:
-  sticker_opacity: 1.0
+  default_opacity: 1.0
   hidden_opacity: 0.1
+  hovered_opacity: 1.0
   background: "#444444"
-  outline: "#000000"
+  blind_face: "#cccccc"
+  blindfold: false
   faces:
     Rubiks3D:
       B: "#4488ff"
@@ -53,13 +58,12 @@ colors:
       U: "#33aaff"
       F: "#ffffff"
       O: "#ff66ff"
-  blind_face: "#cccccc"
-  blindfold: false
 interaction:
+  confirm_discard_only_when_scrambled: true
+  highlight_piece_on_hover: true
+  fade_duration: 0.1
   twist_duration: 0.2
   dynamic_twist_speed: true
-  fade_duration: 0.1
-  confirm_discard_only_when_scrambled: true
 general_keybinds:
   - vk: O
     ctrl: true
@@ -454,7 +458,8 @@ puzzle_keybinds:
           face: In
           direction: z
           layers: 7
-gui:
+info:
+  metric: STM
   keybinds_reference:
     function: false
     navigation: false

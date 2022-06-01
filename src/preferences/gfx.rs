@@ -5,21 +5,13 @@ use std::time::Duration;
 #[serde(default)]
 pub struct GfxPreferences {
     pub fps: u32,
-    pub font_size: f32,
-
     pub msaa: bool,
-
-    pub label_size: f32, // TODO: remove or move this
 }
 impl Default for GfxPreferences {
     fn default() -> Self {
         Self {
             fps: 60,
-            font_size: 17.0,
-
             msaa: true,
-
-            label_size: 24.0,
         }
     }
 }

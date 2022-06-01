@@ -36,7 +36,7 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
     }
 
     if Window::KeybindsReference.is_open(ctx) {
-        let alpha = app.prefs.gui.keybinds_reference.opacity;
+        let alpha = app.prefs.info.keybinds_reference.opacity;
         let frame = egui::Frame::window(&ctx.style());
         egui::Window::new("Keybinds Reference")
             .title_bar(false)

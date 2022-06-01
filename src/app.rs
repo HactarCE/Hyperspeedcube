@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use key_names::KeyMappingCode;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -9,8 +10,8 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use crate::commands::{Command, PuzzleCommand, SelectCategory};
 use crate::controller::PuzzleController;
 use crate::preferences::{Key, Keybind, Preferences};
-use crate::puzzle::{Face, LayerMask, Selection, TwistDirection};
-use crate::render::PuzzleRenderCache;
+use crate::puzzle::{Face, LayerMask, Selection, Sticker, TwistDirection};
+use crate::render::{GraphicsState, PuzzleRenderCache, PuzzleRenderResult};
 
 pub struct App {
     pub(crate) prefs: Preferences,
@@ -30,6 +31,9 @@ pub struct App {
     /// Semi-permanent selections.
     pub(crate) toggle_selections: Selection,
 
+    last_render_result: Option<PuzzleRenderResult>,
+    pub(crate) hovered_sticker: Option<Sticker>,
+
     status_msg: String,
 }
 impl App {
@@ -48,6 +52,9 @@ impl App {
             held_selections: HashMap::default(),
             toggle_selections: Selection::default(),
 
+            last_render_result: None,
+            hovered_sticker: None,
+
             status_msg: String::default(),
         };
 
@@ -60,6 +67,15 @@ impl App {
         }
 
         this
+    }
+
+    pub(crate) fn draw_puzzle(
+        &mut self,
+        gfx: &mut GraphicsState,
+        texture_size: (u32, u32),
+    ) -> &wgpu::TextureView {
+        let render_result = crate::render::draw_puzzle(self, gfx, texture_size.0, texture_size.1);
+        &self.last_render_result.insert(render_result).texture
     }
 
     pub(crate) fn event(&self, event: impl Into<AppEvent>) {
@@ -327,6 +343,32 @@ impl App {
                 key_matches && mods_match
             })
             .collect()
+    }
+
+    pub(crate) fn set_mouse_hover(&mut self, point: Option<cgmath::Point2<f32>>) {
+        printlnd!("{:.04?}", point);
+        if let Some(p) = point {
+            if let Some(r) = &self.last_render_result {
+                printlnd!(
+                    "{:?}",
+                    r.get_stickers_at_pixel(p)
+                        .map(|st| (
+                            self.puzzle
+                                .displayed()
+                                .get_sticker_color(st)
+                                .unwrap()
+                                .symbol(),
+                            st
+                        ))
+                        .collect_vec()
+                );
+                let selection = self.puzzle_selection();
+                self.hovered_sticker = r
+                    .get_stickers_at_pixel(p)
+                    .filter(|&sticker| selection.has_sticker(sticker))
+                    .next();
+            }
+        }
     }
 
     pub(crate) fn do_twist(

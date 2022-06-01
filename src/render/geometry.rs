@@ -1,43 +1,72 @@
 //! Puzzle geometry generation.
 
 use cgmath::*;
+use std::ops::{Add, Mul};
 
 use super::*;
 use crate::preferences::ViewPreferences;
 
-const OUTLINE_SCALE: f32 = 1.0 / 256.0;
+const OUTLINE_SCALE: f32 = 1.0 / 512.0;
 const OUTLINE_WEDGE_VERTS_PER_RADIAN: f32 = 3.0;
 
-pub(super) fn generate_puzzle_geometry(app: &mut App) -> (Vec<RgbaVertex>, Vec<u16>) {
+pub(super) fn generate_puzzle_geometry(app: &mut App) -> Vec<ProjectedStickerGeometry> {
     let prefs = &app.prefs;
     let puzzle = &app.puzzle;
     let view_prefs = &prefs.view[puzzle.ty()];
 
     let mut sticker_geometry_params = StickerGeometryParams::new(view_prefs);
     let light_params = LightParams::new(view_prefs);
-    let outline_radius = OUTLINE_SCALE * view_prefs.outline_thickness / 2.0;
 
     // Project stickers.
     let mut sticker_geometries: Vec<ProjectedStickerGeometry> = vec![];
-    let mut outline_color = egui::Rgba::from(prefs.colors.outline).to_array();
     for piece in puzzle.displayed().pieces() {
         sticker_geometry_params.model_transform = puzzle.model_transform_for_piece(*piece);
 
         for sticker in piece.stickers() {
-            // Compute opacity.
-            let alpha = puzzle.sticker_alpha(sticker);
+            let is_hovered = if prefs.interaction.highlight_piece_on_hover {
+                // Is this piece hovered?
+                app.hovered_sticker
+                    .map(|s| s.piece() == *piece)
+                    .unwrap_or(false)
+            } else {
+                // Is this sticker hovered?
+                app.hovered_sticker.map(|s| s == sticker).unwrap_or(false)
+            };
 
-            // Compute fill and outline colors.
-            let mut fill_color = egui::Rgba::from(match prefs.colors.blindfold {
+            // Determine opacity.
+            let alpha = if is_hovered {
+                prefs.colors.hovered_opacity
+            } else {
+                // Interpolate sticker alpha during a twist.
+                let start_alpha = puzzle.sticker_alpha(sticker);
+                let (end_alpha, t) = match puzzle.sticker_animation(sticker) {
+                    Some((sticker, t)) => (puzzle.sticker_alpha(sticker), t),
+                    None => (start_alpha, 0.0),
+                };
+                mix(start_alpha, end_alpha, t)
+            };
+
+            // Determine fill color.
+            let fill_color = match prefs.colors.blindfold {
                 false => match puzzle.displayed().get_sticker_color(sticker) {
                     Ok(face) => prefs.colors[face],
                     Err(_) => prefs.colors.blind_face, // fallback
                 },
                 true => prefs.colors.blind_face,
-            })
-            .to_array();
+            };
+            let mut fill_color = egui::Rgba::from(fill_color).to_array();
             fill_color[3] *= alpha;
-            outline_color[3] = alpha;
+
+            // Determine outline color and size.
+            let (outline_color, outline_size) = if is_hovered {
+                (prefs.outlines.hovered_color, prefs.outlines.hovered_size)
+            } else if puzzle.selection().has_sticker(sticker) {
+                (prefs.outlines.default_color, prefs.outlines.default_size)
+            } else {
+                (prefs.outlines.hidden_color, prefs.outlines.hidden_size)
+            };
+            let mut outline_color = egui::Rgba::from(outline_color).to_array();
+            outline_color[3] *= alpha;
 
             // Compute geometry, including vertex positions before 3D
             // perspective projection.
@@ -74,12 +103,14 @@ pub(super) fn generate_puzzle_geometry(app: &mut App) -> (Vec<RgbaVertex>, Vec<u
                     ));
 
                     // Add outline edges.
-                    for (&a, &b) in indices.iter().cyclic_pairs() {
-                        let edge = if a < b { [a, b] } else { [b, a] };
-                        // O(n) lookup using `.contains()` is fine because we'll
-                        // never have more than 10 or so entries anyway.
-                        if !outlines.contains(&edge) {
-                            outlines.push(edge);
+                    if outline_size > 0.0 {
+                        for (&a, &b) in indices.iter().cyclic_pairs() {
+                            let edge = if a < b { [a, b] } else { [b, a] };
+                            // O(n) lookup using `.contains()` is fine because we'll
+                            // never have more than 10 or so entries anyway.
+                            if !outlines.contains(&edge) {
+                                outlines.push(edge);
+                            }
                         }
                     }
                 } else {
@@ -95,13 +126,18 @@ pub(super) fn generate_puzzle_geometry(app: &mut App) -> (Vec<RgbaVertex>, Vec<u
             let (min_bound, max_bound) = util::min_and_max_bound(&projected_verts);
 
             sticker_geometries.push(ProjectedStickerGeometry {
+                sticker_id: sticker.id(),
+
                 verts: projected_verts.into_boxed_slice(),
-                front_polygons: projected_front_polygons.into_boxed_slice(),
-                back_polygons: projected_back_polygons.into_boxed_slice(),
-                outlines: outlines.into_boxed_slice(),
-                outline_color,
                 min_bound,
                 max_bound,
+
+                front_polygons: projected_front_polygons.into_boxed_slice(),
+                back_polygons: projected_back_polygons.into_boxed_slice(),
+
+                outlines: outlines.into_boxed_slice(),
+                outline_color,
+                outline_size,
             });
         }
     }
@@ -109,6 +145,12 @@ pub(super) fn generate_puzzle_geometry(app: &mut App) -> (Vec<RgbaVertex>, Vec<u
     // Sort stickers by depth.
     sort::sort_by_depth(&mut sticker_geometries);
 
+    sticker_geometries
+}
+
+pub(super) fn triangulate_puzzle_geometry(
+    sticker_geometries: &[ProjectedStickerGeometry],
+) -> (Vec<RgbaVertex>, Vec<u16>) {
     // Triangulate polygons and combine the whole puzzle into one mesh.
     let mut verts = vec![];
     let mut indices = vec![];
@@ -119,17 +161,13 @@ pub(super) fn generate_puzzle_geometry(app: &mut App) -> (Vec<RgbaVertex>, Vec<u
     let mut z = 0.5_f32;
     for sticker in sticker_geometries {
         // Generate outline vertices.
-        if view_prefs.outline_thickness > 0.0 {
-            generate_outline_geometry(
-                &mut verts,
-                &mut indices,
-                &sticker,
-                outline_radius,
-                |Point2 { x, y }| RgbaVertex {
+        if !sticker.outlines.is_empty() {
+            generate_outline_geometry(&mut verts, &mut indices, sticker, |Point2 { x, y }| {
+                RgbaVertex {
                     pos: [x, y, z],
                     color: sticker.outline_color,
-                },
-            );
+                }
+            });
         }
 
         // Generate face vertices.
@@ -184,9 +222,10 @@ fn generate_outline_geometry(
     verts: &mut Vec<RgbaVertex>,
     indices: &mut Vec<u16>,
     projected_sticker: &ProjectedStickerGeometry,
-    outline_radius: f32,
     make_vert: impl Copy + Fn(Point2<f32>) -> RgbaVertex,
 ) {
+    let outline_radius = projected_sticker.outline_size * OUTLINE_SCALE;
+
     // Generate simple lines.
     for &[i, j] in &*projected_sticker.outlines {
         let base = verts.len() as u16;
@@ -282,4 +321,12 @@ fn polygon_normal_from_indices(verts: &[Point3<f32>], indices: &[u16]) -> Vector
     let b = verts[indices[1] as usize];
     let c = verts[indices[2] as usize];
     (c - a).cross(b - a)
+}
+
+fn mix<T>(a: T, b: T, t: f32) -> <T::Output as Add>::Output
+where
+    T: Mul<f32>,
+    T::Output: Add,
+{
+    a * (1.0 - t) + b * t
 }

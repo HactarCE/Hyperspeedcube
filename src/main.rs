@@ -180,10 +180,15 @@ async fn run() {
                         *egui_rect.right_mut() /= dpi;
                         *egui_rect.top_mut() /= dpi;
 
-                        ui.put(
+                        let r = ui.put(
                             egui_rect,
                             egui::Image::new(puzzle_texture_id, egui_rect.size()),
                         );
+                        app.set_mouse_hover(r.hover_pos().map(|pos| {
+                            let p = (pos - egui_rect.min) / egui_rect.size();
+                            // Transform from egui to wgpu coordinates.
+                            cgmath::point2(p.x * 2.0 - 1.0, 1.0 - p.y * 2.0)
+                        }));
                     });
 
                 if app.prefs.needs_save {
@@ -192,17 +197,12 @@ async fn run() {
 
                 if app.wants_repaint {
                     // Draw puzzle.
-                    let puzzle_texture = render::draw_puzzle(
-                        &mut app,
-                        &mut gfx,
-                        puzzle_texture_size.0,
-                        puzzle_texture_size.1,
-                    );
+                    let puzzle_texture = app.draw_puzzle(&mut gfx, puzzle_texture_size);
                     // Update texture for egui.
                     egui_render_pass
                         .update_egui_texture_from_wgpu_texture(
                             &gfx.device,
-                            &puzzle_texture,
+                            puzzle_texture,
                             wgpu::FilterMode::Linear,
                             puzzle_texture_id,
                         )
