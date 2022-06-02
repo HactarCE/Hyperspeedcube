@@ -750,7 +750,7 @@ impl Twist {
     }
     /// Make a slice move from this move.
     pub const fn slice(mut self) -> Self {
-        self.layers = LayerMask(0b011);
+        self.layers = LayerMask(0b010);
         self
     }
     /// Make a whole cube rotation from this move.
