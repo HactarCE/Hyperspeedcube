@@ -34,7 +34,7 @@ use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::mc4d_compat;
 use crate::preferences::InteractionPreferences;
 use crate::puzzle::{
-    geometry, traits::*, Piece, ProjectedStickerGeometry, Puzzle, PuzzleType, Rubiks4D, Selection,
+    geometry, traits::*, Piece, ProjectedStickerGeometry, Puzzle, PuzzleType, Rubiks34, Selection,
     Sticker, StickerGeometryParams, Twist, TwistMetric,
 };
 use crate::util;
@@ -558,8 +558,8 @@ impl PuzzleController {
         let logfile = contents.parse::<mc4d_compat::LogFile>()?;
 
         let mut ret = Self {
-            displayed: Rubiks4D::new().into(),
-            latest: Rubiks4D::new().into(),
+            displayed: Rubiks34::new().into(),
+            latest: Rubiks34::new().into(),
 
             scramble_state: logfile.scramble_state,
 
@@ -581,20 +581,20 @@ impl PuzzleController {
     /// Saves the puzzle state to a log file.
     pub fn save_file(&mut self, path: &Path) -> anyhow::Result<()> {
         match self.latest {
-            Puzzle::Rubiks3D(_) => bail!("log files only supported for Rubik's 4D"),
-            Puzzle::Rubiks4D(_) => {
+            Puzzle::Rubiks33(_) => bail!("log files only supported for Rubik's 4D"),
+            Puzzle::Rubiks34(_) => {
                 let logfile = mc4d_compat::LogFile {
                     scramble_state: self.scramble_state,
                     view_matrix: Matrix4::identity(),
                     scramble_twists: self
                         .scramble
                         .iter()
-                        .map(|t| t.unwrap::<Rubiks4D>())
+                        .map(|t| t.unwrap::<Rubiks34>())
                         .collect(),
                     solve_twists: self
                         .undo_buffer
                         .iter()
-                        .map(|t| t.unwrap::<Rubiks4D>())
+                        .map(|t| t.unwrap::<Rubiks34>())
                         .collect(),
                 };
                 std::fs::write(path, logfile.to_string())?;

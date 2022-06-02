@@ -2,7 +2,7 @@ use enum_map::Enum;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use super::{traits::*, Face, Piece, Rubiks3D, Rubiks4D, Sticker};
+use super::{traits::*, Face, Piece, Rubiks33, Rubiks34, Sticker};
 
 /// Declare the `PuzzleType` enum and also generate a `with_puzzle_types` macro.
 macro_rules! puzzle_type_enum {
@@ -43,9 +43,9 @@ puzzle_type_enum! {
     #[derive(Enum, EnumIter, EnumString, Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
     pub enum PuzzleType {
         /// 3D Rubik's cube.
-        Rubiks3D,
+        Rubiks33,
         /// 4D Rubik's cube.
-        Rubiks4D,
+        Rubiks34,
     }
 }
 impl fmt::Display for PuzzleType {
@@ -216,6 +216,6 @@ impl PuzzleTypeTrait for PuzzleType {
 
 impl Default for PuzzleType {
     fn default() -> Self {
-        PuzzleType::Rubiks4D
+        PuzzleType::Rubiks34
     }
 }

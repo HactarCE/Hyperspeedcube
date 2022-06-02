@@ -49,28 +49,28 @@ pub mod twists {
 
 /// State of a 3x3x3 Rubik's cube.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct Rubiks3D([[[Orientation; 3]; 3]; 3]);
-impl Index<Piece> for Rubiks3D {
+pub struct Rubiks33([[[Orientation; 3]; 3]; 3]);
+impl Index<Piece> for Rubiks33 {
     type Output = Orientation;
 
     fn index(&self, pos: Piece) -> &Self::Output {
         &self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
     }
 }
-impl IndexMut<Piece> for Rubiks3D {
+impl IndexMut<Piece> for Rubiks33 {
     fn index_mut(&mut self, pos: Piece) -> &mut Self::Output {
         &mut self.0[pos.z_idx()][pos.y_idx()][pos.x_idx()]
     }
 }
-impl PuzzleState for Rubiks3D {
+impl PuzzleState for Rubiks33 {
     type Piece = Piece;
     type Sticker = Sticker;
     type Face = Face;
     type Twist = Twist;
     type Orientation = Orientation;
 
-    const NAME: &'static str = "Rubik's 3D";
-    const TYPE: PuzzleType = PuzzleType::Rubiks3D;
+    const NAME: &'static str = "3x3x3";
+    const TYPE: PuzzleType = PuzzleType::Rubiks33;
     const NDIM: usize = 3;
     const LAYER_COUNT: usize = 3;
 
@@ -89,7 +89,7 @@ impl PuzzleState for Rubiks3D {
                 .filter(|&p| p != Piece::core())
         }
         fn stickers() -> &'static [Sticker] {
-            Rubiks3D::pieces().iter().copied().flat_map(Piece::stickers)
+            Rubiks33::pieces().iter().copied().flat_map(Piece::stickers)
         }
     }
     fn faces() -> &'static [Face] {
@@ -120,7 +120,7 @@ impl PuzzleState for Rubiks3D {
         &["CW", "CCW"]
     }
 }
-impl Rubiks3D {
+impl Rubiks33 {
     fn transform_point(point: Point3<f32>, p: StickerGeometryParams) -> Point3<f32> {
         let point = p.model_transform.transform_point(point);
         p.view_transform.transform_point(point / PUZZLE_RADIUS)
@@ -131,16 +131,16 @@ impl Rubiks3D {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Piece(pub [Sign; 3]);
 impl FacetTrait for Piece {
-    impl_facet_trait_id_methods!(Piece, Rubiks3D::pieces());
+    impl_facet_trait_id_methods!(Piece, Rubiks33::pieces());
 
     fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
-        Some(Rubiks3D::transform_point(self.center_3d(p), p))
+        Some(Rubiks33::transform_point(self.center_3d(p), p))
     }
 }
-impl PieceTrait<Rubiks3D> for Piece {
+impl PieceTrait<Rubiks33> for Piece {
     fn piece_type(self) -> PieceType {
         PieceType {
-            ty: Rubiks3D::TYPE,
+            ty: Rubiks33::TYPE,
             id: self.sticker_count() - 1,
         }
     }
@@ -227,13 +227,13 @@ pub struct Sticker {
     axis: Axis,
 }
 impl FacetTrait for Sticker {
-    impl_facet_trait_id_methods!(Sticker, Rubiks3D::stickers());
+    impl_facet_trait_id_methods!(Sticker, Rubiks33::stickers());
 
     fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
-        Some(Rubiks3D::transform_point(self.center_3d(p), p))
+        Some(Rubiks33::transform_point(self.center_3d(p), p))
     }
 }
-impl StickerTrait<Rubiks3D> for Sticker {
+impl StickerTrait<Rubiks33> for Sticker {
     fn piece(self) -> Piece {
         self.piece
     }
@@ -255,7 +255,7 @@ impl StickerTrait<Rubiks3D> for Sticker {
             let mut vert = center;
             vert[ax1 as usize] += u * sticker_radius;
             vert[ax2 as usize] += v * sticker_radius;
-            Rubiks3D::transform_point(vert, p)
+            Rubiks33::transform_point(vert, p)
         };
 
         Some(StickerGeometry::new_double_quad([
@@ -304,13 +304,13 @@ pub struct Face {
     sign: Sign,
 }
 impl FacetTrait for Face {
-    impl_facet_trait_id_methods!(Face, Rubiks3D::faces());
+    impl_facet_trait_id_methods!(Face, Rubiks33::faces());
 
     fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
         self.center_sticker().projection_center(p)
     }
 }
-impl FaceTrait<Rubiks3D> for Face {
+impl FaceTrait<Rubiks33> for Face {
     fn pieces(self, layer: usize) -> Vec<Piece> {
         let mut piece = self.center();
         for _ in 0..layer {
@@ -446,7 +446,7 @@ impl fmt::Display for Twist {
         }
     }
 }
-impl TwistTrait<Rubiks3D> for Twist {
+impl TwistTrait<Rubiks33> for Twist {
     fn from_face_with_layers(
         face: Face,
         direction: &str,
@@ -457,7 +457,7 @@ impl TwistTrait<Rubiks3D> for Twist {
             "CCW" => TwistDirection2D::CCW,
             _ => return Err("invalid direction"),
         };
-        layers.validate::<Rubiks3D>()?;
+        layers.validate::<Rubiks33>()?;
         Ok(Self {
             face,
             direction,
@@ -480,7 +480,7 @@ impl TwistTrait<Rubiks3D> for Twist {
         direction: TwistDirection2D,
         layers: LayerMask,
     ) -> Result<Twist, &'static str> {
-        layers.validate::<Rubiks3D>()?;
+        layers.validate::<Rubiks33>()?;
         Ok(Self {
             face: sticker.face(),
             direction,
@@ -490,13 +490,13 @@ impl TwistTrait<Rubiks3D> for Twist {
     fn from_rng() -> Self {
         let mut rng = rand::thread_rng();
         Self {
-            face: Rubiks3D::faces()[rng.gen_range(0..Rubiks3D::faces().len())],
+            face: Rubiks33::faces()[rng.gen_range(0..Rubiks33::faces().len())],
             direction: if rng.gen() {
                 TwistDirection2D::CW
             } else {
                 TwistDirection2D::CCW
             },
-            layers: LayerMask(rng.gen_range(1..((1 << Rubiks3D::LAYER_COUNT) - 1))),
+            layers: LayerMask(rng.gen_range(1..((1 << Rubiks33::LAYER_COUNT) - 1))),
         }
     }
 
@@ -550,7 +550,7 @@ impl TwistTrait<Rubiks3D> for Twist {
         }
     }
     fn is_whole_puzzle_rotation(self) -> bool {
-        self.layers == LayerMask::all::<Rubiks3D>()
+        self.layers == LayerMask::all::<Rubiks33>()
     }
 }
 impl Twist {
@@ -566,12 +566,12 @@ impl Twist {
     }
     /// Make a whole cube rotation from this move.
     pub const fn whole_cube(mut self) -> Self {
-        self.layers = LayerMask::all::<Rubiks3D>();
+        self.layers = LayerMask::all::<Rubiks33>();
         self
     }
     /// Twist different layers.
     pub fn layers(mut self, layers: LayerMask) -> Result<Self, &'static str> {
-        layers.validate::<Rubiks3D>()?;
+        layers.validate::<Rubiks33>()?;
         self.layers = layers;
         Ok(self)
     }
@@ -610,7 +610,7 @@ impl Axis {
 /// Orientation of a 3D cube (i.e. a single piece of a 3D cube/cuboid).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Orientation([Face; 3]);
-impl OrientationTrait<Rubiks3D> for Orientation {
+impl OrientationTrait<Rubiks33> for Orientation {
     fn rev(self) -> Self {
         let mut ret = Self::default();
         for axis in Axis::iter() {

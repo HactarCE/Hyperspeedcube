@@ -2,7 +2,7 @@
 gfx:
   msaa: true
 view:
-  Rubiks3D:
+  Rubiks33:
     pitch: 35.0
     yaw: -20.0
     scale: 1.25
@@ -14,7 +14,7 @@ view:
     light_intensity: 0.0
     light_pitch: 0.0
     light_yaw: 0.0
-  Rubiks4D:
+  Rubiks34:
     pitch: 30.0
     yaw: -35.0
     scale: 2.0
@@ -41,14 +41,14 @@ colors:
   blind_face: "#cccccc"
   blindfold: false
   faces:
-    Rubiks3D:
+    Rubiks33:
       B: "#4488ff"
       D: "#ffff00"
       L: "#ff9922"
       R: "#cc3333"
       U: "#ffffff"
       F: "#66cc44"
-    Rubiks4D:
+    Rubiks34:
       I: "#8822cc"
       B: "#ffff00"
       D: "#88ee66"
@@ -96,15 +96,15 @@ general_keybinds:
     command: toggle_blindfold
   - vk: F3
     command:
-      new_puzzle: Rubiks3D
+      new_puzzle: Rubiks33
   - vk: F4
     command:
-      new_puzzle: Rubiks4D
+      new_puzzle: Rubiks34
   - vk: F
     ctrl: true
     command: scramble_full
 puzzle_keybinds:
-  Rubiks3D:
+  Rubiks33:
     - sc: ShiftLeft
       command:
         hold_select:
@@ -277,7 +277,7 @@ puzzle_keybinds:
           face: Down
           direction: CCW
           layers: 2
-  Rubiks4D:
+  Rubiks34:
     - sc: ShiftLeft
       command:
         hold_select:

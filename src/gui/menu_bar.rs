@@ -5,7 +5,7 @@ use crate::puzzle::{PuzzleType, PuzzleTypeTrait};
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {
         ui.menu_button("File", |ui| {
-            let can_save = app.puzzle.ty() == PuzzleType::Rubiks4D;
+            let can_save = app.puzzle.ty() == PuzzleType::Rubiks34;
 
             if ui.button("Open").clicked() {
                 ui.close_menu();

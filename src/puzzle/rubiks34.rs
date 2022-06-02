@@ -24,7 +24,7 @@ pub mod twists {
     use TwistDirection2D::*;
 
     lazy_static! {
-        static ref LAYERS: LayerMask = LayerMask::all::<Rubiks4D>();
+        static ref LAYERS: LayerMask = LayerMask::all::<Rubiks34>();
 
         /// Turn the whole cube 90 degrees up.
         pub static ref X: Twist = Twist::by_3d_view(Face::I, Axis::X, CW, *LAYERS).unwrap();
@@ -37,28 +37,28 @@ pub mod twists {
 
 /// State of a 3x3x3x3 Rubik's cube.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct Rubiks4D([[[[Orientation; 3]; 3]; 3]; 3]);
-impl Index<Piece> for Rubiks4D {
+pub struct Rubiks34([[[[Orientation; 3]; 3]; 3]; 3]);
+impl Index<Piece> for Rubiks34 {
     type Output = Orientation;
 
     fn index(&self, pos: Piece) -> &Self::Output {
         &self.0[pos.w_idx()][pos.z_idx()][pos.y_idx()][pos.x_idx()]
     }
 }
-impl IndexMut<Piece> for Rubiks4D {
+impl IndexMut<Piece> for Rubiks34 {
     fn index_mut(&mut self, pos: Piece) -> &mut Self::Output {
         &mut self.0[pos.w_idx()][pos.z_idx()][pos.y_idx()][pos.x_idx()]
     }
 }
-impl PuzzleState for Rubiks4D {
+impl PuzzleState for Rubiks34 {
     type Piece = Piece;
     type Sticker = Sticker;
     type Face = Face;
     type Twist = Twist;
     type Orientation = Orientation;
 
-    const NAME: &'static str = "Rubik's 4D";
-    const TYPE: PuzzleType = PuzzleType::Rubiks4D;
+    const NAME: &'static str = "3x3x3x3";
+    const TYPE: PuzzleType = PuzzleType::Rubiks34;
     const NDIM: usize = 4;
     const LAYER_COUNT: usize = 3;
 
@@ -77,7 +77,7 @@ impl PuzzleState for Rubiks4D {
                 .filter(|&p| p != Piece::core())
         }
         fn stickers() -> &'static [Sticker] {
-            Rubiks4D::faces().iter().flat_map(|&face| {
+            Rubiks34::faces().iter().flat_map(|&face| {
                 let mut stickers = face.stickers();
                 // Sort in the same order that MC4D uses (decreasing order of
                 // piece type).
@@ -116,7 +116,7 @@ impl PuzzleState for Rubiks4D {
         Self::twist_direction_symbols()
     }
 }
-impl Rubiks4D {
+impl Rubiks34 {
     fn transform_point(mut point: Vector4<f32>, p: StickerGeometryParams) -> Option<Point3<f32>> {
         // Compute the maximum extent along any axis from the origin in the 3D
         // projection of the puzzle. We will divide all XYZ coordinates by this
@@ -139,16 +139,16 @@ impl Rubiks4D {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Piece(pub [Sign; 4]);
 impl FacetTrait for Piece {
-    impl_facet_trait_id_methods!(Piece, Rubiks4D::pieces());
+    impl_facet_trait_id_methods!(Piece, Rubiks34::pieces());
 
     fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
-        Rubiks4D::transform_point(self.center_4d(p), p)
+        Rubiks34::transform_point(self.center_4d(p), p)
     }
 }
-impl PieceTrait<Rubiks4D> for Piece {
+impl PieceTrait<Rubiks34> for Piece {
     fn piece_type(self) -> PieceType {
         PieceType {
-            ty: Rubiks4D::TYPE,
+            ty: Rubiks34::TYPE,
             id: self.sticker_count() - 1,
         }
     }
@@ -243,13 +243,13 @@ pub struct Sticker {
     axis: Axis,
 }
 impl FacetTrait for Sticker {
-    impl_facet_trait_id_methods!(Sticker, Rubiks4D::stickers());
+    impl_facet_trait_id_methods!(Sticker, Rubiks34::stickers());
 
     fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
-        Rubiks4D::transform_point(self.center_4d(p), p)
+        Rubiks34::transform_point(self.center_4d(p), p)
     }
 }
-impl StickerTrait<Rubiks4D> for Sticker {
+impl StickerTrait<Rubiks34> for Sticker {
     fn piece(self) -> Piece {
         self.piece
     }
@@ -270,7 +270,7 @@ impl StickerTrait<Rubiks4D> for Sticker {
             vert[ax1 as usize] += t * sticker_radius;
             vert[ax2 as usize] += u * sticker_radius;
             vert[ax3 as usize] += v * sticker_radius;
-            Rubiks4D::transform_point(vert, p)
+            Rubiks34::transform_point(vert, p)
         };
         let verts = [
             get_corner(-1.0, -1.0, -1.0)?,
@@ -394,13 +394,13 @@ pub struct Face {
     sign: Sign,
 }
 impl FacetTrait for Face {
-    impl_facet_trait_id_methods!(Face, Rubiks4D::faces());
+    impl_facet_trait_id_methods!(Face, Rubiks34::faces());
 
     fn projection_center(self, p: StickerGeometryParams) -> Option<Point3<f32>> {
         self.center_sticker().projection_center(p)
     }
 }
-impl FaceTrait<Rubiks4D> for Face {
+impl FaceTrait<Rubiks34> for Face {
     fn pieces(self, layer: usize) -> Vec<Piece> {
         let mut piece = self.center();
         for _ in 0..layer {
@@ -553,7 +553,7 @@ impl FromStr for Twist {
             _ => return Err("invalid direction ID"),
         };
         let layers = LayerMask(layers);
-        layers.validate::<Rubiks4D>()?;
+        layers.validate::<Rubiks34>()?;
 
         Ok(Self {
             sticker,
@@ -562,7 +562,7 @@ impl FromStr for Twist {
         })
     }
 }
-impl TwistTrait<Rubiks4D> for Twist {
+impl TwistTrait<Rubiks34> for Twist {
     fn from_face_with_layers(
         face: Face,
         direction: &str,
@@ -580,7 +580,7 @@ impl TwistTrait<Rubiks4D> for Twist {
             "z'" => (Z, CCW),
             _ => return Err("invalid direction"),
         };
-        layers.validate::<Rubiks4D>()?;
+        layers.validate::<Rubiks34>()?;
         Self::by_3d_view(face, axis, direction, layers)
     }
     fn from_face_recenter(face: Face) -> Result<Twist, &'static str> {
@@ -615,13 +615,13 @@ impl TwistTrait<Rubiks4D> for Twist {
         let mut rng = rand::thread_rng();
         loop {
             if let Ok(ret) = Self::from_sticker(
-                Rubiks4D::stickers()[rng.gen_range(0..Rubiks4D::stickers().len())],
+                Rubiks34::stickers()[rng.gen_range(0..Rubiks34::stickers().len())],
                 if rng.gen() {
                     TwistDirection2D::CW
                 } else {
                     TwistDirection2D::CCW
                 },
-                LayerMask(rng.gen_range(1..((1 << Rubiks4D::LAYER_COUNT) - 1))),
+                LayerMask(rng.gen_range(1..((1 << Rubiks34::LAYER_COUNT) - 1))),
             ) {
                 return ret;
             }
@@ -710,7 +710,7 @@ impl TwistTrait<Rubiks4D> for Twist {
         }
     }
     fn is_whole_puzzle_rotation(self) -> bool {
-        self.layers == LayerMask::all::<Rubiks4D>()
+        self.layers == LayerMask::all::<Rubiks34>()
     }
 }
 impl Twist {
@@ -729,7 +729,7 @@ impl Twist {
         } else {
             sticker.piece[axis] = Sign::Pos;
         }
-        layers.validate::<Rubiks4D>()?;
+        layers.validate::<Rubiks34>()?;
         Self::from_sticker(sticker, direction, layers)
     }
 
@@ -755,12 +755,12 @@ impl Twist {
     }
     /// Make a whole cube rotation from this move.
     pub const fn whole_cube(mut self) -> Self {
-        self.layers = LayerMask::all::<Rubiks4D>();
+        self.layers = LayerMask::all::<Rubiks34>();
         self
     }
     /// Twist different layers.
     pub fn layers(mut self, layers: LayerMask) -> Result<Self, &'static str> {
-        layers.validate::<Rubiks4D>()?;
+        layers.validate::<Rubiks34>()?;
         self.layers = layers;
         Ok(self)
     }
@@ -819,7 +819,7 @@ impl Axis {
 /// Orientation of a 4D cube (i.e. a single piece of a 4D cube/cuboid).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Orientation([Face; 4]);
-impl OrientationTrait<Rubiks4D> for Orientation {
+impl OrientationTrait<Rubiks34> for Orientation {
     fn rev(self) -> Self {
         let mut ret = Self::default();
         for axis in Axis::iter() {
@@ -931,7 +931,7 @@ mod tests {
 
     #[test]
     fn test_4d_twist_serialization() {
-        for &sticker in Rubiks4D::stickers() {
+        for &sticker in Rubiks34::stickers() {
             for layers in (0..8).map(LayerMask) {
                 for direction in [TwistDirection2D::CCW, TwistDirection2D::CW] {
                     let twist = Twist {
