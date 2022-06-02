@@ -4,7 +4,7 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.6.0] - 2022-06-02
 
 ### Added
 
@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Clicking on a sticker to twist its face
   - Left click twists counterclockwise
   - Right click twists clockwise
-  - Middle click recenters the faces
+  - Middle click recenters the face
   - Layer selections work as usual (e.g., `Shift` by default for wide moves)
 - Solved state detection
 - Animated opacity and outline changes
