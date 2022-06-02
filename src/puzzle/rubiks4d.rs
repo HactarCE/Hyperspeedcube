@@ -387,7 +387,7 @@ enum StickerAdjFaces {
     _3 { adjacent: [Face; 3] },
 }
 
-/// Face of a 3D cube/cuboid.
+/// Face of a 4D cube/cuboid.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Face {
     axis: Axis,
@@ -766,7 +766,7 @@ impl Twist {
     }
 }
 
-/// 3-dimensional axis.
+/// 4-dimensional axis.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Axis {
     /// X axis (right).
