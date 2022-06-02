@@ -1,6 +1,5 @@
 ---
 gfx:
-  fps: 60
   msaa: true
 view:
   Rubiks3D:

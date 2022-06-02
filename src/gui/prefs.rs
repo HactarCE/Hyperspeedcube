@@ -157,16 +157,6 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
 fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
 
-    // FPS limit
-    let r = ui
-        .add(resettable!("FPS limit", (prefs.gfx.fps), |value| {
-            egui::DragValue::new(value)
-                .clamp_range(5..=255_u32)
-                .speed(0.5)
-        }))
-        .on_hover_explanation("Frames Per Second", "");
-    prefs.needs_save |= r.changed();
-
     // MSAA
     let r = ui
         .add(util::CheckboxWithReset {

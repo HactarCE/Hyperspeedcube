@@ -376,7 +376,7 @@ impl App {
         self.pressed_modifiers
     }
 
-    pub(crate) fn frame(&mut self, delta: Duration) {
+    pub(crate) fn frame(&mut self, _delta: Duration) {
         self.puzzle.set_selection(self.puzzle_selection());
         if self.puzzle.check_just_solved() {
             self.set_status_ok("Solved!");
