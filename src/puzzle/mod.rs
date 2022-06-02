@@ -7,9 +7,11 @@ mod types;
 #[macro_use]
 pub mod traits;
 
+pub mod common_4d;
 mod generic;
 pub mod geometry;
 mod metric;
+pub mod rubiks24;
 pub mod rubiks33;
 pub mod rubiks34;
 pub mod sign;
@@ -17,6 +19,7 @@ pub mod sign;
 pub use generic::*;
 pub use geometry::*;
 pub use metric::TwistMetric;
+pub use rubiks24::Rubiks24;
 pub use rubiks33::Rubiks33;
 pub use rubiks34::Rubiks34;
 pub use sign::Sign;

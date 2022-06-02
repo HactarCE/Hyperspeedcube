@@ -5,7 +5,7 @@ use std::fmt;
 use thiserror::Error;
 
 use super::{
-    traits::*, PuzzleType, Rubiks33, Rubiks34, StickerGeometry, StickerGeometryParams,
+    traits::*, PuzzleType, Rubiks24, Rubiks33, Rubiks34, StickerGeometry, StickerGeometryParams,
     TwistDirection2D, TwistMetric,
 };
 
@@ -47,10 +47,12 @@ macro_rules! delegate_to_inner_puzzle {
 /// `Puzzle` of any puzzle type, boxed so that they are always the same size.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Puzzle {
-    /// 3D Rubik's cube.
+    /// 3x3x3 (3^3) Rubik's cube.
     Rubiks33(Box<Rubiks33>),
-    /// 4D Rubik's cube.
+    /// 3x3x3x3 (3^4) Rubik's cube.
     Rubiks34(Box<Rubiks34>),
+    /// 2x2x2x2 (2^4) Rubik's cube.
+    Rubiks24(Box<Rubiks24>),
 }
 impl Default for Puzzle {
     fn default() -> Self {

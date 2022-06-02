@@ -214,7 +214,7 @@ impl Piece {
     fn center_3d(self, p: StickerGeometryParams) -> Point3<f32> {
         let mut ret = Point3::origin();
         for axis in Axis::iter() {
-            ret[axis as usize] = p.face_scale() * self[axis].float();
+            ret[axis as usize] = p.face_scale(3.0) * self[axis].float();
         }
         ret
     }
@@ -250,7 +250,7 @@ impl StickerTrait<Rubiks33> for Sticker {
         let center = self.center_3d(p);
 
         // Add a radius to the sticker along each axis.
-        let sticker_radius = p.face_scale() * p.sticker_scale() / 2.0;
+        let sticker_radius = p.face_scale(3.0) * p.sticker_scale() / 2.0;
         let get_corner = |v, u| {
             let mut vert = center;
             vert[ax1 as usize] += u * sticker_radius;

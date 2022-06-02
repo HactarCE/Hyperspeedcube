@@ -581,7 +581,6 @@ impl PuzzleController {
     /// Saves the puzzle state to a log file.
     pub fn save_file(&mut self, path: &Path) -> anyhow::Result<()> {
         match self.latest {
-            Puzzle::Rubiks33(_) => bail!("log files only supported for Rubik's 4D"),
             Puzzle::Rubiks34(_) => {
                 let logfile = mc4d_compat::LogFile {
                     scramble_state: self.scramble_state,
@@ -602,6 +601,8 @@ impl PuzzleController {
 
                 Ok(())
             }
+            // TODO: support log files for 2^4 (and 3D puzzles as well)
+            _ => bail!("log files only supported for 3^4"),
         }
     }
 }

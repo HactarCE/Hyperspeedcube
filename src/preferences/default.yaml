@@ -26,6 +26,18 @@ view:
     light_intensity: 1.0
     light_pitch: 65.0
     light_yaw: -55.0
+  Rubiks24:
+    pitch: 30.0
+    yaw: -35.0
+    scale: 2.0
+    fov_3d: 30.0
+    fov_4d: 30.0
+    face_spacing: 0.7
+    sticker_spacing: 0.3
+    outline_thickness: 1.0
+    light_intensity: 1.0
+    light_pitch: 65.0
+    light_yaw: -55.0
 outlines:
   default_size: 1.0
   hidden_size: 0.0
@@ -49,6 +61,15 @@ colors:
       U: "#ffffff"
       F: "#66cc44"
     Rubiks34:
+      I: "#8822cc"
+      B: "#ffff00"
+      D: "#88ee66"
+      L: "#ff9922"
+      R: "#cc3333"
+      U: "#33aaff"
+      F: "#ffffff"
+      O: "#ff66ff"
+    Rubiks24:
       I: "#8822cc"
       B: "#ffff00"
       D: "#88ee66"
@@ -458,6 +479,187 @@ puzzle_keybinds:
           face: In
           direction: z
           layers: 7
+  Rubiks24:
+    - sc: ShiftLeft
+      command:
+        hold_select:
+          layers: 3
+    - sc: ShiftRight
+      command:
+        hold_select:
+          layers: 3
+    - sc: AltLeft
+      command:
+        hold_select:
+          layers: 2
+    - sc: AltRight
+      command:
+        hold_select:
+          layers: 2
+    - sc: KeyW
+      command:
+        hold_select:
+          face: Left
+    - sc: KeyE
+      command:
+        hold_select:
+          face: Up
+    - sc: KeyR
+      command:
+        hold_select:
+          face: Back
+    - sc: KeyS
+      command:
+        hold_select:
+          face: Front
+    - sc: KeyD
+      command:
+        hold_select:
+          face: In
+    - sc: KeyF
+      command:
+        hold_select:
+          face: Right
+    - sc: KeyC
+      command:
+        hold_select:
+          face: Down
+    - sc: KeyV
+      command:
+        hold_select:
+          face: Out
+    - sc: Digit1
+      shift: true
+      command:
+        toggle_select:
+          piece_type: 1c
+    - sc: Digit2
+      shift: true
+      command:
+        toggle_select:
+          piece_type: 2c
+    - sc: Digit3
+      shift: true
+      command:
+        toggle_select:
+          piece_type: 3c
+    - sc: Digit4
+      shift: true
+      command:
+        toggle_select:
+          piece_type: 4c
+    - sc: Digit1
+      shift: true
+      command: none
+    - sc: Digit2
+      shift: true
+      command: none
+    - sc: Digit3
+      shift: true
+      command: none
+    - sc: Digit4
+      shift: true
+      command: none
+    - sc: Digit1
+      command:
+        hold_select:
+          piece_type: 1c
+    - sc: Digit2
+      command:
+        hold_select:
+          piece_type: 2c
+    - sc: Digit3
+      command:
+        hold_select:
+          piece_type: 3c
+    - sc: Digit4
+      command:
+        hold_select:
+          piece_type: 4c
+    - sc: Escape
+      command:
+        clear_toggle_select: piece_type
+    - sc: KeyI
+      command:
+        twist:
+          direction: x
+          layers: 1
+    - sc: KeyK
+      command:
+        twist:
+          direction: "x'"
+          layers: 1
+    - sc: KeyJ
+      command:
+        twist:
+          direction: y
+          layers: 1
+    - sc: KeyL
+      command:
+        twist:
+          direction: "y'"
+          layers: 1
+    - sc: KeyU
+      command:
+        twist:
+          direction: "z'"
+          layers: 1
+    - sc: KeyO
+      command:
+        twist:
+          direction: z
+          layers: 1
+    - sc: Space
+      command:
+        recenter: {}
+    - sc: KeyT
+      command:
+        twist:
+          face: In
+          direction: x
+          layers: 3
+    - sc: KeyY
+      command:
+        twist:
+          face: In
+          direction: x
+          layers: 3
+    - sc: KeyB
+      command:
+        twist:
+          face: In
+          direction: "x'"
+          layers: 3
+    - sc: KeyN
+      command:
+        twist:
+          face: In
+          direction: "x'"
+          layers: 3
+    - sc: KeyA
+      command:
+        twist:
+          face: In
+          direction: "y'"
+          layers: 3
+    - sc: Semicolon
+      command:
+        twist:
+          face: In
+          direction: y
+          layers: 3
+    - sc: KeyQ
+      command:
+        twist:
+          face: In
+          direction: "z'"
+          layers: 3
+    - sc: KeyP
+      command:
+        twist:
+          face: In
+          direction: z
+          layers: 3
 info:
   metric: STM
   keybinds_reference:
