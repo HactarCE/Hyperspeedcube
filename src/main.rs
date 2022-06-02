@@ -33,7 +33,7 @@ mod render;
 mod serde_impl;
 mod util;
 
-use app::App;
+use app::{App, AppEvent};
 
 const TITLE: &str = "Hyperspeedcube";
 const ICON_32: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
@@ -179,13 +179,27 @@ async fn run() {
 
                         let r = ui.put(
                             egui_rect,
-                            egui::Image::new(puzzle_texture_id, egui_rect.size()),
+                            egui::Image::new(puzzle_texture_id, egui_rect.size())
+                                .sense(egui::Sense::click_and_drag()),
                         );
+
+                        // Update app cursor position.
                         app.cursor_pos = r.hover_pos().map(|pos| {
                             let p = (pos - egui_rect.min) / egui_rect.size();
                             // Transform from egui to wgpu coordinates.
                             cgmath::point2(p.x * 2.0 - 1.0, 1.0 - p.y * 2.0)
                         });
+
+                        // Submit click events.
+                        for button in [
+                            egui::PointerButton::Primary,
+                            egui::PointerButton::Secondary,
+                            egui::PointerButton::Middle,
+                        ] {
+                            if r.clicked_by(button) {
+                                app.event(AppEvent::Click(button))
+                            }
+                        }
                     });
 
                 if app.prefs.needs_save {

@@ -9,6 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - Scrambling (<kbd>Ctrl</kbd>+<kbd>F</kbd>)
+- Clicking on a sticker to twist its face
+  - Left click twists counterclockwise
+  - Right click twists clockwise
+  - Middle click recenters the faces
+  - Layer selections work as usual (e.g., `Shift` by default for wide moves)
 - Solved state detection
 - Animated opacity and outline changes
 - Fine-grained outline settings

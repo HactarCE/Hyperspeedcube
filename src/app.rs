@@ -10,7 +10,7 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use crate::commands::{Command, PuzzleCommand, SelectCategory};
 use crate::controller::PuzzleController;
 use crate::preferences::{Key, Keybind, Preferences};
-use crate::puzzle::{Face, LayerMask, Selection, Twist, TwistDirection};
+use crate::puzzle::{Face, LayerMask, Selection, Twist, TwistDirection, TwistDirection2D};
 use crate::render::{GraphicsState, PuzzleRenderCache};
 
 pub struct App {
@@ -175,6 +175,33 @@ impl App {
                 layer_mask,
             )?)?,
             AppEvent::Recenter(face) => self.puzzle.twist(Twist::from_face_recenter(face)?)?,
+
+            AppEvent::Click(egui::PointerButton::Primary) => {
+                if let Some(sticker) = self.puzzle.hovered_sticker() {
+                    self.puzzle.twist(Twist::from_sticker(
+                        sticker,
+                        TwistDirection2D::CCW,
+                        self.puzzle_selection()
+                            .layer_mask_or_default(LayerMask::default()),
+                    )?)?;
+                }
+            }
+            AppEvent::Click(egui::PointerButton::Secondary) => {
+                if let Some(sticker) = self.puzzle.hovered_sticker() {
+                    self.puzzle.twist(Twist::from_sticker(
+                        sticker,
+                        TwistDirection2D::CW,
+                        self.puzzle_selection()
+                            .layer_mask_or_default(LayerMask::default()),
+                    )?)?;
+                }
+            }
+            AppEvent::Click(egui::PointerButton::Middle) => {
+                if let Some(sticker) = self.puzzle.hovered_sticker() {
+                    self.puzzle
+                        .twist(Twist::from_face_recenter(sticker.face())?)?;
+                }
+            }
 
             AppEvent::StatusError(msg) => return Err(msg),
         }
@@ -476,6 +503,8 @@ pub(crate) enum AppEvent {
         layer_mask: LayerMask,
     },
     Recenter(Face),
+
+    Click(egui::PointerButton),
 
     StatusError(String),
 }
