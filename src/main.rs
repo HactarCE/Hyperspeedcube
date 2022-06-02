@@ -125,6 +125,13 @@ async fn run() {
                     if !event_has_been_captured {
                         app.handle_window_event(&event);
                     }
+
+                    if matches!(
+                        &event,
+                        WindowEvent::KeyboardInput { .. } | WindowEvent::ModifiersChanged { .. }
+                    ) {
+                        egui.context().request_repaint();
+                    }
                 }
             },
 
