@@ -105,7 +105,6 @@ pub struct Preferences {
 
     pub general_keybinds: Vec<Keybind<Command>>,
     pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
-
 }
 impl Preferences {
     pub fn load(backup: Option<&Self>) -> Self {

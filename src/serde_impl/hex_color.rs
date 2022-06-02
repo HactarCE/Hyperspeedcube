@@ -4,9 +4,7 @@ pub fn serialize<S: Serializer>(rgb: &egui::Color32, serializer: S) -> Result<S:
     to_str(rgb).serialize(serializer)
 }
 
-pub fn deserialize<'de, D: Deserializer<'de>>(
-    deserializer: D,
-) -> Result<egui::Color32, D::Error> {
+pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<egui::Color32, D::Error> {
     from_str(&String::deserialize(deserializer)?).map_err(D::Error::custom)
 }
 
