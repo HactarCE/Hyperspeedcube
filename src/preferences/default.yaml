@@ -5,7 +5,7 @@ gfx:
 view:
   Rubiks3D:
     pitch: 35.0
-    yaw: -27.0
+    yaw: -20.0
     scale: 1.25
     fov_3d: 30.0
     fov_4d: 30.0
