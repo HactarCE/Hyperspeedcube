@@ -10,7 +10,7 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use crate::commands::{Command, PuzzleCommand, SelectCategory};
 use crate::controller::PuzzleController;
 use crate::preferences::{Key, Keybind, Preferences};
-use crate::puzzle::{Face, LayerMask, Selection, TwistDirection};
+use crate::puzzle::{Face, LayerMask, Selection, Twist, TwistDirection};
 use crate::render::{GraphicsState, PuzzleRenderCache};
 
 pub struct App {
@@ -87,6 +87,15 @@ impl App {
 
     pub(crate) fn handle_app_event(&mut self, event: AppEvent, control_flow: &mut ControlFlow) {
         self.clear_status();
+        if let Err(e) = self.handle_app_event_internal(event, control_flow) {
+            self.set_status_err(e);
+        }
+    }
+    fn handle_app_event_internal(
+        &mut self,
+        event: AppEvent,
+        control_flow: &mut ControlFlow,
+    ) -> Result<(), String> {
         match event {
             AppEvent::Command(c) => match c {
                 Command::Open => {
@@ -108,14 +117,10 @@ impl App {
                 }
 
                 Command::Undo => {
-                    if let Err(e) = self.puzzle.undo() {
-                        self.set_status_err(e);
-                    }
+                    self.puzzle.undo()?;
                 }
                 Command::Redo => {
-                    if let Err(e) = self.puzzle.redo() {
-                        self.set_status_err(e);
-                    }
+                    self.puzzle.redo()?;
                 }
                 Command::Reset => {
                     if self.confirm_discard_changes("reset puzzle") {
@@ -128,22 +133,18 @@ impl App {
                         // TODO: `n` is not validated. It may be `0` (which is
                         // harmless) or `usize::MAX` (which will freeze the
                         // program).
-                        match self.puzzle.scramble_n(n) {
-                            Ok(()) => self.set_status_ok(format!(
-                                "Scrambled {} random {}",
-                                n,
-                                if n == 1 { "move" } else { "moves" }
-                            )),
-                            Err(e) => self.set_status_err(e),
-                        }
+                        self.puzzle.scramble_n(n)?;
+                        self.set_status_ok(format!(
+                            "Scrambled {} random {}",
+                            n,
+                            if n == 1 { "move" } else { "moves" }
+                        ));
                     }
                 }
                 Command::ScrambleFull => {
                     if self.confirm_discard_changes("scramble") {
-                        match self.puzzle.scramble_full() {
-                            Ok(()) => self.set_status_ok(format!("Scrambled fully",)),
-                            Err(e) => self.set_status_err(e),
-                        }
+                        self.puzzle.scramble_full()?;
+                        self.set_status_ok(format!("Scrambled fully",));
                     }
                 }
 
@@ -168,19 +169,16 @@ impl App {
                 face,
                 direction,
                 layer_mask,
-            } => {
-                if let Err(e) = self.puzzle.do_twist_command(face, direction, layer_mask) {
-                    self.set_status_err(e);
-                }
-            }
-            AppEvent::Recenter(face) => {
-                if let Err(e) = self.puzzle.do_recenter_command(face) {
-                    self.set_status_err(e);
-                }
-            }
+            } => self.puzzle.twist(Twist::from_face_with_layers(
+                face,
+                direction.name(),
+                layer_mask,
+            )?)?,
+            AppEvent::Recenter(face) => self.puzzle.twist(Twist::from_face_recenter(face)?)?,
 
-            AppEvent::StatusError(msg) => self.set_status_err(msg),
+            AppEvent::StatusError(msg) => return Err(msg),
         }
+        Ok(())
     }
     pub(crate) fn handle_window_event(&mut self, event: &WindowEvent) {
         match event {

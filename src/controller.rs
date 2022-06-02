@@ -34,8 +34,8 @@ use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::mc4d_compat;
 use crate::preferences::InteractionPreferences;
 use crate::puzzle::{
-    geometry, traits::*, Face, LayerMask, Piece, ProjectedStickerGeometry, Puzzle, PuzzleType,
-    Rubiks4D, Selection, Sticker, StickerGeometryParams, Twist, TwistDirection, TwistMetric,
+    geometry, traits::*, Piece, ProjectedStickerGeometry, Puzzle, PuzzleType, Rubiks4D, Selection,
+    Sticker, StickerGeometryParams, Twist, TwistMetric,
 };
 use crate::util;
 use interpolate::InterpolateFn;
@@ -192,24 +192,6 @@ impl PuzzleController {
     /// Returns the puzzle type.
     pub fn ty(&self) -> PuzzleType {
         self.latest.ty()
-    }
-
-    /// Performs a twist on the puzzle.
-    pub fn do_twist_command(
-        &mut self,
-        face: Face,
-        direction: TwistDirection,
-        layer_mask: LayerMask,
-    ) -> Result<(), &'static str> {
-        self.twist(Twist::from_face_with_layers(
-            face,
-            direction.name(),
-            layer_mask,
-        )?)
-    }
-    /// Rotates the whole puzzle to put a face in the center of the view.
-    pub fn do_recenter_command(&mut self, face: Face) -> Result<(), &'static str> {
-        self.twist(Twist::from_face_recenter(face)?)
     }
 
     /// Returns the puzzle selection.
