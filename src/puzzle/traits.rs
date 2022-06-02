@@ -213,7 +213,8 @@ macro_rules! impl_facet_trait_id_methods {
                     .map(|(i, facet)| (facet, i))
                     .collect();
             }
-            *MAP.get(&self).expect("invalid facet")
+            *MAP.get(&self)
+                .unwrap_or_else(|| panic!("invalid {}: {:?}", stringify!($facet_type), self))
         }
 
         fn from_id(id: usize) -> Option<Self> {
