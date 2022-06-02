@@ -878,7 +878,12 @@ impl Mul<Sticker> for Orientation {
     fn mul(self, rhs: Sticker) -> Self::Output {
         let mut ret = rhs;
         ret.piece = self * rhs.piece;
-        ret.axis = self[rhs.axis].axis;
+        for axis in Axis::iter() {
+            if self[axis].axis == rhs.axis {
+                ret.axis = axis;
+            }
+        }
+        // ret.axis = self[rhs.axis].axis;
         ret
     }
 }
