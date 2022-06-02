@@ -1,42 +1,33 @@
 //! Rendering logic.
 
-use cgmath::Point2;
-use itertools::Itertools;
-use smallvec::SmallVec;
+use std::sync::Arc;
+use std::time::Instant;
 
 mod cache;
-mod geometry;
+mod mesh;
 mod shaders;
-mod sort;
 mod state;
 mod structs;
-mod util;
 
 use crate::app::App;
-use crate::puzzle::{traits::*, PuzzleType, Sticker};
+use crate::puzzle::{ProjectedStickerGeometry, StickerGeometryParams};
 use cache::{CachedDynamicBuffer, CachedUniformBuffer};
 pub(crate) use state::GraphicsState;
 use structs::*;
-use util::{f32_total_cmp, IterCyclicPairsExt};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct PuzzleRenderParams {
-    pub(super) target_w: u32,
-    pub(super) target_h: u32,
-    pub(super) sample_count: u32,
-}
-impl Default for PuzzleRenderParams {
-    fn default() -> Self {
-        Self {
-            target_w: 1,
-            target_h: 1,
-            sample_count: 1,
-        }
-    }
+#[derive(Debug, Clone, PartialEq)]
+struct PuzzleRenderParams {
+    target_w: u32,
+    target_h: u32,
+    sample_count: u32,
+
+    scale: f32,
 }
 
 pub(crate) struct PuzzleRenderCache {
-    params: PuzzleRenderParams,
+    last_render_time: Instant,
+    last_params: Option<PuzzleRenderParams>,
+    last_puzzle_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
 
     vertex_buffer: CachedDynamicBuffer,
     index_buffer: CachedDynamicBuffer,
@@ -51,7 +42,9 @@ pub(crate) struct PuzzleRenderCache {
 impl Default for PuzzleRenderCache {
     fn default() -> Self {
         Self {
-            params: PuzzleRenderParams::default(),
+            last_render_time: Instant::now(),
+            last_params: None,
+            last_puzzle_geometry: None,
 
             vertex_buffer: CachedDynamicBuffer::new::<RgbaVertex>(
                 Some("puzzle_vertex_buffer"),
@@ -72,10 +65,16 @@ impl Default for PuzzleRenderCache {
     }
 }
 impl PuzzleRenderCache {
-    fn set_params_and_invalidate(&mut self, new_params: PuzzleRenderParams) {
+    fn set_params_and_invalidate(&mut self, new_params: PuzzleRenderParams) -> bool {
+        let old = match self.last_params.take() {
+            Some(p) => p,
+            None => {
+                self.last_params = Some(new_params);
+                return true;
+            }
+        };
         let new = new_params;
-        let old = self.params;
-        self.params = new_params;
+        let ret = old != new;
 
         if new.target_w != old.target_w || new.target_h != old.target_h {
             self.multisample_texture = None;
@@ -89,75 +88,90 @@ impl PuzzleRenderCache {
 
             self.basic_pipeline = None;
         }
-    }
-}
 
-pub(crate) struct PuzzleRenderResult {
-    pub texture: wgpu::TextureView,
+        self.last_params = Some(new);
 
-    puzzle_type: PuzzleType,
-    sticker_geometries: Vec<ProjectedStickerGeometry>,
-    scale: [f32; 2],
-}
-impl PuzzleRenderResult {
-    pub(crate) fn get_stickers_at_pixel<'a>(
-        &'a self,
-        pixel: Point2<f32>,
-    ) -> impl 'a + Iterator<Item = Sticker> {
-        let point = cgmath::point2(pixel.x / self.scale[0], pixel.y / self.scale[1]);
-        self.sticker_geometries
-            .iter()
-            .rev()
-            .filter(move |projected_sticker_geometry| {
-                projected_sticker_geometry.contains_point(point)
-            })
-            .map(|projected_sticker_geometry| {
-                Sticker::from_id(self.puzzle_type, projected_sticker_geometry.sticker_id)
-            })
-            .filter_map(|result| result.ok())
+        ret
     }
 }
 
 pub(crate) fn draw_puzzle(
     app: &mut App,
     gfx: &mut GraphicsState,
-    width: u32,
-    height: u32,
-) -> PuzzleRenderResult {
-    let puzzle_type = app.puzzle.ty();
-
+    (width, height): (u32, u32),
+    mut force_redraw: bool,
+) -> Option<wgpu::TextureView> {
     // Avoid divide-by-zero errors.
     if width == 0 || height == 0 {
-        return PuzzleRenderResult {
-            texture: gfx.dummy_texture_view(),
-
-            puzzle_type,
-            sticker_geometries: vec![],
-            scale: [1.0, 1.0],
-        };
+        return None;
     }
 
-    // Invalidate cache if parameters changed.
-    app.render_cache
-        .set_params_and_invalidate(PuzzleRenderParams {
-            target_w: width,
-            target_h: height,
-            sample_count: app.prefs.gfx.sample_count(),
-        });
-
-    // Generate puzzle geometry.
-    let sticker_geometries = geometry::generate_puzzle_geometry(app);
-    let (mut verts, mut indices) = geometry::triangulate_puzzle_geometry(&sticker_geometries);
-
+    let puzzle = &mut app.puzzle;
     let prefs = &app.prefs;
+    let view_prefs = &prefs.view[puzzle.ty()];
     let cache = &mut app.render_cache;
+
+    let now = Instant::now();
+    let delta = now - cache.last_render_time;
+    cache.last_render_time = now;
+
+    let sticker_geometry_params = StickerGeometryParams::new(view_prefs);
+
+    // Invalidate cache if parameters changed.
+    force_redraw |= cache.set_params_and_invalidate(PuzzleRenderParams {
+        target_w: width,
+        target_h: height,
+        sample_count: prefs.gfx.sample_count(),
+
+        scale: view_prefs.scale,
+    });
 
     // Calculate scale.
     let scale = {
         let min_dimen = f32::min(width as f32, height as f32);
-        let pixel_scale = min_dimen * prefs.view[app.puzzle.ty()].scale;
+        let pixel_scale = min_dimen * app.prefs.view[puzzle.ty()].scale;
         [pixel_scale / width as f32, pixel_scale / height as f32]
     };
+
+    // Animate puzzle geometry.
+    puzzle.update_geometry(delta, &prefs.interaction);
+
+    // If the puzzle geometry has changed, force a redraw.
+    let puzzle_geometry = puzzle.geometry(sticker_geometry_params);
+    if let Some(old_geom) = &cache.last_puzzle_geometry {
+        if !Arc::ptr_eq(&puzzle_geometry, old_geom) {
+            force_redraw = true;
+        }
+    } else {
+        force_redraw = true;
+    }
+    cache.last_puzzle_geometry = Some(puzzle_geometry);
+
+    // Determine which sticker(s) are at the mouse cursor, in order from front
+    // to back.
+    if let Some(cursor_pos) = app.cursor_pos {
+        let scaled_cursor_pos = cgmath::point2(cursor_pos.x / scale[0], cursor_pos.y / scale[1]);
+        let puzzle_geometry = puzzle.geometry(sticker_geometry_params);
+        let hovered_stickers = puzzle_geometry
+            .iter()
+            .rev()
+            .filter(move |geom| geom.contains_point(scaled_cursor_pos))
+            .map(|geom| geom.sticker);
+        puzzle.update_hovered_stickers(hovered_stickers);
+    } else {
+        puzzle.update_hovered_stickers([]);
+    }
+
+    // Animate puzzle decorations (colors, opacity, and outlines).
+    force_redraw |= puzzle.is_animating(&prefs.interaction);
+    puzzle.update_decorations(delta, &prefs.interaction);
+
+    if !force_redraw && cache.out_texture.is_some() {
+        return None; // No repaint needed.
+    }
+
+    // Generate the mesh.
+    let (mut verts, mut indices) = mesh::make_puzzle_mesh(puzzle, prefs, sticker_geometry_params);
 
     // Create "out" texture that will ultimately be returned.
     let (out_texture, out_texture_view) = cache.out_texture.get_or_insert_with(|| {
@@ -323,13 +337,7 @@ pub(crate) fn draw_puzzle(
 
     gfx.queue.submit(std::iter::once(encoder.finish()));
 
-    PuzzleRenderResult {
-        texture: out_texture.create_view(&wgpu::TextureViewDescriptor::default()),
-
-        puzzle_type,
-        sticker_geometries,
-        scale,
-    }
+    Some(out_texture.create_view(&wgpu::TextureViewDescriptor::default()))
 }
 
 fn extent3d(width: u32, height: u32) -> wgpu::Extent3d {

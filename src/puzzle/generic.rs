@@ -4,7 +4,10 @@ use std::any::Any;
 use std::fmt;
 use thiserror::Error;
 
-use super::{traits::*, PuzzleType, Rubiks3D, Rubiks4D, TwistDirection2D, TwistMetric};
+use super::{
+    traits::*, PuzzleType, Rubiks3D, Rubiks4D, StickerGeometry, StickerGeometryParams,
+    TwistDirection2D, TwistMetric,
+};
 
 macro_rules! delegate_to_inner_puzzle {
     (

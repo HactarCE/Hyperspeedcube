@@ -1,4 +1,4 @@
-use itertools::Itertools;
+use cgmath::Point2;
 use key_names::KeyMappingCode;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -10,8 +10,8 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use crate::commands::{Command, PuzzleCommand, SelectCategory};
 use crate::controller::PuzzleController;
 use crate::preferences::{Key, Keybind, Preferences};
-use crate::puzzle::{Face, LayerMask, Selection, Sticker, TwistDirection};
-use crate::render::{GraphicsState, PuzzleRenderCache, PuzzleRenderResult};
+use crate::puzzle::{Face, LayerMask, Selection, TwistDirection};
+use crate::render::{GraphicsState, PuzzleRenderCache};
 
 pub struct App {
     pub(crate) prefs: Preferences,
@@ -20,8 +20,10 @@ pub struct App {
 
     pub(crate) puzzle: PuzzleController,
     pub(crate) render_cache: PuzzleRenderCache,
-    pub(crate) wants_repaint: bool,
+    wants_to_redraw_puzzle: bool,
 
+    /// Mouse cursor position relative to the puzzle texture.
+    pub(crate) cursor_pos: Option<Point2<f32>>,
     /// Set of pressed keys.
     pressed_keys: HashSet<Key>,
     /// Set of pressed modifier keys.
@@ -30,9 +32,6 @@ pub struct App {
     held_selections: HashMap<Key, Selection>,
     /// Semi-permanent selections.
     pub(crate) toggle_selections: Selection,
-
-    last_render_result: Option<PuzzleRenderResult>,
-    pub(crate) hovered_sticker: Option<Sticker>,
 
     status_msg: String,
 }
@@ -45,15 +44,13 @@ impl App {
 
             puzzle: PuzzleController::default(),
             render_cache: PuzzleRenderCache::default(),
-            wants_repaint: true,
+            wants_to_redraw_puzzle: true,
 
+            cursor_pos: None,
             pressed_keys: HashSet::default(),
             pressed_modifiers: ModifiersState::default(),
             held_selections: HashMap::default(),
             toggle_selections: Selection::default(),
-
-            last_render_result: None,
-            hovered_sticker: None,
 
             status_msg: String::default(),
         };
@@ -69,13 +66,17 @@ impl App {
         this
     }
 
+    pub(crate) fn request_redraw_puzzle(&mut self) {
+        self.wants_to_redraw_puzzle = true;
+    }
     pub(crate) fn draw_puzzle(
         &mut self,
         gfx: &mut GraphicsState,
         texture_size: (u32, u32),
-    ) -> &wgpu::TextureView {
-        let render_result = crate::render::draw_puzzle(self, gfx, texture_size.0, texture_size.1);
-        &self.last_render_result.insert(render_result).texture
+    ) -> Option<wgpu::TextureView> {
+        let ret = crate::render::draw_puzzle(self, gfx, texture_size, self.wants_to_redraw_puzzle);
+        self.wants_to_redraw_puzzle = false;
+        ret
     }
 
     pub(crate) fn event(&self, event: impl Into<AppEvent>) {
@@ -119,7 +120,6 @@ impl App {
                 Command::Reset => {
                     if self.confirm_discard_changes("reset puzzle") {
                         self.puzzle.reset();
-                        self.wants_repaint = true;
                     }
                 }
 
@@ -136,8 +136,6 @@ impl App {
                             )),
                             Err(e) => self.set_status_err(e),
                         }
-
-                        self.wants_repaint = true;
                     }
                 }
                 Command::ScrambleFull => {
@@ -146,14 +144,12 @@ impl App {
                             Ok(()) => self.set_status_ok(format!("Scrambled fully",)),
                             Err(e) => self.set_status_err(e),
                         }
-                        self.wants_repaint = true;
                     }
                 }
 
                 Command::NewPuzzle(puzzle_type) => {
                     if self.confirm_discard_changes("reset puzzle") {
                         self.puzzle = PuzzleController::new(puzzle_type);
-                        self.wants_repaint = true;
                         self.prefs.log_file = None;
                         self.set_status_ok(format!("Loaded {}", puzzle_type));
                     }
@@ -162,7 +158,7 @@ impl App {
                 Command::ToggleBlindfold => {
                     self.prefs.colors.blindfold ^= true;
                     self.prefs.needs_save = true;
-                    self.wants_repaint = true;
+                    self.request_redraw_puzzle();
                 }
 
                 Command::None => (),
@@ -345,32 +341,6 @@ impl App {
             .collect()
     }
 
-    pub(crate) fn set_mouse_hover(&mut self, point: Option<cgmath::Point2<f32>>) {
-        printlnd!("{:.04?}", point);
-        if let Some(p) = point {
-            if let Some(r) = &self.last_render_result {
-                printlnd!(
-                    "{:?}",
-                    r.get_stickers_at_pixel(p)
-                        .map(|st| (
-                            self.puzzle
-                                .displayed()
-                                .get_sticker_color(st)
-                                .unwrap()
-                                .symbol(),
-                            st
-                        ))
-                        .collect_vec()
-                );
-                let selection = self.puzzle_selection();
-                self.hovered_sticker = r
-                    .get_stickers_at_pixel(p)
-                    .filter(|&sticker| selection.has_sticker(sticker))
-                    .next();
-            }
-        }
-    }
-
     pub(crate) fn do_twist(
         &self,
         face: Option<Face>,
@@ -408,7 +378,6 @@ impl App {
 
     pub(crate) fn frame(&mut self, delta: Duration) {
         self.puzzle.set_selection(self.puzzle_selection());
-        self.wants_repaint |= self.puzzle.advance(delta, &self.prefs);
         if self.puzzle.check_just_solved() {
             self.set_status_ok("Solved!");
         }
@@ -435,7 +404,6 @@ impl App {
         match PuzzleController::load_file(&path) {
             Ok(p) => {
                 self.puzzle = p;
-                self.wants_repaint = true;
 
                 self.set_status_ok(format!("Loaded log file from {}", path.display()));
 

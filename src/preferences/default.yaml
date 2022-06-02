@@ -36,7 +36,7 @@ outlines:
   hovered_color: "#ffffff"
 colors:
   default_opacity: 1.0
-  hidden_opacity: 0.1
+  hidden_opacity: 0.3
   hovered_opacity: 1.0
   background: "#444444"
   blind_face: "#cccccc"
@@ -61,7 +61,8 @@ colors:
 interaction:
   confirm_discard_only_when_scrambled: true
   highlight_piece_on_hover: true
-  fade_duration: 0.1
+  selection_fade_duration: 0.1
+  hover_fade_duration: 0.1
   twist_duration: 0.2
   dynamic_twist_speed: true
 general_keybinds:

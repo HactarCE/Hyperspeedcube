@@ -7,7 +7,8 @@ pub struct InteractionPreferences {
 
     pub highlight_piece_on_hover: bool,
 
-    pub fade_duration: f32,
+    pub selection_fade_duration: f32,
+    pub hover_fade_duration: f32,
     pub twist_duration: f32,
     pub dynamic_twist_speed: bool,
 }

@@ -1,9 +1,10 @@
 //! Puzzle wrapper that adds animation and undo history functionality.
 
 use anyhow::{anyhow, bail};
-use cgmath::{Matrix4, SquareMatrix};
+use cgmath::{InnerSpace, Matrix4, SquareMatrix};
 use std::collections::VecDeque;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
 /// If at least this much of a twist is animated in one frame, just skip the
@@ -31,11 +32,12 @@ pub mod interpolate {
 
 use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::mc4d_compat;
-use crate::preferences::Preferences;
+use crate::preferences::InteractionPreferences;
 use crate::puzzle::{
-    traits::*, Face, LayerMask, Piece, Puzzle, PuzzleType, Rubiks4D, Selection, Sticker, Twist,
-    TwistDirection, TwistMetric,
+    geometry, traits::*, Face, LayerMask, Piece, ProjectedStickerGeometry, Puzzle, PuzzleType,
+    Rubiks4D, Selection, Sticker, StickerGeometryParams, Twist, TwistDirection, TwistMetric,
 };
+use crate::util;
 use interpolate::InterpolateFn;
 
 const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
@@ -75,8 +77,15 @@ pub struct PuzzleController {
 
     /// Selected pieces/stickers.
     selection: Selection,
-    /// Displayed alpha values for pieces.
-    sticker_alphas: Vec<f32>,
+    /// Sticker that the user is hovering over.
+    hovered_sticker: Option<Sticker>,
+    /// Sticker animation states, for interpolating when the user changes the
+    /// selection or hovers over a different sticker.
+    sticker_animation_states: Vec<StickerDecorAnim>,
+
+    /// Cached sticker geometry.
+    cached_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
+    cached_geometry_params: Option<StickerGeometryParams>,
 }
 impl Default for PuzzleController {
     fn default() -> Self {
@@ -112,7 +121,11 @@ impl PuzzleController {
             redo_buffer: vec![],
 
             selection: Selection::default(),
-            sticker_alphas: vec![1.0; ty.stickers().len()],
+            hovered_sticker: None,
+            sticker_animation_states: vec![StickerDecorAnim::default(); ty.stickers().len()],
+
+            cached_geometry: None,
+            cached_geometry_params: None,
         }
     }
     /// Resets the puzzle.
@@ -208,49 +221,164 @@ impl PuzzleController {
         self.selection = selection;
     }
 
-    /// If a twist is in progress, returns the new location of `sticker` after
-    /// the twist and the progress of the twist from `0.0` to `1.0`. If there is
-    /// no twist in progress, or the current twist does not affect `sticker`,
-    /// returns `None`.
-    pub fn sticker_animation(&self, sticker: Sticker) -> Option<(Sticker, f32)> {
-        self.current_twist()
-            .filter(|(twist, _)| twist.affects_piece(sticker.piece()))
-            .map(|(twist, t)| (twist.destination_sticker(sticker), t))
+    /// Sets the hovered stickers, in order from front to back.
+    pub fn update_hovered_stickers(&mut self, hovered_stickers: impl IntoIterator<Item = Sticker>) {
+        self.hovered_sticker = hovered_stickers
+            .into_iter()
+            .filter(|&sticker| {
+                let sticker_mid_twist = match self.current_twist() {
+                    // Use the selection after the twist.
+                    Some((twist, t)) if t > 0.5 => twist.destination_sticker(sticker),
+                    // Use the selection before the twist.
+                    _ => sticker,
+                };
+                self.selection.has_sticker(sticker_mid_twist)
+            })
+            .next();
     }
-    /// Returns the opacity for a sticker.
-    pub fn sticker_alpha(&self, sticker: Sticker) -> f32 {
-        self.sticker_alphas[sticker.id()]
+    pub(crate) fn hovered_sticker(&self) -> Option<Sticker> {
+        self.hovered_sticker
     }
 
-    /// Advances to the next frame, using the given time delta between this
-    /// frame and the last. Returns whether the puzzle needs to be repainted.
-    pub fn advance(&mut self, delta: Duration, prefs: &Preferences) -> bool {
-        // Note that we can't just use `||` because that will short-circuit.
-        let mut wants_repaint = false;
-        wants_repaint |= self.advance_twist(delta, prefs);
-        wants_repaint |= self.advance_alpha(delta, prefs);
-        wants_repaint
+    /// Returns the animation state for a sticker.
+    pub fn sticker_animation_state(&self, sticker: Sticker) -> StickerDecorAnim {
+        match self.current_twist() {
+            None => self.sticker_animation_states[sticker.id()],
+            Some((twist, t)) => {
+                // Interpolate selected state between old and new sticker
+                // positions.
+                let old = self.sticker_animation_states[sticker.id()];
+                let new = self.sticker_animation_states[twist.destination_sticker(sticker).id()];
+                StickerDecorAnim {
+                    selected: old.selected * (1.0 - t) + new.selected * t,
+                    hovered: old.hovered,
+                }
+            }
+        }
     }
-    fn advance_twist(&mut self, delta: Duration, prefs: &Preferences) -> bool {
+
+    pub(crate) fn geometry(
+        &mut self,
+        mut params: StickerGeometryParams,
+    ) -> Arc<Vec<ProjectedStickerGeometry>> {
+        params.model_transform = Matrix4::identity();
+        if self.cached_geometry_params != Some(params) {
+            // Invalidate the cache.
+            self.cached_geometry = None;
+        }
+
+        self.cached_geometry_params = Some(params);
+
+        let ret = self.cached_geometry.take().unwrap_or_else(|| {
+            log::trace!("Regenerating puzzle geometry");
+
+            // Project stickers.
+            let mut sticker_geometries: Vec<ProjectedStickerGeometry> = vec![];
+            for piece in self.displayed().pieces() {
+                params.model_transform = self.model_transform_for_piece(*piece);
+
+                for sticker in piece.stickers() {
+                    // Compute geometry, including vertex positions before 3D
+                    // perspective projection.
+                    let sticker_geom = match sticker.geometry(params) {
+                        Some(s) => s,
+                        None => continue, // behind camera; skip this sticker
+                    };
+
+                    // Compute vertex positions after 3D perspective projection.
+                    let projected_verts = match sticker_geom
+                        .verts
+                        .iter()
+                        .map(|&v| params.project_3d(v))
+                        .collect::<Option<Vec<_>>>()
+                    {
+                        Some(s) => s,
+                        None => continue, // behind camera; skip this sticker
+                    };
+
+                    let mut projected_front_polygons = vec![];
+                    let mut projected_back_polygons = vec![];
+
+                    for indices in &sticker_geom.polygon_indices {
+                        let projected_normal =
+                            geometry::polygon_normal_from_indices(&projected_verts, indices);
+                        if projected_normal.z > 0.0 {
+                            // This polygon is front-facing.
+                            let lighting_normal =
+                                geometry::polygon_normal_from_indices(&sticker_geom.verts, indices)
+                                    .normalize();
+                            let illumination =
+                                params.ambient_light + lighting_normal.dot(params.light_vector);
+                            projected_front_polygons.push(geometry::polygon_from_indices(
+                                &projected_verts,
+                                indices,
+                                illumination,
+                            ));
+                        } else {
+                            // This polygon is back-facing.
+                            let illumination = 0.0; // don't care
+                            projected_back_polygons.push(geometry::polygon_from_indices(
+                                &projected_verts,
+                                indices,
+                                illumination,
+                            ));
+                        }
+                    }
+
+                    let (min_bound, max_bound) = util::min_and_max_bound(&projected_verts);
+
+                    sticker_geometries.push(ProjectedStickerGeometry {
+                        sticker,
+
+                        verts: projected_verts.into_boxed_slice(),
+                        min_bound,
+                        max_bound,
+
+                        front_polygons: projected_front_polygons.into_boxed_slice(),
+                        back_polygons: projected_back_polygons.into_boxed_slice(),
+                    });
+                }
+            }
+
+            // Sort stickers by depth.
+            geometry::sort_by_depth(&mut sticker_geometries);
+
+            Arc::new(sticker_geometries)
+        });
+
+        self.cached_geometry = Some(Arc::clone(&ret));
+        ret
+    }
+
+    /// Returns whether the puzzle is in the middle of an animation.
+    pub fn is_animating(&self, prefs: &InteractionPreferences) -> bool {
+        self.current_twist().is_some()
+            || self
+                .ty()
+                .stickers()
+                .iter()
+                .map(|&sticker| self.sticker_animation_state_target(sticker, prefs))
+                .ne(self.sticker_animation_states.iter().copied())
+    }
+
+    /// Advances the puzzle geometry and internal state to the next frame, using
+    /// the given time delta between this frame and the last.
+    pub fn update_geometry(&mut self, delta: Duration, prefs: &InteractionPreferences) {
         if self.twist_queue.is_empty() {
             self.queue_max = 0;
-            // Nothing has changed, so don't request a repaint.
-            return false;
+            return;
         }
-        if self.progress >= 1.0 {
-            self.displayed
-                .twist(self.twist_queue.pop_front().unwrap())
-                .expect("failed to apply twist from twist queue");
-            self.progress = 0.0;
-            // Request repaint to finalize the twist.
-            return true;
-        }
+
+        // Invalidate the geometry cache.
+        self.cached_geometry = None;
+
+        if self.progress >= 1.0 {}
         // Update queue_max.
         self.queue_max = std::cmp::max(self.queue_max, self.twist_queue.len());
         // duration is in seconds (per one twist); speed is (fraction of twist) per frame.
-        let base_speed = delta.as_secs_f32() / prefs.interaction.twist_duration;
+        let base_speed = delta.as_secs_f32() / prefs.twist_duration;
         // Twist exponentially faster if there are/were more twists in the queue.
-        let speed_mod = match prefs.interaction.dynamic_twist_speed {
+        let speed_mod = match prefs.dynamic_twist_speed {
             true => ((self.twist_queue.len() - 1) as f32 * EXP_TWIST_FACTOR).exp(),
             false => 1.0,
         };
@@ -263,36 +391,73 @@ impl PuzzleController {
         self.progress += twist_delta;
         if self.progress >= 1.0 {
             self.progress = 1.0;
+
+            let twist = self.twist_queue.pop_front().unwrap();
+
+            // Shuffle sticker hover states as necessary.
+            let mut hover_states = vec![];
+            for (i, state) in self.sticker_animation_states.iter_mut().enumerate() {
+                if state.hovered != 0.0 {
+                    hover_states.push((i, state.hovered));
+                    state.hovered = 0.0;
+                }
+            }
+            for (i, hovered) in hover_states {
+                let sticker = Sticker::from_id(self.ty(), i).unwrap();
+                self.sticker_animation_states[twist.destination_sticker(sticker).id()].hovered =
+                    hovered;
+            }
+
+            self.displayed
+                .twist(twist)
+                .expect("failed to apply twist from twist queue");
+            self.progress = 0.0;
         }
-        // Request repaint.
-        true
     }
-    fn advance_alpha(&mut self, delta: Duration, prefs: &Preferences) -> bool {
-        let mut wants_repaint = false;
+    /// Advances the puzzle decorations (outlines and sticker opacities) to the
+    /// next frame, using the given time delta between this frame and the last.
+    pub fn update_decorations(&mut self, delta: Duration, prefs: &InteractionPreferences) {
+        let max_delta_selected = delta.as_secs_f32() / prefs.selection_fade_duration;
+        let max_delta_hovered = delta.as_secs_f32() / prefs.hover_fade_duration;
 
-        let max_delta_alpha = delta.as_secs_f32() / prefs.interaction.fade_duration;
-        for (sticker, alpha) in self.ty().stickers().iter().zip(&mut self.sticker_alphas) {
-            let target = prefs.colors.default_opacity
-                * if self.selection.has_sticker(*sticker) {
-                    1.0
-                } else {
-                    prefs.colors.hidden_opacity
-                };
-
-            let diff = target - *alpha;
-
-            if diff == 0.0 {
-                continue;
-            }
-            wants_repaint = true;
-            if diff.abs() <= max_delta_alpha {
-                *alpha = target;
+        for (i, &sticker) in self.ty().stickers().iter().enumerate() {
+            let target = self.sticker_animation_state_target(sticker, prefs);
+            let animation_state = &mut self.sticker_animation_states[i];
+            add_delta_toward_target(
+                &mut animation_state.selected,
+                target.selected,
+                max_delta_selected,
+            );
+            if target.hovered == 1.0 {
+                // Always react instantly to a new hovered sticker.
+                animation_state.hovered = 1.0;
             } else {
-                *alpha += max_delta_alpha.copysign(diff);
+                add_delta_toward_target(
+                    &mut animation_state.hovered,
+                    target.hovered,
+                    max_delta_hovered,
+                );
             }
         }
+    }
+    fn sticker_animation_state_target(
+        &self,
+        sticker: Sticker,
+        prefs: &InteractionPreferences,
+    ) -> StickerDecorAnim {
+        let is_selected = self.selection.has_sticker(sticker);
+        let is_hovered = match self.hovered_sticker {
+            Some(s) => match prefs.highlight_piece_on_hover {
+                false => s == sticker,
+                true => s.piece() == sticker.piece(),
+            },
+            None => false,
+        };
 
-        wants_repaint
+        StickerDecorAnim {
+            selected: if is_selected { 1.0 } else { 0.0 },
+            hovered: if is_hovered { 1.0 } else { 0.0 },
+        }
     }
 
     /// Skips the animations for all twists in the queue.
@@ -474,5 +639,36 @@ pub enum ScrambleState {
 impl Default for ScrambleState {
     fn default() -> Self {
         ScrambleState::None
+    }
+}
+
+/// Sticker decoration animation state. Each value is in the range 0.0..=1.0.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct StickerDecorAnim {
+    /// Progress toward being selected.
+    pub selected: f32,
+    /// Progress toward being hovered.
+    pub hovered: f32,
+}
+impl Default for StickerDecorAnim {
+    fn default() -> Self {
+        Self {
+            selected: 1.0,
+            hovered: 0.0,
+        }
+    }
+}
+
+fn add_delta_toward_target(current: &mut f32, target: f32, delta: f32) {
+    if *current == target {
+        // fast exit for the common case
+    } else if !delta.is_finite() {
+        *current = target;
+    } else if *current + delta < target {
+        *current += delta;
+    } else if *current - delta > target {
+        *current -= delta;
+    } else {
+        *current = target;
     }
 }

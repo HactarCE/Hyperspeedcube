@@ -31,6 +31,7 @@ mod preferences;
 pub mod puzzle;
 mod render;
 mod serde_impl;
+mod util;
 
 use app::App;
 
@@ -164,13 +165,9 @@ async fn run() {
                         pixels_rect.set_right((dpi * pixels_rect.right()).floor());
                         pixels_rect.set_top((dpi * pixels_rect.top()).ceil());
 
-                        // Request repaint if the texture size changed.
-                        let new_puzzle_texture_size =
+                        // Update texture size.
+                        puzzle_texture_size =
                             (pixels_rect.width() as u32, pixels_rect.height() as u32);
-                        if puzzle_texture_size != new_puzzle_texture_size {
-                            puzzle_texture_size = new_puzzle_texture_size;
-                            app.wants_repaint = true;
-                        }
 
                         // Convert back from pixel coordinates to egui
                         // coordinates.
@@ -184,29 +181,31 @@ async fn run() {
                             egui_rect,
                             egui::Image::new(puzzle_texture_id, egui_rect.size()),
                         );
-                        app.set_mouse_hover(r.hover_pos().map(|pos| {
+                        app.cursor_pos = r.hover_pos().map(|pos| {
                             let p = (pos - egui_rect.min) / egui_rect.size();
                             // Transform from egui to wgpu coordinates.
                             cgmath::point2(p.x * 2.0 - 1.0, 1.0 - p.y * 2.0)
-                        }));
+                        });
                     });
 
                 if app.prefs.needs_save {
                     app.prefs.save();
                 }
 
-                if app.wants_repaint {
-                    // Draw puzzle.
-                    let puzzle_texture = app.draw_puzzle(&mut gfx, puzzle_texture_size);
+                // Draw puzzle if necessary.
+                if let Some(puzzle_texture) = app.draw_puzzle(&mut gfx, puzzle_texture_size) {
+                    log::trace!("Repainting puzzle");
+
                     // Update texture for egui.
                     egui_render_pass
                         .update_egui_texture_from_wgpu_texture(
                             &gfx.device,
-                            puzzle_texture,
+                            &puzzle_texture,
                             wgpu::FilterMode::Linear,
                             puzzle_texture_id,
                         )
                         .unwrap();
+
                     // Request a repaint.
                     egui.context().request_repaint();
                 }

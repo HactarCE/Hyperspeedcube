@@ -15,6 +15,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         if r.clicked() {
             *bld ^= true;
             changed = true;
+            app.request_redraw_puzzle();
         }
         ui.separator();
 
@@ -54,5 +55,4 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     });
 
     app.prefs.needs_save |= changed;
-    app.wants_repaint |= changed;
 }

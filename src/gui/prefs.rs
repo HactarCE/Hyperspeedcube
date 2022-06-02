@@ -150,7 +150,9 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     }
 
     prefs.needs_save |= changed;
-    app.wants_repaint |= changed;
+    if changed {
+        app.request_redraw_puzzle();
+    }
 }
 fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
@@ -178,7 +180,9 @@ fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
              but may worsen performance.",
         );
     prefs.needs_save |= r.changed();
-    app.wants_repaint |= r.changed();
+    if r.changed() {
+        app.request_redraw_puzzle();
+    }
 }
 fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     let puzzle_type = app.puzzle.ty();
@@ -301,7 +305,6 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     changed |= r.changed();
 
     prefs.needs_save |= changed;
-    app.wants_repaint |= changed;
 }
 fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
@@ -318,9 +321,9 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     .on_hover_explanation(
         "",
         "When enabled, a confirmation dialog before \
-        destructive actions (like resetting the puzzle) \
-        is only shown when the puzzle has been fully \
-        scrambled.",
+         destructive actions (like resetting the puzzle) \
+         is only shown when the puzzle has been fully \
+         scrambled.",
     );
 
     ui.separator();
@@ -334,24 +337,48 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
         .on_hover_explanation(
             "",
             "When enabled, hovering over a sticker \
-            highlights all stickers on the same piece.",
+             highlights all stickers on the same piece.",
         );
     changed |= r.changed();
 
     ui.separator();
 
     ui.strong("Animations");
-    let r = ui.add(resettable!(
-        "Fade duration",
-        (prefs.interaction.fade_duration),
-        |value| {
-            let speed = value.at_least(0.01) / 100.0; // logarithmic speed
-            egui::DragValue::new(value)
-                .fixed_decimals(2)
-                .clamp_range(0.0..=1.0_f32)
-                .speed(speed)
-        },
-    ));
+    let r = ui
+        .add(resettable!(
+            "Selection fade duration",
+            (prefs.interaction.selection_fade_duration),
+            |value| {
+                let speed = value.at_least(0.01) / 100.0; // logarithmic speed
+                egui::DragValue::new(value)
+                    .fixed_decimals(2)
+                    .clamp_range(0.0..=1.0_f32)
+                    .speed(speed)
+            },
+        ))
+        .on_hover_explanation(
+            "",
+            "Number of seconds for a sticker to fade from \
+             fully opaque to fully transparent, or vice versa",
+        );
+    changed |= r.changed();
+    let r = ui
+        .add(resettable!(
+            "Hover fade duration",
+            (prefs.interaction.hover_fade_duration),
+            |value| {
+                let speed = value.at_least(0.01) / 100.0; // logarithmic speed
+                egui::DragValue::new(value)
+                    .fixed_decimals(2)
+                    .clamp_range(0.0..=1.0_f32)
+                    .speed(speed)
+            },
+        ))
+        .on_hover_explanation(
+            "",
+            "Number of seconds for the sticker \
+             hover indicator to fade away.",
+        );
     changed |= r.changed();
     let r = ui.add(resettable!(
         "Twist duration",
@@ -438,5 +465,7 @@ fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
     changed |= r.changed();
 
     prefs.needs_save |= changed;
-    app.wants_repaint |= changed;
+    if changed {
+        app.request_redraw_puzzle();
+    }
 }

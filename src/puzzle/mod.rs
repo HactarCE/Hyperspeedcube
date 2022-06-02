@@ -8,12 +8,14 @@ mod types;
 pub mod traits;
 
 mod generic;
+pub mod geometry;
 mod metric;
 pub mod rubiks3d;
 pub mod rubiks4d;
 pub mod sign;
 
 pub use generic::*;
+pub use geometry::*;
 pub use metric::TwistMetric;
 pub use rubiks3d::Rubiks3D;
 pub use rubiks4d::Rubiks4D;

@@ -11,14 +11,11 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn build_select_section(ui: &mut egui::Ui, app: &mut App) {
-    let mut changed = false;
-
     let sel = &mut app.toggle_selections;
     ui.horizontal(|ui| {
         ui.style_mut().wrap = Some(false);
         ui.heading("Puzzle Controls");
-        let r = util::reset_button(ui, sel, Selection::default(), "");
-        changed |= r.clicked();
+        util::reset_button(ui, sel, Selection::default(), "");
     });
     ui.separator();
     let puzzle_type = app.puzzle.ty();
@@ -35,7 +32,6 @@ fn build_select_section(ui: &mut egui::Ui, app: &mut App) {
             let r = ui.selectable_value(&mut is_sel, true, face.name());
             if r.changed() {
                 sel.face_mask ^= bit;
-                changed = true;
             }
         }
     });
@@ -50,7 +46,6 @@ fn build_select_section(ui: &mut egui::Ui, app: &mut App) {
             let r = ui.selectable_value(&mut is_sel, true, format!("{}", i + 1));
             if r.changed() {
                 sel.layer_mask ^= bit;
-                changed = true;
             }
         }
     });
@@ -65,12 +60,9 @@ fn build_select_section(ui: &mut egui::Ui, app: &mut App) {
             let r = ui.selectable_value(&mut is_sel, true, piece_type);
             if r.changed() {
                 sel.piece_type_mask ^= bit;
-                changed = true;
             }
         }
     });
-
-    app.wants_repaint |= changed;
 }
 
 fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {

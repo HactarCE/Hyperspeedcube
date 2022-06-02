@@ -5,7 +5,10 @@ use rand::Rng;
 use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 
-use super::{traits::*, LayerMask, PieceType, PuzzleType, Sign, TwistDirection2D, TwistMetric};
+use super::{
+    traits::*, LayerMask, PieceType, PuzzleType, Sign, StickerGeometry, StickerGeometryParams,
+    TwistDirection2D, TwistMetric,
+};
 
 /// Maximum extent of any single coordinate along the X, Y, or Z axes.
 const PUZZLE_RADIUS: f32 = 1.5;

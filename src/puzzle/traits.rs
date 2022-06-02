@@ -1,18 +1,15 @@
 //! Common traits used for puzzles.
 
-use cgmath::{Deg, EuclideanSpace, Matrix3, Matrix4, Point3, SquareMatrix, Vector4};
+use cgmath::{EuclideanSpace, Matrix4, Point3};
 use itertools::Itertools;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::{Index, IndexMut, Mul};
 
 use super::{
-    Face, LayerMask, Piece, PieceType, PuzzleType, Sticker, Twist, TwistDirection2D, TwistMetric,
+    Face, LayerMask, Piece, PieceType, PuzzleType, Sticker, StickerGeometry, StickerGeometryParams,
+    Twist, TwistDirection2D, TwistMetric,
 };
-use crate::preferences::ViewPreferences;
-
-const W_NEAR_CLIPPING_DIVISOR: f32 = 0.1;
-const Z_NEAR_CLIPPING_DIVISOR: f32 = 0.0;
 
 macro_rules! lazy_static_array_methods {
     ( $( $( #[$attr:meta] )* fn $method_name:ident() -> $ret:ty { $($body:tt)* } )* ) => {
@@ -357,138 +354,6 @@ pub trait OrientationTrait<P: PuzzleState + Hash>:
     /// Reverses this orientation.
     #[must_use]
     fn rev(self) -> Self;
-}
-
-/// Parameters for constructing sticker geometry.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct StickerGeometryParams {
-    /// Sticker spacing factor.
-    pub sticker_spacing: f32,
-    /// Face spacing factor.
-    pub face_spacing: f32,
-
-    /// 4D FOV, in degrees.
-    pub fov_4d: f32,
-    /// 3D FOV, in degrees.
-    pub fov_3d: f32,
-
-    /// Factor of how much the W coordinate affects the XYZ coordinates. This is
-    /// computed from the 4D FOV.
-    pub w_factor_4d: f32,
-    /// Factor of how much the Z coordinate affects the XY coordinates. This is
-    /// computed from the 3D FOV.
-    pub w_factor_3d: f32,
-
-    /// Model transformation matrix for an individual sticker, before 4D
-    /// projection.
-    pub model_transform: Matrix4<f32>,
-    /// View transformation matrix for the whole puzzle, after 4D projection.
-    pub view_transform: Matrix3<f32>,
-}
-impl StickerGeometryParams {
-    /// Radius within which all puzzle geometry is expected to be.
-    pub const CLIPPING_RADIUS: f32 = 2.0;
-
-    /// Constructs sticker geometry parameters for a set of view preferences.
-    pub fn new(view_prefs: &ViewPreferences) -> Self {
-        // Compute the view and perspective transforms, which must be applied here
-        // on the CPU so that we can do proper depth sorting.
-        let view_transform = Matrix3::from_angle_x(Deg(view_prefs.pitch))
-            * Matrix3::from_angle_y(Deg(view_prefs.yaw))
-            / Self::CLIPPING_RADIUS;
-
-        Self {
-            sticker_spacing: view_prefs.sticker_spacing,
-            face_spacing: view_prefs.face_spacing,
-
-            fov_4d: view_prefs.fov_4d,
-            fov_3d: view_prefs.fov_3d,
-            w_factor_4d: (view_prefs.fov_4d.to_radians() / 2.0).tan(),
-            w_factor_3d: (view_prefs.fov_3d.to_radians() / 2.0).tan(),
-
-            model_transform: Matrix4::identity(),
-            view_transform,
-        }
-    }
-
-    /// Computes the sticker scale factor (0.0 to 1.0).
-    pub fn sticker_scale(self) -> f32 {
-        1.0 - self.sticker_spacing
-    }
-    /// Computes the sace scale factor (0.0 to 1.0).
-    pub fn face_scale(self) -> f32 {
-        (1.0 - self.face_spacing) * 3.0 / (2.0 + self.sticker_scale())
-    }
-
-    /// Projects a 4D point down to 3D.
-    pub fn project_4d(self, point: Vector4<f32>) -> Option<Point3<f32>> {
-        // See `project_3d()` for an explanation of this formula. The only
-        // difference here is that we assume the 4D FOV is positive.
-        let divisor = 1.0 + (1.0 - point.w) * self.w_factor_4d;
-
-        // Clip geometry that is behind the 4D camera.
-        if divisor < W_NEAR_CLIPPING_DIVISOR {
-            return None;
-        }
-
-        Some(Point3::from_vec(point.truncate()) / divisor)
-    }
-
-    /// Projects a 3D point according to the perspective projection.
-    pub fn project_3d(self, point: Point3<f32>) -> Option<Point3<f32>> {
-        // This formula gives us a divisor (which we would store in the W
-        // coordinate, if we were doing this using the normal computer graphics
-        // methods) that applies the desired FOV but keeps Z=1 fixed for
-        // positive FOV, or Z=-1 fixed for negative FOV. This creates a really
-        // awesome dolly zoom effect, where the puzzle stays roughly the same
-        // size on the viewport even as the FOV changes.
-        //
-        // This Desmos graph shows how this divisor varies with respect to Z
-        // (shown along the X axis) and the FOV (controlled by a slider):
-        // https://www.desmos.com/calculator/ocztouh1h0
-        let divisor = 1.0 + (self.fov_3d.signum() - point.z) * self.w_factor_3d;
-
-        // Clip geometry that is behind the 3D camera.
-        if divisor < Z_NEAR_CLIPPING_DIVISOR {
-            return None;
-        }
-
-        // Wgpu wants a Z coordinate from 0 to 1, but because of the weird
-        // rendering pipeline this program uses the GPU won't ever see this Z
-        // coordinate. If you want to implement this dolly zoom effect yourself,
-        // though, you'll probably need to consider that.
-
-        Some(point / divisor)
-    }
-}
-
-/// Vertices for a sticker in 3D space.
-pub struct StickerGeometry {
-    /// Vertex positions, after 4D projection but before 3D projection.
-    pub verts: Vec<Point3<f32>>,
-    /// Indices for sticker faces.
-    pub polygon_indices: Vec<Box<[u16]>>,
-}
-impl StickerGeometry {
-    pub(super) fn new_double_quad(verts: [Point3<f32>; 4]) -> Self {
-        Self {
-            verts: verts.to_vec(),
-            polygon_indices: vec![Box::new([0, 1, 3, 2]), Box::new([2, 3, 1, 0])],
-        }
-    }
-    pub(super) fn new_cube(verts: [Point3<f32>; 8]) -> Self {
-        Self {
-            verts: verts.to_vec(),
-            polygon_indices: vec![
-                Box::new([0, 1, 3, 2]),
-                Box::new([4, 6, 7, 5]),
-                Box::new([0, 2, 6, 4]),
-                Box::new([1, 5, 7, 3]),
-                Box::new([0, 4, 5, 1]),
-                Box::new([2, 3, 7, 6]),
-            ],
-        }
-    }
 }
 
 /// Facet of the puzzle.
