@@ -1,9 +1,6 @@
 //! 3x3x3x3 Rubik's cube.
 
-use cgmath::{
-    Deg, EuclideanSpace, InnerSpace, Matrix3, Matrix4, MetricSpace, Point3, SquareMatrix,
-    Transform, Vector4, Zero,
-};
+use cgmath::*;
 use itertools::Itertools;
 use rand::Rng;
 use std::fmt;
@@ -11,9 +8,10 @@ use std::ops::{Add, Index, IndexMut, Mul, Neg};
 use std::str::FromStr;
 
 use super::{
-    common_4d::Axis, rubiks34, traits::*, LayerMask, PieceType, PuzzleType, Sign, StickerGeometry,
-    StickerGeometryParams, TwistDirection2D, TwistMetric,
+    common_4d::Axis, rubiks34, traits::*, LayerMask, PieceType, ProjectionAnimStage, PuzzleType,
+    Sign, StickerGeometry, StickerGeometryParams, TwistDirection2D, TwistMetric,
 };
+use crate::util;
 
 /// Maximum extent of any single coordinate along the X, Y, Z, or W axes.
 const PUZZLE_RADIUS: f32 = 1.0;
@@ -121,7 +119,7 @@ impl Rubiks24 {
 
         point = p.model_transform * point;
         point /= PUZZLE_RADIUS;
-        point.w /= 1.0 - p.face_spacing;
+        point.w /= 1.0 - p.face_spacing();
         Some(
             p.view_transform
                 .transform_point(p.project_4d(point)? / projection_radius),
@@ -221,6 +219,7 @@ impl Piece {
         for axis in Axis::iter() {
             ret[axis as usize] = p.face_scale(2.0) * self[axis].float() * 0.5;
         }
+        ret.x = util::mix(ret.x, ret.x.signum(), p.anim(ProjectionAnimStage::Move));
         ret
     }
 }
@@ -254,22 +253,76 @@ impl StickerTrait<Rubiks24> for Sticker {
 
         // Add a radius to the sticker along each axis.
         let sticker_radius = p.face_scale(2.0) * p.sticker_scale() / 2.0;
-        let get_corner = |v, u, t| {
-            let mut vert = center;
-            vert[ax1 as usize] += t * sticker_radius;
-            vert[ax2 as usize] += u * sticker_radius;
-            vert[ax3 as usize] += v * sticker_radius;
-            Rubiks24::transform_point(vert, p)
-        };
+
+        let mut basis1 = Vector4::zero();
+        let mut basis2 = Vector4::zero();
+        let mut basis3 = Vector4::zero();
+        basis1[ax1 as usize] = sticker_radius * self.piece[ax1].float();
+        basis2[ax2 as usize] = sticker_radius * self.piece[ax2].float();
+        basis3[ax3 as usize] = sticker_radius * self.piece[ax3].float();
+
+        const INVERT: bool = false; // inverted puzzle state
+
+        if p.anim(ProjectionAnimStage::Move) > 0.0 {
+            // Rotate between the X axis and this sticker's axis. (This is only
+            // necessary for stickers that are not facing along the X axis.)
+            let rot = Matrix2::from_angle(
+                -Rad::turn_div_4()
+                    * p.anim(ProjectionAnimStage::Move)
+                    * self.sign().float()
+                    * self.piece[Axis::X].float(),
+            );
+            for b in [&mut basis1, &mut basis2, &mut basis3] {
+                let v = cgmath::vec2(b.x, b[self.axis as usize]);
+                let v = rot * v;
+                b.x = v.x;
+                b[self.axis as usize] = v.y;
+            }
+        }
+
+        if INVERT && self.axis != Axis::X && self.axis != Axis::W {
+            basis1.w *= -1.0;
+            basis2.w *= -1.0;
+            basis3.w *= -1.0;
+            std::mem::swap(&mut basis1, &mut basis2);
+        }
+        if self.axis == Axis::X && !INVERT || self.axis == Axis::W && INVERT {
+            // Invert the geometry for R/L faces on physical 2^4 (or I/O faces
+            // when inverted).
+            basis1 *= -1.0;
+            basis2 *= -1.0;
+            basis3 *= -1.0;
+            std::mem::swap(&mut basis1, &mut basis2);
+        }
+
+        if self.piece[ax1] * self.piece[ax2] * self.piece[ax3] == Sign::Neg {
+            std::mem::swap(&mut basis1, &mut basis2);
+        }
+
+        let get_corner =
+            |v, u, t| Rubiks24::transform_point(center + t * basis1 + u * basis2 + v * basis3, p);
+
+        let shrink_anim = p.anim(ProjectionAnimStage::Shrink);
+        let unshrink_anim = p.anim(ProjectionAnimStage::Unshrink);
+
+        const SHRINK_FACTOR: f32 = 0.5; // shrink factor during middle of animation
+
+        let t = 1.0 - shrink_anim - (shrink_anim - unshrink_anim) * SHRINK_FACTOR;
+        let m = 1.0 - (shrink_anim - unshrink_anim) * SHRINK_FACTOR * 2.0; //* p.sticker_spacing;
         let verts = [
-            get_corner(-1.0, -1.0, -1.0)?,
-            get_corner(-1.0, -1.0, 1.0)?,
-            get_corner(-1.0, 1.0, -1.0)?,
-            get_corner(-1.0, 1.0, 1.0)?,
-            get_corner(1.0, -1.0, -1.0)?,
-            get_corner(1.0, -1.0, 1.0)?,
-            get_corner(1.0, 1.0, -1.0)?,
-            get_corner(1.0, 1.0, 1.0)?,
+            get_corner(-1.0, -1.0, -1.0)?, //
+            get_corner(-1.0, -1.0, m)?,    //
+            get_corner(-1.0, m, -1.0)?,    //
+            get_corner(-1.0, t, t)?,
+            get_corner(m, -1.0, -1.0)?, //
+            get_corner(t, -1.0, t)?,
+            get_corner(t, t, -1.0)?,
+            get_corner(
+                // don't ask. it Just Works.
+                (4.0 * t - m) / 3.0,
+                (4.0 * t - m) / 3.0,
+                (4.0 * t - m) / 3.0,
+            )?,
         ];
         // Only show this sticker if the 3D volume is positive. (Cull it if its
         // 3D volume is negative.)
@@ -280,7 +333,49 @@ impl StickerTrait<Rubiks24> for Sticker {
         )
         .determinant()
         .is_sign_positive()
-        .then(|| StickerGeometry::new_cube(verts))
+        // .is_finite()
+        .then(|| {
+            if shrink_anim <= 0.0 + f32::EPSILON {
+                StickerGeometry::new_cube(verts)
+            } else if shrink_anim < 1.0 - f32::EPSILON {
+                StickerGeometry::new_cube(verts)
+                // StickerGeometry {
+                //     verts: verts.to_vec(),
+                //     polygon_indices: vec![
+                //         Box::new([0, 1, 3, 2]),
+                //         Box::new([0, 2, 6, 4]),
+                //         Box::new([0, 4, 5, 1]),
+                //         Box::new([1, 5, 7]),
+                //         Box::new([5, 4, 7]),
+                //         Box::new([4, 6, 7]),
+                //         Box::new([6, 2, 7]),
+                //         Box::new([2, 3, 7]),
+                //         Box::new([3, 1, 7]),
+                //     ],
+                // }
+            } else {
+                StickerGeometry {
+                    verts: vec![verts[0], verts[1], verts[2], verts[4]],
+                    polygon_indices: vec![
+                        Box::new([0, 1, 2]),
+                        Box::new([0, 2, 3]),
+                        Box::new([0, 3, 1]),
+                        Box::new([3, 2, 1]),
+                    ],
+                }
+                // StickerGeometry {
+                //     verts: vec![verts[0], verts[1], verts[2], verts[4], verts[7]],
+                //     polygon_indices: vec![
+                //         Box::new([0, 1, 2]),
+                //         Box::new([0, 2, 3]),
+                //         Box::new([0, 3, 1]),
+                //         Box::new([4, 2, 1]),
+                //         Box::new([4, 3, 2]),
+                //         Box::new([4, 1, 3]),
+                //     ],
+                // }
+            }
+        })
     }
 }
 impl Sticker {
@@ -303,23 +398,6 @@ impl Sticker {
     pub fn sign(self) -> Sign {
         self.piece()[self.axis()]
     }
-    /// Returns the faces adjacent to the sticker, in order, not including its
-    /// own face.
-    fn adj_faces(self) -> [Face; 3] {
-        let mut parity = Sign::Pos;
-        let mut a = self.face().parallel_axes().map(|axis| {
-            let sign = self.piece()[axis];
-            parity = parity * sign;
-            Face { axis, sign }
-        });
-
-        if parity == Sign::Neg {
-            // This always performs a single swap.
-            a.reverse();
-        }
-
-        a.try_into().unwrap()
-    }
     /// Returns the 3D vector to the sticker from the center of its face.
     pub fn vec3_within_face(self) -> [Sign; 3] {
         let [ax1, ax2, ax3] = self.axis().sticker_order_perpendiculars();
@@ -328,7 +406,8 @@ impl Sticker {
 
     fn center_4d(self, p: StickerGeometryParams) -> Vector4<f32> {
         let mut ret = self.piece().center_4d(p);
-        ret[self.axis() as usize] = self.sign().float();
+        ret[self.axis() as usize] += (self.sign().float() - ret[self.axis() as usize])
+            * (1.0 - p.anim(ProjectionAnimStage::Move));
         ret
     }
 }
@@ -624,8 +703,8 @@ impl TwistTrait<Rubiks24> for Twist {
     fn affects_piece(self, piece: Piece) -> bool {
         let face = self.sticker.face();
         match piece[face.axis()] * face.sign() {
-            Sign::Neg => self.layers[2],
-            Sign::Zero => self.layers[1],
+            Sign::Neg => self.layers[1],
+            Sign::Zero => false, // unreachable
             Sign::Pos => self.layers[0],
         }
     }

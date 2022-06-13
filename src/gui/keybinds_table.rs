@@ -296,6 +296,8 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                 ToggleBlindfold,
                 #[strum(serialize = "New puzzle")]
                 NewPuzzle,
+                #[strum(serialize = "Switch 2^4 view")]
+                SwitchView,
             }
 
             let mut cmd_type = match self.cmd {
@@ -314,6 +316,8 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                 Cmd::NewPuzzle(_) => CmdType::NewPuzzle,
 
                 Cmd::ToggleBlindfold => CmdType::ToggleBlindfold,
+
+                Cmd::SwitchView => CmdType::SwitchView,
 
                 Cmd::None => CmdType::None,
             };
@@ -342,6 +346,8 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                     CmdType::NewPuzzle => Cmd::NewPuzzle(self.cmd.get_puzzle_type()),
 
                     CmdType::ToggleBlindfold => Cmd::ToggleBlindfold,
+
+                    CmdType::SwitchView => Cmd::SwitchView,
                 }
             }
 

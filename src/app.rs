@@ -162,6 +162,10 @@ impl App {
                     self.request_redraw_puzzle();
                 }
 
+                Command::SwitchView => {
+                    self.puzzle.target_view_mode = 1.0 - self.puzzle.target_view_mode.round();
+                }
+
                 Command::None => (),
             },
 

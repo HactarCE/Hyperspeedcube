@@ -49,6 +49,15 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             }
         });
 
+        ui.menu_button("View", |ui| {
+            ui.add_enabled_ui(app.puzzle.ty() == PuzzleType::Rubiks24, |ui| {
+                if ui.button("Switch 2^4 view").clicked() {
+                    ui.close_menu();
+                    app.event(Command::SwitchView);
+                }
+            })
+        });
+
         ui.menu_button("Scramble", |ui| {
             for n in 1..=8 {
                 if ui.button(n.to_string()).clicked() {
@@ -57,7 +66,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 }
             }
             ui.separator();
-            if ui.button(format!("Full")).clicked() {
+            if ui.button("Full").clicked() {
                 ui.close_menu();
                 app.event(Command::ScrambleFull);
             }
@@ -114,5 +123,12 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 super::Window::Debug.toggle(ui.ctx());
             }
         });
+
+        ui.add(
+            egui::DragValue::new(&mut app.puzzle.target_view_mode)
+                .clamp_range(0.0..=1.0)
+                .fixed_decimals(2)
+                .speed(0.01),
+        );
     });
 }

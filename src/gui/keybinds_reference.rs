@@ -207,6 +207,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                             category.to_string().to_ascii_lowercase(),
                         ));
                     }
+
                     PuzzleCommand::None => unreachable!(),
                 });
             }
@@ -235,6 +236,8 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                     }
 
                     Command::ToggleBlindfold => ui.label("Toggle blindfold"),
+
+                    Command::SwitchView => ui.label("Switch 2^4 view"),
 
                     Command::None => unreachable!(),
                 });

@@ -218,6 +218,6 @@ impl PuzzleTypeTrait for PuzzleType {
 
 impl Default for PuzzleType {
     fn default() -> Self {
-        PuzzleType::Rubiks34
+        PuzzleType::Rubiks24
     }
 }

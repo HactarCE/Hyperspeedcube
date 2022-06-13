@@ -1,5 +1,6 @@
 use cgmath::Point3;
 use std::cmp::Ordering;
+use std::ops::{Add, Mul};
 
 pub(super) struct CyclicPairsIter<I: Iterator> {
     first: Option<I::Item>,
@@ -84,4 +85,12 @@ pub(super) fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f
     }
 
     (min_bound, max_bound)
+}
+
+pub(super) fn mix<T>(a: T, b: T, t: f32) -> <T::Output as Add>::Output
+where
+    T: Mul<f32>,
+    T::Output: Add,
+{
+    a * (1.0 - t) + b * t
 }

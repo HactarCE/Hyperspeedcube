@@ -86,6 +86,11 @@ pub struct PuzzleController {
     /// Cached sticker geometry.
     cached_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
     cached_geometry_params: Option<StickerGeometryParams>,
+
+    /// 0.0 for virtual view, 1.0 for physical view, and intermediate values
+    /// interpolate.
+    view_mode: f32,
+    pub target_view_mode: f32,
 }
 impl Default for PuzzleController {
     fn default() -> Self {
@@ -126,6 +131,9 @@ impl PuzzleController {
 
             cached_geometry: None,
             cached_geometry_params: None,
+
+            view_mode: 0.0,
+            target_view_mode: 1.0,
         }
     }
     /// Resets the puzzle.
@@ -244,6 +252,7 @@ impl PuzzleController {
         mut params: StickerGeometryParams,
     ) -> Arc<Vec<ProjectedStickerGeometry>> {
         params.model_transform = Matrix4::identity();
+        params.view_mode = self.view_mode;
         if self.cached_geometry_params != Some(params) {
             // Invalidate the cache.
             self.cached_geometry = None;
@@ -341,11 +350,23 @@ impl PuzzleController {
                 .iter()
                 .map(|&sticker| self.sticker_animation_state_target(sticker, prefs))
                 .ne(self.sticker_animation_states.iter().copied())
+            || self.view_mode != self.target_view_mode
     }
 
     /// Advances the puzzle geometry and internal state to the next frame, using
     /// the given time delta between this frame and the last.
     pub fn update_geometry(&mut self, delta: Duration, prefs: &InteractionPreferences) {
+        // if self.view_mode != self.target_view_mode && self.twist_queue.is_empty()
+        //     || self.view_mode.fract() != 0.0
+        // {
+        add_delta_toward_target(
+            &mut self.view_mode,
+            self.target_view_mode,
+            delta.as_secs_f32() / prefs.twist_duration,
+        );
+        //     return;
+        // }
+
         if self.twist_queue.is_empty() {
             self.queue_max = 0;
             return;
@@ -357,7 +378,8 @@ impl PuzzleController {
         if self.progress >= 1.0 {}
         // Update queue_max.
         self.queue_max = std::cmp::max(self.queue_max, self.twist_queue.len());
-        // duration is in seconds (per one twist); speed is (fraction of twist) per frame.
+        // `twist_duration` is in seconds (per one twist); `base_speed` is
+        // (fraction of) twists per frame.
         let base_speed = delta.as_secs_f32() / prefs.twist_duration;
         // Twist exponentially faster if there are/were more twists in the queue.
         let speed_mod = match prefs.dynamic_twist_speed {
@@ -603,6 +625,16 @@ impl PuzzleController {
             }
             // TODO: support log files for 2^4 (and 3D puzzles as well)
             _ => bail!("log files only supported for 3^4"),
+        }
+    }
+
+    /// Toggles between virtual and physical view of the 2^4 puzzle.
+    pub fn switch_view(&mut self) -> Result<(), &'static str> {
+        if self.ty() == PuzzleType::Rubiks24 {
+            self.target_view_mode = 1.0 - self.target_view_mode;
+            Ok(())
+        } else {
+            Err("only 2x2x2x2 has an alternate view")
         }
     }
 }

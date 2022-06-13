@@ -14,6 +14,18 @@ const Z_NEAR_CLIPPING_DIVISOR: f32 = 0.0;
 
 const EPSILON: f32 = 0.000001;
 
+const PROJECTION_ANIM_STAGE_0: f32 = 0.0; // start
+const PROJECTION_ANIM_STAGE_1: f32 = 0.2; // change shape & shrink
+const PROJECTION_ANIM_STAGE_2: f32 = 0.8; // move to final position
+const PROJECTION_ANIM_STAGE_3: f32 = 1.0; // unshrink
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(super) enum ProjectionAnimStage {
+    Shrink,
+    Move,
+    Unshrink,
+}
+
 /// Parameters for constructing sticker geometry.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct StickerGeometryParams {
@@ -21,6 +33,10 @@ pub struct StickerGeometryParams {
     pub sticker_spacing: f32,
     /// Face spacing factor.
     pub face_spacing: f32,
+
+    /// 0.0 for virtual view, 1.0 for physical view, and intermediate values
+    /// interpolate.
+    pub view_mode: f32,
 
     /// 4D FOV, in degrees.
     pub fov_4d: f32,
@@ -66,6 +82,8 @@ impl StickerGeometryParams {
             sticker_spacing: view_prefs.sticker_spacing,
             face_spacing: view_prefs.face_spacing,
 
+            view_mode: 0.0,
+
             fov_4d: view_prefs.fov_4d,
             fov_3d: view_prefs.fov_3d,
             w_factor_4d: (view_prefs.fov_4d.to_radians() / 2.0).tan(),
@@ -83,21 +101,51 @@ impl StickerGeometryParams {
     pub fn sticker_scale(self) -> f32 {
         1.0 - self.sticker_spacing
     }
+    /// Computes the face spacing factor (0.0 to 1.0).
+    pub fn face_spacing(self) -> f32 {
+        self.face_spacing * (1.0 - self.anim(ProjectionAnimStage::Move))
+    }
+    /// Computes the progress (0.0 to 1.0) for a stage of the 2^4 projection
+    /// animation.
+    pub(super) fn anim(self, stage: ProjectionAnimStage) -> f32 {
+        let ease_in_out_sin = |t: f32| (1.0 - (Rad::turn_div_2() * t).cos()) / 2.0;
+        let (t0, t1) = match stage {
+            ProjectionAnimStage::Shrink => (PROJECTION_ANIM_STAGE_0, PROJECTION_ANIM_STAGE_1),
+            ProjectionAnimStage::Move => (PROJECTION_ANIM_STAGE_1, PROJECTION_ANIM_STAGE_2),
+            ProjectionAnimStage::Unshrink => (PROJECTION_ANIM_STAGE_2, PROJECTION_ANIM_STAGE_3),
+        };
+        ease_in_out_sin(((self.view_mode - t0) / (t1 - t0)).clamp(0.0, 1.0))
+    }
     /// Computes the face scale factor (0.0 to 1.0).
     pub fn face_scale(self, layer_count: f32) -> f32 {
-        (1.0 - self.face_spacing) * layer_count / (layer_count - 1.0 + self.sticker_scale())
+        (1.0 - self.face_spacing()) * layer_count / (layer_count - 1.0 + self.sticker_scale())
     }
 
     /// Projects a 4D point down to 3D.
-    pub fn project_4d(self, point: Vector4<f32>) -> Option<Point3<f32>> {
+    pub fn project_4d(self, mut point: Vector4<f32>) -> Option<Point3<f32>> {
+        let move_anim = self.anim(ProjectionAnimStage::Move);
+        let unshrink_anim = self.anim(ProjectionAnimStage::Unshrink);
+
         // See `project_3d()` for an explanation of this formula. The only
         // difference here is that we assume the 4D FOV is positive.
-        let divisor = 1.0 + (1.0 - point.w) * self.w_factor_4d;
+        let divisor =
+            1.0 + (1.0 - point.w) * (self.fov_4d.to_radians() / 2.0 * (1.0 - move_anim)).tan();
 
         // Clip geometry that is behind the 4D camera.
         if divisor < W_NEAR_CLIPPING_DIVISOR {
             return None;
         }
+
+        const FACE_SEP: f32 = 1.0;
+
+        // As `view_mode` approaches 1.0, `divisor` has less effect on the Y and
+        // Z coordinates.
+        let sin = |t: f32| (Rad::turn_div_4() * t).sin();
+        let cos = |t: f32| (Rad::turn_div_4() * t).cos();
+        point.x = point.x * (1.0 - sin(move_anim))
+            + point.x.signum()
+                * (point.w + 1.0 + util::mix(FACE_SEP, self.sticker_spacing, unshrink_anim))
+                * (1.0 - cos(move_anim));
 
         Some(Point3::from_vec(point.truncate()) / divisor)
     }

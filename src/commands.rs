@@ -36,6 +36,8 @@ pub enum Command {
 
     ToggleBlindfold,
 
+    SwitchView,
+
     #[serde(other)]
     None,
 }
@@ -69,6 +71,8 @@ impl Command {
             Command::NewPuzzle(ty) => format!("New {}", ty.name()),
 
             Command::ToggleBlindfold => "BLD".to_owned(),
+
+            Command::SwitchView => "Switch 2^4 view".to_owned(),
 
             Command::None => String::new(),
         }
