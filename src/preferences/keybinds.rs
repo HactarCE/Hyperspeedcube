@@ -3,9 +3,9 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 use winit::event::{ModifiersState, VirtualKeyCode};
 
-use super::{is_false, DeserializePerPuzzle};
+use super::is_false;
 use crate::commands::{PuzzleCommand, PuzzleCommandSerde};
-use crate::puzzle::PuzzleType;
+use crate::puzzle::PuzzleTypeEnum;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct Keybind<C> {
@@ -17,19 +17,6 @@ fn deser_valid_key_combo<'de, D: Deserializer<'de>>(deserializer: D) -> Result<K
     KeyCombo::deserialize(deserializer).map(KeyCombo::validate)
 }
 
-impl<'de> DeserializePerPuzzle<'de> for Vec<Keybind<PuzzleCommand>> {
-    type Proxy = Vec<Keybind<PuzzleCommandSerde<'de>>>;
-
-    fn deserialize_from(value: Vec<Keybind<PuzzleCommandSerde<'de>>>, ty: PuzzleType) -> Self {
-        value
-            .into_iter()
-            .map(|keybind| Keybind {
-                key: keybind.key,
-                command: PuzzleCommand::deserialize_from(keybind.command, ty),
-            })
-            .collect()
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, Eq)]
 #[serde(default)]

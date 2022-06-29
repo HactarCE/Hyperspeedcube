@@ -3,9 +3,8 @@
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
-use crate::preferences::DeserializePerPuzzle;
 use crate::puzzle::{
-    traits::*, Face, LayerMask, PieceType, PuzzleType, Selection, Twist, TwistDirection,
+    traits::*, Face, LayerMask, PieceType, PuzzleTypeEnum, Selection, Twist, TwistDirection,
 };
 
 /// Minimum number of moves for a partial scramble.
@@ -32,7 +31,7 @@ pub enum Command {
     ScrambleFull,
 
     // Puzzle menu
-    NewPuzzle(PuzzleType),
+    NewPuzzle(PuzzleTypeEnum),
 
     ToggleBlindfold,
 
@@ -45,10 +44,10 @@ impl Default for Command {
     }
 }
 impl Command {
-    pub(crate) fn get_puzzle_type(&self) -> PuzzleType {
+    pub(crate) fn get_puzzle_type(&self) -> PuzzleTypeEnum {
         match self {
             Command::NewPuzzle(puzzle_type) => *puzzle_type,
-            _ => PuzzleType::default(),
+            _ => PuzzleTypeEnum::default(),
         }
     }
 
@@ -75,7 +74,7 @@ impl Command {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SelectThing {
     Face(Face),
     Layers(LayerMask),
@@ -89,9 +88,9 @@ impl From<SelectThing> for Selection {
             piece_type_mask: 0,
         };
         match thing {
-            SelectThing::Face(face) => ret.face_mask = 1 << face.id(),
+            SelectThing::Face(face) => ret.face_mask = 1 << face.0,
             SelectThing::Layers(layer_mask) => ret.layer_mask = layer_mask.0,
-            SelectThing::PieceType(piece_type) => ret.piece_type_mask = 1 << piece_type.id(),
+            SelectThing::PieceType(piece_type) => todo!("AAAAAAA"), // ret.piece_type_mask = 1 << piece_type.0,
         }
         ret
     }
@@ -104,19 +103,19 @@ impl SelectThing {
             Self::PieceType(_) => SelectCategory::PieceType,
         }
     }
-    pub(crate) fn default(category: SelectCategory, ty: PuzzleType) -> Self {
+    pub(crate) fn default(category: SelectCategory, ty: PuzzleTypeEnum) -> Self {
         match category {
-            SelectCategory::Face => Self::Face(ty.faces()[0]),
+            SelectCategory::Face => Self::Face(Face::default()),
             SelectCategory::Layers => Self::Layers(LayerMask::default()),
-            SelectCategory::PieceType => Self::PieceType(PieceType::default(ty)),
+            SelectCategory::PieceType => todo!("defualt piece type"),
         }
     }
 
-    pub(crate) fn short_description(self) -> String {
+    pub(crate) fn short_description(self, ty: PuzzleTypeEnum) -> String {
         match self {
-            SelectThing::Face(f) => f.symbol().to_string(),
+            SelectThing::Face(f) => ty.info(f).symbol.to_string(),
             SelectThing::Layers(l) => format!("L{}", l.short_description()),
-            SelectThing::PieceType(p) => p.name().to_string(),
+            SelectThing::PieceType(p) => todo!("piece type name"),
         }
     }
 }
@@ -130,27 +129,12 @@ pub enum SelectThingSerde<'a> {
 }
 impl From<SelectThing> for SelectThingSerde<'_> {
     fn from(thing: SelectThing) -> Self {
-        match thing {
-            SelectThing::Face(face) => Self::Face(face.name().into()),
-            SelectThing::Layers(layer_mask) => Self::Layers(layer_mask.0),
-            SelectThing::PieceType(piece_type) => Self::PieceType(piece_type.name().into()),
-        }
-    }
-}
-impl<'de> DeserializePerPuzzle<'de> for SelectThing {
-    type Proxy = SelectThingSerde<'de>;
-
-    fn deserialize_from(thing: SelectThingSerde<'de>, ty: PuzzleType) -> Self {
-        let total_layer_mask = (1 << ty.layer_count()) - 1;
-        match thing {
-            SelectThingSerde::Face(face) => Self::Face(Face::from_name(ty, &face)),
-            SelectThingSerde::Layers(layer_mask) => {
-                Self::Layers(LayerMask(layer_mask & total_layer_mask))
-            }
-            SelectThingSerde::PieceType(piece_type) => {
-                Self::PieceType(PieceType::from_name(ty, &piece_type))
-            }
-        }
+        todo!("yikes")
+        // match thing {
+        //     SelectThing::Face(face) => Self::Face(face.name().into()),
+        //     SelectThing::Layers(layer_mask) => Self::Layers(layer_mask.0),
+        //     SelectThing::PieceType(piece_type) => Self::PieceType(piece_type.name().into()),
+        // }
     }
 }
 
@@ -175,7 +159,7 @@ pub enum SelectHow {
     Clear,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub enum PuzzleCommand {
     Twist {
@@ -193,14 +177,6 @@ pub enum PuzzleCommand {
 
     None,
 }
-impl Serialize for PuzzleCommand {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        PuzzleCommandSerde::from(self).serialize(serializer)
-    }
-}
 impl Default for PuzzleCommand {
     fn default() -> Self {
         Self::None
@@ -216,11 +192,12 @@ impl PuzzleCommand {
             _ => SelectCategory::default(),
         }
     }
-    pub(crate) fn get_select_thing(&self, ty: PuzzleType) -> SelectThing {
+    pub(crate) fn get_select_thing(&self, ty: PuzzleTypeEnum) -> SelectThing {
+        // TODO: return `Option<SelectThing>`
         match self {
             PuzzleCommand::HoldSelect(thing) | PuzzleCommand::ToggleSelect(thing) => *thing,
             PuzzleCommand::ClearToggleSelect(category) => SelectThing::default(*category, ty),
-            _ => SelectThing::Face(ty.faces()[0]),
+            _ => SelectThing::Face(Face::default()),
         }
     }
     pub(crate) fn get_select_how(&self) -> Option<SelectHow> {
@@ -232,40 +209,46 @@ impl PuzzleCommand {
         }
     }
 
-    pub fn short_description(&self) -> String {
+    pub fn short_description(&self, ty: PuzzleTypeEnum) -> String {
         match self {
             PuzzleCommand::Twist {
                 face,
                 direction,
                 layer_mask,
             } => {
-                if let Some(f) = face {
-                    match Twist::from_face_with_layers(*f, direction.name(), *layer_mask) {
-                        Ok(twist) => twist.to_string(),
-                        Err(e) => format!("<invalid twist: {e}>"),
-                    }
-                } else {
-                    let l = if layer_mask.is_default() {
-                        String::new()
-                    } else {
-                        layer_mask.short_description()
-                    };
-                    match face {
-                        Some(f) => format!("{l}{}{}", f.symbol(), direction.symbol()),
-                        None => format!("{l}Ø{}", direction.name()),
-                    }
-                }
+                // TODO
+                return format!("TODO describe twist");
+                // if let Some(f) = face {
+                //     match Twist::from_face_with_layers(*f, direction.name(), *layer_mask) {
+                //         Ok(twist) => twist.to_string(),
+                //         Err(e) => format!("<invalid twist: {e}>"),
+                //     }
+                // } else {
+                //     let l = if layer_mask.is_default() {
+                //         String::new()
+                //     } else {
+                //         layer_mask.short_description()
+                //     };
+                //     match face {
+                //         Some(f) => format!("{l}{}{}", f.symbol(), direction.symbol()),
+                //         None => format!("{l}Ø{}", direction.name()),
+                //     }
+                // }
             }
             PuzzleCommand::Recenter { face } => match face {
-                Some(f) => match Twist::from_face_recenter(*f) {
-                    Ok(twist) => twist.to_string(),
-                    Err(e) => format!("<invalid twist: {e}>"),
-                },
+                Some(f) => {
+                    // TODO
+                    return format!("TODO describe recenter");
+                    // match Twist::from_face_recenter(*f) {
+                    //     Ok(twist) => twist.to_string(),
+                    //     Err(e) => format!("<invalid twist: {e}>"),
+                    // }
+                }
                 None => format!("Recenter"),
             },
 
-            PuzzleCommand::HoldSelect(thing) => thing.short_description(),
-            PuzzleCommand::ToggleSelect(thing) => thing.short_description(),
+            PuzzleCommand::HoldSelect(thing) => thing.short_description(ty),
+            PuzzleCommand::ToggleSelect(thing) => thing.short_description(ty),
             PuzzleCommand::ClearToggleSelect(category) => {
                 format!("Clear {}s", category.to_string().to_ascii_lowercase())
             }
@@ -304,59 +287,64 @@ impl Default for PuzzleCommandSerde<'_> {
 }
 impl<'a> From<&'a PuzzleCommand> for PuzzleCommandSerde<'_> {
     fn from(command: &'a PuzzleCommand) -> Self {
-        match command {
-            PuzzleCommand::Twist {
-                face,
-                direction,
-                layer_mask,
-            } => Self::Twist {
-                face: face.map(|f| f.name().into()),
-                direction: direction.name().into(),
-                layer_mask: layer_mask.0,
-            },
-            PuzzleCommand::Recenter { face } => Self::Recenter {
-                face: face.map(|f| f.name().into()),
-            },
+        // TODO: need puzzle type
+        return PuzzleCommandSerde::None;
+        // match command {
+        //     PuzzleCommand::Twist {
+        //         face,
+        //         direction,
+        //         layer_mask,
+        //     } => Self::Twist {
+        //         face: face.map(|f| f.name().into()),
+        //         direction: direction.name().into(),
+        //         layer_mask: layer_mask.0,
+        //     },
+        //     PuzzleCommand::Recenter { face } => Self::Recenter {
+        //         face: face.map(|f| f.name().into()),
+        //     },
 
-            PuzzleCommand::HoldSelect(thing) => Self::HoldSelect((*thing).into()),
-            PuzzleCommand::ToggleSelect(thing) => Self::ToggleSelect((*thing).into()),
-            PuzzleCommand::ClearToggleSelect(category) => Self::ClearToggleSelect(*category),
+        //     PuzzleCommand::HoldSelect(thing) => Self::HoldSelect((*thing).into()),
+        //     PuzzleCommand::ToggleSelect(thing) => Self::ToggleSelect((*thing).into()),
+        //     PuzzleCommand::ClearToggleSelect(category) => Self::ClearToggleSelect(*category),
 
-            PuzzleCommand::None => Self::None,
-        }
+        //     PuzzleCommand::None => Self::None,
+        // }
     }
 }
-impl<'de> DeserializePerPuzzle<'de> for PuzzleCommand {
-    type Proxy = PuzzleCommandSerde<'de>;
+// impl<'de> DeserializePerPuzzle<'de> for PuzzleCommand {
+//     type Proxy = PuzzleCommandSerde<'de>;
 
-    /// Checks that the command is valid, and modifies it to make it valid if it
-    /// is not.
-    fn deserialize_from(command: PuzzleCommandSerde<'de>, ty: PuzzleType) -> PuzzleCommand {
-        let max_layer_mask = (1 << ty.layer_count()) - 1;
+//     /// Checks that the command is valid, and modifies it to make it valid if it
+//     /// is not.
+//     fn deserialize_from(command: PuzzleCommandSerde<'de>, ty: PuzzleTypeEnum) -> PuzzleCommand {
+//         // TODO
+//         return PuzzleCommand::None;
 
-        match command {
-            PuzzleCommandSerde::Twist {
-                face,
-                direction,
-                layer_mask,
-            } => Self::Twist {
-                face: face.map(|f| Face::from_name(ty, &f)),
-                direction: TwistDirection::from_name(ty, &direction),
-                layer_mask: LayerMask(layer_mask & max_layer_mask),
-            },
-            PuzzleCommandSerde::Recenter { face } => Self::Recenter {
-                face: face.map(|f| Face::from_name(ty, &f)),
-            },
+//         // let max_layer_mask = (1 << ty.layer_count()) - 1;
 
-            PuzzleCommandSerde::HoldSelect(thing) => {
-                Self::HoldSelect(SelectThing::deserialize_from(thing, ty))
-            }
-            PuzzleCommandSerde::ToggleSelect(thing) => {
-                Self::ToggleSelect(SelectThing::deserialize_from(thing, ty))
-            }
-            PuzzleCommandSerde::ClearToggleSelect(category) => Self::ClearToggleSelect(category),
+//         // match command {
+//         //     PuzzleCommandSerde::Twist {
+//         //         face,
+//         //         direction,
+//         //         layer_mask,
+//         //     } => Self::Twist {
+//         //         face: face.map(|f| Face::from_name(ty, &f)),
+//         //         direction: TwistDirection::from_name(ty, &direction),
+//         //         layer_mask: LayerMask(layer_mask & max_layer_mask),
+//         //     },
+//         //     PuzzleCommandSerde::Recenter { face } => Self::Recenter {
+//         //         face: face.map(|f| Face::from_name(ty, &f)),
+//         //     },
 
-            PuzzleCommandSerde::None => Self::None,
-        }
-    }
-}
+//         //     PuzzleCommandSerde::HoldSelect(thing) => {
+//         //         Self::HoldSelect(SelectThing::deserialize_from(thing, ty))
+//         //     }
+//         //     PuzzleCommandSerde::ToggleSelect(thing) => {
+//         //         Self::ToggleSelect(SelectThing::deserialize_from(thing, ty))
+//         //     }
+//         //     PuzzleCommandSerde::ClearToggleSelect(category) => Self::ClearToggleSelect(category),
+
+//         //     PuzzleCommandSerde::None => Self::None,
+//         // }
+//     }
+// }

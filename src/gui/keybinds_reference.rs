@@ -4,7 +4,7 @@ use key_names::KeyMappingCode;
 use crate::app::App;
 use crate::commands::{Command, PuzzleCommand, SelectThing};
 use crate::preferences::{Key, Keybind};
-use crate::puzzle::PuzzleTypeTrait;
+use crate::puzzle::{traits::*, PuzzleType};
 
 const SCALED_KEY_PADDING: f32 = 0.0;
 const MIN_KEY_PADDING: f32 = 4.0;
@@ -103,9 +103,11 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::Rect) {
+    let puzzle_type = app.puzzle.ty();
+
     let vk = key_names::key_to_winit_vkey(key);
     let matching_puzzle_keybinds: Vec<&Keybind<PuzzleCommand>> = app
-        .resolve_keypress(&app.prefs.puzzle_keybinds[app.puzzle.ty()], Some(key), vk)
+        .resolve_keypress(&app.prefs.puzzle_keybinds[puzzle_type], Some(key), vk)
         .into_iter()
         .take_while(|bind| bind.command != PuzzleCommand::None)
         .collect();
@@ -117,7 +119,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
 
     let s = matching_puzzle_keybinds
         .iter()
-        .map(|bind| bind.command.short_description())
+        .map(|bind| bind.command.short_description(puzzle_type))
         .chain(
             matching_global_keybinds
                 .iter()
@@ -151,19 +153,19 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         direction,
                         layer_mask,
                     } => {
-                        if layer_mask.is_all(app.puzzle.ty()) {
+                        if *layer_mask == puzzle_type.all_layers() {
                             ui.label("Rotate");
                             ui.strong("whole puzzle");
                             ui.label("in");
-                            ui.strong(direction.name());
+                            ui.strong(puzzle_type.info(*direction).name);
                             ui.label("direction relative to");
-                            ui.strong(face.map(|f| f.name()).unwrap_or("selected"));
+                            ui.strong(face.map(|f| puzzle_type.info(f).name).unwrap_or("selected"));
                             ui.label("face");
                         } else {
                             ui.label("Twist");
-                            ui.strong(face.map(|f| f.name()).unwrap_or("selected"));
+                            ui.strong(face.map(|f| puzzle_type.info(f).name).unwrap_or("selected"));
                             ui.label("face in");
-                            ui.strong(direction.name());
+                            ui.strong(puzzle_type.info(*direction).name);
                             ui.label("direction");
                             if !layer_mask.is_default() {
                                 ui.label("(layer");
@@ -175,7 +177,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                     }
                     PuzzleCommand::Recenter { face } => {
                         ui.label("Recenter");
-                        ui.strong(face.map(|f| f.name()).unwrap_or("selected"));
+                        ui.strong(face.map(|f| puzzle_type.info(f).name).unwrap_or("selected"));
                         ui.label("face");
                     }
 
@@ -188,7 +190,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
 
                         match thing {
                             SelectThing::Face(f) => {
-                                ui.strong(f.name());
+                                ui.strong(puzzle_type.info(*f).name);
                                 ui.label("face");
                             }
                             SelectThing::Layers(l) => {
@@ -196,8 +198,9 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                                 ui.strong(l.long_description());
                             }
                             SelectThing::PieceType(p) => {
-                                ui.strong(p.name());
-                                ui.label("pieces");
+                                // TODO: piece type string
+                                // ui.strong(puzzle_type.info(*p).name);
+                                // ui.label("pieces");
                             }
                         }
                     }

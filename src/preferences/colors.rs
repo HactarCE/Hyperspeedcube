@@ -1,8 +1,8 @@
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::{DeserializePerPuzzle, PerPuzzle};
-use crate::puzzle::{Face, PuzzleType, PuzzleTypeTrait};
+use super::PerPuzzle;
+use crate::puzzle::{traits::*, Face, PuzzleTypeEnum};
 use crate::serde_impl::hex_color;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
@@ -18,66 +18,53 @@ pub struct ColorPreferences {
     pub blind_face: egui::Color32,
     pub blindfold: bool,
 
-    pub faces: PerPuzzle<FaceColors>,
+    pub faces: PerPuzzle<HashMap<String, FaceColor>>,
 }
-impl std::ops::Index<Face> for ColorPreferences {
+impl std::ops::Index<(PuzzleTypeEnum, Face)> for ColorPreferences {
     type Output = egui::Color32;
 
-    fn index(&self, index: Face) -> &Self::Output {
-        &self.faces[index.ty()].colors[index.id()]
+    fn index(&self, (puzzle_type, face): (PuzzleTypeEnum, Face)) -> &Self::Output {
+        self.faces
+            .get(puzzle_type)
+            .and_then(|face_colors| face_colors.get(puzzle_type.info(face).symbol))
+            .map(|color| &color.0)
+            .unwrap_or(&self.blind_face)
     }
 }
-impl std::ops::IndexMut<Face> for ColorPreferences {
-    fn index_mut(&mut self, index: Face) -> &mut Self::Output {
-        &mut self.faces[index.ty()].colors[index.id()]
+impl std::ops::IndexMut<(PuzzleTypeEnum, Face)> for ColorPreferences {
+    fn index_mut(&mut self, (puzzle_type, face): (PuzzleTypeEnum, Face)) -> &mut Self::Output {
+        &mut self
+            .faces
+            .entry(puzzle_type)
+            .or_default()
+            .entry(puzzle_type.info(face).symbol.to_owned())
+            .or_insert(FaceColor(self.blind_face))
+            .0
     }
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct FaceColors {
-    puzzle_type: PuzzleType,
-    colors: Vec<egui::Color32>,
-}
-impl Serialize for FaceColors {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut map = serializer.serialize_map(Some(self.colors.len()))?;
-        for (face, color) in self.puzzle_type.face_symbols().iter().zip(&self.colors) {
-            map.serialize_entry(face, &hex_color::to_str(color))?;
-        }
-        map.end()
-    }
-}
-impl std::ops::Index<usize> for FaceColors {
-    type Output = egui::Color32;
+// TODO: rename this type and use it for all colors. also impl display
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(transparent)]
+pub struct FaceColor(#[serde(with = "hex_color")] pub egui::Color32);
 
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.colors[index]
+impl ColorPreferences {
+    pub fn face_colors_list(&self, ty: PuzzleTypeEnum) -> Vec<egui::Color32> {
+        let faces = &self.faces[ty];
+        ty.faces()
+            .iter()
+            .map(|face| match faces.get(face.symbol) {
+                Some(c) => c.0,
+                None => self.blind_face,
+            })
+            .collect()
     }
-}
-impl std::ops::IndexMut<usize> for FaceColors {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.colors[index]
-    }
-}
-impl DeserializePerPuzzle<'_> for FaceColors {
-    type Proxy = HashMap<String, String>;
-
-    fn deserialize_from(hex_codes: Self::Proxy, ty: PuzzleType) -> Self {
-        Self {
-            puzzle_type: ty,
-            colors: ty
-                .face_symbols()
-                .iter()
-                .map(|&face| {
-                    hex_codes
-                        .get(face)
-                        .and_then(|hex_str| hex_color::from_str(hex_str).ok())
-                        .unwrap_or(egui::Color32::GRAY)
-                })
-                .collect(),
-        }
+    pub fn set_face_colors(&mut self, ty: PuzzleTypeEnum, face_colors: &[egui::Color32]) {
+        self.faces[ty] = ty
+            .faces()
+            .iter()
+            .zip(face_colors)
+            .map(|(face, &color)| (face.symbol.to_owned(), FaceColor(color)))
+            .collect()
     }
 }

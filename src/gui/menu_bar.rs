@@ -1,11 +1,12 @@
 use crate::app::App;
 use crate::commands::Command;
-use crate::puzzle::{PuzzleType, PuzzleTypeTrait};
+use crate::puzzle::{rubiks_3d, PuzzleType, PuzzleTypeEnum, Rubiks3D};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {
         ui.menu_button("File", |ui| {
-            let can_save = app.puzzle.ty() == PuzzleType::Rubiks34;
+            // let can_save = app.puzzle.ty() == PuzzleTypeEnum::Rubiks4D{};
+            let can_save = false; // TODO
 
             if ui.button("Open").clicked() {
                 ui.close_menu();
@@ -64,12 +65,24 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
 
         ui.menu_button("Puzzle", |ui| {
-            for &puzzle_type in PuzzleType::ALL {
-                if ui.button(puzzle_type.name()).clicked() {
-                    ui.close_menu();
-                    app.event(Command::NewPuzzle(puzzle_type));
+            ui.menu_button("Rubiks 3D", |ui| {
+                for layer_count in rubiks_3d::MIN_LAYER_COUNT..=rubiks_3d::MAX_LAYER_COUNT {
+                    let ty = PuzzleTypeEnum::Rubiks3D { layer_count };
+                    if ui.button(ty.name()).clicked() {
+                        ui.close_menu();
+                        app.event(Command::NewPuzzle(ty))
+                    }
                 }
-            }
+            });
+            // ui.menu_button("Rubiks 4D", |ui| {
+            //    for layer_count in rubiks_4d::MIN_LAYER_COUNT ..=rubiks_4d::MAX_LAYER_COUNT {
+            //        let ty =PuzzleTypeEnum::Rubiks4D { layer_count };
+            //        if ui.button(ty.name()).clicked() {
+            //            ui.close_menu();
+            //            app.event(Command::NewPuzzle(ty))
+            //        }
+            //    }
+            // });
         });
 
         ui.menu_button("Settings", |ui| {

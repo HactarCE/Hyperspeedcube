@@ -5,9 +5,8 @@ use itertools::Itertools;
 use std::ops::{Add, Mul};
 
 use super::RgbaVertex;
-use crate::controller::{PuzzleController, StickerDecorAnim};
 use crate::preferences::Preferences;
-use crate::puzzle::StickerGeometryParams;
+use crate::puzzle::{traits::*, PuzzleController, StickerDecorAnim, StickerGeometryParams};
 use crate::util::{f32_total_cmp, IterCyclicPairsExt};
 
 const OUTLINE_SCALE: f32 = 1.0 / 512.0;
@@ -28,6 +27,8 @@ pub(super) fn make_puzzle_mesh(
     // incrementation for each sticker to get the next-largest `f32` value.
     let mut z = 0.5_f32;
 
+    let face_colors = &prefs.colors.face_colors_list(puzzle.ty());
+
     let sticker_geometries = puzzle.geometry(sticker_geometry_params);
     for geom in &*sticker_geometries {
         let StickerDecorAnim { selected, hovered } = puzzle.sticker_animation_state(geom.sticker);
@@ -40,12 +41,12 @@ pub(super) fn make_puzzle_mesh(
         );
 
         // Determine sticker fill color.
-        let sticker_color =
-            egui::Rgba::from(match puzzle.displayed().get_sticker_color(geom.sticker) {
-                Ok(face) if !prefs.colors.blindfold => prefs.colors[face],
-                _ => prefs.colors.blind_face,
-            })
-            .multiply(alpha);
+        let sticker_color = egui::Rgba::from(if prefs.colors.blindfold {
+            prefs.colors.blind_face
+        } else {
+            face_colors[puzzle.info(geom.sticker).face.0 as usize]
+        })
+        .multiply(alpha);
 
         // Determine outline color.
         let outline_color = mix(

@@ -2,51 +2,15 @@ use enum_map::Enum;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use super::{traits::*, Face, Piece, Rubiks33, Rubiks34, Sticker};
+use super::{traits::*, Face, Piece, Rubiks3D, Sticker};
 
-/// Declare the `PuzzleType` enum and also generate a `with_puzzle_types` macro.
-macro_rules! puzzle_type_enum {
-    (
-        @ [$dollar:tt]
-        $( #[$_outer_attr:meta] )*
-        $_vis:vis enum PuzzleType {
-            $( $( #[$_inner_attr:meta] )* $puzzle_type:ident ),* $(,)?
-        }
-    ) => {
-        /// Replaces `PUZZLE_TYPES` argument with a comma-separated list of
-        /// puzzle types.
-        macro_rules! with_puzzle_types {
-            (
-                $dollar callback:ident ! {
-                    $dollar( @ $dollar instruction:tt )?
-                    puzzle_types = PUZZLE_TYPES
-                    $dollar( $dollar arg:tt )*
-                }
-            ) => {
-                $dollar callback! {
-                    $dollar( @ $dollar instruction )?
-                    puzzle_types = {[ $($puzzle_type),* ]}
-                    $dollar( $dollar arg )*
-                }
-            }
-        }
-    };
-    ( $($tok:tt)* ) => {
-        // Make the enum definition.
-        $($tok)*
-        // Make a macro for getting a list of all puzzles.
-        puzzle_type_enum! { @ [$] $($tok)* }
-    };
-}
-puzzle_type_enum! {
-    /// Enumeration of all puzzle types.
-    #[derive(Enum, EnumIter, EnumString, Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
-    pub enum PuzzleType {
-        /// 3D Rubik's cube.
-        Rubiks33,
-        /// 4D Rubik's cube.
-        Rubiks34,
-    }
+/// Enumeration of all puzzle types.
+#[derive(Enum, EnumString, Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum PuzzleType {
+    /// 3D Rubik's cube.
+    Rubiks3D(u8),
+    /// 4D Rubik's cube.
+    Rubiks4D(u8),
 }
 impl fmt::Display for PuzzleType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

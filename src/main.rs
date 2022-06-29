@@ -5,11 +5,16 @@
 #![allow(
     clippy::collapsible_match,
     clippy::match_like_matches_macro,
-    clippy::single_match
+    clippy::single_match,
+    unused_imports // TODO: remove
 )]
 
 #[macro_use]
+extern crate ambassador;
+#[macro_use]
 extern crate delegate;
+#[macro_use]
+extern crate enum_dispatch;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -24,9 +29,8 @@ use winit::window::Icon;
 mod debug;
 mod app;
 mod commands;
-pub mod controller;
 mod gui;
-mod mc4d_compat;
+// mod mc4d_compat;
 mod preferences;
 pub mod puzzle;
 mod render;
@@ -91,9 +95,10 @@ async fn run() {
         // Prioritize sending events to the key combo popup.
         match &ev {
             Event::WindowEvent { window_id, event } if *window_id == window.id() => {
-                gui::key_combo_popup_handle_event(&egui.context(), &mut app, &event);
-                event_has_been_captured |=
-                    gui::key_combo_popup_captures_event(&egui.context(), &event);
+                // // TODO: uncomment this
+                // gui::key_combo_popup_handle_event(&egui.context(), &mut app, &event);
+                // event_has_been_captured |=
+                //     gui::key_combo_popup_captures_event(&egui.context(), &event);
             }
             _ => (),
         }

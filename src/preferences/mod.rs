@@ -4,8 +4,8 @@
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
 use directories::ProjectDirs;
-use enum_map::EnumMap;
 use serde::{de, Deserialize, Deserializer, Serialize};
+use std::collections::{hash_map, HashMap};
 use std::error::Error;
 use std::fmt;
 use std::marker::PhantomData;
@@ -20,7 +20,7 @@ mod outlines;
 mod view;
 
 use crate::commands::{Command, PuzzleCommand};
-use crate::puzzle::PuzzleType;
+use crate::puzzle::{traits::*, PuzzleTypeEnum};
 pub use colors::*;
 pub use gfx::*;
 pub use info::*;
@@ -188,77 +188,34 @@ impl Preferences {
     }
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(transparent)]
-pub struct PerPuzzle<T>(EnumMap<PuzzleType, T>);
-impl<'de, T: Default + DeserializePerPuzzle<'de>> Default for PerPuzzle<T>
-where
-    T::Proxy: Default,
-{
-    fn default() -> Self {
-        Self(
-            PuzzleType::ALL
-                .iter()
-                .map(|&puzzle_type| {
-                    let default = T::deserialize_from(T::Proxy::default(), puzzle_type);
-                    (puzzle_type, default)
-                })
-                .collect(),
-        )
-    }
+pub struct PerPuzzle<T> {
+    map: HashMap<String, T>,
+    #[serde(skip)]
+    default: T,
 }
-impl<'de, T: DeserializePerPuzzle<'de>> Deserialize<'de> for PerPuzzle<T>
-where
-    Self: Default,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct Visitor<T>(PhantomData<T>);
-        impl<'de, T: DeserializePerPuzzle<'de>> de::Visitor<'de> for Visitor<T>
-        where
-            PerPuzzle<T>: Default,
-        {
-            type Value = PerPuzzle<T>;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a map containing a value per puzzle type")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-            where
-                A: de::MapAccess<'de>,
-            {
-                let mut ret = PerPuzzle::default();
-                while let Some(puzzle_type) = map.next_key()? {
-                    ret[puzzle_type] = T::deserialize_from(map.next_value()?, puzzle_type);
-                }
-                Ok(ret)
-            }
-        }
-
-        deserializer.deserialize_map(Visitor(PhantomData))
-    }
-}
-impl<T> std::ops::Index<PuzzleType> for PerPuzzle<T> {
+impl<T: Default> std::ops::Index<PuzzleTypeEnum> for PerPuzzle<T> {
     type Output = T;
 
-    fn index(&self, puzzle_type: PuzzleType) -> &Self::Output {
-        &self.0[puzzle_type]
+    fn index(&self, puzzle_type: PuzzleTypeEnum) -> &Self::Output {
+        self.get(puzzle_type).unwrap_or(&self.default)
     }
 }
-impl<T> std::ops::IndexMut<PuzzleType> for PerPuzzle<T> {
-    fn index_mut(&mut self, puzzle_type: PuzzleType) -> &mut Self::Output {
-        &mut self.0[puzzle_type]
+impl<T: Default> std::ops::IndexMut<PuzzleTypeEnum> for PerPuzzle<T> {
+    fn index_mut(&mut self, puzzle_type: PuzzleTypeEnum) -> &mut Self::Output {
+        self.entry(puzzle_type).or_default()
+    }
+}
+impl<T> PerPuzzle<T> {
+    fn entry<'a>(&'a mut self, puzzle_type: PuzzleTypeEnum) -> hash_map::Entry<'a, String, T> {
+        self.map.entry(puzzle_type.name().to_owned())
+    }
+    fn get(&self, puzzle_type: PuzzleTypeEnum) -> Option<&T> {
+        self.map.get(puzzle_type.name())
     }
 }
 
-pub trait DeserializePerPuzzle<'de> {
-    type Proxy: Deserialize<'de>;
-
-    fn deserialize_from(value: Self::Proxy, ty: PuzzleType) -> Self;
-}
 
 fn is_false(x: &bool) -> bool {
     !x

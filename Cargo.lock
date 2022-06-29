@@ -57,6 +57,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ambassador"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5bcbad70f1bf852d280ac8ba277df761e7c1749072a05db9b9506d201aab4b59"
+dependencies = [
+ "itertools",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -834,21 +846,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "enum-map"
-version = "2.0.3"
+name = "enum_dispatch"
+version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82605a2a3d13a9661b07ba27f39d00496aa347c9c236b1a3b8201c1b6d761408"
+checksum = "0eb359f1476bf611266ac1f5355bc14aeca37b299d0ebccc038ee7058891c9cb"
 dependencies = [
- "enum-map-derive",
- "serde",
-]
-
-[[package]]
-name = "enum-map-derive"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a63b7a0ddec6f38dcec5e36257750b7a8fcaf4227e12ceb306e341d63634da05"
-dependencies = [
+ "once_cell",
  "proc-macro2",
  "quote",
  "syn",
@@ -1233,6 +1236,7 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 name = "hyperspeedcube"
 version = "0.7.0-dev"
 dependencies = [
+ "ambassador",
  "anyhow",
  "bytemuck",
  "cgmath",
@@ -1245,7 +1249,7 @@ dependencies = [
  "egui",
  "egui_wgpu_backend",
  "egui_winit_platform",
- "enum-map",
+ "enum_dispatch",
  "env_logger",
  "epi",
  "hex",
@@ -2262,6 +2266,9 @@ name = "smallvec"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "smithay-client-toolkit"

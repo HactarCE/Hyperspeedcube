@@ -84,6 +84,7 @@ impl PuzzleState for Rubiks33 {
 
     lazy_static_array_methods! {
         fn pieces() -> &'static [Piece] {
+
             itertools::iproduct!(Sign::iter(), Sign::iter(), Sign::iter())
                 .map(|(z, y, x)| Piece([x, y, z]))
                 .filter(|&p| p != Piece::core())
@@ -174,42 +175,42 @@ impl IndexMut<Axis> for Piece {
         &mut self.0[axis as usize]
     }
 }
-impl Add<Face> for Piece {
-    type Output = Piece;
-    fn add(mut self, rhs: Face) -> Self {
-        self[rhs.axis] = self[rhs.axis] + rhs.sign;
-        self
-    }
-}
+// impl Add<Face> for Piece {
+//     type Output = Piece;
+//     fn add(mut self, rhs: Face) -> Self {
+//         self[rhs.axis] = self[rhs.axis] + rhs.sign;
+//         self
+//     }
+// }
 impl Piece {
-    /// Returns the piece at the center of the puzzle, which has no stickers.
-    pub fn core() -> Self {
-        Self([Sign::Zero; 3])
-    }
-    /// Returns the X coordinate of this piece.
-    pub fn x(self) -> Sign {
-        self[Axis::X]
-    }
-    /// Returns the Y coordinate of this piece.
-    pub fn y(self) -> Sign {
-        self[Axis::Y]
-    }
-    /// Returns the Z coordinate of the piece.
-    pub fn z(self) -> Sign {
-        self[Axis::Z]
-    }
-    /// Returns the X coordinate of this piece, in the range 0..=2.
-    fn x_idx(self) -> usize {
-        (self.x().int() + 1) as usize
-    }
-    /// Returns the Y coordinate of this piece, in the range 0..=2.
-    fn y_idx(self) -> usize {
-        (self.y().int() + 1) as usize
-    }
-    /// Returns the Z coordinate of this piece, in the range 0..=2.
-    fn z_idx(self) -> usize {
-        (self.z().int() + 1) as usize
-    }
+    // /// Returns the piece at the center of the puzzle, which has no stickers.
+    // pub fn core() -> Self {
+    //     Self([Sign::Zero; 3])
+    // }
+    // /// Returns the X coordinate of this piece.
+    // pub fn x(self) -> Sign {
+    //     self[Axis::X]
+    // }
+    // /// Returns the Y coordinate of this piece.
+    // pub fn y(self) -> Sign {
+    //     self[Axis::Y]
+    // }
+    // /// Returns the Z coordinate of the piece.
+    // pub fn z(self) -> Sign {
+    //     self[Axis::Z]
+    // }
+    // /// Returns the X coordinate of this piece, in the range 0..=2.
+    // fn x_idx(self) -> usize {
+    //     (self.x().int() + 1) as usize
+    // }
+    // /// Returns the Y coordinate of this piece, in the range 0..=2.
+    // fn y_idx(self) -> usize {
+    //     (self.y().int() + 1) as usize
+    // }
+    // /// Returns the Z coordinate of this piece, in the range 0..=2.
+    // fn z_idx(self) -> usize {
+    //     (self.z().int() + 1) as usize
+    // }
 
     fn center_3d(self, p: StickerGeometryParams) -> Point3<f32> {
         let mut ret = Point3::origin();

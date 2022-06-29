@@ -30,29 +30,29 @@ pub mod interpolate {
     pub const COSINE_DECEL: InterpolateFn = |x| ((1.0 - x) * PI / 2.0).cos();
 }
 
-use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
-use crate::mc4d_compat;
-use crate::preferences::InteractionPreferences;
-use crate::puzzle::{
-    geometry, traits::*, Piece, ProjectedStickerGeometry, Puzzle, PuzzleType, Rubiks34, Selection,
-    Sticker, StickerGeometryParams, Twist, TwistMetric,
+use super::{
+    geometry, traits::*, Face, FaceInfo, LayerMask, Piece, PieceInfo, ProjectedStickerGeometry,
+    Puzzle, PuzzleInfo, PuzzleTypeEnum, Selection, Sticker, StickerGeometryParams, StickerInfo,
+    Twist, TwistAxisInfo, TwistDirection, TwistDirectionInfo, TwistMetric,
 };
+use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
+use crate::preferences::InteractionPreferences;
 use crate::util;
 use interpolate::InterpolateFn;
 
 const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 
 /// Puzzle wrapper that adds animation and undo history functionality.
-#[derive(Debug)]
+#[derive(Delegate, Debug)]
+#[delegate(PuzzleType, target = "latest")]
 pub struct PuzzleController {
     /// State of the puzzle right before the twist being animated right now.
-    ///
-    /// `Box`ed so that this struct is always the same size.
     displayed: Puzzle,
-    /// State of the puzzle with all twists applied to it (used for timing
-    /// and undo).
-    ///
-    /// `Box`ed so that this struct is always the same size.
+    /// State of the puzzle right after the twist being animated right now, or
+    /// the same as `displayed` if there is no twist animation in progress.
+    next_displayed: Puzzle, // TODO: use this
+    /// State of the puzzle with all twists applied to it (used for timing and
+    /// undo).
     latest: Puzzle,
     /// Queue of twists that transform the displayed state into the latest
     /// state.
@@ -89,7 +89,7 @@ pub struct PuzzleController {
 }
 impl Default for PuzzleController {
     fn default() -> Self {
-        Self::new(PuzzleType::default())
+        Self::new(PuzzleTypeEnum::default())
     }
 }
 impl Eq for PuzzleController {}
@@ -105,9 +105,10 @@ impl PartialEq<Puzzle> for PuzzleController {
 }
 impl PuzzleController {
     /// Constructs a new PuzzleController with a solved puzzle.
-    pub fn new(ty: PuzzleType) -> Self {
+    pub fn new(ty: PuzzleTypeEnum) -> Self {
         Self {
             displayed: Puzzle::new(ty),
+            next_displayed: Puzzle::new(ty),
             latest: Puzzle::new(ty),
             twist_queue: VecDeque::new(),
             queue_max: 0,
@@ -138,7 +139,9 @@ impl PuzzleController {
         self.reset();
         // Use a `while` loop instead of a `for` loop because moves may cancel.
         while self.undo_buffer.len() < n {
-            self.twist(Twist::from_rng(self.ty()))?;
+            // TODO: random twists
+            break;
+            // self.twist(Twist::from_rng(self.ty()))?;
         }
         self.catch_up();
         self.scramble = std::mem::replace(&mut self.undo_buffer, vec![]);
@@ -148,22 +151,20 @@ impl PuzzleController {
     /// Scramble the puzzle completely.
     pub fn scramble_full(&mut self) -> Result<(), &'static str> {
         self.reset();
-        self.scramble_n(self.ty().scramble_moves_count())?;
+        self.scramble_n(self.scramble_moves_count())?;
         self.scramble_state = ScrambleState::Full;
         Ok(())
     }
 
     /// Adds a twist to the back of the twist queue.
     pub fn twist(&mut self, twist: Twist) -> Result<(), &'static str> {
-        if twist.ty() != self.ty() {
-            return Err("puzzle type mismatch");
-        }
         self.is_unsaved = true;
         self.redo_buffer.clear();
-        if self.undo_buffer.last() == Some(&twist.rev()) {
+        // TODO: canonicalize first
+        if self.undo_buffer.last() == Some(&self.reverse_twist(twist)) {
             self.undo()
         } else {
-            self.latest.twist(twist.clone())?;
+            self.latest.twist(twist.clone())?; // TODO: clippy should catch this unnecessary `.clone()`
             self.twist_queue.push_back(twist.clone());
             self.undo_buffer.push(twist);
             Ok(())
@@ -171,8 +172,8 @@ impl PuzzleController {
     }
     /// Returns the twist currently being animated, along with a float between
     /// 0.0 and 1.0 indicating the progress on that animation.
-    pub fn current_twist(&self) -> Option<(&Twist, f32)> {
-        if let Some(twist) = self.twist_queue.get(0) {
+    pub fn current_twist(&self) -> Option<(Twist, f32)> {
+        if let Some(&twist) = self.twist_queue.get(0) {
             Some((twist, TWIST_INTERPOLATION_FN(self.progress)))
         } else {
             None
@@ -190,7 +191,7 @@ impl PuzzleController {
     }
 
     /// Returns the puzzle type.
-    pub fn ty(&self) -> PuzzleType {
+    pub fn ty(&self) -> PuzzleTypeEnum {
         self.latest.ty()
     }
 
@@ -208,13 +209,15 @@ impl PuzzleController {
         self.hovered_sticker = hovered_stickers
             .into_iter()
             .filter(|&sticker| {
-                let sticker_mid_twist = match self.current_twist() {
-                    // Use the selection after the twist.
-                    Some((twist, t)) if t > 0.5 => twist.destination_sticker(sticker),
-                    // Use the selection before the twist.
-                    _ => sticker,
-                };
-                self.selection.has_sticker(sticker_mid_twist)
+                // TODO: figure this out
+
+                // let sticker_mid_twist = match self.current_twist() {
+                //     // Use the selection after the twist.
+                //     Some((twist, t)) if t > 0.5 => twist.destination_sticker(sticker),
+                //     // Use the selection before the twist.
+                //     _ => sticker,
+                // };
+                self.selection.has_sticker(self.latest(), sticker)
             })
             .next();
     }
@@ -224,19 +227,25 @@ impl PuzzleController {
 
     /// Returns the animation state for a sticker.
     pub fn sticker_animation_state(&self, sticker: Sticker) -> StickerDecorAnim {
-        match self.current_twist() {
-            None => self.sticker_animation_states[sticker.id()],
-            Some((twist, t)) => {
-                // Interpolate selected state between old and new sticker
-                // positions.
-                let old = self.sticker_animation_states[sticker.id()];
-                let new = self.sticker_animation_states[twist.destination_sticker(sticker).id()];
-                StickerDecorAnim {
-                    selected: old.selected * (1.0 - t) + new.selected * t,
-                    hovered: old.hovered,
-                }
-            }
+        // TODO: sticker animation
+        StickerDecorAnim {
+            selected: 1.0,
+            hovered: 0.0,
         }
+
+        // match self.current_twist() {
+        //     None => self.sticker_animation_states[sticker.0],
+        //     Some((twist, t)) => {
+        //         // Interpolate selected state between old and new sticker
+        //         // positions.
+        //         let old = self.sticker_animation_states[sticker.0];
+        //         let new = self.sticker_animation_states[twist.destination_sticker(sticker).0];
+        //         StickerDecorAnim {
+        //             selected: old.selected * (1.0 - t) + new.selected * t,
+        //             hovered: old.hovered,
+        //         }
+        //     }
+        // }
     }
 
     pub(crate) fn geometry(
@@ -256,15 +265,16 @@ impl PuzzleController {
 
             // Project stickers.
             let mut sticker_geometries: Vec<ProjectedStickerGeometry> = vec![];
-            for piece in self.displayed().pieces() {
-                params.model_transform = self.model_transform_for_piece(*piece);
+            for (i, piece_info) in self.pieces().iter().enumerate() {
+                let piece = Piece(i as _);
+                params.model_transform = self.model_transform_for_piece(piece);
 
-                for sticker in piece.stickers() {
+                for &sticker in &piece_info.stickers {
                     // Compute geometry, including vertex positions before 3D
                     // perspective projection.
-                    let sticker_geom = match sticker.geometry(params) {
+                    let sticker_geom = match self.displayed().sticker_geometry(sticker, params) {
                         Some(s) => s,
-                        None => continue, // behind camera; skip this sticker
+                        None => continue, // invisible; skip this sticker
                     };
 
                     // Compute vertex positions after 3D perspective projection.
@@ -335,11 +345,9 @@ impl PuzzleController {
     /// Returns whether the puzzle is in the middle of an animation.
     pub fn is_animating(&self, prefs: &InteractionPreferences) -> bool {
         self.current_twist().is_some()
-            || self
-                .ty()
-                .stickers()
-                .iter()
-                .map(|&sticker| self.sticker_animation_state_target(sticker, prefs))
+            || (0..self.ty().stickers().len() as _)
+                .map(Sticker)
+                .map(|sticker| self.sticker_animation_state_target(sticker, prefs))
                 .ne(self.sticker_animation_states.iter().copied())
     }
 
@@ -376,20 +384,6 @@ impl PuzzleController {
 
             let twist = self.twist_queue.pop_front().unwrap();
 
-            // Shuffle sticker hover states as necessary.
-            let mut hover_states = vec![];
-            for (i, state) in self.sticker_animation_states.iter_mut().enumerate() {
-                if state.hovered != 0.0 {
-                    hover_states.push((i, state.hovered));
-                    state.hovered = 0.0;
-                }
-            }
-            for (i, hovered) in hover_states {
-                let sticker = Sticker::from_id(self.ty(), i).unwrap();
-                self.sticker_animation_states[twist.destination_sticker(sticker).id()].hovered =
-                    hovered;
-            }
-
             self.displayed
                 .twist(twist)
                 .expect("failed to apply twist from twist queue");
@@ -402,8 +396,8 @@ impl PuzzleController {
         let max_delta_selected = delta.as_secs_f32() / prefs.selection_fade_duration;
         let max_delta_hovered = delta.as_secs_f32() / prefs.hover_fade_duration;
 
-        for (i, &sticker) in self.ty().stickers().iter().enumerate() {
-            let target = self.sticker_animation_state_target(sticker, prefs);
+        for i in 0..self.stickers().len() {
+            let target = self.sticker_animation_state_target(Sticker(i as _), prefs);
             let animation_state = &mut self.sticker_animation_states[i];
             add_delta_toward_target(
                 &mut animation_state.selected,
@@ -427,11 +421,11 @@ impl PuzzleController {
         sticker: Sticker,
         prefs: &InteractionPreferences,
     ) -> StickerDecorAnim {
-        let is_selected = self.selection.has_sticker(sticker);
+        let is_selected = self.selection.has_sticker(self.latest(), sticker);
         let is_hovered = match self.hovered_sticker {
             Some(s) => match prefs.highlight_piece_on_hover {
                 false => s == sticker,
-                true => s.piece() == sticker.piece(),
+                true => self.info(s).piece == self.info(sticker).piece,
             },
             None => false,
         };
@@ -468,8 +462,8 @@ impl PuzzleController {
     pub fn undo(&mut self) -> Result<(), &'static str> {
         if let Some(twist) = self.undo_buffer.pop() {
             self.is_unsaved = true;
-            self.latest.twist(twist.rev())?;
-            self.twist_queue.push_back(twist.rev());
+            self.latest.twist(self.reverse_twist(twist))?;
+            self.twist_queue.push_back(self.reverse_twist(twist));
             self.redo_buffer.push(twist);
             Ok(())
         } else {
@@ -502,7 +496,7 @@ impl PuzzleController {
             ScrambleState::Partial => false,
             ScrambleState::Full => true,
             ScrambleState::Solved => {
-                self.scramble.len() >= self.ty().scramble_moves_count()
+                self.scramble.len() >= self.scramble_moves_count()
                     || self.scramble.len() > PARTIAL_SCRAMBLE_MOVE_COUNT_MAX
             }
         }
@@ -533,11 +527,13 @@ impl PuzzleController {
     /// Returns the model transform for a piece, based on the current animation
     /// in progress.
     pub fn model_transform_for_piece(&self, piece: Piece) -> Matrix4<f32> {
-        if let Some((twist, t)) = self.current_twist() {
-            if twist.affects_piece(piece) {
-                return twist.model_transform(t);
-            }
-        }
+        // if let Some((twist, t)) = self.current_twist() {
+        //     if twist.affects_piece(piece) {
+        //         return twist.model_transform(t);
+        //     }
+        // }
+
+        // TODO: animate with model transform somehow
         Matrix4::identity()
     }
 
@@ -548,60 +544,61 @@ impl PuzzleController {
 
         twists
             .zip(prev_twists)
-            .filter(|(this, prev)| !this.can_combine(prev.as_ref(), metric))
+            .filter(|&(curr, prev)| !self.latest.can_combine_twists(prev, curr, metric))
             .count()
     }
 
     /// Loads a log file and returns the puzzle state.
     pub fn load_file(path: &Path) -> anyhow::Result<Self> {
-        let contents = std::fs::read_to_string(path)?;
-        let logfile = contents.parse::<mc4d_compat::LogFile>()?;
+        // let contents = std::fs::read_to_string(path)?;
+        // let logfile = contents.parse::<mc4d_compat::LogFile>()?;
 
-        let mut ret = Self {
-            displayed: Rubiks34::new().into(),
-            latest: Rubiks34::new().into(),
+        // let mut ret = Self {
+        //     displayed: Rubiks34::new().into(),
+        //     latest: Rubiks34::new().into(),
 
-            scramble_state: logfile.scramble_state,
+        //     scramble_state: logfile.scramble_state,
 
-            ..Self::default()
-        };
-        for twist in logfile.scramble_twists {
-            ret.twist(twist.into()).map_err(|e| anyhow!(e))?;
-        }
-        ret.scramble = ret.undo_buffer;
-        ret.undo_buffer = vec![];
-        ret.catch_up();
-        for twist in logfile.solve_twists {
-            ret.twist(twist.into()).map_err(|e| anyhow!(e))?;
-        }
+        //     ..Self::default()
+        // };
+        // for twist in logfile.scramble_twists {
+        //     ret.twist(twist.into()).map_err(|e| anyhow!(e))?;
+        // }
+        // ret.scramble = ret.undo_buffer;
+        // ret.undo_buffer = vec![];
+        // ret.catch_up();
+        // for twist in logfile.solve_twists {
+        //     ret.twist(twist.into()).map_err(|e| anyhow!(e))?;
+        // }
 
-        Ok(ret)
+        // Ok(ret)
+        todo!("TODO load log")
     }
 
     /// Saves the puzzle state to a log file.
     pub fn save_file(&mut self, path: &Path) -> anyhow::Result<()> {
         match self.latest {
-            Puzzle::Rubiks33(_) => bail!("log files only supported for Rubik's 4D"),
-            Puzzle::Rubiks34(_) => {
-                let logfile = mc4d_compat::LogFile {
-                    scramble_state: self.scramble_state,
-                    view_matrix: Matrix4::identity(),
-                    scramble_twists: self
-                        .scramble
-                        .iter()
-                        .map(|t| t.unwrap::<Rubiks34>())
-                        .collect(),
-                    solve_twists: self
-                        .undo_buffer
-                        .iter()
-                        .map(|t| t.unwrap::<Rubiks34>())
-                        .collect(),
-                };
-                std::fs::write(path, logfile.to_string())?;
-                self.is_unsaved = false;
+            Puzzle::Rubiks3D(_) => bail!("log files only supported for Rubik's 4D"),
+            // Puzzle::Rubiks34(_) => {
+            //     let logfile = mc4d_compat::LogFile {
+            //         scramble_state: self.scramble_state,
+            //         view_matrix: Matrix4::identity(),
+            //         scramble_twists: self
+            //             .scramble
+            //             .iter()
+            //             .map(|t| t.unwrap::<Rubiks34>())
+            //             .collect(),
+            //         solve_twists: self
+            //             .undo_buffer
+            //             .iter()
+            //             .map(|t| t.unwrap::<Rubiks34>())
+            //             .collect(),
+            //     };
+            //     std::fs::write(path, logfile.to_string())?;
+            //     self.is_unsaved = false;
 
-                Ok(())
-            }
+            //     Ok(())
+            // }
         }
     }
 }

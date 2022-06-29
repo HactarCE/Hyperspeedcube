@@ -2,8 +2,8 @@ use egui::NumExt;
 
 use super::util::{self, ResponseExt};
 use crate::app::App;
-use crate::preferences::DEFAULT_PREFS;
-use crate::puzzle::PuzzleTypeTrait;
+use crate::preferences::{FaceColor, DEFAULT_PREFS};
+use crate::puzzle::{traits::*, Face};
 use crate::serde_impl::hex_color;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
@@ -139,11 +139,11 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
 
     // Face colors
     ui.strong("Faces");
-    for &face in puzzle_type.faces() {
+    for (i, &face) in puzzle_type.faces().iter().enumerate() {
         let r = ui.add(resettable!(
-            face.name(),
+            face.name,
             hex_color::to_str,
-            (prefs.colors[face]),
+            (prefs.colors[(puzzle_type, Face(i as _))]),
             |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
         ));
         changed |= r.changed();

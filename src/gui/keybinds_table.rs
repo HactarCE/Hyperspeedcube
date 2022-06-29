@@ -9,7 +9,7 @@ use crate::commands::{
 };
 use crate::gui::util::BasicComboBox;
 use crate::preferences::{Keybind, Preferences};
-use crate::puzzle::{LayerMask, PieceType, PuzzleType, PuzzleTypeTrait, TwistDirection};
+use crate::puzzle::{LayerMask, PieceType, PuzzleType, PuzzleTypeEnum, TwistDirection};
 
 #[derive(Debug, Copy, Clone)]
 struct DragData {
@@ -35,7 +35,7 @@ pub(super) trait KeybindSet: 'static + Copy + Send + Sync {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(super) struct PuzzleKeybinds(pub(super) PuzzleType);
+pub(super) struct PuzzleKeybinds(pub(super) PuzzleTypeEnum);
 impl KeybindSet for PuzzleKeybinds {
     type Command = PuzzleCommand;
 
@@ -361,8 +361,9 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                     add_pre_label_space(ui);
                     ui.horizontal(|ui| {
                         ui.label("Type:");
-                        let r = ui.add(BasicComboBox::new_enum(unique_id!(self.idx), puzzle_type));
-                        changed |= r.changed();
+                        // TODO: puzzle type dropdown
+                        // let r = ui.add(BasicComboBox::new_enum(unique_id!(self.idx), puzzle_type));
+                        // changed |= r.changed();
                     });
                 }
 
@@ -410,8 +411,6 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
                 Cmd::None => CmdType::None,
             };
 
-            let default_direction = TwistDirection::default(puzzle_type);
-
             let r = ui.add(util::BasicComboBox::new_enum(
                 unique_id!(self.idx),
                 &mut cmd_type,
@@ -423,7 +422,7 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
 
                     CmdType::Twist => Cmd::Twist {
                         face: None,
-                        direction: default_direction,
+                        direction: TwistDirection::default(),
                         layer_mask: LayerMask::default(),
                     },
                     CmdType::Recenter => Cmd::Recenter { face: None },

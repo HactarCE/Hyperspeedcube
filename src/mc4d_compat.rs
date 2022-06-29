@@ -6,8 +6,7 @@ use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
 
-use crate::controller::ScrambleState;
-use crate::puzzle::rubiks34::*;
+use crate::puzzle::{rubiks34::*, ScrambleState};
 
 const MAGIC_STRING: &str = "MagicCube4D";
 const LOG_VERSION: &str = "3";

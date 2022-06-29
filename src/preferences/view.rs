@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::DeserializePerPuzzle;
-use crate::puzzle::PuzzleType;
+use crate::puzzle::PuzzleTypeEnum;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
@@ -45,12 +44,5 @@ impl Default for ViewPreferences {
             light_pitch: 0.0,
             light_yaw: 0.0,
         }
-    }
-}
-impl DeserializePerPuzzle<'_> for ViewPreferences {
-    type Proxy = Self;
-
-    fn deserialize_from(value: Self::Proxy, _ty: PuzzleType) -> Self {
-        value
     }
 }

@@ -1,6 +1,6 @@
 use super::util;
 use crate::app::App;
-use crate::puzzle::{LayerMask, PuzzleTypeTrait, Selection, TwistDirection};
+use crate::puzzle::{traits::*, LayerMask, Selection, TwistDirection};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::ScrollArea::new([false, true]).show(ui, |ui| {
@@ -26,10 +26,10 @@ fn build_select_section(ui: &mut egui::Ui, app: &mut App) {
 
     ui.strong("Faces");
     ui.with_layout(h_layout, |ui| {
-        for face in puzzle_type.faces() {
-            let bit = 1 << face.id();
+        for (i, face) in puzzle_type.faces().iter().enumerate() {
+            let bit = 1 << i;
             let mut is_sel = sel.face_mask & bit != 0;
-            let r = ui.selectable_value(&mut is_sel, true, face.name());
+            let r = ui.selectable_value(&mut is_sel, true, face.name);
             if r.changed() {
                 sel.face_mask ^= bit;
             }
@@ -52,17 +52,19 @@ fn build_select_section(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
-    ui.strong("Piece types");
-    ui.with_layout(h_layout, |ui| {
-        for (i, &piece_type) in puzzle_type.piece_type_names().iter().enumerate() {
-            let bit = 1 << i;
-            let mut is_sel = sel.piece_type_mask & bit != 0;
-            let r = ui.selectable_value(&mut is_sel, true, piece_type);
-            if r.changed() {
-                sel.piece_type_mask ^= bit;
-            }
-        }
-    });
+    // TODO: piece types
+
+    // ui.strong("Piece types");
+    // ui.with_layout(h_layout, |ui| {
+    //     for (i, &piece_type) in puzzle_type.piece_type_names().iter().enumerate() {
+    //         let bit = 1 << i;
+    //         let mut is_sel = sel.piece_type_mask & bit != 0;
+    //         let r = ui.selectable_value(&mut is_sel, true, piece_type);
+    //         if r.changed() {
+    //             sel.piece_type_mask ^= bit;
+    //         }
+    //     }
+    // });
 }
 
 fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
@@ -80,13 +82,9 @@ fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
     ui.strong("Twist");
     ui.add_enabled_ui(can_twist, |ui| {
         ui.with_layout(h_layout, |ui| {
-            for &twist_direction in puzzle_type.twist_direction_names() {
-                if ui.button(twist_direction).clicked() {
-                    app.do_twist(
-                        None,
-                        TwistDirection::from_name(puzzle_type, twist_direction),
-                        LayerMask::default(),
-                    );
+            for (i, twist_direction) in puzzle_type.twist_directions().iter().enumerate() {
+                if ui.button(twist_direction.name).clicked() {
+                    app.do_twist(None, TwistDirection(i as _), LayerMask::default());
                 }
             }
         });
