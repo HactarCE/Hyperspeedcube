@@ -205,11 +205,11 @@ impl PuzzleState for Rubiks3D {
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8 {
         let face = twist_axis.face();
         let face_coord = match face.sign() {
-            Sign::Pos => self.layer_count(),
+            Sign::Pos => self.layer_count() - 1,
             Sign::Neg => 0,
         };
-        let peice_coord = self.desc.piece_locations[piece.0 as usize][face.axis() as usize];
-        u8::abs_diff(face_coord, peice_coord)
+        let piece_coord = self.piece_location(piece)[face.axis() as usize];
+        u8::abs_diff(face_coord, piece_coord)
     }
 
     fn sticker_geometry(
@@ -217,7 +217,7 @@ impl PuzzleState for Rubiks3D {
         sticker: Sticker,
         p: StickerGeometryParams,
     ) -> Option<StickerGeometry> {
-        let (ax1, ax2) = self.info(sticker).face.parallel_axes();
+        let (ax1, ax2) = self.sticker_face(sticker).parallel_axes();
 
         // Compute the center of the sticker.
         let center = self.sticker_center_3d(sticker, p);
@@ -261,12 +261,21 @@ impl Rubiks3D {
         let initial_location = self.desc.piece_locations[piece.0 as usize];
         let mut ret = [0_u8; 3];
         for (i, axis) in Axis::iter().enumerate() {
-            ret[i] = initial_location[piece_state[axis].axis() as usize];
+            let r = piece_state[axis].axis() as usize;
+            ret[r] = initial_location[i];
             if piece_state[axis].sign() == Sign::Neg {
-                ret[i] = self.layer_count() - 1 - ret[i];
+                ret[r] = self.layer_count() - 1 - ret[r];
             }
         }
         ret
+    }
+    fn sticker_face(&self, sticker: Sticker) -> Face {
+        let sticker_info = self.info(sticker);
+        let ret = self[sticker_info.piece][sticker_info.face.axis()];
+        match sticker_info.face.sign() {
+            Sign::Pos => ret,
+            Sign::Neg => ret.opposite(),
+        }
     }
 
     fn piece_center_3d(&self, piece: Piece, p: StickerGeometryParams) -> Point3<f32> {
@@ -283,8 +292,9 @@ impl Rubiks3D {
         let sticker_info = self.info(sticker);
         let piece = sticker_info.piece;
         let mut ret = self.piece_center_3d(piece, p);
-        ret[sticker_info.face.axis() as usize] =
-            self.max_extent() * sticker_info.face.sign().float();
+
+        let sticker_face = self.sticker_face(sticker);
+        ret[sticker_face.axis() as usize] = self.max_extent() * sticker_face.sign().float();
         ret
     }
     fn transform_point(&self, point: Point3<f32>, p: StickerGeometryParams) -> Point3<f32> {
@@ -392,6 +402,8 @@ impl TwistDirection {
     }
 }
 
+/// The facing directions of the X+, Y+, and Z+ stickers on this piece (assuming
+/// it has those stickers).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct PieceState([Face; 3]);
 impl Default for PieceState {
@@ -414,12 +426,21 @@ impl IndexMut<Axis> for PieceState {
 impl PieceState {
     #[must_use]
     fn rotate(mut self, from: Axis, to: Axis) -> Self {
-        self.0.swap(from as _, to as _); // Swap axes
+        let diff = (from as u8 ^ to as u8) << 1;
+        for face in &mut self.0 {
+            if face.axis() == from || face.axis() == to {
+                face.0 ^= diff; // Swap axes
+            }
+        }
         self.mirror(from) // Flip sign of one axis
     }
     #[must_use]
     fn mirror(mut self, axis: Axis) -> Self {
-        self[axis] = self[axis].opposite();
+        for face in &mut self.0 {
+            if face.axis() == axis {
+                *face = face.opposite();
+            }
+        }
         self
     }
 
@@ -432,8 +453,8 @@ impl PieceState {
         }
         let (a, b) = axis.perpendiculars();
         match direction {
-            TwistDirection::CW_90 => self.rotate(b, a),
-            TwistDirection::CCW_90 => self.rotate(a, b),
+            TwistDirection::CW_90 => self.rotate(a, b),
+            TwistDirection::CCW_90 => self.rotate(b, a),
             TwistDirection::CW_180 => self.mirror(a).mirror(b),
             TwistDirection::CCW_180 => self.mirror(a).mirror(b),
             TwistDirection(TwistDirection::COUNT..) => panic!("invalid twist direction"),
