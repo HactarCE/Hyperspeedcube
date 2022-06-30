@@ -179,79 +179,57 @@ impl LayerMask {
     }
 }
 
-/// Selection of faces, layers, and piece types.
+/// Selection of twist axis and layers.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Selection {
-    /// Bitmask of selected faces.
-    pub face_mask: u32,
+pub struct TwistSelection {
+    /// Bitmask of selected twist axes.
+    pub axis_mask: u32,
     /// Bitmask of selected layers.
     pub layer_mask: u32,
-    /// Bitmask of selected piece types.
-    pub piece_type_mask: u32,
 }
-impl Default for Selection {
+impl Default for TwistSelection {
     fn default() -> Self {
         Self {
-            face_mask: 0,
-            layer_mask: 0,
-            piece_type_mask: u32::MAX,
+            axis_mask: 0_u32,
+            layer_mask: 1_u32,
         }
     }
 }
-impl std::ops::BitOr for Selection {
+impl std::ops::BitOr for TwistSelection {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
         Self {
-            face_mask: self.face_mask | rhs.face_mask,
+            axis_mask: self.axis_mask | rhs.axis_mask,
             layer_mask: self.layer_mask | rhs.layer_mask,
-            piece_type_mask: self.piece_type_mask | rhs.piece_type_mask,
         }
     }
 }
-impl std::ops::BitXorAssign for Selection {
+impl std::ops::BitXorAssign for TwistSelection {
     fn bitxor_assign(&mut self, rhs: Self) {
-        self.face_mask ^= rhs.face_mask;
+        self.axis_mask ^= rhs.axis_mask;
         self.layer_mask ^= rhs.layer_mask;
-        self.piece_type_mask ^= rhs.piece_type_mask;
     }
 }
-impl Selection {
-    /// Returns the face selected if exactly one face is selected; otherwise
-    /// returns `None`.
-    pub fn exactly_one_face(&self, puzzle_type: PuzzleTypeEnum) -> Option<Face> {
-        if self.face_mask.count_ones() == 1 {
-            let index_of_first_one_bit = self.face_mask.trailing_zeros();
-            Some(Face(index_of_first_one_bit as _))
-        } else {
-            None
-        }
-    }
-    /// Returns the layer mask if any layers are selected, or a default layer
-    /// mask (generally just one layer) otherwise.
-    pub fn layer_mask_or_default(self, default: LayerMask) -> LayerMask {
-        if self.layer_mask != 0 {
+impl TwistSelection {
+    /// Returns the layer mask if any layers are selected, or the default layer
+    /// mask (outermost layer only) otherwise.
+    pub fn layer_mask_or_default(self) -> LayerMask {
+        if self.layer_mask != 0_u32 {
             LayerMask(self.layer_mask)
         } else {
-            default
+            LayerMask::default()
         }
     }
 
-    /// Returns whether the selection includes a particular sticker.
+    /// Returns whether the twist selection includes a particular sticker.
     pub fn has_sticker(self, puzzle: &dyn PuzzleState, sticker: Sticker) -> bool {
         let piece = puzzle.info(sticker).piece;
 
-        // // Filter by piece type.
-        // if self.piece_type_mask & (1 << piece.piece_type().id()) == 0 {
-        //     return false;
-        // }
-
-        // TODO: filter by piece type or whatever
-
         // Filter by twist_axis and layer.
-        let layer_mask = self.layer_mask_or_default(LayerMask::default());
+        let layer_mask = self.layer_mask_or_default();
         (0..puzzle.twist_axes().len() as _)
-            .filter(|i| (self.face_mask >> i) & 1 != 0)
+            .filter(|i| (self.axis_mask >> i) & 1 != 0)
             .map(TwistAxis)
             .map(|twist_axis| puzzle.layer_from_twist_axis(twist_axis, piece))
             .all(|layer| layer_mask[layer])

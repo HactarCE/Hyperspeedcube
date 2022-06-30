@@ -32,8 +32,8 @@ pub mod interpolate {
 
 use super::{
     geometry, traits::*, Face, FaceInfo, LayerMask, Piece, PieceInfo, ProjectedStickerGeometry,
-    Puzzle, PuzzleInfo, PuzzleTypeEnum, Selection, Sticker, StickerGeometryParams, StickerInfo,
-    Twist, TwistAxisInfo, TwistDirection, TwistDirectionInfo, TwistMetric,
+    Puzzle, PuzzleInfo, PuzzleTypeEnum, Sticker, StickerGeometryParams, StickerInfo, Twist,
+    TwistAxisInfo, TwistDirection, TwistDirectionInfo, TwistMetric, TwistSelection,
 };
 use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::preferences::InteractionPreferences;
@@ -76,7 +76,7 @@ pub struct PuzzleController {
     redo_buffer: Vec<Twist>,
 
     /// Selected pieces/stickers.
-    selection: Selection,
+    selection: TwistSelection,
     /// Sticker that the user is hovering over.
     hovered_sticker: Option<Sticker>,
     /// Sticker animation states, for interpolating when the user changes the
@@ -121,7 +121,7 @@ impl PuzzleController {
             undo_buffer: vec![],
             redo_buffer: vec![],
 
-            selection: Selection::default(),
+            selection: TwistSelection::default(),
             hovered_sticker: None,
             sticker_animation_states: vec![StickerDecorAnim::default(); ty.stickers().len()],
 
@@ -196,11 +196,11 @@ impl PuzzleController {
     }
 
     /// Returns the puzzle selection.
-    pub fn selection(&self) -> Selection {
+    pub fn selection(&self) -> TwistSelection {
         self.selection
     }
     /// Sets the puzzle selection.
-    pub fn set_selection(&mut self, selection: Selection) {
+    pub fn set_selection(&mut self, selection: TwistSelection) {
         self.selection = selection;
     }
 
@@ -209,15 +209,13 @@ impl PuzzleController {
         self.hovered_sticker = hovered_stickers
             .into_iter()
             .filter(|&sticker| {
-                // TODO: figure this out
-
-                // let sticker_mid_twist = match self.current_twist() {
-                //     // Use the selection after the twist.
-                //     Some((twist, t)) if t > 0.5 => twist.destination_sticker(sticker),
-                //     // Use the selection before the twist.
-                //     _ => sticker,
-                // };
-                self.selection.has_sticker(self.latest(), sticker)
+                let less_than_halfway = TWIST_INTERPOLATION_FN(self.progress) < 0.5;
+                let puzzle_state_mid_twist = if less_than_halfway {
+                    self.displayed() // puzzle state before the twist
+                } else {
+                    &self.next_displayed // puzzle state after the twist
+                };
+                self.selection.has_sticker(puzzle_state_mid_twist, sticker)
             })
             .next();
     }

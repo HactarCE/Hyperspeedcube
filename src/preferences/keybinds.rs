@@ -4,7 +4,7 @@ use std::fmt;
 use winit::event::{ModifiersState, VirtualKeyCode};
 
 use super::is_false;
-use crate::commands::{PuzzleCommand, PuzzleCommandSerde};
+use crate::commands::PuzzleCommand;
 use crate::puzzle::PuzzleTypeEnum;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
@@ -16,7 +16,6 @@ pub struct Keybind<C> {
 fn deser_valid_key_combo<'de, D: Deserializer<'de>>(deserializer: D) -> Result<KeyCombo, D::Error> {
     KeyCombo::deserialize(deserializer).map(KeyCombo::validate)
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, Eq)]
 #[serde(default)]

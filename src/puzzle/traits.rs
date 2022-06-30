@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use super::*; // TODO better import
 
 #[delegatable_trait]
@@ -17,6 +19,17 @@ pub trait PuzzleType {
     fn stickers(&self) -> &[StickerInfo];
     fn twist_axes(&self) -> &[TwistAxisInfo];
     fn twist_directions(&self) -> &[TwistDirectionInfo];
+
+    fn twist_axis_from_name(&self, name: &str) -> Option<crate::puzzle::TwistAxis> {
+        (0..self.twist_axes().len() as u8)
+            .map(crate::puzzle::TwistAxis)
+            .find(|&twist_axis| self.info(twist_axis).name == name)
+    }
+    fn twist_direction_from_name(&self, name: &str) -> Option<crate::puzzle::TwistDirection> {
+        (0..self.twist_directions().len() as u8)
+            .map(crate::puzzle::TwistDirection)
+            .find(|&twist_direction| self.info(twist_direction).name == name)
+    }
 
     fn check_layers(&self, layer_mask: LayerMask) -> Result<(), &'static str> {
         let layer_count = self.layer_count() as u32;
@@ -39,7 +52,7 @@ pub trait PuzzleType {
             layer_mask: twist.layer_mask,
         }
     }
-    fn make_recenter_twist(&self, face: Face) -> Result<Twist, String>;
+    fn make_recenter_twist(&self, axis: crate::puzzle::TwistAxis) -> Result<Twist, String>;
     fn canonicalize_twist(&self, twist: Twist) -> Twist;
 
     fn can_combine_twists(&self, prev: Option<Twist>, curr: Twist, metric: TwistMetric) -> bool {

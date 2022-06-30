@@ -1,37 +1,42 @@
 use super::util;
 use crate::app::App;
-use crate::puzzle::{traits::*, LayerMask, Selection, TwistDirection};
+use crate::puzzle::{traits::*, LayerMask, Twist, TwistDirection, TwistSelection};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::ScrollArea::new([false, true]).show(ui, |ui| {
-        build_select_section(ui, app);
-        ui.separator();
         build_twist_section(ui, app);
     });
 }
 
-fn build_select_section(ui: &mut egui::Ui, app: &mut App) {
-    let sel = &mut app.toggle_selections;
+fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
+    let puzzle_type = app.puzzle.ty();
+
+    let sel = app.puzzle_selection();
+    let toggle_sel = &mut app.toggle_selections;
+
     ui.horizontal(|ui| {
         ui.style_mut().wrap = Some(false);
         ui.heading("Puzzle Controls");
-        util::reset_button(ui, sel, Selection::default(), "");
+        util::reset_button(ui, toggle_sel, TwistSelection::default(), "");
     });
+
     ui.separator();
-    let puzzle_type = app.puzzle.ty();
 
     let h_layout = egui::Layout::left_to_right()
         .with_cross_align(egui::Align::TOP)
         .with_main_wrap(true);
 
-    ui.strong("Faces");
+    ui.strong("Twist axis");
     ui.with_layout(h_layout, |ui| {
-        for (i, face) in puzzle_type.faces().iter().enumerate() {
+        for (i, twist_axis) in puzzle_type.twist_axes().iter().enumerate() {
             let bit = 1 << i;
-            let mut is_sel = sel.face_mask & bit != 0;
-            let r = ui.selectable_value(&mut is_sel, true, face.name);
+            let mut is_sel = sel.axis_mask & bit != 0;
+            let r = ui.selectable_value(&mut is_sel, true, twist_axis.name);
             if r.changed() {
-                sel.face_mask ^= bit;
+                toggle_sel.axis_mask ^= bit;
+                if !ui.input().modifiers.command {
+                    toggle_sel.axis_mask &= bit;
+                }
             }
         }
     });
@@ -45,46 +50,29 @@ fn build_select_section(ui: &mut egui::Ui, app: &mut App) {
             let mut is_sel = sel.layer_mask & bit != 0;
             let r = ui.selectable_value(&mut is_sel, true, format!("{}", i + 1));
             if r.changed() {
-                sel.layer_mask ^= bit;
+                toggle_sel.layer_mask ^= bit;
             }
         }
     });
 
     ui.separator();
 
-    // TODO: piece types
-
-    // ui.strong("Piece types");
-    // ui.with_layout(h_layout, |ui| {
-    //     for (i, &piece_type) in puzzle_type.piece_type_names().iter().enumerate() {
-    //         let bit = 1 << i;
-    //         let mut is_sel = sel.piece_type_mask & bit != 0;
-    //         let r = ui.selectable_value(&mut is_sel, true, piece_type);
-    //         if r.changed() {
-    //             sel.piece_type_mask ^= bit;
-    //         }
-    //     }
-    // });
-}
-
-fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
-    let puzzle_type = app.puzzle.ty();
-
-    let h_layout = egui::Layout::left_to_right()
-        .with_cross_align(egui::Align::TOP)
-        .with_main_wrap(true);
-
-    let can_twist = app
-        .puzzle_selection()
-        .exactly_one_face(puzzle_type)
-        .is_some();
+    let twist_axis = app.selected_twist_axis();
+    let can_twist = twist_axis.is_some() && sel.layer_mask != 0_u32;
 
     ui.strong("Twist");
     ui.add_enabled_ui(can_twist, |ui| {
         ui.with_layout(h_layout, |ui| {
             for (i, twist_direction) in puzzle_type.twist_directions().iter().enumerate() {
                 if ui.button(twist_direction.name).clicked() {
-                    app.do_twist(None, TwistDirection(i as _), LayerMask::default());
+                    if let Some(axis) = twist_axis {
+                        // should always be `Some`
+                        app.event(Twist {
+                            axis,
+                            direction: TwistDirection(i as _),
+                            layer_mask: app.selected_layers(None),
+                        })
+                    }
                 }
             }
         });

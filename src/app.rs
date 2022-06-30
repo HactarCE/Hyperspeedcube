@@ -7,10 +7,10 @@ use std::time::Duration;
 use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
-use crate::commands::{Command, PuzzleCommand, SelectCategory};
+use crate::commands::{Command, PuzzleCommand};
 use crate::preferences::{Key, Keybind, Preferences};
 use crate::puzzle::{
-    traits::*, Face, LayerMask, PuzzleController, Selection, Twist, TwistDirection,
+    traits::*, LayerMask, PuzzleController, Twist, TwistAxis, TwistDirection, TwistSelection,
 };
 use crate::render::{GraphicsState, PuzzleRenderCache};
 
@@ -30,9 +30,9 @@ pub struct App {
     /// Set of pressed modifier keys.
     pressed_modifiers: ModifiersState,
     /// Selections tied to a held key.
-    held_selections: HashMap<Key, Selection>,
+    held_selections: HashMap<Key, TwistSelection>,
     /// Semi-permanent selections.
-    pub(crate) toggle_selections: Selection,
+    pub(crate) toggle_selections: TwistSelection,
 
     status_msg: String,
 }
@@ -51,7 +51,7 @@ impl App {
             pressed_keys: HashSet::default(),
             pressed_modifiers: ModifiersState::default(),
             held_selections: HashMap::default(),
-            toggle_selections: Selection::default(),
+            toggle_selections: TwistSelection::default(),
 
             status_msg: String::default(),
         };
@@ -166,24 +166,13 @@ impl App {
                 Command::None => (),
             },
 
-            AppEvent::Twist {
-                face,
-                direction,
-                layer_mask,
-            } => {
-                todo!("twist");
-                // self.puzzle.twist(Twist::from_face_with_layers(
-                //     face,
-                //     direction.name(),
-                //     layer_mask,
-                // )?)?
-            }
-            AppEvent::Recenter(face) => {
-                self.puzzle.twist(self.puzzle.make_recenter_twist(face)?)?
+            AppEvent::Twist(twist) => {
+                self.puzzle.twist(twist)?;
             }
 
             AppEvent::Click(egui::PointerButton::Primary) => {
                 if let Some(sticker) = self.puzzle.hovered_sticker() {
+                    println!("{:?} on {:?}", sticker, self.puzzle.info(sticker).piece);
                     // TODO: twist CCW
                     // self.puzzle.twist(Twist::from_sticker(
                     //     sticker,
@@ -205,10 +194,11 @@ impl App {
                 // }
             }
             AppEvent::Click(egui::PointerButton::Middle) => {
-                if let Some(sticker) = self.puzzle.hovered_sticker() {
-                    let face = self.puzzle.info(sticker).face;
-                    self.puzzle.twist(self.puzzle.make_recenter_twist(face)?)?;
-                }
+                // TODO: recenter sticker
+                // if let Some(sticker) = self.puzzle.hovered_sticker() {
+                //     let face = self.puzzle.info(sticker).face;
+                //     self.puzzle.twist(self.puzzle.make_recenter_twist(face)?)?;
+                // }
             }
 
             AppEvent::StatusError(msg) => return Err(msg),
@@ -260,40 +250,54 @@ impl App {
                         let puzzle_keybinds = &self.prefs.puzzle_keybinds[self.puzzle.ty()];
                         for bind in self.resolve_keypress(puzzle_keybinds, sc, vk) {
                             match &bind.command {
+                                PuzzleCommand::SelectAxis(axis_name) => {
+                                    match self.twist_axis_from_name(Some(axis_name)) {
+                                        Ok(twist_axis) => {
+                                            if twist_axis.0 < 32 {
+                                                self.held_selections.insert(
+                                                    bind.key.key().unwrap(),
+                                                    TwistSelection {
+                                                        axis_mask: 1 << twist_axis.0,
+                                                        layer_mask: 0,
+                                                    },
+                                                );
+                                            } else {
+                                                self.event(AppEvent::StatusError(
+                                                    "Too many twist axes".to_string(),
+                                                ));
+                                            }
+                                        }
+                                        Err(e) => self.event(AppEvent::StatusError(e)),
+                                    }
+                                }
+                                PuzzleCommand::SelectLayers(layers) => {
+                                    self.held_selections.insert(
+                                        bind.key.key().unwrap(),
+                                        TwistSelection {
+                                            axis_mask: 0,
+                                            layer_mask: layers.0,
+                                        },
+                                    );
+                                }
                                 PuzzleCommand::Twist {
-                                    face,
+                                    axis,
                                     direction,
-                                    layer_mask,
+                                    layers,
                                 } => {
                                     if !done_twist_command {
                                         done_twist_command = true;
-                                        self.do_twist(*face, *direction, *layer_mask);
+                                        if let Err(e) =
+                                            self.do_twist(axis.as_deref(), direction, *layers)
+                                        {
+                                            self.event(AppEvent::StatusError(e));
+                                        }
                                     }
                                 }
-                                PuzzleCommand::Recenter { face } => {
+                                PuzzleCommand::Recenter { axis } => {
                                     if !done_twist_command {
                                         done_twist_command = true;
-                                        self.do_recenter(*face);
-                                    }
-                                }
-
-                                PuzzleCommand::HoldSelect(thing) => {
-                                    let sel = Selection::from(*thing);
-                                    self.held_selections.insert(bind.key.key().unwrap(), sel);
-                                }
-                                PuzzleCommand::ToggleSelect(thing) => {
-                                    self.toggle_selections ^= Selection::from(*thing);
-                                }
-                                PuzzleCommand::ClearToggleSelect(category) => {
-                                    let default = Selection::default();
-                                    let tog_sel = &mut self.toggle_selections;
-
-                                    use SelectCategory::*;
-                                    match category {
-                                        Face => tog_sel.face_mask = default.face_mask,
-                                        Layers => tog_sel.layer_mask = default.layer_mask,
-                                        PieceType => {
-                                            tog_sel.piece_type_mask = default.piece_type_mask
+                                        if let Err(e) = self.do_recenter(axis.as_deref()) {
+                                            self.event(AppEvent::StatusError(e));
                                         }
                                     }
                                 }
@@ -374,32 +378,64 @@ impl App {
             .collect()
     }
 
-    pub(crate) fn do_twist(
-        &self,
-        face: Option<Face>,
-        direction: TwistDirection,
-        layer_mask: LayerMask,
-    ) {
-        let sel = self.puzzle_selection();
+    fn twist_axis_from_name(&self, name: Option<&str>) -> Result<TwistAxis, String> {
+        self.puzzle
+            .ty()
+            .twist_axis_from_name(name.ok_or("No twist axis selected")?)
+            .ok_or_else(|| format!("No twist axis named {name:?}"))
+    }
+    fn twist_direction_from_name(&self, name: &str) -> Result<TwistDirection, String> {
+        self.puzzle
+            .ty()
+            .twist_direction_from_name(name)
+            .ok_or_else(|| format!("No twist direction named {name:?}"))
+    }
 
-        if let Some(face) = face.or_else(|| sel.exactly_one_face(self.puzzle.ty())) {
-            self.event(AppEvent::Twist {
-                face,
-                direction,
-                layer_mask: sel.layer_mask_or_default(layer_mask),
-            });
+    /// Returns the twist axis selected if exactly one twist axis is selected;
+    /// otherwise returns `None`.
+    pub(crate) fn selected_twist_axis(&self) -> Option<TwistAxis> {
+        let sel = self.puzzle_selection();
+        if sel.axis_mask.count_ones() == 1 {
+            let index_of_first_one_bit = sel.axis_mask.trailing_zeros();
+            Some(TwistAxis(index_of_first_one_bit as _))
         } else {
-            self.event(AppEvent::StatusError("No face selected".to_string()));
+            None
         }
     }
-    pub(crate) fn do_recenter(&self, face: Option<Face>) {
+    /// Returns the mask of selected layers, or `fallback` if `fallback` is
+    /// non-default.
+    pub(crate) fn selected_layers(&self, fallback: Option<LayerMask>) -> LayerMask {
+        if let Some(layers) = fallback {
+            if layers != LayerMask::default() {
+                return layers;
+            }
+        }
+        self.puzzle_selection().layer_mask_or_default()
+    }
+
+    pub(crate) fn do_twist(
+        &self,
+        twist_axis: Option<&str>,
+        direction: &str,
+        layer_mask: LayerMask,
+    ) -> Result<(), String> {
+        let puzzle_type = self.puzzle.ty();
         let sel = self.puzzle_selection();
 
-        if let Some(face) = face.or_else(|| sel.exactly_one_face(self.puzzle.ty())) {
-            self.event(AppEvent::Recenter(face));
-        } else {
-            self.event(AppEvent::StatusError("No face selected".to_string()));
-        }
+        self.event(AppEvent::Twist(Twist {
+            axis: self.twist_axis_from_name(twist_axis)?,
+            direction: self.twist_direction_from_name(direction)?,
+            layer_mask: self.selected_layers(Some(layer_mask)),
+        }));
+        Ok(())
+    }
+    pub(crate) fn do_recenter(&self, twist_axis: Option<&str>) -> Result<(), String> {
+        let axis = match twist_axis {
+            Some(name) => self.twist_axis_from_name(Some(name))?,
+            None => self.selected_twist_axis().ok_or("No twist axis selected")?,
+        };
+        self.event(AppEvent::Twist(self.puzzle.make_recenter_twist(axis)?));
+        Ok(())
     }
 
     pub(crate) fn pressed_keys(&self) -> &HashSet<Key> {
@@ -476,23 +512,16 @@ impl App {
         self.status_msg = format!("Error: {}", msg)
     }
 
-    pub(crate) fn puzzle_selection(&self) -> Selection {
+    pub(crate) fn puzzle_selection(&self) -> TwistSelection {
         let mut ret = self
             .held_selections
             .values()
             .copied()
             .reduce(|a, b| a | b)
             .unwrap_or(self.toggle_selections);
-        ret.face_mask |= self.toggle_selections.face_mask;
+        ret.axis_mask |= self.toggle_selections.axis_mask;
         if ret.layer_mask == 0 {
             ret.layer_mask = self.toggle_selections.layer_mask;
-        }
-        if self
-            .held_selections
-            .values()
-            .all(|s| s.piece_type_mask == 0)
-        {
-            ret.piece_type_mask = self.toggle_selections.piece_type_mask;
         }
         ret
     }
@@ -505,12 +534,7 @@ impl App {
 pub(crate) enum AppEvent {
     Command(Command),
 
-    Twist {
-        face: Face,
-        direction: TwistDirection,
-        layer_mask: LayerMask,
-    },
-    Recenter(Face),
+    Twist(Twist),
 
     Click(egui::PointerButton),
 
@@ -519,6 +543,11 @@ pub(crate) enum AppEvent {
 impl From<Command> for AppEvent {
     fn from(c: Command) -> Self {
         Self::Command(c)
+    }
+}
+impl From<Twist> for AppEvent {
+    fn from(t: Twist) -> Self {
+        Self::Twist(t)
     }
 }
 

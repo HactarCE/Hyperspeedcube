@@ -152,18 +152,17 @@ impl PuzzleType for Rubiks3DDescription {
     fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection {
         direction.rev()
     }
-    fn make_recenter_twist(&self, face: Face) -> Result<Twist, String> {
-        let axis = match face {
-            Face::R => TwistAxis(Face::U.0),
-            Face::L => TwistAxis(Face::D.0),
-            Face::U => TwistAxis(Face::L.0),
-            Face::D => TwistAxis(Face::R.0),
-            Face::F => return Err("cannot recenter near face".to_string()),
-            Face::B => return Err("cannot recenter far face".to_string()),
-            _ => return Err("invalid face".to_string()),
-        };
+    fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String> {
         Ok(Twist {
-            axis,
+            axis: match axis.face() {
+                Face::R => TwistAxis(Face::U.0),
+                Face::L => TwistAxis(Face::D.0),
+                Face::U => TwistAxis(Face::L.0),
+                Face::D => TwistAxis(Face::R.0),
+                Face::F => return Err("cannot recenter near face".to_string()),
+                Face::B => return Err("cannot recenter far face".to_string()),
+                _ => return Err("invalid face".to_string()),
+            },
             direction: TwistDirection::CW_90,
             layer_mask: self.all_layers(),
         })
