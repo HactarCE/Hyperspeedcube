@@ -248,9 +248,8 @@ impl PuzzleController {
 
     pub(crate) fn geometry(
         &mut self,
-        mut params: StickerGeometryParams,
+        params: StickerGeometryParams,
     ) -> Arc<Vec<ProjectedStickerGeometry>> {
-        params.model_transform = Matrix4::identity();
         if self.cached_geometry_params != Some(params) {
             // Invalidate the cache.
             self.cached_geometry = None;
@@ -263,71 +262,66 @@ impl PuzzleController {
 
             // Project stickers.
             let mut sticker_geometries: Vec<ProjectedStickerGeometry> = vec![];
-            for (i, piece_info) in self.pieces().iter().enumerate() {
-                let piece = Piece(i as _);
-                params.model_transform = self.model_transform_for_piece(piece);
+            for sticker in (0..self.stickers().len() as _).map(Sticker) {
+                // Compute geometry, including vertex positions before 3D
+                // perspective projection.
+                let sticker_geom = match self.displayed().sticker_geometry(sticker, params) {
+                    Some(s) => s,
+                    None => continue, // invisible; skip this sticker
+                };
 
-                for &sticker in &piece_info.stickers {
-                    // Compute geometry, including vertex positions before 3D
-                    // perspective projection.
-                    let sticker_geom = match self.displayed().sticker_geometry(sticker, params) {
-                        Some(s) => s,
-                        None => continue, // invisible; skip this sticker
-                    };
+                // Compute vertex positions after 3D perspective projection.
+                let projected_verts = match sticker_geom
+                    .verts
+                    .iter()
+                    .map(|&v| params.project_3d(v))
+                    .collect::<Option<Vec<_>>>()
+                {
+                    Some(s) => s,
+                    None => continue, // behind camera; skip this sticker
+                };
 
-                    // Compute vertex positions after 3D perspective projection.
-                    let projected_verts = match sticker_geom
-                        .verts
-                        .iter()
-                        .map(|&v| params.project_3d(v))
-                        .collect::<Option<Vec<_>>>()
-                    {
-                        Some(s) => s,
-                        None => continue, // behind camera; skip this sticker
-                    };
+                let mut projected_front_polygons = vec![];
+                let mut projected_back_polygons = vec![];
 
-                    let mut projected_front_polygons = vec![];
-                    let mut projected_back_polygons = vec![];
-
-                    for indices in &sticker_geom.polygon_indices {
-                        let projected_normal =
-                            geometry::polygon_normal_from_indices(&projected_verts, indices);
-                        if projected_normal.z > 0.0 {
-                            // This polygon is front-facing.
-                            let lighting_normal =
-                                geometry::polygon_normal_from_indices(&sticker_geom.verts, indices)
-                                    .normalize();
-                            let illumination =
-                                params.ambient_light + lighting_normal.dot(params.light_vector);
-                            projected_front_polygons.push(geometry::polygon_from_indices(
-                                &projected_verts,
-                                indices,
-                                illumination,
-                            ));
-                        } else {
-                            // This polygon is back-facing.
-                            let illumination = 0.0; // don't care
-                            projected_back_polygons.push(geometry::polygon_from_indices(
-                                &projected_verts,
-                                indices,
-                                illumination,
-                            ));
-                        }
+                for indices in &sticker_geom.polygon_indices {
+                    let projected_normal =
+                        geometry::polygon_normal_from_indices(&projected_verts, indices);
+                    if projected_normal.z > 0.0 {
+                        // This polygon is front-facing.
+                        let lighting_normal =
+                            geometry::polygon_normal_from_indices(&sticker_geom.verts, indices)
+                                .normalize();
+                        let illumination =
+                            params.ambient_light + lighting_normal.dot(params.light_vector);
+                        projected_front_polygons.push(geometry::polygon_from_indices(
+                            &projected_verts,
+                            indices,
+                            illumination,
+                        ));
+                    } else {
+                        // This polygon is back-facing.
+                        let illumination = 0.0; // don't care
+                        projected_back_polygons.push(geometry::polygon_from_indices(
+                            &projected_verts,
+                            indices,
+                            illumination,
+                        ));
                     }
-
-                    let (min_bound, max_bound) = util::min_and_max_bound(&projected_verts);
-
-                    sticker_geometries.push(ProjectedStickerGeometry {
-                        sticker,
-
-                        verts: projected_verts.into_boxed_slice(),
-                        min_bound,
-                        max_bound,
-
-                        front_polygons: projected_front_polygons.into_boxed_slice(),
-                        back_polygons: projected_back_polygons.into_boxed_slice(),
-                    });
                 }
+
+                let (min_bound, max_bound) = util::min_and_max_bound(&projected_verts);
+
+                sticker_geometries.push(ProjectedStickerGeometry {
+                    sticker,
+
+                    verts: projected_verts.into_boxed_slice(),
+                    min_bound,
+                    max_bound,
+
+                    front_polygons: projected_front_polygons.into_boxed_slice(),
+                    back_polygons: projected_back_polygons.into_boxed_slice(),
+                });
             }
 
             // Sort stickers by depth.
@@ -356,11 +350,13 @@ impl PuzzleController {
             self.queue_max = 0;
             return;
         }
+        if self.progress == 0.0 {
+            self.next_displayed = self.displayed().clone();
+            self.next_displayed
+                .twist(*self.twist_queue.front().unwrap())
+                .expect("failed to apply twist from twist queue");
+        }
 
-        // Invalidate the geometry cache.
-        self.cached_geometry = None;
-
-        if self.progress >= 1.0 {}
         // Update queue_max.
         self.queue_max = std::cmp::max(self.queue_max, self.twist_queue.len());
         // duration is in seconds (per one twist); speed is (fraction of twist) per frame.
@@ -378,14 +374,12 @@ impl PuzzleController {
         }
         self.progress += twist_delta;
         if self.progress >= 1.0 {
-            self.progress = 1.0;
-
-            let twist = self.twist_queue.pop_front().unwrap();
-
-            self.displayed
-                .twist(twist)
-                .expect("failed to apply twist from twist queue");
+            self.twist_queue.pop_front();
+            self.displayed = self.next_displayed.clone();
             self.progress = 0.0;
+
+            // The puzzle state has changed, so invalidate the geometry cache.
+            self.cached_geometry = None;
         }
     }
     /// Advances the puzzle decorations (outlines and sticker opacities) to the
@@ -520,19 +514,6 @@ impl PuzzleController {
         } else {
             false
         }
-    }
-
-    /// Returns the model transform for a piece, based on the current animation
-    /// in progress.
-    pub fn model_transform_for_piece(&self, piece: Piece) -> Matrix4<f32> {
-        // if let Some((twist, t)) = self.current_twist() {
-        //     if twist.affects_piece(piece) {
-        //         return twist.model_transform(t);
-        //     }
-        // }
-
-        // TODO: animate with model transform somehow
-        Matrix4::identity()
     }
 
     /// Returns the number of twists applied to the puzzle.

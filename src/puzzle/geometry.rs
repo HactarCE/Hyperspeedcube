@@ -5,7 +5,7 @@ use cgmath::*;
 use smallvec::{smallvec, SmallVec};
 use std::cmp::Ordering;
 
-use super::Sticker;
+use super::{traits::*, PuzzleTypeEnum, Sticker, Twist};
 use crate::preferences::ViewPreferences;
 use crate::util::{self, f32_total_cmp, IterCyclicPairsExt};
 
@@ -34,9 +34,8 @@ pub struct StickerGeometryParams {
     /// computed from the 3D FOV.
     pub w_factor_3d: f32,
 
-    /// Model transformation matrix for an individual sticker, before 4D
-    /// projection.
-    pub model_transform: Matrix4<f32>,
+    /// Animated twist and animation progress.
+    pub twist_animation: Option<(Twist, f32)>,
     /// View transformation matrix for the whole puzzle, after 4D projection.
     pub view_transform: Matrix3<f32>,
 
@@ -46,21 +45,24 @@ pub struct StickerGeometryParams {
     pub light_vector: Vector3<f32>,
 }
 impl StickerGeometryParams {
-    /// Radius within which all puzzle geometry is expected to be.
-    pub const CLIPPING_RADIUS: f32 = 2.0;
-
     /// Constructs sticker geometry parameters for a set of view preferences.
-    pub fn new(view_prefs: &ViewPreferences) -> Self {
+    pub fn new(
+        view_prefs: &ViewPreferences,
+        puzzle_type: PuzzleTypeEnum,
+        twist_animation: Option<(Twist, f32)>,
+    ) -> Self {
         // Compute the view and perspective transforms, which must be applied here
         // on the CPU so that we can do proper depth sorting.
         let view_transform = Matrix3::from_angle_x(Deg(view_prefs.pitch))
             * Matrix3::from_angle_y(Deg(view_prefs.yaw))
-            / Self::CLIPPING_RADIUS;
+            / puzzle_type.radius();
 
         let ambient_light = 1.0 - view_prefs.light_intensity * 0.5; // TODO: make ambient light configurable
         let light_vector = Matrix3::from_angle_y(Deg(view_prefs.light_yaw))
-        * Matrix3::from_angle_x(Deg(-view_prefs.light_pitch)) // pitch>0 means light comes from above
-        * Vector3::unit_z() * view_prefs.light_intensity*0.5;
+            * Matrix3::from_angle_x(Deg(-view_prefs.light_pitch)) // pitch>0 means light comes from above
+            * Vector3::unit_z()
+            * view_prefs.light_intensity
+            * 0.5;
 
         Self {
             sticker_spacing: view_prefs.sticker_spacing,
@@ -71,7 +73,7 @@ impl StickerGeometryParams {
             w_factor_4d: (view_prefs.fov_4d.to_radians() / 2.0).tan(),
             w_factor_3d: (view_prefs.fov_3d.to_radians() / 2.0).tan(),
 
-            model_transform: Matrix4::identity(),
+            twist_animation,
             view_transform,
 
             ambient_light,

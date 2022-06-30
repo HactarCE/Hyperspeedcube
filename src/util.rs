@@ -1,7 +1,7 @@
-use cgmath::Point3;
+use cgmath::{Point3, Vector3, Vector4, Zero};
 use std::cmp::Ordering;
 
-pub(super) struct CyclicPairsIter<I: Iterator> {
+pub struct CyclicPairsIter<I: Iterator> {
     first: Option<I::Item>,
     prev: Option<I::Item>,
     rest: I,
@@ -26,7 +26,7 @@ where
     }
 }
 
-pub(super) trait IterCyclicPairsExt: Iterator + Sized {
+pub trait IterCyclicPairsExt: Iterator + Sized {
     fn cyclic_pairs(self) -> CyclicPairsIter<Self>;
 }
 impl<I> IterCyclicPairsExt for I
@@ -47,7 +47,7 @@ where
 
 /// Stolen shamelessly from [`std::f32::total_cmp()`], which isn't stable yet at
 /// the time of writing.
-pub(super) fn f32_total_cmp(a: &f32, b: &f32) -> Ordering {
+pub fn f32_total_cmp(a: &f32, b: &f32) -> Ordering {
     let mut left = a.to_bits() as i32;
     let mut right = b.to_bits() as i32;
 
@@ -57,7 +57,7 @@ pub(super) fn f32_total_cmp(a: &f32, b: &f32) -> Ordering {
     left.cmp(&right)
 }
 
-pub(super) fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f32>) {
+pub fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f32>) {
     let mut min_bound = verts[0];
     let mut max_bound = verts[0];
 
@@ -84,4 +84,15 @@ pub(super) fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f
     }
 
     (min_bound, max_bound)
+}
+
+pub fn unit_vec3(axis_index: usize) -> Vector3<f32> {
+    let mut ret = Vector3::zero();
+    ret[axis_index] = 1.0;
+    ret
+}
+pub fn unit_vec4(axis_index: usize) -> Vector4<f32> {
+    let mut ret = Vector4::zero();
+    ret[axis_index] = 1.0;
+    ret
 }

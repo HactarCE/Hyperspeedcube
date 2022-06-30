@@ -9,9 +9,9 @@ pub trait PuzzleType {
     fn ty(&self) -> PuzzleTypeEnum;
 
     fn layer_count(&self) -> u8;
-    /// Returns the maximum extent of any single coordinate along the X, Y, or Z
-    /// axes in the 3D projection.
-    fn max_extent(&self) -> f32;
+    /// Returns the maximum radius of any single coordinate in the 3D
+    /// projection.
+    fn radius(&self) -> f32;
     fn scramble_moves_count(&self) -> usize;
 
     fn faces(&self) -> &[FaceInfo];
@@ -64,10 +64,13 @@ pub trait PuzzleType {
 #[enum_dispatch]
 pub trait PuzzleState: PuzzleType {
     fn twist(&mut self, twist: Twist) -> Result<(), &'static str>;
+    fn is_piece_affected_by_twist(&self, twist: Twist, piece: Piece) -> bool {
+        twist.layer_mask[self.layer_from_twist_axis(twist.axis, piece)]
+    }
     fn pieces_affected_by_twist(&self, twist: Twist) -> Vec<Piece> {
         (0..self.pieces().len() as _)
             .map(Piece)
-            .filter(|&p| twist.layer_mask[self.layer_from_twist_axis(twist.axis, p)])
+            .filter(|&piece| self.is_piece_affected_by_twist(twist, piece))
             .collect()
     }
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8;

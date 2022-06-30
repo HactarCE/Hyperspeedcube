@@ -126,8 +126,8 @@ impl PuzzleType for Rubiks3DDescription {
     fn layer_count(&self) -> u8 {
         self.layer_count
     }
-    fn max_extent(&self) -> f32 {
-        self.layer_count as f32 / 2.0
+    fn radius(&self) -> f32 {
+        self.layer_count as f32 * 0.5 * 3.0_f32.sqrt()
     }
     fn scramble_moves_count(&self) -> usize {
         10 * self.layer_count as usize // TODO pulled from thin air; probably insufficient for big cubes
@@ -217,25 +217,37 @@ impl PuzzleState for Rubiks3D {
         sticker: Sticker,
         p: StickerGeometryParams,
     ) -> Option<StickerGeometry> {
-        let (ax1, ax2) = self.sticker_face(sticker).parallel_axes();
+        let piece = self.info(sticker).piece;
+
+        let mut transform = p.view_transform;
+        if let Some((twist, t)) = p.twist_animation {
+            if self.is_piece_affected_by_twist(twist, piece) {
+                transform = transform * twist.transform(t);
+            }
+        }
 
         // Compute the center of the sticker.
-        let center = self.sticker_center_3d(sticker, p);
+        let center = transform.transform_point(self.sticker_center_3d(sticker, p));
 
         // Add a radius to the sticker along each axis.
         let sticker_radius = p.face_scale() * p.sticker_scale() / 2.0;
-        let get_corner = |v, u| {
-            let mut vert = center;
-            vert[ax1 as usize] += u * sticker_radius;
-            vert[ax2 as usize] += v * sticker_radius;
-            self.transform_point(vert, p)
-        };
+
+        // Compute the vectors that span the plan of the sticker.
+        let (u_span_axis, v_span_axis) = self.sticker_face(sticker).parallel_axes();
+        let u: Vector3<f32> = <Matrix3<f32> as Transform<Point3<f32>>>::transform_vector(
+            &transform,
+            crate::util::unit_vec3(u_span_axis as usize) * sticker_radius,
+        );
+        let v: Vector3<f32> = <Matrix3<f32> as Transform<Point3<f32>>>::transform_vector(
+            &transform,
+            crate::util::unit_vec3(v_span_axis as usize) * sticker_radius,
+        );
 
         Some(StickerGeometry::new_double_quad([
-            get_corner(-1.0, -1.0),
-            get_corner(-1.0, 1.0),
-            get_corner(1.0, -1.0),
-            get_corner(1.0, 1.0),
+            center - u - v,
+            center - u + v,
+            center + u - v,
+            center + u + v,
         ]))
     }
 
@@ -294,12 +306,9 @@ impl Rubiks3D {
         let mut ret = self.piece_center_3d(piece, p);
 
         let sticker_face = self.sticker_face(sticker);
-        ret[sticker_face.axis() as usize] = self.max_extent() * sticker_face.sign().float();
+        ret[sticker_face.axis() as usize] =
+            self.layer_count() as f32 * 0.5 * sticker_face.sign().float();
         ret
-    }
-    fn transform_point(&self, point: Point3<f32>, p: StickerGeometryParams) -> Point3<f32> {
-        let point = p.model_transform.transform_point(point);
-        p.view_transform.transform_point(point / self.max_extent())
     }
 }
 
@@ -399,6 +408,34 @@ impl TwistDirection {
             TwistDirection::CCW_180 => Self::CW_180,
             TwistDirection(TwistDirection::COUNT..) => panic!("invalid twist direction"),
         }
+    }
+    fn period(self) -> usize {
+        match self {
+            TwistDirection::CW_90 => 4,
+            TwistDirection::CCW_90 => 4,
+            TwistDirection::CW_180 => 2,
+            TwistDirection::CCW_180 => 2,
+            TwistDirection(TwistDirection::COUNT..) => panic!("invalid twist direction"),
+        }
+    }
+    fn sign(self) -> Sign {
+        match self {
+            TwistDirection::CW_90 => Sign::Neg,
+            TwistDirection::CCW_90 => Sign::Pos,
+            TwistDirection::CW_180 => Sign::Neg,
+            TwistDirection::CCW_180 => Sign::Pos,
+            TwistDirection(TwistDirection::COUNT..) => panic!("invalid twist direction"),
+        }
+    }
+}
+
+impl Twist {
+    fn transform(self, progress: f32) -> Matrix3<f32> {
+        Matrix3::from_axis_angle(
+            self.axis.face().vector(),
+            Rad::full_turn() * self.direction.sign().float() / self.direction.period() as f32
+                * progress,
+        )
     }
 }
 

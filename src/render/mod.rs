@@ -115,7 +115,11 @@ pub(crate) fn draw_puzzle(
     let delta = now - cache.last_render_time;
     cache.last_render_time = now;
 
-    let sticker_geometry_params = StickerGeometryParams::new(view_prefs);
+    // Animate puzzle geometry.
+    puzzle.update_geometry(delta, &prefs.interaction);
+
+    let sticker_geometry_params =
+        StickerGeometryParams::new(view_prefs, puzzle.ty(), puzzle.current_twist());
 
     // Invalidate cache if parameters changed.
     force_redraw |= cache.set_params_and_invalidate(PuzzleRenderParams {
@@ -129,12 +133,9 @@ pub(crate) fn draw_puzzle(
     // Calculate scale.
     let scale = {
         let min_dimen = f32::min(width as f32, height as f32);
-        let pixel_scale = min_dimen * app.prefs.view[puzzle.ty()].scale;
+        let pixel_scale = min_dimen * view_prefs.scale;
         [pixel_scale / width as f32, pixel_scale / height as f32]
     };
-
-    // Animate puzzle geometry.
-    puzzle.update_geometry(delta, &prefs.interaction);
 
     // If the puzzle geometry has changed, force a redraw.
     let puzzle_geometry = puzzle.geometry(sticker_geometry_params);
