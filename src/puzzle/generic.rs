@@ -104,18 +104,24 @@ impl TwistAxisInfo {
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TwistDirectionInfo {
-    pub name: &'static str, // "CW"
+    pub symbol: &'static str, // "'"
+    pub name: &'static str,   // "CCW"
 }
 impl AsRef<str> for TwistDirectionInfo {
     fn as_ref(&self) -> &str {
         self.name
     }
 }
+impl TwistDirectionInfo {
+    pub const fn new(symbol: &'static str, name: &'static str) -> Self {
+        Self { symbol, name }
+    }
+}
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Twist {
     pub axis: TwistAxis,
     pub direction: TwistDirection,
-    pub layer_mask: LayerMask,
+    pub layers: LayerMask,
 }
 
 /// Puzzle of any type.
@@ -212,6 +218,16 @@ impl LayerMask {
     }
     pub(crate) fn count(self) -> u32 {
         self.0.count_ones()
+    }
+    pub(crate) fn is_contiguous_from_outermost(self) -> bool {
+        self.0.count_ones() == self.0.trailing_ones()
+    }
+    pub(crate) fn get_single_layer(self) -> Option<u32> {
+        if self.count() == 1 {
+            Some(self.0.trailing_zeros())
+        } else {
+            None
+        }
     }
 }
 

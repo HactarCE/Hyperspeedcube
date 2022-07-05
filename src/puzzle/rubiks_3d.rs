@@ -12,7 +12,7 @@ use std::sync::Mutex;
 
 use super::{
     generic::*, traits::*, LayerMask, PuzzleTypeEnum, Sign, StickerGeometry, StickerGeometryParams,
-    TwistMetric,
+    TwistAxis, TwistMetric,
 };
 
 const DEFAULT_LAYER_COUNT: u8 = 3;
@@ -173,11 +173,65 @@ impl PuzzleType for Rubiks3DDescription {
                 _ => return Err("invalid face".to_string()),
             },
             direction: TwistDirection::CW_90,
-            layer_mask: self.all_layers(),
+            layers: self.all_layers(),
         })
     }
     fn canonicalize_twist(&self, twist: Twist) -> Twist {
-        todo!("canonicalize twist")
+        let rev_layers = self.reverse_layers(twist.layers);
+        let is_canonical = twist.layers.0 < rev_layers.0
+            || twist.layers == rev_layers && twist.axis.face().sign() == Sign::Pos;
+        if is_canonical {
+            twist
+        } else {
+            Twist {
+                axis: TwistAxis::from_face(twist.axis.face().opposite()),
+                direction: twist.direction.rev(),
+                layers: rev_layers,
+            }
+        }
+    }
+
+    fn twist_short_description(&self, twist: Twist) -> String {
+        let face_upper = self.info(twist.axis.face()).symbol;
+        let face_lower = face_upper.to_ascii_lowercase();
+        let fwd = self.info(twist.direction).symbol;
+        let rev = self.info(twist.direction.rev()).symbol;
+
+        if twist.layers == LayerMask(0) {
+            crate::util::INVALID_STR.to_string()
+        } else if twist.layers == self.all_layers() {
+            match twist.axis.face() {
+                Face::R => format!("x{fwd}"),
+                Face::L => format!("x{rev}"),
+                Face::U => format!("y{fwd}"),
+                Face::D => format!("y{rev}"),
+                Face::F => format!("z{fwd}"),
+                Face::B => format!("z{rev}"),
+                _ => crate::util::INVALID_STR.to_string(),
+            }
+        } else if twist.layers.is_default() {
+            format!("{face_upper}{fwd}")
+        } else if twist.layers == self.slice_layers() {
+            match twist.axis.face() {
+                Face::R => format!("M{rev}"),
+                Face::L => format!("M{fwd}"),
+                Face::U => format!("E{rev}"),
+                Face::D => format!("E{fwd}"),
+                Face::F => format!("S{fwd}"),
+                Face::B => format!("S{rev}"),
+                _ => crate::util::INVALID_STR.to_string(),
+            }
+        } else if twist.layers == LayerMask(3) {
+            format!("{face_upper}w{fwd}")
+        } else if twist.layers == LayerMask(2) {
+            format!("{face_lower}{fwd}")
+        } else if twist.layers.is_contiguous_from_outermost() {
+            format!("{}{face_upper}{fwd}", twist.layers.count())
+        } else if let Some(layer) = twist.layers.get_single_layer() {
+            format!("{layer}{face_lower}{fwd}")
+        } else {
+            format!("{{{}}}{face_upper}{fwd}", twist.layers.short_description(),)
+        }
     }
 }
 
@@ -257,7 +311,7 @@ impl PuzzleState for Rubiks3D {
         let twist_ccw = Twist {
             axis: twist_axis,
             direction: TwistDirection::CCW_90,
-            layer_mask: LayerMask::default(),
+            layers: LayerMask::default(),
         };
         let twist_cw = self.reverse_twist(twist_ccw);
         let twist_recenter = self.make_recenter_twist(twist_axis).ok();
@@ -413,10 +467,10 @@ impl Face {
 
 impl TwistDirection {
     const INFO_LIST: [TwistDirectionInfo; 4] = [
-        TwistDirectionInfo { name: "CW" },
-        TwistDirectionInfo { name: "CCW" },
-        TwistDirectionInfo { name: "180 CW" },
-        TwistDirectionInfo { name: "180 CCW" },
+        TwistDirectionInfo::new("", "CW"),
+        TwistDirectionInfo::new("'", "CCW"),
+        TwistDirectionInfo::new("2", "180 CW"),
+        TwistDirectionInfo::new("2'", "180 CCW"),
     ];
 
     const CW_90: Self = Self(0);

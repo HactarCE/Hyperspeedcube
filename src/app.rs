@@ -173,7 +173,7 @@ impl App {
             AppEvent::Click(mouse_button) => {
                 if let Some(mut twist) = self.puzzle.hovered_sticker_twists()[mouse_button as usize]
                 {
-                    twist.layer_mask = self.selected_layers(Some(twist.layer_mask));
+                    twist.layers = self.selected_layers(Some(twist.layers));
                     self.puzzle.twist(twist)?;
                 }
             }
@@ -400,7 +400,7 @@ impl App {
         self.event(AppEvent::Twist(Twist {
             axis: self.twist_axis_from_name(twist_axis)?,
             direction: self.twist_direction_from_name(direction)?,
-            layer_mask: self.selected_layers(Some(layer_mask)),
+            layers: self.selected_layers(Some(layer_mask)),
         }));
         Ok(())
     }

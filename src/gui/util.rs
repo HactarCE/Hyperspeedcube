@@ -8,7 +8,6 @@ use crate::puzzle::{rubiks_3d, traits::*, PuzzleTypeEnum};
 
 const NONE_TEXT: &str = "-";
 const NONE_TOOLTIP: &str = "Use the current selection";
-const UNKNOWN_STR: &str = "?";
 
 const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 
@@ -92,7 +91,7 @@ impl<T: Clone + PartialEq> egui::Widget for FancyComboBox<'_, T> {
             .iter()
             .find(|(opt, _)| opt == self.selected)
             .map(|(_, string)| string.as_ref())
-            .unwrap_or(UNKNOWN_STR);
+            .unwrap_or(crate::util::INVALID_STR);
 
         let mut r = self
             .combo_box

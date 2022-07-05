@@ -2,6 +2,7 @@
 
 use anyhow::{anyhow, bail};
 use cgmath::{InnerSpace, Matrix4, SquareMatrix};
+use itertools::Itertools;
 use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::Arc;
@@ -33,7 +34,7 @@ pub mod interpolate {
 use super::{
     geometry, traits::*, Face, FaceInfo, LayerMask, Piece, PieceInfo, ProjectedStickerGeometry,
     Puzzle, PuzzleInfo, PuzzleTypeEnum, Sticker, StickerGeometryParams, StickerInfo, Twist,
-    TwistAxisInfo, TwistDirection, TwistDirectionInfo, TwistMetric, TwistSelection,
+    TwistAxis, TwistAxisInfo, TwistDirection, TwistDirectionInfo, TwistMetric, TwistSelection,
 };
 use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::preferences::InteractionPreferences;
@@ -436,7 +437,6 @@ impl PuzzleController {
     pub fn has_undo(&self) -> bool {
         !self.undo_buffer.is_empty()
     }
-
     /// Returns whether there is a twist to redo.
     pub fn has_redo(&self) -> bool {
         !self.redo_buffer.is_empty()
@@ -518,6 +518,12 @@ impl PuzzleController {
             .zip(prev_twists)
             .filter(|&(curr, prev)| !self.latest.can_combine_twists(prev, curr, metric))
             .count()
+    }
+    pub fn twist_history(&self) -> String {
+        self.undo_buffer
+            .iter()
+            .map(|&twist| self.twist_short_description(self.canonicalize_twist(twist)))
+            .join(" ")
     }
 
     /// Loads a log file and returns the puzzle state.

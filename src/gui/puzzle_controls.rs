@@ -70,7 +70,7 @@ fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
                         app.event(Twist {
                             axis,
                             direction: TwistDirection(i as _),
-                            layer_mask: app.selected_layers(None),
+                            layers: app.selected_layers(None),
                         })
                     }
                 }

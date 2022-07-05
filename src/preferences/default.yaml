@@ -102,11 +102,11 @@ general_keybinds:
       new_puzzle:
         Rubiks3D:
           layer_count: 3
-  - vk: F4
-    command:
-      new_puzzle:
-        Rubiks4D:
-          layer_count: 3
+  # - vk: F4
+  #   command:
+  #     new_puzzle:
+  #       Rubiks4D:
+  #         layer_count: 3
 puzzle_keybinds:
   Rubiks3D:
     - sc: ShiftLeft
@@ -279,6 +279,33 @@ puzzle_keybinds:
           axis: D
           direction: CCW
           layers: 2
+    - sc: Digit1
+      command:
+        select_layers: 1
+    - sc: Digit2
+      command:
+        select_layers: 2
+    - sc: Digit3
+      command:
+        select_layers: 4
+    - sc: Digit4
+      command:
+        select_layers: 8
+    - sc: Digit5
+      command:
+        select_layers: 16
+    - sc: Digit6
+      command:
+        select_layers: 32
+    - sc: Digit7
+      command:
+        select_layers: 64
+    - sc: Digit8
+      command:
+        select_layers: 128
+    - sc: Digit9
+      command:
+        select_layers: 256
   Rubiks4D:
     - sc: ShiftLeft
       command:
@@ -316,33 +343,6 @@ puzzle_keybinds:
     - sc: KeyV
       command:
         select_axis: Out
-    - sc: Digit1
-      command:
-        select_layers: 1
-    - sc: Digit2
-      command:
-        select_layers: 2
-    - sc: Digit3
-      command:
-        select_layers: 4
-    - sc: Digit4
-      command:
-        select_layers: 8
-    - sc: Digit5
-      command:
-        select_layers: 16
-    - sc: Digit6
-      command:
-        select_layers: 32
-    - sc: Digit7
-      command:
-        select_layers: 64
-    - sc: Digit8
-      command:
-        select_layers: 128
-    - sc: Digit9
-      command:
-        select_layers: 256
     - sc: KeyI
       command:
         twist:
@@ -424,6 +424,33 @@ puzzle_keybinds:
           axis: I
           direction: z
           layers: 7
+    - sc: Digit1
+      command:
+        select_layers: 1
+    - sc: Digit2
+      command:
+        select_layers: 2
+    - sc: Digit3
+      command:
+        select_layers: 4
+    - sc: Digit4
+      command:
+        select_layers: 8
+    - sc: Digit5
+      command:
+        select_layers: 16
+    - sc: Digit6
+      command:
+        select_layers: 32
+    - sc: Digit7
+      command:
+        select_layers: 64
+    - sc: Digit8
+      command:
+        select_layers: 128
+    - sc: Digit9
+      command:
+        select_layers: 256
 info:
   metric: STM
   keybinds_reference:

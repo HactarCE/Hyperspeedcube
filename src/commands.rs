@@ -108,37 +108,29 @@ impl PuzzleCommand {
                 axis,
                 direction,
                 layers,
-            } => {
-                // TODO
-                return format!("TODO describe twist");
-                // if let Some(f) = face {
-                //     match Twist::from_face_with_layers(*f, direction.name(), *layer_mask) {
-                //         Ok(twist) => twist.to_string(),
-                //         Err(e) => format!("<invalid twist: {e}>"),
-                //     }
-                // } else {
-                //     let l = if layer_mask.is_default() {
-                //         String::new()
-                //     } else {
-                //         layer_mask.short_description()
-                //     };
-                //     match face {
-                //         Some(f) => format!("{l}{}{}", f.symbol(), direction.symbol()),
-                //         None => format!("{l}Ø{}", direction.name()),
-                //     }
-                // }
-            }
-            PuzzleCommand::Recenter { axis } => match axis {
-                Some(f) => {
-                    // TODO
-                    return format!("TODO describe recenter");
-                    // match Twist::from_face_recenter(*f) {
-                    //     Ok(twist) => twist.to_string(),
-                    //     Err(e) => format!("<invalid twist: {e}>"),
-                    // }
+            } => ty.twist_command_short_description(
+                axis.as_deref()
+                    .and_then(|axis_name| ty.twist_axis_from_name(axis_name)),
+                ty.twist_direction_from_name(direction).unwrap_or_default(),
+                *layers,
+            ),
+
+            PuzzleCommand::Recenter { axis } => {
+                match axis
+                    .as_deref()
+                    .and_then(|axis_name| ty.twist_axis_from_name(axis_name))
+                {
+                    Some(twist_axis) => match ty.make_recenter_twist(twist_axis) {
+                        Ok(twist) => ty.twist_command_short_description(
+                            Some(twist.axis),
+                            twist.direction,
+                            twist.layers,
+                        ),
+                        Err(e) => crate::util::INVALID_STR.to_string(),
+                    },
+                    None => format!("Recenter"),
                 }
-                None => format!("Recenter"),
-            },
+            }
 
             PuzzleCommand::None => String::new(),
         }

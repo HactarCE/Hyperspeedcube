@@ -1,6 +1,8 @@
 use cgmath::{Point3, Vector3, Vector4, Zero};
 use std::cmp::Ordering;
 
+pub const INVALID_STR: &str = "<invalid>";
+
 pub struct CyclicPairsIter<I: Iterator> {
     first: Option<I::Item>,
     prev: Option<I::Item>,
