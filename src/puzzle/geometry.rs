@@ -85,9 +85,10 @@ impl StickerGeometryParams {
     pub fn sticker_scale(self) -> f32 {
         1.0 - self.sticker_spacing
     }
-    /// Computes the sace scale factor (0.0 to 1.0).
-    pub fn face_scale(self) -> f32 {
-        (1.0 - self.face_spacing) * 3.0 / (2.0 + self.sticker_scale())
+    /// Computes the face scale factor (0.0 to 1.0).
+    pub fn face_scale(self, layer_count: u8) -> f32 {
+        (1.0 - self.face_spacing) * layer_count as f32
+            / (layer_count as f32 - 1.0 + self.sticker_scale())
     }
 
     /// Projects a 4D point down to 3D.
