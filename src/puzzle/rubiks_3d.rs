@@ -114,17 +114,26 @@ struct Rubiks3DDescription {
     piece_locations: Vec<[u8; 3]>,
 }
 impl PuzzleType for Rubiks3DDescription {
-    fn name(&self) -> &str {
-        &self.name
-    }
     fn ty(&self) -> PuzzleTypeEnum {
         PuzzleTypeEnum::Rubiks3D {
             layer_count: self.layer_count,
         }
     }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn family_display_name(&self) -> &'static str {
+        "Rubik's 3D"
+    }
+    fn family_internal_name(&self) -> &'static str {
+        "Rubiks3D"
+    }
 
     fn layer_count(&self) -> u8 {
         self.layer_count
+    }
+    fn family_max_layer_count(&self) -> u8 {
+        MAX_LAYER_COUNT
     }
     fn radius(&self) -> f32 {
         self.layer_count as f32 * 0.5 * 3.0_f32.sqrt()

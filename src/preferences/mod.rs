@@ -209,13 +209,13 @@ impl<T: Default> std::ops::IndexMut<PuzzleTypeEnum> for PerPuzzle<T> {
 }
 impl<T> PerPuzzle<T> {
     fn entry<'a>(&'a mut self, puzzle_type: PuzzleTypeEnum) -> hash_map::Entry<'a, String, T> {
-        self.map.entry(puzzle_type.name().to_owned())
+        self.map
+            .entry(puzzle_type.family_internal_name().to_owned())
     }
     fn get(&self, puzzle_type: PuzzleTypeEnum) -> Option<&T> {
-        self.map.get(puzzle_type.name())
+        self.map.get(puzzle_type.family_internal_name())
     }
 }
-
 
 fn is_false(x: &bool) -> bool {
     !x

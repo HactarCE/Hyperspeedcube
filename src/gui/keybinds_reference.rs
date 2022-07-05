@@ -2,7 +2,7 @@ use egui::NumExt;
 use key_names::KeyMappingCode;
 
 use crate::app::App;
-use crate::commands::{Command, PuzzleCommand, SelectThing};
+use crate::commands::{Command, PuzzleCommand};
 use crate::preferences::{Key, Keybind};
 use crate::puzzle::{traits::*, PuzzleType};
 
@@ -148,68 +148,49 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
 
             for bind in matching_puzzle_keybinds {
                 ui.horizontal_wrapped(|ui| match &bind.command {
+                    PuzzleCommand::SelectAxis(twist_axis) => {
+                        ui.label("Select");
+                        ui.strong(twist_axis);
+                    }
+                    PuzzleCommand::SelectLayers(layers) => {
+                        ui.label("Select");
+                        ui.strong(layers.long_description());
+                    }
+
                     PuzzleCommand::Twist {
-                        face,
+                        axis,
                         direction,
-                        layer_mask,
+                        layers,
                     } => {
-                        if *layer_mask == puzzle_type.all_layers() {
+                        if *layers == puzzle_type.all_layers() {
                             ui.label("Rotate");
                             ui.strong("whole puzzle");
                             ui.label("in");
-                            ui.strong(puzzle_type.info(*direction).name);
+                            ui.strong(direction);
                             ui.label("direction relative to");
-                            ui.strong(face.map(|f| puzzle_type.info(f).name).unwrap_or("selected"));
-                            ui.label("face");
+                            ui.strong(axis.as_deref().unwrap_or("selected"));
+                            ui.label("axis");
                         } else {
                             ui.label("Twist");
-                            ui.strong(face.map(|f| puzzle_type.info(f).name).unwrap_or("selected"));
-                            ui.label("face in");
-                            ui.strong(puzzle_type.info(*direction).name);
+                            ui.strong(axis.as_deref().unwrap_or("selected"));
+                            ui.label("in");
+                            ui.strong(direction);
                             ui.label("direction");
-                            if !layer_mask.is_default() {
-                                ui.label("(layer");
-                                ui.strong(layer_mask.long_description());
+                            if !layers.is_default() {
+                                ui.label("(");
+                                ui.add_space(-space_width);
+                                ui.strong(layers.long_description());
                                 ui.add_space(-space_width);
                                 ui.label(")");
                             }
                         }
                     }
-                    PuzzleCommand::Recenter { face } => {
+                    PuzzleCommand::Recenter { axis } => {
                         ui.label("Recenter");
-                        ui.strong(face.map(|f| puzzle_type.info(f).name).unwrap_or("selected"));
-                        ui.label("face");
+                        ui.strong(axis.as_deref().unwrap_or("selected"));
+                        ui.label("axis");
                     }
 
-                    PuzzleCommand::HoldSelect(thing) | PuzzleCommand::ToggleSelect(thing) => {
-                        ui.label(match &bind.command {
-                            PuzzleCommand::HoldSelect(_) => "Hold select",
-                            PuzzleCommand::ToggleSelect(_) => "Toggle select",
-                            _ => unreachable!(),
-                        });
-
-                        match thing {
-                            SelectThing::Face(f) => {
-                                ui.strong(puzzle_type.info(*f).name);
-                                ui.label("face");
-                            }
-                            SelectThing::Layers(l) => {
-                                ui.label("layer");
-                                ui.strong(l.long_description());
-                            }
-                            SelectThing::PieceType(p) => {
-                                // TODO: piece type string
-                                // ui.strong(puzzle_type.info(*p).name);
-                                // ui.label("pieces");
-                            }
-                        }
-                    }
-                    PuzzleCommand::ClearToggleSelect(category) => {
-                        ui.label(format!(
-                            "Clear selected {}s",
-                            category.to_string().to_ascii_lowercase(),
-                        ));
-                    }
                     PuzzleCommand::None => unreachable!(),
                 });
             }

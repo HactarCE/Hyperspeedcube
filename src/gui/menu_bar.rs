@@ -65,24 +65,9 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
 
         ui.menu_button("Puzzle", |ui| {
-            ui.menu_button("Rubiks 3D", |ui| {
-                for layer_count in rubiks_3d::MIN_LAYER_COUNT..=rubiks_3d::MAX_LAYER_COUNT {
-                    let ty = PuzzleTypeEnum::Rubiks3D { layer_count };
-                    if ui.button(ty.name()).clicked() {
-                        ui.close_menu();
-                        app.event(Command::NewPuzzle(ty))
-                    }
-                }
-            });
-            // ui.menu_button("Rubiks 4D", |ui| {
-            //    for layer_count in rubiks_4d::MIN_LAYER_COUNT ..=rubiks_4d::MAX_LAYER_COUNT {
-            //        let ty =PuzzleTypeEnum::Rubiks4D { layer_count };
-            //        if ui.button(ty.name()).clicked() {
-            //            ui.close_menu();
-            //            app.event(Command::NewPuzzle(ty))
-            //        }
-            //    }
-            // });
+            if let Some(ty) = super::util::puzzle_select_menu(ui) {
+                app.event(Command::NewPuzzle(ty));
+            }
         });
 
         ui.menu_button("Settings", |ui| {

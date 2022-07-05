@@ -1,49 +1,112 @@
 use egui::NumExt;
 use itertools::Itertools;
+use std::borrow::Cow;
 use std::hash::Hash;
 use strum::IntoEnumIterator;
 
+use crate::puzzle::{rubiks_3d, traits::*, PuzzleTypeEnum};
+
+const NONE_TEXT: &str = "-";
+const NONE_TOOLTIP: &str = "Use the current selection";
+const UNKNOWN_STR: &str = "?";
+
 const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 
-pub(super) struct BasicComboBox<'a, T> {
-    combo_box: egui::ComboBox,
-    selected: &'a mut T,
-    options: Vec<T>,
+pub(super) fn puzzle_select_menu(ui: &mut egui::Ui) -> Option<PuzzleTypeEnum> {
+    let mut ret = None;
+    ret = ret.or(ui
+        .menu_button("Rubiks 3D", |ui| {
+            for layer_count in rubiks_3d::MIN_LAYER_COUNT..=rubiks_3d::MAX_LAYER_COUNT {
+                let ty = PuzzleTypeEnum::Rubiks3D { layer_count };
+                if ui.button(ty.name()).clicked() {
+                    ui.close_menu();
+                    return Some(ty);
+                }
+            }
+            None
+        })
+        .inner);
+    // TODO: rubiks4d
+    ret = ret.or(ui
+        .menu_button("Rubiks 4D", |ui| {
+            // for layer_count in rubiks_4d::MIN_LAYER_COUNT..=rubiks_4d::MAX_LAYER_COUNT {
+            //     let ty = PuzzleTypeEnum::Rubiks4D { layer_count };
+            //     if ui.button(ty.name()).clicked() {
+            //         ui.close_menu();
+            //         return ty;
+            //     }
+            // }
+            None
+        })
+        .inner);
+    ret.flatten()
 }
-impl<'a, T: IntoEnumIterator> BasicComboBox<'a, T> {
-    pub(super) fn new_enum(id_source: impl Hash, selected: &'a mut T) -> Self {
-        Self::new(id_source, selected, T::iter().collect_vec())
-    }
+
+pub(super) struct FancyComboBox<'a, T> {
+    pub(super) combo_box: egui::ComboBox,
+    pub(super) selected: &'a mut T,
+    pub(super) options: Vec<(T, Cow<'a, str>)>,
 }
-impl<'a, T> BasicComboBox<'a, T> {
-    pub(super) fn new(
+impl<'a> FancyComboBox<'a, String> {
+    pub(super) fn new<O: 'a + AsRef<str>>(
         id_source: impl Hash,
-        selected: &'a mut T,
-        options: impl Into<Vec<T>>,
+        selected: &'a mut String,
+        options: impl IntoIterator<Item = &'a O>,
     ) -> Self {
         Self {
             combo_box: egui::ComboBox::from_id_source(id_source),
-            options: options.into(),
             selected,
+            options: options
+                .into_iter()
+                .map(|s| s.as_ref())
+                .map(|s| (s.to_owned(), s.into()))
+                .collect(),
         }
     }
 }
-impl<T: ToString + Eq> egui::Widget for BasicComboBox<'_, T> {
+impl<'a> FancyComboBox<'a, Option<String>> {
+    pub(super) fn new_optional<O: 'a + AsRef<str>>(
+        id_source: impl Hash,
+        selected: &'a mut Option<String>,
+        options: impl IntoIterator<Item = &'a O>,
+    ) -> Self {
+        let mut options = options
+            .into_iter()
+            .map(|s| s.as_ref())
+            .map(|s| (Some(s.to_owned()), s.into()))
+            .collect_vec();
+        options.insert(0, (None, NONE_TEXT.into()));
+        Self {
+            combo_box: egui::ComboBox::from_id_source(id_source),
+            selected,
+            options,
+        }
+    }
+}
+impl<T: Clone + PartialEq> egui::Widget for FancyComboBox<'_, T> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
 
+        let selected_text = self
+            .options
+            .iter()
+            .find(|(opt, _)| opt == self.selected)
+            .map(|(_, string)| string.as_ref())
+            .unwrap_or(UNKNOWN_STR);
+
         let mut r = self
             .combo_box
-            .selected_text(self.selected.to_string())
-            .width_to_fit(ui, self.options.iter().map(|s| s.to_string()).collect())
+            .selected_text(selected_text)
+            .width_to_fit(ui, self.options.iter().map(|(_, string)| string.as_ref()))
             .show_ui(ui, |ui| {
-                for option in self.options {
-                    let is_selected = option == *self.selected;
-                    if ui
-                        .selectable_label(is_selected, option.to_string())
-                        .clicked()
-                    {
-                        *self.selected = option;
+                for (opt, string) in &self.options {
+                    let is_selected = opt == self.selected;
+                    let mut r = ui.selectable_label(is_selected, string.as_ref());
+                    if string == NONE_TEXT {
+                        r = r.on_hover_explanation("", NONE_TOOLTIP);
+                    }
+                    if r.clicked() {
+                        *self.selected = opt.clone();
                         changed = true;
                     }
                 }
@@ -80,16 +143,25 @@ impl ResponseExt for egui::Response {
 
 pub(super) trait ComboBoxExt {
     /// Workaround for egui being *not fabulous* at sizing combo boxes.
-    fn width_to_fit(self, ui: &egui::Ui, options: Vec<String>) -> Self;
+    fn width_to_fit(
+        self,
+        ui: &egui::Ui,
+        options: impl IntoIterator<Item = impl Into<egui::WidgetText>>,
+    ) -> Self;
 }
 impl ComboBoxExt for egui::ComboBox {
-    fn width_to_fit(self, ui: &egui::Ui, options: Vec<String>) -> Self {
+    fn width_to_fit(
+        self,
+        ui: &egui::Ui,
+        options: impl IntoIterator<Item = impl Into<egui::WidgetText>>,
+    ) -> Self {
         let spacing = ui.spacing();
 
         let text_width = options
             .into_iter()
             .map(|option| {
-                egui::WidgetText::from(option)
+                option
+                    .into()
                     .into_galley(ui, Some(false), f32::INFINITY, egui::TextStyle::Button)
                     .size()
                     .x
@@ -218,4 +290,41 @@ pub(super) fn reset_button<T: PartialEq>(
         *value = reset_value;
     }
     r
+}
+
+macro_rules! enum_combobox {
+    (
+        $ui:expr,
+        $id_source:expr,
+        match ($mut_value:expr) {
+            $($name:expr => $variant_start:ident $(:: $variant_cont:ident)* $(($($paren_args:tt)*))? $({$($brace_args:tt)*})?),*
+            $(,)?
+        }
+    ) => {
+        {
+            let mut changed = false;
+
+            let mut response = egui::ComboBox::from_id_source($id_source)
+                .width_to_fit($ui, vec![$($name),*])
+                .selected_text(match $mut_value {
+                    $($variant_start $(:: $variant_cont)* { .. } => $name),*
+                })
+                .show_ui($ui, |ui| {
+                    $(
+                        let is_selected = matches!($mut_value, $variant_start $(:: $variant_cont)* { .. });
+                        if ui.selectable_label(is_selected, $name).clicked() {
+                            *($mut_value) = $variant_start $(:: $variant_cont)* $(($($paren_args)*))? $({$($brace_args)*})?;
+                            changed = true;
+                        }
+                    )*
+                })
+                .response;
+
+            if changed {
+                response.mark_changed();
+            }
+
+            response
+        }
+    };
 }

@@ -172,7 +172,6 @@ impl App {
 
             AppEvent::Click(egui::PointerButton::Primary) => {
                 if let Some(sticker) = self.puzzle.hovered_sticker() {
-                    println!("{:?} on {:?}", sticker, self.puzzle.info(sticker).piece);
                     // TODO: twist CCW
                     // self.puzzle.twist(Twist::from_sticker(
                     //     sticker,
@@ -379,16 +378,17 @@ impl App {
     }
 
     fn twist_axis_from_name(&self, name: Option<&str>) -> Result<TwistAxis, String> {
+        let name = name.ok_or("No twist axis selected")?;
         self.puzzle
             .ty()
-            .twist_axis_from_name(name.ok_or("No twist axis selected")?)
-            .ok_or_else(|| format!("No twist axis named {name:?}"))
+            .twist_axis_from_name(name)
+            .ok_or_else(|| format!("Unknown twist axis {name:?}"))
     }
     fn twist_direction_from_name(&self, name: &str) -> Result<TwistDirection, String> {
         self.puzzle
             .ty()
             .twist_direction_from_name(name)
-            .ok_or_else(|| format!("No twist direction named {name:?}"))
+            .ok_or_else(|| format!("Unknown twist direction {name:?}"))
     }
 
     /// Returns the twist axis selected if exactly one twist axis is selected;

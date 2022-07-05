@@ -1,15 +1,16 @@
 use itertools::Itertools;
 use std::hash::Hash;
 
-use super::util::{self, ComboBoxExt};
+use super::util::{self, ComboBoxExt, FancyComboBox};
 use crate::app::App;
 use crate::commands::{
-    Command, PuzzleCommand, SelectHow, SelectThing, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX,
-    PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
+    Command, PuzzleCommand, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX, PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
 };
-use crate::gui::util::BasicComboBox;
 use crate::preferences::{Keybind, Preferences};
-use crate::puzzle::{LayerMask, PieceType, PuzzleType, PuzzleTypeEnum, TwistDirection};
+use crate::puzzle::{
+    rubiks_3d, traits::*, LayerMask, PieceType, PuzzleFamily, PuzzleType, PuzzleTypeEnum,
+    TwistAxis, TwistDirection,
+};
 
 #[derive(Debug, Copy, Clone)]
 struct DragData {
@@ -25,7 +26,7 @@ pub(super) trait KeybindSet: 'static + Copy + Send + Sync {
 
     const USE_VK_BY_DEFAULT: bool;
 
-    fn name(self) -> &'static str;
+    fn display_name(self) -> &'static str;
 
     fn get(self, prefs: &Preferences) -> &[Keybind<Self::Command>];
     fn get_mut(self, prefs: &mut Preferences) -> &mut Vec<Keybind<Self::Command>>;
@@ -34,15 +35,15 @@ pub(super) trait KeybindSet: 'static + Copy + Send + Sync {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub(super) struct PuzzleKeybinds(pub(super) PuzzleTypeEnum);
 impl KeybindSet for PuzzleKeybinds {
     type Command = PuzzleCommand;
 
     const USE_VK_BY_DEFAULT: bool = false; // Position is more important for puzzle keybinds
 
-    fn name(self) -> &'static str {
-        self.0.name()
+    fn display_name(self) -> &'static str {
+        self.0.family_display_name()
     }
 
     fn get(self, prefs: &Preferences) -> &[Keybind<PuzzleCommand>] {
@@ -60,7 +61,7 @@ impl KeybindSet for GeneralKeybinds {
 
     const USE_VK_BY_DEFAULT: bool = true; // Shortcuts like ctrl+Z should move depending on keyboard layout
 
-    fn name(self) -> &'static str {
+    fn display_name(self) -> &'static str {
         "general"
     }
 
@@ -96,13 +97,19 @@ where
                 ui.add_enabled_ui(keybinds != default_keybinds, |ui| {
                     let r = ui
                         .add_sized(SQUARE_BUTTON_SIZE, egui::Button::new("⟲"))
-                        .on_hover_text(format!("Reset all {} keybinds", self.keybind_set.name()));
+                        .on_hover_text(format!(
+                            "Reset all {} keybinds",
+                            self.keybind_set.display_name()
+                        ));
                     if r.clicked() {
                         if rfd::MessageDialog::new()
-                            .set_title(&format!("Reset {} keybinds", self.keybind_set.name()))
+                            .set_title(&format!(
+                                "Reset {} keybinds",
+                                self.keybind_set.display_name()
+                            ))
                             .set_description(&format!(
                                 "Restore {} keybinds to defaults?",
-                                self.keybind_set.name(),
+                                self.keybind_set.display_name(),
                             ))
                             .set_buttons(rfd::MessageButtons::YesNo)
                             .show()
@@ -276,74 +283,28 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
         let mut changed = false;
 
         let mut r = ui.scope(|ui| {
-            #[derive(Debug, Display, EnumIter, Copy, Clone, PartialEq, Eq)]
-            enum CmdType {
-                None,
-                #[strum(serialize = "Open...")]
-                Open,
-                Save,
-                #[strum(serialize = "Save As...")]
-                SaveAs,
-                Exit,
-                Undo,
-                Redo,
-                Reset,
-                #[strum(serialize = "Scramble partially")]
-                ScrambleN,
-                #[strum(serialize = "Scramble fully")]
-                ScrambleFull,
-                #[strum(serialize = "Toggle blindfold")]
-                ToggleBlindfold,
-                #[strum(serialize = "New puzzle")]
-                NewPuzzle,
-            }
-
-            let mut cmd_type = match self.cmd {
-                Cmd::Open => CmdType::Open,
-                Cmd::Save => CmdType::Save,
-                Cmd::SaveAs => CmdType::SaveAs,
-                Cmd::Exit => CmdType::Exit,
-
-                Cmd::Undo => CmdType::Undo,
-                Cmd::Redo => CmdType::Redo,
-                Cmd::Reset => CmdType::Reset,
-
-                Cmd::ScrambleN(_) => CmdType::ScrambleN,
-                Cmd::ScrambleFull => CmdType::ScrambleFull,
-
-                Cmd::NewPuzzle(_) => CmdType::NewPuzzle,
-
-                Cmd::ToggleBlindfold => CmdType::ToggleBlindfold,
-
-                Cmd::None => CmdType::None,
-            };
-
-            let r = ui.add(util::BasicComboBox::new_enum(
+            let r = enum_combobox!(
+                ui,
                 unique_id!(self.idx),
-                &mut cmd_type,
-            ));
-            changed |= r.changed();
-            if r.changed() {
-                *self.cmd = match cmd_type {
-                    CmdType::None => Cmd::None,
+                match (self.cmd) {
+                    "None" => Cmd::None,
 
-                    CmdType::Open => Cmd::Open,
-                    CmdType::Save => Cmd::Save,
-                    CmdType::SaveAs => Cmd::SaveAs,
-                    CmdType::Exit => Cmd::Exit,
+                    "Open..." => Cmd::Open,
+                    "Save" => Cmd::Save,
+                    "Save as..." => Cmd::SaveAs,
+                    "Exit" => Cmd::Exit,
 
-                    CmdType::Undo => Cmd::Undo,
-                    CmdType::Redo => Cmd::Redo,
-                    CmdType::Reset => Cmd::Reset,
+                    "Undo" => Cmd::Undo,
+                    "Redo" => Cmd::Redo,
+                    "Reset" => Cmd::Reset,
 
-                    CmdType::ScrambleN => Cmd::ScrambleN(PARTIAL_SCRAMBLE_MOVE_COUNT_MIN),
-                    CmdType::ScrambleFull => Cmd::ScrambleFull,
-
-                    CmdType::NewPuzzle => Cmd::NewPuzzle(self.cmd.get_puzzle_type()),
-
-                    CmdType::ToggleBlindfold => Cmd::ToggleBlindfold,
+                    "Scramble partially" => Cmd::ScrambleN(PARTIAL_SCRAMBLE_MOVE_COUNT_MIN),
+                    "Scramble fully" => Cmd::ScrambleFull,
+                    "Toggle blindfold" => Cmd::ToggleBlindfold,
+                    "New puzzle" => Cmd::NewPuzzle(PuzzleTypeEnum::default()),
                 }
-            }
+            );
+            changed |= r.changed();
 
             match self.cmd {
                 Cmd::ScrambleN(n) => {
@@ -361,9 +322,12 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                     add_pre_label_space(ui);
                     ui.horizontal(|ui| {
                         ui.label("Type:");
-                        // TODO: puzzle type dropdown
-                        // let r = ui.add(BasicComboBox::new_enum(unique_id!(self.idx), puzzle_type));
-                        // changed |= r.changed();
+                        if let Some(Some(ty)) = ui
+                            .menu_button(puzzle_type.name(), util::puzzle_select_menu)
+                            .inner
+                        {
+                            *puzzle_type = ty;
+                        }
                     });
                 }
 
@@ -387,147 +351,87 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
         let mut changed = false;
 
         let mut r = ui.scope(|ui| {
-            #[derive(Display, EnumIter, Copy, Clone, PartialEq, Eq)]
-            enum CmdType {
-                None,
-                Twist,
-                Recenter,
-                #[strum(serialize = "Select")]
-                HoldSelect,
-                #[strum(serialize = "Toggle select")]
-                ToggleSelect,
-                #[strum(serialize = "Clear selected")]
-                ClearToggleSelect,
-            }
-
-            let mut cmd_type = match self.cmd {
-                Cmd::Twist { .. } => CmdType::Twist,
-                Cmd::Recenter { .. } => CmdType::Recenter,
-
-                Cmd::HoldSelect(_) => CmdType::HoldSelect,
-                Cmd::ToggleSelect(_) => CmdType::ToggleSelect,
-                Cmd::ClearToggleSelect(_) => CmdType::ClearToggleSelect,
-
-                Cmd::None => CmdType::None,
-            };
-
-            let r = ui.add(util::BasicComboBox::new_enum(
+            let r = enum_combobox!(
+                ui,
                 unique_id!(self.idx),
-                &mut cmd_type,
-            ));
-            changed |= r.changed();
-            if r.changed() {
-                *self.cmd = match cmd_type {
-                    CmdType::None => Cmd::None,
+                match (self.cmd) {
+                    "None" => Cmd::None,
 
-                    CmdType::Twist => Cmd::Twist {
-                        face: None,
-                        direction: TwistDirection::default(),
-                        layer_mask: LayerMask::default(),
+                    "Select axis" => Cmd::SelectAxis(puzzle_type.twist_axes()[0].name.to_owned()),
+                    "Select layers" => Cmd::SelectLayers(LayerMask::default()),
+                    "Twist" => Cmd::Twist {
+                        axis: None,
+                        direction: puzzle_type.twist_directions()[0].name.to_owned(),
+                        layers: LayerMask::default(),
                     },
-                    CmdType::Recenter => Cmd::Recenter { face: None },
-
-                    CmdType::HoldSelect => Cmd::HoldSelect(self.cmd.get_select_thing(puzzle_type)),
-                    CmdType::ToggleSelect => {
-                        Cmd::ToggleSelect(self.cmd.get_select_thing(puzzle_type))
-                    }
-                    CmdType::ClearToggleSelect => {
-                        Cmd::ClearToggleSelect(self.cmd.get_select_category())
-                    }
+                    "Recenter" => Cmd::Recenter { axis: None },
                 }
-            }
-
-            if let Some(select_how) = self.cmd.get_select_how() {
-                let mut category = self.cmd.get_select_category();
-                let r = ui.add(util::BasicComboBox::new_enum(
-                    unique_id!(self.idx),
-                    &mut category,
-                ));
-                changed |= r.changed();
-                if r.changed() {
-                    *self.cmd = match select_how {
-                        SelectHow::Hold => {
-                            Cmd::HoldSelect(SelectThing::default(category, puzzle_type))
-                        }
-                        SelectHow::Toggle => {
-                            Cmd::ToggleSelect(SelectThing::default(category, puzzle_type))
-                        }
-                        SelectHow::Clear => Cmd::ClearToggleSelect(category),
-                    };
-                }
-            }
+            );
+            changed |= r.changed();
 
             match self.cmd {
                 Cmd::None => (),
 
+                Cmd::SelectAxis(axis) => {
+                    add_pre_label_space(ui);
+                    ui.label("Axis:");
+                    let r = ui.add(FancyComboBox::new(
+                        unique_id!(self.idx),
+                        axis,
+                        puzzle_type.twist_axes(),
+                    ));
+                    changed |= r.changed();
+                }
+                Cmd::SelectLayers(layers) => {
+                    add_pre_label_space(ui);
+                    ui.label("Layers:");
+                    let r = ui.add(LayerMaskCheckboxes {
+                        layer_mask: layers,
+                        layer_count: puzzle_type.family_max_layer_count(),
+                    });
+                    changed |= r.changed();
+                }
                 Cmd::Twist {
-                    face,
+                    axis,
                     direction,
-                    layer_mask,
+                    layers,
                 } => {
                     add_pre_label_space(ui);
-                    ui.label("Face:");
-                    let r = ui.add(OptionalComboBox::new(
+                    ui.label("Axis:");
+                    let r = ui.add(FancyComboBox::new_optional(
                         unique_id!(self.idx),
-                        face,
-                        puzzle_type.faces(),
+                        axis,
+                        puzzle_type.twist_axes(),
+                    ));
+                    changed |= r.changed();
+
+                    add_pre_label_space(ui);
+                    ui.label("Direction:");
+                    let r = ui.add(FancyComboBox::new(
+                        unique_id!(self.idx),
+                        direction,
+                        puzzle_type.twist_directions(),
                     ));
                     changed |= r.changed();
 
                     add_pre_label_space(ui);
                     ui.label("Layers:");
                     let r = ui.add(LayerMaskCheckboxes {
-                        layer_mask,
-                        layer_count: puzzle_type.layer_count(),
+                        layer_mask: layers,
+                        layer_count: puzzle_type.family_max_layer_count(),
                     });
                     changed |= r.changed();
-
+                }
+                Cmd::Recenter { axis } => {
                     add_pre_label_space(ui);
-                    ui.label("Direction:");
-                    let r = ui.add(BasicComboBox::new(
+                    ui.label("Axis:");
+                    let r = ui.add(FancyComboBox::new_optional(
                         unique_id!(self.idx),
-                        direction,
-                        TwistDirection::iter(puzzle_type).collect_vec(),
+                        axis,
+                        puzzle_type.twist_axes(),
                     ));
                     changed |= r.changed();
                 }
-                Cmd::Recenter { face } => {
-                    add_pre_label_space(ui);
-                    ui.label("Face:");
-                    let r = ui.add(OptionalComboBox::new(
-                        unique_id!(self.idx),
-                        face,
-                        puzzle_type.faces(),
-                    ));
-                    changed |= r.changed();
-                }
-
-                Cmd::HoldSelect(thing) | Cmd::ToggleSelect(thing) => match thing {
-                    SelectThing::Face(face) => {
-                        let r = ui.add(BasicComboBox::new(
-                            unique_id!(self.idx),
-                            face,
-                            puzzle_type.faces(),
-                        ));
-                        changed |= r.changed();
-                    }
-                    SelectThing::Layers(layer_mask) => {
-                        let r = ui.add(LayerMaskCheckboxes {
-                            layer_mask,
-                            layer_count: puzzle_type.layer_count(),
-                        });
-                        changed |= r.changed();
-                    }
-                    SelectThing::PieceType(piece_type) => {
-                        let r = ui.add(BasicComboBox::new(
-                            unique_id!(self.idx),
-                            piece_type,
-                            PieceType::iter(puzzle_type).collect_vec(),
-                        ));
-                        changed |= r.changed();
-                    }
-                },
-                Cmd::ClearToggleSelect(_) => (),
             }
         });
 
@@ -538,58 +442,9 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
     }
 }
 
-struct OptionalComboBox<'a, T> {
-    combo_box: egui::ComboBox,
-    selected: &'a mut Option<T>,
-    options: Vec<Option<T>>,
-}
-impl<'a, T: Clone> OptionalComboBox<'a, T> {
-    pub(super) fn new(id_source: impl Hash, selected: &'a mut Option<T>, options: &'a [T]) -> Self {
-        Self {
-            combo_box: egui::ComboBox::from_id_source(id_source),
-            selected,
-            options: std::iter::once(None)
-                .chain(options.iter().cloned().map(Some))
-                .collect(),
-        }
-    }
-}
-impl<T: Eq + ToString> egui::Widget for OptionalComboBox<'_, T> {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let mut changed = false;
-
-        let get_string = |opt: &Option<T>| match opt {
-            None => "(selected)".to_string(),
-            Some(x) => x.to_string(),
-        };
-
-        let mut r = self
-            .combo_box
-            .selected_text(get_string(self.selected))
-            .width_to_fit(ui, self.options.iter().map(get_string).collect())
-            .show_ui(ui, |ui| {
-                for option in self.options {
-                    let is_selected = option == *self.selected;
-                    if ui
-                        .selectable_label(is_selected, get_string(&option))
-                        .clicked()
-                    {
-                        *self.selected = option;
-                        changed = true;
-                    }
-                }
-            });
-
-        if changed {
-            r.response.mark_changed();
-        }
-        r.response
-    }
-}
-
 struct LayerMaskCheckboxes<'a> {
     layer_mask: &'a mut LayerMask,
-    layer_count: usize,
+    layer_count: u8,
 }
 impl egui::Widget for LayerMaskCheckboxes<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {

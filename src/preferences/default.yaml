@@ -2,7 +2,7 @@
 gfx:
   msaa: true
 view:
-  3x3x3:
+  Rubiks3D:
     pitch: 35.0
     yaw: -20.0
     scale: 1.25
@@ -14,7 +14,7 @@ view:
     light_intensity: 0.0
     light_pitch: 0.0
     light_yaw: 0.0
-  3x3x3x3:
+  Rubiks4D:
     pitch: 30.0
     yaw: -35.0
     scale: 2.0
@@ -41,14 +41,14 @@ colors:
   blind_face: "#cccccc"
   blindfold: false
   faces:
-    3x3x3:
+    Rubiks3D:
       B: "#4488ff"
       D: "#ffff00"
       L: "#ff9922"
       R: "#cc3333"
       U: "#ffffff"
       F: "#66cc44"
-    3x3x3x3:
+    Rubiks4D:
       I: "#8822cc"
       B: "#ffff00"
       D: "#88ee66"
@@ -94,289 +94,255 @@ general_keybinds:
   - vk: B
     ctrl: true
     command: toggle_blindfold
-  - vk: F3
-    command:
-      new_puzzle: 3x3x3
-  - vk: F4
-    command:
-      new_puzzle: 3x3x3x3
   - vk: F
     ctrl: true
     command: scramble_full
+  - vk: F3
+    command:
+      new_puzzle:
+        Rubiks3D:
+          layer_count: 3
+  - vk: F4
+    command:
+      new_puzzle:
+        Rubiks4D:
+          layer_count: 3
 puzzle_keybinds:
-  3x3x3:
+  Rubiks3D:
     - sc: ShiftLeft
       command:
-        hold_select:
-          layers: 3
+        select_layers: 3
     - sc: ShiftRight
       command:
-        hold_select:
-          layers: 3
+        select_layers: 3
     - sc: KeyE
       command:
         twist:
-          face: Left
+          axis: L
           direction: CCW
           layers: 1
     - sc: KeyD
       command:
         twist:
-          face: Left
+          axis: L
           direction: CW
           layers: 1
     - sc: KeyI
       command:
         twist:
-          face: Right
+          axis: R
           direction: CW
           layers: 1
     - sc: KeyK
       command:
         twist:
-          face: Right
+          axis: R
           direction: CCW
           layers: 1
     - sc: KeyR
       command:
         twist:
-          face: Left
+          axis: L
           direction: CCW
           layers: 2
     - sc: KeyV
       command:
         twist:
-          face: Left
+          axis: L
           direction: CW
           layers: 2
     - sc: KeyU
       command:
         twist:
-          face: Right
+          axis: R
           direction: CW
           layers: 2
     - sc: KeyM
       command:
         twist:
-          face: Right
+          axis: R
           direction: CCW
           layers: 2
     - sc: KeyF
       command:
         twist:
-          face: Up
+          axis: U
           direction: CCW
           layers: 1
     - sc: KeyJ
       command:
         twist:
-          face: Up
+          axis: U
           direction: CW
           layers: 1
     - sc: KeyS
       command:
         twist:
-          face: Down
+          axis: D
           direction: CW
           layers: 1
     - sc: KeyL
       command:
         twist:
-          face: Down
+          axis: D
           direction: CCW
           layers: 1
     - sc: KeyG
       command:
         twist:
-          face: Front
+          axis: F
           direction: CCW
           layers: 1
     - sc: KeyH
       command:
         twist:
-          face: Front
+          axis: F
           direction: CW
           layers: 1
     - sc: KeyW
       command:
         twist:
-          face: Back
+          axis: B
           direction: CW
           layers: 1
     - sc: KeyO
       command:
         twist:
-          face: Back
+          axis: B
           direction: CCW
           layers: 1
     - sc: KeyT
       command:
         twist:
-          face: Left
+          axis: L
           direction: CCW
           layers: 7
     - sc: KeyB
       command:
         twist:
-          face: Left
+          axis: L
           direction: CW
           layers: 7
     - sc: KeyY
       command:
         twist:
-          face: Right
+          axis: R
           direction: CW
           layers: 7
     - sc: KeyN
       command:
         twist:
-          face: Right
+          axis: R
           direction: CCW
           layers: 7
     - sc: KeyA
       command:
         recenter:
-          face: Left
+          axis: L
     - sc: Semicolon
       command:
         recenter:
-          face: Right
+          axis: R
     - sc: KeyQ
       command:
         twist:
-          face: Front
+          axis: F
           direction: CCW
           layers: 7
     - sc: KeyP
       command:
         twist:
-          face: Front
+          axis: F
           direction: CW
           layers: 7
     - sc: KeyZ
       command:
         twist:
-          face: Front
+          axis: F
           direction: CCW
           layers: 2
     - sc: Slash
       command:
         twist:
-          face: Front
+          axis: F
           direction: CW
           layers: 2
     - sc: KeyX
       command:
         twist:
-          face: Down
+          axis: D
           direction: CW
           layers: 2
     - sc: Period
       command:
         twist:
-          face: Down
+          axis: D
           direction: CCW
           layers: 2
-  3x3x3x3:
+  Rubiks4D:
     - sc: ShiftLeft
       command:
-        hold_select:
-          layers: 3
+        select_layers: 3
     - sc: ShiftRight
       command:
-        hold_select:
-          layers: 3
+        select_layers: 3
     - sc: AltLeft
       command:
-        hold_select:
-          layers: 2
+        select_layers: 2
     - sc: AltRight
       command:
-        hold_select:
-          layers: 2
+        select_layers: 2
     - sc: KeyW
       command:
-        hold_select:
-          face: Left
+        select_axis: Left
     - sc: KeyE
       command:
-        hold_select:
-          face: Up
+        select_axis: Up
     - sc: KeyR
       command:
-        hold_select:
-          face: Back
+        select_axis: Back
     - sc: KeyS
       command:
-        hold_select:
-          face: Front
+        select_axis: Front
     - sc: KeyD
       command:
-        hold_select:
-          face: In
+        select_axis: In
     - sc: KeyF
       command:
-        hold_select:
-          face: Right
+        select_axis: Right
     - sc: KeyC
       command:
-        hold_select:
-          face: Down
+        select_axis: Down
     - sc: KeyV
       command:
-        hold_select:
-          face: Out
-    - sc: Digit1
-      shift: true
-      command:
-        toggle_select:
-          piece_type: 1c
-    - sc: Digit2
-      shift: true
-      command:
-        toggle_select:
-          piece_type: 2c
-    - sc: Digit3
-      shift: true
-      command:
-        toggle_select:
-          piece_type: 3c
-    - sc: Digit4
-      shift: true
-      command:
-        toggle_select:
-          piece_type: 4c
-    - sc: Digit1
-      shift: true
-      command: none
-    - sc: Digit2
-      shift: true
-      command: none
-    - sc: Digit3
-      shift: true
-      command: none
-    - sc: Digit4
-      shift: true
-      command: none
+        select_axis: Out
     - sc: Digit1
       command:
-        hold_select:
-          piece_type: 1c
+        select_layers: 1
     - sc: Digit2
       command:
-        hold_select:
-          piece_type: 2c
+        select_layers: 2
     - sc: Digit3
       command:
-        hold_select:
-          piece_type: 3c
+        select_layers: 4
     - sc: Digit4
       command:
-        hold_select:
-          piece_type: 4c
-    - sc: Escape
+        select_layers: 8
+    - sc: Digit5
       command:
-        clear_toggle_select: piece_type
+        select_layers: 16
+    - sc: Digit6
+      command:
+        select_layers: 32
+    - sc: Digit7
+      command:
+        select_layers: 64
+    - sc: Digit8
+      command:
+        select_layers: 128
+    - sc: Digit9
+      command:
+        select_layers: 256
     - sc: KeyI
       command:
         twist:
@@ -413,49 +379,49 @@ puzzle_keybinds:
     - sc: KeyT
       command:
         twist:
-          face: In
+          axis: I
           direction: x
           layers: 7
     - sc: KeyY
       command:
         twist:
-          face: In
+          axis: I
           direction: x
           layers: 7
     - sc: KeyB
       command:
         twist:
-          face: In
+          axis: I
           direction: "x'"
           layers: 7
     - sc: KeyN
       command:
         twist:
-          face: In
+          axis: I
           direction: "x'"
           layers: 7
     - sc: KeyA
       command:
         twist:
-          face: In
+          axis: I
           direction: "y'"
           layers: 7
     - sc: Semicolon
       command:
         twist:
-          face: In
+          axis: I
           direction: y
           layers: 7
     - sc: KeyQ
       command:
         twist:
-          face: In
+          axis: I
           direction: "z'"
           layers: 7
     - sc: KeyP
       command:
         twist:
-          face: In
+          axis: I
           direction: z
           layers: 7
 info:

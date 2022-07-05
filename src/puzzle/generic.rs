@@ -8,6 +8,16 @@ use thiserror::Error;
 
 use super::{rubiks_3d, traits::*, Rubiks3D, StickerGeometry, StickerGeometryParams, TwistMetric};
 
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum PuzzleFamily {
+    Rubiks3D,
+}
+impl Default for PuzzleFamily {
+    fn default() -> Self {
+        Self::Rubiks3D
+    }
+}
+
 /// Enumeration of all puzzle types.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PuzzleTypeEnum {
@@ -82,6 +92,11 @@ impl FaceInfo {
 pub struct TwistAxisInfo {
     pub name: &'static str, // "U"
 }
+impl AsRef<str> for TwistAxisInfo {
+    fn as_ref(&self) -> &str {
+        self.name
+    }
+}
 impl TwistAxisInfo {
     pub(super) fn list_from_faces(face_list: &[FaceInfo]) -> Vec<Self> {
         face_list.iter().map(|f| Self { name: f.symbol }).collect()
@@ -90,6 +105,11 @@ impl TwistAxisInfo {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TwistDirectionInfo {
     pub name: &'static str, // "CW"
+}
+impl AsRef<str> for TwistDirectionInfo {
+    fn as_ref(&self) -> &str {
+        self.name
+    }
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Twist {
@@ -167,15 +187,31 @@ impl LayerMask {
     pub(crate) fn is_default(self) -> bool {
         self == Self::default()
     }
-    pub(crate) fn short_description(self) -> String {
+    pub(crate) fn digits(self) -> String {
         // Just give up if there's more than 9 layers.
         (0..9)
             .filter(|&i| self[i])
             .map(|i| (i as u8 + '1' as u8) as char)
             .collect()
     }
+    pub(crate) fn short_description(self) -> String {
+        match self.count() {
+            0 => "none".to_owned(),
+            _ => (0..32).filter(|&i| self[i]).map(|i| i + 1).join(", "),
+        }
+    }
     pub(crate) fn long_description(self) -> String {
-        (0..32).filter(|&i| self[i]).map(|i| i + 1).join(", ")
+        match self.count() {
+            0 => "no layers".to_owned(),
+            1 => format!("layer {}", self.0.trailing_zeros() + 1),
+            _ => format!(
+                "layers {}",
+                (0..32).filter(|&i| self[i]).map(|i| i + 1).join(", ")
+            ),
+        }
+    }
+    pub(crate) fn count(self) -> u32 {
+        self.0.count_ones()
     }
 }
 

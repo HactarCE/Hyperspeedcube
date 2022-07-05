@@ -95,10 +95,9 @@ async fn run() {
         // Prioritize sending events to the key combo popup.
         match &ev {
             Event::WindowEvent { window_id, event } if *window_id == window.id() => {
-                // // TODO: uncomment this
-                // gui::key_combo_popup_handle_event(&egui.context(), &mut app, &event);
-                // event_has_been_captured |=
-                //     gui::key_combo_popup_captures_event(&egui.context(), &event);
+                gui::key_combo_popup_handle_event(&egui.context(), &mut app, &event);
+                event_has_been_captured |=
+                    gui::key_combo_popup_captures_event(&egui.context(), &event);
             }
             _ => (),
         }

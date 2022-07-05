@@ -103,7 +103,7 @@ impl PuzzleCommand {
     pub fn short_description(&self, ty: PuzzleTypeEnum) -> String {
         match self {
             PuzzleCommand::SelectAxis(axis_name) => axis_name.to_owned(),
-            PuzzleCommand::SelectLayers(layers) => layers.short_description(),
+            PuzzleCommand::SelectLayers(layers) => layers.digits(),
             PuzzleCommand::Twist {
                 axis,
                 direction,

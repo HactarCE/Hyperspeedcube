@@ -5,10 +5,13 @@ use super::*; // TODO better import
 #[delegatable_trait]
 #[enum_dispatch]
 pub trait PuzzleType {
-    fn name(&self) -> &str;
     fn ty(&self) -> PuzzleTypeEnum;
+    fn name(&self) -> &str;
+    fn family_display_name(&self) -> &'static str;
+    fn family_internal_name(&self) -> &'static str;
 
     fn layer_count(&self) -> u8;
+    fn family_max_layer_count(&self) -> u8;
     /// Returns the maximum radius of any single coordinate in the 3D
     /// projection.
     fn radius(&self) -> f32;

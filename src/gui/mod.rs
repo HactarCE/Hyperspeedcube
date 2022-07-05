@@ -4,19 +4,21 @@ macro_rules! unique_id {
     };
 }
 
-// mod key_combo_popup;
-// mod keybinds_reference;
-// mod keybinds_table;
+#[macro_use]
+mod util;
+
+mod key_combo_popup;
+mod keybinds_reference;
+mod keybinds_table;
 mod menu_bar;
 mod prefs;
 mod puzzle_controls;
 mod status_bar;
-mod util;
 
 use crate::app::App;
-// pub(super) use key_combo_popup::{key_combo_popup_captures_event, key_combo_popup_handle_event};
+pub(super) use key_combo_popup::{key_combo_popup_captures_event, key_combo_popup_handle_event};
 
-// use self::keybinds_table::KeybindsTable;
+use self::keybinds_table::KeybindsTable;
 
 const GENERAL_KEYBINDS_TITLE: &str = "Keybinds";
 const PUZZLE_KEYBINDS_TITLE: &str = "Puzzle Keybinds";
@@ -36,12 +38,12 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
     }
 
     if Window::KeybindsReference.is_open(ctx) {
-        // let alpha = app.prefs.info.keybinds_reference.opacity;
-        // let frame = egui::Frame::window(&ctx.style());
-        // egui::Window::new("Keybinds Reference")
-        //     .title_bar(false)
-        //     .frame(frame.fill(frame.fill.linear_multiply(alpha)))
-        //     .show(ctx, |ui| keybinds_reference::build(ui, app));
+        let alpha = app.prefs.info.keybinds_reference.opacity;
+        let frame = egui::Frame::window(&ctx.style());
+        egui::Window::new("Keybinds Reference")
+            .title_bar(false)
+            .frame(frame.fill(frame.fill.linear_multiply(alpha)))
+            .show(ctx, |ui| keybinds_reference::build(ui, app));
     }
 
     let puzzle_type = app.puzzle.ty();
@@ -50,8 +52,8 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
     egui::Window::new(GENERAL_KEYBINDS_TITLE)
         .open(&mut open)
         .show(ctx, |ui| {
-            // let r = ui.add(KeybindsTable::new(app, keybinds_table::GeneralKeybinds));
-            // app.prefs.needs_save |= r.changed();
+            let r = ui.add(KeybindsTable::new(app, keybinds_table::GeneralKeybinds));
+            app.prefs.needs_save |= r.changed();
         });
     Window::GeneralKeybinds.set_open(ctx, open);
 
@@ -59,15 +61,15 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
     egui::Window::new(PUZZLE_KEYBINDS_TITLE)
         .open(&mut open)
         .show(ctx, |ui| {
-            // let r = ui.add(KeybindsTable::new(
-            //     app,
-            //     keybinds_table::PuzzleKeybinds(puzzle_type),
-            // ));
-            // app.prefs.needs_save |= r.changed();
+            let r = ui.add(KeybindsTable::new(
+                app,
+                keybinds_table::PuzzleKeybinds(puzzle_type),
+            ));
+            app.prefs.needs_save |= r.changed();
         });
     Window::PuzzleKeybinds.set_open(ctx, open);
 
-    // key_combo_popup::build(ctx, app);
+    key_combo_popup::build(ctx, app);
 
     let mut open = Window::About.is_open(ctx);
     egui::Window::new("About").open(&mut open).show(ctx, |ui| {
