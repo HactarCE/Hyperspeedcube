@@ -153,11 +153,9 @@ pub(crate) fn draw_puzzle(
     if let Some(cursor_pos) = app.cursor_pos {
         let scaled_cursor_pos = cgmath::point2(cursor_pos.x / scale[0], cursor_pos.y / scale[1]);
         let puzzle_geometry = puzzle.geometry(sticker_geometry_params);
-        let hovered_stickers = puzzle_geometry
-            .iter()
-            .rev()
-            .filter(move |geom| geom.contains_point(scaled_cursor_pos))
-            .map(|geom| geom.sticker);
+        let hovered_stickers = puzzle_geometry.iter().rev().filter_map(move |geom| {
+            Some((geom.sticker, geom.twists_for_point(scaled_cursor_pos)?))
+        });
         puzzle.update_hovered_stickers(hovered_stickers);
     } else {
         puzzle.update_hovered_stickers([]);

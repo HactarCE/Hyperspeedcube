@@ -170,34 +170,12 @@ impl App {
                 self.puzzle.twist(twist)?;
             }
 
-            AppEvent::Click(egui::PointerButton::Primary) => {
-                if let Some(sticker) = self.puzzle.hovered_sticker() {
-                    // TODO: twist CCW
-                    // self.puzzle.twist(Twist::from_sticker(
-                    //     sticker,
-                    //     TwistDirection2D::CCW,
-                    //     self.puzzle_selection()
-                    //         .layer_mask_or_default(LayerMask::default()),
-                    // )?)?;
+            AppEvent::Click(mouse_button) => {
+                if let Some(mut twist) = self.puzzle.hovered_sticker_twists()[mouse_button as usize]
+                {
+                    twist.layer_mask = self.selected_layers(Some(twist.layer_mask));
+                    self.puzzle.twist(twist)?;
                 }
-            }
-            AppEvent::Click(egui::PointerButton::Secondary) => {
-                // TODO: twist CW
-                // if let Some(sticker) = self.puzzle.hovered_sticker() {
-                //     self.puzzle.twist(Twist::from_sticker(
-                //         sticker,
-                //         TwistDirection2D::CW,
-                //         self.puzzle_selection()
-                //             .layer_mask_or_default(LayerMask::default()),
-                //     )?)?;
-                // }
-            }
-            AppEvent::Click(egui::PointerButton::Middle) => {
-                // TODO: recenter sticker
-                // if let Some(sticker) = self.puzzle.hovered_sticker() {
-                //     let face = self.puzzle.info(sticker).face;
-                //     self.puzzle.twist(self.puzzle.make_recenter_twist(face)?)?;
-                // }
             }
 
             AppEvent::StatusError(msg) => return Err(msg),
@@ -419,9 +397,6 @@ impl App {
         direction: &str,
         layer_mask: LayerMask,
     ) -> Result<(), String> {
-        let puzzle_type = self.puzzle.ty();
-        let sel = self.puzzle_selection();
-
         self.event(AppEvent::Twist(Twist {
             axis: self.twist_axis_from_name(twist_axis)?,
             direction: self.twist_direction_from_name(direction)?,

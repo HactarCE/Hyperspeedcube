@@ -136,17 +136,20 @@ impl StickerGeometryParams {
 pub struct StickerGeometry {
     /// Vertex positions, after 4D projection but before 3D projection.
     pub verts: Vec<Point3<f32>>,
-    /// Indices for sticker faces.
+    /// Indices for polygons.
     pub polygon_indices: Vec<Box<[u16]>>,
+    /// Twists on left/right/middle mouse click per polygon.
+    pub polygon_twists: Vec<[Option<Twist>; 3]>,
 }
 impl StickerGeometry {
-    pub(super) fn new_double_quad(verts: [Point3<f32>; 4]) -> Self {
+    pub(super) fn new_double_quad(verts: [Point3<f32>; 4], twists: [Option<Twist>; 3]) -> Self {
         Self {
             verts: verts.to_vec(),
             polygon_indices: vec![Box::new([0, 1, 3, 2]), Box::new([2, 3, 1, 0])],
+            polygon_twists: vec![twists; 2],
         }
     }
-    pub(super) fn new_cube(verts: [Point3<f32>; 8]) -> Self {
+    pub(super) fn new_cube(verts: [Point3<f32>; 8], twists: [[Option<Twist>; 3]; 8]) -> Self {
         Self {
             verts: verts.to_vec(),
             polygon_indices: vec![
@@ -157,6 +160,7 @@ impl StickerGeometry {
                 Box::new([0, 4, 5, 1]),
                 Box::new([2, 3, 7, 6]),
             ],
+            polygon_twists: twists.to_vec(),
         }
     }
 }
@@ -173,10 +177,11 @@ pub(crate) struct ProjectedStickerGeometry {
     pub back_polygons: Box<[Polygon]>,
 }
 impl ProjectedStickerGeometry {
-    pub(crate) fn contains_point(&self, point: Point2<f32>) -> bool {
+    pub(crate) fn twists_for_point(&self, point: Point2<f32>) -> Option<[Option<Twist>; 3]> {
         self.front_polygons
             .iter()
-            .any(|polygon| polygon.contains_point(point))
+            .find(|polygon| polygon.contains_point(point))
+            .map(|polygon| polygon.twists)
     }
 }
 
@@ -188,12 +193,18 @@ pub(crate) struct Polygon {
     pub normal: Vector3<f32>,
 
     pub illumination: f32,
+
+    pub twists: [Option<Twist>; 3],
 }
 impl Polygon {
     /// Constructs a convex polygon from a list of coplanar vertices in
     /// counterclockwise order. The polygon must not be degenerate, and no three
     /// vertices may be colinear.
-    pub fn new(verts: SmallVec<[Point3<f32>; 4]>, illumination: f32) -> Self {
+    pub fn new(
+        verts: SmallVec<[Point3<f32>; 4]>,
+        illumination: f32,
+        twists: [Option<Twist>; 3],
+    ) -> Self {
         let mut min_bound = verts[0];
         let mut max_bound = verts[0];
         for v in &verts[1..] {
@@ -227,6 +238,8 @@ impl Polygon {
             normal,
 
             illumination,
+
+            twists,
         }
     }
 
@@ -248,6 +261,7 @@ pub(crate) fn polygon_from_indices(
     verts: &[Point3<f32>],
     indices: &[u16],
     illumination: f32,
+    twists: [Option<Twist>; 3],
 ) -> Polygon {
     let verts: SmallVec<_> = indices.iter().map(|&i| verts[i as usize]).collect();
     let normal = polygon_normal_from_indices(&verts, &[0, 1, 2]);
@@ -260,6 +274,8 @@ pub(crate) fn polygon_from_indices(
         normal,
 
         illumination,
+
+        twists,
     }
 }
 
@@ -413,7 +429,7 @@ impl Polygon {
             verts = new_verts;
         }
 
-        (verts.len() >= 3).then(|| Polygon::new(verts, self.illumination))
+        (verts.len() >= 3).then(|| Polygon::new(verts, self.illumination, self.twists))
     }
 
     fn edges<'a>(&'a self) -> impl 'a + Iterator<Item = (Point3<f32>, Point3<f32>)> {

@@ -227,6 +227,7 @@ impl PuzzleState for Rubiks3D {
         p: StickerGeometryParams,
     ) -> Option<StickerGeometry> {
         let piece = self.info(sticker).piece;
+        let sticker_face = self.sticker_face(sticker);
 
         let mut transform = p.view_transform;
         if let Some((twist, t)) = p.twist_animation {
@@ -242,7 +243,7 @@ impl PuzzleState for Rubiks3D {
         let sticker_radius = p.face_scale() * p.sticker_scale() / 2.0;
 
         // Compute the vectors that span the plan of the sticker.
-        let (u_span_axis, v_span_axis) = self.sticker_face(sticker).parallel_axes();
+        let (u_span_axis, v_span_axis) = sticker_face.parallel_axes();
         let u: Vector3<f32> = <Matrix3<f32> as Transform<Point3<f32>>>::transform_vector(
             &transform,
             crate::util::unit_vec3(u_span_axis as usize) * sticker_radius,
@@ -252,12 +253,24 @@ impl PuzzleState for Rubiks3D {
             crate::util::unit_vec3(v_span_axis as usize) * sticker_radius,
         );
 
-        Some(StickerGeometry::new_double_quad([
-            center - u - v,
-            center - u + v,
-            center + u - v,
-            center + u + v,
-        ]))
+        let twist_axis = TwistAxis::from_face(sticker_face);
+        let twist_ccw = Twist {
+            axis: twist_axis,
+            direction: TwistDirection::CCW_90,
+            layer_mask: LayerMask::default(),
+        };
+        let twist_cw = self.reverse_twist(twist_ccw);
+        let twist_recenter = self.make_recenter_twist(twist_axis).ok();
+
+        Some(StickerGeometry::new_double_quad(
+            [
+                center - u - v,
+                center - u + v,
+                center + u - v,
+                center + u + v,
+            ],
+            [Some(twist_ccw), Some(twist_cw), twist_recenter],
+        ))
     }
 
     fn is_solved(&self) -> bool {
@@ -325,6 +338,10 @@ impl TwistAxis {
     const fn face(self) -> Face {
         // Face-turning puzzles use the same numbering for faces and twist axes.
         Face(self.0)
+    }
+    const fn from_face(f: Face) -> Self {
+        // Face-turning puzzles use the same numbering for faces and twist axes.
+        Self(f.0)
     }
 
     fn rot_matrix(self, angle: Rad<f32>) -> Matrix3<f32> {

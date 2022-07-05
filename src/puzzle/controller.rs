@@ -78,7 +78,7 @@ pub struct PuzzleController {
     /// Selected pieces/stickers.
     selection: TwistSelection,
     /// Sticker that the user is hovering over.
-    hovered_sticker: Option<Sticker>,
+    hovered_sticker: Option<(Sticker, [Option<Twist>; 3])>,
     /// Sticker animation states, for interpolating when the user changes the
     /// selection or hovers over a different sticker.
     sticker_animation_states: Vec<StickerDecorAnim>,
@@ -205,45 +205,32 @@ impl PuzzleController {
     }
 
     /// Sets the hovered stickers, in order from front to back.
-    pub fn update_hovered_stickers(&mut self, hovered_stickers: impl IntoIterator<Item = Sticker>) {
-        self.hovered_sticker = hovered_stickers
-            .into_iter()
-            .filter(|&sticker| {
-                let less_than_halfway = TWIST_INTERPOLATION_FN(self.progress) < 0.5;
-                let puzzle_state_mid_twist = if less_than_halfway {
-                    self.displayed() // puzzle state before the twist
-                } else {
-                    &self.next_displayed // puzzle state after the twist
-                };
-                self.selection.has_sticker(puzzle_state_mid_twist, sticker)
-            })
-            .next();
+    pub fn update_hovered_stickers(
+        &mut self,
+        hovered_stickers: impl IntoIterator<Item = (Sticker, [Option<Twist>; 3])>,
+    ) {
+        self.hovered_sticker = hovered_stickers.into_iter().find(|&(sticker, _twists)| {
+            let less_than_halfway = TWIST_INTERPOLATION_FN(self.progress) < 0.5;
+            let puzzle_state = if less_than_halfway {
+                self.displayed() // puzzle state before the twist
+            } else {
+                &self.next_displayed // puzzle state after the twist
+            };
+            self.selection.has_sticker(puzzle_state, sticker)
+        });
     }
     pub(crate) fn hovered_sticker(&self) -> Option<Sticker> {
+        self.hovered_sticker.map(|(sticker, _twists)| sticker)
+    }
+    pub(crate) fn hovered_sticker_twists(&self) -> [Option<Twist>; 3] {
         self.hovered_sticker
+            .map(|(_sticker, twists)| twists)
+            .unwrap_or([None; 3])
     }
 
     /// Returns the animation state for a sticker.
     pub fn sticker_animation_state(&self, sticker: Sticker) -> StickerDecorAnim {
-        // TODO: sticker animation
-        StickerDecorAnim {
-            selected: 1.0,
-            hovered: 0.0,
-        }
-
-        // match self.current_twist() {
-        //     None => self.sticker_animation_states[sticker.0],
-        //     Some((twist, t)) => {
-        //         // Interpolate selected state between old and new sticker
-        //         // positions.
-        //         let old = self.sticker_animation_states[sticker.0];
-        //         let new = self.sticker_animation_states[twist.destination_sticker(sticker).0];
-        //         StickerDecorAnim {
-        //             selected: old.selected * (1.0 - t) + new.selected * t,
-        //             hovered: old.hovered,
-        //         }
-        //     }
-        // }
+        self.sticker_animation_states[sticker.0 as usize]
     }
 
     pub(crate) fn geometry(
@@ -284,7 +271,11 @@ impl PuzzleController {
                 let mut projected_front_polygons = vec![];
                 let mut projected_back_polygons = vec![];
 
-                for indices in &sticker_geom.polygon_indices {
+                for (indices, twists) in sticker_geom
+                    .polygon_indices
+                    .iter()
+                    .zip(sticker_geom.polygon_twists)
+                {
                     let projected_normal =
                         geometry::polygon_normal_from_indices(&projected_verts, indices);
                     if projected_normal.z > 0.0 {
@@ -298,6 +289,7 @@ impl PuzzleController {
                             &projected_verts,
                             indices,
                             illumination,
+                            twists,
                         ));
                     } else {
                         // This polygon is back-facing.
@@ -306,6 +298,7 @@ impl PuzzleController {
                             &projected_verts,
                             indices,
                             illumination,
+                            [None; 3],
                         ));
                     }
                 }
@@ -415,7 +408,7 @@ impl PuzzleController {
     ) -> StickerDecorAnim {
         let is_selected = self.selection.has_sticker(self.latest(), sticker);
         let is_hovered = match self.hovered_sticker {
-            Some(s) => match prefs.highlight_piece_on_hover {
+            Some((s, _)) => match prefs.highlight_piece_on_hover {
                 false => s == sticker,
                 true => self.info(s).piece == self.info(sticker).piece,
             },

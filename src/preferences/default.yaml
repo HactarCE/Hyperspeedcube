@@ -27,16 +27,16 @@ view:
     light_pitch: 65.0
     light_yaw: -55.0
 outlines:
-  default_size: 1.0
+  default_size: 2.0
   hidden_size: 0.0
-  hovered_size: 1.0
+  hovered_size: 3.0
   default_color: "#000000"
   hidden_color: "#000000"
   hovered_color: "#ffffff"
 colors:
   default_opacity: 1.0
   hidden_opacity: 0.3
-  hovered_opacity: 1.0
+  hovered_opacity: 1.5
   background: "#444444"
   blind_face: "#cccccc"
   blindfold: false
