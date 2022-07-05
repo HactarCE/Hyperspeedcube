@@ -440,11 +440,10 @@ impl TwistDirection {
 
 impl Twist {
     fn transform(self, progress: f32) -> Matrix3<f32> {
-        Matrix3::from_axis_angle(
-            self.axis.face().vector(),
-            Rad::full_turn() * self.direction.sign().float() / self.direction.period() as f32
-                * progress,
-        )
+        let angle = Rad::full_turn() * self.direction.sign().float()
+            / self.direction.period() as f32
+            * progress;
+        self.axis.rot_matrix(angle)
     }
 }
 

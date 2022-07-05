@@ -59,12 +59,4 @@ impl ColorPreferences {
             })
             .collect()
     }
-    pub fn set_face_colors(&mut self, ty: PuzzleTypeEnum, face_colors: &[egui::Color32]) {
-        self.faces[ty] = ty
-            .faces()
-            .iter()
-            .zip(face_colors)
-            .map(|(face, &color)| (face.symbol.to_owned(), FaceColor(color)))
-            .collect()
-    }
 }
