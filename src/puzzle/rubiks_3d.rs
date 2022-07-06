@@ -226,7 +226,7 @@ impl PuzzleType for Rubiks3DDescription {
         } else if twist.layers == LayerMask(2) {
             format!("{face_lower}{fwd}")
         } else if twist.layers.is_contiguous_from_outermost() {
-            format!("{}{face_upper}{fwd}", twist.layers.count())
+            format!("{}{face_upper}w{fwd}", twist.layers.count())
         } else if let Some(layer) = twist.layers.get_single_layer() {
             let layer = layer + 1;
             format!("{layer}{face_lower}{fwd}")
