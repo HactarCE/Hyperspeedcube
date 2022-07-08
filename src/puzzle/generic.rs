@@ -75,7 +75,7 @@ pub struct PieceInfo {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct StickerInfo {
     pub piece: Piece,
-    pub face: Face, //  color of the sticker
+    pub color: Face,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct FaceInfo {

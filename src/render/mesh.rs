@@ -44,7 +44,7 @@ pub(super) fn make_puzzle_mesh(
         let sticker_color = egui::Rgba::from(if prefs.colors.blindfold {
             prefs.colors.blind_face
         } else {
-            face_colors[puzzle.info(geom.sticker).face.0 as usize]
+            face_colors[puzzle.info(geom.sticker).color.0 as usize]
         })
         .multiply(alpha);
 

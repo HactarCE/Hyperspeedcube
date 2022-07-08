@@ -1,7 +1,8 @@
-//! 3x3x3 Rubik's cube.
+//! 3D Rubik's cube.
 
 use cgmath::*;
 use itertools::Itertools;
+use num_enum::FromPrimitive;
 use rand::Rng;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
@@ -9,6 +10,7 @@ use std::fmt;
 use std::ops::{Add, Index, IndexMut, Mul, Neg};
 use std::sync::Arc;
 use std::sync::Mutex;
+use strum::{EnumCount, IntoEnumIterator};
 
 use super::{
     generic::*, traits::*, LayerMask, PuzzleTypeEnum, Sign, StickerGeometry, StickerGeometryParams,
@@ -63,15 +65,15 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
                     let mut push_sticker_if = |condition, face| {
                         if condition {
                             piece_stickers.push(Sticker(stickers.len() as _));
-                            stickers.push(StickerInfo { piece, face });
+                            stickers.push(StickerInfo { piece, color: face });
                         }
                     };
-                    push_sticker_if(x_max, Face::R);
-                    push_sticker_if(x_min, Face::L);
-                    push_sticker_if(y_max, Face::U);
-                    push_sticker_if(y_min, Face::D);
-                    push_sticker_if(z_max, Face::F);
-                    push_sticker_if(z_min, Face::B);
+                    push_sticker_if(x_max, FaceEnum::R.into());
+                    push_sticker_if(x_min, FaceEnum::L.into());
+                    push_sticker_if(y_max, FaceEnum::U.into());
+                    push_sticker_if(y_min, FaceEnum::D.into());
+                    push_sticker_if(z_max, FaceEnum::F.into());
+                    push_sticker_if(z_min, FaceEnum::B.into());
 
                     piece_locations.push([x, y, z]);
                     pieces.push(PieceInfo {
@@ -88,11 +90,11 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
 
             layer_count,
 
-            faces: Face::INFO_LIST.to_vec(),
+            faces: FaceEnum::iter().map(|f| f.info()).collect(),
             pieces,
             stickers,
-            twist_axes: TwistAxisInfo::list_from_faces(&Face::INFO_LIST),
-            twist_directions: TwistDirection::INFO_LIST.to_vec(),
+            twist_axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
+            twist_directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
 
             piece_locations,
         }))
@@ -159,67 +161,81 @@ impl PuzzleType for Rubiks3DDescription {
     }
 
     fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection {
-        direction.rev()
+        use TwistDirectionEnum::*;
+
+        match direction.into() {
+            CW90 => CCW90.into(),
+            CCW90 => CW90.into(),
+            CW180 => CCW180.into(),
+            CCW180 => CW180.into(),
+        }
     }
     fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String> {
+        use FaceEnum::*;
+
         Ok(Twist {
-            axis: match axis.face() {
-                Face::R => TwistAxis(Face::U.0),
-                Face::L => TwistAxis(Face::D.0),
-                Face::U => TwistAxis(Face::L.0),
-                Face::D => TwistAxis(Face::R.0),
-                Face::F => return Err("cannot recenter near face".to_string()),
-                Face::B => return Err("cannot recenter far face".to_string()),
-                _ => return Err("invalid face".to_string()),
+            axis: match axis.into() {
+                R => U.into(),
+                L => D.into(),
+                U => L.into(),
+                D => R.into(),
+                F => return Err("cannot recenter near face".to_string()),
+                B => return Err("cannot recenter far face".to_string()),
             },
-            direction: TwistDirection::CW_90,
+            direction: TwistDirectionEnum::CW90.into(),
             layers: self.all_layers(),
         })
     }
     fn canonicalize_twist(&self, twist: Twist) -> Twist {
+        let face: FaceEnum = twist.axis.into();
+        let direction: TwistDirectionEnum = twist.direction.into();
+
         let rev_layers = self.reverse_layers(twist.layers);
-        let is_canonical = twist.layers.0 < rev_layers.0
-            || twist.layers == rev_layers && twist.axis.face().sign() == Sign::Pos;
+        let is_canonical =
+            twist.layers.0 < rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Pos;
         if is_canonical {
             twist
         } else {
             Twist {
-                axis: TwistAxis::from_face(twist.axis.face().opposite()),
-                direction: twist.direction.rev(),
+                axis: face.opposite().into(),
+                direction: direction.rev().into(),
                 layers: rev_layers,
             }
         }
     }
 
     fn twist_short_description(&self, twist: Twist) -> String {
-        let face_upper = self.info(twist.axis.face()).symbol;
-        let face_lower = face_upper.to_ascii_lowercase();
-        let fwd = self.info(twist.direction).symbol;
-        let rev = self.info(twist.direction.rev()).symbol;
+        use FaceEnum::*;
+
+        let face: FaceEnum = twist.axis.into();
+        let direction: TwistDirectionEnum = twist.direction.into();
+
+        let face_upper = face.symbol_upper();
+        let face_lower = face.symbol_lower();
+        let fwd = direction.symbol();
+        let rev = direction.rev().symbol();
 
         if twist.layers == LayerMask(0) {
             crate::util::INVALID_STR.to_string()
         } else if twist.layers == self.all_layers() {
-            match twist.axis.face() {
-                Face::R => format!("x{fwd}"),
-                Face::L => format!("x{rev}"),
-                Face::U => format!("y{fwd}"),
-                Face::D => format!("y{rev}"),
-                Face::F => format!("z{fwd}"),
-                Face::B => format!("z{rev}"),
-                _ => crate::util::INVALID_STR.to_string(),
+            match face {
+                R => format!("x{fwd}"),
+                L => format!("x{rev}"),
+                U => format!("y{fwd}"),
+                D => format!("y{rev}"),
+                F => format!("z{fwd}"),
+                B => format!("z{rev}"),
             }
         } else if twist.layers.is_default() {
             format!("{face_upper}{fwd}")
         } else if twist.layers == self.slice_layers() {
-            match twist.axis.face() {
-                Face::R => format!("M{rev}"),
-                Face::L => format!("M{fwd}"),
-                Face::U => format!("E{rev}"),
-                Face::D => format!("E{fwd}"),
-                Face::F => format!("S{fwd}"),
-                Face::B => format!("S{rev}"),
-                _ => crate::util::INVALID_STR.to_string(),
+            match face {
+                R => format!("M{rev}"),
+                L => format!("M{fwd}"),
+                U => format!("E{rev}"),
+                D => format!("E{fwd}"),
+                F => format!("S{fwd}"),
+                B => format!("S{rev}"),
             }
         } else if twist.layers == LayerMask(3) {
             format!("{face_upper}w{fwd}")
@@ -231,7 +247,7 @@ impl PuzzleType for Rubiks3DDescription {
             let layer = layer + 1;
             format!("{layer}{face_lower}{fwd}")
         } else {
-            format!("{{{}}}{face_upper}{fwd}", twist.layers.short_description(),)
+            format!("{{{}}}{face_upper}{fwd}", twist.layers.short_description())
         }
     }
 }
@@ -262,12 +278,12 @@ impl IndexMut<Piece> for Rubiks3D {
 impl PuzzleState for Rubiks3D {
     fn twist(&mut self, twist: Twist) -> Result<(), &'static str> {
         for piece in self.pieces_affected_by_twist(twist) {
-            self[piece] = self[piece].twist(twist.axis, twist.direction);
+            self[piece] = self[piece].twist(twist.axis.into(), twist.direction.into());
         }
         Ok(())
     }
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8 {
-        let face = twist_axis.face();
+        let face: FaceEnum = twist_axis.into();
         let face_coord = match face.sign() {
             Sign::Pos => self.layer_count() - 1,
             Sign::Neg => 0,
@@ -282,12 +298,14 @@ impl PuzzleState for Rubiks3D {
         p: StickerGeometryParams,
     ) -> Option<StickerGeometry> {
         let piece = self.info(sticker).piece;
-        let sticker_face = self.sticker_face(sticker);
+        let face = self.sticker_face(sticker);
 
         let mut transform = p.view_transform;
-        if let Some((twist, t)) = p.twist_animation {
+        if let Some((twist, progress)) = p.twist_animation {
             if self.is_piece_affected_by_twist(twist, piece) {
-                transform = transform * twist.transform(t);
+                let twist_axis: FaceEnum = twist.axis.into();
+                let twist_transform = twist_axis.twist_matrix(twist.direction.into(), progress);
+                transform = transform * twist_transform;
             }
         }
 
@@ -298,7 +316,7 @@ impl PuzzleState for Rubiks3D {
         let sticker_radius = p.face_scale(self.layer_count()) * p.sticker_scale() / 2.0;
 
         // Compute the vectors that span the plan of the sticker.
-        let (u_span_axis, v_span_axis) = sticker_face.parallel_axes();
+        let [u_span_axis, v_span_axis] = face.parallel_axes();
         let u: Vector3<f32> = <Matrix3<f32> as Transform<Point3<f32>>>::transform_vector(
             &transform,
             crate::util::unit_vec3(u_span_axis as usize) * sticker_radius,
@@ -308,14 +326,14 @@ impl PuzzleState for Rubiks3D {
             crate::util::unit_vec3(v_span_axis as usize) * sticker_radius,
         );
 
-        let twist_axis = TwistAxis::from_face(sticker_face);
+        // Decide what twists should happen when the sticker is clicked.
         let twist_ccw = Twist {
-            axis: twist_axis,
-            direction: TwistDirection::CCW_90,
+            axis: face.into(),
+            direction: TwistDirectionEnum::CCW90.into(),
             layers: LayerMask::default(),
         };
         let twist_cw = self.reverse_twist(twist_ccw);
-        let twist_recenter = self.make_recenter_twist(twist_axis).ok();
+        let twist_recenter = self.make_recenter_twist(face.into()).ok();
 
         Some(StickerGeometry::new_double_quad(
             [
@@ -358,12 +376,13 @@ impl Rubiks3D {
         }
         ret
     }
-    fn sticker_face(&self, sticker: Sticker) -> Face {
+    fn sticker_face(&self, sticker: Sticker) -> FaceEnum {
         let sticker_info = self.info(sticker);
-        let ret = self[sticker_info.piece][sticker_info.face.axis()];
-        match sticker_info.face.sign() {
-            Sign::Pos => ret,
-            Sign::Neg => ret.opposite(),
+        let original_face: FaceEnum = sticker_info.color.into();
+        let current_face = self[sticker_info.piece][original_face.axis()];
+        match original_face.sign() {
+            Sign::Pos => current_face,
+            Sign::Neg => current_face.opposite(),
         }
     }
 
@@ -388,147 +407,19 @@ impl Rubiks3D {
     }
 }
 
-impl TwistAxis {
-    const fn face(self) -> Face {
-        // Face-turning puzzles use the same numbering for faces and twist axes.
-        Face(self.0)
-    }
-    const fn from_face(f: Face) -> Self {
-        // Face-turning puzzles use the same numbering for faces and twist axes.
-        Self(f.0)
-    }
-
-    fn rot_matrix(self, angle: Rad<f32>) -> Matrix3<f32> {
-        Matrix3::from_axis_angle(self.face().vector(), angle)
-    }
-}
-impl Face {
-    const INFO_LIST: [FaceInfo; 6] = [
-        FaceInfo::new("R", "Right"),
-        FaceInfo::new("L", "Left"),
-        FaceInfo::new("U", "Up"),
-        FaceInfo::new("D", "Down"),
-        FaceInfo::new("F", "Front"),
-        FaceInfo::new("B", "Back"),
-    ];
-
-    const R: Self = Self::new(Axis::X, Sign::Pos);
-    const L: Self = Self::new(Axis::X, Sign::Neg);
-    const U: Self = Self::new(Axis::Y, Sign::Pos);
-    const D: Self = Self::new(Axis::Y, Sign::Neg);
-    const F: Self = Self::new(Axis::Z, Sign::Pos);
-    const B: Self = Self::new(Axis::Z, Sign::Neg);
-
-    const fn new(axis: Axis, sign: Sign) -> Self {
-        let i = ((axis as u8) << 1)
-            | match sign {
-                Sign::Neg => 1,
-                Sign::Pos => 0,
-            };
-        Self(i)
-    }
-    const fn axis(self) -> Axis {
-        match self.0 >> 1 {
-            0 => Axis::X,
-            1 => Axis::Y,
-            2 => Axis::Z,
-            _ => panic!("invalid face"),
-        }
-    }
-    const fn sign(self) -> Sign {
-        match self.0 & 1 {
-            0 => Sign::Pos,
-            1 => Sign::Neg,
-            _ => unreachable!(),
-        }
-    }
-    fn vector(self) -> Vector3<f32> {
-        (match self.axis() {
-            Axis::X => Vector3::unit_x(),
-            Axis::Y => Vector3::unit_y(),
-            Axis::Z => Vector3::unit_z(),
-        } * self.sign().float())
-    }
-    #[must_use]
-    const fn opposite(self) -> Face {
-        Self(self.0 ^ 1)
-    }
-
-    /// Returns the axes parallel to this face (all except the perpendicular
-    /// axis).
-    const fn parallel_axes(self) -> (Axis, Axis) {
-        let (ax1, ax2) = self.axis().perpendiculars();
-        match self.sign() {
-            Sign::Neg => (ax2, ax1),
-            Sign::Pos => (ax1, ax2),
-        }
-    }
-}
-
-impl TwistDirection {
-    const INFO_LIST: [TwistDirectionInfo; 4] = [
-        TwistDirectionInfo::new("", "CW"),
-        TwistDirectionInfo::new("'", "CCW"),
-        TwistDirectionInfo::new("2", "180 CW"),
-        TwistDirectionInfo::new("2'", "180 CCW"),
-    ];
-
-    const CW_90: Self = Self(0);
-    const CCW_90: Self = Self(1);
-    const CW_180: Self = Self(2);
-    const CCW_180: Self = Self(3);
-    const COUNT: u8 = 4; // TODO: is this good or bad?
-
-    #[must_use]
-    fn rev(self) -> Self {
-        match self {
-            TwistDirection::CW_90 => Self::CCW_90,
-            TwistDirection::CCW_90 => Self::CW_90,
-            TwistDirection::CW_180 => Self::CCW_180,
-            TwistDirection::CCW_180 => Self::CW_180,
-            TwistDirection(TwistDirection::COUNT..) => panic!("invalid twist direction"),
-        }
-    }
-    fn period(self) -> usize {
-        match self {
-            TwistDirection::CW_90 => 4,
-            TwistDirection::CCW_90 => 4,
-            TwistDirection::CW_180 => 2,
-            TwistDirection::CCW_180 => 2,
-            TwistDirection(TwistDirection::COUNT..) => panic!("invalid twist direction"),
-        }
-    }
-    fn sign(self) -> Sign {
-        match self {
-            TwistDirection::CW_90 => Sign::Neg,
-            TwistDirection::CCW_90 => Sign::Pos,
-            TwistDirection::CW_180 => Sign::Neg,
-            TwistDirection::CCW_180 => Sign::Pos,
-            TwistDirection(TwistDirection::COUNT..) => panic!("invalid twist direction"),
-        }
-    }
-}
-
-impl Twist {
-    fn transform(self, progress: f32) -> Matrix3<f32> {
-        let angle = Rad::full_turn() * self.direction.sign().float()
-            / self.direction.period() as f32
-            * progress;
-        self.axis.rot_matrix(angle)
-    }
-}
-
 /// The facing directions of the X+, Y+, and Z+ stickers on this piece (assuming
 /// it has those stickers).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct PieceState([Face; 3]);
+pub struct PieceState([FaceEnum; 3]);
 impl Default for PieceState {
     fn default() -> Self {
-        Self([Face::R, Face::U, Face::F])
+        use FaceEnum::*;
+
+        Self([R, U, F])
     }
 }
 impl Index<Axis> for PieceState {
-    type Output = Face;
+    type Output = FaceEnum;
 
     fn index(&self, axis: Axis) -> &Self::Output {
         &self.0[axis as usize]
@@ -545,7 +436,7 @@ impl PieceState {
         let diff = (from as u8 ^ to as u8) << 1;
         for face in &mut self.0 {
             if face.axis() == from || face.axis() == to {
-                face.0 ^= diff; // Swap axes
+                *face = ((*face as u8) ^ diff).into(); // Swap axes
             }
         }
         self.mirror(from) // Flip sign of one axis
@@ -561,20 +452,219 @@ impl PieceState {
     }
 
     #[must_use]
-    fn twist(self, twist_axis: TwistAxis, mut direction: TwistDirection) -> Self {
-        let face = twist_axis.face();
-        let axis = face.axis();
+    fn twist(self, face: FaceEnum, mut direction: TwistDirectionEnum) -> Self {
+        use TwistDirectionEnum::*;
+
         if face.sign() == Sign::Neg {
             direction = direction.rev();
         }
-        let (a, b) = axis.perpendiculars();
+        let [a, b] = face.axis().perpendiculars();
         match direction {
-            TwistDirection::CW_90 => self.rotate(a, b),
-            TwistDirection::CCW_90 => self.rotate(b, a),
-            TwistDirection::CW_180 => self.mirror(a).mirror(b),
-            TwistDirection::CCW_180 => self.mirror(a).mirror(b),
-            TwistDirection(TwistDirection::COUNT..) => panic!("invalid twist direction"),
+            CW90 => self.rotate(a, b),
+            CCW90 => self.rotate(b, a),
+            CW180 => self.mirror(a).mirror(b),
+            CCW180 => self.mirror(a).mirror(b),
         }
+    }
+}
+
+#[derive(EnumIter, FromPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(u8)]
+enum FaceEnum {
+    #[num_enum(default)]
+    R = 0,
+    L = 1,
+    U = 2,
+    D = 3,
+    F = 4,
+    B = 5,
+}
+impl From<Face> for FaceEnum {
+    fn from(Face(i): Face) -> Self {
+        Self::from(i)
+    }
+}
+impl From<FaceEnum> for Face {
+    fn from(face: FaceEnum) -> Self {
+        Self(face as _)
+    }
+}
+impl From<TwistAxis> for FaceEnum {
+    fn from(TwistAxis(i): TwistAxis) -> Self {
+        Self::from(i)
+    }
+}
+impl From<FaceEnum> for TwistAxis {
+    fn from(face: FaceEnum) -> Self {
+        Self(face as _)
+    }
+}
+impl FaceEnum {
+    fn info(self) -> FaceInfo {
+        FaceInfo {
+            symbol: self.symbol_upper_str(),
+            name: self.name(),
+        }
+    }
+    fn twist_axis_info(self) -> TwistAxisInfo {
+        TwistAxisInfo {
+            name: self.symbol_upper_str(),
+        }
+    }
+
+    fn axis(self) -> Axis {
+        use FaceEnum::*;
+
+        match self {
+            R | L => Axis::X,
+            U | D => Axis::Y,
+            F | B => Axis::Z,
+        }
+    }
+    fn sign(self) -> Sign {
+        use FaceEnum::*;
+
+        match self {
+            R | U | F => Sign::Pos,
+            L | D | B => Sign::Neg,
+        }
+    }
+    #[must_use]
+    fn opposite(self) -> Self {
+        use FaceEnum::*;
+
+        match self {
+            R => L,
+            L => R,
+            U => D,
+            D => U,
+            F => B,
+            B => F,
+        }
+    }
+
+    fn symbol_upper_str(self) -> &'static str {
+        use FaceEnum::*;
+
+        match self {
+            R => "R",
+            L => "L",
+            U => "U",
+            D => "D",
+            F => "F",
+            B => "B",
+        }
+    }
+    fn symbol_upper(self) -> char {
+        self.symbol_upper_str().chars().next().unwrap()
+    }
+    fn symbol_lower(self) -> char {
+        self.symbol_upper().to_ascii_uppercase()
+    }
+    fn name(self) -> &'static str {
+        use FaceEnum::*;
+
+        match self {
+            R => "Right",
+            L => "Left",
+            U => "Up",
+            D => "Down",
+            F => "Front",
+            B => "Back",
+        }
+    }
+
+    fn vector(self) -> Vector3<f32> {
+        (match self.axis() {
+            Axis::X => Vector3::unit_x(),
+            Axis::Y => Vector3::unit_y(),
+            Axis::Z => Vector3::unit_z(),
+        } * self.sign().float())
+    }
+
+    /// Returns the axes parallel to this face (all except the perpendicular
+    /// axis).
+    fn parallel_axes(self) -> [Axis; 2] {
+        let [ax1, ax2] = self.axis().perpendiculars();
+        match self.sign() {
+            Sign::Neg => [ax2, ax1],
+            Sign::Pos => [ax1, ax2],
+        }
+    }
+
+    fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix3<f32> {
+        let angle =
+            Rad::full_turn() * direction.sign().float() / direction.period() as f32 * progress;
+        Matrix3::from_axis_angle(self.vector(), angle)
+    }
+}
+
+#[derive(EnumIter, FromPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(u8)]
+enum TwistDirectionEnum {
+    #[num_enum(default)]
+    CW90 = 0,
+    CCW90 = 1,
+    CW180 = 2,
+    CCW180 = 3,
+}
+impl From<TwistDirectionEnum> for TwistDirection {
+    fn from(direction: TwistDirectionEnum) -> Self {
+        Self(direction as _)
+    }
+}
+impl From<TwistDirection> for TwistDirectionEnum {
+    fn from(TwistDirection(i): TwistDirection) -> Self {
+        Self::from(i)
+    }
+}
+impl TwistDirectionEnum {
+    fn info(self) -> TwistDirectionInfo {
+        TwistDirectionInfo {
+            symbol: self.symbol(),
+            name: self.name(),
+        }
+    }
+
+    fn symbol(self) -> &'static str {
+        use TwistDirectionEnum::*;
+
+        match self {
+            CW90 => "",
+            CCW90 => "'",
+            CW180 => "2",
+            CCW180 => "2'",
+        }
+    }
+    fn name(self) -> &'static str {
+        use TwistDirectionEnum::*;
+
+        match self {
+            CW90 => "CW",
+            CCW90 => "CCW",
+            CW180 => "180 CW",
+            CCW180 => "180 CCW",
+        }
+    }
+
+    fn period(self) -> usize {
+        use TwistDirectionEnum::*;
+
+        match self {
+            CW90 | CCW90 => 4,
+            CW180 | CCW180 => 2,
+        }
+    }
+    fn sign(self) -> Sign {
+        use TwistDirectionEnum::*;
+
+        match self {
+            CW90 | CW180 => Sign::Neg,
+            CCW90 | CCW180 => Sign::Pos,
+        }
+    }
+    fn rev(self) -> Self {
+        Self::from(self as u8 ^ 1)
     }
 }
 
@@ -593,12 +683,12 @@ impl Axis {
     /// (The cross product of the returned axes is the opposite of the input.)
     /// This is more convenient for twisty puzzles, where clockwise rotations
     /// are the default.
-    const fn perpendiculars(self) -> (Axis, Axis) {
+    fn perpendiculars(self) -> [Axis; 2] {
         use Axis::*;
         match self {
-            X => (Z, Y), // X+ => rotate from Z+ to Y+.
-            Y => (X, Z), // Y+ => rotate from X+ to Z+.
-            Z => (Y, X), // Z+ => rotate from Y+ to X+.
+            X => [Z, Y], // X+ => rotate from Z+ to Y+.
+            Y => [X, Z], // Y+ => rotate from X+ to Z+.
+            Z => [Y, X], // Z+ => rotate from Y+ to X+.
         }
     }
 

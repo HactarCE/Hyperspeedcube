@@ -97,6 +97,17 @@ pub trait PuzzleType {
     fn twist_short_description(&self, twist: Twist) -> String;
 }
 
+trait PuzzleTypeRefExt {
+    fn deref_internal(&self) -> Self;
+}
+#[delegate_to_methods]
+#[delegate(PuzzleType, target_ref = "deref_internal")]
+impl<'a, P: PuzzleType> PuzzleTypeRefExt for &'a P {
+    fn deref_internal(&self) -> &'a P {
+        *self
+    }
+}
+
 #[enum_dispatch]
 pub trait PuzzleState: PuzzleType {
     fn twist(&mut self, twist: Twist) -> Result<(), &'static str>;
@@ -123,21 +134,21 @@ pub trait PuzzleState: PuzzleType {
 pub trait PuzzleInfo<T> {
     type Output;
 
-    fn info(&self, thing: T) -> Self::Output;
+    fn info(&self, thing: T) -> &Self::Output;
 }
 macro_rules! impl_puzzle_info_trait {
-    (fn $method:ident($thing:ty) -> $thing_info:ty) => {
+    (fn $method:ident($thing:ty) -> &$thing_info:ty) => {
         impl<T: PuzzleType + ?Sized> PuzzleInfo<$thing> for T {
             type Output = $thing_info;
 
-            fn info(&self, thing: $thing) -> $thing_info {
-                self.$method()[thing.0 as usize].clone()
+            fn info(&self, thing: $thing) -> &$thing_info {
+                &self.$method()[thing.0 as usize]
             }
         }
     };
 }
-impl_puzzle_info_trait!(fn faces(Face) -> FaceInfo);
-impl_puzzle_info_trait!(fn pieces(Piece) -> PieceInfo);
-impl_puzzle_info_trait!(fn stickers(Sticker) -> StickerInfo);
-impl_puzzle_info_trait!(fn twist_axes(TwistAxis) -> TwistAxisInfo);
-impl_puzzle_info_trait!(fn twist_directions(TwistDirection) -> TwistDirectionInfo);
+impl_puzzle_info_trait!(fn faces(Face) -> &FaceInfo);
+impl_puzzle_info_trait!(fn pieces(Piece) -> &PieceInfo);
+impl_puzzle_info_trait!(fn stickers(Sticker) -> &StickerInfo);
+impl_puzzle_info_trait!(fn twist_axes(TwistAxis) -> &TwistAxisInfo);
+impl_puzzle_info_trait!(fn twist_directions(TwistDirection) -> &TwistDirectionInfo);
