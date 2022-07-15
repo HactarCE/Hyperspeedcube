@@ -57,15 +57,15 @@ fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
-    let twist_axis = app.selected_twist_axis();
-    let can_twist = twist_axis.is_some() && sel.layer_mask != 0_u32;
+    let twist_axis = app.selected_twist_axis(None);
+    let can_twist = twist_axis.is_ok() && sel.layer_mask != 0_u32;
 
     ui.strong("Twist");
     ui.add_enabled_ui(can_twist, |ui| {
         ui.with_layout(h_layout, |ui| {
             for (i, twist_direction) in puzzle_type.twist_directions().iter().enumerate() {
                 if ui.button(twist_direction.name).clicked() {
-                    if let Some(axis) = twist_axis {
+                    if let Ok(axis) = twist_axis {
                         // should always be `Some`
                         app.event(Twist {
                             axis,

@@ -364,20 +364,27 @@ impl App {
     }
     fn twist_direction_from_name(&self, name: &str) -> Result<TwistDirection, String> {
         self.puzzle
-            .ty()
             .twist_direction_from_name(name)
             .ok_or_else(|| format!("Unknown twist direction {name:?}"))
     }
 
     /// Returns the twist axis selected if exactly one twist axis is selected;
     /// otherwise returns `None`.
-    pub(crate) fn selected_twist_axis(&self) -> Option<TwistAxis> {
+    pub(crate) fn selected_twist_axis(&self, fallback: Option<&str>) -> Result<TwistAxis, String> {
+        if let Some(name) = fallback {
+            return self
+                .puzzle
+                .twist_axis_from_name(name)
+                .ok_or_else(|| format!("Unknown twist axis {name:?}"));
+        }
         let sel = self.puzzle_selection();
-        if sel.axis_mask.count_ones() == 1 {
-            let index_of_first_one_bit = sel.axis_mask.trailing_zeros();
-            Some(TwistAxis(index_of_first_one_bit as _))
-        } else {
-            None
+        match sel.axis_mask.count_ones() {
+            0 => Err("No twist axis selected".to_string()),
+            1 => {
+                let index_of_first_one_bit = sel.axis_mask.trailing_zeros();
+                Ok(TwistAxis(index_of_first_one_bit as _))
+            }
+            _ => Err("Too many twist axes".to_string()),
         }
     }
     /// Returns the mask of selected layers, or `fallback` if `fallback` is
@@ -398,17 +405,14 @@ impl App {
         layer_mask: LayerMask,
     ) -> Result<(), String> {
         self.event(AppEvent::Twist(Twist {
-            axis: self.twist_axis_from_name(twist_axis)?,
+            axis: self.selected_twist_axis(twist_axis)?,
             direction: self.twist_direction_from_name(direction)?,
             layers: self.selected_layers(Some(layer_mask)),
         }));
         Ok(())
     }
     pub(crate) fn do_recenter(&self, twist_axis: Option<&str>) -> Result<(), String> {
-        let axis = match twist_axis {
-            Some(name) => self.twist_axis_from_name(Some(name))?,
-            None => self.selected_twist_axis().ok_or("No twist axis selected")?,
-        };
+        let axis = self.selected_twist_axis(twist_axis)?;
         self.event(AppEvent::Twist(self.puzzle.make_recenter_twist(axis)?));
         Ok(())
     }
