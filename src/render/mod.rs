@@ -50,7 +50,7 @@ impl Default for PuzzleRenderCache {
                 Some("puzzle_vertex_buffer"),
                 wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
             ),
-            index_buffer: CachedDynamicBuffer::new::<u16>(
+            index_buffer: CachedDynamicBuffer::new::<u32>(
                 Some("puzzle_index_buffer"),
                 wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX,
             ),
@@ -322,7 +322,7 @@ pub(crate) fn draw_puzzle(
 
         // Populate index buffer.
         let index_buffer = cache.index_buffer.write_all(gfx, &mut indices);
-        render_pass.set_index_buffer(index_buffer, wgpu::IndexFormat::Uint16);
+        render_pass.set_index_buffer(index_buffer, wgpu::IndexFormat::Uint32);
 
         // Populate and bind uniform.
         cache.uniform_buffer.write(gfx, &BasicUniform { scale });

@@ -16,7 +16,7 @@ pub(super) fn make_puzzle_mesh(
     puzzle: &mut PuzzleController,
     prefs: &Preferences,
     sticker_geometry_params: StickerGeometryParams,
-) -> (Vec<RgbaVertex>, Vec<u16>) {
+) -> (Vec<RgbaVertex>, Vec<u32>) {
     // Triangulate polygons and combine the whole puzzle into one mesh.
     let mut verts = vec![];
     let mut indices = vec![];
@@ -100,7 +100,7 @@ pub(super) fn make_puzzle_mesh(
 
         // Generate face vertices.
         for polygon in &*geom.front_polygons {
-            let base = verts.len() as u16;
+            let base = verts.len() as u32;
             verts.extend(polygon.verts.iter().map(|v| RgbaVertex {
                 pos: [v.x, v.y, z],
                 color: [
@@ -110,7 +110,7 @@ pub(super) fn make_puzzle_mesh(
                     sticker_color.a(),
                 ],
             }));
-            let n = polygon.verts.len() as u16;
+            let n = polygon.verts.len() as u32;
             indices.extend((2..n).flat_map(|i| [base, base + i - 1, base + i]));
         }
 
@@ -124,7 +124,7 @@ pub(super) fn make_puzzle_mesh(
 
 fn generate_outline_geometry(
     verts_out: &mut Vec<RgbaVertex>,
-    indices_out: &mut Vec<u16>,
+    indices_out: &mut Vec<u32>,
     lines: &[[Point2<f32>; 2]],
     outline_size: f32,
     make_vert: impl Copy + Fn(Point2<f32>) -> RgbaVertex,
@@ -135,7 +135,7 @@ fn generate_outline_geometry(
 
     // Generate simple lines.
     for &[a, b] in lines {
-        let base = verts_out.len() as u16;
+        let base = verts_out.len() as u32;
 
         if !unique_line_ends.contains(&a) {
             unique_line_ends.push(a);
@@ -193,7 +193,7 @@ fn generate_outline_geometry(
         // If such a pair exists, then add a circular wedge to fill in the
         // gap. (Only one wedge will ever be needed for a given vertex.)
         if let Some((a, diff)) = max_angle_pair {
-            let base = verts_out.len() as u16;
+            let base = verts_out.len() as u32;
             verts_out.push(make_vert(p));
 
             let diff = diff - Rad::turn_div_2();
@@ -210,7 +210,7 @@ fn generate_outline_geometry(
                     .map(make_vert)
                     .take(n),
             );
-            indices_out.extend((1..n as u16).flat_map(|i| [base, base + i, base + i + 1]));
+            indices_out.extend((1..n as u32).flat_map(|i| [base, base + i, base + i + 1]));
         }
     }
 }
