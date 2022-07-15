@@ -87,14 +87,3 @@ pub fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f32>) {
 
     (min_bound, max_bound)
 }
-
-pub fn unit_vec3(axis_index: usize) -> Vector3<f32> {
-    let mut ret = Vector3::zero();
-    ret[axis_index] = 1.0;
-    ret
-}
-pub fn unit_vec4(axis_index: usize) -> Vector4<f32> {
-    let mut ret = Vector4::zero();
-    ret[axis_index] = 1.0;
-    ret
-}

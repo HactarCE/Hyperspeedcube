@@ -17,10 +17,20 @@ const EPSILON: f32 = 0.000001;
 /// Parameters for constructing sticker geometry.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct StickerGeometryParams {
-    /// Sticker spacing factor.
-    pub sticker_spacing: f32,
-    /// Face spacing factor.
+    /// `2 * (space between face and edge of puzzle) / (puzzle diameter)`.
+    /// Ranges from 0.0 to 1.0.
     pub face_spacing: f32,
+    /// `(space between stickers) / (sticker width)`. Ranges from 0.0 to 2.0.
+    pub sticker_spacing: f32,
+
+    /// `(sticker width + space between stickers) / (puzzle diameter)`. Ranges
+    /// from 0.0 to 1.0.
+    pub sticker_grid_scale: f32,
+    /// `(face width + space between stickers) / (puzzle diameter)`. Ranges from
+    /// 0.0 to infinity.
+    pub face_scale: f32,
+    /// `(sticker width) / (puzzle diameter)`. Ranges from 0.0 to 1.0.
+    pub sticker_scale: f32,
 
     /// 4D FOV, in degrees.
     pub fov_4d: f32,
@@ -54,8 +64,7 @@ impl StickerGeometryParams {
         // Compute the view and perspective transforms, which must be applied here
         // on the CPU so that we can do proper depth sorting.
         let view_transform = Matrix3::from_angle_x(Deg(view_prefs.pitch))
-            * Matrix3::from_angle_y(Deg(view_prefs.yaw))
-            / puzzle_type.radius();
+            * Matrix3::from_angle_y(Deg(view_prefs.yaw));
 
         let ambient_light = 1.0 - view_prefs.light_intensity * 0.5; // TODO: make ambient light configurable
         let light_vector = Matrix3::from_angle_y(Deg(view_prefs.light_yaw))
@@ -64,9 +73,25 @@ impl StickerGeometryParams {
             * view_prefs.light_intensity
             * 0.5;
 
-        Self {
-            sticker_spacing: view_prefs.sticker_spacing,
-            face_spacing: view_prefs.face_spacing,
+        let face_spacing = view_prefs.face_spacing;
+        let sticker_spacing = if puzzle_type.layer_count() > 1 {
+            view_prefs.sticker_spacing
+        } else {
+            0.0
+        };
+
+        let sticker_grid_scale =
+            (1.0 - face_spacing) / (puzzle_type.layer_count() as f32 - sticker_spacing);
+        let face_scale = sticker_grid_scale * (puzzle_type.layer_count() as f32);
+        let sticker_scale = sticker_grid_scale * (1.0 - sticker_spacing);
+
+        let mut ret = Self {
+            face_spacing,
+            sticker_spacing,
+
+            sticker_grid_scale,
+            face_scale,
+            sticker_scale,
 
             fov_4d: view_prefs.fov_4d,
             fov_3d: view_prefs.fov_3d,
@@ -78,24 +103,21 @@ impl StickerGeometryParams {
 
             ambient_light,
             light_vector,
-        }
-    }
+        };
 
-    /// Computes the sticker scale factor (0.0 to 1.0).
-    pub fn sticker_scale(self) -> f32 {
-        1.0 - self.sticker_spacing
-    }
-    /// Computes the face scale factor (0.0 to 1.0).
-    pub fn face_scale(self, layer_count: u8) -> f32 {
-        (1.0 - self.face_spacing) * layer_count as f32
-            / (layer_count as f32 - 1.0 + self.sticker_scale())
+        ret.view_transform = ret.view_transform / puzzle_type.projection_radius_3d(ret);
+
+        ret
     }
 
     /// Projects a 4D point down to 3D.
     pub fn project_4d(self, point: Vector4<f32>) -> Option<Point3<f32>> {
+        let camera_w = self.face_scale;
+
         // See `project_3d()` for an explanation of this formula. The only
-        // difference here is that we assume the 4D FOV is positive.
-        let divisor = 1.0 + (1.0 - point.w) * self.w_factor_4d;
+        // differences here are that we assume the 4D FOV is positive and we
+        // first normalize the W coordinate to have the camera at W=1.
+        let divisor = 1.0 + (1.0 - point.w / camera_w) * self.w_factor_4d;
 
         // Clip geometry that is behind the 4D camera.
         if divisor < W_NEAR_CLIPPING_DIVISOR {
@@ -150,8 +172,20 @@ impl StickerGeometry {
             polygon_twists: vec![twists; 2],
         }
     }
-    pub(super) fn new_cube(verts: [Point3<f32>; 8], twists: [[Option<Twist>; 3]; 8]) -> Self {
-        Self {
+    pub(super) fn new_cube(
+        verts: [Point3<f32>; 8],
+        twists: [[Option<Twist>; 3]; 8],
+    ) -> Option<Self> {
+        // Only show this sticker if the 3D volume is positive. (Cull it if its
+        // 3D volume is negative.)
+        Matrix3::from_cols(
+            verts[1] - verts[0],
+            verts[2] - verts[0],
+            verts[4] - verts[0],
+        )
+        .determinant()
+        .is_sign_positive()
+        .then(|| Self {
             verts: verts.to_vec(),
             polygon_indices: vec![
                 Box::new([0, 1, 3, 2]),
@@ -162,7 +196,7 @@ impl StickerGeometry {
                 Box::new([2, 3, 7, 6]),
             ],
             polygon_twists: twists.to_vec(),
-        }
+        })
     }
 }
 

@@ -137,8 +137,8 @@ impl PuzzleType for Rubiks3DDescription {
     fn family_max_layer_count(&self) -> u8 {
         MAX_LAYER_COUNT
     }
-    fn radius(&self) -> f32 {
-        self.layer_count as f32 * 0.5 * 3.0_f32.sqrt()
+    fn projection_radius_3d(&self, _p: StickerGeometryParams) -> f32 {
+        3.0_f32.sqrt()
     }
     fn scramble_moves_count(&self) -> usize {
         10 * self.layer_count as usize // TODO pulled from thin air; probably insufficient for big cubes
@@ -312,18 +312,15 @@ impl PuzzleState for Rubiks3D {
         // Compute the center of the sticker.
         let center = transform.transform_point(self.sticker_center_3d(sticker, p));
 
-        // Add a radius to the sticker along each axis.
-        let sticker_radius = p.face_scale(self.layer_count()) * p.sticker_scale() / 2.0;
-
-        // Compute the vectors that span the plan of the sticker.
+        // Compute the vectors that span the plane of the sticker.
         let [u_span_axis, v_span_axis] = face.parallel_axes();
         let u: Vector3<f32> = <Matrix3<f32> as Transform<Point3<f32>>>::transform_vector(
             &transform,
-            crate::util::unit_vec3(u_span_axis as usize) * sticker_radius,
+            u_span_axis.unit_vec3() * p.sticker_scale,
         );
         let v: Vector3<f32> = <Matrix3<f32> as Transform<Point3<f32>>>::transform_vector(
             &transform,
-            crate::util::unit_vec3(v_span_axis as usize) * sticker_radius,
+            v_span_axis.unit_vec3() * p.sticker_scale,
         );
 
         // Decide what twists should happen when the sticker is clicked.
@@ -387,13 +384,12 @@ impl Rubiks3D {
     }
 
     fn piece_center_3d(&self, piece: Piece, p: StickerGeometryParams) -> Point3<f32> {
-        let mut ret = Point3::origin();
         let pos = self.piece_location(piece);
-        for axis in Axis::iter() {
-            ret[axis as usize] = p.face_scale(self.layer_count())
-                * (pos[axis as usize] as f32 - (self.layer_count() as f32 - 1.0) / 2.0);
-        }
-        ret
+        cgmath::point3(
+            self.piece_center_coordinate(pos[0], p),
+            self.piece_center_coordinate(pos[1], p),
+            self.piece_center_coordinate(pos[2], p),
+        )
     }
     fn sticker_center_3d(&self, sticker: Sticker, p: StickerGeometryParams) -> Point3<f32> {
         let sticker_info = self.info(sticker);
@@ -401,9 +397,12 @@ impl Rubiks3D {
         let mut ret = self.piece_center_3d(piece, p);
 
         let sticker_face = self.sticker_face(sticker);
-        ret[sticker_face.axis() as usize] =
-            self.layer_count() as f32 * 0.5 * sticker_face.sign().float();
+        ret[sticker_face.axis() as usize] = sticker_face.sign().float();
         ret
+    }
+
+    fn piece_center_coordinate(&self, x: u8, p: StickerGeometryParams) -> f32 {
+        (2.0 * x as f32 - (self.layer_count() - 1) as f32) * p.sticker_grid_scale
     }
 }
 
@@ -695,5 +694,14 @@ impl Axis {
     /// Returns an iterator over all axes.
     fn iter() -> impl Iterator<Item = Axis> {
         [Axis::X, Axis::Y, Axis::Z].into_iter()
+    }
+
+    /// Returns the unit vector along this axis.
+    fn unit_vec3(self) -> Vector3<f32> {
+        match self {
+            Axis::X => Vector3::unit_x(),
+            Axis::Y => Vector3::unit_y(),
+            Axis::Z => Vector3::unit_z(),
+        }
     }
 }

@@ -15,7 +15,7 @@ pub trait PuzzleType {
 
     /// Returns the maximum radius of any single coordinate in the 3D
     /// projection.
-    fn radius(&self) -> f32;
+    fn projection_radius_3d(&self, p: StickerGeometryParams) -> f32;
     fn scramble_moves_count(&self) -> usize;
 
     fn faces(&self) -> &[FaceInfo];
