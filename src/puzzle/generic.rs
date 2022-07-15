@@ -6,25 +6,18 @@ use std::any::Any;
 use std::fmt;
 use thiserror::Error;
 
-use super::{rubiks_3d, traits::*, Rubiks3D, StickerGeometry, StickerGeometryParams, TwistMetric};
-
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum PuzzleFamily {
-    Rubiks3D,
-}
-impl Default for PuzzleFamily {
-    fn default() -> Self {
-        Self::Rubiks3D
-    }
-}
+use super::{
+    rubiks_3d, rubiks_4d, traits::*, Rubiks3D, Rubiks4D, StickerGeometry, StickerGeometryParams,
+    TwistMetric,
+};
 
 /// Enumeration of all puzzle types.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PuzzleTypeEnum {
     /// 3D Rubik's cube.
     Rubiks3D { layer_count: u8 },
-    // /// 4D Rubik's cube.
-    // Rubiks4D { layer_count: u8 },
+    /// 4D Rubik's cube.
+    Rubiks4D { layer_count: u8 },
 }
 #[delegate_to_methods]
 #[delegate(PuzzleType, target_ref = "as_dyn_type")]
@@ -32,13 +25,13 @@ impl PuzzleTypeEnum {
     fn as_dyn_type(&self) -> &dyn PuzzleType {
         match *self {
             PuzzleTypeEnum::Rubiks3D { layer_count } => rubiks_3d::puzzle_type(layer_count),
-            // PuzzleTypeEnum::Rubiks4D { .. } => todo!("4D type"),
+            PuzzleTypeEnum::Rubiks4D { layer_count } => rubiks_4d::puzzle_type(layer_count),
         }
     }
 }
 impl Default for PuzzleTypeEnum {
     fn default() -> Self {
-        Self::Rubiks3D { layer_count: 3 }
+        Self::Rubiks4D { layer_count: 3 }
     }
 }
 impl fmt::Display for PuzzleTypeEnum {
@@ -130,8 +123,8 @@ pub struct Twist {
 pub enum Puzzle {
     /// 3D Rubik's cube.
     Rubiks3D(Rubiks3D),
-    // /// 4D Rubik's cube.
-    // Rubiks34(Box<Rubiks34>),
+    /// 4D Rubik's cube.
+    Rubiks4D(Rubiks4D),
 }
 impl Default for Puzzle {
     fn default() -> Self {
@@ -144,7 +137,10 @@ impl Puzzle {
         match ty {
             PuzzleTypeEnum::Rubiks3D { layer_count } => {
                 Puzzle::Rubiks3D(Rubiks3D::new(layer_count))
-            } // PuzzleTypeEnum::Rubiks4D { .. } => todo!("construct 4D rubiks cube"),
+            }
+            PuzzleTypeEnum::Rubiks4D { layer_count } => {
+                Puzzle::Rubiks4D(Rubiks4D::new(layer_count))
+            }
         }
     }
 }

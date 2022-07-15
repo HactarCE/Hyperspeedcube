@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::hash::Hash;
 use strum::IntoEnumIterator;
 
-use crate::puzzle::{rubiks_3d, traits::*, PuzzleTypeEnum};
+use crate::puzzle::{rubiks_3d, rubiks_4d, traits::*, PuzzleTypeEnum};
 
 const NONE_TEXT: &str = "-";
 const NONE_TOOLTIP: &str = "Use the current selection";
@@ -25,16 +25,15 @@ pub(super) fn puzzle_select_menu(ui: &mut egui::Ui) -> Option<PuzzleTypeEnum> {
             None
         })
         .inner);
-    // TODO: rubiks4d
     ret = ret.or(ui
         .menu_button("Rubiks 4D", |ui| {
-            // for layer_count in rubiks_4d::MIN_LAYER_COUNT..=rubiks_4d::MAX_LAYER_COUNT {
-            //     let ty = PuzzleTypeEnum::Rubiks4D { layer_count };
-            //     if ui.button(ty.name()).clicked() {
-            //         ui.close_menu();
-            //         return ty;
-            //     }
-            // }
+            for layer_count in rubiks_4d::MIN_LAYER_COUNT..=rubiks_4d::MAX_LAYER_COUNT {
+                let ty = PuzzleTypeEnum::Rubiks4D { layer_count };
+                if ui.button(ty.name()).clicked() {
+                    ui.close_menu();
+                    return Some(ty);
+                }
+            }
             None
         })
         .inner);

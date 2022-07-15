@@ -17,7 +17,7 @@ view:
   Rubiks4D:
     pitch: 30.0
     yaw: -35.0
-    scale: 2.0
+    scale: 1.0
     fov_3d: 30.0
     fov_4d: 30.0
     face_spacing: 0.7
@@ -36,7 +36,7 @@ outlines:
 colors:
   default_opacity: 1.0
   hidden_opacity: 0.3
-  hovered_opacity: 1.5
+  hovered_opacity: 1.0
   background: "#444444"
   blind_face: "#cccccc"
   blindfold: false
@@ -321,28 +321,28 @@ puzzle_keybinds:
         select_layers: 2
     - sc: KeyW
       command:
-        select_axis: Left
+        select_axis: L
     - sc: KeyE
       command:
-        select_axis: Up
+        select_axis: U
     - sc: KeyR
       command:
-        select_axis: Back
+        select_axis: B
     - sc: KeyS
       command:
-        select_axis: Front
+        select_axis: F
     - sc: KeyD
       command:
-        select_axis: In
+        select_axis: I
     - sc: KeyF
       command:
-        select_axis: Right
+        select_axis: R
     - sc: KeyC
       command:
-        select_axis: Down
+        select_axis: D
     - sc: KeyV
       command:
-        select_axis: Out
+        select_axis: O
     - sc: KeyI
       command:
         twist:

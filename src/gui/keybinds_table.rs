@@ -8,8 +8,8 @@ use crate::commands::{
 };
 use crate::preferences::{Keybind, Preferences};
 use crate::puzzle::{
-    rubiks_3d, traits::*, LayerMask, PieceType, PuzzleFamily, PuzzleType, PuzzleTypeEnum,
-    TwistAxis, TwistDirection,
+    rubiks_3d, traits::*, LayerMask, PieceType, PuzzleType, PuzzleTypeEnum, TwistAxis,
+    TwistDirection,
 };
 
 #[derive(Debug, Copy, Clone)]
