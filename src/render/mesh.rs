@@ -155,14 +155,7 @@ fn generate_outline_geometry(
             make_vert(b - normal),
             make_vert(b + normal),
         ]);
-        indices_out.extend_from_slice(&[
-            base + 0,
-            base + 1,
-            base + 2,
-            base + 3,
-            base + 2,
-            base + 1,
-        ]);
+        indices_out.extend_from_slice(&[0, 1, 2, 3, 2, 1].map(|i| base + i));
     }
 
     // Generate line joins.

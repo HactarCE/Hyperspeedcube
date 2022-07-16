@@ -414,7 +414,7 @@ impl LayerMask {
         // Just give up if there's more than 9 layers.
         (0..9)
             .filter(|&i| self[i])
-            .map(|i| (i as u8 + '1' as u8) as char)
+            .map(|i| (i as u8 + b'1') as char)
             .collect()
     }
     pub(crate) fn short_description(self) -> String {

@@ -15,7 +15,6 @@ anyhow = "1.0.55"
 bytemuck = { version = "1.9.1", features = ["derive"] }
 cgmath = "0.18.0"
 config = "0.12.0"
-delegate = "0.6.2"
 dark-light = "0.2.1"
 directories = "4.0.1"
 egui = "0.17.0"
@@ -40,7 +39,6 @@ serde = { version = "1.0.136", features = ["derive"] }
 serde_yaml = "0.8.23"
 smallvec = { version = "1.8.0", features = ["serde"] }
 strum = { version = "0.24.0", features = ["derive"] }
-thiserror = "1.0"
 time = { version = "0.3.7", features = ["local-offset"] }
 wgpu = "0.12.0"
 winit = { version = "0.26.1", features = ["serde"] }

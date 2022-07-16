@@ -143,7 +143,7 @@ impl App {
                 Command::ScrambleFull => {
                     if self.confirm_discard_changes("scramble") {
                         self.puzzle.scramble_full()?;
-                        self.set_status_ok(format!("Scrambled fully",));
+                        self.set_status_ok("Scrambled fully");
                     }
                 }
 

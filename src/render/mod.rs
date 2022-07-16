@@ -237,13 +237,13 @@ pub(crate) fn draw_puzzle(
             // texture.
             wgpu::RenderPassColorAttachment {
                 view: multisample_texture_view.insert(msaa_tex_view),
-                resolve_target: Some(&out_texture_view),
+                resolve_target: Some(out_texture_view),
                 ops,
             }
         } else {
             // Draw directly to the "out" texture.
             wgpu::RenderPassColorAttachment {
-                view: &out_texture_view,
+                view: out_texture_view,
                 resolve_target: None,
                 ops,
             }
@@ -255,7 +255,7 @@ pub(crate) fn draw_puzzle(
         label: Some("puzzle_stickers_render_pass"),
         color_attachments: &[render_pass_color_attachment],
         depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-            view: &depth_texture_view,
+            view: depth_texture_view,
             depth_ops: Some(wgpu::Operations {
                 load: wgpu::LoadOp::Clear(0.0),
                 store: true,
@@ -279,7 +279,7 @@ pub(crate) fn draw_puzzle(
                         },
                     )),
                     vertex: wgpu::VertexState {
-                        module: gfx.shaders.basic.get(&gfx),
+                        module: gfx.shaders.basic.get(gfx),
                         entry_point: "vs_main",
                         buffers: &[RgbaVertex::LAYOUT],
                     },
@@ -304,7 +304,7 @@ pub(crate) fn draw_puzzle(
                         ..Default::default()
                     },
                     fragment: Some(wgpu::FragmentState {
-                        module: gfx.shaders.basic.get(&gfx),
+                        module: gfx.shaders.basic.get(gfx),
                         entry_point: "fs_main",
                         targets: &[wgpu::ColorTargetState {
                             format: gfx.config.format,
@@ -326,7 +326,7 @@ pub(crate) fn draw_puzzle(
 
         // Populate and bind uniform.
         cache.uniform_buffer.write(gfx, &BasicUniform { scale });
-        render_pass.set_bind_group(0, &cache.uniform_buffer.bind_group(gfx), &[]);
+        render_pass.set_bind_group(0, cache.uniform_buffer.bind_group(gfx), &[]);
 
         // Draw stickers.
         render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);

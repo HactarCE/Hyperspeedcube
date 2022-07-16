@@ -105,7 +105,7 @@ impl StickerGeometryParams {
             light_vector,
         };
 
-        ret.view_transform = ret.view_transform / puzzle_type.projection_radius_3d(ret);
+        ret.view_transform /= puzzle_type.projection_radius_3d(ret);
 
         ret
     }
@@ -467,7 +467,7 @@ impl Polygon {
         (verts.len() >= 3).then(|| Polygon::new(verts, self.illumination, self.twists))
     }
 
-    fn edges<'a>(&'a self) -> impl 'a + Iterator<Item = (Point3<f32>, Point3<f32>)> {
+    fn edges(&self) -> impl '_ + Iterator<Item = (Point3<f32>, Point3<f32>)> {
         let v1s = self.verts.iter().copied();
         let v2s = self.verts.iter().copied().cycle().skip(1);
         v1s.zip(v2s)
@@ -519,20 +519,14 @@ impl NewellObj for Polygon {
         //    can be drawn behind.
         if let Some(intersection) = self.xy_intersection(other) {
             // 6. If `self` is always behind the plane of `other` whenever they
-            //    intersect, then `self` can be drawn behind.
-            if intersection
+            //    intersect, then `self` can be drawn behind. Otherwise, there
+            //    is some part of `self` that must be drawn in front of `other`.
+            intersection
                 .verts
                 .iter()
                 .all(|&v| other.height_of_point(v) <= EPSILON)
-            {
-                return true;
-            } else {
-                // If we've reached this point, then there is some part of
-                // `self` that must be drawn in front of `other`.
-                return false;
-            }
         } else {
-            return true;
+            true
         }
     }
 }

@@ -125,7 +125,7 @@ impl PuzzleCommand {
                         ),
                         Err(_) => crate::util::INVALID_STR.to_string(),
                     },
-                    None => format!("Recenter"),
+                    None => "Recenter".to_string(),
                 }
             }
 

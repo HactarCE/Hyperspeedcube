@@ -57,7 +57,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 }
             }
             ui.separator();
-            if ui.button(format!("Full")).clicked() {
+            if ui.button("Full").clicked() {
                 ui.close_menu();
                 app.event(Command::ScrambleFull);
             }

@@ -700,6 +700,7 @@ impl FaceEnum {
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(EnumIter, FromPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
 enum TwistDirectionEnum {

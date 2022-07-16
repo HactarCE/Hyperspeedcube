@@ -207,7 +207,7 @@ impl<T: Default> IndexMut<PuzzleTypeEnum> for PerPuzzle<T> {
     }
 }
 impl<T> PerPuzzle<T> {
-    fn entry<'a>(&'a mut self, puzzle_type: PuzzleTypeEnum) -> hash_map::Entry<'a, String, T> {
+    fn entry(&mut self, puzzle_type: PuzzleTypeEnum) -> hash_map::Entry<'_, String, T> {
         self.map
             .entry(puzzle_type.family_internal_name().to_owned())
     }

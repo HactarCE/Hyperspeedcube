@@ -186,9 +186,6 @@ pub(super) fn build(ctx: &egui::Context, app: &mut App) -> Option<egui::Response
                 });
         });
 
-    // if r.response.clicked_elsewhere() {
-    //     popup_state_mut(&mut ctx.data()).callback = None;
-    // }
     Some(r.response)
 }
 

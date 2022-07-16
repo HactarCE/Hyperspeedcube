@@ -141,7 +141,7 @@ impl PuzzleController {
             // self.twist(Twist::from_rng(self.ty()))?;
         }
         self.catch_up();
-        self.scramble = std::mem::replace(&mut self.undo_buffer, vec![]);
+        self.scramble = std::mem::take(&mut self.undo_buffer);
         self.scramble_state = ScrambleState::Partial;
         Ok(())
     }
@@ -161,8 +161,8 @@ impl PuzzleController {
         if self.undo_buffer.last() == Some(&self.reverse_twist(twist)) {
             self.undo()
         } else {
-            self.latest.twist(twist.clone())?; // TODO: clippy should catch this unnecessary `.clone()`
-            self.twist_queue.push_back(twist.clone());
+            self.latest.twist(twist)?;
+            self.twist_queue.push_back(twist);
             self.undo_buffer.push(twist);
             Ok(())
         }
@@ -456,8 +456,8 @@ impl PuzzleController {
     pub fn redo(&mut self) -> Result<(), &'static str> {
         if let Some(twist) = self.redo_buffer.pop() {
             self.is_unsaved = true;
-            self.latest.twist(twist.clone())?;
-            self.twist_queue.push_back(twist.clone());
+            self.latest.twist(twist)?;
+            self.twist_queue.push_back(twist);
             self.undo_buffer.push(twist);
             Ok(())
         } else {

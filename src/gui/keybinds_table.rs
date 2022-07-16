@@ -29,6 +29,15 @@ pub(super) trait KeybindSet: 'static + Copy + Send + Sync {
     fn get_defaults(self) -> &'static [Keybind<Self::Command>] {
         self.get(&crate::preferences::DEFAULT_PREFS)
     }
+
+    fn confirm_reset(self) -> bool {
+        let name = self.display_name();
+        rfd::MessageDialog::new()
+            .set_title(&format!("Reset {name} keybinds",))
+            .set_description(&format!("Restore {name} keybinds to defaults?"))
+            .set_buttons(rfd::MessageButtons::YesNo)
+            .show()
+    }
 }
 
 #[derive(Debug, Copy, Clone, Hash)]
@@ -95,24 +104,11 @@ where
                         .add_sized(SQUARE_BUTTON_SIZE, egui::Button::new("⟲"))
                         .on_hover_text(format!(
                             "Reset all {} keybinds",
-                            self.keybind_set.display_name()
+                            self.keybind_set.display_name(),
                         ));
-                    if r.clicked() {
-                        if rfd::MessageDialog::new()
-                            .set_title(&format!(
-                                "Reset {} keybinds",
-                                self.keybind_set.display_name()
-                            ))
-                            .set_description(&format!(
-                                "Restore {} keybinds to defaults?",
-                                self.keybind_set.display_name(),
-                            ))
-                            .set_buttons(rfd::MessageButtons::YesNo)
-                            .show()
-                        {
-                            *keybinds = default_keybinds.to_vec();
-                            changed = true;
-                        }
+                    if r.clicked() && self.keybind_set.confirm_reset() {
+                        *keybinds = default_keybinds.to_vec();
+                        changed = true;
                     }
                 });
 

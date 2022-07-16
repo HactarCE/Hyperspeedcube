@@ -58,7 +58,7 @@ impl CachedDynamicBuffer {
         let original_len = data.len();
         pad_buffer_if_necessary(data);
         let (buf, buf_slice) = self.slice(gfx, data.len());
-        gfx.queue.write_buffer(buf, 0, bytemuck::cast_slice(&data));
+        gfx.queue.write_buffer(buf, 0, bytemuck::cast_slice(data));
         data.truncate(original_len); // undo padding
         buf_slice
     }
