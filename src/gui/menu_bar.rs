@@ -1,6 +1,5 @@
 use crate::app::App;
 use crate::commands::Command;
-use crate::puzzle::{rubiks_3d, PuzzleType, PuzzleTypeEnum, Rubiks3D};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {

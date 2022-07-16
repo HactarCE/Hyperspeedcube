@@ -2,7 +2,7 @@ use egui::NumExt;
 
 use super::util::{self, ResponseExt};
 use crate::app::App;
-use crate::preferences::{FaceColor, DEFAULT_PREFS};
+use crate::preferences::DEFAULT_PREFS;
 use crate::puzzle::{traits::*, Face};
 use crate::serde_impl::hex_color;
 
@@ -61,7 +61,7 @@ macro_rules! resettable {
         $make_widget:expr $(,)?
     ) => {{
         let value = &mut $prefs $($prefs_tok)*;
-        let reset_value = &crate::preferences::DEFAULT_PREFS $($prefs_tok)*;
+        let reset_value = &DEFAULT_PREFS $($prefs_tok)*;
         #[allow(clippy::redundant_closure_call)]
         let reset_value_str = ($format_fn)(reset_value);
         crate::gui::util::WidgetWithReset {

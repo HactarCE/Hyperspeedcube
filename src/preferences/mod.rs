@@ -4,11 +4,10 @@
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
 use directories::ProjectDirs;
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::{hash_map, HashMap};
 use std::error::Error;
-use std::fmt;
-use std::marker::PhantomData;
+use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
 
 mod colors;
@@ -195,14 +194,14 @@ pub struct PerPuzzle<T> {
     #[serde(skip)]
     default: T,
 }
-impl<T: Default> std::ops::Index<PuzzleTypeEnum> for PerPuzzle<T> {
+impl<T: Default> Index<PuzzleTypeEnum> for PerPuzzle<T> {
     type Output = T;
 
     fn index(&self, puzzle_type: PuzzleTypeEnum) -> &Self::Output {
         self.get(puzzle_type).unwrap_or(&self.default)
     }
 }
-impl<T: Default> std::ops::IndexMut<PuzzleTypeEnum> for PerPuzzle<T> {
+impl<T: Default> IndexMut<PuzzleTypeEnum> for PerPuzzle<T> {
     fn index_mut(&mut self, puzzle_type: PuzzleTypeEnum) -> &mut Self::Output {
         self.entry(puzzle_type).or_default()
     }

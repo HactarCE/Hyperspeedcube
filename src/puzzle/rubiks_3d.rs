@@ -3,21 +3,15 @@
 use cgmath::*;
 use itertools::Itertools;
 use num_enum::FromPrimitive;
-use rand::Rng;
-use smallvec::{smallvec, SmallVec};
+use smallvec::smallvec;
 use std::collections::HashMap;
-use std::fmt;
-use std::ops::{Add, Index, IndexMut, Mul, Neg};
-use std::sync::Arc;
+use std::ops::{Index, IndexMut};
 use std::sync::Mutex;
-use strum::{EnumCount, IntoEnumIterator};
+use strum::IntoEnumIterator;
 
-use super::{
-    generic::*, traits::*, LayerMask, PuzzleTypeEnum, Sign, StickerGeometry, StickerGeometryParams,
-    TwistAxis, TwistMetric,
-};
+use super::*;
 
-const DEFAULT_LAYER_COUNT: u8 = 3;
+pub const DEFAULT_LAYER_COUNT: u8 = 3;
 pub const MIN_LAYER_COUNT: u8 = 1;
 pub const MAX_LAYER_COUNT: u8 = 9;
 

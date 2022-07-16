@@ -1,4 +1,4 @@
-use cgmath::{Point3, Vector3, Vector4, Zero};
+use cgmath::Point3;
 use std::cmp::Ordering;
 
 pub const INVALID_STR: &str = "<invalid>";

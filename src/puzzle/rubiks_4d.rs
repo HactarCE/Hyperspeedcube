@@ -3,21 +3,15 @@
 use cgmath::*;
 use itertools::Itertools;
 use num_enum::FromPrimitive;
-use rand::Rng;
-use smallvec::{smallvec, SmallVec};
+use smallvec::smallvec;
 use std::collections::HashMap;
-use std::fmt;
-use std::ops::{Add, Index, IndexMut, Mul, Neg};
-use std::sync::Arc;
+use std::ops::{Index, IndexMut};
 use std::sync::Mutex;
-use strum::{EnumCount, IntoEnumIterator};
+use strum::IntoEnumIterator;
 
-use super::{
-    generic::*, traits::*, LayerMask, PuzzleTypeEnum, Sign, StickerGeometry, StickerGeometryParams,
-    TwistAxis, TwistMetric,
-};
+use super::*;
 
-const DEFAULT_LAYER_COUNT: u8 = 3;
+pub const DEFAULT_LAYER_COUNT: u8 = 3;
 pub const MIN_LAYER_COUNT: u8 = 1;
 pub const MAX_LAYER_COUNT: u8 = 9;
 
@@ -374,7 +368,7 @@ impl PuzzleState for Rubiks4D {
     }
 
     fn is_solved(&self) -> bool {
-        todo!("is it solved?")
+        false
     }
 }
 #[delegate_to_methods]
@@ -514,8 +508,6 @@ impl PieceState {
 
     #[must_use]
     fn twist(mut self, face: FaceEnum, direction: TwistDirectionEnum) -> Self {
-        use Axis::*;
-
         let [basis_x, basis_y, basis_z] = face.basis_faces();
 
         let mut chars = direction.symbol().chars().peekable();
@@ -840,8 +832,6 @@ impl TwistDirectionEnum {
         }
     }
     fn name(self) -> &'static str {
-        use TwistDirectionEnum::*;
-
         self.symbol()
     }
 

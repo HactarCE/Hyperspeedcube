@@ -4,8 +4,6 @@ use std::fmt;
 use winit::event::{ModifiersState, VirtualKeyCode};
 
 use super::is_false;
-use crate::commands::PuzzleCommand;
-use crate::puzzle::PuzzleTypeEnum;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct Keybind<C> {

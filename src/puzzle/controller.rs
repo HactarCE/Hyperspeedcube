@@ -1,7 +1,7 @@
 //! Puzzle wrapper that adds animation and undo history functionality.
 
-use anyhow::{anyhow, bail};
-use cgmath::{InnerSpace, Matrix4, SquareMatrix};
+use anyhow::bail;
+use cgmath::InnerSpace;
 use itertools::Itertools;
 use std::collections::VecDeque;
 use std::path::Path;
@@ -31,11 +31,7 @@ pub mod interpolate {
     pub const COSINE_DECEL: InterpolateFn = |x| ((1.0 - x) * PI / 2.0).cos();
 }
 
-use super::{
-    geometry, traits::*, Face, FaceInfo, LayerMask, Piece, PieceInfo, ProjectedStickerGeometry,
-    Puzzle, PuzzleInfo, PuzzleTypeEnum, Sticker, StickerGeometryParams, StickerInfo, Twist,
-    TwistAxis, TwistAxisInfo, TwistDirection, TwistDirectionInfo, TwistMetric, TwistSelection,
-};
+use super::*;
 use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::preferences::InteractionPreferences;
 use crate::util;

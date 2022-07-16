@@ -6,13 +6,11 @@
     clippy::collapsible_match,
     clippy::match_like_matches_macro,
     clippy::single_match,
-    unused_imports // TODO: remove
+    missing_docs, // TODO: remove
 )]
 
 #[macro_use]
 extern crate ambassador;
-#[macro_use]
-extern crate delegate;
 #[macro_use]
 extern crate enum_dispatch;
 #[macro_use]

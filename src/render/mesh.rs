@@ -6,7 +6,7 @@ use std::ops::{Add, Mul};
 
 use super::RgbaVertex;
 use crate::preferences::Preferences;
-use crate::puzzle::{traits::*, PuzzleController, StickerDecorAnim, StickerGeometryParams};
+use crate::puzzle::*;
 use crate::util::{f32_total_cmp, IterCyclicPairsExt};
 
 const OUTLINE_SCALE: f32 = 1.0 / 512.0;

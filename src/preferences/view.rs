@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::puzzle::PuzzleTypeEnum;
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct ViewPreferences {

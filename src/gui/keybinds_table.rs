@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use std::hash::Hash;
 
 use super::util::{self, ComboBoxExt, FancyComboBox};
@@ -7,10 +6,7 @@ use crate::commands::{
     Command, PuzzleCommand, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX, PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
 };
 use crate::preferences::{Keybind, Preferences};
-use crate::puzzle::{
-    rubiks_3d, traits::*, LayerMask, PieceType, PuzzleType, PuzzleTypeEnum, TwistAxis,
-    TwistDirection,
-};
+use crate::puzzle::*;
 
 #[derive(Debug, Copy, Clone)]
 struct DragData {

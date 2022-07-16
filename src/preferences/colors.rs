@@ -1,5 +1,6 @@
-use serde::{ser::SerializeMap, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ops::{Index, IndexMut};
 
 use super::PerPuzzle;
 use crate::puzzle::{traits::*, Face, PuzzleTypeEnum};
@@ -20,7 +21,7 @@ pub struct ColorPreferences {
 
     pub faces: PerPuzzle<HashMap<String, FaceColor>>,
 }
-impl std::ops::Index<(PuzzleTypeEnum, Face)> for ColorPreferences {
+impl Index<(PuzzleTypeEnum, Face)> for ColorPreferences {
     type Output = egui::Color32;
 
     fn index(&self, (puzzle_type, face): (PuzzleTypeEnum, Face)) -> &Self::Output {
@@ -31,7 +32,7 @@ impl std::ops::Index<(PuzzleTypeEnum, Face)> for ColorPreferences {
             .unwrap_or(&self.blind_face)
     }
 }
-impl std::ops::IndexMut<(PuzzleTypeEnum, Face)> for ColorPreferences {
+impl IndexMut<(PuzzleTypeEnum, Face)> for ColorPreferences {
     fn index_mut(&mut self, (puzzle_type, face): (PuzzleTypeEnum, Face)) -> &mut Self::Output {
         &mut self
             .faces

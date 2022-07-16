@@ -4,7 +4,7 @@ use key_names::KeyMappingCode;
 use crate::app::App;
 use crate::commands::{Command, PuzzleCommand};
 use crate::preferences::{Key, Keybind};
-use crate::puzzle::{traits::*, PuzzleType};
+use crate::puzzle::traits::*;
 
 const SCALED_KEY_PADDING: f32 = 0.0;
 const MIN_KEY_PADDING: f32 = 4.0;

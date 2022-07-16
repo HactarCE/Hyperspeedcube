@@ -1,11 +1,8 @@
 //! Commands to select and manipulate parts of the puzzle.
 
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
 
-use crate::puzzle::{
-    traits::*, Face, LayerMask, PieceType, PuzzleTypeEnum, Twist, TwistDirection, TwistSelection,
-};
+use crate::puzzle::*;
 
 /// Minimum number of moves for a partial scramble.
 pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MIN: usize = 1;
@@ -126,7 +123,7 @@ impl PuzzleCommand {
                             twist.direction,
                             twist.layers,
                         ),
-                        Err(e) => crate::util::INVALID_STR.to_string(),
+                        Err(_) => crate::util::INVALID_STR.to_string(),
                     },
                     None => format!("Recenter"),
                 }
