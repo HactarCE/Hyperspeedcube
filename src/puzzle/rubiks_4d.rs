@@ -141,8 +141,6 @@ impl PuzzleType for Rubiks4DDescription {
     fn projection_radius_3d(&self, p: StickerGeometryParams) -> f32 {
         let r = 1.0 - p.face_spacing;
         let farthest_point = cgmath::vec4(1.0, r, r, r);
-        printlnd!("{:?}", p.project_4d(cgmath::vec4(r, r, r, 1.0)));
-        printlnd!("{:?}", p.project_4d(cgmath::vec4(r, r, r, -1.0)));
         match p.project_4d(farthest_point) {
             Some(farthest_point) => p
                 .view_transform
@@ -171,10 +169,6 @@ impl PuzzleType for Rubiks4DDescription {
         &self.twist_directions
     }
 
-    fn reverse_twist_direction(&self, mut direction: TwistDirection) -> TwistDirection {
-        direction.0 ^= 1;
-        direction
-    }
     fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String> {
         use FaceEnum::*;
         use TwistDirectionEnum as Dir;
@@ -196,25 +190,91 @@ impl PuzzleType for Rubiks4DDescription {
             layers: self.all_layers(),
         })
     }
+
     fn canonicalize_twist(&self, twist: Twist) -> Twist {
-        // TODO: this gets really complicated with full-puzzle rotations
-        // TODO: need to reflect certain axis sometimes
+        let mut face: FaceEnum = twist.axis.into();
+        let mut direction: TwistDirectionEnum = twist.direction.into();
+        let mut layers = twist.layers;
 
-        let face: FaceEnum = twist.axis.into();
-        let direction: TwistDirectionEnum = twist.direction.into();
+        let rev_layers = self.reverse_layers(twist.layers);
+        let should_reverse =
+            twist.layers.0 > rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Neg;
+        if should_reverse {
+            face = face.opposite();
+            direction = direction.mirror(face.axis());
+            layers = rev_layers;
+        }
 
-        // let rev_layers = self.reverse_layers(twist.layers);
-        // let is_canonical =
-        //     twist.layers.0 < rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Pos;
-        // if is_canonical {
-        twist
-        // } else {
-        //     Twist {
-        //         axis: face.opposite().into(),
-        //         direction: direction.rev().into(),
-        //         layers: rev_layers,
-        //     }
-        // }
+        // Canonicalize full-puzzle rotations.
+        if twist.layers == self.all_layers() {
+            if let Some([ax1, ax2]) = direction.twist_plane_for_face(face) {
+                if let Some((new_direction, new_face)) =
+                    TwistDirectionEnum::from_face_twist_plane(ax1, ax2)
+                {
+                    let is_face_180 = direction.is_face_180();
+
+                    face = new_face;
+                    direction = new_direction;
+                    if is_face_180 {
+                        direction = direction.double().unwrap();
+                    }
+                }
+            }
+        }
+
+        Twist {
+            axis: face.into(),
+            direction: direction.into(),
+            layers,
+        }
+    }
+    fn can_twists_combine(&self, prev: Option<Twist>, curr: Twist, metric: TwistMetric) -> bool {
+        if curr.layers == self.all_layers() {
+            // Never count puzzle rotations toward the twist count, except in
+            // ETM.
+            match metric {
+                TwistMetric::Qstm | TwistMetric::Ftm | TwistMetric::Stm => true,
+                TwistMetric::Etm => false,
+            }
+        } else if let Some(prev) = prev {
+            match metric {
+                TwistMetric::Qstm => false,
+                TwistMetric::Ftm => curr.axis == prev.axis && curr.layers == prev.layers,
+                TwistMetric::Stm => curr.axis == prev.axis,
+                TwistMetric::Etm => false,
+            }
+        } else {
+            false
+        }
+    }
+
+    fn reverse_twist_direction(&self, mut direction: TwistDirection) -> TwistDirection {
+        direction.0 ^= 1;
+        direction
+    }
+    fn chain_twist_directions(&self, dirs: &[TwistDirection]) -> Option<TwistDirection> {
+        match dirs {
+            &[] => None,
+            &[dir] => Some(dir),
+            _ => {
+                // Apply all of `dirs` to a single hypothetical piece and see
+                // which twist direction it ends up looking like at the end. If
+                // it doesn't match any twist direction, it should match the
+                // initial state.
+                let face = FaceEnum::default();
+                let final_state = dirs.iter().fold(PieceState::default(), |state, &dir| {
+                    state.twist(face, dir.into())
+                });
+
+                match TwistDirectionEnum::from_piece_state_on_face(final_state, face) {
+                    Some(dir) => Some(dir.into()),
+                    None => {
+                        debug_assert_eq!(final_state, PieceState::default());
+                        None
+                    }
+                }
+            }
+        }
     }
 
     fn twist_short_description(&self, twist: Twist) -> String {
@@ -231,16 +291,13 @@ impl PuzzleType for Rubiks4DDescription {
         if twist.layers == LayerMask(0) {
             crate::util::INVALID_STR.to_string()
         } else if twist.layers == self.all_layers() {
-            // TODO: this is more complicated
-            match face {
-                R => format!("R*{fwd}"),
-                L => format!("L*{fwd}"),
-                U => format!("U*{fwd}"),
-                D => format!("D*{fwd}"),
-                F => format!("F*{fwd}"),
-                B => format!("B*{fwd}"),
-                O => format!("O*{fwd}"),
-                I => format!("I*{fwd}"),
+            if let Some([ax1, ax2]) = direction.twist_plane_for_face(face) {
+                match direction.is_face_180() {
+                    false => format!("{}{}", ax1.symbol_lower(), ax2.symbol_lower()),
+                    true => format!("{}{}2", ax1.symbol_lower(), ax2.symbol_lower()),
+                }
+            } else {
+                format!("{}*{fwd}", face.symbol_upper_str())
             }
         } else if twist.layers.is_default() {
             format!("{face_upper}{fwd}")
@@ -252,8 +309,8 @@ impl PuzzleType for Rubiks4DDescription {
                 D => format!("E{fwd}"),
                 F => format!("S{fwd}"),
                 B => format!("S{rev}"),
-                O => format!("P{fwd}"), // TODO: verify `fwd` vs. `rev`
-                I => format!("P{fwd}"), // TODO: verify `fwd` vs. `rev`
+                O => format!("P{fwd}"), // Yes, `O` and `I` should
+                I => format!("P{fwd}"), // both be `fwd` here.
             }
         } else if twist.layers == LayerMask(3) {
             format!("{face_upper}w{fwd}")
@@ -536,10 +593,10 @@ impl PieceState {
     }
 }
 
-#[derive(EnumIter, FromPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(EnumIter, FromPrimitive, Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
 enum FaceEnum {
-    #[num_enum(default)]
+    #[default]
     R = 0,
     L = 1,
     U = 2,
@@ -701,11 +758,11 @@ impl FaceEnum {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(EnumIter, FromPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(EnumIter, FromPrimitive, Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
 enum TwistDirectionEnum {
-    #[num_enum(default)]
     /// 90-degree face (2c) twist clockwise around `R`
+    #[default]
     R,
     /// 90-degree face (2c) twist clockwise around `L`
     L,
@@ -854,23 +911,54 @@ impl TwistDirectionEnum {
         Self::from(self as u8 ^ 1)
     }
 
+    fn mirror(self, axis: Axis) -> Self {
+        if axis == Axis::W {
+            return self;
+        }
+        let mut v: Vector3<i8> = self.vector3().cast().unwrap();
+        v *= -1;
+        v[axis as usize] *= -1;
+        let ret = Self::from_signs_within_face(v).unwrap();
+        if self.is_face_180() {
+            ret.double().unwrap()
+        } else {
+            ret
+        }
+    }
+
+    fn is_face_180(self) -> bool {
+        use TwistDirectionEnum::*;
+
+        matches!(self, R2 | L2 | U2 | D2 | F2 | B2)
+    }
+    fn double(self) -> Option<Self> {
+        use TwistDirectionEnum::*;
+
+        match self {
+            R | L | U | D | F | B => Some(Self::from(self as u8 + 6)),
+            R2 | L2 | U2 | D2 | F2 | B2 => None,
+            UF | DB | UR | DL | FR | BL | DF | UB | UL | DR | BR | FL => None,
+            UFR | DBL | UFL | DBR | DFR | UBL | UBR | DFL => Some(self.rev()),
+        }
+    }
+
     fn vector3(self) -> Vector3<f32> {
         use TwistDirectionEnum::*;
 
         let x = match self {
             R | R2 | UR | FR | DR | BR | UFR | DBR | DFR | UBR => 1.0, // R
             L | L2 | UL | FL | DL | BL | UFL | DBL | DFL | UBL => -1.0, // L
-            U | D | F | B | U2 | D2 | F2 | B2 | UF | DB | DF | UB => 0.0, // M
+            U | D | F | B | U2 | D2 | F2 | B2 | UF | DB | DF | UB => 0.0,
         };
         let y = match self {
             U | U2 | UF | UR | UB | UL | UFR | UFL | UBL | UBR => 1.0, // U
             D | D2 | DF | DR | DB | DL | DFR | DFL | DBL | DBR => -1.0, // D
-            R | L | F | B | R2 | L2 | F2 | B2 | FR | BL | BR | FL => 0.0, // E
+            R | L | F | B | R2 | L2 | F2 | B2 | FR | BL | BR | FL => 0.0,
         };
         let z = match self {
             F | F2 | UF | FR | DF | FL | UFR | UFL | DFR | DFL => 1.0, // F
             B | B2 | UB | BR | DB | BL | UBR | UBL | DBR | DBL => -1.0, // B
-            R | L | U | D | R2 | L2 | U2 | D2 | UR | DL | UL | DR => 0.0, // S
+            R | L | U | D | R2 | L2 | U2 | D2 | UR | DL | UL | DR => 0.0,
         };
 
         vec3(x, y, z)
@@ -911,6 +999,56 @@ impl TwistDirectionEnum {
             _ => None,
         }
     }
+
+    fn from_piece_state_on_face(piece_state: PieceState, face: FaceEnum) -> Option<Self> {
+        lazy_static! {
+            static ref RESULT_OF_SINGLE_TWIST: HashMap<(PieceState, FaceEnum), TwistDirectionEnum> =
+                itertools::iproduct!(FaceEnum::iter(), TwistDirectionEnum::iter())
+                    .map(|(face, dir)| {
+                        let result = PieceState::default().twist(face, dir);
+                        ((result, face), dir)
+                    })
+                    .collect();
+        }
+
+        RESULT_OF_SINGLE_TWIST.get(&(piece_state, face)).copied()
+    }
+
+    fn twist_plane_for_face(self, basis_face: FaceEnum) -> Option<[Axis; 2]> {
+        use TwistDirectionEnum::*;
+
+        let [x, y, z] = basis_face.basis_faces();
+        let [face1, face2] = match self {
+            R | R2 => [z, y],
+            L | L2 => [y, z],
+            U | U2 => [x, z],
+            D | D2 => [z, x],
+            F | F2 => [y, x],
+            B | B2 => [x, y],
+            _ => return None,
+        };
+        Some(match face1.sign() * face2.sign() {
+            Sign::Pos => [face1.axis(), face2.axis()],
+            Sign::Neg => [face2.axis(), face1.axis()],
+        })
+    }
+    fn from_face_twist_plane(ax1: Axis, ax2: Axis) -> Option<(Self, FaceEnum)> {
+        use TwistDirectionEnum::*;
+
+        let basis_face = if ax1 != Axis::X && ax2 != Axis::X {
+            FaceEnum::R
+        } else if ax1 != Axis::Y && ax2 != Axis::Y {
+            FaceEnum::U
+        } else {
+            FaceEnum::F
+        };
+
+        let direction = [R, L, U, D, F, B]
+            .into_iter()
+            .find(|dir| dir.twist_plane_for_face(basis_face) == Some([ax1, ax2]))?;
+
+        Some((direction, basis_face))
+    }
 }
 
 /// 4-dimensional axis.
@@ -938,5 +1076,40 @@ impl Axis {
     /// Returns an iterator over all axes.
     fn iter() -> impl Iterator<Item = Axis> {
         [Axis::X, Axis::Y, Axis::Z, Axis::W].into_iter()
+    }
+
+    fn symbol_lower(self) -> char {
+        match self {
+            Axis::X => 'x',
+            Axis::Y => 'y',
+            Axis::Z => 'z',
+            Axis::W => 'w',
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_rubiks_4d_twist_canonicalization() {
+        for layer_count in 1..=4 {
+            let p = Rubiks4D::new(layer_count);
+            let are_twists_eq = |twist1, twist2| {
+                twist_comparison_key(&p, twist1) == twist_comparison_key(&p, twist2)
+            };
+            crate::puzzle::tests::test_twist_canonicalization(&p, are_twists_eq);
+        }
+    }
+
+    fn twist_comparison_key(p: &Rubiks4D, twist: Twist) -> impl PartialEq {
+        const SOME_PROGRESS: f32 = 0.1;
+
+        let face: FaceEnum = twist.axis.into();
+        let matrix = face.twist_matrix(twist.direction.into(), SOME_PROGRESS);
+        let pieces_affected = p.pieces_affected_by_twist(twist);
+        (matrix, pieces_affected)
     }
 }

@@ -154,16 +154,6 @@ impl PuzzleType for Rubiks3DDescription {
         &self.twist_directions
     }
 
-    fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection {
-        use TwistDirectionEnum::*;
-
-        match direction.into() {
-            CW90 => CCW90.into(),
-            CCW90 => CW90.into(),
-            CW180 => CCW180.into(),
-            CCW180 => CW180.into(),
-        }
-    }
     fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String> {
         use FaceEnum::*;
 
@@ -180,21 +170,73 @@ impl PuzzleType for Rubiks3DDescription {
             layers: self.all_layers(),
         })
     }
+
     fn canonicalize_twist(&self, twist: Twist) -> Twist {
         let face: FaceEnum = twist.axis.into();
         let direction: TwistDirectionEnum = twist.direction.into();
 
         let rev_layers = self.reverse_layers(twist.layers);
-        let is_canonical =
-            twist.layers.0 < rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Pos;
-        if is_canonical {
-            twist
-        } else {
+        let should_reverse =
+            twist.layers.0 > rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Neg;
+        if should_reverse {
             Twist {
                 axis: face.opposite().into(),
                 direction: direction.rev().into(),
                 layers: rev_layers,
             }
+        } else {
+            twist
+        }
+    }
+    fn can_twists_combine(&self, prev: Option<Twist>, curr: Twist, metric: TwistMetric) -> bool {
+        if curr.layers == self.all_layers() {
+            // Never count puzzle rotations toward the twist count, except in
+            // ETM.
+            match metric {
+                TwistMetric::Qstm | TwistMetric::Ftm | TwistMetric::Stm => true,
+                TwistMetric::Etm => false,
+            }
+        } else if let Some(prev) = prev {
+            match metric {
+                TwistMetric::Qstm => false,
+                TwistMetric::Ftm => curr.axis == prev.axis && curr.layers == prev.layers,
+                TwistMetric::Stm => curr.axis == prev.axis,
+                TwistMetric::Etm => false,
+            }
+        } else {
+            false
+        }
+    }
+
+    fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection {
+        use TwistDirectionEnum::*;
+
+        match direction.into() {
+            CW90 => CCW90.into(),
+            CCW90 => CW90.into(),
+            CW180 => CCW180.into(),
+            CCW180 => CW180.into(),
+        }
+    }
+    fn chain_twist_directions(&self, dirs: &[TwistDirection]) -> Option<TwistDirection> {
+        use TwistDirectionEnum::*;
+
+        let total: i32 = dirs
+            .iter()
+            .map(|&dir| match dir.into() {
+                CW90 => 1,
+                CCW90 => -1,
+                CW180 => 2,
+                CCW180 => -2,
+            })
+            .sum();
+
+        match total.rem_euclid(4) {
+            0 => None,
+            1 => Some(CW90.into()),
+            2 => Some(if total < 0 { CCW180 } else { CW180 }.into()),
+            3 => Some(CCW90.into()),
+            _ => unreachable!(),
         }
     }
 
@@ -461,10 +503,10 @@ impl PieceState {
     }
 }
 
-#[derive(EnumIter, FromPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(EnumIter, FromPrimitive, Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
 enum FaceEnum {
-    #[num_enum(default)]
+    #[default]
     R = 0,
     L = 1,
     U = 2,
@@ -592,10 +634,10 @@ impl FaceEnum {
     }
 }
 
-#[derive(EnumIter, FromPrimitive, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(EnumIter, FromPrimitive, Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
 enum TwistDirectionEnum {
-    #[num_enum(default)]
+    #[default]
     CW90 = 0,
     CCW90 = 1,
     CW180 = 2,
@@ -697,5 +739,31 @@ impl Axis {
             Axis::Y => Vector3::unit_y(),
             Axis::Z => Vector3::unit_z(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_rubiks_3d_twist_canonicalization() {
+        for layer_count in 1..=6 {
+            let p = Rubiks3D::new(layer_count);
+            let are_twists_eq = |twist1, twist2| {
+                twist_comparison_key(&p, twist1) == twist_comparison_key(&p, twist2)
+            };
+            crate::puzzle::tests::test_twist_canonicalization(&p, are_twists_eq);
+        }
+    }
+
+    fn twist_comparison_key(p: &Rubiks3D, twist: Twist) -> impl PartialEq {
+        const SOME_PROGRESS: f32 = 0.1;
+
+        let face: FaceEnum = twist.axis.into();
+        let matrix = face.twist_matrix(twist.direction.into(), SOME_PROGRESS);
+        let pieces_affected = p.pieces_affected_by_twist(twist);
+        (matrix, pieces_affected)
     }
 }

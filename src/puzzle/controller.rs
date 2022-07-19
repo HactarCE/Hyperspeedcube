@@ -154,10 +154,13 @@ impl PuzzleController {
     }
 
     /// Adds a twist to the back of the twist queue.
-    pub fn twist(&mut self, twist: Twist) -> Result<(), &'static str> {
+    pub fn twist(&mut self, mut twist: Twist) -> Result<(), &'static str> {
+        twist.layers.0 &= self.all_layers().0; // Restrict layer mask.
+
         self.is_unsaved = true;
         self.redo_buffer.clear();
-        // TODO: canonicalize first
+        // Canonicalize twist.
+        twist = self.canonicalize_twist(twist);
         if self.undo_buffer.last() == Some(&self.reverse_twist(twist)) {
             self.undo()
         } else {
@@ -512,7 +515,7 @@ impl PuzzleController {
 
         twists
             .zip(prev_twists)
-            .filter(|&(curr, prev)| !self.latest.can_combine_twists(prev, curr, metric))
+            .filter(|&(curr, prev)| !self.latest.can_twists_combine(prev, curr, metric))
             .count()
     }
     pub fn twist_history(&self) -> String {

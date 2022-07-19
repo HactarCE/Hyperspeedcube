@@ -58,7 +58,8 @@ pub trait PuzzleType {
         LayerMask(layers.0.reverse_bits() >> (32 - self.layer_count()))
     }
 
-    fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection;
+    fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String>;
+
     fn reverse_twist(&self, twist: Twist) -> Twist {
         Twist {
             axis: twist.axis,
@@ -66,13 +67,11 @@ pub trait PuzzleType {
             layers: twist.layers,
         }
     }
-    fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String>;
     fn canonicalize_twist(&self, twist: Twist) -> Twist;
+    fn can_twists_combine(&self, prev: Option<Twist>, curr: Twist, metric: TwistMetric) -> bool;
 
-    fn can_combine_twists(&self, prev: Option<Twist>, curr: Twist, metric: TwistMetric) -> bool {
-        // TODO: at least try?
-        false
-    }
+    fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection;
+    fn chain_twist_directions(&self, dirs: &[TwistDirection]) -> Option<TwistDirection>;
 
     fn twist_command_short_description(
         &self,
@@ -282,6 +281,8 @@ impl TwistDirectionInfo {
         Self { symbol, name }
     }
 }
+
+// TODO: revamp turn metrics (see https://www.speedsolving.com/wiki/index.php/Metric)
 
 /// Convention for counting moves.
 #[derive(
