@@ -13,7 +13,10 @@ const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 pub(super) fn puzzle_select_menu(ui: &mut egui::Ui) -> Option<PuzzleTypeEnum> {
     let mut ret = None;
 
-    let r = ui.menu_button("Rubiks 3D", |ui| {
+    let default = PuzzleTypeEnum::Rubiks3D {
+        layer_count: rubiks_3d::DEFAULT_LAYER_COUNT,
+    };
+    let r = ui.menu_button(default.family_display_name(), |ui| {
         for layer_count in rubiks_3d::MIN_LAYER_COUNT..=rubiks_3d::MAX_LAYER_COUNT {
             let ty = PuzzleTypeEnum::Rubiks3D { layer_count };
             if ui.button(ty.name()).clicked() {
@@ -24,26 +27,24 @@ pub(super) fn puzzle_select_menu(ui: &mut egui::Ui) -> Option<PuzzleTypeEnum> {
     });
     if r.response.clicked() {
         ui.close_menu();
-        ret = Some(PuzzleTypeEnum::Rubiks3D {
-            layer_count: rubiks_3d::DEFAULT_LAYER_COUNT,
-        });
+        ret = Some(default);
     }
 
-    let r = ui.menu_button("Rubiks 4D", |ui| {
+    let default = PuzzleTypeEnum::Rubiks4D {
+        layer_count: rubiks_4d::DEFAULT_LAYER_COUNT,
+    };
+    let r = ui.menu_button(default.family_display_name(), |ui| {
         for layer_count in rubiks_4d::MIN_LAYER_COUNT..=rubiks_4d::MAX_LAYER_COUNT {
             let ty = PuzzleTypeEnum::Rubiks4D { layer_count };
             if ui.button(ty.name()).clicked() {
                 ui.close_menu();
-                return Some(ty);
+                ret = Some(ty);
             }
         }
-        None
     });
     if r.response.clicked() {
         ui.close_menu();
-        ret = Some(PuzzleTypeEnum::Rubiks4D {
-            layer_count: rubiks_4d::DEFAULT_LAYER_COUNT,
-        });
+        ret = Some(default);
     }
 
     ret

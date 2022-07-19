@@ -134,7 +134,7 @@ impl App {
                         // program).
                         self.puzzle.scramble_n(n)?;
                         self.set_status_ok(format!(
-                            "Scrambled {} random {}",
+                            "Scrambled with {} random {}",
                             n,
                             if n == 1 { "move" } else { "moves" }
                         ));
