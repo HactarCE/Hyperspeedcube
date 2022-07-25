@@ -84,6 +84,52 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
             }
         }
 
+        let mut aliases = vec![];
+
+        // Add slice twist aliases.
+        if let Some(slice_layers) = LayerMask::slice_layers(layer_count) {
+            use FaceEnum::*;
+
+            aliases.push(("M".to_string(), Alias::AxisLayers(L.into(), slice_layers)));
+            aliases.push(("E".to_string(), Alias::AxisLayers(D.into(), slice_layers)));
+            aliases.push(("S".to_string(), Alias::AxisLayers(F.into(), slice_layers)));
+            aliases.push(("P".to_string(), Alias::AxisLayers(O.into(), slice_layers)));
+        }
+
+        // Add 90-degree full-puzzle rotation aliases.
+        let all_layers = LayerMask::all_layers(layer_count);
+        for (ax1, ax2) in itertools::iproduct!(Axis::iter(), Axis::iter()) {
+            if let Some((dir, face)) = TwistDirectionEnum::from_face_twist_plane(ax1, ax2) {
+                let alias_string = format!("{}{}", ax1.symbol_lower(), ax2.symbol_lower());
+
+                let mut twist = Twist {
+                    axis: face.into(),
+                    direction: dir.into(),
+                    layers: all_layers,
+                };
+                aliases.push((alias_string.clone(), Alias::EntireTwist(twist)));
+
+                twist.direction = dir.double().unwrap().into();
+                aliases.push((alias_string + "2", Alias::EntireTwist(twist)));
+            }
+        }
+
+        let notation = NotationScheme {
+            layer_count,
+            axis_names: FaceEnum::iter()
+                .map(|f| f.symbol_upper().to_string())
+                .collect(),
+            direction_names: TwistDirectionEnum::iter()
+                .map(|dir| {
+                    TwistDirectionName::PerAxis(
+                        FaceEnum::iter().map(|f| dir.symbol_on_face(f)).collect(),
+                    )
+                })
+                .collect(),
+            block_suffix: None,
+            aliases,
+        };
+
         // It's not like we'll ever clear the cache anyway, so just leak it
         // and let us have the 'static lifetimes.
         Box::leak(Box::new(Rubiks4DDescription {
@@ -96,6 +142,7 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
             stickers,
             twist_axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
             twist_directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
+            notation,
 
             piece_locations,
         }))
@@ -113,6 +160,7 @@ struct Rubiks4DDescription {
     stickers: Vec<StickerInfo>,
     twist_axes: Vec<TwistAxisInfo>,
     twist_directions: Vec<TwistDirectionInfo>,
+    notation: NotationScheme,
 
     piece_locations: Vec<[u8; 4]>,
 }
@@ -197,8 +245,13 @@ impl PuzzleType for Rubiks4DDescription {
         let mut layers = twist.layers;
 
         let rev_layers = self.reverse_layers(twist.layers);
-        let should_reverse =
-            twist.layers.0 > rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Neg;
+        let should_reverse = if Some(layers) == self.slice_layers() {
+            use FaceEnum::*;
+            // These are the faces that correspond to MESP slice twists.
+            !matches!(face, L | D | F | O)
+        } else {
+            twist.layers.0 > rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Neg
+        };
         if should_reverse {
             face = face.opposite();
             direction = direction.mirror(face.axis());
@@ -277,53 +330,8 @@ impl PuzzleType for Rubiks4DDescription {
         }
     }
 
-    fn twist_short_description(&self, twist: Twist) -> String {
-        use FaceEnum::*;
-
-        let face: FaceEnum = twist.axis.into();
-        let direction: TwistDirectionEnum = twist.direction.into();
-
-        let face_upper = face.symbol_upper();
-        let face_lower = face.symbol_lower();
-        let fwd = direction.symbol();
-        let rev = direction.rev().symbol();
-
-        if twist.layers == LayerMask(0) {
-            crate::util::INVALID_STR.to_string()
-        } else if twist.layers == self.all_layers() {
-            if let Some([ax1, ax2]) = direction.twist_plane_for_face(face) {
-                match direction.is_face_180() {
-                    false => format!("{}{}", ax1.symbol_lower(), ax2.symbol_lower()),
-                    true => format!("{}{}2", ax1.symbol_lower(), ax2.symbol_lower()),
-                }
-            } else {
-                format!("{}*{fwd}", face.symbol_upper_str())
-            }
-        } else if twist.layers.is_default() {
-            format!("{face_upper}{fwd}")
-        } else if twist.layers == self.slice_layers() {
-            match face {
-                R => format!("M{rev}"),
-                L => format!("M{fwd}"),
-                U => format!("E{rev}"),
-                D => format!("E{fwd}"),
-                F => format!("S{fwd}"),
-                B => format!("S{rev}"),
-                O => format!("P{fwd}"), // Yes, `O` and `I` should
-                I => format!("P{fwd}"), // both be `fwd` here.
-            }
-        } else if twist.layers == LayerMask(3) {
-            format!("{face_upper}w{fwd}")
-        // } else if twist.layers == LayerMask(2) { // no lowercase face letters in 4D
-        //     format!("{face_lower}{fwd}")
-        } else if twist.layers.is_contiguous_from_outermost() {
-            format!("{}{face_upper}w{fwd}", twist.layers.count())
-        } else if let Some(layer) = twist.layers.get_single_layer() {
-            let layer = layer + 1;
-            format!("{layer}{face_lower}{fwd}")
-        } else {
-            format!("{{{}}}{face_upper}{fwd}", twist.layers.short_description())
-        }
+    fn notation_scheme(&self) -> &NotationScheme {
+        &self.notation
     }
 }
 
@@ -567,7 +575,7 @@ impl PieceState {
     fn twist(mut self, face: FaceEnum, direction: TwistDirectionEnum) -> Self {
         let [basis_x, basis_y, basis_z] = face.basis_faces();
 
-        let mut chars = direction.symbol().chars().peekable();
+        let mut chars = direction.symbol_xyz().chars().peekable();
 
         loop {
             let [mut a, mut b] = match chars.next() {
@@ -575,10 +583,7 @@ impl PieceState {
                 Some('x') => [basis_z, basis_y],
                 Some('y') => [basis_x, basis_z],
                 Some('z') => [basis_y, basis_x],
-                _ => {
-                    eprintln!("invalid Rubiks4D twist symbol {:?}", direction.symbol());
-                    continue;
-                }
+                _ => unreachable!(),
             };
             let double = chars.next_if_eq(&'2').is_some();
             let inverse = chars.next_if_eq(&'\'').is_some();
@@ -690,8 +695,20 @@ impl FaceEnum {
     fn symbol_upper(self) -> char {
         self.symbol_upper_str().chars().next().unwrap()
     }
-    fn symbol_lower(self) -> char {
-        self.symbol_upper().to_ascii_uppercase()
+    fn from_symbol(c: char) -> Option<Self> {
+        use FaceEnum::*;
+
+        match c {
+            'R' => Some(R),
+            'L' => Some(L),
+            'U' => Some(U),
+            'D' => Some(D),
+            'F' => Some(F),
+            'B' => Some(B),
+            'O' => Some(O),
+            'I' => Some(I),
+            _ => None,
+        }
     }
     fn name(self) -> &'static str {
         use FaceEnum::*;
@@ -744,7 +761,7 @@ impl FaceEnum {
 
     fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix4<f32> {
         let angle = Rad::full_turn() / direction.period() as f32 * progress;
-        let mat3 = Matrix3::from_axis_angle(direction.vector3().normalize(), -angle);
+        let mat3 = Matrix3::from_axis_angle(direction.vector3_f32().normalize(), -angle);
         let mut ret = Matrix4::identity();
         let basis = self.basis_faces();
         for i in 0..3 {
@@ -843,12 +860,12 @@ impl From<TwistDirection> for TwistDirectionEnum {
 impl TwistDirectionEnum {
     fn info(self) -> TwistDirectionInfo {
         TwistDirectionInfo {
-            symbol: self.symbol(),
+            symbol: self.symbol_xyz(),
             name: self.name(),
         }
     }
 
-    fn symbol(self) -> &'static str {
+    fn symbol_xyz(self) -> &'static str {
         use TwistDirectionEnum::*;
 
         match self {
@@ -890,7 +907,50 @@ impl TwistDirectionEnum {
         }
     }
     fn name(self) -> &'static str {
-        self.symbol()
+        self.symbol_xyz()
+    }
+    fn symbol_on_face(self, face: FaceEnum) -> String {
+        if face == FaceEnum::O {
+            return self.rev().symbol_on_face(FaceEnum::I);
+        }
+
+        let vector4 = (face.basis_matrix() * self.vector3_f32().extend(0.0))
+            .cast::<i8>()
+            .unwrap();
+        fn select_face_char(x: i8, char_pos: &'static str, char_neg: &'static str) -> &'static str {
+            match x {
+                1 => char_pos,
+                -1 => char_neg,
+                _ => "",
+            }
+        }
+
+        // "UFRO" is the most natural-sounding order IMO.
+        String::new()
+            + select_face_char(vector4.y, "U", "D")
+            + select_face_char(vector4.z, "F", "B")
+            + select_face_char(vector4.x, "R", "L")
+            + select_face_char(vector4.w, "O", "I")
+    }
+    fn from_symbol_on_face(s: &str, face: FaceEnum) -> Option<Self> {
+        if face == FaceEnum::O {
+            return Some(Self::from_symbol_on_face(s, FaceEnum::I)?.rev());
+        }
+
+        let mut vector4 = Vector4::zero();
+        for c in s.chars() {
+            let f = FaceEnum::from_symbol(c)?;
+            let i = f.axis() as usize;
+            if f.axis() == face.axis() || vector4[i] != 0 {
+                return None;
+            }
+            vector4[i] = f.sign().int();
+        }
+        Self::from_signs_within_face(
+            face.basis_faces()
+                .map(|f| vector4[f.axis() as usize] * f.sign().int())
+                .into(),
+        )
     }
 
     fn period(self) -> usize {
@@ -915,7 +975,7 @@ impl TwistDirectionEnum {
         if axis == Axis::W {
             return self;
         }
-        let mut v: Vector3<i8> = self.vector3().cast().unwrap();
+        let mut v = self.vector3();
         v *= -1;
         v[axis as usize] *= -1;
         let ret = Self::from_signs_within_face(v).unwrap();
@@ -942,26 +1002,29 @@ impl TwistDirectionEnum {
         }
     }
 
-    fn vector3(self) -> Vector3<f32> {
+    fn vector3(self) -> Vector3<i8> {
         use TwistDirectionEnum::*;
 
         let x = match self {
-            R | R2 | UR | FR | DR | BR | UFR | DBR | DFR | UBR => 1.0, // R
-            L | L2 | UL | FL | DL | BL | UFL | DBL | DFL | UBL => -1.0, // L
-            U | D | F | B | U2 | D2 | F2 | B2 | UF | DB | DF | UB => 0.0,
+            R | R2 | UR | FR | DR | BR | UFR | DBR | DFR | UBR => 1, // R
+            L | L2 | UL | FL | DL | BL | UFL | DBL | DFL | UBL => -1, // L
+            U | D | F | B | U2 | D2 | F2 | B2 | UF | DB | DF | UB => 0,
         };
         let y = match self {
-            U | U2 | UF | UR | UB | UL | UFR | UFL | UBL | UBR => 1.0, // U
-            D | D2 | DF | DR | DB | DL | DFR | DFL | DBL | DBR => -1.0, // D
-            R | L | F | B | R2 | L2 | F2 | B2 | FR | BL | BR | FL => 0.0,
+            U | U2 | UF | UR | UB | UL | UFR | UFL | UBL | UBR => 1, // U
+            D | D2 | DF | DR | DB | DL | DFR | DFL | DBL | DBR => -1, // D
+            R | L | F | B | R2 | L2 | F2 | B2 | FR | BL | BR | FL => 0,
         };
         let z = match self {
-            F | F2 | UF | FR | DF | FL | UFR | UFL | DFR | DFL => 1.0, // F
-            B | B2 | UB | BR | DB | BL | UBR | UBL | DBR | DBL => -1.0, // B
-            R | L | U | D | R2 | L2 | U2 | D2 | UR | DL | UL | DR => 0.0,
+            F | F2 | UF | FR | DF | FL | UFR | UFL | DFR | DFL => 1, // F
+            B | B2 | UB | BR | DB | BL | UBR | UBL | DBR | DBL => -1, // B
+            R | L | U | D | R2 | L2 | U2 | D2 | UR | DL | UL | DR => 0,
         };
 
         vec3(x, y, z)
+    }
+    fn vector3_f32(self) -> Vector3<f32> {
+        self.vector3().cast().unwrap()
     }
     fn from_signs_within_face(v: Vector3<i8>) -> Option<Self> {
         use TwistDirectionEnum::*;
@@ -1049,10 +1112,37 @@ impl TwistDirectionEnum {
 
         Some((direction, basis_face))
     }
+
+    fn from_xyz_chars(s: &str) -> Result<Option<Self>, String> {
+        use TwistDirectionEnum::*;
+
+        let face = FaceEnum::default();
+        let mut chars = s.chars().peekable();
+        let mut piece_state = PieceState::default();
+        loop {
+            let mut dir = match chars.next() {
+                Some('x') => R,
+                Some('y') => U,
+                Some('z') => F,
+                Some(c) => return Err(format!("unknown twist character: {c:?}")),
+                None => break,
+            };
+            if chars.next_if_eq(&'2').is_some() {
+                dir = dir.double().unwrap(); // never fails for R/U/F
+            }
+            if chars.next_if_eq(&'\'').is_some() {
+                dir = dir.rev();
+            }
+
+            piece_state = piece_state.twist(face, dir);
+        }
+
+        Ok(Self::from_piece_state_on_face(piece_state, face))
+    }
 }
 
 /// 4-dimensional axis.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(EnumIter, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 enum Axis {
     /// X axis (right).
     X = 0,
@@ -1073,17 +1163,21 @@ impl Axis {
         Axis::iter().find(|ax| !axes.contains(ax)).unwrap()
     }
 
-    /// Returns an iterator over all axes.
-    fn iter() -> impl Iterator<Item = Axis> {
-        [Axis::X, Axis::Y, Axis::Z, Axis::W].into_iter()
-    }
-
     fn symbol_lower(self) -> char {
         match self {
             Axis::X => 'x',
             Axis::Y => 'y',
             Axis::Z => 'z',
             Axis::W => 'w',
+        }
+    }
+    fn from_symbol_lower(c: char) -> Option<Self> {
+        match c {
+            'x' => Some(Axis::X),
+            'y' => Some(Axis::Y),
+            'z' => Some(Axis::Z),
+            'w' => Some(Axis::W),
+            _ => None,
         }
     }
 }
@@ -1101,6 +1195,19 @@ mod tests {
                 twist_comparison_key(&p, twist1) == twist_comparison_key(&p, twist2)
             };
             crate::puzzle::tests::test_twist_canonicalization(&p, are_twists_eq);
+        }
+    }
+
+    #[test]
+    fn test_rubiks_4d_twist_serialization() {
+        for layer_count in 1..=4 {
+            let p = Rubiks3D::new(layer_count);
+            crate::puzzle::tests::test_twist_serialization(&p);
+        }
+
+        for layer_count in 1..=7 {
+            let p = Rubiks3D::new(layer_count);
+            crate::puzzle::tests::test_layered_twist_serialization(&p);
         }
     }
 

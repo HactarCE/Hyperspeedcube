@@ -521,7 +521,10 @@ impl PuzzleController {
     pub fn twist_history(&self) -> String {
         self.undo_buffer
             .iter()
-            .map(|&twist| self.twist_short_description(self.canonicalize_twist(twist)))
+            .map(|&twist| {
+                self.notation_scheme()
+                    .twist_to_string(self.canonicalize_twist(twist))
+            })
             .join(" ")
     }
 

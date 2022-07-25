@@ -77,6 +77,42 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
             }
         }
 
+        let mut aliases = vec![];
+        {
+            use FaceEnum::*;
+            let all_layers = LayerMask::all_layers(layer_count);
+            aliases.push(("x".to_string(), Alias::AxisLayers(R.into(), all_layers)));
+            aliases.push(("y".to_string(), Alias::AxisLayers(U.into(), all_layers)));
+            aliases.push(("z".to_string(), Alias::AxisLayers(F.into(), all_layers)));
+
+            if let Some(slice_layers) = LayerMask::slice_layers(layer_count) {
+                aliases.push(("M".to_string(), Alias::AxisLayers(L.into(), slice_layers)));
+                aliases.push(("E".to_string(), Alias::AxisLayers(D.into(), slice_layers)));
+                aliases.push(("S".to_string(), Alias::AxisLayers(F.into(), slice_layers)));
+            }
+
+            if layer_count >= 4 {
+                for f in FaceEnum::iter() {
+                    aliases.push((
+                        f.symbol_lower().to_string(),
+                        Alias::AxisLayers(f.into(), LayerMask(2)),
+                    ))
+                }
+            }
+        }
+
+        let notation = NotationScheme {
+            layer_count,
+            axis_names: FaceEnum::iter()
+                .map(|f| f.symbol_upper().to_string())
+                .collect(),
+            direction_names: TwistDirectionEnum::iter()
+                .map(|dir| TwistDirectionName::Same(dir.symbol().to_string()))
+                .collect(),
+            block_suffix: Some("w".to_string()),
+            aliases,
+        };
+
         // It's not like we'll ever clear the cache anyway, so just leak it
         // and let us have the 'static lifetimes.
         Box::leak(Box::new(Rubiks3DDescription {
@@ -89,6 +125,7 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
             stickers,
             twist_axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
             twist_directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
+            notation,
 
             piece_locations,
         }))
@@ -106,6 +143,7 @@ struct Rubiks3DDescription {
     stickers: Vec<StickerInfo>,
     twist_axes: Vec<TwistAxisInfo>,
     twist_directions: Vec<TwistDirectionInfo>,
+    notation: NotationScheme,
 
     piece_locations: Vec<[u8; 3]>,
 }
@@ -176,8 +214,13 @@ impl PuzzleType for Rubiks3DDescription {
         let direction: TwistDirectionEnum = twist.direction.into();
 
         let rev_layers = self.reverse_layers(twist.layers);
-        let should_reverse =
-            twist.layers.0 > rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Neg;
+        let should_reverse = if Some(twist.layers) == self.slice_layers() {
+            use FaceEnum::*;
+            // These are the faces that correspond to MES slice twists.
+            !matches!(face, L | D | F)
+        } else {
+            twist.layers.0 > rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Neg
+        };
         if should_reverse {
             Twist {
                 axis: face.opposite().into(),
@@ -240,51 +283,8 @@ impl PuzzleType for Rubiks3DDescription {
         }
     }
 
-    fn twist_short_description(&self, twist: Twist) -> String {
-        use FaceEnum::*;
-
-        let face: FaceEnum = twist.axis.into();
-        let direction: TwistDirectionEnum = twist.direction.into();
-
-        let face_upper = face.symbol_upper();
-        let face_lower = face.symbol_lower();
-        let fwd = direction.symbol();
-        let rev = direction.rev().symbol();
-
-        if twist.layers == LayerMask(0) {
-            crate::util::INVALID_STR.to_string()
-        } else if twist.layers == self.all_layers() {
-            match face {
-                R => format!("x{fwd}"),
-                L => format!("x{rev}"),
-                U => format!("y{fwd}"),
-                D => format!("y{rev}"),
-                F => format!("z{fwd}"),
-                B => format!("z{rev}"),
-            }
-        } else if twist.layers.is_default() {
-            format!("{face_upper}{fwd}")
-        } else if twist.layers == self.slice_layers() {
-            match face {
-                R => format!("M{rev}"),
-                L => format!("M{fwd}"),
-                U => format!("E{rev}"),
-                D => format!("E{fwd}"),
-                F => format!("S{fwd}"),
-                B => format!("S{rev}"),
-            }
-        } else if twist.layers == LayerMask(3) {
-            format!("{face_upper}w{fwd}")
-        } else if twist.layers == LayerMask(2) {
-            format!("{face_lower}{fwd}")
-        } else if twist.layers.is_contiguous_from_outermost() {
-            format!("{}{face_upper}w{fwd}", twist.layers.count())
-        } else if let Some(layer) = twist.layers.get_single_layer() {
-            let layer = layer + 1;
-            format!("{layer}{face_lower}{fwd}")
-        } else {
-            format!("{{{}}}{face_upper}{fwd}", twist.layers.short_description())
-        }
+    fn notation_scheme(&self) -> &NotationScheme {
+        &self.notation
     }
 }
 
@@ -594,7 +594,20 @@ impl FaceEnum {
         self.symbol_upper_str().chars().next().unwrap()
     }
     fn symbol_lower(self) -> char {
-        self.symbol_upper().to_ascii_uppercase()
+        self.symbol_upper().to_ascii_lowercase()
+    }
+    fn from_symbol(c: char) -> Option<Self> {
+        use FaceEnum::*;
+
+        match c.to_ascii_uppercase() {
+            'R' => Some(R),
+            'L' => Some(L),
+            'U' => Some(U),
+            'D' => Some(D),
+            'F' => Some(F),
+            'B' => Some(B),
+            _ => None,
+        }
     }
     fn name(self) -> &'static str {
         use FaceEnum::*;
@@ -744,7 +757,6 @@ impl Axis {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
@@ -755,6 +767,19 @@ mod tests {
                 twist_comparison_key(&p, twist1) == twist_comparison_key(&p, twist2)
             };
             crate::puzzle::tests::test_twist_canonicalization(&p, are_twists_eq);
+        }
+    }
+
+    #[test]
+    fn test_rubiks_3d_twist_serialization() {
+        for layer_count in 1..=5 {
+            let p = Rubiks3D::new(layer_count);
+            crate::puzzle::tests::test_twist_serialization(&p);
+        }
+
+        for layer_count in 1..=7 {
+            let p = Rubiks3D::new(layer_count);
+            crate::puzzle::tests::test_layered_twist_serialization(&p);
         }
     }
 

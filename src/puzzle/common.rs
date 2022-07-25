@@ -1,8 +1,10 @@
 use itertools::Itertools;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fmt;
-use std::ops::{BitOr, BitXorAssign, Index, Mul, Neg};
+use std::ops::{BitOr, BitXorAssign, Index, Mul, Neg, RangeInclusive};
+use std::str::FromStr;
 use strum::{Display, EnumIter, EnumMessage};
 
 use super::*;
@@ -48,11 +50,10 @@ pub trait PuzzleType {
         }
     }
     fn all_layers(&self) -> LayerMask {
-        let layer_count = self.layer_count() as u32;
-        LayerMask((1 << layer_count) - 1)
+        LayerMask::all_layers(self.layer_count())
     }
-    fn slice_layers(&self) -> LayerMask {
-        LayerMask((self.all_layers().0 >> 1) & !1)
+    fn slice_layers(&self) -> Option<LayerMask> {
+        LayerMask::slice_layers(self.layer_count())
     }
     fn reverse_layers(&self, layers: LayerMask) -> LayerMask {
         LayerMask(layers.0.reverse_bits() >> (32 - self.layer_count()))
@@ -73,6 +74,32 @@ pub trait PuzzleType {
     fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection;
     fn chain_twist_directions(&self, dirs: &[TwistDirection]) -> Option<TwistDirection>;
 
+    fn notation_scheme(&self) -> &NotationScheme;
+    fn twists_to_string(&self, twists: &[Twist]) -> String {
+        twists
+            .iter()
+            .map(|&t| self.notation_scheme().twist_to_string(t))
+            .join(" ")
+    }
+    fn split_twists_string<'s>(&self, string: &'s str) -> regex::Matches<'static, 's> {
+        const TWIST_PATTERN: &str = r"(\{[\d\s,]*\}|[^\s()])+";
+        // one or more of either      (                    )+
+        //     a pair of `{}`          \{        \}
+        //       containing digits,      [\d   ]*
+        //                  whitespace,     \s
+        //                  and commas        ,
+        //   or                                    |
+        //     any symbol other than                [^    ]
+        //       whitespace                           \s
+        //       and parens                             ()
+
+        lazy_static! {
+            static ref TWIST_REGEX: Regex = Regex::new(TWIST_PATTERN).unwrap();
+        }
+
+        TWIST_REGEX.find_iter(string)
+    }
+
     fn twist_command_short_description(
         &self,
         axis_name: Option<TwistAxis>,
@@ -80,24 +107,17 @@ pub trait PuzzleType {
         layers: LayerMask,
     ) -> String {
         match axis_name {
-            Some(axis) => self.twist_short_description(Twist {
+            Some(axis) => self.notation_scheme().twist_to_string(Twist {
                 axis,
                 direction,
                 layers,
             }),
             None => {
                 let dir = self.info(direction).symbol;
-                if layers.is_default() {
-                    format!("Ø{}", dir)
-                } else if layers.is_contiguous_from_outermost() {
-                    format!("{}Ø{}", layers.count(), dir)
-                } else {
-                    format!("{{{}}}Ø{}", layers.long_description(), dir)
-                }
+                format!("{layers}Ø{dir}")
             }
         }
     }
-    fn twist_short_description(&self, twist: Twist) -> String;
 }
 
 trait PuzzleTypeRefExt {
@@ -168,7 +188,7 @@ impl AsRef<str> for PuzzleTypeEnum {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Twist {
     pub axis: TwistAxis,
     pub direction: TwistDirection,
@@ -371,7 +391,7 @@ impl Mul<Sign> for Sign {
 }
 impl Sign {
     /// Returns an integer representation of the sign (either -1 or 1).
-    pub const fn int(self) -> isize {
+    pub const fn int(self) -> i8 {
         match self {
             Sign::Pos => 1,
             Sign::Neg => -1,
@@ -397,6 +417,14 @@ impl Default for LayerMask {
         Self(1)
     }
 }
+impl From<RangeInclusive<u8>> for LayerMask {
+    fn from(range: RangeInclusive<u8>) -> Self {
+        let lo = *range.start();
+        let hi = std::cmp::min(*range.end(), 31);
+        let count = hi - lo + 1;
+        Self(((1 << count) - 1) << lo)
+    }
+}
 impl Index<u8> for LayerMask {
     type Output = bool;
 
@@ -407,7 +435,21 @@ impl Index<u8> for LayerMask {
         }
     }
 }
+impl BitOr for LayerMask {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
 impl LayerMask {
+    pub(crate) fn slice_layers(total_layer_count: u8) -> Option<Self> {
+        (total_layer_count >= 3).then(|| Self((Self::all_layers(total_layer_count).0 >> 1) & !1))
+    }
+    pub(crate) fn all_layers(total_layer_count: u8) -> Self {
+        Self((1 << total_layer_count as u32) - 1)
+    }
+
     pub(crate) fn is_default(self) -> bool {
         self == Self::default()
     }
@@ -446,6 +488,74 @@ impl LayerMask {
         } else {
             None
         }
+    }
+}
+impl fmt::Display for LayerMask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_default() {
+            Ok(())
+        } else if let Some(l) = self.get_single_layer() {
+            write!(f, "{}", l + 1)
+        } else {
+            write!(f, "{{")?;
+
+            let mut first = true;
+
+            let mut mask = self.0;
+            let mut offset = 1;
+            while mask != 0 {
+                if first {
+                    first = false;
+                } else {
+                    write!(f, ",")?;
+                }
+
+                let lo = offset + mask.trailing_zeros();
+                offset += mask.trailing_zeros();
+                mask >>= mask.trailing_zeros();
+
+                let hi = lo + mask.trailing_ones() - 1;
+                offset += mask.trailing_ones();
+                mask >>= mask.trailing_ones();
+
+                write!(f, "{lo}")?;
+                if lo != hi {
+                    write!(f, "-{hi}")?;
+                }
+            }
+
+            write!(f, "}}")?;
+            Ok(())
+        }
+    }
+}
+impl FromStr for LayerMask {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // IIFE
+        (|| {
+            if s.trim().starts_with('{') {
+                s.trim()
+                    .strip_prefix('{')?
+                    .strip_suffix('}')?
+                    .split(',')
+                    .map(|s| match s.trim().split_once('-') {
+                        // Range notation; e.g., "3-6"
+                        Some((lo, hi)) => {
+                            let lo = lo.trim().parse::<u8>().ok()? - 1;
+                            let hi = hi.trim().parse::<u8>().ok()? - 1;
+                            Some(Self::from(lo..=hi))
+                        }
+                        // Single layer notation; e.g., "3"
+                        None => Some(Self(1 << (s.trim().parse::<u8>().ok()? - 1))),
+                    })
+                    .try_fold(Self(0), |a, b| Some(a | b?))
+            } else {
+                Some(Self(1 << (s.trim().parse::<u8>().ok()? - 1)))
+            }
+        })()
+        .ok_or("invalid layer mask")
     }
 }
 
