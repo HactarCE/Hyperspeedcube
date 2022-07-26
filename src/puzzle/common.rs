@@ -4,7 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fmt;
-use std::ops::{BitOr, BitXorAssign, Index, Mul, Neg, RangeInclusive};
+use std::ops::{BitAnd, BitOr, BitXorAssign, Index, Mul, Neg, RangeInclusive};
 use std::str::FromStr;
 use strum::{Display, EnumIter, EnumMessage};
 
@@ -177,6 +177,28 @@ impl PuzzleTypeEnum {
             PuzzleTypeEnum::Rubiks4D { layer_count } => rubiks_4d::puzzle_type(layer_count),
         }
     }
+    pub fn validate(self) -> Result<(), String> {
+        match self {
+            PuzzleTypeEnum::Rubiks3D { layer_count } => {
+                if layer_count < rubiks_3d::MIN_LAYER_COUNT
+                    || layer_count > rubiks_3d::MAX_LAYER_COUNT
+                {
+                    Err(format!("invalid layer count {layer_count} for this puzzle"))
+                } else {
+                    Ok(())
+                }
+            }
+            PuzzleTypeEnum::Rubiks4D { layer_count } => {
+                if layer_count < rubiks_4d::MIN_LAYER_COUNT
+                    || layer_count > rubiks_4d::MAX_LAYER_COUNT
+                {
+                    Err(format!("invalid layer count {layer_count} for this puzzle"))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+    }
 }
 impl Default for PuzzleTypeEnum {
     fn default() -> Self {
@@ -233,7 +255,7 @@ impl Twist {
         Self {
             axis: TwistAxis(rng.gen_range(0..ty.twist_axes().len()) as _),
             direction: TwistDirection(rng.gen_range(0..ty.twist_directions().len()) as _),
-            layers: LayerMask(rng.gen_range(0..ty.all_layers().0)),
+            layers: LayerMask(rng.gen_range(1..ty.all_layers().0)),
         }
     }
 }
@@ -497,6 +519,13 @@ impl BitOr for LayerMask {
         Self(self.0 | rhs.0)
     }
 }
+impl BitAnd for LayerMask {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
 impl LayerMask {
     pub(crate) fn slice_layers(total_layer_count: u8) -> Option<Self> {
         (total_layer_count >= 3).then(|| Self((Self::all_layers(total_layer_count).0 >> 1) & !1))
@@ -535,7 +564,7 @@ impl LayerMask {
         self.0.count_ones()
     }
     pub(crate) fn is_contiguous_from_outermost(self) -> bool {
-        self.0.count_ones() == self.0.trailing_ones()
+        self.0 != 0 && self.0.count_ones() == self.0.trailing_ones()
     }
     pub(crate) fn get_single_layer(self) -> Option<u32> {
         if self.count() == 1 {

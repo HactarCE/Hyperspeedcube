@@ -158,7 +158,10 @@ impl PuzzleController {
 
     /// Adds a twist to the back of the twist queue.
     pub fn twist(&mut self, mut twist: Twist) -> Result<(), &'static str> {
-        twist.layers.0 &= self.all_layers().0; // Restrict layer mask.
+        twist.layers = twist.layers & self.all_layers(); // Restrict layer mask.
+        if twist.layers == LayerMask(0) {
+            return Err("invalid layer mask");
+        }
 
         self.is_unsaved = true;
         self.redo_buffer.clear();
@@ -528,6 +531,7 @@ impl PuzzleController {
     /// Loads a log file and returns the puzzle state, along with any warnings.
     pub fn load_file(path: &Path) -> anyhow::Result<(Self, Vec<String>)> {
         let log_file: LogFile = serde_yaml::from_reader(std::fs::File::open(path)?)?;
+        log_file.validate()?;
 
         let mut warnings = vec![];
 

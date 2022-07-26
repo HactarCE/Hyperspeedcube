@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -48,6 +48,13 @@ impl LogFile {
                 twists.iter().map(|&twist| notation.twist_to_string(twist)),
             ),
         }
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        if let Some(puzzle_ty) = self.puzzle {
+            puzzle_ty.validate().map_err(|e| anyhow!(e))?;
+        }
+        Ok(())
     }
 
     pub fn scramble<'a>(&'a self) -> (Vec<Twist>, Vec<TwistParseError<'a>>) {

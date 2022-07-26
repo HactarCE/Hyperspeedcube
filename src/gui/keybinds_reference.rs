@@ -4,7 +4,7 @@ use key_names::KeyMappingCode;
 use crate::app::App;
 use crate::commands::{Command, PuzzleCommand};
 use crate::preferences::{Key, Keybind};
-use crate::puzzle::traits::*;
+use crate::puzzle::{traits::*, LayerMask};
 
 const SCALED_KEY_PADDING: f32 = 0.0;
 const MIN_KEY_PADDING: f32 = 4.0;
@@ -153,8 +153,11 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         ui.strong(twist_axis);
                     }
                     PuzzleCommand::SelectLayers(layers) => {
-                        ui.label("Select");
-                        ui.strong(layers.long_description());
+                        let layers = *layers & puzzle_type.all_layers();
+                        if layers != LayerMask(0) {
+                            ui.label("Select");
+                            ui.strong(layers.long_description());
+                        }
                     }
 
                     PuzzleCommand::Twist {
@@ -162,7 +165,8 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         direction,
                         layers,
                     } => {
-                        if *layers == puzzle_type.all_layers() {
+                        let layers = *layers & puzzle_type.all_layers();
+                        if layers == puzzle_type.all_layers() {
                             ui.label("Rotate");
                             ui.strong("whole puzzle");
                             ui.label("in");
@@ -170,7 +174,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                             ui.label("direction relative to");
                             ui.strong(axis.as_deref().unwrap_or("selected"));
                             ui.label("axis");
-                        } else {
+                        } else if layers != LayerMask(0) {
                             ui.label("Twist");
                             ui.strong(axis.as_deref().unwrap_or("selected"));
                             ui.label("in");

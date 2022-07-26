@@ -216,25 +216,25 @@ puzzle_keybinds:
         twist:
           axis: L
           direction: CCW
-          layers: 7
+          layers: 511
     - sc: KeyB
       command:
         twist:
           axis: L
           direction: CW
-          layers: 7
+          layers: 511
     - sc: KeyY
       command:
         twist:
           axis: R
           direction: CW
-          layers: 7
+          layers: 511
     - sc: KeyN
       command:
         twist:
           axis: R
           direction: CCW
-          layers: 7
+          layers: 511
     - sc: KeyA
       command:
         recenter:
@@ -248,13 +248,13 @@ puzzle_keybinds:
         twist:
           axis: F
           direction: CCW
-          layers: 7
+          layers: 511
     - sc: KeyP
       command:
         twist:
           axis: F
           direction: CW
-          layers: 7
+          layers: 511
     - sc: KeyZ
       command:
         twist:
@@ -381,49 +381,49 @@ puzzle_keybinds:
         twist:
           axis: I
           direction: x
-          layers: 7
+          layers: 511
     - sc: KeyY
       command:
         twist:
           axis: I
           direction: x
-          layers: 7
+          layers: 511
     - sc: KeyB
       command:
         twist:
           axis: I
           direction: "x'"
-          layers: 7
+          layers: 511
     - sc: KeyN
       command:
         twist:
           axis: I
           direction: "x'"
-          layers: 7
+          layers: 511
     - sc: KeyA
       command:
         twist:
           axis: I
           direction: "y'"
-          layers: 7
+          layers: 511
     - sc: Semicolon
       command:
         twist:
           axis: I
           direction: y
-          layers: 7
+          layers: 511
     - sc: KeyQ
       command:
         twist:
           axis: I
           direction: "z'"
-          layers: 7
+          layers: 511
     - sc: KeyP
       command:
         twist:
           axis: I
           direction: z
-          layers: 7
+          layers: 511
     - sc: Digit1
       command:
         select_layers: 1

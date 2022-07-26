@@ -80,7 +80,7 @@ impl NotationScheme {
         self.format_layers(f, twist.layers)?;
         self.format_axis(f, twist.axis)?;
         if let Some(block_suffix) = &self.block_suffix {
-            if twist.layers.is_contiguous_from_outermost() && !twist.layers.is_default() {
+            if twist.layers.is_contiguous_from_outermost() && twist.layers.count() > 1 {
                 write!(f, "{block_suffix}")?;
             }
         }

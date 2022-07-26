@@ -109,7 +109,7 @@ impl PuzzleCommand {
                 axis.as_deref()
                     .and_then(|axis_name| ty.twist_axis_from_name(axis_name)),
                 ty.twist_direction_from_name(direction).unwrap_or_default(),
-                *layers,
+                *layers & ty.all_layers(),
             ),
 
             PuzzleCommand::Recenter { axis } => {
