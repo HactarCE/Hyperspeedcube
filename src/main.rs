@@ -19,7 +19,7 @@ extern crate lazy_static;
 extern crate strum;
 
 use std::time::Instant;
-use winit::event::{Event, WindowEvent};
+use winit::event::{ElementState, Event, KeyboardInput, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Icon;
 
@@ -90,6 +90,27 @@ async fn run() {
     event_loop.run(move |ev, _ev_loop, control_flow| {
         let mut event_has_been_captured = false;
 
+        // Key release events should always be processed by the app to make sure
+        // there's no stuck keys.
+        let allow_egui_capture = match &ev {
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            state: ElementState::Released,
+                            ..
+                        },
+                    ..
+                } => false,
+
+                WindowEvent::ModifiersChanged(_) => false,
+
+                _ => true,
+            },
+
+            _ => true,
+        };
+
         // Prioritize sending events to the key combo popup.
         match &ev {
             Event::WindowEvent { window_id, event } if *window_id == window.id() => {
@@ -104,7 +125,7 @@ async fn run() {
         // it before anything else.
         if !event_has_been_captured {
             egui.handle_event(&ev);
-            event_has_been_captured |= egui.captures_event(&ev);
+            event_has_been_captured |= egui.captures_event(&ev) && allow_egui_capture;
         }
 
         // Handle events for the app.

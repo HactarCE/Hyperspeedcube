@@ -50,17 +50,17 @@ impl Command {
 
     pub(crate) fn short_description(&self) -> String {
         match self {
-            Command::Open => "Open".to_owned(),
-            Command::Save => "Save".to_owned(),
+            Command::Open => "🗁".to_owned(),
+            Command::Save => "💾".to_owned(),
             Command::SaveAs => "Save As".to_owned(),
             Command::Exit => "Exit".to_owned(),
 
-            Command::Undo => "Undo".to_owned(),
-            Command::Redo => "Redo".to_owned(),
-            Command::Reset => "Reset".to_owned(),
+            Command::Undo => "⮪".to_owned(),
+            Command::Redo => "⮫".to_owned(),
+            Command::Reset => "⟲".to_owned(),
 
-            Command::ScrambleN(n) => format!("Scramble {n}"),
-            Command::ScrambleFull => "Scramble fully".to_owned(),
+            Command::ScrambleN(n) => format!("🔀 {n}"),
+            Command::ScrambleFull => "🔀".to_owned(),
 
             Command::NewPuzzle(ty) => format!("New {}", ty.name()),
 
