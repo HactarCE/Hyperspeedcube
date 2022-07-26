@@ -70,18 +70,21 @@ pub trait PuzzleType {
         }
     }
     fn canonicalize_twist(&self, twist: Twist) -> Twist;
+    fn count_twists(&self, twists: &[Twist], metric: TwistMetric) -> usize {
+        let twists = twists.iter().cloned();
+        let prev_twists = itertools::put_back(twists.clone().map(Some)).with_value(None);
+
+        twists
+            .zip(prev_twists)
+            .filter(|&(curr, prev)| !self.can_twists_combine(prev, curr, metric))
+            .count()
+    }
     fn can_twists_combine(&self, prev: Option<Twist>, curr: Twist, metric: TwistMetric) -> bool;
 
     fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection;
     fn chain_twist_directions(&self, dirs: &[TwistDirection]) -> Option<TwistDirection>;
 
     fn notation_scheme(&self) -> &NotationScheme;
-    fn twists_to_string(&self, twists: &[Twist]) -> String {
-        twists
-            .iter()
-            .map(|&t| self.notation_scheme().twist_to_string(t))
-            .join(" ")
-    }
     fn split_twists_string<'s>(&self, string: &'s str) -> regex::Matches<'static, 's> {
         const TWIST_PATTERN: &str = r"(\{[\d\s,]*\}|[^\s()])+";
         // one or more of either      (                    )+
@@ -108,11 +111,13 @@ pub trait PuzzleType {
         layers: LayerMask,
     ) -> String {
         match axis_name {
-            Some(axis) => self.notation_scheme().twist_to_string(Twist {
-                axis,
-                direction,
-                layers,
-            }),
+            Some(axis) => self
+                .notation_scheme()
+                .twist_to_string(self.canonicalize_twist(Twist {
+                    axis,
+                    direction,
+                    layers,
+                })),
             None => {
                 let dir = self.info(direction).symbol;
                 format!("{layers}Ø{dir}")
@@ -194,6 +199,33 @@ pub struct Twist {
     pub axis: TwistAxis,
     pub direction: TwistDirection,
     pub layers: LayerMask,
+}
+impl fmt::Display for Twist {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{},{},{}", self.axis.0, self.direction.0, self.layers.0)
+    }
+}
+impl FromStr for Twist {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // IIFE for to mimic `try_block`
+        (|| {
+            let mut segments = s.split(',');
+            let axis = TwistAxis(segments.next()?.parse().ok()?);
+            let direction = TwistDirection(segments.next()?.parse().ok()?);
+            let layers = LayerMask(segments.next()?.parse().ok()?);
+            if segments.next().is_some() {
+                return None;
+            }
+            Some(Self {
+                axis,
+                direction,
+                layers,
+            })
+        })()
+        .ok_or(())
+    }
 }
 impl Twist {
     pub fn from_rng(ty: PuzzleTypeEnum) -> Self {
@@ -317,7 +349,19 @@ impl TwistDirectionInfo {
 
 /// Convention for counting moves.
 #[derive(
-    Serialize, Deserialize, Debug, Display, EnumIter, EnumMessage, Copy, Clone, PartialEq, Eq, Hash,
+    Serialize,
+    Deserialize,
+    Debug,
+    Display,
+    EnumIter,
+    EnumMessage,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
 )]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TwistMetric {

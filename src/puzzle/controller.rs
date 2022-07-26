@@ -1,8 +1,9 @@
 //! Puzzle wrapper that adds animation and undo history functionality.
 
-use anyhow::bail;
+use anyhow::{Context, Result};
 use cgmath::InnerSpace;
 use itertools::Itertools;
+use num_enum::FromPrimitive;
 use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::Arc;
@@ -131,6 +132,10 @@ impl PuzzleController {
         *self = Self::new(self.ty());
     }
 
+    /// Returns whether the puzzle has been scrambled, solved, etc..
+    pub fn scramble_state(&self) -> ScrambleState {
+        self.scramble_state
+    }
     /// Scramble some small number of moves.
     pub fn scramble_n(&mut self, n: usize) -> Result<(), &'static str> {
         self.reset();
@@ -508,13 +513,7 @@ impl PuzzleController {
 
     /// Returns the number of twists applied to the puzzle.
     pub fn twist_count(&self, metric: TwistMetric) -> usize {
-        let twists = self.undo_buffer.iter().cloned();
-        let prev_twists = itertools::put_back(twists.clone().map(Some)).with_value(None);
-
-        twists
-            .zip(prev_twists)
-            .filter(|&(curr, prev)| !self.latest.can_twists_combine(prev, curr, metric))
-            .count()
+        self.latest.count_twists(&self.undo_buffer, metric)
     }
     pub fn twist_history(&self) -> String {
         self.undo_buffer
@@ -526,66 +525,71 @@ impl PuzzleController {
             .join(" ")
     }
 
-    /// Loads a log file and returns the puzzle state.
-    pub fn load_file(path: &Path) -> anyhow::Result<Self> {
-        // let contents = std::fs::read_to_string(path)?;
-        // let logfile = contents.parse::<mc4d_compat::LogFile>()?;
+    /// Loads a log file and returns the puzzle state, along with any warnings.
+    pub fn load_file(path: &Path) -> anyhow::Result<(Self, Vec<String>)> {
+        let log_file: LogFile = serde_yaml::from_reader(std::fs::File::open(path)?)?;
 
-        // let mut ret = Self {
-        //     displayed: Rubiks34::new().into(),
-        //     latest: Rubiks34::new().into(),
+        let mut warnings = vec![];
 
-        //     scramble_state: logfile.scramble_state,
+        if log_file.version == LogFile::VERSION {
+            warnings.push(format!(
+                "This log file was saved using a \
+                 different version of Hyperspeedcube \
+                 (log file format v{:?}; expected v{:?})",
+                log_file.version,
+                LogFile::VERSION,
+            ));
+        }
 
-        //     ..Self::default()
-        // };
-        // for twist in logfile.scramble_twists {
-        //     ret.twist(twist.into()).map_err(|e| anyhow!(e))?;
-        // }
-        // ret.scramble = ret.undo_buffer;
-        // ret.undo_buffer = vec![];
-        // ret.catch_up();
-        // for twist in logfile.solve_twists {
-        //     ret.twist(twist.into()).map_err(|e| anyhow!(e))?;
-        // }
+        let puzzle_type = log_file.puzzle.context("unable to find puzzle type")?;
+        let mut ret = Self::new(puzzle_type);
 
-        // Ok(ret)
-        todo!("TODO load log")
+        let scramble_state = ScrambleState::from_primitive(log_file.state);
+
+        match scramble_state {
+            ScrambleState::None => (),
+            ScrambleState::Partial | ScrambleState::Full | ScrambleState::Solved => {
+                let (twists, parse_errors) = log_file.scramble();
+                warnings.extend(parse_errors.iter().map(|e| e.to_string()));
+                for twist in twists {
+                    if let Err(e) = ret.twist(twist) {
+                        warnings.push(e.to_string());
+                    }
+                }
+                ret.catch_up();
+                ret.scramble = std::mem::take(&mut ret.undo_buffer);
+                ret.scramble_state = scramble_state;
+            }
+        }
+
+        let (twists, parse_errors) = log_file.twists(&puzzle_type);
+        warnings.extend(parse_errors.iter().map(|e| e.to_string()));
+        for twist in twists {
+            if let Err(e) = ret.twist(twist) {
+                warnings.push(e.to_string());
+            }
+        }
+        ret.catch_up();
+
+        Ok((ret, warnings))
     }
 
     /// Saves the puzzle state to a log file.
     pub fn save_file(&mut self, path: &Path) -> anyhow::Result<()> {
-        match self.latest {
-            Puzzle::Rubiks3D(_) => bail!("log files only supported for Rubik's 4D"),
-            Puzzle::Rubiks4D(_) => todo!("log file support for Rubik's 4D"),
-            // Puzzle::Rubiks34(_) => {
-            //     let logfile = mc4d_compat::LogFile {
-            //         scramble_state: self.scramble_state,
-            //         view_matrix: Matrix4::identity(),
-            //         scramble_twists: self
-            //             .scramble
-            //             .iter()
-            //             .map(|t| t.unwrap::<Rubiks34>())
-            //             .collect(),
-            //         solve_twists: self
-            //             .undo_buffer
-            //             .iter()
-            //             .map(|t| t.unwrap::<Rubiks34>())
-            //             .collect(),
-            //     };
-            //     std::fs::write(path, logfile.to_string())?;
-            //     self.is_unsaved = false;
+        self.log_file().write_to_file(std::fs::File::create(path)?)
+    }
 
-            //     Ok(())
-            // }
-        }
+    fn log_file(&self) -> LogFile {
+        LogFile::new(self, self.scramble_state, &self.scramble, &self.undo_buffer)
     }
 }
 
 /// Whether the puzzle has been scrambled.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(FromPrimitive, Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[repr(u8)]
 pub enum ScrambleState {
     /// Unscrambled.
+    #[default]
     None = 0,
     /// Some small number of scramble twists.
     Partial = 1,
@@ -593,11 +597,6 @@ pub enum ScrambleState {
     Full = 2,
     /// Was solved by user even if not currently solved.
     Solved = 3,
-}
-impl Default for ScrambleState {
-    fn default() -> Self {
-        ScrambleState::None
-    }
 }
 
 /// Sticker decoration animation state. Each value is in the range 0.0..=1.0.

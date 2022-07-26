@@ -1,4 +1,5 @@
 use cgmath::Point2;
+use itertools::Itertools;
 use key_names::KeyMappingCode;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -429,6 +430,19 @@ impl App {
         }
     }
 
+    fn confirm_load_puzzle(&self, warnings: &[String]) -> bool {
+        warnings.is_empty()
+            || rfd::MessageDialog::new()
+                .set_title("Errors loading file")
+                .set_description(&format!(
+                    "The following errors were encountered \
+                     while loading this file. Load anyway?\n\n{}",
+                    warnings.iter().join("\n"),
+                ))
+                .set_buttons(rfd::MessageButtons::YesNo)
+                .show()
+    }
+
     fn confirm_discard_changes(&self, action: &str) -> bool {
         let mut needs_save = self.puzzle.is_unsaved();
 
@@ -448,15 +462,20 @@ impl App {
 
     fn try_load_puzzle(&mut self, path: PathBuf) {
         match PuzzleController::load_file(&path) {
-            Ok(p) => {
-                self.puzzle = p;
+            Ok((p, warnings)) => {
+                if self.confirm_load_puzzle(&warnings) {
+                    self.puzzle = p;
 
-                self.set_status_ok(format!("Loaded log file from {}", path.display()));
+                    self.set_status_ok(format!("Loaded log file from {}", path.display()));
 
-                self.prefs.log_file = Some(path);
-                self.prefs.needs_save = true;
+                    self.prefs.log_file = Some(path);
+                    self.prefs.needs_save = true;
+                }
             }
-            Err(e) => show_error_dialog("Unable to load log file", e),
+            Err(e) => show_error_dialog(
+                "Unable to load log file",
+                format!("Unable to load log file:\n\n{e}"),
+            ),
         }
     }
     fn try_save_puzzle(&mut self, path: &Path) {
