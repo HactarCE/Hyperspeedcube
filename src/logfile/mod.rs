@@ -1,11 +1,68 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
+use num_enum::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::error::Error;
+use std::path::Path;
 use std::{fmt, io};
 use strum::IntoEnumIterator;
 
-use super::*;
+use crate::puzzle::*;
+
+/// Loads a log file and returns the puzzle state, along with any warnings.
+pub fn load_file(path: &Path) -> anyhow::Result<(PuzzleController, Vec<String>)> {
+    let log_file: LogFile = serde_yaml::from_reader(std::fs::File::open(path)?)?;
+    log_file.validate()?;
+
+    let mut warnings = vec![];
+
+    if log_file.version != LogFile::VERSION {
+        warnings.push(format!(
+            "This log file was saved using a \
+                 different version of Hyperspeedcube \
+                 (log file format v{:?}; expected v{:?})",
+            log_file.version,
+            LogFile::VERSION,
+        ));
+    }
+
+    let puzzle_type = log_file.puzzle.context("unable to find puzzle type")?;
+    let mut ret = PuzzleController::new(puzzle_type);
+
+    let scramble_state = ScrambleState::from_primitive(log_file.state);
+
+    match scramble_state {
+        ScrambleState::None => (),
+        ScrambleState::Partial | ScrambleState::Full | ScrambleState::Solved => {
+            let (twists, parse_errors) = log_file.scramble();
+            warnings.extend(parse_errors.iter().map(|e| e.to_string()));
+            for twist in twists {
+                if let Err(e) = ret.twist(twist) {
+                    warnings.push(e.to_string());
+                }
+            }
+            ret.add_scramble_marker(scramble_state);
+        }
+    }
+
+    let (twists, parse_errors) = log_file.twists(&puzzle_type);
+    warnings.extend(parse_errors.iter().map(|e| e.to_string()));
+    for twist in twists {
+        if let Err(e) = ret.twist(twist) {
+            warnings.push(e.to_string());
+        }
+    }
+    ret.catch_up();
+
+    Ok((ret, warnings))
+}
+
+/// Saves the puzzle state to a log file. Marks the puzzle as saved.
+pub fn save_file(path: &Path, puzzle: &mut PuzzleController) -> anyhow::Result<()> {
+    LogFile::new(puzzle).write_to_file(std::fs::File::create(path)?)?;
+    puzzle.mark_saved();
+    Ok(())
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LogFile {
@@ -14,38 +71,42 @@ pub struct LogFile {
     pub puzzle: Option<PuzzleTypeEnum>,
     #[serde(default)]
     pub state: u8,
-    #[serde(default, skip_serializing_if = "cgmath::Zero::is_zero")]
+    #[serde(
+        default,
+        skip_serializing_if = "cgmath::Zero::is_zero",
+        skip_deserializing
+    )]
     pub scramble_length: usize,
-    #[serde(default)]
+    #[serde(default, skip_deserializing)]
     pub twist_count: BTreeMap<TwistMetric, usize>,
-    #[serde(default, skip_serializing)]
+    #[serde(default, skip_serializing)] // manually serialized
     pub scramble: String,
-    #[serde(default, skip_serializing)]
+    #[serde(default, skip_serializing)] // manually serialized
     pub twists: String,
 }
 impl LogFile {
     const COMMENT_STRING: &'static str = "# Hyperspeedcube puzzle log";
     pub const VERSION: usize = 1;
 
-    pub fn new(
-        puzzle_type: &dyn PuzzleType,
-        state: ScrambleState,
-        scramble: &[Twist],
-        twists: &[Twist],
-    ) -> Self {
-        let notation = puzzle_type.notation_scheme();
+    pub fn new(puzzle: &PuzzleController) -> Self {
+        let notation = puzzle.notation_scheme();
 
         Self {
             version: Self::VERSION,
-            puzzle: Some(puzzle_type.ty()),
-            state: state as u8,
-            scramble_length: scramble.len(),
+            puzzle: Some(puzzle.ty()),
+            state: puzzle.scramble_state() as u8,
+            scramble_length: puzzle.scramble().len(),
             twist_count: TwistMetric::iter()
-                .map(|metric| (metric, puzzle_type.count_twists(twists, metric)))
+                .map(|metric| (metric, puzzle.twist_count(metric)))
                 .collect(),
-            scramble: crate::util::wrap_words(scramble.iter().map(|twist| twist.to_string())),
+            scramble: crate::util::wrap_words(
+                puzzle.scramble().iter().map(|twist| twist.to_string()),
+            ),
             twists: crate::util::wrap_words(
-                twists.iter().map(|&twist| notation.twist_to_string(twist)),
+                puzzle
+                    .undo_buffer()
+                    .iter()
+                    .map(|&entry| entry.to_string(notation)),
             ),
         }
     }

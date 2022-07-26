@@ -1,11 +1,9 @@
 //! Puzzle wrapper that adds animation and undo history functionality.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use cgmath::InnerSpace;
-use itertools::Itertools;
 use num_enum::FromPrimitive;
 use std::collections::VecDeque;
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -66,12 +64,12 @@ pub struct PuzzleController {
 
     /// Whether the puzzle has been scrambled.
     scramble_state: ScrambleState,
-    /// Scrmable twists.
+    /// Scramble twists.
     scramble: Vec<Twist>,
     /// Undo history.
-    undo_buffer: Vec<Twist>,
+    undo_buffer: Vec<HistoryEntry>,
     /// Redo history.
-    redo_buffer: Vec<Twist>,
+    redo_buffer: Vec<HistoryEntry>,
 
     /// Selected pieces/stickers.
     selection: TwistSelection,
@@ -136,24 +134,31 @@ impl PuzzleController {
     pub fn scramble_state(&self) -> ScrambleState {
         self.scramble_state
     }
-    /// Scramble some small number of moves.
+    /// Reset and then scramble some number of moves.
     pub fn scramble_n(&mut self, n: usize) -> Result<(), &'static str> {
         self.reset();
         // Use a `while` loop instead of a `for` loop because moves may cancel.
         while self.undo_buffer.len() < n {
             self.twist(Twist::from_rng(self.ty()))?;
         }
-        self.catch_up();
-        self.scramble = std::mem::take(&mut self.undo_buffer);
-        self.scramble_state = ScrambleState::Partial;
+        self.add_scramble_marker(ScrambleState::Partial);
         Ok(())
     }
-    /// Scramble the puzzle completely.
+    /// Reset and then scramble the puzzle completely.
     pub fn scramble_full(&mut self) -> Result<(), &'static str> {
         self.reset();
         self.scramble_n(self.scramble_moves_count())?;
         self.scramble_state = ScrambleState::Full;
         Ok(())
+    }
+    /// Marks the puzzle as scrambled.
+    pub fn add_scramble_marker(&mut self, new_scramble_state: ScrambleState) {
+        if new_scramble_state != ScrambleState::None {
+            self.catch_up();
+            self.scramble
+                .extend(self.undo_buffer.drain(..).filter_map(HistoryEntry::twist));
+            self.scramble_state = new_scramble_state;
+        }
     }
 
     /// Adds a twist to the back of the twist queue.
@@ -167,12 +172,12 @@ impl PuzzleController {
         self.redo_buffer.clear();
         // Canonicalize twist.
         twist = self.canonicalize_twist(twist);
-        if self.undo_buffer.last() == Some(&self.reverse_twist(twist)) {
+        if self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
             self.undo()
         } else {
             self.latest.twist(twist)?;
             self.twist_queue.push_back(twist);
-            self.undo_buffer.push(twist);
+            self.undo_buffer.push(twist.into());
             Ok(())
         }
     }
@@ -450,11 +455,16 @@ impl PuzzleController {
     /// Undoes one twist. Returns an error if there was nothing to undo or the
     /// twist could not be applied to the puzzle.
     pub fn undo(&mut self) -> Result<(), &'static str> {
-        if let Some(twist) = self.undo_buffer.pop() {
+        if let Some(entry) = self.undo_buffer.pop() {
             self.is_unsaved = true;
-            self.latest.twist(self.reverse_twist(twist))?;
-            self.twist_queue.push_back(self.reverse_twist(twist));
-            self.redo_buffer.push(twist);
+            match entry {
+                HistoryEntry::Twist(twist) => {
+                    let rev = self.reverse_twist(twist);
+                    self.latest.twist(rev)?;
+                    self.twist_queue.push_back(rev);
+                }
+            }
+            self.redo_buffer.push(entry);
             Ok(())
         } else {
             Err("Nothing to undo")
@@ -463,19 +473,27 @@ impl PuzzleController {
     /// Redoes one twist. Returns an error if there was nothing to redo or the
     /// twist could not be applied to the puzzle.
     pub fn redo(&mut self) -> Result<(), &'static str> {
-        if let Some(twist) = self.redo_buffer.pop() {
+        if let Some(entry) = self.redo_buffer.pop() {
             self.is_unsaved = true;
-            self.latest.twist(twist)?;
-            self.twist_queue.push_back(twist);
-            self.undo_buffer.push(twist);
+            match entry {
+                HistoryEntry::Twist(twist) => {
+                    self.latest.twist(twist)?;
+                    self.twist_queue.push_back(twist);
+                }
+            }
+            self.undo_buffer.push(entry);
             Ok(())
         } else {
             Err("Nothing to redo")
         }
     }
 
-    /// Returns whether the puzzle has been modified since the lasts time the
-    /// log file was saved.
+    /// Marks the puzzle as saved
+    pub fn mark_saved(&mut self) {
+        self.is_unsaved = false;
+    }
+    /// Returns whether the puzzle has been modified since the lasts time it was
+    /// marked as saved.
     pub fn is_unsaved(&self) -> bool {
         self.is_unsaved
     }
@@ -514,77 +532,50 @@ impl PuzzleController {
         }
     }
 
-    /// Returns the number of twists applied to the puzzle.
+    /// Returns the number of twists applied to the puzzle, not including the scramble.
     pub fn twist_count(&self, metric: TwistMetric) -> usize {
-        self.latest.count_twists(&self.undo_buffer, metric)
+        metric.count_twists(
+            self,
+            self.undo_buffer
+                .iter()
+                .copied()
+                .filter_map(HistoryEntry::twist),
+        )
     }
-    pub fn twist_history(&self) -> String {
-        self.undo_buffer
-            .iter()
-            .map(|&twist| {
-                self.notation_scheme()
-                    .twist_to_string(self.canonicalize_twist(twist))
-            })
-            .join(" ")
+    /// Returns the moves used to scramble the puzzle.
+    pub fn scramble(&self) -> &[Twist] {
+        &self.scramble
     }
+    /// Returns the twists and other actions applied to the puzzle, not
+    /// including the scramble.
+    pub fn undo_buffer(&self) -> &[HistoryEntry] {
+        &self.undo_buffer
+    }
+    /// Returns the twists and other actions in the redo buffer.
+    pub fn redo_buffer(&self) -> &[HistoryEntry] {
+        &self.redo_buffer
+    }
+}
 
-    /// Loads a log file and returns the puzzle state, along with any warnings.
-    pub fn load_file(path: &Path) -> anyhow::Result<(Self, Vec<String>)> {
-        let log_file: LogFile = serde_yaml::from_reader(std::fs::File::open(path)?)?;
-        log_file.validate()?;
-
-        let mut warnings = vec![];
-
-        if log_file.version == LogFile::VERSION {
-            warnings.push(format!(
-                "This log file was saved using a \
-                 different version of Hyperspeedcube \
-                 (log file format v{:?}; expected v{:?})",
-                log_file.version,
-                LogFile::VERSION,
-            ));
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum HistoryEntry {
+    Twist(Twist),
+}
+impl From<Twist> for HistoryEntry {
+    fn from(twist: Twist) -> Self {
+        Self::Twist(twist)
+    }
+}
+impl HistoryEntry {
+    pub fn twist(self) -> Option<Twist> {
+        match self {
+            HistoryEntry::Twist(twist) => Some(twist),
         }
-
-        let puzzle_type = log_file.puzzle.context("unable to find puzzle type")?;
-        let mut ret = Self::new(puzzle_type);
-
-        let scramble_state = ScrambleState::from_primitive(log_file.state);
-
-        match scramble_state {
-            ScrambleState::None => (),
-            ScrambleState::Partial | ScrambleState::Full | ScrambleState::Solved => {
-                let (twists, parse_errors) = log_file.scramble();
-                warnings.extend(parse_errors.iter().map(|e| e.to_string()));
-                for twist in twists {
-                    if let Err(e) = ret.twist(twist) {
-                        warnings.push(e.to_string());
-                    }
-                }
-                ret.catch_up();
-                ret.scramble = std::mem::take(&mut ret.undo_buffer);
-                ret.scramble_state = scramble_state;
-            }
-        }
-
-        let (twists, parse_errors) = log_file.twists(&puzzle_type);
-        warnings.extend(parse_errors.iter().map(|e| e.to_string()));
-        for twist in twists {
-            if let Err(e) = ret.twist(twist) {
-                warnings.push(e.to_string());
-            }
-        }
-        ret.catch_up();
-
-        Ok((ret, warnings))
     }
-
-    /// Saves the puzzle state to a log file.
-    pub fn save_file(&mut self, path: &Path) -> anyhow::Result<()> {
-        self.log_file().write_to_file(std::fs::File::create(path)?)
-    }
-
-    fn log_file(&self) -> LogFile {
-        LogFile::new(self, self.scramble_state, &self.scramble, &self.undo_buffer)
+    pub fn to_string(self, notation: &NotationScheme) -> String {
+        match self {
+            HistoryEntry::Twist(twist) => notation.twist_to_string(twist),
+        }
     }
 }
 

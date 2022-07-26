@@ -70,15 +70,6 @@ pub trait PuzzleType {
         }
     }
     fn canonicalize_twist(&self, twist: Twist) -> Twist;
-    fn count_twists(&self, twists: &[Twist], metric: TwistMetric) -> usize {
-        let twists = twists.iter().cloned();
-        let prev_twists = itertools::put_back(twists.clone().map(Some)).with_value(None);
-
-        twists
-            .zip(prev_twists)
-            .filter(|&(curr, prev)| !self.can_twists_combine(prev, curr, metric))
-            .count()
-    }
     fn can_twists_combine(&self, prev: Option<Twist>, curr: Twist, metric: TwistMetric) -> bool;
 
     fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection;
@@ -437,6 +428,22 @@ impl TwistMetric {
             Self::Stm => Self::Etm,
             Self::Etm => Self::Qstm,
         }
+    }
+
+    /// Counts a sequence of twists using this metric.
+    pub fn count_twists(
+        self,
+        puzzle: impl PuzzleType,
+        twists: impl Clone + IntoIterator<Item = Twist>,
+    ) -> usize {
+        let prev_twists =
+            itertools::put_back(twists.clone().into_iter().map(Some)).with_value(None);
+
+        twists
+            .into_iter()
+            .zip(prev_twists)
+            .filter(|&(curr, prev)| !puzzle.can_twists_combine(prev, curr, self))
+            .count()
     }
 }
 

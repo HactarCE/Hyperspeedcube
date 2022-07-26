@@ -28,6 +28,7 @@ mod debug;
 mod app;
 mod commands;
 mod gui;
+mod logfile;
 // mod mc4d_compat;
 mod preferences;
 pub mod puzzle;

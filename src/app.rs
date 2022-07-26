@@ -461,7 +461,7 @@ impl App {
     }
 
     fn try_load_puzzle(&mut self, path: PathBuf) {
-        match PuzzleController::load_file(&path) {
+        match crate::logfile::load_file(&path) {
             Ok((p, warnings)) => {
                 if self.confirm_load_puzzle(&warnings) {
                     self.puzzle = p;
@@ -479,7 +479,7 @@ impl App {
         }
     }
     fn try_save_puzzle(&mut self, path: &Path) {
-        match self.puzzle.save_file(path) {
+        match crate::logfile::save_file(path, &mut self.puzzle) {
             Ok(()) => {
                 self.prefs.log_file = Some(path.to_path_buf());
                 self.prefs.needs_save = true;

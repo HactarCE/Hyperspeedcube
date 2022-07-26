@@ -24,8 +24,6 @@ const GENERAL_KEYBINDS_TITLE: &str = "Keybinds";
 const PUZZLE_KEYBINDS_TITLE: &str = "Puzzle Keybinds";
 
 pub fn build(ctx: &egui::Context, app: &mut App) {
-    printlnd!("{}", app.puzzle.twist_history());
-
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| menu_bar::build(ui, app));
 
     egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| status_bar::build(ui, app));

@@ -5,7 +5,6 @@ mod common;
 
 pub mod controller;
 pub mod geometry;
-pub mod logfile;
 pub mod notation;
 pub mod rubiks_3d;
 pub mod rubiks_4d;
@@ -13,7 +12,6 @@ pub mod rubiks_4d;
 pub use common::*;
 pub use controller::*;
 pub use geometry::*;
-pub use logfile::*;
 pub use notation::*;
 pub use rubiks_3d::Rubiks3D;
 pub use rubiks_4d::Rubiks4D;
