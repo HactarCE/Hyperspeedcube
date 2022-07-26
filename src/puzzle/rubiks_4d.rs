@@ -433,7 +433,10 @@ impl PuzzleState for Rubiks4D {
     }
 
     fn is_solved(&self) -> bool {
-        false
+        self.stickers()
+            .iter()
+            .enumerate()
+            .all(|(i, sticker)| self.sticker_face(Sticker(i as _)) == sticker.color.into())
     }
 }
 #[delegate_to_methods]

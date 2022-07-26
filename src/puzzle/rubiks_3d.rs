@@ -380,7 +380,10 @@ impl PuzzleState for Rubiks3D {
     }
 
     fn is_solved(&self) -> bool {
-        todo!("is it solved?")
+        self.stickers()
+            .iter()
+            .enumerate()
+            .all(|(i, sticker)| self.sticker_face(Sticker(i as _)) == sticker.color.into())
     }
 }
 #[delegate_to_methods]

@@ -136,9 +136,7 @@ impl PuzzleController {
         self.reset();
         // Use a `while` loop instead of a `for` loop because moves may cancel.
         while self.undo_buffer.len() < n {
-            // TODO: random twists
-            break;
-            // self.twist(Twist::from_rng(self.ty()))?;
+            self.twist(Twist::from_rng(self.ty()))?;
         }
         self.catch_up();
         self.scramble = std::mem::take(&mut self.undo_buffer);

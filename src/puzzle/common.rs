@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use rand::Rng;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -193,6 +194,16 @@ pub struct Twist {
     pub axis: TwistAxis,
     pub direction: TwistDirection,
     pub layers: LayerMask,
+}
+impl Twist {
+    pub fn from_rng(ty: PuzzleTypeEnum) -> Self {
+        let mut rng = rand::thread_rng();
+        Self {
+            axis: TwistAxis(rng.gen_range(0..ty.twist_axes().len()) as _),
+            direction: TwistDirection(rng.gen_range(0..ty.twist_directions().len()) as _),
+            layers: LayerMask(rng.gen_range(0..ty.all_layers().0)),
+        }
+    }
 }
 
 /// Puzzle of any type.
