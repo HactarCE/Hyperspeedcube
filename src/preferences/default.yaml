@@ -18,7 +18,7 @@ view:
     pitch: 30.0
     yaw: -35.0
     scale: 1.0
-    fov_3d: 30.0
+    fov_3d: 0.0
     fov_4d: 30.0
     face_spacing: 0.7
     sticker_spacing: 0.3
