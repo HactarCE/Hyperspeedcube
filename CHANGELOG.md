@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - All hypercubic puzzles from 1x1x1x1 to 9x9x9x9
 - 180-degree twists (no keybinds by default)
 - Log file import/export for all puzzles
+  - Use `.log` extension to save as MC4D-compatible log file
 
 ### Removed
 

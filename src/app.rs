@@ -549,7 +549,7 @@ impl From<Twist> for AppEvent {
 
 fn file_dialog() -> rfd::FileDialog {
     rfd::FileDialog::new()
-        .add_filter("Magic Cube 4D Log Files", &["log"])
+        .add_filter("Hyperspeedcube Log Files", &["hsc", "log"])
         .add_filter("All files", &["*"])
 }
 fn show_error_dialog(title: &str, e: impl fmt::Display) {

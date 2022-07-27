@@ -162,7 +162,15 @@ impl PuzzleController {
     }
 
     /// Adds a twist to the back of the twist queue.
-    pub fn twist(&mut self, mut twist: Twist) -> Result<(), &'static str> {
+    pub fn twist(&mut self, twist: Twist) -> Result<(), &'static str> {
+        self._twist(twist, true)
+    }
+    /// Adds a twist to the back of the twist queue. Does not cancel adjacent
+    /// twists.
+    pub fn twist_no_collapse(&mut self, twist: Twist) -> Result<(), &'static str> {
+        self._twist(twist, false)
+    }
+    fn _twist(&mut self, mut twist: Twist, collapse: bool) -> Result<(), &'static str> {
         twist.layers = twist.layers & self.all_layers(); // Restrict layer mask.
         if twist.layers == LayerMask(0) {
             return Err("invalid layer mask");
@@ -172,7 +180,7 @@ impl PuzzleController {
         self.redo_buffer.clear();
         // Canonicalize twist.
         twist = self.canonicalize_twist(twist);
-        if self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
+        if collapse && self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
             self.undo()
         } else {
             self.latest.twist(twist)?;

@@ -480,12 +480,16 @@ impl Rubiks4D {
         cgmath::vec4(get_sign(x), get_sign(y), get_sign(z), get_sign(w))
     }
     fn sticker_signs_within_face(&self, sticker: Sticker) -> Vector3<i8> {
-        let piece_loc = self.piece_location_signs(self.info(sticker).piece);
-        let [basis1, basis2, basis3] = self.sticker_face(sticker).basis();
+        let face = self.sticker_face(sticker);
+        let piece_loc_signs = self.piece_location_signs(self.info(sticker).piece);
+        Self::signs_within_face(face, piece_loc_signs)
+    }
+    fn signs_within_face(face: FaceEnum, piece_loc_signs: Vector4<i8>) -> Vector3<i8> {
+        let [basis1, basis2, basis3] = face.basis();
         cgmath::vec3(
-            piece_loc.dot(basis1.cast().unwrap()),
-            piece_loc.dot(basis2.cast().unwrap()),
-            piece_loc.dot(basis3.cast().unwrap()),
+            piece_loc_signs.dot(basis1.cast().unwrap()),
+            piece_loc_signs.dot(basis2.cast().unwrap()),
+            piece_loc_signs.dot(basis3.cast().unwrap()),
         )
     }
     fn sticker_face(&self, sticker: Sticker) -> FaceEnum {
@@ -519,6 +523,89 @@ impl Rubiks4D {
 
     fn piece_center_coordinate(&self, x: u8, p: StickerGeometryParams) -> f32 {
         (2.0 * x as f32 - (self.layer_count() - 1) as f32) * p.sticker_grid_scale
+    }
+
+    pub fn to_mc4d_twist_string(mut twist: Twist) -> String {
+        lazy_static! {
+            static ref MC4D_TWIST_IDS: HashMap<(TwistAxis, TwistDirection), usize> =
+                Rubiks4D::mc4d_twist_order()
+                    .enumerate()
+                    .filter_map(|(i, twist)| Some((twist?, i)))
+                    .collect();
+        }
+
+        let dir: TwistDirectionEnum = twist.direction.into();
+        if let Some(quarter_turn) = dir.half() {
+            twist.direction = quarter_turn.into();
+            return format!("{0} {0}", Self::to_mc4d_twist_string(twist));
+        }
+        let sticker_id = MC4D_TWIST_IDS[&(twist.axis, twist.direction)];
+        let direction_id = 1;
+        let layer_mask = twist.layers.0;
+        format!("{sticker_id},{direction_id},{layer_mask}")
+    }
+    pub fn from_mc4d_twist_string(s: &str) -> Option<Twist> {
+        lazy_static! {
+            static ref MC4D_TWISTS: Vec<Option<(TwistAxis, TwistDirection)>> =
+                Rubiks4D::mc4d_twist_order().collect();
+        }
+
+        let mut segments = s.split(',');
+
+        let (axis, direction) = (*MC4D_TWISTS.get(segments.next()?.parse::<usize>().ok()?)?)?;
+        let direction: TwistDirectionEnum = direction.into();
+        let direction = match segments.next()?.parse::<i8>().ok()? {
+            1 => direction.rev(),
+            2 => direction.rev().double()?,
+            -1 => direction,
+            -2 => direction.double()?,
+            _ => return None,
+        };
+        let layers = LayerMask(segments.next()?.parse().ok()?);
+        if segments.next().is_some() {
+            return None;
+        }
+        Some(Twist {
+            axis,
+            direction: direction.into(),
+            layers,
+        })
+    }
+    fn mc4d_twist_order() -> impl Iterator<Item = Option<(TwistAxis, TwistDirection)>> {
+        use FaceEnum::*;
+
+        [I, B, D, L, R, U, F, O].into_iter().flat_map(|face| {
+            let mut basis = face.basis_faces();
+            basis.sort_by_key(|f| f.axis()); // order: X, Y, Z, W
+            basis.reverse(); // order: W, Z, Y, X
+            let mc4d_basis_1 = basis[0].axis().unit_vec4();
+            let mc4d_basis_2 = basis[1].axis().unit_vec4();
+            let mc4d_basis_3 = basis[2].axis().unit_vec4();
+
+            let piece_locations = itertools::iproduct!([-1, 0, 1], [-1, 0, 1], [-1, 0, 1])
+                .map(|(x, y, z)| Vector3::new(x, y, z));
+            let corners = piece_locations.clone().filter(|v| v.magnitude2() == 3);
+            let edges = piece_locations.clone().filter(|v| v.magnitude2() == 2);
+            let centers = piece_locations.filter(|v| v.magnitude2() == 1);
+            let core = std::iter::once(Vector3::zero());
+            let mc4d_order_piece_locations = corners.chain(edges).chain(centers).chain(core);
+
+            mc4d_order_piece_locations
+                .map(move |mc4d_coords_of_sticker_within_face: Vector3<i8>| {
+                    let offset = Vector4::zero()
+                        + mc4d_basis_1 * mc4d_coords_of_sticker_within_face.x
+                        + mc4d_basis_2 * mc4d_coords_of_sticker_within_face.y
+                        + mc4d_basis_3 * mc4d_coords_of_sticker_within_face.z;
+                    TwistDirectionEnum::from_signs_within_face(Self::signs_within_face(
+                        face,
+                        match face {
+                            O => -offset, // not sure why this is necessary, but it is
+                            _ => offset,
+                        },
+                    ))
+                })
+                .map(move |twist_dir| Some((face.into(), twist_dir?.into())))
+        })
     }
 }
 
@@ -1157,15 +1244,6 @@ enum Axis {
     W = 3,
 }
 impl Axis {
-    /// Returns the axes of the oriented plane perpendicular to two other axes.
-    pub fn perpendicular_plane(axis1: Axis, axis2: Axis) -> (Axis, Axis) {
-        todo!("yikes")
-    }
-    /// Returns the axis perpendicular to three other axes.
-    pub fn perpendicular_axis(axes: [Axis; 3]) -> Axis {
-        Axis::iter().find(|ax| !axes.contains(ax)).unwrap()
-    }
-
     fn symbol_lower(self) -> char {
         match self {
             Axis::X => 'x',
@@ -1181,6 +1259,16 @@ impl Axis {
             'z' => Some(Axis::Z),
             'w' => Some(Axis::W),
             _ => None,
+        }
+    }
+
+    /// Returns the unit vector along this axis.
+    fn unit_vec4<S: BaseNum>(self) -> Vector4<S> {
+        match self {
+            Axis::X => Vector4::unit_x(),
+            Axis::Y => Vector4::unit_y(),
+            Axis::Z => Vector4::unit_z(),
+            Axis::W => Vector4::unit_w(),
         }
     }
 }

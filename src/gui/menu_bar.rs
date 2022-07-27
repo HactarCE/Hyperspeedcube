@@ -4,24 +4,19 @@ use crate::commands::Command;
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {
         ui.menu_button("File", |ui| {
-            // let can_save = app.puzzle.ty() == PuzzleTypeEnum::Rubiks4D{};
-            let can_save = false; // TODO
-
             if ui.button("Open").clicked() {
                 ui.close_menu();
                 app.event(Command::Open);
             }
             ui.separator();
-            ui.add_enabled_ui(can_save, |ui| {
-                if ui.button("Save").clicked() {
-                    ui.close_menu();
-                    app.event(Command::Save);
-                }
-                if ui.button("Save As...").clicked() {
-                    ui.close_menu();
-                    app.event(Command::SaveAs);
-                }
-            });
+            if ui.button("Save").clicked() {
+                ui.close_menu();
+                app.event(Command::Save);
+            }
+            if ui.button("Save As...").clicked() {
+                ui.close_menu();
+                app.event(Command::SaveAs);
+            }
             ui.separator();
             if ui.button("Exit").clicked() {
                 ui.close_menu();

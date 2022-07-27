@@ -3,92 +3,73 @@ use num_enum::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::error::Error;
+use std::fmt;
+use std::io::{self, Read};
 use std::path::Path;
-use std::{fmt, io};
+use std::str::FromStr;
 use strum::IntoEnumIterator;
+
+mod mc4d_compat;
 
 use crate::puzzle::*;
 
 /// Loads a log file and returns the puzzle state, along with any warnings.
 pub fn load_file(path: &Path) -> anyhow::Result<(PuzzleController, Vec<String>)> {
-    let log_file: LogFile = serde_yaml::from_reader(std::fs::File::open(path)?)?;
-    log_file.validate()?;
+    let mut file = std::fs::File::open(path)?;
 
-    let mut warnings = vec![];
-
-    if log_file.version != LogFile::VERSION {
-        warnings.push(format!(
-            "This log file was saved using a \
-                 different version of Hyperspeedcube \
-                 (log file format v{:?}; expected v{:?})",
-            log_file.version,
-            LogFile::VERSION,
-        ));
+    if mc4d_compat::is_mc4d_log_file(&file) {
+        let mut string = String::new();
+        file.read_to_string(&mut string)?;
+        let puzzle = mc4d_compat::Mc4dLogFile::from_str(&string)?
+            .to_puzzle()
+            .map_err(|e| anyhow!(e))?;
+        let warnings = vec![];
+        Ok((puzzle, warnings))
+    } else {
+        serde_yaml::from_reader::<_, LogFile>(file)?.to_puzzle()
     }
-
-    let puzzle_type = log_file.puzzle.context("unable to find puzzle type")?;
-    let mut ret = PuzzleController::new(puzzle_type);
-
-    let scramble_state = ScrambleState::from_primitive(log_file.state);
-
-    match scramble_state {
-        ScrambleState::None => (),
-        ScrambleState::Partial | ScrambleState::Full | ScrambleState::Solved => {
-            let (twists, parse_errors) = log_file.scramble();
-            warnings.extend(parse_errors.iter().map(|e| e.to_string()));
-            for twist in twists {
-                if let Err(e) = ret.twist(twist) {
-                    warnings.push(e.to_string());
-                }
-            }
-            ret.add_scramble_marker(scramble_state);
-        }
-    }
-
-    let (twists, parse_errors) = log_file.twists(&puzzle_type);
-    warnings.extend(parse_errors.iter().map(|e| e.to_string()));
-    for twist in twists {
-        if let Err(e) = ret.twist(twist) {
-            warnings.push(e.to_string());
-        }
-    }
-    ret.catch_up();
-
-    Ok((ret, warnings))
 }
 
 /// Saves the puzzle state to a log file. Marks the puzzle as saved.
 pub fn save_file(path: &Path, puzzle: &mut PuzzleController) -> anyhow::Result<()> {
-    LogFile::new(puzzle).write_to_file(std::fs::File::create(path)?)?;
+    let mc4d_log = path
+        .extension()
+        .filter(|ext| ext.eq_ignore_ascii_case("log"))
+        .and_then(|_| mc4d_compat::Mc4dLogFile::from_puzzle(puzzle).ok());
+    if let Some(log) = mc4d_log {
+        std::fs::write(path, log.to_string())?;
+    } else {
+        LogFile::new(puzzle).write_to_file(std::fs::File::create(path)?)?;
+    }
     puzzle.mark_saved();
     Ok(())
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct LogFile {
-    pub version: usize,
+struct LogFile {
+    version: usize,
     #[serde(default)]
-    pub puzzle: Option<PuzzleTypeEnum>,
+    puzzle: Option<PuzzleTypeEnum>,
     #[serde(default)]
-    pub state: u8,
+    state: u8,
     #[serde(
         default,
         skip_serializing_if = "cgmath::Zero::is_zero",
         skip_deserializing
     )]
-    pub scramble_length: usize,
+    scramble_length: usize,
     #[serde(default, skip_deserializing)]
-    pub twist_count: BTreeMap<TwistMetric, usize>,
+    twist_count: BTreeMap<TwistMetric, usize>,
     #[serde(default, skip_serializing)] // manually serialized
-    pub scramble: String,
+    scramble: String,
     #[serde(default, skip_serializing)] // manually serialized
-    pub twists: String,
+    twists: String,
 }
 impl LogFile {
     const COMMENT_STRING: &'static str = "# Hyperspeedcube puzzle log";
-    pub const VERSION: usize = 1;
+    const VERSION: usize = 1;
 
-    pub fn new(puzzle: &PuzzleController) -> Self {
+    fn new(puzzle: &PuzzleController) -> Self {
         let notation = puzzle.notation_scheme();
 
         Self {
@@ -111,14 +92,14 @@ impl LogFile {
         }
     }
 
-    pub fn validate(&self) -> Result<()> {
+    fn validate(&self) -> Result<()> {
         if let Some(puzzle_ty) = self.puzzle {
             puzzle_ty.validate().map_err(|e| anyhow!(e))?;
         }
         Ok(())
     }
 
-    pub fn scramble<'a>(&'a self) -> (Vec<Twist>, Vec<TwistParseError<'a>>) {
+    fn scramble(&self) -> (Vec<Twist>, Vec<TwistParseError<'_>>) {
         let mut ret_twists = vec![];
         let mut ret_errors = vec![];
         for twist_str in self.scramble.split_whitespace() {
@@ -133,10 +114,7 @@ impl LogFile {
         (ret_twists, ret_errors)
     }
 
-    pub fn twists<'a>(
-        &'a self,
-        puzzle_type: &dyn PuzzleType,
-    ) -> (Vec<Twist>, Vec<TwistParseError<'a>>) {
+    fn twists(&self, puzzle_type: &dyn PuzzleType) -> (Vec<Twist>, Vec<TwistParseError<'_>>) {
         let mut ret_twists = vec![];
         let mut ret_errors = vec![];
         for twist_str in self.twists.split_whitespace() {
@@ -151,7 +129,7 @@ impl LogFile {
         (ret_twists, ret_errors)
     }
 
-    pub fn write_to_file(&self, mut f: impl io::Write) -> Result<()> {
+    fn write_to_file(&self, mut f: impl io::Write) -> Result<()> {
         writeln!(&mut f, "{}", Self::COMMENT_STRING)?;
         serde_yaml::to_writer(&mut f, self)?;
         if !self.scramble.is_empty() {
@@ -168,12 +146,54 @@ impl LogFile {
         }
         Ok(())
     }
+
+    fn to_puzzle(&self) -> Result<(PuzzleController, Vec<String>)> {
+        self.validate()?;
+
+        let mut warnings = vec![];
+
+        if self.version != LogFile::VERSION {
+            warnings.push(format!(
+                "This log file was saved using a \
+                 different version of Hyperspeedcube \
+                 (log file format v{:?}; expected v{:?})",
+                self.version,
+                LogFile::VERSION,
+            ));
+        }
+
+        let puzzle_type = self.puzzle.context("unable to find puzzle type")?;
+        let mut ret = PuzzleController::new(puzzle_type);
+
+        let scramble_state = ScrambleState::from_primitive(self.state);
+
+        let (twists, parse_errors) = self.scramble();
+        warnings.extend(parse_errors.iter().map(|e| e.to_string()));
+        for twist in twists {
+            if let Err(e) = ret.twist_no_collapse(twist) {
+                warnings.push(e.to_string());
+            }
+        }
+        ret.add_scramble_marker(scramble_state);
+
+        let (twists, parse_errors) = self.twists(&puzzle_type);
+        warnings.extend(parse_errors.iter().map(|e| e.to_string()));
+        for twist in twists {
+            if let Err(e) = ret.twist_no_collapse(twist) {
+                warnings.push(e.to_string());
+            }
+        }
+        ret.catch_up();
+        ret.mark_saved();
+
+        Ok((ret, warnings))
+    }
 }
 
 #[derive(Debug)]
-pub struct TwistParseError<'a> {
-    pub twist_str: &'a str,
-    pub error_msg: String,
+struct TwistParseError<'a> {
+    twist_str: &'a str,
+    error_msg: String,
 }
 impl fmt::Display for TwistParseError<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
