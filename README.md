@@ -8,8 +8,8 @@
 
 Keyboard-controlled twisty puzzle simulator, with support for the following puzzles:
 
-- 3x3x3 (standard Rubik's cube)
-- 3x3x3x3 (4D "Rubik's hypercube")
+- 3D Rubik's cube from 1x1 up to 9x9
+- 4D "Rubik's hypercube" from 1x1 up to 9x9
 
 ## Downloads
 
@@ -25,7 +25,7 @@ To build Hyperspeedcube yourself, see [BUILDING.md](BUILDING.md).
 
 ## Controls
 
-The controls for the 3D Rubik's cube are mostly based on [Ryan Heise's speedcube simulator](https://www.ryanheise.com/cube/speed.html). Better documentation will be available soon.
+Keyboard controls are completely customizable. An interactive keybind reference is available at **Help → Keybind Reference**. The controls for the 3D Rubik's cube are mostly based on [Ryan Heise's speedcube simulator](https://www.ryanheise.com/cube/speed.html).
 
 ## Potential future features
 
@@ -43,5 +43,5 @@ The controls for the 3D Rubik's cube are mostly based on [Ryan Heise's speedcube
 - [ ] Keybind hints in menus
 - [x] Keymap display
 - [ ] Adjust 3D view using mouse
-- [ ] Mouse controls for puzzle
+- [x] Mouse controls for puzzle
 - [ ] Timeline
