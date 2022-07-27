@@ -356,8 +356,6 @@ impl TwistDirectionInfo {
     }
 }
 
-// TODO: revamp turn metrics (see https://www.speedsolving.com/wiki/index.php/Metric)
-
 /// Convention for counting moves.
 #[derive(
     Serialize,
@@ -378,114 +376,106 @@ impl TwistDirectionInfo {
 )]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TwistMetric {
-    /// Slice Turn Metric (default):
-    /// - Consecutive twists with the same face and layers are combined.
-    /// - Noncontiguous slice twists are split into contiguous slice twists.
-    /// - Whole-puzzle rotations are not counted.
-    #[default]
-    #[strum(
-        serialize = "STM",
-        message = "Slice Turn Metric (default)",
-        detailed_message = "\
-            • Consecutive twists with the same face and layers are combined.\n\
-            • Noncontiguous slice twists are split into contiguous slice twists.\n\
-            • Whole-puzzle rotations are not counted."
-    )]
-    Stm,
-
-    /// Quarter Slice Turn Metric:
-    /// - Double twists are split into quarters.
-    /// - Noncontiguous slice twists are split into contiguous slice twists.
-    /// - Whole-puzzle rotations are not counted.
-    #[strum(
-        serialize = "QSTM",
-        message = "Quarter Slice Turn Metric",
-        detailed_message = "\
-            • Double twists are split into quarters.\n\
-            • Noncontiguous slice twists are split into contiguous slice twists.\n\
-            • Whole-puzzle rotations are not counted."
-    )]
-    Qstm,
-
-    /// Face Turn Metric:
-    /// - Consecutive twists with the same face and layers are combined.
-    /// - Slice twists are split into contiguous outer-block twists.
-    /// - Whole-puzzle rotations are not counted.
-    #[strum(
-        serialize = "FTM",
-        message = "Face Turn Metric",
-        detailed_message = "\
-            • Consecutive twists with the same face and layers are combined.\n\
-            • Slice twists are split into contiguous outer-block twists.\n\
-            • Whole-puzzle rotations are not counted."
-    )]
-    Ftm,
-
-    /// Quarter Turn Metric:
-    /// - Double twists are split into quarters.
-    /// - Slice twists are split into contiguous outer-block twists.
-    /// - Whole-puzzle rotations are not counted.
-    #[strum(
-        serialize = "QTM",
-        message = "Quarter Turn Metric",
-        detailed_message = "\
-            • Double twists are split into quarters.\n\
-            • Slice twists are split into contiguous outer-block twists.\n\
-            • Whole-puzzle rotations are not counted."
-    )]
-    Qtm,
-
-    /// Execution Turn Metric:
-    /// - Twists are counted as they are executed, including whole-puzzle rotations.
-    #[strum(
-        serialize = "ETM",
-        message = "Execution Turn Metric",
-        detailed_message = "\
-            • Twists are counted as they are executed, including whole-puzzle rotations."
-    )]
+    #[strum(serialize = "ATM", message = "Axial Turn Metric")]
+    Atm,
+    #[strum(serialize = "ETM", message = "Execution Turn Metric")]
     Etm,
 
-    /// Axial Turn Metric:
-    /// - Consecutive twists along the same axis are combined, even with different layers.
-    /// - Whole-puzzle rotations are not counted.
-    #[strum(
-        serialize = "ATM",
-        message = "Axial Turn Metric",
-        detailed_message = "\
-            • Consecutive twists along the same axis are combined, even with different layers.\n\
-            • Whole-puzzle rotations are not counted."
-    )]
-    Atm,
+    #[default]
+    #[strum(serialize = "STM", message = "Slice Turn Metric (default)")]
+    Stm,
+    #[strum(serialize = "BTM", message = "Block Turn Metric")]
+    Btm,
+    #[strum(serialize = "OBTM", message = "Outer Block Turn Metric")]
+    Obtm,
+
+    #[strum(serialize = "QSTM", message = "Quarter Slice Turn Metric")]
+    Qstm,
+    #[strum(serialize = "QBTM", message = "Quarter Block Turn Metric")]
+    Qbtm,
+    #[strum(serialize = "QOBTM", message = "Quarter Outer Block Turn Metric")]
+    Qobtm,
 }
 impl TwistMetric {
+    pub fn long_description(self) -> String {
+        let mut bullets = vec![];
+
+        if self == Self::Atm {
+            bullets.push(
+                "Consecutive twists of the same axis are combined, even with different layers.",
+            );
+        }
+        if self == Self::Etm {
+            bullets
+                .push("Twists are counted as they are executed, including whole-puzzle rotations.");
+        } else {
+            bullets.push("Whole-puzzle rotations are not counted.");
+        }
+        match self {
+            Self::Stm | Self::Qstm => bullets.push("Slice twists count as one move."),
+            Self::Btm | Self::Qbtm => {
+                bullets.push("Noncontiguous slice twists are split into contiguous slice twists.")
+            }
+            Self::Obtm | Self::Qobtm => {
+                bullets.push("Slice twists are split into contiguous outer-block twists.")
+            }
+            _ => (),
+        }
+        match self.is_qtm() {
+            Some(false) => {
+                bullets.push("Consecutive twists of the same axis and layers are combined.")
+            }
+            Some(true) => bullets.push("Double twists are split into quarters."),
+            None => (),
+        }
+
+        bullets.into_iter().map(|s| format!("• {s}")).join("\n")
+    }
+
+    pub fn is_qtm(self) -> Option<bool> {
+        match self {
+            Self::Atm | Self::Etm => None,
+            Self::Stm | Self::Btm | Self::Obtm => Some(false),
+            Self::Qstm | Self::Qbtm | Self::Qobtm => Some(true),
+        }
+    }
+    pub fn set_qtm(&mut self, is_qtm: bool) {
+        *self = match self {
+            Self::Stm | Self::Qstm => {
+                if is_qtm {
+                    Self::Qstm
+                } else {
+                    Self::Stm
+                }
+            }
+            Self::Btm | Self::Qbtm => {
+                if is_qtm {
+                    Self::Qbtm
+                } else {
+                    Self::Btm
+                }
+            }
+            Self::Obtm | Self::Qobtm => {
+                if is_qtm {
+                    Self::Qobtm
+                } else {
+                    Self::Obtm
+                }
+            }
+            _ => *self,
+        };
+    }
+
     /// Counts a sequence of twists using this metric.
     pub fn count_twists(
         self,
         puzzle: impl PuzzleType,
         twists: impl IntoIterator<Item = Twist>,
     ) -> usize {
-        let combine_similar: bool;
-        let keep_inner_slice: bool;
+        let slice_multiplier: fn(LayerMask, u8) -> u32;
 
         match self {
-            TwistMetric::Stm => {
-                combine_similar = true;
-                keep_inner_slice = true;
-            }
-            TwistMetric::Qstm => {
-                combine_similar = false;
-                keep_inner_slice = true;
-            }
-            TwistMetric::Ftm => {
-                combine_similar = true;
-                keep_inner_slice = false;
-            }
-            TwistMetric::Qtm => {
-                combine_similar = false;
-                keep_inner_slice = false;
-            }
-            TwistMetric::Etm => return twists.into_iter().count(),
-            TwistMetric::Atm => {
+            Self::Atm => {
                 let mut count = 0;
 
                 let mut prev_axis = None;
@@ -505,7 +495,16 @@ impl TwistMetric {
 
                 return count;
             }
+            Self::Etm => return twists.into_iter().count(),
+
+            Self::Stm | Self::Qstm => slice_multiplier = |_, _| 1,
+            Self::Btm | Self::Qbtm => {
+                slice_multiplier = |layers, _| layers.count_contiguous_slices()
+            }
+            Self::Obtm | Self::Qobtm => slice_multiplier = LayerMask::count_outer_slices,
         }
+
+        let is_qtm = self.is_qtm().unwrap();
 
         let mut count = 0;
 
@@ -525,7 +524,9 @@ impl TwistMetric {
                 continue;
             }
 
-            let direction_multiplier = if combine_similar {
+            let direction_multiplier = if is_qtm {
+                puzzle.count_quarter_turns(twist)
+            } else {
                 if prev_axis == Some(twist.axis) && prev_layers == Some(twist.layers) {
                     // Same axis and layers as previous twist! This twist is
                     // free.
@@ -533,17 +534,13 @@ impl TwistMetric {
                 } else {
                     1
                 }
-            } else {
-                puzzle.count_quarter_turns(twist)
             };
 
-            let slice_multiplier = if keep_inner_slice {
-                twist.layers.count_contiguous_slices()
-            } else {
-                twist.layers.count_outer_slices()
-            };
+            prev_axis = Some(twist.axis);
+            prev_layers = Some(twist.layers);
 
-            count += direction_multiplier * slice_multiplier as usize;
+            count += direction_multiplier
+                * slice_multiplier(twist.layers, puzzle.layer_count()) as usize;
         }
 
         count
@@ -677,7 +674,7 @@ impl LayerMask {
         }
         ret
     }
-    pub(crate) fn count_outer_slices(self) -> u32 {
+    pub(crate) fn count_outer_slices(self, layer_count: u8) -> u32 {
         let mut n = self.0;
         let mut ret = 0;
         while n != 0 {
@@ -687,6 +684,9 @@ impl LayerMask {
                 _ => unreachable!(),
             }
             ret += 1;
+        }
+        if self[layer_count - 1] {
+            ret -= 1;
         }
         ret
     }

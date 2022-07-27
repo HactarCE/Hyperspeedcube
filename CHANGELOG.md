@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Option to hide frontfaces and backfaces in 3D puzzles
 
+### Changed
+
+- Overhauled turn metrics
+
 ## [0.7.0] - 2022-07-27
 
 ### Added

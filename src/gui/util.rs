@@ -8,7 +8,7 @@ use crate::puzzle::{rubiks_3d, rubiks_4d, traits::*, PuzzleTypeEnum};
 const NONE_TEXT: &str = "-";
 const NONE_TOOLTIP: &str = "Use the current selection";
 
-const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
+pub(super) const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 
 pub(super) fn puzzle_select_menu(ui: &mut egui::Ui) -> Option<PuzzleTypeEnum> {
     let mut ret = None;
