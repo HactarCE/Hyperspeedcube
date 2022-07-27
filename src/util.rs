@@ -1,5 +1,4 @@
 use cgmath::Point3;
-use std::cmp::Ordering;
 
 pub const INVALID_STR: &str = "<invalid>";
 
@@ -45,18 +44,6 @@ where
             rest: self,
         }
     }
-}
-
-/// Stolen shamelessly from [`std::f32::total_cmp()`], which isn't stable yet at
-/// the time of writing.
-pub fn f32_total_cmp(a: &f32, b: &f32) -> Ordering {
-    let mut left = a.to_bits() as i32;
-    let mut right = b.to_bits() as i32;
-
-    left ^= (((left >> 31) as u32) >> 1) as i32;
-    right ^= (((right >> 31) as u32) >> 1) as i32;
-
-    left.cmp(&right)
 }
 
 pub fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f32>) {

@@ -7,7 +7,7 @@ use std::ops::{Add, Mul};
 use super::RgbaVertex;
 use crate::preferences::Preferences;
 use crate::puzzle::*;
-use crate::util::{f32_total_cmp, IterCyclicPairsExt};
+use crate::util::IterCyclicPairsExt;
 
 const OUTLINE_SCALE: f32 = 1.0 / 512.0;
 const OUTLINE_WEDGE_VERTS_PER_RADIAN: f32 = 3.0;
@@ -173,12 +173,12 @@ fn generate_outline_geometry(
                 // Get the angle of the edge incident to `p`.
                 .map(|q| Rad::atan2(q.y - p.y, q.x - p.x))
                 // Sort the angles counterclockwise.
-                .sorted_by(|l, r| f32_total_cmp(&l.0, &r.0))
+                .sorted_by(|l, r| f32::total_cmp(&l.0, &r.0))
                 // Compute the counterclockwise difference between each pair of adjacent angles.
                 .cyclic_pairs()
                 .map(|(a, b)| (a, (b - a).normalize()))
                 // Find the pair of angles with the largest counterclockwise difference.
-                .max_by(|(_, diff1), (_, diff2)| f32_total_cmp(&diff1.0, &diff2.0))
+                .max_by(|(_, diff1), (_, diff2)| f32::total_cmp(&diff1.0, &diff2.0))
                 // And it must be greater than 180 degrees.
                 .filter(|&(_, diff)| diff > Rad::turn_div_2())
         };

@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 
 use super::{traits::*, PuzzleTypeEnum, Sticker, Twist};
 use crate::preferences::ViewPreferences;
-use crate::util::{self, f32_total_cmp, IterCyclicPairsExt};
+use crate::util::{self, IterCyclicPairsExt};
 
 const W_NEAR_CLIPPING_DIVISOR: f32 = 0.1;
 const Z_NEAR_CLIPPING_DIVISOR: f32 = 0.0;
@@ -380,7 +380,7 @@ pub(crate) fn sort_by_depth(objs: &mut [ProjectedStickerGeometry]) {
 
 impl NewellObj for ProjectedStickerGeometry {
     fn approx_depth_cmp(&self, other: &Self) -> Ordering {
-        f32_total_cmp(&self.min_bound.z, &other.min_bound.z)
+        f32::total_cmp(&self.min_bound.z, &other.min_bound.z)
     }
 
     fn can_be_drawn_behind(&self, other: &Self) -> bool {
@@ -475,7 +475,7 @@ impl Polygon {
 }
 impl NewellObj for Polygon {
     fn approx_depth_cmp(&self, other: &Self) -> Ordering {
-        f32_total_cmp(&self.min_bound.z, &other.min_bound.z)
+        f32::total_cmp(&self.min_bound.z, &other.min_bound.z)
     }
 
     fn can_be_drawn_behind(&self, other: &Self) -> bool {
