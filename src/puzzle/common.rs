@@ -172,16 +172,16 @@ impl PuzzleTypeEnum {
         match self {
             PuzzleTypeEnum::Rubiks3D { layer_count } => {
                 if rubiks_3d::LAYER_COUNT_RANGE.contains(&layer_count) {
-                    Err(format!("invalid layer count {layer_count} for this puzzle"))
-                } else {
                     Ok(())
+                } else {
+                    Err(format!("invalid layer count {layer_count} for this puzzle"))
                 }
             }
             PuzzleTypeEnum::Rubiks4D { layer_count } => {
                 if rubiks_4d::LAYER_COUNT_RANGE.contains(&layer_count) {
-                    Err(format!("invalid layer count {layer_count} for this puzzle"))
-                } else {
                     Ok(())
+                } else {
+                    Err(format!("invalid layer count {layer_count} for this puzzle"))
                 }
             }
         }
