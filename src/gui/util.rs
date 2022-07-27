@@ -34,7 +34,7 @@ pub(super) fn puzzle_select_menu(ui: &mut egui::Ui) -> Option<PuzzleTypeEnum> {
         layer_count: rubiks_4d::DEFAULT_LAYER_COUNT,
     };
     let r = ui.menu_button(default.family_display_name(), |ui| {
-        for layer_count in rubiks_4d::MIN_LAYER_COUNT..=rubiks_4d::MAX_LAYER_COUNT {
+        for layer_count in rubiks_4d::LAYER_COUNT_RANGE {
             let ty = PuzzleTypeEnum::Rubiks4D { layer_count };
             if ui.button(ty.name()).clicked() {
                 ui.close_menu();

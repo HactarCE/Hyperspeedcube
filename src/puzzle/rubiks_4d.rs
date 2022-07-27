@@ -5,7 +5,7 @@ use itertools::Itertools;
 use num_enum::FromPrimitive;
 use smallvec::smallvec;
 use std::collections::HashMap;
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, RangeInclusive};
 use std::sync::Mutex;
 use strum::IntoEnumIterator;
 
@@ -14,6 +14,7 @@ use super::*;
 pub const DEFAULT_LAYER_COUNT: u8 = 3;
 pub const MIN_LAYER_COUNT: u8 = 1;
 pub const MAX_LAYER_COUNT: u8 = 9;
+pub const LAYER_COUNT_RANGE: RangeInclusive<u8> = MIN_LAYER_COUNT..=MAX_LAYER_COUNT;
 
 pub(super) fn puzzle_type(layer_count: u8) -> &'static dyn PuzzleType {
     puzzle_description(layer_count)
@@ -25,8 +26,7 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
             Mutex::new(HashMap::new());
     }
 
-    assert!(layer_count >= MIN_LAYER_COUNT);
-    assert!(layer_count <= MAX_LAYER_COUNT);
+    assert!(LAYER_COUNT_RANGE.contains(&layer_count));
 
     CACHE.lock().unwrap().entry(layer_count).or_insert_with(|| {
         let mut pieces = vec![];
@@ -307,8 +307,8 @@ impl PuzzleType for Rubiks4DDescription {
     }
     fn chain_twist_directions(&self, dirs: &[TwistDirection]) -> Option<TwistDirection> {
         match dirs {
-            &[] => None,
-            &[dir] => Some(dir),
+            [] => None,
+            [dir] => Some(*dir),
             _ => {
                 // Apply all of `dirs` to a single hypothetical piece and see
                 // which twist direction it ends up looking like at the end. If
@@ -1076,6 +1076,14 @@ impl TwistDirectionEnum {
         }
     }
 
+    fn half(self) -> Option<Self> {
+        use TwistDirectionEnum::*;
+
+        match self {
+            R2 | L2 | U2 | D2 | F2 | B2 => Some(Self::from(self as u8 - 6)),
+            _ => None,
+        }
+    }
     fn is_face_180(self) -> bool {
         use TwistDirectionEnum::*;
 

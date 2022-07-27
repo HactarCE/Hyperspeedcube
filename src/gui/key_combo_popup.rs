@@ -91,6 +91,7 @@ pub(super) fn open<S: KeybindSet>(
 }
 
 pub(super) fn build(ctx: &egui::Context, app: &mut App) -> Option<egui::Response> {
+    #[allow(clippy::question_mark)]
     if popup_state(ctx).callback.is_none() {
         return None;
     }

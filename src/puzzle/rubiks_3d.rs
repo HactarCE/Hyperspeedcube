@@ -5,7 +5,7 @@ use itertools::Itertools;
 use num_enum::FromPrimitive;
 use smallvec::smallvec;
 use std::collections::HashMap;
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, RangeInclusive};
 use std::sync::Mutex;
 use strum::IntoEnumIterator;
 
@@ -14,6 +14,7 @@ use super::*;
 pub const DEFAULT_LAYER_COUNT: u8 = 3;
 pub const MIN_LAYER_COUNT: u8 = 1;
 pub const MAX_LAYER_COUNT: u8 = 9;
+pub const LAYER_COUNT_RANGE: RangeInclusive<u8> = MIN_LAYER_COUNT..=MAX_LAYER_COUNT;
 
 pub(super) fn puzzle_type(layer_count: u8) -> &'static dyn PuzzleType {
     puzzle_description(layer_count)
@@ -25,8 +26,7 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
             Mutex::new(HashMap::new());
     }
 
-    assert!(layer_count >= MIN_LAYER_COUNT);
-    assert!(layer_count <= MAX_LAYER_COUNT);
+    assert!(LAYER_COUNT_RANGE.contains(&layer_count));
 
     CACHE.lock().unwrap().entry(layer_count).or_insert_with(|| {
         let mut pieces = vec![];

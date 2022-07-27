@@ -171,18 +171,14 @@ impl PuzzleTypeEnum {
     pub fn validate(self) -> Result<(), String> {
         match self {
             PuzzleTypeEnum::Rubiks3D { layer_count } => {
-                if layer_count < rubiks_3d::MIN_LAYER_COUNT
-                    || layer_count > rubiks_3d::MAX_LAYER_COUNT
-                {
+                if rubiks_3d::LAYER_COUNT_RANGE.contains(&layer_count) {
                     Err(format!("invalid layer count {layer_count} for this puzzle"))
                 } else {
                     Ok(())
                 }
             }
             PuzzleTypeEnum::Rubiks4D { layer_count } => {
-                if layer_count < rubiks_4d::MIN_LAYER_COUNT
-                    || layer_count > rubiks_4d::MAX_LAYER_COUNT
-                {
+                if rubiks_4d::LAYER_COUNT_RANGE.contains(&layer_count) {
                     Err(format!("invalid layer count {layer_count} for this puzzle"))
                 } else {
                     Ok(())
