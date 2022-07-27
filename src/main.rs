@@ -29,7 +29,6 @@ mod app;
 mod commands;
 mod gui;
 mod logfile;
-// mod mc4d_compat;
 mod preferences;
 pub mod puzzle;
 mod render;
@@ -42,13 +41,42 @@ const TITLE: &str = "Hyperspeedcube";
 const ICON_32: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
 
 fn main() {
+    // Initialize logging.
+    env_logger::init();
+
+    let human_panic_metadata = human_panic::Metadata {
+        name: TITLE.into(),
+        version: env!("CARGO_PKG_VERSION").into(),
+        authors: env!("CARGO_PKG_AUTHORS").into(),
+        homepage: env!("CARGO_PKG_REPOSITORY").into(),
+    };
+
+    let std_panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let file_path = human_panic::handle_dump(&human_panic_metadata, info);
+        human_panic::print_msg(file_path.as_ref(), &human_panic_metadata)
+            .expect("human-panic: printing error message to console failed");
+
+        rfd::MessageDialog::new()
+            .set_title(&format!("{TITLE} crashed"))
+            .set_description(&match file_path {
+                Some(fp) => format!(
+                    "A crash report has been saved to \"{}\"\n\n\
+                     Please submit this to the developer",
+                    fp.display(),
+                ),
+                None => format!("Error saving crash report"),
+            })
+            .set_level(rfd::MessageLevel::Error)
+            .show();
+
+        std_panic_hook(info);
+    }));
+
     pollster::block_on(run());
 }
 
 async fn run() {
-    // Initialize logger.
-    env_logger::init();
-
     // Initialize window.
     let event_loop = EventLoop::with_user_event();
     let window = winit::window::WindowBuilder::new()
@@ -275,8 +303,8 @@ async fn run() {
                                 wgpu::SurfaceError::OutOfMemory => {
                                     *control_flow = ControlFlow::Exit
                                 }
-                                // Log other errors to the console.
-                                _ => eprintln!("Dropped frame with error: {:?}", e),
+                                // Log other errors.
+                                _ => log::warn!("Dropped frame with error: {:?}", e),
                             }
                             return;
                         }
@@ -337,20 +365,20 @@ fn load_application_icon() -> Option<Icon> {
             (png::ColorType::Rgba, png::BitDepth::Eight) => {
                 let mut img_data = vec![0_u8; reader.output_buffer_size()];
                 if let Err(err) = reader.next_frame(&mut img_data) {
-                    eprintln!("Failed to read icon data: {:?}", err);
+                    log::warn!("Failed to read icon data: {:?}", err);
                     return None;
                 };
                 let info = reader.info();
                 match Icon::from_rgba(img_data, info.width, info.height) {
                     Ok(icon) => Some(icon),
                     Err(err) => {
-                        eprintln!("Failed to construct icon: {:?}", err);
+                        log::warn!("Failed to construct icon: {:?}", err);
                         None
                     }
                 }
             }
             other => {
-                eprintln!(
+                log::warn!(
                     "Failed to load icon data due to unknown color format: {:?}",
                     other,
                 );
@@ -358,7 +386,7 @@ fn load_application_icon() -> Option<Icon> {
             }
         },
         Err(err) => {
-            eprintln!("Failed to load icon data: {:?}", err);
+            log::warn!("Failed to load icon data: {:?}", err);
             None
         }
     }

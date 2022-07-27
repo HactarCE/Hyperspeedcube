@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Log file import/export for all puzzles
   - Use `.log` extension to save as MC4D-compatible log file
 - QTM (Quarter Turn Metric) and ATM (Axial Turn Metric)
+- Improved logging and fatal error handling
 
 ### Removed
 

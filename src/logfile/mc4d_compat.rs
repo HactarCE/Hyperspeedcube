@@ -181,14 +181,14 @@ impl Mc4dLogFile {
 
         for &twist in &self.scramble_twists {
             if let Err(e) = ret.twist_no_collapse(twist) {
-                eprintln!("Error executing twist {e:?} from MC4D log file")
+                log::warn!("Error executing twist {e:?} from MC4D log file")
             }
         }
         ret.add_scramble_marker(self.scramble_state);
 
         for &twist in &self.solve_twists {
             if let Err(e) = ret.twist_no_collapse(twist) {
-                eprintln!("Error executing twist {e:?} from MC4D log file")
+                log::warn!("Error executing twist {e:?} from MC4D log file")
             }
         }
         ret.catch_up();

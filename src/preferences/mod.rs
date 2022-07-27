@@ -61,13 +61,13 @@ lazy_static! {
     static ref PROJECT_DIRS: Option<ProjectDirs> = ProjectDirs::from("", "", "Hyperspeedcube");
     static ref PREFS_FILE_PATH: Result<PathBuf, PrefsError> = {
         let mut p = if *NONPORTABLE {
-            println!("Using non-portable preferences path");
+            log::info!("Using non-portable preferences path");
             match &*PROJECT_DIRS {
                 Some(proj_dirs) => proj_dirs.config_dir().to_owned(),
                 None => return Err(PrefsError::NoPreferencesPath),
             }
         } else {
-            println!("Using portable preferences path");
+            log::info!("Using portable preferences path");
             LOCAL_DIR.clone()?
         };
         p.push(format!("{}.{}", PREFS_FILE_NAME, PREFS_FILE_EXTENSION));
@@ -116,7 +116,7 @@ impl Preferences {
         // Load user preferences.
         match &*PREFS_FILE_PATH {
             Ok(path) => config = config.add_source(config::File::from(path.as_ref())),
-            Err(e) => eprintln!("Error loading user preferences: {}", e),
+            Err(e) => log::warn!("Error loading user preferences: {}", e),
         }
 
         // TODO: use try block (including the word "IIFE" here because I'll
@@ -125,7 +125,7 @@ impl Preferences {
             .build()
             .and_then(|c| c.try_deserialize::<Self>())
             .unwrap_or_else(|e| {
-                eprintln!("Error loading preferences: {}", e);
+                log::warn!("Error loading preferences: {}", e);
                 if let Ok(prefs_path) = &*PREFS_FILE_PATH {
                     let datetime = time::OffsetDateTime::now_local()
                         .unwrap_or_else(|_| time::OffsetDateTime::now_utc());
@@ -143,11 +143,9 @@ impl Preferences {
                         PREFS_FILE_EXTENSION,
                     ));
                     if std::fs::rename(prefs_path, &backup_path).is_ok() {
-                        eprintln!(
+                        log::info!(
                             "Backup of old preferences stored at {}",
-                            backup_path.to_str().unwrap_or(
-                                "some path with invalid Unicode. Seriously, what have you done to your filesystem?"
-                            ),
+                            backup_path.display(),
                         );
                     }
                 }
@@ -181,7 +179,7 @@ impl Preferences {
                 Ok(())
             })();
             if let Err(e) = result {
-                eprintln!("Error saving preferences: {}", e);
+                log::error!("Error saving preferences: {}", e);
             }
         }
     }
