@@ -567,11 +567,7 @@ impl LayerMask {
         self.0 != 0 && self.0.count_ones() == self.0.trailing_ones()
     }
     pub(crate) fn get_single_layer(self) -> Option<u32> {
-        if self.count() == 1 {
-            Some(self.0.trailing_zeros())
-        } else {
-            None
-        }
+        (self.count() == 1).then(|| self.0.trailing_zeros())
     }
 }
 impl fmt::Display for LayerMask {
