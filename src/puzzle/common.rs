@@ -361,6 +361,7 @@ impl TwistDirectionInfo {
     Serialize,
     Deserialize,
     Debug,
+    Default,
     Display,
     EnumIter,
     EnumMessage,
@@ -376,6 +377,7 @@ impl TwistDirectionInfo {
 pub enum TwistMetric {
     /// Quarter Slice Turn Metric: Each twist counts separately. Whole-puzzle
     /// rotations are not counted.
+    #[default]
     #[strum(
         serialize = "QSTM",
         message = "Quarter Slice Turn Metric (default)",
@@ -409,11 +411,6 @@ pub enum TwistMetric {
         detailed_message = "Each twist counts separately, including whole-puzzle rotations."
     )]
     Etm,
-}
-impl Default for TwistMetric {
-    fn default() -> Self {
-        Self::Qstm
-    }
 }
 impl TwistMetric {
     /// Returns the next twist metric in a cycle.

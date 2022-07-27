@@ -9,7 +9,7 @@ pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MIN: usize = 1;
 /// Maximum number of moves for a partial scramble.
 pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MAX: usize = 20;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Command {
     // File menu
@@ -32,13 +32,9 @@ pub enum Command {
 
     ToggleBlindfold,
 
+    #[default]
     #[serde(other)]
     None,
-}
-impl Default for Command {
-    fn default() -> Self {
-        Self::None
-    }
 }
 impl Command {
     pub(crate) fn get_puzzle_type(&self) -> PuzzleTypeEnum {
@@ -71,7 +67,7 @@ impl Command {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[allow(missing_docs)]
 pub enum PuzzleCommand {
@@ -88,13 +84,9 @@ pub enum PuzzleCommand {
         axis: Option<String>,
     },
 
+    #[default]
     #[serde(other)]
     None,
-}
-impl Default for PuzzleCommand {
-    fn default() -> Self {
-        Self::None
-    }
 }
 impl PuzzleCommand {
     pub fn short_description(&self, ty: PuzzleTypeEnum) -> String {
