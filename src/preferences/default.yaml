@@ -15,8 +15,8 @@ view:
     light_pitch: 0.0
     light_yaw: 0.0
   Rubiks4D:
-    pitch: 30.0
-    yaw: -35.0
+    pitch: 35.0
+    yaw: -45.0
     scale: 1.0
     fov_3d: 0.0
     fov_4d: 30.0
