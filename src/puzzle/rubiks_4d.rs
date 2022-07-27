@@ -422,7 +422,7 @@ impl PuzzleState for Rubiks4D {
                 project(center + -x + -y + z)?,
                 project(center + -x + -y + -z)?,
             ],
-            [[twist_ccw, twist_cw, twist_recenter]; 8],
+            [[twist_ccw, twist_cw, twist_recenter]; 6],
         )
     }
 

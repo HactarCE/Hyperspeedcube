@@ -174,7 +174,7 @@ impl StickerGeometry {
     }
     pub(super) fn new_cube(
         verts: [Point3<f32>; 8],
-        twists: [[Option<Twist>; 3]; 8],
+        twists: [[Option<Twist>; 3]; 6],
     ) -> Option<Self> {
         // Only show this sticker if the 3D volume is positive. (Cull it if its
         // 3D volume is negative.)
