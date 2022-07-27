@@ -75,12 +75,6 @@ pub fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f32>) {
     (min_bound, max_bound)
 }
 
-/// Stolen shamelessly from [`std::u32::checked_log2()`], which isn't stable yet
-/// at the time of writing.
-pub fn checked_log2(n: u32) -> Option<u32> {
-    (n > 0).then(|| (u32::BITS - 1) - n.leading_zeros())
-}
-
 pub fn wrap_words<S: AsRef<str>>(words: impl Iterator<Item = S>) -> String {
     const WORD_WRAP_WIDTH: usize = 70;
     let mut ret = String::new();

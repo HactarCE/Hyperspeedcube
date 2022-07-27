@@ -37,13 +37,6 @@ pub enum Command {
     None,
 }
 impl Command {
-    pub(crate) fn get_puzzle_type(&self) -> PuzzleTypeEnum {
-        match self {
-            Command::NewPuzzle(puzzle_type) => *puzzle_type,
-            _ => PuzzleTypeEnum::default(),
-        }
-    }
-
     pub(crate) fn short_description(&self) -> String {
         match self {
             Command::Open => "🗁".to_owned(),

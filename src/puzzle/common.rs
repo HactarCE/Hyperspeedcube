@@ -544,12 +544,6 @@ impl LayerMask {
             .map(|i| (i as u8 + b'1') as char)
             .collect()
     }
-    pub(crate) fn short_description(self) -> String {
-        match self.count() {
-            0 => "none".to_owned(),
-            _ => (0..32).filter(|&i| self[i]).map(|i| i + 1).join(", "),
-        }
-    }
     pub(crate) fn long_description(self) -> String {
         match self.count() {
             0 => "no layers".to_owned(),

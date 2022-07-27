@@ -102,7 +102,6 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
         }
 
         let notation = NotationScheme {
-            layer_count,
             axis_names: FaceEnum::iter()
                 .map(|f| f.symbol_upper().to_string())
                 .collect(),
@@ -598,19 +597,6 @@ impl FaceEnum {
     }
     fn symbol_lower(self) -> char {
         self.symbol_upper().to_ascii_lowercase()
-    }
-    fn from_symbol(c: char) -> Option<Self> {
-        use FaceEnum::*;
-
-        match c.to_ascii_uppercase() {
-            'R' => Some(R),
-            'L' => Some(L),
-            'U' => Some(U),
-            'D' => Some(D),
-            'F' => Some(F),
-            'B' => Some(B),
-            _ => None,
-        }
     }
     fn name(self) -> &'static str {
         use FaceEnum::*;

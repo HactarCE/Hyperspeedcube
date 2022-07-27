@@ -6,7 +6,6 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct NotationScheme {
-    pub(super) layer_count: u8,
     pub(super) axis_names: Vec<String>,
     pub(super) direction_names: Vec<TwistDirectionName>,
     pub(super) block_suffix: Option<String>,

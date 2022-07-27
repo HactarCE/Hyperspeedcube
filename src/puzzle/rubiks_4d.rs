@@ -115,7 +115,6 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
         }
 
         let notation = NotationScheme {
-            layer_count,
             axis_names: FaceEnum::iter()
                 .map(|f| f.symbol_upper().to_string())
                 .collect(),
@@ -785,21 +784,6 @@ impl FaceEnum {
     fn symbol_upper(self) -> char {
         self.symbol_upper_str().chars().next().unwrap()
     }
-    fn from_symbol(c: char) -> Option<Self> {
-        use FaceEnum::*;
-
-        match c {
-            'R' => Some(R),
-            'L' => Some(L),
-            'U' => Some(U),
-            'D' => Some(D),
-            'F' => Some(F),
-            'B' => Some(B),
-            'O' => Some(O),
-            'I' => Some(I),
-            _ => None,
-        }
-    }
     fn name(self) -> &'static str {
         use FaceEnum::*;
 
@@ -1022,26 +1006,6 @@ impl TwistDirectionEnum {
             + select_face_char(vector4.x, "R", "L")
             + select_face_char(vector4.w, "O", "I")
     }
-    fn from_symbol_on_face(s: &str, face: FaceEnum) -> Option<Self> {
-        if face == FaceEnum::O {
-            return Some(Self::from_symbol_on_face(s, FaceEnum::I)?.rev());
-        }
-
-        let mut vector4 = Vector4::zero();
-        for c in s.chars() {
-            let f = FaceEnum::from_symbol(c)?;
-            let i = f.axis() as usize;
-            if f.axis() == face.axis() || vector4[i] != 0 {
-                return None;
-            }
-            vector4[i] = f.sign().int();
-        }
-        Self::from_signs_within_face(
-            face.basis_faces()
-                .map(|f| vector4[f.axis() as usize] * f.sign().int())
-                .into(),
-        )
-    }
 
     fn period(self) -> usize {
         use TwistDirectionEnum::*;
@@ -1258,15 +1222,6 @@ impl Axis {
             Axis::Y => 'y',
             Axis::Z => 'z',
             Axis::W => 'w',
-        }
-    }
-    fn from_symbol_lower(c: char) -> Option<Self> {
-        match c {
-            'x' => Some(Axis::X),
-            'y' => Some(Axis::Y),
-            'z' => Some(Axis::Z),
-            'w' => Some(Axis::W),
-            _ => None,
         }
     }
 
