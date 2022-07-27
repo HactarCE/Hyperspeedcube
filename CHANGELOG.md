@@ -13,10 +13,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - 180-degree twists (no keybinds by default)
 - Log file import/export for all puzzles
   - Use `.log` extension to save as MC4D-compatible log file
+- QTM (Quarter Turn Metric) and ATM (Axial Turn Metric)
 
 ### Removed
 
 - Filtering by piece type
+
+### Fixed
+
+- Twist metric descriptions and implementations are now more specific and more accurate
 
 ## [0.6.0] - 2022-06-02
 

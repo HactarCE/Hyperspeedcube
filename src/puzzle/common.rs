@@ -1,3 +1,4 @@
+use enum_iterator::Sequence;
 use itertools::Itertools;
 use rand::Rng;
 use regex::Regex;
@@ -41,6 +42,8 @@ pub trait PuzzleType {
             .map(TwistDirection)
             .find(|&twist_direction| self.info(twist_direction).name == name)
     }
+    fn opposite_twist_axis(&self, twist_axis: TwistAxis) -> Option<TwistAxis>;
+    fn count_quarter_turns(&self, twist: Twist) -> usize;
 
     fn check_layers(&self, layers: LayerMask) -> Result<(), &'static str> {
         let layer_count = self.layer_count() as u32;
@@ -70,7 +73,6 @@ pub trait PuzzleType {
         }
     }
     fn canonicalize_twist(&self, twist: Twist) -> Twist;
-    fn can_twists_combine(&self, prev: Option<Twist>, curr: Twist, metric: TwistMetric) -> bool;
 
     fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection;
     fn chain_twist_directions(&self, dirs: &[TwistDirection]) -> Option<TwistDirection>;
@@ -365,6 +367,7 @@ impl TwistDirectionInfo {
     Display,
     EnumIter,
     EnumMessage,
+    Sequence,
     Copy,
     Clone,
     PartialEq,
@@ -375,68 +378,175 @@ impl TwistDirectionInfo {
 )]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TwistMetric {
-    /// Quarter Slice Turn Metric: Each twist counts separately. Whole-puzzle
-    /// rotations are not counted.
+    /// Slice Turn Metric (default):
+    /// - Consecutive twists with the same face and layers are combined.
+    /// - Noncontiguous slice twists are split into contiguous slice twists.
+    /// - Whole-puzzle rotations are not counted.
     #[default]
     #[strum(
-        serialize = "QSTM",
-        message = "Quarter Slice Turn Metric (default)",
-        detailed_message = "Each twist counts separately. Whole-puzzle rotations are not counted."
-    )]
-    Qstm,
-
-    /// Face Turn Metric: Consecutive twists with the same face and layers are
-    /// combined.
-    #[strum(
-        serialize = "FTM",
-        message = "Face Turn Metric",
-        detailed_message = "Consecutive twists with the same face and layers are combined."
-    )]
-    Ftm,
-
-    /// Slice Turn Metric: Consecutive twists with the same face are combined,
-    /// even with different layers.
-    #[strum(
         serialize = "STM",
-        message = "Slice Turn Metric",
-        detailed_message = "Consecutive twists with the same face are combined, even with different layers."
+        message = "Slice Turn Metric (default)",
+        detailed_message = "\
+            • Consecutive twists with the same face and layers are combined.\n\
+            • Noncontiguous slice twists are split into contiguous slice twists.\n\
+            • Whole-puzzle rotations are not counted."
     )]
     Stm,
 
-    /// Execution Turn Metric: Each twist counts separately, including
-    /// whole-puzzle rotations.
+    /// Quarter Slice Turn Metric:
+    /// - Double twists are split into quarters.
+    /// - Noncontiguous slice twists are split into contiguous slice twists.
+    /// - Whole-puzzle rotations are not counted.
+    #[strum(
+        serialize = "QSTM",
+        message = "Quarter Slice Turn Metric",
+        detailed_message = "\
+            • Double twists are split into quarters.\n\
+            • Noncontiguous slice twists are split into contiguous slice twists.\n\
+            • Whole-puzzle rotations are not counted."
+    )]
+    Qstm,
+
+    /// Face Turn Metric:
+    /// - Consecutive twists with the same face and layers are combined.
+    /// - Slice twists are split into contiguous outer-block twists.
+    /// - Whole-puzzle rotations are not counted.
+    #[strum(
+        serialize = "FTM",
+        message = "Face Turn Metric",
+        detailed_message = "\
+            • Consecutive twists with the same face and layers are combined.\n\
+            • Slice twists are split into contiguous outer-block twists.\n\
+            • Whole-puzzle rotations are not counted."
+    )]
+    Ftm,
+
+    /// Quarter Turn Metric:
+    /// - Double twists are split into quarters.
+    /// - Slice twists are split into contiguous outer-block twists.
+    /// - Whole-puzzle rotations are not counted.
+    #[strum(
+        serialize = "QTM",
+        message = "Quarter Turn Metric",
+        detailed_message = "\
+            • Double twists are split into quarters.\n\
+            • Slice twists are split into contiguous outer-block twists.\n\
+            • Whole-puzzle rotations are not counted."
+    )]
+    Qtm,
+
+    /// Execution Turn Metric:
+    /// - Twists are counted as they are executed, including whole-puzzle rotations.
     #[strum(
         serialize = "ETM",
         message = "Execution Turn Metric",
-        detailed_message = "Each twist counts separately, including whole-puzzle rotations."
+        detailed_message = "\
+            • Twists are counted as they are executed, including whole-puzzle rotations."
     )]
     Etm,
+
+    /// Axial Turn Metric:
+    /// - Consecutive twists along the same axis are combined, even with different layers.
+    /// - Whole-puzzle rotations are not counted.
+    #[strum(
+        serialize = "ATM",
+        message = "Axial Turn Metric",
+        detailed_message = "\
+            • Consecutive twists along the same axis are combined, even with different layers.\n\
+            • Whole-puzzle rotations are not counted."
+    )]
+    Atm,
 }
 impl TwistMetric {
-    /// Returns the next twist metric in a cycle.
-    pub fn next(self) -> Self {
-        match self {
-            Self::Qstm => Self::Ftm,
-            Self::Ftm => Self::Stm,
-            Self::Stm => Self::Etm,
-            Self::Etm => Self::Qstm,
-        }
-    }
-
     /// Counts a sequence of twists using this metric.
     pub fn count_twists(
         self,
         puzzle: impl PuzzleType,
-        twists: impl Clone + IntoIterator<Item = Twist>,
+        twists: impl IntoIterator<Item = Twist>,
     ) -> usize {
-        let prev_twists =
-            itertools::put_back(twists.clone().into_iter().map(Some)).with_value(None);
+        let combine_similar: bool;
+        let keep_inner_slice: bool;
 
-        twists
-            .into_iter()
-            .zip(prev_twists)
-            .filter(|&(curr, prev)| !puzzle.can_twists_combine(prev, curr, self))
-            .count()
+        match self {
+            TwistMetric::Stm => {
+                combine_similar = true;
+                keep_inner_slice = true;
+            }
+            TwistMetric::Qstm => {
+                combine_similar = false;
+                keep_inner_slice = true;
+            }
+            TwistMetric::Ftm => {
+                combine_similar = true;
+                keep_inner_slice = false;
+            }
+            TwistMetric::Qtm => {
+                combine_similar = false;
+                keep_inner_slice = false;
+            }
+            TwistMetric::Etm => return twists.into_iter().count(),
+            TwistMetric::Atm => {
+                let mut count = 0;
+
+                let mut prev_axis = None;
+                for twist in twists {
+                    let opp = puzzle.opposite_twist_axis(twist.axis);
+                    let is_same_axis =
+                        prev_axis == Some(twist.axis) || opp.is_some() && prev_axis == opp;
+                    if !is_same_axis {
+                        if twist.layers == puzzle.all_layers() {
+                            prev_axis = None;
+                        } else {
+                            count += 1;
+                            prev_axis = Some(twist.axis);
+                        }
+                    }
+                }
+
+                return count;
+            }
+        }
+
+        let mut count = 0;
+
+        let mut prev_axis = None;
+        let mut prev_layers = None;
+        for twist in twists {
+            if twist.layers == puzzle.all_layers() {
+                let opp = puzzle.opposite_twist_axis(twist.axis);
+                let is_same_axis =
+                    prev_axis == Some(twist.axis) || opp.is_some() && prev_axis == opp;
+                if !is_same_axis {
+                    // Axes may have shifted around, so clear them.
+                    prev_axis = None;
+                    prev_layers = None;
+                }
+                // Don't count full-puzzle rotations.
+                continue;
+            }
+
+            let direction_multiplier = if combine_similar {
+                if prev_axis == Some(twist.axis) && prev_layers == Some(twist.layers) {
+                    // Same axis and layers as previous twist! This twist is
+                    // free.
+                    0
+                } else {
+                    1
+                }
+            } else {
+                puzzle.count_quarter_turns(twist)
+            };
+
+            let slice_multiplier = if keep_inner_slice {
+                twist.layers.count_contiguous_slices()
+            } else {
+                twist.layers.count_outer_slices()
+            };
+
+            count += direction_multiplier * slice_multiplier as usize;
+        }
+
+        count
     }
 }
 
@@ -556,6 +666,29 @@ impl LayerMask {
     }
     pub(crate) fn count(self) -> u32 {
         self.0.count_ones()
+    }
+    pub(crate) fn count_contiguous_slices(self) -> u32 {
+        let mut n = self.0;
+        let mut ret = 0;
+        while n != 0 {
+            n >>= n.trailing_zeros();
+            n >>= n.trailing_ones();
+            ret += 1;
+        }
+        ret
+    }
+    pub(crate) fn count_outer_slices(self) -> u32 {
+        let mut n = self.0;
+        let mut ret = 0;
+        while n != 0 {
+            match n & 1 {
+                0 => n >>= n.trailing_zeros(),
+                1 => n >>= n.trailing_ones(),
+                _ => unreachable!(),
+            }
+            ret += 1;
+        }
+        ret
     }
     pub(crate) fn is_contiguous_from_outermost(self) -> bool {
         self.0 != 0 && self.0.count_ones() == self.0.trailing_ones()

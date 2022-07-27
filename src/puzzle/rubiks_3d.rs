@@ -191,6 +191,18 @@ impl PuzzleType for Rubiks3DDescription {
         &self.twist_directions
     }
 
+    fn opposite_twist_axis(&self, twist_axis: TwistAxis) -> Option<TwistAxis> {
+        Some(FaceEnum::from(twist_axis).opposite().into())
+    }
+    fn count_quarter_turns(&self, twist: Twist) -> usize {
+        use TwistDirectionEnum::*;
+
+        match twist.direction.into() {
+            CW90 | CCW90 => 1,
+            CW180 | CCW180 => 2,
+        }
+    }
+
     fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String> {
         use FaceEnum::*;
 
@@ -228,25 +240,6 @@ impl PuzzleType for Rubiks3DDescription {
             }
         } else {
             twist
-        }
-    }
-    fn can_twists_combine(&self, prev: Option<Twist>, curr: Twist, metric: TwistMetric) -> bool {
-        if curr.layers == self.all_layers() {
-            // Never count puzzle rotations toward the twist count, except in
-            // ETM.
-            match metric {
-                TwistMetric::Qstm | TwistMetric::Ftm | TwistMetric::Stm => true,
-                TwistMetric::Etm => false,
-            }
-        } else if let Some(prev) = prev {
-            match metric {
-                TwistMetric::Qstm => false,
-                TwistMetric::Ftm => curr.axis == prev.axis && curr.layers == prev.layers,
-                TwistMetric::Stm => curr.axis == prev.axis,
-                TwistMetric::Etm => false,
-            }
-        } else {
-            false
         }
     }
 

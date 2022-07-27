@@ -216,6 +216,20 @@ impl PuzzleType for Rubiks4DDescription {
         &self.twist_directions
     }
 
+    fn opposite_twist_axis(&self, twist_axis: TwistAxis) -> Option<TwistAxis> {
+        Some(FaceEnum::from(twist_axis).opposite().into())
+    }
+    fn count_quarter_turns(&self, twist: Twist) -> usize {
+        use TwistDirectionEnum::*;
+
+        match twist.direction.into() {
+            R | L | U | D | F | B => 1,
+            R2 | L2 | U2 | D2 | F2 | B2 => 2,
+            UF | DB | UR | DL | FR | BL | DF | UB | UL | DR | BR | FL => 3,
+            UFR | DBL | UFL | DBR | DFR | UBL | UBR | DFL => 2,
+        }
+    }
+
     fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String> {
         use FaceEnum::*;
         use TwistDirectionEnum as Dir;
@@ -278,25 +292,6 @@ impl PuzzleType for Rubiks4DDescription {
             axis: face.into(),
             direction: direction.into(),
             layers,
-        }
-    }
-    fn can_twists_combine(&self, prev: Option<Twist>, curr: Twist, metric: TwistMetric) -> bool {
-        if curr.layers == self.all_layers() {
-            // Never count puzzle rotations toward the twist count, except in
-            // ETM.
-            match metric {
-                TwistMetric::Qstm | TwistMetric::Ftm | TwistMetric::Stm => true,
-                TwistMetric::Etm => false,
-            }
-        } else if let Some(prev) = prev {
-            match metric {
-                TwistMetric::Qstm => false,
-                TwistMetric::Ftm => curr.axis == prev.axis && curr.layers == prev.layers,
-                TwistMetric::Stm => curr.axis == prev.axis,
-                TwistMetric::Etm => false,
-            }
-        } else {
-            false
         }
     }
 
