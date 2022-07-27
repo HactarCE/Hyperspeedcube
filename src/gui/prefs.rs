@@ -241,6 +241,20 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     ui.separator();
 
     ui.strong("Geometry");
+    // Show front faces
+    ui.add(util::CheckboxWithReset {
+        label: "Show frontfaces",
+        value: &mut prefs.view[puzzle_type].show_frontfaces,
+        reset_value: DEFAULT_PREFS.view[puzzle_type].show_frontfaces,
+    });
+    // Show back faces
+    changed |= r.changed();
+    ui.add(util::CheckboxWithReset {
+        label: "Show backfaces",
+        value: &mut prefs.view[puzzle_type].show_backfaces,
+        reset_value: DEFAULT_PREFS.view[puzzle_type].show_backfaces,
+    });
+    changed |= r.changed();
     // Face spacing
     let r = ui.add(resettable!(
         "Face spacing",

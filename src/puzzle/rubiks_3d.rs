@@ -368,6 +368,8 @@ impl PuzzleState for Rubiks3D {
                 center + u + v,
             ],
             [Some(twist_ccw), Some(twist_cw), twist_recenter],
+            p.show_frontfaces,
+            p.show_backfaces,
         ))
     }
 

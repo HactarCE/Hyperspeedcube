@@ -14,6 +14,8 @@ pub struct ViewPreferences {
     /// 4D FOV, in degrees.
     pub fov_4d: f32,
 
+    pub show_frontfaces: bool,
+    pub show_backfaces: bool,
     pub face_spacing: f32,
     pub sticker_spacing: f32,
 
@@ -33,6 +35,8 @@ impl Default for ViewPreferences {
             fov_3d: 30_f32,
             fov_4d: 30_f32,
 
+            show_frontfaces: true,
+            show_backfaces: true,
             face_spacing: 0.0,
             sticker_spacing: 0.0,
 

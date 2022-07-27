@@ -53,6 +53,11 @@ pub struct StickerGeometryParams {
     pub ambient_light: f32,
     /// Light vector (manitude of 0.0..=1.0).
     pub light_vector: Vector3<f32>,
+
+    /// Whether to show frontfaces.
+    pub show_frontfaces: bool,
+    /// Whether to show backfaces.
+    pub show_backfaces: bool,
 }
 impl StickerGeometryParams {
     /// Constructs sticker geometry parameters for a set of view preferences.
@@ -103,6 +108,9 @@ impl StickerGeometryParams {
 
             ambient_light,
             light_vector,
+
+            show_frontfaces: view_prefs.show_frontfaces,
+            show_backfaces: view_prefs.show_backfaces,
         };
 
         ret.view_transform /= puzzle_type.projection_radius_3d(ret);
@@ -165,12 +173,26 @@ pub struct StickerGeometry {
     pub polygon_twists: Vec<[Option<Twist>; 3]>,
 }
 impl StickerGeometry {
-    pub(super) fn new_double_quad(verts: [Point3<f32>; 4], twists: [Option<Twist>; 3]) -> Self {
-        Self {
+    pub(super) fn new_double_quad(
+        verts: [Point3<f32>; 4],
+        [lmb, rmb, mmb]: [Option<Twist>; 3],
+        front_face: bool,
+        back_face: bool,
+    ) -> Self {
+        let mut ret = Self {
             verts: verts.to_vec(),
-            polygon_indices: vec![Box::new([0, 1, 3, 2]), Box::new([2, 3, 1, 0])],
-            polygon_twists: vec![twists; 2],
+            polygon_indices: vec![Box::new([2, 3, 1, 0]), Box::new([0, 1, 3, 2])],
+            polygon_twists: vec![[lmb, rmb, mmb], [rmb, lmb, mmb]],
+        };
+        if !back_face {
+            ret.polygon_indices.pop();
+            ret.polygon_twists.pop();
         }
+        if !front_face {
+            ret.polygon_indices.remove(0);
+            ret.polygon_twists.remove(0);
+        }
+        ret
     }
     pub(super) fn new_cube(
         verts: [Point3<f32>; 8],

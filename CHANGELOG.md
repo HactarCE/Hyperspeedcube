@@ -4,6 +4,12 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [UNRELEASED]
+
+### Added
+
+- Option to hide frontfaces and backfaces in 3D puzzles
+
 ## [0.7.0] - 2022-07-27
 
 ### Added
