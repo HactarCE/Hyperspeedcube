@@ -1,0 +1,25 @@
+
+ctrl+f open this dialog:
+
+
+
+[any/all] of these colors: ....
+
+
+
+one of these piece types: ....
+
+
+[by piece] / [by sticker]
+[show]
+[hide]
+[hide all others]
+[show all others]
+
+hidden pieces:
+- opacity
+- outline
+- [ ] blindfolded
+
+[save this preset]:
+- [name]

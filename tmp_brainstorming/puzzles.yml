@@ -1,0 +1,161 @@
+Puzzle 16-cell_FT(simp)
+Dim 4
+NAxis 1
+Faces 1,1,1,1
+Simplified
+Group 1,0,0,0/1,1,0,0 1,0,0,0/1,0,1,0 1,0,0,0/1,0,0,1
+Axis 1,1,1,1
+Twists 0,2,-1,-1/0,1,1,-2 1,-1,0,0/0,0,1,-1
+Cuts 0.6 -0.6
+FixedMask 2
+
+
+puzzles:
+  2x2x2:
+    __template: templates/rubiks_3d
+    n: 2
+    cuts: [ 0 ]
+  3x3x3:
+    __template: templates/rubiks_3d
+    n: 3
+    cuts: [ +1/3, -1/3 ]
+  4x4x4:
+    __template: templates/rubiks_3d
+    n: 4
+    cuts: [ -2/4, 0, +2/4 ]
+  5x5x5:
+    __template: templates/rubiks_3d
+    n: 5
+    cuts: [ -3/5, -1/5, +1/5, +3/5 ]
+  6x6x6:
+    __template: templates/rubiks_3d
+    n: 6
+    cuts: [ -4/6, -2/6, 0, +2/6, +4/6 ]
+  7x7x7:
+    __template: templates/rubiks_3d
+    n: 7
+    cuts: [ -5/7, -3/7, -1/7, +1/7, +3/7, +5/7 ]
+  8x8x8:
+    __template: templates/rubiks_3d
+    n: 8
+    cuts: [ -6/8, -4/8, -2/8, 0, +2/8, +4/8, +6/8 ]
+  9x9x9:
+    __template: templates/rubiks_3d
+    n: 9
+    cuts: [ -7/9, -5/9, -3/9, -1/9, +1/9, +3/9, +5/9, +7/9 ]
+  2x2x2x2:
+    __template: templates/rubiks_4d
+    n: 2
+    cuts: [ 0 ]
+  3x3x3:
+    __template: templates/rubiks_4d
+    n: 3
+    cuts: [ +1/3, -1/3 ]
+  4x4x4:
+    __template: templates/rubiks_4d
+    n: 4
+    cuts: [ -2/4, 0, +2/4 ]
+templates:
+  rubiks_3d:
+    name: ${n}^3
+    ndim: 3
+    faces: [ +X ]
+    group: [ 'rot(+X, +Y)', 'rot(+X, +Z)' ]
+    twists:
+    - axis: +X
+      cuts: ${cuts}
+      transforms: [ 'rot(+Z, +Y)' ]
+    notation:
+      faces:
+        # these vectors can be approximate;
+        # each will be matched to the nearest face
+        R: +X
+        L: -X
+        U: +Y
+        D: -Y
+        F: +Z
+        B: -Z
+      axes:
+        R: +X
+        L: -X
+        U: +Y
+        D: -Y
+        F: +Z
+        B: -Z
+      block_suffix: 'w'
+      aliases:
+        x: { axis: R, layers: [ '1 .. ${n}' ] }
+        y: { axis: U, layers: [ '1 .. ${n}' ] }
+        z: { axis: F, layers: [ '1 .. ${n}' ] }
+        M: { axis: L, layers: [ '2 .. ${n}-1' ] }
+        E: { axis: D, layers: [ '2 .. ${n}-1' ] }
+        S: { axis: F, layers: [ '2 .. ${n}-1' ] }
+        r: { axis: R, layers: [ '2 .. 2' ] }
+        l: { axis: L, layers: [ '2 .. 2' ] }
+        u: { axis: U, layers: [ '2 .. 2' ] }
+        d: { axis: D, layers: [ '2 .. 2' ] }
+        f: { axis: F, layers: [ '2 .. 2' ] }
+        b: { axis: B, layers: [ '2 .. 2' ] }
+      directions:
+        CW_90:
+          symbol: ''
+          apply_group: true
+          R: rot(F, U)
+        CCW_90:
+          symbol: "'"
+          apply_group: true
+          R: rot(U, F)
+        CW_180:
+          symbol: '2'
+          apply_group: true
+          R: rot(F, U) ^ 2
+        CCW_180:
+          symbol: "2'"
+          apply_group: true
+          R: rot(U, F) ^ 2
+  rubiks_4d:
+    name: ${n}^4
+    ndim: 4
+    faces: [ +X ]
+    group: [ 'rot(+X, +Y)', 'rot(+X, +Z)', 'rot(+X, +W)' ]
+    twists:
+    - axis: +X
+      cuts: ${cuts}
+      transforms:
+      - rot(+Z, +Y)
+      - rot(+Z, +W)
+    notation:
+      faces:
+        R: +X
+        L: -X
+        U: +Y
+        D: -Y
+        F: +Z
+        B: -Z
+        O: +W
+        I: -W
+      axes:
+        R: +X
+        L: -X
+        U: +Y
+        D: -Y
+        F: +Z
+        B: -Z
+        O: +W
+        I: -W
+      aliases:
+        xy: { axis: O, layers: [ '1 .. ${n}' ], direction: F }
+        yx: { axis: O, layers: [ '1 .. ${n}' ], direction: B }
+        # TODO: define the other 2-symbol rotations ...
+        M: { axis: L, layers: [ '2 .. ${n}-1' ] }
+        E: { axis: D, layers: [ '2 .. ${n}-1' ] }
+        S: { axis: F, layers: [ '2 .. ${n}-1' ] }
+        P: { axis: O, layers: [ '2 .. ${n}-1' ] }
+      directions:
+        UR:
+          symbol: UR
+          F: rotAround(U + R)
+          B: rotAround(U + R)
+          O: rotAround(U + R)
+          I: rotAround(U + R)
+        # TODO: no clue at all how to specify 4D twist directions

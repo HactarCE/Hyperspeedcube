@@ -344,11 +344,29 @@ impl PuzzleState for Rubiks3D {
         let [u_span_axis, v_span_axis] = face.parallel_axes();
         let u: Vector3<f32> = <Matrix3<f32> as Transform<Point3<f32>>>::transform_vector(
             &transform,
-            u_span_axis.unit_vec3() * p.sticker_scale,
+            u_span_axis.unit_vec3()
+                * if self[piece].0[0].axis() == u_span_axis
+                    && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                        || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+                {
+                    2.0
+                } else {
+                    1.0
+                }
+                * p.sticker_scale,
         );
         let v: Vector3<f32> = <Matrix3<f32> as Transform<Point3<f32>>>::transform_vector(
             &transform,
-            v_span_axis.unit_vec3() * p.sticker_scale,
+            v_span_axis.unit_vec3()
+                * if self[piece].0[0].axis() == v_span_axis
+                    && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                        || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+                {
+                    2.0
+                } else {
+                    1.0
+                }
+                * p.sticker_scale,
         );
 
         // Decide what twists should happen when the sticker is clicked.
@@ -419,9 +437,33 @@ impl Rubiks3D {
     fn piece_center_3d(&self, piece: Piece, p: StickerGeometryParams) -> Point3<f32> {
         let pos = self.piece_location(piece);
         cgmath::point3(
-            self.piece_center_coordinate(pos[0], p),
-            self.piece_center_coordinate(pos[1], p),
-            self.piece_center_coordinate(pos[2], p),
+            self.piece_center_coordinate(pos[0], p)
+                + if self[piece].0[0].axis() == Axis::X
+                    && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                        || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+                {
+                    self.piece_center_coordinate(pos[0], p).signum() * p.sticker_grid_scale
+                } else {
+                    0.0
+                },
+            self.piece_center_coordinate(pos[1], p)
+                + if self[piece].0[0].axis() == Axis::Y
+                    && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                        || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+                {
+                    self.piece_center_coordinate(pos[1], p).signum() * p.sticker_grid_scale
+                } else {
+                    0.0
+                },
+            self.piece_center_coordinate(pos[2], p)
+                + if self[piece].0[0].axis() == Axis::Z
+                    && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                        || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+                {
+                    self.piece_center_coordinate(pos[2], p).signum() * p.sticker_grid_scale
+                } else {
+                    0.0
+                },
         )
     }
     fn sticker_center_3d(&self, sticker: Sticker, p: StickerGeometryParams) -> Point3<f32> {
@@ -431,6 +473,13 @@ impl Rubiks3D {
 
         let sticker_face = self.sticker_face(sticker);
         ret[sticker_face.axis() as usize] = sticker_face.sign().float();
+        if FaceEnum::from(sticker_info.color).axis() == Axis::X
+            && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+        {
+            ret[sticker_face.axis() as usize] +=
+                ret[sticker_face.axis() as usize].signum() * p.sticker_grid_scale * 2.0;
+        }
         ret
     }
 

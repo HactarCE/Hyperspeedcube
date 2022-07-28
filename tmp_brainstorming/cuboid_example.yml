@@ -1,0 +1,22 @@
+cuboid:
+  name: 2x3x4x4
+  ndim: 4
+  faces: [ +X * 2/2, +Y * 3/2, +Z * 4/2 ]
+  groups:
+    default: [ 'rot(+Z, +W)', 'rot(+Z, +X, -Z)', 'rot(+Z, +Y, -Z)' ]
+    # a: ...
+    # b: ...
+  twists:
+  - axis: +X
+    cuts: 3
+    # groups: [ a, b ]
+    transforms:
+    - rotAround(+Y, 90)
+    - rotAround(+Z, 180)
+  twists:
+  - axis: +Z
+    cuts: 3
+    transforms:
+    - rot(+X, +Y, -X)
+    - rot(+W, +X, -W)
+    - rot(+Y, +W, -Y)

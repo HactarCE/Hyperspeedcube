@@ -389,11 +389,40 @@ impl PuzzleState for Rubiks4D {
         let center = model_transform * self.sticker_center_4d(sticker, p);
 
         // Compute the vectors that span the volume of the sticker.
-        let Matrix4 { x, y, z, w: _ } = model_transform
+        let Matrix4 {
+            mut x,
+            mut y,
+            mut z,
+            w: _,
+        } = model_transform
             * face.basis_matrix()
             * p.sticker_scale
             // Invert outer face.
             * if face == FaceEnum::O { -1.0 } else { 1.0 };
+        x *= if self[piece].0[0].axis() == face.basis_faces()[0].axis()
+            && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+        {
+            2.0
+        } else {
+            1.0
+        };
+        y *= if self[piece].0[0].axis() == face.basis_faces()[1].axis()
+            && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+        {
+            2.0
+        } else {
+            1.0
+        };
+        z *= if self[piece].0[0].axis() == face.basis_faces()[2].axis()
+            && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+        {
+            2.0
+        } else {
+            1.0
+        };
 
         let project = |point_4d| Some(p.view_transform.transform_point(p.project_4d(point_4d)?));
 
@@ -499,10 +528,42 @@ impl Rubiks4D {
     fn piece_center_4d(&self, piece: Piece, p: StickerGeometryParams) -> Vector4<f32> {
         let pos = self.piece_location(piece);
         cgmath::vec4(
-            self.piece_center_coordinate(pos[0], p),
-            self.piece_center_coordinate(pos[1], p),
-            self.piece_center_coordinate(pos[2], p),
-            self.piece_center_coordinate(pos[3], p),
+            self.piece_center_coordinate(pos[0], p)
+                + if self[piece].0[0].axis() == Axis::X
+                    && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                        || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+                {
+                    self.piece_center_coordinate(pos[0], p).signum() * p.sticker_grid_scale
+                } else {
+                    0.0
+                },
+            self.piece_center_coordinate(pos[1], p)
+                + if self[piece].0[0].axis() == Axis::Y
+                    && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                        || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+                {
+                    self.piece_center_coordinate(pos[1], p).signum() * p.sticker_grid_scale
+                } else {
+                    0.0
+                },
+            self.piece_center_coordinate(pos[2], p)
+                + if self[piece].0[0].axis() == Axis::Z
+                    && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                        || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+                {
+                    self.piece_center_coordinate(pos[2], p).signum() * p.sticker_grid_scale
+                } else {
+                    0.0
+                },
+            self.piece_center_coordinate(pos[3], p)
+                + if self[piece].0[0].axis() == Axis::W
+                    && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                        || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+                {
+                    self.piece_center_coordinate(pos[3], p).signum() * p.sticker_grid_scale
+                } else {
+                    0.0
+                },
         )
     }
     fn sticker_center_4d(&self, sticker: Sticker, p: StickerGeometryParams) -> Vector4<f32> {
@@ -512,6 +573,13 @@ impl Rubiks4D {
 
         let sticker_face = self.sticker_face(sticker);
         ret[sticker_face.axis() as usize] = sticker_face.sign().float();
+        if FaceEnum::from(sticker_info.color).axis() == Axis::X
+            && (self.desc.piece_locations[piece.0 as usize][0] == 0
+                || self.desc.piece_locations[piece.0 as usize][0] == self.layer_count() - 1)
+        {
+            ret[sticker_face.axis() as usize] +=
+                ret[sticker_face.axis() as usize].signum() * p.sticker_grid_scale * 2.0;
+        }
         ret
     }
 

@@ -1,0 +1,24 @@
+simplex_6d:
+  name: Simplex 6D
+  ndim: 6
+  faces:
+  - -X
+  groups:
+  - rot(+X, +Y) * 4/3
+  - (+X).rot()
+
+
+
+simplex_3d:
+  name: Tetrahedron
+  ndim: 3
+  faces:
+  - +X
+  groups:
+  - rot(+X, +Y) * 4/3
+  - rot(+Y, +Z) * 4/3
+
+
+
+simplex_4d:
+  name:
