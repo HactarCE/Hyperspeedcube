@@ -64,6 +64,7 @@ interaction:
   hover_fade_duration: 0.1
   twist_duration: 0.2
   dynamic_twist_speed: true
+  drag_sensitivity: 0.7
 general_keybinds:
   - vk: O
     ctrl: true

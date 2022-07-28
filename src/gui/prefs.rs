@@ -410,6 +410,20 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
         );
     changed |= r.changed();
 
+    ui.separator();
+    ui.strong("View angle drag");
+    let r = ui.add(resettable!(
+        "Drag sensitivity",
+        (prefs.interaction.drag_sensitivity),
+        |value| {
+            egui::DragValue::new(value)
+                .fixed_decimals(2)
+                .clamp_range(0.0..=3.0_f32)
+                .speed(0.01)
+        },
+    ));
+    changed |= r.changed();
+
     prefs.needs_save |= changed;
 }
 fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {

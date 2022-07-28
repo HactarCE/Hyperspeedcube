@@ -65,11 +65,12 @@ impl StickerGeometryParams {
         view_prefs: &ViewPreferences,
         puzzle_type: PuzzleTypeEnum,
         twist_animation: Option<(Twist, f32)>,
+        view_angle_offset: [f32; 2],
     ) -> Self {
         // Compute the view and perspective transforms, which must be applied here
         // on the CPU so that we can do proper depth sorting.
-        let view_transform = Matrix3::from_angle_x(Deg(view_prefs.pitch))
-            * Matrix3::from_angle_y(Deg(view_prefs.yaw));
+        let view_transform = Matrix3::from_angle_x(Deg(view_prefs.pitch + view_angle_offset[1]))
+            * Matrix3::from_angle_y(Deg(view_prefs.yaw + view_angle_offset[0]));
 
         let ambient_light = 1.0 - view_prefs.light_intensity * 0.5; // TODO: make ambient light configurable
         let light_vector = Matrix3::from_angle_y(Deg(view_prefs.light_yaw))

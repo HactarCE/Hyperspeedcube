@@ -11,4 +11,6 @@ pub struct InteractionPreferences {
     pub hover_fade_duration: f32,
     pub twist_duration: f32,
     pub dynamic_twist_speed: bool,
+
+    pub drag_sensitivity: f32,
 }

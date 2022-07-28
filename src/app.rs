@@ -33,6 +33,9 @@ pub struct App {
     /// Semi-permanent selections.
     pub(crate) toggle_selections: TwistSelection,
 
+    dragging_view_angle: bool,
+    pub(crate) view_angle_offset: egui::Vec2,
+
     status_msg: String,
 }
 impl App {
@@ -51,6 +54,9 @@ impl App {
             pressed_modifiers: ModifiersState::default(),
             held_selections: HashMap::default(),
             toggle_selections: TwistSelection::default(),
+
+            dragging_view_angle: false,
+            view_angle_offset: egui::Vec2::default(),
 
             status_msg: String::default(),
         };
@@ -175,6 +181,18 @@ impl App {
                     twist.layers = self.selected_layers(Some(twist.layers));
                     self.puzzle.twist(twist)?;
                 }
+            }
+            AppEvent::Drag(delta) => {
+                self.dragging_view_angle = true;
+                self.view_angle_offset += delta * self.prefs.interaction.drag_sensitivity * 360.0;
+                let pitch = self.prefs.view[self.puzzle.ty()].pitch;
+                self.view_angle_offset.y =
+                    self.view_angle_offset.y.clamp(-90.0 - pitch, 90.0 - pitch);
+                self.view_angle_offset.x =
+                    (self.view_angle_offset.x + 180.0).rem_euclid(360.0) - 180.0;
+            }
+            AppEvent::DragReleased => {
+                self.dragging_view_angle = false;
             }
 
             AppEvent::StatusError(msg) => return Err(msg),
@@ -423,10 +441,16 @@ impl App {
         self.pressed_modifiers
     }
 
-    pub(crate) fn frame(&mut self, _delta: Duration) {
+    pub(crate) fn frame(&mut self, delta: Duration) {
         self.puzzle.set_selection(self.puzzle_selection());
         if self.puzzle.check_just_solved() {
             self.set_status_ok("Solved!");
+        }
+        if !self.dragging_view_angle {
+            self.view_angle_offset *= 0.02_f32.powf(delta.as_secs_f32());
+            if self.view_angle_offset.length_sq() < 0.01 {
+                self.view_angle_offset = egui::Vec2::ZERO;
+            }
         }
     }
 
@@ -533,6 +557,8 @@ pub(crate) enum AppEvent {
     Twist(Twist),
 
     Click(egui::PointerButton),
+    Drag(egui::Vec2),
+    DragReleased,
 
     StatusError(String),
 }

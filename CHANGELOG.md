@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - Option to hide frontfaces and backfaces in 3D puzzles
+- Temporarily adjusting view angle with mouse drag
 
 ### Changed
 

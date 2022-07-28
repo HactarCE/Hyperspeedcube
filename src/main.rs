@@ -259,6 +259,13 @@ async fn run() {
                                 app.event(AppEvent::Click(button))
                             }
                         }
+
+                        if r.dragged() {
+                            app.event(AppEvent::Drag(r.drag_delta() / egui_rect.size().min_elem()))
+                        }
+                        if r.drag_released() {
+                            app.event(AppEvent::DragReleased);
+                        }
                     });
 
                 if app.prefs.needs_save {

@@ -118,8 +118,12 @@ pub(crate) fn draw_puzzle(
     // Animate puzzle geometry.
     puzzle.update_geometry(delta, &prefs.interaction);
 
-    let sticker_geometry_params =
-        StickerGeometryParams::new(view_prefs, puzzle.ty(), puzzle.current_twist());
+    let sticker_geometry_params = StickerGeometryParams::new(
+        view_prefs,
+        puzzle.ty(),
+        puzzle.current_twist(),
+        [app.view_angle_offset.x, app.view_angle_offset.y],
+    );
 
     // Invalidate cache if parameters changed.
     force_redraw |= cache.set_params_and_invalidate(PuzzleRenderParams {
