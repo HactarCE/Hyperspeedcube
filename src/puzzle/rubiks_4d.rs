@@ -399,7 +399,6 @@ impl PuzzleState for Rubiks4D {
 
         // Decide what twists should happen when the sticker is clicked.
         let sticker_signs = self.sticker_signs_within_face(sticker);
-
         let twist_cw =
             TwistDirectionEnum::from_signs_within_face(sticker_signs).map(|twist_direction| {
                 Twist {
@@ -410,19 +409,44 @@ impl PuzzleState for Rubiks4D {
             });
         let twist_ccw = twist_cw.map(|t| self.reverse_twist(t));
         let twist_recenter = self.make_recenter_twist(face.into()).ok();
+        let mut twists = [[twist_ccw, twist_cw, twist_recenter]; 6];
+        // Replace corner twists with face twists on outermost faces of 1^4 and
+        // 2^4.
+        if self.layer_count() <= 2 {
+            let mut i = 0;
+            for ax in [Axis::X, Axis::Y, Axis::Z] {
+                for sign in [-1, 1] {
+                    if sticker_signs[ax as usize] == sign || self.layer_count() == 1 {
+                        if let Some(new_dir) = TwistDirectionEnum::from_signs_within_face(
+                            ax.unit_vec4().truncate() * sign,
+                        ) {
+                            let cw = new_dir.into();
+                            let ccw = new_dir.rev().into();
+                            if let Some(t) = &mut twists[i][0] {
+                                t.direction = ccw;
+                            }
+                            if let Some(t) = &mut twists[i][1] {
+                                t.direction = cw;
+                            }
+                        }
+                    }
+                    i += 1;
+                }
+            }
+        }
 
         StickerGeometry::new_cube(
             [
-                project(center + x + y + z)?,
-                project(center + x + y + -z)?,
-                project(center + x + -y + z)?,
-                project(center + x + -y + -z)?,
-                project(center + -x + y + z)?,
-                project(center + -x + y + -z)?,
-                project(center + -x + -y + z)?,
                 project(center + -x + -y + -z)?,
+                project(center + -x + -y + z)?,
+                project(center + -x + y + -z)?,
+                project(center + -x + y + z)?,
+                project(center + x + -y + -z)?,
+                project(center + x + -y + z)?,
+                project(center + x + y + -z)?,
+                project(center + x + y + z)?,
             ],
-            [[twist_ccw, twist_cw, twist_recenter]; 6],
+            twists,
         )
     }
 

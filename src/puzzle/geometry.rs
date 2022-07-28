@@ -182,7 +182,7 @@ impl StickerGeometry {
     ) -> Self {
         let mut ret = Self {
             verts: verts.to_vec(),
-            polygon_indices: vec![Box::new([2, 3, 1, 0]), Box::new([0, 1, 3, 2])],
+            polygon_indices: vec![Box::new([0, 2, 3, 1]), Box::new([2, 0, 1, 3])],
             polygon_twists: vec![[lmb, rmb, mmb], [rmb, lmb, mmb]],
         };
         if !back_face {
@@ -202,21 +202,21 @@ impl StickerGeometry {
         // Only show this sticker if the 3D volume is positive. (Cull it if its
         // 3D volume is negative.)
         Matrix3::from_cols(
-            verts[1] - verts[0],
-            verts[2] - verts[0],
             verts[4] - verts[0],
+            verts[2] - verts[0],
+            verts[1] - verts[0],
         )
         .determinant()
         .is_sign_positive()
         .then(|| Self {
             verts: verts.to_vec(),
             polygon_indices: vec![
-                Box::new([0, 1, 3, 2]),
-                Box::new([4, 6, 7, 5]),
-                Box::new([0, 2, 6, 4]),
-                Box::new([1, 5, 7, 3]),
-                Box::new([0, 4, 5, 1]),
-                Box::new([2, 3, 7, 6]),
+                Box::new([0, 2, 3, 1]),
+                Box::new([4, 5, 7, 6]),
+                Box::new([0, 1, 5, 4]),
+                Box::new([2, 6, 7, 3]),
+                Box::new([0, 4, 6, 2]),
+                Box::new([1, 3, 7, 5]),
             ],
             polygon_twists: twists.to_vec(),
         })
