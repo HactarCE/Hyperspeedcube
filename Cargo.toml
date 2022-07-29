@@ -14,7 +14,7 @@ ambassador = "0.3.1"
 anyhow = "1.0.55"
 bytemuck = { version = "1.9.1", features = ["derive"] }
 cgmath = "0.18.0"
-config = "0.12.0"
+config = "0.13.1"
 dark-light = "0.2.1"
 directories = "4.0.1"
 egui = "0.17.0"
@@ -27,7 +27,7 @@ epi = "0.17.0"
 hex = "0.4.3"
 human-panic = "1.0.3"
 itertools = "0.10.3"
-key-names = { git = "https://github.com/HactarCE/key-names", rev = "4cdd234", features = ["winit"] }
+key-names = { git = "https://github.com/HactarCE/key-names", tag = "v1.0.1", features = ["winit"] }
 lazy_static = "1.4.0"
 log = "0.4.16"
 num_enum = "0.5.7"
@@ -36,23 +36,23 @@ png = "0.17.5"
 pollster = "0.2.5"
 rand = "0.8.5"
 regex = "1.6.0"
-rfd = "0.8.0"
-send_wrapper = "0.5.0"
+rfd = "0.10.0"
+send_wrapper = "0.6.0"
 serde = { version = "1.0.136", features = ["derive"] }
-serde_yaml = "0.8.23"
+serde_yaml = "0.9.1"
 smallvec = { version = "1.8.0", features = ["serde"] }
 strum = { version = "0.24.0", features = ["derive"] }
 time = { version = "0.3.7", features = ["local-offset"] }
-wgpu = "0.12.0"
-winit = { version = "0.26.1", features = ["serde"] }
+wgpu = "0.12.0" # do not update wgpu until https://github.com/gfx-rs/wgpu/pull/2902 is merged
+winit = { version = "0.26.0", features = ["serde"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
 console_log = "0.2.0"
-wgpu = { version = "0.12", features = ["webgl"] }
+wgpu = { version = "0.12.0", features = ["webgl"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = [
+web-sys = { version = "=0.3.53", features = [
     "Document",
     "Window",
     "Element",
