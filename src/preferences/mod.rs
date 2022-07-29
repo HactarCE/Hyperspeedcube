@@ -99,10 +99,13 @@ pub struct Preferences {
     pub gfx: GfxPreferences,
     pub view: PerPuzzle<ViewPreferences>,
     pub outlines: OutlinePreferences,
+    #[serde(skip)]
     pub colors: ColorPreferences,
     pub interaction: InteractionPreferences,
 
+    #[serde(skip)]
     pub general_keybinds: Vec<Keybind<Command>>,
+    #[serde(skip)]
     pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
 }
 impl Preferences {
