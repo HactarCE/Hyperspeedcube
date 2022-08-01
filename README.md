@@ -42,6 +42,6 @@ Keyboard controls are completely customizable. An interactive keybind reference 
 - [ ] Keybind hints on puzzle
 - [ ] Keybind hints in menus
 - [x] Keymap display
-- [ ] Adjust 3D view using mouse
+- [x] Adjust 3D view using mouse
 - [x] Mouse controls for puzzle
 - [ ] Timeline
