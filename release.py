@@ -13,6 +13,7 @@ REPO = "HactarCE/Hyperspeedcube"
 
 
 # Shamelessly stolen from https://stackoverflow.com/a/31499114/4958484
+# Modified so as not to keep file attributes, such as modification time
 def sed_inplace(filename, pattern, repl):
     ''',
     Perform the pure-Python equivalent of in-place `sed` substitution: e.g.,
@@ -30,9 +31,7 @@ def sed_inplace(filename, pattern, repl):
             for line in src_file:
                 tmp_file.write(pattern_compiled.sub(repl, line))
 
-    # Overwrite the original file with the munged temporary file in a
-    # manner preserving file attributes (e.g., permissions).
-    shutil.copystat(filename, tmp_file.name)
+    # Overwrite the original file with the munged temporary file.
     shutil.move(tmp_file.name, filename)
 
 
