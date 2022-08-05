@@ -1,4 +1,11 @@
 ---
+info:
+  metric: STM
+  keybinds_reference:
+    function: false
+    navigation: false
+    numpad: false
+    opacity: 1.0
 gfx:
   msaa: true
 view:
@@ -8,7 +15,9 @@ view:
     scale: 1.25
     fov_3d: 30.0
     fov_4d: 30.0
-    face_spacing: 0.025
+    show_frontfaces: true
+    show_backfaces: true
+    face_spacing: 0.03
     sticker_spacing: 0.05
     outline_thickness: 2.0
     light_intensity: 0.0
@@ -20,6 +29,8 @@ view:
     scale: 1.0
     fov_3d: 0.0
     fov_4d: 30.0
+    show_frontfaces: true
+    show_backfaces: true
     face_spacing: 0.7
     sticker_spacing: 0.3
     outline_thickness: 1.0
@@ -103,11 +114,11 @@ general_keybinds:
       new_puzzle:
         Rubiks3D:
           layer_count: 3
-  # - vk: F4
-  #   command:
-  #     new_puzzle:
-  #       Rubiks4D:
-  #         layer_count: 3
+  - vk: F4
+    command:
+      new_puzzle:
+        Rubiks4D:
+          layer_count: 3
 puzzle_keybinds:
   Rubiks3D:
     - sc: ShiftLeft
@@ -452,10 +463,3 @@ puzzle_keybinds:
     - sc: Digit9
       command:
         select_layers: 256
-info:
-  metric: STM
-  keybinds_reference:
-    function: false
-    navigation: false
-    numpad: false
-    opacity: 1.0
