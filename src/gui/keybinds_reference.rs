@@ -153,7 +153,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         ui.strong(twist_axis);
                     }
                     PuzzleCommand::SelectLayers(layers) => {
-                        let layers = *layers & puzzle_type.all_layers();
+                        let layers = layers.to_layer_mask(puzzle_type.layer_count());
                         if layers != LayerMask(0) {
                             ui.label("Select");
                             ui.strong(layers.long_description());
@@ -165,7 +165,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         direction,
                         layers,
                     } => {
-                        let layers = *layers & puzzle_type.all_layers();
+                        let layers = layers.to_layer_mask(puzzle_type.layer_count());
                         if layers == puzzle_type.all_layers() {
                             ui.label("Rotate");
                             ui.strong("whole puzzle");

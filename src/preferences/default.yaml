@@ -123,10 +123,10 @@ puzzle_keybinds:
   Rubiks3D:
     - sc: ShiftLeft
       command:
-        select_layers: 3
+        select_layers: 1..2
     - sc: ShiftRight
       command:
-        select_layers: 3
+        select_layers: 1..2
     - sc: KeyE
       command:
         twist:
@@ -156,25 +156,25 @@ puzzle_keybinds:
         twist:
           axis: L
           direction: CCW
-          layers: 2
+          layers: 2..-2
     - sc: KeyV
       command:
         twist:
           axis: L
           direction: CW
-          layers: 2
+          layers: 2..-2
     - sc: KeyU
       command:
         twist:
           axis: R
           direction: CW
-          layers: 2
+          layers: 2..-2
     - sc: KeyM
       command:
         twist:
           axis: R
           direction: CCW
-          layers: 2
+          layers: 2..-2
     - sc: KeyF
       command:
         twist:
@@ -228,25 +228,25 @@ puzzle_keybinds:
         twist:
           axis: L
           direction: CCW
-          layers: 511
+          layers: 1..-1
     - sc: KeyB
       command:
         twist:
           axis: L
           direction: CW
-          layers: 511
+          layers: 1..-1
     - sc: KeyY
       command:
         twist:
           axis: R
           direction: CW
-          layers: 511
+          layers: 1..-1
     - sc: KeyN
       command:
         twist:
           axis: R
           direction: CCW
-          layers: 511
+          layers: 1..-1
     - sc: KeyA
       command:
         recenter:
@@ -260,37 +260,37 @@ puzzle_keybinds:
         twist:
           axis: F
           direction: CCW
-          layers: 511
+          layers: 1..-1
     - sc: KeyP
       command:
         twist:
           axis: F
           direction: CW
-          layers: 511
+          layers: 1..-1
     - sc: KeyZ
       command:
         twist:
           axis: F
           direction: CCW
-          layers: 2
+          layers: 2..-2
     - sc: Slash
       command:
         twist:
           axis: F
           direction: CW
-          layers: 2
+          layers: 2..-2
     - sc: KeyX
       command:
         twist:
           axis: D
           direction: CW
-          layers: 2
+          layers: 2..-2
     - sc: Period
       command:
         twist:
           axis: D
           direction: CCW
-          layers: 2
+          layers: 2..-2
     - sc: Digit1
       command:
         select_layers: 1
@@ -299,32 +299,33 @@ puzzle_keybinds:
         select_layers: 2
     - sc: Digit3
       command:
-        select_layers: 4
+        select_layers: 3
     - sc: Digit4
       command:
-        select_layers: 8
+        select_layers: 4
     - sc: Digit5
       command:
-        select_layers: 16
+        select_layers: 5
     - sc: Digit6
       command:
-        select_layers: 32
+        select_layers: 6
     - sc: Digit7
       command:
-        select_layers: 64
+        select_layers: 7
     - sc: Digit8
       command:
-        select_layers: 128
+        select_layers: 8
     - sc: Digit9
       command:
-        select_layers: 256
+        select_layers: 9
+
   Rubiks4D:
     - sc: ShiftLeft
       command:
-        select_layers: 3
+        select_layers: 1..2
     - sc: ShiftRight
       command:
-        select_layers: 3
+        select_layers: 1..2
     - sc: AltLeft
       command:
         select_layers: 2
@@ -393,49 +394,49 @@ puzzle_keybinds:
         twist:
           axis: I
           direction: x
-          layers: 511
+          layers: 1..-1
     - sc: KeyY
       command:
         twist:
           axis: I
           direction: x
-          layers: 511
+          layers: 1..-1
     - sc: KeyB
       command:
         twist:
           axis: I
           direction: "x'"
-          layers: 511
+          layers: 1..-1
     - sc: KeyN
       command:
         twist:
           axis: I
           direction: "x'"
-          layers: 511
+          layers: 1..-1
     - sc: KeyA
       command:
         twist:
           axis: I
           direction: "y'"
-          layers: 511
+          layers: 1..-1
     - sc: Semicolon
       command:
         twist:
           axis: I
           direction: y
-          layers: 511
+          layers: 1..-1
     - sc: KeyQ
       command:
         twist:
           axis: I
           direction: "z'"
-          layers: 511
+          layers: 1..-1
     - sc: KeyP
       command:
         twist:
           axis: I
           direction: z
-          layers: 511
+          layers: 1..-1
     - sc: Digit1
       command:
         select_layers: 1
@@ -444,22 +445,22 @@ puzzle_keybinds:
         select_layers: 2
     - sc: Digit3
       command:
-        select_layers: 4
+        select_layers: 3
     - sc: Digit4
       command:
-        select_layers: 8
+        select_layers: 4
     - sc: Digit5
       command:
-        select_layers: 16
+        select_layers: 5
     - sc: Digit6
       command:
-        select_layers: 32
+        select_layers: 6
     - sc: Digit7
       command:
-        select_layers: 64
+        select_layers: 7
     - sc: Digit8
       command:
-        select_layers: 128
+        select_layers: 8
     - sc: Digit9
       command:
-        select_layers: 256
+        select_layers: 9

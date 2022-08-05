@@ -5,7 +5,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fmt;
-use std::ops::{BitAnd, BitOr, BitXorAssign, Index, Mul, Neg, RangeInclusive};
+use std::ops::{BitAnd, BitOr, BitXorAssign, Index, Mul, Neg, Not, RangeInclusive};
 use std::str::FromStr;
 use strum::{Display, EnumIter, EnumMessage};
 
@@ -607,8 +607,11 @@ impl Default for LayerMask {
 }
 impl From<RangeInclusive<u8>> for LayerMask {
     fn from(range: RangeInclusive<u8>) -> Self {
-        let lo = *range.start();
-        let hi = std::cmp::min(*range.end(), 31);
+        let mut lo = *range.start();
+        let mut hi = std::cmp::min(*range.end(), 31);
+        if lo > hi {
+            std::mem::swap(&mut lo, &mut hi);
+        }
         let count = hi - lo + 1;
         Self(((1 << count) - 1) << lo)
     }
@@ -637,6 +640,13 @@ impl BitAnd for LayerMask {
         Self(self.0 & rhs.0)
     }
 }
+impl Not for LayerMask {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Self(!self.0)
+    }
+}
 impl LayerMask {
     pub(crate) fn slice_layers(total_layer_count: u8) -> Option<Self> {
         (total_layer_count >= 3).then(|| Self((Self::all_layers(total_layer_count).0 >> 1) & !1))
@@ -647,13 +657,6 @@ impl LayerMask {
 
     pub(crate) fn is_default(self) -> bool {
         self == Self::default()
-    }
-    pub(crate) fn digits(self) -> String {
-        // Just give up if there's more than 9 layers.
-        (0..9)
-            .filter(|&i| self[i])
-            .map(|i| (i as u8 + b'1') as char)
-            .collect()
     }
     pub(crate) fn long_description(self) -> String {
         match self.count() {

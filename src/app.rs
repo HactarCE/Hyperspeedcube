@@ -265,6 +265,7 @@ impl App {
                                     }
                                 }
                                 PuzzleCommand::SelectLayers(layers) => {
+                                    let layers = layers.to_layer_mask(self.puzzle.layer_count());
                                     self.held_selections.insert(
                                         bind.key.key().unwrap(),
                                         TwistSelection {
@@ -280,8 +281,10 @@ impl App {
                                 } => {
                                     if !done_twist_command {
                                         done_twist_command = true;
+                                        let layers =
+                                            layers.to_layer_mask(self.puzzle.layer_count());
                                         if let Err(e) =
-                                            self.do_twist(axis.as_deref(), direction, *layers)
+                                            self.do_twist(axis.as_deref(), direction, layers)
                                         {
                                             self.event(AppEvent::StatusError(e));
                                         }

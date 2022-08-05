@@ -1,9 +1,10 @@
 use std::hash::Hash;
 
-use super::util::{self, ComboBoxExt, FancyComboBox};
+use super::util::{self, ComboBoxExt, FancyComboBox, ResponseExt};
 use crate::app::App;
 use crate::commands::{
-    Command, PuzzleCommand, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX, PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
+    Command, LayerMaskDesc, PuzzleCommand, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX,
+    PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
 };
 use crate::preferences::{Keybind, Preferences};
 use crate::puzzle::*;
@@ -16,6 +17,7 @@ struct DragData {
 
 const SQUARE_BUTTON_SIZE: egui::Vec2 = egui::vec2(24.0, 24.0);
 const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
+const LAYER_DESCRIPTION_WIDTH: f32 = 50.0;
 
 pub(super) trait KeybindSet: 'static + Copy + Send + Sync {
     type Command: Default + Clone + Eq;
@@ -350,11 +352,11 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
                     "None" => Cmd::None,
 
                     "Select axis" => Cmd::SelectAxis(puzzle_type.twist_axes()[0].name.to_owned()),
-                    "Select layers" => Cmd::SelectLayers(LayerMask::default()),
+                    "Select layers" => Cmd::SelectLayers(LayerMaskDesc::default()),
                     "Twist" => Cmd::Twist {
                         axis: None,
                         direction: puzzle_type.twist_directions()[0].name.to_owned(),
-                        layers: LayerMask::default(),
+                        layers: LayerMaskDesc::default(),
                     },
                     "Recenter" => Cmd::Recenter { axis: None },
                 }
@@ -377,9 +379,9 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
                 Cmd::SelectLayers(layers) => {
                     add_pre_label_space(ui);
                     ui.label("Layers:");
-                    let r = ui.add(LayerMaskCheckboxes {
-                        layer_mask: layers,
-                        layer_count: puzzle_type.family_max_layer_count(),
+                    let r = ui.add(LayerMaskEdit {
+                        id: unique_id!(self.idx),
+                        layers,
                     });
                     changed |= r.changed();
                 }
@@ -408,9 +410,9 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
 
                     add_pre_label_space(ui);
                     ui.label("Layers:");
-                    let r = ui.add(LayerMaskCheckboxes {
-                        layer_mask: layers,
-                        layer_count: puzzle_type.family_max_layer_count(),
+                    let r = ui.add(LayerMaskEdit {
+                        id: unique_id!(self.idx),
+                        layers,
                     });
                     changed |= r.changed();
                 }
@@ -434,36 +436,63 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
     }
 }
 
-struct LayerMaskCheckboxes<'a> {
-    layer_mask: &'a mut LayerMask,
-    layer_count: u8,
+struct LayerMaskEdit<'a> {
+    id: egui::Id,
+    layers: &'a mut LayerMaskDesc,
 }
-impl egui::Widget for LayerMaskCheckboxes<'_> {
+impl<'a> egui::Widget for LayerMaskEdit<'a> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
+        let mut r = ui
+            .scope(|ui| {
+                let text_id = self.id.with("layer_text");
 
-        let mut r = ui.scope(|ui| {
-            // Checkbox size workaround
-            ui.spacing_mut().interact_size.x = 0.0;
-            ui.spacing_mut().button_padding.x = 0.0;
+                let default_string = format!("{{{}}}", self.layers);
 
-            for i in 0..self.layer_count {
-                let mut flag = self.layer_mask.0 & (1 << i) != 0;
+                let mut text: String = ui
+                    .data()
+                    .get_temp(text_id)
+                    .unwrap_or(default_string.clone());
 
-                let r = ui
-                    .checkbox(&mut flag, "")
-                    .on_hover_text(format!("{}", i + 1));
+                let r = egui::TextEdit::singleline(&mut text)
+                    .desired_width(LAYER_DESCRIPTION_WIDTH)
+                    .show(ui)
+                    .response;
+
                 if r.changed() {
-                    self.layer_mask.0 ^= 1 << i;
+                    // Try to parse the new layer mask string.
+                    *self.layers = text
+                        .trim_start_matches('{')
+                        .trim_end_matches('}')
+                        .parse()
+                        .unwrap_or_default();
                     changed = true;
+                } else if !r.has_focus() {
+                    text = default_string;
                 }
-            }
-        });
 
+                r.on_hover_explanation(
+                    "Layer mask string",
+                    "Comma-separated list of layers or layer ranges, such as '1..3'. \
+                     Negative numbers count from the other side of the puzzle. \
+                     Exclamation mark prefix excludes a range.\n\
+                     \n\
+                     Examples:\n\
+                     • {1} = outer layer\n\
+                     • {2} = next layer in\n\
+                     • {1,-1} = outer layer on either side\n\
+                     • {1..3} = three outer layers\n\
+                     • {1..-1} = whole puzzle\n\
+                     • {1..-1,!3} = all except layer 3",
+                );
+
+                ui.data().insert_temp(text_id, text);
+            })
+            .response;
         if changed {
-            r.response.mark_changed();
+            r.mark_changed();
         }
-        r.response
+        r
     }
 }
 
