@@ -42,7 +42,16 @@ const ICON_32: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.pn
 
 fn main() {
     // Initialize logging.
-    env_logger::init();
+    env_logger::builder()
+        .filter_module(
+            "hyperspeedcube",
+            if cfg!(debug_assertions) {
+                log::LevelFilter::Debug
+            } else {
+                log::LevelFilter::Warn
+            },
+        )
+        .init();
 
     let human_panic_metadata = human_panic::Metadata {
         name: TITLE.into(),
