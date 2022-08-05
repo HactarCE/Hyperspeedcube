@@ -290,20 +290,16 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                     "Redo" => Cmd::Redo,
                     "Reset" => Cmd::Reset,
 
-                    "Scramble partially" => Cmd::ScrambleN {
-                        n: PARTIAL_SCRAMBLE_MOVE_COUNT_MIN
-                    },
+                    "Scramble partially" => Cmd::ScrambleN(PARTIAL_SCRAMBLE_MOVE_COUNT_MIN),
                     "Scramble fully" => Cmd::ScrambleFull,
                     "Toggle blindfold" => Cmd::ToggleBlindfold,
-                    "New puzzle" => Cmd::NewPuzzle {
-                        ty: PuzzleTypeEnum::default()
-                    },
+                    "New puzzle" => Cmd::NewPuzzle(PuzzleTypeEnum::default()),
                 }
             );
             changed |= r.changed();
 
             match self.cmd {
-                Cmd::ScrambleN { n } => {
+                Cmd::ScrambleN(n) => {
                     add_pre_label_space(ui);
                     ui.horizontal(|ui| {
                         ui.label("Moves:");
@@ -314,14 +310,15 @@ impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
                     });
                 }
 
-                Cmd::NewPuzzle { ty } => {
+                Cmd::NewPuzzle(puzzle_type) => {
                     add_pre_label_space(ui);
                     ui.horizontal(|ui| {
                         ui.label("Type:");
-                        if let Some(Some(new_ty)) =
-                            ui.menu_button(ty.name(), util::puzzle_select_menu).inner
+                        if let Some(Some(ty)) = ui
+                            .menu_button(puzzle_type.name(), util::puzzle_select_menu)
+                            .inner
                         {
-                            *ty = new_ty;
+                            *puzzle_type = ty;
                         }
                     });
                 }

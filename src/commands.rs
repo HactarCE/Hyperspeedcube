@@ -24,15 +24,11 @@ pub enum Command {
     Reset,
 
     // Scramble menu
-    ScrambleN {
-        n: usize,
-    },
+    ScrambleN(usize),
     ScrambleFull,
 
     // Puzzle menu
-    NewPuzzle {
-        ty: PuzzleTypeEnum,
-    },
+    NewPuzzle(PuzzleTypeEnum),
 
     ToggleBlindfold,
 
@@ -52,10 +48,10 @@ impl Command {
             Command::Redo => "⮫".to_owned(),
             Command::Reset => "⟲".to_owned(),
 
-            Command::ScrambleN { n } => format!("🔀 {n}"),
+            Command::ScrambleN(n) => format!("🔀 {n}"),
             Command::ScrambleFull => "🔀".to_owned(),
 
-            Command::NewPuzzle { ty } => format!("New {}", ty.name()),
+            Command::NewPuzzle(ty) => format!("New {}", ty.name()),
 
             Command::ToggleBlindfold => "BLD".to_owned(),
 

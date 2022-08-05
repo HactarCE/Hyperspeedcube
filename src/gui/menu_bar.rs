@@ -48,7 +48,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             for n in 1..=8 {
                 if ui.button(n.to_string()).clicked() {
                     ui.close_menu();
-                    app.event(Command::ScrambleN { n });
+                    app.event(Command::ScrambleN(n));
                 }
             }
             ui.separator();
@@ -60,7 +60,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
         ui.menu_button("Puzzle", |ui| {
             if let Some(ty) = super::util::puzzle_select_menu(ui) {
-                app.event(Command::NewPuzzle { ty });
+                app.event(Command::NewPuzzle(ty));
             }
         });
 

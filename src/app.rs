@@ -134,7 +134,7 @@ impl App {
                     }
                 }
 
-                Command::ScrambleN { n } => {
+                Command::ScrambleN(n) => {
                     if self.confirm_discard_changes("scramble") {
                         // TODO: `n` is not validated. It may be `0` (which is
                         // harmless) or `usize::MAX` (which will freeze the
@@ -154,11 +154,11 @@ impl App {
                     }
                 }
 
-                Command::NewPuzzle { ty } => {
+                Command::NewPuzzle(puzzle_type) => {
                     if self.confirm_discard_changes("reset puzzle") {
-                        self.puzzle = PuzzleController::new(ty);
+                        self.puzzle = PuzzleController::new(puzzle_type);
                         self.prefs.log_file = None;
-                        self.set_status_ok(format!("Loaded {}", ty));
+                        self.set_status_ok(format!("Loaded {}", puzzle_type));
                     }
                 }
 
