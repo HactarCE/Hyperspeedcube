@@ -6,6 +6,7 @@ use crate::puzzle::TwistMetric;
 #[serde(default)]
 pub struct InfoPreferences {
     pub metric: TwistMetric,
+    #[serde(skip)]
     pub qtm: bool,
     pub keybinds_reference: KeybindsReferencePreferences,
 }
