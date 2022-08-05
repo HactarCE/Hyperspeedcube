@@ -39,7 +39,7 @@ regex = "1.6.0"
 rfd = "0.10.0"
 send_wrapper = "0.6.0"
 serde = { version = "1.0.136", features = ["derive"] }
-serde_yaml = "0.9.1"
+serde_yaml = "0.8.23"
 smallvec = { version = "1.8.0", features = ["serde"] }
 strum = { version = "0.24.0", features = ["derive"] }
 time = { version = "0.3.7", features = ["local-offset"] }

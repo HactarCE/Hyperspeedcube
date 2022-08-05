@@ -4,6 +4,12 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [UNRELEASED]
+
+### Fixed
+
+- Preferences saving/loading now works again
+
 ## [0.7.2] - 2022-07-29 [YANKED]
 
 ## [0.7.1] - 2022-07-29
@@ -17,6 +23,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Overhauled turn metrics
 - Clicking outer stickers on 1x1x1x1 and 2x2x2x2 now executes 90-degree twists
+
+### Known issues
+
+- Preferences saving/loading is broken
 
 ## [0.7.0] - 2022-07-27
 

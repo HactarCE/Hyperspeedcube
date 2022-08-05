@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::ops::{Index, IndexMut};
 
 use super::PerPuzzle;
@@ -19,7 +19,7 @@ pub struct ColorPreferences {
     pub blind_face: egui::Color32,
     pub blindfold: bool,
 
-    pub faces: PerPuzzle<HashMap<String, FaceColor>>,
+    pub faces: PerPuzzle<BTreeMap<String, FaceColor>>,
 }
 impl Index<(PuzzleTypeEnum, Face)> for ColorPreferences {
     type Output = egui::Color32;

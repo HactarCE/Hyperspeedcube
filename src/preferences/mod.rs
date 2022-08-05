@@ -5,7 +5,7 @@
 
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::collections::{hash_map, HashMap};
+use std::collections::{btree_map, BTreeMap};
 use std::error::Error;
 use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
@@ -188,7 +188,7 @@ impl Preferences {
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(transparent)]
 pub struct PerPuzzle<T> {
-    map: HashMap<String, T>,
+    map: BTreeMap<String, T>,
     #[serde(skip)]
     default: T,
 }
@@ -205,7 +205,7 @@ impl<T: Default> IndexMut<PuzzleTypeEnum> for PerPuzzle<T> {
     }
 }
 impl<T> PerPuzzle<T> {
-    fn entry(&mut self, puzzle_type: PuzzleTypeEnum) -> hash_map::Entry<'_, String, T> {
+    fn entry(&mut self, puzzle_type: PuzzleTypeEnum) -> btree_map::Entry<'_, String, T> {
         self.map
             .entry(puzzle_type.family_internal_name().to_owned())
     }
