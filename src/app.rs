@@ -176,10 +176,13 @@ impl App {
             }
 
             AppEvent::Click(mouse_button) => {
-                if let Some(mut twist) = self.puzzle.hovered_sticker_twists()[mouse_button as usize]
-                {
-                    twist.layers = self.selected_layers(Some(twist.layers));
-                    self.puzzle.twist(twist)?;
+                if self.puzzle.current_twist().is_none() {
+                    if let Some(mut twist) =
+                        self.puzzle.hovered_sticker_twists()[mouse_button as usize]
+                    {
+                        twist.layers = self.selected_layers(Some(twist.layers));
+                        self.puzzle.twist(twist)?;
+                    }
                 }
             }
             AppEvent::Drag(delta) => {
