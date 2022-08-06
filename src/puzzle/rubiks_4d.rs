@@ -35,6 +35,17 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
         let full_range = (0..layer_count).collect_vec();
         let ends = [0, layer_count - 1];
 
+        let center_coord = (layer_count % 2 == 0) as u8;
+        let mut piece_types = (center_coord..=layer_count / 2)
+            .flat_map(|z| {
+                (center_coord..=z).flat_map(move |y| {
+                    (center_coord..=y)
+                        .map(move |x| PieceTypeEnum::from_offset([x, y, z, layer_count / 2]))
+                })
+            })
+            .collect_vec();
+        piece_types.sort();
+
         let mut piece_locations = vec![];
         for w in 0..layer_count {
             let w_min = w == 0;
@@ -75,9 +86,30 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
                         push_sticker_if(w_max, FaceEnum::O.into());
                         push_sticker_if(w_min, FaceEnum::I.into());
 
+                        let piece_type = {
+                            // Compute the distance of each coordinate from the
+                            // center. 0 = centered along axis (only exists for odd
+                            // puzzles).
+                            let center = (layer_count - 1) as f32 / 2.0;
+                            let x = (x as f32 - center).abs().ceil() as u8;
+                            let y = (y as f32 - center).abs().ceil() as u8;
+                            let z = (z as f32 - center).abs().ceil() as u8;
+                            let w = (w as f32 - center).abs().ceil() as u8;
+                            PieceType(
+                                piece_types
+                                    .iter()
+                                    .find_position(|&&p| {
+                                        p == PieceTypeEnum::from_offset([x, y, z, w])
+                                    })
+                                    .map(|(i, _)| i)
+                                    .unwrap_or(0) as _, // shouldn't ever happen
+                            )
+                        };
+
                         piece_locations.push([x, y, z, w]);
                         pieces.push(PieceInfo {
                             stickers: piece_stickers,
+                            piece_type,
                         })
                     }
                 }
@@ -141,6 +173,10 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
             stickers,
             twist_axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
             twist_directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
+            piece_types: piece_types
+                .into_iter()
+                .map(|piece_type| PieceTypeInfo::new(piece_type.to_string()))
+                .collect(),
             notation,
 
             piece_locations,
@@ -159,6 +195,7 @@ struct Rubiks4DDescription {
     stickers: Vec<StickerInfo>,
     twist_axes: Vec<TwistAxisInfo>,
     twist_directions: Vec<TwistDirectionInfo>,
+    piece_types: Vec<PieceTypeInfo>,
     notation: NotationScheme,
 
     piece_locations: Vec<[u8; 4]>,
@@ -214,6 +251,9 @@ impl PuzzleType for Rubiks4DDescription {
     }
     fn twist_directions(&self) -> &[TwistDirectionInfo] {
         &self.twist_directions
+    }
+    fn piece_types(&self) -> &[PieceTypeInfo] {
+        &self.piece_types
     }
 
     fn opposite_twist_axis(&self, twist_axis: TwistAxis) -> Option<TwistAxis> {
@@ -410,24 +450,25 @@ impl PuzzleState for Rubiks4D {
         let twist_ccw = twist_cw.map(|t| self.reverse_twist(t));
         let twist_recenter = self.make_recenter_twist(face.into()).ok();
         let mut twists = [[twist_ccw, twist_cw, twist_recenter]; 6];
-        // Replace corner twists with face twists on outermost faces of 1^4 and
-        // 2^4.
-        if self.layer_count() <= 2 {
+        // Replace corner twists with face twists on centermost pieces.
+        if self.is_centermost_piece(piece) {
             let mut i = 0;
             for ax in [Axis::X, Axis::Y, Axis::Z] {
                 for sign in [-1, 1] {
-                    if sticker_signs[ax as usize] == sign || self.layer_count() == 1 {
+                    if sticker_signs[ax as usize] == sign || self.layer_count() % 2 == 1 {
                         if let Some(new_dir) = TwistDirectionEnum::from_signs_within_face(
                             ax.unit_vec4().truncate() * sign,
                         ) {
-                            let cw = new_dir.into();
-                            let ccw = new_dir.rev().into();
-                            if let Some(t) = &mut twists[i][0] {
-                                t.direction = ccw;
-                            }
-                            if let Some(t) = &mut twists[i][1] {
-                                t.direction = cw;
-                            }
+                            twists[i][0] = Some(Twist {
+                                axis: face.into(),
+                                direction: new_dir.rev().into(),
+                                layers: LayerMask::default(),
+                            });
+                            twists[i][1] = Some(Twist {
+                                axis: face.into(),
+                                direction: new_dir.into(),
+                                layers: LayerMask::default(),
+                            });
                         }
                     }
                     i += 1;
@@ -483,19 +524,32 @@ impl Rubiks4D {
         }
         ret
     }
+    fn piece_location_from_center(&self, piece: Piece) -> [i8; 4] {
+        let center = (self.layer_count() - 1) as f32 / 2.0;
+        self.piece_location(piece)
+            .map(|x| (x as f32 - center).round() as i8)
+    }
     fn piece_location_signs(&self, piece: Piece) -> Vector4<i8> {
-        let get_sign = |i| {
-            if i == 0 {
-                -1
-            } else if i == self.layer_count() - 1 {
-                1
-            } else {
-                0
-            }
-        };
+        let mut coords = self.piece_location_from_center(piece);
+        let [x, y, z, w] = coords;
+        coords.sort_by_key(|x| x.abs());
+        let hi_coord = coords[2].abs();
 
-        let [x, y, z, w] = self.piece_location(piece);
-        cgmath::vec4(get_sign(x), get_sign(y), get_sign(z), get_sign(w))
+        if hi_coord == 0 {
+            Vector4::zero() // don't divide by zero
+        } else {
+            cgmath::vec4(x, y, z, w) / hi_coord
+        }
+    }
+    fn is_centermost_piece(&self, piece: Piece) -> bool {
+        let mut coords = self.piece_location_from_center(piece);
+        coords.sort_by_key(|x| x.abs());
+        let hi = coords[2];
+        if self.layer_count() % 2 == 0 {
+            hi.abs() == 1
+        } else {
+            hi == 0
+        }
     }
     fn sticker_signs_within_face(&self, sticker: Sticker) -> Vector3<i8> {
         let face = self.sticker_face(sticker);
@@ -1219,6 +1273,106 @@ impl TwistDirectionEnum {
         }
 
         Ok(Self::from_piece_state_on_face(piece_state, face))
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum PieceTypeEnum {
+    Piece,
+    Corner,
+    Edge,
+    Wing(u8),
+    Ridge,
+    TRidge(u8),
+    XRidge(u8),
+    ObliqueRidge(u8, u8),
+    Center,
+    TCenter(u8),
+    XCenter(u8),
+    YCenter(u8, u8),
+    SemiOblique(u8, u8, u8),
+    Oblique(u8, u8, u8),
+}
+impl ToString for PieceTypeEnum {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Piece => format!("piece"),
+            Self::Corner => format!("corner"),
+            Self::Edge => format!("edge"),
+            Self::Wing(0) => format!("wing"),
+            Self::Wing(x) => format!("wing ({x})"),
+            Self::Ridge => format!("ridge"),
+            Self::TRidge(0) => format!("T-ridge"),
+            Self::TRidge(x) => format!("T-ridge ({x})"),
+            Self::XRidge(0) => format!("X-ridge"),
+            Self::XRidge(x) => format!("X-ridge ({x})"),
+            Self::ObliqueRidge(0, 0) => format!("oblique ridge"),
+            Self::ObliqueRidge(x, y) => format!("oblique ridge ({x},{y})"),
+            Self::Center => format!("center"),
+            Self::TCenter(0) => format!("T-center"),
+            Self::TCenter(x) => format!("T-center ({x})"),
+            Self::XCenter(0) => format!("X-center"),
+            Self::XCenter(x) => format!("X-center ({x})"),
+            Self::YCenter(0, 0) => format!("Y-center"),
+            Self::YCenter(x, y) => format!("Y-center ({x},{y})"),
+            Self::SemiOblique(0, 0, 0) => format!("semi-oblique"),
+            Self::SemiOblique(x, y, z) => format!("semi-oblique ({x},{y},{z})"),
+            Self::Oblique(0, 0, 0) => format!("oblique"),
+            Self::Oblique(x, y, z) => format!("oblique ({x},{y},{z})"),
+        }
+    }
+}
+impl PieceTypeEnum {
+    fn from_offset(mut coords: [u8; 4]) -> Self {
+        coords.sort();
+        let [min, lo, hi, max] = coords;
+        if max == 0 {
+            Self::Piece
+        } else if min == max {
+            Self::Corner
+        } else if lo == max {
+            if min == 0 {
+                Self::Edge
+            } else if max < 3 {
+                Self::Wing(0)
+            } else {
+                Self::Wing(min)
+            }
+        } else if hi == max {
+            if lo == 0 {
+                Self::Ridge
+            } else if min == 0 {
+                Self::TRidge(if max < 3 { 0 } else { lo })
+            } else if min == lo {
+                Self::XRidge(if max < 3 { 0 } else { lo })
+            } else {
+                if max < 4 {
+                    Self::ObliqueRidge(0, 0)
+                } else {
+                    Self::ObliqueRidge(min, lo)
+                }
+            }
+        } else if hi == 0 {
+            Self::Center
+        } else if lo == 0 {
+            Self::TCenter(if max < 3 { 0 } else { hi })
+        } else if min == 0 {
+            if max < 3 {
+                Self::YCenter(0, 0)
+            } else {
+                Self::YCenter(lo, hi)
+            }
+        } else if min == hi {
+            Self::XCenter(if max < 3 { 0 } else { lo })
+        } else if min == lo || lo == hi {
+            Self::SemiOblique(min, lo, hi)
+        } else {
+            if max < 5 {
+                Self::Oblique(0, 0, 0)
+            } else {
+                Self::Oblique(min, lo, hi)
+            }
+        }
     }
 }
 

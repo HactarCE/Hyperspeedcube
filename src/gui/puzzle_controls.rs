@@ -1,6 +1,6 @@
 use super::util;
 use crate::app::App;
-use crate::puzzle::{traits::*, Twist, TwistDirection, TwistSelection};
+use crate::puzzle::{traits::*, PieceType, Twist, TwistDirection, TwistSelection};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::ScrollArea::new([false, true]).show(ui, |ui| {
@@ -76,5 +76,22 @@ fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
                 }
             }
         });
+    });
+
+    ui.separator();
+
+    ui.strong("Filter pieces");
+    ui.collapsing("By piece type", |ui| {
+        for (i, piece_type) in puzzle_type.piece_types().iter().enumerate() {
+            ui.horizontal(|ui| {
+                if ui.button("Hide").clicked() {
+                    app.puzzle.set_piece_type_hidden(PieceType(i as _), true);
+                }
+                if ui.button("Show").clicked() {
+                    app.puzzle.set_piece_type_hidden(PieceType(i as _), false);
+                }
+                ui.label(&piece_type.name);
+            });
+        }
     });
 }

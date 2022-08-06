@@ -31,6 +31,7 @@ pub trait PuzzleType {
     fn stickers(&self) -> &[StickerInfo];
     fn twist_axes(&self) -> &[TwistAxisInfo];
     fn twist_directions(&self) -> &[TwistDirectionInfo];
+    fn piece_types(&self) -> &[PieceTypeInfo];
 
     fn twist_axis_from_name(&self, name: &str) -> Option<TwistAxis> {
         (0..self.twist_axes().len() as u8)
@@ -294,6 +295,8 @@ pub struct Face(pub u8);
 pub struct TwistAxis(pub u8);
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TwistDirection(pub u8);
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct PieceType(pub u8);
 
 pub trait PuzzleInfo<T> {
     type Output;
@@ -316,10 +319,12 @@ impl_puzzle_info_trait!(fn pieces(Piece) -> &PieceInfo);
 impl_puzzle_info_trait!(fn stickers(Sticker) -> &StickerInfo);
 impl_puzzle_info_trait!(fn twist_axes(TwistAxis) -> &TwistAxisInfo);
 impl_puzzle_info_trait!(fn twist_directions(TwistDirection) -> &TwistDirectionInfo);
+impl_puzzle_info_trait!(fn piece_types(PieceType) -> &PieceTypeInfo);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PieceInfo {
     pub stickers: SmallVec<[Sticker; 8]>,
+    pub piece_type: PieceType,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct StickerInfo {
@@ -360,6 +365,21 @@ impl AsRef<str> for TwistDirectionInfo {
 impl TwistDirectionInfo {
     pub const fn new(symbol: &'static str, name: &'static str) -> Self {
         Self { symbol, name }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PieceTypeInfo {
+    pub name: String,
+}
+impl AsRef<str> for PieceTypeInfo {
+    fn as_ref(&self) -> &str {
+        &self.name
+    }
+}
+impl PieceTypeInfo {
+    pub const fn new(name: String) -> Self {
+        Self { name }
     }
 }
 

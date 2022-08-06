@@ -35,6 +35,14 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
         let full_range = (0..layer_count).collect_vec();
         let ends = [0, layer_count - 1];
 
+        let center_coord = (layer_count % 2 == 0) as u8;
+        let mut piece_types = (center_coord..=layer_count / 2)
+            .flat_map(|y| {
+                (center_coord..=y).map(move |x| PieceTypeEnum::from_offset([x, y, layer_count / 2]))
+            })
+            .collect_vec();
+        piece_types.sort();
+
         let mut piece_locations = vec![];
         for z in 0..layer_count {
             let z_min = z == 0;
@@ -69,9 +77,27 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
                     push_sticker_if(z_max, FaceEnum::F.into());
                     push_sticker_if(z_min, FaceEnum::B.into());
 
+                    let piece_type = {
+                        // Compute the distance of each coordinate from the
+                        // center. 0 = centered along axis (only exists for odd
+                        // puzzles).
+                        let center = (layer_count - 1) as f32 / 2.0;
+                        let x = (x as f32 - center).abs().ceil() as u8;
+                        let y = (y as f32 - center).abs().ceil() as u8;
+                        let z = (z as f32 - center).abs().ceil() as u8;
+                        PieceType(
+                            piece_types
+                                .iter()
+                                .find_position(|&&p| p == PieceTypeEnum::from_offset([x, y, z]))
+                                .map(|(i, _)| i)
+                                .unwrap_or(0) as _, // shouldn't ever happen
+                        )
+                    };
+
                     piece_locations.push([x, y, z]);
                     pieces.push(PieceInfo {
                         stickers: piece_stickers,
+                        piece_type,
                     })
                 }
             }
@@ -124,6 +150,10 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
             stickers,
             twist_axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
             twist_directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
+            piece_types: piece_types
+                .into_iter()
+                .map(|piece_type| PieceTypeInfo::new(piece_type.to_string()))
+                .collect(),
             notation,
 
             piece_locations,
@@ -142,6 +172,7 @@ struct Rubiks3DDescription {
     stickers: Vec<StickerInfo>,
     twist_axes: Vec<TwistAxisInfo>,
     twist_directions: Vec<TwistDirectionInfo>,
+    piece_types: Vec<PieceTypeInfo>,
     notation: NotationScheme,
 
     piece_locations: Vec<[u8; 3]>,
@@ -189,6 +220,9 @@ impl PuzzleType for Rubiks3DDescription {
     }
     fn twist_directions(&self) -> &[TwistDirectionInfo] {
         &self.twist_directions
+    }
+    fn piece_types(&self) -> &[PieceTypeInfo] {
+        &self.piece_types
     }
 
     fn opposite_twist_axis(&self, twist_axis: TwistAxis) -> Option<TwistAxis> {
@@ -697,6 +731,65 @@ impl TwistDirectionEnum {
     }
     fn rev(self) -> Self {
         Self::from(self as u8 ^ 1)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum PieceTypeEnum {
+    Piece,
+    Corner,
+    Edge,
+    Wing(u8),
+    Center,
+    TCenter(u8),
+    XCenter(u8),
+    Oblique(u8, u8),
+}
+impl ToString for PieceTypeEnum {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Piece => format!("piece"),
+            Self::Corner => format!("corner"),
+            Self::Edge => format!("edge"),
+            Self::Wing(0) => format!("wing"),
+            Self::Wing(x) => format!("wing ({x})"),
+            Self::Center => format!("center"),
+            Self::TCenter(0) => format!("T-center"),
+            Self::TCenter(x) => format!("T-center ({x})"),
+            Self::XCenter(0) => format!("X-center"),
+            Self::XCenter(x) => format!("X-center ({x})"),
+            Self::Oblique(0, 0) => format!("oblique"),
+            Self::Oblique(x, y) => format!("oblique ({x},{y})"),
+        }
+    }
+}
+impl PieceTypeEnum {
+    fn from_offset(mut coords: [u8; 3]) -> Self {
+        coords.sort();
+        let [min, med, max] = coords;
+        if max == 0 {
+            Self::Piece
+        } else if min == max {
+            Self::Corner
+        } else if med == max {
+            if min == 0 {
+                Self::Edge
+            } else {
+                Self::Wing(if max < 3 { 0 } else { min })
+            }
+        } else if med == 0 {
+            Self::Center
+        } else if min == 0 {
+            Self::TCenter(if max < 3 { 0 } else { med })
+        } else if min == med {
+            Self::XCenter(if max < 3 { 0 } else { med })
+        } else {
+            if max < 4 {
+                Self::Oblique(0, 0)
+            } else {
+                Self::Oblique(min, med)
+            }
+        }
     }
 }
 

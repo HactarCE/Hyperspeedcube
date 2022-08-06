@@ -71,6 +71,8 @@ pub struct PuzzleController {
     /// Redo history.
     redo_buffer: Vec<HistoryEntry>,
 
+    /// Hidden stickers.
+    hidden_stickers: Vec<bool>,
     /// Selected pieces/stickers.
     selection: TwistSelection,
     /// Sticker that the user is hovering over.
@@ -117,6 +119,7 @@ impl PuzzleController {
             undo_buffer: vec![],
             redo_buffer: vec![],
 
+            hidden_stickers: vec![false; ty.stickers().len()],
             selection: TwistSelection::default(),
             hovered_sticker: None,
             sticker_animation_states: vec![StickerDecorAnim::default(); ty.stickers().len()],
@@ -236,6 +239,7 @@ impl PuzzleController {
                 &self.next_displayed // puzzle state after the twist
             };
             self.selection.has_sticker(puzzle_state, sticker)
+                && !self.hidden_stickers[sticker.0 as usize]
         });
     }
     pub(crate) fn hovered_sticker(&self) -> Option<Sticker> {
@@ -245,6 +249,16 @@ impl PuzzleController {
         self.hovered_sticker
             .map(|(_sticker, twists)| twists)
             .unwrap_or([None; 3])
+    }
+
+    pub fn set_piece_type_hidden(&mut self, piece_type: PieceType, hidden: bool) {
+        for piece in self.ty().pieces() {
+            if piece.piece_type == piece_type {
+                for sticker in &piece.stickers {
+                    self.hidden_stickers[sticker.0 as usize] = hidden;
+                }
+            }
+        }
     }
 
     /// Returns the animation state for a sticker.
@@ -408,6 +422,11 @@ impl PuzzleController {
                 target.selected,
                 max_delta_selected,
             );
+            add_delta_toward_target(
+                &mut animation_state.hidden,
+                target.hidden,
+                max_delta_selected,
+            );
             if target.hovered == 1.0 {
                 // Always react instantly to a new hovered sticker.
                 animation_state.hovered = 1.0;
@@ -433,10 +452,12 @@ impl PuzzleController {
             },
             None => false,
         };
+        let is_hidden = self.hidden_stickers[sticker.0 as usize];
 
         StickerDecorAnim {
             selected: if is_selected { 1.0 } else { 0.0 },
             hovered: if is_hovered { 1.0 } else { 0.0 },
+            hidden: if is_hidden { 1.0 } else { 0.0 },
         }
     }
 
@@ -609,12 +630,15 @@ pub struct StickerDecorAnim {
     pub selected: f32,
     /// Progress toward being hovered.
     pub hovered: f32,
+    /// Progress toward being hidden.
+    pub hidden: f32,
 }
 impl Default for StickerDecorAnim {
     fn default() -> Self {
         Self {
             selected: 1.0,
             hovered: 0.0,
+            hidden: 0.0,
         }
     }
 }

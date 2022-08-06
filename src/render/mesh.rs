@@ -31,11 +31,20 @@ pub(super) fn make_puzzle_mesh(
 
     let sticker_geometries = puzzle.geometry(sticker_geometry_params);
     for geom in &*sticker_geometries {
-        let StickerDecorAnim { selected, hovered } = puzzle.sticker_animation_state(geom.sticker);
+        let StickerDecorAnim {
+            selected,
+            hovered,
+            hidden,
+        } = puzzle.sticker_animation_state(geom.sticker);
 
         // Determine sticker alpha.
         let alpha = mix(
-            prefs.colors.default_opacity * mix(prefs.colors.hidden_opacity, 1.0, selected),
+            prefs.colors.default_opacity
+                * mix(
+                    prefs.colors.hidden_opacity,
+                    1.0,
+                    f32::min(selected, 1.0 - hidden),
+                ),
             prefs.colors.hovered_opacity,
             hovered,
         );
