@@ -98,9 +98,10 @@ impl PuzzleRenderCache {
 pub(crate) fn draw_puzzle(
     app: &mut App,
     gfx: &mut GraphicsState,
-    (width, height): (u32, u32),
     mut force_redraw: bool,
 ) -> Option<wgpu::TextureView> {
+    let (width, height) = app.puzzle_texture_size;
+
     // Avoid divide-by-zero errors.
     if width == 0 || height == 0 {
         return None;

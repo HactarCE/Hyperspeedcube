@@ -20,6 +20,7 @@ pub struct App {
 
     pub(crate) puzzle: PuzzleController,
     pub(crate) render_cache: PuzzleRenderCache,
+    pub(crate) puzzle_texture_size: (u32, u32),
     wants_to_redraw_puzzle: bool,
 
     /// Mouse cursor position relative to the puzzle texture.
@@ -47,6 +48,7 @@ impl App {
 
             puzzle: PuzzleController::default(),
             render_cache: PuzzleRenderCache::default(),
+            puzzle_texture_size: (0, 0),
             wants_to_redraw_puzzle: true,
 
             cursor_pos: None,
@@ -75,12 +77,8 @@ impl App {
     pub(crate) fn request_redraw_puzzle(&mut self) {
         self.wants_to_redraw_puzzle = true;
     }
-    pub(crate) fn draw_puzzle(
-        &mut self,
-        gfx: &mut GraphicsState,
-        texture_size: (u32, u32),
-    ) -> Option<wgpu::TextureView> {
-        let ret = crate::render::draw_puzzle(self, gfx, texture_size, self.wants_to_redraw_puzzle);
+    pub(crate) fn draw_puzzle(&mut self, gfx: &mut GraphicsState) -> Option<wgpu::TextureView> {
+        let ret = crate::render::draw_puzzle(self, gfx, self.wants_to_redraw_puzzle);
         self.wants_to_redraw_puzzle = false;
         ret
     }

@@ -13,6 +13,7 @@ mod keybinds_table;
 mod menu_bar;
 mod prefs;
 mod puzzle_controls;
+mod puzzle_view;
 mod status_bar;
 
 use crate::app::App;
@@ -23,7 +24,7 @@ use self::keybinds_table::KeybindsTable;
 const GENERAL_KEYBINDS_TITLE: &str = "Keybinds";
 const PUZZLE_KEYBINDS_TITLE: &str = "Puzzle Keybinds";
 
-pub fn build(ctx: &egui::Context, app: &mut App) {
+pub fn build(ctx: &egui::Context, app: &mut App, puzzle_texture_id: egui::TextureId) {
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| menu_bar::build(ui, app));
 
     egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| status_bar::build(ui, app));
@@ -45,6 +46,10 @@ pub fn build(ctx: &egui::Context, app: &mut App) {
             .frame(frame.fill(frame.fill.linear_multiply(alpha)))
             .show(ctx, |ui| keybinds_reference::build(ui, app));
     }
+
+    egui::CentralPanel::default()
+        .frame(egui::Frame::none().fill(app.prefs.colors.background))
+        .show(ctx, |ui| puzzle_view::build(ui, app, puzzle_texture_id));
 
     let puzzle_type = app.puzzle.ty();
 
