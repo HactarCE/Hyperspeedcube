@@ -269,11 +269,28 @@ async fn run() {
                             }
                         }
 
+                        // Submit drag events.
                         if r.dragged() {
                             app.event(AppEvent::Drag(r.drag_delta() / egui_rect.size().min_elem()))
                         }
                         if r.drag_released() {
                             app.event(AppEvent::DragReleased);
+                        }
+
+                        // Show debug info for each sticker.
+                        #[cfg(debug_assertions)]
+                        if let Some(sticker) = app.puzzle.hovered_sticker() {
+                            use puzzle::traits::*;
+
+                            let mut s = String::new();
+                            app.puzzle.latest().sticker_debug_info(&mut s, sticker);
+                            if !s.is_empty() {
+                                egui::popup::show_tooltip_at_pointer(
+                                    ui.ctx(),
+                                    egui::Id::new("sticker_debug_info"),
+                                    |ui| ui.label(s),
+                                );
+                            }
                         }
                     });
 

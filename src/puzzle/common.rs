@@ -151,6 +151,9 @@ pub trait PuzzleState: PuzzleType {
     ) -> Option<StickerGeometry>;
 
     fn is_solved(&self) -> bool;
+
+    #[cfg(debug_assertions)]
+    fn sticker_debug_info(&self, s: &mut String, sticker: Sticker) {}
 }
 
 /// Enumeration of all puzzle types.
