@@ -81,9 +81,14 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
 
         ui.menu_button("Tools", |ui| {
-            if ui.button("Puzzle controls...").clicked() {
-                ui.close_menu();
-                super::Window::PuzzleControlsPanel.toggle(ui.ctx());
+            for tool_window in super::ToolWindow::ALL {
+                let mut is_open = tool_window.is_open(ui.ctx());
+                if ui
+                    .checkbox(&mut is_open, format!("{}", tool_window.name()))
+                    .changed()
+                {
+                    tool_window.toggle(ui.ctx());
+                }
             }
         });
 

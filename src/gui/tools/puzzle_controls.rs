@@ -1,26 +1,11 @@
-use super::util;
 use crate::app::App;
-use crate::puzzle::{traits::*, PieceType, Twist, TwistDirection, TwistSelection};
+use crate::puzzle::{traits::*, Twist, TwistDirection};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    egui::ScrollArea::new([false, true]).show(ui, |ui| {
-        build_twist_section(ui, app);
-    });
-}
-
-fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
     let puzzle_type = app.puzzle.ty();
 
     let sel = app.puzzle_selection();
     let toggle_sel = &mut app.toggle_selections;
-
-    ui.horizontal(|ui| {
-        ui.style_mut().wrap = Some(false);
-        ui.heading("Puzzle Controls");
-        util::reset_button(ui, toggle_sel, TwistSelection::default(), "");
-    });
-
-    ui.separator();
 
     let h_layout = egui::Layout::left_to_right()
         .with_cross_align(egui::Align::TOP)
@@ -66,7 +51,7 @@ fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
             for (i, twist_direction) in puzzle_type.twist_directions().iter().enumerate() {
                 if ui.button(twist_direction.name).clicked() {
                     if let Ok(axis) = twist_axis {
-                        // should always be `Some`
+                        // should always be `Ok`
                         app.event(Twist {
                             axis,
                             direction: TwistDirection(i as _),
@@ -76,22 +61,5 @@ fn build_twist_section(ui: &mut egui::Ui, app: &mut App) {
                 }
             }
         });
-    });
-
-    ui.separator();
-
-    ui.strong("Filter pieces");
-    ui.collapsing("By piece type", |ui| {
-        for (i, piece_type) in puzzle_type.piece_types().iter().enumerate() {
-            ui.horizontal(|ui| {
-                if ui.button("Hide").clicked() {
-                    app.puzzle.set_piece_type_hidden(PieceType(i as _), true);
-                }
-                if ui.button("Show").clicked() {
-                    app.puzzle.set_piece_type_hidden(PieceType(i as _), false);
-                }
-                ui.label(&piece_type.name);
-            });
-        }
     });
 }
