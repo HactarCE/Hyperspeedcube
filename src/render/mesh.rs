@@ -2,7 +2,6 @@
 
 use cgmath::*;
 use itertools::Itertools;
-use std::ops::{Add, Mul};
 
 use super::RgbaVertex;
 use crate::preferences::Preferences;
@@ -31,23 +30,12 @@ pub(super) fn make_puzzle_mesh(
 
     let sticker_geometries = puzzle.geometry(sticker_geometry_params);
     for geom in &*sticker_geometries {
-        let StickerDecorAnim {
-            selected,
-            hovered,
-            hidden,
-        } = puzzle.sticker_animation_state(geom.sticker);
+        let sticker_info = puzzle.info(geom.sticker);
+
+        let visual_state = puzzle.visual_piece_state(sticker_info.piece);
 
         // Determine sticker alpha.
-        let alpha = mix(
-            prefs.colors.default_opacity
-                * mix(
-                    prefs.colors.hidden_opacity,
-                    1.0,
-                    f32::min(selected, 1.0 - hidden),
-                ),
-            prefs.colors.hovered_opacity,
-            hovered,
-        );
+        let alpha = visual_state.opacity(prefs);
 
         // Determine sticker fill color.
         let sticker_color = egui::Rgba::from(if prefs.colors.blindfold {
@@ -57,26 +45,11 @@ pub(super) fn make_puzzle_mesh(
         })
         .multiply(alpha);
 
-        // Determine outline color.
-        let outline_color = mix(
-            mix(
-                egui::Rgba::from(prefs.outlines.hidden_color),
-                egui::Rgba::from(prefs.outlines.default_color),
-                selected,
-            ),
-            egui::Rgba::from(prefs.outlines.hovered_color),
-            hovered,
-        )
-        .multiply(alpha);
-        let outline_size = mix(
-            mix(
-                prefs.outlines.hidden_size,
-                prefs.outlines.default_size,
-                selected,
-            ),
-            prefs.outlines.hovered_size,
-            hovered,
-        );
+        // Determine outline appearance.
+        let outline_color = visual_state
+            .outline_color(prefs, puzzle.selection().contains(&geom.sticker))
+            .multiply(alpha);
+        let outline_size = visual_state.outline_size(prefs);
 
         // Generate outline vertices.
         if outline_size > 0.0 {
@@ -215,12 +188,4 @@ fn generate_outline_geometry(
             indices_out.extend((1..n as u32).flat_map(|i| [base, base + i, base + i + 1]));
         }
     }
-}
-
-fn mix<T>(a: T, b: T, t: f32) -> <T::Output as Add>::Output
-where
-    T: Mul<f32>,
-    T::Output: Add,
-{
-    a * (1.0 - t) + b * t
 }

@@ -59,7 +59,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App, puzzle_texture_id: egui::TextureI
         use crate::puzzle::traits::*;
 
         let mut s = String::new();
-        app.puzzle.latest().sticker_debug_info(&mut s, sticker);
+        app.puzzle.displayed().sticker_debug_info(&mut s, sticker);
         if !s.is_empty() {
             egui::popup::show_tooltip_at_pointer(
                 ui.ctx(),

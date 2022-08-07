@@ -21,7 +21,8 @@ pub struct ViewPreferences {
 
     pub outline_thickness: f32,
 
-    pub light_intensity: f32,
+    pub light_ambient: f32,
+    pub light_directional: f32,
     pub light_pitch: f32,
     pub light_yaw: f32,
 }
@@ -42,7 +43,8 @@ impl Default for ViewPreferences {
 
             outline_thickness: 1.0,
 
-            light_intensity: 0.0,
+            light_ambient: 0.0,
+            light_directional: 0.0,
             light_pitch: 0.0,
             light_yaw: 0.0,
         }

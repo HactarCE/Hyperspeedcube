@@ -6,7 +6,7 @@ use std::hash::Hash;
 use crate::puzzle::{rubiks_3d, rubiks_4d, traits::*, PuzzleTypeEnum};
 
 const NONE_TEXT: &str = "-";
-const NONE_TOOLTIP: &str = "Use the current selection";
+const NONE_TOOLTIP: &str = "Use the current grip";
 
 pub(super) const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 

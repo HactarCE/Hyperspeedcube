@@ -5,7 +5,7 @@ use cgmath::*;
 use smallvec::{smallvec, SmallVec};
 use std::cmp::Ordering;
 
-use super::{traits::*, PuzzleTypeEnum, Sticker, Twist};
+use super::{traits::*, ClickTwists, PuzzleTypeEnum, Sticker, Twist};
 use crate::preferences::ViewPreferences;
 use crate::util::{self, IterCyclicPairsExt};
 
@@ -72,11 +72,15 @@ impl StickerGeometryParams {
         let view_transform = Matrix3::from_angle_x(Deg(view_prefs.pitch + view_angle_offset[1]))
             * Matrix3::from_angle_y(Deg(view_prefs.yaw + view_angle_offset[0]));
 
-        let ambient_light = 1.0 - view_prefs.light_intensity * 0.5; // TODO: make ambient light configurable
+        let ambient_light = util::mix(
+            view_prefs.light_directional * 0.5,
+            1.0 - view_prefs.light_directional * 0.5,
+            view_prefs.light_ambient,
+        );
         let light_vector = Matrix3::from_angle_y(Deg(view_prefs.light_yaw))
             * Matrix3::from_angle_x(Deg(-view_prefs.light_pitch)) // pitch>0 means light comes from above
             * Vector3::unit_z()
-            * view_prefs.light_intensity
+            * view_prefs.light_directional
             * 0.5;
 
         let face_spacing = view_prefs.face_spacing;
@@ -171,19 +175,19 @@ pub struct StickerGeometry {
     /// Indices for polygons.
     pub polygon_indices: Vec<Box<[u16]>>,
     /// Twists on left/right/middle mouse click per polygon.
-    pub polygon_twists: Vec<[Option<Twist>; 3]>,
+    pub polygon_twists: Vec<ClickTwists>,
 }
 impl StickerGeometry {
     pub(super) fn new_double_quad(
         verts: [Point3<f32>; 4],
-        [lmb, rmb, mmb]: [Option<Twist>; 3],
+        twists: ClickTwists,
         front_face: bool,
         back_face: bool,
     ) -> Self {
         let mut ret = Self {
             verts: verts.to_vec(),
             polygon_indices: vec![Box::new([0, 2, 3, 1]), Box::new([2, 0, 1, 3])],
-            polygon_twists: vec![[lmb, rmb, mmb], [rmb, lmb, mmb]],
+            polygon_twists: vec![twists, twists.rev()],
         };
         if !back_face {
             ret.polygon_indices.pop();
@@ -195,10 +199,7 @@ impl StickerGeometry {
         }
         ret
     }
-    pub(super) fn new_cube(
-        verts: [Point3<f32>; 8],
-        twists: [[Option<Twist>; 3]; 6],
-    ) -> Option<Self> {
+    pub(super) fn new_cube(verts: [Point3<f32>; 8], twists: [ClickTwists; 6]) -> Option<Self> {
         // Only show this sticker if the 3D volume is positive. (Cull it if its
         // 3D volume is negative.)
         Matrix3::from_cols(
@@ -235,7 +236,7 @@ pub(crate) struct ProjectedStickerGeometry {
     pub back_polygons: Box<[Polygon]>,
 }
 impl ProjectedStickerGeometry {
-    pub(crate) fn twists_for_point(&self, point: Point2<f32>) -> Option<[Option<Twist>; 3]> {
+    pub(crate) fn twists_for_point(&self, point: Point2<f32>) -> Option<ClickTwists> {
         self.front_polygons
             .iter()
             .find(|polygon| polygon.contains_point(point))
@@ -252,17 +253,13 @@ pub(crate) struct Polygon {
 
     pub illumination: f32,
 
-    pub twists: [Option<Twist>; 3],
+    pub twists: ClickTwists,
 }
 impl Polygon {
     /// Constructs a convex polygon from a list of coplanar vertices in
     /// counterclockwise order. The polygon must not be degenerate, and no three
     /// vertices may be colinear.
-    pub fn new(
-        verts: SmallVec<[Point3<f32>; 4]>,
-        illumination: f32,
-        twists: [Option<Twist>; 3],
-    ) -> Self {
+    pub fn new(verts: SmallVec<[Point3<f32>; 4]>, illumination: f32, twists: ClickTwists) -> Self {
         let mut min_bound = verts[0];
         let mut max_bound = verts[0];
         for v in &verts[1..] {
@@ -319,7 +316,7 @@ pub(crate) fn polygon_from_indices(
     verts: &[Point3<f32>],
     indices: &[u16],
     illumination: f32,
-    twists: [Option<Twist>; 3],
+    twists: ClickTwists,
 ) -> Polygon {
     let verts: SmallVec<_> = indices.iter().map(|&i| verts[i as usize]).collect();
     let normal = polygon_normal_from_indices(&verts, &[0, 1, 2]);

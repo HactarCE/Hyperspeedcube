@@ -1,4 +1,4 @@
-//! Commands to select and manipulate parts of the puzzle.
+//! Commands to grip and manipulate parts of the puzzle.
 
 use itertools::Itertools;
 use serde::{de, Deserialize, Serialize};
@@ -67,8 +67,8 @@ impl Command {
 #[serde(rename_all = "snake_case")]
 #[allow(missing_docs)]
 pub enum PuzzleCommand {
-    SelectAxis(String),
-    SelectLayers(LayerMaskDesc),
+    GripAxis(String),
+    GripLayers(LayerMaskDesc),
     Twist {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         axis: Option<String>,
@@ -87,8 +87,8 @@ pub enum PuzzleCommand {
 impl PuzzleCommand {
     pub fn short_description(&self, ty: PuzzleTypeEnum) -> String {
         match self {
-            PuzzleCommand::SelectAxis(axis_name) => axis_name.to_owned(),
-            PuzzleCommand::SelectLayers(layers) => layers.to_string(),
+            PuzzleCommand::GripAxis(axis_name) => axis_name.to_owned(),
+            PuzzleCommand::GripLayers(layers) => layers.to_string(),
             PuzzleCommand::Twist {
                 axis,
                 direction,

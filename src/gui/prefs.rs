@@ -16,6 +16,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         ui.collapsing("Graphics", |ui| build_graphics_section(ui, app));
         ui.collapsing("View", |ui| build_view_section(ui, app));
         ui.collapsing("Outlines", |ui| build_outlines_section(ui, app));
+        ui.collapsing("Opacity", |ui| build_opacity_section(ui, app));
         ui.collapsing("Colors", |ui| build_colors_section(ui, app));
         ui.collapsing("Interaction", |ui| {
             build_interaction_section(ui, app);
@@ -79,38 +80,6 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
 
     let mut changed = false;
-
-    // Opacity
-    ui.strong("Opacity");
-    let r = ui.add(resettable!(
-        "Default",
-        |x| format!("{:.0}%", x * 100.0),
-        (prefs.colors.default_opacity),
-        util::make_percent_drag_value,
-    ));
-    changed |= r.changed();
-    let r = ui
-        .add(resettable!(
-            "Hidden",
-            |x| format!("{:.0}%", x * 100.0),
-            (prefs.colors.hidden_opacity),
-            util::make_percent_drag_value,
-        ))
-        .on_hover_explanation(
-            "",
-            "Opacity of hidden stickers (multiplied \
-             by default sticker opacity)",
-        );
-    changed |= r.changed();
-    let r = ui.add(resettable!(
-        "Hovered",
-        |x| format!("{:.0}%", x * 100.0),
-        (prefs.colors.hovered_opacity),
-        util::make_percent_drag_value,
-    ));
-    changed |= r.changed();
-
-    ui.separator();
 
     // Special colors
     ui.strong("Special");
@@ -299,11 +268,19 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         |value| util::make_degrees_drag_value(value).clamp_range(-180.0..=180.0),
     ));
     changed |= r.changed();
-    // Intensity
+    // Directional
     let r = ui.add(resettable!(
-        "Intensity",
+        "Directional",
         |x| format!("{:.0}%", x * 100.0),
-        (prefs.view[puzzle_type].light_intensity),
+        (prefs.view[puzzle_type].light_directional),
+        util::make_percent_drag_value,
+    ));
+    changed |= r.changed();
+    // Ambient
+    let r = ui.add(resettable!(
+        "Ambient",
+        |x| format!("{:.0}%", x * 100.0),
+        (prefs.view[puzzle_type].light_ambient),
         util::make_percent_drag_value,
     ));
     changed |= r.changed();
@@ -332,56 +309,18 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
+    ui.strong("Animations");
     let r = ui
         .add(util::CheckboxWithReset {
-            label: "Highlight whole piece",
-            value: &mut prefs.interaction.highlight_piece_on_hover,
-            reset_value: DEFAULT_PREFS.interaction.highlight_piece_on_hover,
+            label: "Dynamic twist speed",
+            value: &mut prefs.interaction.dynamic_twist_speed,
+            reset_value: DEFAULT_PREFS.interaction.dynamic_twist_speed,
         })
         .on_hover_explanation(
             "",
-            "When enabled, hovering over a sticker \
-             highlights all stickers on the same piece.",
-        );
-    changed |= r.changed();
-
-    ui.separator();
-
-    ui.strong("Animations");
-    let r = ui
-        .add(resettable!(
-            "Selection fade duration",
-            (prefs.interaction.selection_fade_duration),
-            |value| {
-                let speed = value.at_least(0.01) / 100.0; // logarithmic speed
-                egui::DragValue::new(value)
-                    .fixed_decimals(2)
-                    .clamp_range(0.0..=1.0_f32)
-                    .speed(speed)
-            },
-        ))
-        .on_hover_explanation(
-            "",
-            "Number of seconds for a sticker to fade from \
-             fully opaque to fully transparent, or vice versa",
-        );
-    changed |= r.changed();
-    let r = ui
-        .add(resettable!(
-            "Hover fade duration",
-            (prefs.interaction.hover_fade_duration),
-            |value| {
-                let speed = value.at_least(0.01) / 100.0; // logarithmic speed
-                egui::DragValue::new(value)
-                    .fixed_decimals(2)
-                    .clamp_range(0.0..=1.0_f32)
-                    .speed(speed)
-            },
-        ))
-        .on_hover_explanation(
-            "",
-            "Number of seconds for the sticker \
-             hover indicator to fade away.",
+            "When enabled, the puzzle twists faster when \
+             many moves are queued up. When all queued \
+             moves are complete, the twist speed resets.",
         );
     changed |= r.changed();
     let r = ui.add(resettable!(
@@ -397,16 +336,21 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     ));
     changed |= r.changed();
     let r = ui
-        .add(util::CheckboxWithReset {
-            label: "Dynamic twist speed",
-            value: &mut prefs.interaction.dynamic_twist_speed,
-            reset_value: DEFAULT_PREFS.interaction.dynamic_twist_speed,
-        })
+        .add(resettable!(
+            "Animation duration",
+            (prefs.interaction.other_anim_duration),
+            |value| {
+                let speed = value.at_least(0.01) / 100.0; // logarithmic speed
+                egui::DragValue::new(value)
+                    .fixed_decimals(2)
+                    .clamp_range(0.0..=1.0_f32)
+                    .speed(speed)
+            },
+        ))
         .on_hover_explanation(
             "",
-            "When enabled, the puzzle twists faster when \
-             many moves are queued up. When all queued \
-             moves are complete, the twist speed resets.",
+            "Number of seconds for other animations, \
+             such as hiding a piece.",
         );
     changed |= r.changed();
 
@@ -431,56 +375,66 @@ fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
 
     let mut changed = false;
 
-    ui.strong("Outline size");
-    let outline_size_drag_value_fn = |value| {
-        egui::DragValue::new(value)
-            .fixed_decimals(1)
-            .clamp_range(0.0..=5.0_f32)
-            .speed(0.01)
-    };
-    let r = ui.add(resettable!(
-        "Default",
-        (prefs.outlines.default_size),
-        outline_size_drag_value_fn,
-    ));
-    changed |= r.changed();
-    let r = ui.add(resettable!(
-        "Hidden",
-        (prefs.outlines.hidden_size),
-        outline_size_drag_value_fn,
-    ));
-    changed |= r.changed();
-    let r = ui.add(resettable!(
-        "Hovered",
-        (prefs.outlines.hovered_size),
-        outline_size_drag_value_fn,
-    ));
-    changed |= r.changed();
+    ui.strong("Sizes");
+    macro_rules! resettable_outline_size_dragvalue {
+        ($ui:ident, $name:ident, $label:expr) => {
+            $ui.add(resettable!($label, (prefs.outlines.$name), |value| {
+                egui::DragValue::new(value)
+                    .fixed_decimals(1)
+                    .clamp_range(0.0..=5.0_f32)
+                    .speed(0.01)
+            }))
+        };
+    }
+    changed |= resettable_outline_size_dragvalue!(ui, default_size, "Default").changed();
+    changed |= resettable_outline_size_dragvalue!(ui, hidden_size, "Hidden").changed();
+    changed |= resettable_outline_size_dragvalue!(ui, hovered_size, "Hovered").changed();
+    changed |= resettable_outline_size_dragvalue!(ui, marked_size, "Marked").changed();
+    changed |= resettable_outline_size_dragvalue!(ui, selected_size, "Selected").changed();
 
     ui.separator();
+    ui.strong("Colors");
+    macro_rules! resettable_outline_color_edit {
+        ($ui:ident, $name:ident, $label:expr) => {
+            $ui.add(resettable!(
+                $label,
+                hex_color::to_str,
+                (prefs.outlines.$name),
+                |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
+            ))
+        };
+    }
+    changed |= resettable_outline_color_edit!(ui, default_color, "Default").changed();
+    changed |= resettable_outline_color_edit!(ui, hidden_color, "Hidden").changed();
+    changed |= resettable_outline_color_edit!(ui, hovered_color, "Hovered").changed();
+    changed |= resettable_outline_color_edit!(ui, marked_color, "Marked").changed();
+    changed |= resettable_outline_color_edit!(ui, selected_sticker_color, "Sel. sticker").changed();
+    changed |= resettable_outline_color_edit!(ui, selected_piece_color, "Sel. piece").changed();
 
-    ui.strong("Outline color");
-    let r = ui.add(resettable!(
-        "Default",
-        hex_color::to_str,
-        (prefs.outlines.default_color),
-        |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
-    ));
-    changed |= r.changed();
-    let r = ui.add(resettable!(
-        "Hidden",
-        hex_color::to_str,
-        (prefs.outlines.hidden_color),
-        |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
-    ));
-    changed |= r.changed();
-    let r = ui.add(resettable!(
-        "Hovered",
-        hex_color::to_str,
-        (prefs.outlines.hovered_color),
-        |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
-    ));
-    changed |= r.changed();
+    prefs.needs_save |= changed;
+    if changed {
+        app.request_redraw_puzzle();
+    }
+}
+fn build_opacity_section(ui: &mut egui::Ui, app: &mut App) {
+    let prefs = &mut app.prefs;
+
+    let mut changed = false;
+
+    macro_rules! resettable_opacity_dragvalue {
+        ($ui:ident, $name:ident, $label:expr) => {
+            $ui.add(resettable!(
+                $label,
+                |x| format!("{:.0}%", x * 100.0),
+                (prefs.opacity.$name),
+                util::make_percent_drag_value,
+            ))
+        };
+    }
+    changed |= resettable_opacity_dragvalue!(ui, base, "Base").changed();
+    changed |= resettable_opacity_dragvalue!(ui, ungripped, "Ungripped").changed();
+    changed |= resettable_opacity_dragvalue!(ui, hidden, "Hidden").changed();
+    changed |= resettable_opacity_dragvalue!(ui, selected, "Selected").changed();
 
     prefs.needs_save |= changed;
     if changed {

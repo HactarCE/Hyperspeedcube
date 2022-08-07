@@ -386,13 +386,13 @@ impl PuzzleState for Rubiks3D {
         );
 
         // Decide what twists should happen when the sticker is clicked.
-        let twist_ccw = Twist {
+        let cw_twist = Twist {
             axis: face.into(),
-            direction: TwistDirectionEnum::CCW90.into(),
+            direction: TwistDirectionEnum::CW90.into(),
             layers: LayerMask::default(),
         };
-        let twist_cw = self.reverse_twist(twist_ccw);
-        let twist_recenter = self.make_recenter_twist(face.into()).ok();
+        let ccw_twist = self.reverse_twist(cw_twist);
+        let recenter = self.make_recenter_twist(face.into()).ok();
 
         Some(StickerGeometry::new_double_quad(
             [
@@ -401,7 +401,11 @@ impl PuzzleState for Rubiks3D {
                 center + u - v,
                 center + u + v,
             ],
-            [Some(twist_ccw), Some(twist_cw), twist_recenter],
+            ClickTwists {
+                cw: Some(cw_twist),
+                ccw: Some(ccw_twist),
+                recenter,
+            },
             p.show_frontfaces,
             p.show_backfaces,
         ))

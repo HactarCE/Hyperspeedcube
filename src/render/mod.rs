@@ -161,14 +161,13 @@ pub(crate) fn draw_puzzle(
         let hovered_stickers = puzzle_geometry.iter().rev().filter_map(move |geom| {
             Some((geom.sticker, geom.twists_for_point(scaled_cursor_pos)?))
         });
-        puzzle.update_hovered_stickers(hovered_stickers);
+        puzzle.update_hovered_sticker(hovered_stickers);
     } else {
-        puzzle.update_hovered_stickers([]);
+        puzzle.update_hovered_sticker([]);
     }
 
     // Animate puzzle decorations (colors, opacity, and outlines).
-    force_redraw |= puzzle.is_animating(&prefs.interaction);
-    puzzle.update_decorations(delta, &prefs.interaction);
+    force_redraw |= puzzle.update_decorations(delta, &prefs.interaction);
 
     if !force_redraw && cache.out_texture.is_some() {
         return None; // No repaint needed.

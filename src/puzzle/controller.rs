@@ -3,7 +3,8 @@
 use anyhow::Result;
 use cgmath::InnerSpace;
 use num_enum::FromPrimitive;
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
+use std::ops::{BitOr, BitOrAssign};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -32,7 +33,7 @@ pub mod interpolate {
 
 use super::*;
 use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
-use crate::preferences::InteractionPreferences;
+use crate::preferences::{InteractionPreferences, Preferences};
 use crate::util;
 use interpolate::InterpolateFn;
 
@@ -46,7 +47,7 @@ pub struct PuzzleController {
     displayed: Puzzle,
     /// State of the puzzle right after the twist being animated right now, or
     /// the same as `displayed` if there is no twist animation in progress.
-    next_displayed: Puzzle, // TODO: use this
+    next_displayed: Puzzle,
     /// State of the puzzle with all twists applied to it (used for timing and
     /// undo).
     latest: Puzzle,
@@ -71,15 +72,19 @@ pub struct PuzzleController {
     /// Redo history.
     redo_buffer: Vec<HistoryEntry>,
 
-    /// Hidden stickers.
-    hidden_stickers: Vec<bool>,
-    /// Selected pieces/stickers.
-    selection: TwistSelection,
     /// Sticker that the user is hovering over.
-    hovered_sticker: Option<(Sticker, [Option<Twist>; 3])>,
-    /// Sticker animation states, for interpolating when the user changes the
-    /// selection or hovers over a different sticker.
-    sticker_animation_states: Vec<StickerDecorAnim>,
+    hovered_sticker: Option<Sticker>,
+    /// Twists from the hovered sticker.
+    hovered_twists: Option<ClickTwists>,
+    /// Grip, which controls which pieces will be twisted.
+    grip: Grip,
+    /// Set of selected stickers.
+    selection: HashSet<Sticker>,
+    /// Piece states, such as whether a piece is hidden, as booleans.
+    logical_piece_states: Vec<LogicalPieceState>,
+    /// Piece states, such as whether a piece is hidden, as floats for
+    /// animation.
+    visual_piece_states: Vec<VisualPieceState>,
 
     /// Cached sticker geometry.
     cached_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
@@ -119,10 +124,12 @@ impl PuzzleController {
             undo_buffer: vec![],
             redo_buffer: vec![],
 
-            hidden_stickers: vec![false; ty.stickers().len()],
-            selection: TwistSelection::default(),
             hovered_sticker: None,
-            sticker_animation_states: vec![StickerDecorAnim::default(); ty.stickers().len()],
+            hovered_twists: None,
+            grip: Grip::default(),
+            selection: HashSet::new(),
+            logical_piece_states: vec![LogicalPieceState::default(); ty.pieces().len()],
+            visual_piece_states: vec![VisualPieceState::default(); ty.pieces().len()],
 
             cached_geometry: None,
             cached_geometry_params: None,
@@ -203,9 +210,14 @@ impl PuzzleController {
     }
 
     /// Returns the state of the cube that should be displayed, not including
-    /// the twist currently being animated.
+    /// the twist currently being animated (if there is one).
     pub fn displayed(&self) -> &Puzzle {
         &self.displayed
+    }
+    /// Returns the state of the cube that should be displayed after the twist
+    /// currently being animated (if there is one).
+    pub fn next_displayed(&self) -> &Puzzle {
+        &self.next_displayed
     }
     /// Returns the state of the cube after all queued twists have been applied.
     pub fn latest(&self) -> &Puzzle {
@@ -217,53 +229,43 @@ impl PuzzleController {
         self.latest.ty()
     }
 
-    /// Returns the puzzle selection.
-    pub fn selection(&self) -> TwistSelection {
-        self.selection
+    /// Returns the puzzle grip.
+    pub fn grip(&self) -> &Grip {
+        &self.grip
     }
-    /// Sets the puzzle selection.
-    pub fn set_selection(&mut self, selection: TwistSelection) {
-        self.selection = selection;
+    /// Sets the puzzle grip.
+    pub fn set_grip(&mut self, grip: Grip) {
+        self.grip = grip;
     }
 
     /// Sets the hovered stickers, in order from front to back.
-    pub fn update_hovered_stickers(
+    pub fn update_hovered_sticker(
         &mut self,
-        hovered_stickers: impl IntoIterator<Item = (Sticker, [Option<Twist>; 3])>,
+        stickers_under_cursor: impl IntoIterator<Item = (Sticker, ClickTwists)>,
     ) {
-        self.hovered_sticker = hovered_stickers.into_iter().find(|&(sticker, _twists)| {
-            let less_than_halfway = TWIST_INTERPOLATION_FN(self.progress) < 0.5;
-            let puzzle_state = if less_than_halfway {
-                self.displayed() // puzzle state before the twist
-            } else {
-                &self.next_displayed // puzzle state after the twist
-            };
-            self.selection.has_sticker(puzzle_state, sticker)
-                && !self.hidden_stickers[sticker.0 as usize]
-        });
+        let hovered = stickers_under_cursor
+            .into_iter()
+            .find(|&(sticker, _twists)| {
+                let less_than_halfway = TWIST_INTERPOLATION_FN(self.progress) < 0.5;
+                let puzzle_state = if less_than_halfway {
+                    self.displayed() // puzzle state before the twist
+                } else {
+                    self.next_displayed() // puzzle state after the twist
+                };
+                let piece = self.info(sticker).piece;
+                let piece_state = self.logical_piece_states[piece.0 as usize];
+                self.grip.has_piece(puzzle_state, piece).unwrap_or(true)
+                    && (piece_state.marked || !piece_state.hidden)
+            });
+
+        self.hovered_sticker = hovered.map(|(sticker, _twists)| sticker);
+        self.hovered_twists = hovered.map(|(_sticker, twists)| twists);
     }
     pub(crate) fn hovered_sticker(&self) -> Option<Sticker> {
-        self.hovered_sticker.map(|(sticker, _twists)| sticker)
-    }
-    pub(crate) fn hovered_sticker_twists(&self) -> [Option<Twist>; 3] {
         self.hovered_sticker
-            .map(|(_sticker, twists)| twists)
-            .unwrap_or([None; 3])
     }
-
-    pub fn set_piece_type_hidden(&mut self, piece_type: PieceType, hidden: bool) {
-        for piece in self.ty().pieces() {
-            if piece.piece_type == piece_type {
-                for sticker in &piece.stickers {
-                    self.hidden_stickers[sticker.0 as usize] = hidden;
-                }
-            }
-        }
-    }
-
-    /// Returns the animation state for a sticker.
-    pub fn sticker_animation_state(&self, sticker: Sticker) -> StickerDecorAnim {
-        self.sticker_animation_states[sticker.0 as usize]
+    pub(crate) fn hovered_twists(&self) -> Option<ClickTwists> {
+        self.hovered_twists
     }
 
     pub(crate) fn geometry(
@@ -331,7 +333,7 @@ impl PuzzleController {
                             &projected_verts,
                             indices,
                             illumination,
-                            [None; 3],
+                            ClickTwists::default(), // don't care
                         ));
                     }
                 }
@@ -358,15 +360,6 @@ impl PuzzleController {
 
         self.cached_geometry = Some(Arc::clone(&ret));
         ret
-    }
-
-    /// Returns whether the puzzle is in the middle of an animation.
-    pub fn is_animating(&self, prefs: &InteractionPreferences) -> bool {
-        self.current_twist().is_some()
-            || (0..self.ty().stickers().len() as _)
-                .map(Sticker)
-                .map(|sticker| self.sticker_animation_state_target(sticker, prefs))
-                .ne(self.sticker_animation_states.iter().copied())
     }
 
     /// Advances the puzzle geometry and internal state to the next frame, using
@@ -410,55 +403,90 @@ impl PuzzleController {
     }
     /// Advances the puzzle decorations (outlines and sticker opacities) to the
     /// next frame, using the given time delta between this frame and the last.
-    pub fn update_decorations(&mut self, delta: Duration, prefs: &InteractionPreferences) {
-        let max_delta_selected = delta.as_secs_f32() / prefs.selection_fade_duration;
-        let max_delta_hovered = delta.as_secs_f32() / prefs.hover_fade_duration;
+    /// Returns whether the decorations changed, in which case a redraw is
+    /// needed.
+    pub fn update_decorations(&mut self, delta: Duration, prefs: &InteractionPreferences) -> bool {
+        let mut changed = false;
 
-        for i in 0..self.stickers().len() {
-            let target = self.sticker_animation_state_target(Sticker(i as _), prefs);
-            let animation_state = &mut self.sticker_animation_states[i];
-            add_delta_toward_target(
-                &mut animation_state.selected,
-                target.selected,
-                max_delta_selected,
-            );
-            add_delta_toward_target(
-                &mut animation_state.hidden,
-                target.hidden,
-                max_delta_selected,
-            );
-            if target.hovered == 1.0 {
-                // Always react instantly to a new hovered sticker.
-                animation_state.hovered = 1.0;
-            } else {
-                add_delta_toward_target(
-                    &mut animation_state.hovered,
-                    target.hovered,
-                    max_delta_hovered,
-                );
+        let delta = delta.as_secs_f32() / prefs.other_anim_duration;
+
+        for piece in (0..self.pieces().len() as _).map(Piece) {
+            let logical_state = self.logical_piece_states[piece.0 as usize];
+
+            let gripped = self.grip.has_piece(self.next_displayed(), piece);
+            let hidden = logical_state.hidden || logical_state.preview_hidden.unwrap_or(false);
+            let stickers = &self.info(piece).stickers;
+            let target = VisualPieceState {
+                gripped: (gripped == Some(true)) as u8 as f32,
+                ungripped: (gripped == Some(false)) as u8 as f32,
+                hidden: hidden as u8 as f32,
+                marked: logical_state.marked as u8 as f32,
+                selected: stickers.iter().any(|s| self.selection.contains(s)) as u8 as f32,
+                hovered: stickers.iter().any(|&s| Some(s) == self.hovered_sticker) as u8 as f32,
+            };
+
+            /// Adds or subtracts up to `delta` to reach `target`. Returns
+            /// `true` if `current` changed.
+            fn approach_target(current: &mut f32, target: f32, delta: f32) -> bool {
+                if *current == target {
+                    false
+                } else {
+                    if !delta.is_finite() {
+                        *current = target; // recovery from invalid state
+                    } else if *current + delta < target {
+                        *current += delta;
+                    } else if *current - delta > target {
+                        *current -= delta;
+                    } else {
+                        *current = target;
+                    }
+                    true
+                }
+            }
+
+            let current = &mut self.visual_piece_states[piece.0 as usize];
+            changed |= approach_target(&mut current.gripped, target.gripped, delta);
+            changed |= approach_target(&mut current.ungripped, target.ungripped, delta);
+            changed |= approach_target(&mut current.hidden, target.hidden, delta);
+            changed |= approach_target(&mut current.marked, target.marked, delta);
+            changed |= approach_target(&mut current.selected, target.selected, delta);
+            changed |= approach_target(&mut current.hovered, target.hovered, delta);
+            if current.hovered < target.hovered {
+                // Highlight hovered sticker instantly for better responsiveness.
+                changed |= approach_target(&mut current.hovered, target.hovered, f32::INFINITY);
             }
         }
-    }
-    fn sticker_animation_state_target(
-        &self,
-        sticker: Sticker,
-        prefs: &InteractionPreferences,
-    ) -> StickerDecorAnim {
-        let is_selected = self.selection.has_sticker(self.latest(), sticker);
-        let is_hovered = match self.hovered_sticker {
-            Some((s, _)) => match prefs.highlight_piece_on_hover {
-                false => s == sticker,
-                true => self.info(s).piece == self.info(sticker).piece,
-            },
-            None => false,
-        };
-        let is_hidden = self.hidden_stickers[sticker.0 as usize];
 
-        StickerDecorAnim {
-            selected: if is_selected { 1.0 } else { 0.0 },
-            hovered: if is_hovered { 1.0 } else { 0.0 },
-            hidden: if is_hidden { 1.0 } else { 0.0 },
+        changed
+    }
+    /// Returns the visual state for a piece.
+    pub fn visual_piece_state(&self, piece: Piece) -> VisualPieceState {
+        self.visual_piece_states[piece.0 as usize]
+    }
+
+    /// Returns the set of selected stickers
+    pub fn selection(&self) -> &HashSet<Sticker> {
+        &self.selection
+    }
+    /// Toggles whether a sticker is selected.
+    pub fn toggle_select(&mut self, sticker: Sticker) {
+        if self.selection.contains(&sticker) {
+            self.deselect(sticker)
+        } else {
+            self.select(sticker)
         }
+    }
+    /// Selects a sticker.
+    pub fn select(&mut self, sticker: Sticker) {
+        self.selection.insert(sticker);
+    }
+    /// Deselects a sticker.
+    pub fn deselect(&mut self, sticker: Sticker) {
+        self.selection.remove(&sticker);
+    }
+    /// Deselects all stickers.
+    pub fn deselect_all(&mut self) {
+        self.selection = HashSet::new();
     }
 
     /// Skips the animations for all twists in the queue.
@@ -623,36 +651,151 @@ pub enum ScrambleState {
     Solved = 3,
 }
 
-/// Sticker decoration animation state. Each value is in the range 0.0..=1.0.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct StickerDecorAnim {
-    /// Progress toward being selected.
-    pub selected: f32,
-    /// Progress toward being hovered.
-    pub hovered: f32,
-    /// Progress toward being hidden.
-    pub hidden: f32,
+/// Which parts of the puzzle to twist.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct Grip {
+    pub axes: HashSet<TwistAxis>,
+    pub layers: Option<LayerMask>,
 }
-impl Default for StickerDecorAnim {
-    fn default() -> Self {
+impl BitOr<&Grip> for Grip {
+    type Output = Self;
+
+    fn bitor(mut self, rhs: &Grip) -> Self::Output {
+        self |= rhs;
+        self
+    }
+}
+impl BitOrAssign<&Grip> for Grip {
+    fn bitor_assign(&mut self, rhs: &Self) {
+        self.axes.extend(&rhs.axes);
+        self.layers = match (self.layers, rhs.layers) {
+            (None, None) => None,
+            (None, Some(l)) | (Some(l), None) => Some(l),
+            (Some(l1), Some(l2)) => Some(l1 | l2),
+        }
+    }
+}
+impl Grip {
+    pub fn with_axis(axis: TwistAxis) -> Self {
         Self {
-            selected: 1.0,
-            hovered: 0.0,
-            hidden: 0.0,
+            axes: HashSet::from_iter([axis]),
+            ..Self::default()
+        }
+    }
+    pub fn with_layers(layers: LayerMask) -> Self {
+        Self {
+            layers: Some(layers),
+            ..Self::default()
+        }
+    }
+
+    pub fn toggle_axis(&mut self, axis: TwistAxis, exclusive: bool) {
+        if self.axes.contains(&axis) {
+            if exclusive {
+                self.axes = HashSet::new();
+            } else {
+                self.axes.remove(&axis);
+            }
+        } else if exclusive {
+            self.axes = HashSet::from_iter([axis]);
+        } else {
+            self.axes.insert(axis);
+        }
+    }
+    pub fn toggle_layer(&mut self, layer: u8, exclusive: bool) {
+        let l = self.layers.get_or_insert(LayerMask::default());
+        *l ^= LayerMask(1 << layer);
+        if exclusive {
+            *l &= LayerMask(1 << layer);
+        }
+        if *l == LayerMask::default() {
+            self.layers = None;
+        }
+    }
+
+    /// Returns whether the twist selection includes a particular piece.
+    pub fn has_piece(&self, puzzle: &dyn PuzzleState, piece: Piece) -> Option<bool> {
+        if self.axes.is_empty() {
+            None
+        } else {
+            let layer_mask = self.layers.unwrap_or_default();
+            Some(
+                self.axes
+                    .iter()
+                    .map(|&twist_axis| puzzle.layer_from_twist_axis(twist_axis, piece))
+                    .all(|layer| layer_mask[layer]),
+            )
         }
     }
 }
 
-fn add_delta_toward_target(current: &mut f32, target: f32, delta: f32) {
-    if *current == target {
-        // fast exit for the common case
-    } else if !delta.is_finite() {
-        *current = target;
-    } else if *current + delta < target {
-        *current += delta;
-    } else if *current - delta > target {
-        *current -= delta;
-    } else {
-        *current = target;
+/// Boolean piece state, such as whether a piece is hidden.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct LogicalPieceState {
+    pub hidden: bool,
+    pub preview_hidden: Option<bool>,
+    pub marked: bool,
+}
+
+/// Floating-point piece state, such as whether a piece is hidden.
+#[derive(Debug, Default, Copy, Clone, PartialEq)]
+pub struct VisualPieceState {
+    pub gripped: f32,
+    pub ungripped: f32,
+    pub hidden: f32,
+    pub marked: f32,
+    pub selected: f32,
+    pub hovered: f32,
+}
+impl VisualPieceState {
+    pub fn outline_color(self, prefs: &Preferences, is_sticker_selected: bool) -> egui::Rgba {
+        let pr = &prefs.outlines;
+
+        let hidden_or_ungripped = f32::max(self.hidden, self.ungripped);
+
+        let mut ret = egui::Rgba::from(pr.default_color);
+        // In order from lowest to highest priority:
+        ret = util::mix(ret, egui::Rgba::from(pr.hidden_color), hidden_or_ungripped);
+        ret = util::mix(ret, egui::Rgba::from(pr.hovered_color), self.hovered);
+        ret = util::mix(ret, egui::Rgba::from(pr.marked_color), self.marked);
+        ret = util::mix(
+            ret,
+            egui::Rgba::from(if is_sticker_selected {
+                pr.selected_sticker_color
+            } else {
+                pr.selected_piece_color
+            }),
+            self.selected,
+        );
+        ret
+    }
+    pub fn outline_size(self, prefs: &Preferences) -> f32 {
+        let pr = &prefs.outlines;
+
+        let hidden_or_ungripped = f32::max(self.hidden, self.ungripped);
+
+        let mut ret = pr.default_size;
+        // In order from lowest to highest priority:
+        ret = util::mix(ret, pr.hidden_size, hidden_or_ungripped);
+        ret = util::mix(ret, pr.selected_size, self.selected);
+        ret = util::mix(ret, pr.marked_size, self.marked);
+        ret = util::mix(ret, pr.hovered_size, self.hovered);
+        ret
+    }
+    pub fn opacity(self, prefs: &Preferences) -> f32 {
+        let pr = &prefs.opacity;
+
+        let full_opacity = f32::max(self.hovered, f32::max(self.marked, self.gripped));
+
+        let mut ret = 1.0;
+        // In order from lowest to highest priority:
+        ret = util::mix(ret, pr.selected, self.selected);
+        ret = util::mix(ret, pr.hidden, self.hidden);
+        ret *= pr.base;
+        ret = util::mix(ret, 1.0, full_opacity);
+        if pr.base * pr.ungripped < ret {
+            ret = util::mix(ret, pr.base * pr.ungripped, self.ungripped);
+        }
+        ret
     }
 }

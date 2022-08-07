@@ -148,14 +148,14 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
 
             for bind in matching_puzzle_keybinds {
                 ui.horizontal_wrapped(|ui| match &bind.command {
-                    PuzzleCommand::SelectAxis(twist_axis) => {
-                        ui.label("Select");
+                    PuzzleCommand::GripAxis(twist_axis) => {
+                        ui.label("Grip");
                         ui.strong(twist_axis);
                     }
-                    PuzzleCommand::SelectLayers(layers) => {
+                    PuzzleCommand::GripLayers(layers) => {
                         let layers = layers.to_layer_mask(puzzle_type.layer_count());
                         if layers != LayerMask(0) {
-                            ui.label("Select");
+                            ui.label("Grip");
                             ui.strong(layers.long_description());
                         }
                     }
@@ -172,11 +172,11 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                             ui.label("in");
                             ui.strong(direction);
                             ui.label("direction relative to");
-                            ui.strong(axis.as_deref().unwrap_or("selected"));
+                            ui.strong(axis.as_deref().unwrap_or("gripped"));
                             ui.label("axis");
                         } else if layers != LayerMask(0) {
                             ui.label("Twist");
-                            ui.strong(axis.as_deref().unwrap_or("selected"));
+                            ui.strong(axis.as_deref().unwrap_or("gripped"));
                             ui.label("in");
                             ui.strong(direction);
                             ui.label("direction");
@@ -191,7 +191,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                     }
                     PuzzleCommand::Recenter { axis } => {
                         ui.label("Recenter");
-                        ui.strong(axis.as_deref().unwrap_or("selected"));
+                        ui.strong(axis.as_deref().unwrap_or("gripped"));
                         ui.label("axis");
                     }
 

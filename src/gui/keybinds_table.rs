@@ -351,8 +351,8 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
                 match (self.cmd) {
                     "None" => Cmd::None,
 
-                    "Select axis" => Cmd::SelectAxis(puzzle_type.twist_axes()[0].name.to_owned()),
-                    "Select layers" => Cmd::SelectLayers(LayerMaskDesc::default()),
+                    "Grip axis" => Cmd::GripAxis(puzzle_type.twist_axes()[0].name.to_owned()),
+                    "Grip layers" => Cmd::GripLayers(LayerMaskDesc::default()),
                     "Twist" => Cmd::Twist {
                         axis: None,
                         direction: puzzle_type.twist_directions()[0].name.to_owned(),
@@ -366,7 +366,7 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
             match self.cmd {
                 Cmd::None => (),
 
-                Cmd::SelectAxis(axis) => {
+                Cmd::GripAxis(axis) => {
                     add_pre_label_space(ui);
                     ui.label("Axis:");
                     let r = ui.add(FancyComboBox::new(
@@ -376,7 +376,7 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
                     ));
                     changed |= r.changed();
                 }
-                Cmd::SelectLayers(layers) => {
+                Cmd::GripLayers(layers) => {
                     add_pre_label_space(ui);
                     ui.label("Layers:");
                     let r = ui.add(LayerMaskEdit {

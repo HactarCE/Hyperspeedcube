@@ -1,27 +1,26 @@
 use crate::app::App;
-use crate::puzzle::{traits::*, Twist, TwistDirection};
+use crate::puzzle::{traits::*, LayerMask, Twist, TwistAxis, TwistDirection};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     let puzzle_type = app.puzzle.ty();
 
-    let sel = app.puzzle_selection();
-    let toggle_sel = &mut app.toggle_selections;
+    let grip = app.grip();
 
     let h_layout = egui::Layout::left_to_right()
         .with_cross_align(egui::Align::TOP)
         .with_main_wrap(true);
 
+    // Allow selecting multiple by holding cmd/ctrl.
+    let multi_select = ui.input().modifiers.command;
+
     ui.strong("Twist axis");
     ui.with_layout(h_layout, |ui| {
         for (i, twist_axis) in puzzle_type.twist_axes().iter().enumerate() {
-            let bit = 1 << i;
-            let mut is_sel = sel.axis_mask & bit != 0;
+            let mut is_sel = grip.axes.contains(&TwistAxis(i as _));
             let r = ui.selectable_value(&mut is_sel, true, twist_axis.name);
             if r.changed() {
-                toggle_sel.axis_mask ^= bit;
-                if !ui.input().modifiers.command {
-                    toggle_sel.axis_mask &= bit;
-                }
+                app.toggle_grip
+                    .toggle_axis(TwistAxis(i as _), !multi_select);
             }
         }
     });
@@ -31,19 +30,18 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.strong("Layers");
     ui.with_layout(h_layout, |ui| {
         for i in 0..puzzle_type.layer_count() {
-            let bit = 1 << i;
-            let mut is_sel = sel.layer_mask & bit != 0;
+            let mut is_sel = grip.layers.unwrap_or_default()[i as u8];
             let r = ui.selectable_value(&mut is_sel, true, format!("{}", i + 1));
             if r.changed() {
-                toggle_sel.layer_mask ^= bit;
+                app.toggle_grip.toggle_layer(i as u8, !multi_select);
             }
         }
     });
 
     ui.separator();
 
-    let twist_axis = app.selected_twist_axis(None);
-    let can_twist = twist_axis.is_ok() && sel.layer_mask != 0_u32;
+    let twist_axis = app.gripped_twist_axis(None);
+    let can_twist = twist_axis.is_ok() && grip.layers != Some(LayerMask(0));
 
     ui.strong("Twist");
     ui.add_enabled_ui(can_twist, |ui| {
@@ -55,7 +53,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                         app.event(Twist {
                             axis,
                             direction: TwistDirection(i as _),
-                            layers: app.selected_layers(None),
+                            layers: app.grip().layers.unwrap_or_default(),
                         })
                     }
                 }

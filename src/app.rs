@@ -21,7 +21,7 @@ pub struct App {
     pub(crate) puzzle: PuzzleController,
     pub(crate) render_cache: PuzzleRenderCache,
     pub(crate) puzzle_texture_size: (u32, u32),
-    wants_to_redraw_puzzle: bool,
+    force_redraw: bool,
 
     /// Mouse cursor position relative to the puzzle texture.
     pub(crate) cursor_pos: Option<Point2<f32>>,
@@ -29,10 +29,10 @@ pub struct App {
     pressed_keys: HashSet<Key>,
     /// Set of pressed modifier keys.
     pressed_modifiers: ModifiersState,
-    /// Selections tied to a held key.
-    held_selections: HashMap<Key, TwistSelection>,
-    /// Semi-permanent selections.
-    pub(crate) toggle_selections: TwistSelection,
+    /// Grips that are tied to a held key.
+    transient_grips: HashMap<Key, Grip>,
+    /// Grip that is more permanent.
+    pub(crate) toggle_grip: Grip,
 
     dragging_view_angle: bool,
     pub(crate) view_angle_offset: egui::Vec2,
@@ -49,13 +49,13 @@ impl App {
             puzzle: PuzzleController::default(),
             render_cache: PuzzleRenderCache::default(),
             puzzle_texture_size: (0, 0),
-            wants_to_redraw_puzzle: true,
+            force_redraw: true,
 
             cursor_pos: None,
             pressed_keys: HashSet::default(),
             pressed_modifiers: ModifiersState::default(),
-            held_selections: HashMap::default(),
-            toggle_selections: TwistSelection::default(),
+            transient_grips: HashMap::default(),
+            toggle_grip: Grip::default(),
 
             dragging_view_angle: false,
             view_angle_offset: egui::Vec2::default(),
@@ -75,11 +75,11 @@ impl App {
     }
 
     pub(crate) fn request_redraw_puzzle(&mut self) {
-        self.wants_to_redraw_puzzle = true;
+        self.force_redraw = true;
     }
     pub(crate) fn draw_puzzle(&mut self, gfx: &mut GraphicsState) -> Option<wgpu::TextureView> {
-        let ret = crate::render::draw_puzzle(self, gfx, self.wants_to_redraw_puzzle);
-        self.wants_to_redraw_puzzle = false;
+        let ret = crate::render::draw_puzzle(self, gfx, self.force_redraw);
+        self.force_redraw = false;
         ret
     }
 
@@ -174,12 +174,29 @@ impl App {
             }
 
             AppEvent::Click(mouse_button) => {
+                if self.pressed_modifiers() == ModifiersState::SHIFT {
+                    if let Some(sticker) = self.puzzle.hovered_sticker() {
+                        match mouse_button {
+                            egui::PointerButton::Primary => self.puzzle.toggle_select(sticker),
+                            egui::PointerButton::Secondary => self.puzzle.select(sticker),
+                            egui::PointerButton::Middle => (),
+                        }
+                    } else {
+                        self.puzzle.deselect_all();
+                    }
+                    return Ok(());
+                }
                 if self.puzzle.current_twist().is_none() {
-                    if let Some(mut twist) =
-                        self.puzzle.hovered_sticker_twists()[mouse_button as usize]
-                    {
-                        twist.layers = self.selected_layers(Some(twist.layers));
-                        self.puzzle.twist(twist)?;
+                    if let Some(twists) = self.puzzle.hovered_twists() {
+                        let twist = match mouse_button {
+                            egui::PointerButton::Primary => twists.ccw,
+                            egui::PointerButton::Secondary => twists.cw,
+                            egui::PointerButton::Middle => twists.recenter,
+                        };
+                        if let Some(mut t) = twist {
+                            t.layers = self.gripped_layers(t.layers);
+                            self.puzzle.twist(t)?;
+                        }
                     }
                 }
             }
@@ -215,9 +232,9 @@ impl App {
                 // Sometimes we miss key events for modifiers when the left and
                 // right modifiers are both pressed at once (at least in my
                 // testing on Windows 11) so clean that up here just in case.
-                self.remove_held_selections(|k| {
-                    // If the selection requires a modifier and that modifier is
-                    // not pressed, then remove the selection.
+                self.remove_held_grips(|k| {
+                    // If the grip requires a modifier and that modifier is not
+                    // pressed, then remove the grip.
                     k.is_shift() && !mods.shift()
                         || k.is_ctrl() && !mods.ctrl()
                         || k.is_alt() && !mods.alt()
@@ -238,42 +255,28 @@ impl App {
                             self.pressed_keys.insert(Key::Vk(vk));
                         }
 
-                        // Only allow one twist command per keypress. Macros are
-                        // icky.
+                        // Only allow one twist command per keypress. Don't use
+                        // multiple keybinds for macros.
                         let mut done_twist_command = false;
 
                         let puzzle_keybinds = &self.prefs.puzzle_keybinds[self.puzzle.ty()];
                         for bind in self.resolve_keypress(puzzle_keybinds, sc, vk) {
+                            let key = bind.key.key().unwrap();
                             match &bind.command {
-                                PuzzleCommand::SelectAxis(axis_name) => {
+                                PuzzleCommand::GripAxis(axis_name) => {
                                     match self.twist_axis_from_name(Some(axis_name)) {
                                         Ok(twist_axis) => {
-                                            if twist_axis.0 < 32 {
-                                                self.held_selections.insert(
-                                                    bind.key.key().unwrap(),
-                                                    TwistSelection {
-                                                        axis_mask: 1 << twist_axis.0,
-                                                        layer_mask: 0,
-                                                    },
-                                                );
-                                            } else {
-                                                self.event(AppEvent::StatusError(
-                                                    "Too many twist axes".to_string(),
-                                                ));
-                                            }
+                                            let new_grip = Grip::with_axis(twist_axis);
+                                            self.transient_grips.insert(key, new_grip);
                                         }
                                         Err(e) => self.event(AppEvent::StatusError(e)),
                                     }
                                 }
-                                PuzzleCommand::SelectLayers(layers) => {
-                                    let layers = layers.to_layer_mask(self.puzzle.layer_count());
-                                    self.held_selections.insert(
-                                        bind.key.key().unwrap(),
-                                        TwistSelection {
-                                            axis_mask: 0,
-                                            layer_mask: layers.0,
-                                        },
+                                PuzzleCommand::GripLayers(layers) => {
+                                    let new_grip = Grip::with_layers(
+                                        layers.to_layer_mask(self.puzzle.layer_count()),
                                     );
+                                    self.transient_grips.insert(key, new_grip);
                                 }
                                 PuzzleCommand::Twist {
                                     axis,
@@ -321,8 +324,8 @@ impl App {
                             self.pressed_keys.remove(&Key::Vk(vk));
                         }
 
-                        // Remove selections for this held key.
-                        self.remove_held_selections(|k| {
+                        // Remove grips for this held key.
+                        self.remove_held_grips(|k| {
                             Some(k) == sc.map(Key::Sc) || Some(k) == vk.map(Key::Vk)
                         });
                     }
@@ -346,21 +349,22 @@ impl App {
         // keypress -- in particular, if another keybind has already consumed
         // the modifier.
         //
-        // For example, if `Shift` is bound to "select layer 2," then a keybind
+        // For example, if `Shift` is bound to "grip layer 2," then a keybind
         // bound to `A` will still match `Shift`+`A` because `Shift` is in the
         // "ignored modifiers" set.
         //
         // A modifier is also ignored when matching its own key, hence
         // `.chain(&sc).chain(&vk)`. For example, the shift modifier is ignored
         // when matching the shift key.
-        let modifiers_mask = self.held_selections.keys().chain(&sc).chain(&vk).fold(
+        let ignored_keys = self.transient_grips.keys().chain(&sc).chain(&vk);
+        let modifiers_mask = ignored_keys.fold(
             // Consider all modifiers, but don't distinguish left vs. right.
             ModifiersState::SHIFT
                 | ModifiersState::CTRL
                 | ModifiersState::ALT
                 | ModifiersState::LOGO,
-            // Ignore held selections and the key currently being pressed.
-            |mods, key| mods & !key.modifier_bit(),
+            // Ignore held greps and the key currently being pressed.
+            |mods, key_to_ignore| mods & !key_to_ignore.modifier_bit(),
         );
 
         keybinds
@@ -377,7 +381,7 @@ impl App {
     }
 
     fn twist_axis_from_name(&self, name: Option<&str>) -> Result<TwistAxis, String> {
-        let name = name.ok_or("No twist axis selected")?;
+        let name = name.ok_or("No twist axis gripped")?;
         self.puzzle
             .ty()
             .twist_axis_from_name(name)
@@ -389,51 +393,49 @@ impl App {
             .ok_or_else(|| format!("Unknown twist direction {name:?}"))
     }
 
-    /// Returns the twist axis selected if exactly one twist axis is selected;
-    /// otherwise returns `None`.
-    pub(crate) fn selected_twist_axis(&self, fallback: Option<&str>) -> Result<TwistAxis, String> {
-        if let Some(name) = fallback {
+    /// If `preferred` is supplied, returns the twist axis with that name;
+    /// otherwise, returns the gripped twist axis if exactly one twist axis is
+    /// gripped; otherwise returns `None`.
+    pub(crate) fn gripped_twist_axis(&self, preferred: Option<&str>) -> Result<TwistAxis, String> {
+        if let Some(name) = preferred {
             return self
                 .puzzle
                 .twist_axis_from_name(name)
                 .ok_or_else(|| format!("Unknown twist axis {name:?}"));
         }
-        let sel = self.puzzle_selection();
-        match sel.axis_mask.count_ones() {
-            0 => Err("No twist axis selected".to_string()),
-            1 => {
-                let index_of_first_one_bit = sel.axis_mask.trailing_zeros();
-                Ok(TwistAxis(index_of_first_one_bit as _))
+        self.grip().axes.iter().copied().exactly_one().map_err(|e| {
+            if e.len() == 0 {
+                "No twist axis gripped".to_string()
+            } else {
+                "Too many twist axes gripped".to_string()
             }
-            _ => Err("Too many twist axes".to_string()),
-        }
+        })
     }
-    /// Returns the mask of selected layers, or `fallback` if `fallback` is
-    /// non-default.
-    pub(crate) fn selected_layers(&self, fallback: Option<LayerMask>) -> LayerMask {
-        if let Some(layers) = fallback {
-            if layers != LayerMask::default() {
-                return layers;
-            }
+    /// If `fallback` is non-default, returns that; otherwise, returns the
+    /// gripped layers.
+    pub(crate) fn gripped_layers(&self, fallback: LayerMask) -> LayerMask {
+        if fallback != LayerMask::default() {
+            fallback
+        } else {
+            self.grip().layers.unwrap_or_default()
         }
-        self.puzzle_selection().layer_mask_or_default()
     }
 
     pub(crate) fn do_twist(
         &self,
         twist_axis: Option<&str>,
         direction: &str,
-        layer_mask: LayerMask,
+        layers: LayerMask,
     ) -> Result<(), String> {
         self.event(AppEvent::Twist(Twist {
-            axis: self.selected_twist_axis(twist_axis)?,
+            axis: self.gripped_twist_axis(twist_axis)?,
             direction: self.twist_direction_from_name(direction)?,
-            layers: self.selected_layers(Some(layer_mask)),
+            layers: self.gripped_layers(layers),
         }));
         Ok(())
     }
     pub(crate) fn do_recenter(&self, twist_axis: Option<&str>) -> Result<(), String> {
-        let axis = self.selected_twist_axis(twist_axis)?;
+        let axis = self.gripped_twist_axis(twist_axis)?;
         self.event(AppEvent::Twist(self.puzzle.make_recenter_twist(axis)?));
         Ok(())
     }
@@ -446,7 +448,7 @@ impl App {
     }
 
     pub(crate) fn frame(&mut self, delta: Duration) {
-        self.puzzle.set_selection(self.puzzle_selection());
+        self.puzzle.set_grip(self.grip());
         if self.puzzle.check_just_solved() {
             self.set_status_ok("Solved!");
         }
@@ -536,21 +538,19 @@ impl App {
         self.status_msg = format!("Error: {}", msg)
     }
 
-    pub(crate) fn puzzle_selection(&self) -> TwistSelection {
+    pub(crate) fn grip(&self) -> Grip {
         let mut ret = self
-            .held_selections
+            .transient_grips
             .values()
-            .copied()
-            .reduce(|a, b| a | b)
-            .unwrap_or(self.toggle_selections);
-        ret.axis_mask |= self.toggle_selections.axis_mask;
-        if ret.layer_mask == 0 {
-            ret.layer_mask = self.toggle_selections.layer_mask;
+            .fold(Grip::default(), |a, b| a | b);
+        ret.axes.extend(&self.toggle_grip.axes);
+        if ret.layers.is_none() {
+            ret.layers = self.toggle_grip.layers;
         }
         ret
     }
-    fn remove_held_selections(&mut self, mut remove_if: impl FnMut(Key) -> bool) {
-        self.held_selections.retain(|&k, _v| !remove_if(k));
+    fn remove_held_grips(&mut self, mut remove_if: impl FnMut(Key) -> bool) {
+        self.transient_grips.retain(|&k, _v| !remove_if(k));
     }
 }
 

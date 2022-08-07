@@ -20,7 +20,8 @@ view:
     face_spacing: 0.03
     sticker_spacing: 0.05
     outline_thickness: 2.0
-    light_intensity: 0.0
+    light_ambient: 1.0
+    light_directional: 0.0
     light_pitch: 0.0
     light_yaw: 0.0
   Rubiks4D:
@@ -34,20 +35,28 @@ view:
     face_spacing: 0.7
     sticker_spacing: 0.3
     outline_thickness: 1.0
-    light_intensity: 1.0
+    light_ambient: 0.0
+    light_directional: 1.0
     light_pitch: 65.0
     light_yaw: -55.0
 outlines:
-  default_size: 2.0
-  hidden_size: 0.0
+  default_size: 1.0
+  hidden_size: 1.0
   hovered_size: 3.0
+  marked_size: 2.0
+  selected_size: 2.0
   default_color: "#000000"
   hidden_color: "#000000"
   hovered_color: "#ffffff"
+  marked_color: "#ffaaaa"
+  selected_sticker_color: "#ff7700"
+  selected_piece_color: "#bbbb00"
+opacity:
+  base: 1.0
+  ungripped: 0.3
+  hidden: 0.1
+  selected: 1.0
 colors:
-  default_opacity: 1.0
-  hidden_opacity: 0.3
-  hovered_opacity: 1.0
   background: "#444444"
   blind_face: "#cccccc"
   blindfold: false
@@ -70,11 +79,9 @@ colors:
       O: "#ff66ff"
 interaction:
   confirm_discard_only_when_scrambled: true
-  highlight_piece_on_hover: true
-  selection_fade_duration: 0.1
-  hover_fade_duration: 0.1
-  twist_duration: 0.2
   dynamic_twist_speed: true
+  twist_duration: 0.2
+  other_anim_duration: 0.15
   drag_sensitivity: 0.7
 general_keybinds:
   - vk: O
@@ -123,10 +130,10 @@ puzzle_keybinds:
   Rubiks3D:
     - sc: ShiftLeft
       command:
-        select_layers: 1..2
+        grip_layers: 1..2
     - sc: ShiftRight
       command:
-        select_layers: 1..2
+        grip_layers: 1..2
     - sc: KeyE
       command:
         twist:
@@ -293,69 +300,69 @@ puzzle_keybinds:
           layers: 2..-2
     - sc: Digit1
       command:
-        select_layers: 1
+        grip_layers: 1
     - sc: Digit2
       command:
-        select_layers: 2
+        grip_layers: 2
     - sc: Digit3
       command:
-        select_layers: 3
+        grip_layers: 3
     - sc: Digit4
       command:
-        select_layers: 4
+        grip_layers: 4
     - sc: Digit5
       command:
-        select_layers: 5
+        grip_layers: 5
     - sc: Digit6
       command:
-        select_layers: 6
+        grip_layers: 6
     - sc: Digit7
       command:
-        select_layers: 7
+        grip_layers: 7
     - sc: Digit8
       command:
-        select_layers: 8
+        grip_layers: 8
     - sc: Digit9
       command:
-        select_layers: 9
+        grip_layers: 9
 
   Rubiks4D:
     - sc: ShiftLeft
       command:
-        select_layers: 1..2
+        grip_layers: 1..2
     - sc: ShiftRight
       command:
-        select_layers: 1..2
+        grip_layers: 1..2
     - sc: AltLeft
       command:
-        select_layers: 2
+        grip_layers: 2
     - sc: AltRight
       command:
-        select_layers: 2
+        grip_layers: 2
     - sc: KeyW
       command:
-        select_axis: L
+        grip_axis: L
     - sc: KeyE
       command:
-        select_axis: U
+        grip_axis: U
     - sc: KeyR
       command:
-        select_axis: B
+        grip_axis: B
     - sc: KeyS
       command:
-        select_axis: F
+        grip_axis: F
     - sc: KeyD
       command:
-        select_axis: I
+        grip_axis: I
     - sc: KeyF
       command:
-        select_axis: R
+        grip_axis: R
     - sc: KeyC
       command:
-        select_axis: D
+        grip_axis: D
     - sc: KeyV
       command:
-        select_axis: O
+        grip_axis: O
     - sc: KeyI
       command:
         twist:
@@ -439,28 +446,28 @@ puzzle_keybinds:
           layers: 1..-1
     - sc: Digit1
       command:
-        select_layers: 1
+        grip_layers: 1
     - sc: Digit2
       command:
-        select_layers: 2
+        grip_layers: 2
     - sc: Digit3
       command:
-        select_layers: 3
+        grip_layers: 3
     - sc: Digit4
       command:
-        select_layers: 4
+        grip_layers: 4
     - sc: Digit5
       command:
-        select_layers: 5
+        grip_layers: 5
     - sc: Digit6
       command:
-        select_layers: 6
+        grip_layers: 6
     - sc: Digit7
       command:
-        select_layers: 7
+        grip_layers: 7
     - sc: Digit8
       command:
-        select_layers: 8
+        grip_layers: 8
     - sc: Digit9
       command:
-        select_layers: 9
+        grip_layers: 9

@@ -15,6 +15,7 @@ mod gfx;
 mod info;
 mod interaction;
 mod keybinds;
+mod opacity;
 mod outlines;
 mod view;
 
@@ -25,6 +26,7 @@ pub use gfx::*;
 pub use info::*;
 pub use interaction::*;
 pub use keybinds::*;
+pub use opacity::*;
 pub use outlines::*;
 pub use view::*;
 
@@ -99,6 +101,7 @@ pub struct Preferences {
     pub gfx: GfxPreferences,
     pub view: PerPuzzle<ViewPreferences>,
     pub outlines: OutlinePreferences,
+    pub opacity: OpacityPreferences,
     pub colors: ColorPreferences,
     pub interaction: InteractionPreferences,
 

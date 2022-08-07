@@ -16,14 +16,16 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                         .on_hover_text(format!("Show {}s", piece_type.name))
                         .clicked()
                     {
-                        app.puzzle.set_piece_type_hidden(PieceType(i as _), false);
+                        todo!("hide pice type")
+                        // app.puzzle.set_piece_type_hidden(PieceType(i as _), false);
                     }
                     if ui
                         .button("ｘ")
                         .on_hover_text(format!("Hide {}s", piece_type.name))
                         .clicked()
                     {
-                        app.puzzle.set_piece_type_hidden(PieceType(i as _), true);
+                        todo!("hide piece type")
+                        // app.puzzle.set_piece_type_hidden(PieceType(i as _), true);
                     }
                 })
             });

@@ -5,7 +5,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fmt;
-use std::ops::{BitAnd, BitOr, BitXorAssign, Index, Mul, Neg, Not, RangeInclusive};
+use std::ops::*;
 use std::str::FromStr;
 use strum::{Display, EnumIter, EnumMessage};
 
@@ -649,20 +649,6 @@ impl Index<u8> for LayerMask {
         }
     }
 }
-impl BitOr for LayerMask {
-    type Output = Self;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Self(self.0 | rhs.0)
-    }
-}
-impl BitAnd for LayerMask {
-    type Output = Self;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        Self(self.0 & rhs.0)
-    }
-}
 impl Not for LayerMask {
     type Output = Self;
 
@@ -670,63 +656,28 @@ impl Not for LayerMask {
         Self(!self.0)
     }
 }
-impl LayerMask {
-    pub(crate) fn slice_layers(total_layer_count: u8) -> Option<Self> {
-        (total_layer_count >= 3).then(|| Self((Self::all_layers(total_layer_count).0 >> 1) & !1))
-    }
-    pub(crate) fn all_layers(total_layer_count: u8) -> Self {
-        Self((1 << total_layer_count as u32) - 1)
-    }
+macro_rules! impl_layer_mask_op {
+    (
+        impl $op_trait:ident, $op_assign_trait:ident;
+        fn $op_fn:ident, $op_assign_fn:ident
+    ) => {
+        impl $op_trait for LayerMask {
+            type Output = Self;
 
-    pub(crate) fn is_default(self) -> bool {
-        self == Self::default()
-    }
-    pub(crate) fn long_description(self) -> String {
-        match self.count() {
-            0 => "no layers".to_owned(),
-            1 => format!("layer {}", self.0.trailing_zeros() + 1),
-            _ => format!(
-                "layers {}",
-                (0..32).filter(|&i| self[i]).map(|i| i + 1).join(", ")
-            ),
-        }
-    }
-    pub(crate) fn count(self) -> u32 {
-        self.0.count_ones()
-    }
-    pub(crate) fn count_contiguous_slices(self) -> u32 {
-        let mut n = self.0;
-        let mut ret = 0;
-        while n != 0 {
-            n >>= n.trailing_zeros();
-            n >>= n.trailing_ones();
-            ret += 1;
-        }
-        ret
-    }
-    pub(crate) fn count_outer_slices(self, layer_count: u8) -> u32 {
-        let mut n = self.0;
-        let mut ret = 0;
-        while n != 0 {
-            match n & 1 {
-                0 => n >>= n.trailing_zeros(),
-                1 => n >>= n.trailing_ones(),
-                _ => unreachable!(),
+            fn $op_fn(self, rhs: Self) -> Self::Output {
+                Self(self.0.$op_fn(rhs.0))
             }
-            ret += 1;
         }
-        if self[layer_count - 1] {
-            ret -= 1;
+        impl $op_assign_trait for LayerMask {
+            fn $op_assign_fn(&mut self, rhs: Self) {
+                self.0.$op_assign_fn(rhs.0)
+            }
         }
-        ret
-    }
-    pub(crate) fn is_contiguous_from_outermost(self) -> bool {
-        self.0 != 0 && self.0.count_ones() == self.0.trailing_ones()
-    }
-    pub(crate) fn get_single_layer(self) -> Option<u32> {
-        (self.count() == 1).then(|| self.0.trailing_zeros())
-    }
+    };
 }
+impl_layer_mask_op!(impl BitOr, BitOrAssign; fn bitor, bitor_assign);
+impl_layer_mask_op!(impl BitAnd, BitAndAssign; fn bitand, bitand_assign);
+impl_layer_mask_op!(impl BitXor, BitXorAssign; fn bitxor, bitxor_assign);
 impl fmt::Display for LayerMask {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_default() {
@@ -795,60 +746,81 @@ impl FromStr for LayerMask {
         .ok_or("invalid layer mask")
     }
 }
+impl LayerMask {
+    pub(crate) fn slice_layers(total_layer_count: u8) -> Option<Self> {
+        (total_layer_count >= 3).then(|| Self((Self::all_layers(total_layer_count).0 >> 1) & !1))
+    }
+    pub(crate) fn all_layers(total_layer_count: u8) -> Self {
+        Self((1 << total_layer_count as u32) - 1)
+    }
 
-/// Bitmasks selecting a subset of a puzzle's twist axes and layers.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct TwistSelection {
-    /// Bitmask of twist axes.
-    pub axis_mask: u32,
-    /// Bitmask of layers.
-    pub layer_mask: u32,
+    pub(crate) fn is_default(self) -> bool {
+        self == Self::default()
+    }
+    pub(crate) fn long_description(self) -> String {
+        match self.count() {
+            0 => "no layers".to_owned(),
+            1 => format!("layer {}", self.0.trailing_zeros() + 1),
+            _ => format!(
+                "layers {}",
+                (0..32).filter(|&i| self[i]).map(|i| i + 1).join(", ")
+            ),
+        }
+    }
+    pub(crate) fn count(self) -> u32 {
+        self.0.count_ones()
+    }
+    pub(crate) fn count_contiguous_slices(self) -> u32 {
+        let mut n = self.0;
+        let mut ret = 0;
+        while n != 0 {
+            n >>= n.trailing_zeros();
+            n >>= n.trailing_ones();
+            ret += 1;
+        }
+        ret
+    }
+    pub(crate) fn count_outer_slices(self, layer_count: u8) -> u32 {
+        let mut n = self.0;
+        let mut ret = 0;
+        while n != 0 {
+            match n & 1 {
+                0 => n >>= n.trailing_zeros(),
+                1 => n >>= n.trailing_ones(),
+                _ => unreachable!(),
+            }
+            ret += 1;
+        }
+        if self[layer_count - 1] {
+            ret -= 1;
+        }
+        ret
+    }
+    pub(crate) fn is_contiguous_from_outermost(self) -> bool {
+        self.0 != 0 && self.0.count_ones() == self.0.trailing_ones()
+    }
+    pub(crate) fn get_single_layer(self) -> Option<u32> {
+        (self.count() == 1).then(|| self.0.trailing_zeros())
+    }
 }
-impl Default for TwistSelection {
-    fn default() -> Self {
+
+/// Twists for the hovered sticker.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct ClickTwists {
+    /// Clockwise twist, typically bound to left click.
+    pub cw: Option<Twist>,
+    /// Counterclockwise twist, typically bound to right click.
+    pub ccw: Option<Twist>,
+    /// Recenter twist, typically bound to middle click.
+    pub recenter: Option<Twist>,
+}
+impl ClickTwists {
+    #[must_use]
+    pub fn rev(self) -> Self {
         Self {
-            axis_mask: 0_u32,
-            layer_mask: 1_u32,
+            cw: self.ccw,
+            ccw: self.cw,
+            ..self
         }
-    }
-}
-impl BitOr for TwistSelection {
-    type Output = Self;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Self {
-            axis_mask: self.axis_mask | rhs.axis_mask,
-            layer_mask: self.layer_mask | rhs.layer_mask,
-        }
-    }
-}
-impl BitXorAssign for TwistSelection {
-    fn bitxor_assign(&mut self, rhs: Self) {
-        self.axis_mask ^= rhs.axis_mask;
-        self.layer_mask ^= rhs.layer_mask;
-    }
-}
-impl TwistSelection {
-    /// Returns the layer mask if any layers are selected, or the default layer
-    /// mask (outermost layer only) otherwise.
-    pub fn layer_mask_or_default(self) -> LayerMask {
-        if self.layer_mask != 0_u32 {
-            LayerMask(self.layer_mask)
-        } else {
-            LayerMask::default()
-        }
-    }
-
-    /// Returns whether the twist selection includes a particular sticker.
-    pub fn has_sticker(self, puzzle: &dyn PuzzleState, sticker: Sticker) -> bool {
-        let piece = puzzle.info(sticker).piece;
-
-        // Filter by twist_axis and layer.
-        let layer_mask = self.layer_mask_or_default();
-        (0..puzzle.twist_axes().len() as _)
-            .filter(|i| (self.axis_mask >> i) & 1 != 0)
-            .map(TwistAxis)
-            .map(|twist_axis| puzzle.layer_from_twist_axis(twist_axis, piece))
-            .all(|layer| layer_mask[layer])
     }
 }

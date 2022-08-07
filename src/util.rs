@@ -1,4 +1,5 @@
 use cgmath::Point3;
+use std::ops::{Add, Mul};
 
 pub const INVALID_STR: &str = "<invalid>";
 
@@ -96,4 +97,12 @@ pub fn wrap_words<S: AsRef<str>>(words: impl Iterator<Item = S>) -> String {
         }
     }
     ret
+}
+
+pub fn mix<T>(a: T, b: T, t: f32) -> <T::Output as Add>::Output
+where
+    T: Mul<f32>,
+    T::Output: Add,
+{
+    a * (1.0 - t) + b * t
 }

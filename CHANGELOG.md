@@ -8,11 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- New system for specifying layer masks that change with the number of layers in the puzzle
+- New system for specifying layer masks that changes with the number of layers in the puzzle
 
 ### Changed
 
 - Default 3D keybinds for <kbd>X</kbd>, <kbd>C</kbd>, <kbd>,</kbd>, and <kbd>.</kbd>
+- Combined selection fade duration and hover fade duration preferences
+- Moved opacity preferences to their own section
+
+### Removed
+
+- Option to highlight only sticker on hover instead of whole piece
 
 ## [0.7.3] - 2022-08-05
 

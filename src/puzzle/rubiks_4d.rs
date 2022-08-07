@@ -438,40 +438,43 @@ impl PuzzleState for Rubiks4D {
         let project = |point_4d| Some(p.view_transform.transform_point(p.project_4d(point_4d)?));
 
         // Decide what twists should happen when the sticker is clicked.
-        let sticker_signs = self.sticker_signs_within_face(sticker);
-        let twist_cw =
-            TwistDirectionEnum::from_signs_within_face(sticker_signs).map(|twist_direction| {
-                Twist {
-                    axis: face.into(),
-                    direction: twist_direction.into(),
-                    layers: LayerMask::default(),
-                }
-            });
-        let twist_ccw = twist_cw.map(|t| self.reverse_twist(t));
-        let twist_recenter = self.make_recenter_twist(face.into()).ok();
-        let mut twists = [[twist_ccw, twist_cw, twist_recenter]; 6];
-        // Replace corner twists with face twists on centermost pieces.
-        if self.is_centermost_piece(piece) {
-            let mut i = 0;
-            for ax in [Axis::X, Axis::Y, Axis::Z] {
-                for sign in [-1, 1] {
-                    if sticker_signs[ax as usize] == sign || self.layer_count() % 2 == 1 {
-                        if let Some(new_dir) = TwistDirectionEnum::from_signs_within_face(
-                            ax.unit_vec4().truncate() * sign,
-                        ) {
-                            twists[i][0] = Some(Twist {
-                                axis: face.into(),
-                                direction: new_dir.rev().into(),
-                                layers: LayerMask::default(),
-                            });
-                            twists[i][1] = Some(Twist {
-                                axis: face.into(),
-                                direction: new_dir.into(),
-                                layers: LayerMask::default(),
-                            });
-                        }
+        let mut twists: [ClickTwists; 6];
+        {
+            let sticker_signs = self.sticker_signs_within_face(sticker);
+            let cw =
+                TwistDirectionEnum::from_signs_within_face(sticker_signs).map(|twist_direction| {
+                    Twist {
+                        axis: face.into(),
+                        direction: twist_direction.into(),
+                        layers: LayerMask::default(),
                     }
-                    i += 1;
+                });
+            let ccw = cw.map(|t| self.reverse_twist(t));
+            let recenter = self.make_recenter_twist(face.into()).ok();
+            twists = [ClickTwists { cw, ccw, recenter }; 6];
+            // Replace corner twists with face twists on centermost pieces.
+            if self.is_centermost_piece(piece) {
+                let mut i = 0;
+                for ax in [Axis::X, Axis::Y, Axis::Z] {
+                    for sign in [-1, 1] {
+                        if sticker_signs[ax as usize] == sign || self.layer_count() % 2 == 1 {
+                            if let Some(new_dir) = TwistDirectionEnum::from_signs_within_face(
+                                ax.unit_vec4().truncate() * sign,
+                            ) {
+                                twists[i].ccw = Some(Twist {
+                                    axis: face.into(),
+                                    direction: new_dir.rev().into(),
+                                    layers: LayerMask::default(),
+                                });
+                                twists[i].cw = Some(Twist {
+                                    axis: face.into(),
+                                    direction: new_dir.into(),
+                                    layers: LayerMask::default(),
+                                });
+                            }
+                        }
+                        i += 1;
+                    }
                 }
             }
         }

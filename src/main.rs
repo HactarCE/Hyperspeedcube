@@ -35,7 +35,7 @@ mod render;
 mod serde_impl;
 mod util;
 
-use app::{App, AppEvent};
+use app::App;
 
 const TITLE: &str = "Hyperspeedcube";
 const ICON_32: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
