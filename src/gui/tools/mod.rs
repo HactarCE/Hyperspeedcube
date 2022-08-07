@@ -6,10 +6,10 @@ use crate::app::App;
 #[derive(Copy, Clone)]
 pub struct ToolWindow(&'static str, fn(&mut egui::Ui, &mut App));
 impl ToolWindow {
-    pub const ALL: &'static [Self] = &[
-        ToolWindow("Puzzle controls", puzzle_controls::build),
-        ToolWindow("Piece filters", piece_filters::build),
-    ];
+    pub const PUZZLE_CONTROLS: Self = ToolWindow("Puzzle controls", puzzle_controls::build);
+    pub const PIECE_FILTERS: Self = ToolWindow("Piece filters", piece_filters::build);
+
+    pub const ALL: &'static [Self] = &[Self::PUZZLE_CONTROLS, Self::PIECE_FILTERS];
 
     fn id(self) -> egui::Id {
         unique_id!(self.name())

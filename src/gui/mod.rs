@@ -52,6 +52,12 @@ pub fn build(ctx: &egui::Context, app: &mut App, puzzle_texture_id: egui::Textur
             puzzle_view::build(ui, app, puzzle_texture_id);
         });
 
+    if !tools::ToolWindow::PUZZLE_CONTROLS.is_open(ctx) {
+        // It'd be really confusing if the puzzle controls window still had an
+        // effect when closed.
+        app.toggle_grip = Default::default();
+    }
+
     let puzzle_type = app.puzzle.ty();
 
     let mut open = Window::GeneralKeybinds.is_open(ctx);

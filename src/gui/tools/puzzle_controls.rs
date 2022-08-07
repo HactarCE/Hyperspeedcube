@@ -1,5 +1,6 @@
+use super::super::util;
 use crate::app::App;
-use crate::puzzle::{traits::*, LayerMask, Twist, TwistAxis, TwistDirection};
+use crate::puzzle::*;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     let puzzle_type = app.puzzle.ty();
@@ -15,6 +16,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.strong("Twist axis");
     ui.with_layout(h_layout, |ui| {
+        util::reset_button(ui, &mut app.toggle_grip.axes, Grip::default().axes, "");
         for (i, twist_axis) in puzzle_type.twist_axes().iter().enumerate() {
             let mut is_sel = grip.axes.contains(&TwistAxis(i as _));
             let r = ui.selectable_value(&mut is_sel, true, twist_axis.name);
@@ -29,6 +31,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.strong("Layers");
     ui.with_layout(h_layout, |ui| {
+        util::reset_button(ui, &mut app.toggle_grip.layers, Grip::default().layers, "");
         for i in 0..puzzle_type.layer_count() {
             let mut is_sel = grip.layers.unwrap_or_default()[i as u8];
             let r = ui.selectable_value(&mut is_sel, true, format!("{}", i + 1));
