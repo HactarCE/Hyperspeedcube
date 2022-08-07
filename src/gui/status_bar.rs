@@ -2,6 +2,7 @@ use strum::EnumMessage;
 
 use super::util::{ResponseExt, EXPLANATION_TOOLTIP_WIDTH};
 use crate::app::App;
+use crate::commands::Command;
 use crate::puzzle::TwistMetric;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
@@ -25,9 +26,7 @@ fn bld_toggle(ui: &mut egui::Ui, app: &mut App) {
         .selectable_label(*bld, "BLD")
         .on_hover_explanation("Blindfold mode", "Hides sticker colors");
     if r.clicked() {
-        *bld ^= true;
-        app.prefs.needs_save = true;
-        app.request_redraw_puzzle();
+        app.event(Command::ToggleBlindfold);
     }
 }
 

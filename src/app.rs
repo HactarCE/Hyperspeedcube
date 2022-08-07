@@ -162,6 +162,9 @@ impl App {
 
                 Command::ToggleBlindfold => {
                     self.prefs.colors.blindfold ^= true;
+                    if self.prefs.colors.blindfold {
+                        self.puzzle.show(|_| true);
+                    }
                     self.prefs.needs_save = true;
                     self.request_redraw_puzzle();
                 }

@@ -6,6 +6,53 @@ use crate::preferences::DEFAULT_PREFS;
 use crate::puzzle::{traits::*, Face};
 use crate::serde_impl::hex_color;
 
+macro_rules! resettable {
+    (
+        $label:expr,
+        ($prefs:ident $($prefs_tok:tt)*),
+        $make_widget:expr $(,)?
+    ) => {
+        resettable!($label, "{}", ($prefs $($prefs_tok)*), $make_widget)
+    };
+    (
+        $label:expr,
+        $format_str:tt,
+        ($prefs:ident $($prefs_tok:tt)*),
+        $make_widget:expr $(,)?
+    ) => {
+        resettable!($label, |x| format!($format_str, x), ($prefs $($prefs_tok)*), $make_widget)
+    };
+    (
+        $label:expr,
+        $format_fn:expr,
+        ($prefs:ident $($prefs_tok:tt)*),
+        $make_widget:expr $(,)?
+    ) => {{
+        let value = &mut $prefs $($prefs_tok)*;
+        let reset_value = &crate::preferences::DEFAULT_PREFS $($prefs_tok)*;
+        #[allow(clippy::redundant_closure_call)]
+        let reset_value_str = ($format_fn)(reset_value);
+        crate::gui::util::WidgetWithReset {
+            label: $label,
+            value,
+            reset_value: reset_value.clone(),
+            reset_value_str,
+            make_widget: $make_widget,
+        }
+    }};
+}
+
+macro_rules! resettable_opacity_dragvalue {
+    ($ui:ident, $prefs:ident.opacity.$name:ident, $label:expr) => {
+        $ui.add(resettable!(
+            $label,
+            |x| format!("{:.0}%", x * 100.0),
+            ($prefs.opacity.$name),
+            crate::gui::util::make_percent_drag_value,
+        ))
+    };
+}
+
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.spacing_mut().interact_size.x *= 1.5;
     ui.style_mut().wrap = Some(false);
@@ -37,42 +84,6 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             )
         });
     });
-}
-
-macro_rules! resettable {
-    (
-        $label:expr,
-        ($prefs:ident $($prefs_tok:tt)*),
-        $make_widget:expr $(,)?
-    ) => {
-        resettable!($label, "{}", ($prefs $($prefs_tok)*), $make_widget)
-    };
-    (
-        $label:expr,
-        $format_str:tt,
-        ($prefs:ident $($prefs_tok:tt)*),
-        $make_widget:expr $(,)?
-    ) => {
-        resettable!($label, |x| format!($format_str, x), ($prefs $($prefs_tok)*), $make_widget)
-    };
-    (
-        $label:expr,
-        $format_fn:expr,
-        ($prefs:ident $($prefs_tok:tt)*),
-        $make_widget:expr $(,)?
-    ) => {{
-        let value = &mut $prefs $($prefs_tok)*;
-        let reset_value = &DEFAULT_PREFS $($prefs_tok)*;
-        #[allow(clippy::redundant_closure_call)]
-        let reset_value_str = ($format_fn)(reset_value);
-        crate::gui::util::WidgetWithReset {
-            label: $label,
-            value,
-            reset_value: reset_value.clone(),
-            reset_value_str,
-            make_widget: $make_widget,
-        }
-    }};
 }
 
 fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
@@ -293,6 +304,19 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
     ui.add(util::CheckboxWithReset {
+        label: "Unhide grip",
+        value: &mut prefs.interaction.unhide_grip,
+        reset_value: DEFAULT_PREFS.interaction.unhide_grip,
+    })
+    .on_hover_explanation(
+        "",
+        "When enabled, gripping a face will temporarily \
+         disable piece filters.",
+    );
+
+    ui.separator();
+
+    ui.add(util::CheckboxWithReset {
         label: "Confirm discard only when scrambled",
         value: &mut prefs.interaction.confirm_discard_only_when_scrambled,
         reset_value: DEFAULT_PREFS
@@ -421,20 +445,10 @@ fn build_opacity_section(ui: &mut egui::Ui, app: &mut App) {
 
     let mut changed = false;
 
-    macro_rules! resettable_opacity_dragvalue {
-        ($ui:ident, $name:ident, $label:expr) => {
-            $ui.add(resettable!(
-                $label,
-                |x| format!("{:.0}%", x * 100.0),
-                (prefs.opacity.$name),
-                util::make_percent_drag_value,
-            ))
-        };
-    }
-    changed |= resettable_opacity_dragvalue!(ui, base, "Base").changed();
-    changed |= resettable_opacity_dragvalue!(ui, ungripped, "Ungripped").changed();
-    changed |= resettable_opacity_dragvalue!(ui, hidden, "Hidden").changed();
-    changed |= resettable_opacity_dragvalue!(ui, selected, "Selected").changed();
+    changed |= resettable_opacity_dragvalue!(ui, prefs.opacity.base, "Base").changed();
+    changed |= resettable_opacity_dragvalue!(ui, prefs.opacity.ungripped, "Ungripped").changed();
+    changed |= resettable_opacity_dragvalue!(ui, prefs.opacity.hidden, "Hidden").changed();
+    changed |= resettable_opacity_dragvalue!(ui, prefs.opacity.selected, "Selected").changed();
 
     prefs.needs_save |= changed;
     if changed {

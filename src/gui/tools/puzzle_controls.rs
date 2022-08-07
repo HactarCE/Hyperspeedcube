@@ -2,6 +2,12 @@ use super::super::util;
 use crate::app::App;
 use crate::puzzle::*;
 
+pub fn cleanup(app: &mut App) {
+    // It'd be really confusing if the puzzle controls window still had an
+    // effect when closed.
+    app.toggle_grip = Default::default();
+}
+
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     let puzzle_type = app.puzzle.ty();
 

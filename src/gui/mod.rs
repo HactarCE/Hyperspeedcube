@@ -6,12 +6,13 @@ macro_rules! unique_id {
 
 #[macro_use]
 mod util;
+#[macro_use]
+mod prefs;
 
 mod key_combo_popup;
 mod keybinds_reference;
 mod keybinds_table;
 mod menu_bar;
-mod prefs;
 mod puzzle_view;
 mod status_bar;
 mod tools;
@@ -51,12 +52,6 @@ pub fn build(ctx: &egui::Context, app: &mut App, puzzle_texture_id: egui::Textur
             }
             puzzle_view::build(ui, app, puzzle_texture_id);
         });
-
-    if !tools::ToolWindow::PUZZLE_CONTROLS.is_open(ctx) {
-        // It'd be really confusing if the puzzle controls window still had an
-        // effect when closed.
-        app.toggle_grip = Default::default();
-    }
 
     let puzzle_type = app.puzzle.ty();
 

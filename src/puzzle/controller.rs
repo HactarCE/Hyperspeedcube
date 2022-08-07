@@ -254,8 +254,9 @@ impl PuzzleController {
                 };
                 let piece = self.info(sticker).piece;
                 let piece_state = self.logical_piece_states[piece.0 as usize];
-                self.grip.has_piece(puzzle_state, piece).unwrap_or(true)
-                    && (piece_state.marked || !piece_state.hidden)
+                self.grip
+                    .has_piece(puzzle_state, piece)
+                    .unwrap_or(piece_state.marked || !piece_state.hidden)
             });
 
         self.hovered_sticker = hovered.map(|(sticker, _twists)| sticker);
@@ -414,7 +415,7 @@ impl PuzzleController {
             let logical_state = self.logical_piece_states[piece.0 as usize];
 
             let gripped = self.grip.has_piece(self.next_displayed(), piece);
-            let hidden = logical_state.hidden || logical_state.preview_hidden.unwrap_or(false);
+            let hidden = logical_state.preview_hidden.unwrap_or(logical_state.hidden);
             let stickers = &self.info(piece).stickers;
             let target = VisualPieceState {
                 gripped: (gripped == Some(true)) as u8 as f32,
@@ -464,6 +465,45 @@ impl PuzzleController {
         self.visual_piece_states[piece.0 as usize]
     }
 
+    /// Hides pieces based on a predicate.
+    pub fn hide(&mut self, mut predicate: impl FnMut(Piece) -> bool) {
+        for (i, state) in self.logical_piece_states.iter_mut().enumerate() {
+            if predicate(Piece(i as _)) {
+                state.hidden = true;
+            }
+        }
+    }
+    /// Shows pieces based on a predicate.
+    pub fn show(&mut self, mut predicate: impl FnMut(Piece) -> bool) {
+        for (i, state) in self.logical_piece_states.iter_mut().enumerate() {
+            if predicate(Piece(i as _)) {
+                state.hidden = false;
+            }
+        }
+    }
+    /// Returns whether all of the pieces selected by a predicate are hidden.
+    pub fn are_all_hidden(&mut self, mut predicate: impl FnMut(Piece) -> bool) -> bool {
+        self.logical_piece_states
+            .iter_mut()
+            .enumerate()
+            .filter(|(i, _state)| predicate(Piece(*i as _)))
+            .all(|(_i, state)| state.hidden)
+    }
+    /// Returns whether all of the pieces selected by a predicate are shown.
+    pub fn are_all_shown(&mut self, mut predicate: impl FnMut(Piece) -> bool) -> bool {
+        self.logical_piece_states
+            .iter_mut()
+            .enumerate()
+            .filter(|(i, _state)| predicate(Piece(*i as _)))
+            .all(|(_i, state)| !state.hidden)
+    }
+    /// Previews a piece hiding operation.
+    pub fn set_preview_hidden(&mut self, mut predicate: impl FnMut(Piece) -> Option<bool>) {
+        for (i, state) in self.logical_piece_states.iter_mut().enumerate() {
+            state.preview_hidden = predicate(Piece(i as _));
+        }
+    }
+
     /// Returns the set of selected stickers
     pub fn selection(&self) -> &HashSet<Sticker> {
         &self.selection
@@ -497,6 +537,7 @@ impl PuzzleController {
                 .expect("failed to apply twist from twist queue");
         }
         self.progress = 0.0;
+        self.next_displayed = self.displayed.clone();
         assert_eq!(self.displayed, self.latest);
     }
 
@@ -785,7 +826,17 @@ impl VisualPieceState {
     pub fn opacity(self, prefs: &Preferences) -> f32 {
         let pr = &prefs.opacity;
 
-        let full_opacity = f32::max(self.hovered, f32::max(self.marked, self.gripped));
+        let full_opacity = f32::max(
+            self.hovered,
+            f32::max(
+                self.marked,
+                if prefs.interaction.unhide_grip {
+                    self.gripped
+                } else {
+                    self.gripped * (1.0 - self.hidden)
+                },
+            ),
+        );
 
         let mut ret = 1.0;
         // In order from lowest to highest priority:

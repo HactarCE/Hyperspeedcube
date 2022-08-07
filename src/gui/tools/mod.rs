@@ -4,10 +4,22 @@ mod puzzle_controls;
 use crate::app::App;
 
 #[derive(Copy, Clone)]
-pub struct ToolWindow(&'static str, fn(&mut egui::Ui, &mut App));
+pub struct ToolWindow {
+    name: &'static str,
+    build: fn(&mut egui::Ui, &mut App),
+    cleanup: fn(&mut App),
+}
 impl ToolWindow {
-    pub const PUZZLE_CONTROLS: Self = ToolWindow("Puzzle controls", puzzle_controls::build);
-    pub const PIECE_FILTERS: Self = ToolWindow("Piece filters", piece_filters::build);
+    pub const PUZZLE_CONTROLS: Self = ToolWindow {
+        name: "Puzzle controls",
+        build: puzzle_controls::build,
+        cleanup: puzzle_controls::cleanup,
+    };
+    pub const PIECE_FILTERS: Self = ToolWindow {
+        name: "Piece filters",
+        build: piece_filters::build,
+        cleanup: piece_filters::cleanup,
+    };
 
     pub const ALL: &'static [Self] = &[Self::PUZZLE_CONTROLS, Self::PIECE_FILTERS];
 
@@ -16,7 +28,7 @@ impl ToolWindow {
     }
 
     pub fn name(self) -> &'static str {
-        self.0
+        self.name
     }
 
     pub fn toggle(self, ctx: &egui::Context) {
@@ -34,9 +46,10 @@ impl ToolWindow {
                 .collapsible(true)
                 .open(&mut is_open)
                 .frame(egui::Frame::popup(ui.style()).multiply_with_opacity(0.9))
-                .show(ui.ctx(), |ui| (self.1)(ui, app));
+                .show(ui.ctx(), |ui| (self.build)(ui, app));
             if !is_open {
                 self.toggle(ui.ctx());
+                (self.cleanup)(app);
             }
         }
     }

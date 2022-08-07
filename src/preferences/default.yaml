@@ -78,6 +78,7 @@ colors:
       F: "#ffffff"
       O: "#ff66ff"
 interaction:
+  unhide_grip: false
   confirm_discard_only_when_scrambled: true
   dynamic_twist_speed: true
   twist_duration: 0.2
