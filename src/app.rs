@@ -155,7 +155,6 @@ impl App {
                 Command::NewPuzzle(puzzle_type) => {
                     if self.confirm_discard_changes("reset puzzle") {
                         self.puzzle = PuzzleController::new(puzzle_type);
-                        self.prefs.log_file = None;
                         self.set_status_ok(format!("Loaded {}", puzzle_type));
                     }
                 }
@@ -476,7 +475,7 @@ impl App {
                 .show()
     }
 
-    fn confirm_discard_changes(&self, action: &str) -> bool {
+    fn confirm_discard_changes(&mut self, action: &str) -> bool {
         let mut needs_save = self.puzzle.is_unsaved();
 
         if self.prefs.interaction.confirm_discard_only_when_scrambled
@@ -485,12 +484,17 @@ impl App {
             needs_save = false;
         }
 
-        !needs_save
+        let confirm = !needs_save
             || rfd::MessageDialog::new()
                 .set_title("Unsaved changes")
                 .set_description(&format!("Discard puzzle state and {}?", action))
                 .set_buttons(rfd::MessageButtons::YesNo)
-                .show()
+                .show();
+        if confirm {
+            self.prefs.log_file = None;
+            self.prefs.needs_save = true;
+        }
+        confirm
     }
 
     fn try_load_puzzle(&mut self, path: PathBuf) {
