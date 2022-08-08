@@ -5,7 +5,7 @@ use cgmath::*;
 use smallvec::{smallvec, SmallVec};
 use std::cmp::Ordering;
 
-use super::{traits::*, ClickTwists, PuzzleType, PuzzleTypeEnum, Sticker, Twist};
+use super::{ClickTwists, PuzzleType, PuzzleTypeEnum, Sticker, Twist};
 use crate::preferences::Preferences;
 use crate::util::{self, IterCyclicPairsExt};
 
