@@ -3,7 +3,7 @@ use egui::NumExt;
 use super::util::{self, ResponseExt};
 use crate::app::App;
 use crate::preferences::DEFAULT_PREFS;
-use crate::puzzle::{traits::*, Face, ProjectionType};
+use crate::puzzle::{traits::*, Face};
 use crate::serde_impl::hex_color;
 
 macro_rules! resettable {
@@ -54,14 +54,12 @@ macro_rules! resettable_opacity_dragvalue {
 }
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    ui.spacing_mut().interact_size.x *= 1.5;
     ui.style_mut().wrap = Some(false);
 
     ui.heading("Preferences");
     ui.separator();
     egui::ScrollArea::new([false, true]).show(ui, |ui| {
         ui.collapsing("Graphics", |ui| build_graphics_section(ui, app));
-        ui.collapsing("View", |ui| build_view_section(ui, app));
         ui.collapsing("Outlines", |ui| build_outlines_section(ui, app));
         ui.collapsing("Opacity", |ui| build_opacity_section(ui, app));
         ui.collapsing("Colors", |ui| build_colors_section(ui, app));
@@ -153,147 +151,6 @@ fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
     if r.changed() {
         app.request_redraw_puzzle();
     }
-}
-fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
-    let proj_ty = app.puzzle.ty().projection_type();
-    let prefs = &mut app.prefs;
-
-    let mut changed = false;
-
-    ui.strong("View angle");
-    // Pitch
-    let r = ui.add(resettable!(
-        "Pitch",
-        "{}°",
-        (prefs[proj_ty].pitch),
-        |value| util::make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
-    ));
-    changed |= r.changed();
-    // Yaw
-    let r = ui.add(resettable!("Yaw", "{}°", (prefs[proj_ty].yaw), |value| {
-        util::make_degrees_drag_value(value).clamp_range(-45.0..=45.0)
-    }));
-    changed |= r.changed();
-
-    ui.separator();
-    ui.strong("Projection");
-    // Scale
-    let r = ui.add(resettable!("Scale", (prefs[proj_ty].scale), |value| {
-        let speed = *value / 100.0; // logarithmic speed
-        egui::DragValue::new(value)
-            .fixed_decimals(2)
-            .clamp_range(0.1..=5.0_f32)
-            .speed(speed)
-    }));
-    changed |= r.changed();
-    if proj_ty == ProjectionType::_4D {
-        // 4D FOV
-        let r = ui.add(resettable!(
-            "4D FOV",
-            "{}°",
-            (prefs.view_4d.fov_4d),
-            |value| {
-                util::make_degrees_drag_value(value)
-                    .clamp_range(1.0..=120.0)
-                    .speed(0.5)
-            },
-        ));
-        changed |= r.changed();
-    }
-    // 3D FOV
-    let r = ui.add(resettable!(
-        "3D FOV",
-        "{}°",
-        (prefs[proj_ty].fov_3d),
-        |value| {
-            util::make_degrees_drag_value(value)
-                .clamp_range(-120.0..=120.0)
-                .speed(0.5)
-        },
-    ));
-    changed |= r.changed();
-
-    ui.separator();
-
-    ui.strong("Geometry");
-    if proj_ty == ProjectionType::_3D {
-        // Show front faces
-        ui.add(util::CheckboxWithReset {
-            label: "Show frontfaces",
-            value: &mut prefs.view_3d.show_frontfaces,
-            reset_value: DEFAULT_PREFS.view_3d.show_frontfaces,
-        });
-        // Show back faces
-        changed |= r.changed();
-        ui.add(util::CheckboxWithReset {
-            label: "Show backfaces",
-            value: &mut prefs.view_3d.show_backfaces,
-            reset_value: DEFAULT_PREFS.view_3d.show_backfaces,
-        });
-        changed |= r.changed();
-    }
-    // Face spacing
-    let r = ui.add(resettable!(
-        "Face spacing",
-        (prefs[proj_ty].face_spacing),
-        |value| {
-            egui::DragValue::new(value)
-                .fixed_decimals(2)
-                .clamp_range(0.0..=0.9_f32)
-                .speed(0.005)
-        },
-    ));
-    changed |= r.changed();
-    // Sticker spacing
-    let r = ui.add(resettable!(
-        "Sticker spacing",
-        (prefs[proj_ty].sticker_spacing),
-        |value| {
-            egui::DragValue::new(value)
-                .fixed_decimals(2)
-                .clamp_range(0.0..=0.9_f32)
-                .speed(0.005)
-        },
-    ));
-    changed |= r.changed();
-
-    ui.separator();
-
-    ui.strong("Lighting");
-    // Pitch
-    let r = ui.add(resettable!(
-        "Pitch",
-        "{}°",
-        (prefs[proj_ty].light_pitch),
-        |value| util::make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
-    ));
-    changed |= r.changed();
-    // Yaw
-    let r = ui.add(resettable!(
-        "Yaw",
-        "{}°",
-        (prefs[proj_ty].light_yaw),
-        |value| util::make_degrees_drag_value(value).clamp_range(-180.0..=180.0),
-    ));
-    changed |= r.changed();
-    // Directional
-    let r = ui.add(resettable!(
-        "Directional",
-        |x| format!("{:.0}%", x * 100.0),
-        (prefs[proj_ty].light_directional),
-        util::make_percent_drag_value,
-    ));
-    changed |= r.changed();
-    // Ambient
-    let r = ui.add(resettable!(
-        "Ambient",
-        |x| format!("{:.0}%", x * 100.0),
-        (prefs[proj_ty].light_ambient),
-        util::make_percent_drag_value,
-    ));
-    changed |= r.changed();
-
-    prefs.needs_save |= changed;
 }
 fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;

@@ -1,6 +1,8 @@
 use crate::app::App;
 use crate::commands::Command;
 
+use super::windows;
+
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {
         ui.menu_button("File", |ui| {
@@ -65,6 +67,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
 
         ui.menu_button("Settings", |ui| {
+            windows::VIEW_SETTINGS.menu_button_toggle(ui);
             if ui.button("Preferences...").clicked() {
                 ui.close_menu();
                 super::Window::PrefsPanel.toggle(ui.ctx());
@@ -81,22 +84,12 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
 
         ui.menu_button("Tools", |ui| {
-            for tool_window in super::ToolWindow::ALL {
-                let mut is_open = tool_window.is_open(ui.ctx());
-                if ui
-                    .checkbox(&mut is_open, format!("{}", tool_window.name()))
-                    .changed()
-                {
-                    tool_window.toggle(ui.ctx());
-                }
-            }
+            windows::PIECE_FILTERS.menu_button_toggle(ui);
+            windows::PUZZLE_CONTROLS.menu_button_toggle(ui);
         });
 
         ui.menu_button("Help", |ui| {
-            if ui.button("Keybinds reference...").clicked() {
-                ui.close_menu();
-                super::Window::KeybindsReference.toggle(ui.ctx());
-            }
+            windows::KEYBINDS_REFERENCE.menu_button_toggle(ui);
 
             ui.separator();
 

@@ -5,7 +5,7 @@ info:
     function: false
     navigation: false
     numpad: false
-    opacity: 1.0
+    opacity: 0.95
 gfx:
   msaa: true
 view_3d:
@@ -80,7 +80,7 @@ interaction:
   twist_duration: 0.2
   other_anim_duration: 0.15
   drag_sensitivity: 0.7
-general_keybinds:
+global_keybinds:
   - vk: O
     ctrl: true
     command: open

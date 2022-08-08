@@ -10,16 +10,14 @@ mod util;
 mod prefs;
 
 mod key_combo_popup;
-mod keybinds_reference;
 mod keybinds_table;
 mod menu_bar;
 mod puzzle_view;
 mod status_bar;
-mod tools;
+mod windows;
 
 use crate::app::App;
 pub(super) use key_combo_popup::{key_combo_popup_captures_event, key_combo_popup_handle_event};
-use tools::ToolWindow;
 
 use self::keybinds_table::KeybindsTable;
 
@@ -35,20 +33,27 @@ pub fn build(ctx: &egui::Context, app: &mut App, puzzle_texture_id: egui::Textur
         egui::SidePanel::left("prefs_panel").show(ctx, |ui| prefs::build(ui, app));
     }
 
-    if Window::KeybindsReference.is_open(ctx) {
-        let alpha = app.prefs.info.keybinds_reference.opacity;
-        let frame = egui::Frame::window(&ctx.style());
-        egui::Window::new("Keybinds Reference")
-            .title_bar(false)
-            .frame(frame.fill(frame.fill.linear_multiply(alpha)))
-            .show(ctx, |ui| keybinds_reference::build(ui, app));
-    }
+    let puzzle_type = app.puzzle.ty();
+
+    let mut open = Window::PuzzleKeybinds.is_open(ctx);
+    // egui::SidePanel::left(PUZZLE_KEYBINDS_TITLE)
+    egui::Window::new(PUZZLE_KEYBINDS_TITLE)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            ui.heading(PUZZLE_KEYBINDS_TITLE);
+            let r = ui.add(KeybindsTable::new(
+                app,
+                keybinds_table::PuzzleKeybinds(puzzle_type),
+            ));
+            app.prefs.needs_save |= r.changed();
+        });
+    Window::PuzzleKeybinds.set_open(ctx, open);
 
     egui::CentralPanel::default()
         .frame(egui::Frame::none().fill(app.prefs.colors.background))
         .show(ctx, |ui| {
-            for tool_window in ToolWindow::ALL {
-                tool_window.show(ui, app);
+            for window in windows::ALL_FLOATING {
+                window.show(ui, app);
             }
             puzzle_view::build(ui, app, puzzle_texture_id);
         });
@@ -63,18 +68,6 @@ pub fn build(ctx: &egui::Context, app: &mut App, puzzle_texture_id: egui::Textur
             app.prefs.needs_save |= r.changed();
         });
     Window::GlobalKeybinds.set_open(ctx, open);
-
-    let mut open = Window::PuzzleKeybinds.is_open(ctx);
-    egui::Window::new(PUZZLE_KEYBINDS_TITLE)
-        .open(&mut open)
-        .show(ctx, |ui| {
-            let r = ui.add(KeybindsTable::new(
-                app,
-                keybinds_table::PuzzleKeybinds(puzzle_type),
-            ));
-            app.prefs.needs_save |= r.changed();
-        });
-    Window::PuzzleKeybinds.set_open(ctx, open);
 
     key_combo_popup::build(ctx, app);
 
@@ -112,7 +105,6 @@ enum Window {
     GlobalKeybinds,
     PuzzleKeybinds,
     PrefsPanel,
-    KeybindsReference,
     About,
     #[cfg(debug_assertions)]
     Debug,

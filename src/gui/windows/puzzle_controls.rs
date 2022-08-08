@@ -1,4 +1,4 @@
-use super::super::util;
+use crate::gui::util;
 use crate::app::App;
 use crate::puzzle::*;
 

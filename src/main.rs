@@ -104,7 +104,13 @@ async fn run() {
         physical_height: window_size.height,
         scale_factor: window.scale_factor(),
         font_definitions: egui::FontDefinitions::default(),
-        style: egui::Style::default(),
+        style: egui::Style {
+            spacing: egui::style::Spacing {
+                interact_size: egui::style::Spacing::default().interact_size * egui::vec2(1.2, 1.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
     });
     egui.context().set_visuals(match dark_light::detect() {
         dark_light::Mode::Light => egui::Visuals::light(),

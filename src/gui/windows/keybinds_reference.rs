@@ -3,6 +3,7 @@ use key_names::KeyMappingCode;
 
 use crate::app::App;
 use crate::commands::{Command, PuzzleCommand};
+use crate::gui::util;
 use crate::preferences::{Key, Keybind};
 use crate::puzzle::{traits::*, LayerMask};
 
@@ -74,12 +75,12 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
         let mut changed = false;
 
-        let r = ui.add(super::util::WidgetWithReset {
+        let r = ui.add(util::WidgetWithReset {
             label: "Opacity",
             value: &mut app.prefs.info.keybinds_reference.opacity,
             reset_value: default_prefs.opacity,
             reset_value_str: format!("{:.0}%", default_prefs.opacity * 100.0,),
-            make_widget: super::util::make_percent_drag_value,
+            make_widget: util::make_percent_drag_value,
         });
         changed |= r.changed();
 
