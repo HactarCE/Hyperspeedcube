@@ -1,24 +1,24 @@
 struct RgbaVertex {
-    [[location(0)]] pos: vec3<f32>;
-    [[location(1)]] color: vec4<f32>;
-};
+    @location(0) pos: vec3<f32>,
+    @location(1) color: vec4<f32>,
+}
 
 struct VertexOutput {
-    [[builtin(position)]] pos: vec4<f32>;
-    [[location(0)]] color: vec4<f32>;
-};
+    @builtin(position) pos: vec4<f32>,
+    @location(0) color: vec4<f32>,
+}
 
 struct BasicUniform {
-    scale: vec2<f32>;
-};
+    scale: vec2<f32>,
+}
 
-[[group(0), binding(0)]]
+@group(0) @binding(0)
 var<uniform> u: BasicUniform;
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
     in: RgbaVertex,
-    [[builtin(vertex_index)]] idx: u32,
+    @builtin(vertex_index) idx: u32,
 ) -> VertexOutput {
     var out: VertexOutput;
     out.pos = vec4<f32>(in.pos.xy * u.scale, in.pos.z, 1.0);
@@ -26,7 +26,7 @@ fn vs_main(
     return out;
 }
 
-[[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return in.color;
 }

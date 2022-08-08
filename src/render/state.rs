@@ -53,7 +53,10 @@ impl GraphicsState {
         // Configure surface.
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
+            format: *surface
+                .get_supported_formats(&adapter)
+                .get(0)
+                .expect("unsupported graphics adapter"),
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo, // VSync on

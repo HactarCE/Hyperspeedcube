@@ -51,7 +51,7 @@ fn twist_count(ui: &mut egui::Ui, app: &mut App) {
 
     let frame = egui::Frame::popup(ui.style());
     let offset = [
-        -frame.margin.right,
+        -frame.inner_margin.right,
         -ui.available_height() - 4.0, // magic number 4.0 from `egui::popup::show_tooltip_for()` source code
     ];
     let popup_id = unique_id!();

@@ -107,7 +107,7 @@ pub(super) fn build(ctx: &egui::Context, app: &mut App) -> Option<egui::Response
                 .rounding(ui.visuals().window_rounding)
                 .shadow(ui.visuals().window_shadow)
                 .stroke(ui.visuals().window_stroke())
-                .margin(egui::style::Margin::same(20.0))
+                .inner_margin(egui::style::Margin::same(20.0))
                 .show(ui, |ui| {
                     ui.allocate_ui_with_layout(
                         KEYBIND_POPUP_SIZE,

@@ -17,9 +17,9 @@ cgmath = "0.18.0"
 config = "0.13.1"
 dark-light = "0.2.1"
 directories = "4.0.1"
-egui = "0.17.0"
-egui_winit_platform = { version = "0.14.0", features = ["clipboard", "webbrowser"] }
-egui_wgpu_backend = "0.17.0"
+egui = "0.18.0"
+egui_wgpu_backend = "0.18.0"
+egui_winit_platform = { version = "0.15.0", features = ["clipboard", "webbrowser"] }
 enum_dispatch = "0.3.8"
 enum-iterator = "1.1.3"
 env_logger = "0.9.0"
@@ -43,16 +43,16 @@ serde_yaml = "0.8.23"
 smallvec = { version = "1.8.0", features = ["serde"] }
 strum = { version = "0.24.0", features = ["derive"] }
 time = { version = "0.3.7", features = ["local-offset"] }
-wgpu = "0.12.0" # do not update wgpu until https://github.com/gfx-rs/wgpu/pull/2902 is merged
+wgpu = "0.13.1"
 winit = { version = "0.26.0", features = ["serde"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
 console_log = "0.2.0"
-wgpu = { version = "0.12.0", features = ["webgl"] }
+wgpu = { version = "0.13.1", features = ["webgl"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "=0.3.53", features = [
+web-sys = { version = "=0.3.58", features = [
     "Document",
     "Window",
     "Element",

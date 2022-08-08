@@ -257,7 +257,7 @@ pub(crate) fn draw_puzzle(
     // Begin the render pass.
     let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: Some("puzzle_stickers_render_pass"),
-        color_attachments: &[render_pass_color_attachment],
+        color_attachments: &[Some(render_pass_color_attachment)],
         depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
             view: depth_texture_view,
             depth_ops: Some(wgpu::Operations {
@@ -310,11 +310,11 @@ pub(crate) fn draw_puzzle(
                     fragment: Some(wgpu::FragmentState {
                         module: gfx.shaders.basic.get(gfx),
                         entry_point: "fs_main",
-                        targets: &[wgpu::ColorTargetState {
+                        targets: &[Some(wgpu::ColorTargetState {
                             format: gfx.config.format,
                             blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                             write_mask: wgpu::ColorWrites::ALL,
-                        }],
+                        })],
                     }),
                     multiview: None,
                 })
