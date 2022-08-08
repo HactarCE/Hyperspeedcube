@@ -1,9 +1,6 @@
-use itertools::Itertools;
-use std::collections::HashSet;
 use winit::event::ModifiersState;
 
 use crate::app::{App, AppEvent};
-use crate::puzzle::traits::*;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App, puzzle_texture_id: egui::TextureId) {
     let dpi = ui.ctx().pixels_per_point();

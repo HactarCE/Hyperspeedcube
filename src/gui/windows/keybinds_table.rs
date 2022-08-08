@@ -1,12 +1,12 @@
-use std::hash::Hash;
-
-use super::util::{self, ComboBoxExt, FancyComboBox, ResponseExt};
 use crate::app::App;
 use crate::commands::{
     Command, LayerMaskDesc, PuzzleCommand, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX,
     PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
 };
-use crate::preferences::{Keybind, Preferences};
+use crate::gui::key_combo_popup;
+use crate::gui::keybinds_set::*;
+use crate::gui::util::{self, ComboBoxExt, FancyComboBox, ResponseExt};
+use crate::preferences::Keybind;
 use crate::puzzle::*;
 
 #[derive(Debug, Copy, Clone)]
@@ -18,67 +18,6 @@ struct DragData {
 const SQUARE_BUTTON_SIZE: egui::Vec2 = egui::vec2(24.0, 24.0);
 const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
 const LAYER_DESCRIPTION_WIDTH: f32 = 50.0;
-
-pub(super) trait KeybindSet: 'static + Copy + Send + Sync {
-    type Command: Default + Clone + Eq;
-
-    const USE_VK_BY_DEFAULT: bool;
-
-    fn display_name(self) -> &'static str;
-
-    fn get(self, prefs: &Preferences) -> &[Keybind<Self::Command>];
-    fn get_mut(self, prefs: &mut Preferences) -> &mut Vec<Keybind<Self::Command>>;
-    fn get_defaults(self) -> &'static [Keybind<Self::Command>] {
-        self.get(&crate::preferences::DEFAULT_PREFS)
-    }
-
-    fn confirm_reset(self) -> bool {
-        let name = self.display_name();
-        rfd::MessageDialog::new()
-            .set_title(&format!("Reset {name} keybinds",))
-            .set_description(&format!("Restore {name} keybinds to defaults?"))
-            .set_buttons(rfd::MessageButtons::YesNo)
-            .show()
-    }
-}
-
-#[derive(Debug, Copy, Clone, Hash)]
-pub(super) struct PuzzleKeybinds(pub(super) PuzzleTypeEnum);
-impl KeybindSet for PuzzleKeybinds {
-    type Command = PuzzleCommand;
-
-    const USE_VK_BY_DEFAULT: bool = false; // Position is more important for puzzle keybinds
-
-    fn display_name(self) -> &'static str {
-        self.0.family_display_name()
-    }
-
-    fn get(self, prefs: &Preferences) -> &[Keybind<PuzzleCommand>] {
-        &prefs.puzzle_keybinds[self.0]
-    }
-    fn get_mut(self, prefs: &mut Preferences) -> &mut Vec<Keybind<PuzzleCommand>> {
-        &mut prefs.puzzle_keybinds[self.0]
-    }
-}
-
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub(super) struct GlobalKeybinds;
-impl KeybindSet for GlobalKeybinds {
-    type Command = Command;
-
-    const USE_VK_BY_DEFAULT: bool = true; // Shortcuts like ctrl+Z should move depending on keyboard layout
-
-    fn display_name(self) -> &'static str {
-        "general"
-    }
-
-    fn get(self, prefs: &Preferences) -> &[Keybind<Self::Command>] {
-        &prefs.global_keybinds
-    }
-    fn get_mut(self, prefs: &mut Preferences) -> &mut Vec<Keybind<Self::Command>> {
-        &mut prefs.global_keybinds
-    }
-}
 
 pub(super) struct KeybindsTable<'a, S> {
     app: &'a mut App,
@@ -179,12 +118,7 @@ where
                         let r = ui
                             .add_sized(KEY_BUTTON_SIZE, egui::Button::new(keybind.key.to_string()));
                         if r.clicked() {
-                            super::key_combo_popup::open(
-                                ui.ctx(),
-                                Some(keybind.key),
-                                self.keybind_set,
-                                i,
-                            )
+                            key_combo_popup::open(ui.ctx(), Some(keybind.key), self.keybind_set, i)
                         }
 
                         let r = ui.add(CommandSelectWidget {

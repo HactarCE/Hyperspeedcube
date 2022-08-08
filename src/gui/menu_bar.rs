@@ -68,19 +68,9 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
         ui.menu_button("Settings", |ui| {
             windows::VIEW_SETTINGS.menu_button_toggle(ui);
-            if ui.button("Preferences...").clicked() {
-                ui.close_menu();
-                super::Window::PrefsPanel.toggle(ui.ctx());
-            }
             ui.separator();
-            if ui.button("Global keybinds...").clicked() {
-                ui.close_menu();
-                super::Window::GlobalKeybinds.toggle(ui.ctx());
-            }
-            if ui.button("Puzzle keybinds...").clicked() {
-                ui.close_menu();
-                super::Window::PuzzleKeybinds.toggle(ui.ctx());
-            }
+            windows::GLOBAL_KEYBINDS.menu_button_toggle(ui);
+            windows::PUZZLE_KEYBINDS.menu_button_toggle(ui);
         });
 
         ui.menu_button("Tools", |ui| {
@@ -90,19 +80,10 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
         ui.menu_button("Help", |ui| {
             windows::KEYBINDS_REFERENCE.menu_button_toggle(ui);
-
             ui.separator();
-
-            if ui.button("About").clicked() {
-                ui.close_menu();
-                super::Window::About.toggle(ui.ctx());
-            }
-
+            windows::ABOUT.menu_button_toggle(ui);
             #[cfg(debug_assertions)]
-            if ui.button("Debug").clicked() {
-                ui.close_menu();
-                super::Window::Debug.toggle(ui.ctx());
-            }
+            windows::DEBUG.menu_button_toggle(ui);
         });
     });
 }
