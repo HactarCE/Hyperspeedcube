@@ -9,12 +9,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - New system for specifying layer masks that changes with the number of layers in the puzzle
+- Piece filtering
 
 ### Changed
 
-- Default 3D keybinds for <kbd>X</kbd>, <kbd>C</kbd>, <kbd>,</kbd>, and <kbd>.</kbd>
+- Overhauled UI
+  - Most windows are now floating
+  - Renamed "selection" to "grip"
+- Combined "Grip axis" and "Grip layers" commands
 - Combined selection fade duration and hover fade duration preferences
-- Moved opacity preferences to their own section
+- Default 3D keybinds for <kbd>X</kbd>, <kbd>C</kbd>, <kbd>,</kbd>, and <kbd>.</kbd>
 
 ### Removed
 
