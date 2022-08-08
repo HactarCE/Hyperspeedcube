@@ -3,7 +3,7 @@ use egui::NumExt;
 use super::util::{self, ResponseExt};
 use crate::app::App;
 use crate::preferences::DEFAULT_PREFS;
-use crate::puzzle::{traits::*, Face};
+use crate::puzzle::{traits::*, Face, ProjectionType};
 use crate::serde_impl::hex_color;
 
 macro_rules! resettable {
@@ -74,8 +74,8 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             ui.with_layout(
                 egui::Layout::top_down_justified(egui::Align::Center),
                 |ui| {
-                    if ui.button("Edit general keybinds").clicked() {
-                        super::Window::GeneralKeybinds.toggle(ui.ctx());
+                    if ui.button("Edit global keybinds").clicked() {
+                        super::Window::GlobalKeybinds.toggle(ui.ctx());
                     }
                     if ui.button("Edit puzzle keybinds").clicked() {
                         super::Window::PuzzleKeybinds.toggle(ui.ctx());
@@ -155,7 +155,7 @@ fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
     }
 }
 fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
-    let puzzle_type = app.puzzle.ty();
+    let proj_ty = app.puzzle.ty().projection_type();
     let prefs = &mut app.prefs;
 
     let mut changed = false;
@@ -165,51 +165,46 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     let r = ui.add(resettable!(
         "Pitch",
         "{}°",
-        (prefs.view[puzzle_type].pitch),
+        (prefs[proj_ty].pitch),
         |value| util::make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
     ));
     changed |= r.changed();
     // Yaw
-    let r = ui.add(resettable!(
-        "Yaw",
-        "{}°",
-        (prefs.view[puzzle_type].yaw),
-        |value| util::make_degrees_drag_value(value).clamp_range(-45.0..=45.0),
-    ));
+    let r = ui.add(resettable!("Yaw", "{}°", (prefs[proj_ty].yaw), |value| {
+        util::make_degrees_drag_value(value).clamp_range(-45.0..=45.0)
+    }));
     changed |= r.changed();
 
     ui.separator();
     ui.strong("Projection");
     // Scale
-    let r = ui.add(resettable!(
-        "Scale",
-        (prefs.view[puzzle_type].scale),
-        |value| {
-            let speed = *value / 100.0; // logarithmic speed
-            egui::DragValue::new(value)
-                .fixed_decimals(2)
-                .clamp_range(0.1..=5.0_f32)
-                .speed(speed)
-        },
-    ));
+    let r = ui.add(resettable!("Scale", (prefs[proj_ty].scale), |value| {
+        let speed = *value / 100.0; // logarithmic speed
+        egui::DragValue::new(value)
+            .fixed_decimals(2)
+            .clamp_range(0.1..=5.0_f32)
+            .speed(speed)
+    }));
     changed |= r.changed();
-    // 4D FOV
-    let r = ui.add(resettable!(
-        "4D FOV",
-        "{}°",
-        (prefs.view[puzzle_type].fov_4d),
-        |value| {
-            util::make_degrees_drag_value(value)
-                .clamp_range(1.0..=120.0)
-                .speed(0.5)
-        },
-    ));
-    changed |= r.changed();
+    if proj_ty == ProjectionType::_4D {
+        // 4D FOV
+        let r = ui.add(resettable!(
+            "4D FOV",
+            "{}°",
+            (prefs.view_4d.fov_4d),
+            |value| {
+                util::make_degrees_drag_value(value)
+                    .clamp_range(1.0..=120.0)
+                    .speed(0.5)
+            },
+        ));
+        changed |= r.changed();
+    }
     // 3D FOV
     let r = ui.add(resettable!(
         "3D FOV",
         "{}°",
-        (prefs.view[puzzle_type].fov_3d),
+        (prefs[proj_ty].fov_3d),
         |value| {
             util::make_degrees_drag_value(value)
                 .clamp_range(-120.0..=120.0)
@@ -221,24 +216,26 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     ui.separator();
 
     ui.strong("Geometry");
-    // Show front faces
-    ui.add(util::CheckboxWithReset {
-        label: "Show frontfaces",
-        value: &mut prefs.view[puzzle_type].show_frontfaces,
-        reset_value: DEFAULT_PREFS.view[puzzle_type].show_frontfaces,
-    });
-    // Show back faces
-    changed |= r.changed();
-    ui.add(util::CheckboxWithReset {
-        label: "Show backfaces",
-        value: &mut prefs.view[puzzle_type].show_backfaces,
-        reset_value: DEFAULT_PREFS.view[puzzle_type].show_backfaces,
-    });
-    changed |= r.changed();
+    if proj_ty == ProjectionType::_3D {
+        // Show front faces
+        ui.add(util::CheckboxWithReset {
+            label: "Show frontfaces",
+            value: &mut prefs.view_3d.show_frontfaces,
+            reset_value: DEFAULT_PREFS.view_3d.show_frontfaces,
+        });
+        // Show back faces
+        changed |= r.changed();
+        ui.add(util::CheckboxWithReset {
+            label: "Show backfaces",
+            value: &mut prefs.view_3d.show_backfaces,
+            reset_value: DEFAULT_PREFS.view_3d.show_backfaces,
+        });
+        changed |= r.changed();
+    }
     // Face spacing
     let r = ui.add(resettable!(
         "Face spacing",
-        (prefs.view[puzzle_type].face_spacing),
+        (prefs[proj_ty].face_spacing),
         |value| {
             egui::DragValue::new(value)
                 .fixed_decimals(2)
@@ -250,7 +247,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     // Sticker spacing
     let r = ui.add(resettable!(
         "Sticker spacing",
-        (prefs.view[puzzle_type].sticker_spacing),
+        (prefs[proj_ty].sticker_spacing),
         |value| {
             egui::DragValue::new(value)
                 .fixed_decimals(2)
@@ -267,7 +264,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     let r = ui.add(resettable!(
         "Pitch",
         "{}°",
-        (prefs.view[puzzle_type].light_pitch),
+        (prefs[proj_ty].light_pitch),
         |value| util::make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
     ));
     changed |= r.changed();
@@ -275,7 +272,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     let r = ui.add(resettable!(
         "Yaw",
         "{}°",
-        (prefs.view[puzzle_type].light_yaw),
+        (prefs[proj_ty].light_yaw),
         |value| util::make_degrees_drag_value(value).clamp_range(-180.0..=180.0),
     ));
     changed |= r.changed();
@@ -283,7 +280,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     let r = ui.add(resettable!(
         "Directional",
         |x| format!("{:.0}%", x * 100.0),
-        (prefs.view[puzzle_type].light_directional),
+        (prefs[proj_ty].light_directional),
         util::make_percent_drag_value,
     ));
     changed |= r.changed();
@@ -291,7 +288,7 @@ fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     let r = ui.add(resettable!(
         "Ambient",
         |x| format!("{:.0}%", x * 100.0),
-        (prefs.view[puzzle_type].light_ambient),
+        (prefs[proj_ty].light_ambient),
         util::make_percent_drag_value,
     ));
     changed |= r.changed();

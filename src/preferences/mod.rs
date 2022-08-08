@@ -20,7 +20,7 @@ mod outlines;
 mod view;
 
 use crate::commands::{Command, PuzzleCommand};
-use crate::puzzle::{traits::*, PuzzleTypeEnum};
+use crate::puzzle::{traits::*, ProjectionType, PuzzleTypeEnum};
 pub use colors::*;
 pub use gfx::*;
 pub use info::*;
@@ -99,14 +99,34 @@ pub struct Preferences {
     pub info: InfoPreferences,
 
     pub gfx: GfxPreferences,
-    pub view: PerPuzzle<ViewPreferences>,
+    pub view_3d: ViewPreferences3D,
+    pub view_4d: ViewPreferences4D,
     pub outlines: OutlinePreferences,
     pub opacity: OpacityPreferences,
     pub colors: ColorPreferences,
     pub interaction: InteractionPreferences,
 
-    pub general_keybinds: Vec<Keybind<Command>>,
+    pub global_keybinds: Vec<Keybind<Command>>,
+    // pub keybind_sets: Vec<KeybindSet<PuzzleCommand>>,
     pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
+}
+impl Index<ProjectionType> for Preferences {
+    type Output = ViewPreferences;
+
+    fn index(&self, index: ProjectionType) -> &Self::Output {
+        match index {
+            ProjectionType::_3D => &self.view_3d,
+            ProjectionType::_4D => &self.view_4d,
+        }
+    }
+}
+impl IndexMut<ProjectionType> for Preferences {
+    fn index_mut(&mut self, index: ProjectionType) -> &mut Self::Output {
+        match index {
+            ProjectionType::_3D => &mut self.view_3d,
+            ProjectionType::_4D => &mut self.view_4d,
+        }
+    }
 }
 impl Preferences {
     pub fn load(backup: Option<&Self>) -> Self {

@@ -112,7 +112,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
         .take_while(|bind| bind.command != PuzzleCommand::None)
         .collect();
     let matching_global_keybinds: Vec<&Keybind<Command>> = app
-        .resolve_keypress(&app.prefs.general_keybinds, Some(key), vk)
+        .resolve_keypress(&app.prefs.global_keybinds, Some(key), vk)
         .into_iter()
         .take_while(|bind| bind.command != Command::None)
         .collect();

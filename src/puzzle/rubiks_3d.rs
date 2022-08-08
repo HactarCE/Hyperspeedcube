@@ -192,6 +192,10 @@ impl PuzzleType for Rubiks3DDescription {
     fn family_internal_name(&self) -> &'static str {
         "Rubiks3D"
     }
+    fn projection_type(&self) -> ProjectionType {
+        ProjectionType::_3D
+    }
+
 
     fn layer_count(&self) -> u8 {
         self.layer_count

@@ -62,8 +62,8 @@ impl KeybindSet for PuzzleKeybinds {
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub(super) struct GeneralKeybinds;
-impl KeybindSet for GeneralKeybinds {
+pub(super) struct GlobalKeybinds;
+impl KeybindSet for GlobalKeybinds {
     type Command = Command;
 
     const USE_VK_BY_DEFAULT: bool = true; // Shortcuts like ctrl+Z should move depending on keyboard layout
@@ -73,10 +73,10 @@ impl KeybindSet for GeneralKeybinds {
     }
 
     fn get(self, prefs: &Preferences) -> &[Keybind<Self::Command>] {
-        &prefs.general_keybinds
+        &prefs.global_keybinds
     }
     fn get_mut(self, prefs: &mut Preferences) -> &mut Vec<Keybind<Self::Command>> {
-        &mut prefs.general_keybinds
+        &mut prefs.global_keybinds
     }
 }
 
@@ -270,7 +270,7 @@ struct CommandSelectWidget<'a, S: KeybindSet> {
     idx: usize,
 }
 
-impl egui::Widget for CommandSelectWidget<'_, GeneralKeybinds> {
+impl egui::Widget for CommandSelectWidget<'_, GlobalKeybinds> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         use Command as Cmd;
 

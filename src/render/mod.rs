@@ -10,7 +10,7 @@ mod state;
 mod structs;
 
 use crate::app::App;
-use crate::puzzle::{ProjectedStickerGeometry, StickerGeometryParams};
+use crate::puzzle::{ProjectedStickerGeometry, PuzzleType, StickerGeometryParams};
 use cache::{CachedDynamicBuffer, CachedUniformBuffer};
 pub(crate) use state::GraphicsState;
 use structs::*;
@@ -109,7 +109,7 @@ pub(crate) fn draw_puzzle(
 
     let puzzle = &mut app.puzzle;
     let prefs = &app.prefs;
-    let view_prefs = &prefs.view[puzzle.ty()];
+    let view_prefs = &prefs[puzzle.projection_type()];
     let cache = &mut app.render_cache;
 
     let now = Instant::now();
@@ -120,7 +120,7 @@ pub(crate) fn draw_puzzle(
     puzzle.update_geometry(delta, &prefs.interaction);
 
     let sticker_geometry_params = StickerGeometryParams::new(
-        view_prefs,
+        prefs,
         puzzle.ty(),
         puzzle.current_twist(),
         [app.view_angle_offset.x, app.view_angle_offset.y],

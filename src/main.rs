@@ -117,7 +117,6 @@ async fn run() {
         &gfx.dummy_texture_view(),
         wgpu::FilterMode::Linear,
     );
-    let mut puzzle_texture_size = (0, 0);
 
     // Initialize app state.
     let mut app = App::new(&event_loop);

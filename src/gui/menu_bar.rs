@@ -70,9 +70,9 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 super::Window::PrefsPanel.toggle(ui.ctx());
             }
             ui.separator();
-            if ui.button("General keybinds...").clicked() {
+            if ui.button("Global keybinds...").clicked() {
                 ui.close_menu();
-                super::Window::GeneralKeybinds.toggle(ui.ctx());
+                super::Window::GlobalKeybinds.toggle(ui.ctx());
             }
             if ui.button("Puzzle keybinds...").clicked() {
                 ui.close_menu();

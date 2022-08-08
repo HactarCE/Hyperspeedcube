@@ -18,6 +18,7 @@ pub trait PuzzleType {
     fn name(&self) -> &str;
     fn family_display_name(&self) -> &'static str;
     fn family_internal_name(&self) -> &'static str;
+    fn projection_type(&self) -> ProjectionType;
 
     fn layer_count(&self) -> u8;
     fn family_max_layer_count(&self) -> u8;
@@ -617,6 +618,12 @@ impl Sign {
     pub fn iter() -> impl Clone + Iterator<Item = Sign> {
         [Sign::Pos, Sign::Neg].into_iter()
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum ProjectionType {
+    _3D,
+    _4D,
 }
 
 /// Bitmask selecting a subset of a puzzle's layers.

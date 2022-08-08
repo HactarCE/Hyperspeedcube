@@ -55,14 +55,14 @@ pub fn build(ctx: &egui::Context, app: &mut App, puzzle_texture_id: egui::Textur
 
     let puzzle_type = app.puzzle.ty();
 
-    let mut open = Window::GeneralKeybinds.is_open(ctx);
+    let mut open = Window::GlobalKeybinds.is_open(ctx);
     egui::Window::new(GENERAL_KEYBINDS_TITLE)
         .open(&mut open)
         .show(ctx, |ui| {
-            let r = ui.add(KeybindsTable::new(app, keybinds_table::GeneralKeybinds));
+            let r = ui.add(KeybindsTable::new(app, keybinds_table::GlobalKeybinds));
             app.prefs.needs_save |= r.changed();
         });
-    Window::GeneralKeybinds.set_open(ctx, open);
+    Window::GlobalKeybinds.set_open(ctx, open);
 
     let mut open = Window::PuzzleKeybinds.is_open(ctx);
     egui::Window::new(PUZZLE_KEYBINDS_TITLE)
@@ -109,7 +109,7 @@ pub fn build(ctx: &egui::Context, app: &mut App, puzzle_texture_id: egui::Textur
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 enum Window {
-    GeneralKeybinds,
+    GlobalKeybinds,
     PuzzleKeybinds,
     PrefsPanel,
     KeybindsReference,

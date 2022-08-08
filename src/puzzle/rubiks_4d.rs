@@ -215,6 +215,9 @@ impl PuzzleType for Rubiks4DDescription {
     fn family_internal_name(&self) -> &'static str {
         "Rubiks4D"
     }
+    fn projection_type(&self) -> ProjectionType {
+        ProjectionType::_4D
+    }
 
     fn layer_count(&self) -> u8 {
         self.layer_count

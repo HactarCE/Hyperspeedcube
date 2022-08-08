@@ -8,37 +8,33 @@ info:
     opacity: 1.0
 gfx:
   msaa: true
-view:
-  Rubiks3D:
-    pitch: 35.0
-    yaw: -20.0
-    scale: 1.25
-    fov_3d: 30.0
-    fov_4d: 30.0
-    show_frontfaces: true
-    show_backfaces: true
-    face_spacing: 0.03
-    sticker_spacing: 0.05
-    outline_thickness: 2.0
-    light_ambient: 1.0
-    light_directional: 0.0
-    light_pitch: 0.0
-    light_yaw: 0.0
-  Rubiks4D:
-    pitch: 35.0
-    yaw: -45.0
-    scale: 1.0
-    fov_3d: 0.0
-    fov_4d: 30.0
-    show_frontfaces: true
-    show_backfaces: true
-    face_spacing: 0.7
-    sticker_spacing: 0.3
-    outline_thickness: 1.0
-    light_ambient: 0.0
-    light_directional: 1.0
-    light_pitch: 65.0
-    light_yaw: -55.0
+view_3d:
+  pitch: 35.0
+  yaw: -20.0
+  scale: 1.25
+  fov_3d: 30.0
+  face_spacing: 0.03
+  sticker_spacing: 0.05
+  outline_thickness: 1.0
+  light_ambient: 1.0
+  light_directional: 0.0
+  light_pitch: 0.0
+  light_yaw: 0.0
+  show_frontfaces: true
+  show_backfaces: true
+view_4d:
+  pitch: 35.0
+  yaw: -45.0
+  scale: 1.0
+  fov_3d: 0.0
+  face_spacing: 0.7
+  sticker_spacing: 0.3
+  outline_thickness: 1.0
+  light_ambient: 0.0
+  light_directional: 1.0
+  light_pitch: 65.0
+  light_yaw: -55.0
+  fov_4d: 30.0
 outlines:
   default_size: 1.0
   hidden_size: 1.0

@@ -67,7 +67,7 @@ pub(super) fn open<S: KeybindSet>(
 ) {
     let mut data = ctx.data();
 
-    // General keybinds should use virtual keycodes by default, while puzzle
+    // Global keybinds should use virtual keycodes by default, while puzzle
     // keybinds should use scancodes by default. If the user manually overrides
     // one, remember that decision for as long as the application is running.
     let use_vk_id = unique_id!().with(S::USE_VK_BY_DEFAULT);

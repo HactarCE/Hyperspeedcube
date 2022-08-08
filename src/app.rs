@@ -206,7 +206,7 @@ impl App {
             AppEvent::Drag(delta) => {
                 self.dragging_view_angle = true;
                 self.view_angle_offset += delta * self.prefs.interaction.drag_sensitivity * 360.0;
-                let pitch = self.prefs.view[self.puzzle.ty()].pitch;
+                let pitch = self.prefs[self.puzzle.projection_type()].pitch;
                 self.view_angle_offset.y =
                     self.view_angle_offset.y.clamp(-90.0 - pitch, 90.0 - pitch);
                 self.view_angle_offset.x =
@@ -310,7 +310,7 @@ impl App {
                             }
                         }
 
-                        for bind in self.resolve_keypress(&self.prefs.general_keybinds, sc, vk) {
+                        for bind in self.resolve_keypress(&self.prefs.global_keybinds, sc, vk) {
                             match &bind.command {
                                 Command::None => return, // Do not try to match other keybinds.
 

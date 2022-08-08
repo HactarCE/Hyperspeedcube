@@ -6,6 +6,12 @@ use winit::event::{ModifiersState, VirtualKeyCode};
 use super::is_false;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
+pub struct KeybindSet<C> {
+    pub name: String,
+    pub keybinds: Vec<Keybind<C>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct Keybind<C> {
     #[serde(flatten, deserialize_with = "deser_valid_key_combo")]
     pub key: KeyCombo,
