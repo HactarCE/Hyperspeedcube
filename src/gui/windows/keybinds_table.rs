@@ -236,27 +236,20 @@ impl egui::Widget for CommandSelectWidget<'_, GlobalKeybinds> {
 
             match self.cmd {
                 Cmd::ScrambleN(n) => {
-                    add_pre_label_space(ui);
-                    ui.horizontal(|ui| {
-                        ui.label("Moves:");
-                        let r = ui.add(egui::DragValue::new(n).clamp_range(
-                            PARTIAL_SCRAMBLE_MOVE_COUNT_MIN..=PARTIAL_SCRAMBLE_MOVE_COUNT_MAX,
-                        ));
-                        changed |= r.changed();
-                    });
+                    let r = ui.add(egui::DragValue::new(n).clamp_range(
+                        PARTIAL_SCRAMBLE_MOVE_COUNT_MIN..=PARTIAL_SCRAMBLE_MOVE_COUNT_MAX,
+                    ));
+                    changed |= r.changed();
                 }
 
                 Cmd::NewPuzzle(puzzle_type) => {
-                    add_pre_label_space(ui);
-                    ui.horizontal(|ui| {
-                        ui.label("Type:");
-                        if let Some(Some(ty)) = ui
-                            .menu_button(puzzle_type.name(), util::puzzle_select_menu)
-                            .inner
-                        {
-                            *puzzle_type = ty;
-                        }
-                    });
+                    if let Some(Some(ty)) = ui
+                        .menu_button(puzzle_type.name(), util::puzzle_select_menu)
+                        .inner
+                    {
+                        *puzzle_type = ty;
+                        changed |= true;
+                    }
                 }
 
                 _ => (),
@@ -285,81 +278,46 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
                 match (self.cmd) {
                     "None" => Cmd::None,
 
-                    "Grip axis" => Cmd::GripAxis(puzzle_type.twist_axes()[0].name.to_owned()),
-                    "Grip layers" => Cmd::GripLayers(LayerMaskDesc::default()),
-                    "Twist" => Cmd::Twist {
-                        axis: None,
-                        direction: puzzle_type.twist_directions()[0].name.to_owned(),
-                        layers: LayerMaskDesc::default(),
+                    "Grip" => Cmd::Grip {
+                        axis: self.cmd.axis_mut().cloned().unwrap_or_default(),
+                        layers: self.cmd.layers_mut().cloned().unwrap_or_default(),
                     },
-                    "Recenter" => Cmd::Recenter { axis: None },
+                    "Twist" => Cmd::Twist {
+                        axis: self.cmd.axis_mut().cloned().unwrap_or_default(),
+                        direction: self.cmd.direction_mut().cloned().unwrap_or_else(|| {
+                            puzzle_type.twist_directions()[0].name.to_owned()
+                        }),
+                        layers: self.cmd.layers_mut().cloned().unwrap_or_default(),
+                    },
+                    "Recenter" => Cmd::Recenter {
+                        axis: self.cmd.axis_mut().cloned().unwrap_or_default()
+                    },
                 }
             );
             changed |= r.changed();
 
-            match self.cmd {
-                Cmd::None => (),
-
-                Cmd::GripAxis(axis) => {
-                    add_pre_label_space(ui);
-                    ui.label("Axis:");
-                    let r = ui.add(FancyComboBox::new(
-                        unique_id!(self.idx),
-                        axis,
-                        puzzle_type.twist_axes(),
-                    ));
-                    changed |= r.changed();
-                }
-                Cmd::GripLayers(layers) => {
-                    add_pre_label_space(ui);
-                    ui.label("Layers:");
-                    let r = ui.add(LayerMaskEdit {
-                        id: unique_id!(self.idx),
-                        layers,
-                    });
-                    changed |= r.changed();
-                }
-                Cmd::Twist {
-                    axis,
-                    direction,
+            if let Some(layers) = self.cmd.layers_mut() {
+                let r = ui.add(LayerMaskEdit {
+                    id: unique_id!(self.idx),
                     layers,
-                } => {
-                    add_pre_label_space(ui);
-                    ui.label("Axis:");
-                    let r = ui.add(FancyComboBox::new_optional(
-                        unique_id!(self.idx),
-                        axis,
-                        puzzle_type.twist_axes(),
-                    ));
-                    changed |= r.changed();
-
-                    add_pre_label_space(ui);
-                    ui.label("Direction:");
-                    let r = ui.add(FancyComboBox::new(
-                        unique_id!(self.idx),
-                        direction,
-                        puzzle_type.twist_directions(),
-                    ));
-                    changed |= r.changed();
-
-                    add_pre_label_space(ui);
-                    ui.label("Layers:");
-                    let r = ui.add(LayerMaskEdit {
-                        id: unique_id!(self.idx),
-                        layers,
-                    });
-                    changed |= r.changed();
-                }
-                Cmd::Recenter { axis } => {
-                    add_pre_label_space(ui);
-                    ui.label("Axis:");
-                    let r = ui.add(FancyComboBox::new_optional(
-                        unique_id!(self.idx),
-                        axis,
-                        puzzle_type.twist_axes(),
-                    ));
-                    changed |= r.changed();
-                }
+                });
+                changed |= r.changed();
+            }
+            if let Some(axis) = self.cmd.axis_mut() {
+                let r = ui.add(FancyComboBox::new_optional(
+                    unique_id!(self.idx),
+                    axis,
+                    puzzle_type.twist_axes(),
+                ));
+                changed |= r.changed();
+            }
+            if let Some(direction) = self.cmd.direction_mut() {
+                let r = ui.add(FancyComboBox::new(
+                    unique_id!(self.idx),
+                    direction,
+                    puzzle_type.twist_directions(),
+                ));
+                changed |= r.changed();
             }
         });
 
@@ -428,8 +386,4 @@ impl<'a> egui::Widget for LayerMaskEdit<'a> {
         }
         r
     }
-}
-
-fn add_pre_label_space(ui: &mut egui::Ui) {
-    ui.add_space(ui.spacing().item_spacing.x * 2.0);
 }

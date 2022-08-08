@@ -149,14 +149,13 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
 
             for bind in matching_puzzle_keybinds {
                 ui.horizontal_wrapped(|ui| match &bind.command {
-                    PuzzleCommand::GripAxis(twist_axis) => {
+                    PuzzleCommand::Grip { axis, layers } => {
                         ui.label("Grip");
-                        ui.strong(twist_axis);
-                    }
-                    PuzzleCommand::GripLayers(layers) => {
-                        let layers = layers.to_layer_mask(puzzle_type.layer_count());
-                        if layers != LayerMask(0) {
-                            ui.label("Grip");
+                        if let Some(twist_axis) = axis {
+                            ui.strong(twist_axis);
+                        }
+                        if !layers.is_default() {
+                            let layers = layers.to_layer_mask(puzzle_type.layer_count());
                             ui.strong(layers.long_description());
                         }
                     }

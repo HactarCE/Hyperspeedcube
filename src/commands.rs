@@ -67,12 +67,18 @@ impl Command {
 #[serde(rename_all = "snake_case")]
 #[allow(missing_docs)]
 pub enum PuzzleCommand {
-    GripAxis(String),
-    GripLayers(LayerMaskDesc),
+    Grip {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        axis: Option<String>,
+        #[serde(default, skip_serializing_if = "LayerMaskDesc::is_default")]
+        layers: LayerMaskDesc,
+    },
     Twist {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         axis: Option<String>,
+        #[serde(default)]
         direction: String,
+        #[serde(default)]
         layers: LayerMaskDesc,
     },
     Recenter {
@@ -87,8 +93,17 @@ pub enum PuzzleCommand {
 impl PuzzleCommand {
     pub fn short_description(&self, ty: PuzzleTypeEnum) -> String {
         match self {
-            PuzzleCommand::GripAxis(axis_name) => axis_name.to_owned(),
-            PuzzleCommand::GripLayers(layers) => layers.to_string(),
+            PuzzleCommand::Grip { axis, layers } => {
+                let layers = layers.to_layer_mask(ty.layer_count());
+                let mut s = String::new();
+                if layers != LayerMask(0) || axis.is_none() {
+                    s += &layers.to_string();
+                }
+                if let Some(axis_name) = axis {
+                    s += axis_name;
+                }
+                s
+            }
             PuzzleCommand::Twist {
                 axis,
                 direction,
@@ -118,6 +133,27 @@ impl PuzzleCommand {
             }
 
             PuzzleCommand::None => String::new(),
+        }
+    }
+
+    pub fn layers_mut(&mut self) -> Option<&mut LayerMaskDesc> {
+        match self {
+            Self::Grip { layers, .. } | Self::Twist { layers, .. } => Some(layers),
+            _ => None,
+        }
+    }
+    pub fn axis_mut(&mut self) -> Option<&mut Option<String>> {
+        match self {
+            Self::Grip { axis, .. } | Self::Twist { axis, .. } | Self::Recenter { axis } => {
+                Some(axis)
+            }
+            _ => None,
+        }
+    }
+    pub fn direction_mut(&mut self) -> Option<&mut String> {
+        match self {
+            Self::Twist { direction, .. } => Some(direction),
+            _ => None,
         }
     }
 }
@@ -167,6 +203,10 @@ impl<'de> Deserialize<'de> for LayerMaskDesc {
     }
 }
 impl LayerMaskDesc {
+    pub(crate) fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+
     pub(crate) fn to_layer_mask(&self, layer_count: u8) -> LayerMask {
         let mut ret = LayerMask(0);
 

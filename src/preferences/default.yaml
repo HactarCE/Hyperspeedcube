@@ -127,10 +127,12 @@ puzzle_keybinds:
   Rubiks3D:
     - sc: ShiftLeft
       command:
-        grip_layers: 1..2
+        grip:
+          layers: 1..2
     - sc: ShiftRight
       command:
-        grip_layers: 1..2
+        grip:
+          layers: 1..2
     - sc: KeyE
       command:
         twist:
@@ -297,69 +299,90 @@ puzzle_keybinds:
           layers: 2..-2
     - sc: Digit1
       command:
-        grip_layers: 1
+        grip:
+          layers: 1
     - sc: Digit2
       command:
-        grip_layers: 2
+        grip:
+          layers: 2
     - sc: Digit3
       command:
-        grip_layers: 3
+        grip:
+          layers: 3
     - sc: Digit4
       command:
-        grip_layers: 4
+        grip:
+          layers: 4
     - sc: Digit5
       command:
-        grip_layers: 5
+        grip:
+          layers: 5
     - sc: Digit6
       command:
-        grip_layers: 6
+        grip:
+          layers: 6
     - sc: Digit7
       command:
-        grip_layers: 7
+        grip:
+          layers: 7
     - sc: Digit8
       command:
-        grip_layers: 8
+        grip:
+          layers: 8
     - sc: Digit9
       command:
-        grip_layers: 9
+        grip:
+          layers: 9
 
   Rubiks4D:
     - sc: ShiftLeft
       command:
-        grip_layers: 1..2
+        grip:
+          layers: 1..2
     - sc: ShiftRight
       command:
-        grip_layers: 1..2
+        grip:
+          layers: 1..2
     - sc: AltLeft
       command:
-        grip_layers: 2
+        grip:
+          layers: 2
     - sc: AltRight
       command:
-        grip_layers: 2
+        grip:
+          layers: 2
     - sc: KeyW
       command:
-        grip_axis: L
+        grip:
+          axis: L
     - sc: KeyE
       command:
-        grip_axis: U
+        grip:
+          axis: U
     - sc: KeyR
       command:
-        grip_axis: B
+        grip:
+          axis: B
     - sc: KeyS
       command:
-        grip_axis: F
+        grip:
+          axis: F
     - sc: KeyD
       command:
-        grip_axis: I
+        grip:
+          axis: I
     - sc: KeyF
       command:
-        grip_axis: R
+        grip:
+          axis: R
     - sc: KeyC
       command:
-        grip_axis: D
+        grip:
+          axis: D
     - sc: KeyV
       command:
-        grip_axis: O
+        grip:
+          axis: O
     - sc: KeyI
       command:
         twist:
@@ -443,28 +466,37 @@ puzzle_keybinds:
           layers: 1..-1
     - sc: Digit1
       command:
-        grip_layers: 1
+        grip:
+          layers: 1
     - sc: Digit2
       command:
-        grip_layers: 2
+        grip:
+          layers: 2
     - sc: Digit3
       command:
-        grip_layers: 3
+        grip:
+          layers: 3
     - sc: Digit4
       command:
-        grip_layers: 4
+        grip:
+          layers: 4
     - sc: Digit5
       command:
-        grip_layers: 5
+        grip:
+          layers: 5
     - sc: Digit6
       command:
-        grip_layers: 6
+        grip:
+          layers: 6
     - sc: Digit7
       command:
-        grip_layers: 7
+        grip:
+          layers: 7
     - sc: Digit8
       command:
-        grip_layers: 8
+        grip:
+          layers: 8
     - sc: Digit9
       command:
-        grip_layers: 9
+        grip:
+          layers: 9

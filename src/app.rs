@@ -265,19 +265,21 @@ impl App {
                         for bind in self.resolve_keypress(puzzle_keybinds, sc, vk) {
                             let key = bind.key.key().unwrap();
                             match &bind.command {
-                                PuzzleCommand::GripAxis(axis_name) => {
-                                    match self.twist_axis_from_name(Some(axis_name)) {
-                                        Ok(twist_axis) => {
-                                            let new_grip = Grip::with_axis(twist_axis);
-                                            self.transient_grips.insert(key, new_grip);
+                                PuzzleCommand::Grip { axis, layers } => {
+                                    let mut new_grip = Grip::default();
+
+                                    if let Some(axis_name) = axis {
+                                        match self.twist_axis_from_name(Some(axis_name)) {
+                                            Ok(twist_axis) => {
+                                                new_grip.toggle_axis(twist_axis, true);
+                                            }
+                                            Err(e) => self.event(AppEvent::StatusError(e)),
                                         }
-                                        Err(e) => self.event(AppEvent::StatusError(e)),
                                     }
-                                }
-                                PuzzleCommand::GripLayers(layers) => {
-                                    let new_grip = Grip::with_layers(
-                                        layers.to_layer_mask(self.puzzle.layer_count()),
-                                    );
+
+                                    new_grip.layers =
+                                        Some(layers.to_layer_mask(self.puzzle.layer_count()));
+
                                     self.transient_grips.insert(key, new_grip);
                                 }
                                 PuzzleCommand::Twist {
