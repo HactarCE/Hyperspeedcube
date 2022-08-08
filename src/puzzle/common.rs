@@ -155,7 +155,7 @@ pub trait PuzzleState: PuzzleType {
     fn is_solved(&self) -> bool;
 
     #[cfg(debug_assertions)]
-    fn sticker_debug_info(&self, s: &mut String, sticker: Sticker) {}
+    fn sticker_debug_info(&self, _s: &mut String, _sticker: Sticker) {}
 }
 
 /// Enumeration of all puzzle types.
