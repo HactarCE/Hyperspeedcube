@@ -191,7 +191,7 @@ impl Mc4dLogFile {
                 log::warn!("Error executing twist {e:?} from MC4D log file")
             }
         }
-        ret.catch_up();
+        ret.skip_twist_animations();
         ret.mark_saved();
 
         Ok(ret)

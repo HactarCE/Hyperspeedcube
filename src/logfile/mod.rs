@@ -183,7 +183,7 @@ impl LogFile {
                 warnings.push(e.to_string());
             }
         }
-        ret.catch_up();
+        ret.skip_twist_animations();
         ret.mark_saved();
 
         Ok((ret, warnings))

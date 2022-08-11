@@ -41,23 +41,12 @@ const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 
 /// Puzzle wrapper that adds animation and undo history functionality.
 #[derive(Delegate, Debug)]
-#[delegate(PuzzleType, target = "latest")]
+#[delegate(PuzzleType, target = "puzzle")]
 pub struct PuzzleController {
-    /// State of the puzzle right before the twist being animated right now.
-    displayed: Puzzle,
-    /// State of the puzzle right after the twist being animated right now, or
-    /// the same as `displayed` if there is no twist animation in progress.
-    next_displayed: Puzzle,
-    /// State of the puzzle with all twists applied to it (used for timing and
-    /// undo).
-    latest: Puzzle,
-    /// Queue of twists that transform the displayed state into the latest
-    /// state.
-    twist_queue: VecDeque<Twist>,
-    /// Maximum number of twists in the queue (reset when queue is empty).
-    queue_max: usize,
-    /// Progress of the animation in the current twist, from 0.0 to 1.0.
-    progress: f32,
+    /// Latest puzzle state.
+    puzzle: Puzzle,
+    /// Twist animation state.
+    twist_anim: TwistAnimationState,
 
     /// Whether the puzzle has been modified since the last time the log file
     /// was saved.
@@ -98,24 +87,20 @@ impl Default for PuzzleController {
 impl Eq for PuzzleController {}
 impl PartialEq for PuzzleController {
     fn eq(&self, other: &Self) -> bool {
-        self.latest == other.latest
+        self.puzzle == other.puzzle
     }
 }
 impl PartialEq<Puzzle> for PuzzleController {
     fn eq(&self, other: &Puzzle) -> bool {
-        self.latest == *other
+        self.puzzle == *other
     }
 }
 impl PuzzleController {
     /// Constructs a new PuzzleController with a solved puzzle.
     pub fn new(ty: PuzzleTypeEnum) -> Self {
         Self {
-            displayed: Puzzle::new(ty),
-            next_displayed: Puzzle::new(ty),
-            latest: Puzzle::new(ty),
-            twist_queue: VecDeque::new(),
-            queue_max: 0,
-            progress: 0.0,
+            puzzle: Puzzle::new(ty),
+            twist_anim: TwistAnimationState::default(),
 
             is_unsaved: false,
 
@@ -164,7 +149,7 @@ impl PuzzleController {
     /// Marks the puzzle as scrambled.
     pub fn add_scramble_marker(&mut self, new_scramble_state: ScrambleState) {
         if new_scramble_state != ScrambleState::None {
-            self.catch_up();
+            self.skip_twist_animations();
             self.scramble
                 .extend(self.undo_buffer.drain(..).filter_map(HistoryEntry::twist));
             self.scramble_state = new_scramble_state;
@@ -191,19 +176,27 @@ impl PuzzleController {
         // Canonicalize twist.
         twist = self.canonicalize_twist(twist);
         if collapse && self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
+            // This twist is the reverse of the last one, so just undo that twist.
             self.undo()
         } else {
-            self.latest.twist(twist)?;
-            self.twist_queue.push_back(twist);
+            self.animate_twist(twist)?;
             self.undo_buffer.push(twist.into());
             Ok(())
         }
     }
+    /// Applies a twist to the puzzle and queues it for animation. Does _not_
+    /// handle undo/redo stack or `is_unsaved`.
+    fn animate_twist(&mut self, twist: Twist) -> Result<(), &'static str> {
+        let old_state = self.puzzle.clone();
+        self.puzzle.twist(twist)?;
+        self.twist_anim.queue.push_back((old_state, twist));
+        Ok(())
+    }
     /// Returns the twist currently being animated, along with a float between
     /// 0.0 and 1.0 indicating the progress on that animation.
     pub fn current_twist(&self) -> Option<(Twist, f32)> {
-        if let Some(&twist) = self.twist_queue.get(0) {
-            Some((twist, TWIST_INTERPOLATION_FN(self.progress)))
+        if let Some((_state, twist)) = self.twist_anim.queue.get(0) {
+            Some((*twist, TWIST_INTERPOLATION_FN(self.twist_anim.progress)))
         } else {
             None
         }
@@ -212,21 +205,27 @@ impl PuzzleController {
     /// Returns the state of the cube that should be displayed, not including
     /// the twist currently being animated (if there is one).
     pub fn displayed(&self) -> &Puzzle {
-        &self.displayed
+        match self.twist_anim.queue.get(0) {
+            Some((puzzle, _twist)) => puzzle,
+            None => &self.puzzle,
+        }
     }
     /// Returns the state of the cube that should be displayed after the twist
     /// currently being animated (if there is one).
     pub fn next_displayed(&self) -> &Puzzle {
-        &self.next_displayed
+        match self.twist_anim.queue.get(1) {
+            Some((puzzle, _twist)) => puzzle,
+            None => &self.puzzle,
+        }
     }
     /// Returns the state of the cube after all queued twists have been applied.
     pub fn latest(&self) -> &Puzzle {
-        &self.latest
+        &self.puzzle
     }
 
     /// Returns the puzzle type.
     pub fn ty(&self) -> PuzzleTypeEnum {
-        self.latest.ty()
+        self.puzzle.ty()
     }
 
     /// Returns the puzzle grip.
@@ -246,7 +245,7 @@ impl PuzzleController {
         let hovered = stickers_under_cursor
             .into_iter()
             .find(|&(sticker, _twists)| {
-                let less_than_halfway = TWIST_INTERPOLATION_FN(self.progress) < 0.5;
+                let less_than_halfway = TWIST_INTERPOLATION_FN(self.twist_anim.progress) < 0.5;
                 let puzzle_state = if less_than_halfway {
                     self.displayed() // puzzle state before the twist
                 } else {
@@ -366,24 +365,19 @@ impl PuzzleController {
     /// Advances the puzzle geometry and internal state to the next frame, using
     /// the given time delta between this frame and the last.
     pub fn update_geometry(&mut self, delta: Duration, prefs: &InteractionPreferences) {
-        if self.twist_queue.is_empty() {
-            self.queue_max = 0;
+        let anim = &mut self.twist_anim;
+        if anim.queue.is_empty() {
+            anim.queue_max = 0;
             return;
-        }
-        if self.progress == 0.0 {
-            self.next_displayed = self.displayed().clone();
-            self.next_displayed
-                .twist(*self.twist_queue.front().unwrap())
-                .expect("failed to apply twist from twist queue");
         }
 
         // Update queue_max.
-        self.queue_max = std::cmp::max(self.queue_max, self.twist_queue.len());
+        anim.queue_max = std::cmp::max(anim.queue_max, anim.queue.len());
         // duration is in seconds (per one twist); speed is (fraction of twist) per frame.
         let base_speed = delta.as_secs_f32() / prefs.twist_duration;
         // Twist exponentially faster if there are/were more twists in the queue.
         let speed_mod = match prefs.dynamic_twist_speed {
-            true => ((self.twist_queue.len() - 1) as f32 * EXP_TWIST_FACTOR).exp(),
+            true => ((anim.queue.len() - 1) as f32 * EXP_TWIST_FACTOR).exp(),
             false => 1.0,
         };
         let mut twist_delta = base_speed * speed_mod;
@@ -392,11 +386,10 @@ impl PuzzleController {
         if !(0.0..MIN_TWIST_DELTA).contains(&twist_delta) {
             twist_delta = 1.0; // Instantly complete the twist.
         }
-        self.progress += twist_delta;
-        if self.progress >= 1.0 {
-            self.twist_queue.pop_front();
-            self.displayed = self.next_displayed.clone();
-            self.progress = 0.0;
+        anim.progress += twist_delta;
+        if anim.progress >= 1.0 {
+            anim.queue.pop_front();
+            anim.progress = 0.0;
 
             // The puzzle state has changed, so invalidate the geometry cache.
             self.cached_geometry = None;
@@ -414,7 +407,7 @@ impl PuzzleController {
         for piece in (0..self.pieces().len() as _).map(Piece) {
             let logical_state = self.logical_piece_states[piece.0 as usize];
 
-            let gripped = self.grip.has_piece(self.next_displayed(), piece);
+            let gripped = self.grip.has_piece(&self.puzzle, piece);
             let hidden = logical_state.preview_hidden.unwrap_or(logical_state.hidden);
             let stickers = &self.info(piece).stickers;
             let target = VisualPieceState {
@@ -530,15 +523,8 @@ impl PuzzleController {
     }
 
     /// Skips the animations for all twists in the queue.
-    pub fn catch_up(&mut self) {
-        for twist in self.twist_queue.drain(..) {
-            self.displayed
-                .twist(twist)
-                .expect("failed to apply twist from twist queue");
-        }
-        self.progress = 0.0;
-        self.next_displayed = self.displayed.clone();
-        assert_eq!(self.displayed, self.latest);
+    pub fn skip_twist_animations(&mut self) {
+        self.twist_anim.queue.clear();
     }
 
     /// Returns whether there is a twist to undo.
@@ -558,8 +544,7 @@ impl PuzzleController {
             match entry {
                 HistoryEntry::Twist(twist) => {
                     let rev = self.reverse_twist(twist);
-                    self.latest.twist(rev)?;
-                    self.twist_queue.push_back(rev);
+                    self.animate_twist(rev)?;
                 }
             }
             self.redo_buffer.push(entry);
@@ -574,10 +559,7 @@ impl PuzzleController {
         if let Some(entry) = self.redo_buffer.pop() {
             self.is_unsaved = true;
             match entry {
-                HistoryEntry::Twist(twist) => {
-                    self.latest.twist(twist)?;
-                    self.twist_queue.push_back(twist);
-                }
+                HistoryEntry::Twist(twist) => self.animate_twist(twist)?,
             }
             self.undo_buffer.push(entry);
             Ok(())
@@ -613,7 +595,7 @@ impl PuzzleController {
     }
     /// Returns whether the puzzle is currently in a solved configuration.
     pub fn is_solved(&self) -> bool {
-        self.displayed.is_solved()
+        self.puzzle.is_solved()
     }
     /// Checks whether the puzzle was scrambled and is now solved. If so,
     /// updates the scramble state, and returns `true`.
@@ -653,6 +635,16 @@ impl PuzzleController {
     pub fn redo_buffer(&self) -> &[HistoryEntry] {
         &self.redo_buffer
     }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct TwistAnimationState {
+    /// Queue of twist animations to be displayed.
+    pub queue: VecDeque<(Puzzle, Twist)>,
+    /// Maximum number of animations in the queue (reset when queue is empty).
+    pub queue_max: usize,
+    /// Progress of the animation in the current twist, from 0.0 to 1.0.
+    pub progress: f32,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
