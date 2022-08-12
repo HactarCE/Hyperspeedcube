@@ -74,7 +74,7 @@ fn twist_count(ui: &mut egui::Ui, app: &mut App) {
                                 })
                             });
                             ui.with_layout(
-                                egui::Layout::top_down_justified(egui::Align::Min),
+                                egui::Layout::top_down_justified(egui::Align::LEFT),
                                 |ui| {
                                     ui.set_width(100.0);
 
