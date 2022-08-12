@@ -22,8 +22,8 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     let r = ui
         .add(util::CheckboxWithReset {
             label: "Unhide grip",
-            value: &mut prefs.interaction.unhide_grip,
-            reset_value: crate::preferences::DEFAULT_PREFS.interaction.unhide_grip,
+            value: &mut prefs.opacity.unhide_grip,
+            reset_value: crate::preferences::DEFAULT_PREFS.opacity.unhide_grip,
         })
         .on_hover_explanation(
             "",

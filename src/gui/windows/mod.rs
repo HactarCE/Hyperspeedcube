@@ -1,3 +1,5 @@
+mod appearance_settings;
+mod interaction_settings;
 mod keybinds_reference;
 pub mod keybinds_table;
 mod piece_filters;
@@ -6,16 +8,22 @@ mod view_settings;
 
 use crate::app::App;
 
+pub const FLOATING_WINDOW_OPACITY: f32 = 0.98;
+
 pub const ALL: &'static [Window] = &[
-    // Floating
+    // Misc.
     ABOUT,
     #[cfg(debug_assertions)]
     DEBUG,
+    // Tools
     KEYBINDS_REFERENCE,
     PUZZLE_CONTROLS,
     PIECE_FILTERS,
+    // Settings
+    APPEARANCE_SETTINGS,
+    INTERACTION_SETTINGS,
     VIEW_SETTINGS,
-    // Docked
+    // Keybinds
     GLOBAL_KEYBINDS,
     PUZZLE_KEYBINDS,
 ];
@@ -70,6 +78,20 @@ pub const PUZZLE_CONTROLS: Window = Window {
     location: Location::Floating,
     build: puzzle_controls::build,
     cleanup: puzzle_controls::cleanup,
+};
+
+pub const APPEARANCE_SETTINGS: Window = Window {
+    name: "Appearance settings",
+    location: Location::Floating,
+    build: appearance_settings::build,
+    cleanup: |_| (),
+};
+
+pub const INTERACTION_SETTINGS: Window = Window {
+    name: "Interaction settings",
+    location: Location::Floating,
+    build: interaction_settings::build,
+    cleanup: |_| (),
 };
 
 pub const VIEW_SETTINGS: Window = Window {
@@ -137,7 +159,7 @@ impl Window {
         let opacity = if self.id() == KEYBINDS_REFERENCE.id() {
             app.prefs.info.keybinds_reference.opacity
         } else {
-            0.95
+            FLOATING_WINDOW_OPACITY
         };
 
         let mut is_open = self.is_open(ctx);

@@ -10,11 +10,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - New system for specifying layer masks that changes with the number of layers in the puzzle
 - Piece filtering
+- View settings presets
 
 ### Changed
 
 - Overhauled UI
   - Most windows are now floating
+  - Reorganized preferences
   - Renamed "selection" to "grip"
 - Combined "Grip axis" and "Grip layers" commands
 - Combined selection fade duration and hover fade duration preferences

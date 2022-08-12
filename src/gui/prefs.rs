@@ -1,94 +1,30 @@
 use egui::NumExt;
 
-use super::util::{self, ResponseExt};
 use crate::app::App;
+use crate::gui::util::{self, ResponseExt};
 use crate::preferences::DEFAULT_PREFS;
 use crate::puzzle::{traits::*, Face};
 use crate::serde_impl::hex_color;
 
-macro_rules! resettable {
-    (
-        $label:expr,
-        ($prefs:ident $($prefs_tok:tt)*),
-        $make_widget:expr $(,)?
-    ) => {
-        resettable!($label, "{}", ($prefs $($prefs_tok)*), $make_widget)
-    };
-    (
-        $label:expr,
-        $format_str:tt,
-        ($prefs:ident $($prefs_tok:tt)*),
-        $make_widget:expr $(,)?
-    ) => {
-        resettable!($label, |x| format!($format_str, x), ($prefs $($prefs_tok)*), $make_widget)
-    };
-    (
-        $label:expr,
-        $format_fn:expr,
-        ($prefs:ident $($prefs_tok:tt)*),
-        $make_widget:expr $(,)?
-    ) => {{
-        let value = &mut $prefs $($prefs_tok)*;
-        let reset_value = &crate::preferences::DEFAULT_PREFS $($prefs_tok)*;
-        #[allow(clippy::redundant_closure_call)]
-        let reset_value_str = ($format_fn)(reset_value);
-        crate::gui::util::WidgetWithReset {
-            label: $label,
-            value,
-            reset_value: reset_value.clone(),
-            reset_value_str,
-            make_widget: $make_widget,
-        }
-    }};
-}
-
-macro_rules! resettable_opacity_dragvalue {
-    ($ui:ident, $prefs:ident.opacity.$name:ident, $label:expr) => {
-        $ui.add(resettable!(
-            $label,
-            |x| format!("{:.0}%", x * 100.0),
-            ($prefs.opacity.$name),
-            crate::gui::util::make_percent_drag_value,
-        ))
-    };
-}
-
-pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    ui.style_mut().wrap = Some(false);
-
-    ui.heading("Preferences");
-    ui.separator();
-    egui::ScrollArea::new([false, true]).show(ui, |ui| {
-        ui.collapsing("Graphics", |ui| build_graphics_section(ui, app));
-        ui.collapsing("Outlines", |ui| build_outlines_section(ui, app));
-        ui.collapsing("Opacity", |ui| build_opacity_section(ui, app));
-        ui.collapsing("Colors", |ui| build_colors_section(ui, app));
-        ui.collapsing("Interaction", |ui| {
-            build_interaction_section(ui, app);
-
-            ui.separator();
-
-            ui.strong("Keybinds");
-            ui.with_layout(
-                egui::Layout::top_down_justified(egui::Align::Center),
-                |ui| {
-                    if ui.button("Edit global keybinds").clicked() {
-                        super::Window::GlobalKeybinds.toggle(ui.ctx());
-                    }
-                    if ui.button("Edit puzzle keybinds").clicked() {
-                        super::Window::PuzzleKeybinds.toggle(ui.ctx());
-                    }
-                },
-            )
-        });
-    });
-}
-
-fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
+pub(super) fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     let puzzle_type = app.puzzle.ty();
     let prefs = &mut app.prefs;
 
     let mut changed = false;
+
+    // Face colors
+    ui.strong("Faces");
+    for (i, &face) in puzzle_type.faces().iter().enumerate() {
+        let r = ui.add(resettable!(
+            face.name,
+            hex_color::to_str,
+            (prefs.colors[(puzzle_type, Face(i as _))]),
+            |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
+        ));
+        changed |= r.changed();
+    }
+
+    ui.separator();
 
     // Special colors
     ui.strong("Special");
@@ -113,26 +49,12 @@ fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     });
     changed |= r.changed();
 
-    ui.separator();
-
-    // Face colors
-    ui.strong("Faces");
-    for (i, &face) in puzzle_type.faces().iter().enumerate() {
-        let r = ui.add(resettable!(
-            face.name,
-            hex_color::to_str,
-            (prefs.colors[(puzzle_type, Face(i as _))]),
-            |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
-        ));
-        changed |= r.changed();
-    }
-
     prefs.needs_save |= changed;
     if changed {
         app.request_redraw_puzzle();
     }
 }
-fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
+pub(super) fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
 
     // MSAA
@@ -147,28 +69,16 @@ fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
             "Makes edges less jagged, \
              but may worsen performance.",
         );
+
     prefs.needs_save |= r.changed();
     if r.changed() {
         app.request_redraw_puzzle();
     }
 }
-fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
+pub(super) fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
 
     let mut changed = false;
-
-    ui.add(util::CheckboxWithReset {
-        label: "Unhide grip",
-        value: &mut prefs.interaction.unhide_grip,
-        reset_value: DEFAULT_PREFS.interaction.unhide_grip,
-    })
-    .on_hover_explanation(
-        "",
-        "When enabled, gripping a face will temporarily \
-         disable piece filters.",
-    );
-
-    ui.separator();
 
     ui.add(util::CheckboxWithReset {
         label: "Confirm discard only when scrambled",
@@ -187,53 +97,6 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
-    ui.strong("Animations");
-    let r = ui
-        .add(util::CheckboxWithReset {
-            label: "Dynamic twist speed",
-            value: &mut prefs.interaction.dynamic_twist_speed,
-            reset_value: DEFAULT_PREFS.interaction.dynamic_twist_speed,
-        })
-        .on_hover_explanation(
-            "",
-            "When enabled, the puzzle twists faster when \
-             many moves are queued up. When all queued \
-             moves are complete, the twist speed resets.",
-        );
-    changed |= r.changed();
-    let r = ui.add(resettable!(
-        "Twist duration",
-        (prefs.interaction.twist_duration),
-        |value| {
-            let speed = value.at_least(0.1) / 100.0; // logarithmic speed
-            egui::DragValue::new(value)
-                .fixed_decimals(2)
-                .clamp_range(0.0..=5.0_f32)
-                .speed(speed)
-        },
-    ));
-    changed |= r.changed();
-    let r = ui
-        .add(resettable!(
-            "Animation duration",
-            (prefs.interaction.other_anim_duration),
-            |value| {
-                let speed = value.at_least(0.01) / 100.0; // logarithmic speed
-                egui::DragValue::new(value)
-                    .fixed_decimals(2)
-                    .clamp_range(0.0..=1.0_f32)
-                    .speed(speed)
-            },
-        ))
-        .on_hover_explanation(
-            "",
-            "Number of seconds for other animations, \
-             such as hiding a piece.",
-        );
-    changed |= r.changed();
-
-    ui.separator();
-    ui.strong("View angle drag");
     let r = ui.add(resettable!(
         "Drag sensitivity",
         (prefs.interaction.drag_sensitivity),
@@ -246,31 +109,60 @@ fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     ));
     changed |= r.changed();
 
+    ui.separator();
+
+    ui.collapsing("Animations", |ui| {
+        let r = ui
+            .add(util::CheckboxWithReset {
+                label: "Dynamic twist speed",
+                value: &mut prefs.interaction.dynamic_twist_speed,
+                reset_value: DEFAULT_PREFS.interaction.dynamic_twist_speed,
+            })
+            .on_hover_explanation(
+                "",
+                "When enabled, the puzzle twists faster when \
+             many moves are queued up. When all queued \
+             moves are complete, the twist speed resets.",
+            );
+        changed |= r.changed();
+        let r = ui.add(resettable!(
+            "Twist duration",
+            (prefs.interaction.twist_duration),
+            |value| {
+                let speed = value.at_least(0.1) / 100.0; // logarithmic speed
+                egui::DragValue::new(value)
+                    .fixed_decimals(2)
+                    .clamp_range(0.0..=5.0_f32)
+                    .speed(speed)
+            },
+        ));
+        changed |= r.changed();
+        let r = ui
+            .add(resettable!(
+                "Animation duration",
+                (prefs.interaction.other_anim_duration),
+                |value| {
+                    let speed = value.at_least(0.01) / 100.0; // logarithmic speed
+                    egui::DragValue::new(value)
+                        .fixed_decimals(2)
+                        .clamp_range(0.0..=1.0_f32)
+                        .speed(speed)
+                },
+            ))
+            .on_hover_explanation(
+                "",
+                "Number of seconds for other animations, \
+             such as hiding a piece.",
+            );
+        changed |= r.changed();
+    });
+
     prefs.needs_save |= changed;
 }
-fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
+pub(super) fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
 
     let mut changed = false;
-
-    ui.strong("Sizes");
-    macro_rules! resettable_outline_size_dragvalue {
-        ($ui:ident, $name:ident, $label:expr) => {
-            $ui.add(resettable!($label, (prefs.outlines.$name), |value| {
-                egui::DragValue::new(value)
-                    .fixed_decimals(1)
-                    .clamp_range(0.0..=5.0_f32)
-                    .speed(0.01)
-            }))
-        };
-    }
-    changed |= resettable_outline_size_dragvalue!(ui, default_size, "Default").changed();
-    changed |= resettable_outline_size_dragvalue!(ui, hidden_size, "Hidden").changed();
-    changed |= resettable_outline_size_dragvalue!(ui, hovered_size, "Hovered").changed();
-    changed |= resettable_outline_size_dragvalue!(ui, marked_size, "Marked").changed();
-    changed |= resettable_outline_size_dragvalue!(ui, selected_size, "Selected").changed();
-
-    ui.separator();
     ui.strong("Colors");
     macro_rules! resettable_outline_color_edit {
         ($ui:ident, $name:ident, $label:expr) => {
@@ -289,12 +181,31 @@ fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
     changed |= resettable_outline_color_edit!(ui, selected_sticker_color, "Sel. sticker").changed();
     changed |= resettable_outline_color_edit!(ui, selected_piece_color, "Sel. piece").changed();
 
+    ui.separator();
+
+    ui.strong("Sizes");
+    macro_rules! resettable_outline_size_dragvalue {
+        ($ui:ident, $name:ident, $label:expr) => {
+            $ui.add(resettable!($label, (prefs.outlines.$name), |value| {
+                egui::DragValue::new(value)
+                    .fixed_decimals(1)
+                    .clamp_range(0.0..=5.0_f32)
+                    .speed(0.01)
+            }))
+        };
+    }
+    changed |= resettable_outline_size_dragvalue!(ui, default_size, "Default").changed();
+    changed |= resettable_outline_size_dragvalue!(ui, hidden_size, "Hidden").changed();
+    changed |= resettable_outline_size_dragvalue!(ui, hovered_size, "Hovered").changed();
+    changed |= resettable_outline_size_dragvalue!(ui, marked_size, "Marked").changed();
+    changed |= resettable_outline_size_dragvalue!(ui, selected_size, "Selected").changed();
+
     prefs.needs_save |= changed;
     if changed {
         app.request_redraw_puzzle();
     }
 }
-fn build_opacity_section(ui: &mut egui::Ui, app: &mut App) {
+pub(super) fn build_opacity_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
 
     let mut changed = false;
@@ -303,6 +214,19 @@ fn build_opacity_section(ui: &mut egui::Ui, app: &mut App) {
     changed |= resettable_opacity_dragvalue!(ui, prefs.opacity.ungripped, "Ungripped").changed();
     changed |= resettable_opacity_dragvalue!(ui, prefs.opacity.hidden, "Hidden").changed();
     changed |= resettable_opacity_dragvalue!(ui, prefs.opacity.selected, "Selected").changed();
+
+    let r = ui
+        .add(util::CheckboxWithReset {
+            label: "Unhide grip",
+            value: &mut prefs.opacity.unhide_grip,
+            reset_value: DEFAULT_PREFS.opacity.unhide_grip,
+        })
+        .on_hover_explanation(
+            "",
+            "When enabled, gripping a face will temporarily \
+             disable piece filters.",
+        );
+    changed |= r.changed();
 
     prefs.needs_save |= changed;
     if changed {

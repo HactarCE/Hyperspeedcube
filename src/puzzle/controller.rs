@@ -950,7 +950,7 @@ impl VisualPieceState {
             self.hovered,
             f32::max(
                 self.marked,
-                if prefs.interaction.unhide_grip {
+                if pr.unhide_grip {
                     self.gripped
                 } else {
                     self.gripped * (1.0 - self.hidden)

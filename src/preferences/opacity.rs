@@ -7,4 +7,6 @@ pub struct OpacityPreferences {
     pub ungripped: f32,
     pub hidden: f32,
     pub selected: f32,
+
+    pub unhide_grip: bool,
 }

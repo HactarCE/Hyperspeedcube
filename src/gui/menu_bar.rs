@@ -67,6 +67,8 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
 
         ui.menu_button("Settings", |ui| {
+            windows::APPEARANCE_SETTINGS.menu_button_toggle(ui);
+            windows::INTERACTION_SETTINGS.menu_button_toggle(ui);
             windows::VIEW_SETTINGS.menu_button_toggle(ui);
             ui.separator();
             windows::GLOBAL_KEYBINDS.menu_button_toggle(ui);
