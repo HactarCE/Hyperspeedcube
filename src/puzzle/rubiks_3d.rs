@@ -196,7 +196,6 @@ impl PuzzleType for Rubiks3DDescription {
         ProjectionType::_3D
     }
 
-
     fn layer_count(&self) -> u8 {
         self.layer_count
     }

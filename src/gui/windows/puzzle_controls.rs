@@ -1,5 +1,5 @@
-use crate::gui::util;
 use crate::app::App;
+use crate::gui::util;
 use crate::puzzle::*;
 
 pub fn cleanup(app: &mut App) {
