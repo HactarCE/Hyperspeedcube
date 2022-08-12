@@ -177,7 +177,7 @@ pub(super) fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
     changed |= resettable_outline_color_edit!(ui, default_color, "Default").changed();
     changed |= resettable_outline_color_edit!(ui, hidden_color, "Hidden").changed();
     changed |= resettable_outline_color_edit!(ui, hovered_color, "Hovered").changed();
-    changed |= resettable_outline_color_edit!(ui, marked_color, "Marked").changed();
+    // changed |= resettable_outline_color_edit!(ui, marked_color, "Marked").changed(); // TODO: enable or delete this
     changed |= resettable_outline_color_edit!(ui, selected_sticker_color, "Sel. sticker").changed();
     changed |= resettable_outline_color_edit!(ui, selected_piece_color, "Sel. piece").changed();
 

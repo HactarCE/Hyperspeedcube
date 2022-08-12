@@ -2,6 +2,9 @@ use winit::event::ModifiersState;
 
 use crate::app::{App, AppEvent};
 
+// experimental
+const ENABLE_CONTEXT_MENU: bool = false;
+
 pub fn build(ui: &mut egui::Ui, app: &mut App, puzzle_texture_id: egui::TextureId) {
     let dpi = ui.ctx().pixels_per_point();
 
@@ -40,15 +43,17 @@ pub fn build(ui: &mut egui::Ui, app: &mut App, puzzle_texture_id: egui::TextureI
     let mut popup_was_open = ui.data().get_temp(popup_state_id).unwrap_or(false);
     if popup_was_open || app.pressed_modifiers() == ModifiersState::SHIFT {
         ui.data().insert_temp(popup_state_id, false);
-        r = r.context_menu(|ui| {
-            if !popup_was_open && app.puzzle.hovered_sticker().is_some() {
-                app.event(AppEvent::Click(egui::PointerButton::Secondary));
-            }
-            ui.data().insert_temp(popup_state_id, true);
-            popup_was_open |= true;
+        if ENABLE_CONTEXT_MENU {
+            r = r.context_menu(|ui| {
+                if !popup_was_open && app.puzzle.hovered_sticker().is_some() {
+                    app.event(AppEvent::Click(egui::PointerButton::Secondary));
+                }
+                ui.data().insert_temp(popup_state_id, true);
+                popup_was_open |= true;
 
-            build_puzzle_context_menu(ui, app);
-        });
+                build_puzzle_context_menu(ui, app);
+            });
+        }
     }
     if popup_was_open {
         return; // Ignore click and drag events while the popup is open.
@@ -90,7 +95,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App, puzzle_texture_id: egui::TextureI
     }
 }
 
-fn build_puzzle_context_menu(ui: &mut egui::Ui, app: &mut App) {
+fn build_puzzle_context_menu(_ui: &mut egui::Ui, _app: &mut App) {
     // let ty = app.puzzle.ty();
 
     // let selection = app.puzzle.selection().clone();
