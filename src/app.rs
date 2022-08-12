@@ -34,9 +34,6 @@ pub struct App {
     /// Grip that is more permanent.
     pub(crate) toggle_grip: Grip,
 
-    dragging_view_angle: bool,
-    pub(crate) view_angle_offset: egui::Vec2,
-
     status_msg: String,
 }
 impl App {
@@ -56,9 +53,6 @@ impl App {
             pressed_modifiers: ModifiersState::default(),
             transient_grips: HashMap::default(),
             toggle_grip: Grip::default(),
-
-            dragging_view_angle: false,
-            view_angle_offset: egui::Vec2::default(),
 
             status_msg: String::default(),
         };
@@ -203,16 +197,13 @@ impl App {
                 }
             }
             AppEvent::Drag(delta) => {
-                self.dragging_view_angle = true;
-                self.view_angle_offset += delta * self.prefs.interaction.drag_sensitivity * 360.0;
-                let pitch = self.prefs[self.puzzle.projection_type()].pitch;
-                self.view_angle_offset.y =
-                    self.view_angle_offset.y.clamp(-90.0 - pitch, 90.0 - pitch);
-                self.view_angle_offset.x =
-                    (self.view_angle_offset.x + 180.0).rem_euclid(360.0) - 180.0;
+                let delta = delta * self.prefs.interaction.drag_sensitivity * 360.0;
+                self.puzzle.freeze_view_angle_offset();
+                self.puzzle.add_view_angle_offset([delta.x, delta.y]);
             }
             AppEvent::DragReleased => {
-                self.dragging_view_angle = false;
+                let view_prefs = &self.prefs[self.puzzle.projection_type()];
+                self.puzzle.unfreeze_view_angle_offset(view_prefs);
             }
 
             AppEvent::StatusError(msg) => return Err(msg),
@@ -452,16 +443,11 @@ impl App {
         self.pressed_modifiers
     }
 
-    pub(crate) fn frame(&mut self, delta: Duration) {
+    pub(crate) fn frame(&mut self, _delta: Duration) {
         self.puzzle.set_grip(self.grip());
+
         if self.puzzle.check_just_solved() {
             self.set_status_ok("Solved!");
-        }
-        if !self.dragging_view_angle {
-            self.view_angle_offset *= 0.02_f32.powf(delta.as_secs_f32());
-            if self.view_angle_offset.length_sq() < 0.01 {
-                self.view_angle_offset = egui::Vec2::ZERO;
-            }
         }
     }
 
@@ -571,6 +557,8 @@ pub(crate) enum AppEvent {
     Twist(Twist),
 
     Click(egui::PointerButton),
+    /// Drag event with a per-frame delta, sent every frame until the drag ends
+    /// (even if the delta is zero).
     Drag(egui::Vec2),
     DragReleased,
 

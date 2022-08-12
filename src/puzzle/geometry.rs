@@ -6,7 +6,7 @@ use smallvec::{smallvec, SmallVec};
 use std::cmp::Ordering;
 
 use super::{ClickTwists, PuzzleType, PuzzleTypeEnum, Sticker, Twist};
-use crate::preferences::Preferences;
+use crate::preferences::ViewPreferences;
 use crate::util::{self, IterCyclicPairsExt};
 
 const W_NEAR_CLIPPING_DIVISOR: f32 = 0.1;
@@ -62,17 +62,15 @@ pub struct StickerGeometryParams {
 impl StickerGeometryParams {
     /// Constructs sticker geometry parameters for a set of view preferences.
     pub fn new(
-        prefs: &Preferences,
+        view_prefs: &ViewPreferences,
         puzzle_type: PuzzleTypeEnum,
         twist_animation: Option<(Twist, f32)>,
-        view_angle_offset: [f32; 2],
+        [yaw_offset, pitch_offset]: [f32; 2],
     ) -> Self {
-        let view_prefs = &prefs[puzzle_type.projection_type()];
-
         // Compute the view and perspective transforms, which must be applied here
         // on the CPU so that we can do proper depth sorting.
-        let view_transform = Matrix3::from_angle_x(Deg(view_prefs.pitch + view_angle_offset[1]))
-            * Matrix3::from_angle_y(Deg(view_prefs.yaw + view_angle_offset[0]));
+        let view_transform = Matrix3::from_angle_x(Deg(view_prefs.pitch + pitch_offset))
+            * Matrix3::from_angle_y(Deg(view_prefs.yaw + yaw_offset));
 
         let ambient_light = util::mix(
             view_prefs.light_directional * 0.5,
@@ -105,9 +103,9 @@ impl StickerGeometryParams {
             face_scale,
             sticker_scale,
 
-            fov_4d: prefs.view_4d.fov_4d,
+            fov_4d: view_prefs.fov_4d,
             fov_3d: view_prefs.fov_3d,
-            w_factor_4d: (prefs.view_4d.fov_4d.to_radians() / 2.0).tan(),
+            w_factor_4d: (view_prefs.fov_4d.to_radians() / 2.0).tan(),
             w_factor_3d: (view_prefs.fov_3d.to_radians() / 2.0).tan(),
 
             twist_animation,
@@ -116,8 +114,8 @@ impl StickerGeometryParams {
             ambient_light,
             light_vector,
 
-            show_frontfaces: prefs.view_3d.show_frontfaces,
-            show_backfaces: prefs.view_3d.show_backfaces,
+            show_frontfaces: view_prefs.show_frontfaces,
+            show_backfaces: view_prefs.show_backfaces,
         };
 
         ret.view_transform /= puzzle_type.projection_radius_3d(ret);

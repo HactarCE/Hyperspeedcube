@@ -10,7 +10,7 @@ mod state;
 mod structs;
 
 use crate::app::App;
-use crate::puzzle::{ProjectedStickerGeometry, PuzzleType, StickerGeometryParams};
+use crate::puzzle::{ProjectedStickerGeometry, PuzzleType};
 use cache::{CachedDynamicBuffer, CachedUniformBuffer};
 pub(crate) use state::GraphicsState;
 use structs::*;
@@ -119,13 +119,6 @@ pub(crate) fn draw_puzzle(
     // Animate puzzle geometry.
     puzzle.update_geometry(delta, &prefs.interaction);
 
-    let sticker_geometry_params = StickerGeometryParams::new(
-        prefs,
-        puzzle.ty(),
-        puzzle.current_twist(),
-        [app.view_angle_offset.x, app.view_angle_offset.y],
-    );
-
     // Invalidate cache if parameters changed.
     force_redraw |= cache.set_params_and_invalidate(PuzzleRenderParams {
         target_w: width,
@@ -143,7 +136,7 @@ pub(crate) fn draw_puzzle(
     };
 
     // If the puzzle geometry has changed, force a redraw.
-    let puzzle_geometry = puzzle.geometry(sticker_geometry_params);
+    let puzzle_geometry = puzzle.geometry(prefs);
     if let Some(old_geom) = &cache.last_puzzle_geometry {
         if !Arc::ptr_eq(&puzzle_geometry, old_geom) {
             force_redraw = true;
@@ -151,13 +144,12 @@ pub(crate) fn draw_puzzle(
     } else {
         force_redraw = true;
     }
-    cache.last_puzzle_geometry = Some(puzzle_geometry);
+    cache.last_puzzle_geometry = Some(Arc::clone(&puzzle_geometry));
 
     // Determine which sticker(s) are at the mouse cursor, in order from front
     // to back.
     if let Some(cursor_pos) = app.cursor_pos {
         let scaled_cursor_pos = cgmath::point2(cursor_pos.x / scale[0], cursor_pos.y / scale[1]);
-        let puzzle_geometry = puzzle.geometry(sticker_geometry_params);
         let hovered_stickers = puzzle_geometry.iter().rev().filter_map(move |geom| {
             Some((geom.sticker, geom.twists_for_point(scaled_cursor_pos)?))
         });
@@ -166,7 +158,9 @@ pub(crate) fn draw_puzzle(
         puzzle.update_hovered_sticker([]);
     }
 
-    // Animate puzzle decorations (colors, opacity, and outlines).
+    // Animate puzzle decorations (colors, opacity, and outlines). Do this after
+    // generating the puzzle geometry so that we get the most up-to-date
+    // information about which sticker is hovered.
     force_redraw |= puzzle.update_decorations(delta, &prefs.interaction);
 
     if !force_redraw && cache.out_texture.is_some() {
@@ -174,7 +168,7 @@ pub(crate) fn draw_puzzle(
     }
 
     // Generate the mesh.
-    let (mut verts, mut indices) = mesh::make_puzzle_mesh(puzzle, prefs, sticker_geometry_params);
+    let (mut verts, mut indices) = mesh::make_puzzle_mesh(puzzle, prefs, &puzzle_geometry);
 
     // Create "out" texture that will ultimately be returned.
     let (out_texture, out_texture_view) = cache.out_texture.get_or_insert_with(|| {

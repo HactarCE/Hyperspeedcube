@@ -1,68 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(default)]
-pub struct ViewPreferences4D {
-    #[serde(flatten)]
-    base: ViewPreferences,
-
-    /// 4D FOV, in degrees.
-    pub fov_4d: f32,
-}
-impl Deref for ViewPreferences4D {
-    type Target = ViewPreferences;
-
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
-}
-impl DerefMut for ViewPreferences4D {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
-    }
-}
-impl Default for ViewPreferences4D {
-    fn default() -> Self {
-        Self {
-            base: Default::default(),
-            fov_4d: 30.0,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(default)]
-pub struct ViewPreferences3D {
-    #[serde(flatten)]
-    base: ViewPreferences,
-
-    pub show_frontfaces: bool,
-    pub show_backfaces: bool,
-}
-impl Deref for ViewPreferences3D {
-    type Target = ViewPreferences;
-
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
-}
-impl DerefMut for ViewPreferences3D {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
-    }
-}
-impl Default for ViewPreferences3D {
-    fn default() -> Self {
-        Self {
-            base: Default::default(),
-            show_frontfaces: true,
-            show_backfaces: true,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct ViewPreferences {
     /// Puzzle angle around Y axis, in degrees.
@@ -74,6 +12,11 @@ pub struct ViewPreferences {
     pub scale: f32,
     /// 3D FOV, in degrees (may be negative).
     pub fov_3d: f32,
+    /// 4D FOV, in degrees.
+    pub fov_4d: f32,
+
+    pub show_frontfaces: bool,
+    pub show_backfaces: bool,
 
     pub face_spacing: f32,
     pub sticker_spacing: f32,
@@ -93,9 +36,13 @@ impl Default for ViewPreferences {
 
             scale: 1.0,
             fov_3d: 30_f32,
+            fov_4d: 30_f32,
 
             face_spacing: 0.0,
             sticker_spacing: 0.0,
+
+            show_frontfaces: true,
+            show_backfaces: true,
 
             outline_thickness: 1.0,
 
@@ -103,6 +50,36 @@ impl Default for ViewPreferences {
             light_directional: 0.0,
             light_pitch: 0.0,
             light_yaw: 0.0,
+        }
+    }
+}
+
+impl ViewPreferences {
+    // TODO: make a proc macro crate to generate a trait impl like this
+    pub fn interpolate(&self, rhs: &Self, t: f32) -> Self {
+        Self {
+            pitch: crate::util::mix(self.pitch, rhs.pitch, t),
+            yaw: crate::util::mix(self.yaw, rhs.yaw, t),
+            scale: crate::util::mix(self.scale, rhs.scale, t),
+            fov_3d: crate::util::mix(self.fov_3d, rhs.fov_3d, t),
+            fov_4d: crate::util::mix(self.fov_4d, rhs.fov_4d, t),
+            show_frontfaces: if t < 0.5 {
+                self.show_frontfaces
+            } else {
+                rhs.show_frontfaces
+            },
+            show_backfaces: if t < 0.5 {
+                self.show_backfaces
+            } else {
+                rhs.show_backfaces
+            },
+            face_spacing: crate::util::mix(self.face_spacing, rhs.face_spacing, t),
+            sticker_spacing: crate::util::mix(self.sticker_spacing, rhs.sticker_spacing, t),
+            outline_thickness: crate::util::mix(self.outline_thickness, rhs.outline_thickness, t),
+            light_ambient: crate::util::mix(self.light_ambient, rhs.light_ambient, t),
+            light_directional: crate::util::mix(self.light_directional, rhs.light_directional, t),
+            light_pitch: crate::util::mix(self.light_pitch, rhs.light_pitch, t),
+            light_yaw: crate::util::mix(self.light_yaw, rhs.light_yaw, t),
         }
     }
 }

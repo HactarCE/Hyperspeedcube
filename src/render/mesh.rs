@@ -14,7 +14,7 @@ const OUTLINE_WEDGE_VERTS_PER_RADIAN: f32 = 3.0;
 pub(super) fn make_puzzle_mesh(
     puzzle: &mut PuzzleController,
     prefs: &Preferences,
-    sticker_geometry_params: StickerGeometryParams,
+    sticker_geometries: &[ProjectedStickerGeometry],
 ) -> (Vec<RgbaVertex>, Vec<u32>) {
     // Triangulate polygons and combine the whole puzzle into one mesh.
     let mut verts = vec![];
@@ -28,8 +28,7 @@ pub(super) fn make_puzzle_mesh(
 
     let face_colors = &prefs.colors.face_colors_list(puzzle.ty());
 
-    let sticker_geometries = puzzle.geometry(sticker_geometry_params);
-    for geom in &*sticker_geometries {
+    for geom in sticker_geometries {
         let sticker_info = puzzle.info(geom.sticker);
 
         let visual_state = puzzle.visual_piece_state(sticker_info.piece);

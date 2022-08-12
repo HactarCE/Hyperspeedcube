@@ -99,12 +99,14 @@ pub struct Preferences {
     pub info: InfoPreferences,
 
     pub gfx: GfxPreferences,
-    pub view_3d: ViewPreferences3D,
-    pub view_4d: ViewPreferences4D,
-    pub outlines: OutlinePreferences,
-    pub opacity: OpacityPreferences,
-    pub colors: ColorPreferences,
     pub interaction: InteractionPreferences,
+    pub opacity: OpacityPreferences,
+    pub outlines: OutlinePreferences,
+
+    pub view_3d: ViewPreferences,
+    pub view_4d: ViewPreferences,
+
+    pub colors: ColorPreferences,
 
     pub global_keybinds: Vec<Keybind<Command>>,
     // pub keybind_sets: Vec<KeybindSet<PuzzleCommand>>,

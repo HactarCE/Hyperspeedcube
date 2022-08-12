@@ -3,6 +3,7 @@
 use anyhow::Result;
 use cgmath::InnerSpace;
 use num_enum::FromPrimitive;
+use std::borrow::Cow;
 use std::collections::{HashSet, VecDeque};
 use std::ops::{BitOr, BitOrAssign};
 use std::sync::Arc;
@@ -14,6 +15,9 @@ const MIN_TWIST_DELTA: f32 = 1.0 / 3.0;
 
 /// Higher number means faster exponential increase in twist speed.
 const EXP_TWIST_FACTOR: f32 = 0.5;
+
+/// Higher number means slower exponential decay of view angle offset.
+const VIEW_ANGLE_OFFSET_DECAY_RATE: f32 = 0.02_f32;
 
 /// Interpolation functions.
 pub mod interpolate {
@@ -33,7 +37,7 @@ pub mod interpolate {
 
 use super::*;
 use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
-use crate::preferences::{InteractionPreferences, Preferences};
+use crate::preferences::{InteractionPreferences, Preferences, ViewPreferences};
 use crate::util;
 use interpolate::InterpolateFn;
 
@@ -47,6 +51,13 @@ pub struct PuzzleController {
     puzzle: Puzzle,
     /// Twist animation state.
     twist_anim: TwistAnimationState,
+    /// View settings animation state.
+    view_settings_anim: ViewSettingsAnimState,
+
+    /// View angle offset.
+    view_angle_offset: [f32; 2],
+    /// Whether to freeze the view angle offset, versus animating it back to zero.
+    freeze_view_angle_offset: bool,
 
     /// Whether the puzzle has been modified since the last time the log file
     /// was saved.
@@ -101,6 +112,9 @@ impl PuzzleController {
         Self {
             puzzle: Puzzle::new(ty),
             twist_anim: TwistAnimationState::default(),
+            view_settings_anim: ViewSettingsAnimState::default(),
+            view_angle_offset: [0.0; 2],
+            freeze_view_angle_offset: false,
 
             is_unsaved: false,
 
@@ -237,6 +251,38 @@ impl PuzzleController {
         self.grip = grip;
     }
 
+    /// Returns the current view angle offset, clamping pitch and wrapping yaw
+    /// as necessary
+    pub fn clamped_view_angle_offset(&mut self, prefs: &ViewPreferences) -> [f32; 2] {
+        let [yaw, pitch] = self.view_angle_offset;
+        let base_pitch = prefs.pitch;
+        [
+            (yaw + 180.0).rem_euclid(360.0) - 180.0,
+            pitch.clamp(-90.0 - base_pitch, 90.0 - base_pitch),
+        ]
+    }
+    /// Sets the view angle offset. Consider calling
+    /// `freeze_view_angle_offset()` as well.
+    pub fn add_view_angle_offset(&mut self, offset: [f32; 2]) {
+        self.view_angle_offset[0] += offset[0];
+        self.view_angle_offset[1] += offset[1];
+    }
+    /// Freezes the view angle offset, so that it will not animate back to zero
+    /// automatically. It can still be changed with `set_view_angle_offset()`.
+    pub fn freeze_view_angle_offset(&mut self) {
+        self.freeze_view_angle_offset = true;
+    }
+    /// Unfreezes the view angle offset and begins animating it back to zero.
+    pub fn unfreeze_view_angle_offset(&mut self, prefs: &ViewPreferences) {
+        self.view_angle_offset = self.clamped_view_angle_offset(prefs);
+        self.freeze_view_angle_offset = false;
+    }
+
+    /// Adds an animation to the view settings animation queue.
+    pub fn animate_from_view_settings(&mut self, view_prefs: ViewPreferences) {
+        self.view_settings_anim.queue.push_back(view_prefs);
+    }
+
     /// Sets the hovered stickers, in order from front to back.
     pub fn update_hovered_sticker(
         &mut self,
@@ -268,10 +314,27 @@ impl PuzzleController {
         self.hovered_twists
     }
 
-    pub(crate) fn geometry(
-        &mut self,
-        params: StickerGeometryParams,
-    ) -> Arc<Vec<ProjectedStickerGeometry>> {
+    pub(crate) fn geometry(&mut self, prefs: &Preferences) -> Arc<Vec<ProjectedStickerGeometry>> {
+        // Use animated view settings.
+        let mut view_prefs = Cow::Borrowed(&*prefs[self.projection_type()]);
+        while self.view_settings_anim.queue.back() == Some(&*view_prefs) {
+            // No need to animate this one! It's the same as what we're
+            // currently displaying;
+            self.view_settings_anim.queue.pop_back();
+        }
+        if let Some(old) = self.view_settings_anim.queue.get(0) {
+            let new = self.view_settings_anim.queue.get(1).unwrap_or(&view_prefs);
+            let t = self.view_settings_anim.progress;
+            view_prefs = Cow::Owned(ViewPreferences::interpolate(old, new, t));
+        }
+
+        let params = StickerGeometryParams::new(
+            &view_prefs,
+            self.ty(),
+            self.current_twist(),
+            self.clamped_view_angle_offset(&view_prefs),
+        );
+
         if self.cached_geometry_params != Some(params) {
             // Invalidate the cache.
             self.cached_geometry = None;
@@ -365,34 +428,48 @@ impl PuzzleController {
     /// Advances the puzzle geometry and internal state to the next frame, using
     /// the given time delta between this frame and the last.
     pub fn update_geometry(&mut self, delta: Duration, prefs: &InteractionPreferences) {
+        // `twist_duration` is in seconds (per one twist); `base_speed` is
+        // fraction of twist per frame.
+        let base_speed = delta.as_secs_f32() / prefs.twist_duration;
+
+        // Animate view settings.
+        self.view_settings_anim.proceed(base_speed);
+
+        // Animate view angle offset.
+        if !self.freeze_view_angle_offset {
+            let [x, y] = &mut self.view_angle_offset;
+            let decay_multiplier = VIEW_ANGLE_OFFSET_DECAY_RATE.powf(delta.as_secs_f32());
+            *x *= decay_multiplier;
+            *y *= decay_multiplier;
+            let squared_magnitude = *x * *x + *y * *y;
+            // Stop the animation once we're close enough;
+            if squared_magnitude < 0.01 {
+                *x = 0.0;
+                *y = 0.0;
+            }
+        }
+
+        // Animate twist.
         let anim = &mut self.twist_anim;
         if anim.queue.is_empty() {
             anim.queue_max = 0;
-            return;
-        }
-
-        // Update queue_max.
-        anim.queue_max = std::cmp::max(anim.queue_max, anim.queue.len());
-        // duration is in seconds (per one twist); speed is (fraction of twist) per frame.
-        let base_speed = delta.as_secs_f32() / prefs.twist_duration;
-        // Twist exponentially faster if there are/were more twists in the queue.
-        let speed_mod = match prefs.dynamic_twist_speed {
-            true => ((anim.queue.len() - 1) as f32 * EXP_TWIST_FACTOR).exp(),
-            false => 1.0,
-        };
-        let mut twist_delta = base_speed * speed_mod;
-        // Cap the twist delta at 1.0, and also handle the case where something
-        // went wrong with the calculation (e.g., division by zero).
-        if !(0.0..MIN_TWIST_DELTA).contains(&twist_delta) {
-            twist_delta = 1.0; // Instantly complete the twist.
-        }
-        anim.progress += twist_delta;
-        if anim.progress >= 1.0 {
-            anim.queue.pop_front();
-            anim.progress = 0.0;
-
-            // The puzzle state has changed, so invalidate the geometry cache.
-            self.cached_geometry = None;
+        } else {
+            // Update queue_max.
+            anim.queue_max = std::cmp::max(anim.queue_max, anim.queue.len());
+            // Twist exponentially faster if there are/were more twists in the
+            // queue.
+            let speed_mod = match prefs.dynamic_twist_speed {
+                true => ((anim.queue.len() - 1) as f32 * EXP_TWIST_FACTOR).exp(),
+                false => 1.0,
+            };
+            let mut twist_delta = base_speed * speed_mod;
+            // Cap the twist delta at 1.0, and also handle the case where
+            // something went wrong with the calculation (e.g., division by
+            // zero).
+            if !(0.0..MIN_TWIST_DELTA).contains(&twist_delta) {
+                twist_delta = 1.0; // Instantly complete the twist.
+            }
+            self.twist_anim.proceed(twist_delta);
         }
     }
     /// Advances the puzzle decorations (outlines and sticker opacities) to the
@@ -638,13 +715,64 @@ impl PuzzleController {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct TwistAnimationState {
-    /// Queue of twist animations to be displayed.
-    pub queue: VecDeque<(Puzzle, Twist)>,
+struct TwistAnimationState {
+    /// Queue of twist animations to be displayed. Each element is a pair of the
+    /// puzzle state before the twist, and the twist to apply.
+    queue: VecDeque<(Puzzle, Twist)>,
     /// Maximum number of animations in the queue (reset when queue is empty).
-    pub queue_max: usize,
+    queue_max: usize,
     /// Progress of the animation in the current twist, from 0.0 to 1.0.
-    pub progress: f32,
+    progress: f32,
+}
+impl TwistAnimationState {
+    fn proceed(&mut self, delta_t: f32) {
+        self.progress += delta_t;
+        if self.progress >= 1.0 {
+            self.queue.pop_front();
+            self.progress = 0.0;
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct ViewSettingsAnimState {
+    /// Queue of view settings animations to be displayed. Each element is a
+    /// pair of the view settings before the animation. Once there is only one
+    /// element in the queue, the animation will proceed to the view settings
+    /// stored in the application preferences and then stop there.
+    queue: VecDeque<ViewPreferences>,
+    /// Progress of the current animation, from 0.0 to 1.0.
+    progress: f32,
+}
+impl ViewSettingsAnimState {
+    /// Removes intermediate animations.
+    ///
+    /// For example, if the user switches from preset A to preset B, then we
+    /// want to animate from A to B. If during the animation from A to B, the
+    /// user selects preset C, we should finish the animation from A to B, then
+    /// animate from B to C. But if the user also selects preset D during that
+    /// animation, then we shouldn't animate from A to B to C to D; we can skip
+    /// C. In that example, this method would replace the animations from B to C
+    /// and C to D with a single animation from B to D.
+    fn remove_intermediate(&mut self) {
+        // In the example above, preset D is stored in the current settings, and
+        // presets A and B (what we're currently animating between) are at the
+        // front of the queue, so just delete everything in the queue after
+        // index 2.
+        self.queue.truncate(2);
+    }
+    fn proceed(&mut self, delta_t: f32) {
+        if self.queue.is_empty() {
+            self.progress = 0.0;
+        } else {
+            self.remove_intermediate();
+            self.progress += delta_t;
+            if self.progress >= 1.0 {
+                self.queue.pop_front();
+                self.progress = 0.0;
+            }
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
