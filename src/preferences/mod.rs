@@ -7,7 +7,7 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, BTreeMap};
 use std::error::Error;
-use std::ops::{Index, IndexMut};
+use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::path::PathBuf;
 
 mod colors;
@@ -103,8 +103,8 @@ pub struct Preferences {
     pub opacity: OpacityPreferences,
     pub outlines: OutlinePreferences,
 
-    pub view_3d: ViewPreferences,
-    pub view_4d: ViewPreferences,
+    pub view_3d: Presets<ViewPreferences>,
+    pub view_4d: Presets<ViewPreferences>,
 
     pub colors: ColorPreferences,
 
@@ -113,7 +113,7 @@ pub struct Preferences {
     pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
 }
 impl Index<ProjectionType> for Preferences {
-    type Output = ViewPreferences;
+    type Output = Presets<ViewPreferences>;
 
     fn index(&self, index: ProjectionType) -> &Self::Output {
         match index {
@@ -207,6 +207,42 @@ impl Preferences {
                 log::error!("Error saving preferences: {}", e);
             }
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(default)]
+pub struct Presets<T> {
+    #[serde(flatten)]
+    pub current: T,
+    pub presets: BTreeMap<String, T>,
+}
+// TODO: this is deref abuse!
+impl<T> Deref for Presets<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.current
+    }
+}
+impl<T> DerefMut for Presets<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.current
+    }
+}
+impl Presets<ViewPreferences> {
+    pub fn presets(&self) -> &BTreeMap<String, ViewPreferences> {
+        &self.presets
+    }
+    pub fn presets_mut(&mut self) -> &mut BTreeMap<String, ViewPreferences> {
+        &mut self.presets
+    }
+
+    pub fn save_preset(&mut self, name: String)
+    where
+        ViewPreferences: Clone,
+    {
+        self.presets.insert(name, self.current.clone());
     }
 }
 

@@ -4,10 +4,76 @@ use crate::preferences::DEFAULT_PREFS;
 use crate::puzzle::{traits::*, ProjectionType};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    let proj_ty = app.puzzle.ty().projection_type();
+    let proj_ty = app.puzzle.projection_type();
     let prefs = &mut app.prefs;
 
     let mut changed = false;
+
+    let presets = &mut prefs[proj_ty];
+
+    ui.collapsing("Presets", |ui| {
+        with_egui_tmp_data!(
+            ui,
+            |ui: &mut egui::Ui, &mut (ref mut edit_mode, ref mut new_preset_name)| {
+                // These are just type annotations.
+                let edit_mode: &mut bool = edit_mode;
+                let new_preset_name: &mut String = new_preset_name;
+
+                let no_presets = presets.presets.is_empty();
+
+                if no_presets {
+                    *edit_mode = true;
+                }
+
+                // If edit mode is enabled, show a text input and a save button.
+                if *edit_mode {
+                    ui.horizontal(|ui| {
+                        let mut save_button_clicked = false;
+                        let enabled = !new_preset_name.trim().is_empty();
+                        ui.add_enabled_ui(enabled, |ui| {
+                            save_button_clicked = ui.button("Save").clicked();
+                        });
+                        let r = ui.text_edit_singleline(new_preset_name);
+                        let text_edit_confirm =
+                            r.has_focus() && ui.input().key_down(egui::Key::Enter);
+                        if enabled && (save_button_clicked || text_edit_confirm) {
+                            presets.save_preset(new_preset_name.trim().to_string());
+                            *new_preset_name = String::new();
+                        }
+                    });
+                    ui.separator();
+                }
+
+                // Show a list of presets.
+                presets.presets.retain(|preset_name, preset_value| {
+                    let mut keep = true;
+
+                    ui.horizontal(|ui| {
+                        // If edit mode is enabled, give the option to delete
+                        // each preset.
+                        if *edit_mode {
+                            if ui.button("🗑").clicked() {
+                                keep = false;
+                            }
+                        }
+
+                        if ui.button("Load").clicked() {
+                            let old = std::mem::replace(&mut presets.current, preset_value.clone());
+                            app.puzzle.animate_from_view_settings(old);
+                        }
+
+                        ui.label(preset_name);
+                    });
+
+                    keep
+                });
+
+                if !no_presets {
+                    ui.checkbox(edit_mode, "Manage presets");
+                }
+            }
+        );
+    });
 
     ui.collapsing("View angle", |ui| {
         // Pitch
@@ -71,16 +137,16 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             // Show front faces
             let r = ui.add(util::CheckboxWithReset {
                 label: "Show frontfaces",
-                value: &mut prefs.view_3d.show_frontfaces,
-                reset_value: DEFAULT_PREFS.view_3d.show_frontfaces,
+                value: &mut prefs[proj_ty].show_frontfaces,
+                reset_value: DEFAULT_PREFS[proj_ty].show_frontfaces,
             });
             changed |= r.changed();
 
             // Show back faces
             let r = ui.add(util::CheckboxWithReset {
                 label: "Show backfaces",
-                value: &mut prefs.view_3d.show_backfaces,
-                reset_value: DEFAULT_PREFS.view_3d.show_backfaces,
+                value: &mut prefs[proj_ty].show_backfaces,
+                reset_value: DEFAULT_PREFS[proj_ty].show_backfaces,
             });
             changed |= r.changed();
         }

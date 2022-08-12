@@ -336,3 +336,63 @@ macro_rules! enum_combobox {
         }
     };
 }
+
+macro_rules! resettable {
+    (
+        $label:expr,
+        ($prefs:ident $($prefs_tok:tt)*),
+        $make_widget:expr $(,)?
+    ) => {
+        resettable!($label, "{}", ($prefs $($prefs_tok)*), $make_widget)
+    };
+    (
+        $label:expr,
+        $format_str:tt,
+        ($prefs:ident $($prefs_tok:tt)*),
+        $make_widget:expr $(,)?
+    ) => {
+        resettable!($label, |x| format!($format_str, x), ($prefs $($prefs_tok)*), $make_widget)
+    };
+    (
+        $label:expr,
+        $format_fn:expr,
+        ($prefs:ident $($prefs_tok:tt)*),
+        $make_widget:expr $(,)?
+    ) => {{
+        let value = &mut $prefs $($prefs_tok)*;
+        let reset_value = &crate::preferences::DEFAULT_PREFS $($prefs_tok)*;
+        #[allow(clippy::redundant_closure_call)]
+        let reset_value_str = ($format_fn)(reset_value);
+        crate::gui::util::WidgetWithReset {
+            label: $label,
+            value,
+            reset_value: reset_value.clone(),
+            reset_value_str,
+            make_widget: $make_widget,
+        }
+    }};
+}
+
+macro_rules! resettable_opacity_dragvalue {
+    ($ui:ident, $prefs:ident.opacity.$name:ident, $label:expr) => {
+        $ui.add(resettable!(
+            $label,
+            |x| format!("{:.0}%", x * 100.0),
+            ($prefs.opacity.$name),
+            crate::gui::util::make_percent_drag_value,
+        ))
+    };
+}
+
+macro_rules! with_egui_tmp_data {
+    ($ui:expr, $default:expr, $f:expr) => {{
+        let id = unique_id!();
+        let mut data = $ui.data().get_temp(id).unwrap_or_else(|| $default);
+        $f($ui, &mut data);
+        $ui.data().insert_temp(id, data.clone());
+        data
+    }};
+    ($ui:expr, $f:expr) => {
+        with_egui_tmp_data!($ui, Default::default(), $f)
+    };
+}
