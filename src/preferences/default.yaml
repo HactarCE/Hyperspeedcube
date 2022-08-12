@@ -8,33 +8,18 @@ info:
     opacity: 0.95
 gfx:
   msaa: true
-view_3d:
-  pitch: 35.0
-  yaw: -20.0
-  scale: 1.25
-  fov_3d: 30.0
-  face_spacing: 0.03
-  sticker_spacing: 0.05
-  outline_thickness: 1.0
-  light_ambient: 1.0
-  light_directional: 0.0
-  light_pitch: 0.0
-  light_yaw: 0.0
-  show_frontfaces: true
-  show_backfaces: true
-view_4d:
-  pitch: 35.0
-  yaw: -45.0
-  scale: 1.0
-  fov_3d: 0.0
-  face_spacing: 0.7
-  sticker_spacing: 0.3
-  outline_thickness: 1.0
-  light_ambient: 0.0
-  light_directional: 1.0
-  light_pitch: 65.0
-  light_yaw: -55.0
-  fov_4d: 30.0
+interaction:
+  confirm_discard_only_when_scrambled: true
+  drag_sensitivity: 0.7
+  dynamic_twist_speed: true
+  twist_duration: 0.2
+  other_anim_duration: 0.15
+opacity:
+  base: 1.0
+  ungripped: 0.3
+  hidden: 0.1
+  selected: 1.0
+  unhide_grip: false
 outlines:
   default_size: 1.0
   hidden_size: 1.0
@@ -47,11 +32,83 @@ outlines:
   marked_color: "#ffaaaa"
   selected_sticker_color: "#ff7700"
   selected_piece_color: "#bbbb00"
-opacity:
-  base: 1.0
-  ungripped: 0.3
-  hidden: 0.1
-  selected: 1.0
+view_3d:
+  pitch: 35.0
+  yaw: -20.0
+  scale: 1.25
+  fov_3d: 30.0
+  fov_4d: 30.0
+  show_frontfaces: true
+  show_backfaces: false
+  face_spacing: 0.03
+  sticker_spacing: 0.05
+  outline_thickness: 1.0
+  light_ambient: 1.0
+  light_directional: 0.0
+  light_pitch: 0.0
+  light_yaw: 0.0
+  presets:
+    Default:
+      pitch: 35.0
+      yaw: -20.0
+      scale: 1.25
+      fov_3d: 30.0
+      fov_4d: 30.0
+      show_frontfaces: true
+      show_backfaces: false
+      face_spacing: 0.03
+      sticker_spacing: 0.05
+      outline_thickness: 1.0
+      light_ambient: 1.0
+      light_directional: 0.0
+      light_pitch: 0.0
+      light_yaw: 0.0
+    Unfolded (back):
+      pitch: 0.0
+      yaw: 0.0
+      scale: 3.0
+      fov_3d: 120.0
+      fov_4d: 30.0
+      show_frontfaces: false
+      show_backfaces: true
+      face_spacing: 0.4
+      sticker_spacing: 0.2
+      outline_thickness: 1.0
+      light_ambient: 1.0
+      light_directional: 0.0
+      light_pitch: 0.0
+      light_yaw: 0.0
+    Unfolded (front):
+      pitch: 0.0
+      yaw: 0.0
+      scale: 3.0
+      fov_3d: -120.0
+      fov_4d: 30.0
+      show_frontfaces: true
+      show_backfaces: false
+      face_spacing: 0.4
+      sticker_spacing: 0.2
+      outline_thickness: 1.0
+      light_ambient: 1.0
+      light_directional: 0.0
+      light_pitch: 0.0
+      light_yaw: 0.0
+view_4d:
+  pitch: 35.0
+  yaw: -45.0
+  scale: 1.0
+  fov_3d: 0.0
+  fov_4d: 30.0
+  show_frontfaces: true
+  show_backfaces: true
+  face_spacing: 0.7
+  sticker_spacing: 0.3
+  outline_thickness: 1.0
+  light_ambient: 0.0
+  light_directional: 1.0
+  light_pitch: 65.0
+  light_yaw: -55.0
+  presets: {}
 colors:
   background: "#444444"
   blind_face: "#cccccc"
@@ -60,26 +117,19 @@ colors:
     Rubiks3D:
       B: "#4488ff"
       D: "#ffff00"
+      F: "#66cc44"
       L: "#ff9922"
       R: "#cc3333"
       U: "#ffffff"
-      F: "#66cc44"
     Rubiks4D:
-      I: "#8822cc"
       B: "#ffff00"
       D: "#88ee66"
+      F: "#ffffff"
+      I: "#8822cc"
       L: "#ff9922"
+      O: "#ff66ff"
       R: "#cc3333"
       U: "#33aaff"
-      F: "#ffffff"
-      O: "#ff66ff"
-interaction:
-  unhide_grip: false
-  confirm_discard_only_when_scrambled: true
-  dynamic_twist_speed: true
-  twist_duration: 0.2
-  other_anim_duration: 0.15
-  drag_sensitivity: 0.7
 global_keybinds:
   - vk: O
     ctrl: true
@@ -138,25 +188,25 @@ puzzle_keybinds:
         twist:
           axis: L
           direction: CCW
-          layers: 1
+          layers: "1"
     - sc: KeyD
       command:
         twist:
           axis: L
           direction: CW
-          layers: 1
+          layers: "1"
     - sc: KeyI
       command:
         twist:
           axis: R
           direction: CW
-          layers: 1
+          layers: "1"
     - sc: KeyK
       command:
         twist:
           axis: R
           direction: CCW
-          layers: 1
+          layers: "1"
     - sc: KeyR
       command:
         twist:
@@ -186,49 +236,49 @@ puzzle_keybinds:
         twist:
           axis: U
           direction: CCW
-          layers: 1
+          layers: "1"
     - sc: KeyJ
       command:
         twist:
           axis: U
           direction: CW
-          layers: 1
+          layers: "1"
     - sc: KeyS
       command:
         twist:
           axis: D
           direction: CW
-          layers: 1
+          layers: "1"
     - sc: KeyL
       command:
         twist:
           axis: D
           direction: CCW
-          layers: 1
+          layers: "1"
     - sc: KeyG
       command:
         twist:
           axis: F
           direction: CCW
-          layers: 1
+          layers: "1"
     - sc: KeyH
       command:
         twist:
           axis: F
           direction: CW
-          layers: 1
+          layers: "1"
     - sc: KeyW
       command:
         twist:
           axis: B
           direction: CW
-          layers: 1
+          layers: "1"
     - sc: KeyO
       command:
         twist:
           axis: B
           direction: CCW
-          layers: 1
+          layers: "1"
     - sc: KeyT
       command:
         twist:
@@ -300,40 +350,39 @@ puzzle_keybinds:
     - sc: Digit1
       command:
         grip:
-          layers: 1
+          layers: "1"
     - sc: Digit2
       command:
         grip:
-          layers: 2
+          layers: "2"
     - sc: Digit3
       command:
         grip:
-          layers: 3
+          layers: "3"
     - sc: Digit4
       command:
         grip:
-          layers: 4
+          layers: "4"
     - sc: Digit5
       command:
         grip:
-          layers: 5
+          layers: "5"
     - sc: Digit6
       command:
         grip:
-          layers: 6
+          layers: "6"
     - sc: Digit7
       command:
         grip:
-          layers: 7
+          layers: "7"
     - sc: Digit8
       command:
         grip:
-          layers: 8
+          layers: "8"
     - sc: Digit9
       command:
         grip:
-          layers: 9
-
+          layers: "9"
   Rubiks4D:
     - sc: ShiftLeft
       command:
@@ -346,11 +395,11 @@ puzzle_keybinds:
     - sc: AltLeft
       command:
         grip:
-          layers: 2
+          layers: "2"
     - sc: AltRight
       command:
         grip:
-          layers: 2
+          layers: "2"
     - sc: KeyW
       command:
         grip:
@@ -387,32 +436,32 @@ puzzle_keybinds:
       command:
         twist:
           direction: x
-          layers: 1
+          layers: "1"
     - sc: KeyK
       command:
         twist:
           direction: "x'"
-          layers: 1
+          layers: "1"
     - sc: KeyJ
       command:
         twist:
           direction: y
-          layers: 1
+          layers: "1"
     - sc: KeyL
       command:
         twist:
           direction: "y'"
-          layers: 1
+          layers: "1"
     - sc: KeyU
       command:
         twist:
           direction: "z'"
-          layers: 1
+          layers: "1"
     - sc: KeyO
       command:
         twist:
           direction: z
-          layers: 1
+          layers: "1"
     - sc: Space
       command:
         recenter: {}
@@ -467,36 +516,36 @@ puzzle_keybinds:
     - sc: Digit1
       command:
         grip:
-          layers: 1
+          layers: "1"
     - sc: Digit2
       command:
         grip:
-          layers: 2
+          layers: "2"
     - sc: Digit3
       command:
         grip:
-          layers: 3
+          layers: "3"
     - sc: Digit4
       command:
         grip:
-          layers: 4
+          layers: "4"
     - sc: Digit5
       command:
         grip:
-          layers: 5
+          layers: "5"
     - sc: Digit6
       command:
         grip:
-          layers: 6
+          layers: "6"
     - sc: Digit7
       command:
         grip:
-          layers: 7
+          layers: "7"
     - sc: Digit8
       command:
         grip:
-          layers: 8
+          layers: "8"
     - sc: Digit9
       command:
         grip:
-          layers: 9
+          layers: "9"
