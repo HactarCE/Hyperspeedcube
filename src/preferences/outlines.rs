@@ -7,7 +7,6 @@ pub struct OutlinePreferences {
     pub default_size: f32,
     pub hidden_size: f32,
     pub hovered_size: f32,
-    pub marked_size: f32,
     pub selected_size: f32,
 
     #[serde(with = "hex_color")]
@@ -16,8 +15,6 @@ pub struct OutlinePreferences {
     pub hidden_color: egui::Color32,
     #[serde(with = "hex_color")]
     pub hovered_color: egui::Color32,
-    #[serde(with = "hex_color")]
-    pub marked_color: egui::Color32,
     #[serde(with = "hex_color")]
     pub selected_sticker_color: egui::Color32,
     #[serde(with = "hex_color")]

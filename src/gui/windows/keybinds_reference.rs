@@ -4,16 +4,16 @@ use key_names::KeyMappingCode;
 use crate::app::App;
 use crate::commands::{Command, PuzzleCommand};
 use crate::gui::util;
-use crate::preferences::{Key, Keybind};
+use crate::preferences::{Key, Keybind, DEFAULT_PREFS};
 use crate::puzzle::{traits::*, LayerMask};
 
 const SCALED_KEY_PADDING: f32 = 0.0;
 const MIN_KEY_PADDING: f32 = 4.0;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    let prefs = app.prefs.info.keybinds_reference;
-
     ui.scope(|ui| {
+        let prefs = app.prefs.info.keybinds_reference;
+
         let bg_fill = &mut ui.visuals_mut().widgets.noninteractive.bg_fill;
         let alpha = app.prefs.info.keybinds_reference.opacity;
         *bg_fill = bg_fill.linear_multiply(alpha);
@@ -71,33 +71,18 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     });
 
     ui.collapsing("Settings", |ui| {
-        let default_prefs = crate::preferences::DEFAULT_PREFS.info.keybinds_reference;
-
         let mut changed = false;
+        let mut prefs_ui = util::PrefsUi {
+            ui,
+            current: &mut app.prefs.info.keybinds_reference,
+            defaults: &DEFAULT_PREFS.info.keybinds_reference,
+            changed: &mut changed,
+        };
 
-        let r = ui.add(util::WidgetWithReset {
-            label: "Opacity",
-            value: &mut app.prefs.info.keybinds_reference.opacity,
-            reset_value: default_prefs.opacity,
-            reset_value_str: format!("{:.0}%", default_prefs.opacity * 100.0,),
-            make_widget: util::make_percent_drag_value,
-        });
-        changed |= r.changed();
-
-        let r = ui.checkbox(
-            &mut app.prefs.info.keybinds_reference.function,
-            "Function keys",
-        );
-        changed |= r.changed();
-
-        let r = ui.checkbox(
-            &mut app.prefs.info.keybinds_reference.navigation,
-            "Navigation keys",
-        );
-        changed |= r.changed();
-
-        let r = ui.checkbox(&mut app.prefs.info.keybinds_reference.numpad, "Numpad");
-        changed |= r.changed();
+        prefs_ui.percent("Opacity", access!(.opacity));
+        prefs_ui.checkbox("Function keys", access!(.function));
+        prefs_ui.checkbox("Navigation keys", access!(.navigation));
+        prefs_ui.checkbox("Numpad", access!(.numpad));
 
         app.prefs.needs_save |= changed;
     });

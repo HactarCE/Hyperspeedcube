@@ -202,7 +202,7 @@ impl App {
                 self.puzzle.add_view_angle_offset([delta.x, delta.y]);
             }
             AppEvent::DragReleased => {
-                let view_prefs = &self.prefs[self.puzzle.projection_type()];
+                let view_prefs = self.prefs.view(&self.puzzle);
                 self.puzzle.unfreeze_view_angle_offset(view_prefs);
             }
 

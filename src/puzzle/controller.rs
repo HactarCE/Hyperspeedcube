@@ -316,7 +316,7 @@ impl PuzzleController {
 
     pub(crate) fn geometry(&mut self, prefs: &Preferences) -> Arc<Vec<ProjectedStickerGeometry>> {
         // Use animated view settings.
-        let mut view_prefs = Cow::Borrowed(&*prefs[self.projection_type()]);
+        let mut view_prefs = Cow::Borrowed(prefs.view(self.ty()));
         while self.view_settings_anim.queue.back() == Some(&*view_prefs) {
             // No need to animate this one! It's the same as what we're
             // currently displaying;
@@ -918,7 +918,6 @@ impl VisualPieceState {
         // In order from lowest to highest priority:
         ret = util::mix(ret, egui::Rgba::from(pr.hidden_color), hidden_or_ungripped);
         ret = util::mix(ret, egui::Rgba::from(pr.hovered_color), self.hovered);
-        ret = util::mix(ret, egui::Rgba::from(pr.marked_color), self.marked);
         ret = util::mix(
             ret,
             egui::Rgba::from(if is_sticker_selected {
@@ -939,7 +938,6 @@ impl VisualPieceState {
         // In order from lowest to highest priority:
         ret = util::mix(ret, pr.hidden_size, hidden_or_ungripped);
         ret = util::mix(ret, pr.selected_size, self.selected);
-        ret = util::mix(ret, pr.marked_size, self.marked);
         ret = util::mix(ret, pr.hovered_size, self.hovered);
         ret
     }

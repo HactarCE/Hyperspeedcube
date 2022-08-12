@@ -7,7 +7,7 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, BTreeMap};
 use std::error::Error;
-use std::ops::{Deref, DerefMut, Index, IndexMut};
+use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
 
 mod colors;
@@ -103,32 +103,16 @@ pub struct Preferences {
     pub opacity: OpacityPreferences,
     pub outlines: OutlinePreferences,
 
-    pub view_3d: Presets<ViewPreferences>,
-    pub view_4d: Presets<ViewPreferences>,
+    pub view_3d: WithPresets<ViewPreferences>,
+    pub view_4d: WithPresets<ViewPreferences>,
 
     pub colors: ColorPreferences,
+
+    pub piece_filters: PerPuzzle<BTreeMap<String, String>>,
 
     pub global_keybinds: Vec<Keybind<Command>>,
     // pub keybind_sets: Vec<KeybindSet<PuzzleCommand>>,
     pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
-}
-impl Index<ProjectionType> for Preferences {
-    type Output = Presets<ViewPreferences>;
-
-    fn index(&self, index: ProjectionType) -> &Self::Output {
-        match index {
-            ProjectionType::_3D => &self.view_3d,
-            ProjectionType::_4D => &self.view_4d,
-        }
-    }
-}
-impl IndexMut<ProjectionType> for Preferences {
-    fn index_mut(&mut self, index: ProjectionType) -> &mut Self::Output {
-        match index {
-            ProjectionType::_3D => &mut self.view_3d,
-            ProjectionType::_4D => &mut self.view_4d,
-        }
-    }
 }
 impl Preferences {
     pub fn load(backup: Option<&Self>) -> Self {
@@ -208,42 +192,31 @@ impl Preferences {
             }
         }
     }
+
+    pub fn view(&self, ty: impl PuzzleType) -> &ViewPreferences {
+        match ty.projection_type() {
+            ProjectionType::_3D => &self.view_3d.current,
+            ProjectionType::_4D => &self.view_4d.current,
+        }
+    }
+    pub fn view_mut(&mut self, ty: impl PuzzleType) -> &mut ViewPreferences {
+        &mut self.view_presets(ty).current
+    }
+
+    pub fn view_presets(&mut self, ty: impl PuzzleType) -> &mut WithPresets<ViewPreferences> {
+        match ty.projection_type() {
+            ProjectionType::_3D => &mut self.view_3d,
+            ProjectionType::_4D => &mut self.view_4d,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
-pub struct Presets<T> {
+pub struct WithPresets<T> {
     #[serde(flatten)]
     pub current: T,
     pub presets: BTreeMap<String, T>,
-}
-// TODO: this is deref abuse!
-impl<T> Deref for Presets<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.current
-    }
-}
-impl<T> DerefMut for Presets<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.current
-    }
-}
-impl Presets<ViewPreferences> {
-    pub fn presets(&self) -> &BTreeMap<String, ViewPreferences> {
-        &self.presets
-    }
-    pub fn presets_mut(&mut self) -> &mut BTreeMap<String, ViewPreferences> {
-        &mut self.presets
-    }
-
-    pub fn save_preset(&mut self, name: String)
-    where
-        ViewPreferences: Clone,
-    {
-        self.presets.insert(name, self.current.clone());
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]

@@ -1,5 +1,6 @@
 use crate::app::App;
-use crate::gui::util::{self, ResponseExt};
+use crate::gui::util;
+use crate::preferences::DEFAULT_PREFS;
 use crate::puzzle::{traits::*, Face, Piece, PieceType};
 
 const MIN_WIDTH: f32 = 300.0;
@@ -15,22 +16,18 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.set_min_width(MIN_WIDTH);
 
-    let mut changed = false;
-
     let prefs = &mut app.prefs;
-    changed |= resettable_opacity_dragvalue!(ui, prefs.opacity.hidden, "Hidden").changed();
-    let r = ui
-        .add(util::CheckboxWithReset {
-            label: "Unhide grip",
-            value: &mut prefs.opacity.unhide_grip,
-            reset_value: crate::preferences::DEFAULT_PREFS.opacity.unhide_grip,
-        })
-        .on_hover_explanation(
-            "",
-            "When enabled, gripping a face will temporarily \
-         disable piece filters.",
-        );
-    changed |= r.changed();
+
+    let mut changed = false;
+    let mut prefs_ui = util::PrefsUi {
+        ui,
+        current: &mut prefs.opacity,
+        defaults: &DEFAULT_PREFS.opacity,
+        changed: &mut changed,
+    };
+
+    prefs_ui.percent("Hidden", access!(.hidden));
+    crate::gui::prefs::build_unhide_grip_checkbox(&mut prefs_ui);
 
     prefs.needs_save |= changed;
     if changed {

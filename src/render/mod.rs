@@ -10,7 +10,7 @@ mod state;
 mod structs;
 
 use crate::app::App;
-use crate::puzzle::{ProjectedStickerGeometry, PuzzleType};
+use crate::puzzle::ProjectedStickerGeometry;
 use cache::{CachedDynamicBuffer, CachedUniformBuffer};
 pub(crate) use state::GraphicsState;
 use structs::*;
@@ -109,7 +109,7 @@ pub(crate) fn draw_puzzle(
 
     let puzzle = &mut app.puzzle;
     let prefs = &app.prefs;
-    let view_prefs = &prefs[puzzle.projection_type()];
+    let view_prefs = prefs.view(puzzle.ty());
     let cache = &mut app.render_cache;
 
     let now = Instant::now();

@@ -1,220 +1,88 @@
 use crate::app::App;
-use crate::gui::util;
+use crate::gui::util::{self, presets_list};
 use crate::preferences::DEFAULT_PREFS;
 use crate::puzzle::{traits::*, ProjectionType};
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    let proj_ty = app.puzzle.projection_type();
+    let puzzle_type = app.puzzle.ty();
+    let proj_ty = puzzle_type.projection_type();
     let prefs = &mut app.prefs;
 
     let mut changed = false;
 
-    let presets = &mut prefs[proj_ty];
-
     ui.collapsing("Presets", |ui| {
-        with_egui_tmp_data!(
+        let presets = prefs.view_presets(&app.puzzle);
+        presets_list(
             ui,
-            |ui: &mut egui::Ui, &mut (ref mut edit_mode, ref mut new_preset_name)| {
-                // These are just type annotations.
-                let edit_mode: &mut bool = edit_mode;
-                let new_preset_name: &mut String = new_preset_name;
-
-                let no_presets = presets.presets.is_empty();
-
-                if no_presets {
-                    *edit_mode = true;
+            unique_id!(),
+            &mut presets.current,
+            &mut presets.presets,
+            |ui, preset, current_value| {
+                if ui.button("Load").clicked() {
+                    *current_value = preset.value.clone();
                 }
-
-                // If edit mode is enabled, show a text input and a save button.
-                if *edit_mode {
-                    ui.horizontal(|ui| {
-                        let mut save_button_clicked = false;
-                        let enabled = !new_preset_name.trim().is_empty();
-                        ui.add_enabled_ui(enabled, |ui| {
-                            save_button_clicked = ui.button("Save").clicked();
-                        });
-                        let r = ui.text_edit_singleline(new_preset_name);
-                        let text_edit_confirm =
-                            r.has_focus() && ui.input().key_down(egui::Key::Enter);
-                        if enabled && (save_button_clicked || text_edit_confirm) {
-                            presets.save_preset(new_preset_name.trim().to_string());
-                            *new_preset_name = String::new();
-                        }
-                    });
-                    ui.separator();
-                }
-
-                // Show a list of presets.
-                presets.presets.retain(|preset_name, preset_value| {
-                    let mut keep = true;
-
-                    ui.horizontal(|ui| {
-                        // If edit mode is enabled, give the option to delete
-                        // each preset.
-                        if *edit_mode {
-                            if ui.button("🗑").clicked() {
-                                keep = false;
-                            }
-                        }
-
-                        if ui.button("Load").clicked() {
-                            let old = std::mem::replace(&mut presets.current, preset_value.clone());
-                            app.puzzle.animate_from_view_settings(old);
-                        }
-
-                        ui.label(preset_name);
-                    });
-
-                    keep
-                });
-
-                if !no_presets {
-                    ui.checkbox(edit_mode, "Manage presets");
-                }
-            }
+                ui.label(preset.name);
+            },
         );
     });
 
-    ui.collapsing("View angle", |ui| {
-        // Pitch
-        let r = ui.add(resettable!(
-            "Pitch",
-            "{}°",
-            (prefs[proj_ty].pitch),
-            |value| util::make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
-        ));
-        changed |= r.changed();
+    let mut prefs_ui = util::PrefsUi {
+        ui,
+        current: prefs.view_mut(puzzle_type),
+        defaults: DEFAULT_PREFS.view(puzzle_type),
+        changed: &mut changed,
+    };
 
-        // Yaw
-        let r = ui.add(resettable!("Yaw", "{}°", (prefs[proj_ty].yaw), |value| {
-            util::make_degrees_drag_value(value).clamp_range(-45.0..=45.0)
-        }));
-        changed |= r.changed();
+    prefs_ui.collapsing("View angle", |mut prefs_ui| {
+        prefs_ui.angle("Pitch", access!(.pitch), |dv| dv.clamp_range(-90.0..=90.0));
+        prefs_ui.angle("Yaw", access!(.yaw), |dv| dv.clamp_range(-45.0..=45.0));
     });
 
-    ui.collapsing("Projection", |ui| {
-        // Scale
-        let r = ui.add(resettable!("Scale", (prefs[proj_ty].scale), |value| {
-            let speed = *value / 100.0; // logarithmic speed
-            egui::DragValue::new(value)
-                .fixed_decimals(2)
-                .clamp_range(0.1..=5.0_f32)
-                .speed(speed)
-        }));
-        changed |= r.changed();
+    prefs_ui.collapsing("Projection", |mut prefs_ui| {
+        let speed = prefs_ui.current.scale / 100.0; // logarithmic speed
+        prefs_ui.angle("Scale", access!(.scale), |dv| {
+            dv.fixed_decimals(2).clamp_range(0.1..=5.0_f32).speed(speed)
+        });
 
         if proj_ty == ProjectionType::_4D {
-            // 4D FOV
-            let r = ui.add(resettable!(
-                "4D FOV",
-                "{}°",
-                (prefs.view_4d.fov_4d),
-                |value| {
-                    util::make_degrees_drag_value(value)
-                        .clamp_range(1.0..=120.0)
-                        .speed(0.5)
-                },
-            ));
-            changed |= r.changed();
+            prefs_ui.angle("4D FOV", access!(.fov_4d), |dv| {
+                dv.clamp_range(1.0..=120.0).speed(0.5)
+            });
         }
 
-        // 3D FOV
-        let r = ui.add(resettable!(
-            "3D FOV",
-            "{}°",
-            (prefs[proj_ty].fov_3d),
-            |value| {
-                util::make_degrees_drag_value(value)
-                    .clamp_range(-120.0..=120.0)
-                    .speed(0.5)
-            },
-        ));
-        changed |= r.changed();
+        prefs_ui.angle("3D FOV", access!(.fov_3d), |dv| {
+            dv.clamp_range(-120.0..=120.0).speed(0.5)
+        });
     });
 
-    ui.collapsing("Geometry", |ui| {
+    prefs_ui.collapsing("Geometry", |mut prefs_ui| {
         if proj_ty == ProjectionType::_3D {
-            // Show front faces
-            let r = ui.add(util::CheckboxWithReset {
-                label: "Show frontfaces",
-                value: &mut prefs[proj_ty].show_frontfaces,
-                reset_value: DEFAULT_PREFS[proj_ty].show_frontfaces,
-            });
-            changed |= r.changed();
-
-            // Show back faces
-            let r = ui.add(util::CheckboxWithReset {
-                label: "Show backfaces",
-                value: &mut prefs[proj_ty].show_backfaces,
-                reset_value: DEFAULT_PREFS[proj_ty].show_backfaces,
-            });
-            changed |= r.changed();
+            prefs_ui.checkbox("Show frontfaces", access!(.show_frontfaces));
+            prefs_ui.checkbox("Show backfaces", access!(.show_backfaces));
         }
 
-        // Face spacing
-        let r = ui.add(resettable!(
-            "Face spacing",
-            (prefs[proj_ty].face_spacing),
-            |value| {
-                egui::DragValue::new(value)
-                    .fixed_decimals(2)
-                    .clamp_range(0.0..=0.9_f32)
-                    .speed(0.005)
-            },
-        ));
-        changed |= r.changed();
+        prefs_ui.float("Face spacing", access!(.face_spacing), |dv| {
+            dv.fixed_decimals(2).clamp_range(0.0..=0.9_f32).speed(0.005)
+        });
 
-        // Sticker spacing
-        let r = ui.add(resettable!(
-            "Sticker spacing",
-            (prefs[proj_ty].sticker_spacing),
-            |value| {
-                egui::DragValue::new(value)
-                    .fixed_decimals(2)
-                    .clamp_range(0.0..=0.9_f32)
-                    .speed(0.005)
-            },
-        ));
-        changed |= r.changed();
+        prefs_ui.float("Sticker spacing", access!(.sticker_spacing), |dv| {
+            dv.fixed_decimals(2).clamp_range(0.0..=0.9_f32).speed(0.005)
+        });
     });
 
-    ui.collapsing("Lighting", |ui| {
-        // Pitch
-        let r = ui.add(resettable!(
-            "Pitch",
-            "{}°",
-            (prefs[proj_ty].light_pitch),
-            |value| util::make_degrees_drag_value(value).clamp_range(-90.0..=90.0),
-        ));
-        changed |= r.changed();
-
-        // Yaw
-        let r = ui.add(resettable!(
-            "Yaw",
-            "{}°",
-            (prefs[proj_ty].light_yaw),
-            |value| util::make_degrees_drag_value(value).clamp_range(-180.0..=180.0),
-        ));
-        changed |= r.changed();
-
-        // Directional
-        let r = ui.add(resettable!(
-            "Directional",
-            |x| format!("{:.0}%", x * 100.0),
-            (prefs[proj_ty].light_directional),
-            util::make_percent_drag_value,
-        ));
-        changed |= r.changed();
-
-        // Ambient
-        let r = ui.add(resettable!(
-            "Ambient",
-            |x| format!("{:.0}%", x * 100.0),
-            (prefs[proj_ty].light_ambient),
-            util::make_percent_drag_value,
-        ));
-        changed |= r.changed();
+    prefs_ui.collapsing("Lighting", |mut prefs_ui| {
+        prefs_ui.angle("Pitch", access!(.light_pitch), |dv| {
+            dv.clamp_range(-90.0..=90.0)
+        });
+        prefs_ui.angle("Yaw", access!(.light_yaw), |dv| {
+            dv.clamp_range(-180.0..=180.0)
+        });
+        prefs_ui.percent("Directional", access!(.light_directional));
+        prefs_ui.percent("Ambient", access!(.light_ambient));
     });
 
     prefs.needs_save |= changed;
+    if changed {
+        app.request_redraw_puzzle();
+    }
 }

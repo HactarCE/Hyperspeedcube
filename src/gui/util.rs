@@ -1,9 +1,11 @@
 use egui::NumExt;
 use itertools::Itertools;
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::hash::Hash;
 
 use crate::puzzle::{rubiks_3d, rubiks_4d, traits::*, PuzzleTypeEnum};
+use crate::serde_impl::hex_color;
 
 const NONE_TEXT: &str = "-";
 const NONE_TOOLTIP: &str = "Use the current grip";
@@ -48,6 +50,28 @@ pub(super) fn puzzle_select_menu(ui: &mut egui::Ui) -> Option<PuzzleTypeEnum> {
     }
 
     ret
+}
+
+pub(super) trait ResponseExt {
+    fn on_hover_explanation(self, strong_text: &str, detailed_message: &str) -> Self;
+}
+impl ResponseExt for egui::Response {
+    fn on_hover_explanation(self, strong_text: &str, detailed_message: &str) -> Self {
+        self.on_hover_ui(|ui| {
+            ui.allocate_ui_with_layout(
+                egui::vec2(EXPLANATION_TOOLTIP_WIDTH, 0.0),
+                egui::Layout::top_down(egui::Align::LEFT),
+                |ui| {
+                    if !strong_text.is_empty() {
+                        ui.strong(strong_text);
+                    }
+                    if !detailed_message.is_empty() {
+                        ui.label(detailed_message);
+                    }
+                },
+            );
+        })
+    }
 }
 
 pub(super) struct FancyComboBox<'a, T> {
@@ -127,28 +151,6 @@ impl<T: Clone + PartialEq> egui::Widget for FancyComboBox<'_, T> {
     }
 }
 
-pub(super) trait ResponseExt {
-    fn on_hover_explanation(self, strong_text: &str, detailed_message: &str) -> Self;
-}
-impl ResponseExt for egui::Response {
-    fn on_hover_explanation(self, strong_text: &str, detailed_message: &str) -> Self {
-        self.on_hover_ui(|ui| {
-            ui.allocate_ui_with_layout(
-                egui::vec2(EXPLANATION_TOOLTIP_WIDTH, 0.0),
-                egui::Layout::top_down(egui::Align::LEFT),
-                |ui| {
-                    if !strong_text.is_empty() {
-                        ui.strong(strong_text);
-                    }
-                    if !detailed_message.is_empty() {
-                        ui.label(detailed_message);
-                    }
-                },
-            );
-        })
-    }
-}
-
 pub(super) trait ComboBoxExt {
     /// Workaround for egui being *not fabulous* at sizing combo boxes.
     fn width_to_fit(
@@ -197,109 +199,6 @@ impl ComboBoxExt for egui::ComboBox {
     }
 }
 
-pub(super) fn make_degrees_drag_value(value: &mut f32) -> egui::DragValue {
-    egui::DragValue::new(value).suffix("°").fixed_decimals(0)
-}
-pub(super) fn make_percent_drag_value(value: &mut f32) -> egui::DragValue {
-    egui::DragValue::from_get_set(|new_value| {
-        if let Some(x) = new_value {
-            *value = x as f32 / 100.0;
-        }
-        *value as f64 * 100.0
-    })
-    .suffix("%")
-    .fixed_decimals(0)
-    .clamp_range(0.0..=100.0_f32)
-    .speed(0.5)
-}
-
-#[must_use]
-pub(super) struct WidgetWithReset<'a, V, W: 'a + egui::Widget, F: FnOnce(&'a mut V) -> W> {
-    pub(super) label: &'a str,
-    pub(super) value: &'a mut V,
-    pub(super) reset_value: V,
-    pub(super) reset_value_str: String,
-    pub(super) make_widget: F,
-}
-impl<'a, V, W, F> egui::Widget for WidgetWithReset<'a, V, W, F>
-where
-    V: PartialEq,
-    W: 'a + egui::Widget,
-    F: FnOnce(&'a mut V) -> W,
-{
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        with_reset_button(
-            ui,
-            self.value,
-            self.reset_value,
-            &self.reset_value_str,
-            |ui, value| {
-                let widget_resp =
-                    ui.add_sized(ui.spacing().interact_size, (self.make_widget)(value));
-                let mut label_resp = ui.label(self.label);
-
-                // Return the label response so that the caller can add hover
-                // text to the label if they want.
-                if widget_resp.changed() {
-                    label_resp.mark_changed();
-                }
-                label_resp
-            },
-        )
-    }
-}
-
-#[must_use]
-pub(super) struct CheckboxWithReset<'a> {
-    pub(super) label: &'a str,
-    pub(super) value: &'a mut bool,
-    pub(super) reset_value: bool,
-}
-impl egui::Widget for CheckboxWithReset<'_> {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        with_reset_button(ui, self.value, self.reset_value, "", |ui, value| {
-            ui.checkbox(value, self.label)
-        })
-    }
-}
-
-pub(super) fn with_reset_button<'a, T: PartialEq>(
-    ui: &mut egui::Ui,
-    value: &'a mut T,
-    reset_value: T,
-    reset_value_str: &str,
-    widget: impl FnOnce(&mut egui::Ui, &'a mut T) -> egui::Response,
-) -> egui::Response {
-    ui.horizontal(|ui| {
-        let reset_resp = reset_button(ui, value, reset_value, reset_value_str);
-        let mut r = widget(ui, value);
-        if reset_resp.clicked() {
-            r.mark_changed();
-        }
-        r
-    })
-    .inner
-}
-
-pub(super) fn reset_button<T: PartialEq>(
-    ui: &mut egui::Ui,
-    value: &mut T,
-    reset_value: T,
-    reset_value_str: &str,
-) -> egui::Response {
-    let hover_text = match reset_value_str {
-        "" => "Reset".to_owned(),
-        s => format!("Reset to {}", s),
-    };
-    let r = ui
-        .add_enabled(*value != reset_value, egui::Button::new("⟲"))
-        .on_hover_text(&hover_text);
-    if r.clicked() {
-        *value = reset_value;
-    }
-    r
-}
-
 macro_rules! enum_combobox {
     (
         $ui:expr,
@@ -337,62 +236,273 @@ macro_rules! enum_combobox {
     };
 }
 
-macro_rules! resettable {
-    (
-        $label:expr,
-        ($prefs:ident $($prefs_tok:tt)*),
-        $make_widget:expr $(,)?
-    ) => {
-        resettable!($label, "{}", ($prefs $($prefs_tok)*), $make_widget)
-    };
-    (
-        $label:expr,
-        $format_str:tt,
-        ($prefs:ident $($prefs_tok:tt)*),
-        $make_widget:expr $(,)?
-    ) => {
-        resettable!($label, |x| format!($format_str, x), ($prefs $($prefs_tok)*), $make_widget)
-    };
-    (
-        $label:expr,
-        $format_fn:expr,
-        ($prefs:ident $($prefs_tok:tt)*),
-        $make_widget:expr $(,)?
-    ) => {{
-        let value = &mut $prefs $($prefs_tok)*;
-        let reset_value = &crate::preferences::DEFAULT_PREFS $($prefs_tok)*;
-        #[allow(clippy::redundant_closure_call)]
-        let reset_value_str = ($format_fn)(reset_value);
-        crate::gui::util::WidgetWithReset {
-            label: $label,
-            value,
-            reset_value: reset_value.clone(),
-            reset_value_str,
-            make_widget: $make_widget,
+#[must_use]
+pub struct WidgetWithReset<'a, V, W: 'a + egui::Widget, F: FnOnce(&'a mut V) -> W> {
+    pub label: &'a str,
+    pub value: &'a mut V,
+    pub reset_value: V,
+    pub reset_value_str: String,
+    pub make_widget: F,
+}
+impl<'a, V, W, F> egui::Widget for WidgetWithReset<'a, V, W, F>
+where
+    V: PartialEq,
+    W: 'a + egui::Widget,
+    F: FnOnce(&'a mut V) -> W,
+{
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        with_reset_button(
+            ui,
+            self.value,
+            self.reset_value,
+            &self.reset_value_str,
+            |ui, value| {
+                let widget_resp =
+                    ui.add_sized(ui.spacing().interact_size, (self.make_widget)(value));
+                let mut label_resp = ui.label(self.label);
+
+                // Return the label response so that the caller can add hover
+                // text to the label if they want.
+                if widget_resp.changed() {
+                    label_resp.mark_changed();
+                }
+                label_resp
+            },
+        )
+    }
+}
+
+fn with_reset_button<'a, T: PartialEq>(
+    ui: &mut egui::Ui,
+    value: &'a mut T,
+    reset_value: T,
+    reset_value_str: &str,
+    widget: impl FnOnce(&mut egui::Ui, &'a mut T) -> egui::Response,
+) -> egui::Response {
+    ui.horizontal(|ui| {
+        let reset_resp = reset_button(ui, value, reset_value, reset_value_str);
+        let mut r = widget(ui, value);
+        if reset_resp.clicked() {
+            r.mark_changed();
         }
-    }};
+        r
+    })
+    .inner
 }
 
-macro_rules! resettable_opacity_dragvalue {
-    ($ui:ident, $prefs:ident.opacity.$name:ident, $label:expr) => {
-        $ui.add(resettable!(
-            $label,
-            |x| format!("{:.0}%", x * 100.0),
-            ($prefs.opacity.$name),
-            crate::gui::util::make_percent_drag_value,
-        ))
+pub(super) fn reset_button<T: PartialEq>(
+    ui: &mut egui::Ui,
+    value: &mut T,
+    reset_value: T,
+    reset_value_str: &str,
+) -> egui::Response {
+    let hover_text = match reset_value_str {
+        "" => "Reset".to_owned(),
+        s => format!("Reset to {}", s),
     };
+    let r = ui
+        .add_enabled(*value != reset_value, egui::Button::new("⟲"))
+        .on_hover_text(&hover_text);
+    if r.clicked() {
+        *value = reset_value;
+    }
+    r
 }
 
-macro_rules! with_egui_tmp_data {
-    ($ui:expr, $default:expr, $f:expr) => {{
-        let id = unique_id!();
-        let mut data = $ui.data().get_temp(id).unwrap_or_else(|| $default);
-        $f($ui, &mut data);
-        $ui.data().insert_temp(id, data.clone());
-        data
-    }};
-    ($ui:expr, $f:expr) => {
-        with_egui_tmp_data!($ui, Default::default(), $f)
-    };
+pub(super) struct PrefsUi<'a, T> {
+    pub ui: &'a mut egui::Ui,
+    pub current: &'a mut T,
+    pub defaults: &'a T,
+
+    pub changed: &'a mut bool,
+}
+impl<T> PrefsUi<'_, T> {
+    fn add<'s, 'w, W>(&'s mut self, make_widget: impl FnOnce(&'w mut T) -> W) -> egui::Response
+    where
+        's: 'w,
+        T: 'w,
+        W: 'w + egui::Widget,
+    {
+        let r = self.ui.add(make_widget(self.current));
+        *self.changed |= r.changed();
+        r
+    }
+
+    pub fn collapsing<R>(
+        &mut self,
+        heading: impl Into<egui::WidgetText>,
+        add_contents: impl FnOnce(PrefsUi<'_, T>) -> R,
+    ) -> egui::CollapsingResponse<R> {
+        self.ui.collapsing(heading, |ui| {
+            add_contents(PrefsUi {
+                ui,
+                current: self.current,
+                defaults: self.defaults,
+                changed: self.changed,
+            })
+        })
+    }
+
+    pub fn checkbox(&mut self, label: &str, access: Access<T, bool>) -> egui::Response {
+        let reset_value = *(access.get_ref)(self.defaults);
+        self.add(|current| {
+            |ui: &mut egui::Ui| {
+                let value = (access.get_mut)(current);
+                with_reset_button(ui, value, reset_value, "", |ui, value| {
+                    ui.checkbox(value, label)
+                })
+            }
+        })
+    }
+
+    pub fn float(
+        &mut self,
+        label: &str,
+        access: Access<T, f32>,
+        modify_widget: impl FnOnce(egui::DragValue) -> egui::DragValue,
+    ) -> egui::Response {
+        let reset_value = *(access.get_ref)(self.defaults);
+        let reset_value_str = reset_value.to_string();
+        self.add(|current| WidgetWithReset {
+            label,
+            value: (access.get_mut)(current),
+            reset_value,
+            reset_value_str,
+            make_widget: |value| modify_widget(egui::DragValue::new(value)),
+        })
+    }
+
+    pub fn percent(&mut self, label: &str, access: Access<T, f32>) -> egui::Response {
+        let reset_value = *(access.get_ref)(self.defaults);
+        let reset_value_str = reset_value.to_string();
+        self.add(|current| WidgetWithReset {
+            label,
+            value: (access.get_mut)(current),
+            reset_value,
+            reset_value_str,
+            make_widget: |value| {
+                egui::DragValue::from_get_set(|new_value| {
+                    if let Some(x) = new_value {
+                        *value = x as f32 / 100.0;
+                    }
+                    *value as f64 * 100.0
+                })
+                .suffix("%")
+                .fixed_decimals(0)
+                .clamp_range(0.0..=100.0_f32)
+                .speed(0.5)
+            },
+        })
+    }
+
+    pub fn angle(
+        &mut self,
+        label: &str,
+        access: Access<T, f32>,
+        modify_widget: impl FnOnce(egui::DragValue) -> egui::DragValue,
+    ) -> egui::Response {
+        let reset_value = *(access.get_ref)(self.defaults);
+        let reset_value_str = format!("{}°", &reset_value);
+        self.add(|current| WidgetWithReset {
+            label,
+            value: (access.get_mut)(current),
+            reset_value,
+            reset_value_str,
+            make_widget: |value| {
+                modify_widget(egui::DragValue::new(value).suffix("°").fixed_decimals(0))
+            },
+        })
+    }
+
+    pub fn color(&mut self, label: &str, access: Access<T, egui::Color32>) -> egui::Response {
+        let reset_value = *(access.get_ref)(self.defaults);
+        let reset_value_str = hex_color::to_str(&reset_value);
+        self.add(|current| WidgetWithReset {
+            label,
+            value: (access.get_mut)(current),
+            reset_value,
+            reset_value_str,
+            make_widget: |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
+        })
+    }
+}
+
+pub(super) struct Access<T, U> {
+    pub get_ref: Box<dyn Fn(&T) -> &U>,
+    pub get_mut: Box<dyn Fn(&mut T) -> &mut U>,
+}
+macro_rules! access {
+    ($($suffix_tok:tt)*) => {
+        crate::gui::util::Access {
+            get_ref: Box::new(move |t| &t $($suffix_tok)*),
+            get_mut: Box::new(move |t| &mut t $($suffix_tok)*),
+        }
+    }
+}
+
+pub(super) fn presets_list<T: Clone>(
+    ui: &mut egui::Ui,
+    id: egui::Id,
+    current_value: &mut T,
+    presets: &mut BTreeMap<String, T>,
+    mut preset_ui: impl FnMut(&mut egui::Ui, Preset<'_, T>, &mut T),
+) {
+    let edit_mode_id = id.with("edit_mode");
+    let new_preset_name_id = id.with("new_preset_name");
+
+    let mut edit_mode: bool = ui.data().get_temp(edit_mode_id).unwrap_or(false);
+    let mut new_preset_name: String = ui.data().get_temp(new_preset_name_id).unwrap_or_default();
+
+    let no_presets = presets.is_empty();
+
+    if no_presets {
+        edit_mode = true;
+    }
+
+    // If edit mode is enabled, show a text input and a save button.
+    if edit_mode {
+        ui.horizontal(|ui| {
+            let mut save_button_clicked = false;
+            let enabled = !new_preset_name.trim().is_empty();
+            ui.add_enabled_ui(enabled, |ui| {
+                save_button_clicked = ui.button("Save").clicked();
+            });
+            let r = ui.text_edit_singleline(&mut new_preset_name);
+            let text_edit_confirm = r.has_focus() && ui.input().key_down(egui::Key::Enter);
+            if enabled && (save_button_clicked || text_edit_confirm) {
+                presets.insert(new_preset_name.trim().to_string(), current_value.clone());
+                new_preset_name = String::new();
+            }
+        });
+        ui.separator();
+    }
+
+    // Show a list of presets.
+    presets.retain(|name, value| {
+        let mut keep = true;
+
+        ui.horizontal(|ui| {
+            // If edit mode is enabled, give the option to delete each preset.
+            if edit_mode {
+                if ui.button("🗑").clicked() {
+                    keep = false;
+                }
+            }
+
+            preset_ui(ui, Preset { name, value }, current_value);
+        });
+
+        keep
+    });
+
+    if !no_presets {
+        ui.checkbox(&mut edit_mode, "Manage presets");
+    }
+
+    ui.data().insert_temp(edit_mode_id, edit_mode);
+    ui.data().insert_temp(new_preset_name_id, new_preset_name);
+}
+pub(super) struct Preset<'a, T> {
+    pub name: &'a str,
+    pub value: &'a mut T,
 }
