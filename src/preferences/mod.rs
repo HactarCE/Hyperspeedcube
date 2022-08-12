@@ -216,6 +216,7 @@ impl Preferences {
 pub struct WithPresets<T> {
     #[serde(flatten)]
     pub current: T,
+    pub active_preset: Option<String>,
     pub presets: BTreeMap<String, T>,
 }
 

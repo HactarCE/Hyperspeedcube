@@ -440,24 +440,23 @@ macro_rules! access {
     }
 }
 
-pub(super) fn presets_list<T: Clone>(
+pub(super) fn add_preset_button<T: Clone>(
     ui: &mut egui::Ui,
     id: egui::Id,
     current_value: &mut T,
     presets: &mut BTreeMap<String, T>,
-    mut preset_ui: impl FnMut(&mut egui::Ui, Preset<'_, T>, &mut T),
-) {
+) -> Option<String> {
     let edit_mode_id = id.with("edit_mode");
     let new_preset_name_id = id.with("new_preset_name");
 
     let mut edit_mode: bool = ui.data().get_temp(edit_mode_id).unwrap_or(false);
     let mut new_preset_name: String = ui.data().get_temp(new_preset_name_id).unwrap_or_default();
 
-    let no_presets = presets.is_empty();
-
-    if no_presets {
+    if presets.is_empty() {
         edit_mode = true;
     }
+
+    let mut ret = None;
 
     // If edit mode is enabled, show a text input and a save button.
     if edit_mode {
@@ -471,13 +470,29 @@ pub(super) fn presets_list<T: Clone>(
             let text_edit_confirm = r.has_focus() && ui.input().key_down(egui::Key::Enter);
             if enabled && (save_button_clicked || text_edit_confirm) {
                 presets.insert(new_preset_name.trim().to_string(), current_value.clone());
-                new_preset_name = String::new();
+                ret = Some(std::mem::take(&mut new_preset_name));
             }
         });
         ui.separator();
     }
 
-    // Show a list of presets.
+    ui.data().insert_temp(edit_mode_id, edit_mode);
+    ui.data().insert_temp(new_preset_name_id, new_preset_name);
+
+    ret
+}
+
+pub(super) fn presets_list<T: Clone>(
+    ui: &mut egui::Ui,
+    id: egui::Id,
+    presets: &mut BTreeMap<String, T>,
+    mut preset_ui: impl FnMut(&mut egui::Ui, PresetRef<'_, T>),
+) {
+    let edit_mode_id = id.with("edit_mode");
+    let new_preset_name_id = id.with("new_preset_name");
+
+    let mut edit_mode: bool = ui.data().get_temp(edit_mode_id).unwrap_or(false);
+
     presets.retain(|name, value| {
         let mut keep = true;
 
@@ -489,20 +504,19 @@ pub(super) fn presets_list<T: Clone>(
                 }
             }
 
-            preset_ui(ui, Preset { name, value }, current_value);
+            preset_ui(ui, PresetRef { name, value });
         });
 
         keep
     });
 
-    if !no_presets {
+    if !presets.is_empty() {
         ui.checkbox(&mut edit_mode, "Manage presets");
     }
 
     ui.data().insert_temp(edit_mode_id, edit_mode);
-    ui.data().insert_temp(new_preset_name_id, new_preset_name);
 }
-pub(super) struct Preset<'a, T> {
+pub(super) struct PresetRef<'a, T> {
     pub name: &'a str,
     pub value: &'a mut T,
 }

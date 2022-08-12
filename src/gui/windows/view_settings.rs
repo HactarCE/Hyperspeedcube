@@ -7,29 +7,39 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     let puzzle_type = app.puzzle.ty();
     let proj_ty = puzzle_type.projection_type();
     let prefs = &mut app.prefs;
+    let presets = prefs.view_presets(&app.puzzle);
 
     let mut changed = false;
 
     ui.collapsing("Presets", |ui| {
-        let presets = prefs.view_presets(&app.puzzle);
-        presets_list(
-            ui,
-            unique_id!(),
-            &mut presets.current,
-            &mut presets.presets,
-            |ui, preset, current_value| {
-                if ui.button("Load").clicked() {
-                    *current_value = preset.value.clone();
-                }
+        let id = unique_id!();
+        if let Some(name) =
+            util::add_preset_button(ui, id, &mut presets.current, &mut presets.presets)
+        {
+            presets.active_preset = Some(name);
+        }
+        presets_list(ui, id, &mut presets.presets, |ui, preset| {
+            if ui.button("Load").clicked() {
+                let old = std::mem::replace(&mut presets.current, preset.value.clone());
+                app.puzzle.animate_from_view_settings(old);
+                presets.active_preset = Some(preset.name.to_string());
+            }
+            if presets.active_preset.as_deref() == Some(preset.name) {
+                ui.strong(preset.name);
+            } else {
                 ui.label(preset.name);
-            },
-        );
+            }
+        });
     });
 
     let mut prefs_ui = util::PrefsUi {
         ui,
-        current: prefs.view_mut(puzzle_type),
-        defaults: DEFAULT_PREFS.view(puzzle_type),
+        current: &mut presets.current,
+        defaults: presets
+            .active_preset
+            .as_ref()
+            .and_then(|name| presets.presets.get(name))
+            .unwrap_or(DEFAULT_PREFS.view(puzzle_type)),
         changed: &mut changed,
     };
 

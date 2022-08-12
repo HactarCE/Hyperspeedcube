@@ -24,12 +24,10 @@ outlines:
   default_size: 1.0
   hidden_size: 1.0
   hovered_size: 3.0
-  marked_size: 2.0
   selected_size: 2.0
   default_color: "#000000"
   hidden_color: "#000000"
   hovered_color: "#ffffff"
-  marked_color: "#ffaaaa"
   selected_sticker_color: "#ff7700"
   selected_piece_color: "#bbbb00"
 view_3d:
@@ -47,6 +45,7 @@ view_3d:
   light_directional: 0.0
   light_pitch: 0.0
   light_yaw: 0.0
+  active_preset: Default
   presets:
     Default:
       pitch: 35.0
@@ -108,7 +107,23 @@ view_4d:
   light_directional: 1.0
   light_pitch: 65.0
   light_yaw: -55.0
-  presets: {}
+  active_preset: Default
+  presets:
+    Default:
+      pitch: 35.0
+      yaw: -45.0
+      scale: 1.0
+      fov_3d: 0.0
+      fov_4d: 30.0
+      show_frontfaces: true
+      show_backfaces: true
+      face_spacing: 0.7
+      sticker_spacing: 0.3
+      outline_thickness: 1.0
+      light_ambient: 0.0
+      light_directional: 1.0
+      light_pitch: 65.0
+      light_yaw: -55.0
 colors:
   background: "#444444"
   blind_face: "#cccccc"
