@@ -9,6 +9,8 @@ mod view_settings;
 use crate::app::App;
 
 pub const FLOATING_WINDOW_OPACITY: f32 = 0.98;
+pub const PREFS_WINDOW_WIDTH: f32 = 240.0;
+pub const ABOUT_WINDOW_WIDTH: f32 = 360.0;
 
 pub const ALL: &'static [Window] = &[
     // Misc.
@@ -31,6 +33,7 @@ pub const ALL: &'static [Window] = &[
 pub const ABOUT: Window = Window {
     name: "About",
     location: Location::Floating,
+    fixed_width: Some(ABOUT_WINDOW_WIDTH),
     build: |ui, _app| {
         ui.vertical_centered(|ui| {
             ui.vertical_centered(|ui| {
@@ -50,6 +53,7 @@ pub const ABOUT: Window = Window {
 pub const DEBUG: Window = Window {
     name: "Debug values",
     location: Location::Floating,
+    fixed_width: None,
     build: |ui, _app| {
         let mut debug_info = std::mem::take(&mut *crate::debug::FRAME_DEBUG_INFO.lock().unwrap());
         egui::ScrollArea::vertical().show(ui, |ui| {
@@ -62,6 +66,7 @@ pub const DEBUG: Window = Window {
 pub const KEYBINDS_REFERENCE: Window = Window {
     name: "Keybinds reference",
     location: Location::Floating,
+    fixed_width: None,
     build: keybinds_reference::build,
     cleanup: |_| (),
 };
@@ -69,6 +74,7 @@ pub const KEYBINDS_REFERENCE: Window = Window {
 pub const PIECE_FILTERS: Window = Window {
     name: "Piece filters",
     location: Location::Floating,
+    fixed_width: None,
     build: piece_filters::build,
     cleanup: piece_filters::cleanup,
 };
@@ -76,27 +82,31 @@ pub const PIECE_FILTERS: Window = Window {
 pub const PUZZLE_CONTROLS: Window = Window {
     name: "Puzzle controls",
     location: Location::Floating,
+    fixed_width: None,
     build: puzzle_controls::build,
     cleanup: puzzle_controls::cleanup,
 };
 
 pub const APPEARANCE_SETTINGS: Window = Window {
-    name: "Appearance settings",
+    name: "Appearance",
     location: Location::Floating,
+    fixed_width: Some(PREFS_WINDOW_WIDTH),
     build: appearance_settings::build,
     cleanup: |_| (),
 };
 
 pub const INTERACTION_SETTINGS: Window = Window {
-    name: "Interaction settings",
+    name: "Interaction",
     location: Location::Floating,
+    fixed_width: Some(PREFS_WINDOW_WIDTH),
     build: interaction_settings::build,
     cleanup: |_| (),
 };
 
 pub const VIEW_SETTINGS: Window = Window {
-    name: "View settings",
+    name: "View",
     location: Location::Floating,
+    fixed_width: Some(PREFS_WINDOW_WIDTH),
     build: view_settings::build,
     cleanup: |_| (),
 };
@@ -104,6 +114,7 @@ pub const VIEW_SETTINGS: Window = Window {
 pub const GLOBAL_KEYBINDS: Window = Window {
     name: "Global keybinds",
     location: Location::LeftSide,
+    fixed_width: None,
     build: |ui, app| {
         let r = ui.add(keybinds_table::KeybindsTable::new(
             app,
@@ -117,6 +128,7 @@ pub const GLOBAL_KEYBINDS: Window = Window {
 pub const PUZZLE_KEYBINDS: Window = Window {
     name: "Puzzle keybinds",
     location: Location::LeftSide,
+    fixed_width: None,
     build: |ui, app| {
         let r = ui.add(keybinds_table::KeybindsTable::new(
             app,
@@ -131,6 +143,7 @@ pub const PUZZLE_KEYBINDS: Window = Window {
 pub struct Window {
     pub name: &'static str,
     pub location: Location,
+    fixed_width: Option<f32>,
     build: fn(&mut egui::Ui, &mut App),
     cleanup: fn(&mut App),
 }
@@ -169,8 +182,15 @@ impl Window {
                 egui::Window::new(self.name)
                     .collapsible(true)
                     .open(&mut is_open)
+                    .resizable(self.fixed_width.is_none())
                     .frame(egui::Frame::popup(&ctx.style()).multiply_with_opacity(opacity))
-                    .show(ctx, |ui| (self.build)(ui, app));
+                    .show(ctx, |ui| {
+                        if let Some(w) = self.fixed_width {
+                            ui.set_min_width(w);
+                            ui.set_max_width(w);
+                        }
+                        (self.build)(ui, app);
+                    });
             }
             Location::LeftSide => {
                 super::side_bar::build(ctx, self.name, &mut is_open, |ui| (self.build)(ui, app));
