@@ -278,7 +278,8 @@ impl App {
                                     }
 
                                     new_grip.layers =
-                                        Some(layers.to_layer_mask(self.puzzle.layer_count()));
+                                        Some(layers.to_layer_mask(self.puzzle.layer_count()))
+                                            .filter(|&l| l != LayerMask(0));
 
                                     self.transient_grips.insert(key, new_grip);
                                 }
