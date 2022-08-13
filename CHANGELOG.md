@@ -8,10 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- New system for specifying layer masks that changes with the number of layers in the puzzle
-- Piece filtering
-- Marking pieces using shift+click
+- Piece filtering by color and type, along with presets
+- Marking pieces using left click while holding <kbd>Shift</kbd>
 - View settings presets
+- New system for specifying layer masks that changes with the number of layers in the puzzle
 
 ### Changed
 
