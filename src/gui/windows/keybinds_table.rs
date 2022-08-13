@@ -183,6 +183,8 @@ where
                     keybinds.remove(i);
                     changed = true;
                 }
+
+                ui.allocate_space(egui::vec2(1.0, 200.0));
             });
 
             if ui.available_height() > 0.0 {
