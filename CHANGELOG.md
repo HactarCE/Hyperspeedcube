@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Puzzle not rerendering when twist animation is skipped
+- Copy/paste mistakes in preferences UI
 
 ## [0.8.1] - 2022-08-12
 

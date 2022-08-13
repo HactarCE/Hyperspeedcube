@@ -109,7 +109,7 @@ pub(super) fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
 
         let speed = prefs_ui.current.other_anim_duration.at_least(0.1) / 100.0; // logarithmic speed
         prefs_ui
-            .float("Twist duration", access!(.other_anim_duration), |dv| {
+            .float("Other animations", access!(.other_anim_duration), |dv| {
                 dv.fixed_decimals(2).clamp_range(0.0..=1.0_f32).speed(speed)
             })
             .on_hover_explanation(
