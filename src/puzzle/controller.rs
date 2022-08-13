@@ -584,8 +584,8 @@ impl PuzzleController {
             .any(|piece| self.is_hidden(piece))
     }
     /// Returns a string representing the hidden pieces.
-    pub fn hidden_pieces_string(&self) -> String {
-        util::b16_encode_bools(self.logical_piece_states.iter().map(|state| state.hidden))
+    pub fn visible_pieces_string(&self) -> String {
+        util::b16_encode_bools(self.logical_piece_states.iter().map(|state| !state.hidden))
     }
 
     /// Returns the set of selected stickers

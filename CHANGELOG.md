@@ -4,6 +4,12 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [UNRELEASED]
+
+### Fixed
+
+- Piece filter presets are no longer inverted
+
 ## [0.8.0] - 2022-08-12
 
 ### Added

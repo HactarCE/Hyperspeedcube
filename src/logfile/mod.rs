@@ -54,7 +54,7 @@ struct LogFile {
     #[serde(default)]
     state: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    hidden_pieces: Option<String>,
+    visible_pieces: Option<String>,
     #[serde(
         default,
         skip_serializing_if = "cgmath::Zero::is_zero",
@@ -79,9 +79,9 @@ impl LogFile {
             version: Self::VERSION,
             puzzle: Some(puzzle.ty()),
             state: puzzle.scramble_state() as u8,
-            hidden_pieces: puzzle
+            visible_pieces: puzzle
                 .is_any_piece_hidden()
-                .then(|| puzzle.hidden_pieces_string()),
+                .then(|| puzzle.visible_pieces_string()),
             scramble_length: puzzle.scramble().len(),
             twist_count: TwistMetric::iter()
                 .map(|metric| (metric, puzzle.twist_count(metric)))
@@ -173,8 +173,8 @@ impl LogFile {
 
         let scramble_state = ScrambleState::from_primitive(self.state);
 
-        if let Some(hidden_pieces_string) = &self.hidden_pieces {
-            ret.hide(|piece| util::b16_fetch_bit(hidden_pieces_string, piece.0 as _))
+        if let Some(visible_pieces) = &self.visible_pieces {
+            ret.hide(|piece| !util::b16_fetch_bit(visible_pieces, piece.0 as _))
         }
 
         let (twists, parse_errors) = self.scramble();
