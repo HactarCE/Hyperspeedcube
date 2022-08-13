@@ -105,6 +105,8 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     });
 
     ui.collapsing("Presets", |ui| {
+        ui.set_enabled(!app.prefs.colors.blindfold);
+
         let piece_filters_prefs = &mut app.prefs.piece_filters[puzzle_type];
 
         let id = unique_id!();
