@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Puzzle not rerendering when twist animation is skipped
 - Copy/paste mistakes in preferences UI
+- Selecting a layer using "Puzzle controls" no longer deselects other layers
 
 ## [0.8.1] - 2022-08-12
 

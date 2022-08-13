@@ -42,7 +42,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             let mut is_sel = grip.layers.unwrap_or_default()[i as u8];
             let r = ui.selectable_value(&mut is_sel, true, format!("{}", i + 1));
             if r.changed() {
-                app.toggle_grip.toggle_layer(i as u8, !multi_select);
+                app.toggle_grip.toggle_layer(i as u8, false);
             }
         }
     });
