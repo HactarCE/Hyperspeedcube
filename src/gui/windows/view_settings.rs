@@ -51,7 +51,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     prefs_ui.collapsing("Projection", |mut prefs_ui| {
         let speed = prefs_ui.current.scale / 100.0; // logarithmic speed
-        prefs_ui.angle("Scale", access!(.scale), |dv| {
+        prefs_ui.float("Scale", access!(.scale), |dv| {
             dv.fixed_decimals(2).clamp_range(0.1..=5.0_f32).speed(speed)
         });
 

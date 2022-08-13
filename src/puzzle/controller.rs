@@ -204,6 +204,10 @@ impl PuzzleController {
         let old_state = self.puzzle.clone();
         self.puzzle.twist(twist)?;
         self.twist_anim.queue.push_back((old_state, twist));
+
+        // Invalidate the cache.
+        self.cached_geometry = None;
+
         Ok(())
     }
     /// Returns the twist currently being animated, along with a float between
