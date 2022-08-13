@@ -151,6 +151,6 @@ mod tests {
     #[test]
     fn test_b16_encode_decode() {
         let s = "f4add8920abe83143362";
-        assert_eq!(s, b16_encode_bools(b16_decode_bools(s)));
+        assert_eq!(s, b16_encode_bools((0..78).map(|i| b16_fetch_bit(s, i))));
     }
 }
