@@ -6,6 +6,7 @@ info:
     navigation: false
     numpad: false
     opacity: 0.95
+  modifier_toggles: false
 gfx:
   msaa: true
 interaction:

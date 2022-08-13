@@ -8,7 +8,10 @@ pub struct InfoPreferences {
     pub metric: TwistMetric,
     #[serde(skip)]
     pub qtm: bool,
+
     pub keybinds_reference: KeybindsReferencePreferences,
+
+    pub modifier_toggles: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone)]

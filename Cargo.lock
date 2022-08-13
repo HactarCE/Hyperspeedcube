@@ -1457,8 +1457,8 @@ dependencies = [
 
 [[package]]
 name = "key-names"
-version = "1.0.1"
-source = "git+https://github.com/HactarCE/key-names?tag=v1.0.1#e001bde618c363323c169b87c7445148ceaec45e"
+version = "1.1.0"
+source = "git+https://github.com/HactarCE/key-names?tag=v1.1.0#a0dc018a34fd2bc5132283cb03eeed66bf3f3634"
 dependencies = [
  "cty",
  "keycode",

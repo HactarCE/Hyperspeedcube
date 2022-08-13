@@ -2,6 +2,7 @@ mod appearance_settings;
 mod interaction_settings;
 mod keybinds_reference;
 pub mod keybinds_table;
+mod modifier_keys;
 mod piece_filters;
 mod puzzle_controls;
 mod view_settings;
@@ -21,6 +22,7 @@ pub const ALL: &'static [Window] = &[
     KEYBINDS_REFERENCE,
     PUZZLE_CONTROLS,
     PIECE_FILTERS,
+    MODIFIER_KEYS,
     // Settings
     APPEARANCE_SETTINGS,
     INTERACTION_SETTINGS,
@@ -71,6 +73,14 @@ pub const KEYBINDS_REFERENCE: Window = Window {
     cleanup: |_| (),
 };
 
+pub const PUZZLE_CONTROLS: Window = Window {
+    name: "Puzzle controls",
+    location: Location::Floating,
+    fixed_width: None,
+    build: puzzle_controls::build,
+    cleanup: puzzle_controls::cleanup,
+};
+
 pub const PIECE_FILTERS: Window = Window {
     name: "Piece filters",
     location: Location::Floating,
@@ -79,12 +89,12 @@ pub const PIECE_FILTERS: Window = Window {
     cleanup: piece_filters::cleanup,
 };
 
-pub const PUZZLE_CONTROLS: Window = Window {
-    name: "Puzzle controls",
+pub const MODIFIER_KEYS: Window = Window {
+    name: "Modifier keys",
     location: Location::Floating,
-    fixed_width: None,
-    build: puzzle_controls::build,
-    cleanup: puzzle_controls::cleanup,
+    fixed_width: Some(0.0),
+    build: modifier_keys::build,
+    cleanup: |_| (),
 };
 
 pub const APPEARANCE_SETTINGS: Window = Window {

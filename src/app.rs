@@ -25,10 +25,16 @@ pub struct App {
 
     /// Mouse cursor position relative to the puzzle texture.
     pub(crate) cursor_pos: Option<Point2<f32>>,
+
     /// Set of pressed keys.
     pressed_keys: HashSet<Key>,
+    /// Set of keys toggled on using buttons in the UI.
+    toggled_keys: HashSet<Key>,
     /// Set of pressed modifier keys.
     pressed_modifiers: ModifiersState,
+    /// Set of modifiers toggled on using buttons in the UI.
+    toggled_modifiers: ModifiersState,
+
     /// Grips that are tied to a held key.
     transient_grips: HashMap<Key, Grip>,
     /// Grip that is more permanent.
@@ -49,8 +55,12 @@ impl App {
             force_redraw: true,
 
             cursor_pos: None,
+
             pressed_keys: HashSet::default(),
+            toggled_keys: HashSet::default(),
             pressed_modifiers: ModifiersState::default(),
+            toggled_modifiers: ModifiersState::default(),
+
             transient_grips: HashMap::default(),
             toggle_grip: Grip::default(),
 
@@ -225,6 +235,7 @@ impl App {
                 // Sometimes we miss key events for modifiers when the left and
                 // right modifiers are both pressed at once (at least in my
                 // testing on Windows 11) so clean that up here just in case.
+                let mods = self.pressed_modifiers();
                 self.remove_held_grips(|k| {
                     // If the grip requires a modifier and that modifier is not
                     // pressed, then remove the grip.
@@ -248,68 +259,7 @@ impl App {
                             self.pressed_keys.insert(Key::Vk(vk));
                         }
 
-                        // Only allow one twist command per keypress. Don't use
-                        // multiple keybinds for macros.
-                        let mut done_twist_command = false;
-
-                        let puzzle_keybinds = &self.prefs.puzzle_keybinds[self.puzzle.ty()];
-                        for bind in self.resolve_keypress(puzzle_keybinds, sc, vk) {
-                            let key = bind.key.key().unwrap();
-                            match &bind.command {
-                                PuzzleCommand::Grip { axis, layers } => {
-                                    let mut new_grip = Grip::default();
-
-                                    if let Some(axis_name) = axis {
-                                        match self.twist_axis_from_name(Some(axis_name)) {
-                                            Ok(twist_axis) => {
-                                                new_grip.toggle_axis(twist_axis, true);
-                                            }
-                                            Err(e) => self.event(AppEvent::StatusError(e)),
-                                        }
-                                    }
-
-                                    new_grip.layers =
-                                        Some(layers.to_layer_mask(self.puzzle.layer_count()))
-                                            .filter(|&l| l != LayerMask(0));
-
-                                    self.transient_grips.insert(key, new_grip);
-                                }
-                                PuzzleCommand::Twist {
-                                    axis,
-                                    direction,
-                                    layers,
-                                } => {
-                                    if !done_twist_command {
-                                        done_twist_command = true;
-                                        let layers =
-                                            layers.to_layer_mask(self.puzzle.layer_count());
-                                        if let Err(e) =
-                                            self.do_twist(axis.as_deref(), direction, layers)
-                                        {
-                                            self.event(AppEvent::StatusError(e));
-                                        }
-                                    }
-                                }
-                                PuzzleCommand::Recenter { axis } => {
-                                    if !done_twist_command {
-                                        done_twist_command = true;
-                                        if let Err(e) = self.do_recenter(axis.as_deref()) {
-                                            self.event(AppEvent::StatusError(e));
-                                        }
-                                    }
-                                }
-
-                                PuzzleCommand::None => return, // Do not try to match other keybinds.
-                            }
-                        }
-
-                        for bind in self.resolve_keypress(&self.prefs.global_keybinds, sc, vk) {
-                            match &bind.command {
-                                Command::None => return, // Do not try to match other keybinds.
-
-                                _ => self.event(bind.command.clone()),
-                            }
-                        }
+                        self.handle_key_press(sc, vk);
                     }
 
                     ElementState::Released => {
@@ -320,16 +270,78 @@ impl App {
                             self.pressed_keys.remove(&Key::Vk(vk));
                         }
 
-                        // Remove grips for this held key.
-                        self.remove_held_grips(|k| {
-                            Some(k) == sc.map(Key::Sc) || Some(k) == vk.map(Key::Vk)
-                        });
+                        self.handle_key_release(sc, vk);
                     }
                 }
             }
 
             _ => (),
         }
+    }
+
+    fn handle_key_press(&mut self, sc: Option<KeyMappingCode>, vk: Option<VirtualKeyCode>) {
+        // Only allow one twist command per keypress. Don't use
+        // multiple keybinds for macros.
+        let mut done_twist_command = false;
+
+        let puzzle_keybinds = &self.prefs.puzzle_keybinds[self.puzzle.ty()];
+        for bind in self.resolve_keypress(puzzle_keybinds, sc, vk) {
+            let key = bind.key.key().unwrap();
+            match &bind.command {
+                PuzzleCommand::Grip { axis, layers } => {
+                    let mut new_grip = Grip::default();
+
+                    if let Some(axis_name) = axis {
+                        match self.twist_axis_from_name(Some(axis_name)) {
+                            Ok(twist_axis) => {
+                                new_grip.toggle_axis(twist_axis, true);
+                            }
+                            Err(e) => self.event(AppEvent::StatusError(e)),
+                        }
+                    }
+
+                    new_grip.layers = Some(layers.to_layer_mask(self.puzzle.layer_count()))
+                        .filter(|&l| l != LayerMask(0));
+
+                    self.transient_grips.insert(key, new_grip);
+                }
+                PuzzleCommand::Twist {
+                    axis,
+                    direction,
+                    layers,
+                } => {
+                    if !done_twist_command {
+                        done_twist_command = true;
+                        let layers = layers.to_layer_mask(self.puzzle.layer_count());
+                        if let Err(e) = self.do_twist(axis.as_deref(), direction, layers) {
+                            self.event(AppEvent::StatusError(e));
+                        }
+                    }
+                }
+                PuzzleCommand::Recenter { axis } => {
+                    if !done_twist_command {
+                        done_twist_command = true;
+                        if let Err(e) = self.do_recenter(axis.as_deref()) {
+                            self.event(AppEvent::StatusError(e));
+                        }
+                    }
+                }
+
+                PuzzleCommand::None => return, // Do not try to match other keybinds.
+            }
+        }
+
+        for bind in self.resolve_keypress(&self.prefs.global_keybinds, sc, vk) {
+            match &bind.command {
+                Command::None => return, // Do not try to match other keybinds.
+
+                _ => self.event(bind.command.clone()),
+            }
+        }
+    }
+    fn handle_key_release(&mut self, sc: Option<KeyMappingCode>, vk: Option<VirtualKeyCode>) {
+        // Remove grips for this held key.
+        self.remove_held_grips(|k| Some(k) == sc.map(Key::Sc) || Some(k) == vk.map(Key::Vk));
     }
 
     pub(crate) fn resolve_keypress<'a, C>(
@@ -440,7 +452,41 @@ impl App {
         &self.pressed_keys
     }
     pub(crate) fn pressed_modifiers(&self) -> ModifiersState {
-        self.pressed_modifiers
+        self.pressed_modifiers | self.toggled_modifiers
+    }
+    pub(crate) fn toggle_key(&mut self, sc: Option<KeyMappingCode>, vk: Option<VirtualKeyCode>) {
+        let maybe_vk = vk.map(Key::Vk);
+        let maybe_sc = sc.map(Key::Sc);
+
+        let mods = maybe_vk.map(|k| k.modifier_bit()).unwrap_or_default()
+            | maybe_sc.map(|k| k.modifier_bit()).unwrap_or_default();
+
+        let is_pressed = maybe_vk
+            .map(|k| self.toggled_keys.contains(&k))
+            .unwrap_or(false)
+            || maybe_sc
+                .map(|k| self.toggled_keys.contains(&k))
+                .unwrap_or(false);
+
+        if is_pressed {
+            if let Some(k) = maybe_vk {
+                self.toggled_keys.remove(&k);
+            }
+            if let Some(k) = maybe_sc {
+                self.toggled_keys.remove(&k);
+            }
+            self.toggled_modifiers.remove(mods);
+            self.handle_key_release(sc, vk);
+        } else {
+            if let Some(k) = maybe_vk {
+                self.toggled_keys.insert(k);
+            }
+            if let Some(k) = maybe_sc {
+                self.toggled_keys.insert(k);
+            }
+            self.toggled_modifiers |= mods;
+            self.handle_key_press(sc, vk);
+        }
     }
 
     pub(crate) fn frame(&mut self, _delta: Duration) {

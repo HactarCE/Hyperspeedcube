@@ -1,23 +1,72 @@
+use key_names::KeyMappingCode;
 use strum::EnumMessage;
+use winit::event::VirtualKeyCode;
 
 use super::util::{ResponseExt, EXPLANATION_TOOLTIP_WIDTH};
 use crate::app::App;
 use crate::commands::Command;
+use crate::preferences::Key;
 use crate::puzzle::TwistMetric;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.with_layout(egui::Layout::right_to_left(), |ui| {
+        // Right-aligned segments
         bld_toggle(ui, app);
         ui.separator();
 
         twist_count(ui, app);
         ui.separator();
 
-        // Status message (left-aligned)
+        // Left-aligned segments
         ui.with_layout(egui::Layout::left_to_right(), |ui| {
+            if app.prefs.info.modifier_toggles {
+                modifier_toggles(ui, app, false);
+                ui.separator();
+            }
+
             ui.label(app.status_msg());
         });
     });
+}
+
+pub(super) fn modifier_toggles(ui: &mut egui::Ui, app: &mut App, big: bool) {
+    for ch in key_names::MODIFIERS_ORDER.chars() {
+        let (name, sc, vk) = match ch {
+            'c' => (
+                key_names::CTRL_STR,
+                KeyMappingCode::ControlLeft,
+                VirtualKeyCode::LControl,
+            ),
+            's' => (
+                key_names::SHIFT_STR,
+                KeyMappingCode::ShiftLeft,
+                VirtualKeyCode::LShift,
+            ),
+            'a' => (
+                key_names::ALT_STR,
+                KeyMappingCode::AltLeft,
+                VirtualKeyCode::LAlt,
+            ),
+            'm' => (
+                key_names::LOGO_STR,
+                KeyMappingCode::MetaLeft,
+                VirtualKeyCode::LWin,
+            ),
+            _ => continue, // unreachable
+        };
+        let label = egui::SelectableLabel::new(
+            app.pressed_modifiers().contains(Key::Vk(vk).modifier_bit()),
+            name,
+        );
+        let r = if big {
+            ui.add_sized(ui.spacing().interact_size, label)
+        } else {
+            ui.add(label)
+        };
+        if r.clicked() {
+            app.toggle_key(Some(sc), Some(vk));
+        }
+    }
 }
 
 fn bld_toggle(ui: &mut egui::Ui, app: &mut App) {

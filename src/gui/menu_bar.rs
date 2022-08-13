@@ -78,6 +78,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         ui.menu_button("Tools", |ui| {
             windows::PIECE_FILTERS.menu_button_toggle(ui);
             windows::PUZZLE_CONTROLS.menu_button_toggle(ui);
+            windows::MODIFIER_KEYS.menu_button_toggle(ui);
         });
 
         ui.menu_button("Help", |ui| {

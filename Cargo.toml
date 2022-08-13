@@ -27,7 +27,7 @@ epi = "0.17.0"
 hex = "0.4.3"
 human-panic = "1.0.3"
 itertools = "0.10.3"
-key-names = { git = "https://github.com/HactarCE/key-names", tag = "v1.0.1", features = ["winit"] }
+key-names = { git = "https://github.com/HactarCE/key-names", tag = "v1.1.0", features = ["winit"] }
 lazy_static = "1.4.0"
 log = "0.4.16"
 num_enum = "0.5.7"
