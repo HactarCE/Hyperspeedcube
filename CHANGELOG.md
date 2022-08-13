@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [UNRELEASED]
 
+### Added
+
+- Pressing enter after typing in a preset name now saves the preset
+
 ### Fixed
 
 - Piece filter presets are no longer inverted

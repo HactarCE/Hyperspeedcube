@@ -468,7 +468,7 @@ pub(super) fn add_preset_button<T: Clone>(
                 save_button_clicked = ui.button("Save").clicked();
             });
             let r = ui.text_edit_singleline(&mut new_preset_name);
-            let text_edit_confirm = r.has_focus() && ui.input().key_down(egui::Key::Enter);
+            let text_edit_confirm = r.lost_focus() && ui.input().key_pressed(egui::Key::Enter);
             if enabled && (save_button_clicked || text_edit_confirm) {
                 presets.insert(new_preset_name.trim().to_string(), get_current_value());
                 ret = Some(std::mem::take(&mut new_preset_name));
