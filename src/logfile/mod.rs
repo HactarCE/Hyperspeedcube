@@ -12,6 +12,7 @@ use strum::IntoEnumIterator;
 mod mc4d_compat;
 
 use crate::puzzle::*;
+use crate::util;
 
 /// Loads a log file and returns the puzzle state, along with any warnings.
 pub fn load_file(path: &Path) -> anyhow::Result<(PuzzleController, Vec<String>)> {
@@ -52,6 +53,8 @@ struct LogFile {
     puzzle: Option<PuzzleTypeEnum>,
     #[serde(default)]
     state: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    hidden_pieces: Option<String>,
     #[serde(
         default,
         skip_serializing_if = "cgmath::Zero::is_zero",
@@ -76,6 +79,9 @@ impl LogFile {
             version: Self::VERSION,
             puzzle: Some(puzzle.ty()),
             state: puzzle.scramble_state() as u8,
+            hidden_pieces: puzzle
+                .is_any_piece_hidden()
+                .then(|| puzzle.hidden_pieces_string()),
             scramble_length: puzzle.scramble().len(),
             twist_count: TwistMetric::iter()
                 .map(|metric| (metric, puzzle.twist_count(metric)))
@@ -166,6 +172,10 @@ impl LogFile {
         let mut ret = PuzzleController::new(puzzle_type);
 
         let scramble_state = ScrambleState::from_primitive(self.state);
+
+        if let Some(hidden_pieces_string) = &self.hidden_pieces {
+            ret.hide(|piece| util::b16_fetch_bit(hidden_pieces_string, piece.0 as _))
+        }
 
         let (twists, parse_errors) = self.scramble();
         warnings.extend(parse_errors.iter().map(|e| e.to_string()));

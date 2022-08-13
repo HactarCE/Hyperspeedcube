@@ -112,11 +112,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         let id = unique_id!();
 
         let new_preset_name = util::add_preset_button(ui, id, piece_filters_prefs, || {
-            crate::util::b16_encode_bools(
-                (0..app.puzzle.pieces().len() as _)
-                    .map(Piece)
-                    .map(|piece| !app.puzzle.is_hidden(piece)),
-            )
+            app.puzzle.hidden_pieces_string()
         });
         app.prefs.needs_save |= new_preset_name.is_some();
         app.prefs.needs_save |= util::presets_list(ui, id, piece_filters_prefs, |ui, preset| {

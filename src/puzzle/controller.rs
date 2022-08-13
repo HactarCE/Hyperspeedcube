@@ -574,8 +574,18 @@ impl PuzzleController {
         }
     }
     /// Returns whether a piece is hidden.
-    pub fn is_hidden(&mut self, piece: Piece) -> bool {
+    pub fn is_hidden(&self, piece: Piece) -> bool {
         self.logical_piece_states[piece.0 as usize].hidden
+    }
+    /// Returns whether any piece is hidden.
+    pub fn is_any_piece_hidden(&self) -> bool {
+        (0..self.pieces().len() as _)
+            .map(Piece)
+            .any(|piece| self.is_hidden(piece))
+    }
+    /// Returns a string representing the hidden pieces.
+    pub fn hidden_pieces_string(&self) -> String {
+        util::b16_encode_bools(self.logical_piece_states.iter().map(|state| state.hidden))
     }
 
     /// Returns the set of selected stickers
