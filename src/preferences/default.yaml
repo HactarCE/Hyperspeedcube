@@ -145,6 +145,7 @@ colors:
       O: "#ff66ff"
       R: "#cc3333"
       U: "#33aaff"
+piece_filters: {}
 global_keybinds:
   - vk: O
     ctrl: true

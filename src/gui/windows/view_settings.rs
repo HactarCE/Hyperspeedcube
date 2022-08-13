@@ -14,11 +14,12 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.collapsing("Presets", |ui| {
         let id = unique_id!();
         if let Some(name) =
-            util::add_preset_button(ui, id, &mut presets.current, &mut presets.presets)
+            util::add_preset_button(ui, id, &mut presets.presets, || presets.current.clone())
         {
             presets.active_preset = Some(name);
+            changed = true;
         }
-        presets_list(ui, id, &mut presets.presets, |ui, preset| {
+        changed |= presets_list(ui, id, &mut presets.presets, |ui, preset| {
             if ui.button("Load").clicked() {
                 let old = std::mem::replace(&mut presets.current, preset.value.clone());
                 app.puzzle.animate_from_view_settings(old);

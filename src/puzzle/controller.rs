@@ -573,6 +573,10 @@ impl PuzzleController {
             state.preview_hidden = predicate(Piece(i as _));
         }
     }
+    /// Returns whether a piece is hidden.
+    pub fn is_hidden(&mut self, piece: Piece) -> bool {
+        self.logical_piece_states[piece.0 as usize].hidden
+    }
 
     /// Returns the set of selected stickers
     pub fn selection(&self) -> &HashSet<Sticker> {

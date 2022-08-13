@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::ops::{Index, IndexMut};
 
-use super::PerPuzzle;
+use super::PerPuzzleFamily;
 use crate::puzzle::{traits::*, Face, PuzzleTypeEnum};
 use crate::serde_impl::hex_color;
 
@@ -15,7 +15,7 @@ pub struct ColorPreferences {
     pub blind_face: egui::Color32,
     pub blindfold: bool,
 
-    pub faces: PerPuzzle<BTreeMap<String, FaceColor>>,
+    pub faces: PerPuzzleFamily<BTreeMap<String, FaceColor>>,
 }
 impl Index<(PuzzleTypeEnum, Face)> for ColorPreferences {
     type Output = egui::Color32;

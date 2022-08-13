@@ -1,7 +1,7 @@
 use crate::app::App;
 use crate::gui::util;
 use crate::preferences::DEFAULT_PREFS;
-use crate::puzzle::{traits::*, Face, Piece, PieceType};
+use crate::puzzle::{traits::*, Face, Piece, PieceType, PuzzleController};
 
 const MIN_WIDTH: f32 = 300.0;
 
@@ -36,16 +36,16 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
-    PieceFilterWidget::new("everything", |_| true)
+    PieceFilterWidget::new_uppercased("everything", |_| true)
         .no_all_except()
-        .show(ui, app);
+        .show(ui, &mut app.puzzle);
 
     ui.collapsing("Types", |ui| {
         for (i, piece_type) in puzzle_type.piece_types().iter().enumerate() {
-            PieceFilterWidget::new(&format!("{}s", piece_type.name), move |piece| {
+            PieceFilterWidget::new_uppercased(&format!("{}s", piece_type.name), move |piece| {
                 puzzle_type.info(piece).piece_type == PieceType(i as _)
             })
-            .show(ui, app);
+            .show(ui, &mut app.puzzle);
         }
     });
 
@@ -60,7 +60,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         selected_colors.resize(app.puzzle.faces().len(), false);
 
         for i in 0..puzzle_type.faces().len() {
-            PieceFilterWidget::new("pieces with this color", move |piece| {
+            PieceFilterWidget::new_uppercased("pieces with this color", move |piece| {
                 let mut stickers = puzzle_type.info(piece).stickers.iter();
                 stickers.any(|&sticker| puzzle_type.info(sticker).color == Face(i as _))
             })
@@ -71,11 +71,11 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 })
                 .response
             })
-            .show(ui, app);
+            .show(ui, &mut app.puzzle);
         }
 
         ui.add_enabled_ui(selected_colors.contains(&true), |ui| {
-            PieceFilterWidget::new("pieces with all these colors", |piece| {
+            PieceFilterWidget::new_uppercased("pieces with all these colors", |piece| {
                 let stickers = &puzzle_type.info(piece).stickers;
                 selected_colors.iter().enumerate().all(|(i, selected)| {
                     !selected
@@ -84,27 +84,46 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                             .any(|&s| puzzle_type.info(s).color == Face(i as _))
                 })
             })
-            .show(ui, app);
-            PieceFilterWidget::new("pieces with any of these colors", |piece| {
+            .show(ui, &mut app.puzzle);
+            PieceFilterWidget::new_uppercased("pieces with any of these colors", |piece| {
                 let stickers = &puzzle_type.info(piece).stickers;
                 stickers
                     .iter()
                     .any(|&s| selected_colors[puzzle_type.info(s).color.0 as usize])
             })
-            .show(ui, app);
+            .show(ui, &mut app.puzzle);
             PieceFilterWidget::new("pieces with only these colors", |piece| {
                 let stickers = &puzzle_type.info(piece).stickers;
                 stickers
                     .iter()
                     .all(|&s| selected_colors[puzzle_type.info(s).color.0 as usize])
             })
-            .show(ui, app);
+            .show(ui, &mut app.puzzle);
         });
 
         ui.data().insert_temp(colors_selection_id, selected_colors);
     });
 
-    ui.collapsing("Presets", |ui| ui.label("spoookyyy..."));
+    ui.collapsing("Presets", |ui| {
+        let piece_filters_prefs = &mut app.prefs.piece_filters[puzzle_type];
+
+        let id = unique_id!();
+
+        let new_preset_name = util::add_preset_button(ui, id, piece_filters_prefs, || {
+            crate::util::b16_encode_bools(
+                (0..app.puzzle.pieces().len() as _)
+                    .map(Piece)
+                    .map(|piece| !app.puzzle.is_hidden(piece)),
+            )
+        });
+        app.prefs.needs_save |= new_preset_name.is_some();
+        app.prefs.needs_save |= util::presets_list(ui, id, piece_filters_prefs, |ui, preset| {
+            PieceFilterWidget::new(preset.name, |piece| {
+                crate::util::b16_fetch_bit(preset.value, piece.0 as _)
+            })
+            .show(ui, &mut app.puzzle);
+        })
+    });
 }
 
 #[must_use]
@@ -118,13 +137,18 @@ impl<'a, P> PieceFilterWidget<'a, egui::Label, P>
 where
     P: Copy + FnMut(Piece) -> bool,
 {
-    fn new(name: &'a str, predicate: P) -> Self {
+    fn new_uppercased(name: &'a str, predicate: P) -> Self {
         let mut s = name.to_string();
         s[0..1].make_ascii_uppercase();
-
+        Self::new_with_label(name, &s, predicate)
+    }
+    fn new(name: &'a str, predicate: P) -> Self {
+        Self::new_with_label(name, name, predicate)
+    }
+    fn new_with_label(name: &'a str, label: &str, predicate: P) -> Self {
         Self {
             name,
-            label_ui: egui::Label::new(s).sense(egui::Sense::click()),
+            label_ui: egui::Label::new(label).sense(egui::Sense::click()),
             all_except: true,
             predicate,
         }
@@ -149,9 +173,7 @@ where
         self
     }
 
-    fn show(mut self, ui: &mut egui::Ui, app: &mut App) -> egui::Response {
-        let puzzle = &mut app.puzzle;
-
+    fn show(mut self, ui: &mut egui::Ui, puzzle: &mut PuzzleController) -> egui::Response {
         ui.horizontal(|ui| {
             let r = ui.add(self.label_ui);
             if r.hovered() {

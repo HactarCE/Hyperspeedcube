@@ -112,7 +112,7 @@ pub struct Preferences {
 
     pub global_keybinds: Vec<Keybind<Command>>,
     // pub keybind_sets: Vec<KeybindSet<PuzzleCommand>>,
-    pub puzzle_keybinds: PerPuzzle<Vec<Keybind<PuzzleCommand>>>,
+    pub puzzle_keybinds: PerPuzzleFamily<Vec<Keybind<PuzzleCommand>>>,
 }
 impl Preferences {
     pub fn load(backup: Option<&Self>) -> Self {
@@ -178,6 +178,10 @@ impl Preferences {
     pub fn save(&mut self) {
         if self.needs_save {
             self.needs_save = false;
+
+            // Clear empty entries.
+            self.piece_filters.map.retain(|_k, v| !v.is_empty());
+
             let result = (|| -> anyhow::Result<()> {
                 // IIFE to mimic try block
                 let path = PREFS_FILE_PATH.as_ref()?;
@@ -240,6 +244,34 @@ impl<T: Default> IndexMut<PuzzleTypeEnum> for PerPuzzle<T> {
     }
 }
 impl<T> PerPuzzle<T> {
+    fn entry(&mut self, puzzle_type: PuzzleTypeEnum) -> btree_map::Entry<'_, String, T> {
+        self.map.entry(puzzle_type.name().to_owned())
+    }
+    fn get(&self, puzzle_type: PuzzleTypeEnum) -> Option<&T> {
+        self.map.get(puzzle_type.name())
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(transparent)]
+pub struct PerPuzzleFamily<T> {
+    map: BTreeMap<String, T>,
+    #[serde(skip)]
+    default: T,
+}
+impl<T: Default> Index<PuzzleTypeEnum> for PerPuzzleFamily<T> {
+    type Output = T;
+
+    fn index(&self, puzzle_type: PuzzleTypeEnum) -> &Self::Output {
+        self.get(puzzle_type).unwrap_or(&self.default)
+    }
+}
+impl<T: Default> IndexMut<PuzzleTypeEnum> for PerPuzzleFamily<T> {
+    fn index_mut(&mut self, puzzle_type: PuzzleTypeEnum) -> &mut Self::Output {
+        self.entry(puzzle_type).or_default()
+    }
+}
+impl<T> PerPuzzleFamily<T> {
     fn entry(&mut self, puzzle_type: PuzzleTypeEnum) -> btree_map::Entry<'_, String, T> {
         self.map
             .entry(puzzle_type.family_internal_name().to_owned())

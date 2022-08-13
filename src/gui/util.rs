@@ -440,11 +440,12 @@ macro_rules! access {
     }
 }
 
+#[must_use = "If this function returns a non-None value, the preferences must be saved"]
 pub(super) fn add_preset_button<T: Clone>(
     ui: &mut egui::Ui,
     id: egui::Id,
-    current_value: &mut T,
     presets: &mut BTreeMap<String, T>,
+    get_current_value: impl FnOnce() -> T,
 ) -> Option<String> {
     let edit_mode_id = id.with("edit_mode");
     let new_preset_name_id = id.with("new_preset_name");
@@ -469,7 +470,7 @@ pub(super) fn add_preset_button<T: Clone>(
             let r = ui.text_edit_singleline(&mut new_preset_name);
             let text_edit_confirm = r.has_focus() && ui.input().key_down(egui::Key::Enter);
             if enabled && (save_button_clicked || text_edit_confirm) {
-                presets.insert(new_preset_name.trim().to_string(), current_value.clone());
+                presets.insert(new_preset_name.trim().to_string(), get_current_value());
                 ret = Some(std::mem::take(&mut new_preset_name));
             }
         });
@@ -482,16 +483,18 @@ pub(super) fn add_preset_button<T: Clone>(
     ret
 }
 
+#[must_use = "This function returns whether the preferences must be saved"]
 pub(super) fn presets_list<T: Clone>(
     ui: &mut egui::Ui,
     id: egui::Id,
     presets: &mut BTreeMap<String, T>,
     mut preset_ui: impl FnMut(&mut egui::Ui, PresetRef<'_, T>),
-) {
+) -> bool {
     let edit_mode_id = id.with("edit_mode");
-    let new_preset_name_id = id.with("new_preset_name");
 
     let mut edit_mode: bool = ui.data().get_temp(edit_mode_id).unwrap_or(false);
+
+    let mut needs_save = false;
 
     presets.retain(|name, value| {
         let mut keep = true;
@@ -501,6 +504,7 @@ pub(super) fn presets_list<T: Clone>(
             if edit_mode {
                 if ui.button("🗑").clicked() {
                     keep = false;
+                    needs_save = true;
                 }
             }
 
@@ -515,6 +519,8 @@ pub(super) fn presets_list<T: Clone>(
     }
 
     ui.data().insert_temp(edit_mode_id, edit_mode);
+
+    needs_save
 }
 pub(super) struct PresetRef<'a, T> {
     pub name: &'a str,
