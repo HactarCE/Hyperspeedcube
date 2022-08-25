@@ -6,16 +6,11 @@ use crate::commands::{
 use crate::gui::key_combo_popup;
 use crate::gui::keybinds_set::*;
 use crate::gui::util::{self, ComboBoxExt, FancyComboBox, ResponseExt};
+use crate::gui::widgets;
 use crate::preferences::Keybind;
 use crate::puzzle::*;
 
-#[derive(Debug, Copy, Clone)]
-struct DragData {
-    from: usize,
-    to: usize,
-}
-
-const SQUARE_BUTTON_SIZE: egui::Vec2 = egui::vec2(24.0, 24.0);
+const SQUARE_BUTTON_SIZE: egui::Vec2 = egui::vec2(22.0, 22.0);
 const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
 const LAYER_DESCRIPTION_WIDTH: f32 = 50.0;
 
@@ -73,116 +68,32 @@ where
             ui.separator();
 
             egui::ScrollArea::new([false, true]).show(ui, |ui| {
-                let drag_id = ui.make_persistent_id("drag");
-                let mut drag_data = ui.data().get_temp::<DragData>(drag_id);
-                if !ui.memory().is_anything_being_dragged() {
-                    drag_data = None;
-                }
-
-                let mut reorder_responses = vec![];
-                let mut delete_idx = None;
-
-                for (i, keybind) in keybinds.iter_mut().enumerate() {
-                    let is_being_dragged = drag_data.map_or(false, |drag| drag.from == i);
-
-                    ui.horizontal(|ui| {
-                        let (rect, resp) =
-                            ui.allocate_exact_size(SQUARE_BUTTON_SIZE, egui::Sense::drag());
-                        if ui.is_rect_visible(rect) {
-                            let color = if resp.has_focus() || is_being_dragged {
-                                ui.visuals().strong_text_color()
-                            } else if resp.hovered() {
-                                ui.visuals().text_color()
-                            } else {
-                                ui.visuals().weak_text_color()
-                            };
-
-                            for dy in [-6.0, 0.0, 6.0] {
-                                for dx in [-3.0, 3.0] {
-                                    const RADIUS: f32 = 1.5;
-                                    let pos = rect.center() + egui::vec2(dx, dy);
-                                    ui.painter().circle_filled(pos, RADIUS, color);
-                                }
-                            }
-                        }
-
-                        reorder_responses.push(resp);
-
-                        if ui
-                            .add_sized(SQUARE_BUTTON_SIZE, egui::Button::new("🗑"))
-                            .clicked()
-                        {
-                            delete_idx = Some(i);
-                        }
-
-                        let r = ui
+                let r = widgets::ReorderableList::new(unique_id!(self.keybind_set), keybinds)
+                    .button_size(SQUARE_BUTTON_SIZE)
+                    .show(ui, |ui, idx, keybind| {
+                        let mut r = ui
                             .add_sized(KEY_BUTTON_SIZE, egui::Button::new(keybind.key.to_string()));
                         if r.clicked() {
-                            key_combo_popup::open(ui.ctx(), Some(keybind.key), self.keybind_set, i)
+                            key_combo_popup::open(
+                                ui.ctx(),
+                                Some(keybind.key),
+                                self.keybind_set,
+                                idx,
+                            )
                         }
 
-                        let r = ui.add(CommandSelectWidget {
+                        r |= ui.add(CommandSelectWidget {
                             cmd: &mut keybind.command,
 
                             keybind_set: self.keybind_set,
-                            idx: i,
+                            idx,
                         });
-                        changed |= r.changed();
 
                         ui.allocate_space(egui::vec2(ui.available_width(), 0.0));
+
+                        r
                     });
-                }
-
-                if reorder_responses.iter().any(|r| r.hovered()) {
-                    ui.output().cursor_icon = egui::CursorIcon::Grab;
-                }
-                if let Some(i) = reorder_responses.iter().position(|r| r.has_focus()) {
-                    let up = ui.input().num_presses(egui::Key::ArrowUp);
-                    let down = ui.input().num_presses(egui::Key::ArrowDown);
-                    let to = (i + down).saturating_sub(up);
-                    reorder_responses[to].request_focus();
-                    drag_data = Some(DragData { from: i, to });
-                } else if ui.memory().is_anything_being_dragged() {
-                    if let Some(i) = reorder_responses.iter().position(|r| r.drag_started()) {
-                        drag_data = Some(DragData { from: i, to: i });
-                    }
-                    if let Some(DragData { from: _, to }) = &mut drag_data {
-                        ui.output().cursor_icon = egui::CursorIcon::Grabbing;
-
-                        if let Some(egui::Pos2 { y, .. }) = ui.ctx().pointer_interact_pos() {
-                            while *to > 0 && y < reorder_responses[*to - 1].rect.bottom() {
-                                *to -= 1;
-                            }
-                            while *to + 1 < reorder_responses.len()
-                                && y > reorder_responses[*to + 1].rect.top()
-                            {
-                                *to += 1
-                            }
-                        }
-                    }
-                }
-
-                if let Some(DragData { mut from, to }) = drag_data {
-                    // do those swaps
-                    while from < to {
-                        keybinds.swap(from, from + 1);
-                        from += 1;
-                        changed = true;
-                    }
-                    while to < from {
-                        keybinds.swap(from, from - 1);
-                        from -= 1;
-                        changed = true;
-                    }
-                    ui.data().insert_temp(drag_id, DragData { from, to });
-                } else {
-                    ui.data().remove::<DragData>(drag_id);
-                }
-
-                if let Some(i) = delete_idx {
-                    keybinds.remove(i);
-                    changed = true;
-                }
+                changed |= r.changed();
 
                 ui.allocate_space(egui::vec2(1.0, 200.0));
             });

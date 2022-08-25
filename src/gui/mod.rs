@@ -14,6 +14,7 @@ mod prefs;
 mod puzzle_view;
 mod side_bar;
 mod status_bar;
+mod widgets;
 mod windows;
 
 use crate::app::App;

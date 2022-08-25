@@ -4,7 +4,7 @@ use crate::commands::{Command, PuzzleCommand};
 use crate::preferences::{Keybind, Preferences};
 use crate::puzzle::*;
 
-pub(super) trait KeybindSet: 'static + Copy + Send + Sync {
+pub(super) trait KeybindSet: 'static + Copy + Hash + Send + Sync {
     type Command: Default + Clone + Eq;
 
     const USE_VK_BY_DEFAULT: bool;
