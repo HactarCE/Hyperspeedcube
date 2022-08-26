@@ -5,7 +5,7 @@ use crate::commands::{
 };
 use crate::gui::key_combo_popup;
 use crate::gui::keybinds_set::*;
-use crate::gui::util::{self, ComboBoxExt, FancyComboBox, ResponseExt};
+use crate::gui::util::{self, ComboBoxExt, FancyComboBox, PlaintextYamlEditor, ResponseExt};
 use crate::gui::widgets;
 use crate::preferences::Keybind;
 use crate::puzzle::*;
@@ -30,83 +30,85 @@ where
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
 
-        let mut r = ui.scope(|ui| {
-            let keybinds = self.keybind_set.get_mut(&mut self.app.prefs);
-            let default_keybinds = self.keybind_set.get_defaults();
+        let keybinds = self.keybind_set.get_mut(&mut self.app.prefs);
 
-            ui.horizontal(|ui| {
-                ui.add_enabled_ui(keybinds != default_keybinds, |ui| {
-                    let r = ui
-                        .add_sized(SQUARE_BUTTON_SIZE, egui::Button::new("⟲"))
-                        .on_hover_text(format!(
-                            "Reset all {} keybinds",
-                            self.keybind_set.display_name(),
-                        ));
-                    if r.clicked() && self.keybind_set.confirm_reset() {
-                        *keybinds = default_keybinds.to_vec();
-                        changed = true;
+        fn square_button(ui: &mut egui::Ui, text: &str, hover_text: &str) -> egui::Response {
+            ui.add_sized(SQUARE_BUTTON_SIZE, egui::Button::new(text))
+                .on_hover_text(hover_text)
+        }
+
+        let plaintext_yaml_editor = PlaintextYamlEditor {
+            id: unique_id!(self.keybind_set),
+            button_size: SQUARE_BUTTON_SIZE,
+        };
+
+        let mut r = plaintext_yaml_editor.show(ui, keybinds).unwrap_or_else(|| {
+            ui.scope(|ui| {
+                ui.horizontal(|ui| {
+                    if square_button(ui, "✏", "Edit as plaintext").clicked() {
+                        plaintext_yaml_editor.set_active(ui, keybinds);
                     }
+
+                    if square_button(ui, "➕", "Add a new keybind").clicked() {
+                        keybinds.push(Keybind::default());
+                        changed = true;
+                    };
+
+                    ui.allocate_ui_with_layout(
+                        KEY_BUTTON_SIZE,
+                        egui::Layout::centered_and_justified(egui::Direction::TopDown),
+                        |ui| ui.strong("Keybind"),
+                    );
+
+                    ui.strong("Command");
                 });
 
-                let r = ui
-                    .add_sized(SQUARE_BUTTON_SIZE, egui::Button::new("➕"))
-                    .on_hover_text("Add a new keybind");
-                if r.clicked() {
-                    keybinds.push(Keybind::default());
-                    changed = true;
-                };
+                ui.separator();
 
-                ui.allocate_ui_with_layout(
-                    KEY_BUTTON_SIZE,
-                    egui::Layout::centered_and_justified(egui::Direction::TopDown),
-                    |ui| ui.strong("Keybind"),
-                );
+                egui::ScrollArea::new([false, true]).show(ui, |ui| {
+                    let r = widgets::ReorderableList::new(unique_id!(self.keybind_set), keybinds)
+                        .button_size(SQUARE_BUTTON_SIZE)
+                        .show(ui, |ui, idx, keybind| {
+                            let mut r = ui.add_sized(
+                                KEY_BUTTON_SIZE,
+                                egui::Button::new(keybind.key.to_string()),
+                            );
+                            if r.clicked() {
+                                key_combo_popup::open(
+                                    ui.ctx(),
+                                    Some(keybind.key),
+                                    self.keybind_set,
+                                    idx,
+                                )
+                            }
 
-                ui.strong("Command");
-            });
+                            r |= ui.add(CommandSelectWidget {
+                                cmd: &mut keybind.command,
 
-            ui.separator();
-
-            egui::ScrollArea::new([false, true]).show(ui, |ui| {
-                let r = widgets::ReorderableList::new(unique_id!(self.keybind_set), keybinds)
-                    .button_size(SQUARE_BUTTON_SIZE)
-                    .show(ui, |ui, idx, keybind| {
-                        let mut r = ui
-                            .add_sized(KEY_BUTTON_SIZE, egui::Button::new(keybind.key.to_string()));
-                        if r.clicked() {
-                            key_combo_popup::open(
-                                ui.ctx(),
-                                Some(keybind.key),
-                                self.keybind_set,
+                                keybind_set: self.keybind_set,
                                 idx,
-                            )
-                        }
+                            });
 
-                        r |= ui.add(CommandSelectWidget {
-                            cmd: &mut keybind.command,
+                            ui.allocate_space(egui::vec2(ui.available_width(), 0.0));
 
-                            keybind_set: self.keybind_set,
-                            idx,
+                            r
                         });
+                    changed |= r.changed();
 
-                        ui.allocate_space(egui::vec2(ui.available_width(), 0.0));
+                    ui.allocate_space(egui::vec2(1.0, 200.0));
+                });
 
-                        r
-                    });
-                changed |= r.changed();
-
-                ui.allocate_space(egui::vec2(1.0, 200.0));
-            });
-
-            if ui.available_height() > 0.0 {
-                ui.allocate_space(ui.available_size());
-            }
+                if ui.available_height() > 0.0 {
+                    ui.allocate_space(ui.available_size());
+                }
+            })
+            .response
         });
 
         if changed {
-            r.response.mark_changed();
+            r.mark_changed();
         }
-        r.response
+        r
     }
 }
 

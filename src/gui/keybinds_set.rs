@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
 use crate::commands::{Command, PuzzleCommand};
@@ -5,7 +6,7 @@ use crate::preferences::{Keybind, Preferences};
 use crate::puzzle::*;
 
 pub(super) trait KeybindSet: 'static + Copy + Hash + Send + Sync {
-    type Command: Default + Clone + Eq;
+    type Command: Default + Clone + Eq + Serialize + for<'a> Deserialize<'a>;
 
     const USE_VK_BY_DEFAULT: bool;
 
