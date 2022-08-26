@@ -3,6 +3,7 @@
 use cgmath::*;
 use itertools::Itertools;
 use num_enum::FromPrimitive;
+use serde::{de::Error, Deserialize, Deserializer};
 use smallvec::smallvec;
 use std::collections::HashMap;
 use std::ops::{Index, IndexMut, RangeInclusive};
@@ -15,6 +16,19 @@ pub const DEFAULT_LAYER_COUNT: u8 = 3;
 pub const MIN_LAYER_COUNT: u8 = 1;
 pub const MAX_LAYER_COUNT: u8 = 9;
 pub const LAYER_COUNT_RANGE: RangeInclusive<u8> = MIN_LAYER_COUNT..=MAX_LAYER_COUNT;
+
+pub(super) fn deserialize_layer_count<'de, D>(deserializer: D) -> Result<u8, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let layer_count: u8 = Deserialize::deserialize(deserializer)?;
+    if !LAYER_COUNT_RANGE.contains(&layer_count) {
+        return Err(D::Error::custom(format!(
+            "invalid layer count {layer_count}"
+        )));
+    }
+    Ok(layer_count)
+}
 
 pub(super) fn puzzle_type(layer_count: u8) -> &'static dyn PuzzleType {
     puzzle_description(layer_count)

@@ -162,9 +162,15 @@ pub trait PuzzleState: PuzzleType {
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PuzzleTypeEnum {
     /// 3D Rubik's cube.
-    Rubiks3D { layer_count: u8 },
+    Rubiks3D {
+        #[serde(deserialize_with = "rubiks_3d::deserialize_layer_count")]
+        layer_count: u8,
+    },
     /// 4D Rubik's cube.
-    Rubiks4D { layer_count: u8 },
+    Rubiks4D {
+        #[serde(deserialize_with = "rubiks_4d::deserialize_layer_count")]
+        layer_count: u8,
+    },
 }
 #[delegate_to_methods]
 #[delegate(PuzzleType, target_ref = "as_dyn_type")]
