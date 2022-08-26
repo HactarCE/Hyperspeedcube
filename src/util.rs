@@ -114,13 +114,9 @@ pub fn b16_encode_bools(bits: impl IntoIterator<Item = bool>) -> String {
         .into_iter()
         .map(|mut chunk| {
             let nibble = (0..4)
-                .map(|i| (chunk.next().unwrap_or(false) as u8) << i)
+                .map(|i| (chunk.next().unwrap_or(false) as u32) << i)
                 .sum();
-            match nibble {
-                0..=9 => ('0' as u8 + nibble) as char,
-                10..=15 => ('a' as u8 + nibble - 10) as char,
-                _ => '?', // unreachable
-            }
+            char::from_digit(nibble, 16).unwrap_or('?')
         })
         .collect()
 }
@@ -131,11 +127,7 @@ pub fn b16_fetch_bit<'a>(s: &str, bit_idx: usize) -> bool {
         .unwrap_or(false)
 }
 fn b16_decode_char(ch: char) -> [bool; 4] {
-    let nibble = match ch.to_ascii_lowercase() {
-        '0'..='9' => (ch as u8 - '0' as u8),
-        'a'..='f' => (ch as u8 - 'a' as u8 + 10),
-        _ => 0,
-    };
+    let nibble = ch.to_digit(16).unwrap_or(0);
     [
         nibble & 1 != 0,
         nibble & 2 != 0,
