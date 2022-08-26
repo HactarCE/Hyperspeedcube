@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [UNRELEASED]
 
+### Fixed
+
+- Rubik's 4D log file save/load
+  - 180-degree face twists are now saved correctly
+  - 1x1x1x1 non-face rotations are now parsed correctly
+
 ## [0.8.2] - 2022-08-13
 
 ### Fixed

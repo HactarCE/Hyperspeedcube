@@ -159,6 +159,8 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
                 aliases.push((alias_string + "2", Alias::EntireTwist(twist)));
             }
         }
+        // Try to match longer aliases first.
+        aliases.sort_by_key(|(s, _)| -(s.len() as isize));
 
         let notation = NotationScheme {
             axis_names: FaceEnum::iter()
@@ -1098,6 +1100,7 @@ impl TwistDirectionEnum {
             + select_face_char(vector4.z, "F", "B")
             + select_face_char(vector4.x, "R", "L")
             + select_face_char(vector4.w, "O", "I")
+            + if self.is_face_180() { "2" } else { "" }
     }
 
     fn period(self) -> usize {
@@ -1448,12 +1451,12 @@ mod tests {
     #[test]
     fn test_rubiks_4d_twist_serialization() {
         for layer_count in 1..=4 {
-            let p = Rubiks3D::new(layer_count);
+            let p = Rubiks4D::new(layer_count);
             crate::puzzle::tests::test_twist_serialization(&p);
         }
 
         for layer_count in 1..=7 {
-            let p = Rubiks3D::new(layer_count);
+            let p = Rubiks4D::new(layer_count);
             crate::puzzle::tests::test_layered_twist_serialization(&p);
         }
     }

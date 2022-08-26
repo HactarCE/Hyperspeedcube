@@ -140,6 +140,8 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
                 }
             }
         }
+        // Try to match longer aliases first.
+        aliases.sort_by_key(|(s, _)| -(s.len() as isize));
 
         let notation = NotationScheme {
             axis_names: FaceEnum::iter()
