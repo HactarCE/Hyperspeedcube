@@ -146,6 +146,13 @@ impl PuzzleController {
     /// Reset and then scramble some number of moves.
     pub fn scramble_n(&mut self, n: usize) -> Result<(), &'static str> {
         self.reset();
+
+        // Set a reasonable limit on the number of moves.
+        const MAX_SCRAMBLE_LEN: usize = 10_000;
+        if n > MAX_SCRAMBLE_LEN {
+            return Err("Cannot scramble more than 10,000 moves");
+        }
+
         // Use a `while` loop instead of a `for` loop because moves may cancel.
         while self.undo_buffer.len() < n {
             self.twist(Twist::from_rng(self.ty()))?;
