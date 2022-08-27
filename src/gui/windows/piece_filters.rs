@@ -190,9 +190,13 @@ where
             }
 
             ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                ui.spacing_mut().item_spacing.x /= 2.0;
+
                 let r = ui.add_enabled(
                     !puzzle.are_all_shown(self.predicate),
-                    |ui: &mut egui::Ui| ui.button("👁").on_hover_text(format!("Show {}", self.name)),
+                    |ui: &mut egui::Ui| {
+                        widgets::small_icon_button(ui, "👁", &format!("Show {}", self.name))
+                    },
                 );
                 if r.hovered() {
                     puzzle.set_preview_hidden(|piece| (self.predicate)(piece).then_some(false));
@@ -204,7 +208,7 @@ where
                 let r = ui.add_enabled(
                     !puzzle.are_all_hidden(self.predicate),
                     |ui: &mut egui::Ui| {
-                        ui.button("ｘ").on_hover_text(format!("Hide {}", self.name))
+                        widgets::small_icon_button(ui, "ｘ", &format!("Hide {}", self.name))
                     },
                 );
                 if r.hovered() {
@@ -218,8 +222,11 @@ where
                     let r = ui.add_enabled(
                         !puzzle.are_all_hidden(|p| !(self.predicate)(p)),
                         |ui: &mut egui::Ui| {
-                            ui.button("❎")
-                                .on_hover_text(format!("Hide all except {}", self.name))
+                            widgets::small_icon_button(
+                                ui,
+                                "❎",
+                                &format!("Hide all except {}", self.name),
+                            )
                         },
                     );
                     if r.hovered() {

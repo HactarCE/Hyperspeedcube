@@ -1,15 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::gui::util;
 use crate::gui::widgets;
 use crate::preferences::Preset;
-
-// TODO: consolidate
-const SQUARE_BUTTON_SIZE: egui::Vec2 = egui::vec2(22.0, 22.0);
-fn square_button(ui: &mut egui::Ui, text: &str, hover_text: &str) -> egui::Response {
-    ui.add_sized(SQUARE_BUTTON_SIZE, egui::Button::new(text))
-        .on_hover_text(hover_text)
-}
 
 pub struct PresetsUi<'a, T> {
     pub id: egui::Id,
@@ -20,11 +12,8 @@ impl<T> PresetsUi<'_, T>
 where
     T: Serialize + for<'de> Deserialize<'de> + Default + Clone,
 {
-    fn plaintext_yaml_editor(&self) -> util::PlaintextYamlEditor {
-        util::PlaintextYamlEditor {
-            id: self.id,
-            button_size: SQUARE_BUTTON_SIZE,
-        }
+    fn plaintext_yaml_editor(&self) -> widgets::PlaintextYamlEditor {
+        widgets::PlaintextYamlEditor { id: self.id }
     }
 
     pub fn show_header_with_active_preset(
@@ -58,7 +47,7 @@ where
         }
 
         ui.horizontal(|ui| {
-            if square_button(ui, "✏", "Edit as plaintext").clicked() {
+            if widgets::big_icon_button(ui, "✏", "Edit as plaintext").clicked() {
                 self.plaintext_yaml_editor().set_active(ui, self.presets);
             }
 
@@ -72,7 +61,7 @@ where
 
             let button_resp = ui
                 .add_enabled_ui(is_preset_name_valid, |ui| {
-                    square_button(ui, "➕", "Save preset")
+                    widgets::big_icon_button(ui, "➕", "Save preset")
                 })
                 .inner;
             let button_clicked = button_resp.clicked();
@@ -113,7 +102,6 @@ where
             if !self.plaintext_yaml_editor().is_active(ui) {
                 // egui::ScrollArea::new([false, true]).show(ui, |ui| {
                 *self.changed |= widgets::ReorderableList::new(self.id, self.presets)
-                    .button_size(SQUARE_BUTTON_SIZE)
                     .show(ui, preset_ui)
                     .changed();
                 // });

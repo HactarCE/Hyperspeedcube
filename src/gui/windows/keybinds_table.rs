@@ -5,12 +5,11 @@ use crate::commands::{
 };
 use crate::gui::key_combo_popup;
 use crate::gui::keybinds_set::*;
-use crate::gui::util::{self, ComboBoxExt, FancyComboBox, PlaintextYamlEditor, ResponseExt};
+use crate::gui::util::{self, ComboBoxExt, FancyComboBox, ResponseExt};
 use crate::gui::widgets;
 use crate::preferences::Keybind;
 use crate::puzzle::*;
 
-const SQUARE_BUTTON_SIZE: egui::Vec2 = egui::vec2(22.0, 22.0);
 const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
 const LAYER_DESCRIPTION_WIDTH: f32 = 50.0;
 
@@ -32,24 +31,18 @@ where
 
         let keybinds = self.keybind_set.get_mut(&mut self.app.prefs);
 
-        fn square_button(ui: &mut egui::Ui, text: &str, hover_text: &str) -> egui::Response {
-            ui.add_sized(SQUARE_BUTTON_SIZE, egui::Button::new(text))
-                .on_hover_text(hover_text)
-        }
-
-        let plaintext_yaml_editor = PlaintextYamlEditor {
+        let plaintext_yaml_editor = widgets::PlaintextYamlEditor {
             id: unique_id!(self.keybind_set),
-            button_size: SQUARE_BUTTON_SIZE,
         };
 
         let mut r = plaintext_yaml_editor.show(ui, keybinds).unwrap_or_else(|| {
             ui.scope(|ui| {
                 ui.horizontal(|ui| {
-                    if square_button(ui, "✏", "Edit as plaintext").clicked() {
+                    if widgets::big_icon_button(ui, "✏", "Edit as plaintext").clicked() {
                         plaintext_yaml_editor.set_active(ui, keybinds);
                     }
 
-                    if square_button(ui, "➕", "Add a new keybind").clicked() {
+                    if widgets::big_icon_button(ui, "➕", "Add a new keybind").clicked() {
                         keybinds.push(Keybind::default());
                         changed = true;
                     };
@@ -67,7 +60,6 @@ where
 
                 egui::ScrollArea::new([false, true]).show(ui, |ui| {
                     let r = widgets::ReorderableList::new(unique_id!(self.keybind_set), keybinds)
-                        .button_size(SQUARE_BUTTON_SIZE)
                         .show(ui, |ui, idx, keybind| {
                             let mut r = ui.add_sized(
                                 KEY_BUTTON_SIZE,

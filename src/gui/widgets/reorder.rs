@@ -1,31 +1,20 @@
 use egui::NumExt;
 
+use crate::gui::widgets;
+
 pub struct ReorderableList<'a, T> {
     id: egui::Id,
     list: &'a mut Vec<T>,
-    button_size: Option<egui::Vec2>,
 }
 impl<'a, T> ReorderableList<'a, T> {
     pub fn new(id: egui::Id, list: &'a mut Vec<T>) -> Self {
-        Self {
-            id,
-            list,
-            button_size: None,
-        }
-    }
-    pub fn button_size(mut self, button_size: egui::Vec2) -> Self {
-        self.button_size = Some(button_size);
-        self
+        Self { id, list }
     }
     pub fn show(
         self,
         ui: &mut egui::Ui,
         mut row_ui: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
     ) -> egui::Response {
-        let button_size = self
-            .button_size
-            .unwrap_or(egui::vec2(1.0, 1.0) * ui.spacing().interact_size.y);
-
         let drag_id = self.id.with("drag");
         let is_anything_being_dragged = ui.memory().is_anything_being_dragged();
         let mut reorder_from: Option<usize> = ui
@@ -45,12 +34,9 @@ impl<'a, T> ReorderableList<'a, T> {
                     ui.push_id(i, |ui| {
                         ui.horizontal(|ui| {
                             let is_being_dragged = reorder_from == Some(i);
-                            drag_handle.push(ui.add(DragReorderHandle {
-                                is_being_dragged,
-                                size: button_size,
-                            }));
+                            drag_handle.push(ui.add(DragReorderHandle { is_being_dragged }));
 
-                            if ui.add_sized(button_size, egui::Button::new("🗑")).clicked() {
+                            if widgets::big_icon_button(ui, "🗑", "").clicked() {
                                 to_delete = Some(i);
                             }
 
@@ -129,11 +115,11 @@ impl<'a, T> ReorderableList<'a, T> {
 
 struct DragReorderHandle {
     is_being_dragged: bool,
-    size: egui::Vec2,
 }
 impl egui::Widget for DragReorderHandle {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let (rect, resp) = ui.allocate_exact_size(self.size, egui::Sense::drag());
+        let (rect, resp) =
+            ui.allocate_exact_size(widgets::BIG_ICON_BUTTON_SIZE, egui::Sense::drag());
         if ui.is_rect_visible(rect) {
             // Change color based on hover/focus.
             let color = if resp.has_focus() || self.is_being_dragged {
