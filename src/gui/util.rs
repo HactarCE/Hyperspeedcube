@@ -2,7 +2,6 @@ use egui::NumExt;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::hash::Hash;
 
 use crate::puzzle::{rubiks_3d, rubiks_4d, traits::*, PuzzleTypeEnum};
@@ -439,93 +438,6 @@ macro_rules! access {
             get_mut: Box::new(move |t| &mut t $($suffix_tok)*),
         }
     }
-}
-
-#[must_use = "If this function returns a non-None value, the preferences must be saved"]
-pub(super) fn add_preset_button<T: Clone>(
-    ui: &mut egui::Ui,
-    id: egui::Id,
-    presets: &mut BTreeMap<String, T>,
-    get_current_value: impl FnOnce() -> T,
-) -> Option<String> {
-    let edit_mode_id = id.with("edit_mode");
-    let new_preset_name_id = id.with("new_preset_name");
-
-    let mut edit_mode: bool = ui.data().get_temp(edit_mode_id).unwrap_or(false);
-    let mut new_preset_name: String = ui.data().get_temp(new_preset_name_id).unwrap_or_default();
-
-    if presets.is_empty() {
-        edit_mode = true;
-    }
-
-    let mut ret = None;
-
-    // If edit mode is enabled, show a text input and a save button.
-    if edit_mode {
-        ui.horizontal(|ui| {
-            let mut save_button_clicked = false;
-            let enabled = !new_preset_name.trim().is_empty();
-            ui.add_enabled_ui(enabled, |ui| {
-                save_button_clicked = ui.button("Save").clicked();
-            });
-            let r = ui.text_edit_singleline(&mut new_preset_name);
-            let text_edit_confirm = r.lost_focus() && ui.input().key_pressed(egui::Key::Enter);
-            if enabled && (save_button_clicked || text_edit_confirm) {
-                presets.insert(new_preset_name.trim().to_string(), get_current_value());
-                ret = Some(std::mem::take(&mut new_preset_name));
-            }
-        });
-        ui.separator();
-    }
-
-    ui.data().insert_temp(edit_mode_id, edit_mode);
-    ui.data().insert_temp(new_preset_name_id, new_preset_name);
-
-    ret
-}
-
-#[must_use = "This function returns whether the preferences must be saved"]
-pub(super) fn presets_list<T: Clone>(
-    ui: &mut egui::Ui,
-    id: egui::Id,
-    presets: &mut BTreeMap<String, T>,
-    mut preset_ui: impl FnMut(&mut egui::Ui, PresetRef<'_, T>),
-) -> bool {
-    let edit_mode_id = id.with("edit_mode");
-
-    let mut edit_mode: bool = ui.data().get_temp(edit_mode_id).unwrap_or(false);
-
-    let mut needs_save = false;
-
-    presets.retain(|name, value| {
-        let mut keep = true;
-
-        ui.horizontal(|ui| {
-            // If edit mode is enabled, give the option to delete each preset.
-            if edit_mode {
-                if ui.button("🗑").clicked() {
-                    keep = false;
-                    needs_save = true;
-                }
-            }
-
-            preset_ui(ui, PresetRef { name, value });
-        });
-
-        keep
-    });
-
-    if !presets.is_empty() {
-        ui.checkbox(&mut edit_mode, "Manage presets");
-    }
-
-    ui.data().insert_temp(edit_mode_id, edit_mode);
-
-    needs_save
-}
-pub(super) struct PresetRef<'a, T> {
-    pub name: &'a str,
-    pub value: &'a mut T,
 }
 
 #[derive(Debug, Clone)]

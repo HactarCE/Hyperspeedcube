@@ -325,19 +325,30 @@ impl PuzzleController {
         self.hovered_twists
     }
 
-    pub(crate) fn geometry(&mut self, prefs: &Preferences) -> Arc<Vec<ProjectedStickerGeometry>> {
+    /// Returns the current animated view settings, given the static settings
+    /// stored in the preferences file.
+    pub(crate) fn view_prefs<'a>(&mut self, prefs: &'a Preferences) -> Cow<'a, ViewPreferences> {
         // Use animated view settings.
-        let mut view_prefs = Cow::Borrowed(prefs.view(self.ty()));
-        while self.view_settings_anim.queue.back() == Some(&*view_prefs) {
+        let old_view_prefs = prefs.view(self.ty());
+        while self.view_settings_anim.queue.back() == Some(&*old_view_prefs) {
             // No need to animate this one! It's the same as what we're
             // currently displaying;
             self.view_settings_anim.queue.pop_back();
         }
         if let Some(old) = self.view_settings_anim.queue.get(0) {
-            let new = self.view_settings_anim.queue.get(1).unwrap_or(&view_prefs);
+            let new = self
+                .view_settings_anim
+                .queue
+                .get(1)
+                .unwrap_or(&old_view_prefs);
             let t = self.view_settings_anim.progress;
-            view_prefs = Cow::Owned(ViewPreferences::interpolate(old, new, t));
+            Cow::Owned(ViewPreferences::interpolate(old, new, t))
+        } else {
+            Cow::Borrowed(old_view_prefs)
         }
+    }
+    pub(crate) fn geometry(&mut self, prefs: &Preferences) -> Arc<Vec<ProjectedStickerGeometry>> {
+        let view_prefs = self.view_prefs(prefs);
 
         let params = StickerGeometryParams::new(
             &view_prefs,

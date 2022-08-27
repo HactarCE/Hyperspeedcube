@@ -1,5 +1,5 @@
 use crate::app::App;
-use crate::gui::util::{self, presets_list};
+use crate::gui::{util, widgets};
 use crate::preferences::DEFAULT_PREFS;
 use crate::puzzle::{traits::*, ProjectionType};
 
@@ -12,35 +12,44 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
     ui.collapsing("Presets", |ui| {
-        let id = unique_id!();
-        if let Some(name) =
-            util::add_preset_button(ui, id, &mut presets.presets, || presets.current.clone())
-        {
-            presets.active_preset = Some(name);
-            changed = true;
-        }
-        changed |= presets_list(ui, id, &mut presets.presets, |ui, preset| {
-            if ui.button("Load").clicked() {
-                let old = std::mem::replace(&mut presets.current, preset.value.clone());
-                app.puzzle.animate_from_view_settings(old);
-                presets.active_preset = Some(preset.name.to_string());
+        let mut presets_ui = widgets::PresetsUi {
+            id: unique_id!(),
+            presets: &mut presets.presets,
+            changed: &mut changed,
+        };
+
+        presets_ui.show_header_with_active_preset(ui, &presets.current, &mut presets.active_preset);
+        ui.separator();
+        presets_ui.show_list(ui, |ui, idx, preset| {
+            let mut changed = false;
+
+            let mut r = ui.scope(|ui| {
+                if ui.button("Load").clicked() {
+                    let old = std::mem::replace(&mut presets.current, preset.value.clone());
+                    app.puzzle.animate_from_view_settings(old);
+                    presets.active_preset = Some(preset.clone());
+                    changed = true;
+                }
+                if presets.active_preset.as_ref() == Some(preset) {
+                    ui.strong(&preset.preset_name);
+                } else {
+                    ui.label(&preset.preset_name);
+                }
+            });
+            if changed {
+                r.response.mark_changed();
             }
-            if presets.active_preset.as_deref() == Some(preset.name) {
-                ui.strong(preset.name);
-            } else {
-                ui.label(preset.name);
-            }
+            r.response
         });
     });
 
     let mut prefs_ui = util::PrefsUi {
         ui,
         current: &mut presets.current,
-        defaults: presets
-            .active_preset
-            .as_ref()
-            .and_then(|name| presets.presets.get(name))
-            .unwrap_or(DEFAULT_PREFS.view(puzzle_type)),
+        defaults: match &presets.active_preset {
+            Some(p) => &p.value,
+            None => DEFAULT_PREFS.view(puzzle_type),
+        },
         changed: &mut changed,
     };
 

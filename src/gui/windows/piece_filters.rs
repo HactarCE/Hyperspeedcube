@@ -1,6 +1,6 @@
 use crate::app::App;
-use crate::gui::util;
-use crate::preferences::DEFAULT_PREFS;
+use crate::gui::{util, widgets};
+use crate::preferences::{PieceFilter, DEFAULT_PREFS};
 use crate::puzzle::{traits::*, Face, Piece, PieceType, PuzzleController};
 
 const MIN_WIDTH: f32 = 300.0;
@@ -111,16 +111,27 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
         let id = unique_id!();
 
-        let new_preset_name = util::add_preset_button(ui, id, piece_filters_prefs, || {
-            app.puzzle.visible_pieces_string()
+        let mut changed = false;
+
+        let mut presets_ui = widgets::PresetsUi {
+            id: unique_id!(),
+            presets: piece_filters_prefs,
+            changed: &mut changed,
+        };
+
+        presets_ui.show_header(ui, || PieceFilter {
+            visible_pieces: app.puzzle.visible_pieces_string(),
+            hidden_opacity: None,
         });
-        app.prefs.needs_save |= new_preset_name.is_some();
-        app.prefs.needs_save |= util::presets_list(ui, id, piece_filters_prefs, |ui, preset| {
-            PieceFilterWidget::new(preset.name, |piece| {
-                crate::util::b16_fetch_bit(preset.value, piece.0 as _)
+        ui.separator();
+        presets_ui.show_list(ui, |ui, idx, preset| {
+            PieceFilterWidget::new(&preset.preset_name, |piece| {
+                crate::util::b16_fetch_bit(&preset.value.visible_pieces, piece.0 as _)
             })
-            .show(ui, &mut app.puzzle);
-        })
+            .show(ui, &mut app.puzzle)
+        });
+
+        app.prefs.needs_save |= changed;
     });
 }
 

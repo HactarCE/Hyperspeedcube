@@ -109,7 +109,7 @@ pub(crate) fn draw_puzzle(
 
     let puzzle = &mut app.puzzle;
     let prefs = &app.prefs;
-    let view_prefs = prefs.view(puzzle.ty());
+    let view_prefs = puzzle.view_prefs(prefs);
     let cache = &mut app.render_cache;
 
     let now = Instant::now();

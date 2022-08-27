@@ -15,6 +15,7 @@ mod gfx;
 mod info;
 mod interaction;
 mod keybinds;
+mod migration;
 mod opacity;
 mod outlines;
 mod view;
@@ -93,6 +94,10 @@ pub struct Preferences {
     #[serde(skip)]
     pub needs_save: bool,
 
+    /// Preferences file format version.
+    #[serde(skip_deserializing)]
+    pub version: u32,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
 
@@ -108,13 +113,39 @@ pub struct Preferences {
 
     pub colors: ColorPreferences,
 
-    pub piece_filters: PerPuzzle<BTreeMap<String, String>>,
+    pub piece_filters: PerPuzzle<Vec<Preset<PieceFilter>>>,
 
     pub global_keybinds: Vec<Keybind<Command>>,
     // pub keybind_sets: Vec<KeybindSet<PuzzleCommand>>,
     pub puzzle_keybinds: PerPuzzleFamily<Vec<Keybind<PuzzleCommand>>>,
 }
 impl Preferences {
+    fn backup_prefs_file() {
+        if let Ok(prefs_path) = &*PREFS_FILE_PATH {
+            let datetime = time::OffsetDateTime::now_local()
+                .unwrap_or_else(|_| time::OffsetDateTime::now_utc());
+            let mut backup_path = prefs_path.clone();
+            backup_path.pop();
+            backup_path.push(format!(
+                "{}_{:04}-{:02}-{:02}_{:02}-{:02}-{:02}_bak.{}",
+                PREFS_FILE_NAME,
+                datetime.year(),
+                datetime.month() as u8,
+                datetime.day(),
+                datetime.hour(),
+                datetime.minute(),
+                datetime.second(),
+                PREFS_FILE_EXTENSION,
+            ));
+            if std::fs::rename(prefs_path, &backup_path).is_ok() {
+                log::info!(
+                    "Backup of old preferences stored at {}",
+                    backup_path.display(),
+                );
+            }
+        }
+    }
+
     pub fn load(backup: Option<&Self>) -> Self {
         let mut config = config::Config::builder();
 
@@ -132,32 +163,24 @@ impl Preferences {
         // search for that)
         config
             .build()
-            .and_then(|c| c.try_deserialize::<Self>())
+            // .and_then(|c| c.try_deserialize::<migration::v0::PrefsCompat>())
+            // .map(|p| migration::PrefsCompat::V0 { remaining: p })
+            .and_then(|c| c.try_deserialize::<migration::PrefsCompat>())
+            .map(|prefs_compat| {
+                if !prefs_compat.is_latest() {
+                    log::info!(
+                        "Migrating preferences from v{} to v{}",
+                        prefs_compat.version(),
+                        migration::LATEST_VERSION,
+                    );
+                    Self::backup_prefs_file();
+                }
+                prefs_compat.into()
+            })
             .unwrap_or_else(|e| {
                 log::warn!("Error loading preferences: {}", e);
-                if let Ok(prefs_path) = &*PREFS_FILE_PATH {
-                    let datetime = time::OffsetDateTime::now_local()
-                        .unwrap_or_else(|_| time::OffsetDateTime::now_utc());
-                    let mut backup_path = prefs_path.clone();
-                    backup_path.pop();
-                    backup_path.push(format!(
-                        "{}_{:04}-{:02}-{:02}_{:02}-{:02}-{:02}_bak.{}",
-                        PREFS_FILE_NAME,
-                        datetime.year(),
-                        datetime.month() as u8,
-                        datetime.day(),
-                        datetime.hour(),
-                        datetime.minute(),
-                        datetime.second(),
-                        PREFS_FILE_EXTENSION,
-                    ));
-                    if std::fs::rename(prefs_path, &backup_path).is_ok() {
-                        log::info!(
-                            "Backup of old preferences stored at {}",
-                            backup_path.display(),
-                        );
-                    }
-                }
+
+                Self::backup_prefs_file();
 
                 // Try backup
                 backup
@@ -182,6 +205,9 @@ impl Preferences {
             // Clear empty entries.
             self.piece_filters.map.retain(|_k, v| !v.is_empty());
 
+            // Set version number.
+            self.version = migration::LATEST_VERSION;
+
             let result = (|| -> anyhow::Result<()> {
                 // IIFE to mimic try block
                 let path = PREFS_FILE_PATH.as_ref()?;
@@ -191,8 +217,9 @@ impl Preferences {
                 serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
                 Ok(())
             })();
-            if let Err(e) = result {
-                log::error!("Error saving preferences: {}", e);
+            match result {
+                Ok(()) => log::debug!("Saved preferences"),
+                Err(e) => log::error!("Error saving preferences: {}", e),
             }
         }
     }
@@ -217,11 +244,27 @@ impl Preferences {
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
-pub struct WithPresets<T> {
+pub struct WithPresets<T: Default> {
     #[serde(flatten)]
     pub current: T,
-    pub active_preset: Option<String>,
-    pub presets: BTreeMap<String, T>,
+    pub active_preset: Option<Preset<T>>,
+    pub presets: Vec<Preset<T>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(default)]
+pub struct Preset<T> {
+    pub preset_name: String,
+    #[serde(flatten)]
+    pub value: T,
+}
+impl<T: Default> Default for Preset<T> {
+    fn default() -> Self {
+        Self {
+            preset_name: "unnamed".to_string(),
+            value: T::default(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
@@ -283,4 +326,14 @@ impl<T> PerPuzzleFamily<T> {
 
 fn is_false(x: &bool) -> bool {
     !x
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(default)]
+pub struct PieceFilter {
+    /// Hexadecimal-encoded bitstring of which pieces are visible.
+    pub visible_pieces: String,
+    /// Opacity of hidden pieces.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hidden_opacity: Option<f32>,
 }
