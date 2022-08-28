@@ -33,11 +33,11 @@ where
         get_current: impl FnOnce() -> T,
         active_preset: Option<&mut Option<Preset<T>>>,
     ) {
-        let mut manage_presets = ui.data().get_temp::<bool>(self.id).unwrap_or(false);
-        ui.checkbox(&mut manage_presets, "Manage presets");
-        ui.data().insert_temp::<bool>(self.id, manage_presets);
+        let mut edit_presets = ui.data().get_temp::<bool>(self.id).unwrap_or(false);
+        ui.checkbox(&mut edit_presets, "Edit presets");
+        ui.data().insert_temp::<bool>(self.id, edit_presets);
 
-        if !manage_presets {
+        if !edit_presets {
             return;
         }
 
@@ -96,9 +96,9 @@ where
         ui: &mut egui::Ui,
         mut preset_ui: impl FnMut(&mut egui::Ui, usize, &mut Preset<T>) -> egui::Response,
     ) {
-        let manage_presets = ui.data().get_temp::<bool>(self.id).unwrap_or(false);
+        let edit_presets = ui.data().get_temp::<bool>(self.id).unwrap_or(false);
 
-        if manage_presets {
+        if edit_presets {
             if !self.plaintext_yaml_editor().is_active(ui) {
                 // egui::ScrollArea::new([false, true]).show(ui, |ui| {
                 *self.changed |= widgets::ReorderableList::new(self.id, self.presets)
