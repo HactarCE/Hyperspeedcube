@@ -198,7 +198,7 @@ impl PuzzleController {
         self._twist(twist, false)
     }
     fn _twist(&mut self, mut twist: Twist, collapse: bool) -> Result<(), &'static str> {
-        twist.layers = twist.layers & self.all_layers(); // Restrict layer mask.
+        twist.layers &= self.all_layers(); // Restrict layer mask.
         if twist.layers == LayerMask(0) {
             return Err("invalid layer mask");
         }
@@ -269,11 +269,10 @@ impl PuzzleController {
     /// Returns the twist currently being animated, along with a float between
     /// 0.0 and 1.0 indicating the progress on that animation.
     pub fn current_twist(&self) -> Option<(Twist, f32)> {
-        if let Some(anim) = self.twist_anim.queue.get(0) {
-            Some((anim.twist, TWIST_INTERPOLATION_FN(self.twist_anim.progress)))
-        } else {
-            None
-        }
+        self.twist_anim
+            .queue
+            .get(0)
+            .map(|anim| (anim.twist, TWIST_INTERPOLATION_FN(self.twist_anim.progress)))
     }
 
     /// Returns the state of the cube that should be displayed, not including
@@ -394,7 +393,7 @@ impl PuzzleController {
                 .view_settings_anim
                 .queue
                 .get(1)
-                .unwrap_or(&old_view_prefs);
+                .unwrap_or(old_view_prefs);
             let t = self.view_settings_anim.progress;
             Cow::Owned(ViewPreferences::interpolate(old, new, t))
         } else {

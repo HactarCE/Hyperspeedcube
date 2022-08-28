@@ -531,6 +531,7 @@ impl TwistMetric {
         puzzle: impl PuzzleType,
         twists: impl IntoIterator<Item = Twist>,
     ) -> usize {
+        #[allow(clippy::needless_late_init)]
         let slice_multiplier: fn(LayerMask, u8) -> u32;
 
         match self {
@@ -585,14 +586,12 @@ impl TwistMetric {
 
             let direction_multiplier = if is_qtm {
                 puzzle.count_quarter_turns(twist)
+            } else if prev_axis == Some(twist.axis) && prev_layers == Some(twist.layers) {
+                // Same axis and layers as previous twist! This twist is
+                // free.
+                0
             } else {
-                if prev_axis == Some(twist.axis) && prev_layers == Some(twist.layers) {
-                    // Same axis and layers as previous twist! This twist is
-                    // free.
-                    0
-                } else {
-                    1
-                }
+                1
             };
 
             prev_axis = Some(twist.axis);

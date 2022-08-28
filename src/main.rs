@@ -6,6 +6,7 @@
     clippy::collapsible_match,
     clippy::match_like_matches_macro,
     clippy::single_match,
+    clippy::useless_format,
     missing_docs, // TODO: remove
 )]
 

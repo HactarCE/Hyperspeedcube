@@ -42,7 +42,7 @@ where
             ui.scope(|ui| {
                 ui.horizontal(|ui| {
                     if widgets::big_icon_button(ui, "✏", "Edit as plaintext").clicked() {
-                        yaml_editor.set_active(ui, &mut keybinds);
+                        yaml_editor.set_active(ui, &keybinds);
                     }
 
                     if widgets::big_icon_button(ui, "➕", "Add a new keybind").clicked() {
@@ -294,7 +294,7 @@ impl<'a> egui::Widget for LayerMaskEdit<'a> {
                 let mut text: String = ui
                     .data()
                     .get_temp(text_id)
-                    .unwrap_or(default_string.clone());
+                    .unwrap_or_else(|| default_string.clone());
 
                 let r = egui::TextEdit::singleline(&mut text)
                     .desired_width(LAYER_DESCRIPTION_WIDTH)

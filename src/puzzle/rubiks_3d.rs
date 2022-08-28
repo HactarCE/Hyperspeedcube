@@ -875,11 +875,7 @@ impl PieceTypeEnum {
         } else if min == med {
             Self::XCenter(if max < 3 { 0 } else { med })
         } else {
-            if max < 4 {
-                Self::Oblique(0, 0)
-            } else {
-                Self::Oblique(min, med)
-            }
+            Self::Oblique(if max < 4 { 0 } else { min }, if max < 4 { 0 } else { med })
         }
     }
 }

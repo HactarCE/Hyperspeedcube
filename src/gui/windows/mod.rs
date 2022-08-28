@@ -13,7 +13,7 @@ pub const FLOATING_WINDOW_OPACITY: f32 = 0.98;
 pub const PREFS_WINDOW_WIDTH: f32 = 240.0;
 pub const ABOUT_WINDOW_WIDTH: f32 = 360.0;
 
-pub const ALL: &'static [Window] = &[
+pub const ALL: &[Window] = &[
     // Misc.
     ABOUT,
     #[cfg(debug_assertions)]

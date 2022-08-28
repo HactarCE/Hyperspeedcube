@@ -273,9 +273,9 @@ impl LayerMaskDesc {
             let end = layer_idx(segment.end, layer_count);
             let segment_mask = LayerMask::from(start..=end);
             if segment.subtract {
-                ret = ret & !segment_mask;
+                ret &= !segment_mask;
             } else {
-                ret = ret | segment_mask;
+                ret |= segment_mask;
             }
         }
 

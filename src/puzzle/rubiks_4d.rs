@@ -1391,11 +1391,7 @@ impl PieceTypeEnum {
             } else if min == lo {
                 Self::XRidge(if max < 3 { 0 } else { lo })
             } else {
-                if max < 4 {
-                    Self::ObliqueRidge(0, 0)
-                } else {
-                    Self::ObliqueRidge(min, lo)
-                }
+                Self::ObliqueRidge(if max < 4 { 0 } else { min }, if max < 4 { 0 } else { lo })
             }
         } else if hi == 0 {
             Self::Center
@@ -1412,11 +1408,11 @@ impl PieceTypeEnum {
         } else if min == lo || lo == hi {
             Self::SemiOblique(min, lo, hi)
         } else {
-            if max < 5 {
-                Self::Oblique(0, 0, 0)
-            } else {
-                Self::Oblique(min, lo, hi)
-            }
+            Self::Oblique(
+                if max < 5 { 0 } else { min },
+                if max < 5 { 0 } else { lo },
+                if max < 5 { 0 } else { hi },
+            )
         }
     }
 }

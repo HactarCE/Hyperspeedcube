@@ -158,7 +158,7 @@ pub(super) fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
 
     prefs_ui.ui.strong("Sizes");
 
-    fn outline_size_dv<'a>(drag_value: egui::DragValue<'a>) -> egui::DragValue<'a> {
+    fn outline_size_dv(drag_value: egui::DragValue<'_>) -> egui::DragValue<'_> {
         drag_value
             .fixed_decimals(1)
             .clamp_range(0.0..=5.0_f32)

@@ -20,7 +20,7 @@ pub(super) fn try_deserialize(c: Config) -> Result<Preferences, ConfigError> {
     }
     Ok(match version {
         0 => c.try_deserialize::<v0::PrefsCompat>()?.into(),
-        1 => c.try_deserialize::<v1::PrefsCompat>()?.into(),
+        1 => c.try_deserialize::<v1::PrefsCompat>()?,
         _ => c.try_deserialize::<Preferences>()?,
     })
 }
@@ -35,19 +35,19 @@ pub enum PrefsCompat {
         #[serde(rename = "version")]
         _version: monostate::MustBe!(1),
         #[serde(flatten)]
-        remaining: v1::PrefsCompat,
+        remaining: Box<v1::PrefsCompat>,
     },
     /// v0.8.x
     V0 {
         #[serde(flatten)]
-        remaining: v0::PrefsCompat,
+        remaining: Box<v0::PrefsCompat>,
     },
 }
 impl From<PrefsCompat> for Preferences {
     fn from(p: PrefsCompat) -> Self {
         match p {
-            PrefsCompat::V1 { remaining, .. } => remaining.into(),
-            PrefsCompat::V0 { remaining } => remaining.into(),
+            PrefsCompat::V1 { remaining, .. } => *remaining,
+            PrefsCompat::V0 { remaining } => (*remaining).into(),
         }
     }
 }
