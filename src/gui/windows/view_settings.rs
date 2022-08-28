@@ -55,7 +55,8 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     prefs_ui.collapsing("View angle", |mut prefs_ui| {
         prefs_ui.angle("Pitch", access!(.pitch), |dv| dv.clamp_range(-90.0..=90.0));
-        prefs_ui.angle("Yaw", access!(.yaw), |dv| dv.clamp_range(-45.0..=45.0));
+        prefs_ui.angle("Yaw", access!(.yaw), |dv| dv.clamp_range(-180.0..=180.0));
+        prefs_ui.angle("Roll", access!(.roll), |dv| dv.clamp_range(-180.0..=180.0));
     });
 
     prefs_ui.collapsing("Projection", |mut prefs_ui| {

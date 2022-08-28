@@ -4,7 +4,7 @@ use anyhow::Result;
 use bitvec::bitvec;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
-use cgmath::InnerSpace;
+use cgmath::{Deg, InnerSpace, One, Quaternion, Rotation3};
 use num_enum::FromPrimitive;
 use std::borrow::Cow;
 use std::collections::{HashSet, VecDeque};
@@ -58,7 +58,7 @@ pub struct PuzzleController {
     view_settings_anim: ViewSettingsAnimState,
 
     /// View angle offset.
-    view_angle_offset: [f32; 2],
+    view_angle_offset: Quaternion<f32>,
     /// Whether to freeze the view angle offset, versus animating it back to zero.
     freeze_view_angle_offset: bool,
 
@@ -124,7 +124,7 @@ impl PuzzleController {
             puzzle: Puzzle::new(ty),
             twist_anim: TwistAnimationState::default(),
             view_settings_anim: ViewSettingsAnimState::default(),
-            view_angle_offset: [0.0; 2],
+            view_angle_offset: Quaternion::one(),
             freeze_view_angle_offset: false,
 
             is_unsaved: false,
@@ -277,21 +277,12 @@ impl PuzzleController {
         self.grip = grip;
     }
 
-    /// Returns the current view angle offset, clamping pitch and wrapping yaw
-    /// as necessary
-    pub fn clamped_view_angle_offset(&mut self, prefs: &ViewPreferences) -> [f32; 2] {
-        let [yaw, pitch] = self.view_angle_offset;
-        let base_pitch = prefs.pitch;
-        [
-            (yaw + 180.0).rem_euclid(360.0) - 180.0,
-            pitch.clamp(-90.0 - base_pitch, 90.0 - base_pitch),
-        ]
-    }
     /// Sets the view angle offset. Consider calling
     /// `freeze_view_angle_offset()` as well.
     pub fn add_view_angle_offset(&mut self, offset: [f32; 2]) {
-        self.view_angle_offset[0] += offset[0];
-        self.view_angle_offset[1] += offset[1];
+        self.view_angle_offset = Quaternion::from_angle_x(Deg(offset[1]))
+            * Quaternion::from_angle_y(Deg(offset[0]))
+            * self.view_angle_offset;
     }
     /// Freezes the view angle offset, so that it will not animate back to zero
     /// automatically. It can still be changed with `set_view_angle_offset()`.
@@ -300,7 +291,6 @@ impl PuzzleController {
     }
     /// Unfreezes the view angle offset and begins animating it back to zero.
     pub fn unfreeze_view_angle_offset(&mut self, prefs: &ViewPreferences) {
-        self.view_angle_offset = self.clamped_view_angle_offset(prefs);
         self.freeze_view_angle_offset = false;
     }
 
@@ -368,7 +358,7 @@ impl PuzzleController {
             &view_prefs,
             self.ty(),
             self.current_twist(),
-            self.clamped_view_angle_offset(&view_prefs),
+            self.view_angle_offset,
         );
 
         if self.cached_geometry_params != Some(params) {
@@ -473,15 +463,15 @@ impl PuzzleController {
 
         // Animate view angle offset.
         if !self.freeze_view_angle_offset {
-            let [x, y] = &mut self.view_angle_offset;
+            let offset = &mut self.view_angle_offset;
+
             let decay_multiplier = VIEW_ANGLE_OFFSET_DECAY_RATE.powf(delta.as_secs_f32());
-            *x *= decay_multiplier;
-            *y *= decay_multiplier;
-            let squared_magnitude = *x * *x + *y * *y;
-            // Stop the animation once we're close enough;
-            if squared_magnitude < 0.01 {
-                *x = 0.0;
-                *y = 0.0;
+            let new_offset = Quaternion::one().slerp(*offset, decay_multiplier);
+            if offset.s == new_offset.s {
+                // Stop the animation once we're not making any more progress.
+                *offset = Quaternion::one();
+            } else {
+                *offset = new_offset;
             }
         }
 

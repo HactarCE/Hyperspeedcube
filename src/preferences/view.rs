@@ -1,12 +1,15 @@
+use cgmath::{Deg, Quaternion, Rotation3};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct ViewPreferences {
-    /// Puzzle angle around Y axis, in degrees.
-    pub pitch: f32,
     /// Puzzle angle around X axis, in degrees.
+    pub pitch: f32,
+    /// Puzzle angle around Y axis, in degrees.
     pub yaw: f32,
+    /// Puzzle angle around Z axis, in degrees.
+    pub roll: f32,
 
     /// Global puzzle scale.
     pub scale: f32,
@@ -33,6 +36,7 @@ impl Default for ViewPreferences {
         Self {
             pitch: 0_f32,
             yaw: 0_f32,
+            roll: 0_f32,
 
             scale: 1.0,
             fov_3d: 30_f32,
@@ -55,11 +59,22 @@ impl Default for ViewPreferences {
 }
 
 impl ViewPreferences {
+    pub fn view_angle(&self) -> Quaternion<f32> {
+        Quaternion::from_angle_z(Deg(self.roll))
+            * Quaternion::from_angle_x(Deg(self.pitch))
+            * Quaternion::from_angle_y(Deg(self.yaw))
+    }
+
     // TODO: make a proc macro crate to generate a trait impl like this
     pub fn interpolate(&self, rhs: &Self, t: f32) -> Self {
         Self {
+            // I know, I know, I should use quaternions for interpolation. But
+            // cgmath uses XYZ order by default instead of YXZ so doing this
+            // properly isn't trivial.
             pitch: crate::util::mix(self.pitch, rhs.pitch, t),
             yaw: crate::util::mix(self.yaw, rhs.yaw, t),
+            roll: crate::util::mix(self.roll, rhs.roll, t),
+
             scale: crate::util::mix(self.scale, rhs.scale, t),
             fov_3d: crate::util::mix(self.fov_3d, rhs.fov_3d, t),
             fov_4d: crate::util::mix(self.fov_4d, rhs.fov_4d, t),
