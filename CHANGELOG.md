@@ -8,7 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- Editing keybinds as plaintext YAML
+- Editing keybinds and presets as plaintext YAML
+- Option to save hidden piece opacity in piece filter preset
 
 ### Changed
 

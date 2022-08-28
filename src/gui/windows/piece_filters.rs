@@ -1,7 +1,7 @@
 use crate::app::App;
 use crate::gui::{util, widgets};
 use crate::preferences::{PieceFilter, DEFAULT_PREFS};
-use crate::puzzle::{traits::*, Face, Piece, PieceType, PuzzleController};
+use crate::puzzle::{traits::*, Face, Piece, PieceType};
 
 const MIN_WIDTH: f32 = 300.0;
 
@@ -38,14 +38,14 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     PieceFilterWidget::new_uppercased("everything", |_| true)
         .no_all_except()
-        .show(ui, &mut app.puzzle);
+        .show(ui, app);
 
     ui.collapsing("Types", |ui| {
         for (i, piece_type) in puzzle_type.piece_types().iter().enumerate() {
             PieceFilterWidget::new_uppercased(&format!("{}s", piece_type.name), move |piece| {
                 puzzle_type.info(piece).piece_type == PieceType(i as _)
             })
-            .show(ui, &mut app.puzzle);
+            .show(ui, app);
         }
     });
 
@@ -71,7 +71,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 })
                 .response
             })
-            .show(ui, &mut app.puzzle);
+            .show(ui, app);
         }
 
         ui.add_enabled_ui(selected_colors.contains(&true), |ui| {
@@ -84,21 +84,21 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                             .any(|&s| puzzle_type.info(s).color == Face(i as _))
                 })
             })
-            .show(ui, &mut app.puzzle);
+            .show(ui, app);
             PieceFilterWidget::new_uppercased("pieces with any of these colors", |piece| {
                 let stickers = &puzzle_type.info(piece).stickers;
                 stickers
                     .iter()
                     .any(|&s| selected_colors[puzzle_type.info(s).color.0 as usize])
             })
-            .show(ui, &mut app.puzzle);
+            .show(ui, app);
             PieceFilterWidget::new_uppercased("pieces with only these colors", |piece| {
                 let stickers = &puzzle_type.info(piece).stickers;
                 stickers
                     .iter()
                     .all(|&s| selected_colors[puzzle_type.info(s).color.0 as usize])
             })
-            .show(ui, &mut app.puzzle);
+            .show(ui, app);
         });
 
         ui.data().insert_temp(colors_selection_id, selected_colors);
@@ -107,29 +107,40 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.collapsing("Presets", |ui| {
         ui.set_enabled(!app.prefs.colors.blindfold);
 
-        let piece_filters_prefs = &mut app.prefs.piece_filters[puzzle_type];
-
-        let id = unique_id!();
+        let opacity_prefs = &mut app.prefs.opacity;
+        let mut piece_filter_presets = std::mem::take(&mut app.prefs.piece_filters[puzzle_type]);
 
         let mut changed = false;
 
         let mut presets_ui = widgets::PresetsUi {
             id: unique_id!(),
-            presets: piece_filters_prefs,
+            presets: &mut piece_filter_presets,
             changed: &mut changed,
         };
 
         presets_ui.show_header(ui, || PieceFilter {
             visible_pieces: app.puzzle.visible_pieces_string(),
-            hidden_opacity: None,
+            hidden_opacity: opacity_prefs
+                .save_opacity_in_piece_filter_preset
+                .then_some(opacity_prefs.hidden),
+        });
+        presets_ui.show_postheader(ui, |ui| {
+            ui.checkbox(
+                &mut opacity_prefs.save_opacity_in_piece_filter_preset,
+                "Save opacity",
+            );
         });
         ui.separator();
         presets_ui.show_list(ui, |ui, idx, preset| {
-            PieceFilterWidget::new(&preset.preset_name, |piece| {
-                crate::util::b16_fetch_bit(&preset.value.visible_pieces, piece.0 as _)
-            })
-            .show(ui, &mut app.puzzle)
+            PieceFilterWidget::new(
+                &preset.preset_name,
+                |piece| crate::util::b16_fetch_bit(&preset.value.visible_pieces, piece.0 as _),
+                preset.value.hidden_opacity,
+            )
+            .show(ui, app)
         });
+
+        app.prefs.piece_filters[puzzle_type] = piece_filter_presets;
 
         app.prefs.needs_save |= changed;
     });
@@ -142,6 +153,7 @@ struct PieceFilterWidget<'a, W, P> {
     highlight_if_active: bool,
     all_except: bool,
     predicate: P,
+    hidden_opacity: Option<f32>,
 }
 impl<'a, P> PieceFilterWidget<'a, egui::Button, P>
 where
@@ -150,18 +162,24 @@ where
     fn new_uppercased(name: &'a str, predicate: P) -> Self {
         let mut s = name.to_string();
         s[0..1].make_ascii_uppercase();
-        Self::new_with_label(name, &s, predicate)
+        Self::new_with_label(name, &s, predicate, None)
     }
-    fn new(name: &'a str, predicate: P) -> Self {
-        Self::new_with_label(name, name, predicate)
+    fn new(name: &'a str, predicate: P, hidden_opacity: Option<f32>) -> Self {
+        Self::new_with_label(name, name, predicate, hidden_opacity)
     }
-    fn new_with_label(name: &'a str, label: &str, predicate: P) -> Self {
+    fn new_with_label(
+        name: &'a str,
+        label: &str,
+        predicate: P,
+        hidden_opacity: Option<f32>,
+    ) -> Self {
         Self {
             name,
             label_ui: egui::Button::new(label).frame(false),
             highlight_if_active: true,
             all_except: true,
             predicate,
+            hidden_opacity,
         }
     }
 }
@@ -177,6 +195,7 @@ where
             highlight_if_active: false,
             all_except: self.all_except,
             predicate: self.predicate,
+            hidden_opacity: self.hidden_opacity,
         }
     }
 
@@ -185,9 +204,11 @@ where
         self
     }
 
-    fn show(mut self, ui: &mut egui::Ui, puzzle: &mut PuzzleController) -> egui::Response {
+    fn show(mut self, ui: &mut egui::Ui, app: &mut App) -> egui::Response {
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                let puzzle = &mut app.puzzle;
+
                 ui.spacing_mut().item_spacing.x /= 2.0;
 
                 let r = ui.add_enabled(
@@ -241,6 +262,8 @@ where
                     egui::Layout::centered_and_justified(egui::Direction::TopDown)
                         .with_cross_align(egui::Align::LEFT),
                     |ui| {
+                        let puzzle = &mut app.puzzle;
+
                         // Highlight name of active filter.
                         if puzzle.are_all_shown(self.predicate)
                             && puzzle.are_all_hidden(|p| !(self.predicate)(p))
@@ -257,6 +280,13 @@ where
                         if r.clicked() {
                             puzzle.hide(|_| true);
                             puzzle.show(self.predicate);
+                            if let Some(hidden_opacity) = self.hidden_opacity {
+                                if app.prefs.opacity.hidden != hidden_opacity {
+                                    app.prefs.opacity.hidden = hidden_opacity;
+                                    app.prefs.needs_save = true;
+                                    app.request_redraw_puzzle();
+                                }
+                            }
                         }
                     },
                 );

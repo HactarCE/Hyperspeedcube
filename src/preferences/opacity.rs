@@ -9,4 +9,6 @@ pub struct OpacityPreferences {
     pub selected: f32,
 
     pub unhide_grip: bool,
+
+    pub save_opacity_in_piece_filter_preset: bool,
 }

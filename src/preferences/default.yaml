@@ -1,4 +1,5 @@
 ---
+# no version here, so we can see a missing "version" tag in user prefs
 info:
   metric: STM
   keybinds_reference:
@@ -21,6 +22,7 @@ opacity:
   hidden: 0.1
   selected: 1.0
   unhide_grip: false
+  save_opacity_in_piece_filter_preset: false
 outlines:
   default_size: 1.0
   hidden_size: 1.0

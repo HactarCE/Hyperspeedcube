@@ -91,6 +91,15 @@ where
         });
     }
 
+    pub fn show_postheader<R>(
+        &mut self,
+        ui: &mut egui::Ui,
+        postheader_ui: impl FnOnce(&mut egui::Ui) -> R,
+    ) -> Option<R> {
+        let edit_presets = ui.data().get_temp::<bool>(self.id).unwrap_or(false);
+        (edit_presets && !self.plaintext_yaml_editor().is_active(ui)).then(|| postheader_ui(ui))
+    }
+
     pub fn show_list(
         &mut self,
         ui: &mut egui::Ui,
@@ -100,21 +109,14 @@ where
 
         if edit_presets {
             if !self.plaintext_yaml_editor().is_active(ui) {
-                // egui::ScrollArea::new([false, true]).show(ui, |ui| {
                 *self.changed |= widgets::ReorderableList::new(self.id, self.presets)
                     .show(ui, preset_ui)
                     .changed();
-                // });
             }
         } else {
             for (idx, preset) in self.presets.iter_mut().enumerate() {
                 ui.horizontal(|ui| *self.changed |= preset_ui(ui, idx, preset).changed());
             }
         }
-
-        // // TODO: what is this for?
-        // if ui.available_height() > 0.0 {
-        //     ui.allocate_space(ui.available_size());
-        // }
     }
 }
