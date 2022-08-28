@@ -73,6 +73,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             ui.separator();
             windows::GLOBAL_KEYBINDS.menu_button_toggle(ui);
             windows::PUZZLE_KEYBINDS.menu_button_toggle(ui);
+            windows::MOUSEBINDS.menu_button_toggle(ui);
         });
 
         ui.menu_button("Tools", |ui| {

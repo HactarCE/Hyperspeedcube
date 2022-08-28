@@ -17,17 +17,19 @@ mod info;
 mod interaction;
 mod keybinds;
 mod migration;
+mod mousebinds;
 mod opacity;
 mod outlines;
 mod view;
 
-use crate::commands::{Command, PuzzleCommand};
+use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
 use crate::puzzle::{traits::*, ProjectionType, PuzzleTypeEnum};
 pub use colors::*;
 pub use gfx::*;
 pub use info::*;
 pub use interaction::*;
 pub use keybinds::*;
+pub use mousebinds::*;
 pub use opacity::*;
 pub use outlines::*;
 pub use view::*;
@@ -119,6 +121,7 @@ pub struct Preferences {
     pub global_keybinds: Vec<Keybind<Command>>,
     // pub keybind_sets: Vec<KeybindSet<PuzzleCommand>>,
     pub puzzle_keybinds: PerPuzzleFamily<Vec<Keybind<PuzzleCommand>>>,
+    pub mousebinds: Vec<Mousebind<PuzzleMouseCommand>>,
 }
 impl Preferences {
     fn backup_prefs_file() {

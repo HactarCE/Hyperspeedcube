@@ -8,7 +8,7 @@ use std::time::Duration;
 use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
-use crate::commands::{Command, PuzzleCommand};
+use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
 use crate::preferences::{Key, Keybind, Preferences};
 use crate::puzzle::*;
 use crate::render::{GraphicsState, PuzzleRenderCache};
@@ -180,29 +180,24 @@ impl App {
             }
 
             AppEvent::Click(mouse_button) => {
-                if self.pressed_modifiers() == ModifiersState::SHIFT {
-                    if let Some(sticker) = self.puzzle.hovered_sticker() {
-                        match mouse_button {
-                            egui::PointerButton::Primary => self.puzzle.toggle_select(sticker),
-                            egui::PointerButton::Secondary => self.puzzle.select(sticker),
-                            egui::PointerButton::Middle => (),
+                let modifiers_mask = self.modifiers_mask(None, None);
+                let matching_mousebind = self.prefs.mousebinds.iter().find(|bind| {
+                    egui::PointerButton::from(bind.button) == mouse_button
+                        && bind.mods() & modifiers_mask == self.pressed_modifiers() & modifiers_mask
+                });
+                if let Some(bind) = matching_mousebind {
+                    match bind.command {
+                        PuzzleMouseCommand::TwistCw => self.click_twist(|tw| tw.cw)?,
+                        PuzzleMouseCommand::TwistCcw => self.click_twist(|tw| tw.ccw)?,
+                        PuzzleMouseCommand::Recenter => self.click_twist(|tw| tw.recenter)?,
+                        PuzzleMouseCommand::SelectPiece => {
+                            if let Some(sticker) = self.puzzle.hovered_sticker() {
+                                self.puzzle.toggle_select(sticker);
+                            } else {
+                                self.puzzle.deselect_all();
+                            }
                         }
-                    } else {
-                        self.puzzle.deselect_all();
-                    }
-                    return Ok(());
-                }
-                if self.puzzle.current_twist().is_none() {
-                    if let Some(twists) = self.puzzle.hovered_twists() {
-                        let twist = match mouse_button {
-                            egui::PointerButton::Primary => twists.ccw,
-                            egui::PointerButton::Secondary => twists.cw,
-                            egui::PointerButton::Middle => twists.recenter,
-                        };
-                        if let Some(mut t) = twist {
-                            t.layers = self.gripped_layers(t.layers);
-                            self.puzzle.twist(t)?;
-                        }
+                        PuzzleMouseCommand::None => (),
                     }
                 }
             }
@@ -279,6 +274,21 @@ impl App {
 
             _ => (),
         }
+    }
+
+    fn click_twist(
+        &mut self,
+        get_twist: fn(ClickTwists) -> Option<Twist>,
+    ) -> Result<(), &'static str> {
+        if self.puzzle.current_twist().is_none() {
+            if let Some(twists) = self.puzzle.hovered_twists() {
+                if let Some(mut t) = get_twist(twists) {
+                    t.layers = self.gripped_layers(t.layers);
+                    self.puzzle.twist(t)?;
+                }
+            }
+        }
+        Ok(())
     }
 
     fn handle_key_press(&mut self, sc: Option<KeyMappingCode>, vk: Option<VirtualKeyCode>) {
@@ -424,27 +434,7 @@ impl App {
         let sc = sc.map(Key::Sc);
         let vk = vk.map(Key::Vk);
 
-        // Sometimes, we want to ignore certain modifier keys when resolving a
-        // keypress -- in particular, if another keybind has already consumed
-        // the modifier.
-        //
-        // For example, if `Shift` is bound to "grip layer 2," then a keybind
-        // bound to `A` will still match `Shift`+`A` because `Shift` is in the
-        // "ignored modifiers" set.
-        //
-        // A modifier is also ignored when matching its own key, hence
-        // `.chain(&sc).chain(&vk)`. For example, the shift modifier is ignored
-        // when matching the shift key.
-        let ignored_keys = self.transient_grips.keys().chain(&sc).chain(&vk);
-        let modifiers_mask = ignored_keys.fold(
-            // Consider all modifiers, but don't distinguish left vs. right.
-            ModifiersState::SHIFT
-                | ModifiersState::CTRL
-                | ModifiersState::ALT
-                | ModifiersState::LOGO,
-            // Ignore held greps and the key currently being pressed.
-            |mods, key_to_ignore| mods & !key_to_ignore.modifier_bit(),
-        );
+        let modifiers_mask = self.modifiers_mask(sc, vk);
 
         keybinds
             .iter()
@@ -457,6 +447,29 @@ impl App {
                 key_matches && mods_match
             })
             .collect()
+    }
+    fn modifiers_mask(&self, sc: Option<Key>, vk: Option<Key>) -> ModifiersState {
+        // Sometimes, we want to ignore certain modifier keys when resolving a
+        // keypress -- in particular, if another keybind has already consumed
+        // the modifier.
+        //
+        // For example, if `Shift` is bound to "grip layer 2," then a keybind
+        // bound to `A` will still match `Shift`+`A` because `Shift` is in the
+        // "ignored modifiers" set.
+        //
+        // A modifier is also ignored when matching its own key, hence
+        // `.chain(&sc).chain(&vk)`. For example, the shift modifier is ignored
+        // when matching the shift key.
+        let ignored_keys = self.transient_grips.keys().chain(&sc).chain(&vk);
+        ignored_keys.fold(
+            // Consider all modifiers, but don't distinguish left vs. right.
+            ModifiersState::SHIFT
+                | ModifiersState::CTRL
+                | ModifiersState::ALT
+                | ModifiersState::LOGO,
+            // Ignore held greps and the key currently being pressed.
+            |mods, key_to_ignore| mods & !key_to_ignore.modifier_bit(),
+        )
     }
 
     fn twist_axis_from_name(&self, name: Option<&str>) -> Result<TwistAxis, String> {

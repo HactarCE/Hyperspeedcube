@@ -3,6 +3,7 @@ mod interaction_settings;
 mod keybinds_reference;
 pub mod keybinds_table;
 mod modifier_keys;
+mod mousebinds_table;
 mod piece_filters;
 mod puzzle_controls;
 mod view_settings;
@@ -30,6 +31,7 @@ pub const ALL: &[Window] = &[
     // Keybinds
     GLOBAL_KEYBINDS,
     PUZZLE_KEYBINDS,
+    MOUSEBINDS,
 ];
 
 pub const ABOUT: Window = Window {
@@ -132,7 +134,7 @@ pub const GLOBAL_KEYBINDS: Window = Window {
     name: "Global keybinds",
     location: Location::LeftSide,
     fixed_width: None,
-    vscroll: true,
+    vscroll: false,
     build: |ui, app| {
         let r = ui.add(keybinds_table::KeybindsTable::new(
             app,
@@ -147,12 +149,24 @@ pub const PUZZLE_KEYBINDS: Window = Window {
     name: "Puzzle keybinds",
     location: Location::LeftSide,
     fixed_width: None,
-    vscroll: true,
+    vscroll: false,
     build: |ui, app| {
         let r = ui.add(keybinds_table::KeybindsTable::new(
             app,
             super::keybinds_set::PuzzleKeybinds(app.puzzle.ty()),
         ));
+        app.prefs.needs_save |= r.changed();
+    },
+    cleanup: |_| (),
+};
+
+pub const MOUSEBINDS: Window = Window {
+    name: "Mousebinds",
+    location: Location::LeftSide,
+    fixed_width: None,
+    vscroll: false,
+    build: |ui, app| {
+        let r = ui.add(mousebinds_table::MousebindsTable::new(app));
         app.prefs.needs_save |= r.changed();
     },
     cleanup: |_| (),

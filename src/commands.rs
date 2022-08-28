@@ -63,9 +63,21 @@ impl Command {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum PuzzleMouseCommand {
+    TwistCw,
+    TwistCcw,
+    Recenter,
+    SelectPiece,
+
+    #[default]
+    #[serde(other)]
+    None,
+}
+
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-#[allow(missing_docs)]
 pub enum PuzzleCommand {
     Grip {
         #[serde(default, skip_serializing_if = "Option::is_none")]
