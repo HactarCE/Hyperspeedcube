@@ -20,7 +20,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
         presets_ui.show_header_with_active_preset(ui, &presets.current, &mut presets.active_preset);
         ui.separator();
-        presets_ui.show_list(ui, |ui, idx, preset| {
+        presets_ui.show_list(ui, |ui, _idx, preset| {
             let mut changed = false;
 
             let mut r = ui.scope(|ui| {

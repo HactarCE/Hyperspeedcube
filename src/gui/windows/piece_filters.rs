@@ -131,7 +131,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             );
         });
         ui.separator();
-        presets_ui.show_list(ui, |ui, idx, preset| {
+        presets_ui.show_list(ui, |ui, _idx, preset| {
             PieceFilterWidget::new(
                 &preset.preset_name,
                 |piece| crate::util::b16_fetch_bit(&preset.value.visible_pieces, piece.0 as _),
