@@ -169,15 +169,23 @@ pub(super) fn build(ctx: &egui::Context, app: &mut App) -> Option<egui::Response
                                     }
                                 }
 
-                                ui.horizontal(|ui| {
-                                    if ui.button("Bind Enter key").clicked() {
-                                        popup_state_mut(&mut ctx.data())
-                                            .set_key(KeyMappingCode::Enter, VirtualKeyCode::Return);
-                                    }
+                                ui.horizontal_wrapped(|ui| {
+                                    ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
+
                                     if ui.button("Bind Escape key").clicked() {
                                         popup_state_mut(&mut ctx.data()).set_key(
                                             KeyMappingCode::Escape,
                                             VirtualKeyCode::Escape,
+                                        );
+                                    }
+                                    if ui.button("Bind Enter key").clicked() {
+                                        popup_state_mut(&mut ctx.data())
+                                            .set_key(KeyMappingCode::Enter, VirtualKeyCode::Return);
+                                    }
+                                    if ui.button("Bind Numpad Enter key").clicked() {
+                                        popup_state_mut(&mut ctx.data()).set_key(
+                                            KeyMappingCode::NumpadEnter,
+                                            VirtualKeyCode::NumpadEnter,
                                         );
                                     }
                                 });
