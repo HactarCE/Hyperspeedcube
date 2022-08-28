@@ -92,7 +92,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                     .any(|&s| selected_colors[puzzle_type.info(s).color.0 as usize])
             })
             .show(ui, &mut app.puzzle);
-            PieceFilterWidget::new("pieces with only these colors", |piece| {
+            PieceFilterWidget::new_uppercased("pieces with only these colors", |piece| {
                 let stickers = &puzzle_type.info(piece).stickers;
                 stickers
                     .iter()
@@ -139,10 +139,11 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 struct PieceFilterWidget<'a, W, P> {
     name: &'a str,
     label_ui: W,
+    highlight_if_active: bool,
     all_except: bool,
     predicate: P,
 }
-impl<'a, P> PieceFilterWidget<'a, egui::Label, P>
+impl<'a, P> PieceFilterWidget<'a, egui::Button, P>
 where
     P: Copy + FnMut(Piece) -> bool,
 {
@@ -157,7 +158,8 @@ where
     fn new_with_label(name: &'a str, label: &str, predicate: P) -> Self {
         Self {
             name,
-            label_ui: egui::Label::new(label).sense(egui::Sense::click()),
+            label_ui: egui::Button::new(label).frame(false),
+            highlight_if_active: true,
             all_except: true,
             predicate,
         }
@@ -172,6 +174,7 @@ where
         PieceFilterWidget {
             name: self.name,
             label_ui,
+            highlight_if_active: false,
             all_except: self.all_except,
             predicate: self.predicate,
         }
@@ -184,11 +187,6 @@ where
 
     fn show(mut self, ui: &mut egui::Ui, puzzle: &mut PuzzleController) -> egui::Response {
         ui.horizontal(|ui| {
-            let r = ui.add(self.label_ui);
-            if r.hovered() {
-                puzzle.set_preview_hidden(|piece| Some(!(self.predicate)(piece)));
-            }
-
             ui.with_layout(egui::Layout::right_to_left(), |ui| {
                 ui.spacing_mut().item_spacing.x /= 2.0;
 
@@ -237,7 +235,23 @@ where
                         puzzle.hide(|p| !(self.predicate)(p));
                     }
                 }
-            })
+
+                ui.allocate_ui_with_layout(
+                    egui::vec2(ui.available_width(), ui.min_size().y),
+                    egui::Layout::centered_and_justified(egui::Direction::TopDown)
+                        .with_cross_align(egui::Align::LEFT),
+                    |ui| {
+                        let r = ui.add(self.label_ui);
+                        if r.hovered() {
+                            puzzle.set_preview_hidden(|piece| Some(!(self.predicate)(piece)));
+                        }
+                        if r.clicked() {
+                            puzzle.hide(|_| true);
+                            puzzle.show(self.predicate);
+                        }
+                    },
+                );
+            });
         })
         .response
     }

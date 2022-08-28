@@ -192,7 +192,7 @@ impl Window {
                 egui::Window::new(self.name)
                     .collapsible(true)
                     .open(&mut is_open)
-                    .resizable(self.fixed_width.is_none())
+                    .scroll2([false, true])
                     .frame(egui::Frame::popup(&ctx.style()).multiply_with_opacity(opacity))
                     .show(ctx, |ui| {
                         if let Some(w) = self.fixed_width {

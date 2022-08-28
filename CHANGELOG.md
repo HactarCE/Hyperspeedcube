@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Editing keybinds as plaintext YAML
 
+### Changed
+
+- Tweaked piece filters UI
+  - Clicking on a filter now applies the filter
+
 ### Fixed
 
 - Rubik's 4D log file save/load
