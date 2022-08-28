@@ -1,6 +1,9 @@
 //! Puzzle wrapper that adds animation and undo history functionality.
 
 use anyhow::Result;
+use bitvec::bitvec;
+use bitvec::slice::BitSlice;
+use bitvec::vec::BitVec;
 use cgmath::InnerSpace;
 use num_enum::FromPrimitive;
 use std::borrow::Cow;
@@ -76,14 +79,22 @@ pub struct PuzzleController {
     hovered_sticker: Option<Sticker>,
     /// Twists from the hovered sticker.
     hovered_twists: Option<ClickTwists>,
+
     /// Grip, which controls which pieces will be twisted.
     grip: Grip,
     /// Set of selected stickers.
     selection: HashSet<Sticker>,
-    /// Piece states, such as whether a piece is hidden, as booleans.
-    logical_piece_states: Vec<LogicalPieceState>,
-    /// Piece states, such as whether a piece is hidden, as floats for
-    /// animation.
+    /// Set of non-hidden pieces.
+    visible_pieces: BitVec,
+    /// Set of non-hidden pieces to preview when hovering over a piece filter
+    /// button.
+    visible_pieces_preview: Option<BitVec>,
+    /// Opacity of hidden pieces preview when hovering over a piece filter
+    /// buton.
+    hidden_pieces_preview_opacity: Option<f32>,
+
+    /// Piece states, such as whether a piece is hidden. All values are
+    /// represented as `f32` for animation.
     visual_piece_states: Vec<VisualPieceState>,
 
     /// Cached sticker geometry.
@@ -125,9 +136,13 @@ impl PuzzleController {
 
             hovered_sticker: None,
             hovered_twists: None,
+
             grip: Grip::default(),
             selection: HashSet::new(),
-            logical_piece_states: vec![LogicalPieceState::default(); ty.pieces().len()],
+            visible_pieces: bitvec![1; ty.pieces().len()],
+            visible_pieces_preview: None,
+            hidden_pieces_preview_opacity: None,
+
             visual_piece_states: vec![VisualPieceState::default(); ty.pieces().len()],
 
             cached_geometry: None,
@@ -309,10 +324,9 @@ impl PuzzleController {
                     self.next_displayed() // puzzle state after the twist
                 };
                 let piece = self.info(sticker).piece;
-                let piece_state = self.logical_piece_states[piece.0 as usize];
                 self.grip
                     .has_piece(puzzle_state, piece)
-                    .unwrap_or(piece_state.marked || !piece_state.hidden)
+                    .unwrap_or_else(|| self.is_visible(piece))
             });
 
         self.hovered_sticker = hovered.map(|(sticker, _twists)| sticker);
@@ -504,7 +518,7 @@ impl PuzzleController {
         let delta = delta.as_secs_f32() / prefs.other_anim_duration;
 
         for piece in (0..self.pieces().len() as _).map(Piece) {
-            let logical_state = self.logical_piece_states[piece.0 as usize];
+            let logical_state = self.logical_piece_state(piece);
 
             let gripped = self.grip.has_piece(&self.puzzle, piece);
             let hidden = logical_state.preview_hidden.unwrap_or(logical_state.hidden);
@@ -513,9 +527,10 @@ impl PuzzleController {
                 gripped: (gripped == Some(true)) as u8 as f32,
                 ungripped: (gripped == Some(false)) as u8 as f32,
                 hidden: hidden as u8 as f32,
-                marked: logical_state.marked as u8 as f32,
                 selected: stickers.iter().any(|s| self.selection.contains(s)) as u8 as f32,
                 hovered: stickers.iter().any(|&s| Some(s) == self.hovered_sticker) as u8 as f32,
+
+                hidden_opacity_override: self.hidden_pieces_preview_opacity,
             };
 
             /// Adds or subtracts up to `delta` to reach `target`. Returns
@@ -541,73 +556,69 @@ impl PuzzleController {
             changed |= approach_target(&mut current.gripped, target.gripped, delta);
             changed |= approach_target(&mut current.ungripped, target.ungripped, delta);
             changed |= approach_target(&mut current.hidden, target.hidden, delta);
-            changed |= approach_target(&mut current.marked, target.marked, delta);
             changed |= approach_target(&mut current.selected, target.selected, delta);
             changed |= approach_target(&mut current.hovered, target.hovered, delta);
             if current.hovered < target.hovered {
                 // Highlight hovered sticker instantly for better responsiveness.
                 changed |= approach_target(&mut current.hovered, target.hovered, f32::INFINITY);
             }
+            if current.hidden_opacity_override != target.hidden_opacity_override {
+                // I don't know how to animate this easily, so don't bother trying.
+                current.hidden_opacity_override = target.hidden_opacity_override;
+                changed = true;
+            }
         }
 
         changed
+    }
+    /// Returns the logical state for a piece.
+    pub fn logical_piece_state(&self, piece: Piece) -> LogicalPieceState {
+        LogicalPieceState {
+            hidden: !self.visible_pieces[piece.0 as usize],
+            preview_hidden: self
+                .visible_pieces_preview
+                .as_ref()
+                .map(|bits| !bits[piece.0 as usize]),
+        }
     }
     /// Returns the visual state for a piece.
     pub fn visual_piece_state(&self, piece: Piece) -> VisualPieceState {
         self.visual_piece_states[piece.0 as usize]
     }
 
-    /// Hides pieces based on a predicate.
-    pub fn hide(&mut self, mut predicate: impl FnMut(Piece) -> bool) {
-        for (i, state) in self.logical_piece_states.iter_mut().enumerate() {
-            if predicate(Piece(i as _)) {
-                state.hidden = true;
-            }
-        }
+    /// Returns the set of non-hidden pieces.
+    pub fn visible_pieces(&self) -> &BitSlice {
+        &self.visible_pieces
     }
-    /// Shows pieces based on a predicate.
-    pub fn show(&mut self, mut predicate: impl FnMut(Piece) -> bool) {
-        for (i, state) in self.logical_piece_states.iter_mut().enumerate() {
-            if predicate(Piece(i as _)) {
-                state.hidden = false;
-            }
-        }
+    /// Returns a mutable reference to the set of non-hidden pieces.
+    pub fn visible_pieces_mut(&mut self) -> &mut BitSlice {
+        &mut self.visible_pieces
     }
-    /// Returns whether all of the pieces selected by a predicate are hidden.
-    pub fn are_all_hidden(&mut self, mut predicate: impl FnMut(Piece) -> bool) -> bool {
-        self.logical_piece_states
-            .iter_mut()
-            .enumerate()
-            .filter(|(i, _state)| predicate(Piece(*i as _)))
-            .all(|(_i, state)| state.hidden)
+    /// Sets the set of non-hidden pieces.
+    pub fn set_visible_pieces(&mut self, visible_pieces: &BitSlice) {
+        self.visible_pieces = visible_pieces.to_bitvec();
+        self.visible_pieces.resize(self.pieces().len(), false);
     }
-    /// Returns whether all of the pieces selected by a predicate are shown.
-    pub fn are_all_shown(&mut self, mut predicate: impl FnMut(Piece) -> bool) -> bool {
-        self.logical_piece_states
-            .iter_mut()
-            .enumerate()
-            .filter(|(i, _state)| predicate(Piece(*i as _)))
-            .all(|(_i, state)| !state.hidden)
-    }
-    /// Previews a piece hiding operation.
-    pub fn set_preview_hidden(&mut self, mut predicate: impl FnMut(Piece) -> Option<bool>) {
-        for (i, state) in self.logical_piece_states.iter_mut().enumerate() {
-            state.preview_hidden = predicate(Piece(i as _));
-        }
+    /// Sets the set of non-hidden pieces.
+    pub fn set_visible_pieces_preview(
+        &mut self,
+        visible_pieces: Option<&BitSlice>,
+        hidden_opacity: Option<f32>,
+    ) {
+        self.visible_pieces_preview = visible_pieces.map(|bits| {
+            let mut bv = bits.to_bitvec();
+            bv.resize(self.pieces().len(), false);
+            bv
+        });
+        self.hidden_pieces_preview_opacity = hidden_opacity;
     }
     /// Returns whether a piece is hidden.
-    pub fn is_hidden(&self, piece: Piece) -> bool {
-        self.logical_piece_states[piece.0 as usize].hidden
+    pub fn is_visible(&self, piece: Piece) -> bool {
+        self.visible_pieces[piece.0 as usize]
     }
     /// Returns whether any piece is hidden.
     pub fn is_any_piece_hidden(&self) -> bool {
-        (0..self.pieces().len() as _)
-            .map(Piece)
-            .any(|piece| self.is_hidden(piece))
-    }
-    /// Returns a string representing the hidden pieces.
-    pub fn visible_pieces_string(&self) -> String {
-        util::b16_encode_bools(self.logical_piece_states.iter().map(|state| !state.hidden))
+        !self.visible_pieces.all()
     }
 
     /// Returns the set of selected stickers
@@ -931,7 +942,6 @@ impl Grip {
 pub struct LogicalPieceState {
     pub hidden: bool,
     pub preview_hidden: Option<bool>,
-    pub marked: bool,
 }
 
 /// Floating-point piece state, such as whether a piece is hidden.
@@ -940,9 +950,10 @@ pub struct VisualPieceState {
     pub gripped: f32,
     pub ungripped: f32,
     pub hidden: f32,
-    pub marked: f32,
     pub selected: f32,
     pub hovered: f32,
+
+    hidden_opacity_override: Option<f32>,
 }
 impl VisualPieceState {
     pub fn outline_color(self, prefs: &Preferences, is_sticker_selected: bool) -> egui::Rgba {
@@ -982,20 +993,19 @@ impl VisualPieceState {
 
         let full_opacity = f32::max(
             self.hovered,
-            f32::max(
-                self.marked,
-                if pr.unhide_grip {
-                    self.gripped
+            self.gripped
+                * if pr.unhide_grip {
+                    1.0
                 } else {
-                    self.gripped * (1.0 - self.hidden)
+                    1.0 - self.hidden
                 },
-            ),
         );
+        let hidden_opacity = self.hidden_opacity_override.unwrap_or(pr.hidden);
 
         let mut ret = 1.0;
         // In order from lowest to highest priority:
         ret = util::mix(ret, pr.selected, self.selected);
-        ret = util::mix(ret, pr.hidden, self.hidden);
+        ret = util::mix(ret, hidden_opacity, self.hidden);
         ret *= pr.base;
         ret = util::mix(ret, 1.0, full_opacity);
         if pr.base * pr.ungripped < ret {

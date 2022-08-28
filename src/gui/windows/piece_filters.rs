@@ -1,16 +1,38 @@
+use bitvec::vec::BitVec;
+
 use crate::app::App;
 use crate::gui::{util, widgets};
 use crate::preferences::{PieceFilter, DEFAULT_PREFS};
-use crate::puzzle::{traits::*, Face, Piece, PieceType};
+use crate::puzzle::{traits::*, Face, PieceInfo, PieceType};
 
 const MIN_WIDTH: f32 = 300.0;
 
+fn piece_subset(ty: impl PuzzleType, predicate: impl FnMut(&PieceInfo) -> bool) -> BitVec {
+    ty.pieces().iter().map(predicate).collect()
+}
+macro_rules! piece_subset_from_sticker_colors {
+    ($puzzle_ty:expr, |$color_iter:ident| $predicate:expr $(,)?) => {{
+        // This is a macro instead of a function because I don't know how to
+        // write the type of the predicate closure except as `impl FnMut(impl
+        // Iterator<Item=Face>) -> bool`, which isn't allowed.
+        let ty = $puzzle_ty;
+        ty.pieces()
+            .iter()
+            .map(|piece| {
+                #[allow(unused_mut)]
+                let mut $color_iter = piece.stickers.iter().map(|&sticker| ty.info(sticker).color);
+                $predicate
+            })
+            .collect()
+    }};
+}
+
 pub fn cleanup(app: &mut App) {
-    app.puzzle.set_preview_hidden(|_| None);
+    app.puzzle.set_visible_pieces_preview(None, None);
 }
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    app.puzzle.set_preview_hidden(|_| None);
+    app.puzzle.set_visible_pieces_preview(None, None);
 
     let puzzle_type = app.puzzle.ty();
 
@@ -36,15 +58,18 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
-    PieceFilterWidget::new_uppercased("everything", |_| true)
+    PieceFilterWidget::new_uppercased("everything", piece_subset(puzzle_type, |_| true))
         .no_all_except()
         .show(ui, app);
 
     ui.collapsing("Types", |ui| {
         for (i, piece_type) in puzzle_type.piece_types().iter().enumerate() {
-            PieceFilterWidget::new_uppercased(&format!("{}s", piece_type.name), move |piece| {
-                puzzle_type.info(piece).piece_type == PieceType(i as _)
-            })
+            PieceFilterWidget::new_uppercased(
+                &format!("{}s", piece_type.name),
+                piece_subset(puzzle_type, move |piece| {
+                    piece.piece_type == PieceType(i as _)
+                }),
+            )
             .show(ui, app);
         }
     });
@@ -60,10 +85,12 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         selected_colors.resize(app.puzzle.faces().len(), false);
 
         for i in 0..puzzle_type.faces().len() {
-            PieceFilterWidget::new_uppercased("pieces with this color", move |piece| {
-                let mut stickers = puzzle_type.info(piece).stickers.iter();
-                stickers.any(|&sticker| puzzle_type.info(sticker).color == Face(i as _))
-            })
+            PieceFilterWidget::new_uppercased(
+                "pieces with this color",
+                piece_subset_from_sticker_colors!(puzzle_type, |colors| {
+                    colors.any(|c| c == Face(i as _))
+                }),
+            )
             .label_ui(|ui: &mut egui::Ui| {
                 ui.horizontal(|ui| {
                     egui::color_picker::show_color(ui, face_colors[i], ui.spacing().interact_size);
@@ -75,29 +102,30 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         }
 
         ui.add_enabled_ui(selected_colors.contains(&true), |ui| {
-            PieceFilterWidget::new_uppercased("pieces with all these colors", |piece| {
-                let stickers = &puzzle_type.info(piece).stickers;
-                selected_colors.iter().enumerate().all(|(i, selected)| {
-                    !selected
-                        || stickers
-                            .iter()
-                            .any(|&s| puzzle_type.info(s).color == Face(i as _))
-                })
-            })
+            PieceFilterWidget::new_uppercased(
+                "pieces with all these colors",
+                piece_subset_from_sticker_colors!(puzzle_type, |colors| {
+                    selected_colors.iter().enumerate().all(|(i, selected)| {
+                        !selected || colors.clone().any(|color| color == Face(i as _))
+                    })
+                }),
+            )
             .show(ui, app);
-            PieceFilterWidget::new_uppercased("pieces with any of these colors", |piece| {
-                let stickers = &puzzle_type.info(piece).stickers;
-                stickers
-                    .iter()
-                    .any(|&s| selected_colors[puzzle_type.info(s).color.0 as usize])
-            })
+
+            PieceFilterWidget::new_uppercased(
+                "pieces with any of these colors",
+                piece_subset_from_sticker_colors!(puzzle_type, |colors| {
+                    colors.any(|c| selected_colors[c.0 as usize])
+                }),
+            )
             .show(ui, app);
-            PieceFilterWidget::new_uppercased("pieces with only these colors", |piece| {
-                let stickers = &puzzle_type.info(piece).stickers;
-                stickers
-                    .iter()
-                    .all(|&s| selected_colors[puzzle_type.info(s).color.0 as usize])
-            })
+
+            PieceFilterWidget::new_uppercased(
+                "pieces with only these colors",
+                piece_subset_from_sticker_colors!(puzzle_type, |colors| {
+                    colors.all(|c| selected_colors[c.0 as usize])
+                }),
+            )
             .show(ui, app);
         });
 
@@ -119,7 +147,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         };
 
         presets_ui.show_header(ui, || PieceFilter {
-            visible_pieces: app.puzzle.visible_pieces_string(),
+            visible_pieces: app.puzzle.visible_pieces().to_bitvec(),
             hidden_opacity: opacity_prefs
                 .save_opacity_in_piece_filter_preset
                 .then_some(opacity_prefs.hidden),
@@ -132,9 +160,14 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
         ui.separator();
         presets_ui.show_list(ui, |ui, _idx, preset| {
+            preset
+                .value
+                .visible_pieces
+                .resize(app.puzzle.pieces().len(), false);
             PieceFilterWidget::new(
                 &preset.preset_name,
-                |piece| crate::util::b16_fetch_bit(&preset.value.visible_pieces, piece.0 as _),
+                &preset.preset_name,
+                preset.value.visible_pieces.clone(),
                 preset.value.hidden_opacity,
             )
             .show(ui, app)
@@ -147,115 +180,79 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 }
 
 #[must_use]
-struct PieceFilterWidget<'a, W, P> {
+struct PieceFilterWidget<'a, W> {
     name: &'a str,
     label_ui: W,
     highlight_if_active: bool,
     all_except: bool,
-    predicate: P,
+    piece_set: BitVec,
     hidden_opacity: Option<f32>,
 }
-impl<'a, P> PieceFilterWidget<'a, egui::Button, P>
-where
-    P: Copy + FnMut(Piece) -> bool,
-{
-    fn new_uppercased(name: &'a str, predicate: P) -> Self {
+impl<'a> PieceFilterWidget<'a, egui::Button> {
+    fn new_uppercased(name: &'a str, piece_set: BitVec) -> Self {
         let mut s = name.to_string();
         s[0..1].make_ascii_uppercase();
-        Self::new_with_label(name, &s, predicate, None)
+        Self::new(name, &s, piece_set, None)
     }
-    fn new(name: &'a str, predicate: P, hidden_opacity: Option<f32>) -> Self {
-        Self::new_with_label(name, name, predicate, hidden_opacity)
-    }
-    fn new_with_label(
-        name: &'a str,
-        label: &str,
-        predicate: P,
-        hidden_opacity: Option<f32>,
-    ) -> Self {
+    fn new(name: &'a str, label: &str, piece_set: BitVec, hidden_opacity: Option<f32>) -> Self {
         Self {
             name,
             label_ui: egui::Button::new(label).frame(false),
             highlight_if_active: true,
             all_except: true,
-            predicate,
+            piece_set,
             hidden_opacity,
         }
     }
 }
-impl<'a, W, P> PieceFilterWidget<'a, W, P>
+impl<'a, W> PieceFilterWidget<'a, W>
 where
     W: egui::Widget,
-    P: Copy + FnMut(Piece) -> bool,
 {
-    fn label_ui<W2>(self, label_ui: W2) -> PieceFilterWidget<'a, W2, P> {
+    fn label_ui<W2>(self, label_ui: W2) -> PieceFilterWidget<'a, W2> {
         PieceFilterWidget {
             name: self.name,
             label_ui,
             highlight_if_active: false,
             all_except: self.all_except,
-            predicate: self.predicate,
+            piece_set: self.piece_set,
             hidden_opacity: self.hidden_opacity,
         }
     }
 
+    /// Removes the "hide all except" button.
     fn no_all_except(mut self) -> Self {
         self.all_except = false;
         self
     }
 
-    fn show(mut self, ui: &mut egui::Ui, app: &mut App) -> egui::Response {
+    fn show(self, ui: &mut egui::Ui, app: &mut App) -> egui::Response {
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(), |ui| {
-                let puzzle = &mut app.puzzle;
-
                 ui.spacing_mut().item_spacing.x /= 2.0;
 
-                let r = ui.add_enabled(
-                    !puzzle.are_all_shown(self.predicate),
-                    |ui: &mut egui::Ui| {
-                        widgets::small_icon_button(ui, "👁", &format!("Show {}", self.name))
-                    },
-                );
-                if r.hovered() {
-                    puzzle.set_preview_hidden(|piece| (self.predicate)(piece).then_some(false));
-                }
-                if r.clicked() {
-                    puzzle.show(self.predicate);
-                }
+                let puzzle = &mut app.puzzle;
+                let current = puzzle.visible_pieces();
 
-                let r = ui.add_enabled(
-                    !puzzle.are_all_hidden(self.predicate),
-                    |ui: &mut egui::Ui| {
-                        widgets::small_icon_button(ui, "ｘ", &format!("Hide {}", self.name))
-                    },
-                );
-                if r.hovered() {
-                    puzzle.set_preview_hidden(|piece| (self.predicate)(piece).then_some(true));
-                }
-                if r.clicked() {
-                    puzzle.hide(self.predicate);
-                }
+                let show_these = self.piece_set.clone() | current;
+                let hide_these = !self.piece_set.clone() & current;
+                let hide_others = self.piece_set.clone() & current;
 
-                if self.all_except {
+                let mut small_button = |new_visible_set: BitVec, text: &str, hover_text: &str| {
                     let r = ui.add_enabled(
-                        !puzzle.are_all_hidden(|p| !(self.predicate)(p)),
-                        |ui: &mut egui::Ui| {
-                            widgets::small_icon_button(
-                                ui,
-                                "❎",
-                                &format!("Hide all except {}", self.name),
-                            )
-                        },
+                        puzzle.visible_pieces() != new_visible_set,
+                        |ui: &mut egui::Ui| widgets::small_icon_button(ui, text, hover_text),
                     );
                     if r.hovered() {
-                        puzzle
-                            .set_preview_hidden(|piece| (!(self.predicate)(piece)).then_some(true));
+                        puzzle.set_visible_pieces_preview(Some(&new_visible_set), None);
                     }
                     if r.clicked() {
-                        puzzle.hide(|p| !(self.predicate)(p));
+                        puzzle.set_visible_pieces(&new_visible_set);
                     }
-                }
+                };
+                small_button(show_these, "👁", &format!("Show {}", self.name));
+                small_button(hide_these, "ｘ", &format!("Hide {}", self.name));
+                small_button(hide_others, "❎", &format!("Hide all except {}", self.name));
 
                 ui.allocate_ui_with_layout(
                     egui::vec2(ui.available_width(), ui.min_size().y),
@@ -263,10 +260,10 @@ where
                         .with_cross_align(egui::Align::LEFT),
                     |ui| {
                         let puzzle = &mut app.puzzle;
+                        let current = puzzle.visible_pieces();
 
                         // Highlight name of active filter.
-                        if puzzle.are_all_shown(self.predicate)
-                            && puzzle.are_all_hidden(|p| !(self.predicate)(p))
+                        if ui.is_enabled() && self.highlight_if_active && current == self.piece_set
                         {
                             let visuals = ui.visuals_mut();
                             visuals.widgets.hovered = visuals.widgets.active;
@@ -275,11 +272,13 @@ where
 
                         let r = ui.add(self.label_ui);
                         if r.hovered() {
-                            puzzle.set_preview_hidden(|piece| Some(!(self.predicate)(piece)));
+                            puzzle.set_visible_pieces_preview(
+                                Some(&self.piece_set),
+                                self.hidden_opacity,
+                            );
                         }
                         if r.clicked() {
-                            puzzle.hide(|_| true);
-                            puzzle.show(self.predicate);
+                            puzzle.set_visible_pieces(&self.piece_set);
                             if let Some(hidden_opacity) = self.hidden_opacity {
                                 if app.prefs.opacity.hidden != hidden_opacity {
                                     app.prefs.opacity.hidden = hidden_opacity;

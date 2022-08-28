@@ -3,6 +3,7 @@
 //! For a list of key names, see `VirtualKeyCode` in this file:
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
+use bitvec::vec::BitVec;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, BTreeMap};
@@ -319,7 +320,8 @@ fn is_false(x: &bool) -> bool {
 #[serde(default)]
 pub struct PieceFilter {
     /// Hexadecimal-encoded bitstring of which pieces are visible.
-    pub visible_pieces: String,
+    #[serde(with = "crate::serde_impl::hex_bitvec")]
+    pub visible_pieces: BitVec,
     /// Opacity of hidden pieces.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hidden_opacity: Option<f32>,

@@ -3,6 +3,7 @@
 use key_names::KeyMappingCode;
 use serde::{Deserialize, Serialize};
 
+pub(crate) mod hex_bitvec;
 pub(crate) mod hex_color;
 
 /// Taken from docs here:

@@ -1,5 +1,4 @@
 use cgmath::Point3;
-use itertools::Itertools;
 use std::ops::{Add, Mul};
 
 pub const INVALID_STR: &str = "<invalid>";
@@ -106,43 +105,4 @@ where
     T::Output: Add,
 {
     a * (1.0 - t) + b * t
-}
-
-pub fn b16_encode_bools(bits: impl IntoIterator<Item = bool>) -> String {
-    bits.into_iter()
-        .chunks(4)
-        .into_iter()
-        .map(|mut chunk| {
-            let nibble = (0..4)
-                .map(|i| (chunk.next().unwrap_or(false) as u32) << i)
-                .sum();
-            char::from_digit(nibble, 16).unwrap_or('?')
-        })
-        .collect()
-}
-pub fn b16_fetch_bit<'a>(s: &str, bit_idx: usize) -> bool {
-    s.as_bytes()
-        .get(bit_idx / 4)
-        .map(|&ch| b16_decode_char(ch as char)[bit_idx & 3])
-        .unwrap_or(false)
-}
-fn b16_decode_char(ch: char) -> [bool; 4] {
-    let nibble = ch.to_digit(16).unwrap_or(0);
-    [
-        nibble & 1 != 0,
-        nibble & 2 != 0,
-        nibble & 4 != 0,
-        nibble & 8 != 0,
-    ]
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_b16_encode_decode() {
-        let s = "f4add8920abe83143362";
-        assert_eq!(s, b16_encode_bools((0..78).map(|i| b16_fetch_bit(s, i))));
-    }
 }

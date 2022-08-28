@@ -12,6 +12,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 ambassador = "0.3.1"
 anyhow = "1.0.55"
+bitvec = { version = "1.0.1", default-features = false, features = ["alloc", "serde", "std"] }
 bytemuck = { version = "1.9.1", features = ["derive"] }
 cgmath = "0.18.0"
 config = "0.13.1"

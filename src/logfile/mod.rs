@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use bitvec::vec::BitVec;
 use num_enum::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -12,7 +13,6 @@ use strum::IntoEnumIterator;
 mod mc4d_compat;
 
 use crate::puzzle::*;
-use crate::util;
 
 /// Loads a log file and returns the puzzle state, along with any warnings.
 pub fn load_file(path: &Path) -> anyhow::Result<(PuzzleController, Vec<String>)> {
@@ -53,8 +53,12 @@ struct LogFile {
     puzzle: Option<PuzzleTypeEnum>,
     #[serde(default)]
     state: u8,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    visible_pieces: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "crate::serde_impl::hex_bitvec::opt"
+    )]
+    visible_pieces: Option<BitVec>,
     #[serde(
         default,
         skip_serializing_if = "cgmath::Zero::is_zero",
@@ -81,7 +85,7 @@ impl LogFile {
             state: puzzle.scramble_state() as u8,
             visible_pieces: puzzle
                 .is_any_piece_hidden()
-                .then(|| puzzle.visible_pieces_string()),
+                .then(|| puzzle.visible_pieces().to_bitvec()),
             scramble_length: puzzle.scramble().len(),
             twist_count: TwistMetric::iter()
                 .map(|metric| (metric, puzzle.twist_count(metric)))
@@ -174,7 +178,7 @@ impl LogFile {
         let scramble_state = ScrambleState::from_primitive(self.state);
 
         if let Some(visible_pieces) = &self.visible_pieces {
-            ret.hide(|piece| !util::b16_fetch_bit(visible_pieces, piece.0 as _))
+            ret.set_visible_pieces(visible_pieces);
         }
 
         let (twists, parse_errors) = self.scramble();
