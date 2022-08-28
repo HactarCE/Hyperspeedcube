@@ -163,20 +163,7 @@ impl Preferences {
         // search for that)
         config
             .build()
-            // .and_then(|c| c.try_deserialize::<migration::v0::PrefsCompat>())
-            // .map(|p| migration::PrefsCompat::V0 { remaining: p })
-            .and_then(|c| c.try_deserialize::<migration::PrefsCompat>())
-            .map(|prefs_compat| {
-                if !prefs_compat.is_latest() {
-                    log::info!(
-                        "Migrating preferences from v{} to v{}",
-                        prefs_compat.version(),
-                        migration::LATEST_VERSION,
-                    );
-                    Self::backup_prefs_file();
-                }
-                prefs_compat.into()
-            })
+            .and_then(migration::try_deserialize)
             .unwrap_or_else(|e| {
                 log::warn!("Error loading preferences: {}", e);
 

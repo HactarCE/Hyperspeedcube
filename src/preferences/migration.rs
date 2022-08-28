@@ -1,14 +1,35 @@
+use config::{Config, ConfigError};
 use std::collections::BTreeMap;
 
 use super::*;
 
 pub(super) const LATEST_VERSION: u32 = 1;
 
+pub(super) fn try_deserialize(c: Config) -> Result<Preferences, ConfigError> {
+    let version: u32 = match c.get_int("version") {
+        Ok(n) => n.try_into().unwrap_or(0),
+        Err(ConfigError::NotFound(_)) => 0,
+        Err(e) => return Err(e),
+    };
+    if version < LATEST_VERSION {
+        log::info!(
+            "Migrating preferences from v{version} to v{}",
+            migration::LATEST_VERSION,
+        );
+        Preferences::backup_prefs_file();
+    }
+    Ok(match version {
+        0 => c.try_deserialize::<v0::PrefsCompat>()?.into(),
+        1 => c.try_deserialize::<v1::PrefsCompat>()?.into(),
+        _ => c.try_deserialize::<Preferences>()?,
+    })
+}
+
 /// Compatibility layer for deserializing older versions of the preferences
 /// format.
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
-pub(super) enum PrefsCompat {
+pub enum PrefsCompat {
     /// v0.9.x to present
     V1 {
         #[serde(rename = "version")]
@@ -42,13 +63,13 @@ impl PrefsCompat {
     }
 }
 
-pub(super) mod v1 {
+mod v1 {
     use super::*;
 
     pub type PrefsCompat = Preferences;
 }
 
-pub(super) mod v0 {
+mod v0 {
     use super::*;
 
     #[derive(Deserialize, Debug, Default)]
@@ -87,22 +108,24 @@ pub(super) mod v0 {
 
     #[derive(Serialize, Deserialize, Debug, Default)]
     #[serde(default)]
-    pub(super) struct WithPresets<T: Default> {
+    pub struct WithPresets<T: Default> {
         #[serde(flatten)]
         pub current: T,
         pub active_preset: Option<String>,
         pub presets: BTreeMap<String, T>,
     }
 
-    pub(super) fn convert_piece_filter_preset_list(
+    pub fn convert_piece_filter_preset_list(
         presets: BTreeMap<String, String>,
     ) -> Vec<Preset<PieceFilter>> {
         presets
             .into_iter()
-            .map(|(name, visible_pieces)| Preset {
+            .map(|(name, visible_pieces_string)| Preset {
                 preset_name: name,
                 value: PieceFilter {
-                    visible_pieces,
+                    visible_pieces: crate::serde_impl::hex_bitvec::b16_string_to_bitvec(
+                        &visible_pieces_string,
+                    ),
                     hidden_opacity: None,
                 },
             })
