@@ -284,6 +284,14 @@ impl App {
         // multiple keybinds for macros.
         let mut done_twist_command = false;
 
+        // Sometimes users will bind a twist command and another command to the
+        // same key, so if the twist command fails due to an incomplete grip
+        // then the other command will execute. For that reason, errors that
+        // result from an incomplete grip should only be shown if no other
+        // command succeeded.
+        let mut success = false;
+        let mut grip_error = None;
+
         let puzzle_keybinds = &self.prefs.puzzle_keybinds[self.puzzle.ty()];
         for bind in self.resolve_keypress(puzzle_keybinds, sc, vk) {
             let key = bind.key.key().unwrap();
@@ -304,6 +312,8 @@ impl App {
                         .filter(|&l| l != LayerMask(0));
 
                     self.transient_grips.insert(key, new_grip);
+
+                    success = true;
                 }
                 PuzzleCommand::Twist {
                     axis,
@@ -311,18 +321,24 @@ impl App {
                     layers,
                 } => {
                     if !done_twist_command {
-                        done_twist_command = true;
                         let layers = layers.to_layer_mask(self.puzzle.layer_count());
-                        if let Err(e) = self.do_twist(axis.as_deref(), direction, layers) {
-                            self.event(AppEvent::StatusError(e));
+                        match self.do_twist(axis.as_deref(), direction, layers) {
+                            Ok(()) => {
+                                done_twist_command = true;
+                                success = true;
+                            }
+                            Err(e) => grip_error = Some(e),
                         }
                     }
                 }
                 PuzzleCommand::Recenter { axis } => {
                     if !done_twist_command {
-                        done_twist_command = true;
-                        if let Err(e) = self.do_recenter(axis.as_deref()) {
-                            self.event(AppEvent::StatusError(e));
+                        match self.do_recenter(axis.as_deref()) {
+                            Ok(()) => {
+                                done_twist_command = true;
+                                success = true;
+                            }
+                            Err(e) => grip_error = Some(e),
                         }
                     }
                 }
@@ -362,6 +378,8 @@ impl App {
                         }
                     };
                     self.puzzle.set_visible_pieces(&new_piece_set);
+
+                    success = true;
                 }
 
                 PuzzleCommand::None => return, // Do not try to match other keybinds.
@@ -372,7 +390,19 @@ impl App {
             match &bind.command {
                 Command::None => return, // Do not try to match other keybinds.
 
-                _ => self.event(bind.command.clone()),
+                _ => {
+                    self.event(bind.command.clone());
+
+                    success = true;
+                }
+            }
+        }
+
+        // If no keybinding succeeded but at least one failed with an error,
+        // then display that error.
+        if !success {
+            if let Some(e) = grip_error {
+                self.event(AppEvent::StatusError(e));
             }
         }
     }
