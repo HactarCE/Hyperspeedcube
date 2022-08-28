@@ -1004,9 +1004,9 @@ impl VisualPieceState {
 
         let mut ret = 1.0;
         // In order from lowest to highest priority:
-        ret = util::mix(ret, pr.selected, self.selected);
         ret = util::mix(ret, hidden_opacity, self.hidden);
         ret *= pr.base;
+        ret = util::mix(ret, pr.selected, self.selected);
         ret = util::mix(ret, 1.0, full_opacity);
         if pr.base * pr.ungripped < ret {
             ret = util::mix(ret, pr.base * pr.ungripped, self.ungripped);
