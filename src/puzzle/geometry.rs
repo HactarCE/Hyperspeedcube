@@ -69,7 +69,7 @@ impl StickerGeometryParams {
     ) -> Self {
         // Compute the view and perspective transforms, which must be applied here
         // on the CPU so that we can do proper depth sorting.
-        let view_transform: Matrix3<f32> = (view_angle_offset * view_prefs.view_angle()).into();
+        let view_transform: Matrix3<f32> = (view_prefs.view_angle() * view_angle_offset).into();
 
         let ambient_light = util::mix(
             view_prefs.light_directional * 0.5,

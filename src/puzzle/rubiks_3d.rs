@@ -373,6 +373,70 @@ impl PuzzleState for Rubiks3D {
         u8::abs_diff(face_coord, piece_coord)
     }
 
+    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Quaternion<f32>)> {
+        use FaceEnum::{F, R, U};
+        use TwistDirectionEnum::{CCW90, CW180, CW90};
+
+        let layers = self.all_layers();
+
+        // Primitive rotations
+        let x = (R, CW90);
+        let x2 = (R, CW180);
+        let xi = (R, CCW90);
+        let y = (U, CW90);
+        let y2 = (U, CW180);
+        let yi = (U, CCW90);
+        let z = (F, CW90);
+        let z2 = (F, CW180);
+        let zi = (F, CCW90);
+
+        vec![
+            // 90-degree rotations
+            vec![x],
+            vec![xi],
+            vec![y],
+            vec![yi],
+            vec![z],
+            vec![zi],
+            // 180-degree face rotations
+            vec![x2],
+            vec![y2],
+            vec![z2],
+            // 180-degree edge rotations
+            vec![x, y2],
+            vec![z, x2],
+            vec![y, z2],
+            vec![x, z2],
+            vec![z, y2],
+            vec![y, x2],
+            // 120-degree vertex rotations
+            vec![x, y],
+            vec![xi, yi],
+            vec![z, y],
+            vec![x, yi],
+            vec![x, z],
+            vec![y, zi],
+            vec![y, x],
+            vec![z, xi],
+        ]
+        .into_iter()
+        .map(|rotations| {
+            let twists = rotations
+                .iter()
+                .map(|&(face, dir)| Twist {
+                    axis: face.into(),
+                    direction: dir.into(),
+                    layers,
+                })
+                .collect();
+            let quaternion = rotations.iter().fold(Quaternion::one(), |q, &(face, dir)| {
+                face.twist_rotation(dir) * q
+            });
+            (twists, quaternion)
+        })
+        .collect()
+    }
+
     fn sticker_geometry(
         &self,
         sticker: Sticker,
@@ -681,10 +745,14 @@ impl FaceEnum {
         }
     }
 
+    fn twist_rotation(self, direction: TwistDirectionEnum) -> Quaternion<f32> {
+        let angle = Rad::full_turn() * direction.sign().float() / direction.period() as f32;
+        Quaternion::from_axis_angle(self.vector(), angle)
+    }
     fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix3<f32> {
-        let angle =
-            Rad::full_turn() * direction.sign().float() / direction.period() as f32 * progress;
-        Matrix3::from_axis_angle(self.vector(), angle)
+        Quaternion::one()
+            .slerp(self.twist_rotation(direction), progress)
+            .into()
     }
 }
 

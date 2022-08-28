@@ -428,6 +428,21 @@ impl PuzzleState for Rubiks4D {
         u8::abs_diff(face_coord, piece_coord)
     }
 
+    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Quaternion<f32>)> {
+        let layers = self.all_layers();
+
+        TwistDirectionEnum::iter()
+            .map(|dir| {
+                let twist = Twist {
+                    axis: FaceEnum::I.into(),
+                    direction: dir.into(),
+                    layers,
+                };
+                (vec![twist], dir.twist_rotation())
+            })
+            .collect()
+    }
+
     fn sticker_geometry(
         &self,
         sticker: Sticker,
@@ -929,8 +944,9 @@ impl FaceEnum {
     }
 
     fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix4<f32> {
-        let angle = Rad::full_turn() / direction.period() as f32 * progress;
-        let mat3 = Matrix3::from_axis_angle(direction.vector3_f32().normalize(), -angle);
+        let mat3: Matrix3<f32> = Quaternion::one()
+            .slerp(direction.twist_rotation(), progress)
+            .into();
         let mut ret = Matrix4::identity();
         let basis = self.basis_faces();
         for i in 0..3 {
@@ -1296,6 +1312,11 @@ impl TwistDirectionEnum {
         }
 
         Ok(Self::from_piece_state_on_face(piece_state, face))
+    }
+
+    fn twist_rotation(self) -> Quaternion<f32> {
+        let angle = Rad::full_turn() / self.period() as f32;
+        Quaternion::from_axis_angle(self.vector3_f32().normalize(), -angle)
     }
 }
 

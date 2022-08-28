@@ -1,3 +1,4 @@
+use cgmath::{One, Quaternion, Rotation};
 use enum_iterator::Sequence;
 use itertools::Itertools;
 use rand::Rng;
@@ -145,6 +146,30 @@ pub trait PuzzleState: PuzzleType {
             .collect()
     }
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8;
+
+    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Quaternion<f32>)>;
+    fn nearest_rotation(&self, rot: Quaternion<f32>) -> (Vec<Twist>, Quaternion<f32>) {
+        let inv_rot = rot.invert();
+
+        let mut nearest = (vec![], Quaternion::one());
+        // If I understand correctly, the scalar part of a quaternion is the
+        // cosine of half the angle of rotation. So we can use the absolute
+        // value of that quantity to compare whether one quaternion is a larger
+        // rotation than another.
+        let mut score_of_nearest = rot.s.abs();
+        for (twists, twist_rot) in self.rotation_candidates() {
+            let s = (inv_rot * twist_rot).s.abs();
+
+            if s > score_of_nearest {
+                nearest = (twists, twist_rot);
+                score_of_nearest = s;
+            }
+        }
+        for twist in &mut nearest.0 {
+            *twist = self.canonicalize_twist(*twist);
+        }
+        nearest
+    }
 
     fn sticker_geometry(
         &self,

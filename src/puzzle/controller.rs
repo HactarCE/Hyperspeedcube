@@ -4,7 +4,8 @@ use anyhow::Result;
 use bitvec::bitvec;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
-use cgmath::{Deg, InnerSpace, One, Quaternion, Rotation3};
+use cgmath::{Deg, InnerSpace, One, Quaternion, Rotation, Rotation3};
+use itertools::Itertools;
 use num_enum::FromPrimitive;
 use std::borrow::Cow;
 use std::collections::{HashSet, VecDeque};
@@ -50,17 +51,14 @@ const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 #[derive(Delegate, Debug)]
 #[delegate(PuzzleType, target = "puzzle")]
 pub struct PuzzleController {
-    /// Latest puzzle state.
+    /// Latest puzzle state, not including any transient rotation.
     puzzle: Puzzle,
     /// Twist animation state.
     twist_anim: TwistAnimationState,
     /// View settings animation state.
     view_settings_anim: ViewSettingsAnimState,
-
-    /// View angle offset.
-    view_angle_offset: Quaternion<f32>,
-    /// Whether to freeze the view angle offset, versus animating it back to zero.
-    freeze_view_angle_offset: bool,
+    /// View angle animation state.
+    view_angle: ViewAngleAnimState,
 
     /// Whether the puzzle has been modified since the last time the log file
     /// was saved.
@@ -124,8 +122,7 @@ impl PuzzleController {
             puzzle: Puzzle::new(ty),
             twist_anim: TwistAnimationState::default(),
             view_settings_anim: ViewSettingsAnimState::default(),
-            view_angle_offset: Quaternion::one(),
-            freeze_view_angle_offset: false,
+            view_angle: ViewAngleAnimState::default(),
 
             is_unsaved: false,
 
@@ -212,7 +209,8 @@ impl PuzzleController {
         // Canonicalize twist.
         twist = self.canonicalize_twist(twist);
         if collapse && self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
-            // This twist is the reverse of the last one, so just undo that twist.
+            // This twist is the reverse of the last one, so just undo the last
+            // one.
             self.undo()
         } else {
             self.animate_twist(twist)?;
@@ -220,12 +218,49 @@ impl PuzzleController {
             Ok(())
         }
     }
+    /// Applies the transient rotation to the puzzle.
+    pub fn apply_transient_rotation(&mut self) {
+        if let Some((twists, rot)) = self.view_angle.transient_rotation.take() {
+            // Remove a rotation from `current` and add it onto `queued_delta`.
+            for twist in twists {
+                self.is_unsaved = true;
+
+                if self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
+                    // This twist is the reverse of the last one, so just undo the last one.
+                    self.redo_buffer.extend(self.undo_buffer.pop());
+                } else {
+                    self.redo_buffer.clear();
+                    self.undo_buffer.push(twist.into());
+                }
+                if self.puzzle.twist(twist).is_err() {
+                    log::error!("error applying transient rotation twist {:?}", twist);
+                }
+            }
+            // Remove this rotation from `current`.
+            self.view_angle.current = self.view_angle.current * rot.invert();
+            if let Some(t) = self.twist_anim.queue.back_mut() {
+                // Actually, instead of just removing the rotation from
+                // `current`, transfer it from `current` to `queued_delta`.
+                // Resolve this rotation after the currently-last twist on the
+                // queue is popped.
+                self.view_angle.queued_delta = rot * self.view_angle.queued_delta;
+                t.view_angle_offset_delta = rot * t.view_angle_offset_delta;
+            }
+
+            // Invalidate the cache.
+            self.cached_geometry = None;
+        }
+    }
     /// Applies a twist to the puzzle and queues it for animation. Does _not_
     /// handle undo/redo stack or `is_unsaved`.
     fn animate_twist(&mut self, twist: Twist) -> Result<(), &'static str> {
         let old_state = self.puzzle.clone();
         self.puzzle.twist(twist)?;
-        self.twist_anim.queue.push_back((old_state, twist));
+        self.twist_anim.queue.push_back(TwistAnimation {
+            state: old_state,
+            twist,
+            view_angle_offset_delta: Quaternion::one(),
+        });
 
         // Invalidate the cache.
         self.cached_geometry = None;
@@ -235,8 +270,8 @@ impl PuzzleController {
     /// Returns the twist currently being animated, along with a float between
     /// 0.0 and 1.0 indicating the progress on that animation.
     pub fn current_twist(&self) -> Option<(Twist, f32)> {
-        if let Some((_state, twist)) = self.twist_anim.queue.get(0) {
-            Some((*twist, TWIST_INTERPOLATION_FN(self.twist_anim.progress)))
+        if let Some(anim) = self.twist_anim.queue.get(0) {
+            Some((anim.twist, TWIST_INTERPOLATION_FN(self.twist_anim.progress)))
         } else {
             None
         }
@@ -246,7 +281,7 @@ impl PuzzleController {
     /// the twist currently being animated (if there is one).
     pub fn displayed(&self) -> &Puzzle {
         match self.twist_anim.queue.get(0) {
-            Some((puzzle, _twist)) => puzzle,
+            Some(anim) => &anim.state,
             None => &self.puzzle,
         }
     }
@@ -254,7 +289,7 @@ impl PuzzleController {
     /// currently being animated (if there is one).
     pub fn next_displayed(&self) -> &Puzzle {
         match self.twist_anim.queue.get(1) {
-            Some((puzzle, _twist)) => puzzle,
+            Some(anim) => &anim.state,
             None => &self.puzzle,
         }
     }
@@ -274,24 +309,34 @@ impl PuzzleController {
     }
     /// Sets the puzzle grip.
     pub fn set_grip(&mut self, grip: Grip) {
+        if grip != self.grip && !grip.axes.is_empty() {
+            self.apply_transient_rotation();
+            self.unfreeze_view_angle_offset();
+        }
         self.grip = grip;
     }
 
     /// Sets the view angle offset. Consider calling
     /// `freeze_view_angle_offset()` as well.
-    pub fn add_view_angle_offset(&mut self, offset: [f32; 2]) {
-        self.view_angle_offset = Quaternion::from_angle_x(Deg(offset[1]))
-            * Quaternion::from_angle_y(Deg(offset[0]))
-            * self.view_angle_offset;
+    pub fn add_view_angle_offset(&mut self, offset: [f32; 2], view_prefs: &ViewPreferences) {
+        let prefs_view_angle = view_prefs.view_angle();
+        let offset =
+            Quaternion::from_angle_x(Deg(offset[1])) * Quaternion::from_angle_y(Deg(offset[0]));
+        self.view_angle.current =
+            prefs_view_angle.invert() * offset * prefs_view_angle * self.view_angle.current;
     }
     /// Freezes the view angle offset, so that it will not animate back to zero
     /// automatically. It can still be changed with `set_view_angle_offset()`.
     pub fn freeze_view_angle_offset(&mut self) {
-        self.freeze_view_angle_offset = true;
+        self.view_angle.is_frozen = true;
     }
     /// Unfreezes the view angle offset and begins animating it back to zero.
-    pub fn unfreeze_view_angle_offset(&mut self, prefs: &ViewPreferences) {
-        self.freeze_view_angle_offset = false;
+    pub fn unfreeze_view_angle_offset(&mut self) {
+        self.view_angle.is_frozen = false;
+    }
+    fn update_transient_rotation(&mut self) {
+        let nearest_twists = self.puzzle.nearest_rotation(self.view_angle.current);
+        self.view_angle.transient_rotation = (!nearest_twists.0.is_empty()).then(|| nearest_twists);
     }
 
     /// Adds an animation to the view settings animation queue.
@@ -354,11 +399,13 @@ impl PuzzleController {
     pub(crate) fn geometry(&mut self, prefs: &Preferences) -> Arc<Vec<ProjectedStickerGeometry>> {
         let view_prefs = self.view_prefs(prefs);
 
+        self.update_transient_rotation();
+
         let params = StickerGeometryParams::new(
             &view_prefs,
             self.ty(),
             self.current_twist(),
-            self.view_angle_offset,
+            self.view_angle.current * self.view_angle.queued_delta,
         );
 
         if self.cached_geometry_params != Some(params) {
@@ -462,8 +509,8 @@ impl PuzzleController {
         self.view_settings_anim.proceed(base_speed);
 
         // Animate view angle offset.
-        if !self.freeze_view_angle_offset {
-            let offset = &mut self.view_angle_offset;
+        if !self.view_angle.is_frozen {
+            let offset = &mut self.view_angle.current;
 
             let decay_multiplier = VIEW_ANGLE_OFFSET_DECAY_RATE.powf(delta.as_secs_f32());
             let new_offset = Quaternion::one().slerp(*offset, decay_multiplier);
@@ -479,6 +526,7 @@ impl PuzzleController {
         let anim = &mut self.twist_anim;
         if anim.queue.is_empty() {
             anim.queue_max = 0;
+            self.view_angle.queued_delta = Quaternion::one();
         } else {
             // Update queue_max.
             anim.queue_max = std::cmp::max(anim.queue_max, anim.queue.len());
@@ -495,7 +543,9 @@ impl PuzzleController {
             if !(0.0..MIN_TWIST_DELTA).contains(&twist_delta) {
                 twist_delta = 1.0; // Instantly complete the twist.
             }
-            self.twist_anim.proceed(twist_delta);
+            if let Some(q) = self.twist_anim.proceed(twist_delta) {
+                self.view_angle.queued_delta = self.view_angle.queued_delta * q;
+            }
         }
     }
     /// Advances the puzzle decorations (outlines and sticker opacities) to the
@@ -753,22 +803,36 @@ impl PuzzleController {
 
 #[derive(Debug, Default, Clone)]
 struct TwistAnimationState {
-    /// Queue of twist animations to be displayed. Each element is a pair of the
-    /// puzzle state before the twist, and the twist to apply.
-    queue: VecDeque<(Puzzle, Twist)>,
+    /// Queue of twist animations to be displayed.
+    queue: VecDeque<TwistAnimation>,
     /// Maximum number of animations in the queue (reset when queue is empty).
     queue_max: usize,
     /// Progress of the animation in the current twist, from 0.0 to 1.0.
     progress: f32,
 }
 impl TwistAnimationState {
-    fn proceed(&mut self, delta_t: f32) {
+    #[must_use]
+    fn proceed(&mut self, delta_t: f32) -> Option<Quaternion<f32>> {
         self.progress += delta_t;
         if self.progress >= 1.0 {
-            self.queue.pop_front();
             self.progress = 0.0;
+            self.queue
+                .pop_front()
+                .map(|anim| anim.view_angle_offset_delta)
+        } else {
+            None
         }
     }
+}
+
+#[derive(Debug, Clone)]
+struct TwistAnimation {
+    /// Puzzle state before twist.
+    state: Puzzle,
+    /// Twist to animate.
+    twist: Twist,
+    /// Delta to apply to the view angle before animating.
+    view_angle_offset_delta: Quaternion<f32>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -808,6 +872,39 @@ impl ViewSettingsAnimState {
                 self.queue.pop_front();
                 self.progress = 0.0;
             }
+        }
+    }
+}
+
+/// The following rotations are applied to the whole puzzle in order before
+/// rendering:
+///
+/// 1. `queued_delta`
+/// 2. `current`
+/// 3. `view_prefs.view_angle` (from `ViewPreferences`)
+#[derive(Debug, Clone)]
+pub struct ViewAngleAnimState {
+    /// Cumulative view angle offset delta from all the twists in the twist
+    /// queue.
+    queued_delta: Quaternion<f32>,
+    /// View angle offset compared to the latest puzzle state.
+    current: Quaternion<f32>,
+
+    /// Full-puzzle rotations to silently apply next time the user grips or
+    /// twists the puzzle.
+    transient_rotation: Option<(Vec<Twist>, Quaternion<f32>)>,
+    /// Whether to freeze the view angle offset, versus animating it back to
+    /// zero.
+    is_frozen: bool,
+}
+impl Default for ViewAngleAnimState {
+    fn default() -> Self {
+        Self {
+            queued_delta: Quaternion::one(),
+            current: Quaternion::one(),
+
+            transient_rotation: None,
+            is_frozen: false,
         }
     }
 }

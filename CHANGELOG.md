@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- When rotating the puzzle with the mouse, it no longer snaps back when the mouse is released by default
+- Rotating the puzzle with the mouse now automatically applies the appropriate rotation to the puzzle before the next keyboard-based twist or grip change
 - Tweaked piece filters UI
   - Clicking on a filter now applies the filter
   - Name of active filter is now highlighted
