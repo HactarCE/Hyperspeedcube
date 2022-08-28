@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Editing keybinds and presets as plaintext YAML
 - Option to save hidden piece opacity in piece filter preset
+- Keybinding command to select custom piece filters (not bound by default)
 
 ### Changed
 

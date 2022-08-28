@@ -180,6 +180,12 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         ui.label("axis");
                     }
 
+                    PuzzleCommand::Filter { mode, filter_name } => {
+                        ui.label(mode.as_ref());
+                        ui.strong(filter_name);
+                        ui.label("preset");
+                    }
+
                     PuzzleCommand::None => unreachable!(),
                 });
             }

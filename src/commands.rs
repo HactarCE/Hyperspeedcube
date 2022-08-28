@@ -86,6 +86,13 @@ pub enum PuzzleCommand {
         axis: Option<String>,
     },
 
+    Filter {
+        #[serde(default)]
+        mode: FilterMode,
+        #[serde(default)]
+        filter_name: String,
+    },
+
     #[default]
     #[serde(other)]
     None,
@@ -114,7 +121,6 @@ impl PuzzleCommand {
                 ty.twist_direction_from_name(direction).unwrap_or_default(),
                 layers.to_layer_mask(ty.layer_count()),
             ),
-
             PuzzleCommand::Recenter { axis } => {
                 match axis
                     .as_deref()
@@ -131,6 +137,8 @@ impl PuzzleCommand {
                     None => "Recenter".to_string(),
                 }
             }
+
+            PuzzleCommand::Filter { mode, filter_name } => format!("{mode} {filter_name}"),
 
             PuzzleCommand::None => String::new(),
         }
@@ -156,6 +164,48 @@ impl PuzzleCommand {
             _ => None,
         }
     }
+    pub fn filter_mode_mut(&mut self) -> Option<&mut FilterMode> {
+        match self {
+            Self::Filter { mode, .. } => Some(mode),
+            _ => None,
+        }
+    }
+    pub fn filter_name_mut(&mut self) -> Option<&mut String> {
+        match self {
+            Self::Filter { filter_name, .. } => Some(filter_name),
+            _ => None,
+        }
+    }
+}
+
+/// Mode in which to apply a piece filter.
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Display,
+    AsRefStr,
+    IntoStaticStr,
+    EnumIter,
+    Default,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+)]
+pub enum FilterMode {
+    #[default]
+    #[strum(serialize = "Show exactly")]
+    ShowExactly,
+    #[strum(serialize = "Show")]
+    Show,
+    #[strum(serialize = "Hide")]
+    Hide,
+    #[strum(serialize = "Hide all except")]
+    HideAllExcept,
+    #[strum(serialize = "Toggle")]
+    Toggle,
 }
 
 /// Description of a layer mask that adjusts to the size of a puzzle.

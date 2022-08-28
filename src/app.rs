@@ -327,6 +327,43 @@ impl App {
                     }
                 }
 
+                PuzzleCommand::Filter { mode, filter_name } => {
+                    let piece_filters = &self.prefs.piece_filters[self.puzzle.ty()];
+                    let preset = match piece_filters.iter().find(|p| p.preset_name == *filter_name)
+                    {
+                        Some(p) => p.value.clone(),
+                        None => {
+                            self.set_status_err(format!(
+                                "Unable to find piece filter {filter_name:?}"
+                            ));
+                            return;
+                        }
+                    };
+                    let piece_set = preset.visible_pieces.clone();
+                    let current = self.puzzle.visible_pieces();
+                    let new_piece_set = match mode {
+                        crate::commands::FilterMode::ShowExactly => {
+                            if let Some(opacity) = preset.hidden_opacity {
+                                self.prefs.opacity.hidden = opacity;
+                                self.prefs.needs_save = true;
+                                self.force_redraw = true;
+                            }
+                            piece_set
+                        }
+                        crate::commands::FilterMode::Show => piece_set | current,
+                        crate::commands::FilterMode::Hide => !piece_set & current,
+                        crate::commands::FilterMode::HideAllExcept => piece_set & current,
+                        crate::commands::FilterMode::Toggle => {
+                            if (piece_set.clone() & current).any() {
+                                !piece_set & current
+                            } else {
+                                piece_set | current
+                            }
+                        }
+                    };
+                    self.puzzle.set_visible_pieces(&new_piece_set);
+                }
+
                 PuzzleCommand::None => return, // Do not try to match other keybinds.
             }
         }

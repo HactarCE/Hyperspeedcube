@@ -1,13 +1,16 @@
+use std::borrow::Cow;
+use strum::IntoEnumIterator;
+
 use crate::app::App;
 use crate::commands::{
-    Command, LayerMaskDesc, PuzzleCommand, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX,
+    Command, FilterMode, LayerMaskDesc, PuzzleCommand, PARTIAL_SCRAMBLE_MOVE_COUNT_MAX,
     PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
 };
 use crate::gui::key_combo_popup;
 use crate::gui::keybinds_set::*;
 use crate::gui::util::{self, ComboBoxExt, FancyComboBox, ResponseExt};
 use crate::gui::widgets;
-use crate::preferences::Keybind;
+use crate::preferences::{Keybind, Preferences};
 use crate::puzzle::*;
 
 const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
@@ -29,17 +32,17 @@ where
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
 
-        let keybinds = self.keybind_set.get_mut(&mut self.app.prefs);
+        let mut keybinds = std::mem::take(self.keybind_set.get_mut(&mut self.app.prefs));
 
-        let plaintext_yaml_editor = widgets::PlaintextYamlEditor {
+        let yaml_editor = widgets::PlaintextYamlEditor {
             id: unique_id!(self.keybind_set),
         };
 
-        let mut r = plaintext_yaml_editor.show(ui, keybinds).unwrap_or_else(|| {
+        let mut r = yaml_editor.show(ui, &mut keybinds).unwrap_or_else(|| {
             ui.scope(|ui| {
                 ui.horizontal(|ui| {
                     if widgets::big_icon_button(ui, "✏", "Edit as plaintext").clicked() {
-                        plaintext_yaml_editor.set_active(ui, keybinds);
+                        yaml_editor.set_active(ui, &mut keybinds);
                     }
 
                     if widgets::big_icon_button(ui, "➕", "Add a new keybind").clicked() {
@@ -59,8 +62,10 @@ where
                 ui.separator();
 
                 egui::ScrollArea::new([false, true]).show(ui, |ui| {
-                    let r = widgets::ReorderableList::new(unique_id!(self.keybind_set), keybinds)
-                        .show(ui, |ui, idx, keybind| {
+                    let id = unique_id!(self.keybind_set);
+                    let r = widgets::ReorderableList::new(id, &mut keybinds).show(
+                        ui,
+                        |ui, idx, keybind| {
                             let mut r = ui.add_sized(
                                 KEY_BUTTON_SIZE,
                                 egui::Button::new(keybind.key.to_string()),
@@ -79,12 +84,15 @@ where
 
                                 keybind_set: self.keybind_set,
                                 idx,
+
+                                prefs: &self.app.prefs,
                             });
 
                             ui.allocate_space(egui::vec2(ui.available_width(), 0.0));
 
                             r
-                        });
+                        },
+                    );
                     changed |= r.changed();
 
                     ui.allocate_space(egui::vec2(1.0, 200.0));
@@ -96,6 +104,8 @@ where
             })
             .response
         });
+
+        *self.keybind_set.get_mut(&mut self.app.prefs) = keybinds;
 
         if changed {
             r.mark_changed();
@@ -109,6 +119,8 @@ struct CommandSelectWidget<'a, S: KeybindSet> {
 
     keybind_set: S,
     idx: usize,
+
+    prefs: &'a Preferences,
 }
 
 impl egui::Widget for CommandSelectWidget<'_, GlobalKeybinds> {
@@ -197,7 +209,12 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
                         layers: self.cmd.layers_mut().cloned().unwrap_or_default(),
                     },
                     "Recenter" => Cmd::Recenter {
-                        axis: self.cmd.axis_mut().cloned().unwrap_or_default()
+                        axis: self.cmd.axis_mut().cloned().unwrap_or_default(),
+                    },
+
+                    "Filter" => Cmd::Filter {
+                        mode: self.cmd.filter_mode_mut().cloned().unwrap_or_default(),
+                        filter_name: self.cmd.filter_name_mut().cloned().unwrap_or_default(),
                     },
                 }
             );
@@ -224,6 +241,32 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
                     direction,
                     puzzle_type.twist_directions(),
                 ));
+                changed |= r.changed();
+            }
+            if let Some(filter_mode) = self.cmd.filter_mode_mut() {
+                let r = ui.add(FancyComboBox {
+                    combo_box: egui::ComboBox::from_id_source(unique_id!(self.idx)),
+                    selected: filter_mode,
+                    options: FilterMode::iter()
+                        .map(|mode| (mode, Cow::Borrowed(mode.into())))
+                        .collect(),
+                });
+                changed |= r.changed();
+            }
+            if let Some(filter_name) = self.cmd.filter_name_mut() {
+                let r = ui
+                    .add(FancyComboBox::new(
+                        unique_id!(self.idx),
+                        filter_name,
+                        self.prefs.piece_filters[puzzle_type]
+                            .iter()
+                            .map(|preset| &preset.preset_name),
+                    ))
+                    .on_hover_explanation(
+                        "",
+                        "You can define piece filter presets \
+                         in the \"Piece filters\" tool.",
+                    );
                 changed |= r.changed();
             }
         });
