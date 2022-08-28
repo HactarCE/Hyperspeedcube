@@ -1287,6 +1287,7 @@ impl TwistDirectionEnum {
         Some((direction, basis_face))
     }
 
+    #[allow(unused)] // This will be used by physical 2^4 so I'm leaving it in here for now.
     fn from_xyz_chars(s: &str) -> Result<Option<Self>, String> {
         use TwistDirectionEnum::*;
 
