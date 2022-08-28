@@ -241,6 +241,15 @@ where
                     egui::Layout::centered_and_justified(egui::Direction::TopDown)
                         .with_cross_align(egui::Align::LEFT),
                     |ui| {
+                        // Highlight name of active filter.
+                        if puzzle.are_all_shown(self.predicate)
+                            && puzzle.are_all_hidden(|p| !(self.predicate)(p))
+                        {
+                            let visuals = ui.visuals_mut();
+                            visuals.widgets.hovered = visuals.widgets.active;
+                            visuals.widgets.inactive = visuals.widgets.active;
+                        }
+
                         let r = ui.add(self.label_ui);
                         if r.hovered() {
                             puzzle.set_preview_hidden(|piece| Some(!(self.predicate)(piece)));
