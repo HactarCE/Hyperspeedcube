@@ -89,6 +89,21 @@ pub(super) fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     prefs_ui.float("Drag sensitivity", access!(.drag_sensitivity), |dv| {
         dv.fixed_decimals(2).clamp_range(0.0..=3.0_f32).speed(0.01)
     });
+    prefs_ui
+        .checkbox("Realign puzzle on release", access!(.realign_on_release))
+        .on_hover_explanation(
+            "",
+            "When enabled, the puzzle snaps back immediately when \
+             the mouse is released after dragging to rotate it.",
+        );
+    prefs_ui
+        .checkbox("Smart realign", access!(.smart_realign))
+        .on_hover_explanation(
+            "",
+            "When enabled, the puzzle snaps to the nearest \
+             similar orientation, not the original. This \
+             adds a full-puzzle rotation to the undo history.",
+        );
 
     prefs_ui.ui.separator();
 

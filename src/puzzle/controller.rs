@@ -5,7 +5,6 @@ use bitvec::bitvec;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 use cgmath::{Deg, InnerSpace, One, Quaternion, Rotation, Rotation3};
-use itertools::Itertools;
 use num_enum::FromPrimitive;
 use std::borrow::Cow;
 use std::collections::{HashSet, VecDeque};
@@ -310,7 +309,6 @@ impl PuzzleController {
     /// Sets the puzzle grip.
     pub fn set_grip(&mut self, grip: Grip) {
         if grip != self.grip && !grip.axes.is_empty() {
-            self.apply_transient_rotation();
             self.unfreeze_view_angle_offset();
         }
         self.grip = grip;
@@ -330,13 +328,20 @@ impl PuzzleController {
     pub fn freeze_view_angle_offset(&mut self) {
         self.view_angle.is_frozen = true;
     }
-    /// Unfreezes the view angle offset and begins animating it back to zero.
+    /// Unfreezes the view angle offset and begins animating it to the nearest
+    /// compatible orientation.
     pub fn unfreeze_view_angle_offset(&mut self) {
+        self.apply_transient_rotation();
         self.view_angle.is_frozen = false;
     }
-    fn update_transient_rotation(&mut self) {
-        let nearest_twists = self.puzzle.nearest_rotation(self.view_angle.current);
-        self.view_angle.transient_rotation = (!nearest_twists.0.is_empty()).then(|| nearest_twists);
+    fn update_transient_rotation(&mut self, interaction_prefs: &InteractionPreferences) {
+        if interaction_prefs.smart_realign {
+            let nearest_twists = self.puzzle.nearest_rotation(self.view_angle.current);
+            self.view_angle.transient_rotation =
+                (!nearest_twists.0.is_empty()).then(|| nearest_twists);
+        } else {
+            self.view_angle.transient_rotation = None;
+        }
     }
 
     /// Adds an animation to the view settings animation queue.
@@ -399,7 +404,7 @@ impl PuzzleController {
     pub(crate) fn geometry(&mut self, prefs: &Preferences) -> Arc<Vec<ProjectedStickerGeometry>> {
         let view_prefs = self.view_prefs(prefs);
 
-        self.update_transient_rotation();
+        self.update_transient_rotation(&prefs.interaction);
 
         let params = StickerGeometryParams::new(
             &view_prefs,
