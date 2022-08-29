@@ -1,11 +1,22 @@
 use key_names::KeyMappingCode;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::BTreeSet;
 use std::fmt;
 use winit::event::{ModifiersState, VirtualKeyCode};
 
 use super::is_false;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
+#[serde(default)]
+pub struct KeybindSet<C: Default> {
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub includes: BTreeSet<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub keybinds: Vec<Keybind<C>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
+#[serde(default)]
 pub struct Keybind<C> {
     #[serde(flatten, deserialize_with = "deser_valid_key_combo")]
     pub key: KeyCombo,

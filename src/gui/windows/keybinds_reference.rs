@@ -93,7 +93,11 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
 
     let vk = key_names::key_to_winit_vkey(key);
     let matching_puzzle_keybinds: Vec<&Keybind<PuzzleCommand>> = app
-        .resolve_keypress(&app.prefs.puzzle_keybinds[puzzle_type], Some(key), vk)
+        .resolve_keypress(
+            app.prefs.puzzle_keybinds[puzzle_type].get_active_keybinds(),
+            Some(key),
+            vk,
+        )
         .into_iter()
         .take_while(|bind| bind.command != PuzzleCommand::None)
         .collect();

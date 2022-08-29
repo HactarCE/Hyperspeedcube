@@ -1,5 +1,6 @@
 mod appearance_settings;
 mod interaction_settings;
+mod keybind_sets;
 mod keybinds_reference;
 pub mod keybinds_table;
 mod modifier_keys;
@@ -7,6 +8,8 @@ mod mousebinds_table;
 mod piece_filters;
 mod puzzle_controls;
 mod view_settings;
+
+use itertools::Itertools;
 
 use crate::app::App;
 
@@ -29,6 +32,7 @@ pub const ALL: &[Window] = &[
     INTERACTION_SETTINGS,
     VIEW_SETTINGS,
     // Keybinds
+    KEYBIND_SETS,
     GLOBAL_KEYBINDS,
     PUZZLE_KEYBINDS,
     MOUSEBINDS,
@@ -138,7 +142,7 @@ pub const GLOBAL_KEYBINDS: Window = Window {
     build: |ui, app| {
         let r = ui.add(keybinds_table::KeybindsTable::new(
             app,
-            super::keybinds_set::GlobalKeybinds,
+            super::keybind_set_accessors::GlobalKeybindsAccessor,
         ));
         app.prefs.needs_save |= r.changed();
     },
@@ -151,12 +155,53 @@ pub const PUZZLE_KEYBINDS: Window = Window {
     fixed_width: None,
     vscroll: false,
     build: |ui, app| {
+        let puzzle_type = app.puzzle.ty();
+        let puzzle_keybinds = &mut app.prefs.puzzle_keybinds[puzzle_type];
+
+        // Show combobox to select between keybind sets.
+        let mut i = puzzle_keybinds
+            .sets
+            .iter()
+            .find_position(|set| set.preset_name == puzzle_keybinds.active)
+            .map(|(i, _)| i)
+            .unwrap_or(0);
+        ui.horizontal(|ui| {
+            ui.strong("Keybind set:");
+
+            let r = egui::ComboBox::new(unique_id!(), "").show_index(
+                ui,
+                &mut i,
+                puzzle_keybinds.sets.len(),
+                |i| puzzle_keybinds.sets[i].preset_name.clone(),
+            );
+            if r.changed() {
+                puzzle_keybinds.active = puzzle_keybinds.sets[i].preset_name.clone();
+                app.prefs.needs_save = true;
+            }
+        });
+        ui.separator();
+
+        let set_name = puzzle_keybinds.active.clone();
+
+        // Show keybinds table.
         let r = ui.add(keybinds_table::KeybindsTable::new(
             app,
-            super::keybinds_set::PuzzleKeybinds(app.puzzle.ty()),
+            super::keybind_set_accessors::PuzzleKeybindsAccessor {
+                puzzle_type,
+                set_name,
+            },
         ));
         app.prefs.needs_save |= r.changed();
     },
+    cleanup: |_| (),
+};
+
+pub const KEYBIND_SETS: Window = Window {
+    name: "Keybind sets",
+    location: Location::Floating,
+    fixed_width: Some(PREFS_WINDOW_WIDTH),
+    vscroll: true,
+    build: keybind_sets::build,
     cleanup: |_| (),
 };
 

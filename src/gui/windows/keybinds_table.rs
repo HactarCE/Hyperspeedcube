@@ -7,7 +7,7 @@ use crate::commands::{
     PARTIAL_SCRAMBLE_MOVE_COUNT_MIN,
 };
 use crate::gui::key_combo_popup;
-use crate::gui::keybinds_set::*;
+use crate::gui::keybind_set_accessors::*;
 use crate::gui::util::{self, ComboBoxExt, FancyComboBox, ResponseExt};
 use crate::gui::widgets;
 use crate::preferences::{Keybind, Preferences};
@@ -25,17 +25,35 @@ impl<'a, S> KeybindsTable<'a, S> {
         Self { app, keybind_set }
     }
 }
-impl<S: KeybindSet> egui::Widget for KeybindsTable<'_, S>
+impl<S: KeybindSetAccessor> egui::Widget for KeybindsTable<'_, S>
 where
     for<'a> CommandSelectWidget<'a, S>: egui::Widget,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
 
+        if let Some((all_options, included)) = self.keybind_set.includes_mut(&mut self.app.prefs) {
+            ui.horizontal_wrapped(|ui| {
+                ui.strong("Include:");
+                included.retain(|set_name| all_options.contains(&set_name));
+                for opt in all_options {
+                    let mut b = included.contains(&opt);
+                    if ui.toggle_value(&mut b, &opt).clicked() {
+                        changed = true;
+                        if b {
+                            included.insert(opt);
+                        } else {
+                            included.remove(&opt);
+                        }
+                    }
+                }
+            });
+        }
+
         let mut keybinds = std::mem::take(self.keybind_set.get_mut(&mut self.app.prefs));
 
         let yaml_editor = widgets::PlaintextYamlEditor {
-            id: unique_id!(self.keybind_set),
+            id: unique_id!(&self.keybind_set),
         };
 
         let mut r = yaml_editor.show(ui, &mut keybinds).unwrap_or_else(|| {
@@ -62,7 +80,7 @@ where
                 ui.separator();
 
                 egui::ScrollArea::new([false, true]).show(ui, |ui| {
-                    let id = unique_id!(self.keybind_set);
+                    let id = unique_id!(&self.keybind_set);
                     let r = widgets::ReorderableList::new(id, &mut keybinds).show(
                         ui,
                         |ui, idx, keybind| {
@@ -74,7 +92,7 @@ where
                                 key_combo_popup::open(
                                     ui.ctx(),
                                     Some(keybind.key),
-                                    self.keybind_set,
+                                    self.keybind_set.clone(),
                                     idx,
                                 )
                             }
@@ -82,7 +100,7 @@ where
                             r |= ui.add(CommandSelectWidget {
                                 cmd: &mut keybind.command,
 
-                                keybind_set: self.keybind_set,
+                                keybind_set: &self.keybind_set,
                                 idx,
 
                                 prefs: &self.app.prefs,
@@ -114,16 +132,16 @@ where
     }
 }
 
-struct CommandSelectWidget<'a, S: KeybindSet> {
+struct CommandSelectWidget<'a, S: KeybindSetAccessor> {
     cmd: &'a mut S::Command,
 
-    keybind_set: S,
+    keybind_set: &'a S,
     idx: usize,
 
     prefs: &'a Preferences,
 }
 
-impl egui::Widget for CommandSelectWidget<'_, GlobalKeybinds> {
+impl egui::Widget for CommandSelectWidget<'_, GlobalKeybindsAccessor> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         use Command as Cmd;
 
@@ -182,11 +200,11 @@ impl egui::Widget for CommandSelectWidget<'_, GlobalKeybinds> {
     }
 }
 
-impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybinds> {
+impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         use PuzzleCommand as Cmd;
 
-        let puzzle_type = self.keybind_set.0;
+        let puzzle_type = self.keybind_set.puzzle_type;
 
         let mut changed = false;
 

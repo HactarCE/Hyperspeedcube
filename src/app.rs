@@ -304,8 +304,9 @@ impl App {
         let mut success = false;
         let mut grip_error = None;
 
-        let puzzle_keybinds = &self.prefs.puzzle_keybinds[self.puzzle.ty()];
-        for bind in self.resolve_keypress(puzzle_keybinds, sc, vk) {
+        let active_puzzle_keybinds =
+            self.prefs.puzzle_keybinds[self.puzzle.ty()].get_active_keybinds();
+        for bind in self.resolve_keypress(active_puzzle_keybinds, sc, vk) {
             let key = bind.key.key().unwrap();
             match &bind.command {
                 PuzzleCommand::Grip { axis, layers } => {
@@ -427,7 +428,7 @@ impl App {
 
     pub(crate) fn resolve_keypress<'a, C>(
         &self,
-        keybinds: &'a [Keybind<C>],
+        keybinds: impl IntoIterator<Item = &'a Keybind<C>>,
         sc: Option<KeyMappingCode>,
         vk: Option<VirtualKeyCode>,
     ) -> Vec<&'a Keybind<C>> {
@@ -437,7 +438,7 @@ impl App {
         let modifiers_mask = self.modifiers_mask(sc, vk);
 
         keybinds
-            .iter()
+            .into_iter()
             .filter(move |bind| {
                 let key_combo = bind.key;
                 let key = key_combo.key();

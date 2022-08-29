@@ -7,6 +7,8 @@ pub struct PresetsUi<'a, T> {
     pub id: egui::Id,
     pub presets: &'a mut Vec<Preset<T>>,
     pub changed: &'a mut bool,
+    pub strings: PresetsUiStrings,
+    pub enable_yaml: bool,
 }
 impl<T> PresetsUi<'_, T>
 where
@@ -19,22 +21,22 @@ where
     pub fn show_header_with_active_preset(
         &mut self,
         ui: &mut egui::Ui,
-        current: &T,
-        active: &mut Option<Preset<T>>,
+        get_current: impl FnOnce() -> T,
+        set_active: impl FnOnce(&Preset<T>),
     ) {
-        self._show_header(ui, || current.clone(), Some(active))
+        self._show_header(ui, get_current, set_active)
     }
     pub fn show_header(&mut self, ui: &mut egui::Ui, get_current: impl FnOnce() -> T) {
-        self._show_header(ui, get_current, None)
+        self._show_header(ui, get_current, |_| ())
     }
     fn _show_header(
         &mut self,
         ui: &mut egui::Ui,
         get_current: impl FnOnce() -> T,
-        active_preset: Option<&mut Option<Preset<T>>>,
+        on_new_preset: impl FnOnce(&Preset<T>),
     ) {
         let mut edit_presets = ui.data().get_temp::<bool>(self.id).unwrap_or(false);
-        ui.checkbox(&mut edit_presets, "Edit presets");
+        ui.checkbox(&mut edit_presets, self.strings.edit);
         ui.data().insert_temp::<bool>(self.id, edit_presets);
 
         if !edit_presets {
@@ -47,9 +49,11 @@ where
         }
 
         ui.horizontal(|ui| {
-            if widgets::big_icon_button(ui, "✏", "Edit as plaintext").clicked() {
-                self.plaintext_yaml_editor().set_active(ui, self.presets);
-            }
+            ui.add_visible_ui(self.enable_yaml, |ui| {
+                if widgets::big_icon_button(ui, "✏", "Edit as plaintext").clicked() {
+                    self.plaintext_yaml_editor().set_active(ui, self.presets);
+                }
+            });
 
             let preset_name_id = self.id.with("preset_name");
             let mut preset_name = ui
@@ -61,14 +65,14 @@ where
 
             let button_resp = ui
                 .add_enabled_ui(is_preset_name_valid, |ui| {
-                    widgets::big_icon_button(ui, "➕", "Save preset")
+                    widgets::big_icon_button(ui, "➕", self.strings.save)
                 })
                 .inner;
             let button_clicked = button_resp.clicked();
 
             let text_edit_resp = ui.add(
                 egui::TextEdit::singleline(&mut preset_name)
-                    .hint_text("Preset name")
+                    .hint_text(self.strings.name)
                     .desired_width(f32::INFINITY),
             );
             let text_edit_confirmed =
@@ -79,9 +83,7 @@ where
                     preset_name: trimmed_preset_name,
                     value: get_current(),
                 };
-                if let Some(active) = active_preset {
-                    *active = Some(new_preset.clone());
-                }
+                on_new_preset(&new_preset);
                 self.presets.push(new_preset);
                 preset_name.clear();
                 *self.changed = true;
@@ -117,6 +119,22 @@ where
             for (idx, preset) in self.presets.iter_mut().enumerate() {
                 ui.horizontal(|ui| *self.changed |= preset_ui(ui, idx, preset).changed());
             }
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct PresetsUiStrings {
+    pub edit: &'static str,
+    pub save: &'static str,
+    pub name: &'static str,
+}
+impl Default for PresetsUiStrings {
+    fn default() -> Self {
+        Self {
+            edit: "Edit presets",
+            save: "Save preset",
+            name: "Preset name",
         }
     }
 }

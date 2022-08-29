@@ -8,7 +8,7 @@ macro_rules! unique_id {
 mod util;
 
 mod key_combo_popup;
-mod keybinds_set;
+mod keybind_set_accessors;
 mod menu_bar;
 mod prefs;
 mod puzzle_view;

@@ -8,10 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- Option to align puzzle when mouse is released (disabled by default)
-- "Smart realign" option that automatically applies the appropriate rotation to the puzzle based on mouse drag rotation before controls that depend on face locations (enabled by default)
+- Keybinding sets
 - Customizable mousebindings
 - Editing keybinds, mousebindings, and presets as plaintext YAML
+- Option to align puzzle when mouse is released (disabled by default)
+- "Smart realign" option that automatically applies the appropriate rotation to the puzzle based on mouse drag rotation before controls that depend on face locations (enabled by default)
 - Option to save hidden piece opacity in piece filter preset
 - Keybinding command to select custom piece filters (not bound by default)
 - Button to bind Numpad Enter key

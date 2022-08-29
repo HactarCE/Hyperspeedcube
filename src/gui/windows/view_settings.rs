@@ -16,9 +16,15 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             id: unique_id!(),
             presets: &mut presets.presets,
             changed: &mut changed,
+            strings: Default::default(),
+            enable_yaml: true,
         };
 
-        presets_ui.show_header_with_active_preset(ui, &presets.current, &mut presets.active_preset);
+        presets_ui.show_header_with_active_preset(
+            ui,
+            || presets.current.clone(),
+            |new_preset| presets.active_preset = Some(new_preset.clone()),
+        );
         ui.separator();
         presets_ui.show_list(ui, |ui, _idx, preset| {
             let mut changed = false;

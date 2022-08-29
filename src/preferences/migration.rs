@@ -1,5 +1,5 @@
 use config::{Config, ConfigError};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::*;
 
@@ -80,6 +80,8 @@ mod v0 {
 
         piece_filters: PerPuzzle<BTreeMap<String, String>>,
 
+        puzzle_keybinds: PerPuzzleFamily<Vec<Keybind<PuzzleCommand>>>,
+
         #[serde(flatten)]
         remaining: v1::PrefsCompat,
     }
@@ -99,6 +101,18 @@ mod v0 {
                         })
                         .collect(),
                     default: convert_piece_filter_preset_list(p.piece_filters.default),
+                },
+
+                puzzle_keybinds: PerPuzzleFamily {
+                    map: p
+                        .puzzle_keybinds
+                        .map
+                        .into_iter()
+                        .map(|(puzzle_family, keybinds)| {
+                            (puzzle_family, convert_puzzle_keybind_set(keybinds))
+                        })
+                        .collect(),
+                    default: Default::default(),
                 },
 
                 ..p.remaining
@@ -130,6 +144,19 @@ mod v0 {
                 },
             })
             .collect()
+    }
+
+    pub fn convert_puzzle_keybind_set(keybinds: Vec<Keybind<PuzzleCommand>>) -> PuzzleKeybindSets {
+        PuzzleKeybindSets {
+            active: "default".to_string(),
+            sets: vec![Preset {
+                preset_name: "default".to_string(),
+                value: KeybindSet {
+                    includes: BTreeSet::new(),
+                    keybinds,
+                },
+            }],
+        }
     }
 }
 impl<T: Default + Clone> From<v0::WithPresets<T>> for WithPresets<T> {

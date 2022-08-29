@@ -2,7 +2,7 @@ use key_names::KeyMappingCode;
 use std::sync::Arc;
 use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 
-use super::keybinds_set::KeybindSet;
+use super::keybind_set_accessors::KeybindSetAccessor;
 use super::util::ResponseExt;
 use crate::app::App;
 use crate::preferences::{Key, KeyCombo};
@@ -59,7 +59,7 @@ fn popup_state_id() -> egui::Id {
     unique_id!()
 }
 
-pub(super) fn open<S: KeybindSet>(
+pub(super) fn open<S: KeybindSetAccessor>(
     ctx: &egui::Context,
     key: Option<KeyCombo>,
     keybind_set: S,

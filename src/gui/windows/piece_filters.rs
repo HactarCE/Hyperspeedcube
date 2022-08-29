@@ -144,6 +144,8 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             id: unique_id!(),
             presets: &mut piece_filter_presets,
             changed: &mut changed,
+            strings: Default::default(),
+            enable_yaml: true,
         };
 
         presets_ui.show_header(ui, || PieceFilter {

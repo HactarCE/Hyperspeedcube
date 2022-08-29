@@ -5,6 +5,7 @@
 
 use bitvec::vec::BitVec;
 use directories::ProjectDirs;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, BTreeMap};
 use std::error::Error;
@@ -119,8 +120,7 @@ pub struct Preferences {
     pub piece_filters: PerPuzzle<Vec<Preset<PieceFilter>>>,
 
     pub global_keybinds: Vec<Keybind<Command>>,
-    // pub keybind_sets: Vec<KeybindSet<PuzzleCommand>>,
-    pub puzzle_keybinds: PerPuzzleFamily<Vec<Keybind<PuzzleCommand>>>,
+    pub puzzle_keybinds: PerPuzzleFamily<PuzzleKeybindSets>,
     pub mousebinds: Vec<Mousebind<PuzzleMouseCommand>>,
 }
 impl Preferences {
@@ -230,6 +230,59 @@ impl Preferences {
             ProjectionType::_3D => &mut self.view_3d,
             ProjectionType::_4D => &mut self.view_4d,
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
+pub struct PuzzleKeybindSets {
+    pub active: String,
+    pub sets: Vec<Preset<KeybindSet<PuzzleCommand>>>,
+}
+impl PuzzleKeybindSets {
+    pub fn get(&self, set_name: &str) -> Option<&Preset<KeybindSet<PuzzleCommand>>> {
+        self.sets.iter().find(|p| p.preset_name == set_name)
+    }
+    pub fn get_mut(&mut self, set_name: &str) -> &mut Preset<KeybindSet<PuzzleCommand>> {
+        match self
+            .sets
+            .iter_mut()
+            .find_position(|p| p.preset_name == set_name)
+        {
+            Some((i, _)) => &mut self.sets[i],
+            None => {
+                self.sets.push(Preset {
+                    preset_name: set_name.to_string(),
+                    value: KeybindSet::default(),
+                });
+                self.sets.last_mut().unwrap()
+            }
+        }
+    }
+    pub fn get_active(&self) -> Vec<&Preset<KeybindSet<PuzzleCommand>>> {
+        let mut names = vec![&self.active];
+        let mut unprocessed_idx = 0;
+        while unprocessed_idx < names.len() {
+            if let Some(set) = self.get(names[unprocessed_idx]) {
+                for name in &set.value.includes {
+                    if !names.contains(&name) {
+                        names.push(name);
+                    }
+                }
+            }
+            unprocessed_idx += 1;
+        }
+
+        names
+            .into_iter()
+            .filter_map(|name| self.get(name))
+            .collect()
+    }
+    pub fn get_active_keybinds<'a>(
+        &'a self,
+    ) -> impl 'a + Iterator<Item = &'a Keybind<PuzzleCommand>> {
+        self.get_active()
+            .into_iter()
+            .flat_map(|set| &set.value.keybinds)
     }
 }
 
