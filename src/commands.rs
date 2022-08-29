@@ -257,6 +257,7 @@ impl FromStr for LayerMaskDesc {
             segments: s
                 .split(',')
                 .map(|segment_str| segment_str.parse())
+                .filter(|&segment| segment != Ok(LayerMaskDescSegment::default()))
                 .collect::<Result<_, _>>()?,
         })
     }
