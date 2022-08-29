@@ -261,13 +261,10 @@ impl PuzzleKeybindSets {
     pub fn get_active(&self) -> Vec<&Preset<KeybindSet<PuzzleCommand>>> {
         let mut included_names = vec![&self.active];
         let mut unprocessed_idx = 0;
-        // This algorithm is quadratic but I kinda don't care. If you have
-        // hundreds of keybind sets that all refer to each other in a
-        // daisy-chain, that's your problem.
         while unprocessed_idx < included_names.len() {
             if let Some(set) = self.get(included_names[unprocessed_idx]) {
-                for name in self.sets.iter().map(|set| &set.preset_name) {
-                    if set.value.includes.contains(name) && !included_names.contains(&name) {
+                for name in &set.value.includes {
+                    if !included_names.contains(&name) {
                         included_names.push(name);
                     }
                 }
@@ -275,9 +272,10 @@ impl PuzzleKeybindSets {
             unprocessed_idx += 1;
         }
 
-        included_names
-            .into_iter()
-            .filter_map(|name| self.get(name))
+        // Standardize order.
+        self.sets
+            .iter()
+            .filter(|set| included_names.contains(&&set.preset_name))
             .collect()
     }
     pub fn get_active_keybinds<'a>(
