@@ -69,6 +69,9 @@ if do_subcommand('write'):
                 r'\[UNRELEASED\]',
                 f'[{version}] - {date.today():%Y-%m-%d}')
 
+    # Update Cargo.lock
+    subprocess.run(['cargo', 'update', '--workspace'], check=True)
+
 
 if do_subcommand('git'):
     git_commands = [
