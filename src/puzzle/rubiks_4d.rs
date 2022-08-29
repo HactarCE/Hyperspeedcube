@@ -664,10 +664,10 @@ impl Rubiks4D {
         let (axis, direction) = (*MC4D_TWISTS.get(segments.next()?.parse::<usize>().ok()?)?)?;
         let direction: TwistDirectionEnum = direction.into();
         let direction = match segments.next()?.parse::<i8>().ok()? {
-            1 => direction.rev(),
-            2 => direction.rev().double()?,
-            -1 => direction,
-            -2 => direction.double()?,
+            1 => direction,
+            2 => direction.double()?,
+            -1 => direction.rev(),
+            -2 => direction.rev().double()?,
             _ => return None,
         };
         let layers = LayerMask(segments.next()?.parse().ok()?);
@@ -708,8 +708,8 @@ impl Rubiks4D {
                     TwistDirectionEnum::from_signs_within_face(Self::signs_within_face(
                         face,
                         match face {
-                            O => -offset, // not sure why this is necessary, but it is
-                            _ => offset,
+                            O => offset, // not sure why this is necessary, but it is
+                            _ => -offset,
                         },
                     ))
                 })

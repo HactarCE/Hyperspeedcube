@@ -220,3 +220,27 @@ impl fmt::Display for LogFileError {
     }
 }
 impl Error for LogFileError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mc4d_compat() {
+        let ty = PuzzleTypeEnum::Rubiks4D { layer_count: 5 };
+
+        for axis in (0..ty.twist_axes().len() as _).map(TwistAxis) {
+            for direction in (0..ty.twist_directions().len() as _).map(TwistDirection) {
+                let twist = Twist {
+                    axis,
+                    direction,
+                    layers: LayerMask(5),
+                };
+                let s = Rubiks4D::to_mc4d_twist_string(twist);
+                if let Some(t) = Rubiks4D::from_mc4d_twist_string(&s) {
+                    assert_eq!(t, twist);
+                }
+            }
+        }
+    }
+}
