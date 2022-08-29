@@ -1,3 +1,4 @@
+use bitvec::bitvec;
 use cgmath::Point2;
 use itertools::Itertools;
 use key_names::KeyMappingCode;
@@ -9,7 +10,7 @@ use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
 use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
-use crate::preferences::{Key, Keybind, Preferences};
+use crate::preferences::{Key, Keybind, PieceFilter, Preferences};
 use crate::puzzle::*;
 use crate::render::{GraphicsState, PuzzleRenderCache};
 
@@ -363,6 +364,10 @@ impl App {
                     let preset = match piece_filters.iter().find(|p| p.preset_name == *filter_name)
                     {
                         Some(p) => p.value.clone(),
+                        None if filter_name == "Everything" => PieceFilter {
+                            visible_pieces: bitvec![1; self.puzzle.ty().pieces().len()],
+                            hidden_opacity: None,
+                        },
                         None => {
                             self.set_status_err(format!(
                                 "Unable to find piece filter {filter_name:?}"

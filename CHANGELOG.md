@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [UNRELEASED]
 
+### Added
+
+- Built-in "Everything" preset for "Filter" keybindings
+
 ### Fixed
 
 - MC4D-compatible log files are now saved correctly

@@ -280,13 +280,14 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
                 changed |= r.changed();
             }
             if let Some(filter_name) = self.cmd.filter_name_mut() {
+                let preset_names = self.prefs.piece_filters[puzzle_type]
+                    .iter()
+                    .map(|preset| &preset.preset_name);
                 let r = ui
                     .add(FancyComboBox::new(
                         unique_id!(self.idx),
                         filter_name,
-                        self.prefs.piece_filters[puzzle_type]
-                            .iter()
-                            .map(|preset| &preset.preset_name),
+                        std::iter::once(&"Everything".to_string()).chain(preset_names),
                     ))
                     .on_hover_explanation(
                         "",
