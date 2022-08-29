@@ -13,6 +13,8 @@ use itertools::Itertools;
 
 use crate::app::App;
 
+use super::util::ResponseExt;
+
 pub const FLOATING_WINDOW_OPACITY: f32 = 0.98;
 pub const PREFS_WINDOW_WIDTH: f32 = 240.0;
 pub const ABOUT_WINDOW_WIDTH: f32 = 360.0;
@@ -168,12 +170,14 @@ pub const PUZZLE_KEYBINDS: Window = Window {
         ui.horizontal(|ui| {
             ui.strong("Keybind set:");
 
-            let r = egui::ComboBox::new(unique_id!(), "").show_index(
-                ui,
-                &mut i,
-                puzzle_keybinds.sets.len(),
-                |i| puzzle_keybinds.sets[i].preset_name.clone(),
-            );
+            let r = egui::ComboBox::new(unique_id!(), "")
+                .show_index(ui, &mut i, puzzle_keybinds.sets.len(), |i| {
+                    puzzle_keybinds.sets[i].preset_name.clone()
+                })
+                .on_hover_explanation(
+                    "",
+                    "You can manage keybind sets in \"Keybind sets\" settings.",
+                );
             if r.changed() {
                 puzzle_keybinds.active = puzzle_keybinds.sets[i].preset_name.clone();
                 app.prefs.needs_save = true;

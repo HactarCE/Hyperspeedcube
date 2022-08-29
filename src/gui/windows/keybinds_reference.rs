@@ -190,6 +190,12 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         ui.label("preset");
                     }
 
+                    PuzzleCommand::KeybindSet { keybind_set_name } => {
+                        ui.label("Switch to");
+                        ui.strong(keybind_set_name);
+                        ui.label("keybinds");
+                    }
+
                     PuzzleCommand::None => unreachable!(),
                 });
             }

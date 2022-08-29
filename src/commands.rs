@@ -105,6 +105,11 @@ pub enum PuzzleCommand {
         filter_name: String,
     },
 
+    KeybindSet {
+        #[serde(default)]
+        keybind_set_name: String,
+    },
+
     #[default]
     #[serde(other)]
     None,
@@ -152,6 +157,8 @@ impl PuzzleCommand {
 
             PuzzleCommand::Filter { mode, filter_name } => format!("{mode} {filter_name}"),
 
+            PuzzleCommand::KeybindSet { keybind_set_name } => format!("{keybind_set_name}"),
+
             PuzzleCommand::None => String::new(),
         }
     }
@@ -185,6 +192,14 @@ impl PuzzleCommand {
     pub fn filter_name_mut(&mut self) -> Option<&mut String> {
         match self {
             Self::Filter { filter_name, .. } => Some(filter_name),
+            _ => None,
+        }
+    }
+    pub fn keybind_set_name_mut(&mut self) -> Option<&mut String> {
+        match self {
+            Self::KeybindSet {
+                keybind_set_name, ..
+            } => Some(keybind_set_name),
             _ => None,
         }
     }

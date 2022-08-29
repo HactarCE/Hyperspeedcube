@@ -397,6 +397,18 @@ impl App {
                     success = true;
                 }
 
+                PuzzleCommand::KeybindSet { keybind_set_name } => {
+                    let set_name = keybind_set_name.clone();
+                    let puzzle_keybinds = &mut self.prefs.puzzle_keybinds[self.puzzle.ty()];
+                    if puzzle_keybinds.get(&set_name).is_some() {
+                        puzzle_keybinds.active = set_name.clone();
+                        self.set_status_ok(format!("Switched to {set_name} keybinds"));
+                    } else {
+                        self.set_status_err(format!("No keybind set named {set_name}"));
+                    }
+                    return; // Do not try to match other keybinds.
+                }
+
                 PuzzleCommand::None => return, // Do not try to match other keybinds.
             }
         }

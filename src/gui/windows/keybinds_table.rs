@@ -234,6 +234,14 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
                         mode: self.cmd.filter_mode_mut().cloned().unwrap_or_default(),
                         filter_name: self.cmd.filter_name_mut().cloned().unwrap_or_default(),
                     },
+
+                    "Keybind set" => Cmd::KeybindSet {
+                        keybind_set_name: self
+                            .cmd
+                            .keybind_set_name_mut()
+                            .cloned()
+                            .unwrap_or_default(),
+                    },
                 }
             );
             changed |= r.changed();
@@ -282,8 +290,24 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
                     ))
                     .on_hover_explanation(
                         "",
-                        "You can define piece filter presets \
+                        "You can manage piece filter presets \
                          in the \"Piece filters\" tool.",
+                    );
+                changed |= r.changed();
+            }
+            if let Some(keybind_set_name) = self.cmd.keybind_set_name_mut() {
+                let r = ui
+                    .add(FancyComboBox::new(
+                        unique_id!(self.idx),
+                        keybind_set_name,
+                        self.prefs.puzzle_keybinds[puzzle_type]
+                            .sets
+                            .iter()
+                            .map(|set| &set.preset_name),
+                    ))
+                    .on_hover_explanation(
+                        "",
+                        "You can manage keybind sets in \"Keybind sets\" settings.",
                     );
                 changed |= r.changed();
             }
