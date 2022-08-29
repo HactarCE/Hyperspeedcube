@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  HYPERSPEEDCUBE_VERSION: 0.9.0-dev
+  HYPERSPEEDCUBE_VERSION: 0.9.0
 
 jobs:
 
