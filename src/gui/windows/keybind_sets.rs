@@ -53,5 +53,12 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         r.response
     });
 
+    // If the active set was deleted, then pick a new active set.
+    if puzzle_keybinds.get(&puzzle_keybinds.active).is_none() {
+        if let Some(set) = puzzle_keybinds.sets.first() {
+            puzzle_keybinds.active = set.preset_name.clone();
+        }
+    }
+
     app.prefs.needs_save |= changed;
 }
