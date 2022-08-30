@@ -206,6 +206,8 @@ impl PuzzleCommand {
 }
 
 /// Mode in which to apply a piece filter.
+///
+/// TODO: remove aliases (support for v0.9.0 preferences)
 #[derive(
     Serialize,
     Deserialize,
@@ -221,17 +223,23 @@ impl PuzzleCommand {
     Eq,
     Hash,
 )]
+#[serde(rename_all = "snake_case")]
 pub enum FilterMode {
     #[default]
     #[strum(serialize = "Show exactly")]
+    #[serde(alias = "ShowExactly")]
     ShowExactly,
     #[strum(serialize = "Show")]
+    #[serde(alias = "Show")]
     Show,
     #[strum(serialize = "Hide")]
+    #[serde(alias = "Hide")]
     Hide,
     #[strum(serialize = "Hide all except")]
+    #[serde(alias = "HideAllExcept")]
     HideAllExcept,
     #[strum(serialize = "Toggle")]
+    #[serde(alias = "Toggle")]
     Toggle,
 }
 
