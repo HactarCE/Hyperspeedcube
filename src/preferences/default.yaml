@@ -470,6 +470,13 @@ puzzle_keybinds:
             command:
               keybind_set:
                 keybind_set_name: RKT (RUF)
+      - preset_name: Filters
+        keybinds:
+          - sc: Backquote
+            command:
+              filter:
+                mode: show_exactly
+                filter_name: Everything
       - preset_name: Layers
         keybinds:
           - sc: Digit1
@@ -594,6 +601,7 @@ puzzle_keybinds:
       - preset_name: Default
         includes:
           - Basic twists
+          - Filters
           - Layers
           - Rotations
           - Switching
@@ -652,6 +660,7 @@ puzzle_keybinds:
       - preset_name: RKT (full)
         includes:
           - Basic twists
+          - Filters
           - Layers
           - Rotations
           - Switching
@@ -788,6 +797,7 @@ puzzle_keybinds:
       - preset_name: RKT (RUF)
         includes:
           - Basic twists
+          - Filters
           - Switching
         keybinds:
           - sc: KeyA
