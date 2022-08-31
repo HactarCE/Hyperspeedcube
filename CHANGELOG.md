@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - MC4D-compatible log files are now saved correctly
+- Edge twists now animate correctly
 
 ## [0.9.0] - 2022-08-28
 

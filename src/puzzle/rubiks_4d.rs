@@ -438,7 +438,7 @@ impl PuzzleState for Rubiks4D {
                     direction: dir.into(),
                     layers,
                 };
-                (vec![twist], dir.twist_rotation())
+                (vec![twist], dir.twist_rotation(1.0))
             })
             .collect()
     }
@@ -944,9 +944,7 @@ impl FaceEnum {
     }
 
     fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix4<f32> {
-        let mat3: Matrix3<f32> = Quaternion::one()
-            .slerp(direction.twist_rotation(), progress)
-            .into();
+        let mat3: Matrix3<f32> = direction.twist_rotation(progress).into();
         let mut ret = Matrix4::identity();
         let basis = self.basis_faces();
         for i in 0..3 {
@@ -1315,9 +1313,9 @@ impl TwistDirectionEnum {
         Ok(Self::from_piece_state_on_face(piece_state, face))
     }
 
-    fn twist_rotation(self) -> Quaternion<f32> {
+    fn twist_rotation(self, progress: f32) -> Quaternion<f32> {
         let angle = Rad::full_turn() / self.period() as f32;
-        Quaternion::from_axis_angle(self.vector3_f32().normalize(), -angle)
+        Quaternion::from_axis_angle(self.vector3_f32().normalize(), -angle * progress)
     }
 }
 
