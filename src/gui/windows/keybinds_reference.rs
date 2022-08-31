@@ -131,10 +131,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
             ui.heading(get_key_name(key));
 
             // Adjust spacing so we don't have to add spaces manually.
-            let space_width = ui
-                .fonts()
-                .glyph_width(&egui::TextStyle::Body.resolve(ui.style()), ' ');
-            ui.spacing_mut().item_spacing.x = space_width;
+            util::set_widget_spacing_to_space_widgth(ui);
 
             for bind in matching_puzzle_keybinds {
                 ui.horizontal_wrapped(|ui| match &bind.command {
@@ -171,9 +168,9 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                             ui.label("direction");
                             if !layers.is_default() {
                                 ui.label("(");
-                                ui.add_space(-space_width);
+                                util::subtract_space(ui);
                                 ui.strong(layers.long_description());
-                                ui.add_space(-space_width);
+                                util::subtract_space(ui);
                                 ui.label(")");
                             }
                         }

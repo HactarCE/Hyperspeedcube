@@ -8,6 +8,7 @@ mod mousebinds_table;
 mod piece_filters;
 mod puzzle_controls;
 mod view_settings;
+mod welcome;
 
 use itertools::Itertools;
 
@@ -18,9 +19,11 @@ use super::util::ResponseExt;
 pub const FLOATING_WINDOW_OPACITY: f32 = 0.98;
 pub const PREFS_WINDOW_WIDTH: f32 = 240.0;
 pub const ABOUT_WINDOW_WIDTH: f32 = 360.0;
+pub const WELCOME_WINDOW_WIDTH: f32 = 540.0;
 
 pub const ALL: &[Window] = &[
     // Misc.
+    WELCOME,
     ABOUT,
     #[cfg(debug_assertions)]
     DEBUG,
@@ -40,6 +43,15 @@ pub const ALL: &[Window] = &[
     MOUSEBINDS,
 ];
 
+pub const WELCOME: Window = Window {
+    name: "Welcome",
+    location: Location::Centered,
+    fixed_width: Some(WELCOME_WINDOW_WIDTH),
+    vscroll: false,
+    build: welcome::build,
+    cleanup: |_| (),
+};
+
 pub const ABOUT: Window = Window {
     name: "About",
     location: Location::Floating,
@@ -47,14 +59,12 @@ pub const ABOUT: Window = Window {
     vscroll: false,
     build: |ui, _app| {
         ui.vertical_centered(|ui| {
-            ui.vertical_centered(|ui| {
-                ui.strong(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
-                ui.label(env!("CARGO_PKG_DESCRIPTION"));
-                ui.hyperlink(env!("CARGO_PKG_REPOSITORY"));
-                ui.label("");
-                ui.label(format!("Created by {}", env!("CARGO_PKG_AUTHORS")));
-                ui.label(format!("Licensed under {}", env!("CARGO_PKG_LICENSE")));
-            });
+            ui.strong(format!("{} v{}", crate::TITLE, env!("CARGO_PKG_VERSION")));
+            ui.label(env!("CARGO_PKG_DESCRIPTION"));
+            ui.hyperlink(env!("CARGO_PKG_REPOSITORY"));
+            ui.label("");
+            ui.label(format!("Created by {}", env!("CARGO_PKG_AUTHORS")));
+            ui.label(format!("Licensed under {}", env!("CARGO_PKG_LICENSE")));
         });
     },
     cleanup: |_| (),
@@ -176,7 +186,7 @@ pub const PUZZLE_KEYBINDS: Window = Window {
                 })
                 .on_hover_explanation(
                     "",
-                    "You can manage keybind sets in \"Keybind sets\" settings.",
+                    "You can manage keybind sets in Settings ➡ Keybind sets.",
                 );
             if r.changed() {
                 puzzle_keybinds.active = puzzle_keybinds.sets[i].preset_name.clone();
@@ -261,19 +271,26 @@ impl Window {
         let mut is_open = self.is_open(ctx);
 
         match self.location {
-            Location::Floating => {
-                egui::Window::new(self.name)
-                    .collapsible(true)
-                    .open(&mut is_open)
-                    .scroll2([false, self.vscroll])
-                    .frame(egui::Frame::popup(&ctx.style()).multiply_with_opacity(opacity))
-                    .show(ctx, |ui| {
-                        if let Some(w) = self.fixed_width {
-                            ui.set_min_width(w);
-                            ui.set_max_width(w);
-                        }
-                        (self.build)(ui, app);
-                    });
+            Location::Floating | Location::Centered => {
+                let mut w = egui::Window::new(self.name).open(&mut is_open);
+                if self.location == Location::Centered {
+                    w = w
+                        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                        .collapsible(false)
+                        .resizable(false);
+                } else {
+                    w = w
+                        .collapsible(true)
+                        .scroll2([false, self.vscroll])
+                        .frame(egui::Frame::popup(&ctx.style()).multiply_with_opacity(opacity));
+                }
+                w.show(ctx, |ui| {
+                    if let Some(w) = self.fixed_width {
+                        ui.set_min_width(w);
+                        ui.set_max_width(w);
+                    }
+                    (self.build)(ui, app);
+                });
             }
             Location::LeftSide => {
                 super::side_bar::build(ctx, self.name, &mut is_open, |ui| (self.build)(ui, app));
@@ -298,4 +315,5 @@ impl Window {
 pub enum Location {
     Floating,
     LeftSide,
+    Centered,
 }

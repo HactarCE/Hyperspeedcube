@@ -86,6 +86,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         ui.menu_button("Help", |ui| {
             windows::KEYBINDS_REFERENCE.menu_button_toggle(ui);
             ui.separator();
+            windows::WELCOME.menu_button_toggle(ui);
             windows::ABOUT.menu_button_toggle(ui);
             #[cfg(debug_assertions)]
             windows::DEBUG.menu_button_toggle(ui);

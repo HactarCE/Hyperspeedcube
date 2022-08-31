@@ -438,3 +438,16 @@ macro_rules! access {
         }
     }
 }
+
+pub(super) fn set_widget_spacing_to_space_widgth(ui: &mut egui::Ui) {
+    let space_width = ui
+        .fonts()
+        .glyph_width(&egui::TextStyle::Body.resolve(ui.style()), ' ');
+    ui.spacing_mut().item_spacing.x = space_width;
+}
+pub(super) fn subtract_space(ui: &mut egui::Ui) {
+    let space_width = ui
+        .fonts()
+        .glyph_width(&egui::TextStyle::Body.resolve(ui.style()), ' ');
+    ui.add_space(-space_width);
+}

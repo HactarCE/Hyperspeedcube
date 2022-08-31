@@ -128,6 +128,10 @@ async fn run() {
     // Initialize app state.
     let mut app = App::new(&event_loop);
 
+    if app.prefs.show_welcome_at_startup {
+        gui::windows::WELCOME.set_open(&egui.context(), true);
+    }
+
     // Begin main loop.
     let start_time = Instant::now();
     let mut last_frame_time = Instant::now();

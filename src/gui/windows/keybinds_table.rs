@@ -308,7 +308,7 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
                     ))
                     .on_hover_explanation(
                         "",
-                        "You can manage keybind sets in \"Keybind sets\" settings.",
+                        "You can manage keybind sets in Settings ➡ Keybind sets.",
                     );
                 changed |= r.changed();
             }

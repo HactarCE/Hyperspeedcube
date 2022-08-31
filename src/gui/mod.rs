@@ -15,7 +15,7 @@ mod puzzle_view;
 mod side_bar;
 mod status_bar;
 mod widgets;
-mod windows;
+pub(super) mod windows;
 
 use crate::app::App;
 pub(super) use key_combo_popup::{key_combo_popup_captures_event, key_combo_popup_handle_event};

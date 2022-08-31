@@ -105,6 +105,8 @@ pub struct Preferences {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
 
+    pub show_welcome_at_startup: bool,
+
     pub info: InfoPreferences,
 
     pub gfx: GfxPreferences,
