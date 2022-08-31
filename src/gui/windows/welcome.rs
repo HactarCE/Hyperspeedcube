@@ -28,7 +28,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.label("");
 
     egui::CollapsingHeader::new("What the heck is this?").default_open(true).show(ui, |ui| {
-        ui.label("This program simulates a 4-dimensional analogues of the 3D Rubik's cube. Here are some videos that can help explain:");
+        ui.label("This program simulates 4-dimensional analogues of the 3D Rubik's cube. Here are some videos that can help explain:");
         ui.add(ResourceLink {
             name: "Cracking the 4D Rubik's Cube with simple 3D tricks",
             url: "https://www.youtube.com/watch?v=yhPH1369OWc",
@@ -79,7 +79,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             ui.add(ResourceLink {
                 name: "MagicTile",
                 url: "http://roice3.org/magictile/",
-                description: " Geometrical and Topological Analogues of Rubik's Cube",
+                description: "Geometrical and topological Rubik's Cube variants",
             });
         });
 
