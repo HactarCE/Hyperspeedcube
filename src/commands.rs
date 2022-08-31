@@ -155,7 +155,13 @@ impl PuzzleCommand {
                 }
             }
 
-            PuzzleCommand::Filter { mode, filter_name } => format!("{mode} {filter_name}"),
+            PuzzleCommand::Filter { mode, .. } => match mode {
+                FilterMode::ShowExactly => "👁".to_string(),
+                FilterMode::Show => "👁".to_string(),
+                FilterMode::Hide => "ｘ".to_string(),
+                FilterMode::HideAllExcept => "❎".to_string(),
+                FilterMode::Toggle => "~".to_string(),
+            },
 
             PuzzleCommand::KeybindSet { keybind_set_name } => format!("{keybind_set_name}"),
 
