@@ -180,10 +180,13 @@ impl PuzzleController {
     }
     /// Marks the puzzle as scrambled.
     pub fn add_scramble_marker(&mut self, new_scramble_state: ScrambleState) {
-        if new_scramble_state != ScrambleState::None {
-            self.skip_twist_animations();
-            self.scramble
-                .extend(self.undo_buffer.drain(..).filter_map(HistoryEntry::twist));
+        self.skip_twist_animations();
+        self.scramble
+            .extend(self.undo_buffer.drain(..).filter_map(HistoryEntry::twist));
+        if new_scramble_state == ScrambleState::None {
+            // This is technically invalid? But I've seen some older MC4D log files that do this, so just assume it's a full scramble.
+            self.scramble_state = ScrambleState::Full;
+        } else {
             self.scramble_state = new_scramble_state;
         }
     }
