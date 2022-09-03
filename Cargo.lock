@@ -1354,7 +1354,7 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hyperspeedcube"
-version = "0.9.1"
+version = "0.9.2"
 dependencies = [
  "ambassador",
  "anyhow",
@@ -1478,8 +1478,8 @@ dependencies = [
 
 [[package]]
 name = "key-names"
-version = "1.1.0"
-source = "git+https://github.com/HactarCE/key-names?tag=v1.1.0#a0dc018a34fd2bc5132283cb03eeed66bf3f3634"
+version = "1.3.0"
+source = "git+https://github.com/HactarCE/key-names?tag=v1.3.0#843e53f3ae5588efc10eec9717e5c4c0c4787610"
 dependencies = [
  "cty",
  "keycode",
@@ -1487,7 +1487,7 @@ dependencies = [
  "wayland-client",
  "winapi",
  "winit",
- "xcb 0.8.2",
+ "xcb 0.9.0",
  "xkbcommon",
 ]
 
@@ -3281,9 +3281,9 @@ dependencies = [
 
 [[package]]
 name = "xcb"
-version = "0.8.2"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e917a3f24142e9ff8be2414e36c649d47d6cc2ba81f16201cdef96e533e02de"
+checksum = "62056f63138b39116f82a540c983cc11f1c90cd70b3d492a70c25eaa50bd22a6"
 dependencies = [
  "libc",
  "log",
@@ -3311,13 +3311,13 @@ dependencies = [
 
 [[package]]
 name = "xkbcommon"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fda0ea5f7ddabd51deeeda7799bee06274112f577da7dd3d954b8eda731b2fce"
+checksum = "032ed00cc755c31221bbd6aaf9fa4196a01bf33bca185f9316e14f26d28c28cf"
 dependencies = [
  "libc",
  "memmap",
- "xcb 0.8.2",
+ "xcb 0.9.0",
 ]
 
 [[package]]
