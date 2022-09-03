@@ -22,4 +22,6 @@ pub struct KeybindsReferencePreferences {
     pub numpad: bool,
 
     pub opacity: f32,
+
+    pub max_font_size: f32,
 }

@@ -83,6 +83,9 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         prefs_ui.checkbox("Function keys", access!(.function));
         prefs_ui.checkbox("Navigation keys", access!(.navigation));
         prefs_ui.checkbox("Numpad", access!(.numpad));
+        prefs_ui.float("Max font size", access!(.max_font_size), |dv| {
+            dv.fixed_decimals(1).clamp_range(1.0..=3.0).speed(0.01)
+        });
 
         app.prefs.needs_save |= changed;
     });
@@ -118,7 +121,12 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
         .next()
         .unwrap_or_default();
 
-    let text = autosize_button_text(ui, s, rect.size());
+    let text = autosize_button_text(
+        ui,
+        s,
+        rect.size(),
+        app.prefs.info.keybinds_reference.max_font_size,
+    );
 
     let mut button = egui::Button::new(text).sense(egui::Sense::hover());
     if app.pressed_keys().contains(&Key::Sc(key)) {
@@ -233,10 +241,11 @@ fn autosize_button_text(
     ui: &mut egui::Ui,
     button_text: String,
     button_size: egui::Vec2,
+    max_font_size: f32,
 ) -> egui::RichText {
     let max_size = button_size - ui.spacing().button_padding * 2.0;
     let mut text = egui::RichText::new(button_text);
-    let mut font_size = egui::TextStyle::Button.resolve(ui.style()).size;
+    let mut font_size = egui::TextStyle::Button.resolve(ui.style()).size * max_font_size;
     while font_size > 0.0 {
         text = text.size(font_size);
         let text_size = egui::WidgetText::RichText(text.clone())

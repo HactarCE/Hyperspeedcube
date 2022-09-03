@@ -8,6 +8,7 @@ info:
     navigation: false
     numpad: false
     opacity: 0.95
+    max_font_size: 1.5
   modifier_toggles: false
 gfx:
   msaa: true
