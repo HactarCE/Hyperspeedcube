@@ -10,11 +10,7 @@ mod puzzle_controls;
 mod view_settings;
 mod welcome;
 
-use itertools::Itertools;
-
 use crate::app::App;
-
-use super::util::ResponseExt;
 
 pub const FLOATING_WINDOW_OPACITY: f32 = 0.98;
 pub const PREFS_WINDOW_WIDTH: f32 = 240.0;
@@ -168,44 +164,30 @@ pub const PUZZLE_KEYBINDS: Window = Window {
     vscroll: false,
     build: |ui, app| {
         let puzzle_type = app.puzzle.ty();
-        let puzzle_keybinds = &mut app.prefs.puzzle_keybinds[puzzle_type];
 
-        // Show combobox to select between keybind sets.
-        let mut i = puzzle_keybinds
-            .sets
-            .iter()
-            .find_position(|set| set.preset_name == puzzle_keybinds.active)
-            .map(|(i, _)| i)
-            .unwrap_or(0);
-        ui.horizontal(|ui| {
-            ui.strong("Keybind set:");
-
-            let r = egui::ComboBox::new(unique_id!(), "")
-                .show_index(ui, &mut i, puzzle_keybinds.sets.len(), |i| {
-                    puzzle_keybinds.sets[i].preset_name.clone()
-                })
-                .on_hover_explanation(
-                    "",
-                    "You can manage keybind sets in Settings ➡ Keybind sets.",
-                );
-            if r.changed() {
-                puzzle_keybinds.active = puzzle_keybinds.sets[i].preset_name.clone();
-                app.prefs.needs_save = true;
-            }
-        });
+        egui::CollapsingHeader::new("Keybind sets")
+            .default_open(true)
+            .show(ui, |ui| ui.add(keybinds_table::PresetsList { app }));
         ui.separator();
+        egui::CollapsingHeader::new("Include")
+            .default_open(true)
+            .show(ui, |ui| ui.add(keybinds_table::IncludePresetsList { app }));
+        ui.separator();
+        egui::CollapsingHeader::new("Keybinds")
+            .default_open(true)
+            .show(ui, |ui| {
+                let set_name = app.prefs.puzzle_keybinds[puzzle_type].active.clone();
 
-        let set_name = puzzle_keybinds.active.clone();
-
-        // Show keybinds table.
-        let r = ui.add(keybinds_table::KeybindsTable::new(
-            app,
-            super::keybind_set_accessors::PuzzleKeybindsAccessor {
-                puzzle_type,
-                set_name,
-            },
-        ));
-        app.prefs.needs_save |= r.changed();
+                // Show keybinds table.
+                let r = ui.add(keybinds_table::KeybindsTable::new(
+                    app,
+                    super::keybind_set_accessors::PuzzleKeybindsAccessor {
+                        puzzle_type,
+                        set_name,
+                    },
+                ));
+                app.prefs.needs_save |= r.changed();
+            });
     },
     cleanup: |_| (),
 };

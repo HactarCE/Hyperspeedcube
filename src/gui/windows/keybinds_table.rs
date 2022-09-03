@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use std::borrow::Cow;
 use strum::IntoEnumIterator;
 
@@ -10,11 +11,126 @@ use crate::gui::key_combo_popup;
 use crate::gui::keybind_set_accessors::*;
 use crate::gui::util::{self, ComboBoxExt, FancyComboBox, ResponseExt};
 use crate::gui::widgets;
-use crate::preferences::{Keybind, Preferences};
+use crate::preferences::{Keybind, KeybindSet, Preferences};
 use crate::puzzle::*;
 
 const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
 const LAYER_DESCRIPTION_WIDTH: f32 = 50.0;
+
+pub(super) struct PresetsList<'a> {
+    pub app: &'a mut App,
+}
+impl egui::Widget for PresetsList<'_> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        ui.scope(|ui| {
+            let puzzle_keybinds = &mut self.app.prefs.puzzle_keybinds[self.app.puzzle.ty()];
+
+            let mut changed = false;
+
+            let mut presets_ui = widgets::PresetsUi {
+                id: unique_id!(),
+                presets: &mut puzzle_keybinds.sets,
+                changed: &mut changed,
+                strings: widgets::PresetsUiStrings {
+                    edit: "Edit keybind sets",
+                    save: "Add new keybind set",
+                    name: "Keybind set name",
+                },
+                enable_yaml: false,
+            };
+
+            presets_ui.show_header_with_active_preset(ui, KeybindSet::default, |new_preset| {
+                puzzle_keybinds.active = new_preset.preset_name.clone();
+            });
+            ui.separator();
+            presets_ui.show_list(ui, |ui, _idx, set| {
+                let mut changed = false;
+
+                let mut r = ui.with_layout(
+                    egui::Layout::centered_and_justified(egui::Direction::TopDown)
+                        .with_cross_align(egui::Align::LEFT),
+                    |ui| {
+                        changed |= ui
+                            .selectable_value(
+                                &mut puzzle_keybinds.active,
+                                set.preset_name.clone(),
+                                &set.preset_name,
+                            )
+                            .changed();
+
+                        // // Highlight name of active keybind set.
+                        // if puzzle_keybinds.active == set.preset_name {
+                        //     let visuals = ui.visuals_mut();
+                        //     visuals.widgets.hovered = visuals.widgets.active;
+                        //     visuals.widgets.inactive = visuals.widgets.active;
+                        // }
+
+                        // if ui
+                        //     .add(egui::Button::new(&set.preset_name).frame(false))
+                        //     .clicked()
+                        // {
+                        //     changed = true;
+                        //     puzzle_keybinds.active = set.preset_name.clone();
+                        // }
+                    },
+                );
+
+                if changed {
+                    r.response.mark_changed();
+                }
+                r.response
+            });
+
+            // If the active set was deleted, then pick a new active set.
+            if puzzle_keybinds.get(&puzzle_keybinds.active).is_none() {
+                if let Some(set) = puzzle_keybinds.sets.first() {
+                    puzzle_keybinds.active = set.preset_name.clone();
+                }
+            }
+        })
+        .response
+    }
+}
+
+pub(super) struct IncludePresetsList<'a> {
+    pub app: &'a mut App,
+}
+impl egui::Widget for IncludePresetsList<'_> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let mut changed = false;
+
+        let puzzle_keybinds = &mut self.app.prefs.puzzle_keybinds[self.app.puzzle.ty()];
+        let other_sets = puzzle_keybinds
+            .sets
+            .iter()
+            .map(|set| set.preset_name.clone())
+            .filter(|name| *name != puzzle_keybinds.active)
+            .collect_vec();
+        let active = puzzle_keybinds.active.clone();
+        let includes = &mut puzzle_keybinds.get_mut(&active).value.includes;
+
+        let mut r = ui
+            .scope(|ui| {
+                for set_name in other_sets {
+                    let mut b = includes.contains(&set_name);
+                    if ui.checkbox(&mut b, &set_name).clicked() {
+                        changed = true;
+                        if b {
+                            includes.insert(set_name);
+                        } else {
+                            includes.remove(&set_name);
+                        }
+                    }
+                }
+            })
+            .response;
+
+        if changed {
+            r.mark_changed();
+        }
+        r
+    }
+}
 
 pub(super) struct KeybindsTable<'a, S> {
     app: &'a mut App,
@@ -31,24 +147,6 @@ where
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
-
-        if let Some((all_options, included)) = self.keybind_set.includes_mut(&mut self.app.prefs) {
-            ui.horizontal_wrapped(|ui| {
-                ui.strong("Include:");
-                included.retain(|set_name| all_options.contains(&set_name));
-                for opt in all_options {
-                    let mut b = included.contains(&opt);
-                    if ui.toggle_value(&mut b, &opt).clicked() {
-                        changed = true;
-                        if b {
-                            included.insert(opt);
-                        } else {
-                            included.remove(&opt);
-                        }
-                    }
-                }
-            });
-        }
 
         let mut keybinds = std::mem::take(self.keybind_set.get_mut(&mut self.app.prefs));
 
