@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Typo in welcome screen
 - Loading of older MC4D log files with invalid scramble state
+- Scancodes now use evdev instead of XKB on Linux
 
 ## [0.9.1] - 2022-08-30
 
