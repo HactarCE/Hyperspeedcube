@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - Font size adjustment for keybinds reference
+- Keybind sets whose names start with `^` are hidden from the **Keybind sets** tool
 
 ### Changed
 
