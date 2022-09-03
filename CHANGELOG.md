@@ -4,6 +4,22 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## UNRELEASED
+
+### Added
+
+- Font size adjustment for keybinds reference
+
+### Changed
+
+- Keybind sets UI is now (hopefully) more intuitive
+- Filter commands now use icons in keybinds reference
+
+### Fixed
+
+- Typo in welcome screen
+- Loading of older MC4D log files with invalid scramble state
+
 ## [0.9.1] - 2022-08-30
 
 ### Added
