@@ -112,13 +112,33 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
 
     let s = matching_puzzle_keybinds
         .iter()
-        .map(|bind| bind.command.short_description(puzzle_type))
-        .chain(
+        .find_map(|bind| {
+            let mut c = bind.command.clone();
+            match &mut c {
+                // Don't show keybinds that depend on a grip when we don't have an
+                // axis gripped.
+                PuzzleCommand::Twist { axis, .. } | PuzzleCommand::Recenter { axis } => {
+                    match app.gripped_twist_axis(axis.as_deref()) {
+                        Ok(gripped_axis) => {
+                            *axis = Some(puzzle_type.info(gripped_axis).name.to_string())
+                        }
+                        Err(_) => return None,
+                    }
+                }
+                _ => (),
+            }
+            Some(c.short_description(puzzle_type))
+        })
+        .or_else(|| {
+            matching_puzzle_keybinds
+                .first()
+                .map(|bind| bind.command.short_description(puzzle_type))
+        })
+        .or_else(|| {
             matching_global_keybinds
-                .iter()
-                .map(|bind| bind.command.short_description()),
-        )
-        .next()
+                .first()
+                .map(|bind| bind.command.short_description())
+        })
         .unwrap_or_default();
 
     let text = autosize_button_text(
@@ -134,107 +154,105 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
         button = button.stroke(ui.style().noninteractive().fg_stroke);
     }
     let r = ui.put(rect, button);
-    if !matching_puzzle_keybinds.is_empty() || !matching_global_keybinds.is_empty() {
-        r.on_hover_ui(|ui| {
-            ui.heading(get_key_name(key));
+    r.on_hover_ui(|ui| {
+        ui.heading(get_key_name(key));
 
-            // Adjust spacing so we don't have to add spaces manually.
-            util::set_widget_spacing_to_space_widgth(ui);
+        // Adjust spacing so we don't have to add spaces manually.
+        util::set_widget_spacing_to_space_widgth(ui);
 
-            for bind in matching_puzzle_keybinds {
-                ui.horizontal_wrapped(|ui| match &bind.command {
-                    PuzzleCommand::Grip { axis, layers } => {
-                        ui.label("Grip");
-                        if let Some(twist_axis) = axis {
-                            ui.strong(twist_axis);
-                        }
-                        if !layers.is_default() {
-                            let layers = layers.to_layer_mask(puzzle_type.layer_count());
-                            ui.strong(layers.long_description());
-                        }
+        for bind in matching_puzzle_keybinds {
+            ui.horizontal_wrapped(|ui| match &bind.command {
+                PuzzleCommand::Grip { axis, layers } => {
+                    ui.label("Grip");
+                    if let Some(twist_axis) = axis {
+                        ui.strong(twist_axis);
                     }
-
-                    PuzzleCommand::Twist {
-                        axis,
-                        direction,
-                        layers,
-                    } => {
+                    if !layers.is_default() {
                         let layers = layers.to_layer_mask(puzzle_type.layer_count());
-                        if layers == puzzle_type.all_layers() {
-                            ui.label("Rotate");
-                            ui.strong("whole puzzle");
-                            ui.label("in");
-                            ui.strong(direction);
-                            ui.label("direction relative to");
-                            ui.strong(axis.as_deref().unwrap_or("gripped"));
-                            ui.label("axis");
-                        } else if layers != LayerMask(0) {
-                            ui.label("Twist");
-                            ui.strong(axis.as_deref().unwrap_or("gripped"));
-                            ui.label("in");
-                            ui.strong(direction);
-                            ui.label("direction");
-                            if !layers.is_default() {
-                                ui.label("(");
-                                util::subtract_space(ui);
-                                ui.strong(layers.long_description());
-                                util::subtract_space(ui);
-                                ui.label(")");
-                            }
-                        }
+                        ui.strong(layers.long_description());
                     }
-                    PuzzleCommand::Recenter { axis } => {
-                        ui.label("Recenter");
+                }
+
+                PuzzleCommand::Twist {
+                    axis,
+                    direction,
+                    layers,
+                } => {
+                    let layers = layers.to_layer_mask(puzzle_type.layer_count());
+                    if layers == puzzle_type.all_layers() {
+                        ui.label("Rotate");
+                        ui.strong("whole puzzle");
+                        ui.label("in");
+                        ui.strong(direction);
+                        ui.label("direction relative to");
                         ui.strong(axis.as_deref().unwrap_or("gripped"));
                         ui.label("axis");
+                    } else if layers != LayerMask(0) {
+                        ui.label("Twist");
+                        ui.strong(axis.as_deref().unwrap_or("gripped"));
+                        ui.label("in");
+                        ui.strong(direction);
+                        ui.label("direction");
+                        if !layers.is_default() {
+                            ui.label("(");
+                            util::subtract_space(ui);
+                            ui.strong(layers.long_description());
+                            util::subtract_space(ui);
+                            ui.label(")");
+                        }
                     }
+                }
+                PuzzleCommand::Recenter { axis } => {
+                    ui.label("Recenter");
+                    ui.strong(axis.as_deref().unwrap_or("gripped"));
+                    ui.label("axis");
+                }
 
-                    PuzzleCommand::Filter { mode, filter_name } => {
-                        ui.label(mode.as_ref());
-                        ui.strong(filter_name);
-                        ui.label("preset");
-                    }
+                PuzzleCommand::Filter { mode, filter_name } => {
+                    ui.label(mode.as_ref());
+                    ui.strong(filter_name);
+                    ui.label("preset");
+                }
 
-                    PuzzleCommand::KeybindSet { keybind_set_name } => {
-                        ui.label("Switch to");
-                        ui.strong(keybind_set_name);
-                        ui.label("keybinds");
-                    }
+                PuzzleCommand::KeybindSet { keybind_set_name } => {
+                    ui.label("Switch to");
+                    ui.strong(keybind_set_name);
+                    ui.label("keybinds");
+                }
 
-                    PuzzleCommand::None => unreachable!(),
-                });
-            }
+                PuzzleCommand::None => unreachable!(),
+            });
+        }
 
-            for bind in matching_global_keybinds {
-                ui.horizontal_wrapped(|ui| match &bind.command {
-                    Command::Open => ui.label("Open"),
-                    Command::Save => ui.label("Save"),
-                    Command::SaveAs => ui.label("Save As"),
-                    Command::Exit => ui.label("Exit"),
+        for bind in matching_global_keybinds {
+            ui.horizontal_wrapped(|ui| match &bind.command {
+                Command::Open => ui.label("Open"),
+                Command::Save => ui.label("Save"),
+                Command::SaveAs => ui.label("Save As"),
+                Command::Exit => ui.label("Exit"),
 
-                    Command::Undo => ui.label("Undo"),
-                    Command::Redo => ui.label("Redo"),
-                    Command::Reset => ui.label("Reset"),
+                Command::Undo => ui.label("Undo"),
+                Command::Redo => ui.label("Redo"),
+                Command::Reset => ui.label("Reset"),
 
-                    Command::ScrambleN(n) => {
-                        ui.label("Scramble");
-                        ui.strong(n.to_string())
-                    }
-                    Command::ScrambleFull => ui.label("Scramble fully"),
+                Command::ScrambleN(n) => {
+                    ui.label("Scramble");
+                    ui.strong(n.to_string())
+                }
+                Command::ScrambleFull => ui.label("Scramble fully"),
 
-                    Command::NewPuzzle(ty) => {
-                        ui.label("Load new");
-                        ui.strong(ty.name());
-                        ui.label("puzzle")
-                    }
+                Command::NewPuzzle(ty) => {
+                    ui.label("Load new");
+                    ui.strong(ty.name());
+                    ui.label("puzzle")
+                }
 
-                    Command::ToggleBlindfold => ui.label("Toggle blindfold"),
+                Command::ToggleBlindfold => ui.label("Toggle blindfold"),
 
-                    Command::None => unreachable!(),
-                });
-            }
-        });
-    }
+                Command::None => unreachable!(),
+            });
+        }
+    });
 }
 
 fn autosize_button_text(
