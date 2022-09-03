@@ -196,7 +196,7 @@ pub const KEYBIND_SETS: Window = Window {
     name: "Keybind sets",
     location: Location::Floating,
     fixed_width: Some(PREFS_WINDOW_WIDTH),
-    vscroll: true,
+    vscroll: false,
     build: keybind_sets::build,
     cleanup: |_| (),
 };
@@ -264,6 +264,7 @@ impl Window {
                     w = w
                         .collapsible(true)
                         .scroll2([false, self.vscroll])
+                        .resizable(self.fixed_width.is_none() || self.vscroll)
                         .frame(egui::Frame::popup(&ctx.style()).multiply_with_opacity(opacity));
                 }
                 w.show(ctx, |ui| {
