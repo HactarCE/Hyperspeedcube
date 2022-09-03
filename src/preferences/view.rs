@@ -18,6 +18,11 @@ pub struct ViewPreferences {
     /// 4D FOV, in degrees.
     pub fov_4d: f32,
 
+    /// Horizontal alignment, from -1.0 to +1.0.
+    pub align_h: f32,
+    /// Vertical alignment, from -1.0 to +1.0.
+    pub align_v: f32,
+
     pub show_frontfaces: bool,
     pub show_backfaces: bool,
 
@@ -41,6 +46,9 @@ impl Default for ViewPreferences {
             scale: 1.0,
             fov_3d: 30_f32,
             fov_4d: 30_f32,
+
+            align_h: 0.0,
+            align_v: 0.0,
 
             face_spacing: 0.0,
             sticker_spacing: 0.0,
@@ -78,6 +86,8 @@ impl ViewPreferences {
             scale: crate::util::mix(self.scale, rhs.scale, t),
             fov_3d: crate::util::mix(self.fov_3d, rhs.fov_3d, t),
             fov_4d: crate::util::mix(self.fov_4d, rhs.fov_4d, t),
+            align_h: crate::util::mix(self.align_h, rhs.align_h, t),
+            align_v: crate::util::mix(self.align_v, rhs.align_v, t),
             show_frontfaces: if t < 0.5 {
                 self.show_frontfaces
             } else {

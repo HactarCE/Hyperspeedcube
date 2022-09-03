@@ -22,6 +22,8 @@ struct PuzzleRenderParams {
     sample_count: u32,
 
     scale: f32,
+    align_h: f32,
+    align_v: f32,
 }
 
 pub(crate) struct PuzzleRenderCache {
@@ -126,6 +128,8 @@ pub(crate) fn draw_puzzle(
         sample_count: prefs.gfx.sample_count(),
 
         scale: view_prefs.scale,
+        align_h: view_prefs.align_h,
+        align_v: view_prefs.align_v,
     });
 
     // Calculate scale.
@@ -323,7 +327,11 @@ pub(crate) fn draw_puzzle(
         render_pass.set_index_buffer(index_buffer, wgpu::IndexFormat::Uint32);
 
         // Populate and bind uniform.
-        cache.uniform_buffer.write(gfx, &BasicUniform { scale });
+        let uniform = BasicUniform {
+            scale,
+            align: [view_prefs.align_h, view_prefs.align_v],
+        };
+        cache.uniform_buffer.write(gfx, &uniform);
         render_pass.set_bind_group(0, cache.uniform_buffer.bind_group(gfx), &[]);
 
         // Draw stickers.

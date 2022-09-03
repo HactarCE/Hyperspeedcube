@@ -21,4 +21,5 @@ impl RgbaVertex {
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(super) struct BasicUniform {
     pub scale: [f32; 2],
+    pub align: [f32; 2],
 }

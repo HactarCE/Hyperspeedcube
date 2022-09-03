@@ -59,6 +59,15 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         changed: &mut changed,
     };
 
+    prefs_ui.collapsing("Position", |mut prefs_ui| {
+        prefs_ui.float("Horizontal align", access!(.align_h), |dv| {
+            dv.clamp_range(-1.0..=1.0).fixed_decimals(2).speed(0.01)
+        });
+        prefs_ui.float("Vertical align", access!(.align_v), |dv| {
+            dv.clamp_range(-1.0..=1.0).fixed_decimals(2).speed(0.01)
+        });
+    });
+
     prefs_ui.collapsing("View angle", |mut prefs_ui| {
         prefs_ui.angle("Pitch", access!(.pitch), |dv| dv.clamp_range(-90.0..=90.0));
         prefs_ui.angle("Yaw", access!(.yaw), |dv| dv.clamp_range(-180.0..=180.0));

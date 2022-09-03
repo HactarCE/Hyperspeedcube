@@ -10,6 +10,7 @@ struct VertexOutput {
 
 struct BasicUniform {
     scale: vec2<f32>,
+    align: vec2<f32>,
 }
 
 @group(0) @binding(0)
@@ -21,7 +22,7 @@ fn vs_main(
     @builtin(vertex_index) idx: u32,
 ) -> VertexOutput {
     var out: VertexOutput;
-    out.pos = vec4<f32>(in.pos.xy * u.scale, in.pos.z, 1.0);
+    out.pos = vec4<f32>(in.pos.xy * u.scale + u.align, in.pos.z, 1.0);
     out.color = in.color;
     return out;
 }
