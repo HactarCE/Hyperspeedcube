@@ -77,6 +77,7 @@ if do_subcommand('git'):
     git_commands = [
         f'git add Cargo.toml Cargo.lock .github/workflows CHANGELOG.md',
         f'git commit -m "Version {version}"',
+        f'git push',
         f'git tag v{version}',
         f'git push origin refs/tags/v{version}',
         f'git checkout stable',
