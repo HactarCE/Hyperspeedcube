@@ -44,6 +44,8 @@ view_3d:
   scale: 1.25
   fov_3d: 30.0
   fov_4d: 30.0
+  align_h: 0.0
+  align_v: 0.0
   show_frontfaces: true
   show_backfaces: false
   face_spacing: 0.03
@@ -61,6 +63,8 @@ view_3d:
     scale: 1.25
     fov_3d: 30.0
     fov_4d: 30.0
+    align_h: 0.0
+    align_v: 0.0
     show_frontfaces: true
     show_backfaces: false
     face_spacing: 0.03
@@ -78,6 +82,8 @@ view_3d:
       scale: 1.25
       fov_3d: 30.0
       fov_4d: 30.0
+      align_h: 0.0
+      align_v: 0.0
       show_frontfaces: true
       show_backfaces: false
       face_spacing: 0.03
@@ -94,6 +100,8 @@ view_3d:
       scale: 3.0
       fov_3d: 120.0
       fov_4d: 30.0
+      align_h: 0.0
+      align_v: 0.0
       show_frontfaces: false
       show_backfaces: true
       face_spacing: 0.4
@@ -110,6 +118,8 @@ view_3d:
       scale: 3.0
       fov_3d: -120.0
       fov_4d: 30.0
+      align_h: 0.0
+      align_v: 0.0
       show_frontfaces: true
       show_backfaces: false
       face_spacing: 0.4
@@ -126,6 +136,8 @@ view_4d:
   scale: 1.0
   fov_3d: 0.0
   fov_4d: 30.0
+  align_h: 0.0
+  align_v: 0.0
   show_frontfaces: true
   show_backfaces: true
   face_spacing: 0.7
@@ -143,6 +155,8 @@ view_4d:
     scale: 1.0
     fov_3d: 0.0
     fov_4d: 30.0
+    align_h: 0.0
+    align_v: 0.0
     show_frontfaces: true
     show_backfaces: true
     face_spacing: 0.7
@@ -160,6 +174,8 @@ view_4d:
       scale: 1.0
       fov_3d: 0.0
       fov_4d: 30.0
+      align_h: 0.0
+      align_v: 0.0
       show_frontfaces: true
       show_backfaces: true
       face_spacing: 0.7
@@ -234,11 +250,12 @@ global_keybinds:
       new_puzzle:
         Rubiks4D:
           layer_count: 3
+
 puzzle_keybinds:
   Rubiks3D:
     active: Default
     sets:
-      - preset_name: Layers
+      - preset_name: ^Layers
         keybinds:
           - sc: Digit1
             command:
@@ -278,7 +295,7 @@ puzzle_keybinds:
                 layers: "9"
       - preset_name: Default
         includes:
-          - Layers
+          - ^Layers
         keybinds:
           - sc: ShiftLeft
             command:
@@ -455,119 +472,7 @@ puzzle_keybinds:
   Rubiks4D:
     active: Default
     sets:
-      - preset_name: Switching
-        keybinds:
-          - sc: Digit1
-            shift: true
-            command:
-              keybind_set:
-                keybind_set_name: Default
-          - sc: Digit2
-            shift: true
-            command:
-              keybind_set:
-                keybind_set_name: RKT (full)
-          - sc: Digit3
-            shift: true
-            command:
-              keybind_set:
-                keybind_set_name: RKT (RUF)
-      - preset_name: Filters
-        keybinds:
-          - sc: Backquote
-            command:
-              filter:
-                mode: show_exactly
-                filter_name: Everything
-      - preset_name: Layers
-        keybinds:
-          - sc: Digit1
-            command:
-              grip:
-                layers: "1"
-          - sc: Digit2
-            command:
-              grip:
-                layers: "2"
-          - sc: Digit3
-            command:
-              grip:
-                layers: "3"
-          - sc: Digit4
-            command:
-              grip:
-                layers: "4"
-          - sc: Digit5
-            command:
-              grip:
-                layers: "5"
-          - sc: Digit6
-            command:
-              grip:
-                layers: "6"
-          - sc: Digit7
-            command:
-              grip:
-                layers: "7"
-          - sc: Digit8
-            command:
-              grip:
-                layers: "8"
-          - sc: Digit9
-            command:
-              grip:
-                layers: "9"
-      - preset_name: Rotations
-        keybinds:
-          - sc: KeyT
-            command:
-              twist:
-                axis: I
-                direction: x
-                layers: 1..-1
-          - sc: KeyY
-            command:
-              twist:
-                axis: I
-                direction: x
-                layers: 1..-1
-          - sc: KeyB
-            command:
-              twist:
-                axis: I
-                direction: "x'"
-                layers: 1..-1
-          - sc: KeyN
-            command:
-              twist:
-                axis: I
-                direction: "x'"
-                layers: 1..-1
-          - sc: KeyA
-            command:
-              twist:
-                axis: I
-                direction: "y'"
-                layers: 1..-1
-          - sc: Semicolon
-            command:
-              twist:
-                axis: I
-                direction: y
-                layers: 1..-1
-          - sc: KeyQ
-            command:
-              twist:
-                axis: I
-                direction: "z'"
-                layers: 1..-1
-          - sc: KeyP
-            command:
-              twist:
-                axis: I
-                direction: z
-                layers: 1..-1
-      - preset_name: Basic twists
+      - preset_name: ^Basic twists
         keybinds:
           - sc: KeyI
             command:
@@ -599,14 +504,13 @@ puzzle_keybinds:
               twist:
                 direction: z
                 layers: "1"
-      - preset_name: "--------"
       - preset_name: Default
         includes:
-          - Basic twists
-          - Filters
-          - Layers
-          - Rotations
-          - Switching
+          - ^Basic twists
+          - ^Filters
+          - ^Layers
+          - ^Rotations
+          - ^Switching
         keybinds:
           - sc: ShiftLeft
             command:
@@ -659,23 +563,27 @@ puzzle_keybinds:
           - sc: Space
             command:
               recenter: {}
-      - preset_name: RKT (full)
+          - sc: KeyZ
+            command:
+              grip:
+                layers: "2"
+      - preset_name: RKT
         includes:
-          - Basic twists
-          - Filters
-          - Layers
-          - Rotations
-          - Switching
+          - ^Basic twists
+          - ^Filters
+          - ^Layers
+          - ^Rotations
+          - ^Switching
         keybinds:
           - sc: ShiftLeft
             command:
               grip:
-                axis: I
+                layers: 1..2
           - sc: Space
             command:
               grip:
                 axis: I
-                layers: 2..-1
+                layers: "1"
           - sc: KeyE
             command:
               twist:
@@ -796,12 +704,32 @@ puzzle_keybinds:
                 axis: D
                 direction: y
                 layers: 2..-2
-      - preset_name: RKT (RUF)
-        includes:
-          - Basic twists
-          - Filters
-          - Switching
+      - preset_name: ^Rotations
         keybinds:
+          - sc: KeyT
+            command:
+              twist:
+                axis: I
+                direction: x
+                layers: 1..-1
+          - sc: KeyY
+            command:
+              twist:
+                axis: I
+                direction: x
+                layers: 1..-1
+          - sc: KeyB
+            command:
+              twist:
+                axis: I
+                direction: "x'"
+                layers: 1..-1
+          - sc: KeyN
+            command:
+              twist:
+                axis: I
+                direction: "x'"
+                layers: 1..-1
           - sc: KeyA
             command:
               twist:
@@ -814,93 +742,83 @@ puzzle_keybinds:
                 axis: I
                 direction: y
                 layers: 1..-1
-          - sc: ShiftLeft
+          - sc: KeyQ
             command:
-              grip:
+              twist:
                 axis: I
-          - sc: Space
+                direction: "z'"
+                layers: 1..-1
+          - sc: KeyP
+            command:
+              twist:
+                axis: I
+                direction: z
+                layers: 1..-1
+      - preset_name: ^Layers
+        keybinds:
+          - sc: Digit1
             command:
               grip:
-                axis: O
-                layers: 1..-2
-          - sc: KeyI
-            command:
-              twist:
-                axis: R
-                direction: x
                 layers: "1"
-          - sc: KeyK
+          - sc: Digit2
             command:
-              twist:
-                axis: R
-                direction: "x'"
-                layers: "1"
-          - sc: KeyF
+              grip:
+                layers: "2"
+          - sc: Digit3
             command:
-              twist:
-                axis: U
-                direction: "y'"
-                layers: "1"
-          - sc: KeyJ
+              grip:
+                layers: "3"
+          - sc: Digit4
             command:
-              twist:
-                axis: U
-                direction: y
-                layers: "1"
+              grip:
+                layers: "4"
+          - sc: Digit5
+            command:
+              grip:
+                layers: "5"
+          - sc: Digit6
+            command:
+              grip:
+                layers: "6"
+          - sc: Digit7
+            command:
+              grip:
+                layers: "7"
+          - sc: Digit8
+            command:
+              grip:
+                layers: "8"
+          - sc: Digit9
+            command:
+              grip:
+                layers: "9"
+      - preset_name: ^Filters
+        keybinds:
+          - sc: Backquote
+            command:
+              filter:
+                mode: show_exactly
+                filter_name: Everything
+          - sc: Backquote
+            shift: true
+            command:
+              filter:
+                mode: show_exactly
+                filter_name: Everything
+      - preset_name: ^Switching
+        keybinds:
+          - sc: Escape
+            command:
+              keybind_set:
+                keybind_set_name: Default
           - sc: KeyG
             command:
-              twist:
-                axis: F
-                direction: "z'"
-                layers: "1"
+              keybind_set:
+                keybind_set_name: RKT
           - sc: KeyH
             command:
-              twist:
-                axis: F
-                direction: z
-                layers: "1"
-          - sc: KeyX
-            command:
-              twist:
-                axis: O
-                direction: "y'x'"
-                layers: 1..-2
-          - sc: KeyC
-            command:
-              twist:
-                axis: O
-                direction: xy
-                layers: 1..-2
-          - sc: KeyZ
-            command:
-              twist:
-                axis: O
-                direction: zx2
-                layers: 1..-2
-          - sc: KeyS
-            command:
-              twist:
-                axis: O
-                direction: y
-                layers: 1..-2
-          - sc: KeyD
-            command:
-              twist:
-                axis: O
-                direction: "y'"
-                layers: 1..-2
-          - sc: KeyW
-            command:
-              twist:
-                axis: O
-                direction: "z'"
-                layers: 1..-2
-          - sc: KeyE
-            command:
-              twist:
-                axis: O
-                direction: z
-                layers: 1..-2
+              keybind_set:
+                keybind_set_name: RKT
 mousebinds:
   - button: left
     ctrl: true
