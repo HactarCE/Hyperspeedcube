@@ -15,7 +15,6 @@ pub fn build(
 
         add_contents(ui);
 
-
         // Build a "close" button (stolen from egui source code). Do this after
         // constructing all the other contents so that it knows how wide the
         // panel is.
