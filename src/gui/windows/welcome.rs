@@ -36,7 +36,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
         ui.add(ResourceLink {
             name: "How to Solve a 4D Rubik's Cube | Beginner's Method Tutorial",
-            url: "https://www.youtube.com/watch?v=yhPH1369OWc",
+            url: "https://www.youtube.com/watch?v=h4n_QdZGXf8",
             description: "",
         });
     });
