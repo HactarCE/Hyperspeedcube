@@ -4,6 +4,13 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [UNRELEASED]
+
+### Fixed
+
+- Incorrect YouTube link in welcome screen
+- Hovered sticker with off-center puzzle
+
 ## [1.0.0] - 2022-09-03
 
 - Official release

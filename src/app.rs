@@ -24,7 +24,8 @@ pub struct App {
     pub(crate) puzzle_texture_size: (u32, u32),
     force_redraw: bool,
 
-    /// Mouse cursor position relative to the puzzle texture.
+    /// Mouse cursor position relative to the puzzle texture. Each axis ranges
+    /// from -1.0 to +1.0.
     pub(crate) cursor_pos: Option<Point2<f32>>,
 
     /// Set of pressed keys.

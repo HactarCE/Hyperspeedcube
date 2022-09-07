@@ -103,9 +103,10 @@ pub(crate) fn draw_puzzle(
     mut force_redraw: bool,
 ) -> Option<wgpu::TextureView> {
     let (width, height) = app.puzzle_texture_size;
+    let size = cgmath::vec2(width as f32, height as f32);
 
     // Avoid divide-by-zero errors.
-    if width == 0 || height == 0 {
+    if width <= 0 || height <= 0 {
         return None;
     }
 
@@ -134,9 +135,9 @@ pub(crate) fn draw_puzzle(
 
     // Calculate scale.
     let scale = {
-        let min_dimen = f32::min(width as f32, height as f32);
+        let min_dimen = f32::min(size.x, size.y);
         let pixel_scale = min_dimen * view_prefs.scale;
-        [pixel_scale / width as f32, pixel_scale / height as f32]
+        cgmath::vec2(pixel_scale / size.x, pixel_scale / size.y)
     };
 
     // If the puzzle geometry has changed, force a redraw.
@@ -153,9 +154,13 @@ pub(crate) fn draw_puzzle(
     // Determine which sticker(s) are at the mouse cursor, in order from front
     // to back.
     if let Some(cursor_pos) = app.cursor_pos {
-        let scaled_cursor_pos = cgmath::point2(cursor_pos.x / scale[0], cursor_pos.y / scale[1]);
+        let transformed_cursor_pos = cgmath::point2(
+            (cursor_pos.x - view_prefs.align_h) / scale.x,
+            (cursor_pos.y - view_prefs.align_v) / scale.y,
+        );
+        printlnd!("{:?}", transformed_cursor_pos);
         let hovered_stickers = puzzle_geometry.iter().rev().filter_map(move |geom| {
-            Some((geom.sticker, geom.twists_for_point(scaled_cursor_pos)?))
+            Some((geom.sticker, geom.twists_for_point(transformed_cursor_pos)?))
         });
         puzzle.update_hovered_sticker(hovered_stickers);
     } else {
@@ -328,7 +333,7 @@ pub(crate) fn draw_puzzle(
 
         // Populate and bind uniform.
         let uniform = BasicUniform {
-            scale,
+            scale: scale.into(),
             align: [view_prefs.align_h, view_prefs.align_v],
         };
         cache.uniform_buffer.write(gfx, &uniform);
