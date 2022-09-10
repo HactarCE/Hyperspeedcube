@@ -351,6 +351,20 @@ impl PuzzleController {
         self.view_settings_anim.queue.push_back(view_prefs);
     }
 
+    /// Returns whether this sticker can be hovered.
+    fn is_sticker_hoverable(&self, sticker: Sticker) -> bool {
+        let less_than_halfway = TWIST_INTERPOLATION_FN(self.twist_anim.progress) < 0.5;
+        let puzzle_state = if less_than_halfway {
+            self.displayed() // puzzle state before the twist
+        } else {
+            self.next_displayed() // puzzle state after the twist
+        };
+        let piece = self.info(sticker).piece;
+        self.grip
+            .has_piece(puzzle_state, piece)
+            .unwrap_or_else(|| self.is_visible(piece))
+    }
+
     /// Sets the hovered stickers, in order from front to back.
     pub fn update_hovered_sticker(
         &mut self,
@@ -358,18 +372,7 @@ impl PuzzleController {
     ) {
         let hovered = stickers_under_cursor
             .into_iter()
-            .find(|&(sticker, _twists)| {
-                let less_than_halfway = TWIST_INTERPOLATION_FN(self.twist_anim.progress) < 0.5;
-                let puzzle_state = if less_than_halfway {
-                    self.displayed() // puzzle state before the twist
-                } else {
-                    self.next_displayed() // puzzle state after the twist
-                };
-                let piece = self.info(sticker).piece;
-                self.grip
-                    .has_piece(puzzle_state, piece)
-                    .unwrap_or_else(|| self.is_visible(piece))
-            });
+            .find(|&(sticker, _twists)| self.is_sticker_hoverable(sticker));
 
         self.hovered_sticker = hovered.map(|(sticker, _twists)| sticker);
         self.hovered_twists = hovered.map(|(_sticker, twists)| twists);
@@ -428,6 +431,12 @@ impl PuzzleController {
             // Project stickers.
             let mut sticker_geometries: Vec<ProjectedStickerGeometry> = vec![];
             for sticker in (0..self.stickers().len() as _).map(Sticker) {
+                let piece = self.info(sticker).piece;
+                let vis_piece = self.visual_piece_state(piece);
+                if !self.is_sticker_hoverable(sticker) && vis_piece.opacity(prefs) == 0.0 {
+                    continue;
+                }
+
                 // Compute geometry, including vertex positions before 3D
                 // perspective projection.
                 let sticker_geom = match self.displayed().sticker_geometry(sticker, params) {
@@ -559,10 +568,10 @@ impl PuzzleController {
     /// next frame, using the given time delta between this frame and the last.
     /// Returns whether the decorations changed, in which case a redraw is
     /// needed.
-    pub fn update_decorations(&mut self, delta: Duration, prefs: &InteractionPreferences) -> bool {
+    pub fn update_decorations(&mut self, delta: Duration, prefs: &Preferences) -> bool {
         let mut changed = false;
 
-        let delta = delta.as_secs_f32() / prefs.other_anim_duration;
+        let delta = delta.as_secs_f32() / prefs.interaction.other_anim_duration;
 
         for piece in (0..self.pieces().len() as _).map(Piece) {
             let logical_state = self.logical_piece_state(piece);
@@ -600,6 +609,7 @@ impl PuzzleController {
             }
 
             let current = &mut self.visual_piece_states[piece.0 as usize];
+            let was_visible = current.opacity(prefs) != 0.0;
             changed |= approach_target(&mut current.gripped, target.gripped, delta);
             changed |= approach_target(&mut current.ungripped, target.ungripped, delta);
             changed |= approach_target(&mut current.hidden, target.hidden, delta);
@@ -613,6 +623,12 @@ impl PuzzleController {
                 // I don't know how to animate this easily, so don't bother trying.
                 current.hidden_opacity_override = target.hidden_opacity_override;
                 changed = true;
+            }
+            let is_visible = current.opacity(prefs) != 0.0;
+            if was_visible != is_visible {
+                // If a piece changes from invisible to visible, then it might need to be
+                // re-added to the geometry, so invalidate the cache.
+                self.cached_geometry = None;
             }
         }
 

@@ -169,7 +169,7 @@ pub(crate) fn draw_puzzle(
     // Animate puzzle decorations (colors, opacity, and outlines). Do this after
     // generating the puzzle geometry so that we get the most up-to-date
     // information about which sticker is hovered.
-    force_redraw |= puzzle.update_decorations(delta, &prefs.interaction);
+    force_redraw |= puzzle.update_decorations(delta, &prefs);
 
     if !force_redraw && cache.out_texture.is_some() {
         return None; // No repaint needed.
