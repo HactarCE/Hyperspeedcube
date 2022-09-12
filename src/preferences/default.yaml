@@ -48,6 +48,7 @@ view_3d:
   align_v: 0.0
   show_frontfaces: true
   show_backfaces: false
+  clip_4d: true
   face_spacing: 0.03
   sticker_spacing: 0.05
   outline_thickness: 1.0
@@ -67,6 +68,7 @@ view_3d:
     align_v: 0.0
     show_frontfaces: true
     show_backfaces: false
+    clip_4d: true
     face_spacing: 0.03
     sticker_spacing: 0.05
     outline_thickness: 1.0
@@ -86,6 +88,7 @@ view_3d:
       align_v: 0.0
       show_frontfaces: true
       show_backfaces: false
+      clip_4d: true
       face_spacing: 0.03
       sticker_spacing: 0.05
       outline_thickness: 1.0
@@ -104,6 +107,7 @@ view_3d:
       align_v: 0.0
       show_frontfaces: false
       show_backfaces: true
+      clip_4d: true
       face_spacing: 0.4
       sticker_spacing: 0.2
       outline_thickness: 1.0
@@ -122,6 +126,7 @@ view_3d:
       align_v: 0.0
       show_frontfaces: true
       show_backfaces: false
+      clip_4d: true
       face_spacing: 0.4
       sticker_spacing: 0.2
       outline_thickness: 1.0
@@ -140,6 +145,7 @@ view_4d:
   align_v: 0.0
   show_frontfaces: true
   show_backfaces: true
+  clip_4d: true
   face_spacing: 0.7
   sticker_spacing: 0.3
   outline_thickness: 1.0
@@ -159,6 +165,7 @@ view_4d:
     align_v: 0.0
     show_frontfaces: true
     show_backfaces: true
+    clip_4d: true
     face_spacing: 0.7
     sticker_spacing: 0.3
     outline_thickness: 1.0
@@ -178,6 +185,7 @@ view_4d:
       align_v: 0.0
       show_frontfaces: true
       show_backfaces: true
+      clip_4d: true
       face_spacing: 0.7
       sticker_spacing: 0.3
       outline_thickness: 1.0
