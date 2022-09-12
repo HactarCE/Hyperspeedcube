@@ -15,6 +15,7 @@ macro_rules! printlnd {
     ($($arg:tt)+) => {
         #[cfg(debug_assertions)]
         let s = format!($($arg)+);
+        #[cfg(debug_assertions)]
         crate::debug::FRAME_DEBUG_INFO.lock().unwrap().push_str(&s);
         printlnd!();
     };

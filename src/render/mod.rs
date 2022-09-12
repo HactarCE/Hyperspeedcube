@@ -158,7 +158,6 @@ pub(crate) fn draw_puzzle(
             (cursor_pos.x - view_prefs.align_h) / scale.x,
             (cursor_pos.y - view_prefs.align_v) / scale.y,
         );
-        printlnd!("{:?}", transformed_cursor_pos);
         let hovered_stickers = puzzle_geometry.iter().rev().filter_map(move |geom| {
             Some((geom.sticker, geom.twists_for_point(transformed_cursor_pos)?))
         });
