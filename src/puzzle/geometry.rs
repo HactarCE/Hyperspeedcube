@@ -58,6 +58,8 @@ pub struct StickerGeometryParams {
     pub show_frontfaces: bool,
     /// Whether to show backfaces.
     pub show_backfaces: bool,
+    /// Whether to clip points behind the 4D camera.
+    pub clip_4d: bool,
 }
 impl StickerGeometryParams {
     /// Constructs sticker geometry parameters for a set of view preferences.
@@ -115,6 +117,7 @@ impl StickerGeometryParams {
 
             show_frontfaces: view_prefs.show_frontfaces,
             show_backfaces: view_prefs.show_backfaces,
+            clip_4d: view_prefs.clip_4d,
         };
 
         ret.view_transform /= puzzle_type.projection_radius_3d(ret);
@@ -132,7 +135,7 @@ impl StickerGeometryParams {
         let divisor = 1.0 + (1.0 - point.w / camera_w) * self.w_factor_4d;
 
         // Clip geometry that is behind the 4D camera.
-        if divisor < W_NEAR_CLIPPING_DIVISOR {
+        if self.clip_4d && divisor < W_NEAR_CLIPPING_DIVISOR {
             return None;
         }
 
