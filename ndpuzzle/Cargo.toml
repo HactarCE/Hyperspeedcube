@@ -12,3 +12,8 @@ num-traits = "0.2.15"
 slab = "0.4.7"
 smallvec = { version = "1.9.0", features = ["union"] }
 thiserror = "1.0.34"
+
+[dev-dependencies]
+cgmath = { version = "0.18.0", features = ["serde"] }
+eframe = { version = "0.18.0", features = ["dark-light", "persistence"] }
+serde = { version = "1.0", features = ["derive"] }
