@@ -1,0 +1,7 @@
+[package]
+name = "ndmath"
+version = "0.1.0"
+authors = ["HactarCE", "Luna Harran"]
+edition = "2021"
+repository = "https://github.com/HactarCE/Hyperspeedcube/"
+license = "MIT OR Apache-2.0"
