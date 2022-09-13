@@ -1,3 +1,5 @@
+//! N-dimensional vector math.
+
 use itertools::Itertools;
 use num_traits::{Float, Num};
 use std::fmt;

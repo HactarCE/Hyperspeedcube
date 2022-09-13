@@ -1,3 +1,5 @@
 //! N-dimensional puzzles.
 
+#[macro_use]
 pub mod math;
+pub mod polytope;

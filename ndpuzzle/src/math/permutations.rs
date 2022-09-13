@@ -1,9 +1,11 @@
+//! Permutation math.
+
 use itertools::Itertools;
 
 /// Parity of a permutation.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(i8)]
-pub enum Parity {
+pub(crate) enum Parity {
     /// Even number of swaps.
     #[default]
     Even = 1,
@@ -21,7 +23,9 @@ impl Parity {
     }
 }
 
-pub fn permutations_with_parity<I>(iter: I) -> impl Iterator<Item = (Vec<I::Item>, Parity)>
+/// Returns an iterator over permutations of a list, each with its associated
+/// parity.
+pub(crate) fn permutations_with_parity<I>(iter: I) -> impl Iterator<Item = (Vec<I::Item>, Parity)>
 where
     I: ExactSizeIterator,
     I::Item: Clone,

@@ -1,8 +1,10 @@
+//! N-dimensional matrix math.
+
 use num_traits::{Num, Signed};
 use std::ops::*;
 
-use crate::permutations;
-use crate::vector::{Vector, VectorRef};
+use super::permutations;
+use super::vector::{Vector, VectorRef};
 
 /// N-by-N square matrix. Indexing out of bounds returns the corresponding
 /// element from the infinite identity matrix.
@@ -39,7 +41,8 @@ impl<N: Clone + Num> Matrix<N> {
     /// order.
     ///
     /// ```
-    /// # use ndmath::{Matrix, row_matrix};
+    /// # use ndpuzzle::math::{Matrix};
+    /// # use ndpuzzle::row_matrix;
     /// assert_eq!(
     ///     Matrix::from_elems(vec![1, 2, 3, 4]),
     ///     row_matrix![
