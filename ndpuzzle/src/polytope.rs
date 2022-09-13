@@ -2,21 +2,64 @@ use itertools::Itertools;
 use slab::Slab;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
+use std::fmt;
 use thiserror::Error;
 
-use crate::math::{Vector, VectorRef};
+use crate::math::*;
 
 pub type PolytopeResult<T> = Result<T, PolytopeError>;
 
 const EPSILON: f32 = 0.001;
 
+/// Generates a polytope from a set of generators and base facets.
+pub fn generate_polytope(
+    ndim: u8,
+    generators: &[Matrix<f32>],
+    base_facets: &[Vector<f32>],
+) -> PolytopeResult<Vec<Polygon>> {
+    let radius = base_facets
+        .iter()
+        .map(|pole| pole.mag())
+        .reduce(f32::max)
+        .expect("no base facets");
+    let initial_radius = radius * 2.0 * ndim as f32;
+    // TODO: check if radius is too small (any original point remains).
+    let mut arena = PolytopeArena::new_cube(ndim, initial_radius);
+
+    let mut facet_poles: Vec<Vector<f32>> = base_facets.to_vec();
+    let mut next_unprocessed = 0;
+    while next_unprocessed < facet_poles.len() {
+        for gen in generators {
+            let new_pole = gen.transform(facet_poles[next_unprocessed].clone().resize(ndim));
+            if facet_poles
+                .iter()
+                .all(|pole| !pole.approx_eq(&new_pole, EPSILON))
+            {
+                facet_poles.push(new_pole);
+            }
+        }
+        next_unprocessed += 1;
+    }
+    for pole in &facet_poles {
+        arena.slice_by_plane(pole)?;
+    }
+    arena.polygons()
+}
+
 /// Arena of polytopes that can be split.
-#[derive(Debug)]
 pub struct PolytopeArena {
     /// Unordered set of polytopes.
     polytopes: Slab<Polytope>,
     /// Root polytope.
     root: PolytopeId,
+}
+impl fmt::Debug for PolytopeArena {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PolytopeArena")
+            .field("polytopes", &self.polytopes.iter().collect_vec())
+            .field("root", &self.root)
+            .finish()
+    }
 }
 impl PolytopeArena {
     /// Constructs a polytope arena containing a hypercube.

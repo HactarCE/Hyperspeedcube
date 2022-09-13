@@ -205,11 +205,22 @@ impl<N: Clone + Num> Vector<N> {
     /// Zero-dimensional empty vector.
     pub const EMPTY: Self = Self(vec![]);
 
+    /// Returns a zero vector.
+    pub fn zero(ndim: u8) -> Self {
+        Self::EMPTY.resize(ndim)
+    }
     /// Returns a unit vector along an axis.
     pub fn unit(axis: u8) -> Self {
         let mut ret = vector![N::zero(); axis as usize+1];
         ret[axis] = N::one();
         ret
+    }
+
+    /// Resizes the vector in-place, padding with zeros.
+    #[must_use]
+    pub fn resize(mut self, ndim: u8) -> Self {
+        self.0.resize(ndim as _, N::zero());
+        self
     }
 
     /// Returns an iterator over the components of the vector.
@@ -246,15 +257,6 @@ impl<'a, N: Clone + Num> IntoIterator for &'a Vector<N> {
 impl<N: Clone + Num> FromIterator<N> for Vector<N> {
     fn from_iter<T: IntoIterator<Item = N>>(iter: T) -> Self {
         Self(iter.into_iter().collect())
-    }
-}
-
-impl Vector<f32> {
-    /// Resizes the vector in-place, padding with zeros.
-    #[must_use]
-    pub fn resize(mut self, ndim: u8) -> Self {
-        self.0.resize(ndim as _, 0.0);
-        self
     }
 }
 
