@@ -5,3 +5,9 @@ authors = ["HactarCE", "Luna Harran"]
 edition = "2021"
 repository = "https://github.com/HactarCE/Hyperspeedcube/"
 license = "MIT OR Apache-2.0"
+
+[dependencies]
+itertools = "0.10.3"
+num-traits = "0.2.15"
+smallvec = { version = "1.9.0", features = ["union"] }
+serde = { version = "1.0", features = ["derive"], optional = true }

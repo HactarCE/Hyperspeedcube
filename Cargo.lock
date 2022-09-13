@@ -1733,6 +1733,12 @@ checksum = "e1bcdd74c20ad5d95aacd60ef9ba40fdf77f767051040541df557b7a9b2a2121"
 [[package]]
 name = "ndmath"
 version = "0.1.0"
+dependencies = [
+ "itertools",
+ "num-traits",
+ "serde",
+ "smallvec",
+]
 
 [[package]]
 name = "ndpuzzle"
