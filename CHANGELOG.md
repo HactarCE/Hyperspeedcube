@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - "Clip 4D" option (enabled by default)
 
+### Changed
+
+- Optimized rendering of invisible pieces; large puzzles now render more smoothly when many pieces are hidden
+
 ### Fixed
 
 - Incorrect YouTube link in welcome screen
