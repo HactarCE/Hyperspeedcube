@@ -86,7 +86,14 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             });
         }
 
-        prefs_ui.angle("3D FOV", access!(.fov_3d), |dv| {
+        let label = if prefs_ui.current.fov_3d == 120.0 {
+            "QUAKE PRO"
+        } else if prefs_ui.current.fov_3d == -120.0 {
+            "ORP EKAUQ"
+        } else {
+            "3D FOV"
+        };
+        prefs_ui.angle(label, access!(.fov_3d), |dv| {
             dv.clamp_range(-120.0..=120.0).speed(0.5)
         });
     });
