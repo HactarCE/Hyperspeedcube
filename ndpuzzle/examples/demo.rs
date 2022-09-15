@@ -90,6 +90,16 @@ impl PolytopeDemo {
         *m0.get_mut(axis1, axis1) = -cangle;
         self.camera_rot = &m0 * &self.camera_rot;
     }
+
+    fn project(&self, vecs: impl IntoIterator<Item = impl VectorRef<f32>>) -> egui::plot::Values {
+        let ndrot = &Matrix::from_cols(self.dim_mappings.clone()) * &self.camera_rot;
+        egui::plot::Values::from_values_iter(vecs.into_iter().map(|p| {
+            let mut v = ndrot.transform(p);
+            let w = v[3] + self.w_offset;
+            v = v / w;
+            egui::plot::Value::new(v[0], v[1])
+        }))
+    }
 }
 
 impl eframe::App for PolytopeDemo {
@@ -224,35 +234,14 @@ impl eframe::App for PolytopeDemo {
                 .data_aspect(1.0)
                 .allow_boxed_zoom(false)
                 .show(ui, |plot_ui| {
-                    let ndrot = &Matrix::from_cols(self.dim_mappings.clone()) * &self.camera_rot;
                     for (i, p) in self.polygons.iter().enumerate() {
-                        plot_ui.polygon(
-                            egui::plot::Polygon::new(egui::plot::Values::from_values_iter(
-                                p.verts.iter().map(|p| {
-                                    let mut v = ndrot.transform(p);
-                                    let w = v[3] + self.w_offset;
-                                    v = v / w;
-                                    egui::plot::Value::new(v[0], v[1])
-                                }),
-                            ))
-                            .name(i),
-                        );
+                        plot_ui.polygon(egui::plot::Polygon::new(self.project(&p.verts)).name(i));
                     }
                     plot_ui.arrows(egui::plot::Arrows::new(
                         egui::plot::Values::from_values_iter(
                             vec![egui::plot::Value::new(0, 0); self.arrows.len()].into_iter(),
                         ),
-                        egui::plot::Values::from_values_iter(
-                            self.arrows
-                                .iter()
-                                .map(|p| {
-                                    let mut v = ndrot.transform(p);
-                                    let w = v[3] + self.w_offset;
-                                    v = v / w;
-                                    cgmath::point3(v[0], v[1], v[2])
-                                })
-                                .map(|xy| egui::plot::Value::new(xy.x, xy.y)),
-                        ),
+                        self.project(&self.arrows),
                     ))
                 });
             if r.response.dragged_by(egui::PointerButton::Secondary) {
