@@ -57,6 +57,16 @@ pub trait VectorRef<N: Clone + Num>: Sized {
         self.dot(self)
     }
 
+    /// Returns a normalised copy of the vector.
+    #[must_use]
+    fn normalise(&self) -> Self
+    where
+        N: Float,
+        for<'a> &'a Self: Div<N, Output = Self>,
+    {
+        self / self.mag()
+    }
+
     /// Returns whether two vectors are equal within `epsilon` on each
     /// component.
     fn approx_eq(&self, other: impl VectorRef<N>, epsilon: f32) -> bool
