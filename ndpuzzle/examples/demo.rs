@@ -25,7 +25,7 @@ fn main() {
 
             Box::new(PolytopeDemo {
                 polygons: vec![],
-                ndim: 3,
+                ndim: 5,
                 dim_mappings,
 
                 auto_generate: false,
@@ -68,6 +68,7 @@ impl PolytopeDemo {
     fn is_axis_flat(&self, axis: u8) -> bool {
         self.camera_rot.get(axis, axis) > 1. - 0.00001
     }
+
     fn flatten_axis(&mut self, axis: u8) {
         let current = self.camera_rot.col(axis);
         let target = Vector::unit(axis);
@@ -152,7 +153,7 @@ impl eframe::App for PolytopeDemo {
                     .split(',')
                     .map(|s| s.trim().parse().unwrap_or(0))
                     .collect_vec();
-                self.ndim = xs.len() as u8;
+                self.ndim = (xs.len() + 1) as u8;
 
                 ui.separator();
 
@@ -224,20 +225,15 @@ impl eframe::App for PolytopeDemo {
                 .allow_boxed_zoom(false)
                 .show(ui, |plot_ui| {
                     let ndrot = &Matrix::from_cols(self.dim_mappings.clone()) * &self.camera_rot;
-                    // let rot = cgmath::Matrix3::from_angle_x(cgmath::Rad(self.pitch))
-                    //     * cgmath::Matrix3::from_angle_y(cgmath::Rad(self.yaw));
                     for (i, p) in self.polygons.iter().enumerate() {
                         plot_ui.polygon(
                             egui::plot::Polygon::new(egui::plot::Values::from_values_iter(
-                                p.verts
-                                    .iter()
-                                    .map(|p| {
-                                        let mut v = ndrot.transform(p);
-                                        let w = v[3] + self.w_offset;
-                                        v = v / w;
-                                        cgmath::point3(v[0], v[1], v[2])
-                                    })
-                                    .map(|xy| egui::plot::Value::new(xy.x, xy.y)),
+                                p.verts.iter().map(|p| {
+                                    let mut v = ndrot.transform(p);
+                                    let w = v[3] + self.w_offset;
+                                    v = v / w;
+                                    egui::plot::Value::new(v[0], v[1])
+                                }),
                             ))
                             .name(i),
                         );
