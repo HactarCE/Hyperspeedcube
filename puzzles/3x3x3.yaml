@@ -1,0 +1,15 @@
+name: 3x3x3
+ndim: 3
+shape:
+  - symmetries:
+      - schlafli: 4,3
+    face_generators:
+      - [1, 0, 0]
+twists:
+  - symmetries:
+      - schlafli: 4,3
+    axes:
+      - normal: [1, 0, 0]
+        cuts: [0.333, -0.333]
+        twist_generators:
+          - rot(Y, Z)

@@ -2028,6 +2028,7 @@ dependencies = [
  "itertools",
  "num-traits",
  "serde",
+ "serde_yaml",
  "slab",
  "smallvec",
  "thiserror",

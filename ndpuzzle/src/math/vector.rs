@@ -2,13 +2,15 @@
 
 use itertools::Itertools;
 use num_traits::{Float, Num};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::iter::Cloned;
 use std::marker::PhantomData;
 use std::ops::*;
 
 /// N-dimensional vector. Indexing out of bounds returns zero.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(transparent)]
 pub struct Vector<N: Clone + Num>(pub Vec<N>);
 
 /// Reference to an N-dimensional vector. Indexing out of bounds returns zero.
