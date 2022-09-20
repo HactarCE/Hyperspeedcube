@@ -218,7 +218,7 @@ impl PuzzleType for Rubiks3DDescription {
     fn family_max_layer_count(&self) -> u8 {
         MAX_LAYER_COUNT
     }
-    fn projection_radius_3d(&self, _p: StickerGeometryParams) -> f32 {
+    fn radius(&self) -> f32 {
         3.0_f32.sqrt()
     }
     fn scramble_moves_count(&self) -> usize {

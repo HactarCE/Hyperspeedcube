@@ -69,9 +69,10 @@ impl StickerGeometryParams {
         twist_animation: Option<(Twist, f32)>,
         view_angle_offset: Quaternion<f32>,
     ) -> Self {
-        // Compute the view and perspective transforms, which must be applied here
-        // on the CPU so that we can do proper depth sorting.
-        let view_transform: Matrix3<f32> = (view_prefs.view_angle() * view_angle_offset).into();
+        // Compute the view and perspective transforms, which must be applied
+        // here on the CPU so that we can do proper depth sorting.
+        let view_transform =
+            Matrix3::from(view_prefs.view_angle() * view_angle_offset) / puzzle_type.radius();
 
         let ambient_light = util::mix(
             view_prefs.light_directional * 0.5,
@@ -96,7 +97,7 @@ impl StickerGeometryParams {
         let face_scale = sticker_grid_scale * (puzzle_type.layer_count() as f32);
         let sticker_scale = sticker_grid_scale * (1.0 - sticker_spacing);
 
-        let mut ret = Self {
+        Self {
             face_spacing,
             sticker_spacing,
 
@@ -118,11 +119,7 @@ impl StickerGeometryParams {
             show_frontfaces: view_prefs.show_frontfaces,
             show_backfaces: view_prefs.show_backfaces,
             clip_4d: view_prefs.clip_4d,
-        };
-
-        ret.view_transform /= puzzle_type.projection_radius_3d(ret);
-
-        ret
+        }
     }
 
     /// Projects a 4D point down to 3D.

@@ -24,8 +24,7 @@ pub trait PuzzleType {
     fn layer_count(&self) -> u8;
     fn family_max_layer_count(&self) -> u8;
 
-    /// Returns the maximum radius of the puzzle's 3D projection.
-    fn projection_radius_3d(&self, p: StickerGeometryParams) -> f32;
+    fn radius(&self) -> f32;
     fn scramble_moves_count(&self) -> usize;
 
     fn faces(&self) -> &[FaceInfo];

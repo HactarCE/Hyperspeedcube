@@ -241,16 +241,8 @@ impl PuzzleType for Rubiks4DDescription {
     fn family_max_layer_count(&self) -> u8 {
         MAX_LAYER_COUNT
     }
-    fn projection_radius_3d(&self, p: StickerGeometryParams) -> f32 {
-        let r = 1.0 - p.face_spacing;
-        let farthest_point = cgmath::vec4(1.0, r, r, r);
-        match p.project_4d(farthest_point) {
-            Some(farthest_point) => p
-                .view_transform
-                .transform_point(farthest_point)
-                .distance(Point3::origin()),
-            None => 3.0_f32.sqrt(), // shouldn't ever happen
-        }
+    fn radius(&self) -> f32 {
+        4.0_f32.sqrt()
     }
     fn scramble_moves_count(&self) -> usize {
         15 * self.layer_count as usize // TODO pulled from thin air; probably insufficient for big cubes
