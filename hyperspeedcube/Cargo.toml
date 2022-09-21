@@ -1,6 +1,6 @@
 [package]
 name = "hyperspeedcube"
-version = "1.0.0"
+version = "2.0.0-dev"
 authors = ["HactarCE"]
 edition = "2021"
 description = "Multidimensional twisty puzzle simulator"
@@ -56,7 +56,7 @@ winres = "0.1"
 [package.metadata.winres]
 FileDescription = "Hyperspeedcube"
 ProductName = "Hyperspeedcube"
-ProductVersion = "1.0.0"
+ProductVersion = "2.0.0-dev"
 OriginalFilename = "hyperspeedcube.exe"
 LegalCopyright = "Copyright © 2022 HactarCE"
 
