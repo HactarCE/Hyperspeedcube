@@ -267,17 +267,6 @@ impl PuzzleType for Rubiks4DDescription {
         &self.piece_types
     }
 
-    fn count_quarter_turns(&self, twist: Twist) -> usize {
-        use TwistDirectionEnum::*;
-
-        match twist.direction.into() {
-            R | L | U | D | F | B => 1,
-            R2 | L2 | U2 | D2 | F2 | B2 => 2,
-            UF | DB | UR | DL | FR | BL | DF | UB | UL | DR | BR | FL => 3,
-            UFR | DBL | UFL | DBR | DFR | UBL | UBR | DFL => 2,
-        }
-    }
-
     fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String> {
         use FaceEnum::*;
         use TwistDirectionEnum as Dir;
@@ -340,35 +329,6 @@ impl PuzzleType for Rubiks4DDescription {
             axis: face.into(),
             direction: direction.into(),
             layers,
-        }
-    }
-
-    fn reverse_twist_direction(&self, mut direction: TwistDirection) -> TwistDirection {
-        direction.0 ^= 1;
-        direction
-    }
-    fn chain_twist_directions(&self, dirs: &[TwistDirection]) -> Option<TwistDirection> {
-        match dirs {
-            [] => None,
-            [dir] => Some(*dir),
-            _ => {
-                // Apply all of `dirs` to a single hypothetical piece and see
-                // which twist direction it ends up looking like at the end. If
-                // it doesn't match any twist direction, it should match the
-                // initial state.
-                let face = FaceEnum::default();
-                let final_state = dirs.iter().fold(PieceState::default(), |state, &dir| {
-                    state.twist(face, dir.into())
-                });
-
-                match TwistDirectionEnum::from_piece_state_on_face(final_state, face) {
-                    Some(dir) => Some(dir.into()),
-                    None => {
-                        debug_assert_eq!(final_state, PieceState::default());
-                        None
-                    }
-                }
-            }
         }
     }
 
@@ -1037,9 +997,18 @@ impl From<TwistDirection> for TwistDirectionEnum {
 }
 impl TwistDirectionEnum {
     fn info(self) -> TwistDirectionInfo {
+        use TwistDirectionEnum::*;
+
         TwistDirectionInfo {
             symbol: self.symbol_xyz(),
             name: self.name(),
+            qtm: match self {
+                R | L | U | D | F | B => 1,
+                R2 | L2 | U2 | D2 | F2 | B2 => 2,
+                UF | DB | UR | DL | FR | BL | DF | UB | UL | DR | BR | FL => 3,
+                UFR | DBL | UFL | DBR | DFR | UBL | UBR | DFL => 2,
+            },
+            rev: TwistDirection(self as u8 ^ 1),
         }
     }
 

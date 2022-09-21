@@ -44,7 +44,6 @@ pub trait PuzzleType {
             .map(TwistDirection)
             .find(|&twist_direction| self.info(twist_direction).name == name)
     }
-    fn count_quarter_turns(&self, twist: Twist) -> usize;
 
     fn check_layers(&self, layers: LayerMask) -> Result<(), &'static str> {
         let layer_count = self.layer_count() as u32;
@@ -69,14 +68,11 @@ pub trait PuzzleType {
     fn reverse_twist(&self, twist: Twist) -> Twist {
         Twist {
             axis: twist.axis,
-            direction: self.reverse_twist_direction(twist.direction),
+            direction: self.info(twist.direction).rev,
             layers: twist.layers,
         }
     }
     fn canonicalize_twist(&self, twist: Twist) -> Twist;
-
-    fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection;
-    fn chain_twist_directions(&self, dirs: &[TwistDirection]) -> Option<TwistDirection>;
 
     fn notation_scheme(&self) -> &NotationScheme;
     fn split_twists_string<'s>(&self, string: &'s str) -> regex::Matches<'static, 's> {
@@ -397,15 +393,12 @@ impl TwistAxisInfo {
 pub struct TwistDirectionInfo {
     pub symbol: &'static str, // "'"
     pub name: &'static str,   // "CCW"
+    pub qtm: usize,
+    pub rev: TwistDirection,
 }
 impl AsRef<str> for TwistDirectionInfo {
     fn as_ref(&self) -> &str {
         self.name
-    }
-}
-impl TwistDirectionInfo {
-    pub const fn new(symbol: &'static str, name: &'static str) -> Self {
-        Self { symbol, name }
     }
 }
 
@@ -594,7 +587,7 @@ impl TwistMetric {
             }
 
             let direction_multiplier = if is_qtm {
-                puzzle.count_quarter_turns(twist)
+                puzzle.info(twist.direction).qtm
             } else if prev_axis == Some(twist.axis) && prev_layers == Some(twist.layers) {
                 // Same axis and layers as previous twist! This twist is
                 // free.

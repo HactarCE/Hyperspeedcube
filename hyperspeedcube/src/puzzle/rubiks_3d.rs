@@ -244,15 +244,6 @@ impl PuzzleType for Rubiks3DDescription {
         &self.piece_types
     }
 
-    fn count_quarter_turns(&self, twist: Twist) -> usize {
-        use TwistDirectionEnum::*;
-
-        match twist.direction.into() {
-            CW90 | CCW90 => 1,
-            CW180 | CCW180 => 2,
-        }
-    }
-
     fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String> {
         use FaceEnum::*;
 
@@ -290,38 +281,6 @@ impl PuzzleType for Rubiks3DDescription {
             }
         } else {
             twist
-        }
-    }
-
-    fn reverse_twist_direction(&self, direction: TwistDirection) -> TwistDirection {
-        use TwistDirectionEnum::*;
-
-        match direction.into() {
-            CW90 => CCW90.into(),
-            CCW90 => CW90.into(),
-            CW180 => CCW180.into(),
-            CCW180 => CW180.into(),
-        }
-    }
-    fn chain_twist_directions(&self, dirs: &[TwistDirection]) -> Option<TwistDirection> {
-        use TwistDirectionEnum::*;
-
-        let total: i32 = dirs
-            .iter()
-            .map(|&dir| match dir.into() {
-                CW90 => 1,
-                CCW90 => -1,
-                CW180 => 2,
-                CCW180 => -2,
-            })
-            .sum();
-
-        match total.rem_euclid(4) {
-            0 => None,
-            1 => Some(CW90.into()),
-            2 => Some(if total < 0 { CCW180 } else { CW180 }.into()),
-            3 => Some(CCW90.into()),
-            _ => unreachable!(),
         }
     }
 
@@ -780,9 +739,21 @@ impl From<TwistDirection> for TwistDirectionEnum {
 }
 impl TwistDirectionEnum {
     fn info(self) -> TwistDirectionInfo {
+        use TwistDirectionEnum::*;
+
         TwistDirectionInfo {
             symbol: self.symbol(),
             name: self.name(),
+            qtm: match self {
+                CW90 | CCW90 => 1,
+                CW180 | CCW180 => 2,
+            },
+            rev: match self {
+                CW90 => CCW90.into(),
+                CCW90 => CW90.into(),
+                CW180 => CCW180.into(),
+                CCW180 => CW180.into(),
+            },
         }
     }
 
