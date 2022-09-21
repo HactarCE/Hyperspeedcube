@@ -244,9 +244,6 @@ impl PuzzleType for Rubiks3DDescription {
         &self.piece_types
     }
 
-    fn opposite_twist_axis(&self, twist_axis: TwistAxis) -> Option<TwistAxis> {
-        Some(FaceEnum::from(twist_axis).opposite().into())
-    }
     fn count_quarter_turns(&self, twist: Twist) -> usize {
         use TwistDirectionEnum::*;
 
@@ -662,6 +659,12 @@ impl FaceEnum {
     fn twist_axis_info(self) -> TwistAxisInfo {
         TwistAxisInfo {
             name: self.symbol_upper_str(),
+            opposite: Some((
+                self.opposite().into(),
+                TwistDirectionEnum::iter()
+                    .map(|dir| dir.rev().into())
+                    .collect(),
+            )),
         }
     }
 

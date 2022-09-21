@@ -44,7 +44,6 @@ pub trait PuzzleType {
             .map(TwistDirection)
             .find(|&twist_direction| self.info(twist_direction).name == name)
     }
-    fn opposite_twist_axis(&self, twist_axis: TwistAxis) -> Option<TwistAxis>;
     fn count_quarter_turns(&self, twist: Twist) -> usize;
 
     fn check_layers(&self, layers: LayerMask) -> Result<(), &'static str> {
@@ -373,13 +372,24 @@ impl FaceInfo {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TwistAxisInfo {
     pub name: &'static str, // e.g., "R"
+    pub opposite: Option<(TwistAxis, Vec<TwistDirection>)>,
 }
 impl AsRef<str> for TwistAxisInfo {
     fn as_ref(&self) -> &str {
         self.name
+    }
+}
+impl TwistAxisInfo {
+    pub fn opposite_axis(&self) -> Option<TwistAxis> {
+        self.opposite.as_ref().map(|(axis, _)| *axis)
+    }
+    pub fn opposite_twist(&self, dir: TwistDirection) -> Option<(TwistAxis, TwistDirection)> {
+        self.opposite
+            .as_ref()
+            .and_then(|(axis, dirs)| Some((*axis, *dirs.get(dir.0 as usize)?)))
     }
 }
 
@@ -539,7 +549,7 @@ impl TwistMetric {
 
                 let mut prev_axis = None;
                 for twist in twists {
-                    let opp = puzzle.opposite_twist_axis(twist.axis);
+                    let opp = puzzle.info(twist.axis).opposite_axis();
                     let is_same_axis =
                         prev_axis == Some(twist.axis) || opp.is_some() && prev_axis == opp;
                     if !is_same_axis {
@@ -571,7 +581,7 @@ impl TwistMetric {
         let mut prev_layers = None;
         for twist in twists {
             if twist.layers == puzzle.all_layers() {
-                let opp = puzzle.opposite_twist_axis(twist.axis);
+                let opp = puzzle.info(twist.axis).opposite_axis();
                 let is_same_axis =
                     prev_axis == Some(twist.axis) || opp.is_some() && prev_axis == opp;
                 if !is_same_axis {
