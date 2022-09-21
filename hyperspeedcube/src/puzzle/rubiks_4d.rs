@@ -289,49 +289,6 @@ impl PuzzleType for Rubiks4DDescription {
         })
     }
 
-    fn canonicalize_twist(&self, twist: Twist) -> Twist {
-        let mut face: FaceEnum = twist.axis.into();
-        let mut direction: TwistDirectionEnum = twist.direction.into();
-        let mut layers = twist.layers;
-
-        let rev_layers = self.reverse_layers(twist.layers);
-        let should_reverse = if Some(layers) == self.slice_layers() {
-            use FaceEnum::*;
-            // These are the faces that correspond to MESP slice twists.
-            !matches!(face, L | D | F | O)
-        } else {
-            twist.layers.0 > rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Neg
-        };
-        if should_reverse {
-            face = face.opposite();
-            direction = direction.mirror(face.axis());
-            layers = rev_layers;
-        }
-
-        // Canonicalize full-puzzle rotations.
-        if twist.layers == self.all_layers() {
-            if let Some([ax1, ax2]) = direction.twist_plane_for_face(face) {
-                if let Some((new_direction, new_face)) =
-                    TwistDirectionEnum::from_face_twist_plane(ax1, ax2)
-                {
-                    let is_face_180 = direction.is_face_180();
-
-                    face = new_face;
-                    direction = new_direction;
-                    if is_face_180 {
-                        direction = direction.double().unwrap();
-                    }
-                }
-            }
-        }
-
-        Twist {
-            axis: face.into(),
-            direction: direction.into(),
-            layers,
-        }
-    }
-
     fn notation_scheme(&self) -> &NotationScheme {
         &self.notation
     }
@@ -792,7 +749,7 @@ impl FaceEnum {
             opposite: Some((
                 self.opposite().into(),
                 TwistDirectionEnum::iter()
-                    .map(|dir| dir.rev().into())
+                    .map(|dir| dir.mirror(self.axis()).into())
                     .collect(),
             )),
         }

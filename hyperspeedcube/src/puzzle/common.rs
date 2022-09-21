@@ -72,7 +72,18 @@ pub trait PuzzleType {
             layers: twist.layers,
         }
     }
-    fn canonicalize_twist(&self, twist: Twist) -> Twist;
+    fn canonicalize_twist(&self, twist: Twist) -> Twist {
+        if let Some((opp_axis, rev_dir)) = self.info(twist.axis).opposite_twist(twist.direction) {
+            let opposite_twist = Twist {
+                axis: opp_axis,
+                direction: rev_dir,
+                layers: self.reverse_layers(twist.layers),
+            };
+            std::cmp::min(twist, opposite_twist)
+        } else {
+            twist
+        }
+    }
 
     fn notation_scheme(&self) -> &NotationScheme;
     fn split_twists_string<'s>(&self, string: &'s str) -> regex::Matches<'static, 's> {
@@ -241,6 +252,18 @@ pub struct Twist {
     pub direction: TwistDirection,
     pub layers: LayerMask,
 }
+impl PartialOrd for Twist {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Twist {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // Prefer smaller layer mask; otherwise prefer smaller axis; otherwise
+        // prefer smaller direction.
+        (self.layers, self.axis, self.direction).cmp(&(other.layers, other.axis, other.direction))
+    }
+}
 impl fmt::Display for Twist {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{},{},{}", self.axis.0, self.direction.0, self.layers.0)
@@ -311,17 +334,17 @@ impl Puzzle {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Piece(pub u16);
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Sticker(pub u16);
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Face(pub u8);
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TwistAxis(pub u8);
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TwistDirection(pub u8);
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PieceType(pub u8);
 
 pub trait PuzzleInfo<T> {
@@ -659,7 +682,7 @@ pub enum ProjectionType {
 }
 
 /// Bitmask selecting a subset of a puzzle's layers.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[serde(transparent)]
 pub struct LayerMask(pub u32);
 impl Default for LayerMask {

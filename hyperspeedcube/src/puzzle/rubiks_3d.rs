@@ -261,29 +261,6 @@ impl PuzzleType for Rubiks3DDescription {
         })
     }
 
-    fn canonicalize_twist(&self, twist: Twist) -> Twist {
-        let face: FaceEnum = twist.axis.into();
-        let direction: TwistDirectionEnum = twist.direction.into();
-
-        let rev_layers = self.reverse_layers(twist.layers);
-        let should_reverse = if Some(twist.layers) == self.slice_layers() {
-            use FaceEnum::*;
-            // These are the faces that correspond to MES slice twists.
-            !matches!(face, L | D | F)
-        } else {
-            twist.layers.0 > rev_layers.0 || twist.layers == rev_layers && face.sign() == Sign::Neg
-        };
-        if should_reverse {
-            Twist {
-                axis: face.opposite().into(),
-                direction: direction.rev().into(),
-                layers: rev_layers,
-            }
-        } else {
-            twist
-        }
-    }
-
     fn notation_scheme(&self) -> &NotationScheme {
         &self.notation
     }
