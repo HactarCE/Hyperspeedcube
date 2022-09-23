@@ -7,7 +7,9 @@ mod vector;
 mod hyperplane;
 mod matrix;
 pub mod permutations;
+mod rotor;
 
 pub use hyperplane::*;
 pub use matrix::*;
+pub use rotor::*;
 pub use vector::*;
