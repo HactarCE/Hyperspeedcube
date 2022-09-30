@@ -171,6 +171,7 @@ impl<N: Clone + Num> Matrix<N> {
 
     /// Transforms a vector using the matrix.
     pub fn transform(&self, v: impl VectorRef<N>) -> Vector<N> {
+        // TODO: remove this method; replace with `impl Mul`
         let ndim = std::cmp::max(self.ndim(), v.ndim());
         (0..ndim)
             .map(|i| {
@@ -262,7 +263,7 @@ pub struct MatrixCol<'a, N: Clone + Num> {
 }
 impl<N: Clone + Num> VectorRef<N> for MatrixCol<'_, N> {
     fn ndim(&self) -> u8 {
-        self.matrix.ndim()
+        std::cmp::max(self.matrix.ndim(), self.col + 1)
     }
 
     fn get(&self, row: u8) -> N {
@@ -278,7 +279,7 @@ pub struct MatrixRow<'a, N: Clone + Num> {
 }
 impl<N: Clone + Num> VectorRef<N> for MatrixRow<'_, N> {
     fn ndim(&self) -> u8 {
-        self.matrix.ndim()
+        std::cmp::max(self.matrix.ndim(), self.row + 1)
     }
 
     fn get(&self, col: u8) -> N {
@@ -345,9 +346,57 @@ impl Matrix<f32> {
     }
 }
 
+impl_forward_bin_ops_to_ref!(impl Mul for Matrix<f32> { fn mul() });
+impl_forward_bin_ops_to_ref!(impl Add for Matrix<f32> { fn add() });
+impl_forward_bin_ops_to_ref!(impl Sub for Matrix<f32> { fn sub() });
+
+impl Mul<f32> for Matrix<f32> {
+    type Output = Matrix<f32>;
+
+    fn mul(mut self, rhs: f32) -> Self::Output {
+        for x in &mut self.elems {
+            *x *= rhs;
+        }
+        self
+    }
+}
+impl Div<f32> for Matrix<f32> {
+    type Output = Matrix<f32>;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        self * (1.0 / rhs)
+    }
+}
+
+impl<V: VectorRef<f32>> Mul<V> for Matrix<f32> {
+    type Output = Vector<f32>;
+
+    fn mul(self, rhs: V) -> Self::Output {
+        self.transform(rhs)
+    }
+}
+impl<'a, V: VectorRef<f32>> Mul<V> for &'a Matrix<f32> {
+    type Output = Vector<f32>;
+
+    fn mul(self, rhs: V) -> Self::Output {
+        self.transform(rhs)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_matrix_empty_ident() {
+        assert_eq!(
+            Matrix::EMPTY_IDENT * vector![1.0, 2.0, 3.0, 4.0],
+            vector![1.0, 2.0, 3.0, 4.0],
+        );
+        let m = col_matrix![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+        assert_eq!(m, Matrix::EMPTY_IDENT * &m);
+        assert_eq!(m, &m * Matrix::EMPTY_IDENT);
+    }
 
     #[test]
     fn test_matrix_multiply() {
