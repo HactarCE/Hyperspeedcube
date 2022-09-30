@@ -205,13 +205,12 @@ impl App {
             }
             AppEvent::Drag(delta) => {
                 let delta = delta * self.prefs.interaction.drag_sensitivity * 360.0;
-                self.puzzle.freeze_view_angle_offset();
                 self.puzzle
                     .add_view_angle_offset([delta.x, delta.y], self.prefs.view(self.puzzle.ty()));
             }
             AppEvent::DragReleased => {
-                if self.prefs.interaction.realign_on_release {
-                    self.puzzle.unfreeze_view_angle_offset();
+                if self.prefs.interaction.snap_on_release {
+                    self.puzzle.snap_view_angle_offset();
                 }
             }
 
@@ -336,7 +335,7 @@ impl App {
                     layers,
                 } => {
                     if !done_twist_command {
-                        self.puzzle.unfreeze_view_angle_offset();
+                        self.puzzle.snap_view_angle_offset();
                         let layers = layers.to_layer_mask(self.puzzle.layer_count());
                         match self.do_twist(axis.as_deref(), direction, layers) {
                             Ok(()) => {
@@ -349,7 +348,7 @@ impl App {
                 }
                 PuzzleCommand::Recenter { axis } => {
                     if !done_twist_command {
-                        self.puzzle.unfreeze_view_angle_offset();
+                        self.puzzle.snap_view_angle_offset();
                         match self.do_recenter(axis.as_deref()) {
                             Ok(()) => {
                                 done_twist_command = true;

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [UNRELEASED]
 
+### Changed
+
+- Rotations are no longer twists
+- Renamed "Realign puzzle on release" to "Snap puzzle on release"
+- 4D FOV now keeps W=0 plane fixed instead of W=1
+
+### Removed
+
+- Smart realign option (always enabled)
+
 ### Added
 
 - "Clip 4D" option (enabled by default)

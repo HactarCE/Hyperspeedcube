@@ -15,8 +15,7 @@ gfx:
 interaction:
   confirm_discard_only_when_scrambled: true
   drag_sensitivity: 0.7
-  realign_on_release: false
-  smart_realign: true
+  snap_on_release: false
   dynamic_twist_speed: true
   twist_duration: 0.2
   other_anim_duration: 0.15
@@ -43,7 +42,7 @@ view_3d:
   roll: 0.0
   scale: 1.25
   fov_3d: 30.0
-  fov_4d: 30.0
+  fov_4d: 50.0
   align_h: 0.0
   align_v: 0.0
   show_frontfaces: true
@@ -63,7 +62,7 @@ view_3d:
     roll: 0.0
     scale: 1.25
     fov_3d: 30.0
-    fov_4d: 30.0
+    fov_4d: 50.0
     align_h: 0.0
     align_v: 0.0
     show_frontfaces: true
@@ -83,7 +82,7 @@ view_3d:
       roll: 0.0
       scale: 1.25
       fov_3d: 30.0
-      fov_4d: 30.0
+      fov_4d: 50.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: true
@@ -102,7 +101,7 @@ view_3d:
       roll: 0.0
       scale: 3.0
       fov_3d: 120.0
-      fov_4d: 30.0
+      fov_4d: 50.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: false
@@ -121,7 +120,7 @@ view_3d:
       roll: 0.0
       scale: 3.0
       fov_3d: -120.0
-      fov_4d: 30.0
+      fov_4d: 50.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: true
@@ -138,9 +137,9 @@ view_4d:
   pitch: 35.0
   yaw: -45.0
   roll: 0.0
-  scale: 1.75
+  scale: 1.4
   fov_3d: 0.0
-  fov_4d: 30.0
+  fov_4d: 50.0
   align_h: 0.0
   align_v: 0.0
   show_frontfaces: true
@@ -158,9 +157,9 @@ view_4d:
     pitch: 35.0
     yaw: -45.0
     roll: 0.0
-    scale: 1.75
+    scale: 1.4
     fov_3d: 0.0
-    fov_4d: 30.0
+    fov_4d: 50.0
     align_h: 0.0
     align_v: 0.0
     show_frontfaces: true
@@ -180,7 +179,7 @@ view_4d:
       roll: 0.0
       scale: 1.0
       fov_3d: 0.0
-      fov_4d: 30.0
+      fov_4d: 50.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: true

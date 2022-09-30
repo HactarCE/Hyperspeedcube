@@ -70,10 +70,12 @@ impl StickerGeometryParams {
         twist_animation: Option<(Twist, f32)>,
         view_angle_offset: &Rotor,
     ) -> Self {
-        // Compute the view and perspective transforms, which must be applied
-        // here on the CPU so that we can do proper depth sorting.
-        let view_transform =
-            (view_prefs.view_angle() * view_angle_offset).matrix() * (1.0 / puzzle_type.radius());
+        // Compute the 4D view transform, which must be applied here on the CPU
+        // so that we can do proper depth sorting.
+        let view_transform = (view_prefs.view_angle() * view_angle_offset)
+            .matrix()
+            .pad(4)
+            * (1.0 / puzzle_type.radius());
 
         let ambient_light = util::mix(
             view_prefs.light_directional * 0.5,
@@ -131,7 +133,7 @@ impl StickerGeometryParams {
         // See `project_3d()` for an explanation of this formula. The only
         // differences here are that we assume the 4D FOV is positive and we
         // first normalize the W coordinate to have the camera at W=1.
-        let divisor = 1.0 + (1.0 - w / camera_w) * self.w_factor_4d;
+        let divisor = 1.0 + (-w / camera_w) * self.w_factor_4d;
 
         // Clip geometry that is behind the 4D camera.
         if self.clip_4d && divisor <= W_NEAR_CLIPPING_DIVISOR {

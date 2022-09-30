@@ -151,25 +151,22 @@ pub trait PuzzleState: PuzzleType {
     }
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8;
 
-    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Rotor)>;
-    fn nearest_rotation(&self, rot: &Rotor) -> (Vec<Twist>, Rotor) {
+    fn rotation_candidates(&self) -> Vec<Rotor>;
+    fn nearest_rotation(&self, rot: &Rotor) -> Rotor {
         let inv_rot = rot.reverse();
 
-        let mut nearest = (vec![], Rotor::identity());
+        let mut nearest = Rotor::identity();
         // The scalar part of a rotor is the cosine of half the angle of
         // rotation. So we can use the absolute value of that quantity to
         // compare whether one rotor is a larger rotation than another.
         let mut score_of_nearest = rot.s().abs();
-        for (twists, twist_rot) in self.rotation_candidates() {
-            let s = (&inv_rot * &twist_rot).s().abs();
+        for candidate in self.rotation_candidates() {
+            let s = (&inv_rot * &candidate).s().abs();
 
             if s > score_of_nearest {
-                nearest = (twists, twist_rot);
+                nearest = candidate;
                 score_of_nearest = s;
             }
-        }
-        for twist in &mut nearest.0 {
-            *twist = self.canonicalize_twist(*twist);
         }
         nearest
     }

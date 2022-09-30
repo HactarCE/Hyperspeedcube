@@ -106,6 +106,22 @@ impl<N: Clone + Num> Matrix<N> {
         self.ndim
     }
 
+    /// Pads the matrix with identity up to `ndim`.
+    #[must_use]
+    pub fn pad(&self, ndim: u8) -> Matrix<N> {
+        if ndim <= self.ndim() {
+            self.clone()
+        } else {
+            let mut ret = Matrix::ident(ndim);
+            for i in 0..self.ndim() {
+                for j in 0..self.ndim() {
+                    *ret.get_mut(i, j) = self.get(i, j).clone();
+                }
+            }
+            ret
+        }
+    }
+
     /// Returns an element from the matrix. If either `col` or `row` is out of
     /// bounds, returns the corresponding element from the infinite identity
     /// matrix.

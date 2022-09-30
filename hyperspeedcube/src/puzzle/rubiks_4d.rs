@@ -335,18 +335,9 @@ impl PuzzleState for Rubiks4D {
         u8::abs_diff(face_coord, piece_coord)
     }
 
-    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Rotor)> {
-        let layers = self.all_layers();
-
+    fn rotation_candidates(&self) -> Vec<Rotor> {
         TwistDirectionEnum::iter()
-            .map(|dir| {
-                let twist = Twist {
-                    axis: FaceEnum::I.into(),
-                    direction: dir.into(),
-                    layers,
-                };
-                (vec![twist], dir.twist_rotation(1.0))
-            })
+            .map(|dir| dir.twist_rotation(1.0))
             .collect()
     }
 

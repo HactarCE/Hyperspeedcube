@@ -13,7 +13,7 @@ const AXIS_NAMES: &[char] = &['X', 'Y', 'Z', 'W', 'U', 'V', 'R', 'S'];
 
 /// Term in the geometric algebra, consisting of a real coefficient and a
 /// bitmask representing the unit blade.
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub struct Blade {
     /// Coefficient.
     coef: f32,
@@ -75,7 +75,7 @@ impl Blade {
 /// Sum of blades in the geometric algebra. Blades are stored sorted by their
 /// `axes` bitmask. No two blades in one multivector may have the same set of
 /// axes.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq)]
 pub struct Multivector(Vec<Blade>);
 impl<V: VectorRef<f32>> From<V> for Multivector {
     fn from(vec: V) -> Self {
@@ -242,8 +242,13 @@ impl Multivector {
 }
 
 /// Rotor describing a rotation in an arbitrary number of dimensions.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Rotor(Multivector);
+impl Default for Rotor {
+    fn default() -> Self {
+        Rotor::identity()
+    }
+}
 impl Rotor {
     /// Returns the identity rotor.
     pub fn identity() -> Self {
@@ -350,10 +355,8 @@ impl Rotor {
     pub fn dot(&self, other: &Rotor) -> f32 {
         let largest_axis_mask =
             std::cmp::min(self.0.largest_axis_mask(), other.0.largest_axis_mask());
-        (0..largest_axis_mask)
-            .filter_map(|axes| Some((axes, self.0.get(axes)?, other.0.get(axes)?)))
-            .map(|(axes, a, b)| Blade { coef: a, axes } * Blade { coef: b, axes })
-            .map(|blade| blade.coef)
+        (0..=largest_axis_mask)
+            .filter_map(|axes| Some(self.0.get(axes)? * other.0.get(axes)?))
             .sum()
     }
     /// Returns the angle between two rotors, in the range 0 to PI.
@@ -363,12 +366,13 @@ impl Rotor {
     /// Interpolates between two (normalized) rotors and normalizes the output.
     pub fn nlerp(&self, other: &Rotor, t: f32) -> Rotor {
         // Math stolen from https://docs.rs/cgmath/latest/src/cgmath/quaternion.rs.html
-        let self_t = if self.dot(other).is_sign_positive() {
-            1.0 - t
+        let self_t = 1.0 - t;
+        let other_t = if self.dot(other).is_sign_positive() {
+            t
         } else {
-            t - 1.0
+            -t
         };
-        Self(&(&self.0 * self_t) + &(&other.0 * t))
+        Self(&(&self.0 * self_t) + &(&other.0 * other_t))
             .normalize()
             .unwrap_or_else(|| other.clone())
     }
@@ -376,28 +380,26 @@ impl Rotor {
     pub fn slerp(&self, other: &Rotor, t: f32) -> Rotor {
         // Math stolen from https://docs.rs/cgmath/latest/src/cgmath/quaternion.rs.html
 
-        let dot = self.dot(other);
+        let mut dot = self.dot(other);
+        // Negate the second rotor sometimes.
+        let sign = dot.signum();
+        dot = dot.abs();
+
         const NLERP_THRESHOLD: f32 = 0.9995;
         if dot > NLERP_THRESHOLD {
             // Optimization: Use nlerp for nearby rotors.
             return self.nlerp(other, t);
         }
 
-        let self_t = if dot.is_sign_positive() {
-            1.0 - t
-        } else {
-            t - 1.0
-        };
-
         // Stay within the domain of `acos()`.
         let robust_dot = dot.clamp(-1.0, 1.0);
         let angle = robust_dot.acos();
-        let scale1 = (angle * self_t).sin();
-        let scale2 = (angle * t).sin();
+        let scale1 = (angle * (1.0 - t)).sin();
+        let scale2 = (angle * t).sin() * sign; // Reverse the second rotor if negative dot product
 
         Self(&self.scale(scale1).0 + &other.scale(scale2).0)
             .normalize()
-            .unwrap_or_else(|| other.clone())
+            .unwrap_or_else(|| other.clone()) // should never happen
     }
 }
 impl<'a> Mul for &'a Rotor {

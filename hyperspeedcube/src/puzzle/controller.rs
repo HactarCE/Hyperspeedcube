@@ -221,39 +221,6 @@ impl PuzzleController {
             Ok(())
         }
     }
-    /// Applies the transient rotation to the puzzle.
-    pub fn apply_transient_rotation(&mut self) {
-        if let Some((twists, rot)) = self.view_angle.transient_rotation.take() {
-            // Remove a rotation from `current` and add it onto `queued_delta`.
-            for twist in twists {
-                self.is_unsaved = true;
-
-                if self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
-                    // This twist is the reverse of the last one, so just undo the last one.
-                    self.redo_buffer.extend(self.undo_buffer.pop());
-                } else {
-                    self.redo_buffer.clear();
-                    self.undo_buffer.push(twist.into());
-                }
-                if self.puzzle.twist(twist).is_err() {
-                    log::error!("error applying transient rotation twist {:?}", twist);
-                }
-            }
-            // Remove this rotation from `current`.
-            self.view_angle.current = &self.view_angle.current * rot.reverse();
-            if let Some(t) = self.twist_anim.queue.back_mut() {
-                // Actually, instead of just removing the rotation from
-                // `current`, transfer it from `current` to `queued_delta`.
-                // Resolve this rotation after the currently-last twist on the
-                // queue is popped.
-                self.view_angle.queued_delta = &rot * &self.view_angle.queued_delta;
-                t.view_angle_offset_delta = &rot * &t.view_angle_offset_delta;
-            }
-
-            // Invalidate the cache.
-            self.cached_geometry = None;
-        }
-    }
     /// Applies a twist to the puzzle and queues it for animation. Does _not_
     /// handle undo/redo stack or `is_unsaved`.
     fn animate_twist(&mut self, twist: Twist) -> Result<(), &'static str> {
@@ -262,7 +229,6 @@ impl PuzzleController {
         self.twist_anim.queue.push_back(TwistAnimation {
             state: old_state,
             twist,
-            view_angle_offset_delta: Rotor::identity(),
         });
 
         // Invalidate the cache.
@@ -312,42 +278,38 @@ impl PuzzleController {
     /// Sets the puzzle grip.
     pub fn set_grip(&mut self, grip: Grip) {
         if grip != self.grip && !grip.axes.is_empty() {
-            self.unfreeze_view_angle_offset();
+            self.snap_view_angle_offset();
         }
         self.grip = grip;
     }
 
-    /// Sets the view angle offset. Consider calling
-    /// `freeze_view_angle_offset()` as well.
+    /// Sets the view angle offset.
     pub fn add_view_angle_offset(&mut self, offset: [f32; 2], view_prefs: &ViewPreferences) {
         const X: u8 = 0;
         const Y: u8 = 1;
         const Z: u8 = 2;
 
         let prefs_view_angle = view_prefs.view_angle();
-        let offset = Rotor::from_angle_in_axis_plane(Z, Y, offset[1].to_radians())
+        let offset = Rotor::from_angle_in_axis_plane(3, Y, offset[1].to_radians())
             * Rotor::from_angle_in_axis_plane(X, Z, offset[0].to_radians());
         self.view_angle.current =
             prefs_view_angle.reverse() * offset * prefs_view_angle * &self.view_angle.current;
+        self.view_angle.target = self.view_angle.current.clone();
+        self.view_angle.dragging = true;
     }
-    /// Freezes the view angle offset, so that it will not animate back to zero
-    /// automatically. It can still be changed with `set_view_angle_offset()`.
-    pub fn freeze_view_angle_offset(&mut self) {
-        self.view_angle.is_frozen = true;
-    }
-    /// Unfreezes the view angle offset and begins animating it to the nearest
-    /// compatible orientation.
-    pub fn unfreeze_view_angle_offset(&mut self) {
-        self.apply_transient_rotation();
-        self.view_angle.is_frozen = false;
-    }
-    fn update_transient_rotation(&mut self, interaction_prefs: &InteractionPreferences) {
-        if interaction_prefs.smart_realign {
-            let nearest_twists = self.puzzle.nearest_rotation(&self.view_angle.current);
-            self.view_angle.transient_rotation =
-                (!nearest_twists.0.is_empty()).then(|| nearest_twists);
-        } else {
-            self.view_angle.transient_rotation = None;
+    /// Snaps the view angle offset target to the nearest rotation candidate
+    /// defined for the puzzle.
+    pub fn snap_view_angle_offset(&mut self) {
+        if self.view_angle.dragging {
+            return;
+        }
+        match self
+            .puzzle
+            .nearest_rotation(&self.view_angle.current)
+            .normalize()
+        {
+            Some(r) => self.view_angle.target = r,
+            None => log::error!("invalid puzzle rotation"),
         }
     }
 
@@ -414,13 +376,11 @@ impl PuzzleController {
     pub(crate) fn geometry(&mut self, prefs: &Preferences) -> Arc<Vec<ProjectedStickerGeometry>> {
         let view_prefs = self.view_prefs(prefs);
 
-        self.update_transient_rotation(&prefs.interaction);
-
         let params = StickerGeometryParams::new(
             &view_prefs,
             self.ty(),
             self.current_twist(),
-            &(&self.view_angle.current * &self.view_angle.queued_delta),
+            &self.view_angle.current,
         );
 
         if self.cached_geometry_params.as_ref() != Some(&params) {
@@ -531,17 +491,17 @@ impl PuzzleController {
         self.view_settings_anim.proceed(base_speed);
 
         // Animate view angle offset.
-        if !self.view_angle.is_frozen {
-            let offset = &mut self.view_angle.current;
+        self.view_angle.dragging = false;
+        if self.view_angle.current != self.view_angle.target {
+            let current = &mut self.view_angle.current;
 
             let decay_multiplier = VIEW_ANGLE_OFFSET_DECAY_RATE.powf(delta.as_secs_f32());
-            let new_offset = Rotor::identity().slerp(offset, decay_multiplier);
-            // TODO float equality bad
-            if offset.s() == new_offset.s() {
+            let new_offset = self.view_angle.target.slerp(current, decay_multiplier);
+            if current.s() == new_offset.s() {
                 // Stop the animation once we're not making any more progress.
-                *offset = Rotor::identity();
+                *current = self.view_angle.target.clone();
             } else {
-                *offset = new_offset;
+                *current = new_offset;
             }
         }
 
@@ -549,7 +509,6 @@ impl PuzzleController {
         let anim = &mut self.twist_anim;
         if anim.queue.is_empty() {
             anim.queue_max = 0;
-            self.view_angle.queued_delta = Rotor::identity();
         } else {
             // Update queue_max.
             anim.queue_max = std::cmp::max(anim.queue_max, anim.queue.len());
@@ -566,9 +525,7 @@ impl PuzzleController {
             if !(0.0..MIN_TWIST_DELTA).contains(&twist_delta) {
                 twist_delta = 1.0; // Instantly complete the twist.
             }
-            if let Some(q) = self.twist_anim.proceed(twist_delta) {
-                self.view_angle.queued_delta = &self.view_angle.queued_delta * q;
-            }
+            self.twist_anim.proceed(twist_delta);
         }
     }
     /// Advances the puzzle decorations (outlines and sticker opacities) to the
@@ -841,16 +798,11 @@ struct TwistAnimationState {
     progress: f32,
 }
 impl TwistAnimationState {
-    #[must_use]
-    fn proceed(&mut self, delta_t: f32) -> Option<Rotor> {
+    fn proceed(&mut self, delta_t: f32) {
         self.progress += delta_t;
         if self.progress >= 1.0 {
             self.progress = 0.0;
-            self.queue
-                .pop_front()
-                .map(|anim| anim.view_angle_offset_delta)
-        } else {
-            None
+            self.queue.pop_front();
         }
     }
 }
@@ -861,8 +813,6 @@ struct TwistAnimation {
     state: Puzzle,
     /// Twist to animate.
     twist: Twist,
-    /// Delta to apply to the view angle before animating.
-    view_angle_offset_delta: Rotor,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -912,31 +862,14 @@ impl ViewSettingsAnimState {
 /// 1. `queued_delta`
 /// 2. `current`
 /// 3. `view_prefs.view_angle` (from `ViewPreferences`)
-#[derive(Debug, Clone)]
-pub struct ViewAngleAnimState {
-    /// Cumulative view angle offset delta from all the twists in the twist
-    /// queue.
-    queued_delta: Rotor,
+#[derive(Debug, Default, Clone)]
+struct ViewAngleAnimState {
     /// View angle offset compared to the latest puzzle state.
     current: Rotor,
-
-    /// Full-puzzle rotations to silently apply next time the user grips or
-    /// twists the puzzle.
-    transient_rotation: Option<(Vec<Twist>, Rotor)>,
-    /// Whether to freeze the view angle offset, versus animating it back to
-    /// zero.
-    is_frozen: bool,
-}
-impl Default for ViewAngleAnimState {
-    fn default() -> Self {
-        Self {
-            queued_delta: Rotor::identity(),
-            current: Rotor::identity(),
-
-            transient_rotation: None,
-            is_frozen: false,
-        }
-    }
+    /// Target view angle offset to animate toward.
+    target: Rotor,
+    /// Whether the user is currently dragging the view.
+    dragging: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
