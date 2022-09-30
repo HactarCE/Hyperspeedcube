@@ -2,6 +2,8 @@
 
 use cgmath::*;
 use itertools::Itertools;
+use ndpuzzle::math::{Matrix, Rotor, Vector};
+use ndpuzzle::vector;
 use num_enum::FromPrimitive;
 use serde::{de::Error, Deserialize, Deserializer};
 use smallvec::smallvec;
@@ -9,6 +11,8 @@ use std::collections::HashMap;
 use std::ops::{Index, IndexMut, RangeInclusive};
 use std::sync::Mutex;
 use strum::IntoEnumIterator;
+
+use crate::util::{from_vec3, from_vec4};
 
 use super::*;
 
@@ -334,7 +338,7 @@ impl PuzzleState for Rubiks4D {
         u8::abs_diff(face_coord, piece_coord)
     }
 
-    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Quaternion<f32>)> {
+    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Rotor)> {
         let layers = self.all_layers();
 
         TwistDirectionEnum::iter()
@@ -352,12 +356,12 @@ impl PuzzleState for Rubiks4D {
     fn sticker_geometry(
         &self,
         sticker: Sticker,
-        p: StickerGeometryParams,
+        p: &StickerGeometryParams,
     ) -> Option<StickerGeometry> {
         let piece = self.info(sticker).piece;
         let face = self.sticker_face(sticker);
 
-        let mut model_transform = Matrix4::identity();
+        let mut model_transform = Matrix::EMPTY_IDENT;
         if let Some((twist, progress)) = p.twist_animation {
             if self.is_piece_affected_by_twist(twist, piece) {
                 let twist_axis: FaceEnum = twist.axis.into();
@@ -366,16 +370,17 @@ impl PuzzleState for Rubiks4D {
         }
 
         // Compute the center of the sticker.
-        let center = model_transform * self.sticker_center_4d(sticker, p);
+        let center = &model_transform * self.sticker_center_4d(sticker, p);
 
         // Compute the vectors that span the volume of the sticker.
-        let Matrix4 { x, y, z, w: _ } = model_transform
+        let m = model_transform
             * face.basis_matrix()
             * p.sticker_scale
             // Invert outer face.
             * if face == FaceEnum::O { -1.0 } else { 1.0 };
-
-        let project = |point_4d| Some(p.view_transform.transform_point(p.project_4d(point_4d)?));
+        let x = m.col(0);
+        let y = m.col(1);
+        let z = m.col(2);
 
         // Decide what twists should happen when the sticker is clicked.
         let mut twists: [ClickTwists; 6];
@@ -421,14 +426,14 @@ impl PuzzleState for Rubiks4D {
 
         StickerGeometry::new_cube(
             [
-                project(center + -x + -y + -z)?,
-                project(center + -x + -y + z)?,
-                project(center + -x + y + -z)?,
-                project(center + -x + y + z)?,
-                project(center + x + -y + -z)?,
-                project(center + x + -y + z)?,
-                project(center + x + y + -z)?,
-                project(center + x + y + z)?,
+                p.project_4d(&center + -x + -y + -z)?,
+                p.project_4d(&center + -x + -y + z)?,
+                p.project_4d(&center + -x + y + -z)?,
+                p.project_4d(&center + -x + y + z)?,
+                p.project_4d(&center + x + -y + -z)?,
+                p.project_4d(&center + x + -y + z)?,
+                p.project_4d(&center + x + y + -z)?,
+                p.project_4d(&center + x + y + z)?,
             ],
             twists,
         )
@@ -517,26 +522,26 @@ impl Rubiks4D {
         }
     }
 
-    fn piece_center_4d(&self, piece: Piece, p: StickerGeometryParams) -> Vector4<f32> {
+    fn piece_center_4d(&self, piece: Piece, p: &StickerGeometryParams) -> Vector<f32> {
         let pos = self.piece_location(piece);
-        cgmath::vec4(
+        vector![
             self.piece_center_coordinate(pos[0], p),
             self.piece_center_coordinate(pos[1], p),
             self.piece_center_coordinate(pos[2], p),
             self.piece_center_coordinate(pos[3], p),
-        )
+        ]
     }
-    fn sticker_center_4d(&self, sticker: Sticker, p: StickerGeometryParams) -> Vector4<f32> {
+    fn sticker_center_4d(&self, sticker: Sticker, p: &StickerGeometryParams) -> Vector<f32> {
         let sticker_info = self.info(sticker);
         let piece = sticker_info.piece;
         let mut ret = self.piece_center_4d(piece, p);
 
         let sticker_face = self.sticker_face(sticker);
-        ret[sticker_face.axis() as usize] = sticker_face.sign().float();
+        ret[sticker_face.axis() as u8] = sticker_face.sign().float();
         ret
     }
 
-    fn piece_center_coordinate(&self, x: u8, p: StickerGeometryParams) -> f32 {
+    fn piece_center_coordinate(&self, x: u8, p: &StickerGeometryParams) -> f32 {
         (2.0 * x as f32 - (self.layer_count() - 1) as f32) * p.sticker_grid_scale
     }
 
@@ -848,21 +853,21 @@ impl FaceEnum {
     fn basis(self) -> [Vector4<f32>; 3] {
         self.basis_faces().map(|f| f.vector())
     }
-    fn basis_matrix(self) -> Matrix4<f32> {
+    fn basis_matrix(self) -> Matrix<f32> {
         let [x, y, z] = self.basis();
         let w = Vector4::zero();
         // This should be a 4x3 matrix, not 4x4.
-        Matrix4 { x, y, z, w }
+        Matrix::from_cols([x, y, z, w].map(from_vec4))
     }
 
-    fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix4<f32> {
-        let mat3: Matrix3<f32> = direction.twist_rotation(progress).into();
-        let mut ret = Matrix4::identity();
+    fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix<f32> {
+        let mat3 = direction.twist_rotation(progress).matrix();
+        let mut ret = Matrix::ident(4);
         let basis = self.basis_faces();
         for i in 0..3 {
             for j in 0..3 {
-                ret[basis[i].axis() as usize][basis[j].axis() as usize] =
-                    mat3[i][j] * basis[i].sign().float() * basis[j].sign().float();
+                *ret.get_mut(basis[i].axis() as u8, basis[j].axis() as u8) =
+                    mat3.get(i as u8, j as u8) * basis[i].sign().float() * basis[j].sign().float();
             }
         }
         ret
@@ -1018,9 +1023,7 @@ impl TwistDirectionEnum {
             return self.rev().symbol_on_face(FaceEnum::I);
         }
 
-        let vector4 = (face.basis_matrix() * self.vector3_f32().extend(0.0))
-            .cast::<i8>()
-            .unwrap();
+        let vector4 = face.basis_matrix() * from_vec3(self.vector3_f32());
         fn select_face_char(x: i8, char_pos: &'static str, char_neg: &'static str) -> &'static str {
             match x {
                 1 => char_pos,
@@ -1028,13 +1031,17 @@ impl TwistDirectionEnum {
                 _ => "",
             }
         }
+        let x = vector4[0] as i8;
+        let y = vector4[1] as i8;
+        let z = vector4[2] as i8;
+        let w = vector4[3] as i8;
 
         // "UFRO" is the most natural-sounding order IMO.
         String::new()
-            + select_face_char(vector4.y, "U", "D")
-            + select_face_char(vector4.z, "F", "B")
-            + select_face_char(vector4.x, "R", "L")
-            + select_face_char(vector4.w, "O", "I")
+            + select_face_char(y, "U", "D")
+            + select_face_char(z, "F", "B")
+            + select_face_char(x, "R", "L")
+            + select_face_char(w, "O", "I")
             + if self.is_face_180() { "2" } else { "" }
     }
 
@@ -1234,9 +1241,23 @@ impl TwistDirectionEnum {
         Ok(Self::from_piece_state_on_face(piece_state, face))
     }
 
-    fn twist_rotation(self, progress: f32) -> Quaternion<f32> {
+    fn twist_rotation(self, progress: f32) -> Rotor {
         let angle = Rad::full_turn() / self.period() as f32;
-        Quaternion::from_axis_angle(self.vector3_f32().normalize(), -angle * progress)
+        // TODO: janky way to get a perpendicular plane.
+        let not_parallel = if self.vector3().x == 0 {
+            // Vector is not parallel to X axis
+            Vector3::unit_x()
+        } else {
+            // Vector is not parallel to Y axis
+            Vector3::unit_y()
+        };
+        let a = self.vector3_f32().cross(not_parallel);
+        let b = self.vector3_f32().cross(a);
+        Rotor::from_angle_in_plane(
+            &from_vec3(a.normalize()),
+            &from_vec3(b.normalize()),
+            (-angle * progress).0,
+        )
     }
 }
 

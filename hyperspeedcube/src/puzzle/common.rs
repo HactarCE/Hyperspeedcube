@@ -1,6 +1,6 @@
-use cgmath::{One, Quaternion, Rotation};
 use enum_iterator::Sequence;
 use itertools::Itertools;
+use ndpuzzle::math::Rotor;
 use rand::Rng;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -152,18 +152,17 @@ pub trait PuzzleState: PuzzleType {
     }
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8;
 
-    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Quaternion<f32>)>;
-    fn nearest_rotation(&self, rot: Quaternion<f32>) -> (Vec<Twist>, Quaternion<f32>) {
-        let inv_rot = rot.invert();
+    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Rotor)>;
+    fn nearest_rotation(&self, rot: &Rotor) -> (Vec<Twist>, Rotor) {
+        let inv_rot = rot.reverse();
 
-        let mut nearest = (vec![], Quaternion::one());
-        // If I understand correctly, the scalar part of a quaternion is the
-        // cosine of half the angle of rotation. So we can use the absolute
-        // value of that quantity to compare whether one quaternion is a larger
-        // rotation than another.
-        let mut score_of_nearest = rot.s.abs();
+        let mut nearest = (vec![], Rotor::identity());
+        // The scalar part of a rotor is the cosine of half the angle of
+        // rotation. So we can use the absolute value of that quantity to
+        // compare whether one rotor is a larger rotation than another.
+        let mut score_of_nearest = rot.s().abs();
         for (twists, twist_rot) in self.rotation_candidates() {
-            let s = (inv_rot * twist_rot).s.abs();
+            let s = (&inv_rot * &twist_rot).s().abs();
 
             if s > score_of_nearest {
                 nearest = (twists, twist_rot);
@@ -179,7 +178,7 @@ pub trait PuzzleState: PuzzleType {
     fn sticker_geometry(
         &self,
         sticker: Sticker,
-        p: StickerGeometryParams,
+        p: &StickerGeometryParams,
     ) -> Option<StickerGeometry>;
 
     fn is_solved(&self) -> bool;

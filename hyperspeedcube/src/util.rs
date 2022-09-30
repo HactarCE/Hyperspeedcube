@@ -1,4 +1,5 @@
 use cgmath::Point3;
+use ndpuzzle::{math::Vector, vector};
 use std::ops::{Add, Mul};
 
 pub const INVALID_STR: &str = "<invalid>";
@@ -105,4 +106,14 @@ where
     T::Output: Add,
 {
     a * (1.0 - t) + b * t
+}
+
+pub(crate) fn from_pt3(p: cgmath::Point3<f32>) -> Vector<f32> {
+    vector![p.x, p.y, p.z]
+}
+pub(crate) fn from_vec3(v: cgmath::Vector3<f32>) -> Vector<f32> {
+    vector![v.x, v.y, v.z]
+}
+pub(crate) fn from_vec4(v: cgmath::Vector4<f32>) -> Vector<f32> {
+    vector![v.x, v.y, v.z, v.w]
 }

@@ -2,6 +2,7 @@
 //! splitting.
 
 use cgmath::*;
+use ndpuzzle::math::{Matrix, Rotor, VectorRef};
 use smallvec::{smallvec, SmallVec};
 use std::cmp::Ordering;
 
@@ -15,7 +16,7 @@ const Z_NEAR_CLIPPING_DIVISOR: f32 = 0.0;
 const EPSILON: f32 = 0.000001;
 
 /// Parameters for constructing sticker geometry.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StickerGeometryParams {
     /// `2 * (space between face and edge of puzzle) / (puzzle diameter)`.
     /// Ranges from 0.0 to 1.0.
@@ -47,7 +48,7 @@ pub struct StickerGeometryParams {
     /// Animated twist and animation progress.
     pub twist_animation: Option<(Twist, f32)>,
     /// View transformation matrix for the whole puzzle, after 4D projection.
-    pub view_transform: Matrix3<f32>,
+    pub view_transform: Matrix<f32>,
 
     /// Ambient lighting amount (0.0..=1.0).
     pub ambient_light: f32,
@@ -67,12 +68,12 @@ impl StickerGeometryParams {
         view_prefs: &ViewPreferences,
         puzzle_type: PuzzleTypeEnum,
         twist_animation: Option<(Twist, f32)>,
-        view_angle_offset: Quaternion<f32>,
+        view_angle_offset: &Rotor,
     ) -> Self {
         // Compute the view and perspective transforms, which must be applied
         // here on the CPU so that we can do proper depth sorting.
         let view_transform =
-            Matrix3::from(view_prefs.view_angle() * view_angle_offset) / puzzle_type.radius();
+            (view_prefs.view_angle() * view_angle_offset).matrix() * (1.0 / puzzle_type.radius());
 
         let ambient_light = util::mix(
             view_prefs.light_directional * 0.5,
@@ -122,25 +123,27 @@ impl StickerGeometryParams {
         }
     }
 
-    /// Projects a 4D point down to 3D.
-    pub fn project_4d(self, point: Vector4<f32>) -> Option<Point3<f32>> {
+    /// Returns the divisor for applying 4D perspective projection based on the
+    /// W coordinate of a point.
+    fn w_divisor(&self, w: f32) -> Option<f32> {
         let camera_w = self.face_scale;
 
         // See `project_3d()` for an explanation of this formula. The only
         // differences here are that we assume the 4D FOV is positive and we
         // first normalize the W coordinate to have the camera at W=1.
-        let divisor = 1.0 + (1.0 - point.w / camera_w) * self.w_factor_4d;
+        let divisor = 1.0 + (1.0 - w / camera_w) * self.w_factor_4d;
 
         // Clip geometry that is behind the 4D camera.
-        if self.clip_4d && divisor < W_NEAR_CLIPPING_DIVISOR {
-            return None;
+        if self.clip_4d && divisor <= W_NEAR_CLIPPING_DIVISOR {
+            None
+        } else {
+            Some(divisor)
         }
-
-        Some(Point3::from_vec(point.truncate()) / divisor)
     }
 
-    /// Projects a 3D point according to the perspective projection.
-    pub fn project_3d(self, point: Point3<f32>) -> Option<Point3<f32>> {
+    /// Returns the divisor for applying 3D perspective projection based on the
+    /// Z coordinate of a point.
+    fn z_divisor(&self, z: f32) -> Option<f32> {
         // This formula gives us a divisor (which we would store in the W
         // coordinate, if we were doing this using the normal computer graphics
         // methods) that applies the desired FOV but keeps Z=1 fixed for
@@ -151,19 +154,42 @@ impl StickerGeometryParams {
         // This Desmos graph shows how this divisor varies with respect to Z
         // (shown along the X axis) and the FOV (controlled by a slider):
         // https://www.desmos.com/calculator/ocztouh1h0
-        let divisor = 1.0 + (self.fov_3d.signum() - point.z) * self.w_factor_3d;
+        let divisor = 1.0 + (self.fov_3d.signum() - z) * self.w_factor_3d;
 
         // Clip geometry that is behind the 3D camera.
         if divisor < Z_NEAR_CLIPPING_DIVISOR {
-            return None;
+            None
+        } else {
+            Some(divisor)
         }
 
         // Wgpu wants a Z coordinate from 0 to 1, but because of the weird
         // rendering pipeline this program uses the GPU won't ever see this Z
         // coordinate. If you want to implement this dolly zoom effect yourself,
         // though, you'll probably need to consider that.
+    }
 
-        Some(point / divisor)
+    /// Applies the view transform and performs 4D perspective projection.
+    pub fn project_4d(&self, point: impl VectorRef<f32>) -> Option<Point3<f32>> {
+        let [x, y, z] = [0, 1, 2].map(|i| self.view_transform.col(i).dot(&point));
+        let ret = cgmath::point3(x, y, z);
+        if point.ndim() <= 3 {
+            Some(ret)
+        } else {
+            let w = self.view_transform.col(3).dot(&point);
+            // Divide by the W divisor.
+            let w_divisor = self.w_divisor(w)?;
+            let mult = w_divisor.recip();
+            Some(ret * mult)
+        }
+    }
+
+    /// Performs 3D perspective projection.
+    pub fn project_3d(&self, point: Point3<f32>) -> Option<Point3<f32>> {
+        // Divide by the Z divisor.
+        let mut ret = point * self.z_divisor(point.z)?.recip();
+        ret.z = point.z; // But keep the Z coordinate.
+        Some(ret)
     }
 }
 

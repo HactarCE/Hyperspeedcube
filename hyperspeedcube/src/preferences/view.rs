@@ -1,4 +1,4 @@
-use cgmath::{Deg, Quaternion, Rotation3};
+use ndpuzzle::math::Rotor;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -69,18 +69,22 @@ impl Default for ViewPreferences {
 }
 
 impl ViewPreferences {
-    pub fn view_angle(&self) -> Quaternion<f32> {
-        Quaternion::from_angle_z(Deg(self.roll))
-            * Quaternion::from_angle_x(Deg(self.pitch))
-            * Quaternion::from_angle_y(Deg(self.yaw))
+    pub fn view_angle(&self) -> Rotor {
+        const X: u8 = 0;
+        const Y: u8 = 1;
+        const Z: u8 = 2;
+
+        Rotor::from_angle_in_axis_plane(Y, X, self.roll.to_radians())
+            * Rotor::from_angle_in_axis_plane(Z, Y, self.pitch.to_radians())
+            * Rotor::from_angle_in_axis_plane(X, Z, self.yaw.to_radians())
     }
 
     // TODO: make a proc macro crate to generate a trait impl like this
     pub fn interpolate(&self, rhs: &Self, t: f32) -> Self {
         Self {
-            // I know, I know, I should use quaternions for interpolation. But
-            // cgmath uses XYZ order by default instead of YXZ so doing this
-            // properly isn't trivial.
+            // I know, I know, I should use rotors for interpolation. But I
+            // don't have an easy to way to get euler angles from a rotor and
+            // this is fine.
             pitch: crate::util::mix(self.pitch, rhs.pitch, t),
             yaw: crate::util::mix(self.yaw, rhs.yaw, t),
             roll: crate::util::mix(self.roll, rhs.roll, t),

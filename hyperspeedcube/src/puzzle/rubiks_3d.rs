@@ -2,6 +2,7 @@
 
 use cgmath::*;
 use itertools::Itertools;
+use ndpuzzle::math::{Matrix, Rotor};
 use num_enum::FromPrimitive;
 use serde::{de::Error, Deserialize, Deserializer};
 use smallvec::smallvec;
@@ -9,6 +10,8 @@ use std::collections::HashMap;
 use std::ops::{Index, IndexMut, RangeInclusive};
 use std::sync::Mutex;
 use strum::IntoEnumIterator;
+
+use crate::util::{from_pt3, from_vec3};
 
 use super::*;
 
@@ -306,7 +309,7 @@ impl PuzzleState for Rubiks3D {
         u8::abs_diff(face_coord, piece_coord)
     }
 
-    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Quaternion<f32>)> {
+    fn rotation_candidates(&self) -> Vec<(Vec<Twist>, Rotor)> {
         use FaceEnum::{F, R, U};
         use TwistDirectionEnum::{CCW90, CW180, CW90};
 
@@ -362,10 +365,10 @@ impl PuzzleState for Rubiks3D {
                     layers,
                 })
                 .collect();
-            let quaternion = rotations.iter().fold(Quaternion::one(), |q, &(face, dir)| {
-                face.twist_rotation(dir) * q
+            let rotor = rotations.iter().fold(Rotor::identity(), |r, &(face, dir)| {
+                face.twist_rotation(dir) * r
             });
-            (twists, quaternion)
+            (twists, rotor)
         })
         .collect()
     }
@@ -373,33 +376,27 @@ impl PuzzleState for Rubiks3D {
     fn sticker_geometry(
         &self,
         sticker: Sticker,
-        p: StickerGeometryParams,
+        p: &StickerGeometryParams,
     ) -> Option<StickerGeometry> {
         let piece = self.info(sticker).piece;
         let face = self.sticker_face(sticker);
 
-        let mut transform = p.view_transform;
+        let mut transform = Matrix::EMPTY_IDENT;
         if let Some((twist, progress)) = p.twist_animation {
             if self.is_piece_affected_by_twist(twist, piece) {
                 let twist_axis: FaceEnum = twist.axis.into();
                 let twist_transform = twist_axis.twist_matrix(twist.direction.into(), progress);
-                transform = transform * twist_transform;
+                transform = twist_transform;
             }
         }
 
         // Compute the center of the sticker.
-        let center = transform.transform_point(self.sticker_center_3d(sticker, p));
+        let center = transform.transform(&from_pt3(self.sticker_center_3d(sticker, p)));
 
         // Compute the vectors that span the plane of the sticker.
         let [u_span_axis, v_span_axis] = face.parallel_axes();
-        let u: Vector3<f32> = <Matrix3<f32> as Transform<Point3<f32>>>::transform_vector(
-            &transform,
-            u_span_axis.unit_vec3() * p.sticker_scale,
-        );
-        let v: Vector3<f32> = <Matrix3<f32> as Transform<Point3<f32>>>::transform_vector(
-            &transform,
-            v_span_axis.unit_vec3() * p.sticker_scale,
-        );
+        let u = transform.transform(&from_vec3(u_span_axis.unit_vec3() * p.sticker_scale));
+        let v = transform.transform(&from_vec3(v_span_axis.unit_vec3() * p.sticker_scale));
 
         // Decide what twists should happen when the sticker is clicked.
         let cw_twist = Twist {
@@ -412,10 +409,10 @@ impl PuzzleState for Rubiks3D {
 
         Some(StickerGeometry::new_double_quad(
             [
-                center - u - v,
-                center - u + v,
-                center + u - v,
-                center + u + v,
+                p.project_4d(&(&center - &u) - &v)?,
+                p.project_4d(&(&center - &u) + &v)?,
+                p.project_4d(&(&center + &u) - &v)?,
+                p.project_4d(&(&center + &u) + &v)?,
             ],
             ClickTwists {
                 cw: Some(cw_twist),
@@ -470,7 +467,7 @@ impl Rubiks3D {
         }
     }
 
-    fn piece_center_3d(&self, piece: Piece, p: StickerGeometryParams) -> Point3<f32> {
+    fn piece_center_3d(&self, piece: Piece, p: &StickerGeometryParams) -> Point3<f32> {
         let pos = self.piece_location(piece);
         cgmath::point3(
             self.piece_center_coordinate(pos[0], p),
@@ -478,7 +475,7 @@ impl Rubiks3D {
             self.piece_center_coordinate(pos[2], p),
         )
     }
-    fn sticker_center_3d(&self, sticker: Sticker, p: StickerGeometryParams) -> Point3<f32> {
+    fn sticker_center_3d(&self, sticker: Sticker, p: &StickerGeometryParams) -> Point3<f32> {
         let sticker_info = self.info(sticker);
         let piece = sticker_info.piece;
         let mut ret = self.piece_center_3d(piece, p);
@@ -488,7 +485,7 @@ impl Rubiks3D {
         ret
     }
 
-    fn piece_center_coordinate(&self, x: u8, p: StickerGeometryParams) -> f32 {
+    fn piece_center_coordinate(&self, x: u8, p: &StickerGeometryParams) -> f32 {
         (2.0 * x as f32 - (self.layer_count() - 1) as f32) * p.sticker_grid_scale
     }
 }
@@ -666,14 +663,6 @@ impl FaceEnum {
         }
     }
 
-    fn vector(self) -> Vector3<f32> {
-        (match self.axis() {
-            Axis::X => Vector3::unit_x(),
-            Axis::Y => Vector3::unit_y(),
-            Axis::Z => Vector3::unit_z(),
-        } * self.sign().float())
-    }
-
     /// Returns the axes parallel to this face (all except the perpendicular
     /// axis).
     fn parallel_axes(self) -> [Axis; 2] {
@@ -684,14 +673,26 @@ impl FaceEnum {
         }
     }
 
-    fn twist_rotation(self, direction: TwistDirectionEnum) -> Quaternion<f32> {
+    fn twist_rotation(self, direction: TwistDirectionEnum) -> Rotor {
+        const X: u8 = 0;
+        const Y: u8 = 1;
+        const Z: u8 = 2;
+
         let angle = Rad::full_turn() * direction.sign().float() / direction.period() as f32;
-        Quaternion::from_axis_angle(self.vector(), angle)
+        let plane = match self {
+            FaceEnum::R => (Y, Z),
+            FaceEnum::L => (Z, Y),
+            FaceEnum::U => (Z, X),
+            FaceEnum::D => (X, Z),
+            FaceEnum::F => (X, Y),
+            FaceEnum::B => (Y, X),
+        };
+        Rotor::from_angle_in_axis_plane(plane.0, plane.1, angle.0)
     }
-    fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix3<f32> {
-        Quaternion::one()
-            .slerp(self.twist_rotation(direction), progress)
-            .into()
+    fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix<f32> {
+        Rotor::identity()
+            .slerp(&self.twist_rotation(direction), progress)
+            .matrix()
     }
 }
 
