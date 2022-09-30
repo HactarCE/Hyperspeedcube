@@ -52,6 +52,11 @@ impl Mul for Blade {
     }
 }
 impl Blade {
+    /// Constructs a scalar blade.
+    pub fn scalar(x: f32) -> Self {
+        Self { coef: x, axes: 0 }
+    }
+
     /// Returns the grade of the blade, which is the number of dimensions in its
     /// subspace. Every grade can be represented as an exterior product of no
     /// fewer than _r_ vectors, where _r_ is the blade's grade.
@@ -115,6 +120,24 @@ impl Add<Blade> for Multivector {
         self
     }
 }
+impl<'a> Add<Blade> for &'a Multivector {
+    type Output = Multivector;
+
+    fn add(self, rhs: Blade) -> Self::Output {
+        self.clone() + rhs
+    }
+}
+impl<'a> Add for &'a Multivector {
+    type Output = Multivector;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut ret = self.clone();
+        for &term in &rhs.0 {
+            ret += term;
+        }
+        ret
+    }
+}
 impl<'a> Mul<Blade> for &'a Multivector {
     type Output = Multivector;
 
@@ -124,6 +147,13 @@ impl<'a> Mul<Blade> for &'a Multivector {
             ret += term * rhs;
         }
         ret
+    }
+}
+impl<'a> Mul<Blade> for Multivector {
+    type Output = Multivector;
+
+    fn mul(self, rhs: Blade) -> Self::Output {
+        &self * rhs
     }
 }
 impl<'a> AddAssign<&'a Multivector> for Multivector {
@@ -154,6 +184,17 @@ impl<'a> Mul for &'a Multivector {
         ret
     }
 }
+impl<'a> Mul<f32> for &'a Multivector {
+    type Output = Multivector;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        let mut ret = self.clone();
+        for term in &mut ret.0 {
+            term.coef *= rhs;
+        }
+        ret
+    }
+}
 impl Sum for Multivector {
     fn sum<I: Iterator<Item = Self>>(mut iter: I) -> Self {
         let mut ret = iter.next().unwrap_or_default();
@@ -171,12 +212,16 @@ impl Multivector {
     pub fn zero() -> Self {
         Self::ZERO
     }
+    /// Returns the lexicographically largest axis mask in the multivector.
+    fn largest_axis_mask(&self) -> u32 {
+        match self.0.last() {
+            Some(term) => term.axes,
+            None => 0,
+        }
+    }
     /// Returns the maximum grade (number of dimensions) of the multivector.
     pub fn ndim(&self) -> u8 {
-        match self.0.last() {
-            Some(term) => 32 - term.axes.leading_zeros() as u8,
-            None => return 0,
-        }
+        32 - self.largest_axis_mask().leading_zeros() as u8
     }
     /// Truncates the multivector to a maximum grade (number of dimensions).
     pub fn truncate_to_ndim(&mut self, ndim: u8) {
@@ -202,13 +247,28 @@ pub struct Rotor(Multivector);
 impl Rotor {
     /// Returns the identity rotor.
     pub fn identity() -> Self {
-        Self(Multivector(vec![Blade { coef: 1.0, axes: 0 }]))
+        Self(Multivector(vec![Blade::scalar(1.0)]))
     }
     /// Constructs a rotor from a product of two vectors.
     ///
     /// This constructs a rotation of DOUBLE the angle between them.
     pub fn from_vector_product(a: impl VectorRef<f32>, b: impl VectorRef<f32>) -> Self {
         Self(&Multivector::from(a) * &Multivector::from(b))
+    }
+    /// Constructs a rotor from an angle in an axis-aligned plane.
+    ///
+    /// If the axes are the same, returns the identity.
+    pub fn from_angle_in_axis_plane(a: u8, b: u8, angle: f32) -> Self {
+        Self::from_angle_in_plane(&Vector::unit(a), &Vector::unit(b), angle)
+    }
+    /// Constructs a rotor from an angle in a plane defined by two vectors.
+    ///
+    /// The vectors are assumed to be perpendicular and normalized.
+    pub fn from_angle_in_plane(a: &Vector<f32>, b: &Vector<f32>, angle: f32) -> Self {
+        let half_angle = angle / 2.0;
+        let cos = half_angle.cos();
+        let sin = half_angle.sin();
+        Self::from_vector_product(a, a * cos + b * sin)
     }
 
     /// Returns the number of dimensions of the rotor.
@@ -221,7 +281,12 @@ impl Rotor {
     }
     /// Returns the angle of the rotation represented by the rotor in radians.
     pub fn angle(&self) -> f32 {
-        self.s().acos()
+        self.s().acos() * 2.0
+    }
+    /// Returns the angle of the rotation represented by the rotor in radians,
+    /// in the range 0 to PI.
+    pub fn abs_angle(&self) -> f32 {
+        self.s().abs().acos() * 2.0
     }
 
     /// Returns the reverse rotor.
@@ -259,14 +324,15 @@ impl Rotor {
             .collect()
     }
 
-    /// Returns the magnitude of the rotor, which should always be one.
+    /// Returns the magnitude of the rotor, which should always be one for
+    /// rotors representing pure rotations.
     pub fn mag(&self) -> f32 {
-        (&self.reverse() * self).s().sqrt()
+        (self.reverse() * self).s().sqrt()
     }
-    /// Returns the normalized rotor.
+    /// Normalizes the rotor so that the magnitude is one.
     #[must_use]
-    pub fn normalize(mut self) -> Option<Self> {
-        let mult = 1.0 / self.mag();
+    pub fn normalize(mut self) -> Option<Rotor> {
+        let mult = self.s().signum() / self.mag();
         if !mult.is_finite() {
             return None;
         }
@@ -274,6 +340,64 @@ impl Rotor {
             term.coef *= mult;
         }
         Some(self)
+    }
+
+    /// Multiplies the rotor by a scalar.
+    pub fn scale(&self, factor: f32) -> Self {
+        Self(&self.0 * Blade::scalar(factor))
+    }
+    /// Returns the dot product between two rotors.
+    pub fn dot(&self, other: &Rotor) -> f32 {
+        let largest_axis_mask =
+            std::cmp::min(self.0.largest_axis_mask(), other.0.largest_axis_mask());
+        (0..largest_axis_mask)
+            .filter_map(|axes| Some((axes, self.0.get(axes)?, other.0.get(axes)?)))
+            .map(|(axes, a, b)| Blade { coef: a, axes } * Blade { coef: b, axes })
+            .map(|blade| blade.coef)
+            .sum()
+    }
+    /// Returns the angle between two rotors, in the range 0 to PI.
+    pub fn angle_to(&self, other: &Rotor) -> f32 {
+        (self.reverse() * other).abs_angle()
+    }
+    /// Interpolates between two (normalized) rotors and normalizes the output.
+    pub fn nlerp(&self, other: &Rotor, t: f32) -> Rotor {
+        // Math stolen from https://docs.rs/cgmath/latest/src/cgmath/quaternion.rs.html
+        let self_t = if self.dot(other).is_sign_positive() {
+            1.0 - t
+        } else {
+            t - 1.0
+        };
+        Self(&(&self.0 * self_t) + &(&other.0 * t))
+            .normalize()
+            .unwrap_or_else(|| other.clone())
+    }
+    /// Spherically interpolates between two (normalized) rotors.
+    pub fn slerp(&self, other: &Rotor, t: f32) -> Rotor {
+        // Math stolen from https://docs.rs/cgmath/latest/src/cgmath/quaternion.rs.html
+
+        let dot = self.dot(other);
+        const NLERP_THRESHOLD: f32 = 0.9995;
+        if dot > NLERP_THRESHOLD {
+            // Optimization: Use nlerp for nearby rotors.
+            return self.nlerp(other, t);
+        }
+
+        let self_t = if dot.is_sign_positive() {
+            1.0 - t
+        } else {
+            t - 1.0
+        };
+
+        // Stay within the domain of `acos()`.
+        let robust_dot = dot.clamp(-1.0, 1.0);
+        let angle = robust_dot.acos();
+        let scale1 = (angle * self_t).sin();
+        let scale2 = (angle * t).sin();
+
+        Self(&self.scale(scale1).0 + &other.scale(scale2).0)
+            .normalize()
+            .unwrap_or_else(|| other.clone())
     }
 }
 impl<'a> Mul for &'a Rotor {
@@ -283,6 +407,7 @@ impl<'a> Mul for &'a Rotor {
         Rotor(&self.0 * &rhs.0)
     }
 }
+impl_forward_bin_ops_to_ref!(impl Mul for Rotor { fn mul() });
 
 fn axes_to_string(axes: u32) -> String {
     std::iter::successors(Some(axes), |a| Some(a >> 1))

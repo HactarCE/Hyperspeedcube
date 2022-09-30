@@ -140,7 +140,7 @@ impl<N: Clone + Num + fmt::Display> fmt::Display for Vector<N> {
 #[macro_export]
 macro_rules! vector {
     [$($tok:tt)*] => {
-        Vector(vec![$($tok)*])
+        $crate::math::Vector(vec![$($tok)*])
     };
 }
 
