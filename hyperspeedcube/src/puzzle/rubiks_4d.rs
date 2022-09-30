@@ -242,9 +242,6 @@ impl PuzzleType for Rubiks4DDescription {
     fn layer_count(&self) -> u8 {
         self.layer_count
     }
-    fn family_max_layer_count(&self) -> u8 {
-        MAX_LAYER_COUNT
-    }
     fn radius(&self) -> f32 {
         4.0_f32.sqrt()
     }

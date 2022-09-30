@@ -22,7 +22,6 @@ pub trait PuzzleType {
     fn projection_type(&self) -> ProjectionType;
 
     fn layer_count(&self) -> u8;
-    fn family_max_layer_count(&self) -> u8;
 
     fn radius(&self) -> f32;
     fn scramble_moves_count(&self) -> usize;
