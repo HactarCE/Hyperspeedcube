@@ -1,6 +1,5 @@
 use enum_iterator::Sequence;
 use itertools::Itertools;
-use ndpuzzle::math::Rotor;
 use rand::Rng;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -13,6 +12,7 @@ use std::sync::{Arc, Weak};
 use strum::{Display, EnumIter, EnumMessage};
 
 use super::*;
+use crate::math::Rotor;
 
 pub trait PuzzleInfo<T> {
     type Output;
@@ -818,17 +818,17 @@ impl FromStr for LayerMask {
     }
 }
 impl LayerMask {
-    pub(crate) fn slice_layers(total_layer_count: u8) -> Option<Self> {
+    pub fn slice_layers(total_layer_count: u8) -> Option<Self> {
         (total_layer_count >= 3).then(|| Self((Self::all_layers(total_layer_count).0 >> 1) & !1))
     }
-    pub(crate) fn all_layers(total_layer_count: u8) -> Self {
+    pub fn all_layers(total_layer_count: u8) -> Self {
         Self((1 << total_layer_count as u32) - 1)
     }
 
-    pub(crate) fn is_default(self) -> bool {
+    pub fn is_default(self) -> bool {
         self == Self::default()
     }
-    pub(crate) fn long_description(self) -> String {
+    pub fn long_description(self) -> String {
         match self.count() {
             0 => "no layers".to_owned(),
             1 => format!("layer {}", self.0.trailing_zeros() + 1),
@@ -838,10 +838,10 @@ impl LayerMask {
             ),
         }
     }
-    pub(crate) fn count(self) -> u32 {
+    pub fn count(self) -> u32 {
         self.0.count_ones()
     }
-    pub(crate) fn count_contiguous_slices(self) -> u32 {
+    pub fn count_contiguous_slices(self) -> u32 {
         let mut n = self.0;
         let mut ret = 0;
         while n != 0 {
@@ -851,7 +851,7 @@ impl LayerMask {
         }
         ret
     }
-    pub(crate) fn count_outer_slices(self, layer_count: u8) -> u32 {
+    pub fn count_outer_slices(self, layer_count: u8) -> u32 {
         let mut n = self.0;
         let mut ret = 0;
         while n != 0 {
@@ -867,10 +867,10 @@ impl LayerMask {
         }
         ret
     }
-    pub(crate) fn is_contiguous_from_outermost(self) -> bool {
+    pub fn is_contiguous_from_outermost(self) -> bool {
         self.0 != 0 && self.0.count_ones() == self.0.trailing_ones()
     }
-    pub(crate) fn get_single_layer(self) -> Option<u32> {
+    pub fn get_single_layer(self) -> Option<u32> {
         (self.count() == 1).then(|| self.0.trailing_zeros())
     }
 }

@@ -6,7 +6,7 @@ use itertools::Itertools;
 use super::RgbaVertex;
 use crate::preferences::Preferences;
 use crate::puzzle::*;
-use crate::util::IterCyclicPairsExt;
+use ndpuzzle::util::IterCyclicPairsExt;
 
 const OUTLINE_SCALE: f32 = 1.0 / 512.0;
 const OUTLINE_WEDGE_VERTS_PER_RADIAN: f32 = 3.0;

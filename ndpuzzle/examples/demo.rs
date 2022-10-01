@@ -5,7 +5,7 @@ use ndpuzzle::{
     col_matrix,
     math::*,
     polytope::{self, *},
-    puzzle::{self, *},
+    puzzle::basic::{self, *},
     row_matrix,
     schlafli::SchlafliSymbol,
     vector,

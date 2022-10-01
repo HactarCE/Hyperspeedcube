@@ -2,18 +2,18 @@
 //! splitting.
 
 use cgmath::*;
-use ndpuzzle::math::{Matrix, Rotor, VectorRef};
 use smallvec::{smallvec, SmallVec};
 use std::cmp::Ordering;
 
-use super::{ClickTwists, PuzzleType, Sticker, Twist};
-use crate::preferences::ViewPreferences;
+use super::{ClickTwists, Sticker, Twist};
 use crate::util::{self, IterCyclicPairsExt};
 
 const W_NEAR_CLIPPING_DIVISOR: f32 = 0.1;
 const Z_NEAR_CLIPPING_DIVISOR: f32 = 0.0;
 
 const EPSILON: f32 = 0.000001;
+
+use crate::math::{Matrix, VectorRef};
 
 /// Parameters for constructing sticker geometry.
 #[derive(Debug, Clone, PartialEq)]
@@ -50,11 +50,6 @@ pub struct StickerGeometryParams {
     /// View transformation matrix for the whole puzzle, after 4D projection.
     pub view_transform: Matrix<f32>,
 
-    /// Ambient lighting amount (0.0..=1.0).
-    pub ambient_light: f32,
-    /// Light vector (manitude of 0.0..=1.0).
-    pub light_vector: Vector3<f32>,
-
     /// Whether to show frontfaces.
     pub show_frontfaces: bool,
     /// Whether to show backfaces.
@@ -63,68 +58,6 @@ pub struct StickerGeometryParams {
     pub clip_4d: bool,
 }
 impl StickerGeometryParams {
-    /// Constructs sticker geometry parameters for a set of view preferences.
-    pub fn new(
-        view_prefs: &ViewPreferences,
-        puzzle_type: &PuzzleType,
-        twist_animation: Option<(Twist, f32)>,
-        view_angle_offset: &Rotor,
-    ) -> Self {
-        // Compute the 4D view transform, which must be applied here on the CPU
-        // so that we can do proper depth sorting.
-        let view_transform = (view_prefs.view_angle() * view_angle_offset)
-            .matrix()
-            .pad(4)
-            * (1.0 / puzzle_type.radius);
-
-        let ambient_light = util::mix(
-            view_prefs.light_directional * 0.5,
-            1.0 - view_prefs.light_directional * 0.5,
-            view_prefs.light_ambient,
-        );
-        let light_vector = Matrix3::from_angle_y(Deg(view_prefs.light_yaw))
-            * Matrix3::from_angle_x(Deg(-view_prefs.light_pitch)) // pitch>0 means light comes from above
-            * Vector3::unit_z()
-            * view_prefs.light_directional
-            * 0.5;
-
-        let face_spacing = view_prefs.face_spacing;
-        let sticker_spacing = if puzzle_type.layer_count > 1 {
-            view_prefs.sticker_spacing
-        } else {
-            0.0
-        };
-
-        let sticker_grid_scale =
-            (1.0 - face_spacing) / (puzzle_type.layer_count as f32 - sticker_spacing);
-        let face_scale = sticker_grid_scale * (puzzle_type.layer_count as f32);
-        let sticker_scale = sticker_grid_scale * (1.0 - sticker_spacing);
-
-        Self {
-            face_spacing,
-            sticker_spacing,
-
-            sticker_grid_scale,
-            face_scale,
-            sticker_scale,
-
-            fov_4d: view_prefs.fov_4d,
-            fov_3d: view_prefs.fov_3d,
-            w_factor_4d: (view_prefs.fov_4d.to_radians() / 2.0).tan(),
-            w_factor_3d: (view_prefs.fov_3d.to_radians() / 2.0).tan(),
-
-            twist_animation,
-            view_transform,
-
-            ambient_light,
-            light_vector,
-
-            show_frontfaces: view_prefs.show_frontfaces,
-            show_backfaces: view_prefs.show_backfaces,
-            clip_4d: view_prefs.clip_4d,
-        }
-    }
-
     /// Returns the divisor for applying 4D perspective projection based on the
     /// W coordinate of a point.
     fn w_divisor(&self, w: f32) -> Option<f32> {
@@ -205,7 +138,7 @@ pub struct StickerGeometry {
     pub polygon_twists: Vec<ClickTwists>,
 }
 impl StickerGeometry {
-    pub(super) fn new_double_quad(
+    pub fn new_double_quad(
         verts: [Point3<f32>; 4],
         twists: ClickTwists,
         front_face: bool,
@@ -226,7 +159,7 @@ impl StickerGeometry {
         }
         ret
     }
-    pub(super) fn new_cube(verts: [Point3<f32>; 8], twists: [ClickTwists; 6]) -> Option<Self> {
+    pub fn new_cube(verts: [Point3<f32>; 8], twists: [ClickTwists; 6]) -> Option<Self> {
         // Only show this sticker if the 3D volume is positive. (Cull it if its
         // 3D volume is negative.)
         Matrix3::from_cols(
@@ -252,7 +185,7 @@ impl StickerGeometry {
 }
 
 #[derive(Debug)]
-pub(crate) struct ProjectedStickerGeometry {
+pub struct ProjectedStickerGeometry {
     pub sticker: Sticker,
 
     pub verts: Box<[Point3<f32>]>,
@@ -263,7 +196,7 @@ pub(crate) struct ProjectedStickerGeometry {
     pub back_polygons: Box<[Polygon]>,
 }
 impl ProjectedStickerGeometry {
-    pub(crate) fn twists_for_point(&self, point: Point2<f32>) -> Option<ClickTwists> {
+    pub fn twists_for_point(&self, point: Point2<f32>) -> Option<ClickTwists> {
         self.front_polygons
             .iter()
             .find(|polygon| polygon.contains_point(point))
@@ -272,7 +205,7 @@ impl ProjectedStickerGeometry {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Polygon {
+pub struct Polygon {
     pub verts: SmallVec<[Point3<f32>; 4]>,
     pub min_bound: Point3<f32>,
     pub max_bound: Point3<f32>,
@@ -339,7 +272,7 @@ impl Polygon {
     }
 }
 
-pub(crate) fn polygon_from_indices(
+pub fn polygon_from_indices(
     verts: &[Point3<f32>],
     indices: &[u16],
     illumination: f32,
@@ -361,7 +294,7 @@ pub(crate) fn polygon_from_indices(
     }
 }
 
-pub(crate) fn polygon_normal_from_indices(verts: &[Point3<f32>], indices: &[u16]) -> Vector3<f32> {
+pub fn polygon_normal_from_indices(verts: &[Point3<f32>], indices: &[u16]) -> Vector3<f32> {
     let a = verts[indices[0] as usize];
     let b = verts[indices[1] as usize];
     let c = verts[indices[2] as usize];
@@ -379,7 +312,7 @@ trait NewellObj: Sized {
 }
 
 /// Sort stickers by depth using to Newell's algorithm. Stickers are not split.
-pub(crate) fn sort_by_depth(objs: &mut [ProjectedStickerGeometry]) {
+pub fn sort_by_depth(objs: &mut [ProjectedStickerGeometry]) {
     // First, approximate the correct order.
     objs.sort_by(NewellObj::approx_depth_cmp);
 

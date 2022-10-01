@@ -6,15 +6,15 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct NotationScheme {
-    pub(super) axis_names: Vec<String>,
-    pub(super) direction_names: Vec<TwistDirectionName>,
-    pub(super) block_suffix: Option<String>,
-    pub(super) aliases: Vec<(String, Alias)>,
+    pub axis_names: Vec<String>,
+    pub direction_names: Vec<TwistDirectionName>,
+    pub block_suffix: Option<String>,
+    pub aliases: Vec<(String, Alias)>,
     // TODO: flag to allow chaining directions (e.g., "Rxyx'y")
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(super) enum Alias {
+pub enum Alias {
     AxisLayers(TwistAxis, LayerMask),
     EntireTwist(Twist),
 }
@@ -28,7 +28,7 @@ impl Alias {
 }
 
 #[derive(Debug, Clone)]
-pub(super) enum TwistDirectionName {
+pub enum TwistDirectionName {
     Same(String),
     PerAxis(Vec<String>),
 }
