@@ -308,16 +308,8 @@ impl PuzzleController {
     /// Snaps the view angle offset target to the nearest rotation candidate
     /// defined for the puzzle.
     pub fn snap_view_angle_offset(&mut self) {
-        if self.view_angle.dragging {
-            return;
-        }
-        match self
-            .puzzle
-            .nearest_rotation(&self.view_angle.current)
-            .normalize()
-        {
-            Some(r) => self.view_angle.target = r,
-            None => log::error!("invalid puzzle rotation"),
+        if !self.view_angle.dragging {
+            self.view_angle.target = self.ty().nearest_orientation(&self.view_angle.current);
         }
     }
 

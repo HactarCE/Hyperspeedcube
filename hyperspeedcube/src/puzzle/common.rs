@@ -25,6 +25,21 @@ pub struct PuzzleShape {
     pub faces: Vec<FaceInfo>,
 }
 
+/// Puzzle twist set.
+#[derive(Debug)]
+pub struct PuzzleTwists {
+    /// Twist set name.
+    pub name: String,
+
+    /// Twist axes, in order.
+    pub axes: Vec<TwistAxisInfo>,
+    /// Twist directions, in order.
+    pub directions: Vec<TwistDirectionInfo>,
+
+    /// Puzzle orientations, in no particular order.
+    pub orientations: Vec<Rotor>,
+}
+
 #[delegatable_trait]
 #[enum_dispatch]
 pub trait PuzzleType {
@@ -37,6 +52,7 @@ pub trait PuzzleType {
     fn layer_count(&self) -> u8;
 
     fn shape(&self) -> &Arc<PuzzleShape>;
+    fn twists(&self) -> &Arc<PuzzleTwists>;
 
     fn radius(&self) -> f32;
     fn scramble_moves_count(&self) -> usize;
@@ -46,8 +62,12 @@ pub trait PuzzleType {
     }
     fn pieces(&self) -> &[PieceInfo];
     fn stickers(&self) -> &[StickerInfo];
-    fn twist_axes(&self) -> &[TwistAxisInfo];
-    fn twist_directions(&self) -> &[TwistDirectionInfo];
+    fn twist_axes(&self) -> &[TwistAxisInfo] {
+        &self.twists().axes
+    }
+    fn twist_directions(&self) -> &[TwistDirectionInfo] {
+        &self.twists().directions
+    }
     fn piece_types(&self) -> &[PieceTypeInfo];
 
     fn twist_axis_from_name(&self, name: &str) -> Option<TwistAxis> {
@@ -99,6 +119,25 @@ pub trait PuzzleType {
         } else {
             twist
         }
+    }
+
+    fn nearest_orientation(&self, rot: &Rotor) -> Rotor {
+        let inv_rot = rot.reverse();
+
+        let mut nearest = Rotor::identity();
+        // The scalar part of a rotor is the cosine of half the angle of
+        // rotation. So we can use the absolute value of that quantity to
+        // compare whether one rotor is a larger rotation than another.
+        let mut score_of_nearest = -1.0;
+        for candidate in &self.twists().orientations {
+            let s = (&inv_rot * candidate).s().abs();
+
+            if s > score_of_nearest {
+                nearest = candidate.clone();
+                score_of_nearest = s;
+            }
+        }
+        nearest
     }
 
     fn notation_scheme(&self) -> &NotationScheme;
@@ -167,26 +206,6 @@ pub trait PuzzleState: PuzzleType {
             .collect()
     }
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8;
-
-    fn rotation_candidates(&self) -> Vec<Rotor>;
-    fn nearest_rotation(&self, rot: &Rotor) -> Rotor {
-        let inv_rot = rot.reverse();
-
-        let mut nearest = Rotor::identity();
-        // The scalar part of a rotor is the cosine of half the angle of
-        // rotation. So we can use the absolute value of that quantity to
-        // compare whether one rotor is a larger rotation than another.
-        let mut score_of_nearest = rot.s().abs();
-        for candidate in self.rotation_candidates() {
-            let s = (&inv_rot * &candidate).s().abs();
-
-            if s > score_of_nearest {
-                nearest = candidate;
-                score_of_nearest = s;
-            }
-        }
-        nearest
-    }
 
     fn sticker_geometry(
         &self,

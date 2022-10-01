@@ -2,7 +2,7 @@
 
 use cgmath::*;
 use itertools::Itertools;
-use ndpuzzle::math::{Matrix, Rotor, Vector};
+use ndpuzzle::math::{Matrix, Rotor, Vector, VectorRef};
 use ndpuzzle::vector;
 use num_enum::FromPrimitive;
 use serde::{de::Error, Deserialize, Deserializer};
@@ -187,6 +187,32 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
             faces: FaceEnum::iter().map(|f| f.info()).collect(),
         });
 
+        let orientations = TwistDirectionEnum::iter()
+            .map(|dir| dir.twist_rotation(1.0))
+            .flat_map(|rot| {
+                [
+                    vector![1.],
+                    vector![0., 1.],
+                    vector![1., 1.],
+                    vector![1., -1.],
+                    vector![1., 0., 1.],
+                    vector![1., 0., -1.],
+                    vector![1., 0., 0., 1.],
+                    vector![1., 0., 0., -1.],
+                ]
+                .into_iter()
+                .map(move |v| Rotor::from_vector_product(vector![1.], v.normalise()) * &rot)
+                .filter_map(|r| r.normalize())
+            })
+            .collect_vec();
+
+        let twists = Arc::new(PuzzleTwists {
+            name: "3-layer hypercubic".to_string(),
+            axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
+            directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
+            orientations,
+        });
+
         // It's not like we'll ever clear the cache anyway, so just leak it
         // and let us have the 'static lifetimes.
         Box::leak(Box::new(Rubiks4DDescription {
@@ -195,10 +221,10 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
             layer_count,
 
             shape,
+            twists,
+
             pieces,
             stickers,
-            twist_axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
-            twist_directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
             piece_types: piece_types
                 .into_iter()
                 .map(|piece_type| PieceTypeInfo::new(piece_type.to_string()))
@@ -217,10 +243,10 @@ struct Rubiks4DDescription {
     layer_count: u8,
 
     shape: Arc<PuzzleShape>,
+    twists: Arc<PuzzleTwists>,
+
     pieces: Vec<PieceInfo>,
     stickers: Vec<StickerInfo>,
-    twist_axes: Vec<TwistAxisInfo>,
-    twist_directions: Vec<TwistDirectionInfo>,
     piece_types: Vec<PieceTypeInfo>,
     notation: NotationScheme,
 
@@ -258,18 +284,15 @@ impl PuzzleType for Rubiks4DDescription {
     fn shape(&self) -> &Arc<PuzzleShape> {
         &self.shape
     }
+    fn twists(&self) -> &Arc<PuzzleTwists> {
+        &self.twists
+    }
 
     fn pieces(&self) -> &[PieceInfo] {
         &self.pieces
     }
     fn stickers(&self) -> &[StickerInfo] {
         &self.stickers
-    }
-    fn twist_axes(&self) -> &[TwistAxisInfo] {
-        &self.twist_axes
-    }
-    fn twist_directions(&self) -> &[TwistDirectionInfo] {
-        &self.twist_directions
     }
     fn piece_types(&self) -> &[PieceTypeInfo] {
         &self.piece_types
@@ -340,12 +363,6 @@ impl PuzzleState for Rubiks4D {
         };
         let piece_coord = self.piece_location(piece)[face.axis() as usize];
         u8::abs_diff(face_coord, piece_coord)
-    }
-
-    fn rotation_candidates(&self) -> Vec<Rotor> {
-        TwistDirectionEnum::iter()
-            .map(|dir| dir.twist_rotation(1.0))
-            .collect()
     }
 
     fn sticker_geometry(

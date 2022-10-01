@@ -163,6 +163,69 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
             faces: FaceEnum::iter().map(|f| f.info()).collect(),
         });
 
+        let orientations = {
+            use FaceEnum::{F, R, U};
+            use TwistDirectionEnum::{CCW90, CW180, CW90};
+
+            // Primitive rotations
+            let x = (R, CW90);
+            let x2 = (R, CW180);
+            let xi = (R, CCW90);
+            let y = (U, CW90);
+            let y2 = (U, CW180);
+            let yi = (U, CCW90);
+            let z = (F, CW90);
+            let z2 = (F, CW180);
+            let zi = (F, CCW90);
+
+            vec![
+                // 90-degree rotations
+                vec![x],
+                vec![xi],
+                vec![y],
+                vec![yi],
+                vec![z],
+                vec![zi],
+                // 180-degree face rotations
+                vec![x2],
+                vec![y2],
+                vec![z2],
+                // 180-degree edge rotations
+                vec![x, y2],
+                vec![z, x2],
+                vec![y, z2],
+                vec![x, z2],
+                vec![z, y2],
+                vec![y, x2],
+                // 120-degree vertex rotations
+                vec![x, y],
+                vec![xi, yi],
+                vec![z, y],
+                vec![x, yi],
+                vec![x, z],
+                vec![y, zi],
+                vec![y, x],
+                vec![z, xi],
+            ]
+            .into_iter()
+            .map(|rotations| {
+                let rotor = rotations
+                    .into_iter()
+                    .fold(Rotor::identity(), |r, (face, dir)| {
+                        face.twist_rotation(dir) * r
+                    });
+                rotor
+            })
+            .collect_vec()
+        };
+
+        let twists = Arc::new(PuzzleTwists {
+            name: "3-layer cubic".to_string(),
+            axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
+            directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
+            orientations,
+        });
+
         // It's not like we'll ever clear the cache anyway, so just leak it
         // and let us have the 'static lifetimes.
         Box::leak(Box::new(Rubiks3DDescription {
@@ -171,10 +234,10 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
             layer_count,
 
             shape,
+            twists,
+
             pieces,
             stickers,
-            twist_axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
-            twist_directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
             piece_types: piece_types
                 .into_iter()
                 .map(|piece_type| PieceTypeInfo::new(piece_type.to_string()))
@@ -193,11 +256,10 @@ struct Rubiks3DDescription {
     layer_count: u8,
 
     shape: Arc<PuzzleShape>,
+    twists: Arc<PuzzleTwists>,
 
     pieces: Vec<PieceInfo>,
     stickers: Vec<StickerInfo>,
-    twist_axes: Vec<TwistAxisInfo>,
-    twist_directions: Vec<TwistDirectionInfo>,
     piece_types: Vec<PieceTypeInfo>,
     notation: NotationScheme,
 
@@ -235,18 +297,15 @@ impl PuzzleType for Rubiks3DDescription {
     fn shape(&self) -> &Arc<PuzzleShape> {
         &self.shape
     }
+    fn twists(&self) -> &Arc<PuzzleTwists> {
+        &self.twists
+    }
 
     fn pieces(&self) -> &[PieceInfo] {
         &self.pieces
     }
     fn stickers(&self) -> &[StickerInfo] {
         &self.stickers
-    }
-    fn twist_axes(&self) -> &[TwistAxisInfo] {
-        &self.twist_axes
-    }
-    fn twist_directions(&self) -> &[TwistDirectionInfo] {
-        &self.twist_directions
     }
     fn piece_types(&self) -> &[PieceTypeInfo] {
         &self.piece_types
@@ -312,62 +371,6 @@ impl PuzzleState for Rubiks3D {
         };
         let piece_coord = self.piece_location(piece)[face.axis() as usize];
         u8::abs_diff(face_coord, piece_coord)
-    }
-
-    fn rotation_candidates(&self) -> Vec<Rotor> {
-        use FaceEnum::{F, R, U};
-        use TwistDirectionEnum::{CCW90, CW180, CW90};
-
-        // Primitive rotations
-        let x = (R, CW90);
-        let x2 = (R, CW180);
-        let xi = (R, CCW90);
-        let y = (U, CW90);
-        let y2 = (U, CW180);
-        let yi = (U, CCW90);
-        let z = (F, CW90);
-        let z2 = (F, CW180);
-        let zi = (F, CCW90);
-
-        vec![
-            // 90-degree rotations
-            vec![x],
-            vec![xi],
-            vec![y],
-            vec![yi],
-            vec![z],
-            vec![zi],
-            // 180-degree face rotations
-            vec![x2],
-            vec![y2],
-            vec![z2],
-            // 180-degree edge rotations
-            vec![x, y2],
-            vec![z, x2],
-            vec![y, z2],
-            vec![x, z2],
-            vec![z, y2],
-            vec![y, x2],
-            // 120-degree vertex rotations
-            vec![x, y],
-            vec![xi, yi],
-            vec![z, y],
-            vec![x, yi],
-            vec![x, z],
-            vec![y, zi],
-            vec![y, x],
-            vec![z, xi],
-        ]
-        .into_iter()
-        .map(|rotations| {
-            let rotor = rotations
-                .into_iter()
-                .fold(Rotor::identity(), |r, (face, dir)| {
-                    face.twist_rotation(dir) * r
-                });
-            rotor
-        })
-        .collect()
     }
 
     fn sticker_geometry(
