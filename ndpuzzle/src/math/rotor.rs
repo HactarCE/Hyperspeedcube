@@ -436,9 +436,7 @@ mod tests {
             .prop_map(|xs| Vector(xs.into_iter().map(|x| x as f32).collect()))
     }
     fn gen_normalized_vector(ndim: u8) -> impl Strategy<Value = Vector<f32>> {
-        gen_vector(ndim)
-            .prop_filter("cannot normalize zero vector", |v| v.mag() != 0.0)
-            .prop_map(|v| v.normalise())
+        gen_vector(ndim).prop_filter_map("cannot normalize zero vector", |v| v.normalise())
     }
     fn gen_simple_rotor(ndim: u8) -> impl Strategy<Value = Rotor> {
         [gen_normalized_vector(ndim), gen_normalized_vector(ndim)]
@@ -469,7 +467,8 @@ mod tests {
             vec in gen_vector(7),
         ) {
             let halfway = (&a + &b).normalise();
-            prop_assume!(halfway != Vector::zero(7));
+            prop_assume!(halfway.is_some());
+            let halfway = halfway.unwrap();
             let rotor = Rotor::from_vector_product(&a, &halfway);
 
             let v_mag = vec.mag();
@@ -487,7 +486,7 @@ mod tests {
             // we expect for vectors that are not entirely in its rotation
             // plane.
             let u = a;
-            let v = (&b - &u * u.dot(&b)).normalise();
+            let v = (&b - &u * u.dot(&b)).normalise().unwrap();
             let u_mag = vec.dot(&u);
             let v_mag = vec.dot(&v);
             let expected = &vec
