@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.55"
+anyhow = "1.0.65"
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc", "serde", "std"] }
 bytemuck = { version = "1.9.1", features = ["derive"] }
 cgmath = "0.18.0"
@@ -39,7 +39,7 @@ rand = "0.8.5"
 regex = "1.6.0"
 rfd = "0.10.0"
 send_wrapper = "0.6.0"
-serde = { version = "1.0.136", features = ["derive"] }
+serde = { version = "1.0.144", features = ["derive"] }
 serde_yaml = "0.8.23"
 smallvec = { version = "1.8.0", features = ["serde"] }
 strum = { version = "0.24.0", features = ["derive"] }
