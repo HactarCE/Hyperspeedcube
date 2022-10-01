@@ -1,4 +1,4 @@
-name: 3x3x3
+name: 2x2x2
 ndim: 3
 shape:
   - symmetries:
@@ -10,6 +10,6 @@ twists:
       - schlafli: 4,3
     axes:
       - normal: [1, 0, 0]
-        cuts: [0.33, -0.33]
+        cuts: [0]
         twist_generators:
           - Y -> Z

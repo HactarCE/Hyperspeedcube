@@ -4,8 +4,10 @@
 
 #[macro_use]
 mod vector;
+mod hyperplane;
 mod matrix;
 pub mod permutations;
 
+pub use hyperplane::*;
 pub use matrix::*;
 pub use vector::*;

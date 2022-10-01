@@ -1,0 +1,16 @@
+name: Half_RT
+ndim: 4
+shape:
+  - symmetries:
+      - schlafli: 4,3,3
+    face_generators:
+      - [1, 0, 0, 0]
+twists:
+  - symmetries:
+      - schlafli: 4,3,3
+    axes:
+      - normal: [1, 1, 0, 0]
+        cuts: [0]
+        twist_generators:
+          - Z -> W
+          - Z -> 1,-1,0,0 -> 0,0,-1,0

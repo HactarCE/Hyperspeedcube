@@ -1,15 +1,15 @@
-name: 3x3x3
+name: FTO
 ndim: 3
 shape:
   - symmetries:
       - schlafli: 4,3
     face_generators:
-      - [1, 0, 0]
+      - [1, 1, 1]
 twists:
   - symmetries:
       - schlafli: 4,3
     axes:
-      - normal: [1, 0, 0]
-        cuts: [0.33, -0.33]
+      - normal: [1, 1, 1]
+        cuts: [1, -1]
         twist_generators:
-          - Y -> Z
+          - 2,-1,-1 -> 1,1,-2

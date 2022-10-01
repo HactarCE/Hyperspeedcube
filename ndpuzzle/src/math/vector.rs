@@ -61,12 +61,17 @@ pub trait VectorRef<N: Clone + Num>: Sized {
 
     /// Returns a normalised copy of the vector.
     #[must_use]
-    fn normalise(&self) -> Self
+    fn normalise(&self) -> Option<Self>
     where
         N: Float,
         for<'a> &'a Self: Div<N, Output = Self>,
     {
-        self / self.mag()
+        let mag = self.mag();
+        if mag > N::zero() {
+            Some(self / self.mag())
+        } else {
+            None
+        }
     }
 
     /// Returns whether two vectors are equal within `epsilon` on each

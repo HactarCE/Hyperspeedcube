@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::math::*;
 
 /// Schlafli symbol for a convex polytope.
@@ -8,6 +10,14 @@ impl SchlafliSymbol {
     /// Constructs an integer Schlafli symbol.
     pub fn from_indices(indices: Vec<usize>) -> Self {
         Self { indices }
+    }
+
+    pub fn from_string(string: &str) -> Self {
+        let xs = string
+            .split(',')
+            .map(|s| s.trim().parse().unwrap_or(0))
+            .collect_vec();
+        Self::from_indices(xs)
     }
 
     /// Number of dimensions of the polytope described by the Schlafli symbol.

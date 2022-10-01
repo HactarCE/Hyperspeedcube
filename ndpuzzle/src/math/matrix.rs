@@ -90,6 +90,17 @@ impl<N: Clone + Num> Matrix<N> {
         )
     }
 
+    /// Contruct the matrix rotating in a plane from u to v.
+    pub fn from_vec_to_vec(u: &impl VectorRef<N>, v: &impl VectorRef<N>) -> Self
+    where
+        N: Clone + Num + std::fmt::Debug,
+    {
+        let dim = std::cmp::max(u.ndim(), v.ndim());
+        let tm = Matrix::from_outer_product(u, v);
+        let tm = &tm - &tm.transpose();
+        &(&Matrix::ident(dim) + &tm) + &((&tm * &tm).scale(N::one() / (N::one() + u.dot(v))))
+    }
+
     /// Returns the number of dimensions (size) of the matrix.
     pub fn ndim(&self) -> u8 {
         self.ndim
@@ -285,7 +296,8 @@ impl<'a, N: Clone + Num + std::fmt::Debug> Mul for &'a Matrix<N> {
         let new_ndim = std::cmp::max(self.ndim(), rhs.ndim());
         let mut new_matrix = Matrix::zero(new_ndim);
 
-        for (i, self_col) in self.cols().enumerate() {
+        for i in 0..new_ndim {
+            let self_col = self.col(i);
             for x in 0..new_ndim {
                 let rhs_elem = rhs.get(x, i as _);
                 for y in 0..new_ndim {

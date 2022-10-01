@@ -1,4 +1,5 @@
 use crate::math::*;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -38,5 +39,36 @@ mod tests {
     fn test_3x3x3_spec_deserialize() {
         let s = include_str!("../../puzzles/3x3x3.yaml");
         let _spec: BasicPuzzleSpec = serde_yaml::from_str(s).unwrap();
+    }
+}
+
+const AXIS_NAMES: &str = "XYZWUVRS";
+
+pub fn parse_transform(string: &str) -> Option<Matrix<f32>> {
+    string
+        .split("->")
+        .map(|v| parse_vector(v)?.normalise())
+        .tuple_windows()
+        .map(|(v1, v2)| Some(Matrix::from_vec_to_vec(v1.as_ref()?, v2.as_ref()?)))
+        .try_fold(Matrix::EMPTY_IDENT, |m1, m2| Some(&m1 * &m2?))
+}
+
+pub fn parse_vector(string: &str) -> Option<Vector<f32>> {
+    if string.contains(',') {
+        Some(Vector(
+            string
+                .split(',')
+                .map(|x| x.trim().parse::<f32>())
+                .try_collect()
+                .ok()?,
+        ))
+    } else if AXIS_NAMES.contains(string.trim().trim_start_matches('-')) {
+        if let Some(s) = string.trim().strip_prefix('-') {
+            Some(-Vector::unit(AXIS_NAMES.find(s)? as u8))
+        } else {
+            Some(Vector::unit(AXIS_NAMES.find(string.trim())? as u8))
+        }
+    } else {
+        None
     }
 }

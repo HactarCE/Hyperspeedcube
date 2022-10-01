@@ -1,0 +1,22 @@
+name: 3x3x3x5
+ndim: 4
+shape:
+  - symmetries:
+      - schlafli: 4,3,2
+    face_generators:
+      - [1, 0, 0, 0]
+      - [0, 0, 0, 2]
+twists:
+  - symmetries:
+      - schlafli: 4,3,2
+    axes:
+      - normal: [1, 0, 0, 0]
+        cuts: [0.5, -0.5]
+        twist_generators:
+          - Y -> Z
+          - Y -> W
+          - Z -> W
+      - normal: [0, 0, 0, 1]
+        cuts: [1.5, 0.5, -0.5, -1.5]
+        twist_generators:
+          - X -> Y
