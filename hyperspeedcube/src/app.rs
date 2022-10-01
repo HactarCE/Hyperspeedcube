@@ -2,6 +2,7 @@ use bitvec::bitvec;
 use cgmath::Point2;
 use itertools::Itertools;
 use key_names::KeyMappingCode;
+use ndpuzzle::spec::BasicPuzzleSpec;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -231,7 +232,20 @@ impl App {
 
             WindowEvent::DroppedFile(path) => {
                 if self.confirm_discard_changes("open another file") {
-                    self.try_load_puzzle(path.to_owned());
+                    // self.try_load_puzzle(path.to_owned());
+                    if let Ok(s) = std::fs::read_to_string(path) {
+                        match serde_yaml::from_str::<BasicPuzzleSpec>(&s) {
+                            Ok(spec) => {
+                                let name = spec.name.clone();
+                                PUZZLE_REGISTRY.lock().insert(
+                                    name.clone(),
+                                    basic::puzzle_type(spec).expect("Sadness"),
+                                );
+                                self.event(Command::NewPuzzle(name))
+                            }
+                            Err(e) => show_error_dialog("Error loading puzzle", e),
+                        }
+                    }
                 }
             }
 

@@ -28,7 +28,7 @@ fn main() {
                 dim_mappings[i] = Vector::unit(i as _);
             }
             let mut default_puzzle = build_puzzle(
-                serde_yaml::from_str(include_str!("../../puzzles/Rhombic Dodecahedron.yaml"))
+                &serde_yaml::from_str(include_str!("../../puzzles/Rhombic Dodecahedron.yaml"))
                     .expect("msg"),
             )
             .expect("msg");
@@ -64,7 +64,7 @@ fn main() {
 #[derive(Debug)]
 struct PolytopeDemo {
     polygons: Vec<(PolytopeId, Vec<Polygon>)>,
-    puzzle: Puzzle,
+    puzzle: PuzzleData,
     ndim: u8,
     dim_mappings: Vec<Vector<f32>>,
 

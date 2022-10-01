@@ -401,13 +401,13 @@ impl FaceInfo {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TwistAxisInfo {
-    pub symbol: &'static str, // e.g., "R"
+    pub symbol: String, // e.g., "R"
     pub layer_count: u8,
     pub opposite: Option<(TwistAxis, Vec<TwistDirection>)>,
 }
 impl AsRef<str> for TwistAxisInfo {
     fn as_ref(&self) -> &str {
-        self.symbol
+        &self.symbol
     }
 }
 impl TwistAxisInfo {

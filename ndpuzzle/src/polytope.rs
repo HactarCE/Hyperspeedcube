@@ -16,7 +16,7 @@ pub fn generate_polytope(
     ndim: u8,
     generators: &[Matrix<f32>],
     base_facets: &[Vector<f32>],
-) -> Result<PolytopeArena> {
+) -> Result<(PolytopeArena, Vec<Vector<f32>>)> {
     let radius = base_facets
         .iter()
         .map(|pole| pole.mag())
@@ -56,15 +56,16 @@ pub fn generate_polytope(
         //     false,
         // )?;
     }
-    Ok(arena)
+    Ok((arena, facet_poles))
 }
 
 /// Arena of polytopes that can be split.
+#[derive(Clone)]
 pub struct PolytopeArena {
     /// Unordered set of polytopes.
     polytopes: Slab<Polytope>,
     /// Root polytopes.
-    roots: BTreeSet<PolytopeId>,
+    pub(crate) roots: BTreeSet<PolytopeId>,
     /// Number of dimensions.
     ndim: u8,
 }
@@ -217,17 +218,24 @@ impl PolytopeArena {
     }
     pub fn remove_internal(&mut self) -> Result<()> {
         for root in self.roots.clone() {
-            let p = self.get(root)?;
-            if p.children()?
-                .iter()
-                .all(|&c| self.get(c).expect("msg").is_internal())
-            {
+            if self.is_piece_internal(root)? {
                 self.delete_polytope(root);
                 self.roots.remove(&root);
             }
         }
         Ok(())
     }
+
+    pub fn is_internal(&self, id: PolytopeId) -> Result<bool> {
+        Ok(self.get(id)?.is_internal())
+    }
+    pub fn is_piece_internal(&self, id: PolytopeId) -> Result<bool> {
+        let p = self.get(id)?;
+        Ok(p.children()?
+            .iter()
+            .all(|&c| self.is_internal(c).expect("Bad child")))
+    }
+
     /// Returns a list of all polygons (rank-2 polytopes) in the arena.
     pub fn polygons(&self, no_internal: bool) -> Result<Vec<(PolytopeId, Vec<Polygon>)>> {
         self.roots
@@ -301,6 +309,15 @@ impl PolytopeArena {
         } else {
             Ok(vec![])
         }
+    }
+    pub fn polytope_facet_ids(&self, p: PolytopeId, no_internal: bool) -> Result<Vec<PolytopeId>> {
+        let polytope = self.get(p)?;
+        Ok(polytope
+            .children()?
+            .iter()
+            .copied()
+            .filter(|&child| !no_internal || !self.is_internal(child).expect("Bad child"))
+            .collect())
     }
 
     /// Slices the polytope by a hyperplane, removing external parts if carving.

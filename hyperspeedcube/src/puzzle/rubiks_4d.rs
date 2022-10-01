@@ -662,7 +662,7 @@ impl FaceEnum {
     }
     fn twist_axis_info(self, layer_count: u8) -> TwistAxisInfo {
         TwistAxisInfo {
-            symbol: self.symbol_upper_str(),
+            symbol: self.symbol_upper_str().to_string(),
             layer_count,
             opposite: Some((
                 self.opposite().into(),

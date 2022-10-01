@@ -27,7 +27,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         util::reset_button(ui, &mut app.toggle_grip.axes, Grip::default().axes, "");
         for (i, twist_axis) in puzzle_type.twists.axes.iter().enumerate() {
             let mut is_sel = grip.axes.contains(&TwistAxis(i as _));
-            let r = ui.selectable_value(&mut is_sel, true, twist_axis.symbol);
+            let r = ui.selectable_value(&mut is_sel, true, &twist_axis.symbol);
             if r.changed() {
                 app.toggle_grip
                     .toggle_axis(TwistAxis(i as _), !multi_select);
