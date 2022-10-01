@@ -1,13 +1,15 @@
+use std::sync::Arc;
+
 use crate::app::App;
 use crate::gui::{util, widgets};
 use crate::preferences::DEFAULT_PREFS;
-use crate::puzzle::{traits::*, ProjectionType};
+use crate::puzzle::ProjectionType;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    let puzzle_type = app.puzzle.ty();
-    let proj_ty = puzzle_type.projection_type();
+    let puzzle_type = Arc::clone(app.puzzle.ty());
+    let proj_ty = puzzle_type.projection_type;
     let prefs = &mut app.prefs;
-    let presets = prefs.view_presets(&app.puzzle);
+    let presets = prefs.view_presets(&puzzle_type);
 
     let mut changed = false;
 
@@ -54,7 +56,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         current: &mut presets.current,
         defaults: match &presets.active_preset {
             Some(p) => &p.value,
-            None => DEFAULT_PREFS.view(puzzle_type),
+            None => DEFAULT_PREFS.view(&puzzle_type),
         },
         changed: &mut changed,
     };

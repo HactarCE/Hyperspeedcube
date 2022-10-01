@@ -3,7 +3,7 @@ use egui::NumExt;
 use crate::app::App;
 use crate::gui::util::{self, ResponseExt};
 use crate::preferences::{OpacityPreferences, DEFAULT_PREFS};
-use crate::puzzle::{traits::*, Face};
+use crate::puzzle::Face;
 
 use super::util::PrefsUi;
 
@@ -20,8 +20,8 @@ pub(super) fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
     };
 
     prefs_ui.ui.strong("Faces");
-    for (i, &face) in puzzle_type.faces().iter().enumerate() {
-        prefs_ui.color(face.name, access!([(puzzle_type, Face(i as _))]));
+    for (i, face) in puzzle_type.shape.faces.iter().enumerate() {
+        prefs_ui.color(&face.name, access!([(&**puzzle_type, Face(i as _))]));
     }
 
     prefs_ui.ui.separator();

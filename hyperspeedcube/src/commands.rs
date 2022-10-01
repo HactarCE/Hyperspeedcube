@@ -31,7 +31,7 @@ pub enum Command {
     ScrambleFull,
 
     // Puzzle menu
-    NewPuzzle(PuzzleTypeEnum),
+    NewPuzzle(String),
 
     ToggleBlindfold,
 
@@ -54,7 +54,7 @@ impl Command {
             Command::ScrambleN(n) => format!("🔀 {n}"),
             Command::ScrambleFull => "🔀".to_owned(),
 
-            Command::NewPuzzle(ty) => format!("New {}", ty.name()),
+            Command::NewPuzzle(ty) => format!("New {ty}"),
 
             Command::ToggleBlindfold => "BLD".to_owned(),
 
@@ -115,10 +115,10 @@ pub enum PuzzleCommand {
     None,
 }
 impl PuzzleCommand {
-    pub fn short_description(&self, ty: PuzzleTypeEnum) -> String {
+    pub fn short_description(&self, ty: &PuzzleType) -> String {
         match self {
             PuzzleCommand::Grip { axis, layers } => {
-                let layers = layers.to_layer_mask(ty.layer_count());
+                let layers = layers.to_layer_mask(ty.layer_count);
                 let mut s = String::new();
                 if layers != LayerMask(0) || axis.is_none() {
                     s += &layers.to_string();
@@ -134,23 +134,25 @@ impl PuzzleCommand {
                 layers,
             } => ty.twist_command_short_description(
                 axis.as_deref()
-                    .and_then(|axis_name| ty.twist_axis_from_name(axis_name)),
-                ty.twist_direction_from_name(direction).unwrap_or_default(),
-                layers.to_layer_mask(ty.layer_count()),
+                    .and_then(|axis_name| ty.twists.axis_from_symbol(axis_name)),
+                ty.twists.direction_from_name(direction).unwrap_or_default(),
+                layers.to_layer_mask(ty.layer_count),
             ),
             PuzzleCommand::Recenter { axis } => {
                 match axis
                     .as_deref()
-                    .and_then(|axis_name| ty.twist_axis_from_name(axis_name))
+                    .and_then(|axis_name| ty.twists.axis_from_symbol(axis_name))
                 {
-                    Some(twist_axis) => match ty.make_recenter_twist(twist_axis) {
-                        Ok(twist) => ty.twist_command_short_description(
-                            Some(twist.axis),
-                            twist.direction,
-                            twist.layers,
-                        ),
-                        Err(_) => crate::util::INVALID_STR.to_string(),
-                    },
+                    // TODO: better name here
+                    Some(twist_axis) => format!("Recenter {:?}", ty.info(twist_axis).symbol,),
+                    // Some(twist_axis) => match ty.make_recenter_twist(twist_axis) {
+                    //     Ok(twist) => ty.twist_command_short_description(
+                    //         Some(twist.axis),
+                    //         twist.direction,
+                    //         twist.layers,
+                    //     ),
+                    //     Err(_) => crate::util::INVALID_STR.to_string(),
+                    // },
                     None => "Recenter".to_string(),
                 }
             }

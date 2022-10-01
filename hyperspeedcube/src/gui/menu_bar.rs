@@ -62,7 +62,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
         ui.menu_button("Puzzle", |ui| {
             if let Some(ty) = super::util::puzzle_select_menu(ui) {
-                app.event(Command::NewPuzzle(ty));
+                app.event(Command::NewPuzzle(ty.name.clone()));
             }
         });
 

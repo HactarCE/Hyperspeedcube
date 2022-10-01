@@ -48,11 +48,10 @@ use interpolate::InterpolateFn;
 const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 
 /// Puzzle wrapper that adds animation and undo history functionality.
-#[derive(Delegate, Debug)]
-#[delegate(PuzzleType, target = "puzzle")]
+#[derive(Debug)]
 pub struct PuzzleController {
     /// Latest puzzle state, not including any transient rotation.
-    puzzle: Puzzle,
+    puzzle: Box<dyn PuzzleState>,
     /// Twist animation state.
     twist_anim: TwistAnimationState,
     /// View settings animation state.
@@ -101,25 +100,19 @@ pub struct PuzzleController {
 }
 impl Default for PuzzleController {
     fn default() -> Self {
-        Self::new(PuzzleTypeEnum::default())
-    }
-}
-impl Eq for PuzzleController {}
-impl PartialEq for PuzzleController {
-    fn eq(&self, other: &Self) -> bool {
-        self.puzzle == other.puzzle
-    }
-}
-impl PartialEq<Puzzle> for PuzzleController {
-    fn eq(&self, other: &Puzzle) -> bool {
-        self.puzzle == *other
+        Self::new(
+            PUZZLE_REGISTRY
+                .lock()
+                .get(crate::DEFAULT_PUZZLE)
+                .expect("No default puzzle"),
+        )
     }
 }
 impl PuzzleController {
     /// Constructs a new PuzzleController with a solved puzzle.
-    pub fn new(ty: PuzzleTypeEnum) -> Self {
+    pub fn new(ty: &PuzzleType) -> Self {
         Self {
-            puzzle: Puzzle::new(ty),
+            puzzle: ty.new(),
             twist_anim: TwistAnimationState::default(),
             view_settings_anim: ViewSettingsAnimState::default(),
             view_angle: ViewAngleAnimState::default(),
@@ -136,11 +129,11 @@ impl PuzzleController {
 
             grip: Grip::default(),
             selection: HashSet::new(),
-            visible_pieces: bitvec![1; ty.pieces().len()],
+            visible_pieces: bitvec![1; ty.pieces.len()],
             visible_pieces_preview: None,
             hidden_pieces_preview_opacity: None,
 
-            visual_piece_states: vec![VisualPieceState::default(); ty.pieces().len()],
+            visual_piece_states: vec![VisualPieceState::default(); ty.pieces.len()],
 
             cached_geometry: None,
             cached_geometry_params: None,
@@ -175,7 +168,7 @@ impl PuzzleController {
     /// Reset and then scramble the puzzle completely.
     pub fn scramble_full(&mut self) -> Result<(), &'static str> {
         self.reset();
-        self.scramble_n(self.scramble_moves_count())?;
+        self.scramble_n(self.ty().scramble_moves_count)?;
         self.scramble_state = ScrambleState::Full;
         Ok(())
     }
@@ -202,7 +195,7 @@ impl PuzzleController {
         self._twist(twist, false)
     }
     fn _twist(&mut self, mut twist: Twist, collapse: bool) -> Result<(), &'static str> {
-        twist.layers &= self.all_layers(); // Restrict layer mask.
+        twist.layers &= self.ty().all_layers(); // Restrict layer mask.
         if twist.layers == LayerMask(0) {
             return Err("invalid layer mask");
         }
@@ -210,8 +203,8 @@ impl PuzzleController {
         self.is_unsaved = true;
         self.redo_buffer.clear();
         // Canonicalize twist.
-        twist = self.canonicalize_twist(twist);
-        if collapse && self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
+        twist = self.ty().canonicalize_twist(twist);
+        if collapse && self.undo_buffer.last() == Some(&self.ty().reverse_twist(twist).into()) {
             // This twist is the reverse of the last one, so just undo the last
             // one.
             self.undo()
@@ -247,27 +240,27 @@ impl PuzzleController {
 
     /// Returns the state of the cube that should be displayed, not including
     /// the twist currently being animated (if there is one).
-    pub fn displayed(&self) -> &Puzzle {
+    pub fn displayed(&self) -> &dyn PuzzleState {
         match self.twist_anim.queue.get(0) {
-            Some(anim) => &anim.state,
-            None => &self.puzzle,
+            Some(anim) => &*anim.state,
+            None => &*self.puzzle,
         }
     }
     /// Returns the state of the cube that should be displayed after the twist
     /// currently being animated (if there is one).
-    pub fn next_displayed(&self) -> &Puzzle {
+    pub fn next_displayed(&self) -> &dyn PuzzleState {
         match self.twist_anim.queue.get(1) {
-            Some(anim) => &anim.state,
-            None => &self.puzzle,
+            Some(anim) => &*anim.state,
+            None => &*self.puzzle,
         }
     }
     /// Returns the state of the cube after all queued twists have been applied.
-    pub fn latest(&self) -> &Puzzle {
-        &self.puzzle
+    pub fn latest(&self) -> &dyn PuzzleState {
+        &*self.puzzle
     }
 
     /// Returns the puzzle type.
-    pub fn ty(&self) -> PuzzleTypeEnum {
+    pub fn ty(&self) -> &Arc<PuzzleType> {
         self.puzzle.ty()
     }
 
@@ -309,7 +302,10 @@ impl PuzzleController {
     /// defined for the puzzle.
     pub fn snap_view_angle_offset(&mut self) {
         if !self.view_angle.dragging {
-            self.view_angle.target = self.ty().nearest_orientation(&self.view_angle.current);
+            self.view_angle.target = self
+                .ty()
+                .twists
+                .nearest_orientation(&self.view_angle.current);
         }
     }
 
@@ -326,7 +322,7 @@ impl PuzzleController {
         } else {
             self.next_displayed() // puzzle state after the twist
         };
-        let piece = self.info(sticker).piece;
+        let piece = self.ty().info(sticker).piece;
         self.grip
             .has_piece(puzzle_state, piece)
             .unwrap_or_else(|| self.is_visible(piece))
@@ -395,8 +391,8 @@ impl PuzzleController {
 
             // Project stickers.
             let mut sticker_geometries: Vec<ProjectedStickerGeometry> = vec![];
-            for sticker in (0..self.stickers().len() as _).map(Sticker) {
-                let piece = self.info(sticker).piece;
+            for sticker in (0..self.ty().stickers.len() as _).map(Sticker) {
+                let piece = self.ty().info(sticker).piece;
                 let vis_piece = self.visual_piece_state(piece);
                 if !self.is_sticker_hoverable(sticker) && vis_piece.opacity(prefs) == 0.0 {
                     continue;
@@ -537,12 +533,12 @@ impl PuzzleController {
 
         let delta = delta.as_secs_f32() / prefs.interaction.other_anim_duration;
 
-        for piece in (0..self.pieces().len() as _).map(Piece) {
+        for piece in (0..self.ty().pieces.len() as _).map(Piece) {
             let logical_state = self.logical_piece_state(piece);
 
-            let gripped = self.grip.has_piece(&self.puzzle, piece);
+            let gripped = self.grip.has_piece(&*self.puzzle, piece);
             let hidden = logical_state.preview_hidden.unwrap_or(logical_state.hidden);
-            let stickers = &self.info(piece).stickers;
+            let stickers = &self.ty().info(piece).stickers;
             let target = VisualPieceState {
                 gripped: (gripped == Some(true)) as u8 as f32,
                 ungripped: (gripped == Some(false)) as u8 as f32,
@@ -624,7 +620,7 @@ impl PuzzleController {
     /// Sets the set of non-hidden pieces.
     pub fn set_visible_pieces(&mut self, visible_pieces: &BitSlice) {
         self.visible_pieces = visible_pieces.to_bitvec();
-        self.visible_pieces.resize(self.pieces().len(), false);
+        self.visible_pieces.resize(self.ty().pieces.len(), false);
     }
     /// Sets the set of non-hidden pieces.
     pub fn set_visible_pieces_preview(
@@ -634,7 +630,7 @@ impl PuzzleController {
     ) {
         self.visible_pieces_preview = visible_pieces.map(|bits| {
             let mut bv = bits.to_bitvec();
-            bv.resize(self.pieces().len(), false);
+            bv.resize(self.ty().pieces.len(), false);
             bv
         });
         self.hidden_pieces_preview_opacity = hidden_opacity;
@@ -694,7 +690,7 @@ impl PuzzleController {
             self.is_unsaved = true;
             match entry {
                 HistoryEntry::Twist(twist) => {
-                    let rev = self.reverse_twist(twist);
+                    let rev = self.ty().reverse_twist(twist);
                     self.animate_twist(rev)?;
                 }
             }
@@ -735,7 +731,7 @@ impl PuzzleController {
             ScrambleState::Partial => false,
             ScrambleState::Full => true,
             ScrambleState::Solved => {
-                self.scramble.len() >= self.scramble_moves_count()
+                self.scramble.len() >= self.ty().scramble_moves_count
                     || self.scramble.len() > PARTIAL_SCRAMBLE_MOVE_COUNT_MAX
             }
         }
@@ -766,7 +762,7 @@ impl PuzzleController {
     /// Returns the number of twists applied to the puzzle, not including the scramble.
     pub fn twist_count(&self, metric: TwistMetric) -> usize {
         metric.count_twists(
-            self,
+            self.ty(),
             self.undo_buffer
                 .iter()
                 .copied()
@@ -810,7 +806,7 @@ impl TwistAnimationState {
 #[derive(Debug, Clone)]
 struct TwistAnimation {
     /// Puzzle state before twist.
-    state: Puzzle,
+    state: Box<dyn PuzzleState>,
     /// Twist to animate.
     twist: Twist,
 }

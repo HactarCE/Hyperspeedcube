@@ -1,3 +1,5 @@
+#![allow(unused, unused_imports)]
+
 use anyhow::{anyhow, Context, Result};
 use bitvec::vec::BitVec;
 use num_enum::FromPrimitive;
@@ -13,6 +15,7 @@ use strum::IntoEnumIterator;
 mod mc4d_compat;
 
 use crate::puzzle::*;
+use crate::util::wrap_words;
 
 /// Loads a log file and returns the puzzle state, along with any warnings.
 pub fn load_file(path: &Path) -> anyhow::Result<(PuzzleController, Vec<String>)> {
@@ -50,7 +53,7 @@ pub fn save_file(path: &Path, puzzle: &mut PuzzleController) -> anyhow::Result<(
 struct LogFile {
     version: usize,
     #[serde(default)]
-    puzzle: Option<PuzzleTypeEnum>,
+    puzzle: Option<String>, // TODO: accept old puzzle enum
     #[serde(default)]
     state: u8,
     #[serde(
@@ -77,36 +80,40 @@ impl LogFile {
     const VERSION: usize = 1;
 
     fn new(puzzle: &PuzzleController) -> Self {
-        let notation = puzzle.notation_scheme();
+        wrap_words(vec!["word"].into_iter()); // stop complaining, I'm gonna use this
+        todo!("log file from puzzle controller {:?}", puzzle.ty())
 
-        Self {
-            version: Self::VERSION,
-            puzzle: Some(puzzle.ty()),
-            state: puzzle.scramble_state() as u8,
-            visible_pieces: puzzle
-                .is_any_piece_hidden()
-                .then(|| puzzle.visible_pieces().to_bitvec()),
-            scramble_length: puzzle.scramble().len(),
-            twist_count: TwistMetric::iter()
-                .map(|metric| (metric, puzzle.twist_count(metric)))
-                .collect(),
-            scramble: crate::util::wrap_words(
-                puzzle.scramble().iter().map(|twist| twist.to_string()),
-            ),
-            twists: crate::util::wrap_words(
-                puzzle
-                    .undo_buffer()
-                    .iter()
-                    .map(|&entry| entry.to_string(notation)),
-            ),
-        }
+        // let notation = puzzle.notation_scheme();
+
+        // Self {
+        //     version: Self::VERSION,
+        //     puzzle: Some(puzzle.ty()),
+        //     state: puzzle.scramble_state() as u8,
+        //     visible_pieces: puzzle
+        //         .is_any_piece_hidden()
+        //         .then(|| puzzle.visible_pieces().to_bitvec()),
+        //     scramble_length: puzzle.scramble().len(),
+        //     twist_count: TwistMetric::iter()
+        //         .map(|metric| (metric, puzzle.twist_count(metric)))
+        //         .collect(),
+        //     scramble: crate::util::wrap_words(
+        //         puzzle.scramble().iter().map(|twist| twist.to_string()),
+        //     ),
+        //     twists: crate::util::wrap_words(
+        //         puzzle
+        //             .undo_buffer()
+        //             .iter()
+        //             .map(|&entry| entry.to_string(notation)),
+        //     ),
+        // }
     }
 
     fn validate(&self) -> Result<()> {
-        if let Some(puzzle_ty) = self.puzzle {
-            puzzle_ty.validate().map_err(|e| anyhow!(e))?;
-        }
-        Ok(())
+        todo!("validate")
+        // if let Some(puzzle_ty) = self.puzzle {
+        //     puzzle_ty.validate().map_err(|e| anyhow!(e))?;
+        // }
+        // Ok(())
     }
 
     fn scramble(&self) -> (Vec<Twist>, Vec<TwistParseError<'_>>) {
@@ -124,11 +131,11 @@ impl LogFile {
         (ret_twists, ret_errors)
     }
 
-    fn twists(&self, puzzle_type: &dyn PuzzleType) -> (Vec<Twist>, Vec<TwistParseError<'_>>) {
+    fn twists(&self, puzzle_type: &PuzzleType) -> (Vec<Twist>, Vec<TwistParseError<'_>>) {
         let mut ret_twists = vec![];
         let mut ret_errors = vec![];
         for twist_str in self.twists.split_whitespace() {
-            match puzzle_type.notation_scheme().parse_twist(twist_str) {
+            match puzzle_type.notation.parse_twist(twist_str) {
                 Ok(twist) => ret_twists.push(twist),
                 Err(error_msg) => ret_errors.push(TwistParseError {
                     twist_str,
@@ -158,49 +165,51 @@ impl LogFile {
     }
 
     fn to_puzzle(&self) -> Result<(PuzzleController, Vec<String>)> {
-        self.validate()?;
+        todo!("logfile to puzzle")
 
-        let mut warnings = vec![];
+        // self.validate()?;
 
-        if self.version != LogFile::VERSION {
-            warnings.push(format!(
-                "This log file was saved using a \
-                 different version of Hyperspeedcube \
-                 (log file format v{:?}; expected v{:?})",
-                self.version,
-                LogFile::VERSION,
-            ));
-        }
+        // let mut warnings = vec![];
 
-        let puzzle_type = self.puzzle.context("unable to find puzzle type")?;
-        let mut ret = PuzzleController::new(puzzle_type);
+        // if self.version != LogFile::VERSION {
+        //     warnings.push(format!(
+        //         "This log file was saved using a \
+        //          different version of Hyperspeedcube \
+        //          (log file format v{:?}; expected v{:?})",
+        //         self.version,
+        //         LogFile::VERSION,
+        //     ));
+        // }
 
-        let scramble_state = ScrambleState::from_primitive(self.state);
+        // let puzzle_type = self.puzzle.context("unable to find puzzle type")?;
+        // let mut ret = PuzzleController::new(&puzzle_type);
 
-        if let Some(visible_pieces) = &self.visible_pieces {
-            ret.set_visible_pieces(visible_pieces);
-        }
+        // let scramble_state = ScrambleState::from_primitive(self.state);
 
-        let (twists, parse_errors) = self.scramble();
-        warnings.extend(parse_errors.iter().map(|e| e.to_string()));
-        for twist in twists {
-            if let Err(e) = ret.twist_no_collapse(twist) {
-                warnings.push(e.to_string());
-            }
-        }
-        ret.add_scramble_marker(scramble_state);
+        // if let Some(visible_pieces) = &self.visible_pieces {
+        //     ret.set_visible_pieces(visible_pieces);
+        // }
 
-        let (twists, parse_errors) = self.twists(&puzzle_type);
-        warnings.extend(parse_errors.iter().map(|e| e.to_string()));
-        for twist in twists {
-            if let Err(e) = ret.twist_no_collapse(twist) {
-                warnings.push(e.to_string());
-            }
-        }
-        ret.skip_twist_animations();
-        ret.mark_saved();
+        // let (twists, parse_errors) = self.scramble();
+        // warnings.extend(parse_errors.iter().map(|e| e.to_string()));
+        // for twist in twists {
+        //     if let Err(e) = ret.twist_no_collapse(twist) {
+        //         warnings.push(e.to_string());
+        //     }
+        // }
+        // ret.add_scramble_marker(scramble_state);
 
-        Ok((ret, warnings))
+        // let (twists, parse_errors) = self.twists(todo!("puzzle type"));
+        // warnings.extend(parse_errors.iter().map(|e| e.to_string()));
+        // for twist in twists {
+        //     if let Err(e) = ret.twist_no_collapse(twist) {
+        //         warnings.push(e.to_string());
+        //     }
+        // }
+        // ret.skip_twist_animations();
+        // ret.mark_saved();
+
+        // Ok((ret, warnings))
     }
 }
 

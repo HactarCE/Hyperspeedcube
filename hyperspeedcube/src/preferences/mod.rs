@@ -24,7 +24,7 @@ mod outlines;
 mod view;
 
 use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
-use crate::puzzle::{traits::*, ProjectionType, PuzzleTypeEnum};
+use crate::puzzle::{traits::*, ProjectionType};
 pub use colors::*;
 pub use gfx::*;
 pub use info::*;
@@ -217,18 +217,18 @@ impl Preferences {
         }
     }
 
-    pub fn view(&self, ty: impl PuzzleType) -> &ViewPreferences {
-        match ty.projection_type() {
+    pub fn view(&self, ty: &PuzzleType) -> &ViewPreferences {
+        match ty.projection_type {
             ProjectionType::_3D => &self.view_3d.current,
             ProjectionType::_4D => &self.view_4d.current,
         }
     }
-    pub fn view_mut(&mut self, ty: impl PuzzleType) -> &mut ViewPreferences {
+    pub fn view_mut(&mut self, ty: &PuzzleType) -> &mut ViewPreferences {
         &mut self.view_presets(ty).current
     }
 
-    pub fn view_presets(&mut self, ty: impl PuzzleType) -> &mut WithPresets<ViewPreferences> {
-        match ty.projection_type() {
+    pub fn view_presets(&mut self, ty: &PuzzleType) -> &mut WithPresets<ViewPreferences> {
+        match ty.projection_type {
             ProjectionType::_3D => &mut self.view_3d,
             ProjectionType::_4D => &mut self.view_4d,
         }
@@ -321,24 +321,24 @@ pub struct PerPuzzle<T> {
     #[serde(skip)]
     default: T,
 }
-impl<T: Default> Index<PuzzleTypeEnum> for PerPuzzle<T> {
+impl<'a, T: Default> Index<&'a PuzzleType> for PerPuzzle<T> {
     type Output = T;
 
-    fn index(&self, puzzle_type: PuzzleTypeEnum) -> &Self::Output {
+    fn index(&self, puzzle_type: &'a PuzzleType) -> &Self::Output {
         self.get(puzzle_type).unwrap_or(&self.default)
     }
 }
-impl<T: Default> IndexMut<PuzzleTypeEnum> for PerPuzzle<T> {
-    fn index_mut(&mut self, puzzle_type: PuzzleTypeEnum) -> &mut Self::Output {
+impl<'a, T: Default> IndexMut<&'a PuzzleType> for PerPuzzle<T> {
+    fn index_mut(&mut self, puzzle_type: &'a PuzzleType) -> &mut Self::Output {
         self.entry(puzzle_type).or_default()
     }
 }
-impl<T> PerPuzzle<T> {
-    fn entry(&mut self, puzzle_type: PuzzleTypeEnum) -> btree_map::Entry<'_, String, T> {
-        self.map.entry(puzzle_type.name().to_owned())
+impl<'a, T> PerPuzzle<T> {
+    fn entry(&mut self, puzzle_type: &'a PuzzleType) -> btree_map::Entry<'_, String, T> {
+        self.map.entry(puzzle_type.name.clone())
     }
-    fn get(&self, puzzle_type: PuzzleTypeEnum) -> Option<&T> {
-        self.map.get(puzzle_type.name())
+    fn get(&self, puzzle_type: &'a PuzzleType) -> Option<&T> {
+        self.map.get(&puzzle_type.name)
     }
 }
 
@@ -349,25 +349,24 @@ pub struct PerPuzzleFamily<T> {
     #[serde(skip)]
     default: T,
 }
-impl<T: Default> Index<PuzzleTypeEnum> for PerPuzzleFamily<T> {
+impl<'a, T: Default> Index<&'a PuzzleType> for PerPuzzleFamily<T> {
     type Output = T;
 
-    fn index(&self, puzzle_type: PuzzleTypeEnum) -> &Self::Output {
+    fn index(&self, puzzle_type: &'a PuzzleType) -> &Self::Output {
         self.get(puzzle_type).unwrap_or(&self.default)
     }
 }
-impl<T: Default> IndexMut<PuzzleTypeEnum> for PerPuzzleFamily<T> {
-    fn index_mut(&mut self, puzzle_type: PuzzleTypeEnum) -> &mut Self::Output {
+impl<'a, T: Default> IndexMut<&'a PuzzleType> for PerPuzzleFamily<T> {
+    fn index_mut(&mut self, puzzle_type: &'a PuzzleType) -> &mut Self::Output {
         self.entry(puzzle_type).or_default()
     }
 }
 impl<T> PerPuzzleFamily<T> {
-    fn entry(&mut self, puzzle_type: PuzzleTypeEnum) -> btree_map::Entry<'_, String, T> {
-        self.map
-            .entry(puzzle_type.family_internal_name().to_owned())
+    fn entry(&mut self, puzzle_type: &PuzzleType) -> btree_map::Entry<'_, String, T> {
+        self.map.entry(puzzle_type.family_name.clone())
     }
-    fn get(&self, puzzle_type: PuzzleTypeEnum) -> Option<&T> {
-        self.map.get(puzzle_type.family_internal_name())
+    fn get(&self, puzzle_type: &PuzzleType) -> Option<&T> {
+        self.map.get(&puzzle_type.family_name)
     }
 }
 

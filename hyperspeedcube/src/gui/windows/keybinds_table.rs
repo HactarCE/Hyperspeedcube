@@ -12,7 +12,6 @@ use crate::gui::keybind_set_accessors::*;
 use crate::gui::util::{self, ComboBoxExt, FancyComboBox, ResponseExt};
 use crate::gui::widgets;
 use crate::preferences::{Keybind, KeybindSet, Preferences};
-use crate::puzzle::*;
 
 const KEY_BUTTON_SIZE: egui::Vec2 = egui::vec2(200.0, 22.0);
 const LAYER_DESCRIPTION_WIDTH: f32 = 50.0;
@@ -264,7 +263,7 @@ impl egui::Widget for CommandSelectWidget<'_, GlobalKeybindsAccessor> {
                     "Scramble partially" => Cmd::ScrambleN(PARTIAL_SCRAMBLE_MOVE_COUNT_MIN),
                     "Scramble fully" => Cmd::ScrambleFull,
                     "Toggle blindfold" => Cmd::ToggleBlindfold,
-                    "New puzzle" => Cmd::NewPuzzle(PuzzleTypeEnum::default()),
+                    "New puzzle" => Cmd::NewPuzzle(crate::DEFAULT_PUZZLE.to_string()),
                 }
             );
             changed |= r.changed();
@@ -279,10 +278,10 @@ impl egui::Widget for CommandSelectWidget<'_, GlobalKeybindsAccessor> {
 
                 Cmd::NewPuzzle(puzzle_type) => {
                     if let Some(Some(ty)) = ui
-                        .menu_button(puzzle_type.name(), util::puzzle_select_menu)
+                        .menu_button(&*puzzle_type, util::puzzle_select_menu)
                         .inner
                     {
-                        *puzzle_type = ty;
+                        *puzzle_type = ty.name.clone();
                         changed |= true;
                     }
                 }
@@ -302,7 +301,7 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         use PuzzleCommand as Cmd;
 
-        let puzzle_type = self.keybind_set.puzzle_type;
+        let puzzle_type = &self.keybind_set.puzzle_type;
 
         let mut changed = false;
 
@@ -320,7 +319,7 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
                     "Twist" => Cmd::Twist {
                         axis: self.cmd.axis_mut().cloned().unwrap_or_default(),
                         direction: self.cmd.direction_mut().cloned().unwrap_or_else(|| {
-                            puzzle_type.twist_directions()[0].name.to_owned()
+                            puzzle_type.twists.directions[0].name.to_owned()
                         }),
                         layers: self.cmd.layers_mut().cloned().unwrap_or_default(),
                     },
@@ -355,7 +354,7 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
                 let r = ui.add(FancyComboBox::new_optional(
                     unique_id!(self.idx),
                     axis,
-                    puzzle_type.twist_axes(),
+                    &puzzle_type.twists.axes,
                 ));
                 changed |= r.changed();
             }
@@ -363,7 +362,7 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
                 let r = ui.add(FancyComboBox::new(
                     unique_id!(self.idx),
                     direction,
-                    puzzle_type.twist_directions(),
+                    &puzzle_type.twists.directions,
                 ));
                 changed |= r.changed();
             }

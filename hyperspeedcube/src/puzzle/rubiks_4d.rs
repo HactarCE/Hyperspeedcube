@@ -5,11 +5,10 @@ use itertools::Itertools;
 use ndpuzzle::math::{Matrix, Rotor, Vector, VectorRef};
 use ndpuzzle::vector;
 use num_enum::FromPrimitive;
-use serde::{de::Error, Deserialize, Deserializer};
 use smallvec::smallvec;
 use std::collections::HashMap;
 use std::ops::{Index, IndexMut, RangeInclusive};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use strum::IntoEnumIterator;
 
 use crate::util::{from_vec3, from_vec4};
@@ -21,313 +20,219 @@ pub const MIN_LAYER_COUNT: u8 = 1;
 pub const MAX_LAYER_COUNT: u8 = 9;
 pub const LAYER_COUNT_RANGE: RangeInclusive<u8> = MIN_LAYER_COUNT..=MAX_LAYER_COUNT;
 
-pub(super) fn deserialize_layer_count<'de, D>(deserializer: D) -> Result<u8, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let layer_count: u8 = Deserialize::deserialize(deserializer)?;
-    if !LAYER_COUNT_RANGE.contains(&layer_count) {
-        return Err(D::Error::custom(format!(
-            "invalid layer count {layer_count}"
-        )));
-    }
-    Ok(layer_count)
+#[derive(Debug)]
+struct Rubiks4DInfo {
+    piece_locations: Vec<[u8; 4]>,
 }
 
-pub(super) fn puzzle_type(layer_count: u8) -> &'static dyn PuzzleType {
-    puzzle_description(layer_count)
-}
-
-fn puzzle_description(layer_count: u8) -> &'static Rubiks4DDescription {
-    lazy_static! {
-        static ref CACHE: Mutex<HashMap<u8, &'static Rubiks4DDescription>> =
-            Mutex::new(HashMap::new());
-    }
-
+pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
     assert!(LAYER_COUNT_RANGE.contains(&layer_count));
 
-    CACHE.lock().unwrap().entry(layer_count).or_insert_with(|| {
-        let mut pieces = vec![];
-        let mut stickers = vec![];
+    let mut pieces = vec![];
+    let mut stickers = vec![];
 
-        let full_range = (0..layer_count).collect_vec();
-        let ends = [0, layer_count - 1];
+    let full_range = (0..layer_count).collect_vec();
+    let ends = [0, layer_count - 1];
 
-        let center_coord = (layer_count % 2 == 0) as u8;
-        let mut piece_types = (center_coord..=layer_count / 2)
-            .flat_map(|z| {
-                (center_coord..=z).flat_map(move |y| {
-                    (center_coord..=y)
-                        .map(move |x| PieceTypeEnum::from_offset([x, y, z, layer_count / 2]))
-                })
+    let center_coord = (layer_count % 2 == 0) as u8;
+    let mut piece_types = (center_coord..=layer_count / 2)
+        .flat_map(|z| {
+            (center_coord..=z).flat_map(move |y| {
+                (center_coord..=y)
+                    .map(move |x| PieceTypeEnum::from_offset([x, y, z, layer_count / 2]))
             })
-            .collect_vec();
-        piece_types.sort();
+        })
+        .collect_vec();
+    piece_types.sort();
 
-        let mut piece_locations = vec![];
-        for w in 0..layer_count {
-            let w_min = w == 0;
-            let w_max = w == layer_count - 1;
+    let mut piece_locations = vec![];
+    for w in 0..layer_count {
+        let w_min = w == 0;
+        let w_max = w == layer_count - 1;
 
-            for z in 0..layer_count {
-                let z_min = z == 0;
-                let z_max = z == layer_count - 1;
+        for z in 0..layer_count {
+            let z_min = z == 0;
+            let z_max = z == layer_count - 1;
 
-                for y in 0..layer_count {
-                    let y_min = y == 0;
-                    let y_max = y == layer_count - 1;
+            for y in 0..layer_count {
+                let y_min = y == 0;
+                let y_max = y == layer_count - 1;
 
-                    let x_range = if w_min || w_max || z_min || z_max || y_min || y_max {
-                        full_range.as_slice()
-                    } else {
-                        ends.as_slice()
+                let x_range = if w_min || w_max || z_min || z_max || y_min || y_max {
+                    full_range.as_slice()
+                } else {
+                    ends.as_slice()
+                };
+                for &x in x_range {
+                    let x_min = x == 0;
+                    let x_max = x == layer_count - 1;
+
+                    let piece = Piece(pieces.len() as _);
+                    let mut piece_stickers = smallvec![];
+
+                    let mut push_sticker_if = |condition, face| {
+                        if condition {
+                            piece_stickers.push(Sticker(stickers.len() as _));
+                            stickers.push(StickerInfo { piece, color: face });
+                        }
                     };
-                    for &x in x_range {
-                        let x_min = x == 0;
-                        let x_max = x == layer_count - 1;
+                    push_sticker_if(x_max, FaceEnum::R.into());
+                    push_sticker_if(x_min, FaceEnum::L.into());
+                    push_sticker_if(y_max, FaceEnum::U.into());
+                    push_sticker_if(y_min, FaceEnum::D.into());
+                    push_sticker_if(z_max, FaceEnum::F.into());
+                    push_sticker_if(z_min, FaceEnum::B.into());
+                    push_sticker_if(w_max, FaceEnum::O.into());
+                    push_sticker_if(w_min, FaceEnum::I.into());
 
-                        let piece = Piece(pieces.len() as _);
-                        let mut piece_stickers = smallvec![];
+                    let piece_type = {
+                        // Compute the distance of each coordinate from the
+                        // center. 0 = centered along axis (only exists for odd
+                        // puzzles).
+                        let center = (layer_count - 1) as f32 / 2.0;
+                        let x = (x as f32 - center).abs().ceil() as u8;
+                        let y = (y as f32 - center).abs().ceil() as u8;
+                        let z = (z as f32 - center).abs().ceil() as u8;
+                        let w = (w as f32 - center).abs().ceil() as u8;
+                        PieceType(
+                            piece_types
+                                .iter()
+                                .find_position(|&&p| p == PieceTypeEnum::from_offset([x, y, z, w]))
+                                .map(|(i, _)| i)
+                                .unwrap_or(0) as _, // shouldn't ever happen
+                        )
+                    };
 
-                        let mut push_sticker_if = |condition, face| {
-                            if condition {
-                                piece_stickers.push(Sticker(stickers.len() as _));
-                                stickers.push(StickerInfo { piece, color: face });
-                            }
-                        };
-                        push_sticker_if(x_max, FaceEnum::R.into());
-                        push_sticker_if(x_min, FaceEnum::L.into());
-                        push_sticker_if(y_max, FaceEnum::U.into());
-                        push_sticker_if(y_min, FaceEnum::D.into());
-                        push_sticker_if(z_max, FaceEnum::F.into());
-                        push_sticker_if(z_min, FaceEnum::B.into());
-                        push_sticker_if(w_max, FaceEnum::O.into());
-                        push_sticker_if(w_min, FaceEnum::I.into());
-
-                        let piece_type = {
-                            // Compute the distance of each coordinate from the
-                            // center. 0 = centered along axis (only exists for odd
-                            // puzzles).
-                            let center = (layer_count - 1) as f32 / 2.0;
-                            let x = (x as f32 - center).abs().ceil() as u8;
-                            let y = (y as f32 - center).abs().ceil() as u8;
-                            let z = (z as f32 - center).abs().ceil() as u8;
-                            let w = (w as f32 - center).abs().ceil() as u8;
-                            PieceType(
-                                piece_types
-                                    .iter()
-                                    .find_position(|&&p| {
-                                        p == PieceTypeEnum::from_offset([x, y, z, w])
-                                    })
-                                    .map(|(i, _)| i)
-                                    .unwrap_or(0) as _, // shouldn't ever happen
-                            )
-                        };
-
-                        piece_locations.push([x, y, z, w]);
-                        pieces.push(PieceInfo {
-                            stickers: piece_stickers,
-                            piece_type,
-                        })
-                    }
+                    piece_locations.push([x, y, z, w]);
+                    pieces.push(PieceInfo {
+                        stickers: piece_stickers,
+                        piece_type,
+                    })
                 }
             }
         }
+    }
 
-        let mut aliases = vec![];
+    let mut aliases = vec![];
 
-        // Add slice twist aliases.
-        if let Some(slice_layers) = LayerMask::slice_layers(layer_count) {
-            use FaceEnum::*;
+    // Add slice twist aliases.
+    if let Some(slice_layers) = LayerMask::slice_layers(layer_count) {
+        use FaceEnum::*;
 
-            aliases.push(("M".to_string(), Alias::AxisLayers(L.into(), slice_layers)));
-            aliases.push(("E".to_string(), Alias::AxisLayers(D.into(), slice_layers)));
-            aliases.push(("S".to_string(), Alias::AxisLayers(F.into(), slice_layers)));
-            aliases.push(("P".to_string(), Alias::AxisLayers(O.into(), slice_layers)));
+        aliases.push(("M".to_string(), Alias::AxisLayers(L.into(), slice_layers)));
+        aliases.push(("E".to_string(), Alias::AxisLayers(D.into(), slice_layers)));
+        aliases.push(("S".to_string(), Alias::AxisLayers(F.into(), slice_layers)));
+        aliases.push(("P".to_string(), Alias::AxisLayers(O.into(), slice_layers)));
+    }
+
+    // Add 90-degree full-puzzle rotation aliases.
+    let all_layers = LayerMask::all_layers(layer_count);
+    for (ax1, ax2) in itertools::iproduct!(Axis::iter(), Axis::iter()) {
+        if let Some((dir, face)) = TwistDirectionEnum::from_face_twist_plane(ax1, ax2) {
+            let alias_string = format!("{}{}", ax1.symbol_lower(), ax2.symbol_lower());
+
+            let mut twist = Twist {
+                axis: face.into(),
+                direction: dir.into(),
+                layers: all_layers,
+            };
+            aliases.push((alias_string.clone(), Alias::EntireTwist(twist)));
+
+            twist.direction = dir.double().unwrap().into();
+            aliases.push((alias_string + "2", Alias::EntireTwist(twist)));
         }
+    }
+    // Try to match longer aliases first.
+    aliases.sort_by_key(|(s, _)| -(s.len() as isize));
 
-        // Add 90-degree full-puzzle rotation aliases.
-        let all_layers = LayerMask::all_layers(layer_count);
-        for (ax1, ax2) in itertools::iproduct!(Axis::iter(), Axis::iter()) {
-            if let Some((dir, face)) = TwistDirectionEnum::from_face_twist_plane(ax1, ax2) {
-                let alias_string = format!("{}{}", ax1.symbol_lower(), ax2.symbol_lower());
-
-                let mut twist = Twist {
-                    axis: face.into(),
-                    direction: dir.into(),
-                    layers: all_layers,
-                };
-                aliases.push((alias_string.clone(), Alias::EntireTwist(twist)));
-
-                twist.direction = dir.double().unwrap().into();
-                aliases.push((alias_string + "2", Alias::EntireTwist(twist)));
-            }
-        }
-        // Try to match longer aliases first.
-        aliases.sort_by_key(|(s, _)| -(s.len() as isize));
-
-        let notation = NotationScheme {
-            axis_names: FaceEnum::iter()
-                .map(|f| f.symbol_upper().to_string())
-                .collect(),
-            direction_names: TwistDirectionEnum::iter()
-                .map(|dir| {
-                    TwistDirectionName::PerAxis(
-                        FaceEnum::iter().map(|f| dir.symbol_on_face(f)).collect(),
-                    )
-                })
-                .collect(),
-            block_suffix: None,
-            aliases,
-        };
-
-        let shape = Arc::new(PuzzleShape {
-            name: "4-cube".to_string(),
-            ndim: 3,
-            faces: FaceEnum::iter().map(|f| f.info()).collect(),
-        });
-
-        let orientations = TwistDirectionEnum::iter()
-            .map(|dir| dir.twist_rotation(1.0))
-            .flat_map(|rot| {
-                [
-                    vector![1.],
-                    vector![0., 1.],
-                    vector![1., 1.],
-                    vector![1., -1.],
-                    vector![1., 0., 1.],
-                    vector![1., 0., -1.],
-                    vector![1., 0., 0., 1.],
-                    vector![1., 0., 0., -1.],
-                ]
-                .into_iter()
-                .map(move |v| Rotor::from_vector_product(vector![1.], v.normalise()) * &rot)
-                .filter_map(|r| r.normalize())
+    let notation = NotationScheme {
+        axis_names: FaceEnum::iter()
+            .map(|f| f.symbol_upper().to_string())
+            .collect(),
+        direction_names: TwistDirectionEnum::iter()
+            .map(|dir| {
+                TwistDirectionName::PerAxis(
+                    FaceEnum::iter().map(|f| dir.symbol_on_face(f)).collect(),
+                )
             })
-            .collect_vec();
+            .collect(),
+        block_suffix: None,
+        aliases,
+    };
 
-        let twists = Arc::new(PuzzleTwists {
-            name: "3-layer hypercubic".to_string(),
-            axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
-            directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
-            orientations,
-        });
+    let shape = Arc::new(PuzzleShape {
+        name: "4-cube".to_string(),
+        ndim: 3,
+        faces: FaceEnum::iter().map(|f| f.info()).collect(),
+    });
 
-        // It's not like we'll ever clear the cache anyway, so just leak it
-        // and let us have the 'static lifetimes.
-        Box::leak(Box::new(Rubiks4DDescription {
-            name: format!("{0}x{0}x{0}x{0}", layer_count),
+    let orientations = TwistDirectionEnum::iter()
+        .map(|dir| dir.twist_rotation(1.0))
+        .flat_map(|rot| {
+            [
+                vector![1.],
+                vector![0., 1.],
+                vector![1., 1.],
+                vector![1., -1.],
+                vector![1., 0., 1.],
+                vector![1., 0., -1.],
+                vector![1., 0., 0., 1.],
+                vector![1., 0., 0., -1.],
+            ]
+            .into_iter()
+            .map(move |v| Rotor::from_vector_product(vector![1.], v.normalise()) * &rot)
+            .filter_map(|r| r.normalize())
+        })
+        .collect_vec();
 
-            layer_count,
+    let twists = Arc::new(PuzzleTwists {
+        name: "3-layer hypercubic".to_string(),
+        axes: FaceEnum::iter()
+            .map(|f| f.twist_axis_info(layer_count))
+            .collect(),
+        directions: TwistDirectionEnum::iter().map(|dir| dir.info()).collect(),
+        orientations,
+    });
 
-            shape,
-            twists,
+    let info = Arc::new(Rubiks4DInfo { piece_locations });
 
-            pieces,
-            stickers,
-            piece_types: piece_types
-                .into_iter()
-                .map(|piece_type| PieceTypeInfo::new(piece_type.to_string()))
-                .collect(),
-            notation,
+    // It's not like we'll ever clear the cache anyway, so just leak it
+    // and let us have the 'static lifetimes.
+    Arc::new_cyclic(|this| PuzzleType {
+        this: this.clone(),
+        name: format!("{0}x{0}x{0}x{0}", layer_count),
+        ndim: 4,
+        shape,
+        twists,
 
-            piece_locations,
-        }))
+        family_name: "Rubiks4D".to_string(),
+        projection_type: ProjectionType::_4D,
+        radius: 4.0_f32.sqrt(),
+        layer_count,
+
+        pieces,
+        stickers,
+        piece_types: piece_types
+            .into_iter()
+            .map(|piece_type| PieceTypeInfo::new(piece_type.to_string()))
+            .collect(),
+        scramble_moves_count: 15 * layer_count as usize, // TODO pulled from thin air; probably insufficient for big cubes
+        notation,
+        new: Box::new(move |ty| {
+            let piece_states = vec![PieceState::default(); ty.pieces.len()].into_boxed_slice();
+            Box::new(Rubiks4D {
+                ty,
+                info: info.clone(),
+                piece_states,
+            })
+        }),
     })
 }
 
 #[derive(Debug, Clone)]
-struct Rubiks4DDescription {
-    name: String,
-
-    layer_count: u8,
-
-    shape: Arc<PuzzleShape>,
-    twists: Arc<PuzzleTwists>,
-
-    pieces: Vec<PieceInfo>,
-    stickers: Vec<StickerInfo>,
-    piece_types: Vec<PieceTypeInfo>,
-    notation: NotationScheme,
-
-    piece_locations: Vec<[u8; 4]>,
-}
-impl PuzzleType for Rubiks4DDescription {
-    fn ty(&self) -> PuzzleTypeEnum {
-        PuzzleTypeEnum::Rubiks4D {
-            layer_count: self.layer_count,
-        }
-    }
-    fn name(&self) -> &str {
-        &self.name
-    }
-    fn family_display_name(&self) -> &'static str {
-        "Rubik's 4D"
-    }
-    fn family_internal_name(&self) -> &'static str {
-        "Rubiks4D"
-    }
-    fn projection_type(&self) -> ProjectionType {
-        ProjectionType::_4D
-    }
-
-    fn layer_count(&self) -> u8 {
-        self.layer_count
-    }
-    fn radius(&self) -> f32 {
-        4.0_f32.sqrt()
-    }
-    fn scramble_moves_count(&self) -> usize {
-        15 * self.layer_count as usize // TODO pulled from thin air; probably insufficient for big cubes
-    }
-
-    fn shape(&self) -> &Arc<PuzzleShape> {
-        &self.shape
-    }
-    fn twists(&self) -> &Arc<PuzzleTwists> {
-        &self.twists
-    }
-
-    fn pieces(&self) -> &[PieceInfo] {
-        &self.pieces
-    }
-    fn stickers(&self) -> &[StickerInfo] {
-        &self.stickers
-    }
-    fn piece_types(&self) -> &[PieceTypeInfo] {
-        &self.piece_types
-    }
-
-    fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String> {
-        use FaceEnum::*;
-        use TwistDirectionEnum as Dir;
-
-        let (axis, direction) = match axis.into() {
-            R => (U, Dir::F),
-            L => (U, Dir::B),
-            U => (R, Dir::B),
-            D => (R, Dir::F),
-            F => (R, Dir::U),
-            B => (R, Dir::D),
-            O => return Err("cannot recenter near face".to_string()),
-            I => return Err("cannot recenter far face".to_string()),
-        };
-
-        Ok(Twist {
-            axis: axis.into(),
-            direction: direction.into(),
-            layers: self.all_layers(),
-        })
-    }
-
-    fn notation_scheme(&self) -> &NotationScheme {
-        &self.notation
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct Rubiks4D {
-    desc: &'static Rubiks4DDescription,
+    ty: Arc<PuzzleType>,
+    info: Arc<Rubiks4DInfo>,
     piece_states: Box<[PieceState]>,
 }
 impl Eq for Rubiks4D {}
@@ -349,6 +254,13 @@ impl IndexMut<Piece> for Rubiks4D {
     }
 }
 impl PuzzleState for Rubiks4D {
+    fn ty(&self) -> &Arc<PuzzleType> {
+        &self.ty
+    }
+    fn clone_boxed(&self) -> Box<dyn PuzzleState> {
+        Box::new(self.clone())
+    }
+
     fn twist(&mut self, twist: Twist) -> Result<(), &'static str> {
         for piece in self.pieces_affected_by_twist(twist) {
             self[piece] = self[piece].twist(twist.axis.into(), twist.direction.into());
@@ -358,7 +270,7 @@ impl PuzzleState for Rubiks4D {
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8 {
         let face: FaceEnum = twist_axis.into();
         let face_coord = match face.sign() {
-            Sign::Pos => self.layer_count() - 1,
+            Sign::Pos => self.ty.layer_count - 1,
             Sign::Neg => 0,
         };
         let piece_coord = self.piece_location(piece)[face.axis() as usize];
@@ -370,7 +282,7 @@ impl PuzzleState for Rubiks4D {
         sticker: Sticker,
         p: &StickerGeometryParams,
     ) -> Option<StickerGeometry> {
-        let piece = self.info(sticker).piece;
+        let piece = self.ty.info(sticker).piece;
         let face = self.sticker_face(sticker);
 
         let mut model_transform = Matrix::EMPTY_IDENT;
@@ -406,15 +318,15 @@ impl PuzzleState for Rubiks4D {
                         layers: LayerMask::default(),
                     }
                 });
-            let ccw = cw.map(|t| self.reverse_twist(t));
-            let recenter = self.make_recenter_twist(face.into()).ok();
+            let ccw = cw.map(|t| self.ty.reverse_twist(t));
+            let recenter = None;
             twists = [ClickTwists { cw, ccw, recenter }; 6];
             // Replace corner twists with face twists on centermost pieces.
             if self.is_centermost_piece(piece) {
                 let mut i = 0;
                 for ax in [Axis::X, Axis::Y, Axis::Z] {
                     for sign in [-1, 1] {
-                        if sticker_signs[ax as usize] == sign || self.layer_count() % 2 == 1 {
+                        if sticker_signs[ax as usize] == sign || self.ty.layer_count % 2 == 1 {
                             if let Some(new_dir) = TwistDirectionEnum::from_signs_within_face(
                                 ax.unit_vec4().truncate() * sign,
                             ) {
@@ -452,40 +364,29 @@ impl PuzzleState for Rubiks4D {
     }
 
     fn is_solved(&self) -> bool {
-        self.stickers()
+        self.ty
+            .stickers
             .iter()
             .enumerate()
             .all(|(i, sticker)| self.sticker_face(Sticker(i as _)) == sticker.color.into())
     }
 }
-#[delegate_to_methods]
-#[delegate(PuzzleType, target_ref = "desc")]
 impl Rubiks4D {
-    pub fn new(layer_count: u8) -> Self {
-        let desc = puzzle_description(layer_count);
-        let piece_states = vec![PieceState::default(); desc.pieces().len()].into_boxed_slice();
-        Self { desc, piece_states }
-    }
-
-    fn desc(&self) -> &Rubiks4DDescription {
-        self.desc
-    }
-
     fn piece_location(&self, piece: Piece) -> [u8; 4] {
         let piece_state = self[piece];
-        let initial_location = self.desc.piece_locations[piece.0 as usize];
+        let initial_location = self.info.piece_locations[piece.0 as usize];
         let mut ret = [0_u8; 4];
         for (i, axis) in Axis::iter().enumerate() {
             let r = piece_state[axis].axis() as usize;
             ret[r] = initial_location[i];
             if piece_state[axis].sign() == Sign::Neg {
-                ret[r] = self.layer_count() - 1 - ret[r];
+                ret[r] = self.ty.layer_count - 1 - ret[r];
             }
         }
         ret
     }
     fn piece_location_from_center(&self, piece: Piece) -> [i8; 4] {
-        let center = (self.layer_count() - 1) as f32 / 2.0;
+        let center = (self.ty.layer_count - 1) as f32 / 2.0;
         self.piece_location(piece)
             .map(|x| (x as f32 - center).round() as i8)
     }
@@ -505,7 +406,7 @@ impl Rubiks4D {
         let mut coords = self.piece_location_from_center(piece);
         coords.sort_by_key(|x| x.abs());
         let hi = coords[2];
-        if self.layer_count() % 2 == 0 {
+        if self.ty.layer_count % 2 == 0 {
             hi.abs() == 1
         } else {
             hi == 0
@@ -513,7 +414,7 @@ impl Rubiks4D {
     }
     fn sticker_signs_within_face(&self, sticker: Sticker) -> Vector3<i8> {
         let face = self.sticker_face(sticker);
-        let piece_loc_signs = self.piece_location_signs(self.info(sticker).piece);
+        let piece_loc_signs = self.piece_location_signs(self.ty.info(sticker).piece);
         Self::signs_within_face(face, piece_loc_signs)
     }
     fn signs_within_face(face: FaceEnum, piece_loc_signs: Vector4<i8>) -> Vector3<i8> {
@@ -525,7 +426,7 @@ impl Rubiks4D {
         )
     }
     fn sticker_face(&self, sticker: Sticker) -> FaceEnum {
-        let sticker_info = self.info(sticker);
+        let sticker_info = self.ty.info(sticker);
         let original_face: FaceEnum = sticker_info.color.into();
         let current_face = self[sticker_info.piece][original_face.axis()];
         match original_face.sign() {
@@ -544,7 +445,7 @@ impl Rubiks4D {
         ]
     }
     fn sticker_center_4d(&self, sticker: Sticker, p: &StickerGeometryParams) -> Vector<f32> {
-        let sticker_info = self.info(sticker);
+        let sticker_info = self.ty.info(sticker);
         let piece = sticker_info.piece;
         let mut ret = self.piece_center_4d(piece, p);
 
@@ -554,7 +455,7 @@ impl Rubiks4D {
     }
 
     fn piece_center_coordinate(&self, x: u8, p: &StickerGeometryParams) -> f32 {
-        (2.0 * x as f32 - (self.layer_count() - 1) as f32) * p.sticker_grid_scale
+        (2.0 * x as f32 - (self.ty.layer_count - 1) as f32) * p.sticker_grid_scale
     }
 
     pub fn to_mc4d_twist_string(mut twist: Twist) -> String {
@@ -756,13 +657,13 @@ impl From<FaceEnum> for TwistAxis {
 impl FaceEnum {
     fn info(self) -> FaceInfo {
         FaceInfo {
-            symbol: self.symbol_upper_str(),
-            name: self.name(),
+            name: self.name().to_owned(),
         }
     }
-    fn twist_axis_info(self) -> TwistAxisInfo {
+    fn twist_axis_info(self, layer_count: u8) -> TwistAxisInfo {
         TwistAxisInfo {
-            name: self.symbol_upper_str(),
+            symbol: self.symbol_upper_str(),
+            layer_count,
             opposite: Some((
                 self.opposite().into(),
                 TwistDirectionEnum::iter()
@@ -974,8 +875,8 @@ impl TwistDirectionEnum {
         use TwistDirectionEnum::*;
 
         TwistDirectionInfo {
-            symbol: self.symbol_xyz(),
-            name: self.name(),
+            symbol: self.symbol_xyz().to_owned(),
+            name: self.name().to_owned(),
             qtm: match self {
                 R | L | U | D | F | B => 1,
                 R2 | L2 | U2 | D2 | F2 | B2 => 2,
@@ -1399,44 +1300,5 @@ impl Axis {
             Axis::Z => Vector4::unit_z(),
             Axis::W => Vector4::unit_w(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-
-    #[test]
-    fn test_rubiks_4d_twist_canonicalization() {
-        for layer_count in 1..=4 {
-            let p = Rubiks4D::new(layer_count);
-            let are_twists_eq = |twist1, twist2| {
-                twist_comparison_key(&p, twist1) == twist_comparison_key(&p, twist2)
-            };
-            crate::puzzle::tests::test_twist_canonicalization(&p, are_twists_eq);
-        }
-    }
-
-    #[test]
-    fn test_rubiks_4d_twist_serialization() {
-        for layer_count in 1..=4 {
-            let p = Rubiks4D::new(layer_count);
-            crate::puzzle::tests::test_twist_serialization(&p);
-        }
-
-        for layer_count in 1..=7 {
-            let p = Rubiks4D::new(layer_count);
-            crate::puzzle::tests::test_layered_twist_serialization(&p);
-        }
-    }
-
-    fn twist_comparison_key(p: &Rubiks4D, twist: Twist) -> impl PartialEq {
-        const SOME_PROGRESS: f32 = 0.1;
-
-        let face: FaceEnum = twist.axis.into();
-        let matrix = face.twist_matrix(twist.direction.into(), SOME_PROGRESS);
-        let pieces_affected = p.pieces_affected_by_twist(twist);
-        (matrix, pieces_affected)
     }
 }

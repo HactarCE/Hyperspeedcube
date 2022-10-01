@@ -10,6 +10,8 @@ mod puzzle_controls;
 mod view_settings;
 mod welcome;
 
+use std::sync::Arc;
+
 use crate::app::App;
 
 pub const FLOATING_WINDOW_OPACITY: f32 = 0.98;
@@ -163,7 +165,7 @@ pub const PUZZLE_KEYBINDS: Window = Window {
     fixed_width: None,
     vscroll: false,
     build: |ui, app| {
-        let puzzle_type = app.puzzle.ty();
+        let puzzle_type = Arc::clone(app.puzzle.ty());
 
         egui::CollapsingHeader::new("Keybind sets")
             .default_open(true)
@@ -176,13 +178,13 @@ pub const PUZZLE_KEYBINDS: Window = Window {
         egui::CollapsingHeader::new("Keybinds")
             .default_open(true)
             .show(ui, |ui| {
-                let set_name = app.prefs.puzzle_keybinds[puzzle_type].active.clone();
+                let set_name = app.prefs.puzzle_keybinds[&*puzzle_type].active.clone();
 
                 // Show keybinds table.
                 let r = ui.add(keybinds_table::KeybindsTable::new(
                     app,
                     super::keybind_set_accessors::PuzzleKeybindsAccessor {
-                        puzzle_type,
+                        puzzle_type: puzzle_type.arc(),
                         set_name,
                     },
                 ));

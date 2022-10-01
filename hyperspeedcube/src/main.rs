@@ -11,10 +11,6 @@
 )]
 
 #[macro_use]
-extern crate ambassador;
-#[macro_use]
-extern crate enum_dispatch;
-#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate strum;
@@ -40,6 +36,7 @@ use app::App;
 
 const TITLE: &str = "Hyperspeedcube";
 const ICON_32: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
+const DEFAULT_PUZZLE: &str = "3x3x3";
 
 fn main() {
     // Initialize logging.

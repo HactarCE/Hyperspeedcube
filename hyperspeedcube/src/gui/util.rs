@@ -2,8 +2,9 @@ use egui::NumExt;
 use itertools::Itertools;
 use std::borrow::Cow;
 use std::hash::Hash;
+use std::sync::Arc;
 
-use crate::puzzle::{rubiks_3d, rubiks_4d, traits::*, PuzzleTypeEnum};
+use crate::puzzle::{PuzzleType, PUZZLE_REGISTRY};
 use crate::serde_impl::hex_color;
 
 const NONE_TEXT: &str = "-";
@@ -11,41 +12,15 @@ const NONE_TOOLTIP: &str = "Use the current grip";
 
 pub(super) const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 
-pub(super) fn puzzle_select_menu(ui: &mut egui::Ui) -> Option<PuzzleTypeEnum> {
+pub(super) fn puzzle_select_menu(ui: &mut egui::Ui) -> Option<Arc<PuzzleType>> {
     let mut ret = None;
 
-    let default = PuzzleTypeEnum::Rubiks3D {
-        layer_count: rubiks_3d::DEFAULT_LAYER_COUNT,
-    };
-    let r = ui.menu_button(default.family_display_name(), |ui| {
-        for layer_count in rubiks_3d::MIN_LAYER_COUNT..=rubiks_3d::MAX_LAYER_COUNT {
-            let ty = PuzzleTypeEnum::Rubiks3D { layer_count };
-            if ui.button(ty.name()).clicked() {
-                ui.close_menu();
-                ret = Some(ty);
-            }
+    // TODO: order these more nicely
+    for (name, ty) in PUZZLE_REGISTRY.lock().iter() {
+        if ui.button(name).clicked() {
+            ui.close_menu();
+            ret = Some(Arc::clone(ty));
         }
-    });
-    if r.response.clicked() {
-        ui.close_menu();
-        ret = Some(default);
-    }
-
-    let default = PuzzleTypeEnum::Rubiks4D {
-        layer_count: rubiks_4d::DEFAULT_LAYER_COUNT,
-    };
-    let r = ui.menu_button(default.family_display_name(), |ui| {
-        for layer_count in rubiks_4d::LAYER_COUNT_RANGE {
-            let ty = PuzzleTypeEnum::Rubiks4D { layer_count };
-            if ui.button(ty.name()).clicked() {
-                ui.close_menu();
-                ret = Some(ty);
-            }
-        }
-    });
-    if r.response.clicked() {
-        ui.close_menu();
-        ret = Some(default);
     }
 
     ret
@@ -426,9 +401,9 @@ impl<T> PrefsUi<'_, T> {
     }
 }
 
-pub(super) struct Access<T, U> {
-    pub get_ref: Box<dyn Fn(&T) -> &U>,
-    pub get_mut: Box<dyn Fn(&mut T) -> &mut U>,
+pub(super) struct Access<'a, T, U> {
+    pub get_ref: Box<dyn 'a + Fn(&T) -> &U>,
+    pub get_mut: Box<dyn 'a + Fn(&mut T) -> &mut U>,
 }
 macro_rules! access {
     ($($suffix_tok:tt)*) => {

@@ -6,12 +6,30 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fmt;
+use std::hash::Hash;
 use std::ops::*;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use strum::{Display, EnumIter, EnumMessage};
 
 use super::*;
+
+pub trait PuzzleInfo<T> {
+    type Output;
+
+    fn info(&self, thing: T) -> &Self::Output;
+}
+macro_rules! impl_puzzle_info_trait {
+    (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {
+        impl PuzzleInfo<$thing> for $t {
+            type Output = $thing_info;
+
+            fn info(&self, thing: $thing) -> &$thing_info {
+                &self $($tok)* [thing.0 as usize]
+            }
+        }
+    };
+}
 
 /// Puzzle shape.
 #[derive(Debug)]
@@ -24,6 +42,7 @@ pub struct PuzzleShape {
     // TODO: rename to `facets` and `FacetInfo`
     pub faces: Vec<FaceInfo>,
 }
+impl_puzzle_info_trait!(for PuzzleShape { fn info(Face) -> &FaceInfo { .faces } });
 
 /// Puzzle twist set.
 #[derive(Debug)]
@@ -39,76 +58,138 @@ pub struct PuzzleTwists {
     /// Puzzle orientations, in no particular order.
     pub orientations: Vec<Rotor>,
 }
-
-#[delegatable_trait]
-#[enum_dispatch]
-pub trait PuzzleType {
-    fn ty(&self) -> PuzzleTypeEnum;
-    fn name(&self) -> &str;
-    fn family_display_name(&self) -> &'static str;
-    fn family_internal_name(&self) -> &'static str;
-    fn projection_type(&self) -> ProjectionType;
-
-    fn layer_count(&self) -> u8;
-
-    fn shape(&self) -> &Arc<PuzzleShape>;
-    fn twists(&self) -> &Arc<PuzzleTwists>;
-
-    fn radius(&self) -> f32;
-    fn scramble_moves_count(&self) -> usize;
-
-    fn faces(&self) -> &[FaceInfo] {
-        &self.shape().faces
-    }
-    fn pieces(&self) -> &[PieceInfo];
-    fn stickers(&self) -> &[StickerInfo];
-    fn twist_axes(&self) -> &[TwistAxisInfo] {
-        &self.twists().axes
-    }
-    fn twist_directions(&self) -> &[TwistDirectionInfo] {
-        &self.twists().directions
-    }
-    fn piece_types(&self) -> &[PieceTypeInfo];
-
-    fn twist_axis_from_name(&self, name: &str) -> Option<TwistAxis> {
-        (0..self.twist_axes().len() as u8)
+impl_puzzle_info_trait!(for PuzzleTwists { fn info(TwistAxis) -> &TwistAxisInfo { .axes } });
+impl_puzzle_info_trait!(for PuzzleTwists { fn info(TwistDirection) -> &TwistDirectionInfo { .directions } });
+impl PuzzleTwists {
+    pub fn axis_from_symbol(&self, symbol: &str) -> Option<TwistAxis> {
+        (0..self.axes.len() as u8)
             .map(TwistAxis)
-            .find(|&twist_axis| self.info(twist_axis).name == name)
+            .find(|&twist_axis| self.info(twist_axis).symbol == symbol)
     }
-    fn twist_direction_from_name(&self, name: &str) -> Option<TwistDirection> {
-        (0..self.twist_directions().len() as u8)
+    pub fn direction_from_name(&self, name: &str) -> Option<TwistDirection> {
+        (0..self.directions.len() as u8)
             .map(TwistDirection)
             .find(|&twist_direction| self.info(twist_direction).name == name)
     }
 
-    fn check_layers(&self, layers: LayerMask) -> Result<(), &'static str> {
-        let layer_count = self.layer_count() as u32;
+    pub fn nearest_orientation(&self, rot: &Rotor) -> Rotor {
+        let inv_rot = rot.reverse();
+
+        let mut nearest = Rotor::identity();
+        // The scalar part of a rotor is the cosine of half the angle of
+        // rotation. So we can use the absolute value of that quantity to
+        // compare whether one rotor is a larger rotation than another.
+        let mut score_of_nearest = -1.0;
+        for candidate in &self.orientations {
+            let s = (&inv_rot * candidate).s().abs();
+
+            if s > score_of_nearest {
+                nearest = candidate.clone();
+                score_of_nearest = s;
+            }
+        }
+        nearest
+    }
+}
+
+pub struct PuzzleType {
+    pub this: Weak<PuzzleType>,
+    pub name: String,
+    pub ndim: u8,
+    pub shape: Arc<PuzzleShape>,
+    pub twists: Arc<PuzzleTwists>,
+
+    pub family_name: String,             // TODO: remove
+    pub projection_type: ProjectionType, // TODO: remove
+    pub radius: f32,                     // TODO: remove
+    pub layer_count: u8,                 // TODO: remove
+
+    pub pieces: Vec<PieceInfo>,
+    pub stickers: Vec<StickerInfo>,
+    pub piece_types: Vec<PieceTypeInfo>,
+
+    pub scramble_moves_count: usize,
+
+    pub notation: NotationScheme,
+
+    pub new: Box<dyn Send + Sync + Fn(Arc<PuzzleType>) -> Box<dyn PuzzleState>>,
+}
+impl fmt::Debug for PuzzleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PuzzleType")
+            .field("this", &self.this)
+            .field("name", &self.name)
+            .field("ndim", &self.ndim)
+            .field("shape", &self.shape)
+            .field("twists", &self.twists)
+            .field("family_name", &self.family_name)
+            .field("projection_type", &self.projection_type)
+            .field("radius", &self.radius)
+            .field("pieces", &self.pieces)
+            .field("stickers", &self.stickers)
+            .field("piece_types", &self.piece_types)
+            .field("scramble_moves_count", &self.scramble_moves_count)
+            .field("notation", &self.notation)
+            .finish()
+    }
+}
+impl fmt::Display for PuzzleType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+impl Hash for PuzzleType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+    }
+}
+impl AsRef<str> for PuzzleType {
+    fn as_ref(&self) -> &str {
+        &self.name
+    }
+}
+impl_puzzle_info_trait!(for PuzzleType { fn info(Face) -> &FaceInfo { .shape.faces } });
+impl_puzzle_info_trait!(for PuzzleType { fn info(TwistAxis) -> &TwistAxisInfo { .twists.axes } });
+impl_puzzle_info_trait!(for PuzzleType { fn info(TwistDirection) -> &TwistDirectionInfo { .twists.directions } });
+impl_puzzle_info_trait!(for PuzzleType { fn info(Piece) -> &PieceInfo { .pieces } });
+impl_puzzle_info_trait!(for PuzzleType { fn info(Sticker) -> &StickerInfo { .stickers } });
+impl_puzzle_info_trait!(for PuzzleType { fn info(PieceType) -> &PieceTypeInfo { .piece_types } });
+impl PuzzleType {
+    pub fn new(&self) -> Box<dyn PuzzleState> {
+        (self.new)(self.arc())
+    }
+    pub fn arc(&self) -> Arc<Self> {
+        self.this
+            .upgrade()
+            .expect("unable to promote Weak<PuzzleType> to Arc<PuzzleType>")
+    }
+
+    pub fn check_layers(&self, layers: LayerMask) -> Result<(), &'static str> {
+        let layer_count = self.layer_count as u32;
         if layers.0 > 0 || layers.0 < 1 << layer_count {
             Ok(())
         } else {
             Err("invalid layer mask")
         }
     }
-    fn all_layers(&self) -> LayerMask {
-        LayerMask::all_layers(self.layer_count())
+    pub fn all_layers(&self) -> LayerMask {
+        LayerMask::all_layers(self.layer_count)
     }
-    fn slice_layers(&self) -> Option<LayerMask> {
-        LayerMask::slice_layers(self.layer_count())
+    pub fn slice_layers(&self) -> Option<LayerMask> {
+        LayerMask::slice_layers(self.layer_count)
     }
-    fn reverse_layers(&self, layers: LayerMask) -> LayerMask {
-        LayerMask(layers.0.reverse_bits() >> (32 - self.layer_count()))
+    pub fn reverse_layers(&self, layers: LayerMask) -> LayerMask {
+        LayerMask(layers.0.reverse_bits() >> (32 - self.layer_count))
     }
 
-    fn make_recenter_twist(&self, axis: TwistAxis) -> Result<Twist, String>;
-
-    fn reverse_twist(&self, twist: Twist) -> Twist {
+    pub fn reverse_twist(&self, twist: Twist) -> Twist {
         Twist {
             axis: twist.axis,
             direction: self.info(twist.direction).rev,
             layers: twist.layers,
         }
     }
-    fn canonicalize_twist(&self, twist: Twist) -> Twist {
+    pub fn canonicalize_twist(&self, twist: Twist) -> Twist {
         if let Some((opp_axis, rev_dir)) = self.info(twist.axis).opposite_twist(twist.direction) {
             let opposite_twist = Twist {
                 axis: opp_axis,
@@ -121,27 +202,7 @@ pub trait PuzzleType {
         }
     }
 
-    fn nearest_orientation(&self, rot: &Rotor) -> Rotor {
-        let inv_rot = rot.reverse();
-
-        let mut nearest = Rotor::identity();
-        // The scalar part of a rotor is the cosine of half the angle of
-        // rotation. So we can use the absolute value of that quantity to
-        // compare whether one rotor is a larger rotation than another.
-        let mut score_of_nearest = -1.0;
-        for candidate in &self.twists().orientations {
-            let s = (&inv_rot * candidate).s().abs();
-
-            if s > score_of_nearest {
-                nearest = candidate.clone();
-                score_of_nearest = s;
-            }
-        }
-        nearest
-    }
-
-    fn notation_scheme(&self) -> &NotationScheme;
-    fn split_twists_string<'s>(&self, string: &'s str) -> regex::Matches<'static, 's> {
+    pub fn split_twists_string<'s>(&self, string: &'s str) -> regex::Matches<'static, 's> {
         const TWIST_PATTERN: &str = r"(\{[\d\s,]*\}|[^\s()])+";
         // one or more of either      (                    )+
         //     a pair of `{}`          \{        \}
@@ -160,7 +221,7 @@ pub trait PuzzleType {
         TWIST_REGEX.find_iter(string)
     }
 
-    fn twist_command_short_description(
+    pub fn twist_command_short_description(
         &self,
         axis_name: Option<TwistAxis>,
         direction: TwistDirection,
@@ -168,39 +229,31 @@ pub trait PuzzleType {
     ) -> String {
         match axis_name {
             Some(axis) => self
-                .notation_scheme()
+                .notation
                 .twist_to_string(self.canonicalize_twist(Twist {
                     axis,
                     direction,
                     layers,
                 })),
             None => {
-                let dir = self.info(direction).symbol;
+                let dir = &self.info(direction).symbol;
                 format!("{layers}Ø{dir}")
             }
         }
     }
 }
 
-trait PuzzleTypeRefExt {
-    fn deref_internal(&self) -> Self;
-}
-#[delegate_to_methods]
-#[delegate(PuzzleType, target_ref = "deref_internal")]
-impl<'a, P: PuzzleType> PuzzleTypeRefExt for &'a P {
-    fn deref_internal(&self) -> &'a P {
-        *self
-    }
-}
+pub trait PuzzleState: fmt::Debug + Send + Sync {
+    fn ty(&self) -> &Arc<PuzzleType>;
 
-#[enum_dispatch]
-pub trait PuzzleState: PuzzleType {
+    fn clone_boxed(&self) -> Box<dyn PuzzleState>;
+
     fn twist(&mut self, twist: Twist) -> Result<(), &'static str>;
     fn is_piece_affected_by_twist(&self, twist: Twist, piece: Piece) -> bool {
         twist.layers[self.layer_from_twist_axis(twist.axis, piece)]
     }
     fn pieces_affected_by_twist(&self, twist: Twist) -> Vec<Piece> {
-        (0..self.pieces().len() as _)
+        (0..self.ty().pieces.len() as _)
             .map(Piece)
             .filter(|&piece| self.is_piece_affected_by_twist(twist, piece))
             .collect()
@@ -218,62 +271,38 @@ pub trait PuzzleState: PuzzleType {
     #[cfg(debug_assertions)]
     fn sticker_debug_info(&self, _s: &mut String, _sticker: Sticker) {}
 }
+impl Clone for Box<dyn PuzzleState> {
+    fn clone(&self) -> Self {
+        self.clone_boxed()
+    }
+}
+impl<T: PuzzleState> PuzzleState for Box<T> {
+    fn ty(&self) -> &Arc<PuzzleType> {
+        (**self).ty()
+    }
 
-/// Enumeration of all puzzle types.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum PuzzleTypeEnum {
-    /// 3D Rubik's cube.
-    Rubiks3D {
-        #[serde(deserialize_with = "rubiks_3d::deserialize_layer_count")]
-        layer_count: u8,
-    },
-    /// 4D Rubik's cube.
-    Rubiks4D {
-        #[serde(deserialize_with = "rubiks_4d::deserialize_layer_count")]
-        layer_count: u8,
-    },
-}
-#[delegate_to_methods]
-#[delegate(PuzzleType, target_ref = "as_dyn_type")]
-impl PuzzleTypeEnum {
-    fn as_dyn_type(&self) -> &dyn PuzzleType {
-        match *self {
-            PuzzleTypeEnum::Rubiks3D { layer_count } => rubiks_3d::puzzle_type(layer_count),
-            PuzzleTypeEnum::Rubiks4D { layer_count } => rubiks_4d::puzzle_type(layer_count),
-        }
+    fn clone_boxed(&self) -> Box<dyn PuzzleState> {
+        (**self).clone_boxed()
     }
-    pub fn validate(self) -> Result<(), String> {
-        match self {
-            PuzzleTypeEnum::Rubiks3D { layer_count } => {
-                if rubiks_3d::LAYER_COUNT_RANGE.contains(&layer_count) {
-                    Ok(())
-                } else {
-                    Err(format!("invalid layer count {layer_count} for this puzzle"))
-                }
-            }
-            PuzzleTypeEnum::Rubiks4D { layer_count } => {
-                if rubiks_4d::LAYER_COUNT_RANGE.contains(&layer_count) {
-                    Ok(())
-                } else {
-                    Err(format!("invalid layer count {layer_count} for this puzzle"))
-                }
-            }
-        }
+
+    fn twist(&mut self, twist: Twist) -> Result<(), &'static str> {
+        (**self).twist(twist)
     }
-}
-impl Default for PuzzleTypeEnum {
-    fn default() -> Self {
-        Self::Rubiks4D { layer_count: 3 }
+
+    fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8 {
+        (**self).layer_from_twist_axis(twist_axis, piece)
     }
-}
-impl fmt::Display for PuzzleTypeEnum {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name())
+
+    fn sticker_geometry(
+        &self,
+        sticker: Sticker,
+        p: &StickerGeometryParams,
+    ) -> Option<StickerGeometry> {
+        (**self).sticker_geometry(sticker, p)
     }
-}
-impl AsRef<str> for PuzzleTypeEnum {
-    fn as_ref(&self) -> &str {
-        self.name()
+
+    fn is_solved(&self) -> bool {
+        (**self).is_solved()
     }
 }
 
@@ -304,7 +333,7 @@ impl FromStr for Twist {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // IIFE for to mimic `try_block`
+        // IIFE to mimic `try_block`
         (|| {
             let mut segments = s.split(',');
             let axis = TwistAxis(segments.next()?.parse().ok()?);
@@ -323,12 +352,12 @@ impl FromStr for Twist {
     }
 }
 impl Twist {
-    pub fn from_rng(ty: PuzzleTypeEnum) -> Self {
+    pub fn from_rng(ty: &PuzzleType) -> Self {
         let mut rng = rand::thread_rng();
         Self {
-            axis: TwistAxis(rng.gen_range(0..ty.twist_axes().len()) as _),
-            direction: TwistDirection(rng.gen_range(0..ty.twist_directions().len()) as _),
-            layers: if ty.layer_count() > 1 {
+            axis: TwistAxis(rng.gen_range(0..ty.twists.axes.len()) as _),
+            direction: TwistDirection(rng.gen_range(0..ty.twists.directions.len()) as _),
+            layers: if ty.layer_count > 1 {
                 LayerMask(rng.gen_range(1..ty.all_layers().0))
             } else {
                 ty.all_layers()
@@ -337,35 +366,7 @@ impl Twist {
     }
 }
 
-/// Puzzle of any type.
-#[enum_dispatch(PuzzleType, PuzzleState)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Puzzle {
-    /// 3D Rubik's cube.
-    Rubiks3D(Rubiks3D),
-    /// 4D Rubik's cube.
-    Rubiks4D(Rubiks4D),
-}
-impl Default for Puzzle {
-    fn default() -> Self {
-        Self::new(PuzzleTypeEnum::default())
-    }
-}
-impl Puzzle {
-    /// Creates a new puzzle of a particular type.
-    pub fn new(ty: PuzzleTypeEnum) -> Puzzle {
-        match ty {
-            PuzzleTypeEnum::Rubiks3D { layer_count } => {
-                Puzzle::Rubiks3D(Rubiks3D::new(layer_count))
-            }
-            PuzzleTypeEnum::Rubiks4D { layer_count } => {
-                Puzzle::Rubiks4D(Rubiks4D::new(layer_count))
-            }
-        }
-    }
-}
-
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Piece(pub u16);
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Sticker(pub u16);
@@ -378,29 +379,6 @@ pub struct TwistDirection(pub u8);
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PieceType(pub u8);
 
-pub trait PuzzleInfo<T> {
-    type Output;
-
-    fn info(&self, thing: T) -> &Self::Output;
-}
-macro_rules! impl_puzzle_info_trait {
-    (fn $method:ident($thing:ty) -> &$thing_info:ty) => {
-        impl<T: PuzzleType + ?Sized> PuzzleInfo<$thing> for T {
-            type Output = $thing_info;
-
-            fn info(&self, thing: $thing) -> &$thing_info {
-                &self.$method()[thing.0 as usize]
-            }
-        }
-    };
-}
-impl_puzzle_info_trait!(fn faces(Face) -> &FaceInfo);
-impl_puzzle_info_trait!(fn pieces(Piece) -> &PieceInfo);
-impl_puzzle_info_trait!(fn stickers(Sticker) -> &StickerInfo);
-impl_puzzle_info_trait!(fn twist_axes(TwistAxis) -> &TwistAxisInfo);
-impl_puzzle_info_trait!(fn twist_directions(TwistDirection) -> &TwistDirectionInfo);
-impl_puzzle_info_trait!(fn piece_types(PieceType) -> &PieceTypeInfo);
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PieceInfo {
     pub stickers: SmallVec<[Sticker; 8]>,
@@ -411,25 +389,25 @@ pub struct StickerInfo {
     pub piece: Piece,
     pub color: Face,
 }
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FaceInfo {
-    pub symbol: &'static str, // e.g., "R"
-    pub name: &'static str,   // e.g., "Right"
+    pub name: String, // e.g., "Right"
 }
 impl FaceInfo {
-    pub const fn new(symbol: &'static str, name: &'static str) -> Self {
-        Self { symbol, name }
+    pub const fn new(name: String) -> Self {
+        Self { name }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TwistAxisInfo {
-    pub name: &'static str, // e.g., "R"
+    pub symbol: &'static str, // e.g., "R"
+    pub layer_count: u8,
     pub opposite: Option<(TwistAxis, Vec<TwistDirection>)>,
 }
 impl AsRef<str> for TwistAxisInfo {
     fn as_ref(&self) -> &str {
-        self.name
+        self.symbol
     }
 }
 impl TwistAxisInfo {
@@ -443,16 +421,16 @@ impl TwistAxisInfo {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TwistDirectionInfo {
-    pub symbol: &'static str, // "'"
-    pub name: &'static str,   // "CCW"
+    pub symbol: String, // "'"
+    pub name: String,   // "CCW"
     pub qtm: usize,
     pub rev: TwistDirection,
 }
 impl AsRef<str> for TwistDirectionInfo {
     fn as_ref(&self) -> &str {
-        self.name
+        &self.name
     }
 }
 
@@ -584,7 +562,7 @@ impl TwistMetric {
     /// Counts a sequence of twists using this metric.
     pub fn count_twists(
         self,
-        puzzle: impl PuzzleType,
+        puzzle: &PuzzleType,
         twists: impl IntoIterator<Item = Twist>,
     ) -> usize {
         #[allow(clippy::needless_late_init)]
@@ -653,8 +631,8 @@ impl TwistMetric {
             prev_axis = Some(twist.axis);
             prev_layers = Some(twist.layers);
 
-            count += direction_multiplier
-                * slice_multiplier(twist.layers, puzzle.layer_count()) as usize;
+            count +=
+                direction_multiplier * slice_multiplier(twist.layers, puzzle.layer_count) as usize;
         }
 
         count

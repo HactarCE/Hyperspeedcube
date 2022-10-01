@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::app::App;
 use crate::gui::util;
 use crate::puzzle::*;
@@ -9,7 +11,7 @@ pub fn cleanup(app: &mut App) {
 }
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    let puzzle_type = app.puzzle.ty();
+    let puzzle_type = Arc::clone(app.puzzle.ty());
 
     let grip = app.grip();
 
@@ -23,9 +25,9 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.strong("Twist axis");
     ui.with_layout(h_layout, |ui| {
         util::reset_button(ui, &mut app.toggle_grip.axes, Grip::default().axes, "");
-        for (i, twist_axis) in puzzle_type.twist_axes().iter().enumerate() {
+        for (i, twist_axis) in puzzle_type.twists.axes.iter().enumerate() {
             let mut is_sel = grip.axes.contains(&TwistAxis(i as _));
-            let r = ui.selectable_value(&mut is_sel, true, twist_axis.name);
+            let r = ui.selectable_value(&mut is_sel, true, twist_axis.symbol);
             if r.changed() {
                 app.toggle_grip
                     .toggle_axis(TwistAxis(i as _), !multi_select);
@@ -38,7 +40,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.strong("Layers");
     ui.with_layout(h_layout, |ui| {
         util::reset_button(ui, &mut app.toggle_grip.layers, Grip::default().layers, "");
-        for i in 0..puzzle_type.layer_count() {
+        for i in 0..puzzle_type.layer_count {
             let mut is_sel = grip.layers.unwrap_or_default()[i as u8];
             let r = ui.selectable_value(&mut is_sel, true, format!("{}", i + 1));
             if r.changed() {
@@ -55,8 +57,8 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.strong("Twist");
     ui.add_enabled_ui(can_twist, |ui| {
         ui.with_layout(h_layout, |ui| {
-            for (i, twist_direction) in puzzle_type.twist_directions().iter().enumerate() {
-                if ui.button(twist_direction.name).clicked() {
+            for (i, twist_direction) in puzzle_type.twists.directions.iter().enumerate() {
+                if ui.button(&twist_direction.name).clicked() {
                     if let Ok(axis) = twist_axis {
                         // should always be `Ok`
                         app.event(Twist {

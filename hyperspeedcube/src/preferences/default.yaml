@@ -198,21 +198,21 @@ colors:
   blindfold: false
   faces:
     Rubiks3D:
-      B: "#4488ff"
-      D: "#ffff00"
-      F: "#66cc44"
-      L: "#ff9922"
-      R: "#cc3333"
-      U: "#ffffff"
+      Back: "#4488ff"
+      Down: "#ffff00"
+      Front: "#66cc44"
+      Left: "#ff9922"
+      Right: "#cc3333"
+      Up: "#ffffff"
     Rubiks4D:
-      B: "#ffff00"
-      D: "#88ee66"
-      F: "#ffffff"
-      I: "#8822cc"
-      L: "#ff9922"
-      O: "#ff66ff"
-      R: "#cc3333"
-      U: "#33aaff"
+      Back: "#ffff00"
+      Down: "#88ee66"
+      Front: "#ffffff"
+      In: "#8822cc"
+      Left: "#ff9922"
+      Out: "#ff66ff"
+      Right: "#cc3333"
+      Up: "#33aaff"
 piece_filters: {}
 global_keybinds:
   - vk: O
@@ -249,15 +249,10 @@ global_keybinds:
     command: scramble_full
   - vk: F3
     command:
-      new_puzzle:
-        Rubiks3D:
-          layer_count: 3
+      new_puzzle: 3x3x3
   - vk: F4
     command:
-      new_puzzle:
-        Rubiks4D:
-          layer_count: 3
-
+      new_puzzle: 3x3x3x3
 puzzle_keybinds:
   Rubiks3D:
     active: Default

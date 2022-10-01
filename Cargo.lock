@@ -61,18 +61,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ambassador"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b5b3b5b19ef25117b6a62a83bfca06a00dce36e932ea3216d11af861cf8795f"
-dependencies = [
- "itertools",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "android_glue"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1034,18 +1022,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "enum_dispatch"
-version = "0.3.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0eb359f1476bf611266ac1f5355bc14aeca37b299d0ebccc038ee7058891c9cb"
-dependencies = [
- "once_cell",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "enumflags2"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1583,7 +1559,6 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 name = "hyperspeedcube"
 version = "2.0.0-dev"
 dependencies = [
- "ambassador",
  "anyhow",
  "bitvec",
  "bytemuck",
@@ -1595,7 +1570,6 @@ dependencies = [
  "egui_wgpu_backend",
  "egui_winit_platform",
  "enum-iterator",
- "enum_dispatch",
  "env_logger",
  "epi",
  "hex",
@@ -1608,6 +1582,7 @@ dependencies = [
  "ndpuzzle",
  "num_enum",
  "once_cell",
+ "parking_lot 0.12.1",
  "png",
  "pollster",
  "rand",

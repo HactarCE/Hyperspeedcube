@@ -6,7 +6,7 @@ use ndpuzzle::math::{Matrix, Rotor, VectorRef};
 use smallvec::{smallvec, SmallVec};
 use std::cmp::Ordering;
 
-use super::{ClickTwists, PuzzleType, PuzzleTypeEnum, Sticker, Twist};
+use super::{ClickTwists, PuzzleType, Sticker, Twist};
 use crate::preferences::ViewPreferences;
 use crate::util::{self, IterCyclicPairsExt};
 
@@ -66,7 +66,7 @@ impl StickerGeometryParams {
     /// Constructs sticker geometry parameters for a set of view preferences.
     pub fn new(
         view_prefs: &ViewPreferences,
-        puzzle_type: PuzzleTypeEnum,
+        puzzle_type: &PuzzleType,
         twist_animation: Option<(Twist, f32)>,
         view_angle_offset: &Rotor,
     ) -> Self {
@@ -75,7 +75,7 @@ impl StickerGeometryParams {
         let view_transform = (view_prefs.view_angle() * view_angle_offset)
             .matrix()
             .pad(4)
-            * (1.0 / puzzle_type.radius());
+            * (1.0 / puzzle_type.radius);
 
         let ambient_light = util::mix(
             view_prefs.light_directional * 0.5,
@@ -89,15 +89,15 @@ impl StickerGeometryParams {
             * 0.5;
 
         let face_spacing = view_prefs.face_spacing;
-        let sticker_spacing = if puzzle_type.layer_count() > 1 {
+        let sticker_spacing = if puzzle_type.layer_count > 1 {
             view_prefs.sticker_spacing
         } else {
             0.0
         };
 
         let sticker_grid_scale =
-            (1.0 - face_spacing) / (puzzle_type.layer_count() as f32 - sticker_spacing);
-        let face_scale = sticker_grid_scale * (puzzle_type.layer_count() as f32);
+            (1.0 - face_spacing) / (puzzle_type.layer_count as f32 - sticker_spacing);
+        let face_scale = sticker_grid_scale * (puzzle_type.layer_count as f32);
         let sticker_scale = sticker_grid_scale * (1.0 - sticker_spacing);
 
         Self {

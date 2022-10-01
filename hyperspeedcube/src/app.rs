@@ -159,9 +159,13 @@ impl App {
                 }
 
                 Command::NewPuzzle(puzzle_type) => {
-                    if self.confirm_discard_changes("reset puzzle") {
-                        self.puzzle = PuzzleController::new(puzzle_type);
-                        self.set_status_ok(format!("Loaded {}", puzzle_type));
+                    if let Some(ty) = PUZZLE_REGISTRY.lock().get(&puzzle_type) {
+                        if self.confirm_discard_changes("reset puzzle") {
+                            self.puzzle = PuzzleController::new(ty);
+                            self.set_status_ok(format!("Loaded {}", puzzle_type));
+                        }
+                    } else {
+                        show_error_dialog("Missing puzzle", "Puzzle does not exist");
                     }
                 }
 
@@ -325,7 +329,7 @@ impl App {
                         }
                     }
 
-                    new_grip.layers = Some(layers.to_layer_mask(self.puzzle.layer_count()))
+                    new_grip.layers = Some(layers.to_layer_mask(self.puzzle.ty().layer_count))
                         .filter(|&l| l != LayerMask(0));
 
                     self.transient_grips.insert(key, new_grip);
@@ -339,7 +343,7 @@ impl App {
                 } => {
                     if !done_twist_command {
                         self.puzzle.snap_view_angle_offset();
-                        let layers = layers.to_layer_mask(self.puzzle.layer_count());
+                        let layers = layers.to_layer_mask(self.puzzle.ty().layer_count);
                         match self.do_twist(axis.as_deref(), direction, layers) {
                             Ok(()) => {
                                 done_twist_command = true;
@@ -368,7 +372,7 @@ impl App {
                     {
                         Some(p) => p.value.clone(),
                         None if filter_name == "Everything" => PieceFilter {
-                            visible_pieces: bitvec![1; self.puzzle.ty().pieces().len()],
+                            visible_pieces: bitvec![1; self.puzzle.ty().pieces.len()],
                             hidden_opacity: None,
                         },
                         None => {
@@ -497,12 +501,15 @@ impl App {
         let name = name.ok_or("No twist axis gripped")?;
         self.puzzle
             .ty()
-            .twist_axis_from_name(name)
+            .twists
+            .axis_from_symbol(name)
             .ok_or_else(|| format!("Unknown twist axis {name:?}"))
     }
     fn twist_direction_from_name(&self, name: &str) -> Result<TwistDirection, String> {
         self.puzzle
-            .twist_direction_from_name(name)
+            .ty()
+            .twists
+            .direction_from_name(name)
             .ok_or_else(|| format!("Unknown twist direction {name:?}"))
     }
 
@@ -513,7 +520,9 @@ impl App {
         if let Some(name) = preferred {
             return self
                 .puzzle
-                .twist_axis_from_name(name)
+                .ty()
+                .twists
+                .axis_from_symbol(name)
                 .ok_or_else(|| format!("Unknown twist axis {name:?}"));
         }
         self.grip().axes.iter().copied().exactly_one().map_err(|e| {
@@ -547,9 +556,10 @@ impl App {
         }));
         Ok(())
     }
-    pub(crate) fn do_recenter(&self, twist_axis: Option<&str>) -> Result<(), String> {
-        let axis = self.gripped_twist_axis(twist_axis)?;
-        self.event(AppEvent::Twist(self.puzzle.make_recenter_twist(axis)?));
+    pub(crate) fn do_recenter(&self, _twist_axis: Option<&str>) -> Result<(), String> {
+        // let axis = self.gripped_twist_axis(twist_axis)?;
+        // self.event(AppEvent::Twist(self.puzzle.make_recenter_twist(axis)?));
+        // TODO: recenter
         Ok(())
     }
 

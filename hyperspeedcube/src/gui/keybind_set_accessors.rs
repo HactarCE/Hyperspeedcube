@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::hash::Hash;
+use std::sync::Arc;
 
 use crate::commands::{Command, PuzzleCommand};
 use crate::preferences::{Keybind, Preferences};
@@ -38,7 +39,7 @@ pub(super) trait KeybindSetAccessor: 'static + Clone + Hash + Send + Sync {
 
 #[derive(Debug, Clone, Hash)]
 pub(super) struct PuzzleKeybindsAccessor {
-    pub(super) puzzle_type: PuzzleTypeEnum,
+    pub(super) puzzle_type: Arc<PuzzleType>,
     pub(super) set_name: String,
 }
 impl KeybindSetAccessor for PuzzleKeybindsAccessor {
@@ -47,21 +48,17 @@ impl KeybindSetAccessor for PuzzleKeybindsAccessor {
     const USE_VK_BY_DEFAULT: bool = false; // Position is more important for puzzle keybinds
 
     fn display_name(&self) -> String {
-        format!(
-            "{} - {}",
-            self.puzzle_type.family_display_name(),
-            self.set_name,
-        )
+        format!("{} - {}", self.puzzle_type.family_name, self.set_name)
     }
 
     fn get<'a>(&self, prefs: &'a Preferences) -> &'a [Keybind<PuzzleCommand>] {
-        prefs.puzzle_keybinds[self.puzzle_type]
+        prefs.puzzle_keybinds[&self.puzzle_type]
             .get(&self.set_name)
             .map(|set| set.value.keybinds.as_slice())
             .unwrap_or(&[])
     }
     fn get_mut<'a>(&self, prefs: &'a mut Preferences) -> &'a mut Vec<Keybind<PuzzleCommand>> {
-        &mut prefs.puzzle_keybinds[self.puzzle_type]
+        &mut prefs.puzzle_keybinds[&self.puzzle_type]
             .get_mut(&self.set_name)
             .value
             .keybinds
@@ -72,13 +69,13 @@ impl KeybindSetAccessor for PuzzleKeybindsAccessor {
         prefs: &'a mut Preferences,
     ) -> Option<(Vec<String>, &'a mut BTreeSet<String>)> {
         Some((
-            prefs.puzzle_keybinds[self.puzzle_type]
+            prefs.puzzle_keybinds[&self.puzzle_type]
                 .sets
                 .iter()
                 .map(|set| set.preset_name.clone())
                 .filter(|set_name| set_name != &self.set_name)
                 .collect(),
-            &mut prefs.puzzle_keybinds[self.puzzle_type]
+            &mut prefs.puzzle_keybinds[&self.puzzle_type]
                 .get_mut(&self.set_name)
                 .value
                 .includes,

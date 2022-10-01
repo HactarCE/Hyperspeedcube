@@ -81,8 +81,6 @@ pub fn build(ui: &mut egui::Ui, app: &mut App, puzzle_texture_id: egui::TextureI
     // Show debug info for each sticker.
     #[cfg(debug_assertions)]
     if let Some(sticker) = app.puzzle.hovered_sticker() {
-        use crate::puzzle::traits::*;
-
         let mut s = String::new();
         app.puzzle.displayed().sticker_debug_info(&mut s, sticker);
         if !s.is_empty() {

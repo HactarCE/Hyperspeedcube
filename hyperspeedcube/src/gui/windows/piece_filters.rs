@@ -1,4 +1,5 @@
 use bitvec::vec::BitVec;
+use std::sync::Arc;
 
 use crate::app::App;
 use crate::gui::{util, widgets};
@@ -7,16 +8,16 @@ use crate::puzzle::{traits::*, Face, PieceInfo, PieceType};
 
 const MIN_WIDTH: f32 = 300.0;
 
-fn piece_subset(ty: impl PuzzleType, predicate: impl FnMut(&PieceInfo) -> bool) -> BitVec {
-    ty.pieces().iter().map(predicate).collect()
+fn piece_subset(ty: &PuzzleType, predicate: impl FnMut(&PieceInfo) -> bool) -> BitVec {
+    ty.pieces.iter().map(predicate).collect()
 }
 macro_rules! piece_subset_from_sticker_colors {
     ($puzzle_ty:expr, |$color_iter:ident| $predicate:expr $(,)?) => {{
         // This is a macro instead of a function because I don't know how to
         // write the type of the predicate closure except as `impl FnMut(impl
         // Iterator<Item=Face>) -> bool`, which isn't allowed.
-        let ty = $puzzle_ty;
-        ty.pieces()
+        let ty = &$puzzle_ty;
+        ty.pieces
             .iter()
             .map(|piece| {
                 #[allow(unused_mut)]
@@ -34,7 +35,7 @@ pub fn cleanup(app: &mut App) {
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     app.puzzle.set_visible_pieces_preview(None, None);
 
-    let puzzle_type = app.puzzle.ty();
+    let puzzle_type = Arc::clone(app.puzzle.ty());
 
     ui.set_min_width(MIN_WIDTH);
 
@@ -58,15 +59,15 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
-    PieceFilterWidget::new_uppercased("everything", piece_subset(puzzle_type, |_| true))
+    PieceFilterWidget::new_uppercased("everything", piece_subset(&puzzle_type, |_| true))
         .no_all_except()
         .show(ui, app);
 
     ui.collapsing("Types", |ui| {
-        for (i, piece_type) in puzzle_type.piece_types().iter().enumerate() {
+        for (i, piece_type) in puzzle_type.piece_types.iter().enumerate() {
             PieceFilterWidget::new_uppercased(
                 &format!("{}s", piece_type.name),
-                piece_subset(puzzle_type, move |piece| {
+                piece_subset(&puzzle_type, move |piece| {
                     piece.piece_type == PieceType(i as _)
                 }),
             )
@@ -82,9 +83,9 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         let colors_selection_id = unique_id!();
         let mut selected_colors: Vec<bool> =
             ui.data().get_temp(colors_selection_id).unwrap_or_default();
-        selected_colors.resize(app.puzzle.faces().len(), false);
+        selected_colors.resize(app.puzzle.ty().shape.faces.len(), false);
 
-        for i in 0..puzzle_type.faces().len() {
+        for i in 0..puzzle_type.shape.faces.len() {
             PieceFilterWidget::new_uppercased(
                 "pieces with this color",
                 piece_subset_from_sticker_colors!(puzzle_type, |colors| {
@@ -136,7 +137,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         ui.set_enabled(!app.prefs.colors.blindfold);
 
         let opacity_prefs = &mut app.prefs.opacity;
-        let mut piece_filter_presets = std::mem::take(&mut app.prefs.piece_filters[puzzle_type]);
+        let mut piece_filter_presets = std::mem::take(&mut app.prefs.piece_filters[&puzzle_type]);
 
         let mut changed = false;
 
@@ -165,7 +166,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             preset
                 .value
                 .visible_pieces
-                .resize(app.puzzle.pieces().len(), false);
+                .resize(app.puzzle.ty().pieces.len(), false);
             PieceFilterWidget::new(
                 &preset.preset_name,
                 &preset.preset_name,
@@ -175,7 +176,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             .show(ui, app)
         });
 
-        app.prefs.piece_filters[puzzle_type] = piece_filter_presets;
+        app.prefs.piece_filters[&puzzle_type] = piece_filter_presets;
 
         app.prefs.needs_save |= changed;
     });

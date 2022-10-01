@@ -1,5 +1,6 @@
 use egui::NumExt;
 use key_names::KeyMappingCode;
+use std::sync::Arc;
 
 use crate::app::App;
 use crate::commands::{Command, PuzzleCommand};
@@ -92,12 +93,12 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::Rect) {
-    let puzzle_type = app.puzzle.ty();
+    let puzzle_type = Arc::clone(app.puzzle.ty());
 
     let vk = key_names::key_to_winit_vkey(key);
     let matching_puzzle_keybinds: Vec<&Keybind<PuzzleCommand>> = app
         .resolve_keypress(
-            app.prefs.puzzle_keybinds[puzzle_type].get_active_keybinds(),
+            app.prefs.puzzle_keybinds[&puzzle_type].get_active_keybinds(),
             Some(key),
             vk,
         )
@@ -120,19 +121,19 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                 PuzzleCommand::Twist { axis, .. } | PuzzleCommand::Recenter { axis } => {
                     match app.gripped_twist_axis(axis.as_deref()) {
                         Ok(gripped_axis) => {
-                            *axis = Some(puzzle_type.info(gripped_axis).name.to_string())
+                            *axis = Some(puzzle_type.info(gripped_axis).symbol.to_string())
                         }
                         Err(_) => return None,
                     }
                 }
                 _ => (),
             }
-            Some(c.short_description(puzzle_type))
+            Some(c.short_description(&puzzle_type))
         })
         .or_else(|| {
             matching_puzzle_keybinds
                 .first()
-                .map(|bind| bind.command.short_description(puzzle_type))
+                .map(|bind| bind.command.short_description(&puzzle_type))
         })
         .or_else(|| {
             matching_global_keybinds
@@ -168,7 +169,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         ui.strong(twist_axis);
                     }
                     if !layers.is_default() {
-                        let layers = layers.to_layer_mask(puzzle_type.layer_count());
+                        let layers = layers.to_layer_mask(puzzle_type.layer_count);
                         ui.strong(layers.long_description());
                     }
                 }
@@ -178,7 +179,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                     direction,
                     layers,
                 } => {
-                    let layers = layers.to_layer_mask(puzzle_type.layer_count());
+                    let layers = layers.to_layer_mask(puzzle_type.layer_count);
                     if layers == puzzle_type.all_layers() {
                         ui.label("Rotate");
                         ui.strong("whole puzzle");
@@ -243,7 +244,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
 
                 Command::NewPuzzle(ty) => {
                     ui.label("Load new");
-                    ui.strong(ty.name());
+                    ui.strong(ty);
                     ui.label("puzzle")
                 }
 
