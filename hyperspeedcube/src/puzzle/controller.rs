@@ -284,14 +284,22 @@ impl PuzzleController {
     }
 
     /// Sets the view angle offset.
-    pub fn add_view_angle_offset(&mut self, offset: [f32; 2], view_prefs: &ViewPreferences) {
+    pub fn add_view_angle_offset(
+        &mut self,
+        offset: [f32; 2],
+        view_prefs: &ViewPreferences,
+        shift: bool,
+    ) {
         const X: u8 = 0;
         const Y: u8 = 1;
-        const Z: u8 = 2;
+        let z = if shift { 3 } else { 2 };
 
         let prefs_view_angle = view_prefs.view_angle();
-        let offset = Rotor::from_angle_in_axis_plane(3, Y, offset[1].to_radians())
-            * Rotor::from_angle_in_axis_plane(X, Z, offset[0].to_radians());
+        let mut offset = Rotor::from_angle_in_axis_plane(z, Y, offset[1].to_radians())
+            * Rotor::from_angle_in_axis_plane(X, z, offset[0].to_radians());
+        if shift {
+            offset = offset.reverse();
+        }
         self.view_angle.current =
             prefs_view_angle.reverse() * offset * prefs_view_angle * &self.view_angle.current;
         self.view_angle.target = self.view_angle.current.clone();

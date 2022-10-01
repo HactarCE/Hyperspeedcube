@@ -205,8 +205,11 @@ impl App {
             }
             AppEvent::Drag(delta) => {
                 let delta = delta * self.prefs.interaction.drag_sensitivity * 360.0;
-                self.puzzle
-                    .add_view_angle_offset([delta.x, delta.y], self.prefs.view(self.puzzle.ty()));
+                self.puzzle.add_view_angle_offset(
+                    [delta.x, delta.y],
+                    self.prefs.view(self.puzzle.ty()),
+                    self.pressed_modifiers().shift(),
+                );
             }
             AppEvent::DragReleased => {
                 if self.prefs.interaction.snap_on_release {
