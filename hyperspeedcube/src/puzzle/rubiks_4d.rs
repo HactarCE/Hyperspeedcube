@@ -180,7 +180,7 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
                 vector![1., 0., 0., -1.],
             ]
             .into_iter()
-            .map(move |v| Rotor::from_vector_product(vector![1.], v.normalise()) * &rot)
+            .map(move |v| Rotor::from_vector_product(vector![1.], v.normalise().unwrap()) * &rot)
             .filter_map(|r| r.normalize())
         })
         .collect_vec();
