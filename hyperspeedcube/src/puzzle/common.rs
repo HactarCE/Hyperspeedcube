@@ -8,9 +8,22 @@ use smallvec::SmallVec;
 use std::fmt;
 use std::ops::*;
 use std::str::FromStr;
+use std::sync::Arc;
 use strum::{Display, EnumIter, EnumMessage};
 
 use super::*;
+
+/// Puzzle shape.
+#[derive(Debug)]
+pub struct PuzzleShape {
+    /// Shape name.
+    pub name: String,
+    /// Number of dimensions.
+    pub ndim: u8,
+    /// Puzzles faces.
+    // TODO: rename to `facets` and `FacetInfo`
+    pub faces: Vec<FaceInfo>,
+}
 
 #[delegatable_trait]
 #[enum_dispatch]
@@ -23,10 +36,14 @@ pub trait PuzzleType {
 
     fn layer_count(&self) -> u8;
 
+    fn shape(&self) -> &Arc<PuzzleShape>;
+
     fn radius(&self) -> f32;
     fn scramble_moves_count(&self) -> usize;
 
-    fn faces(&self) -> &[FaceInfo];
+    fn faces(&self) -> &[FaceInfo] {
+        &self.shape().faces
+    }
     fn pieces(&self) -> &[PieceInfo];
     fn stickers(&self) -> &[StickerInfo];
     fn twist_axes(&self) -> &[TwistAxisInfo];

@@ -8,7 +8,7 @@ use serde::{de::Error, Deserialize, Deserializer};
 use smallvec::smallvec;
 use std::collections::HashMap;
 use std::ops::{Index, IndexMut, RangeInclusive};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use strum::IntoEnumIterator;
 
 use crate::util::{from_pt3, from_vec3};
@@ -157,6 +157,12 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
             aliases,
         };
 
+        let shape = Arc::new(PuzzleShape {
+            name: "Cube".to_string(),
+            ndim: 3,
+            faces: FaceEnum::iter().map(|f| f.info()).collect(),
+        });
+
         // It's not like we'll ever clear the cache anyway, so just leak it
         // and let us have the 'static lifetimes.
         Box::leak(Box::new(Rubiks3DDescription {
@@ -164,7 +170,7 @@ fn puzzle_description(layer_count: u8) -> &'static Rubiks3DDescription {
 
             layer_count,
 
-            faces: FaceEnum::iter().map(|f| f.info()).collect(),
+            shape,
             pieces,
             stickers,
             twist_axes: FaceEnum::iter().map(|f| f.twist_axis_info()).collect(),
@@ -186,7 +192,8 @@ struct Rubiks3DDescription {
 
     layer_count: u8,
 
-    faces: Vec<FaceInfo>,
+    shape: Arc<PuzzleShape>,
+
     pieces: Vec<PieceInfo>,
     stickers: Vec<StickerInfo>,
     twist_axes: Vec<TwistAxisInfo>,
@@ -225,9 +232,10 @@ impl PuzzleType for Rubiks3DDescription {
         10 * self.layer_count as usize // TODO pulled from thin air; probably insufficient for big cubes
     }
 
-    fn faces(&self) -> &[FaceInfo] {
-        &self.faces
+    fn shape(&self) -> &Arc<PuzzleShape> {
+        &self.shape
     }
+
     fn pieces(&self) -> &[PieceInfo] {
         &self.pieces
     }
