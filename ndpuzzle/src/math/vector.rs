@@ -1,127 +1,113 @@
 //! N-dimensional vector math.
 
 use itertools::Itertools;
-use num_traits::{Float, Num};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use std::fmt;
-use std::iter::Cloned;
-use std::marker::PhantomData;
 use std::ops::*;
 
 /// N-dimensional vector. Indexing out of bounds returns zero.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(transparent)]
-pub struct Vector<N: Clone + Num>(pub Vec<N>);
+pub struct Vector(pub SmallVec<[f32; 4]>);
 
 /// Reference to an N-dimensional vector. Indexing out of bounds returns zero.
-pub trait VectorRef<N: Clone + Num>: Sized {
+pub trait VectorRef: Sized + fmt::Debug {
     /// Returns the number of components in the vector.
     fn ndim(&self) -> u8;
 
     /// Returns a component of the vector. If the index is out of bounds,
     /// returns zero.
-    fn get(&self, idx: u8) -> N;
+    fn get(&self, idx: u8) -> f32;
 
     /// Returns an iterator over the components of the vector.
-    fn iter(&self) -> VectorIter<'_, N, Self> {
+    fn iter(&self) -> VectorIter<&Self> {
+        self.iter_ndim(self.ndim())
+    }
+    /// Returns an iterator over the components of the vector, padded to `ndim`.
+    fn iter_ndim(&self, ndim: u8) -> VectorIter<&Self> {
         VectorIter {
-            range: 0..self.ndim(),
+            range: 0..ndim,
             vector: self,
-            _phantom: PhantomData,
         }
     }
 
     /// Returns the dot product of this vector with another.
-    fn dot(&self, rhs: impl VectorRef<N>) -> N {
-        self.iter()
-            .zip(rhs.iter())
-            .map(|(l, r)| l * r)
-            .fold(N::zero(), |l, r| l + r)
+    fn dot(&self, rhs: impl VectorRef) -> f32 {
+        self.iter().zip(rhs.iter()).map(|(l, r)| l * r).sum()
     }
 
     /// Pads the vector with zeros up to `ndim`.
     #[must_use]
-    fn pad(&self, ndim: u8) -> Vector<N> {
-        self.iter()
-            .pad_using(ndim as usize, |_| N::zero())
-            .collect()
+    fn pad(&self, ndim: u8) -> Vector {
+        self.iter().pad_using(ndim as usize, |_| 0.0).collect()
     }
 
     /// Returns the magnitude of the vector.
-    fn mag(&self) -> N
-    where
-        N: Float,
-    {
+    fn mag(&self) -> f32 {
         self.mag2().sqrt()
     }
     /// Returns the squared magnitude of the vector.
-    fn mag2(&self) -> N {
+    fn mag2(&self) -> f32 {
         self.dot(self)
     }
 
-    /// Returns a normalised copy of the vector.
+    /// Returns a normalized copy of the vector.
     #[must_use]
-    fn normalise(&self) -> Option<Self>
-    where
-        N: Float,
-        for<'a> &'a Self: Div<N, Output = Self>,
-    {
-        let mag = self.mag();
-        if mag > N::zero() {
-            Some(self / self.mag())
-        } else {
-            None
-        }
+    fn normalize(&self) -> Option<Vector> {
+        let mult = 1.0 / self.mag();
+        mult.is_finite().then(|| self.scale(mult))
+    }
+    /// Returns a scaled copy of the vector.
+    #[must_use]
+    fn scale(&self, scalar: f32) -> Vector {
+        self.iter().map(|x| x * scalar).collect()
     }
 
     /// Returns whether two vectors are equal within `epsilon` on each
     /// component.
-    fn approx_eq(&self, other: impl VectorRef<N>, epsilon: f32) -> bool
-    where
-        N: Into<f32>,
-    {
-        let ndim = std::cmp::max(self.ndim(), other.ndim()) as usize;
-        let self_xs = self.iter().map(|x| x.into()).pad_using(ndim, |_| 0.0);
-        let other_xs = other.iter().map(|x| x.into()).pad_using(ndim, |_| 0.0);
+    fn approx_eq(&self, other: impl VectorRef, epsilon: f32) -> bool {
+        let ndim = std::cmp::max(self.ndim(), other.ndim());
+        let self_xs = self.iter_ndim(ndim);
+        let other_xs = other.iter_ndim(ndim);
         self_xs.zip(other_xs).all(|(l, r)| (l - r).abs() <= epsilon)
     }
 }
 
 /// Iterator over the components of a vector.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct VectorIter<'a, N: Clone + Num, V: VectorRef<N>> {
+pub struct VectorIter<V: VectorRef> {
     range: Range<u8>,
-    vector: &'a V,
-    _phantom: PhantomData<N>,
+    vector: V,
 }
-impl<N: Clone + Num, V: VectorRef<N>> Iterator for VectorIter<'_, N, V> {
-    type Item = N;
+impl<V: VectorRef> Iterator for VectorIter<V> {
+    type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.range.next().map(|i| self.vector.get(i))
     }
 }
-impl<N: Clone + Num> VectorRef<N> for Vector<N> {
+impl VectorRef for Vector {
     fn ndim(&self) -> u8 {
         self.0.len() as _
     }
 
-    fn get(&self, idx: u8) -> N {
-        self.0.get(idx as usize).cloned().unwrap_or(N::zero())
+    fn get(&self, idx: u8) -> f32 {
+        self.0.get(idx as usize).cloned().unwrap_or(0.0)
     }
 }
 
-impl<N: Clone + Num, V: VectorRef<N>> VectorRef<N> for &'_ V {
+impl<V: VectorRef> VectorRef for &'_ V {
     fn ndim(&self) -> u8 {
         (*self).ndim()
     }
 
-    fn get(&self, idx: u8) -> N {
+    fn get(&self, idx: u8) -> f32 {
         (*self).get(idx)
     }
 }
 
-impl<N: Clone + Num + fmt::Display> fmt::Display for Vector<N> {
+impl fmt::Display for Vector {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "(")?;
         let mut iter = self.0.iter();
@@ -140,73 +126,72 @@ impl<N: Clone + Num + fmt::Display> fmt::Display for Vector<N> {
 #[macro_export]
 macro_rules! vector {
     [$($tok:tt)*] => {
-        $crate::math::Vector(vec![$($tok)*])
+        $crate::math::Vector(smallvec::smallvec![$($tok)*])
     };
 }
 
 macro_rules! impl_zero_padded_op {
-    (impl<$num:ident> $trait_name:ident for $type_name:ty { fn $fn_name:ident() }) => {
-        impl<$num: Clone + Num, T: VectorRef<$num>> $trait_name<T> for $type_name {
-            type Output = Vector<$num>;
+    (impl $trait_name:ident for $type_name:ty { fn $fn_name:ident() }) => {
+        impl<V: VectorRef> $trait_name<V> for $type_name {
+            type Output = Vector;
 
-            fn $fn_name(self, rhs: T) -> Self::Output {
-                use itertools::Itertools;
-
-                let result_ndim = std::cmp::max(self.ndim(), rhs.ndim());
-                let lhs = self.iter().pad_using(result_ndim as _, |_| N::zero());
-                let rhs = rhs.iter().pad_using(result_ndim as _, |_| N::zero());
+            fn $fn_name(self, rhs: V) -> Self::Output {
+                let ndim = std::cmp::max(self.ndim(), rhs.ndim());
+                let lhs = self.iter_ndim(ndim);
+                let rhs = rhs.iter_ndim(ndim);
                 lhs.zip(rhs).map(|(l, r)| l.$fn_name(r)).collect()
             }
         }
     };
 }
 macro_rules! impl_vector_ops {
-    (impl<$num:ident> for $type_name:ty) => {
-        impl_zero_padded_op!(impl<$num> Add for $type_name { fn add() });
-        impl_zero_padded_op!(impl<$num> Sub for $type_name { fn sub() });
+    (impl for $type_name:ty) => {
+        impl_zero_padded_op!(impl Add for $type_name { fn add() });
+        impl_zero_padded_op!(impl Sub for $type_name { fn sub() });
 
-        impl<$num: Clone + num_traits::Signed> Neg for $type_name {
-            type Output = Vector<N>;
+        impl Neg for $type_name {
+            type Output = Vector;
 
             fn neg(self) -> Self::Output {
                 self.iter().map(|n| -n).collect()
             }
         }
 
-        impl<$num: Clone + Num> Mul<$num> for $type_name {
-            type Output = Vector<$num>;
+        impl Mul<f32> for $type_name {
+            type Output = Vector;
 
-            fn mul(self, rhs: $num) -> Self::Output {
-                self.iter().map(|x| x * rhs.clone()).collect()
+            fn mul(self, rhs: f32) -> Self::Output {
+                self.iter().map(|x| x * rhs).collect()
             }
         }
-        impl<$num: Clone + Num> Div<$num> for $type_name {
-            type Output = Vector<$num>;
+        impl Div<f32> for $type_name {
+            type Output = Vector;
 
-            fn div(self, rhs: $num) -> Self::Output {
-                self.iter().map(|x| x / rhs.clone()).collect()
+            fn div(self, rhs: f32) -> Self::Output {
+                let mult = 1.0 / rhs;
+                self.iter().map(|x| x * mult).collect()
             }
         }
     };
 }
-impl_vector_ops!(impl<N> for Vector<N>);
-impl_vector_ops!(impl<N> for &'_ Vector<N>);
+impl_vector_ops!(impl for Vector);
+impl_vector_ops!(impl for &'_ Vector);
 
-impl<N: Clone + Num> Index<u8> for Vector<N> {
-    type Output = N;
-
-    fn index(&self, index: u8) -> &Self::Output {
-        &self.0[index as usize]
-    }
-}
-impl<N: Clone + Num> Index<u8> for &'_ Vector<N> {
-    type Output = N;
+impl Index<u8> for Vector {
+    type Output = f32;
 
     fn index(&self, index: u8) -> &Self::Output {
         &self.0[index as usize]
     }
 }
-impl<N: Clone + Num> IndexMut<u8> for Vector<N> {
+impl Index<u8> for &'_ Vector {
+    type Output = f32;
+
+    fn index(&self, index: u8) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+impl IndexMut<u8> for Vector {
     fn index_mut(&mut self, index: u8) -> &mut Self::Output {
         let ndim = self.ndim();
         self.0.get_mut(index as usize).unwrap_or_else(|| {
@@ -218,9 +203,9 @@ impl<N: Clone + Num> IndexMut<u8> for Vector<N> {
     }
 }
 
-impl<N: Clone + Num> Vector<N> {
+impl Vector {
     /// Zero-dimensional empty vector.
-    pub const EMPTY: Self = Self(vec![]);
+    pub const EMPTY: Self = Self(SmallVec::new_const());
 
     /// Returns a zero vector.
     pub fn zero(ndim: u8) -> Self {
@@ -228,51 +213,21 @@ impl<N: Clone + Num> Vector<N> {
     }
     /// Returns a unit vector along an axis.
     pub fn unit(axis: u8) -> Self {
-        let mut ret = vector![N::zero(); axis as usize+1];
-        ret[axis] = N::one();
+        let mut ret = vector![0.0; axis as usize+1];
+        ret[axis] = 1.0;
         ret
     }
 
     /// Resizes the vector in-place, padding with zeros.
     #[must_use]
     pub fn resize(mut self, ndim: u8) -> Self {
-        self.0.resize(ndim as _, N::zero());
+        self.0.resize(ndim as _, 0.0);
         self
     }
-
-    /// Returns an iterator over the components of the vector.
-    pub fn iter(&self) -> impl '_ + Iterator<Item = N> {
-        self.0.iter().cloned()
-    }
-    /// Returns an iterator over the components of the vector, padded to `ndim`.
-    pub fn iter_ndim(&self, ndim: u8) -> impl '_ + Iterator<Item = N> {
-        self.iter()
-            .pad_using(ndim as _, |_| N::zero())
-            .take(ndim as _)
-    }
 }
 
-impl<N: Clone + Num> IntoIterator for Vector<N> {
-    type Item = N;
-
-    type IntoIter = std::vec::IntoIter<N>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-impl<'a, N: Clone + Num> IntoIterator for &'a Vector<N> {
-    type Item = N;
-
-    type IntoIter = Cloned<std::slice::Iter<'a, N>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter().cloned()
-    }
-}
-
-impl<N: Clone + Num> FromIterator<N> for Vector<N> {
-    fn from_iter<T: IntoIterator<Item = N>>(iter: T) -> Self {
+impl FromIterator<f32> for Vector {
+    fn from_iter<T: IntoIterator<Item = f32>>(iter: T) -> Self {
         Self(iter.into_iter().collect())
     }
 }
@@ -283,31 +238,31 @@ mod tests {
 
     #[test]
     pub fn test_vector_add() {
-        let v1 = vector![1, 2, -10];
-        let v2 = vector![-5];
-        assert_eq!(&v1 + &v2, vector![-4, 2, -10]);
-        assert_eq!(v2 + v1, vector![-4, 2, -10]);
+        let v1 = vector![1.0, 2.0, -10.0];
+        let v2 = vector![-5.0];
+        assert_eq!(&v1 + &v2, vector![-4.0, 2.0, -10.0]);
+        assert_eq!(v2 + v1, vector![-4.0, 2.0, -10.0]);
     }
 
     #[test]
     pub fn test_vector_sub() {
-        let v1 = vector![1, 2, -10];
-        let v2 = vector![-5];
-        assert_eq!(&v1 - &v2, vector![6, 2, -10]);
-        assert_eq!(v2 - &v1, vector![-6, -2, 10]);
+        let v1 = vector![1.0, 2.0, -10.0];
+        let v2 = vector![-5.0];
+        assert_eq!(&v1 - &v2, vector![6.0, 2.0, -10.0]);
+        assert_eq!(v2 - &v1, vector![-6.0, -2.0, 10.0]);
     }
 
     #[test]
     pub fn test_vector_neg() {
-        let v1 = vector![1, 2, -10];
-        assert_eq!(-&v1, vector![-1, -2, 10]);
-        assert_eq!(-v1, vector![-1, -2, 10]);
+        let v1 = vector![1.0, 2.0, -10.0];
+        assert_eq!(-&v1, vector![-1.0, -2.0, 10.0]);
+        assert_eq!(-v1, vector![-1.0, -2.0, 10.0]);
     }
 
     #[test]
     pub fn test_dot_product() {
-        let v1 = vector![1, 2, -10];
-        let v2 = vector![-5, 16];
-        assert_eq!(v1.dot(v2), 27);
+        let v1 = vector![1.0, 2.0, -10.0];
+        let v2 = vector![-5.0, 16.0];
+        assert_eq!(v1.dot(v2), 27.0);
     }
 }

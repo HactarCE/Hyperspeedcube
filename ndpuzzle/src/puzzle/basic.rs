@@ -1,6 +1,5 @@
 use anyhow::Result;
 use itertools::Itertools;
-use smallvec::smallvec;
 use std::sync::Arc;
 
 use crate::math::*;
@@ -58,7 +57,7 @@ pub fn build_puzzle(spec: &BasicPuzzleSpec) -> Result<PuzzleData> {
                      twist_generators,
                  }| {
                     // let normal = m2.transform(normal.clone().resize(spec.ndim));
-                    let normal = normal.clone().resize(spec.ndim).normalise().expect("msg");
+                    let normal = normal.clone().resize(spec.ndim).normalize().expect("msg");
                     let mut distances = cuts.clone();
                     distances.sort_by(f32::total_cmp);
                     distances.reverse();
@@ -100,7 +99,7 @@ pub fn build_puzzle(spec: &BasicPuzzleSpec) -> Result<PuzzleData> {
     })
 }
 
-pub fn build_axes(twist_generators: &[Matrix<f32>], base_axes: &[Axis]) -> Result<Vec<Axis>> {
+pub fn build_axes(twist_generators: &[Matrix], base_axes: &[Axis]) -> Result<Vec<Axis>> {
     let mut axes: Vec<Axis> = base_axes.to_vec();
     let mut transforms = axes
         .iter()
@@ -116,7 +115,7 @@ pub fn build_axes(twist_generators: &[Matrix<f32>], base_axes: &[Axis]) -> Resul
         for gen in twist_generators {
             let curr_twist = &transforms[next_unprocessed];
             let curr_axis = &axes[curr_twist.0];
-            let new_normal = gen.transform(curr_axis.normal.clone());
+            let new_normal = gen * &curr_axis.normal;
             let new_transform =
                 &(gen * &curr_twist.1) * &gen.inverse().ok_or(PolytopeError::BadMatrix)?;
             let new_axis = Axis {
@@ -220,14 +219,14 @@ pub struct PuzzleData {
     piece_ids: Vec<PolytopeId>,
     sticker_ids: Vec<PolytopeId>,
     axes: Vec<Axis>,
-    facets: Vec<Vector<f32>>,
+    facets: Vec<Vector>,
 }
 impl PuzzleData {
     pub fn axes(&self) -> &[Axis] {
         &self.axes
     }
 
-    pub fn facets(&self) -> &[Vector<f32>] {
+    pub fn facets(&self) -> &[Vector] {
         &self.facets
     }
 
@@ -350,7 +349,7 @@ impl PuzzleState for Puzzle {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Twist {
     pub layer: u8,
-    pub transform: Matrix<f32>,
+    pub transform: Matrix,
 }
 impl Twist {
     pub fn approx_eq(&self, other: Twist, epsilon: f32) -> bool {
@@ -360,12 +359,12 @@ impl Twist {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Axis {
-    pub normal: Vector<f32>,
+    pub normal: Vector,
     pub distances: Vec<f32>,
-    pub transforms: Vec<Matrix<f32>>,
+    pub transforms: Vec<Matrix>,
 }
 impl Axis {
-    fn add_transform(&mut self, transform: Matrix<f32>) {
+    fn add_transform(&mut self, transform: Matrix) {
         self.transforms.push(transform);
     }
 

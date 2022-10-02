@@ -48,7 +48,7 @@ pub struct StickerGeometryParams {
     /// Animated twist and animation progress.
     pub twist_animation: Option<(Twist, f32)>,
     /// View transformation matrix for the whole puzzle, after 4D projection.
-    pub view_transform: Matrix<f32>,
+    pub view_transform: Matrix,
 
     /// Whether to show frontfaces.
     pub show_frontfaces: bool,
@@ -105,7 +105,7 @@ impl StickerGeometryParams {
     }
 
     /// Applies the view transform and performs 4D perspective projection.
-    pub fn project_4d(&self, point: impl VectorRef<f32>) -> Option<Point3<f32>> {
+    pub fn project_4d(&self, point: impl VectorRef) -> Option<Point3<f32>> {
         let [x, y, z] = [0, 1, 2].map(|i| self.view_transform.col(i).dot(&point));
         let ret = cgmath::point3(x, y, z);
         if point.ndim() <= 3 {

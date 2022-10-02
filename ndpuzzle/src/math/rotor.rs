@@ -77,7 +77,7 @@ impl Blade {
 /// axes.
 #[derive(Default, Clone, PartialEq)]
 pub struct Multivector(Vec<Blade>);
-impl<V: VectorRef<f32>> From<V> for Multivector {
+impl<V: VectorRef> From<V> for Multivector {
     fn from(vec: V) -> Self {
         Self(
             vec.iter()
@@ -163,14 +163,6 @@ impl<'a> AddAssign<&'a Multivector> for Multivector {
         }
     }
 }
-impl<'a> Add<&'a Multivector> for Multivector {
-    type Output = Multivector;
-
-    fn add(mut self, rhs: &'a Multivector) -> Self::Output {
-        self += rhs;
-        self
-    }
-}
 impl<'a> Mul for &'a Multivector {
     type Output = Multivector;
 
@@ -184,22 +176,28 @@ impl<'a> Mul for &'a Multivector {
         ret
     }
 }
+impl Mul<f32> for Multivector {
+    type Output = Multivector;
+
+    fn mul(mut self, rhs: f32) -> Self::Output {
+        for term in &mut self.0 {
+            term.coef *= rhs;
+        }
+        self
+    }
+}
 impl<'a> Mul<f32> for &'a Multivector {
     type Output = Multivector;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        let mut ret = self.clone();
-        for term in &mut ret.0 {
-            term.coef *= rhs;
-        }
-        ret
+        self.clone() * rhs
     }
 }
 impl Sum for Multivector {
     fn sum<I: Iterator<Item = Self>>(mut iter: I) -> Self {
         let mut ret = iter.next().unwrap_or_default();
         for elem in iter {
-            ret += &elem;
+            ret = ret + elem;
         }
         ret
     }
@@ -240,6 +238,8 @@ impl Multivector {
             .map(|i| self.0[i].coef)
     }
 }
+impl_forward_bin_ops_to_ref!(impl Add for Multivector { fn add() });
+impl_forward_bin_ops_to_ref!(impl Mul for Multivector { fn mul() });
 
 /// Rotor describing a rotation in an arbitrary number of dimensions.
 #[derive(Debug, Clone, PartialEq)]
@@ -257,23 +257,23 @@ impl Rotor {
     /// Constructs a rotor from a product of two vectors.
     ///
     /// This constructs a rotation of DOUBLE the angle between them.
-    pub fn from_vector_product(a: impl VectorRef<f32>, b: impl VectorRef<f32>) -> Self {
-        Self(&Multivector::from(a) * &Multivector::from(b))
+    pub fn from_vector_product(a: impl VectorRef, b: impl VectorRef) -> Self {
+        Self(Multivector::from(a) * Multivector::from(b))
     }
     /// Constructs a rotor from an angle in an axis-aligned plane.
     ///
     /// If the axes are the same, returns the identity.
     pub fn from_angle_in_axis_plane(a: u8, b: u8, angle: f32) -> Self {
-        Self::from_angle_in_plane(&Vector::unit(a), &Vector::unit(b), angle)
+        Self::from_angle_in_plane(Vector::unit(a), Vector::unit(b), angle)
     }
     /// Constructs a rotor from an angle in a plane defined by two vectors.
     ///
     /// The vectors are assumed to be perpendicular and normalized.
-    pub fn from_angle_in_plane(a: &Vector<f32>, b: &Vector<f32>, angle: f32) -> Self {
+    pub fn from_angle_in_plane(a: impl VectorRef, b: impl VectorRef, angle: f32) -> Self {
         let half_angle = angle / 2.0;
         let cos = half_angle.cos();
         let sin = half_angle.sin();
-        Self::from_vector_product(a, a * cos + b * sin)
+        Self::from_vector_product(&a, a.scale(cos) + b.scale(sin))
     }
 
     /// Returns the number of dimensions of the rotor.
@@ -309,21 +309,21 @@ impl Rotor {
     }
 
     /// Returns the matrix for the rotor.
-    pub fn matrix(&self) -> Matrix<f32> {
+    pub fn matrix(&self) -> Matrix {
         Matrix::from_cols((0..self.ndim()).map(|axis| self.transform_vector(Vector::unit(axis))))
     }
 
     /// Transforms another rotor using this one.
     #[must_use]
     pub fn transform_rotor(&self, other: &Rotor) -> Rotor {
-        // This can be unwrapped for efficiency.
-        Self(&(&self.0 * &other.0) * &self.reverse().0)
+        // This can be unwrapped in the future for efficiency.
+        Self(&self.0 * &other.0 * &self.reverse().0)
     }
 
     /// Transforms a vector using the rotor.
-    pub fn transform_vector(&self, vector: impl VectorRef<f32>) -> Vector<f32> {
-        let rv = &self.reverse().0 * &Multivector::from(vector);
-        let ret = &rv * &self.0;
+    pub fn transform_vector(&self, vector: impl VectorRef) -> Vector {
+        let rv = self.reverse().0 * Multivector::from(vector);
+        let ret = rv * &self.0;
         (0..ret.ndim())
             .map(|i| ret.get(1 << i).unwrap_or(0.0))
             .collect()
@@ -347,10 +347,6 @@ impl Rotor {
         Some(self)
     }
 
-    /// Multiplies the rotor by a scalar.
-    pub fn scale(&self, factor: f32) -> Self {
-        Self(&self.0 * Blade::scalar(factor))
-    }
     /// Returns the dot product between two rotors.
     pub fn dot(&self, other: &Rotor) -> f32 {
         let largest_axis_mask =
@@ -372,7 +368,7 @@ impl Rotor {
         } else {
             -t
         };
-        Self(&(&self.0 * self_t) + &(&other.0 * other_t))
+        Self(&self.0 * self_t + &other.0 * other_t)
             .normalize()
             .unwrap_or_else(|| other.clone())
     }
@@ -397,7 +393,7 @@ impl Rotor {
         let scale1 = (angle * (1.0 - t)).sin();
         let scale2 = (angle * t).sin() * sign; // Reverse the second rotor if negative dot product
 
-        Self(&self.scale(scale1).0 + &other.scale(scale2).0)
+        Self(&self.0 * scale1 + &other.0 * scale2)
             .normalize()
             .unwrap_or_else(|| other.clone()) // should never happen
     }
@@ -431,12 +427,12 @@ mod tests {
     fn gen_reasonable_float() -> impl Strategy<Value = f32> {
         (any::<u8>(), any::<i8>()).prop_map(|(f, i)| i as f32 + f as f32 / 256.0)
     }
-    fn gen_vector(ndim: u8) -> impl Strategy<Value = Vector<f32>> {
+    fn gen_vector(ndim: u8) -> impl Strategy<Value = Vector> {
         proptest::collection::vec(gen_reasonable_float(), ndim as usize)
             .prop_map(|xs| Vector(xs.into_iter().map(|x| x as f32).collect()))
     }
-    fn gen_normalized_vector(ndim: u8) -> impl Strategy<Value = Vector<f32>> {
-        gen_vector(ndim).prop_filter_map("cannot normalize zero vector", |v| v.normalise())
+    fn gen_normalized_vector(ndim: u8) -> impl Strategy<Value = Vector> {
+        gen_vector(ndim).prop_filter_map("cannot normalize zero vector", |v| v.normalize())
     }
     fn gen_simple_rotor(ndim: u8) -> impl Strategy<Value = Rotor> {
         [gen_normalized_vector(ndim), gen_normalized_vector(ndim)]
@@ -445,10 +441,10 @@ mod tests {
 
     fn assert_rotor_transform_vector(
         rotor: &Rotor,
-        input_vector: &Vector<f32>,
-        expected: &Vector<f32>,
+        input_vector: impl VectorRef,
+        expected: impl VectorRef,
     ) -> Result<(), TestCaseError> {
-        let result = rotor.transform_vector(input_vector);
+        let result = rotor.transform_vector(&input_vector);
         prop_assert!(
             result.approx_eq(&expected, EPSILON) && result.ndim() == expected.ndim(),
             "\n\nrotor {rotor:?}\n\
@@ -466,14 +462,14 @@ mod tests {
             b in gen_normalized_vector(7),
             vec in gen_vector(7),
         ) {
-            let halfway = (&a + &b).normalise();
+            let halfway = (&a + &b).normalize();
             prop_assume!(halfway.is_some());
             let halfway = halfway.unwrap();
             let rotor = Rotor::from_vector_product(&a, &halfway);
 
             let v_mag = vec.mag();
-            assert_rotor_transform_vector(&rotor, &(&a * v_mag), &(&b * v_mag))?;
-            assert_rotor_transform_vector(&rotor, &-&(&a * v_mag), &-&(&b * v_mag))?;
+            assert_rotor_transform_vector(&rotor, &a * v_mag, &b * v_mag)?;
+            assert_rotor_transform_vector(&rotor, -(&a * v_mag), -(&b * v_mag))?;
 
             let cos = a.dot(&b);
             if cos.fract().abs() < EPSILON {
@@ -486,13 +482,13 @@ mod tests {
             // we expect for vectors that are not entirely in its rotation
             // plane.
             let u = a;
-            let v = (&b - &u * u.dot(&b)).normalise().unwrap();
+            let v = (&b - &u * u.dot(&b)).normalize().unwrap();
             let u_mag = vec.dot(&u);
             let v_mag = vec.dot(&v);
             let expected = &vec
                 + u * (u_mag * (cos - 1.0) - v_mag * sin)
                 + v * (u_mag * sin + v_mag * (cos - 1.0));
-            assert_rotor_transform_vector(&rotor, &vec, &expected)?;
+            assert_rotor_transform_vector(&rotor, vec, expected)?;
         }
 
 
@@ -504,11 +500,11 @@ mod tests {
             let mut combined = rotors[0].clone();
             let mut expected = rotors[0].transform_vector(&vec);
             for r in &rotors[1..] {
-                combined = &combined * r;
+                combined = combined * r;
                 expected = r.transform_vector(expected);
             }
 
-            assert_rotor_transform_vector(&combined, &vec, &expected)?;
+            assert_rotor_transform_vector(&combined, vec, expected)?;
         }
     }
 }

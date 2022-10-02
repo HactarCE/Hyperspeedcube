@@ -14,9 +14,9 @@ const SPLIT_MARGIN: f32 = EPSILON * 5000.;
 /// Generates a polytope from a set of generators and base facets.
 pub fn generate_polytope(
     ndim: u8,
-    generators: &[Matrix<f32>],
-    base_facets: &[Vector<f32>],
-) -> Result<(PolytopeArena, Vec<Vector<f32>>)> {
+    generators: &[Matrix],
+    base_facets: &[Vector],
+) -> Result<(PolytopeArena, Vec<Vector>)> {
     let radius = base_facets
         .iter()
         .map(|pole| pole.mag())
@@ -26,16 +26,16 @@ pub fn generate_polytope(
     // TODO: check if radius is too small (any original point remains).
     let mut arena = PolytopeArena::new_cube(ndim, initial_radius);
 
-    let mut facet_poles: Vec<Vector<f32>> = base_facets.to_vec();
+    let mut facet_poles: Vec<Vector> = base_facets.to_vec();
     let mut next_unprocessed = 0;
     while next_unprocessed < facet_poles.len() {
         for gen in generators {
-            let new_pole = gen.transform(facet_poles[next_unprocessed].clone().resize(ndim));
+            let new_pole = gen * &facet_poles[next_unprocessed];
             if facet_poles
                 .iter()
                 .all(|pole| !pole.approx_eq(&new_pole, EPSILON))
             {
-                facet_poles.push(new_pole);
+                facet_poles.push(new_pole.resize(ndim));
             }
         }
         next_unprocessed += 1;
@@ -43,7 +43,7 @@ pub fn generate_polytope(
     for pole in &facet_poles {
         arena.slice_by_plane(
             &Hyperplane {
-                normal: pole.normalise().expect("msg"),
+                normal: pole.normalize().expect("msg"),
                 distance: pole.mag(),
             },
             true,
@@ -161,7 +161,7 @@ impl PolytopeArena {
         PolytopeId(idx as _)
     }
     /// Adds a point to the arena.
-    fn add_point(&mut self, point: Vector<f32>, slice_result: Option<SliceResult>) -> PolytopeId {
+    fn add_point(&mut self, point: Vector, slice_result: Option<SliceResult>) -> PolytopeId {
         self.add(Polytope {
             parents: smallvec![],
             contents: PolytopeContents::Point {
@@ -625,13 +625,13 @@ impl PolytopeArena {
         Ok(ret)
     }
 
-    pub fn axis_spans(&self, axis: &Vector<f32>) -> Result<Vec<(PolytopeId, Span)>> {
+    pub fn axis_spans(&self, axis: &Vector) -> Result<Vec<(PolytopeId, Span)>> {
         self.roots
             .iter()
             .map(|&p| Ok((p, self.polytope_axis_span(p, axis)?)))
             .collect()
     }
-    fn polytope_axis_span(&self, p: PolytopeId, axis: &Vector<f32>) -> Result<Span> {
+    fn polytope_axis_span(&self, p: PolytopeId, axis: &Vector) -> Result<Span> {
         let polytope = self.get(p)?;
 
         match &polytope.contents {
@@ -650,11 +650,11 @@ impl PolytopeArena {
         }
     }
 
-    pub fn transform_polytope(&mut self, root: PolytopeId, m: &Matrix<f32>) -> Result<()> {
+    pub fn transform_polytope(&mut self, root: PolytopeId, m: &Matrix) -> Result<()> {
         self.transform_recurse(root, &mut HashSet::new(), &mut |arena, id| {
             let polytope = arena.get_mut(id)?;
             if let PolytopeContents::Point { point, .. } = &mut polytope.contents {
-                *point = m.transform(&*point);
+                *point = m * &*point;
             }
             Ok(())
         })
@@ -738,7 +738,7 @@ impl Polytope {
     }
     /// Returns the coordinate point if this polytope is a point, or an error if
     /// is a branch.
-    fn unwrap_point(&self) -> Result<&Vector<f32>> {
+    fn unwrap_point(&self) -> Result<&Vector> {
         match &self.contents {
             PolytopeContents::Point { point, .. } => Ok(point),
             _ => Err(anyhow!("Expected point, got rank {} polytope", self.rank())),
@@ -773,7 +773,7 @@ impl Polytope {
 #[derive(Debug, Clone, PartialEq)]
 enum PolytopeContents {
     Point {
-        point: Vector<f32>,
+        point: Vector,
         slice_result: Option<SliceResult>,
     },
     Branch {
@@ -785,7 +785,7 @@ enum PolytopeContents {
 }
 impl PolytopeContents {
     /// Constructs a point polytope.
-    fn new_point(point: Vector<f32>) -> Self {
+    fn new_point(point: Vector) -> Self {
         Self::Point {
             point,
             slice_result: None,
@@ -891,7 +891,7 @@ impl std::error::Error for NullPolytope {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Polygon {
-    pub verts: Vec<Vector<f32>>,
+    pub verts: Vec<Vector>,
 }
 
 fn base_3_expansion(n: u32, digit_count: u8) -> impl Iterator<Item = u32> {

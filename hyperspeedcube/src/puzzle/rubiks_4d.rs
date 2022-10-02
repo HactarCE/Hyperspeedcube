@@ -180,7 +180,7 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
                 vector![1., 0., 0., -1.],
             ]
             .into_iter()
-            .map(move |v| Rotor::from_vector_product(vector![1.], v.normalise().unwrap()) * &rot)
+            .map(move |v| Rotor::from_vector_product(vector![1.], v.normalize().unwrap()) * &rot)
             .filter_map(|r| r.normalize())
         })
         .collect_vec();
@@ -435,7 +435,7 @@ impl Rubiks4D {
         }
     }
 
-    fn piece_center_4d(&self, piece: Piece, p: &StickerGeometryParams) -> Vector<f32> {
+    fn piece_center_4d(&self, piece: Piece, p: &StickerGeometryParams) -> Vector {
         let pos = self.piece_location(piece);
         vector![
             self.piece_center_coordinate(pos[0], p),
@@ -444,7 +444,7 @@ impl Rubiks4D {
             self.piece_center_coordinate(pos[3], p),
         ]
     }
-    fn sticker_center_4d(&self, sticker: Sticker, p: &StickerGeometryParams) -> Vector<f32> {
+    fn sticker_center_4d(&self, sticker: Sticker, p: &StickerGeometryParams) -> Vector {
         let sticker_info = self.ty.info(sticker);
         let piece = sticker_info.piece;
         let mut ret = self.piece_center_4d(piece, p);
@@ -766,14 +766,14 @@ impl FaceEnum {
     fn basis(self) -> [Vector4<f32>; 3] {
         self.basis_faces().map(|f| f.vector())
     }
-    fn basis_matrix(self) -> Matrix<f32> {
+    fn basis_matrix(self) -> Matrix {
         let [x, y, z] = self.basis();
         let w = Vector4::zero();
         // This should be a 4x3 matrix, not 4x4.
         Matrix::from_cols([x, y, z, w].map(from_vec4))
     }
 
-    fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix<f32> {
+    fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix {
         let mat3 = direction.twist_rotation(progress).matrix();
         let mut ret = Matrix::ident(4);
         let basis = self.basis_faces();

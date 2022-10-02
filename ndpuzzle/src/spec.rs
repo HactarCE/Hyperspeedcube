@@ -12,7 +12,7 @@ pub struct BasicPuzzleSpec {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ShapeSpec {
     pub symmetries: Vec<SymmetriesSpec>,
-    pub face_generators: Vec<Vector<f32>>,
+    pub face_generators: Vec<Vector>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TwistsSpec {
@@ -26,7 +26,7 @@ pub enum SymmetriesSpec {
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AxisSpec {
-    pub normal: Vector<f32>,
+    pub normal: Vector,
     pub cuts: Vec<f32>,
     pub twist_generators: Vec<String>,
 }
@@ -44,16 +44,16 @@ mod tests {
 
 const AXIS_NAMES: &str = "XYZWUVRS";
 
-pub fn parse_transform(string: &str) -> Option<Matrix<f32>> {
+pub fn parse_transform(string: &str) -> Option<Matrix> {
     string
         .split("->")
-        .map(|v| parse_vector(v)?.normalise())
+        .map(|v| parse_vector(v)?.normalize())
         .tuple_windows()
         .map(|(v1, v2)| Some(Matrix::from_vec_to_vec(v1.as_ref()?, v2.as_ref()?)))
         .try_fold(Matrix::EMPTY_IDENT, |m1, m2| Some(&m1 * &m2?))
 }
 
-pub fn parse_vector(string: &str) -> Option<Vector<f32>> {
+pub fn parse_vector(string: &str) -> Option<Vector> {
     if string.contains(',') {
         Some(Vector(
             string

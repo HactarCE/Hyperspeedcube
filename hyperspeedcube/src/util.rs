@@ -34,12 +34,12 @@ where
     a * (1.0 - t) + b * t
 }
 
-pub(crate) fn from_pt3(p: cgmath::Point3<f32>) -> Vector<f32> {
+pub(crate) fn from_pt3(p: cgmath::Point3<f32>) -> Vector {
     vector![p.x, p.y, p.z]
 }
-pub(crate) fn from_vec3(v: cgmath::Vector3<f32>) -> Vector<f32> {
+pub(crate) fn from_vec3(v: cgmath::Vector3<f32>) -> Vector {
     vector![v.x, v.y, v.z]
 }
-pub(crate) fn from_vec4(v: cgmath::Vector4<f32>) -> Vector<f32> {
+pub(crate) fn from_vec4(v: cgmath::Vector4<f32>) -> Vector {
     vector![v.x, v.y, v.z, v.w]
 }

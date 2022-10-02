@@ -309,12 +309,12 @@ impl PuzzleState for Rubiks3D {
         }
 
         // Compute the center of the sticker.
-        let center = transform.transform(&from_pt3(self.sticker_center_3d(sticker, p)));
+        let center = &transform * from_pt3(self.sticker_center_3d(sticker, p));
 
         // Compute the vectors that span the plane of the sticker.
         let [u_span_axis, v_span_axis] = face.parallel_axes();
-        let u = transform.transform(&from_vec3(u_span_axis.unit_vec3() * p.sticker_scale));
-        let v = transform.transform(&from_vec3(v_span_axis.unit_vec3() * p.sticker_scale));
+        let u = &transform * from_vec3(u_span_axis.unit_vec3() * p.sticker_scale);
+        let v = &transform * from_vec3(v_span_axis.unit_vec3() * p.sticker_scale);
 
         // Decide what twists should happen when the sticker is clicked.
         let cw_twist = Twist {
@@ -596,7 +596,7 @@ impl FaceEnum {
         };
         Rotor::from_angle_in_axis_plane(plane.0, plane.1, angle.0)
     }
-    fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix<f32> {
+    fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix {
         Rotor::identity()
             .slerp(&self.twist_rotation(direction), progress)
             .matrix()

@@ -1,6 +1,5 @@
 //! N-dimensional matrix math.
 
-use num_traits::{Num, Signed};
 use std::ops::*;
 
 use super::permutations;
@@ -8,14 +7,14 @@ use super::vector::{Vector, VectorRef};
 
 /// N-by-N square matrix. Indexing out of bounds returns the corresponding
 /// element from the infinite identity matrix.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Matrix<N: Clone + Num> {
+#[derive(Debug, Clone, PartialEq)]
+pub struct Matrix {
     /// Number of dimensions of the matrix.
     ndim: u8,
     /// Elements stored in **column-major** order.
-    elems: Vec<N>,
+    elems: Vec<f32>,
 }
-impl<N: Clone + Num> Matrix<N> {
+impl Matrix {
     /// 0-by-0 matrix that functions as the identity matrix.
     pub const EMPTY_IDENT: Self = Matrix {
         ndim: 0,
@@ -26,14 +25,14 @@ impl<N: Clone + Num> Matrix<N> {
     pub fn zero(ndim: u8) -> Self {
         Self {
             ndim,
-            elems: vec![N::zero(); ndim as usize * ndim as usize],
+            elems: vec![0.0; ndim as usize * ndim as usize],
         }
     }
     /// Constructs an identity matrix.
     pub fn ident(ndim: u8) -> Self {
         let mut ret = Self::zero(ndim);
         for i in 0..ndim {
-            *ret.get_mut(i, i) = N::one();
+            *ret.get_mut(i, i) = 1.0;
         }
         ret
     }
@@ -51,7 +50,7 @@ impl<N: Clone + Num> Matrix<N> {
     ///     ],
     /// );
     /// ```
-    pub fn from_elems(elems: Vec<N>) -> Self {
+    pub fn from_elems(elems: Vec<f32>) -> Self {
         let ndim = (elems.len() as f64).sqrt() as u8;
         assert_eq!(
             ndim as usize * ndim as usize,
@@ -66,7 +65,7 @@ impl<N: Clone + Num> Matrix<N> {
     pub fn from_cols<I>(cols: impl IntoIterator<IntoIter = I>) -> Self
     where
         I: ExactSizeIterator,
-        I::Item: VectorRef<N>,
+        I::Item: VectorRef,
     {
         let cols = cols.into_iter();
         let ndim = cols.len() as u8;
@@ -79,7 +78,7 @@ impl<N: Clone + Num> Matrix<N> {
     }
 
     /// Constructs a matrix from the outer product of two vectors.
-    pub fn from_outer_product(u: impl VectorRef<N>, v: impl VectorRef<N>) -> Self {
+    pub fn from_outer_product(u: impl VectorRef, v: impl VectorRef) -> Self {
         let dim = std::cmp::max(u.ndim(), v.ndim());
         let u = &u;
         let v = &v;
@@ -91,14 +90,11 @@ impl<N: Clone + Num> Matrix<N> {
     }
 
     /// Contruct the matrix rotating in a plane from u to v.
-    pub fn from_vec_to_vec(u: &impl VectorRef<N>, v: &impl VectorRef<N>) -> Self
-    where
-        N: Clone + Num + std::fmt::Debug,
-    {
+    pub fn from_vec_to_vec(u: impl VectorRef, v: impl VectorRef) -> Self {
         let dim = std::cmp::max(u.ndim(), v.ndim());
-        let tm = Matrix::from_outer_product(u, v);
-        let tm = &tm - &tm.transpose();
-        &(&Matrix::ident(dim) + &tm) + &((&tm * &tm).scale(N::one() / (N::one() + u.dot(v))))
+        let tm = Matrix::from_outer_product(&u, &v);
+        let tm = &tm - tm.transpose();
+        (Matrix::ident(dim) + &tm) + (&tm * &tm) / (1.0 + u.dot(v))
     }
 
     /// Returns the number of dimensions (size) of the matrix.
@@ -108,14 +104,14 @@ impl<N: Clone + Num> Matrix<N> {
 
     /// Pads the matrix with identity up to `ndim`.
     #[must_use]
-    pub fn pad(&self, ndim: u8) -> Matrix<N> {
+    pub fn pad(&self, ndim: u8) -> Matrix {
         if ndim <= self.ndim() {
             self.clone()
         } else {
             let mut ret = Matrix::ident(ndim);
             for i in 0..self.ndim() {
                 for j in 0..self.ndim() {
-                    *ret.get_mut(i, j) = self.get(i, j).clone();
+                    *ret.get_mut(i, j) = self.get(i, j);
                 }
             }
             ret
@@ -125,14 +121,14 @@ impl<N: Clone + Num> Matrix<N> {
     /// Returns an element from the matrix. If either `col` or `row` is out of
     /// bounds, returns the corresponding element from the infinite identity
     /// matrix.
-    pub fn get(&self, col: u8, row: u8) -> N {
+    pub fn get(&self, col: u8, row: u8) -> f32 {
         let ndim = self.ndim();
         if col < ndim && row < ndim {
-            self.elems[col as usize * ndim as usize + row as usize].clone()
+            self.elems[col as usize * ndim as usize + row as usize]
         } else if col == row {
-            N::one()
+            1.0
         } else {
-            N::zero()
+            0.0
         }
     }
     /// Returns a mutable reference to an element from the matrix.
@@ -140,7 +136,7 @@ impl<N: Clone + Num> Matrix<N> {
     /// # Panics
     ///
     /// This method panics if `col >= self.ndim() || row >= self.ndim()`.
-    pub fn get_mut(&mut self, col: u8, row: u8) -> &mut N {
+    pub fn get_mut(&mut self, col: u8, row: u8) -> &mut f32 {
         let ndim = self.ndim();
         assert!(col < ndim);
         assert!(row < ndim);
@@ -148,96 +144,67 @@ impl<N: Clone + Num> Matrix<N> {
     }
     /// Returns a row of the matrix. If out of bounds, returns the corresponding
     /// row of the infinite identity matrix.
-    pub fn row(&self, row: u8) -> MatrixRow<'_, N> {
+    pub fn row(&self, row: u8) -> MatrixRow<'_> {
         MatrixRow { matrix: self, row }
     }
     /// Returns a column of the matrix. If out of bounds, returns the
     /// corresponding column of the infinite identity matrix.
-    pub fn col(&self, col: u8) -> MatrixCol<'_, N> {
+    pub fn col(&self, col: u8) -> MatrixCol<'_> {
         MatrixCol { matrix: self, col }
     }
 
     /// Returns an iterator over the rows of the matrix.
-    pub fn rows(&self) -> impl Iterator<Item = MatrixRow<'_, N>> {
+    pub fn rows(&self) -> impl Iterator<Item = MatrixRow<'_>> {
         self.rows_ndim(self.ndim())
     }
     /// Returns an iterator over the columns of the matrix.
-    pub fn cols(&self) -> impl Iterator<Item = MatrixCol<'_, N>> {
+    pub fn cols(&self) -> impl Iterator<Item = MatrixCol<'_>> {
         self.cols_ndim(self.ndim())
     }
     /// Returns an iterator over the rows of the matrix, padded to `ndim`. Each
     /// individual row is not padded.
-    pub fn rows_ndim(&self, ndim: u8) -> impl Iterator<Item = MatrixRow<'_, N>> {
+    pub fn rows_ndim(&self, ndim: u8) -> impl Iterator<Item = MatrixRow<'_>> {
         (0..ndim).map(|i| self.row(i))
     }
     /// Returns an iterator over the columns of the matrix, padded to `ndim`.
     /// Each individual column is not padded.
-    pub fn cols_ndim(&self, ndim: u8) -> impl Iterator<Item = MatrixCol<'_, N>> {
+    pub fn cols_ndim(&self, ndim: u8) -> impl Iterator<Item = MatrixCol<'_>> {
         (0..ndim).map(|i| self.col(i))
     }
 
-    /// Multiplies all elements of the matrix by a scalar.
-    #[must_use]
-    pub fn scale(mut self, scalar: N) -> Self {
-        for elem in &mut self.elems {
-            *elem = elem.clone() * scalar.clone();
-        }
-        self
-    }
-
-    /// Transforms a vector using the matrix.
-    pub fn transform(&self, v: impl VectorRef<N>) -> Vector<N> {
-        // TODO: remove this method; replace with `impl Mul`
-        let ndim = std::cmp::max(self.ndim(), v.ndim());
-        (0..ndim)
-            .map(|i| {
-                (0..ndim)
-                    .map(|j| self.get(j, i) * v.get(j))
-                    .fold(N::zero(), |a, b| a + b)
-            })
-            .collect()
-    }
-
     /// Returns the determinant of the matrix.
-    pub fn determinant(&self) -> N
-    where
-        N: Signed,
-    {
+    pub fn determinant(&self) -> f32 {
         permutations::permutations_with_parity(0..self.ndim)
             .map(|(permutation, parity)| {
                 let parity = match parity {
-                    permutations::Parity::Even => N::one(),
-                    permutations::Parity::Odd => -N::one(),
+                    permutations::Parity::Even => 1.0,
+                    permutations::Parity::Odd => -1.0,
                 };
                 permutation
                     .into_iter()
                     .enumerate()
                     .map(|(j, k)| self.get(j as _, k))
-                    .fold(N::one(), |x, y| x * y)
+                    .product::<f32>()
                     * parity
             })
-            .fold(N::zero(), |x, y| x + y)
+            .sum()
     }
 
     /// Returns the inverse of the matrix, or `None` if the determinant is zero.
-    pub fn inverse(&self) -> Option<Matrix<N>>
-    where
-        N: Signed,
-        N: Clone,
-    {
+    pub fn inverse(&self) -> Option<Matrix> {
         let determinant = self.determinant();
-        (!determinant.is_zero()).then(|| {
-            let det = &determinant;
+        let recip_determinant = 1.0 / determinant;
+        recip_determinant.is_finite().then(|| {
             Matrix::from_elems(
                 (0..self.ndim)
                     .flat_map(|j| {
                         (0..self.ndim).map(move |i| {
                             let mut a = self.clone();
                             for k in 0..self.ndim {
-                                *a.get_mut(i, k) = N::zero();
+                                *a.get_mut(i, k) = 0.0;
                             }
-                            *a.get_mut(i, j) = N::one();
-                            a.determinant() / det.clone()
+                            *a.get_mut(i, j) = 1.0;
+                            a.determinant() * recip_determinant
                         })
                     })
                     .collect(),
@@ -246,12 +213,12 @@ impl<N: Clone + Num> Matrix<N> {
     }
 
     /// Returns the transpose of the matrix.
-    pub fn transpose(&self) -> Matrix<N> {
-        Matrix::from_cols(self.rows().collect::<Vec<_>>())
+    pub fn transpose(&self) -> Matrix {
+        Matrix::from_cols((0..self.ndim()).map(|i| self.row(i)))
     }
 }
-impl<N: Clone + Num> FromIterator<N> for Matrix<N> {
-    fn from_iter<T: IntoIterator<Item = N>>(iter: T) -> Self {
+impl FromIterator<f32> for Matrix {
+    fn from_iter<T: IntoIterator<Item = f32>>(iter: T) -> Self {
         Self::from_elems(iter.into_iter().collect())
     }
 }
@@ -260,54 +227,54 @@ impl<N: Clone + Num> FromIterator<N> for Matrix<N> {
 #[macro_export]
 macro_rules! col_matrix {
     ($([$($n:expr),* $(,)?]),* $(,)?) => {
-        Matrix::from_elems(vec![$($($n),*),*])
+        Matrix::from_elems(vec![$($($n as f32),*),*])
     };
 }
 /// Constructs a matrix from rows.
 #[macro_export]
 macro_rules! row_matrix {
     ($([$($n:expr),* $(,)?]),* $(,)?) => {
-        Matrix::from_elems(vec![$($($n),*),*]).transpose()
+        Matrix::from_elems(vec![$($($n as f32),*),*]).transpose()
     };
 }
 
 /// Reference to a column of a matrix, usable as a vector.
 #[derive(Debug, Copy, Clone)]
-pub struct MatrixCol<'a, N: Clone + Num> {
-    matrix: &'a Matrix<N>,
+pub struct MatrixCol<'a> {
+    matrix: &'a Matrix,
     col: u8,
 }
-impl<N: Clone + Num> VectorRef<N> for MatrixCol<'_, N> {
+impl VectorRef for MatrixCol<'_> {
     fn ndim(&self) -> u8 {
         std::cmp::max(self.matrix.ndim(), self.col + 1)
     }
 
-    fn get(&self, row: u8) -> N {
+    fn get(&self, row: u8) -> f32 {
         self.matrix.get(self.col, row)
     }
 }
 
 /// Reference to a row of a matrix, usable as a vector.
 #[derive(Debug, Copy, Clone)]
-pub struct MatrixRow<'a, N: Clone + Num> {
-    matrix: &'a Matrix<N>,
+pub struct MatrixRow<'a> {
+    matrix: &'a Matrix,
     row: u8,
 }
-impl<N: Clone + Num> VectorRef<N> for MatrixRow<'_, N> {
+impl VectorRef for MatrixRow<'_> {
     fn ndim(&self) -> u8 {
         std::cmp::max(self.matrix.ndim(), self.row + 1)
     }
 
-    fn get(&self, col: u8) -> N {
+    fn get(&self, col: u8) -> f32 {
         self.matrix.get(col, self.row)
     }
 }
 
-impl_vector_ops!(impl<N> for MatrixCol<'_, N>);
-impl_vector_ops!(impl<N> for MatrixRow<'_, N>);
+impl_vector_ops!(impl for MatrixCol<'_, >);
+impl_vector_ops!(impl for MatrixRow<'_, >);
 
-impl<'a, N: Clone + Num + std::fmt::Debug> Mul for &'a Matrix<N> {
-    type Output = Matrix<N>;
+impl<'a> Mul for &'a Matrix {
+    type Output = Matrix;
 
     fn mul(self, rhs: Self) -> Self::Output {
         let new_ndim = std::cmp::max(self.ndim(), rhs.ndim());
@@ -319,8 +286,7 @@ impl<'a, N: Clone + Num + std::fmt::Debug> Mul for &'a Matrix<N> {
                 let rhs_elem = rhs.get(x, i as _);
                 for y in 0..new_ndim {
                     let self_elem = self_col.get(y);
-                    *new_matrix.get_mut(x, y) =
-                        new_matrix.get(x, y) + self_elem.clone() * rhs_elem.clone();
+                    *new_matrix.get_mut(x, y) = new_matrix.get(x, y) + self_elem * rhs_elem;
                 }
             }
         }
@@ -328,8 +294,8 @@ impl<'a, N: Clone + Num + std::fmt::Debug> Mul for &'a Matrix<N> {
         new_matrix
     }
 }
-impl<'a, N: Clone + Num + std::fmt::Debug> Add for &'a Matrix<N> {
-    type Output = Matrix<N>;
+impl<'a> Add for &'a Matrix {
+    type Output = Matrix;
 
     fn add(self, rhs: Self) -> Self::Output {
         let new_ndim = std::cmp::max(self.ndim(), rhs.ndim());
@@ -340,8 +306,8 @@ impl<'a, N: Clone + Num + std::fmt::Debug> Add for &'a Matrix<N> {
         )
     }
 }
-impl<'a, N: Clone + Num + std::fmt::Debug> Sub for &'a Matrix<N> {
-    type Output = Matrix<N>;
+impl<'a> Sub for &'a Matrix {
+    type Output = Matrix;
 
     fn sub(self, rhs: Self) -> Self::Output {
         let new_ndim = std::cmp::max(self.ndim(), rhs.ndim());
@@ -352,7 +318,7 @@ impl<'a, N: Clone + Num + std::fmt::Debug> Sub for &'a Matrix<N> {
         )
     }
 }
-impl Matrix<f32> {
+impl Matrix {
     /// Returns whether two matrices are equal within `epsilon` on each element.
     pub fn approx_eq(&self, other: &Self, epsilon: f32) -> bool {
         let ndim = std::cmp::max(self.ndim(), other.ndim());
@@ -362,12 +328,12 @@ impl Matrix<f32> {
     }
 }
 
-impl_forward_bin_ops_to_ref!(impl Mul for Matrix<f32> { fn mul() });
-impl_forward_bin_ops_to_ref!(impl Add for Matrix<f32> { fn add() });
-impl_forward_bin_ops_to_ref!(impl Sub for Matrix<f32> { fn sub() });
+impl_forward_bin_ops_to_ref!(impl Mul for Matrix { fn mul() });
+impl_forward_bin_ops_to_ref!(impl Add for Matrix { fn add() });
+impl_forward_bin_ops_to_ref!(impl Sub for Matrix { fn sub() });
 
-impl Mul<f32> for Matrix<f32> {
-    type Output = Matrix<f32>;
+impl Mul<f32> for Matrix {
+    type Output = Matrix;
 
     fn mul(mut self, rhs: f32) -> Self::Output {
         for x in &mut self.elems {
@@ -376,26 +342,44 @@ impl Mul<f32> for Matrix<f32> {
         self
     }
 }
-impl Div<f32> for Matrix<f32> {
-    type Output = Matrix<f32>;
+impl<'a> Mul<f32> for &'a Matrix {
+    type Output = Matrix;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Matrix::from_elems(self.elems.iter().map(|&x| x * rhs).collect())
+    }
+}
+
+impl Div<f32> for Matrix {
+    type Output = Matrix;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        self * (1.0 / rhs)
+    }
+}
+impl<'a> Div<f32> for &'a Matrix {
+    type Output = Matrix;
 
     fn div(self, rhs: f32) -> Self::Output {
         self * (1.0 / rhs)
     }
 }
 
-impl<V: VectorRef<f32>> Mul<V> for Matrix<f32> {
-    type Output = Vector<f32>;
+impl<V: VectorRef> Mul<V> for Matrix {
+    type Output = Vector;
 
     fn mul(self, rhs: V) -> Self::Output {
-        self.transform(rhs)
+        &self * rhs
     }
 }
-impl<'a, V: VectorRef<f32>> Mul<V> for &'a Matrix<f32> {
-    type Output = Vector<f32>;
+impl<'a, V: VectorRef> Mul<V> for &'a Matrix {
+    type Output = Vector;
 
     fn mul(self, rhs: V) -> Self::Output {
-        self.transform(rhs)
+        let ndim = std::cmp::max(self.ndim(), rhs.ndim());
+        (0..ndim)
+            .map(|i| (0..ndim).map(|j| self.get(j, i) * rhs.get(j)).sum())
+            .collect()
     }
 }
 
@@ -409,7 +393,7 @@ mod tests {
             Matrix::EMPTY_IDENT * vector![1.0, 2.0, 3.0, 4.0],
             vector![1.0, 2.0, 3.0, 4.0],
         );
-        let m = col_matrix![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+        let m = col_matrix![[1, 2, 3], [4, 5, 6], [7, 8, 9]];
         assert_eq!(m, Matrix::EMPTY_IDENT * &m);
         assert_eq!(m, &m * Matrix::EMPTY_IDENT);
     }
@@ -427,13 +411,13 @@ mod tests {
     #[test]
     fn test_matrix_determinant() {
         let m = col_matrix![[3, 7], [1, -4]];
-        assert_eq!(m.determinant(), -19);
+        assert_eq!(m.determinant(), -19.0);
 
         let m = col_matrix![[-2, -1, 2], [2, 1, 4], [-3, 3, -1]];
-        assert_eq!(m.determinant(), 54);
+        assert_eq!(m.determinant(), 54.0);
 
         let m = col_matrix![[1, 2, 3, 4], [5, 6, 8, 7], [-10, 3, 6, 2], [3, 1, 4, 1]];
-        assert_eq!(m.determinant(), -402);
+        assert_eq!(m.determinant(), -402.0);
     }
 
     #[test]

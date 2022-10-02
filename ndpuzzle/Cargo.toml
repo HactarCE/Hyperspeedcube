@@ -17,7 +17,7 @@ rand = "0.8.5"
 regex = "1.6.0"
 serde = "1.0.144"
 slab = "0.4.7"
-smallvec = { version = "1.9.0", features = ["union"] }
+smallvec = { version = "1.9.0", features = ["const_new", "serde", "union"] }
 strum = { version = "0.24.0", features = ["derive"] }
 thiserror = "1.0.34"
 

@@ -74,7 +74,7 @@ impl SchlafliSymbol {
         ret
     }
 
-    pub fn generators(self) -> Vec<Matrix<f32>> {
+    pub fn generators(self) -> Vec<Matrix> {
         self.mirrors().into_iter().map(|m| m.into()).collect()
     }
     // pub fn group(self) -> Group {
@@ -87,7 +87,7 @@ impl SchlafliSymbol {
 pub struct MirrorGenerator {
     mirrors: Vec<Mirror>,
 }
-impl From<MirrorGenerator> for Matrix<f32> {
+impl From<MirrorGenerator> for Matrix {
     fn from(gen: MirrorGenerator) -> Self {
         gen.mirrors
             .into_iter()
@@ -98,8 +98,8 @@ impl From<MirrorGenerator> for Matrix<f32> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Mirror(pub Vector<f32>);
-impl From<Mirror> for Matrix<f32> {
+pub struct Mirror(pub Vector);
+impl From<Mirror> for Matrix {
     fn from(mirror: Mirror) -> Self {
         let ndim = mirror.0.ndim();
         let mut ret = Matrix::ident(ndim);
