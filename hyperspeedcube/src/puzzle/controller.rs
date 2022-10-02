@@ -382,7 +382,7 @@ impl PuzzleController {
                 .pad(4)
                 * (1.0 / self.ty().radius);
 
-            let face_spacing = view_prefs.face_spacing;
+            let facet_spacing = view_prefs.facet_spacing;
             let sticker_spacing = if self.ty().layer_count > 1 {
                 view_prefs.sticker_spacing
             } else {
@@ -390,16 +390,16 @@ impl PuzzleController {
             };
 
             let sticker_grid_scale =
-                (1.0 - face_spacing) / (self.ty().layer_count as f32 - sticker_spacing);
-            let face_scale = sticker_grid_scale * (self.ty().layer_count as f32);
+                (1.0 - facet_spacing) / (self.ty().layer_count as f32 - sticker_spacing);
+            let facet_scale = sticker_grid_scale * (self.ty().layer_count as f32);
             let sticker_scale = sticker_grid_scale * (1.0 - sticker_spacing);
 
             StickerGeometryParams {
-                face_spacing,
+                facet_spacing,
                 sticker_spacing,
 
                 sticker_grid_scale,
-                face_scale,
+                facet_scale,
                 sticker_scale,
 
                 fov_4d: view_prefs.fov_4d,

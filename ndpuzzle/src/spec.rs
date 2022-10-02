@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BasicPuzzleSpec {
     pub name: String,
-    pub ndim: u8,
     pub shape: Vec<ShapeSpec>,
     pub twists: Vec<TwistsSpec>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ShapeSpec {
+    pub ndim: u8,
     pub symmetries: Vec<SymmetriesSpec>,
-    pub face_generators: Vec<Vector>,
+    pub seeds: Vec<Vector>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TwistsSpec {

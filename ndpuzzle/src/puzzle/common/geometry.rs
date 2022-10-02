@@ -18,18 +18,18 @@ use crate::math::{Matrix, VectorRef};
 /// Parameters for constructing sticker geometry.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StickerGeometryParams {
-    /// `2 * (space between face and edge of puzzle) / (puzzle diameter)`.
+    /// `2 * (space between facet and edge of puzzle) / (puzzle diameter)`.
     /// Ranges from 0.0 to 1.0.
-    pub face_spacing: f32,
+    pub facet_spacing: f32,
     /// `(space between stickers) / (sticker width)`. Ranges from 0.0 to 2.0.
     pub sticker_spacing: f32,
 
     /// `(sticker width + space between stickers) / (puzzle diameter)`. Ranges
     /// from 0.0 to 1.0.
     pub sticker_grid_scale: f32,
-    /// `(face width + space between stickers) / (puzzle diameter)`. Ranges from
-    /// 0.0 to infinity.
-    pub face_scale: f32,
+    /// `(facet width + space between stickers) / (puzzle diameter)`. Ranges
+    /// from 0.0 to infinity.
+    pub facet_scale: f32,
     /// `(sticker width) / (puzzle diameter)`. Ranges from 0.0 to 1.0.
     pub sticker_scale: f32,
 
@@ -61,7 +61,7 @@ impl StickerGeometryParams {
     /// Returns the divisor for applying 4D perspective projection based on the
     /// W coordinate of a point.
     fn w_divisor(&self, w: f32) -> Option<f32> {
-        let camera_w = self.face_scale;
+        let camera_w = self.facet_scale;
 
         // See `project_3d()` for an explanation of this formula. The only
         // differences here are that we assume the 4D FOV is positive and we

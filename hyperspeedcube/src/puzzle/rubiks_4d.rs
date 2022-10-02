@@ -163,7 +163,7 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
     let shape = Arc::new(PuzzleShape {
         name: "4-cube".to_string(),
         ndim: 3,
-        faces: FaceEnum::iter().map(|f| f.info()).collect(),
+        facets: FaceEnum::iter().map(|f| f.info()).collect(),
     });
 
     let orientations = TwistDirectionEnum::iter()
@@ -634,12 +634,12 @@ enum FaceEnum {
     O = 6,
     I = 7,
 }
-impl From<Face> for FaceEnum {
-    fn from(Face(i): Face) -> Self {
+impl From<Facet> for FaceEnum {
+    fn from(Facet(i): Facet) -> Self {
         Self::from(i)
     }
 }
-impl From<FaceEnum> for Face {
+impl From<FaceEnum> for Facet {
     fn from(face: FaceEnum) -> Self {
         Self(face as _)
     }
@@ -655,8 +655,8 @@ impl From<FaceEnum> for TwistAxis {
     }
 }
 impl FaceEnum {
-    fn info(self) -> FaceInfo {
-        FaceInfo {
+    fn info(self) -> FacetInfo {
+        FacetInfo {
             name: self.name().to_owned(),
         }
     }

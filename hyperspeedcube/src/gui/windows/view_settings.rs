@@ -102,7 +102,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             prefs_ui.checkbox("Clip 4D", access!(.clip_4d));
         }
 
-        prefs_ui.float("Face spacing", access!(.face_spacing), |dv| {
+        prefs_ui.float("Facet spacing", access!(.facet_spacing), |dv| {
             dv.fixed_decimals(2).clamp_range(0.0..=0.9_f32).speed(0.005)
         });
 

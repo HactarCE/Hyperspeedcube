@@ -26,7 +26,7 @@ pub fn build_puzzle(spec: &BasicPuzzleSpec) -> Result<PuzzleData> {
     //     .unwrap_or(Matrix::EMPTY_IDENT) // TODO: isn't really right
     //     .transpose();
     let poles = shape_spec
-        .face_generators
+        .seeds
         .iter()
         .map(|v| v.clone().resize(spec.ndim))
         .collect::<Vec<_>>();
@@ -153,7 +153,7 @@ pub fn puzzle_type(spec: BasicPuzzleSpec) -> Result<Arc<PuzzleType>> {
         let stickers = puzzle_data.arena.polytope_facet_ids(piece, true)?;
         sticker_infos.extend(stickers.iter().map(|s| super::StickerInfo {
             piece: super::Piece(piece_infos.len() as u16),
-            color: super::Face(0),
+            color: super::Facet(0),
         }));
         let j = sticker_infos.len() as u16;
         piece_infos.push(super::PieceInfo {
@@ -168,10 +168,10 @@ pub fn puzzle_type(spec: BasicPuzzleSpec) -> Result<Arc<PuzzleType>> {
         shape: Arc::new(super::PuzzleShape {
             name: "Todo".to_string(),
             ndim: spec.ndim,
-            faces: puzzle_data
+            facets: puzzle_data
                 .facets()
                 .iter()
-                .map(|facet| super::FaceInfo {
+                .map(|facet| super::FacetInfo {
                     name: format!("{:?}", facet),
                 })
                 .collect(),

@@ -80,7 +80,7 @@ impl AsRef<str> for PuzzleType {
         &self.name
     }
 }
-impl_puzzle_info_trait!(for PuzzleType { fn info(Face) -> &FaceInfo { .shape.faces } });
+impl_puzzle_info_trait!(for PuzzleType { fn info(Facet) -> &FacetInfo { .shape.facets } });
 impl_puzzle_info_trait!(for PuzzleType { fn info(TwistAxis) -> &TwistAxisInfo { .twists.axes } });
 impl_puzzle_info_trait!(for PuzzleType { fn info(TwistDirection) -> &TwistDirectionInfo { .twists.directions } });
 impl_puzzle_info_trait!(for PuzzleType { fn info(Piece) -> &PieceInfo { .pieces } });

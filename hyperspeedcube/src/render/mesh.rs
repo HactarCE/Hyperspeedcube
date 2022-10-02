@@ -26,7 +26,7 @@ pub(super) fn make_puzzle_mesh(
     // incrementation for each sticker to get the next-largest `f32` value.
     let mut z = 0.5_f32;
 
-    let face_colors = &prefs.colors.face_colors_list(puzzle.ty());
+    let facet_colors = &prefs.colors.facet_colors_list(puzzle.ty());
 
     for geom in sticker_geometries {
         let sticker_info = puzzle.ty().info(geom.sticker);
@@ -38,9 +38,9 @@ pub(super) fn make_puzzle_mesh(
 
         // Determine sticker fill color.
         let sticker_color = egui::Rgba::from(if prefs.colors.blindfold {
-            prefs.colors.blind_face
+            prefs.colors.blind_sticker
         } else {
-            face_colors[puzzle.ty().info(geom.sticker).color.0 as usize]
+            facet_colors[puzzle.ty().info(geom.sticker).color.0 as usize]
         })
         .multiply(alpha);
 
@@ -79,7 +79,7 @@ pub(super) fn make_puzzle_mesh(
             );
         }
 
-        // Generate face vertices.
+        // Generate polygon vertices.
         for polygon in &*geom.front_polygons {
             let base = verts.len() as u32;
             verts.extend(polygon.verts.iter().map(|v| RgbaVertex {

@@ -47,9 +47,9 @@ Click for full resolution.
 
 Hyperspeedcube has completely customizable mouse and keyboard controls. By default:
 
-- Left click to rotate a face counterclockwise
-- Right click to rotate a face clockwise
-- Middle click to recenter a face
+- Left click to twist counterclockwise
+- Right click to twist clockwise
+- Middle click to recenter a facet
 - See **Help → Keybind reference** for keybinds
 
 The keyboard controls for the 3D Rubik's cube are mostly based on [Ryan Heise's speedcube simulator](https://www.ryanheise.com/cube/speed.html).

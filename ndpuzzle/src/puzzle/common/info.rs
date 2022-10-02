@@ -24,9 +24,9 @@ pub struct Piece(pub u16);
 /// Sticker ID.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Sticker(pub u16);
-/// Face ID.
+/// Facet ID.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Face(pub u8);
+pub struct Facet(pub u8);
 /// Twist axis ID.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TwistAxis(pub u8);
@@ -47,14 +47,14 @@ pub struct PieceInfo {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct StickerInfo {
     pub piece: Piece,
-    pub color: Face,
+    pub color: Facet,
 }
-/// Face metadata.
+/// Facet metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FaceInfo {
+pub struct FacetInfo {
     pub name: String, // e.g., "Right"
 }
-impl FaceInfo {
+impl FacetInfo {
     pub const fn new(name: String) -> Self {
         Self { name }
     }

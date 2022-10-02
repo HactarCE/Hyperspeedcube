@@ -27,7 +27,8 @@ pub struct ViewPreferences {
     pub show_backfaces: bool,
     pub clip_4d: bool,
 
-    pub face_spacing: f32,
+    #[serde(alias = "face_spacing")]
+    pub facet_spacing: f32,
     pub sticker_spacing: f32,
 
     pub outline_thickness: f32,
@@ -51,7 +52,7 @@ impl Default for ViewPreferences {
             align_h: 0.0,
             align_v: 0.0,
 
-            face_spacing: 0.0,
+            facet_spacing: 0.0,
             sticker_spacing: 0.0,
 
             show_frontfaces: true,
@@ -105,7 +106,7 @@ impl ViewPreferences {
                 rhs.show_backfaces
             },
             clip_4d: if t < 0.5 { self.clip_4d } else { rhs.clip_4d },
-            face_spacing: crate::util::mix(self.face_spacing, rhs.face_spacing, t),
+            facet_spacing: crate::util::mix(self.facet_spacing, rhs.facet_spacing, t),
             sticker_spacing: crate::util::mix(self.sticker_spacing, rhs.sticker_spacing, t),
             outline_thickness: crate::util::mix(self.outline_thickness, rhs.outline_thickness, t),
             light_ambient: crate::util::mix(self.light_ambient, rhs.light_ambient, t),

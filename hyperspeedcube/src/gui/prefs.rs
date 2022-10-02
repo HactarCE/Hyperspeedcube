@@ -3,7 +3,7 @@ use egui::NumExt;
 use crate::app::App;
 use crate::gui::util::{self, ResponseExt};
 use crate::preferences::{OpacityPreferences, DEFAULT_PREFS};
-use crate::puzzle::Face;
+use crate::puzzle::Facet;
 
 use super::util::PrefsUi;
 
@@ -19,16 +19,16 @@ pub(super) fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
         changed: &mut changed,
     };
 
-    prefs_ui.ui.strong("Faces");
-    for (i, face) in puzzle_type.shape.faces.iter().enumerate() {
-        prefs_ui.color(&face.name, access!([(&**puzzle_type, Face(i as _))]));
+    prefs_ui.ui.strong("Facets");
+    for (i, facet) in puzzle_type.shape.facets.iter().enumerate() {
+        prefs_ui.color(&facet.name, access!([(&**puzzle_type, Facet(i as _))]));
     }
 
     prefs_ui.ui.separator();
 
     prefs_ui.ui.strong("Special");
     prefs_ui.color("Background", access!(.background));
-    prefs_ui.color("Blindfolded stickers", access!(.blind_face));
+    prefs_ui.color("Blindfolded stickers", access!(.blind_sticker));
     prefs_ui.checkbox("Blindfold mode", access!(.blindfold));
 
     prefs.needs_save |= changed;
@@ -194,7 +194,7 @@ pub(super) fn build_unhide_grip_checkbox(prefs_ui: &mut PrefsUi<OpacityPreferenc
         .checkbox("Unhide grip", access!(.unhide_grip))
         .on_hover_explanation(
             "",
-            "When enabled, gripping a face will temporarily \
+            "When enabled, gripping a facet will temporarily \
              disable piece filters.",
         );
 }

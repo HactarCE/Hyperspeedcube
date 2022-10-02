@@ -48,7 +48,7 @@ view_3d:
   show_frontfaces: true
   show_backfaces: false
   clip_4d: true
-  face_spacing: 0.03
+  facet_spacing: 0.03
   sticker_spacing: 0.05
   outline_thickness: 1.0
   light_ambient: 1.0
@@ -68,7 +68,7 @@ view_3d:
     show_frontfaces: true
     show_backfaces: false
     clip_4d: true
-    face_spacing: 0.03
+    facet_spacing: 0.03
     sticker_spacing: 0.05
     outline_thickness: 1.0
     light_ambient: 1.0
@@ -88,7 +88,7 @@ view_3d:
       show_frontfaces: true
       show_backfaces: false
       clip_4d: true
-      face_spacing: 0.03
+      facet_spacing: 0.03
       sticker_spacing: 0.05
       outline_thickness: 1.0
       light_ambient: 1.0
@@ -107,7 +107,7 @@ view_3d:
       show_frontfaces: false
       show_backfaces: true
       clip_4d: true
-      face_spacing: 0.4
+      facet_spacing: 0.4
       sticker_spacing: 0.2
       outline_thickness: 1.0
       light_ambient: 1.0
@@ -126,7 +126,7 @@ view_3d:
       show_frontfaces: true
       show_backfaces: false
       clip_4d: true
-      face_spacing: 0.4
+      facet_spacing: 0.4
       sticker_spacing: 0.2
       outline_thickness: 1.0
       light_ambient: 1.0
@@ -145,7 +145,7 @@ view_4d:
   show_frontfaces: true
   show_backfaces: true
   clip_4d: true
-  face_spacing: 0.7
+  facet_spacing: 0.7
   sticker_spacing: 0.3
   outline_thickness: 1.0
   light_ambient: 0.0
@@ -165,7 +165,7 @@ view_4d:
     show_frontfaces: true
     show_backfaces: true
     clip_4d: true
-    face_spacing: 0.7
+    facet_spacing: 0.7
     sticker_spacing: 0.3
     outline_thickness: 1.0
     light_ambient: 0.0
@@ -185,7 +185,7 @@ view_4d:
       show_frontfaces: true
       show_backfaces: true
       clip_4d: true
-      face_spacing: 0.7
+      facet_spacing: 0.7
       sticker_spacing: 0.3
       outline_thickness: 1.0
       light_ambient: 0.0
@@ -194,7 +194,7 @@ view_4d:
       light_yaw: -55.0
 colors:
   background: "#444444"
-  blind_face: "#cccccc"
+  blind_sticker: "#cccccc"
   blindfold: false
   faces:
     Rubiks3D:

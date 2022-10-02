@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::app::App;
 use crate::gui::{util, widgets};
 use crate::preferences::{PieceFilter, DEFAULT_PREFS};
-use crate::puzzle::{traits::*, Face, PieceInfo, PieceType};
+use crate::puzzle::{traits::*, Facet, PieceInfo, PieceType};
 
 const MIN_WIDTH: f32 = 300.0;
 
@@ -15,7 +15,7 @@ macro_rules! piece_subset_from_sticker_colors {
     ($puzzle_ty:expr, |$color_iter:ident| $predicate:expr $(,)?) => {{
         // This is a macro instead of a function because I don't know how to
         // write the type of the predicate closure except as `impl FnMut(impl
-        // Iterator<Item=Face>) -> bool`, which isn't allowed.
+        // Iterator<Item=Facet>) -> bool`, which isn't allowed.
         let ty = &$puzzle_ty;
         ty.pieces
             .iter()
@@ -78,23 +78,23 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.collapsing("Colors", |ui| {
         ui.set_enabled(!app.prefs.colors.blindfold);
 
-        let face_colors = app.prefs.colors.face_colors_list(app.puzzle.ty());
+        let facet_colors = app.prefs.colors.facet_colors_list(app.puzzle.ty());
 
         let colors_selection_id = unique_id!();
         let mut selected_colors: Vec<bool> =
             ui.data().get_temp(colors_selection_id).unwrap_or_default();
-        selected_colors.resize(app.puzzle.ty().shape.faces.len(), false);
+        selected_colors.resize(app.puzzle.ty().shape.facets.len(), false);
 
-        for i in 0..puzzle_type.shape.faces.len() {
+        for i in 0..puzzle_type.shape.facets.len() {
             PieceFilterWidget::new_uppercased(
                 "pieces with this color",
                 piece_subset_from_sticker_colors!(puzzle_type, |colors| {
-                    colors.any(|c| c == Face(i as _))
+                    colors.any(|c| c == Facet(i as _))
                 }),
             )
             .label_ui(|ui: &mut egui::Ui| {
                 ui.horizontal(|ui| {
-                    egui::color_picker::show_color(ui, face_colors[i], ui.spacing().interact_size);
+                    egui::color_picker::show_color(ui, facet_colors[i], ui.spacing().interact_size);
                     ui.checkbox(&mut selected_colors[i], "");
                 })
                 .response
@@ -107,7 +107,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 "pieces with all these colors",
                 piece_subset_from_sticker_colors!(puzzle_type, |colors| {
                     selected_colors.iter().enumerate().all(|(i, selected)| {
-                        !selected || colors.clone().any(|color| color == Face(i as _))
+                        !selected || colors.clone().any(|color| color == Facet(i as _))
                     })
                 }),
             )
