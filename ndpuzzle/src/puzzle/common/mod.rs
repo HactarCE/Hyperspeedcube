@@ -3,7 +3,6 @@ use itertools::Itertools;
 use rand::Rng;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 use std::fmt;
 use std::hash::Hash;
 use std::ops::*;
@@ -11,87 +10,20 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use strum::{Display, EnumIter, EnumMessage};
 
-use super::*;
-use crate::math::Rotor;
+#[macro_use]
+mod info;
+pub mod geometry;
+mod notation;
+mod shape;
+mod twists;
 
-pub trait PuzzleInfo<T> {
-    type Output;
+pub use geometry::{ProjectedStickerGeometry, StickerGeometry, StickerGeometryParams};
+pub use info::*;
+pub use notation::*;
+pub use shape::*;
+pub use twists::*;
 
-    fn info(&self, thing: T) -> &Self::Output;
-}
-macro_rules! impl_puzzle_info_trait {
-    (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {
-        impl PuzzleInfo<$thing> for $t {
-            type Output = $thing_info;
-
-            fn info(&self, thing: $thing) -> &$thing_info {
-                &self $($tok)* [thing.0 as usize]
-            }
-        }
-    };
-}
-
-/// Puzzle shape.
-#[derive(Debug)]
-pub struct PuzzleShape {
-    /// Shape name.
-    pub name: String,
-    /// Number of dimensions.
-    pub ndim: u8,
-    /// Puzzles faces.
-    // TODO: rename to `facets` and `FacetInfo`
-    pub faces: Vec<FaceInfo>,
-}
-impl_puzzle_info_trait!(for PuzzleShape { fn info(Face) -> &FaceInfo { .faces } });
-
-/// Puzzle twist set.
-#[derive(Debug)]
-pub struct PuzzleTwists {
-    /// Twist set name.
-    pub name: String,
-
-    /// Twist axes, in order.
-    pub axes: Vec<TwistAxisInfo>,
-    /// Twist directions, in order.
-    pub directions: Vec<TwistDirectionInfo>,
-
-    /// Puzzle orientations, in no particular order.
-    pub orientations: Vec<Rotor>,
-}
-impl_puzzle_info_trait!(for PuzzleTwists { fn info(TwistAxis) -> &TwistAxisInfo { .axes } });
-impl_puzzle_info_trait!(for PuzzleTwists { fn info(TwistDirection) -> &TwistDirectionInfo { .directions } });
-impl PuzzleTwists {
-    pub fn axis_from_symbol(&self, symbol: &str) -> Option<TwistAxis> {
-        (0..self.axes.len() as u8)
-            .map(TwistAxis)
-            .find(|&twist_axis| self.info(twist_axis).symbol == symbol)
-    }
-    pub fn direction_from_name(&self, name: &str) -> Option<TwistDirection> {
-        (0..self.directions.len() as u8)
-            .map(TwistDirection)
-            .find(|&twist_direction| self.info(twist_direction).name == name)
-    }
-
-    pub fn nearest_orientation(&self, rot: &Rotor) -> Rotor {
-        let inv_rot = rot.reverse();
-
-        let mut nearest = Rotor::identity();
-        // The scalar part of a rotor is the cosine of half the angle of
-        // rotation. So we can use the absolute value of that quantity to
-        // compare whether one rotor is a larger rotation than another.
-        let mut score_of_nearest = -1.0;
-        for candidate in &self.orientations {
-            let s = (&inv_rot * candidate).s().abs();
-
-            if s > score_of_nearest {
-                nearest = candidate.clone();
-                score_of_nearest = s;
-            }
-        }
-        nearest
-    }
-}
-
+/// Puzzle type metadata.
 pub struct PuzzleType {
     pub this: Weak<PuzzleType>,
     pub name: String,
@@ -363,89 +295,6 @@ impl Twist {
                 ty.all_layers()
             },
         }
-    }
-}
-
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Piece(pub u16);
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Sticker(pub u16);
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Face(pub u8);
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TwistAxis(pub u8);
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TwistDirection(pub u8);
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct PieceType(pub u8);
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PieceInfo {
-    pub stickers: SmallVec<[Sticker; 8]>,
-    pub piece_type: PieceType,
-}
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct StickerInfo {
-    pub piece: Piece,
-    pub color: Face,
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FaceInfo {
-    pub name: String, // e.g., "Right"
-}
-impl FaceInfo {
-    pub const fn new(name: String) -> Self {
-        Self { name }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TwistAxisInfo {
-    pub symbol: String, // e.g., "R"
-    pub layer_count: u8,
-    pub opposite: Option<(TwistAxis, Vec<TwistDirection>)>,
-}
-impl AsRef<str> for TwistAxisInfo {
-    fn as_ref(&self) -> &str {
-        &self.symbol
-    }
-}
-impl TwistAxisInfo {
-    pub fn opposite_axis(&self) -> Option<TwistAxis> {
-        self.opposite.as_ref().map(|(axis, _)| *axis)
-    }
-    pub fn opposite_twist(&self, dir: TwistDirection) -> Option<(TwistAxis, TwistDirection)> {
-        self.opposite
-            .as_ref()
-            .and_then(|(axis, dirs)| Some((*axis, *dirs.get(dir.0 as usize)?)))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TwistDirectionInfo {
-    pub symbol: String, // "'"
-    pub name: String,   // "CCW"
-    pub qtm: usize,
-    pub rev: TwistDirection,
-}
-impl AsRef<str> for TwistDirectionInfo {
-    fn as_ref(&self) -> &str {
-        &self.name
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PieceTypeInfo {
-    pub name: String,
-}
-impl AsRef<str> for PieceTypeInfo {
-    fn as_ref(&self) -> &str {
-        &self.name
-    }
-}
-impl PieceTypeInfo {
-    pub const fn new(name: String) -> Self {
-        Self { name }
     }
 }
 
