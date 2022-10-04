@@ -6,12 +6,17 @@
 mod impl_macros;
 #[macro_use]
 mod vector;
+mod group;
 mod hyperplane;
 mod matrix;
+mod multivector;
 pub mod permutations;
-mod rotor;
 
+pub use group::*;
 pub use hyperplane::*;
 pub use matrix::*;
-pub use rotor::*;
+pub use multivector::*;
 pub use vector::*;
+
+/// Small floating-point value used for comparisons and tiny offsets.
+pub const EPSILON: f32 = 0.00001;

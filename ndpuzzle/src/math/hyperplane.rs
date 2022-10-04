@@ -1,4 +1,6 @@
-use super::{Vector, VectorRef};
+use std::ops::Mul;
+
+use super::{Matrix, Vector, VectorRef};
 
 /// N-1 dimensional hyperplane, by normal and signed distance from the origin
 #[derive(Debug, Clone, PartialEq)]
@@ -14,15 +16,37 @@ impl Hyperplane {
         &self.normal * self.distance
     }
 
-    /// Returns the shortest distance to a point from the plane, signed by the normal direction
+    /// Returns the shortest distance to a point from the plane, signed by the
+    /// normal direction.
     pub fn distance_to(&self, point: impl VectorRef) -> f32 {
         // -(self.pole() - point).dot(&self.normal)
         point.dot(&self.normal) - self.distance
     }
+}
+impl approx::AbsDiffEq for Hyperplane {
+    type Epsilon = f32;
 
-    /// Returns whether this hyperplane is approximately equal to another
-    pub fn approx_eq(&self, other: &Hyperplane, epsilon: f32) -> bool {
-        ((self.distance - other.distance).abs() < epsilon)
-            && self.normal.approx_eq(&other.normal, epsilon)
+    fn default_epsilon() -> Self::Epsilon {
+        super::EPSILON
     }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.normal.abs_diff_eq(&other.normal, epsilon)
+            && self.distance.abs_diff_eq(&other.distance, epsilon)
+    }
+}
+impl<'a> Mul<&'a Hyperplane> for &'a Matrix {
+    type Output = Hyperplane;
+
+    fn mul(self, rhs: &'a Hyperplane) -> Self::Output {
+        let normal = self * &rhs.normal;
+        let mag = normal.mag();
+        Hyperplane {
+            normal: normal / mag,
+            distance: rhs.distance * mag,
+        }
+    }
+}
+impl_forward_bin_ops_to_ref! {
+    impl Mul<Hyperplane> for Matrix { fn mul() -> Hyperplane }
 }

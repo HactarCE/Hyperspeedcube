@@ -76,6 +76,10 @@ impl Matrix {
                 .collect(),
         }
     }
+    /// Constructs a matrix from a function for each element.
+    pub fn from_fn(ndim: u8, mut f: impl FnMut(u8, u8) -> f32) -> Self {
+        (0..ndim).flat_map(|i| (0..ndim).map(|j| f(i, j))).collect()
+    }
 
     /// Constructs a matrix from the outer product of two vectors.
     pub fn from_outer_product(u: impl VectorRef, v: impl VectorRef) -> Self {
@@ -89,12 +93,21 @@ impl Matrix {
         )
     }
 
-    /// Contruct the matrix rotating in a plane from u to v.
+    /// Contructs the matrix rotating in a plane from `u` to `v`. Both vectors
+    /// are assumed to be normalized.
     pub fn from_vec_to_vec(u: impl VectorRef, v: impl VectorRef) -> Self {
         let dim = std::cmp::max(u.ndim(), v.ndim());
         let tm = Matrix::from_outer_product(&u, &v);
         let tm = &tm - tm.transpose();
         (Matrix::ident(dim) + &tm) + (&tm * &tm) / (1.0 + u.dot(v))
+    }
+    /// Constructs the matrix reflecting through `v`, which is assumed to be
+    /// normalized.
+    pub fn from_reflection(v: impl VectorRef) -> Self {
+        // source: Wikipedia (https://w.wiki/5mmn)
+        Self::from_fn(v.ndim(), |i, j| {
+            (i == j) as u8 as f32 - 2.0 * v.get(i) * v.get(j)
+        })
     }
 
     /// Returns the number of dimensions (size) of the matrix.
@@ -253,6 +266,26 @@ impl VectorRef for MatrixCol<'_> {
         self.matrix.get(self.col, row)
     }
 }
+impl PartialEq for MatrixCol<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let ndim = std::cmp::max(self.ndim(), other.ndim());
+        self.iter_ndim(ndim).eq(other.iter_ndim(ndim))
+    }
+}
+impl approx::AbsDiffEq for MatrixCol<'_> {
+    type Epsilon = f32;
+
+    fn default_epsilon() -> Self::Epsilon {
+        super::EPSILON
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        let ndim = std::cmp::max(self.ndim(), other.ndim());
+        self.iter_ndim(ndim)
+            .zip(other.iter_ndim(ndim))
+            .all(|(a, b)| a.abs_diff_eq(&b, epsilon))
+    }
+}
 
 /// Reference to a row of a matrix, usable as a vector.
 #[derive(Debug, Copy, Clone)]
@@ -267,6 +300,23 @@ impl VectorRef for MatrixRow<'_> {
 
     fn get(&self, col: u8) -> f32 {
         self.matrix.get(col, self.row)
+    }
+}
+impl PartialEq for MatrixRow<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let ndim = std::cmp::max(self.ndim(), other.ndim());
+        self.iter_ndim(ndim).eq(other.iter_ndim(ndim))
+    }
+}
+impl approx::AbsDiffEq for MatrixRow<'_> {
+    type Epsilon = f32;
+
+    fn default_epsilon() -> Self::Epsilon {
+        super::EPSILON
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.approx_eq(other, epsilon)
     }
 }
 
@@ -299,11 +349,7 @@ impl<'a> Add for &'a Matrix {
 
     fn add(self, rhs: Self) -> Self::Output {
         let new_ndim = std::cmp::max(self.ndim(), rhs.ndim());
-        Matrix::from_elems(
-            (0..new_ndim)
-                .flat_map(|i| (0..new_ndim).map(move |j| self.get(i, j) + rhs.get(i, j)))
-                .collect(),
-        )
+        Matrix::from_fn(new_ndim, |i, j| self.get(i, j) + rhs.get(i, j))
     }
 }
 impl<'a> Sub for &'a Matrix {
@@ -311,26 +357,32 @@ impl<'a> Sub for &'a Matrix {
 
     fn sub(self, rhs: Self) -> Self::Output {
         let new_ndim = std::cmp::max(self.ndim(), rhs.ndim());
-        Matrix::from_elems(
-            (0..new_ndim)
-                .flat_map(|i| (0..new_ndim).map(move |j| self.get(i, j) - rhs.get(i, j)))
-                .collect(),
-        )
-    }
-}
-impl Matrix {
-    /// Returns whether two matrices are equal within `epsilon` on each element.
-    pub fn approx_eq(&self, other: &Self, epsilon: f32) -> bool {
-        let ndim = std::cmp::max(self.ndim(), other.ndim());
-        self.cols_ndim(ndim)
-            .zip(other.cols_ndim(ndim))
-            .all(|(a, b)| a.approx_eq(b, epsilon))
+        Matrix::from_fn(new_ndim, |i, j| self.get(i, j) - rhs.get(i, j))
     }
 }
 
-impl_forward_bin_ops_to_ref!(impl Mul for Matrix { fn mul() });
-impl_forward_bin_ops_to_ref!(impl Add for Matrix { fn add() });
-impl_forward_bin_ops_to_ref!(impl Sub for Matrix { fn sub() });
+impl approx::AbsDiffEq for Matrix {
+    type Epsilon = f32;
+
+    fn default_epsilon() -> Self::Epsilon {
+        super::EPSILON
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        let ndim = std::cmp::max(self.ndim(), other.ndim());
+        let self_cols = self.cols_ndim(ndim);
+        let other_cols = other.cols_ndim(ndim);
+        self_cols
+            .zip(other_cols)
+            .all(|(a, b)| a.abs_diff_eq(&b, epsilon))
+    }
+}
+
+impl_forward_bin_ops_to_ref! {
+    impl Mul for Matrix { fn mul() }
+    impl Add for Matrix { fn add() }
+    impl Sub for Matrix { fn sub() }
+}
 
 impl Mul<f32> for Matrix {
     type Output = Matrix;

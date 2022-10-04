@@ -1,4 +1,5 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
+use approx::abs_diff_eq;
 use itertools::Itertools;
 use slab::Slab;
 use smallvec::{smallvec, SmallVec};
@@ -31,10 +32,7 @@ pub fn generate_polytope(
     while next_unprocessed < facet_poles.len() {
         for gen in generators {
             let new_pole = gen * &facet_poles[next_unprocessed];
-            if facet_poles
-                .iter()
-                .all(|pole| !pole.approx_eq(&new_pole, EPSILON))
-            {
+            if !facet_poles.iter().any(|pole| abs_diff_eq!(*pole, new_pole)) {
                 facet_poles.push(new_pole.resize(ndim));
             }
         }

@@ -5,7 +5,7 @@
 
 use std::fmt;
 use std::iter::Sum;
-use std::ops::{Add, AddAssign, Mul};
+use std::ops::{Add, AddAssign, Mul, MulAssign};
 
 use crate::math::*;
 
@@ -16,9 +16,9 @@ const AXIS_NAMES: &[char] = &['X', 'Y', 'Z', 'W', 'U', 'V', 'R', 'S'];
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub struct Blade {
     /// Coefficient.
-    coef: f32,
+    pub coef: f32,
     /// Bitset of axes.
-    axes: u32,
+    pub axes: u32,
 }
 impl fmt::Display for Blade {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -70,6 +70,18 @@ impl Blade {
             .map(|axes| Self { coef: 1.0, axes })
             .filter(|blade| blade.grade() % 2 == 0)
     }
+
+    /// Returns the conjugate blade, which has the order of its axes
+    /// conceptually reversed. In practice, we simply negate the coefficient if
+    /// necessary.
+    pub fn conjugate(mut self) -> Self {
+        match self.axes.count_ones() % 4 {
+            0 | 3 => (),
+            1 | 2 => self.coef = -self.coef,
+            _ => unreachable!(),
+        }
+        self
+    }
 }
 
 /// Sum of blades in the geometric algebra. Blades are stored sorted by their
@@ -90,23 +102,28 @@ impl<V: VectorRef> From<V> for Multivector {
         )
     }
 }
+impl From<Blade> for Multivector {
+    fn from(blade: Blade) -> Self {
+        Self(vec![blade])
+    }
+}
 impl fmt::Debug for Multivector {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut ret = f.debug_struct("Multivector");
-        for term in &self.0 {
-            let field_name = if term.axes == 0 {
+        for blade in &self.0 {
+            let field_name = if blade.axes == 0 {
                 "S".to_string() // scalar
             } else {
-                axes_to_string(term.axes)
+                axes_to_string(blade.axes)
             };
-            ret.field(&field_name, &term.coef);
+            ret.field(&field_name, &blade.coef);
         }
         ret.finish()
     }
 }
 impl AddAssign<Blade> for Multivector {
     fn add_assign(&mut self, rhs: Blade) {
-        match self.0.binary_search_by_key(&rhs.axes, |term| term.axes) {
+        match self.0.binary_search_by_key(&rhs.axes, |blade| blade.axes) {
             Ok(i) => self.0[i].coef += rhs.coef,
             Err(i) => self.0.insert(i, rhs),
         }
@@ -132,8 +149,8 @@ impl<'a> Add for &'a Multivector {
 
     fn add(self, rhs: Self) -> Self::Output {
         let mut ret = self.clone();
-        for &term in &rhs.0 {
-            ret += term;
+        for &blade in &rhs.0 {
+            ret += blade;
         }
         ret
     }
@@ -143,9 +160,10 @@ impl<'a> Mul<Blade> for &'a Multivector {
 
     fn mul(self, rhs: Blade) -> Self::Output {
         let mut ret = Multivector::zero();
-        for &term in &self.0 {
-            ret += term * rhs;
+        for &blade in &self.0 {
+            ret += blade * rhs;
         }
+        ret.0.sort_by_key(|blade| blade.axes);
         ret
     }
 }
@@ -158,9 +176,14 @@ impl<'a> Mul<Blade> for Multivector {
 }
 impl<'a> AddAssign<&'a Multivector> for Multivector {
     fn add_assign(&mut self, rhs: &'a Multivector) {
-        for &term in &rhs.0 {
-            *self += term;
+        for &blade in &rhs.0 {
+            *self += blade;
         }
+    }
+}
+impl AddAssign for Multivector {
+    fn add_assign(&mut self, rhs: Self) {
+        *self += &rhs;
     }
 }
 impl<'a> Mul for &'a Multivector {
@@ -180,8 +203,8 @@ impl Mul<f32> for Multivector {
     type Output = Multivector;
 
     fn mul(mut self, rhs: f32) -> Self::Output {
-        for term in &mut self.0 {
-            term.coef *= rhs;
+        for blade in &mut self.0 {
+            blade.coef *= rhs;
         }
         self
     }
@@ -193,19 +216,24 @@ impl<'a> Mul<f32> for &'a Multivector {
         self.clone() * rhs
     }
 }
+impl Sum<Blade> for Multivector {
+    fn sum<I: Iterator<Item = Blade>>(iter: I) -> Self {
+        iter.fold(Multivector::ZERO, |a, b| a + b)
+    }
+}
 impl Sum for Multivector {
-    fn sum<I: Iterator<Item = Self>>(mut iter: I) -> Self {
-        let mut ret = iter.next().unwrap_or_default();
-        for elem in iter {
-            ret = ret + elem;
-        }
-        ret
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Multivector::ZERO, |a, b| a + b)
     }
 }
 impl Multivector {
     /// Zero multivector.
     pub const ZERO: Self = Self(vec![]);
 
+    /// Returns a scalar multivector.
+    pub fn scalar(s: f32) -> Self {
+        Self(vec![Blade::scalar(s)])
+    }
     /// Returns the zero multivector.
     pub fn zero() -> Self {
         Self::ZERO
@@ -213,7 +241,7 @@ impl Multivector {
     /// Returns the lexicographically largest axis mask in the multivector.
     fn largest_axis_mask(&self) -> u32 {
         match self.0.last() {
-            Some(term) => term.axes,
+            Some(blade) => blade.axes,
             None => 0,
         }
     }
@@ -225,7 +253,7 @@ impl Multivector {
     pub fn truncate_to_ndim(&mut self, ndim: u8) {
         self.0.truncate(
             self.0
-                .binary_search_by_key(&(1 << ndim), |term| term.axes)
+                .binary_search_by_key(&(1 << ndim), |blade| blade.axes)
                 .unwrap_or_else(|i| i),
         );
     }
@@ -233,26 +261,93 @@ impl Multivector {
     /// zero.
     pub fn get(&self, axes: u32) -> Option<f32> {
         self.0
-            .binary_search_by_key(&axes, |term| term.axes)
+            .binary_search_by_key(&axes, |blade| blade.axes)
             .ok()
             .map(|i| self.0[i].coef)
     }
+
+    /// Returns the blade components of the multivector.
+    pub fn blades(&self) -> &[Blade] {
+        &self.0
+    }
+
+    /// Returns the conjugate multivector, which has the order of its axes
+    /// conceptually reversed. In practice, we simply negate some of the terms.
+    pub fn conjugate(&self) -> Self {
+        Self(self.0.iter().copied().map(Blade::conjugate).collect())
+    }
+
+    /// Returns the sandwich product with a vector: `M_rev * v * M`.
+    pub fn sandwich_vector(&self, v: impl VectorRef) -> Vector {
+        let ndim = std::cmp::max(self.ndim(), v.ndim());
+        (0..ndim)
+            .map(|i| self.sandwich_axis_vector(i, v.get(i)))
+            .sum()
+    }
+    /// Returns the sandwich product with a rotor: `M_rev * R * M`.
+    pub fn sandwich_rotor(&self, rotor: &Rotor) -> Rotor {
+        Rotor::from_multivector(
+            self.0
+                .iter()
+                .flat_map(|&lhs| {
+                    rotor
+                        .multivector()
+                        .0
+                        .iter()
+                        .flat_map(|&mid| self.0.iter().map(|&rhs| lhs.conjugate() * mid * rhs))
+                })
+                .sum(),
+        )
+    }
+    /// Returns the matrix equivalent to a sandwich product with the
+    /// multivector.
+    ///
+    /// The matix is more expensive to compute initially than any one
+    pub fn matrix(&self) -> Matrix {
+        Matrix::from_cols((0..self.ndim()).map(|axis| self.sandwich_axis_vector(axis, 1.0)))
+    }
+    /// Returns the sandwich product with an axis-aligned vector: `M_rev * v *
+    /// M`.
+    fn sandwich_axis_vector(&self, axis: u8, mag: f32) -> Vector {
+        let ndim = std::cmp::max(self.ndim(), axis + 1);
+        let mut ret = Vector::zero(ndim);
+        let mid = Blade {
+            coef: mag,
+            axes: 1 << axis,
+        };
+
+        let mut ret = Vector::zero(ndim);
+        for &lhs in &self.0 {
+            for &rhs in &self.0 {
+                let blade = lhs.conjugate() * mid * rhs;
+                if blade.axes.count_ones() == 1 {
+                    ret[blade.axes.trailing_zeros() as u8] += blade.coef;
+                }
+            }
+        }
+        ret
+    }
 }
-impl_forward_bin_ops_to_ref!(impl Add for Multivector { fn add() });
-impl_forward_bin_ops_to_ref!(impl Mul for Multivector { fn mul() });
+impl_forward_bin_ops_to_ref! {
+    impl Add for Multivector { fn add() }
+    impl Mul for Multivector { fn mul() }
+}
+impl_forward_assign_ops_to_owned! {
+    impl MulAssign for Multivector { fn mul_assign() { * } }
+}
 
 /// Rotor describing a rotation in an arbitrary number of dimensions.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rotor(Multivector);
 impl Default for Rotor {
     fn default() -> Self {
-        Rotor::identity()
+        Rotor::ident()
     }
 }
 impl Rotor {
     /// Returns the identity rotor.
-    pub fn identity() -> Self {
-        Self(Multivector(vec![Blade::scalar(1.0)]))
+    pub fn ident() -> Self {
+        Self(Multivector::scalar(1.0))
     }
     /// Constructs a rotor from a product of two vectors.
     ///
@@ -275,7 +370,23 @@ impl Rotor {
         let sin = half_angle.sin();
         Self::from_vector_product(&a, a.scale(cos) + b.scale(sin))
     }
+    /// Constructs a rotor directly from a multivector. The multivector is
+    /// assumed to be normalized.
+    ///
+    /// # Panics
+    ///
+    /// This function panics in debug mode if the multivector contains any
+    /// element with an odd number of axes. **Only use it if you are sure that
+    /// the multivector is from the even subalgebra.**
+    pub fn from_multivector(m: Multivector) -> Self {
+        debug_assert!(m.0.iter().all(|blade| blade.axes.count_ones() % 2 == 0));
+        Self(m)
+    }
 
+    /// Returns the rotor's internal multivector.
+    pub fn multivector(&self) -> &Multivector {
+        &self.0
+    }
     /// Returns the number of dimensions of the rotor.
     pub fn ndim(&self) -> u8 {
         self.0.ndim()
@@ -297,36 +408,23 @@ impl Rotor {
     /// Returns the reverse rotor.
     #[must_use]
     pub fn reverse(&self) -> Rotor {
-        let mut ret = self.clone();
-        for term in &mut ret.0 .0 {
-            match term.axes.count_ones() % 4 {
-                0 | 3 => (),
-                1 | 2 => term.coef = -term.coef,
-                _ => unreachable!(),
-            }
-        }
-        ret
+        Self(self.0.conjugate())
     }
 
     /// Returns the matrix for the rotor.
     pub fn matrix(&self) -> Matrix {
-        Matrix::from_cols((0..self.ndim()).map(|axis| self.transform_vector(Vector::unit(axis))))
+        self.0.matrix()
     }
 
     /// Transforms another rotor using this one.
     #[must_use]
     pub fn transform_rotor(&self, other: &Rotor) -> Rotor {
-        // This can be unwrapped in the future for efficiency.
-        Self(&self.0 * &other.0 * &self.reverse().0)
+        self.0.sandwich_rotor(other)
     }
 
     /// Transforms a vector using the rotor.
     pub fn transform_vector(&self, vector: impl VectorRef) -> Vector {
-        let rv = self.reverse().0 * Multivector::from(vector);
-        let ret = rv * &self.0;
-        (0..ret.ndim())
-            .map(|i| ret.get(1 << i).unwrap_or(0.0))
-            .collect()
+        self.0.sandwich_vector(vector)
     }
 
     /// Returns the magnitude of the rotor, which should always be one for
@@ -341,8 +439,8 @@ impl Rotor {
         if !mult.is_finite() {
             return None;
         }
-        for term in &mut self.0 .0 {
-            term.coef *= mult;
+        for blade in &mut self.0 .0 {
+            blade.coef *= mult;
         }
         Some(self)
     }
@@ -398,6 +496,11 @@ impl Rotor {
             .unwrap_or_else(|| other.clone()) // should never happen
     }
 }
+impl From<Rotor> for Multivector {
+    fn from(r: Rotor) -> Self {
+        r.0
+    }
+}
 impl<'a> Mul for &'a Rotor {
     type Output = Rotor;
 
@@ -405,7 +508,99 @@ impl<'a> Mul for &'a Rotor {
         Rotor(&self.0 * &rhs.0)
     }
 }
-impl_forward_bin_ops_to_ref!(impl Mul for Rotor { fn mul() });
+impl_forward_bin_ops_to_ref! {
+    impl Mul for Rotor { fn mul() }
+}
+
+/// Transformation consisting of a rotation and an optional reflection.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Rotoreflector {
+    matrix: Matrix,
+    multivector: Multivector,
+}
+impl Default for Rotoreflector {
+    fn default() -> Self {
+        Self::ident()
+    }
+}
+impl From<Rotor> for Rotoreflector {
+    fn from(r: Rotor) -> Self {
+        Multivector::from(r).into()
+    }
+}
+impl From<Multivector> for Rotoreflector {
+    fn from(m: Multivector) -> Self {
+        Self {
+            matrix: m.matrix(),
+            multivector: m,
+        }
+    }
+}
+impl Rotoreflector {
+    /// Returns the identity rotoreflector.
+    pub fn ident() -> Self {
+        Self {
+            matrix: Matrix::EMPTY_IDENT,
+            multivector: Multivector::scalar(1.0),
+        }
+    }
+
+    /// Returns whether this rotoreflector results in an odd number of
+    /// reflections.
+    pub fn is_reflection(&self) -> bool {
+        match self.multivector.blades().get(0) {
+            Some(blade) => blade.axes.count_ones() % 2 == 1,
+            None => {
+                // wtf? this shouldn't happen.
+                false
+            }
+        }
+    }
+
+    /// Constructs a rotoreflector from a single reflection.
+    pub fn from_reflection(v: impl VectorRef) -> Self {
+        let multivector = v.into();
+        Self {
+            matrix: Matrix::from_reflection(v),
+            multivector,
+        }
+    }
+
+    /// Returns the matrix for the transformation.
+    pub fn matrix(&self) -> &Matrix {
+        &self.matrix
+    }
+
+    /// Returns the reverse transformation.
+    pub fn reverse(&self) -> Self {
+        self.multivector.conjugate().into()
+    }
+}
+
+impl<V: VectorRef> Mul<V> for &Rotoreflector {
+    type Output = Vector;
+
+    fn mul(self, rhs: V) -> Self::Output {
+        &self.matrix * rhs
+    }
+}
+impl<V: VectorRef> Mul<V> for Rotoreflector {
+    type Output = Vector;
+
+    fn mul(self, rhs: V) -> Self::Output {
+        self.matrix * rhs
+    }
+}
+impl Mul for &Rotoreflector {
+    type Output = Rotoreflector;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        (&self.multivector * &rhs.multivector).into()
+    }
+}
+impl_forward_bin_ops_to_ref! {
+    impl Mul for Rotoreflector { fn mul() }
+}
 
 fn axes_to_string(axes: u32) -> String {
     std::iter::successors(Some(axes), |a| Some(a >> 1))
@@ -437,6 +632,10 @@ mod tests {
     fn gen_simple_rotor(ndim: u8) -> impl Strategy<Value = Rotor> {
         [gen_normalized_vector(ndim), gen_normalized_vector(ndim)]
             .prop_map(|[a, b]| Rotor::from_vector_product(a, b))
+    }
+    fn gen_rotor(ndim: u8) -> impl Strategy<Value = Rotor> {
+        proptest::collection::vec(gen_simple_rotor(ndim), 1..=4)
+            .prop_map(|rotors| rotors.into_iter().fold(Rotor::ident(), |a, b| a * b))
     }
 
     fn assert_rotor_transform_vector(
@@ -491,7 +690,6 @@ mod tests {
             assert_rotor_transform_vector(&rotor, vec, expected)?;
         }
 
-
         #[test]
         fn proptest_rotor_times_rotor(
             rotors in proptest::collection::vec(gen_simple_rotor(7), 1..=4),
@@ -505,6 +703,18 @@ mod tests {
             }
 
             assert_rotor_transform_vector(&combined, vec, expected)?;
+        }
+
+        #[test]
+        fn proptest_rotor_transform_rotor(
+            r1 in gen_rotor(7),
+            r2 in gen_rotor(7),
+            vec in gen_vector(7),
+        ) {
+            let mut expected = (&r1 * &r2).transform_vector(vec);
+            let transformed_rotor = r1.transform_rotor(&r2);
+            let transformed_vector = r1.transform_vector(vec);
+            assert_rotor_transform_vector(&transformed_rotor, &transformed_vector, expected)?;
         }
     }
 }

@@ -4,6 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fmt;
+use std::iter::Sum;
 use std::ops::*;
 
 /// N-dimensional vector. Indexing out of bounds returns zero.
@@ -13,6 +14,11 @@ pub struct Vector(pub SmallVec<[f32; 4]>);
 
 /// Reference to an N-dimensional vector. Indexing out of bounds returns zero.
 pub trait VectorRef: Sized + fmt::Debug {
+    /// Converts the vector to a `Vector`.
+    fn to_vector(&self) -> Vector {
+        self.iter().collect()
+    }
+
     /// Returns the number of components in the vector.
     fn ndim(&self) -> u8;
 
@@ -177,6 +183,24 @@ macro_rules! impl_vector_ops {
 impl_vector_ops!(impl for Vector);
 impl_vector_ops!(impl for &'_ Vector);
 
+impl<V: VectorRef> AddAssign<V> for Vector {
+    fn add_assign(&mut self, rhs: V) {
+        let ndim = std::cmp::max(self.ndim(), rhs.ndim());
+        self.0.resize(ndim as _, 0.0);
+        for i in 0..rhs.ndim() {
+            self[i] += rhs.get(i);
+        }
+    }
+}
+impl<V: VectorRef> MulAssign<V> for Vector {
+    fn mul_assign(&mut self, rhs: V) {
+        self.0.truncate(rhs.ndim() as _);
+        for i in 0..rhs.ndim() {
+            self[i] *= rhs.get(i);
+        }
+    }
+}
+
 impl Index<u8> for Vector {
     type Output = f32;
 
@@ -225,10 +249,32 @@ impl Vector {
         self
     }
 }
+impl approx::AbsDiffEq for Vector {
+    type Epsilon = f32;
+
+    fn default_epsilon() -> Self::Epsilon {
+        super::EPSILON
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.approx_eq(other, epsilon)
+    }
+}
 
 impl FromIterator<f32> for Vector {
     fn from_iter<T: IntoIterator<Item = f32>>(iter: T) -> Self {
         Self(iter.into_iter().collect())
+    }
+}
+
+impl Sum for Vector {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        let mut ret = Self::EMPTY;
+        for v in iter {
+            ret.pad(v.ndim());
+            ret += v;
+        }
+        ret
     }
 }
 

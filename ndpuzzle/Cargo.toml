@@ -8,6 +8,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1.0.65"
+approx = "0.5.1"
 cgmath = "0.18.0"
 enum-iterator = "1.1.3"
 itertools = "0.10.3"
