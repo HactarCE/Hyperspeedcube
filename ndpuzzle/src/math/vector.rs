@@ -118,9 +118,10 @@ impl fmt::Display for Vector {
         write!(f, "(")?;
         let mut iter = self.0.iter();
         if let Some(first) = iter.next() {
-            write!(f, "{first}")?;
+            first.fmt(f)?;
             for elem in iter {
-                write!(f, ", {elem}")?;
+                write!(f, ", ")?;
+                elem.fmt(f)?;
             }
         }
         write!(f, ")")?;
@@ -271,7 +272,7 @@ impl Sum for Vector {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         let mut ret = Self::EMPTY;
         for v in iter {
-            ret.pad(v.ndim());
+            ret = ret.pad(v.ndim());
             ret += v;
         }
         ret

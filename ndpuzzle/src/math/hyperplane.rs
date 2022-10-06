@@ -11,6 +11,13 @@ pub struct Hyperplane {
     pub distance: f32,
 }
 impl Hyperplane {
+    pub fn from_pole(pole: impl VectorRef) -> Option<Self> {
+        Some(Self {
+            normal: pole.normalize()?,
+            distance: pole.mag(),
+        })
+    }
+
     /// Returns the position of the point on the hyperplane nearest the origin.
     pub fn pole(&self) -> Vector {
         &self.normal * self.distance

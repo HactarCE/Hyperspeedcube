@@ -111,12 +111,14 @@ impl fmt::Debug for Multivector {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut ret = f.debug_struct("Multivector");
         for blade in &self.0 {
-            let field_name = if blade.axes == 0 {
-                "S".to_string() // scalar
-            } else {
-                axes_to_string(blade.axes)
-            };
-            ret.field(&field_name, &blade.coef);
+            if blade.coef != 0.0 {
+                let field_name = if blade.axes == 0 {
+                    "S".to_string() // scalar
+                } else {
+                    axes_to_string(blade.axes)
+                };
+                ret.field(&field_name, &blade.coef);
+            }
         }
         ret.finish()
     }
@@ -159,12 +161,7 @@ impl<'a> Mul<Blade> for &'a Multivector {
     type Output = Multivector;
 
     fn mul(self, rhs: Blade) -> Self::Output {
-        let mut ret = Multivector::zero();
-        for &blade in &self.0 {
-            ret += blade * rhs;
-        }
-        ret.0.sort_by_key(|blade| blade.axes);
-        ret
+        self.0.iter().map(|&blade| blade * rhs).sum()
     }
 }
 impl<'a> Mul<Blade> for Multivector {
@@ -277,24 +274,22 @@ impl Multivector {
         Self(self.0.iter().copied().map(Blade::conjugate).collect())
     }
 
-    /// Returns the sandwich product with a vector: `M_rev * v * M`.
+    /// Returns the sandwich product with a vector: `M * v * M_rev`.
     pub fn sandwich_vector(&self, v: impl VectorRef) -> Vector {
         let ndim = std::cmp::max(self.ndim(), v.ndim());
         (0..ndim)
             .map(|i| self.sandwich_axis_vector(i, v.get(i)))
             .sum()
     }
-    /// Returns the sandwich product with a rotor: `M_rev * R * M`.
+    /// Returns the sandwich product with a rotor: `M * R * M_rev`.
     pub fn sandwich_rotor(&self, rotor: &Rotor) -> Rotor {
         Rotor::from_multivector(
             self.0
                 .iter()
                 .flat_map(|&lhs| {
-                    rotor
-                        .multivector()
-                        .0
-                        .iter()
-                        .flat_map(|&mid| self.0.iter().map(|&rhs| lhs.conjugate() * mid * rhs))
+                    rotor.multivector().0.iter().flat_map(move |&mid| {
+                        self.0.iter().map(move |&rhs| lhs * mid * rhs.conjugate())
+                    })
                 })
                 .sum(),
         )
@@ -306,11 +301,10 @@ impl Multivector {
     pub fn matrix(&self) -> Matrix {
         Matrix::from_cols((0..self.ndim()).map(|axis| self.sandwich_axis_vector(axis, 1.0)))
     }
-    /// Returns the sandwich product with an axis-aligned vector: `M_rev * v *
-    /// M`.
+    /// Returns the sandwich product with an axis-aligned vector: `M * v *
+    /// M_rev`.
     fn sandwich_axis_vector(&self, axis: u8, mag: f32) -> Vector {
         let ndim = std::cmp::max(self.ndim(), axis + 1);
-        let mut ret = Vector::zero(ndim);
         let mid = Blade {
             coef: mag,
             axes: 1 << axis,
@@ -319,7 +313,7 @@ impl Multivector {
         let mut ret = Vector::zero(ndim);
         for &lhs in &self.0 {
             for &rhs in &self.0 {
-                let blade = lhs.conjugate() * mid * rhs;
+                let blade = lhs * mid * rhs.conjugate();
                 if blade.axes.count_ones() == 1 {
                     ret[blade.axes.trailing_zeros() as u8] += blade.coef;
                 }
@@ -353,7 +347,7 @@ impl Rotor {
     ///
     /// This constructs a rotation of DOUBLE the angle between them.
     pub fn from_vector_product(a: impl VectorRef, b: impl VectorRef) -> Self {
-        Self(Multivector::from(a) * Multivector::from(b))
+        Self(Multivector::from(b) * Multivector::from(a))
     }
     /// Constructs a rotor from an angle in an axis-aligned plane.
     ///
@@ -559,10 +553,9 @@ impl Rotoreflector {
 
     /// Constructs a rotoreflector from a single reflection.
     pub fn from_reflection(v: impl VectorRef) -> Self {
-        let multivector = v.into();
         Self {
-            matrix: Matrix::from_reflection(v),
-            multivector,
+            matrix: Matrix::from_reflection(&v),
+            multivector: v.into(),
         }
     }
 
@@ -624,7 +617,7 @@ mod tests {
     }
     fn gen_vector(ndim: u8) -> impl Strategy<Value = Vector> {
         proptest::collection::vec(gen_reasonable_float(), ndim as usize)
-            .prop_map(|xs| Vector(xs.into_iter().map(|x| x as f32).collect()))
+            .prop_map(|xs| Vector(xs.into_iter().rev().map(|x| x as f32).collect()))
     }
     fn gen_normalized_vector(ndim: u8) -> impl Strategy<Value = Vector> {
         gen_vector(ndim).prop_filter_map("cannot normalize zero vector", |v| v.normalize())
@@ -698,7 +691,7 @@ mod tests {
             let mut combined = rotors[0].clone();
             let mut expected = rotors[0].transform_vector(&vec);
             for r in &rotors[1..] {
-                combined = combined * r;
+                combined = r * combined;
                 expected = r.transform_vector(expected);
             }
 
@@ -707,14 +700,24 @@ mod tests {
 
         #[test]
         fn proptest_rotor_transform_rotor(
-            r1 in gen_rotor(7),
-            r2 in gen_rotor(7),
+            r1 in gen_rotor(4),
+            r2 in gen_rotor(4),
+            vec in gen_vector(4),
+        ) {
+            let expected = (&r1 * &r2).transform_vector(&vec);
+            let transformed_rotor = r1.transform_rotor(&r2);
+            let transformed_vector = r1.transform_vector(&vec);
+            assert_rotor_transform_vector(&transformed_rotor, &transformed_vector, expected)?;
+        }
+
+        #[test]
+        fn proptest_rotor_matrix(
+            r in gen_rotor(7),
             vec in gen_vector(7),
         ) {
-            let mut expected = (&r1 * &r2).transform_vector(vec);
-            let transformed_rotor = r1.transform_rotor(&r2);
-            let transformed_vector = r1.transform_vector(vec);
-            assert_rotor_transform_vector(&transformed_rotor, &transformed_vector, expected)?;
+            let m = r.matrix();
+            let expected = m * &vec;
+            assert_rotor_transform_vector(&r, &vec, expected)?;
         }
     }
 }

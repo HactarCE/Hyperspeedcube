@@ -12,13 +12,14 @@ pub trait Group {
     {
         let mut ret = seeds;
         let mut unprocessed_idx = 0;
-        while unprocessed_idx < seeds.len() {
+        while unprocessed_idx < ret.len() {
             for gen in generators {
                 let new = gen * &ret[unprocessed_idx];
                 if !ret.iter().any(|old| abs_diff_eq!(*old, new)) {
                     ret.push(new);
                 }
             }
+            unprocessed_idx += 1;
         }
         ret
     }

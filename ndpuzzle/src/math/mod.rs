@@ -11,6 +11,7 @@ mod hyperplane;
 mod matrix;
 mod multivector;
 pub mod permutations;
+pub mod util;
 
 pub use group::*;
 pub use hyperplane::*;

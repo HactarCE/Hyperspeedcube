@@ -5,7 +5,7 @@ use bitvec::bitvec;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 use cgmath::*;
-use ndpuzzle::math::Rotor;
+use ndpuzzle::math::*;
 use ndpuzzle::puzzle::geometry;
 use num_enum::FromPrimitive;
 use std::borrow::Cow;
@@ -43,7 +43,6 @@ pub mod interpolate {
 use super::*;
 use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::preferences::{InteractionPreferences, Preferences, ViewPreferences};
-use crate::util;
 use interpolate::InterpolateFn;
 
 const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
@@ -295,7 +294,7 @@ impl PuzzleController {
             offset = offset.reverse();
         }
         self.view_angle.current =
-            prefs_view_angle.reverse() * offset * prefs_view_angle * &self.view_angle.current;
+            &self.view_angle.current * prefs_view_angle.transform_rotor(&offset);
         self.view_angle.target = self.view_angle.current.clone();
         self.view_angle.dragging = true;
     }
@@ -377,7 +376,7 @@ impl PuzzleController {
         let params = {
             // Compute the 4D view transform, which must be applied here on the
             // CPU so that we can do proper depth sorting.
-            let view_transform = (view_prefs.view_angle() * &self.view_angle.current)
+            let view_transform = (&self.view_angle.current * view_prefs.view_angle())
                 .matrix()
                 .pad(4)
                 * (1.0 / self.ty().radius);

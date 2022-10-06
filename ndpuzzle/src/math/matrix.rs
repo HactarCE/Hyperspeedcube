@@ -43,10 +43,10 @@ impl Matrix {
     /// # use ndpuzzle::math::{Matrix};
     /// # use ndpuzzle::row_matrix;
     /// assert_eq!(
-    ///     Matrix::from_elems(vec![1, 2, 3, 4]),
+    ///     Matrix::from_elems(vec![1.0, 2.0, 3.0, 4.0]),
     ///     row_matrix![
-    ///         [1, 3],
-    ///         [2, 4],
+    ///         [1.0, 3.0],
+    ///         [2.0, 4.0],
     ///     ],
     /// );
     /// ```
@@ -77,8 +77,11 @@ impl Matrix {
         }
     }
     /// Constructs a matrix from a function for each element.
-    pub fn from_fn(ndim: u8, mut f: impl FnMut(u8, u8) -> f32) -> Self {
-        (0..ndim).flat_map(|i| (0..ndim).map(|j| f(i, j))).collect()
+    pub fn from_fn(ndim: u8, f: impl Fn(u8, u8) -> f32) -> Self {
+        let f = &f;
+        (0..ndim)
+            .flat_map(|i| (0..ndim).map(move |j| f(i, j)))
+            .collect()
     }
 
     /// Constructs a matrix from the outer product of two vectors.
