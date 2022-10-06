@@ -49,6 +49,14 @@ fn main() {
                 log::LevelFilter::Warn
             },
         )
+        .filter_module(
+            "ndpuzzle",
+            if cfg!(debug_assertions) {
+                log::LevelFilter::Debug
+            } else {
+                log::LevelFilter::Warn
+            },
+        )
         .init();
 
     let human_panic_metadata = human_panic::Metadata {

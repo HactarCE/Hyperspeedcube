@@ -2012,6 +2012,7 @@ dependencies = [
  "enum-iterator",
  "itertools",
  "lazy_static",
+ "log",
  "num-traits",
  "proptest",
  "rand",
