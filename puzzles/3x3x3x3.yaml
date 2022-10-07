@@ -1,10 +1,11 @@
 name: 3x3x3x3
-ndim: 4
 shape:
-  - symmetries:
-      - schlafli: 4,3,3
-    face_generators:
-      - [1, 0, 0, 0]
+  ndim: 4
+  facets:
+    - symmetries:
+        - schlafli: 4,3,3
+      seeds:
+        - [1, 0, 0, 0]
 twists:
   - symmetries:
       - schlafli: 4,3,3

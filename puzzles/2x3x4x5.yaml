@@ -1,15 +1,16 @@
 name: 2x3x4x5
-ndim: 4
 shape:
-  - symmetries:
-      - schlafli: 2,2,2
-    face_generators:
-      - [2, 0, 0, 0]
-      - [0, 3, 0, 0]
-      - [0, 0, 4, 0]
-      - [0, 0, 0, 5]
+  ndim: 4
+  facets:
+    - symmetry:
+        - schlafli: 2,2,2
+      seeds:
+        - [2, 0, 0, 0]
+        - [0, 3, 0, 0]
+        - [0, 0, 4, 0]
+        - [0, 0, 0, 5]
 twists:
-  - symmetries:
+  - symmetry:
       - schlafli: 2,2,2
     axes:
       - normal: [2, 0, 0, 0]

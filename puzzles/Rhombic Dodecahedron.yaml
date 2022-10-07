@@ -1,12 +1,13 @@
 name: Rhombic Dodecahedron
-ndim: 3
 shape:
-  - symmetries:
-      - schlafli: 4,3
-    face_generators:
-      - [1, 1, 0]
+  ndim: 3
+  facets:
+    - symmetry:
+        - schlafli: 4,3
+      seeds:
+        - [1, 1, 0]
 twists:
-  - symmetries:
+  - symmetry:
       - schlafli: 4,3
     axes:
       - normal: [1, 1, 0]
