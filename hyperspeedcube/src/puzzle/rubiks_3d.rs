@@ -138,7 +138,7 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
     };
 
     let shape = Arc::new(PuzzleShape {
-        name: "Cube".to_string(),
+        name: Some("Cube".to_string()),
         ndim: 3,
         facets: FaceEnum::iter().map(|f| f.info()).collect(),
     });
@@ -191,7 +191,7 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
         .map(|rotations| {
             let rotor = rotations
                 .into_iter()
-                .fold(Rotor::identity(), |r, (face, dir)| {
+                .fold(Rotor::ident(), |r, (face, dir)| {
                     face.twist_rotation(dir) * r
                 });
             rotor
@@ -215,7 +215,6 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
     Arc::new_cyclic(|this| PuzzleType {
         this: this.clone(),
         name: format!("{0}x{0}x{0}", layer_count),
-        ndim: 3,
         shape,
         twists,
 
@@ -597,7 +596,7 @@ impl FaceEnum {
         Rotor::from_angle_in_axis_plane(plane.0, plane.1, angle.0)
     }
     fn twist_matrix(self, direction: TwistDirectionEnum, progress: f32) -> Matrix {
-        Rotor::identity()
+        Rotor::ident()
             .slerp(&self.twist_rotation(direction), progress)
             .matrix()
     }

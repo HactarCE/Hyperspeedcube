@@ -1,6 +1,4 @@
 use super::*;
-use crate::polytope::PolytopeArena;
-use crate::spec::ShapeSpec;
 
 /// Puzzle shape metadata.
 #[derive(Debug)]

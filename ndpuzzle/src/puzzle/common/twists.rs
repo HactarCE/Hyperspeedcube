@@ -18,21 +18,24 @@ pub struct PuzzleTwists {
 impl_puzzle_info_trait!(for PuzzleTwists { fn info(TwistAxis) -> &TwistAxisInfo { .axes } });
 impl_puzzle_info_trait!(for PuzzleTwists { fn info(TwistDirection) -> &TwistDirectionInfo { .directions } });
 impl PuzzleTwists {
+    /// Returns the twist axis with a particular symbol, if one exists.
     pub fn axis_from_symbol(&self, symbol: &str) -> Option<TwistAxis> {
         (0..self.axes.len() as u8)
             .map(TwistAxis)
             .find(|&twist_axis| self.info(twist_axis).symbol == symbol)
     }
+    /// Returns the twist direction with a particular name, if one exists.
     pub fn direction_from_name(&self, name: &str) -> Option<TwistDirection> {
         (0..self.directions.len() as u8)
             .map(TwistDirection)
             .find(|&twist_direction| self.info(twist_direction).name == name)
     }
 
+    /// Returns the nearest orientation.
     pub fn nearest_orientation(&self, rot: &Rotor) -> Rotor {
         let inv_rot = rot.reverse();
 
-        let mut nearest = Rotor::identity();
+        let mut nearest = Rotor::ident();
         // The scalar part of a rotor is the cosine of half the angle of
         // rotation. So we can use the absolute value of that quantity to
         // compare whether one rotor is a larger rotation than another.

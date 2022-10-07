@@ -1,5 +1,5 @@
 pub mod basic;
 mod common;
-pub mod jumbling;
+pub mod spec;
 
 pub use common::*;

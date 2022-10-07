@@ -27,7 +27,6 @@ pub use twists::*;
 pub struct PuzzleType {
     pub this: Weak<PuzzleType>,
     pub name: String,
-    pub ndim: u8,
     pub shape: Arc<PuzzleShape>,
     pub twists: Arc<PuzzleTwists>,
 
@@ -51,7 +50,6 @@ impl fmt::Debug for PuzzleType {
         f.debug_struct("PuzzleType")
             .field("this", &self.this)
             .field("name", &self.name)
-            .field("ndim", &self.ndim)
             .field("shape", &self.shape)
             .field("twists", &self.twists)
             .field("family_name", &self.family_name)

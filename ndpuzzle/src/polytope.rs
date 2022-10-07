@@ -8,56 +8,27 @@ use std::fmt::{self};
 use thiserror::Error;
 
 use crate::math::*;
+use crate::puzzle::Facet;
 
 const EPSILON: f32 = 0.00001;
 const SPLIT_MARGIN: f32 = EPSILON * 5000.;
 
-/// Generates a polytope from a set of generators and base facets.
-pub fn generate_polytope(
-    ndim: u8,
-    generators: &[Matrix],
-    base_facets: &[Vector],
-) -> Result<(PolytopeArena, Vec<Vector>)> {
-    let radius = base_facets
-        .iter()
-        .map(|pole| pole.mag())
-        .reduce(f32::max)
-        .expect("no base facets");
-    let initial_radius = radius * 2.0 * ndim as f32;
-    // TODO: check if radius is too small (any original point remains).
-    let mut arena = PolytopeArena::new_cube(ndim, initial_radius);
+const EXTRA_ASSERTIONS: bool = cfg!(debug_assertions);
 
-    let mut facet_poles: Vec<Vector> = base_facets.to_vec();
-    let mut next_unprocessed = 0;
-    while next_unprocessed < facet_poles.len() {
-        for gen in generators {
-            let new_pole = gen * &facet_poles[next_unprocessed];
-            if !facet_poles.iter().any(|pole| abs_diff_eq!(*pole, new_pole)) {
-                facet_poles.push(new_pole.resize(ndim));
-            }
-        }
-        next_unprocessed += 1;
-    }
-    for pole in &facet_poles {
-        arena.slice_by_plane(
-            &Hyperplane {
-                normal: pole.normalize().expect("msg"),
-                distance: pole.mag(),
-            },
-            true,
-        )?;
-        // arena.slice_by_plane(
-        //     &Hyperplane {
-        //         normal: pole.normalise(),
-        //         distance: pole.mag() * 0.33,
-        //     },
-        //     false,
-        // )?;
-    }
-    Ok((arena, facet_poles))
-}
-
-/// Arena of polytopes that can be split.
+/// Arena of polytopes which can be split.
+///
+/// Each piece is represented as an isolated DAG (directed acyclic graph). The
+/// DAG is arranged into layers corresponding to polytope ranks. For example, a
+/// cube is represented as follows:
+///
+/// - There are 8 rank-0 polytopes (points). Each has no children.
+/// - There are 12 rank-1 polytopes (edges). Each has two points as children.
+/// - There are 6 rank-2 polytopes (faces). Each has four edges as children.
+/// - There is one rank-3 polytope (the whole cube). It has all six faces as
+///   children and is the root of the graph.
+///
+/// Each point contains its location, but no other nodes in the graph contain
+/// any geometric information. They are all purely topological.
 #[derive(Clone)]
 pub struct PolytopeArena {
     /// Unordered set of polytopes.
@@ -76,7 +47,9 @@ impl fmt::Debug for PolytopeArena {
     }
 }
 impl PolytopeArena {
-    /// Constructs a polytope arena containing a hypercube.
+    /// Constructs a polytope arena containing a hypercube. This hypercube can
+    /// then be carved into any convex polytope of the same number of
+    /// dimensions.
     pub fn new_cube(ndim: u8, radius: f32) -> Self {
         // Based on Andrey Astrelin's implementation of `GenCube()` in MPUlt
         // (FaceCuts.cs)
@@ -91,9 +64,9 @@ impl PolytopeArena {
         // ```
 
         let mut roots = BTreeSet::new();
-        // center of the 3^NDIM cube
+        // The center of the 3^NDIM cube is the root.
         roots.insert(PolytopeId(3_u32.pow(ndim as _) / 2));
-        let mut ret = Self {
+        let mut this = Self {
             polytopes: Slab::new(),
             roots,
             ndim,
@@ -106,12 +79,12 @@ impl PolytopeArena {
                 .filter(|&digit| digit == 1)
                 .count() as u8;
 
-            let contents = if rank == 0 {
+            if rank == 0 {
                 // This is a vertex.
                 let point = base_3_expansion(i, ndim)
                     .map(|digit| (digit as f32 - 1.0) * radius)
                     .collect();
-                PolytopeContents::new_point(point)
+                this.add(Polytope::Point { point });
             } else {
                 // This is a branch node.
                 let children = powers_of_3()
@@ -126,22 +99,15 @@ impl PolytopeArena {
                         ]
                     })
                     .collect();
-                PolytopeContents::new_branch(rank, children, true)
+                this.add(Polytope::Branch {
+                    rank,
+                    location: Location::Primordial,
+                    children,
+                });
             };
-
-            let parents = powers_of_3()
-                .zip(base_3_expansion(i, ndim))
-                // For each axis we are not straddling ...
-                .filter(|&(_, digit)| digit != 1)
-                // ... add the parent that straddles that axis.
-                .map(|(power_of_3, digit)| i - power_of_3 * digit + power_of_3)
-                .map(PolytopeId)
-                .collect();
-
-            ret.add(Polytope { parents, contents });
         }
 
-        ret
+        this
     }
 
     /// Returns a polytope by ID.
@@ -152,6 +118,13 @@ impl PolytopeArena {
     fn get_mut(&mut self, id: PolytopeId) -> Result<&mut Polytope, NullPolytope> {
         self.polytopes.get_mut(id.0 as _).ok_or(NullPolytope)
     }
+    /// Deletes a polytope nonrecursively.
+    fn remove(&mut self, id: PolytopeId) -> Result<(), NullPolytope> {
+        match self.polytopes.try_remove(id.0 as _) {
+            Some(_) => Ok(()),
+            None => Err(NullPolytope),
+        }
+    }
 
     /// Adds a polytope to the arena.
     fn add(&mut self, polytope: Polytope) -> PolytopeId {
@@ -159,65 +132,102 @@ impl PolytopeArena {
         PolytopeId(idx as _)
     }
     /// Adds a point to the arena.
-    fn add_point(&mut self, point: Vector, slice_result: Option<SliceResult>) -> PolytopeId {
-        self.add(Polytope {
-            parents: smallvec![],
-            contents: PolytopeContents::Point {
-                point,
-                slice_result,
-            },
-        })
+    fn add_point(&mut self, point: Vector) -> PolytopeId {
+        self.add(Polytope::Point { point })
     }
-    /// Adds a non-point polytope to the arena.
+    /// Adds a non-point polytope to the arena and registers it as a parent with
+    /// each of its children.
     fn add_branch(
         &mut self,
         rank: u8,
+        mut location: Location,
         children: SmallVec<[PolytopeId; 4]>,
-        slice_result: Option<SliceResult>,
-        internal: bool,
     ) -> Result<PolytopeId> {
         ensure!(
             !children.is_empty(),
-            "Cannot add rank {rank} polytope with no children",
+            "cannot add rank {rank} polytope with no children",
         );
 
         if rank == 1 {
-            assert_eq!(children.len(), 2);
+            ensure!(
+                children.len() == 2,
+                "cannot add edge with {} children",
+                children.len(),
+            );
         }
-        let ret = self.add(Polytope {
-            parents: smallvec![],
-            contents: PolytopeContents::Branch {
-                rank,
-                children: children.clone(),
-                slice_result,
-                internal,
-            },
+
+        if rank == self.ndim {
+            // This is a root polytope. A root polytope is internal iff all of
+            // its children are internal.
+            let is_internal = children
+                .iter()
+                .all(|&child| self.is_internal(child).unwrap_or(false));
+            location = if is_internal {
+                Location::Internal
+            } else {
+                Location::BoundaryRoot
+            }
+        }
+
+        let ret = self.add(Polytope::Branch {
+            rank,
+            location,
+            children: children.clone(),
         });
 
         for child in children {
             let child = self.get_mut(child)?;
-            assert!(
+            ensure!(
                 child.rank() + 1 == rank,
-                "Cannot add rank {rank} polytope with rank {} child",
+                "cannot add rank {rank} polytope with rank {} child",
                 child.rank(),
             );
-            child.parents.push(ret);
         }
         Ok(ret)
     }
-    /// Recursively delete a polytope.
-    fn delete_polytope(&mut self, id: PolytopeId) {
-        if let Ok(Ok(children)) = self.get(id).map(|p| p.children().cloned()) {
-            for child in children {
-                self.delete_polytope(child);
+    /// Deletes a root polytope and all its children.
+    fn delete_root(&mut self, id: PolytopeId) -> Result<()> {
+        let mut deleted_set = EXTRA_ASSERTIONS.then(HashSet::new);
+
+        self.roots.remove(&id);
+        self.delete_polytope_recursive(id, &mut deleted_set);
+
+        if let Some(deleted) = deleted_set {
+            // Make sure that no other polytopes hold a reference to any
+            // children of this one.
+            for (_, p) in &self.polytopes {
+                if let Ok(children) = p.children() {
+                    for child in children {
+                        ensure!(
+                            !deleted.contains(child),
+                            "reference to deleted polytope remains",
+                        );
+                    }
+                }
             }
         }
+        Ok(())
+    }
+    fn delete_polytope_recursive(
+        &mut self,
+        id: PolytopeId,
+        deleted_set: &mut Option<HashSet<PolytopeId>>,
+    ) {
         self.polytopes.try_remove(id.0 as usize);
+        if let Some(deleted) = deleted_set {
+            deleted.insert(id);
+        }
+
+        if let Ok(Ok(children)) = self.get(id).map(|p| p.children().cloned()) {
+            for child in children {
+                self.delete_polytope_recursive(child, deleted_set);
+            }
+        }
     }
     pub fn remove_internal(&mut self) -> Result<()> {
         for root in self.roots.clone() {
             if self.is_piece_internal(root)? {
-                self.delete_polytope(root);
+                self.delete_root(root)?;
                 self.roots.remove(&root);
             }
         }
@@ -225,13 +235,16 @@ impl PolytopeArena {
     }
 
     pub fn is_internal(&self, id: PolytopeId) -> Result<bool> {
-        Ok(self.get(id)?.is_internal())
+        Ok(match self.get(id)? {
+            Polytope::Branch { location, .. } => *location == Location::Internal,
+            _ => false,
+        })
     }
     pub fn is_piece_internal(&self, id: PolytopeId) -> Result<bool> {
-        let p = self.get(id)?;
-        Ok(p.children()?
-            .iter()
-            .all(|&c| self.is_internal(c).expect("Bad child")))
+        match self.get(id)? {
+            Polytope::Point { .. } => Ok(false),
+            Polytope::Branch { location, .. } => Ok(*location == Location::Internal),
+        }
     }
 
     /// Returns a list of all polygons (rank-2 polytopes) in the arena.
@@ -244,24 +257,20 @@ impl PolytopeArena {
 
     pub fn polytope_polygons(&self, p: PolytopeId, no_internal: bool) -> Result<Vec<Polygon>> {
         let polytope = self.get(p)?;
-        if !no_internal || !polytope.is_internal() {
+        if !no_internal || !self.is_internal(p)? {
             if polytope.rank() == 2 {
-                let edges: Vec<[PolytopeId; 2]> =
-                    polytope
-                        .children()?
-                        .iter()
-                        .map(|&p| -> Result<[PolytopeId; 2]> {
-                            let edge = self.get(p)?;
-                            let endpoints = edge.children()?;
-                            // Unpack the edge into the point on either end.
-                            let [a, b] = *<&[PolytopeId; 2]>::try_from(endpoints.as_slice())
-                                .map_err(|_| PolytopeError::BadChildCount {
-                                    rank: 1,
-                                    child_count: endpoints.len(),
-                                })?;
-                            Ok([a, b])
-                        })
-                        .try_collect()?;
+                let edges: Vec<[PolytopeId; 2]> = polytope
+                    .children()?
+                    .iter()
+                    .map(|&p| -> Result<[PolytopeId; 2]> {
+                        let edge = self.get(p)?;
+                        let endpoints = edge.children()?;
+                        // Unpack the edge into the point on either end.
+                        let [a, b] = *<&[PolytopeId; 2]>::try_from(endpoints.as_slice())
+                            .context("bad child count for edge")?;
+                        Ok([a, b])
+                    })
+                    .try_collect()?;
 
                 // Now we will assemble a list of vertices in order.
                 let mut verts = Vec::with_capacity(edges.len());
@@ -273,13 +282,9 @@ impl PolytopeArena {
                     adj.entry(b).or_default().push(a);
                 }
 
-                let [mut prev, mut current] =
-                    edges.first().ok_or(PolytopeError::BadChildCount {
-                        rank: 2,
-                        child_count: 0,
-                    })?;
+                let [mut prev, mut current] = edges.first().context("bad child cound for edge")?;
                 let first_vertex = prev;
-                verts.push(self.get(current)?.unwrap_point()?.clone());
+                verts.push(self.get(current)?.point()?.clone());
                 while current != first_vertex {
                     let new = adj
                         .get(&current)
@@ -287,10 +292,14 @@ impl PolytopeArena {
                         .iter()
                         .copied()
                         .find(|&v| v != prev)
-                        .ok_or(PolytopeError::BadPolygon)?;
+                        .context("bad polygon")?;
                     prev = current;
                     current = new;
-                    verts.push(self.get(current)?.unwrap_point()?.clone());
+                    let prev_point = self.get(prev)?.point()?;
+                    let current_point = self.get(current)?.point()?;
+                    if !abs_diff_eq!(prev_point, current_point) {
+                        verts.push(current_point.clone());
+                    }
                 }
 
                 Ok(vec![Polygon { verts }])
@@ -318,64 +327,217 @@ impl PolytopeArena {
             .collect())
     }
 
-    /// Slices the polytope by a hyperplane, removing external parts if carving.
-    pub fn slice_by_plane(&mut self, plane: &Hyperplane, carving: bool) -> Result<()> {
-        for root in std::mem::take(&mut self.roots) {
-            match self.slice_polytope(root, plane)? {
-                SliceResult::Above => {
-                    if carving {
-                        self.delete_polytope(root);
-                    } else {
-                        self.roots.insert(root);
-                    }
-                }
-                SliceResult::Below => {
-                    self.roots.insert(root);
-                }
-                SliceResult::Split { above, below } => {
-                    if let Some(above) = above {
-                        if carving {
-                            self.delete_polytope(above);
-                        } else {
-                            self.roots.insert(above);
-                        }
-                    }
-                    if let Some(below) = below {
-                        self.roots.insert(below);
-                    }
-                }
-                SliceResult::New { .. } => bail!("Polytope did not get sliced"),
-            };
+    /// Returns an error and logs if the arena is in an invalid state.
+    ///
+    /// This runs an expensive check, so avoid it if possible.
+    fn validate(&self) -> Result<()> {
+        let result = self._validate();
+        if result.is_err() {
+            log::error!(
+                "Invalid polytope arena! Dumping contents as DOT:\n\n{}",
+                self.graph_str()
+            );
+        }
+        result
+    }
+    fn _validate(&self) -> Result<()> {
+        let mut seen = HashSet::new();
+
+        // Each root should have a disjoint set of descendents.
+        for &root in &self.roots {
+            let mut new_seen = HashSet::new();
+            self.add_descendents_to_set(root, &mut new_seen)?;
+            ensure!(
+                new_seen.is_disjoint(&seen),
+                "root polytope {root} shares these \
+                 children with other roots: {:?}",
+                new_seen.union(&seen),
+            );
+            seen.extend(new_seen);
         }
 
-        self.polytopes.retain(|_idx, polytope| {
-            match polytope.slice_result() {
-                // Remove dead polytopes.
-                Some(SliceResult::Above) if carving => false,
-                Some(SliceResult::Split { .. }) => false,
-                // Reset slice results.
-                _ => {
-                    polytope.reset_slice_result();
-                    if carving {
-                        polytope.set_internal(false);
-                    }
-                    true
+        // And there should be no orphaned polytopes.
+        ensure!(self.polytopes.len() == seen.len(), "orphaned polytopes");
+
+        // And every polytope should have the correct number of children, and
+        // the children should be of the correct rank.
+        for (i, polytope) in &self.polytopes {
+            if let Ok(children) = polytope.children() {
+                let rank = polytope.rank();
+                if rank == 1 {
+                    ensure!(children.len() == 2, "edge {i} doesn't have two children");
+                } else {
+                    ensure!(children.len() != 0, "polytope {i} has no children");
+                }
+                for &child in children {
+                    let child_rank = self.get(child)?.rank();
+                    ensure!(
+                        child_rank + 1 == rank,
+                        "polytope {i} has rank {rank} but its \
+                         child with ID {child} has rank {child_rank}",
+                    );
                 }
             }
-        });
+        }
+
         Ok(())
     }
 
-    fn slice_polytope(&mut self, p: PolytopeId, plane: &Hyperplane) -> Result<SliceResult> {
-        let polytope = self.get(p).context("First get")?;
+    /// Produces a Graphviz-compatible DOT file representing the entire polytope
+    /// arena. See https://graphviz.org/ for more.
+    pub fn graph_str(&self) -> String {
+        let mut s = String::new();
+        s += "graph {\n";
+        for (i, polytope) in &self.polytopes {
+            s += &format!("  {i} ");
+            match polytope {
+                Polytope::Point { point } => s += &format!("[label=\"{point:.03}\"]"),
+                Polytope::Branch {
+                    rank: _,
+                    location,
+                    children,
+                } => {
+                    let color = match location {
+                        Location::Primordial => "pink",
+                        Location::External => "beige",
+                        Location::BoundaryRoot => "green",
+                        Location::Boundary(_) => "lightblue",
+                        Location::Internal => "gray",
+                    };
+                    s += &format!("[style=filled color={}]\n", color);
+                    s += &format!("  {i} -- ");
+                    s += "{ ";
+                    for child in children {
+                        s += &format!("{} ", child);
+                    }
+                    s += "}";
+                }
+            }
+            s += "\n";
+        }
+        s += "}\n";
+        s
+    }
 
-        if let Some(ret) = polytope.slice_result() {
-            return Ok(ret);
+    /// Adds all descendents of a polytope to a set.
+    fn add_descendents_to_set(
+        &self,
+        root: PolytopeId,
+        descendents: &mut HashSet<PolytopeId>,
+    ) -> Result<()> {
+        if descendents.insert(root) {
+            if let Ok(children) = self.get(root)?.children() {
+                for &child in children {
+                    self.add_descendents_to_set(child, descendents)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Slices the polytope by a hyperplane, removing external parts.
+    pub fn carve(&mut self, plane: &Hyperplane, facet: Facet) -> Result<()> {
+        self.slice_all(plane, SliceMode::Carve(facet))
+    }
+    /// Slices the polytope by a hyperplane.
+    pub fn slice_internal(&mut self, plane: &Hyperplane) -> Result<()> {
+        self.slice_all(plane, SliceMode::Internal)
+    }
+
+    /// Slices every polytope by a hyperplane, removing external parts if
+    /// carving.
+    fn slice_all(&mut self, plane: &Hyperplane, mode: SliceMode) -> Result<()> {
+        let mut op = SliceOperation {
+            plane,
+            mode,
+            results: HashMap::new(),
+        };
+
+        // Update roots.
+        for root in std::mem::take(&mut self.roots) {
+            let (above, below) = match self.slice_polytope(root, &mut op)? {
+                SliceResult::Above => (Some(root), None),
+                SliceResult::Below => (None, Some(root)),
+                SliceResult::Split { above, below } => {
+                    self.roots.remove(&root);
+                    (above, below)
+                }
+            };
+
+            if let Some(above) = above {
+                if mode.loc_above() != Location::External {
+                    self.roots.insert(above);
+                }
+            }
+            if let Some(below) = below {
+                if mode.loc_below() != Location::External {
+                    self.roots.insert(below);
+                }
+            }
         }
 
-        let ret = match &polytope.contents {
-            PolytopeContents::Point { point, .. } => {
-                let distance = plane.distance_to(point);
+        // Delete dead polytopes.
+        for (polytope, result) in op.results {
+            let (above, below) = match result {
+                SliceResult::Above => (Some(polytope), None),
+                SliceResult::Below => (None, Some(polytope)),
+                SliceResult::Split { above, below } => {
+                    self.remove(polytope).context("removing split polytope")?;
+                    if mode.loc_above() == Location::External {
+                        if let Some(above) = above {
+                            if let Ok(children) = self.get(above)?.children() {
+                                if let Some(&intersection) = children.last() {
+                                    self.remove(intersection).context(
+                                        "removing intersection child of upper polytope of split",
+                                    )?;
+                                }
+                            }
+                        }
+                    }
+                    if mode.loc_below() == Location::External {
+                        if let Some(below) = below {
+                            if let Ok(children) = self.get(below)?.children() {
+                                if let Some(&intersection) = children.last() {
+                                    self.remove(intersection).context(
+                                        "removing intersection child of lower polytope of split",
+                                    )?;
+                                }
+                            }
+                        }
+                    }
+                    (above, below)
+                }
+            };
+            if let Some(above) = above {
+                if mode.loc_above() == Location::External {
+                    self.remove(above)
+                        .context("removing upper polytope of split")?;
+                }
+            }
+            if let Some(below) = below {
+                if mode.loc_below() == Location::External {
+                    self.remove(below)
+                        .context("removing lower polytope of split")?;
+                }
+            }
+        }
+
+        if EXTRA_ASSERTIONS {
+            self.validate()?;
+        }
+
+        Ok(())
+    }
+
+    fn slice_polytope(&mut self, p: PolytopeId, op: &mut SliceOperation) -> Result<SliceResult> {
+        // If `p` has already been sliced, then just return that result.
+        if let Some(&result) = op.results.get(&p) {
+            return Ok(result);
+        }
+
+        let result = match self.get(p).context("cannot slice missing polytope")? {
+            Polytope::Point { point } => {
+                let distance = op.plane.distance_to(point);
                 if distance < -(SPLIT_MARGIN - EPSILON) {
                     SliceResult::Below
                 } else if distance > SPLIT_MARGIN - EPSILON {
@@ -387,14 +549,13 @@ impl PolytopeArena {
                     }
                 }
             }
-            PolytopeContents::Branch {
+            Polytope::Branch {
                 rank,
+                location,
                 children,
-                internal,
-                ..
             } => {
                 let rank = *rank;
-                let internal = *internal;
+                let location = *location;
                 let old_children = children.clone();
                 let mut children_above: SmallVec<[PolytopeId; 4]> = smallvec![];
                 let mut children_below: SmallVec<[PolytopeId; 4]> = smallvec![];
@@ -403,7 +564,7 @@ impl PolytopeArena {
 
                 let mut split_flag = false;
                 for &child in &old_children {
-                    match self.slice_polytope(child, plane)? {
+                    match self.slice_polytope(child, op)? {
                         SliceResult::Above => children_above.push(child),
                         SliceResult::Below => children_below.push(child),
                         SliceResult::Split { above, below } => {
@@ -411,39 +572,26 @@ impl PolytopeArena {
                             if let Some(above) = above {
                                 children_above.push(above);
                                 intersection_children_above.push(
-                                    self.get(above)
-                                        .context("Split child above")?
-                                        .intersection_child()?,
+                                    *self
+                                        .get(above)?
+                                        .children()?
+                                        .last()
+                                        .context("no intersection child")?,
                                 );
                             }
                             if let Some(below) = below {
                                 children_below.push(below);
                                 intersection_children_below.push(
-                                    self.get(below)
-                                        .context("Split child below")?
-                                        .intersection_child()?,
+                                    *self
+                                        .get(below)?
+                                        .children()?
+                                        .last()
+                                        .context("no intersection child")?,
                                 );
                             }
                         }
-                        SliceResult::New { .. } => bail!("Polytope did not get sliced"),
                     }
                 }
-                // if rank == 2 && intersection_children_below.len() == 4 {
-                //     dbg!(rank);
-                //     dbg!(split_flag);
-                //     dbg!(&children_above);
-                //     dbg!(&children_below);
-                //     dbg!(&intersection_children_above);
-                //     dbg!(&intersection_children_below);
-                //     for &child in &children_below {
-                //         for &child2 in self.get(child)?.children()? {
-                //             dbg!(self.get(child2)?.unwrap_point());
-                //         }
-                //     }
-                //     for &child in &intersection_children_below {
-                //         dbg!(self.get(child)?.unwrap_point());
-                //     }
-                // }
 
                 if rank == 1 {
                     match (children_above.as_slice(), children_below.as_slice()) {
@@ -458,60 +606,48 @@ impl PolytopeArena {
                         },
                         // Children are on opposite sides.
                         _ => {
-                            let mut a = self
-                                .get(old_children[0])
-                                .context("Old children 0")?
-                                .unwrap_point()?
-                                .clone();
-                            let mut b = self
-                                .get(old_children[1])
-                                .context("Old children 1")?
-                                .unwrap_point()?
-                                .clone();
-                            let mut ah = plane.distance_to(&a);
-                            let mut bh = plane.distance_to(&b);
+                            let mut a = self.get(old_children[0])?.point()?.clone();
+                            let mut b = self.get(old_children[1])?.point()?.clone();
+                            let mut ah = op.plane.distance_to(&a);
+                            let mut bh = op.plane.distance_to(&b);
+
+                            // Ensure that `a` is above the plane and `b` is
+                            // below the plane.
                             if ah < bh {
-                                // ensure a is above and b is below the plane
                                 std::mem::swap(&mut a, &mut b);
                                 std::mem::swap(&mut ah, &mut bh);
                             }
-                            let sum = ah - bh; // signs are opposite
-                            if (1. / sum).is_finite() {
-                                let above = children_above
-                                    .first()
-                                    .map(|&child_above| {
-                                        let t = (ah - SPLIT_MARGIN) / sum;
-                                        let intersection =
-                                            self.add_point(&b * t + &a * (1. - t), None);
-                                        self.add_branch(
-                                            1,
-                                            smallvec![child_above, intersection],
-                                            Some(SliceResult::New { intersection }),
-                                            false,
-                                        )
-                                    })
-                                    .transpose()?;
-                                let below = children_below
-                                    .first()
-                                    .map(|&child_below| {
-                                        let t = (ah + SPLIT_MARGIN) / sum;
-                                        let intersection =
-                                            self.add_point(&b * t + &a * (1. - t), None);
-                                        self.add_branch(
-                                            1,
-                                            smallvec![child_below, intersection],
-                                            Some(SliceResult::New { intersection }),
-                                            false,
-                                        )
-                                    })
-                                    .transpose()?;
-                                SliceResult::Split { above, below }
-                            } else {
-                                SliceResult::Split {
-                                    above: None,
-                                    below: None,
-                                }
+                            // Now `ah` is positive and `bh` is negative, so
+                            // this subtraction actually gives a sum of the
+                            // absolute values.
+                            let sum = ah - bh;
+
+                            // Split this edge into two edges: one above the
+                            // plane and one below the plane.
+
+                            let mut above = None;
+                            if let Some(&child_above) = children_above.first() {
+                                let t = (ah - SPLIT_MARGIN) / sum;
+                                let intersection = self.add_point(util::mix(&a, &b, t));
+                                above = Some(self.add_branch(
+                                    1,
+                                    op.mode.loc_above(),
+                                    smallvec![child_above, intersection],
+                                )?);
                             }
+
+                            let mut below = None;
+                            if let Some(&child_below) = children_below.first() {
+                                let t = (ah + SPLIT_MARGIN) / sum;
+                                let intersection = self.add_point(util::mix(&a, &b, t));
+                                below = Some(self.add_branch(
+                                    1,
+                                    op.mode.loc_below(),
+                                    smallvec![child_below, intersection],
+                                )?);
+                            }
+
+                            SliceResult::Split { above, below }
                         }
                     }
                 } else {
@@ -522,105 +658,40 @@ impl PolytopeArena {
                         ([], _) if !split_flag => SliceResult::Below,
                         // Children are on both sides.
                         _ => {
-                            let above = (intersection_children_above.len() >= 2)
-                                .then(|| {
-                                    let intersection_above = self.add_branch(
-                                        rank - 1,
-                                        intersection_children_above,
-                                        None,
-                                        rank == self.ndim || internal,
-                                    )?;
-                                    children_above.push(intersection_above);
-                                    self.add_branch(
-                                        rank,
-                                        children_above,
-                                        Some(SliceResult::New {
-                                            intersection: intersection_above,
-                                        }),
-                                        internal,
-                                    )
-                                })
-                                .transpose()?;
-                            let below = (intersection_children_below.len() >= 2)
-                                .then(|| {
-                                    let intersection_below = self.add_branch(
-                                        rank - 1,
-                                        intersection_children_below,
-                                        None,
-                                        rank == self.ndim || internal,
-                                    )?;
-                                    children_below.push(intersection_below);
-                                    self.add_branch(
-                                        rank,
-                                        children_below,
-                                        Some(SliceResult::New {
-                                            intersection: intersection_below,
-                                        }),
-                                        internal,
-                                    )
-                                })
-                                .transpose()?;
+                            // Split this polytope into two polytopes: one above
+                            // the plane and one below the plane.
+
+                            let mut above = None;
+                            if intersection_children_above.len() >= 2 {
+                                let intersection_above = self.add_branch(
+                                    rank - 1,
+                                    op.mode.loc_above(),
+                                    intersection_children_above,
+                                )?;
+                                children_above.push(intersection_above);
+                                above = Some(self.add_branch(rank, location, children_above)?);
+                            }
+
+                            let mut below = None;
+                            if intersection_children_below.len() >= 2 {
+                                let intersection_below = self.add_branch(
+                                    rank - 1,
+                                    op.mode.loc_below(),
+                                    intersection_children_below,
+                                )?;
+                                children_below.push(intersection_below);
+                                below = Some(self.add_branch(rank, location, children_below)?);
+                            }
+
                             SliceResult::Split { above, below }
                         }
                     }
                 }
             }
         };
-        self.get_mut(p)
-            .context("Final slice result of self")?
-            .set_slice_result(ret);
-        Ok(ret)
-    }
 
-    pub fn above_plane(&self, plane: &Hyperplane) -> Result<(bool, Vec<PolytopeId>)> {
-        let mut blocked = false;
-        let mut res: Vec<PolytopeId> = vec![];
-        for &root in &self.roots {
-            match self.split_polytope(root, plane)? {
-                SplitResult::Above => res.push(root),
-                SplitResult::Below => {}
-                SplitResult::Blocking => blocked = true,
-            }
-        }
-        Ok((blocked, res))
-    }
-
-    fn split_polytope(&self, p: PolytopeId, plane: &Hyperplane) -> Result<SplitResult> {
-        let polytope = self.get(p)?;
-
-        let ret = match &polytope.contents {
-            PolytopeContents::Point { point, .. } => {
-                if plane.distance_to(point) < 0. {
-                    SplitResult::Below
-                } else {
-                    SplitResult::Above
-                }
-            }
-            PolytopeContents::Branch {
-                rank: _, children, ..
-            } => {
-                let mut children_above = false;
-                let mut children_below = false;
-
-                for &child in children {
-                    match self.split_polytope(child, plane)? {
-                        SplitResult::Above => children_above = true,
-                        SplitResult::Below => children_below = true,
-                        SplitResult::Blocking => {}
-                    }
-                }
-                match (children_above, children_below) {
-                    // All children are above.
-                    (true, false) => SplitResult::Above,
-                    // Children are on both sides.
-                    (true, true) => SplitResult::Blocking,
-                    // All children are below.
-                    (false, true) => SplitResult::Below,
-                    _ => bail!("No children found"),
-                }
-            }
-        };
-        Ok(ret)
+        op.results.insert(p, result);
+        Ok(result)
     }
 
     pub fn axis_spans(&self, axis: &Vector) -> Result<Vec<(PolytopeId, Span)>> {
@@ -630,28 +701,25 @@ impl PolytopeArena {
             .collect()
     }
     fn polytope_axis_span(&self, p: PolytopeId, axis: &Vector) -> Result<Span> {
-        let polytope = self.get(p)?;
-
-        match &polytope.contents {
-            PolytopeContents::Point { point, .. } => {
+        match self.get(p)? {
+            Polytope::Point { point } => {
                 let distance = point.dot(axis);
                 Ok(Span {
                     above: distance,
                     below: distance,
                 })
             }
-            PolytopeContents::Branch { children, .. } => children
+            Polytope::Branch { children, .. } => children
                 .iter()
                 .map(|child| self.polytope_axis_span(*child, axis))
                 .reduce(|a, b| Ok(a?.union(b?)))
-                .unwrap_or(Err(anyhow!("Bad child count"))),
+                .context("bad chilid count")?,
         }
     }
 
     pub fn transform_polytope(&mut self, root: PolytopeId, m: &Matrix) -> Result<()> {
         self.transform_recurse(root, &mut HashSet::new(), &mut |arena, id| {
-            let polytope = arena.get_mut(id)?;
-            if let PolytopeContents::Point { point, .. } = &mut polytope.contents {
+            if let Polytope::Point { point, .. } = arena.get_mut(id)? {
                 *point = m * &*point;
             }
             Ok(())
@@ -686,125 +754,45 @@ impl std::fmt::Display for PolytopeId {
     }
 }
 
-/// Node in the polytope tree.
-#[derive(Debug, Clone, PartialEq)]
-struct Polytope {
-    contents: PolytopeContents,
-    parents: SmallVec<[PolytopeId; 4]>,
-}
-impl Polytope {
-    /// Returns the rank (number of dimensions) of the polytope. A point has
-    /// rank 0, a line has rank 1, etc.
-    fn rank(&self) -> u8 {
-        self.contents.rank()
-    }
-    /// Returns the result of the most recent slicing operation.
-    fn slice_result(&self) -> Option<SliceResult> {
-        match &self.contents {
-            PolytopeContents::Point { slice_result, .. }
-            | PolytopeContents::Branch { slice_result, .. } => *slice_result,
-        }
-    }
-    /// Returns the result of the current slicing operation.
-    fn set_slice_result(&mut self, new_slice_result: SliceResult) {
-        match &mut self.contents {
-            PolytopeContents::Point { slice_result, .. }
-            | PolytopeContents::Branch { slice_result, .. } => {
-                *slice_result = Some(new_slice_result)
-            }
-        }
-    }
-    /// Resets the result of the current slicing operation.
-    fn reset_slice_result(&mut self) {
-        match &mut self.contents {
-            PolytopeContents::Point { slice_result, .. }
-            | PolytopeContents::Branch { slice_result, .. } => *slice_result = None,
-        }
-    }
-    /// Sets whether this polytope is external.
-    fn set_internal(&mut self, new_internal: bool) {
-        if let PolytopeContents::Branch { internal, .. } = &mut self.contents {
-            *internal = new_internal;
-        }
-    }
-    /// Returns whether this polytope is external.
-    fn is_internal(&self) -> bool {
-        match self.contents {
-            PolytopeContents::Point { .. } => true,
-            PolytopeContents::Branch { internal, .. } => internal,
-        }
-    }
-    /// Returns the coordinate point if this polytope is a point, or an error if
-    /// is a branch.
-    fn unwrap_point(&self) -> Result<&Vector> {
-        match &self.contents {
-            PolytopeContents::Point { point, .. } => Ok(point),
-            _ => Err(anyhow!("Expected point, got rank {} polytope", self.rank())),
-        }
-    }
-
-    /// Returns the children of the polytope if it is a branch, or an error if
-    /// it is a point.
-    fn children(&self) -> Result<&SmallVec<[PolytopeId; 4]>> {
-        match &self.contents {
-            PolytopeContents::Point { .. } => bail!("Can't get children of point"),
-            PolytopeContents::Branch { children, .. } => Ok(children),
-        }
-    }
-    /// Returns the intersection between the polytope and the slicing hyperplane.
-    fn intersection_child(&self) -> Result<PolytopeId> {
-        match self.slice_result() {
-            Some(SliceResult::New { intersection }) => return Ok(intersection),
-            _ => {
-                dbg!(self);
-                todo!()
-            }
-        }
-    }
-}
-
-/// Contents of a polytope, either a point or a branch.
+/// Node in the polytope DAG, either a point (leaf) or a branch.
 ///
 /// `slice_result` is included here instead of in `Polytope` because it makes
 /// the struct smaller, somehow. (Something to do with enum tag optimizations,
 /// probably?)
 #[derive(Debug, Clone, PartialEq)]
-enum PolytopeContents {
+enum Polytope {
     Point {
         point: Vector,
-        slice_result: Option<SliceResult>,
     },
     Branch {
         rank: u8,
+        location: Location,
         children: SmallVec<[PolytopeId; 4]>,
-        slice_result: Option<SliceResult>,
-        internal: bool, //todo: consider enum of states
     },
 }
-impl PolytopeContents {
-    /// Constructs a point polytope.
-    fn new_point(point: Vector) -> Self {
-        Self::Point {
-            point,
-            slice_result: None,
-        }
-    }
-    /// Constructs a non-point polytope.
-    fn new_branch(rank: u8, children: SmallVec<[PolytopeId; 4]>, internal: bool) -> Self {
-        Self::Branch {
-            rank,
-            children,
-            slice_result: None,
-            internal,
-        }
-    }
-
+impl Polytope {
     /// Returns the rank (number of dimensions) of the polytope. A point has
     /// rank 0, a line has rank 1, etc.
     fn rank(&self) -> u8 {
         match self {
             Self::Point { .. } => 0,
             Self::Branch { rank, .. } => *rank,
+        }
+    }
+    /// Returns the coordinate point if this polytope is a point, or an error if
+    /// is a branch.
+    fn point(&self) -> Result<&Vector> {
+        match &self {
+            Self::Point { point, .. } => Ok(point),
+            _ => Err(anyhow!("expected point, got rank {} polytope", self.rank())),
+        }
+    }
+    /// Returns the children of the polytope if it is a branch, or an error if
+    /// it is a point.
+    fn children(&self) -> Result<&SmallVec<[PolytopeId; 4]>> {
+        match &self {
+            Self::Point { .. } => bail!("can't get children of point"),
+            Self::Branch { children, .. } => Ok(children),
         }
     }
 }
@@ -818,22 +806,64 @@ enum SliceResult {
     Below,
     /// The polytope is cut by the slice.
     Split {
+        /// Portion of the polytope that is above the slice. Its last child
+        /// intersects the slicing plane.
         above: Option<PolytopeId>,
+        /// Portion of the polytope that is below the slice. Its last child
+        /// intersects the slicing plane.
         below: Option<PolytopeId>,
     },
-    /// The polytope was produced by the slice.
-    New { intersection: PolytopeId },
 }
 
-/// Result of slicing a polytope with a hyperplane.
+/// Location of a polytope, which may be external, internal, or on the boundary
+/// of the polytope. For non-facets, `Boundary` and `Internal` are equivalent.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-enum SplitResult {
-    /// The whole polytope is above the slice.
-    Above,
-    /// The whole polytope is below the slice.
-    Below,
-    /// The polytope is cut by the slice.
-    Blocking,
+enum Location {
+    /// This polytope is from the original hypercube. If any of these polytopes
+    /// remain after slicing, then the original cube was not big enough.
+    Primordial,
+    /// This polytope is external to the puzzle. It will be deleted.
+    External,
+    /// This polytope is a root on the boundary of the puzzle, bordering one or
+    /// more puzzle facets.
+    BoundaryRoot,
+    /// This polytope is a sticker facet or a descendent of one.
+    Boundary(Facet),
+    /// This polytope is internal to the puzzle. If it is a root, it may be
+    /// deleted.
+    Internal,
+}
+
+/// How to slice the polytope.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum SliceMode {
+    /// Delete any polytopes above the slicing plane and mark the ones created
+    /// by the slice as being part of this facet.
+    Carve(Facet),
+    /// Mark polytopes created by the slice as internal.
+    Internal,
+}
+impl SliceMode {
+    fn loc_above(self) -> Location {
+        match self {
+            SliceMode::Carve(_) => Location::External,
+            SliceMode::Internal => Location::Internal,
+        }
+    }
+    fn loc_below(self) -> Location {
+        match self {
+            SliceMode::Carve(f) => Location::Boundary(f),
+            SliceMode::Internal => Location::Internal,
+        }
+    }
+}
+
+/// In-progress slice operation
+#[derive(Debug)]
+struct SliceOperation<'a> {
+    plane: &'a Hyperplane,
+    mode: SliceMode,
+    results: HashMap<PolytopeId, SliceResult>,
 }
 
 pub struct Span {
@@ -849,40 +879,11 @@ impl Span {
     }
 }
 
-/// Error from doing polytope math.
-#[derive(Error, Debug)]
-pub enum PolytopeError {
-    #[error("internal error: null polytope")]
-    NullPolytope,
-    #[error("internal error: orphaned polytope")]
-    OrphanedPolytope,
-    #[error("internal error: polytope with rank {rank} cannot have {child_count} children")]
-    BadChildCount { rank: u8, child_count: usize },
-    #[error(
-        "internal error: polytope of rank {parent_rank} cannot have child of rank {child_rank}"
-    )]
-    BadChildRank { parent_rank: u8, child_rank: u8 },
-    #[error("internal error: bad polygon")]
-    BadPolygon,
-    #[error("internal error: bad slice result")]
-    BadSliceResult,
-    #[error("internal error: bad intersection")]
-    BadIntersection,
-    #[error("internal error: bad edge")]
-    BadEdge,
-    #[error("internal error: bad matrix")]
-    BadMatrix,
-    #[error("internal error: expected point, got branch with rank {rank}")]
-    ExpectedPoint { rank: u8 },
-    #[error("internal error: expected branch, got point")]
-    ExpectedBranch,
-}
-
 #[derive(Debug)]
 pub struct NullPolytope;
 impl std::fmt::Display for NullPolytope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Null Polytope")
+        write!(f, "null polytope")
     }
 }
 impl std::error::Error for NullPolytope {}

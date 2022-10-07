@@ -12,6 +12,7 @@ impl SchlafliSymbol {
         Self { indices }
     }
 
+    /// Constructs an integer Schlafli symbol from a string.
     pub fn from_string(string: &str) -> Self {
         let xs = string
             .split(',')
@@ -25,6 +26,7 @@ impl SchlafliSymbol {
         self.indices.len() as u8 + 1
     }
 
+    /// Returns the list of mirrors.
     pub fn mirrors(&self) -> Vec<Mirror> {
         let mut ret = vec![];
         let mut last = Vector::unit(0);
@@ -74,38 +76,47 @@ impl SchlafliSymbol {
         ret
     }
 
-    pub fn generators(self) -> Vec<Matrix> {
+    /// Returns the list of mirrors as generators.
+    pub fn generators(self) -> Vec<Rotoreflector> {
         self.mirrors().into_iter().map(|m| m.into()).collect()
     }
-    // pub fn group(self) -> Group {
-    //     let gens: Vec<_> = self.mirrors().into_iter().map(|m| m.into()).collect();
-    //     Group::from_generators(&gens)
-    // }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MirrorGenerator {
     mirrors: Vec<Mirror>,
 }
+impl From<MirrorGenerator> for Rotoreflector {
+    fn from(gen: MirrorGenerator) -> Self {
+        gen.mirrors
+            .into_iter()
+            .map(|Mirror(v)| Rotoreflector::from_reflection(v))
+            .fold(Rotoreflector::ident(), |a, b| a * b)
+    }
+}
 impl From<MirrorGenerator> for Matrix {
     fn from(gen: MirrorGenerator) -> Self {
         gen.mirrors
             .into_iter()
             .map(Matrix::from)
-            .reduce(|a, b| &a * &b)
-            .expect("empty mirror generator not allowed")
+            .fold(Matrix::EMPTY_IDENT, |a, b| a * b)
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mirror(pub Vector);
+impl From<Mirror> for Rotoreflector {
+    fn from(Mirror(v): Mirror) -> Self {
+        Rotoreflector::from_reflection(v)
+    }
+}
 impl From<Mirror> for Matrix {
-    fn from(mirror: Mirror) -> Self {
-        let ndim = mirror.0.ndim();
+    fn from(Mirror(v): Mirror) -> Self {
+        let ndim = v.ndim();
         let mut ret = Matrix::ident(ndim);
         for x in 0..ndim {
             for y in 0..ndim {
-                *ret.get_mut(x, y) = ret.get(x, y) - 2.0 * mirror.0[x] * mirror.0[y];
+                *ret.get_mut(x, y) = ret.get(x, y) - 2.0 * v[x] * v[y];
             }
         }
         ret

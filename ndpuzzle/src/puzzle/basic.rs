@@ -1,102 +1,92 @@
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
+use approx::abs_diff_eq;
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use super::spec::*;
+use super::PuzzleShape;
 use crate::math::*;
 use crate::polytope::*;
-use crate::schlafli::SchlafliSymbol;
-use crate::spec::*;
 
 use super::PuzzleState;
 use super::PuzzleType;
 
-const EPSILON: f32 = 0.001;
+const NO_INTERNAL: bool = true;
 
-pub fn build_puzzle(spec: &BasicPuzzleSpec) -> Result<PuzzleData> {
-    let shape_spec = &spec.shape[0];
-    let shape_generators = shape_spec
-        .symmetries
-        .iter()
-        .flat_map(|sym| match sym {
-            SymmetriesSpec::Schlafli(string) => SchlafliSymbol::from_string(&string).generators(),
-        })
-        .collect_vec();
-    // let m1 = Matrix::from_cols(shape_schlafli.mirrors().iter().rev().map(|v| &v.0))
-    //     .inverse()
-    //     .unwrap_or(Matrix::EMPTY_IDENT) // TODO: isn't really right
-    //     .transpose();
-    let poles = shape_spec
-        .seeds
-        .iter()
-        .map(|v| v.clone().resize(spec.ndim))
-        .collect::<Vec<_>>();
-    let (mut arena, facets) = generate_polytope(spec.ndim, &shape_generators, &poles)?;
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BasicPuzzleSpec {
+    pub name: String,
+    pub shape: ShapeSpec,
+    pub twists: Vec<TwistsSpec>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TwistsSpec {
+    #[serde(default)]
+    pub symmetry: SymmetrySpecList,
+    pub axes: Vec<AxisSpec>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AxisSpec {
+    pub normal: Vector,
+    pub cuts: Vec<f32>,
+    #[serde(default)]
+    pub twist_generators: Vec<String>,
+}
 
-    let mut axes = vec![];
-    for twist_spec in &spec.twists {
-        let axis_generators = twist_spec
-            .symmetries
-            .iter()
-            .flat_map(|sym| match sym {
-                SymmetriesSpec::Schlafli(string) => {
-                    SchlafliSymbol::from_string(&string).generators()
+impl BasicPuzzleSpec {
+    pub fn build(&self) -> Result<PuzzleData> {
+        // Build the base shape.
+        let (shape, mut polytopes) = self.shape.build()?;
+
+        // Slice for each layer of each twist axis.
+        let mut axes = vec![];
+        for twists_spec in &self.twists {
+            for axis_spec in &twists_spec.axes {
+                let normals = twists_spec.symmetry.generate(vec![axis_spec
+                    .normal
+                    .normalize()
+                    .context("axis normal must not be zero")?])?;
+                for normal in &normals {
+                    for &distance in &axis_spec.cuts {
+                        polytopes.slice_internal(&Hyperplane {
+                            normal: normal.clone(),
+                            distance,
+                        })?;
+                    }
                 }
+            }
+        }
+
+        let piece_ids = polytopes
+            .roots
+            .iter()
+            .copied()
+            // .filter(|&p| !polytopes.is_internal(p).expect("root did not exist"))
+            .collect_vec();
+        let sticker_ids = piece_ids
+            .iter()
+            .flat_map(|&p| {
+                polytopes
+                    .polytope_facet_ids(p, NO_INTERNAL)
+                    .expect("bad children")
             })
             .collect_vec();
-        // let m2 = Matrix::from_cols(twist_schlafli.mirrors().iter().rev().map(|v| &v.0))
-        //     .inverse()
-        //     .unwrap_or(Matrix::EMPTY_IDENT) // TODO: isn't really right
-        //     .transpose();
-        let base_axes = twist_spec
-            .axes
-            .iter()
-            .map(
-                |AxisSpec {
-                     normal,
-                     cuts,
-                     twist_generators,
-                 }| {
-                    // let normal = m2.transform(normal.clone().resize(spec.ndim));
-                    let normal = normal.clone().resize(spec.ndim).normalize().expect("msg");
-                    let mut distances = cuts.clone();
-                    distances.sort_by(f32::total_cmp);
-                    distances.reverse();
-                    Axis {
-                        normal,
-                        distances,
-                        transforms: twist_generators
-                            .iter()
-                            .map(|gen| parse_transform(gen).expect("oops"))
-                            .collect(),
-                    }
-                },
-            )
-            .collect::<Vec<_>>();
-        axes.extend(build_axes(&&axis_generators, &base_axes)?);
-    }
-    for axis in &axes {
-        for i in 0..axis.distances.len() {
-            arena.slice_by_plane(&axis.plane(i), false)?;
-        }
-    }
-    let piece_ids = arena
-        .roots
-        .iter()
-        .copied()
-        .filter(|&p| !arena.is_piece_internal(p).expect("Root did not exist"))
-        .collect_vec();
-    let sticker_ids = piece_ids
-        .iter()
-        .flat_map(|&p| arena.polytope_facet_ids(p, true).expect("Bad children"))
-        .collect_vec();
 
-    Ok(PuzzleData {
-        arena,
-        piece_ids,
-        sticker_ids,
-        axes,
-        facets,
-    })
+        let sticker_polys = sticker_ids
+            .iter()
+            .map(|&p| polytopes.polytope_polygons(p, NO_INTERNAL))
+            .try_collect()?;
+
+        Ok(PuzzleData {
+            polytopes,
+            piece_ids,
+            sticker_ids,
+            sticker_polys,
+            axes,
+            shape: Arc::new(shape),
+        })
+    }
 }
 
 pub fn build_axes(twist_generators: &[Matrix], base_axes: &[Axis]) -> Result<Vec<Axis>> {
@@ -116,22 +106,21 @@ pub fn build_axes(twist_generators: &[Matrix], base_axes: &[Axis]) -> Result<Vec
             let curr_twist = &transforms[next_unprocessed];
             let curr_axis = &axes[curr_twist.0];
             let new_normal = gen * &curr_axis.normal;
-            let new_transform =
-                &(gen * &curr_twist.1) * &gen.inverse().ok_or(PolytopeError::BadMatrix)?;
+            let new_transform = &(gen * &curr_twist.1) * &gen.inverse().context("bad matrix")?;
             let new_axis = Axis {
                 normal: new_normal,
                 distances: curr_axis.distances.clone(),
                 transforms: vec![],
             };
             let new_i = (0..axes.len())
-                .find(|&index| axes[index].normal.approx_eq(&new_axis.normal, EPSILON))
+                .find(|&index| abs_diff_eq!(axes[index].normal, new_axis.normal))
                 .unwrap_or_else(|| {
                     axes.push(new_axis);
                     axes.len() - 1
                 });
             if transforms
                 .iter()
-                .all(|(i, t)| !(t.approx_eq(&new_transform, EPSILON) && *i == new_i))
+                .all(|(i, t)| !(abs_diff_eq!(*t, new_transform) && *i == new_i))
             {
                 transforms.push((new_i, new_transform.clone()));
                 axes[new_i].add_transform(new_transform);
@@ -144,13 +133,16 @@ pub fn build_axes(twist_generators: &[Matrix], base_axes: &[Axis]) -> Result<Vec
 }
 
 pub fn puzzle_type(spec: BasicPuzzleSpec) -> Result<Arc<PuzzleType>> {
-    let puzzle_data = build_puzzle(&spec)?;
+    let ndim = spec.shape.ndim;
+    let puzzle_data = spec.build()?;
 
     let mut piece_infos = vec![];
     let mut sticker_infos = vec![];
     for &piece in &puzzle_data.piece_ids {
         let i = sticker_infos.len() as u16;
-        let stickers = puzzle_data.arena.polytope_facet_ids(piece, true)?;
+        let stickers = puzzle_data
+            .polytopes
+            .polytope_facet_ids(piece, NO_INTERNAL)?;
         sticker_infos.extend(stickers.iter().map(|s| super::StickerInfo {
             piece: super::Piece(piece_infos.len() as u16),
             color: super::Facet(0),
@@ -164,18 +156,7 @@ pub fn puzzle_type(spec: BasicPuzzleSpec) -> Result<Arc<PuzzleType>> {
     Ok(Arc::new_cyclic(|this| PuzzleType {
         this: this.clone(),
         name: spec.name,
-        ndim: spec.ndim,
-        shape: Arc::new(super::PuzzleShape {
-            name: "Todo".to_string(),
-            ndim: spec.ndim,
-            facets: puzzle_data
-                .facets()
-                .iter()
-                .map(|facet| super::FacetInfo {
-                    name: format!("{:?}", facet),
-                })
-                .collect(),
-        }),
+        shape: Arc::clone(&puzzle_data.shape),
         twists: Arc::new(super::PuzzleTwists {
             name: "Todo".to_string(),
             axes: puzzle_data
@@ -188,11 +169,11 @@ pub fn puzzle_type(spec: BasicPuzzleSpec) -> Result<Arc<PuzzleType>> {
                 })
                 .collect(),
             directions: vec![],
-            orientations: vec![Rotor::identity()],
+            orientations: vec![Rotor::ident()],
         }),
         family_name: "Fun".to_string(),
-        projection_type: super::ProjectionType::_4D,
-        radius: spec.ndim as f32,
+        projection_type: super::ProjectionType::_3D,
+        radius: ndim as f32,
         layer_count: 9,
         pieces: piece_infos,
         stickers: sticker_infos,
@@ -215,25 +196,22 @@ pub fn puzzle_type(spec: BasicPuzzleSpec) -> Result<Arc<PuzzleType>> {
 
 #[derive(Debug, Clone)]
 pub struct PuzzleData {
-    arena: PolytopeArena,
+    polytopes: PolytopeArena,
     piece_ids: Vec<PolytopeId>,
     sticker_ids: Vec<PolytopeId>,
+    sticker_polys: Vec<Vec<Polygon>>,
     axes: Vec<Axis>,
-    facets: Vec<Vector>,
+    shape: Arc<PuzzleShape>,
 }
 impl PuzzleData {
     pub fn axes(&self) -> &[Axis] {
         &self.axes
     }
 
-    pub fn facets(&self) -> &[Vector] {
-        &self.facets
-    }
-
     pub fn apply_twist(&mut self, twist: super::Twist) -> Result<Result<(), Vec<PolytopeId>>> {
         let axis = &self.axes[twist.axis.0 as usize];
         let transform = &axis.transforms[twist.direction.0 as usize];
-        let spans = self.arena.axis_spans(&axis.normal)?;
+        let spans = self.polytopes.axis_spans(&axis.normal)?;
         let layer_spans = spans.into_iter().map(|(p, s)| {
             (
                 p,
@@ -258,17 +236,17 @@ impl PuzzleData {
         }
 
         for p in pieces {
-            self.arena.transform_polytope(p, &transform)?;
+            self.polytopes.transform_polytope(p, &transform)?;
         }
         Ok(Ok(()))
     }
 
     pub fn remove_internal(&mut self) -> Result<()> {
-        self.arena.remove_internal()
+        self.polytopes.remove_internal()
     }
 
     pub fn polygons(&self) -> Result<Vec<(PolytopeId, Vec<Polygon>)>> {
-        self.arena.polygons(true)
+        self.polytopes.polygons(NO_INTERNAL)
     }
 }
 
@@ -303,14 +281,10 @@ impl PuzzleState for Puzzle {
         sticker: super::Sticker,
         params: &super::StickerGeometryParams,
     ) -> Option<super::StickerGeometry> {
-        let sticker = self.data.sticker_ids[sticker.0 as usize];
         let mut verts = vec![];
         let mut polygon_indices = vec![];
         // Including internal because sticker
-        self.data
-            .arena
-            .polytope_polygons(sticker, false)
-            .ok()?
+        self.data.sticker_polys[sticker.0 as usize]
             .iter()
             .for_each(|p| {
                 if let Some(new_verts) = p
@@ -351,9 +325,15 @@ pub struct Twist {
     pub layer: u8,
     pub transform: Matrix,
 }
-impl Twist {
-    pub fn approx_eq(&self, other: Twist, epsilon: f32) -> bool {
-        self.layer == other.layer && self.transform.approx_eq(&other.transform, epsilon)
+impl approx::AbsDiffEq for Twist {
+    type Epsilon = f32;
+
+    fn default_epsilon() -> Self::Epsilon {
+        crate::math::EPSILON
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.transform.abs_diff_eq(&other.transform, epsilon)
     }
 }
 

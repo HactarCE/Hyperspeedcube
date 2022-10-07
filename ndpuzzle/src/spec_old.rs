@@ -9,20 +9,9 @@ pub struct BasicPuzzleSpec {
     pub twists: Vec<TwistsSpec>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ShapeSpec {
-    pub ndim: u8,
-    pub symmetries: Vec<SymmetriesSpec>,
-    pub seeds: Vec<Vector>,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TwistsSpec {
     pub symmetries: Vec<SymmetriesSpec>,
     pub axes: Vec<AxisSpec>,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum SymmetriesSpec {
-    Schlafli(String),
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AxisSpec {

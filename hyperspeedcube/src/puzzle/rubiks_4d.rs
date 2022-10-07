@@ -161,7 +161,7 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
     };
 
     let shape = Arc::new(PuzzleShape {
-        name: "4-cube".to_string(),
+        name: Some("4-cube".to_string()),
         ndim: 3,
         facets: FaceEnum::iter().map(|f| f.info()).collect(),
     });
@@ -201,7 +201,6 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
     Arc::new_cyclic(|this| PuzzleType {
         this: this.clone(),
         name: format!("{0}x{0}x{0}x{0}", layer_count),
-        ndim: 4,
         shape,
         twists,
 

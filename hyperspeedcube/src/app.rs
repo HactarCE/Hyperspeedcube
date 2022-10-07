@@ -2,7 +2,7 @@ use bitvec::bitvec;
 use cgmath::Point2;
 use itertools::Itertools;
 use key_names::KeyMappingCode;
-use ndpuzzle::spec::BasicPuzzleSpec;
+use ndpuzzle::puzzle::basic::BasicPuzzleSpec;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
