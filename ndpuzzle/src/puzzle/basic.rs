@@ -145,9 +145,14 @@ pub fn puzzle_type(spec: BasicPuzzleSpec) -> Result<Arc<PuzzleType>> {
         let stickers = puzzle_data
             .polytopes
             .polytope_facet_ids(piece, NO_INTERNAL)?;
-        sticker_infos.extend(stickers.iter().map(|s| super::StickerInfo {
-            piece: super::Piece(piece_infos.len() as u16),
-            color: super::Facet(0),
+        sticker_infos.extend(stickers.iter().map(|&id| {
+            super::StickerInfo {
+                piece: super::Piece(piece_infos.len() as u16),
+                color: puzzle_data
+                    .polytopes
+                    .polytope_location(id)
+                    .unwrap_or(super::Facet(0)),
+            }
         }));
         let j = sticker_infos.len() as u16;
         piece_infos.push(super::PieceInfo {

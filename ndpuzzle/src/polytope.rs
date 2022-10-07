@@ -326,6 +326,15 @@ impl PolytopeArena {
             .filter(|&child| !no_internal || !self.is_internal(child).expect("Bad child"))
             .collect())
     }
+    pub fn polytope_location(&self, p: PolytopeId) -> Result<Facet> {
+        match self.get(p)? {
+            Polytope::Branch {
+                location: Location::Boundary(f),
+                ..
+            } => Ok(*f),
+            _ => bail!("polytope {} has no location", p),
+        }
+    }
 
     /// Returns an error and logs if the arena is in an invalid state.
     ///
@@ -818,7 +827,7 @@ enum SliceResult {
 /// Location of a polytope, which may be external, internal, or on the boundary
 /// of the polytope. For non-facets, `Boundary` and `Internal` are equivalent.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-enum Location {
+pub enum Location {
     /// This polytope is from the original hypercube. If any of these polytopes
     /// remain after slicing, then the original cube was not big enough.
     Primordial,
