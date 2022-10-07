@@ -480,7 +480,7 @@ impl PuzzleController {
                             geometry::polygon_normal_from_indices(&sticker_geom.verts, indices)
                                 .normalize();
                         let illumination = ambient_light + lighting_normal.dot(light_vector);
-                        projected_front_polygons.push(geometry::polygon_from_indices(
+                        projected_front_polygons.extend(geometry::polygon_from_indices(
                             &projected_verts,
                             indices,
                             illumination,
@@ -489,7 +489,7 @@ impl PuzzleController {
                     } else {
                         // This polygon is back-facing.
                         let illumination = 0.0; // don't care
-                        projected_back_polygons.push(geometry::polygon_from_indices(
+                        projected_back_polygons.extend(geometry::polygon_from_indices(
                             &projected_verts,
                             indices,
                             illumination,
@@ -498,7 +498,15 @@ impl PuzzleController {
                     }
                 }
 
-                let (min_bound, max_bound) = ndpuzzle::util::min_and_max_bound(&projected_verts);
+                if projected_verts.is_empty() {
+                    continue;
+                }
+
+                let (min_bound, max_bound) =
+                    match ndpuzzle::util::min_and_max_bound(&projected_verts) {
+                        Some(min_max) => min_max,
+                        None => continue,
+                    };
 
                 sticker_geometries.push(ProjectedStickerGeometry {
                     sticker,

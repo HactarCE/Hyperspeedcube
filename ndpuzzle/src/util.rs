@@ -44,9 +44,9 @@ where
     }
 }
 
-pub fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f32>) {
-    let mut min_bound = verts[0];
-    let mut max_bound = verts[0];
+pub fn min_and_max_bound(verts: &[Point3<f32>]) -> Option<(Point3<f32>, Point3<f32>)> {
+    let mut min_bound = *verts.get(0)?;
+    let mut max_bound = min_bound;
 
     for v in &verts[1..] {
         if v.x < min_bound.x {
@@ -70,5 +70,5 @@ pub fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f32>) {
         }
     }
 
-    (min_bound, max_bound)
+    Some((min_bound, max_bound))
 }

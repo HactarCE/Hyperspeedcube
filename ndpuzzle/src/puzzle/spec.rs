@@ -10,12 +10,14 @@ use crate::polytope::PolytopeArena;
 use crate::schlafli::SchlafliSymbol;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct ShapeSpec {
     pub name: Option<String>,
     pub ndim: u8,
     pub facets: Vec<ShapeFacetsSpec>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct ShapeFacetsSpec {
     #[serde(default)]
     pub symmetry: SymmetrySpecList,
@@ -92,7 +94,7 @@ impl SymmetrySpecList {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum SymmetrySpec {
     Schlafli(String),
 }

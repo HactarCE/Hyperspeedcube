@@ -277,12 +277,12 @@ pub fn polygon_from_indices(
     indices: &[u16],
     illumination: f32,
     twists: ClickTwists,
-) -> Polygon {
+) -> Option<Polygon> {
     let verts: SmallVec<_> = indices.iter().map(|&i| verts[i as usize]).collect();
     let normal = polygon_normal_from_indices(&verts, &[0, 1, 2]);
-    let (min_bound, max_bound) = util::min_and_max_bound(&verts);
+    let (min_bound, max_bound) = util::min_and_max_bound(&verts)?;
 
-    Polygon {
+    Some(Polygon {
         verts,
         min_bound,
         max_bound,
@@ -291,7 +291,7 @@ pub fn polygon_from_indices(
         illumination,
 
         twists,
-    }
+    })
 }
 
 pub fn polygon_normal_from_indices(verts: &[Point3<f32>], indices: &[u16]) -> Vector3<f32> {

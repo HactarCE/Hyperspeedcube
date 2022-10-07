@@ -15,12 +15,14 @@ use super::PuzzleType;
 const NO_INTERNAL: bool = true;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct BasicPuzzleSpec {
     pub name: String,
     pub shape: ShapeSpec,
     pub twists: Vec<TwistsSpec>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct TwistsSpec {
     #[serde(default)]
     pub symmetry: SymmetrySpecList,
@@ -172,7 +174,10 @@ pub fn puzzle_type(spec: BasicPuzzleSpec) -> Result<Arc<PuzzleType>> {
             orientations: vec![Rotor::ident()],
         }),
         family_name: "Fun".to_string(),
-        projection_type: super::ProjectionType::_3D,
+        projection_type: match puzzle_data.shape.ndim {
+            0..=3 => super::ProjectionType::_3D,
+            _ => super::ProjectionType::_4D,
+        },
         radius: ndim as f32,
         layer_count: 9,
         pieces: piece_infos,
