@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use ndpuzzle::math::*;
 use serde::{Deserialize, Serialize};
 
@@ -70,6 +72,7 @@ impl Default for ViewPreferences {
 }
 
 impl ViewPreferences {
+    pub const SCALE_RANGE: RangeInclusive<f32> = 0.1..=5.0;
     pub fn view_angle(&self) -> Rotor {
         const X: u8 = 0;
         const Y: u8 = 1;

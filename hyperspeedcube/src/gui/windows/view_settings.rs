@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::app::App;
 use crate::gui::{util, widgets};
-use crate::preferences::DEFAULT_PREFS;
+use crate::preferences::{ViewPreferences, DEFAULT_PREFS};
 use crate::puzzle::ProjectionType;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
@@ -79,7 +79,9 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     prefs_ui.collapsing("Projection", |mut prefs_ui| {
         let speed = prefs_ui.current.scale / 100.0; // logarithmic speed
         prefs_ui.float("Scale", access!(.scale), |dv| {
-            dv.fixed_decimals(2).clamp_range(0.1..=5.0_f32).speed(speed)
+            dv.fixed_decimals(2)
+                .clamp_range(ViewPreferences::SCALE_RANGE)
+                .speed(speed)
         });
 
         if proj_ty == ProjectionType::_4D {

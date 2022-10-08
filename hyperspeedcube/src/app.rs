@@ -11,7 +11,7 @@ use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
 use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
-use crate::preferences::{Key, Keybind, PieceFilter, Preferences};
+use crate::preferences::{Key, Keybind, PieceFilter, Preferences, ViewPreferences};
 use crate::puzzle::*;
 use crate::render::{GraphicsState, PuzzleRenderCache};
 
@@ -220,6 +220,15 @@ impl App {
                 if self.prefs.interaction.snap_on_release {
                     self.puzzle.snap_view_angle_offset();
                 }
+            }
+
+            AppEvent::Scroll(delta) => {
+                let scale = &mut self.prefs.view_mut(&self.puzzle.ty()).scale;
+                *scale = (*scale * (delta.y / 256.0).exp()).clamp(
+                    *ViewPreferences::SCALE_RANGE.start(),
+                    *ViewPreferences::SCALE_RANGE.end(),
+                );
+                self.prefs.needs_save = true;
             }
 
             AppEvent::StatusError(msg) => return Err(msg),
@@ -736,6 +745,8 @@ pub(crate) enum AppEvent {
     /// (even if the delta is zero).
     Drag(egui::Vec2),
     DragReleased,
+
+    Scroll(egui::Vec2),
 
     StatusError(String),
 }

@@ -78,6 +78,11 @@ pub fn build(ui: &mut egui::Ui, app: &mut App, puzzle_texture_id: egui::TextureI
         app.event(AppEvent::DragReleased);
     }
 
+    // Submit scroll events.
+    if ui.input().scroll_delta.length_sq() > 0.0 {
+        app.event(AppEvent::Scroll(ui.input().scroll_delta));
+    }
+
     // Show debug info for each sticker.
     #[cfg(debug_assertions)]
     if let Some(sticker) = app.puzzle.hovered_sticker() {
