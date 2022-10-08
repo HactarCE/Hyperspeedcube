@@ -143,6 +143,12 @@ async fn run() {
     event_loop.run(move |ev, _ev_loop, control_flow| {
         let mut event_has_been_captured = false;
 
+        if *control_flow == ControlFlow::Exit {
+            if app.prefs.needs_save {
+                app.prefs.force_save();
+            }
+        }
+
         // Key release events should always be processed by the app to make sure
         // there's no stuck keys.
         let allow_egui_capture = match &ev {
@@ -235,9 +241,7 @@ async fn run() {
                 // Build all the UI except the puzzle view in the center.
                 gui::build(&egui.context(), &mut app, puzzle_texture_id);
 
-                if app.prefs.needs_save {
-                    app.prefs.save();
-                }
+                app.prefs.save_if_necessary();
 
                 // Draw puzzle if necessary.
                 if let Some(puzzle_texture) = app.draw_puzzle(&mut gfx) {

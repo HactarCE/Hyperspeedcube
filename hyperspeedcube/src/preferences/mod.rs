@@ -11,6 +11,7 @@ use std::collections::{btree_map, BTreeMap};
 use std::error::Error;
 use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
+use time::{Duration, Instant};
 
 mod colors;
 mod gfx;
@@ -39,6 +40,8 @@ const PREFS_FILE_NAME: &str = "hyperspeedcube";
 const PREFS_FILE_EXTENSION: &str = "yaml";
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
+
+const PREFS_SAVE_COOLDOWN: Duration = Duration::seconds(5);
 
 lazy_static! {
     pub static ref DEFAULT_PREFS: Preferences =
@@ -97,6 +100,8 @@ impl Error for PrefsError {}
 pub struct Preferences {
     #[serde(skip)]
     pub needs_save: bool,
+    #[serde(skip)]
+    pub last_save: Option<Instant>,
 
     /// Preferences file format version.
     #[serde(skip_deserializing)]
@@ -191,29 +196,37 @@ impl Preferences {
             })
     }
 
-    pub fn save(&mut self) {
-        if self.needs_save {
-            self.needs_save = false;
+    pub fn save_if_necessary(&mut self) {
+        let after_cooldown = match self.last_save {
+            Some(time) => Instant::now() - time > PREFS_SAVE_COOLDOWN,
+            None => true,
+        };
+        if self.needs_save && after_cooldown {
+            self.force_save();
+        }
+    }
+    pub fn force_save(&mut self) {
+        self.needs_save = false;
+        self.last_save = Some(Instant::now());
 
-            // Clear empty entries.
-            self.piece_filters.map.retain(|_k, v| !v.is_empty());
+        // Clear empty entries.
+        self.piece_filters.map.retain(|_k, v| !v.is_empty());
 
-            // Set version number.
-            self.version = migration::LATEST_VERSION;
+        // Set version number.
+        self.version = migration::LATEST_VERSION;
 
-            let result = (|| -> anyhow::Result<()> {
-                // IIFE to mimic try block
-                let path = PREFS_FILE_PATH.as_ref()?;
-                if let Some(p) = path.parent() {
-                    std::fs::create_dir_all(p)?;
-                }
-                serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
-                Ok(())
-            })();
-            match result {
-                Ok(()) => log::debug!("Saved preferences"),
-                Err(e) => log::error!("Error saving preferences: {}", e),
+        let result = (|| -> anyhow::Result<()> {
+            // IIFE to mimic try block
+            let path = PREFS_FILE_PATH.as_ref()?;
+            if let Some(p) = path.parent() {
+                std::fs::create_dir_all(p)?;
             }
+            serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
+            Ok(())
+        })();
+        match result {
+            Ok(()) => log::debug!("Saved preferences"),
+            Err(e) => log::error!("Error saving preferences: {}", e),
         }
     }
 
