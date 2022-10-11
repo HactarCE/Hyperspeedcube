@@ -247,6 +247,14 @@ impl PolytopeArena {
         }
     }
 
+    pub fn radius(&self) -> f32 {
+        self.polytopes
+            .iter()
+            .filter_map(|(_, p)| p.point().ok())
+            .fold(1.0, |a, b| f32::max(a, b.mag2()))
+            .sqrt()
+    }
+
     /// Returns a list of all polygons (rank-2 polytopes) in the arena.
     pub fn polygons(&self, no_internal: bool) -> Result<Vec<(PolytopeId, Vec<Polygon>)>> {
         self.roots

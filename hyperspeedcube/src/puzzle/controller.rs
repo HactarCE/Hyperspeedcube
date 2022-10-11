@@ -379,7 +379,7 @@ impl PuzzleController {
             let view_transform = (&self.view_angle.current * view_prefs.view_angle())
                 .matrix()
                 .pad(4)
-                * (1.0 / self.ty().radius);
+                * (1.0 / self.ty().shape.radius);
 
             let facet_spacing = view_prefs.facet_spacing;
             let sticker_spacing = if self.ty().layer_count > 1 {

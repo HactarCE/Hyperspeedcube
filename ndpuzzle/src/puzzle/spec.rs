@@ -66,7 +66,18 @@ impl ShapeSpec {
             });
         }
 
-        Ok((PuzzleShape { name, ndim, facets }, polytope))
+        // Get the distance of the furthest vertex from the origin.
+        let radius = polytope.radius();
+
+        Ok((
+            PuzzleShape {
+                name,
+                ndim,
+                facets,
+                radius,
+            },
+            polytope,
+        ))
     }
 }
 

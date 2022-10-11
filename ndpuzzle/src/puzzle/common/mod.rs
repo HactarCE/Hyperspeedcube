@@ -32,7 +32,6 @@ pub struct PuzzleType {
 
     pub family_name: String,             // TODO: remove
     pub projection_type: ProjectionType, // TODO: remove
-    pub radius: f32,                     // TODO: remove
     pub layer_count: u8,                 // TODO: remove
 
     pub pieces: Vec<PieceInfo>,
@@ -54,7 +53,6 @@ impl fmt::Debug for PuzzleType {
             .field("twists", &self.twists)
             .field("family_name", &self.family_name)
             .field("projection_type", &self.projection_type)
-            .field("radius", &self.radius)
             .field("pieces", &self.pieces)
             .field("stickers", &self.stickers)
             .field("piece_types", &self.piece_types)

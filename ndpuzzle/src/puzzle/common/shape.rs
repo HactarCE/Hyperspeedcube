@@ -9,5 +9,7 @@ pub struct PuzzleShape {
     pub ndim: u8,
     /// Puzzles facets.
     pub facets: Vec<FacetInfo>,
+    /// Distance from origin to outermost point.
+    pub radius: f32,
 }
 impl_puzzle_info_trait!(for PuzzleShape { fn info(Facet) -> &FacetInfo { .facets } });

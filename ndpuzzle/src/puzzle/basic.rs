@@ -183,7 +183,6 @@ pub fn puzzle_type(spec: BasicPuzzleSpec) -> Result<Arc<PuzzleType>> {
             0..=3 => super::ProjectionType::_3D,
             _ => super::ProjectionType::_4D,
         },
-        radius: ndim as f32,
         layer_count: 9,
         pieces: piece_infos,
         stickers: sticker_infos,

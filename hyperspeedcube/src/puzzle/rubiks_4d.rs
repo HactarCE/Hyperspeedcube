@@ -162,8 +162,9 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
 
     let shape = Arc::new(PuzzleShape {
         name: Some("4-cube".to_string()),
-        ndim: 3,
+        ndim: 4,
         facets: FaceEnum::iter().map(|f| f.info()).collect(),
+        radius: 4.0_f32.sqrt(),
     });
 
     let orientations = TwistDirectionEnum::iter()
@@ -206,7 +207,6 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
 
         family_name: "Rubiks4D".to_string(),
         projection_type: ProjectionType::_4D,
-        radius: 4.0_f32.sqrt(),
         layer_count,
 
         pieces,
