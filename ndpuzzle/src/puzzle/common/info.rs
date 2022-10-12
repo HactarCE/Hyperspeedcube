@@ -46,16 +46,20 @@ pub struct PieceInfo {
     pub piece_type: PieceType,
 }
 /// Sticker metadata.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StickerInfo {
     pub piece: Piece,
     pub color: Facet,
+
+    pub points: Vec<Vector>,
+    pub polygons: Vec<Vec<u16>>,
+    pub sticker_shrink_origin: Vector,
 }
 /// Facet metadata.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FacetInfo {
     pub name: String, // e.g., "Right"
-    pub pole: Vector,
+    pub pole: Vector, // face shrink origin
 }
 
 /// Twist axis metadata.

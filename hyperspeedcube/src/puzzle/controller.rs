@@ -472,30 +472,22 @@ impl PuzzleController {
                     .iter()
                     .zip(sticker_geom.polygon_twists)
                 {
-                    let projected_normal =
+                    let mut projected_normal =
                         geometry::polygon_normal_from_indices(&projected_verts, indices);
-                    if projected_normal.z > 0.0 {
-                        // This polygon is front-facing.
-                        let lighting_normal =
-                            geometry::polygon_normal_from_indices(&sticker_geom.verts, indices)
-                                .normalize();
-                        let illumination = ambient_light + lighting_normal.dot(light_vector);
-                        projected_front_polygons.extend(geometry::polygon_from_indices(
-                            &projected_verts,
-                            indices,
-                            illumination,
-                            twists,
-                        ));
-                    } else {
-                        // This polygon is back-facing.
-                        let illumination = 0.0; // don't care
-                        projected_back_polygons.extend(geometry::polygon_from_indices(
-                            &projected_verts,
-                            indices,
-                            illumination,
-                            ClickTwists::default(), // don't care
-                        ));
+                    let mut lighting_normal =
+                        geometry::polygon_normal_from_indices(&sticker_geom.verts, indices)
+                            .normalize();
+                    if projected_normal.z < 0.0 {
+                        projected_normal *= -1.0;
+                        lighting_normal *= -1.0;
                     }
+                    let illumination = ambient_light + lighting_normal.dot(light_vector);
+                    projected_front_polygons.extend(geometry::polygon_from_indices(
+                        &projected_verts,
+                        indices,
+                        illumination,
+                        twists,
+                    ));
                 }
 
                 if projected_verts.is_empty() {

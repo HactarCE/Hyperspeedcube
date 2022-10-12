@@ -248,15 +248,35 @@ impl PolytopeArena {
             .sqrt()
     }
 
-    /// Returns a list of all polygons (rank-2 polytopes) in the arena.
-    pub fn polygons(&self, no_internal: bool) -> Result<Vec<(PolytopeId, Vec<Polygon>)>> {
-        self.roots
-            .iter()
-            .map(|&p| Ok((p, self.polytope_polygons(p, no_internal)?)))
-            .collect()
+    /// Returns indexed polygons for a single polytope.
+    pub fn polytope_indexed_polygons(
+        &self,
+        p: PolytopeId,
+        no_internal: bool,
+    ) -> Result<IndexedPolygons> {
+        let mut vertex_map = HashMap::new();
+        let mut verts = vec![];
+        let mut polys = self
+            .polytope_polygons(p, no_internal)?
+            .into_iter()
+            .map(|poly| {
+                poly.into_iter()
+                    .map(|point_id| match vertex_map.get(&point_id) {
+                        Some(i) => Ok(*i),
+                        None => {
+                            vertex_map.insert(point_id, verts.len() as u16);
+                            verts.push(self.get(point_id)?.point()?.clone());
+                            Ok(*vertex_map.get(&point_id).unwrap())
+                        }
+                    })
+                    .collect::<Result<_>>()
+                    .map(IndexedPolygon)
+            })
+            .try_collect()?;
+        Ok(IndexedPolygons { verts, polys })
     }
 
-    pub fn polytope_polygons(&self, p: PolytopeId, no_internal: bool) -> Result<Vec<Polygon>> {
+    fn polytope_polygons(&self, p: PolytopeId, no_internal: bool) -> Result<Vec<Vec<PolytopeId>>> {
         let polytope = self.get(p)?;
         let internal = self.is_internal(p)?;
         if !no_internal || !internal {
@@ -286,7 +306,7 @@ impl PolytopeArena {
 
                 let [mut prev, mut current] = edges.first().context("bad child cound for edge")?;
                 let first_vertex = prev;
-                verts.push(self.get(current)?.point()?.clone());
+                verts.push(current);
                 while current != first_vertex {
                     let new = adj
                         .get(&current)
@@ -300,11 +320,11 @@ impl PolytopeArena {
                     let prev_point = self.get(prev)?.point()?;
                     let current_point = self.get(current)?.point()?;
                     if !abs_diff_eq!(prev_point, current_point) {
-                        verts.push(current_point.clone());
+                        verts.push(current);
                     }
                 }
 
-                Ok(vec![Polygon { verts }])
+                Ok(vec![verts])
             } else if polytope.rank() > 2 {
                 polytope
                     .children()?
@@ -884,6 +904,15 @@ impl std::error::Error for NullPolytope {}
 #[derive(Debug, Clone, PartialEq)]
 pub struct Polygon {
     pub verts: Vec<Vector>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct IndexedPolygon(pub Vec<u16>);
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct IndexedPolygons {
+    pub verts: Vec<Vector>,
+    pub polys: Vec<IndexedPolygon>,
 }
 
 fn base_3_expansion(n: u32, digit_count: u8) -> impl Iterator<Item = u32> {

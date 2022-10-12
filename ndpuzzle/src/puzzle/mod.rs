@@ -1,4 +1,4 @@
-pub mod basic;
+pub mod jumbling;
 mod common;
 pub mod spec;
 

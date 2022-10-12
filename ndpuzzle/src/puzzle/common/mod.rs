@@ -192,7 +192,24 @@ pub trait PuzzleState: fmt::Debug + Send + Sync {
         &self,
         sticker: Sticker,
         p: &StickerGeometryParams,
-    ) -> Option<StickerGeometry>;
+    ) -> Option<StickerGeometry> {
+        let sticker_info = self.ty().info(sticker);
+        let facet_info = self.ty().info(sticker_info.color);
+        let pole = &facet_info.pole;
+        Some(StickerGeometry {
+            verts: sticker_info
+                .points
+                .iter()
+                .map(|point| p.project_4d((point - &pole) * p.facet_scale + &pole))
+                .collect::<Option<_>>()?,
+            polygon_indices: sticker_info
+                .polygons
+                .iter()
+                .map(|indices| indices.clone().into_boxed_slice())
+                .collect(),
+            polygon_twists: vec![ClickTwists::default(); sticker_info.polygons.len()],
+        })
+    }
 
     fn is_solved(&self) -> bool;
 

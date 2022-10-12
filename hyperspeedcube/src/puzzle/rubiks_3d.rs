@@ -64,7 +64,15 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
                 let mut push_sticker_if = |condition, face| {
                     if condition {
                         piece_stickers.push(Sticker(stickers.len() as _));
-                        stickers.push(StickerInfo { piece, color: face });
+
+                        stickers.push(StickerInfo {
+                            piece,
+                            color: face,
+
+                            points: vec![],
+                            polygons: vec![],
+                            sticker_shrink_origin: Vector::EMPTY,
+                        });
                     }
                 };
                 push_sticker_if(x_max, FaceEnum::R.into());
@@ -288,57 +296,6 @@ impl PuzzleState for Rubiks3D {
         };
         let piece_coord = self.piece_location(piece)[face.axis() as usize];
         u8::abs_diff(face_coord, piece_coord)
-    }
-
-    fn sticker_geometry(
-        &self,
-        sticker: Sticker,
-        p: &StickerGeometryParams,
-    ) -> Option<StickerGeometry> {
-        let piece = self.ty.info(sticker).piece;
-        let face = self.sticker_face(sticker);
-
-        let mut transform = Matrix::EMPTY_IDENT;
-        if let Some((twist, progress)) = p.twist_animation {
-            if self.is_piece_affected_by_twist(twist, piece) {
-                let twist_axis: FaceEnum = twist.axis.into();
-                let twist_transform = twist_axis.twist_matrix(twist.direction.into(), progress);
-                transform = twist_transform;
-            }
-        }
-
-        // Compute the center of the sticker.
-        let center = &transform * from_pt3(self.sticker_center_3d(sticker, p));
-
-        // Compute the vectors that span the plane of the sticker.
-        let [u_span_axis, v_span_axis] = face.parallel_axes();
-        let u = &transform * from_vec3(u_span_axis.unit_vec3() * p.sticker_scale);
-        let v = &transform * from_vec3(v_span_axis.unit_vec3() * p.sticker_scale);
-
-        // Decide what twists should happen when the sticker is clicked.
-        let cw_twist = Twist {
-            axis: face.into(),
-            direction: TwistDirectionEnum::CW90.into(),
-            layers: LayerMask::default(),
-        };
-        let ccw_twist = self.ty.reverse_twist(cw_twist);
-        let recenter = None;
-
-        Some(StickerGeometry::new_double_quad(
-            [
-                p.project_4d(&(&center - &u) - &v)?,
-                p.project_4d(&(&center - &u) + &v)?,
-                p.project_4d(&(&center + &u) - &v)?,
-                p.project_4d(&(&center + &u) + &v)?,
-            ],
-            ClickTwists {
-                cw: Some(cw_twist),
-                ccw: Some(ccw_twist),
-                recenter,
-            },
-            p.show_frontfaces,
-            p.show_backfaces,
-        ))
     }
 
     fn is_solved(&self) -> bool {

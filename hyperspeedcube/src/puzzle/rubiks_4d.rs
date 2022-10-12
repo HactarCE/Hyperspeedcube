@@ -73,7 +73,14 @@ pub fn puzzle_type(layer_count: u8) -> Arc<PuzzleType> {
                     let mut push_sticker_if = |condition, face| {
                         if condition {
                             piece_stickers.push(Sticker(stickers.len() as _));
-                            stickers.push(StickerInfo { piece, color: face });
+                            stickers.push(StickerInfo {
+                                piece,
+                                color: face,
+
+                                points: vec![],
+                                polygons: vec![],
+                                sticker_shrink_origin: Vector::EMPTY,
+                            });
                         }
                     };
                     push_sticker_if(x_max, FaceEnum::R.into());
@@ -274,92 +281,6 @@ impl PuzzleState for Rubiks4D {
         };
         let piece_coord = self.piece_location(piece)[face.axis() as usize];
         u8::abs_diff(face_coord, piece_coord)
-    }
-
-    fn sticker_geometry(
-        &self,
-        sticker: Sticker,
-        p: &StickerGeometryParams,
-    ) -> Option<StickerGeometry> {
-        let piece = self.ty.info(sticker).piece;
-        let face = self.sticker_face(sticker);
-
-        let mut model_transform = Matrix::EMPTY_IDENT;
-        if let Some((twist, progress)) = p.twist_animation {
-            if self.is_piece_affected_by_twist(twist, piece) {
-                let twist_axis: FaceEnum = twist.axis.into();
-                model_transform = twist_axis.twist_matrix(twist.direction.into(), progress);
-            }
-        }
-
-        // Compute the center of the sticker.
-        let center = &model_transform * self.sticker_center_4d(sticker, p);
-
-        // Compute the vectors that span the volume of the sticker.
-        let m = model_transform
-            * face.basis_matrix()
-            * p.sticker_scale
-            // Invert outer face.
-            * if face == FaceEnum::O { -1.0 } else { 1.0 };
-        let x = m.col(0);
-        let y = m.col(1);
-        let z = m.col(2);
-
-        // Decide what twists should happen when the sticker is clicked.
-        let mut twists: [ClickTwists; 6];
-        {
-            let sticker_signs = self.sticker_signs_within_face(sticker);
-            let cw =
-                TwistDirectionEnum::from_signs_within_face(sticker_signs).map(|twist_direction| {
-                    Twist {
-                        axis: face.into(),
-                        direction: twist_direction.into(),
-                        layers: LayerMask::default(),
-                    }
-                });
-            let ccw = cw.map(|t| self.ty.reverse_twist(t));
-            let recenter = None;
-            twists = [ClickTwists { cw, ccw, recenter }; 6];
-            // Replace corner twists with face twists on centermost pieces.
-            if self.is_centermost_piece(piece) {
-                let mut i = 0;
-                for ax in [Axis::X, Axis::Y, Axis::Z] {
-                    for sign in [-1, 1] {
-                        if sticker_signs[ax as usize] == sign || self.ty.layer_count % 2 == 1 {
-                            if let Some(new_dir) = TwistDirectionEnum::from_signs_within_face(
-                                ax.unit_vec4().truncate() * sign,
-                            ) {
-                                twists[i].ccw = Some(Twist {
-                                    axis: face.into(),
-                                    direction: new_dir.rev().into(),
-                                    layers: LayerMask::default(),
-                                });
-                                twists[i].cw = Some(Twist {
-                                    axis: face.into(),
-                                    direction: new_dir.into(),
-                                    layers: LayerMask::default(),
-                                });
-                            }
-                        }
-                        i += 1;
-                    }
-                }
-            }
-        }
-
-        StickerGeometry::new_cube(
-            [
-                p.project_4d(&center + -x + -y + -z)?,
-                p.project_4d(&center + -x + -y + z)?,
-                p.project_4d(&center + -x + y + -z)?,
-                p.project_4d(&center + -x + y + z)?,
-                p.project_4d(&center + x + -y + -z)?,
-                p.project_4d(&center + x + -y + z)?,
-                p.project_4d(&center + x + y + -z)?,
-                p.project_4d(&center + x + y + z)?,
-            ],
-            twists,
-        )
     }
 
     fn is_solved(&self) -> bool {

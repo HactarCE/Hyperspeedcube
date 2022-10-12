@@ -201,7 +201,9 @@ pub(crate) fn draw_puzzle(
     let (mut verts, mut indices, mut polygon_colors) =
         mesh::make_puzzle_mesh(puzzle, prefs, &puzzle_geometry);
 
-    polygon_colors.truncate(8192); // temporary hack
+
+    polygon_colors.truncate(8191); // temporary hack
+    polygon_colors.push([0.5; 4]);
 
     // Create command encoder.
     let mut encoder = gfx
