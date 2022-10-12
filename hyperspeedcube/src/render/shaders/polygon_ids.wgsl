@@ -22,7 +22,7 @@ fn vs_main(
     @builtin(vertex_index) idx: u32,
 ) -> VertexOutput {
     var out: VertexOutput;
-    out.pos = vec4<f32>(in.pos.xy * u.scale + u.align, in.pos.z, 1.0);
+    out.pos = vec4<f32>(in.pos.xy * u.scale + u.align, in.pos.z * 0.5 + 0.5, 1.0);
     out.polygon_id = in.polygon_id;
     return out;
 }

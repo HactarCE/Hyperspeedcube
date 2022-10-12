@@ -520,9 +520,6 @@ impl PuzzleController {
                 });
             }
 
-            // Sort stickers by depth.
-            geometry::sort_by_depth(&mut sticker_geometries);
-
             Arc::new(sticker_geometries)
         });
 

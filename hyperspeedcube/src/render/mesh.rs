@@ -21,12 +21,6 @@ pub(super) fn make_puzzle_mesh(
     let mut indices = vec![];
     let mut polygon_colors = vec![];
 
-    // We already did depth sorting, so the GPU doesn't need to know the real
-    // depth values. It just needs some value between 0 and 1 that increases
-    // nearer to the camera. It's easy enough to start at 0.5 and do integer
-    // incrementation for each sticker to get the next-largest `f32` value.
-    let mut z = 0.5_f32;
-
     let facet_colors = &prefs.colors.facet_colors_list(puzzle.ty());
 
     for geom in sticker_geometries {
@@ -56,16 +50,12 @@ pub(super) fn make_puzzle_mesh(
                 sticker_color.a(),
             ]);
             verts.extend(polygon.verts.iter().map(|v| PolygonVertex {
-                pos: [v.x, v.y, z],
+                pos: [v.x, v.y, v.z],
                 polygon_id: polygon_id as i32,
             }));
             let n = polygon.verts.len() as u32;
             indices.extend((2..n).flat_map(|i| [base, base + i - 1, base + i]));
         }
-
-        // Increase the Z value very slightly. If this scares you, click this
-        // link and try increasing the significand: https://float.exposed/0x3f000000
-        z = f32::from_bits(z.to_bits() + 1);
     }
 
     (verts, indices, polygon_colors)

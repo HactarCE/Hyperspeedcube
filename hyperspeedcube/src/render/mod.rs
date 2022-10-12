@@ -198,8 +198,10 @@ pub(crate) fn draw_puzzle(
     }
 
     // Generate the mesh.
-    let (mut verts, mut indices, polygon_colors) =
+    let (mut verts, mut indices, mut polygon_colors) =
         mesh::make_puzzle_mesh(puzzle, prefs, &puzzle_geometry);
+
+    polygon_colors.truncate(8192); // temporary hack
 
     // Create command encoder.
     let mut encoder = gfx
@@ -332,8 +334,8 @@ pub(crate) fn draw_puzzle(
                     },
                     depth_stencil: Some(wgpu::DepthStencilState {
                         format: wgpu::TextureFormat::Depth32Float,
-                        depth_write_enabled: false,
-                        depth_compare: wgpu::CompareFunction::Always,
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Greater,
                         stencil: wgpu::StencilState::default(),
                         bias: wgpu::DepthBiasState::default(),
                     }),
