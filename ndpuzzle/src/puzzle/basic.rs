@@ -1,10 +1,11 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use approx::abs_diff_eq;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use super::spec::*;
+use super::PuzzleInfo;
 use super::PuzzleShape;
 use crate::math::*;
 use crate::polytope::*;
@@ -290,6 +291,8 @@ impl PuzzleState for Puzzle {
         sticker: super::Sticker,
         params: &super::StickerGeometryParams,
     ) -> Option<super::StickerGeometry> {
+        let pole = &self.ty.info(self.ty.info(sticker).color).pole;
+
         let mut verts = vec![];
         let mut polygon_indices = vec![];
         // Including internal because sticker
@@ -299,6 +302,8 @@ impl PuzzleState for Puzzle {
                 if let Some(new_verts) = p
                     .verts
                     .iter()
+                    // Apply face shrink.
+                    .map(|v| (v - &pole) * params.facet_scale + &pole)
                     .map(|v| params.project_4d(v))
                     .collect::<Option<Vec<_>>>()
                 {
@@ -310,6 +315,7 @@ impl PuzzleState for Puzzle {
                 };
             });
         let poly_count = polygon_indices.len();
+
         Some(super::StickerGeometry {
             verts,
             polygon_indices,

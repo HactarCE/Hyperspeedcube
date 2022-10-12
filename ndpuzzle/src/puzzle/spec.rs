@@ -63,6 +63,7 @@ impl ShapeSpec {
             polytope.carve(&plane, Facet(i as _))?;
             facets.push(FacetInfo {
                 name: pole.to_string(),
+                pole: pole.clone(),
             });
         }
 

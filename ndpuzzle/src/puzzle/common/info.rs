@@ -1,5 +1,7 @@
 use smallvec::SmallVec;
 
+use crate::math::Vector;
+
 macro_rules! impl_puzzle_info_trait {
     (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {
         impl $crate::puzzle::PuzzleInfo<$thing> for $t {
@@ -50,14 +52,10 @@ pub struct StickerInfo {
     pub color: Facet,
 }
 /// Facet metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FacetInfo {
     pub name: String, // e.g., "Right"
-}
-impl FacetInfo {
-    pub const fn new(name: String) -> Self {
-        Self { name }
-    }
+    pub pole: Vector,
 }
 
 /// Twist axis metadata.

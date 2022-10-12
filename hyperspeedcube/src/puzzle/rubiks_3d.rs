@@ -2,7 +2,7 @@
 
 use cgmath::*;
 use itertools::Itertools;
-use ndpuzzle::math::{Matrix, Rotor};
+use ndpuzzle::math::{Matrix, Rotor, Vector};
 use num_enum::FromPrimitive;
 use smallvec::smallvec;
 use std::ops::{Index, IndexMut, RangeInclusive};
@@ -492,6 +492,7 @@ impl FaceEnum {
     fn info(self) -> FacetInfo {
         FacetInfo {
             name: self.name().to_owned(),
+            pole: Vector::unit(self.axis() as u8) * self.sign().float(),
         }
     }
     fn twist_axis_info(self, layer_count: u8) -> TwistAxisInfo {

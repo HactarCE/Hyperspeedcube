@@ -657,6 +657,7 @@ impl FaceEnum {
     fn info(self) -> FacetInfo {
         FacetInfo {
             name: self.name().to_owned(),
+            pole: Vector::unit(self.axis() as u8) * self.sign().float(),
         }
     }
     fn twist_axis_info(self, layer_count: u8) -> TwistAxisInfo {

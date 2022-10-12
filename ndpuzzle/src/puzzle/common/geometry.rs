@@ -2,8 +2,7 @@
 //! splitting.
 
 use cgmath::*;
-use smallvec::{smallvec, SmallVec};
-use std::cmp::Ordering;
+use smallvec::SmallVec;
 
 use super::{ClickTwists, Sticker, Twist};
 use crate::util::{self, IterCyclicPairsExt};
