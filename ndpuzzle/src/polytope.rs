@@ -101,7 +101,7 @@ impl PolytopeArena {
                     .collect();
                 this.add(Polytope::Branch {
                     rank,
-                    location: Location::Primordial,
+                    location: (rank == ndim - 1).then_some(FacetLocation::Primordial),
                     children,
                 });
             };
@@ -140,7 +140,7 @@ impl PolytopeArena {
     fn add_branch(
         &mut self,
         rank: u8,
-        mut location: Location,
+        mut location: Option<FacetLocation>,
         children: SmallVec<[PolytopeId; 4]>,
     ) -> Result<PolytopeId> {
         ensure!(
@@ -154,19 +154,6 @@ impl PolytopeArena {
                 "cannot add edge with {} children",
                 children.len(),
             );
-        }
-
-        if rank == self.ndim {
-            // This is a root polytope. A root polytope is internal iff all of
-            // its children are internal.
-            let is_internal = children
-                .iter()
-                .all(|&child| self.is_internal(child).unwrap_or(false));
-            location = if is_internal {
-                Location::Internal
-            } else {
-                Location::BoundaryRoot
-            }
         }
 
         let ret = self.add(Polytope::Branch {
@@ -226,7 +213,7 @@ impl PolytopeArena {
     }
     pub fn remove_internal(&mut self) -> Result<()> {
         for root in self.roots.clone() {
-            if self.is_piece_internal(root)? {
+            if self.is_internal(root)? {
                 self.delete_root(root)?;
                 self.roots.remove(&root);
             }
@@ -236,15 +223,21 @@ impl PolytopeArena {
 
     pub fn is_internal(&self, id: PolytopeId) -> Result<bool> {
         Ok(match self.get(id)? {
-            Polytope::Branch { location, .. } => *location == Location::Internal,
+            Polytope::Branch {
+                rank,
+                location,
+                children,
+            } => {
+                if *rank == self.ndim {
+                    children
+                        .iter()
+                        .all(|&c| self.is_internal(c).unwrap_or(false))
+                } else {
+                    *location == Some(FacetLocation::Internal)
+                }
+            }
             _ => false,
         })
-    }
-    pub fn is_piece_internal(&self, id: PolytopeId) -> Result<bool> {
-        match self.get(id)? {
-            Polytope::Point { .. } => Ok(false),
-            Polytope::Branch { location, .. } => Ok(*location == Location::Internal),
-        }
     }
 
     pub fn radius(&self) -> f32 {
@@ -265,7 +258,8 @@ impl PolytopeArena {
 
     pub fn polytope_polygons(&self, p: PolytopeId, no_internal: bool) -> Result<Vec<Polygon>> {
         let polytope = self.get(p)?;
-        if !no_internal || !self.is_internal(p)? {
+        let internal = self.is_internal(p)?;
+        if !no_internal || !internal {
             if polytope.rank() == 2 {
                 let edges: Vec<[PolytopeId; 2]> = polytope
                     .children()?
@@ -337,7 +331,7 @@ impl PolytopeArena {
     pub fn polytope_location(&self, p: PolytopeId) -> Result<Facet> {
         match self.get(p)? {
             Polytope::Branch {
-                location: Location::Boundary(f),
+                location: Some(FacetLocation::Boundary(f)),
                 ..
             } => Ok(*f),
             _ => bail!("polytope {} has no location", p),
@@ -415,11 +409,11 @@ impl PolytopeArena {
                     children,
                 } => {
                     let color = match location {
-                        Location::Primordial => "pink",
-                        Location::External => "beige",
-                        Location::BoundaryRoot => "green",
-                        Location::Boundary(_) => "lightblue",
-                        Location::Internal => "gray",
+                        Some(FacetLocation::Primordial) => "pink",
+                        Some(FacetLocation::External) => "beige",
+                        Some(FacetLocation::Boundary(_)) => "lightblue",
+                        Some(FacetLocation::Internal) => "gray",
+                        None => "green",
                     };
                     s += &format!("[style=filled color={}]\n", color);
                     s += &format!("  {i} -- ");
@@ -482,12 +476,12 @@ impl PolytopeArena {
             };
 
             if let Some(above) = above {
-                if mode.loc_above() != Location::External {
+                if mode.loc_above() != FacetLocation::External {
                     self.roots.insert(above);
                 }
             }
             if let Some(below) = below {
-                if mode.loc_below() != Location::External {
+                if mode.loc_below() != FacetLocation::External {
                     self.roots.insert(below);
                 }
             }
@@ -500,7 +494,7 @@ impl PolytopeArena {
                 SliceResult::Below => (None, Some(polytope)),
                 SliceResult::Split { above, below } => {
                     self.remove(polytope).context("removing split polytope")?;
-                    if mode.loc_above() == Location::External {
+                    if mode.loc_above() == FacetLocation::External {
                         if let Some(above) = above {
                             if let Ok(children) = self.get(above)?.children() {
                                 if let Some(&intersection) = children.last() {
@@ -511,7 +505,7 @@ impl PolytopeArena {
                             }
                         }
                     }
-                    if mode.loc_below() == Location::External {
+                    if mode.loc_below() == FacetLocation::External {
                         if let Some(below) = below {
                             if let Ok(children) = self.get(below)?.children() {
                                 if let Some(&intersection) = children.last() {
@@ -526,13 +520,13 @@ impl PolytopeArena {
                 }
             };
             if let Some(above) = above {
-                if mode.loc_above() == Location::External {
+                if mode.loc_above() == FacetLocation::External {
                     self.remove(above)
                         .context("removing upper polytope of split")?;
                 }
             }
             if let Some(below) = below {
-                if mode.loc_below() == Location::External {
+                if mode.loc_below() == FacetLocation::External {
                     self.remove(below)
                         .context("removing lower polytope of split")?;
                 }
@@ -579,6 +573,7 @@ impl PolytopeArena {
                 let mut intersection_children_above = smallvec![];
                 let mut intersection_children_below = smallvec![];
 
+                // Tracks if any child has been split
                 let mut split_flag = false;
                 for &child in &old_children {
                     match self.slice_polytope(child, op)? {
@@ -610,19 +605,22 @@ impl PolytopeArena {
                     }
                 }
 
-                if rank == 1 {
-                    match (children_above.as_slice(), children_below.as_slice()) {
-                        // Both children are above.
-                        ([_, _], []) => SliceResult::Above,
-                        // Both children are below.
-                        ([], [_, _]) => SliceResult::Below,
-                        // Children got deleted.
-                        ([], []) => SliceResult::Split {
-                            above: None,
-                            below: None,
-                        },
-                        // Children are on opposite sides.
-                        _ => {
+                match (children_above.as_slice(), children_below.as_slice()) {
+                    // Children got deleted.
+                    ([], []) => SliceResult::Split {
+                        above: None,
+                        below: None,
+                    },
+                    // All children are above.
+                    (_, []) if !split_flag => SliceResult::Above,
+                    // All children are below.
+                    ([], _) if !split_flag => SliceResult::Below,
+                    // Children are on opposite sides.
+                    _ => {
+                        let mut intersection_above = None;
+                        let mut intersection_below = None;
+
+                        if rank == 1 {
                             let mut a = self.get(old_children[0])?.point()?.clone();
                             let mut b = self.get(old_children[1])?.point()?.clone();
                             let mut ah = op.plane.distance_to(&a);
@@ -642,66 +640,48 @@ impl PolytopeArena {
                             // Split this edge into two edges: one above the
                             // plane and one below the plane.
 
-                            let mut above = None;
-                            if let Some(&child_above) = children_above.first() {
+                            if !children_above.is_empty() {
                                 let t = (ah - SPLIT_MARGIN) / sum;
-                                let intersection = self.add_point(util::mix(&a, &b, t));
-                                above = Some(self.add_branch(
-                                    1,
-                                    op.mode.loc_above(),
-                                    smallvec![child_above, intersection],
-                                )?);
+                                intersection_above = Some(self.add_point(util::mix(&a, &b, t)));
                             }
 
-                            let mut below = None;
-                            if let Some(&child_below) = children_below.first() {
+                            if !children_below.is_empty() {
                                 let t = (ah + SPLIT_MARGIN) / sum;
-                                let intersection = self.add_point(util::mix(&a, &b, t));
-                                below = Some(self.add_branch(
-                                    1,
-                                    op.mode.loc_below(),
-                                    smallvec![child_below, intersection],
-                                )?);
+                                intersection_below = Some(self.add_point(util::mix(&a, &b, t)));
                             }
-
-                            SliceResult::Split { above, below }
-                        }
-                    }
-                } else {
-                    match (children_above.as_slice(), children_below.as_slice()) {
-                        // All children are above.
-                        (_, []) if !split_flag => SliceResult::Above,
-                        // All children are below.
-                        ([], _) if !split_flag => SliceResult::Below,
-                        // Children are on both sides.
-                        _ => {
+                        } else {
                             // Split this polytope into two polytopes: one above
                             // the plane and one below the plane.
 
-                            let mut above = None;
                             if intersection_children_above.len() >= 2 {
-                                let intersection_above = self.add_branch(
+                                intersection_above = Some(self.add_branch(
                                     rank - 1,
-                                    op.mode.loc_above(),
+                                    (rank == self.ndim).then_some(op.mode.loc_above()),
                                     intersection_children_above,
-                                )?;
-                                children_above.push(intersection_above);
-                                above = Some(self.add_branch(rank, location, children_above)?);
+                                )?);
                             }
 
-                            let mut below = None;
                             if intersection_children_below.len() >= 2 {
-                                let intersection_below = self.add_branch(
+                                intersection_below = Some(self.add_branch(
                                     rank - 1,
-                                    op.mode.loc_below(),
+                                    (rank == self.ndim).then_some(op.mode.loc_below()),
                                     intersection_children_below,
-                                )?;
-                                children_below.push(intersection_below);
-                                below = Some(self.add_branch(rank, location, children_below)?);
+                                )?);
                             }
-
-                            SliceResult::Split { above, below }
                         }
+                        let above = intersection_above
+                            .map(|intersection| {
+                                children_above.push(intersection);
+                                self.add_branch(rank, location, children_above)
+                            })
+                            .transpose()?;
+                        let below = intersection_below
+                            .map(|intersection| {
+                                children_below.push(intersection);
+                                self.add_branch(rank, location, children_below)
+                            })
+                            .transpose()?;
+                        SliceResult::Split { above, below }
                     }
                 }
             }
@@ -783,7 +763,7 @@ enum Polytope {
     },
     Branch {
         rank: u8,
-        location: Location,
+        location: Option<FacetLocation>, // Only for facets, None otherwise
         children: SmallVec<[PolytopeId; 4]>,
     },
 }
@@ -832,22 +812,18 @@ enum SliceResult {
     },
 }
 
-/// Location of a polytope, which may be external, internal, or on the boundary
-/// of the polytope. For non-facets, `Boundary` and `Internal` are equivalent.
+/// Location of a facet, which may be external, internal, or on the boundary
+/// of the polytope.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Location {
-    /// This polytope is from the original hypercube. If any of these polytopes
+pub enum FacetLocation {
+    /// This facet is from the original hypercube. If any of these facets
     /// remain after slicing, then the original cube was not big enough.
     Primordial,
-    /// This polytope is external to the puzzle. It will be deleted.
+    /// This facet is external to the puzzle. It will be deleted.
     External,
-    /// This polytope is a root on the boundary of the puzzle, bordering one or
-    /// more puzzle facets.
-    BoundaryRoot,
-    /// This polytope is a sticker facet or a descendent of one.
+    /// This facet is a sticker facet.
     Boundary(Facet),
-    /// This polytope is internal to the puzzle. If it is a root, it may be
-    /// deleted.
+    /// This facet is internal to the puzzle.
     Internal,
 }
 
@@ -861,16 +837,16 @@ pub enum SliceMode {
     Internal,
 }
 impl SliceMode {
-    fn loc_above(self) -> Location {
+    fn loc_above(self) -> FacetLocation {
         match self {
-            SliceMode::Carve(_) => Location::External,
-            SliceMode::Internal => Location::Internal,
+            SliceMode::Carve(_) => FacetLocation::External,
+            SliceMode::Internal => FacetLocation::Internal,
         }
     }
-    fn loc_below(self) -> Location {
+    fn loc_below(self) -> FacetLocation {
         match self {
-            SliceMode::Carve(f) => Location::Boundary(f),
-            SliceMode::Internal => Location::Internal,
+            SliceMode::Carve(f) => FacetLocation::Boundary(f),
+            SliceMode::Internal => FacetLocation::Internal,
         }
     }
 }
