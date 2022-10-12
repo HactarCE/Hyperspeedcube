@@ -29,7 +29,7 @@ fn vs_main(
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var uv: vec2<i32> = vec2<i32>(in.uv);
     var polygon_id: i32 = textureLoad(polygon_ids_texture, uv, 0).r;
-    var r = 3;
+    var r = 1;
     var a = textureLoad(polygon_ids_texture, uv + vec2(-r, r), 0).r;
     var b = textureLoad(polygon_ids_texture, uv + vec2(-r, -r), 0).r;
     var c = textureLoad(polygon_ids_texture, uv + vec2(r, r), 0).r;
