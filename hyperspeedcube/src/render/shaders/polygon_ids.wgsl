@@ -1,11 +1,11 @@
-struct RgbaVertex {
+struct PolygonVertex {
     @location(0) pos: vec3<f32>,
-    @location(1) color: vec4<f32>,
+    @location(1) polygon_id: i32,
 }
 
 struct VertexOutput {
     @builtin(position) pos: vec4<f32>,
-    @location(0) color: vec4<f32>,
+    @location(0) polygon_id: i32,
 }
 
 struct BasicUniform {
@@ -18,16 +18,16 @@ var<uniform> u: BasicUniform;
 
 @vertex
 fn vs_main(
-    in: RgbaVertex,
+    in: PolygonVertex,
     @builtin(vertex_index) idx: u32,
 ) -> VertexOutput {
     var out: VertexOutput;
     out.pos = vec4<f32>(in.pos.xy * u.scale + u.align, in.pos.z, 1.0);
-    out.color = in.color;
+    out.polygon_id = in.polygon_id;
     return out;
 }
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return in.color;
+fn fs_main(in: VertexOutput) -> @location(0) i32 {
+    return in.polygon_id;
 }

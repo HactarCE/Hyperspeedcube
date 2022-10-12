@@ -3,12 +3,14 @@ use once_cell::unsync::OnceCell;
 use super::GraphicsState;
 
 pub(super) struct Shaders {
-    pub(super) basic: CachedShaderModule,
+    pub(super) polygon_ids: CachedShaderModule,
+    pub(super) color: CachedShaderModule,
 }
 impl Shaders {
     pub(super) fn new() -> Self {
         Self {
-            basic: CachedShaderModule::new(|| wgpu::include_wgsl!("basic.wgsl")),
+            polygon_ids: CachedShaderModule::new(|| wgpu::include_wgsl!("polygon_ids.wgsl")),
+            color: CachedShaderModule::new(|| wgpu::include_wgsl!("color.wgsl")),
         }
     }
 }

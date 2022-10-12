@@ -31,15 +31,21 @@ pub(crate) struct PuzzleRenderCache {
     last_params: Option<PuzzleRenderParams>,
     last_puzzle_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
 
-    vertex_buffer: CachedDynamicBuffer,
-    index_buffer: CachedDynamicBuffer,
-    uniform_buffer: CachedUniformBuffer<BasicUniform>,
+    polygon_ids_vertex_buffer: CachedDynamicBuffer,
+    polygon_ids_index_buffer: CachedDynamicBuffer,
+    polygon_ids_uniform_buffer: CachedUniformBuffer<PolygonUniform>,
+
+    polygon_ids_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
+
+    color_vertex_buffer: CachedDynamicBuffer,
+    polygon_colors_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
 
     multisample_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
     out_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
     depth_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
 
-    basic_pipeline: Option<wgpu::RenderPipeline>,
+    polygon_ids_pipeline: Option<wgpu::RenderPipeline>,
+    colors_pipeline: Option<wgpu::RenderPipeline>,
 }
 impl Default for PuzzleRenderCache {
     fn default() -> Self {
@@ -48,21 +54,30 @@ impl Default for PuzzleRenderCache {
             last_params: None,
             last_puzzle_geometry: None,
 
-            vertex_buffer: CachedDynamicBuffer::new::<RgbaVertex>(
-                Some("puzzle_vertex_buffer"),
+            polygon_ids_vertex_buffer: CachedDynamicBuffer::new::<PolygonVertex>(
+                Some("polygon_ids_vertex_buffer"),
                 wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
             ),
-            index_buffer: CachedDynamicBuffer::new::<u32>(
-                Some("puzzle_index_buffer"),
+            polygon_ids_index_buffer: CachedDynamicBuffer::new::<u32>(
+                Some("polygon_ids_index_buffer"),
                 wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX,
             ),
-            uniform_buffer: CachedUniformBuffer::new(Some("puzzle_uniform_buffer"), 0),
+            polygon_ids_uniform_buffer: CachedUniformBuffer::new(Some("puzzle_uniform_buffer"), 0),
+
+            polygon_ids_texture: None,
+
+            color_vertex_buffer: CachedDynamicBuffer::new::<ColorVertex>(
+                Some("color_vertex_buffer"),
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
+            ),
+            polygon_colors_texture: None,
 
             multisample_texture: None,
             out_texture: None,
             depth_texture: None,
 
-            basic_pipeline: None,
+            polygon_ids_pipeline: None,
+            colors_pipeline: None,
         }
     }
 }
@@ -79,16 +94,21 @@ impl PuzzleRenderCache {
         let ret = old != new;
 
         if new.target_w != old.target_w || new.target_h != old.target_h {
+            self.polygon_ids_texture = None;
+
             self.multisample_texture = None;
             self.out_texture = None;
             self.depth_texture = None;
         }
 
         if new.sample_count != old.sample_count {
+            self.polygon_ids_texture = None;
+
             self.multisample_texture = None;
             self.depth_texture = None;
 
-            self.basic_pipeline = None;
+            self.polygon_ids_pipeline = None;
+            self.colors_pipeline = None;
         }
 
         self.last_params = Some(new);
@@ -104,6 +124,8 @@ pub(crate) fn draw_puzzle(
 ) -> Option<wgpu::TextureView> {
     let (width, height) = app.puzzle_texture_size;
     let size = cgmath::vec2(width as f32, height as f32);
+
+    app.prefs.gfx.msaa = false; // TODO: don't do this
 
     // Avoid divide-by-zero errors.
     if width <= 0 || height <= 0 {
@@ -176,25 +198,47 @@ pub(crate) fn draw_puzzle(
     }
 
     // Generate the mesh.
-    let (mut verts, mut indices) = mesh::make_puzzle_mesh(puzzle, prefs, &puzzle_geometry);
+    let (mut verts, mut indices, polygon_colors) =
+        mesh::make_puzzle_mesh(puzzle, prefs, &puzzle_geometry);
 
-    // Create "out" texture that will ultimately be returned.
-    let (out_texture, out_texture_view) = cache.out_texture.get_or_insert_with(|| {
-        gfx.create_texture(&wgpu::TextureDescriptor {
-            label: Some("puzzle_texture"),
-            size: extent3d(width, height),
+    // Create command encoder.
+    let mut encoder = gfx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("puzzle_command_encoder"),
+        });
+
+    // Create polygon IDs texture.
+    let (polgon_ids_texture, polygon_ids_texture_view) =
+        cache.polygon_ids_texture.get_or_insert_with(|| {
+            gfx.create_texture(&wgpu::TextureDescriptor {
+                label: Some("color_texture"),
+                size: extent3d(width, height),
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::R32Sint,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            })
+        });
+
+    let (polygon_colors_texture, polygon_colors_texture_view) = cache
+        .polygon_colors_texture
+        .insert(gfx.create_texture(&wgpu::TextureDescriptor {
+            label: Some("polygon_colors_texture"),
+            size: extent3d(polygon_colors.len() as u32, 1),
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: gfx.config.format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-        })
-    });
+            dimension: wgpu::TextureDimension::D1,
+            format: wgpu::TextureFormat::Rgba32Float,
+            usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
+        }));
 
     // Create depth texture.
     let (_depth_texture, depth_texture_view) = cache.depth_texture.get_or_insert_with(|| {
         gfx.create_texture(&wgpu::TextureDescriptor {
-            label: Some("puzzle_texture"),
+            label: Some("polygon_ids_texture"),
             size: extent3d(width, height),
             mip_level_count: 1,
             sample_count: prefs.gfx.sample_count(),
@@ -204,12 +248,146 @@ pub(crate) fn draw_puzzle(
         })
     });
 
-    // Create command encoder.
-    let mut encoder = gfx
-        .device
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("puzzle_command_encoder"),
-        });
+    // Create render pass color attachment.
+    let render_pass_color_attachment = {
+        let ops = wgpu::Operations {
+            load: wgpu::LoadOp::Clear(wgpu::Color {
+                r: -1.0,
+                g: 0.0,
+                b: 0.0,
+                a: 0.0,
+            }),
+            store: true,
+        };
+
+        // Draw directly to the "out" texture.
+        wgpu::RenderPassColorAttachment {
+            view: &polygon_ids_texture_view,
+            resolve_target: None,
+            ops,
+        }
+    };
+
+    // Begin the render pass.
+    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        label: Some("polygon_ids_render_pass"),
+        color_attachments: &[Some(render_pass_color_attachment)],
+        depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+            view: &*depth_texture_view,
+            depth_ops: Some(wgpu::Operations {
+                load: wgpu::LoadOp::Clear(0.0),
+                store: true,
+            }),
+            stencil_ops: None,
+        }),
+    });
+
+    if !polygon_colors.is_empty() {
+        gfx.queue.write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &polygon_colors_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            bytemuck::cast_slice(polygon_colors.as_slice()),
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: None,
+                rows_per_image: None,
+            },
+            extent3d(polygon_colors.len() as u32, 1),
+        );
+    }
+
+    // Draw stickers, if there's anything to draw.
+    if !indices.is_empty() {
+        // Set pipeline.
+        render_pass.set_pipeline(cache.polygon_ids_pipeline.get_or_insert_with(|| {
+            gfx.device
+                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("polygon_ids_pipeline"),
+                    layout: Some(&gfx.device.create_pipeline_layout(
+                        &wgpu::PipelineLayoutDescriptor {
+                            label: Some("polygon_ids_pipeline_layout"),
+                            bind_group_layouts: &[
+                                cache.polygon_ids_uniform_buffer.bind_group_layout(gfx),
+                            ],
+                            push_constant_ranges: &[],
+                        },
+                    )),
+                    vertex: wgpu::VertexState {
+                        module: gfx.shaders.polygon_ids.get(gfx),
+                        entry_point: "vs_main",
+                        buffers: &[PolygonVertex::LAYOUT],
+                    },
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: None,
+                        unclipped_depth: false,
+                        polygon_mode: wgpu::PolygonMode::Fill,
+                        conservative: false,
+                    },
+                    depth_stencil: Some(wgpu::DepthStencilState {
+                        format: wgpu::TextureFormat::Depth32Float,
+                        depth_write_enabled: false,
+                        depth_compare: wgpu::CompareFunction::Always,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
+                    multisample: wgpu::MultisampleState::default(),
+                    // TODO: deal with this???
+                    // multisample: wgpu::MultisampleState {
+                    //     count: prefs.gfx.sample_count(),
+                    //     ..Default::default()
+                    // },
+                    fragment: Some(wgpu::FragmentState {
+                        module: gfx.shaders.polygon_ids.get(gfx),
+                        entry_point: "fs_main",
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: wgpu::TextureFormat::R32Sint,
+                            blend: None,
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                    }),
+                    multiview: None,
+                })
+        }));
+
+        // Populate vertex buffer.
+        let vertex_buffer = cache.polygon_ids_vertex_buffer.write_all(gfx, &mut verts);
+        render_pass.set_vertex_buffer(0, vertex_buffer);
+
+        // Populate index buffer.
+        let index_buffer = cache.polygon_ids_index_buffer.write_all(gfx, &mut indices);
+        render_pass.set_index_buffer(index_buffer, wgpu::IndexFormat::Uint32);
+
+        // Populate and bind uniform.
+        let uniform = PolygonUniform {
+            scale: scale.into(),
+            align: [view_prefs.align_h, view_prefs.align_v],
+        };
+        cache.polygon_ids_uniform_buffer.write(gfx, &uniform);
+        render_pass.set_bind_group(0, cache.polygon_ids_uniform_buffer.bind_group(gfx), &[]);
+
+        // Draw polygon IDs of stickers.
+        render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
+    }
+
+    // Create "out" texture that will ultimately be returned.
+    let (out_texture, out_texture_view) = cache.out_texture.get_or_insert_with(|| {
+        gfx.create_texture(&wgpu::TextureDescriptor {
+            label: Some("polygon_ids_texture"),
+            size: extent3d(width, height),
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: gfx.config.format,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+        })
+    });
 
     // Create render pass color attachment.
     let mut multisample_texture_view = None;
@@ -256,6 +434,46 @@ pub(crate) fn draw_puzzle(
         }
     };
 
+    let (polygon_ids_texture_bind_group_layout, polygon_ids_texture_bind_group) = gfx
+        .create_texture_bind_group(
+            Some("puzzle_stickers_bind_group"),
+            0,
+            wgpu::ShaderStages::FRAGMENT,
+            wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Sint,
+                view_dimension: wgpu::TextureViewDimension::D2,
+                multisampled: false,
+            },
+            polygon_ids_texture_view,
+        );
+    let (polygon_colors_texture_bind_group_layout, polygon_colors_texture_bind_group) = gfx
+        .create_texture_bind_group(
+            Some("polygon_colors_bind_group"),
+            0,
+            wgpu::ShaderStages::FRAGMENT,
+            wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                view_dimension: wgpu::TextureViewDimension::D1,
+                multisampled: false,
+            },
+            polygon_colors_texture_view,
+        );
+
+    drop(render_pass);
+
+    // Create depth texture.
+    let (_depth_texture, depth_texture_view) = cache.depth_texture.get_or_insert_with(|| {
+        gfx.create_texture(&wgpu::TextureDescriptor {
+            label: Some("polygon_ids_texture"),
+            size: extent3d(width, height),
+            mip_level_count: 1,
+            sample_count: prefs.gfx.sample_count(),
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+        })
+    });
+
     // Begin the render pass.
     let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: Some("puzzle_stickers_render_pass"),
@@ -273,24 +491,27 @@ pub(crate) fn draw_puzzle(
     // Draw stickers, if there's anything to draw.
     if !indices.is_empty() {
         // Set pipeline.
-        render_pass.set_pipeline(cache.basic_pipeline.get_or_insert_with(|| {
+        render_pass.set_pipeline(cache.colors_pipeline.get_or_insert_with(|| {
             gfx.device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("basic_pipeline"),
+                    label: Some("puzzle_stickers_pipeline"),
                     layout: Some(&gfx.device.create_pipeline_layout(
                         &wgpu::PipelineLayoutDescriptor {
-                            label: Some("basic_pipeline_layout"),
-                            bind_group_layouts: &[cache.uniform_buffer.bind_group_layout(gfx)],
+                            label: Some("puzzle_stickers_pipeline_layout"),
+                            bind_group_layouts: &[
+                                &polygon_ids_texture_bind_group_layout,
+                                &polygon_colors_texture_bind_group_layout,
+                            ],
                             push_constant_ranges: &[],
                         },
                     )),
                     vertex: wgpu::VertexState {
-                        module: gfx.shaders.basic.get(gfx),
+                        module: gfx.shaders.color.get(gfx),
                         entry_point: "vs_main",
-                        buffers: &[RgbaVertex::LAYOUT],
+                        buffers: &[ColorVertex::LAYOUT],
                     },
                     primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        topology: wgpu::PrimitiveTopology::TriangleStrip,
                         strip_index_format: None,
                         front_face: wgpu::FrontFace::Ccw,
                         cull_mode: None,
@@ -300,17 +521,18 @@ pub(crate) fn draw_puzzle(
                     },
                     depth_stencil: Some(wgpu::DepthStencilState {
                         format: wgpu::TextureFormat::Depth32Float,
-                        depth_write_enabled: true,
-                        depth_compare: wgpu::CompareFunction::Greater,
+                        depth_write_enabled: false,
+                        depth_compare: wgpu::CompareFunction::Always,
                         stencil: wgpu::StencilState::default(),
                         bias: wgpu::DepthBiasState::default(),
                     }),
-                    multisample: wgpu::MultisampleState {
-                        count: prefs.gfx.sample_count(),
-                        ..Default::default()
-                    },
+                    multisample: wgpu::MultisampleState::default(),
+                    // multisample: wgpu::MultisampleState {
+                    //     count: prefs.gfx.sample_count(),
+                    //     ..Default::default()
+                    // },
                     fragment: Some(wgpu::FragmentState {
-                        module: gfx.shaders.basic.get(gfx),
+                        module: gfx.shaders.color.get(gfx),
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: gfx.config.format,
@@ -323,23 +545,35 @@ pub(crate) fn draw_puzzle(
         }));
 
         // Populate vertex buffer.
-        let vertex_buffer = cache.vertex_buffer.write_all(gfx, &mut verts);
+        let vertex_buffer = cache.color_vertex_buffer.write_all(
+            gfx,
+            &mut vec![
+                ColorVertex {
+                    pos: [-1.0, 1.0],
+                    uv: [0.0, 0.0],
+                },
+                ColorVertex {
+                    pos: [1.0, 1.0],
+                    uv: [width as f32 - 1.0, 0.0],
+                },
+                ColorVertex {
+                    pos: [-1.0, -1.0],
+                    uv: [0.0, height as f32 - 1.0],
+                },
+                ColorVertex {
+                    pos: [1.0, -1.0],
+                    uv: [width as f32 - 1.0, height as f32 - 1.0],
+                },
+            ],
+        );
         render_pass.set_vertex_buffer(0, vertex_buffer);
 
-        // Populate index buffer.
-        let index_buffer = cache.index_buffer.write_all(gfx, &mut indices);
-        render_pass.set_index_buffer(index_buffer, wgpu::IndexFormat::Uint32);
-
         // Populate and bind uniform.
-        let uniform = BasicUniform {
-            scale: scale.into(),
-            align: [view_prefs.align_h, view_prefs.align_v],
-        };
-        cache.uniform_buffer.write(gfx, &uniform);
-        render_pass.set_bind_group(0, cache.uniform_buffer.bind_group(gfx), &[]);
+        render_pass.set_bind_group(0, &polygon_ids_texture_bind_group, &[]);
+        render_pass.set_bind_group(1, &polygon_colors_texture_bind_group, &[]);
 
-        // Draw stickers.
-        render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
+        // Draw polygon IDs of stickers.
+        render_pass.draw(0..4, 0..1);
     }
 
     drop(render_pass);

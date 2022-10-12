@@ -114,6 +114,7 @@ impl GraphicsState {
         &self,
         label: Option<&str>,
         binding: u32,
+        visibility: wgpu::ShaderStages,
     ) -> (wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label,
@@ -128,7 +129,7 @@ impl GraphicsState {
                     label: label.map(|s| format!("{s}_bind_group_layout")).as_deref(),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding,
-                        visibility: wgpu::ShaderStages::VERTEX,
+                        visibility,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -150,6 +151,40 @@ impl GraphicsState {
         };
 
         (buffer, bind_group_layout, bind_group)
+    }
+
+    pub(super) fn create_texture_bind_group(
+        &self,
+        label: Option<&str>,
+        binding: u32,
+        visibility: wgpu::ShaderStages,
+        ty: wgpu::BindingType,
+        view: &wgpu::TextureView,
+    ) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+        let bind_group_layout =
+            self.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: label.map(|s| format!("{s}_bind_group_layout")).as_deref(),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding,
+                        visibility,
+                        ty,
+                        count: None,
+                    }],
+                });
+
+        let bind_group = {
+            self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: label.map(|s| format!("{s}_bind_group")).as_deref(),
+                layout: &bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding,
+                    resource: wgpu::BindingResource::TextureView(view),
+                }],
+            })
+        };
+
+        (bind_group_layout, bind_group)
     }
 
     pub(super) fn create_texture(

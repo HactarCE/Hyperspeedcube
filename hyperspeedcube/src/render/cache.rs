@@ -83,8 +83,13 @@ impl<T> CachedUniformBuffer<T> {
         &self,
         gfx: &GraphicsState,
     ) -> &(wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
-        self.buffer
-            .get_or_init(|| gfx.create_uniform::<T>(self.label, self.binding))
+        self.buffer.get_or_init(|| {
+            gfx.create_uniform::<T>(
+                self.label,
+                self.binding,
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+            )
+        })
     }
 
     pub(super) fn buffer(&self, gfx: &GraphicsState) -> &wgpu::Buffer {
