@@ -1,4 +1,4 @@
-name: Skewb
+name: Helicopter
 shape:
   ndim: 3
   facets:
@@ -10,7 +10,7 @@ twists:
   - symmetry:
       - schlafli: 4,3
     axes:
-      - normal: [1, 1, 1]
-        cuts: [0]
+      - normal: [1, 1, 0]
+        cuts: [0.7071067811865475244]
         twist_generators:
-          - 0,1,-1 -> -1,0,1 # UB -> FL
+          - Z -> 1,-1,0 -> 0,0,-1

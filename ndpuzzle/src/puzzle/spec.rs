@@ -1,6 +1,7 @@
 use std::ops::Mul;
 
 use anyhow::{Context, Result};
+use approx::abs_diff_eq;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +26,11 @@ pub struct ShapeFacetsSpec {
 }
 impl ShapeFacetsSpec {
     pub fn expand_poles(&self) -> Result<Vec<Vector>> {
-        self.symmetry.generate(self.seeds.clone())
+        self.symmetry
+            .generate(self.seeds.clone(), |r, t| r * t)?
+            .into_iter()
+            .map(|(_transform, pole)| Ok(pole))
+            .collect()
     }
 }
 
@@ -96,12 +101,31 @@ impl SymmetrySpecList {
             .collect()
     }
 
-    pub fn generate<T>(&self, seeds: Vec<T>) -> Result<Vec<T>>
+    pub fn generate<T>(
+        &self,
+        seeds: impl IntoIterator<Item = T>,
+        transform: impl Fn(&Rotoreflector, &T) -> T,
+    ) -> Result<Vec<(Rotoreflector, T)>>
     where
-        for<'a> &'a Rotoreflector: Mul<&'a T, Output = T>,
         T: approx::AbsDiffEq,
     {
-        Ok(Group::generate(&self.generators()?, seeds))
+        let generators = self.generators()?;
+        let mut ret = seeds
+            .into_iter()
+            .map(|seed| (Rotoreflector::ident(), seed))
+            .collect_vec();
+        let mut unprocessed_idx = 0;
+        while unprocessed_idx < ret.len() {
+            for gen in &generators {
+                let old = &ret[unprocessed_idx];
+                let new = transform(gen, &old.1);
+                if !ret.iter().any(|old| abs_diff_eq!(old.1, new)) {
+                    ret.push((gen * &old.0, new));
+                }
+            }
+            unprocessed_idx += 1;
+        }
+        Ok(ret)
     }
 }
 
@@ -122,13 +146,15 @@ impl SymmetrySpec {
 
 const AXIS_NAMES: &str = "XYZWUVRS";
 
-pub fn parse_transform(string: &str) -> Option<Matrix> {
+pub fn parse_transform(string: &str) -> Option<Rotoreflector> {
     string
         .split("->")
         .map(|v| parse_vector(v)?.normalize())
         .tuple_windows()
-        .map(|(v1, v2)| Some(Matrix::from_vec_to_vec(v1.as_ref()?, v2.as_ref()?)))
-        .try_fold(Matrix::EMPTY_IDENT, |m1, m2| Some(&m1 * &m2?))
+        .map(|(v1, v2)| Rotor::from_vec_to_vec(v1.as_ref()?, v2.as_ref()?))
+        .try_fold(Rotoreflector::ident(), |r1, r2| {
+            Some(r1 * Rotoreflector::from(r2?))
+        })
 }
 
 pub fn parse_vector(string: &str) -> Option<Vector> {

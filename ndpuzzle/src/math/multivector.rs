@@ -5,7 +5,7 @@
 
 use std::fmt;
 use std::iter::Sum;
-use std::ops::{Add, AddAssign, Mul, MulAssign};
+use std::ops::{Add, AddAssign, Mul, MulAssign, Neg};
 
 use crate::math::*;
 
@@ -25,6 +25,17 @@ impl fmt::Display for Blade {
         self.coef.fmt(f)?;
         write!(f, "{}", axes_to_string(self.axes))?;
         Ok(())
+    }
+}
+impl approx::AbsDiffEq for Blade {
+    type Epsilon = f32;
+
+    fn default_epsilon() -> Self::Epsilon {
+        super::EPSILON
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.axes == other.axes && self.coef.abs_diff_eq(&other.coef, epsilon)
     }
 }
 impl Mul for Blade {
@@ -100,6 +111,22 @@ impl<V: VectorRef> From<V> for Multivector {
                 })
                 .collect(),
         )
+    }
+}
+impl approx::AbsDiffEq for Multivector {
+    type Epsilon = f32;
+
+    fn default_epsilon() -> Self::Epsilon {
+        super::EPSILON
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        let largest_axis_mask = std::cmp::max(self.largest_axis_mask(), other.largest_axis_mask());
+        (0..=largest_axis_mask).all(|i| {
+            let a = self.get(i).unwrap_or(0.0);
+            let b = other.get(i).unwrap_or(0.0);
+            a.abs_diff_eq(&b, epsilon)
+        })
     }
 }
 impl From<Blade> for Multivector {
@@ -213,6 +240,20 @@ impl<'a> Mul<f32> for &'a Multivector {
         self.clone() * rhs
     }
 }
+impl Neg for Multivector {
+    type Output = Multivector;
+
+    fn neg(self) -> Self::Output {
+        self * -1.0
+    }
+}
+impl<'a> Neg for &'a Multivector {
+    type Output = Multivector;
+
+    fn neg(self) -> Self::Output {
+        self * -1.0
+    }
+}
 impl Sum<Blade> for Multivector {
     fn sum<I: Iterator<Item = Blade>>(iter: I) -> Self {
         iter.fold(Multivector::ZERO, |a, b| a + b)
@@ -281,18 +322,16 @@ impl Multivector {
             .map(|i| self.sandwich_axis_vector(i, v.get(i)))
             .sum()
     }
-    /// Returns the sandwich product with a rotor: `M * R * M_rev`.
-    pub fn sandwich_rotor(&self, rotor: &Rotor) -> Rotor {
-        Rotor::from_multivector(
-            self.0
-                .iter()
-                .flat_map(|&lhs| {
-                    rotor.multivector().0.iter().flat_map(move |&mid| {
-                        self.0.iter().map(move |&rhs| lhs * mid * rhs.conjugate())
-                    })
+    /// Returns the sandwich product with a multivector: `M * R * M_rev`.
+    pub fn sandwich_multivector(&self, multivector: &Multivector) -> Multivector {
+        self.0
+            .iter()
+            .flat_map(|&lhs| {
+                multivector.0.iter().flat_map(move |&mid| {
+                    self.0.iter().map(move |&rhs| lhs * mid * rhs.conjugate())
                 })
-                .sum(),
-        )
+            })
+            .sum()
     }
     /// Returns the matrix equivalent to a sandwich product with the
     /// multivector.
@@ -338,10 +377,28 @@ impl Default for Rotor {
         Rotor::ident()
     }
 }
+impl approx::AbsDiffEq for Rotor {
+    type Epsilon = f32;
+
+    fn default_epsilon() -> Self::Epsilon {
+        super::EPSILON
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.0.abs_diff_eq(&other.0, epsilon) || self.0.abs_diff_eq(&-&other.0, epsilon)
+    }
+}
 impl Rotor {
     /// Returns the identity rotor.
     pub fn ident() -> Self {
         Self(Multivector::scalar(1.0))
+    }
+    /// Constructs a rotor that transforms one vector to another.
+    pub fn from_vec_to_vec(a: impl VectorRef, b: impl VectorRef) -> Option<Self> {
+        let a = a.normalize()?;
+        let b = b.normalize()?;
+        let avg = (b + &a) / 2.0;
+        Self::from_vector_product(a, avg).normalize()
     }
     /// Constructs a rotor from a product of two vectors.
     ///
@@ -413,7 +470,7 @@ impl Rotor {
     /// Transforms another rotor using this one.
     #[must_use]
     pub fn transform_rotor(&self, other: &Rotor) -> Rotor {
-        self.0.sandwich_rotor(other)
+        Rotor(self.0.sandwich_multivector(&other.0))
     }
 
     /// Transforms a vector using the rotor.
@@ -426,7 +483,8 @@ impl Rotor {
     pub fn mag(&self) -> f32 {
         (self.reverse() * self).s().sqrt()
     }
-    /// Normalizes the rotor so that the magnitude is one.
+    /// Normalizes the rotor so that the magnitude is one and the scalar
+    /// component is positive.
     #[must_use]
     pub fn normalize(mut self) -> Option<Rotor> {
         let mult = self.s().signum() / self.mag();
@@ -517,6 +575,18 @@ impl Default for Rotoreflector {
         Self::ident()
     }
 }
+impl approx::AbsDiffEq for Rotoreflector {
+    type Epsilon = f32;
+
+    fn default_epsilon() -> Self::Epsilon {
+        super::EPSILON
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.multivector.abs_diff_eq(&other.multivector, epsilon)
+            || self.multivector.abs_diff_eq(&-&other.multivector, epsilon)
+    }
+}
 impl From<Rotor> for Rotoreflector {
     fn from(r: Rotor) -> Self {
         Multivector::from(r).into()
@@ -567,6 +637,29 @@ impl Rotoreflector {
     /// Returns the reverse transformation.
     pub fn reverse(&self) -> Self {
         self.multivector.conjugate().into()
+    }
+
+    /// Transforms another rotor using this one.
+    #[must_use]
+    pub fn transform_rotor(&self, other: &Rotor) -> Rotor {
+        Rotor(self.multivector.sandwich_multivector(&other.0))
+    }
+
+    /// Transforms another rotoreflector using this one.
+    #[must_use]
+    pub fn transform_rotoreflector(&self, other: &Rotoreflector) -> Rotoreflector {
+        (self.multivector.sandwich_multivector(&other.multivector)).into()
+    }
+
+    /// Transforms another rotoreflector using this one, reversing it if this is
+    /// a reflection.
+    pub fn transform_rotoreflector_uninverted(&self, other: &Rotoreflector) -> Rotoreflector {
+        let ret = self.transform_rotoreflector(other);
+        if self.is_reflection() {
+            ret.reverse()
+        } else {
+            ret
+        }
     }
 }
 
@@ -654,10 +747,9 @@ mod tests {
             b in gen_normalized_vector(7),
             vec in gen_vector(7),
         ) {
-            let halfway = (&a + &b).normalize();
-            prop_assume!(halfway.is_some());
-            let halfway = halfway.unwrap();
-            let rotor = Rotor::from_vector_product(&a, &halfway);
+            let rotor = Rotor::from_vec_to_vec(&a, &b);
+            prop_assume!(rotor.is_some());
+            let rotor = rotor.unwrap();
 
             let v_mag = vec.mag();
             assert_rotor_transform_vector(&rotor, &a * v_mag, &b * v_mag)?;

@@ -1,6 +1,6 @@
 use smallvec::SmallVec;
 
-use crate::math::Vector;
+use crate::math::{Hyperplane, Rotoreflector, Vector, VectorRef};
 
 macro_rules! impl_puzzle_info_trait {
     (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {
@@ -28,22 +28,24 @@ pub struct Piece(pub u16);
 pub struct Sticker(pub u16);
 /// Facet ID.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Facet(pub u8);
+pub struct Facet(pub u8); // TODO: expand to u16
 /// Twist axis ID.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TwistAxis(pub u8);
+pub struct TwistAxis(pub u8); // TODO: expand to u16
 /// Twist direction ID.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TwistDirection(pub u8);
+pub struct TwistDirection(pub u8); // TODO: expand to u16
 /// Piece type ID.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PieceType(pub u8);
 
 /// Piece metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PieceInfo {
     pub stickers: SmallVec<[Sticker; 8]>,
     pub piece_type: PieceType,
+
+    pub points: Vec<Vector>,
 }
 /// Sticker metadata.
 #[derive(Debug, Clone, PartialEq)]
@@ -63,11 +65,15 @@ pub struct FacetInfo {
 }
 
 /// Twist axis metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TwistAxisInfo {
     pub symbol: String, // e.g., "R"
-    pub layer_count: u8,
     pub opposite: Option<(TwistAxis, Vec<TwistDirection>)>,
+    pub cuts: Vec<TwistCut>,
+
+    /// Transformation from puzzle space to the local space of the twist axis.
+    /// Applying this transformation moves the X axis to the this axis's normal.
+    pub reference_frame: Rotoreflector,
 }
 impl AsRef<str> for TwistAxisInfo {
     fn as_ref(&self) -> &str {
@@ -85,15 +91,35 @@ impl TwistAxisInfo {
             .as_ref()
             .and_then(|(axis, dirs)| Some((*axis, *dirs.get(dir.0 as usize)?)))
     }
+    /// Returns the number of layers on the twist axis.
+    pub fn layer_count(&self) -> u8 {
+        self.cuts.len() as u8 + 1
+    }
+}
+
+/// Twist cut metadata.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TwistCut {
+    /// Planar cut perpendicular to the twist axis at a radius from the origin.
+    Planar { radius: f32 },
+}
+impl TwistCut {
+    pub fn is_point_above(&self, p: impl VectorRef) -> bool {
+        match self {
+            TwistCut::Planar { radius } => p.get(0) > *radius,
+        }
+    }
 }
 
 /// Twist direction metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TwistDirectionInfo {
     pub symbol: String, // "'"
     pub name: String,   // "CCW"
     pub qtm: usize,
     pub rev: TwistDirection,
+
+    pub transform: Rotoreflector,
 }
 impl AsRef<str> for TwistDirectionInfo {
     fn as_ref(&self) -> &str {

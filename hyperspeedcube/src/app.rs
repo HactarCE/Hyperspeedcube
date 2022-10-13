@@ -246,10 +246,9 @@ impl App {
                         match serde_yaml::from_str::<JumblingPuzzleSpec>(&s) {
                             Ok(spec) => {
                                 let name = spec.name.clone();
-                                PUZZLE_REGISTRY.lock().insert(
-                                    name.clone(),
-                                    jumbling::puzzle_type(spec).expect("Sadness"),
-                                );
+                                PUZZLE_REGISTRY
+                                    .lock()
+                                    .insert(name.clone(), spec.build().expect("Sadness"));
                                 self.event(Command::NewPuzzle(name))
                             }
                             Err(e) => show_error_dialog("Error loading puzzle", e),
