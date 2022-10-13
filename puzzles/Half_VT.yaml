@@ -5,12 +5,12 @@ shape:
     - symmetry:
         - schlafli: 4,3,3
       seeds:
-        - [1, 0, 0]
+        - [1, 0, 0, 0]
 twists:
   - symmetry:
       - schlafli: 4,3,3
     axes:
       - normal: [1, 1, 1, 1]
-        cuts: [0]
+        cuts: [1.01]
         twist_generators:
-          - 0,1,-1 -> -1,0,1
+          - 0,1,-1,0 -> -1,0,1,0

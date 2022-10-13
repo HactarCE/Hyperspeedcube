@@ -1,20 +1,20 @@
+use ndpuzzle::puzzle::jumbling::JumblingPuzzleSpec;
 use parking_lot::Mutex;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use super::PuzzleType;
 
 lazy_static! {
-    pub static ref PUZZLE_REGISTRY: Mutex<HashMap<String, Arc<PuzzleType>>> = {
-        let mut ret = HashMap::new();
-        for i in 1..=9 {
-            for ty in [
-                super::rubiks_3d::puzzle_type(i),
-                super::rubiks_4d::puzzle_type(i),
-            ] {
-                ret.insert(ty.name.clone(), ty);
-            }
-        }
+    pub static ref PUZZLE_REGISTRY: Mutex<BTreeMap<String, Arc<PuzzleType>>> = {
+        let mut ret = BTreeMap::new();
+        ret.insert(
+            "Default".to_string(),
+            serde_yaml::from_str::<JumblingPuzzleSpec>(include_str!("default.yaml"))
+                .expect("failed to build default puzzle")
+                .build()
+                .expect("failed to build default puzzle"),
+        );
         Mutex::new(ret)
     };
 }

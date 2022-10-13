@@ -6,14 +6,12 @@
 mod impl_macros;
 #[macro_use]
 mod vector;
-mod group;
 mod hyperplane;
 mod matrix;
 mod multivector;
 pub mod permutations;
 pub mod util;
 
-pub use group::*;
 pub use hyperplane::*;
 pub use matrix::*;
 pub use multivector::*;

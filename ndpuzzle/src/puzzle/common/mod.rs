@@ -23,6 +23,8 @@ pub use notation::*;
 pub use shape::*;
 pub use twists::*;
 
+use crate::math::Matrix;
+
 /// Puzzle type metadata.
 pub struct PuzzleType {
     pub this: Weak<PuzzleType>,
@@ -186,8 +188,25 @@ pub trait PuzzleState: fmt::Debug + Send + Sync {
             .filter(|&piece| self.is_piece_affected_by_twist(twist, piece))
             .collect()
     }
-    fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8;
+    fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8 {
+        // TODO: handle bandaging
+        match self.ty().info(piece).points.first() {
+            Some(point) => {
+                let axis_info = self.ty().info(twist_axis);
+                let t = axis_info.reference_frame.reverse().matrix() * self.piece_transform(piece);
+                let relative_point = t * point;
+                // TODO: this is O(n)
+                axis_info
+                    .cuts
+                    .iter()
+                    .take_while(|cut| !cut.is_point_above(&relative_point))
+                    .count() as u8
+            }
+            None => 0, // TODO: wrong
+        }
+    }
 
+    fn piece_transform(&self, p: Piece) -> Matrix;
     fn sticker_geometry(
         &self,
         sticker: Sticker,
@@ -195,12 +214,18 @@ pub trait PuzzleState: fmt::Debug + Send + Sync {
     ) -> Option<StickerGeometry> {
         let sticker_info = self.ty().info(sticker);
         let facet_info = self.ty().info(sticker_info.color);
+        let piece_transform = self.piece_transform(sticker_info.piece);
         let pole = &facet_info.pole;
         Some(StickerGeometry {
             verts: sticker_info
                 .points
                 .iter()
-                .map(|point| p.project_4d((point - &pole) * p.facet_scale + &pole))
+                // Apply facet shrink.
+                .map(|point| (point - &pole) * p.facet_scale + &pole)
+                // Apply piece transform.
+                .map(|point| &piece_transform * point)
+                // Project from 4D into 3D.
+                .map(|point| p.project_4d(point))
                 .collect::<Option<_>>()?,
             polygon_indices: sticker_info
                 .polygons
@@ -238,6 +263,9 @@ impl<T: PuzzleState> PuzzleState for Box<T> {
         (**self).layer_from_twist_axis(twist_axis, piece)
     }
 
+    fn piece_transform(&self, p: Piece) -> Matrix {
+        (**self).piece_transform(p)
+    }
     fn sticker_geometry(
         &self,
         sticker: Sticker,

@@ -93,7 +93,7 @@ impl FromStr for Mc4dLogFile {
                 if move_str == "m|" {
                     scramble_twists = std::mem::take(&mut solve_twists);
                 } else {
-                    solve_twists.extend(Rubiks4D::from_mc4d_twist_string(move_str));
+                    solve_twists.extend(from_mc4d_twist_string(move_str));
                 }
             }
         }
@@ -131,16 +131,11 @@ impl fmt::Display for Mc4dLogFile {
                 self.scramble_twists
                     .iter()
                     .copied()
-                    .map(Rubiks4D::to_mc4d_twist_string),
+                    .map(to_mc4d_twist_string),
             );
             twist_strs.push("m|".to_string());
         }
-        twist_strs.extend(
-            self.solve_twists
-                .iter()
-                .copied()
-                .map(Rubiks4D::to_mc4d_twist_string),
-        );
+        twist_strs.extend(self.solve_twists.iter().copied().map(to_mc4d_twist_string));
 
         if twist_strs.is_empty() {
             twist_strs.push(String::new());
@@ -223,6 +218,14 @@ impl fmt::Display for LogFileError {
 }
 impl Error for LogFileError {}
 
+fn from_mc4d_twist_string(s: &str) -> Vec<Twist> {
+    todo!("MC4D log file import")
+}
+
+fn to_mc4d_twist_string(t: Twist) -> String {
+    todo!("MC4D log file export")
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -237,8 +240,8 @@ mod tests {
         //             direction,
         //             layers: LayerMask(5),
         //         };
-        //         let s = Rubiks4D::to_mc4d_twist_string(twist);
-        //         if let Some(t) = Rubiks4D::from_mc4d_twist_string(&s) {
+        //         let s = to_mc4d_twist_string(twist);
+        //         if let Some(t) = from_mc4d_twist_string(&s) {
         //             assert_eq!(t, twist);
         //         }
         //     }

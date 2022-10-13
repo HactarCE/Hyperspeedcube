@@ -248,6 +248,17 @@ impl PolytopeArena {
             .sqrt()
     }
 
+    pub fn polytope_vertices(&self, p: PolytopeId) -> Result<Vec<Vector>> {
+        match self.get(p)? {
+            Polytope::Point { point } => Ok(vec![point.clone()]),
+            Polytope::Branch { children, .. } => children
+                .iter()
+                .map(|&child| self.polytope_vertices(child))
+                .flatten_ok()
+                .collect(),
+        }
+    }
+
     /// Returns indexed polygons for a single polytope.
     pub fn polytope_indexed_polygons(
         &self,
