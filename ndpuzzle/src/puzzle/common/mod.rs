@@ -85,6 +85,7 @@ impl_puzzle_info_trait!(for PuzzleType { fn info(Piece) -> &PieceInfo { .pieces 
 impl_puzzle_info_trait!(for PuzzleType { fn info(Sticker) -> &StickerInfo { .stickers } });
 impl_puzzle_info_trait!(for PuzzleType { fn info(PieceType) -> &PieceTypeInfo { .piece_types } });
 impl PuzzleType {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(&self) -> Box<dyn PuzzleState> {
         (self.new)(self.arc())
     }
@@ -221,7 +222,7 @@ pub trait PuzzleState: fmt::Debug + Send + Sync {
                 .points
                 .iter()
                 // Apply facet shrink.
-                .map(|point| (point - &pole) * p.facet_scale + &pole)
+                .map(|point| (point - pole) * p.facet_scale + pole)
                 // Apply piece transform.
                 .map(|point| &piece_transform * point)
                 // Project from 4D into 3D.

@@ -55,11 +55,10 @@ impl Mul for Blade {
         }
         let sign = if neg { -1.0 } else { 1.0 };
 
-        let ret = Blade {
+        Blade {
             coef: self.coef * rhs.coef * sign,
             axes: self.axes ^ rhs.axes, // Common axes cancel.
-        };
-        ret
+        }
     }
 }
 impl Blade {
@@ -191,7 +190,7 @@ impl<'a> Mul<Blade> for &'a Multivector {
         self.0.iter().map(|&blade| blade * rhs).sum()
     }
 }
-impl<'a> Mul<Blade> for Multivector {
+impl Mul<Blade> for Multivector {
     type Output = Multivector;
 
     fn mul(self, rhs: Blade) -> Self::Output {

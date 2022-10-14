@@ -352,7 +352,7 @@ impl PuzzleController {
     pub(crate) fn view_prefs<'a>(&mut self, prefs: &'a Preferences) -> Cow<'a, ViewPreferences> {
         // Use animated view settings.
         let old_view_prefs = prefs.view(self.ty());
-        while self.view_settings_anim.queue.back() == Some(&*old_view_prefs) {
+        while self.view_settings_anim.queue.back() == Some(old_view_prefs) {
             // No need to animate this one! It's the same as what we're
             // currently displaying;
             self.view_settings_anim.queue.pop_back();

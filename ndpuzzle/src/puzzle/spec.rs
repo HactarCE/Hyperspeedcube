@@ -137,7 +137,7 @@ impl SymmetrySpec {
     /// duplicates.
     pub fn generators(&self) -> Result<Vec<Rotoreflector>> {
         match self {
-            Self::Schlafli(string) => Ok(SchlafliSymbol::from_string(&string).generators()),
+            Self::Schlafli(string) => Ok(SchlafliSymbol::from_string(string).generators()),
         }
     }
 }

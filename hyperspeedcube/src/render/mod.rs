@@ -135,7 +135,7 @@ pub(crate) fn draw_puzzle(
     app.prefs.gfx.msaa = false; // TODO: don't do this
 
     // Avoid divide-by-zero errors.
-    if width <= 0 || height <= 0 {
+    if width == 0 || height == 0 {
         return None;
     }
 
@@ -198,7 +198,7 @@ pub(crate) fn draw_puzzle(
     // Animate puzzle decorations (colors, opacity, and outlines). Do this after
     // generating the puzzle geometry so that we get the most up-to-date
     // information about which sticker is hovered.
-    force_redraw |= puzzle.update_decorations(delta, &prefs);
+    force_redraw |= puzzle.update_decorations(delta, prefs);
 
     if !force_redraw && cache.out_texture.is_some() {
         return None; // No repaint needed.
@@ -255,7 +255,7 @@ pub(crate) fn draw_puzzle(
 
         // Draw directly to the "out" texture.
         wgpu::RenderPassColorAttachment {
-            view: &polygon_ids_texture_view,
+            view: polygon_ids_texture_view,
             resolve_target: None,
             ops,
         }
@@ -278,7 +278,7 @@ pub(crate) fn draw_puzzle(
     if !polygon_colors.is_empty() {
         gfx.queue.write_texture(
             wgpu::ImageCopyTexture {
-                texture: &polygon_colors_texture,
+                texture: polygon_colors_texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,

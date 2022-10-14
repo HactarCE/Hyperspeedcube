@@ -16,7 +16,7 @@ pub(super) trait KeybindSetAccessor: 'static + Clone + Hash + Send + Sync {
 
     fn get<'a>(&self, prefs: &'a Preferences) -> &'a [Keybind<Self::Command>];
     fn get_mut<'a>(&self, prefs: &'a mut Preferences) -> &'a mut Vec<Keybind<Self::Command>>;
-    fn get_defaults<'a>(&self) -> &'static [Keybind<Self::Command>] {
+    fn get_defaults(&self) -> &'static [Keybind<Self::Command>] {
         self.get(&crate::preferences::DEFAULT_PREFS)
     }
 
