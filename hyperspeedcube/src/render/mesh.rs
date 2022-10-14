@@ -1,15 +1,8 @@
 //! Puzzle geometry generation.
 
-use cgmath::*;
-use itertools::Itertools;
-
 use super::PolygonVertex;
 use crate::preferences::Preferences;
 use crate::puzzle::*;
-use ndpuzzle::util::IterCyclicPairsExt;
-
-const OUTLINE_SCALE: f32 = 1.0 / 512.0;
-const OUTLINE_WEDGE_VERTS_PER_RADIAN: f32 = 3.0;
 
 pub(super) fn make_puzzle_mesh(
     puzzle: &mut PuzzleController,
