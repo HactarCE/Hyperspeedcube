@@ -1,5 +1,3 @@
-use std::ops::Mul;
-
 use anyhow::{Context, Result};
 use approx::abs_diff_eq;
 use itertools::Itertools;

@@ -11,6 +11,8 @@ pub struct Hyperplane {
     pub distance: f32,
 }
 impl Hyperplane {
+    /// Constructs the hyperplane containing a point that is perpendicular to
+    /// the vector from the origin to that point.
     pub fn from_pole(pole: impl VectorRef) -> Option<Self> {
         Some(Self {
             normal: pole.normalize()?,

@@ -1,6 +1,6 @@
 use smallvec::SmallVec;
 
-use crate::math::{Hyperplane, Rotoreflector, Vector, VectorRef};
+use crate::math::{Rotoreflector, Vector, VectorRef};
 
 macro_rules! impl_puzzle_info_trait {
     (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {

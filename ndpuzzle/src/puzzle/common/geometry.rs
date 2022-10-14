@@ -10,8 +10,6 @@ use crate::util::{self, IterCyclicPairsExt};
 const W_NEAR_CLIPPING_DIVISOR: f32 = 0.1;
 const Z_NEAR_CLIPPING_DIVISOR: f32 = 0.0;
 
-const EPSILON: f32 = 0.000001;
-
 use crate::math::{Matrix, VectorRef};
 
 /// Parameters for constructing sticker geometry.

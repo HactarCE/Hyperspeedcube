@@ -5,7 +5,6 @@ use slab::Slab;
 use smallvec::{smallvec, SmallVec};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::{self};
-use thiserror::Error;
 
 use crate::math::*;
 use crate::puzzle::Facet;
@@ -140,7 +139,7 @@ impl PolytopeArena {
     fn add_branch(
         &mut self,
         rank: u8,
-        mut location: Option<FacetLocation>,
+        location: Option<FacetLocation>,
         children: SmallVec<[PolytopeId; 4]>,
     ) -> Result<PolytopeId> {
         ensure!(
@@ -267,7 +266,7 @@ impl PolytopeArena {
     ) -> Result<IndexedPolygons> {
         let mut vertex_map = HashMap::new();
         let mut verts = vec![];
-        let mut polys = self
+        let polys = self
             .polytope_polygons(p, no_internal)?
             .into_iter()
             .map(|poly| {

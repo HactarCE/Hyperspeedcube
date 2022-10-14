@@ -465,7 +465,6 @@ impl PuzzleController {
                 };
 
                 let mut projected_front_polygons = vec![];
-                let mut projected_back_polygons = vec![];
 
                 for (indices, twists) in sticker_geom
                     .polygon_indices
@@ -508,7 +507,7 @@ impl PuzzleController {
                     max_bound,
 
                     front_polygons: projected_front_polygons.into_boxed_slice(),
-                    back_polygons: projected_back_polygons.into_boxed_slice(),
+                    back_polygons: Box::new([]),
                 });
             }
 

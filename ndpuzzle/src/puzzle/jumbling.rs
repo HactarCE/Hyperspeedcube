@@ -5,11 +5,11 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use super::Piece;
 use super::PuzzleTwists;
 use super::TwistAxisInfo;
 use super::TwistDirectionInfo;
 use super::{spec::*, TwistDirection};
-use super::{Piece, PuzzleShape};
 use super::{PuzzleInfo, TwistCut};
 use crate::math::*;
 use crate::polytope::*;
@@ -73,14 +73,6 @@ impl JumblingPuzzleSpec {
         }
 
         let piece_polytope_ids = polytopes.roots.iter().copied().collect_vec();
-        let sticker_polytope_ids = piece_polytope_ids
-            .iter()
-            .flat_map(|&p| {
-                polytopes
-                    .polytope_facet_ids(p, NO_INTERNAL)
-                    .expect("bad children")
-            })
-            .collect_vec();
 
         let mut piece_infos = vec![];
         let mut sticker_infos = vec![];
