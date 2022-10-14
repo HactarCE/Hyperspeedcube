@@ -17,7 +17,7 @@ impl egui::Widget for MousebindsTable<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
 
-        let mut mousebinds = &mut self.app.prefs.mousebinds;
+        let mousebinds = &mut self.app.prefs.mousebinds;
 
         let yaml_editor = widgets::PlaintextYamlEditor { id: unique_id!() };
 
@@ -47,7 +47,7 @@ impl egui::Widget for MousebindsTable<'_> {
 
                 egui::ScrollArea::new([false, true]).show(ui, |ui| {
                     let id = unique_id!();
-                    let r = widgets::ReorderableList::new(id, &mut mousebinds).show(
+                    let r = widgets::ReorderableList::new(id, mousebinds).show(
                         ui,
                         |ui, idx, mousebind| {
                             mouse_button_x_pos = Some(ui.cursor().left());

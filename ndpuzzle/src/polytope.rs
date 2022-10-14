@@ -287,10 +287,14 @@ impl PolytopeArena {
     }
 
     fn polytope_polygons(&self, p: PolytopeId, no_internal: bool) -> Result<Vec<Vec<PolytopeId>>> {
+        if no_internal && self.is_internal(p)? {
+            return Ok(vec![]);
+        }
+
         let polytope = self.get(p)?;
-        let internal = self.is_internal(p)?;
-        if !no_internal || !internal {
-            if polytope.rank() == 2 {
+        match polytope.rank() {
+            0..=1 => Ok(vec![]),
+            2 => {
                 let edges: Vec<[PolytopeId; 2]> = polytope
                     .children()?
                     .iter()
@@ -335,18 +339,13 @@ impl PolytopeArena {
                 }
 
                 Ok(vec![verts])
-            } else if polytope.rank() > 2 {
-                polytope
-                    .children()?
-                    .iter()
-                    .map(|&child| self.polytope_polygons(child, no_internal))
-                    .flatten_ok()
-                    .collect()
-            } else {
-                Ok(vec![])
             }
-        } else {
-            Ok(vec![])
+            3.. => polytope
+                .children()?
+                .iter()
+                .map(|&child| self.polytope_polygons(child, no_internal))
+                .flatten_ok()
+                .collect(),
         }
     }
     pub fn polytope_facet_ids(&self, p: PolytopeId, no_internal: bool) -> Result<Vec<PolytopeId>> {
@@ -408,7 +407,7 @@ impl PolytopeArena {
                 if rank == 1 {
                     ensure!(children.len() == 2, "edge {i} doesn't have two children");
                 } else {
-                    ensure!(children.len() != 0, "polytope {i} has no children");
+                    ensure!(!children.is_empty(), "polytope {i} has no children");
                 }
                 for &child in children {
                     let child_rank = self.get(child)?.rank();
@@ -916,7 +915,7 @@ pub struct Polygon {
     pub verts: Vec<Vector>,
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct IndexedPolygon(pub Vec<u16>);
 
 #[derive(Debug, Default, Clone, PartialEq)]

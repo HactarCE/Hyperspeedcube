@@ -223,7 +223,7 @@ impl App {
             }
 
             AppEvent::Scroll(delta) => {
-                let scale = &mut self.prefs.view_mut(&self.puzzle.ty()).scale;
+                let scale = &mut self.prefs.view_mut(self.puzzle.ty()).scale;
                 *scale = (*scale * (delta.y / 256.0).exp()).clamp(
                     *ViewPreferences::SCALE_RANGE.start(),
                     *ViewPreferences::SCALE_RANGE.end(),

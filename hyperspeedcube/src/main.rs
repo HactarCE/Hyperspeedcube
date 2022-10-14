@@ -143,10 +143,8 @@ async fn run() {
     event_loop.run(move |ev, _ev_loop, control_flow| {
         let mut event_has_been_captured = false;
 
-        if *control_flow == ControlFlow::Exit {
-            if app.prefs.needs_save {
-                app.prefs.force_save();
-            }
+        if *control_flow == ControlFlow::Exit && app.prefs.needs_save {
+            app.prefs.force_save();
         }
 
         // Key release events should always be processed by the app to make sure
