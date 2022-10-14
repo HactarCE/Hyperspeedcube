@@ -3,6 +3,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+#[macro_use]
 mod cache;
 mod mesh;
 mod shaders;
@@ -14,6 +15,8 @@ use crate::puzzle::ProjectedStickerGeometry;
 use cache::{CachedDynamicBuffer, CachedUniformBuffer};
 pub(crate) use state::GraphicsState;
 use structs::*;
+
+use self::cache::CachedTexture;
 
 #[derive(Debug, Clone, PartialEq)]
 struct PuzzleRenderParams {
@@ -35,10 +38,10 @@ pub(crate) struct PuzzleRenderCache {
     polygon_ids_index_buffer: CachedDynamicBuffer,
     polygon_ids_uniform_buffer: CachedUniformBuffer<PolygonUniform>,
 
-    polygon_ids_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
+    polygon_ids_texture: CachedTexture,
 
     color_vertex_buffer: CachedDynamicBuffer,
-    polygon_colors_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
+    polygon_colors_texture: CachedTexture,
 
     multisample_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
     out_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
@@ -64,13 +67,21 @@ impl Default for PuzzleRenderCache {
             ),
             polygon_ids_uniform_buffer: CachedUniformBuffer::new(Some("puzzle_uniform_buffer"), 0),
 
-            polygon_ids_texture: None,
+            polygon_ids_texture: CachedTexture::new_2d(
+                Some("polygon_ids_texture"),
+                wgpu::TextureFormat::R32Sint,
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            ),
 
             color_vertex_buffer: CachedDynamicBuffer::new::<ColorVertex>(
                 Some("color_vertex_buffer"),
                 wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
             ),
-            polygon_colors_texture: None,
+            polygon_colors_texture: CachedTexture::new_1d(
+                Some("polygon_colors_texture"),
+                wgpu::TextureFormat::Rgba32Float,
+                wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
+            ),
 
             multisample_texture: None,
             out_texture: None,
@@ -94,16 +105,12 @@ impl PuzzleRenderCache {
         let ret = old != new;
 
         if new.target_w != old.target_w || new.target_h != old.target_h {
-            self.polygon_ids_texture = None;
-
             self.multisample_texture = None;
             self.out_texture = None;
             self.depth_texture = None;
         }
 
         if new.sample_count != old.sample_count {
-            self.polygon_ids_texture = None;
-
             self.multisample_texture = None;
             self.depth_texture = None;
 
@@ -201,7 +208,6 @@ pub(crate) fn draw_puzzle(
     let (mut verts, mut indices, mut polygon_colors) =
         mesh::make_puzzle_mesh(puzzle, prefs, &puzzle_geometry);
 
-
     polygon_colors.truncate(8191); // temporary hack
     polygon_colors.push([0.5; 4]);
 
@@ -214,30 +220,13 @@ pub(crate) fn draw_puzzle(
 
     // Create polygon IDs texture.
     let (polgon_ids_texture, polygon_ids_texture_view) =
-        cache.polygon_ids_texture.get_or_insert_with(|| {
-            gfx.create_texture(&wgpu::TextureDescriptor {
-                label: Some("color_texture"),
-                size: extent3d(width, height),
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::R32Sint,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING
-                    | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            })
-        });
+        cache
+            .polygon_ids_texture
+            .at_size(gfx, extent3d(width, height), 1);
 
     let (polygon_colors_texture, polygon_colors_texture_view) = cache
         .polygon_colors_texture
-        .insert(gfx.create_texture(&wgpu::TextureDescriptor {
-            label: Some("polygon_colors_texture"),
-            size: extent3d(polygon_colors.len() as u32, 1),
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D1,
-            format: wgpu::TextureFormat::Rgba32Float,
-            usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
-        }));
+        .at_size(gfx, extent3d(polygon_colors.len() as u32, 1), 1);
 
     // Create depth texture.
     let (_depth_texture, depth_texture_view) = cache.depth_texture.get_or_insert_with(|| {

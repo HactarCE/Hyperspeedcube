@@ -111,6 +111,75 @@ impl<T> CachedUniformBuffer<T> {
     }
 }
 
+pub(crate) struct CachedTexture {
+    f: Box<dyn Fn(wgpu::Extent3d, u32) -> wgpu::TextureDescriptor<'static>>,
+
+    size: Option<wgpu::Extent3d>,
+    samples: Option<u32>,
+    texture: Option<(wgpu::Texture, wgpu::TextureView)>,
+}
+impl CachedTexture {
+    pub(super) fn from_fn(
+        f: impl 'static + Fn(wgpu::Extent3d, u32) -> wgpu::TextureDescriptor<'static>,
+    ) -> Self {
+        Self {
+            f: Box::new(f),
+
+            size: None,
+            samples: None,
+            texture: None,
+        }
+    }
+    pub(super) fn new(
+        label: Option<&'static str>,
+        dimension: wgpu::TextureDimension,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
+    ) -> Self {
+        Self::from_fn(move |size, sample_count| wgpu::TextureDescriptor {
+            label,
+            size,
+            mip_level_count: 1,
+            sample_count,
+            dimension,
+            format,
+            usage,
+        })
+    }
+    pub(super) fn new_2d(
+        label: Option<&'static str>,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
+    ) -> Self {
+        Self::new(label, wgpu::TextureDimension::D2, format, usage)
+    }
+    pub(super) fn new_1d(
+        label: Option<&'static str>,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
+    ) -> Self {
+        Self::new(label, wgpu::TextureDimension::D1, format, usage)
+    }
+
+    pub(super) fn at_size(
+        &mut self,
+        gfx: &GraphicsState,
+        size: wgpu::Extent3d,
+        samples: u32,
+    ) -> &(wgpu::Texture, wgpu::TextureView) {
+        // Invalidate the buffer if it is the wrong size.
+        if self.size != Some(size) || self.samples != Some(samples) {
+            self.texture = None;
+        }
+
+        self.texture.get_or_insert_with(|| {
+            self.size = Some(size);
+            self.samples = Some(samples);
+            gfx.create_texture(&(self.f)(size, samples))
+        })
+    }
+}
+
 /// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.
 fn pad_buffer_if_necessary<T: Default + bytemuck::NoUninit>(buf: &mut Vec<T>) {
     loop {

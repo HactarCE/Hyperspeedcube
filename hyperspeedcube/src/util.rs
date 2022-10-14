@@ -1,5 +1,3 @@
-use ndpuzzle::{math::Vector, vector};
-
 pub const INVALID_STR: &str = "<invalid>";
 
 pub fn wrap_words<S: AsRef<str>>(words: impl Iterator<Item = S>) -> String {
@@ -23,14 +21,4 @@ pub fn wrap_words<S: AsRef<str>>(words: impl Iterator<Item = S>) -> String {
         }
     }
     ret
-}
-
-pub(crate) fn from_pt3(p: cgmath::Point3<f32>) -> Vector {
-    vector![p.x, p.y, p.z]
-}
-pub(crate) fn from_vec3(v: cgmath::Vector3<f32>) -> Vector {
-    vector![v.x, v.y, v.z]
-}
-pub(crate) fn from_vec4(v: cgmath::Vector4<f32>) -> Vector {
-    vector![v.x, v.y, v.z, v.w]
 }
