@@ -1,3 +1,5 @@
+//! Math utility functions.
+
 use std::ops::{Add, Mul};
 
 /// Linearly interpolates (unclamped) between two values.

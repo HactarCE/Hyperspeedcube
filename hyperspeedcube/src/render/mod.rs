@@ -219,7 +219,7 @@ pub(crate) fn draw_puzzle(
         });
 
     // Create polygon IDs texture.
-    let (polgon_ids_texture, polygon_ids_texture_view) =
+    let (_polygon_ids_texture, polygon_ids_texture_view) =
         cache
             .polygon_ids_texture
             .at_size(gfx, extent3d(width, height), 1);
