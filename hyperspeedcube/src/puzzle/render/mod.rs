@@ -1,5 +1,6 @@
 //! Rendering logic.
 
+use std::fmt;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -7,29 +8,27 @@ use std::time::Instant;
 mod cache;
 mod mesh;
 mod shaders;
-mod state;
 mod structs;
 
-use crate::app::App;
+use super::PuzzleController;
+use crate::preferences::Preferences;
 use crate::puzzle::ProjectedStickerGeometry;
-use cache::{CachedDynamicBuffer, CachedUniformBuffer};
-pub(crate) use state::GraphicsState;
+use crate::GraphicsState;
+use cache::{CachedDynamicBuffer, CachedTexture, CachedUniformBuffer};
+use shaders::Shaders;
 use structs::*;
-
-use self::cache::CachedTexture;
 
 #[derive(Debug, Clone, PartialEq)]
 struct PuzzleRenderParams {
     target_w: u32,
     target_h: u32,
-    sample_count: u32,
 
     scale: f32,
     align_h: f32,
     align_v: f32,
 }
 
-pub(crate) struct PuzzleRenderCache {
+pub(super) struct PuzzleRenderCache {
     last_render_time: Instant,
     last_params: Option<PuzzleRenderParams>,
     last_puzzle_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
@@ -43,12 +42,18 @@ pub(crate) struct PuzzleRenderCache {
     color_vertex_buffer: CachedDynamicBuffer,
     polygon_colors_texture: CachedTexture,
 
-    multisample_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
     out_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
-    depth_texture: Option<(wgpu::Texture, wgpu::TextureView)>,
+    depth_texture: CachedTexture,
 
     polygon_ids_pipeline: Option<wgpu::RenderPipeline>,
     colors_pipeline: Option<wgpu::RenderPipeline>,
+
+    shaders: Shaders,
+}
+impl fmt::Debug for PuzzleRenderCache {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PuzzleRenderCache").finish_non_exhaustive()
+    }
 }
 impl Default for PuzzleRenderCache {
     fn default() -> Self {
@@ -83,12 +88,17 @@ impl Default for PuzzleRenderCache {
                 wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
             ),
 
-            multisample_texture: None,
             out_texture: None,
-            depth_texture: None,
+            depth_texture: CachedTexture::new_2d(
+                Some("depth_texture"),
+                wgpu::TextureFormat::Depth32Float,
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            ),
 
             polygon_ids_pipeline: None,
             colors_pipeline: None,
+
+            shaders: Shaders::new(),
         }
     }
 }
@@ -105,17 +115,7 @@ impl PuzzleRenderCache {
         let ret = old != new;
 
         if new.target_w != old.target_w || new.target_h != old.target_h {
-            self.multisample_texture = None;
             self.out_texture = None;
-            self.depth_texture = None;
-        }
-
-        if new.sample_count != old.sample_count {
-            self.multisample_texture = None;
-            self.depth_texture = None;
-
-            self.polygon_ids_pipeline = None;
-            self.colors_pipeline = None;
         }
 
         self.last_params = Some(new);
@@ -124,43 +124,42 @@ impl PuzzleRenderCache {
     }
 }
 
-pub(crate) fn draw_puzzle(
-    app: &mut App,
+// TODO: consider refactoring most of these arguments into a struct
+pub(super) fn draw_puzzle(
     gfx: &mut GraphicsState,
+    puzzle: &mut PuzzleController,
+    prefs: &Preferences,
+    (width, height): (u32, u32),
+    cursor_pos: Option<cgmath::Point2<f32>>,
     mut force_redraw: bool,
 ) -> Option<wgpu::TextureView> {
-    let (width, height) = app.puzzle_texture_size;
     let size = cgmath::vec2(width as f32, height as f32);
-
-    app.prefs.gfx.msaa = false; // TODO: don't do this
 
     // Avoid divide-by-zero errors.
     if width == 0 || height == 0 {
         return None;
     }
 
-    let puzzle = &mut app.puzzle;
-    let prefs = &app.prefs;
     let view_prefs = puzzle.view_prefs(prefs);
-    let cache = &mut app.render_cache;
 
     let now = Instant::now();
-    let delta = now - cache.last_render_time;
-    cache.last_render_time = now;
+    let delta = now - puzzle.render_cache.last_render_time;
+    puzzle.render_cache.last_render_time = now;
 
     // Animate puzzle geometry.
     puzzle.update_geometry(delta, &prefs.interaction);
 
     // Invalidate cache if parameters changed.
-    force_redraw |= cache.set_params_and_invalidate(PuzzleRenderParams {
-        target_w: width,
-        target_h: height,
-        sample_count: prefs.gfx.sample_count(),
+    force_redraw |= puzzle
+        .render_cache
+        .set_params_and_invalidate(PuzzleRenderParams {
+            target_w: width,
+            target_h: height,
 
-        scale: view_prefs.scale,
-        align_h: view_prefs.align_h,
-        align_v: view_prefs.align_v,
-    });
+            scale: view_prefs.scale,
+            align_h: view_prefs.align_h,
+            align_v: view_prefs.align_v,
+        });
 
     // Calculate scale.
     let scale = {
@@ -171,18 +170,18 @@ pub(crate) fn draw_puzzle(
 
     // If the puzzle geometry has changed, force a redraw.
     let puzzle_geometry = puzzle.geometry(prefs);
-    if let Some(old_geom) = &cache.last_puzzle_geometry {
+    if let Some(old_geom) = &puzzle.render_cache.last_puzzle_geometry {
         if !Arc::ptr_eq(&puzzle_geometry, old_geom) {
             force_redraw = true;
         }
     } else {
         force_redraw = true;
     }
-    cache.last_puzzle_geometry = Some(Arc::clone(&puzzle_geometry));
+    puzzle.render_cache.last_puzzle_geometry = Some(Arc::clone(&puzzle_geometry));
 
     // Determine which sticker(s) are at the mouse cursor, in order from front
     // to back.
-    if let Some(cursor_pos) = app.cursor_pos {
+    if let Some(cursor_pos) = cursor_pos {
         let transformed_cursor_pos = cgmath::point2(
             (cursor_pos.x - view_prefs.align_h) / scale.x,
             (cursor_pos.y - view_prefs.align_v) / scale.y,
@@ -200,13 +199,15 @@ pub(crate) fn draw_puzzle(
     // information about which sticker is hovered.
     force_redraw |= puzzle.update_decorations(delta, prefs);
 
-    if !force_redraw && cache.out_texture.is_some() {
+    if !force_redraw && puzzle.render_cache.out_texture.is_some() {
         return None; // No repaint needed.
     }
 
     // Generate the mesh.
     let (mut verts, mut indices, mut polygon_colors) =
         mesh::make_puzzle_mesh(puzzle, prefs, &puzzle_geometry);
+
+    let cache = &mut puzzle.render_cache;
 
     polygon_colors.truncate(8191); // temporary hack
     polygon_colors.push([0.5; 4]);
@@ -219,27 +220,17 @@ pub(crate) fn draw_puzzle(
         });
 
     // Create polygon IDs texture.
-    let (_polygon_ids_texture, polygon_ids_texture_view) =
-        cache
-            .polygon_ids_texture
-            .at_size(gfx, extent3d(width, height), 1);
+    let (_polygon_ids_texture, polygon_ids_texture_view) = cache
+        .polygon_ids_texture
+        .at_size(gfx, extent3d(width, height));
 
     let (polygon_colors_texture, polygon_colors_texture_view) = cache
         .polygon_colors_texture
-        .at_size(gfx, extent3d(polygon_colors.len() as u32, 1), 1);
+        .at_size(gfx, extent3d(polygon_colors.len() as u32, 1));
 
     // Create depth texture.
-    let (_depth_texture, depth_texture_view) = cache.depth_texture.get_or_insert_with(|| {
-        gfx.create_texture(&wgpu::TextureDescriptor {
-            label: Some("polygon_ids_texture"),
-            size: extent3d(width, height),
-            mip_level_count: 1,
-            sample_count: prefs.gfx.sample_count(),
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-        })
-    });
+    let (_depth_texture, depth_texture_view) =
+        cache.depth_texture.at_size(gfx, extent3d(width, height));
 
     // Create render pass color attachment.
     let render_pass_color_attachment = {
@@ -310,7 +301,7 @@ pub(crate) fn draw_puzzle(
                         },
                     )),
                     vertex: wgpu::VertexState {
-                        module: gfx.shaders.polygon_ids.get(gfx),
+                        module: cache.shaders.polygon_ids.get(gfx),
                         entry_point: "vs_main",
                         buffers: &[PolygonVertex::LAYOUT],
                     },
@@ -337,7 +328,7 @@ pub(crate) fn draw_puzzle(
                     //     ..Default::default()
                     // },
                     fragment: Some(wgpu::FragmentState {
-                        module: gfx.shaders.polygon_ids.get(gfx),
+                        module: cache.shaders.polygon_ids.get(gfx),
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: wgpu::TextureFormat::R32Sint,
@@ -383,7 +374,6 @@ pub(crate) fn draw_puzzle(
     });
 
     // Create render pass color attachment.
-    let mut multisample_texture_view = None;
     let render_pass_color_attachment = {
         let clear_color = egui::Rgba::from(prefs.colors.background).to_tuple();
         let ops = wgpu::Operations {
@@ -396,34 +386,11 @@ pub(crate) fn draw_puzzle(
             store: true,
         };
 
-        if prefs.gfx.msaa {
-            // Create multisample texture.
-            let (_, msaa_tex_view) = cache.multisample_texture.get_or_insert_with(|| {
-                gfx.create_texture(&wgpu::TextureDescriptor {
-                    label: Some("puzzle_texture_multisample"),
-                    size: extent3d(width, height),
-                    mip_level_count: 1,
-                    sample_count: prefs.gfx.sample_count(),
-                    dimension: wgpu::TextureDimension::D2,
-                    format: gfx.config.format,
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                })
-            });
-
-            // Draw to the multisample texture, then resolve it to the "out"
-            // texture.
-            wgpu::RenderPassColorAttachment {
-                view: multisample_texture_view.insert(msaa_tex_view),
-                resolve_target: Some(out_texture_view),
-                ops,
-            }
-        } else {
-            // Draw directly to the "out" texture.
-            wgpu::RenderPassColorAttachment {
-                view: out_texture_view,
-                resolve_target: None,
-                ops,
-            }
+        // Draw directly to the "out" texture.
+        wgpu::RenderPassColorAttachment {
+            view: out_texture_view,
+            resolve_target: None,
+            ops,
         }
     };
 
@@ -455,17 +422,8 @@ pub(crate) fn draw_puzzle(
     drop(render_pass);
 
     // Create depth texture.
-    let (_depth_texture, depth_texture_view) = cache.depth_texture.get_or_insert_with(|| {
-        gfx.create_texture(&wgpu::TextureDescriptor {
-            label: Some("polygon_ids_texture"),
-            size: extent3d(width, height),
-            mip_level_count: 1,
-            sample_count: prefs.gfx.sample_count(),
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-        })
-    });
+    let (_depth_texture, depth_texture_view) =
+        cache.depth_texture.at_size(gfx, extent3d(width, height));
 
     // Begin the render pass.
     let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -499,7 +457,7 @@ pub(crate) fn draw_puzzle(
                         },
                     )),
                     vertex: wgpu::VertexState {
-                        module: gfx.shaders.color.get(gfx),
+                        module: cache.shaders.color.get(gfx),
                         entry_point: "vs_main",
                         buffers: &[ColorVertex::LAYOUT],
                     },
@@ -525,7 +483,7 @@ pub(crate) fn draw_puzzle(
                     //     ..Default::default()
                     // },
                     fragment: Some(wgpu::FragmentState {
-                        module: gfx.shaders.color.get(gfx),
+                        module: cache.shaders.color.get(gfx),
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: gfx.config.format,

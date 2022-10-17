@@ -1,22 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+// TODO: remove if no longer needed
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
-pub struct GfxPreferences {
-    pub msaa: bool,
-}
+pub struct GfxPreferences {}
 impl Default for GfxPreferences {
     fn default() -> Self {
-        Self { msaa: true }
+        Self {}
     }
 }
-impl GfxPreferences {
-    /// Returns the MSAA sample count.
-    pub fn sample_count(&self) -> u32 {
-        if self.msaa {
-            4
-        } else {
-            1
-        }
-    }
-}
+impl GfxPreferences {}

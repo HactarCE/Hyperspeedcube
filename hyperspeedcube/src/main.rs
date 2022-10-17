@@ -24,15 +24,16 @@ use winit::window::Icon;
 mod debug;
 mod app;
 mod commands;
+mod graphics;
 mod gui;
 mod logfile;
 mod preferences;
 pub mod puzzle;
-mod render;
 mod serde_impl;
 mod util;
 
 use app::App;
+use graphics::GraphicsState;
 
 const TITLE: &str = "Hyperspeedcube";
 const ICON_32: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
@@ -101,7 +102,7 @@ async fn run() {
         .expect("failed to initialize window");
 
     // Initialize graphics state.
-    let mut gfx = render::GraphicsState::new(&window).await;
+    let mut gfx = GraphicsState::new(&window).await;
 
     // Initialize egui.
     let window_size = window.inner_size();

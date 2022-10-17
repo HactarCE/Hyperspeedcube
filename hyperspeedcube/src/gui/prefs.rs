@@ -47,13 +47,9 @@ pub(super) fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
         changed: &mut changed,
     };
 
-    prefs_ui
-        .checkbox("MSAA", access!(.msaa))
-        .on_hover_explanation(
-            "Multisample Anti-Aliasing",
-            "Makes edges less jagged, \
-             but may worsen performance.",
-        );
+    // TODO: remove `build_graphics_section()` if not needed
+    drop(&mut prefs_ui);
+    drop(prefs_ui);
 
     prefs.needs_save |= changed;
     if changed {

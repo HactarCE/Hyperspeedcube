@@ -1,5 +1,3 @@
-use super::shaders::Shaders;
-
 /// Graphics state for the whole window.
 pub(crate) struct GraphicsState {
     pub(crate) size: winit::dpi::PhysicalSize<u32>,
@@ -7,8 +5,6 @@ pub(crate) struct GraphicsState {
     pub(crate) device: wgpu::Device,
     pub(crate) queue: wgpu::Queue,
     pub(crate) config: wgpu::SurfaceConfiguration,
-
-    pub(super) shaders: Shaders,
 
     pub(crate) scale_factor: f64,
 
@@ -63,8 +59,6 @@ impl GraphicsState {
         };
         surface.configure(&device, &config);
 
-        let shaders = Shaders::new();
-
         let scale_factor = window.scale_factor();
 
         let dummy_texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -83,8 +77,6 @@ impl GraphicsState {
             device,
             queue,
             config,
-
-            shaders,
 
             scale_factor,
 
