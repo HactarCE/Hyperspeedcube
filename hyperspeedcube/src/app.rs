@@ -13,7 +13,7 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
 use crate::preferences::{Key, Keybind, PieceFilter, Preferences, ViewPreferences};
 use crate::puzzle::*;
-use crate::render::{GraphicsState, PuzzleRenderCache};
+use crate::GraphicsState;
 
 pub struct App {
     pub(crate) prefs: Preferences,
@@ -21,7 +21,6 @@ pub struct App {
     events: EventLoopProxy<AppEvent>,
 
     pub(crate) puzzle: PuzzleController,
-    pub(crate) render_cache: PuzzleRenderCache,
     pub(crate) puzzle_texture_size: (u32, u32),
     force_redraw: bool,
 
@@ -53,7 +52,6 @@ impl App {
             events: event_loop.create_proxy(),
 
             puzzle: PuzzleController::default(),
-            render_cache: PuzzleRenderCache::default(),
             puzzle_texture_size: (0, 0),
             force_redraw: true,
 
@@ -85,7 +83,13 @@ impl App {
         self.force_redraw = true;
     }
     pub(crate) fn draw_puzzle(&mut self, gfx: &mut GraphicsState) -> Option<wgpu::TextureView> {
-        let ret = crate::render::draw_puzzle(self, gfx, self.force_redraw);
+        let ret = self.puzzle.draw(
+            gfx,
+            &self.prefs,
+            self.puzzle_texture_size,
+            self.cursor_pos,
+            self.force_redraw,
+        );
         self.force_redraw = false;
         ret
     }

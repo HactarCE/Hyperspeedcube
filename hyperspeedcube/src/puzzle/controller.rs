@@ -43,11 +43,13 @@ pub mod interpolate {
 use super::*;
 use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::preferences::{InteractionPreferences, Preferences, ViewPreferences};
+use crate::GraphicsState;
 use interpolate::InterpolateFn;
 
 const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 
-/// Puzzle wrapper that adds animation and undo history functionality.
+/// Puzzle wrapper that adds animation, undo history, and rendering
+/// functionality.
 #[derive(Debug)]
 pub struct PuzzleController {
     /// Latest puzzle state, not including any transient rotation.
@@ -71,6 +73,9 @@ pub struct PuzzleController {
     undo_buffer: Vec<HistoryEntry>,
     /// Redo history.
     redo_buffer: Vec<HistoryEntry>,
+
+    /// Cached render data.
+    pub(super) render_cache: PuzzleRenderCache,
 
     /// Sticker that the user is hovering over.
     hovered_sticker: Option<Sticker>,
@@ -123,6 +128,8 @@ impl PuzzleController {
             scramble: vec![],
             undo_buffer: vec![],
             redo_buffer: vec![],
+
+            render_cache: PuzzleRenderCache::default(),
 
             hovered_sticker: None,
             hovered_twists: None,
@@ -516,6 +523,16 @@ impl PuzzleController {
 
         self.cached_geometry = Some(Arc::clone(&ret));
         ret
+    }
+    pub(crate) fn draw(
+        &mut self,
+        gfx: &mut GraphicsState,
+        prefs: &Preferences,
+        texture_size: (u32, u32),
+        cursor_pos: Option<cgmath::Point2<f32>>,
+        force_redraw: bool,
+    ) -> Option<wgpu::TextureView> {
+        render::draw_puzzle(gfx, self, prefs, texture_size, cursor_pos, force_redraw)
     }
 
     /// Advances the puzzle geometry and internal state to the next frame, using
