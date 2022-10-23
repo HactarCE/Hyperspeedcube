@@ -65,7 +65,7 @@ impl ShapeSpec {
             let plane = Hyperplane::from_pole(pole).context("facet cannot intersect origin")?;
             polytope.carve(&plane, Facet(i as _))?;
             facets.push(FacetInfo {
-                name: pole.to_string(),
+                name: format!("{}.{}", poles.len(), i),
                 pole: pole.clone(),
             });
         }

@@ -72,3 +72,17 @@ pub fn min_and_max_bound(verts: &[Point3<f32>]) -> Option<(Point3<f32>, Point3<f
 
     Some((min_bound, max_bound))
 }
+
+/// Stolen from
+/// https://github.com/rust-lang/rust/blob/e6ce5627a9e8af9ae4673a390954fffaf526e5cc/library/core/src/num/int_macros.rs#L2204-L2222
+///
+/// When #![feature(int_roundings)] is merged, delete this.
+pub fn next_multiple_of(lhs: u64, rhs: u64) -> u64 {
+    let m = lhs % rhs;
+
+    if m == 0 {
+        lhs
+    } else {
+        lhs + (rhs - m)
+    }
+}

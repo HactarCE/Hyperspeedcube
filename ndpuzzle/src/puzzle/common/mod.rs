@@ -95,6 +95,10 @@ impl PuzzleType {
             .expect("unable to promote Weak<PuzzleType> to Arc<PuzzleType>")
     }
 
+    pub fn ndim(&self) -> u8 {
+        self.shape.ndim
+    }
+
     pub fn check_layers(&self, layers: LayerMask) -> Result<(), &'static str> {
         let layer_count = self.layer_count as u32;
         if layers.0 > 0 || layers.0 < 1 << layer_count {

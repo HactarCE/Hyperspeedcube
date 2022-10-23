@@ -78,9 +78,9 @@ impl ViewPreferences {
         const Y: u8 = 1;
         const Z: u8 = 2;
 
-        Rotor::from_angle_in_axis_plane(X, Z, self.yaw.to_radians())
+        Rotor::from_angle_in_axis_plane(Y, X, self.roll.to_radians())
             * Rotor::from_angle_in_axis_plane(Z, Y, self.pitch.to_radians())
-            * Rotor::from_angle_in_axis_plane(Y, X, self.roll.to_radians())
+            * Rotor::from_angle_in_axis_plane(X, Z, self.yaw.to_radians())
     }
 
     // TODO: make a proc macro crate to generate a trait impl like this

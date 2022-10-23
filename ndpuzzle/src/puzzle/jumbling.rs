@@ -327,7 +327,9 @@ impl PuzzleState for JumblingPuzzle {
     }
 
     fn piece_transform(&self, p: super::Piece) -> Matrix {
-        self.piece_states[p.0 as usize].matrix().clone()
+        self.piece_states[p.0 as usize]
+            .matrix()
+            .at_ndim(self.ty.ndim())
     }
 
     fn is_solved(&self) -> bool {
