@@ -60,6 +60,23 @@ impl Matrix {
         );
         Matrix { ndim, elems }
     }
+    /// Returns a slice of the n^2 elements in **column-major** order.
+    ///
+    /// ```
+    /// # use ndpuzzle::math::{Matrix};
+    /// # use ndpuzzle::row_matrix;
+    /// assert_eq!(
+    ///     row_matrix![
+    ///         [1.0, 3.0],
+    ///         [2.0, 4.0],
+    ///     ]
+    ///     .as_slice(),
+    ///     &[1.0, 2.0, 3.0, 4.0],
+    /// );
+    /// ```
+    pub fn as_slice(&self) -> &[f32] {
+        &self.elems
+    }
     /// Constructs a matrix from a list of columns, where the number of columns
     /// determines the size of the matrix.
     pub fn from_cols<I>(cols: impl IntoIterator<IntoIter = I>) -> Self
@@ -118,15 +135,26 @@ impl Matrix {
         self.ndim
     }
 
-    /// Pads the matrix with identity up to `ndim`.
+    /// Pads the matrix with identity up to `ndim`, avoiding reallocation if
+    /// possible.
     #[must_use]
-    pub fn pad(&self, ndim: u8) -> Matrix {
+    pub fn pad(self, ndim: u8) -> Matrix {
         if ndim <= self.ndim() {
+            self
+        } else {
+            self.at_ndim(ndim)
+        }
+    }
+    /// Pads or truncates the matrix to exactly `ndim`, avoiding reallocation if
+    /// possible.
+    #[must_use]
+    pub fn at_ndim(&self, ndim: u8) -> Matrix {
+        if self.ndim == ndim {
             self.clone()
         } else {
             let mut ret = Matrix::ident(ndim);
-            for i in 0..self.ndim() {
-                for j in 0..self.ndim() {
+            for i in 0..ret.ndim() {
+                for j in 0..ret.ndim() {
                     *ret.get_mut(i, j) = self.get(i, j);
                 }
             }

@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 /// Graphics state for the whole window.
 pub(crate) struct GraphicsState {
     pub(crate) size: winit::dpi::PhysicalSize<u32>,
@@ -148,7 +150,6 @@ impl GraphicsState {
     pub(super) fn create_texture_bind_group(
         &self,
         label: Option<&str>,
-        binding: u32,
         visibility: wgpu::ShaderStages,
         ty: wgpu::BindingType,
         view: &wgpu::TextureView,
@@ -158,7 +159,7 @@ impl GraphicsState {
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     label: label.map(|s| format!("{s}_bind_group_layout")).as_deref(),
                     entries: &[wgpu::BindGroupLayoutEntry {
-                        binding,
+                        binding: 0,
                         visibility,
                         ty,
                         count: None,
@@ -170,7 +171,7 @@ impl GraphicsState {
                 label: label.map(|s| format!("{s}_bind_group")).as_deref(),
                 layout: &bind_group_layout,
                 entries: &[wgpu::BindGroupEntry {
-                    binding,
+                    binding: 0,
                     resource: wgpu::BindingResource::TextureView(view),
                 }],
             })
@@ -186,5 +187,106 @@ impl GraphicsState {
         let tex = self.device.create_texture(desc);
         let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
         (tex, view)
+    }
+
+    pub(super) fn create_buffer<T>(
+        &self,
+        label: &str,
+        usage: wgpu::BufferUsages,
+        len: usize,
+    ) -> wgpu::Buffer {
+        let size = len * std::mem::size_of::<T>();
+        let size = ndpuzzle::util::next_multiple_of(
+            size as u64,
+            std::cmp::max(
+                wgpu::MAP_ALIGNMENT,
+                self.device.limits().min_uniform_buffer_offset_alignment as u64,
+            ),
+        );
+
+        self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(label),
+            size,
+            usage,
+            mapped_at_creation: false,
+        })
+    }
+    pub(super) fn create_basic_uniform_buffer<T>(&self, label: &str) -> wgpu::Buffer {
+        self.create_buffer::<T>(
+            label,
+            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+            1,
+        )
+    }
+    pub(super) fn create_and_populate_buffer<T: bytemuck::NoUninit>(
+        &self,
+        label: &str,
+        usage: wgpu::BufferUsages,
+        data: &[T],
+    ) -> wgpu::Buffer {
+        let bytes = bytemuck::cast_slice(data);
+        let size = ndpuzzle::util::next_multiple_of(bytes.len() as u64, wgpu::MAP_ALIGNMENT);
+
+        let buf = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(label),
+            size,
+            usage: usage | wgpu::BufferUsages::MAP_WRITE,
+            mapped_at_creation: true,
+        });
+        buf.slice(..bytes.len() as u64)
+            .get_mapped_range_mut()
+            .copy_from_slice(bytes);
+        buf.unmap();
+
+        buf
+    }
+
+    pub(super) fn create_bind_group_of_buffers(
+        &self,
+        label: &str,
+        entries: &[(wgpu::ShaderStages, wgpu::BufferBindingType, &wgpu::Buffer)],
+    ) -> wgpu::BindGroup {
+        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some(label),
+            layout: &self.create_bind_group_layout_of_buffers(
+                &format!("{label}_layout"),
+                &entries
+                    .iter()
+                    .map(|&(vis, ty, _buffer)| (vis, ty))
+                    .collect_vec(),
+            ),
+            entries: &entries
+                .iter()
+                .enumerate()
+                .map(|(i, &(_vis, _ty, buffer))| wgpu::BindGroupEntry {
+                    binding: i as u32,
+                    resource: buffer.as_entire_binding(),
+                })
+                .collect_vec(),
+        })
+    }
+    pub(super) fn create_bind_group_layout_of_buffers(
+        &self,
+        label: &str,
+        entries: &[(wgpu::ShaderStages, wgpu::BufferBindingType)],
+    ) -> wgpu::BindGroupLayout {
+        self.device
+            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some(label),
+                entries: &entries
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &(visibility, ty))| wgpu::BindGroupLayoutEntry {
+                        binding: i as u32,
+                        visibility,
+                        ty: wgpu::BindingType::Buffer {
+                            ty,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    })
+                    .collect_vec(),
+            })
     }
 }

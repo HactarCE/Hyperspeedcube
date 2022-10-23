@@ -396,8 +396,8 @@ impl Rotor {
     pub fn from_vec_to_vec(a: impl VectorRef, b: impl VectorRef) -> Option<Self> {
         let a = a.normalize()?;
         let b = b.normalize()?;
-        let avg = (b + &a) / 2.0;
-        Self::from_vector_product(a, avg).normalize()
+        let avg = (b + &a).normalize()?;
+        Some(Self::from_vector_product(a, avg))
     }
     /// Constructs a rotor from a product of two vectors.
     ///

@@ -4,7 +4,7 @@ use anyhow::Result;
 use bitvec::bitvec;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
-use cgmath::*;
+use cgmath::InnerSpace;
 use ndpuzzle::math::*;
 use ndpuzzle::puzzle::geometry;
 use num_enum::FromPrimitive;
@@ -12,7 +12,7 @@ use std::borrow::Cow;
 use std::collections::{HashSet, VecDeque};
 use std::ops::{BitOr, BitOrAssign};
 use std::sync::Arc;
-use std::time::Duration;
+use time::{Duration, Instant};
 
 /// If at least this much of a twist is animated in one frame, just skip the
 /// animation to reduce unnecessary flashing.
@@ -40,6 +40,7 @@ pub mod interpolate {
     pub const COSINE_DECEL: InterpolateFn = |x| ((1.0 - x) * PI / 2.0).cos();
 }
 
+use super::render::PuzzleRenderCache;
 use super::*;
 use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::preferences::{InteractionPreferences, Preferences, ViewPreferences};
@@ -74,9 +75,6 @@ pub struct PuzzleController {
     /// Redo history.
     redo_buffer: Vec<HistoryEntry>,
 
-    /// Cached render data.
-    pub(super) render_cache: PuzzleRenderCache,
-
     /// Sticker that the user is hovering over.
     hovered_sticker: Option<Sticker>,
     /// Twists from the hovered sticker.
@@ -99,6 +97,10 @@ pub struct PuzzleController {
     /// represented as `f32` for animation.
     visual_piece_states: Vec<VisualPieceState>,
 
+    /// Time of last render.
+    last_render_time: Instant,
+    /// Cached render data.
+    render_cache: Option<PuzzleRenderCache>,
     /// Cached sticker geometry.
     cached_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
     cached_geometry_params: Option<StickerGeometryParams>,
@@ -129,8 +131,6 @@ impl PuzzleController {
             undo_buffer: vec![],
             redo_buffer: vec![],
 
-            render_cache: PuzzleRenderCache::default(),
-
             hovered_sticker: None,
             hovered_twists: None,
 
@@ -142,6 +142,8 @@ impl PuzzleController {
 
             visual_piece_states: vec![VisualPieceState::default(); ty.pieces.len()],
 
+            last_render_time: Instant::now(),
+            render_cache: None,
             cached_geometry: None,
             cached_geometry_params: None,
         }
@@ -295,13 +297,13 @@ impl PuzzleController {
         let z = if shift { 3 } else { 2 };
 
         let prefs_view_angle = view_prefs.view_angle();
-        let mut offset = Rotor::from_angle_in_axis_plane(z, Y, offset[1].to_radians())
-            * Rotor::from_angle_in_axis_plane(X, z, offset[0].to_radians());
+        let mut offset = Rotor::from_angle_in_axis_plane(Y, z, offset[1].to_radians())
+            * Rotor::from_angle_in_axis_plane(z, X, offset[0].to_radians());
         if shift {
             offset = offset.reverse();
         }
         self.view_angle.current =
-            &self.view_angle.current * prefs_view_angle.transform_rotor(&offset);
+            prefs_view_angle.reverse().transform_rotor(&offset) * &self.view_angle.current;
         self.view_angle.target = self.view_angle.current.clone();
         self.view_angle.dragging = true;
     }
@@ -376,6 +378,12 @@ impl PuzzleController {
             Cow::Borrowed(old_view_prefs)
         }
     }
+    pub(super) fn view_transform(&self, view_prefs: &ViewPreferences) -> Matrix {
+        (view_prefs.view_angle() * &self.view_angle.current)
+            .matrix()
+            .pad(4)
+            / self.ty().shape.radius
+    }
     pub(crate) fn geometry(&mut self, prefs: &Preferences) -> Arc<Vec<ProjectedStickerGeometry>> {
         let view_prefs = self.view_prefs(prefs);
 
@@ -437,9 +445,9 @@ impl PuzzleController {
                 1.0 - view_prefs.light_directional * 0.5,
                 view_prefs.light_ambient,
             );
-            let light_vector = Matrix3::from_angle_y(Deg(view_prefs.light_yaw))
-                * Matrix3::from_angle_x(Deg(-view_prefs.light_pitch)) // pitch>0 means light comes from above
-                * Vector3::unit_z()
+            let light_vector = cgmath::Matrix3::from_angle_y(cgmath::Deg(view_prefs.light_yaw))
+                * cgmath::Matrix3::from_angle_x(cgmath::Deg(-view_prefs.light_pitch)) // pitch>0 means light comes from above
+                * cgmath::Vector3::unit_z()
                 * view_prefs.light_directional
                 * 0.5;
 
@@ -532,7 +540,23 @@ impl PuzzleController {
         cursor_pos: Option<cgmath::Point2<f32>>,
         force_redraw: bool,
     ) -> Option<wgpu::TextureView> {
-        render::draw_puzzle(gfx, self, prefs, texture_size, cursor_pos, force_redraw)
+        let now = Instant::now();
+        let delta = now - self.last_render_time;
+        self.last_render_time = now;
+
+        // Animate puzzle geometry.
+        self.update_geometry(delta, &prefs.interaction);
+
+        self.update_decorations(delta, prefs);
+
+        // TODO: this is ugly
+        let mut cache = self
+            .render_cache
+            .take()
+            .unwrap_or_else(|| PuzzleRenderCache::new(gfx, self.ty()));
+        let ret = render::draw_puzzle(gfx, self, &mut cache, prefs, texture_size);
+        self.render_cache = Some(cache);
+        ret
     }
 
     /// Advances the puzzle geometry and internal state to the next frame, using
@@ -540,7 +564,7 @@ impl PuzzleController {
     pub fn update_geometry(&mut self, delta: Duration, prefs: &InteractionPreferences) {
         // `twist_duration` is in seconds (per one twist); `base_speed` is
         // fraction of twist per frame.
-        let base_speed = delta.as_secs_f32() / prefs.twist_duration;
+        let base_speed = delta.as_seconds_f32() / prefs.twist_duration;
 
         // Animate view settings.
         self.view_settings_anim.proceed(base_speed);
@@ -550,7 +574,7 @@ impl PuzzleController {
         if self.view_angle.current != self.view_angle.target {
             let current = &mut self.view_angle.current;
 
-            let decay_multiplier = VIEW_ANGLE_OFFSET_DECAY_RATE.powf(delta.as_secs_f32());
+            let decay_multiplier = VIEW_ANGLE_OFFSET_DECAY_RATE.powf(delta.as_seconds_f32());
             let new_offset = self.view_angle.target.slerp(current, decay_multiplier);
             if current.s() == new_offset.s() {
                 // Stop the animation once we're not making any more progress.
@@ -590,7 +614,7 @@ impl PuzzleController {
     pub fn update_decorations(&mut self, delta: Duration, prefs: &Preferences) -> bool {
         let mut changed = false;
 
-        let delta = delta.as_secs_f32() / prefs.interaction.other_anim_duration;
+        let delta = delta.as_seconds_f32() / prefs.interaction.other_anim_duration;
 
         for piece in (0..self.ty().pieces.len() as _).map(Piece) {
             let logical_state = self.logical_piece_state(piece);
@@ -914,9 +938,8 @@ impl ViewSettingsAnimState {
 /// The following rotations are applied to the whole puzzle in order before
 /// rendering:
 ///
-/// 1. `queued_delta`
-/// 2. `current`
-/// 3. `view_prefs.view_angle` (from `ViewPreferences`)
+/// 1. `view_angle.current`
+/// 2. `view_prefs.view_angle` (from `ViewPreferences`)
 #[derive(Debug, Default, Clone)]
 struct ViewAngleAnimState {
     /// View angle offset compared to the latest puzzle state.
