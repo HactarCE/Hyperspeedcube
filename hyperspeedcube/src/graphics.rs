@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use once_cell::unsync::OnceCell;
 
 /// Graphics state for the whole window.
 pub(crate) struct GraphicsState {
@@ -12,6 +13,8 @@ pub(crate) struct GraphicsState {
 
     /// 1x1 texture used as a temporary value. Its contents are not important.
     pub(crate) dummy_texture: wgpu::Texture,
+
+    pub(crate) shaders: Shaders,
 }
 impl GraphicsState {
     pub(crate) async fn new(window: &winit::window::Window) -> Self {
@@ -73,6 +76,8 @@ impl GraphicsState {
             usage: wgpu::TextureUsages::TEXTURE_BINDING,
         });
 
+        let shaders = Shaders::new(&device);
+
         Self {
             size,
             surface,
@@ -83,6 +88,8 @@ impl GraphicsState {
             scale_factor,
 
             dummy_texture,
+
+            shaders,
         }
     }
 
@@ -102,49 +109,6 @@ impl GraphicsState {
     pub(crate) fn dummy_texture_view(&self) -> wgpu::TextureView {
         self.dummy_texture
             .create_view(&wgpu::TextureViewDescriptor::default())
-    }
-
-    pub(super) fn create_uniform<T>(
-        &self,
-        label: Option<&str>,
-        binding: u32,
-        visibility: wgpu::ShaderStages,
-    ) -> (wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
-        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label,
-            size: std::mem::size_of::<T>() as u64,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-            mapped_at_creation: false,
-        });
-
-        let bind_group_layout =
-            self.device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: label.map(|s| format!("{s}_bind_group_layout")).as_deref(),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding,
-                        visibility,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-
-        let bind_group = {
-            self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: label.map(|s| format!("{s}_bind_group")).as_deref(),
-                layout: &bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding,
-                    resource: buffer.as_entire_binding(),
-                }],
-            })
-        };
-
-        (buffer, bind_group_layout, bind_group)
     }
 
     pub(super) fn create_texture_bind_group(
@@ -178,6 +142,63 @@ impl GraphicsState {
         };
 
         (bind_group_layout, bind_group)
+    }
+
+    pub(super) fn create_pipeline_layout(
+        &self,
+        label: &str,
+        bind_groups: &[&[(wgpu::ShaderStages, wgpu::BindingType)]],
+        push_constant_ranges: &[wgpu::PushConstantRange],
+    ) -> wgpu::PipelineLayout {
+        let bind_group_layouts = bind_groups
+            .iter()
+            .enumerate()
+            .map(|(i, binding_types)| {
+                let entries = binding_types
+                    .iter()
+                    .enumerate()
+                    .map(|(j, &(visibility, ty))| wgpu::BindGroupLayoutEntry {
+                        binding: j as u32,
+                        visibility,
+                        ty,
+                        count: None,
+                    })
+                    .collect_vec();
+
+                self.device
+                    .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                        label: Some(&format!("{label}_pipeline_bind_group_layout_{i}")),
+                        entries: &entries,
+                    })
+            })
+            .collect_vec();
+
+        self.device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some(&format!("{label}_pipeline_layout")),
+                bind_group_layouts: &bind_group_layouts.iter().collect_vec(),
+                push_constant_ranges,
+            })
+    }
+
+    pub(super) fn create_compute_pipeline(
+        &self,
+        module: &wgpu::ShaderModule,
+        label: &str,
+        bind_groups: &[&[(wgpu::ShaderStages, wgpu::BindingType)]],
+        push_constant_ranges: &[wgpu::PushConstantRange],
+    ) -> wgpu::ComputePipeline {
+        self.device
+            .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some(&format!("{label}_pipeline")),
+                layout: Some(&self.create_pipeline_layout(
+                    label,
+                    bind_groups,
+                    push_constant_ranges,
+                )),
+                module,
+                entry_point: "main",
+            })
     }
 
     pub(super) fn create_texture(
@@ -288,5 +309,26 @@ impl GraphicsState {
                     })
                     .collect_vec(),
             })
+    }
+}
+
+pub(super) struct Shaders {
+    pub(super) compute_colors: wgpu::ShaderModule,
+    pub(super) compute_transform_points: wgpu::ShaderModule,
+    pub(super) render_polygon_ids: wgpu::ShaderModule,
+    pub(super) render_composite_puzzle: wgpu::ShaderModule,
+}
+impl Shaders {
+    pub(super) fn new(device: &wgpu::Device) -> Self {
+        Self {
+            compute_colors: device
+                .create_shader_module(wgpu::include_wgsl!("shaders/compute_colors.wgsl")),
+            compute_transform_points: device
+                .create_shader_module(wgpu::include_wgsl!("shaders/compute_transform_points.wgsl")),
+            render_polygon_ids: device
+                .create_shader_module(wgpu::include_wgsl!("shaders/render_polygon_ids.wgsl")),
+            render_composite_puzzle: device
+                .create_shader_module(wgpu::include_wgsl!("shaders/render_composite_puzzle.wgsl")),
+        }
     }
 }

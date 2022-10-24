@@ -101,9 +101,8 @@ pub struct PuzzleController {
     last_render_time: Instant,
     /// Cached render data.
     render_cache: Option<PuzzleRenderCache>,
-    /// Cached sticker geometry.
+    /// Cached sticker geometry. (TODO: remove this)
     cached_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
-    cached_geometry_params: Option<StickerGeometryParams>,
 }
 impl Default for PuzzleController {
     fn default() -> Self {
@@ -145,7 +144,6 @@ impl PuzzleController {
             last_render_time: Instant::now(),
             render_cache: None,
             cached_geometry: None,
-            cached_geometry_params: None,
         }
     }
     /// Resets the puzzle.
@@ -429,13 +427,6 @@ impl PuzzleController {
                 clip_4d: view_prefs.clip_4d,
             }
         };
-
-        if self.cached_geometry_params.as_ref() != Some(&params) {
-            // Invalidate the cache.
-            self.cached_geometry = None;
-        }
-
-        self.cached_geometry_params = Some(params.clone());
 
         let ret = self.cached_geometry.take().unwrap_or_else(|| {
             log::trace!("Regenerating puzzle geometry");

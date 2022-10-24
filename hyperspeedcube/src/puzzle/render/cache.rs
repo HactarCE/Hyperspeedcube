@@ -1,114 +1,495 @@
-use once_cell::unsync::OnceCell;
-use std::marker::PhantomData;
+use itertools::Itertools;
+use ndpuzzle::math::VectorRef;
+use ndpuzzle::puzzle::PuzzleType;
+use ndpuzzle::util::IterCyclicPairsExt;
+use std::fmt;
 
+use super::structs::*;
 use super::GraphicsState;
 
-pub(crate) struct CachedDynamicBuffer {
-    label: Option<&'static str>,
-    usage: wgpu::BufferUsages,
-    element_size: usize,
-    len: Option<usize>,
-    buffer: Option<wgpu::Buffer>,
-}
-impl CachedDynamicBuffer {
-    pub(super) fn new<T>(label: Option<&'static str>, usage: wgpu::BufferUsages) -> Self {
-        Self {
-            label,
-            usage,
-            element_size: std::mem::size_of::<T>(),
-            len: None,
-            buffer: None,
+macro_rules! blend_component {
+    ($op:ident(src * $src_factor:ident, dst * $dst_factor:ident)) => {
+        wgpu::BlendComponent {
+            src_factor: wgpu::BlendFactor::$src_factor,
+            dst_factor: wgpu::BlendFactor::$dst_factor,
+            operation: wgpu::BlendOperation::$op,
         }
-    }
+    };
+}
 
-    pub(super) fn at_min_len(&mut self, gfx: &GraphicsState, min_len: usize) -> &mut wgpu::Buffer {
-        // Invalidate the buffer if it is too small.
-        if let Some(len) = self.len {
-            if len < min_len {
-                self.buffer = None;
+pub(crate) struct PuzzleRenderCache {
+    /// For each sticker: indices into `vertex_buffer`
+    pub(super) indices_per_sticker: Vec<Box<[u32]>>,
+
+    /*
+     * VERTEX AND INDEX BUFFERS
+     */
+    /// Every pair of polygon ID and vertex ID that appears in the puzzle model.
+    pub(super) vertex_buffer: wgpu::Buffer,
+    /// Indices into `vertex_buffer` for drawing triangles.
+    pub(super) index_buffer: wgpu::Buffer,
+    /// Full-screen quad vertices.
+    pub(super) composite_quad_vertex_buffer: wgpu::Buffer,
+
+    /*
+     * SMALL UNIFORMS
+     */
+    /// `u32` offset.
+    pub(super) u32_offset_buffer: wgpu::Buffer,
+    /// Projection parameters.
+    pub(super) projection_params_buffer: wgpu::Buffer,
+    /// Lighting parameters.
+    pub(super) lighting_params_buffer: wgpu::Buffer,
+    /// 2D view parameters.
+    pub(super) view_params_buffer: wgpu::Buffer,
+    /// Compositing parameters.
+    pub(super) composite_params_buffer: wgpu::Buffer,
+
+    /*
+     * OTHER BUFFERS
+     */
+    /// View transform from N-dimensional space to 4D space as an Nx4 matrix.
+    pub(super) puzzle_transform_buffer: wgpu::Buffer,
+
+    /// For each piece: its transform in N-dimensional space as an NxN matrix.
+    ///
+    /// TODO: consider changing this to an N-dimensional rotor.
+    pub(super) piece_transform_buffer: wgpu::Buffer,
+
+    /// For each facet: the point to shrink towards for facet spacing.
+    pub(super) facet_shrink_center_buffer: wgpu::Buffer,
+
+    /// For each sticker: the ID of its facet and the ID of its piece.
+    pub(super) sticker_info_buffer: wgpu::Buffer,
+    /// For each sticker: the point it shrinks towards for sticker spacing.
+    pub(super) sticker_shrink_center_buffer: wgpu::Buffer,
+
+    /// Number of polygons, which is the length of each "per-polygon" buffer.
+    pub(super) polygon_count: usize,
+    /// For each polygon: the ID of its facet and the three vertex IDs for one
+    /// of its triangles (used to compute its normal in 3D space).
+    pub(super) polygon_info_buffer: wgpu::Buffer,
+    /// For each polygon: its color, which is computed from its normal and its
+    /// facet's color.
+    pub(super) polygon_color_buffer: wgpu::Buffer,
+
+    /// Number of vertices, which is the length of each "per-vertex" buffer.
+    pub(super) vertex_count: usize,
+    /// For each vertex: the ID of its sticker.
+    pub(super) vertex_sticker_id_buffer: wgpu::Buffer,
+    /// For each vertex: its position in N-dimensional space.
+    pub(super) vertex_position_buffer: wgpu::Buffer,
+    /// For each vertex: its position in 3D space, which is recomputed whenever
+    /// the view angle or puzzle geometry changes (e.g., each frame of a twist
+    /// animation).
+    pub(super) vertex_3d_position_buffer: wgpu::Buffer,
+
+    /*
+     * PIPELINES
+     */
+    /// Pipeline to populate `vertex_3d_position_buffer`.
+    pub(super) compute_transform_points_pipeline: wgpu::ComputePipeline,
+    /// Pipeline to populate `polygon_color_buffer`.
+    pub(super) compute_polygon_colors_pipeline: wgpu::ComputePipeline,
+    /// Pipeline to render to `polygon_ids_texture`.
+    pub(super) render_polygon_ids_pipeline: wgpu::RenderPipeline,
+    /// Pipeline to render to `out_texture`.
+    pub(super) render_composite_puzzle_pipeline: wgpu::RenderPipeline,
+
+    /*
+     * TEXTURES
+     */
+    pub(super) facet_colors_texture: CachedTexture, // TODO: doesn't need to change size
+    pub(super) polygon_depth_texture: CachedTexture,
+    pub(super) polygon_ids_texture: CachedTexture,
+    pub(super) out_texture: CachedTexture,
+}
+impl fmt::Debug for PuzzleRenderCache {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PuzzleRenderCache").finish_non_exhaustive()
+    }
+}
+impl PuzzleRenderCache {
+    pub fn new(gfx: &mut GraphicsState, ty: &PuzzleType) -> Self {
+        let ndim = ty.ndim();
+
+        let facet_shrink_center_data = ty
+            .shape
+            .facets
+            .iter()
+            .flat_map(|facet| facet.pole.iter_ndim(ndim))
+            .collect_vec();
+
+        // Create static buffer data.
+        let mut triangle_count = 0;
+        let mut indices_per_sticker = vec![];
+        let mut vertex_data = vec![];
+        let mut sticker_info_data = vec![];
+        let mut sticker_shrink_center_data = vec![];
+        let mut polygon_info_data = vec![];
+        let mut vertex_sticker_id_data = vec![];
+        let mut vertex_position_data = vec![];
+        {
+            let mut polygon_idx = 0;
+            let mut degerate_polygons_count = 0;
+
+            for (sticker_idx, sticker) in ty.stickers.iter().enumerate() {
+                // For each sticker ...
+                sticker_info_data.push(GfxStickerInfo {
+                    piece: sticker.piece.0 as u32,
+                    facet: sticker.color.0 as u32,
+                });
+                sticker_shrink_center_data.extend(sticker.sticker_shrink_origin.iter_ndim(ndim));
+
+                // For each polygon ...
+                let vertex_list_base = vertex_sticker_id_data.len() as u32;
+                let mut current_sticker_indices = vec![];
+                for polygon in &sticker.polygons {
+                    // Ignore degenerate polygons.
+                    if polygon.len() < 3 {
+                        degerate_polygons_count += 1;
+                        continue;
+                    }
+
+                    // The first three vertices will determine the polygon's
+                    // normal vector.
+                    let v0 = vertex_list_base + polygon[0] as u32;
+                    let v1 = vertex_list_base + polygon[1] as u32;
+                    let v2 = vertex_list_base + polygon[2] as u32;
+                    polygon_info_data.push(GfxPolygonInfo {
+                        facet: sticker.color.0 as u32,
+                        v0,
+                        v1,
+                        v2,
+                    });
+
+                    // For each vertex in each polygon ...
+                    let vertex_data_list_base = vertex_data.len() as u32;
+                    for &vertex_id in polygon {
+                        vertex_data.push(PolygonVertex {
+                            polygon: polygon_idx as i32,
+                            vertex: vertex_list_base + vertex_id as u32,
+                        });
+                    }
+
+                    // For each triangle in each polygon ...
+                    for (b, c) in (1..polygon.len()).cyclic_pairs() {
+                        current_sticker_indices.extend([
+                            vertex_data_list_base,
+                            vertex_data_list_base + b as u32,
+                            vertex_data_list_base + c as u32,
+                        ]);
+                        triangle_count += 1;
+                    }
+
+                    polygon_idx += 1;
+                }
+                indices_per_sticker.push(current_sticker_indices.into_boxed_slice());
+
+                // For each vertex ...
+                for point in &sticker.points {
+                    vertex_sticker_id_data.push(sticker_idx as u32);
+                    vertex_position_data.extend(point.iter_ndim(ndim));
+                }
+            }
+
+            if degerate_polygons_count != 0 {
+                log::warn!(
+                    "Removed {degerate_polygons_count} degenerate polygons from puzzle model"
+                );
             }
         }
 
-        self.buffer.get_or_insert_with(|| {
-            self.len = Some(min_len);
-            gfx.device.create_buffer(&wgpu::BufferDescriptor {
-                label: self.label,
-                size: (min_len * self.element_size) as u64,
-                usage: self.usage,
-                mapped_at_creation: false,
-            })
-        })
-    }
+        // Create pipelines.
+        let compute_transform_points_pipeline;
+        let compute_polygon_colors_pipeline;
+        let render_polygon_ids_pipeline;
+        let render_composite_puzzle_pipeline;
+        {
+            const UNIFORM: wgpu::BufferBindingType = wgpu::BufferBindingType::Uniform;
+            const STORAGE_READ: wgpu::BufferBindingType =
+                wgpu::BufferBindingType::Storage { read_only: true };
+            const STORAGE_WRITE: wgpu::BufferBindingType =
+                wgpu::BufferBindingType::Storage { read_only: false };
 
-    pub(super) fn slice(
-        &mut self,
-        gfx: &GraphicsState,
-        len: usize,
-    ) -> (&wgpu::Buffer, wgpu::BufferSlice) {
-        let element_size = self.element_size;
-        let b = self.at_min_len(gfx, len);
-        (b, b.slice(0..(len * element_size) as u64))
-    }
+            compute_transform_points_pipeline = gfx.create_compute_pipeline(
+                &gfx.shaders.compute_transform_points,
+                "compute_transform_points",
+                &[
+                    &compute_buffer_binding_types([UNIFORM, UNIFORM]),
+                    &compute_buffer_binding_types([
+                        STORAGE_READ,
+                        STORAGE_READ,
+                        STORAGE_READ,
+                        STORAGE_READ,
+                        STORAGE_READ,
+                        STORAGE_READ,
+                        STORAGE_READ,
+                        STORAGE_WRITE,
+                    ]),
+                ],
+                &[],
+            );
 
-    pub(super) fn write_all<T: Default + bytemuck::NoUninit>(
-        &mut self,
-        gfx: &GraphicsState,
-        data: &mut Vec<T>,
-    ) -> wgpu::BufferSlice {
-        let original_len = data.len();
-        pad_buffer_if_necessary(data);
-        let (buf, buf_slice) = self.slice(gfx, data.len());
-        gfx.queue.write_buffer(buf, 0, bytemuck::cast_slice(data));
-        data.truncate(original_len); // undo padding
-        buf_slice
-    }
-}
+            compute_polygon_colors_pipeline = gfx.create_compute_pipeline(
+                &gfx.shaders.compute_colors,
+                "compute_polygon_colors",
+                &[
+                    &compute_buffer_binding_types([UNIFORM, UNIFORM]),
+                    &compute_buffer_binding_types([STORAGE_READ, STORAGE_WRITE, STORAGE_READ]),
+                    &[(
+                        wgpu::ShaderStages::COMPUTE,
+                        wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: wgpu::TextureViewDimension::D1,
+                            multisampled: false,
+                        },
+                    )],
+                ],
+                &[],
+            );
 
-pub(crate) struct CachedUniformBuffer<T> {
-    label: Option<&'static str>,
-    binding: u32,
-    buffer: OnceCell<(wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup)>,
-    _phantom: PhantomData<T>,
-}
-impl<T> CachedUniformBuffer<T> {
-    pub(super) fn new(label: Option<&'static str>, binding: u32) -> Self {
+            render_polygon_ids_pipeline = {
+                let color_targets = [Some(wgpu::TextureFormat::R32Sint.into())];
+                let (vertex, fragment) = get_vertex_fragment(
+                    &gfx.shaders.render_polygon_ids,
+                    &[PolygonVertex::LAYOUT],
+                    &color_targets,
+                );
+
+                gfx.device
+                    .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                        label: Some("polygon_ids_render_pipeline"),
+                        layout: Some(&gfx.device.create_pipeline_layout(
+                            &wgpu::PipelineLayoutDescriptor {
+                                label: Some("polygon_ids_render_pipeline_layout"),
+                                bind_group_layouts: &[&gfx.create_bind_group_layout_of_buffers(
+                                    "polygon_ids_render_pipeline_bindings_layout",
+                                    &[
+                                        (wgpu::ShaderStages::VERTEX, UNIFORM),
+                                        (wgpu::ShaderStages::VERTEX, STORAGE_READ),
+                                    ],
+                                )],
+                                push_constant_ranges: &[],
+                            },
+                        )),
+                        vertex,
+                        primitive: wgpu::PrimitiveState {
+                            cull_mode: None,
+                            ..Default::default()
+                        },
+                        depth_stencil: Some(wgpu::DepthStencilState {
+                            format: wgpu::TextureFormat::Depth32Float,
+                            depth_write_enabled: true,
+                            depth_compare: wgpu::CompareFunction::Greater,
+                            stencil: wgpu::StencilState::default(),
+                            bias: wgpu::DepthBiasState::default(),
+                        }),
+                        multisample: wgpu::MultisampleState::default(),
+                        fragment,
+                        multiview: None,
+                    })
+            };
+
+            render_composite_puzzle_pipeline = {
+                let (vertex, fragment) = get_vertex_fragment(
+                    &gfx.shaders.render_composite_puzzle,
+                    &[CompositeVertex::LAYOUT],
+                    &[Some(wgpu::ColorTargetState {
+                        format: wgpu::TextureFormat::Bgra8Unorm,
+                        blend: Some(wgpu::BlendState {
+                            color: blend_component!(Add(src * SrcAlpha, dst * One)),
+                            alpha: blend_component!(Add(src * SrcAlpha, dst * One)),
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                );
+
+                gfx.device
+                    .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                        label: Some("puzzle_composite_render_pipeline"),
+                        layout: Some(&gfx.create_pipeline_layout(
+                            "puzzle_composite",
+                            &[
+                                &buffer_binding_types([(wgpu::ShaderStages::FRAGMENT, UNIFORM)]),
+                                &buffer_binding_types([(
+                                    wgpu::ShaderStages::FRAGMENT,
+                                    STORAGE_READ,
+                                )]),
+                                &[(
+                                    wgpu::ShaderStages::FRAGMENT,
+                                    wgpu::BindingType::Texture {
+                                        sample_type: wgpu::TextureSampleType::Sint,
+                                        view_dimension: wgpu::TextureViewDimension::D2,
+                                        multisampled: false,
+                                    },
+                                )],
+                            ],
+                            &[],
+                        )),
+                        vertex,
+                        primitive: wgpu::PrimitiveState {
+                            topology: wgpu::PrimitiveTopology::TriangleStrip,
+                            ..Default::default()
+                        },
+                        depth_stencil: None,
+                        multisample: wgpu::MultisampleState::default(),
+                        fragment,
+                        multiview: None,
+                    })
+            };
+        }
+
         Self {
-            label,
-            binding,
-            buffer: OnceCell::new(),
-            _phantom: PhantomData,
+            indices_per_sticker,
+
+            vertex_buffer: gfx.create_and_populate_buffer(
+                "puzzle_geometry_vertex_buffer",
+                wgpu::BufferUsages::VERTEX,
+                vertex_data.as_slice(),
+            ),
+            index_buffer: gfx.create_buffer::<[u32; 3]>(
+                "puzzle_geometry_index_buffer",
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX,
+                triangle_count * 3,
+            ),
+            composite_quad_vertex_buffer: gfx.create_and_populate_buffer(
+                "composite_quad_vertex_buffer",
+                wgpu::BufferUsages::VERTEX,
+                &[
+                    CompositeVertex {
+                        pos: [-1.0, 1.0],
+                        uv: [0.0, 0.0],
+                    },
+                    CompositeVertex {
+                        pos: [1.0, 1.0],
+                        uv: [1.0, 0.0],
+                    },
+                    CompositeVertex {
+                        pos: [-1.0, -1.0],
+                        uv: [0.0, 1.0],
+                    },
+                    CompositeVertex {
+                        pos: [1.0, -1.0],
+                        uv: [1.0, 1.0],
+                    },
+                ],
+            ),
+
+            u32_offset_buffer: gfx.create_basic_uniform_buffer::<u32>("u32_offset_buffer"),
+            projection_params_buffer: gfx
+                .create_basic_uniform_buffer::<GfxProjectionParams>("projection_params_buffer"),
+            lighting_params_buffer: gfx
+                .create_basic_uniform_buffer::<GfxLightingParams>("lighting_params_buffer"),
+            view_params_buffer: gfx
+                .create_basic_uniform_buffer::<GfxViewParams>("view_params_buffer"),
+            composite_params_buffer: gfx
+                .create_basic_uniform_buffer::<GfxCompositeParams>("composite_params_buffer"),
+
+            puzzle_transform_buffer: gfx.create_buffer::<f32>(
+                "puzzle_transform_buffer",
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                ndim as usize * ndim as usize,
+            ),
+
+            piece_transform_buffer: gfx.create_buffer::<f32>(
+                "piece_transform_buffer",
+                wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                ty.pieces.len() * ndim as usize * ndim as usize,
+            ),
+
+            facet_shrink_center_buffer: gfx.create_and_populate_buffer(
+                "facet_shrink_center_buffer",
+                wgpu::BufferUsages::STORAGE,
+                facet_shrink_center_data.as_slice(),
+            ),
+
+            sticker_info_buffer: gfx.create_and_populate_buffer(
+                "sticker_info_buffer",
+                wgpu::BufferUsages::STORAGE,
+                sticker_info_data.as_slice(),
+            ),
+            sticker_shrink_center_buffer: gfx.create_and_populate_buffer(
+                "sticker_shrink_center_buffer",
+                wgpu::BufferUsages::STORAGE,
+                sticker_shrink_center_data.as_slice(),
+            ),
+
+            polygon_count: polygon_info_data.len(),
+            polygon_info_buffer: gfx.create_and_populate_buffer(
+                "polygon_info_buffer",
+                wgpu::BufferUsages::STORAGE,
+                polygon_info_data.as_slice(),
+            ),
+            polygon_color_buffer: gfx.create_buffer::<[f32; 4]>(
+                "polygon_color_buffer",
+                wgpu::BufferUsages::STORAGE,
+                polygon_info_data.len(),
+            ),
+
+            vertex_count: vertex_sticker_id_data.len(),
+            vertex_sticker_id_buffer: gfx.create_and_populate_buffer(
+                "vertex_sticker_id_buffer",
+                wgpu::BufferUsages::STORAGE,
+                vertex_sticker_id_data.as_slice(),
+            ),
+            vertex_position_buffer: gfx.create_and_populate_buffer(
+                "vertex_position_buffer",
+                wgpu::BufferUsages::STORAGE,
+                vertex_position_data.as_slice(),
+            ),
+            vertex_3d_position_buffer: gfx.create_buffer::<[f32; 4]>(
+                "vertex_3d_position_buffer",
+                wgpu::BufferUsages::STORAGE,
+                vertex_position_data.len(),
+            ),
+
+            compute_transform_points_pipeline,
+            compute_polygon_colors_pipeline,
+            render_polygon_ids_pipeline,
+            render_composite_puzzle_pipeline,
+
+            facet_colors_texture: CachedTexture::new_1d(
+                Some("facet_colors_texture"),
+                wgpu::TextureFormat::Rgba8UnormSrgb,
+                wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
+            ),
+            polygon_depth_texture: CachedTexture::new_2d(
+                Some("puzzle_polyon_depth_texture"),
+                wgpu::TextureFormat::Depth32Float,
+                wgpu::TextureUsages::RENDER_ATTACHMENT,
+            ),
+            polygon_ids_texture: CachedTexture::new_2d(
+                Some("puzzle_polygon_ids_texture"),
+                wgpu::TextureFormat::R32Sint,
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            ),
+            out_texture: CachedTexture::new_2d(
+                Some("puzzle_out_texture"),
+                wgpu::TextureFormat::Bgra8Unorm,
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            ),
         }
     }
-    pub(super) fn get(
-        &self,
-        gfx: &GraphicsState,
-    ) -> &(wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
-        self.buffer.get_or_init(|| {
-            gfx.create_uniform::<T>(
-                self.label,
-                self.binding,
-                wgpu::ShaderStages::VERTEX_FRAGMENT,
-            )
-        })
-    }
+}
 
-    pub(super) fn buffer(&self, gfx: &GraphicsState) -> &wgpu::Buffer {
-        &self.get(gfx).0
-    }
-    pub(super) fn bind_group_layout(&self, gfx: &GraphicsState) -> &wgpu::BindGroupLayout {
-        &self.get(gfx).1
-    }
-    pub(super) fn bind_group(&self, gfx: &GraphicsState) -> &wgpu::BindGroup {
-        &self.get(gfx).2
-    }
+fn compute_buffer_binding_types<const N: usize>(
+    entries: [wgpu::BufferBindingType; N],
+) -> [(wgpu::ShaderStages, wgpu::BindingType); N] {
+    buffer_binding_types(entries.map(|ty| (wgpu::ShaderStages::COMPUTE, ty)))
+}
 
-    pub(super) fn write(&self, gfx: &GraphicsState, data: &T)
-    where
-        T: bytemuck::NoUninit,
-    {
-        gfx.queue
-            .write_buffer(self.buffer(gfx), 0, bytemuck::bytes_of(data));
-    }
+fn buffer_binding_types<const N: usize>(
+    entries: [(wgpu::ShaderStages, wgpu::BufferBindingType); N],
+) -> [(wgpu::ShaderStages, wgpu::BindingType); N] {
+    entries.map(|(visibility, ty)| {
+        let binding_type = wgpu::BindingType::Buffer {
+            ty,
+            has_dynamic_offset: false,
+            min_binding_size: None,
+        };
+        (visibility, binding_type)
+    })
 }
 
 pub(crate) struct CachedTexture {
@@ -176,13 +557,20 @@ impl CachedTexture {
     }
 }
 
-/// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.
-fn pad_buffer_if_necessary<T: Default + bytemuck::NoUninit>(buf: &mut Vec<T>) {
-    loop {
-        let bytes_len = bytemuck::cast_slice::<T, u8>(buf).len();
-        if bytes_len > 0 && bytes_len as u64 % wgpu::COPY_BUFFER_ALIGNMENT == 0 {
-            break;
-        }
-        buf.push(T::default());
-    }
+fn get_vertex_fragment<'a>(
+    module: &'a wgpu::ShaderModule,
+    buffers: &'a [wgpu::VertexBufferLayout],
+    targets: &'a [Option<wgpu::ColorTargetState>],
+) -> (wgpu::VertexState<'a>, Option<wgpu::FragmentState<'a>>) {
+    let vertex = wgpu::VertexState {
+        module,
+        entry_point: "vs_main",
+        buffers,
+    };
+    let fragment = Some(wgpu::FragmentState {
+        module,
+        entry_point: "fs_main",
+        targets,
+    });
+    (vertex, fragment)
 }

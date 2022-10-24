@@ -36,7 +36,6 @@ png = "0.17.5"
 pollster = "0.2.5"
 regex = "1.6.0"
 rfd = "0.10.0"
-send_wrapper = "0.6.0"
 serde = { version = "1.0.144", features = ["derive"] }
 serde_yaml = "0.8.23"
 smallvec = { version = "1.8.0", features = ["serde", "union"] }
