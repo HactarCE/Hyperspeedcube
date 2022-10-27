@@ -1,4 +1,4 @@
-name: 3x3x3
+name: 1x1x1
 shape:
   ndim: 3
   facets:

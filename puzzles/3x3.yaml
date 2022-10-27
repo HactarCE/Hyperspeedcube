@@ -1,0 +1,16 @@
+name: 3x3x3
+shape:
+  ndim: 3
+  facets:
+    - symmetry:
+        - schlafli: 4,3
+      seeds:
+        - [1, 0, 0]
+twists:
+  # - symmetry:
+      # - schlafli: 4,3
+  - axes:
+      - normal: [1, 0, 0]
+        cuts: [0.33, -0.33]
+        # twist_generators:
+        #   - Y -> Z
