@@ -139,9 +139,6 @@ impl App {
 
                 Command::ScrambleN(n) => {
                     if self.confirm_discard_changes("scramble") {
-                        // TODO: `n` is not validated. It may be `0` (which is
-                        // harmless) or `usize::MAX` (which will freeze the
-                        // program).
                         self.puzzle.scramble_n(n)?;
                         self.set_status_ok(format!(
                             "Scrambled with {} random {}",
