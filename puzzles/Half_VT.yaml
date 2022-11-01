@@ -11,6 +11,6 @@ twists:
       - schlafli: 4,3,3
     axes:
       - normal: [1, 1, 1, 1]
-        cuts: [1.01]
+        cuts: [1]
         twist_generators:
           - 0,1,-1,0 -> -1,0,1,0
