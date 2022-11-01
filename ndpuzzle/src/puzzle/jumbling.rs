@@ -157,6 +157,12 @@ impl TwistsSpec {
 
         let mut sym = 'A';
         for axis in &self.axes {
+            for pair in axis.cuts.windows(2) {
+                if pair[0] <= pair[1] {
+                    bail!("cuts must be sorted by depth: {:?}", axis.cuts);
+                }
+            }
+
             let base_frame: Rotoreflector = Rotor::from_vec_to_vec(Vector::unit(0), &axis.normal)
                 .unwrap_or_else(|| {
                     Rotor::from_vec_to_vec(Vector::unit(1), &axis.normal).unwrap()
@@ -263,7 +269,6 @@ impl PeriodicTwist {
         .take(MAX_TWIST_PERIOD + 1)
         .collect_vec();
         if transforms.len() > MAX_TWIST_PERIOD {
-            dbg!(transforms);
             bail!("nonperiodic twist (or period is too big)");
         }
 
@@ -316,6 +321,7 @@ impl PuzzleState for JumblingPuzzle {
     fn twist(&mut self, twist: super::Twist) -> Result<(), &'static str> {
         let reference_frame = &self.ty.info(twist.axis).reference_frame;
         let transform = reference_frame
+            .reverse()
             .transform_rotoreflector_uninverted(&self.ty.info(twist.direction).transform);
         for piece in (0..self.ty.pieces.len() as u16).map(Piece) {
             if twist.layers[self.layer_from_twist_axis(twist.axis, piece)] {

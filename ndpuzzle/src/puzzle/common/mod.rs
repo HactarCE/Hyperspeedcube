@@ -195,20 +195,38 @@ pub trait PuzzleState: fmt::Debug + Send + Sync {
     }
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8 {
         // TODO: handle bandaging
-        match self.ty().info(piece).points.first() {
-            Some(point) => {
-                let axis_info = self.ty().info(twist_axis);
-                let t = axis_info.reference_frame.reverse().matrix() * self.piece_transform(piece);
-                let relative_point = t * point;
-                // TODO: this is O(n)
-                axis_info
-                    .cuts
-                    .iter()
-                    .take_while(|cut| !cut.is_point_above(&relative_point))
-                    .count() as u8
-            }
-            None => 0, // TODO: wrong
+        let axis_info = self.ty().info(twist_axis);
+        let piece_to_axis = axis_info.reference_frame.matrix() * self.piece_transform(piece);
+
+        let points = &self.ty().info(piece).points;
+        if points.is_empty() {
+            // TODO: wrong
+            return 0;
         }
+
+        let mut lo = usize::MIN;
+        let mut hi = usize::MAX;
+        for point in points {
+            let point = &piece_to_axis * point;
+            match axis_info.cuts.binary_search_by(|cut| cut.cmp(&point)) {
+                Ok(layer) => {
+                    // This point is directly on a cut. The piece contains
+                    // either the layer above or the layer below.
+                    lo = std::cmp::max(lo, layer);
+                    hi = std::cmp::min(hi, layer + 1);
+                }
+                Err(layer) => {
+                    // The point is between cuts. The piece definitely contains
+                    // this layer.
+                    lo = std::cmp::max(lo, layer);
+                    hi = std::cmp::min(hi, layer);
+                }
+            }
+        }
+        if lo != hi {
+            // TODO: handle bandaging
+        }
+        lo as u8
     }
 
     fn piece_transform(&self, p: Piece) -> Matrix;

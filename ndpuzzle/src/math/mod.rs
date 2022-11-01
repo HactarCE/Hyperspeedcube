@@ -1,6 +1,6 @@
 //! N-dimensional vector math library.
 
-#![warn(clippy::if_then_some_else_none, missing_docs)]
+pub use approx::{abs_diff_eq, AbsDiffEq};
 
 #[macro_use]
 mod impl_macros;
@@ -19,3 +19,15 @@ pub use vector::*;
 
 /// Small floating-point value used for comparisons and tiny offsets.
 pub const EPSILON: f32 = 0.00001;
+
+/// Compares two numbers, but considers them equal if they are separated by less
+/// than `EPSILON`.
+pub fn abs_diff_cmp<T: AbsDiffEq<Epsilon = f32> + PartialOrd>(a: &T, b: &T) -> std::cmp::Ordering {
+    if abs_diff_eq!(a, b, epsilon = EPSILON) {
+        std::cmp::Ordering::Equal
+    } else if a < b {
+        std::cmp::Ordering::Less
+    } else {
+        std::cmp::Ordering::Greater
+    }
+}

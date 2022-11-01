@@ -1,6 +1,6 @@
 use smallvec::SmallVec;
 
-use crate::math::{Rotoreflector, Vector, VectorRef};
+use crate::math::{abs_diff_cmp, Rotoreflector, Vector, VectorRef};
 
 macro_rules! impl_puzzle_info_trait {
     (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {
@@ -104,9 +104,9 @@ pub enum TwistCut {
     Planar { radius: f32 },
 }
 impl TwistCut {
-    pub fn is_point_above(&self, p: impl VectorRef) -> bool {
+    pub fn cmp(&self, p: impl VectorRef) -> std::cmp::Ordering {
         match self {
-            TwistCut::Planar { radius } => p.get(0) > *radius,
+            TwistCut::Planar { radius } => abs_diff_cmp(&p.get(0), &radius),
         }
     }
 }
