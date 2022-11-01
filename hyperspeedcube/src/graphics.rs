@@ -268,21 +268,43 @@ impl GraphicsState {
         label: &str,
         entries: &[(wgpu::ShaderStages, wgpu::BufferBindingType, &wgpu::Buffer)],
     ) -> wgpu::BindGroup {
+        self.create_bind_group_of_buffers_with_offsets(
+            label,
+            &entries
+                .iter()
+                .map(|&(vis, ty, buf)| (vis, ty, buf, 0))
+                .collect_vec(),
+        )
+    }
+    pub(super) fn create_bind_group_of_buffers_with_offsets(
+        &self,
+        label: &str,
+        entries: &[(
+            wgpu::ShaderStages,
+            wgpu::BufferBindingType,
+            &wgpu::Buffer,
+            u64,
+        )],
+    ) -> wgpu::BindGroup {
         self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some(label),
             layout: &self.create_bind_group_layout_of_buffers(
                 &format!("{label}_layout"),
                 &entries
                     .iter()
-                    .map(|&(vis, ty, _buffer)| (vis, ty))
+                    .map(|&(vis, ty, _buffer, _offset)| (vis, ty))
                     .collect_vec(),
             ),
             entries: &entries
                 .iter()
                 .enumerate()
-                .map(|(i, &(_vis, _ty, buffer))| wgpu::BindGroupEntry {
+                .map(|(i, &(_vis, _ty, buffer, offset))| wgpu::BindGroupEntry {
                     binding: i as u32,
-                    resource: buffer.as_entire_binding(),
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer,
+                        offset,
+                        size: None,
+                    }),
                 })
                 .collect_vec(),
         })

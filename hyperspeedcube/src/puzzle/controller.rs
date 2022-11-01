@@ -526,6 +526,7 @@ impl PuzzleController {
     pub(crate) fn draw(
         &mut self,
         gfx: &mut GraphicsState,
+        encoder: &mut wgpu::CommandEncoder,
         prefs: &Preferences,
         texture_size: (u32, u32),
         cursor_pos: Option<cgmath::Point2<f32>>,
@@ -545,7 +546,7 @@ impl PuzzleController {
             Some(cache) => cache,
             None => PuzzleRenderCache::new(gfx, self.ty()).ok()?,
         };
-        let ret = render::draw_puzzle(gfx, self, &mut cache, prefs, texture_size);
+        let ret = render::draw_puzzle(gfx, encoder, self, &mut cache, prefs, texture_size);
         self.render_cache = Some(cache);
         ret
     }

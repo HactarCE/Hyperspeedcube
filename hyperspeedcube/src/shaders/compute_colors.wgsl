@@ -11,8 +11,7 @@ struct LightingParams {
     directional: f32,
 }
 
-@group(0) @binding(0) var<uniform> offset: u32;
-@group(0) @binding(1) var<uniform> lighting_params: LightingParams;
+@group(0) @binding(0) var<uniform> lighting_params: LightingParams;
 
 @group(1) @binding(0) var<storage, read> polygon_info_array: array<PolygonInfo>;
 @group(1) @binding(1) var<storage, read_write> polygon_color_array: array<vec4<f32>>;
@@ -25,7 +24,7 @@ struct LightingParams {
 @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let total = arrayLength(&polygon_color_array);
-    let index = offset + global_invocation_id.x;
+    let index = global_invocation_id.x;
     if (index >= total) {
         return;
     }

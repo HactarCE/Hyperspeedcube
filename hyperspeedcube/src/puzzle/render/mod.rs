@@ -1,5 +1,7 @@
 //! Rendering logic.
 
+use std::borrow::Cow;
+
 use itertools::Itertools;
 use ndpuzzle::puzzle::{Facet, Piece, PuzzleInfo};
 
@@ -19,6 +21,7 @@ const WORK_GROUP_SIZE: u32 = 64;
 
 pub(super) fn draw_puzzle(
     gfx: &mut GraphicsState,
+    encoder: &mut wgpu::CommandEncoder,
     puzzle: &mut PuzzleController,
     cache: &mut PuzzleRenderCache,
     prefs: &Preferences,
@@ -129,74 +132,86 @@ pub(super) fn draw_puzzle(
 
     // Compute 3D vertex positions on the GPU.
     {
-        let bind_group_0 = gfx.create_bind_group_of_buffers(
-            "compute_transforms_uniforms",
-            &[
-                (COMPUTE, UNIFORM, &cache.u32_offset_buffer), // binding 0
-                (COMPUTE, UNIFORM, &cache.projection_params_buffer), // binding 1
-            ],
-        );
+        let bind_group_0 = || {
+            gfx.create_bind_group_of_buffers(
+                "compute_transforms_uniforms",
+                &[
+                    (COMPUTE, UNIFORM, &cache.projection_params_buffer), // binding 0
+                ],
+            )
+        };
 
-        let bind_group_1 = gfx.create_bind_group_of_buffers(
-            "compute_transforms_storage",
-            &[
-                (COMPUTE, STORAGE_READ, &cache.puzzle_transform_buffer), // binding 0
-                (COMPUTE, STORAGE_READ, &cache.piece_transform_buffer),  // binding 1
-                (COMPUTE, STORAGE_READ, &cache.facet_shrink_center_buffer), // binding 2
-                (COMPUTE, STORAGE_READ, &cache.sticker_info_buffer),     // binding 3
-                (COMPUTE, STORAGE_READ, &cache.sticker_shrink_center_buffer), // binding 4
-                (COMPUTE, STORAGE_READ, &cache.vertex_sticker_id_buffer), // binding 5
-                (COMPUTE, STORAGE_READ, &cache.vertex_position_buffer),  // binding 6
-                (COMPUTE, STORAGE_WRITE, &cache.vertex_3d_position_buffer), // binding 7
-            ],
-        );
+        let bind_group_1 = |i| {
+            let o5 = i * std::mem::size_of::<u32>() as u64;
+            let o6 = i * std::mem::size_of::<f32>() as u64 * puzzle.ty().ndim() as u64;
+            let o7 = i * std::mem::size_of::<[f32; 4]>() as u64;
+            gfx.create_bind_group_of_buffers_with_offsets(
+                "compute_transforms_storage",
+                &[
+                    (COMPUTE, STORAGE_READ, &cache.puzzle_transform_buffer, 0), // binding 0
+                    (COMPUTE, STORAGE_READ, &cache.piece_transform_buffer, 0),  // binding 1
+                    (COMPUTE, STORAGE_READ, &cache.facet_center_buffer, 0),     // binding 2
+                    (COMPUTE, STORAGE_READ, &cache.sticker_info_buffer, 0),     // binding 3
+                    (COMPUTE, STORAGE_READ, &cache.sticker_center_buffer, 0),   // binding 4
+                    (COMPUTE, STORAGE_READ, &cache.vertex_sticker_id_buffer, o5), // binding 5
+                    (COMPUTE, STORAGE_READ, &cache.vertex_position_buffer, o6), // binding 6
+                    (COMPUTE, STORAGE_WRITE, &cache.vertex_3d_position_buffer, o7), // binding 7
+                ],
+            )
+        };
 
         dispatch_work_groups_with_offsets(
-            gfx,
+            encoder,
             "compute_3d_vertex_positions",
             &cache.compute_transform_points_pipeline,
-            &[&bind_group_0, &bind_group_1],
-            &cache.u32_offset_buffer,
+            |i| vec![bind_group_0(), bind_group_1(i)],
             cache.vertex_count as u32,
         );
     }
 
     // Compute polygon colors on the GPU.
     {
-        let bind_group_0 = gfx.create_bind_group_of_buffers(
-            "polygon_colors_compute_uniforms",
-            &[
-                (COMPUTE, UNIFORM, &cache.u32_offset_buffer), // binding 0
-                (COMPUTE, UNIFORM, &cache.lighting_params_buffer), // binding 1
-            ],
-        );
+        let bind_group_0 = || {
+            gfx.create_bind_group_of_buffers(
+                "polygon_colors_compute_uniforms",
+                &[
+                    (COMPUTE, UNIFORM, &cache.lighting_params_buffer), // binding 0
+                ],
+            )
+        };
 
-        let bind_group_1 = gfx.create_bind_group_of_buffers(
-            "polygon_colors_compute_storage",
-            &[
-                (COMPUTE, STORAGE_READ, &cache.polygon_info_buffer), // binding 0
-                (COMPUTE, STORAGE_WRITE, &cache.polygon_color_buffer), // binding 1
-                (COMPUTE, STORAGE_READ, &cache.vertex_3d_position_buffer), // binding 2
-            ],
-        );
+        let bind_group_1 = |i| {
+            let o0 = i * std::mem::size_of::<GfxPolygonInfo>() as u64;
+            let o1 = i * std::mem::size_of::<[f32; 4]>() as u64;
+            gfx.create_bind_group_of_buffers_with_offsets(
+                "polygon_colors_compute_storage",
+                &[
+                    (COMPUTE, STORAGE_READ, &cache.polygon_info_buffer, o0), // binding 0
+                    (COMPUTE, STORAGE_WRITE, &cache.polygon_color_buffer, o1), // binding 1
+                    (COMPUTE, STORAGE_READ, &cache.vertex_3d_position_buffer, 0), // binding 2
+                ],
+            )
+        };
 
-        let (_, bind_group_2) = gfx.create_texture_bind_group(
-            Some("polygon_colors_texture"),
-            wgpu::ShaderStages::COMPUTE,
-            wgpu::BindingType::Texture {
-                sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                view_dimension: wgpu::TextureViewDimension::D1,
-                multisampled: false,
-            },
-            &facet_colors_texture_view,
-        );
+        let bind_group_2 = || {
+            gfx.create_texture_bind_group(
+                Some("polygon_colors_texture"),
+                wgpu::ShaderStages::COMPUTE,
+                wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                    view_dimension: wgpu::TextureViewDimension::D1,
+                    multisampled: false,
+                },
+                &facet_colors_texture_view,
+            )
+            .1
+        };
 
         dispatch_work_groups_with_offsets(
-            gfx,
+            encoder,
             "polygon_colors_compute",
             &cache.compute_polygon_colors_pipeline,
-            &[&bind_group_0, &bind_group_1, &bind_group_2],
-            &cache.u32_offset_buffer,
+            |i| vec![bind_group_0(), bind_group_1(i), bind_group_2()],
             cache.polygon_count as u32,
         );
     }
@@ -262,8 +277,6 @@ pub(super) fn draw_puzzle(
             None => 0.0,
         };
         let first_bucket = i == 0;
-
-        let mut encoder = gfx.device.create_command_encoder(&Default::default());
 
         // Pass 1: Render polygon IDs.
         {
@@ -399,8 +412,6 @@ pub(super) fn draw_puzzle(
 
             render_pass.draw(0..4, 0..1);
         }
-
-        gfx.queue.submit(std::iter::once(encoder.finish()));
     }
 
     Some(out_texture.create_view(&wgpu::TextureViewDescriptor::default()))
@@ -415,32 +426,25 @@ fn extent3d(width: u32, height: u32) -> wgpu::Extent3d {
 }
 
 fn dispatch_work_groups_with_offsets(
-    gfx: &mut GraphicsState,
+    encoder: &mut wgpu::CommandEncoder,
     label: &str,
     pipeline: &wgpu::ComputePipeline,
-    bind_groups: &[&wgpu::BindGroup],
-    u32_offset_buffer: &wgpu::Buffer,
+    mut bind_groups: impl FnMut(u64) -> Vec<wgpu::BindGroup>,
     count: u32,
 ) {
-    let mut offset = 0;
+    let mut offset: u32 = 0;
     // TODO: read max group size and use that via push constant??
     // let group_size = gfx.device.limits().max_compute_workgroup_size_x;
     let group_size = WORK_GROUP_SIZE;
-    while offset < count as u32 {
-        gfx.queue
-            .write_buffer(u32_offset_buffer, 0, bytemuck::bytes_of(&offset));
-
-        let mut encoder = gfx.device.create_command_encoder(&Default::default());
-        {
-            let mut compute_pass =
-                encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some(label) });
-            compute_pass.set_pipeline(pipeline);
-            for (i, bind_group) in bind_groups.iter().enumerate() {
-                compute_pass.set_bind_group(i as u32, bind_group, &[]);
-            }
-            compute_pass.dispatch_workgroups(std::cmp::min(group_size, count - offset), 1, 1);
+    while offset < count {
+        let groups = bind_groups(offset as u64);
+        let mut compute_pass =
+            encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some(label) });
+        compute_pass.set_pipeline(pipeline);
+        for (i, bind_group) in groups.iter().enumerate() {
+            compute_pass.set_bind_group(i as u32, bind_group, &[]);
         }
-        gfx.queue.submit(std::iter::once(encoder.finish()));
+        compute_pass.dispatch_workgroups(std::cmp::min(group_size, count - offset), 1, 1);
         offset += group_size;
     }
 }

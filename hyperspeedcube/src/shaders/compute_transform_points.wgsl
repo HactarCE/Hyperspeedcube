@@ -14,8 +14,7 @@ struct ProjectionParams {
 // When compiling the shader in Rust, we will fill in the number of dimensions.
 let NDIM = {{ndim}}u;
 
-@group(0) @binding(0) var<uniform> offset: u32;
-@group(0) @binding(1) var<uniform> projection_params: ProjectionParams;
+@group(0) @binding(0) var<uniform> projection_params: ProjectionParams;
 
 @group(1) @binding(0) var<storage, read> puzzle_transform: array<f32>;
 
@@ -34,7 +33,7 @@ let NDIM = {{ndim}}u;
 @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let total = arrayLength(&vertex_3d_position_array);
-    let index = offset + global_invocation_id.x;
+    let index = global_invocation_id.x;
     if (index >= total) {
         return;
     }
@@ -66,7 +65,6 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     var old_pos = initial;
     var new_pos = array<f32, NDIM>();
     var i: u32 = NDIM * NDIM * piece;
-    var base: u32 = NDIM * index;
     for (var col = 0u; col < NDIM; col++) {
         for (var row = 0u; row < NDIM; row++) {
             new_pos[row] += piece_transform_array[i] * old_pos[col];

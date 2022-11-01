@@ -35,8 +35,6 @@ pub(crate) struct PuzzleRenderCache {
     /*
      * SMALL UNIFORMS
      */
-    /// `u32` offset.
-    pub(super) u32_offset_buffer: wgpu::Buffer,
     /// Projection parameters.
     pub(super) projection_params_buffer: wgpu::Buffer,
     /// Lighting parameters.
@@ -58,12 +56,12 @@ pub(crate) struct PuzzleRenderCache {
     pub(super) piece_transform_buffer: wgpu::Buffer,
 
     /// For each facet: the point to shrink towards for facet spacing.
-    pub(super) facet_shrink_center_buffer: wgpu::Buffer,
+    pub(super) facet_center_buffer: wgpu::Buffer,
 
     /// For each sticker: the ID of its facet and the ID of its piece.
     pub(super) sticker_info_buffer: wgpu::Buffer,
     /// For each sticker: the point it shrinks towards for sticker spacing.
-    pub(super) sticker_shrink_center_buffer: wgpu::Buffer,
+    pub(super) sticker_center_buffer: wgpu::Buffer,
 
     /// Number of polygons, which is the length of each "per-polygon" buffer.
     pub(super) polygon_count: usize,
@@ -114,7 +112,7 @@ impl PuzzleRenderCache {
     pub fn new(gfx: &mut GraphicsState, ty: &PuzzleType) -> Result<Self> {
         let ndim = ty.ndim();
 
-        let facet_shrink_center_data = ty
+        let facet_center_data = ty
             .shape
             .facets
             .iter()
@@ -126,7 +124,7 @@ impl PuzzleRenderCache {
         let mut indices_per_sticker = vec![];
         let mut vertex_data = vec![];
         let mut sticker_info_data = vec![];
-        let mut sticker_shrink_center_data = vec![];
+        let mut sticker_center_data = vec![];
         let mut polygon_info_data = vec![];
         let mut vertex_sticker_id_data = vec![];
         let mut vertex_position_data = vec![];
@@ -140,7 +138,7 @@ impl PuzzleRenderCache {
                     piece: sticker.piece.0 as u32,
                     facet: sticker.color.0 as u32,
                 });
-                sticker_shrink_center_data.extend(sticker.sticker_shrink_origin.iter_ndim(ndim));
+                sticker_center_data.extend(sticker.sticker_shrink_origin.iter_ndim(ndim));
 
                 // For each polygon ...
                 let vertex_list_base = vertex_sticker_id_data.len() as u32;
@@ -222,7 +220,7 @@ impl PuzzleRenderCache {
                     ))?,
                 "compute_transform_points",
                 &[
-                    &compute_buffer_binding_types([UNIFORM, UNIFORM]),
+                    &compute_buffer_binding_types([UNIFORM]),
                     &compute_buffer_binding_types([
                         STORAGE_READ,
                         STORAGE_READ,
@@ -241,7 +239,7 @@ impl PuzzleRenderCache {
                 &gfx.shaders.compute_colors,
                 "compute_polygon_colors",
                 &[
-                    &compute_buffer_binding_types([UNIFORM, UNIFORM]),
+                    &compute_buffer_binding_types([UNIFORM]),
                     &compute_buffer_binding_types([STORAGE_READ, STORAGE_WRITE, STORAGE_READ]),
                     &[(
                         wgpu::ShaderStages::COMPUTE,
@@ -382,7 +380,6 @@ impl PuzzleRenderCache {
                 ],
             ),
 
-            u32_offset_buffer: gfx.create_basic_uniform_buffer::<u32>("u32_offset_buffer"),
             projection_params_buffer: gfx
                 .create_basic_uniform_buffer::<GfxProjectionParams>("projection_params_buffer"),
             lighting_params_buffer: gfx
@@ -404,10 +401,10 @@ impl PuzzleRenderCache {
                 ty.pieces.len() * ndim as usize * ndim as usize,
             ),
 
-            facet_shrink_center_buffer: gfx.create_and_populate_buffer(
+            facet_center_buffer: gfx.create_and_populate_buffer(
                 "facet_shrink_center_buffer",
                 wgpu::BufferUsages::STORAGE,
-                facet_shrink_center_data.as_slice(),
+                facet_center_data.as_slice(),
             ),
 
             sticker_info_buffer: gfx.create_and_populate_buffer(
@@ -415,10 +412,10 @@ impl PuzzleRenderCache {
                 wgpu::BufferUsages::STORAGE,
                 sticker_info_data.as_slice(),
             ),
-            sticker_shrink_center_buffer: gfx.create_and_populate_buffer(
+            sticker_center_buffer: gfx.create_and_populate_buffer(
                 "sticker_shrink_center_buffer",
                 wgpu::BufferUsages::STORAGE,
-                sticker_shrink_center_data.as_slice(),
+                sticker_center_data.as_slice(),
             ),
 
             polygon_count: polygon_info_data.len(),

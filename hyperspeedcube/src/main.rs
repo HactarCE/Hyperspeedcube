@@ -245,8 +245,14 @@ async fn run() {
 
                 app.prefs.save_if_necessary();
 
+                let mut encoder =
+                    gfx.device
+                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                            label: Some("egui_command_encoder"),
+                        });
+
                 // Draw puzzle if necessary.
-                if let Some(puzzle_texture) = app.draw_puzzle(&mut gfx) {
+                if let Some(puzzle_texture) = app.draw_puzzle(&mut gfx, &mut encoder) {
                     log::trace!("Repainting puzzle");
 
                     // Update texture for egui.
@@ -292,11 +298,6 @@ async fn run() {
                     };
 
                     let paint_jobs = egui.context().tessellate(egui_output.shapes);
-                    let mut encoder =
-                        gfx.device
-                            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                                label: Some("egui_command_encoder"),
-                            });
                     let screen_descriptor = egui_wgpu_backend::ScreenDescriptor {
                         physical_width: gfx.config.width,
                         physical_height: gfx.config.height,

@@ -82,9 +82,14 @@ impl App {
     pub(crate) fn request_redraw_puzzle(&mut self) {
         self.force_redraw = true;
     }
-    pub(crate) fn draw_puzzle(&mut self, gfx: &mut GraphicsState) -> Option<wgpu::TextureView> {
+    pub(crate) fn draw_puzzle(
+        &mut self,
+        gfx: &mut GraphicsState,
+        encoder: &mut wgpu::CommandEncoder,
+    ) -> Option<wgpu::TextureView> {
         let ret = self.puzzle.draw(
             gfx,
+            encoder,
             &self.prefs,
             self.puzzle_texture_size,
             self.cursor_pos,
