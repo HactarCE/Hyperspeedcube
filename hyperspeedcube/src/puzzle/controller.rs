@@ -541,10 +541,10 @@ impl PuzzleController {
         self.update_decorations(delta, prefs);
 
         // TODO: this is ugly
-        let mut cache = self
-            .render_cache
-            .take()
-            .unwrap_or_else(|| PuzzleRenderCache::new(gfx, self.ty()));
+        let mut cache = match self.render_cache.take() {
+            Some(cache) => cache,
+            None => PuzzleRenderCache::new(gfx, self.ty()).ok()?,
+        };
         let ret = render::draw_puzzle(gfx, self, &mut cache, prefs, texture_size);
         self.render_cache = Some(cache);
         ret

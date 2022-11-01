@@ -1,5 +1,6 @@
 use itertools::Itertools;
-use once_cell::unsync::OnceCell;
+
+use crate::{MAX_NDIM, MIN_NDIM};
 
 /// Graphics state for the whole window.
 pub(crate) struct GraphicsState {
@@ -314,7 +315,7 @@ impl GraphicsState {
 
 pub(super) struct Shaders {
     pub(super) compute_colors: wgpu::ShaderModule,
-    pub(super) compute_transform_points: wgpu::ShaderModule,
+    pub(super) compute_transform_points: Vec<wgpu::ShaderModule>,
     pub(super) render_polygon_ids: wgpu::ShaderModule,
     pub(super) render_composite_puzzle: wgpu::ShaderModule,
 }
@@ -323,12 +324,29 @@ impl Shaders {
         Self {
             compute_colors: device
                 .create_shader_module(wgpu::include_wgsl!("shaders/compute_colors.wgsl")),
-            compute_transform_points: device
-                .create_shader_module(wgpu::include_wgsl!("shaders/compute_transform_points.wgsl")),
+            compute_transform_points: (MIN_NDIM..=MAX_NDIM)
+                .map(|ndim| {
+                    device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                        label: Some(&format!(
+                            "shaders/compute_transform_points.wgsl (ndim = {ndim})"
+                        )),
+                        source: wgpu::ShaderSource::Wgsl(
+                            include_str!("shaders/compute_transform_points.wgsl")
+                                .replace("{{ndim}}", &ndim.to_string())
+                                .into(),
+                        ),
+                    })
+                })
+                .collect(),
             render_polygon_ids: device
                 .create_shader_module(wgpu::include_wgsl!("shaders/render_polygon_ids.wgsl")),
             render_composite_puzzle: device
                 .create_shader_module(wgpu::include_wgsl!("shaders/render_composite_puzzle.wgsl")),
         }
+    }
+
+    pub(super) fn compute_transform_points(&self, ndim: u8) -> Option<&wgpu::ShaderModule> {
+        self.compute_transform_points
+            .get(ndim.checked_sub(MIN_NDIM)? as usize)
     }
 }

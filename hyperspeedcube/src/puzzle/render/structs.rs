@@ -65,7 +65,6 @@ pub(super) struct GfxProjectionParams {
     pub w_factor_4d: f32,
     pub w_factor_3d: f32,
     pub fov_signum: f32,
-    pub ndim: u32,
 }
 
 #[repr(C)]

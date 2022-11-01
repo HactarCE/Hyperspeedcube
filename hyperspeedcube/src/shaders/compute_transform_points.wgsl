@@ -9,10 +9,10 @@ struct ProjectionParams {
     w_factor_4d: f32,
     w_factor_3d: f32,
     fov_signum: f32,
-    ndim: u32,
 }
 
-let MAX_NDIM = 8;
+// When compiling the shader in Rust, we will fill in the number of dimensions.
+let NDIM = {{ndim}}u;
 
 @group(0) @binding(0) var<uniform> offset: u32;
 @group(0) @binding(1) var<uniform> projection_params: ProjectionParams;
@@ -39,25 +39,23 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         return;
     }
 
-    let ndim = projection_params.ndim;
-
     let sticker: u32 = vertex_sticker_id_data[index];
     let piece: u32 = sticker_info_array[sticker].piece;
     let facet: u32 = sticker_info_array[sticker].facet;
 
     // TODO: shrink stickers and facets
 
-    var initial = array<f32, MAX_NDIM>();
-    var vert_idx = ndim * index;
-    for (var i = 0u; i < ndim; i++) {
+    var initial = array<f32, NDIM>();
+    var vert_idx = NDIM * index;
+    for (var i = 0u; i < NDIM; i++) {
         initial[i] = vertex_position_array[vert_idx];
         vert_idx++;
     }
 
 
     // Apply facet scaling.
-    var j = facet * ndim;
-    for (var i = 0u; i < ndim; i++) {
+    var j = facet * NDIM;
+    for (var i = 0u; i < NDIM; i++) {
         initial[i] -= facet_shrink_center_array[j];
         initial[i] *= projection_params.facet_scale;
         initial[i] += facet_shrink_center_array[j];
@@ -66,11 +64,11 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
 
     // Apply piece transformation.
     var old_pos = initial;
-    var new_pos = array<f32, MAX_NDIM>();
-    var i: u32 = ndim * ndim * piece;
-    var base: u32 = ndim * index;
-    for (var col = 0u; col < ndim; col++) {
-        for (var row = 0u; row < ndim; row++) {
+    var new_pos = array<f32, NDIM>();
+    var i: u32 = NDIM * NDIM * piece;
+    var base: u32 = NDIM * index;
+    for (var col = 0u; col < NDIM; col++) {
+        for (var row = 0u; row < NDIM; row++) {
             new_pos[row] += piece_transform_array[i] * old_pos[col];
             i++;
         }
@@ -80,10 +78,10 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     // Apply puzzle transformation and collapse to 4D.
     var point_4d = vec4<f32>();
     var i = 0;
-    for (var col = 0u; col < ndim; col++) {
+    for (var col = 0u; col < NDIM; col++) {
         // TODO: optimize this
-        for (var row = 0u; row < ndim; row++) {
-            if (row < 4u) {
+        for (var row = 0u; row < NDIM; row++) {
+            if (row < NDIM) {
                 point_4d[row] += puzzle_transform[i] * old_pos[col];
                 i++;
             }

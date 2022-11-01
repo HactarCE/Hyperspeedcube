@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use itertools::Itertools;
 use ndpuzzle::math::VectorRef;
 use ndpuzzle::puzzle::PuzzleType;
@@ -110,7 +111,7 @@ impl fmt::Debug for PuzzleRenderCache {
     }
 }
 impl PuzzleRenderCache {
-    pub fn new(gfx: &mut GraphicsState, ty: &PuzzleType) -> Self {
+    pub fn new(gfx: &mut GraphicsState, ty: &PuzzleType) -> Result<Self> {
         let ndim = ty.ndim();
 
         let facet_shrink_center_data = ty
@@ -213,7 +214,12 @@ impl PuzzleRenderCache {
                 wgpu::BufferBindingType::Storage { read_only: false };
 
             compute_transform_points_pipeline = gfx.create_compute_pipeline(
-                &gfx.shaders.compute_transform_points,
+                gfx.shaders
+                    .compute_transform_points(ty.ndim())
+                    .context(format!(
+                        "cannot render puzzle with {} dimensions",
+                        ty.ndim(),
+                    ))?,
                 "compute_transform_points",
                 &[
                     &compute_buffer_binding_types([UNIFORM, UNIFORM]),
@@ -340,7 +346,7 @@ impl PuzzleRenderCache {
             };
         }
 
-        Self {
+        Ok(Self {
             indices_per_sticker,
 
             vertex_buffer: gfx.create_and_populate_buffer(
@@ -469,7 +475,7 @@ impl PuzzleRenderCache {
                 wgpu::TextureFormat::Bgra8Unorm,
                 wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
             ),
-        }
+        })
     }
 }
 

@@ -81,7 +81,6 @@ pub(super) fn draw_puzzle(
         w_factor_4d: (view_prefs.fov_4d.to_radians() / 2.0).tan(),
         w_factor_3d: (view_prefs.fov_3d.to_radians() / 2.0).tan(),
         fov_signum: view_prefs.fov_3d.signum(),
-        ndim: puzzle.ty().ndim() as u32,
     };
     gfx.queue.write_buffer(
         &cache.projection_params_buffer,

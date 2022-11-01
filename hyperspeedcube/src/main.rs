@@ -39,6 +39,9 @@ const TITLE: &str = "Hyperspeedcube";
 const ICON_32: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
 const DEFAULT_PUZZLE: &str = "Default";
 
+const MIN_NDIM: u8 = 2;
+const MAX_NDIM: u8 = 8;
+
 fn main() {
     // Initialize logging.
     env_logger::builder()
