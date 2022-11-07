@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::gui::widgets;
+use crate::gui::components::{big_icon_button, PlaintextYamlEditor, ReorderableList};
 use crate::preferences::Preset;
 
 pub struct PresetsUi<'a, T> {
@@ -14,8 +14,8 @@ impl<T> PresetsUi<'_, T>
 where
     T: Serialize + for<'de> Deserialize<'de> + Default + Clone,
 {
-    fn plaintext_yaml_editor(&self) -> widgets::PlaintextYamlEditor {
-        widgets::PlaintextYamlEditor { id: self.id }
+    fn plaintext_yaml_editor(&self) -> PlaintextYamlEditor {
+        PlaintextYamlEditor { id: self.id }
     }
 
     pub fn show_header_with_active_preset(
@@ -50,7 +50,7 @@ where
 
         ui.horizontal(|ui| {
             ui.add_visible_ui(self.enable_yaml, |ui| {
-                if widgets::big_icon_button(ui, "✏", "Edit as plaintext").clicked() {
+                if big_icon_button(ui, "✏", "Edit as plaintext").clicked() {
                     self.plaintext_yaml_editor().set_active(ui, self.presets);
                 }
             });
@@ -65,7 +65,7 @@ where
 
             let button_resp = ui
                 .add_enabled_ui(is_preset_name_valid, |ui| {
-                    widgets::big_icon_button(ui, "➕", self.strings.save)
+                    big_icon_button(ui, "➕", self.strings.save)
                 })
                 .inner;
             let button_clicked = button_resp.clicked();
@@ -111,7 +111,7 @@ where
 
         if edit_presets {
             if !self.plaintext_yaml_editor().is_active(ui) {
-                *self.changed |= widgets::ReorderableList::new(self.id, self.presets)
+                *self.changed |= ReorderableList::new(self.id, self.presets)
                     .show(ui, preset_ui)
                     .changed();
             }

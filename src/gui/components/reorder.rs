@@ -1,6 +1,6 @@
 use egui::NumExt;
 
-use crate::gui::widgets;
+use crate::gui::components::{big_icon_button, BIG_ICON_BUTTON_SIZE};
 
 pub struct ReorderableList<'a, T> {
     id: egui::Id,
@@ -36,7 +36,7 @@ impl<'a, T> ReorderableList<'a, T> {
                             let is_being_dragged = reorder_from == Some(i);
                             drag_handle.push(ui.add(DragReorderHandle { is_being_dragged }));
 
-                            if widgets::big_icon_button(ui, "🗑", "").clicked() {
+                            if big_icon_button(ui, "🗑", "").clicked() {
                                 to_delete = Some(i);
                             }
 
@@ -118,8 +118,7 @@ struct DragReorderHandle {
 }
 impl egui::Widget for DragReorderHandle {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let (rect, resp) =
-            ui.allocate_exact_size(widgets::BIG_ICON_BUTTON_SIZE, egui::Sense::drag());
+        let (rect, resp) = ui.allocate_exact_size(BIG_ICON_BUTTON_SIZE, egui::Sense::drag());
         if ui.is_rect_visible(rect) {
             // Change color based on hover/focus.
             let color = if resp.has_focus() || self.is_being_dragged {

@@ -2,7 +2,7 @@ use key_names::KeyMappingCode;
 use strum::EnumMessage;
 use winit::event::VirtualKeyCode;
 
-use super::util::{ResponseExt, EXPLANATION_TOOLTIP_WIDTH};
+use super::ext::*;
 use crate::app::App;
 use crate::commands::Command;
 use crate::preferences::Key;

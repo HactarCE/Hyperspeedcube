@@ -1,16 +1,24 @@
 use egui::NumExt;
 use key_names::KeyMappingCode;
 
+use super::Window;
 use crate::app::App;
 use crate::commands::{Command, PuzzleCommand};
-use crate::gui::util;
+use crate::gui::components::PrefsUi;
+use crate::gui::util::{set_widget_spacing_to_space_width, subtract_space};
 use crate::preferences::{Key, Keybind, DEFAULT_PREFS};
 use crate::puzzle::{traits::*, LayerMask};
 
 const SCALED_KEY_PADDING: f32 = 0.0;
 const MIN_KEY_PADDING: f32 = 4.0;
 
-pub fn build(ui: &mut egui::Ui, app: &mut App) {
+pub(crate) const KEYBINDS_REFERENCE: Window = Window {
+    name: "Keybinds reference",
+    build,
+    ..Window::DEFAULT
+};
+
+fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.scope(|ui| {
         let prefs = app.prefs.info.keybinds_reference;
 
@@ -72,7 +80,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.collapsing("Settings", |ui| {
         let mut changed = false;
-        let mut prefs_ui = util::PrefsUi {
+        let mut prefs_ui = PrefsUi {
             ui,
             current: &mut app.prefs.info.keybinds_reference,
             defaults: &DEFAULT_PREFS.info.keybinds_reference,
@@ -158,7 +166,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
         ui.heading(get_key_name(key));
 
         // Adjust spacing so we don't have to add spaces manually.
-        util::set_widget_spacing_to_space_widgth(ui);
+        set_widget_spacing_to_space_width(ui);
 
         for bind in matching_puzzle_keybinds {
             ui.horizontal_wrapped(|ui| match &bind.command {
@@ -195,9 +203,9 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         ui.label("direction");
                         if !layers.is_default() {
                             ui.label("(");
-                            util::subtract_space(ui);
+                            subtract_space(ui);
                             ui.strong(layers.long_description());
-                            util::subtract_space(ui);
+                            subtract_space(ui);
                             ui.label(")");
                         }
                     }

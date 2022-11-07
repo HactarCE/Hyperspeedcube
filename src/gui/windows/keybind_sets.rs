@@ -1,8 +1,16 @@
+use super::{Window, PREFS_WINDOW_WIDTH};
 use crate::app::App;
+
+pub(crate) const KEYBIND_SETS: Window = Window {
+    name: "Keybind sets",
+    fixed_width: Some(PREFS_WINDOW_WIDTH),
+    build,
+    ..Window::DEFAULT
+};
 
 const HIDDEN_PREFIX_CHAR: char = '^';
 
-pub fn build(ui: &mut egui::Ui, app: &mut App) {
+fn build(ui: &mut egui::Ui, app: &mut App) {
     let puzzle_keybinds = &mut app.prefs.puzzle_keybinds[app.puzzle.ty()];
 
     let mut changed = false;

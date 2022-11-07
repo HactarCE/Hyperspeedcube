@@ -1,14 +1,22 @@
+use super::Window;
 use crate::app::App;
-use crate::gui::util;
+use crate::gui::components::reset_button;
 use crate::puzzle::*;
 
-pub fn cleanup(app: &mut App) {
+pub(crate) const PUZZLE_CONTROLS: Window = Window {
+    name: "Puzzle controls",
+    build,
+    cleanup,
+    ..Window::DEFAULT
+};
+
+fn cleanup(app: &mut App) {
     // It'd be really confusing if the puzzle controls window still had an
     // effect when closed.
     app.toggle_grip = Default::default();
 }
 
-pub fn build(ui: &mut egui::Ui, app: &mut App) {
+fn build(ui: &mut egui::Ui, app: &mut App) {
     let puzzle_type = app.puzzle.ty();
 
     let grip = app.grip();
@@ -22,7 +30,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.strong("Twist axis");
     ui.with_layout(h_layout, |ui| {
-        util::reset_button(ui, &mut app.toggle_grip.axes, Grip::default().axes, "");
+        reset_button(ui, &mut app.toggle_grip.axes, Grip::default().axes, "");
         for (i, twist_axis) in puzzle_type.twist_axes().iter().enumerate() {
             let mut is_sel = grip.axes.contains(&TwistAxis(i as _));
             let r = ui.selectable_value(&mut is_sel, true, twist_axis.name);
@@ -37,7 +45,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.strong("Layers");
     ui.with_layout(h_layout, |ui| {
-        util::reset_button(ui, &mut app.toggle_grip.layers, Grip::default().layers, "");
+        reset_button(ui, &mut app.toggle_grip.layers, Grip::default().layers, "");
         for i in 0..puzzle_type.layer_count() {
             let mut is_sel = grip.layers.unwrap_or_default()[i as u8];
             let r = ui.selectable_value(&mut is_sel, true, format!("{}", i + 1));

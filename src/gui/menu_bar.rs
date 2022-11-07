@@ -1,7 +1,7 @@
+use super::components::puzzle_type_menu;
+use super::windows;
 use crate::app::App;
 use crate::commands::Command;
-
-use super::windows;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {
@@ -61,7 +61,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         });
 
         ui.menu_button("Puzzle", |ui| {
-            if let Some(ty) = super::util::puzzle_select_menu(ui) {
+            if let Some(ty) = puzzle_type_menu(ui) {
                 app.event(Command::NewPuzzle(ty));
             }
         });

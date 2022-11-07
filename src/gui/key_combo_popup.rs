@@ -2,8 +2,8 @@ use key_names::KeyMappingCode;
 use std::sync::Arc;
 use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 
-use super::keybind_set_accessors::KeybindSetAccessor;
-use super::util::ResponseExt;
+use super::components::KeybindSetAccessor;
+use super::ext::*;
 use crate::app::App;
 use crate::preferences::{Key, KeyCombo};
 

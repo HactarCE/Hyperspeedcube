@@ -1,9 +1,17 @@
 use bitvec::vec::BitVec;
 
+use super::Window;
 use crate::app::App;
-use crate::gui::{util, widgets};
+use crate::gui::components::{prefs, small_icon_button, PrefsUi, PresetsUi};
 use crate::preferences::{PieceFilter, DEFAULT_PREFS};
 use crate::puzzle::{traits::*, Face, PieceInfo, PieceType};
+
+pub(crate) const PIECE_FILTERS: Window = Window {
+    name: "Piece filters",
+    build,
+    cleanup,
+    ..Window::DEFAULT
+};
 
 const MIN_WIDTH: f32 = 300.0;
 
@@ -27,11 +35,11 @@ macro_rules! piece_subset_from_sticker_colors {
     }};
 }
 
-pub fn cleanup(app: &mut App) {
+fn cleanup(app: &mut App) {
     app.puzzle.set_visible_pieces_preview(None, None);
 }
 
-pub fn build(ui: &mut egui::Ui, app: &mut App) {
+fn build(ui: &mut egui::Ui, app: &mut App) {
     app.puzzle.set_visible_pieces_preview(None, None);
 
     let puzzle_type = app.puzzle.ty();
@@ -41,7 +49,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
 
     let mut changed = false;
-    let mut prefs_ui = util::PrefsUi {
+    let mut prefs_ui = PrefsUi {
         ui,
         current: &mut prefs.opacity,
         defaults: &DEFAULT_PREFS.opacity,
@@ -49,7 +57,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     };
 
     prefs_ui.percent("Hidden", access!(.hidden));
-    crate::gui::prefs::build_unhide_grip_checkbox(&mut prefs_ui);
+    prefs::build_unhide_grip_checkbox(&mut prefs_ui);
 
     prefs.needs_save |= changed;
     if changed {
@@ -140,7 +148,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
         let mut changed = false;
 
-        let mut presets_ui = widgets::PresetsUi {
+        let mut presets_ui = PresetsUi {
             id: unique_id!(),
             presets: &mut piece_filter_presets,
             changed: &mut changed,
@@ -243,7 +251,7 @@ where
                 let mut small_button = |new_visible_set: BitVec, text: &str, hover_text: &str| {
                     let r = ui.add_enabled(
                         puzzle.visible_pieces() != new_visible_set,
-                        |ui: &mut egui::Ui| widgets::small_icon_button(ui, text, hover_text),
+                        |ui: &mut egui::Ui| small_icon_button(ui, text, hover_text),
                     );
                     if r.hovered() {
                         puzzle.set_visible_pieces_preview(Some(&new_visible_set), None);

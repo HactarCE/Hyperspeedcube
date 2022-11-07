@@ -1,9 +1,22 @@
-mod presets_list;
+#[macro_use]
+mod combo_boxes;
+mod keybinds;
+mod layer_mask;
+pub mod prefs;
+mod presets;
+mod puzzle_list;
 mod reorder;
+mod reset;
 mod yaml_editor;
 
-pub use presets_list::*;
+pub use combo_boxes::*;
+pub use keybinds::*;
+pub use layer_mask::*;
+pub use prefs::PrefsUi;
+pub use presets::*;
+pub use puzzle_list::*;
 pub use reorder::*;
+pub use reset::*;
 pub use yaml_editor::*;
 
 pub const BIG_ICON_BUTTON_SIZE: egui::Vec2 = egui::vec2(22.0, 22.0);

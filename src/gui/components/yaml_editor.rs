@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::gui::util::ResponseExt;
-use crate::gui::widgets;
+use crate::gui::components::big_icon_button;
+use crate::gui::ext::*;
 
 #[derive(Debug, Clone)]
 struct PlaintextState {
@@ -51,13 +51,13 @@ impl PlaintextYamlEditor {
                 ui.horizontal(|ui| {
                     let parsed_value: Result<T, _> = serde_yaml::from_str(&state.contents);
                     ui.add_enabled_ui(parsed_value.is_ok(), |ui| {
-                        if widgets::big_icon_button(ui, "✔", "Confirm changes").clicked() {
+                        if big_icon_button(ui, "✔", "Confirm changes").clicked() {
                             self.set_state(ui, None);
                             *value = parsed_value.as_ref().unwrap().clone();
                             changed = true;
                         }
                     });
-                    if widgets::big_icon_button(ui, "✖", "Discard changes").clicked() {
+                    if big_icon_button(ui, "✖", "Discard changes").clicked() {
                         self.set_state(ui, None);
                     }
                     if let Err(e) = parsed_value {
