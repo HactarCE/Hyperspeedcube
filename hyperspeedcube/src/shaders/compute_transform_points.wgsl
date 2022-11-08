@@ -42,8 +42,6 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let piece: u32 = sticker_info_array[sticker].piece;
     let facet: u32 = sticker_info_array[sticker].facet;
 
-    // TODO: shrink stickers and facets
-
     var initial = array<f32, NDIM>();
     var vert_idx = NDIM * index;
     for (var i = 0u; i < NDIM; i++) {
@@ -51,6 +49,14 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
         vert_idx++;
     }
 
+    // Apply sticker scaling.
+    var j = sticker * NDIM;
+    for (var i = 0u; i < NDIM; i++) {
+        initial[i] -= sticker_shrink_center_array[j];
+        initial[i] *= projection_params.sticker_scale;
+        initial[i] += sticker_shrink_center_array[j];
+        j++;
+    }
 
     // Apply facet scaling.
     var j = facet * NDIM;

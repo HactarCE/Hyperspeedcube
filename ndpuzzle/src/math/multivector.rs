@@ -359,6 +359,35 @@ impl Multivector {
         }
         ret
     }
+
+    /// Returns the grade projection of the multivector.
+    pub fn grade_project(self, grade: u8) -> Multivector {
+        Multivector(
+            self.0
+                .into_iter()
+                .filter(|blade| blade.grade() == grade)
+                .collect(),
+        )
+    }
+    /// Returns the maximum grade of the multivector.
+    pub fn max_grade(&self) -> u8 {
+        self.0.iter().map(|blade| blade.grade()).max().unwrap_or(0)
+    }
+
+    /// Returns the magnitude (square root of sum of squares) of the
+    /// multivector.
+    pub fn mag(&self) -> f32 {
+        self.0.iter().map(|blade| blade.coef * blade.coef).sum()
+    }
+
+    /// Returns the axis mask of the component with the greatest absolute value.
+    pub fn most_significant_component(&self) -> u32 {
+        self.0
+            .iter()
+            .max_by(|a, b| f32::total_cmp(&a.coef.abs(), &b.coef.abs()))
+            .map(|blade| blade.axes)
+            .unwrap_or(0)
+    }
 }
 impl_forward_bin_ops_to_ref! {
     impl Add for Multivector { fn add() }

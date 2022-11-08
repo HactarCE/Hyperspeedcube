@@ -2,8 +2,9 @@ use anyhow::{anyhow, bail, Context, Result};
 use itertools::Itertools;
 use slab::Slab;
 use smallvec::{smallvec, SmallVec};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
+use std::iter::Sum;
 
 use crate::math::*;
 use crate::puzzle::Facet;
@@ -308,14 +309,7 @@ impl PolytopeArena {
                 let edges: Vec<[PolytopeId; 2]> = polytope
                     .children()?
                     .iter()
-                    .map(|&p| -> Result<[PolytopeId; 2]> {
-                        let edge = self.get(p)?;
-                        let endpoints = edge.children()?;
-                        // Unpack the edge into the point on either end.
-                        let [a, b] = *<&[PolytopeId; 2]>::try_from(endpoints.as_slice())
-                            .context("bad child count for edge")?;
-                        Ok([a, b])
-                    })
+                    .map(|&p| self.get(p)?.edge_endpoints())
                     .try_collect()?;
 
                 // Now we will assemble a list of vertices in order.
@@ -564,6 +558,7 @@ impl PolytopeArena {
                 rank,
                 location,
                 children,
+                ..
             } => {
                 let rank = *rank;
                 let location = *location;
@@ -720,6 +715,123 @@ impl PolytopeArena {
         }
         Ok(())
     }
+
+    pub fn compute_centroids(&self) -> Result<BTreeMap<PolytopeId, Vector>> {
+        let mut cache = BTreeMap::new();
+        self.roots
+            .iter()
+            .map(|&id| Ok((id, self.compute_mass(&mut cache, id)?.com)))
+            .collect()
+    }
+
+    /// Returns the mass of a non-point polytope.
+    fn compute_mass(&self, cache: &mut BTreeMap<PolytopeId, Mass>, p: PolytopeId) -> Result<Mass> {
+        // In this function, the terms "mass" and "volume" are used pretty much
+        // interchangeably to refer to hypervolume, AKA Lebasgue measure.
+
+        if let Some(result) = cache.get(&p) {
+            return Ok(result.clone());
+        }
+        let result = match self.get(p)? {
+            Polytope::Point { point } => Mass {
+                mass: Multivector::scalar(1.0),
+                com: point.clone(),
+            },
+
+            edge @ Polytope::Branch { rank: 1, .. } => {
+                let [a, b] = edge.edge_endpoints()?;
+                let a = self.get(a)?.point()?;
+                let b = self.get(b)?.point()?;
+
+                Mass {
+                    mass: (a - b).into(),
+                    com: a + b,
+                }
+            }
+
+            Polytope::Branch { rank, children, .. } => {
+                // Compute the centroid of each child.
+                let child_volumes: Vec<Mass> = children
+                    .iter()
+                    .map(|&child| self.compute_mass(cache, child))
+                    .try_collect()?;
+
+                // Average those centroids to get an arbitrary point inside the
+                // polytope. This will be the apex of a pyramid for each child.
+                let apex = child_volumes.iter().map(|mass| &mass.com).sum::<Vector>()
+                    / child_volumes.len() as f32;
+
+                // For each child, construct a pyramid with that child as the
+                // base.
+                child_volumes
+                    .iter()
+                    .map(|v| {
+                        // This vector adds a new dimension to the child polytope.
+                        let new_vector = &apex - &v.com;
+
+                        let parallelotope_mass =
+                            (Multivector::from(new_vector) * &v.mass).grade_project(*rank);
+
+                        // The volume of a pyramid is `1/NDIM` times the volume
+                        // of a parallelotope.
+                        let mass = parallelotope_mass * (*rank as f32).recip();
+
+                        // In 2D, the center of mass of a triangle is 1/3 the
+                        // way from the base to the apex. In 3D, it's 1/4 the
+                        // way up. In N dimsensions, it's 1/(NDIM+1).
+                        let com = util::mix(&v.com, &apex, (*rank as f32 + 1.0).recip());
+
+                        Mass { mass, com }
+                    })
+                    .sum::<Result<Mass>>()?
+            }
+        };
+        cache.insert(p, result.clone());
+        Ok(result)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Mass {
+    /// Lebasgue measure. https://en.wikipedia.org/wiki/Lebesgue_measure
+    mass: Multivector,
+    /// Center of mass.
+    com: Vector,
+}
+impl Sum<Mass> for Result<Mass> {
+    fn sum<I: Iterator<Item = Mass>>(iter: I) -> Self {
+        // This function assumes that all the masses are in the same subspaace.
+
+        let mut iter = iter.peekable();
+        let first = iter
+            .peek()
+            .context("empty polytope has no center of mass")?;
+
+        // Some of these masses may have opposite signs. We want all masses to
+        // be positive, so pick some component to normalize the signs with
+        // respect to.
+        let component = first.mass.most_significant_component();
+        let unit_mass = &first.mass
+            * first
+                .mass
+                .get(component)
+                .context("child of polytope has zero mass")?
+                .recip();
+
+        let mut total_com = Vector::EMPTY;
+        let mut total_weight = 0.0;
+
+        for it in iter {
+            let weight = it.mass.get(component).unwrap_or(0.0).abs();
+            total_com += it.com * weight;
+            total_weight += weight;
+        }
+
+        Ok(Mass {
+            mass: unit_mass * total_weight,
+            com: total_com / total_weight,
+        })
+    }
 }
 
 /// Index of a polytope in a polytope arena.
@@ -763,9 +875,22 @@ impl Polytope {
     /// Returns the children of the polytope if it is a branch, or an error if
     /// it is a point.
     fn children(&self) -> Result<&SmallVec<[PolytopeId; 4]>> {
-        match &self {
+        match self {
             Self::Point { .. } => bail!("can't get children of point"),
             Self::Branch { children, .. } => Ok(children),
+        }
+    }
+    /// Returns the endpoints if this polytope is an edge, or an error if it is
+    /// not.
+    fn edge_endpoints(&self) -> Result<[PolytopeId; 2]> {
+        match self {
+            Polytope::Branch {
+                rank: 1, children, ..
+            } => children
+                .as_slice()
+                .try_into()
+                .context("bad child count for edge"),
+            _ => Err(anyhow!("expected edge, got rank {} polytope", self.rank())),
         }
     }
 }

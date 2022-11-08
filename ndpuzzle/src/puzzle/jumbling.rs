@@ -72,6 +72,8 @@ impl JumblingPuzzleSpec {
             }
         }
 
+        let piece_centers = polytopes.compute_centroids()?;
+
         let piece_polytope_ids = polytopes.roots.iter().copied().collect_vec();
 
         let mut piece_infos = vec![];
@@ -91,7 +93,10 @@ impl JumblingPuzzleSpec {
 
                     points: verts,
                     polygons: polys.into_iter().map(|p| p.0).collect(),
-                    sticker_shrink_origin: Vector::EMPTY,
+                    sticker_shrink_origin: piece_centers
+                        .get(&piece)
+                        .unwrap_or(&Vector::EMPTY)
+                        .clone(),
                 }
             }));
             let j = sticker_infos.len() as u16;

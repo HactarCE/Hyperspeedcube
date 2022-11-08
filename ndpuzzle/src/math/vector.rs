@@ -269,8 +269,8 @@ impl FromIterator<f32> for Vector {
     }
 }
 
-impl Sum for Vector {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+impl<V: VectorRef> Sum<V> for Vector {
+    fn sum<I: Iterator<Item = V>>(iter: I) -> Self {
         let mut ret = Self::EMPTY;
         for v in iter {
             ret = ret.pad(v.ndim());
