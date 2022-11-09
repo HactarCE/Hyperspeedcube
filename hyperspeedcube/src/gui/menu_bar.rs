@@ -91,5 +91,16 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             #[cfg(debug_assertions)]
             windows::DEBUG.menu_button_toggle(ui);
         });
+
+        // Profiling
+        #[cfg(feature = "optick")]
+        {
+            if ui.button("Start capture").clicked() {
+                optick::start_capture();
+            }
+            if ui.button("Stop capture").clicked() {
+                optick::stop_capture("capture ");
+            }
+        }
     });
 }

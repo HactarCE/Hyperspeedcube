@@ -237,6 +237,10 @@ async fn run() {
                     last_frame_time = new_frame_time;
                 }
 
+                // Mark the beginning of the frame for the profiler.
+                #[cfg(feature = "optick")]
+                optick::next_frame();
+
                 // Start egui frame.
                 egui.begin_frame();
 
