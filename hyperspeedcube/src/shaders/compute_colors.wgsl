@@ -20,8 +20,9 @@ struct LightingParams {
 
 @group(2) @binding(0) var facet_colors_texture: texture_1d<f32>;
 
+// When compiling the shader in Rust, we will fill in the workgroup size.
 @compute
-@workgroup_size(64)
+@workgroup_size({{workgroup_size}})
 fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let total = arrayLength(&polygon_color_array);
     let index = global_invocation_id.x;

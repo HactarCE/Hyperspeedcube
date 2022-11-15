@@ -23,14 +23,15 @@ let NDIM = {{ndim}}u;
 @group(1) @binding(2) var<storage, read> facet_shrink_center_array: array<f32>;
 
 @group(1) @binding(3) var<storage, read> sticker_info_array: array<StickerInfo>;
-@group(1) @binding(4) var<storage, read> sticker_shrink_center_array: array<f32>;
 
-@group(1) @binding(5) var<storage, read> vertex_sticker_id_data: array<u32>;
-@group(1) @binding(6) var<storage, read> vertex_position_array: array<f32>;
+@group(1) @binding(4) var<storage, read> vertex_sticker_id_data: array<u32>;
+@group(1) @binding(5) var<storage, read> vertex_position_array: array<f32>;
+@group(1) @binding(6) var<storage, read> vertex_shrink_vector_array: array<f32>;
 @group(1) @binding(7) var<storage, read_write> vertex_3d_position_array: array<vec4<f32>>;
 
+// When compiling the shader in Rust, we will fill in the workgroup size.
 @compute
-@workgroup_size(64)
+@workgroup_size({{workgroup_size}})
 fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let total = arrayLength(&vertex_3d_position_array);
     let index = global_invocation_id.x;
@@ -42,20 +43,13 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let piece: u32 = sticker_info_array[sticker].piece;
     let facet: u32 = sticker_info_array[sticker].facet;
 
+    // Apply sticker scaling.
     var initial = array<f32, NDIM>();
     var vert_idx = NDIM * index;
     for (var i = 0u; i < NDIM; i++) {
         initial[i] = vertex_position_array[vert_idx];
+        initial[i] += vertex_shrink_vector_array[vert_idx] * (1.0 - projection_params.sticker_scale);
         vert_idx++;
-    }
-
-    // Apply sticker scaling.
-    var j = sticker * NDIM;
-    for (var i = 0u; i < NDIM; i++) {
-        initial[i] -= sticker_shrink_center_array[j];
-        initial[i] *= projection_params.sticker_scale;
-        initial[i] += sticker_shrink_center_array[j];
-        j++;
     }
 
     // Apply facet scaling.

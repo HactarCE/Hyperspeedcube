@@ -335,6 +335,22 @@ impl GraphicsState {
     }
 }
 
+macro_rules! include_wgsl_with_params {
+    ($file_path:literal $(, $var:ident)* $(,)?) => {
+        wgpu::ShaderModuleDescriptor {
+            label: Some($file_path),
+            source: wgpu::ShaderSource::Wgsl(
+                include_str!($file_path)
+                    $(.replace(
+                        concat!("{{", stringify!($var), "}}"),
+                        &$var.to_string(),
+                    ))*
+                    .into(),
+            ),
+        }
+    };
+}
+
 pub(super) struct Shaders {
     pub(super) compute_colors: wgpu::ShaderModule,
     pub(super) compute_transform_points: Vec<wgpu::ShaderModule>,
@@ -343,21 +359,20 @@ pub(super) struct Shaders {
 }
 impl Shaders {
     pub(super) fn new(device: &wgpu::Device) -> Self {
+        let workgroup_size = device.limits().max_compute_workgroup_size_x;
+
         Self {
-            compute_colors: device
-                .create_shader_module(wgpu::include_wgsl!("shaders/compute_colors.wgsl")),
+            compute_colors: device.create_shader_module(include_wgsl_with_params!(
+                "shaders/compute_colors.wgsl",
+                workgroup_size,
+            )),
             compute_transform_points: (MIN_NDIM..=MAX_NDIM)
                 .map(|ndim| {
-                    device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                        label: Some(&format!(
-                            "shaders/compute_transform_points.wgsl (ndim = {ndim})"
-                        )),
-                        source: wgpu::ShaderSource::Wgsl(
-                            include_str!("shaders/compute_transform_points.wgsl")
-                                .replace("{{ndim}}", &ndim.to_string())
-                                .into(),
-                        ),
-                    })
+                    device.create_shader_module(include_wgsl_with_params!(
+                        "shaders/compute_transform_points.wgsl",
+                        ndim,
+                        workgroup_size,
+                    ))
                 })
                 .collect(),
             render_polygon_ids: device

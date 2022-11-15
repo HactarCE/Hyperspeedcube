@@ -14,9 +14,6 @@ use crate::GraphicsState;
 pub(crate) use cache::PuzzleRenderCache;
 use structs::*;
 
-/// Size of compute shader work group, defined in the WGSL shader source code.
-const WORK_GROUP_SIZE: u32 = 64;
-
 // TODO: do not rerender literally everything every frame
 
 pub(super) fn draw_puzzle(
@@ -166,6 +163,7 @@ pub(super) fn draw_puzzle(
             &cache.compute_transform_points_pipeline,
             |i| vec![bind_group_0(), bind_group_1(i)],
             cache.vertex_count as u32,
+            &gfx.device.limits(),
         );
     }
 
@@ -213,6 +211,7 @@ pub(super) fn draw_puzzle(
             &cache.compute_polygon_colors_pipeline,
             |i| vec![bind_group_0(), bind_group_1(i), bind_group_2()],
             cache.polygon_count as u32,
+            &gfx.device.limits(),
         );
     }
 
@@ -431,11 +430,11 @@ fn dispatch_work_groups_with_offsets(
     pipeline: &wgpu::ComputePipeline,
     mut bind_groups: impl FnMut(u64) -> Vec<wgpu::BindGroup>,
     count: u32,
+    limits: &wgpu::Limits,
 ) {
+    let group_size = limits.max_compute_workgroup_size_x;
+
     let mut offset: u32 = 0;
-    // TODO: read max group size and use that via push constant??
-    // let group_size = gfx.device.limits().max_compute_workgroup_size_x;
-    let group_size = WORK_GROUP_SIZE;
     while offset < count {
         let groups = bind_groups(offset as u64);
         let mut compute_pass =
