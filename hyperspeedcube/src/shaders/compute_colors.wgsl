@@ -42,6 +42,10 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     // Compute the polygon's normal vector using a cross product.
     let normal = normalize(cross(v1 - v0, v2 - v0));
 
+    // Polygons of higher-dimensional puzzles don't have well-defined normal
+    // vectors, so force all polygons to be front-facing.
+    let normal = normal * sign(normal.z);
+
     // Calculate brightness.
     let directional_brightness = dot(normal, lighting_params.dir) * 0.5 + 0.5;
     let brightness = lighting_params.ambient + lighting_params.directional * directional_brightness;
