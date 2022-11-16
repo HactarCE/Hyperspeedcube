@@ -5,7 +5,7 @@
 
 use std::fmt;
 use std::iter::Sum;
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg};
+use std::ops::{Add, AddAssign, BitXor, BitXorAssign, Mul, MulAssign, Neg};
 
 use crate::math::*;
 
@@ -31,7 +31,7 @@ impl approx::AbsDiffEq for Blade {
     type Epsilon = f32;
 
     fn default_epsilon() -> Self::Epsilon {
-        super::EPSILON
+        EPSILON
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
@@ -116,7 +116,7 @@ impl approx::AbsDiffEq for Multivector {
     type Epsilon = f32;
 
     fn default_epsilon() -> Self::Epsilon {
-        super::EPSILON
+        EPSILON
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
@@ -253,6 +253,22 @@ impl<'a> Neg for &'a Multivector {
         self * -1.0
     }
 }
+impl<'a> BitXor for &'a Multivector {
+    type Output = Multivector;
+
+    /// Exterior product
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        (self * rhs).grade_project(self.max_grade() + rhs.max_grade())
+    }
+}
+impl<'a> BitXorAssign<&'a Multivector> for Multivector {
+    /// Exterior product
+    fn bitxor_assign(&mut self, rhs: &'a Multivector) {
+        let new_grade = self.max_grade() + rhs.max_grade();
+        *self *= rhs;
+        *self = std::mem::take(self).grade_project(new_grade);
+    }
+}
 impl Sum<Blade> for Multivector {
     fn sum<I: Iterator<Item = Blade>>(iter: I) -> Self {
         iter.fold(Multivector::ZERO, |a, b| a + b)
@@ -360,7 +376,24 @@ impl Multivector {
         ret
     }
 
-    /// Returns the grade projection of the multivector.
+    /// Returns whether the multivector is approximately zero.
+    pub fn is_approx_zero(&self) -> bool {
+        self.0.iter().all(|blade| blade.coef.abs() <= EPSILON)
+    }
+
+    /// Grade-projects the multivector to a vector by throwing away all
+    /// non-vector components.
+    pub fn grade_project_to_vector(&self) -> Vector {
+        let mut ret = Vector::zero(self.ndim());
+        for blade in self.0.iter() {
+            if blade.axes.is_power_of_two() {
+                let axis = blade.axes.trailing_zeros() as u8;
+                ret[axis] = blade.coef;
+            }
+        }
+        ret
+    }
+    /// Returns a grade projection of the multivector.
     pub fn grade_project(self, grade: u8) -> Multivector {
         Multivector(
             self.0
@@ -378,6 +411,12 @@ impl Multivector {
     /// multivector.
     pub fn mag(&self) -> f32 {
         self.0.iter().map(|blade| blade.coef * blade.coef).sum()
+    }
+    /// Returns a normalized copy of the multivector.
+    #[must_use]
+    pub fn normalize(&self) -> Option<Multivector> {
+        let mult = 1.0 / self.mag();
+        mult.is_finite().then(|| self * mult)
     }
 
     /// Returns the axis mask of the component with the greatest absolute value.
@@ -409,7 +448,7 @@ impl approx::AbsDiffEq for Rotor {
     type Epsilon = f32;
 
     fn default_epsilon() -> Self::Epsilon {
-        super::EPSILON
+        EPSILON
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
@@ -607,7 +646,7 @@ impl approx::AbsDiffEq for Rotoreflector {
     type Epsilon = f32;
 
     fn default_epsilon() -> Self::Epsilon {
-        super::EPSILON
+        EPSILON
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {

@@ -1,7 +1,5 @@
 //! Rendering logic.
 
-use std::borrow::Cow;
-
 use itertools::Itertools;
 use ndpuzzle::puzzle::{Facet, Piece, PuzzleInfo};
 
@@ -139,8 +137,8 @@ pub(super) fn draw_puzzle(
         };
 
         let bind_group_1 = |i| {
-            let o5 = i * std::mem::size_of::<u32>() as u64;
-            let o6 = i * std::mem::size_of::<f32>() as u64 * puzzle.ty().ndim() as u64;
+            let o4 = i * std::mem::size_of::<u32>() as u64;
+            let o56 = i * std::mem::size_of::<f32>() as u64 * puzzle.ty().ndim() as u64;
             let o7 = i * std::mem::size_of::<[f32; 4]>() as u64;
             gfx.create_bind_group_of_buffers_with_offsets(
                 "compute_transforms_storage",
@@ -149,9 +147,14 @@ pub(super) fn draw_puzzle(
                     (COMPUTE, STORAGE_READ, &cache.piece_transform_buffer, 0),  // binding 1
                     (COMPUTE, STORAGE_READ, &cache.facet_center_buffer, 0),     // binding 2
                     (COMPUTE, STORAGE_READ, &cache.sticker_info_buffer, 0),     // binding 3
-                    (COMPUTE, STORAGE_READ, &cache.sticker_center_buffer, 0),   // binding 4
-                    (COMPUTE, STORAGE_READ, &cache.vertex_sticker_id_buffer, o5), // binding 5
-                    (COMPUTE, STORAGE_READ, &cache.vertex_position_buffer, o6), // binding 6
+                    (COMPUTE, STORAGE_READ, &cache.vertex_sticker_id_buffer, o4), // binding 4
+                    (COMPUTE, STORAGE_READ, &cache.vertex_position_buffer, o56), // binding 5
+                    (
+                        COMPUTE,
+                        STORAGE_READ,
+                        &cache.vertex_shrink_vector_buffer,
+                        o56,
+                    ), // binding 6
                     (COMPUTE, STORAGE_WRITE, &cache.vertex_3d_position_buffer, o7), // binding 7
                 ],
             )

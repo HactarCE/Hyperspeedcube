@@ -22,6 +22,7 @@ slab = "0.4.7"
 smallvec = { version = "1.9.0", features = ["const_new", "serde", "union"] }
 strum = { version = "0.24.0", features = ["derive"] }
 thiserror = "1.0.34"
+tinyset = "0.4.15"
 
 [dev-dependencies]
 cgmath = { version = "0.18.0", features = ["serde"] }

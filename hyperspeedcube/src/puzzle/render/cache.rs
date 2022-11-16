@@ -60,8 +60,6 @@ pub(crate) struct PuzzleRenderCache {
 
     /// For each sticker: the ID of its facet and the ID of its piece.
     pub(super) sticker_info_buffer: wgpu::Buffer,
-    /// For each sticker: the point it shrinks towards for sticker spacing.
-    pub(super) sticker_center_buffer: wgpu::Buffer,
 
     /// Number of polygons, which is the length of each "per-polygon" buffer.
     pub(super) polygon_count: usize,
@@ -78,6 +76,8 @@ pub(crate) struct PuzzleRenderCache {
     pub(super) vertex_sticker_id_buffer: wgpu::Buffer,
     /// For each vertex: its position in N-dimensional space.
     pub(super) vertex_position_buffer: wgpu::Buffer,
+    /// For each vertex: the vector it shrinks along for sticker spacing.
+    pub(super) vertex_shrink_vector_buffer: wgpu::Buffer,
     /// For each vertex: its position in 3D space, which is recomputed whenever
     /// the view angle or puzzle geometry changes (e.g., each frame of a twist
     /// animation).
@@ -124,10 +124,10 @@ impl PuzzleRenderCache {
         let mut indices_per_sticker = vec![];
         let mut vertex_data = vec![];
         let mut sticker_info_data = vec![];
-        let mut sticker_center_data = vec![];
         let mut polygon_info_data = vec![];
         let mut vertex_sticker_id_data = vec![];
         let mut vertex_position_data = vec![];
+        let mut vertex_shrink_vector_data = vec![];
         {
             let mut polygon_idx = 0;
             let mut degerate_polygons_count = 0;
@@ -138,7 +138,6 @@ impl PuzzleRenderCache {
                     piece: sticker.piece.0 as u32,
                     facet: sticker.color.0 as u32,
                 });
-                sticker_center_data.extend(sticker.sticker_shrink_origin.iter_ndim(ndim));
 
                 // For each polygon ...
                 let vertex_list_base = vertex_sticker_id_data.len() as u32;
@@ -186,9 +185,10 @@ impl PuzzleRenderCache {
                 indices_per_sticker.push(current_sticker_indices.into_boxed_slice());
 
                 // For each vertex ...
-                for point in &sticker.points {
+                for (point, shrink_vector) in sticker.points.iter().zip(&sticker.shrink_vectors) {
                     vertex_sticker_id_data.push(sticker_idx as u32);
                     vertex_position_data.extend(point.iter_ndim(ndim));
+                    vertex_shrink_vector_data.extend(shrink_vector.iter_ndim(ndim));
                 }
             }
 
@@ -412,11 +412,6 @@ impl PuzzleRenderCache {
                 wgpu::BufferUsages::STORAGE,
                 sticker_info_data.as_slice(),
             ),
-            sticker_center_buffer: gfx.create_and_populate_buffer(
-                "sticker_shrink_center_buffer",
-                wgpu::BufferUsages::STORAGE,
-                sticker_center_data.as_slice(),
-            ),
 
             polygon_count: polygon_info_data.len(),
             polygon_info_buffer: gfx.create_and_populate_buffer(
@@ -440,6 +435,11 @@ impl PuzzleRenderCache {
                 "vertex_position_buffer",
                 wgpu::BufferUsages::STORAGE,
                 vertex_position_data.as_slice(),
+            ),
+            vertex_shrink_vector_buffer: gfx.create_and_populate_buffer(
+                "vertex_shrink_vector_buffer",
+                wgpu::BufferUsages::STORAGE,
+                vertex_shrink_vector_data.as_slice(),
             ),
             vertex_3d_position_buffer: gfx.create_buffer::<[f32; 4]>(
                 "vertex_3d_position_buffer",

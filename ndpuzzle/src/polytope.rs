@@ -5,6 +5,7 @@ use smallvec::{smallvec, SmallVec};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 use std::iter::Sum;
+use tinyset::Set64;
 
 use crate::math::*;
 use crate::puzzle::Facet;
@@ -112,6 +113,11 @@ impl PolytopeArena {
         }
 
         this
+    }
+
+    /// Returns the rank of a polytope.
+    pub fn get_rank(&self, id: PolytopeId) -> Result<u8> {
+        Ok(self.get(id)?.rank())
     }
 
     /// Returns a polytope by ID.
@@ -297,7 +303,30 @@ impl PolytopeArena {
         Ok(IndexedPolygons { verts, polys })
     }
 
-    fn polytope_polygons(&self, p: PolytopeId, no_internal: bool) -> Result<Vec<Vec<PolytopeId>>> {
+    // TODO: rethink API
+    pub fn get_point(&self, p: PolytopeId) -> Result<&Vector> {
+        self.get(p)?.point()
+    }
+
+    // pub fn most_common_points(&self, ps: &[PolytopeId]) -> Vec<PolytopeId> {
+    //     let mut candidates = HashMap::new();
+    //     let mut rank = 0;
+    //     let mut most_in_common = 0;
+    //     for &p in ps {
+    //         let mut descendents = HashSet::new();
+    //         self.add_descendents_to_set(p, &mut descendents);
+    //         for d in descendents {
+    //             candidates.entry(d).or_insert(0)
+    //         }
+    //     }
+    //     descendents.into_iter().filter(predicate)
+    // }
+
+    pub fn polytope_polygons(
+        &self,
+        p: PolytopeId,
+        no_internal: bool,
+    ) -> Result<Vec<Vec<PolytopeId>>> {
         if no_internal && self.is_internal(p)? {
             return Ok(vec![]);
         }
@@ -456,7 +485,7 @@ impl PolytopeArena {
     }
 
     /// Adds all descendents of a polytope to a set.
-    fn add_descendents_to_set(
+    pub fn add_descendents_to_set(
         &self,
         root: PolytopeId,
         descendents: &mut HashSet<PolytopeId>,
@@ -716,14 +745,16 @@ impl PolytopeArena {
         Ok(())
     }
 
+    /// Returns the centroid for each root polytope.
     pub fn compute_centroids(&self) -> Result<BTreeMap<PolytopeId, Vector>> {
         let mut cache = BTreeMap::new();
-        self.roots
+        let _: Result<Vec<_>> = self
+            .roots
             .iter()
             .map(|&id| Ok((id, self.compute_mass(&mut cache, id)?.com)))
-            .collect()
+            .collect();
+        Ok(cache.into_iter().map(|(p, mass)| (p, mass.com)).collect())
     }
-
     /// Returns the mass of a non-point polytope.
     fn compute_mass(&self, cache: &mut BTreeMap<PolytopeId, Mass>, p: PolytopeId) -> Result<Mass> {
         // In this function, the terms "mass" and "volume" are used pretty much
@@ -745,7 +776,7 @@ impl PolytopeArena {
 
                 Mass {
                     mass: (a - b).into(),
-                    com: a + b,
+                    com: (a + b) * 0.5,
                 }
             }
 
@@ -789,11 +820,66 @@ impl PolytopeArena {
         cache.insert(p, result.clone());
         Ok(result)
     }
+
+    /// Returns, for each polytope, the set of facets it is a part of. If a
+    /// point is not in the returned map, it is not a member of any facet.
+    pub fn adj_facets(&self) -> Result<BTreeMap<PolytopeId, Set64<Facet>>> {
+        // TODO: consider tracking the facet set as the polytope is constructed,
+        // especially since Set64 is so cheap!
+        let mut results: BTreeMap<PolytopeId, Set64<Facet>> = BTreeMap::new();
+        for &root in &self.roots {
+            for &facet_polytope in self.get(root)?.children()? {
+                if let &Polytope::Branch {
+                    location: Some(FacetLocation::Boundary(facet)),
+                    ..
+                } = self.get(facet_polytope)?
+                {
+                    self.visit_recursively(facet_polytope, |current| {
+                        Ok(results.entry(current).or_default().insert(facet))
+                    })?;
+                };
+            }
+        }
+        Ok(results)
+    }
+
+    fn visit_recursively(
+        &self,
+        start: PolytopeId,
+        mut visit: impl FnMut(PolytopeId) -> Result<bool>,
+    ) -> Result<()> {
+        let mut stack = vec![start];
+        while let Some(next_id) = stack.pop() {
+            if visit(next_id)? {
+                if let Ok(children) = self.get(next_id)?.children() {
+                    stack.extend_from_slice(children);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    // /// Clamps a point to within the bounds of a polytope.
+    // pub fn clamp_point(&self, point: Vector, p: PolytopeId) -> Result<Vector> {
+    //     // Get a list of all the points in the polytope.
+    //     let mut descendents = HashSet::new();
+    //     self.add_descendents_to_set(p, &mut descendents)?;
+    //     // Compute *some* point in the center of the polytope.
+    //     let points = descendents.iter().filter_map(|id|self.get(id).ok()?.point().ok()?);
+    //     let center = points =
+    //     let points = descendents
+    //         .into_iter()
+    //         .filter_map(|id| Some(self.get(id).ok()?.point().ok()?))
+    //         .collect_vec();
+
+    //     todo!()
+    // }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mass {
-    /// Lebasgue measure. https://en.wikipedia.org/wiki/Lebesgue_measure
+    /// Lebasgue measure (https://en.wikipedia.org/wiki/Lebesgue_measure) as a
+    /// blade.
     mass: Multivector,
     /// Center of mass.
     com: Vector,

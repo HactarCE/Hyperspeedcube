@@ -2024,6 +2024,7 @@ dependencies = [
  "smallvec",
  "strum",
  "thiserror",
+ "tinyset",
 ]
 
 [[package]]
@@ -3045,6 +3046,15 @@ checksum = "3c3f9a28b618c3a6b9251b6908e9c99e04b9e5c02e6581ccbb67d59c34ef7f9b"
 dependencies = [
  "libc",
  "num_threads",
+]
+
+[[package]]
+name = "tinyset"
+version = "0.4.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2417e47ddd3809ad40222777ac754ee881b3a6401e38cbeeeb3ee1ca5f30aa0"
+dependencies = [
+ "rand",
 ]
 
 [[package]]

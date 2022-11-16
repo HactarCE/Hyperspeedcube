@@ -3,13 +3,15 @@ use anyhow::{Context, Result};
 use approx::{abs_diff_eq, AbsDiffEq};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
+use tinyset::Set64;
 
-use super::Piece;
 use super::PuzzleTwists;
 use super::TwistAxisInfo;
 use super::TwistDirectionInfo;
 use super::{spec::*, TwistDirection};
+use super::{Facet, Piece};
 use super::{PuzzleInfo, TwistCut};
 use crate::math::*;
 use crate::polytope::*;
@@ -17,7 +19,7 @@ use crate::polytope::*;
 use super::PuzzleState;
 use super::PuzzleType;
 
-const NO_INTERNAL: bool = true;
+const NO_INTERNAL: bool = false;
 
 const MAX_TWIST_PERIOD: usize = 10;
 
@@ -73,6 +75,8 @@ impl JumblingPuzzleSpec {
         }
 
         let piece_centers = polytopes.compute_centroids()?;
+        let adj_facets = polytopes.adj_facets()?;
+        let mut facet_meet_cache: HashMap<Set64<Facet>, FacetMeet> = HashMap::new();
 
         let piece_polytope_ids = polytopes.roots.iter().copied().collect_vec();
 
@@ -81,24 +85,110 @@ impl JumblingPuzzleSpec {
         for &piece in &piece_polytope_ids {
             let i = sticker_infos.len() as u16;
             let stickers = polytopes.polytope_facet_ids(piece, NO_INTERNAL)?;
+            let piece_facets: Set64<Facet> = stickers
+                .iter()
+                .filter_map(|&s| polytopes.polytope_location(s).ok())
+                .collect();
+            let adj_facets: BTreeMap<PolytopeId, Set64<Facet>> = adj_facets
+                .iter()
+                .map(|(&p, facets)| {
+                    (
+                        p,
+                        facets.iter().filter(|f| piece_facets.contains(f)).collect(),
+                    )
+                })
+                .collect();
 
-            sticker_infos.extend(stickers.iter().map(|&id| {
-                let IndexedPolygons { verts, polys } = polytopes
-                    .polytope_indexed_polygons(id, NO_INTERNAL)
-                    .unwrap_or_default();
+            let piece_center = piece_centers.get(&piece).context("missing piece center")?;
 
-                super::StickerInfo {
-                    piece: super::Piece(piece_infos.len() as u16),
-                    color: polytopes.polytope_location(id).unwrap_or(super::Facet(0)),
+            for &id in &stickers {
+                let color = polytopes.polytope_location(id).unwrap_or(super::Facet(0));
+                let mut points: Vec<Vector> = vec![];
+                let mut shrink_vectors: Vec<Vector> = vec![];
+                let mut vertex_map = HashMap::new();
+                let mut polygons: Vec<Vec<u16>> = vec![];
+                for point_ids in polytopes.polytope_polygons(id, NO_INTERNAL)? {
+                    let mut polygon = vec![];
+                    for point_id in point_ids {
+                        let vertex_id_within_sticker =
+                            vertex_map.entry(point_id).or_insert_with(|| {
+                                let vector =
+                                    polytopes.get_point(point_id).expect("TODO: don't panic");
+                                points.push(vector.clone());
 
-                    points: verts,
-                    polygons: polys.into_iter().map(|p| p.0).collect(),
-                    sticker_shrink_origin: piece_centers
-                        .get(&piece)
-                        .unwrap_or(&Vector::EMPTY)
-                        .clone(),
+                                let shrink_vector = piece_center - vector;
+                                shrink_vectors.push(
+                                    // 1. Get all the facets that contain this point.
+                                    if let Some(facet_set) = adj_facets.get(&point_id) {
+                                        // 2. Find all polytopes contained by a
+                                        //    superset of those facets.
+                                        let mut desc = HashSet::new();
+                                        polytopes
+                                            .add_descendents_to_set(piece, &mut desc)
+                                            .expect("TODO don't panic");
+                                        let polytopes_with_superset = desc
+                                            .iter()
+                                            .filter_map(|p| Some((p, adj_facets.get(p)?)))
+                                            .filter(|(_, adj)| {
+                                                facet_set.iter().all(|f| adj.contains(f))
+                                            })
+                                            .collect_vec();
+                                        // 3. Within each rank, get the
+                                        //    polytopes with the largest
+                                        //    superset.
+                                        let polytopes_with_largest_superset_per_rank = (0..ndim)
+                                            .map(|rank| {
+                                                let size_of_largest_superset =
+                                                    polytopes_with_superset
+                                                        .iter()
+                                                        .filter(|(&p, _)| {
+                                                            polytopes.get_rank(p).unwrap() == rank
+                                                        })
+                                                        .map(|(_, adj)| adj.len())
+                                                        .max()
+                                                        .unwrap_or(0);
+                                                polytopes_with_superset
+                                                    .iter()
+                                                    .filter(|(&p, adj)| {
+                                                        polytopes.get_rank(p).unwrap() == rank
+                                                            && adj.len() == size_of_largest_superset
+                                                    })
+                                                    .collect_vec()
+                                            })
+                                            .collect_vec();
+
+                                        // I'm feeling lazy, so average the
+                                        // points with the largest superset.
+                                        let center = polytopes_with_largest_superset_per_rank[0]
+                                            .iter()
+                                            .map(|(&p, _)| polytopes.get_point(p).unwrap())
+                                            .sum::<Vector>()
+                                            / polytopes_with_largest_superset_per_rank[0].len()
+                                                as f32;
+
+                                        center - vector
+                                    } else {
+                                        shrink_vector
+                                    },
+                                );
+
+                                points.len() as u16 - 1
+                            });
+
+                        polygon.push(*vertex_id_within_sticker);
+                    }
+                    polygons.push(polygon);
                 }
-            }));
+
+                sticker_infos.push(super::StickerInfo {
+                    piece: super::Piece(piece_infos.len() as u16),
+                    color,
+
+                    points,
+                    shrink_vectors,
+                    polygons,
+                });
+            }
             let j = sticker_infos.len() as u16;
             piece_infos.push(super::PieceInfo {
                 stickers: (i..j).map(super::Sticker).collect(),
@@ -393,3 +483,41 @@ pub struct TwistId {
 }
 
 pub struct AxisId(pub usize);
+
+/// Subspace at the intersection of a set of facets.
+struct FacetMeet {
+    /// Dual of that intersection.
+    dual: Multivector,
+}
+impl FacetMeet {
+    pub fn from_normals<V: VectorRef>(normals: impl IntoIterator<Item = V>) -> Self {
+        // The intersection ("meet") is the dual of the exterior product. This
+        // dual is much easier to work with in this case.
+
+        let dual = normals
+            .into_iter()
+            .fold(Multivector::scalar(1.0), |m, normal| {
+                // Compute the exterior product.
+                let new_result = &m ^ &Multivector::from(normal);
+                // If the exterior product is zero, then the new normal is
+                // parallel to `m` so we don't need it.
+                if new_result.is_approx_zero() {
+                    m
+                } else {
+                    new_result
+                }
+            })
+            .normalize()
+            .unwrap_or(Multivector::scalar(1.0));
+
+        Self { dual }
+    }
+
+    /// Projects a vector onto the subspace.
+    pub fn project_vector(&self, vector: impl VectorRef) -> Vector {
+        let ret = ((&self.dual ^ &Multivector::from(&vector)) * self.dual.conjugate())
+            .grade_project_to_vector();
+        dbg!(ret.mag(), vector.mag());
+        ret
+    }
+}

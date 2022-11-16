@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use smallvec::SmallVec;
 
 use crate::math::{abs_diff_cmp, Rotoreflector, Vector, VectorRef};
@@ -39,6 +40,16 @@ pub struct TwistDirection(pub u8); // TODO: expand to u16
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PieceType(pub u8);
 
+macro_rules! impl_fits64 {
+    ($($ty:ty),* $(,)?) => { $(
+        impl tinyset::Fits64 for $ty {
+            unsafe fn from_u64(x: u64) -> Self { Self(x as _) }
+            fn to_u64(self) -> u64 { self.0 as u64 }
+        }
+    )* };
+}
+impl_fits64!(Piece, Sticker, Facet, TwistAxis, TwistDirection, PieceType);
+
 /// Piece metadata.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PieceInfo {
@@ -54,14 +65,19 @@ pub struct StickerInfo {
     pub color: Facet,
 
     pub points: Vec<Vector>,
+    pub shrink_vectors: Vec<Vector>,
     pub polygons: Vec<Vec<u16>>,
-    pub sticker_shrink_origin: Vector,
 }
 /// Facet metadata.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FacetInfo {
     pub name: String, // e.g., "Right"
     pub pole: Vector, // face shrink origin
+}
+impl FacetInfo {
+    pub fn normal(&self) -> Result<Vector> {
+        self.pole.normalize().context("facet intersects origin")
+    }
 }
 
 /// Twist axis metadata.
