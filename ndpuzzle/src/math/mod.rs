@@ -18,7 +18,7 @@ pub use multivector::*;
 pub use vector::*;
 
 /// Small floating-point value used for comparisons and tiny offsets.
-pub const EPSILON: f32 = 0.00001;
+pub const EPSILON: f32 = 0.0001;
 
 /// Compares two numbers, but considers them equal if they are separated by less
 /// than `EPSILON`.

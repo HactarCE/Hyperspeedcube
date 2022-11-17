@@ -19,7 +19,7 @@ use crate::polytope::*;
 use super::PuzzleState;
 use super::PuzzleType;
 
-const NO_INTERNAL: bool = false;
+const NO_INTERNAL: bool = true;
 
 const MAX_TWIST_PERIOD: usize = 10;
 
@@ -278,7 +278,7 @@ impl TwistsSpec {
                         .collect(),
                     opposite: None,
 
-                    reference_frame: reference_frame * &base_frame,
+                    reference_frame: (reference_frame * &base_frame).reverse(),
                 });
                 sym = ((sym as u8) + 1) as char;
             }

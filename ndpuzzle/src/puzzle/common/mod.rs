@@ -224,6 +224,7 @@ pub trait PuzzleState: fmt::Debug + Send + Sync {
             }
         }
         if lo != hi {
+            println!("yikes bandaging");
             // TODO: handle bandaging
         }
         lo as u8
