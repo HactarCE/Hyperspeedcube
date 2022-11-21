@@ -7,6 +7,8 @@ use std::fmt;
 use std::iter::Sum;
 use std::ops::{Add, AddAssign, BitXor, BitXorAssign, Mul, MulAssign, Neg};
 
+use itertools::Itertools;
+
 use crate::math::*;
 
 const AXIS_NAMES: &[char] = &['X', 'Y', 'Z', 'W', 'U', 'V', 'R', 'S'];
@@ -63,14 +65,14 @@ impl Mul for Blade {
 }
 impl Blade {
     /// Constructs a scalar blade.
-    pub fn scalar(x: f32) -> Self {
+    pub const fn scalar(x: f32) -> Self {
         Self { coef: x, axes: 0 }
     }
 
     /// Returns the grade of the blade, which is the number of dimensions in its
     /// subspace. Every grade can be represented as an exterior product of no
     /// fewer than _r_ vectors, where _r_ is the blade's grade.
-    pub fn grade(self) -> u8 {
+    pub const fn grade(self) -> u8 {
         self.axes.count_ones() as u8
     }
 
@@ -758,9 +760,8 @@ impl_forward_bin_ops_to_ref! {
 fn axes_to_string(axes: u32) -> String {
     std::iter::successors(Some(axes), |a| Some(a >> 1))
         .take_while(|&a| a != 0)
-        .enumerate()
-        .filter(|&(_, a)| a & 1 != 0)
-        .map(|(i, _)| AXIS_NAMES.get(i).copied().unwrap_or('?'))
+        .positions(|a| a & 1 != 0)
+        .map(|i| AXIS_NAMES.get(i).copied().unwrap_or('?'))
         .collect()
 }
 

@@ -2,10 +2,11 @@
 //! splitting.
 
 use cgmath::*;
+use itertools::Itertools;
 use smallvec::SmallVec;
 
 use super::{ClickTwists, Sticker, Twist};
-use crate::util::{self, IterCyclicPairsExt};
+use crate::util;
 
 const W_NEAR_CLIPPING_DIVISOR: f32 = 0.1;
 const Z_NEAR_CLIPPING_DIVISOR: f32 = 0.0;
@@ -264,7 +265,7 @@ impl Polygon {
                 .verts
                 .iter()
                 .map(|v| cgmath::point2(v.x, v.y))
-                .cyclic_pairs()
+                .circular_tuple_windows()
                 .all(|(a, b)| (b - a).perp_dot(point - a) <= 0.0)
     }
 }

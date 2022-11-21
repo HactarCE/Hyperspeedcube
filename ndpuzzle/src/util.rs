@@ -2,50 +2,6 @@ use tinyset::Set64;
 
 use cgmath::*;
 
-pub struct CyclicPairsIter<I: Iterator> {
-    first: Option<I::Item>,
-    prev: Option<I::Item>,
-    rest: I,
-}
-impl<I> Iterator for CyclicPairsIter<I>
-where
-    I: Iterator,
-    I::Item: Clone,
-{
-    type Item = (I::Item, I::Item);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        Some(match self.rest.next() {
-            Some(curr) => (self.prev.replace(curr.clone())?, curr),
-            None => (self.prev.take()?, self.first.take()?),
-        })
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let (lo, hi) = self.rest.size_hint();
-        (lo.saturating_add(1), hi.and_then(|x| x.checked_add(1)))
-    }
-}
-
-pub trait IterCyclicPairsExt: Iterator + Sized {
-    fn cyclic_pairs(self) -> CyclicPairsIter<Self>;
-}
-impl<I> IterCyclicPairsExt for I
-where
-    I: Iterator,
-    I::Item: Clone,
-{
-    fn cyclic_pairs(mut self) -> CyclicPairsIter<Self> {
-        let first = self.next();
-        let prev = first.clone();
-        CyclicPairsIter {
-            first,
-            prev,
-            rest: self,
-        }
-    }
-}
-
 /// Iterator with a manually-specified exact size.
 #[derive(Debug, Clone)]
 pub struct WithExactSizeIter<I> {

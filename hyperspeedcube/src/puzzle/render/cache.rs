@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use itertools::Itertools;
 use ndpuzzle::math::VectorRef;
 use ndpuzzle::puzzle::PuzzleType;
-use ndpuzzle::util::IterCyclicPairsExt;
 use std::fmt;
 
 use super::structs::*;
@@ -171,7 +170,7 @@ impl PuzzleRenderCache {
                     }
 
                     // For each triangle in each polygon ...
-                    for (b, c) in (1..polygon.len()).cyclic_pairs() {
+                    for (b, c) in (1..polygon.len()).circular_tuple_windows() {
                         current_sticker_indices.extend([
                             vertex_data_list_base,
                             vertex_data_list_base + b as u32,
