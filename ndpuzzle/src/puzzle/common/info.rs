@@ -66,7 +66,7 @@ pub struct StickerInfo {
 
     pub points: Vec<Vector>,
     pub shrink_vectors: Vec<Vector>,
-    pub polygons: Vec<Vec<u16>>,
+    pub polygons: Vec<SmallVec<[u16; 8]>>,
 }
 /// Facet metadata.
 #[derive(Debug, Clone, PartialEq)]

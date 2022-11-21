@@ -7,6 +7,7 @@ repository = "https://github.com/HactarCE/Hyperspeedcube/"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+ahash = "0.8.2"
 anyhow = "1.0.65"
 approx = "0.5.1"
 cgmath = "0.18.0"

@@ -1,23 +1,14 @@
+use ahash::AHashMap;
 use anyhow::bail;
 use anyhow::{Context, Result};
 use approx::{abs_diff_eq, AbsDiffEq};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
-use tinyset::Set64;
 
-use super::PuzzleTwists;
-use super::TwistAxisInfo;
-use super::TwistDirectionInfo;
-use super::{spec::*, TwistDirection};
-use super::{Facet, Piece};
-use super::{PuzzleInfo, TwistCut};
+use super::{spec::*, *};
 use crate::math::*;
 use crate::polytope::*;
-
-use super::PuzzleState;
-use super::PuzzleType;
 
 const NO_INTERNAL: bool = true;
 
@@ -74,114 +65,58 @@ impl JumblingPuzzleSpec {
             }
         }
 
-        let piece_centers = polytopes.compute_centroids()?;
-        let adj_facets = polytopes.adj_facets()?;
-        let mut facet_meet_cache: HashMap<Set64<Facet>, FacetMeet> = HashMap::new();
-
-        let piece_polytope_ids = polytopes.roots.iter().copied().collect_vec();
-
         let mut piece_infos = vec![];
         let mut sticker_infos = vec![];
-        for &piece in &piece_polytope_ids {
+        for piece in polytopes.roots() {
+            let shrink_vectors = piece.shrink_vectors(ShrinkStrategy::default())?;
+
             let i = sticker_infos.len() as u16;
-            let stickers = polytopes.polytope_facet_ids(piece, NO_INTERNAL)?;
-            let piece_facets: Set64<Facet> = stickers
-                .iter()
-                .filter_map(|&s| polytopes.polytope_location(s).ok())
-                .collect();
-            let adj_facets: BTreeMap<PolytopeId, Set64<Facet>> = adj_facets
-                .iter()
-                .map(|(&p, facets)| {
-                    (
-                        p,
-                        facets.iter().filter(|f| piece_facets.contains(f)).collect(),
-                    )
-                })
-                .collect();
+            for sticker in piece.children()? {
+                let color = match sticker.facet_set()?.iter().next() {
+                    Some(facet) => facet,
+                    None if NO_INTERNAL => continue,
+                    None => Facet(0), // TODO: make facet optional
+                };
 
-            let piece_center = piece_centers.get(&piece).context("missing piece center")?;
+                let point_polytopes = sticker.descendent_points()?.collect_vec();
 
-            for &id in &stickers {
-                let color = polytopes.polytope_location(id).unwrap_or(super::Facet(0));
-                let mut points: Vec<Vector> = vec![];
-                let mut shrink_vectors: Vec<Vector> = vec![];
-                let mut vertex_map = HashMap::new();
-                let mut polygons: Vec<Vec<u16>> = vec![];
-                for point_ids in polytopes.polytope_polygons(id, NO_INTERNAL)? {
-                    let mut polygon = vec![];
-                    for point_id in point_ids {
-                        let vertex_id_within_sticker =
-                            vertex_map.entry(point_id).or_insert_with(|| {
-                                let vector =
-                                    polytopes.get_point(point_id).expect("TODO: don't panic");
-                                points.push(vector.clone());
+                // Map from the IDs used by `PolytopeArena` to the IDs within
+                // this sticker.
+                let point_id_map: AHashMap<PolytopeRef<'_>, u16> = point_polytopes
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &vert)| (vert, i as u16))
+                    .collect();
 
-                                let shrink_vector = piece_center - vector;
-                                shrink_vectors.push(
-                                    // 1. Get all the facets that contain this point.
-                                    if let Some(facet_set) = adj_facets.get(&point_id) {
-                                        // 2. Find all polytopes contained by a
-                                        //    superset of those facets.
-                                        let mut desc = HashSet::new();
-                                        polytopes
-                                            .add_descendents_to_set(piece, &mut desc)
-                                            .expect("TODO don't panic");
-                                        let polytopes_with_superset = desc
-                                            .iter()
-                                            .filter_map(|p| Some((p, adj_facets.get(p)?)))
-                                            .filter(|(_, adj)| {
-                                                facet_set.iter().all(|f| adj.contains(f))
-                                            })
-                                            .collect_vec();
-                                        // 3. Within each rank, get the
-                                        //    polytopes with the largest
-                                        //    superset.
-                                        let polytopes_with_largest_superset_per_rank = (0..ndim)
-                                            .map(|rank| {
-                                                let size_of_largest_superset =
-                                                    polytopes_with_superset
-                                                        .iter()
-                                                        .filter(|(&p, _)| {
-                                                            polytopes.get_rank(p).unwrap() == rank
-                                                        })
-                                                        .map(|(_, adj)| adj.len())
-                                                        .max()
-                                                        .unwrap_or(0);
-                                                polytopes_with_superset
-                                                    .iter()
-                                                    .filter(|(&p, adj)| {
-                                                        polytopes.get_rank(p).unwrap() == rank
-                                                            && adj.len() == size_of_largest_superset
-                                                    })
-                                                    .collect_vec()
-                                            })
-                                            .collect_vec();
+                let points = point_polytopes
+                    .iter()
+                    .map(|point| point.point().cloned())
+                    .try_collect()?;
 
-                                        // I'm feeling lazy, so average the
-                                        // points with the largest superset.
-                                        let center = polytopes_with_largest_superset_per_rank[0]
-                                            .iter()
-                                            .map(|(&p, _)| polytopes.get_point(p).unwrap())
-                                            .sum::<Vector>()
-                                            / polytopes_with_largest_superset_per_rank[0].len()
-                                                as f32;
+                let shrink_vectors = point_polytopes
+                    .iter()
+                    .map(|&point| {
+                        shrink_vectors
+                            .get(sticker, point)
+                            .cloned()
+                            .context("missing shrink vector")
+                    })
+                    .try_collect()?;
 
-                                        center - vector
-                                    } else {
-                                        shrink_vector
-                                    },
-                                );
+                let polygons = sticker
+                    .descendents_with_rank_at_least(2)?
+                    .into_iter()
+                    .filter(|p| p.rank() == 2)
+                    .map(|polygon| {
+                        polygon
+                            .polygon_verts()?
+                            .map(|point| point_id_map.get(&point).copied().context("missing point"))
+                            .collect()
+                    })
+                    .try_collect()?;
 
-                                points.len() as u16 - 1
-                            });
-
-                        polygon.push(*vertex_id_within_sticker);
-                    }
-                    polygons.push(polygon);
-                }
-
-                sticker_infos.push(super::StickerInfo {
-                    piece: super::Piece(piece_infos.len() as u16),
+                sticker_infos.push(StickerInfo {
+                    piece: Piece(piece_infos.len() as u16),
                     color,
 
                     points,
@@ -190,11 +125,15 @@ impl JumblingPuzzleSpec {
                 });
             }
             let j = sticker_infos.len() as u16;
-            piece_infos.push(super::PieceInfo {
-                stickers: (i..j).map(super::Sticker).collect(),
-                piece_type: super::PieceType(0),
 
-                points: polytopes.polytope_vertices(piece)?,
+            piece_infos.push(PieceInfo {
+                stickers: (i..j).map(Sticker).collect(),
+                piece_type: PieceType(0),
+
+                points: piece
+                    .descendent_points()?
+                    .map(|point| point.point().cloned())
+                    .try_collect()?,
             })
         }
 
@@ -207,15 +146,15 @@ impl JumblingPuzzleSpec {
             twists: Arc::new(twists),
             family_name: "Fun".to_string(),
             projection_type: match ndim {
-                0..=3 => super::ProjectionType::_3D,
-                _ => super::ProjectionType::_4D,
+                0..=3 => ProjectionType::_3D,
+                _ => ProjectionType::_4D,
             },
             layer_count: 9,
             pieces: piece_infos,
             stickers: sticker_infos,
-            piece_types: vec![super::PieceTypeInfo::new("Piece".to_string())],
+            piece_types: vec![PieceTypeInfo::new("Piece".to_string())],
             scramble_moves_count: 100,
-            notation: super::NotationScheme {
+            notation: NotationScheme {
                 axis_names: vec![],
                 direction_names: vec![],
                 block_suffix: None,
@@ -413,7 +352,7 @@ impl PuzzleState for JumblingPuzzle {
         Box::new(self.clone())
     }
 
-    fn twist(&mut self, twist: super::Twist) -> Result<(), &'static str> {
+    fn twist(&mut self, twist: Twist) -> Result<(), &'static str> {
         let reference_frame = &self.ty.info(twist.axis).reference_frame;
         let transform = reference_frame
             .reverse()
@@ -427,7 +366,7 @@ impl PuzzleState for JumblingPuzzle {
         Ok(())
     }
 
-    fn piece_transform(&self, p: super::Piece) -> Matrix {
+    fn piece_transform(&self, p: Piece) -> Matrix {
         self.piece_states[p.0 as usize]
             .matrix()
             .at_ndim(self.ty.ndim())
@@ -439,11 +378,11 @@ impl PuzzleState for JumblingPuzzle {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Twist {
+pub struct JumblingTwist {
     pub layer: u8,
     pub transform: Matrix,
 }
-impl approx::AbsDiffEq for Twist {
+impl approx::AbsDiffEq for JumblingTwist {
     type Epsilon = f32;
 
     fn default_epsilon() -> Self::Epsilon {
@@ -483,41 +422,3 @@ pub struct TwistId {
 }
 
 pub struct AxisId(pub usize);
-
-/// Subspace at the intersection of a set of facets.
-struct FacetMeet {
-    /// Dual of that intersection.
-    dual: Multivector,
-}
-impl FacetMeet {
-    pub fn from_normals<V: VectorRef>(normals: impl IntoIterator<Item = V>) -> Self {
-        // The intersection ("meet") is the dual of the exterior product. This
-        // dual is much easier to work with in this case.
-
-        let dual = normals
-            .into_iter()
-            .fold(Multivector::scalar(1.0), |m, normal| {
-                // Compute the exterior product.
-                let new_result = &m ^ &Multivector::from(normal);
-                // If the exterior product is zero, then the new normal is
-                // parallel to `m` so we don't need it.
-                if new_result.is_approx_zero() {
-                    m
-                } else {
-                    new_result
-                }
-            })
-            .normalize()
-            .unwrap_or(Multivector::scalar(1.0));
-
-        Self { dual }
-    }
-
-    /// Projects a vector onto the subspace.
-    pub fn project_vector(&self, vector: impl VectorRef) -> Vector {
-        let ret = ((&self.dual ^ &Multivector::from(&vector)) * self.dual.conjugate())
-            .grade_project_to_vector();
-        dbg!(ret.mag(), vector.mag());
-        ret
-    }
-}
