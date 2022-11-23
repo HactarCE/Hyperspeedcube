@@ -51,7 +51,7 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
         if let Some(total_rect) = areas.iter().map(|area| area.rect).reduce(egui::Rect::union) {
             // How much space is available?
             let max_scale = ui.available_size() / total_rect.size();
-            let scale = max_scale.min_elem().at_least(min_scale).ceil();
+            let scale = max_scale.x.at_least(min_scale).round();
             // Allocate that much space.
             let (_id, rect) = ui.allocate_space(total_rect.size() * scale);
             let origin = rect.min - total_rect.min.to_vec2() * scale;
