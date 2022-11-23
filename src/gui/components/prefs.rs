@@ -216,6 +216,13 @@ pub fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
              the mouse is released after dragging to rotate it.",
         );
     prefs_ui
+        .checkbox("Realign puzzle on keypress", access!(.realign_on_keypress))
+        .on_hover_explanation(
+            "",
+            "When enabled, the puzzle snaps back immediately when \
+             the keyboard is used to grip or do a move.",
+        );
+    prefs_ui
         .checkbox("Smart realign", access!(.smart_realign))
         .on_hover_explanation(
             "",

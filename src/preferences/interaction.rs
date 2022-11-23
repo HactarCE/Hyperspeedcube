@@ -7,6 +7,7 @@ pub struct InteractionPreferences {
 
     pub drag_sensitivity: f32,
     pub realign_on_release: bool,
+    pub realign_on_keypress: bool,
     pub smart_realign: bool,
 
     pub dynamic_twist_speed: bool,

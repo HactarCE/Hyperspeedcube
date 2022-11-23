@@ -333,7 +333,11 @@ impl App {
                     layers,
                 } => {
                     if !done_twist_command {
-                        self.puzzle.unfreeze_view_angle_offset();
+                        if self.prefs.interaction.realign_on_keypress {
+                            self.puzzle.unfreeze_view_angle_offset();
+                        } else {
+                            self.puzzle.apply_transient_rotation();
+                        }
                         let layers = layers.to_layer_mask(self.puzzle.layer_count());
                         match self.do_twist(axis.as_deref(), direction, layers) {
                             Ok(()) => {
@@ -346,7 +350,11 @@ impl App {
                 }
                 PuzzleCommand::Recenter { axis } => {
                     if !done_twist_command {
-                        self.puzzle.unfreeze_view_angle_offset();
+                        if self.prefs.interaction.realign_on_keypress {
+                            self.puzzle.unfreeze_view_angle_offset();
+                        } else {
+                            self.puzzle.apply_transient_rotation();
+                        }
                         match self.do_recenter(axis.as_deref()) {
                             Ok(()) => {
                                 done_twist_command = true;
@@ -590,7 +598,7 @@ impl App {
     }
 
     pub(crate) fn frame(&mut self, _delta: Duration) {
-        self.puzzle.set_grip(self.grip());
+        self.puzzle.set_grip(self.grip(), &self.prefs.interaction);
 
         if self.puzzle.check_just_solved() {
             self.set_status_ok("Solved!");

@@ -309,9 +309,11 @@ impl PuzzleController {
         &self.grip
     }
     /// Sets the puzzle grip.
-    pub fn set_grip(&mut self, grip: Grip) {
-        if grip != self.grip && !grip.axes.is_empty() {
+    pub fn set_grip(&mut self, grip: Grip, prefs: &InteractionPreferences) {
+        if grip != self.grip && !grip.axes.is_empty() && prefs.realign_on_keypress {
             self.unfreeze_view_angle_offset();
+        } else {
+            self.apply_transient_rotation();
         }
         self.grip = grip;
     }

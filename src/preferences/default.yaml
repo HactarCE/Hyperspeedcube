@@ -16,6 +16,7 @@ interaction:
   confirm_discard_only_when_scrambled: true
   drag_sensitivity: 0.7
   realign_on_release: false
+  realign_on_keypress: true
   smart_realign: true
   dynamic_twist_speed: true
   twist_duration: 0.2
