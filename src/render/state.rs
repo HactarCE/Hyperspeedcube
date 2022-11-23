@@ -24,14 +24,7 @@ impl GraphicsState {
         let surface = unsafe { instance.create_surface(&window) };
 
         // Request adapter.
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            })
-            .await
-            .expect("unable to request graphics adapter");
+        let adapter = request_adapter(&instance, &surface).await;
 
         // Request device.
         let (device, queue) = adapter
@@ -160,4 +153,22 @@ impl GraphicsState {
         let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
         (tex, view)
     }
+}
+
+async fn request_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::Adapter {
+    let mut opts = wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::HighPerformance,
+        compatible_surface: Some(&surface),
+        force_fallback_adapter: false,
+    };
+
+    if let Some(adapter) = instance.request_adapter(&opts).await {
+        return adapter;
+    }
+    opts.force_fallback_adapter = true;
+    if let Some(adapter) = instance.request_adapter(&opts).await {
+        return adapter;
+    }
+
+    panic!("unable to request graphics adapter")
 }
