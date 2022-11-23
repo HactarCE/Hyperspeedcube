@@ -10,11 +10,13 @@ mod hyperplane;
 mod matrix;
 mod multivector;
 pub mod permutations;
+mod subspace;
 pub mod util;
 
 pub use hyperplane::*;
 pub use matrix::*;
 pub use multivector::*;
+pub use subspace::*;
 pub use vector::*;
 
 /// Small floating-point value used for comparisons and tiny offsets.

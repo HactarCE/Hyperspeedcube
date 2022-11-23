@@ -1,0 +1,15 @@
+name: Megaminx
+shape:
+  name: Dodecahedron
+  ndim: 3
+  facets:
+    - symmetry:
+        - schlafli: 5,3
+      seeds:
+        - [0, 0, 1]
+twists:
+  - symmetry:
+      - schlafli: 5,3
+    axes:
+      - normal: [0, 0, 1]
+        cuts: [0.8]

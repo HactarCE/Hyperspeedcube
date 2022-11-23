@@ -1,0 +1,18 @@
+name: Duoprism {3}x{5}
+shape:
+  name: Duoprism {3}x{5}
+  ndim: 4
+  facets:
+    - symmetry:
+        - schlafli: 3,2,5
+      seeds:
+        - [0, 0, 0, 1]
+        - [0, 1, 0, 0]
+twists:
+  - symmetry:
+      - schlafli: 3,2,5
+    axes:
+      - normal: [0, 0, 0, 1]
+        cuts: [0.5]
+      - normal: [0, 1, 0, 0]
+        cuts: [0.5]
