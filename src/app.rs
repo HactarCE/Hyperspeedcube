@@ -419,6 +419,22 @@ impl App {
                     }
                     return; // Do not try to match other keybinds.
                 }
+                PuzzleCommand::ViewPreset { view_preset_name } => {
+                    let presets = match self.puzzle.ty().projection_type() {
+                        ProjectionType::_3D => &mut self.prefs.view_3d,
+                        ProjectionType::_4D => &mut self.prefs.view_4d,
+                    };
+                    if let Some(preset) = presets
+                        .presets
+                        .iter()
+                        .find(|p| &p.preset_name == view_preset_name)
+                    {
+                        let old = std::mem::replace(&mut presets.current, preset.value.clone());
+                        self.puzzle.animate_from_view_settings(old);
+                        presets.active_preset = Some(preset.clone());
+                        self.prefs.needs_save = true;
+                    }
+                }
 
                 PuzzleCommand::None => return, // Do not try to match other keybinds.
             }

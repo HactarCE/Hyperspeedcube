@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - "Clip 4D" option (enabled by default)
 - "Realign on keypress" option (enabled by default)
+- Keybinding command to select custom view presets (not bound by default)
 - Easter egg
 
 ### Changed

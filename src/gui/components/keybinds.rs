@@ -333,6 +333,13 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
                             .cloned()
                             .unwrap_or_default(),
                     },
+                    "View preset" => Cmd::ViewPreset {
+                        view_preset_name: self
+                            .cmd
+                            .view_preset_name_mut()
+                            .cloned()
+                            .unwrap_or_default(),
+                    },
                 }
             );
             changed |= r.changed();
@@ -400,6 +407,25 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
                     .on_hover_explanation(
                         "",
                         "You can manage keybind sets in Settings ➡ Keybind sets.",
+                    );
+                changed |= r.changed();
+            }
+            if let Some(view_preset_name) = self.cmd.view_preset_name_mut() {
+                let r = ui
+                    .add(FancyComboBox::new(
+                        unique_id!(self.idx),
+                        view_preset_name,
+                        match puzzle_type.projection_type() {
+                            ProjectionType::_3D => &self.prefs.view_3d,
+                            ProjectionType::_4D => &self.prefs.view_4d,
+                        }
+                        .presets
+                        .iter()
+                        .map(|preset| &preset.preset_name),
+                    ))
+                    .on_hover_explanation(
+                        "",
+                        "You can manage view presets in Settings ➡ View presets.",
                     );
                 changed |= r.changed();
             }

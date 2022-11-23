@@ -109,6 +109,10 @@ pub enum PuzzleCommand {
         #[serde(default)]
         keybind_set_name: String,
     },
+    ViewPreset {
+        #[serde(default)]
+        view_preset_name: String,
+    },
 
     #[default]
     #[serde(other)]
@@ -164,6 +168,7 @@ impl PuzzleCommand {
             },
 
             PuzzleCommand::KeybindSet { keybind_set_name } => format!("{keybind_set_name}"),
+            PuzzleCommand::ViewPreset { view_preset_name } => format!("{view_preset_name}"),
 
             PuzzleCommand::None => String::new(),
         }
@@ -206,6 +211,14 @@ impl PuzzleCommand {
             Self::KeybindSet {
                 keybind_set_name, ..
             } => Some(keybind_set_name),
+            _ => None,
+        }
+    }
+    pub fn view_preset_name_mut(&mut self) -> Option<&mut String> {
+        match self {
+            Self::ViewPreset {
+                view_preset_name, ..
+            } => Some(view_preset_name),
             _ => None,
         }
     }

@@ -227,6 +227,11 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                     ui.strong(keybind_set_name);
                     ui.label("keybinds");
                 }
+                PuzzleCommand::ViewPreset { view_preset_name } => {
+                    ui.label("Switch to");
+                    ui.strong(view_preset_name);
+                    ui.label("view");
+                }
 
                 PuzzleCommand::None => unreachable!(),
             });
