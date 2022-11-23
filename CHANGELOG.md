@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - "Clip 4D" option (enabled by default)
+- "Realign on keypress" option (enabled by default)
 - Easter egg
 
 ### Changed
@@ -19,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Incorrect YouTube link in welcome screen
 - Hovered sticker with off-center puzzle
+- Selection of fallback graphics adapter
+- Keybinds reference resizing being janky
 
 ## [1.0.0] - 2022-09-03
 
