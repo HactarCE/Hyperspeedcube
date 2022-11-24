@@ -1,3 +1,5 @@
+//! Jumbling puzzle engine.
+
 use ahash::AHashMap;
 use anyhow::bail;
 use anyhow::{Context, Result};
@@ -14,16 +16,21 @@ const NO_INTERNAL: bool = true;
 
 const MAX_TWIST_PERIOD: usize = 10;
 
+/// Specification for a jumbling puzzle.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct JumblingPuzzleSpec {
+    /// Human-friendly name of the puzzle.
     pub name: String,
+    /// Puzzle shape specification.
     pub shape: ShapeSpec,
+    /// Puzzle twists specifications.
     #[serde(default)]
     pub twists: Vec<TwistsSpec>,
 }
 
 impl JumblingPuzzleSpec {
+    /// Constructs a puzzle type from its spec.
     pub fn build(&self) -> Result<Arc<PuzzleType>> {
         // Build the base shape.
         let (shape, mut polytopes) = self.shape.build()?;
@@ -40,13 +47,8 @@ impl JumblingPuzzleSpec {
         let ndim = shape.ndim;
 
         // Slice for each layer of each twist axis.
-        let mut axes = vec![];
         for twists_spec in &self.twists {
             for axis_spec in &twists_spec.axes {
-                axes.push(Axis {
-                    normal: axis_spec.normal.clone(),
-                    distances: axis_spec.cuts.clone(),
-                });
                 let normals = twists_spec.symmetry.generate(
                     vec![axis_spec
                         .normal
@@ -152,7 +154,9 @@ impl JumblingPuzzleSpec {
             layer_count: 9,
             pieces: piece_infos,
             stickers: sticker_infos,
-            piece_types: vec![PieceTypeInfo::new("Piece".to_string())],
+            piece_types: vec![PieceTypeInfo {
+                name: "Piece".to_string(),
+            }],
             scramble_moves_count: 100,
             notation: NotationScheme {
                 axis_names: vec![],
@@ -170,21 +174,30 @@ impl JumblingPuzzleSpec {
     }
 }
 
+/// Specification for a set of twists.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TwistsSpec {
+    /// Symmetry for the set of twists.
     #[serde(default)]
     pub symmetry: SymmetrySpecList,
+    /// Twist axis specifications.
     pub axes: Vec<AxisSpec>,
 }
+/// Specification for a set of identical twist axes.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AxisSpec {
+    /// Twist axis normal vector.
     pub normal: Vector,
+    /// Cut depths from the origin, sorting from outermost (positive) to
+    /// innermost (negative).
     pub cuts: Vec<f32>,
+    /// Twist generators.
     #[serde(default)]
     pub twist_generators: Vec<String>,
 }
 impl TwistsSpec {
+    /// Constructs a twist set from its spec.
     pub fn build(&self) -> Result<PuzzleTwists> {
         let mut axes = vec![];
         let mut directions = vec![];
@@ -339,7 +352,7 @@ impl AbsDiffEq for PeriodicTwist {
 }
 
 #[derive(Debug, Clone)]
-pub struct JumblingPuzzle {
+struct JumblingPuzzle {
     ty: Arc<PuzzleType>,
     piece_states: Vec<Rotoreflector>,
 }
@@ -378,9 +391,9 @@ impl PuzzleState for JumblingPuzzle {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct JumblingTwist {
-    pub layer: u8,
-    pub transform: Matrix,
+struct JumblingTwist {
+    layer: u8,
+    transform: Matrix,
 }
 impl approx::AbsDiffEq for JumblingTwist {
     type Epsilon = f32;
@@ -393,32 +406,3 @@ impl approx::AbsDiffEq for JumblingTwist {
         self.transform.abs_diff_eq(&other.transform, epsilon)
     }
 }
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Axis {
-    pub normal: Vector,
-    pub distances: Vec<f32>,
-}
-impl Axis {
-    pub fn plane(&self, layer: usize) -> Hyperplane {
-        Hyperplane {
-            normal: self.normal.clone(),
-            distance: self.distances[layer],
-        }
-    }
-
-    pub fn layer_from_depth(&self, depth: f32) -> u8 {
-        // distances is sorted in descending order
-        self.distances
-            .binary_search_by(|probe| depth.total_cmp(probe))
-            .unwrap_or_else(|i| i) as u8
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct TwistId {
-    pub layer: usize,
-    pub transform: usize,
-}
-
-pub struct AxisId(pub usize);

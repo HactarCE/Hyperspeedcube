@@ -1,3 +1,7 @@
+#![allow(missing_docs)]
+
+// TODO: delete this file
+
 use itertools::Itertools;
 use regex::Regex;
 use std::fmt;

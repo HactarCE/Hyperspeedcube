@@ -54,7 +54,7 @@ pub(super) fn draw_puzzle(
     // Write the puzzle transform.
     let puzzle_transform = puzzle
         .view_transform(&view_prefs)
-        .at_ndim(puzzle.ty().ndim()); // TODO: use actual view transform
+        .at_ndim(puzzle.ty().ndim());
     gfx.queue.write_buffer(
         &cache.puzzle_transform_buffer,
         0,
@@ -85,6 +85,10 @@ pub(super) fn draw_puzzle(
         0,
         bytemuck::bytes_of(&projection_params),
     );
+
+    unsafe { crate::VIEW_TRANSFORM = puzzle.view_transform(&view_prefs) };
+    unsafe { crate::W_FACTOR_4D = projection_params.w_factor_4d };
+    unsafe { crate::W_FACTOR_3D = projection_params.w_factor_3d };
 
     // Write the piece transforms.
     let mut offset = 0;

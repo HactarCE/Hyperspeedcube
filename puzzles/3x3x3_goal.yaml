@@ -40,3 +40,12 @@ twists:
           CCW: "'"
           180 CW: "2"
           180 CCW: "2'"
+        wide_suffix: w
+        aliases:
+          M: 2L
+          E: 2D
+          S: 2F
+        rotations:
+          x: [F -> U]
+          y: [R -> F]
+          z: [U -> R]

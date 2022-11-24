@@ -1,3 +1,5 @@
+//! Polytope calculations.
+
 use ahash::{AHashMap, AHashSet};
 use anyhow::{bail, Context, Result};
 use itertools::Itertools;

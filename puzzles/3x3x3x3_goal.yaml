@@ -52,3 +52,16 @@ twists:
           y': { U: I, D: O, _: D }
           z:  { F: O, B: I, _: F }
           z': { F: I, B: O, _: B }
+        rotations:
+          xy: R -> U
+          xz: R -> F
+          xw: R -> O
+          yx: U -> R
+          yz: U -> F
+          yw: U -> O
+          zx: F -> R
+          zy: F -> U
+          zw: F -> O
+          wx: O -> R
+          wy: O -> U
+          wz: O -> F

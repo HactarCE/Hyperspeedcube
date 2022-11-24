@@ -42,6 +42,10 @@ const DEFAULT_PUZZLE: &str = "Default";
 const MIN_NDIM: u8 = 2;
 const MAX_NDIM: u8 = 8;
 
+pub static mut VIEW_TRANSFORM: ndpuzzle::math::Matrix = ndpuzzle::math::Matrix::EMPTY_IDENT;
+pub static mut W_FACTOR_4D: f32 = 0.0;
+pub static mut W_FACTOR_3D: f32 = 0.0;
+
 fn main() {
     // Initialize logging.
     env_logger::builder()

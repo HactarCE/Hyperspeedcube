@@ -4,9 +4,7 @@ use anyhow::Result;
 use bitvec::bitvec;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
-use cgmath::InnerSpace;
 use ndpuzzle::math::*;
-use ndpuzzle::puzzle::geometry;
 use num_enum::FromPrimitive;
 use std::borrow::Cow;
 use std::collections::{HashSet, VecDeque};
@@ -101,8 +99,6 @@ pub struct PuzzleController {
     last_render_time: Instant,
     /// Cached render data.
     render_cache: Option<PuzzleRenderCache>,
-    /// Cached sticker geometry. (TODO: remove this)
-    cached_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
 }
 impl Default for PuzzleController {
     fn default() -> Self {
@@ -143,7 +139,6 @@ impl PuzzleController {
 
             last_render_time: Instant::now(),
             render_cache: None,
-            cached_geometry: None,
         }
     }
     /// Resets the puzzle.
@@ -232,7 +227,8 @@ impl PuzzleController {
         });
 
         // Invalidate the cache.
-        self.cached_geometry = None;
+
+        // TODO: invalidate geometry cache
 
         Ok(())
     }
@@ -382,147 +378,6 @@ impl PuzzleController {
             .pad(4)
             / self.ty().shape.radius
     }
-    pub(crate) fn geometry(&mut self, prefs: &Preferences) -> Arc<Vec<ProjectedStickerGeometry>> {
-        let view_prefs = self.view_prefs(prefs);
-
-        // Construct the sticker geometry params.
-        let params = {
-            // Compute the 4D view transform, which must be applied here on the
-            // CPU so that we can do proper depth sorting.
-            let view_transform = (&self.view_angle.current * view_prefs.view_angle())
-                .matrix()
-                .pad(4)
-                * (1.0 / self.ty().shape.radius);
-
-            let facet_spacing = view_prefs.facet_spacing;
-            let sticker_spacing = if self.ty().layer_count > 1 {
-                view_prefs.sticker_spacing
-            } else {
-                0.0
-            };
-
-            let sticker_grid_scale =
-                (1.0 - facet_spacing) / (self.ty().layer_count as f32 - sticker_spacing);
-            let facet_scale = sticker_grid_scale * (self.ty().layer_count as f32);
-            let sticker_scale = sticker_grid_scale * (1.0 - sticker_spacing);
-
-            StickerGeometryParams {
-                facet_spacing,
-                sticker_spacing,
-
-                sticker_grid_scale,
-                facet_scale,
-                sticker_scale,
-
-                fov_4d: view_prefs.fov_4d,
-                fov_3d: view_prefs.fov_3d,
-                w_factor_4d: (view_prefs.fov_4d.to_radians() / 2.0).tan(),
-                w_factor_3d: (view_prefs.fov_3d.to_radians() / 2.0).tan(),
-
-                twist_animation: self.current_twist(),
-                view_transform,
-
-                show_frontfaces: view_prefs.show_frontfaces,
-                show_backfaces: view_prefs.show_backfaces,
-                clip_4d: view_prefs.clip_4d,
-            }
-        };
-
-        let ret = self.cached_geometry.take().unwrap_or_else(|| {
-            log::trace!("Regenerating puzzle geometry");
-
-            let ambient_light = util::mix(
-                view_prefs.light_directional * 0.5,
-                1.0 - view_prefs.light_directional * 0.5,
-                view_prefs.light_ambient,
-            );
-            let light_vector = cgmath::Matrix3::from_angle_y(cgmath::Deg(view_prefs.light_yaw))
-                * cgmath::Matrix3::from_angle_x(cgmath::Deg(-view_prefs.light_pitch)) // pitch>0 means light comes from above
-                * cgmath::Vector3::unit_z()
-                * view_prefs.light_directional
-                * 0.5;
-
-            // Project stickers.
-            let mut sticker_geometries: Vec<ProjectedStickerGeometry> = vec![];
-            for sticker in (0..self.ty().stickers.len() as _).map(Sticker) {
-                let piece = self.ty().info(sticker).piece;
-                let vis_piece = self.visual_piece_state(piece);
-                if !self.is_sticker_hoverable(sticker) && vis_piece.opacity(prefs) == 0.0 {
-                    continue;
-                }
-
-                // Compute geometry, including vertex positions in N-dimensional
-                // space.
-                let sticker_geom = match self.displayed().sticker_geometry(sticker, &params) {
-                    Some(s) => s,
-                    None => continue, // invisible; skip this sticker
-                };
-
-                // Compute vertex positions after transformation and projection
-                // down to 2D.
-                let projected_verts = match sticker_geom
-                    .verts
-                    .iter()
-                    .map(|&v| params.project_3d(v))
-                    .collect::<Option<Vec<_>>>()
-                {
-                    Some(s) => s,
-                    None => continue, // behind camera; skip this sticker
-                };
-
-                let mut projected_front_polygons = vec![];
-
-                for (indices, twists) in sticker_geom
-                    .polygon_indices
-                    .iter()
-                    .zip(sticker_geom.polygon_twists)
-                {
-                    let mut projected_normal =
-                        geometry::polygon_normal_from_indices(&projected_verts, indices);
-                    let mut lighting_normal =
-                        geometry::polygon_normal_from_indices(&sticker_geom.verts, indices)
-                            .normalize();
-                    if projected_normal.z < 0.0 {
-                        projected_normal *= -1.0;
-                        lighting_normal *= -1.0;
-                    }
-                    let illumination = ambient_light + lighting_normal.dot(light_vector);
-                    projected_front_polygons.extend(geometry::polygon_from_indices(
-                        &projected_verts,
-                        indices,
-                        illumination,
-                        twists,
-                    ));
-                }
-
-                if projected_verts.is_empty() {
-                    continue;
-                }
-
-                let (min_bound, max_bound) =
-                    match ndpuzzle::util::min_and_max_bound(&projected_verts) {
-                        Some(min_max) => min_max,
-                        None => continue,
-                    };
-
-                sticker_geometries.push(ProjectedStickerGeometry {
-                    sticker,
-
-                    verts: projected_verts.into_boxed_slice(),
-                    min_bound,
-                    max_bound,
-
-                    front_polygons: projected_front_polygons.into_boxed_slice(),
-                    back_polygons: Box::new([]),
-                });
-            }
-
-            Arc::new(sticker_geometries)
-        });
-
-        self.cached_geometry = Some(Arc::clone(&ret));
-        ret
-    }
     pub(crate) fn draw(
         &mut self,
         gfx: &mut GraphicsState,
@@ -663,7 +518,8 @@ impl PuzzleController {
             if was_visible != is_visible {
                 // If a piece changes from invisible to visible, then it might need to be
                 // re-added to the geometry, so invalidate the cache.
-                self.cached_geometry = None;
+
+                // TODO: invalidate the cache
             }
         }
 

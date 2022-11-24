@@ -1,3 +1,5 @@
+//! Puzzle specification structures.
+
 use anyhow::{Context, Result};
 use approx::abs_diff_eq;
 use itertools::Itertools;
@@ -8,21 +10,29 @@ use crate::math::*;
 use crate::polytope::PolytopeArena;
 use crate::schlafli::SchlafliSymbol;
 
+/// Specification for a puzzle shape, which has no internal cuts.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ShapeSpec {
+    /// Human-friendly name of the shape.
     pub name: Option<String>,
+    /// Number of dimensions.
     pub ndim: u8,
+    /// Facet specifications.
     pub facets: Vec<ShapeFacetsSpec>,
 }
+/// Specification for a symmetric set of puzzle facets.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ShapeFacetsSpec {
+    /// Symmetry for the set of facets.
     #[serde(default)]
     pub symmetry: SymmetrySpecList,
+    /// Poles for the seed facets.
     pub seeds: Vec<Vector>,
 }
 impl ShapeFacetsSpec {
+    /// Expands symmetries and returns a list of the facet poles of this group.
     pub fn expand_poles(&self) -> Result<Vec<Vector>> {
         self.symmetry
             .generate(self.seeds.clone(), |r, t| r * t)?
@@ -33,6 +43,7 @@ impl ShapeFacetsSpec {
 }
 
 impl ShapeSpec {
+    /// Constructs a shape from its spec.
     pub fn build(&self) -> Result<(PuzzleShape, PolytopeArena)> {
         let name = self.name.clone();
         let ndim = self.ndim;
@@ -86,6 +97,7 @@ impl ShapeSpec {
     }
 }
 
+/// Specification for a set of symmetries.
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(transparent)]
 pub struct SymmetrySpecList(Vec<SymmetrySpec>);
@@ -100,6 +112,8 @@ impl SymmetrySpecList {
             .collect()
     }
 
+    /// Multiplies each element of the symmetry group by each seed and returns
+    /// the list of unique results.
     pub fn generate<T>(
         &self,
         seeds: impl IntoIterator<Item = T>,
@@ -128,9 +142,11 @@ impl SymmetrySpecList {
     }
 }
 
+/// Specification for a single symmetry.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum SymmetrySpec {
+    /// Schlafli symbol describing a symmetry.
     Schlafli(String),
 }
 impl SymmetrySpec {
@@ -145,6 +161,7 @@ impl SymmetrySpec {
 
 const AXIS_NAMES: &str = "XYZWUVRS";
 
+/// Parses a user-specified transform.
 pub fn parse_transform(string: &str) -> Option<Rotoreflector> {
     string
         .split("->")
@@ -156,6 +173,7 @@ pub fn parse_transform(string: &str) -> Option<Rotoreflector> {
         })
 }
 
+/// Parses a user-specified vector.
 pub fn parse_vector(string: &str) -> Option<Vector> {
     if string.contains(',') {
         Some(Vector(

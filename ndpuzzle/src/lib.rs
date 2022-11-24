@@ -1,4 +1,5 @@
-//! N-dimensional puzzles.
+//! N-dimensional puzzle backend.
+#![warn(clippy::if_then_some_else_none, missing_docs)]
 
 #[macro_use]
 extern crate lazy_static;

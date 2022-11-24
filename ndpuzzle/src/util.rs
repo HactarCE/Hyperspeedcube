@@ -1,6 +1,6 @@
-use tinyset::Set64;
+//! Common utility functions.
 
-use cgmath::*;
+use tinyset::Set64;
 
 /// Iterator with a manually-specified exact size.
 #[derive(Debug, Clone)]
@@ -39,35 +39,6 @@ impl<I: Iterator> IterWithExactSizeExt for I {
     fn with_exact_size(self, len: usize) -> WithExactSizeIter<Self> {
         WithExactSizeIter { iter: self, len }
     }
-}
-
-pub fn min_and_max_bound(verts: &[Point3<f32>]) -> Option<(Point3<f32>, Point3<f32>)> {
-    let mut min_bound = *verts.get(0)?;
-    let mut max_bound = min_bound;
-
-    for v in &verts[1..] {
-        if v.x < min_bound.x {
-            min_bound.x = v.x;
-        }
-        if v.y < min_bound.y {
-            min_bound.y = v.y;
-        }
-        if v.z < min_bound.z {
-            min_bound.z = v.z;
-        }
-
-        if v.x > max_bound.x {
-            max_bound.x = v.x;
-        }
-        if v.y > max_bound.y {
-            max_bound.y = v.y;
-        }
-        if v.z > max_bound.z {
-            max_bound.z = v.z;
-        }
-    }
-
-    Some((min_bound, max_bound))
 }
 
 /// Stolen from

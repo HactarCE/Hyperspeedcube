@@ -1,3 +1,5 @@
+//! Schlafli symbols.
+
 use itertools::Itertools;
 
 use crate::math::*;
@@ -27,7 +29,7 @@ impl SchlafliSymbol {
     }
 
     /// Returns the list of mirrors.
-    pub fn mirrors(&self) -> Vec<Mirror> {
+    fn mirrors(&self) -> Vec<Mirror> {
         let mut ret = vec![];
         let mut last = Vector::unit(0);
         for (i, &index) in self.indices.iter().enumerate() {
@@ -83,7 +85,7 @@ impl SchlafliSymbol {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MirrorGenerator {
+struct MirrorGenerator {
     mirrors: Vec<Mirror>,
 }
 impl From<MirrorGenerator> for Rotoreflector {
@@ -104,7 +106,7 @@ impl From<MirrorGenerator> for Matrix {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Mirror(pub Vector);
+struct Mirror(pub Vector);
 impl From<Mirror> for Rotoreflector {
     fn from(Mirror(v): Mirror) -> Self {
         Rotoreflector::from_reflection(v)

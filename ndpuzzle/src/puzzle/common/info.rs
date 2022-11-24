@@ -15,9 +15,13 @@ macro_rules! impl_puzzle_info_trait {
     };
 }
 
+/// Trait for retrieving information about puzzle elements that is independent
+/// of state.
 pub trait PuzzleInfo<T> {
+    /// Type containing info about the element.
     type Output;
 
+    /// Returns state-independent information about a puzzle element.
     fn info(&self, thing: T) -> &Self::Output;
 }
 
@@ -50,41 +54,60 @@ macro_rules! impl_fits64 {
 }
 impl_fits64!(Piece, Sticker, Facet, TwistAxis, TwistDirection, PieceType);
 
-/// Piece metadata.
+/// Piece info.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PieceInfo {
+    /// Unordered list of stickers in the piece.
     pub stickers: SmallVec<[Sticker; 8]>,
+    /// Piece type.
     pub piece_type: PieceType,
 
+    /// Unordered list of vertices that comprise the piece.
     pub points: Vec<Vector>,
 }
-/// Sticker metadata.
+/// Sticker info.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StickerInfo {
+    /// Piece that the sticker is part of.
     pub piece: Piece,
+    /// Facet whose color is on the sticker.
     pub color: Facet,
 
+    /// List of vertices that comprise the sticker.
     pub points: Vec<Vector>,
+    /// Vector along which to shrink each point.
     pub shrink_vectors: Vec<Vector>,
+    /// List of polygons for rendering the sticker.
+    ///
+    /// Each polygon is a list of indices into `points`.
     pub polygons: Vec<SmallVec<[u16; 8]>>,
 }
-/// Facet metadata.
+/// Facet info.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FacetInfo {
-    pub name: String, // e.g., "Right"
-    pub pole: Vector, // face shrink origin
+    /// Human-friendly name for the facet. (e.g., "Up", "Right", etc.)
+    pub name: String,
+    /// Point on the facet that is closest to the origin. This is a scalar
+    /// multiple of the facet's normal vector.
+    pub pole: Vector,
 }
 impl FacetInfo {
+    /// Returns the normal vector (normalized pole). Returns an error if the
+    /// facet intersects the origin.
     pub fn normal(&self) -> Result<Vector> {
         self.pole.normalize().context("facet intersects origin")
     }
 }
 
-/// Twist axis metadata.
+/// Twist axis info.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TwistAxisInfo {
-    pub symbol: String, // e.g., "R"
+    /// Human-friendly name for the twist axis. (e.g, "U", "R", etc.)
+    pub symbol: String,
+    /// Opposite twist axis, and each corresponding twist direction on that
+    /// opposite axis.
     pub opposite: Option<(TwistAxis, Vec<TwistDirection>)>,
+    /// Cuts along the axis.
     pub cuts: Vec<TwistCut>,
 
     /// Transformation from puzzle space to the local space of the twist axis.
@@ -101,7 +124,7 @@ impl TwistAxisInfo {
     pub fn opposite_axis(&self) -> Option<TwistAxis> {
         self.opposite.as_ref().map(|(axis, _)| *axis)
     }
-    /// Returns the opposite twist, if there is one.
+    /// Returns the twist on the opposite axis, if there is one.
     pub fn opposite_twist(&self, dir: TwistDirection) -> Option<(TwistAxis, TwistDirection)> {
         self.opposite
             .as_ref()
@@ -113,28 +136,39 @@ impl TwistAxisInfo {
     }
 }
 
-/// Twist cut metadata.
+/// Twist cut info.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TwistCut {
-    /// Planar cut perpendicular to the twist axis at a radius from the origin.
-    Planar { radius: f32 },
+    /// Planar cut perpendicular to the twist axis.
+    Planar {
+        /// Distance from the orgin.
+        radius: f32,
+    },
 }
 impl TwistCut {
-    pub fn cmp(&self, p: impl VectorRef) -> std::cmp::Ordering {
+    /// Compares a transformed point to the twist cut, returning `Less` if it is
+    /// below the cut, `Greater` if it is above the cut, or `Equal` if it is
+    /// approximately on the cut.
+    pub(super) fn cmp(&self, point: impl VectorRef) -> std::cmp::Ordering {
         match self {
-            TwistCut::Planar { radius } => abs_diff_cmp(&p.get(0), &radius),
+            TwistCut::Planar { radius } => abs_diff_cmp(&point.get(0), &radius),
         }
     }
 }
 
-/// Twist direction metadata.
+/// Twist direction info.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TwistDirectionInfo {
-    pub symbol: String, // "'"
-    pub name: String,   // "CCW"
+    /// TODO: remove
+    pub symbol: String,
+    /// Human-friendly name for the twist direction. (e.g., "CW", "x", etc.).
+    pub name: String,
+    /// Number of QTM twists required to have the same effect as this twist.
     pub qtm: usize,
+    /// Opposite twist direction.
     pub rev: TwistDirection,
 
+    /// Transformation this twist applies to pieces.
     pub transform: Rotoreflector,
 }
 impl AsRef<str> for TwistDirectionInfo {
@@ -143,18 +177,14 @@ impl AsRef<str> for TwistDirectionInfo {
     }
 }
 
-/// Piece type metadata.
+/// Piece type info.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PieceTypeInfo {
+    /// TODO: remove and replace with piece type hierarchy
     pub name: String,
 }
 impl AsRef<str> for PieceTypeInfo {
     fn as_ref(&self) -> &str {
         &self.name
-    }
-}
-impl PieceTypeInfo {
-    pub const fn new(name: String) -> Self {
-        Self { name }
     }
 }
