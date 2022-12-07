@@ -248,6 +248,20 @@ impl App {
 
                 match input.state {
                     ElementState::Pressed => {
+                        // If the key is already pressed, then ignore this event.
+                        if let Some(sc) = sc {
+                            if self.pressed_keys.contains(&Key::Sc(sc))
+                            {
+                                return;
+                            }
+                        }
+                        if let Some(vk) = vk {
+                            if self.pressed_keys.contains(&Key::Vk(vk))
+                            {
+                                return;
+                            }
+                        }
+
                         if let Some(sc) = sc {
                             self.pressed_keys.insert(Key::Sc(sc));
                         }
