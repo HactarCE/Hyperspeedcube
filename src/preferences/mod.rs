@@ -58,7 +58,12 @@ lazy_static! {
     ))()
     .ok_or(PrefsError::NoExecutablePath);
     static ref NONPORTABLE: bool = {
-        if let Ok(mut p) = LOCAL_DIR.clone() {
+        // If we are on macOS, we are always nonportable (because macOS doesn't allow storing).
+        // files in the same directory as the executable.
+        if  cfg!(target_os = "macos") {
+            true
+        // If not, check if the `nonportable` file exists in the same directory as the executable.
+        } else if let Ok(mut p) = LOCAL_DIR.clone() {
             p.push("nonportable");
             p.exists()
         } else {
