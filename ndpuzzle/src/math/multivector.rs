@@ -730,6 +730,17 @@ impl Rotoreflector {
             ret
         }
     }
+
+    /// Interpolates between the identity and this rotoreflector.
+    pub fn interpolate(&self, t: f32) -> Matrix {
+        if self.is_reflection() {
+            util::mix(&Matrix::ident(self.matrix.ndim()), &self.matrix, t)
+        } else {
+            Rotor::ident()
+                .slerp(&Rotor(self.multivector.clone()), t)
+                .matrix()
+        }
+    }
 }
 
 impl<V: VectorRef> Mul<V> for &Rotoreflector {

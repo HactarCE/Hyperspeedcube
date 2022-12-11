@@ -93,7 +93,23 @@ pub(super) fn draw_puzzle(
     // Write the piece transforms.
     let mut offset = 0;
     for i in 0..puzzle.ty().pieces.len() {
-        let m = puzzle.displayed().piece_transform(Piece(i as u16));
+        let mut m = puzzle.displayed().piece_transform(Piece(i as u16));
+        if let Some((twist, progress)) = puzzle.current_twist() {
+            if puzzle
+                .displayed()
+                .is_piece_affected_by_twist(twist, Piece(i as u16))
+            {
+                let axis_info = puzzle.ty().info(twist.axis);
+                let dir_info = puzzle.ty().info(twist.direction);
+
+                m = axis_info
+                    .reference_frame
+                    .reverse()
+                    .transform_rotoreflector_uninverted(&dir_info.transform)
+                    .interpolate(progress)
+                    * m;
+            }
+        }
         gfx.queue.write_buffer(
             &cache.piece_transform_buffer,
             offset,
