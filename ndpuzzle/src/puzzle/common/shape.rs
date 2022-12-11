@@ -1,3 +1,5 @@
+use ahash::AHashMap;
+
 use super::*;
 
 /// Puzzle shape metadata.
@@ -11,5 +13,8 @@ pub struct PuzzleShape {
     pub facets: Vec<FacetInfo>,
     /// Distance from origin to outermost point.
     pub radius: f32,
+
+    /// Facets listed by name.
+    pub facets_by_name: AHashMap<String, Facet>,
 }
 impl_puzzle_info_trait!(for PuzzleShape { fn info(Facet) -> &FacetInfo { .facets } });

@@ -5,7 +5,8 @@ use anyhow::bail;
 use anyhow::{Context, Result};
 use approx::{abs_diff_eq, AbsDiffEq};
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+use regex::Regex;
+use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::sync::Arc;
 
 use super::{spec::*, *};
@@ -26,7 +27,7 @@ pub struct JumblingPuzzleSpec {
     pub shape: ShapeSpec,
     /// Puzzle twists specifications.
     #[serde(default)]
-    pub twists: Vec<TwistsSpec>,
+    pub twists: TwistsSpec,
 }
 
 impl JumblingPuzzleSpec {
@@ -34,36 +35,17 @@ impl JumblingPuzzleSpec {
     pub fn build(&self) -> Result<Arc<PuzzleType>> {
         // Build the base shape.
         let (shape, mut polytopes) = self.shape.build()?;
-        let twists = match self.twists.as_slice() {
-            [] => PuzzleTwists {
-                name: "none".to_string(),
-                axes: vec![],
-                directions: vec![],
-                orientations: vec![Rotor::ident()],
-            },
-            [twists_spec] => twists_spec.build()?,
-            _ => bail!("multiple twists specs is not yet implemented"),
-        };
+        let twists = self.twists.build()?;
         let ndim = shape.ndim;
 
         // Slice for each layer of each twist axis.
-        for twists_spec in &self.twists {
-            for axis_spec in &twists_spec.axes {
-                let normals = twists_spec.symmetry.generate(
-                    vec![axis_spec
-                        .normal
-                        .normalize()
-                        .context("axis normal must not be zero")?],
-                    |r, v| r * v,
-                )?;
-                for (_transform, normal) in normals {
-                    for &distance in &axis_spec.cuts {
-                        polytopes.slice_internal(&Hyperplane {
-                            normal: normal.clone(),
-                            distance,
-                        })?;
-                    }
-                }
+        for axis in &twists.axes {
+            for cut in &axis.cuts {
+                let TwistCut::Planar { radius } = cut;
+                polytopes.slice_internal(&Hyperplane {
+                    normal: axis.normal.clone(),
+                    distance: *radius,
+                })?;
             }
         }
 
@@ -178,23 +160,22 @@ impl JumblingPuzzleSpec {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct TwistsSpec {
+    /// Human-friendly name of the twists set.
+    pub name: Option<String>,
     /// Symmetry for the set of twists.
     #[serde(default)]
     pub symmetry: SymmetrySpecList,
     /// Twist axis specifications.
     pub axes: Vec<AxisSpec>,
 }
-/// Specification for a set of identical twist axes.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AxisSpec {
-    /// Twist axis normal vector.
-    pub normal: Vector,
-    /// Cut depths from the origin, sorting from outermost (positive) to
-    /// innermost (negative).
-    pub cuts: Vec<f32>,
-    /// Twist generators.
-    #[serde(default)]
-    pub twist_generators: Vec<String>,
+impl Default for TwistsSpec {
+    fn default() -> Self {
+        Self {
+            name: Some("none".to_string()),
+            symmetry: SymmetrySpecList(vec![]),
+            axes: vec![],
+        }
+    }
 }
 impl TwistsSpec {
     /// Constructs a twist set from its spec.
@@ -202,11 +183,18 @@ impl TwistsSpec {
         let mut axes = vec![];
         let mut directions = vec![];
 
-        let mut sym = 'A';
+        let mut namer = Namer {
+            type_of_thing: "twist axis",
+            prefix_iter: crate::util::letters_upper(),
+            by_name: AHashMap::new(),
+        };
         for axis in &self.axes {
             for pair in axis.cuts.windows(2) {
                 if pair[0] <= pair[1] {
-                    bail!("cuts must be sorted by depth: {:?}", axis.cuts);
+                    bail!(
+                        "cuts must be sorted by depth from largest to smallest: {:?}",
+                        axis.cuts,
+                    );
                 }
             }
 
@@ -217,12 +205,17 @@ impl TwistsSpec {
                 })
                 .into();
 
-            for (reference_frame, _normal) in self
-                .symmetry
-                .generate(vec![axis.normal.clone()], |r, v| r * v)?
-            {
+            let seed_normal = axis
+                .normal
+                .normalize()
+                .context("axis normal must not be zero")?;
+            let normals = self.symmetry.generate([seed_normal], |r, v| r * v)?;
+            let axis_ids = axes.len()..axes.len() + normals.len();
+            let names = namer.with_names(&axis.names, axis_ids.map(|i| TwistAxis(i as _)))?;
+
+            for ((name, _axis_id), (reference_frame, normal)) in names.into_iter().zip(normals) {
                 axes.push(TwistAxisInfo {
-                    symbol: sym.to_string(),
+                    symbol: name.to_string(),
                     cuts: axis
                         .cuts
                         .iter()
@@ -230,9 +223,9 @@ impl TwistsSpec {
                         .collect(),
                     opposite: None,
 
+                    normal,
                     reference_frame: (reference_frame * &base_frame).reverse(),
                 });
-                sym = ((sym as u8) + 1) as char;
             }
 
             let reverse_base_frame = base_frame.reverse();
@@ -297,11 +290,32 @@ impl TwistsSpec {
 
         Ok(PuzzleTwists {
             name: "unnamed twist set".to_string(),
+
             axes,
             directions,
+
             orientations: vec![Rotor::ident()],
         })
     }
+}
+
+/// Specification for a set of identical twist axes.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct AxisSpec {
+    /// Twist axis normal vector.
+    pub normal: Vector,
+    /// Cut depths from the origin, sorting from outermost (positive) to
+    /// innermost (negative).
+    #[serde(deserialize_with = "deserialize_cut_depths")]
+    pub cuts: Vec<f32>,
+    /// Twist generators.
+    #[serde(default)]
+    pub twist_generators: Vec<String>,
+
+    /// Twist axis names.
+    #[serde(flatten)]
+    pub names: NameSetSpec,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -405,4 +419,52 @@ impl approx::AbsDiffEq for JumblingTwist {
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
         self.transform.abs_diff_eq(&other.transform, epsilon)
     }
+}
+
+fn parse_cut_depths(strings: &[impl AsRef<str>]) -> Result<Vec<f32>> {
+    lazy_static! {
+        // ^([^ ]+)\s+from\s+([^ ]+)\s+to\s+([^ ]+)$
+        // ^                                       $    match whole string
+        //  ([^ ]+)          ([^ ]+)        ([^ ]+)     match numbers
+        //         \s+from\s+       \s+to\s+            match literal words
+        static ref CUT_SEQ_REGEX: Regex =
+            Regex::new(r#"^([^ ]+)\s+from\s+([^ ]+)\s+to\s+([^ ]+)$"#).unwrap();
+    }
+
+    let mut ret = vec![];
+    for s in strings {
+        let s = s.as_ref().trim();
+        if let Some(captures) = CUT_SEQ_REGEX.captures(s) {
+            let n = parse_u8_cut_count(&captures[1])?;
+            let a = parse_f32(&captures[2])?;
+            let b = parse_f32(&captures[3])?;
+            ret.extend(
+                (1..=n)
+                    .map(|i| i as f32 / (n + 1) as f32)
+                    .map(|t| util::mix(a, b, t)),
+            )
+        } else if let Ok(n) = parse_f32(s) {
+            ret.push(n)
+        } else {
+            bail!("expected floating-point number or range 'N from A to B'");
+        }
+    }
+    Ok(ret)
+}
+
+fn parse_u8_cut_count(s: &str) -> Result<u8> {
+    s.trim()
+        .parse()
+        .with_context(|| format!("expected integer number of cuts; got {s:?}"))
+}
+fn parse_f32(s: &str) -> Result<f32> {
+    s.trim()
+        .parse()
+        .with_context(|| format!("expected floating-point number; got {s:?}"))
+}
+
+fn deserialize_cut_depths<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<f32>, D::Error> {
+    parse_cut_depths(&Vec::<String>::deserialize(deserializer)?).map_err(D::Error::custom)
 }

@@ -1,9 +1,11 @@
 //! Puzzle specification structures.
 
-use anyhow::{Context, Result};
+use ahash::AHashMap;
+use anyhow::{ensure, Context, Result};
 use approx::abs_diff_eq;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 use super::common::*;
 use crate::math::*;
@@ -19,29 +21,8 @@ pub struct ShapeSpec {
     /// Number of dimensions.
     pub ndim: u8,
     /// Facet specifications.
-    pub facets: Vec<ShapeFacetsSpec>,
+    pub facets: Vec<FacetsSpec>,
 }
-/// Specification for a symmetric set of puzzle facets.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(deny_unknown_fields)]
-pub struct ShapeFacetsSpec {
-    /// Symmetry for the set of facets.
-    #[serde(default)]
-    pub symmetry: SymmetrySpecList,
-    /// Poles for the seed facets.
-    pub seeds: Vec<Vector>,
-}
-impl ShapeFacetsSpec {
-    /// Expands symmetries and returns a list of the facet poles of this group.
-    pub fn expand_poles(&self) -> Result<Vec<Vector>> {
-        self.symmetry
-            .generate(self.seeds.clone(), |r, t| r * t)?
-            .into_iter()
-            .map(|(_transform, pole)| Ok(pole))
-            .collect()
-    }
-}
-
 impl ShapeSpec {
     /// Constructs a shape from its spec.
     pub fn build(&self) -> Result<(PuzzleShape, PolytopeArena)> {
@@ -53,7 +34,7 @@ impl ShapeSpec {
             .facets
             .iter()
             .flat_map(|facet_spec| &facet_spec.seeds)
-            .map(|pole| pole.mag())
+            .map(|seed| seed.pole.mag())
             .reduce(f32::max)
             .context("no base facets")?;
         let initial_radius = radius * 2.0 * ndim as f32;
@@ -61,24 +42,39 @@ impl ShapeSpec {
         // Construct a polytope arena.
         let mut polytope = PolytopeArena::new_cube(ndim, initial_radius)?;
 
-        // Construct a list of poles.
-        let poles = self
-            .facets
-            .iter()
-            .map(ShapeFacetsSpec::expand_poles)
-            .flatten_ok()
-            .map_ok(|pole| pole.resize(ndim))
-            .collect::<Result<Vec<_>>>()?;
-
         // Carve the polygon and record metadata for each facet.
         let mut facets = vec![];
-        for (i, pole) in poles.iter().enumerate() {
-            let plane = Hyperplane::from_pole(pole).context("facet cannot intersect origin")?;
-            polytope.carve(&plane, Facet(i as _))?;
-            facets.push(FacetInfo {
-                name: format!("{}.{}", poles.len(), i),
-                pole: pole.clone(),
-            });
+        let mut facet_namer = Namer {
+            type_of_thing: "facet",
+            prefix_iter: crate::util::letters_upper(),
+            by_name: AHashMap::new(),
+        };
+        for facet_set in &self.facets {
+            for seed in &facet_set.seeds {
+                // Expand one seed into multiple facets.
+                let poles = facet_set
+                    .symmetry
+                    .generate([seed.pole.clone()], |r, t| r * t)?;
+
+                let facet_ids = facets.len()..facets.len() + poles.len();
+                let named_facets =
+                    facet_namer.with_names(&seed.names, facet_ids.map(|i| Facet(i as _)))?;
+
+                for ((name, facet), (_transform, pole)) in named_facets.into_iter().zip(poles) {
+                    // Carve the polytope.
+                    let plane =
+                        Hyperplane::from_pole(&pole).context("facet cannot intersect origin")?;
+                    polytope.carve(&plane, facet)?;
+
+                    // Add the new facet.
+                    facets.push(FacetInfo {
+                        name,
+                        pole,
+
+                        default_color: None,
+                    });
+                }
+            }
         }
 
         // Get the distance of the furthest vertex from the origin, or 1.0,
@@ -91,16 +87,51 @@ impl ShapeSpec {
                 ndim,
                 facets,
                 radius,
+
+                facets_by_name: facet_namer.by_name,
             },
             polytope,
         ))
     }
 }
 
+/// Specification for a symmetric set of puzzle facets.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct FacetsSpec {
+    /// Symmetry for the set of facets.
+    #[serde(default)]
+    pub symmetry: SymmetrySpecList,
+    /// Seeds to generate the facet set.
+    pub seeds: Vec<FacetSeedSpec>,
+}
+
+/// Specification for a set of facets derived from one pole.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct FacetSeedSpec {
+    /// Vector from the origin to the facet plane and perpendicular to the
+    /// facet.
+    pub pole: Vector,
+    /// Facet names.
+    #[serde(flatten)]
+    pub names: NameSetSpec,
+}
+
+/// Specification for a set of names.
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct NameSetSpec {
+    /// Optional prefix before each name.
+    pub prefix: Option<String>,
+    /// Name to give each member.
+    pub names: Option<Vec<String>>,
+}
+
 /// Specification for a set of symmetries.
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(transparent)]
-pub struct SymmetrySpecList(Vec<SymmetrySpec>);
+pub struct SymmetrySpecList(pub Vec<SymmetrySpec>);
 impl SymmetrySpecList {
     /// Returns a list of generators for the symmetry. This set may not be
     /// minimal.
@@ -156,6 +187,49 @@ impl SymmetrySpec {
         match self {
             Self::Schlafli(string) => Ok(SchlafliSymbol::from_string(string).generators()),
         }
+    }
+}
+
+/// Helper struct to give names to things.
+#[derive(Debug)]
+pub(super) struct Namer<P, T> {
+    pub(super) prefix_iter: P,
+    pub(super) by_name: AHashMap<String, T>,
+    pub(super) type_of_thing: &'static str,
+}
+impl<P: Iterator<Item = String>, T: Copy> Namer<P, T> {
+    /// Returns the names for a set of things.
+    pub fn with_names(
+        &mut self,
+        name_set: &NameSetSpec,
+        elements: impl IntoIterator<Item = T>,
+    ) -> Result<Vec<(String, T)>> {
+        let prefix = if let Some(prefix) = &name_set.prefix {
+            prefix.clone()
+        } else if name_set.names.is_some() {
+            "".to_string()
+        } else {
+            self.prefix_iter.next().unwrap()
+        };
+
+        let user_specified_names = name_set.names.iter().flatten().map(Cow::Borrowed);
+        let unprefixed_names =
+            user_specified_names.chain(crate::util::letters_lower().map(Cow::Owned));
+
+        unprefixed_names
+            .map(|s| format!("{prefix}{s}"))
+            .zip(elements)
+            .map(|(name, thing)| {
+                // Ensure the name is unique.
+                let is_name_unique = self.by_name.insert(name.clone(), thing).is_none();
+                ensure!(
+                    is_name_unique,
+                    "{} names must be unique; multiple have name {name:?}",
+                    self.type_of_thing,
+                );
+                Ok((name, thing))
+            })
+            .collect()
     }
 }
 

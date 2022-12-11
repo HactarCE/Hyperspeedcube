@@ -90,6 +90,9 @@ pub struct FacetInfo {
     /// Point on the facet that is closest to the origin. This is a scalar
     /// multiple of the facet's normal vector.
     pub pole: Vector,
+
+    /// Name of default color.
+    pub default_color: Option<String>,
 }
 impl FacetInfo {
     /// Returns the normal vector (normalized pole). Returns an error if the
@@ -110,8 +113,10 @@ pub struct TwistAxisInfo {
     /// Cuts along the axis.
     pub cuts: Vec<TwistCut>,
 
+    /// Vector perpendicular to cuts along the axis.
+    pub normal: Vector,
     /// Transformation from puzzle space to the local space of the twist axis.
-    /// Applying this transformation moves the X axis to the this axis's normal.
+    /// Applying this transformation moves this axis's normal to the X axis.
     pub reference_frame: Rotoreflector,
 }
 impl AsRef<str> for TwistAxisInfo {

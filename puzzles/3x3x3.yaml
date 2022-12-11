@@ -5,7 +5,7 @@ shape:
     - symmetry:
         - schlafli: 4,3
       seeds:
-        - [1, 0, 0]
+        - pole: [1, 0, 0]
 twists:
   - symmetry:
       - schlafli: 4,3

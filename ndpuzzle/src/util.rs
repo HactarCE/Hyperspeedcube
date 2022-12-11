@@ -1,5 +1,6 @@
 //! Common utility functions.
 
+use itertools::Itertools;
 use tinyset::Set64;
 
 /// Iterator with a manually-specified exact size.
@@ -111,4 +112,23 @@ pub fn is_subset<T: tinyset::Fits64>(a: &Set64<T>, b: &Set64<T>) -> bool {
 /// Returns the intersection of `a` and `b`.
 pub fn set64_intersection<T: tinyset::Fits64>(a: &Set64<T>, b: &Set64<T>) -> Set64<T> {
     a.iter().filter(|elem| b.contains(elem)).collect()
+}
+
+/// Returns an iterator over uppercase letter sequences.
+pub fn letters_upper() -> impl Iterator<Item = String> {
+    (1..).flat_map(|num_chars| {
+        std::iter::repeat('A'..='Z')
+            .take(num_chars)
+            .multi_cartesian_product()
+            .map(|chars| chars.into_iter().collect())
+    })
+}
+/// Returns an iterator over lowercase letter sequences.
+pub fn letters_lower() -> impl Iterator<Item = String> {
+    (1..).flat_map(|num_chars| {
+        std::iter::repeat('a'..='z')
+            .take(num_chars)
+            .multi_cartesian_product()
+            .map(|chars| chars.into_iter().collect())
+    })
 }

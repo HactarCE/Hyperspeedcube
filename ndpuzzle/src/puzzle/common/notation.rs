@@ -105,7 +105,10 @@ impl NotationScheme {
         }
     }
     fn format_axis(&self, f: &mut fmt::Formatter<'_>, axis: TwistAxis) -> fmt::Result {
-        write!(f, "{}", self.axis_names[axis.0 as usize])
+        match self.axis_names.get(axis.0 as usize) {
+            Some(s) => write!(f, "{s}"),
+            None => write!(f, "{}", axis.0),
+        }
     }
     fn format_direction(
         &self,
@@ -113,7 +116,10 @@ impl NotationScheme {
         axis: TwistAxis,
         dir: TwistDirection,
     ) -> fmt::Result {
-        write!(f, "{}", self.direction_names[dir.0 as usize].for_axis(axis))
+        match self.direction_names.get(dir.0 as usize) {
+            Some(d) => write!(f, "{}", d.for_axis(axis)),
+            None => write!(f, "{}", dir.0),
+        }
     }
 
     pub fn parse_twist(&self, s: &str) -> Result<Twist, String> {

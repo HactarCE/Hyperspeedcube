@@ -1,51 +1,50 @@
 name: 3x3x3
 shape:
+  name: Cube
   ndim: 3
   facets:
     - symmetry:
         - schlafli: 4,3
       seeds:
-        - [1, 0, 0]
-      names:
-        Right: 0
-        Left:  1
-        Up:    3
-        Down:  2
-        Front: 4
-        Back:  5
-      colors:
-        Right: red
-        Left:  orange
-        Up:    white
-        Down:  yellow
-        Front: green
-        Back:  blue
-twists:
-  - symmetry:
-      - schlafli: 4,3
-    axes:
-      - normal: [1, 0, 0]
-        names:
-          R: 0
-          L: 1
-          U: 3
-          D: 2
-          F: 4
-          B: 5
-        cuts: [0.33, -0.33]
-        twist_names:
-          F: F[U -> R]
-        direction_controls:
-          CW: ""
-          CCW: "'"
-          180 CW: "2"
-          180 CCW: "2'"
-        wide_suffix: w
-        aliases:
-          M: 2L
-          E: 2D
-          S: 2F
-        rotations:
-          x: [F -> U]
-          y: [R -> F]
-          z: [U -> R]
+        - pole: [1, 0, 0]
+          names: [Right, Left, Down, Up, Front, Back]
+  # facet_names:
+  #   Right: { id: 0, color: red    }
+  #   Left:  { id: 1, color: orange }
+  #   Up:    { id: 3, color: white  }
+  #   Down:  { id: 2, color: yellow }
+  #   Front: { id: 4, color: green  }
+  #   Back:  { id: 5, color: blue   }
+# twists:
+#   name: Cubic
+#   axes:
+#     - symmetry:
+#         - schlafli: 4,3
+#       normal: [1, 0, 0]
+#       cuts: [0.33, -0.33]
+#       generators: F[U -> R]
+#   axis_names:
+#     R: 0
+#     L: 1
+#     U: 3
+#     D: 2
+#     F: 4
+#     B: 5
+#   controls:
+#     directions:
+#       - CW:      ""
+#       - CCW:     "'"
+#       - 180 CW:  "2"
+#       - 180 CCW: "2'"
+#   notation:
+#     wide_suffix: w
+#     aliases:
+#       M: 2L
+#       E: 2D
+#       S: 2F
+#     twists:
+#       F: F[U -> R]
+#     rotations:
+#       x: [F -> U]
+#       y: [R -> F]
+#       z: [U -> R]

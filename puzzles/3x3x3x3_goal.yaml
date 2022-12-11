@@ -1,67 +1,63 @@
 name: 3x3x3x3
 shape:
+  name: Hypercube
   ndim: 4
   facets:
     - symmetry:
         - schlafli: 4,3,3
       seeds:
-        - [1, 0, 0, 0]
-      names:
-        Right: 0
-        Left:  1
-        Up:    3
-        Down:  2
-        Front: 4
-        Back:  5
-        Out:   6
-        In:    7
-      colors:
-        Right: red
-        Left:  orange
-        Up:    white
-        Down:  yellow
-        Front: green
-        Back:  blue
-        Out:   pink
-        In:    purple
+        - pole: [1, 0, 0, 0]
+          names: [Right, Left, Down, Up, Front, Back, Out, In]
+  facet_order: [Right, Left, Up, Down, Front, Back, Out, In]
+  facet_colors:
+    Right: red
+    Left:  orange
+    Up:    white
+    Down:  yellow
+    Front: green
+    Back:  blue
+    Out:   pink
+    In:    purple
 twists:
-  - symmetry:
-      - schlafli: 4,3,3
-    axes:
-      - normal: [1, 0, 0, 0]
-        names:
-          R: 0
-          L: 1
-          U: 3
-          D: 2
-          F: 4
-          B: 5
-          O: 6
-          I: 7
-        cuts: [0.33, -0.33]
-        notation:
-          twist_names:
-            I<F>: I[U -> R]
-            I<FU>: I[F -> R -> B -> U]
-            I<FUR>: I[U -> R -> F]
-          list_order: U, D, F, B, R, L, O, I
-        direction_controls:
-          x:  { R: O, L: I, _: R }
-          x': { R: I, L: O, _: L }
-          y:  { U: O, D: I, _: U }
-          y': { U: I, D: O, _: D }
-          z:  { F: O, B: I, _: F }
-          z': { F: I, B: O, _: B }
-        rotations:
-          xy: R -> U
-          xz: R -> F
-          xw: R -> O
-          yx: U -> R
-          yz: U -> F
-          yw: U -> O
-          zx: F -> R
-          zy: F -> U
-          zw: F -> O
-          wx: O -> R
-          wy: O -> U
-          wz: O -> F
+  name: Hypercubic
+  axes:
+    - symmetry:
+        - schlafli: 4,3,3
+      normal: [1, 0, 0, 0]
+      cuts: [2 from -1 to +1]
+      names: [R, L, D, U, F, B, O, I]
+  axis_order: [R, L, U, D, F, B, O, I]
+  generators:
+    - F:(R -> U)
+    - 0[1 -> 2, 1 | 3]
+  notation:
+    aliases:
+      M: "{2..-2}L"
+      E: "{2..-2}D"
+      S: "{2..-2}F"
+      P: "{2..-2}O"
+    twists:
+      I{set:F}: I[U -> R]
+      I{set:FU}: I[F -> R -> B -> U]
+      I{set:FUR}: I[U -> R -> F]
+    list_order: [U, D, F, B, R, L, O, I]
+    rotations:
+      xy: R -> U
+      xz: R -> F
+      xw: R -> O
+      yx: U -> R
+      yz: U -> F
+      yw: U -> O
+      zx: F -> R
+      zy: F -> U
+      zw: F -> O
+      wx: O -> R
+      wy: O -> U
+      wz: O -> F
+
+  controls:
+    directions:
+      x: { R: O, L: I, _: R }
+      y: { U: O, D: I, _: U }
+      z: { F: O, B: I, _: F }
+    concatenate_directions: true
