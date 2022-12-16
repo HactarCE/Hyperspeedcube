@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Tweaked default keybinds
 
+### Fixed
+
+- Preferences not saving on macOS
+- Holding a key no longer twists the puzzle repeatedly
+
 ## [1.0.1] - 2022-11-23
 
 ### Added

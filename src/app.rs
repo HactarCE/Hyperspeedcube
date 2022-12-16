@@ -248,20 +248,18 @@ impl App {
 
                 match input.state {
                     ElementState::Pressed => {
+                        let mut held = false;
+
                         // Record the key as being pressed. If the key is
                         // already pressed, then ignore this event.
                         if let Some(sc) = sc {
-                            if !self.pressed_keys.insert(Key::Sc(sc)) {
-                                return;
-                            }
+                            held |= !self.pressed_keys.insert(Key::Sc(sc));
                         }
                         if let Some(vk) = vk {
-                            if !self.pressed_keys.insert(Key::Vk(vk)) {
-                                return;
-                            }
+                            held |= !self.pressed_keys.insert(Key::Vk(vk));
                         }
 
-                        self.handle_key_press(sc, vk);
+                        self.handle_key_press(sc, vk, held);
                     }
 
                     ElementState::Released => {
@@ -296,10 +294,18 @@ impl App {
         Ok(())
     }
 
-    fn handle_key_press(&mut self, sc: Option<KeyMappingCode>, vk: Option<VirtualKeyCode>) {
+    fn handle_key_press(
+        &mut self,
+        sc: Option<KeyMappingCode>,
+        vk: Option<VirtualKeyCode>,
+        held: bool,
+    ) {
         // Only allow one twist command per keypress. Don't use
         // multiple keybinds for macros.
         let mut done_twist_command = false;
+        if held {
+            done_twist_command = true;
+        }
 
         // Sometimes users will bind a twist command and another command to the
         // same key, so if the twist command fails due to an incomplete grip
@@ -660,7 +666,7 @@ impl App {
                 self.toggled_keys.insert(k);
             }
             self.toggled_modifiers |= mods;
-            self.handle_key_press(sc, vk);
+            self.handle_key_press(sc, vk, false);
         }
     }
 
