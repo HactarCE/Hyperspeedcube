@@ -226,6 +226,16 @@ impl App {
                 }
             }
 
+            WindowEvent::Focused(false) => {
+                // Release all keys when the window loses focus.
+                for key in std::mem::take(&mut self.pressed_keys) {
+                    match key {
+                        Key::Sc(sc) => self.handle_key_release(Some(sc), None),
+                        Key::Vk(vk) => self.handle_key_release(None, Some(vk)),
+                    }
+                }
+            }
+
             WindowEvent::ModifiersChanged(mods) => {
                 self.pressed_modifiers = *mods;
                 // Sometimes we miss key events for modifiers when the left and
