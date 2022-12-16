@@ -4,9 +4,10 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-[@Sonicpineapple]: https://github.com/Sonicpineapple
 [@Edan-Purple]: https://github.com/Edan-Purple
 [@Leoongithub]: https://github.com/Leoongithub
+[@picuber]: https://github.com/picuber
+[@Sonicpineapple]: https://github.com/Sonicpineapple
 
 ## [UNRELEASED]
 
@@ -22,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Preferences not saving on macOS ([@Edan-Purple])
 - Keys staying held after window loses focus
+- Incorrect key names on Linux ([@picuber])
 - Holding a key no longer twists the puzzle repeatedly ([@Edan-Purple])
 
 ## [1.0.1] - 2022-11-23
