@@ -4,21 +4,25 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+[@Sonicpineapple]: https://github.com/Sonicpineapple
+[@Edan-Purple]: https://github.com/Edan-Purple
+[@Leoongithub]: https://github.com/Leoongithub
+
 ## [UNRELEASED]
 
 ### Added
 
-- Built-in "Next" and "Previous" presets for "Filter" keybindings
+- Built-in "Next" and "Previous" presets for "Filter" keybindings ([@Sonicpineapple])
 
 ### Changed
 
-- Tweaked default keybinds
+- Tweaked default keybinds ([@Sonicpineapple])
 
 ### Fixed
 
-- Preferences not saving on macOS
+- Preferences not saving on macOS ([@Edan-Purple])
 - Keys staying held after window loses focus
-- Holding a key no longer twists the puzzle repeatedly
+- Holding a key no longer twists the puzzle repeatedly ([@Edan-Purple])
 
 ## [1.0.1] - 2022-11-23
 
@@ -31,11 +35,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- Optimized rendering of invisible pieces; large puzzles now render more smoothly when many pieces are hidden
+- Optimized rendering of invisible pieces; large puzzles now render more smoothly when many pieces are hidden ([@Sonicpineapple])
 
 ### Fixed
 
-- Incorrect YouTube link in welcome screen
+- Incorrect YouTube link in welcome screen ([@Leoongithub])
 - Hovered sticker with off-center puzzle
 - Selection of fallback graphics adapter
 - Keybinds reference resizing being janky
