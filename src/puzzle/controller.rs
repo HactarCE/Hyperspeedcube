@@ -81,6 +81,8 @@ pub struct PuzzleController {
     grip: Grip,
     /// Set of selected stickers.
     selection: HashSet<Sticker>,
+    /// Last used filter.
+    last_filter: String,
     /// Set of non-hidden pieces.
     visible_pieces: BitVec,
     /// Set of non-hidden pieces to preview when hovering over a piece filter
@@ -135,6 +137,7 @@ impl PuzzleController {
 
             grip: Grip::default(),
             selection: HashSet::new(),
+            last_filter: "".to_string(),
             visible_pieces: bitvec![1; ty.pieces().len()],
             visible_pieces_preview: None,
             hidden_pieces_preview_opacity: None,
@@ -649,6 +652,13 @@ impl PuzzleController {
     /// Returns the visual state for a piece.
     pub fn visual_piece_state(&self, piece: Piece) -> VisualPieceState {
         self.visual_piece_states[piece.0 as usize]
+    }
+
+    pub fn last_filter(&self) -> &str {
+        &self.last_filter
+    }
+    pub fn set_last_filter(&mut self, filter_name: String) {
+        self.last_filter = filter_name
     }
 
     /// Returns the set of non-hidden pieces.

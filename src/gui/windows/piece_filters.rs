@@ -174,7 +174,7 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
                 .value
                 .visible_pieces
                 .resize(app.puzzle.pieces().len(), false);
-            PieceFilterWidget::new(
+            PieceFilterWidget::new_preset(
                 &preset.preset_name,
                 &preset.preset_name,
                 preset.value.visible_pieces.clone(),
@@ -192,6 +192,7 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
 #[must_use]
 struct PieceFilterWidget<'a, W> {
     name: &'a str,
+    is_preset: bool,
     label_ui: W,
     highlight_if_active: bool,
     all_except: bool,
@@ -202,17 +203,29 @@ impl<'a> PieceFilterWidget<'a, egui::Button> {
     fn new_uppercased(name: &'a str, piece_set: BitVec) -> Self {
         let mut s = name.to_string();
         s[0..1].make_ascii_uppercase();
-        Self::new(name, &s, piece_set, None)
+        Self::new(name, &s, piece_set)
     }
-    fn new(name: &'a str, label: &str, piece_set: BitVec, hidden_opacity: Option<f32>) -> Self {
+    fn new(name: &'a str, label: &str, piece_set: BitVec) -> Self {
         Self {
             name,
+            is_preset: false,
             label_ui: egui::Button::new(label).frame(false),
             highlight_if_active: true,
             all_except: true,
             piece_set,
-            hidden_opacity,
+            hidden_opacity: None,
         }
+    }
+    fn new_preset(
+        name: &'a str,
+        label: &str,
+        piece_set: BitVec,
+        hidden_opacity: Option<f32>,
+    ) -> Self {
+        let mut this = Self::new(name, label, piece_set);
+        this.is_preset = true;
+        this.hidden_opacity = hidden_opacity;
+        this
     }
 }
 impl<'a, W> PieceFilterWidget<'a, W>
@@ -222,6 +235,7 @@ where
     fn label_ui<W2>(self, label_ui: W2) -> PieceFilterWidget<'a, W2> {
         PieceFilterWidget {
             name: self.name,
+            is_preset: self.is_preset,
             label_ui,
             highlight_if_active: false,
             all_except: self.all_except,
@@ -258,6 +272,9 @@ where
                     }
                     if r.clicked() {
                         puzzle.set_visible_pieces(&new_visible_set);
+                        if self.is_preset {
+                            puzzle.set_last_filter(self.name.to_string());
+                        }
                     }
                 };
                 small_button(show_these, "👁", &format!("Show {}", self.name));
@@ -289,6 +306,9 @@ where
                         }
                         if r.clicked() {
                             puzzle.set_visible_pieces(&self.piece_set);
+                            if self.is_preset {
+                                puzzle.set_last_filter(self.name.to_string());
+                            }
                             if let Some(hidden_opacity) = self.hidden_opacity {
                                 if app.prefs.opacity.hidden != hidden_opacity {
                                     app.prefs.opacity.hidden = hidden_opacity;

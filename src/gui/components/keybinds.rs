@@ -385,7 +385,13 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
                     .add(FancyComboBox::new(
                         unique_id!(self.idx),
                         filter_name,
-                        std::iter::once(&"Everything".to_string()).chain(preset_names),
+                        [
+                            "Everything".to_string(),
+                            "Next".to_string(),
+                            "Previous".to_string(),
+                        ]
+                        .iter()
+                        .chain(preset_names),
                     ))
                     .on_hover_explanation(
                         "",

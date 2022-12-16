@@ -10,7 +10,7 @@ use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
 use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
-use crate::preferences::{Key, Keybind, PieceFilter, Preferences};
+use crate::preferences::{Key, Keybind, PieceFilter, Preferences, Preset};
 use crate::puzzle::*;
 use crate::render::{GraphicsState, PuzzleRenderCache};
 
@@ -366,14 +366,55 @@ impl App {
                 }
 
                 PuzzleCommand::Filter { mode, filter_name } => {
+                    fn jump_piece_filter<'a>(
+                        piece_filters: &'a Vec<Preset<PieceFilter>>,
+                        last_filter: &str,
+                        offset: isize,
+                    ) -> Option<&'a Preset<PieceFilter>> {
+                        let find_position = piece_filters
+                            .iter()
+                            .find_position(|p| p.preset_name == last_filter);
+                        match find_position {
+                            Some((index, _)) => {
+                                piece_filters.get((index as isize + offset) as usize)
+                            }
+                            None => piece_filters.first(),
+                        }
+                    }
+                    let mut new_filter_name = None;
                     let piece_filters = &self.prefs.piece_filters[self.puzzle.ty()];
                     let preset = match piece_filters.iter().find(|p| p.preset_name == *filter_name)
                     {
-                        Some(p) => p.value.clone(),
+                        Some(p) => {
+                            new_filter_name = Some(&p.preset_name);
+                            p.value.clone()
+                        }
                         None if filter_name == "Everything" => PieceFilter {
                             visible_pieces: bitvec![1; self.puzzle.ty().pieces().len()],
                             hidden_opacity: None,
                         },
+                        None if filter_name == "Next" => {
+                            if let Some(filter) =
+                                jump_piece_filter(piece_filters, self.puzzle.last_filter(), 1)
+                            {
+                                new_filter_name = Some(&filter.preset_name);
+                                filter.value.clone()
+                            } else {
+                                self.set_status_err("No next piece filter".to_string());
+                                return;
+                            }
+                        }
+                        None if filter_name == "Previous" => {
+                            if let Some(filter) =
+                                jump_piece_filter(piece_filters, self.puzzle.last_filter(), -1)
+                            {
+                                new_filter_name = Some(&filter.preset_name);
+                                filter.value.clone()
+                            } else {
+                                self.set_status_err("No previous piece filter".to_string());
+                                return;
+                            }
+                        }
                         None => {
                             self.set_status_err(format!(
                                 "Unable to find piece filter {filter_name:?}"
@@ -404,6 +445,10 @@ impl App {
                         }
                     };
                     self.puzzle.set_visible_pieces(&new_piece_set);
+                    if let Some(new_filter_name) = new_filter_name {
+                        self.puzzle.set_last_filter(new_filter_name.to_string());
+                        self.status_msg = format!("Selected {new_filter_name} piece filter");
+                    }
 
                     success = true;
                 }

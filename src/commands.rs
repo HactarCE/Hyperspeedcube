@@ -159,12 +159,16 @@ impl PuzzleCommand {
                 }
             }
 
-            PuzzleCommand::Filter { mode, .. } => match mode {
-                FilterMode::ShowExactly => "👁".to_string(),
-                FilterMode::Show => "👁".to_string(),
-                FilterMode::Hide => "ｘ".to_string(),
-                FilterMode::HideAllExcept => "❎".to_string(),
-                FilterMode::Toggle => "~".to_string(),
+            PuzzleCommand::Filter { mode, filter_name } => match filter_name.as_str() {
+                "Next" => "➡".to_string(),
+                "Previous" => "⬅".to_string(),
+                _ => match mode {
+                    FilterMode::ShowExactly => "👁".to_string(),
+                    FilterMode::Show => "👁".to_string(),
+                    FilterMode::Hide => "ｘ".to_string(),
+                    FilterMode::HideAllExcept => "❎".to_string(),
+                    FilterMode::Toggle => "~".to_string(),
+                },
             },
 
             PuzzleCommand::KeybindSet { keybind_set_name } => format!("{keybind_set_name}"),
