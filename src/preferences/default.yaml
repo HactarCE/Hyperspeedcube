@@ -518,8 +518,6 @@ puzzle_keybinds:
           - ^Basic twists
           - ^Filters
           - ^Layers
-          - ^Rotations
-          - ^Switching
         keybinds:
           - sc: ShiftLeft
             command:
@@ -569,20 +567,20 @@ puzzle_keybinds:
             command:
               grip:
                 axis: O
+          - sc: KeyX
+            command:
+              grip:
+                axis: I
+                layers: 1..-1
           - sc: Space
             command:
               recenter: {}
-          - sc: KeyZ
-            command:
-              grip:
-                layers: "2"
       - preset_name: RKT
         includes:
           - ^Basic twists
           - ^Filters
           - ^Layers
           - ^Rotations
-          - ^Switching
         keybinds:
           - sc: ShiftLeft
             command:
@@ -814,20 +812,6 @@ puzzle_keybinds:
               filter:
                 mode: show_exactly
                 filter_name: Everything
-      - preset_name: ^Switching
-        keybinds:
-          - sc: Escape
-            command:
-              keybind_set:
-                keybind_set_name: Default
-          - sc: KeyG
-            command:
-              keybind_set:
-                keybind_set_name: RKT
-          - sc: KeyH
-            command:
-              keybind_set:
-                keybind_set_name: RKT
 mousebinds:
   - button: left
     ctrl: true

@@ -4,6 +4,16 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [UNRELEASED]
+
+### Added
+
+- Built-in "Next" and "Previous" presets for "Filter" keybindings
+
+### Changed
+
+- Tweaked default keybinds
+
 ## [1.0.1] - 2022-11-23
 
 ### Added
