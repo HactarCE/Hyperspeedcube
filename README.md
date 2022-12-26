@@ -32,7 +32,7 @@ Click for full resolution.
 - Import/export using `.hsc` or MC4D-compatible `.log` file
   - `.log` is available for 4D only
 - Mouse and keyboard controls for all puzzles, with multiple keybind sets
-- Fitler which pieces are visible, with presets
+- Filter which pieces are visible, with presets
 - Mark pieces to track as they move
 - _Everything_ is customizable
   - Keybinds
