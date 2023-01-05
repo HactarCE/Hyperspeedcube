@@ -125,8 +125,13 @@ async fn run() {
         wgpu::FilterMode::Linear,
     );
 
+    let initial_file = std::env::args()
+        .skip(1)
+        .next()
+        .map(|s| std::path::PathBuf::from(s));
+
     // Initialize app state.
-    let mut app = App::new(&event_loop);
+    let mut app = App::new(&event_loop, initial_file);
 
     if app.prefs.show_welcome_at_startup {
         gui::windows::WELCOME.set_open(&egui.context(), true);

@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [UNRELEASED]
 
+### Added
+
+- Opening log file passed via CLI arg
+
 ### Fixed
 
 - Missing scrollbar on piece filters window
