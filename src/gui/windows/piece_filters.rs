@@ -8,6 +8,7 @@ use crate::puzzle::{traits::*, Face, PieceInfo, PieceType};
 
 pub(crate) const PIECE_FILTERS: Window = Window {
     name: "Piece filters",
+    vscroll: true,
     build,
     cleanup,
     ..Window::DEFAULT
