@@ -45,7 +45,7 @@ pub struct App {
     status_msg: String,
 }
 impl App {
-    pub(crate) fn new(event_loop: &EventLoop<AppEvent>) -> Self {
+    pub(crate) fn new(event_loop: &EventLoop<AppEvent>, initial_file: Option<PathBuf>) -> Self {
         let mut this = Self {
             prefs: Preferences::load(None),
 
@@ -71,6 +71,10 @@ impl App {
 
         // Always save preferences after opening.
         this.prefs.needs_save = true;
+
+        if let Some(path) = initial_file {
+            this.prefs.log_file = Some(path);
+        }
 
         // Load last open file.
         if let Some(path) = this.prefs.log_file.take() {
