@@ -293,9 +293,6 @@ impl PuzzleController {
         let prefs_view_angle = view_prefs.view_angle();
         let mut offset = Rotor::from_angle_in_axis_plane(Y, z, offset[1].to_radians())
             * Rotor::from_angle_in_axis_plane(z, X, offset[0].to_radians());
-        if shift {
-            offset = offset.reverse();
-        }
         self.view_angle.current =
             prefs_view_angle.reverse().transform_rotor(&offset) * &self.view_angle.current;
         self.view_angle.target = self.view_angle.current.clone();
