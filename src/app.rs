@@ -5,7 +5,6 @@ use key_names::KeyMappingCode;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
@@ -126,7 +125,7 @@ impl App {
                 Command::SaveAs => self.try_save_puzzle_as(),
                 Command::Exit => {
                     if self.confirm_discard_changes("exit") {
-                        *control_flow = ControlFlow::Exit;
+                        *control_flow = ControlFlow::ExitWithCode(0);
                     }
                 }
 
@@ -684,7 +683,7 @@ impl App {
         }
     }
 
-    pub(crate) fn frame(&mut self, _delta: Duration) {
+    pub(crate) fn frame(&mut self) {
         self.puzzle.set_grip(self.grip(), &self.prefs.interaction);
 
         if self.puzzle.check_just_solved() {

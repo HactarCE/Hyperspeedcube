@@ -5,12 +5,12 @@ use bitvec::bitvec;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 use cgmath::{Deg, InnerSpace, One, Quaternion, Rotation, Rotation3};
+use instant::Duration;
 use num_enum::FromPrimitive;
 use std::borrow::Cow;
 use std::collections::{HashSet, VecDeque};
 use std::ops::{BitOr, BitOrAssign};
 use std::sync::Arc;
-use std::time::Duration;
 
 /// If at least this much of a twist is animated in one frame, just skip the
 /// animation to reduce unnecessary flashing.

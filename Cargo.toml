@@ -3,62 +3,64 @@ name = "hyperspeedcube"
 version = "1.0.3"
 authors = ["HactarCE"]
 edition = "2021"
+rust-version = "1.65"
 description = "Multidimensional twisty puzzle simulator"
 repository = "https://github.com/HactarCE/Hyperspeedcube/"
 license = "MIT OR Apache-2.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-ambassador = "0.3.1"
-anyhow = "1.0.55"
-bitvec = { version = "1.0.1", default-features = false, features = ["alloc", "serde", "std"] }
-bytemuck = { version = "1.9.1", features = ["derive"] }
-cgmath = "0.18.0"
-config = "0.13.1"
-dark-light = "0.2.1"
-directories = "4.0.1"
-egui = "0.18.0"
-egui_wgpu_backend = "0.18.0"
-egui_winit_platform = { version = "0.15.0", features = ["clipboard", "webbrowser"] }
-enum_dispatch = "0.3.8"
-enum-iterator = "1.1.3"
-env_logger = "0.9.0"
-epi = "0.17.0"
-hex = "0.4.3"
-human-panic = "1.0.3"
-itertools = "0.10.3"
-key-names = { git = "https://github.com/HactarCE/key-names", tag = "v1.4.0", features = ["winit"] }
-lazy_static = "1.4.0"
-log = "0.4.16"
-monostate = "0.1.1"
-num_enum = "0.5.7"
-once_cell = "1.9.0"
-png = "0.17.5"
-pollster = "0.2.5"
-rand = "0.8.5"
-regex = "1.6.0"
-rfd = "0.10.0"
-send_wrapper = "0.6.0"
-serde = { version = "1.0.136", features = ["derive"] }
-serde_yaml = "0.8.23"
-smallvec = { version = "1.8.0", features = ["serde"] }
-strum = { version = "0.24.0", features = ["derive"] }
-time = { version = "0.3.7", features = ["local-offset"] }
-wgpu = "0.13.1"
-winit = { version = "0.26.0", features = ["serde"] }
+ambassador = "0.3"
+anyhow = "1.0"
+bitvec = { version = "1.0", default-features = false, features = ["alloc", "serde", "std"] }
+bytemuck = { version = "1.12", features = ["derive"] }
+cgmath = "0.18"
+config = "0.13"
+dark-light = "1.0"
+directories = "4.0"
+egui = "0.20"
+egui-wgpu = "0.20"
+egui-winit = "0.20"
+enum_dispatch = "0.3"
+enum-iterator = "1.1"
+env_logger = "0.10"
+getrandom = { version = "*", features = ["js"] }
+hex = "0.4"
+instant = "0.1"
+itertools = "0.10"
+# key-names = { git = "https://github.com/HactarCE/key-names", tag = "v1.4.0", features = ["winit"] }
+key-names = { path = "../key-names", features = ["winit"] }
+lazy_static = "1.4"
+log = "0.4"
+monostate = "0.1"
+num_enum = "0.5"
+once_cell = "1.9"
+png = "0.17"
+pollster = "0.2"
+rand = "0.8"
+regex = "1.6"
+rfd = "0.10"
+send_wrapper = "0.6"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.8"
+smallvec = { version = "1.8", features = ["serde"] }
+strum = { version = "0.24", features = ["derive"] }
+time = { version = "0.3", features = ["local-offset"] }
+wgpu = "0.14"
+winit = { version = "0.27", features = ["serde"] }
 
+# native:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+human-panic = "1.0"
+tracing-subscriber = "0.3"
+
+# web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
-console_log = "0.2.0"
-wgpu = { version = "0.13.1", features = ["webgl"] }
-wasm-bindgen = "0.2"
+tracing-wasm = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "=0.3.58", features = [
-    "Document",
-    "Window",
-    "Element",
-]}
+
+[profile.release]
+opt-level = 2 # fast and small wasm
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

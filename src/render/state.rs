@@ -10,7 +10,7 @@ pub(crate) struct GraphicsState {
 
     pub(super) shaders: Shaders,
 
-    pub(crate) scale_factor: f64,
+    pub(crate) scale_factor: f32,
 
     /// 1x1 texture used as a temporary value. Its contents are not important.
     pub(crate) dummy_texture: wgpu::Texture,
@@ -52,13 +52,14 @@ impl GraphicsState {
                 .expect("unsupported graphics adapter"),
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo, // VSync on
+            present_mode: wgpu::PresentMode::AutoNoVsync, // VSync on
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
         surface.configure(&device, &config);
 
         let shaders = Shaders::new();
 
-        let scale_factor = window.scale_factor();
+        let scale_factor = window.scale_factor() as f32;
 
         let dummy_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("dummy_texture"),
@@ -94,7 +95,7 @@ impl GraphicsState {
         }
     }
 
-    pub(crate) fn set_scale_factor(&mut self, new_scale_factor: f64) {
+    pub(crate) fn set_scale_factor(&mut self, new_scale_factor: f32) {
         self.scale_factor = new_scale_factor;
     }
 
@@ -110,7 +111,7 @@ impl GraphicsState {
     ) -> (wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label,
-            size: std::mem::size_of::<T>() as u64,
+            size: std::cmp::max(std::mem::size_of::<T>() as u64, 1024),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
             mapped_at_creation: false,
         });

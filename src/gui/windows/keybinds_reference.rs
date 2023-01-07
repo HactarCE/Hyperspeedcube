@@ -91,7 +91,7 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
         prefs_ui.checkbox("Function keys", access!(.function));
         prefs_ui.checkbox("Navigation keys", access!(.navigation));
         prefs_ui.checkbox("Numpad", access!(.numpad));
-        prefs_ui.float("Max font size", access!(.max_font_size), |dv| {
+        prefs_ui.num("Max font size", access!(.max_font_size), |dv| {
             dv.fixed_decimals(1).clamp_range(1.0..=3.0).speed(0.01)
         });
 

@@ -21,9 +21,7 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
 
     let grip = app.grip();
 
-    let h_layout = egui::Layout::left_to_right()
-        .with_cross_align(egui::Align::TOP)
-        .with_main_wrap(true);
+    let h_layout = egui::Layout::left_to_right(egui::Align::TOP).with_main_wrap(true);
 
     // Allow selecting multiple by holding cmd/ctrl.
     let multi_select = ui.input().modifiers.command;

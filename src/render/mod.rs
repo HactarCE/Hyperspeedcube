@@ -1,7 +1,7 @@
 //! Rendering logic.
 
+use instant::Instant;
 use std::sync::Arc;
-use std::time::Instant;
 
 mod cache;
 mod mesh;
