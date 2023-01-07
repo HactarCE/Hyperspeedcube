@@ -25,7 +25,7 @@ impl<'a> Index<(&'a PuzzleType, Facet)> for ColorPreferences {
             .get(puzzle_type)
             .and_then(|facet_colors| facet_colors.get(&puzzle_type.info(facet).name))
             .map(|color| &color.0)
-            .unwrap_or(&self.blind_sticker)
+            .unwrap_or_else(|| default_colors(facet))
     }
 }
 impl<'a> IndexMut<(&'a PuzzleType, Facet)> for ColorPreferences {
@@ -35,7 +35,7 @@ impl<'a> IndexMut<(&'a PuzzleType, Facet)> for ColorPreferences {
             .entry(puzzle_type)
             .or_default()
             .entry(puzzle_type.info(facet).name.clone())
-            .or_insert(FacetColor(self.blind_sticker))
+            .or_insert_with(|| FacetColor(*default_colors(facet)))
             .0
     }
 }
@@ -57,4 +57,28 @@ impl ColorPreferences {
             })
             .collect()
     }
+}
+
+// todo: make this not a hack
+fn default_colors(facet: Facet) -> &'static egui::Color32 {
+    const COLORS: [egui::Color32; 16] = [
+        egui::Color32::from_rgb(255, 0, 0),        // Red
+        egui::Color32::from_rgb(255, 0xaa, 00),    // Orange
+        egui::Color32::from_rgb(0, 255, 0),        // Green
+        egui::Color32::from_rgb(0, 0, 255),        // Blue
+        egui::Color32::from_rgb(255, 255, 255),    // White
+        egui::Color32::from_rgb(255, 255, 0),      // Yellow
+        egui::Color32::from_rgb(255, 100, 255),    // Pink
+        egui::Color32::from_rgb(0x50, 0, 255),     // Purple
+        egui::Color32::from_rgb(100, 0, 70),       // Plum
+        egui::Color32::from_rgb(0x9d, 0x60, 255),  // Lilac
+        egui::Color32::from_rgb(0, 255, 255),      // Cyan
+        egui::Color32::from_rgb(0, 100, 100),      // Teal
+        egui::Color32::from_rgb(0x22, 0x22, 0x22), // Dark Grey
+        egui::Color32::from_rgb(0x88, 0x88, 0x88), // Light Grey
+        egui::Color32::from_rgb(0, 100, 0),        // Dark Green
+        egui::Color32::from_rgb(0, 0, 100),        // Dark Blue
+    ];
+    const FALLBACK_COLOR: egui::Color32 = egui::Color32::from_rgb(0x66, 0x66, 0x66);
+    COLORS.get(facet.0 as usize).unwrap_or(&FALLBACK_COLOR)
 }
