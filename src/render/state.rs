@@ -20,7 +20,7 @@ impl GraphicsState {
         let size = window.inner_size();
 
         // Create surface.
-        let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(&window) };
 
         // Request adapter.
