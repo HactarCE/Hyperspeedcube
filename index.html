@@ -121,7 +121,11 @@
 <body>
     <!-- The WASM code will resize the canvas dynamically -->
     <!-- the id is hardcoded in main.rs . so, make sure both match. -->
-    <canvas id="hyperspeedcube_canvas" style="width: 100%; height: 100%;"></canvas>
+    <canvas
+        id="hyperspeedcube_canvas"
+        style="width: 100%; height: 100%;"
+        oncontextmenu="return false;"
+    ></canvas>
 
     <!--Register Service Worker. this will cache the wasm / js scripts for offline use (for PWA functionality). -->
     <!-- Force refresh (Ctrl + F5) to load the latest files instead of cached files  -->
