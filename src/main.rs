@@ -21,9 +21,12 @@ extern crate strum;
 
 use instant::{Duration, Instant};
 use std::sync::Arc;
-use time::{Duration, Instant};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
 use winit::event::{ElementState, Event, KeyboardInput, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoopBuilder};
+#[cfg(target_arch = "wasm32")]
+use winit::platform::web::WindowBuilderExtWebSys;
 use winit::window::Icon;
 
 #[macro_use]
@@ -43,6 +46,7 @@ use app::App;
 const TITLE: &str = "Hyperspeedcube";
 const ICON_32: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     // Initialize logging.
     env_logger::builder()
@@ -88,12 +92,31 @@ fn main() {
     pollster::block_on(run());
 }
 
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    // Initialize logging.
+    wasm_logger::init(wasm_logger::Config::default());
+
+    // Log panics using `console.error`.
+    console_error_panic_hook::set_once();
+
+    // Redirect tracing to console.log and friends:
+    tracing_wasm::set_as_global_default();
+
+    wasm_bindgen_futures::spawn_local(run());
+}
+
 async fn run() {
     // Initialize window.
     let event_loop = EventLoopBuilder::with_user_event().build();
-    let window = winit::window::WindowBuilder::new()
+    #[cfg(not(target_arch = "wasm32"))]
+    let window_builder = winit::window::WindowBuilder::new()
         .with_title(crate::TITLE)
-        .with_window_icon(load_application_icon())
+        .with_window_icon(load_application_icon());
+    #[cfg(target_arch = "wasm32")]
+    let window_builder =
+        winit::window::WindowBuilder::new().with_canvas(Some(find_canvas_element()));
+    let window = window_builder
         .build(&event_loop)
         .expect("failed to initialize window");
 
@@ -427,4 +450,14 @@ fn set_style_overrides(ctx: &egui::Context) {
     // style_mut.visuals.widgets.hovered.bg_stroke.width *= 2.0;
     style_mut.spacing.interact_size.x *= 1.2;
     ctx.set_style(style);
+}
+
+#[cfg(target_arch = "wasm32")]
+fn find_canvas_element() -> web_sys::HtmlCanvasElement {
+    let document = web_sys::window().unwrap().document().unwrap();
+    let canvas = document.get_element_by_id("hyperspeedcube_canvas").unwrap();
+    canvas
+        .dyn_into::<web_sys::HtmlCanvasElement>()
+        .map_err(|_| ())
+        .expect("failed to find canvas for Hyperspeedcube")
 }

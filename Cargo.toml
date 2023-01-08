@@ -19,7 +19,6 @@ dark-light = "1.0"
 directories = "4.0"
 egui = "0.20"
 egui-wgpu = "0.20"
-egui-winit = "0.20"
 enum_dispatch = "0.3"
 enum-iterator = "1.1"
 env_logger = "0.10"
@@ -45,19 +44,30 @@ serde_yaml = "0.8"
 smallvec = { version = "1.8", features = ["serde"] }
 strum = { version = "0.24", features = ["derive"] }
 time = { version = "0.3", features = ["local-offset"] }
-wgpu = "0.14"
+wgpu = { version = "0.14", features = ["webgl"] }
 winit = { version = "0.27", features = ["serde"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+egui-winit = { version = "0.20" }
 human-panic = "1.0"
 tracing-subscriber = "0.3"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
+egui-winit = { version = "0.20", default-features = false, features = ["links"] }
 tracing-wasm = "0.2"
+wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+wasm-logger = "0.2"
+web-sys = { version = "=0.3.60", features = [
+    "CanvasRenderingContext2d",
+    "Document",
+    "Element",
+    "HtmlCanvasElement",
+    "Window",
+] }
 
 [profile.release]
 opt-level = 2 # fast and small wasm

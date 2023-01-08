@@ -1454,6 +1454,7 @@ dependencies = [
  "getrandom",
  "hex",
  "human-panic",
+ "instant",
  "itertools",
  "key-names",
  "lazy_static",
@@ -1474,7 +1475,10 @@ dependencies = [
  "time",
  "tracing-subscriber",
  "tracing-wasm",
+ "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-logger",
+ "web-sys",
  "wgpu",
  "winit",
  "winres",
@@ -3143,6 +3147,17 @@ name = "wasm-bindgen-shared"
 version = "0.2.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c38c045535d93ec4f0b4defec448e4291638ee608530863b1e2ba115d4fff7f"
+
+[[package]]
+name = "wasm-logger"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "074649a66bb306c8f2068c9016395fa65d8e08d2affcbf95acf3c24c3ab19718"
+dependencies = [
+ "log",
+ "wasm-bindgen",
+ "web-sys",
+]
 
 [[package]]
 name = "wayland-client"
