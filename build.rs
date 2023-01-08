@@ -4,6 +4,8 @@ fn main() {
         // Set application icon.
         let mut res = winres::WindowsResource::new();
         res.set_icon("resources/icon/hyperspeedcube.ico");
-        res.compile().unwrap();
+        if let Err(e) = res.compile() {
+            eprintln!("Error setting application icon: {}", e);
+        }
     }
 }
