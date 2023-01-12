@@ -327,7 +327,8 @@ async fn run() {
                                 wgpu::SurfaceError::Lost => gfx.resize(gfx.size),
                                 // The system is out of memory, so quit.
                                 wgpu::SurfaceError::OutOfMemory => {
-                                    *control_flow = ControlFlow::Exit
+                                    log::error!("Out of memory!");
+                                    control_flow.set_exit_with_code(1);
                                 }
                                 // Log other errors.
                                 _ => log::warn!("Dropped frame with error: {:?}", e),

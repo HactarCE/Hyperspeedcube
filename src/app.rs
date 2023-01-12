@@ -130,7 +130,7 @@ impl App {
                 Command::SaveAs => self.try_save_puzzle_as(),
                 Command::Exit => {
                     if self.confirm_discard_changes("exit") {
-                        *control_flow = ControlFlow::ExitWithCode(0);
+                        control_flow.set_exit_with_code(0);
                     }
                 }
 
