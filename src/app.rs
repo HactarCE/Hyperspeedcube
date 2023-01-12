@@ -110,6 +110,11 @@ impl App {
         control_flow: &mut ControlFlow,
     ) -> Result<(), String> {
         match event {
+            #[cfg(target_arch = "wasm32")]
+            AppEvent::WebWorkaround(_) => {
+                panic!("web workaround event should not be handled by app")
+            }
+
             AppEvent::Command(c) => match c {
                 Command::Open => {
                     if self.confirm_discard_changes("open another file") {
@@ -803,6 +808,9 @@ pub(crate) enum AppEvent {
     DragReleased,
 
     StatusError(String),
+
+    #[cfg(target_arch = "wasm32")]
+    WebWorkaround(crate::web_workarounds::Event),
 }
 impl From<Command> for AppEvent {
     fn from(c: Command) -> Self {

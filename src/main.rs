@@ -40,6 +40,8 @@ pub mod puzzle;
 mod render;
 mod serde_impl;
 mod util;
+#[cfg(target_arch = "wasm32")]
+mod web_workarounds;
 
 use app::App;
 
@@ -153,10 +155,30 @@ async fn run() {
         gui::windows::WELCOME.set_open(&egui_ctx, true);
     }
 
+    #[cfg(target_arch = "wasm32")]
+    let mut web_workarounds = web_workarounds::WebWorkarounds::new(&event_loop);
+
     // Begin main loop.
     let mut next_frame_time = Instant::now();
     event_loop.run(move |ev, _ev_loop, control_flow| {
         let mut event_has_been_captured = false;
+
+        #[cfg(target_arch = "wasm32")]
+        let ev = {
+            web_workarounds.generate_resize_event(&window);
+
+            if let Event::UserEvent(app::AppEvent::WebWorkaround(
+                web_workarounds::Event::EmulateWindowEvent(e),
+            )) = ev
+            {
+                Event::WindowEvent {
+                    window_id: window.id(),
+                    event: e,
+                }
+            } else {
+                ev
+            }
+        };
 
         // Key release events should always be processed by the app to make sure
         // there's no stuck keys.
