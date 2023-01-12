@@ -810,7 +810,7 @@ pub(crate) enum AppEvent {
     StatusError(String),
 
     #[cfg(target_arch = "wasm32")]
-    WebWorkaround(crate::web_workarounds::Event),
+    WebWorkaround(crate::web_workarounds::WebEvent),
 }
 impl From<Command> for AppEvent {
     fn from(c: Command) -> Self {

@@ -24,7 +24,7 @@ use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 use winit::event::{ElementState, Event, KeyboardInput, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoopBuilder};
+use winit::event_loop::EventLoopBuilder;
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::WindowBuilderExtWebSys;
 use winit::window::Icon;
@@ -165,10 +165,11 @@ async fn run() {
 
         #[cfg(target_arch = "wasm32")]
         let ev = {
+            web_workarounds.generate_modifiers_changed_event(&ev);
             web_workarounds.generate_resize_event(&window);
 
             if let Event::UserEvent(app::AppEvent::WebWorkaround(
-                web_workarounds::Event::EmulateWindowEvent(e),
+                web_workarounds::WebEvent::EmulateWindowEvent(e),
             )) = ev
             {
                 Event::WindowEvent {
