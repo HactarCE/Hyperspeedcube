@@ -148,9 +148,33 @@ impl GraphicsState {
 
     pub(super) fn create_texture(
         &self,
-        desc: &wgpu::TextureDescriptor,
+        mut desc: wgpu::TextureDescriptor,
     ) -> (wgpu::Texture, wgpu::TextureView) {
-        let tex = self.device.create_texture(desc);
+        fn clamp_u32(n: &mut u32, limit: u32) {
+            if *n > limit {
+                *n = limit;
+            }
+        }
+
+        // Respect texture limits.
+        let limits = self.device.limits();
+        match desc.dimension {
+            wgpu::TextureDimension::D1 => {
+                clamp_u32(&mut desc.size.width, limits.max_texture_dimension_1d);
+            }
+            wgpu::TextureDimension::D2 => {
+                clamp_u32(&mut desc.size.width, limits.max_texture_dimension_2d);
+                clamp_u32(&mut desc.size.height, limits.max_texture_dimension_2d);
+            }
+            wgpu::TextureDimension::D3 => {
+                let max = limits.max_texture_dimension_3d;
+                clamp_u32(&mut desc.size.width, max);
+                clamp_u32(&mut desc.size.height, max);
+                clamp_u32(&mut desc.size.depth_or_array_layers, max);
+            }
+        }
+
+        let tex = self.device.create_texture(&desc);
         let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
         (tex, view)
     }

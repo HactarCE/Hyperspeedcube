@@ -180,7 +180,7 @@ pub(crate) fn draw_puzzle(
 
     // Create "out" texture that will ultimately be returned.
     let (out_texture, out_texture_view) = cache.out_texture.get_or_insert_with(|| {
-        gfx.create_texture(&wgpu::TextureDescriptor {
+        gfx.create_texture(wgpu::TextureDescriptor {
             label: Some("puzzle_texture"),
             size: extent3d(width, height),
             mip_level_count: 1,
@@ -193,7 +193,7 @@ pub(crate) fn draw_puzzle(
 
     // Create depth texture.
     let (_depth_texture, depth_texture_view) = cache.depth_texture.get_or_insert_with(|| {
-        gfx.create_texture(&wgpu::TextureDescriptor {
+        gfx.create_texture(wgpu::TextureDescriptor {
             label: Some("puzzle_texture"),
             size: extent3d(width, height),
             mip_level_count: 1,
@@ -228,7 +228,7 @@ pub(crate) fn draw_puzzle(
         if prefs.gfx.msaa {
             // Create multisample texture.
             let (_, msaa_tex_view) = cache.multisample_texture.get_or_insert_with(|| {
-                gfx.create_texture(&wgpu::TextureDescriptor {
+                gfx.create_texture(wgpu::TextureDescriptor {
                     label: Some("puzzle_texture_multisample"),
                     size: extent3d(width, height),
                     mip_level_count: 1,
