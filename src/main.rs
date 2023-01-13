@@ -156,7 +156,7 @@ async fn run() {
     }
 
     #[cfg(target_arch = "wasm32")]
-    let mut web_workarounds = web_workarounds::WebWorkarounds::new(&event_loop);
+    let mut web_workarounds = web_workarounds::WebWorkarounds::new(&event_loop, &window);
 
     // Begin main loop.
     let mut next_frame_time = Instant::now();
