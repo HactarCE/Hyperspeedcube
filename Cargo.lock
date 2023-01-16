@@ -1456,6 +1456,7 @@ dependencies = [
  "human-panic",
  "instant",
  "itertools",
+ "js-sys",
  "key-names",
  "lazy_static",
  "log",
@@ -1615,9 +1616,9 @@ dependencies = [
 
 [[package]]
 name = "keycode"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62a2e321168faccd78d918d74559679e0e51c9f87989b6d58057c0a783721937"
+checksum = "b07873c3182aec8a0eb1a5a4e7b197d42e9d167ba78497a6ee932a82d94673ed"
 dependencies = [
  "arraydeque",
  "arrayvec 0.4.12",
@@ -1627,9 +1628,9 @@ dependencies = [
 
 [[package]]
 name = "keycode_macro"
-version = "0.1.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f13c65ae4c1a08b7081d6c25eeb200f603d1985fbe60cadc6c0aee8fb2e4921f"
+checksum = "e521ea802f5b3c7194e169d75cab431b0ff08d022f2b6047b08754b4988b89df"
 dependencies = [
  "anyhow",
  "heck 0.3.3",

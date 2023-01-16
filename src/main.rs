@@ -168,13 +168,12 @@ async fn run() {
             web_workarounds.generate_modifiers_changed_event(&ev);
             web_workarounds.generate_resize_event(&window);
 
-            if let Event::UserEvent(app::AppEvent::WebWorkaround(
-                web_workarounds::WebEvent::EmulateWindowEvent(e),
-            )) = ev
-            {
-                Event::WindowEvent {
-                    window_id: window.id(),
-                    event: e,
+            if let Event::UserEvent(app::AppEvent::WebWorkaround(web_event)) = ev {
+                match web_event {
+                    web_workarounds::WebEvent::EmulateWindowEvent(e) => Event::WindowEvent {
+                        window_id: window.id(),
+                        event: e,
+                    },
                 }
             } else {
                 ev
@@ -218,10 +217,19 @@ async fn run() {
                 // If the key combo popup didn't capture the event, then let
                 // egui handle it before anything else.
                 if !event_has_been_captured {
-                    let r = egui_winit_state.on_event(&egui_ctx, &event);
-                    event_has_been_captured |= r.consumed && allow_egui_capture;
-                    if r.repaint {
-                        egui_ctx.request_repaint();
+                    // Intercept paste events and handle them separately.
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let suppress_paste = false;
+                    #[cfg(target_arch = "wasm32")]
+                    let suppress_paste =
+                        web_workarounds.intercept_paste(app.modifiers(), &event, &egui_ctx);
+
+                    if !suppress_paste {
+                        let r = egui_winit_state.on_event(&egui_ctx, &event);
+                        event_has_been_captured |= r.consumed && allow_egui_capture;
+                        if r.repaint {
+                            egui_ctx.request_repaint();
+                        }
                     }
                 }
 
@@ -270,12 +278,23 @@ async fn run() {
                 egui_winit_state.set_pixels_per_point(gfx.scale_factor);
 
                 // Start egui frame.
-                let egui_input = egui_winit_state.take_egui_input(&window);
+                #[allow(unused_mut)]
+                let mut egui_input = egui_winit_state.take_egui_input(&window);
+
+                // Handle paste on web, which winit *should* do for us.
+                #[cfg(target_arch = "wasm32")]
+                web_workarounds.inject_paste_event(&mut egui_input);
 
                 let egui_output = egui_ctx.run(egui_input, |ctx| {
                     // Build all the UI except the puzzle view in the center.
                     gui::build(ctx, &mut app, puzzle_texture_id);
                 });
+
+                // Handle cut & copy on web, which winit *should* do for us.
+                #[cfg(target_arch = "wasm32")]
+                if !egui_output.platform_output.copied_text.is_empty() {
+                    web_workarounds::set_clipboard_text(&egui_output.platform_output.copied_text);
+                }
 
                 egui_winit_state.handle_platform_output(
                     &window,

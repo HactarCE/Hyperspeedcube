@@ -2,8 +2,12 @@
 //!
 //! https://github.com/rust-windowing/winit/issues?q=is%3Aissue+is%3Aopen+label%3A%22platform%3A+WebAssembly%22+
 
+use std::sync::{Arc, Mutex};
+use wasm_bindgen::JsCast;
 use winit::dpi::{LogicalSize, PhysicalSize};
-use winit::event::{ElementState, Event, ModifiersState, VirtualKeyCode, WindowEvent};
+use winit::event::{
+    ElementState, Event, KeyboardInput, ModifiersState, VirtualKeyCode, WindowEvent,
+};
 use winit::event_loop::{EventLoop, EventLoopProxy};
 use winit::window::Window;
 
@@ -17,6 +21,8 @@ pub(crate) struct WebWorkarounds {
 
     left_modifiers: ModifiersState,
     right_modifiers: ModifiersState,
+
+    queued_paste_event: Arc<Mutex<Option<String>>>,
 }
 impl WebWorkarounds {
     pub(crate) fn new(event_loop: &EventLoop<AppEvent>, window: &Window) -> Self {
@@ -30,6 +36,8 @@ impl WebWorkarounds {
 
             left_modifiers: ModifiersState::default(),
             right_modifiers: ModifiersState::default(),
+
+            queued_paste_event: Arc::new(Mutex::new(None)),
         };
 
         ret.generate_resize_event(window);
@@ -109,6 +117,63 @@ impl WebWorkarounds {
             winit_window.set_inner_size(physical_size);
         }
     }
+
+    // stolen from https://github.com/emilk/egui/blob/6c4fc50fdf5ab4866ee29669c110e178b741c8e9/crates/egui-winit/src/lib.rs#L716-L721
+    pub(crate) fn intercept_paste(
+        &mut self,
+        mods: ModifiersState,
+        event: &WindowEvent,
+        egui_ctx: &egui::Context,
+    ) -> bool {
+        let is_paste = mods.ctrl()
+            && matches!(
+                event,
+                WindowEvent::KeyboardInput {
+                    input: KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(VirtualKeyCode::V),
+                        ..
+                    },
+                    ..
+                } | WindowEvent::KeyboardInput {
+                    input: KeyboardInput {
+                        state: ElementState::Pressed,
+                        scancode: 86,
+                        ..
+                    },
+                    ..
+                }
+            );
+
+        if is_paste {
+            if let Some(window) = web_sys::window() {
+                if let Some(clipboard) = window.navigator().clipboard() {
+                    let queued_paste_event = Arc::clone(&self.queued_paste_event);
+                    let promise = clipboard.read_text();
+                    let future = wasm_bindgen_futures::JsFuture::from(promise);
+                    let future = async move {
+                        match future.await {
+                            Ok(clipboard_contents) => {
+                                if let Some(text) = clipboard_contents.as_string() {
+                                    *queued_paste_event.lock().unwrap() = Some(text);
+                                }
+                            }
+                            Err(err) => log::error!("Paste action denied: {:?}", err),
+                        }
+                    };
+                    wasm_bindgen_futures::spawn_local(future);
+                }
+            }
+        }
+
+        is_paste
+    }
+
+    pub(crate) fn inject_paste_event(&mut self, raw_input: &mut egui::RawInput) {
+        if let Some(text) = self.queued_paste_event.lock().unwrap().take() {
+            raw_input.events.push(egui::Event::Paste(text))
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -123,5 +188,20 @@ impl From<WebEvent> for AppEvent {
 impl From<WindowEvent<'static>> for AppEvent {
     fn from(e: WindowEvent<'static>) -> Self {
         Self::WebWorkaround(WebEvent::EmulateWindowEvent(e))
+    }
+}
+
+pub(crate) fn set_clipboard_text(s: &str) {
+    if let Some(window) = web_sys::window() {
+        if let Some(clipboard) = window.navigator().clipboard() {
+            let promise = clipboard.write_text(s);
+            let future = wasm_bindgen_futures::JsFuture::from(promise);
+            let future = async move {
+                if let Err(err) = future.await {
+                    log::error!("Copy/cut action denied: {:?}", err);
+                }
+            };
+            wasm_bindgen_futures::spawn_local(future);
+        }
     }
 }
