@@ -110,6 +110,12 @@ pub(crate) fn draw_puzzle(
         return None;
     }
 
+    // Disable MSAA on web.
+    #[cfg(target_arch = "wasm32")]
+    {
+        app.prefs.gfx.msaa = false;
+    }
+
     let puzzle = &mut app.puzzle;
     let prefs = &app.prefs;
     let view_prefs = puzzle.view_prefs(prefs);

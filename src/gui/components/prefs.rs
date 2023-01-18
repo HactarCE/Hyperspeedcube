@@ -173,13 +173,20 @@ pub fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
         })
         .on_hover_explanation("Frames Per Second", "Limits framerate to save power");
 
-    prefs_ui
-        .checkbox("MSAA", access!(.msaa))
-        .on_hover_explanation(
-            "Multisample Anti-Aliasing",
-            "Makes edges less jagged, \
-             but may worsen performance.",
-        );
+    let is_msaa_disabled = cfg!(target_arch = "wasm32");
+    prefs_ui.ui.add_enabled_ui(!is_msaa_disabled, |ui| {
+        PrefsUi { ui, ..prefs_ui }
+            .checkbox("MSAA", access!(.msaa))
+            .on_hover_explanation(
+                "Multisample Anti-Aliasing",
+                "Makes edges less jagged, \
+                 but may worsen performance.",
+            )
+            .on_disabled_hover_text(
+                "Multisample anti-aliasing \
+                 is not supported on web.",
+            );
+    });
 
     prefs.needs_save |= changed;
     if changed {
