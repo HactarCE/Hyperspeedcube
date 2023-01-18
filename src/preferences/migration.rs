@@ -16,7 +16,7 @@ pub(super) fn try_deserialize(c: Config) -> Result<Preferences, ConfigError> {
             "Migrating preferences from v{version} to v{}",
             migration::LATEST_VERSION,
         );
-        Preferences::backup_prefs_file();
+        persist::backup_prefs_file();
     }
     Ok(match version {
         0 => c.try_deserialize::<v0::PrefsCompat>()?.into(),
