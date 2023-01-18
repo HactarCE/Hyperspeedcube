@@ -176,7 +176,15 @@ async fn run() {
                     },
                 }
             } else {
-                ev
+                // On web, winit switches the `scancode` and `virtual_keycode`
+                // on keyboard input events. So switch them back.
+                match web_workarounds.fix_keyboard_event(ev) {
+                    Some(e) => e,
+                    None => {
+                        log::warn!("Dropped unknown keyboard event");
+                        return;
+                    }
+                }
             }
         };
 

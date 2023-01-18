@@ -135,13 +135,6 @@ impl WebWorkarounds {
                         ..
                     },
                     ..
-                } | WindowEvent::KeyboardInput {
-                    input: KeyboardInput {
-                        state: ElementState::Pressed,
-                        scancode: 86,
-                        ..
-                    },
-                    ..
                 }
             );
 
@@ -173,6 +166,22 @@ impl WebWorkarounds {
         if let Some(text) = self.queued_paste_event.lock().unwrap().take() {
             raw_input.events.push(egui::Event::Paste(text))
         }
+    }
+
+    pub(crate) fn fix_keyboard_event<'a>(
+        &mut self,
+        mut event: Event<'a, AppEvent>,
+    ) -> Option<Event<'a, AppEvent>> {
+        if let Event::WindowEvent { event, .. } = &mut event {
+            if let WindowEvent::KeyboardInput { input, .. } = event {
+                let real_scancode =
+                    key_names::web::winit_vkey_to_arbitrary_scancode(input.virtual_keycode?);
+                let real_vkey = key_names::web::ascii_to_keycode(input.scancode as u8);
+                input.scancode = real_scancode as u32;
+                input.virtual_keycode = real_vkey;
+            }
+        }
+        Some(event)
     }
 }
 

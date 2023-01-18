@@ -793,6 +793,11 @@ impl App {
     fn remove_held_grips(&mut self, mut remove_if: impl FnMut(Key) -> bool) {
         self.transient_grips.retain(|&k, _v| !remove_if(k));
     }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn modifiers(&self) -> ModifiersState {
+        self.pressed_modifiers
+    }
 }
 
 #[derive(Debug)]
