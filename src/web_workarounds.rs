@@ -3,7 +3,6 @@
 //! https://github.com/rust-windowing/winit/issues?q=is%3Aissue+is%3Aopen+label%3A%22platform%3A+WebAssembly%22+
 
 use std::sync::{Arc, Mutex};
-use wasm_bindgen::JsCast;
 use winit::dpi::{LogicalSize, PhysicalSize};
 use winit::event::{
     ElementState, Event, KeyboardInput, ModifiersState, VirtualKeyCode, WindowEvent,
@@ -119,12 +118,7 @@ impl WebWorkarounds {
     }
 
     // stolen from https://github.com/emilk/egui/blob/6c4fc50fdf5ab4866ee29669c110e178b741c8e9/crates/egui-winit/src/lib.rs#L716-L721
-    pub(crate) fn intercept_paste(
-        &mut self,
-        mods: ModifiersState,
-        event: &WindowEvent,
-        egui_ctx: &egui::Context,
-    ) -> bool {
+    pub(crate) fn intercept_paste(&mut self, mods: ModifiersState, event: &WindowEvent) -> bool {
         let is_paste = mods.ctrl()
             && matches!(
                 event,

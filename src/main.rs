@@ -229,8 +229,7 @@ async fn run() {
                     #[cfg(not(target_arch = "wasm32"))]
                     let suppress_paste = false;
                     #[cfg(target_arch = "wasm32")]
-                    let suppress_paste =
-                        web_workarounds.intercept_paste(app.modifiers(), &event, &egui_ctx);
+                    let suppress_paste = web_workarounds.intercept_paste(app.modifiers(), &event);
 
                     if !suppress_paste {
                         let r = egui_winit_state.on_event(&egui_ctx, &event);
