@@ -204,13 +204,7 @@ where
                         r
                     });
                     changed |= r.changed();
-
-                    ui.allocate_space(egui::vec2(1.0, 200.0));
                 });
-
-                if ui.available_height() > 0.0 {
-                    ui.allocate_space(ui.available_size());
-                }
             })
             .response
         });
@@ -250,6 +244,10 @@ impl egui::Widget for CommandSelectWidget<'_, GlobalKeybindsAccessor> {
                     "Save" => Cmd::Save,
                     "Save as..." => Cmd::SaveAs,
                     "Exit" => Cmd::Exit,
+
+                    "Copy .hsc" => Cmd::CopyHscLog,
+                    "Copy .log" => Cmd::CopyMc4dLog,
+                    "Paste .log" => Cmd::PasteLog,
 
                     "Undo" => Cmd::Undo,
                     "Redo" => Cmd::Redo,
