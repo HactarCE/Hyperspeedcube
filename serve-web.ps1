@@ -1,1 +1,1 @@
-pwsh -Command { $env:CARGO_TARGET_DIR="C:\Builds\cargo-wasm"; trunk serve }
+pwsh -Command { $env:CARGO_TARGET_DIR="C:\Builds\cargo-wasm"; trunk serve -w Trunk.toml }
