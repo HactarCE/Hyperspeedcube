@@ -351,6 +351,11 @@ async fn run() {
                         app.prefs.save();
                     }
 
+                    #[cfg(target_arch = "wasm32")]
+                    if app.puzzle.is_unsaved_in_local_storage() {
+                        app.save_in_local_storage();
+                    }
+
                     // Draw puzzle if necessary.
                     if let Some(puzzle_texture) = app.draw_puzzle(&mut gfx) {
                         log::trace!("Repainting puzzle");

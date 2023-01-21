@@ -65,6 +65,9 @@ pub struct PuzzleController {
     /// Whether the puzzle has been modified since the last time the log file
     /// was exported via clipboard.
     is_unsaved_via_clipboard: bool,
+    /// Whether the puzzle has been modified since the last time the log file
+    /// was saved in local storage (always `true` on desktop).
+    is_unsaved_in_local_storage: bool,
 
     /// Whether the puzzle has been scrambled.
     scramble_state: ScrambleState,
@@ -130,6 +133,7 @@ impl PuzzleController {
 
             is_unsaved: false,
             is_unsaved_via_clipboard: true,
+            is_unsaved_in_local_storage: true,
 
             scramble_state: ScrambleState::None,
             scramble: vec![],
@@ -780,20 +784,25 @@ impl PuzzleController {
         self.mark_saved();
         self.is_unsaved_via_clipboard = false;
     }
+    /// Marks the puzzle as saved in local storage.
+    pub fn mark_saved_in_local_storage(&mut self) {
+        self.is_unsaved_in_local_storage = false;
+    }
     /// Marks the puzzle as unsaved.
     pub fn mark_unsaved(&mut self) {
         self.is_unsaved = true;
         self.is_unsaved_via_clipboard = true;
+        self.is_unsaved_in_local_storage = true;
     }
-    /// Returns whether the puzzle has been modified since the lasts time it was
-    /// marked as saved.
+    /// Returns whether the puzzle has been modified since the last time it was
+    /// marked as saved or copied to the clipboard.
     pub fn is_unsaved(&self) -> bool {
-        self.is_unsaved
+        self.is_unsaved && self.is_unsaved_via_clipboard
     }
-    /// Returns whether the puzzle has been copied to the clipboard since it was
-    /// last modified.
-    pub fn has_been_copied(&self) -> bool {
-        !self.is_unsaved_via_clipboard
+    /// Returns whether the puzzle has been modified since the last time it was
+    /// saved in local storage.
+    pub fn is_unsaved_in_local_storage(&self) -> bool {
+        self.is_unsaved_in_local_storage
     }
     /// Returns whether the puzzle has been fully scrambled, even if it has been solved.
     pub fn has_been_fully_scrambled(&self) -> bool {

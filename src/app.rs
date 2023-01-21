@@ -92,6 +92,8 @@ impl App {
         }
 
         // Load last open file.
+        #[cfg(target_arch = "wasm32")]
+        this.try_load_from_local_storage();
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = this.prefs.log_file.take() {
             this.try_load_puzzle(path);
@@ -846,6 +848,36 @@ impl App {
     fn try_save_puzzle_as(&mut self) {
         if let Some(path) = file_dialog().save_file() {
             self.try_save_puzzle(&path)
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    const LOCAL_STORAGE_KEY: &str = "hyperspeedcube_puzzle_log";
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn save_in_local_storage(&mut self) {
+        let Some(local_storage) = web_sys::window().unwrap().local_storage().unwrap() else {
+            return
+        };
+        let Ok(log_file_contents) = crate::logfile::serialize(&self.puzzle, LogFileFormat::Hsc) else {
+            return
+        };
+        let _ = local_storage.set_item(Self::LOCAL_STORAGE_KEY, &log_file_contents);
+        self.puzzle.mark_saved_in_local_storage();
+    }
+    #[cfg(target_arch = "wasm32")]
+    fn try_load_from_local_storage(&mut self) {
+        let Some(local_storage) = web_sys::window().unwrap().local_storage().unwrap() else {
+            return
+        };
+        let Some(log_file_contents) = local_storage.get_item(Self::LOCAL_STORAGE_KEY).ok().flatten() else {
+            return
+        };
+        let Ok((p, warnings)) = crate::logfile::deserialize(&log_file_contents) else {
+            return
+        };
+        if self.confirm_load_puzzle(&warnings) {
+            self.puzzle = p;
+            self.puzzle.mark_saved_in_local_storage();
         }
     }
 
