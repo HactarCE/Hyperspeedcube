@@ -18,7 +18,13 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
     set_widget_spacing_to_space_width(ui);
 
     ui.horizontal_wrapped(|ui| {
-        ui.label("If you're new to 4D puzzles, consider joining the");
+        ui.label("If you're new to 4D puzzles, learn more at ");
+        ui.hyperlink("https://hypercubing.xyz/");
+        subtract_space(ui);
+        ui.label(".");
+    });
+    ui.horizontal_wrapped(|ui| {
+        ui.label("Also consider joining the");
         ui.hyperlink_to("Discord server", HYPERCUBERS_DISCORD_INVITE_URL);
         ui.label("and");
         ui.hyperlink_to("mailing list", HYPERCUBING_GOOGLE_GROUP_URL);
