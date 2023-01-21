@@ -281,55 +281,57 @@ async fn run() {
             Event::RedrawRequested(window_id) if window_id == window.id() => {
                 let now = Instant::now();
 
-                // Update scale factor.
-                egui_winit_state.set_pixels_per_point(gfx.scale_factor);
+                if next_frame_time <= now {
+                    // Update scale factor.
+                    egui_winit_state.set_pixels_per_point(gfx.scale_factor);
 
-                // Start egui frame.
-                #[allow(unused_mut)]
-                let mut egui_input = egui_winit_state.take_egui_input(&window);
+                    // Start egui frame.
+                    #[allow(unused_mut)]
+                    let mut egui_input = egui_winit_state.take_egui_input(&window);
 
-                // Handle paste on web, which winit *should* do for us.
-                #[cfg(target_arch = "wasm32")]
-                web_workarounds.inject_paste_event(&mut egui_input);
+                    // Handle paste on web, which winit *should* do for us.
+                    #[cfg(target_arch = "wasm32")]
+                    web_workarounds.inject_paste_event(&mut egui_input);
 
-                let egui_output = egui_ctx.run(egui_input, |ctx| {
-                    // Build all the UI except the puzzle view in the center.
-                    gui::build(ctx, &mut app, puzzle_texture_id);
-                });
+                    let egui_output = egui_ctx.run(egui_input, |ctx| {
+                        // Build all the UI.
+                        gui::build(ctx, &mut app, puzzle_texture_id);
+                    });
 
-                // Handle cut & copy on web, which winit *should* do for us.
-                #[cfg(target_arch = "wasm32")]
-                if !egui_output.platform_output.copied_text.is_empty() {
-                    web_workarounds::set_clipboard_text(&egui_output.platform_output.copied_text);
-                }
+                    // Handle cut & copy on web, which winit *should* do for us.
+                    #[cfg(target_arch = "wasm32")]
+                    if !egui_output.platform_output.copied_text.is_empty() {
+                        web_workarounds::set_clipboard_text(
+                            &egui_output.platform_output.copied_text,
+                        );
+                    }
 
-                egui_winit_state.handle_platform_output(
-                    &window,
-                    &egui_ctx,
-                    egui_output.platform_output,
-                );
-
-                if app.prefs.needs_save {
-                    app.prefs.save();
-                }
-
-                // Draw puzzle if necessary.
-                if let Some(puzzle_texture) = app.draw_puzzle(&mut gfx) {
-                    log::trace!("Repainting puzzle");
-
-                    // Update texture for egui.
-                    egui_renderer.update_egui_texture_from_wgpu_texture(
-                        &gfx.device,
-                        &puzzle_texture,
-                        wgpu::FilterMode::Linear,
-                        puzzle_texture_id,
+                    egui_winit_state.handle_platform_output(
+                        &window,
+                        &egui_ctx,
+                        egui_output.platform_output,
                     );
 
-                    // Request a repaint.
-                    egui_ctx.request_repaint();
-                }
+                    if app.prefs.needs_save {
+                        app.prefs.save();
+                    }
 
-                if egui_output.repaint_after.is_zero() && next_frame_time <= now {
+                    // Draw puzzle if necessary.
+                    if let Some(puzzle_texture) = app.draw_puzzle(&mut gfx) {
+                        log::trace!("Repainting puzzle");
+
+                        // Update texture for egui.
+                        egui_renderer.update_egui_texture_from_wgpu_texture(
+                            &gfx.device,
+                            &puzzle_texture,
+                            wgpu::FilterMode::Linear,
+                            puzzle_texture_id,
+                        );
+
+                        // Request a repaint.
+                        egui_ctx.request_repaint();
+                    }
+
                     let frame_duration = app.prefs.gfx.frame_duration();
                     next_frame_time += frame_duration;
                     if next_frame_time < Instant::now() {
@@ -365,6 +367,7 @@ async fn run() {
                     };
 
                     let paint_jobs = egui_ctx.tessellate(egui_output.shapes);
+
                     let mut encoder =
                         gfx.device
                             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -464,7 +467,6 @@ fn set_style_overrides(ctx: &egui::Context) {
     style_mut.visuals.widgets.hovered.bg_stroke.width *= 2.0;
     style_mut.visuals.widgets.active.bg_stroke.width *= 2.0;
     style_mut.visuals.widgets.open.bg_stroke.width *= 2.0;
-    // style_mut.visuals.widgets.hovered.bg_stroke.width *= 2.0;
     style_mut.spacing.interact_size.x *= 1.2;
     ctx.set_style(style);
 }

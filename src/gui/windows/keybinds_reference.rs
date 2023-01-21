@@ -287,7 +287,7 @@ fn autosize_button_text(
         }
         font_size -= 1.0;
     }
-    egui::RichText::new("")
+    egui::RichText::new(".")
 }
 
 macro_rules! keyboard_key {
