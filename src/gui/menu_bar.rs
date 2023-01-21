@@ -49,11 +49,13 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 app.event(Command::CopyMc4dLog);
             }
 
-            ui.separator();
-
-            if ui.button("Exit").clicked() {
-                ui.close_menu();
-                app.event(Command::Exit);
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                ui.separator();
+                if ui.button("Exit").clicked() {
+                    ui.close_menu();
+                    app.event(Command::Exit);
+                }
             }
         });
 

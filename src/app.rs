@@ -138,6 +138,9 @@ impl App {
     ) -> Result<AppEventResponse, String> {
         let mut response = AppEventResponse::default();
 
+        #[cfg(target_arch = "wasm32")]
+        let _ = control_flow;
+
         match event {
             #[cfg(target_arch = "wasm32")]
             AppEvent::WebWorkaround(_) => {
@@ -167,8 +170,11 @@ impl App {
                 Command::SaveAs => unsupported_on_web! { self; self.try_save_puzzle_as() },
 
                 Command::Exit => {
-                    if self.confirm_discard_changes("exit") {
-                        control_flow.set_exit_with_code(0);
+                    unsupported_on_web! {
+                        self;
+                        if self.confirm_discard_changes("exit") {
+                            control_flow.set_exit_with_code(0);
+                        }
                     }
                 }
 
