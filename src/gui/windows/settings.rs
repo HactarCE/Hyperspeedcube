@@ -1,4 +1,4 @@
-use super::{Location, Window, PREFS_WINDOW_WIDTH};
+use super::{Window, PREFS_WINDOW_WIDTH};
 use crate::gui::components::prefs;
 
 pub(crate) const APPEARANCE_SETTINGS: Window = Window {
@@ -31,9 +31,8 @@ pub(crate) const INTERACTION_SETTINGS: Window = Window {
 
 pub(crate) const VIEW_SETTINGS: Window = Window {
     name: "View",
-    location: Location::Floating,
     fixed_width: Some(PREFS_WINDOW_WIDTH),
     vscroll: true,
     build: prefs::build_view_section,
-    cleanup: |_| (),
+    ..Window::DEFAULT
 };

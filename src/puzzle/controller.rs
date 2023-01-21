@@ -5,12 +5,12 @@ use bitvec::bitvec;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 use cgmath::{Deg, InnerSpace, One, Quaternion, Rotation, Rotation3};
+use instant::Duration;
 use num_enum::FromPrimitive;
 use std::borrow::Cow;
 use std::collections::{HashSet, VecDeque};
 use std::ops::{BitOr, BitOrAssign};
 use std::sync::Arc;
-use std::time::Duration;
 
 /// If at least this much of a twist is animated in one frame, just skip the
 /// animation to reduce unnecessary flashing.
@@ -62,6 +62,12 @@ pub struct PuzzleController {
     /// Whether the puzzle has been modified since the last time the log file
     /// was saved.
     is_unsaved: bool,
+    /// Whether the puzzle has been modified since the last time the log file
+    /// was exported via clipboard.
+    is_unsaved_via_clipboard: bool,
+    /// Whether the puzzle has been modified since the last time the log file
+    /// was saved in local storage (always `true` on desktop).
+    is_unsaved_in_local_storage: bool,
 
     /// Whether the puzzle has been scrambled.
     scramble_state: ScrambleState,
@@ -126,6 +132,8 @@ impl PuzzleController {
             view_angle: ViewAngleAnimState::default(),
 
             is_unsaved: false,
+            is_unsaved_via_clipboard: true,
+            is_unsaved_in_local_storage: true,
 
             scramble_state: ScrambleState::None,
             scramble: vec![],
@@ -209,7 +217,7 @@ impl PuzzleController {
             return Err("invalid layer mask");
         }
 
-        self.is_unsaved = true;
+        self.mark_unsaved();
         self.redo_buffer.clear();
         // Canonicalize twist.
         twist = self.canonicalize_twist(twist);
@@ -228,7 +236,7 @@ impl PuzzleController {
         if let Some((twists, rot)) = self.view_angle.transient_rotation.take() {
             // Remove a rotation from `current` and add it onto `queued_delta`.
             for twist in twists {
-                self.is_unsaved = true;
+                self.mark_unsaved();
 
                 if self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
                     // This twist is the reverse of the last one, so just undo the last one.
@@ -345,7 +353,7 @@ impl PuzzleController {
         if interaction_prefs.smart_realign {
             let nearest_twists = self.puzzle.nearest_rotation(self.view_angle.current);
             self.view_angle.transient_rotation =
-                (!nearest_twists.0.is_empty()).then(|| nearest_twists);
+                (!nearest_twists.0.is_empty()).then_some(nearest_twists);
         } else {
             self.view_angle.transient_rotation = None;
         }
@@ -394,7 +402,7 @@ impl PuzzleController {
     pub(crate) fn view_prefs<'a>(&mut self, prefs: &'a Preferences) -> Cow<'a, ViewPreferences> {
         // Use animated view settings.
         let old_view_prefs = prefs.view(self.ty());
-        while self.view_settings_anim.queue.back() == Some(&*old_view_prefs) {
+        while self.view_settings_anim.queue.back() == Some(old_view_prefs) {
             // No need to animate this one! It's the same as what we're
             // currently displaying;
             self.view_settings_anim.queue.pop_back();
@@ -739,7 +747,7 @@ impl PuzzleController {
     /// twist could not be applied to the puzzle.
     pub fn undo(&mut self) -> Result<(), &'static str> {
         if let Some(entry) = self.undo_buffer.pop() {
-            self.is_unsaved = true;
+            self.mark_unsaved();
             match entry {
                 HistoryEntry::Twist(twist) => {
                     let rev = self.reverse_twist(twist);
@@ -756,7 +764,7 @@ impl PuzzleController {
     /// twist could not be applied to the puzzle.
     pub fn redo(&mut self) -> Result<(), &'static str> {
         if let Some(entry) = self.redo_buffer.pop() {
-            self.is_unsaved = true;
+            self.mark_unsaved();
             match entry {
                 HistoryEntry::Twist(twist) => self.animate_twist(twist)?,
             }
@@ -771,10 +779,30 @@ impl PuzzleController {
     pub fn mark_saved(&mut self) {
         self.is_unsaved = false;
     }
-    /// Returns whether the puzzle has been modified since the lasts time it was
-    /// marked as saved.
+    /// Marks the puzzle as saved and copied to the clipboard.
+    pub fn mark_copied(&mut self) {
+        self.mark_saved();
+        self.is_unsaved_via_clipboard = false;
+    }
+    /// Marks the puzzle as saved in local storage.
+    pub fn mark_saved_in_local_storage(&mut self) {
+        self.is_unsaved_in_local_storage = false;
+    }
+    /// Marks the puzzle as unsaved.
+    pub fn mark_unsaved(&mut self) {
+        self.is_unsaved = true;
+        self.is_unsaved_via_clipboard = true;
+        self.is_unsaved_in_local_storage = true;
+    }
+    /// Returns whether the puzzle has been modified since the last time it was
+    /// marked as saved or copied to the clipboard.
     pub fn is_unsaved(&self) -> bool {
-        self.is_unsaved
+        self.is_unsaved && self.is_unsaved_via_clipboard
+    }
+    /// Returns whether the puzzle has been modified since the last time it was
+    /// saved in local storage.
+    pub fn is_unsaved_in_local_storage(&self) -> bool {
+        self.is_unsaved_in_local_storage
     }
     /// Returns whether the puzzle has been fully scrambled, even if it has been solved.
     pub fn has_been_fully_scrambled(&self) -> bool {

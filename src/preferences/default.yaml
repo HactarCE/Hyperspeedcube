@@ -11,6 +11,7 @@ info:
     max_font_size: 1.5
   modifier_toggles: false
 gfx:
+  fps_limit: 60
   msaa: true
 interaction:
   confirm_discard_only_when_scrambled: true
@@ -217,6 +218,16 @@ colors:
       U: "#33aaff"
 piece_filters: {}
 global_keybinds:
+  - vk: C
+    ctrl: true
+    command: copy_hsc_log
+  - vk: C
+    ctrl: true
+    shift: true
+    command: copy_mc4d_log
+  - vk: V
+    ctrl: true
+    command: paste_log
   - vk: O
     ctrl: true
     command: open

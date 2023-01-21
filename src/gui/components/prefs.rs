@@ -54,10 +54,10 @@ impl<T> PrefsUi<'_, T> {
         })
     }
 
-    pub fn float(
+    pub fn num<N: egui::emath::Numeric + ToString>(
         &mut self,
         label: &str,
-        access: Access<T, f32>,
+        access: Access<T, N>,
         modify_widget: impl FnOnce(egui::DragValue) -> egui::DragValue,
     ) -> egui::Response {
         let reset_value = *(access.get_ref)(self.defaults);
@@ -166,13 +166,27 @@ pub fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
         changed: &mut changed,
     };
 
+    let speed = prefs_ui.current.fps_limit as f64 / 1000.0; // logarithmic speed
     prefs_ui
-        .checkbox("MSAA", access!(.msaa))
-        .on_hover_explanation(
-            "Multisample Anti-Aliasing",
-            "Makes edges less jagged, \
-             but may worsen performance.",
-        );
+        .num("FPS limit", access!(.fps_limit), |dv| {
+            dv.fixed_decimals(0).clamp_range(30..=1000).speed(speed)
+        })
+        .on_hover_explanation("Frames Per Second", "Limits framerate to save power");
+
+    let is_msaa_disabled = cfg!(target_arch = "wasm32");
+    prefs_ui.ui.add_enabled_ui(!is_msaa_disabled, |ui| {
+        PrefsUi { ui, ..prefs_ui }
+            .checkbox("MSAA", access!(.msaa))
+            .on_hover_explanation(
+                "Multisample Anti-Aliasing",
+                "Makes edges less jagged, \
+                 but may worsen performance.",
+            )
+            .on_disabled_hover_text(
+                "Multisample anti-aliasing \
+                 is not supported on web.",
+            );
+    });
 
     prefs.needs_save |= changed;
     if changed {
@@ -205,7 +219,7 @@ pub fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
 
     prefs_ui.ui.separator();
 
-    prefs_ui.float("Drag sensitivity", access!(.drag_sensitivity), |dv| {
+    prefs_ui.num("Drag sensitivity", access!(.drag_sensitivity), |dv| {
         dv.fixed_decimals(2).clamp_range(0.0..=3.0_f32).speed(0.01)
     });
     prefs_ui
@@ -244,13 +258,13 @@ pub fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
             );
 
         let speed = prefs_ui.current.twist_duration.at_least(0.1) / 100.0; // logarithmic speed
-        prefs_ui.float("Twist duration", access!(.twist_duration), |dv| {
+        prefs_ui.num("Twist duration", access!(.twist_duration), |dv| {
             dv.fixed_decimals(2).clamp_range(0.0..=5.0_f32).speed(speed)
         });
 
         let speed = prefs_ui.current.other_anim_duration.at_least(0.1) / 100.0; // logarithmic speed
         prefs_ui
-            .float("Other animations", access!(.other_anim_duration), |dv| {
+            .num("Other animations", access!(.other_anim_duration), |dv| {
                 dv.fixed_decimals(2).clamp_range(0.0..=1.0_f32).speed(speed)
             })
             .on_hover_explanation(
@@ -290,10 +304,10 @@ pub fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
             .clamp_range(0.0..=5.0_f32)
             .speed(0.01)
     }
-    prefs_ui.float("Default", access!(.default_size), outline_size_dv);
-    prefs_ui.float("Hidden", access!(.hidden_size), outline_size_dv);
-    prefs_ui.float("Hovered", access!(.hovered_size), outline_size_dv);
-    prefs_ui.float("Selected", access!(.selected_size), outline_size_dv);
+    prefs_ui.num("Default", access!(.default_size), outline_size_dv);
+    prefs_ui.num("Hidden", access!(.hidden_size), outline_size_dv);
+    prefs_ui.num("Hovered", access!(.hovered_size), outline_size_dv);
+    prefs_ui.num("Selected", access!(.selected_size), outline_size_dv);
 
     prefs.needs_save |= changed;
     if changed {
@@ -379,10 +393,10 @@ pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     };
 
     prefs_ui.collapsing("Position", |mut prefs_ui| {
-        prefs_ui.float("Horizontal align", access!(.align_h), |dv| {
+        prefs_ui.num("Horizontal align", access!(.align_h), |dv| {
             dv.clamp_range(-1.0..=1.0).fixed_decimals(2).speed(0.01)
         });
-        prefs_ui.float("Vertical align", access!(.align_v), |dv| {
+        prefs_ui.num("Vertical align", access!(.align_v), |dv| {
             dv.clamp_range(-1.0..=1.0).fixed_decimals(2).speed(0.01)
         });
     });
@@ -395,7 +409,7 @@ pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
 
     prefs_ui.collapsing("Projection", |mut prefs_ui| {
         let speed = prefs_ui.current.scale / 100.0; // logarithmic speed
-        prefs_ui.float("Scale", access!(.scale), |dv| {
+        prefs_ui.num("Scale", access!(.scale), |dv| {
             dv.fixed_decimals(2).clamp_range(0.1..=5.0_f32).speed(speed)
         });
 
@@ -426,11 +440,11 @@ pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
             prefs_ui.checkbox("Clip 4D", access!(.clip_4d));
         }
 
-        prefs_ui.float("Face spacing", access!(.face_spacing), |dv| {
+        prefs_ui.num("Face spacing", access!(.face_spacing), |dv| {
             dv.fixed_decimals(2).clamp_range(0.0..=0.9_f32).speed(0.005)
         });
 
-        prefs_ui.float("Sticker spacing", access!(.sticker_spacing), |dv| {
+        prefs_ui.num("Sticker spacing", access!(.sticker_spacing), |dv| {
             dv.fixed_decimals(2).clamp_range(0.0..=0.9_f32).speed(0.005)
         });
     });

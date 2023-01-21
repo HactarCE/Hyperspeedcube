@@ -10,7 +10,7 @@ pub(crate) const PUZZLE_CONTROLS: Window = Window {
     ..Window::DEFAULT
 };
 
-fn cleanup(app: &mut App) {
+fn cleanup(_ctx: &egui::Context, app: &mut App) {
     // It'd be really confusing if the puzzle controls window still had an
     // effect when closed.
     app.toggle_grip = Default::default();
@@ -21,9 +21,7 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
 
     let grip = app.grip();
 
-    let h_layout = egui::Layout::left_to_right()
-        .with_cross_align(egui::Align::TOP)
-        .with_main_wrap(true);
+    let h_layout = egui::Layout::left_to_right(egui::Align::TOP).with_main_wrap(true);
 
     // Allow selecting multiple by holding cmd/ctrl.
     let multi_select = ui.input().modifiers.command;
@@ -47,10 +45,10 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.with_layout(h_layout, |ui| {
         reset_button(ui, &mut app.toggle_grip.layers, Grip::default().layers, "");
         for i in 0..puzzle_type.layer_count() {
-            let mut is_sel = grip.layers.unwrap_or_default()[i as u8];
+            let mut is_sel = grip.layers.unwrap_or_default()[i];
             let r = ui.selectable_value(&mut is_sel, true, format!("{}", i + 1));
             if r.changed() {
-                app.toggle_grip.toggle_layer(i as u8, false);
+                app.toggle_grip.toggle_layer(i, false);
             }
         }
     });

@@ -129,7 +129,7 @@ trait PuzzleTypeRefExt {
 #[delegate(PuzzleType, target_ref = "deref_internal")]
 impl<'a, P: PuzzleType> PuzzleTypeRefExt for &'a P {
     fn deref_internal(&self) -> &'a P {
-        *self
+        self
     }
 }
 
@@ -222,6 +222,13 @@ impl PuzzleTypeEnum {
                     Err(format!("invalid layer count {layer_count} for this puzzle"))
                 }
             }
+        }
+    }
+
+    pub fn supports_mc4d_compat(&self) -> bool {
+        match *self {
+            PuzzleTypeEnum::Rubiks3D { .. } => false,
+            PuzzleTypeEnum::Rubiks4D { .. } => true,
         }
     }
 }

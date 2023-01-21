@@ -60,6 +60,9 @@ impl PlaintextYamlEditor {
                     if big_icon_button(ui, "✖", "Discard changes").clicked() {
                         self.set_state(ui, None);
                     }
+                    if big_icon_button(ui, "🗐", "Click to copy").clicked() {
+                        ui.output().copied_text = state.contents.clone();
+                    }
                     if let Err(e) = parsed_value {
                         ui.label(
                             egui::RichText::new("Parse error (hover for info)")

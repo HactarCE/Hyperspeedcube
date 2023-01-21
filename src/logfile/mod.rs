@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
-use std::io::{self, Read};
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 use std::str::FromStr;
 use strum::IntoEnumIterator;
@@ -14,36 +14,67 @@ mod mc4d_compat;
 
 use crate::puzzle::*;
 
-/// Loads a log file and returns the puzzle state, along with any warnings.
-pub fn load_file(path: &Path) -> anyhow::Result<(PuzzleController, Vec<String>)> {
-    let mut file = std::fs::File::open(path)?;
-
-    if mc4d_compat::is_mc4d_log_file(&file) {
-        let mut string = String::new();
-        file.read_to_string(&mut string)?;
-        let puzzle = mc4d_compat::Mc4dLogFile::from_str(&string)?
+/// Loads a log file string and returns the puzzle state, along with any
+/// warnings.
+pub fn deserialize(log_file_contents: &str) -> anyhow::Result<(PuzzleController, Vec<String>)> {
+    if mc4d_compat::is_mc4d_log_file(log_file_contents) {
+        let puzzle = mc4d_compat::Mc4dLogFile::from_str(log_file_contents)?
             .to_puzzle()
             .map_err(|e| anyhow!(e))?;
         let warnings = vec![];
         Ok((puzzle, warnings))
     } else {
-        serde_yaml::from_reader::<_, LogFile>(file)?.to_puzzle()
+        serde_yaml::from_str::<LogFile>(log_file_contents)?.to_puzzle()
     }
 }
 
-/// Saves the puzzle state to a log file. Marks the puzzle as saved.
-pub fn save_file(path: &Path, puzzle: &mut PuzzleController) -> anyhow::Result<()> {
-    let mc4d_log = path
-        .extension()
-        .filter(|ext| ext.eq_ignore_ascii_case("log"))
-        .and_then(|_| mc4d_compat::Mc4dLogFile::from_puzzle(puzzle).ok());
-    if let Some(log) = mc4d_log {
-        std::fs::write(path, log.to_string())?;
-    } else {
-        LogFile::new(puzzle).write_to_file(std::fs::File::create(path)?)?;
+/// Saves the puzzle state to a log file string.
+pub(crate) fn serialize(
+    puzzle: &PuzzleController,
+    format: LogFileFormat,
+) -> anyhow::Result<String> {
+    match format {
+        LogFileFormat::Hsc => Ok(LogFile::new(puzzle).to_string()),
+        LogFileFormat::Mc4d => Ok(mc4d_compat::Mc4dLogFile::from_puzzle(puzzle)?.to_string()),
     }
-    puzzle.mark_saved();
+}
+
+/// Loads a log file and returns the puzzle state, along with any warnings.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn load_file(path: &Path) -> anyhow::Result<(PuzzleController, Vec<String>)> {
+    deserialize(&std::fs::read_to_string(path)?)
+}
+
+/// Saves the puzzle state to a log file.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn save_file(path: &Path, puzzle: &mut PuzzleController) -> anyhow::Result<()> {
+    // Pick a format based on the file extension and what the puzzle type
+    // supports.
+    let mut format = LogFileFormat::Hsc;
+    if let Some(ext) = path.extension() {
+        if ext.eq_ignore_ascii_case("log") && puzzle.ty().supports_mc4d_compat() {
+            format = LogFileFormat::Mc4d;
+        }
+    }
+
+    std::fs::write(path, serialize(puzzle, format)?)?;
+
     Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum LogFileFormat {
+    #[default]
+    Hsc,
+    Mc4d,
+}
+impl LogFileFormat {
+    pub fn extension(self) -> &'static str {
+        match self {
+            LogFileFormat::Hsc => "hsc",
+            LogFileFormat::Mc4d => "log",
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -71,6 +102,29 @@ struct LogFile {
     scramble: String,
     #[serde(default, skip_serializing)] // manually serialized
     twists: String,
+}
+impl fmt::Display for LogFile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{}", Self::COMMENT_STRING)?;
+        write!(
+            f,
+            "{}",
+            serde_yaml::to_string(self).map_err(|_| fmt::Error)?,
+        )?;
+        if !self.scramble.is_empty() {
+            writeln!(f, "scramble: >")?;
+            for line in self.scramble.lines() {
+                writeln!(f, "  {line}")?;
+            }
+        }
+        if !self.twists.is_empty() {
+            writeln!(f, "twists: >")?;
+            for line in self.twists.lines() {
+                writeln!(f, "  {line}")?;
+            }
+        }
+        Ok(())
+    }
 }
 impl LogFile {
     const COMMENT_STRING: &'static str = "# Hyperspeedcube puzzle log";
@@ -137,24 +191,6 @@ impl LogFile {
             }
         }
         (ret_twists, ret_errors)
-    }
-
-    fn write_to_file(&self, mut f: impl io::Write) -> Result<()> {
-        writeln!(&mut f, "{}", Self::COMMENT_STRING)?;
-        serde_yaml::to_writer(&mut f, self)?;
-        if !self.scramble.is_empty() {
-            writeln!(&mut f, "scramble: >")?;
-            for line in self.scramble.lines() {
-                writeln!(&mut f, "  {line}")?;
-            }
-        }
-        if !self.twists.is_empty() {
-            writeln!(&mut f, "twists: >")?;
-            for line in self.twists.lines() {
-                writeln!(&mut f, "  {line}")?;
-            }
-        }
-        Ok(())
     }
 
     fn to_puzzle(&self) -> Result<(PuzzleController, Vec<String>)> {

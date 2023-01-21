@@ -9,6 +9,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@picuber]: https://github.com/picuber
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 
+## [1.0.4] - 2023-01-21
+
+### Added
+
+- Web version
+- Configurable FPS limit
+- Copy/paste commands
+  - File → Open from clipboard (<kbd>Ctrl</kbd>+<kbd>V</kbd>)
+  - File → Copy (.hsc) (<kbd>Ctrl</kbd>+<kbd>C</kbd>)
+  - File → Copy (.log) (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd>)
+- "Click to copy" button on YAML editor
+
+### Changed
+
+- Tweaked UI styling due to egui update
+- Disabled VSync
+
 ## [1.0.3] - 2023-01-05
 
 ### Added

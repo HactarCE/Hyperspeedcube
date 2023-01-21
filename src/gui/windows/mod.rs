@@ -58,7 +58,7 @@ pub const DEBUG: Window = Window {
         let mut debug_info = std::mem::take(&mut *crate::debug::FRAME_DEBUG_INFO.lock().unwrap());
         ui.add(egui::TextEdit::multiline(&mut debug_info).code_editor());
     },
-    cleanup: |_| *crate::debug::FRAME_DEBUG_INFO.lock().unwrap() = String::new(),
+    cleanup: |_, _| *crate::debug::FRAME_DEBUG_INFO.lock().unwrap() = String::new(),
 };
 
 #[derive(Copy, Clone)]
@@ -68,7 +68,7 @@ pub struct Window {
     fixed_width: Option<f32>,
     vscroll: bool,
     build: fn(&mut egui::Ui, &mut App),
-    cleanup: fn(&mut App),
+    cleanup: fn(&egui::Context, &mut App),
 }
 impl Window {
     const DEFAULT: Self = Self {
@@ -77,7 +77,7 @@ impl Window {
         fixed_width: None,
         vscroll: false,
         build: |_, _| (),
-        cleanup: |_| (),
+        cleanup: |_, _| (),
     };
 
     fn id(self) -> egui::Id {
@@ -139,7 +139,7 @@ impl Window {
 
         self.set_open(ctx, is_open);
         if !is_open {
-            (self.cleanup)(app);
+            (self.cleanup)(ctx, app);
         }
     }
 

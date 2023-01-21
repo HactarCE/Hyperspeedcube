@@ -10,7 +10,7 @@ pub(crate) struct GraphicsState {
 
     pub(super) shaders: Shaders,
 
-    pub(crate) scale_factor: f64,
+    pub(crate) scale_factor: f32,
 
     /// 1x1 texture used as a temporary value. Its contents are not important.
     pub(crate) dummy_texture: wgpu::Texture,
@@ -20,7 +20,7 @@ impl GraphicsState {
         let size = window.inner_size();
 
         // Create surface.
-        let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(&window) };
 
         // Request adapter.
@@ -52,13 +52,14 @@ impl GraphicsState {
                 .expect("unsupported graphics adapter"),
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo, // VSync on
+            present_mode: wgpu::PresentMode::AutoNoVsync, // VSync on
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
         surface.configure(&device, &config);
 
         let shaders = Shaders::new();
 
-        let scale_factor = window.scale_factor();
+        let scale_factor = window.scale_factor() as f32;
 
         let dummy_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("dummy_texture"),
@@ -94,7 +95,7 @@ impl GraphicsState {
         }
     }
 
-    pub(crate) fn set_scale_factor(&mut self, new_scale_factor: f64) {
+    pub(crate) fn set_scale_factor(&mut self, new_scale_factor: f32) {
         self.scale_factor = new_scale_factor;
     }
 
@@ -110,7 +111,7 @@ impl GraphicsState {
     ) -> (wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label,
-            size: std::mem::size_of::<T>() as u64,
+            size: std::cmp::max(std::mem::size_of::<T>() as u64, 1024),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
             mapped_at_creation: false,
         });
@@ -147,9 +148,33 @@ impl GraphicsState {
 
     pub(super) fn create_texture(
         &self,
-        desc: &wgpu::TextureDescriptor,
+        mut desc: wgpu::TextureDescriptor,
     ) -> (wgpu::Texture, wgpu::TextureView) {
-        let tex = self.device.create_texture(desc);
+        fn clamp_u32(n: &mut u32, limit: u32) {
+            if *n > limit {
+                *n = limit;
+            }
+        }
+
+        // Respect texture limits.
+        let limits = self.device.limits();
+        match desc.dimension {
+            wgpu::TextureDimension::D1 => {
+                clamp_u32(&mut desc.size.width, limits.max_texture_dimension_1d);
+            }
+            wgpu::TextureDimension::D2 => {
+                clamp_u32(&mut desc.size.width, limits.max_texture_dimension_2d);
+                clamp_u32(&mut desc.size.height, limits.max_texture_dimension_2d);
+            }
+            wgpu::TextureDimension::D3 => {
+                let max = limits.max_texture_dimension_3d;
+                clamp_u32(&mut desc.size.width, max);
+                clamp_u32(&mut desc.size.height, max);
+                clamp_u32(&mut desc.size.depth_or_array_layers, max);
+            }
+        }
+
+        let tex = self.device.create_texture(&desc);
         let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
         (tex, view)
     }
@@ -158,7 +183,7 @@ impl GraphicsState {
 async fn request_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::Adapter {
     let mut opts = wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::HighPerformance,
-        compatible_surface: Some(&surface),
+        compatible_surface: Some(surface),
         force_fallback_adapter: false,
     };
 

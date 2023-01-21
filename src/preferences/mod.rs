@@ -4,11 +4,9 @@
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
 use bitvec::vec::BitVec;
-use directories::ProjectDirs;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::{btree_map, BTreeMap};
-use std::error::Error;
 use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
 
@@ -21,6 +19,10 @@ mod migration;
 mod mousebinds;
 mod opacity;
 mod outlines;
+#[cfg(not(target_arch = "wasm32"))]
+mod persist_local;
+#[cfg(target_arch = "wasm32")]
+mod persist_web;
 mod view;
 
 use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
@@ -33,10 +35,12 @@ pub use keybinds::*;
 pub use mousebinds::*;
 pub use opacity::*;
 pub use outlines::*;
+#[cfg(not(target_arch = "wasm32"))]
+use persist_local as persist;
+#[cfg(target_arch = "wasm32")]
+use persist_web as persist;
 pub use view::*;
 
-const PREFS_FILE_NAME: &str = "hyperspeedcube";
-const PREFS_FILE_EXTENSION: &str = "yaml";
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
 
@@ -44,60 +48,6 @@ lazy_static! {
     pub static ref DEFAULT_PREFS: Preferences =
         serde_yaml::from_str(DEFAULT_PREFS_STR).unwrap_or_default();
 }
-
-// File paths
-lazy_static! {
-    static ref LOCAL_DIR: Result<PathBuf, PrefsError> = (|| Some(
-        // IIFE to mimic `try_block`
-        std::env::current_exe()
-            .ok()?
-            .canonicalize()
-            .ok()?
-            .parent()?
-            .to_owned()
-    ))()
-    .ok_or(PrefsError::NoExecutablePath);
-    static ref NONPORTABLE: bool = {
-        if cfg!(target_os = "macos") {
-            // If we are on macOS, we are always nonportable because macOS
-            // doesn't allow storing files in the same directory as the
-            // executable.
-            true
-        } else if let Ok(mut p) = LOCAL_DIR.clone() {
-            // If not, check if the `nonportable` file exists in the same
-            // directory as the executable.
-            p.push("nonportable");
-            p.exists()
-        } else {
-            false
-        }
-    };
-    static ref PROJECT_DIRS: Option<ProjectDirs> = ProjectDirs::from("", "", "Hyperspeedcube");
-    static ref PREFS_FILE_PATH: Result<PathBuf, PrefsError> = {
-        let mut p = if *NONPORTABLE {
-            log::info!("Using non-portable preferences path");
-            match &*PROJECT_DIRS {
-                Some(proj_dirs) => proj_dirs.config_dir().to_owned(),
-                None => return Err(PrefsError::NoPreferencesPath),
-            }
-        } else {
-            log::info!("Using portable preferences path");
-            LOCAL_DIR.clone()?
-        };
-        p.push(format!("{}.{}", PREFS_FILE_NAME, PREFS_FILE_EXTENSION));
-        Ok(p)
-    };
-
-}
-
-#[derive(Display, Debug, Copy, Clone, PartialEq, Eq)]
-enum PrefsError {
-    #[strum(serialize = "unable to get executable file path")]
-    NoExecutablePath,
-    #[strum(serialize = "unable to get preferences file path")]
-    NoPreferencesPath,
-}
-impl Error for PrefsError {}
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
@@ -133,32 +83,6 @@ pub struct Preferences {
     pub mousebinds: Vec<Mousebind<PuzzleMouseCommand>>,
 }
 impl Preferences {
-    fn backup_prefs_file() {
-        if let Ok(prefs_path) = &*PREFS_FILE_PATH {
-            let datetime = time::OffsetDateTime::now_local()
-                .unwrap_or_else(|_| time::OffsetDateTime::now_utc());
-            let mut backup_path = prefs_path.clone();
-            backup_path.pop();
-            backup_path.push(format!(
-                "{}_{:04}-{:02}-{:02}_{:02}-{:02}-{:02}_bak.{}",
-                PREFS_FILE_NAME,
-                datetime.year(),
-                datetime.month() as u8,
-                datetime.day(),
-                datetime.hour(),
-                datetime.minute(),
-                datetime.second(),
-                PREFS_FILE_EXTENSION,
-            ));
-            if std::fs::rename(prefs_path, &backup_path).is_ok() {
-                log::info!(
-                    "Backup of old preferences stored at {}",
-                    backup_path.display(),
-                );
-            }
-        }
-    }
-
     pub fn load(backup: Option<&Self>) -> Self {
         let mut config = config::Config::builder();
 
@@ -167,20 +91,18 @@ impl Preferences {
         config = config.add_source(default_config_source.clone());
 
         // Load user preferences.
-        match &*PREFS_FILE_PATH {
-            Ok(path) => config = config.add_source(config::File::from(path.as_ref())),
+        match persist::user_config_source() {
+            Ok(config_source) => config = config.add_source(config_source),
             Err(e) => log::warn!("Error loading user preferences: {}", e),
         }
 
-        // TODO: use try block (including the word "IIFE" here because I'll
-        // search for that)
         config
             .build()
             .and_then(migration::try_deserialize)
             .unwrap_or_else(|e| {
                 log::warn!("Error loading preferences: {}", e);
 
-                Self::backup_prefs_file();
+                persist::backup_prefs_file();
 
                 // Try backup
                 backup
@@ -208,15 +130,8 @@ impl Preferences {
             // Set version number.
             self.version = migration::LATEST_VERSION;
 
-            let result = (|| -> anyhow::Result<()> {
-                // IIFE to mimic try block
-                let path = PREFS_FILE_PATH.as_ref()?;
-                if let Some(p) = path.parent() {
-                    std::fs::create_dir_all(p)?;
-                }
-                serde_yaml::to_writer(std::fs::File::create(path)?, self)?;
-                Ok(())
-            })();
+            let result = persist::save(self);
+
             match result {
                 Ok(()) => log::debug!("Saved preferences"),
                 Err(e) => log::error!("Error saving preferences: {}", e),
@@ -287,9 +202,7 @@ impl PuzzleKeybindSets {
             .filter(|set| included_names.contains(&&set.preset_name))
             .collect()
     }
-    pub fn get_active_keybinds<'a>(
-        &'a self,
-    ) -> impl 'a + Iterator<Item = &'a Keybind<PuzzleCommand>> {
+    pub fn get_active_keybinds(&self) -> impl '_ + Iterator<Item = &'_ Keybind<PuzzleCommand>> {
         self.get_active()
             .into_iter()
             .flat_map(|set| &set.value.keybinds)

@@ -64,7 +64,7 @@ pub fn reset_button<T: PartialEq>(
     };
     let r = ui
         .add_enabled(*value != reset_value, egui::Button::new("⟲"))
-        .on_hover_text(&hover_text);
+        .on_hover_text(hover_text);
     if r.clicked() {
         *value = reset_value;
     }

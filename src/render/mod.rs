@@ -1,7 +1,7 @@
 //! Rendering logic.
 
+use instant::Instant;
 use std::sync::Arc;
-use std::time::Instant;
 
 mod cache;
 mod mesh;
@@ -106,8 +106,14 @@ pub(crate) fn draw_puzzle(
     let size = cgmath::vec2(width as f32, height as f32);
 
     // Avoid divide-by-zero errors.
-    if width <= 0 || height <= 0 {
+    if width == 0 || height == 0 {
         return None;
+    }
+
+    // Disable MSAA on web.
+    #[cfg(target_arch = "wasm32")]
+    {
+        app.prefs.gfx.msaa = false;
     }
 
     let puzzle = &mut app.puzzle;
@@ -169,7 +175,7 @@ pub(crate) fn draw_puzzle(
     // Animate puzzle decorations (colors, opacity, and outlines). Do this after
     // generating the puzzle geometry so that we get the most up-to-date
     // information about which sticker is hovered.
-    force_redraw |= puzzle.update_decorations(delta, &prefs);
+    force_redraw |= puzzle.update_decorations(delta, prefs);
 
     if !force_redraw && cache.out_texture.is_some() {
         return None; // No repaint needed.
@@ -180,7 +186,7 @@ pub(crate) fn draw_puzzle(
 
     // Create "out" texture that will ultimately be returned.
     let (out_texture, out_texture_view) = cache.out_texture.get_or_insert_with(|| {
-        gfx.create_texture(&wgpu::TextureDescriptor {
+        gfx.create_texture(wgpu::TextureDescriptor {
             label: Some("puzzle_texture"),
             size: extent3d(width, height),
             mip_level_count: 1,
@@ -193,7 +199,7 @@ pub(crate) fn draw_puzzle(
 
     // Create depth texture.
     let (_depth_texture, depth_texture_view) = cache.depth_texture.get_or_insert_with(|| {
-        gfx.create_texture(&wgpu::TextureDescriptor {
+        gfx.create_texture(wgpu::TextureDescriptor {
             label: Some("puzzle_texture"),
             size: extent3d(width, height),
             mip_level_count: 1,
@@ -228,7 +234,7 @@ pub(crate) fn draw_puzzle(
         if prefs.gfx.msaa {
             // Create multisample texture.
             let (_, msaa_tex_view) = cache.multisample_texture.get_or_insert_with(|| {
-                gfx.create_texture(&wgpu::TextureDescriptor {
+                gfx.create_texture(wgpu::TextureDescriptor {
                     label: Some("puzzle_texture_multisample"),
                     size: extent3d(width, height),
                     mip_level_count: 1,

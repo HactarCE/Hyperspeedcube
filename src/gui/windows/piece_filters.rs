@@ -36,7 +36,7 @@ macro_rules! piece_subset_from_sticker_colors {
     }};
 }
 
-fn cleanup(app: &mut App) {
+fn cleanup(_ctx: &egui::Context, app: &mut App) {
     app.puzzle.set_visible_pieces_preview(None, None);
 }
 
@@ -253,7 +253,7 @@ where
 
     fn show(self, ui: &mut egui::Ui, app: &mut App) -> egui::Response {
         ui.horizontal(|ui| {
-            ui.with_layout(egui::Layout::right_to_left(), |ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x /= 2.0;
 
                 let puzzle = &mut app.puzzle;
