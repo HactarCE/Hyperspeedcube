@@ -14,7 +14,11 @@ fn build(ui: &mut egui::Ui, _app: &mut App) {
         ui.label(env!("CARGO_PKG_DESCRIPTION"));
         ui.hyperlink(env!("CARGO_PKG_REPOSITORY"));
         ui.label("");
-        ui.label(format!("Created by {}", env!("CARGO_PKG_AUTHORS")));
+        ui.label(
+            format!("Created by {}", env!("CARGO_PKG_AUTHORS"))
+        );
+        ui.hyperlink("https://ajfarkas.dev/");
+        ui.label("");
         ui.label(format!("Licensed under {}", env!("CARGO_PKG_LICENSE")));
     });
 }
