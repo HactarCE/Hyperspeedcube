@@ -67,6 +67,9 @@ impl PlaintextYamlEditor {
                         )
                         .on_hover_explanation("", &e.to_string());
                     }
+                    if big_icon_button(ui, "🗐", "Click to copy").clicked() {
+                        ui.output().copied_text = state.contents.clone();
+                    }
                 });
 
                 ui.separator();
