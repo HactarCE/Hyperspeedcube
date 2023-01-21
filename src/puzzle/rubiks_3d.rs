@@ -495,10 +495,17 @@ impl PuzzleState for Rubiks3D {
     }
 
     fn is_solved(&self) -> bool {
-        self.stickers()
-            .iter()
-            .enumerate()
-            .all(|(i, sticker)| self.sticker_face(Sticker(i as _)) == sticker.color.into())
+        let mut color_per_facet = vec![None; self.faces().len()];
+        for (i, sticker) in self.stickers().iter().enumerate() {
+            let color = self.sticker_face(Sticker(i as _));
+            let facet = sticker.color.0 as usize;
+            if color_per_facet[facet] == None {
+                color_per_facet[facet] = Some(color);
+            } else if color_per_facet[facet] != Some(color) {
+                return false;
+            }
+        }
+        true
     }
 }
 #[delegate_to_methods]

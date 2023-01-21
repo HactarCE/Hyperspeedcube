@@ -147,11 +147,6 @@ async fn run() {
 
     let initial_file = std::env::args().nth(1).map(std::path::PathBuf::from);
 
-    let initial_file = std::env::args()
-        .skip(1)
-        .next()
-        .map(|s| std::path::PathBuf::from(s));
-
     // Initialize app state.
     let mut app = App::new(&event_loop, initial_file);
 
