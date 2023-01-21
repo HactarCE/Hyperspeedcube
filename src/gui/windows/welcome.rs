@@ -18,7 +18,7 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
     set_widget_spacing_to_space_width(ui);
 
     ui.horizontal_wrapped(|ui| {
-        ui.label("If you're new to 4D puzzles, learn more at ");
+        ui.label("If you're new to 4D puzzles, learn more at");
         ui.hyperlink("https://hypercubing.xyz/");
         subtract_space(ui);
         ui.label(".");
