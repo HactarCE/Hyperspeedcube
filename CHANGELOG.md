@@ -13,10 +13,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- Tweaked "About" window
+- Tweaked "Welcome" and "About" windows
 
 ### Fixed
 
+- Incorrect key names on web
+- Modifier keys sticking on web
 - "Solved!" message not appearing most of the time
 
 ## [1.0.4] - 2023-01-21

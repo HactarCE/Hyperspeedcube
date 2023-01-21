@@ -53,31 +53,41 @@ impl WebWorkarounds {
     pub(crate) fn generate_modifiers_changed_event(&mut self, ev: &Event<AppEvent>) {
         use VirtualKeyCode as Vk;
 
-        let Event::WindowEvent {
-            event: WindowEvent::KeyboardInput { input, .. },
-            ..
-        } = ev else {
-            return
-        };
+        match ev {
+            Event::WindowEvent {
+                event: WindowEvent::Focused(false),
+                ..
+            } => {
+                self.left_modifiers = ModifiersState::default();
+                self.right_modifiers = ModifiersState::default();
+            }
 
-        let Some(keycode) = input.virtual_keycode else {return};
+            Event::WindowEvent {
+                event: WindowEvent::KeyboardInput { input, .. },
+                ..
+            } => {
+                let Some(keycode) = input.virtual_keycode else {return};
 
-        let bit = match keycode {
-            Vk::LShift | Vk::RShift => ModifiersState::SHIFT,
-            Vk::LControl | Vk::RControl => ModifiersState::CTRL,
-            Vk::LAlt | Vk::RAlt => ModifiersState::ALT,
-            Vk::LWin | Vk::RWin => ModifiersState::LOGO,
+                let bit = match keycode {
+                    Vk::LShift | Vk::RShift => ModifiersState::SHIFT,
+                    Vk::LControl | Vk::RControl => ModifiersState::CTRL,
+                    Vk::LAlt | Vk::RAlt => ModifiersState::ALT,
+                    Vk::LWin | Vk::RWin => ModifiersState::LOGO,
+                    _ => return,
+                };
+                let mods = match keycode {
+                    Vk::LShift | Vk::LControl | Vk::LAlt | Vk::LWin => &mut self.left_modifiers,
+                    Vk::RShift | Vk::RControl | Vk::RAlt | Vk::RWin => &mut self.right_modifiers,
+                    _ => return,
+                };
+
+                match input.state {
+                    ElementState::Pressed => *mods |= bit,
+                    ElementState::Released => *mods &= !bit,
+                }
+            }
+
             _ => return,
-        };
-        let mods = match keycode {
-            Vk::LShift | Vk::LControl | Vk::LAlt | Vk::LWin => &mut self.left_modifiers,
-            Vk::RShift | Vk::RControl | Vk::RAlt | Vk::RWin => &mut self.right_modifiers,
-            _ => return,
-        };
-
-        match input.state {
-            ElementState::Pressed => *mods |= bit,
-            ElementState::Released => *mods &= !bit,
         }
 
         self.event(WindowEvent::ModifiersChanged(

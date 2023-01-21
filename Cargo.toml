@@ -27,7 +27,7 @@ getrandom = { version = "*", features = ["js"] }
 hex = "0.4"
 instant = "0.1"
 itertools = "0.10"
-key-names = { git = "https://github.com/HactarCE/key-names", tag = "v1.5.0", features = ["winit"] }
+key-names = { git = "https://github.com/HactarCE/key-names", tag = "v1.5.1", features = ["winit"] }
 lazy_static = "1.4"
 log = "0.4"
 monostate = "0.1"
