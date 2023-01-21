@@ -15,11 +15,16 @@ pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MAX: usize = 20;
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Command {
-    // File menu
+    // File menu (local)
     Open,
     Save,
     SaveAs,
     Exit,
+
+    // File menu (web)
+    CopyHscLog,
+    CopyMc4dLog,
+    PasteLog,
 
     // Edit menu
     Undo,
@@ -46,6 +51,10 @@ impl Command {
             Command::Save => "💾".to_owned(),
             Command::SaveAs => "Save As".to_owned(),
             Command::Exit => "Exit".to_owned(),
+
+            Command::CopyHscLog => "🗐".to_owned(),
+            Command::CopyMc4dLog => "🗐".to_owned(),
+            Command::PasteLog => "📋".to_owned(),
 
             Command::Undo => "⮪".to_owned(),
             Command::Redo => "⮫".to_owned(),

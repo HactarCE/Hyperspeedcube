@@ -1,4 +1,5 @@
 use super::components::puzzle_type_menu;
+use super::ext::ResponseExt;
 use super::windows;
 use crate::app::App;
 use crate::commands::Command;
@@ -6,20 +7,50 @@ use crate::commands::Command;
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {
         ui.menu_button("File", |ui| {
-            if ui.button("Open").clicked() {
+            #[cfg(not(target_arch = "wasm32"))]
+            if ui.button("Open...").clicked() {
                 ui.close_menu();
                 app.event(Command::Open);
             }
-            ui.separator();
-            if ui.button("Save").clicked() {
+            if ui.button("Open from clipboard").clicked() {
                 ui.close_menu();
-                app.event(Command::Save);
-            }
-            if ui.button("Save As...").clicked() {
-                ui.close_menu();
-                app.event(Command::SaveAs);
+                app.event(Command::PasteLog);
             }
             ui.separator();
+
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                if ui.button("Save").clicked() {
+                    ui.close_menu();
+                    app.event(Command::Save);
+                }
+                if ui.button("Save As...").clicked() {
+                    ui.close_menu();
+                    app.event(Command::SaveAs);
+                }
+                ui.separator();
+            }
+
+            let r = ui.button("Copy (.hsc)").on_hover_explanation(
+                "Hyperspeedcube log file (recommended)",
+                "Includes extra metadata such as move count",
+            );
+            if r.clicked() {
+                ui.close_menu();
+                app.event(Command::CopyHscLog);
+            }
+
+            let r = ui.button("Copy (.log)").on_hover_explanation(
+                "MC4D-compatible log file",
+                "Backwards-compatible with Magic Cube 4D",
+            );
+            if r.clicked() {
+                ui.close_menu();
+                app.event(Command::CopyMc4dLog);
+            }
+
+            ui.separator();
+
             if ui.button("Exit").clicked() {
                 ui.close_menu();
                 app.event(Command::Exit);

@@ -133,32 +133,50 @@ impl WebWorkarounds {
             );
 
         if is_paste {
-            if let Some(window) = web_sys::window() {
-                if let Some(clipboard) = window.navigator().clipboard() {
-                    let queued_paste_event = Arc::clone(&self.queued_paste_event);
-                    let promise = clipboard.read_text();
-                    let future = wasm_bindgen_futures::JsFuture::from(promise);
-                    let future = async move {
-                        match future.await {
-                            Ok(clipboard_contents) => {
-                                if let Some(text) = clipboard_contents.as_string() {
-                                    *queued_paste_event.lock().unwrap() = Some(text);
-                                }
-                            }
-                            Err(err) => log::error!("Paste action denied: {:?}", err),
-                        }
-                    };
-                    wasm_bindgen_futures::spawn_local(future);
-                }
-            }
+            self.request_paste();
         }
 
         is_paste
+    }
+    pub(crate) fn request_paste(&mut self) {
+        if let Some(window) = web_sys::window() {
+            if let Some(clipboard) = window.navigator().clipboard() {
+                let queued_paste_event = Arc::clone(&self.queued_paste_event);
+                let promise = clipboard.read_text();
+                let future = wasm_bindgen_futures::JsFuture::from(promise);
+                let future = async move {
+                    match future.await {
+                        Ok(clipboard_contents) => {
+                            if let Some(text) = clipboard_contents.as_string() {
+                                *queued_paste_event.lock().unwrap() = Some(text);
+                            }
+                        }
+                        Err(err) => log::error!("Paste action denied: {:?}", err),
+                    }
+                };
+                wasm_bindgen_futures::spawn_local(future);
+            }
+        }
     }
 
     pub(crate) fn inject_paste_event(&mut self, raw_input: &mut egui::RawInput) {
         if let Some(text) = self.queued_paste_event.lock().unwrap().take() {
             raw_input.events.push(egui::Event::Paste(text))
+        }
+    }
+
+    pub(crate) fn set_clipboard_text(&mut self, s: &str) {
+        if let Some(window) = web_sys::window() {
+            if let Some(clipboard) = window.navigator().clipboard() {
+                let promise = clipboard.write_text(s);
+                let future = wasm_bindgen_futures::JsFuture::from(promise);
+                let future = async move {
+                    if let Err(err) = future.await {
+                        log::error!("Copy/cut action denied: {:?}", err);
+                    }
+                };
+                wasm_bindgen_futures::spawn_local(future);
+            }
         }
     }
 
@@ -191,20 +209,5 @@ impl From<WebEvent> for AppEvent {
 impl From<WindowEvent<'static>> for AppEvent {
     fn from(e: WindowEvent<'static>) -> Self {
         Self::WebWorkaround(WebEvent::EmulateWindowEvent(e))
-    }
-}
-
-pub(crate) fn set_clipboard_text(s: &str) {
-    if let Some(window) = web_sys::window() {
-        if let Some(clipboard) = window.navigator().clipboard() {
-            let promise = clipboard.write_text(s);
-            let future = wasm_bindgen_futures::JsFuture::from(promise);
-            let future = async move {
-                if let Err(err) = future.await {
-                    log::error!("Copy/cut action denied: {:?}", err);
-                }
-            };
-            wasm_bindgen_futures::spawn_local(future);
-        }
     }
 }

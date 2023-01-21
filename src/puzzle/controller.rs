@@ -62,6 +62,9 @@ pub struct PuzzleController {
     /// Whether the puzzle has been modified since the last time the log file
     /// was saved.
     is_unsaved: bool,
+    /// Whether the puzzle has been modified since the last time the log file
+    /// was exported via clipboard.
+    is_unsaved_via_clipboard: bool,
 
     /// Whether the puzzle has been scrambled.
     scramble_state: ScrambleState,
@@ -126,6 +129,7 @@ impl PuzzleController {
             view_angle: ViewAngleAnimState::default(),
 
             is_unsaved: false,
+            is_unsaved_via_clipboard: true,
 
             scramble_state: ScrambleState::None,
             scramble: vec![],
@@ -209,7 +213,7 @@ impl PuzzleController {
             return Err("invalid layer mask");
         }
 
-        self.is_unsaved = true;
+        self.mark_unsaved();
         self.redo_buffer.clear();
         // Canonicalize twist.
         twist = self.canonicalize_twist(twist);
@@ -228,7 +232,7 @@ impl PuzzleController {
         if let Some((twists, rot)) = self.view_angle.transient_rotation.take() {
             // Remove a rotation from `current` and add it onto `queued_delta`.
             for twist in twists {
-                self.is_unsaved = true;
+                self.mark_unsaved();
 
                 if self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
                     // This twist is the reverse of the last one, so just undo the last one.
@@ -739,7 +743,7 @@ impl PuzzleController {
     /// twist could not be applied to the puzzle.
     pub fn undo(&mut self) -> Result<(), &'static str> {
         if let Some(entry) = self.undo_buffer.pop() {
-            self.is_unsaved = true;
+            self.mark_unsaved();
             match entry {
                 HistoryEntry::Twist(twist) => {
                     let rev = self.reverse_twist(twist);
@@ -756,7 +760,7 @@ impl PuzzleController {
     /// twist could not be applied to the puzzle.
     pub fn redo(&mut self) -> Result<(), &'static str> {
         if let Some(entry) = self.redo_buffer.pop() {
-            self.is_unsaved = true;
+            self.mark_unsaved();
             match entry {
                 HistoryEntry::Twist(twist) => self.animate_twist(twist)?,
             }
@@ -771,10 +775,25 @@ impl PuzzleController {
     pub fn mark_saved(&mut self) {
         self.is_unsaved = false;
     }
+    /// Marks the puzzle as saved and copied to the clipboard.
+    pub fn mark_copied(&mut self) {
+        self.mark_saved();
+        self.is_unsaved_via_clipboard = false;
+    }
+    /// Marks the puzzle as unsaved.
+    pub fn mark_unsaved(&mut self) {
+        self.is_unsaved = true;
+        self.is_unsaved_via_clipboard = true;
+    }
     /// Returns whether the puzzle has been modified since the lasts time it was
     /// marked as saved.
     pub fn is_unsaved(&self) -> bool {
         self.is_unsaved
+    }
+    /// Returns whether the puzzle has been copied to the clipboard since it was
+    /// last modified.
+    pub fn has_been_copied(&self) -> bool {
+        !self.is_unsaved_via_clipboard
     }
     /// Returns whether the puzzle has been fully scrambled, even if it has been solved.
     pub fn has_been_fully_scrambled(&self) -> bool {

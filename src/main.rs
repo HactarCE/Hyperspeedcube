@@ -121,6 +121,8 @@ async fn run() {
     let window = window_builder
         .build(&event_loop)
         .expect("failed to initialize window");
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut clipboard = clipboard(&event_loop);
 
     // Initialize graphics state.
     let mut gfx = render::GraphicsState::new(&window).await;
@@ -157,6 +159,9 @@ async fn run() {
 
     #[cfg(target_arch = "wasm32")]
     let mut web_workarounds = web_workarounds::WebWorkarounds::new(&event_loop, &window);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut request_paste = false;
 
     // Begin main loop.
     let mut next_frame_time = Instant::now();
@@ -270,7 +275,23 @@ async fn run() {
             }
 
             // Handle application-specific events.
-            Event::UserEvent(event) => app.handle_app_event(event, control_flow),
+            Event::UserEvent(event) => {
+                let r = app.handle_app_event(event, control_flow);
+                if r.request_paste {
+                    #[cfg(target_arch = "wasm32")]
+                    web_workarounds.request_paste();
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        request_paste |= request_paste;
+                    }
+                }
+                if let Some(copy_string) = r.copy_string {
+                    #[cfg(target_arch = "wasm32")]
+                    web_workarounds.set_clipboard_text(&copy_string);
+                    #[cfg(not(target_arch = "wasm32"))]
+                    clipboard.set(copy_string);
+                }
+            }
 
             Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once unless we manually
@@ -292,6 +313,21 @@ async fn run() {
                     // Handle paste on web, which winit *should* do for us.
                     #[cfg(target_arch = "wasm32")]
                     web_workarounds.inject_paste_event(&mut egui_input);
+                    // Handle paste on desktop, which is just ... ugh.
+                    #[cfg(not(target_arch = "wasm32"))]
+                    egui_ctx
+                        .input_mut()
+                        .events
+                        .push(egui::Event::Paste(clipboard.get().unwrap_or_default()));
+
+                    // Pass paste event to the application.
+                    if !egui_ctx.wants_keyboard_input() {
+                        for ev in &egui_input.events {
+                            if let egui::Event::Paste(clipboard_contents) = ev {
+                                app.handle_paste_event(clipboard_contents);
+                            }
+                        }
+                    }
 
                     let egui_output = egui_ctx.run(egui_input, |ctx| {
                         // Build all the UI.
@@ -301,9 +337,8 @@ async fn run() {
                     // Handle cut & copy on web, which winit *should* do for us.
                     #[cfg(target_arch = "wasm32")]
                     if !egui_output.platform_output.copied_text.is_empty() {
-                        web_workarounds::set_clipboard_text(
-                            &egui_output.platform_output.copied_text,
-                        );
+                        web_workarounds
+                            .set_clipboard_text(&egui_output.platform_output.copied_text);
                     }
 
                     egui_winit_state.handle_platform_output(
@@ -479,4 +514,35 @@ fn find_canvas_element() -> web_sys::HtmlCanvasElement {
         .dyn_into::<web_sys::HtmlCanvasElement>()
         .map_err(|_| ())
         .expect("failed to find canvas for Hyperspeedcube")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn clipboard<T>(
+    event_loop: &winit::event_loop::EventLoopWindowTarget<T>,
+) -> egui_winit::clipboard::Clipboard {
+    egui_winit::clipboard::Clipboard::new(wayland_display(event_loop))
+}
+
+/// Returns a Wayland display handle if the target is running Wayland
+#[cfg(not(target_arch = "wasm32"))]
+fn wayland_display<T>(
+    event_loop: &winit::event_loop::EventLoopWindowTarget<T>,
+) -> Option<*mut std::ffi::c_void> {
+    #[cfg(feature = "wayland")]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    {
+        return event_loop.wayland_display();
+    }
+
+    #[allow(unreachable_code)]
+    {
+        let _ = event_loop;
+        None
+    }
 }

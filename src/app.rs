@@ -4,14 +4,30 @@ use itertools::Itertools;
 use key_names::KeyMappingCode;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::path::{Path, PathBuf};
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
+use std::path::PathBuf;
 use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
 use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
+use crate::logfile::LogFileFormat;
 use crate::preferences::{Key, Keybind, PieceFilter, Preferences, Preset};
 use crate::puzzle::*;
 use crate::render::{GraphicsState, PuzzleRenderCache};
+
+#[cfg(target_arch = "wasm32")]
+macro_rules! unsupported_on_web {
+    ($self:ident; $($tok:tt)*) => {
+        $self.set_status_err("Operation is not supported on web")
+    };
+}
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! unsupported_on_web {
+    ($self:ident; $($tok:tt)*) => {{
+        $($tok)*
+    }};
+}
 
 pub struct App {
     pub(crate) prefs: Preferences,
@@ -76,6 +92,7 @@ impl App {
         }
 
         // Load last open file.
+        #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = this.prefs.log_file.take() {
             this.try_load_puzzle(path);
         }
@@ -98,17 +115,27 @@ impl App {
             .expect("tried to send event but event loop doesn't exist")
     }
 
-    pub(crate) fn handle_app_event(&mut self, event: AppEvent, control_flow: &mut ControlFlow) {
+    pub(crate) fn handle_app_event(
+        &mut self,
+        event: AppEvent,
+        control_flow: &mut ControlFlow,
+    ) -> AppEventResponse {
         self.clear_status();
-        if let Err(e) = self.handle_app_event_internal(event, control_flow) {
-            self.set_status_err(e);
+        match self.handle_app_event_internal(event, control_flow) {
+            Ok(r) => r,
+            Err(e) => {
+                self.set_status_err(e);
+                AppEventResponse::default()
+            }
         }
     }
     fn handle_app_event_internal(
         &mut self,
         event: AppEvent,
         control_flow: &mut ControlFlow,
-    ) -> Result<(), String> {
+    ) -> Result<AppEventResponse, String> {
+        let mut response = AppEventResponse::default();
+
         match event {
             #[cfg(target_arch = "wasm32")]
             AppEvent::WebWorkaround(_) => {
@@ -117,22 +144,35 @@ impl App {
 
             AppEvent::Command(c) => match c {
                 Command::Open => {
-                    if self.confirm_discard_changes("open another file") {
-                        if let Some(path) = file_dialog().pick_file() {
-                            self.try_load_puzzle(path);
+                    unsupported_on_web! {
+                        self;
+                        if self.confirm_discard_changes("open another file") {
+                            if let Some(path) = file_dialog().pick_file() {
+                                self.try_load_puzzle(path);
+                            }
                         }
                     }
                 }
-                Command::Save => match self.prefs.log_file.clone() {
-                    Some(path) => self.try_save_puzzle(&path),
-                    None => self.try_save_puzzle_as(),
-                },
-                Command::SaveAs => self.try_save_puzzle_as(),
+                Command::Save => {
+                    unsupported_on_web! {
+                        self;
+                        match self.prefs.log_file.clone() {
+                            Some(path) => self.try_save_puzzle(&path),
+                            None => self.try_save_puzzle_as(),
+                        }
+                    }
+                }
+                Command::SaveAs => unsupported_on_web! { self; self.try_save_puzzle_as() },
+
                 Command::Exit => {
                     if self.confirm_discard_changes("exit") {
                         control_flow.set_exit_with_code(0);
                     }
                 }
+
+                Command::CopyHscLog => self.try_copy_puzzle(LogFileFormat::Hsc, &mut response),
+                Command::CopyMc4dLog => self.try_copy_puzzle(LogFileFormat::Mc4d, &mut response),
+                Command::PasteLog => response.request_paste = true,
 
                 Command::Undo => {
                     self.puzzle.undo()?;
@@ -222,15 +262,23 @@ impl App {
 
             AppEvent::StatusError(msg) => return Err(msg),
         }
-        Ok(())
+
+        Ok(response)
+    }
+    pub(crate) fn handle_paste_event(&mut self, clipboard_contents: &str) {
+        self.try_paste_puzzle(clipboard_contents);
     }
     pub(crate) fn handle_window_event(&mut self, event: &WindowEvent) {
         match event {
             WindowEvent::CloseRequested => self.event(Command::Exit),
 
             WindowEvent::DroppedFile(path) => {
-                if self.confirm_discard_changes("open another file") {
-                    self.try_load_puzzle(path.to_owned());
+                let _ = path;
+                unsupported_on_web! {
+                    self;
+                    if self.confirm_discard_changes("open another file") {
+                        self.try_load_puzzle(path.to_owned());
+                    }
                 }
             }
 
@@ -731,11 +779,43 @@ impl App {
         confirm
     }
 
+    fn try_paste_puzzle(&mut self, log_file_contents: &str) {
+        match crate::logfile::deserialize(log_file_contents) {
+            Ok((puzzle, warnings)) => {
+                if self.confirm_load_puzzle(&warnings) {
+                    self.puzzle = puzzle;
+
+                    self.set_status_ok("Loaded puzzle log file from clipboard");
+
+                    self.prefs.log_file = None;
+                    self.prefs.needs_save = true;
+                }
+            }
+            Err(e) => {
+                self.set_status_err(format!("Unable to load puzzle log: {e}"));
+            }
+        }
+    }
+    fn try_copy_puzzle(&mut self, format: LogFileFormat, response: &mut AppEventResponse) {
+        let ext = format.extension();
+        match crate::logfile::serialize(&self.puzzle, format) {
+            Ok(log_file_contents) => {
+                response.copy_string = Some(log_file_contents);
+                self.puzzle.mark_copied();
+                self.set_status_ok(format!("Copied puzzle log (.{ext})"));
+            }
+            Err(e) => {
+                self.set_status_err(format!("Unable to copy puzzle log (.{ext}): {e}"));
+            }
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn try_load_puzzle(&mut self, path: PathBuf) {
         match crate::logfile::load_file(&path) {
-            Ok((p, warnings)) => {
+            Ok((puzzle, warnings)) => {
                 if self.confirm_load_puzzle(&warnings) {
-                    self.puzzle = p;
+                    self.puzzle = puzzle;
 
                     self.set_status_ok(format!("Loaded log file from {}", path.display()));
 
@@ -749,9 +829,11 @@ impl App {
             ),
         }
     }
+    #[cfg(not(target_arch = "wasm32"))]
     fn try_save_puzzle(&mut self, path: &Path) {
         match crate::logfile::save_file(path, &mut self.puzzle) {
             Ok(()) => {
+                self.puzzle.mark_saved();
                 self.prefs.log_file = Some(path.to_path_buf());
                 self.prefs.needs_save = true;
 
@@ -760,6 +842,7 @@ impl App {
             Err(e) => show_error_dialog("Unable to save log file", e),
         }
     }
+    #[cfg(not(target_arch = "wasm32"))]
     fn try_save_puzzle_as(&mut self) {
         if let Some(path) = file_dialog().save_file() {
             self.try_save_puzzle(&path)
@@ -828,11 +911,20 @@ impl From<Twist> for AppEvent {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+#[must_use]
+pub(crate) struct AppEventResponse {
+    pub(crate) copy_string: Option<String>,
+    pub(crate) request_paste: bool,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn file_dialog() -> rfd::FileDialog {
     rfd::FileDialog::new()
         .add_filter("Hyperspeedcube Log Files", &["hsc", "log"])
         .add_filter("All files", &["*"])
 }
+#[cfg(not(target_arch = "wasm32"))]
 fn show_error_dialog(title: &str, e: impl fmt::Display) {
     rfd::MessageDialog::new()
         .set_title(title)

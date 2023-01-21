@@ -5,7 +5,6 @@ use cgmath::{Matrix4, SquareMatrix};
 use itertools::Itertools;
 use std::error::Error;
 use std::fmt;
-use std::io::{Read, Seek};
 use std::str::FromStr;
 
 use crate::puzzle::*;
@@ -14,12 +13,9 @@ const MAGIC_STRING: &str = "MagicCube4D";
 const LOG_VERSION: &str = "3";
 const RUBIKS_4D_SCHLAFLI_SYMBOL: &str = "{4,3,3}";
 
-/// Returns whether the file starts with the MC4D header strings
-pub fn is_mc4d_log_file(mut file: &std::fs::File) -> bool {
-    let mut buffer = [0_u8; MAGIC_STRING.len()];
-    let result = file.read_exact(&mut buffer);
-    let _ = file.rewind();
-    result.is_ok() && buffer == MAGIC_STRING.as_bytes()
+/// Returns whether the file starts with the MC4D header string.
+pub fn is_mc4d_log_file(s: &str) -> bool {
+    s.starts_with(MAGIC_STRING)
 }
 
 #[derive(Debug)]

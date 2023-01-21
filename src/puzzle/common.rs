@@ -224,6 +224,13 @@ impl PuzzleTypeEnum {
             }
         }
     }
+
+    pub fn supports_mc4d_compat(&self) -> bool {
+        match *self {
+            PuzzleTypeEnum::Rubiks3D { .. } => false,
+            PuzzleTypeEnum::Rubiks4D { .. } => true,
+        }
+    }
 }
 impl Default for PuzzleTypeEnum {
     fn default() -> Self {

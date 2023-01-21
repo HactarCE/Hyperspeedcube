@@ -244,6 +244,10 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                 Command::SaveAs => ui.label("Save As"),
                 Command::Exit => ui.label("Exit"),
 
+                Command::CopyHscLog => ui.label("Copy puzzle log (.hsc)"),
+                Command::CopyMc4dLog => ui.label("Copy puzzle log (.log)"),
+                Command::PasteLog => ui.label("Paste puzzle log"),
+
                 Command::Undo => ui.label("Undo"),
                 Command::Redo => ui.label("Redo"),
                 Command::Reset => ui.label("Reset"),
