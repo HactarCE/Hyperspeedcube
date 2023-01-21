@@ -141,6 +141,21 @@ impl WebWorkarounds {
     pub(crate) fn request_paste(&mut self) {
         if let Some(window) = web_sys::window() {
             if let Some(clipboard) = window.navigator().clipboard() {
+                if js_sys::Reflect::get(&clipboard, &"readText".into())
+                    .unwrap()
+                    .is_undefined()
+                {
+                    rfd::MessageDialog::new()
+                        .set_description(
+                            "Pasting from clipboard is not \
+                             supported in this browser.\n\n\
+                             I love Firefox too, but Hyperspeedcube \
+                             only officially supports Chrome.",
+                        )
+                        .show();
+                    return;
+                }
+
                 let queued_paste_event = Arc::clone(&self.queued_paste_event);
                 let promise = clipboard.read_text();
                 let future = wasm_bindgen_futures::JsFuture::from(promise);

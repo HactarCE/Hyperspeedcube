@@ -4,6 +4,7 @@ version = "1.0.3"
 authors = ["HactarCE"]
 edition = "2021"
 rust-version = "1.65"
+homepage = "https://ajfarkas.dev/hyperspeedcube/"
 description = "Multidimensional twisty puzzle simulator"
 repository = "https://github.com/HactarCE/Hyperspeedcube/"
 license = "MIT OR Apache-2.0"
