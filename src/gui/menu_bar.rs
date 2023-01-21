@@ -8,89 +8,56 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {
         ui.menu_button("File", |ui| {
             #[cfg(not(target_arch = "wasm32"))]
-            if ui.button("Open...").clicked() {
-                ui.close_menu();
-                app.event(Command::Open);
-            }
-            if ui.button("Open from clipboard").clicked() {
-                ui.close_menu();
-                app.event(Command::PasteLog);
-            }
+            command_button(ui, app, "Open...", Command::Open);
+            command_button(ui, app, "Open from clipboard", Command::PasteLog);
             ui.separator();
-
             #[cfg(not(target_arch = "wasm32"))]
             {
-                if ui.button("Save").clicked() {
-                    ui.close_menu();
-                    app.event(Command::Save);
-                }
-                if ui.button("Save As...").clicked() {
-                    ui.close_menu();
-                    app.event(Command::SaveAs);
-                }
+                command_button(ui, app, "Save", Command::Save);
+                command_button(ui, app, "Save as...", Command::SaveAs);
                 ui.separator();
             }
-
-            let r = ui.button("Copy (.hsc)").on_hover_explanation(
+            command_button_with_explanation(
+                ui,
+                app,
+                "Copy (.hsc)",
+                Command::CopyHscLog,
                 "Hyperspeedcube log file (recommended)",
                 "Includes extra metadata such as move count",
             );
-            if r.clicked() {
-                ui.close_menu();
-                app.event(Command::CopyHscLog);
-            }
-
-            let r = ui.button("Copy (.log)").on_hover_explanation(
+            command_button_with_explanation(
+                ui,
+                app,
+                "Copy (.log)",
+                Command::CopyMc4dLog,
                 "MC4D-compatible log file",
                 "Backwards-compatible with Magic Cube 4D",
             );
-            if r.clicked() {
-                ui.close_menu();
-                app.event(Command::CopyMc4dLog);
-            }
 
             #[cfg(not(target_arch = "wasm32"))]
             {
                 ui.separator();
-                if ui.button("Exit").clicked() {
-                    ui.close_menu();
-                    app.event(Command::Exit);
-                }
+                command_button(ui, app, "Exit", Command::Exit);
             }
         });
 
         ui.menu_button("Edit", |ui| {
             ui.add_enabled_ui(app.puzzle.has_undo(), |ui| {
-                if ui.button("Undo twist").clicked() {
-                    ui.close_menu();
-                    app.event(Command::Undo);
-                }
+                command_button(ui, app, "Undo twist", Command::Undo);
             });
             ui.add_enabled_ui(app.puzzle.has_redo(), |ui| {
-                if ui.button("Redo twist").clicked() {
-                    ui.close_menu();
-                    app.event(Command::Redo);
-                }
+                command_button(ui, app, "Redo twist", Command::Redo);
             });
             ui.separator();
-            if ui.button("Reset puzzle").clicked() {
-                ui.close_menu();
-                app.event(Command::Reset);
-            }
+            command_button(ui, app, "Reset puzzle", Command::Reset);
         });
 
         ui.menu_button("Scramble", |ui| {
             for n in 1..=8 {
-                if ui.button(n.to_string()).clicked() {
-                    ui.close_menu();
-                    app.event(Command::ScrambleN(n));
-                }
+                command_button(ui, app, &n.to_string(), Command::ScrambleN(n));
             }
             ui.separator();
-            if ui.button("Full").clicked() {
-                ui.close_menu();
-                app.event(Command::ScrambleFull);
-            }
+            command_button(ui, app, "Full", Command::ScrambleFull);
         });
 
         ui.menu_button("Puzzle", |ui| {
@@ -132,4 +99,47 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             egui::warn_if_debug_build(ui);
         });
     });
+}
+
+fn command_button(ui: &mut egui::Ui, app: &mut App, text: &str, command: Command) {
+    let mut button = egui::Button::new(text);
+    let matching_keybind = app
+        .prefs
+        .global_keybinds
+        .iter()
+        .find(|keybind| keybind.command == command);
+    if let Some(keybind) = matching_keybind {
+        button = button.shortcut_text(keybind.key.to_string());
+    }
+    if ui.add(button).clicked() {
+        ui.close_menu();
+        app.event(command);
+    }
+}
+
+fn command_button_with_explanation(
+    ui: &mut egui::Ui,
+    app: &mut App,
+    text: &str,
+    command: Command,
+    strong_text: &str,
+    detailed_message: &str,
+) {
+    let mut button = egui::Button::new(text);
+    let matching_keybind = app
+        .prefs
+        .global_keybinds
+        .iter()
+        .find(|keybind| keybind.command == command);
+    if let Some(keybind) = matching_keybind {
+        button = button.shortcut_text(keybind.key.to_string());
+    }
+    let r = ui.add(button);
+    if r.clicked() {
+        ui.close_menu();
+        app.event(command);
+    }
+    if !strong_text.is_empty() || !detailed_message.is_empty() {
+        r.on_hover_explanation(strong_text, detailed_message);
+    }
 }
