@@ -36,7 +36,7 @@ macro_rules! piece_subset_from_sticker_colors {
     }};
 }
 
-fn cleanup(app: &mut App) {
+fn cleanup(_ctx: &egui::Context, app: &mut App) {
     app.puzzle.set_visible_pieces_preview(None, None);
 }
 

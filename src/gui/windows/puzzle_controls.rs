@@ -10,7 +10,7 @@ pub(crate) const PUZZLE_CONTROLS: Window = Window {
     ..Window::DEFAULT
 };
 
-fn cleanup(app: &mut App) {
+fn cleanup(_ctx: &egui::Context, app: &mut App) {
     // It'd be really confusing if the puzzle controls window still had an
     // effect when closed.
     app.toggle_grip = Default::default();
