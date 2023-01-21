@@ -45,10 +45,10 @@ fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.with_layout(h_layout, |ui| {
         reset_button(ui, &mut app.toggle_grip.layers, Grip::default().layers, "");
         for i in 0..puzzle_type.layer_count() {
-            let mut is_sel = grip.layers.unwrap_or_default()[i as u8];
+            let mut is_sel = grip.layers.unwrap_or_default()[i];
             let r = ui.selectable_value(&mut is_sel, true, format!("{}", i + 1));
             if r.changed() {
-                app.toggle_grip.toggle_layer(i as u8, false);
+                app.toggle_grip.toggle_layer(i, false);
             }
         }
     });

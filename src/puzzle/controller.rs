@@ -353,7 +353,7 @@ impl PuzzleController {
         if interaction_prefs.smart_realign {
             let nearest_twists = self.puzzle.nearest_rotation(self.view_angle.current);
             self.view_angle.transient_rotation =
-                (!nearest_twists.0.is_empty()).then(|| nearest_twists);
+                (!nearest_twists.0.is_empty()).then_some(nearest_twists);
         } else {
             self.view_angle.transient_rotation = None;
         }
@@ -402,7 +402,7 @@ impl PuzzleController {
     pub(crate) fn view_prefs<'a>(&mut self, prefs: &'a Preferences) -> Cow<'a, ViewPreferences> {
         // Use animated view settings.
         let old_view_prefs = prefs.view(self.ty());
-        while self.view_settings_anim.queue.back() == Some(&*old_view_prefs) {
+        while self.view_settings_anim.queue.back() == Some(old_view_prefs) {
             // No need to animate this one! It's the same as what we're
             // currently displaying;
             self.view_settings_anim.queue.pop_back();

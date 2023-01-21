@@ -453,7 +453,7 @@ impl App {
 
                 PuzzleCommand::Filter { mode, filter_name } => {
                     fn jump_piece_filter<'a>(
-                        piece_filters: &'a Vec<Preset<PieceFilter>>,
+                        piece_filters: &'a [Preset<PieceFilter>],
                         last_filter: &str,
                         offset: isize,
                     ) -> Option<&'a Preset<PieceFilter>> {

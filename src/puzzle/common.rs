@@ -129,7 +129,7 @@ trait PuzzleTypeRefExt {
 #[delegate(PuzzleType, target_ref = "deref_internal")]
 impl<'a, P: PuzzleType> PuzzleTypeRefExt for &'a P {
     fn deref_internal(&self) -> &'a P {
-        *self
+        self
     }
 }
 

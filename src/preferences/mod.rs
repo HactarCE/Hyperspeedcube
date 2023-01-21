@@ -202,9 +202,7 @@ impl PuzzleKeybindSets {
             .filter(|set| included_names.contains(&&set.preset_name))
             .collect()
     }
-    pub fn get_active_keybinds<'a>(
-        &'a self,
-    ) -> impl 'a + Iterator<Item = &'a Keybind<PuzzleCommand>> {
+    pub fn get_active_keybinds(&self) -> impl '_ + Iterator<Item = &'_ Keybind<PuzzleCommand>> {
         self.get_active()
             .into_iter()
             .flat_map(|set| &set.value.keybinds)

@@ -23,7 +23,7 @@ impl egui::Widget for MousebindsTable<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let mut changed = false;
 
-        let mut mousebinds = &mut self.app.prefs.mousebinds;
+        let mousebinds = &mut self.app.prefs.mousebinds;
 
         let yaml_editor = PlaintextYamlEditor { id: unique_id!() };
 
@@ -53,52 +53,51 @@ impl egui::Widget for MousebindsTable<'_> {
 
                 egui::ScrollArea::new([false, true]).show(ui, |ui| {
                     let id = unique_id!();
-                    let r =
-                        ReorderableList::new(id, &mut mousebinds).show(ui, |ui, idx, mousebind| {
-                            mouse_button_x_pos = Some(ui.cursor().left());
+                    let r = ReorderableList::new(id, mousebinds).show(ui, |ui, idx, mousebind| {
+                        mouse_button_x_pos = Some(ui.cursor().left());
 
-                            let mut r = ui.add(FancyComboBox {
-                                combo_box: egui::ComboBox::from_id_source(unique_id!(idx)),
-                                selected: &mut mousebind.button,
-                                options: vec![
-                                    (MouseButton::Left, "Left".into()),
-                                    (MouseButton::Right, "Right".into()),
-                                    (MouseButton::Middle, "Middle".into()),
-                                ],
-                            });
-
-                            modifiers_x_pos = Some(ui.cursor().left());
-
-                            for ch in key_names::MODIFIERS_ORDER.chars() {
-                                let (mut_bool, name) = match ch {
-                                    'c' => (&mut mousebind.ctrl, key_names::CTRL_STR),
-                                    's' => (&mut mousebind.shift, key_names::SHIFT_STR),
-                                    'a' => (&mut mousebind.alt, key_names::ALT_STR),
-                                    'm' => (&mut mousebind.logo, key_names::LOGO_STR),
-                                    _ => continue, // unreachable
-                                };
-                                r |= ui.toggle_value(mut_bool, name);
-                            }
-
-                            command_x_pos = Some(ui.cursor().left());
-
-                            r |= ui.add(FancyComboBox {
-                                combo_box: egui::ComboBox::from_id_source(unique_id!(idx)),
-                                selected: &mut mousebind.command,
-                                options: vec![
-                                    (PuzzleMouseCommand::None, "None".into()),
-                                    (PuzzleMouseCommand::TwistCw, "Twist clockwise".into()),
-                                    (
-                                        PuzzleMouseCommand::TwistCcw,
-                                        "Twist counterclockwise".into(),
-                                    ),
-                                    (PuzzleMouseCommand::Recenter, "Recenter".into()),
-                                    (PuzzleMouseCommand::SelectPiece, "Select piece".into()),
-                                ],
-                            });
-
-                            r
+                        let mut r = ui.add(FancyComboBox {
+                            combo_box: egui::ComboBox::from_id_source(unique_id!(idx)),
+                            selected: &mut mousebind.button,
+                            options: vec![
+                                (MouseButton::Left, "Left".into()),
+                                (MouseButton::Right, "Right".into()),
+                                (MouseButton::Middle, "Middle".into()),
+                            ],
                         });
+
+                        modifiers_x_pos = Some(ui.cursor().left());
+
+                        for ch in key_names::MODIFIERS_ORDER.chars() {
+                            let (mut_bool, name) = match ch {
+                                'c' => (&mut mousebind.ctrl, key_names::CTRL_STR),
+                                's' => (&mut mousebind.shift, key_names::SHIFT_STR),
+                                'a' => (&mut mousebind.alt, key_names::ALT_STR),
+                                'm' => (&mut mousebind.logo, key_names::LOGO_STR),
+                                _ => continue, // unreachable
+                            };
+                            r |= ui.toggle_value(mut_bool, name);
+                        }
+
+                        command_x_pos = Some(ui.cursor().left());
+
+                        r |= ui.add(FancyComboBox {
+                            combo_box: egui::ComboBox::from_id_source(unique_id!(idx)),
+                            selected: &mut mousebind.command,
+                            options: vec![
+                                (PuzzleMouseCommand::None, "None".into()),
+                                (PuzzleMouseCommand::TwistCw, "Twist clockwise".into()),
+                                (
+                                    PuzzleMouseCommand::TwistCcw,
+                                    "Twist counterclockwise".into(),
+                                ),
+                                (PuzzleMouseCommand::Recenter, "Recenter".into()),
+                                (PuzzleMouseCommand::SelectPiece, "Select piece".into()),
+                            ],
+                        });
+
+                        r
+                    });
                     changed |= r.changed();
 
                     ui.allocate_space(egui::vec2(1.0, 200.0));

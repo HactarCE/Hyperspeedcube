@@ -145,10 +145,7 @@ async fn run() {
         wgpu::FilterMode::Linear,
     );
 
-    let initial_file = std::env::args()
-        .skip(1)
-        .next()
-        .map(|s| std::path::PathBuf::from(s));
+    let initial_file = std::env::args().nth(1).map(std::path::PathBuf::from);
 
     // Initialize app state.
     let mut app = App::new(&event_loop, initial_file);

@@ -106,7 +106,7 @@ pub(crate) fn draw_puzzle(
     let size = cgmath::vec2(width as f32, height as f32);
 
     // Avoid divide-by-zero errors.
-    if width <= 0 || height <= 0 {
+    if width == 0 || height == 0 {
         return None;
     }
 
@@ -175,7 +175,7 @@ pub(crate) fn draw_puzzle(
     // Animate puzzle decorations (colors, opacity, and outlines). Do this after
     // generating the puzzle geometry so that we get the most up-to-date
     // information about which sticker is hovered.
-    force_redraw |= puzzle.update_decorations(delta, &prefs);
+    force_redraw |= puzzle.update_decorations(delta, prefs);
 
     if !force_redraw && cache.out_texture.is_some() {
         return None; // No repaint needed.

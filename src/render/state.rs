@@ -183,7 +183,7 @@ impl GraphicsState {
 async fn request_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::Adapter {
     let mut opts = wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::HighPerformance,
-        compatible_surface: Some(&surface),
+        compatible_surface: Some(surface),
         force_fallback_adapter: false,
     };
 
