@@ -83,11 +83,7 @@ winres = "0.1"
 [package.metadata.winres]
 FileDescription = "Hyperspeedcube"
 ProductName = "Hyperspeedcube"
-<<<<<<< HEAD
-ProductVersion = "1.0.3"
-=======
 ProductVersion = "1.0.4"
->>>>>>> refs/tags/v1.0.4
 OriginalFilename = "hyperspeedcube.exe"
 LegalCopyright = "Copyright © 2022 HactarCE"
 
