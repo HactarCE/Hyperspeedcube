@@ -3053,6 +3053,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "tilings"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "approx 0.5.1",
+ "cgmath",
+ "eframe",
+ "itertools",
+ "lazy_static",
+ "log",
+ "num-traits",
+ "proptest",
+ "serde",
+ "serde_yaml",
+ "smallvec",
+ "strum",
+ "thiserror",
+ "tinyset",
+]
+
+[[package]]
 name = "time"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,0 +1,27 @@
+[package]
+name = "tilings"
+version = "0.1.0"
+authors = ["HactarCE", "Luna Harran"]
+edition = "2021"
+repository = "https://github.com/HactarCE/Hyperspeedcube/"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+anyhow = "1.0.65"
+approx = "0.5.1"
+cgmath = "0.18.0"
+itertools = "0.10.3"
+lazy_static = "1.4.0"
+log = "0.4.17"
+num-traits = "0.2.15"
+smallvec = { version = "1.9.0", features = ["const_new", "serde", "union"] }
+strum = { version = "0.24.0", features = ["derive"] }
+thiserror = "1.0.34"
+tinyset = "0.4.15"
+
+[dev-dependencies]
+cgmath = { version = "0.18.0", features = ["serde"] }
+eframe = { version = "0.18.0", features = ["dark-light", "persistence"] }
+proptest = "1.0.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.8.23"
