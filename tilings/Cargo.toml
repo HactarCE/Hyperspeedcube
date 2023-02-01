@@ -8,11 +8,11 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1.0.65"
-approx = "0.5.1"
 cgmath = "0.18.0"
 itertools = "0.10.3"
 lazy_static = "1.4.0"
 log = "0.4.17"
+num-complex = "0.4.3"
 num-traits = "0.2.15"
 smallvec = { version = "1.9.0", features = ["const_new", "serde", "union"] }
 strum = { version = "0.24.0", features = ["derive"] }

@@ -2102,6 +2102,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-complex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02e0d21255c828d6f128a1e41534206671e8c3ea0c62f32291e808dc82cff17d"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3057,12 +3066,12 @@ name = "tilings"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "approx 0.5.1",
  "cgmath",
  "eframe",
  "itertools",
  "lazy_static",
  "log",
+ "num-complex",
  "num-traits",
  "proptest",
  "serde",
