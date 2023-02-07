@@ -1,6 +1,7 @@
 use enum_iterator::Sequence;
 use itertools::Itertools;
-use rand::Rng;
+use rand::seq::IteratorRandom;
+use rand::{seq::SliceRandom, Rng};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -22,6 +23,7 @@ pub use shape::*;
 pub use twists::*;
 
 use crate::math::Matrix;
+use crate::LayerMaskUint;
 
 /// Puzzle type info.
 pub struct PuzzleType {
@@ -38,8 +40,6 @@ pub struct PuzzleType {
     pub family_name: String,
     /// TODO: remove
     pub projection_type: ProjectionType,
-    /// TODO: remove
-    pub layer_count: u8,
 
     /// List of pieces, indexed by ID.
     pub pieces: Vec<PieceInfo>,
@@ -91,7 +91,7 @@ impl AsRef<str> for PuzzleType {
 }
 impl_puzzle_info_trait!(for PuzzleType { fn info(Facet) -> &FacetInfo { .shape.facets } });
 impl_puzzle_info_trait!(for PuzzleType { fn info(TwistAxis) -> &TwistAxisInfo { .twists.axes } });
-impl_puzzle_info_trait!(for PuzzleType { fn info(TwistDirection) -> &TwistDirectionInfo { .twists.directions } });
+impl_puzzle_info_trait!(for PuzzleType { fn info(TwistTransform) -> &TwistTransformInfo { .twists.transforms } });
 impl_puzzle_info_trait!(for PuzzleType { fn info(Piece) -> &PieceInfo { .pieces } });
 impl_puzzle_info_trait!(for PuzzleType { fn info(Sticker) -> &StickerInfo { .stickers } });
 impl_puzzle_info_trait!(for PuzzleType { fn info(PieceType) -> &PieceTypeInfo { .piece_types } });
@@ -113,86 +113,61 @@ impl PuzzleType {
         self.shape.ndim
     }
 
-    /// TODO: remove
-    pub fn check_layers(&self, layers: LayerMask) -> Result<(), &'static str> {
-        let layer_count = self.layer_count as u32;
-        if layers.0 > 0 || layers.0 < 1 << layer_count {
-            Ok(())
-        } else {
-            Err("invalid layer mask")
-        }
-    }
-    /// TODO: remove
-    pub fn all_layers(&self) -> LayerMask {
-        LayerMask::all_layers(self.layer_count)
-    }
-    /// TODO: remove
-    pub fn reverse_layers(&self, layers: LayerMask) -> LayerMask {
-        LayerMask(layers.0.reverse_bits() >> (32 - self.layer_count))
-    }
-
     /// Returns the reverse of a twist.
     pub fn reverse_twist(&self, twist: Twist) -> Twist {
         Twist {
-            axis: twist.axis,
-            direction: self.info(twist.direction).rev,
             layers: twist.layers,
+            transform: self.info(twist.transform).reverse,
         }
     }
     /// Canonicalizes a twist.
     pub fn canonicalize_twist(&self, twist: Twist) -> Twist {
-        if let Some((opp_axis, rev_dir)) = self.info(twist.axis).opposite_twist(twist.direction) {
+        let transform_info = self.info(twist.transform);
+        if let Some(opposite_transform) = transform_info.opposite {
+            let axis_info = &self.info(transform_info.axis);
+            let layer_count = axis_info.layer_count();
+
+            // Reverse the layer mask.
+            let reversed_layers = LayerMask(
+                twist.layers.0.reverse_bits()
+                    >> (LayerMaskUint::BITS - axis_info.layer_count() as u32),
+            );
+
             let opposite_twist = Twist {
-                axis: opp_axis,
-                direction: rev_dir,
-                layers: self.reverse_layers(twist.layers),
+                layers: reversed_layers,
+                transform: opposite_transform,
             };
+
+            // Return whichever twist has the smaller layer mask. If the layer
+            // masks are equivalent, then return whichever one was generated
+            // first.
             std::cmp::min(twist, opposite_twist)
         } else {
             twist
         }
     }
 
-    /// TODO: remove
-    pub fn split_twists_string<'s>(&self, string: &'s str) -> regex::Matches<'static, 's> {
-        const TWIST_PATTERN: &str = r"(\{[\d\s,]*\}|[^\s()])+";
-        // one or more of either      (                    )+
-        //     a pair of `{}`          \{        \}
-        //       containing digits,      [\d   ]*
-        //                  whitespace,     \s
-        //                  and commas        ,
-        //   or                                    |
-        //     any symbol other than                [^    ]
-        //       whitespace                           \s
-        //       and parens                             ()
-
-        lazy_static! {
-            static ref TWIST_REGEX: Regex = Regex::new(TWIST_PATTERN).unwrap();
-        }
-
-        TWIST_REGEX.find_iter(string)
-    }
-
     /// TODO: remove or refactor
     pub fn twist_command_short_description(
         &self,
         axis_name: Option<TwistAxis>,
-        direction: TwistDirection,
+        direction: (),
         layers: LayerMask,
     ) -> String {
-        match axis_name {
-            Some(axis) => self
-                .notation
-                .twist_to_string(self.canonicalize_twist(Twist {
-                    axis,
-                    direction,
-                    layers,
-                })),
-            None => {
-                let dir = &self.info(direction).symbol;
-                format!("{layers}Ø{dir}")
-            }
-        }
+        todo!()
+        // match axis_name {
+        //     Some(axis) => self
+        //         .notation
+        //         .twist_to_string(self.canonicalize_twist(Twist {
+        //             axis,
+        //             direction,
+        //             layers,
+        //         })),
+        //     None => {
+        //         let dir = &self.info(direction).symbol;
+        //         format!("{layers}Ø{dir}")
+        //     }
+        // }
     }
 }
 
@@ -209,7 +184,7 @@ pub trait PuzzleState: fmt::Debug + Send + Sync {
     fn twist(&mut self, twist: Twist) -> Result<(), &'static str>;
     /// Returns whether a piece is affected by a twist.
     fn is_piece_affected_by_twist(&self, twist: Twist, piece: Piece) -> bool {
-        twist.layers[self.layer_from_twist_axis(twist.axis, piece)]
+        twist.layers[self.layer_from_twist_axis(self.ty().info(twist.transform).axis, piece)]
     }
     /// Returns a list of the pieces affected by a twist.
     fn pieces_affected_by_twist(&self, twist: Twist) -> Vec<Piece> {
@@ -221,11 +196,10 @@ pub trait PuzzleState: fmt::Debug + Send + Sync {
     /// Returns the layer of a pieice from a twist axis (i.e., which cuts it is
     /// between).
     ///
-    /// TODO: replace with something that allows bandaginig/blocking
+    /// TODO: replace with something that allows bandaging/blocking
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8 {
         // TODO: handle bandaging
         let axis_info = self.ty().info(twist_axis);
-        let piece_to_axis = axis_info.reference_frame.matrix() * self.piece_transform(piece);
 
         let points = &self.ty().info(piece).points;
         if points.is_empty() {
@@ -233,30 +207,25 @@ pub trait PuzzleState: fmt::Debug + Send + Sync {
             return 0;
         }
 
-        let mut lo = usize::MIN;
-        let mut hi = usize::MAX;
+        let mut lo = u8::MIN;
+        let mut hi = u8::MAX;
         for point in points {
-            let point = &piece_to_axis * point;
-            match axis_info.cuts.binary_search_by(|cut| cut.cmp(&point)) {
-                Ok(layer) => {
-                    // This point is directly on a cut. The piece contains
-                    // either the layer above or the layer below.
-                    lo = std::cmp::max(lo, layer);
-                    hi = std::cmp::min(hi, layer + 1);
-                }
-                Err(layer) => {
-                    // The point is between cuts. The piece definitely contains
-                    // this layer.
-                    lo = std::cmp::max(lo, layer);
-                    hi = std::cmp::min(hi, layer);
-                }
-            }
+            let (new_lo, new_hi) = match axis_info.layer_of_point(point) {
+                // This point is directly on a cut. The piece contains either
+                // the layer above or the layer below.
+                PointLayerLocation::OnCut(layer) => (layer, layer + 1),
+                // The point is between cuts. The piece definitely contains
+                // this layer.
+                PointLayerLocation::WithinLayer(layer) => (layer, layer),
+            };
+            lo = std::cmp::max(lo, new_lo);
+            hi = std::cmp::min(hi, new_hi);
         }
         if lo != hi {
-            println!("yikes bandaging");
             // TODO: handle bandaging
+            println!("yikes bandaging");
         }
-        lo as u8
+        lo
     }
 
     /// Returns the N-dimensional transformation to use when rendering a piece
@@ -304,30 +273,18 @@ impl<T: PuzzleState> PuzzleState for Box<T> {
 }
 
 /// Twist that may be applied to a puzzle.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+///
+/// Comparison prioritizes layer mask, then twist transform ID.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Twist {
-    /// Axis around which to twist.
-    pub axis: TwistAxis,
-    /// Direction to twist.
-    pub direction: TwistDirection,
     /// Layers affected by the twist.
     pub layers: LayerMask,
-}
-impl PartialOrd for Twist {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for Twist {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Prefer smaller layer mask; otherwise prefer smaller axis; otherwise
-        // prefer smaller direction.
-        (self.layers, self.axis, self.direction).cmp(&(other.layers, other.axis, other.direction))
-    }
+    /// Twist transform.
+    pub transform: TwistTransform,
 }
 impl fmt::Display for Twist {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{},{},{}", self.axis.0, self.direction.0, self.layers.0)
+        write!(f, "{},{}", self.layers.0, self.transform.0)
     }
 }
 impl FromStr for Twist {
@@ -337,34 +294,24 @@ impl FromStr for Twist {
         // IIFE to mimic `try_block`
         (|| {
             let mut segments = s.split(',');
-            let axis = TwistAxis(segments.next()?.parse().ok()?);
-            let direction = TwistDirection(segments.next()?.parse().ok()?);
             let layers = LayerMask(segments.next()?.parse().ok()?);
+            let transform = TwistTransform(segments.next()?.parse().ok()?);
             if segments.next().is_some() {
                 return None;
             }
-            Some(Self {
-                axis,
-                direction,
-                layers,
-            })
+            Some(Self { layers, transform })
         })()
         .ok_or(())
     }
 }
 impl Twist {
-    /// Returns a random twist for a puzzle type.
-    pub fn from_rng(ty: &PuzzleType) -> Self {
+    /// Returns a random twist for a puzzle type, or `None` if the puzzle has no twists.
+    pub fn from_rng(ty: &PuzzleType) -> Option<Self> {
         let mut rng = rand::thread_rng();
-        Self {
-            axis: TwistAxis(rng.gen_range(0..ty.twists.axes.len()) as _),
-            direction: TwistDirection(rng.gen_range(0..ty.twists.directions.len()) as _),
-            layers: if ty.layer_count > 1 {
-                LayerMask(rng.gen_range(1..ty.all_layers().0))
-            } else {
-                ty.all_layers()
-            },
-        }
+        let axis = *ty.twists.non_empty_axes.choose(&mut rng)?;
+        let transform = *ty.info(axis).transforms.choose(&mut rng)?;
+        let layers = LayerMask((1..ty.info(axis).all_layers().0).choose(&mut rng)?);
+        Some(Self { layers, transform })
     }
 }
 
@@ -504,15 +451,18 @@ impl TwistMetric {
 
                 let mut prev_axis = None;
                 for twist in twists {
-                    let opp = puzzle.info(twist.axis).opposite_axis();
-                    let is_same_axis =
-                        prev_axis == Some(twist.axis) || opp.is_some() && prev_axis == opp;
-                    if !is_same_axis {
-                        if twist.layers == puzzle.all_layers() {
+                    let axis = puzzle.info(twist.transform).axis;
+                    let axis_info = &puzzle.info(axis);
+                    let opposite_axis = axis_info.opposite;
+                    let is_same_axis = prev_axis == Some(axis);
+                    let is_opposite_axis = opposite_axis.is_some() && prev_axis == opposite_axis;
+                    if !is_same_axis && !is_opposite_axis {
+                        if twist.layers == axis_info.all_layers() {
+                            // Axes may have shifted around, so clear them.
                             prev_axis = None;
                         } else {
                             count += 1;
-                            prev_axis = Some(twist.axis);
+                            prev_axis = Some(axis);
                         }
                     }
                 }
@@ -535,11 +485,14 @@ impl TwistMetric {
         let mut prev_axis = None;
         let mut prev_layers = None;
         for twist in twists {
-            if twist.layers == puzzle.all_layers() {
-                let opp = puzzle.info(twist.axis).opposite_axis();
-                let is_same_axis =
-                    prev_axis == Some(twist.axis) || opp.is_some() && prev_axis == opp;
-                if !is_same_axis {
+            let transform_info = &puzzle.info(twist.transform);
+            let axis = transform_info.axis;
+            let axis_info = puzzle.info(axis);
+            if twist.layers == axis_info.all_layers() {
+                let opposite_axis = axis_info.opposite;
+                let is_same_axis = prev_axis == Some(axis);
+                let is_opposite_axis = opposite_axis.is_some() && prev_axis == opposite_axis;
+                if !is_same_axis && !is_opposite_axis {
                     // Axes may have shifted around, so clear them.
                     prev_axis = None;
                     prev_layers = None;
@@ -548,21 +501,20 @@ impl TwistMetric {
                 continue;
             }
 
+            prev_axis = Some(axis);
+            prev_layers = Some(twist.layers);
+
             let direction_multiplier = if is_qtm {
-                puzzle.info(twist.direction).qtm
-            } else if prev_axis == Some(twist.axis) && prev_layers == Some(twist.layers) {
-                // Same axis and layers as previous twist! This twist is
-                // free.
-                0
+                transform_info.qtm
+            } else if prev_axis == Some(axis) && prev_layers == Some(twist.layers) {
+                // Same axis and layers as previous twist! This twist is free.
+                continue;
             } else {
                 1
             };
 
-            prev_axis = Some(twist.axis);
-            prev_layers = Some(twist.layers);
-
-            count +=
-                direction_multiplier * slice_multiplier(twist.layers, puzzle.layer_count) as usize;
+            count += direction_multiplier
+                * slice_multiplier(twist.layers, axis_info.layer_count()) as usize;
         }
 
         count
@@ -626,7 +578,7 @@ pub enum ProjectionType {
 /// Bitmask selecting a subset of a puzzle's layers.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[serde(transparent)]
-pub struct LayerMask(pub u32);
+pub struct LayerMask(pub LayerMaskUint);
 impl Default for LayerMask {
     fn default() -> Self {
         Self(1)

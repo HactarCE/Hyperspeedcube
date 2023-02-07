@@ -9,8 +9,10 @@ pub struct PuzzleShape {
     pub name: Option<String>,
     /// Number of dimensions.
     pub ndim: u8,
-    /// Puzzles facets.
+    /// Facets.
     pub facets: Vec<FacetInfo>,
+    /// Canonical ordering of facets.
+    pub facet_order: Vec<Facet>,
     /// Distance from origin to outermost point.
     pub radius: f32,
 

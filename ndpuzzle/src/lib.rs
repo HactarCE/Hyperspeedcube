@@ -6,10 +6,14 @@ extern crate lazy_static;
 
 #[macro_use]
 pub mod math;
+pub mod group;
 pub mod polytope;
 pub mod puzzle;
 pub mod schlafli;
 pub mod util;
+
+/// Numeric type used for layer masks.
+pub type LayerMaskUint = u32;
 
 #[cfg(test)]
 mod tests {
@@ -27,9 +31,8 @@ mod tests {
     }
 
     fn test_puzzle_from_yaml(s: &str) {
-        let spec: puzzle::jumbling::JumblingPuzzleSpec =
-            serde_yaml::from_str(s).expect("error parsing spec");
-        spec.build().expect("error building puzzle");
+        let spec: puzzle::spec::PuzzleSpec = serde_yaml::from_str(s).expect("error parsing spec");
+        spec.build(&mut vec![]).expect("error building puzzle");
     }
 
     test_puzzles_from_file! {
