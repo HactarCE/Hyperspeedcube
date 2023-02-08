@@ -15,6 +15,9 @@ pub mod util;
 /// Numeric type used for layer masks.
 pub type LayerMaskUint = u32;
 
+// Names for axes up to 8 dimensions.
+pub const AXIS_NAMES: &str = "XYZWUVRS";
+
 #[cfg(test)]
 mod tests {
     use super::*;

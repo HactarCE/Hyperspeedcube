@@ -1,8 +1,75 @@
+use anyhow::{anyhow, Result};
+use itertools::Itertools;
+
+use super::{Env, SpannedValue, Value};
+
+#[derive(Debug, Clone)]
 pub struct ExprAst<'a> {
     pub span: &'a str,
     pub node: ExprAstNode<'a>,
 }
+impl<'a> ExprAst<'a> {
+    pub fn eval(&self, env: &Env<'a>) -> Result<SpannedValue> {
+        let value = match &self.node {
+            ExprAstNode::Number(n) => Value::Number(*n),
+            ExprAstNode::Identifier(name) => env
+                .constants
+                .get(name)
+                .ok_or_else(|| anyhow!("undefined constant: {name:?}"))?
+                .clone(),
+            ExprAstNode::FuncCall(func_name, args) => {
+                let function = env
+                    .functions
+                    .get(func_name)
+                    .ok_or_else(|| anyhow!("undefined function: {func_name:?}"))?;
+                let arg_values = args.iter().map(|arg| arg.eval(env)).try_collect()?;
 
+                function.call(env, self.span, arg_values)?
+            }
+            ExprAstNode::Paren(contents) => contents.eval(env)?.value,
+            ExprAstNode::Vector(elements) => {
+                let element_values = elements
+                    .iter()
+                    .map(|arg| arg.eval(env)?.into_vector_elems())
+                    .flatten_ok()
+                    .try_collect()?;
+
+                Value::Vector(element_values)
+            }
+            ExprAstNode::BinaryOp { lhs, op, rhs } => {
+                let lhs = lhs.eval(env)?;
+                let rhs = rhs.eval(env)?;
+                match op {
+                    BinaryOp::Add => (lhs + rhs)?,
+                    BinaryOp::Sub => (lhs - rhs)?,
+                    BinaryOp::Mul => (lhs * rhs)?,
+                    BinaryOp::Div => (lhs / rhs)?,
+                    BinaryOp::Pow => todo!(),
+                    BinaryOp::Accessor => todo!(),
+                    BinaryOp::Conj => todo!(),
+                    BinaryOp::Rotate => todo!(),
+                    BinaryOp::Reflect => todo!(),
+                    BinaryOp::ByAngle => todo!(),
+                }
+            }
+            ExprAstNode::UnaryOp { op, arg } => {
+                let arg = arg.eval(env)?;
+                match op {
+                    UnaryOp::Pos => arg.unary_plus()?,
+                    UnaryOp::Neg => arg.unary_minus()?,
+                }
+            }
+            ExprAstNode::Range { count, from, to } => todo!(),
+        };
+
+        Ok(SpannedValue {
+            span: self.span,
+            value,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum ExprAstNode<'a> {
     Number(f32),
     Identifier(&'a str),
@@ -46,6 +113,7 @@ pub enum BinaryOp {
     /// Rotation angle adjustment operator.
     ByAngle,
 }
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum UnaryOp {
     Pos,

@@ -58,10 +58,6 @@ impl<'a> Parser<'a> {
     fn span_from(&self, start: usize) -> &'a str {
         &self.input[start..self.cursor]
     }
-    fn span_between(start: &'a str, rest: &'a str) -> &'a str {
-        let len = rest.len() - start.len();
-        &start[..len]
-    }
 
     fn parse_expr(&mut self) -> Result<ExprAst<'a>> {
         self.parse_expr_of(OpPrecedence::first().unwrap())

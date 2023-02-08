@@ -1,12 +1,10 @@
+use ahash::AHashMap;
+
 use super::Value;
 use crate::math::*;
 
-lazy_static! {
-    pub static ref BUILTIN_CONSTANTS: Vec<(&'static str, Value)> = builtin_constants();
-}
-
-fn builtin_constants() -> Vec<(&'static str, Value)> {
-    vec![
+pub fn builtin_constants() -> AHashMap<&'static str, Value> {
+    [
         // Circle constants
         ("π", Value::Number(std::f32::consts::PI)),
         ("pi", Value::Number(std::f32::consts::PI)),
@@ -23,4 +21,6 @@ fn builtin_constants() -> Vec<(&'static str, Value)> {
         ("U", Value::Vector(Vector::unit(4))),
         ("V", Value::Vector(Vector::unit(5))),
     ]
+    .into_iter()
+    .collect()
 }
