@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use itertools::Itertools;
 
 use super::{Env, SpannedValue, Value};
 
 #[derive(Debug, Clone)]
-pub struct ExprAst<'a> {
+pub(super) struct ExprAst<'a> {
     pub span: &'a str,
     pub node: ExprAstNode<'a>,
 }
@@ -101,7 +101,7 @@ impl<'a> ExprAst<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub enum ExprAstNode<'a> {
+pub(super) enum ExprAstNode<'a> {
     Number(f32),
     Identifier(&'a str),
     FuncCall(&'a str, Vec<ExprAst<'a>>),

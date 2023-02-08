@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::{ast::ExprAst, Env, SpannedValue, Value};
 
 #[derive(Clone)]
-pub enum Function<'a> {
+pub(super) enum Function<'a> {
     Builtin {
         arg_count_range: RangeInclusive<usize>,
         func: Arc<dyn for<'b> Fn(&Env<'b>, &'b str, Vec<SpannedValue<'b>>) -> Result<Value>>,
@@ -22,7 +22,7 @@ impl fmt::Debug for Function<'_> {
         match self {
             Self::Builtin {
                 arg_count_range,
-                func,
+                func: _,
             } => f
                 .debug_struct("Builtin")
                 .field("arg_count_range", arg_count_range)
@@ -58,9 +58,10 @@ impl<'a> Function<'a> {
 
         match self {
             Function::Builtin {
-                arg_count_range,
+                arg_count_range: _,
                 func,
             } => func(env, span, args),
+
             Function::Custom { arg_names, body } => {
                 let arg_table = arg_names
                     .iter()
@@ -73,7 +74,7 @@ impl<'a> Function<'a> {
                     ndim: env.ndim,
                     functions: AHashMap::new(),
                     constants: arg_table,
-                    parent: Some(env.base()),
+                    parent: Some(env.base_env()),
                 };
                 // Call function.
                 Ok(body.eval(&child_env)?.value)

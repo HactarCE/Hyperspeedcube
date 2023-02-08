@@ -23,7 +23,7 @@ lazy_static! {
     static ref ARROW: Regex = Regex::new(r#"^-+>"#).unwrap();
 }
 
-pub fn parse_expression<'a>(input: &'a str) -> Result<ExprAst<'a>> {
+pub(super) fn parse_expression<'a>(input: &'a str) -> Result<ExprAst<'a>> {
     Parser { input, cursor: 0 }.parse_expr()
 }
 
@@ -104,22 +104,20 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_range(&mut self, prec: OpPrecedence) -> Result<ExprAst<'a>> {
-        let start = self.cursor;
         let next_prec = prec.next().unwrap();
 
-        let ret = self.parse_expr_of(next_prec)?;
-        if self.accept("from") {
-            let count = Box::new(ret);
-            let from = Box::new(self.parse_expr()?);
-            self.expect("to")?;
-            let to = Box::new(self.parse_expr()?);
-            Ok(ExprAst {
-                span: self.span_from(start),
-                node: ExprAstNode::Range { count, from, to },
-            })
-        } else {
-            Ok(ret)
-        }
+        self.spanned(|this| {
+            let ret = this.parse_expr_of(next_prec)?;
+            if this.accept("from") {
+                let count = Box::new(ret);
+                let from = Box::new(this.parse_expr()?);
+                this.expect("to")?;
+                let to = Box::new(this.parse_expr()?);
+                Ok(ExprAstNode::Range { count, from, to })
+            } else {
+                Ok(ret.node)
+            }
+        })
     }
 
     fn parse_left_associative_op_expr(
@@ -151,20 +149,18 @@ impl<'a> Parser<'a> {
         prec: OpPrecedence,
         ops: &[(&str, BinaryOp)],
     ) -> Result<ExprAst<'a>> {
-        let start = self.cursor;
         let next_prec = prec.next().unwrap();
 
-        let ret = self.parse_expr_of(next_prec)?;
+        self.spanned(|this| {
+            let ret = this.parse_expr_of(next_prec)?;
 
-        let Some(op) = self.accept_any(ops.iter().copied()) else {
-            return Ok(ret);
-        };
+            let Some(op) = this.accept_any(ops.iter().copied()) else {
+                return Ok(ret.node);
+            };
 
-        let lhs = Box::new(ret);
-        let rhs = Box::new(self.parse_expr_of(next_prec)?);
-        Ok(ExprAst {
-            span: self.span_from(start),
-            node: ExprAstNode::BinaryOp { lhs, op, rhs },
+            let lhs = Box::new(ret);
+            let rhs = Box::new(this.parse_expr_of(next_prec)?);
+            Ok(ExprAstNode::BinaryOp { lhs, op, rhs })
         })
     }
 

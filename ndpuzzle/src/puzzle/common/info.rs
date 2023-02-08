@@ -169,7 +169,7 @@ impl TwistCut {
     /// approximately on the cut.
     pub(super) fn cmp(&self, point_radius: f32) -> std::cmp::Ordering {
         match self {
-            TwistCut::Planar { radius } => abs_diff_cmp(&point_radius, &radius),
+            TwistCut::Planar { radius } => approx_cmp(&point_radius, &radius),
         }
     }
 }

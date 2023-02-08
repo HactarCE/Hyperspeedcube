@@ -5,17 +5,19 @@ use super::{constants, Function, Value};
 /// Evaluation environment for a math expression.
 #[derive(Debug, Clone)]
 pub struct Env<'a> {
-    pub ndim: u8,
+    pub(super) ndim: u8,
 
-    pub functions: AHashMap<&'a str, Function<'a>>,
-    pub constants: AHashMap<&'a str, Value>,
-    pub parent: Option<&'a Env<'a>>,
+    pub(super) functions: AHashMap<&'a str, Function<'a>>,
+    pub(super) constants: AHashMap<&'a str, Value>,
+    pub(super) parent: Option<&'a Env<'a>>,
 }
 impl<'a> Env<'a> {
+    /// Returns the number of dimensions in the environment.
     pub fn ndim(&self) -> u8 {
         self.ndim
     }
 
+    /// Constructs a new environment with a specific number of dimensions.
     pub fn with_ndim(ndim: u8) -> Self {
         Self {
             ndim,
@@ -26,19 +28,19 @@ impl<'a> Env<'a> {
         }
     }
 
-    pub fn lookup_constant(&self, name: &str) -> Option<&Value> {
+    pub(super) fn lookup_constant(&self, name: &str) -> Option<&Value> {
         self.constants
             .get(name)
             .or_else(|| self.parent?.lookup_constant(name))
     }
-    pub fn lookup_function(&self, name: &str) -> Option<&Function<'a>> {
+    pub(super) fn lookup_function(&self, name: &str) -> Option<&Function<'a>> {
         self.functions
             .get(name)
             .or_else(|| self.parent?.lookup_function(name))
     }
-    pub fn base(&self) -> &Self {
+    pub(super) fn base_env(&self) -> &Self {
         match self.parent {
-            Some(parent) => parent.base(),
+            Some(parent) => parent.base_env(),
             None => self,
         }
     }

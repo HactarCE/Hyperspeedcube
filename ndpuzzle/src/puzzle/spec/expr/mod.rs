@@ -1,4 +1,6 @@
-use anyhow::{anyhow, bail, ensure, Context, Result};
+//! Mathematical expression parsing and evaluation.
+
+use anyhow::{bail, Result};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -10,11 +12,11 @@ mod functions;
 mod parser;
 mod value;
 
-use env::Env;
+pub use env::Env;
 use functions::Function;
-pub use value::*;
+use value::{SpannedValue, Value};
 
-/// Math expression.
+/// User-written string representing a mathematical expression.
 #[derive(Serialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct MathExpr(pub String);
@@ -32,11 +34,14 @@ impl<'de> serde::Deserialize<'de> for MathExpr {
     }
 }
 impl MathExpr {
+    /// Compiles an expression, checking for syntax errors but not semantic
+    /// errors.
     pub fn compile<'a>(&'a self) -> Result<CompiledMathExpr<'a>> {
         parser::parse_expression(&self.0).map(CompiledMathExpr)
     }
 }
 
+/// Compiled form of a mathematical expression, which can be directly evaluated.
 #[derive(Debug, Clone)]
 pub struct CompiledMathExpr<'a>(ast::ExprAst<'a>);
 impl<'a> CompiledMathExpr<'a> {

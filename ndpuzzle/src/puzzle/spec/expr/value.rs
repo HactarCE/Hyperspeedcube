@@ -1,11 +1,11 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, ensure, Result};
 use smallvec::{smallvec, SmallVec};
 use std::ops::{Add, Div, Mul, Sub};
 
 use crate::math::*;
 
 #[derive(Debug, Clone)]
-pub enum Value {
+pub(super) enum Value {
     Number(f32),
     Vector(Vector),
     Transform(Rotoreflector),
@@ -32,7 +32,7 @@ impl Value {
     }
 }
 
-pub struct SpannedValue<'a> {
+pub(super) struct SpannedValue<'a> {
     pub span: &'a str,
     pub value: Value,
 }
@@ -111,6 +111,7 @@ impl<'a> Div for SpannedValue<'a> {
 
 impl SpannedValue<'_> {
     pub fn into_vector_elems(self) -> Result<SmallVec<[f32; 4]>> {
+        self.ensure_finite()?;
         match self.value {
             Value::Number(n) => Ok(smallvec![n]),
             Value::Vector(v) => Ok(v.0),

@@ -3,7 +3,7 @@ use ahash::AHashMap;
 use super::Value;
 use crate::math::*;
 
-pub fn builtin_constants() -> AHashMap<&'static str, Value> {
+pub(super) fn builtin_constants() -> AHashMap<&'static str, Value> {
     [
         // Circle constants
         ("π", Value::Number(std::f32::consts::PI)),
