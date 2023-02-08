@@ -1,6 +1,5 @@
 use ahash::AHashMap;
 use anyhow::{bail, ensure, Context, Result};
-use approx::{abs_diff_eq, AbsDiffEq};
 use itertools::Itertools;
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
@@ -124,7 +123,7 @@ impl TwistsSpec {
                         if gen.is_reflection() {
                             new = new.reverse();
                         }
-                        if !periodic_twists.iter().any(|old| abs_diff_eq!(*old, new)) {
+                        if !periodic_twists.iter().any(|old| approx_eq(old, &new)) {
                             periodic_twists.push(new);
                         }
                     }
@@ -139,7 +138,7 @@ impl TwistsSpec {
                         .collect_vec();
 
                     let first = &transforms[0];
-                    if !abs_diff_eq!(first.matrix().col(0).to_vector(), Vector::unit(0)) {
+                    if !approx_eq(&first.matrix().col(0).to_vector(), &Vector::unit(0)) {
                         continue; // does not preserve X axis
                     }
 

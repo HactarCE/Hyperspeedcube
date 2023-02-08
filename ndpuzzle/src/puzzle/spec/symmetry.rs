@@ -1,5 +1,4 @@
 use anyhow::Result;
-use approx::abs_diff_eq;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -45,7 +44,7 @@ impl SymmetrySpec {
         transform: impl Fn(&Rotoreflector, &T) -> T,
     ) -> Result<Vec<(Rotoreflector, T)>>
     where
-        T: approx::AbsDiffEq,
+        T: approx::AbsDiffEq<Epsilon = f32>,
     {
         let generators = self.generators()?;
         let mut ret = seeds
@@ -57,7 +56,7 @@ impl SymmetrySpec {
             for gen in &generators {
                 let old = &ret[unprocessed_idx];
                 let new = transform(gen, &old.1);
-                if !ret.iter().any(|old| abs_diff_eq!(old.1, new)) {
+                if !ret.iter().any(|old| approx_eq(&old.1, &new)) {
                     ret.push((gen * &old.0, new));
                 }
             }

@@ -2,7 +2,6 @@
 
 use ahash::AHashMap;
 use anyhow::{bail, ensure, Context, Result};
-use approx::{abs_diff_eq, AbsDiffEq};
 use itertools::Itertools;
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
@@ -21,7 +20,7 @@ struct PeriodicTwist {
 impl PeriodicTwist {
     fn new(r: Rotoreflector) -> Result<Self> {
         let transforms = std::iter::successors(Some(r.clone()), |a| {
-            Some(&r * a).filter(|b| !abs_diff_eq!(*b, Rotoreflector::ident()))
+            Some(&r * a).filter(|b| !approx_eq(b, &Rotoreflector::ident()))
         })
         .take(MAX_TWIST_PERIOD + 1)
         .collect_vec();
