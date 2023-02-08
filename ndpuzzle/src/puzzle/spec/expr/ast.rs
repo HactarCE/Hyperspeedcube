@@ -59,13 +59,44 @@ impl<'a> ExprAst<'a> {
                     UnaryOp::Neg => arg.unary_minus()?,
                 }
             }
-            ExprAstNode::Range { count, from, to } => todo!(),
+            ExprAstNode::Range { .. } => {
+                bail!("range construct is not allowed here: {:?}", self.span)
+            }
         };
 
         Ok(SpannedValue {
             span: self.span,
             value,
         })
+    }
+
+    pub fn eval_list(&self, env: &Env<'a>) -> Result<Vec<f32>> {
+        match &self.node {
+            ExprAstNode::Vector(exprs) => exprs
+                .iter()
+                .map(|expr| expr.eval_list_elems(env))
+                .flatten_ok()
+                .collect(),
+
+            _ => self.eval_list_elems(env),
+        }
+    }
+
+    fn eval_list_elems(&self, env: &Env<'a>) -> Result<Vec<f32>> {
+        match &self.node {
+            ExprAstNode::Range { count, from, to } => {
+                let count = count.eval(env)?.into_u8()?;
+                let from = from.eval(env)?.into_number()?;
+                let to = to.eval(env)?.into_number()?;
+
+                Ok((0..count)
+                    .map(|i| (i + 1) as f32 / (count + 1) as f32)
+                    .map(|t| crate::math::util::mix(from, to, t))
+                    .collect())
+            }
+
+            _ => self.eval(env)?.into_list_elems(),
+        }
     }
 }
 

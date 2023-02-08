@@ -40,7 +40,24 @@ impl MathExpr {
 #[derive(Debug, Clone)]
 pub struct CompiledMathExpr<'a>(ast::ExprAst<'a>);
 impl<'a> CompiledMathExpr<'a> {
-    fn eval_assign(&self, env: &mut Env<'a>, name: &'a str) -> Result<()> {
+    /// Registers a function `func_name` in `env`.
+    pub fn register_as_function(
+        self,
+        env: &mut Env<'a>,
+        func_name: &'a str,
+        arg_names: Vec<String>,
+    ) {
+        env.functions.insert(
+            func_name,
+            Function::Custom {
+                arg_names,
+                body: self.0,
+            },
+        );
+    }
+
+    /// Evaluates an expression and assigns it to `name` in `env`.
+    pub fn eval_assign(&self, env: &mut Env<'a>, name: &'a str) -> Result<()> {
         if env.constants.contains_key(name) {
             bail!("cannot redefine constant {name:?}");
         }
@@ -49,8 +66,18 @@ impl<'a> CompiledMathExpr<'a> {
         Ok(())
     }
 
+    /// Evaluates an expression and returns the resulting value.
     fn eval<'b>(&'b self, env: &Env<'b>) -> Result<SpannedValue<'b>> {
         self.0.eval(env)
+    }
+
+    /// Evaluates an expression and coerces it to a number.
+    pub fn eval_number(&self, env: &Env<'a>) -> Result<f32> {
+        self.eval(env)?.into_number()
+    }
+    /// Evaluates an expression as a number or list of numbers.
+    pub fn eval_list(&self, env: &Env<'a>) -> Result<Vec<f32>> {
+        self.0.eval_list(env)
     }
 }
 

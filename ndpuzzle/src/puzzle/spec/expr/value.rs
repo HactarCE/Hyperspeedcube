@@ -122,6 +122,24 @@ impl SpannedValue<'_> {
         }
     }
 
+    pub fn into_u8(self) -> Result<u8> {
+        let span = self.span;
+
+        let n = self.into_number()?;
+        let rounded = n.round();
+        ensure!(
+            approx_eq(&n, &rounded),
+            "expected integer; got {n}: {:?}",
+            span,
+        );
+        ensure!(
+            (0.0..=256.0 as f32).contains(&rounded),
+            "expected positive integer below 256; got {n}: {:?}",
+            span,
+        );
+        Ok(rounded as u8)
+    }
+
     pub fn into_number(self) -> Result<f32> {
         self.ensure_finite()?;
         match self.value {
@@ -129,7 +147,19 @@ impl SpannedValue<'_> {
             v => Err(anyhow!(
                 "expected number; got {}: {:?}",
                 v.type_str(),
-                self.span
+                self.span,
+            )),
+        }
+    }
+
+    pub fn into_list_elems(self) -> Result<Vec<f32>> {
+        self.ensure_finite()?;
+        match self.value {
+            Value::Number(x) => Ok(vec![x]),
+            v => Err(anyhow!(
+                "expected number or list of numbers; got {}: {:?}",
+                v.type_str(),
+                self.span,
             )),
         }
     }

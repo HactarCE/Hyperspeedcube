@@ -429,7 +429,7 @@ impl PolytopeArena {
         let result = if p.rank == 0 {
             let point = self.polytope_point(p)?;
             let distance = op.plane.distance_to(point);
-            match abs_diff_cmp(&distance, &0.0) {
+            match approx_cmp(&distance, &0.0) {
                 std::cmp::Ordering::Less => SliceResult::Below { intersection: None },
                 std::cmp::Ordering::Equal => SliceResult::Flush,
                 std::cmp::Ordering::Greater => SliceResult::Above { intersection: None },
@@ -551,7 +551,7 @@ impl PolytopeArena {
         self.points.iter().any(|(_, data)| {
             data.point
                 .iter()
-                .any(|coord| abs_diff_eq!(coord.abs(), self.initial_radius, epsilon = EPSILON))
+                .any(|coord| approx_eq(&coord.abs(), &self.initial_radius))
         })
     }
     /// Returns an error and logs if the arena is in an invalid state.
