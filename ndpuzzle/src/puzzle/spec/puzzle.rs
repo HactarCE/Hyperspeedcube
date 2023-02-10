@@ -6,7 +6,7 @@ use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::sync::Arc;
 
-use super::{MathExpr, ShapeSpec, TwistsSpec};
+use super::{MathExpr, PieceTypesSpec, ShapeSpec, TwistsSpec};
 use crate::math::*;
 use crate::polytope::*;
 use crate::puzzle::PuzzleType;
@@ -22,6 +22,7 @@ pub struct PuzzleSpec {
     pub name: String,
 
     /// Constants used throughout the puzzle definition.
+    #[serde(default)]
     pub constants: AHashMap<String, MathExpr>,
 
     /// Puzzle shape specification.
@@ -30,6 +31,10 @@ pub struct PuzzleSpec {
     /// Puzzle twists specifications.
     #[serde(default)]
     pub twists: TwistsSpec,
+
+    /// Piece type specifications.
+    #[serde(default)]
+    pub piece_types: Option<PieceTypesSpec>,
 }
 
 impl PuzzleSpec {

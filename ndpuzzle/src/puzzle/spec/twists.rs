@@ -5,8 +5,8 @@ use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::sync::Arc;
 
-use super::MathExpr;
-use super::{CutSpec, NameSetSpec, SymmetrySpec};
+use super::{ControlsSpec, NotationSpec};
+use super::{CutSpec, FlattenedCutSpec, MathExpr, NameSetSpec, SymmetrySpec};
 use crate::math::*;
 use crate::polytope::*;
 use crate::puzzle::PuzzleTwists;
@@ -38,19 +38,23 @@ pub struct TwistsSpec {
     /// Twist notation.
     #[serde(default)]
     pub notation: NotationSpec,
+    /// Twist controls.
+    #[serde(default)]
+    pub controls: ControlsSpec,
 }
 impl Default for TwistsSpec {
     fn default() -> Self {
         Self {
             name: Some("none".to_string()),
-            symmetry: todo!(),
+            symmetry: SymmetrySpec::default(),
 
-            axes: todo!(),
-            axis_order: todo!(),
+            axes: vec![],
+            axis_order: None,
 
-            transforms: todo!(),
+            transforms: vec![],
 
-            notation: todo!(),
+            notation: NotationSpec::default(),
+            controls: ControlsSpec::default(),
         }
     }
 }
@@ -191,15 +195,48 @@ pub struct AxisSpec {
     pub symmetry: Option<SymmetrySpec>,
 
     /// Core around which to rotate.
-    pub core: MathExpr,
+    pub core: Option<MathExpr>,
 
-    /// Single cut to perform.
-    #[serde(flatten)]
-    pub single_cut: CutSpec,
+    /// Cut determined by a mathematical expression.
+    pub cut: Option<CutSpec>,
+    /// Center of a (hyper)spherical cut.
+    pub center: Option<MathExpr>,
+    /// Radius of a (hyper)spherical cut, or multiple radii.
+    pub radius: Option<MathExpr>,
+    /// Normal vector to a (hyper)planar cut (may not be normalized).
+    pub normal: Option<MathExpr>,
+    /// Distance of a (hyper)planar cut from the origin, or multiple distances.
+    pub distance: Option<MathExpr>,
+    /// Vector from the origin to the nearest point on the (hyper)planar cut, which is
+    /// always perpendicular to the (hyper)plane.
+    pub pole: Option<MathExpr>,
+    /// Cuts to intersect.
+    pub intersect: Option<Vec<CutSpec>>,
 
-    /// Twist axis names.
-    #[serde(flatten)]
-    pub names: NameSetSpec,
+    /// Optional prefix before each name.
+    pub prefix: Option<String>,
+    /// Name to give each twist axis.
+    pub names: Option<Vec<String>>,
+}
+impl AxisSpec {
+    pub fn cut_spec(&self) -> Result<CutSpec> {
+        FlattenedCutSpec {
+            cut: &self.cut,
+            center: &self.center,
+            radius: &self.radius,
+            normal: &self.normal,
+            distance: &self.distance,
+            pole: &self.pole,
+            intersect: &self.intersect,
+        }
+        .try_into()
+    }
+    pub fn name_set_spec(&self) -> NameSetSpec {
+        NameSetSpec {
+            prefix: self.prefix.clone(),
+            names: self.names.clone(),
+        }
+    }
 }
 
 /// Specification for a twist transform.
@@ -215,8 +252,3 @@ pub struct TwistTransformSpec {
     /// Multiplicity of the twist.
     pub multiplicity: Option<Vec<i32>>,
 }
-
-/// Specification for a twist notation system.
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(deny_unknown_fields)]
-pub struct NotationSpec {}

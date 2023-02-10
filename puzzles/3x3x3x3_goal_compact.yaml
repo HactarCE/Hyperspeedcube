@@ -1,0 +1,43 @@
+name: 3x3x3x3
+shape:
+  name: Hypercube
+  ndim: 4
+  symmetry: 4,3,3
+  facets:
+    - { pole: +X, names: [Right, Left, Down, Up, Front, Back, Out, In] }
+  facet_order: [Right, Left, Up, Down, Front, Back, Out, In]
+  facet_colors: { Right: red, Left: orange, Up: white, Down: yellow, Front: green, Back: blue, Out: pink, In: purple }
+twists:
+  name: Hypercubic
+  symmetry: 4,3,3
+  axes:
+    - { normal: +X, cuts: [2 from -1 to +1], names: [R, L, D, U, F, B, O, I] }
+  axis_order: [R, L, U, D, F, B, O, I]
+  transforms:
+    - { name: <I><F>,   axis: I, transform: U -> R }
+    - { name: <I><FU>,  axis: I, transform: F -> R -> B -> U, qtm: 3 }
+    - { name: <I><FUR>, axis: I, transform: U -> R -> F,      qtm: 2 }
+  notation:
+    list_order: [U, D, F, B, R, L, O, I]
+    aliases:
+      layer_axis:
+        M: ["{2..-2}", L]
+        E: ["{2..-2}", D]
+        S: ["{2..-2}", F]
+        P: ["{2..-2}", O]
+    rotations: {
+      xy: R -> U, xz: R -> F, xw: R -> O,
+      yx: U -> R, yz: U -> F, yw: U -> O,
+      zx: F -> R, zy: F -> U, zw: F -> O,
+      wx: O -> R, wy: O -> U, wz: O -> F,
+    }
+  controls:
+    directions:
+      - { name: x, transform: { R: RO, L: LI, _: <axis>R } }
+      - { name: y, transform: { U: UO, D: DI, _: <axis>U } }
+      - { name: z, transform: { F: FO, B: BI, _: <axis>F } }
+piece_types:
+  center: [U]
+  ridge: [U, F]
+  edge: [U, F, R]
+  corner: [U, F, R, O]

@@ -6,7 +6,7 @@ use crate::math::*;
 use crate::polytope::PolytopeArena;
 use crate::puzzle::common::*;
 
-use super::{CutSpec, NameSetSpec, SymmetrySpec};
+use super::{CutSpec, FlattenedCutSpec, MathExpr, NameSetSpec, SymmetrySpec};
 
 /// Specification for a puzzle shape, which has no internal cuts.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -158,22 +158,48 @@ impl ShapeSpec {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct ShapeConstructOperation {
     /// Symmetry for the construction operation.
     pub symmetry: Option<SymmetrySpec>,
 
-    /// Single cut to perform.
-    #[serde(flatten)]
-    pub single_cut: CutSpec,
-    /// Multiple cuts to perform.
-    pub cuts: Vec<CutSpec>,
+    /// Cut determined by a mathematical expression.
+    pub cut: Option<CutSpec>,
+    /// Center of a (hyper)spherical cut.
+    pub center: Option<MathExpr>,
+    /// Radius of a (hyper)spherical cut, or multiple radii.
+    pub radius: Option<MathExpr>,
+    /// Normal vector to a (hyper)planar cut (may not be normalized).
+    pub normal: Option<MathExpr>,
+    /// Distance of a (hyper)planar cut from the origin, or multiple distances.
+    pub distance: Option<MathExpr>,
+    /// Vector from the origin to the nearest point on the (hyper)planar cut, which is
+    /// always perpendicular to the (hyper)plane.
+    pub pole: Option<MathExpr>,
+    /// Cuts to intersect.
+    pub intersect: Option<Vec<CutSpec>>,
 
     /// Whether to remove pieces carved out by the cuts.
     pub remove: Option<bool>,
     /// Whether to generate facets from this operation.
     pub facet: Option<bool>,
 
-    /// Facet names.
-    #[serde(flatten)]
-    pub names: NameSetSpec,
+    /// Optional prefix before each name.
+    pub prefix: Option<String>,
+    /// Name to give each facet.
+    pub names: Option<Vec<String>>,
+}
+impl ShapeConstructOperation {
+    pub fn cut_spec(&self) -> Result<CutSpec> {
+        FlattenedCutSpec {
+            cut: &self.cut,
+            center: &self.center,
+            radius: &self.radius,
+            normal: &self.normal,
+            distance: &self.distance,
+            pole: &self.pole,
+            intersect: &self.intersect,
+        }
+        .try_into()
+    }
 }

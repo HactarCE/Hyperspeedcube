@@ -90,12 +90,14 @@ impl<'a> CompiledMathExpr<'a> {
 #[serde(untagged)]
 enum SerdeMathExpr {
     String(String),
+    Number(f32),
     List(Vec<SerdeMathExpr>),
 }
 impl From<SerdeMathExpr> for MathExpr {
     fn from(value: SerdeMathExpr) -> Self {
         MathExpr(match value {
             SerdeMathExpr::String(string) => string,
+            SerdeMathExpr::Number(n) => n.to_string(),
             SerdeMathExpr::List(list) => {
                 let mut exprs = list.into_iter().map(MathExpr::from);
                 format!("[{}]", exprs.join(", "))
