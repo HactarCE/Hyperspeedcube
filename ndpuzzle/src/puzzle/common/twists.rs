@@ -1,4 +1,7 @@
 use ahash::AHashMap;
+use rand::seq::{IteratorRandom, SliceRandom};
+use std::fmt;
+use std::str::FromStr;
 
 use super::*;
 use crate::group::SymmetryGroup;
@@ -87,4 +90,47 @@ impl Controls {
 pub struct TwistInput {
     axis: TwistAxis,
     // direction: TwistInputDirection,
+}
+
+/// Twist that may be applied to a puzzle.
+///
+/// Comparison prioritizes layer mask, then twist transform ID.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Twist {
+    /// Layers affected by the twist.
+    pub layers: LayerMask,
+    /// Twist transform.
+    pub transform: TwistTransform,
+}
+impl fmt::Display for Twist {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{},{}", self.layers.0, self.transform.0)
+    }
+}
+impl FromStr for Twist {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // IIFE to mimic `try_block`
+        (|| {
+            let mut segments = s.split(',');
+            let layers = LayerMask(segments.next()?.parse().ok()?);
+            let transform = TwistTransform(segments.next()?.parse().ok()?);
+            if segments.next().is_some() {
+                return None;
+            }
+            Some(Self { layers, transform })
+        })()
+        .ok_or(())
+    }
+}
+impl Twist {
+    /// Returns a random twist for a puzzle type, or `None` if the puzzle has no twists.
+    pub fn from_rng(ty: &PuzzleType) -> Option<Self> {
+        let mut rng = rand::thread_rng();
+        let axis = *ty.twists.non_empty_axes.choose(&mut rng)?;
+        let transform = *ty.info(axis).transforms.choose(&mut rng)?;
+        let layers = LayerMask((1..ty.info(axis).all_layers().0).choose(&mut rng)?);
+        Some(Self { layers, transform })
+    }
 }
