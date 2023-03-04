@@ -6,6 +6,7 @@ pub use approx::AbsDiffEq;
 mod impl_macros;
 #[macro_use]
 mod vector;
+pub mod cga;
 mod hyperplane;
 mod matrix;
 mod multivector;

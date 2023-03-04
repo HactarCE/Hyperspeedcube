@@ -28,3 +28,20 @@ pub fn min_by_f32_key<T>(
     }
     Some(min_elem)
 }
+
+/// Divides `lhs` by `rhs` if the reciprocal of `rhs` is finite; otherwise
+/// returns `None`.
+pub fn try_div<T>(lhs: T, rhs: f32) -> Option<T::Output>
+where
+    T: Mul<f32>,
+{
+    let recip_rhs = rhs.recip();
+    recip_rhs.is_finite().then(|| lhs * recip_rhs)
+}
+
+/// Returns the square root of `n` if the result is finite; otherwise returns
+/// `None`.
+pub fn try_sqrt(n: f32) -> Option<f32> {
+    let ret = n.sqrt();
+    ret.is_finite().then_some(ret)
+}

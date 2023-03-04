@@ -2021,6 +2021,7 @@ dependencies = [
  "ahash 0.8.2",
  "anyhow",
  "approx 0.5.1",
+ "bitflags",
  "bitvec",
  "cgmath",
  "eframe",
