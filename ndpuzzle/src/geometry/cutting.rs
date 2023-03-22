@@ -199,7 +199,9 @@ impl<M: Manifold> ShapeArena<M> {
         let result = match slice_op.results_cache.get(&shape.id) {
             Some(result) => result.clone(),
             None => {
-                let result = self.cut_shape_uncached(shape.id, slice_op)?;
+                let result = self
+                    .cut_shape_uncached(shape.id, slice_op)
+                    .with_context(|| format!("error cutting shape {shape}"))?;
                 slice_op.results_cache.insert(shape.id, result.clone());
                 result
             }
@@ -230,22 +232,26 @@ impl<M: Manifold> ShapeArena<M> {
             } if self[shape].ndim()? == 1 => {
                 let intersection_shape = self.add(Shape::whole_space(intersection_manifold))?;
 
-                let inside_boundary = self.incremental_simplify_intervals_intersection(
-                    &self[shape].boundary.clone(),
-                    intersection_shape,
-                    &self[shape].manifold.clone(),
-                )?;
+                let inside_boundary = self
+                    .incremental_simplify_intervals_intersection(
+                        &self[shape].boundary.clone(),
+                        intersection_shape,
+                        &self[shape].manifold.clone(),
+                    )
+                    .context("error simplifying 1D boundary of inside")?;
                 let inside = if let Some(boundary) = inside_boundary {
                     Some(self.add_subshape(shape, boundary)?)
                 } else {
                     None
                 };
 
-                let outside_boundary = self.incremental_simplify_intervals_intersection(
-                    &self[shape].boundary.clone(),
-                    -intersection_shape,
-                    &self[shape].manifold.clone(),
-                )?;
+                let outside_boundary = self
+                    .incremental_simplify_intervals_intersection(
+                        &self[shape].boundary.clone(),
+                        -intersection_shape,
+                        &self[shape].manifold.clone(),
+                    )
+                    .context("error simplifying 1D boundary of outside")?;
                 let outside = if let Some(boundary) = outside_boundary {
                     Some(self.add_subshape(shape, boundary)?)
                 } else {
@@ -331,10 +337,13 @@ impl<M: Manifold> ShapeArena<M> {
                 } else if is_intersection_nonempty {
                     // Construct the shape that is `shape ∩ boundary(cut)`.
                     if intersection_manifold.ndim()? == 1 {
-                        if let Some(boundary) = self.simplify_intervals_intersection(
-                            intersection_boundary.iter(),
-                            &intersection_manifold,
-                        )? {
+                        let simplified_intersection_boundary = self
+                            .simplify_intervals_intersection(
+                                intersection_boundary.iter(),
+                                &intersection_manifold,
+                            )
+                            .context("error simplifying 1D intersection boundary")?;
+                        if let Some(boundary) = simplified_intersection_boundary {
                             intersection_shape = Some(self.add(Shape {
                                 manifold: intersection_manifold,
                                 boundary,
