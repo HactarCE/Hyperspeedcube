@@ -6,7 +6,7 @@ use std::ops::{
     SubAssign,
 };
 
-use super::{Axes, Term};
+use super::{Axes, Blade, Term};
 use crate::math::{approx_eq, util, Matrix, Vector, VectorRef};
 
 /// Sum of terms in the conformal geometric algebra. Terms are stored sorted by
@@ -26,8 +26,8 @@ impl fmt::Display for Multivector {
                 let scalar_component = self[axes];
                 let no_component = self.get_no(axes);
                 let ni_component = self.get_ni(axes);
-                // E = ∞ ∧ o = - e₋ e₊
-                let e_plane_component = -self[axes | Axes::E_PLANE];
+                // E = o ^ ∞ = e₋ e₊
+                let e_plane_component = self[axes | Axes::E_PLANE];
 
                 [
                     (format!(" {axes}"), scalar_component),
@@ -469,7 +469,7 @@ impl Multivector {
     }
     /// Returns the Minkowski plane, defined as E=∞∧o.
     pub fn minkowski_plane() -> Self {
-        Multivector(smallvec![-Term::unit(Axes::E_PLANE)])
+        Multivector(smallvec![Term::unit(Axes::E_PLANE)])
     }
 
     /// Returns the lexicographically largest axis mask in the multivector.
@@ -610,10 +610,10 @@ impl Multivector {
     pub fn filter_terms(&self, mut f: impl FnMut(Axes) -> bool) -> Multivector {
         Multivector(self.0.iter().copied().filter(|term| f(term.axes)).collect())
     }
-    /// Returns a grade projection of the multivector.
+    /// Returns a grade projection of the multivector as a blade.
     #[must_use]
-    pub fn grade_project(&self, grade: u8) -> Multivector {
-        self.filter_terms(|term| term.count() == grade)
+    pub fn grade_project(&self, grade: u8) -> Blade {
+        Blade(self.filter_terms(|term| term.count() == grade))
     }
     /// Returns the maximum grade of the multivector.
     pub fn max_grade(&self) -> u8 {

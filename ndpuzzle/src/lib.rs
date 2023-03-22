@@ -6,6 +6,7 @@ extern crate lazy_static;
 
 #[macro_use]
 pub mod math;
+pub mod geometry;
 pub mod group;
 pub mod polytope;
 pub mod puzzle;

@@ -185,20 +185,6 @@ impl<'a> Add for &'a Multivector {
         ret
     }
 }
-impl<'a> Mul<Blade> for &'a Multivector {
-    type Output = Multivector;
-
-    fn mul(self, rhs: Blade) -> Self::Output {
-        self.0.iter().map(|&blade| blade * rhs).sum()
-    }
-}
-impl Mul<Blade> for Multivector {
-    type Output = Multivector;
-
-    fn mul(self, rhs: Blade) -> Self::Output {
-        &self * rhs
-    }
-}
 impl<'a> AddAssign<&'a Multivector> for Multivector {
     fn add_assign(&mut self, rhs: &'a Multivector) {
         for &blade in &rhs.0 {
@@ -511,7 +497,7 @@ impl Rotor {
     pub fn ndim(&self) -> u8 {
         self.0.ndim()
     }
-    /// Returns the scalar (dot product) component of the rotor.
+    /// Returns the scalar component of the rotor.
     pub fn s(&self) -> f32 {
         self.0.get(0).unwrap_or(0.0)
     }

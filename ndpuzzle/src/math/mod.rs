@@ -11,12 +11,14 @@ mod hyperplane;
 mod matrix;
 mod multivector;
 pub mod permutations;
+mod sign;
 mod subspace;
 pub mod util;
 
 pub use hyperplane::*;
 pub use matrix::*;
 pub use multivector::*;
+pub use sign::*;
 pub use subspace::*;
 pub use vector::*;
 

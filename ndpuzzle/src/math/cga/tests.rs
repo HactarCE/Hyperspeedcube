@@ -34,12 +34,8 @@ mod assertions {
     {
         assert_approx_eq!(*expected, blade_to_expected(blade));
         assert_approx_eq!(*expected, blade_to_expected(&(blade * 3.0)));
-        assert_approx_eq!(*expected, blade_to_expected(&blade.semi_normalize()));
+        assert_approx_eq!(-expected.clone(), blade_to_expected(&-blade));
         assert_approx_eq!(-expected.clone(), blade_to_expected(&(blade * -3.0)));
-        assert_approx_eq!(
-            -expected.clone(),
-            blade_to_expected(&-blade.semi_normalize()),
-        );
     }
 
     pub fn assert_scaling_invariant_point_query(
@@ -514,7 +510,7 @@ fn test_cga_opns_query_point() {
         println!("OPNS sphere = {opns_sphere}");
         let opns_circle = ipns_circle.ipns_to_opns(ndim);
         println!("OPNS circle = {opns_circle}");
-        let ipns_circle_on_sphere = opns_circle.opns_to_ipns_in_space(&opns_sphere).unwrap();
+        let ipns_circle_on_sphere = opns_circle.opns_to_ipns_in_space(&opns_sphere);
         println!("IPNS circle on sphere = {ipns_circle}");
         assert_eq!(
             Outside,
@@ -538,13 +534,13 @@ fn test_cga_is_real() {
             let grade = opns_obj.grade();
             let is_real = opns_obj.opns_is_real();
             println!("In {ndim}D, is OPNS {grade}-blade real? {is_real}");
-            // assert!(is_real);
+            assert!(is_real);
 
             let ipns_obj = opns_obj.opns_to_ipns(ndim);
             let grade = ipns_obj.grade();
             let is_real = ipns_obj.ipns_is_real();
             println!("In {ndim}D, is IPNS {grade}-blade real? {is_real}");
-            // assert!(is_real);
+            assert!(is_real);
         }
         println!();
     }

@@ -25,7 +25,7 @@ use crate::math::{approx_cmp, approx_eq, util, AbsDiffEq, Vector, VectorRef};
 /// Many of the methods on this type will panic if passed a blade of the wrong
 /// grade (zero is okay).
 #[derive(Debug, Clone, PartialEq)]
-pub struct Blade(pub Multivector);
+pub struct Blade(pub(super) Multivector);
 
 impl fmt::Display for Blade {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -201,10 +201,14 @@ impl Blade {
     pub fn vector(v: impl VectorRef) -> Self {
         Blade(Multivector::from(v))
     }
+    /// Constructs the normalized OPNS blade representing a point.
+    pub fn point(p: impl ToConformalPoint) -> Self {
+        p.to_normalized_1blade()
+    }
     /// Constructs the OPNS blade representing a point.
     ///
     /// See https://w.wiki/6L8o
-    pub fn point(p: impl VectorRef) -> Self {
+    fn vector_to_point(p: impl VectorRef) -> Self {
         // p + NO + 1/2 * NI * ||p||
         Blade(Multivector::from(&p) + Multivector::NO + Multivector::NI * 0.5 * p.mag2())
     }
@@ -236,15 +240,19 @@ impl Blade {
         }
     }
 
-    /// Normalizes a 1-blade to ±nₒ, if the nₒ component is nonzero.
+    /// Normalizes an OPNS point to +No, if the No component is nonzero, or +Ni
+    /// otherwise.
     #[must_use]
-    pub fn semi_normalize(&self) -> Self {
+    pub fn normalize_point(&self) -> Self {
         let no = self.no();
-        if approx_eq(&no, &0.0) {
-            return self.clone();
-        } else {
-            return self * no.abs().recip();
+        if !approx_eq(&no, &0.0) {
+            return self * no.recip();
         }
+        let ni = self.ni();
+        if !approx_eq(&ni, &0.0) {
+            return self * ni.recip();
+        }
+        self.clone()
     }
 
     /// Converts an OPNS blade to an IPNS blade, given the number of dimensions
@@ -261,11 +269,11 @@ impl Blade {
     }
 
     /// Converts an OPNS blade to an IPNS blade, given an OPNS blade
-    /// representing the space it inhabits, or `None` if the space is not
-    /// invertible.
+    /// representing the space it inhabits. Returns zero if `opns_space` cannot
+    /// be inverted.
     #[must_use]
-    pub fn opns_to_ipns_in_space(&self, opns_space: &Blade) -> Option<Self> {
-        Some(self << opns_space.inverse()?)
+    pub fn opns_to_ipns_in_space(&self, opns_space: &Blade) -> Self {
+        self << opns_space.inverse().unwrap_or(Blade::ZERO)
     }
     /// Converts an IPNS blade to an OPNS blade, given an OPNS blade
     /// representing the space it inhabits.
@@ -310,8 +318,8 @@ impl Blade {
     /// Given an IPNS-form hypersphere/hyperplane, query whether a point is
     /// inside, outside, or on the hypersphere/hyperplane.
     pub fn ipns_query_point(&self, point: impl ToConformalPoint) -> PointQueryResult {
-        let blade = point.to_1blade();
-        let dot = self.dot(&blade) * blade.no().signum();
+        let blade = point.to_normalized_1blade();
+        let dot = self.dot(&blade);
         match approx_cmp(&dot, &0.0) {
             std::cmp::Ordering::Less => PointQueryResult::Outside,
             std::cmp::Ordering::Equal => PointQueryResult::On,
@@ -371,17 +379,6 @@ impl Blade {
     /// Returns `true` if the object represented by an OPNS blade is real.
     pub fn opns_is_real(&self) -> bool {
         self.opns_mag2() > 0.0
-    }
-    fn opns_mag2(&self) -> f32 {
-        -self.ipns_mag2()
-    }
-    fn ipns_mag2(&self) -> f32 {
-        let sign = match self.grade() % 4 {
-            0 | 1 => 1.0,
-            2 | 3 => -1.0,
-            _ => unreachable!(),
-        };
-        self.mag2() * sign
     }
 
     /// Returns the squared radius of the hypersphere represented by an IPNS
@@ -487,10 +484,7 @@ impl Blade {
             return None;
         }
 
-        // Pick a term to normalize by.
-        let i = self.mv().most_significant_term();
-        // Compute the factor between those terms.
-        let factor = other.mv()[i] / self.mv()[i];
+        let factor = self.unchecked_scale_factor_to(other);
 
         for term in self.mv().terms() {
             let scaled_self_coef = term.coef * factor;
@@ -508,6 +502,14 @@ impl Blade {
 
         Some(factor)
     }
+    /// Returns the scale factor between `self` and `other`, assuming they
+    /// differ by a scalar factor. If they do not, then the result is undefined.
+    pub fn unchecked_scale_factor_to(&self, other: &Self) -> f32 {
+        // Pick a term to compare.
+        let i = self.mv().most_significant_term();
+        // Compute the factor between those terms.
+        other.mv()[i] / self.mv()[i]
+    }
 
     /// Returns the blade as a vector in Euclidean space, ignoring non-Euclidean
     /// components.
@@ -521,12 +523,27 @@ impl Blade {
     pub fn dot(&self, other: &Self) -> f32 {
         self.mv().dot(other.mv())
     }
-    /// Returns the squared magnitude of the blade.
-    pub fn mag2(&self) -> f32 {
+    /// Returns the squared magnitude of an OPNS blade that is negative iff the
+    /// object is imaginary.
+    fn opns_mag2(&self) -> f32 {
+        -self.ipns_mag2()
+    }
+    /// Returns the squared magnitude of an IPNS blade that is negative iff the
+    /// object is imaginary.
+    fn ipns_mag2(&self) -> f32 {
+        let sign = match self.grade() % 4 {
+            0 | 1 => 1.0,
+            2 | 3 => -1.0,
+            _ => unreachable!(),
+        };
+        self.mag2() * sign
+    }
+    /// Returns raw the squared magnitude of the blade.
+    fn mag2(&self) -> f32 {
         self.dot(self)
     }
     /// Returns the magnitude of the blade.
-    pub fn mag(&self) -> Option<f32> {
+    fn mag(&self) -> Option<f32> {
         util::try_sqrt(self.mag2())
     }
 }
@@ -552,9 +569,18 @@ pub enum Point {
     /// Degenerate point, represented by the zero blade.
     Degenerate,
 }
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Point::Finite(p) => fmt::Display::fmt(p, f),
+            Point::Infinity => write!(f, "∞ "),
+            Point::Degenerate => write!(f, "<degenerate>"),
+        }
+    }
+}
 impl Default for Point {
     fn default() -> Self {
-        Self::Finite(Vector::default())
+        Self::Finite(Vector::EMPTY)
     }
 }
 impl approx::AbsDiffEq for Point {
@@ -572,6 +598,9 @@ impl approx::AbsDiffEq for Point {
     }
 }
 impl Point {
+    /// Point at the origin.
+    pub const ORIGIN: Self = Point::Finite(Vector::EMPTY);
+
     /// Returns the point if it is finite, and `None` otherwise.
     pub fn to_option(self) -> Option<Vector> {
         match self {
@@ -593,25 +622,25 @@ impl Point {
 
 /// Trait to convert to a point in the conformal geometric algebra.
 pub trait ToConformalPoint {
-    fn to_1blade(self) -> Blade;
+    fn to_normalized_1blade(self) -> Blade;
 }
 impl<V: VectorRef> ToConformalPoint for V {
-    fn to_1blade(self) -> Blade {
-        Blade::point(self)
+    fn to_normalized_1blade(self) -> Blade {
+        Blade::vector_to_point(self)
     }
 }
 impl ToConformalPoint for &'_ Blade {
-    fn to_1blade(self) -> Blade {
-        self.clone()
+    fn to_normalized_1blade(self) -> Blade {
+        self.normalize_point()
     }
 }
 impl ToConformalPoint for Blade {
-    fn to_1blade(self) -> Blade {
-        self
+    fn to_normalized_1blade(self) -> Blade {
+        self.normalize_point()
     }
 }
 impl ToConformalPoint for &'_ Point {
-    fn to_1blade(self) -> Blade {
+    fn to_normalized_1blade(self) -> Blade {
         match self {
             Point::Finite(p) => Blade::point(p),
             Point::Infinity => Blade::NI,
@@ -620,7 +649,7 @@ impl ToConformalPoint for &'_ Point {
     }
 }
 impl ToConformalPoint for Point {
-    fn to_1blade(self) -> Blade {
-        (&self).to_1blade()
+    fn to_normalized_1blade(self) -> Blade {
+        (&self).to_normalized_1blade()
     }
 }
