@@ -17,6 +17,9 @@ use super::shape::*;
 use crate::math::{approx_eq, Sign};
 
 /// Set of shapes in a space.
+///
+/// A shape arena is always initialized with a single shape representing the
+/// whole space.
 #[derive(Debug, Clone)]
 pub struct ShapeArena<M> {
     /// Space that all shapes inhabit.

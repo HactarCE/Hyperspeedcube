@@ -50,10 +50,22 @@ impl Isometry {
     }
     /// Returns whether the isometry include an odd number of reflections.
     pub fn is_reflection(&self) -> bool {
-        match self.0.first_nonzero_term() {
+        match self.0.nonzero_terms().next() {
             Some(term) => term.axes.count() % 2 == 1,
-            None => false, // degenerate
+            None => false, // bad isometry (should be nonzero)
         }
+    }
+
+    /// Constructs a reflection through a vector. Returns `None` if the vector
+    /// is zero.
+    pub fn from_reflection(v: impl VectorRef) -> Option<Self> {
+        Some(Self::from_reflection_normalized(v.normalize()?))
+    }
+    /// Constructs a reflection through a vector.
+    ///
+    /// `v` **must** be a unit vector.
+    pub fn from_reflection_normalized(v: impl VectorRef) -> Self {
+        Isometry(Multivector::from(v))
     }
 
     /// Constructs a rotation from one vector to another. Returns `None` if the
@@ -109,11 +121,6 @@ impl Isometry {
     /// This constructs a rotation of **double** the angle between them.
     pub fn from_vector_product_normalized(a: impl VectorRef, b: impl VectorRef) -> Self {
         Isometry(Multivector::from(b) * Multivector::from(a))
-    }
-
-    /// Returns the multivector representing the isometry.
-    pub fn multivector(&self) -> &Multivector {
-        &self.0
     }
 
     /// Returns the reverse isometry.
@@ -187,39 +194,48 @@ impl Isometry {
         self.0.sandwich(m)
     }
 
-    /// Returns the magnitude of the isometry, which should always be `1` for a
-    /// direct isometry and `-1` for an opposite isometry.
-    fn mag(&self) -> f32 {
-        self.dot(&self.reverse()).sqrt()
+    /// Returns the magnitude of the isometry as a real number.
+    fn unsigned_mag(&self) -> f32 {
+        self.mag2().abs().sqrt()
     }
+    /// Returns the squared magnitude of the isometry, which should always be
+    /// `1` for a direct isometry and `-1` for an opposite isometry.
+    fn mag2(&self) -> f32 {
+        self.dot(&self.reverse())
+    }
+
     /// Normalizes the isometry so that the magnitude is `1`.
-    pub fn normalize(mut self) -> Option<Isometry> {
-        let mag = self.mag();
+    pub fn normalize(&self) -> Option<Isometry> {
+        let mag = self.unsigned_mag();
         if approx_eq(&mag, &0.0) {
             return None;
         }
-        if !approx_eq(&mag, &1.0) {
-            self.0 *= mag.recip();
-        }
-        Some(self)
+
+        let multiplier = mag.recip();
+
+        Some(Isometry(
+            self.0.nonzero_terms().map(|term| term * multiplier).sum(),
+        ))
     }
     /// Normalizes the isometry so that the magnitude is `1` and the first
     /// nonzero component is positive, or returns `None` if the isometry is
     /// zero.
     #[must_use]
-    pub fn canonicalize(mut self) -> Option<Isometry> {
-        let mag = self.mag();
-        if approx_eq(&mag, &0.0) {
+    pub fn canonicalize(&self) -> Option<Isometry> {
+        let mag = self.unsigned_mag();
+        if !mag.is_finite() {
+            log::warn!("isometry magnitude is {mag}")
+        }
+        if approx_eq(&mag, &0.0) || !mag.is_finite() {
             return None;
         }
 
-        let sign_of_first_term = self.0.first_nonzero_term()?.coef.signum();
-
+        let sign_of_first_term = self.0.nonzero_terms().next()?.coef.signum();
         let multiplier = mag.recip() * sign_of_first_term;
-        if !approx_eq(&multiplier, &1.0) {
-            self.0 *= multiplier;
-        }
-        Some(self)
+
+        Some(Isometry(
+            self.0.nonzero_terms().map(|term| term * multiplier).sum(),
+        ))
     }
 
     /// Returns the scalar product of two isometries.

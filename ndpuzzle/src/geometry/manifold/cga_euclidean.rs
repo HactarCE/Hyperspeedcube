@@ -2,21 +2,21 @@ use anyhow::{anyhow, bail, ensure, Context, Result};
 use std::fmt;
 
 use super::{Manifold, ManifoldWhichSide};
-use crate::math::*;
+use crate::math::{cga::*, *};
 
 /// Manifold in Euclidean space, represented using a CGA blade.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EuclideanCgaManifold {
     space_ndim: u8,
     manifold_ndim: u8,
-    opns: cga::Blade,
+    opns: Blade,
 }
 
 impl AbsDiffEq for EuclideanCgaManifold {
     type Epsilon = f32;
 
     fn default_epsilon() -> Self::Epsilon {
-        cga::Blade::default_epsilon()
+        Blade::default_epsilon()
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
@@ -65,11 +65,11 @@ impl fmt::Display for EuclideanCgaManifold {
 impl EuclideanCgaManifold {
     /// Constructs a manifold that is the whole space of an OPNS blade.
     pub fn whole_space(ndim: u8) -> Self {
-        Self::from_opns(cga::Blade::pseudoscalar(ndim), ndim).unwrap()
+        Self::from_opns(Blade::pseudoscalar(ndim), ndim).unwrap()
     }
     /// Constructs a manifold from an OPNS blade, or returns `None` if the
     /// object is a point or scalar.
-    pub fn from_opns(opns: cga::Blade, space_ndim: u8) -> Option<Self> {
+    pub fn from_opns(opns: Blade, space_ndim: u8) -> Option<Self> {
         Some(Self {
             space_ndim,
             manifold_ndim: opns.grade().checked_sub(2)?,
@@ -78,40 +78,37 @@ impl EuclideanCgaManifold {
     }
     /// Constructs a manifold from an IPNS blade, or returns `None` if it is
     /// degenerate.
-    pub fn from_ipns(ipns: &cga::Blade, space_ndim: u8) -> Option<Self> {
+    pub fn from_ipns(ipns: &Blade, space_ndim: u8) -> Option<Self> {
         Self::from_opns(ipns.ipns_to_opns(space_ndim), space_ndim)
     }
 
     /// Returns the OPNS blade representing the manifold.
-    pub fn opns(&self) -> &cga::Blade {
+    pub fn opns(&self) -> &Blade {
         &self.opns
     }
     /// Returns the IPNS blade representing the manifold.
-    pub fn ipns(&self) -> cga::Blade {
+    pub fn ipns(&self) -> Blade {
         self.opns.opns_to_ipns(self.space_ndim)
     }
 
     /// Returns the IPNS blade representing the manifold within a space
     /// containing it.
-    pub fn ipns_in_space(&self, space: &Self) -> cga::Blade {
+    pub fn ipns_in_space(&self, space: &Self) -> Blade {
         self.opns().opns_to_ipns_in_space(space.opns())
     }
 }
 
 /// Manifold represented by a blade in the conformal geometric algebra.
 impl Manifold for EuclideanCgaManifold {
-    type Point = cga::Point;
+    type Point = Point;
 
     fn ndim(&self) -> Result<u8> {
         Ok(self.manifold_ndim)
     }
 
     fn new_point_pair(a: &Self::Point, b: &Self::Point, space: &Self) -> Result<Self> {
-        EuclideanCgaManifold::from_opns(
-            cga::Blade::point(a) ^ cga::Blade::point(b),
-            space.space_ndim,
-        )
-        .context("error splitting point pair")
+        EuclideanCgaManifold::from_opns(Blade::point(a) ^ Blade::point(b), space.space_ndim)
+            .context("error splitting point pair")
     }
 
     fn to_point_pair(&self) -> Result<[Self::Point; 2]> {
@@ -122,7 +119,7 @@ impl Manifold for EuclideanCgaManifold {
     }
 
     fn triple_orientation(&self, points: [&Self::Point; 3]) -> f32 {
-        let [a, b, c] = points.map(cga::Blade::point);
+        let [a, b, c] = points.map(Blade::point);
         self.opns().unchecked_scale_factor_to(&(a ^ b ^ c))
     }
 
@@ -271,22 +268,22 @@ impl Manifold for EuclideanCgaManifold {
 ///
 /// Returns an error if there is no such point, which should only happen if the
 /// object is already zero.
-fn nonzero_wedge_with_arbitrary_point(opns_obj: &cga::Blade) -> Result<cga::Blade> {
+fn nonzero_wedge_with_arbitrary_point(opns_obj: &Blade) -> Result<Blade> {
     let ndim = opns_obj.ndim() + 1;
     let candidates = (0..ndim)
-        .map(|i| cga::Blade::point(Vector::unit(i)))
-        .chain([cga::Blade::NO, cga::Blade::NI]);
+        .map(|i| Blade::point(Vector::unit(i)))
+        .chain([Blade::NO, Blade::NI]);
     candidates
         .map(|p| opns_obj ^ p)
         .find(|obj| !obj.is_zero())
         .ok_or_else(|| anyhow!("unable to find point not on object {opns_obj}"))
 }
 
-fn query_point(point: &cga::Point, cut_ipns: &cga::Blade) -> Result<ManifoldWhichSide> {
+fn query_point(point: &Point, cut_ipns: &Blade) -> Result<ManifoldWhichSide> {
     let result = cut_ipns.ipns_query_point(point);
     Ok(ManifoldWhichSide {
-        is_any_inside: result == cga::PointQueryResult::Inside,
-        is_any_outside: result == cga::PointQueryResult::Outside,
+        is_any_inside: result == PointQueryResult::Inside,
+        is_any_outside: result == PointQueryResult::Outside,
     })
 }
 
@@ -301,8 +298,8 @@ mod tests {
             is_any_outside: false,
         };
 
-        let obj_ipns = cga::Blade::ipns_sphere(vector![], 1.0); // r=1 sphere
-        let divider_ipns = cga::Blade::ipns_plane(vector![1.0], 1.0); // x=1 plane
+        let obj_ipns = Blade::ipns_sphere(vector![], 1.0); // r=1 sphere
+        let divider_ipns = Blade::ipns_plane(vector![1.0], 1.0); // x=1 plane
 
         for ndim in 1..=8 {
             println!("In {ndim}D ...");
@@ -317,7 +314,7 @@ mod tests {
 
             for subspace_ndim in 1..ndim {
                 let subspace =
-                    EuclideanCgaManifold::from_opns(cga::Blade::pseudoscalar(subspace_ndim), ndim)
+                    EuclideanCgaManifold::from_opns(Blade::pseudoscalar(subspace_ndim), ndim)
                         .unwrap();
                 let obj_in_subspace = subspace.intersect(&obj, &space).unwrap().unwrap();
                 let divider_in_subspace = subspace.intersect(&divider, &space).unwrap().unwrap();
@@ -330,7 +327,7 @@ mod tests {
 
                 for subsubspace_ndim in 1..subspace_ndim {
                     let subsubspace = EuclideanCgaManifold::from_opns(
-                        cga::Blade::pseudoscalar(subsubspace_ndim),
+                        Blade::pseudoscalar(subsubspace_ndim),
                         ndim,
                     )
                     .unwrap();

@@ -572,12 +572,12 @@ impl Multivector {
         ret
     }
 
-    /// Returns the first nonzero term, or `None` if the multivector is zero.
-    pub fn first_nonzero_term(&self) -> Option<Term> {
+    /// Returns an iterator over the nonzero terms of the multivector.
+    pub fn nonzero_terms(&self) -> impl '_ + Iterator<Item = Term> {
         self.0
             .iter()
             .copied()
-            .find(|term| is_approx_nonzero(&term.coef))
+            .filter(|term| is_approx_nonzero(&term.coef))
     }
     /// Returns a multivector containing a subset of the terms of it.
     #[must_use]
