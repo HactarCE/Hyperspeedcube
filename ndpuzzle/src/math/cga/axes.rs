@@ -2,6 +2,7 @@ use bitflags::bitflags;
 use itertools::Itertools;
 use std::fmt;
 use std::ops::Mul;
+use tinyset::Fits64;
 
 bitflags! {
     /// Set of axes for a term in the conformal geometric algebra.
@@ -47,6 +48,16 @@ impl fmt::Display for Axes {
             write!(f, "{}", Axes::NAMES.get(i).copied().unwrap_or("?"))?;
         }
         Ok(())
+    }
+}
+
+impl Fits64 for Axes {
+    unsafe fn from_u64(x: u64) -> Self {
+        Self::from_bits_unchecked(x as u16)
+    }
+
+    fn to_u64(self) -> u64 {
+        self.bits() as u64
     }
 }
 

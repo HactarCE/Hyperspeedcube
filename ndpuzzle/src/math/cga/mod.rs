@@ -4,6 +4,7 @@
 
 mod axes;
 mod blade;
+pub mod collections;
 mod isometry;
 mod multivector;
 mod term;

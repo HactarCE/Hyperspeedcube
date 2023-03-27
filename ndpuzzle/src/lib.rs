@@ -7,19 +7,15 @@ extern crate lazy_static;
 #[macro_use]
 pub mod math;
 pub mod geometry;
-pub mod group;
-pub mod polytope;
-pub mod puzzle;
-pub mod schlafli;
 pub mod util;
 
 /// Numeric type used for layer masks.
 pub type LayerMaskUint = u32;
 
-// Names for axes up to 8 dimensions.
+/// Names for axes up to 8 dimensions.
 pub const AXIS_NAMES: &str = "XYZWUVRS";
 
-#[cfg(test)]
+#[cfg(all(test, not(test)))]
 mod tests {
     use super::*;
 

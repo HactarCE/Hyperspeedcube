@@ -1,7 +1,7 @@
-//! Schlafli symbols.
-
+use anyhow::Result;
 use itertools::Itertools;
 
+use super::IsometryGroup;
 use crate::math::*;
 
 /// Schlafli symbol for a convex polytope.
@@ -79,8 +79,13 @@ impl SchlafliSymbol {
     }
 
     /// Returns the list of mirrors as generators.
-    pub fn generators(self) -> Vec<Rotoreflector> {
+    pub fn generators(self) -> Vec<cga::Isometry> {
         self.mirrors().into_iter().map(|m| m.into()).collect()
+    }
+
+    /// Constructs the isometry group described by the Schlafli symbol.
+    pub fn group(self) -> Result<IsometryGroup> {
+        IsometryGroup::from_generators(&self.generators())
     }
 }
 
@@ -88,12 +93,12 @@ impl SchlafliSymbol {
 struct MirrorGenerator {
     mirrors: Vec<Mirror>,
 }
-impl From<MirrorGenerator> for Rotoreflector {
+impl From<MirrorGenerator> for cga::Isometry {
     fn from(gen: MirrorGenerator) -> Self {
         gen.mirrors
             .into_iter()
-            .map(|Mirror(v)| Rotoreflector::from_reflection(v))
-            .fold(Rotoreflector::ident(), |a, b| a * b)
+            .map(cga::Isometry::from)
+            .fold(cga::Isometry::ident(), |a, b| a * b)
     }
 }
 impl From<MirrorGenerator> for Matrix {
@@ -106,10 +111,10 @@ impl From<MirrorGenerator> for Matrix {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct Mirror(pub Vector);
-impl From<Mirror> for Rotoreflector {
+struct Mirror(Vector);
+impl From<Mirror> for cga::Isometry {
     fn from(Mirror(v): Mirror) -> Self {
-        Rotoreflector::from_reflection(v)
+        cga::Isometry::from_reflection_normalized(v)
     }
 }
 impl From<Mirror> for Matrix {

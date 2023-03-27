@@ -8,19 +8,13 @@ mod impl_macros;
 #[macro_use]
 mod vector;
 pub mod cga;
-mod hyperplane;
 mod matrix;
-mod multivector;
 pub mod permutations;
 mod sign;
-mod subspace;
 pub mod util;
 
-pub use hyperplane::*;
 pub use matrix::*;
-pub use multivector::*;
 pub use sign::*;
-pub use subspace::*;
 pub use vector::*;
 
 /// Small floating-point value used for comparisons and tiny offsets.

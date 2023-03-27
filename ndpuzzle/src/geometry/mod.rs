@@ -1,13 +1,19 @@
+//! Geometric algorithms and data structures, particularly shape slicing.
+
 use anyhow::Result;
 
 use crate::math::*;
 
 mod cutting;
+mod group;
 mod manifold;
+mod schlafli;
 mod shape;
 
 pub use cutting::*;
+pub use group::*;
 pub use manifold::*;
+pub use schlafli::*;
 pub use shape::*;
 
 /// Euclidean shape arena represented using conformal geometric algebra.
