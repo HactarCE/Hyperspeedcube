@@ -12,8 +12,8 @@ use std::fmt;
 use std::ops::{Index, Neg};
 use tinyset::Set64;
 
-use super::manifold::*;
 use super::shape::*;
+use crate::geometry::manifold::*;
 use crate::math::{approx_eq, Sign};
 
 /// Set of shapes in a space.

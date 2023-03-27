@@ -4,7 +4,7 @@ use std::fmt;
 use std::ops::Neg;
 use tinyset::{Fits64, Set64};
 
-use super::Manifold;
+use crate::geometry::Manifold;
 use crate::math::Sign;
 
 /// Subset of a connected manifold, defined as an intersection of half-spaces on
