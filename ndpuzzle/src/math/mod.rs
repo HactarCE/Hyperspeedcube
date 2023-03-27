@@ -1,6 +1,7 @@
 //! N-dimensional vector math library.
 
 pub use approx::AbsDiffEq;
+use num_traits::Zero;
 
 #[macro_use]
 mod impl_macros;
@@ -41,4 +42,25 @@ pub fn approx_cmp<T: AbsDiffEq<Epsilon = f32> + PartialOrd>(a: &T, b: &T) -> std
     } else {
         std::cmp::Ordering::Greater
     }
+}
+/// Returns whether one number is less than another by at least `EPSILON`.
+pub fn approx_lt<T: AbsDiffEq<Epsilon = f32> + PartialOrd>(a: &T, b: &T) -> bool {
+    a < b && !approx_eq(a, b)
+}
+/// Returns whether one number is greater than another by at least `EPSILON`.
+pub fn approx_gt<T: AbsDiffEq<Epsilon = f32> + PartialOrd>(a: &T, b: &T) -> bool {
+    a > b && !approx_eq(a, b)
+}
+
+/// Returns whether `x` has an absolute value greater than `EPSILON`.
+pub fn is_approx_nonzero<T: AbsDiffEq<Epsilon = f32> + Zero>(x: &T) -> bool {
+    !approx_eq(x, &T::zero())
+}
+/// Returns whether `x` is less than `-EPSILON`.
+pub fn is_approx_negative<T: AbsDiffEq<Epsilon = f32> + PartialOrd + Zero>(x: &T) -> bool {
+    approx_lt(x, &T::zero())
+}
+/// Returns whether `x` is greater than `EPSILON`.
+pub fn is_approx_positive<T: AbsDiffEq<Epsilon = f32> + PartialOrd + Zero>(x: &T) -> bool {
+    approx_gt(x, &T::zero())
 }

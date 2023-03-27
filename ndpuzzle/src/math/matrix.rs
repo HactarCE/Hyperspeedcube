@@ -215,6 +215,24 @@ impl Matrix {
     pub fn cols_ndim(&self, ndim: u8) -> impl Iterator<Item = MatrixCol<'_>> {
         (0..ndim).map(|i| self.col(i))
     }
+    /// Returns an iterator over the rows of two matrices, both padded to the
+    /// same length.
+    pub fn zip_rows<'a, 'b>(
+        a: &'a Self,
+        b: &'b Self,
+    ) -> impl Iterator<Item = (MatrixRow<'a>, MatrixRow<'b>)> {
+        let ndim = std::cmp::max(a.ndim(), b.ndim());
+        std::iter::zip(a.rows_ndim(ndim), b.rows_ndim(ndim))
+    }
+    /// Returns an iterator over the columns of two matrices, both padded to the
+    /// same length.
+    pub fn zip_cols<'a, 'b>(
+        a: &'a Self,
+        b: &'b Self,
+    ) -> impl Iterator<Item = (MatrixCol<'a>, MatrixCol<'b>)> {
+        let ndim = std::cmp::max(a.ndim(), b.ndim());
+        std::iter::zip(a.cols_ndim(ndim), b.cols_ndim(ndim))
+    }
 
     /// Returns the determinant of the matrix.
     pub fn determinant(&self) -> f32 {
@@ -311,10 +329,7 @@ impl approx::AbsDiffEq for MatrixCol<'_> {
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        let ndim = std::cmp::max(self.ndim(), other.ndim());
-        self.iter_ndim(ndim)
-            .zip(other.iter_ndim(ndim))
-            .all(|(a, b)| a.abs_diff_eq(&b, epsilon))
+        Vector::zip(self, other).all(|(a, b)| a.abs_diff_eq(&b, epsilon))
     }
 }
 
@@ -400,12 +415,7 @@ impl approx::AbsDiffEq for Matrix {
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        let ndim = std::cmp::max(self.ndim(), other.ndim());
-        let self_cols = self.cols_ndim(ndim);
-        let other_cols = other.cols_ndim(ndim);
-        self_cols
-            .zip(other_cols)
-            .all(|(a, b)| a.abs_diff_eq(&b, epsilon))
+        Matrix::zip_cols(self, other).all(|(a, b)| a.abs_diff_eq(&b, epsilon))
     }
 }
 

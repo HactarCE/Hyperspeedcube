@@ -3,8 +3,8 @@
 use std::fmt;
 use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 
-use super::{Axes, Multivector, Term};
-use crate::math::{approx_cmp, approx_eq, util, AbsDiffEq, Vector, VectorRef};
+use super::{AsMultivector, Axes, Multivector, Term};
+use crate::math::{approx_cmp, approx_eq, is_approx_nonzero, util, AbsDiffEq, Vector, VectorRef};
 
 /// Multivector of a single grade, which can represent a point, line, plane,
 /// circle, sphere, etc., or zero. An N-blade is a blade where each term has N
@@ -48,6 +48,12 @@ impl AbsDiffEq for Blade {
 impl From<Term> for Blade {
     fn from(term: Term) -> Self {
         Blade(Multivector::from(term))
+    }
+}
+
+impl AsMultivector for Blade {
+    fn mv(&self) -> &Multivector {
+        &self.0
     }
 }
 
@@ -245,11 +251,11 @@ impl Blade {
     #[must_use]
     pub fn normalize_point(&self) -> Self {
         let no = self.no();
-        if !approx_eq(&no, &0.0) {
+        if is_approx_nonzero(&no) {
             return self * no.recip();
         }
         let ni = self.ni();
-        if !approx_eq(&ni, &0.0) {
+        if is_approx_nonzero(&ni) {
             return self * ni.recip();
         }
         self.clone()
@@ -327,10 +333,6 @@ impl Blade {
         }
     }
 
-    /// Returns the underlying multivector.
-    pub fn mv(&self) -> &Multivector {
-        &self.0
-    }
     /// Returns the Ni component of a 1-blade.
     ///
     /// See https://w.wiki/6L8q
@@ -494,7 +496,7 @@ impl Blade {
             }
         }
         for term in other.mv().terms() {
-            if !approx_eq(&term.coef, &0.0) && self.mv().get(term.axes).is_none() {
+            if !term.is_zero() && self.mv().get(term.axes).is_none() {
                 // `other` has a nonzero term that `self` doesn't have.
                 return None;
             }
@@ -622,6 +624,8 @@ impl Point {
 
 /// Trait to convert to a point in the conformal geometric algebra.
 pub trait ToConformalPoint {
+    /// Returns the representation of a point in the conformal geometric
+    /// algebra.
     fn to_normalized_1blade(self) -> Blade;
 }
 impl<V: VectorRef> ToConformalPoint for V {

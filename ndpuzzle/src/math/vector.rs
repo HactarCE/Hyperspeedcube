@@ -7,6 +7,8 @@ use std::fmt;
 use std::iter::Sum;
 use std::ops::*;
 
+use super::is_approx_nonzero;
+
 /// N-dimensional vector. Indexing out of bounds returns zero.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(transparent)]
@@ -37,10 +39,22 @@ pub trait VectorRef: Sized + fmt::Debug {
             vector: self,
         }
     }
+    /// Returns an iterator over the nonzero components of the vector along with
+    /// their axes.
+    fn iter_nonzero(&self) -> VectorIterNonzero<&Self> {
+        VectorIterNonzero {
+            range: 0..self.ndim(),
+            vector: self,
+        }
+    }
 
     /// Returns the dot product of this vector with another.
     fn dot(&self, rhs: impl VectorRef) -> f32 {
-        self.iter().zip(rhs.iter()).map(|(l, r)| l * r).sum()
+        // Don't use `Vector::zip()` because that will include zeros at the end
+        // that we don't need.
+        std::iter::zip(self.iter(), rhs.iter())
+            .map(|(l, r)| l * r)
+            .sum()
     }
 
     /// Pads the vector with zeros up to `ndim`.
@@ -73,16 +87,29 @@ pub trait VectorRef: Sized + fmt::Debug {
     /// Returns whether two vectors are equal within `epsilon` on each
     /// component.
     fn approx_eq(&self, other: impl VectorRef, epsilon: f32) -> bool {
-        let ndim = std::cmp::max(self.ndim(), other.ndim());
-        let self_xs = self.iter_ndim(ndim);
-        let other_xs = other.iter_ndim(ndim);
-        self_xs.zip(other_xs).all(|(l, r)| (l - r).abs() <= epsilon)
+        Vector::zip(self, other).all(|(l, r)| (l - r).abs() <= epsilon)
+    }
+}
+
+/// Iterator over the nonzero components of a vector.
+pub struct VectorIterNonzero<V> {
+    range: Range<u8>,
+    vector: V,
+}
+impl<V: VectorRef> Iterator for VectorIterNonzero<V> {
+    type Item = (u8, f32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.range.find_map(|i| {
+            let x = self.vector.get(i);
+            is_approx_nonzero(&x).then_some((i, x))
+        })
     }
 }
 
 /// Iterator over the components of a vector.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct VectorIter<V: VectorRef> {
+pub struct VectorIter<V> {
     range: Range<u8>,
     vector: V,
 }
@@ -93,6 +120,7 @@ impl<V: VectorRef> Iterator for VectorIter<V> {
         self.range.next().map(|i| self.vector.get(i))
     }
 }
+
 impl VectorRef for Vector {
     fn ndim(&self) -> u8 {
         self.0.len() as _
@@ -143,10 +171,7 @@ macro_rules! impl_zero_padded_op {
             type Output = Vector;
 
             fn $fn_name(self, rhs: V) -> Self::Output {
-                let ndim = std::cmp::max(self.ndim(), rhs.ndim());
-                let lhs = self.iter_ndim(ndim);
-                let rhs = rhs.iter_ndim(ndim);
-                lhs.zip(rhs).map(|(l, r)| l.$fn_name(r)).collect()
+                Vector::zip(self, rhs).map(|(l, r)| l.$fn_name(r)).collect()
             }
         }
     };
@@ -235,7 +260,9 @@ impl Vector {
 
     /// Returns a zero vector.
     pub fn zero(ndim: u8) -> Self {
-        Self::EMPTY.resize(ndim)
+        let mut ret = Self::EMPTY;
+        ret.resize(ndim);
+        ret
     }
     /// Returns a unit vector along an axis.
     pub fn unit(axis: u8) -> Self {
@@ -245,10 +272,26 @@ impl Vector {
     }
 
     /// Resizes the vector in-place, padding with zeros.
-    #[must_use]
-    pub fn resize(mut self, ndim: u8) -> Self {
+    pub fn resize(&mut self, ndim: u8) {
         self.0.resize(ndim as _, 0.0);
-        self
+    }
+
+    /// Returns an iterator over two vectors, both padded to the same length.
+    pub fn zip<A: VectorRef, B: VectorRef>(
+        a: A,
+        b: B,
+    ) -> std::iter::Zip<VectorIter<A>, VectorIter<B>> {
+        let range = 0..std::cmp::max(a.ndim(), b.ndim());
+        std::iter::zip(
+            VectorIter {
+                range: range.clone(),
+                vector: a,
+            },
+            VectorIter {
+                range: range.clone(),
+                vector: b,
+            },
+        )
     }
 }
 impl approx::AbsDiffEq for Vector {

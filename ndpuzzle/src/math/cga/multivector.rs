@@ -7,13 +7,30 @@ use std::ops::{
 };
 
 use super::{Axes, Blade, Term};
-use crate::math::{approx_eq, util, Matrix, Vector, VectorRef};
+use crate::math::{is_approx_nonzero, util, Vector, VectorRef};
 
 /// Sum of terms in the conformal geometric algebra. Terms are stored sorted by
 /// their `axes` bitmask. No two terms in one multivector may have the same set
 /// of axes.
 #[derive(Default, Clone, PartialEq)]
 pub struct Multivector(SmallVec<[Term; 2]>);
+
+impl fmt::Debug for Multivector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut ret = f.debug_struct("Multivector");
+        for term in &self.0 {
+            if term.coef != 0.0 {
+                let field_name = if term.axes == Axes::SCALAR {
+                    "S".to_string() // scalar
+                } else {
+                    term.axes.to_string()
+                };
+                ret.field(&field_name, &term.coef);
+            }
+        }
+        ret.finish()
+    }
+}
 
 impl fmt::Display for Multivector {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -36,7 +53,7 @@ impl fmt::Display for Multivector {
                     (format!(" E{axes}"), e_plane_component),
                 ]
             })
-            .filter(|(_axes_string, coef)| !approx_eq(coef, &0.0));
+            .filter(|(_axes_string, coef)| is_approx_nonzero(coef));
 
         if let Some((axes_string, coef)) = terms.next() {
             fmt::Display::fmt(&coef, f)?;
@@ -90,23 +107,6 @@ impl<V: VectorRef> From<V> for Multivector {
                 axes: Axes::euclidean(i as u8),
             })
             .sum()
-    }
-}
-
-impl fmt::Debug for Multivector {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut ret = f.debug_struct("Multivector");
-        for term in &self.0 {
-            if term.coef != 0.0 {
-                let field_name = if term.axes == Axes::SCALAR {
-                    "S".to_string() // scalar
-                } else {
-                    term.axes.to_string()
-                };
-                ret.field(&field_name, &term.coef);
-            }
-        }
-        ret.finish()
     }
 }
 
@@ -508,7 +508,7 @@ impl Multivector {
 
     /// Returns whether the multivector approximately equals zero.
     pub fn is_zero(&self) -> bool {
-        self.terms().iter().all(|term| term.is_zero())
+        self.0.iter().all(|term| term.is_zero())
     }
 
     /// Returns the terms of the multivector.
@@ -534,70 +534,37 @@ impl Multivector {
     pub fn dot(&self, other: &Multivector) -> f32 {
         let mut ret = 0.0;
 
-        let mut self_terms = self.terms().iter().peekable();
-        let mut other_terms = other.terms().iter().peekable();
-        while let (Some(&&a), Some(&&b)) = (self_terms.peek(), other_terms.peek()) {
+        let mut self_terms = itertools::put_back(self.terms());
+        let mut other_terms = itertools::put_back(other.terms());
+        while let (Some(a), Some(b)) = (self_terms.next(), other_terms.next()) {
             match a.axes.cmp(&b.axes) {
-                std::cmp::Ordering::Less => {
-                    self_terms.next();
-                }
-                std::cmp::Ordering::Greater => {
-                    other_terms.next();
-                }
-                std::cmp::Ordering::Equal => {
-                    ret += (a * b).coef;
-                    self_terms.next();
-                    other_terms.next();
-                }
+                std::cmp::Ordering::Less => other_terms.put_back(b),
+                std::cmp::Ordering::Greater => self_terms.put_back(a),
+                std::cmp::Ordering::Equal => ret += (*a * *b).coef,
             }
         }
 
         ret
     }
 
-    /// Returns the sandwich product with a vector: `M * v * M_rev`.
-    pub fn sandwich_vector(&self, v: impl VectorRef) -> Vector {
-        let ndim = std::cmp::max(self.ndim(), v.ndim());
-        (0..ndim)
-            .map(|i| self.sandwich_axis_vector(i, v.get(i)))
-            .sum()
-    }
-    /// Returns the sandwich product with a multivector: `M * R * M_rev`.
+    /// Returns the sandwich product with another multivector: `M * m * M_rev`.
     #[must_use]
-    pub fn sandwich_multivector(&self, multivector: &Multivector) -> Multivector {
-        self.0
-            .iter()
-            .flat_map(|&lhs| {
-                multivector
-                    .0
-                    .iter()
-                    .flat_map(move |&mid| self.0.iter().map(move |&rhs| lhs * mid * rhs.reverse()))
-            })
-            .sum()
+    pub fn sandwich(&self, m: &Multivector) -> Multivector {
+        self * m * self.reverse()
     }
-    /// Returns the matrix equivalent to a sandwich product with the
-    /// multivector.
-    ///
-    /// The matix is more expensive to compute initially than any one sandwich
-    /// product, but cheaper to apply.
-    pub fn matrix(&self) -> Matrix {
-        Matrix::from_cols((0..self.ndim()).map(|axis| self.sandwich_axis_vector(axis, 1.0)))
+    /// Returns the sandwich product with a blade: `M * b * M_rev`.
+    pub fn sandwich_blade(&self, b: &Blade) -> Blade {
+        Blade(self.sandwich(b.mv()))
     }
-    /// Returns the sandwich product with an axis-aligned vector: `M * v
-    /// * M_rev`.
-    fn sandwich_axis_vector(&self, axis: u8, mag: f32) -> Vector {
-        let ndim = std::cmp::max(self.ndim(), axis + 1);
-        let mid = Term {
-            coef: mag,
-            axes: Axes::euclidean(axis),
-        };
-
+    /// Returns the Euclidean components of the sandwich product with a single
+    /// term: `M * t * M_rev`.
+    pub(super) fn sandwich_term_euclidean(&self, t: Term) -> Vector {
+        let ndim = std::cmp::max(self.ndim(), t.axes.min_euclidean_ndim());
         let mut ret = Vector::zero(ndim);
         for &lhs in &self.0 {
             for &rhs in &self.0 {
-                let term = lhs * mid * rhs.reverse();
-                if term.axes.count() == 1 {
-                    let euclidean_axis = term.axes.min_euclidean_ndim() - 1;
+                let term = lhs * t * rhs.reverse();
+                if let Some(euclidean_axis) = term.axes.single_euclidean_axis() {
                     ret[euclidean_axis] += term.coef;
                 }
             }
@@ -605,6 +572,13 @@ impl Multivector {
         ret
     }
 
+    /// Returns the first nonzero term, or `None` if the multivector is zero.
+    pub fn first_nonzero_term(&self) -> Option<Term> {
+        self.0
+            .iter()
+            .copied()
+            .find(|term| is_approx_nonzero(&term.coef))
+    }
     /// Returns a multivector containing a subset of the terms of it.
     #[must_use]
     pub fn filter_terms(&self, mut f: impl FnMut(Axes) -> bool) -> Multivector {
@@ -640,5 +614,23 @@ impl Multivector {
             .max_by(|a, b| f32::total_cmp(&a.coef.abs(), &b.coef.abs()))
             .map(|term| term.axes)
             .unwrap_or(Axes::SCALAR)
+    }
+}
+
+/// Object represented using a multivector.
+pub trait AsMultivector {
+    /// Returns the underlying multivector.
+    fn mv(&self) -> &Multivector;
+}
+
+impl<T: AsMultivector> AsMultivector for &T {
+    fn mv(&self) -> &Multivector {
+        (*self).mv()
+    }
+}
+
+impl AsMultivector for Multivector {
+    fn mv(&self) -> &Multivector {
+        self
     }
 }

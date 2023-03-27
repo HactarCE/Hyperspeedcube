@@ -4,15 +4,15 @@
 
 mod axes;
 mod blade;
+mod isometry;
 mod multivector;
 mod term;
-// mod versor;
 
 pub use axes::Axes;
-pub use blade::{Blade, Point, PointQueryResult};
-pub use multivector::Multivector;
+pub use blade::{Blade, Point, PointQueryResult, ToConformalPoint};
+pub use isometry::Isometry;
+pub use multivector::{AsMultivector, Multivector};
 pub use term::Term;
-// pub use versor::{Rotor, Rotoreflector};
 
 #[cfg(test)]
 mod tests;

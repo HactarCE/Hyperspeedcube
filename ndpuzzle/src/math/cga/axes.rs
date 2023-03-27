@@ -87,6 +87,11 @@ impl Axes {
         let total_bits = std::mem::size_of_val(&bits) as u32 * 8;
         (total_bits - 2).saturating_sub(bits.leading_zeros()) as u8
     }
+    /// Returns the Euclidean axis, if it is exactly one axis and that axis is
+    /// Euclidean.
+    pub fn single_euclidean_axis(self) -> Option<u8> {
+        (self.count() == 1).then(|| self.min_euclidean_ndim() - 1)
+    }
 }
 
 /// Returns the sign of the geometric product between two basis blades.
