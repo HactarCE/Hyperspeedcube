@@ -1,10 +1,13 @@
 //! Multivectors of a single grade, which are called blades.
 
+use anyhow::{bail, Result};
 use std::fmt;
 use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 
 use super::{AsMultivector, Axes, Multivector, Term};
-use crate::math::{approx_cmp, approx_eq, is_approx_nonzero, util, AbsDiffEq, Vector, VectorRef};
+use crate::math::{
+    approx_cmp, approx_eq, is_approx_nonzero, util, AbsDiffEq, PointWhichSide, Vector, VectorRef,
+};
 
 /// Multivector of a single grade, which can represent a point, line, plane,
 /// circle, sphere, etc., or zero. An N-blade is a blade where each term has N
@@ -193,6 +196,10 @@ impl Blade {
     /// See https://w.wiki/6L8q
     pub const NI: Self = Blade(Multivector::NI);
 
+    /// Constructs a scalar multivector.
+    pub fn scalar(s: f32) -> Self {
+        Blade(Multivector::scalar(s))
+    }
     /// Constructs the pseudoscalar for a particular number of dimensions. This
     /// is the OPNS blade representing the whole space.
     pub fn pseudoscalar(ndim: u8) -> Self {
@@ -304,10 +311,17 @@ impl Blade {
     pub fn is_zero(&self) -> bool {
         self.mv().is_zero()
     }
+    /// Returns whether the blade is zero or represents an object with zero
+    /// radius.
+    pub fn is_degenerate(&self) -> bool {
+        approx_eq(&self.mag2(), &0.0)
+    }
     /// Given an OPNS-form hypersphere/hyperplane, returns `true` if it is a
     /// hyperplane or flat point and `false` if it is a hypersphere or finite
     /// point pair.
     pub fn opns_is_flat(&self) -> bool {
+        // TODO: It should be possible to optimize this significantly.
+
         // Wedge with Ni. Hyperplanes contain the point at infinity while
         // hyperspheres do not.
         (self ^ Blade::NI).is_zero()
@@ -316,6 +330,8 @@ impl Blade {
     /// hyperplane or flat point and `false` if it is a hypersphere or finite
     /// point pair.
     pub fn ipns_is_flat(&self) -> bool {
+        // TODO: It should be possible to optimize this significantly.
+
         // Dot with Ni. Hyperplanes contain the point at infinity while
         // hyperspheres do not.
         (Blade::NI << self).is_zero()
@@ -323,13 +339,13 @@ impl Blade {
 
     /// Given an IPNS-form hypersphere/hyperplane, query whether a point is
     /// inside, outside, or on the hypersphere/hyperplane.
-    pub fn ipns_query_point(&self, point: impl ToConformalPoint) -> PointQueryResult {
+    pub fn ipns_query_point(&self, point: impl ToConformalPoint) -> PointWhichSide {
         let blade = point.to_normalized_1blade();
         let dot = self.dot(&blade);
         match approx_cmp(&dot, &0.0) {
-            std::cmp::Ordering::Less => PointQueryResult::Outside,
-            std::cmp::Ordering::Equal => PointQueryResult::On,
-            std::cmp::Ordering::Greater => PointQueryResult::Inside,
+            std::cmp::Ordering::Less => PointWhichSide::Outside,
+            std::cmp::Ordering::Equal => PointWhichSide::On,
+            std::cmp::Ordering::Greater => PointWhichSide::Inside,
         }
     }
 
@@ -393,7 +409,11 @@ impl Blade {
     /// `None` the object is flat or imaginary. This is negative for
     /// "inside-out" spheres.
     pub fn ipns_radius(&self) -> Option<f32> {
-        util::try_div(util::try_sqrt(self.mag2())?, self.no())
+        if self.ipns_is_flat() {
+            None
+        } else {
+            util::try_div(util::try_sqrt(self.mag2())?, self.no())
+        }
     }
     /// Returns the point at the center of the hypersphere represented by an
     /// IPNS 1-blade, or `None` if the object is flat.
@@ -451,6 +471,10 @@ impl Blade {
     }
     /// Converts an OPNS flat point (point pair containing the point at
     /// infinity) to an OPNS point.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if the blade is not a 2-blade (or zero).
     #[track_caller]
     pub fn flat_point_to_point(&self) -> Point {
         if self.is_zero() {
@@ -460,8 +484,16 @@ impl Blade {
         (Blade::NO << self).to_point()
     }
     /// Factors an OPNS point pair into two OPNS points. Returns `None` if the
-    /// point pair is imaginary.
+    /// point pair is degenerate or imaginary.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if the blade is not a 2-blade (or zero).
     pub fn point_pair_to_points(&self) -> Option<[Point; 2]> {
+        if self.is_zero() {
+            return None;
+        }
+        assert_eq!(2, self.grade(), "expected 2-blade; got {self}");
         if self.opns_is_flat() {
             let finite_point = self.flat_point_to_point();
             if self.mv()[Axes::E_PLANE] < 0.0 {
@@ -508,7 +540,7 @@ impl Blade {
     /// differ by a scalar factor. If they do not, then the result is undefined.
     pub fn unchecked_scale_factor_to(&self, other: &Self) -> f32 {
         // Pick a term to compare.
-        let i = self.mv().most_significant_term();
+        let i = self.mv().most_significant_term().axes;
         // Compute the factor between those terms.
         other.mv()[i] / self.mv()[i]
     }
@@ -548,17 +580,6 @@ impl Blade {
     fn mag(&self) -> Option<f32> {
         util::try_sqrt(self.mag2())
     }
-}
-
-/// Position of a point relative to an oriented manifold that divides space.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum PointQueryResult {
-    /// The point is on the manifold between inside and outside.
-    On,
-    /// The point is on the "inside" space relative to the manifold.
-    Inside,
-    /// The point is on the "outside" space relative to the manifold.
-    Outside,
 }
 
 /// Point on the one-point compactification of N-dimensional Euclidean space.
@@ -604,21 +625,18 @@ impl Point {
     pub const ORIGIN: Self = Point::Finite(Vector::EMPTY);
 
     /// Returns the point if it is finite, and `None` otherwise.
-    pub fn to_option(self) -> Option<Vector> {
+    pub fn to_finite(self) -> Result<Vector> {
         match self {
-            Point::Finite(p) => Some(p),
-            _ => None,
+            Point::Finite(p) => Ok(p),
+            Point::Infinity => bail!("expected finite point; got infinite point"),
+            Point::Degenerate => bail!("expected finite point; got degenerate point"),
         }
     }
 
     /// Returns the point if it is finite, or panics otherwise.
     #[track_caller]
     pub fn unwrap(self) -> Vector {
-        match self {
-            Point::Finite(p) => p,
-            Point::Infinity => panic!("expected finite point; got infinite point"),
-            Point::Degenerate => panic!("expected finite point; got degenerate point"),
-        }
+        self.to_finite().unwrap()
     }
 }
 

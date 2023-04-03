@@ -1,9 +1,12 @@
 //! N-dimensional puzzle backend.
 #![warn(clippy::if_then_some_else_none, missing_docs)]
+#![deny(clippy::correctness)]
 
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+pub mod collections;
 #[macro_use]
 pub mod math;
 pub mod geometry;

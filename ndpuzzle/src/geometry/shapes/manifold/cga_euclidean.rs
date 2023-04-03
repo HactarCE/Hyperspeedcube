@@ -1,7 +1,9 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
+use float_ord::FloatOrd;
 use std::fmt;
+use std::ops::Neg;
 
-use super::{Manifold, ManifoldWhichSide};
+use super::{Manifold, ManifoldWhichSide, TangentSpace};
 use crate::math::{cga::*, *};
 
 /// Manifold in Euclidean space, represented using a CGA blade.
@@ -39,8 +41,7 @@ impl fmt::Display for EuclideanCgaManifold {
             }
         } else if self.manifold_ndim == self.space_ndim - 1 {
             let ipns = self.ipns();
-            let is_flat = ipns.ipns_is_flat();
-            if is_flat {
+            if self.is_flat() {
                 if let (Some(n), Some(d)) = (ipns.ipns_plane_normal(), ipns.ipns_plane_distance()) {
                     let n = n.pad(self.space_ndim);
                     write!(f, "hyperplane n={n} d={d}")?;
@@ -59,6 +60,18 @@ impl fmt::Display for EuclideanCgaManifold {
         }
 
         Ok(())
+    }
+}
+
+impl Neg for EuclideanCgaManifold {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        EuclideanCgaManifold {
+            space_ndim: self.space_ndim,
+            manifold_ndim: self.manifold_ndim,
+            opns: -self.opns,
+        }
     }
 }
 
@@ -82,6 +95,17 @@ impl EuclideanCgaManifold {
         Self::from_opns(ipns.ipns_to_opns(space_ndim), space_ndim)
     }
 
+    /// Constructs a planar manifold.
+    pub fn plane(normal: impl VectorRef, distance: f32, space_ndim: u8) -> Self {
+        EuclideanCgaManifold::from_ipns(&cga::Blade::ipns_plane(normal, distance), space_ndim)
+            .unwrap()
+    }
+    /// Constructs a spherical manifold.
+    pub fn sphere(center: impl VectorRef, radius: f32, space_ndim: u8) -> Self {
+        EuclideanCgaManifold::from_ipns(&cga::Blade::ipns_sphere(center, radius), space_ndim)
+            .unwrap()
+    }
+
     /// Returns the OPNS blade representing the manifold.
     pub fn opns(&self) -> &Blade {
         &self.opns
@@ -96,6 +120,53 @@ impl EuclideanCgaManifold {
     pub fn ipns_in_space(&self, space: &Self) -> Blade {
         self.opns().opns_to_ipns_in_space(space.opns())
     }
+
+    /// Returns whether the manifold is flat.
+    pub fn is_flat(&self) -> bool {
+        self.opns().opns_is_flat()
+    }
+
+    /// Returns an arbitrary pair of points on the manifold.
+    fn arbitrary_point_pair(&self) -> Result<[Point; 2]> {
+        let ipns = self.ipns();
+        if let Some(radius) = ipns.ipns_radius() {
+            let center = ipns.ipns_sphere_center().to_finite()?;
+            Ok([
+                Point::Finite(vector![radius] + &center),
+                Point::Finite(vector![-radius] + &center),
+            ])
+        } else {
+            Ok([Point::Finite(ipns.ipns_plane_pole()), Point::Infinity])
+        }
+    }
+
+    fn flat_tangent_vectors(&self) -> Result<Vec<Vector>> {
+        let ndim = self.space_ndim;
+        let mut dual_space = self.ipns();
+        let mut spanning_vectors = vec![];
+
+        while dual_space.grade() < ndim {
+            // Take a unit vector along each axis. Wedge it with `dual_space` to
+            // see what would happen if we added it to our spanning set. Take
+            // the one that gives the maximum value (i.e., is most perpendicular
+            // to the existing spanning set within `self`)
+            let new_dual_space = (0..ndim)
+                .map(|axis| &dual_space ^ Blade::vector(Vector::unit(axis)))
+                .max_by_key(|m| FloatOrd(m.dot(m).abs()))
+                .context("error computing tangent vectors")?;
+            let old_dual_space_inv = dual_space
+                .inverse()
+                .context("error computing tangent vectors")?;
+            let new_tangent_vector = (old_dual_space_inv << &new_dual_space)
+                .to_vector()
+                .normalize()
+                .context("error computing tangent vectors")?;
+            spanning_vectors.push(new_tangent_vector);
+            dual_space = new_dual_space
+        }
+        ensure!(self.ndim()? as usize == spanning_vectors.len());
+        Ok(spanning_vectors)
+    }
 }
 
 /// Manifold represented by a blade in the conformal geometric algebra.
@@ -108,7 +179,7 @@ impl Manifold for EuclideanCgaManifold {
 
     fn new_point_pair(a: &Self::Point, b: &Self::Point, space: &Self) -> Result<Self> {
         EuclideanCgaManifold::from_opns(Blade::point(a) ^ Blade::point(b), space.space_ndim)
-            .context("error splitting point pair")
+            .context("error constructing point pair")
     }
 
     fn to_point_pair(&self) -> Result<[Self::Point; 2]> {
@@ -116,6 +187,14 @@ impl Manifold for EuclideanCgaManifold {
         self.opns()
             .point_pair_to_points()
             .context("unable to split point pair")
+    }
+
+    fn new_line(a: &Self::Point, b: &Self::Point, space: &Self) -> Result<Self> {
+        EuclideanCgaManifold::from_opns(
+            Blade::point(a) ^ Blade::point(b) ^ Blade::NI,
+            space.space_ndim,
+        )
+        .context("error constructing line")
     }
 
     fn triple_orientation(&self, points: [&Self::Point; 3]) -> f32 {
@@ -150,7 +229,7 @@ impl Manifold for EuclideanCgaManifold {
             let result = match self.relative_orientation(space) {
                 None => bail!(
                     "cannot intersect two manifolds because \
-                     {self} is not contained within {space}"
+                     {self} is not contained within {space}",
                 ),
                 Some(Sign::Pos) => cut.clone(),
                 Some(Sign::Neg) => cut.flip()?,
@@ -206,12 +285,12 @@ impl Manifold for EuclideanCgaManifold {
             //
             // See `cga_euclidean_demo.js` for an interactive ganja.js demo.
 
-            // 1. Compute the dual of the intersection of `self` and `cut`. This
-            //    is sort of like an amalgamation of every possible manifold
-            //    that is perpendicular to `self` and `cut`.
-            let perpendicularity = &self_ipns ^ &cut_ipns;
+            // 1. Compute the dual of the intersection of `self` and `cut`. I
+            //    think this represents a bundle of all the manifolds that are
+            //    perpendicular to `self` and `cut`.
+            let perpendicular_bundle = &self_ipns ^ &cut_ipns;
 
-            if perpendicularity.is_zero() {
+            if perpendicular_bundle.is_zero() {
                 // `self` and `cut` are the same object, so it's not on either
                 // side.
                 return Ok(ManifoldWhichSide::neither_side());
@@ -220,7 +299,7 @@ impl Manifold for EuclideanCgaManifold {
             // 2. Wedge with an arbitrary point to select one of those possible
             //    perpendicular manifolds. The only restriction here is that we
             //    don't want the wedge product to be zero.
-            let perpendicular_manifold = nonzero_wedge_with_arbitrary_point(&perpendicularity)?;
+            let perpendicular_manifold = nonzero_wedge_with_arbitrary_point(&perpendicular_bundle)?;
 
             // 3. Intersect that perpendicular manifold with `self` to get two
             //    points on `self`.
@@ -244,22 +323,68 @@ impl Manifold for EuclideanCgaManifold {
         };
 
         // Extract those two points.
-        let Some([a, b]) = pair_on_self_across_cut.point_pair_to_points() else {
-            bail!(
-                "unable to query points \
-                 on manifold: {self}\n\
-                 within space: {space}\n\
-                 relative to cut: {cut}\n\
-                 using point pair: {pair_on_self_across_cut}"
-            );
+        //
+        // If the manifolds are just barely tangent, then
+        // `pair_on_self_across_cut` will be degenerate. Pick any two
+        // points on the manifold, as long as they aren't the same, so
+        // that at most one of them could be the tangent point.
+        let [a, b] = match pair_on_self_across_cut.point_pair_to_points() {
+            Some(pair) => pair,
+            None => self.arbitrary_point_pair()?,
         };
 
         // Query whether each one is inside or outside of `cut`.
-        Ok(query_point(&a, &cut_ipns)? | query_point(&b, &cut_ipns)?)
+        Ok(ManifoldWhichSide::from_points([
+            cut_ipns.ipns_query_point(&a),
+            cut_ipns.ipns_query_point(&b),
+        ]))
     }
 
-    fn which_side_has_point(&self, p: &Self::Point, space: &Self) -> Result<ManifoldWhichSide> {
-        query_point(p, &self.ipns_in_space(space))
+    fn which_side_has_point(&self, p: &Self::Point, space: &Self) -> Result<PointWhichSide> {
+        Ok(self.ipns_in_space(space).ipns_query_point(p))
+    }
+
+    fn tangent_space(&self) -> Result<Box<dyn TangentSpace<Self::Point>>> {
+        if self.is_flat() {
+            let tangent_vectors = self.flat_tangent_vectors()?;
+            Ok(Box::new(move |_| Ok(tangent_vectors.clone())))
+        } else {
+            let self_ndim = self.ndim()?;
+            let self_ipns = self.ipns();
+            let space_ndim = self.space_ndim;
+            Ok(Box::new(move |p| {
+                // (self & !p) ^ ni
+                let perpendicular_bundle = &self_ipns ^ Blade::point(p);
+                let parallel_bundle = perpendicular_bundle.ipns_to_opns(self_ndim);
+                let tangent_manifold = parallel_bundle ^ Blade::NI;
+                EuclideanCgaManifold::from_opns(tangent_manifold, space_ndim)
+                    .context("unable to construct tangent manifold")?
+                    .flat_tangent_vectors()
+            }))
+        }
+    }
+
+    fn project_point(&self, p: &Self::Point) -> Result<Option<Self::Point>> {
+        if self.manifold_ndim == self.space_ndim {
+            return Ok(Some(p.clone()));
+        }
+        match p {
+            Point::Finite(p) => {
+                let pair = (Blade::point(p) ^ Blade::NI) << self.opns() << self.opns();
+                // The CGA projection operation actually gives us two points.
+                let [a, b] = match pair.point_pair_to_points() {
+                    Some(points) => points.map(|p| p.to_finite().ok()),
+                    None => [None, None],
+                };
+                // Return whichever point is closer to `p`.
+                Ok(crate::util::merge_options(a, b, |a, b| {
+                    std::cmp::min_by_key(a, b, |q| FloatOrd((p - q).mag2()))
+                })
+                .map(|p| cga::Point::Finite(p)))
+            }
+            Point::Infinity if self.is_flat() => Ok(Some(Point::Infinity)),
+            Point::Infinity | Point::Degenerate => Ok(None),
+        }
     }
 }
 
@@ -275,16 +400,8 @@ fn nonzero_wedge_with_arbitrary_point(opns_obj: &Blade) -> Result<Blade> {
         .chain([Blade::NO, Blade::NI]);
     candidates
         .map(|p| opns_obj ^ p)
-        .find(|obj| !obj.is_zero())
+        .find(|obj| !obj.is_degenerate())
         .ok_or_else(|| anyhow!("unable to find point not on object {opns_obj}"))
-}
-
-fn query_point(point: &Point, cut_ipns: &Blade) -> Result<ManifoldWhichSide> {
-    let result = cut_ipns.ipns_query_point(point);
-    Ok(ManifoldWhichSide {
-        is_any_inside: result == PointQueryResult::Inside,
-        is_any_outside: result == PointQueryResult::Outside,
-    })
 }
 
 #[cfg(test)]
@@ -302,14 +419,11 @@ mod tests {
         let divider_ipns = Blade::ipns_plane(vector![1.0], 1.0); // x=1 plane
 
         for ndim in 1..=8 {
-            println!("In {ndim}D ...");
-
             let space = EuclideanCgaManifold::whole_space(ndim);
             let obj = EuclideanCgaManifold::from_ipns(&obj_ipns, ndim).unwrap();
             let divider = EuclideanCgaManifold::from_ipns(&divider_ipns, ndim).unwrap();
 
             let result = obj.which_side(&divider, &space).unwrap();
-            println!("result = {result:?}");
             assert_eq!(expected_result, result);
 
             for subspace_ndim in 1..ndim {
@@ -322,7 +436,6 @@ mod tests {
                 let result = obj_in_subspace
                     .which_side(&divider_in_subspace, &subspace)
                     .unwrap();
-                println!("  result in {subspace_ndim}D subspace: {result:?}");
                 assert_eq!(expected_result, result);
 
                 for subsubspace_ndim in 1..subspace_ndim {
@@ -344,7 +457,6 @@ mod tests {
                         let result = obj_in_subsubspace
                             .which_side(&divider_in_subsubspace, &subsubspace)
                             .unwrap();
-                        println!("    result in {subspace_ndim}D subsubspace: {result:?}");
                         assert_eq!(expected_result, result);
                     }
 
@@ -360,13 +472,10 @@ mod tests {
                         let result = obj_in_subsubspace
                             .which_side(&divider_in_subsubspace, &subsubspace)
                             .unwrap();
-                        println!("    result in {subspace_ndim}D subsubspace: {result:?}");
                         assert_eq!(expected_result, result);
                     }
                 }
             }
-
-            println!();
         }
     }
 }

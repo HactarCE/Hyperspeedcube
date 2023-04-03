@@ -266,7 +266,7 @@ impl Vector {
     }
     /// Returns a unit vector along an axis.
     pub fn unit(axis: u8) -> Self {
-        let mut ret = vector![0.0; axis as usize+1];
+        let mut ret = vector![0.0; axis as usize + 1];
         ret[axis] = 1.0;
         ret
     }

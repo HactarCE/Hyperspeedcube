@@ -1,7 +1,6 @@
 use std::fmt;
 
-use super::*;
-use crate::math::{Vector, VectorRef};
+use crate::math::{cga::*, PointWhichSide, Vector, VectorRef};
 
 #[macro_use]
 mod assertions {
@@ -43,7 +42,7 @@ mod assertions {
         point_on: &Vector,
         outside_vector: &Vector,
     ) {
-        use PointQueryResult::{Inside, On, Outside};
+        use PointWhichSide::*;
 
         let point_outside = point_on + outside_vector;
         let point_inside = point_on - outside_vector;
@@ -234,7 +233,7 @@ fn test_cga_ipns_plane_repr() {
 
 #[test]
 fn test_cga_which_side_hyperplane() {
-    use PointQueryResult::*;
+    use PointWhichSide::*;
 
     let plane = Blade::ipns_plane(vector![3.0, 4.0], 5.0);
     let on = vector![3.0, 4.0];
@@ -247,7 +246,7 @@ fn test_cga_which_side_hyperplane() {
 
 #[test]
 fn test_cga_which_side_hypersphere() {
-    use PointQueryResult::*;
+    use PointWhichSide::*;
 
     let sphere = Blade::ipns_sphere(vector![6.0, -8.0], 5.0);
     let on = vector![3.0, -4.0];
@@ -439,7 +438,7 @@ fn test_cga_ipns_reflect_points() {
 
 #[test]
 fn test_cga_ipns_reflect_sphere() {
-    use PointQueryResult::*;
+    use PointWhichSide::*;
 
     let plane = Blade::ipns_plane(vector![1.0], 0.0);
     let sphere = Blade::ipns_sphere(vector![2.0], 1.0);
@@ -496,7 +495,7 @@ fn test_cga_ipns_reflect_pseudoscalar() {
 
 #[test]
 fn test_cga_opns_query_point() {
-    use PointQueryResult::*;
+    use PointWhichSide::*;
 
     let ipns_plane = Blade::ipns_plane(vector![1.0], 1.0);
     let ipns_sphere = Blade::ipns_sphere(vector![], 2.0);

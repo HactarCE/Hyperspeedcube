@@ -7,6 +7,11 @@ use tinyset::{Fits64, Set64};
 use crate::geometry::Manifold;
 use crate::math::Sign;
 
+idx_struct! {
+    /// Non-oriented ID for a shape in a `ShapeArena`.
+    pub struct ShapeId(pub(super) u32);
+}
+
 /// Subset of a connected manifold, defined as an intersection of half-spaces on
 /// its surface.
 #[derive(Debug, Clone)]
@@ -79,23 +84,5 @@ impl PartialOrd for ShapeRef {
 impl Ord for ShapeRef {
     fn cmp(&self, other: &Self) -> Ordering {
         self.to_u64().cmp(&other.to_u64())
-    }
-}
-
-/// Non-oriented ID for a shape in a `ShapeArena`.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ShapeId(pub(super) u32);
-impl fmt::Display for ShapeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
-impl tinyset::Fits64 for ShapeId {
-    unsafe fn from_u64(x: u64) -> Self {
-        Self(x as u32)
-    }
-
-    fn to_u64(self) -> u64 {
-        self.0 as u64
     }
 }

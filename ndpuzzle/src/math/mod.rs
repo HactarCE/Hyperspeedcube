@@ -13,9 +13,35 @@ pub mod permutations;
 mod sign;
 pub mod util;
 
+pub use cga::{AsMultivector, ToConformalPoint};
 pub use matrix::*;
 pub use sign::*;
 pub use vector::*;
+
+/// Position of a point relative to an oriented manifold that divides space.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum PointWhichSide {
+    /// The point is on the manifold between inside and outside.
+    On,
+    /// The point is on the "inside" space relative to the manifold.
+    Inside,
+    /// The point is on the "outside" space relative to the manifold.
+    Outside,
+}
+impl std::ops::Mul<Sign> for PointWhichSide {
+    type Output = Self;
+
+    fn mul(self, rhs: Sign) -> Self::Output {
+        match rhs {
+            Sign::Pos => self,
+            Sign::Neg => match self {
+                Self::On => Self::On,
+                Self::Inside => Self::Outside,
+                Self::Outside => Self::Inside,
+            },
+        }
+    }
+}
 
 /// Small floating-point value used for comparisons and tiny offsets.
 pub const EPSILON: f32 = 0.0001;

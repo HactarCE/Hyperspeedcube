@@ -5,6 +5,7 @@ use tinyset::Set64;
 use crate::math::{cga::*, util};
 
 /// Nearest-neighbors query structure for isometries.
+#[derive(Clone)]
 pub struct IsometryNearestNeighborsMap<V> {
     axes: Vec<Axes>,
     inner: BallTree<IsometryPoint, V>,
@@ -14,6 +15,11 @@ impl<V> fmt::Debug for IsometryNearestNeighborsMap<V> {
         f.debug_struct("IsometryNearestNeighborsMap")
             .field("axes", &self.axes)
             .finish()
+    }
+}
+impl<V> Default for IsometryNearestNeighborsMap<V> {
+    fn default() -> Self {
+        Self::new(&[], vec![])
     }
 }
 impl<V> IsometryNearestNeighborsMap<V> {

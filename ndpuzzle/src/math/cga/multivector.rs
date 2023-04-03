@@ -1,3 +1,4 @@
+use float_ord::FloatOrd;
 use itertools::Itertools;
 use smallvec::{smallvec, smallvec_inline, SmallVec};
 use std::fmt;
@@ -238,7 +239,7 @@ impl<'a> MulAssign<Term> for Multivector {
         for term in &mut self.0 {
             *term *= rhs;
         }
-        self.0.sort_by_key(|term| term.axes);
+        self.0.sort_unstable_by_key(|term| term.axes);
     }
 }
 
@@ -472,12 +473,23 @@ impl Multivector {
         Multivector(smallvec![Term::unit(Axes::E_PLANE)])
     }
 
-    /// Returns the lexicographically largest axis mask in the multivector.
+    /// Returns the lexicographically largest axis mask in the multivector, or
+    /// the scalar component if the multivector is zero.
     fn largest_axis_mask(&self) -> Axes {
         match self.0.last() {
             Some(term) => term.axes,
             None => Axes::empty(),
         }
+    }
+    /// Returns the axis mask of the component in the multivector with the
+    /// greatest absolute value, or a zero scalar component if the multivector
+    /// is zero.
+    pub fn most_significant_term(&self) -> Term {
+        self.0
+            .iter()
+            .copied()
+            .max_by_key(|x| FloatOrd(x.coef.abs()))
+            .unwrap_or_default()
     }
     /// Returns the minimum number of Euclidean dimensions that this multivector
     /// requires.
@@ -605,15 +617,6 @@ impl Multivector {
     pub fn normalize(&self) -> Option<Multivector> {
         let mult = 1.0 / self.mag();
         mult.is_finite().then(|| self * mult)
-    }
-
-    /// Returns the axis mask of the term with the greatest absolute value.
-    pub fn most_significant_term(&self) -> Axes {
-        self.0
-            .iter()
-            .max_by(|a, b| f32::total_cmp(&a.coef.abs(), &b.coef.abs()))
-            .map(|term| term.axes)
-            .unwrap_or(Axes::SCALAR)
     }
 }
 

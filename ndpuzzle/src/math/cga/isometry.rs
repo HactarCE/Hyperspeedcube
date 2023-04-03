@@ -1,7 +1,7 @@
 use std::ops::{Mul, MulAssign};
 
-use super::{AsMultivector, Axes, Blade, Multivector, Point, Term, ToConformalPoint};
-use crate::{math::*, util::IterWithExactSizeExt};
+use crate::math::{cga::*, *};
+use crate::util::IterWithExactSizeExt;
 
 /// [Isometry](https://en.wikipedia.org/wiki/Isometry) in space represented by a
 /// multivector -- i.e., some composition of translations, rotations, and

@@ -1,10 +1,32 @@
 use anyhow::{ensure, Context, Result};
 use parking_lot::{Condvar, Mutex};
 use smallvec::{smallvec, SmallVec};
-use std::ops::{Index, IndexMut};
+use std::ops::Index;
 use std::sync::Arc;
 
-use crate::math::cga::{collections::*, *};
+use crate::collections::{
+    approx_hashmap, GenericVec, IndexNewtype, IsometryHashMap, IsometryNearestNeighborsMap,
+};
+use crate::math::cga::*;
+
+idx_struct! {
+    /// ID of a group element.
+    pub struct GeneratorId(u8);
+    /// ID of a group element.
+    pub struct ElementId(u16);
+}
+impl From<GeneratorId> for ElementId {
+    fn from(value: GeneratorId) -> Self {
+        ElementId(value.0 as u16 + 1)
+    }
+}
+impl ElementId {
+    /// Identity element in any group.
+    pub const IDENTITY: ElementId = ElementId(0);
+}
+
+type PerGenerator<T> = GenericVec<GeneratorId, T>;
+type PerElement<T> = GenericVec<ElementId, T>;
 
 /// Isometry group in some number of dimensions.
 #[derive(Debug, Clone)]
@@ -22,40 +44,63 @@ pub struct IsometryGroup {
     inverses: PerElement<ElementId>,
     /// Results of multiplying an element by a generator.
     successors: PerGenerator<PerElement<ElementId>>,
+
+    /// Nearest neighbors data structure.
+    nearest_neighbors: IsometryNearestNeighborsMap<ElementId>,
+}
+
+impl Default for IsometryGroup {
+    fn default() -> Self {
+        Self::from_generators(&[]).unwrap()
+    }
+}
+
+impl Index<ElementId> for IsometryGroup {
+    type Output = Isometry;
+
+    fn index(&self, index: ElementId) -> &Self::Output {
+        &self.elements[index]
+    }
+}
+
+impl Index<GeneratorId> for IsometryGroup {
+    type Output = Isometry;
+
+    fn index(&self, index: GeneratorId) -> &Self::Output {
+        &self.elements[index.into()]
+    }
 }
 
 impl IsometryGroup {
     /// Construct a group from a set of generators.
     pub fn from_generators(generators: &[Isometry]) -> Result<Self> {
         let generator_count = generators.len();
-        let generators = PerGenerator(
-            generators
-                .iter()
-                .map(Isometry::canonicalize)
-                .collect::<Option<Vec<_>>>()
-                .context("invalid group generator")?,
-        );
+        let generators = generators
+            .iter()
+            .map(Isometry::canonicalize)
+            .collect::<Option<PerGenerator<Isometry>>>()
+            .context("invalid group generator")?;
 
-        let mut elements = PerElement(vec![Isometry::ident()]);
+        let mut elements = PerElement::from_iter([Isometry::ident()]);
         let mut element_ids = IsometryHashMap::new();
         element_ids.insert_canonicalized(&Isometry::ident(), ElementId::IDENTITY);
 
-        let mut generator_sequences = PerElement::new_with_identity(smallvec![]);
-        let mut successors = generators.map(|_| PerElement(vec![]));
+        let mut generator_sequences = PerElement::from_iter([smallvec![]]);
+        let mut successors = generators.map(|_| PerElement::new());
 
         // Computing inverses directly is doable, but might involve a lot of
         // floating-point math. Instead, keep track of the inverse of each
         // generator.
-        let mut generator_inverses = PerGenerator(vec![ElementId::IDENTITY; generator_count]);
+        let mut generator_inverses =
+            PerGenerator::from_iter((0..generator_count).map(|_| ElementId::IDENTITY));
 
         rayon::scope(|s| -> Result<()> {
             // Use `elements` as a queue. Keep pushing elements onto the end of
             // it, and "popping" them off the front by moving
             // `next_unprocessed_id` forward.
             let mut next_unprocessed_id = ElementId::IDENTITY;
-            let mut unprocessed_successors = PerElement::new_with_identity(Arc::new(
-                Task::new_already_computed(generators.clone()),
-            ));
+            let mut unprocessed_successors =
+                PerElement::from_iter([Arc::new(Task::new_already_computed(generators.clone()))]);
             while (next_unprocessed_id.0 as usize) < elements.len() {
                 let initial_gen_seq = generator_sequences[next_unprocessed_id].clone();
 
@@ -70,7 +115,7 @@ impl IsometryGroup {
                     let id;
                     match element_ids.entry_canonicalized(&new_elem) {
                         // We've already seen `new_elem`.
-                        isometry_hashmap::Entry::Occupied(e) => {
+                        approx_hashmap::Entry::Occupied(e) => {
                             id = *e.into_mut();
 
                             if id == ElementId::IDENTITY {
@@ -84,7 +129,7 @@ impl IsometryGroup {
 
                         // `new_elem` has never been seen before. Assign it a
                         // new ID and add it to all the relevant lists.
-                        isometry_hashmap::Entry::Vacant(e) => {
+                        approx_hashmap::Entry::Vacant(e) => {
                             id = elements.push(new_elem.clone())?;
 
                             // Enqueue a new task to compute the successors of
@@ -119,29 +164,33 @@ impl IsometryGroup {
         ensure!(elements.len() == generator_sequences.len());
         ensure!(elements.len() == successors[GeneratorId(0)].len());
 
+        let nearest_neighbors =
+            IsometryNearestNeighborsMap::new(&elements, elements.iter_keys().collect());
+
         let mut this = Self {
             generator_count,
 
             elements,
 
             generator_sequences,
-            inverses: PerElement(vec![]),
+            inverses: PerElement::new(),
             successors,
+
+            nearest_neighbors,
         };
 
         // Compute inverses.
-        this.inverses = PerElement(
-            this.elements()
-                .map(|initial_element| {
-                    this.generator_sequence(initial_element)
-                        .iter()
-                        .rev()
-                        .map(|&g| generator_inverses[g])
-                        .reduce(|elem, inv_gen| this.compose(elem, inv_gen))
-                        .unwrap_or(ElementId::IDENTITY)
-                })
-                .collect(),
-        );
+        this.inverses = this
+            .elements()
+            .map(|initial_element| {
+                this.generator_sequence(initial_element)
+                    .iter()
+                    .rev()
+                    .map(|&g| generator_inverses[g])
+                    .reduce(|elem, inv_gen| this.compose(elem, inv_gen))
+                    .unwrap_or(ElementId::IDENTITY)
+            })
+            .collect();
 
         for element in this.elements() {
             ensure!(this.inverse(this.inverse(element)) == element);
@@ -191,89 +240,13 @@ impl IsometryGroup {
     pub fn successor(&self, a: ElementId, b: GeneratorId) -> ElementId {
         self.successors[b][a]
     }
-}
 
-/// ID of a group element.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct GeneratorId(u8);
-impl GeneratorId {
-    /// Returns an iterator over `count` many generators.
-    fn iter(count: usize) -> impl Iterator<Item = Self> {
-        (0..count as _).map(GeneratorId)
-    }
-}
-
-/// ID of a group element.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ElementId(u16);
-impl From<GeneratorId> for ElementId {
-    fn from(value: GeneratorId) -> Self {
-        ElementId(value.0 as u16 + 1)
-    }
-}
-impl ElementId {
-    /// Identity element in any group.
-    pub const IDENTITY: ElementId = ElementId(0);
-
-    /// Returns an iterator over `count` many elements.
-    fn iter(count: usize) -> impl Iterator<Item = Self> {
-        (0..count as _).map(ElementId)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct PerGenerator<T>(Vec<T>);
-impl<T> Index<GeneratorId> for PerGenerator<T> {
-    type Output = T;
-
-    fn index(&self, index: GeneratorId) -> &Self::Output {
-        &self.0[index.0 as usize]
-    }
-}
-impl<T> IndexMut<GeneratorId> for PerGenerator<T> {
-    fn index_mut(&mut self, index: GeneratorId) -> &mut Self::Output {
-        &mut self.0[index.0 as usize]
-    }
-}
-impl<T> PerGenerator<T> {
-    fn iter(&self) -> impl Iterator<Item = (GeneratorId, &T)> {
-        GeneratorId::iter(self.0.len()).zip(&self.0)
-    }
-    fn into_iter(self) -> impl Iterator<Item = (GeneratorId, T)> {
-        GeneratorId::iter(self.0.len()).zip(self.0)
-    }
-    fn map<U>(&self, f: impl FnMut((GeneratorId, &T)) -> U) -> PerGenerator<U> {
-        PerGenerator(self.iter().map(f).collect())
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct PerElement<T>(Vec<T>);
-impl<T> Index<ElementId> for PerElement<T> {
-    type Output = T;
-
-    fn index(&self, index: ElementId) -> &Self::Output {
-        &self.0[index.0 as usize]
-    }
-}
-impl<T> IndexMut<ElementId> for PerElement<T> {
-    fn index_mut(&mut self, index: ElementId) -> &mut Self::Output {
-        &mut self.0[index.0 as usize]
-    }
-}
-impl<T> PerElement<T> {
-    fn new_with_identity(value_for_identity: T) -> Self {
-        PerElement(vec![value_for_identity])
-    }
-
-    fn push(&mut self, value: T) -> Result<ElementId> {
-        let id = self.0.len().try_into().context("too many group elements")?;
-        self.0.push(value);
-        Ok(ElementId(id))
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
+    /// Returns the nearest element.
+    pub fn nearest(&self, target: &Isometry) -> ElementId {
+        match self.nearest_neighbors.nearest(target) {
+            Some(&e) => e,
+            None => ElementId::IDENTITY,
+        }
     }
 }
 

@@ -2,6 +2,7 @@
 //! implementation of `GenCube()` in Magic Puzzle Ultimate (FaceCuts.cs).
 
 // TODO potential optimizations in this file:
+// - don't generate shapes if they are about to be deleted
 // - memoize manifolds and cache each manifold's intersection with the cut
 // - cache each shape's closest point in either direction of the cut
 
@@ -12,9 +13,8 @@ use std::fmt;
 use std::ops::{Index, Neg};
 use tinyset::Set64;
 
-use super::shape::*;
-use crate::geometry::manifold::*;
-use crate::math::{approx_eq, Sign};
+use super::{manifold::*, shape::*};
+use crate::math::{approx_eq, PointWhichSide, Sign};
 
 /// Set of shapes in a space.
 ///
@@ -288,6 +288,11 @@ impl<M: Manifold> ShapeArena<M> {
                 for child in self[shape].boundary.clone() {
                     match self.cut_shape(child, slice_op)? {
                         SplitResult::Flush => {
+                            println!(
+                                "apparently {child} ({}) is flush with cut manifold {}",
+                                self.signed_mainfold_of_shape(child)?,
+                                slice_op.divider,
+                            );
                             ensure!(intersection_shape.is_none(), "multiple intersection shapes");
                             intersection_shape = Some(child);
                         }
@@ -327,6 +332,8 @@ impl<M: Manifold> ShapeArena<M> {
                 if let Some(shape) = intersection_shape {
                     // There already exists an intersection shape, so either
                     // `shape ∩ cut` is empty or `shape ∩ ~cut` is empty.
+                    println!("shape = {}", self.signed_mainfold_of_shape(shape)?);
+                    println!("intersection_manifold = {intersection_manifold}");
                     let sign = self
                         .sign_difference(shape, &intersection_manifold)?
                         .context(
@@ -411,7 +418,8 @@ impl<M: Manifold> ShapeArena<M> {
     }
 
     /// Returns whether `manifold` (which is assumed to be flush with the
-    /// manifold of `shape`) is completely inside `shape`.
+    /// manifold of `shape`) is completely inside `shape`. (This includes the
+    /// boundary of `shape`, not just its interior.)
     fn shape_completely_contains_manifold(&self, shape: ShapeId, manifold: &M) -> Result<bool> {
         let shape_manifold = &self[shape].manifold;
         for boundary_elem in self[shape].boundary.iter() {
@@ -422,6 +430,28 @@ impl<M: Manifold> ShapeArena<M> {
                 return Ok(false);
             }
         }
+        Ok(true)
+    }
+    /// Returns true if `point` is inside or on the boundary of `shape` or false
+    /// if it is strictly outside. Returns false if `point` is not flush with
+    /// `shape`.
+    pub fn shape_contains_point(&self, shape: ShapeId, point: &M::Point) -> Result<bool> {
+        let shape_manifold = &self[shape].manifold;
+        let which_side = shape_manifold.which_side_has_point(point, &self.space)?;
+        if which_side != PointWhichSide::On {
+            return Ok(false);
+        }
+        for boundary_elem in self[shape].boundary.iter() {
+            let boundary_elem_manifold = &self[boundary_elem.id].manifold;
+            let which_side = boundary_elem_manifold.which_side_has_point(point, shape_manifold)?
+                * boundary_elem.sign;
+            match which_side {
+                PointWhichSide::On => return self.shape_contains_point(boundary_elem.id, point),
+                PointWhichSide::Inside => continue,
+                PointWhichSide::Outside => return Ok(false),
+            }
+        }
+
         Ok(true)
     }
 
@@ -541,7 +571,7 @@ impl<M: Manifold> ShapeArena<M> {
     ) -> Result<bool> {
         let interval_manifold = interval.get_manifold_from(self)?;
         let which_side = interval_manifold.which_side_has_point(point, space)? * interval.sign();
-        Ok(!which_side.is_any_outside)
+        Ok(which_side != PointWhichSide::Outside)
     }
     /// Returns the pair of points represented by a 0D manifold.
     fn shape_to_point_pair(&self, shape: impl SignedManifold<M>) -> Result<[M::Point; 2]> {

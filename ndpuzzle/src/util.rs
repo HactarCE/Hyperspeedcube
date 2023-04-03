@@ -132,3 +132,12 @@ pub fn letters_lower() -> impl Iterator<Item = String> {
             .map(|chars| chars.into_iter().collect())
     })
 }
+
+/// If both options are `Some`, merges them using `f`. Otherwise returns
+/// whichever one is `Some`, or `None` if they are both `None`.
+pub fn merge_options<T>(a: Option<T>, b: Option<T>, f: impl FnOnce(T, T) -> T) -> Option<T> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(f(a, b)),
+        (a, b) => a.or(b),
+    }
+}

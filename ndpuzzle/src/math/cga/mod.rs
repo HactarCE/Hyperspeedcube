@@ -4,13 +4,12 @@
 
 mod axes;
 mod blade;
-pub mod collections;
 mod isometry;
 mod multivector;
 mod term;
 
 pub use axes::Axes;
-pub use blade::{Blade, Point, PointQueryResult, ToConformalPoint};
+pub use blade::{Blade, Point, ToConformalPoint};
 pub use isometry::Isometry;
 pub use multivector::{AsMultivector, Multivector};
 pub use term::Term;

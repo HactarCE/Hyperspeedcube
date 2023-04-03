@@ -1,9 +1,10 @@
 use anyhow::{anyhow, Result};
 use std::fmt;
-use std::ops::{BitOr, Mul};
+use std::ops::{BitOr, Mul, Neg};
 
 mod cga_euclidean;
 
+use crate::geometry::PointWhichSide;
 use crate::math::*;
 pub use cga_euclidean::EuclideanCgaManifold;
 
@@ -20,7 +21,7 @@ pub use cga_euclidean::EuclideanCgaManifold;
 ///
 /// I *think* the first two conditions are true for any closed and oriented
 /// manifold, but I'm not sure so I listed them out just in case.
-pub trait Manifold: fmt::Debug + fmt::Display + Clone {
+pub trait Manifold: fmt::Debug + fmt::Display + Clone + Neg<Output = Self> {
     /// Point in the space.
     type Point: Clone + AbsDiffEq<Epsilon = f32>;
 
@@ -34,6 +35,9 @@ pub trait Manifold: fmt::Debug + fmt::Display + Clone {
 
     /// Returns the point pair represented by a 0D manifold.
     fn to_point_pair(&self) -> Result<[Self::Point; 2]>;
+
+    /// Constructs a line (represented by a 1D manifold).
+    fn new_line(a: &Self::Point, b: &Self::Point, space: &Self) -> Result<Self>;
 
     /// Returns the orientation of three points relative to `self`, which is
     /// assumed to be a 1D manifold containing them.
@@ -83,7 +87,15 @@ pub trait Manifold: fmt::Debug + fmt::Display + Clone {
 
     /// Returns whether `p` is contained in each half of `space` separated by
     /// `self`.
-    fn which_side_has_point(&self, p: &Self::Point, space: &Self) -> Result<ManifoldWhichSide>;
+    fn which_side_has_point(&self, p: &Self::Point, space: &Self) -> Result<PointWhichSide>;
+
+    /// Returns a function which computes the span of a tangent space of a given
+    /// on the manifold.
+    fn tangent_space(&self) -> Result<Box<dyn TangentSpace<Self::Point>>>;
+
+    /// Projects a point onto the manifold, or returns `None` if the result is
+    /// undefined.
+    fn project_point(&self, p: &Self::Point) -> Result<Option<Self::Point>>;
 }
 
 /// Result of splitting a manifold by another manifold.
@@ -108,6 +120,29 @@ pub enum ManifoldSplit<M> {
         intersection_manifold: M,
     },
 }
+impl<M> Mul<Sign> for ManifoldSplit<M>
+where
+    M: Neg<Output = M>,
+{
+    type Output = Self;
+
+    fn mul(self, rhs: Sign) -> Self::Output {
+        match rhs {
+            Sign::Pos => self,
+            Sign::Neg => match self {
+                ManifoldSplit::Flush(sign) => ManifoldSplit::Flush(sign.map(|s| -s)),
+                ManifoldSplit::Inside => ManifoldSplit::Outside,
+                ManifoldSplit::Outside => ManifoldSplit::Inside,
+                ManifoldSplit::Split {
+                    intersection_manifold,
+                } => ManifoldSplit::Split {
+                    intersection_manifold: -intersection_manifold,
+                },
+            },
+        }
+    }
+}
+
 /// Result of splitting a manifold by another manifold without calculating the
 /// intersection.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -139,9 +174,36 @@ impl Mul<Sign> for ManifoldWhichSide {
 }
 impl ManifoldWhichSide {
     fn neither_side() -> Self {
-        Self {
+        ManifoldWhichSide {
             is_any_inside: false,
             is_any_outside: false,
         }
+    }
+
+    fn from_points(points: impl IntoIterator<Item = PointWhichSide>) -> Self {
+        let mut ret = ManifoldWhichSide::neither_side();
+        for which_side in points {
+            match which_side {
+                PointWhichSide::On => (),
+                PointWhichSide::Inside => ret.is_any_inside = true,
+                PointWhichSide::Outside => ret.is_any_outside = true,
+            }
+        }
+        ret
+    }
+}
+
+/// Tangent space for a manifold.
+pub trait TangentSpace<P> {
+    /// Returns an orthonormal basis for the tangent space at a given point on
+    /// the manifold.
+    fn basis_at(&self, point: P) -> Result<Vec<Vector>>;
+}
+impl<'a, P, F> TangentSpace<P> for F
+where
+    F: 'a + for<'p> Fn(P) -> Result<Vec<Vector>>,
+{
+    fn basis_at(&self, point: P) -> Result<Vec<Vector>> {
+        self(point)
     }
 }
