@@ -11,11 +11,14 @@ info:
     max_font_size: 1.5
   modifier_toggles: false
 gfx:
+  fps_limit: 60
   msaa: true
 interaction:
   confirm_discard_only_when_scrambled: true
   drag_sensitivity: 0.7
-  snap_on_release: false
+  realign_on_release: false
+  realign_on_keypress: true
+  smart_realign: true
   dynamic_twist_speed: true
   twist_duration: 0.2
   other_anim_duration: 0.15
@@ -42,13 +45,13 @@ view_3d:
   roll: 0.0
   scale: 1.25
   fov_3d: 30.0
-  fov_4d: 50.0
+  fov_4d: 30.0
   align_h: 0.0
   align_v: 0.0
   show_frontfaces: true
   show_backfaces: false
   clip_4d: true
-  facet_spacing: 0.03
+  face_spacing: 0.03
   sticker_spacing: 0.05
   outline_thickness: 1.0
   light_ambient: 1.0
@@ -62,13 +65,13 @@ view_3d:
     roll: 0.0
     scale: 1.25
     fov_3d: 30.0
-    fov_4d: 50.0
+    fov_4d: 30.0
     align_h: 0.0
     align_v: 0.0
     show_frontfaces: true
     show_backfaces: false
     clip_4d: true
-    facet_spacing: 0.03
+    face_spacing: 0.03
     sticker_spacing: 0.05
     outline_thickness: 1.0
     light_ambient: 1.0
@@ -82,13 +85,13 @@ view_3d:
       roll: 0.0
       scale: 1.25
       fov_3d: 30.0
-      fov_4d: 50.0
+      fov_4d: 30.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: true
       show_backfaces: false
       clip_4d: true
-      facet_spacing: 0.03
+      face_spacing: 0.03
       sticker_spacing: 0.05
       outline_thickness: 1.0
       light_ambient: 1.0
@@ -101,13 +104,13 @@ view_3d:
       roll: 0.0
       scale: 3.0
       fov_3d: 120.0
-      fov_4d: 50.0
+      fov_4d: 30.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: false
       show_backfaces: true
       clip_4d: true
-      facet_spacing: 0.4
+      face_spacing: 0.4
       sticker_spacing: 0.2
       outline_thickness: 1.0
       light_ambient: 1.0
@@ -120,13 +123,13 @@ view_3d:
       roll: 0.0
       scale: 3.0
       fov_3d: -120.0
-      fov_4d: 50.0
+      fov_4d: 30.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: true
       show_backfaces: false
       clip_4d: true
-      facet_spacing: 0.4
+      face_spacing: 0.4
       sticker_spacing: 0.2
       outline_thickness: 1.0
       light_ambient: 1.0
@@ -137,15 +140,15 @@ view_4d:
   pitch: 35.0
   yaw: -45.0
   roll: 0.0
-  scale: 1.4
+  scale: 1.0
   fov_3d: 0.0
-  fov_4d: 50.0
+  fov_4d: 30.0
   align_h: 0.0
   align_v: 0.0
   show_frontfaces: true
   show_backfaces: true
   clip_4d: true
-  facet_spacing: 0.7
+  face_spacing: 0.7
   sticker_spacing: 0.3
   outline_thickness: 1.0
   light_ambient: 0.0
@@ -157,15 +160,15 @@ view_4d:
     pitch: 35.0
     yaw: -45.0
     roll: 0.0
-    scale: 1.4
+    scale: 1.0
     fov_3d: 0.0
-    fov_4d: 50.0
+    fov_4d: 30.0
     align_h: 0.0
     align_v: 0.0
     show_frontfaces: true
     show_backfaces: true
     clip_4d: true
-    facet_spacing: 0.7
+    face_spacing: 0.7
     sticker_spacing: 0.3
     outline_thickness: 1.0
     light_ambient: 0.0
@@ -179,13 +182,13 @@ view_4d:
       roll: 0.0
       scale: 1.0
       fov_3d: 0.0
-      fov_4d: 50.0
+      fov_4d: 30.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: true
       show_backfaces: true
       clip_4d: true
-      facet_spacing: 0.7
+      face_spacing: 0.7
       sticker_spacing: 0.3
       outline_thickness: 1.0
       light_ambient: 0.0
@@ -194,27 +197,37 @@ view_4d:
       light_yaw: -55.0
 colors:
   background: "#444444"
-  blind_sticker: "#cccccc"
+  blind_face: "#cccccc"
   blindfold: false
   faces:
     Rubiks3D:
-      Back: "#4488ff"
-      Down: "#ffff00"
-      Front: "#66cc44"
-      Left: "#ff9922"
-      Right: "#cc3333"
-      Up: "#ffffff"
+      B: "#4488ff"
+      D: "#ffff00"
+      F: "#66cc44"
+      L: "#ff9922"
+      R: "#cc3333"
+      U: "#ffffff"
     Rubiks4D:
-      Back: "#ffff00"
-      Down: "#88ee66"
-      Front: "#ffffff"
-      In: "#8822cc"
-      Left: "#ff9922"
-      Out: "#ff66ff"
-      Right: "#cc3333"
-      Up: "#33aaff"
+      B: "#ffff00"
+      D: "#88ee66"
+      F: "#ffffff"
+      I: "#8822cc"
+      L: "#ff9922"
+      O: "#ff66ff"
+      R: "#cc3333"
+      U: "#33aaff"
 piece_filters: {}
 global_keybinds:
+  - vk: C
+    ctrl: true
+    command: copy_hsc_log
+  - vk: C
+    ctrl: true
+    shift: true
+    command: copy_mc4d_log
+  - vk: V
+    ctrl: true
+    command: paste_log
   - vk: O
     ctrl: true
     command: open
@@ -249,10 +262,15 @@ global_keybinds:
     command: scramble_full
   - vk: F3
     command:
-      new_puzzle: 3x3x3
+      new_puzzle:
+        Rubiks3D:
+          layer_count: 3
   - vk: F4
     command:
-      new_puzzle: 3x3x3x3
+      new_puzzle:
+        Rubiks4D:
+          layer_count: 3
+
 puzzle_keybinds:
   Rubiks3D:
     active: Default
@@ -511,8 +529,6 @@ puzzle_keybinds:
           - ^Basic twists
           - ^Filters
           - ^Layers
-          - ^Rotations
-          - ^Switching
         keybinds:
           - sc: ShiftLeft
             command:
@@ -562,20 +578,20 @@ puzzle_keybinds:
             command:
               grip:
                 axis: O
+          - sc: KeyX
+            command:
+              grip:
+                axis: I
+                layers: 1..-1
           - sc: Space
             command:
               recenter: {}
-          - sc: KeyZ
-            command:
-              grip:
-                layers: "2"
       - preset_name: RKT
         includes:
           - ^Basic twists
           - ^Filters
           - ^Layers
           - ^Rotations
-          - ^Switching
         keybinds:
           - sc: ShiftLeft
             command:
@@ -807,20 +823,6 @@ puzzle_keybinds:
               filter:
                 mode: show_exactly
                 filter_name: Everything
-      - preset_name: ^Switching
-        keybinds:
-          - sc: Escape
-            command:
-              keybind_set:
-                keybind_set_name: Default
-          - sc: KeyG
-            command:
-              keybind_set:
-                keybind_set_name: RKT
-          - sc: KeyH
-            command:
-              keybind_set:
-                keybind_set_name: RKT
 mousebinds:
   - button: left
     ctrl: true

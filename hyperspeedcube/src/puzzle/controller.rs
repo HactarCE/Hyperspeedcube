@@ -4,13 +4,13 @@ use anyhow::Result;
 use bitvec::bitvec;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
-use ndpuzzle::math::*;
+use cgmath::{Deg, InnerSpace, One, Quaternion, Rotation, Rotation3};
+use instant::Duration;
 use num_enum::FromPrimitive;
 use std::borrow::Cow;
 use std::collections::{HashSet, VecDeque};
 use std::ops::{BitOr, BitOrAssign};
 use std::sync::Arc;
-use time::{Duration, Instant};
 
 /// If at least this much of a twist is animated in one frame, just skip the
 /// animation to reduce unnecessary flashing.
@@ -38,21 +38,20 @@ pub mod interpolate {
     pub const COSINE_DECEL: InterpolateFn = |x| ((1.0 - x) * PI / 2.0).cos();
 }
 
-use super::render::PuzzleRenderCache;
 use super::*;
 use crate::commands::PARTIAL_SCRAMBLE_MOVE_COUNT_MAX;
 use crate::preferences::{InteractionPreferences, Preferences, ViewPreferences};
-use crate::GraphicsState;
+use crate::util;
 use interpolate::InterpolateFn;
 
 const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 
-/// Puzzle wrapper that adds animation, undo history, and rendering
-/// functionality.
-#[derive(Debug)]
+/// Puzzle wrapper that adds animation and undo history functionality.
+#[derive(Delegate, Debug)]
+#[delegate(PuzzleType, target = "puzzle")]
 pub struct PuzzleController {
     /// Latest puzzle state, not including any transient rotation.
-    puzzle: Box<dyn PuzzleState>,
+    puzzle: Puzzle,
     /// Twist animation state.
     twist_anim: TwistAnimationState,
     /// View settings animation state.
@@ -63,6 +62,12 @@ pub struct PuzzleController {
     /// Whether the puzzle has been modified since the last time the log file
     /// was saved.
     is_unsaved: bool,
+    /// Whether the puzzle has been modified since the last time the log file
+    /// was exported via clipboard.
+    is_unsaved_via_clipboard: bool,
+    /// Whether the puzzle has been modified since the last time the log file
+    /// was saved in local storage (always `true` on desktop).
+    is_unsaved_in_local_storage: bool,
 
     /// Whether the puzzle has been scrambled.
     scramble_state: ScrambleState,
@@ -82,6 +87,8 @@ pub struct PuzzleController {
     grip: Grip,
     /// Set of selected stickers.
     selection: HashSet<Sticker>,
+    /// Last used filter.
+    last_filter: String,
     /// Set of non-hidden pieces.
     visible_pieces: BitVec,
     /// Set of non-hidden pieces to preview when hovering over a piece filter
@@ -95,31 +102,38 @@ pub struct PuzzleController {
     /// represented as `f32` for animation.
     visual_piece_states: Vec<VisualPieceState>,
 
-    /// Time of last render.
-    last_render_time: Instant,
-    /// Cached render data.
-    render_cache: Option<PuzzleRenderCache>,
+    /// Cached sticker geometry.
+    cached_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
+    cached_geometry_params: Option<StickerGeometryParams>,
 }
 impl Default for PuzzleController {
     fn default() -> Self {
-        Self::new(
-            PUZZLE_REGISTRY
-                .lock()
-                .get(crate::DEFAULT_PUZZLE)
-                .expect("No default puzzle"),
-        )
+        Self::new(PuzzleTypeEnum::default())
+    }
+}
+impl Eq for PuzzleController {}
+impl PartialEq for PuzzleController {
+    fn eq(&self, other: &Self) -> bool {
+        self.puzzle == other.puzzle
+    }
+}
+impl PartialEq<Puzzle> for PuzzleController {
+    fn eq(&self, other: &Puzzle) -> bool {
+        self.puzzle == *other
     }
 }
 impl PuzzleController {
     /// Constructs a new PuzzleController with a solved puzzle.
-    pub fn new(ty: &PuzzleType) -> Self {
+    pub fn new(ty: PuzzleTypeEnum) -> Self {
         Self {
-            puzzle: ty.new(),
+            puzzle: Puzzle::new(ty),
             twist_anim: TwistAnimationState::default(),
             view_settings_anim: ViewSettingsAnimState::default(),
             view_angle: ViewAngleAnimState::default(),
 
             is_unsaved: false,
+            is_unsaved_via_clipboard: true,
+            is_unsaved_in_local_storage: true,
 
             scramble_state: ScrambleState::None,
             scramble: vec![],
@@ -131,14 +145,15 @@ impl PuzzleController {
 
             grip: Grip::default(),
             selection: HashSet::new(),
-            visible_pieces: bitvec![1; ty.pieces.len()],
+            last_filter: "".to_string(),
+            visible_pieces: bitvec![1; ty.pieces().len()],
             visible_pieces_preview: None,
             hidden_pieces_preview_opacity: None,
 
-            visual_piece_states: vec![VisualPieceState::default(); ty.pieces.len()],
+            visual_piece_states: vec![VisualPieceState::default(); ty.pieces().len()],
 
-            last_render_time: Instant::now(),
-            render_cache: None,
+            cached_geometry: None,
+            cached_geometry_params: None,
         }
     }
     /// Resets the puzzle.
@@ -170,7 +185,7 @@ impl PuzzleController {
     /// Reset and then scramble the puzzle completely.
     pub fn scramble_full(&mut self) -> Result<(), &'static str> {
         self.reset();
-        self.scramble_n(self.ty().scramble_moves_count)?;
+        self.scramble_n(self.scramble_moves_count())?;
         self.scramble_state = ScrambleState::Full;
         Ok(())
     }
@@ -197,16 +212,16 @@ impl PuzzleController {
         self._twist(twist, false)
     }
     fn _twist(&mut self, mut twist: Twist, collapse: bool) -> Result<(), &'static str> {
-        twist.layers &= self.ty().all_layers(); // Restrict layer mask.
+        twist.layers &= self.all_layers(); // Restrict layer mask.
         if twist.layers == LayerMask(0) {
             return Err("invalid layer mask");
         }
 
-        self.is_unsaved = true;
+        self.mark_unsaved();
         self.redo_buffer.clear();
         // Canonicalize twist.
-        twist = self.ty().canonicalize_twist(twist);
-        if collapse && self.undo_buffer.last() == Some(&self.ty().reverse_twist(twist).into()) {
+        twist = self.canonicalize_twist(twist);
+        if collapse && self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
             // This twist is the reverse of the last one, so just undo the last
             // one.
             self.undo()
@@ -214,6 +229,39 @@ impl PuzzleController {
             self.animate_twist(twist)?;
             self.undo_buffer.push(twist.into());
             Ok(())
+        }
+    }
+    /// Applies the transient rotation to the puzzle.
+    pub fn apply_transient_rotation(&mut self) {
+        if let Some((twists, rot)) = self.view_angle.transient_rotation.take() {
+            // Remove a rotation from `current` and add it onto `queued_delta`.
+            for twist in twists {
+                self.mark_unsaved();
+
+                if self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
+                    // This twist is the reverse of the last one, so just undo the last one.
+                    self.redo_buffer.extend(self.undo_buffer.pop());
+                } else {
+                    self.redo_buffer.clear();
+                    self.undo_buffer.push(twist.into());
+                }
+                if self.puzzle.twist(twist).is_err() {
+                    log::error!("error applying transient rotation twist {:?}", twist);
+                }
+            }
+            // Remove this rotation from `current`.
+            self.view_angle.current = self.view_angle.current * rot.invert();
+            if let Some(t) = self.twist_anim.queue.back_mut() {
+                // Actually, instead of just removing the rotation from
+                // `current`, transfer it from `current` to `queued_delta`.
+                // Resolve this rotation after the currently-last twist on the
+                // queue is popped.
+                self.view_angle.queued_delta = rot * self.view_angle.queued_delta;
+                t.view_angle_offset_delta = rot * t.view_angle_offset_delta;
+            }
+
+            // Invalidate the cache.
+            self.cached_geometry = None;
         }
     }
     /// Applies a twist to the puzzle and queues it for animation. Does _not_
@@ -224,11 +272,11 @@ impl PuzzleController {
         self.twist_anim.queue.push_back(TwistAnimation {
             state: old_state,
             twist,
+            view_angle_offset_delta: Quaternion::one(),
         });
 
         // Invalidate the cache.
-
-        // TODO: invalidate geometry cache
+        self.cached_geometry = None;
 
         Ok(())
     }
@@ -243,27 +291,27 @@ impl PuzzleController {
 
     /// Returns the state of the cube that should be displayed, not including
     /// the twist currently being animated (if there is one).
-    pub fn displayed(&self) -> &dyn PuzzleState {
+    pub fn displayed(&self) -> &Puzzle {
         match self.twist_anim.queue.get(0) {
-            Some(anim) => &*anim.state,
-            None => &*self.puzzle,
+            Some(anim) => &anim.state,
+            None => &self.puzzle,
         }
     }
     /// Returns the state of the cube that should be displayed after the twist
     /// currently being animated (if there is one).
-    pub fn next_displayed(&self) -> &dyn PuzzleState {
+    pub fn next_displayed(&self) -> &Puzzle {
         match self.twist_anim.queue.get(1) {
-            Some(anim) => &*anim.state,
-            None => &*self.puzzle,
+            Some(anim) => &anim.state,
+            None => &self.puzzle,
         }
     }
     /// Returns the state of the cube after all queued twists have been applied.
-    pub fn latest(&self) -> &dyn PuzzleState {
-        &*self.puzzle
+    pub fn latest(&self) -> &Puzzle {
+        &self.puzzle
     }
 
     /// Returns the puzzle type.
-    pub fn ty(&self) -> &Arc<PuzzleType> {
+    pub fn ty(&self) -> PuzzleTypeEnum {
         self.puzzle.ty()
     }
 
@@ -272,40 +320,42 @@ impl PuzzleController {
         &self.grip
     }
     /// Sets the puzzle grip.
-    pub fn set_grip(&mut self, grip: Grip) {
-        if grip != self.grip && !grip.axes.is_empty() {
-            self.snap_view_angle_offset();
+    pub fn set_grip(&mut self, grip: Grip, prefs: &InteractionPreferences) {
+        if grip != self.grip && !grip.axes.is_empty() && prefs.realign_on_keypress {
+            self.unfreeze_view_angle_offset();
+        } else {
+            self.apply_transient_rotation();
         }
         self.grip = grip;
     }
 
-    /// Sets the view angle offset.
-    pub fn add_view_angle_offset(
-        &mut self,
-        offset: [f32; 2],
-        view_prefs: &ViewPreferences,
-        shift: bool,
-    ) {
-        const X: u8 = 0;
-        const Y: u8 = 1;
-        let z = if shift { 3 } else { 2 };
-
+    /// Sets the view angle offset. Consider calling
+    /// `freeze_view_angle_offset()` as well.
+    pub fn add_view_angle_offset(&mut self, offset: [f32; 2], view_prefs: &ViewPreferences) {
         let prefs_view_angle = view_prefs.view_angle();
-        let mut offset = Rotor::from_angle_in_axis_plane(Y, z, offset[1].to_radians())
-            * Rotor::from_angle_in_axis_plane(z, X, offset[0].to_radians());
+        let offset =
+            Quaternion::from_angle_x(Deg(offset[1])) * Quaternion::from_angle_y(Deg(offset[0]));
         self.view_angle.current =
-            prefs_view_angle.reverse().transform_rotor(&offset) * &self.view_angle.current;
-        self.view_angle.target = self.view_angle.current.clone();
-        self.view_angle.dragging = true;
+            prefs_view_angle.invert() * offset * prefs_view_angle * self.view_angle.current;
     }
-    /// Snaps the view angle offset target to the nearest rotation candidate
-    /// defined for the puzzle.
-    pub fn snap_view_angle_offset(&mut self) {
-        if !self.view_angle.dragging {
-            self.view_angle.target = self
-                .ty()
-                .twists
-                .nearest_orientation(&self.view_angle.current);
+    /// Freezes the view angle offset, so that it will not animate back to zero
+    /// automatically. It can still be changed with `set_view_angle_offset()`.
+    pub fn freeze_view_angle_offset(&mut self) {
+        self.view_angle.is_frozen = true;
+    }
+    /// Unfreezes the view angle offset and begins animating it to the nearest
+    /// compatible orientation.
+    pub fn unfreeze_view_angle_offset(&mut self) {
+        self.apply_transient_rotation();
+        self.view_angle.is_frozen = false;
+    }
+    fn update_transient_rotation(&mut self, interaction_prefs: &InteractionPreferences) {
+        if interaction_prefs.smart_realign {
+            let nearest_twists = self.puzzle.nearest_rotation(self.view_angle.current);
+            self.view_angle.transient_rotation =
+                (!nearest_twists.0.is_empty()).then_some(nearest_twists);
+        } else {
+            self.view_angle.transient_rotation = None;
         }
     }
 
@@ -322,7 +372,7 @@ impl PuzzleController {
         } else {
             self.next_displayed() // puzzle state after the twist
         };
-        let piece = self.ty().info(sticker).piece;
+        let piece = self.info(sticker).piece;
         self.grip
             .has_piece(puzzle_state, piece)
             .unwrap_or_else(|| self.is_visible(piece))
@@ -369,37 +419,111 @@ impl PuzzleController {
             Cow::Borrowed(old_view_prefs)
         }
     }
-    pub(super) fn view_transform(&self, view_prefs: &ViewPreferences) -> Matrix {
-        (view_prefs.view_angle() * &self.view_angle.current)
-            .matrix()
-            .pad(4)
-            / self.ty().shape.radius
-    }
-    pub(crate) fn draw(
-        &mut self,
-        gfx: &mut GraphicsState,
-        encoder: &mut wgpu::CommandEncoder,
-        prefs: &Preferences,
-        texture_size: (u32, u32),
-        cursor_pos: Option<cgmath::Point2<f32>>,
-        force_redraw: bool,
-    ) -> Option<wgpu::TextureView> {
-        let now = Instant::now();
-        let delta = now - self.last_render_time;
-        self.last_render_time = now;
+    pub(crate) fn geometry(&mut self, prefs: &Preferences) -> Arc<Vec<ProjectedStickerGeometry>> {
+        let view_prefs = self.view_prefs(prefs);
 
-        // Animate puzzle geometry.
-        self.update_geometry(delta, &prefs.interaction);
+        self.update_transient_rotation(&prefs.interaction);
 
-        self.update_decorations(delta, prefs);
+        let params = StickerGeometryParams::new(
+            &view_prefs,
+            self.ty(),
+            self.current_twist(),
+            self.view_angle.current * self.view_angle.queued_delta,
+        );
 
-        // TODO: this is ugly
-        let mut cache = match self.render_cache.take() {
-            Some(cache) => cache,
-            None => PuzzleRenderCache::new(gfx, self.ty()).ok()?,
-        };
-        let ret = render::draw_puzzle(gfx, encoder, self, &mut cache, prefs, texture_size);
-        self.render_cache = Some(cache);
+        if self.cached_geometry_params != Some(params) {
+            // Invalidate the cache.
+            self.cached_geometry = None;
+        }
+
+        self.cached_geometry_params = Some(params);
+
+        let ret = self.cached_geometry.take().unwrap_or_else(|| {
+            log::trace!("Regenerating puzzle geometry");
+
+            // Project stickers.
+            let mut sticker_geometries: Vec<ProjectedStickerGeometry> = vec![];
+            for sticker in (0..self.stickers().len() as _).map(Sticker) {
+                let piece = self.info(sticker).piece;
+                let vis_piece = self.visual_piece_state(piece);
+                if !self.is_sticker_hoverable(sticker) && vis_piece.opacity(prefs) == 0.0 {
+                    continue;
+                }
+
+                // Compute geometry, including vertex positions before 3D
+                // perspective projection.
+                let sticker_geom = match self.displayed().sticker_geometry(sticker, params) {
+                    Some(s) => s,
+                    None => continue, // invisible; skip this sticker
+                };
+
+                // Compute vertex positions after 3D perspective projection.
+                let projected_verts = match sticker_geom
+                    .verts
+                    .iter()
+                    .map(|&v| params.project_3d(v))
+                    .collect::<Option<Vec<_>>>()
+                {
+                    Some(s) => s,
+                    None => continue, // behind camera; skip this sticker
+                };
+
+                let mut projected_front_polygons = vec![];
+                let mut projected_back_polygons = vec![];
+
+                for (indices, twists) in sticker_geom
+                    .polygon_indices
+                    .iter()
+                    .zip(sticker_geom.polygon_twists)
+                {
+                    let projected_normal =
+                        geometry::polygon_normal_from_indices(&projected_verts, indices);
+                    if projected_normal.z > 0.0 {
+                        // This polygon is front-facing.
+                        let lighting_normal =
+                            geometry::polygon_normal_from_indices(&sticker_geom.verts, indices)
+                                .normalize();
+                        let illumination =
+                            params.ambient_light + lighting_normal.dot(params.light_vector);
+                        projected_front_polygons.push(geometry::polygon_from_indices(
+                            &projected_verts,
+                            indices,
+                            illumination,
+                            twists,
+                        ));
+                    } else {
+                        // This polygon is back-facing.
+                        let illumination = 0.0; // don't care
+                        projected_back_polygons.push(geometry::polygon_from_indices(
+                            &projected_verts,
+                            indices,
+                            illumination,
+                            ClickTwists::default(), // don't care
+                        ));
+                    }
+                }
+
+                let (min_bound, max_bound) = util::min_and_max_bound(&projected_verts);
+
+                sticker_geometries.push(ProjectedStickerGeometry {
+                    sticker,
+
+                    verts: projected_verts.into_boxed_slice(),
+                    min_bound,
+                    max_bound,
+
+                    front_polygons: projected_front_polygons.into_boxed_slice(),
+                    back_polygons: projected_back_polygons.into_boxed_slice(),
+                });
+            }
+
+            // Sort stickers by depth.
+            geometry::sort_by_depth(&mut sticker_geometries);
+
+            Arc::new(sticker_geometries)
+        });
+
+        self.cached_geometry = Some(Arc::clone(&ret));
         ret
     }
 
@@ -408,23 +532,22 @@ impl PuzzleController {
     pub fn update_geometry(&mut self, delta: Duration, prefs: &InteractionPreferences) {
         // `twist_duration` is in seconds (per one twist); `base_speed` is
         // fraction of twist per frame.
-        let base_speed = delta.as_seconds_f32() / prefs.twist_duration;
+        let base_speed = delta.as_secs_f32() / prefs.twist_duration;
 
         // Animate view settings.
         self.view_settings_anim.proceed(base_speed);
 
         // Animate view angle offset.
-        self.view_angle.dragging = false;
-        if self.view_angle.current != self.view_angle.target {
-            let current = &mut self.view_angle.current;
+        if !self.view_angle.is_frozen {
+            let offset = &mut self.view_angle.current;
 
-            let decay_multiplier = VIEW_ANGLE_OFFSET_DECAY_RATE.powf(delta.as_seconds_f32());
-            let new_offset = self.view_angle.target.slerp(current, decay_multiplier);
-            if current.s() == new_offset.s() {
+            let decay_multiplier = VIEW_ANGLE_OFFSET_DECAY_RATE.powf(delta.as_secs_f32());
+            let new_offset = Quaternion::one().slerp(*offset, decay_multiplier);
+            if offset.s == new_offset.s {
                 // Stop the animation once we're not making any more progress.
-                *current = self.view_angle.target.clone();
+                *offset = Quaternion::one();
             } else {
-                *current = new_offset;
+                *offset = new_offset;
             }
         }
 
@@ -432,6 +555,7 @@ impl PuzzleController {
         let anim = &mut self.twist_anim;
         if anim.queue.is_empty() {
             anim.queue_max = 0;
+            self.view_angle.queued_delta = Quaternion::one();
         } else {
             // Update queue_max.
             anim.queue_max = std::cmp::max(anim.queue_max, anim.queue.len());
@@ -448,7 +572,9 @@ impl PuzzleController {
             if !(0.0..MIN_TWIST_DELTA).contains(&twist_delta) {
                 twist_delta = 1.0; // Instantly complete the twist.
             }
-            self.twist_anim.proceed(twist_delta);
+            if let Some(q) = self.twist_anim.proceed(twist_delta) {
+                self.view_angle.queued_delta = self.view_angle.queued_delta * q;
+            }
         }
     }
     /// Advances the puzzle decorations (outlines and sticker opacities) to the
@@ -458,14 +584,14 @@ impl PuzzleController {
     pub fn update_decorations(&mut self, delta: Duration, prefs: &Preferences) -> bool {
         let mut changed = false;
 
-        let delta = delta.as_seconds_f32() / prefs.interaction.other_anim_duration;
+        let delta = delta.as_secs_f32() / prefs.interaction.other_anim_duration;
 
-        for piece in (0..self.ty().pieces.len() as _).map(Piece) {
+        for piece in (0..self.pieces().len() as _).map(Piece) {
             let logical_state = self.logical_piece_state(piece);
 
-            let gripped = self.grip.has_piece(&*self.puzzle, piece);
+            let gripped = self.grip.has_piece(&self.puzzle, piece);
             let hidden = logical_state.preview_hidden.unwrap_or(logical_state.hidden);
-            let stickers = &self.ty().info(piece).stickers;
+            let stickers = &self.info(piece).stickers;
             let target = VisualPieceState {
                 gripped: (gripped == Some(true)) as u8 as f32,
                 ungripped: (gripped == Some(false)) as u8 as f32,
@@ -515,8 +641,7 @@ impl PuzzleController {
             if was_visible != is_visible {
                 // If a piece changes from invisible to visible, then it might need to be
                 // re-added to the geometry, so invalidate the cache.
-
-                // TODO: invalidate the cache
+                self.cached_geometry = None;
             }
         }
 
@@ -537,6 +662,13 @@ impl PuzzleController {
         self.visual_piece_states[piece.0 as usize]
     }
 
+    pub fn last_filter(&self) -> &str {
+        &self.last_filter
+    }
+    pub fn set_last_filter(&mut self, filter_name: String) {
+        self.last_filter = filter_name
+    }
+
     /// Returns the set of non-hidden pieces.
     pub fn visible_pieces(&self) -> &BitSlice {
         &self.visible_pieces
@@ -548,7 +680,7 @@ impl PuzzleController {
     /// Sets the set of non-hidden pieces.
     pub fn set_visible_pieces(&mut self, visible_pieces: &BitSlice) {
         self.visible_pieces = visible_pieces.to_bitvec();
-        self.visible_pieces.resize(self.ty().pieces.len(), false);
+        self.visible_pieces.resize(self.pieces().len(), false);
     }
     /// Sets the set of non-hidden pieces.
     pub fn set_visible_pieces_preview(
@@ -558,7 +690,7 @@ impl PuzzleController {
     ) {
         self.visible_pieces_preview = visible_pieces.map(|bits| {
             let mut bv = bits.to_bitvec();
-            bv.resize(self.ty().pieces.len(), false);
+            bv.resize(self.pieces().len(), false);
             bv
         });
         self.hidden_pieces_preview_opacity = hidden_opacity;
@@ -615,10 +747,10 @@ impl PuzzleController {
     /// twist could not be applied to the puzzle.
     pub fn undo(&mut self) -> Result<(), &'static str> {
         if let Some(entry) = self.undo_buffer.pop() {
-            self.is_unsaved = true;
+            self.mark_unsaved();
             match entry {
                 HistoryEntry::Twist(twist) => {
-                    let rev = self.ty().reverse_twist(twist);
+                    let rev = self.reverse_twist(twist);
                     self.animate_twist(rev)?;
                 }
             }
@@ -632,7 +764,7 @@ impl PuzzleController {
     /// twist could not be applied to the puzzle.
     pub fn redo(&mut self) -> Result<(), &'static str> {
         if let Some(entry) = self.redo_buffer.pop() {
-            self.is_unsaved = true;
+            self.mark_unsaved();
             match entry {
                 HistoryEntry::Twist(twist) => self.animate_twist(twist)?,
             }
@@ -647,10 +779,30 @@ impl PuzzleController {
     pub fn mark_saved(&mut self) {
         self.is_unsaved = false;
     }
-    /// Returns whether the puzzle has been modified since the lasts time it was
-    /// marked as saved.
+    /// Marks the puzzle as saved and copied to the clipboard.
+    pub fn mark_copied(&mut self) {
+        self.mark_saved();
+        self.is_unsaved_via_clipboard = false;
+    }
+    /// Marks the puzzle as saved in local storage.
+    pub fn mark_saved_in_local_storage(&mut self) {
+        self.is_unsaved_in_local_storage = false;
+    }
+    /// Marks the puzzle as unsaved.
+    pub fn mark_unsaved(&mut self) {
+        self.is_unsaved = true;
+        self.is_unsaved_via_clipboard = true;
+        self.is_unsaved_in_local_storage = true;
+    }
+    /// Returns whether the puzzle has been modified since the last time it was
+    /// marked as saved or copied to the clipboard.
     pub fn is_unsaved(&self) -> bool {
-        self.is_unsaved
+        self.is_unsaved && self.is_unsaved_via_clipboard
+    }
+    /// Returns whether the puzzle has been modified since the last time it was
+    /// saved in local storage.
+    pub fn is_unsaved_in_local_storage(&self) -> bool {
+        self.is_unsaved_in_local_storage
     }
     /// Returns whether the puzzle has been fully scrambled, even if it has been solved.
     pub fn has_been_fully_scrambled(&self) -> bool {
@@ -659,7 +811,7 @@ impl PuzzleController {
             ScrambleState::Partial => false,
             ScrambleState::Full => true,
             ScrambleState::Solved => {
-                self.scramble.len() >= self.ty().scramble_moves_count
+                self.scramble.len() >= self.scramble_moves_count()
                     || self.scramble.len() > PARTIAL_SCRAMBLE_MOVE_COUNT_MAX
             }
         }
@@ -690,7 +842,7 @@ impl PuzzleController {
     /// Returns the number of twists applied to the puzzle, not including the scramble.
     pub fn twist_count(&self, metric: TwistMetric) -> usize {
         metric.count_twists(
-            self.ty(),
+            self,
             self.undo_buffer
                 .iter()
                 .copied()
@@ -722,11 +874,16 @@ struct TwistAnimationState {
     progress: f32,
 }
 impl TwistAnimationState {
-    fn proceed(&mut self, delta_t: f32) {
+    #[must_use]
+    fn proceed(&mut self, delta_t: f32) -> Option<Quaternion<f32>> {
         self.progress += delta_t;
         if self.progress >= 1.0 {
             self.progress = 0.0;
-            self.queue.pop_front();
+            self.queue
+                .pop_front()
+                .map(|anim| anim.view_angle_offset_delta)
+        } else {
+            None
         }
     }
 }
@@ -734,9 +891,11 @@ impl TwistAnimationState {
 #[derive(Debug, Clone)]
 struct TwistAnimation {
     /// Puzzle state before twist.
-    state: Box<dyn PuzzleState>,
+    state: Puzzle,
     /// Twist to animate.
     twist: Twist,
+    /// Delta to apply to the view angle before animating.
+    view_angle_offset_delta: Quaternion<f32>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -783,16 +942,34 @@ impl ViewSettingsAnimState {
 /// The following rotations are applied to the whole puzzle in order before
 /// rendering:
 ///
-/// 1. `view_angle.current`
-/// 2. `view_prefs.view_angle` (from `ViewPreferences`)
-#[derive(Debug, Default, Clone)]
-struct ViewAngleAnimState {
+/// 1. `queued_delta`
+/// 2. `current`
+/// 3. `view_prefs.view_angle` (from `ViewPreferences`)
+#[derive(Debug, Clone)]
+pub struct ViewAngleAnimState {
+    /// Cumulative view angle offset delta from all the twists in the twist
+    /// queue.
+    queued_delta: Quaternion<f32>,
     /// View angle offset compared to the latest puzzle state.
-    current: Rotor,
-    /// Target view angle offset to animate toward.
-    target: Rotor,
-    /// Whether the user is currently dragging the view.
-    dragging: bool,
+    current: Quaternion<f32>,
+
+    /// Full-puzzle rotations to silently apply next time the user grips or
+    /// twists the puzzle.
+    transient_rotation: Option<(Vec<Twist>, Quaternion<f32>)>,
+    /// Whether to freeze the view angle offset, versus animating it back to
+    /// zero.
+    is_frozen: bool,
+}
+impl Default for ViewAngleAnimState {
+    fn default() -> Self {
+        Self {
+            queued_delta: Quaternion::one(),
+            current: Quaternion::one(),
+
+            transient_rotation: None,
+            is_frozen: false,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

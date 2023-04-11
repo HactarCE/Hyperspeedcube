@@ -5,7 +5,6 @@ use cgmath::{Matrix4, SquareMatrix};
 use itertools::Itertools;
 use std::error::Error;
 use std::fmt;
-use std::io::{Read, Seek};
 use std::str::FromStr;
 
 use crate::puzzle::*;
@@ -14,12 +13,9 @@ const MAGIC_STRING: &str = "MagicCube4D";
 const LOG_VERSION: &str = "3";
 const RUBIKS_4D_SCHLAFLI_SYMBOL: &str = "{4,3,3}";
 
-/// Returns whether the file starts with the MC4D header strings
-pub fn is_mc4d_log_file(mut file: &std::fs::File) -> bool {
-    let mut buffer = [0_u8; MAGIC_STRING.len()];
-    let result = file.read_exact(&mut buffer);
-    let _ = file.rewind();
-    result.is_ok() && buffer == MAGIC_STRING.as_bytes()
+/// Returns whether the file starts with the MC4D header string.
+pub fn is_mc4d_log_file(s: &str) -> bool {
+    s.starts_with(MAGIC_STRING)
 }
 
 #[derive(Debug)]
@@ -93,7 +89,7 @@ impl FromStr for Mc4dLogFile {
                 if move_str == "m|" {
                     scramble_twists = std::mem::take(&mut solve_twists);
                 } else {
-                    solve_twists.extend(from_mc4d_twist_string(move_str));
+                    solve_twists.extend(Rubiks4D::from_mc4d_twist_string(move_str));
                 }
             }
         }
@@ -131,11 +127,16 @@ impl fmt::Display for Mc4dLogFile {
                 self.scramble_twists
                     .iter()
                     .copied()
-                    .map(to_mc4d_twist_string),
+                    .map(Rubiks4D::to_mc4d_twist_string),
             );
             twist_strs.push("m|".to_string());
         }
-        twist_strs.extend(self.solve_twists.iter().copied().map(to_mc4d_twist_string));
+        twist_strs.extend(
+            self.solve_twists
+                .iter()
+                .copied()
+                .map(Rubiks4D::to_mc4d_twist_string),
+        );
 
         if twist_strs.is_empty() {
             twist_strs.push(String::new());
@@ -151,47 +152,45 @@ impl fmt::Display for Mc4dLogFile {
 }
 impl Mc4dLogFile {
     pub fn from_puzzle(puzzle: &PuzzleController) -> Result<Self, LogFileError> {
-        todo!("log file from puzzle {:?}", puzzle.ty().name)
-        // match puzzle.ty() {
-        //     PuzzleTypeEnum::Rubiks4D { layer_count } => Ok(Self {
-        //         edge_length: layer_count,
-        //         scramble_state: puzzle.scramble_state(),
-        //         view_matrix: Matrix4::identity(),
-        //         scramble_twists: puzzle.scramble().to_vec(),
-        //         solve_twists: puzzle
-        //             .undo_buffer()
-        //             .iter()
-        //             .filter_map(|entry| entry.twist())
-        //             .collect(),
-        //     }),
-        //     _ => Err(LogFileError::UnsupportedPuzzle(puzzle.name.to_string())),
-        // }
+        match puzzle.ty() {
+            PuzzleTypeEnum::Rubiks4D { layer_count } => Ok(Self {
+                edge_length: layer_count,
+                scramble_state: puzzle.scramble_state(),
+                view_matrix: Matrix4::identity(),
+                scramble_twists: puzzle.scramble().to_vec(),
+                solve_twists: puzzle
+                    .undo_buffer()
+                    .iter()
+                    .filter_map(|entry| entry.twist())
+                    .collect(),
+            }),
+            _ => Err(LogFileError::UnsupportedPuzzle(puzzle.name().to_string())),
+        }
     }
 
     pub fn to_puzzle(&self) -> Result<PuzzleController, String> {
-        todo!("to puzzle")
-        // let puzzle_type = PuzzleTypeEnum::Rubiks4D {
-        //     layer_count: self.edge_length,
-        // };
-        // puzzle_type.validate()?;
-        // let mut ret = PuzzleController::new(puzzle_type);
+        let puzzle_type = PuzzleTypeEnum::Rubiks4D {
+            layer_count: self.edge_length,
+        };
+        puzzle_type.validate()?;
+        let mut ret = PuzzleController::new(puzzle_type);
 
-        // for &twist in &self.scramble_twists {
-        //     if let Err(e) = ret.twist_no_collapse(twist) {
-        //         log::warn!("Error executing twist {e:?} from MC4D log file")
-        //     }
-        // }
-        // ret.add_scramble_marker(self.scramble_state);
+        for &twist in &self.scramble_twists {
+            if let Err(e) = ret.twist_no_collapse(twist) {
+                log::warn!("Error executing twist {e:?} from MC4D log file")
+            }
+        }
+        ret.add_scramble_marker(self.scramble_state);
 
-        // for &twist in &self.solve_twists {
-        //     if let Err(e) = ret.twist_no_collapse(twist) {
-        //         log::warn!("Error executing twist {e:?} from MC4D log file")
-        //     }
-        // }
-        // ret.skip_twist_animations();
-        // ret.mark_saved();
+        for &twist in &self.solve_twists {
+            if let Err(e) = ret.twist_no_collapse(twist) {
+                log::warn!("Error executing twist {e:?} from MC4D log file")
+            }
+        }
+        ret.skip_twist_animations();
+        ret.mark_saved();
 
-        // Ok(ret)
+        Ok(ret)
     }
 }
 
@@ -218,33 +217,26 @@ impl fmt::Display for LogFileError {
 }
 impl Error for LogFileError {}
 
-fn from_mc4d_twist_string(s: &str) -> Vec<Twist> {
-    todo!("MC4D log file import")
-}
-
-fn to_mc4d_twist_string(t: Twist) -> String {
-    todo!("MC4D log file export")
-}
-
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn test_mc4d_compat() {
-        todo!("fix this test")
-        // let ty = PuzzleTypeEnum::Rubiks4D { layer_count: 5 };
+        let ty = PuzzleTypeEnum::Rubiks4D { layer_count: 5 };
 
-        // for axis in (0..ty.twists.axes.len() as _).map(TwistAxis) {
-        //     for direction in (0..ty.twists.directions.len() as _).map(TwistDirection) {
-        //         let twist = Twist {
-        //             axis,
-        //             direction,
-        //             layers: LayerMask(5),
-        //         };
-        //         let s = to_mc4d_twist_string(twist);
-        //         if let Some(t) = from_mc4d_twist_string(&s) {
-        //             assert_eq!(t, twist);
-        //         }
-        //     }
-        // }
+        for axis in (0..ty.twist_axes().len() as _).map(TwistAxis) {
+            for direction in (0..ty.twist_directions().len() as _).map(TwistDirection) {
+                let twist = Twist {
+                    axis,
+                    direction,
+                    layers: LayerMask(5),
+                };
+                let s = Rubiks4D::to_mc4d_twist_string(twist);
+                if let Some(t) = Rubiks4D::from_mc4d_twist_string(&s) {
+                    assert_eq!(t, twist);
+                }
+            }
+        }
     }
 }

@@ -2,14 +2,14 @@ use key_names::KeyMappingCode;
 use strum::EnumMessage;
 use winit::event::VirtualKeyCode;
 
-use super::util::{ResponseExt, EXPLANATION_TOOLTIP_WIDTH};
+use super::ext::*;
 use crate::app::App;
 use crate::commands::Command;
 use crate::preferences::Key;
 use crate::puzzle::TwistMetric;
 
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
-    ui.with_layout(egui::Layout::right_to_left(), |ui| {
+    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         // Right-aligned segments
         bld_toggle(ui, app);
         ui.separator();
@@ -18,7 +18,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         ui.separator();
 
         // Left-aligned segments
-        ui.with_layout(egui::Layout::left_to_right(), |ui| {
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
             if app.prefs.info.modifier_toggles {
                 modifier_toggles(ui, app, false);
                 ui.separator();

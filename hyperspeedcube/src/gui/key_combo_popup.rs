@@ -2,8 +2,8 @@ use key_names::KeyMappingCode;
 use std::sync::Arc;
 use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 
-use super::keybind_set_accessors::KeybindSetAccessor;
-use super::util::ResponseExt;
+use super::components::KeybindSetAccessor;
+use super::ext::*;
 use crate::app::App;
 use crate::preferences::{Key, KeyCombo};
 
@@ -11,13 +11,11 @@ const KEYBIND_POPUP_SIZE: egui::Vec2 = egui::vec2(300.0, 200.0);
 
 const SCANCODE_EXPLANATION: &str = "Scancodes are based on physical key position, while virtual keycodes depend on the keyboard layout";
 
-pub(super) type KeyComboCallback = Arc<dyn Send + Sync + Fn(&mut App, KeyCombo)>;
-
 #[derive(Default, Clone)]
 pub(super) struct State {
     /// Callback to set the new key combo. This is `None` to indicate that the
     /// popup is closed.
-    callback: Option<KeyComboCallback>,
+    callback: Option<Arc<dyn Send + Sync + Fn(&mut App, KeyCombo)>>,
 
     key: Option<KeyCombo>,
 

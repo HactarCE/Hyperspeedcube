@@ -1,23 +1,31 @@
 use bitvec::vec::BitVec;
-use std::sync::Arc;
 
+use super::Window;
 use crate::app::App;
-use crate::gui::{util, widgets};
+use crate::gui::components::{prefs, small_icon_button, PrefsUi, PresetsUi};
 use crate::preferences::{PieceFilter, DEFAULT_PREFS};
-use crate::puzzle::{traits::*, Facet, PieceInfo, PieceType};
+use crate::puzzle::{traits::*, Face, PieceInfo, PieceType};
+
+pub(crate) const PIECE_FILTERS: Window = Window {
+    name: "Piece filters",
+    vscroll: true,
+    build,
+    cleanup,
+    ..Window::DEFAULT
+};
 
 const MIN_WIDTH: f32 = 300.0;
 
-fn piece_subset(ty: &PuzzleType, predicate: impl FnMut(&PieceInfo) -> bool) -> BitVec {
-    ty.pieces.iter().map(predicate).collect()
+fn piece_subset(ty: impl PuzzleType, predicate: impl FnMut(&PieceInfo) -> bool) -> BitVec {
+    ty.pieces().iter().map(predicate).collect()
 }
 macro_rules! piece_subset_from_sticker_colors {
     ($puzzle_ty:expr, |$color_iter:ident| $predicate:expr $(,)?) => {{
         // This is a macro instead of a function because I don't know how to
         // write the type of the predicate closure except as `impl FnMut(impl
-        // Iterator<Item=Facet>) -> bool`, which isn't allowed.
-        let ty = &$puzzle_ty;
-        ty.pieces
+        // Iterator<Item=Face>) -> bool`, which isn't allowed.
+        let ty = $puzzle_ty;
+        ty.pieces()
             .iter()
             .map(|piece| {
                 #[allow(unused_mut)]
@@ -28,21 +36,21 @@ macro_rules! piece_subset_from_sticker_colors {
     }};
 }
 
-pub fn cleanup(app: &mut App) {
+fn cleanup(_ctx: &egui::Context, app: &mut App) {
     app.puzzle.set_visible_pieces_preview(None, None);
 }
 
-pub fn build(ui: &mut egui::Ui, app: &mut App) {
+fn build(ui: &mut egui::Ui, app: &mut App) {
     app.puzzle.set_visible_pieces_preview(None, None);
 
-    let puzzle_type = Arc::clone(app.puzzle.ty());
+    let puzzle_type = app.puzzle.ty();
 
     ui.set_min_width(MIN_WIDTH);
 
     let prefs = &mut app.prefs;
 
     let mut changed = false;
-    let mut prefs_ui = util::PrefsUi {
+    let mut prefs_ui = PrefsUi {
         ui,
         current: &mut prefs.opacity,
         defaults: &DEFAULT_PREFS.opacity,
@@ -50,7 +58,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     };
 
     prefs_ui.percent("Hidden", access!(.hidden));
-    crate::gui::prefs::build_unhide_grip_checkbox(&mut prefs_ui);
+    prefs::build_unhide_grip_checkbox(&mut prefs_ui);
 
     prefs.needs_save |= changed;
     if changed {
@@ -59,15 +67,15 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.separator();
 
-    PieceFilterWidget::new_uppercased("everything", piece_subset(&puzzle_type, |_| true))
+    PieceFilterWidget::new_uppercased("everything", piece_subset(puzzle_type, |_| true))
         .no_all_except()
         .show(ui, app);
 
     ui.collapsing("Types", |ui| {
-        for (i, piece_type) in puzzle_type.piece_types.iter().enumerate() {
+        for (i, piece_type) in puzzle_type.piece_types().iter().enumerate() {
             PieceFilterWidget::new_uppercased(
                 &format!("{}s", piece_type.name),
-                piece_subset(&puzzle_type, move |piece| {
+                piece_subset(puzzle_type, move |piece| {
                     piece.piece_type == PieceType(i as _)
                 }),
             )
@@ -78,23 +86,23 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.collapsing("Colors", |ui| {
         ui.set_enabled(!app.prefs.colors.blindfold);
 
-        let facet_colors = app.prefs.colors.facet_colors_list(app.puzzle.ty());
+        let face_colors = app.prefs.colors.face_colors_list(app.puzzle.ty());
 
         let colors_selection_id = unique_id!();
         let mut selected_colors: Vec<bool> =
             ui.data().get_temp(colors_selection_id).unwrap_or_default();
-        selected_colors.resize(app.puzzle.ty().shape.facets.len(), false);
+        selected_colors.resize(app.puzzle.faces().len(), false);
 
-        for i in 0..puzzle_type.shape.facets.len() {
+        for i in 0..puzzle_type.faces().len() {
             PieceFilterWidget::new_uppercased(
                 "pieces with this color",
                 piece_subset_from_sticker_colors!(puzzle_type, |colors| {
-                    colors.any(|c| c == Facet(i as _))
+                    colors.any(|c| c == Face(i as _))
                 }),
             )
             .label_ui(|ui: &mut egui::Ui| {
                 ui.horizontal(|ui| {
-                    egui::color_picker::show_color(ui, facet_colors[i], ui.spacing().interact_size);
+                    egui::color_picker::show_color(ui, face_colors[i], ui.spacing().interact_size);
                     ui.checkbox(&mut selected_colors[i], "");
                 })
                 .response
@@ -107,7 +115,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                 "pieces with all these colors",
                 piece_subset_from_sticker_colors!(puzzle_type, |colors| {
                     selected_colors.iter().enumerate().all(|(i, selected)| {
-                        !selected || colors.clone().any(|color| color == Facet(i as _))
+                        !selected || colors.clone().any(|color| color == Face(i as _))
                     })
                 }),
             )
@@ -137,11 +145,11 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         ui.set_enabled(!app.prefs.colors.blindfold);
 
         let opacity_prefs = &mut app.prefs.opacity;
-        let mut piece_filter_presets = std::mem::take(&mut app.prefs.piece_filters[&puzzle_type]);
+        let mut piece_filter_presets = std::mem::take(&mut app.prefs.piece_filters[puzzle_type]);
 
         let mut changed = false;
 
-        let mut presets_ui = widgets::PresetsUi {
+        let mut presets_ui = PresetsUi {
             id: unique_id!(),
             presets: &mut piece_filter_presets,
             changed: &mut changed,
@@ -166,8 +174,8 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             preset
                 .value
                 .visible_pieces
-                .resize(app.puzzle.ty().pieces.len(), false);
-            PieceFilterWidget::new(
+                .resize(app.puzzle.pieces().len(), false);
+            PieceFilterWidget::new_preset(
                 &preset.preset_name,
                 &preset.preset_name,
                 preset.value.visible_pieces.clone(),
@@ -176,7 +184,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             .show(ui, app)
         });
 
-        app.prefs.piece_filters[&puzzle_type] = piece_filter_presets;
+        app.prefs.piece_filters[puzzle_type] = piece_filter_presets;
 
         app.prefs.needs_save |= changed;
     });
@@ -185,6 +193,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 #[must_use]
 struct PieceFilterWidget<'a, W> {
     name: &'a str,
+    is_preset: bool,
     label_ui: W,
     highlight_if_active: bool,
     all_except: bool,
@@ -195,17 +204,29 @@ impl<'a> PieceFilterWidget<'a, egui::Button> {
     fn new_uppercased(name: &'a str, piece_set: BitVec) -> Self {
         let mut s = name.to_string();
         s[0..1].make_ascii_uppercase();
-        Self::new(name, &s, piece_set, None)
+        Self::new(name, &s, piece_set)
     }
-    fn new(name: &'a str, label: &str, piece_set: BitVec, hidden_opacity: Option<f32>) -> Self {
+    fn new(name: &'a str, label: &str, piece_set: BitVec) -> Self {
         Self {
             name,
+            is_preset: false,
             label_ui: egui::Button::new(label).frame(false),
             highlight_if_active: true,
             all_except: true,
             piece_set,
-            hidden_opacity,
+            hidden_opacity: None,
         }
+    }
+    fn new_preset(
+        name: &'a str,
+        label: &str,
+        piece_set: BitVec,
+        hidden_opacity: Option<f32>,
+    ) -> Self {
+        let mut this = Self::new(name, label, piece_set);
+        this.is_preset = true;
+        this.hidden_opacity = hidden_opacity;
+        this
     }
 }
 impl<'a, W> PieceFilterWidget<'a, W>
@@ -215,6 +236,7 @@ where
     fn label_ui<W2>(self, label_ui: W2) -> PieceFilterWidget<'a, W2> {
         PieceFilterWidget {
             name: self.name,
+            is_preset: self.is_preset,
             label_ui,
             highlight_if_active: false,
             all_except: self.all_except,
@@ -231,7 +253,7 @@ where
 
     fn show(self, ui: &mut egui::Ui, app: &mut App) -> egui::Response {
         ui.horizontal(|ui| {
-            ui.with_layout(egui::Layout::right_to_left(), |ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x /= 2.0;
 
                 let puzzle = &mut app.puzzle;
@@ -244,13 +266,16 @@ where
                 let mut small_button = |new_visible_set: BitVec, text: &str, hover_text: &str| {
                     let r = ui.add_enabled(
                         puzzle.visible_pieces() != new_visible_set,
-                        |ui: &mut egui::Ui| widgets::small_icon_button(ui, text, hover_text),
+                        |ui: &mut egui::Ui| small_icon_button(ui, text, hover_text),
                     );
                     if r.hovered() {
                         puzzle.set_visible_pieces_preview(Some(&new_visible_set), None);
                     }
                     if r.clicked() {
                         puzzle.set_visible_pieces(&new_visible_set);
+                        if self.is_preset {
+                            puzzle.set_last_filter(self.name.to_string());
+                        }
                     }
                 };
                 small_button(show_these, "👁", &format!("Show {}", self.name));
@@ -282,6 +307,9 @@ where
                         }
                         if r.clicked() {
                             puzzle.set_visible_pieces(&self.piece_set);
+                            if self.is_preset {
+                                puzzle.set_last_filter(self.name.to_string());
+                            }
                             if let Some(hidden_opacity) = self.hidden_opacity {
                                 if app.prefs.opacity.hidden != hidden_opacity {
                                     app.prefs.opacity.hidden = hidden_opacity;

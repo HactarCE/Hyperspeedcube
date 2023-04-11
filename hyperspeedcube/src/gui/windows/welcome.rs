@@ -1,19 +1,34 @@
+use super::{Location, Window, WELCOME_WINDOW_WIDTH};
 use crate::app::App;
-use crate::gui::util;
+use crate::gui::util::{set_widget_spacing_to_space_width, subtract_space};
 
 const HYPERCUBERS_DISCORD_INVITE_URL: &str = "https://discord.gg/Rrw2xeB3Gb";
 const HYPERCUBING_GOOGLE_GROUP_URL: &str = "https://groups.google.com/g/hypercubing";
 
-pub fn build(ui: &mut egui::Ui, app: &mut App) {
+pub const WELCOME: Window = Window {
+    name: "Welcome",
+    location: Location::Centered,
+    fixed_width: Some(WELCOME_WINDOW_WIDTH),
+    build,
+    ..Window::DEFAULT
+};
+
+fn build(ui: &mut egui::Ui, app: &mut App) {
     // Adjust spacing so we don't have to add spaces manually.
-    util::set_widget_spacing_to_space_widgth(ui);
+    set_widget_spacing_to_space_width(ui);
 
     ui.horizontal_wrapped(|ui| {
-        ui.label("If you're new to 4D puzzles, consider joining the");
+        ui.label("If you're new to 4D puzzles, learn more at");
+        ui.hyperlink("https://hypercubing.xyz/");
+        subtract_space(ui);
+        ui.label(".");
+    });
+    ui.horizontal_wrapped(|ui| {
+        ui.label("Also consider joining the");
         ui.hyperlink_to("Discord server", HYPERCUBERS_DISCORD_INVITE_URL);
         ui.label("and");
         ui.hyperlink_to("mailing list", HYPERCUBING_GOOGLE_GROUP_URL);
-        util::subtract_space(ui);
+        subtract_space(ui);
         ui.label(".");
     });
 
@@ -49,7 +64,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             ui.horizontal_wrapped(|ui| {
                 ui.label("You can hide sets of pieces using");
                 ui.strong("Tools ➡ Piece filters");
-                util::subtract_space(ui);
+                subtract_space(ui);
                 ui.label(".");
             });
             ui.horizontal_wrapped(|ui| {
@@ -93,7 +108,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.horizontal_wrapped(|ui| {
         ui.label("You can reopen this window from");
         ui.strong("Help ➡ Welcome");
-        util::subtract_space(ui);
+        subtract_space(ui);
         ui.label(".");
     });
 }

@@ -2,18 +2,32 @@ use bitvec::bitvec;
 use cgmath::Point2;
 use itertools::Itertools;
 use key_names::KeyMappingCode;
-use ndpuzzle::puzzle::jumbling::JumblingPuzzleSpec;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
+use std::path::PathBuf;
 use winit::event::{ElementState, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
 use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
-use crate::preferences::{Key, Keybind, PieceFilter, Preferences, ViewPreferences};
+use crate::logfile::LogFileFormat;
+use crate::preferences::{Key, Keybind, PieceFilter, Preferences, Preset};
 use crate::puzzle::*;
-use crate::GraphicsState;
+use crate::render::{GraphicsState, PuzzleRenderCache};
+
+#[cfg(target_arch = "wasm32")]
+macro_rules! unsupported_on_web {
+    ($self:ident; $($tok:tt)*) => {
+        $self.set_status_err("Operation is not supported on web")
+    };
+}
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! unsupported_on_web {
+    ($self:ident; $($tok:tt)*) => {{
+        $($tok)*
+    }};
+}
 
 pub struct App {
     pub(crate) prefs: Preferences,
@@ -21,6 +35,7 @@ pub struct App {
     events: EventLoopProxy<AppEvent>,
 
     pub(crate) puzzle: PuzzleController,
+    pub(crate) render_cache: PuzzleRenderCache,
     pub(crate) puzzle_texture_size: (u32, u32),
     force_redraw: bool,
 
@@ -45,13 +60,14 @@ pub struct App {
     status_msg: String,
 }
 impl App {
-    pub(crate) fn new(event_loop: &EventLoop<AppEvent>) -> Self {
+    pub(crate) fn new(event_loop: &EventLoop<AppEvent>, initial_file: Option<PathBuf>) -> Self {
         let mut this = Self {
             prefs: Preferences::load(None),
 
             events: event_loop.create_proxy(),
 
             puzzle: PuzzleController::default(),
+            render_cache: PuzzleRenderCache::default(),
             puzzle_texture_size: (0, 0),
             force_redraw: true,
 
@@ -71,7 +87,14 @@ impl App {
         // Always save preferences after opening.
         this.prefs.needs_save = true;
 
+        if let Some(path) = initial_file {
+            this.prefs.log_file = Some(path);
+        }
+
         // Load last open file.
+        #[cfg(target_arch = "wasm32")]
+        this.try_load_from_local_storage();
+        #[cfg(not(target_arch = "wasm32"))]
         if let Some(path) = this.prefs.log_file.take() {
             this.try_load_puzzle(path);
         }
@@ -82,19 +105,8 @@ impl App {
     pub(crate) fn request_redraw_puzzle(&mut self) {
         self.force_redraw = true;
     }
-    pub(crate) fn draw_puzzle(
-        &mut self,
-        gfx: &mut GraphicsState,
-        encoder: &mut wgpu::CommandEncoder,
-    ) -> Option<wgpu::TextureView> {
-        let ret = self.puzzle.draw(
-            gfx,
-            encoder,
-            &self.prefs,
-            self.puzzle_texture_size,
-            self.cursor_pos,
-            self.force_redraw,
-        );
+    pub(crate) fn draw_puzzle(&mut self, gfx: &mut GraphicsState) -> Option<wgpu::TextureView> {
+        let ret = crate::render::draw_puzzle(self, gfx, self.force_redraw);
         self.force_redraw = false;
         ret
     }
@@ -105,36 +117,70 @@ impl App {
             .expect("tried to send event but event loop doesn't exist")
     }
 
-    pub(crate) fn handle_app_event(&mut self, event: AppEvent, control_flow: &mut ControlFlow) {
+    pub(crate) fn handle_app_event(
+        &mut self,
+        event: AppEvent,
+        control_flow: &mut ControlFlow,
+    ) -> AppEventResponse {
         self.clear_status();
-        if let Err(e) = self.handle_app_event_internal(event, control_flow) {
-            self.set_status_err(e);
+        match self.handle_app_event_internal(event, control_flow) {
+            Ok(r) => r,
+            Err(e) => {
+                self.set_status_err(e);
+                AppEventResponse::default()
+            }
         }
     }
     fn handle_app_event_internal(
         &mut self,
         event: AppEvent,
         control_flow: &mut ControlFlow,
-    ) -> Result<(), String> {
+    ) -> Result<AppEventResponse, String> {
+        let mut response = AppEventResponse::default();
+
+        #[cfg(target_arch = "wasm32")]
+        let _ = control_flow;
+
         match event {
+            #[cfg(target_arch = "wasm32")]
+            AppEvent::WebWorkaround(_) => {
+                panic!("web workaround event should not be handled by app")
+            }
+
             AppEvent::Command(c) => match c {
                 Command::Open => {
-                    if self.confirm_discard_changes("open another file") {
-                        if let Some(path) = file_dialog().pick_file() {
-                            self.try_load_puzzle(path);
+                    unsupported_on_web! {
+                        self;
+                        if self.confirm_discard_changes("open another file") {
+                            if let Some(path) = file_dialog().pick_file() {
+                                self.try_load_puzzle(path);
+                            }
                         }
                     }
                 }
-                Command::Save => match self.prefs.log_file.clone() {
-                    Some(path) => self.try_save_puzzle(&path),
-                    None => self.try_save_puzzle_as(),
-                },
-                Command::SaveAs => self.try_save_puzzle_as(),
-                Command::Exit => {
-                    if self.confirm_discard_changes("exit") {
-                        *control_flow = ControlFlow::Exit;
+                Command::Save => {
+                    unsupported_on_web! {
+                        self;
+                        match self.prefs.log_file.clone() {
+                            Some(path) => self.try_save_puzzle(&path),
+                            None => self.try_save_puzzle_as(),
+                        }
                     }
                 }
+                Command::SaveAs => unsupported_on_web! { self; self.try_save_puzzle_as() },
+
+                Command::Exit => {
+                    unsupported_on_web! {
+                        self;
+                        if self.confirm_discard_changes("exit") {
+                            control_flow.set_exit_with_code(0);
+                        }
+                    }
+                }
+
+                Command::CopyHscLog => self.try_copy_puzzle(LogFileFormat::Hsc, &mut response),
+                Command::CopyMc4dLog => self.try_copy_puzzle(LogFileFormat::Mc4d, &mut response),
+                Command::PasteLog => response.request_paste = true,
 
                 Command::Undo => {
                     self.puzzle.undo()?;
@@ -150,9 +196,6 @@ impl App {
 
                 Command::ScrambleN(n) => {
                     if self.confirm_discard_changes("scramble") {
-                        // TODO: `n` is not validated. It may be `0` (which is
-                        // harmless) or `usize::MAX` (which will freeze the
-                        // program).
                         self.puzzle.scramble_n(n)?;
                         self.set_status_ok(format!(
                             "Scrambled with {} random {}",
@@ -169,13 +212,9 @@ impl App {
                 }
 
                 Command::NewPuzzle(puzzle_type) => {
-                    if let Some(ty) = PUZZLE_REGISTRY.lock().get(&puzzle_type) {
-                        if self.confirm_discard_changes("reset puzzle") {
-                            self.puzzle = PuzzleController::new(ty);
-                            self.set_status_ok(format!("Loaded {}", puzzle_type));
-                        }
-                    } else {
-                        show_error_dialog("Missing puzzle", "Puzzle does not exist");
+                    if self.confirm_discard_changes("reset puzzle") {
+                        self.puzzle = PuzzleController::new(puzzle_type);
+                        self.set_status_ok(format!("Loaded {}", puzzle_type));
                     }
                 }
 
@@ -219,49 +258,44 @@ impl App {
             }
             AppEvent::Drag(delta) => {
                 let delta = delta * self.prefs.interaction.drag_sensitivity * 360.0;
-                self.puzzle.add_view_angle_offset(
-                    [delta.x, delta.y],
-                    self.prefs.view(self.puzzle.ty()),
-                    self.pressed_modifiers().shift(),
-                );
+                self.puzzle.freeze_view_angle_offset();
+                self.puzzle
+                    .add_view_angle_offset([delta.x, delta.y], self.prefs.view(self.puzzle.ty()));
             }
             AppEvent::DragReleased => {
-                if self.prefs.interaction.snap_on_release {
-                    self.puzzle.snap_view_angle_offset();
+                if self.prefs.interaction.realign_on_release {
+                    self.puzzle.unfreeze_view_angle_offset();
                 }
-            }
-
-            AppEvent::Scroll(delta) => {
-                let scale = &mut self.prefs.view_mut(self.puzzle.ty()).scale;
-                *scale = (*scale * (delta.y / 256.0).exp()).clamp(
-                    *ViewPreferences::SCALE_RANGE.start(),
-                    *ViewPreferences::SCALE_RANGE.end(),
-                );
-                self.prefs.needs_save = true;
             }
 
             AppEvent::StatusError(msg) => return Err(msg),
         }
-        Ok(())
+
+        Ok(response)
+    }
+    pub(crate) fn handle_paste_event(&mut self, clipboard_contents: &str) {
+        self.try_paste_puzzle(clipboard_contents);
     }
     pub(crate) fn handle_window_event(&mut self, event: &WindowEvent) {
         match event {
             WindowEvent::CloseRequested => self.event(Command::Exit),
 
             WindowEvent::DroppedFile(path) => {
-                if self.confirm_discard_changes("open another file") {
-                    // self.try_load_puzzle(path.to_owned());
-                    if let Ok(s) = std::fs::read_to_string(path) {
-                        match serde_yaml::from_str::<JumblingPuzzleSpec>(&s) {
-                            Ok(spec) => {
-                                let name = spec.name.clone();
-                                PUZZLE_REGISTRY
-                                    .lock()
-                                    .insert(name.clone(), spec.build().expect("Sadness"));
-                                self.event(Command::NewPuzzle(name))
-                            }
-                            Err(e) => show_error_dialog("Error loading puzzle", e),
-                        }
+                let _ = path;
+                unsupported_on_web! {
+                    self;
+                    if self.confirm_discard_changes("open another file") {
+                        self.try_load_puzzle(path.to_owned());
+                    }
+                }
+            }
+
+            WindowEvent::Focused(false) => {
+                // Release all keys when the window loses focus.
+                for key in std::mem::take(&mut self.pressed_keys) {
+                    match key {
+                        Key::Sc(sc) => self.handle_key_release(Some(sc), None),
+                        Key::Vk(vk) => self.handle_key_release(None, Some(vk)),
                     }
                 }
             }
@@ -288,14 +322,18 @@ impl App {
 
                 match input.state {
                     ElementState::Pressed => {
+                        let mut held = false;
+
+                        // Record the key as being pressed. If the key is
+                        // already pressed, then ignore this event.
                         if let Some(sc) = sc {
-                            self.pressed_keys.insert(Key::Sc(sc));
+                            held |= !self.pressed_keys.insert(Key::Sc(sc));
                         }
                         if let Some(vk) = vk {
-                            self.pressed_keys.insert(Key::Vk(vk));
+                            held |= !self.pressed_keys.insert(Key::Vk(vk));
                         }
 
-                        self.handle_key_press(sc, vk);
+                        self.handle_key_press(sc, vk, held);
                     }
 
                     ElementState::Released => {
@@ -330,10 +368,18 @@ impl App {
         Ok(())
     }
 
-    fn handle_key_press(&mut self, sc: Option<KeyMappingCode>, vk: Option<VirtualKeyCode>) {
+    fn handle_key_press(
+        &mut self,
+        sc: Option<KeyMappingCode>,
+        vk: Option<VirtualKeyCode>,
+        held: bool,
+    ) {
         // Only allow one twist command per keypress. Don't use
         // multiple keybinds for macros.
         let mut done_twist_command = false;
+        if held {
+            done_twist_command = true;
+        }
 
         // Sometimes users will bind a twist command and another command to the
         // same key, so if the twist command fails due to an incomplete grip
@@ -360,7 +406,7 @@ impl App {
                         }
                     }
 
-                    new_grip.layers = Some(layers.to_layer_mask(self.puzzle.ty().layer_count))
+                    new_grip.layers = Some(layers.to_layer_mask(self.puzzle.layer_count()))
                         .filter(|&l| l != LayerMask(0));
 
                     self.transient_grips.insert(key, new_grip);
@@ -373,8 +419,12 @@ impl App {
                     layers,
                 } => {
                     if !done_twist_command {
-                        self.puzzle.snap_view_angle_offset();
-                        let layers = layers.to_layer_mask(self.puzzle.ty().layer_count);
+                        if self.prefs.interaction.realign_on_keypress {
+                            self.puzzle.unfreeze_view_angle_offset();
+                        } else {
+                            self.puzzle.apply_transient_rotation();
+                        }
+                        let layers = layers.to_layer_mask(self.puzzle.layer_count());
                         match self.do_twist(axis.as_deref(), direction, layers) {
                             Ok(()) => {
                                 done_twist_command = true;
@@ -386,7 +436,11 @@ impl App {
                 }
                 PuzzleCommand::Recenter { axis } => {
                     if !done_twist_command {
-                        self.puzzle.snap_view_angle_offset();
+                        if self.prefs.interaction.realign_on_keypress {
+                            self.puzzle.unfreeze_view_angle_offset();
+                        } else {
+                            self.puzzle.apply_transient_rotation();
+                        }
                         match self.do_recenter(axis.as_deref()) {
                             Ok(()) => {
                                 done_twist_command = true;
@@ -398,14 +452,55 @@ impl App {
                 }
 
                 PuzzleCommand::Filter { mode, filter_name } => {
+                    fn jump_piece_filter<'a>(
+                        piece_filters: &'a [Preset<PieceFilter>],
+                        last_filter: &str,
+                        offset: isize,
+                    ) -> Option<&'a Preset<PieceFilter>> {
+                        let find_position = piece_filters
+                            .iter()
+                            .find_position(|p| p.preset_name == last_filter);
+                        match find_position {
+                            Some((index, _)) => {
+                                piece_filters.get((index as isize + offset) as usize)
+                            }
+                            None => piece_filters.first(),
+                        }
+                    }
+                    let mut new_filter_name = None;
                     let piece_filters = &self.prefs.piece_filters[self.puzzle.ty()];
                     let preset = match piece_filters.iter().find(|p| p.preset_name == *filter_name)
                     {
-                        Some(p) => p.value.clone(),
+                        Some(p) => {
+                            new_filter_name = Some(&p.preset_name);
+                            p.value.clone()
+                        }
                         None if filter_name == "Everything" => PieceFilter {
-                            visible_pieces: bitvec![1; self.puzzle.ty().pieces.len()],
+                            visible_pieces: bitvec![1; self.puzzle.ty().pieces().len()],
                             hidden_opacity: None,
                         },
+                        None if filter_name == "Next" => {
+                            if let Some(filter) =
+                                jump_piece_filter(piece_filters, self.puzzle.last_filter(), 1)
+                            {
+                                new_filter_name = Some(&filter.preset_name);
+                                filter.value.clone()
+                            } else {
+                                self.set_status_err("No next piece filter".to_string());
+                                return;
+                            }
+                        }
+                        None if filter_name == "Previous" => {
+                            if let Some(filter) =
+                                jump_piece_filter(piece_filters, self.puzzle.last_filter(), -1)
+                            {
+                                new_filter_name = Some(&filter.preset_name);
+                                filter.value.clone()
+                            } else {
+                                self.set_status_err("No previous piece filter".to_string());
+                                return;
+                            }
+                        }
                         None => {
                             self.set_status_err(format!(
                                 "Unable to find piece filter {filter_name:?}"
@@ -436,6 +531,10 @@ impl App {
                         }
                     };
                     self.puzzle.set_visible_pieces(&new_piece_set);
+                    if let Some(new_filter_name) = new_filter_name {
+                        self.puzzle.set_last_filter(new_filter_name.to_string());
+                        self.status_msg = format!("Selected {new_filter_name} piece filter");
+                    }
 
                     success = true;
                 }
@@ -450,6 +549,22 @@ impl App {
                         self.set_status_err(format!("No keybind set named {set_name}"));
                     }
                     return; // Do not try to match other keybinds.
+                }
+                PuzzleCommand::ViewPreset { view_preset_name } => {
+                    let presets = match self.puzzle.ty().projection_type() {
+                        ProjectionType::_3D => &mut self.prefs.view_3d,
+                        ProjectionType::_4D => &mut self.prefs.view_4d,
+                    };
+                    if let Some(preset) = presets
+                        .presets
+                        .iter()
+                        .find(|p| &p.preset_name == view_preset_name)
+                    {
+                        let old = std::mem::replace(&mut presets.current, preset.value.clone());
+                        self.puzzle.animate_from_view_settings(old);
+                        presets.active_preset = Some(preset.clone());
+                        self.prefs.needs_save = true;
+                    }
                 }
 
                 PuzzleCommand::None => return, // Do not try to match other keybinds.
@@ -532,15 +647,12 @@ impl App {
         let name = name.ok_or("No twist axis gripped")?;
         self.puzzle
             .ty()
-            .twists
-            .axis_from_symbol(name)
+            .twist_axis_from_name(name)
             .ok_or_else(|| format!("Unknown twist axis {name:?}"))
     }
     fn twist_direction_from_name(&self, name: &str) -> Result<TwistDirection, String> {
         self.puzzle
-            .ty()
-            .twists
-            .direction_from_name(name)
+            .twist_direction_from_name(name)
             .ok_or_else(|| format!("Unknown twist direction {name:?}"))
     }
 
@@ -551,9 +663,7 @@ impl App {
         if let Some(name) = preferred {
             return self
                 .puzzle
-                .ty()
-                .twists
-                .axis_from_symbol(name)
+                .twist_axis_from_name(name)
                 .ok_or_else(|| format!("Unknown twist axis {name:?}"));
         }
         self.grip().axes.iter().copied().exactly_one().map_err(|e| {
@@ -587,10 +697,9 @@ impl App {
         }));
         Ok(())
     }
-    pub(crate) fn do_recenter(&self, _twist_axis: Option<&str>) -> Result<(), String> {
-        // let axis = self.gripped_twist_axis(twist_axis)?;
-        // self.event(AppEvent::Twist(self.puzzle.make_recenter_twist(axis)?));
-        // TODO: recenter
+    pub(crate) fn do_recenter(&self, twist_axis: Option<&str>) -> Result<(), String> {
+        let axis = self.gripped_twist_axis(twist_axis)?;
+        self.event(AppEvent::Twist(self.puzzle.make_recenter_twist(axis)?));
         Ok(())
     }
 
@@ -631,12 +740,12 @@ impl App {
                 self.toggled_keys.insert(k);
             }
             self.toggled_modifiers |= mods;
-            self.handle_key_press(sc, vk);
+            self.handle_key_press(sc, vk, false);
         }
     }
 
-    pub(crate) fn frame(&mut self, _delta: Duration) {
-        self.puzzle.set_grip(self.grip());
+    pub(crate) fn frame(&mut self) {
+        self.puzzle.set_grip(self.grip(), &self.prefs.interaction);
 
         if self.puzzle.check_just_solved() {
             self.set_status_ok("Solved!");
@@ -678,11 +787,43 @@ impl App {
         confirm
     }
 
+    fn try_paste_puzzle(&mut self, log_file_contents: &str) {
+        match crate::logfile::deserialize(log_file_contents) {
+            Ok((puzzle, warnings)) => {
+                if self.confirm_load_puzzle(&warnings) {
+                    self.puzzle = puzzle;
+
+                    self.set_status_ok("Loaded puzzle log file from clipboard");
+
+                    self.prefs.log_file = None;
+                    self.prefs.needs_save = true;
+                }
+            }
+            Err(e) => {
+                self.set_status_err(format!("Unable to load puzzle log: {e}"));
+            }
+        }
+    }
+    fn try_copy_puzzle(&mut self, format: LogFileFormat, response: &mut AppEventResponse) {
+        let ext = format.extension();
+        match crate::logfile::serialize(&self.puzzle, format) {
+            Ok(log_file_contents) => {
+                response.copy_string = Some(log_file_contents);
+                self.puzzle.mark_copied();
+                self.set_status_ok(format!("Copied puzzle log (.{ext})"));
+            }
+            Err(e) => {
+                self.set_status_err(format!("Unable to copy puzzle log (.{ext}): {e}"));
+            }
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn try_load_puzzle(&mut self, path: PathBuf) {
         match crate::logfile::load_file(&path) {
-            Ok((p, warnings)) => {
+            Ok((puzzle, warnings)) => {
                 if self.confirm_load_puzzle(&warnings) {
-                    self.puzzle = p;
+                    self.puzzle = puzzle;
 
                     self.set_status_ok(format!("Loaded log file from {}", path.display()));
 
@@ -696,9 +837,11 @@ impl App {
             ),
         }
     }
+    #[cfg(not(target_arch = "wasm32"))]
     fn try_save_puzzle(&mut self, path: &Path) {
         match crate::logfile::save_file(path, &mut self.puzzle) {
             Ok(()) => {
+                self.puzzle.mark_saved();
                 self.prefs.log_file = Some(path.to_path_buf());
                 self.prefs.needs_save = true;
 
@@ -707,9 +850,40 @@ impl App {
             Err(e) => show_error_dialog("Unable to save log file", e),
         }
     }
+    #[cfg(not(target_arch = "wasm32"))]
     fn try_save_puzzle_as(&mut self) {
         if let Some(path) = file_dialog().save_file() {
             self.try_save_puzzle(&path)
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    const LOCAL_STORAGE_KEY: &str = "hyperspeedcube_puzzle_log";
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn save_in_local_storage(&mut self) {
+        let Some(local_storage) = web_sys::window().unwrap().local_storage().unwrap() else {
+            return
+        };
+        let Ok(log_file_contents) = crate::logfile::serialize(&self.puzzle, LogFileFormat::Hsc) else {
+            return
+        };
+        let _ = local_storage.set_item(Self::LOCAL_STORAGE_KEY, &log_file_contents);
+        self.puzzle.mark_saved_in_local_storage();
+    }
+    #[cfg(target_arch = "wasm32")]
+    fn try_load_from_local_storage(&mut self) {
+        let Some(local_storage) = web_sys::window().unwrap().local_storage().unwrap() else {
+            return
+        };
+        let Some(log_file_contents) = local_storage.get_item(Self::LOCAL_STORAGE_KEY).ok().flatten() else {
+            return
+        };
+        let Ok((p, warnings)) = crate::logfile::deserialize(&log_file_contents) else {
+            return
+        };
+        if self.confirm_load_puzzle(&warnings) {
+            self.puzzle = p;
+            self.puzzle.mark_saved_in_local_storage();
         }
     }
 
@@ -740,6 +914,11 @@ impl App {
     fn remove_held_grips(&mut self, mut remove_if: impl FnMut(Key) -> bool) {
         self.transient_grips.retain(|&k, _v| !remove_if(k));
     }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn modifiers(&self) -> ModifiersState {
+        self.pressed_modifiers
+    }
 }
 
 #[derive(Debug)]
@@ -754,9 +933,10 @@ pub(crate) enum AppEvent {
     Drag(egui::Vec2),
     DragReleased,
 
-    Scroll(egui::Vec2),
-
     StatusError(String),
+
+    #[cfg(target_arch = "wasm32")]
+    WebWorkaround(crate::web_workarounds::WebEvent),
 }
 impl From<Command> for AppEvent {
     fn from(c: Command) -> Self {
@@ -769,11 +949,20 @@ impl From<Twist> for AppEvent {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+#[must_use]
+pub(crate) struct AppEventResponse {
+    pub(crate) copy_string: Option<String>,
+    pub(crate) request_paste: bool,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn file_dialog() -> rfd::FileDialog {
     rfd::FileDialog::new()
         .add_filter("Hyperspeedcube Log Files", &["hsc", "log"])
         .add_filter("All files", &["*"])
 }
+#[cfg(not(target_arch = "wasm32"))]
 fn show_error_dialog(title: &str, e: impl fmt::Display) {
     rfd::MessageDialog::new()
         .set_title(title)

@@ -4,6 +4,11 @@ All notable changes to Hyperspeedcube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+[@Edan-Purple]: https://github.com/Edan-Purple
+[@Leoongithub]: https://github.com/Leoongithub
+[@picuber]: https://github.com/picuber
+[@Sonicpineapple]: https://github.com/Sonicpineapple
+
 ## [UNRELEASED]
 
 ### Changed
@@ -16,18 +21,81 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Smart realign option (always enabled)
 
-### Added
-
-- "Clip 4D" option (enabled by default)
+## [1.0.5] - 2023-01-21
 
 ### Changed
 
-- Optimized rendering of invisible pieces; large puzzles now render more smoothly when many pieces are hidden
+- Tweaked "Welcome" and "About" windows
 
 ### Fixed
 
-- Incorrect YouTube link in welcome screen
+- Incorrect key names on web
+- Modifier keys sticking on web
+- "Solved!" message not appearing most of the time
+
+## [1.0.4] - 2023-01-21
+
+### Added
+
+- Web version
+- Configurable FPS limit
+- Copy/paste commands
+  - File → Open from clipboard (<kbd>Ctrl</kbd>+<kbd>V</kbd>)
+  - File → Copy (.hsc) (<kbd>Ctrl</kbd>+<kbd>C</kbd>)
+  - File → Copy (.log) (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd>)
+- "Click to copy" button on YAML editor
+
+### Changed
+
+- Tweaked UI styling due to egui update
+- Disabled VSync
+
+## [1.0.3] - 2023-01-05
+
+### Added
+
+- Opening log file passed via CLI arg
+
+### Fixed
+
+- Missing scrollbar on piece filters window
+
+## [1.0.2] - 2022-12-16
+
+### Added
+
+- Built-in "Next" and "Previous" presets for "Filter" keybindings ([@Sonicpineapple])
+
+### Changed
+
+- Tweaked default keybinds ([@Sonicpineapple])
+
+### Fixed
+
+- Preferences not saving on macOS ([@Edan-Purple])
+- Keys staying held after window loses focus
+- Incorrect key names on Linux ([@picuber])
+- Holding a key no longer twists the puzzle repeatedly ([@Edan-Purple])
+
+## [1.0.1] - 2022-11-23
+
+### Added
+
+- "Clip 4D" option (enabled by default)
+- "Realign on keypress" option (enabled by default)
+- Keybinding command to select custom view presets (not bound by default)
+- Easter egg
+
+### Changed
+
+- Optimized rendering of invisible pieces; large puzzles now render more smoothly when many pieces are hidden ([@Sonicpineapple])
+
+### Fixed
+
+- Incorrect YouTube link in welcome screen ([@Leoongithub])
 - Hovered sticker with off-center puzzle
+- Selection of fallback graphics adapter
+- Keybinds reference resizing being janky
 
 ## [1.0.0] - 2022-09-03
 

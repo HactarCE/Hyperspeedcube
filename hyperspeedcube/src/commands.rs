@@ -15,11 +15,16 @@ pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MAX: usize = 20;
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Command {
-    // File menu
+    // File menu (local)
     Open,
     Save,
     SaveAs,
     Exit,
+
+    // File menu (web)
+    CopyHscLog,
+    CopyMc4dLog,
+    PasteLog,
 
     // Edit menu
     Undo,
@@ -31,7 +36,7 @@ pub enum Command {
     ScrambleFull,
 
     // Puzzle menu
-    NewPuzzle(String),
+    NewPuzzle(PuzzleTypeEnum),
 
     ToggleBlindfold,
 
@@ -47,6 +52,10 @@ impl Command {
             Command::SaveAs => "Save As".to_owned(),
             Command::Exit => "Exit".to_owned(),
 
+            Command::CopyHscLog => "🗐".to_owned(),
+            Command::CopyMc4dLog => "🗐".to_owned(),
+            Command::PasteLog => "📋".to_owned(),
+
             Command::Undo => "⮪".to_owned(),
             Command::Redo => "⮫".to_owned(),
             Command::Reset => "⟲".to_owned(),
@@ -54,7 +63,7 @@ impl Command {
             Command::ScrambleN(n) => format!("🔀 {n}"),
             Command::ScrambleFull => "🔀".to_owned(),
 
-            Command::NewPuzzle(ty) => format!("New {ty}"),
+            Command::NewPuzzle(ty) => format!("New {}", ty.name()),
 
             Command::ToggleBlindfold => "BLD".to_owned(),
 
@@ -109,16 +118,20 @@ pub enum PuzzleCommand {
         #[serde(default)]
         keybind_set_name: String,
     },
+    ViewPreset {
+        #[serde(default)]
+        view_preset_name: String,
+    },
 
     #[default]
     #[serde(other)]
     None,
 }
 impl PuzzleCommand {
-    pub fn short_description(&self, ty: &PuzzleType) -> String {
+    pub fn short_description(&self, ty: PuzzleTypeEnum) -> String {
         match self {
             PuzzleCommand::Grip { axis, layers } => {
-                let layers = layers.to_layer_mask(ty.layer_count);
+                let layers = layers.to_layer_mask(ty.layer_count());
                 let mut s = String::new();
                 if layers != LayerMask(0) || axis.is_none() {
                     s += &layers.to_string();
@@ -134,38 +147,41 @@ impl PuzzleCommand {
                 layers,
             } => ty.twist_command_short_description(
                 axis.as_deref()
-                    .and_then(|axis_name| ty.twists.axis_from_symbol(axis_name)),
-                ty.twists.direction_from_name(direction).unwrap_or_default(),
-                layers.to_layer_mask(ty.layer_count),
+                    .and_then(|axis_name| ty.twist_axis_from_name(axis_name)),
+                ty.twist_direction_from_name(direction).unwrap_or_default(),
+                layers.to_layer_mask(ty.layer_count()),
             ),
             PuzzleCommand::Recenter { axis } => {
                 match axis
                     .as_deref()
-                    .and_then(|axis_name| ty.twists.axis_from_symbol(axis_name))
+                    .and_then(|axis_name| ty.twist_axis_from_name(axis_name))
                 {
-                    // TODO: better name here
-                    Some(twist_axis) => format!("Recenter {:?}", ty.info(twist_axis).symbol,),
-                    // Some(twist_axis) => match ty.make_recenter_twist(twist_axis) {
-                    //     Ok(twist) => ty.twist_command_short_description(
-                    //         Some(twist.axis),
-                    //         twist.direction,
-                    //         twist.layers,
-                    //     ),
-                    //     Err(_) => crate::util::INVALID_STR.to_string(),
-                    // },
+                    Some(twist_axis) => match ty.make_recenter_twist(twist_axis) {
+                        Ok(twist) => ty.twist_command_short_description(
+                            Some(twist.axis),
+                            twist.direction,
+                            twist.layers,
+                        ),
+                        Err(_) => crate::util::INVALID_STR.to_string(),
+                    },
                     None => "Recenter".to_string(),
                 }
             }
 
-            PuzzleCommand::Filter { mode, .. } => match mode {
-                FilterMode::ShowExactly => "👁".to_string(),
-                FilterMode::Show => "👁".to_string(),
-                FilterMode::Hide => "ｘ".to_string(),
-                FilterMode::HideAllExcept => "❎".to_string(),
-                FilterMode::Toggle => "~".to_string(),
+            PuzzleCommand::Filter { mode, filter_name } => match filter_name.as_str() {
+                "Next" => "➡".to_string(),
+                "Previous" => "⬅".to_string(),
+                _ => match mode {
+                    FilterMode::ShowExactly => "👁".to_string(),
+                    FilterMode::Show => "👁".to_string(),
+                    FilterMode::Hide => "ｘ".to_string(),
+                    FilterMode::HideAllExcept => "❎".to_string(),
+                    FilterMode::Toggle => "~".to_string(),
+                },
             },
 
             PuzzleCommand::KeybindSet { keybind_set_name } => format!("{keybind_set_name}"),
+            PuzzleCommand::ViewPreset { view_preset_name } => format!("{view_preset_name}"),
 
             PuzzleCommand::None => String::new(),
         }
@@ -208,6 +224,14 @@ impl PuzzleCommand {
             Self::KeybindSet {
                 keybind_set_name, ..
             } => Some(keybind_set_name),
+            _ => None,
+        }
+    }
+    pub fn view_preset_name_mut(&mut self) -> Option<&mut String> {
+        match self {
+            Self::ViewPreset {
+                view_preset_name, ..
+            } => Some(view_preset_name),
             _ => None,
         }
     }

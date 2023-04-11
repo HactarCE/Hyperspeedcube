@@ -1,6 +1,4 @@
-use std::ops::RangeInclusive;
-
-use ndpuzzle::math::*;
+use cgmath::{Deg, Quaternion, Rotation3};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -29,8 +27,7 @@ pub struct ViewPreferences {
     pub show_backfaces: bool,
     pub clip_4d: bool,
 
-    #[serde(alias = "face_spacing")]
-    pub facet_spacing: f32,
+    pub face_spacing: f32,
     pub sticker_spacing: f32,
 
     pub outline_thickness: f32,
@@ -54,7 +51,7 @@ impl Default for ViewPreferences {
             align_h: 0.0,
             align_v: 0.0,
 
-            facet_spacing: 0.0,
+            face_spacing: 0.0,
             sticker_spacing: 0.0,
 
             show_frontfaces: true,
@@ -72,32 +69,27 @@ impl Default for ViewPreferences {
 }
 
 impl ViewPreferences {
-    pub const SCALE_RANGE: RangeInclusive<f32> = 0.1..=5.0;
-    pub fn view_angle(&self) -> Rotor {
-        const X: u8 = 0;
-        const Y: u8 = 1;
-        const Z: u8 = 2;
-
-        Rotor::from_angle_in_axis_plane(Y, X, self.roll.to_radians())
-            * Rotor::from_angle_in_axis_plane(Z, Y, self.pitch.to_radians())
-            * Rotor::from_angle_in_axis_plane(X, Z, self.yaw.to_radians())
+    pub fn view_angle(&self) -> Quaternion<f32> {
+        Quaternion::from_angle_z(Deg(self.roll))
+            * Quaternion::from_angle_x(Deg(self.pitch))
+            * Quaternion::from_angle_y(Deg(self.yaw))
     }
 
     // TODO: make a proc macro crate to generate a trait impl like this
     pub fn interpolate(&self, rhs: &Self, t: f32) -> Self {
         Self {
-            // I know, I know, I should use rotors for interpolation. But I
-            // don't have an easy to way to get euler angles from a rotor and
-            // this is fine.
-            pitch: util::mix(self.pitch, rhs.pitch, t),
-            yaw: util::mix(self.yaw, rhs.yaw, t),
-            roll: util::mix(self.roll, rhs.roll, t),
+            // I know, I know, I should use quaternions for interpolation. But
+            // cgmath uses XYZ order by default instead of YXZ so doing this
+            // properly isn't trivial.
+            pitch: crate::util::mix(self.pitch, rhs.pitch, t),
+            yaw: crate::util::mix(self.yaw, rhs.yaw, t),
+            roll: crate::util::mix(self.roll, rhs.roll, t),
 
-            scale: util::mix(self.scale, rhs.scale, t),
-            fov_3d: util::mix(self.fov_3d, rhs.fov_3d, t),
-            fov_4d: util::mix(self.fov_4d, rhs.fov_4d, t),
-            align_h: util::mix(self.align_h, rhs.align_h, t),
-            align_v: util::mix(self.align_v, rhs.align_v, t),
+            scale: crate::util::mix(self.scale, rhs.scale, t),
+            fov_3d: crate::util::mix(self.fov_3d, rhs.fov_3d, t),
+            fov_4d: crate::util::mix(self.fov_4d, rhs.fov_4d, t),
+            align_h: crate::util::mix(self.align_h, rhs.align_h, t),
+            align_v: crate::util::mix(self.align_v, rhs.align_v, t),
             show_frontfaces: if t < 0.5 {
                 self.show_frontfaces
             } else {
@@ -109,13 +101,13 @@ impl ViewPreferences {
                 rhs.show_backfaces
             },
             clip_4d: if t < 0.5 { self.clip_4d } else { rhs.clip_4d },
-            facet_spacing: util::mix(self.facet_spacing, rhs.facet_spacing, t),
-            sticker_spacing: util::mix(self.sticker_spacing, rhs.sticker_spacing, t),
-            outline_thickness: util::mix(self.outline_thickness, rhs.outline_thickness, t),
-            light_ambient: util::mix(self.light_ambient, rhs.light_ambient, t),
-            light_directional: util::mix(self.light_directional, rhs.light_directional, t),
-            light_pitch: util::mix(self.light_pitch, rhs.light_pitch, t),
-            light_yaw: util::mix(self.light_yaw, rhs.light_yaw, t),
+            face_spacing: crate::util::mix(self.face_spacing, rhs.face_spacing, t),
+            sticker_spacing: crate::util::mix(self.sticker_spacing, rhs.sticker_spacing, t),
+            outline_thickness: crate::util::mix(self.outline_thickness, rhs.outline_thickness, t),
+            light_ambient: crate::util::mix(self.light_ambient, rhs.light_ambient, t),
+            light_directional: crate::util::mix(self.light_directional, rhs.light_directional, t),
+            light_pitch: crate::util::mix(self.light_pitch, rhs.light_pitch, t),
+            light_yaw: crate::util::mix(self.light_yaw, rhs.light_yaw, t),
         }
     }
 }

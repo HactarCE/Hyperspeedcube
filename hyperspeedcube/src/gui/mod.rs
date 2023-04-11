@@ -6,15 +6,13 @@ macro_rules! unique_id {
 
 #[macro_use]
 mod util;
-
+mod components;
+mod ext;
 mod key_combo_popup;
-mod keybind_set_accessors;
 mod menu_bar;
-mod prefs;
 mod puzzle_view;
 mod side_bar;
 mod status_bar;
-mod widgets;
 pub(super) mod windows;
 
 use crate::app::App;

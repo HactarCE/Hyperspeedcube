@@ -1,17 +1,24 @@
 use egui::NumExt;
 use key_names::KeyMappingCode;
-use std::sync::Arc;
 
+use super::Window;
 use crate::app::App;
 use crate::commands::{Command, PuzzleCommand};
-use crate::gui::util;
+use crate::gui::components::PrefsUi;
+use crate::gui::util::{set_widget_spacing_to_space_width, subtract_space};
 use crate::preferences::{Key, Keybind, DEFAULT_PREFS};
 use crate::puzzle::{traits::*, LayerMask};
 
 const SCALED_KEY_PADDING: f32 = 0.0;
 const MIN_KEY_PADDING: f32 = 4.0;
 
-pub fn build(ui: &mut egui::Ui, app: &mut App) {
+pub(crate) const KEYBINDS_REFERENCE: Window = Window {
+    name: "Keybinds reference",
+    build,
+    ..Window::DEFAULT
+};
+
+fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.scope(|ui| {
         let prefs = app.prefs.info.keybinds_reference;
 
@@ -44,7 +51,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         if let Some(total_rect) = areas.iter().map(|area| area.rect).reduce(egui::Rect::union) {
             // How much space is available?
             let max_scale = ui.available_size() / total_rect.size();
-            let scale = max_scale.min_elem().at_least(min_scale).ceil();
+            let scale = max_scale.x.at_least(min_scale).round();
             // Allocate that much space.
             let (_id, rect) = ui.allocate_space(total_rect.size() * scale);
             let origin = rect.min - total_rect.min.to_vec2() * scale;
@@ -73,7 +80,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 
     ui.collapsing("Settings", |ui| {
         let mut changed = false;
-        let mut prefs_ui = util::PrefsUi {
+        let mut prefs_ui = PrefsUi {
             ui,
             current: &mut app.prefs.info.keybinds_reference,
             defaults: &DEFAULT_PREFS.info.keybinds_reference,
@@ -84,7 +91,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
         prefs_ui.checkbox("Function keys", access!(.function));
         prefs_ui.checkbox("Navigation keys", access!(.navigation));
         prefs_ui.checkbox("Numpad", access!(.numpad));
-        prefs_ui.float("Max font size", access!(.max_font_size), |dv| {
+        prefs_ui.num("Max font size", access!(.max_font_size), |dv| {
             dv.fixed_decimals(1).clamp_range(1.0..=3.0).speed(0.01)
         });
 
@@ -93,12 +100,12 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::Rect) {
-    let puzzle_type = Arc::clone(app.puzzle.ty());
+    let puzzle_type = app.puzzle.ty();
 
     let vk = key_names::key_to_winit_vkey(key);
     let matching_puzzle_keybinds: Vec<&Keybind<PuzzleCommand>> = app
         .resolve_keypress(
-            app.prefs.puzzle_keybinds[&puzzle_type].get_active_keybinds(),
+            app.prefs.puzzle_keybinds[puzzle_type].get_active_keybinds(),
             Some(key),
             vk,
         )
@@ -121,19 +128,19 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                 PuzzleCommand::Twist { axis, .. } | PuzzleCommand::Recenter { axis } => {
                     match app.gripped_twist_axis(axis.as_deref()) {
                         Ok(gripped_axis) => {
-                            *axis = Some(puzzle_type.info(gripped_axis).symbol.to_string())
+                            *axis = Some(puzzle_type.info(gripped_axis).name.to_string())
                         }
                         Err(_) => return None,
                     }
                 }
                 _ => (),
             }
-            Some(c.short_description(&puzzle_type))
+            Some(c.short_description(puzzle_type))
         })
         .or_else(|| {
             matching_puzzle_keybinds
                 .first()
-                .map(|bind| bind.command.short_description(&puzzle_type))
+                .map(|bind| bind.command.short_description(puzzle_type))
         })
         .or_else(|| {
             matching_global_keybinds
@@ -159,7 +166,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
         ui.heading(get_key_name(key));
 
         // Adjust spacing so we don't have to add spaces manually.
-        util::set_widget_spacing_to_space_widgth(ui);
+        set_widget_spacing_to_space_width(ui);
 
         for bind in matching_puzzle_keybinds {
             ui.horizontal_wrapped(|ui| match &bind.command {
@@ -169,7 +176,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         ui.strong(twist_axis);
                     }
                     if !layers.is_default() {
-                        let layers = layers.to_layer_mask(puzzle_type.layer_count);
+                        let layers = layers.to_layer_mask(puzzle_type.layer_count());
                         ui.strong(layers.long_description());
                     }
                 }
@@ -179,7 +186,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                     direction,
                     layers,
                 } => {
-                    let layers = layers.to_layer_mask(puzzle_type.layer_count);
+                    let layers = layers.to_layer_mask(puzzle_type.layer_count());
                     if layers == puzzle_type.all_layers() {
                         ui.label("Rotate");
                         ui.strong("whole puzzle");
@@ -196,9 +203,9 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                         ui.label("direction");
                         if !layers.is_default() {
                             ui.label("(");
-                            util::subtract_space(ui);
+                            subtract_space(ui);
                             ui.strong(layers.long_description());
-                            util::subtract_space(ui);
+                            subtract_space(ui);
                             ui.label(")");
                         }
                     }
@@ -220,6 +227,11 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                     ui.strong(keybind_set_name);
                     ui.label("keybinds");
                 }
+                PuzzleCommand::ViewPreset { view_preset_name } => {
+                    ui.label("Switch to");
+                    ui.strong(view_preset_name);
+                    ui.label("view");
+                }
 
                 PuzzleCommand::None => unreachable!(),
             });
@@ -231,6 +243,10 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
                 Command::Save => ui.label("Save"),
                 Command::SaveAs => ui.label("Save As"),
                 Command::Exit => ui.label("Exit"),
+
+                Command::CopyHscLog => ui.label("Copy puzzle log (.hsc)"),
+                Command::CopyMc4dLog => ui.label("Copy puzzle log (.log)"),
+                Command::PasteLog => ui.label("Paste puzzle log"),
 
                 Command::Undo => ui.label("Undo"),
                 Command::Redo => ui.label("Redo"),
@@ -244,7 +260,7 @@ fn draw_key(ui: &mut egui::Ui, app: &mut App, key: KeyMappingCode, rect: egui::R
 
                 Command::NewPuzzle(ty) => {
                     ui.label("Load new");
-                    ui.strong(ty);
+                    ui.strong(ty.name());
                     ui.label("puzzle")
                 }
 
@@ -275,7 +291,7 @@ fn autosize_button_text(
         }
         font_size -= 1.0;
     }
-    egui::RichText::new("")
+    egui::RichText::new(".")
 }
 
 macro_rules! keyboard_key {
