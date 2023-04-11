@@ -20,8 +20,9 @@ impl GraphicsState {
         let size = window.inner_size();
 
         // Create surface.
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(&window) };
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+        let surface =
+            unsafe { instance.create_surface(&window) }.expect("failed to create surface");
 
         // Request adapter.
         let adapter = request_adapter(&instance, &surface).await;
@@ -46,14 +47,12 @@ impl GraphicsState {
         // Configure surface.
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: *surface
-                .get_supported_formats(&adapter)
-                .get(0)
-                .expect("unsupported graphics adapter"),
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::AutoNoVsync, // VSync on
+            present_mode: wgpu::PresentMode::AutoNoVsync, // TODO: test with various VSync modes
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![wgpu::TextureFormat::Rgba8Unorm],
         };
         surface.configure(&device, &config);
 
@@ -69,6 +68,7 @@ impl GraphicsState {
             dimension: wgpu::TextureDimension::D2,
             format: config.format,
             usage: wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
         });
 
         Self {

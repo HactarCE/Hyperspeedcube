@@ -4,16 +4,18 @@ use instant::Instant;
 use std::sync::Arc;
 
 mod cache;
-mod mesh;
+// mod mesh;
 mod shaders;
 mod state;
-mod structs;
+// mod structs;
 
-use crate::app::App;
-use crate::puzzle::ProjectedStickerGeometry;
-use cache::{CachedDynamicBuffer, CachedUniformBuffer};
+// use crate::app::App;
+// use crate::puzzle::ProjectedStickerGeometry;
+// use cache::{CachedDynamicBuffer, CachedUniformBuffer};
 pub(crate) use state::GraphicsState;
-use structs::*;
+// use structs::*;
+
+/*
 
 #[derive(Debug, Clone, PartialEq)]
 struct PuzzleRenderParams {
@@ -362,3 +364,5 @@ fn extent3d(width: u32, height: u32) -> wgpu::Extent3d {
         depth_or_array_layers: 1,
     }
 }
+
+*/

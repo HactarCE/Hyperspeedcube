@@ -11,10 +11,6 @@
 )]
 
 #[macro_use]
-extern crate ambassador;
-#[macro_use]
-extern crate enum_dispatch;
-#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate strum;
@@ -24,20 +20,20 @@ use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 use winit::event::{ElementState, Event, KeyboardInput, WindowEvent};
-use winit::event_loop::EventLoopBuilder;
+use winit::event_loop::EventLoop;
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::WindowBuilderExtWebSys;
 
 #[macro_use]
 mod debug;
 mod app;
-mod commands;
+// mod commands;
 mod gui;
 #[cfg(not(target_arch = "wasm32"))]
 mod icon;
-mod logfile;
-mod preferences;
-pub mod puzzle;
+// mod logfile;
+// mod preferences;
+// pub mod puzzle;
 mod render;
 mod serde_impl;
 mod util;
@@ -110,7 +106,7 @@ fn main() {
 
 async fn run() {
     // Initialize window.
-    let event_loop = EventLoopBuilder::with_user_event().build();
+    let event_loop = EventLoop::with_user_event();
     #[cfg(not(target_arch = "wasm32"))]
     let window_builder = winit::window::WindowBuilder::new()
         .with_title(crate::TITLE)
@@ -136,7 +132,6 @@ async fn run() {
     match dark_light::detect() {
         dark_light::Mode::Light => switch_to_light_mode(&egui_ctx),
         dark_light::Mode::Dark => switch_to_dark_mode(&egui_ctx),
-        dark_light::Mode::Default => switch_to_dark_mode(&egui_ctx),
     };
     let mut egui_renderer = egui_wgpu::Renderer::new(&gfx.device, gfx.config.format, None, 1);
     let puzzle_texture_id = egui_renderer.register_native_texture(
@@ -150,9 +145,9 @@ async fn run() {
     // Initialize app state.
     let mut app = App::new(&event_loop, initial_file);
 
-    if app.prefs.show_welcome_at_startup {
-        gui::windows::WELCOME.set_open(&egui_ctx, true);
-    }
+    // if app.prefs.show_welcome_at_startup {
+    //     gui::windows::WELCOME.set_open(&egui_ctx, true);
+    // }
 
     #[cfg(target_arch = "wasm32")]
     let mut web_workarounds = web_workarounds::WebWorkarounds::new(&event_loop, &window);
@@ -214,8 +209,10 @@ async fn run() {
         // Prioritize sending events to the key combo popup.
         match &ev {
             Event::WindowEvent { window_id, event } if *window_id == window.id() => {
-                gui::key_combo_popup_handle_event(&egui_ctx, &mut app, event);
-                event_has_been_captured |= gui::key_combo_popup_captures_event(&egui_ctx, event);
+                // TODO: key_combo_popup_handle_event
+
+                // gui::key_combo_popup_handle_event(&egui_ctx, &mut app, event);
+                // event_has_been_captured |= gui::key_combo_popup_captures_event(&egui_ctx, event);
             }
             _ => (),
         }
@@ -312,10 +309,11 @@ async fn run() {
                     web_workarounds.inject_paste_event(&mut egui_input);
                     // Handle paste on desktop, which is just ... ugh.
                     #[cfg(not(target_arch = "wasm32"))]
-                    egui_ctx
-                        .input_mut()
-                        .events
-                        .push(egui::Event::Paste(clipboard.get().unwrap_or_default()));
+                    egui_ctx.input_mut(|input| {
+                        input
+                            .events
+                            .push(egui::Event::Paste(clipboard.get().unwrap_or_default()))
+                    });
 
                     // Pass paste event to the application.
                     if !egui_ctx.wants_keyboard_input() {

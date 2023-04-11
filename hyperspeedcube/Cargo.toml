@@ -17,7 +17,7 @@ cgmath = "0.18.0"
 config = "0.13.1"
 dark-light = "0.2.1"
 directories = "4.0.1"
-egui = "0.18.0"
+egui = "0.21.0"
 egui-wgpu = "0.21.0"
 enum-iterator = "1.4.0"
 env_logger = "0.10.0"
@@ -45,20 +45,20 @@ smallvec = { version = "1.8.0", features = ["serde", "union"] }
 strum = { version = "0.24.0", features = ["derive"] }
 time = { version = "0.3.7", features = ["local-offset"] }
 wgpu = { version = "0.15.1", features = ["webgl"] }
-winit = { version = "0.26.0", features = ["serde"] }
+winit = { version = "0.28.3", features = ["serde"] }
 
 ndpuzzle = { path = "../ndpuzzle" }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.20" }
+egui-winit = { version = "0.21" }
 human-panic = "1.0"
 tracing-subscriber = "0.3"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
-egui-winit = { version = "0.20", default-features = false, features = ["links"] }
+egui-winit = { version = "0.21", default-features = false, features = ["links"] }
 js-sys = "=0.3.61"
 tracing-wasm = "0.2"
 wasm-bindgen = "0.2"
@@ -75,9 +75,6 @@ web-sys = { version = "=0.3.61", features = [
     "Storage",
     "Window",
 ] }
-
-[profile.release]
-opt-level = 2 # fast and small wasm
 
 [features]
 optick = ["dep:optick", "dep:optick-attr"]
