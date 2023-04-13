@@ -1,8 +1,0 @@
-name: Default
-shape:
-  ndim: 3
-  facets:
-    - symmetry:
-        - schlafli: 4,3
-      seeds:
-        - pole: [1, 0, 0]

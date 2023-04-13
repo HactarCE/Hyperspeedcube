@@ -15,18 +15,18 @@ extern crate lazy_static;
 #[macro_use]
 extern crate strum;
 
+use gui::AppUi;
 use instant::{Duration, Instant};
 use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 use winit::event::{ElementState, Event, KeyboardInput, WindowEvent};
-use winit::event_loop::EventLoop;
+use winit::event_loop::EventLoopBuilder;
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::WindowBuilderExtWebSys;
 
 #[macro_use]
 mod debug;
-mod app;
 // mod commands;
 mod gui;
 #[cfg(not(target_arch = "wasm32"))]
@@ -34,6 +34,7 @@ mod icon;
 // mod logfile;
 // mod preferences;
 // pub mod puzzle;
+mod app;
 mod render;
 mod serde_impl;
 mod util;
@@ -106,7 +107,7 @@ fn main() {
 
 async fn run() {
     // Initialize window.
-    let event_loop = EventLoop::with_user_event();
+    let event_loop = EventLoopBuilder::with_user_event().build();
     #[cfg(not(target_arch = "wasm32"))]
     let window_builder = winit::window::WindowBuilder::new()
         .with_title(crate::TITLE)
@@ -143,11 +144,8 @@ async fn run() {
     let initial_file = std::env::args().nth(1).map(std::path::PathBuf::from);
 
     // Initialize app state.
+    let mut ui = AppUi::new();
     let mut app = App::new(&event_loop, initial_file);
-
-    // if app.prefs.show_welcome_at_startup {
-    //     gui::windows::WELCOME.set_open(&egui_ctx, true);
-    // }
 
     #[cfg(target_arch = "wasm32")]
     let mut web_workarounds = web_workarounds::WebWorkarounds::new(&event_loop, &window);
@@ -165,7 +163,7 @@ async fn run() {
             web_workarounds.generate_modifiers_changed_event(&ev);
             web_workarounds.generate_resize_event(&window);
 
-            if let Event::UserEvent(app::AppEvent::WebWorkaround(web_event)) = ev {
+            if let Event::UserEvent(AppEvent::WebWorkaround(web_event)) = ev {
                 match web_event {
                     web_workarounds::WebEvent::EmulateWindowEvent(e) => Event::WindowEvent {
                         window_id: window.id(),
@@ -326,7 +324,7 @@ async fn run() {
 
                     let egui_output = egui_ctx.run(egui_input, |ctx| {
                         // Build all the UI.
-                        gui::build(ctx, &mut app, puzzle_texture_id);
+                        ui.build(ctx, &mut app);
                     });
 
                     // Handle cut & copy on web, which winit *should* do for us.

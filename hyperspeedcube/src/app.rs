@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Weak;
 use wgpu::TextureView;
 use winit::event::WindowEvent;
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
@@ -8,7 +9,11 @@ use crate::render::GraphicsState;
 pub struct App {
     events: EventLoopProxy<AppEvent>,
     pub(crate) prefs: PrefsTemporary,
+
+    active_view: Weak<ModelView>,
 }
+
+pub struct ModelView {}
 
 impl App {
     pub(crate) fn new(event_loop: &EventLoop<AppEvent>, _initial_file: Option<PathBuf>) -> Self {
@@ -21,6 +26,8 @@ impl App {
                     background: egui::Color32::BLACK,
                 },
             },
+
+            active_view: Weak::new(),
         }
     }
 
@@ -61,6 +68,17 @@ impl App {
 
     pub(crate) fn frame(&mut self) {
         // TODO
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PuzzleTemporary {}
+impl PuzzleTemporary {
+    pub fn has_undo(&self) -> bool {
+        false
+    }
+    pub fn has_redo(&self) -> bool {
+        false
     }
 }
 
