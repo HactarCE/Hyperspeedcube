@@ -2583,6 +2583,7 @@ dependencies = [
  "ball-tree",
  "bitflags",
  "bitvec",
+ "bytemuck",
  "cgmath",
  "eframe",
  "enum-iterator",

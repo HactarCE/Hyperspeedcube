@@ -26,3 +26,9 @@ impl BasicVertex {
         ],
     };
 }
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct ViewParams {
+    pub mat: [[f32; 4]; 4],
+}

@@ -129,6 +129,14 @@ impl Matrix {
             (i == j) as u8 as f32 - 2.0 * v.get(i) * v.get(j)
         })
     }
+    /// Constructs a nonuniform scaling matrix.
+    pub fn from_nonuniform_scaling(v: impl VectorRef) -> Self {
+        let mut ret = Self::zero(v.ndim());
+        for (i, elem) in v.iter_nonzero() {
+            *ret.get_mut(i, i) = elem;
+        }
+        ret
+    }
 
     /// Returns the number of dimensions (size) of the matrix.
     pub fn ndim(&self) -> u8 {

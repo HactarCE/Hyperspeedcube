@@ -41,7 +41,6 @@ impl Pipelines {
             wgpu::BufferBindingType::Storage { read_only: true };
         const STORAGE_WRITE: wgpu::BufferBindingType =
             wgpu::BufferBindingType::Storage { read_only: false };
-        const COMPUTE: wgpu::ShaderStages = wgpu::ShaderStages::COMPUTE;
 
         let workgroup_size = device.limits().max_compute_workgroup_size_x;
 
@@ -53,14 +52,40 @@ impl Pipelines {
 
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some("render_basic"),
-                    layout: None,
+                    layout: Some(
+                        &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                            label: Some("render_basic_pipeline_layout"),
+                            bind_group_layouts: &[&device.create_bind_group_layout(
+                                &wgpu::BindGroupLayoutDescriptor {
+                                    label: None,
+                                    entries: &[wgpu::BindGroupLayoutEntry {
+                                        binding: 0,
+                                        visibility: wgpu::ShaderStages::VERTEX,
+                                        ty: wgpu::BindingType::Buffer {
+                                            ty: wgpu::BufferBindingType::Uniform,
+                                            has_dynamic_offset: false,
+                                            min_binding_size: None,
+                                        },
+                                        count: None,
+                                    }],
+                                },
+                            )],
+                            push_constant_ranges: &[],
+                        }),
+                    ),
                     vertex: wgpu::VertexState {
                         module: &shader_module,
                         entry_point: "vs_main",
                         buffers: &[BasicVertex::LAYOUT],
                     },
                     primitive: wgpu::PrimitiveState::default(),
-                    depth_stencil: None,
+                    depth_stencil: Some(wgpu::DepthStencilState {
+                        format: wgpu::TextureFormat::Depth24Plus,
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Greater,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
                     multisample: wgpu::MultisampleState::default(),
                     fragment: Some(wgpu::FragmentState {
                         module: &shader_module,

@@ -1,4 +1,5 @@
 use egui_dock::NodeIndex;
+use ndpuzzle::math::cga::Isometry;
 use parking_lot::Mutex;
 
 macro_rules! unique_id {
@@ -200,6 +201,11 @@ impl PuzzleView {
             egui::Image::new(self.texture_id, egui_rect.size())
                 .sense(egui::Sense::click_and_drag()),
         );
+
+        self.puzzle_view_render_state.rot =
+            Isometry::from_angle_in_axis_plane(0, 2, r.drag_delta().x * -0.01)
+                * Isometry::from_angle_in_axis_plane(1, 2, r.drag_delta().y * 0.01)
+                * &self.puzzle_view_render_state.rot;
     }
 
     fn render_and_update_texture(

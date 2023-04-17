@@ -5,14 +5,15 @@
 
 use itertools::Itertools;
 use ndpuzzle::{
-    math::{Matrix, Sign, Vector, VectorRef},
+    math::{cga::Isometry, Matrix, Sign, Vector, VectorRef},
     puzzle::{Mesh, PerPiece, PerSticker},
+    vector,
 };
 use std::fmt;
 use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
 
-use crate::render::structs::BasicVertex;
+use crate::render::structs::{BasicVertex, ViewParams};
 
 use super::{GfxProjectionParams, GraphicsState};
 
@@ -22,6 +23,8 @@ pub(crate) struct PuzzleViewRenderState {
     piece_count: usize,
 
     model: PuzzleModel,
+
+    pub rot: Isometry,
 
     /// Projection parameters uniform buffer.
     projection_params_buffer: wgpu::Buffer,
@@ -36,6 +39,7 @@ pub(crate) struct PuzzleViewRenderState {
 
     /// Output color texture.
     color_texture: CachedTexture,
+    depth_texture: CachedTexture,
 }
 
 impl fmt::Debug for PuzzleViewRenderState {
@@ -60,6 +64,8 @@ impl PuzzleViewRenderState {
             piece_count: mesh.piece_count(),
 
             model: PuzzleModel::new(gfx, mesh, id),
+
+            rot: Isometry::ident(),
 
             projection_params_buffer: gfx.create_uniform_buffer::<GfxProjectionParams>(format!(
                 "puzzle{id}_projection_params",
@@ -93,6 +99,11 @@ impl PuzzleViewRenderState {
                 wgpu::TextureFormat::Bgra8Unorm,
                 wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
             ),
+            depth_texture: CachedTexture::new_2d(
+                format!("puzzle{id}_depth_texture"),
+                wgpu::TextureFormat::Depth24Plus,
+                wgpu::TextureUsages::RENDER_ATTACHMENT,
+            ),
         }
     }
 
@@ -108,17 +119,15 @@ impl PuzzleViewRenderState {
             return None;
         }
 
-        // Make the texture the right size.
-        let (color_texture, color_texture_view) = self.color_texture.at_size(
-            gfx,
-            wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-        );
-
         let size = cgmath::vec2(width as f32, height as f32);
+        let tex_size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+
+        // Make the texture the right size.
+        let (color_texture, color_texture_view) = self.color_texture.at_size(gfx, tex_size);
 
         struct ViewPrefs {
             scale: f32,
@@ -226,6 +235,7 @@ impl PuzzleViewRenderState {
                 .zip(colors)
                 .flat_map(|((axes, sign), color)| {
                     let [a, u, v] = axes.map(Vector::unit);
+                    let a = a * sign.to_f32();
                     let vert = |pos: Vector| BasicVertex {
                         pos: [0, 1, 2].map(|i| pos.get(i) / 3.0),
                         color,
@@ -241,7 +251,28 @@ impl PuzzleViewRenderState {
                 })
                 .collect_vec();
 
-        let buf = gfx.create_buffer_init("cube", &vertex_data, wgpu::BufferUsages::VERTEX);
+        let vertex_buffer =
+            gfx.create_buffer_init("cube", &vertex_data, wgpu::BufferUsages::VERTEX);
+        let uniform_buffer = gfx.create_uniform_buffer::<ViewParams>("view_uniform");
+        let mat = Matrix::from_nonuniform_scaling(vector![scale.x, scale.y])
+            * self.rot.euclidean_rotation_matrix();
+        gfx.queue.write_buffer(
+            &uniform_buffer,
+            0,
+            bytemuck::bytes_of(&ViewParams {
+                mat: [0, 1, 2, 3].map(|i| [0, 1, 2, 3].map(|j| mat.get(i, j))),
+            }),
+        );
+        let uniform_bind_group = gfx.create_bind_group_of_buffers(
+            "uniforms",
+            &[(
+                wgpu::ShaderStages::VERTEX,
+                wgpu::BufferBindingType::Uniform,
+                &uniform_buffer,
+            )],
+        );
+
+        let (depth_texture, depth_texture_view) = self.depth_texture.at_size(gfx, tex_size);
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -259,11 +290,19 @@ impl PuzzleViewRenderState {
                         store: true,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: depth_texture_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
             });
 
             render_pass.set_pipeline(&gfx.pipelines.render_basic);
-            render_pass.set_vertex_buffer(0, buf.slice(..));
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.set_bind_group(0, &uniform_bind_group, &[]);
 
             render_pass.draw(0..vertex_data.len() as u32, 0..1);
         }
