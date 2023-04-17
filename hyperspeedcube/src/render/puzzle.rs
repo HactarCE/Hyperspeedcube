@@ -227,8 +227,8 @@ impl PuzzleViewRenderState {
             [1.0, 0.3, 0.0],
             [0.8, 0.8, 0.8],
             [0.8, 0.8, 0.0],
-            [0.0, 0.0, 0.7],
             [0.0, 0.7, 0.2],
+            [0.0, 0.0, 0.7],
         ];
         let vertex_data =
             itertools::iproduct!([[0, 1, 2], [1, 2, 0], [2, 0, 1]], [Sign::Pos, Sign::Neg])
