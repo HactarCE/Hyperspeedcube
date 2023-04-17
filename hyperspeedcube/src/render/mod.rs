@@ -5,15 +5,17 @@ use std::sync::Arc;
 
 mod cache;
 // mod mesh;
-mod shaders;
+mod pipelines;
+mod puzzle;
 mod state;
-// mod structs;
+mod structs;
 
 // use crate::app::App;
 // use crate::puzzle::ProjectedStickerGeometry;
 // use cache::{CachedDynamicBuffer, CachedUniformBuffer};
+pub(crate) use puzzle::PuzzleViewRenderState;
 pub(crate) use state::GraphicsState;
-// use structs::*;
+use structs::*;
 
 /*
 

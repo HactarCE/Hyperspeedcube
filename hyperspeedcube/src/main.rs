@@ -144,7 +144,7 @@ async fn run() {
     let initial_file = std::env::args().nth(1).map(std::path::PathBuf::from);
 
     // Initialize app state.
-    let mut ui = AppUi::new();
+    let mut ui = AppUi::new(&gfx, &mut egui_renderer);
     let mut app = App::new(&event_loop, initial_file);
 
     #[cfg(target_arch = "wasm32")]
@@ -350,20 +350,7 @@ async fn run() {
                     }
 
                     // Draw puzzle if necessary.
-                    if let Some(puzzle_texture) = app.draw_puzzle(&mut gfx) {
-                        log::trace!("Repainting puzzle");
-
-                        // Update texture for egui.
-                        egui_renderer.update_egui_texture_from_wgpu_texture(
-                            &gfx.device,
-                            &puzzle_texture,
-                            wgpu::FilterMode::Linear,
-                            puzzle_texture_id,
-                        );
-
-                        // Request a repaint.
-                        egui_ctx.request_repaint();
-                    }
+                    ui.render_puzzle_views(&gfx, &egui_ctx, &mut egui_renderer);
 
                     let frame_duration = app.prefs.gfx.frame_duration();
                     next_frame_time += frame_duration;
@@ -455,7 +442,7 @@ async fn run() {
                     }
 
                     // Submit the commands.
-                    gfx.queue.submit(std::iter::once(encoder.finish()));
+                    gfx.queue.submit([encoder.finish()]);
 
                     // Present the frame.
                     output_frame.present();

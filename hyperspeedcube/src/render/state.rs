@@ -1,4 +1,8 @@
-use super::shaders::Shaders;
+use itertools::Itertools;
+use std::fmt;
+use wgpu::util::DeviceExt;
+
+use super::pipelines::Pipelines;
 
 /// Graphics state for the whole window.
 pub(crate) struct GraphicsState {
@@ -8,7 +12,7 @@ pub(crate) struct GraphicsState {
     pub(crate) queue: wgpu::Queue,
     pub(crate) config: wgpu::SurfaceConfiguration,
 
-    pub(super) shaders: Shaders,
+    pub(super) pipelines: Pipelines,
 
     pub(crate) scale_factor: f32,
 
@@ -56,7 +60,7 @@ impl GraphicsState {
         };
         surface.configure(&device, &config);
 
-        let shaders = Shaders::new();
+        let pipelines = Pipelines::new(&device);
 
         let scale_factor = window.scale_factor() as f32;
 
@@ -78,7 +82,7 @@ impl GraphicsState {
             queue,
             config,
 
-            shaders,
+            pipelines,
 
             scale_factor,
 
@@ -104,46 +108,43 @@ impl GraphicsState {
             .create_view(&wgpu::TextureViewDescriptor::default())
     }
 
-    pub(super) fn create_uniform<T>(
+    pub(super) fn create_buffer_init<T: Default + bytemuck::NoUninit>(
         &self,
-        label: Option<&str>,
-        binding: u32,
-    ) -> (wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
-        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label,
-            size: std::cmp::max(std::mem::size_of::<T>() as u64, 1024),
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-            mapped_at_creation: false,
-        });
+        label: impl fmt::Display,
+        contents: &[T],
+        usage: wgpu::BufferUsages,
+    ) -> wgpu::Buffer {
+        let mut contents = contents.to_vec();
+        pad_buffer_if_necessary(&mut contents);
 
-        let bind_group_layout =
-            self.device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: label.map(|s| format!("{s}_bind_group_layout")).as_deref(),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-
-        let bind_group = {
-            self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: label.map(|s| format!("{s}_bind_group")).as_deref(),
-                layout: &bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding,
-                    resource: buffer.as_entire_binding(),
-                }],
+        self.device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(&label.to_string()),
+                contents: bytemuck::cast_slice::<T, u8>(contents.as_slice()),
+                usage,
             })
-        };
+    }
+    pub(super) fn create_buffer<T>(
+        &self,
+        label: impl fmt::Display,
+        len: usize,
+        usage: wgpu::BufferUsages,
+    ) -> wgpu::Buffer {
+        let size = std::mem::size_of::<T>() * len;
+        self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(&label.to_string()),
+            size: wgpu::util::align_to(size as u64, wgpu::COPY_BUFFER_ALIGNMENT),
+            usage,
+            mapped_at_creation: false,
+        })
+    }
 
-        (buffer, bind_group_layout, bind_group)
+    pub(super) fn create_uniform_buffer<T>(&self, label: impl fmt::Display) -> wgpu::Buffer {
+        self.create_buffer::<T>(
+            label,
+            1,
+            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+        )
     }
 
     pub(super) fn create_texture(
@@ -178,6 +179,77 @@ impl GraphicsState {
         let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
         (tex, view)
     }
+
+    pub(super) fn create_bind_group_of_buffers(
+        &self,
+        label: &str,
+        entries: &[(wgpu::ShaderStages, wgpu::BufferBindingType, &wgpu::Buffer)],
+    ) -> wgpu::BindGroup {
+        self.create_bind_group_of_buffers_with_offsets(
+            label,
+            &entries
+                .iter()
+                .map(|&(vis, ty, buf)| (vis, ty, buf, 0))
+                .collect_vec(),
+        )
+    }
+    pub(super) fn create_bind_group_of_buffers_with_offsets(
+        &self,
+        label: &str,
+        entries: &[(
+            wgpu::ShaderStages,
+            wgpu::BufferBindingType,
+            &wgpu::Buffer,
+            u64,
+        )],
+    ) -> wgpu::BindGroup {
+        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some(label),
+            layout: &self.create_bind_group_layout_of_buffers(
+                &format!("{label}_layout"),
+                &entries
+                    .iter()
+                    .map(|&(vis, ty, _buffer, _offset)| (vis, ty))
+                    .collect_vec(),
+            ),
+            entries: &entries
+                .iter()
+                .enumerate()
+                .map(|(i, &(_vis, _ty, buffer, offset))| wgpu::BindGroupEntry {
+                    binding: i as u32,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer,
+                        offset,
+                        size: None,
+                    }),
+                })
+                .collect_vec(),
+        })
+    }
+    pub(super) fn create_bind_group_layout_of_buffers(
+        &self,
+        label: &str,
+        entries: &[(wgpu::ShaderStages, wgpu::BufferBindingType)],
+    ) -> wgpu::BindGroupLayout {
+        self.device
+            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some(label),
+                entries: &entries
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &(visibility, ty))| wgpu::BindGroupLayoutEntry {
+                        binding: i as u32,
+                        visibility,
+                        ty: wgpu::BindingType::Buffer {
+                            ty,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    })
+                    .collect_vec(),
+            })
+    }
 }
 
 async fn request_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::Adapter {
@@ -196,4 +268,15 @@ async fn request_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> 
     }
 
     panic!("unable to request graphics adapter")
+}
+
+/// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.
+pub(super) fn pad_buffer_if_necessary<T: Default + bytemuck::NoUninit>(buf: &mut Vec<T>) {
+    loop {
+        let bytes_len = bytemuck::cast_slice::<T, u8>(buf).len();
+        if bytes_len > 0 && bytes_len as u64 % wgpu::COPY_BUFFER_ALIGNMENT == 0 {
+            break;
+        }
+        buf.push(T::default());
+    }
 }

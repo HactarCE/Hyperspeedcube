@@ -64,47 +64,47 @@ impl CachedDynamicBuffer {
     }
 }
 
-pub(crate) struct CachedUniformBuffer<T> {
-    label: Option<&'static str>,
-    binding: u32,
-    buffer: OnceCell<(wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup)>,
-    _phantom: PhantomData<T>,
-}
-impl<T> CachedUniformBuffer<T> {
-    pub(super) fn new(label: Option<&'static str>, binding: u32) -> Self {
-        Self {
-            label,
-            binding,
-            buffer: OnceCell::new(),
-            _phantom: PhantomData,
-        }
-    }
-    pub(super) fn get(
-        &self,
-        gfx: &GraphicsState,
-    ) -> &(wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
-        self.buffer
-            .get_or_init(|| gfx.create_uniform::<T>(self.label, self.binding))
-    }
+// pub(crate) struct CachedUniformBuffer<T> {
+//     label: Option<&'static str>,
+//     binding: u32,
+//     buffer: OnceCell<(wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup)>,
+//     _phantom: PhantomData<T>,
+// }
+// impl<T> CachedUniformBuffer<T> {
+//     pub(super) fn new(label: Option<&'static str>, binding: u32) -> Self {
+//         Self {
+//             label,
+//             binding,
+//             buffer: OnceCell::new(),
+//             _phantom: PhantomData,
+//         }
+//     }
+//     pub(super) fn get(
+//         &self,
+//         gfx: &GraphicsState,
+//     ) -> &(wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
+//         self.buffer
+//             .get_or_init(|| gfx.create_uniform::<T>(self.label, self.binding))
+//     }
 
-    pub(super) fn buffer(&self, gfx: &GraphicsState) -> &wgpu::Buffer {
-        &self.get(gfx).0
-    }
-    pub(super) fn bind_group_layout(&self, gfx: &GraphicsState) -> &wgpu::BindGroupLayout {
-        &self.get(gfx).1
-    }
-    pub(super) fn bind_group(&self, gfx: &GraphicsState) -> &wgpu::BindGroup {
-        &self.get(gfx).2
-    }
+//     pub(super) fn buffer(&self, gfx: &GraphicsState) -> &wgpu::Buffer {
+//         &self.get(gfx).0
+//     }
+//     pub(super) fn bind_group_layout(&self, gfx: &GraphicsState) -> &wgpu::BindGroupLayout {
+//         &self.get(gfx).1
+//     }
+//     pub(super) fn bind_group(&self, gfx: &GraphicsState) -> &wgpu::BindGroup {
+//         &self.get(gfx).2
+//     }
 
-    pub(super) fn write(&self, gfx: &GraphicsState, data: &T)
-    where
-        T: bytemuck::NoUninit,
-    {
-        gfx.queue
-            .write_buffer(self.buffer(gfx), 0, bytemuck::bytes_of(data));
-    }
-}
+//     pub(super) fn write(&self, gfx: &GraphicsState, data: &T)
+//     where
+//         T: bytemuck::NoUninit,
+//     {
+//         gfx.queue
+//             .write_buffer(self.buffer(gfx), 0, bytemuck::bytes_of(data));
+//     }
+// }
 
 /// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.
 fn pad_buffer_if_necessary<T: Default + bytemuck::NoUninit>(buf: &mut Vec<T>) {

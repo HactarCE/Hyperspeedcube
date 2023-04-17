@@ -48,7 +48,7 @@ time = { version = "0.3.7", features = ["local-offset"] }
 wgpu = { version = "0.15.1", features = ["webgl"] }
 winit = { version = "0.28.3", features = ["serde"] }
 
-ndpuzzle = { path = "../ndpuzzle" }
+ndpuzzle = { path = "../ndpuzzle", features = ["bytemuck"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
