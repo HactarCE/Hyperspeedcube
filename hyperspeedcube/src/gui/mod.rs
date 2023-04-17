@@ -202,10 +202,13 @@ impl PuzzleView {
                 .sense(egui::Sense::click_and_drag()),
         );
 
-        self.puzzle_view_render_state.rot =
-            Isometry::from_angle_in_axis_plane(0, 2, r.drag_delta().x * -0.01)
-                * Isometry::from_angle_in_axis_plane(1, 2, r.drag_delta().y * 0.01)
-                * &self.puzzle_view_render_state.rot;
+        let min_size = egui_rect.size().min_elem();
+        const DRAG_SPEED: f32 = 5.0;
+        let drag_delta = r.drag_delta() * DRAG_SPEED / min_size.abs();
+
+        self.puzzle_view_render_state.rot = Isometry::from_angle_in_axis_plane(0, 2, -drag_delta.x)
+            * Isometry::from_angle_in_axis_plane(1, 2, drag_delta.y)
+            * &self.puzzle_view_render_state.rot;
     }
 
     fn render_and_update_texture(
