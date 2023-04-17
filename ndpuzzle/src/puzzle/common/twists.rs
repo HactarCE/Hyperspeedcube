@@ -4,8 +4,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use super::*;
-use crate::group::SymmetryGroup;
-use crate::math::Rotor;
+use crate::geometry::IsometryGroup;
 
 /// Puzzle twist set metadata.
 #[derive(Debug)]
@@ -28,7 +27,7 @@ pub struct PuzzleTwists {
     /// Symmetry group of the set of twist axes. This is not necessarily the
     /// same as the symmetry group of the puzzle; for example, a cuboid could
     /// use cubic symmetry here.
-    pub symmetry: SymmetryGroup,
+    pub symmetry: IsometryGroup,
 
     /// Notation system.
     pub notation: NotationScheme,
@@ -45,7 +44,7 @@ impl Default for PuzzleTwists {
 
             transforms: vec![],
 
-            symmetry: SymmetryGroup::default(),
+            symmetry: IsometryGroup::default(),
 
             notation: NotationScheme::default(),
         }
@@ -65,12 +64,6 @@ impl PuzzleTwists {
         (0..self.transforms.len() as u32)
             .map(TwistTransform)
             .find(|&twist_transform| self.info(twist_transform).name == name)
-    }
-
-    /// Returns the nearest orientation.
-    pub fn nearest_orientation(&self, rot: &Rotor) -> Rotor {
-        let (rotor, _generators) = self.symmetry.nearest_orientation(rot);
-        rotor.clone()
     }
 }
 

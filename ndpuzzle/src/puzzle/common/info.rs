@@ -1,8 +1,7 @@
-use anyhow::{Context, Result};
 use smallvec::SmallVec;
 
-use super::LayerMask;
-use crate::math::*;
+use super::{LayerMask, TwistCut};
+use crate::{collections::GenericVec, math::*};
 
 macro_rules! impl_puzzle_info_trait {
     (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {
@@ -26,37 +25,33 @@ pub trait PuzzleInfo<T> {
     fn info(&self, thing: T) -> &Self::Output;
 }
 
-/// Piece ID.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Piece(pub u16);
-/// Sticker ID.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Sticker(pub u16);
-/// Facet ID.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Facet(pub u16);
-/// Twist axis ID.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TwistAxis(pub u16);
-/// Twist transform ID.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TwistTransform(pub u32);
-/// Piece type ID.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct PieceType(pub u8);
-
-macro_rules! impl_conversions {
-    ($($ty:ty),* $(,)?) => { $(
-        impl tinyset::Fits64 for $ty {
-            unsafe fn from_u64(x: u64) -> Self { Self(x as _) }
-            fn to_u64(self) -> u64 { self.0 as u64 }
-        }
-        impl From<$ty> for usize {
-            fn from(x: $ty) -> Self { x.0 as usize }
-        }
-    )* };
+idx_struct! {
+    /// Piece ID.
+    pub struct Piece(pub u16);
+    /// Sticker ID.
+    pub struct Sticker(pub u16);
+    /// Facet ID.
+    pub struct Facet(pub u16);
+    /// Twist axis ID.
+    pub struct TwistAxis(pub u16);
+    /// Twist transform ID.
+    pub struct TwistTransform(pub u32);
+    /// Piece type ID.
+    pub struct PieceType(pub u8);
 }
-impl_conversions!(Piece, Sticker, Facet, TwistAxis, TwistTransform, PieceType);
+
+/// List containing a value per piece.
+pub type PerPiece<T> = GenericVec<Piece, T>;
+/// List containing a value per sticker.
+pub type PerSticker<T> = GenericVec<Sticker, T>;
+/// List containing a value per facet.
+pub type PerFacet<T> = GenericVec<Facet, T>;
+/// List containing a value per twist axis.
+pub type PerTwistAxis<T> = GenericVec<TwistAxis, T>;
+/// List containing a value per twist transform.
+pub type PerTwistTransform<T> = GenericVec<TwistTransform, T>;
+/// List containing a value per piece type.
+pub type PerPieceType<T> = GenericVec<PieceType, T>;
 
 /// Piece info.
 #[derive(Debug, Clone, PartialEq)]
@@ -69,6 +64,7 @@ pub struct PieceInfo {
     /// Unordered list of vertices that comprise the piece.
     pub points: Vec<Vector>,
 }
+
 /// Sticker info.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StickerInfo {
@@ -86,6 +82,7 @@ pub struct StickerInfo {
     /// Each polygon is a list of indices into `points`.
     pub polygons: Vec<SmallVec<[u16; 8]>>,
 }
+
 /// Facet info.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FacetInfo {
@@ -96,13 +93,6 @@ pub struct FacetInfo {
     pub pole: Vector,
     /// Name of default color.
     pub default_color: Option<String>,
-}
-impl FacetInfo {
-    /// Returns the normal vector (normalized pole). Returns an error if the
-    /// facet intersects the origin.
-    pub fn normal(&self) -> Result<Vector> {
-        self.pole.normalize().context("facet intersects origin")
-    }
 }
 
 /// Twist axis info.
@@ -137,41 +127,6 @@ impl TwistAxisInfo {
     pub fn all_layers(&self) -> LayerMask {
         LayerMask((1 << self.layer_count()) - 1)
     }
-    pub fn layer_of_point(&self, point: impl VectorRef) -> PointLayerLocation {
-        let point_radius = self.normal.dot(point);
-        match self.cuts.binary_search_by(|cut| cut.cmp(point_radius)) {
-            Ok(layer) => PointLayerLocation::OnCut(layer as _),
-            Err(layer) => PointLayerLocation::WithinLayer(layer as _),
-        }
-    }
-}
-
-/// Twist axis layer containing a point.
-pub enum PointLayerLocation {
-    /// The point is on the cut between this layer and the next one.
-    OnCut(u8),
-    /// The point is within this layer.
-    WithinLayer(u8),
-}
-
-/// Twist cut info.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TwistCut {
-    /// Planar cut perpendicular to the twist axis.
-    Planar {
-        /// Distance from the orgin.
-        radius: f32,
-    },
-}
-impl TwistCut {
-    /// Compares a point's radius to the twist cut, returning `Less` if it is
-    /// below the cut, `Greater` if it is above the cut, or `Equal` if it is
-    /// approximately on the cut.
-    pub(super) fn cmp(&self, point_radius: f32) -> std::cmp::Ordering {
-        match self {
-            TwistCut::Planar { radius } => approx_cmp(&point_radius, &radius),
-        }
-    }
 }
 
 /// Twist transform info.
@@ -186,7 +141,7 @@ pub struct TwistTransformInfo {
     /// Twist axis to use to determine which pieces are moved by the twist.
     pub axis: TwistAxis,
     /// Transforation to apply to pieces.
-    pub transform: Rotoreflector,
+    pub transform: cga::Isometry,
 
     /// Opposite twist transform. With a reversed layer mask, this applies the
     /// same transformation to the same pieces. For example, R and L' are

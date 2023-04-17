@@ -5,6 +5,12 @@ use std::hash::Hash;
 use std::ops::*;
 use std::str::FromStr;
 
+idx_struct! {
+    /// Layer ID, not to be confused with a _layer mask_, which is a bitmask
+    /// where each bit corresponds to a layer ID.
+    pub struct LayerId(pub u8);
+}
+
 /// Bitmask selecting a subset of a puzzle's layers.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[serde(transparent)]

@@ -7,7 +7,7 @@ use super::*;
 
 /// Puzzle type info.
 pub struct PuzzleType {
-    /// Reference-counted pointer to the puzzle data.
+    /// Reference-counted pointer to this struct.
     pub this: Weak<PuzzleType>,
     /// Human-friendly name of the puzzle.
     pub name: String,
@@ -15,6 +15,9 @@ pub struct PuzzleType {
     pub shape: Arc<PuzzleShape>,
     /// Twist set.
     pub twists: Arc<PuzzleTwists>,
+
+    /// Puzzle mesh for rendering.
+    pub mesh: Mesh,
 
     /// List of pieces, indexed by ID.
     pub pieces: Vec<PieceInfo>,

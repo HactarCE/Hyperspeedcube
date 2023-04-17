@@ -15,7 +15,9 @@ macro_rules! idx_struct {
     ) => {
         $(
             $(#[$attr])*
+            #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
             #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+            #[repr(transparent)]
             $struct_vis struct $struct_name($inner_vis $inner_type);
 
             impl std::fmt::Display for $struct_name {
@@ -35,6 +37,7 @@ macro_rules! idx_struct {
             }
 
             impl $crate::collections::IndexNewtype for $struct_name {
+                const MAX: Self = Self(<$inner_type>::MAX);
                 const MAX_INDEX: usize = <$inner_type>::MAX as usize;
 
                 fn try_from_usize(index: usize) -> anyhow::Result<Self> {
@@ -70,6 +73,8 @@ pub trait IndexNewtype:
     + tinyset::Fits64
 {
     /// Maximum index representable by the type.
+    const MAX: Self;
+    /// Maximum index representable by the type.
     const MAX_INDEX: usize;
 
     /// Returns the index as a `usize`.
@@ -90,6 +95,12 @@ pub trait IndexNewtype:
             range: 0..count,
             _phantom: PhantomData,
         }
+    }
+
+    /// Increments the index, or returns an error if it does not fit.
+    #[must_use]
+    fn next(self) -> Result<Self> {
+        Self::try_from_usize(self.to_usize().checked_add(1).unwrap_or(usize::MAX))
     }
 }
 
@@ -163,7 +174,7 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
 
     /// Adds an element to the end of the vector and returns its index.
     pub fn push(&mut self, value: E) -> Result<I> {
-        let idx = I::try_from_usize(self.len())?;
+        let idx = self.next_idx()?;
         self.values.push(value);
         Ok(idx)
     }
@@ -171,6 +182,10 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     /// Returns the number of elements in the collection.
     pub fn len(&self) -> usize {
         self.values.len()
+    }
+    /// Returns the index of the next element to be added to the collection.
+    pub fn next_idx(&self) -> Result<I> {
+        I::try_from_usize(self.len())
     }
 
     /// Returns an iterator over the indices in the collection.

@@ -30,34 +30,35 @@ pub trait PuzzleState: fmt::Debug + Send + Sync {
     ///
     /// TODO: replace with something that allows bandaging/blocking
     fn layer_from_twist_axis(&self, twist_axis: TwistAxis, piece: Piece) -> u8 {
-        // TODO: handle bandaging
-        let axis_info = self.ty().info(twist_axis);
+        // // TODO: handle bandaging
+        // let axis_info = self.ty().info(twist_axis);
 
-        let points = &self.ty().info(piece).points;
-        if points.is_empty() {
-            // TODO: wrong
-            return 0;
-        }
+        // let points = &self.ty().info(piece).points;
+        // if points.is_empty() {
+        //     // TODO: wrong
+        //     return 0;
+        // }
 
-        let mut lo = u8::MIN;
-        let mut hi = u8::MAX;
-        for point in points {
-            let (new_lo, new_hi) = match axis_info.layer_of_point(point) {
-                // This point is directly on a cut. The piece contains either
-                // the layer above or the layer below.
-                PointLayerLocation::OnCut(layer) => (layer, layer + 1),
-                // The point is between cuts. The piece definitely contains
-                // this layer.
-                PointLayerLocation::WithinLayer(layer) => (layer, layer),
-            };
-            lo = std::cmp::max(lo, new_lo);
-            hi = std::cmp::min(hi, new_hi);
-        }
-        if lo != hi {
-            // TODO: handle bandaging
-            println!("yikes bandaging");
-        }
-        lo
+        // let mut lo = u8::MIN;
+        // let mut hi = u8::MAX;
+        // for point in points {
+        //     let (new_lo, new_hi) = match axis_info.layer_of_point(point) {
+        //         // This point is directly on a cut. The piece contains either
+        //         // the layer above or the layer below.
+        //         PointLayerLocation::OnCut(layer) => (layer, layer + 1),
+        //         // The point is between cuts. The piece definitely contains
+        //         // this layer.
+        //         PointLayerLocation::WithinLayer(layer) => (layer, layer),
+        //     };
+        //     lo = std::cmp::max(lo, new_lo);
+        //     hi = std::cmp::min(hi, new_hi);
+        // }
+        // if lo != hi {
+        //     // TODO: handle bandaging
+        //     println!("yikes bandaging");
+        // }
+        // lo
+        todo!()
     }
 
     /// Returns the N-dimensional transformation to use when rendering a piece
