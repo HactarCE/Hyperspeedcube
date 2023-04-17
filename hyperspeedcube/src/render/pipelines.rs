@@ -1,5 +1,7 @@
 use itertools::Itertools;
 
+use super::BasicVertex;
+
 const MIN_NDIM: u8 = 2;
 const MAX_NDIM: u8 = 8;
 
@@ -20,6 +22,9 @@ macro_rules! include_wgsl_with_params {
 }
 
 pub(super) struct Pipelines {
+    /// Pipeline to render a basic cube.
+    pub render_basic: wgpu::RenderPipeline,
+
     /// Pipeline to populate `vertex_3d_position_buffer`.
     pub compute_transform_points: Vec<wgpu::ComputePipeline>,
     // /// Pipeline to populate `polygon_color_buffer`.
@@ -42,6 +47,34 @@ impl Pipelines {
 
         // TODO: lazily create pipelines
         Self {
+            render_basic: {
+                let shader_module =
+                    device.create_shader_module(wgpu::include_wgsl!("shaders/render_basic.wgsl"));
+
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("render_basic"),
+                    layout: None,
+                    vertex: wgpu::VertexState {
+                        module: &shader_module,
+                        entry_point: "vs_main",
+                        buffers: &[BasicVertex::LAYOUT],
+                    },
+                    primitive: wgpu::PrimitiveState::default(),
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState::default(),
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader_module,
+                        entry_point: "fs_main",
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: wgpu::TextureFormat::Bgra8Unorm,
+                            blend: Some(wgpu::BlendState::REPLACE),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                    }),
+                    multiview: None,
+                })
+            },
+
             compute_transform_points: vec![],
             // compute_transform_points: {
             //     (MIN_NDIM..=MAX_NDIM)

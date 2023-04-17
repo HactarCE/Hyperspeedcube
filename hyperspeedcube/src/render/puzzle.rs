@@ -3,14 +3,16 @@
 //! 1. Render polygon IDs and lighting amounts to texture
 //! 2. Render result in full color.
 
+use itertools::Itertools;
+use ndpuzzle::{
+    math::{Matrix, Sign, Vector, VectorRef},
+    puzzle::{Mesh, PerPiece, PerSticker},
+};
 use std::fmt;
 use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
 
-use ndpuzzle::{
-    math::Matrix,
-    puzzle::{Mesh, PerPiece, PerSticker},
-};
+use crate::render::structs::BasicVertex;
 
 use super::{GfxProjectionParams, GraphicsState};
 
@@ -211,23 +213,60 @@ impl PuzzleViewRenderState {
             // );
         }
 
-        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("render_test"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: color_texture_view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.8,
-                        b: 1.0,
-                        a: 1.0,
-                    }),
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        });
+        let colors = [
+            [1.0, 0.0, 0.0],
+            [1.0, 0.3, 0.0],
+            [0.8, 0.8, 0.8],
+            [0.8, 0.8, 0.0],
+            [0.0, 0.0, 0.7],
+            [0.0, 0.7, 0.2],
+        ];
+        let vertex_data =
+            itertools::iproduct!([[0, 1, 2], [1, 2, 0], [2, 0, 1]], [Sign::Pos, Sign::Neg])
+                .zip(colors)
+                .flat_map(|((axes, sign), color)| {
+                    let [a, u, v] = axes.map(Vector::unit);
+                    let vert = |pos: Vector| BasicVertex {
+                        pos: [0, 1, 2].map(|i| pos.get(i) / 3.0),
+                        color,
+                    };
+                    [
+                        vert(&a - &u - &v),
+                        vert(&a + &u - &v),
+                        vert(&a - &u + &v),
+                        vert(&a + &u - &v),
+                        vert(&a - &u + &v),
+                        vert(&a + &u + &v),
+                    ]
+                })
+                .collect_vec();
+
+        let buf = gfx.create_buffer_init("cube", &vertex_data, wgpu::BufferUsages::VERTEX);
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("render_test"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: color_texture_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.5,
+                            b: 1.0,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+
+            render_pass.set_pipeline(&gfx.pipelines.render_basic);
+            render_pass.set_vertex_buffer(0, buf.slice(..));
+
+            render_pass.draw(0..vertex_data.len() as u32, 0..1);
+        }
 
         Some(color_texture_view)
     }
