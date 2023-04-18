@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use std::fmt;
 
 use super::BasicVertex;
 
@@ -21,9 +22,48 @@ macro_rules! include_wgsl_with_params {
     };
 }
 
+macro_rules! bind_group_layout_descriptor {
+    (
+        $(
+            pub($stages:ident) $binding:expr => $binding_type:expr,
+        ),* $(,)?
+    ) => {
+        wgpu::BindGroupLayoutDescriptor {
+            label: None,
+            entries: &[$(
+                wgpu::BindGroupLayoutEntry {
+                    binding: $binding,
+                    visibility: wgpu::ShaderStages::$stages,
+                    ty: $binding_type,
+                    count: None,
+                },
+            )*]
+        }
+    };
+}
+
+macro_rules! buffer_bind_group_layout_descriptor {
+    (
+        $(
+            pub($stages:ident) $binding:expr => $buffer_binding_type:expr,
+         ),* $(,)?
+    ) => {
+        bind_group_layout_descriptor![
+            $(
+                pub($stages) $binding => wgpu::BindingType::Buffer {
+                    ty: $buffer_binding_type,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+            )*
+        ]
+    };
+}
+
 pub(super) struct Pipelines {
     /// Pipeline to render a basic cube.
     pub render_basic: wgpu::RenderPipeline,
+    pub render_basic_bind_groups: PipelineBindGroups,
 
     /// Pipeline to populate `vertex_3d_position_buffer`.
     pub compute_transform_points: Vec<wgpu::ComputePipeline>,
@@ -44,6 +84,14 @@ impl Pipelines {
 
         let workgroup_size = device.limits().max_compute_workgroup_size_x;
 
+        let render_basic_bind_groups = PipelineBindGroups::new(
+            "render_basic",
+            device,
+            vec![buffer_bind_group_layout_descriptor![
+                pub(VERTEX) 0 => wgpu::BufferBindingType::Uniform,
+            ]],
+        );
+
         // TODO: lazily create pipelines
         Self {
             render_basic: {
@@ -52,27 +100,7 @@ impl Pipelines {
 
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some("render_basic"),
-                    layout: Some(
-                        &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                            label: Some("render_basic_pipeline_layout"),
-                            bind_group_layouts: &[&device.create_bind_group_layout(
-                                &wgpu::BindGroupLayoutDescriptor {
-                                    label: None,
-                                    entries: &[wgpu::BindGroupLayoutEntry {
-                                        binding: 0,
-                                        visibility: wgpu::ShaderStages::VERTEX,
-                                        ty: wgpu::BindingType::Buffer {
-                                            ty: wgpu::BufferBindingType::Uniform,
-                                            has_dynamic_offset: false,
-                                            min_binding_size: None,
-                                        },
-                                        count: None,
-                                    }],
-                                },
-                            )],
-                            push_constant_ranges: &[],
-                        }),
-                    ),
+                    layout: Some(&render_basic_bind_groups.pipeline_layout(device)),
                     vertex: wgpu::VertexState {
                         module: &shader_module,
                         entry_point: "vs_main",
@@ -99,6 +127,7 @@ impl Pipelines {
                     multiview: None,
                 })
             },
+            render_basic_bind_groups,
 
             compute_transform_points: vec![],
             // compute_transform_points: {
@@ -211,4 +240,66 @@ fn get_vertex_fragment<'a>(
         targets,
     });
     (vertex, fragment)
+}
+
+pub(super) struct PipelineBindGroups {
+    label: String,
+    bind_group_layout_descriptors: Vec<wgpu::BindGroupLayoutDescriptor<'static>>,
+    bind_group_layouts: Vec<wgpu::BindGroupLayout>,
+}
+impl PipelineBindGroups {
+    fn new(
+        label: impl fmt::Display,
+        device: &wgpu::Device,
+        bind_group_layout_descriptors: Vec<wgpu::BindGroupLayoutDescriptor<'static>>,
+    ) -> Self {
+        let bind_group_layouts = bind_group_layout_descriptors
+            .iter()
+            .map(|bind_group| device.create_bind_group_layout(bind_group))
+            .collect_vec();
+        PipelineBindGroups {
+            label: label.to_string(),
+            bind_group_layouts,
+            bind_group_layout_descriptors,
+        }
+    }
+
+    pub fn pipeline_layout(&self, device: &wgpu::Device) -> wgpu::PipelineLayout {
+        device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some(&format!("{}_pipeline_layout", self.label)),
+            bind_group_layouts: &self.bind_group_layouts.iter().collect_vec(),
+            push_constant_ranges: &[],
+        })
+    }
+
+    pub fn bind_groups(
+        &self,
+        device: &wgpu::Device,
+        bind_groups: &[&[wgpu::BindingResource]],
+    ) -> Vec<wgpu::BindGroup> {
+        assert_eq!(
+            self.bind_group_layouts.len(),
+            bind_groups.len(),
+            "wrong number of bind groups"
+        );
+
+        itertools::izip!(
+            &self.bind_group_layout_descriptors,
+            &self.bind_group_layouts,
+            bind_groups,
+        )
+        .map(|(layout_desc, layout, &bind_group)| {
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: layout_desc.label,
+                layout,
+                entries: &itertools::zip_eq(layout_desc.entries, bind_group)
+                    .map(|(entry_desc, resource)| wgpu::BindGroupEntry {
+                        binding: entry_desc.binding,
+                        resource: resource.clone(),
+                    })
+                    .collect_vec(),
+            })
+        })
+        .collect_vec()
+    }
 }

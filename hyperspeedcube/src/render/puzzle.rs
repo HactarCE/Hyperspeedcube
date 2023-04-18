@@ -115,7 +115,6 @@ impl PuzzleViewRenderState {
     ) -> Option<&wgpu::TextureView> {
         // Avoid divide-by-zero errors.
         if width == 0 || height == 0 {
-            dbg!("nope");
             return None;
         }
 
@@ -263,14 +262,10 @@ impl PuzzleViewRenderState {
                 mat: [0, 1, 2, 3].map(|i| [0, 1, 2, 3].map(|j| mat.get(i, j))),
             }),
         );
-        let uniform_bind_group = gfx.create_bind_group_of_buffers(
-            "uniforms",
-            &[(
-                wgpu::ShaderStages::VERTEX,
-                wgpu::BufferBindingType::Uniform,
-                &uniform_buffer,
-            )],
-        );
+        let uniform_bind_group = gfx
+            .pipelines
+            .render_basic_bind_groups
+            .bind_groups(&gfx.device, &[&[uniform_buffer.as_entire_binding()]]);
 
         let (depth_texture, depth_texture_view) = self.depth_texture.at_size(gfx, tex_size);
 
@@ -302,7 +297,7 @@ impl PuzzleViewRenderState {
 
             render_pass.set_pipeline(&gfx.pipelines.render_basic);
             render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            render_pass.set_bind_group(0, &uniform_bind_group, &[]);
+            render_pass.set_bind_group(0, &uniform_bind_group[0], &[]);
 
             render_pass.draw(0..vertex_data.len() as u32, 0..1);
         }
