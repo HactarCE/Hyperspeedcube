@@ -100,10 +100,13 @@ impl<M: Manifold> ShapeArena<M> {
         if new_boundary == self[old_shape].boundary {
             Ok(ShapeRef::from(old_shape))
         } else {
-            self.add(Shape {
-                manifold: self[old_shape].manifold.clone(),
-                boundary: new_boundary,
-            })
+            let new_shape = self.add(Shape::new(self[old_shape].manifold.clone(), new_boundary))?;
+
+            // Copy metadata from old shape.
+            self.set_metadata(new_shape, self.get_metadata(ShapeRef::from(old_shape)));
+            self.set_metadata(-new_shape, self.get_metadata(-ShapeRef::from(old_shape)));
+
+            Ok(new_shape)
         }
     }
 
@@ -129,6 +132,20 @@ impl<M: Manifold> ShapeArena<M> {
         {
             Some(sign) => Ok(Some(sign * a.sign() * b.sign())),
             None => Ok(None),
+        }
+    }
+
+    pub fn get_metadata(&self, shape: ShapeRef) -> Option<ShapeMetadata> {
+        match shape.sign {
+            Sign::Pos => self[shape.id].positive_metadata,
+            Sign::Neg => self[shape.id].negative_metadata,
+        }
+    }
+    fn set_metadata(&mut self, shape: ShapeRef, metadata: Option<ShapeMetadata>) {
+        let shape_mut = &mut self.shapes[shape.id.0 as usize];
+        match shape.sign {
+            Sign::Pos => shape_mut.positive_metadata = metadata,
+            Sign::Neg => shape_mut.negative_metadata = metadata,
         }
     }
 
@@ -161,11 +178,10 @@ impl<M: Manifold> ShapeArena<M> {
     /// Cuts all shapes in the arena.
     pub fn cut(&mut self, params: CutParams<M>) -> Result<()> {
         log::trace!("Cutting all shapes by {}", params.cut);
-        let f = |remove| if remove { "DELETE" } else { "KEEP" };
-        log::trace!("  ... inside: {}", f(params.remove_inside));
-        log::trace!("  ... outside: {}", f(params.remove_outside));
+        log::trace!("  ... inside: {}", params.inside);
+        log::trace!("  ... outside: {}", params.outside);
 
-        let mut op = SliceOperation::new(params.cut);
+        let mut op = SliceOperation::new(params.clone());
 
         for root_id in std::mem::take(&mut self.roots) {
             match self
@@ -178,10 +194,10 @@ impl<M: Manifold> ShapeArena<M> {
                     outside,
                     intersection_shape: _,
                 } => {
-                    if !params.remove_inside {
+                    if params.inside != CutOp::Remove {
                         self.roots.extend(inside.map(|s| s.id));
                     }
-                    if !params.remove_outside {
+                    if params.outside != CutOp::Remove {
                         self.roots.extend(outside.map(|s| s.id));
                     }
                 }
@@ -205,10 +221,34 @@ impl<M: Manifold> ShapeArena<M> {
                 let result = self
                     .cut_shape_uncached(shape.id, slice_op)
                     .with_context(|| format!("error cutting shape {shape}"))?;
+
                 slice_op.results_cache.insert(shape.id, result.clone());
                 result
             }
         };
+
+        // Add metadata.
+        if let SplitResult::NonFlush {
+            inside,
+            outside,
+
+            intersection_shape,
+        } = &result
+        {
+            // TODO: clean this up
+            if let Some(s) = inside {
+                self.shapes[s.id.0 as usize].positive_metadata = self[shape.id].positive_metadata;
+                self.shapes[s.id.0 as usize].negative_metadata = self[shape.id].negative_metadata;
+            }
+            if let Some(s) = outside {
+                self.shapes[s.id.0 as usize].positive_metadata = self[shape.id].positive_metadata;
+                self.shapes[s.id.0 as usize].negative_metadata = self[shape.id].negative_metadata;
+            }
+            if let Some(s) = intersection_shape {
+                self.set_metadata(*s, slice_op.inside_metadata);
+                self.set_metadata(-*s, slice_op.outside_metadata);
+            }
+        }
 
         Ok(match shape.sign {
             Sign::Pos => result,
@@ -354,10 +394,8 @@ impl<M: Manifold> ShapeArena<M> {
                             )
                             .context("error simplifying 1D intersection boundary")?;
                         if let Some(boundary) = simplified_intersection_boundary {
-                            intersection_shape = Some(self.add(Shape {
-                                manifold: intersection_manifold,
-                                boundary,
-                            })?);
+                            intersection_shape =
+                                Some(self.add(Shape::new(intersection_manifold, boundary))?);
                         } else {
                             // `shape ∩ boundary(cut)` is empty!
                             if self_boundary_of_inside.is_empty() {
@@ -372,10 +410,9 @@ impl<M: Manifold> ShapeArena<M> {
                             }
                         }
                     } else {
-                        intersection_shape = Some(self.add(Shape {
-                            manifold: intersection_manifold,
-                            boundary: intersection_boundary,
-                        })?);
+                        intersection_shape = Some(
+                            self.add(Shape::new(intersection_manifold, intersection_boundary))?,
+                        );
                     }
                 }
 
@@ -594,7 +631,14 @@ impl<M: Manifold> ShapeArena<M> {
         }
         write!(f, "{}#{:<5}", shape.sign, shape.id.0)?;
         if let Ok(m) = self.signed_mainfold_of_shape(shape) {
-            writeln!(f, "{m}")?;
+            write!(f, "{m}")?;
+            if let Some(m) = self.get_metadata(shape) {
+                write!(f, " (in={m})")?;
+            }
+            if let Some(m) = self.get_metadata(-shape) {
+                write!(f, " (out={m})")?;
+            }
+            writeln!(f)?;
         }
         for child in self[shape.id].boundary.iter() {
             self.display_shape(f, child, shape.sign * sign, indent + 1)?;
@@ -608,10 +652,37 @@ impl<M: Manifold> ShapeArena<M> {
 pub struct CutParams<M> {
     /// Closed, oriented manifold along which to cut.
     pub cut: M,
-    /// Whether to remove the shapes on the "inside" of the cut.
-    pub remove_inside: bool,
-    /// Whether to remove the shapes on the "outside" of the cut.
-    pub remove_outside: bool,
+    /// What to do with the shapes on the "inside" of the cut.
+    pub inside: CutOp,
+    /// What to do with the shapes on the "outside" of the cut.
+    pub outside: CutOp,
+}
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CutOp {
+    Remove,
+    Keep(Option<ShapeMetadata>),
+}
+impl Default for CutOp {
+    fn default() -> Self {
+        CutOp::Keep(None)
+    }
+}
+impl fmt::Display for CutOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CutOp::Remove => write!(f, "REMOVE"),
+            CutOp::Keep(None) => write!(f, "KEEP"),
+            CutOp::Keep(Some(metadata)) => write!(f, "KEEP (data = {metadata})"),
+        }
+    }
+}
+impl CutOp {
+    fn metadata(self) -> Option<u16> {
+        match self {
+            CutOp::Remove => None,
+            CutOp::Keep(metadata) => metadata,
+        }
+    }
 }
 
 /// In-progress slicing operation.
@@ -622,12 +693,20 @@ struct SliceOperation<M> {
     divider: M,
     /// Cache of the result of splitting individual shapes.
     results_cache: AHashMap<ShapeId, SplitResult>,
+
+    /// Metadata to attach to the inside side of the shape.
+    inside_metadata: Option<ShapeMetadata>,
+    /// Metadata to attach to the outside side of the shape.
+    outside_metadata: Option<ShapeMetadata>,
 }
 impl<M> SliceOperation<M> {
-    fn new(divider: M) -> Self {
+    fn new(cut: CutParams<M>) -> Self {
         Self {
-            divider,
+            divider: cut.cut,
             results_cache: AHashMap::new(),
+
+            inside_metadata: cut.inside.metadata(),
+            outside_metadata: cut.outside.metadata(),
         }
     }
 }

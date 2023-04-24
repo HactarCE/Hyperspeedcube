@@ -30,7 +30,7 @@ use std::ops::Range;
 use super::{Facet, PerPiece, PerSticker, Piece, Sticker};
 use crate::collections::IndexNewtype;
 use crate::geometry::{
-    EuclideanCgaManifold, Manifold, ShapeArena, ShapeId, Simplexifier, VertexId,
+    Centroid, EuclideanCgaManifold, Manifold, ShapeArena, ShapeId, ShapeRef, Simplexifier, VertexId,
 };
 use crate::math::{cga, Vector, VectorRef};
 
@@ -93,75 +93,97 @@ impl Mesh {
         }
     }
 
-    pub fn from_arena(
-        arena: &ShapeArena<EuclideanCgaManifold>,
-        facet_count: usize,
-    ) -> Result<Self> {
+    pub fn from_arena(arena: &ShapeArena<EuclideanCgaManifold>) -> Result<Self> {
         let ndim = arena.space().ndim()?;
         let mut mesh = Mesh::new_empty(ndim);
 
         let mut piece_id = Piece(0);
-        let mut polygon_id = 0;
+        let mut polygon_id = 1; // Start at polygon ID 1
+
+        let mut facet_centroids: Vec<Vec<Centroid>> = vec![];
 
         let mut simplexifier = Simplexifier::new(arena);
         for &piece_shape in arena.roots() {
-            let mut vertex_id_map: HashMap<VertexId, u32> = HashMap::new();
-
-            let mut queue = vec![piece_shape];
-            let mut seen: HashSet<ShapeId> = arena.roots().iter().copied().collect();
             let mut tris_per_sticker: Vec<Vec<[u32; 3]>> = vec![];
             let mut internal_tris: Vec<[u32; 3]> = vec![];
-            while let Some(shape) = queue.pop() {
-                match arena[shape].ndim()? {
-                    0..=1 => continue,
-                    3.. => {
-                        // TODO: handle non-flat shapes
-                        for b in arena[shape].boundary.iter() {
-                            if seen.insert(b.id) {
-                                queue.push(b.id);
+
+            for sticker_shape in arena[piece_shape].boundary.iter() {
+                // Add centroid to facet mass.
+                let facet;
+                if let Some(facet_id) = arena.get_metadata(sticker_shape) {
+                    let facet_centroid = simplexifier.shape_centroid(piece_shape)?;
+                    while facet_centroids.len() <= facet_id as usize {
+                        facet_centroids.push(vec![]);
+                    }
+                    facet_centroids[facet_id as usize].push(facet_centroid);
+
+                    facet = Facet(facet_id);
+                } else {
+                    facet = Facet::INTERNAL;
+                }
+
+                let mut tris = vec![];
+
+                let mut queue = vec![sticker_shape];
+                let mut seen: HashSet<ShapeId> = arena.roots().iter().copied().collect();
+                while let Some(shape) = queue.pop() {
+                    match arena[shape.id].ndim()? {
+                        0..=1 => continue,
+                        3.. => {
+                            // TODO: handle non-flat shapes
+                            for b in arena[shape.id].boundary.iter() {
+                                if seen.insert(b.id) {
+                                    queue.push(b);
+                                }
                             }
                         }
-                    }
-                    2 => {
-                        // TODO: stickers vs. internal pieces
-                        tris_per_sticker.push(vec![]);
-                        let tris = tris_per_sticker.last_mut().unwrap();
+                        2 => {
+                            let mut vertex_id_map: HashMap<VertexId, u32> = HashMap::new();
 
-                        let tangent = arena[shape].manifold.tangent_space()?;
-                        for tri in simplexifier.face_polygons(shape)? {
-                            let [a, b, c] = tri.map(|v| match vertex_id_map.entry(v) {
-                                Entry::Occupied(entry) => Ok(*entry.get()),
-                                Entry::Vacant(entry) => {
-                                    let vertex_position = &simplexifier[v];
-                                    let tangents = tangent
-                                        .basis_at(cga::Point::Finite(vertex_position.clone()))?;
-                                    ensure!(tangents.len() == 2);
-                                    let u_tangent = &tangents[0];
-                                    let v_tangent = &tangents[1];
-                                    let sticker_shrink_vector = Vector::EMPTY; // TODO: sticker shrink vector
+                            let tangent = arena[shape.id].manifold.tangent_space()?;
+                            for tri in simplexifier.face_polygons(shape.id)? {
+                                let [a, b, c] = tri.map(|v| match vertex_id_map.entry(v) {
+                                    Entry::Occupied(entry) => Ok(*entry.get()),
+                                    Entry::Vacant(entry) => {
+                                        let vertex_position = &simplexifier[v];
+                                        let tangents = tangent.basis_at(cga::Point::Finite(
+                                            vertex_position.clone(),
+                                        ))?;
+                                        ensure!(tangents.len() == 2);
+                                        let u_tangent = &tangents[0];
+                                        let v_tangent = &tangents[1];
+                                        let sticker_shrink_vector = Vector::EMPTY; // TODO: sticker shrink vector
 
-                                    let new_id = mesh.add_vertex(
-                                        vertex_position,
-                                        u_tangent,
-                                        v_tangent,
-                                        sticker_shrink_vector,
-                                        polygon_id,
-                                        piece_id,
-                                        Facet::MAX, // TODO: facet
-                                    );
+                                        let new_id = mesh.add_vertex(
+                                            vertex_position,
+                                            u_tangent,
+                                            v_tangent,
+                                            sticker_shrink_vector,
+                                            polygon_id,
+                                            piece_id,
+                                            facet,
+                                        );
 
-                                    entry.insert(new_id);
-                                    Ok(new_id)
-                                }
-                            });
-                            tris.push([a?, b?, c?]);
+                                        entry.insert(new_id);
+                                        Ok(new_id)
+                                    }
+                                });
+                                tris.push([a?, b?, c?]);
+                            }
+
                             polygon_id += 1;
                         }
                     }
                 }
+
+                if facet == Facet::INTERNAL {
+                    internal_tris.extend(tris);
+                } else {
+                    tris_per_sticker.push(tris);
+                }
             }
 
-            let piece_centroid = simplexifier.shape_centroid(piece_shape)?;
+            let piece_centroid = simplexifier.shape_centroid_point(piece_shape)?;
             mesh.piece_centroids.extend(piece_centroid.iter_ndim(ndim));
             for sticker_tris in tris_per_sticker {
                 let tri_range = mesh.add_tris(sticker_tris);
@@ -174,10 +196,13 @@ impl Mesh {
         }
 
         // TODO: real facet centroids
-        for _ in 0..facet_count {
-            mesh.facet_centroids.extend(Vector::EMPTY.iter_ndim(ndim));
+        for centroids in facet_centroids {
+            let centroid_sum = centroids.into_iter().sum::<Centroid>();
+            mesh.facet_centroids
+                .extend(centroid_sum.com.iter_ndim(ndim));
         }
 
+        println!("{mesh:?}");
         Ok(mesh)
     }
 
@@ -222,11 +247,19 @@ impl Mesh {
     }
     /// Returns the number of pieces in the mesh.
     pub fn piece_count(&self) -> usize {
-        self.piece_internals_index_ranges.len() / self.ndim as usize
+        self.piece_internals_index_ranges.len()
+    }
+    /// Returns the number of facets in the mesh.
+    pub fn facet_count(&self) -> usize {
+        self.facet_centroids.len() / self.ndim as usize
     }
     /// Returns the number of stickers in the mesh.
     pub fn sticker_count(&self) -> usize {
-        self.sticker_index_ranges.len() / self.ndim as usize
+        self.sticker_index_ranges.len()
+    }
+    /// Returns the number of triangles in the mesh.
+    pub fn triangle_count(&self) -> usize {
+        self.triangles.len()
     }
 
     /// Constructs an example mesh with 4 pieces that together form an

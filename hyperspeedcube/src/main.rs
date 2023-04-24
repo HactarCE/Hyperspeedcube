@@ -121,8 +121,13 @@ async fn run() {
     #[cfg(not(target_arch = "wasm32"))]
     let mut clipboard = clipboard(&event_loop);
 
-    // Initialize graphics state.
-    let mut gfx = render::GraphicsState::new(&window).await;
+    let initial_file = std::env::args().nth(1).map(std::path::PathBuf::from);
+
+    // Initialize app state.
+    let mut app = App::new(&window, &event_loop, initial_file).await;
+    let gfx = &app.gfx;
+
+    // Initialize framerate tracking.
     let mut last_fps = 0;
     let mut frames_this_second = 0;
     let mut last_second = Instant::now();
@@ -135,17 +140,9 @@ async fn run() {
         dark_light::Mode::Dark => switch_to_dark_mode(&egui_ctx),
     };
     let mut egui_renderer = egui_wgpu::Renderer::new(&gfx.device, gfx.config.format, None, 1);
-    let puzzle_texture_id = egui_renderer.register_native_texture(
-        &gfx.device,
-        &gfx.dummy_texture_view(),
-        wgpu::FilterMode::Linear,
-    );
 
-    let initial_file = std::env::args().nth(1).map(std::path::PathBuf::from);
-
-    // Initialize app state.
+    // Initialize UI.
     let mut ui = AppUi::new(&gfx, &mut egui_renderer);
-    let mut app = App::new(&event_loop, initial_file);
 
     #[cfg(target_arch = "wasm32")]
     let mut web_workarounds = web_workarounds::WebWorkarounds::new(&event_loop, &window);
@@ -238,13 +235,13 @@ async fn run() {
                 }
 
                 match &event {
-                    WindowEvent::Resized(new_size) => gfx.resize(*new_size),
+                    WindowEvent::Resized(new_size) => app.gfx.resize(*new_size),
                     WindowEvent::ScaleFactorChanged {
                         scale_factor,
                         new_inner_size,
                     } => {
-                        gfx.set_scale_factor(*scale_factor as f32);
-                        gfx.resize(**new_inner_size);
+                        app.gfx.set_scale_factor(*scale_factor as f32);
+                        app.gfx.resize(**new_inner_size);
                     }
                     WindowEvent::ThemeChanged(theme) => match theme {
                         winit::window::Theme::Light => switch_to_light_mode(&egui_ctx),
@@ -296,7 +293,7 @@ async fn run() {
 
                 if next_frame_time <= now {
                     // Update scale factor.
-                    egui_winit_state.set_pixels_per_point(gfx.scale_factor);
+                    egui_winit_state.set_pixels_per_point(app.gfx.scale_factor);
 
                     // Start egui frame.
                     #[allow(unused_mut)]
@@ -350,7 +347,7 @@ async fn run() {
                     }
 
                     // Draw puzzle if necessary.
-                    ui.render_puzzle_views(&gfx, &egui_ctx, &mut egui_renderer);
+                    ui.render_puzzle_views(&app.gfx, &egui_ctx, &mut egui_renderer);
 
                     let frame_duration = app.prefs.gfx.frame_duration();
                     next_frame_time += frame_duration;
@@ -361,7 +358,7 @@ async fn run() {
                     // Update app state.
                     app.frame();
 
-                    let output_frame = match gfx.surface.get_current_texture() {
+                    let output_frame = match app.gfx.surface.get_current_texture() {
                         Ok(tex) => tex,
                         // Log other errors to the console.
                         Err(e) => {
@@ -373,7 +370,7 @@ async fn run() {
                                 // updated."
                                 wgpu::SurfaceError::Outdated => (),
                                 // Reconfigure the surface if lost.
-                                wgpu::SurfaceError::Lost => gfx.resize(gfx.size),
+                                wgpu::SurfaceError::Lost => app.gfx.resize(app.gfx.size),
                                 // The system is out of memory, so quit.
                                 wgpu::SurfaceError::OutOfMemory => {
                                     log::error!("Out of memory!");
@@ -388,6 +385,7 @@ async fn run() {
 
                     let paint_jobs = egui_ctx.tessellate(egui_output.shapes);
 
+                    let gfx = &app.gfx;
                     let mut encoder =
                         gfx.device
                             .create_command_encoder(&wgpu::CommandEncoderDescriptor {

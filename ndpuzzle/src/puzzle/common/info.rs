@@ -1,7 +1,8 @@
 use smallvec::SmallVec;
 
 use super::{LayerMask, TwistCut};
-use crate::{collections::GenericVec, math::*};
+use crate::collections::{GenericVec, IndexNewtype};
+use crate::math::*;
 
 macro_rules! impl_puzzle_info_trait {
     (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {
@@ -38,6 +39,11 @@ idx_struct! {
     pub struct TwistTransform(pub u32);
     /// Piece type ID.
     pub struct PieceType(pub u8);
+}
+
+impl Facet {
+    /// Facet ID for internals.
+    pub const INTERNAL: Facet = Facet::MAX;
 }
 
 /// List containing a value per piece.

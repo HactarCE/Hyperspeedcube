@@ -101,19 +101,24 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
         Ok(max_radius_seen)
     }
 
-    pub fn shape_centroid(&mut self, shape: ShapeId) -> Result<Vector> {
+    pub fn shape_centroid_point(&mut self, shape: ShapeId) -> Result<Vector> {
+        let shape_manifold = &self.arena[shape].manifold;
+        // Add up those centroids.
+        let centroid = self.shape_centroid(shape)?;
+        // Project the point back onto the manifold.
+        shape_manifold
+            .project_point(&cga::Point::Finite(centroid.com))?
+            .context("unable to compute centroid of shape")?
+            .to_finite()
+    }
+    pub fn shape_centroid(&mut self, shape: ShapeId) -> Result<Centroid> {
         let shape_manifold = &self.arena[shape].manifold;
         // Turn the shape into simplices.
         let simplices = self.shape_simplices(shape)?.0.into_iter();
         // Compute the centroid of each simplex.
         let centroids = simplices.map(|s| self.simplex_centroid(&s, &shape_manifold));
         // Add up those centroids.
-        let centroid = centroids.sum::<Result<Centroid>>()?;
-        // Project the point back onto the manifold.
-        shape_manifold
-            .project_point(&cga::Point::Finite(centroid.com))?
-            .context("unable to compute centroid of shape")?
-            .to_finite()
+        centroids.sum::<Result<Centroid>>()
     }
 
     fn simplex_centroid(&self, s: &Simplex, m: &EuclideanCgaManifold) -> Result<Centroid> {
@@ -925,7 +930,7 @@ mod tests {
         for ax in 0..NDIM {
             let v = Vector::unit(ax);
             for sign in [Sign::Neg, Sign::Pos] {
-                arena.carve_plane(&v * sign.to_f32(), 1.0).unwrap();
+                arena.carve_plane(&v * sign.to_f32(), 1.0, 0).unwrap();
             }
             arena.slice_plane(v, 0.0).unwrap();
         }

@@ -12,6 +12,9 @@ idx_struct! {
     pub struct ShapeId(pub(super) u32);
 }
 
+/// Metadata that can be attached to a shape.
+pub type ShapeMetadata = u16;
+
 /// Subset of a connected manifold, defined as an intersection of half-spaces on
 /// its surface.
 #[derive(Debug, Clone)]
@@ -21,12 +24,27 @@ pub struct Shape<M> {
     /// (N-1)-dimensional shapes which define the boundary of the N-dimensional
     /// shape.
     pub boundary: Set64<ShapeRef>,
+
+    /// Metadata associated with the positive side of the shape.
+    pub positive_metadata: Option<ShapeMetadata>,
+    /// Metadata associated with the negative side of the shape.
+    pub negative_metadata: Option<ShapeMetadata>,
 }
 impl<M: Manifold> Shape<M> {
     /// Constructs a shape that contains a whole manifold with no boundary.
     pub fn whole_space(manifold: M) -> Self {
-        let boundary = Set64::new();
-        Self { manifold, boundary }
+        Self::new(manifold, Set64::new())
+    }
+
+    /// Constructs a shape with a boundary.
+    pub fn new(manifold: M, boundary: Set64<ShapeRef>) -> Self {
+        Self {
+            manifold,
+            boundary,
+
+            positive_metadata: None,
+            negative_metadata: None,
+        }
     }
 
     /// Returns the number of dimensions of the shape.

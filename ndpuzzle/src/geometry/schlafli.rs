@@ -29,7 +29,7 @@ impl SchlafliSymbol {
     }
 
     /// Returns the list of mirrors.
-    fn mirrors(&self) -> Vec<Mirror> {
+    pub fn mirrors(&self) -> Vec<Mirror> {
         let mut ret = vec![];
         let mut last = Vector::unit(0);
         for (i, &index) in self.indices.iter().enumerate() {
@@ -111,7 +111,7 @@ impl From<MirrorGenerator> for Matrix {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct Mirror(Vector);
+pub struct Mirror(pub Vector);
 impl From<Mirror> for cga::Isometry {
     fn from(Mirror(v): Mirror) -> Self {
         cga::Isometry::from_reflection_normalized(v)

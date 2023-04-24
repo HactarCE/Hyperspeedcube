@@ -1,24 +1,35 @@
+use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::Weak;
 use wgpu::TextureView;
 use winit::event::WindowEvent;
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
+use winit::window::Window;
 
+use crate::gui::PuzzleView;
 use crate::render::GraphicsState;
 
 pub struct App {
+    pub(crate) gfx: GraphicsState,
     events: EventLoopProxy<AppEvent>,
+
     pub(crate) prefs: PrefsTemporary,
 
-    active_view: Weak<ModelView>,
+    pub(crate) active_puzzle_view: Weak<Mutex<PuzzleView>>,
 }
 
 pub struct ModelView {}
 
 impl App {
-    pub(crate) fn new(event_loop: &EventLoop<AppEvent>, _initial_file: Option<PathBuf>) -> Self {
+    pub(crate) async fn new(
+        window: &Window,
+        event_loop: &EventLoop<AppEvent>,
+        _initial_file: Option<PathBuf>,
+    ) -> Self {
         Self {
+            gfx: GraphicsState::new(&window).await,
             events: event_loop.create_proxy(),
+
             prefs: PrefsTemporary {
                 needs_save: false,
                 gfx: GfxPrefsTemporary {},
@@ -27,7 +38,7 @@ impl App {
                 },
             },
 
-            active_view: Weak::new(),
+            active_puzzle_view: Weak::new(),
         }
     }
 

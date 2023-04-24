@@ -28,11 +28,16 @@ impl CgaShapeArena {
     /// outside the sphere.
     ///
     /// - If `radius` is negative, the sphere is inside-out.
-    pub fn carve_sphere(&mut self, center: impl VectorRef, radius: f32) -> Result<()> {
+    pub fn carve_sphere(
+        &mut self,
+        center: impl VectorRef,
+        radius: f32,
+        label: ShapeMetadata,
+    ) -> Result<()> {
         self.cut(CutParams {
             cut: EuclideanCgaManifold::sphere(center, radius, self.space().ndim()?),
-            remove_inside: false,
-            remove_outside: true,
+            inside: CutOp::Keep(Some(label)),
+            outside: CutOp::Remove,
         })
     }
     /// Carves all root shapes in the arena, removing all shapes that are
@@ -40,11 +45,16 @@ impl CgaShapeArena {
     ///
     /// - If `distance` is positive, the origin is considered inside.
     /// - If `distance` is negative, the origin is considered outside.
-    pub fn carve_plane(&mut self, normal: impl VectorRef, distance: f32) -> Result<()> {
+    pub fn carve_plane(
+        &mut self,
+        normal: impl VectorRef,
+        distance: f32,
+        label: ShapeMetadata,
+    ) -> Result<()> {
         self.cut(CutParams {
             cut: EuclideanCgaManifold::plane(normal, distance, self.space().ndim()?),
-            remove_inside: false,
-            remove_outside: true,
+            inside: CutOp::Keep(Some(label)),
+            outside: CutOp::Remove,
         })
     }
 
@@ -54,8 +64,8 @@ impl CgaShapeArena {
     pub fn slice_sphere(&mut self, center: impl VectorRef, radius: f32) -> Result<()> {
         self.cut(CutParams {
             cut: EuclideanCgaManifold::sphere(center, radius, self.space().ndim()?),
-            remove_inside: false,
-            remove_outside: false,
+            inside: CutOp::Keep(None),
+            outside: CutOp::Keep(None),
         })
     }
     /// Slices all root shapes in the arena.
@@ -65,8 +75,8 @@ impl CgaShapeArena {
     pub fn slice_plane(&mut self, normal: impl VectorRef, distance: f32) -> Result<()> {
         self.cut(CutParams {
             cut: EuclideanCgaManifold::plane(normal, distance, self.space().ndim()?),
-            remove_inside: false,
-            remove_outside: false,
+            inside: CutOp::Keep(None),
+            outside: CutOp::Keep(None),
         })
     }
 }

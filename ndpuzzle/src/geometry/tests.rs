@@ -7,9 +7,9 @@ fn test_non_null_concentric_spheres() {
         println!("Testing in {ndim}D ...");
         let mut shapes = ShapeArena::new_euclidean_cga(ndim);
 
-        shapes.carve_sphere(vector![0.0], 2.0).unwrap();
+        shapes.carve_sphere(vector![0.0], 2.0, 0).unwrap();
         println!("{shapes}");
-        shapes.carve_sphere(vector![0.0], -1.0).unwrap();
+        shapes.carve_sphere(vector![0.0], -1.0, 0).unwrap();
         println!("{shapes}");
 
         assert_eq!(1, shapes.roots().len());
@@ -31,17 +31,17 @@ fn test_identical_spheres() {
         println!("Testing in {ndim}D ...");
         let mut shapes = ShapeArena::new_euclidean_cga(ndim);
 
-        shapes.carve_sphere(vector![0.0], 1.0).unwrap();
+        shapes.carve_sphere(vector![0.0], 1.0, 0).unwrap();
         println!("{shapes}");
         assert_is_sphere(&shapes);
         let prior_shapes = shapes.clone();
 
-        shapes.carve_sphere(vector![0.0], 1.0).unwrap();
+        shapes.carve_sphere(vector![0.0], 1.0, 0).unwrap();
         println!("should be same as previous:\n{shapes}");
         assert_is_sphere(&shapes);
         assert_eq!(prior_shapes.to_string(), shapes.to_string());
 
-        shapes.carve_sphere(vector![0.0], -1.0).unwrap();
+        shapes.carve_sphere(vector![0.0], -1.0, 0).unwrap();
         println!("{shapes}");
 
         assert!(shapes.is_empty())
@@ -56,10 +56,10 @@ fn test_null_triple_sphere() {
         println!("Testing in {ndim}D ...");
         let mut shapes = ShapeArena::new_euclidean_cga(ndim);
 
-        shapes.carve_sphere(vector![1.0], 1.5).unwrap();
-        shapes.carve_sphere(vector![-1.0], 1.5).unwrap();
+        shapes.carve_sphere(vector![1.0], 1.5, 0).unwrap();
+        shapes.carve_sphere(vector![-1.0], 1.5, 0).unwrap();
         println!("After two cuts:\n{shapes}");
-        shapes.carve_sphere(vector![0.0], -1.15).unwrap();
+        shapes.carve_sphere(vector![0.0], -1.15, 0).unwrap();
         println!("After three cuts (should be empty):\n{shapes}");
 
         assert!(shapes.is_empty())
@@ -75,11 +75,11 @@ fn test_null_double_plane_plus_sphere() {
         println!("Testing in {ndim}D ...");
         let mut shapes = ShapeArena::new_euclidean_cga(ndim);
 
-        shapes.carve_plane(Vector::unit(0), -1.0).unwrap();
+        shapes.carve_plane(Vector::unit(0), -1.0, 0).unwrap();
         println!("{shapes}");
-        shapes.carve_plane(Vector::unit(1), -1.0).unwrap();
+        shapes.carve_plane(Vector::unit(1), -1.0, 0).unwrap();
         println!("{shapes}");
-        shapes.carve_sphere(vector![], 1.1).unwrap();
+        shapes.carve_sphere(vector![], 1.1, 0).unwrap();
         println!("{shapes}");
 
         assert!(shapes.is_empty());
@@ -103,8 +103,8 @@ fn test_cube() {
         let mut shapes = ShapeArena::new_euclidean_cga(ndim);
 
         for ax in 0..ndim {
-            shapes.carve_plane(Vector::unit(ax), 1.0).unwrap();
-            shapes.carve_plane(-Vector::unit(ax), 1.0).unwrap();
+            shapes.carve_plane(Vector::unit(ax), 1.0, 0).unwrap();
+            shapes.carve_plane(-Vector::unit(ax), 1.0, 0).unwrap();
         }
         println!("{shapes}");
         assert_eq!(1, shapes.roots().len());
