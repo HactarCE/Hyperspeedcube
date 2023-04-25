@@ -11,6 +11,7 @@ struct ProjectionParams {
 struct LightingParams {
     dir: vec3<f32>,
     ambient: f32,
+    _padding1: vec3<f32>,
     directional: f32,
 }
 
@@ -109,12 +110,14 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
 
     // TODO: REMOVE THIS
     var old_pos = array<f32, NDIM>();
-    for (var i = 0; i < NDIM; i++) {
-        old_pos[i] = vertex_positions[vert_idx];
-        vert_idx++;
-    }
     var old_u = array<f32, NDIM>();
     var old_v = array<f32, NDIM>();
+    for (var i = 0; i < NDIM; i++) {
+        old_pos[i] = vertex_positions[vert_idx];
+        old_u[i] = u_tangents[vert_idx];
+        old_v[i] = v_tangents[vert_idx];
+        vert_idx++;
+    }
     var i = 0;
 
     // Apply puzzle transformation and collapse to 4D.
@@ -141,25 +144,48 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     var w = 1.0;
 
     // Apply 4D perspective transformation.
-    let w_divisor = 1.0 + w * projection_params.w_factor_4d;
-    x = x / w_divisor;
-    y = y / w_divisor;
-    z = z / w_divisor;
+    let w_divisor = 1.0 / (1.0 + w * projection_params.w_factor_4d);
+    x = x * w_divisor;
+    y = y * w_divisor;
+    z = z * w_divisor;
+    let vertex_3d_position = point_4d.xyz * w_divisor;
 
     // Apply 3D perspective transformation.
-    let z_divisor = 1.0 + (projection_params.fov_signum - z) * projection_params.w_factor_3d;
-    w = z_divisor;
+    let z_divisor = 1.0 / (1.0 + (projection_params.fov_signum - z) * projection_params.w_factor_3d);
+    let vertex_2d_position = vec2(x, y) * z_divisor;
 
-    vertex_3d_positions[index] = vec4(x, y, z, w);
+    // Store the 3D position.
+    vertex_3d_positions[index] = vec4(vertex_2d_position, z, 1.0);
 
-    // TODO: Compute lighting.
-    vertex_lightings[index] = 1.0;
-    // let u = new_u.xyz / new_u.w;
-    // let v = new_v.xyz / new_v.w;
-    // let normal = cross(u, v);
-    // // Apply 4D perspective transformation to figure out which side of the
-    // // surface is visible.
-    // let projected_normal = normal
-    // normal *= normal.z
-    // let lighting =
+    // Skip lighting computations if possible.
+    if lighting_params.directional == 0.0 {
+        return;
+    }
+
+    // Let:
+    //
+    //   [ x  y  z  w ] = the initial 4D point
+    //   [ x' y' z'   ] = the projected 4D point
+    //   α = w_factor_4d
+    //
+    // We have already computed [x' y' z'] using this formula:
+    //
+    //   b = 1 / (1 + α w)      = `w_divisor`
+    //   x' = x * b
+    //
+    // Take the Jacobian of this transformation and multiply each tangent vector
+    // by it.
+    let u_3d = (u.xyz + vertex_3d_position * u.w * projection_params.w_factor_4d * w_divisor) * w_divisor;
+    let v_3d = (v.xyz + vertex_3d_position * v.w * projection_params.w_factor_4d * w_divisor) * w_divisor;
+    // Do the same thing to project from 3D to 2D.
+    let u_2d = (u_3d.xy + vertex_2d_position * u_3d.z * projection_params.w_factor_3d * z_divisor) * z_divisor;
+    let v_2d = (v_3d.xy + vertex_2d_position * v_3d.z * projection_params.w_factor_3d * z_divisor) * z_divisor;
+
+    // Use the 3D-perspective-transformed normal to the Z component to figure
+    // out which side of the surface is visible.
+    let orientation = sign(u_2d.x * v_2d.y - u_2d.y * v_2d.x);
+    let normal = normalize(cross(u_3d, v_3d));
+    let directional_lighting_amt = dot(normal * orientation, lighting_params.dir) * 0.5 + 0.5;
+    let lighting = directional_lighting_amt * lighting_params.directional + lighting_params.ambient;
+    vertex_lightings[index] = lighting;
 }

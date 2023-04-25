@@ -5,9 +5,8 @@
 
 use itertools::Itertools;
 use ndpuzzle::{
-    math::{cga::Isometry, Matrix, Sign, Vector, VectorRef},
+    math::{cga::Isometry, Matrix},
     puzzle::{Mesh, PerPiece, PerSticker},
-    vector,
 };
 use std::fmt;
 use std::ops::Range;
@@ -133,8 +132,9 @@ impl PuzzleViewRenderState {
         // Write the lighting parameters.
         let data = GfxLightingParams {
             dir: [1.0, 0.0, 0.0],
-            ambient: 1.0,
-            directional: 0.0,
+            ambient: 0.0,
+            _padding1: [0.0; 3],
+            directional: 1.0,
         };
         gfx.queue
             .write_buffer(&self.buffers.lighting_params, 0, bytemuck::bytes_of(&data));
@@ -162,12 +162,13 @@ impl PuzzleViewRenderState {
         );
 
         // Write the facet colors.
-        let colors: Vec<[f32; 4]> = (0..self.model.facet_count + 1) // +1 for internal
-            .map(|i| {
-                let f = i as f32 / self.model.facet_count as f32;
-                [f, 1.0 - f, 0.0, 1.0]
-            })
-            .collect();
+        let mut colors = vec![[0.5, 0.5, 0.5, 1.0]];
+        colors.extend(
+            (0..self.model.facet_count)
+                .map(|i| colorous::RAINBOW.eval_rational(i, self.model.facet_count))
+                .map(|c| c.into_array().map(|x| x as f32 / 255.0))
+                .map(|[r, g, b]| [r, g, b, 1.0]),
+        );
         gfx.queue
             .write_buffer(&self.buffers.facet_colors, 0, bytemuck::cast_slice(&colors));
 
@@ -374,7 +375,7 @@ struct_with_constructor! {
                 /// First tangent vectors.
                 u_tangents:             wgpu::Buffer = buffer!(mesh.u_tangents,             STORAGE),
                 /// Second tangent vectors.
-                v_tangents:             wgpu::Buffer = buffer!(mesh.u_tangents,             STORAGE),
+                v_tangents:             wgpu::Buffer = buffer!(mesh.v_tangents,             STORAGE),
                 /// Vector along which to apply sticker shrink for each vertex.
                 sticker_shrink_vectors: wgpu::Buffer = buffer!(mesh.sticker_shrink_vectors, STORAGE),
                 /// Facet ID for each vertex.

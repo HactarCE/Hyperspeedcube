@@ -40,6 +40,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let tex_coords: vec2<i32> = vec2<i32>(in.uv * vec2<f32>(textureDimensions(polygon_ids_texture) - vec2(1, 1)));
 
     let facet_id: i32 = textureLoad(polygon_ids_texture, tex_coords, 0).r & 0xFFFF;
+    let lighting: f32 = f32(textureLoad(polygon_ids_texture, tex_coords, 0).r >> 16u) / 16384.0;
     let polygon_id: i32 = textureLoad(polygon_ids_texture, tex_coords, 0).g;
     let r = i32(composite_params.outline_radius);
 
@@ -53,6 +54,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     } else if polygon_id == 0 {
         return vec4(special_colors.background, composite_params.alpha);
     } else {
-        return vec4(facet_colors[facet_id].rgb, composite_params.alpha);
+        return vec4(facet_colors[facet_id].rgb * lighting, composite_params.alpha);
     }
 }

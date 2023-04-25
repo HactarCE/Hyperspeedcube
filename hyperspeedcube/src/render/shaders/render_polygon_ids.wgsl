@@ -28,7 +28,7 @@ fn vs_main(
     let scale = vec4(view_params.scale, 0.25, 1.0);
     let offset = vec4(view_params.align, 0.5, 0.5);
     out.position = vec4(in.position * scale + offset);
-    out.lighting = 0.0; // TODO: in.lighting
+    out.lighting = clamp(in.lighting, 0.0, 1.0);
     out.facet_id = in.facet_id + 1;
     out.polygon_id = in.polygon_id;
     return out;
@@ -37,8 +37,8 @@ fn vs_main(
 @fragment
 // TODO: consider `@early_depth_test`
 fn fs_main(in: VertexOutput) -> @location(0) vec2<i32> {
-    return vec2<i32>(
-        (i32(in.lighting * 65535.0) * 65536) | in.facet_id,
+    return vec2(
+        (i32(in.lighting * 16384.0) << 16u) | in.facet_id,
         in.polygon_id + 1,
     );
 }

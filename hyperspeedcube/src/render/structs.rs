@@ -5,6 +5,7 @@
 pub(super) struct GfxLightingParams {
     pub dir: [f32; 3],
     pub ambient: f32,
+    pub _padding1: [f32; 3],
     pub directional: f32,
 }
 
