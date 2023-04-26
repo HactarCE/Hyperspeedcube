@@ -52,15 +52,10 @@ impl GraphicsState {
             .unwrap();
 
         // Configure surface.
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            width: size.width,
-            height: size.height,
-            present_mode: wgpu::PresentMode::AutoNoVsync, // TODO: test with various VSync modes
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
-            view_formats: vec![wgpu::TextureFormat::Rgba8Unorm],
-        };
+        // TODO: consider different VSync modes
+        let config = surface
+            .get_default_config(&adapter, size.width, size.height)
+            .expect("unsupported surface");
         surface.configure(&device, &config);
 
         let pipelines = Pipelines::new(&device);
