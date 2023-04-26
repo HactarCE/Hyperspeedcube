@@ -304,6 +304,7 @@ impl PuzzleView {
 
 #[derive(Debug)]
 pub struct PuzzleSetup {
+    ndim: u8,
     schlafli: String,
     seeds: Vec<Vector>,
     do_twist_cuts: bool,
@@ -314,6 +315,7 @@ pub struct PuzzleSetup {
 impl Default for PuzzleSetup {
     fn default() -> Self {
         Self {
+            ndim: 3,
             schlafli: "4,3".to_string(),
             seeds: vec![vector![0.0, 0.0, 1.0]],
             do_twist_cuts: false,
@@ -325,10 +327,18 @@ impl Default for PuzzleSetup {
 }
 impl PuzzleSetup {
     fn ui(&mut self, ui: &mut egui::Ui, app: &mut App) {
-        const NDIM: u8 = 3;
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::DragValue::new(&mut self.ndim)
+                    .clamp_range(2..=8)
+                    .speed(0.05),
+            );
+            ui.label("Dimensions");
+        });
 
         ui.strong("Schlafli symbol");
         ui.text_edit_singleline(&mut self.schlafli);
+        let ndim = self.ndim;
         ui.separator();
         ui.strong("Seeds");
         let seeds_len = self.seeds.len();
@@ -338,7 +348,7 @@ impl PuzzleSetup {
                 ui.add_enabled_ui(seeds_len > 1, |ui| {
                     keep &= !ui.button("-").clicked();
                 });
-                vector_edit(ui, v, NDIM);
+                vector_edit(ui, v, ndim);
             });
             keep
         });
@@ -390,7 +400,7 @@ impl PuzzleSetup {
             .transpose();
         let g = s.group()?;
 
-        let mut arena = ShapeArena::new_euclidean_cga(3);
+        let mut arena = ShapeArena::new_euclidean_cga(self.ndim);
 
         let mut f = 0;
         let mut seen = VectorHashMap::new();
