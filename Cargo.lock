@@ -685,6 +685,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "colorous"
+version = "1.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39efe0bc2ad58cbee0bea3109d15b5390fef75e810f28608a6e48ff3e3fbe24b"
+
+[[package]]
 name = "com-rs"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1979,6 +1985,7 @@ dependencies = [
  "bitvec",
  "bytemuck",
  "cgmath",
+ "colorous",
  "config",
  "console_error_panic_hook",
  "dark-light",
