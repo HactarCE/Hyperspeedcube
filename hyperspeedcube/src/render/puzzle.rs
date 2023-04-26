@@ -59,6 +59,13 @@ pub(crate) struct PuzzleViewRenderState {
 
     pub rot: Isometry,
     pub zoom: f32,
+
+    pub facet_shrink: f32,
+    pub sticker_shrink: f32,
+    pub piece_explode: f32,
+
+    pub fov_3d: f32,
+    pub fov_4d: f32,
 }
 
 impl PuzzleViewRenderState {
@@ -74,6 +81,13 @@ impl PuzzleViewRenderState {
 
             rot: Isometry::ident(),
             zoom: 1.0,
+
+            facet_shrink: 0.1,
+            sticker_shrink: 0.1,
+            piece_explode: 0.0,
+
+            fov_3d: 0.0,
+            fov_4d: 30.0,
         }
     }
 
@@ -115,13 +129,13 @@ impl PuzzleViewRenderState {
 
         // Write the projection parameters.
         let data = GfxProjectionParams {
-            facet_shrink: 0.0,
-            sticker_shrink: 0.0,
-            piece_explode: 0.0,
+            facet_shrink: self.facet_shrink,
+            sticker_shrink: self.sticker_shrink,
+            piece_explode: self.piece_explode,
 
-            w_factor_4d: 0.0,
-            w_factor_3d: 0.0,
-            fov_signum: 1.0,
+            w_factor_4d: (self.fov_4d.to_radians() * 0.5).tan(),
+            w_factor_3d: (self.fov_3d.to_radians() * 0.5).tan(),
+            fov_signum: self.fov_3d.signum(),
         };
         gfx.queue.write_buffer(
             &self.buffers.projection_params,
@@ -357,7 +371,7 @@ struct_with_constructor! {
 
                 // Convert to i32 because WGSL doesn't support 16-bit integers yet.
                 let facet_ids = mesh.facet_ids.iter().map(|&i| i.0 as u32).collect_vec();
-                let piece_ids = mesh.facet_ids.iter().map(|&i| i.0 as u32).collect_vec();
+                let piece_ids = mesh.piece_ids.iter().map(|&i| i.0 as u32).collect_vec();
             }
 
             StaticPuzzleModel {

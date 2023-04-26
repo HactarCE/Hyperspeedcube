@@ -1,5 +1,6 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use egui_dock::NodeIndex;
+use itertools::Itertools;
 use ndpuzzle::{
     collections::VectorHashMap,
     geometry::{SchlafliSymbol, ShapeArena},
@@ -8,7 +9,7 @@ use ndpuzzle::{
     vector,
 };
 use parking_lot::Mutex;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 macro_rules! unique_id {
     ($($args:tt)*) => {
@@ -37,11 +38,12 @@ impl AppUi {
             // Tab::Puzzle("3x3x3".to_string()),
             // Tab::Puzzle("Curvy Copter".to_string()),
         ]);
-        dock_tree.split_right(
+        let [_left, right] = dock_tree.split_right(
             NodeIndex::root(),
             0.70,
-            vec![Tab::PuzzleSetup(PuzzleSetup::default()), Tab::Colors],
+            vec![Tab::PuzzleSetup(PuzzleSetup::default())],
         );
+        dock_tree.split_below(right, 0.5, vec![Tab::ViewSettings]);
         AppUi { dock_tree }
     }
 
@@ -118,18 +120,14 @@ impl egui_dock::TabViewer for App {
 pub enum Tab {
     PuzzleView(Arc<Mutex<PuzzleView>>),
     PuzzleSetup(PuzzleSetup),
-    PuzzleList,
-    View,
-    Colors,
+    ViewSettings,
 }
 impl Tab {
     fn title(&self) -> egui::WidgetText {
         match self {
-            Tab::PuzzleView(puzzle_name) => "Unknown Puzzle".into(),
+            Tab::PuzzleView(_) => "Unknown Puzzle".into(),
             Tab::PuzzleSetup(_) => "Puzzle Setup".into(),
-            Tab::PuzzleList => "Puzzles".into(),
-            Tab::View => "View".into(),
-            Tab::Colors => "Colors".into(),
+            Tab::ViewSettings => "View Settings".into(),
         }
     }
 
@@ -141,36 +139,63 @@ impl Tab {
                 }
             }
             Tab::PuzzleSetup(puzzle_setup) => puzzle_setup.ui(ui, app),
-            Tab::PuzzleList => {
-                let layout = egui::Layout::top_down_justified(egui::Align::LEFT);
-                ui.with_layout(layout, |ui| {
-                    ui.collapsing("3D cubic", |ui| {
-                        ui.with_layout(layout, |ui| {
-                            for i in 1..=9 {
-                                ui.button(format!("{i}x{i}x{i}"));
-                            }
-                        });
+            Tab::ViewSettings => {
+                if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
+                    let mut puzzle_view_mutex_guard = puzzle_view.lock();
+                    let state = &mut puzzle_view_mutex_guard.puzzle_view_render_state;
+
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::DragValue::new(&mut state.facet_shrink)
+                                .clamp_range(0.0..=0.9)
+                                .speed(0.005)
+                                .fixed_decimals(2),
+                        );
+                        ui.label("Facet shrink");
                     });
-                    ui.collapsing("4D hypercubic", |ui| {
-                        ui.with_layout(layout, |ui| {
-                            for i in 1..=9 {
-                                ui.button(format!("{i}x{i}x{i}x{i}"));
-                            }
-                        });
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::DragValue::new(&mut state.sticker_shrink)
+                                .clamp_range(0.0..=0.9)
+                                .speed(0.005)
+                                .fixed_decimals(2),
+                        );
+                        ui.label("Sticker shrink");
                     });
-                    ui.button(format!("Megaminx"));
-                    ui.button(format!("120-cell"));
-                });
-            }
-            Tab::View => {
-                ui.centered_and_justified(|ui| {
-                    ui.label(format!("View settings"));
-                });
-            }
-            Tab::Colors => {
-                ui.centered_and_justified(|ui| {
-                    ui.label(format!("Color settings"));
-                });
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::DragValue::new(&mut state.piece_explode)
+                                .clamp_range(0.0..=1.0)
+                                .speed(0.005)
+                                .fixed_decimals(2),
+                        );
+                        ui.label("Piece explode");
+                    });
+
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::DragValue::new(&mut state.fov_3d)
+                                .clamp_range(-120.0..=120.0)
+                                .speed(0.5)
+                                .fixed_decimals(0)
+                                .suffix("°"),
+                        );
+                        ui.label("3D FOV");
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::DragValue::new(&mut state.fov_4d)
+                                .clamp_range(-1.0..=120.0)
+                                .speed(0.5)
+                                .fixed_decimals(0)
+                                .suffix("°"),
+                        );
+                        ui.label("4D FOV");
+                    });
+                }
             }
         }
     }
@@ -281,6 +306,8 @@ impl PuzzleView {
 pub struct PuzzleSetup {
     schlafli: String,
     seeds: Vec<Vector>,
+    do_twist_cuts: bool,
+    cut_depth: f32,
 
     error_string: Option<String>,
 }
@@ -289,6 +316,8 @@ impl Default for PuzzleSetup {
         Self {
             schlafli: "4,3".to_string(),
             seeds: vec![vector![0.0, 0.0, 1.0]],
+            do_twist_cuts: false,
+            cut_depth: 0.9,
 
             error_string: None,
         }
@@ -317,6 +346,18 @@ impl PuzzleSetup {
             self.seeds.push(vector![0.0, 0.0, 1.0]);
         }
         ui.separator();
+
+        ui.checkbox(&mut self.do_twist_cuts, "Twist cuts");
+        ui.add_enabled_ui(self.do_twist_cuts, |ui| {
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::DragValue::new(&mut self.cut_depth)
+                        .clamp_range(0.0..=1.0)
+                        .speed(0.05),
+                );
+                ui.label("Cut depth");
+            })
+        });
 
         let active_view = app.active_puzzle_view.upgrade();
         ui.add_enabled_ui(active_view.is_some(), |ui| {
@@ -348,18 +389,31 @@ impl PuzzleSetup {
             .unwrap_or(Matrix::EMPTY_IDENT) // TODO: isn't really right
             .transpose();
         let g = s.group()?;
+
         let mut arena = ShapeArena::new_euclidean_cga(3);
-        let mut vectors = VectorHashMap::new();
+
         let mut f = 0;
+        let mut seen = VectorHashMap::new();
         for elem in g.elements() {
             for seed in &self.seeds {
                 let v = g[elem].transform_vector(seed);
-                if vectors.insert(v.clone(), ()).is_none() {
+                if seen.insert(v.clone(), ()).is_none() {
                     arena.carve_plane(&v, v.mag(), f)?;
                     f += 1;
                 }
             }
         }
+
+        if self.do_twist_cuts {
+            let mut seen = VectorHashMap::new();
+            for elem in g.elements() {
+                let v = g[elem].transform_vector(&self.seeds[0]);
+                if seen.insert(v.clone(), ()).is_none() {
+                    arena.slice_plane(&v, v.mag() * self.cut_depth)?;
+                }
+            }
+        }
+
         Mesh::from_arena(&arena)
     }
 }
