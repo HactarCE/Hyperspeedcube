@@ -1,6 +1,6 @@
 struct ProjectionParams {
-    sticker_shrink: f32,
     facet_shrink: f32,
+    sticker_shrink: f32,
     piece_explode: f32,
 
     w_factor_4d: f32,
@@ -68,57 +68,45 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
 
     let base_idx = NDIM * index;
 
-    // var new_pos = array<f32, NDIM>();
+    var new_pos = array<f32, NDIM>();
     var vert_idx = base_idx;
-    // var facet_centroid_idx = NDIM * facet;
-    // var piece_centroid_idx = NDIM * piece;
-    // for (var i = 0; i < NDIM; i++) {
-    //     new_pos[i] = vertex_positions[vert_idx];
-    //     // Apply sticker shrink.
-    //     new_pos[i] += sticker_shrink_vectors[vert_idx] * projection_params.sticker_shrink;
-    //     // Apply facet shrink.
-    //     new_pos[i] -= facet_centroids[facet_centroid_idx];
-    //     new_pos[i] *= 1.0 - projection_params.facet_shrink;
-    //     new_pos[i] += facet_centroids[facet_centroid_idx];
-    //     // Apply piece explode.
-    //     new_pos[i] += piece_centroids[piece_centroid_idx] * projection_params.piece_explode;
-
-    //     vert_idx++;
-    //     facet_centroid_idx++;
-    //     piece_centroid_idx++;
-    // }
-    // var old_pos = new_pos;
-
-    // // Apply piece transform.
-    // new_pos = array<f32, NDIM>();
-    // var new_u = array<f32, NDIM>();
-    // var new_v = array<f32, NDIM>();
-    // vert_idx = base_idx;
-    // var i: i32 = NDIM * NDIM * piece;
-    // for (var col = 0; col < NDIM; col++) {
-    //     for (var row = 0; row < NDIM; row++) {
-    //         new_pos[row] += piece_transforms[i] * old_pos[col];
-    //         new_u[row] += piece_transforms[i] * u_tangents[vert_idx];
-    //         new_v[row] += piece_transforms[i] * v_tangents[vert_idx];
-    //         i++;
-    //     }
-    //     vert_idx++;
-    // }
-    // old_pos = new_pos;
-    // var old_u = new_u;
-    // var old_v = new_v;
-
-    // TODO: REMOVE THIS
-    var old_pos = array<f32, NDIM>();
-    var old_u = array<f32, NDIM>();
-    var old_v = array<f32, NDIM>();
+    var facet_centroid_idx = NDIM * facet;
+    var piece_centroid_idx = NDIM * piece;
     for (var i = 0; i < NDIM; i++) {
-        old_pos[i] = vertex_positions[vert_idx];
-        old_u[i] = u_tangents[vert_idx];
-        old_v[i] = v_tangents[vert_idx];
+        new_pos[i] = vertex_positions[vert_idx];
+        // Apply sticker shrink.
+        new_pos[i] += sticker_shrink_vectors[vert_idx] * projection_params.sticker_shrink;
+        // Apply facet shrink.
+        new_pos[i] -= facet_centroids[facet_centroid_idx];
+        new_pos[i] *= 1.0 - projection_params.facet_shrink;
+        new_pos[i] += facet_centroids[facet_centroid_idx];
+        // Apply piece explode.
+        new_pos[i] += piece_centroids[piece_centroid_idx] * projection_params.piece_explode;
+
+        vert_idx++;
+        facet_centroid_idx++;
+        piece_centroid_idx++;
+    }
+    var old_pos = new_pos;
+
+    // Apply piece transform.
+    new_pos = array<f32, NDIM>();
+    var new_u = array<f32, NDIM>();
+    var new_v = array<f32, NDIM>();
+    vert_idx = base_idx;
+    var i: i32 = NDIM * NDIM * piece;
+    for (var col = 0; col < NDIM; col++) {
+        for (var row = 0; row < NDIM; row++) {
+            new_pos[row] += piece_transforms[i] * old_pos[col];
+            new_u[row] += piece_transforms[i] * u_tangents[vert_idx];
+            new_v[row] += piece_transforms[i] * v_tangents[vert_idx];
+            i++;
+        }
         vert_idx++;
     }
-    var i = 0;
+    old_pos = new_pos;
+    var old_u = new_u;
+    var old_v = new_v;
 
     // Apply puzzle transformation and collapse to 4D.
     var point_4d = vec4<f32>();
@@ -140,8 +128,12 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     var x = point_4d.x;
     var y = point_4d.y;
     var z = point_4d.z;
-    // var w = point_4d.w;
-    var w = 1.0;
+    var w: f32;
+    if NDIM < 3 {
+        w = 1.0;
+    } else {
+        w = point_4d.w;
+    }
 
     // Apply 4D perspective transformation.
     let w_divisor = 1.0 / (1.0 + w * projection_params.w_factor_4d);

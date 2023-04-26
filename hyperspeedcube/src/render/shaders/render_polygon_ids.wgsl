@@ -17,6 +17,9 @@ struct ViewParams {
     align: vec2<f32>,
 }
 
+// Larger number means less clipping, but also less Z buffer precision.
+const Z_CLIP: f32 = 16.0;
+
 @group(0) @binding(0) var<uniform> view_params: ViewParams;
 
 @vertex
@@ -25,7 +28,7 @@ fn vs_main(
     @builtin(vertex_index) idx: u32,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let scale = vec4(view_params.scale, 0.25, 1.0);
+    let scale = vec4(view_params.scale, 1.0 / Z_CLIP, 1.0);
     let offset = vec4(view_params.align, 0.5, 0.5);
     out.position = vec4(in.position * scale + offset);
     out.lighting = clamp(in.lighting, 0.0, 1.0);
