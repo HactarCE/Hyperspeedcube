@@ -7,6 +7,7 @@ use itertools::Itertools;
 use ndpuzzle::{
     math::{cga::Isometry, Matrix},
     puzzle::{Mesh, PerPiece, PerSticker},
+    util,
 };
 use std::fmt;
 use std::ops::Range;
@@ -80,15 +81,104 @@ impl PuzzleViewRenderState {
             buffers: PuzzleViewDynamicBuffers::new(gfx, mesh, id),
 
             rot: Isometry::ident(),
-            zoom: 1.0,
+            zoom: 0.3,
 
-            facet_shrink: 0.1,
-            sticker_shrink: 0.1,
-            piece_explode: 0.0,
+            facet_shrink: 0.0,
+            sticker_shrink: 0.0,
+            piece_explode: 1.0,
 
             fov_3d: 0.0,
             fov_4d: 30.0,
         }
+    }
+
+    pub fn draw_puzzle_single_pass(
+        &mut self,
+        gfx: &GraphicsState,
+        encoder: &mut wgpu::CommandEncoder,
+        (width, height): (u32, u32),
+    ) -> Option<&wgpu::TextureView> {
+        // Avoid divide-by-zero errors.
+        if width == 0 || height == 0 {
+            return None;
+        }
+
+        self.init_buffers(gfx, (width, height));
+
+        let size = cgmath::vec2(width as f32, height as f32);
+        let tex_size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+
+        // Make the textures the right size.
+        let (depth_texture, depth_texture_view) = self.buffers.depth_texture.at_size(gfx, tex_size);
+        let (color_texture, color_texture_view) = self.buffers.out_texture.at_size(gfx, tex_size);
+
+        // Render in a single pass.
+        {
+            let bind_groups = gfx.pipelines.render_single_pass_bind_groups.bind_groups(
+                &gfx.device,
+                &[
+                    &[
+                        self.model.vertex_positions.as_entire_binding(),
+                        self.model.u_tangents.as_entire_binding(),
+                        self.model.v_tangents.as_entire_binding(),
+                        self.model.sticker_shrink_vectors.as_entire_binding(),
+                    ],
+                    &[
+                        self.model.facet_centroids.as_entire_binding(),
+                        self.model.piece_centroids.as_entire_binding(),
+                        self.buffers.facet_colors.as_entire_binding(),
+                    ],
+                    &[
+                        self.buffers.puzzle_transform.as_entire_binding(),
+                        self.buffers.piece_transforms.as_entire_binding(),
+                        self.buffers.projection_params.as_entire_binding(),
+                        self.buffers.lighting_params.as_entire_binding(),
+                        self.buffers.view_params.as_entire_binding(),
+                    ],
+                ],
+            );
+
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("render_puzzle"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: color_texture_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.6,
+                            g: 0.7,
+                            b: 0.8,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: depth_texture_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
+            });
+
+            render_pass.set_pipeline(gfx.pipelines.render_single_pass(self.model.ndim)?);
+            for (index, bind_group) in &bind_groups {
+                render_pass.set_bind_group(*index, bind_group, &[]);
+            }
+            render_pass.set_vertex_buffer(0, self.model.facet_ids.slice(..));
+            render_pass.set_vertex_buffer(1, self.model.piece_ids.slice(..));
+            render_pass.set_index_buffer(self.model.triangles.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..self.model.triangle_count as u32 * 3, 0, 0..1);
+            drop(render_pass);
+        }
+
+        Some(color_texture_view)
     }
 
     pub fn draw_puzzle(
@@ -101,6 +191,8 @@ impl PuzzleViewRenderState {
         if width == 0 || height == 0 {
             return None;
         }
+
+        self.init_buffers(gfx, (width, height));
 
         let size = cgmath::vec2(width as f32, height as f32);
         let tex_size = wgpu::Extent3d {
@@ -115,6 +207,159 @@ impl PuzzleViewRenderState {
         let (depth_texture, depth_texture_view) = self.buffers.depth_texture.at_size(gfx, tex_size);
         let (color_texture, color_texture_view) = self.buffers.out_texture.at_size(gfx, tex_size);
 
+        // Compute 3D vertex positions on the GPU.
+        {
+            let bind_groups = gfx
+                .pipelines
+                .compute_transform_points_bind_groups
+                .bind_groups(
+                    &gfx.device,
+                    &[
+                        &[
+                            self.model.vertex_positions.as_entire_binding(),
+                            self.model.u_tangents.as_entire_binding(),
+                            self.model.v_tangents.as_entire_binding(),
+                            self.model.sticker_shrink_vectors.as_entire_binding(),
+                            self.model.facet_ids.as_entire_binding(),
+                            self.model.piece_ids.as_entire_binding(),
+                        ],
+                        &[
+                            self.model.facet_centroids.as_entire_binding(),
+                            self.model.piece_centroids.as_entire_binding(),
+                            self.buffers.vertex_3d_positions.as_entire_binding(),
+                            self.buffers.vertex_lightings.as_entire_binding(),
+                        ],
+                        &[
+                            self.buffers.puzzle_transform.as_entire_binding(),
+                            self.buffers.piece_transforms.as_entire_binding(),
+                            self.buffers.projection_params.as_entire_binding(),
+                            self.buffers.lighting_params.as_entire_binding(),
+                        ],
+                    ],
+                );
+
+            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("compute_3d_vertex_positions"),
+            });
+            compute_pass.set_pipeline(gfx.pipelines.compute_transform_points(self.model.ndim)?);
+            for (index, bind_group) in &bind_groups {
+                compute_pass.set_bind_group(*index, bind_group, &[]);
+            }
+
+            dispatch_work_groups(
+                &mut compute_pass,
+                self.model.vertex_count as u32,
+                &gfx.device.limits(),
+            );
+        }
+
+        // Render first pass.
+        {
+            let bind_groups = gfx.pipelines.render_polygon_ids_bind_groups.bind_groups(
+                &gfx.device,
+                &[&[], &[], &[self.buffers.view_params.as_entire_binding()]],
+            );
+
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("render_polygon_ids"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: first_pass_texture_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: depth_texture_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
+            });
+
+            render_pass.set_pipeline(&gfx.pipelines.render_polygon_ids);
+            for (index, bind_group) in &bind_groups {
+                render_pass.set_bind_group(*index, bind_group, &[]);
+            }
+            render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
+            render_pass.set_vertex_buffer(1, self.buffers.vertex_lightings.slice(..));
+            render_pass.set_vertex_buffer(2, self.model.facet_ids.slice(..));
+            render_pass.set_vertex_buffer(3, self.model.polygon_ids.slice(..));
+            render_pass.set_index_buffer(self.model.triangles.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..self.model.triangle_count as u32 * 3, 0, 0..1);
+            drop(render_pass);
+        }
+
+        // Write the composite parameters. TODO: use push constants
+        let data = GfxCompositeParams {
+            alpha: 1.0,
+            outline_radius: 1,
+        };
+        gfx.queue
+            .write_buffer(&self.buffers.composite_params, 0, bytemuck::bytes_of(&data));
+
+        // Write the special colors.
+        let data = GfxSpecialColors {
+            background: [0.6, 0.7, 0.8],
+            _padding1: 0,
+            outline: [0.0, 0.0, 0.0],
+            _padding2: 0,
+        };
+        gfx.queue
+            .write_buffer(&self.buffers.special_colors, 0, bytemuck::bytes_of(&data));
+
+        // Render second pass.
+        {
+            let bind_groups = gfx
+                .pipelines
+                .render_composite_puzzle_bind_groups
+                .bind_groups(
+                    &gfx.device,
+                    &[
+                        &[],
+                        &[self.buffers.facet_colors.as_entire_binding()],
+                        &[wgpu::BindingResource::TextureView(first_pass_texture_view)],
+                        &[
+                            self.buffers.composite_params.as_entire_binding(),
+                            self.buffers.special_colors.as_entire_binding(),
+                        ],
+                    ],
+                );
+
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("render_composite_puzzle"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: color_texture_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+
+            render_pass.set_pipeline(&gfx.pipelines.render_composite_puzzle);
+            for (index, bind_group) in &bind_groups {
+                render_pass.set_bind_group(*index, bind_group, &[]);
+            }
+            render_pass.set_vertex_buffer(0, self.buffers.composite_vertices.slice(..));
+            render_pass.draw(0..4, 0..1);
+            drop(render_pass);
+        }
+
+        Some(color_texture_view)
+    }
+
+    fn init_buffers(&mut self, gfx: &GraphicsState, (width, height): (u32, u32)) {
         struct ViewPrefs {
             scale: f32,
         }
@@ -122,9 +367,9 @@ impl PuzzleViewRenderState {
 
         // Calculate scale.
         let scale = {
-            let min_dimen = f32::min(size.x, size.y);
+            let min_dimen = f32::min(width as f32, height as f32);
             let pixel_scale = min_dimen * view_prefs.scale;
-            cgmath::vec2(pixel_scale / size.x, pixel_scale / size.y) * self.zoom
+            cgmath::vec2(pixel_scale / width as f32, pixel_scale / height as f32) * self.zoom
         };
 
         // Write the projection parameters.
@@ -193,157 +438,6 @@ impl PuzzleViewRenderState {
         };
         gfx.queue
             .write_buffer(&self.buffers.view_params, 0, bytemuck::bytes_of(&data));
-
-        // Compute 3D vertex positions on the GPU.
-        {
-            let bind_groups = gfx
-                .pipelines
-                .compute_transform_points_bind_groups
-                .bind_groups(
-                    &gfx.device,
-                    &[
-                        &[
-                            self.buffers.projection_params.as_entire_binding(),
-                            self.buffers.lighting_params.as_entire_binding(),
-                            self.buffers.puzzle_transform.as_entire_binding(),
-                            self.buffers.piece_transforms.as_entire_binding(),
-                        ],
-                        &[
-                            self.model.vertex_positions.as_entire_binding(),
-                            self.model.u_tangents.as_entire_binding(),
-                            self.model.v_tangents.as_entire_binding(),
-                            self.model.sticker_shrink_vectors.as_entire_binding(),
-                            self.model.facet_ids.as_entire_binding(),
-                            self.model.piece_ids.as_entire_binding(),
-                        ],
-                        &[
-                            self.model.facet_centroids.as_entire_binding(),
-                            self.model.piece_centroids.as_entire_binding(),
-                        ],
-                        &[
-                            self.buffers.vertex_3d_positions.as_entire_binding(),
-                            self.buffers.vertex_lightings.as_entire_binding(),
-                        ],
-                    ],
-                );
-
-            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("compute_3d_vertex_positions"),
-            });
-            compute_pass.set_pipeline(gfx.pipelines.compute_transform_points(self.model.ndim)?);
-            compute_pass.set_bind_group(0, &bind_groups[0], &[]);
-            compute_pass.set_bind_group(1, &bind_groups[1], &[]);
-            compute_pass.set_bind_group(2, &bind_groups[2], &[]);
-            compute_pass.set_bind_group(3, &bind_groups[3], &[]);
-
-            dispatch_work_groups_with_offsets(
-                &mut compute_pass,
-                self.model.vertex_count as u32,
-                &gfx.device.limits(),
-            );
-        }
-
-        // Render first pass.
-        {
-            let bind_groups = gfx.pipelines.render_polygon_ids_bind_groups.bind_groups(
-                &gfx.device,
-                &[&[self.buffers.view_params.as_entire_binding()]],
-            );
-
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("render_polygon_ids"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: first_pass_texture_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 0.0,
-                        }),
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: depth_texture_view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(0.0),
-                        store: true,
-                    }),
-                    stencil_ops: None,
-                }),
-            });
-
-            render_pass.set_pipeline(&gfx.pipelines.render_polygon_ids);
-            render_pass.set_bind_group(0, &bind_groups[0], &[]);
-            render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
-            render_pass.set_vertex_buffer(1, self.buffers.vertex_lightings.slice(..));
-            render_pass.set_vertex_buffer(2, self.model.facet_ids.slice(..));
-            render_pass.set_vertex_buffer(3, self.model.polygon_ids.slice(..));
-            render_pass.set_index_buffer(self.model.triangles.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..self.model.triangle_count as u32 * 3, 0, 0..1);
-            drop(render_pass);
-        }
-
-        // Write the composite parameters. TODO: use push constants
-        let data = GfxCompositeParams {
-            alpha: 1.0,
-            outline_radius: 1,
-        };
-        gfx.queue
-            .write_buffer(&self.buffers.composite_params, 0, bytemuck::bytes_of(&data));
-
-        // Write the special colors.
-        let data = GfxSpecialColors {
-            background: [0.6, 0.7, 0.8],
-            _padding1: 0,
-            outline: [0.0, 0.0, 0.0],
-            _padding2: 0,
-        };
-        gfx.queue
-            .write_buffer(&self.buffers.special_colors, 0, bytemuck::bytes_of(&data));
-
-        // Render second pass.
-        {
-            let bind_groups = gfx
-                .pipelines
-                .render_composite_puzzle_bind_groups
-                .bind_groups(
-                    &gfx.device,
-                    &[
-                        &[
-                            self.buffers.composite_params.as_entire_binding(),
-                            self.buffers.special_colors.as_entire_binding(),
-                        ],
-                        &[wgpu::BindingResource::TextureView(first_pass_texture_view)],
-                        &[self.buffers.facet_colors.as_entire_binding()],
-                    ],
-                );
-
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("render_composite_puzzle"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: color_texture_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-
-            render_pass.set_pipeline(&gfx.pipelines.render_composite_puzzle);
-            render_pass.set_bind_group(0, &bind_groups[0], &[]);
-            render_pass.set_bind_group(1, &bind_groups[1], &[]);
-            render_pass.set_bind_group(2, &bind_groups[2], &[]);
-            render_pass.set_vertex_buffer(0, self.buffers.composite_vertices.slice(..));
-            render_pass.draw(0..4, 0..1);
-            drop(render_pass);
-        }
-
-        Some(color_texture_view)
     }
 }
 
@@ -395,7 +489,7 @@ struct_with_constructor! {
                 /// Facet ID for each vertex.
                 facet_ids:              wgpu::Buffer = buffer!(facet_ids,          VERTEX | STORAGE),
                 /// Piece ID for each vertex.
-                piece_ids:              wgpu::Buffer = buffer!(piece_ids,                   STORAGE),
+                piece_ids:              wgpu::Buffer = buffer!(piece_ids,          VERTEX | STORAGE),
                 /// Polygon ID for each vertex.
                 polygon_ids:            wgpu::Buffer = buffer!(mesh.polygon_ids,             VERTEX),
 
@@ -630,16 +724,9 @@ impl CachedTexture {
     }
 }
 
-fn dispatch_work_groups_with_offsets(
-    compute_pass: &mut wgpu::ComputePass,
-    count: u32,
-    limits: &wgpu::Limits,
-) {
+fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass, count: u32, limits: &wgpu::Limits) {
     let group_size = limits.max_compute_workgroup_size_x;
-    let mut offset: u32 = 0;
-    while offset < count {
-        compute_pass.set_push_constants(0, bytemuck::bytes_of(&offset));
-        compute_pass.dispatch_workgroups(std::cmp::min(group_size, count - offset), 1, 1);
-        offset += group_size;
-    }
+    // Divide, rounding up
+    let group_count = (count + group_size - 1) / group_size;
+    compute_pass.dispatch_workgroups(group_count, 1, 1);
 }

@@ -6,6 +6,82 @@ use super::CompositeVertex;
 const MIN_NDIM: u8 = 2;
 const MAX_NDIM: u8 = 8;
 
+mod bindings {
+    macro_rules! bindings {
+        ($($name:ident = ($binding:expr, $binding_type:expr);)+) => {
+            $(
+                pub const $name: (u32, wgpu::BindingType) = ($binding, $binding_type);
+            )+
+        };
+    }
+    macro_rules! buffer_bindings {
+        ($($name:ident = ($binding:expr, $buffer_binding_type:expr);)+) => {
+            bindings! {
+                $($name = ($binding, wgpu::BindingType::Buffer {
+                    ty: $buffer_binding_type,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+            }   );)+
+            }
+        };
+    }
+
+    buffer_bindings! {
+        // Static mesh data (per-vertex)
+        VERTEX_POSITIONS       = (0, wgpu::BufferBindingType::Storage { read_only: true });
+        U_TANGENTS             = (1, wgpu::BufferBindingType::Storage { read_only: true });
+        V_TANGENTS             = (2, wgpu::BufferBindingType::Storage { read_only: true });
+        STICKER_SHRINK_VECTORS = (3, wgpu::BufferBindingType::Storage { read_only: true });
+        FACET_IDS              = (4, wgpu::BufferBindingType::Storage { read_only: true });
+        PIECE_IDS              = (5, wgpu::BufferBindingType::Storage { read_only: true });
+
+        // Static mesh data (other)
+        FACET_CENTROIDS        = (0, wgpu::BufferBindingType::Storage { read_only: true });
+        PIECE_CENTROIDS        = (1, wgpu::BufferBindingType::Storage { read_only: true });
+        FACET_COLORS           = (2, wgpu::BufferBindingType::Storage { read_only: true });
+        // Computed data (per-vertex)
+        VERTEX_3D_POSITIONS    = (3, wgpu::BufferBindingType::Storage { read_only: false });
+        VERTEX_LIGHTINGS       = (4, wgpu::BufferBindingType::Storage { read_only: false });
+
+        // View parameters and transforms
+        PUZZLE_TRANSFORM       = (0, wgpu::BufferBindingType::Storage { read_only: true });
+        PIECE_TRANSFORMS       = (1, wgpu::BufferBindingType::Storage { read_only: true });
+        PROJECTION_PARAMS      = (2, wgpu::BufferBindingType::Uniform);
+        LIGHTING_PARAMS        = (3, wgpu::BufferBindingType::Uniform);
+        VIEW_PARAMS            = (4, wgpu::BufferBindingType::Uniform);
+
+        // Composite parameters
+        COMPOSITE_PARAMS       = (0, wgpu::BufferBindingType::Uniform);
+        SPECIAL_COLORS         = (1, wgpu::BufferBindingType::Uniform);
+    }
+    bindings! {
+        POLYGON_IDS_TEXTURE = (50, wgpu::BindingType::Texture {
+            sample_type: wgpu::TextureSampleType::Sint,
+            view_dimension: wgpu::TextureViewDimension::D2,
+            multisampled: false,
+        });
+    }
+}
+
+macro_rules! bind_groups {
+    ($($index:literal => [$(pub($stages:ident) $name:ident),* $(,)?]),* $(,)?) => {{
+        assert!(
+            itertools::izip!([$($index),*], 0..).all(|(a, b)| a == b),
+            "bind groups must be sequential",
+        );
+        &[$(
+            &[$(
+                wgpu::BindGroupLayoutEntry {
+                    binding: bindings::$name.0,
+                    visibility: wgpu::ShaderStages::$stages,
+                    ty: bindings::$name.1,
+                    count: None,
+                },
+            )*],
+        )*]
+    }};
+}
+
 macro_rules! include_wgsl_with_params {
     ($file_path:literal $(, $var:ident)* $(,)?) => {
         wgpu::ShaderModuleDescriptor {
@@ -19,44 +95,6 @@ macro_rules! include_wgsl_with_params {
                     .into(),
             ),
         }
-    };
-}
-
-macro_rules! bind_group_layout_descriptor {
-    (
-        $(
-            pub($stages:ident) $binding:expr => $binding_type:expr
-        ),* $(,)?
-    ) => {
-        wgpu::BindGroupLayoutDescriptor {
-            label: None,
-            entries: &[$(
-                wgpu::BindGroupLayoutEntry {
-                    binding: $binding,
-                    visibility: wgpu::ShaderStages::$stages,
-                    ty: $binding_type,
-                    count: None,
-                },
-            )*]
-        }
-    };
-}
-
-macro_rules! buffer_bind_group_layout_descriptor {
-    (
-        $(
-            pub($stages:ident) $binding:expr => $buffer_binding_type:expr
-         ),* $(,)?
-    ) => {
-        bind_group_layout_descriptor![
-            $(
-                pub($stages) $binding => wgpu::BindingType::Buffer {
-                    ty: $buffer_binding_type,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-            )*
-        ]
     };
 }
 
@@ -92,156 +130,213 @@ pub(super) struct Pipelines {
     /// Pipeline to render the second pass.
     pub render_composite_puzzle: wgpu::RenderPipeline,
     pub render_composite_puzzle_bind_groups: PipelineBindGroups,
+
+    pub render_single_pass: Vec<wgpu::RenderPipeline>,
+    pub render_single_pass_bind_groups: PipelineBindGroups,
 }
 impl Pipelines {
     pub(super) fn new(device: &wgpu::Device) -> Self {
-        let workgroup_size = device.limits().max_compute_workgroup_size_x;
+        fn make_compute_pipeline(
+            device: &wgpu::Device,
+            shader_module: &wgpu::ShaderModule,
+            bind_groups: &PipelineBindGroups,
+        ) -> wgpu::ComputePipeline {
+            let label = &bind_groups.label;
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some(&format!("{label}_pipeline")),
+                layout: Some(&bind_groups.pipeline_layout(device)),
+                module: shader_module,
+                entry_point: label,
+            })
+        }
+
+        fn make_render_pipeline(
+            device: &wgpu::Device,
+            shader_module: &wgpu::ShaderModule,
+            bind_groups: &PipelineBindGroups,
+            desc: BasicRenderPipelineDescriptor<'_>,
+        ) -> wgpu::RenderPipeline {
+            let label = &bind_groups.label;
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(&format!("{label}_pipeline")),
+                layout: Some(&bind_groups.pipeline_layout(device)),
+                vertex: wgpu::VertexState {
+                    module: shader_module,
+                    entry_point: &format!("{label}_vertex"),
+                    buffers: desc.vertex_buffers,
+                },
+                primitive: desc.primitive,
+                depth_stencil: desc.depth_stencil,
+                multisample: desc.multisample,
+                fragment: Some(wgpu::FragmentState {
+                    module: shader_module,
+                    entry_point: &format!("{label}_fragment"),
+                    targets: &[desc.fragment_target],
+                }),
+                multiview: None,
+            })
+        }
+
+        let shader_modules = (MIN_NDIM..=MAX_NDIM)
+            .map(|ndim| {
+                device.create_shader_module(include_wgsl_with_params!("shaders/shader.wgsl", ndim))
+            })
+            .collect_vec();
 
         let compute_transform_points_bind_groups = PipelineBindGroups::new(
             "compute_transform_points",
             device,
-            vec![
-                buffer_bind_group_layout_descriptor![
-                    pub(COMPUTE) 0 => wgpu::BufferBindingType::Uniform,
-                    pub(COMPUTE) 1 => wgpu::BufferBindingType::Uniform,
-                    pub(COMPUTE) 2 => wgpu::BufferBindingType::Storage { read_only: true },
-                    pub(COMPUTE) 3 => wgpu::BufferBindingType::Storage { read_only: true },
+            bind_groups![
+                0 => [
+                    pub(COMPUTE) VERTEX_POSITIONS,
+                    pub(COMPUTE) U_TANGENTS,
+                    pub(COMPUTE) V_TANGENTS,
+                    pub(COMPUTE) STICKER_SHRINK_VECTORS,
+                    pub(COMPUTE) FACET_IDS,
+                    pub(COMPUTE) PIECE_IDS,
                 ],
-                buffer_bind_group_layout_descriptor![
-                    pub(COMPUTE) 0 => wgpu::BufferBindingType::Storage { read_only: true },
-                    pub(COMPUTE) 1 => wgpu::BufferBindingType::Storage { read_only: true },
-                    pub(COMPUTE) 2 => wgpu::BufferBindingType::Storage { read_only: true },
-                    pub(COMPUTE) 3 => wgpu::BufferBindingType::Storage { read_only: true },
-                    pub(COMPUTE) 4 => wgpu::BufferBindingType::Storage { read_only: true },
-                    pub(COMPUTE) 5 => wgpu::BufferBindingType::Storage { read_only: true },
+                1 => [
+                    pub(COMPUTE) FACET_CENTROIDS,
+                    pub(COMPUTE) PIECE_CENTROIDS,
+                    pub(COMPUTE) VERTEX_3D_POSITIONS,
+                    pub(COMPUTE) VERTEX_LIGHTINGS,
                 ],
-                buffer_bind_group_layout_descriptor![
-                    pub(COMPUTE) 0 => wgpu::BufferBindingType::Storage { read_only: true },
-                    pub(COMPUTE) 1 => wgpu::BufferBindingType::Storage { read_only: true },
-                ],
-                buffer_bind_group_layout_descriptor![
-                    pub(COMPUTE) 0 => wgpu::BufferBindingType::Storage { read_only: false },
-                    pub(COMPUTE) 1 => wgpu::BufferBindingType::Storage { read_only: false },
+                2 => [
+                    pub(COMPUTE) PUZZLE_TRANSFORM,
+                    pub(COMPUTE) PIECE_TRANSFORMS,
+                    pub(COMPUTE) PROJECTION_PARAMS,
+                    pub(COMPUTE) LIGHTING_PARAMS,
                 ],
             ],
         );
-        let compute_transform_points = (MIN_NDIM..=MAX_NDIM)
-            .map(|ndim| {
-                let compute_transform_points_shader_module =
-                    device.create_shader_module(include_wgsl_with_params!(
-                        "shaders/compute_transform_points.wgsl",
-                        ndim,
-                        workgroup_size,
-                    ));
-                device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                    label: Some(&format!("compute_transform_points_pipeline_{ndim}")),
-                    layout: Some(&compute_transform_points_bind_groups.pipeline_layout(
-                        device,
-                        &[wgpu::PushConstantRange {
-                            stages: wgpu::ShaderStages::COMPUTE,
-                            range: 0..4,
-                        }],
-                    )),
-                    module: &compute_transform_points_shader_module,
-                    entry_point: "main",
-                })
+        let compute_transform_points = shader_modules
+            .iter()
+            .map(|shader_module| {
+                make_compute_pipeline(device, shader_module, &compute_transform_points_bind_groups)
             })
             .collect_vec();
 
         let render_polygon_ids_bind_groups = PipelineBindGroups::new(
             "render_polygon_ids",
             device,
-            vec![buffer_bind_group_layout_descriptor![
-                pub(VERTEX) 0 => wgpu::BufferBindingType::Uniform,
-            ]],
+            bind_groups![0 => [], 1 => [], 2 => [pub(VERTEX) VIEW_PARAMS]],
         );
-        let render_polygon_ids_shader_module =
-            device.create_shader_module(wgpu::include_wgsl!("shaders/render_polygon_ids.wgsl"));
-        let render_polygon_ids = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("render_polygon_ids_pipeline"),
-            layout: Some(&render_polygon_ids_bind_groups.pipeline_layout(device, &[])),
-            vertex: wgpu::VertexState {
-                module: &render_polygon_ids_shader_module,
-                entry_point: "vs_main",
-                buffers: &[
+        let render_polygon_ids = make_render_pipeline(
+            device,
+            &shader_modules[0],
+            &render_polygon_ids_bind_groups,
+            BasicRenderPipelineDescriptor {
+                vertex_buffers: &[
                     single_type_vertex_buffer![0 => Float32x4], // position
                     single_type_vertex_buffer![1 => Float32],   // lighting
                     single_type_vertex_buffer![2 => Sint32],    // facet_id
                     single_type_vertex_buffer![3 => Sint32],    // polygon_id
                 ],
-            },
-            primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth24PlusStencil8,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Greater,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
-            multisample: wgpu::MultisampleState::default(),
-            fragment: Some(wgpu::FragmentState {
-                module: &render_polygon_ids_shader_module,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth24PlusStencil8,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Greater,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+                fragment_target: Some(wgpu::ColorTargetState {
                     format: wgpu::TextureFormat::Rg32Sint,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            multiview: None,
-        });
+                }),
+                ..Default::default()
+            },
+        );
 
         let render_composite_puzzle_bind_groups = PipelineBindGroups::new(
             "render_composite_puzzle",
             device,
-            vec![
-                buffer_bind_group_layout_descriptor![
-                    pub(FRAGMENT) 0 => wgpu::BufferBindingType::Uniform,
-                    pub(FRAGMENT) 1 => wgpu::BufferBindingType::Uniform,
+            bind_groups![
+                0 => [],
+                1 => [pub(FRAGMENT) FACET_COLORS],
+                2 => [pub(FRAGMENT) POLYGON_IDS_TEXTURE],
+                3 => [
+                    pub(FRAGMENT) COMPOSITE_PARAMS,
+                    pub(FRAGMENT) SPECIAL_COLORS,
                 ],
-                bind_group_layout_descriptor![
-                    pub(FRAGMENT) 0 => wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Sint,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                ],
-                buffer_bind_group_layout_descriptor![
-                    pub(FRAGMENT) 0 => wgpu::BufferBindingType::Storage { read_only: true },
-                ],
+
             ],
         );
-        let render_composite_puzzle_shader_module = device
-            .create_shader_module(wgpu::include_wgsl!("shaders/render_composite_puzzle.wgsl"));
-        let render_composite_puzzle =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("render_composite_puzzle_pipeline"),
-                layout: Some(&render_composite_puzzle_bind_groups.pipeline_layout(device, &[])),
-                vertex: wgpu::VertexState {
-                    module: &render_composite_puzzle_shader_module,
-                    entry_point: "vs_main",
-                    buffers: &[CompositeVertex::LAYOUT],
-                },
+        let render_composite_puzzle = make_render_pipeline(
+            device,
+            &shader_modules[0],
+            &render_composite_puzzle_bind_groups,
+            BasicRenderPipelineDescriptor {
+                vertex_buffers: &[CompositeVertex::LAYOUT],
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleStrip,
                     ..Default::default()
                 },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState::default(),
-                fragment: Some(wgpu::FragmentState {
-                    module: &render_composite_puzzle_shader_module,
-                    entry_point: "fs_main",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: wgpu::TextureFormat::Bgra8Unorm,
-                        blend: Some(wgpu::BlendState {
-                            color: blend_component!(Add(src * SrcAlpha, dst * One)),
-                            alpha: blend_component!(Add(src * One, dst * One)),
-                        }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
+                fragment_target: Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Bgra8Unorm,
+                    blend: Some(wgpu::BlendState {
+                        color: blend_component!(Add(src * SrcAlpha, dst * One)),
+                        alpha: blend_component!(Add(src * One, dst * One)),
+                    }),
+                    write_mask: wgpu::ColorWrites::ALL,
                 }),
-                multiview: None,
-            });
+                ..Default::default()
+            },
+        );
+
+        let render_single_pass_bind_groups = PipelineBindGroups::new(
+            "render_single_pass",
+            device,
+            bind_groups![
+                0 => [
+                    pub(VERTEX) VERTEX_POSITIONS,
+                    pub(VERTEX) U_TANGENTS,
+                    pub(VERTEX) V_TANGENTS,
+                    pub(VERTEX) STICKER_SHRINK_VECTORS,
+                ],
+                1 => [
+                    pub(VERTEX) FACET_CENTROIDS,
+                    pub(VERTEX) PIECE_CENTROIDS,
+                    pub(FRAGMENT) FACET_COLORS,
+                ],
+                2 => [
+                    pub(VERTEX) PUZZLE_TRANSFORM,
+                    pub(VERTEX) PIECE_TRANSFORMS,
+                    pub(VERTEX) PROJECTION_PARAMS,
+                    pub(VERTEX) LIGHTING_PARAMS,
+                    pub(VERTEX) VIEW_PARAMS,
+                ],
+            ],
+        );
+        let render_single_pass = shader_modules
+            .iter()
+            .map(|shader_module| {
+                make_render_pipeline(
+                    device,
+                    shader_module,
+                    &render_single_pass_bind_groups,
+                    BasicRenderPipelineDescriptor {
+                        vertex_buffers: &[
+                            single_type_vertex_buffer![0 => Sint32], // facet_id
+                            single_type_vertex_buffer![1 => Sint32], // piece_id
+                        ],
+                        depth_stencil: Some(wgpu::DepthStencilState {
+                            format: wgpu::TextureFormat::Depth24PlusStencil8,
+                            depth_write_enabled: true,
+                            depth_compare: wgpu::CompareFunction::Greater,
+                            stencil: wgpu::StencilState::default(),
+                            bias: wgpu::DepthBiasState::default(),
+                        }),
+                        fragment_target: Some(wgpu::ColorTargetState {
+                            format: wgpu::TextureFormat::Bgra8Unorm,
+                            blend: Some(wgpu::BlendState::REPLACE),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        }),
+                        ..Default::default()
+                    },
+                )
+            })
+            .collect_vec();
 
         // TODO: lazily create pipelines
         Self {
@@ -253,6 +348,9 @@ impl Pipelines {
 
             render_composite_puzzle,
             render_composite_puzzle_bind_groups,
+
+            render_single_pass,
+            render_single_pass_bind_groups,
         }
     }
 
@@ -260,39 +358,58 @@ impl Pipelines {
         self.compute_transform_points
             .get(ndim.checked_sub(MIN_NDIM)? as usize)
     }
+
+    pub(super) fn render_single_pass(&self, ndim: u8) -> Option<&wgpu::RenderPipeline> {
+        self.render_single_pass
+            .get(ndim.checked_sub(MIN_NDIM)? as usize)
+    }
 }
 
 pub(super) struct PipelineBindGroups {
     label: String,
-    bind_group_layout_descriptors: Vec<wgpu::BindGroupLayoutDescriptor<'static>>,
-    bind_group_layouts: Vec<wgpu::BindGroupLayout>,
+    bind_group_layouts: Vec<(
+        wgpu::BindGroupLayout,
+        wgpu::BindGroupLayoutDescriptor<'static>,
+    )>,
 }
 impl PipelineBindGroups {
     fn new(
         label: impl fmt::Display,
         device: &wgpu::Device,
-        bind_group_layout_descriptors: Vec<wgpu::BindGroupLayoutDescriptor<'static>>,
+        bind_group_bindings: &'static [&'static [wgpu::BindGroupLayoutEntry]],
     ) -> Self {
-        let bind_group_layouts = bind_group_layout_descriptors
-            .iter()
-            .map(|bind_group| device.create_bind_group_layout(bind_group))
-            .collect_vec();
         PipelineBindGroups {
             label: label.to_string(),
-            bind_group_layouts,
-            bind_group_layout_descriptors,
+            bind_group_layouts: bind_group_bindings
+                .iter()
+                .map(|entries| {
+                    let layout_descriptor = wgpu::BindGroupLayoutDescriptor {
+                        label: None,
+                        entries,
+                    };
+                    (
+                        device.create_bind_group_layout(&layout_descriptor),
+                        layout_descriptor,
+                    )
+                })
+                .collect(),
         }
     }
 
-    pub fn pipeline_layout(
-        &self,
-        device: &wgpu::Device,
-        push_constant_ranges: &[wgpu::PushConstantRange],
-    ) -> wgpu::PipelineLayout {
+    pub fn pipeline_layout(&self, device: &wgpu::Device) -> wgpu::PipelineLayout {
+        let empty_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[],
+            });
         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some(&format!("{}_pipeline_layout", self.label)),
-            bind_group_layouts: &self.bind_group_layouts.iter().collect_vec(),
-            push_constant_ranges,
+            bind_group_layouts: &self
+                .bind_group_layouts
+                .iter()
+                .map(|(layout, _desc)| layout)
+                .collect_vec(),
+            push_constant_ranges: &[],
         })
     }
 
@@ -300,30 +417,31 @@ impl PipelineBindGroups {
         &self,
         device: &wgpu::Device,
         bind_groups: &[&[wgpu::BindingResource]],
-    ) -> Vec<wgpu::BindGroup> {
-        assert_eq!(
-            self.bind_group_layouts.len(),
-            bind_groups.len(),
-            "wrong number of bind groups"
+    ) -> Vec<(u32, wgpu::BindGroup)> {
+        let bind_groups = itertools::zip_eq(&self.bind_group_layouts, bind_groups).map(
+            |((layout, layout_desc), bind_group)| {
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: layout_desc.label,
+                    layout,
+                    entries: &itertools::zip_eq(layout_desc.entries, *bind_group)
+                        .map(|(entry_desc, resource)| wgpu::BindGroupEntry {
+                            binding: entry_desc.binding,
+                            resource: resource.clone(),
+                        })
+                        .collect_vec(),
+                })
+            },
         );
 
-        itertools::izip!(
-            &self.bind_group_layout_descriptors,
-            &self.bind_group_layouts,
-            bind_groups,
-        )
-        .map(|(layout_desc, layout, &bind_group)| {
-            device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: layout_desc.label,
-                layout,
-                entries: &itertools::zip_eq(layout_desc.entries, bind_group)
-                    .map(|(entry_desc, resource)| wgpu::BindGroupEntry {
-                        binding: entry_desc.binding,
-                        resource: resource.clone(),
-                    })
-                    .collect_vec(),
-            })
-        })
-        .collect_vec()
+        (0..).zip(bind_groups).collect()
     }
+}
+
+#[derive(Default)]
+struct BasicRenderPipelineDescriptor<'a> {
+    vertex_buffers: &'a [wgpu::VertexBufferLayout<'a>],
+    primitive: wgpu::PrimitiveState,
+    depth_stencil: Option<wgpu::DepthStencilState>,
+    multisample: wgpu::MultisampleState,
+    fragment_target: Option<wgpu::ColorTargetState>,
 }

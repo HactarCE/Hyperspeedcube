@@ -9,6 +9,7 @@ use ndpuzzle::{
     vector,
 };
 use parking_lot::Mutex;
+use std::fmt;
 use std::sync::Arc;
 
 macro_rules! unique_id {
@@ -142,6 +143,21 @@ impl Tab {
             Tab::ViewSettings => {
                 if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
                     let mut puzzle_view_mutex_guard = puzzle_view.lock();
+
+                    ui.horizontal(|ui| {
+                        let options = [RenderEngine::SinglePass, RenderEngine::MultiPass];
+                        let mut i = match puzzle_view_mutex_guard.render_engine {
+                            RenderEngine::SinglePass => 0,
+                            RenderEngine::MultiPass => 1,
+                        };
+                        let get_fn = |i: usize| options[i].to_string();
+                        egui::ComboBox::new(unique_id!(), "Render engine")
+                            .show_index(ui, &mut i, 2, get_fn);
+                        puzzle_view_mutex_guard.render_engine = options[i];
+                    });
+
+                    ui.separator();
+
                     let state = &mut puzzle_view_mutex_guard.puzzle_view_render_state;
 
                     ui.horizontal(|ui| {
@@ -206,6 +222,7 @@ pub struct PuzzleView {
     puzzle_view_render_state: crate::render::PuzzleViewRenderState,
     texture_id: egui::TextureId,
     rect: egui::Rect,
+    render_engine: RenderEngine,
 }
 impl PuzzleView {
     fn new(gfx: &GraphicsState, egui_renderer: &mut egui_wgpu::Renderer) -> Self {
@@ -215,12 +232,15 @@ impl PuzzleView {
             wgpu::FilterMode::Linear,
         );
 
-        let mesh = Mesh::new_example_mesh().unwrap();
+        let mesh = PuzzleSetup::default()
+            .try_generate_mesh()
+            .unwrap_or_else(|_| Mesh::new_example_mesh().unwrap());
 
         PuzzleView {
             puzzle_view_render_state: PuzzleViewRenderState::new(gfx, &mesh),
             texture_id,
             rect: egui::Rect::NOTHING,
+            render_engine: RenderEngine::SinglePass,
         }
     }
     fn set_mesh(&mut self, gfx: &GraphicsState, mesh: &Mesh) {
@@ -278,11 +298,15 @@ impl PuzzleView {
         egui_renderer: &mut egui_wgpu::Renderer,
         encoder: &mut wgpu::CommandEncoder,
     ) {
-        let new_texture = self.puzzle_view_render_state.draw_puzzle(
-            gfx,
-            encoder,
-            (self.rect.width() as u32, self.rect.height() as u32),
-        );
+        let size = (self.rect.width() as u32, self.rect.height() as u32);
+        let new_texture = match self.render_engine {
+            RenderEngine::SinglePass => self
+                .puzzle_view_render_state
+                .draw_puzzle_single_pass(gfx, encoder, size),
+            RenderEngine::MultiPass => self
+                .puzzle_view_render_state
+                .draw_puzzle(gfx, encoder, size),
+        };
 
         // Draw puzzle if necessary.
         if let Some(texture) = new_texture {
@@ -316,10 +340,10 @@ impl Default for PuzzleSetup {
     fn default() -> Self {
         Self {
             ndim: 3,
-            schlafli: "4,3".to_string(),
+            schlafli: "3,3".to_string(),
             seeds: vec![vector![0.0, 0.0, 1.0]],
-            do_twist_cuts: false,
-            cut_depth: 0.9,
+            do_twist_cuts: true,
+            cut_depth: 0.0,
 
             error_string: None,
         }
@@ -440,4 +464,19 @@ fn vector_edit(ui: &mut egui::Ui, v: &mut Vector, ndim: u8) {
             .on_hover_text(format!("Dim {i}"));
         }
     });
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+enum RenderEngine {
+    SinglePass,
+    #[default]
+    MultiPass,
+}
+impl fmt::Display for RenderEngine {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RenderEngine::SinglePass => write!(f, "Fast"),
+            RenderEngine::MultiPass => write!(f, "Fancy"),
+        }
+    }
 }
