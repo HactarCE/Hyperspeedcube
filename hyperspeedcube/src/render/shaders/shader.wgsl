@@ -93,7 +93,6 @@ struct SpecialColors {
 struct TransformedVertex {
     position: vec4<f32>,
     lighting: f32,
-    color: vec4<f32>, // TODO: REMOVE
 }
 
 /// Transforms a point from NDIM dimensions to 3D.
@@ -163,9 +162,6 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
         }
     }
 
-    var x = point_4d.x;
-    var y = point_4d.y;
-    var z = point_4d.z;
     var w: f32;
     if NDIM < 3 {
         w = 1.0;
@@ -175,14 +171,13 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
 
     // Apply 4D perspective transformation.
     let w_divisor = 1.0 / (1.0 + w * projection_params.w_factor_4d);
-    x = x * w_divisor;
-    y = y * w_divisor;
-    z = z * w_divisor;
     let vertex_3d_position = point_4d.xyz * w_divisor;
 
     // Apply 3D perspective transformation.
+    let xy = vertex_3d_position.xy;
+    let z = vertex_3d_position.z;
     let z_divisor = 1.0 / (1.0 + (projection_params.fov_signum - z) * projection_params.w_factor_3d);
-    let vertex_2d_position = vec2(x, y) * z_divisor;
+    let vertex_2d_position = xy * z_divisor;
 
     // Store the 3D position.
     ret.position = vec4(vertex_2d_position, z, 1.0);
@@ -204,11 +199,11 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
         //
         // Take the Jacobian of this transformation and multiply each tangent
         // vector by it.
-        let u_3d = (u.xyz + vertex_3d_position * u.w * projection_params.w_factor_4d * w_divisor) * w_divisor;
-        let v_3d = (v.xyz + vertex_3d_position * v.w * projection_params.w_factor_4d * w_divisor) * w_divisor;
+        let u_3d = (u.xyz - vertex_3d_position * u.w * projection_params.w_factor_4d) * w_divisor;
+        let v_3d = (v.xyz - vertex_3d_position * v.w * projection_params.w_factor_4d) * w_divisor;
         // Do the same thing to project from 3D to 2D.
-        let u_2d = (u_3d.xy + vertex_2d_position * u_3d.z * projection_params.w_factor_3d * z_divisor) * z_divisor;
-        let v_2d = (v_3d.xy + vertex_2d_position * v_3d.z * projection_params.w_factor_3d * z_divisor) * z_divisor;
+        let u_2d = (u_3d.xy + vertex_2d_position * u_3d.z * projection_params.w_factor_3d) * z_divisor;
+        let v_2d = (v_3d.xy + vertex_2d_position * v_3d.z * projection_params.w_factor_3d) * z_divisor;
 
         // Use the 3D-perspective-transformed normal to the Z component to
         // figure out which side of the surface is visible.
@@ -217,14 +212,6 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
 
         let directional_lighting_amt = dot(normal * orientation, lighting_params.dir) * 0.5 + 0.5;
         ret.lighting = directional_lighting_amt * lighting_params.directional + lighting_params.ambient;
-
-        // TODO: REMOVE
-        ret.color = vec4<f32>(u_2d, v_2d);
-        if projection_params.sticker_shrink < 0.1 {
-            // ret.color = vec4<f32>(normal, 1.0);
-        } else {
-            // ret.color = vec4<f32>(sign(cross(vec3(u_2d, 0.0), vec3(v_2d, 0.0))), 1.0);
-        }
     }
 
     return ret;
@@ -245,7 +232,6 @@ struct SinglePassVertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) facet_id: i32,
     @location(1) lighting: f32,
-    @location(2) color: vec4<f32>, // TODO: REMOVE
 }
 
 @vertex
@@ -265,22 +251,13 @@ fn render_single_pass_vertex(
         out.facet_id = in.facet_id + 1;
     }
     out.lighting = clamp(transformed.lighting, 0.0, 1.0);
-    out.color = transformed.color; // TODO: REMOVE
     return out;
 }
 
 @fragment
 // TODO: consider `@early_depth_test`
 fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<f32> {
-    // return vec4(facet_colors[in.facet_id].rgb * in.lighting, 1.0);
-
-    let p = vec2(in.position.x, -in.position.y);
-    let m = mat2x2(0.0, 1.0, -1.0, 0.0);
-    var tx = (dot(p, normalize(in.color.xy)) % 20.0);
-    if tx < 0.0 { tx += 20.0; }
-    var ty = (dot(p, normalize(in.color.zw)) % 20.0);
-    if ty < 0.0 { ty += 20.0; }
-    return vec4(tx / 20.0, ty / 20.0, 0.0, 1.0); // TODO: REMOVE
+    return vec4(facet_colors[in.facet_id].rgb * in.lighting, 1.0);
 }
 
 
