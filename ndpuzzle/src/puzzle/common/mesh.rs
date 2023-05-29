@@ -93,7 +93,10 @@ impl Mesh {
         }
     }
 
-    pub fn from_arena(arena: &ShapeArena<EuclideanCgaManifold>) -> Result<Self> {
+    pub fn from_arena(
+        arena: &ShapeArena<EuclideanCgaManifold>,
+        ignore_errors: bool,
+    ) -> Result<Self> {
         let ndim = arena.space().ndim()?;
         let mut mesh = Mesh::new_empty(ndim);
 
@@ -104,95 +107,104 @@ impl Mesh {
 
         let mut simplexifier = Simplexifier::new(arena);
         for &piece_shape in arena.roots() {
-            let mut tris_per_sticker: Vec<Vec<[u32; 3]>> = vec![];
-            let mut internal_tris: Vec<[u32; 3]> = vec![];
+            // IIFE to mimic try block
+            let result = (|| -> Result<()> {
+                let mut tris_per_sticker: Vec<Vec<[u32; 3]>> = vec![];
+                let mut internal_tris: Vec<[u32; 3]> = vec![];
 
-            for sticker_shape in arena[piece_shape].boundary.iter() {
-                // Add centroid to facet mass.
-                let facet;
-                if let Some(facet_id) = arena.get_metadata(sticker_shape) {
-                    let facet_centroid = simplexifier.shape_centroid(piece_shape)?;
-                    while facet_centroids.len() <= facet_id as usize {
-                        facet_centroids.push(vec![]);
+                for sticker_shape in arena[piece_shape].boundary.iter() {
+                    // Add centroid to facet mass.
+                    let facet;
+                    if let Some(facet_id) = arena.get_metadata(sticker_shape) {
+                        let facet_centroid = simplexifier.shape_centroid(piece_shape)?;
+                        while facet_centroids.len() <= facet_id as usize {
+                            facet_centroids.push(vec![]);
+                        }
+                        facet_centroids[facet_id as usize].push(facet_centroid);
+
+                        facet = Facet(facet_id);
+                    } else {
+                        facet = Facet::INTERNAL;
                     }
-                    facet_centroids[facet_id as usize].push(facet_centroid);
 
-                    facet = Facet(facet_id);
-                } else {
-                    facet = Facet::INTERNAL;
-                }
+                    let mut tris = vec![];
 
-                let mut tris = vec![];
-
-                let mut queue = vec![sticker_shape];
-                let mut seen: HashSet<ShapeId> = arena.roots().iter().copied().collect();
-                while let Some(shape) = queue.pop() {
-                    match arena[shape.id].ndim()? {
-                        0..=1 => continue,
-                        3.. => {
-                            // TODO: handle non-flat shapes
-                            for b in arena[shape.id].boundary.iter() {
-                                if seen.insert(b.id) {
-                                    queue.push(b);
+                    let mut queue = vec![sticker_shape];
+                    let mut seen: HashSet<ShapeId> = arena.roots().iter().copied().collect();
+                    while let Some(shape) = queue.pop() {
+                        match arena[shape.id].ndim()? {
+                            0..=1 => continue,
+                            3.. => {
+                                // TODO: handle non-flat shapes
+                                for b in arena[shape.id].boundary.iter() {
+                                    if seen.insert(b.id) {
+                                        queue.push(b);
+                                    }
                                 }
                             }
-                        }
-                        2 => {
-                            let mut vertex_id_map: HashMap<VertexId, u32> = HashMap::new();
+                            2 => {
+                                let mut vertex_id_map: HashMap<VertexId, u32> = HashMap::new();
 
-                            let tangent = arena[shape.id].manifold.tangent_space()?;
-                            for tri in simplexifier.face_polygons(shape.id)? {
-                                let [a, b, c] = tri.map(|v| match vertex_id_map.entry(v) {
-                                    Entry::Occupied(entry) => Ok(*entry.get()),
-                                    Entry::Vacant(entry) => {
-                                        let vertex_position = &simplexifier[v];
-                                        let tangents = tangent.basis_at(cga::Point::Finite(
-                                            vertex_position.clone(),
-                                        ))?;
-                                        ensure!(tangents.len() == 2);
-                                        let u_tangent = &tangents[0];
-                                        let v_tangent = &tangents[1];
-                                        let sticker_shrink_vector = Vector::EMPTY; // TODO: sticker shrink vector
+                                let tangent = arena[shape.id].manifold.tangent_space()?;
+                                for tri in simplexifier.face_polygons(shape.id)? {
+                                    let [a, b, c] = tri.map(|v| match vertex_id_map.entry(v) {
+                                        Entry::Occupied(entry) => Ok(*entry.get()),
+                                        Entry::Vacant(entry) => {
+                                            let vertex_position = &simplexifier[v];
+                                            let tangents = tangent.basis_at(cga::Point::Finite(
+                                                vertex_position.clone(),
+                                            ))?;
+                                            ensure!(tangents.len() == 2);
+                                            let u_tangent = &tangents[0];
+                                            let v_tangent = &tangents[1];
+                                            let sticker_shrink_vector = Vector::EMPTY; // TODO: sticker shrink vector
 
-                                        let new_id = mesh.add_vertex(
-                                            vertex_position,
-                                            u_tangent,
-                                            v_tangent,
-                                            sticker_shrink_vector,
-                                            polygon_id,
-                                            piece_id,
-                                            facet,
-                                        );
+                                            let new_id = mesh.add_vertex(
+                                                vertex_position,
+                                                u_tangent,
+                                                v_tangent,
+                                                sticker_shrink_vector,
+                                                polygon_id,
+                                                piece_id,
+                                                facet,
+                                            );
 
-                                        entry.insert(new_id);
-                                        Ok(new_id)
-                                    }
-                                });
-                                tris.push([a?, b?, c?]);
+                                            entry.insert(new_id);
+                                            Ok(new_id)
+                                        }
+                                    });
+                                    tris.push([a?, b?, c?]);
+                                }
+
+                                polygon_id += 1;
                             }
-
-                            polygon_id += 1;
                         }
+                    }
+
+                    if facet == Facet::INTERNAL {
+                        internal_tris.extend(tris);
+                    } else {
+                        tris_per_sticker.push(tris);
                     }
                 }
 
-                if facet == Facet::INTERNAL {
-                    internal_tris.extend(tris);
-                } else {
-                    tris_per_sticker.push(tris);
+                let piece_centroid = simplexifier.shape_centroid_point(piece_shape)?;
+                mesh.piece_centroids.extend(piece_centroid.iter_ndim(ndim));
+                for sticker_tris in tris_per_sticker {
+                    let tri_range = mesh.add_tris(sticker_tris);
+                    mesh.sticker_index_ranges.push(tri_range)?;
                 }
-            }
+                let tri_range = mesh.add_tris(internal_tris);
+                mesh.piece_internals_index_ranges.push(tri_range)?;
 
-            let piece_centroid = simplexifier.shape_centroid_point(piece_shape)?;
-            mesh.piece_centroids.extend(piece_centroid.iter_ndim(ndim));
-            for sticker_tris in tris_per_sticker {
-                let tri_range = mesh.add_tris(sticker_tris);
-                mesh.sticker_index_ranges.push(tri_range)?;
-            }
-            let tri_range = mesh.add_tris(internal_tris);
-            mesh.piece_internals_index_ranges.push(tri_range)?;
+                piece_id = piece_id.next()?;
 
-            piece_id = piece_id.next()?;
+                Ok(())
+            })();
+
+            if !ignore_errors {
+                result?;
+            }
         }
 
         // TODO: real facet centroids
@@ -202,8 +214,14 @@ impl Mesh {
                 .extend(centroid_sum.com.iter_ndim(ndim));
         }
 
+        ensure!(!mesh.is_empty(), "empty mesh!");
+
         println!("{mesh:?}");
         Ok(mesh)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.vertex_count == 0
     }
 
     fn add_vertex(

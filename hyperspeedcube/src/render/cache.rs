@@ -1,9 +1,6 @@
-use once_cell::unsync::OnceCell;
-use std::marker::PhantomData;
-
 use super::GraphicsState;
 
-pub(crate) struct CachedDynamicBuffer {
+pub(super) struct CachedDynamicBuffer {
     label: Option<&'static str>,
     usage: wgpu::BufferUsages,
     element_size: usize,
@@ -11,7 +8,7 @@ pub(crate) struct CachedDynamicBuffer {
     buffer: Option<wgpu::Buffer>,
 }
 impl CachedDynamicBuffer {
-    pub(super) fn new<T>(label: Option<&'static str>, usage: wgpu::BufferUsages) -> Self {
+    pub fn new<T>(label: Option<&'static str>, usage: wgpu::BufferUsages) -> Self {
         Self {
             label,
             usage,
@@ -21,7 +18,7 @@ impl CachedDynamicBuffer {
         }
     }
 
-    pub(super) fn at_min_len(&mut self, gfx: &GraphicsState, min_len: usize) -> &mut wgpu::Buffer {
+    pub fn at_min_len(&mut self, gfx: &GraphicsState, min_len: usize) -> &mut wgpu::Buffer {
         // Invalidate the buffer if it is too small.
         if let Some(len) = self.len {
             if len < min_len {
@@ -40,17 +37,13 @@ impl CachedDynamicBuffer {
         })
     }
 
-    pub(super) fn slice(
-        &mut self,
-        gfx: &GraphicsState,
-        len: usize,
-    ) -> (&wgpu::Buffer, wgpu::BufferSlice) {
+    pub fn slice(&mut self, gfx: &GraphicsState, len: usize) -> (&wgpu::Buffer, wgpu::BufferSlice) {
         let element_size = self.element_size;
         let b = self.at_min_len(gfx, len);
         (b, b.slice(0..(len * element_size) as u64))
     }
 
-    pub(super) fn write_all<T: Default + bytemuck::NoUninit>(
+    pub fn write_all<T: Default + bytemuck::NoUninit>(
         &mut self,
         gfx: &GraphicsState,
         data: &mut Vec<T>,
@@ -64,47 +57,76 @@ impl CachedDynamicBuffer {
     }
 }
 
-// pub(crate) struct CachedUniformBuffer<T> {
-//     label: Option<&'static str>,
-//     binding: u32,
-//     buffer: OnceCell<(wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup)>,
-//     _phantom: PhantomData<T>,
-// }
-// impl<T> CachedUniformBuffer<T> {
-//     pub(super) fn new(label: Option<&'static str>, binding: u32) -> Self {
-//         Self {
-//             label,
-//             binding,
-//             buffer: OnceCell::new(),
-//             _phantom: PhantomData,
-//         }
-//     }
-//     pub(super) fn get(
-//         &self,
-//         gfx: &GraphicsState,
-//     ) -> &(wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
-//         self.buffer
-//             .get_or_init(|| gfx.create_uniform::<T>(self.label, self.binding))
-//     }
+pub(super) struct CachedTexture {
+    label: String,
+    dimension: wgpu::TextureDimension,
+    format: wgpu::TextureFormat,
+    usage: wgpu::TextureUsages,
 
-//     pub(super) fn buffer(&self, gfx: &GraphicsState) -> &wgpu::Buffer {
-//         &self.get(gfx).0
-//     }
-//     pub(super) fn bind_group_layout(&self, gfx: &GraphicsState) -> &wgpu::BindGroupLayout {
-//         &self.get(gfx).1
-//     }
-//     pub(super) fn bind_group(&self, gfx: &GraphicsState) -> &wgpu::BindGroup {
-//         &self.get(gfx).2
-//     }
+    size: Option<wgpu::Extent3d>,
+    texture: Option<(wgpu::Texture, wgpu::TextureView)>,
+}
+impl CachedTexture {
+    pub fn new(
+        label: String,
+        dimension: wgpu::TextureDimension,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
+    ) -> Self {
+        CachedTexture {
+            label,
+            dimension,
+            format,
+            usage,
 
-//     pub(super) fn write(&self, gfx: &GraphicsState, data: &T)
-//     where
-//         T: bytemuck::NoUninit,
-//     {
-//         gfx.queue
-//             .write_buffer(self.buffer(gfx), 0, bytemuck::bytes_of(data));
-//     }
-// }
+            size: None,
+            texture: None,
+        }
+    }
+    pub fn new_2d(label: String, format: wgpu::TextureFormat, usage: wgpu::TextureUsages) -> Self {
+        Self::new(label, wgpu::TextureDimension::D2, format, usage)
+    }
+    pub fn new_1d(label: String, format: wgpu::TextureFormat, usage: wgpu::TextureUsages) -> Self {
+        Self::new(label, wgpu::TextureDimension::D1, format, usage)
+    }
+
+    pub fn clone(&self, label: String) -> Self {
+        Self {
+            label,
+            dimension: self.dimension,
+            format: self.format,
+            usage: self.usage,
+
+            size: None,
+            texture: None,
+        }
+    }
+
+    pub fn at_size(
+        &mut self,
+        gfx: &GraphicsState,
+        size: wgpu::Extent3d,
+    ) -> &(wgpu::Texture, wgpu::TextureView) {
+        // Invalidate the buffer if it is the wrong size.
+        if self.size != Some(size) {
+            self.texture = None;
+        }
+
+        self.texture.get_or_insert_with(|| {
+            self.size = Some(size);
+            gfx.create_texture(wgpu::TextureDescriptor {
+                label: Some(&self.label),
+                size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: self.dimension,
+                format: self.format,
+                usage: self.usage,
+                view_formats: &[],
+            })
+        })
+    }
+}
 
 /// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.
 fn pad_buffer_if_necessary<T: Default + bytemuck::NoUninit>(buf: &mut Vec<T>) {

@@ -1,8 +1,5 @@
 //! Rendering logic.
 
-use instant::Instant;
-use std::sync::Arc;
-
 mod cache;
 // mod mesh;
 mod pipelines;
@@ -12,8 +9,8 @@ mod structs;
 
 // use crate::app::App;
 // use crate::puzzle::ProjectedStickerGeometry;
-// use cache::{CachedDynamicBuffer, CachedUniformBuffer};
-pub(crate) use puzzle::PuzzleViewRenderState;
+use cache::CachedTexture;
+pub(crate) use puzzle::{PuzzleRenderer, ViewParams};
 pub(crate) use state::GraphicsState;
 use structs::*;
 

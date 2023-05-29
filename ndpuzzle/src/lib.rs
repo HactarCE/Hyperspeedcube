@@ -20,6 +20,48 @@ pub type LayerMaskUint = u32;
 /// Names for axes up to 8 dimensions.
 pub const AXIS_NAMES: &str = "XYZWUVRS";
 
+#[cfg(test)]
+mod tests {
+    use crate::{
+        collections::VectorHashMap,
+        geometry::{SchlafliSymbol, ShapeArena},
+        math::{Matrix, VectorRef},
+        puzzle::Mesh,
+    };
+
+    #[test]
+    fn aaaaaaa() {
+        const SCHLAFLI: &str = "3,2";
+        let seeds = vec![vector![0.0, 1.0, 1.0]];
+
+        let s = SchlafliSymbol::from_string(SCHLAFLI);
+        let m = Matrix::from_cols(s.mirrors().iter().rev().map(|v| &v.0))
+            .inverse()
+            .unwrap_or(Matrix::EMPTY_IDENT) // TODO: isn't really right
+            .transpose();
+        let g = s.group().unwrap();
+
+        let mut arena = ShapeArena::new_euclidean_cga(3);
+
+        let mut f = 0;
+        let mut seen = VectorHashMap::new();
+        for elem in g.elements() {
+            for seed in &seeds {
+                let v = g[elem].transform_vector(seed);
+                if seen.insert(v.clone(), ()).is_none() {
+                    arena.carve_plane(&v, v.mag(), f).unwrap();
+                    println!("{arena}");
+                    f += 1;
+                }
+            }
+        }
+
+        println!("{arena}");
+
+        Mesh::from_arena(&arena, false).unwrap();
+    }
+}
+
 // #[cfg(test)]
 // mod tests {
 //     use super::*;

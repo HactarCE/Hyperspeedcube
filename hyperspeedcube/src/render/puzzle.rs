@@ -7,13 +7,81 @@ use itertools::Itertools;
 use ndpuzzle::{
     math::{cga::Isometry, Matrix},
     puzzle::{Mesh, PerPiece, PerSticker},
-    util,
 };
 use std::fmt;
 use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
+use std::sync::Arc;
 
-use super::{structs::*, GraphicsState};
+use super::{structs::*, CachedTexture, GraphicsState};
+
+// Increment buffer IDs so each buffer has a different label in graphics
+// debuggers.
+fn next_buffer_id() -> usize {
+    static ID: AtomicUsize = AtomicUsize::new(0);
+    ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ViewParams {
+    pub width: u32,
+    pub height: u32,
+
+    pub rot: Isometry,
+    pub zoom: f32,
+
+    pub facet_shrink: f32,
+    pub sticker_shrink: f32,
+    pub piece_explode: f32,
+
+    pub fov_3d: f32,
+    pub fov_4d: f32,
+}
+impl Default for ViewParams {
+    fn default() -> Self {
+        Self {
+            width: 0,
+            height: 0,
+
+            rot: Isometry::ident(),
+            zoom: 0.3,
+
+            facet_shrink: 0.0,
+            sticker_shrink: 0.0,
+            piece_explode: 1.0,
+
+            fov_3d: 0.0,
+            fov_4d: 30.0,
+        }
+    }
+}
+impl ViewParams {
+    /// Returns the X and Y scale factors to use in the view matrix. Returns
+    /// `Err` if either the width or height is smaller than one pixel.
+    fn xy_scale(&self) -> Result<cgmath::Vector2<f32>, ()> {
+        if self.width == 0 || self.height == 0 {
+            return Err(());
+        }
+        let w = self.width as f32;
+        let h = self.height as f32;
+
+        let min_dimen = f32::min(w as f32, h as f32);
+        Ok(cgmath::vec2(min_dimen / w, min_dimen / h) * self.zoom)
+    }
+
+    /// Returns the projection parameters to send to the GPU.
+    fn gfx_projection_params(&self) -> GfxProjectionParams {
+        GfxProjectionParams {
+            facet_shrink: self.facet_shrink,
+            sticker_shrink: self.sticker_shrink,
+            piece_explode: self.piece_explode,
+
+            w_factor_4d: (self.fov_4d.to_radians() * 0.5).tan(),
+            w_factor_3d: (self.fov_3d.to_radians() * 0.5).tan(),
+            fov_signum: self.fov_3d.signum(),
+        }
+    }
+}
 
 macro_rules! struct_with_constructor {
     (
@@ -52,43 +120,27 @@ macro_rules! struct_with_constructor {
 }
 
 #[derive(Debug)]
-pub(crate) struct PuzzleViewRenderState {
-    /// GPU static buffers.
-    model: StaticPuzzleModel,
-    /// GPU dynamic buffers.
-    buffers: PuzzleViewDynamicBuffers,
-
-    pub rot: Isometry,
-    pub zoom: f32,
-
-    pub facet_shrink: f32,
-    pub sticker_shrink: f32,
-    pub piece_explode: f32,
-
-    pub fov_3d: f32,
-    pub fov_4d: f32,
+pub(crate) struct PuzzleRenderer {
+    /// Static model data, which does not change and so can be shared among all
+    /// renderers of the same type of puzzle (hence `Arc`).
+    model: Arc<StaticPuzzleModel>,
+    /// GPU dynamic buffers, whose contents do change.
+    buffers: DynamicPuzzleBuffers,
 }
 
-impl PuzzleViewRenderState {
+impl PuzzleRenderer {
     pub fn new(gfx: &GraphicsState, mesh: &Mesh) -> Self {
-        // Increment buffer IDs so each buffer has a different label in graphics
-        // debuggers.
-        static ID: AtomicUsize = AtomicUsize::new(0);
-        let id = ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let id = next_buffer_id();
+        PuzzleRenderer {
+            model: Arc::new(StaticPuzzleModel::new(gfx, mesh, id)),
+            buffers: DynamicPuzzleBuffers::new(gfx, mesh, id),
+        }
+    }
 
-        PuzzleViewRenderState {
-            model: StaticPuzzleModel::new(gfx, mesh, id),
-            buffers: PuzzleViewDynamicBuffers::new(gfx, mesh, id),
-
-            rot: Isometry::ident(),
-            zoom: 0.3,
-
-            facet_shrink: 0.0,
-            sticker_shrink: 0.0,
-            piece_explode: 1.0,
-
-            fov_3d: 0.0,
-            fov_4d: 30.0,
+    pub fn clone(&self, gfx: &GraphicsState) -> Self {
+        Self {
+            model: Arc::clone(&self.model),
+            buffers: self.buffers.clone(gfx),
         }
     }
 
@@ -96,19 +148,13 @@ impl PuzzleViewRenderState {
         &mut self,
         gfx: &GraphicsState,
         encoder: &mut wgpu::CommandEncoder,
-        (width, height): (u32, u32),
-    ) -> Option<&wgpu::TextureView> {
-        // Avoid divide-by-zero errors.
-        if width == 0 || height == 0 {
-            return None;
-        }
+        view_params: &ViewParams,
+    ) -> Result<&wgpu::TextureView, ()> {
+        self.init_buffers(gfx, view_params)?;
 
-        self.init_buffers(gfx, (width, height));
-
-        let size = cgmath::vec2(width as f32, height as f32);
         let tex_size = wgpu::Extent3d {
-            width,
-            height,
+            width: view_params.width,
+            height: view_params.height,
             depth_or_array_layers: 1,
         };
 
@@ -167,7 +213,11 @@ impl PuzzleViewRenderState {
                 }),
             });
 
-            render_pass.set_pipeline(gfx.pipelines.render_single_pass(self.model.ndim)?);
+            render_pass.set_pipeline(
+                gfx.pipelines
+                    .render_single_pass(self.model.ndim)
+                    .ok_or(())?,
+            );
             for (index, bind_group) in &bind_groups {
                 render_pass.set_bind_group(*index, bind_group, &[]);
             }
@@ -178,26 +228,20 @@ impl PuzzleViewRenderState {
             drop(render_pass);
         }
 
-        Some(color_texture_view)
+        Ok(color_texture_view)
     }
 
     pub fn draw_puzzle(
         &mut self,
         gfx: &GraphicsState,
         encoder: &mut wgpu::CommandEncoder,
-        (width, height): (u32, u32),
-    ) -> Option<&wgpu::TextureView> {
-        // Avoid divide-by-zero errors.
-        if width == 0 || height == 0 {
-            return None;
-        }
+        view_params: &ViewParams,
+    ) -> Result<&wgpu::TextureView, ()> {
+        self.init_buffers(gfx, view_params)?;
 
-        self.init_buffers(gfx, (width, height));
-
-        let size = cgmath::vec2(width as f32, height as f32);
         let tex_size = wgpu::Extent3d {
-            width,
-            height,
+            width: view_params.width,
+            height: view_params.height,
             depth_or_array_layers: 1,
         };
 
@@ -241,16 +285,16 @@ impl PuzzleViewRenderState {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("compute_3d_vertex_positions"),
             });
-            compute_pass.set_pipeline(gfx.pipelines.compute_transform_points(self.model.ndim)?);
+            compute_pass.set_pipeline(
+                gfx.pipelines
+                    .compute_transform_points(self.model.ndim)
+                    .ok_or(())?,
+            );
             for (index, bind_group) in &bind_groups {
                 compute_pass.set_bind_group(*index, bind_group, &[]);
             }
 
-            dispatch_work_groups(
-                &mut compute_pass,
-                self.model.vertex_count as u32,
-                &gfx.device.limits(),
-            );
+            dispatch_work_groups(&mut compute_pass, self.model.vertex_count as u32);
         }
 
         // Render first pass.
@@ -356,32 +400,14 @@ impl PuzzleViewRenderState {
             drop(render_pass);
         }
 
-        Some(color_texture_view)
+        Ok(color_texture_view)
     }
 
-    fn init_buffers(&mut self, gfx: &GraphicsState, (width, height): (u32, u32)) {
-        struct ViewPrefs {
-            scale: f32,
-        }
-        let view_prefs = ViewPrefs { scale: 1.0 };
-
-        // Calculate scale.
-        let scale = {
-            let min_dimen = f32::min(width as f32, height as f32);
-            let pixel_scale = min_dimen * view_prefs.scale;
-            cgmath::vec2(pixel_scale / width as f32, pixel_scale / height as f32) * self.zoom
-        };
+    fn init_buffers(&mut self, gfx: &GraphicsState, view_params: &ViewParams) -> Result<(), ()> {
+        let scale = view_params.xy_scale()?;
 
         // Write the projection parameters.
-        let data = GfxProjectionParams {
-            facet_shrink: self.facet_shrink,
-            sticker_shrink: self.sticker_shrink,
-            piece_explode: self.piece_explode,
-
-            w_factor_4d: (self.fov_4d.to_radians() * 0.5).tan(),
-            w_factor_3d: (self.fov_3d.to_radians() * 0.5).tan(),
-            fov_signum: self.fov_3d.signum(),
-        };
+        let data = view_params.gfx_projection_params();
         gfx.queue.write_buffer(
             &self.buffers.projection_params,
             0,
@@ -400,7 +426,7 @@ impl PuzzleViewRenderState {
 
         // Write the puzzle transform. TODO: make this only a 4xN matrix
         let puzzle_transform =
-            Matrix::ident(self.model.ndim) * self.rot.euclidean_rotation_matrix();
+            Matrix::ident(self.model.ndim) * view_params.rot.euclidean_rotation_matrix();
         gfx.queue.write_buffer(
             &self.buffers.puzzle_transform,
             0,
@@ -438,6 +464,8 @@ impl PuzzleViewRenderState {
         };
         gfx.queue
             .write_buffer(&self.buffers.view_params, 0, bytemuck::bytes_of(&data));
+
+        Ok(())
     }
 }
 
@@ -527,15 +555,15 @@ impl fmt::Debug for StaticPuzzleModel {
 
 struct_with_constructor! {
     /// Dynamic buffers and textures for a puzzle view.
-    struct PuzzleViewDynamicBuffers { ... }
-    impl PuzzleViewDynamicBuffers {
+    struct DynamicPuzzleBuffers { ... }
+    impl DynamicPuzzleBuffers {
         fn new(gfx: &GraphicsState, mesh: &Mesh, id: usize) -> Self {
             {
                 let ndim = mesh.ndim();
                 let label = |s| format!("puzzle{id}_{s}");
             }
 
-            PuzzleViewDynamicBuffers {
+            DynamicPuzzleBuffers {
                 /*
                  * VIEW PARAMETERS AND TRANSFORMS
                  */
@@ -650,83 +678,58 @@ struct_with_constructor! {
     }
 }
 
-impl fmt::Debug for PuzzleViewDynamicBuffers {
+impl fmt::Debug for DynamicPuzzleBuffers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PuzzleViewDynamicBuffers")
             .finish_non_exhaustive()
     }
 }
 
-pub(crate) struct CachedTexture {
-    label: String,
-    dimension: wgpu::TextureDimension,
-    format: wgpu::TextureFormat,
-    usage: wgpu::TextureUsages,
+impl DynamicPuzzleBuffers {
+    fn clone(&self, gfx: &GraphicsState) -> Self {
+        let id = next_buffer_id();
 
-    size: Option<wgpu::Extent3d>,
-    texture: Option<(wgpu::Texture, wgpu::TextureView)>,
-}
-impl CachedTexture {
-    pub(super) fn new(
-        label: String,
-        dimension: wgpu::TextureDimension,
-        format: wgpu::TextureFormat,
-        usage: wgpu::TextureUsages,
-    ) -> Self {
-        CachedTexture {
-            label,
-            dimension,
-            format,
-            usage,
-
-            size: None,
-            texture: None,
+        macro_rules! clone_buffer {
+            ($gfx:ident, $id:ident, $self:ident.$field:ident) => {
+                gfx.create_buffer::<u8>(
+                    format!("puzzle{}_{}", $id, stringify!($field)),
+                    $self.$field.size() as usize,
+                    $self.$field.usage(),
+                )
+            };
         }
-    }
-    pub(super) fn new_2d(
-        label: String,
-        format: wgpu::TextureFormat,
-        usage: wgpu::TextureUsages,
-    ) -> Self {
-        Self::new(label, wgpu::TextureDimension::D2, format, usage)
-    }
-    pub(super) fn new_1d(
-        label: String,
-        format: wgpu::TextureFormat,
-        usage: wgpu::TextureUsages,
-    ) -> Self {
-        Self::new(label, wgpu::TextureDimension::D1, format, usage)
-    }
-
-    pub(super) fn at_size(
-        &mut self,
-        gfx: &GraphicsState,
-        size: wgpu::Extent3d,
-    ) -> &(wgpu::Texture, wgpu::TextureView) {
-        // Invalidate the buffer if it is the wrong size.
-        if self.size != Some(size) {
-            self.texture = None;
+        macro_rules! clone_texture {
+            ($gfx:ident, $id:ident, $self:ident.$field:ident) => {
+                $self
+                    .$field
+                    .clone(format!("puzzle{}_{}", $id, stringify!($field)))
+            };
         }
 
-        self.texture.get_or_insert_with(|| {
-            self.size = Some(size);
-            gfx.create_texture(wgpu::TextureDescriptor {
-                label: Some(&self.label),
-                size,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: self.dimension,
-                format: self.format,
-                usage: self.usage,
-                view_formats: &[],
-            })
-        })
+        Self {
+            projection_params: clone_buffer!(gfx, id, self.projection_params),
+            lighting_params: clone_buffer!(gfx, id, self.lighting_params),
+            puzzle_transform: clone_buffer!(gfx, id, self.puzzle_transform),
+            piece_transforms: clone_buffer!(gfx, id, self.piece_transforms),
+            view_params: clone_buffer!(gfx, id, self.view_params),
+            composite_params: clone_buffer!(gfx, id, self.composite_params),
+            vertex_3d_positions: clone_buffer!(gfx, id, self.vertex_3d_positions),
+            vertex_lightings: clone_buffer!(gfx, id, self.vertex_lightings),
+            composite_vertices: clone_buffer!(gfx, id, self.composite_vertices),
+            sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
+            special_colors: clone_buffer!(gfx, id, self.special_colors),
+            facet_colors: clone_buffer!(gfx, id, self.facet_colors),
+
+            first_pass_texture: clone_texture!(gfx, id, self.first_pass_texture),
+            depth_texture: clone_texture!(gfx, id, self.depth_texture),
+            out_texture: clone_texture!(gfx, id, self.out_texture),
+        }
     }
 }
 
-fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass, count: u32, limits: &wgpu::Limits) {
-    let group_size = limits.max_compute_workgroup_size_x;
+fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass, count: u32) {
+    const WORKGROUP_SIZE: u32 = 256;
     // Divide, rounding up
-    let group_count = (count + group_size - 1) / group_size;
+    let group_count = (count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
     compute_pass.dispatch_workgroups(group_count, 1, 1);
 }

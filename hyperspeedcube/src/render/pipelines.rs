@@ -178,9 +178,7 @@ impl Pipelines {
         }
 
         let shader_modules = (MIN_NDIM..=MAX_NDIM)
-            .map(|ndim| {
-                device.create_shader_module(include_wgsl_with_params!("shaders/shader.wgsl", ndim))
-            })
+            .map(|ndim| device.create_shader_module(include_wgsl_with_params!("shader.wgsl", ndim)))
             .collect_vec();
 
         let compute_transform_points_bind_groups = PipelineBindGroups::new(
