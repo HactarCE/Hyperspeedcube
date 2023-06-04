@@ -6,7 +6,8 @@ use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 
 use super::{AsMultivector, Axes, Multivector, Term};
 use crate::math::{
-    approx_cmp, approx_eq, is_approx_nonzero, util, AbsDiffEq, PointWhichSide, Vector, VectorRef,
+    approx_cmp, approx_eq, is_approx_negative, is_approx_nonzero, is_approx_positive, util,
+    AbsDiffEq, PointWhichSide, Vector, VectorRef,
 };
 
 /// Multivector of a single grade, which can represent a point, line, plane,
@@ -383,20 +384,20 @@ impl Blade {
     /// Returns `true` if the object represented by an IPNS blade is imaginary
     /// (has negative magnitude).
     pub fn ipns_is_imaginary(&self) -> bool {
-        self.ipns_mag2() < 0.0
+        is_approx_negative(&self.ipns_mag2())
     }
     /// Returns `true` if the object represented by an IPNS blade is real (has
     /// positive magnitude).
     pub fn ipns_is_real(&self) -> bool {
-        self.ipns_mag2() > 0.0
+        is_approx_positive(&self.ipns_mag2())
     }
     /// Returns `true` if the object represented by an OPNS blade is imaginary.
     pub fn opns_is_imaginary(&self) -> bool {
-        self.opns_mag2() < 0.0
+        is_approx_negative(&self.opns_mag2())
     }
     /// Returns `true` if the object represented by an OPNS blade is real.
     pub fn opns_is_real(&self) -> bool {
-        self.opns_mag2() > 0.0
+        is_approx_positive(&self.opns_mag2())
     }
 
     /// Returns the squared radius of the hypersphere represented by an IPNS
@@ -509,6 +510,14 @@ impl Blade {
                 Blade((self.mv() + radius) * multiplier.mv()).to_point(),
             ])
         }
+    }
+
+    /// Returns the tangent of `self` at a point. If `self` is a circle, returns
+    /// a tangent vector (i.e., a 2-blade).
+    pub fn opns_tangent_at_point(&self, point: impl ToConformalPoint) -> Blade {
+        let point = point.to_normalized_1blade();
+        let ndim = std::cmp::max(self.ndim(), point.ndim());
+        (self.opns_to_ipns(ndim) ^ point).ipns_to_opns(ndim)
     }
 
     /// Returns the scale factor between `self` and `other` if they differ by a

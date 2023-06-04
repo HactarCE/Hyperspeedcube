@@ -13,6 +13,7 @@ use std::fmt;
 use std::ops::{Index, Neg};
 use tinyset::Set64;
 
+use super::log::ShapeConstructionLog;
 use super::{manifold::*, shape::*};
 use crate::math::{approx_eq, PointWhichSide, Sign};
 
@@ -28,6 +29,9 @@ pub struct ShapeArena<M> {
     shapes: Slab<Shape<M>>,
     /// Top-level "root" shapes.
     roots: Vec<ShapeId>,
+
+    /// Shape construction log (for debugging).
+    log: ShapeConstructionLog,
 }
 
 impl<M> Index<ShapeId> for ShapeArena<M> {
@@ -60,7 +64,21 @@ impl<M: Manifold> ShapeArena<M> {
             space,
             shapes,
             roots,
+
+            log: ShapeConstructionLog::default(),
         }
+    }
+
+    pub fn dump_log_file(&self) {
+        let time = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap_or(std::time::Duration::ZERO)
+            .as_secs();
+        std::fs::write(
+            format!("shape_construction_log_{time}.log"),
+            self.log.to_string(),
+        )
+        .expect("failed to write log file");
     }
 
     /// Returns the manifold representing the whole space.
@@ -78,6 +96,10 @@ impl<M: Manifold> ShapeArena<M> {
 
     /// Adds a shape.
     fn add(&mut self, shape: Shape<M>) -> Result<ShapeRef> {
+        let ev = self.log.event("add", "Adding shape");
+        ev.log_value("manifold", &shape.manifold);
+        ev.log_set64("boundary", &shape.boundary);
+
         // Check the rank of each boundary shape.
         let ndim = shape.manifold.ndim()?;
         for boundary_shape in shape.boundary.iter() {
@@ -85,21 +107,32 @@ impl<M: Manifold> ShapeArena<M> {
         }
 
         let idx = self.shapes.insert(shape);
+        ev.log_value("id", idx);
+
         Ok(ShapeRef {
             id: ShapeId(idx as _),
             sign: Sign::Pos,
         })
     }
     /// Adds a shape using the manifold of an existing shape, or reuses the
-    /// existing shape if possible.
+    /// existing shape if possible. In particular, if `new_boundary` is the same
+    /// as the boundary of `old_shape`, returns `old_shape`.
     fn add_subshape(
         &mut self,
         old_shape: ShapeId,
         new_boundary: Set64<ShapeRef>,
     ) -> Result<ShapeRef> {
+        let ev = self.log.event("add_subshape", "Adding subshape");
+        ev.log_value("old_shape", old_shape);
+        ev.log_set64("new_boundary", &new_boundary);
+
         if new_boundary == self[old_shape].boundary {
+            ev.log("same as existing shape");
+
             Ok(ShapeRef::from(old_shape))
         } else {
+            ev.log("creating new shape");
+
             let new_shape = self.add(Shape::new(self[old_shape].manifold.clone(), new_boundary))?;
 
             // Copy metadata from old shape.
@@ -112,7 +145,7 @@ impl<M: Manifold> ShapeArena<M> {
 
     /// Returns a shape's manifold, flipped depending on the sign of the
     /// reference to the shape.
-    pub fn signed_mainfold_of_shape(&self, shape: ShapeRef) -> Result<M> {
+    pub fn signed_manifold_of_shape(&self, shape: ShapeRef) -> Result<M> {
         let m = &self[shape.id].manifold;
         match shape.sign {
             Sign::Pos => Ok(m.clone()),
@@ -151,6 +184,8 @@ impl<M: Manifold> ShapeArena<M> {
 
     /// Garbage-collects unused shapes.
     pub fn gc(&mut self) {
+        let ev = self.log.event("gc", "Running garbage collection");
+
         let total = self.shapes.len();
         let mut keys_to_delete = self
             .shapes
@@ -162,10 +197,13 @@ impl<M: Manifold> ShapeArena<M> {
         }
         let num_deleted = keys_to_delete.len();
         for id in keys_to_delete.iter() {
+            ev.log(format!("Deleting {id}"));
             self.shapes.remove(id.0 as usize);
         }
         let percent = num_deleted * 100 / total;
-        log::trace!("Garbage-collected {num_deleted}/{total} shapes ({percent}%)");
+        ev.log(format!(
+            "Garbage-collected {num_deleted}/{total} shapes ({percent}%)",
+        ));
     }
     fn gc_mark_recursive(&self, keys_to_delete: &mut Set64<ShapeId>, shape_to_keep: ShapeId) {
         if keys_to_delete.remove(&shape_to_keep) {
@@ -177,9 +215,11 @@ impl<M: Manifold> ShapeArena<M> {
 
     /// Cuts all shapes in the arena.
     pub fn cut(&mut self, params: CutParams<M>) -> Result<()> {
-        log::trace!("Cutting all shapes by {}", params.cut);
-        log::trace!("  ... inside: {}", params.inside);
-        log::trace!("  ... outside: {}", params.outside);
+        let ev = self
+            .log
+            .event("cut_all", format!("Cutting all shapes by {}", params.cut));
+        ev.log_value("inside", params.inside);
+        ev.log_value("outside", params.outside);
 
         let mut op = SliceOperation::new(params.clone());
 
@@ -194,17 +234,30 @@ impl<M: Manifold> ShapeArena<M> {
                     outside,
                     intersection_shape: _,
                 } => {
-                    if params.inside != CutOp::Remove {
-                        self.roots.extend(inside.map(|s| s.id));
+                    if let Some(s) = inside {
+                        match params.inside {
+                            CutOp::Remove => ev.log(format!("Ignoring inside shape {s}")),
+                            CutOp::Keep(_) => {
+                                ev.log(format!("Adding inside shape {s} as root"));
+                                self.roots.push(s.id);
+                            }
+                        }
                     }
-                    if params.outside != CutOp::Remove {
-                        self.roots.extend(outside.map(|s| s.id));
+
+                    if let Some(s) = outside {
+                        match params.outside {
+                            CutOp::Remove => ev.log(format!("Ignoring outside shape {s}")),
+                            CutOp::Keep(_) => {
+                                ev.log(format!("Adding outside shape {s} as root"));
+                                self.roots.push(s.id);
+                            }
+                        }
                     }
                 }
             }
         }
 
-        self.gc();
+        // self.gc();
 
         Ok(())
     }
@@ -216,7 +269,14 @@ impl<M: Manifold> ShapeArena<M> {
         slice_op: &mut SliceOperation<M>,
     ) -> Result<SplitResult> {
         let result = match slice_op.results_cache.get(&shape.id) {
-            Some(result) => result.clone(),
+            Some(result) => {
+                self.log.event(
+                    "cached_split_result",
+                    format!("Using cached split result for {shape}"),
+                );
+
+                result.clone()
+            }
             None => {
                 let result = self
                     .cut_shape_uncached(shape.id, slice_op)
@@ -261,20 +321,36 @@ impl<M: Manifold> ShapeArena<M> {
         shape: ShapeId,
         slice_op: &mut SliceOperation<M>,
     ) -> Result<SplitResult> {
+        let ev = self.log.event("cut", format!("Cutting shape {shape}"));
+
         match self[shape]
             .manifold
             .split(&slice_op.divider, &self.space)
             .context("error splitting manifold")?
         {
-            ManifoldSplit::Flush(_) => Ok(SplitResult::Flush),
-            ManifoldSplit::Inside => Ok(SplitResult::all_inside(shape)),
-            ManifoldSplit::Outside => Ok(SplitResult::all_outside(shape)),
+            ManifoldSplit::Flush(_) => {
+                ev.log("Manifold is flush with cut");
+                Ok(SplitResult::Flush)
+            }
+            ManifoldSplit::Inside => {
+                ev.log("Manifold is entirely inside");
+                Ok(SplitResult::all_inside(shape))
+            }
+            ManifoldSplit::Outside => {
+                ev.log("Manifold is entirely outside");
+                Ok(SplitResult::all_outside(shape))
+            }
 
             ManifoldSplit::Split {
                 intersection_manifold,
             } if self[shape].ndim()? == 1 => {
-                let intersection_shape = self.add(Shape::whole_space(intersection_manifold))?;
+                ev.log("Manifold is split (1D)");
 
+                ev.log("Adding intersection shape point pair");
+                let intersection_shape = self.add(Shape::whole_space(intersection_manifold))?;
+                ev.log_value("intersection_shape", intersection_shape);
+
+                ev.log("Simplifying inside boundary");
                 let inside_boundary = self
                     .incremental_simplify_intervals_intersection(
                         &self[shape].boundary.clone(),
@@ -283,11 +359,14 @@ impl<M: Manifold> ShapeArena<M> {
                     )
                     .context("error simplifying 1D boundary of inside")?;
                 let inside = if let Some(boundary) = inside_boundary {
+                    ev.log("Adding inside shape");
                     Some(self.add_subshape(shape, boundary)?)
                 } else {
+                    ev.log("No inside shape");
                     None
                 };
 
+                ev.log("Simplifying outside boundary");
                 let outside_boundary = self
                     .incremental_simplify_intervals_intersection(
                         &self[shape].boundary.clone(),
@@ -296,8 +375,10 @@ impl<M: Manifold> ShapeArena<M> {
                     )
                     .context("error simplifying 1D boundary of outside")?;
                 let outside = if let Some(boundary) = outside_boundary {
+                    ev.log("Adding outside shape");
                     Some(self.add_subshape(shape, boundary)?)
                 } else {
+                    ev.log("No outside shape");
                     None
                 };
 
@@ -311,6 +392,8 @@ impl<M: Manifold> ShapeArena<M> {
             ManifoldSplit::Split {
                 intersection_manifold,
             } => {
+                ev.log("Manifold is split (2D+)");
+
                 // (N-1)-dimensional shapes that together comprise the boundary
                 // of `shape ∩ cut`
                 let mut self_boundary_of_inside = Set64::new();
@@ -328,12 +411,8 @@ impl<M: Manifold> ShapeArena<M> {
                 for child in self[shape].boundary.clone() {
                     match self.cut_shape(child, slice_op)? {
                         SplitResult::Flush => {
-                            println!(
-                                "apparently {child} ({}) is flush with cut manifold {}",
-                                self.signed_mainfold_of_shape(child)?,
-                                slice_op.divider,
-                            );
                             ensure!(intersection_shape.is_none(), "multiple intersection shapes");
+                            ev.log_value("intersection_shape", child);
                             intersection_shape = Some(child);
                         }
                         SplitResult::NonFlush {
@@ -348,32 +427,43 @@ impl<M: Manifold> ShapeArena<M> {
                     }
                 }
 
+                ev.log_set64("self_boundary_of_inside", &self_boundary_of_inside);
+                ev.log_set64("self_boundary_of_outside", &self_boundary_of_outside);
+                ev.log_set64("intersection_boundary", &intersection_boundary);
+                ev.log_option("intersection_shape", intersection_shape);
+
                 let mut any_inside = true;
                 let mut any_outside = true;
 
                 // Is `shape ∩ boundary(cut)` (`intersection_shape`) nonempty?
-                //
-                // If `intersection_shape` already exists, it is obviously
-                // nonempty.
-                //
-                // The second condition checks whether `boundary(shape ∩
-                // boundary(cut))` is nonempty. If `shape ∩ boundary(cut)` has
-                // no boundary, then it is either empty or the whole manifold.
-                //
-                // The third condition checks whether it is the whole manifold;
-                // i.e., whether `shape ∩ boundary(cut) ⊆ shape`.
-                //
-                // Thus if none of these conditions are met, then `shape ∩
-                // boundary(cut)` is empty.
-                let is_intersection_nonempty = intersection_shape.is_some()
-                    || !intersection_boundary.is_empty()
-                    || self.shape_completely_contains_manifold(shape, &intersection_manifold)?;
+                let is_intersection_nonempty = if intersection_shape.is_some() {
+                    // If `intersection_shape` already exists, it is obviously
+                    // nonempty.
+                    ev.log("`shape ∩ boundary(cut)` is nonempty (case 1)");
+                    true
+                } else if !intersection_boundary.is_empty() {
+                    // `boundary(shape ∩ boundary(cut))` is non-empty; in other
+                    // words, `shape ∩ boundary(cut)` has a boundary.
+                    ev.log("`shape ∩ boundary(cut)` is nonempty (case 2)");
+                    true
+                    // If `shape ∩ boundary(cut)` has no boundary, then it is
+                    // either empty or the whole cut manifold (hence the next
+                    // two cases).
+                } else if self.shape_completely_contains_manifold(shape, &intersection_manifold)? {
+                    // It is the whole manifold: `shape ∩ boundary(cut) ⊆ shape`
+                    ev.log("`shape ∩ boundary(cut)` is nonempty (case 3)");
+                    true
+                } else {
+                    // None of the other conditions are met, so `shape ∩
+                    // boundary(cut)` is empty.
+                    ev.log("`shape ∩ boundary(cut)` is empty (case 4)");
+                    false
+                };
 
                 if let Some(shape) = intersection_shape {
                     // There already exists an intersection shape, so either
                     // `shape ∩ cut` is empty or `shape ∩ ~cut` is empty.
-                    println!("shape = {}", self.signed_mainfold_of_shape(shape)?);
-                    println!("intersection_manifold = {intersection_manifold}");
+                    ev.log_value("intersection_shape", shape);
                     let sign = self
                         .sign_difference(shape, &intersection_manifold)?
                         .context(
@@ -385,31 +475,39 @@ impl<M: Manifold> ShapeArena<M> {
                         Sign::Neg => any_inside = false,
                     }
                 } else if is_intersection_nonempty {
+                    ev.log("`intersection_shape` does not yet exist, but should be nonempty");
+
                     // Construct the shape that is `shape ∩ boundary(cut)`.
                     if intersection_manifold.ndim()? == 1 {
+                        ev.log("Simplifying boundary of 1D intersection");
                         let simplified_intersection_boundary = self
                             .simplify_intervals_intersection(
                                 intersection_boundary.iter(),
                                 &intersection_manifold,
                             )
-                            .context("error simplifying 1D intersection boundary")?;
+                            .context("error simplifying boundary of 1D intersection")?;
                         if let Some(boundary) = simplified_intersection_boundary {
+                            ev.log("Constructing 1D `intersection_shape`");
                             intersection_shape =
                                 Some(self.add(Shape::new(intersection_manifold, boundary))?);
                         } else {
+                            ev.log("Boundary of 1D intersection is empty");
                             // `shape ∩ boundary(cut)` is empty!
                             if self_boundary_of_inside.is_empty() {
                                 // There's nothing to bound `shape ∩ cut`, so it
                                 // must be empty.
+                                ev.log("Nothing inside");
                                 any_inside = false;
                             }
                             if self_boundary_of_outside.is_empty() {
                                 // There's nothing to bound `shape ∩ ~cut`, so
                                 // it must be empty.
+                                ev.log("Nothing outside");
                                 any_outside = false;
                             }
                         }
                     } else {
+                        ev.log("Constructing `intersection_shape`");
                         intersection_shape = Some(
                             self.add(Shape::new(intersection_manifold, intersection_boundary))?,
                         );
@@ -418,6 +516,7 @@ impl<M: Manifold> ShapeArena<M> {
 
                 // Is `shape ∩ boundary(cut)` nonempty?
                 if let Some(common_boundary) = intersection_shape {
+                    ev.log("Adding common boundary to inside and outside");
                     // `shape ∩ boundary(cut)` is part of the boundary of `shape
                     // ∩ cut` and part of the boundary of `shape ∩ ~cut`.
                     self_boundary_of_inside.insert(common_boundary);
@@ -434,16 +533,22 @@ impl<M: Manifold> ShapeArena<M> {
 
                 // Construct the N-dimensional shape that is `self ∩ cut`
                 let inside = if any_inside {
+                    ev.log("Constructing inside shape");
                     Some(self.add_subshape(shape, self_boundary_of_inside)?)
                 } else {
                     None
                 };
                 // Construct the N-dimensional shape that is `self ∩ ~cut`
                 let outside = if any_outside {
+                    ev.log("Constructing outside shape");
                     Some(self.add_subshape(shape, self_boundary_of_outside)?)
                 } else {
                     None
                 };
+
+                ev.log_option("inside", inside);
+                ev.log_option("outside", outside);
+                ev.log_option("intersection_shape", intersection_shape);
 
                 Ok(SplitResult::NonFlush {
                     inside,
@@ -494,28 +599,47 @@ impl<M: Manifold> ShapeArena<M> {
 
     /// Simplifies a subset of a 1D manifold represented as the intersection of
     /// a set of intervals, where each interval is represented as a point pair.
+    ///
+    /// Returns `None` if the intersection is empty.
     fn simplify_intervals_intersection(
         &mut self,
         intervals: impl IntoIterator<Item = ShapeRef>,
         space: &M,
     ) -> Result<Option<Set64<ShapeRef>>> {
+        let ev = self
+            .log
+            .event("simplify_intervals", "Simplifying intervals intersection");
+        ev.log_value("space", space);
+
         let mut simplified = Set64::new();
-        for new_elem in intervals {
-            match self.incremental_simplify_intervals_intersection(&simplified, new_elem, space)? {
+        for interval in intervals {
+            ev.log_value("interval", interval);
+            match self.incremental_simplify_intervals_intersection(&simplified, interval, space)? {
                 Some(b) => simplified = b,
                 None => return Ok(None),
             }
         }
+        ev.log_set64("simplified", &simplified);
         Ok(Some(simplified))
     }
     /// Intersects a set of intervals with another interval, where each interval
     /// is represented as a point pair.
+    ///
+    /// Returns `None` if the intersection is empty.
     fn incremental_simplify_intervals_intersection(
         &mut self,
         existing_intervals: &Set64<ShapeRef>,
         mut new_interval: ShapeRef,
         space: &M,
     ) -> Result<Option<Set64<ShapeRef>>> {
+        let ev = self.log.event(
+            "simplify_intervals_incremental",
+            "Adding simplified intersecting intervals",
+        );
+        ev.log_set64("existing_intervals", existing_intervals);
+        ev.log_value("new_interval", new_interval);
+        ev.log_value("space", space);
+
         let [a, b] = self.shape_to_point_pair(new_interval)?;
         if approx_eq(&a, &b) {
             // The new interval contains the whole space and so has no effect.
@@ -608,6 +732,7 @@ impl<M: Manifold> ShapeArena<M> {
     ) -> Result<bool> {
         let interval_manifold = interval.get_manifold_from(self)?;
         let which_side = interval_manifold.which_side_has_point(point, space)? * interval.sign();
+        self.log.event("interval_result", format!("{which_side:?}"));
         Ok(which_side != PointWhichSide::Outside)
     }
     /// Returns the pair of points represented by a 0D manifold.
@@ -630,7 +755,7 @@ impl<M: Manifold> ShapeArena<M> {
             write!(f, "  ")?;
         }
         write!(f, "{}#{:<5}", shape.sign, shape.id.0)?;
-        if let Ok(m) = self.signed_mainfold_of_shape(shape) {
+        if let Ok(m) = self.signed_manifold_of_shape(shape) {
             write!(f, "{m}")?;
             if let Some(m) = self.get_metadata(shape) {
                 write!(f, " (in={m})")?;

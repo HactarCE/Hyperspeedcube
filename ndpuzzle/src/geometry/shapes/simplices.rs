@@ -203,7 +203,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
         };
 
         for boundary_elem in self.arena[shape].boundary.iter() {
-            let cut = self.arena.signed_mainfold_of_shape(boundary_elem)?;
+            let cut = self.arena.signed_manifold_of_shape(boundary_elem)?;
             let max_simplex_edge_length = if cut.is_flat() || cut.ndim()? == 0 {
                 None
             } else {
