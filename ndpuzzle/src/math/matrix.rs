@@ -3,7 +3,7 @@
 use std::ops::*;
 
 use super::permutations;
-use super::vector::{Vector, VectorRef};
+use super::{Float, Vector, VectorRef};
 
 /// N-by-N square matrix. Indexing out of bounds returns the corresponding
 /// element from the infinite identity matrix.
@@ -12,7 +12,7 @@ pub struct Matrix {
     /// Number of dimensions of the matrix.
     ndim: u8,
     /// Elements stored in **column-major** order.
-    elems: Vec<f32>,
+    elems: Vec<Float>,
 }
 impl Matrix {
     /// 0-by-0 matrix that functions as the identity matrix.
@@ -50,8 +50,8 @@ impl Matrix {
     ///     ],
     /// );
     /// ```
-    pub fn from_elems(elems: Vec<f32>) -> Self {
-        let ndim = (elems.len() as f64).sqrt() as u8;
+    pub fn from_elems(elems: Vec<Float>) -> Self {
+        let ndim = (elems.len() as Float).sqrt() as u8;
         assert_eq!(
             ndim as usize * ndim as usize,
             elems.len(),
@@ -74,7 +74,7 @@ impl Matrix {
     ///     &[1.0, 2.0, 3.0, 4.0],
     /// );
     /// ```
-    pub fn as_slice(&self) -> &[f32] {
+    pub fn as_slice(&self) -> &[Float] {
         &self.elems
     }
     /// Constructs a matrix from a list of columns, where the number of columns
@@ -94,7 +94,7 @@ impl Matrix {
         }
     }
     /// Constructs a matrix from a function for each element.
-    pub fn from_fn(ndim: u8, f: impl Fn(u8, u8) -> f32) -> Self {
+    pub fn from_fn(ndim: u8, f: impl Fn(u8, u8) -> Float) -> Self {
         let f = &f;
         (0..ndim)
             .flat_map(|i| (0..ndim).map(move |j| f(i, j)))
@@ -126,7 +126,7 @@ impl Matrix {
     pub fn from_reflection(v: impl VectorRef) -> Self {
         // source: Wikipedia (https://w.wiki/5mmn)
         Self::from_fn(v.ndim(), |i, j| {
-            (i == j) as u8 as f32 - 2.0 * v.get(i) * v.get(j)
+            (i == j) as u8 as Float - 2.0 * v.get(i) * v.get(j)
         })
     }
     /// Constructs a nonuniform scaling matrix.
@@ -173,7 +173,7 @@ impl Matrix {
     /// Returns an element from the matrix. If either `col` or `row` is out of
     /// bounds, returns the corresponding element from the infinite identity
     /// matrix.
-    pub fn get(&self, col: u8, row: u8) -> f32 {
+    pub fn get(&self, col: u8, row: u8) -> Float {
         let ndim = self.ndim();
         if col < ndim && row < ndim {
             self.elems[col as usize * ndim as usize + row as usize]
@@ -188,7 +188,7 @@ impl Matrix {
     /// # Panics
     ///
     /// This method panics if `col >= self.ndim() || row >= self.ndim()`.
-    pub fn get_mut(&mut self, col: u8, row: u8) -> &mut f32 {
+    pub fn get_mut(&mut self, col: u8, row: u8) -> &mut Float {
         let ndim = self.ndim();
         assert!(col < ndim);
         assert!(row < ndim);
@@ -243,7 +243,7 @@ impl Matrix {
     }
 
     /// Returns the determinant of the matrix.
-    pub fn determinant(&self) -> f32 {
+    pub fn determinant(&self) -> Float {
         permutations::permutations_with_parity(0..self.ndim)
             .map(|(permutation, parity)| {
                 let parity = match parity {
@@ -254,7 +254,7 @@ impl Matrix {
                     .into_iter()
                     .enumerate()
                     .map(|(j, k)| self.get(j as _, k))
-                    .product::<f32>()
+                    .product::<Float>()
                     * parity
             })
             .sum()
@@ -287,8 +287,8 @@ impl Matrix {
         Matrix::from_cols((0..self.ndim()).map(|i| self.row(i)))
     }
 }
-impl FromIterator<f32> for Matrix {
-    fn from_iter<T: IntoIterator<Item = f32>>(iter: T) -> Self {
+impl FromIterator<Float> for Matrix {
+    fn from_iter<T: IntoIterator<Item = Float>>(iter: T) -> Self {
         Self::from_elems(iter.into_iter().collect())
     }
 }
@@ -297,14 +297,14 @@ impl FromIterator<f32> for Matrix {
 #[macro_export]
 macro_rules! col_matrix {
     ($([$($n:expr),* $(,)?]),* $(,)?) => {
-        Matrix::from_elems(vec![$($($n as f32),*),*])
+        Matrix::from_elems(vec![$($($n as Float),*),*])
     };
 }
 /// Constructs a matrix from rows.
 #[macro_export]
 macro_rules! row_matrix {
     ($([$($n:expr),* $(,)?]),* $(,)?) => {
-        Matrix::from_elems(vec![$($($n as f32),*),*]).transpose()
+        Matrix::from_elems(vec![$($($n as Float),*),*]).transpose()
     };
 }
 
@@ -319,7 +319,7 @@ impl VectorRef for MatrixCol<'_> {
         std::cmp::max(self.matrix.ndim(), self.col + 1)
     }
 
-    fn get(&self, row: u8) -> f32 {
+    fn get(&self, row: u8) -> Float {
         self.matrix.get(self.col, row)
     }
 }
@@ -330,7 +330,7 @@ impl PartialEq for MatrixCol<'_> {
     }
 }
 impl approx::AbsDiffEq for MatrixCol<'_> {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         super::EPSILON
@@ -352,7 +352,7 @@ impl VectorRef for MatrixRow<'_> {
         std::cmp::max(self.matrix.ndim(), self.row + 1)
     }
 
-    fn get(&self, col: u8) -> f32 {
+    fn get(&self, col: u8) -> Float {
         self.matrix.get(col, self.row)
     }
 }
@@ -363,7 +363,7 @@ impl PartialEq for MatrixRow<'_> {
     }
 }
 impl approx::AbsDiffEq for MatrixRow<'_> {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         super::EPSILON
@@ -416,7 +416,7 @@ impl<'a> Sub for &'a Matrix {
 }
 
 impl approx::AbsDiffEq for Matrix {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         super::EPSILON
@@ -433,35 +433,35 @@ impl_forward_bin_ops_to_ref! {
     impl Sub for Matrix { fn sub() }
 }
 
-impl Mul<f32> for Matrix {
+impl Mul<Float> for Matrix {
     type Output = Matrix;
 
-    fn mul(mut self, rhs: f32) -> Self::Output {
+    fn mul(mut self, rhs: Float) -> Self::Output {
         for x in &mut self.elems {
             *x *= rhs;
         }
         self
     }
 }
-impl<'a> Mul<f32> for &'a Matrix {
+impl<'a> Mul<Float> for &'a Matrix {
     type Output = Matrix;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: Float) -> Self::Output {
         Matrix::from_elems(self.elems.iter().map(|&x| x * rhs).collect())
     }
 }
 
-impl Div<f32> for Matrix {
+impl Div<Float> for Matrix {
     type Output = Matrix;
 
-    fn div(self, rhs: f32) -> Self::Output {
+    fn div(self, rhs: Float) -> Self::Output {
         self * (1.0 / rhs)
     }
 }
-impl<'a> Div<f32> for &'a Matrix {
+impl<'a> Div<Float> for &'a Matrix {
     type Output = Matrix;
 
-    fn div(self, rhs: f32) -> Self::Output {
+    fn div(self, rhs: Float) -> Self::Output {
         self * (1.0 / rhs)
     }
 }

@@ -2,7 +2,7 @@ use ball_tree::BallTree;
 use std::fmt;
 use tinyset::Set64;
 
-use crate::math::{cga::*, util};
+use crate::math::{cga::*, util, Float};
 
 /// Nearest-neighbors query structure for isometries.
 #[derive(Clone)]
@@ -62,7 +62,7 @@ impl<V> IsometryNearestNeighborsMap<V> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct IsometryPoint(Vec<f32>);
+struct IsometryPoint(Vec<Float>);
 impl IsometryPoint {
     fn new(axes: &[Axes], isometry: &Multivector) -> Self {
         IsometryPoint(axes.iter().map(|&ax| isometry.mv()[ax]).collect())
@@ -76,7 +76,7 @@ impl ball_tree::Point for IsometryPoint {
         // Euclidean distance works well.
         std::iter::zip(&self.0, &other.0)
             .map(|(a, b)| (a - b) * (a - b))
-            .sum::<f32>() as f64
+            .sum::<Float>() as f64
     }
 
     fn move_towards(&self, other: &Self, d: f64) -> Self {
@@ -85,7 +85,7 @@ impl ball_tree::Point for IsometryPoint {
         let t = d / self.distance(other);
         IsometryPoint(
             std::iter::zip(&self.0, &other.0)
-                .map(|(a, b)| util::mix(a, b, t as f32))
+                .map(|(a, b)| util::mix(a, b, t as Float))
                 .collect(),
         )
     }

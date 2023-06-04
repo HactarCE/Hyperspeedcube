@@ -5,7 +5,7 @@
 
 use itertools::Itertools;
 use ndpuzzle::{
-    math::{cga::Isometry, Matrix, ToConformalPoint, VectorRef},
+    math::{cga::Isometry, Float, Matrix, ToConformalPoint, VectorRef},
     puzzle::{Mesh, PerPiece, PerSticker},
 };
 use std::fmt;
@@ -79,21 +79,21 @@ impl ViewParams {
         let mut p = self.rot.transform_point(p).to_finite().ok()?;
 
         // Apply 4D perspective transformation.
-        let w = p.get(3);
+        let w = p.get(3) as f32;
         p.resize(3);
-        let mut p = p / (1.0 + w * self.w_factor_4d());
+        let mut p = p / (1.0 + w * self.w_factor_4d()) as Float;
 
         // Apply 3D perspective transformation.
-        let z = p.get(2);
+        let z = p.get(2) as f32;
         p.resize(2);
-        let mut p = p / (1.0 + (self.fov_3d.signum() - z) * self.w_factor_3d());
+        let p = p / (1.0 + (self.fov_3d.signum() - z) * self.w_factor_3d()) as Float;
 
         // Apply scaling.
         let xy_scale = self.xy_scale().ok()?;
-        p[0] *= xy_scale.x;
-        p[1] *= xy_scale.y;
+        let x = p[0] as f32 * xy_scale.x;
+        let y = p[1] as f32 * xy_scale.y;
 
-        Some(cgmath::point2(p.get(0), p.get(1)))
+        Some(cgmath::point2(x, y))
     }
 
     /// Returns the projection parameters to send to the GPU.
@@ -454,6 +454,11 @@ impl PuzzleRenderer {
         // Write the puzzle transform. TODO: make this only a 4xN matrix
         let puzzle_transform =
             Matrix::ident(self.model.ndim) * view_params.rot.euclidean_rotation_matrix();
+        let puzzle_transform = puzzle_transform
+            .as_slice()
+            .iter()
+            .map(|&x| x as f32)
+            .collect_vec();
         gfx.queue.write_buffer(
             &self.buffers.puzzle_transform,
             0,
@@ -465,7 +470,7 @@ impl PuzzleRenderer {
         let piece_transforms_data: Vec<f32> = piece_transforms
             .iter()
             .flat_map(|m| m.as_slice())
-            .copied()
+            .map(|&x| x as f32)
             .collect();
         gfx.queue.write_buffer(
             &self.buffers.piece_transforms,

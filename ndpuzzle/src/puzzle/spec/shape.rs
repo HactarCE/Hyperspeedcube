@@ -123,9 +123,9 @@ impl ShapeSpec {
         let initial_radius = facets
             .iter()
             .map(|f| f.pole.mag())
-            .reduce(f32::max)
+            .reduce(Float::max)
             .context("no base facets")?
-            * ndim as f32
+            * ndim as Float
             * 2.0;
 
         // Construct a polytope arena.
@@ -139,7 +139,7 @@ impl ShapeSpec {
 
         // Get the distance of the furthest vertex from the origin, or 1.0,
         // whichever is bigger.
-        let radius = f32::max(1.0, polytope.radius());
+        let radius = Float::max(1.0, polytope.radius());
 
         Ok((
             PuzzleShape {

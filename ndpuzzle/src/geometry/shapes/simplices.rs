@@ -58,7 +58,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
             .arena
             .shape_contains_point(shape, &cga::Point::Infinity)?)
     }
-    fn radius_upper_bound(&self, shape: ShapeId) -> Result<f32> {
+    fn radius_upper_bound(&self, shape: ShapeId) -> Result<Float> {
         self.ensure_finite(shape)?;
 
         let mut max_radius_seen = 1.0;
@@ -74,7 +74,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
                 let [a, b] = shape_manifold
                     .to_point_pair()?
                     .map(|p| p.to_finite().unwrap_or(Vector::EMPTY).mag2());
-                f32::max(a, b).sqrt()
+                Float::max(a, b).sqrt()
             } else if shape_manifold.is_flat() {
                 // Flat object; use the max radius of the boundary shapes
                 for child in self.arena[shape].boundary.iter() {
@@ -138,7 +138,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
         for v in s.0.iter() {
             sum += &self[v];
         }
-        let point = sum / s.0.len() as f32;
+        let point = sum / s.0.len() as Float;
         if m.is_flat() {
             Ok(point)
         } else {
@@ -186,7 +186,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
             let center = shape_manifold.ipns().ipns_plane_pole();
             let tangent_space = shape_manifold.tangent_space()?;
             let basis_vectors = tangent_space.basis_at(cga::Point::Finite(center.clone()))?;
-            let radius = radius * (shape_ndim as f32).sqrt();
+            let radius = radius * (shape_ndim as Float).sqrt();
             let resolution = 0;
             self.new_ball(center, &basis_vectors, radius, resolution)?
         } else {
@@ -268,7 +268,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
         &mut self,
         center: Vector,
         basis_vectors: &[Vector],
-        radius: f32,
+        radius: Float,
         resolution: u8,
     ) -> Result<SimplexBlob> {
         let mut ret = self.new_sphere(&center, basis_vectors, radius, resolution)?;
@@ -285,7 +285,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
         &mut self,
         center: &Vector,
         basis_vectors: &[Vector],
-        radius: f32,
+        radius: Float,
         resolution: u8,
     ) -> Result<SimplexBlob> {
         // Construct an octahedron.
@@ -630,7 +630,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
         Ok(result)
     }
 
-    fn longest_edge_of_simplex(&self, s: &Simplex) -> Result<f32> {
+    fn longest_edge_of_simplex(&self, s: &Simplex) -> Result<Float> {
         Ok(s.edges()
             .map(|[v1, v2]| FloatOrd((&self[v1] - &self[v2]).mag2()))
             .max()
@@ -837,7 +837,7 @@ struct SimplexSliceOp<'a> {
     cut: &'a EuclideanCgaManifold,
     /// Maximum edge length for a simplex before being cut, or `None` if there
     /// is no maximum.
-    max_simplex_edge_length: Option<f32>,
+    max_simplex_edge_length: Option<Float>,
 
     /// Cached results of splitting vertices.
     vertex_split_cache: AHashMap<VertexId, PointWhichSide>,
@@ -910,7 +910,7 @@ impl Sum<Centroid> for Centroid {
 /// `max_edge_length_for_radius(3.0)` returns `0.75`, then simplices must be
 /// subdivided until their edges are at most 0.75 units long before they can be
 /// intersected by a sphere with radius 3.0.
-fn max_edge_length_for_radius(r: f32) -> f32 {
+fn max_edge_length_for_radius(r: Float) -> Float {
     // TODO: Make these magic constants configurable.
     (r / 4.0).clamp(0.01, 0.5) + EPSILON
 }
@@ -930,7 +930,7 @@ mod tests {
         for ax in 0..NDIM {
             let v = Vector::unit(ax);
             for sign in [Sign::Neg, Sign::Pos] {
-                arena.carve_plane(&v * sign.to_f32(), 1.0, 0).unwrap();
+                arena.carve_plane(&v * sign.to_float(), 1.0, 0).unwrap();
             }
             arena.slice_plane(v, 0.0).unwrap();
         }

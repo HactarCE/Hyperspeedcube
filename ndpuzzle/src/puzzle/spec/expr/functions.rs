@@ -82,7 +82,7 @@ impl<'a> Function<'a> {
         }
     }
 
-    fn unary_numeric(f: fn(f32) -> f32) -> Self {
+    fn unary_numeric(f: fn(Float) -> Float) -> Self {
         Self::Builtin {
             arg_count_range: 1..=1,
             func: Arc::new(move |_env, span, mut args| {

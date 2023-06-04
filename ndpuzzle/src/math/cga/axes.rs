@@ -4,6 +4,8 @@ use std::fmt;
 use std::ops::Mul;
 use tinyset::Fits64;
 
+use crate::math::Float;
+
 bitflags! {
     /// Set of axes for a term in the conformal geometric algebra.
     #[derive(Default)]
@@ -75,7 +77,7 @@ impl Axes {
     }
 
     /// Returns the sign of the reverse of the basis blade.
-    pub const fn sign_of_reverse(self) -> f32 {
+    pub const fn sign_of_reverse(self) -> Float {
         // The number of swaps required to reverse a sequence of length n is
         // n*(n+1)/2. See https://oeis.org/A000217. This sequence alternates
         // between pairs of even and odd numbers; if its parity is odd, then
@@ -107,7 +109,7 @@ impl Axes {
 
 /// Returns the sign of the geometric product between two basis blades.
 impl Mul for Axes {
-    type Output = f32;
+    type Output = Float;
 
     fn mul(self, rhs: Self) -> Self::Output {
         // NOTE: If this is a performance bottleneck, it should be easy enough to

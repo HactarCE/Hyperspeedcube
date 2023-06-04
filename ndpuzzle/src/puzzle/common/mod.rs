@@ -20,7 +20,7 @@ pub use twist_metric::TwistMetric;
 pub use twists::*;
 
 use super::TwistCut;
-use crate::math::Matrix;
+use crate::math::{Float, Matrix};
 use crate::LayerMaskUint;
 
 /// Twists for the hovered sticker.

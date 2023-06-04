@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Mul, MulAssign, Neg};
 
+use super::Float;
+
 /// Positive or negative.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Sign {
@@ -49,13 +51,13 @@ impl MulAssign for Sign {
     }
 }
 
-impl From<Sign> for f32 {
+impl From<Sign> for Float {
     fn from(value: Sign) -> Self {
-        value.to_f32()
+        value.to_float()
     }
 }
-impl From<f32> for Sign {
-    fn from(value: f32) -> Self {
+impl From<Float> for Sign {
+    fn from(value: Float) -> Self {
         match value.is_sign_negative() {
             true => Sign::Neg,
             false => Sign::Pos,
@@ -76,8 +78,8 @@ impl Ord for Sign {
 
 #[allow(missing_docs)]
 impl Sign {
-    pub fn to_f32(self) -> f32 {
-        self.to_i8() as f32
+    pub fn to_float(self) -> Float {
+        self.to_i8() as Float
     }
     pub fn to_i8(self) -> i8 {
         match self {

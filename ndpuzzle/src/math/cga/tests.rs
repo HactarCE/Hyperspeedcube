@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::math::{cga::*, PointWhichSide, Vector, VectorRef};
+use crate::math::{cga::*, Float, PointWhichSide, Vector, VectorRef};
 
 #[macro_use]
 mod assertions {
@@ -17,7 +17,7 @@ mod assertions {
         blade: &Blade,
         blade_to_expected: fn(&Blade) -> T,
     ) where
-        T: fmt::Debug + approx::AbsDiffEq<Epsilon = f32>,
+        T: fmt::Debug + approx::AbsDiffEq<Epsilon = Float>,
     {
         assert_approx_eq!(expected, &blade_to_expected(blade));
         assert_approx_eq!(expected, &blade_to_expected(&(blade * 3.0)));
@@ -29,7 +29,7 @@ mod assertions {
         blade: &Blade,
         blade_to_expected: fn(&Blade) -> T,
     ) where
-        T: fmt::Debug + Clone + std::ops::Neg<Output = T> + approx::AbsDiffEq<Epsilon = f32>,
+        T: fmt::Debug + Clone + std::ops::Neg<Output = T> + approx::AbsDiffEq<Epsilon = Float>,
     {
         assert_approx_eq!(*expected, blade_to_expected(blade));
         assert_approx_eq!(*expected, blade_to_expected(&(blade * 3.0)));
@@ -119,7 +119,7 @@ fn test_cga_flat_point_repr() {
     }
     assert_scaling_invariant(&v, &blade, |b| b.flat_point_to_point().unwrap());
 
-    // This computation is simple enough that it should be exact in f32.
+    // This computation is simple enough that it should be exact in Float.
     let finite_point = Point::Finite(v);
     assert_eq!(
         [finite_point.clone(), Point::Infinity],
@@ -360,12 +360,12 @@ fn test_cga_opns_plane() {
 
 #[test]
 fn test_cga_ipns_reflect_points() {
-    fn reflect_thru_sphere(center: &Vector, radius: f32, point: &Vector) -> Vector {
+    fn reflect_thru_sphere(center: &Vector, radius: Float, point: &Vector) -> Vector {
         let vector_from_center = point - center;
         let r2 = radius * radius;
         center + &vector_from_center * (r2 / vector_from_center.mag2())
     }
-    fn reflect_thru_plane(normal: &Vector, distance: f32, point: &Vector) -> Vector {
+    fn reflect_thru_plane(normal: &Vector, distance: Float, point: &Vector) -> Vector {
         let normal = normal.normalize().unwrap();
         let point_on_plane = &normal * distance;
         let vector_to_point = point - &point_on_plane;

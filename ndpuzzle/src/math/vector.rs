@@ -7,12 +7,12 @@ use std::fmt;
 use std::iter::Sum;
 use std::ops::*;
 
-use super::is_approx_nonzero;
+use super::{is_approx_nonzero, Float};
 
 /// N-dimensional vector. Indexing out of bounds returns zero.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(transparent)]
-pub struct Vector(pub SmallVec<[f32; 4]>);
+pub struct Vector(pub SmallVec<[Float; 4]>);
 
 /// Reference to an N-dimensional vector. Indexing out of bounds returns zero.
 pub trait VectorRef: Sized + fmt::Debug {
@@ -26,7 +26,7 @@ pub trait VectorRef: Sized + fmt::Debug {
 
     /// Returns a component of the vector. If the index is out of bounds,
     /// returns zero.
-    fn get(&self, idx: u8) -> f32;
+    fn get(&self, idx: u8) -> Float;
 
     /// Returns an iterator over the components of the vector.
     fn iter(&self) -> VectorIter<&Self> {
@@ -49,7 +49,7 @@ pub trait VectorRef: Sized + fmt::Debug {
     }
 
     /// Returns the dot product of this vector with another.
-    fn dot(&self, rhs: impl VectorRef) -> f32 {
+    fn dot(&self, rhs: impl VectorRef) -> Float {
         // Don't use `Vector::zip()` because that will include zeros at the end
         // that we don't need.
         std::iter::zip(self.iter(), rhs.iter())
@@ -64,11 +64,11 @@ pub trait VectorRef: Sized + fmt::Debug {
     }
 
     /// Returns the magnitude of the vector.
-    fn mag(&self) -> f32 {
+    fn mag(&self) -> Float {
         self.mag2().sqrt()
     }
     /// Returns the squared magnitude of the vector.
-    fn mag2(&self) -> f32 {
+    fn mag2(&self) -> Float {
         self.dot(self)
     }
 
@@ -80,13 +80,13 @@ pub trait VectorRef: Sized + fmt::Debug {
     }
     /// Returns a scaled copy of the vector.
     #[must_use]
-    fn scale(&self, scalar: f32) -> Vector {
+    fn scale(&self, scalar: Float) -> Vector {
         self.iter().map(|x| x * scalar).collect()
     }
 
     /// Returns whether two vectors are equal within `epsilon` on each
     /// component.
-    fn approx_eq(&self, other: impl VectorRef, epsilon: f32) -> bool {
+    fn approx_eq(&self, other: impl VectorRef, epsilon: Float) -> bool {
         Vector::zip(self, other).all(|(l, r)| (l - r).abs() <= epsilon)
     }
 }
@@ -97,7 +97,7 @@ pub struct VectorIterNonzero<V> {
     vector: V,
 }
 impl<V: VectorRef> Iterator for VectorIterNonzero<V> {
-    type Item = (u8, f32);
+    type Item = (u8, Float);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.range.find_map(|i| {
@@ -114,7 +114,7 @@ pub struct VectorIter<V> {
     vector: V,
 }
 impl<V: VectorRef> Iterator for VectorIter<V> {
-    type Item = f32;
+    type Item = Float;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.range.next().map(|i| self.vector.get(i))
@@ -126,7 +126,7 @@ impl VectorRef for Vector {
         self.0.len() as _
     }
 
-    fn get(&self, idx: u8) -> f32 {
+    fn get(&self, idx: u8) -> Float {
         self.0.get(idx as usize).cloned().unwrap_or(0.0)
     }
 }
@@ -136,7 +136,7 @@ impl<V: VectorRef> VectorRef for &'_ V {
         (*self).ndim()
     }
 
-    fn get(&self, idx: u8) -> f32 {
+    fn get(&self, idx: u8) -> Float {
         (*self).get(idx)
     }
 }
@@ -189,18 +189,18 @@ macro_rules! impl_vector_ops {
             }
         }
 
-        impl Mul<f32> for $type_name {
+        impl Mul<Float> for $type_name {
             type Output = Vector;
 
-            fn mul(self, rhs: f32) -> Self::Output {
+            fn mul(self, rhs: Float) -> Self::Output {
                 self.iter().map(|x| x * rhs).collect()
             }
         }
-        impl Div<f32> for $type_name {
+        impl Div<Float> for $type_name {
             type Output = Vector;
 
             #[allow(clippy::suspicious_arithmetic_impl)]
-            fn div(self, rhs: f32) -> Self::Output {
+            fn div(self, rhs: Float) -> Self::Output {
                 let mult = 1.0 / rhs;
                 self.iter().map(|x| x * mult).collect()
             }
@@ -229,14 +229,14 @@ impl<V: VectorRef> MulAssign<V> for Vector {
 }
 
 impl Index<u8> for Vector {
-    type Output = f32;
+    type Output = Float;
 
     fn index(&self, index: u8) -> &Self::Output {
         &self.0[index as usize]
     }
 }
 impl Index<u8> for &'_ Vector {
-    type Output = f32;
+    type Output = Float;
 
     fn index(&self, index: u8) -> &Self::Output {
         &self.0[index as usize]
@@ -295,7 +295,7 @@ impl Vector {
     }
 }
 impl approx::AbsDiffEq for Vector {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         super::EPSILON
@@ -306,8 +306,8 @@ impl approx::AbsDiffEq for Vector {
     }
 }
 
-impl FromIterator<f32> for Vector {
-    fn from_iter<T: IntoIterator<Item = f32>>(iter: T) -> Self {
+impl FromIterator<Float> for Vector {
+    fn from_iter<T: IntoIterator<Item = Float>>(iter: T) -> Self {
         Self(iter.into_iter().collect())
     }
 }

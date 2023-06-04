@@ -189,7 +189,7 @@ impl Mesh {
                 }
 
                 let piece_centroid = simplexifier.shape_centroid_point(piece_shape)?;
-                mesh.piece_centroids.extend(piece_centroid.iter_ndim(ndim));
+                mesh.piece_centroids.extend(f32_iter(&piece_centroid, ndim));
                 for sticker_tris in tris_per_sticker {
                     let tri_range = mesh.add_tris(sticker_tris);
                     mesh.sticker_index_ranges.push(tri_range)?;
@@ -211,7 +211,7 @@ impl Mesh {
         for centroids in facet_centroids {
             let centroid_sum = centroids.into_iter().sum::<Centroid>();
             mesh.facet_centroids
-                .extend(centroid_sum.com.iter_ndim(ndim));
+                .extend(f32_iter(&centroid_sum.com, ndim));
         }
 
         ensure!(!mesh.is_empty(), "empty mesh!");
@@ -237,11 +237,11 @@ impl Mesh {
         let new_id = self.vertex_count as u32;
         self.vertex_count += 1;
         self.vertex_positions
-            .extend(vertex_position.iter_ndim(self.ndim));
-        self.u_tangents.extend(u_tangent.iter_ndim(self.ndim));
-        self.v_tangents.extend(v_tangent.iter_ndim(self.ndim));
+            .extend(f32_iter(&vertex_position, self.ndim));
+        self.u_tangents.extend(f32_iter(&u_tangent, self.ndim));
+        self.v_tangents.extend(f32_iter(&v_tangent, self.ndim));
         self.sticker_shrink_vectors
-            .extend(sticker_shrink_vector.iter_ndim(self.ndim));
+            .extend(f32_iter(&sticker_shrink_vector, self.ndim));
         self.polygon_ids.push(polygon_id);
         self.piece_ids.push(piece_id);
         self.facet_ids.push(facet_id);
@@ -301,7 +301,7 @@ impl Mesh {
             let i = mesh.triangles.len() as u32;
 
             let piece_centroid = (&u + &v) * 0.3;
-            mesh.piece_centroids.extend(piece_centroid.iter_ndim(ndim));
+            mesh.piece_centroids.extend(f32_iter(&piece_centroid, ndim));
             for (a, b, c, facet_id) in [
                 (&u, &v, &z1, Facet(0)),
                 (&u, &v, &z2, Facet(1)),
@@ -333,8 +333,8 @@ impl Mesh {
             piece_id = piece_id.next()?;
         }
 
-        mesh.facet_centroids.extend(z1.iter_ndim(ndim));
-        mesh.facet_centroids.extend(z2.iter_ndim(ndim));
+        mesh.facet_centroids.extend(f32_iter(&z1, ndim));
+        mesh.facet_centroids.extend(f32_iter(&z2, ndim));
 
         Ok(mesh)
     }
@@ -379,3 +379,7 @@ impl Mesh {
 //         self.indices.len() / 3
 //     }
 // }
+
+fn f32_iter<'a>(v: &'a impl VectorRef, ndim: u8) -> impl 'a + Iterator<Item = f32> {
+    v.iter_ndim(ndim).map(|x| x as f32)
+}

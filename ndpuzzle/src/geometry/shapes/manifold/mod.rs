@@ -23,7 +23,7 @@ pub use cga_euclidean::EuclideanCgaManifold;
 /// manifold, but I'm not sure so I listed them out just in case.
 pub trait Manifold: fmt::Debug + fmt::Display + Clone + Neg<Output = Self> {
     /// Point in the space.
-    type Point: Clone + AbsDiffEq<Epsilon = f32>;
+    type Point: Clone + AbsDiffEq<Epsilon = Float>;
 
     /// Returns the number of dimensions of the manifold.
     ///
@@ -43,7 +43,7 @@ pub trait Manifold: fmt::Debug + fmt::Display + Clone + Neg<Output = Self> {
     /// assumed to be a 1D manifold containing them.
     ///
     /// The result is undefined if `self` does not contain all three points.
-    fn triple_orientation(&self, points: [&Self::Point; 3]) -> f32;
+    fn triple_orientation(&self, points: [&Self::Point; 3]) -> Float;
 
     /// Flips the manifold to its other orientation.
     fn flip(&self) -> Result<Self>;

@@ -44,7 +44,7 @@ impl SymmetrySpec {
         transform: impl Fn(&Rotoreflector, &T) -> T,
     ) -> Result<Vec<(Rotoreflector, T)>>
     where
-        T: approx::AbsDiffEq<Epsilon = f32>,
+        T: approx::AbsDiffEq<Epsilon = Float>,
     {
         let generators = self.generators()?;
         let mut ret = seeds

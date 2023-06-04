@@ -20,6 +20,12 @@ pub type LayerMaskUint = u32;
 /// Names for axes up to 8 dimensions.
 pub const AXIS_NAMES: &str = "XYZWUVRS";
 
+/// Floating-point type used for geometry generation (either `f32` or `f64`).
+pub type Float = f64;
+
+/// Small floating-point value used for comparisons and tiny offsets.
+pub const EPSILON: Float = 0.0001;
+
 #[cfg(test)]
 mod tests {
     use crate::{

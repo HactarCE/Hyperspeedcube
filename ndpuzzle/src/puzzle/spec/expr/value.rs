@@ -6,7 +6,7 @@ use crate::math::*;
 
 #[derive(Debug, Clone)]
 pub(super) enum Value {
-    Number(f32),
+    Number(Float),
     Vector(Vector),
     Transform(Rotoreflector),
 }
@@ -20,12 +20,12 @@ impl Value {
     }
 
     pub fn ensure_finite(&self, span: &str) -> Result<()> {
-        let f32_slice = match self {
+        let Float_slice = match self {
             Value::Number(n) => std::slice::from_ref(n),
             Value::Vector(v) => &v.0,
             Value::Transform(t) => t.matrix().as_slice(),
         };
-        if let Some(bad) = f32_slice.iter().find(|n| !n.is_finite()) {
+        if let Some(bad) = Float_slice.iter().find(|n| !n.is_finite()) {
             bail!("encountered {bad}: {span:?}");
         }
         Ok(())
@@ -110,7 +110,7 @@ impl<'a> Div for SpannedValue<'a> {
 }
 
 impl SpannedValue<'_> {
-    pub fn into_vector_elems(self) -> Result<SmallVec<[f32; 4]>> {
+    pub fn into_vector_elems(self) -> Result<SmallVec<[Float; 4]>> {
         self.ensure_finite()?;
         match self.value {
             Value::Number(n) => Ok(smallvec![n]),
@@ -134,14 +134,14 @@ impl SpannedValue<'_> {
             span,
         );
         ensure!(
-            (0.0..=256.0 as f32).contains(&rounded),
+            (0.0..=256.0 as Float).contains(&rounded),
             "expected positive integer below 256; got {n}: {:?}",
             span,
         );
         Ok(rounded as u8)
     }
 
-    pub fn into_number(self) -> Result<f32> {
+    pub fn into_number(self) -> Result<Float> {
         self.ensure_finite()?;
         match self.value {
             Value::Number(n) => Ok(n),
@@ -153,7 +153,7 @@ impl SpannedValue<'_> {
         }
     }
 
-    pub fn into_list_elems(self) -> Result<Vec<f32>> {
+    pub fn into_list_elems(self) -> Result<Vec<Float>> {
         self.ensure_finite()?;
         match self.value {
             Value::Number(x) => Ok(vec![x]),

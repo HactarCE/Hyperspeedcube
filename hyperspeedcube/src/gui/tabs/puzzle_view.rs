@@ -1,5 +1,5 @@
 use ndpuzzle::geometry::{EuclideanCgaManifold, ShapeArena};
-use ndpuzzle::math::cga::Isometry;
+use ndpuzzle::math::{cga::Isometry, Float};
 use ndpuzzle::puzzle::Mesh;
 use std::fmt;
 
@@ -85,8 +85,8 @@ impl PuzzleView {
             self.view_params.zoom *= (scroll_delta.y / 100.0).exp2();
         }
 
-        self.view_params.rot = Isometry::from_angle_in_axis_plane(0, 2, -drag_delta.x)
-            * Isometry::from_angle_in_axis_plane(1, 2, drag_delta.y)
+        self.view_params.rot = Isometry::from_angle_in_axis_plane(0, 2, -drag_delta.x as Float)
+            * Isometry::from_angle_in_axis_plane(1, 2, drag_delta.y as Float)
             * &self.view_params.rot;
 
         // Render overlay

@@ -11,7 +11,7 @@ pub use common::*;
 use crate::collections::GenericVec;
 use crate::geometry::{EuclideanCgaManifold, ShapeArena, ShapeId};
 use crate::math::cga::Isometry;
-use crate::math::{approx_cmp, PointWhichSide, Vector, VectorRef};
+use crate::math::{approx_cmp, Float, PointWhichSide, Vector, VectorRef};
 
 /// Cut within a twist axis.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -19,14 +19,14 @@ pub enum TwistCut {
     /// Planar cut perpendicular to the twist axis.
     Planar {
         /// Distance between the plane and the orgin.
-        distance: f32,
+        distance: Float,
     },
     /// Spherical cut centered along the twist axis.
     Spherical {
         /// Distance between the center of the sphere and the origin.
-        center_distance: f32,
+        center_distance: Float,
         /// Radius of the sphere.
-        radius: f32,
+        radius: Float,
     },
 }
 impl TwistCut {
@@ -34,7 +34,7 @@ impl TwistCut {
     ///
     /// The point is given as two numbers: parallel distance along the axis from
     /// the origin, and squared perpendicular distance away from the axis line.
-    fn which_side_has_point(self, parallel: f32, perpendicular_squared: f32) -> PointWhichSide {
+    fn which_side_has_point(self, parallel: Float, perpendicular_squared: Float) -> PointWhichSide {
         let distance = match self {
             TwistCut::Planar { distance } => parallel - distance,
             TwistCut::Spherical {

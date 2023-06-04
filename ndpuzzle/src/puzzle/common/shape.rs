@@ -14,7 +14,7 @@ pub struct PuzzleShape {
     /// Canonical ordering of facets.
     pub facet_order: Vec<Facet>,
     /// Distance from origin to outermost point.
-    pub radius: f32,
+    pub radius: Float,
 
     /// Facets listed by name.
     pub facets_by_name: AHashMap<String, Facet>,

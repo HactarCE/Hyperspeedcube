@@ -2,14 +2,14 @@ use std::fmt;
 use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 
 use super::Axes;
-use crate::math::{approx_eq, util};
+use crate::math::{approx_eq, util, Float};
 
 /// Term in the conformal geometric algebra, consisting of a real coefficient
 /// and a bitmask representing the bases.
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub struct Term {
     /// Coefficient.
-    pub coef: f32,
+    pub coef: Float,
     /// Bitset of basis blades.
     pub axes: Axes,
 }
@@ -24,7 +24,7 @@ impl fmt::Display for Term {
 }
 
 impl approx::AbsDiffEq for Term {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         crate::math::EPSILON
@@ -85,37 +85,37 @@ impl Shl for Term {
 }
 
 /// Scaling a term by a number.
-impl Mul<f32> for Term {
+impl Mul<Float> for Term {
     type Output = Term;
 
-    fn mul(mut self, rhs: f32) -> Self::Output {
+    fn mul(mut self, rhs: Float) -> Self::Output {
         self *= rhs;
         self
     }
 }
-impl MulAssign<f32> for Term {
-    fn mul_assign(&mut self, rhs: f32) {
+impl MulAssign<Float> for Term {
+    fn mul_assign(&mut self, rhs: Float) {
         self.coef *= rhs;
     }
 }
 
 impl Term {
     /// Constructs a scalar term.
-    pub const fn scalar(x: f32) -> Self {
+    pub const fn scalar(x: Float) -> Self {
         Term {
             coef: x,
             axes: Axes::SCALAR,
         }
     }
     /// Constructs an e₋ term.
-    pub const fn e_minus(coef: f32) -> Self {
+    pub const fn e_minus(coef: Float) -> Self {
         Term {
             coef,
             axes: Axes::E_MINUS,
         }
     }
     /// Constructs an e₊ term.
-    pub const fn e_plus(coef: f32) -> Self {
+    pub const fn e_plus(coef: Float) -> Self {
         Term {
             coef,
             axes: Axes::E_PLUS,
@@ -164,7 +164,7 @@ impl Term {
     }
 
     /// Returns the scalar (dot) product of two terms.
-    pub fn dot(self, other: Self) -> f32 {
+    pub fn dot(self, other: Self) -> Float {
         if self.axes == other.axes {
             (self * other).coef
         } else {

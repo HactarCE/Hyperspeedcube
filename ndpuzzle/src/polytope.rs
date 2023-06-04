@@ -53,7 +53,7 @@ pub struct PolytopeArena {
     /// Number of dimensions.
     ndim: u8,
     /// Radius of initial hypercube.
-    initial_radius: f32,
+    initial_radius: Float,
 
     /// Canonical ordering of root polytopes, so that piece IDs are
     /// deterministic. All of these have rank `NDIM`.f
@@ -83,7 +83,7 @@ impl PolytopeArena {
     /// Constructs a polytope arena containing a hypercube. This hypercube can
     /// then be carved into any convex polytope of the same number of
     /// dimensions.
-    pub fn new_cube(ndim: u8, radius: f32) -> Result<Self> {
+    pub fn new_cube(ndim: u8, radius: Float) -> Result<Self> {
         // Based on Andrey Astrelin's implementation of `GenCube()` in Magic
         // Puzzle Ultimate (FaceCuts.cs).
 
@@ -138,7 +138,7 @@ impl PolytopeArena {
             ids.push(if rank == 0 {
                 // This is a point.
                 let point = base_3_expansion(i, ndim)
-                    .map(|digit| (digit as f32 * 2.0 - 1.0) * radius)
+                    .map(|digit| (digit as Float * 2.0 - 1.0) * radius)
                     .collect();
                 this.add_point(facet_set.clone(), point)
             } else {
@@ -246,14 +246,14 @@ impl PolytopeArena {
     }
 
     /// Returns the maximum Euclidean distance of any point from the origin.
-    pub fn radius(&self) -> f32 {
+    pub fn radius(&self) -> Float {
         let mut cache = self.cache.borrow_mut();
 
         *cache.radius.get_or_insert_with(|| {
             self.points
                 .iter()
                 .map(|(_, data)| data.point.mag2())
-                .max_by(f32::total_cmp)
+                .max_by(Float::total_cmp)
                 .unwrap_or(0.0)
                 .sqrt()
         })
@@ -856,7 +856,7 @@ impl<'a> PolytopeRef<'a> {
             // Average those centroids to get an arbitrary point inside the
             // polytope. This will be the apex of a pyramid for each child.
             let apex = child_volumes.iter().map(|mass| &mass.com).sum::<Vector>()
-                / child_volumes.len() as f32;
+                / child_volumes.len() as Float;
 
             // For each child, construct a pyramid with that child as the base.
             child_volumes
@@ -870,12 +870,12 @@ impl<'a> PolytopeRef<'a> {
 
                     // The measure of a pyramid is `1/NDIM` times the measure of
                     // a parallelotope.
-                    let blade = parallelotope_mass * (self.rank() as f32).recip();
+                    let blade = parallelotope_mass * (self.rank() as Float).recip();
 
                     // In 2D, the centroid of a triangle is 1/3 the way from the
                     // base to the apex. In 3D, it's 1/4 the way up. In N
                     // dimsensions, it's 1/(NDIM+1).
-                    let com = util::mix(&v.com, &apex, (self.rank() as f32 + 1.0).recip());
+                    let com = util::mix(&v.com, &apex, (self.rank() as Float + 1.0).recip());
 
                     Centroid { blade, com }
                 })
@@ -1156,7 +1156,7 @@ struct SliceOperation<'a> {
 
 #[derive(Debug, Default, Clone)]
 struct PolytopeArenaCache {
-    radius: Option<f32>,
+    radius: Option<Float>,
     centroids: AHashMap<PolytopeId, Centroid>,
 
     /// For each polytope, the set of points it contains.

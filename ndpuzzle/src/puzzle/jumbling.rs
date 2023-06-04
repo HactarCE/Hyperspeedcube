@@ -48,7 +48,7 @@ impl PeriodicTwist {
     }
 }
 impl AbsDiffEq for PeriodicTwist {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         crate::math::EPSILON
@@ -105,7 +105,7 @@ struct JumblingTwist {
     transform: Matrix,
 }
 impl approx::AbsDiffEq for JumblingTwist {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         crate::math::EPSILON
@@ -116,7 +116,7 @@ impl approx::AbsDiffEq for JumblingTwist {
     }
 }
 
-fn parse_cut_depths(strings: &[impl AsRef<str>]) -> Result<Vec<f32>> {
+fn parse_cut_depths(strings: &[impl AsRef<str>]) -> Result<Vec<Float>> {
     lazy_static! {
         // ^([^ ]+)\s+from\s+([^ ]+)\s+to\s+([^ ]+)$
         // ^                                       $    match whole string
@@ -131,14 +131,14 @@ fn parse_cut_depths(strings: &[impl AsRef<str>]) -> Result<Vec<f32>> {
         let s = s.as_ref().trim();
         if let Some(captures) = CUT_SEQ_REGEX.captures(s) {
             let n = parse_u8_cut_count(&captures[1])?;
-            let a = parse_f32(&captures[2])?;
-            let b = parse_f32(&captures[3])?;
+            let a = parse_Float(&captures[2])?;
+            let b = parse_Float(&captures[3])?;
             ret.extend(
                 (1..=n)
-                    .map(|i| i as f32 / (n + 1) as f32)
+                    .map(|i| i as Float / (n + 1) as Float)
                     .map(|t| util::mix(a, b, t)),
             )
-        } else if let Ok(n) = parse_f32(s) {
+        } else if let Ok(n) = parse_Float(s) {
             ret.push(n)
         } else {
             bail!("expected floating-point number or range 'N from A to B'");
@@ -152,7 +152,7 @@ fn parse_u8_cut_count(s: &str) -> Result<u8> {
         .parse()
         .with_context(|| format!("expected integer number of cuts; got {s:?}"))
 }
-fn parse_f32(s: &str) -> Result<f32> {
+fn parse_Float(s: &str) -> Result<Float> {
     s.trim()
         .parse()
         .with_context(|| format!("expected floating-point number; got {s:?}"))
@@ -160,6 +160,6 @@ fn parse_f32(s: &str) -> Result<f32> {
 
 fn deserialize_cut_depths<'de, D: Deserializer<'de>>(
     deserializer: D,
-) -> Result<Vec<f32>, D::Error> {
+) -> Result<Vec<Float>, D::Error> {
     parse_cut_depths(&Vec::<String>::deserialize(deserializer)?).map_err(D::Error::custom)
 }

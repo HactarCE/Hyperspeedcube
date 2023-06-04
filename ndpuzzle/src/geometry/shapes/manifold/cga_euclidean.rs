@@ -15,7 +15,7 @@ pub struct EuclideanCgaManifold {
 }
 
 impl AbsDiffEq for EuclideanCgaManifold {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         Blade::default_epsilon()
@@ -96,12 +96,12 @@ impl EuclideanCgaManifold {
     }
 
     /// Constructs a planar manifold.
-    pub fn plane(normal: impl VectorRef, distance: f32, space_ndim: u8) -> Self {
+    pub fn plane(normal: impl VectorRef, distance: Float, space_ndim: u8) -> Self {
         EuclideanCgaManifold::from_ipns(&cga::Blade::ipns_plane(normal, distance), space_ndim)
             .unwrap()
     }
     /// Constructs a spherical manifold.
-    pub fn sphere(center: impl VectorRef, radius: f32, space_ndim: u8) -> Self {
+    pub fn sphere(center: impl VectorRef, radius: Float, space_ndim: u8) -> Self {
         EuclideanCgaManifold::from_ipns(&cga::Blade::ipns_sphere(center, radius), space_ndim)
             .unwrap()
     }
@@ -197,7 +197,7 @@ impl Manifold for EuclideanCgaManifold {
         .context("error constructing line")
     }
 
-    fn triple_orientation(&self, points: [&Self::Point; 3]) -> f32 {
+    fn triple_orientation(&self, points: [&Self::Point; 3]) -> Float {
         let [a, b, c] = points.map(Blade::point);
         self.opns().unchecked_scale_factor_to(&(a ^ b ^ c))
     }

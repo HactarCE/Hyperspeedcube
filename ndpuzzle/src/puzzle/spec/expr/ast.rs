@@ -70,7 +70,7 @@ impl<'a> ExprAst<'a> {
         })
     }
 
-    pub fn eval_list(&self, env: &Env<'a>) -> Result<Vec<f32>> {
+    pub fn eval_list(&self, env: &Env<'a>) -> Result<Vec<Float>> {
         match &self.node {
             ExprAstNode::Vector(exprs) => exprs
                 .iter()
@@ -82,7 +82,7 @@ impl<'a> ExprAst<'a> {
         }
     }
 
-    fn eval_list_elems(&self, env: &Env<'a>) -> Result<Vec<f32>> {
+    fn eval_list_elems(&self, env: &Env<'a>) -> Result<Vec<Float>> {
         match &self.node {
             ExprAstNode::Range { count, from, to } => {
                 let count = count.eval(env)?.into_u8()?;
@@ -90,7 +90,7 @@ impl<'a> ExprAst<'a> {
                 let to = to.eval(env)?.into_number()?;
 
                 Ok((0..count)
-                    .map(|i| (i + 1) as f32 / (count + 1) as f32)
+                    .map(|i| (i + 1) as Float / (count + 1) as Float)
                     .map(|t| crate::math::util::mix(from, to, t))
                     .collect())
             }
@@ -102,7 +102,7 @@ impl<'a> ExprAst<'a> {
 
 #[derive(Debug, Clone)]
 pub(super) enum ExprAstNode<'a> {
-    Number(f32),
+    Number(Float),
     Identifier(&'a str),
     FuncCall(&'a str, Vec<ExprAst<'a>>),
     Paren(Box<ExprAst<'a>>),

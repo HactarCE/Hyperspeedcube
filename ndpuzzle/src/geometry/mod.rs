@@ -31,7 +31,7 @@ impl CgaShapeArena {
     pub fn carve_sphere(
         &mut self,
         center: impl VectorRef,
-        radius: f32,
+        radius: Float,
         label: ShapeMetadata,
     ) -> Result<()> {
         self.cut(CutParams {
@@ -48,7 +48,7 @@ impl CgaShapeArena {
     pub fn carve_plane(
         &mut self,
         normal: impl VectorRef,
-        distance: f32,
+        distance: Float,
         label: ShapeMetadata,
     ) -> Result<()> {
         self.cut(CutParams {
@@ -61,7 +61,7 @@ impl CgaShapeArena {
     /// Slices all root shapes in the arena.
     ///
     /// - If `radius` is negative, the sphere is inside-out.
-    pub fn slice_sphere(&mut self, center: impl VectorRef, radius: f32) -> Result<()> {
+    pub fn slice_sphere(&mut self, center: impl VectorRef, radius: Float) -> Result<()> {
         self.cut(CutParams {
             cut: EuclideanCgaManifold::sphere(center, radius, self.space().ndim()?),
             inside: CutOp::Keep(None),
@@ -72,7 +72,7 @@ impl CgaShapeArena {
     ///
     /// - If `distance` is positive, the origin is considered inside.
     /// - If `distance` is negative, the origin is considered outside.
-    pub fn slice_plane(&mut self, normal: impl VectorRef, distance: f32) -> Result<()> {
+    pub fn slice_plane(&mut self, normal: impl VectorRef, distance: Float) -> Result<()> {
         self.cut(CutParams {
             cut: EuclideanCgaManifold::plane(normal, distance, self.space().ndim()?),
             inside: CutOp::Keep(None),

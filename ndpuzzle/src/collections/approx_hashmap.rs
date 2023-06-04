@@ -6,6 +6,8 @@ use float_ord::FloatOrd;
 pub use std::collections::hash_map::{Entry, OccupiedEntry, VacantEntry};
 use std::{collections::BTreeMap, hash::Hash, marker::PhantomData};
 
+use crate::math::Float;
+
 /// Arbitrary hash value for a float.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(super) struct FloatHash(u16);
@@ -15,7 +17,7 @@ pub(super) struct FloatHash(u16);
 #[derive(Debug, Clone)]
 pub struct ApproxHashMap<K, H, V> {
     pub(super) inner: HashMap<H, V>,
-    float_hashes: BTreeMap<FloatOrd<f32>, FloatHash>,
+    float_hashes: BTreeMap<FloatOrd<Float>, FloatHash>,
     _phantom: PhantomData<K>,
 }
 impl<K, H, V> Default for ApproxHashMap<K, H, V> {
@@ -28,7 +30,7 @@ impl<K, H, V> Default for ApproxHashMap<K, H, V> {
     }
 }
 impl<K, H, V> ApproxHashMap<K, H, V> {
-    pub(super) fn hash_float(&mut self, x: f32) -> FloatHash {
+    pub(super) fn hash_float(&mut self, x: Float) -> FloatHash {
         // Search for an existing coordinate that is approximately equal to `x`.
         // If we can't find one, assign a new hash value to `x`.
         self.float_hashes

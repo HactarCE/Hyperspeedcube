@@ -62,7 +62,7 @@ impl SchlafliSymbol {
             let q = last[i as u8];
             // `dot` is what we want the dot product of the new vector with the
             // previous one to be.
-            let dot = (std::f32::consts::PI / index as f32).cos();
+            let dot = (std::f64::consts::PI as Float / index as Float).cos();
             // Since there's only one axis shared between the last vector and
             // the new one, only that axis will affect the dot product.
             let y = dot / q;

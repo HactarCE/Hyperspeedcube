@@ -20,7 +20,7 @@ impl Default for Isometry {
 }
 
 impl approx::AbsDiffEq for Isometry {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         crate::math::EPSILON
@@ -87,7 +87,7 @@ impl Isometry {
     /// Constructs a rotation from an angle in an axis-aligned plane.
     ///
     /// If the axes are the same, returns the identity.
-    pub fn from_angle_in_axis_plane(a: u8, b: u8, angle: f32) -> Self {
+    pub fn from_angle_in_axis_plane(a: u8, b: u8, angle: Float) -> Self {
         Self::from_angle_in_normalized_plane(Vector::unit(a), Vector::unit(b), angle)
     }
     /// Constructs a rotation from an angle in a plane defined by two vectors.
@@ -96,7 +96,7 @@ impl Isometry {
     pub fn from_angle_in_normalized_plane(
         a: impl VectorRef,
         b: impl VectorRef,
-        angle: f32,
+        angle: Float,
     ) -> Self {
         let half_angle = angle / 2.0;
         let cos = half_angle.cos();
@@ -195,12 +195,12 @@ impl Isometry {
     }
 
     /// Returns the magnitude of the isometry as a real number.
-    fn unsigned_mag(&self) -> f32 {
+    fn unsigned_mag(&self) -> Float {
         self.mag2().abs().sqrt()
     }
     /// Returns the squared magnitude of the isometry, which should always be
     /// `1` for a direct isometry and `-1` for an opposite isometry.
-    fn mag2(&self) -> f32 {
+    fn mag2(&self) -> Float {
         self.dot(&self.reverse())
     }
 
@@ -239,12 +239,12 @@ impl Isometry {
     }
 
     /// Returns the scalar product of two isometries.
-    pub fn dot(&self, other: &Isometry) -> f32 {
+    pub fn dot(&self, other: &Isometry) -> Float {
         self.0.dot(&other.0)
     }
     /// Interpolates between two (normalized) isometries and normalizes the
     /// output.
-    pub fn nlerp(a: &Isometry, b: &Isometry, t: f32) -> Isometry {
+    pub fn nlerp(a: &Isometry, b: &Isometry, t: Float) -> Isometry {
         // Math stolen from https://docs.rs/cgmath/latest/src/cgmath/quaternion.rs.html
         let self_t = 1.0 - t;
         let other_t = t * a.dot(b).signum();
@@ -253,7 +253,7 @@ impl Isometry {
             .unwrap_or_else(|| if t < 0.5 { a.clone() } else { b.clone() })
     }
     /// Spherically interpolates between two (normalized) isometries.
-    pub fn slerp(a: &Isometry, b: &Isometry, t: f32) -> Isometry {
+    pub fn slerp(a: &Isometry, b: &Isometry, t: Float) -> Isometry {
         // Math stolen from https://docs.rs/cgmath/latest/src/cgmath/quaternion.rs.html
 
         let mut dot = a.dot(b);
@@ -261,7 +261,7 @@ impl Isometry {
         let sign = dot.signum();
         dot = dot.abs();
 
-        const NLERP_THRESHOLD: f32 = 0.9995;
+        const NLERP_THRESHOLD: Float = 0.9995;
         if dot > NLERP_THRESHOLD {
             // Optimization: Use nlerp for nearby isometries.
             return Self::nlerp(a, b, t);
@@ -280,7 +280,7 @@ impl Isometry {
     /// Returns a rotation matrix that interpolates between two (normalized)
     /// isometries. This gives a better result than `slerp` or `nlerp` when
     /// there is a reflection between the two isometries.
-    pub fn interpolate_euclidean_rotation(a: &Isometry, b: &Isometry, t: f32) -> Matrix {
+    pub fn interpolate_euclidean_rotation(a: &Isometry, b: &Isometry, t: Float) -> Matrix {
         if a.is_reflection() == b.is_reflection() {
             Self::slerp(a, b, t).euclidean_rotation_matrix()
         } else {
@@ -297,7 +297,7 @@ impl Isometry {
     pub fn interpolate_euclidean_projective_transformation(
         a: &Isometry,
         b: &Isometry,
-        t: f32,
+        t: Float,
         ndim: u8,
     ) -> Matrix {
         if a.is_reflection() == b.is_reflection() {

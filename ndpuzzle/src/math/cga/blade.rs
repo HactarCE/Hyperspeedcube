@@ -5,10 +5,7 @@ use std::fmt;
 use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 
 use super::{AsMultivector, Axes, Multivector, Term};
-use crate::math::{
-    approx_cmp, approx_eq, is_approx_negative, is_approx_nonzero, is_approx_positive, util,
-    AbsDiffEq, PointWhichSide, Vector, VectorRef,
-};
+use crate::math::*;
 
 /// Multivector of a single grade, which can represent a point, line, plane,
 /// circle, sphere, etc., or zero. An N-blade is a blade where each term has N
@@ -38,7 +35,7 @@ impl fmt::Display for Blade {
 }
 
 impl AbsDiffEq for Blade {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         Multivector::default_epsilon()
@@ -78,22 +75,22 @@ impl Neg for Blade {
 }
 
 /// Scaling a blade by a number.
-impl<'a> Mul<f32> for &'a Blade {
+impl<'a> Mul<Float> for &'a Blade {
     type Output = Blade;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: Float) -> Self::Output {
         Blade(&self.0 * rhs)
     }
 }
-impl Mul<f32> for Blade {
+impl Mul<Float> for Blade {
     type Output = Blade;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: Float) -> Self::Output {
         Blade(self.0 * rhs)
     }
 }
-impl MulAssign<f32> for Blade {
-    fn mul_assign(&mut self, rhs: f32) {
+impl MulAssign<Float> for Blade {
+    fn mul_assign(&mut self, rhs: Float) {
         self.0 *= rhs;
     }
 }
@@ -198,7 +195,7 @@ impl Blade {
     pub const NI: Self = Blade(Multivector::NI);
 
     /// Constructs a scalar multivector.
-    pub fn scalar(s: f32) -> Self {
+    pub fn scalar(s: Float) -> Self {
         Blade(Multivector::scalar(s))
     }
     /// Constructs the pseudoscalar for a particular number of dimensions. This
@@ -235,18 +232,18 @@ impl Blade {
     ///
     /// If the radius is negative, constructs an "inside-out" sphere. This is
     /// kind of a hack but it's convenient.
-    pub fn ipns_sphere(center: impl VectorRef, radius: f32) -> Self {
+    pub fn ipns_sphere(center: impl VectorRef, radius: Float) -> Self {
         let mv = Blade::point(center).mv() - Multivector::NI * radius * radius * 0.5;
         Blade(mv * radius.signum())
     }
     /// Constructs an IPNS blade representing an imaginary hypersphere.
-    pub fn ipns_imaginary_sphere(center: impl VectorRef, radius: f32) -> Self {
+    pub fn ipns_imaginary_sphere(center: impl VectorRef, radius: Float) -> Self {
         let mv = Blade::point(center).mv() + Multivector::NI * radius * radius * 0.5;
         Blade(mv * radius.signum())
     }
     /// Constructs an IPNS blade representing a hyperplane. If `distance` is
     /// positive, then the origin is considered "inside."
-    pub fn ipns_plane(normal: impl VectorRef, distance: f32) -> Self {
+    pub fn ipns_plane(normal: impl VectorRef, distance: Float) -> Self {
         match normal.normalize() {
             // Negate so that the origin is "inside."
             Some(normal) => Blade(-Multivector::from(normal) - Multivector::NI * distance),
@@ -353,13 +350,13 @@ impl Blade {
     /// Returns the Ni component of a 1-blade.
     ///
     /// See https://w.wiki/6L8q
-    pub fn ni(&self) -> f32 {
+    pub fn ni(&self) -> Float {
         (self.mv()[Axes::E_MINUS] + self.mv()[Axes::E_PLUS]) / 2.0
     }
     /// Returns the No component of a 1-blade.
     ///
     /// See https://w.wiki/6L8q
-    pub fn no(&self) -> f32 {
+    pub fn no(&self) -> Float {
         self.mv()[Axes::E_MINUS] - self.mv()[Axes::E_PLUS]
     }
 
@@ -402,14 +399,14 @@ impl Blade {
 
     /// Returns the squared radius of the hypersphere represented by an IPNS
     /// 1-blade, or `None` the object is flat.
-    pub fn ipns_radius2(&self) -> Option<f32> {
+    pub fn ipns_radius2(&self) -> Option<Float> {
         let no = self.no();
         util::try_div(self.mag2(), no * no)
     }
     /// Returns the radius of the hypersphere represented by an IPNS 1-blade, or
     /// `None` the object is flat or imaginary. This is negative for
     /// "inside-out" spheres.
-    pub fn ipns_radius(&self) -> Option<f32> {
+    pub fn ipns_radius(&self) -> Option<Float> {
         if self.ipns_is_flat() {
             None
         } else {
@@ -427,7 +424,7 @@ impl Blade {
     /// hyperplane represented by an IPNS 1-blade. This distance is negative if
     /// the plane's normal vector faces toward the origin. Returns `None` if the
     /// object is a hypersphere centered at the origin.
-    pub fn ipns_plane_distance(&self) -> Option<f32> {
+    pub fn ipns_plane_distance(&self) -> Option<Float> {
         let v = self.to_vector();
         util::try_div(-self.ni(), v.mag())
     }
@@ -522,7 +519,7 @@ impl Blade {
 
     /// Returns the scale factor between `self` and `other` if they differ by a
     /// scalar factor, or `None` if they do not or if either is zero.
-    pub fn scale_factor_to(&self, other: &Self) -> Option<f32> {
+    pub fn scale_factor_to(&self, other: &Self) -> Option<Float> {
         if self.grade() != other.grade() || self.mv().is_zero() || other.mv().is_zero() {
             return None;
         }
@@ -547,7 +544,7 @@ impl Blade {
     }
     /// Returns the scale factor between `self` and `other`, assuming they
     /// differ by a scalar factor. If they do not, then the result is undefined.
-    pub fn unchecked_scale_factor_to(&self, other: &Self) -> f32 {
+    pub fn unchecked_scale_factor_to(&self, other: &Self) -> Float {
         // Pick a term to compare.
         let i = self.mv().most_significant_term().axes;
         // Compute the factor between those terms.
@@ -563,17 +560,17 @@ impl Blade {
     }
 
     /// Returns the scalar product of two blades.
-    pub fn dot(&self, other: &Self) -> f32 {
+    pub fn dot(&self, other: &Self) -> Float {
         self.mv().dot(other.mv())
     }
     /// Returns the squared magnitude of an OPNS blade that is negative iff the
     /// object is imaginary.
-    fn opns_mag2(&self) -> f32 {
+    fn opns_mag2(&self) -> Float {
         -self.ipns_mag2()
     }
     /// Returns the squared magnitude of an IPNS blade that is negative iff the
     /// object is imaginary.
-    fn ipns_mag2(&self) -> f32 {
+    fn ipns_mag2(&self) -> Float {
         let sign = match self.grade() % 4 {
             0 | 1 => 1.0,
             2 | 3 => -1.0,
@@ -582,11 +579,11 @@ impl Blade {
         self.mag2() * sign
     }
     /// Returns raw the squared magnitude of the blade.
-    fn mag2(&self) -> f32 {
+    fn mag2(&self) -> Float {
         self.dot(self)
     }
     /// Returns the magnitude of the blade.
-    fn mag(&self) -> Option<f32> {
+    fn mag(&self) -> Option<Float> {
         util::try_sqrt(self.mag2())
     }
 }
@@ -616,7 +613,7 @@ impl Default for Point {
     }
 }
 impl approx::AbsDiffEq for Point {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         Vector::default_epsilon()

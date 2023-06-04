@@ -77,11 +77,11 @@ impl<'a> CompiledMathExpr<'a> {
     }
 
     /// Evaluates an expression and coerces it to a number.
-    pub fn eval_number(&self, env: &Env<'a>) -> Result<f32> {
+    pub fn eval_number(&self, env: &Env<'a>) -> Result<Float> {
         self.eval(env)?.into_number()
     }
     /// Evaluates an expression as a number or list of numbers.
-    pub fn eval_list(&self, env: &Env<'a>) -> Result<Vec<f32>> {
+    pub fn eval_list(&self, env: &Env<'a>) -> Result<Vec<Float>> {
         self.0.eval_list(env)
     }
 }
@@ -90,7 +90,7 @@ impl<'a> CompiledMathExpr<'a> {
 #[serde(untagged)]
 enum SerdeMathExpr {
     String(String),
-    Number(f32),
+    Number(Float),
     List(Vec<SerdeMathExpr>),
 }
 impl From<SerdeMathExpr> for MathExpr {

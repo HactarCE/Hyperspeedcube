@@ -9,7 +9,7 @@ use crate::math::Sign;
 
 idx_struct! {
     /// Non-oriented ID for a shape in a `ShapeArena`.
-    pub struct ShapeId(pub(super) u32);
+    pub struct ShapeId(pub u32);
 }
 
 /// Metadata that can be attached to a shape.

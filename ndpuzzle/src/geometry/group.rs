@@ -293,11 +293,11 @@ mod tests {
 
     #[test]
     fn test_cyclic_groups() {
-        fn cyclic_group(n: f32) -> IsometryGroup {
+        fn cyclic_group(n: Float) -> IsometryGroup {
             IsometryGroup::from_generators(&[Isometry::from_angle_in_normalized_plane(
                 Vector::unit(0),
                 Vector::unit(1),
-                std::f32::consts::PI * 2.0 / n,
+                std::f64::consts::PI as Float * 2.0 / n,
             )])
             .unwrap()
         }

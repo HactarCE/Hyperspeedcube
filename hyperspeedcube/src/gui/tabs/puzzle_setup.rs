@@ -9,7 +9,7 @@ pub struct PuzzleSetup {
     schlafli: String,
     seeds: Vec<Vector>,
     do_twist_cuts: bool,
-    cut_depth: f32,
+    cut_depth: Float,
     ignore_errors: bool,
 
     construction_steps: Vec<ConstructStep>,
@@ -238,11 +238,11 @@ fn vector_edit(ui: &mut egui::Ui, v: &mut Vector, ndim: u8) -> bool {
 pub enum ConstructStep {
     CarvePlane {
         normal: Vector,
-        distance: f32,
+        distance: Float,
         label: u16,
     },
     SlicePlane {
         normal: Vector,
-        distance: f32,
+        distance: Float,
     },
 }

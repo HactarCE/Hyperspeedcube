@@ -8,7 +8,7 @@ use std::ops::{
 };
 
 use super::{Axes, Blade, Term};
-use crate::math::{is_approx_nonzero, util, Vector, VectorRef};
+use crate::math::{is_approx_nonzero, util, Float, Vector, VectorRef};
 
 /// Sum of terms in the conformal geometric algebra. Terms are stored sorted by
 /// their `axes` bitmask. No two terms in one multivector may have the same set
@@ -67,7 +67,7 @@ impl fmt::Display for Multivector {
                 write!(f, "{axes_string}")?;
             }
         } else {
-            fmt::Display::fmt(&0.0_f32, f)?;
+            fmt::Display::fmt(&0.0, f)?;
         }
 
         Ok(())
@@ -75,7 +75,7 @@ impl fmt::Display for Multivector {
 }
 
 impl approx::AbsDiffEq for Multivector {
-    type Epsilon = f32;
+    type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
         crate::math::EPSILON
@@ -112,7 +112,7 @@ impl<V: VectorRef> From<V> for Multivector {
 }
 
 impl Index<Axes> for Multivector {
-    type Output = f32;
+    type Output = Float;
 
     fn index(&self, axes: Axes) -> &Self::Output {
         match self.0.binary_search_by_key(&axes, |term| term.axes) {
@@ -142,23 +142,23 @@ impl Neg for Multivector {
 }
 
 /// Scaling a multivector by a number.
-impl<'a> Mul<f32> for &'a Multivector {
+impl<'a> Mul<Float> for &'a Multivector {
     type Output = Multivector;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: Float) -> Self::Output {
         self.clone() * rhs
     }
 }
-impl Mul<f32> for Multivector {
+impl Mul<Float> for Multivector {
     type Output = Multivector;
 
-    fn mul(mut self, rhs: f32) -> Self::Output {
+    fn mul(mut self, rhs: Float) -> Self::Output {
         self *= rhs;
         self
     }
 }
-impl MulAssign<f32> for Multivector {
-    fn mul_assign(&mut self, rhs: f32) {
+impl MulAssign<Float> for Multivector {
+    fn mul_assign(&mut self, rhs: Float) {
         for term in &mut self.0 {
             term.coef *= rhs;
         }
@@ -457,7 +457,7 @@ impl Multivector {
     pub const NI: Self = Self(smallvec_inline![Term::e_minus(1.0), Term::e_plus(1.0)]);
 
     /// Returns a scalar multivector.
-    pub fn scalar(s: f32) -> Self {
+    pub fn scalar(s: Float) -> Self {
         Multivector(smallvec![Term::scalar(s)])
     }
     /// Returns the zero multivector.
@@ -499,7 +499,7 @@ impl Multivector {
         self.largest_axis_mask().min_euclidean_ndim()
     }
     /// Returns a term of the multivector, or `None` if it is zero.
-    pub fn get(&self, axes: Axes) -> Option<f32> {
+    pub fn get(&self, axes: Axes) -> Option<Float> {
         // TODO(optimization): linear search may be faster, especially for
         //                     smaller indices
         self.0
@@ -509,12 +509,12 @@ impl Multivector {
     }
     /// Returns the component of the multivector parallel to No times
     /// `other_axes`.
-    pub fn get_no(&self, other_axes: Axes) -> f32 {
+    pub fn get_no(&self, other_axes: Axes) -> Float {
         self[other_axes | Axes::E_MINUS] - self[other_axes | Axes::E_PLUS]
     }
     /// Returns the component of the multivector parallel to Ni times
     /// `other_axes`.
-    pub fn get_ni(&self, other_axes: Axes) -> f32 {
+    pub fn get_ni(&self, other_axes: Axes) -> Float {
         (self[other_axes | Axes::E_MINUS] + self[other_axes | Axes::E_PLUS]) / 2.0
     }
 
@@ -543,7 +543,7 @@ impl Multivector {
     }
 
     /// Returns the scalar (dot) product of two multivectors.
-    pub fn dot(&self, other: &Multivector) -> f32 {
+    pub fn dot(&self, other: &Multivector) -> Float {
         let mut ret = 0.0;
 
         let mut self_terms = itertools::put_back(self.terms());
@@ -608,7 +608,7 @@ impl Multivector {
 
     /// Returns the magnitude (square root of sum of squares) of the
     /// multivector.
-    pub fn mag(&self) -> f32 {
+    pub fn mag(&self) -> Float {
         self.0.iter().map(|term| term.coef * term.coef).sum()
     }
     /// Normalizes the multivector so that the magnitude is one, or returns
