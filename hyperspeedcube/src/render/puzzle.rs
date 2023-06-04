@@ -5,7 +5,7 @@
 
 use itertools::Itertools;
 use ndpuzzle::{
-    math::{cga::Isometry, Matrix},
+    math::{cga::Isometry, Matrix, ToConformalPoint, VectorRef},
     puzzle::{Mesh, PerPiece, PerSticker},
 };
 use std::fmt;
@@ -48,7 +48,7 @@ impl Default for ViewParams {
 
             facet_shrink: 0.0,
             sticker_shrink: 0.0,
-            piece_explode: 1.0,
+            piece_explode: 0.0,
 
             fov_3d: 0.0,
             fov_4d: 30.0,
@@ -58,7 +58,7 @@ impl Default for ViewParams {
 impl ViewParams {
     /// Returns the X and Y scale factors to use in the view matrix. Returns
     /// `Err` if either the width or height is smaller than one pixel.
-    fn xy_scale(&self) -> Result<cgmath::Vector2<f32>, ()> {
+    pub fn xy_scale(&self) -> Result<cgmath::Vector2<f32>, ()> {
         if self.width == 0 || self.height == 0 {
             return Err(());
         }
@@ -69,6 +69,33 @@ impl ViewParams {
         Ok(cgmath::vec2(min_dimen / w, min_dimen / h) * self.zoom)
     }
 
+    pub fn w_factor_4d(&self) -> f32 {
+        (self.fov_4d.to_radians() * 0.5).tan()
+    }
+    pub fn w_factor_3d(&self) -> f32 {
+        (self.fov_3d.to_radians() * 0.5).tan()
+    }
+    pub fn project_point(&self, p: impl ToConformalPoint) -> Option<cgmath::Point2<f32>> {
+        let mut p = self.rot.transform_point(p).to_finite().ok()?;
+
+        // Apply 4D perspective transformation.
+        let w = p.get(3);
+        p.resize(3);
+        let mut p = p / (1.0 + w * self.w_factor_4d());
+
+        // Apply 3D perspective transformation.
+        let z = p.get(2);
+        p.resize(2);
+        let mut p = p / (1.0 + (self.fov_3d.signum() - z) * self.w_factor_3d());
+
+        // Apply scaling.
+        let xy_scale = self.xy_scale().ok()?;
+        p[0] *= xy_scale.x;
+        p[1] *= xy_scale.y;
+
+        Some(cgmath::point2(p.get(0), p.get(1)))
+    }
+
     /// Returns the projection parameters to send to the GPU.
     fn gfx_projection_params(&self) -> GfxProjectionParams {
         GfxProjectionParams {
@@ -76,8 +103,8 @@ impl ViewParams {
             sticker_shrink: self.sticker_shrink,
             piece_explode: self.piece_explode,
 
-            w_factor_4d: (self.fov_4d.to_radians() * 0.5).tan(),
-            w_factor_3d: (self.fov_3d.to_radians() * 0.5).tan(),
+            w_factor_4d: self.w_factor_4d(),
+            w_factor_3d: self.w_factor_3d(),
             fov_signum: self.fov_3d.signum(),
         }
     }

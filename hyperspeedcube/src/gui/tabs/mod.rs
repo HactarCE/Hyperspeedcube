@@ -1,10 +1,12 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+mod debug;
 mod puzzle_setup;
 mod puzzle_view;
 
 use super::App;
+pub use debug::PolytopeTree;
 pub use puzzle_setup::PuzzleSetup;
 pub use puzzle_view::{PuzzleView, RenderEngine};
 
@@ -13,6 +15,7 @@ pub enum Tab {
     PuzzleView(Arc<Mutex<PuzzleView>>),
     PuzzleSetup(PuzzleSetup),
     ViewSettings,
+    PolytopeTree(PolytopeTree),
 }
 impl Tab {
     pub fn title(&self) -> egui::WidgetText {
@@ -20,6 +23,7 @@ impl Tab {
             Tab::PuzzleView(_) => "Unknown Puzzle".into(),
             Tab::PuzzleSetup(_) => "Puzzle Setup".into(),
             Tab::ViewSettings => "View Settings".into(),
+            Tab::PolytopeTree(_) => "Polytope Tree".into(),
         }
     }
 
@@ -104,6 +108,7 @@ impl Tab {
                     });
                 }
             }
+            Tab::PolytopeTree(polytope_tree) => polytope_tree.ui(ui, app),
         }
     }
 }

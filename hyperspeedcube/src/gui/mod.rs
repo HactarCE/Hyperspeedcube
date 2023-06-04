@@ -12,7 +12,7 @@ mod menu_bar;
 mod tabs;
 
 pub use crate::app::App;
-pub use tabs::{PuzzleSetup, PuzzleView, Tab};
+pub use tabs::{PuzzleSetup, PuzzleView, Tab,PolytopeTree};
 
 pub struct AppUi {
     dock_tree: egui_dock::Tree<Tab>,
@@ -32,9 +32,12 @@ impl AppUi {
         let [_left, right] = dock_tree.split_right(
             NodeIndex::root(),
             0.70,
-            vec![Tab::PuzzleSetup(PuzzleSetup::default())],
+            vec![
+                Tab::PuzzleSetup(PuzzleSetup::default()),
+                Tab::ViewSettings,
+                Tab::PolytopeTree(PolytopeTree::default()),
+            ],
         );
-        dock_tree.split_below(right, 0.5, vec![Tab::ViewSettings]);
         AppUi { dock_tree }
     }
 

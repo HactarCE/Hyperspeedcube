@@ -66,7 +66,7 @@ impl PuzzleSetup {
                 ui.add_enabled_ui(seeds_len > 1, |ui| {
                     keep &= !ui.button("-").clicked();
                 });
-                vector_edit(ui, v, ndim);
+                changed |= vector_edit(ui, v, ndim);
             });
             changed |= !keep;
             keep
@@ -99,14 +99,14 @@ impl PuzzleSetup {
 
         ui.separator();
 
-        let mut new_mesh = None;
+        let mut new_shape = None;
 
         let active_view = app.active_puzzle_view.upgrade();
         ui.add_enabled_ui(active_view.is_some(), |ui| {
             ui.checkbox(&mut self.ignore_errors, "Ignore errors");
 
             if ui.button("Generate!").clicked() {
-                new_mesh = Some(self.try_generate_mesh());
+                new_shape = Some(self.try_generate_mesh());
             }
             if let Some(s) = &self.error_string {
                 ui.colored_label(egui::Color32::RED, s);
@@ -116,21 +116,27 @@ impl PuzzleSetup {
                 for (i, step) in steps.into_iter().enumerate() {
                     let r = ui.selectable_label(i < self.num_steps_executed, format!("{step:?}"));
                     if r.clicked() {
-                        new_mesh = Some(self.try_generate_partial_mesh(i + 1));
+                        new_shape = Some(self.try_generate_partial_mesh(i + 1));
                     }
                 }
             });
         });
 
-        if let Some(result) = new_mesh {
+        if let Some(result) = new_shape {
             self.error_string = None;
             match result {
-                Ok(mesh) => {
+                Ok(arena) => {
+                    let mut mesh = None;
+                    match Mesh::from_arena(&arena, self.ignore_errors) {
+                        Ok(m) => mesh = Some(m),
+                        Err(e) => self.error_string = Some(e.to_string()),
+                    }
+
                     active_view
                         .as_ref()
                         .unwrap()
                         .lock()
-                        .set_mesh(&app.gfx, &mesh);
+                        .set_mesh(&app.gfx, arena, mesh.as_ref());
                 }
                 Err(e) => self.error_string = Some(e.to_string()),
             }
@@ -180,10 +186,13 @@ impl PuzzleSetup {
 
         Ok(())
     }
-    fn try_generate_mesh(&mut self) -> Result<Mesh> {
+    fn try_generate_mesh(&mut self) -> Result<ShapeArena<EuclideanCgaManifold>> {
         self.try_generate_partial_mesh(self.construction_steps.len())
     }
-    fn try_generate_partial_mesh(&mut self, num_steps: usize) -> Result<Mesh> {
+    fn try_generate_partial_mesh(
+        &mut self,
+        num_steps: usize,
+    ) -> Result<ShapeArena<EuclideanCgaManifold>> {
         let mut arena = ShapeArena::new_euclidean_cga(self.ndim);
 
         for step in &self.construction_steps[..num_steps] {
@@ -200,24 +209,29 @@ impl PuzzleSetup {
             }
         }
 
-        let result = Mesh::from_arena(&arena, self.ignore_errors)?;
+        arena.dump_log_file();
+
         self.num_steps_executed = num_steps;
-        Ok(result)
+        Ok(arena)
     }
 }
 
-fn vector_edit(ui: &mut egui::Ui, v: &mut Vector, ndim: u8) {
+fn vector_edit(ui: &mut egui::Ui, v: &mut Vector, ndim: u8) -> bool {
     v.resize(ndim);
+    let mut changed = false;
     ui.horizontal(|ui| {
         for i in 0..ndim {
-            ui.add(
-                egui::DragValue::new(&mut v[i])
-                    .speed(0.01)
-                    .fixed_decimals(1),
-            )
-            .on_hover_text(format!("Dim {i}"));
+            let r = ui
+                .add(
+                    egui::DragValue::new(&mut v[i])
+                        .speed(0.01)
+                        .fixed_decimals(1),
+                )
+                .on_hover_text(format!("Dim {i}"));
+            changed |= r.changed();
         }
     });
+    changed
 }
 
 #[derive(Debug, Clone)]
