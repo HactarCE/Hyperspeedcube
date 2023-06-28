@@ -1,0 +1,46 @@
+[* 0:cut_all] Cutting all shapes by hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+  [0:cut_all] ? inside = KEEP (data = 0)
+  [0:cut_all] ? outside = REMOVE
+  [* 1:cut] Cutting shape #0
+    [1:cut] Manifold is split (2D+)
+    [1:cut] ? self_boundary_of_inside = []
+    [1:cut] ? self_boundary_of_outside = []
+    [1:cut] ? intersection_boundary = []
+    [1:cut] ? intersection_shape = None
+    [1:cut] `shape ∩ boundary(cut)` is nonempty (case 3)
+    [1:cut] `intersection_shape` does not yet exist, but should be nonempty
+    [* 2:add] Adding shape
+      [2:add] ? manifold = hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+      [2:add] ? boundary = []
+      [2:add] ? id = 1
+    [# 2:add] end
+    [1:cut] Adding common boundary to inside and outside
+    [1:cut] Constructing inside shape
+    [* 3:add_subshape] Adding subshape
+      [3:add_subshape] ? old_shape = #0
+      [3:add_subshape] ? new_boundary = [+#1]
+      [3:add_subshape] creating new shape
+      [* 4:add] Adding shape
+        [4:add] ? manifold = whole space 1 Exyz
+        [4:add] ? boundary = [+#1]
+        [4:add] ? id = 2
+      [# 4:add] end
+    [# 3:add_subshape] end
+    [1:cut] Constructing outside shape
+    [* 5:add_subshape] Adding subshape
+      [5:add_subshape] ? old_shape = #0
+      [5:add_subshape] ? new_boundary = [-#1]
+      [5:add_subshape] creating new shape
+      [* 6:add] Adding shape
+        [6:add] ? manifold = whole space 1 Exyz
+        [6:add] ? boundary = [-#1]
+        [6:add] ? id = 3
+      [# 6:add] end
+    [# 5:add_subshape] end
+    [1:cut] ? inside = +#2
+    [1:cut] ? outside = +#3
+    [1:cut] ? intersection_shape = +#1
+  [# 1:cut] end
+  [0:cut_all] Adding inside shape +#2 as root
+  [0:cut_all] Ignoring outside shape +#3
+[# 0:cut_all] end

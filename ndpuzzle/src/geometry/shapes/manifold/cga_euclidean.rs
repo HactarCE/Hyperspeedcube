@@ -219,6 +219,22 @@ impl Manifold for EuclideanCgaManifold {
         }
     }
 
+    fn tangent_manifold(&self, point: &Self::Point) -> Result<Self> {
+        Self::from_opns(self.opns().opns_tangent_at_point(point), self.space_ndim)
+            .context("failed to construct tangent manifold")
+    }
+
+    fn tangent_intersect(&self, cut: &Self, space: &Self) -> Result<Option<Self>> {
+        let cut_ipns = cut.opns().opns_to_ipns_in_space(space.opns());
+        let self_ipns = self.opns().opns_to_ipns_in_space(space.opns());
+        let intersection = (cut_ipns ^ self_ipns).ipns_to_opns_in_space(space.opns());
+        Ok(if intersection.is_null_vector() {
+            EuclideanCgaManifold::from_opns(intersection, self.space_ndim)
+        } else {
+            None
+        })
+    }
+
     fn intersect(&self, cut: &Self, space: &Self) -> Result<Option<Self>> {
         ensure!(cut.ndim()? + 1 == space.ndim()?);
         ensure!(self.ndim()? <= space.ndim()?);
@@ -479,3 +495,30 @@ mod tests {
         }
     }
 }
+
+// mod tests {
+//     use super::*;
+
+//     // #[test]
+//     // fn test_cga_euclidean_manifold_tangent_vectors() {
+//     //     for ndim in 3..5 {
+//     //         let cut = EuclideanCgaManifold::plane(vector![1.0], 0.0, ndim);
+//     //         let polygon_manifold = EuclideanCgaManifold::plane(vector![0.0,1.0], 0.0, ndim);
+//     //         let l1 = EuclideanCgaManifold
+//     //     }
+//     // }
+
+//     // /// Pos = contains everything; Neg = contains nothing
+//     // fn tangent_vector_sign_agreement(
+//     //     intersection_manifold: &EuclideanCgaManifold,
+//     //     tangent_vector: &EuclideanCgaManifold,
+//     // ) -> Option<Sign> {
+//     //     let [a, b] = self.shape_to_point_pair(tangent_vector).unwrap();
+//     //     if !approx_eq(&a, &b) {
+//     //         return None;
+//     //     }
+//     //     intersection_manifold
+//     //         .tangent_manifold(&a)?
+//     //         .relative_orientation(tangent_vector)
+//     // }
+// }

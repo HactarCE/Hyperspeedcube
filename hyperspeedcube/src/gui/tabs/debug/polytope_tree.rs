@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 use ndpuzzle::geometry::*;
-use ndpuzzle::math::VectorRef;
+use ndpuzzle::math::{cga, VectorRef};
 use ndpuzzle::vector;
 
 use crate::gui::tabs::puzzle_view::Overlay;
@@ -45,9 +45,28 @@ impl PolytopeTree {
             let m = &shapes[id].manifold;
             match m.ndim()? {
                 0 => {
-                    for p in m.to_point_pair()? {
+                    let [a, b] = m.to_point_pair()?;
+                    for p in [a.clone(), b.clone()] {
                         if let Ok(p) = p.to_finite() {
-                            overlay.push((Overlay::Point(p), size));
+                            let color = egui::Color32::BLUE;
+                            overlay.push((Overlay::Point(p), size, color));
+                        }
+                    }
+                    let vector = (m.ipns() ^ cga::Blade::NO)
+                        .ipns_to_opns(shapes.space().ndim()?)
+                        .to_vector()
+                        .normalize();
+                    let color = egui::Color32::DARK_RED;
+                    if let Some(v) = vector {
+                        let v = v / 2.0;
+                        if let Ok(a) = a.clone().to_finite() {
+                            overlay.push((Overlay::Arrow(a.clone(), &a + &v), 1.0, color));
+                        }
+                        if let Ok(b) = b.clone().to_finite() {
+                            overlay.push((Overlay::Arrow(&b - &v, b.clone()), 1.0, color));
+                        }
+                        if a.to_finite().is_err() && b.to_finite().is_err() {
+                            overlay.push((Overlay::Arrow(vector![], v), 1.0, color));
                         }
                     }
                 }
@@ -65,7 +84,7 @@ impl PolytopeTree {
                     .context("bad point pair")?;
                     let p1 = p1.to_finite().or(backup_p1.to_finite())?;
                     let p2 = p2.to_finite().or(backup_p2.to_finite())?;
-                    overlay.push((Overlay::Line(p1, p2), size));
+                    overlay.push((Overlay::Line(p1, p2), size, egui::Color32::LIGHT_GREEN));
                 }
                 _ if m.is_flat() => {
                     let ipns = m.ipns();
@@ -77,6 +96,7 @@ impl PolytopeTree {
                                     * ipns.ipns_plane_distance().context("bad plane normal")?,
                             ),
                             size,
+                            egui::Color32::LIGHT_BLUE,
                         ));
                     }
                 }

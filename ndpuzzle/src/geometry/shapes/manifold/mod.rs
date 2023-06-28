@@ -52,6 +52,8 @@ pub trait Manifold: fmt::Debug + fmt::Display + Clone + Neg<Output = Self> {
     /// the same manifold, or `None` if they are distinct manifolds.
     fn relative_orientation(&self, other: &Self) -> Option<Sign>;
 
+    fn tangent_manifold(&self, point: &Self::Point) -> Result<Self>;
+
     /// Given the (N+1)-dimensional `space` containing `self` and N-dimensional
     /// `cut`, splits `self` by `cut`.
     fn split(&self, cut: &Self, space: &Self) -> Result<ManifoldSplit<Self>> {
@@ -59,6 +61,20 @@ pub trait Manifold: fmt::Debug + fmt::Display + Clone + Neg<Output = Self> {
             is_any_inside,
             is_any_outside,
         } = self.which_side(cut, space)?;
+
+        if self.ndim()? == 1 && (is_any_inside != is_any_outside) {
+            if let Some(intersection_manifold) = self.tangent_intersect(cut, space)? {
+                let intersection_manifold = if is_any_inside || true {
+                    intersection_manifold.flip()?
+                } else {
+                    intersection_manifold
+                };
+                println!("tangent time! {intersection_manifold}. {is_any_inside}");
+                return Ok(ManifoldSplit::Split {
+                    intersection_manifold,
+                });
+            }
+        }
 
         match (is_any_inside, is_any_outside) {
             (false, false) => Ok(ManifoldSplit::Flush(self.relative_orientation(cut))),
@@ -71,6 +87,8 @@ pub trait Manifold: fmt::Debug + fmt::Display + Clone + Neg<Output = Self> {
             }),
         }
     }
+
+    fn tangent_intersect(&self, cut: &Self, space: &Self) -> Result<Option<Self>>;
 
     /// Given the N-dimensional `space` containing (N-1)-dimensional `cut` and
     /// M-dimensional `self` where M<=N, returns the (M-1)-dimensional
@@ -99,13 +117,17 @@ pub trait Manifold: fmt::Debug + fmt::Display + Clone + Neg<Output = Self> {
 }
 
 /// Result of splitting a manifold by another manifold.
+///
+/// For `Flush`, `Inside`, and `Outside`, the `sign` is `None`
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ManifoldSplit<M> {
     /// The manifold is flush with the slice. The sign is positive if they have
     /// the same orientation, negative if they have opposite orientation, or
     /// `None` if they have differing numbers of dimensions.
     Flush(Option<Sign>),
-    /// The manifold is entirely inside the slice.
+    /// The manifold is entirely inside the slice. The sign is the relative
+    /// orientation, after applying a non-reflecting conformal mapping that
+    /// transforms one to the other without intersecting it.
     Inside,
     /// The manifold is entirely outside the slice.
     Outside,

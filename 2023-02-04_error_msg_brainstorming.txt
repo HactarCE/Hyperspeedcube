@@ -1,0 +1,12 @@
+ bail!("cannot negate transform {:?}", inner.span)
+
+
+            v @ Value::List(_) => Err(anyhow!(
+                "cannot apply unary plus to {}: {:?}",
+                v.type_str(),
+                self.span,
+            )),
+
+
+
+            v @ Value::List(_) => Err(anyhow!("cannot negate {}: {:?}", v.type_str(), self.span)),

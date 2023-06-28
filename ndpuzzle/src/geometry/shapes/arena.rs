@@ -8,6 +8,7 @@
 
 use ahash::AHashMap;
 use anyhow::{bail, ensure, Context, Result};
+use itertools::Itertools;
 use slab::Slab;
 use std::fmt;
 use std::ops::{Index, Neg};
@@ -104,6 +105,28 @@ impl<M: Manifold> ShapeArena<M> {
         let ndim = shape.manifold.ndim()?;
         for boundary_shape in shape.boundary.iter() {
             ensure!(ndim == self[boundary_shape.id].ndim()? + 1);
+        }
+
+        // Check that polygons are topologically valid.
+        if ndim == 2 {
+            let mut points = vec![];
+            for edge in shape.boundary.iter() {
+                for point_pair in self[edge.id].boundary.iter() {
+                    for p in self.shape_to_point_pair(point_pair)? {
+                        match points.iter().find_position(|q| approx_eq(&p, q)) {
+                            Some((i, _)) => {
+                                points.remove(i);
+                            }
+                            None => points.push(p),
+                        }
+                    }
+                }
+            }
+            if !points.is_empty() {
+                self.log.event("error", "Error! Invalid polygon");
+                // self.dump_log_file();
+                // bail!("error! invalid polygon");
+            }
         }
 
         let idx = self.shapes.insert(shape);
@@ -228,8 +251,8 @@ impl<M: Manifold> ShapeArena<M> {
                 .cut_shape(ShapeRef::from(root_id), &mut op)
                 .context("error cutting shape")?
             {
-                SplitResult::Flush => bail!("root shape is flush with cut"),
-                SplitResult::NonFlush {
+                ShapeSplit::Flush => bail!("root shape is flush with cut"),
+                ShapeSplit::NonFlush {
                     inside,
                     outside,
                     intersection_shape: _,
@@ -267,13 +290,14 @@ impl<M: Manifold> ShapeArena<M> {
         &mut self,
         shape: ShapeRef,
         slice_op: &mut SliceOperation<M>,
-    ) -> Result<SplitResult> {
+    ) -> Result<ShapeSplit> {
         let result = match slice_op.results_cache.get(&shape.id) {
             Some(result) => {
-                self.log.event(
+                let ev = self.log.event(
                     "cached_split_result",
                     format!("Using cached split result for {shape}"),
                 );
+                ev.log_value("result", result);
 
                 result.clone()
             }
@@ -288,7 +312,7 @@ impl<M: Manifold> ShapeArena<M> {
         };
 
         // Add metadata.
-        if let SplitResult::NonFlush {
+        if let ShapeSplit::NonFlush {
             inside,
             outside,
 
@@ -320,7 +344,7 @@ impl<M: Manifold> ShapeArena<M> {
         &mut self,
         shape: ShapeId,
         slice_op: &mut SliceOperation<M>,
-    ) -> Result<SplitResult> {
+    ) -> Result<ShapeSplit> {
         let ev = self.log.event("cut", format!("Cutting shape {shape}"));
 
         match self[shape]
@@ -330,15 +354,15 @@ impl<M: Manifold> ShapeArena<M> {
         {
             ManifoldSplit::Flush(_) => {
                 ev.log("Manifold is flush with cut");
-                Ok(SplitResult::Flush)
+                Ok(ShapeSplit::Flush)
             }
             ManifoldSplit::Inside => {
                 ev.log("Manifold is entirely inside");
-                Ok(SplitResult::all_inside(shape))
+                Ok(ShapeSplit::all_inside(shape))
             }
             ManifoldSplit::Outside => {
                 ev.log("Manifold is entirely outside");
-                Ok(SplitResult::all_outside(shape))
+                Ok(ShapeSplit::all_outside(shape))
             }
 
             ManifoldSplit::Split {
@@ -382,7 +406,7 @@ impl<M: Manifold> ShapeArena<M> {
                     None
                 };
 
-                Ok(SplitResult::NonFlush {
+                Ok(ShapeSplit::NonFlush {
                     inside,
                     outside,
                     intersection_shape: Some(intersection_shape),
@@ -410,12 +434,12 @@ impl<M: Manifold> ShapeArena<M> {
                 // of `shape`.
                 for child in self[shape].boundary.clone() {
                     match self.cut_shape(child, slice_op)? {
-                        SplitResult::Flush => {
+                        ShapeSplit::Flush => {
                             ensure!(intersection_shape.is_none(), "multiple intersection shapes");
                             ev.log_value("intersection_shape", child);
                             intersection_shape = Some(child);
                         }
-                        SplitResult::NonFlush {
+                        ShapeSplit::NonFlush {
                             inside,
                             outside,
                             intersection_shape,
@@ -431,6 +455,17 @@ impl<M: Manifold> ShapeArena<M> {
                 ev.log_set64("self_boundary_of_outside", &self_boundary_of_outside);
                 ev.log_set64("intersection_boundary", &intersection_boundary);
                 ev.log_option("intersection_shape", intersection_shape);
+
+                if intersection_manifold.ndim()? == 1 {
+                    ev.log("Simplifying boundary of 1D intersection");
+                    intersection_boundary = self
+                        .simplify_intervals_intersection(
+                            intersection_boundary.iter(),
+                            &intersection_manifold,
+                        )
+                        .context("error simplifying boundary of 1D intersection")?
+                        .unwrap_or_else(Set64::new);
+                }
 
                 let mut any_inside = true;
                 let mut any_outside = true;
@@ -478,40 +513,8 @@ impl<M: Manifold> ShapeArena<M> {
                     ev.log("`intersection_shape` does not yet exist, but should be nonempty");
 
                     // Construct the shape that is `shape ∩ boundary(cut)`.
-                    if intersection_manifold.ndim()? == 1 {
-                        ev.log("Simplifying boundary of 1D intersection");
-                        let simplified_intersection_boundary = self
-                            .simplify_intervals_intersection(
-                                intersection_boundary.iter(),
-                                &intersection_manifold,
-                            )
-                            .context("error simplifying boundary of 1D intersection")?;
-                        if let Some(boundary) = simplified_intersection_boundary {
-                            ev.log("Constructing 1D `intersection_shape`");
-                            intersection_shape =
-                                Some(self.add(Shape::new(intersection_manifold, boundary))?);
-                        } else {
-                            ev.log("Boundary of 1D intersection is empty");
-                            // `shape ∩ boundary(cut)` is empty!
-                            if self_boundary_of_inside.is_empty() {
-                                // There's nothing to bound `shape ∩ cut`, so it
-                                // must be empty.
-                                ev.log("Nothing inside");
-                                any_inside = false;
-                            }
-                            if self_boundary_of_outside.is_empty() {
-                                // There's nothing to bound `shape ∩ ~cut`, so
-                                // it must be empty.
-                                ev.log("Nothing outside");
-                                any_outside = false;
-                            }
-                        }
-                    } else {
-                        ev.log("Constructing `intersection_shape`");
-                        intersection_shape = Some(
-                            self.add(Shape::new(intersection_manifold, intersection_boundary))?,
-                        );
-                    }
+                    intersection_shape =
+                        Some(self.add(Shape::new(intersection_manifold, intersection_boundary))?);
                 }
 
                 // Is `shape ∩ boundary(cut)` nonempty?
@@ -550,7 +553,7 @@ impl<M: Manifold> ShapeArena<M> {
                 ev.log_option("outside", outside);
                 ev.log_option("intersection_shape", intersection_shape);
 
-                Ok(SplitResult::NonFlush {
+                Ok(ShapeSplit::NonFlush {
                     inside,
                     outside,
                     intersection_shape,
@@ -589,6 +592,27 @@ impl<M: Manifold> ShapeArena<M> {
                 * boundary_elem.sign;
             match which_side {
                 PointWhichSide::On => return self.shape_contains_point(boundary_elem.id, point),
+                PointWhichSide::Inside => continue,
+                PointWhichSide::Outside => return Ok(false),
+            }
+        }
+
+        Ok(true)
+    }
+    /// Returns true if `point` is inside. Returns false if `point` is not flush
+    /// with `shape` or it is on the boundary.
+    pub fn shape_interior_contains_point(&self, shape: ShapeId, point: &M::Point) -> Result<bool> {
+        let shape_manifold = &self[shape].manifold;
+        let which_side = shape_manifold.which_side_has_point(point, &self.space)?;
+        if which_side != PointWhichSide::On {
+            return Ok(false);
+        }
+        for boundary_elem in self[shape].boundary.iter() {
+            let boundary_elem_manifold = &self[boundary_elem.id].manifold;
+            let which_side = boundary_elem_manifold.which_side_has_point(point, shape_manifold)?
+                * boundary_elem.sign;
+            match which_side {
+                PointWhichSide::On => return Ok(false),
                 PointWhichSide::Inside => continue,
                 PointWhichSide::Outside => return Ok(false),
             }
@@ -642,8 +666,24 @@ impl<M: Manifold> ShapeArena<M> {
 
         let [a, b] = self.shape_to_point_pair(new_interval)?;
         if approx_eq(&a, &b) {
-            // The new interval contains the whole space and so has no effect.
-            return Ok(Some(existing_intervals.clone()));
+            ev.log("Tangent vector");
+            let tangent_vector_manifold = &self[new_interval.id].manifold;
+            let tangent_vector_orientation = space
+                .tangent_manifold(&a)?
+                .relative_orientation(tangent_vector_manifold)
+                .context("failed to construct tangent space equivalent to point pair")?;
+            match -new_interval.sign * tangent_vector_orientation {
+                Sign::Pos => {
+                    ev.log("New interval contains nothing; returning empty set");
+                    // The new interval contains nothing and so the result is empty.
+                    return Ok(None);
+                }
+                Sign::Neg => {
+                    ev.log("New interval contains whole space; returning existing intervals");
+                    // The new interval contains the whole space and so has no effect.
+                    return Ok(Some(existing_intervals.clone()));
+                }
+            }
         }
 
         let mut simplified = Set64::new();
@@ -817,7 +857,7 @@ struct SliceOperation<M> {
     /// and "outside."
     divider: M,
     /// Cache of the result of splitting individual shapes.
-    results_cache: AHashMap<ShapeId, SplitResult>,
+    results_cache: AHashMap<ShapeId, ShapeSplit>,
 
     /// Metadata to attach to the inside side of the shape.
     inside_metadata: Option<ShapeMetadata>,
@@ -838,7 +878,7 @@ impl<M> SliceOperation<M> {
 
 /// Result of splitting an N-dimensional object by a manifold.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum SplitResult<R = ShapeRef> {
+enum ShapeSplit<R = ShapeRef> {
     /// The whole object is flush with the slice.
     Flush,
     /// Some part of the object is not flush with the slice.
@@ -855,7 +895,27 @@ enum SplitResult<R = ShapeRef> {
         intersection_shape: Option<R>,
     },
 }
-impl Neg for SplitResult<ShapeRef> {
+impl fmt::Display for ShapeSplit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ShapeSplit::Flush => write!(f, "Flush"),
+            ShapeSplit::NonFlush {
+                inside,
+                outside,
+                intersection_shape,
+            } => {
+                write!(
+                    f,
+                    "NonFlush {{ inside: {}, outside: {}, intersection_shape: {} }}",
+                    inside.map_or_else(|| "<none>".to_string(), |x| x.to_string()),
+                    outside.map_or_else(|| "<none>".to_string(), |x| x.to_string()),
+                    intersection_shape.map_or_else(|| "<none>".to_string(), |x| x.to_string()),
+                )
+            }
+        }
+    }
+}
+impl Neg for ShapeSplit<ShapeRef> {
     type Output = Self;
 
     fn neg(mut self) -> Self::Output {
@@ -865,7 +925,7 @@ impl Neg for SplitResult<ShapeRef> {
             }
         }
 
-        if let SplitResult::NonFlush {
+        if let ShapeSplit::NonFlush {
             inside,
             outside,
             intersection_shape,
@@ -880,7 +940,7 @@ impl Neg for SplitResult<ShapeRef> {
     }
 }
 
-impl SplitResult<ShapeRef> {
+impl ShapeSplit<ShapeRef> {
     fn all_inside(shape: impl Into<ShapeRef>) -> Self {
         Self::NonFlush {
             inside: Some(shape.into()),

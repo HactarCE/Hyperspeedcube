@@ -1,0 +1,70 @@
+name: 3-layer {7/3} Heptagrammic Star Prism
+
+version: 1
+
+params:
+  n: 7
+  m: 3
+
+constants:
+  V0: (X -> Y by pi/n) * X
+  Vm: (X -> Y by 2pi*m/n) * V0
+  P1: midpoint(V0, Vm)
+  P2: reflect(Y) * P
+
+shape:
+  name: "{7/3} Heptagrammic Prism"
+  ndim: 3
+  symmetry:
+    - schlafli: 7,2
+    - transform: X -> Y
+  construction:
+    - facet: +Z
+      names: [Up, Down]
+
+    - remove:
+      - P1
+      - P2
+
+    - facet: +X
+      prefix: "Side "
+      remove: false
+
+  facet_colors: { Up: white, Down: yellow }
+
+twists:
+  name: 3-layer 7/3 Heptagrammic Prism
+  symmetry:
+    - schlafli: 7,2
+  axes:
+    - normal: +Z
+      distance: 3 from -1 to +1
+    - slice:
+      - above: P1
+      - above: P2
+    - normal: +Z
+      cuts: [3 from -1 to +1]
+      names: [U, D]
+    # - normal:
+  transforms:
+    - { name: <F>, axis: F, transform: ^U -> ^R }
+      # can add multiplicity; e.g., `multiplicity: [1, -1, 2, -2]`
+      # otherwise it's inferred
+  notation:
+    layer_suffixes:
+      - 1,4
+    wide_suffix: w
+    aliases:
+      M: { layers: 2..-2, axis: L }
+      E: { layers: 2..-2, axis: D }
+      S: { layers: 2..-2, axis: F }
+    twists:
+      "<F>": F[U -> R]
+  controls:
+    directions:
+      - { name: CW, transform: <axis> }
+      - { name: CCW, transform: <axis>' }
+      - { name: 180 CW, transform: <axis>2 }
+      - { name: 180 CCW, transform: <axis>2' }
+        # can specify multiplicity for each of these
+        # otherwise it's inferred

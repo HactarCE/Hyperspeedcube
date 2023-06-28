@@ -66,6 +66,19 @@ mod tests {
 
         Mesh::from_arena(&arena, false).unwrap();
     }
+
+    #[test]
+    fn test_broken() {
+        let mut arena = ShapeArena::new_euclidean_cga(3);
+        arena.carve_plane(vector![0.0, 0.0, 1.0], 1.0, 4).unwrap();
+        arena.carve_plane(vector![0.0, 0.0, -1.0], 1.0, 4).unwrap();
+        arena.carve_plane(vector![1.0, 0.0], 2.0, 1).unwrap();
+        arena.carve_plane(vector![1.0, 1.0], 1.0, 2).unwrap();
+        println!("AAAAAAAAAAAAAAAAA");
+        arena.carve_plane(vector![0.0, 1.0], 2.0, 3).unwrap();
+        println!("{arena}");
+        panic!()
+    }
 }
 
 // #[cfg(test)]

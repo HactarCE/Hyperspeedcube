@@ -1,0 +1,42 @@
+name: 6x6x6x6
+shape: Hypercube
+twists:
+  name: Hypercubic
+  symmetry: 4,3,3
+  axes:
+    - { normal: +X, cuts: [5 from -1 to +1], names: [R, L, D, U, F, B, O, I] }
+  axis_order: [R, L, U, D, F, B, O, I]
+  transforms:
+    - { name: <I><F>,   axis: I, transform: U -> R }
+    - { name: <I><FU>,  axis: I, transform: F -> R -> B -> U, qtm: 3 }
+    - { name: <I><FUR>, axis: I, transform: U -> R -> F,      qtm: 2 }
+  notation:
+    list_order: [U, D, F, B, R, L, O, I]
+    aliases:
+      layer_axis:
+        M: ["{2..-2}", L]
+        E: ["{2..-2}", D]
+        S: ["{2..-2}", F]
+        P: ["{2..-2}", O]
+    rotations: {
+      xy: R -> U, xz: R -> F, xw: R -> O,
+      yx: U -> R, yz: U -> F, yw: U -> O,
+      zx: F -> R, zy: F -> U, zw: F -> O,
+      wx: O -> R, wy: O -> U, wz: O -> F,
+    }
+  controls:
+    directions:
+      - { name: x, transform: { R: RO, L: LI, _: <axis>R } }
+      - { name: y, transform: { U: UO, D: DI, _: <axis>U } }
+      - { name: z, transform: { F: FO, B: BI, _: <axis>F } }
+piece_types:
+  corner: [U, F, R, O]
+  wing: [U, F, $x$R, O]
+  ridge:
+    x-ridge: [U, F, $x$R, $x$O]
+    oblique ridge: [U, F, $x$R, $y$O]
+  center:
+    x-center: [U, $x$F, $x$R, $x$O]
+    semi-oblique:
+      - {[U, $x$, $x$, $z$], suffix: ($x$, $x$, $z$)}
+      - [U, $x$, $z$, $z$]

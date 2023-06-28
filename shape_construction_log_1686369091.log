@@ -1,0 +1,3215 @@
+[* 0:cut_all] Cutting all shapes by hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+  [0:cut_all] ? inside = KEEP (data = 0)
+  [0:cut_all] ? outside = REMOVE
+  [* 1:cut] Cutting shape #0
+    [1:cut] Manifold is split (2D+)
+    [1:cut] ? self_boundary_of_inside = []
+    [1:cut] ? self_boundary_of_outside = []
+    [1:cut] ? intersection_boundary = []
+    [1:cut] ? intersection_shape = None
+    [1:cut] `shape ∩ boundary(cut)` is nonempty (case 3)
+    [1:cut] `intersection_shape` does not yet exist, but should be nonempty
+    [* 2:add] Adding shape
+      [2:add] ? manifold = hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+      [2:add] ? boundary = []
+      [2:add] ? id = 1
+    [# 2:add] end
+    [1:cut] Adding common boundary to inside and outside
+    [1:cut] Constructing inside shape
+    [* 3:add_subshape] Adding subshape
+      [3:add_subshape] ? old_shape = #0
+      [3:add_subshape] ? new_boundary = [+#1]
+      [3:add_subshape] creating new shape
+      [* 4:add] Adding shape
+        [4:add] ? manifold = whole space 1 Exyz
+        [4:add] ? boundary = [+#1]
+        [4:add] ? id = 2
+      [# 4:add] end
+    [# 3:add_subshape] end
+    [1:cut] Constructing outside shape
+    [* 5:add_subshape] Adding subshape
+      [5:add_subshape] ? old_shape = #0
+      [5:add_subshape] ? new_boundary = [-#1]
+      [5:add_subshape] creating new shape
+      [* 6:add] Adding shape
+        [6:add] ? manifold = whole space 1 Exyz
+        [6:add] ? boundary = [-#1]
+        [6:add] ? id = 3
+      [# 6:add] end
+    [# 5:add_subshape] end
+    [1:cut] ? inside = +#2
+    [1:cut] ? outside = +#3
+    [1:cut] ? intersection_shape = +#1
+  [# 1:cut] end
+  [0:cut_all] Adding inside shape +#2 as root
+  [0:cut_all] Ignoring outside shape +#3
+[# 0:cut_all] end
+[* 7:cut_all] Cutting all shapes by hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+  [7:cut_all] ? inside = KEEP (data = 1)
+  [7:cut_all] ? outside = REMOVE
+  [* 8:cut] Cutting shape #2
+    [8:cut] Manifold is split (2D+)
+    [* 9:cut] Cutting shape #1
+      [9:cut] Manifold is split (2D+)
+      [9:cut] ? self_boundary_of_inside = []
+      [9:cut] ? self_boundary_of_outside = []
+      [9:cut] ? intersection_boundary = []
+      [9:cut] ? intersection_shape = None
+      [9:cut] Simplifying boundary of 1D intersection
+      [* 10:simplify_intervals] Simplifying intervals intersection
+        [10:simplify_intervals] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [10:simplify_intervals] ? simplified = []
+      [# 10:simplify_intervals] end
+      [9:cut] `shape ∩ boundary(cut)` is nonempty (case 3)
+      [9:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 11:add] Adding shape
+        [11:add] ? manifold = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [11:add] ? boundary = []
+        [11:add] ? id = 4
+      [# 11:add] end
+      [9:cut] Adding common boundary to inside and outside
+      [9:cut] Constructing inside shape
+      [* 12:add_subshape] Adding subshape
+        [12:add_subshape] ? old_shape = #1
+        [12:add_subshape] ? new_boundary = [+#4]
+        [12:add_subshape] creating new shape
+        [* 13:add] Adding shape
+          [13:add] ? manifold = hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+          [13:add] ? boundary = [+#4]
+          [13:add] ? id = 5
+        [# 13:add] end
+      [# 12:add_subshape] end
+      [9:cut] Constructing outside shape
+      [* 14:add_subshape] Adding subshape
+        [14:add_subshape] ? old_shape = #1
+        [14:add_subshape] ? new_boundary = [-#4]
+        [14:add_subshape] creating new shape
+        [* 15:add] Adding shape
+          [15:add] ? manifold = hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+          [15:add] ? boundary = [-#4]
+          [15:add] ? id = 6
+        [# 15:add] end
+      [# 14:add_subshape] end
+      [9:cut] ? inside = +#5
+      [9:cut] ? outside = +#6
+      [9:cut] ? intersection_shape = +#4
+    [# 9:cut] end
+    [8:cut] ? self_boundary_of_inside = [+#5]
+    [8:cut] ? self_boundary_of_outside = [+#6]
+    [8:cut] ? intersection_boundary = [-#4]
+    [8:cut] ? intersection_shape = None
+    [8:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+    [8:cut] `intersection_shape` does not yet exist, but should be nonempty
+    [* 16:add] Adding shape
+      [16:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+      [16:add] ? boundary = [-#4]
+      [16:add] ? id = 7
+    [# 16:add] end
+    [8:cut] Adding common boundary to inside and outside
+    [8:cut] Constructing inside shape
+    [* 17:add_subshape] Adding subshape
+      [17:add_subshape] ? old_shape = #2
+      [17:add_subshape] ? new_boundary = [+#5, +#7]
+      [17:add_subshape] creating new shape
+      [* 18:add] Adding shape
+        [18:add] ? manifold = whole space 1 Exyz
+        [18:add] ? boundary = [+#5, +#7]
+        [18:add] ? id = 8
+      [# 18:add] end
+    [# 17:add_subshape] end
+    [8:cut] Constructing outside shape
+    [* 19:add_subshape] Adding subshape
+      [19:add_subshape] ? old_shape = #2
+      [19:add_subshape] ? new_boundary = [+#6, -#7]
+      [19:add_subshape] creating new shape
+      [* 20:add] Adding shape
+        [20:add] ? manifold = whole space 1 Exyz
+        [20:add] ? boundary = [+#6, -#7]
+        [20:add] ? id = 9
+      [# 20:add] end
+    [# 19:add_subshape] end
+    [8:cut] ? inside = +#8
+    [8:cut] ? outside = +#9
+    [8:cut] ? intersection_shape = +#7
+  [# 8:cut] end
+  [7:cut_all] Adding inside shape +#8 as root
+  [7:cut_all] Ignoring outside shape +#9
+[# 7:cut_all] end
+[* 21:cut_all] Cutting all shapes by hyperplane n=(0, 0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+  [21:cut_all] ? inside = KEEP (data = 2)
+  [21:cut_all] ? outside = REMOVE
+  [* 22:cut] Cutting shape #8
+    [22:cut] Manifold is split (2D+)
+    [* 23:cut] Cutting shape #5
+      [23:cut] Manifold is split (2D+)
+      [* 24:cut] Cutting shape #4
+        [24:cut] Manifold is split (1D)
+        [24:cut] Adding intersection shape point pair
+        [* 25:add] Adding shape
+          [25:add] ? manifold = point pair (-2.0000000000000004, 2.0000000000000004) .. ∞ 
+          [25:add] ? boundary = []
+          [25:add] ? id = 10
+        [# 25:add] end
+        [24:cut] ? intersection_shape = +#10
+        [24:cut] Simplifying inside boundary
+        [* 26:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [26:simplify_intervals_incremental] ? existing_intervals = []
+          [26:simplify_intervals_incremental] ? new_interval = +#10
+          [26:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 26:simplify_intervals_incremental] end
+        [24:cut] Adding inside shape
+        [* 27:add_subshape] Adding subshape
+          [27:add_subshape] ? old_shape = #4
+          [27:add_subshape] ? new_boundary = [+#10]
+          [27:add_subshape] creating new shape
+          [* 28:add] Adding shape
+            [28:add] ? manifold = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+            [28:add] ? boundary = [+#10]
+            [28:add] ? id = 11
+          [# 28:add] end
+        [# 27:add_subshape] end
+        [24:cut] Simplifying outside boundary
+        [* 29:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [29:simplify_intervals_incremental] ? existing_intervals = []
+          [29:simplify_intervals_incremental] ? new_interval = -#10
+          [29:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 29:simplify_intervals_incremental] end
+        [24:cut] Adding outside shape
+        [* 30:add_subshape] Adding subshape
+          [30:add_subshape] ? old_shape = #4
+          [30:add_subshape] ? new_boundary = [-#10]
+          [30:add_subshape] creating new shape
+          [* 31:add] Adding shape
+            [31:add] ? manifold = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+            [31:add] ? boundary = [-#10]
+            [31:add] ? id = 12
+          [# 31:add] end
+        [# 30:add_subshape] end
+      [# 24:cut] end
+      [23:cut] ? self_boundary_of_inside = [+#11]
+      [23:cut] ? self_boundary_of_outside = [+#12]
+      [23:cut] ? intersection_boundary = [-#10]
+      [23:cut] ? intersection_shape = None
+      [23:cut] Simplifying boundary of 1D intersection
+      [* 32:simplify_intervals] Simplifying intervals intersection
+        [32:simplify_intervals] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+        [32:simplify_intervals] ? interval = -#10
+        [* 33:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [33:simplify_intervals_incremental] ? existing_intervals = []
+          [33:simplify_intervals_incremental] ? new_interval = -#10
+          [33:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+        [# 33:simplify_intervals_incremental] end
+        [32:simplify_intervals] ? simplified = [-#10]
+      [# 32:simplify_intervals] end
+      [23:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [23:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 34:add] Adding shape
+        [34:add] ? manifold = -0.9999999999999998 Ex + -2 ∞ xy
+        [34:add] ? boundary = [-#10]
+        [34:add] ? id = 13
+      [# 34:add] end
+      [23:cut] Adding common boundary to inside and outside
+      [23:cut] Constructing inside shape
+      [* 35:add_subshape] Adding subshape
+        [35:add_subshape] ? old_shape = #5
+        [35:add_subshape] ? new_boundary = [+#11, +#13]
+        [35:add_subshape] creating new shape
+        [* 36:add] Adding shape
+          [36:add] ? manifold = hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+          [36:add] ? boundary = [+#11, +#13]
+          [36:add] ? id = 14
+        [# 36:add] end
+      [# 35:add_subshape] end
+      [23:cut] Constructing outside shape
+      [* 37:add_subshape] Adding subshape
+        [37:add_subshape] ? old_shape = #5
+        [37:add_subshape] ? new_boundary = [+#12, -#13]
+        [37:add_subshape] creating new shape
+        [* 38:add] Adding shape
+          [38:add] ? manifold = hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+          [38:add] ? boundary = [+#12, -#13]
+          [38:add] ? id = 15
+        [# 38:add] end
+      [# 37:add_subshape] end
+      [23:cut] ? inside = +#14
+      [23:cut] ? outside = +#15
+      [23:cut] ? intersection_shape = +#13
+    [# 23:cut] end
+    [* 39:cut] Cutting shape #7
+      [39:cut] Manifold is split (2D+)
+      [* 40:cached_split_result] Using cached split result for -#4
+        [40:cached_split_result] ? result = NonFlush { inside: +#11, outside: +#12, intersection_shape: +#10 }
+      [# 40:cached_split_result] end
+      [39:cut] ? self_boundary_of_inside = [-#11]
+      [39:cut] ? self_boundary_of_outside = [-#12]
+      [39:cut] ? intersection_boundary = [+#10]
+      [39:cut] ? intersection_shape = None
+      [39:cut] Simplifying boundary of 1D intersection
+      [* 41:simplify_intervals] Simplifying intervals intersection
+        [41:simplify_intervals] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + -1 ∞ xz + 1 ∞ yz
+        [41:simplify_intervals] ? interval = +#10
+        [* 42:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [42:simplify_intervals_incremental] ? existing_intervals = []
+          [42:simplify_intervals_incremental] ? new_interval = +#10
+          [42:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + -1 ∞ xz + 1 ∞ yz
+        [# 42:simplify_intervals_incremental] end
+        [41:simplify_intervals] ? simplified = [+#10]
+      [# 41:simplify_intervals] end
+      [39:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [39:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 43:add] Adding shape
+        [43:add] ? manifold = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + -1 ∞ xz + 1 ∞ yz
+        [43:add] ? boundary = [+#10]
+        [43:add] ? id = 16
+      [# 43:add] end
+      [39:cut] Adding common boundary to inside and outside
+      [39:cut] Constructing inside shape
+      [* 44:add_subshape] Adding subshape
+        [44:add_subshape] ? old_shape = #7
+        [44:add_subshape] ? new_boundary = [-#11, +#16]
+        [44:add_subshape] creating new shape
+        [* 45:add] Adding shape
+          [45:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [45:add] ? boundary = [-#11, +#16]
+          [45:add] ? id = 17
+        [# 45:add] end
+      [# 44:add_subshape] end
+      [39:cut] Constructing outside shape
+      [* 46:add_subshape] Adding subshape
+        [46:add_subshape] ? old_shape = #7
+        [46:add_subshape] ? new_boundary = [-#12, -#16]
+        [46:add_subshape] creating new shape
+        [* 47:add] Adding shape
+          [47:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [47:add] ? boundary = [-#12, -#16]
+          [47:add] ? id = 18
+        [# 47:add] end
+      [# 46:add_subshape] end
+      [39:cut] ? inside = +#17
+      [39:cut] ? outside = +#18
+      [39:cut] ? intersection_shape = +#16
+    [# 39:cut] end
+    [22:cut] ? self_boundary_of_inside = [+#14, +#17]
+    [22:cut] ? self_boundary_of_outside = [+#15, +#18]
+    [22:cut] ? intersection_boundary = [-#13, -#16]
+    [22:cut] ? intersection_shape = None
+    [22:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+    [22:cut] `intersection_shape` does not yet exist, but should be nonempty
+    [* 48:add] Adding shape
+      [48:add] ? manifold = hyperplane n=(0, 0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+      [48:add] ? boundary = [-#13, -#16]
+      [48:add] ? id = 19
+    [# 48:add] end
+    [22:cut] Adding common boundary to inside and outside
+    [22:cut] Constructing inside shape
+    [* 49:add_subshape] Adding subshape
+      [49:add_subshape] ? old_shape = #8
+      [49:add_subshape] ? new_boundary = [+#14, +#17, +#19]
+      [49:add_subshape] creating new shape
+      [* 50:add] Adding shape
+        [50:add] ? manifold = whole space 1 Exyz
+        [50:add] ? boundary = [+#14, +#17, +#19]
+        [50:add] ? id = 20
+      [# 50:add] end
+    [# 49:add_subshape] end
+    [22:cut] Constructing outside shape
+    [* 51:add_subshape] Adding subshape
+      [51:add_subshape] ? old_shape = #8
+      [51:add_subshape] ? new_boundary = [+#15, +#18, -#19]
+      [51:add_subshape] creating new shape
+      [* 52:add] Adding shape
+        [52:add] ? manifold = whole space 1 Exyz
+        [52:add] ? boundary = [+#15, +#18, -#19]
+        [52:add] ? id = 21
+      [# 52:add] end
+    [# 51:add_subshape] end
+    [22:cut] ? inside = +#20
+    [22:cut] ? outside = +#21
+    [22:cut] ? intersection_shape = +#19
+  [# 22:cut] end
+  [21:cut_all] Adding inside shape +#20 as root
+  [21:cut_all] Ignoring outside shape +#21
+[# 21:cut_all] end
+[* 53:cut_all] Cutting all shapes by hyperplane n=(0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+  [53:cut_all] ? inside = KEEP (data = 3)
+  [53:cut_all] ? outside = REMOVE
+  [* 54:cut] Cutting shape #20
+    [54:cut] Manifold is split (2D+)
+    [* 55:cut] Cutting shape #14
+      [55:cut] Manifold is split (2D+)
+      [* 56:cut] Cutting shape #11
+        [56:cut] Manifold is split (1D)
+        [56:cut] Adding intersection shape point pair
+        [* 57:add] Adding shape
+          [57:add] ? manifold = point pair ∞  .. (-0, -0, 2.0000000000000004)
+          [57:add] ? boundary = []
+          [57:add] ? id = 22
+        [# 57:add] end
+        [56:cut] ? intersection_shape = +#22
+        [56:cut] Simplifying inside boundary
+        [* 58:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [58:simplify_intervals_incremental] ? existing_intervals = [+#10]
+          [58:simplify_intervals_incremental] ? new_interval = +#22
+          [58:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 59:interval_result] Outside
+          [* 60:interval_result] On
+          [* 61:interval_result] On
+          [* 62:interval_result] Outside
+          [* 63:add] Adding shape
+            [63:add] ? manifold = point pair (-2.0000000000000018, 2.0000000000000018) .. (-0, -0, 2.0000000000000013)
+            [63:add] ? boundary = []
+            [63:add] ? id = 23
+          [# 63:add] end
+        [# 58:simplify_intervals_incremental] end
+        [56:cut] Adding inside shape
+        [* 64:add_subshape] Adding subshape
+          [64:add_subshape] ? old_shape = #11
+          [64:add_subshape] ? new_boundary = [+#23]
+          [64:add_subshape] creating new shape
+          [* 65:add] Adding shape
+            [65:add] ? manifold = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+            [65:add] ? boundary = [+#23]
+            [65:add] ? id = 24
+          [# 65:add] end
+        [# 64:add_subshape] end
+        [56:cut] Simplifying outside boundary
+        [* 66:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [66:simplify_intervals_incremental] ? existing_intervals = [+#10]
+          [66:simplify_intervals_incremental] ? new_interval = -#22
+          [66:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 67:interval_result] On
+          [* 68:interval_result] Outside
+          [* 69:interval_result] On
+          [* 70:interval_result] Inside
+        [# 66:simplify_intervals_incremental] end
+        [56:cut] Adding outside shape
+        [* 71:add_subshape] Adding subshape
+          [71:add_subshape] ? old_shape = #11
+          [71:add_subshape] ? new_boundary = [-#22]
+          [71:add_subshape] creating new shape
+          [* 72:add] Adding shape
+            [72:add] ? manifold = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+            [72:add] ? boundary = [-#22]
+            [72:add] ? id = 25
+          [# 72:add] end
+        [# 71:add_subshape] end
+      [# 56:cut] end
+      [* 73:cut] Cutting shape #13
+        [73:cut] Manifold is split (1D)
+        [73:cut] Adding intersection shape point pair
+        [* 74:add] Adding shape
+          [74:add] ? manifold = point pair (2.0000000000000004, 2.0000000000000004) .. ∞ 
+          [74:add] ? boundary = []
+          [74:add] ? id = 26
+        [# 74:add] end
+        [73:cut] ? intersection_shape = +#26
+        [73:cut] Simplifying inside boundary
+        [* 75:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [75:simplify_intervals_incremental] ? existing_intervals = [-#10]
+          [75:simplify_intervals_incremental] ? new_interval = +#26
+          [75:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+          [* 76:interval_result] On
+          [* 77:interval_result] Outside
+          [* 78:interval_result] Outside
+          [* 79:interval_result] On
+          [* 80:add] Adding shape
+            [80:add] ? manifold = point pair (2.0000000000000004, 2.000000000000001) .. (-2.0000000000000004, 2.000000000000001)
+            [80:add] ? boundary = []
+            [80:add] ? id = 27
+          [# 80:add] end
+        [# 75:simplify_intervals_incremental] end
+        [73:cut] Adding inside shape
+        [* 81:add_subshape] Adding subshape
+          [81:add_subshape] ? old_shape = #13
+          [81:add_subshape] ? new_boundary = [+#27]
+          [81:add_subshape] creating new shape
+          [* 82:add] Adding shape
+            [82:add] ? manifold = -0.9999999999999998 Ex + -2 ∞ xy
+            [82:add] ? boundary = [+#27]
+            [82:add] ? id = 28
+          [# 82:add] end
+        [# 81:add_subshape] end
+        [73:cut] Simplifying outside boundary
+        [* 83:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [83:simplify_intervals_incremental] ? existing_intervals = [-#10]
+          [83:simplify_intervals_incremental] ? new_interval = -#26
+          [83:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+          [* 84:interval_result] Outside
+          [* 85:interval_result] On
+          [* 86:interval_result] Inside
+          [* 87:interval_result] On
+        [# 83:simplify_intervals_incremental] end
+        [73:cut] Adding outside shape
+        [* 88:add_subshape] Adding subshape
+          [88:add_subshape] ? old_shape = #13
+          [88:add_subshape] ? new_boundary = [-#26]
+          [88:add_subshape] creating new shape
+          [* 89:add] Adding shape
+            [89:add] ? manifold = -0.9999999999999998 Ex + -2 ∞ xy
+            [89:add] ? boundary = [-#26]
+            [89:add] ? id = 29
+          [# 89:add] end
+        [# 88:add_subshape] end
+      [# 73:cut] end
+      [55:cut] ? self_boundary_of_inside = [+#24, +#28]
+      [55:cut] ? self_boundary_of_outside = [+#25, +#29]
+      [55:cut] ? intersection_boundary = [-#22, -#26]
+      [55:cut] ? intersection_shape = None
+      [55:cut] Simplifying boundary of 1D intersection
+      [* 90:simplify_intervals] Simplifying intervals intersection
+        [90:simplify_intervals] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [90:simplify_intervals] ? interval = -#22
+        [* 91:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [91:simplify_intervals_incremental] ? existing_intervals = []
+          [91:simplify_intervals_incremental] ? new_interval = -#22
+          [91:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 91:simplify_intervals_incremental] end
+        [90:simplify_intervals] ? interval = -#26
+        [* 92:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [92:simplify_intervals_incremental] ? existing_intervals = [-#22]
+          [92:simplify_intervals_incremental] ? new_interval = -#26
+          [92:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 93:interval_result] Outside
+          [* 94:interval_result] On
+          [* 95:interval_result] On
+          [* 96:interval_result] Outside
+          [* 97:add] Adding shape
+            [97:add] ? manifold = point pair (-0, -0, 2.0000000000000013) .. (2.0000000000000018, 2.0000000000000018)
+            [97:add] ? boundary = []
+            [97:add] ? id = 30
+          [# 97:add] end
+        [# 92:simplify_intervals_incremental] end
+        [90:simplify_intervals] ? simplified = [+#30]
+      [# 90:simplify_intervals] end
+      [55:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [55:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 98:add] Adding shape
+        [98:add] ? manifold = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [98:add] ? boundary = [+#30]
+        [98:add] ? id = 31
+      [# 98:add] end
+      [55:cut] Adding common boundary to inside and outside
+      [55:cut] Constructing inside shape
+      [* 99:add_subshape] Adding subshape
+        [99:add_subshape] ? old_shape = #14
+        [99:add_subshape] ? new_boundary = [+#24, +#28, +#31]
+        [99:add_subshape] creating new shape
+        [* 100:add] Adding shape
+          [100:add] ? manifold = hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+          [100:add] ? boundary = [+#24, +#28, +#31]
+          [100:add] ? id = 32
+        [# 100:add] end
+      [# 99:add_subshape] end
+      [55:cut] Constructing outside shape
+      [* 101:add_subshape] Adding subshape
+        [101:add_subshape] ? old_shape = #14
+        [101:add_subshape] ? new_boundary = [+#25, +#29, -#31]
+        [101:add_subshape] creating new shape
+        [* 102:add] Adding shape
+          [102:add] ? manifold = hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+          [102:add] ? boundary = [+#25, +#29, -#31]
+          [102:add] ? id = 33
+        [# 102:add] end
+      [# 101:add_subshape] end
+      [55:cut] ? inside = +#32
+      [55:cut] ? outside = +#33
+      [55:cut] ? intersection_shape = +#31
+    [# 55:cut] end
+    [* 103:cut] Cutting shape #17
+      [103:cut] Manifold is split (2D+)
+      [* 104:cached_split_result] Using cached split result for -#11
+        [104:cached_split_result] ? result = NonFlush { inside: +#24, outside: +#25, intersection_shape: +#22 }
+      [# 104:cached_split_result] end
+      [* 105:cut] Cutting shape #16
+        [105:cut] Manifold is split (1D)
+        [105:cut] Adding intersection shape point pair
+        [* 106:add] Adding shape
+          [106:add] ? manifold = point pair (0, 4.000000000000001, 2.0000000000000004) .. ∞ 
+          [106:add] ? boundary = []
+          [106:add] ? id = 34
+        [# 106:add] end
+        [105:cut] ? intersection_shape = +#34
+        [105:cut] Simplifying inside boundary
+        [* 107:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [107:simplify_intervals_incremental] ? existing_intervals = [+#10]
+          [107:simplify_intervals_incremental] ? new_interval = +#34
+          [107:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + -1 ∞ xz + 1 ∞ yz
+          [* 108:interval_result] On
+          [* 109:interval_result] Inside
+          [* 110:interval_result] On
+          [* 111:interval_result] Outside
+        [# 107:simplify_intervals_incremental] end
+        [105:cut] Adding inside shape
+        [* 112:add_subshape] Adding subshape
+          [112:add_subshape] ? old_shape = #16
+          [112:add_subshape] ? new_boundary = [+#10]
+          [112:add_subshape] same as existing shape
+        [# 112:add_subshape] end
+        [105:cut] Simplifying outside boundary
+        [* 113:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [113:simplify_intervals_incremental] ? existing_intervals = [+#10]
+          [113:simplify_intervals_incremental] ? new_interval = -#34
+          [113:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + -1 ∞ xz + 1 ∞ yz
+          [* 114:interval_result] Inside
+          [* 115:interval_result] On
+          [* 116:interval_result] On
+          [* 117:interval_result] Inside
+        [# 113:simplify_intervals_incremental] end
+        [105:cut] No outside shape
+      [# 105:cut] end
+      [103:cut] ? self_boundary_of_inside = [+#16, -#24]
+      [103:cut] ? self_boundary_of_outside = [-#25]
+      [103:cut] ? intersection_boundary = [+#22, -#34]
+      [103:cut] ? intersection_shape = None
+      [103:cut] Simplifying boundary of 1D intersection
+      [* 118:simplify_intervals] Simplifying intervals intersection
+        [118:simplify_intervals] ? space = 0.9999999999999998 Ey + 2 ∞ yz
+        [118:simplify_intervals] ? interval = +#22
+        [* 119:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [119:simplify_intervals_incremental] ? existing_intervals = []
+          [119:simplify_intervals_incremental] ? new_interval = +#22
+          [119:simplify_intervals_incremental] ? space = 0.9999999999999998 Ey + 2 ∞ yz
+        [# 119:simplify_intervals_incremental] end
+        [118:simplify_intervals] ? interval = -#34
+        [* 120:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [120:simplify_intervals_incremental] ? existing_intervals = [+#22]
+          [120:simplify_intervals_incremental] ? new_interval = -#34
+          [120:simplify_intervals_incremental] ? space = 0.9999999999999998 Ey + 2 ∞ yz
+          [* 121:interval_result] Inside
+          [* 122:interval_result] On
+          [* 123:interval_result] Outside
+          [* 124:interval_result] On
+        [# 120:simplify_intervals_incremental] end
+        [118:simplify_intervals] ? simplified = [+#22]
+      [# 118:simplify_intervals] end
+      [103:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [103:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 125:add] Adding shape
+        [125:add] ? manifold = 0.9999999999999998 Ey + 2 ∞ yz
+        [125:add] ? boundary = [+#22]
+        [125:add] ? id = 35
+      [# 125:add] end
+      [103:cut] Adding common boundary to inside and outside
+      [103:cut] Constructing inside shape
+      [* 126:add_subshape] Adding subshape
+        [126:add_subshape] ? old_shape = #17
+        [126:add_subshape] ? new_boundary = [+#16, -#24, +#35]
+        [126:add_subshape] creating new shape
+        [* 127:add] Adding shape
+          [127:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [127:add] ? boundary = [+#16, -#24, +#35]
+          [127:add] ? id = 36
+        [# 127:add] end
+      [# 126:add_subshape] end
+      [103:cut] Constructing outside shape
+      [* 128:add_subshape] Adding subshape
+        [128:add_subshape] ? old_shape = #17
+        [128:add_subshape] ? new_boundary = [-#25, -#35]
+        [128:add_subshape] creating new shape
+        [* 129:add] Adding shape
+          [129:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [129:add] ? boundary = [-#25, -#35]
+          [129:add] ? id = 37
+        [# 129:add] end
+      [# 128:add_subshape] end
+      [103:cut] ? inside = +#36
+      [103:cut] ? outside = +#37
+      [103:cut] ? intersection_shape = +#35
+    [# 103:cut] end
+    [* 130:cut] Cutting shape #19
+      [130:cut] Manifold is split (2D+)
+      [* 131:cached_split_result] Using cached split result for -#13
+        [131:cached_split_result] ? result = NonFlush { inside: +#28, outside: +#29, intersection_shape: +#26 }
+      [# 131:cached_split_result] end
+      [* 132:cached_split_result] Using cached split result for -#16
+        [132:cached_split_result] ? result = NonFlush { inside: +#16, outside: <none>, intersection_shape: +#34 }
+      [# 132:cached_split_result] end
+      [130:cut] ? self_boundary_of_inside = [-#16, -#28]
+      [130:cut] ? self_boundary_of_outside = [-#29]
+      [130:cut] ? intersection_boundary = [+#26, +#34]
+      [130:cut] ? intersection_shape = None
+      [130:cut] Simplifying boundary of 1D intersection
+      [* 133:simplify_intervals] Simplifying intervals intersection
+        [133:simplify_intervals] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [133:simplify_intervals] ? interval = +#26
+        [* 134:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [134:simplify_intervals_incremental] ? existing_intervals = []
+          [134:simplify_intervals_incremental] ? new_interval = +#26
+          [134:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 134:simplify_intervals_incremental] end
+        [133:simplify_intervals] ? interval = +#34
+        [* 135:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [135:simplify_intervals_incremental] ? existing_intervals = [+#26]
+          [135:simplify_intervals_incremental] ? new_interval = +#34
+          [135:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 136:interval_result] On
+          [* 137:interval_result] Inside
+          [* 138:interval_result] On
+          [* 139:interval_result] Outside
+        [# 135:simplify_intervals_incremental] end
+        [133:simplify_intervals] ? simplified = [+#26]
+      [# 133:simplify_intervals] end
+      [130:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [130:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 140:add] Adding shape
+        [140:add] ? manifold = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [140:add] ? boundary = [+#26]
+        [140:add] ? id = 38
+      [# 140:add] end
+      [130:cut] Adding common boundary to inside and outside
+      [130:cut] Constructing inside shape
+      [* 141:add_subshape] Adding subshape
+        [141:add_subshape] ? old_shape = #19
+        [141:add_subshape] ? new_boundary = [-#16, -#28, +#38]
+        [141:add_subshape] creating new shape
+        [* 142:add] Adding shape
+          [142:add] ? manifold = hyperplane n=(0, 0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+          [142:add] ? boundary = [-#16, -#28, +#38]
+          [142:add] ? id = 39
+        [# 142:add] end
+      [# 141:add_subshape] end
+      [130:cut] Constructing outside shape
+      [* 143:add_subshape] Adding subshape
+        [143:add_subshape] ? old_shape = #19
+        [143:add_subshape] ? new_boundary = [-#29, -#38]
+        [143:add_subshape] creating new shape
+        [* 144:add] Adding shape
+          [144:add] ? manifold = hyperplane n=(0, 0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+          [144:add] ? boundary = [-#29, -#38]
+          [144:add] ? id = 40
+        [# 144:add] end
+      [# 143:add_subshape] end
+      [130:cut] ? inside = +#39
+      [130:cut] ? outside = +#40
+      [130:cut] ? intersection_shape = +#38
+    [# 130:cut] end
+    [54:cut] ? self_boundary_of_inside = [+#32, +#36, +#39]
+    [54:cut] ? self_boundary_of_outside = [+#33, +#37, +#40]
+    [54:cut] ? intersection_boundary = [-#31, -#35, -#38]
+    [54:cut] ? intersection_shape = None
+    [54:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+    [54:cut] `intersection_shape` does not yet exist, but should be nonempty
+    [* 145:add] Adding shape
+      [145:add] ? manifold = hyperplane n=(0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+      [145:add] ? boundary = [-#31, -#35, -#38]
+      [145:add] ? id = 41
+    [# 145:add] end
+    [54:cut] Adding common boundary to inside and outside
+    [54:cut] Constructing inside shape
+    [* 146:add_subshape] Adding subshape
+      [146:add_subshape] ? old_shape = #20
+      [146:add_subshape] ? new_boundary = [+#32, +#36, +#39, +#41]
+      [146:add_subshape] creating new shape
+      [* 147:add] Adding shape
+        [147:add] ? manifold = whole space 1 Exyz
+        [147:add] ? boundary = [+#32, +#36, +#39, +#41]
+        [147:add] ? id = 42
+      [# 147:add] end
+    [# 146:add_subshape] end
+    [54:cut] Constructing outside shape
+    [* 148:add_subshape] Adding subshape
+      [148:add_subshape] ? old_shape = #20
+      [148:add_subshape] ? new_boundary = [+#33, +#37, +#40, -#41]
+      [148:add_subshape] creating new shape
+      [* 149:add] Adding shape
+        [149:add] ? manifold = whole space 1 Exyz
+        [149:add] ? boundary = [+#33, +#37, +#40, -#41]
+        [149:add] ? id = 43
+      [# 149:add] end
+    [# 148:add_subshape] end
+    [54:cut] ? inside = +#42
+    [54:cut] ? outside = +#43
+    [54:cut] ? intersection_shape = +#41
+  [# 54:cut] end
+  [53:cut_all] Adding inside shape +#42 as root
+  [53:cut_all] Ignoring outside shape +#43
+[# 53:cut_all] end
+[* 150:cut_all] Cutting all shapes by hyperplane n=(-0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+  [150:cut_all] ? inside = KEEP (data = 4)
+  [150:cut_all] ? outside = REMOVE
+  [* 151:cut] Cutting shape #42
+    [151:cut] Manifold is split (2D+)
+    [* 152:cut] Cutting shape #32
+      [152:cut] Manifold is split (2D+)
+      [* 153:cut] Cutting shape #24
+        [153:cut] Manifold is split (1D)
+        [153:cut] Adding intersection shape point pair
+        [* 154:add] Adding shape
+          [154:add] ? manifold = point pair (-2.0000000000000004, 2.0000000000000004) .. ∞ 
+          [154:add] ? boundary = []
+          [154:add] ? id = 44
+        [# 154:add] end
+        [153:cut] ? intersection_shape = +#44
+        [153:cut] Simplifying inside boundary
+        [* 155:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [155:simplify_intervals_incremental] ? existing_intervals = [+#23]
+          [155:simplify_intervals_incremental] ? new_interval = +#44
+          [155:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 156:interval_result] Inside
+          [* 157:interval_result] On
+          [* 158:interval_result] Outside
+          [* 159:interval_result] On
+        [# 155:simplify_intervals_incremental] end
+        [153:cut] Adding inside shape
+        [* 160:add_subshape] Adding subshape
+          [160:add_subshape] ? old_shape = #24
+          [160:add_subshape] ? new_boundary = [+#23]
+          [160:add_subshape] same as existing shape
+        [# 160:add_subshape] end
+        [153:cut] Simplifying outside boundary
+        [* 161:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [161:simplify_intervals_incremental] ? existing_intervals = [+#23]
+          [161:simplify_intervals_incremental] ? new_interval = -#44
+          [161:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 162:interval_result] On
+          [* 163:interval_result] Inside
+          [* 164:interval_result] Inside
+          [* 165:interval_result] On
+        [# 161:simplify_intervals_incremental] end
+        [153:cut] No outside shape
+      [# 153:cut] end
+      [* 166:cut] Cutting shape #28
+        [166:cut] Manifold is split (1D)
+        [166:cut] Adding intersection shape point pair
+        [* 167:add] Adding shape
+          [167:add] ? manifold = point pair ∞  .. (-2.0000000000000004, 2.0000000000000004)
+          [167:add] ? boundary = []
+          [167:add] ? id = 45
+        [# 167:add] end
+        [166:cut] ? intersection_shape = +#45
+        [166:cut] Simplifying inside boundary
+        [* 168:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [168:simplify_intervals_incremental] ? existing_intervals = [+#27]
+          [168:simplify_intervals_incremental] ? new_interval = +#45
+          [168:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+          [* 169:interval_result] On
+          [* 170:interval_result] Inside
+          [* 171:interval_result] On
+          [* 172:interval_result] Outside
+        [# 168:simplify_intervals_incremental] end
+        [166:cut] Adding inside shape
+        [* 173:add_subshape] Adding subshape
+          [173:add_subshape] ? old_shape = #28
+          [173:add_subshape] ? new_boundary = [+#27]
+          [173:add_subshape] same as existing shape
+        [# 173:add_subshape] end
+        [166:cut] Simplifying outside boundary
+        [* 174:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [174:simplify_intervals_incremental] ? existing_intervals = [+#27]
+          [174:simplify_intervals_incremental] ? new_interval = -#45
+          [174:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+          [* 175:interval_result] Inside
+          [* 176:interval_result] On
+          [* 177:interval_result] On
+          [* 178:interval_result] Inside
+        [# 174:simplify_intervals_incremental] end
+        [166:cut] No outside shape
+      [# 166:cut] end
+      [* 179:cut] Cutting shape #31
+        [179:cut] Manifold is split (1D)
+        [179:cut] Adding intersection shape point pair
+        [* 180:add] Adding shape
+          [180:add] ? manifold = point pair ∞  .. ∞ 
+          [180:add] ? boundary = []
+          [180:add] ? id = 46
+        [# 180:add] end
+        [179:cut] ? intersection_shape = +#46
+        [179:cut] Simplifying inside boundary
+        [* 181:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [181:simplify_intervals_incremental] ? existing_intervals = [+#30]
+          [181:simplify_intervals_incremental] ? new_interval = +#46
+          [181:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [181:simplify_intervals_incremental] Tangent vector
+          [181:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 181:simplify_intervals_incremental] end
+        [179:cut] Adding inside shape
+        [* 182:add_subshape] Adding subshape
+          [182:add_subshape] ? old_shape = #31
+          [182:add_subshape] ? new_boundary = [+#30]
+          [182:add_subshape] same as existing shape
+        [# 182:add_subshape] end
+        [179:cut] Simplifying outside boundary
+        [* 183:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [183:simplify_intervals_incremental] ? existing_intervals = [+#30]
+          [183:simplify_intervals_incremental] ? new_interval = -#46
+          [183:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [183:simplify_intervals_incremental] Tangent vector
+          [183:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 183:simplify_intervals_incremental] end
+        [179:cut] No outside shape
+      [# 179:cut] end
+      [152:cut] ? self_boundary_of_inside = [+#24, +#28, +#31]
+      [152:cut] ? self_boundary_of_outside = []
+      [152:cut] ? intersection_boundary = [-#44, -#45, -#46]
+      [152:cut] ? intersection_shape = None
+      [152:cut] Simplifying boundary of 1D intersection
+      [* 184:simplify_intervals] Simplifying intervals intersection
+        [184:simplify_intervals] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [184:simplify_intervals] ? interval = -#44
+        [* 185:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [185:simplify_intervals_incremental] ? existing_intervals = []
+          [185:simplify_intervals_incremental] ? new_interval = -#44
+          [185:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 185:simplify_intervals_incremental] end
+        [184:simplify_intervals] ? interval = -#45
+        [* 186:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [186:simplify_intervals_incremental] ? existing_intervals = [-#44]
+          [186:simplify_intervals_incremental] ? new_interval = -#45
+          [186:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 187:interval_result] On
+          [* 188:interval_result] On
+          [* 189:interval_result] On
+          [* 190:interval_result] On
+        [# 186:simplify_intervals_incremental] end
+      [# 184:simplify_intervals] end
+      [152:cut] `shape ∩ boundary(cut)` is empty (case 4)
+      [152:cut] Constructing inside shape
+      [* 191:add_subshape] Adding subshape
+        [191:add_subshape] ? old_shape = #32
+        [191:add_subshape] ? new_boundary = [+#24, +#28, +#31]
+        [191:add_subshape] same as existing shape
+      [# 191:add_subshape] end
+      [152:cut] ? inside = +#32
+      [152:cut] ? outside = None
+      [152:cut] ? intersection_shape = None
+    [# 152:cut] end
+    [* 192:cut] Cutting shape #36
+      [192:cut] Manifold is split (2D+)
+      [* 193:cut] Cutting shape #16
+        [193:cut] Manifold is split (1D)
+        [193:cut] Adding intersection shape point pair
+        [* 194:add] Adding shape
+          [194:add] ? manifold = point pair ∞  .. (-2.0000000000000004, 2.0000000000000004)
+          [194:add] ? boundary = []
+          [194:add] ? id = 47
+        [# 194:add] end
+        [193:cut] ? intersection_shape = +#47
+        [193:cut] Simplifying inside boundary
+        [* 195:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [195:simplify_intervals_incremental] ? existing_intervals = [+#10]
+          [195:simplify_intervals_incremental] ? new_interval = +#47
+          [195:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + -1 ∞ xz + 1 ∞ yz
+          [* 196:interval_result] On
+          [* 197:interval_result] On
+          [* 198:interval_result] On
+          [* 199:interval_result] On
+        [# 195:simplify_intervals_incremental] end
+        [193:cut] No inside shape
+        [193:cut] Simplifying outside boundary
+        [* 200:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [200:simplify_intervals_incremental] ? existing_intervals = [+#10]
+          [200:simplify_intervals_incremental] ? new_interval = -#47
+          [200:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + -1 ∞ xz + 1 ∞ yz
+        [# 200:simplify_intervals_incremental] end
+        [193:cut] Adding outside shape
+        [* 201:add_subshape] Adding subshape
+          [201:add_subshape] ? old_shape = #16
+          [201:add_subshape] ? new_boundary = [+#10]
+          [201:add_subshape] same as existing shape
+        [# 201:add_subshape] end
+      [# 193:cut] end
+      [* 202:cached_split_result] Using cached split result for -#24
+        [202:cached_split_result] ? result = NonFlush { inside: +#24, outside: <none>, intersection_shape: +#44 }
+      [# 202:cached_split_result] end
+      [* 203:cut] Cutting shape #35
+        [203:cut] Manifold is split (1D)
+        [203:cut] Adding intersection shape point pair
+        [* 204:add] Adding shape
+          [204:add] ? manifold = point pair ∞  .. ∞ 
+          [204:add] ? boundary = []
+          [204:add] ? id = 48
+        [# 204:add] end
+        [203:cut] ? intersection_shape = +#48
+        [203:cut] Simplifying inside boundary
+        [* 205:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [205:simplify_intervals_incremental] ? existing_intervals = [+#22]
+          [205:simplify_intervals_incremental] ? new_interval = +#48
+          [205:simplify_intervals_incremental] ? space = 0.9999999999999998 Ey + 2 ∞ yz
+          [205:simplify_intervals_incremental] Tangent vector
+          [205:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 205:simplify_intervals_incremental] end
+        [203:cut] Adding inside shape
+        [* 206:add_subshape] Adding subshape
+          [206:add_subshape] ? old_shape = #35
+          [206:add_subshape] ? new_boundary = [+#22]
+          [206:add_subshape] same as existing shape
+        [# 206:add_subshape] end
+        [203:cut] Simplifying outside boundary
+        [* 207:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [207:simplify_intervals_incremental] ? existing_intervals = [+#22]
+          [207:simplify_intervals_incremental] ? new_interval = -#48
+          [207:simplify_intervals_incremental] ? space = 0.9999999999999998 Ey + 2 ∞ yz
+          [207:simplify_intervals_incremental] Tangent vector
+          [207:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 207:simplify_intervals_incremental] end
+        [203:cut] No outside shape
+      [# 203:cut] end
+      [192:cut] ? self_boundary_of_inside = [-#24, +#35]
+      [192:cut] ? self_boundary_of_outside = [+#16]
+      [192:cut] ? intersection_boundary = [+#44, -#47, -#48]
+      [192:cut] ? intersection_shape = None
+      [192:cut] Simplifying boundary of 1D intersection
+      [* 208:simplify_intervals] Simplifying intervals intersection
+        [208:simplify_intervals] ? space = -0.9999999999999998 Ey + -2 ∞ xy
+        [208:simplify_intervals] ? interval = +#44
+        [* 209:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [209:simplify_intervals_incremental] ? existing_intervals = []
+          [209:simplify_intervals_incremental] ? new_interval = +#44
+          [209:simplify_intervals_incremental] ? space = -0.9999999999999998 Ey + -2 ∞ xy
+        [# 209:simplify_intervals_incremental] end
+        [208:simplify_intervals] ? interval = -#47
+        [* 210:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [210:simplify_intervals_incremental] ? existing_intervals = [+#44]
+          [210:simplify_intervals_incremental] ? new_interval = -#47
+          [210:simplify_intervals_incremental] ? space = -0.9999999999999998 Ey + -2 ∞ xy
+        [# 210:simplify_intervals_incremental] end
+        [208:simplify_intervals] ? interval = -#48
+        [* 211:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [211:simplify_intervals_incremental] ? existing_intervals = [+#44]
+          [211:simplify_intervals_incremental] ? new_interval = -#48
+          [211:simplify_intervals_incremental] ? space = -0.9999999999999998 Ey + -2 ∞ xy
+          [211:simplify_intervals_incremental] Tangent vector
+          [211:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 211:simplify_intervals_incremental] end
+      [# 208:simplify_intervals] end
+      [192:cut] `shape ∩ boundary(cut)` is empty (case 4)
+      [192:cut] Constructing inside shape
+      [* 212:add_subshape] Adding subshape
+        [212:add_subshape] ? old_shape = #36
+        [212:add_subshape] ? new_boundary = [-#24, +#35]
+        [212:add_subshape] creating new shape
+        [* 213:add] Adding shape
+          [213:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [213:add] ? boundary = [-#24, +#35]
+          [* 214:error] Error! Invalid polygon
+          [213:add] ? id = 49
+        [# 213:add] end
+      [# 212:add_subshape] end
+      [192:cut] Constructing outside shape
+      [* 215:add_subshape] Adding subshape
+        [215:add_subshape] ? old_shape = #36
+        [215:add_subshape] ? new_boundary = [+#16]
+        [215:add_subshape] creating new shape
+        [* 216:add] Adding shape
+          [216:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [216:add] ? boundary = [+#16]
+          [* 217:error] Error! Invalid polygon
+          [216:add] ? id = 50
+        [# 216:add] end
+      [# 215:add_subshape] end
+      [192:cut] ? inside = +#49
+      [192:cut] ? outside = +#50
+      [192:cut] ? intersection_shape = None
+    [# 192:cut] end
+    [* 218:cut] Cutting shape #39
+      [218:cut] Manifold is split (2D+)
+      [* 219:cached_split_result] Using cached split result for -#16
+        [219:cached_split_result] ? result = NonFlush { inside: <none>, outside: +#16, intersection_shape: +#47 }
+      [# 219:cached_split_result] end
+      [* 220:cached_split_result] Using cached split result for -#28
+        [220:cached_split_result] ? result = NonFlush { inside: +#28, outside: <none>, intersection_shape: +#45 }
+      [# 220:cached_split_result] end
+      [* 221:cut] Cutting shape #38
+        [221:cut] Manifold is split (1D)
+        [221:cut] Adding intersection shape point pair
+        [* 222:add] Adding shape
+          [222:add] ? manifold = point pair ∞  .. ∞ 
+          [222:add] ? boundary = []
+          [222:add] ? id = 51
+        [# 222:add] end
+        [221:cut] ? intersection_shape = +#51
+        [221:cut] Simplifying inside boundary
+        [* 223:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [223:simplify_intervals_incremental] ? existing_intervals = [+#26]
+          [223:simplify_intervals_incremental] ? new_interval = +#51
+          [223:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [223:simplify_intervals_incremental] Tangent vector
+          [223:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 223:simplify_intervals_incremental] end
+        [221:cut] Adding inside shape
+        [* 224:add_subshape] Adding subshape
+          [224:add_subshape] ? old_shape = #38
+          [224:add_subshape] ? new_boundary = [+#26]
+          [224:add_subshape] same as existing shape
+        [# 224:add_subshape] end
+        [221:cut] Simplifying outside boundary
+        [* 225:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [225:simplify_intervals_incremental] ? existing_intervals = [+#26]
+          [225:simplify_intervals_incremental] ? new_interval = -#51
+          [225:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [225:simplify_intervals_incremental] Tangent vector
+          [225:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 225:simplify_intervals_incremental] end
+        [221:cut] No outside shape
+      [# 221:cut] end
+      [218:cut] ? self_boundary_of_inside = [-#28, +#38]
+      [218:cut] ? self_boundary_of_outside = [-#16]
+      [218:cut] ? intersection_boundary = [+#45, +#47, -#51]
+      [218:cut] ? intersection_shape = None
+      [218:cut] Simplifying boundary of 1D intersection
+      [* 226:simplify_intervals] Simplifying intervals intersection
+        [226:simplify_intervals] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [226:simplify_intervals] ? interval = +#45
+        [* 227:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [227:simplify_intervals_incremental] ? existing_intervals = []
+          [227:simplify_intervals_incremental] ? new_interval = +#45
+          [227:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 227:simplify_intervals_incremental] end
+        [226:simplify_intervals] ? interval = +#47
+        [* 228:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [228:simplify_intervals_incremental] ? existing_intervals = [+#45]
+          [228:simplify_intervals_incremental] ? new_interval = +#47
+          [228:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 228:simplify_intervals_incremental] end
+        [226:simplify_intervals] ? interval = -#51
+        [* 229:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [229:simplify_intervals_incremental] ? existing_intervals = [+#45]
+          [229:simplify_intervals_incremental] ? new_interval = -#51
+          [229:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [229:simplify_intervals_incremental] Tangent vector
+          [229:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 229:simplify_intervals_incremental] end
+        [226:simplify_intervals] ? simplified = [+#45]
+      [# 226:simplify_intervals] end
+      [218:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [218:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 230:add] Adding shape
+        [230:add] ? manifold = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [230:add] ? boundary = [+#45]
+        [230:add] ? id = 52
+      [# 230:add] end
+      [218:cut] Adding common boundary to inside and outside
+      [218:cut] Constructing inside shape
+      [* 231:add_subshape] Adding subshape
+        [231:add_subshape] ? old_shape = #39
+        [231:add_subshape] ? new_boundary = [-#28, +#38, +#52]
+        [231:add_subshape] creating new shape
+        [* 232:add] Adding shape
+          [232:add] ? manifold = hyperplane n=(0, 0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+          [232:add] ? boundary = [-#28, +#38, +#52]
+          [232:add] ? id = 53
+        [# 232:add] end
+      [# 231:add_subshape] end
+      [218:cut] Constructing outside shape
+      [* 233:add_subshape] Adding subshape
+        [233:add_subshape] ? old_shape = #39
+        [233:add_subshape] ? new_boundary = [-#16, -#52]
+        [233:add_subshape] creating new shape
+        [* 234:add] Adding shape
+          [234:add] ? manifold = hyperplane n=(0, 0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+          [234:add] ? boundary = [-#16, -#52]
+          [234:add] ? id = 54
+        [# 234:add] end
+      [# 233:add_subshape] end
+      [218:cut] ? inside = +#53
+      [218:cut] ? outside = +#54
+      [218:cut] ? intersection_shape = +#52
+    [# 218:cut] end
+    [* 235:cut] Cutting shape #41
+      [235:cut] Manifold is entirely inside
+    [# 235:cut] end
+    [151:cut] ? self_boundary_of_inside = [+#32, +#41, +#49, +#53]
+    [151:cut] ? self_boundary_of_outside = [+#50, +#54]
+    [151:cut] ? intersection_boundary = [-#52]
+    [151:cut] ? intersection_shape = None
+    [151:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+    [151:cut] `intersection_shape` does not yet exist, but should be nonempty
+    [* 236:add] Adding shape
+      [236:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+      [236:add] ? boundary = [-#52]
+      [* 237:error] Error! Invalid polygon
+      [236:add] ? id = 55
+    [# 236:add] end
+    [151:cut] Adding common boundary to inside and outside
+    [151:cut] Constructing inside shape
+    [* 238:add_subshape] Adding subshape
+      [238:add_subshape] ? old_shape = #42
+      [238:add_subshape] ? new_boundary = [+#32, +#41, +#49, +#53, +#55]
+      [238:add_subshape] creating new shape
+      [* 239:add] Adding shape
+        [239:add] ? manifold = whole space 1 Exyz
+        [239:add] ? boundary = [+#32, +#41, +#49, +#53, +#55]
+        [239:add] ? id = 56
+      [# 239:add] end
+    [# 238:add_subshape] end
+    [151:cut] Constructing outside shape
+    [* 240:add_subshape] Adding subshape
+      [240:add_subshape] ? old_shape = #42
+      [240:add_subshape] ? new_boundary = [+#50, +#54, -#55]
+      [240:add_subshape] creating new shape
+      [* 241:add] Adding shape
+        [241:add] ? manifold = whole space 1 Exyz
+        [241:add] ? boundary = [+#50, +#54, -#55]
+        [241:add] ? id = 57
+      [# 241:add] end
+    [# 240:add_subshape] end
+    [151:cut] ? inside = +#56
+    [151:cut] ? outside = +#57
+    [151:cut] ? intersection_shape = +#55
+  [# 151:cut] end
+  [150:cut_all] Adding inside shape +#56 as root
+  [150:cut_all] Ignoring outside shape +#57
+[# 150:cut_all] end
+[* 242:cut_all] Cutting all shapes by hyperplane n=(0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+  [242:cut_all] ? inside = KEEP (data = 5)
+  [242:cut_all] ? outside = REMOVE
+  [* 243:cut] Cutting shape #56
+    [243:cut] Manifold is split (2D+)
+    [* 244:cut] Cutting shape #32
+      [244:cut] Manifold is split (2D+)
+      [* 245:cut] Cutting shape #24
+        [245:cut] Manifold is split (1D)
+        [245:cut] Adding intersection shape point pair
+        [* 246:add] Adding shape
+          [246:add] ? manifold = point pair ∞  .. ∞ 
+          [246:add] ? boundary = []
+          [246:add] ? id = 58
+        [# 246:add] end
+        [245:cut] ? intersection_shape = +#58
+        [245:cut] Simplifying inside boundary
+        [* 247:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [247:simplify_intervals_incremental] ? existing_intervals = [+#23]
+          [247:simplify_intervals_incremental] ? new_interval = +#58
+          [247:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [247:simplify_intervals_incremental] Tangent vector
+          [247:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 247:simplify_intervals_incremental] end
+        [245:cut] Adding inside shape
+        [* 248:add_subshape] Adding subshape
+          [248:add_subshape] ? old_shape = #24
+          [248:add_subshape] ? new_boundary = [+#23]
+          [248:add_subshape] same as existing shape
+        [# 248:add_subshape] end
+        [245:cut] Simplifying outside boundary
+        [* 249:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [249:simplify_intervals_incremental] ? existing_intervals = [+#23]
+          [249:simplify_intervals_incremental] ? new_interval = -#58
+          [249:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [249:simplify_intervals_incremental] Tangent vector
+          [249:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 249:simplify_intervals_incremental] end
+        [245:cut] No outside shape
+      [# 245:cut] end
+      [* 250:cut] Cutting shape #28
+        [250:cut] Manifold is split (1D)
+        [250:cut] Adding intersection shape point pair
+        [* 251:add] Adding shape
+          [251:add] ? manifold = point pair (2.0000000000000004, 2.0000000000000004) .. ∞ 
+          [251:add] ? boundary = []
+          [251:add] ? id = 59
+        [# 251:add] end
+        [250:cut] ? intersection_shape = +#59
+        [250:cut] Simplifying inside boundary
+        [* 252:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [252:simplify_intervals_incremental] ? existing_intervals = [+#27]
+          [252:simplify_intervals_incremental] ? new_interval = +#59
+          [252:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+          [* 253:interval_result] Inside
+          [* 254:interval_result] On
+          [* 255:interval_result] Outside
+          [* 256:interval_result] On
+        [# 252:simplify_intervals_incremental] end
+        [250:cut] Adding inside shape
+        [* 257:add_subshape] Adding subshape
+          [257:add_subshape] ? old_shape = #28
+          [257:add_subshape] ? new_boundary = [+#27]
+          [257:add_subshape] same as existing shape
+        [# 257:add_subshape] end
+        [250:cut] Simplifying outside boundary
+        [* 258:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [258:simplify_intervals_incremental] ? existing_intervals = [+#27]
+          [258:simplify_intervals_incremental] ? new_interval = -#59
+          [258:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+          [* 259:interval_result] On
+          [* 260:interval_result] Inside
+          [* 261:interval_result] Inside
+          [* 262:interval_result] On
+        [# 258:simplify_intervals_incremental] end
+        [250:cut] No outside shape
+      [# 250:cut] end
+      [* 263:cut] Cutting shape #31
+        [263:cut] Manifold is split (1D)
+        [263:cut] Adding intersection shape point pair
+        [* 264:add] Adding shape
+          [264:add] ? manifold = point pair ∞  .. (2.0000000000000004, 2.0000000000000004)
+          [264:add] ? boundary = []
+          [264:add] ? id = 60
+        [# 264:add] end
+        [263:cut] ? intersection_shape = +#60
+        [263:cut] Simplifying inside boundary
+        [* 265:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [265:simplify_intervals_incremental] ? existing_intervals = [+#30]
+          [265:simplify_intervals_incremental] ? new_interval = +#60
+          [265:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 266:interval_result] On
+          [* 267:interval_result] Inside
+          [* 268:interval_result] On
+          [* 269:interval_result] Outside
+        [# 265:simplify_intervals_incremental] end
+        [263:cut] Adding inside shape
+        [* 270:add_subshape] Adding subshape
+          [270:add_subshape] ? old_shape = #31
+          [270:add_subshape] ? new_boundary = [+#30]
+          [270:add_subshape] same as existing shape
+        [# 270:add_subshape] end
+        [263:cut] Simplifying outside boundary
+        [* 271:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [271:simplify_intervals_incremental] ? existing_intervals = [+#30]
+          [271:simplify_intervals_incremental] ? new_interval = -#60
+          [271:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 272:interval_result] Inside
+          [* 273:interval_result] On
+          [* 274:interval_result] On
+          [* 275:interval_result] Inside
+        [# 271:simplify_intervals_incremental] end
+        [263:cut] No outside shape
+      [# 263:cut] end
+      [244:cut] ? self_boundary_of_inside = [+#24, +#28, +#31]
+      [244:cut] ? self_boundary_of_outside = []
+      [244:cut] ? intersection_boundary = [-#58, -#59, -#60]
+      [244:cut] ? intersection_shape = None
+      [244:cut] Simplifying boundary of 1D intersection
+      [* 276:simplify_intervals] Simplifying intervals intersection
+        [276:simplify_intervals] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [276:simplify_intervals] ? interval = -#58
+        [* 277:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [277:simplify_intervals_incremental] ? existing_intervals = []
+          [277:simplify_intervals_incremental] ? new_interval = -#58
+          [277:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [277:simplify_intervals_incremental] Tangent vector
+          [277:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 277:simplify_intervals_incremental] end
+        [276:simplify_intervals] ? interval = -#59
+        [* 278:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [278:simplify_intervals_incremental] ? existing_intervals = []
+          [278:simplify_intervals_incremental] ? new_interval = -#59
+          [278:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 278:simplify_intervals_incremental] end
+        [276:simplify_intervals] ? interval = -#60
+        [* 279:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [279:simplify_intervals_incremental] ? existing_intervals = [-#59]
+          [279:simplify_intervals_incremental] ? new_interval = -#60
+          [279:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 280:interval_result] On
+          [* 281:interval_result] On
+          [* 282:interval_result] On
+          [* 283:interval_result] On
+        [# 279:simplify_intervals_incremental] end
+      [# 276:simplify_intervals] end
+      [244:cut] `shape ∩ boundary(cut)` is empty (case 4)
+      [244:cut] Constructing inside shape
+      [* 284:add_subshape] Adding subshape
+        [284:add_subshape] ? old_shape = #32
+        [284:add_subshape] ? new_boundary = [+#24, +#28, +#31]
+        [284:add_subshape] same as existing shape
+      [# 284:add_subshape] end
+      [244:cut] ? inside = +#32
+      [244:cut] ? outside = None
+      [244:cut] ? intersection_shape = None
+    [# 244:cut] end
+    [* 285:cut] Cutting shape #41
+      [285:cut] Manifold is split (2D+)
+      [* 286:cached_split_result] Using cached split result for -#31
+        [286:cached_split_result] ? result = NonFlush { inside: +#31, outside: <none>, intersection_shape: +#60 }
+      [# 286:cached_split_result] end
+      [* 287:cut] Cutting shape #35
+        [287:cut] Manifold is split (1D)
+        [287:cut] Adding intersection shape point pair
+        [* 288:add] Adding shape
+          [288:add] ? manifold = point pair ∞  .. ∞ 
+          [288:add] ? boundary = []
+          [288:add] ? id = 61
+        [# 288:add] end
+        [287:cut] ? intersection_shape = +#61
+        [287:cut] Simplifying inside boundary
+        [* 289:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [289:simplify_intervals_incremental] ? existing_intervals = [+#22]
+          [289:simplify_intervals_incremental] ? new_interval = +#61
+          [289:simplify_intervals_incremental] ? space = 0.9999999999999998 Ey + 2 ∞ yz
+          [289:simplify_intervals_incremental] Tangent vector
+          [289:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 289:simplify_intervals_incremental] end
+        [287:cut] Adding inside shape
+        [* 290:add_subshape] Adding subshape
+          [290:add_subshape] ? old_shape = #35
+          [290:add_subshape] ? new_boundary = [+#22]
+          [290:add_subshape] same as existing shape
+        [# 290:add_subshape] end
+        [287:cut] Simplifying outside boundary
+        [* 291:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [291:simplify_intervals_incremental] ? existing_intervals = [+#22]
+          [291:simplify_intervals_incremental] ? new_interval = -#61
+          [291:simplify_intervals_incremental] ? space = 0.9999999999999998 Ey + 2 ∞ yz
+          [291:simplify_intervals_incremental] Tangent vector
+          [291:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 291:simplify_intervals_incremental] end
+        [287:cut] No outside shape
+      [# 287:cut] end
+      [* 292:cut] Cutting shape #38
+        [292:cut] Manifold is split (1D)
+        [292:cut] Adding intersection shape point pair
+        [* 293:add] Adding shape
+          [293:add] ? manifold = point pair ∞  .. (2.0000000000000004, 2.0000000000000004)
+          [293:add] ? boundary = []
+          [293:add] ? id = 62
+        [# 293:add] end
+        [292:cut] ? intersection_shape = +#62
+        [292:cut] Simplifying inside boundary
+        [* 294:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [294:simplify_intervals_incremental] ? existing_intervals = [+#26]
+          [294:simplify_intervals_incremental] ? new_interval = +#62
+          [294:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 295:interval_result] On
+          [* 296:interval_result] On
+          [* 297:interval_result] On
+          [* 298:interval_result] On
+        [# 294:simplify_intervals_incremental] end
+        [292:cut] No inside shape
+        [292:cut] Simplifying outside boundary
+        [* 299:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [299:simplify_intervals_incremental] ? existing_intervals = [+#26]
+          [299:simplify_intervals_incremental] ? new_interval = -#62
+          [299:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 299:simplify_intervals_incremental] end
+        [292:cut] Adding outside shape
+        [* 300:add_subshape] Adding subshape
+          [300:add_subshape] ? old_shape = #38
+          [300:add_subshape] ? new_boundary = [+#26]
+          [300:add_subshape] same as existing shape
+        [# 300:add_subshape] end
+      [# 292:cut] end
+      [285:cut] ? self_boundary_of_inside = [-#31, -#35]
+      [285:cut] ? self_boundary_of_outside = [-#38]
+      [285:cut] ? intersection_boundary = [+#60, +#61, +#62]
+      [285:cut] ? intersection_shape = None
+      [285:cut] Simplifying boundary of 1D intersection
+      [* 301:simplify_intervals] Simplifying intervals intersection
+        [301:simplify_intervals] ? space = 0.9999999999999998 Ey + -2 ∞ xy
+        [301:simplify_intervals] ? interval = +#60
+        [* 302:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [302:simplify_intervals_incremental] ? existing_intervals = []
+          [302:simplify_intervals_incremental] ? new_interval = +#60
+          [302:simplify_intervals_incremental] ? space = 0.9999999999999998 Ey + -2 ∞ xy
+        [# 302:simplify_intervals_incremental] end
+        [301:simplify_intervals] ? interval = +#61
+        [* 303:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [303:simplify_intervals_incremental] ? existing_intervals = [+#60]
+          [303:simplify_intervals_incremental] ? new_interval = +#61
+          [303:simplify_intervals_incremental] ? space = 0.9999999999999998 Ey + -2 ∞ xy
+          [303:simplify_intervals_incremental] Tangent vector
+          [303:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 303:simplify_intervals_incremental] end
+      [# 301:simplify_intervals] end
+      [285:cut] `shape ∩ boundary(cut)` is empty (case 4)
+      [285:cut] Constructing inside shape
+      [* 304:add_subshape] Adding subshape
+        [304:add_subshape] ? old_shape = #41
+        [304:add_subshape] ? new_boundary = [-#31, -#35]
+        [304:add_subshape] creating new shape
+        [* 305:add] Adding shape
+          [305:add] ? manifold = hyperplane n=(0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [305:add] ? boundary = [-#31, -#35]
+          [* 306:error] Error! Invalid polygon
+          [305:add] ? id = 63
+        [# 305:add] end
+      [# 304:add_subshape] end
+      [285:cut] Constructing outside shape
+      [* 307:add_subshape] Adding subshape
+        [307:add_subshape] ? old_shape = #41
+        [307:add_subshape] ? new_boundary = [-#38]
+        [307:add_subshape] creating new shape
+        [* 308:add] Adding shape
+          [308:add] ? manifold = hyperplane n=(0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [308:add] ? boundary = [-#38]
+          [* 309:error] Error! Invalid polygon
+          [308:add] ? id = 64
+        [# 308:add] end
+      [# 307:add_subshape] end
+      [285:cut] ? inside = +#63
+      [285:cut] ? outside = +#64
+      [285:cut] ? intersection_shape = None
+    [# 285:cut] end
+    [* 310:cut] Cutting shape #49
+      [310:cut] Manifold is entirely inside
+    [# 310:cut] end
+    [* 311:cut] Cutting shape #53
+      [311:cut] Manifold is split (2D+)
+      [* 312:cached_split_result] Using cached split result for -#28
+        [312:cached_split_result] ? result = NonFlush { inside: +#28, outside: <none>, intersection_shape: +#59 }
+      [# 312:cached_split_result] end
+      [* 313:cached_split_result] Using cached split result for +#38
+        [313:cached_split_result] ? result = NonFlush { inside: <none>, outside: +#38, intersection_shape: +#62 }
+      [# 313:cached_split_result] end
+      [* 314:cut] Cutting shape #52
+        [314:cut] Manifold is split (1D)
+        [314:cut] Adding intersection shape point pair
+        [* 315:add] Adding shape
+          [315:add] ? manifold = point pair (0, 0, -2.0000000000000004) .. ∞ 
+          [315:add] ? boundary = []
+          [315:add] ? id = 65
+        [# 315:add] end
+        [314:cut] ? intersection_shape = +#65
+        [314:cut] Simplifying inside boundary
+        [* 316:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [316:simplify_intervals_incremental] ? existing_intervals = [+#45]
+          [316:simplify_intervals_incremental] ? new_interval = +#65
+          [316:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 317:interval_result] On
+          [* 318:interval_result] Outside
+          [* 319:interval_result] Outside
+          [* 320:interval_result] On
+          [* 321:add] Adding shape
+            [321:add] ? manifold = point pair (-0, -0, -2.0000000000000013) .. (-2.0000000000000018, 2.0000000000000018)
+            [321:add] ? boundary = []
+            [321:add] ? id = 66
+          [# 321:add] end
+        [# 316:simplify_intervals_incremental] end
+        [314:cut] Adding inside shape
+        [* 322:add_subshape] Adding subshape
+          [322:add_subshape] ? old_shape = #52
+          [322:add_subshape] ? new_boundary = [+#66]
+          [322:add_subshape] creating new shape
+          [* 323:add] Adding shape
+            [323:add] ? manifold = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+            [323:add] ? boundary = [+#66]
+            [323:add] ? id = 67
+          [# 323:add] end
+        [# 322:add_subshape] end
+        [314:cut] Simplifying outside boundary
+        [* 324:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [324:simplify_intervals_incremental] ? existing_intervals = [+#45]
+          [324:simplify_intervals_incremental] ? new_interval = -#65
+          [324:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 325:interval_result] Outside
+          [* 326:interval_result] On
+          [* 327:interval_result] Inside
+          [* 328:interval_result] On
+        [# 324:simplify_intervals_incremental] end
+        [314:cut] Adding outside shape
+        [* 329:add_subshape] Adding subshape
+          [329:add_subshape] ? old_shape = #52
+          [329:add_subshape] ? new_boundary = [-#65]
+          [329:add_subshape] creating new shape
+          [* 330:add] Adding shape
+            [330:add] ? manifold = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+            [330:add] ? boundary = [-#65]
+            [330:add] ? id = 68
+          [# 330:add] end
+        [# 329:add_subshape] end
+      [# 314:cut] end
+      [311:cut] ? self_boundary_of_inside = [-#28, +#67]
+      [311:cut] ? self_boundary_of_outside = [+#38, +#68]
+      [311:cut] ? intersection_boundary = [+#59, -#62, -#65]
+      [311:cut] ? intersection_shape = None
+      [311:cut] Simplifying boundary of 1D intersection
+      [* 331:simplify_intervals] Simplifying intervals intersection
+        [331:simplify_intervals] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [331:simplify_intervals] ? interval = +#59
+        [* 332:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [332:simplify_intervals_incremental] ? existing_intervals = []
+          [332:simplify_intervals_incremental] ? new_interval = +#59
+          [332:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 332:simplify_intervals_incremental] end
+        [331:simplify_intervals] ? interval = -#62
+        [* 333:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [333:simplify_intervals_incremental] ? existing_intervals = [+#59]
+          [333:simplify_intervals_incremental] ? new_interval = -#62
+          [333:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 333:simplify_intervals_incremental] end
+        [331:simplify_intervals] ? interval = -#65
+        [* 334:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [334:simplify_intervals_incremental] ? existing_intervals = [+#59]
+          [334:simplify_intervals_incremental] ? new_interval = -#65
+          [334:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 335:interval_result] Outside
+          [* 336:interval_result] On
+          [* 337:interval_result] On
+          [* 338:interval_result] Outside
+          [* 339:add] Adding shape
+            [339:add] ? manifold = point pair (2.0000000000000018, 2.0000000000000018) .. (-0, -0, -2.0000000000000013)
+            [339:add] ? boundary = []
+            [339:add] ? id = 69
+          [# 339:add] end
+        [# 334:simplify_intervals_incremental] end
+        [331:simplify_intervals] ? simplified = [+#69]
+      [# 331:simplify_intervals] end
+      [311:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [311:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 340:add] Adding shape
+        [340:add] ? manifold = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [340:add] ? boundary = [+#69]
+        [340:add] ? id = 70
+      [# 340:add] end
+      [311:cut] Adding common boundary to inside and outside
+      [311:cut] Constructing inside shape
+      [* 341:add_subshape] Adding subshape
+        [341:add_subshape] ? old_shape = #53
+        [341:add_subshape] ? new_boundary = [-#28, +#67, +#70]
+        [341:add_subshape] creating new shape
+        [* 342:add] Adding shape
+          [342:add] ? manifold = hyperplane n=(0, 0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+          [342:add] ? boundary = [-#28, +#67, +#70]
+          [342:add] ? id = 71
+        [# 342:add] end
+      [# 341:add_subshape] end
+      [311:cut] Constructing outside shape
+      [* 343:add_subshape] Adding subshape
+        [343:add_subshape] ? old_shape = #53
+        [343:add_subshape] ? new_boundary = [+#38, +#68, -#70]
+        [343:add_subshape] creating new shape
+        [* 344:add] Adding shape
+          [344:add] ? manifold = hyperplane n=(0, 0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+          [344:add] ? boundary = [+#38, +#68, -#70]
+          [344:add] ? id = 72
+        [# 344:add] end
+      [# 343:add_subshape] end
+      [311:cut] ? inside = +#71
+      [311:cut] ? outside = +#72
+      [311:cut] ? intersection_shape = +#70
+    [# 311:cut] end
+    [* 345:cut] Cutting shape #55
+      [345:cut] Manifold is split (2D+)
+      [* 346:cached_split_result] Using cached split result for -#52
+        [346:cached_split_result] ? result = NonFlush { inside: +#67, outside: +#68, intersection_shape: +#65 }
+      [# 346:cached_split_result] end
+      [345:cut] ? self_boundary_of_inside = [-#67]
+      [345:cut] ? self_boundary_of_outside = [-#68]
+      [345:cut] ? intersection_boundary = [+#65]
+      [345:cut] ? intersection_shape = None
+      [345:cut] Simplifying boundary of 1D intersection
+      [* 347:simplify_intervals] Simplifying intervals intersection
+        [347:simplify_intervals] ? space = -0.9999999999999998 Ey + 2 ∞ yz
+        [347:simplify_intervals] ? interval = +#65
+        [* 348:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [348:simplify_intervals_incremental] ? existing_intervals = []
+          [348:simplify_intervals_incremental] ? new_interval = +#65
+          [348:simplify_intervals_incremental] ? space = -0.9999999999999998 Ey + 2 ∞ yz
+        [# 348:simplify_intervals_incremental] end
+        [347:simplify_intervals] ? simplified = [+#65]
+      [# 347:simplify_intervals] end
+      [345:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [345:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 349:add] Adding shape
+        [349:add] ? manifold = -0.9999999999999998 Ey + 2 ∞ yz
+        [349:add] ? boundary = [+#65]
+        [349:add] ? id = 73
+      [# 349:add] end
+      [345:cut] Adding common boundary to inside and outside
+      [345:cut] Constructing inside shape
+      [* 350:add_subshape] Adding subshape
+        [350:add_subshape] ? old_shape = #55
+        [350:add_subshape] ? new_boundary = [-#67, +#73]
+        [350:add_subshape] creating new shape
+        [* 351:add] Adding shape
+          [351:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+          [351:add] ? boundary = [-#67, +#73]
+          [* 352:error] Error! Invalid polygon
+          [351:add] ? id = 74
+        [# 351:add] end
+      [# 350:add_subshape] end
+      [345:cut] Constructing outside shape
+      [* 353:add_subshape] Adding subshape
+        [353:add_subshape] ? old_shape = #55
+        [353:add_subshape] ? new_boundary = [-#68, -#73]
+        [353:add_subshape] creating new shape
+        [* 354:add] Adding shape
+          [354:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+          [354:add] ? boundary = [-#68, -#73]
+          [354:add] ? id = 75
+        [# 354:add] end
+      [# 353:add_subshape] end
+      [345:cut] ? inside = +#74
+      [345:cut] ? outside = +#75
+      [345:cut] ? intersection_shape = +#73
+    [# 345:cut] end
+    [243:cut] ? self_boundary_of_inside = [+#32, +#49, +#63, +#71, +#74]
+    [243:cut] ? self_boundary_of_outside = [+#64, +#72, +#75]
+    [243:cut] ? intersection_boundary = [-#70, -#73]
+    [243:cut] ? intersection_shape = None
+    [243:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+    [243:cut] `intersection_shape` does not yet exist, but should be nonempty
+    [* 355:add] Adding shape
+      [355:add] ? manifold = hyperplane n=(0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+      [355:add] ? boundary = [-#70, -#73]
+      [* 356:error] Error! Invalid polygon
+      [355:add] ? id = 76
+    [# 355:add] end
+    [243:cut] Adding common boundary to inside and outside
+    [243:cut] Constructing inside shape
+    [* 357:add_subshape] Adding subshape
+      [357:add_subshape] ? old_shape = #56
+      [357:add_subshape] ? new_boundary = [+#32, +#49, +#63, +#71, +#74, +#76]
+      [357:add_subshape] creating new shape
+      [* 358:add] Adding shape
+        [358:add] ? manifold = whole space 1 Exyz
+        [358:add] ? boundary = [+#32, +#49, +#63, +#71, +#74, +#76]
+        [358:add] ? id = 77
+      [# 358:add] end
+    [# 357:add_subshape] end
+    [243:cut] Constructing outside shape
+    [* 359:add_subshape] Adding subshape
+      [359:add_subshape] ? old_shape = #56
+      [359:add_subshape] ? new_boundary = [+#64, +#72, +#75, -#76]
+      [359:add_subshape] creating new shape
+      [* 360:add] Adding shape
+        [360:add] ? manifold = whole space 1 Exyz
+        [360:add] ? boundary = [+#64, +#72, +#75, -#76]
+        [360:add] ? id = 78
+      [# 360:add] end
+    [# 359:add_subshape] end
+    [243:cut] ? inside = +#77
+    [243:cut] ? outside = +#78
+    [243:cut] ? intersection_shape = +#76
+  [# 243:cut] end
+  [242:cut_all] Adding inside shape +#77 as root
+  [242:cut_all] Ignoring outside shape +#78
+[# 242:cut_all] end
+[* 361:cut_all] Cutting all shapes by hyperplane n=(0, -0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+  [361:cut_all] ? inside = KEEP (data = 6)
+  [361:cut_all] ? outside = REMOVE
+  [* 362:cut] Cutting shape #77
+    [362:cut] Manifold is split (2D+)
+    [* 363:cut] Cutting shape #32
+      [363:cut] Manifold is split (2D+)
+      [* 364:cut] Cutting shape #24
+        [364:cut] Manifold is split (1D)
+        [364:cut] Adding intersection shape point pair
+        [* 365:add] Adding shape
+          [365:add] ? manifold = point pair ∞  .. (-0, -0, 2.0000000000000004)
+          [365:add] ? boundary = []
+          [365:add] ? id = 79
+        [# 365:add] end
+        [364:cut] ? intersection_shape = +#79
+        [364:cut] Simplifying inside boundary
+        [* 366:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [366:simplify_intervals_incremental] ? existing_intervals = [+#23]
+          [366:simplify_intervals_incremental] ? new_interval = +#79
+          [366:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 367:interval_result] On
+          [* 368:interval_result] Inside
+          [* 369:interval_result] On
+          [* 370:interval_result] Outside
+        [# 366:simplify_intervals_incremental] end
+        [364:cut] Adding inside shape
+        [* 371:add_subshape] Adding subshape
+          [371:add_subshape] ? old_shape = #24
+          [371:add_subshape] ? new_boundary = [+#23]
+          [371:add_subshape] same as existing shape
+        [# 371:add_subshape] end
+        [364:cut] Simplifying outside boundary
+        [* 372:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [372:simplify_intervals_incremental] ? existing_intervals = [+#23]
+          [372:simplify_intervals_incremental] ? new_interval = -#79
+          [372:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 373:interval_result] Inside
+          [* 374:interval_result] On
+          [* 375:interval_result] On
+          [* 376:interval_result] Inside
+        [# 372:simplify_intervals_incremental] end
+        [364:cut] No outside shape
+      [# 364:cut] end
+      [* 377:cut] Cutting shape #28
+        [377:cut] Manifold is split (1D)
+        [377:cut] Adding intersection shape point pair
+        [* 378:add] Adding shape
+          [378:add] ? manifold = point pair ∞  .. ∞ 
+          [378:add] ? boundary = []
+          [378:add] ? id = 80
+        [# 378:add] end
+        [377:cut] ? intersection_shape = +#80
+        [377:cut] Simplifying inside boundary
+        [* 379:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [379:simplify_intervals_incremental] ? existing_intervals = [+#27]
+          [379:simplify_intervals_incremental] ? new_interval = +#80
+          [379:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+          [379:simplify_intervals_incremental] Tangent vector
+          [379:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 379:simplify_intervals_incremental] end
+        [377:cut] No inside shape
+        [377:cut] Simplifying outside boundary
+        [* 380:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [380:simplify_intervals_incremental] ? existing_intervals = [+#27]
+          [380:simplify_intervals_incremental] ? new_interval = -#80
+          [380:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+          [380:simplify_intervals_incremental] Tangent vector
+          [380:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 380:simplify_intervals_incremental] end
+        [377:cut] Adding outside shape
+        [* 381:add_subshape] Adding subshape
+          [381:add_subshape] ? old_shape = #28
+          [381:add_subshape] ? new_boundary = [+#27]
+          [381:add_subshape] same as existing shape
+        [# 381:add_subshape] end
+      [# 377:cut] end
+      [* 382:cut] Cutting shape #31
+        [382:cut] Manifold is split (1D)
+        [382:cut] Adding intersection shape point pair
+        [* 383:add] Adding shape
+          [383:add] ? manifold = point pair (0, 0, 2.0000000000000004) .. ∞ 
+          [383:add] ? boundary = []
+          [383:add] ? id = 81
+        [# 383:add] end
+        [382:cut] ? intersection_shape = +#81
+        [382:cut] Simplifying inside boundary
+        [* 384:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [384:simplify_intervals_incremental] ? existing_intervals = [+#30]
+          [384:simplify_intervals_incremental] ? new_interval = +#81
+          [384:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 385:interval_result] Inside
+          [* 386:interval_result] On
+          [* 387:interval_result] Outside
+          [* 388:interval_result] On
+        [# 384:simplify_intervals_incremental] end
+        [382:cut] Adding inside shape
+        [* 389:add_subshape] Adding subshape
+          [389:add_subshape] ? old_shape = #31
+          [389:add_subshape] ? new_boundary = [+#30]
+          [389:add_subshape] same as existing shape
+        [# 389:add_subshape] end
+        [382:cut] Simplifying outside boundary
+        [* 390:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [390:simplify_intervals_incremental] ? existing_intervals = [+#30]
+          [390:simplify_intervals_incremental] ? new_interval = -#81
+          [390:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 391:interval_result] On
+          [* 392:interval_result] Inside
+          [* 393:interval_result] Inside
+          [* 394:interval_result] On
+        [# 390:simplify_intervals_incremental] end
+        [382:cut] No outside shape
+      [# 382:cut] end
+      [363:cut] ? self_boundary_of_inside = [+#24, +#31]
+      [363:cut] ? self_boundary_of_outside = [+#28]
+      [363:cut] ? intersection_boundary = [-#79, -#80, -#81]
+      [363:cut] ? intersection_shape = None
+      [363:cut] Simplifying boundary of 1D intersection
+      [* 395:simplify_intervals] Simplifying intervals intersection
+        [395:simplify_intervals] ? space = 0.9999999999999998 Ex + 2 ∞ xz
+        [395:simplify_intervals] ? interval = -#79
+        [* 396:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [396:simplify_intervals_incremental] ? existing_intervals = []
+          [396:simplify_intervals_incremental] ? new_interval = -#79
+          [396:simplify_intervals_incremental] ? space = 0.9999999999999998 Ex + 2 ∞ xz
+        [# 396:simplify_intervals_incremental] end
+        [395:simplify_intervals] ? interval = -#80
+        [* 397:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [397:simplify_intervals_incremental] ? existing_intervals = [-#79]
+          [397:simplify_intervals_incremental] ? new_interval = -#80
+          [397:simplify_intervals_incremental] ? space = 0.9999999999999998 Ex + 2 ∞ xz
+          [397:simplify_intervals_incremental] Tangent vector
+          [397:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 397:simplify_intervals_incremental] end
+        [395:simplify_intervals] ? interval = -#81
+        [* 398:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [398:simplify_intervals_incremental] ? existing_intervals = [-#79]
+          [398:simplify_intervals_incremental] ? new_interval = -#81
+          [398:simplify_intervals_incremental] ? space = 0.9999999999999998 Ex + 2 ∞ xz
+          [* 399:interval_result] On
+          [* 400:interval_result] On
+          [* 401:interval_result] On
+          [* 402:interval_result] On
+        [# 398:simplify_intervals_incremental] end
+      [# 395:simplify_intervals] end
+      [363:cut] `shape ∩ boundary(cut)` is empty (case 4)
+      [363:cut] Constructing inside shape
+      [* 403:add_subshape] Adding subshape
+        [403:add_subshape] ? old_shape = #32
+        [403:add_subshape] ? new_boundary = [+#24, +#31]
+        [403:add_subshape] creating new shape
+        [* 404:add] Adding shape
+          [404:add] ? manifold = hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+          [404:add] ? boundary = [+#24, +#31]
+          [* 405:error] Error! Invalid polygon
+          [404:add] ? id = 82
+        [# 404:add] end
+      [# 403:add_subshape] end
+      [363:cut] Constructing outside shape
+      [* 406:add_subshape] Adding subshape
+        [406:add_subshape] ? old_shape = #32
+        [406:add_subshape] ? new_boundary = [+#28]
+        [406:add_subshape] creating new shape
+        [* 407:add] Adding shape
+          [407:add] ? manifold = hyperplane n=(0, 0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+          [407:add] ? boundary = [+#28]
+          [* 408:error] Error! Invalid polygon
+          [407:add] ? id = 83
+        [# 407:add] end
+      [# 406:add_subshape] end
+      [363:cut] ? inside = +#82
+      [363:cut] ? outside = +#83
+      [363:cut] ? intersection_shape = None
+    [# 363:cut] end
+    [* 409:cut] Cutting shape #49
+      [409:cut] Manifold is split (2D+)
+      [* 410:cached_split_result] Using cached split result for -#24
+        [410:cached_split_result] ? result = NonFlush { inside: +#24, outside: <none>, intersection_shape: +#79 }
+      [# 410:cached_split_result] end
+      [* 411:cut] Cutting shape #35
+        [411:cut] Manifold is split (1D)
+        [411:cut] Adding intersection shape point pair
+        [* 412:add] Adding shape
+          [412:add] ? manifold = point pair (0, 0, 2.0000000000000004) .. ∞ 
+          [412:add] ? boundary = []
+          [412:add] ? id = 84
+        [# 412:add] end
+        [411:cut] ? intersection_shape = +#84
+        [411:cut] Simplifying inside boundary
+        [* 413:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [413:simplify_intervals_incremental] ? existing_intervals = [+#22]
+          [413:simplify_intervals_incremental] ? new_interval = +#84
+          [413:simplify_intervals_incremental] ? space = 0.9999999999999998 Ey + 2 ∞ yz
+          [* 414:interval_result] On
+          [* 415:interval_result] On
+          [* 416:interval_result] On
+          [* 417:interval_result] On
+        [# 413:simplify_intervals_incremental] end
+        [411:cut] No inside shape
+        [411:cut] Simplifying outside boundary
+        [* 418:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [418:simplify_intervals_incremental] ? existing_intervals = [+#22]
+          [418:simplify_intervals_incremental] ? new_interval = -#84
+          [418:simplify_intervals_incremental] ? space = 0.9999999999999998 Ey + 2 ∞ yz
+        [# 418:simplify_intervals_incremental] end
+        [411:cut] Adding outside shape
+        [* 419:add_subshape] Adding subshape
+          [419:add_subshape] ? old_shape = #35
+          [419:add_subshape] ? new_boundary = [+#22]
+          [419:add_subshape] same as existing shape
+        [# 419:add_subshape] end
+      [# 411:cut] end
+      [409:cut] ? self_boundary_of_inside = [-#24]
+      [409:cut] ? self_boundary_of_outside = [+#35]
+      [409:cut] ? intersection_boundary = [+#79, -#84]
+      [409:cut] ? intersection_shape = None
+      [409:cut] Simplifying boundary of 1D intersection
+      [* 420:simplify_intervals] Simplifying intervals intersection
+        [420:simplify_intervals] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [420:simplify_intervals] ? interval = +#79
+        [* 421:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [421:simplify_intervals_incremental] ? existing_intervals = []
+          [421:simplify_intervals_incremental] ? new_interval = +#79
+          [421:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 421:simplify_intervals_incremental] end
+        [420:simplify_intervals] ? interval = -#84
+        [* 422:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [422:simplify_intervals_incremental] ? existing_intervals = [+#79]
+          [422:simplify_intervals_incremental] ? new_interval = -#84
+          [422:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 422:simplify_intervals_incremental] end
+        [420:simplify_intervals] ? simplified = [+#79]
+      [# 420:simplify_intervals] end
+      [409:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [409:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 423:add] Adding shape
+        [423:add] ? manifold = 0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [423:add] ? boundary = [+#79]
+        [423:add] ? id = 85
+      [# 423:add] end
+      [409:cut] Adding common boundary to inside and outside
+      [409:cut] Constructing inside shape
+      [* 424:add_subshape] Adding subshape
+        [424:add_subshape] ? old_shape = #49
+        [424:add_subshape] ? new_boundary = [-#24, +#85]
+        [424:add_subshape] creating new shape
+        [* 425:add] Adding shape
+          [425:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [425:add] ? boundary = [-#24, +#85]
+          [* 426:error] Error! Invalid polygon
+          [425:add] ? id = 86
+        [# 425:add] end
+      [# 424:add_subshape] end
+      [409:cut] Constructing outside shape
+      [* 427:add_subshape] Adding subshape
+        [427:add_subshape] ? old_shape = #49
+        [427:add_subshape] ? new_boundary = [+#35, -#85]
+        [427:add_subshape] creating new shape
+        [* 428:add] Adding shape
+          [428:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [428:add] ? boundary = [+#35, -#85]
+          [428:add] ? id = 87
+        [# 428:add] end
+      [# 427:add_subshape] end
+      [409:cut] ? inside = +#86
+      [409:cut] ? outside = +#87
+      [409:cut] ? intersection_shape = +#85
+    [# 409:cut] end
+    [* 429:cut] Cutting shape #63
+      [429:cut] Manifold is split (2D+)
+      [* 430:cached_split_result] Using cached split result for -#31
+        [430:cached_split_result] ? result = NonFlush { inside: +#31, outside: <none>, intersection_shape: +#81 }
+      [# 430:cached_split_result] end
+      [* 431:cached_split_result] Using cached split result for -#35
+        [431:cached_split_result] ? result = NonFlush { inside: <none>, outside: +#35, intersection_shape: +#84 }
+      [# 431:cached_split_result] end
+      [429:cut] ? self_boundary_of_inside = [-#31]
+      [429:cut] ? self_boundary_of_outside = [-#35]
+      [429:cut] ? intersection_boundary = [+#81, +#84]
+      [429:cut] ? intersection_shape = None
+      [429:cut] Simplifying boundary of 1D intersection
+      [* 432:simplify_intervals] Simplifying intervals intersection
+        [432:simplify_intervals] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [432:simplify_intervals] ? interval = +#81
+        [* 433:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [433:simplify_intervals_incremental] ? existing_intervals = []
+          [433:simplify_intervals_incremental] ? new_interval = +#81
+          [433:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 433:simplify_intervals_incremental] end
+        [432:simplify_intervals] ? interval = +#84
+        [* 434:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [434:simplify_intervals_incremental] ? existing_intervals = [+#81]
+          [434:simplify_intervals_incremental] ? new_interval = +#84
+          [434:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 434:simplify_intervals_incremental] end
+        [432:simplify_intervals] ? simplified = [+#81]
+      [# 432:simplify_intervals] end
+      [429:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [429:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 435:add] Adding shape
+        [435:add] ? manifold = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [435:add] ? boundary = [+#81]
+        [435:add] ? id = 88
+      [# 435:add] end
+      [429:cut] Adding common boundary to inside and outside
+      [429:cut] Constructing inside shape
+      [* 436:add_subshape] Adding subshape
+        [436:add_subshape] ? old_shape = #63
+        [436:add_subshape] ? new_boundary = [-#31, +#88]
+        [436:add_subshape] creating new shape
+        [* 437:add] Adding shape
+          [437:add] ? manifold = hyperplane n=(0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [437:add] ? boundary = [-#31, +#88]
+          [* 438:error] Error! Invalid polygon
+          [437:add] ? id = 89
+        [# 437:add] end
+      [# 436:add_subshape] end
+      [429:cut] Constructing outside shape
+      [* 439:add_subshape] Adding subshape
+        [439:add_subshape] ? old_shape = #63
+        [439:add_subshape] ? new_boundary = [-#35, -#88]
+        [439:add_subshape] creating new shape
+        [* 440:add] Adding shape
+          [440:add] ? manifold = hyperplane n=(0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [440:add] ? boundary = [-#35, -#88]
+          [440:add] ? id = 90
+        [# 440:add] end
+      [# 439:add_subshape] end
+      [429:cut] ? inside = +#89
+      [429:cut] ? outside = +#90
+      [429:cut] ? intersection_shape = +#88
+    [# 429:cut] end
+    [* 441:cut] Cutting shape #71
+      [441:cut] Manifold is entirely inside
+    [# 441:cut] end
+    [* 442:cut] Cutting shape #74
+      [442:cut] Manifold is split (2D+)
+      [* 443:cut] Cutting shape #67
+        [443:cut] Manifold is split (1D)
+        [443:cut] Adding intersection shape point pair
+        [* 444:add] Adding shape
+          [444:add] ? manifold = point pair ∞  .. ∞ 
+          [444:add] ? boundary = []
+          [444:add] ? id = 91
+        [# 444:add] end
+        [443:cut] ? intersection_shape = +#91
+        [443:cut] Simplifying inside boundary
+        [* 445:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [445:simplify_intervals_incremental] ? existing_intervals = [+#66]
+          [445:simplify_intervals_incremental] ? new_interval = +#91
+          [445:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [445:simplify_intervals_incremental] Tangent vector
+          [445:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 445:simplify_intervals_incremental] end
+        [443:cut] Adding inside shape
+        [* 446:add_subshape] Adding subshape
+          [446:add_subshape] ? old_shape = #67
+          [446:add_subshape] ? new_boundary = [+#66]
+          [446:add_subshape] same as existing shape
+        [# 446:add_subshape] end
+        [443:cut] Simplifying outside boundary
+        [* 447:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [447:simplify_intervals_incremental] ? existing_intervals = [+#66]
+          [447:simplify_intervals_incremental] ? new_interval = -#91
+          [447:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [447:simplify_intervals_incremental] Tangent vector
+          [447:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 447:simplify_intervals_incremental] end
+        [443:cut] No outside shape
+      [# 443:cut] end
+      [* 448:cut] Cutting shape #73
+        [448:cut] Manifold is split (1D)
+        [448:cut] Adding intersection shape point pair
+        [* 449:add] Adding shape
+          [449:add] ? manifold = point pair ∞  .. (-0, -4.000000000000001, -2.0000000000000004)
+          [449:add] ? boundary = []
+          [449:add] ? id = 92
+        [# 449:add] end
+        [448:cut] ? intersection_shape = +#92
+        [448:cut] Simplifying inside boundary
+        [* 450:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [450:simplify_intervals_incremental] ? existing_intervals = [+#65]
+          [450:simplify_intervals_incremental] ? new_interval = +#92
+          [450:simplify_intervals_incremental] ? space = -0.9999999999999998 Ey + 2 ∞ yz
+          [* 451:interval_result] Outside
+          [* 452:interval_result] On
+          [* 453:interval_result] On
+          [* 454:interval_result] Outside
+          [* 455:add] Adding shape
+            [455:add] ? manifold = point pair (-0, -0, -2.000000000000001) .. (-0, -4.000000000000002, -2.000000000000001)
+            [455:add] ? boundary = []
+            [455:add] ? id = 93
+          [# 455:add] end
+        [# 450:simplify_intervals_incremental] end
+        [448:cut] Adding inside shape
+        [* 456:add_subshape] Adding subshape
+          [456:add_subshape] ? old_shape = #73
+          [456:add_subshape] ? new_boundary = [+#93]
+          [456:add_subshape] creating new shape
+          [* 457:add] Adding shape
+            [457:add] ? manifold = -0.9999999999999998 Ey + 2 ∞ yz
+            [457:add] ? boundary = [+#93]
+            [457:add] ? id = 94
+          [# 457:add] end
+        [# 456:add_subshape] end
+        [448:cut] Simplifying outside boundary
+        [* 458:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [458:simplify_intervals_incremental] ? existing_intervals = [+#65]
+          [458:simplify_intervals_incremental] ? new_interval = -#92
+          [458:simplify_intervals_incremental] ? space = -0.9999999999999998 Ey + 2 ∞ yz
+          [* 459:interval_result] On
+          [* 460:interval_result] Outside
+          [* 461:interval_result] On
+          [* 462:interval_result] Inside
+        [# 458:simplify_intervals_incremental] end
+        [448:cut] Adding outside shape
+        [* 463:add_subshape] Adding subshape
+          [463:add_subshape] ? old_shape = #73
+          [463:add_subshape] ? new_boundary = [-#92]
+          [463:add_subshape] creating new shape
+          [* 464:add] Adding shape
+            [464:add] ? manifold = -0.9999999999999998 Ey + 2 ∞ yz
+            [464:add] ? boundary = [-#92]
+            [464:add] ? id = 95
+          [# 464:add] end
+        [# 463:add_subshape] end
+      [# 448:cut] end
+      [442:cut] ? self_boundary_of_inside = [-#67, +#94]
+      [442:cut] ? self_boundary_of_outside = [+#95]
+      [442:cut] ? intersection_boundary = [+#91, -#92]
+      [442:cut] ? intersection_shape = None
+      [442:cut] Simplifying boundary of 1D intersection
+      [* 465:simplify_intervals] Simplifying intervals intersection
+        [465:simplify_intervals] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [465:simplify_intervals] ? interval = +#91
+        [* 466:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [466:simplify_intervals_incremental] ? existing_intervals = []
+          [466:simplify_intervals_incremental] ? new_interval = +#91
+          [466:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [466:simplify_intervals_incremental] Tangent vector
+          [466:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 466:simplify_intervals_incremental] end
+        [465:simplify_intervals] ? interval = -#92
+        [* 467:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [467:simplify_intervals_incremental] ? existing_intervals = []
+          [467:simplify_intervals_incremental] ? new_interval = -#92
+          [467:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 467:simplify_intervals_incremental] end
+        [465:simplify_intervals] ? simplified = [-#92]
+      [# 465:simplify_intervals] end
+      [442:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [442:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 468:add] Adding shape
+        [468:add] ? manifold = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [468:add] ? boundary = [-#92]
+        [468:add] ? id = 96
+      [# 468:add] end
+      [442:cut] Adding common boundary to inside and outside
+      [442:cut] Constructing inside shape
+      [* 469:add_subshape] Adding subshape
+        [469:add_subshape] ? old_shape = #74
+        [469:add_subshape] ? new_boundary = [-#67, +#94, +#96]
+        [469:add_subshape] creating new shape
+        [* 470:add] Adding shape
+          [470:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+          [470:add] ? boundary = [-#67, +#94, +#96]
+          [* 471:error] Error! Invalid polygon
+          [470:add] ? id = 97
+        [# 470:add] end
+      [# 469:add_subshape] end
+      [442:cut] Constructing outside shape
+      [* 472:add_subshape] Adding subshape
+        [472:add_subshape] ? old_shape = #74
+        [472:add_subshape] ? new_boundary = [+#95, -#96]
+        [472:add_subshape] creating new shape
+        [* 473:add] Adding shape
+          [473:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+          [473:add] ? boundary = [+#95, -#96]
+          [473:add] ? id = 98
+        [# 473:add] end
+      [# 472:add_subshape] end
+      [442:cut] ? inside = +#97
+      [442:cut] ? outside = +#98
+      [442:cut] ? intersection_shape = +#96
+    [# 442:cut] end
+    [* 474:cut] Cutting shape #76
+      [474:cut] Manifold is split (2D+)
+      [* 475:cut] Cutting shape #70
+        [475:cut] Manifold is split (1D)
+        [475:cut] Adding intersection shape point pair
+        [* 476:add] Adding shape
+          [476:add] ? manifold = point pair ∞  .. ∞ 
+          [476:add] ? boundary = []
+          [476:add] ? id = 99
+        [# 476:add] end
+        [475:cut] ? intersection_shape = +#99
+        [475:cut] Simplifying inside boundary
+        [* 477:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [477:simplify_intervals_incremental] ? existing_intervals = [+#69]
+          [477:simplify_intervals_incremental] ? new_interval = +#99
+          [477:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [477:simplify_intervals_incremental] Tangent vector
+          [477:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 477:simplify_intervals_incremental] end
+        [475:cut] Adding inside shape
+        [* 478:add_subshape] Adding subshape
+          [478:add_subshape] ? old_shape = #70
+          [478:add_subshape] ? new_boundary = [+#69]
+          [478:add_subshape] same as existing shape
+        [# 478:add_subshape] end
+        [475:cut] Simplifying outside boundary
+        [* 479:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [479:simplify_intervals_incremental] ? existing_intervals = [+#69]
+          [479:simplify_intervals_incremental] ? new_interval = -#99
+          [479:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [479:simplify_intervals_incremental] Tangent vector
+          [479:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 479:simplify_intervals_incremental] end
+        [475:cut] No outside shape
+      [# 475:cut] end
+      [* 480:cached_split_result] Using cached split result for -#73
+        [480:cached_split_result] ? result = NonFlush { inside: +#94, outside: +#95, intersection_shape: +#92 }
+      [# 480:cached_split_result] end
+      [474:cut] ? self_boundary_of_inside = [-#70, -#94]
+      [474:cut] ? self_boundary_of_outside = [-#95]
+      [474:cut] ? intersection_boundary = [+#92, +#99]
+      [474:cut] ? intersection_shape = None
+      [474:cut] Simplifying boundary of 1D intersection
+      [* 481:simplify_intervals] Simplifying intervals intersection
+        [481:simplify_intervals] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [481:simplify_intervals] ? interval = +#92
+        [* 482:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [482:simplify_intervals_incremental] ? existing_intervals = []
+          [482:simplify_intervals_incremental] ? new_interval = +#92
+          [482:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 482:simplify_intervals_incremental] end
+        [481:simplify_intervals] ? interval = +#99
+        [* 483:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [483:simplify_intervals_incremental] ? existing_intervals = [+#92]
+          [483:simplify_intervals_incremental] ? new_interval = +#99
+          [483:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [483:simplify_intervals_incremental] Tangent vector
+          [483:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 483:simplify_intervals_incremental] end
+        [481:simplify_intervals] ? simplified = [+#92]
+      [# 481:simplify_intervals] end
+      [474:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [474:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 484:add] Adding shape
+        [484:add] ? manifold = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [484:add] ? boundary = [+#92]
+        [484:add] ? id = 100
+      [# 484:add] end
+      [474:cut] Adding common boundary to inside and outside
+      [474:cut] Constructing inside shape
+      [* 485:add_subshape] Adding subshape
+        [485:add_subshape] ? old_shape = #76
+        [485:add_subshape] ? new_boundary = [-#70, -#94, +#100]
+        [485:add_subshape] creating new shape
+        [* 486:add] Adding shape
+          [486:add] ? manifold = hyperplane n=(0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+          [486:add] ? boundary = [-#70, -#94, +#100]
+          [* 487:error] Error! Invalid polygon
+          [486:add] ? id = 101
+        [# 486:add] end
+      [# 485:add_subshape] end
+      [474:cut] Constructing outside shape
+      [* 488:add_subshape] Adding subshape
+        [488:add_subshape] ? old_shape = #76
+        [488:add_subshape] ? new_boundary = [-#95, -#100]
+        [488:add_subshape] creating new shape
+        [* 489:add] Adding shape
+          [489:add] ? manifold = hyperplane n=(0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+          [489:add] ? boundary = [-#95, -#100]
+          [489:add] ? id = 102
+        [# 489:add] end
+      [# 488:add_subshape] end
+      [474:cut] ? inside = +#101
+      [474:cut] ? outside = +#102
+      [474:cut] ? intersection_shape = +#100
+    [# 474:cut] end
+    [362:cut] ? self_boundary_of_inside = [+#71, +#82, +#86, +#89, +#97, +#101]
+    [362:cut] ? self_boundary_of_outside = [+#83, +#87, +#90, +#98, +#102]
+    [362:cut] ? intersection_boundary = [-#85, -#88, -#96, -#100]
+    [362:cut] ? intersection_shape = None
+    [362:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+    [362:cut] `intersection_shape` does not yet exist, but should be nonempty
+    [* 490:add] Adding shape
+      [490:add] ? manifold = hyperplane n=(0, -0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+      [490:add] ? boundary = [-#85, -#88, -#96, -#100]
+      [490:add] ? id = 103
+    [# 490:add] end
+    [362:cut] Adding common boundary to inside and outside
+    [362:cut] Constructing inside shape
+    [* 491:add_subshape] Adding subshape
+      [491:add_subshape] ? old_shape = #77
+      [491:add_subshape] ? new_boundary = [+#71, +#82, +#86, +#89, +#97, +#101, +#103]
+      [491:add_subshape] creating new shape
+      [* 492:add] Adding shape
+        [492:add] ? manifold = whole space 1 Exyz
+        [492:add] ? boundary = [+#71, +#82, +#86, +#89, +#97, +#101, +#103]
+        [492:add] ? id = 104
+      [# 492:add] end
+    [# 491:add_subshape] end
+    [362:cut] Constructing outside shape
+    [* 493:add_subshape] Adding subshape
+      [493:add_subshape] ? old_shape = #77
+      [493:add_subshape] ? new_boundary = [+#83, +#87, +#90, +#98, +#102, -#103]
+      [493:add_subshape] creating new shape
+      [* 494:add] Adding shape
+        [494:add] ? manifold = whole space 1 Exyz
+        [494:add] ? boundary = [+#83, +#87, +#90, +#98, +#102, -#103]
+        [494:add] ? id = 105
+      [# 494:add] end
+    [# 493:add_subshape] end
+    [362:cut] ? inside = +#104
+    [362:cut] ? outside = +#105
+    [362:cut] ? intersection_shape = +#103
+  [# 362:cut] end
+  [361:cut_all] Adding inside shape +#104 as root
+  [361:cut_all] Ignoring outside shape +#105
+[# 361:cut_all] end
+[* 495:cut_all] Cutting all shapes by hyperplane n=(0, -0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+  [495:cut_all] ? inside = KEEP (data = 7)
+  [495:cut_all] ? outside = REMOVE
+  [* 496:cut] Cutting shape #104
+    [496:cut] Manifold is split (2D+)
+    [* 497:cut] Cutting shape #71
+      [497:cut] Manifold is split (2D+)
+      [* 498:cut] Cutting shape #28
+        [498:cut] Manifold is split (1D)
+        [498:cut] Adding intersection shape point pair
+        [* 499:add] Adding shape
+          [499:add] ? manifold = point pair ∞  .. ∞ 
+          [499:add] ? boundary = []
+          [499:add] ? id = 106
+        [# 499:add] end
+        [498:cut] ? intersection_shape = +#106
+        [498:cut] Simplifying inside boundary
+        [* 500:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [500:simplify_intervals_incremental] ? existing_intervals = [+#27]
+          [500:simplify_intervals_incremental] ? new_interval = +#106
+          [500:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+          [500:simplify_intervals_incremental] Tangent vector
+          [500:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 500:simplify_intervals_incremental] end
+        [498:cut] No inside shape
+        [498:cut] Simplifying outside boundary
+        [* 501:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [501:simplify_intervals_incremental] ? existing_intervals = [+#27]
+          [501:simplify_intervals_incremental] ? new_interval = -#106
+          [501:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + -2 ∞ xy
+          [501:simplify_intervals_incremental] Tangent vector
+          [501:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 501:simplify_intervals_incremental] end
+        [498:cut] Adding outside shape
+        [* 502:add_subshape] Adding subshape
+          [502:add_subshape] ? old_shape = #28
+          [502:add_subshape] ? new_boundary = [+#27]
+          [502:add_subshape] same as existing shape
+        [# 502:add_subshape] end
+      [# 498:cut] end
+      [* 503:cut] Cutting shape #67
+        [503:cut] Manifold is split (1D)
+        [503:cut] Adding intersection shape point pair
+        [* 504:add] Adding shape
+          [504:add] ? manifold = point pair (0, 0, -2.0000000000000004) .. ∞ 
+          [504:add] ? boundary = []
+          [504:add] ? id = 107
+        [# 504:add] end
+        [503:cut] ? intersection_shape = +#107
+        [503:cut] Simplifying inside boundary
+        [* 505:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [505:simplify_intervals_incremental] ? existing_intervals = [+#66]
+          [505:simplify_intervals_incremental] ? new_interval = +#107
+          [505:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 506:interval_result] Inside
+          [* 507:interval_result] On
+          [* 508:interval_result] Outside
+          [* 509:interval_result] On
+        [# 505:simplify_intervals_incremental] end
+        [503:cut] Adding inside shape
+        [* 510:add_subshape] Adding subshape
+          [510:add_subshape] ? old_shape = #67
+          [510:add_subshape] ? new_boundary = [+#66]
+          [510:add_subshape] same as existing shape
+        [# 510:add_subshape] end
+        [503:cut] Simplifying outside boundary
+        [* 511:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [511:simplify_intervals_incremental] ? existing_intervals = [+#66]
+          [511:simplify_intervals_incremental] ? new_interval = -#107
+          [511:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 512:interval_result] On
+          [* 513:interval_result] Inside
+          [* 514:interval_result] Inside
+          [* 515:interval_result] On
+        [# 511:simplify_intervals_incremental] end
+        [503:cut] No outside shape
+      [# 503:cut] end
+      [* 516:cut] Cutting shape #70
+        [516:cut] Manifold is split (1D)
+        [516:cut] Adding intersection shape point pair
+        [* 517:add] Adding shape
+          [517:add] ? manifold = point pair ∞  .. (-0, -0, -2.0000000000000004)
+          [517:add] ? boundary = []
+          [517:add] ? id = 108
+        [# 517:add] end
+        [516:cut] ? intersection_shape = +#108
+        [516:cut] Simplifying inside boundary
+        [* 518:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [518:simplify_intervals_incremental] ? existing_intervals = [+#69]
+          [518:simplify_intervals_incremental] ? new_interval = +#108
+          [518:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 519:interval_result] On
+          [* 520:interval_result] Inside
+          [* 521:interval_result] On
+          [* 522:interval_result] Outside
+        [# 518:simplify_intervals_incremental] end
+        [516:cut] Adding inside shape
+        [* 523:add_subshape] Adding subshape
+          [523:add_subshape] ? old_shape = #70
+          [523:add_subshape] ? new_boundary = [+#69]
+          [523:add_subshape] same as existing shape
+        [# 523:add_subshape] end
+        [516:cut] Simplifying outside boundary
+        [* 524:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [524:simplify_intervals_incremental] ? existing_intervals = [+#69]
+          [524:simplify_intervals_incremental] ? new_interval = -#108
+          [524:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 525:interval_result] Inside
+          [* 526:interval_result] On
+          [* 527:interval_result] On
+          [* 528:interval_result] Inside
+        [# 524:simplify_intervals_incremental] end
+        [516:cut] No outside shape
+      [# 516:cut] end
+      [497:cut] ? self_boundary_of_inside = [+#67, +#70]
+      [497:cut] ? self_boundary_of_outside = [-#28]
+      [497:cut] ? intersection_boundary = [+#106, -#107, -#108]
+      [497:cut] ? intersection_shape = None
+      [497:cut] Simplifying boundary of 1D intersection
+      [* 529:simplify_intervals] Simplifying intervals intersection
+        [529:simplify_intervals] ? space = -0.9999999999999998 Ex + 2 ∞ xz
+        [529:simplify_intervals] ? interval = +#106
+        [* 530:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [530:simplify_intervals_incremental] ? existing_intervals = []
+          [530:simplify_intervals_incremental] ? new_interval = +#106
+          [530:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + 2 ∞ xz
+          [530:simplify_intervals_incremental] Tangent vector
+          [530:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 530:simplify_intervals_incremental] end
+        [529:simplify_intervals] ? interval = -#107
+        [* 531:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [531:simplify_intervals_incremental] ? existing_intervals = []
+          [531:simplify_intervals_incremental] ? new_interval = -#107
+          [531:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + 2 ∞ xz
+        [# 531:simplify_intervals_incremental] end
+        [529:simplify_intervals] ? interval = -#108
+        [* 532:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [532:simplify_intervals_incremental] ? existing_intervals = [-#107]
+          [532:simplify_intervals_incremental] ? new_interval = -#108
+          [532:simplify_intervals_incremental] ? space = -0.9999999999999998 Ex + 2 ∞ xz
+          [* 533:interval_result] On
+          [* 534:interval_result] On
+          [* 535:interval_result] On
+          [* 536:interval_result] On
+        [# 532:simplify_intervals_incremental] end
+      [# 529:simplify_intervals] end
+      [497:cut] `shape ∩ boundary(cut)` is empty (case 4)
+      [497:cut] Constructing inside shape
+      [* 537:add_subshape] Adding subshape
+        [537:add_subshape] ? old_shape = #71
+        [537:add_subshape] ? new_boundary = [+#67, +#70]
+        [537:add_subshape] creating new shape
+        [* 538:add] Adding shape
+          [538:add] ? manifold = hyperplane n=(0, 0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+          [538:add] ? boundary = [+#67, +#70]
+          [* 539:error] Error! Invalid polygon
+          [538:add] ? id = 109
+        [# 538:add] end
+      [# 537:add_subshape] end
+      [497:cut] Constructing outside shape
+      [* 540:add_subshape] Adding subshape
+        [540:add_subshape] ? old_shape = #71
+        [540:add_subshape] ? new_boundary = [-#28]
+        [540:add_subshape] creating new shape
+        [* 541:add] Adding shape
+          [541:add] ? manifold = hyperplane n=(0, 0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+          [541:add] ? boundary = [-#28]
+          [* 542:error] Error! Invalid polygon
+          [541:add] ? id = 110
+        [# 541:add] end
+      [# 540:add_subshape] end
+      [497:cut] ? inside = +#109
+      [497:cut] ? outside = +#110
+      [497:cut] ? intersection_shape = None
+    [# 497:cut] end
+    [* 543:cut] Cutting shape #82
+      [543:cut] Manifold is entirely inside
+    [# 543:cut] end
+    [* 544:cut] Cutting shape #86
+      [544:cut] Manifold is split (2D+)
+      [* 545:cut] Cutting shape #24
+        [545:cut] Manifold is split (1D)
+        [545:cut] Adding intersection shape point pair
+        [* 546:add] Adding shape
+          [546:add] ? manifold = point pair ∞  .. ∞ 
+          [546:add] ? boundary = []
+          [546:add] ? id = 111
+        [# 546:add] end
+        [545:cut] ? intersection_shape = +#111
+        [545:cut] Simplifying inside boundary
+        [* 547:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [547:simplify_intervals_incremental] ? existing_intervals = [+#23]
+          [547:simplify_intervals_incremental] ? new_interval = +#111
+          [547:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [547:simplify_intervals_incremental] Tangent vector
+          [547:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 547:simplify_intervals_incremental] end
+        [545:cut] Adding inside shape
+        [* 548:add_subshape] Adding subshape
+          [548:add_subshape] ? old_shape = #24
+          [548:add_subshape] ? new_boundary = [+#23]
+          [548:add_subshape] same as existing shape
+        [# 548:add_subshape] end
+        [545:cut] Simplifying outside boundary
+        [* 549:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [549:simplify_intervals_incremental] ? existing_intervals = [+#23]
+          [549:simplify_intervals_incremental] ? new_interval = -#111
+          [549:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [549:simplify_intervals_incremental] Tangent vector
+          [549:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 549:simplify_intervals_incremental] end
+        [545:cut] No outside shape
+      [# 545:cut] end
+      [* 550:cut] Cutting shape #85
+        [550:cut] Manifold is split (1D)
+        [550:cut] Adding intersection shape point pair
+        [* 551:add] Adding shape
+          [551:add] ? manifold = point pair (-2.0000000000000004, -2.0000000000000004) .. ∞ 
+          [551:add] ? boundary = []
+          [551:add] ? id = 112
+        [# 551:add] end
+        [550:cut] ? intersection_shape = +#112
+        [550:cut] Simplifying inside boundary
+        [* 552:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [552:simplify_intervals_incremental] ? existing_intervals = [+#79]
+          [552:simplify_intervals_incremental] ? new_interval = +#112
+          [552:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 553:interval_result] On
+          [* 554:interval_result] Outside
+          [* 555:interval_result] Outside
+          [* 556:interval_result] On
+          [* 557:add] Adding shape
+            [557:add] ? manifold = point pair (-2.0000000000000018, -2.0000000000000018) .. (-0, -0, 2.0000000000000013)
+            [557:add] ? boundary = []
+            [557:add] ? id = 113
+          [# 557:add] end
+        [# 552:simplify_intervals_incremental] end
+        [550:cut] Adding inside shape
+        [* 558:add_subshape] Adding subshape
+          [558:add_subshape] ? old_shape = #85
+          [558:add_subshape] ? new_boundary = [+#113]
+          [558:add_subshape] creating new shape
+          [* 559:add] Adding shape
+            [559:add] ? manifold = 0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+            [559:add] ? boundary = [+#113]
+            [559:add] ? id = 114
+          [# 559:add] end
+        [# 558:add_subshape] end
+        [550:cut] Simplifying outside boundary
+        [* 560:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [560:simplify_intervals_incremental] ? existing_intervals = [+#79]
+          [560:simplify_intervals_incremental] ? new_interval = -#112
+          [560:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 561:interval_result] Outside
+          [* 562:interval_result] On
+          [* 563:interval_result] Inside
+          [* 564:interval_result] On
+        [# 560:simplify_intervals_incremental] end
+        [550:cut] Adding outside shape
+        [* 565:add_subshape] Adding subshape
+          [565:add_subshape] ? old_shape = #85
+          [565:add_subshape] ? new_boundary = [-#112]
+          [565:add_subshape] creating new shape
+          [* 566:add] Adding shape
+            [566:add] ? manifold = 0.4999999999999999 Ex + 0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+            [566:add] ? boundary = [-#112]
+            [566:add] ? id = 115
+          [# 566:add] end
+        [# 565:add_subshape] end
+      [# 550:cut] end
+      [544:cut] ? self_boundary_of_inside = [-#24, +#114]
+      [544:cut] ? self_boundary_of_outside = [+#115]
+      [544:cut] ? intersection_boundary = [+#111, -#112]
+      [544:cut] ? intersection_shape = None
+      [544:cut] Simplifying boundary of 1D intersection
+      [* 567:simplify_intervals] Simplifying intervals intersection
+        [567:simplify_intervals] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [567:simplify_intervals] ? interval = +#111
+        [* 568:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [568:simplify_intervals_incremental] ? existing_intervals = []
+          [568:simplify_intervals_incremental] ? new_interval = +#111
+          [568:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [568:simplify_intervals_incremental] Tangent vector
+          [568:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 568:simplify_intervals_incremental] end
+        [567:simplify_intervals] ? interval = -#112
+        [* 569:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [569:simplify_intervals_incremental] ? existing_intervals = []
+          [569:simplify_intervals_incremental] ? new_interval = -#112
+          [569:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 569:simplify_intervals_incremental] end
+        [567:simplify_intervals] ? simplified = [-#112]
+      [# 567:simplify_intervals] end
+      [544:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [544:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 570:add] Adding shape
+        [570:add] ? manifold = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [570:add] ? boundary = [-#112]
+        [570:add] ? id = 116
+      [# 570:add] end
+      [544:cut] Adding common boundary to inside and outside
+      [544:cut] Constructing inside shape
+      [* 571:add_subshape] Adding subshape
+        [571:add_subshape] ? old_shape = #86
+        [571:add_subshape] ? new_boundary = [-#24, +#114, +#116]
+        [571:add_subshape] creating new shape
+        [* 572:add] Adding shape
+          [572:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [572:add] ? boundary = [-#24, +#114, +#116]
+          [* 573:error] Error! Invalid polygon
+          [572:add] ? id = 117
+        [# 572:add] end
+      [# 571:add_subshape] end
+      [544:cut] Constructing outside shape
+      [* 574:add_subshape] Adding subshape
+        [574:add_subshape] ? old_shape = #86
+        [574:add_subshape] ? new_boundary = [+#115, -#116]
+        [574:add_subshape] creating new shape
+        [* 575:add] Adding shape
+          [575:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [575:add] ? boundary = [+#115, -#116]
+          [575:add] ? id = 118
+        [# 575:add] end
+      [# 574:add_subshape] end
+      [544:cut] ? inside = +#117
+      [544:cut] ? outside = +#118
+      [544:cut] ? intersection_shape = +#116
+    [# 544:cut] end
+    [* 576:cut] Cutting shape #89
+      [576:cut] Manifold is split (2D+)
+      [* 577:cut] Cutting shape #31
+        [577:cut] Manifold is split (1D)
+        [577:cut] Adding intersection shape point pair
+        [* 578:add] Adding shape
+          [578:add] ? manifold = point pair ∞  .. ∞ 
+          [578:add] ? boundary = []
+          [578:add] ? id = 119
+        [# 578:add] end
+        [577:cut] ? intersection_shape = +#119
+        [577:cut] Simplifying inside boundary
+        [* 579:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [579:simplify_intervals_incremental] ? existing_intervals = [+#30]
+          [579:simplify_intervals_incremental] ? new_interval = +#119
+          [579:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [579:simplify_intervals_incremental] Tangent vector
+          [579:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 579:simplify_intervals_incremental] end
+        [577:cut] Adding inside shape
+        [* 580:add_subshape] Adding subshape
+          [580:add_subshape] ? old_shape = #31
+          [580:add_subshape] ? new_boundary = [+#30]
+          [580:add_subshape] same as existing shape
+        [# 580:add_subshape] end
+        [577:cut] Simplifying outside boundary
+        [* 581:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [581:simplify_intervals_incremental] ? existing_intervals = [+#30]
+          [581:simplify_intervals_incremental] ? new_interval = -#119
+          [581:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [581:simplify_intervals_incremental] Tangent vector
+          [581:simplify_intervals_incremental] New interval contains nothing; returning empty set
+        [# 581:simplify_intervals_incremental] end
+        [577:cut] No outside shape
+      [# 577:cut] end
+      [* 582:cut] Cutting shape #88
+        [582:cut] Manifold is split (1D)
+        [582:cut] Adding intersection shape point pair
+        [* 583:add] Adding shape
+          [583:add] ? manifold = point pair ∞  .. (2.0000000000000004, -2.0000000000000004)
+          [583:add] ? boundary = []
+          [583:add] ? id = 120
+        [# 583:add] end
+        [582:cut] ? intersection_shape = +#120
+        [582:cut] Simplifying inside boundary
+        [* 584:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [584:simplify_intervals_incremental] ? existing_intervals = [+#81]
+          [584:simplify_intervals_incremental] ? new_interval = +#120
+          [584:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 585:interval_result] Outside
+          [* 586:interval_result] On
+          [* 587:interval_result] On
+          [* 588:interval_result] Outside
+          [* 589:add] Adding shape
+            [589:add] ? manifold = point pair (-0, -0, 2.0000000000000013) .. (2.0000000000000018, -2.0000000000000018)
+            [589:add] ? boundary = []
+            [589:add] ? id = 121
+          [# 589:add] end
+        [# 584:simplify_intervals_incremental] end
+        [582:cut] Adding inside shape
+        [* 590:add_subshape] Adding subshape
+          [590:add_subshape] ? old_shape = #88
+          [590:add_subshape] ? new_boundary = [+#121]
+          [590:add_subshape] creating new shape
+          [* 591:add] Adding shape
+            [591:add] ? manifold = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+            [591:add] ? boundary = [+#121]
+            [591:add] ? id = 122
+          [# 591:add] end
+        [# 590:add_subshape] end
+        [582:cut] Simplifying outside boundary
+        [* 592:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [592:simplify_intervals_incremental] ? existing_intervals = [+#81]
+          [592:simplify_intervals_incremental] ? new_interval = -#120
+          [592:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 593:interval_result] On
+          [* 594:interval_result] Outside
+          [* 595:interval_result] On
+          [* 596:interval_result] Inside
+        [# 592:simplify_intervals_incremental] end
+        [582:cut] Adding outside shape
+        [* 597:add_subshape] Adding subshape
+          [597:add_subshape] ? old_shape = #88
+          [597:add_subshape] ? new_boundary = [-#120]
+          [597:add_subshape] creating new shape
+          [* 598:add] Adding shape
+            [598:add] ? manifold = 0.4999999999999999 Ex + -0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+            [598:add] ? boundary = [-#120]
+            [598:add] ? id = 123
+          [# 598:add] end
+        [# 597:add_subshape] end
+      [# 582:cut] end
+      [576:cut] ? self_boundary_of_inside = [-#31, +#122]
+      [576:cut] ? self_boundary_of_outside = [+#123]
+      [576:cut] ? intersection_boundary = [+#119, -#120]
+      [576:cut] ? intersection_shape = None
+      [576:cut] Simplifying boundary of 1D intersection
+      [* 599:simplify_intervals] Simplifying intervals intersection
+        [599:simplify_intervals] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [599:simplify_intervals] ? interval = +#119
+        [* 600:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [600:simplify_intervals_incremental] ? existing_intervals = []
+          [600:simplify_intervals_incremental] ? new_interval = +#119
+          [600:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [600:simplify_intervals_incremental] Tangent vector
+          [600:simplify_intervals_incremental] New interval contains whole space; returning existing intervals
+        [# 600:simplify_intervals_incremental] end
+        [599:simplify_intervals] ? interval = -#120
+        [* 601:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [601:simplify_intervals_incremental] ? existing_intervals = []
+          [601:simplify_intervals_incremental] ? new_interval = -#120
+          [601:simplify_intervals_incremental] ? space = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 601:simplify_intervals_incremental] end
+        [599:simplify_intervals] ? simplified = [-#120]
+      [# 599:simplify_intervals] end
+      [576:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [576:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 602:add] Adding shape
+        [602:add] ? manifold = 0.4999999999999999 Ex + 0.4999999999999999 Ey + -2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [602:add] ? boundary = [-#120]
+        [602:add] ? id = 124
+      [# 602:add] end
+      [576:cut] Adding common boundary to inside and outside
+      [576:cut] Constructing inside shape
+      [* 603:add_subshape] Adding subshape
+        [603:add_subshape] ? old_shape = #89
+        [603:add_subshape] ? new_boundary = [-#31, +#122, +#124]
+        [603:add_subshape] creating new shape
+        [* 604:add] Adding shape
+          [604:add] ? manifold = hyperplane n=(0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [604:add] ? boundary = [-#31, +#122, +#124]
+          [* 605:error] Error! Invalid polygon
+          [604:add] ? id = 125
+        [# 604:add] end
+      [# 603:add_subshape] end
+      [576:cut] Constructing outside shape
+      [* 606:add_subshape] Adding subshape
+        [606:add_subshape] ? old_shape = #89
+        [606:add_subshape] ? new_boundary = [+#123, -#124]
+        [606:add_subshape] creating new shape
+        [* 607:add] Adding shape
+          [607:add] ? manifold = hyperplane n=(0.7071067811865476, 0, 0.7071067811865476) d=1.4142135623730954
+          [607:add] ? boundary = [+#123, -#124]
+          [607:add] ? id = 126
+        [# 607:add] end
+      [# 606:add_subshape] end
+      [576:cut] ? inside = +#125
+      [576:cut] ? outside = +#126
+      [576:cut] ? intersection_shape = +#124
+    [# 576:cut] end
+    [* 608:cut] Cutting shape #97
+      [608:cut] Manifold is split (2D+)
+      [* 609:cached_split_result] Using cached split result for -#67
+        [609:cached_split_result] ? result = NonFlush { inside: +#67, outside: <none>, intersection_shape: +#107 }
+      [# 609:cached_split_result] end
+      [* 610:cut] Cutting shape #94
+        [610:cut] Manifold is split (1D)
+        [610:cut] Adding intersection shape point pair
+        [* 611:add] Adding shape
+          [611:add] ? manifold = point pair ∞  .. (-0, -0, -2.0000000000000004)
+          [611:add] ? boundary = []
+          [611:add] ? id = 127
+        [# 611:add] end
+        [610:cut] ? intersection_shape = +#127
+        [610:cut] Simplifying inside boundary
+        [* 612:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [612:simplify_intervals_incremental] ? existing_intervals = [+#93]
+          [612:simplify_intervals_incremental] ? new_interval = +#127
+          [612:simplify_intervals_incremental] ? space = -0.9999999999999998 Ey + 2 ∞ yz
+          [* 613:interval_result] On
+          [* 614:interval_result] Inside
+          [* 615:interval_result] Inside
+          [* 616:interval_result] On
+        [# 612:simplify_intervals_incremental] end
+        [610:cut] No inside shape
+        [610:cut] Simplifying outside boundary
+        [* 617:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [617:simplify_intervals_incremental] ? existing_intervals = [+#93]
+          [617:simplify_intervals_incremental] ? new_interval = -#127
+          [617:simplify_intervals_incremental] ? space = -0.9999999999999998 Ey + 2 ∞ yz
+          [* 618:interval_result] Inside
+          [* 619:interval_result] On
+          [* 620:interval_result] Outside
+          [* 621:interval_result] On
+        [# 617:simplify_intervals_incremental] end
+        [610:cut] Adding outside shape
+        [* 622:add_subshape] Adding subshape
+          [622:add_subshape] ? old_shape = #94
+          [622:add_subshape] ? new_boundary = [+#93]
+          [622:add_subshape] same as existing shape
+        [# 622:add_subshape] end
+      [# 610:cut] end
+      [* 623:cut] Cutting shape #96
+        [623:cut] Manifold is split (1D)
+        [623:cut] Adding intersection shape point pair
+        [* 624:add] Adding shape
+          [624:add] ? manifold = point pair (-2.0000000000000004, -2.0000000000000004) .. ∞ 
+          [624:add] ? boundary = []
+          [624:add] ? id = 128
+        [# 624:add] end
+        [623:cut] ? intersection_shape = +#128
+        [623:cut] Simplifying inside boundary
+        [* 625:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [625:simplify_intervals_incremental] ? existing_intervals = [-#92]
+          [625:simplify_intervals_incremental] ? new_interval = +#128
+          [625:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 626:interval_result] On
+          [* 627:interval_result] Outside
+          [* 628:interval_result] On
+          [* 629:interval_result] Inside
+        [# 625:simplify_intervals_incremental] end
+        [623:cut] Adding inside shape
+        [* 630:add_subshape] Adding subshape
+          [630:add_subshape] ? old_shape = #96
+          [630:add_subshape] ? new_boundary = [+#128]
+          [630:add_subshape] creating new shape
+          [* 631:add] Adding shape
+            [631:add] ? manifold = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+            [631:add] ? boundary = [+#128]
+            [631:add] ? id = 129
+          [# 631:add] end
+        [# 630:add_subshape] end
+        [623:cut] Simplifying outside boundary
+        [* 632:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [632:simplify_intervals_incremental] ? existing_intervals = [-#92]
+          [632:simplify_intervals_incremental] ? new_interval = -#128
+          [632:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 633:interval_result] Outside
+          [* 634:interval_result] On
+          [* 635:interval_result] On
+          [* 636:interval_result] Outside
+          [* 637:add] Adding shape
+            [637:add] ? manifold = point pair (-0, -4.0000000000000036, -2.000000000000003) .. (-2, -2)
+            [637:add] ? boundary = []
+            [637:add] ? id = 130
+          [# 637:add] end
+        [# 632:simplify_intervals_incremental] end
+        [623:cut] Adding outside shape
+        [* 638:add_subshape] Adding subshape
+          [638:add_subshape] ? old_shape = #96
+          [638:add_subshape] ? new_boundary = [+#130]
+          [638:add_subshape] creating new shape
+          [* 639:add] Adding shape
+            [639:add] ? manifold = -0.4999999999999999 Ex + 0.4999999999999999 Ey + 2 ∞ xy + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+            [639:add] ? boundary = [+#130]
+            [639:add] ? id = 131
+          [# 639:add] end
+        [# 638:add_subshape] end
+      [# 623:cut] end
+      [608:cut] ? self_boundary_of_inside = [-#67, +#129]
+      [608:cut] ? self_boundary_of_outside = [+#94, +#131]
+      [608:cut] ? intersection_boundary = [+#107, -#127, -#128]
+      [608:cut] ? intersection_shape = None
+      [608:cut] Simplifying boundary of 1D intersection
+      [* 640:simplify_intervals] Simplifying intervals intersection
+        [640:simplify_intervals] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [640:simplify_intervals] ? interval = +#107
+        [* 641:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [641:simplify_intervals_incremental] ? existing_intervals = []
+          [641:simplify_intervals_incremental] ? new_interval = +#107
+          [641:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 641:simplify_intervals_incremental] end
+        [640:simplify_intervals] ? interval = -#127
+        [* 642:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [642:simplify_intervals_incremental] ? existing_intervals = [+#107]
+          [642:simplify_intervals_incremental] ? new_interval = -#127
+          [642:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [# 642:simplify_intervals_incremental] end
+        [640:simplify_intervals] ? interval = -#128
+        [* 643:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [643:simplify_intervals_incremental] ? existing_intervals = [+#107]
+          [643:simplify_intervals_incremental] ? new_interval = -#128
+          [643:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+          [* 644:interval_result] Outside
+          [* 645:interval_result] On
+          [* 646:interval_result] On
+          [* 647:interval_result] Outside
+          [* 648:add] Adding shape
+            [648:add] ? manifold = point pair (-0, -0, -2.0000000000000013) .. (-2.0000000000000018, -2.0000000000000018)
+            [648:add] ? boundary = []
+            [648:add] ? id = 132
+          [# 648:add] end
+        [# 643:simplify_intervals_incremental] end
+        [640:simplify_intervals] ? simplified = [+#132]
+      [# 640:simplify_intervals] end
+      [608:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [608:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 649:add] Adding shape
+        [649:add] ? manifold = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 0.4999999999999999 Ez + 1 ∞ xz + 1 ∞ yz
+        [649:add] ? boundary = [+#132]
+        [649:add] ? id = 133
+      [# 649:add] end
+      [608:cut] Adding common boundary to inside and outside
+      [608:cut] Constructing inside shape
+      [* 650:add_subshape] Adding subshape
+        [650:add_subshape] ? old_shape = #97
+        [650:add_subshape] ? new_boundary = [-#67, +#129, +#133]
+        [650:add_subshape] creating new shape
+        [* 651:add] Adding shape
+          [651:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+          [651:add] ? boundary = [-#67, +#129, +#133]
+          [* 652:error] Error! Invalid polygon
+          [651:add] ? id = 134
+        [# 651:add] end
+      [# 650:add_subshape] end
+      [608:cut] Constructing outside shape
+      [* 653:add_subshape] Adding subshape
+        [653:add_subshape] ? old_shape = #97
+        [653:add_subshape] ? new_boundary = [+#94, +#131, -#133]
+        [653:add_subshape] creating new shape
+        [* 654:add] Adding shape
+          [654:add] ? manifold = hyperplane n=(-0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+          [654:add] ? boundary = [+#94, +#131, -#133]
+          [654:add] ? id = 135
+        [# 654:add] end
+      [# 653:add_subshape] end
+      [608:cut] ? inside = +#134
+      [608:cut] ? outside = +#135
+      [608:cut] ? intersection_shape = +#133
+    [# 608:cut] end
+    [* 655:cut] Cutting shape #101
+      [655:cut] Manifold is split (2D+)
+      [* 656:cached_split_result] Using cached split result for -#70
+        [656:cached_split_result] ? result = NonFlush { inside: +#70, outside: <none>, intersection_shape: +#108 }
+      [# 656:cached_split_result] end
+      [* 657:cached_split_result] Using cached split result for -#94
+        [657:cached_split_result] ? result = NonFlush { inside: <none>, outside: +#94, intersection_shape: +#127 }
+      [# 657:cached_split_result] end
+      [* 658:cut] Cutting shape #100
+        [658:cut] Manifold is split (1D)
+        [658:cut] Adding intersection shape point pair
+        [* 659:add] Adding shape
+          [659:add] ? manifold = point pair ∞  .. (2.0000000000000004, -2.0000000000000004)
+          [659:add] ? boundary = []
+          [659:add] ? id = 136
+        [# 659:add] end
+        [658:cut] ? intersection_shape = +#136
+        [658:cut] Simplifying inside boundary
+        [* 660:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [660:simplify_intervals_incremental] ? existing_intervals = [+#92]
+          [660:simplify_intervals_incremental] ? new_interval = +#136
+          [660:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 661:interval_result] Outside
+          [* 662:interval_result] On
+          [* 663:interval_result] Inside
+          [* 664:interval_result] On
+        [# 660:simplify_intervals_incremental] end
+        [658:cut] Adding inside shape
+        [* 665:add_subshape] Adding subshape
+          [665:add_subshape] ? old_shape = #100
+          [665:add_subshape] ? new_boundary = [+#136]
+          [665:add_subshape] creating new shape
+          [* 666:add] Adding shape
+            [666:add] ? manifold = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+            [666:add] ? boundary = [+#136]
+            [666:add] ? id = 137
+          [# 666:add] end
+        [# 665:add_subshape] end
+        [658:cut] Simplifying outside boundary
+        [* 667:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [667:simplify_intervals_incremental] ? existing_intervals = [+#92]
+          [667:simplify_intervals_incremental] ? new_interval = -#136
+          [667:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 668:interval_result] On
+          [* 669:interval_result] Outside
+          [* 670:interval_result] Outside
+          [* 671:interval_result] On
+          [* 672:add] Adding shape
+            [672:add] ? manifold = point pair (2, -2) .. (-0, -4.0000000000000036, -2.000000000000003)
+            [672:add] ? boundary = []
+            [672:add] ? id = 138
+          [# 672:add] end
+        [# 667:simplify_intervals_incremental] end
+        [658:cut] Adding outside shape
+        [* 673:add_subshape] Adding subshape
+          [673:add_subshape] ? old_shape = #100
+          [673:add_subshape] ? new_boundary = [+#138]
+          [673:add_subshape] creating new shape
+          [* 674:add] Adding shape
+            [674:add] ? manifold = -0.4999999999999999 Ex + -0.4999999999999999 Ey + 2 ∞ xy + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+            [674:add] ? boundary = [+#138]
+            [674:add] ? id = 139
+          [# 674:add] end
+        [# 673:add_subshape] end
+      [# 658:cut] end
+      [655:cut] ? self_boundary_of_inside = [-#70, +#137]
+      [655:cut] ? self_boundary_of_outside = [-#94, +#139]
+      [655:cut] ? intersection_boundary = [+#108, +#127, -#136]
+      [655:cut] ? intersection_shape = None
+      [655:cut] Simplifying boundary of 1D intersection
+      [* 675:simplify_intervals] Simplifying intervals intersection
+        [675:simplify_intervals] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [675:simplify_intervals] ? interval = +#108
+        [* 676:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [676:simplify_intervals_incremental] ? existing_intervals = []
+          [676:simplify_intervals_incremental] ? new_interval = +#108
+          [676:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 676:simplify_intervals_incremental] end
+        [675:simplify_intervals] ? interval = +#127
+        [* 677:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [677:simplify_intervals_incremental] ? existing_intervals = [+#108]
+          [677:simplify_intervals_incremental] ? new_interval = +#127
+          [677:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [# 677:simplify_intervals_incremental] end
+        [675:simplify_intervals] ? interval = -#136
+        [* 678:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [678:simplify_intervals_incremental] ? existing_intervals = [+#108]
+          [678:simplify_intervals_incremental] ? new_interval = -#136
+          [678:simplify_intervals_incremental] ? space = -0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+          [* 679:interval_result] On
+          [* 680:interval_result] Outside
+          [* 681:interval_result] Outside
+          [* 682:interval_result] On
+          [* 683:add] Adding shape
+            [683:add] ? manifold = point pair (2.0000000000000018, -2.0000000000000018) .. (-0, -0, -2.0000000000000013)
+            [683:add] ? boundary = []
+            [683:add] ? id = 140
+          [# 683:add] end
+        [# 678:simplify_intervals_incremental] end
+        [675:simplify_intervals] ? simplified = [+#140]
+      [# 675:simplify_intervals] end
+      [655:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [655:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 684:add] Adding shape
+        [684:add] ? manifold = -0.4999999999999999 Ex + 0.4999999999999999 Ey + -0.4999999999999999 Ez + 1 ∞ xz + -1 ∞ yz
+        [684:add] ? boundary = [+#140]
+        [684:add] ? id = 141
+      [# 684:add] end
+      [655:cut] Adding common boundary to inside and outside
+      [655:cut] Constructing inside shape
+      [* 685:add_subshape] Adding subshape
+        [685:add_subshape] ? old_shape = #101
+        [685:add_subshape] ? new_boundary = [-#70, +#137, +#141]
+        [685:add_subshape] creating new shape
+        [* 686:add] Adding shape
+          [686:add] ? manifold = hyperplane n=(0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+          [686:add] ? boundary = [-#70, +#137, +#141]
+          [* 687:error] Error! Invalid polygon
+          [686:add] ? id = 142
+        [# 686:add] end
+      [# 685:add_subshape] end
+      [655:cut] Constructing outside shape
+      [* 688:add_subshape] Adding subshape
+        [688:add_subshape] ? old_shape = #101
+        [688:add_subshape] ? new_boundary = [-#94, +#139, -#141]
+        [688:add_subshape] creating new shape
+        [* 689:add] Adding shape
+          [689:add] ? manifold = hyperplane n=(0.7071067811865476, 0, -0.7071067811865476) d=1.4142135623730954
+          [689:add] ? boundary = [-#94, +#139, -#141]
+          [689:add] ? id = 143
+        [# 689:add] end
+      [# 688:add_subshape] end
+      [655:cut] ? inside = +#142
+      [655:cut] ? outside = +#143
+      [655:cut] ? intersection_shape = +#141
+    [# 655:cut] end
+    [* 690:cut] Cutting shape #103
+      [690:cut] Manifold is split (2D+)
+      [* 691:cached_split_result] Using cached split result for -#85
+        [691:cached_split_result] ? result = NonFlush { inside: +#114, outside: +#115, intersection_shape: +#112 }
+      [# 691:cached_split_result] end
+      [* 692:cached_split_result] Using cached split result for -#88
+        [692:cached_split_result] ? result = NonFlush { inside: +#122, outside: +#123, intersection_shape: +#120 }
+      [# 692:cached_split_result] end
+      [* 693:cached_split_result] Using cached split result for -#96
+        [693:cached_split_result] ? result = NonFlush { inside: +#129, outside: +#131, intersection_shape: +#128 }
+      [# 693:cached_split_result] end
+      [* 694:cached_split_result] Using cached split result for -#100
+        [694:cached_split_result] ? result = NonFlush { inside: +#137, outside: +#139, intersection_shape: +#136 }
+      [# 694:cached_split_result] end
+      [690:cut] ? self_boundary_of_inside = [-#114, -#122, -#129, -#137]
+      [690:cut] ? self_boundary_of_outside = [-#115, -#123, -#131, -#139]
+      [690:cut] ? intersection_boundary = [+#112, +#120, +#128, +#136]
+      [690:cut] ? intersection_shape = None
+      [690:cut] Simplifying boundary of 1D intersection
+      [* 695:simplify_intervals] Simplifying intervals intersection
+        [695:simplify_intervals] ? space = 0.9999999999999998 Ex + -2 ∞ xy
+        [695:simplify_intervals] ? interval = +#112
+        [* 696:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [696:simplify_intervals_incremental] ? existing_intervals = []
+          [696:simplify_intervals_incremental] ? new_interval = +#112
+          [696:simplify_intervals_incremental] ? space = 0.9999999999999998 Ex + -2 ∞ xy
+        [# 696:simplify_intervals_incremental] end
+        [695:simplify_intervals] ? interval = +#120
+        [* 697:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [697:simplify_intervals_incremental] ? existing_intervals = [+#112]
+          [697:simplify_intervals_incremental] ? new_interval = +#120
+          [697:simplify_intervals_incremental] ? space = 0.9999999999999998 Ex + -2 ∞ xy
+          [* 698:interval_result] Outside
+          [* 699:interval_result] On
+          [* 700:interval_result] On
+          [* 701:interval_result] Outside
+          [* 702:add] Adding shape
+            [702:add] ? manifold = point pair (-2.0000000000000004, -2.000000000000001) .. (2.0000000000000004, -2.000000000000001)
+            [702:add] ? boundary = []
+            [702:add] ? id = 144
+          [# 702:add] end
+        [# 697:simplify_intervals_incremental] end
+        [695:simplify_intervals] ? interval = +#128
+        [* 703:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [703:simplify_intervals_incremental] ? existing_intervals = [+#144]
+          [703:simplify_intervals_incremental] ? new_interval = +#128
+          [703:simplify_intervals_incremental] ? space = 0.9999999999999998 Ex + -2 ∞ xy
+          [* 704:interval_result] Inside
+          [* 705:interval_result] On
+          [* 706:interval_result] Outside
+          [* 707:interval_result] On
+        [# 703:simplify_intervals_incremental] end
+        [695:simplify_intervals] ? interval = +#136
+        [* 708:simplify_intervals_incremental] Adding simplified intersecting intervals
+          [708:simplify_intervals_incremental] ? existing_intervals = [+#144]
+          [708:simplify_intervals_incremental] ? new_interval = +#136
+          [708:simplify_intervals_incremental] ? space = 0.9999999999999998 Ex + -2 ∞ xy
+          [* 709:interval_result] On
+          [* 710:interval_result] Inside
+          [* 711:interval_result] On
+          [* 712:interval_result] Outside
+        [# 708:simplify_intervals_incremental] end
+        [695:simplify_intervals] ? simplified = [+#144]
+      [# 695:simplify_intervals] end
+      [690:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+      [690:cut] `intersection_shape` does not yet exist, but should be nonempty
+      [* 713:add] Adding shape
+        [713:add] ? manifold = 0.9999999999999998 Ex + -2 ∞ xy
+        [713:add] ? boundary = [+#144]
+        [713:add] ? id = 145
+      [# 713:add] end
+      [690:cut] Adding common boundary to inside and outside
+      [690:cut] Constructing inside shape
+      [* 714:add_subshape] Adding subshape
+        [714:add_subshape] ? old_shape = #103
+        [714:add_subshape] ? new_boundary = [-#114, -#122, -#129, -#137, +#145]
+        [714:add_subshape] creating new shape
+        [* 715:add] Adding shape
+          [715:add] ? manifold = hyperplane n=(0, -0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+          [715:add] ? boundary = [-#114, -#122, -#129, -#137, +#145]
+          [* 716:error] Error! Invalid polygon
+          [715:add] ? id = 146
+        [# 715:add] end
+      [# 714:add_subshape] end
+      [690:cut] Constructing outside shape
+      [* 717:add_subshape] Adding subshape
+        [717:add_subshape] ? old_shape = #103
+        [717:add_subshape] ? new_boundary = [-#115, -#123, -#131, -#139, -#145]
+        [717:add_subshape] creating new shape
+        [* 718:add] Adding shape
+          [718:add] ? manifold = hyperplane n=(0, -0.7071067811865476, 0.7071067811865476) d=1.4142135623730954
+          [718:add] ? boundary = [-#115, -#123, -#131, -#139, -#145]
+          [* 719:error] Error! Invalid polygon
+          [718:add] ? id = 147
+        [# 718:add] end
+      [# 717:add_subshape] end
+      [690:cut] ? inside = +#146
+      [690:cut] ? outside = +#147
+      [690:cut] ? intersection_shape = +#145
+    [# 690:cut] end
+    [496:cut] ? self_boundary_of_inside = [+#82, +#109, +#117, +#125, +#134, +#142, +#146]
+    [496:cut] ? self_boundary_of_outside = [+#110, +#118, +#126, +#135, +#143, +#147]
+    [496:cut] ? intersection_boundary = [-#116, -#124, -#133, -#141, -#145]
+    [496:cut] ? intersection_shape = None
+    [496:cut] `shape ∩ boundary(cut)` is nonempty (case 2)
+    [496:cut] `intersection_shape` does not yet exist, but should be nonempty
+    [* 720:add] Adding shape
+      [720:add] ? manifold = hyperplane n=(0, -0.7071067811865476, -0.7071067811865476) d=1.4142135623730954
+      [720:add] ? boundary = [-#116, -#124, -#133, -#141, -#145]
+      [* 721:error] Error! Invalid polygon
+      [720:add] ? id = 148
+    [# 720:add] end
+    [496:cut] Adding common boundary to inside and outside
+    [496:cut] Constructing inside shape
+    [* 722:add_subshape] Adding subshape
+      [722:add_subshape] ? old_shape = #104
+      [722:add_subshape] ? new_boundary = [+#82, +#109, +#117, +#125, +#134, +#142, +#146, +#148]
+      [722:add_subshape] creating new shape
+      [* 723:add] Adding shape
+        [723:add] ? manifold = whole space 1 Exyz
+        [723:add] ? boundary = [+#82, +#109, +#117, +#125, +#134, +#142, +#146, +#148]
+        [723:add] ? id = 149
+      [# 723:add] end
+    [# 722:add_subshape] end
+    [496:cut] Constructing outside shape
+    [* 724:add_subshape] Adding subshape
+      [724:add_subshape] ? old_shape = #104
+      [724:add_subshape] ? new_boundary = [+#110, +#118, +#126, +#135, +#143, +#147, -#148]
+      [724:add_subshape] creating new shape
+      [* 725:add] Adding shape
+        [725:add] ? manifold = whole space 1 Exyz
+        [725:add] ? boundary = [+#110, +#118, +#126, +#135, +#143, +#147, -#148]
+        [725:add] ? id = 150
+      [# 725:add] end
+    [# 724:add_subshape] end
+    [496:cut] ? inside = +#149
+    [496:cut] ? outside = +#150
+    [496:cut] ? intersection_shape = +#148
+  [# 496:cut] end
+  [495:cut_all] Adding inside shape +#149 as root
+  [495:cut_all] Ignoring outside shape +#150
+[# 495:cut_all] end

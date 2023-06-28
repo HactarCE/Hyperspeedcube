@@ -15,7 +15,7 @@ pub struct PuzzleView {
     rect: egui::Rect,
     pub render_engine: RenderEngine,
 
-    pub overlay: Vec<(Overlay, f32)>,
+    pub overlay: Vec<(Overlay, f32, egui::Color32)>,
 }
 impl PuzzleView {
     pub(crate) fn new(gfx: &GraphicsState, egui_renderer: &mut egui_wgpu::Renderer) -> Self {
@@ -96,20 +96,20 @@ impl PuzzleView {
             p.y *= egui_rect.size().y / 2.0 / 1.5;
             Some(egui_rect.center() + egui::vec2(p.x, -p.y))
         };
-        for (overlay, size) in &self.overlay {
+        for (overlay, size, color) in &self.overlay {
+            let color = *color;
             // IIFE to mimic try_block
             let _ = (|| -> Option<()> {
                 match overlay {
-                    Overlay::Point(p) => ui.painter().circle_filled(
-                        transform_point(p)?,
-                        5.0 * size,
-                        egui::Color32::BLUE,
-                    ),
+                    Overlay::Point(p) => {
+                        ui.painter()
+                            .circle_filled(transform_point(p)?, 5.0 * size, color)
+                    }
                     Overlay::Line(p1, p2) => ui.painter().line_segment(
                         [transform_point(p1)?, transform_point(p2)?],
                         egui::Stroke {
                             width: 4.0 * size,
-                            color: egui::Color32::LIGHT_GREEN,
+                            color,
                         },
                     ),
                     Overlay::Arrow(p1, p2) => ui.painter().arrow(
@@ -117,7 +117,7 @@ impl PuzzleView {
                         transform_point(p2)? - transform_point(p1)?,
                         egui::Stroke {
                             width: 4.0 * size,
-                            color: egui::Color32::LIGHT_BLUE,
+                            color,
                         },
                     ),
                 }

@@ -508,6 +508,16 @@ impl Blade {
             ])
         }
     }
+    pub fn point_pair_to_tangent_vector(&self) -> Option<(Point, Vector)> {
+        let [a, b] = self.point_pair_to_points()?;
+        approx_eq(&a, &b).then(|| {
+            let ndim = self.ndim();
+            let vector = (self.opns_to_ipns(ndim) ^ Blade::NO)
+                .ipns_to_opns(ndim)
+                .to_vector();
+            (a, vector)
+        })
+    }
 
     /// Returns the tangent of `self` at a point. If `self` is a circle, returns
     /// a tangent vector (i.e., a 2-blade).

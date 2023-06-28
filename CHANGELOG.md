@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Rotations are no longer twists
 - Renamed "Realign puzzle on release" to "Snap puzzle on release"
 - 4D FOV now keeps W=0 plane fixed instead of W=1
+- Menu buttons (file, edit, etc.) collapse into one menu button when there's not enough space (such as on mobile)
 
 ### Removed
 

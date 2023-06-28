@@ -1,0 +1,69 @@
+fn where_is_shape_relative_to_manifold(
+    &self,
+    shape: ShapeId,
+    manifold: &M,
+) -> Result<ManifoldWhichSide> {
+    let mut is_any_inside = false;
+    let mut is_any_outside = false;
+    match self[shape].manifold.split(manifold, &self.space)? {
+        ManifoldSplit::Flush(_) => (),
+        ManifoldSplit::Inside => is_any_inside = true,
+        ManifoldSplit::Outside => is_any_outside = true,
+        ManifoldSplit::Split {
+            intersection_manifold,
+        } => {
+            if self.shape_intersects_manifold(shape, &intersection_manifold) {
+                is_any_inside = true;
+                is_any_outside = true;
+            } else {
+                if let Some(boundary_elem) = self[shape].boundary.iter().next() {
+                    match self[boundary_elem.id]
+                        .manifold
+                        .split(manifold, &self.space)?
+                        * boundary_elem.sign
+                    {
+                        ManifoldSplit::Flush(sign) => match sign {
+                            Some(sign) => match sign {
+                                Sign::Pos => is_any_inside = true,
+                                Sign::Neg => is_any_outside = true,
+                            },
+                            None => todo!("ahhhhhhhhhhhhh"),
+                        },
+                        ManifoldSplit::Inside => is_any_inside = true,
+                        ManifoldSplit::Outside => is_any_outside = true,
+                        ManifoldSplit::Split {
+                            intersection_manifold,
+                        } => self.where_is_shape_relative_to_manifold(boundary_elem, manifold),
+                    }
+                }
+            }
+        }
+    }
+
+    let mut result = self[shape].manifold.which_side(manifold, &self.space)?;
+    if result.is_any_inside && result.is_any_outside {
+        self[shape]
+            .boundary
+            .iter()
+            .map(|boundary_elem| self.where_is_shape_relative_to_manifold(boundary_elem, manifold))
+            .try_reduce(|a, b| Ok(a? | b?))
+            .map(|boundary_results| boundary_results.unwrap_or(result))
+    } else {
+        Ok(result)
+    }
+}
+
+// /// Returns whether `manifold` (which is assumed to be flush with the manifold of `shape`) intersects the interior `shape`.
+// fn shape_intersects_manifold (&self, shape: ShapeId, manifold: &M) -> Result<bool> {
+//     let shape_manifold = &self[shape].manifold;
+//     for boundary_elem in self[shape].boundary.iter() {
+//         let boundary_elem_manifold = &self[boundary_elem.id].manifold;
+//         let which_side =
+//             manifold.which_side(boundary_elem_manifold, shape_manifold)? * boundary_elem.sign;
+//         if which_side.is_any_outside {
+//             return Ok(false);
+//         }
+//     }
+//     Ok(true)
+
+// }

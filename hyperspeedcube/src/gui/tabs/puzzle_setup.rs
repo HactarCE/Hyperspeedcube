@@ -20,8 +20,8 @@ impl Default for PuzzleSetup {
     fn default() -> Self {
         let mut ret = Self {
             ndim: 3,
-            schlafli: "5,2".to_string(),
-            seeds: vec![vector![0.0, 0.0, 1.0], vector![0.0, 1.0, 0.0]],
+            schlafli: "4,2".to_string(),
+            seeds: vec![vector![0.0, 1.0, 1.0]],
             do_twist_cuts: false,
             cut_depth: 0.0,
             ignore_errors: false,
