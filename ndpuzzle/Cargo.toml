@@ -25,6 +25,7 @@ parking_lot = "0.12.1"
 rand = "0.8.5"
 rayon = "1.7.0"
 regex = "1.6.0"
+rlua = "0.19.5"
 serde = { version = "1.0.144", features = ["derive"] }
 serde_yaml = "0.8.23"
 slab = "0.4.7"
