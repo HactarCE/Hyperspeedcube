@@ -17,7 +17,7 @@ mod log {
     use tinyset::{Fits64, Set64};
 
     #[derive(Debug, Default, Clone)]
-    pub struct ShapeConstructionLog;
+    pub(super) struct ShapeConstructionLog;
     impl fmt::Display for ShapeConstructionLog {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "shape construction logging is disabled in this build")
@@ -33,7 +33,7 @@ mod log {
     impl EventGuard {
         pub fn log(&self, _msg: impl fmt::Display) {}
         pub fn log_value(&self, _var_name: &str, _value: impl fmt::Display) {}
-        pub fn log_set64<T: fmt::Display>(&self, _var_name: &str, _value: &Set64<T>) {}
+        pub fn log_set64<T: fmt::Display + Fits64>(&self, _var_name: &str, _value: &Set64<T>) {}
         pub fn log_option(&self, _var_name: &str, _value: Option<impl fmt::Display>) {}
     }
 }
