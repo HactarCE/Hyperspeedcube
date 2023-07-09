@@ -11,7 +11,7 @@ use anyhow::{bail, ensure, Context, Result};
 use itertools::Itertools;
 use slab::Slab;
 use std::fmt;
-use std::ops::{Index, Neg};
+use std::ops::{Index, Mul, Neg};
 use tinyset::Set64;
 
 use super::log::ShapeConstructionLog;
@@ -456,65 +456,69 @@ impl<M: Manifold> ShapeArena<M> {
                 ev.log_set64("intersection_boundary", &intersection_boundary);
                 ev.log_option("intersection_shape", intersection_shape);
 
-                if intersection_manifold.ndim()? == 1 {
-                    ev.log("Simplifying boundary of 1D intersection");
-                    intersection_boundary = self
-                        .simplify_intervals_intersection(
-                            intersection_boundary.iter(),
-                            &intersection_manifold,
-                        )
-                        .context("error simplifying boundary of 1D intersection")?
-                        .unwrap_or_else(Set64::new);
-                }
-
                 let mut any_inside = true;
                 let mut any_outside = true;
 
-                // Is `shape ∩ boundary(cut)` (`intersection_shape`) nonempty?
-                let is_intersection_nonempty = if intersection_shape.is_some() {
-                    // If `intersection_shape` already exists, it is obviously
-                    // nonempty.
+                if let Some(shape) = &mut intersection_shape {
                     ev.log("`shape ∩ boundary(cut)` is nonempty (case 1)");
-                    true
-                } else if !intersection_boundary.is_empty() {
-                    // `boundary(shape ∩ boundary(cut))` is non-empty; in other
-                    // words, `shape ∩ boundary(cut)` has a boundary.
-                    ev.log("`shape ∩ boundary(cut)` is nonempty (case 2)");
-                    true
-                    // If `shape ∩ boundary(cut)` has no boundary, then it is
-                    // either empty or the whole cut manifold (hence the next
-                    // two cases).
-                } else if self.shape_completely_contains_manifold(shape, &intersection_manifold)? {
-                    // It is the whole manifold: `shape ∩ boundary(cut) ⊆ shape`
-                    ev.log("`shape ∩ boundary(cut)` is nonempty (case 3)");
-                    true
-                } else {
-                    // None of the other conditions are met, so `shape ∩
-                    // boundary(cut)` is empty.
-                    ev.log("`shape ∩ boundary(cut)` is empty (case 4)");
-                    false
-                };
 
-                if let Some(shape) = intersection_shape {
                     // There already exists an intersection shape, so either
                     // `shape ∩ cut` is empty or `shape ∩ ~cut` is empty.
-                    ev.log_value("intersection_shape", shape);
+                    ev.log_value("intersection_shape", *shape);
                     let sign = self
-                        .sign_difference(shape, &intersection_manifold)?
+                        .sign_difference(*shape, &intersection_manifold)?
                         .context(
                             "manifold of intersection shape does \
                              not match intersection manifold",
                         )?;
+                    *shape = *shape * sign;
                     match sign {
                         Sign::Pos => any_outside = false,
                         Sign::Neg => any_inside = false,
                     }
-                } else if is_intersection_nonempty {
-                    ev.log("`intersection_shape` does not yet exist, but should be nonempty");
+                } else {
+                    if intersection_manifold.ndim()? == 1 {
+                        ev.log("Simplifying boundary of 1D intersection");
+                        intersection_boundary = self
+                            .simplify_intervals_intersection(
+                                intersection_boundary.iter(),
+                                &intersection_manifold,
+                            )
+                            .context("error simplifying boundary of 1D intersection")?
+                            .unwrap_or_else(Set64::new);
+                    }
 
-                    // Construct the shape that is `shape ∩ boundary(cut)`.
-                    intersection_shape =
-                        Some(self.add(Shape::new(intersection_manifold, intersection_boundary))?);
+                    // Is `shape ∩ boundary(cut)` (`intersection_shape`) nonempty?
+
+                    let is_intersection_nonempty = if !intersection_boundary.is_empty() {
+                        // `boundary(shape ∩ boundary(cut))` is non-empty; in other
+                        // words, `shape ∩ boundary(cut)` has a boundary.
+                        ev.log("`shape ∩ boundary(cut)` is nonempty (case 2)");
+                        true
+                        // If `shape ∩ boundary(cut)` has no boundary, then it is
+                        // either empty or the whole cut manifold (hence the next
+                        // two cases).
+                    } else if self
+                        .shape_completely_contains_manifold(shape, &intersection_manifold)?
+                    {
+                        // It is the whole manifold: `shape ∩ boundary(cut) ⊆ shape`
+                        ev.log("`shape ∩ boundary(cut)` is nonempty (case 3)");
+                        true
+                    } else {
+                        // None of the other conditions are met, so `shape ∩
+                        // boundary(cut)` is empty.
+                        ev.log("`shape ∩ boundary(cut)` is empty (case 4)");
+                        false
+                    };
+
+                    if is_intersection_nonempty {
+                        ev.log("`intersection_shape` does not yet exist, but should be nonempty");
+
+                        // Construct the shape that is `shape ∩ boundary(cut)`.
+                        intersection_shape = Some(
+                            self.add(Shape::new(intersection_manifold, intersection_boundary))?,
+                        );
+                    }
                 }
 
                 // Is `shape ∩ boundary(cut)` nonempty?
@@ -672,16 +676,16 @@ impl<M: Manifold> ShapeArena<M> {
                 .tangent_manifold(&a)?
                 .relative_orientation(tangent_vector_manifold)
                 .context("failed to construct tangent space equivalent to point pair")?;
-            match -new_interval.sign * tangent_vector_orientation {
+            match new_interval.sign * tangent_vector_orientation {
                 Sign::Pos => {
-                    ev.log("New interval contains nothing; returning empty set");
-                    // The new interval contains nothing and so the result is empty.
-                    return Ok(None);
-                }
-                Sign::Neg => {
                     ev.log("New interval contains whole space; returning existing intervals");
                     // The new interval contains the whole space and so has no effect.
                     return Ok(Some(existing_intervals.clone()));
+                }
+                Sign::Neg => {
+                    ev.log("New interval contains nothing; returning empty set");
+                    // The new interval contains nothing and so the result is empty.
+                    return Ok(None);
                 }
             }
         }
@@ -705,6 +709,20 @@ impl<M: Manifold> ShapeArena<M> {
             }
         }
         simplified.insert(new_interval);
+
+        // Check that all points are unique.
+        if cfg!(debug_assertions) {
+            let mut verts = simplified
+                .iter()
+                .flat_map(|s| self.shape_to_point_pair(s).unwrap())
+                .collect_vec();
+            while let Some(v1) = verts.pop() {
+                for v2 in &verts {
+                    assert!(!approx_eq(&v1, v2))
+                }
+            }
+        }
+
         Ok(Some(simplified))
     }
     /// If two intervals (including their boundaries) intersect at all, retuns
@@ -722,6 +740,7 @@ impl<M: Manifold> ShapeArena<M> {
 
         if approx_eq(&a, &p) && approx_eq(&b, &q) {
             // The intervals are the same.
+            self.log.event("merge_int", "same");
             return Ok(MergedInterval::Old(ab));
         }
 
@@ -937,6 +956,16 @@ impl Neg for ShapeSplit<ShapeRef> {
         }
 
         self
+    }
+}
+impl Mul<Sign> for ShapeRef {
+    type Output = ShapeRef;
+
+    fn mul(self, rhs: Sign) -> Self::Output {
+        match rhs {
+            Sign::Pos => self,
+            Sign::Neg => -self,
+        }
     }
 }
 

@@ -23,7 +23,7 @@ pub use cga_euclidean::EuclideanCgaManifold;
 /// manifold, but I'm not sure so I listed them out just in case.
 pub trait Manifold: fmt::Debug + fmt::Display + Clone + Neg<Output = Self> {
     /// Point in the space.
-    type Point: Clone + AbsDiffEq<Epsilon = Float>;
+    type Point: fmt::Debug + Clone + AbsDiffEq<Epsilon = Float>;
 
     /// Returns the number of dimensions of the manifold.
     ///
@@ -64,12 +64,6 @@ pub trait Manifold: fmt::Debug + fmt::Display + Clone + Neg<Output = Self> {
 
         if self.ndim()? == 1 && (is_any_inside != is_any_outside) {
             if let Some(intersection_manifold) = self.tangent_intersect(cut, space)? {
-                let intersection_manifold = if is_any_inside || true {
-                    intersection_manifold.flip()?
-                } else {
-                    intersection_manifold
-                };
-                println!("tangent time! {intersection_manifold}. {is_any_inside}");
                 return Ok(ManifoldSplit::Split {
                     intersection_manifold,
                 });

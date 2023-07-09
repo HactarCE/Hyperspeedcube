@@ -524,7 +524,11 @@ impl Blade {
     pub fn opns_tangent_at_point(&self, point: impl ToConformalPoint) -> Blade {
         let point = point.to_normalized_1blade();
         let ndim = std::cmp::max(self.ndim(), point.ndim());
-        (self.opns_to_ipns(ndim) ^ point).ipns_to_opns(ndim)
+
+        // I'm not sure exactly why the sign flip is necessary, but it is.
+        let sign = if ndim & 1 == 0 { Sign::Pos } else { Sign::Neg };
+
+        (self.opns_to_ipns(ndim) ^ point).ipns_to_opns(ndim) * sign.to_float()
     }
 
     /// Returns the scale factor between `self` and `other` if they differ by a
