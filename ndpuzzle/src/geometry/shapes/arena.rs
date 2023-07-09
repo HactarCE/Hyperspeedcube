@@ -108,24 +108,30 @@ impl<M: Manifold> ShapeArena<M> {
         }
 
         // Check that polygons are topologically valid.
-        if ndim == 2 {
-            let mut points = vec![];
+        if cfg!(debug_assertions) && ndim == 2 {
+            let mut starting_points = vec![];
+            let mut ending_points = vec![];
             for edge in shape.boundary.iter() {
                 for point_pair in self[edge.id].boundary.iter() {
-                    for p in self.shape_to_point_pair(point_pair)? {
-                        match points.iter().find_position(|q| approx_eq(&p, q)) {
-                            Some((i, _)) => {
-                                points.remove(i);
-                            }
-                            None => points.push(p),
+                    let [a, b] = self.shape_to_point_pair(point_pair * edge.sign)?;
+
+                    match ending_points.iter().find_position(|p| approx_eq(&a, p)) {
+                        Some((i, _)) => {
+                            ending_points.remove(i);
                         }
-                    }
+                        None => starting_points.push(a),
+                    };
+                    match starting_points.iter().find_position(|p| approx_eq(&b, p)) {
+                        Some((i, _)) => {
+                            starting_points.remove(i);
+                        }
+                        None => ending_points.push(b),
+                    };
                 }
             }
-            if !points.is_empty() {
+            if !starting_points.is_empty() || !ending_points.is_empty() {
                 self.log.event("error", "Error! Invalid polygon");
-                // self.dump_log_file();
-                // bail!("error! invalid polygon");
+                bail!("error! invalid polygon");
             }
         }
 
