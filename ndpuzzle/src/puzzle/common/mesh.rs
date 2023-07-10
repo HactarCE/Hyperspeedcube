@@ -216,7 +216,7 @@ impl Mesh {
 
         ensure!(!mesh.is_empty(), "empty mesh!");
 
-        println!("{mesh:?}");
+        // println!("{mesh:?}");
         Ok(mesh)
     }
 
