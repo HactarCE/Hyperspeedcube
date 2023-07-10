@@ -19,9 +19,13 @@ pub struct PuzzleSetup {
 impl Default for PuzzleSetup {
     fn default() -> Self {
         let mut ret = Self {
-            ndim: 3,
-            schlafli: "4,2".to_string(),
-            seeds: vec![vector![0.0, 1.0, 1.0]],
+            ndim: 4,
+            schlafli: "3,4,2".to_string(),
+            seeds: vec![vector![0.0, 0.0, 1.0, 0.0], vector![0.0, 0.0, 0.0, 1.0]],
+            //  schlafli: "5,2".to_string(),
+            // seeds: vec![vector![0.0, 1.0, 0.0], vector![0.0, 0.0, 1.0]],
+            // schlafli: "3,4".to_string(),
+            // seeds: vec![vector![0.0, 0.0, 1.0]],
             do_twist_cuts: false,
             cut_depth: 0.0,
             ignore_errors: false,
@@ -195,21 +199,28 @@ impl PuzzleSetup {
     ) -> Result<ShapeArena<EuclideanCgaManifold>> {
         let mut arena = ShapeArena::new_euclidean_cga(self.ndim);
 
-        for step in &self.construction_steps[..num_steps] {
-            match step {
-                ConstructStep::CarvePlane {
-                    normal,
-                    distance,
-                    label,
-                } => arena.carve_plane(normal, *distance, *label)?,
+        let result = || -> anyhow::Result<()> {
+            for step in &self.construction_steps[..num_steps] {
+                match step {
+                    ConstructStep::CarvePlane {
+                        normal,
+                        distance,
+                        label,
+                    } => arena.carve_plane(normal, *distance, *label)?,
 
-                ConstructStep::SlicePlane { normal, distance } => {
-                    arena.slice_plane(normal, *distance)?
+                    ConstructStep::SlicePlane { normal, distance } => {
+                        arena.slice_plane(normal, *distance)?
+                    }
                 }
             }
-        }
+
+            Ok(())
+        }();
 
         arena.dump_log_file();
+
+        // println!("{result:?}");
+        result?;
 
         self.num_steps_executed = num_steps;
         Ok(arena)
