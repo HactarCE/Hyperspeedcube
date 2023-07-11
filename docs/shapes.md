@@ -18,7 +18,7 @@ So we have four basis vectors: $1$, $x$, $y$, and $z$. But I told you 3D VGA has
 
 ### Geometric product
 
-(From now on, assume that letters $a$, $b$, $c$, and $d$ represent arbitrary multivectors.)
+(From now on, assume that letters $a$, $b$, $c$, and $d$ represent arbitrary vectors, and the letters $A$, $B$, $C$, and $D$ represent arbitrary multivectors.)
 
 Using the **geometric product**, of course! The geometric product is how we generalize multiplication to work on multivectors and we write it using ordinary multiplication, so $ab$ is the geometric product of $a$ and $b$. For scalars, it does what you expect. The geometric product has some nice properties:
 
@@ -56,12 +56,24 @@ But what do all these components actually represent? Well just like the vector $
 
 It's time for some new terminology:
 
-- The **grade** of a multivector is the number of letters each component has. A scalar has grade 0, vector has grade 1, a bivector has grade 2, a trivector has grade 3, etc.
+- The **grade** of a multivector is the number of letters each component has. A scalar has grade 0, a vector has grade 1, a bivector has grade 2, a trivector has grade 3, etc.
 - A **blade** is a multivector whose components all have the same grade.
+
+To get a blade from a multivector, you can **grade-project** it, which extracts all the components of a particular grade. The projection of $a$ into grade $r$ is written $\langle a \rangle_r$
+
+Most of the time, all the multivectors we see will be blades. The only exception to this rule is rotors, which we'll get to later.
 
 ### Outer product (wedge)
 
+The outer product of $a$ and $b$ is written $a \wedge b$.
+
+When computing the geometric product of two multivectors, you get a lot of different components.
+
+TODO: write more
+
 ### Inner product (dot)
+
+TODO: write more
 
 ### Rotors
 
