@@ -33,10 +33,10 @@ impl AppUi {
             0.70,
             vec![
                 Tab::PuzzleSetup(PuzzleSetup::default()),
-                Tab::ViewSettings,
                 Tab::PolytopeTree(PolytopeTree::default()),
             ],
         );
+        dock_tree.split_below(right, 0.5, vec![Tab::ViewSettings]);
         AppUi { dock_tree }
     }
 

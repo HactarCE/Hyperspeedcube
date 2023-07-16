@@ -46,7 +46,7 @@ impl Default for ViewParams {
             rot: Isometry::ident(),
             zoom: 0.3,
 
-            facet_shrink: 0.25,
+            facet_shrink: 0.0,
             sticker_shrink: 0.0,
             piece_explode: 0.25,
 
