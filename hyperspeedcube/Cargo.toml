@@ -1,6 +1,6 @@
 [package]
 name = "hyperspeedcube"
-version = "2.0.0-dev"
+version = "2.0.0-dev-pre1"
 authors = ["HactarCE"]
 edition = "2021"
 rust-version = "1.68"
