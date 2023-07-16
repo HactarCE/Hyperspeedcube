@@ -99,7 +99,7 @@ jobs:
       - name: Make app
         run: cd hyperspeedcube && cargo bundle --release
       - name: Make tarball
-        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz target/release/bundle/osx/Hyperspeedcube.app
+        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz -C target/release/bundle/osx Hyperspeedcube.app
       - name: Upload app
         uses: actions/upload-artifact@v2
         with:
