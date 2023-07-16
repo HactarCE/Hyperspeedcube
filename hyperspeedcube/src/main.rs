@@ -142,7 +142,7 @@ async fn run() {
     let mut egui_renderer = egui_wgpu::Renderer::new(&gfx.device, gfx.config.format, None, 1);
 
     // Initialize UI.
-    let mut ui = AppUi::new(&gfx, &mut egui_renderer);
+    let mut ui = AppUi::new(&mut egui_renderer, &mut app);
 
     #[cfg(target_arch = "wasm32")]
     let mut web_workarounds = web_workarounds::WebWorkarounds::new(&event_loop, &window);

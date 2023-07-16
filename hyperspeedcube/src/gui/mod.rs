@@ -12,19 +12,18 @@ mod menu_bar;
 mod tabs;
 
 pub use crate::app::App;
-pub use tabs::{PuzzleSetup, PuzzleView, Tab,PolytopeTree};
+pub use tabs::{PolytopeTree, PuzzleSetup, PuzzleView, Tab};
 
 pub struct AppUi {
     dock_tree: egui_dock::Tree<Tab>,
 }
 
 impl AppUi {
-    pub(crate) fn new(
-        gfx: &crate::render::GraphicsState,
-        egui_renderer: &mut egui_wgpu::Renderer,
-    ) -> Self {
+    pub(crate) fn new(egui_renderer: &mut egui_wgpu::Renderer, app: &mut App) -> Self {
+        let puzzle_view = Arc::new(Mutex::new(PuzzleView::new(&app.gfx, egui_renderer)));
+        app.active_puzzle_view = Arc::downgrade(&puzzle_view);
         let mut dock_tree = egui_dock::Tree::new(vec![
-            Tab::PuzzleView(Arc::new(Mutex::new(PuzzleView::new(gfx, egui_renderer)))),
+            Tab::PuzzleView(puzzle_view),
             // Tab::Puzzle("3x3x3x3".to_string()),
             // Tab::Puzzle("3x3x3".to_string()),
             // Tab::Puzzle("Curvy Copter".to_string()),

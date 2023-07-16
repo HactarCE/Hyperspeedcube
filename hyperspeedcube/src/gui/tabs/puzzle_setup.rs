@@ -15,6 +15,8 @@ pub struct PuzzleSetup {
     construction_steps: Vec<ConstructStep>,
     num_steps_executed: usize,
     error_string: Option<String>,
+
+    first_frame: bool,
 }
 impl Default for PuzzleSetup {
     fn default() -> Self {
@@ -26,13 +28,15 @@ impl Default for PuzzleSetup {
             // seeds: vec![vector![0.0, 1.0, 0.0], vector![0.0, 0.0, 1.0]],
             // schlafli: "3,4".to_string(),
             // seeds: vec![vector![0.0, 0.0, 1.0]],
-            do_twist_cuts: false,
+            do_twist_cuts: true,
             cut_depth: 0.0,
             ignore_errors: false,
 
             construction_steps: vec![],
             num_steps_executed: 0,
             error_string: None,
+
+            first_frame: true,
         };
 
         let result = ret.recompute_steps();
@@ -109,7 +113,8 @@ impl PuzzleSetup {
         ui.add_enabled_ui(active_view.is_some(), |ui| {
             ui.checkbox(&mut self.ignore_errors, "Ignore errors");
 
-            if ui.button("Generate!").clicked() {
+            if ui.button("Generate!").clicked() || self.first_frame {
+                self.first_frame = false;
                 new_shape = Some(self.try_generate_mesh());
             }
             if let Some(s) = &self.error_string {
@@ -163,6 +168,11 @@ impl PuzzleSetup {
         let mut seen = VectorHashMap::new();
         for elem in g.elements() {
             for seed in &self.seeds {
+                // Ignore zero vectors
+                if *seed == vector![] {
+                    continue;
+                }
+
                 let v = g[elem].transform_vector(seed);
                 if seen.insert(v.clone(), ()).is_none() {
                     self.construction_steps.push(ConstructStep::CarvePlane {
