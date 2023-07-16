@@ -69,8 +69,8 @@ impl PuzzleSetup {
                         (3, "3,4", vec![vector![0.0, 0.0, 1.0]], 0.5),
                     ),
                     (
-                        ("icosahedron {3,5}", "FTI"),
-                        (3, "3,5", vec![vector![0.0, 0.0, 1.0]], 0.5),
+                        ("icosahedron {3,5}", "deep-cut FTI"),
+                        (3, "3,5", vec![vector![0.0, 0.0, 1.0]], 0.71),
                     ),
                     (
                         ("rhombicuboctahedron", "(with cuts)"),
