@@ -416,7 +416,7 @@ fn nonzero_wedge_with_arbitrary_point(opns_obj: &Blade) -> Result<Blade> {
         .chain([Blade::NO, Blade::NI]);
     candidates
         .map(|p| opns_obj ^ p)
-        .find(|obj| !obj.is_degenerate())
+        .max_by_key(|obj| FloatOrd(obj.mv().mag()))
         .ok_or_else(|| anyhow!("unable to find point not on object {opns_obj}"))
 }
 
