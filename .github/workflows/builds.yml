@@ -97,7 +97,7 @@ jobs:
       - name: Build Hyperspeedcube
         run: cargo build --release
       - name: Make app
-        run: cargo bundle --release
+        run: cd hyperspeedcube && cargo bundle --release
       - name: Make tarball
         run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz target/release/bundle/osx/Hyperspeedcube.app
       - name: Upload app
