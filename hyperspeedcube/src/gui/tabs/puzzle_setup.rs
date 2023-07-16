@@ -314,6 +314,7 @@ impl PuzzleSetup {
             Ok(())
         }();
 
+        #[cfg(debug_assertions)]
         arena.dump_log_file();
 
         // println!("{result:?}");
