@@ -1,3 +1,17 @@
 [workspace]
 members = [ "hyperspeedcube", "ndpuzzle" ]
 resolver = "2"
+
+[package.metadata.winres]
+FileDescription = "Hyperspeedcube"
+ProductName = "Hyperspeedcube"
+ProductVersion = "2.0.0-dev"
+OriginalFilename = "hyperspeedcube.exe"
+LegalCopyright = "Copyright © 2022 HactarCE"
+
+[package.metadata.bundle]
+name = "Hyperspeedcube"
+identifier = "dev.ajfarkas.hyperspeedcube"
+icon = ["resources/icon/*.png", "resources/icon/*.ico"]
+copyright = "Copyright © 2022 HactarCE"
+category = "Puzzle Game"
