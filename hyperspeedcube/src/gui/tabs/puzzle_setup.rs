@@ -1,4 +1,5 @@
 use anyhow::Result;
+use itertools::Itertools;
 use ndpuzzle::{collections::*, geometry::*, math::*, puzzle::*, vector};
 
 use super::App;
@@ -224,7 +225,7 @@ impl PuzzleSetup {
                 let mut mesh = None;
                 match Mesh::from_arena(&arena, self.ignore_errors) {
                     Ok(m) => mesh = Some(m),
-                    Err(e) => self.error_string = Some(e.to_string()),
+                    Err(e) => self.error_string = Some(e.chain().join("\n")),
                 }
 
                 app.active_puzzle_view.upgrade().unwrap().lock().set_mesh(
@@ -233,7 +234,7 @@ impl PuzzleSetup {
                     mesh.as_ref(),
                 );
             }
-            Err(e) => self.error_string = Some(e.to_string()),
+            Err(e) => self.error_string = Some(e.chain().join("\n")),
         }
     }
 
