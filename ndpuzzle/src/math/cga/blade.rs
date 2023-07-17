@@ -508,29 +508,6 @@ impl Blade {
             ])
         }
     }
-    pub fn point_pair_to_tangent_vector(&self) -> Option<(Point, Vector)> {
-        let [a, b] = self.point_pair_to_points()?;
-        approx_eq(&a, &b).then(|| {
-            let ndim = self.ndim();
-            let vector = (self.opns_to_ipns(ndim) ^ Blade::NO)
-                .ipns_to_opns(ndim)
-                .to_vector();
-            (a, vector)
-        })
-    }
-
-    /// Returns the tangent of `self` at a point. If `self` is a circle, returns
-    /// a tangent vector (i.e., a 2-blade).
-    pub fn opns_tangent_at_point(&self, point: impl ToConformalPoint) -> Blade {
-        let point = point.to_normalized_1blade();
-        let ndim = std::cmp::max(self.ndim(), point.ndim());
-
-        // I'm not sure exactly why the sign flip is necessary, but it is. I
-        // spent over a month on this.
-        let sign = if ndim & 1 == 0 { Sign::Pos } else { Sign::Neg };
-
-        (self.opns_to_ipns(ndim) ^ point).ipns_to_opns(ndim) * sign.to_float()
-    }
 
     /// Returns the scale factor between `self` and `other` if they differ by a
     /// scalar factor, or `None` if they do not or if either is zero.

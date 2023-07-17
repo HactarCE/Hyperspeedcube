@@ -233,14 +233,6 @@ impl Manifold {
             is_any_outside,
         } = self.which_side(cut, space)?;
 
-        if self.ndim()? == 1 && (is_any_inside != is_any_outside) {
-            if let Some(intersection_manifold) = self.tangent_intersect(cut, space)? {
-                return Ok(ManifoldSplit::Split {
-                    intersection_manifold,
-                });
-            }
-        }
-
         match (is_any_inside, is_any_outside) {
             (false, false) => Ok(ManifoldSplit::Flush),
             (true, false) => Ok(ManifoldSplit::Inside),
@@ -251,22 +243,6 @@ impl Manifold {
                     .ok_or_else(|| anyhow!("cannot split disconnected manifold"))?,
             }),
         }
-    }
-
-    pub fn tangent_manifold(&self, point: &cga::Point) -> Result<Self> {
-        Self::from_opns(self.opns().opns_tangent_at_point(point), self.space_ndim)
-            .context("failed to construct tangent manifold")
-    }
-
-    pub fn tangent_intersect(&self, cut: &Self, space: &Self) -> Result<Option<Self>> {
-        let cut_ipns = cut.opns().opns_to_ipns_in_space(space.opns());
-        let self_ipns = self.opns().opns_to_ipns_in_space(space.opns());
-        let intersection = (cut_ipns ^ self_ipns).ipns_to_opns_in_space(space.opns());
-        Ok(if intersection.is_null_vector() {
-            Manifold::from_opns(intersection, self.space_ndim).ok()
-        } else {
-            None
-        })
     }
 
     /// Given the N-dimensional `space` containing (N-1)-dimensional `cut` and
