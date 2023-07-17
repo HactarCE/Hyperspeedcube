@@ -296,13 +296,12 @@ impl ShapeArena {
 
     /// Cuts a shape.
     fn cut_shape(&mut self, shape: ShapeRef, slice_op: &mut SliceOperation) -> Result<ShapeSplit> {
+        let ev = self
+            .log
+            .event("cut_shape", format!("Cutting shape {shape}"));
         let result = match slice_op.results_cache.get(&shape.id) {
             Some(result) => {
-                let ev = self.log.event(
-                    "cached_split_result",
-                    format!("Using cached split result for {shape}"),
-                );
-                ev.log_value("result", result);
+                ev.log("Using cached split result");
 
                 result.clone()
             }
@@ -315,6 +314,7 @@ impl ShapeArena {
                 result
             }
         };
+        ev.log_value("result", &result);
 
         // Add metadata.
         if let ShapeSplit::NonFlush {
