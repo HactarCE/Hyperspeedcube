@@ -18,9 +18,9 @@ pub type ShapeMetadata = u16;
 /// Subset of a connected manifold, defined as an intersection of half-spaces on
 /// its surface.
 #[derive(Debug, Clone)]
-pub struct Shape<M> {
+pub struct Shape {
     /// N-dimensional surface of the shape, **which must be connected**.
-    pub manifold: M,
+    pub manifold: Manifold,
     /// (N-1)-dimensional shapes which define the boundary of the N-dimensional
     /// shape.
     pub boundary: Set64<ShapeRef>,
@@ -30,14 +30,14 @@ pub struct Shape<M> {
     /// Metadata associated with the negative side of the shape.
     pub negative_metadata: Option<ShapeMetadata>,
 }
-impl<M: Manifold> Shape<M> {
+impl Shape {
     /// Constructs a shape that contains a whole manifold with no boundary.
-    pub fn whole_space(manifold: M) -> Self {
+    pub fn whole_space(manifold: Manifold) -> Self {
         Self::new(manifold, Set64::new())
     }
 
     /// Constructs a shape with a boundary.
-    pub fn new(manifold: M, boundary: Set64<ShapeRef>) -> Self {
+    pub fn new(manifold: Manifold, boundary: Set64<ShapeRef>) -> Self {
         Self {
             manifold,
             boundary,

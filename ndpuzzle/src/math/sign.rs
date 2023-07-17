@@ -34,22 +34,8 @@ impl Neg for Sign {
     }
 }
 
-impl Mul for Sign {
-    type Output = Sign;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        if self == rhs {
-            Sign::Pos
-        } else {
-            Sign::Neg
-        }
-    }
-}
-impl MulAssign for Sign {
-    fn mul_assign(&mut self, rhs: Self) {
-        *self = *self * rhs
-    }
-}
+impl_mul_sign!(impl Mul<Sign> for Sign);
+impl_mulassign_sign!(impl MulAssign<Sign> for Sign);
 
 impl From<Sign> for Float {
     fn from(value: Sign) -> Self {

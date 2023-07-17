@@ -1,4 +1,4 @@
-use ndpuzzle::geometry::{EuclideanCgaManifold, ShapeArena};
+use ndpuzzle::geometry::{Manifold, ShapeArena};
 use ndpuzzle::math::{cga::Isometry, Float};
 use ndpuzzle::puzzle::Mesh;
 use std::fmt;
@@ -7,7 +7,7 @@ use crate::render::{GraphicsState, PuzzleRenderer, ViewParams};
 
 #[derive(Debug)]
 pub struct PuzzleView {
-    pub arena: ShapeArena<EuclideanCgaManifold>,
+    pub arena: ShapeArena,
     renderer: PuzzleRenderer,
     pub view_params: ViewParams,
 
@@ -40,12 +40,7 @@ impl PuzzleView {
             overlay: vec![],
         }
     }
-    pub(crate) fn set_mesh(
-        &mut self,
-        gfx: &GraphicsState,
-        arena: ShapeArena<EuclideanCgaManifold>,
-        mesh: Option<&Mesh>,
-    ) {
+    pub(crate) fn set_mesh(&mut self, gfx: &GraphicsState, arena: ShapeArena, mesh: Option<&Mesh>) {
         self.arena = arena;
         if let Some(mesh) = mesh {
             self.renderer = PuzzleRenderer::new(gfx, mesh);

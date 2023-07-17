@@ -70,3 +70,30 @@ macro_rules! impl_forward_assign_ops_to_owned {
         impl_forward_assign_ops_to_owned! { $($remainder)* }
     };
 }
+
+macro_rules! impl_mul_sign {
+    (impl Mul<Sign> for $type:ty) => {
+        impl std::ops::Mul<$crate::math::Sign> for $type {
+            type Output = Self;
+
+            fn mul(self, rhs: $crate::math::Sign) -> Self {
+                match rhs {
+                    $crate::math::Sign::Pos => self,
+                    $crate::math::Sign::Neg => -self,
+                }
+            }
+        }
+    };
+}
+macro_rules! impl_mulassign_sign {
+    (impl MulAssign<Sign> for $type:ty) => {
+        impl std::ops::MulAssign<$crate::math::Sign> for $type {
+            fn mul_assign(&mut self, rhs: $crate::math::Sign) {
+                match rhs {
+                    $crate::math::Sign::Pos => (),
+                    $crate::math::Sign::Neg => *self = -*self,
+                }
+            }
+        }
+    };
+}

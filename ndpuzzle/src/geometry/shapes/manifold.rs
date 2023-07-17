@@ -1,24 +1,29 @@
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use float_ord::FloatOrd;
 use std::fmt;
-use std::ops::Neg;
+use std::ops::{BitOr, Neg};
 
-use super::{Manifold, ManifoldWhichSide, TangentSpace};
-use crate::math::{cga::*, *};
+use crate::geometry::PointWhichSide;
+use crate::math::*;
 
-/// Manifold in Euclidean space, represented using a CGA blade.
+/// Closed manifold in Euclidean space, represented using a CGA blade.
+///
+/// In 1D, this is a point pair. In 2D+, this is always a connected manifold.
 #[derive(Debug, Clone, PartialEq)]
-pub struct EuclideanCgaManifold {
+pub struct Manifold {
+    /// Number of dimensions of the Euclidean space containing the manifold.
     space_ndim: u8,
+    /// Number of dimensions of the manifold.
     manifold_ndim: u8,
-    opns: Blade,
+    /// OPNS blade representing the manifold.
+    opns: cga::Blade,
 }
 
-impl AbsDiffEq for EuclideanCgaManifold {
+impl AbsDiffEq for Manifold {
     type Epsilon = Float;
 
     fn default_epsilon() -> Self::Epsilon {
-        Blade::default_epsilon()
+        cga::Blade::default_epsilon()
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
@@ -28,7 +33,7 @@ impl AbsDiffEq for EuclideanCgaManifold {
     }
 }
 
-impl fmt::Display for EuclideanCgaManifold {
+impl fmt::Display for Manifold {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut need_to_print_multivector = true;
         if self.manifold_ndim == 0 {
@@ -63,11 +68,11 @@ impl fmt::Display for EuclideanCgaManifold {
     }
 }
 
-impl Neg for EuclideanCgaManifold {
+impl Neg for Manifold {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        EuclideanCgaManifold {
+        Manifold {
             space_ndim: self.space_ndim,
             manifold_ndim: self.manifold_ndim,
             opns: -self.opns,
@@ -75,50 +80,88 @@ impl Neg for EuclideanCgaManifold {
     }
 }
 
-impl EuclideanCgaManifold {
-    /// Constructs a manifold that is the whole space of an OPNS blade.
-    pub fn whole_space(ndim: u8) -> Self {
-        Self::from_opns(Blade::pseudoscalar(ndim), ndim).unwrap()
-    }
+impl Manifold {
     /// Constructs a manifold from an OPNS blade, or returns `None` if the
     /// object is a point or scalar.
-    pub fn from_opns(opns: Blade, space_ndim: u8) -> Option<Self> {
-        Some(Self {
+    pub fn from_opns(opns: cga::Blade, space_ndim: u8) -> Result<Self> {
+        Ok(Self {
             space_ndim,
-            manifold_ndim: opns.grade().checked_sub(2)?,
+            manifold_ndim: opns.grade().checked_sub(2).context("bad manifold blade")?,
             opns,
         })
     }
     /// Constructs a manifold from an IPNS blade, or returns `None` if it is
     /// degenerate.
-    pub fn from_ipns(ipns: &Blade, space_ndim: u8) -> Option<Self> {
+    pub fn from_ipns(ipns: &cga::Blade, space_ndim: u8) -> Result<Self> {
         Self::from_opns(ipns.ipns_to_opns(space_ndim), space_ndim)
     }
 
-    /// Constructs a planar manifold.
-    pub fn plane(normal: impl VectorRef, distance: Float, space_ndim: u8) -> Self {
-        EuclideanCgaManifold::from_ipns(&cga::Blade::ipns_plane(normal, distance), space_ndim)
-            .unwrap()
+    /// Constructs a manifold that is the whole space of an OPNS blade.
+    pub fn whole_space(ndim: u8) -> Self {
+        Self::from_opns(cga::Blade::pseudoscalar(ndim), ndim).unwrap()
+    }
+    /// Constructs a point pair (represented by a 0D manifold).
+    pub fn new_point_pair(a: &cga::Point, b: &cga::Point, space: &Self) -> Result<Self> {
+        Manifold::from_opns(
+            cga::Blade::point(a) ^ cga::Blade::point(b),
+            space.space_ndim,
+        )
+        .context("constructing point pair")
+    }
+    /// Constructs a line (represented by a 1D manifold).
+    pub fn new_line(a: &cga::Point, b: &cga::Point, space: &Self) -> Result<Self> {
+        Manifold::from_opns(
+            cga::Blade::point(a) ^ cga::Blade::point(b) ^ cga::Blade::NI,
+            space.space_ndim,
+        )
+        .context("constructing line")
+    }
+    /// Constructs a hyperplanar manifold.
+    pub fn new_hyperplane(normal: impl VectorRef, distance: Float, space_ndim: u8) -> Self {
+        Manifold::from_ipns(&cga::Blade::ipns_plane(normal, distance), space_ndim).unwrap()
     }
     /// Constructs a spherical manifold.
-    pub fn sphere(center: impl VectorRef, radius: Float, space_ndim: u8) -> Self {
-        EuclideanCgaManifold::from_ipns(&cga::Blade::ipns_sphere(center, radius), space_ndim)
-            .unwrap()
+    pub fn new_hypersphere(center: impl VectorRef, radius: Float, space_ndim: u8) -> Self {
+        Manifold::from_ipns(&cga::Blade::ipns_sphere(center, radius), space_ndim).unwrap()
+    }
+
+    /// Flips the manifold's orientation.
+    pub fn flip(&self) -> Result<Self> {
+        Ok(Self {
+            space_ndim: self.space_ndim,
+            manifold_ndim: self.manifold_ndim,
+            opns: -&self.opns,
+        })
+    }
+
+    /// Returns the number of dimensions of the manifold.
+    ///
+    /// A line has one dimension, a plane has two, etc.
+    pub fn ndim(&self) -> Result<u8> {
+        Ok(self.manifold_ndim)
     }
 
     /// Returns the OPNS blade representing the manifold.
-    pub fn opns(&self) -> &Blade {
+    pub fn opns(&self) -> &cga::Blade {
         &self.opns
     }
     /// Returns the IPNS blade representing the manifold.
-    pub fn ipns(&self) -> Blade {
+    pub fn ipns(&self) -> cga::Blade {
         self.opns.opns_to_ipns(self.space_ndim)
     }
 
     /// Returns the IPNS blade representing the manifold within a space
     /// containing it.
-    pub fn ipns_in_space(&self, space: &Self) -> Blade {
+    pub fn ipns_in_space(&self, space: &Self) -> cga::Blade {
         self.opns().opns_to_ipns_in_space(space.opns())
+    }
+
+    /// Returns the point pair represented by a 0D manifold.
+    pub fn to_point_pair(&self) -> Result<[cga::Point; 2]> {
+        ensure!(self.ndim()? == 0, "expected point pair");
+        self.opns()
+            .point_pair_to_points()
+            .context("unable to split point pair")
     }
 
     /// Returns whether the manifold is flat.
@@ -127,16 +170,19 @@ impl EuclideanCgaManifold {
     }
 
     /// Returns an arbitrary pair of points on the manifold.
-    fn arbitrary_point_pair(&self) -> Result<[Point; 2]> {
+    fn arbitrary_point_pair(&self) -> Result<[cga::Point; 2]> {
         let ipns = self.ipns();
         if let Some(radius) = ipns.ipns_radius() {
             let center = ipns.ipns_sphere_center().to_finite()?;
             Ok([
-                Point::Finite(vector![radius] + &center),
-                Point::Finite(vector![-radius] + &center),
+                cga::Point::Finite(vector![radius] + &center),
+                cga::Point::Finite(vector![-radius] + &center),
             ])
         } else {
-            Ok([Point::Finite(ipns.ipns_plane_pole()), Point::Infinity])
+            Ok([
+                cga::Point::Finite(ipns.ipns_plane_pole()),
+                cga::Point::Infinity,
+            ])
         }
     }
 
@@ -151,7 +197,7 @@ impl EuclideanCgaManifold {
             // the one that gives the maximum value (i.e., is most perpendicular
             // to the existing spanning set within `self`)
             let new_dual_space = (0..ndim)
-                .map(|axis| &dual_space ^ Blade::vector(Vector::unit(axis)))
+                .map(|axis| &dual_space ^ cga::Blade::vector(Vector::unit(axis)))
                 .max_by_key(|m| FloatOrd(m.dot(m).abs()))
                 .context("error computing tangent vectors")?;
             let old_dual_space_inv = dual_space
@@ -167,50 +213,10 @@ impl EuclideanCgaManifold {
         ensure!(self.ndim()? as usize == spanning_vectors.len());
         Ok(spanning_vectors)
     }
-}
 
-/// Manifold represented by a blade in the conformal geometric algebra.
-impl Manifold for EuclideanCgaManifold {
-    type Point = Point;
-
-    fn ndim(&self) -> Result<u8> {
-        Ok(self.manifold_ndim)
-    }
-
-    fn new_point_pair(a: &Self::Point, b: &Self::Point, space: &Self) -> Result<Self> {
-        EuclideanCgaManifold::from_opns(Blade::point(a) ^ Blade::point(b), space.space_ndim)
-            .context("error constructing point pair")
-    }
-
-    fn to_point_pair(&self) -> Result<[Self::Point; 2]> {
-        ensure!(self.ndim()? == 0, "expected point pair");
-        self.opns()
-            .point_pair_to_points()
-            .context("unable to split point pair")
-    }
-
-    fn new_line(a: &Self::Point, b: &Self::Point, space: &Self) -> Result<Self> {
-        EuclideanCgaManifold::from_opns(
-            Blade::point(a) ^ Blade::point(b) ^ Blade::NI,
-            space.space_ndim,
-        )
-        .context("error constructing line")
-    }
-
-    fn triple_orientation(&self, points: [&Self::Point; 3]) -> Float {
-        let [a, b, c] = points.map(Blade::point);
-        self.opns().unchecked_scale_factor_to(&(a ^ b ^ c))
-    }
-
-    fn flip(&self) -> Result<Self> {
-        Ok(Self {
-            space_ndim: self.space_ndim,
-            manifold_ndim: self.manifold_ndim,
-            opns: -&self.opns,
-        })
-    }
-
-    fn relative_orientation(&self, other: &Self) -> Option<Sign> {
+    /// Returns the relative orienation between `self` and `other` if they are
+    /// the same manifold, or `None` if they are distinct manifolds.
+    pub fn relative_orientation(&self, other: &Self) -> Option<Sign> {
         let factor = self.opns.scale_factor_to(&other.opns)?;
         if factor.is_sign_negative() {
             Some(Sign::Neg)
@@ -219,23 +225,56 @@ impl Manifold for EuclideanCgaManifold {
         }
     }
 
-    fn tangent_manifold(&self, point: &Self::Point) -> Result<Self> {
+    /// Given the (N+1)-dimensional `space` containing `self` and N-dimensional
+    /// `cut`, splits `self` by `cut`.
+    pub fn split(&self, cut: &Self, space: &Self) -> Result<ManifoldSplit> {
+        let ManifoldWhichSide {
+            is_any_inside,
+            is_any_outside,
+        } = self.which_side(cut, space)?;
+
+        if self.ndim()? == 1 && (is_any_inside != is_any_outside) {
+            if let Some(intersection_manifold) = self.tangent_intersect(cut, space)? {
+                return Ok(ManifoldSplit::Split {
+                    intersection_manifold,
+                });
+            }
+        }
+
+        match (is_any_inside, is_any_outside) {
+            (false, false) => Ok(ManifoldSplit::Flush),
+            (true, false) => Ok(ManifoldSplit::Inside),
+            (false, true) => Ok(ManifoldSplit::Outside),
+            (true, true) => Ok(ManifoldSplit::Split {
+                intersection_manifold: self
+                    .intersect(cut, space)?
+                    .ok_or_else(|| anyhow!("cannot split disconnected manifold"))?,
+            }),
+        }
+    }
+
+    pub fn tangent_manifold(&self, point: &cga::Point) -> Result<Self> {
         Self::from_opns(self.opns().opns_tangent_at_point(point), self.space_ndim)
             .context("failed to construct tangent manifold")
     }
 
-    fn tangent_intersect(&self, cut: &Self, space: &Self) -> Result<Option<Self>> {
+    pub fn tangent_intersect(&self, cut: &Self, space: &Self) -> Result<Option<Self>> {
         let cut_ipns = cut.opns().opns_to_ipns_in_space(space.opns());
         let self_ipns = self.opns().opns_to_ipns_in_space(space.opns());
         let intersection = (cut_ipns ^ self_ipns).ipns_to_opns_in_space(space.opns());
         Ok(if intersection.is_null_vector() {
-            EuclideanCgaManifold::from_opns(intersection, self.space_ndim)
+            Manifold::from_opns(intersection, self.space_ndim).ok()
         } else {
             None
         })
     }
 
-    fn intersect(&self, cut: &Self, space: &Self) -> Result<Option<Self>> {
+    /// Given the N-dimensional `space` containing (N-1)-dimensional `cut` and
+    /// M-dimensional `self` where M<=N, returns the (M-1)-dimensional
+    /// intersection of `self` and `cut`. If `self` and `cut` do not intersect
+    /// or if any of the other preconditions are broken, this function may
+    /// return `None` or garbage.
+    pub fn intersect(&self, cut: &Self, space: &Self) -> Result<Option<Self>> {
         ensure!(cut.ndim()? + 1 == space.ndim()?);
         ensure!(self.ndim()? <= space.ndim()?);
 
@@ -257,7 +296,7 @@ impl Manifold for EuclideanCgaManifold {
         let self_ipns = self.opns().opns_to_ipns_in_space(space.opns());
         let intersection = (cut_ipns ^ self_ipns).ipns_to_opns_in_space(space.opns());
         let intersection_manifold = if intersection.opns_is_real() {
-            EuclideanCgaManifold::from_opns(intersection, self.space_ndim)
+            Some(Manifold::from_opns(intersection, self.space_ndim)?)
         } else {
             None
         };
@@ -269,7 +308,11 @@ impl Manifold for EuclideanCgaManifold {
         Ok(intersection_manifold)
     }
 
-    fn which_side(&self, cut: &Self, space: &Self) -> Result<ManifoldWhichSide> {
+    /// Given the N-dimensional `space` containing `self` and (N-1)-dimensional
+    /// `cut`, returns whether `self` is at least partly contained in each half
+    /// of `space` separated by `cut`. Which part of `space` is considered
+    /// "inside" or "outside" depends on the orientations of `space` and `cut`.
+    pub fn which_side(&self, cut: &Self, space: &Self) -> Result<ManifoldWhichSide> {
         ensure!(cut.ndim()? + 1 == space.ndim()?);
         ensure!(self.ndim()? <= space.ndim()?);
 
@@ -299,7 +342,7 @@ impl Manifold for EuclideanCgaManifold {
             // Here's a geometric algebra expression for what we're about to do:
             // `c1 & !(c1 & c2 & !p7)`
             //
-            // See `cga_euclidean_demo.js` for an interactive ganja.js demo.
+            // See `manifold_which_side_demo.js` for an interactive ganja.js demo.
 
             // 1. Compute the dual of the intersection of `self` and `cut`. I
             //    think this represents a bundle of all the manifolds that are
@@ -356,11 +399,15 @@ impl Manifold for EuclideanCgaManifold {
         ]))
     }
 
-    fn which_side_has_point(&self, p: &Self::Point, space: &Self) -> Result<PointWhichSide> {
+    /// Returns whether `p` is contained in each half of `space` separated by
+    /// `self`.
+    pub fn which_side_has_point(&self, p: &cga::Point, space: &Self) -> Result<PointWhichSide> {
         Ok(self.ipns_in_space(space).ipns_query_point(p))
     }
 
-    fn tangent_space(&self) -> Result<Box<dyn TangentSpace<Self::Point>>> {
+    /// Returns a function which computes the span of a tangent space of a given
+    /// on the manifold.
+    pub fn tangent_space(&self) -> Result<Box<dyn TangentSpace<cga::Point>>> {
         if self.is_flat() {
             let tangent_vectors = self.flat_tangent_vectors()?;
             Ok(Box::new(move |_| Ok(tangent_vectors.clone())))
@@ -370,23 +417,25 @@ impl Manifold for EuclideanCgaManifold {
             let space_ndim = self.space_ndim;
             Ok(Box::new(move |p| {
                 // (self & !p) ^ ni
-                let perpendicular_bundle = &self_ipns ^ Blade::point(p);
+                let perpendicular_bundle = &self_ipns ^ cga::Blade::point(p);
                 let parallel_bundle = perpendicular_bundle.ipns_to_opns(self_ndim);
-                let tangent_manifold = parallel_bundle ^ Blade::NI;
-                EuclideanCgaManifold::from_opns(tangent_manifold, space_ndim)
+                let tangent_manifold = parallel_bundle ^ cga::Blade::NI;
+                Manifold::from_opns(tangent_manifold, space_ndim)
                     .context("unable to construct tangent manifold")?
                     .flat_tangent_vectors()
             }))
         }
     }
 
-    fn project_point(&self, p: &Self::Point) -> Result<Option<Self::Point>> {
+    /// Projects a point onto the manifold, or returns `None` if the result is
+    /// undefined.
+    pub fn project_point(&self, p: &cga::Point) -> Result<Option<cga::Point>> {
         if self.manifold_ndim == self.space_ndim {
             return Ok(Some(p.clone()));
         }
         match p {
-            Point::Finite(p) => {
-                let pair = (Blade::point(p) ^ Blade::NI) << self.opns() << self.opns();
+            cga::Point::Finite(p) => {
+                let pair = (cga::Blade::point(p) ^ cga::Blade::NI) << self.opns() << self.opns();
                 // The CGA projection operation actually gives us two points.
                 let [a, b] = match pair.point_pair_to_points() {
                     Some(points) => points.map(|p| p.to_finite().ok()),
@@ -398,8 +447,8 @@ impl Manifold for EuclideanCgaManifold {
                 })
                 .map(|p| cga::Point::Finite(p)))
             }
-            Point::Infinity if self.is_flat() => Ok(Some(Point::Infinity)),
-            Point::Infinity | Point::Degenerate => Ok(None),
+            cga::Point::Infinity if self.is_flat() => Ok(Some(cga::Point::Infinity)),
+            cga::Point::Infinity | cga::Point::Degenerate => Ok(None),
         }
     }
 }
@@ -409,11 +458,11 @@ impl Manifold for EuclideanCgaManifold {
 ///
 /// Returns an error if there is no such point, which should only happen if the
 /// object is already zero.
-fn nonzero_wedge_with_arbitrary_point(opns_obj: &Blade) -> Result<Blade> {
+fn nonzero_wedge_with_arbitrary_point(opns_obj: &cga::Blade) -> Result<cga::Blade> {
     let ndim = opns_obj.ndim() + 1;
     let candidates = (0..ndim)
-        .map(|i| Blade::point(Vector::unit(i)))
-        .chain([Blade::NO, Blade::NI]);
+        .map(|i| cga::Blade::point(Vector::unit(i)))
+        .chain([cga::Blade::NO, cga::Blade::NI]);
     candidates
         .map(|p| opns_obj ^ p)
         .max_by_key(|obj| FloatOrd(obj.mv().mag()))
@@ -431,21 +480,20 @@ mod tests {
             is_any_outside: false,
         };
 
-        let obj_ipns = Blade::ipns_sphere(vector![], 1.0); // r=1 sphere
-        let divider_ipns = Blade::ipns_plane(vector![1.0], 1.0); // x=1 plane
+        let obj_ipns = cga::Blade::ipns_sphere(vector![], 1.0); // r=1 sphere
+        let divider_ipns = cga::Blade::ipns_plane(vector![1.0], 1.0); // x=1 plane
 
         for ndim in 1..=8 {
-            let space = EuclideanCgaManifold::whole_space(ndim);
-            let obj = EuclideanCgaManifold::from_ipns(&obj_ipns, ndim).unwrap();
-            let divider = EuclideanCgaManifold::from_ipns(&divider_ipns, ndim).unwrap();
+            let space = Manifold::whole_space(ndim);
+            let obj = Manifold::from_ipns(&obj_ipns, ndim).unwrap();
+            let divider = Manifold::from_ipns(&divider_ipns, ndim).unwrap();
 
             let result = obj.which_side(&divider, &space).unwrap();
             assert_eq!(expected_result, result);
 
             for subspace_ndim in 1..ndim {
                 let subspace =
-                    EuclideanCgaManifold::from_opns(Blade::pseudoscalar(subspace_ndim), ndim)
-                        .unwrap();
+                    Manifold::from_opns(cga::Blade::pseudoscalar(subspace_ndim), ndim).unwrap();
                 let obj_in_subspace = subspace.intersect(&obj, &space).unwrap().unwrap();
                 let divider_in_subspace = subspace.intersect(&divider, &space).unwrap().unwrap();
 
@@ -455,11 +503,9 @@ mod tests {
                 assert_eq!(expected_result, result);
 
                 for subsubspace_ndim in 1..subspace_ndim {
-                    let subsubspace = EuclideanCgaManifold::from_opns(
-                        Blade::pseudoscalar(subsubspace_ndim),
-                        ndim,
-                    )
-                    .unwrap();
+                    let subsubspace =
+                        Manifold::from_opns(cga::Blade::pseudoscalar(subsubspace_ndim), ndim)
+                            .unwrap();
 
                     // Let `obj` take a detour through `subspace`.
                     {
@@ -496,29 +542,104 @@ mod tests {
     }
 }
 
-// mod tests {
-//     use super::*;
+/// Result of splitting a 2D+ manifold by another manifold.
+#[derive(Debug, Clone)]
+pub enum ManifoldSplit {
+    /// The manifold is flush with the slice.
+    Flush,
+    /// The manifold is entirely inside the slice.
+    Inside,
+    /// The manifold is entirely outside the slice.
+    Outside,
+    /// The manifold has parts on both sides of the slice.
+    Split {
+        /// (N-1)-dimensional intersection of the manifold with the slicing
+        /// manifold. There is always an intersection; splitting a disconnected
+        /// manifold is not allowed.
+        ///
+        /// `intersection_manifold` itself, however, may be disconnected -- for
+        /// example, if it is a point pair.
+        intersection_manifold: Manifold,
+    },
+}
+impl_mul_sign!(impl Mul<Sign> for ManifoldSplit);
+impl Neg for ManifoldSplit {
+    type Output = Self;
 
-//     // #[test]
-//     // fn test_cga_euclidean_manifold_tangent_vectors() {
-//     //     for ndim in 3..5 {
-//     //         let cut = EuclideanCgaManifold::plane(vector![1.0], 0.0, ndim);
-//     //         let polygon_manifold = EuclideanCgaManifold::plane(vector![0.0,1.0], 0.0, ndim);
-//     //         let l1 = EuclideanCgaManifold
-//     //     }
-//     // }
+    fn neg(self) -> Self::Output {
+        match self {
+            ManifoldSplit::Flush => ManifoldSplit::Flush,
+            ManifoldSplit::Inside => ManifoldSplit::Outside,
+            ManifoldSplit::Outside => ManifoldSplit::Inside,
+            ManifoldSplit::Split {
+                intersection_manifold,
+            } => ManifoldSplit::Split {
+                intersection_manifold: -intersection_manifold,
+            },
+        }
+    }
+}
 
-//     // /// Pos = contains everything; Neg = contains nothing
-//     // fn tangent_vector_sign_agreement(
-//     //     intersection_manifold: &EuclideanCgaManifold,
-//     //     tangent_vector: &EuclideanCgaManifold,
-//     // ) -> Option<Sign> {
-//     //     let [a, b] = self.shape_to_point_pair(tangent_vector).unwrap();
-//     //     if !approx_eq(&a, &b) {
-//     //         return None;
-//     //     }
-//     //     intersection_manifold
-//     //         .tangent_manifold(&a)?
-//     //         .relative_orientation(tangent_vector)
-//     // }
-// }
+/// Result of splitting a manifold by another manifold without calculating the
+/// intersection.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct ManifoldWhichSide {
+    /// The manifold is partially or entirely inside the slice.
+    pub is_any_inside: bool,
+    /// The manifold is partially or entirely outside the slice.
+    pub is_any_outside: bool,
+}
+impl BitOr for ManifoldWhichSide {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        ManifoldWhichSide {
+            is_any_inside: self.is_any_inside | rhs.is_any_inside,
+            is_any_outside: self.is_any_outside | rhs.is_any_outside,
+        }
+    }
+}
+impl Neg for ManifoldWhichSide {
+    type Output = Self;
+
+    fn neg(mut self) -> Self::Output {
+        std::mem::swap(&mut self.is_any_inside, &mut self.is_any_outside);
+        self
+    }
+}
+impl_mul_sign!(impl Mul<Sign> for ManifoldWhichSide);
+impl ManifoldWhichSide {
+    fn neither_side() -> Self {
+        ManifoldWhichSide {
+            is_any_inside: false,
+            is_any_outside: false,
+        }
+    }
+
+    fn from_points(points: impl IntoIterator<Item = PointWhichSide>) -> Self {
+        let mut ret = ManifoldWhichSide::neither_side();
+        for which_side in points {
+            match which_side {
+                PointWhichSide::On => (),
+                PointWhichSide::Inside => ret.is_any_inside = true,
+                PointWhichSide::Outside => ret.is_any_outside = true,
+            }
+        }
+        ret
+    }
+}
+
+/// Tangent space for a manifold.
+pub trait TangentSpace<P> {
+    /// Returns an orthonormal basis for the tangent space at a given point on
+    /// the manifold.
+    fn basis_at(&self, point: P) -> Result<Vec<Vector>>;
+}
+impl<'a, P, F> TangentSpace<P> for F
+where
+    F: 'a + for<'p> Fn(P) -> Result<Vec<Vector>>,
+{
+    fn basis_at(&self, point: P) -> Result<Vec<Vector>> {
+        self(point)
+    }
+}

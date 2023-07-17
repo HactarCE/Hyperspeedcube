@@ -1,5 +1,5 @@
 // This is a script for ganja.js to demonstrate the math
-// in the Rust function `EuclideanCgaManifold::which_side()`
+// in the Rust function `Manifold::which_side()`
 
 // Go to this link, paste this whole file, and click run:
 // https://enkimute.github.io/ganja.js/examples/coffeeshop.html

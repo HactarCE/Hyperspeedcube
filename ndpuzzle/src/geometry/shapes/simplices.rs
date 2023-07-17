@@ -7,7 +7,7 @@ use std::fmt;
 use std::{iter::Sum, ops::Index};
 use tinyset::Set64;
 
-use super::{EuclideanCgaManifold, Manifold, ShapeArena, ShapeId};
+use super::{Manifold, ShapeArena, ShapeId};
 use crate::collections::VectorHashMap;
 use crate::geometry::ManifoldSplit;
 use crate::math::*;
@@ -15,22 +15,22 @@ use crate::math::*;
 /// How many times to recursively subdivide a sphere.
 const DEFAULT_SPHERE_RESOLUTION: u8 = 2;
 
-pub struct Simplexifier<'a, M> {
-    arena: &'a ShapeArena<M>,
+pub struct Simplexifier<'a> {
+    arena: &'a ShapeArena,
 
     vertices: Vec<Vector>,
     vertex_ids: VectorHashMap<VertexId>,
     shape_simplices_cache: AHashMap<ShapeId, SimplexBlob>,
 }
-impl<M> Index<VertexId> for Simplexifier<'_, M> {
+impl Index<VertexId> for Simplexifier<'_> {
     type Output = Vector;
 
     fn index(&self, index: VertexId) -> &Self::Output {
         &self.vertices[index.0 as usize]
     }
 }
-impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
-    pub fn new(arena: &'a ShapeArena<EuclideanCgaManifold>) -> Self {
+impl<'a> Simplexifier<'a> {
+    pub fn new(arena: &'a ShapeArena) -> Self {
         Simplexifier {
             arena,
 
@@ -121,7 +121,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
         centroids.sum::<Result<Centroid>>()
     }
 
-    fn simplex_centroid(&self, s: &Simplex, m: &EuclideanCgaManifold) -> Result<Centroid> {
+    fn simplex_centroid(&self, s: &Simplex, m: &Manifold) -> Result<Centroid> {
         let mut verts_iter = s.0.iter();
         let Some(v0) = verts_iter.next() else {
             return Ok(Centroid::default());
@@ -133,7 +133,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
             com: self.simplex_center(s, m)?,
         })
     }
-    fn simplex_center(&self, s: &Simplex, m: &EuclideanCgaManifold) -> Result<Vector> {
+    fn simplex_center(&self, s: &Simplex, m: &Manifold) -> Result<Vector> {
         let mut sum = Vector::EMPTY;
         for v in s.0.iter() {
             sum += &self[v];
@@ -191,7 +191,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
             self.new_ball(center, &basis_vectors, radius, resolution)?
         } else {
             let center = shape_manifold.ipns().ipns_sphere_center();
-            let tangent_space = EuclideanCgaManifold::from_opns(
+            let tangent_space = Manifold::from_opns(
                 shape_manifold.opns() ^ cga::Blade::NI,
                 self.arena.space().ndim()?,
             )
@@ -301,7 +301,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
 
         // Recursively subdivide until the edge length is short enough.
         let mut result = octahedron_facets;
-        let m = EuclideanCgaManifold::sphere(center, radius, self.arena.space().ndim()?);
+        let m = Manifold::new_hypersphere(center, radius, self.arena.space().ndim()?);
         for _ in 0..resolution {
             let mut cache = Default::default();
             for facet in std::mem::take(&mut result).0 {
@@ -315,7 +315,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
     fn subdivide_simplex(
         &mut self,
         s: &Simplex,
-        m: &EuclideanCgaManifold,
+        m: &Manifold,
         cache: &mut AHashMap<Simplex, SimplexBlob>,
     ) -> Result<SimplexBlob> {
         if let Some(result) = cache.get(s) {
@@ -571,7 +571,7 @@ impl<'a> Simplexifier<'a, EuclideanCgaManifold> {
             if !outside.is_empty() {
                 // If one vertex is inside and one is outside, then create a new
                 // vertex at the intersection point.
-                let line = EuclideanCgaManifold::new_line(
+                let line = Manifold::new_line(
                     &self.vertex_point(a),
                     &self.vertex_point(b),
                     self.arena.space(),
@@ -832,9 +832,9 @@ impl tinyset::Fits64 for VertexId {
 
 struct SimplexSliceOp<'a> {
     /// Manifold that the simplices are trying to approximate.
-    manifold: &'a EuclideanCgaManifold,
+    manifold: &'a Manifold,
     /// Manifold by which to cut the simplices.
-    cut: &'a EuclideanCgaManifold,
+    cut: &'a Manifold,
     /// Maximum edge length for a simplex before being cut, or `None` if there
     /// is no maximum.
     max_simplex_edge_length: Option<Float>,

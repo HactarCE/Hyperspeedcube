@@ -16,18 +16,18 @@ use tinyset::Set64;
 
 use super::log::ShapeConstructionLog;
 use super::{manifold::*, shape::*};
-use crate::math::{approx_eq, PointWhichSide, Sign};
+use crate::math::{approx_eq, cga::Point, PointWhichSide, Sign};
 
 /// Set of shapes in a space.
 ///
 /// A shape arena is always initialized with a single shape representing the
 /// whole space.
 #[derive(Debug, Clone)]
-pub struct ShapeArena<M> {
+pub struct ShapeArena {
     /// Space that all shapes inhabit.
-    space: M,
+    space: Manifold,
     /// All shapes and elements of them.
-    shapes: Slab<Shape<M>>,
+    shapes: Slab<Shape>,
     /// Top-level "root" shapes.
     roots: Vec<ShapeId>,
 
@@ -35,15 +35,15 @@ pub struct ShapeArena<M> {
     log: ShapeConstructionLog,
 }
 
-impl<M> Index<ShapeId> for ShapeArena<M> {
-    type Output = Shape<M>;
+impl Index<ShapeId> for ShapeArena {
+    type Output = Shape;
 
     fn index(&self, index: ShapeId) -> &Self::Output {
         &self.shapes[index.0 as usize]
     }
 }
 
-impl<M: Manifold> fmt::Display for ShapeArena<M> {
+impl fmt::Display for ShapeArena {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Shape arena in space {}", self.space)?;
         for &root_id in &self.roots {
@@ -53,10 +53,10 @@ impl<M: Manifold> fmt::Display for ShapeArena<M> {
     }
 }
 
-impl<M: Manifold> ShapeArena<M> {
+impl ShapeArena {
     /// Constructs a new shape arena containing only a shape representing the
     /// whole space.
-    pub fn new(space: M) -> Self {
+    pub fn new(space: Manifold) -> Self {
         let mut shapes = Slab::new();
         let id = shapes.insert(Shape::whole_space(space.clone()));
         let roots = vec![ShapeId(id as u32)];
@@ -70,20 +70,23 @@ impl<M: Manifold> ShapeArena<M> {
         }
     }
 
+    /// Dumps a log file to the disk.
     pub fn dump_log_file(&self) {
         let time = std::time::SystemTime::now()
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .unwrap_or(std::time::Duration::ZERO)
             .as_secs();
-        std::fs::write(
+        match std::fs::write(
             format!("shape_construction_log_{time}.log"),
             self.log.to_string(),
-        )
-        .expect("failed to write log file");
+        ) {
+            Ok(()) => (),
+            Err(e) => log::error!("failed to write log file: {e}"),
+        }
     }
 
     /// Returns the manifold representing the whole space.
-    pub fn space(&self) -> &M {
+    pub fn space(&self) -> &Manifold {
         &self.space
     }
     /// Returns the list of root shapes, in canonical order based on the cuts.
@@ -96,7 +99,7 @@ impl<M: Manifold> ShapeArena<M> {
     }
 
     /// Adds a shape.
-    fn add(&mut self, shape: Shape<M>) -> Result<ShapeRef> {
+    fn add(&mut self, shape: Shape) -> Result<ShapeRef> {
         let ev = self.log.event("add", "Adding shape");
         ev.log_value("manifold", &shape.manifold);
         ev.log_set64("boundary", &shape.boundary);
@@ -174,7 +177,7 @@ impl<M: Manifold> ShapeArena<M> {
 
     /// Returns a shape's manifold, flipped depending on the sign of the
     /// reference to the shape.
-    pub fn signed_manifold_of_shape(&self, shape: ShapeRef) -> Result<M> {
+    pub fn signed_manifold_of_shape(&self, shape: ShapeRef) -> Result<Manifold> {
         let m = &self[shape.id].manifold;
         match shape.sign {
             Sign::Pos => Ok(m.clone()),
@@ -185,8 +188,8 @@ impl<M: Manifold> ShapeArena<M> {
     /// different.
     fn sign_difference(
         &self,
-        a: impl SignedManifold<M>,
-        b: impl SignedManifold<M>,
+        a: impl SignedManifold,
+        b: impl SignedManifold,
     ) -> Result<Option<Sign>> {
         match a
             .get_manifold_from(self)?
@@ -243,7 +246,7 @@ impl<M: Manifold> ShapeArena<M> {
     }
 
     /// Cuts all shapes in the arena.
-    pub fn cut(&mut self, params: CutParams<M>) -> Result<()> {
+    pub fn cut(&mut self, params: CutParams) -> Result<()> {
         let ev = self
             .log
             .event("cut_all", format!("Cutting all shapes by {}", params.cut));
@@ -292,11 +295,7 @@ impl<M: Manifold> ShapeArena<M> {
     }
 
     /// Cuts a shape.
-    fn cut_shape(
-        &mut self,
-        shape: ShapeRef,
-        slice_op: &mut SliceOperation<M>,
-    ) -> Result<ShapeSplit> {
+    fn cut_shape(&mut self, shape: ShapeRef, slice_op: &mut SliceOperation) -> Result<ShapeSplit> {
         let result = match slice_op.results_cache.get(&shape.id) {
             Some(result) => {
                 let ev = self.log.event(
@@ -349,7 +348,7 @@ impl<M: Manifold> ShapeArena<M> {
     fn cut_shape_uncached(
         &mut self,
         shape: ShapeId,
-        slice_op: &mut SliceOperation<M>,
+        slice_op: &mut SliceOperation,
     ) -> Result<ShapeSplit> {
         let ev = self.log.event("cut", format!("Cutting shape {shape}"));
 
@@ -358,7 +357,7 @@ impl<M: Manifold> ShapeArena<M> {
             .split(&slice_op.divider, &self.space)
             .context("error splitting manifold")?
         {
-            ManifoldSplit::Flush(_) => {
+            ManifoldSplit::Flush => {
                 ev.log("Manifold is flush with cut");
                 Ok(ShapeSplit::Flush)
             }
@@ -558,7 +557,11 @@ impl<M: Manifold> ShapeArena<M> {
     /// Returns whether `manifold` (which is assumed to be flush with the
     /// manifold of `shape`) is completely inside `shape`. (This includes the
     /// boundary of `shape`, not just its interior.)
-    fn shape_completely_contains_manifold(&self, shape: ShapeId, manifold: &M) -> Result<bool> {
+    fn shape_completely_contains_manifold(
+        &self,
+        shape: ShapeId,
+        manifold: &Manifold,
+    ) -> Result<bool> {
         let shape_manifold = &self[shape].manifold;
         for boundary_elem in self[shape].boundary.iter() {
             let boundary_elem_manifold = &self[boundary_elem.id].manifold;
@@ -573,7 +576,7 @@ impl<M: Manifold> ShapeArena<M> {
     /// Returns true if `point` is inside or on the boundary of `shape` or false
     /// if it is strictly outside. Returns false if `point` is not flush with
     /// `shape`.
-    pub fn shape_contains_point(&self, shape: ShapeId, point: &M::Point) -> Result<bool> {
+    pub fn shape_contains_point(&self, shape: ShapeId, point: &Point) -> Result<bool> {
         let shape_manifold = &self[shape].manifold;
         let which_side = shape_manifold.which_side_has_point(point, &self.space)?;
         if which_side != PointWhichSide::On {
@@ -594,7 +597,7 @@ impl<M: Manifold> ShapeArena<M> {
     }
     /// Returns true if `point` is inside. Returns false if `point` is not flush
     /// with `shape` or it is on the boundary.
-    pub fn shape_interior_contains_point(&self, shape: ShapeId, point: &M::Point) -> Result<bool> {
+    pub fn shape_interior_contains_point(&self, shape: ShapeId, point: &Point) -> Result<bool> {
         let shape_manifold = &self[shape].manifold;
         let which_side = shape_manifold.which_side_has_point(point, &self.space)?;
         if which_side != PointWhichSide::On {
@@ -616,7 +619,7 @@ impl<M: Manifold> ShapeArena<M> {
 
     fn simplify_shape_boundary(
         &mut self,
-        manifold: &M,
+        manifold: &Manifold,
         boundary_set: Set64<ShapeRef>,
     ) -> Result<Set64<ShapeRef>> {
         if manifold.ndim()? == 1 {
@@ -641,7 +644,7 @@ impl<M: Manifold> ShapeArena<M> {
     fn simplify_intervals_intersection(
         &mut self,
         intervals: impl IntoIterator<Item = ShapeRef>,
-        space: &M,
+        space: &Manifold,
     ) -> Result<Option<Set64<ShapeRef>>> {
         let ev = self
             .log
@@ -667,7 +670,7 @@ impl<M: Manifold> ShapeArena<M> {
         &mut self,
         existing_intervals: &Set64<ShapeRef>,
         mut new_interval: ShapeRef,
-        space: &M,
+        space: &Manifold,
     ) -> Result<Option<Set64<ShapeRef>>> {
         let ev = self.log.event(
             "simplify_intervals_incremental",
@@ -734,14 +737,14 @@ impl<M: Manifold> ShapeArena<M> {
 
         Ok(Some(simplified))
     }
-    /// If two intervals (including their boundaries) intersect at all, retuns
+    /// If two intervals (including their boundaries) intersect at all, returns
     /// the combined interval. Otherwise returns `None`.
     fn try_merge_intervals(
         &self,
         interval1: ShapeRef,
         interval2: ShapeRef,
-        space: &M,
-    ) -> Result<MergedInterval<M>> {
+        space: &Manifold,
+    ) -> Result<MergedInterval> {
         let ab = interval1;
         let pq = interval2;
         let [a, b] = self.shape_to_point_pair(ab)?;
@@ -788,15 +791,17 @@ impl<M: Manifold> ShapeArena<M> {
             return Ok(MergedInterval::NoIntersection);
         };
 
-        Ok(MergedInterval::New(M::new_point_pair(&start, &end, space)?))
+        Ok(MergedInterval::New(Manifold::new_point_pair(
+            &start, &end, space,
+        )?))
     }
     /// Returns whether an interval (**including** its boundary) contains a
     /// point.
     fn closed_interval_contains_point(
         &self,
-        interval: impl SignedManifold<M>,
-        point: &M::Point,
-        space: &M,
+        interval: impl SignedManifold,
+        point: &Point,
+        space: &Manifold,
     ) -> Result<bool> {
         let interval_manifold = interval.get_manifold_from(self)?;
         let which_side = interval_manifold.which_side_has_point(point, space)? * interval.sign();
@@ -804,7 +809,7 @@ impl<M: Manifold> ShapeArena<M> {
         Ok(which_side != PointWhichSide::Outside)
     }
     /// Returns the pair of points represented by a 0D manifold.
-    fn shape_to_point_pair(&self, shape: impl SignedManifold<M>) -> Result<[M::Point; 2]> {
+    fn shape_to_point_pair(&self, shape: impl SignedManifold) -> Result<[Point; 2]> {
         let [a, b] = shape.get_manifold_from(self)?.to_point_pair()?;
         match shape.sign() {
             Sign::Pos => Ok([a, b]),
@@ -842,9 +847,9 @@ impl<M: Manifold> ShapeArena<M> {
 
 /// Parameters for cutting a bunch of shapes.
 #[derive(Debug, Clone)]
-pub struct CutParams<M> {
+pub struct CutParams {
     /// Closed, oriented manifold along which to cut.
-    pub cut: M,
+    pub cut: Manifold,
     /// What to do with the shapes on the "inside" of the cut.
     pub inside: CutOp,
     /// What to do with the shapes on the "outside" of the cut.
@@ -880,10 +885,10 @@ impl CutOp {
 
 /// In-progress slicing operation.
 #[derive(Debug)]
-struct SliceOperation<M> {
+struct SliceOperation {
     /// Closed, oriented manifold that divides the entire space into "inside"
     /// and "outside."
-    divider: M,
+    divider: Manifold,
     /// Cache of the result of splitting individual shapes.
     results_cache: AHashMap<ShapeId, ShapeSplit>,
 
@@ -892,8 +897,8 @@ struct SliceOperation<M> {
     /// Metadata to attach to the outside side of the shape.
     outside_metadata: Option<ShapeMetadata>,
 }
-impl<M> SliceOperation<M> {
-    fn new(cut: CutParams<M>) -> Self {
+impl SliceOperation {
+    fn new(cut: CutParams) -> Self {
         Self {
             divider: cut.cut,
             results_cache: AHashMap::new(),
@@ -904,23 +909,23 @@ impl<M> SliceOperation<M> {
     }
 }
 
-/// Result of splitting an N-dimensional object by a manifold.
+/// Result of splitting an N-dimensional object by a slicing manifold.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum ShapeSplit<R = ShapeRef> {
-    /// The whole object is flush with the slice.
+enum ShapeSplit {
+    /// The object is flush with the slicing manifold.
     Flush,
-    /// Some part of the object is not flush with the slice.
+    /// The object intersects the slice but is not flush.
     NonFlush {
         /// N-dimensional portion of the object that is inside the slice, if
         /// any. This may be the whole object.
-        inside: Option<R>,
+        inside: Option<ShapeRef>,
         /// N-dimensional portion of the object that is outside the slice, if
         /// any. This may be the whole object.
-        outside: Option<R>,
+        outside: Option<ShapeRef>,
 
         /// (N-1)-dimensional intersection of the object with the slicing
         /// manifold, if any.
-        intersection_shape: Option<R>,
+        intersection_shape: Option<ShapeRef>,
     },
 }
 impl fmt::Display for ShapeSplit {
@@ -943,7 +948,7 @@ impl fmt::Display for ShapeSplit {
         }
     }
 }
-impl Neg for ShapeSplit<ShapeRef> {
+impl Neg for ShapeSplit {
     type Output = Self;
 
     fn neg(mut self) -> Self::Output {
@@ -967,18 +972,10 @@ impl Neg for ShapeSplit<ShapeRef> {
         self
     }
 }
-impl Mul<Sign> for ShapeRef {
-    type Output = ShapeRef;
+impl_mul_sign!(impl Mul<Sign> for ShapeRef);
+impl_mulassign_sign!(impl MulAssign<Sign> for ShapeRef);
 
-    fn mul(self, rhs: Sign) -> Self::Output {
-        match rhs {
-            Sign::Pos => self,
-            Sign::Neg => -self,
-        }
-    }
-}
-
-impl ShapeSplit<ShapeRef> {
+impl ShapeSplit {
     fn all_inside(shape: impl Into<ShapeRef>) -> Self {
         Self::NonFlush {
             inside: Some(shape.into()),
@@ -995,28 +992,28 @@ impl ShapeSplit<ShapeRef> {
     }
 }
 
-trait SignedManifold<M> {
-    fn get_manifold_from<'a>(&'a self, arena: &'a ShapeArena<M>) -> Result<&'a M>;
+trait SignedManifold {
+    fn get_manifold_from<'a>(&'a self, arena: &'a ShapeArena) -> Result<&'a Manifold>;
     fn sign(&self) -> Sign;
 }
-impl<M: Manifold> SignedManifold<M> for ShapeRef {
-    fn get_manifold_from<'a>(&'a self, arena: &'a ShapeArena<M>) -> Result<&'a M> {
+impl SignedManifold for ShapeRef {
+    fn get_manifold_from<'a>(&'a self, arena: &'a ShapeArena) -> Result<&'a Manifold> {
         Ok(&arena[self.id].manifold)
     }
     fn sign(&self) -> Sign {
         self.sign
     }
 }
-impl<M: Manifold> SignedManifold<M> for M {
-    fn get_manifold_from<'a>(&'a self, _arena: &'a ShapeArena<M>) -> Result<&'a M> {
+impl SignedManifold for Manifold {
+    fn get_manifold_from<'a>(&'a self, _arena: &'a ShapeArena) -> Result<&'a Manifold> {
         Ok(self)
     }
     fn sign(&self) -> Sign {
         Sign::Pos
     }
 }
-impl<M: Manifold> SignedManifold<M> for &M {
-    fn get_manifold_from<'a>(&'a self, _arena: &'a ShapeArena<M>) -> Result<&'a M> {
+impl SignedManifold for &Manifold {
+    fn get_manifold_from<'a>(&'a self, _arena: &'a ShapeArena) -> Result<&'a Manifold> {
         Ok(self)
     }
     fn sign(&self) -> Sign {
@@ -1024,9 +1021,9 @@ impl<M: Manifold> SignedManifold<M> for &M {
     }
 }
 
-enum MergedInterval<M> {
+enum MergedInterval {
     Old(ShapeRef),
-    New(M),
+    New(Manifold),
     WholeSpace,
     NoIntersection,
 }

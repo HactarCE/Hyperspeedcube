@@ -19,7 +19,7 @@ fn test_non_null_concentric_spheres() {
 // Carves two identical spheres.
 #[test]
 fn test_identical_spheres() {
-    fn assert_is_sphere(arena: &CgaShapeArena) {
+    fn assert_is_sphere(arena: &ShapeArena) {
         assert_eq!(1, arena.roots().len());
         let root = &arena[arena.roots()[0]];
         assert_eq!(1, root.boundary.len());
@@ -89,7 +89,7 @@ fn test_null_double_plane_plus_sphere() {
 /// Carves a cube.
 #[test]
 fn test_cube() {
-    fn assert_is_cube(arena: &CgaShapeArena, shape: ShapeId) {
+    fn assert_is_cube(arena: &ShapeArena, shape: ShapeId) {
         let ndim = arena[shape].ndim().unwrap();
         let expected_boundary_elems = if ndim > 1 { 2 * ndim } else { ndim } as usize;
         assert_eq!(expected_boundary_elems, arena[shape].boundary.len());

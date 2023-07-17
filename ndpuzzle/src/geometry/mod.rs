@@ -12,16 +12,11 @@ pub use group::*;
 pub use schlafli::*;
 pub use shapes::*;
 
-/// Euclidean shape arena represented using conformal geometric algebra.
-pub type CgaShapeArena = ShapeArena<EuclideanCgaManifold>;
-/// Euclidean cut parameters represented using conformal geometric algebra.
-pub type CgaCutParams = CutParams<EuclideanCgaManifold>;
-
-impl CgaShapeArena {
+impl ShapeArena {
     /// Constructs a new Euclidean shape arena represented using conformal
     /// geometric algebra.
     pub fn new_euclidean_cga(ndim: u8) -> Self {
-        Self::new(EuclideanCgaManifold::whole_space(ndim))
+        Self::new(Manifold::whole_space(ndim))
     }
 
     /// Carves all root shapes in the arena, removing all shapes that are
@@ -35,7 +30,7 @@ impl CgaShapeArena {
         label: ShapeMetadata,
     ) -> Result<()> {
         self.cut(CutParams {
-            cut: EuclideanCgaManifold::sphere(center, radius, self.space().ndim()?),
+            cut: Manifold::new_hypersphere(center, radius, self.space().ndim()?),
             inside: CutOp::Keep(Some(label)),
             outside: CutOp::Remove,
         })
@@ -52,7 +47,7 @@ impl CgaShapeArena {
         label: ShapeMetadata,
     ) -> Result<()> {
         self.cut(CutParams {
-            cut: EuclideanCgaManifold::plane(normal, distance, self.space().ndim()?),
+            cut: Manifold::new_hyperplane(normal, distance, self.space().ndim()?),
             inside: CutOp::Keep(Some(label)),
             outside: CutOp::Remove,
         })
@@ -63,7 +58,7 @@ impl CgaShapeArena {
     /// - If `radius` is negative, the sphere is inside-out.
     pub fn slice_sphere(&mut self, center: impl VectorRef, radius: Float) -> Result<()> {
         self.cut(CutParams {
-            cut: EuclideanCgaManifold::sphere(center, radius, self.space().ndim()?),
+            cut: Manifold::new_hypersphere(center, radius, self.space().ndim()?),
             inside: CutOp::Keep(None),
             outside: CutOp::Keep(None),
         })
@@ -74,7 +69,7 @@ impl CgaShapeArena {
     /// - If `distance` is negative, the origin is considered outside.
     pub fn slice_plane(&mut self, normal: impl VectorRef, distance: Float) -> Result<()> {
         self.cut(CutParams {
-            cut: EuclideanCgaManifold::plane(normal, distance, self.space().ndim()?),
+            cut: Manifold::new_hyperplane(normal, distance, self.space().ndim()?),
             inside: CutOp::Keep(None),
             outside: CutOp::Keep(None),
         })

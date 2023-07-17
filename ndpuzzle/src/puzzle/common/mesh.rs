@@ -29,9 +29,7 @@ use std::ops::Range;
 
 use super::{Facet, PerPiece, PerSticker, Piece, Sticker};
 use crate::collections::IndexNewtype;
-use crate::geometry::{
-    Centroid, EuclideanCgaManifold, Manifold, ShapeArena, ShapeId, ShapeRef, Simplexifier, VertexId,
-};
+use crate::geometry::{Centroid, Manifold, ShapeArena, ShapeId, ShapeRef, Simplexifier, VertexId};
 use crate::math::{cga, Vector, VectorRef};
 
 #[derive(Debug, Clone)]
@@ -93,10 +91,7 @@ impl Mesh {
         }
     }
 
-    pub fn from_arena(
-        arena: &ShapeArena<EuclideanCgaManifold>,
-        ignore_errors: bool,
-    ) -> Result<Self> {
+    pub fn from_arena(arena: &ShapeArena, ignore_errors: bool) -> Result<Self> {
         let ndim = arena.space().ndim()?;
         let mut mesh = Mesh::new_empty(ndim);
 

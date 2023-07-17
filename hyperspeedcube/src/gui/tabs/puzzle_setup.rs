@@ -217,7 +217,7 @@ impl PuzzleSetup {
         ui.separator();
     }
 
-    fn set_shape(&mut self, app: &mut App, result: Result<CgaShapeArena>) {
+    fn set_shape(&mut self, app: &mut App, result: Result<ShapeArena>) {
         self.error_string = None;
         match result {
             Ok(arena) => {
@@ -287,13 +287,10 @@ impl PuzzleSetup {
 
         Ok(())
     }
-    fn try_generate_mesh(&mut self) -> Result<ShapeArena<EuclideanCgaManifold>> {
+    fn try_generate_mesh(&mut self) -> Result<ShapeArena> {
         self.try_generate_partial_mesh(self.construction_steps.len())
     }
-    fn try_generate_partial_mesh(
-        &mut self,
-        num_steps: usize,
-    ) -> Result<ShapeArena<EuclideanCgaManifold>> {
+    fn try_generate_partial_mesh(&mut self, num_steps: usize) -> Result<ShapeArena> {
         let mut arena = ShapeArena::new_euclidean_cga(self.ndim);
 
         let result = || -> anyhow::Result<()> {

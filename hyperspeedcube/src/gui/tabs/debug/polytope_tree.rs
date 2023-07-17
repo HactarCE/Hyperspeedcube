@@ -112,12 +112,7 @@ impl PolytopeTree {
         }
     }
 
-    fn shape_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        shapes: &ShapeArena<EuclideanCgaManifold>,
-        shape: ShapeRef,
-    ) {
+    fn shape_ui(&mut self, ui: &mut egui::Ui, shapes: &ShapeArena, shape: ShapeRef) {
         if let Err(e) = self.try_shape_ui(ui, shapes, shape) {
             ui.colored_label(egui::Color32::RED, e.to_string());
         }
@@ -126,7 +121,7 @@ impl PolytopeTree {
     fn try_shape_ui(
         &mut self,
         ui: &mut egui::Ui,
-        shapes: &ShapeArena<EuclideanCgaManifold>,
+        shapes: &ShapeArena,
         shape: ShapeRef,
     ) -> Result<()> {
         let ndim = shapes[shape.id].ndim()?;
@@ -196,12 +191,7 @@ impl PolytopeTree {
             self.vis.remove(&shape);
         }
     }
-    fn set_state_recursively(
-        &mut self,
-        shapes: &ShapeArena<EuclideanCgaManifold>,
-        shape: ShapeId,
-        state: bool,
-    ) {
+    fn set_state_recursively(&mut self, shapes: &ShapeArena, shape: ShapeId, state: bool) {
         self.set_state(shape, state);
         for b in shapes[shape].boundary.iter() {
             self.set_state_recursively(shapes, b.id, state);

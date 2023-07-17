@@ -3,13 +3,14 @@
 use std::cmp::Ordering;
 
 mod common;
+// mod loader;
 // pub mod jumbling;
 // pub mod spec;
 
 pub use common::*;
 
 use crate::collections::GenericVec;
-use crate::geometry::{EuclideanCgaManifold, ShapeArena, ShapeId};
+use crate::geometry::{Manifold, ShapeArena, ShapeId};
 use crate::math::cga::Isometry;
 use crate::math::{approx_cmp, Float, PointWhichSide, Vector, VectorRef};
 
@@ -66,15 +67,13 @@ impl TwistCut {
         }
     }
 
-    fn manifold(self, normal: &Vector, space_ndim: u8) -> EuclideanCgaManifold {
+    fn manifold(self, normal: &Vector, space_ndim: u8) -> Manifold {
         match self {
-            TwistCut::Planar { distance } => {
-                EuclideanCgaManifold::plane(normal, distance, space_ndim)
-            }
+            TwistCut::Planar { distance } => Manifold::new_hyperplane(normal, distance, space_ndim),
             TwistCut::Spherical {
                 center_distance,
                 radius,
-            } => EuclideanCgaManifold::sphere(normal * center_distance, radius, space_ndim),
+            } => Manifold::new_hypersphere(normal * center_distance, radius, space_ndim),
         }
     }
 }
@@ -95,7 +94,7 @@ pub struct TwistAxisGeometry {
 impl TwistAxisGeometry {
     fn layer_of_shape(
         &self,
-        arena: &ShapeArena<EuclideanCgaManifold>,
+        arena: &ShapeArena,
         shape: ShapeId,
         piece_transform_relative_to_axis: &Isometry,
     ) -> LayerMask {

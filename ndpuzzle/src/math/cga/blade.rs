@@ -525,7 +525,8 @@ impl Blade {
         let point = point.to_normalized_1blade();
         let ndim = std::cmp::max(self.ndim(), point.ndim());
 
-        // I'm not sure exactly why the sign flip is necessary, but it is.
+        // I'm not sure exactly why the sign flip is necessary, but it is. I
+        // spent over a month on this.
         let sign = if ndim & 1 == 0 { Sign::Pos } else { Sign::Neg };
 
         (self.opns_to_ipns(ndim) ^ point).ipns_to_opns(ndim) * sign.to_float()
