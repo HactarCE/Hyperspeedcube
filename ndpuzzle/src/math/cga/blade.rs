@@ -570,6 +570,10 @@ impl Blade {
         };
         self.mag2() * sign
     }
+    /// Returns the absolute value of the magnitude of the blade.
+    pub fn abs_mag2(&self) -> Float {
+        self.mag2().abs()
+    }
     /// Returns raw the squared magnitude of the blade.
     fn mag2(&self) -> Float {
         self.dot(self)

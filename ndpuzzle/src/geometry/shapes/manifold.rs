@@ -441,7 +441,7 @@ fn nonzero_wedge_with_arbitrary_point(opns_obj: &cga::Blade) -> Result<cga::Blad
         .chain([cga::Blade::NO, cga::Blade::NI]);
     candidates
         .map(|p| opns_obj ^ p)
-        .max_by_key(|obj| FloatOrd(obj.mv().mag()))
+        .max_by_key(|obj| FloatOrd(obj.abs_mag2()))
         .ok_or_else(|| anyhow!("unable to find point not on object {opns_obj}"))
 }
 

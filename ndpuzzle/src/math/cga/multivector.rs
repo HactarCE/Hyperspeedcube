@@ -606,10 +606,14 @@ impl Multivector {
         self.0.iter().map(|term| term.grade()).max().unwrap_or(0)
     }
 
+    /// Returns the squared magnitude (sum of squares) of the multivector.
+    pub fn mag2(&self) -> Float {
+        self.0.iter().map(|term| term.coef * term.coef).sum()
+    }
     /// Returns the magnitude (square root of sum of squares) of the
     /// multivector.
     pub fn mag(&self) -> Float {
-        self.0.iter().map(|term| term.coef * term.coef).sum()
+        self.mag2().sqrt()
     }
     /// Normalizes the multivector so that the magnitude is one, or returns
     /// `None` if the multivector is zero.
