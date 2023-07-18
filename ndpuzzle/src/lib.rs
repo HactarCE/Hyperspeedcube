@@ -24,7 +24,7 @@ pub const AXIS_NAMES: &str = "XYZWUVRS";
 pub type Float = f64;
 
 /// Small floating-point value used for comparisons and tiny offsets.
-pub const EPSILON: Float = 0.0001;
+pub const EPSILON: Float = 0.000001;
 
 #[cfg(test)]
 mod tests {
