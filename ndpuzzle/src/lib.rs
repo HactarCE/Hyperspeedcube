@@ -11,6 +11,7 @@ pub mod collections;
 pub mod math;
 pub mod geometry;
 // pub mod polytope;
+pub mod library;
 pub mod puzzle;
 pub mod util;
 
