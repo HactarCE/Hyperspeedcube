@@ -626,18 +626,26 @@ impl Multivector {
 
 /// Object represented using a multivector.
 pub trait AsMultivector {
-    /// Returns the underlying multivector.
+    /// Returns a reference to the underlying multivector.
     fn mv(&self) -> &Multivector;
+    /// Converts the value into the underlying multivector.
+    fn into_mv(self) -> Multivector;
 }
 
 impl<T: AsMultivector> AsMultivector for &T {
     fn mv(&self) -> &Multivector {
         (*self).mv()
     }
+    fn into_mv(self) -> Multivector {
+        self.mv().clone()
+    }
 }
 
 impl AsMultivector for Multivector {
     fn mv(&self) -> &Multivector {
+        self
+    }
+    fn into_mv(self) -> Multivector {
         self
     }
 }

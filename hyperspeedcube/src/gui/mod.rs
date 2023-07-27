@@ -32,11 +32,14 @@ impl AppUi {
             NodeIndex::root(),
             0.70,
             vec![
-                Tab::PuzzleSetup(PuzzleSetup::default()),
-                Tab::PolytopeTree(PolytopeTree::default()),
+                // Tab::PuzzleSetup(PuzzleSetup::default()),
+                // Tab::PolytopeTree(PolytopeTree::default()),
+                // Tab::PuzzleLibraryDemo,
+                Tab::PuzzleLibrary { log_lines: vec![] },
+                Tab::ViewSettings,
             ],
         );
-        dock_tree.split_below(right, 0.5, vec![Tab::ViewSettings]);
+        // dock_tree.split_below(right, 0.5, vec![Tab::ViewSettings]);
         AppUi { dock_tree }
     }
 

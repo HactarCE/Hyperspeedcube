@@ -162,7 +162,9 @@ impl IsometryGroup {
         })?;
 
         ensure!(elements.len() == generator_sequences.len());
-        ensure!(elements.len() == successors[GeneratorId(0)].len());
+        if generator_count > 0 {
+            ensure!(elements.len() == successors[GeneratorId(0)].len());
+        }
 
         let nearest_neighbors =
             IsometryNearestNeighborsMap::new(&elements, elements.iter_keys().collect());

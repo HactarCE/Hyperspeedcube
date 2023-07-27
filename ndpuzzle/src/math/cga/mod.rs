@@ -9,7 +9,7 @@ mod multivector;
 mod term;
 
 pub use axes::Axes;
-pub use blade::{Blade, Point, ToConformalPoint};
+pub use blade::{Blade, MismatchedGrade, Point, ToConformalPoint};
 pub use isometry::Isometry;
 pub use multivector::{AsMultivector, Multivector};
 pub use term::Term;

@@ -11,7 +11,7 @@ use anyhow::{bail, ensure, Context, Result};
 use itertools::Itertools;
 use slab::Slab;
 use std::fmt;
-use std::ops::{Index, Mul, Neg};
+use std::ops::{Index, Neg};
 use tinyset::Set64;
 
 use super::log::ShapeConstructionLog;

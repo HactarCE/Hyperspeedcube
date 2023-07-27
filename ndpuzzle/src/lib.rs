@@ -21,6 +21,8 @@ pub type LayerMaskUint = u32;
 /// Names for axes up to 8 dimensions.
 pub const AXIS_NAMES: &str = "XYZWUVRS";
 
+pub const MAX_NDIM: u8 = AXIS_NAMES.len() as u8;
+
 /// Floating-point type used for geometry generation (either `f32` or `f64`).
 pub type Float = f64;
 

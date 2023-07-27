@@ -35,6 +35,9 @@ impl AsMultivector for Isometry {
     fn mv(&self) -> &Multivector {
         &self.0
     }
+    fn into_mv(self) -> Multivector {
+        self.0
+    }
 }
 
 impl Isometry {

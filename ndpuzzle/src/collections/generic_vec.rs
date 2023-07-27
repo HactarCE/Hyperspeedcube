@@ -20,8 +20,8 @@ macro_rules! idx_struct {
             #[repr(transparent)]
             $struct_vis struct $struct_name($inner_vis $inner_type);
 
-            impl std::fmt::Display for $struct_name {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            impl ::std::fmt::Display for $struct_name {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                     write!(f, "#{}", self.0)
                 }
             }
@@ -60,8 +60,8 @@ macro_rules! idx_struct {
 /// Newtype wrapper around a primitive unsigned integer, which is useful as an
 /// index into arrays.
 pub trait IndexNewtype:
-    std::fmt::Debug
-    + std::fmt::Display
+    fmt::Debug
+    + fmt::Display
     + Default
     + Copy
     + Clone

@@ -17,6 +17,8 @@ extern crate strum;
 
 use gui::AppUi;
 use instant::{Duration, Instant};
+use ndpuzzle::library::PuzzleLibrary;
+use std::cell::RefCell;
 use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
@@ -44,6 +46,11 @@ mod web_workarounds;
 use app::App;
 
 const TITLE: &str = "Hyperspeedcube";
+
+thread_local! {
+    static LIBRARY: RefCell<PuzzleLibrary> = RefCell::new(PuzzleLibrary::new());
+}
+static LUA_BUILTIN_DIR: include_dir::Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/../lua");
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {

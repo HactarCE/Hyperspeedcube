@@ -1,6 +1,7 @@
 //! Multivectors of a single grade, which are called blades.
 
 use anyhow::{bail, Result};
+use itertools::Itertools;
 use std::fmt;
 use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 
@@ -52,9 +53,35 @@ impl From<Term> for Blade {
     }
 }
 
+impl From<Blade> for Multivector {
+    fn from(value: Blade) -> Self {
+        value.0
+    }
+}
+impl TryFrom<Multivector> for Blade {
+    type Error = MismatchedGrade;
+
+    fn try_from(multivector: Multivector) -> std::result::Result<Self, Self::Error> {
+        if multivector
+            .terms()
+            .iter()
+            .map(|term| term.grade())
+            .all_equal()
+        {
+            Ok(Blade(multivector))
+        } else {
+            Err(MismatchedGrade)
+        }
+    }
+}
+pub struct MismatchedGrade;
+
 impl AsMultivector for Blade {
     fn mv(&self) -> &Multivector {
         &self.0
+    }
+    fn into_mv(self) -> Multivector {
+        self.0
     }
 }
 
@@ -194,7 +221,7 @@ impl Blade {
     /// See https://w.wiki/6L8q
     pub const NI: Self = Blade(Multivector::NI);
 
-    /// Constructs a scalar multivector.
+    /// Constructs a scalar blade.
     pub fn scalar(s: Float) -> Self {
         Blade(Multivector::scalar(s))
     }

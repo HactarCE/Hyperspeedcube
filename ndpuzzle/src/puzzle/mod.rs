@@ -3,7 +3,6 @@
 use std::cmp::Ordering;
 
 mod common;
-// mod loader;
 // pub mod jumbling;
 // pub mod spec;
 

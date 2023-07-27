@@ -1,6 +1,12 @@
 --version 0
 
-cube = shape{
+function make_cube()
+    s = new_shape()
+    cut(s, plane{...})
+    return s
+end
+
+add_shape  {
     name = 'cube',
     ndim = 3,
     symmetry = schlafli(4, 3),

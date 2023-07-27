@@ -1,9 +1,13 @@
+use anyhow::Result;
 use std::fmt;
 use std::hash::Hash;
 use std::ops::*;
 use std::sync::{Arc, Weak};
 
+use ahash::AHashMap;
+
 use super::*;
+use crate::geometry::{IsometryGroup, ShapeArena, ShapeRef};
 
 /// Puzzle type info.
 pub struct PuzzleType {
@@ -36,7 +40,7 @@ pub struct PuzzleType {
     pub new: Box<dyn Send + Sync + Fn(Arc<PuzzleType>) -> Box<dyn PuzzleState>>,
 }
 impl fmt::Debug for PuzzleType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PuzzleType")
             .field("this", &self.this)
             .field("name", &self.name)
@@ -145,4 +149,106 @@ impl PuzzleType {
         //     }
         // }
     }
+
+    pub(crate) fn create_puzzle_type_from_shapes(
+        name: String,
+        arena: &ShapeArena,
+        pieces: Vec<ShapeRef>,
+    ) -> Result<Arc<PuzzleType>> {
+        let mut ret = PuzzleType {
+            this: Weak::new(),
+            name,
+            shape: Arc::new(PuzzleShape {
+                name: None,
+                ndim: arena.space().ndim()?,
+                facets: vec![],
+                facet_order: vec![],
+                radius: 1.0,
+                facets_by_name: AHashMap::new(),
+            }),
+            twists: Arc::new(PuzzleTwists {
+                name: "unknown".to_string(),
+                axes: vec![],
+                axis_order: vec![],
+                non_empty_axes: vec![],
+                axes_by_name: AHashMap::new(),
+                transforms: vec![],
+                symmetry: IsometryGroup::from_generators(&[])?,
+                notation: NotationScheme {},
+            }),
+            mesh: Mesh::from_arena(arena, false)?,
+            pieces: vec![],
+            stickers: vec![],
+            piece_types: vec![],
+            scramble_moves_count: 10,
+            notation: NotationScheme {},
+            new: Box::new(|ty| {
+                #[derive(Debug, Clone)]
+                struct PuzzleStateStruct {
+                    ty: Arc<PuzzleType>,
+                }
+                impl PuzzleState for PuzzleStateStruct {
+                    fn ty(&self) -> &Arc<PuzzleType> {
+                        &self.ty
+                    }
+
+                    fn clone_boxed(&self) -> Box<dyn PuzzleState> {
+                        Box::new(self.clone())
+                    }
+
+                    fn twist(&mut self, twist: Twist) -> Result<(), &'static str> {
+                        todo!("twist puzzle")
+                    }
+
+                    fn piece_transform(&self, p: Piece) -> Matrix {
+                        Matrix::ident(self.ty.ndim())
+                    }
+
+                    fn is_solved(&self) -> bool {
+                        false
+                    }
+                }
+
+                Box::new(PuzzleStateStruct { ty })
+            }),
+        };
+
+        Ok(Arc::new_cyclic(|this| {
+            ret.this = this.clone();
+            ret
+        }))
+    }
 }
+
+// Ok(Arc::new_cyclic(|this| PuzzleType {
+//     this: this.clone(),
+//     name: puzzle_name,
+//     shape: Arc::new(PuzzleShape {
+//         name: None,
+//         ndim,
+//         facets: (0..mesh.facet_count())
+//             .map(|id| FacetInfo {
+//                 name: (('A' as u8 + id as u8) as char).to_string(),
+//                 pole: vector![],
+//                 default_color: None,
+//             })
+//             .collect(),
+//         facet_order: (0..mesh.facet_count() as u16).map(Facet).collect(),
+//         radius: mesh.vertex_positions.iter().copied().fold(1.0, f32::max),
+//         facets_by_name: (0..mesh.facet_count() as u16)
+//             .map(|id| ((('A' as u8 + id as u8) as char).to_string(), Facet(id)))
+//             .collect(),
+//     }),
+//     twists: Arc::new(PuzzleTwists::default()),
+//     mesh,
+//     pieces: (0..mesh.piece_count()).map(|id| PieceInfo {
+//         stickers: mesh.pie,
+//         piece_type: todo!(),
+//         points: todo!(),
+//     }),
+//     stickers: todo!(),
+//     piece_types: todo!(),
+//     scramble_moves_count: todo!(),
+//     notation: todo!(),
+//     new: todo!(),
+// }))

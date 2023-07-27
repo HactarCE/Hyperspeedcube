@@ -1,0 +1,106 @@
+cd{3, 4}
+  :expand(vector/object/etc.)
+  .transforms
+  .mirrors -> manifolds
+  .coxeter_string
+  .mirror_basis -- the matrix we can't compute
+
+-- also multiply by transform
+
+shape{
+  name = "cube",
+
+}
+
+cd{
+  [{1, 2}] = 3,
+  [{2, 3}] = 4,
+  [{1, 3}] = 2,
+}
+
+cd{4, 3}:expand_in_basis(0, 0, 1)
+& cd{4, 3}:expand_in_basis(1, 0, 0)
+
+cd(1, 4, 0, 2, 0)
+cd('x4o3o')
+
+
+function make_platonic_solid(name, symbol)
+  shape{
+    name = name,
+    base = {
+      ndim = #symbol + 1,
+      cd = symbol,
+    },
+    build = function()
+      carve(cd(symbol).mirror_basis * vec([#symbol + 1] = 1))
+    end,
+  }
+end
+
+z
+shape{
+  name = 'cube',
+  base = {
+    ndim = 2,
+    curvature = 1,
+    cd = {4, 3},
+  },
+  build = function()
+    carve(vec('z'))
+  end,
+}
+
+puzzle{
+  name = "Rubik's Cube",
+  shape = load('shape/cube'),
+  build = function()
+    slice(vec('z') * )
+  end,
+}
+
+
+
+shape{
+  name = "cube",
+  base = euclidean(3),
+  generate = function()
+    s = whole_space
+    for v in cd{4, 3}:expand(cd{4, 3}.mirror_basis * vec(0, 0, 1)) do
+      s = s & plane(v):inside()
+    end
+    return s
+  end,
+}
+
+shape{
+  name = "cube",
+  base = euclidean(3),
+  generate = function(s)
+
+    for v in cd{4, 3}:expand() do
+
+    end
+
+    schlafli:expand
+    shape = space
+    for t in schlafli{3, 4} do
+      shape = shape & plane(t * vec('x')):inside()
+    end
+
+    load('shape/cube')
+    s = s & some_manifold
+    cube = half
+    some_manifold & some_other_manifold
+    s:carve(some_manifold, some_other_manifold)
+
+  end,
+}
+
+puzzle{
+  name = "3^4",
+  shape = load('shape/cube'),
+  generate = function(s)
+    s:cut()
+  end,
+}

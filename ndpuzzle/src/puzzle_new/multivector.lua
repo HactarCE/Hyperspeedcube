@@ -18,10 +18,10 @@ local function trailing_zeros(n)
     if n == 0 then return 16 end
 
     local result = 15
-    if n & 0x00FF != 0 then result = result - 8 end
-    if n & 0x0F0F != 0 then result = result - 4 end
-    if n & 0x3333 != 0 then result = result - 2 end
-    if n & 0x5555 != 0 then result = result - 1 end
+    if n & 0x00FF ~= 0 then result = result - 8 end
+    if n & 0x0F0F ~= 0 then result = result - 4 end
+    if n & 0x3333 ~= 0 then result = result - 2 end
+    if n & 0x5555 ~= 0 then result = result - 1 end
     return result
 end
 local function count_ones(n)
@@ -56,8 +56,8 @@ local function multiply_axes(a, b, sign)
     local resulting_bitmask = a ^ b
     local sign = sign or 1
     if (a & b) & 1 == 1 then sign = -1 end -- e₋ squares to -1
-    while a != 0 and b != 0 do
-        while b & 1 == 0 and b != 0 do
+    while a ~= 0 and b ~= 0 do
+        while b & 1 == 0 and b ~= 0 do
             a = a >> 1
             b = b >> 1
         end
@@ -86,11 +86,11 @@ local function axis_bitmask_and_sign(s)
         elseif c == 'o' then
             use_null_vector_basis = true
             new_axis_mask = 0x1
-            if mask & new_axis_mask != 0 then zeroed = true end -- get nullvectored lmao
+            if mask & new_axis_mask ~= 0 then zeroed = true end -- get nullvectored lmao
         elseif c == 'i' or c == '∞' then
             use_null_vector_basis = true
             new_axis_mask = 0x2
-            if mask & new_axis_mask != 0 then zeroed = true end -- get nullvectored lmao
+            if mask & new_axis_mask ~= 0 then zeroed = true end -- get nullvectored lmao
         elseif c == '-' or c == '₋' then
             use_true_basis = true
             new_axis_mask = 0x1
@@ -118,7 +118,7 @@ local function axis_bitmask_and_sign(s)
 
     local special_component
     if use_null_vector_basis then
-        assert(mask & 3 != 3, 'cannot access component "' .. s .. '"')
+        assert(mask & 3 ~= 3, 'cannot access component "' .. s .. '"')
         if mask & 3 == 1 then special_component = 'no' end
         if mask & 3 == 2 then special_component = 'ni' end
     end
@@ -257,7 +257,7 @@ local multivector_metatable = {
             value = nil
         end
         assert(not special_component, 'assigning to o and ∞ components is not supported')
-        assert(sign != 0, 'cannot assign to component with zero')
+        assert(sign ~= 0, 'cannot assign to component with zero')
         rawset(v, bitmask, value * sign)
     end,
 
@@ -273,7 +273,7 @@ local multivector_metatable = {
             local e_component = self[i | 0x3]
 
             function add_term(prefix, value)
-                if value != 0 then
+                if value ~= 0 then
                     table.insert(terms, value .. prefix .. axes)
                 end
             end
@@ -282,7 +282,7 @@ local multivector_metatable = {
             add_term("∞", scalar_component)
             add_term("E", scalar_component)
 
-            i += 1 << 2
+            i = i + (1 << 2)
         end
         return util.join(util.filter(terms), ' + ')
     end,
@@ -294,26 +294,6 @@ multivector_metatable.__index = Multivector
 -------------
 -- Methods --
 -------------
-
-function Multivector:new(...)
-    local args = {...}
-    first_arg = args[0]
-    if type(first_arg) == 'multivector' then
-        return first_arg
-    end
-
-    result = {}
-    setmetatable(result, multivector_metatable)
-    for k, v in pairs(args) do
-        if type(k) == 'number' and (type(v) == 'table' or type(v) == 'vector') then
-            for axis, value in ipairs(v) do
-                result[1 << (axis + 1)] = value
-            end
-        end
-        result[k] = v
-    end
-    return result
-end
 
 function Multivector:pss(ndim)
     assert(
@@ -362,7 +342,7 @@ function Multivector:ndim()
     -- Find highest set bit
     local ndim = 0
     while mask > 0 do
-        ndim += 1
+        ndim = ndim + 1
         mask = mask >> 1
     end
     return ndim
@@ -374,7 +354,7 @@ function Multivector:grade()
         if not approx_eq(value, 0) then
             if not grade then
                 grade = key
-            elseif grade != key then
+            elseif grade ~= key then
                 return nil -- inconsistent grade
             end
         end
@@ -404,7 +384,7 @@ function Multivector:reversed()
     return result
 end
 function Multivector:invert()
-    assert(type(self) = 'multivector')
+    assert(type(self) == 'multivector')
     local reversed = self:reversed()
     local scale_factor = self:dot(old)
     for key, value in pairs(reversed) do
@@ -431,4 +411,22 @@ end
 -- Constructor --
 -----------------
 
-mvec = Multivector:new
+function mvec(...)
+    local args = {...}
+    first_arg = args[0]
+    if type(first_arg) == 'multivector' then
+        return first_arg
+    end
+
+    result = {}
+    setmetatable(result, multivector_metatable)
+    for k, v in pairs(args) do
+        if type(k) == 'number' and (type(v) == 'table' or type(v) == 'vector') then
+            for axis, value in ipairs(v) do
+                result[1 << (axis + 1)] = value
+            end
+        end
+        result[k] = v
+    end
+    return result
+end

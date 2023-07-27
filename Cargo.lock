@@ -1263,6 +1263,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui_extras"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f051342e97dfa2445107cb7d2e720617f5c840199b5cb4fe0ffcf481fcf5cce"
+dependencies = [
+ "egui 0.21.0",
+ "serde",
+]
+
+[[package]]
 name = "egui_glow"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2003,11 +2013,13 @@ dependencies = [
  "egui-wgpu",
  "egui-winit 0.21.1",
  "egui_dock",
+ "egui_extras",
  "enum-iterator",
  "env_logger",
  "getrandom",
  "hex",
  "human-panic",
+ "include_dir",
  "instant",
  "itertools",
  "js-sys",
@@ -2023,6 +2035,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "png",
  "pollster",
+ "rand",
  "regex",
  "rfd",
  "send_wrapper",
@@ -2056,6 +2069,25 @@ checksum = "e14ddfc70884202db2244c223200c204c2bda1bc6e0998d11b5e024d657209e6"
 dependencies = [
  "unicode-bidi",
  "unicode-normalization",
+]
+
+[[package]]
+name = "include_dir"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18762faeff7122e89e0857b02f7ce6fcc0d101d5e9ad2ad7846cc01d61b7f19e"
+dependencies = [
+ "include_dir_macros",
+]
+
+[[package]]
+name = "include_dir_macros"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b139284b5cf57ecfa712bcc66950bb635b31aff41c188e8a4cfc758eca374a3f"
+dependencies = [
+ "proc-macro2",
+ "quote",
 ]
 
 [[package]]
@@ -2603,6 +2635,7 @@ dependencies = [
  "cgmath",
  "eframe",
  "enum-iterator",
+ "env_logger",
  "float-ord",
  "itertools",
  "lazy_static",
@@ -2619,6 +2652,7 @@ dependencies = [
  "slab",
  "smallvec",
  "strum",
+ "test-log",
  "thiserror",
  "tinyset",
 ]
@@ -3822,6 +3856,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be55cf8942feac5c765c2c993422806843c9a9a45d4d5c407ad6dd2ea95eb9b6"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "test-log"
+version = "0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9601d162c1d77e62c1ea0bc8116cd1caf143ce3af947536c3c9052a1677fe0c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]

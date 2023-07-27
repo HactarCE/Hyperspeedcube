@@ -38,3 +38,5 @@ tinyset = "0.4.15"
 cgmath = { version = "0.18.0", features = ["serde"] }
 eframe = { version = "0.18.0", features = ["dark-light", "persistence"] }
 proptest = "1.0.0"
+test-log = "0.2.12"
+env_logger = "0.10.0"
