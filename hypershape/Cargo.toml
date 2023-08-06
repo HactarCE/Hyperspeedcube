@@ -1,0 +1,40 @@
+[package]
+name = "hypershape"
+description = "Multidimensional shape slicing and other geometric algorithms"
+version = "0.1.0"
+authors = ["Andrew Farkas"]
+edition = "2021"
+repository = "https://github.com/HactarCE/Hyperspeedcube/"
+keywords = ["math", "geomtery", "computational-geometry"]
+categories = ["mathematics", "algorithms"]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+anyhow = "1.0.72"
+bitflags = "2.3.3"
+float-ord = "0.3.2"
+itertools = "0.11.0"
+log = "0.4.17"
+parking_lot = "0.12.1"
+rayon = "1.7.0"
+slab = "0.4.8"
+smallvec = { version = "1.9.0", features = ["const_new", "union"] }
+serde = { version = "1.0.176", features = ["derive"], optional = true }
+thiserror = "1.0.44"
+tinyset = "0.4.15"
+tracing = { version = "0.1.37" }
+tracing-log = { version = "0.1.3" }
+tracing-subscriber = { version = "0.3.17", default-features = false, features = ["env-filter", "fmt", "ansi", "json", "registry"] }
+
+hypermath = { path = "../hypermath" }
+
+nu-ansi-term = "*"
+
+[dev-dependencies]
+env_logger = "*"
+test-log = { version = "0.2.12", features = ["trace"] }
+
+[features]
+default = ["tracing"]
+# tracing = ["dep:tracing", "dep:tracing-log"]
+tracing = []

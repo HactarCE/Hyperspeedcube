@@ -1,12 +1,21 @@
 //! N-dimensional puzzle backend.
-#![warn(clippy::if_then_some_else_none, missing_docs)]
+
+#![warn(
+    rust_2018_idioms,
+    missing_docs,
+    clippy::if_then_some_else_none,
+    clippy::manual_let_else,
+    clippy::semicolon_if_nothing_returned,
+    clippy::semicolon_inside_block,
+    clippy::too_many_lines,
+    clippy::undocumented_unsafe_blocks,
+    clippy::unwrap_used
+)]
 #![deny(clippy::correctness)]
 
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
-pub mod collections;
 #[macro_use]
 pub mod math;
 pub mod geometry;
@@ -17,17 +26,6 @@ pub mod util;
 
 /// Numeric type used for layer masks.
 pub type LayerMaskUint = u32;
-
-/// Names for axes up to 8 dimensions.
-pub const AXIS_NAMES: &str = "XYZWUVRS";
-
-pub const MAX_NDIM: u8 = AXIS_NAMES.len() as u8;
-
-/// Floating-point type used for geometry generation (either `f32` or `f64`).
-pub type Float = f64;
-
-/// Small floating-point value used for comparisons and tiny offsets.
-pub const EPSILON: Float = 0.000001;
 
 #[cfg(test)]
 mod tests {
