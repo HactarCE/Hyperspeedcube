@@ -160,7 +160,7 @@ impl Space {
     }
 
     /// Returns the number of dimensions of a shape.
-    fn ndim_of(&self, shape: ShapeId) -> u8 {
+    pub fn ndim_of(&self, shape: ShapeId) -> u8 {
         self[self[shape].manifold].ndim
     }
     /// Returns the manifold of a shape.
@@ -173,6 +173,10 @@ impl Space {
     /// Returns the blade representing a manifold.
     pub fn blade_of(&self, manifold: ManifoldRef) -> Blade {
         &self[manifold.id].blade * manifold.sign
+    }
+    /// Returns the signed boundary of a shape.
+    pub fn boundary_of(&self, shape: ShapeRef) -> impl Iterator<Item = ShapeRef> {
+        self[shape.id].boundary.iter().map(move |b| b * shape.sign)
     }
 
     /// Returns the pair of points that comprise a 0D shape.
@@ -285,8 +289,8 @@ impl Space {
             let mut starting_points = vec![];
             let mut ending_points = vec![];
             for edge in &self[shape].boundary {
-                for point_pair in &self[edge.id].boundary {
-                    let [a, b] = self.extract_point_pair(point_pair * edge.sign)?;
+                for point_pair in self.boundary_of(edge) {
+                    let [a, b] = self.extract_point_pair(point_pair)?;
 
                     match ending_points.iter().find_position(|p| approx_eq(&a, p)) {
                         Some((i, _)) => {
@@ -985,8 +989,8 @@ impl Space {
             *buffer += &blade.to_string();
         }
         buffer.push('\n');
-        for child in self[shape.id].boundary.iter() {
-            self.shape_to_string_internal(buffer, child * shape.sign, indent + 1);
+        for child in self.boundary_of(shape) {
+            self.shape_to_string_internal(buffer, child, indent + 1);
         }
     }
 }
