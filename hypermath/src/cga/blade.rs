@@ -3,6 +3,7 @@
 use std::fmt;
 use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 
+use float_ord::FloatOrd;
 use itertools::Itertools;
 
 use crate::*;
@@ -262,13 +263,6 @@ impl Blade {
     /// Constructs the normalized OPNS blade representing a point.
     pub fn point(p: impl ToConformalPoint) -> Self {
         p.to_normalized_1blade()
-    }
-    /// Constructs the OPNS blade representing a point.
-    ///
-    /// See https://w.wiki/6L8o
-    fn vector_to_point(p: impl VectorRef) -> Self {
-        // p + NO + 1/2 * NI * ||p||
-        Blade(Multivector::from(&p) + Multivector::NO + Multivector::NI * 0.5 * p.mag2())
     }
     /// Constructs the OPNS blade representing the pair of `p` and the point at
     /// infinity, which is called a "flat point."
@@ -556,6 +550,33 @@ impl Blade {
         }
     }
 
+    /// Returns an object representing the tangent space of the manifold
+    /// represented by an OPNS blade.
+    pub fn opns_tangent_space(&self) -> TangentSpace {
+        TangentSpace::from(self)
+    }
+    /// Projects a point onto the manifold, or returns `None` if the result is
+    /// undefined.
+    pub fn project_point(&self, p: &Point) -> Option<Point> {
+        match p {
+            Point::Finite(p) => {
+                let pair = (Blade::point(p) ^ Blade::NI) << self << self;
+                // The CGA projection operation actually gives us two points.
+                let [a, b] = match pair.point_pair_to_points() {
+                    Some(points) => points.map(|p| p.to_finite().ok()),
+                    None => [None, None],
+                };
+                // Return whichever point is closer to `p`.
+                crate::util::merge_options(a, b, |a, b| {
+                    std::cmp::min_by_key(a, b, |q| FloatOrd((p - q).mag2()))
+                })
+                .map(|p| Point::Finite(p))
+            }
+            Point::Infinity if self.opns_is_flat() => Some(Point::Infinity),
+            Point::Infinity | Point::Degenerate => None,
+        }
+    }
+
     /// Returns the scale factor between `self` and `other` if they differ by a
     /// scalar factor, or `None` if they do not or if either is zero.
     pub fn scale_factor_to(&self, other: &Self) -> Option<Float> {
@@ -628,103 +649,5 @@ impl Blade {
     /// Returns the magnitude of the blade.
     fn mag(&self) -> Option<Float> {
         util::try_sqrt(self.mag2())
-    }
-}
-
-/// Point on the one-point compactification of N-dimensional Euclidean space.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Point {
-    /// Finite point.
-    Finite(Vector),
-    /// Point at infinity.
-    Infinity,
-    /// Degenerate point, represented by the zero blade.
-    Degenerate,
-}
-impl fmt::Display for Point {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Point::Finite(p) => fmt::Display::fmt(p, f),
-            Point::Infinity => write!(f, "∞ "),
-            Point::Degenerate => write!(f, "<degenerate>"),
-        }
-    }
-}
-impl Default for Point {
-    fn default() -> Self {
-        Self::Finite(Vector::EMPTY)
-    }
-}
-impl approx::AbsDiffEq for Point {
-    type Epsilon = Float;
-
-    fn default_epsilon() -> Self::Epsilon {
-        Vector::default_epsilon()
-    }
-
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        match (self, other) {
-            (Point::Finite(a), Point::Finite(b)) => a.abs_diff_eq(b, epsilon),
-            _ => self == other,
-        }
-    }
-}
-impl Point {
-    /// Point at the origin.
-    pub const ORIGIN: Self = Point::Finite(Vector::EMPTY);
-
-    /// Returns the point if it is finite, and `None` otherwise.
-    pub fn to_finite(self) -> Result<Vector, Point> {
-        match self {
-            Point::Finite(v) => Ok(v),
-            p => Err(p),
-        }
-    }
-
-    /// Returns the point if it is finite, or panics otherwise.
-    #[track_caller]
-    pub fn unwrap(self) -> Vector {
-        self.to_finite().expect("expected point")
-    }
-    /// Returns the point if it is finite, or panics otherwise.
-    #[track_caller]
-    pub fn expect(self, msg: &str) -> Vector {
-        self.to_finite().expect(msg)
-    }
-}
-
-/// Trait to convert to a point in the conformal geometric algebra.
-pub trait ToConformalPoint {
-    /// Returns the representation of a point in the conformal geometric
-    /// algebra.
-    fn to_normalized_1blade(self) -> Blade;
-}
-impl<V: VectorRef> ToConformalPoint for V {
-    fn to_normalized_1blade(self) -> Blade {
-        Blade::vector_to_point(self)
-    }
-}
-impl ToConformalPoint for &'_ Blade {
-    fn to_normalized_1blade(self) -> Blade {
-        self.normalize_point()
-    }
-}
-impl ToConformalPoint for Blade {
-    fn to_normalized_1blade(self) -> Blade {
-        self.normalize_point()
-    }
-}
-impl ToConformalPoint for &'_ Point {
-    fn to_normalized_1blade(self) -> Blade {
-        match self {
-            Point::Finite(p) => Blade::point(p),
-            Point::Infinity => Blade::NI,
-            Point::Degenerate => Blade::ZERO,
-        }
-    }
-}
-impl ToConformalPoint for Point {
-    fn to_normalized_1blade(self) -> Blade {
-        (&self).to_normalized_1blade()
     }
 }
