@@ -24,6 +24,7 @@ impl fmt::Display for IndexOutOfRange {
         )
     }
 }
+impl std::error::Error for IndexOutOfRange {}
 
 /// Constructs a struct that is a simple wrapper around a primitive unsigned
 /// integer type used as an index.
@@ -196,6 +197,17 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
         let idx = self.next_idx()?;
         self.values.push(value);
         Ok(idx)
+    }
+
+    /// Extends the vector until it contains `index`.
+    pub fn extend_to_contain(&mut self, index: I) -> Result<(), IndexOutOfRange>
+    where
+        E: Default,
+    {
+        while index.to_u64() >= self.len() as u64 {
+            self.push(E::default())?;
+        }
+        Ok(())
     }
 
     /// Returns whether the collection is empty.
