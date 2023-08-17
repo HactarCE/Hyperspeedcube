@@ -25,6 +25,9 @@ function error(...)
   old_error(...)
 end
 
+math.tau = math.pi * 2
+math.phi = (1 + math.sqrt(5)) / 2
+
 SANDBOX_ENV = {
   -- Built-in constants
   _VERSION = _VERSION,
