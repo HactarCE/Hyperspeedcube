@@ -101,3 +101,12 @@ pub fn next_multiple_of(lhs: u64, rhs: u64) -> u64 {
         lhs + (rhs - m)
     }
 }
+
+/// If both options are `Some`, merges them using `f`. Otherwise returns
+/// whichever one is `Some`, or `None` if they are both `None`.
+pub fn merge_options<T>(a: Option<T>, b: Option<T>, f: impl FnOnce(T, T) -> T) -> Option<T> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(f(a, b)),
+        (a, b) => a.or(b),
+    }
+}
