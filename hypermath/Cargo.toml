@@ -20,6 +20,7 @@ bitflags = "2.3.3"
 bytemuck = { version = "1.13.1", optional = true }
 float-ord = "0.3.2"
 itertools = "0.11.0"
+log = "0.4.17"
 num-traits = "0.2.16"
 serde = { version = "1.0.176", features = ["derive"], optional = true }
 smallvec = { version = "1.11.0", features = ["const_new", "union"] }
