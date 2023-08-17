@@ -1,8 +1,6 @@
+use hypermath::collections::GenericVec;
+use hypermath::prelude::*;
 use smallvec::SmallVec;
-
-use super::{LayerMask, TwistCut};
-use crate::collections::{GenericVec, IndexNewtype};
-use crate::math::*;
 
 macro_rules! impl_puzzle_info_trait {
     (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {
@@ -26,21 +24,33 @@ pub trait PuzzleInfo<T> {
     fn info(&self, thing: T) -> &Self::Output;
 }
 
-idx_struct! {
-    /// Piece ID.
+hypermath::idx_struct! {
+    /// ID of a **piece**, which is rigid component of the puzzle that moves
+    /// together.
     pub struct Piece(pub u16);
-    /// Sticker ID.
+    /// ID of a **sticker**, which is a facet of a **piece** having a single
+    /// color and belonging to a single **surface**.
     pub struct Sticker(pub u16);
-    /// Facet ID.
+    /// ID of a **surface**, which is a manifold shared by one or more
+    /// **stickers**.
+    pub struct Surface(pub u16);
+    /// ID of a **facet**, which is shared by one or more **stickers** and is
+    /// assigned a single color by the user.
     pub struct Facet(pub u16);
-    /// Twist axis ID.
-    pub struct TwistAxis(pub u16);
-    /// Twist transform ID.
-    pub struct TwistTransform(pub u32);
-    /// Piece type ID.
+    /// ID of a **twist axis**, an organizational unit containing several
+    /// **twists**.
+    pub struct Axis(pub u16);
+    /// ID of a **twist**, which is a single move that can be applied to the
+    /// puzzle.
+    pub struct Twist(pub u32);
+    /// ID of a **piece type**, a subset of the **pieces** of the puzzle.
     pub struct PieceType(pub u8);
 }
 
+impl Surface {
+    /// Surface ID for internals.
+    pub const INTERNAL: Surface = Surface::MAX;
+}
 impl Facet {
     /// Facet ID for internals.
     pub const INTERNAL: Facet = Facet::MAX;
@@ -50,12 +60,14 @@ impl Facet {
 pub type PerPiece<T> = GenericVec<Piece, T>;
 /// List containing a value per sticker.
 pub type PerSticker<T> = GenericVec<Sticker, T>;
+/// List containing a value per surface.
+pub type PerSurface<T> = GenericVec<Surface, T>;
 /// List containing a value per facet.
 pub type PerFacet<T> = GenericVec<Facet, T>;
 /// List containing a value per twist axis.
-pub type PerTwistAxis<T> = GenericVec<TwistAxis, T>;
-/// List containing a value per twist transform.
-pub type PerTwistTransform<T> = GenericVec<TwistTransform, T>;
+pub type PerAxis<T> = GenericVec<Axis, T>;
+/// List containing a value per twist.
+pub type PerTwist<T> = GenericVec<Twist, T>;
 /// List containing a value per piece type.
 pub type PerPieceType<T> = GenericVec<PieceType, T>;
 
@@ -66,9 +78,6 @@ pub struct PieceInfo {
     pub stickers: SmallVec<[Sticker; 8]>,
     /// Piece type.
     pub piece_type: PieceType,
-
-    /// Unordered list of vertices that comprise the piece.
-    pub points: Vec<Vector>,
 }
 
 /// Sticker info.
@@ -78,15 +87,6 @@ pub struct StickerInfo {
     pub piece: Piece,
     /// Facet whose color is on the sticker.
     pub color: Facet,
-
-    /// List of vertices that comprise the sticker.
-    pub points: Vec<Vector>,
-    /// Vector along which to shrink each point.
-    pub shrink_vectors: Vec<Vector>,
-    /// List of polygons for rendering the sticker.
-    ///
-    /// Each polygon is a list of indices into `points`.
-    pub polygons: Vec<SmallVec<[u16; 8]>>,
 }
 
 /// Facet info.
@@ -103,41 +103,19 @@ pub struct FacetInfo {
 
 /// Twist axis info.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TwistAxisInfo {
+pub struct AxisInfo {
     /// Human-friendly name for the twist axis. (e.g, "U", "R", etc.)
     pub name: String,
-
-    /// Vector that is perpendicular to cuts along the axis.
-    pub normal: Vector,
-    /// Cuts along the axis.
-    pub cuts: Vec<TwistCut>,
-
-    /// Transforms that can be applied on this axis, sorted lexicographically by
-    /// name.
-    pub transforms: Vec<TwistTransform>,
-
-    /// Opposite twist axis, if there is one.
-    pub opposite: Option<TwistAxis>,
 }
-impl AsRef<str> for TwistAxisInfo {
+impl AsRef<str> for AxisInfo {
     fn as_ref(&self) -> &str {
         &self.name
     }
 }
-impl TwistAxisInfo {
-    /// Returns the number of layers on the twist axis.
-    pub fn layer_count(&self) -> u8 {
-        self.cuts.len() as u8 + 1
-    }
-    /// Returns the maximum layer mask for the twist axis.
-    pub fn all_layers(&self) -> LayerMask {
-        LayerMask((1 << self.layer_count()) - 1)
-    }
-}
 
-/// Twist transform info.
+/// Twist info.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TwistTransformInfo {
+pub struct TwistInfo {
     /// Human-friendly name for the twist. (e.g., "U2", "R'", etc.)
     pub name: String,
 
@@ -145,19 +123,19 @@ pub struct TwistTransformInfo {
     pub qtm: usize,
 
     /// Twist axis to use to determine which pieces are moved by the twist.
-    pub axis: TwistAxis,
+    pub axis: Axis,
     /// Transforation to apply to pieces.
-    pub transform: cga::Isometry,
+    pub transform: Isometry,
 
-    /// Opposite twist transform. With a reversed layer mask, this applies the
+    /// Opposite twist. With a reversed layer mask, this applies the
     /// same transformation to the same pieces. For example, R and L' are
     /// opposite twists on a 3x3x3.
-    pub opposite: Option<TwistTransform>,
+    pub opposite: Option<Twist>,
 
-    /// Reverse twist transform, which undoes this one.
-    pub reverse: TwistTransform,
+    /// Reverse twist, which undoes this one.
+    pub reverse: Twist,
 }
-impl AsRef<str> for TwistTransformInfo {
+impl AsRef<str> for TwistInfo {
     fn as_ref(&self) -> &str {
         &self.name
     }

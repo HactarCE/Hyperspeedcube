@@ -1,6 +1,9 @@
 use std::fmt;
 use std::sync::Arc;
 
+use hypermath::prelude::*;
+use hypershape::prelude::*;
+
 use super::*;
 
 /// Instance of a puzzle, which tracks the locations of each of its pieces.

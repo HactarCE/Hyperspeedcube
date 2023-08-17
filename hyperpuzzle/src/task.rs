@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
-#[derive(Clone)]
 pub struct TaskHandle<T>(Arc<TaskData<T>>);
 impl<T> fmt::Debug for TaskHandle<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -15,16 +14,22 @@ impl<T> fmt::Debug for TaskHandle<T> {
             .finish()
     }
 }
+impl<T> Clone for TaskHandle<T> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
 
 impl<T> TaskHandle<T> {
+    pub(crate) fn new() -> Self {
+        TaskHandle(Arc::new(TaskData::default()))
+    }
+
     pub fn cancel(&self) {
         self.0.cancel_requested.store(true, Relaxed);
     }
-    pub fn set_on_update(&self, on_update: Option<Box<dyn Fn()>>) {
-        *self.0.on_update.lock() = on_update
-    }
-    pub(crate) fn complete(&self, result: Option<T>) {
-        *self.0.result.lock() = result;
+    pub(crate) fn complete(&self, result: T) {
+        *self.0.result.lock() = Some(result);
         self.0.completed.store(true, Relaxed);
     }
     pub fn take_result(&self) -> Option<T> {
@@ -35,11 +40,20 @@ impl<T> TaskHandle<T> {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug)]
 pub struct TaskData<T> {
-    on_update: Mutex<Option<Box<dyn Fn()>>>,
     completed: AtomicBool,
     cancel_requested: AtomicBool,
 
     result: Mutex<Option<T>>,
+}
+impl<T> Default for TaskData<T> {
+    fn default() -> Self {
+        Self {
+            completed: AtomicBool::new(false),
+            cancel_requested: AtomicBool::new(false),
+
+            result: Mutex::new(None),
+        }
+    }
 }

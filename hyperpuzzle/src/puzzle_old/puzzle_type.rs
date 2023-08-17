@@ -1,13 +1,14 @@
-use anyhow::Result;
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 use std::ops::*;
 use std::sync::{Arc, Weak};
 
-use ahash::AHashMap;
+use anyhow::Result;
+use hypermath::prelude::*;
+use hypershape::prelude::*;
 
 use super::*;
-use crate::geometry::{IsometryGroup, ShapeArena, ShapeRef};
 
 /// Puzzle type info.
 pub struct PuzzleType {
@@ -110,7 +111,7 @@ impl PuzzleType {
             // Reverse the layer mask.
             let reversed_layers = LayerMask(
                 twist.layers.0.reverse_bits()
-                    >> (LayerMaskUint::BITS - axis_info.layer_count() as u32),
+                    >> (crate::LayerMaskUint::BITS - axis_info.layer_count() as u32),
             );
 
             let opposite_twist = Twist {
@@ -152,7 +153,7 @@ impl PuzzleType {
 
     pub(crate) fn create_puzzle_type_from_shapes(
         name: String,
-        arena: &ShapeArena,
+        arena: &Space,
         pieces: Vec<ShapeRef>,
     ) -> Result<Arc<PuzzleType>> {
         let mut ret = PuzzleType {
@@ -164,14 +165,14 @@ impl PuzzleType {
                 facets: vec![],
                 facet_order: vec![],
                 radius: 1.0,
-                facets_by_name: AHashMap::new(),
+                facets_by_name: HashMap::new(),
             }),
             twists: Arc::new(PuzzleTwists {
                 name: "unknown".to_string(),
                 axes: vec![],
                 axis_order: vec![],
                 non_empty_axes: vec![],
-                axes_by_name: AHashMap::new(),
+                axes_by_name: HashMap::new(),
                 transforms: vec![],
                 symmetry: IsometryGroup::from_generators(&[])?,
                 notation: NotationScheme {},

@@ -1,4 +1,8 @@
+use std::sync::Arc;
+
+use anyhow::Result;
 use itertools::Itertools;
+use parking_lot::Mutex;
 use rlua::prelude::*;
 
 mod constants;
@@ -6,6 +10,8 @@ mod types;
 mod util;
 
 use types::*;
+
+use crate::{Object, PieceSet, Puzzle, PuzzleBuilder};
 
 macro_rules! lua_module {
     ($filename:literal) => {
@@ -69,7 +75,11 @@ pub fn new_lua() -> Lua {
     lua
 }
 
-pub fn load_sandboxed(lua: &Lua, filename: &str, contents: &str) -> Result<(), LuaFileLoadError> {
+pub fn load_sandboxed(
+    lua: &Lua,
+    filename: &str,
+    contents: &str,
+) -> Result<Vec<Object>, LuaObjectLoadError> {
     lua.context(|lua| {
         // Construct a sandbox environment.
         let sandbox_env: LuaTable = lua
@@ -83,26 +93,37 @@ pub fn load_sandboxed(lua: &Lua, filename: &str, contents: &str) -> Result<(), L
             .call(filename)?;
 
         // Try to load the file.
-        match lua.load(&contents).set_environment(sandbox_env)?.exec() {
-            Err(e) => {
-                let error_fn = lua.globals().get::<_, LuaFunction>("error")?;
-                error_fn.call(format!("error loading {filename:?}:"))?;
-                for line in e.to_string().lines() {
-                    error_fn.call(format!("{line}"))?;
-                }
-                error_fn.call("")?;
-                Ok(Err(LuaFileLoadError::UserError(e)))
+        if let Err(e) = lua.load(&contents).set_environment(sandbox_env)?.exec() {
+            let error_fn = lua.globals().get::<_, LuaFunction>("error")?;
+            error_fn.call(format!("error loading {filename:?}:"))?;
+            for line in e.to_string().lines() {
+                error_fn.call(format!("{line}"))?;
             }
-
-            Ok(()) => {
-                library
-                    .get::<_, LuaFunction>("finish_loading_file")?
-                    .call(filename)?;
-                Ok(Ok(()))
-            }
+            error_fn.call("")?;
+            return Ok(Err(LuaObjectLoadError::UserError(e)));
         }
+
+        // Generate metadata for each object.
+        let objects_defined_in_file = lua
+            .globals()
+            .get::<_, LuaTable>("library")?
+            .get::<_, LuaTable>("files")?
+            .get::<_, LuaTable>(filename)?;
+        let result: Vec<Object> = objects_defined_in_file
+            .pairs()
+            .map(|pair| {
+                let (_, obj): (LuaValue<'_>, LuaValue<'_>) = pair?;
+                Object::from_lua(obj, lua)
+            })
+            .try_collect()?;
+
+        library
+            .get::<_, LuaFunction>("finish_loading_file")?
+            .call(filename)?;
+
+        Ok(Ok(result))
     })
-    .unwrap_or_else(|e| Err(LuaFileLoadError::InternalError(e)))
+    .unwrap_or_else(|e| Err(LuaObjectLoadError::InternalError(e)))
 }
 
 pub fn drain_logs(lua: LuaContext<'_>) -> Vec<LuaLogLine> {
@@ -115,6 +136,28 @@ pub fn drain_logs(lua: LuaContext<'_>) -> Vec<LuaLogLine> {
             .try_collect()
     })()
     .unwrap_or(vec![])
+}
+
+pub fn build_puzzle(lua: LuaContext<'_>, name: &str) -> Result<Arc<Puzzle>> {
+    let puzzle_table = lua
+        .globals()
+        .get::<_, LuaTable>("library")?
+        .get::<_, LuaTable>("objects")?
+        .get::<_, LuaTable>(format!("puzzle/{name}"))?;
+
+    let LuaNdim(ndim) = puzzle_table.get("ndim")?;
+
+    let (puzzle_builder, root) = PuzzleBuilder::new_solid(name.to_string(), ndim);
+    let puzzle_builder = Arc::new(Mutex::new(puzzle_builder));
+    lua.globals()
+        .set("PUZZLE", LuaPuzzleBuilder(Arc::clone(&puzzle_builder)));
+
+    puzzle_table
+        .get::<_, LuaFunction>("build")?
+        .call(LuaPieceSet(PieceSet([root].into_iter().collect())))?;
+
+    let mut puzzle_builder = puzzle_builder.lock();
+    puzzle_builder.take().build()
 }
 
 #[cfg(test)]

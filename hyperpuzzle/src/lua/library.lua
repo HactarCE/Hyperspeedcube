@@ -4,7 +4,7 @@ library = {
 }
 
 function library.start_loading_file(filename)
-  assert(library.current == nil, 'file loading already in progress')
+  assert(OBJECTS_DEFINED_IN_FILE == nil, 'file loading already in progress')
   FILENAME = filename
   OBJECTS_DEFINED_IN_FILE = {}
 end
@@ -48,6 +48,8 @@ function library.finish_loading_file(filename)
     end
   end
   info('loaded file %q', filename)
+
+  OBJECTS_DEFINED_IN_FILE = nil
 end
 
 function library.unload_file(filename)

@@ -5,7 +5,7 @@ use std::hash::Hash;
 use std::ops::*;
 use std::str::FromStr;
 
-idx_struct! {
+hypermath::idx_struct! {
     /// Layer ID, not to be confused with a _layer mask_, which is a bitmask
     /// where each bit corresponds to a layer ID.
     pub struct LayerId(pub u8);

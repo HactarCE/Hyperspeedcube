@@ -1,4 +1,4 @@
-use ahash::AHashMap;
+use std::collections::HashMap;
 
 use super::*;
 
@@ -17,6 +17,6 @@ pub struct PuzzleShape {
     pub radius: f32,
 
     /// Facets listed by name.
-    pub facets_by_name: AHashMap<String, Facet>,
+    pub facets_by_name: HashMap<String, Facet>,
 }
 impl_puzzle_info_trait!(for PuzzleShape { fn info(Facet) -> &FacetInfo { .facets } });

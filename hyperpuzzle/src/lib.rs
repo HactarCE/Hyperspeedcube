@@ -14,11 +14,14 @@
 // )]
 #![allow(clippy::multiple_crate_versions)]
 
-mod ext;
 mod library;
 mod lua;
+mod puzzle;
 mod task;
 
-pub use library::PuzzleLibrary;
+pub use library::{FileData, Library, Object, ObjectData};
 pub use lua::{drain_logs, load_sandboxed, new_lua};
+pub use puzzle::*;
 pub use task::TaskHandle;
+
+pub type LayerMaskUint = u32;

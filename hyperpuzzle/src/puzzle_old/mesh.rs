@@ -22,15 +22,14 @@
 // - surface tangents (2x)
 // - sticker shrink vector
 
-use ahash::{HashMap, HashMapExt, HashSet};
 use anyhow::{ensure, Result};
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 
 use super::{Facet, PerPiece, PerSticker, Piece, Sticker};
-use crate::collections::IndexNewtype;
-use crate::geometry::{Centroid, Manifold, ShapeArena, ShapeId, ShapeRef, Simplexifier, VertexId};
-use crate::math::{cga, Vector, VectorRef};
+use hypermath::prelude::*;
+use hypershape::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct Mesh {

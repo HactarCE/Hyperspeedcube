@@ -15,12 +15,21 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 anyhow = "1.0.65"
 enum-iterator = "1.4.1"
+float-ord = "0.3.2"
 itertools = "0.11.0"
 lazy_static = "1.4.0"
 log = "0.4.17"
 parking_lot = "0.12.1"
 rand = "0.8.5"
 rlua = "0.19.5"
+serde = { version = "1.0.176", features = ["derive"] }
+smallvec = { version = "1.11.0", features = ["const_new", "union"] }
+strum = { version = "0.24.0", features = ["derive"] }
+thiserror = "1.0.44"
+tinyset = "0.4.15"
 
 hypermath = { path = "../hypermath" }
 hypershape = { path = "../hypershape" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm_thread = "0.2.0"
