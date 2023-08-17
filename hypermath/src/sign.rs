@@ -69,20 +69,18 @@ impl Sign {
 /// Implements `Mul<Sign>` for a type.
 ///
 /// ```rust
+/// # use hypermath::prelude::*;
 /// #[derive(Debug, Copy, Clone)]
 /// struct MyStruct(f32);
 /// impl std::ops::Neg for MyStruct {
 ///     type Output = Self;
 ///
 ///     fn neg(self) -> Self::Output {
-///         match self {
-///             Sign::Pos => self,
-///             Sign::Neg => Self(-self.0),
-///         }
+///         MyStruct(-self.0)
 ///     }
 /// }
-/// impl_mul_sign!(impl Mul<Sign> for MyStruct);
-/// impl_mulassign_sign!(impl MulAssign<Sign> for MyStruct);
+/// hypermath::impl_mul_sign!(impl std::ops::Mul<Sign> for MyStruct);
+/// hypermath::impl_mulassign_sign!(impl std::ops::MulAssign<Sign> for MyStruct);
 /// ```
 #[macro_export]
 macro_rules! impl_mul_sign {

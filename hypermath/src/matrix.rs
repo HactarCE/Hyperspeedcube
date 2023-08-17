@@ -39,11 +39,10 @@ impl Matrix {
     /// order.
     ///
     /// ```
-    /// # use ndpuzzle::math::{Matrix};
-    /// # use ndpuzzle::row_matrix;
+    /// # use hypermath::prelude::*;
     /// assert_eq!(
     ///     Matrix::from_elems(vec![1.0, 2.0, 3.0, 4.0]),
-    ///     row_matrix![
+    ///     hypermath::row_matrix![
     ///         [1.0, 3.0],
     ///         [2.0, 4.0],
     ///     ],
@@ -62,10 +61,9 @@ impl Matrix {
     /// Returns a slice of the n^2 elements in **column-major** order.
     ///
     /// ```
-    /// # use ndpuzzle::math::{Matrix};
-    /// # use ndpuzzle::row_matrix;
+    /// # use hypermath::prelude::*;
     /// assert_eq!(
-    ///     row_matrix![
+    ///     hypermath::row_matrix![
     ///         [1.0, 3.0],
     ///         [2.0, 4.0],
     ///     ]
