@@ -1,32 +1,32 @@
-use ndpuzzle::{geometry::ShapeArena, library::LuaLogLine};
+use hypershape::Space;
 use parking_lot::Mutex;
 use std::{io::Read, sync::Arc};
 
-mod debug;
-mod puzzle_setup;
+// mod debug;
+// mod puzzle_setup;
 mod puzzle_view;
 
 use super::App;
-pub use debug::PolytopeTree;
-pub use puzzle_setup::PuzzleSetup;
+// pub use debug::PolytopeTree;
+// pub use puzzle_setup::PuzzleSetup;
 pub use puzzle_view::{PuzzleView, RenderEngine};
 
 #[derive(Debug)]
 pub enum Tab {
     PuzzleView(Arc<Mutex<PuzzleView>>),
-    PuzzleSetup(PuzzleSetup),
+    // PuzzleSetup(PuzzleSetup),
     ViewSettings,
-    PolytopeTree(PolytopeTree),
+    // PolytopeTree(PolytopeTree),
     PuzzleLibraryDemo,
-    PuzzleLibrary { log_lines: Vec<LuaLogLine> },
+    PuzzleLibrary { log_lines: Vec<String> },
 }
 impl Tab {
     pub fn title(&self) -> egui::WidgetText {
         match self {
             Tab::PuzzleView(_) => "Unknown Puzzle".into(),
-            Tab::PuzzleSetup(_) => "Puzzle Setup".into(),
+            // Tab::PuzzleSetup(_) => "Puzzle Setup".into(),
             Tab::ViewSettings => "View Settings".into(),
-            Tab::PolytopeTree(_) => "Polytope Tree".into(),
+            // Tab::PolytopeTree(_) => "Polytope Tree".into(),
             Tab::PuzzleLibraryDemo => "Puzzle Library".into(),
             Tab::PuzzleLibrary { .. } => "Puzzle Library".into(),
         }
@@ -39,7 +39,7 @@ impl Tab {
                     app.active_puzzle_view = Arc::downgrade(puzzle_view);
                 }
             }
-            Tab::PuzzleSetup(puzzle_setup) => puzzle_setup.ui(ui, app),
+            // Tab::PuzzleSetup(puzzle_setup) => puzzle_setup.ui(ui, app),
             Tab::ViewSettings => {
                 if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
                     let mut puzzle_view_mutex_guard = puzzle_view.lock();
@@ -113,7 +113,7 @@ impl Tab {
                     });
                 }
             }
-            Tab::PolytopeTree(polytope_tree) => polytope_tree.ui(ui, app),
+            // Tab::PolytopeTree(polytope_tree) => polytope_tree.ui(ui, app),
             Tab::PuzzleLibraryDemo => {
                 use rand::prelude::*;
                 lazy_static! {
@@ -374,7 +374,7 @@ impl Tab {
                     });
             }
             Tab::PuzzleLibrary { log_lines } => {
-                colored_logs(ui, &crate::LIBRARY.with(|lib| lib.borrow_mut().drain_log()));
+                // colored_logs(ui, &crate::LIBRARY.with(|lib| lib.borrow_mut().drain_log()));
 
                 ui.separator();
                 for file in crate::LUA_BUILTIN_DIR.get_dir("puzzles").unwrap().files() {
@@ -385,7 +385,7 @@ impl Tab {
                         let mut file_contents = String::new();
                         file.contents().read_to_string(&mut file_contents).unwrap();
                         let result = crate::LIBRARY.with(|lib| {
-                            lib.borrow_mut().load_file(
+                            lib.load_file(
                                 file.path()
                                     .file_name()
                                     .unwrap()
@@ -394,53 +394,51 @@ impl Tab {
                                 file_contents,
                             )
                         });
-                        if let Err(e) = result {
+                        if let Err(e) = result.take_result_blocking() {
                             log::error!("{e:?}")
                         }
                     }
                 }
                 ui.separator();
                 crate::LIBRARY.with(|lib| {
-                    let lib = lib.borrow();
-                    for puzzle_name in lib.puzzle_names().unwrap() {
+                    for puzzle_name in lib.get_puzzles() {
                         if ui.button(format!("Load {puzzle_name}")).clicked() {
-                            match lib.build_puzzle(puzzle_name) {
+                            match lib.construct_puzzle(&puzzle_name) {
                                 Err(e) => log::error!("{e}"),
-                                Ok((result, logs)) => {
-                                    *log_lines = logs;
-                                    match result {
-                                        Err(e) => log::error!("{e}"),
-                                        Ok(p) => {
-                                            if let Some(puzzle_view) =
-                                                app.active_puzzle_view.upgrade()
-                                            {
-                                                puzzle_view.lock().set_mesh(
-                                                    &app.gfx,
-                                                    ShapeArena::new_euclidean_cga(p.shape.ndim),
-                                                    Some(&p.mesh),
-                                                );
-                                            }
-                                        }
+                                Ok(result) => {
+                                    // *log_lines = logs;
+                                    // match result {
+                                    //     Err(e) => log::error!("{e}"),
+                                    //     Ok(p) => {
+                                    let p = result;
+                                    if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
+                                        puzzle_view.lock().set_mesh(
+                                            &app.gfx,
+                                            Space::new(p.shape.ndim),
+                                            Some(&p.mesh),
+                                        );
                                     }
+                                    //     }
+                                    // }
                                 }
                             }
                         }
                     }
                 });
                 ui.separator();
-                colored_logs(ui, log_lines);
+                // colored_logs(ui, log_lines);
             }
         }
     }
 }
 
-fn colored_logs(ui: &mut egui::Ui, logs: &[LuaLogLine]) {
-    for line in logs {
-        let color = match line.level.as_str() {
-            "info" => egui::Color32::LIGHT_BLUE,
-            "warn" | "warning" => egui::Color32::LIGHT_RED,
-            _ => egui::Color32::DEBUG_COLOR,
-        };
-        ui.colored_label(color, format!("{}: {}", line.file, line.msg));
-    }
-}
+// fn colored_logs(ui: &mut egui::Ui, logs: &[LuaLogLine]) {
+//     for line in logs {
+//         let color = match line.level.as_str() {
+//             "info" => egui::Color32::LIGHT_BLUE,
+//             "warn" | "warning" => egui::Color32::LIGHT_RED,
+//             _ => egui::Color32::DEBUG_COLOR,
+//         };
+//         ui.colored_label(color, format!("{}: {}", line.file, line.msg));
+//     }
+// }

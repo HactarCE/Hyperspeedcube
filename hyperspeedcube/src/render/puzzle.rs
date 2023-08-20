@@ -3,11 +3,9 @@
 //! 1. Render polygon IDs and lighting amounts to texture
 //! 2. Render result in full color.
 
+use hypermath::prelude::*;
+use hyperpuzzle::{Mesh, PerPiece, PerSticker};
 use itertools::Itertools;
-use ndpuzzle::{
-    math::{cga::Isometry, Float, Matrix, ToConformalPoint, VectorRef},
-    puzzle::{Mesh, PerPiece, PerSticker},
-};
 use std::fmt;
 use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
@@ -189,6 +187,10 @@ impl PuzzleRenderer {
         let (depth_texture, depth_texture_view) = self.buffers.depth_texture.at_size(gfx, tex_size);
         let (color_texture, color_texture_view) = self.buffers.out_texture.at_size(gfx, tex_size);
 
+        if self.model.vertex_count == 0 {
+            return Ok(color_texture_view);
+        }
+
         // Render in a single pass.
         {
             let bind_groups = gfx.pipelines.render_single_pass_bind_groups.bind_groups(
@@ -277,6 +279,10 @@ impl PuzzleRenderer {
             self.buffers.first_pass_texture.at_size(gfx, tex_size);
         let (depth_texture, depth_texture_view) = self.buffers.depth_texture.at_size(gfx, tex_size);
         let (color_texture, color_texture_view) = self.buffers.out_texture.at_size(gfx, tex_size);
+
+        if self.model.vertex_count == 0 {
+            return Ok(color_texture_view);
+        }
 
         // Compute 3D vertex positions on the GPU.
         {
@@ -431,6 +437,10 @@ impl PuzzleRenderer {
     }
 
     fn init_buffers(&mut self, gfx: &GraphicsState, view_params: &ViewParams) -> Result<(), ()> {
+        if self.model.vertex_count == 0 {
+            return Ok(());
+        }
+
         let scale = view_params.xy_scale()?;
 
         // Write the projection parameters.

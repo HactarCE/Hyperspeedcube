@@ -36,6 +36,7 @@ pub struct Puzzle {
 
 pub struct PuzzleShape {
     pub name: String,
+    pub ndim: u8,
 }
 
 pub struct PuzzleTwists {

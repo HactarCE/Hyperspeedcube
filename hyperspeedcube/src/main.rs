@@ -16,9 +16,8 @@ extern crate lazy_static;
 extern crate strum;
 
 use gui::AppUi;
+use hyperpuzzle::Library;
 use instant::{Duration, Instant};
-use ndpuzzle::library::PuzzleLibrary;
-use std::cell::RefCell;
 use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
@@ -48,7 +47,7 @@ use app::App;
 const TITLE: &str = "Hyperspeedcube";
 
 thread_local! {
-    static LIBRARY: RefCell<PuzzleLibrary> = RefCell::new(PuzzleLibrary::new());
+    static LIBRARY: Library = Library::new();
 }
 static LUA_BUILTIN_DIR: include_dir::Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/../lua");
 
@@ -510,29 +509,5 @@ fn find_canvas_element() -> web_sys::HtmlCanvasElement {
 fn clipboard<T>(
     event_loop: &winit::event_loop::EventLoopWindowTarget<T>,
 ) -> egui_winit::clipboard::Clipboard {
-    egui_winit::clipboard::Clipboard::new(wayland_display(event_loop))
-}
-
-/// Returns a Wayland display handle if the target is running Wayland
-#[cfg(not(target_arch = "wasm32"))]
-fn wayland_display<T>(
-    event_loop: &winit::event_loop::EventLoopWindowTarget<T>,
-) -> Option<*mut std::ffi::c_void> {
-    #[cfg(feature = "wayland")]
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-    ))]
-    {
-        return event_loop.wayland_display();
-    }
-
-    #[allow(unreachable_code)]
-    {
-        let _ = event_loop;
-        None
-    }
+    egui_winit::clipboard::Clipboard::new(event_loop)
 }

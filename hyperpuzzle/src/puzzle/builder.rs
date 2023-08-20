@@ -58,6 +58,7 @@ impl PuzzleBuilder {
 
         let shape = Arc::new(crate::PuzzleShape {
             name: "Unknown".to_string(),
+            ndim: space.ndim(),
         });
         let twists = Arc::new(crate::PuzzleTwists {
             name: "Unknown".to_string(),

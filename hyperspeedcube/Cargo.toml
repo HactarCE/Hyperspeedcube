@@ -18,10 +18,6 @@ colorous = "1.0.10"
 config = "0.13.1"
 dark-light = "0.2.1"
 directories = "4.0.1"
-egui = "0.21.0"
-egui_dock = "0.4.2"
-egui_extras = "0.21.0"
-egui-wgpu = "0.21.0"
 enum-iterator = "1.4.0"
 env_logger = "0.10.0"
 rand = "*"
@@ -49,27 +45,35 @@ serde_yaml = "0.8.23"
 smallvec = { version = "1.8.0", features = ["serde", "union"] }
 strum = { version = "0.24.0", features = ["derive"] }
 time = { version = "0.3.7", features = ["local-offset"] }
-wgpu = { version = "0.15.1", features = ["webgl"] }
-winit = { version = "0.28.3", features = ["serde"] }
+wgpu = { version = "0.16.1", features = ["webgl"] }
 
-ndpuzzle = { path = "../ndpuzzle", features = ["bytemuck"] }
+hypermath = { path = "../hypermath" }
+hyperpuzzle = { path = "../hyperpuzzle" }
+hypershape = { path = "../hypershape" }
+
+# Windowing and UI (versions must match
+egui = "0.22.0"
+egui_dock = "0.6.3"
+egui_extras = "0.22.0"
+egui-wgpu = "0.22.0"
+winit = { version = "0.28.6", features = ["serde"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.21" }
+egui-winit = { version = "0.22" }
 human-panic = "1.0"
 tracing-subscriber = "0.3"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
-egui-winit = { version = "0.21", default-features = false, features = ["links"] }
-js-sys = "=0.3.61"
+egui-winit = { version = "0.22", default-features = false, features = ["links"] }
+js-sys = "=0.3.64"
 tracing-wasm = "0.2"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 wasm-logger = "0.2"
-web-sys = { version = "=0.3.61", features = [
+web-sys = { version = "=0.3.64", features = [
     "CanvasRenderingContext2d",
     "Clipboard",
     "ClipboardEvent",

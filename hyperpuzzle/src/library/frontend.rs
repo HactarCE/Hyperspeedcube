@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use parking_lot::{RwLock, RwLockReadGuard};
 
 use super::{LibraryCommand, ObjectLoader, ObjectStore};
-use crate::TaskHandle;
+use crate::{Puzzle, TaskHandle};
 
 /// Handle to a library of puzzles and puzzle-related objects. This type is
 /// cheap to `Clone` (just an `mpsc::Sender` and `Arc`).
@@ -60,5 +60,13 @@ impl Library {
 
     pub fn try_get_puzzles(&self) -> Option<RwLockReadGuard<ObjectStore>> {
         self.store.try_read()
+    }
+    pub fn get_puzzles(&self) -> Vec<String> {
+        self.store.read().puzzles()
+    }
+    pub fn construct_puzzle(&self, name: &str) -> Result<Arc<Puzzle>> {
+        let task = TaskHandle::new();
+        self.store.read().construct_puzzle(task.clone(), name);
+        task.take_result_blocking()
     }
 }

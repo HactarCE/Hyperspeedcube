@@ -1,13 +1,13 @@
-use ndpuzzle::geometry::{Manifold, ShapeArena};
-use ndpuzzle::math::{cga::Isometry, Float};
-use ndpuzzle::puzzle::Mesh;
+use hypermath::prelude::*;
+use hyperpuzzle::Mesh;
+use hypershape::Space;
 use std::fmt;
 
 use crate::render::{GraphicsState, PuzzleRenderer, ViewParams};
 
 #[derive(Debug)]
 pub struct PuzzleView {
-    pub arena: ShapeArena,
+    pub space: Space,
     renderer: PuzzleRenderer,
     pub view_params: ViewParams,
 
@@ -25,11 +25,11 @@ impl PuzzleView {
             wgpu::FilterMode::Linear,
         );
 
-        let arena = ShapeArena::new_euclidean_cga(3);
-        let mesh = Mesh::new_example_mesh().unwrap();
+        let space = Space::new(3);
+        let mesh = Mesh::default();
 
         PuzzleView {
-            arena,
+            space,
             renderer: PuzzleRenderer::new(gfx, &mesh),
             view_params: ViewParams::default(),
 
@@ -40,8 +40,8 @@ impl PuzzleView {
             overlay: vec![],
         }
     }
-    pub(crate) fn set_mesh(&mut self, gfx: &GraphicsState, arena: ShapeArena, mesh: Option<&Mesh>) {
-        self.arena = arena;
+    pub(crate) fn set_mesh(&mut self, gfx: &GraphicsState, space: Space, mesh: Option<&Mesh>) {
+        self.space = space;
         if let Some(mesh) = mesh {
             self.renderer = PuzzleRenderer::new(gfx, mesh);
         }
@@ -85,7 +85,7 @@ impl PuzzleView {
             * &self.view_params.rot;
 
         // Render overlay
-        let transform_point = |p: &ndpuzzle::math::Vector| -> Option<egui::Pos2> {
+        let transform_point = |p: &Vector| -> Option<egui::Pos2> {
             let mut p = self.view_params.project_point(p)?;
             p.x *= egui_rect.size().x / 2.0 / 1.5;
             p.y *= egui_rect.size().y / 2.0 / 1.5;
@@ -183,7 +183,7 @@ impl fmt::Display for RenderEngine {
 
 #[derive(Debug, Clone)]
 pub enum Overlay {
-    Point(ndpuzzle::math::Vector),
-    Line(ndpuzzle::math::Vector, ndpuzzle::math::Vector),
-    Arrow(ndpuzzle::math::Vector, ndpuzzle::math::Vector),
+    Point(Vector),
+    Line(Vector, Vector),
+    Arrow(Vector, Vector),
 }

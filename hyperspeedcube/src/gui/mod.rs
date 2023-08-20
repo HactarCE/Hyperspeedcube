@@ -12,7 +12,7 @@ mod menu_bar;
 mod tabs;
 
 pub use crate::app::App;
-pub use tabs::{PolytopeTree, PuzzleSetup, PuzzleView, Tab};
+pub use tabs::{PuzzleView, Tab};
 
 pub struct AppUi {
     dock_tree: egui_dock::Tree<Tab>,
@@ -34,8 +34,8 @@ impl AppUi {
             vec![
                 // Tab::PuzzleSetup(PuzzleSetup::default()),
                 // Tab::PolytopeTree(PolytopeTree::default()),
-                // Tab::PuzzleLibraryDemo,
-                Tab::PuzzleLibrary { log_lines: vec![] },
+                Tab::PuzzleLibraryDemo,
+                // Tab::PuzzleLibrary { log_lines: vec![] },
                 Tab::ViewSettings,
             ],
         );
@@ -53,12 +53,10 @@ impl AppUi {
         egui::CentralPanel::default()
             .frame(egui::Frame::none().fill(app.prefs.colors.background))
             .show(ctx, |ui| {
+                let mut style = egui_dock::Style::from_egui(ui.style());
+                style.tabs.fill_tab_bar = true;
                 egui_dock::DockArea::new(&mut self.dock_tree)
-                    .style(
-                        egui_dock::StyleBuilder::from_egui(&ui.style())
-                            .expand_tabs(true)
-                            .build(),
-                    )
+                    .style(style)
                     .show(ctx, app);
             });
 

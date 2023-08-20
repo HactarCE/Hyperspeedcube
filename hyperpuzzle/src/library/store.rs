@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use anyhow::{Context, Result};
 use parking_lot::RwLock;
 
-use crate::{Object, Puzzle, TaskHandle};
+use crate::{Object, ObjectData, Puzzle, TaskHandle};
 
 /// Storage for loaded objects. These objects haven't been constructed, but we
 /// know some metadata like the number of dimensions of each object and which
@@ -88,6 +88,18 @@ impl ObjectStore {
             })();
             task.complete(result);
         });
+    }
+
+    pub fn puzzles(&self) -> Vec<String> {
+        self.files
+            .values()
+            .flat_map(|file| {
+                file.objects
+                    .iter()
+                    .filter(|obj| matches!(obj.data, ObjectData::Puzzle { .. }))
+                    .map(|obj| obj.name.clone())
+            })
+            .collect()
     }
 }
 
