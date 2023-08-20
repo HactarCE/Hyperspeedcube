@@ -31,12 +31,11 @@ hypermath::idx_struct! {
     /// ID of a **sticker**, which is a facet of a **piece** having a single
     /// color and belonging to a single **surface**.
     pub struct Sticker(pub u16);
-    /// ID of a **surface**, which is a manifold shared by one or more
+    /// ID of a **facet**, which is a manifold shared by one or more
     /// **stickers**.
-    pub struct Surface(pub u16);
-    /// ID of a **facet**, which is shared by one or more **stickers** and is
-    /// assigned a single color by the user.
     pub struct Facet(pub u16);
+    /// ID of a **color** that appears on stickers.
+    pub struct Color(pub u16);
     /// ID of a **twist axis**, an organizational unit containing several
     /// **twists**.
     pub struct Axis(pub u16);
@@ -47,23 +46,23 @@ hypermath::idx_struct! {
     pub struct PieceType(pub u8);
 }
 
-impl Surface {
-    /// Surface ID for internals.
-    pub const INTERNAL: Surface = Surface::MAX;
-}
 impl Facet {
-    /// Facet ID for internals.
-    pub const INTERNAL: Facet = Facet::MAX;
+    /// Facet ID for pieces that are not on a facet, such as internals.
+    pub const NONE: Facet = Facet::MAX;
+}
+impl Color {
+    /// Color ID for internals.
+    pub const INTERNAL: Color = Color::MAX;
 }
 
 /// List containing a value per piece.
 pub type PerPiece<T> = GenericVec<Piece, T>;
 /// List containing a value per sticker.
 pub type PerSticker<T> = GenericVec<Sticker, T>;
-/// List containing a value per surface.
-pub type PerSurface<T> = GenericVec<Surface, T>;
 /// List containing a value per facet.
 pub type PerFacet<T> = GenericVec<Facet, T>;
+/// List containing a value per color.
+pub type PerColor<T> = GenericVec<Color, T>;
 /// List containing a value per twist axis.
 pub type PerAxis<T> = GenericVec<Axis, T>;
 /// List containing a value per twist.
@@ -85,8 +84,8 @@ pub struct PieceInfo {
 pub struct StickerInfo {
     /// Piece that the sticker is part of.
     pub piece: Piece,
-    /// Facet whose color is on the sticker.
-    pub color: Facet,
+    /// Color on the sticker.
+    pub color: Color,
 }
 
 /// Facet info.

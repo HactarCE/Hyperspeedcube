@@ -11,7 +11,7 @@ use tinyset::Set64;
 
 use super::simplices::{Simplexifier, VertexId};
 use super::{
-    Facet, MeshBuilder, NotationScheme, PerPiece, PerSticker, Piece, PieceInfo, PieceType,
+    Color, MeshBuilder, NotationScheme, PerPiece, PerSticker, Piece, PieceInfo, PieceType,
     PieceTypeInfo, Puzzle, PuzzleState, StickerInfo,
 };
 
@@ -85,19 +85,19 @@ impl PuzzleBuilder {
                 .map(|sticker| {
                     stickers.push(StickerInfo {
                         piece: piece_id,
-                        color: sticker.facet,
+                        color: sticker.color,
                     })
                 })
                 .try_collect()?;
 
             let piece_centroid_point = simplexifier.shape_centroid_point(piece.shape.id)?;
             let mut piece_mesh = mesh.add_piece(piece_centroid_point)?;
-            piece.stickers.sort_unstable_by_key(|s| s.facet);
+            piece.stickers.sort_unstable_by_key(|s| s.color);
             for sticker in piece.stickers {
                 let manifold = space.manifold_of(sticker.shape).id;
                 let sticker_centroid = simplexifier.shape_centroid(sticker.shape.id)?;
                 let mut sticker_mesh =
-                    piece_mesh.add_sticker(manifold, sticker.facet, sticker_centroid)?;
+                    piece_mesh.add_sticker(manifold, sticker.color, sticker_centroid)?;
 
                 let mut queue = vec![sticker.shape];
                 let mut seen = HashSet::new();
@@ -173,5 +173,5 @@ struct PieceBuilder {
 #[derive(Debug)]
 struct StickerBuilder {
     shape: ShapeRef,
-    facet: Facet,
+    color: Color,
 }

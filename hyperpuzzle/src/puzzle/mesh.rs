@@ -6,8 +6,8 @@ use hypermath::prelude::*;
 use hypershape::ManifoldId;
 
 use super::centroid::Centroid;
-use super::{Facet, PerPiece, PerSticker, Piece};
-use crate::{PerSurface, Surface};
+use super::{Color, PerPiece, PerSticker, Piece};
+use crate::{Facet, PerFacet};
 
 #[derive(Debug, Clone)]
 pub struct Mesh {
@@ -26,15 +26,15 @@ pub struct Mesh {
     pub polygon_ids: Vec<u32>,
     /// Piece ID for each vertex.
     pub piece_ids: Vec<Piece>,
-    /// Surface ID for each vertex.
-    pub surface_ids: Vec<Surface>,
     /// Facet ID for each vertex.
     pub facet_ids: Vec<Facet>,
+    /// Color ID for each vertex.
+    pub color_ids: Vec<Color>,
 
     /// Centroid for each piece, used to apply piece explode.
     pub piece_centroids: Vec<f32>,
-    /// Centroid for each surface, used to apply facet shrink.
-    pub surface_centroids: Vec<f32>,
+    /// Centroid for each facet, used to apply facet shrink.
+    pub facet_centroids: Vec<f32>,
 
     /// Vertex indices for triangles.
     pub triangles: Vec<[u32; 3]>,
@@ -46,8 +46,14 @@ pub struct Mesh {
     pub piece_internals_index_ranges: PerPiece<Range<u32>>,
 }
 
+impl Default for Mesh {
+    fn default() -> Self {
+        Self::new_empty(1)
+    }
+}
+
 impl Mesh {
-    fn new_empty(ndim: u8) -> Self {
+    pub fn new_empty(ndim: u8) -> Self {
         Mesh {
             ndim,
             vertex_count: 0,
@@ -58,11 +64,11 @@ impl Mesh {
             sticker_shrink_vectors: vec![],
             polygon_ids: vec![],
             piece_ids: vec![],
-            surface_ids: vec![],
             facet_ids: vec![],
+            color_ids: vec![],
 
             piece_centroids: vec![],
-            surface_centroids: vec![],
+            facet_centroids: vec![],
 
             triangles: vec![],
 
@@ -85,7 +91,7 @@ impl Mesh {
     }
     /// Returns the number of facets in the mesh.
     pub fn facet_count(&self) -> usize {
-        self.surface_centroids.len() / self.ndim as usize
+        self.facet_centroids.len() / self.ndim as usize
     }
     /// Returns the number of stickers in the mesh.
     pub fn sticker_count(&self) -> usize {
@@ -102,8 +108,8 @@ pub(super) struct MeshBuilder {
     mesh: Mesh,
 
     piece_centroids: PerPiece<Vector>,
-    surface_centroids: PerSurface<Centroid>,
-    manifold_to_surface: HashMap<ManifoldId, Surface>,
+    facet_centroids: PerFacet<Centroid>,
+    manifold_to_facet: HashMap<ManifoldId, Facet>,
     next_polygon_id: u32,
 }
 impl MeshBuilder {
@@ -112,8 +118,8 @@ impl MeshBuilder {
             mesh: Mesh::new_empty(ndim),
 
             piece_centroids: PerPiece::new(),
-            surface_centroids: PerSurface::new(),
-            manifold_to_surface: HashMap::new(),
+            facet_centroids: PerFacet::new(),
+            manifold_to_facet: HashMap::new(),
             next_polygon_id: 1, // polygon ID 0 is reserved
         }
     }
@@ -123,19 +129,19 @@ impl MeshBuilder {
         Ok(MeshPieceBuilder { mesh: self, id })
     }
 
-    pub(super) fn manifold_to_surface(&mut self, manifold_id: ManifoldId) -> Result<Surface> {
-        Ok(match self.manifold_to_surface.entry(manifold_id) {
+    pub(super) fn manifold_to_facet(&mut self, manifold_id: ManifoldId) -> Result<Facet> {
+        Ok(match self.manifold_to_facet.entry(manifold_id) {
             hash_map::Entry::Occupied(e) => *e.get(),
-            hash_map::Entry::Vacant(e) => *e.insert(self.surface_centroids.push(Centroid::ZERO)?),
+            hash_map::Entry::Vacant(e) => *e.insert(self.facet_centroids.push(Centroid::ZERO)?),
         })
     }
 
-    fn surface_centroid_mut(&mut self, surface: Surface) -> Option<&mut Centroid> {
-        if surface == Surface::INTERNAL {
+    fn facet_centroid_mut(&mut self, facet: Facet) -> Option<&mut Centroid> {
+        if facet == Facet::NONE {
             None
         } else {
-            self.surface_centroids.extend_to_contain(surface).ok()?;
-            Some(&mut self.surface_centroids[surface])
+            self.facet_centroids.extend_to_contain(facet).ok()?;
+            Some(&mut self.facet_centroids[facet])
         }
     }
 
@@ -153,21 +159,21 @@ impl<'a> MeshPieceBuilder<'a> {
     pub(super) fn add_sticker<'b>(
         &'b mut self,
         surface_manifold: ManifoldId,
-        facet: Facet,
+        color: Color,
         centroid: Centroid,
     ) -> Result<MeshStickerBuilder<'a, 'b>>
     where
         'a: 'b,
     {
-        let surface = self.mesh.manifold_to_surface(surface_manifold)?;
-        if let Some(surface_centroid) = self.mesh.surface_centroid_mut(surface) {
+        let surface = self.mesh.manifold_to_facet(surface_manifold)?;
+        if let Some(surface_centroid) = self.mesh.facet_centroid_mut(surface) {
             *surface_centroid += centroid;
         }
         let index_range_start = self.mesh.mesh.triangles.len() as u32;
         Ok(MeshStickerBuilder {
             piece: self,
-            surface,
-            facet,
+            facet: surface,
+            color,
             index_range_start,
         })
     }
@@ -176,8 +182,8 @@ impl<'a> MeshPieceBuilder<'a> {
 #[derive(Debug)]
 pub(super) struct MeshStickerBuilder<'a: 'b, 'b> {
     piece: &'b mut MeshPieceBuilder<'a>,
-    surface: Surface,
     facet: Facet,
+    color: Color,
     index_range_start: u32,
 }
 impl<'a: 'b, 'b> MeshStickerBuilder<'a, 'b> {
@@ -231,8 +237,8 @@ impl MeshPolygonBuilder<'_, '_, '_> {
             .extend(iter_f32(ndim, &sticker_shrink_vector));
         mesh.polygon_ids.push(self.id);
         mesh.piece_ids.push(self.sticker.piece.id);
-        mesh.surface_ids.push(self.sticker.surface);
         mesh.facet_ids.push(self.sticker.facet);
+        mesh.color_ids.push(self.sticker.color);
 
         Ok(vertex_id)
     }
