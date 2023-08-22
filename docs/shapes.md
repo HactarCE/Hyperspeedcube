@@ -1,5 +1,9 @@
 # Hyperspeedcube shape generator
 
+## Preface
+
+The goal of this document is to explain the entirety of the Hyperspeedcube puzzle engine. The reader of assumed to be familiar with basic linear algebra and have some geometric intuition. In particular, they should be comfortable with vectors as a representation of directions and points in 2D and 3D space, matrices as a representation of linear transformations, and the determinant as a representation of signed area/volume.
+
 ## Vectorspace Geometric Algebra
 
 Complex numbers are a system where each number has two components: real and imaginary. Geometric Algebra is like complex numbers, but adds _way_ more components.[^complex] For example, 3D VGA (Vectorspace Geometric Algebra) adds _seven_ extra components a total of eight.
