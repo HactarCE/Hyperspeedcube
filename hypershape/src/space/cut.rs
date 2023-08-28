@@ -1,5 +1,65 @@
 use super::*;
 
+#[derive(Debug)]
+pub struct CutInProgress<'a> {
+    pub(super) space: &'a mut Space,
+    pub(super) op: CutOp,
+}
+impl CutInProgress<'_> {
+    #[must_use]
+    pub fn cut(&mut self, shape: ShapeRef) -> Result<ShapeCutResult> {
+        self.space
+            .cut_shape(shape, &mut self.op)
+            .map(|result| match result {
+                ShapeSplitResult::Flush => ShapeCutResult {
+                    inside: Some(shape),
+                    outside: Some(shape),
+                    flush_facet: None,
+                },
+
+                ShapeSplitResult::ManifoldInside => ShapeCutResult {
+                    inside: Some(shape),
+                    outside: None,
+                    flush_facet: None,
+                },
+
+                ShapeSplitResult::ManifoldOutside => ShapeCutResult {
+                    inside: None,
+                    outside: Some(shape),
+                    flush_facet: None,
+                },
+
+                ShapeSplitResult::NonFlush {
+                    inside,
+                    outside,
+                    intersection_shape,
+                } => ShapeCutResult {
+                    inside,
+                    outside,
+                    flush_facet: intersection_shape,
+                },
+            })
+    }
+    #[must_use]
+    pub fn cut_set(&mut self, shapes: ShapeSet) -> Result<ShapeSet> {
+        shapes
+            .into_iter()
+            .map(|shape| {
+                let result = self.cut(shape)?;
+                Ok([result.inside, result.outside])
+            })
+            .flatten_ok()
+            .flatten_ok()
+            .collect()
+    }
+}
+
+pub struct ShapeCutResult {
+    pub inside: Option<ShapeRef>,
+    pub outside: Option<ShapeRef>,
+    pub flush_facet: Option<ShapeRef>,
+}
+
 /// Parameters for cutting a bunch of shapes.
 #[derive(Debug, Clone)]
 pub struct CutParams {

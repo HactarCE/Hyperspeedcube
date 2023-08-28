@@ -34,8 +34,8 @@ impl AppUi {
             vec![
                 // Tab::PuzzleSetup(PuzzleSetup::default()),
                 // Tab::PolytopeTree(PolytopeTree::default()),
-                Tab::PuzzleLibraryDemo,
-                // Tab::PuzzleLibrary { log_lines: vec![] },
+                // Tab::PuzzleLibraryDemo,
+                Tab::PuzzleLibrary { log_lines: vec![] },
                 Tab::ViewSettings,
             ],
         );

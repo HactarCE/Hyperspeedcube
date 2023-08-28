@@ -1,13 +1,15 @@
 use hypermath::prelude::*;
-use hyperpuzzle::Mesh;
+use hyperpuzzle::{Mesh, Puzzle};
 use hypershape::Space;
 use std::fmt;
+use std::sync::Arc;
 
 use crate::render::{GraphicsState, PuzzleRenderer, ViewParams};
 
 #[derive(Debug)]
 pub struct PuzzleView {
     pub space: Space,
+    pub puzzle: Option<Arc<Puzzle>>,
     renderer: PuzzleRenderer,
     pub view_params: ViewParams,
 
@@ -30,6 +32,7 @@ impl PuzzleView {
 
         PuzzleView {
             space,
+            puzzle: None,
             renderer: PuzzleRenderer::new(gfx, &mesh),
             view_params: ViewParams::default(),
 

@@ -1,3 +1,4 @@
+use hyperpuzzle::LuaLogLine;
 use hypershape::Space;
 use parking_lot::Mutex;
 use std::{io::Read, sync::Arc};
@@ -18,12 +19,15 @@ pub enum Tab {
     ViewSettings,
     // PolytopeTree(PolytopeTree),
     PuzzleLibraryDemo,
-    PuzzleLibrary { log_lines: Vec<String> },
+    PuzzleLibrary { log_lines: Vec<LuaLogLine> },
 }
 impl Tab {
     pub fn title(&self) -> egui::WidgetText {
         match self {
-            Tab::PuzzleView(_) => "Unknown Puzzle".into(),
+            Tab::PuzzleView(p) => match &p.lock().puzzle {
+                Some(p) => p.name.clone().into(),
+                None => "No Puzzle".into(),
+            },
             // Tab::PuzzleSetup(_) => "Puzzle Setup".into(),
             Tab::ViewSettings => "View Settings".into(),
             // Tab::PolytopeTree(_) => "Polytope Tree".into(),
@@ -374,8 +378,6 @@ impl Tab {
                     });
             }
             Tab::PuzzleLibrary { log_lines } => {
-                // colored_logs(ui, &crate::LIBRARY.with(|lib| lib.borrow_mut().drain_log()));
-
                 ui.separator();
                 for file in crate::LUA_BUILTIN_DIR.get_dir("puzzles").unwrap().files() {
                     if ui
@@ -384,7 +386,7 @@ impl Tab {
                     {
                         let mut file_contents = String::new();
                         file.contents().read_to_string(&mut file_contents).unwrap();
-                        let result = crate::LIBRARY.with(|lib| {
+                        let task = crate::LIBRARY.with(|lib| {
                             lib.load_file(
                                 file.path()
                                     .file_name()
@@ -394,8 +396,10 @@ impl Tab {
                                 file_contents,
                             )
                         });
-                        if let Err(e) = result.take_result_blocking() {
-                            log::error!("{e:?}")
+                        let result = task.take_result_blocking();
+                        *log_lines = task.logs().clone();
+                        if let Err(e) = result {
+                            log::error!("{e:?}");
                         }
                     }
                 }
@@ -403,42 +407,42 @@ impl Tab {
                 crate::LIBRARY.with(|lib| {
                     for puzzle_name in lib.get_puzzles() {
                         if ui.button(format!("Load {puzzle_name}")).clicked() {
-                            match lib.construct_puzzle(&puzzle_name) {
+                            let (result, logs) = lib.construct_puzzle(&puzzle_name);
+                            *log_lines = logs;
+                            match result {
                                 Err(e) => log::error!("{e}"),
-                                Ok(result) => {
-                                    // *log_lines = logs;
-                                    // match result {
-                                    //     Err(e) => log::error!("{e}"),
-                                    //     Ok(p) => {
-                                    let p = result;
+                                Ok(p) => {
                                     if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
+                                        log::info!("set active puzzle!");
                                         puzzle_view.lock().set_mesh(
                                             &app.gfx,
-                                            Space::new(p.shape.ndim),
+                                            Space::new(p.mesh.ndim()),
                                             Some(&p.mesh),
                                         );
+                                        puzzle_view.lock().puzzle = Some(p);
+                                    } else {
+                                        log::warn!("no active puzzle view");
                                     }
-                                    //     }
-                                    // }
                                 }
                             }
                         }
                     }
                 });
                 ui.separator();
-                // colored_logs(ui, log_lines);
+
+                colored_logs(ui, log_lines);
             }
         }
     }
 }
 
-// fn colored_logs(ui: &mut egui::Ui, logs: &[LuaLogLine]) {
-//     for line in logs {
-//         let color = match line.level.as_str() {
-//             "info" => egui::Color32::LIGHT_BLUE,
-//             "warn" | "warning" => egui::Color32::LIGHT_RED,
-//             _ => egui::Color32::DEBUG_COLOR,
-//         };
-//         ui.colored_label(color, format!("{}: {}", line.file, line.msg));
-//     }
-// }
+fn colored_logs(ui: &mut egui::Ui, logs: &[LuaLogLine]) {
+    for line in logs {
+        let color = match line.level.as_str() {
+            "info" => egui::Color32::LIGHT_BLUE,
+            "warn" | "warning" => egui::Color32::LIGHT_RED,
+            _ => egui::Color32::DEBUG_COLOR,
+        };
+        ui.colored_label(color, format!("{}: {}", line.file, line.msg));
+    }
+}

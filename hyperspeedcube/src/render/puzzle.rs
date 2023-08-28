@@ -187,7 +187,7 @@ impl PuzzleRenderer {
         let (depth_texture, depth_texture_view) = self.buffers.depth_texture.at_size(gfx, tex_size);
         let (color_texture, color_texture_view) = self.buffers.out_texture.at_size(gfx, tex_size);
 
-        if self.model.vertex_count == 0 {
+        if self.model.is_empty() {
             return Ok(color_texture_view);
         }
 
@@ -201,11 +201,13 @@ impl PuzzleRenderer {
                         self.model.u_tangents.as_entire_binding(),
                         self.model.v_tangents.as_entire_binding(),
                         self.model.sticker_shrink_vectors.as_entire_binding(),
+                        self.model.polygon_ids.as_entire_binding(),
                     ],
                     &[
                         self.model.facet_centroids.as_entire_binding(),
                         self.model.piece_centroids.as_entire_binding(),
-                        self.buffers.facet_colors.as_entire_binding(),
+                        self.model.polygon_color_ids.as_entire_binding(),
+                        self.buffers.color_values.as_entire_binding(),
                     ],
                     &[
                         self.buffers.puzzle_transform.as_entire_binding(),
@@ -250,8 +252,9 @@ impl PuzzleRenderer {
             for (index, bind_group) in &bind_groups {
                 render_pass.set_bind_group(*index, bind_group, &[]);
             }
-            render_pass.set_vertex_buffer(0, self.model.facet_ids.slice(..));
-            render_pass.set_vertex_buffer(1, self.model.piece_ids.slice(..));
+            render_pass.set_vertex_buffer(0, self.model.piece_ids.slice(..));
+            render_pass.set_vertex_buffer(1, self.model.facet_ids.slice(..));
+            render_pass.set_vertex_buffer(2, self.model.polygon_ids.slice(..));
             render_pass.set_index_buffer(self.model.triangles.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..self.model.triangle_count as u32 * 3, 0, 0..1);
             drop(render_pass);
@@ -280,7 +283,7 @@ impl PuzzleRenderer {
         let (depth_texture, depth_texture_view) = self.buffers.depth_texture.at_size(gfx, tex_size);
         let (color_texture, color_texture_view) = self.buffers.out_texture.at_size(gfx, tex_size);
 
-        if self.model.vertex_count == 0 {
+        if self.model.is_empty() {
             return Ok(color_texture_view);
         }
 
@@ -297,8 +300,8 @@ impl PuzzleRenderer {
                             self.model.u_tangents.as_entire_binding(),
                             self.model.v_tangents.as_entire_binding(),
                             self.model.sticker_shrink_vectors.as_entire_binding(),
-                            self.model.facet_ids.as_entire_binding(),
                             self.model.piece_ids.as_entire_binding(),
+                            self.model.facet_ids.as_entire_binding(),
                         ],
                         &[
                             self.model.facet_centroids.as_entire_binding(),
@@ -368,8 +371,7 @@ impl PuzzleRenderer {
             }
             render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
             render_pass.set_vertex_buffer(1, self.buffers.vertex_lightings.slice(..));
-            render_pass.set_vertex_buffer(2, self.model.facet_ids.slice(..));
-            render_pass.set_vertex_buffer(3, self.model.polygon_ids.slice(..));
+            render_pass.set_vertex_buffer(2, self.model.polygon_ids.slice(..));
             render_pass.set_index_buffer(self.model.triangles.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..self.model.triangle_count as u32 * 3, 0, 0..1);
             drop(render_pass);
@@ -402,7 +404,10 @@ impl PuzzleRenderer {
                     &gfx.device,
                     &[
                         &[],
-                        &[self.buffers.facet_colors.as_entire_binding()],
+                        &[
+                            self.model.polygon_color_ids.as_entire_binding(),
+                            self.buffers.color_values.as_entire_binding(),
+                        ],
                         &[wgpu::BindingResource::TextureView(first_pass_texture_view)],
                         &[
                             self.buffers.composite_params.as_entire_binding(),
@@ -437,7 +442,7 @@ impl PuzzleRenderer {
     }
 
     fn init_buffers(&mut self, gfx: &GraphicsState, view_params: &ViewParams) -> Result<(), ()> {
-        if self.model.vertex_count == 0 {
+        if self.model.is_empty() {
             return Ok(());
         }
 
@@ -491,13 +496,13 @@ impl PuzzleRenderer {
         // Write the facet colors.
         let mut colors = vec![[0.5, 0.5, 0.5, 1.0]];
         colors.extend(
-            (0..self.model.facet_count)
-                .map(|i| colorous::RAINBOW.eval_rational(i, self.model.facet_count))
+            (0..self.model.color_count)
+                .map(|i| colorous::RAINBOW.eval_rational(i, self.model.color_count))
                 .map(|c| c.into_array().map(|x| x as f32 / 255.0))
                 .map(|[r, g, b]| [r, g, b, 1.0]),
         );
         gfx.queue
-            .write_buffer(&self.buffers.facet_colors, 0, bytemuck::cast_slice(&colors));
+            .write_buffer(&self.buffers.color_values, 0, bytemuck::cast_slice(&colors));
 
         // Write the view parameters.
         let data = GfxViewParams {
@@ -534,14 +539,16 @@ struct_with_constructor! {
                 const STORAGE: wgpu::BufferUsages = wgpu::BufferUsages::STORAGE;
 
                 // Convert to i32 because WGSL doesn't support 16-bit integers yet.
-                let facet_ids = mesh.facet_ids.iter().map(|&i| i.0 as u32).collect_vec();
                 let piece_ids = mesh.piece_ids.iter().map(|&i| i.0 as u32).collect_vec();
+                let facet_ids = mesh.facet_ids.iter().map(|&i| i.0 as u32).collect_vec();
+                let color_ids = mesh.color_ids.iter().map(|&i| i.0 as u32).collect_vec();
             }
 
             StaticPuzzleModel {
                 ndim: u8 = mesh.ndim(),
                 piece_count: usize = mesh.piece_count(),
                 facet_count: usize = mesh.facet_count(),
+                color_count: usize = mesh.color_count(),
                 vertex_count: usize = mesh.vertex_count(),
                 triangle_count: usize = mesh.triangle_count(),
 
@@ -556,16 +563,18 @@ struct_with_constructor! {
                 v_tangents:             wgpu::Buffer = buffer!(mesh.v_tangents,             STORAGE),
                 /// Vector along which to apply sticker shrink for each vertex.
                 sticker_shrink_vectors: wgpu::Buffer = buffer!(mesh.sticker_shrink_vectors, STORAGE),
-                /// Facet ID for each vertex.
-                facet_ids:              wgpu::Buffer = buffer!(facet_ids,          VERTEX | STORAGE),
                 /// Piece ID for each vertex.
                 piece_ids:              wgpu::Buffer = buffer!(piece_ids,          VERTEX | STORAGE),
+                /// Facet ID for each vertex.
+                facet_ids:              wgpu::Buffer = buffer!(facet_ids,          VERTEX | STORAGE),
                 /// Polygon ID for each vertex.
-                polygon_ids:            wgpu::Buffer = buffer!(mesh.polygon_ids,             VERTEX),
+                polygon_ids:            wgpu::Buffer = buffer!(mesh.polygon_ids,   VERTEX | STORAGE),
 
                 /*
                  * OTHER STORAGE BUFFERS
                  */
+                /// Color ID for each polygon.
+                polygon_color_ids:      wgpu::Buffer = buffer!(color_ids,                   STORAGE),
                 /// Centroid for each piece.
                 piece_centroids:        wgpu::Buffer = buffer!(mesh.piece_centroids,        STORAGE),
                 /// Centroid for each facet.
@@ -592,6 +601,12 @@ impl fmt::Debug for StaticPuzzleModel {
                 &self.piece_internals_index_ranges,
             )
             .finish_non_exhaustive()
+    }
+}
+
+impl StaticPuzzleModel {
+    fn is_empty(&self) -> bool {
+        self.vertex_count == 0 || self.piece_count == 0 || self.sticker_index_ranges.is_empty()
     }
 }
 
@@ -686,10 +701,10 @@ struct_with_constructor! {
                     1,
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
                 ),
-                /// Color for each facet.
-                facet_colors: wgpu::Buffer = gfx.create_buffer::<[f32; 4]>(
-                    label("facet_colors"),
-                    mesh.facet_count() + 1,
+                /// Value for each color.
+                color_values: wgpu::Buffer = gfx.create_buffer::<[f32; 4]>(
+                    label("color_values"),
+                    mesh.color_count() + 1,
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
                 ),
 
@@ -760,7 +775,7 @@ impl DynamicPuzzleBuffers {
             composite_vertices: clone_buffer!(gfx, id, self.composite_vertices),
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
             special_colors: clone_buffer!(gfx, id, self.special_colors),
-            facet_colors: clone_buffer!(gfx, id, self.facet_colors),
+            color_values: clone_buffer!(gfx, id, self.color_values),
 
             first_pass_texture: clone_texture!(gfx, id, self.first_pass_texture),
             depth_texture: clone_texture!(gfx, id, self.depth_texture),

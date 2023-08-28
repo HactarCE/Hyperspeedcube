@@ -142,7 +142,7 @@ impl LuaManifold {
                 LuaPlaneOrSphere::Sphere { .. } => {
                     return Err(LuaError::external(
                         "expected plane constructor but got sphere constructor",
-                    ))
+                    ));
                 }
             }
         }

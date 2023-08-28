@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use itertools::Itertools;
 use parking_lot::Mutex;
 use rlua::prelude::*;
@@ -9,6 +9,7 @@ mod constants;
 mod types;
 mod util;
 
+pub use types::LuaLogLine;
 use types::*;
 
 use crate::{Object, PieceSet, Puzzle, PuzzleBuilder};
@@ -81,6 +82,8 @@ pub fn load_sandboxed(
     contents: &str,
 ) -> Result<Vec<Object>, LuaObjectLoadError> {
     lua.context(|lua| {
+        lua.globals().set("LOG_FILENAME", "library.lua")?;
+
         // Construct a sandbox environment.
         let sandbox_env: LuaTable = lua
             .globals()
@@ -93,7 +96,12 @@ pub fn load_sandboxed(
             .call(filename)?;
 
         // Try to load the file.
-        if let Err(e) = lua.load(&contents).set_environment(sandbox_env)?.exec() {
+        if let Err(e) = lua
+            .load(&contents)
+            .set_name(filename)?
+            .set_environment(sandbox_env)?
+            .exec()
+        {
             let error_fn = lua.globals().get::<_, LuaFunction>("error")?;
             error_fn.call(format!("error loading {filename:?}:"))?;
             for line in e.to_string().lines() {
@@ -106,9 +114,7 @@ pub fn load_sandboxed(
         // Generate metadata for each object.
         let objects_defined_in_file = lua
             .globals()
-            .get::<_, LuaTable>("library")?
-            .get::<_, LuaTable>("files")?
-            .get::<_, LuaTable>(filename)?;
+            .get::<_, LuaTable>("OBJECTS_DEFINED_IN_FILE")?;
         let result: Vec<Object> = objects_defined_in_file
             .pairs()
             .map(|pair| {
@@ -138,19 +144,29 @@ pub fn drain_logs(lua: LuaContext<'_>) -> Vec<LuaLogLine> {
     .unwrap_or(vec![])
 }
 
-pub fn build_puzzle(lua: LuaContext<'_>, name: &str) -> Result<Arc<Puzzle>> {
+pub fn build_puzzle(lua: LuaContext<'_>, id: &str) -> Result<Arc<Puzzle>> {
     let puzzle_table = lua
         .globals()
         .get::<_, LuaTable>("library")?
         .get::<_, LuaTable>("objects")?
-        .get::<_, LuaTable>(format!("puzzle/{name}"))?;
+        .get::<_, LuaTable>(format!("puzzle[{id:?}]"))?; // TODO: this relies on Lua and Rust string escaping being the same
 
-    let LuaNdim(ndim) = puzzle_table.get("ndim")?;
+    lua.globals()
+        .set("LOG_FILENAME", puzzle_table.get::<_, String>("filename")?)?;
 
-    let (puzzle_builder, root) = PuzzleBuilder::new_solid(name.to_string(), ndim);
+    let LuaNdim(ndim) = puzzle_table
+        .get("ndim")
+        .context("expected `ndim` to be a number of dimensions")?;
+    let name: String = puzzle_table
+        .get("name")
+        .context("expected `name` to be a string")?;
+
+    let (puzzle_builder, root) = PuzzleBuilder::new_solid(name.to_string(), id.to_string(), ndim);
+    let space = Arc::clone(&puzzle_builder.space);
+    lua.globals().set("SPACE", LuaSpace(space))?;
     let puzzle_builder = Arc::new(Mutex::new(puzzle_builder));
     lua.globals()
-        .set("PUZZLE", LuaPuzzleBuilder(Arc::clone(&puzzle_builder)));
+        .set("PUZZLE", LuaPuzzleBuilder(Arc::clone(&puzzle_builder)))?;
 
     puzzle_table
         .get::<_, LuaFunction>("build")?

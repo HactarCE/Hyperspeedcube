@@ -11,9 +11,9 @@ fn test_non_null_concentric_spheres() {
         let mut shapes = ShapeSet::from(space.whole_space());
 
         let cut = space.add_sphere(vector![0.0], 2.0).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
         let cut = space.add_sphere(vector![0.0], -1.0).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
 
         assert_eq!(1, shapes.len());
     }
@@ -37,17 +37,17 @@ fn test_identical_spheres() {
         let mut shapes = ShapeSet::from(space.whole_space());
 
         let cut = space.add_sphere(vector![0.0], 1.0).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
         assert_is_sphere(&space, &shapes);
         let prior_shapes = shapes.clone();
 
         let cut = space.add_sphere(vector![0.0], 1.0).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
         assert_eq!(prior_shapes, shapes);
         assert_is_sphere(&space, &shapes);
 
         let cut = space.add_sphere(vector![0.0], -1.0).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
 
         assert!(shapes.is_empty())
     }
@@ -63,12 +63,12 @@ fn test_null_triple_sphere() {
         let mut shapes = ShapeSet::from(space.whole_space());
 
         let cut = space.add_sphere(vector![1.0], 1.5).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
         let cut = space.add_sphere(vector![-1.0], 1.5).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
         assert!(!shapes.is_empty());
         let cut = space.add_sphere(vector![0.0], -1.15).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
         assert!(shapes.is_empty());
     }
 }
@@ -84,11 +84,11 @@ fn test_null_double_plane_plus_sphere() {
         let mut shapes = ShapeSet::from(space.whole_space());
 
         let cut = space.add_plane(Vector::unit(0), -1.0).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
         let cut = space.add_plane(Vector::unit(1), -1.0).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
         let cut = space.add_sphere(vector![], 1.1).unwrap();
-        shapes = space.carve(&shapes, cut).unwrap();
+        shapes = space.carve(cut).cut_set(shapes).unwrap();
 
         assert!(shapes.is_empty());
     }
@@ -113,10 +113,10 @@ fn test_cube() {
 
         for ax in 0..ndim {
             let cut = space.add_plane(Vector::unit(ax), 1.0).unwrap();
-            shapes = space.carve(&shapes, cut).unwrap();
+            shapes = space.carve(cut).cut_set(shapes).unwrap();
             println!("{}", space.shape_to_string(shapes.iter().next().unwrap()));
             let cut = space.add_plane(-Vector::unit(ax), 1.0).unwrap();
-            shapes = space.carve(&shapes, cut).unwrap();
+            shapes = space.carve(cut).cut_set(shapes).unwrap();
             println!("{}", space.shape_to_string(shapes.iter().next().unwrap()));
         }
         assert_eq!(1, shapes.len());

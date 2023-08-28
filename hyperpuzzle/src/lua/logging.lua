@@ -12,7 +12,7 @@ function log(level, ...)
 
   table.insert(LOG_LINES, {
     msg = msg,
-    file = FILENAME,
+    file = LOG_FILENAME,
     level = level,
   })
 end

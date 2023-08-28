@@ -57,17 +57,19 @@ struct SpecialColors {
 @group(0) @binding(1) var<storage, read> u_tangents: array<f32>;
 @group(0) @binding(2) var<storage, read> v_tangents: array<f32>;
 @group(0) @binding(3) var<storage, read> sticker_shrink_vectors: array<f32>;
-@group(0) @binding(4) var<storage, read> facet_ids: array<i32>;
-@group(0) @binding(5) var<storage, read> piece_ids: array<i32>;
+@group(0) @binding(4) var<storage, read> piece_ids: array<i32>;
+@group(0) @binding(5) var<storage, read> facet_ids: array<i32>;
+@group(0) @binding(6) var<storage, read> polygon_ids: array<i32>;
 
 // Static mesh data (other)
-@group(1) @binding(0) var<storage, read> facet_centroids: array<f32>;
-@group(1) @binding(1) var<storage, read> piece_centroids: array<f32>;
-@group(1) @binding(2) var<storage, read> facet_colors: array<vec4<f32>>;
+@group(1) @binding(0) var<storage, read> piece_centroids: array<f32>;
+@group(1) @binding(1) var<storage, read> facet_centroids: array<f32>;
+@group(1) @binding(2) var<storage, read> polygon_color_ids: array<i32>;
+@group(1) @binding(3) var<storage, read> color_values: array<vec4<f32>>;
 
 // Computed data (per-vertex)
-@group(1) @binding(3) var<storage, read_write> vertex_3d_positions: array<vec4<f32>>;
-@group(1) @binding(4) var<storage, read_write> vertex_lightings: array<f32>;
+@group(1) @binding(4) var<storage, read_write> vertex_3d_positions: array<vec4<f32>>;
+@group(1) @binding(5) var<storage, read_write> vertex_lightings: array<f32>;
 
 // View parameters and transforms
 @group(2) @binding(0) var<storage, read> puzzle_transform: array<f32>;
@@ -99,7 +101,7 @@ struct TransformedVertex {
 ///
 /// Reads from these buffers:
 /// - `projection_params`, `lighting_params`, `puzzle_transform`, `piece_transforms`
-/// - all static mesh data except `facet_colors`
+/// - all static mesh data except `polygon_color_ids` and `color_values`
 fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> TransformedVertex {
     var ret: TransformedVertex;
 
@@ -224,14 +226,15 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
  */
 
 struct SinglePassVertexInput {
-    @location(0) facet_id: i32,
-    @location(1) piece_id: i32,
+    @location(0) piece_id: i32,
+    @location(1) facet_id: i32,
+    @location(2) polygon_id: i32,
 }
 
 struct SinglePassVertexOutput {
     @builtin(position) position: vec4<f32>,
-    @location(0) facet_id: i32,
-    @location(1) lighting: f32,
+    @location(0) lighting: f32,
+    @location(1) polygon_id: i32,
 }
 
 @vertex
@@ -245,11 +248,7 @@ fn render_single_pass_vertex(
     let scale = vec4(view_params.scale, 1.0 / Z_CLIP, 1.0);
     let offset = vec4(view_params.align, 0.5, 0.5);
     out.position = vec4(transformed.position * scale + offset);
-    if in.facet_id == 65535 {
-        out.facet_id = 0;
-    } else {
-        out.facet_id = in.facet_id + 1;
-    }
+    out.polygon_id = in.polygon_id;
     out.lighting = clamp(transformed.lighting, 0.0, 1.0);
     return out;
 }
@@ -257,7 +256,9 @@ fn render_single_pass_vertex(
 @fragment
 // TODO: consider `@early_depth_test`
 fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<f32> {
-    return vec4(facet_colors[in.facet_id].rgb * in.lighting, 1.0);
+    var color_id = polygon_color_ids[in.polygon_id];
+    color_id = select(color_id + 1, 0, color_id == 65535);
+    return vec4(color_values[color_id].rgb * in.lighting, 1.0);
 }
 
 
@@ -269,14 +270,12 @@ fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<
 struct PolygonIdsVertexInput {
     @location(0) position: vec4<f32>,
     @location(1) lighting: f32,
-    @location(2) facet_id: i32,
-    @location(3) polygon_id: i32,
+    @location(2) polygon_id: i32,
 }
 struct PolygonIdsVertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) lighting: f32,
-    @location(1) facet_id: i32,
-    @location(2) polygon_id: i32,
+    @location(1) polygon_id: i32,
 }
 
 @compute
@@ -304,7 +303,6 @@ fn render_polygon_ids_vertex(
     let offset = vec4(view_params.align, 0.5, 0.5);
     out.position = vec4(in.position * scale + offset);
     out.lighting = clamp(in.lighting, 0.0, 1.0);
-    out.facet_id = in.facet_id + 1;
     out.polygon_id = in.polygon_id;
     return out;
 }
@@ -313,7 +311,9 @@ fn render_polygon_ids_vertex(
 // TODO: consider `@early_depth_test`
 fn render_polygon_ids_fragment(in: PolygonIdsVertexOutput) -> @location(0) vec2<i32> {
     return vec2(
-        (i32(in.lighting * 16384.0) << 16u) | in.facet_id,
+        // TODO: was previously using red component to store facet ID (for color)
+        //       but that's not needed anymore. consider having just a single int
+        (i32(in.lighting * 16384.0) << 16u),
         in.polygon_id + 1,
     );
 }
@@ -342,7 +342,8 @@ fn render_composite_puzzle_vertex(
 fn render_composite_puzzle_fragment(in: CompositeVertexOutput) -> @location(0) vec4<f32> {
     let tex_coords: vec2<i32> = vec2<i32>(in.uv * vec2<f32>(textureDimensions(polygon_ids_texture) - vec2(1u, 1u)));
 
-    let facet_id: i32 = textureLoad(polygon_ids_texture, tex_coords, 0).r & 0xFFFF;
+    // TODO: was previously using red component to store facet ID (for color)
+    //       but that's not needed anymore. consider having just a single int
     let lighting: f32 = f32(textureLoad(polygon_ids_texture, tex_coords, 0).r >> 16u) / 16384.0;
     let polygon_id: i32 = textureLoad(polygon_ids_texture, tex_coords, 0).g;
     let r = i32(composite_params.outline_radius);
@@ -357,6 +358,6 @@ fn render_composite_puzzle_fragment(in: CompositeVertexOutput) -> @location(0) v
     } else if polygon_id == 0 {
         return vec4(special_colors.background, composite_params.alpha);
     } else {
-        return vec4(facet_colors[facet_id].rgb * lighting, composite_params.alpha);
+        return vec4(color_values[polygon_id].rgb * lighting, composite_params.alpha);
     }
 }

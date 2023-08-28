@@ -68,23 +68,30 @@ impl ObjectStore {
 
         std::thread::spawn(move || {
             // IIFE to mimic try_block
-            let result = (move || {
+            let result = (|| {
                 let store_reader = store.read();
                 let file = store_reader
-                    .get_file_containing_definition(&format!("puzzle/{name}"))
-                    .context("no puzzle named {name:?}")?
+                    .get_file_containing_definition(&format!("puzzle[{name:?}]")) // TODO: this relies on Lua and Rust string escaping being the same
+                    .with_context(|| format!("no puzzle named {name:?}"))?
                     .clone(); // TODO: instead of cloning, construct dependency graph
                 drop(store_reader);
 
                 let lua = crate::lua::new_lua();
-                crate::lua::load_sandboxed(&lua, &file.name, &file.contents)
-                    .with_context(|| format!("error loading file {:?}", file.name))?;
-                let puzzle = lua.context(|lua| crate::lua::build_puzzle(lua, &name))?;
-                store
-                    .write()
-                    .constructed_puzzles_cache
-                    .insert(name, Arc::downgrade(&puzzle));
-                Ok(puzzle)
+                // IIFE to mimic try_block
+                let result = (|| {
+                    crate::lua::load_sandboxed(&lua, &file.name, &file.contents)
+                        .with_context(|| format!("error loading file {:?}", file.name))?;
+                    let puzzle = lua.context(|lua| crate::lua::build_puzzle(lua, &name))?;
+                    store
+                        .write()
+                        .constructed_puzzles_cache
+                        .insert(name, Arc::downgrade(&puzzle));
+                    Ok(puzzle)
+                })();
+
+                *task.logs() = lua.context(crate::lua::drain_logs);
+
+                result
             })();
             task.complete(result);
         });

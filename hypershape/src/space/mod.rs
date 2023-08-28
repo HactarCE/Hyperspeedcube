@@ -42,6 +42,8 @@ pub use shape::ShapeData;
 pub use shapeset::ShapeSet;
 pub use signedref::SignedRef;
 
+use self::cut::CutInProgress;
+
 /// Reference to an oriented manifold in a [`Space`].
 pub type ManifoldRef = SignedRef<ManifoldId>;
 /// Reference to an oriented shape in a [`Space`].
@@ -321,24 +323,26 @@ impl Space {
 
     /// Cuts a set of shapes, returning only the shapes on the inside of the
     /// cut.
-    pub fn carve(&mut self, shapes: &ShapeSet, divider: ManifoldRef) -> Result<ShapeSet> {
-        let cut_params = CutParams {
-            divider,
-            inside: ShapeFate::Keep,
-            outside: ShapeFate::Remove,
-        };
-        let (inside, _outside) = self.cut(shapes, cut_params)?;
-        Ok(inside)
+    pub fn carve(&mut self, divider: ManifoldRef) -> CutInProgress<'_> {
+        CutInProgress {
+            space: self,
+            op: CutOp::new(CutParams {
+                divider,
+                inside: ShapeFate::Keep,
+                outside: ShapeFate::Remove,
+            }),
+        }
     }
     /// Cuts a set of shapes, returning shapes on both sides.
-    pub fn slice(&mut self, shapes: &ShapeSet, divider: ManifoldRef) -> Result<ShapeSet> {
-        let cut_params = CutParams {
-            divider,
-            inside: ShapeFate::Keep,
-            outside: ShapeFate::Keep,
-        };
-        let (inside, outside) = self.cut(shapes, cut_params)?;
-        Ok(inside | outside)
+    pub fn slice(&mut self, divider: ManifoldRef) -> CutInProgress<'_> {
+        CutInProgress {
+            space: self,
+            op: CutOp::new(CutParams {
+                divider,
+                inside: ShapeFate::Keep,
+                outside: ShapeFate::Keep,
+            }),
+        }
     }
 
     /// Cuts a set of shapes by a manifold.

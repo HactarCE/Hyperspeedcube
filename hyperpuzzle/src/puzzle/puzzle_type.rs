@@ -1,4 +1,7 @@
-use std::sync::{Arc, Weak};
+use std::{
+    fmt,
+    sync::{Arc, Weak},
+};
 
 use super::{Mesh, PieceInfo, PieceTypeInfo, PuzzleState, StickerInfo};
 use crate::{PerPiece, PerPieceType, PerSticker};
@@ -7,12 +10,10 @@ use crate::{PerPiece, PerPieceType, PerSticker};
 pub struct Puzzle {
     /// Reference-counted pointer to this struct.
     pub this: Weak<Puzzle>,
-    /// Human-friendly name of the puzzle.
+    /// Human-friendly name for the puzzle.
     pub name: String,
-    /// Base shape, without any internal cuts.
-    pub shape: Arc<PuzzleShape>,
-    /// Twist set.
-    pub twists: Arc<PuzzleTwists>,
+    /// Internal ID for the puzzle.
+    pub id: String,
 
     /// Puzzle mesh for rendering.
     pub mesh: Mesh,
@@ -33,14 +34,26 @@ pub struct Puzzle {
     /// Function to create a new solved puzzle state.
     pub new: Box<dyn Send + Sync + Fn(Arc<Puzzle>) -> PuzzleState>,
 }
-
-pub struct PuzzleShape {
-    pub name: String,
-    pub ndim: u8,
+impl fmt::Debug for Puzzle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Puzzle")
+            .field("this", &self.this)
+            .field("name", &self.name)
+            .field("id", &self.id)
+            .field("mesh", &self.mesh)
+            .field("pieces", &self.pieces)
+            .field("stickers", &self.stickers)
+            .field("piece_types", &self.piece_types)
+            .field("scramble_moves_count", &self.scramble_moves_count)
+            .field("notation", &self.notation)
+            .finish()
+    }
 }
 
+#[derive(Debug, Clone)]
 pub struct PuzzleTwists {
     pub name: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct NotationScheme {}

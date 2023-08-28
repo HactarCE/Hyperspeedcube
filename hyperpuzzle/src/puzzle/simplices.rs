@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::Index;
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use hypermath::collections::ApproxHashMap;
 use hypermath::*;
 use hypershape::*;
@@ -163,7 +163,10 @@ impl<'a> Simplexifier<'a> {
             .space
             .boundary_of(shape)
             .map(|edge| {
-                let [a, b] = self.space.extract_point_pair(edge)?;
+                let edge_bounds = self.space.boundary_of(edge).exactly_one().map_err(|e| {
+                    anyhow!("edge should be bounded by exactly one point pair: {e}")
+                })?;
+                let [a, b] = self.space.extract_point_pair(edge_bounds)?;
                 let a = self.add_vertex(a)?;
                 let b = self.add_vertex(b)?;
                 Ok([a, b])

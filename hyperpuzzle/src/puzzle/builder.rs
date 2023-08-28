@@ -9,6 +9,8 @@ use parking_lot::Mutex;
 use smallvec::smallvec;
 use tinyset::Set64;
 
+use crate::PerColor;
+
 use super::simplices::{Simplexifier, VertexId};
 use super::{
     Color, MeshBuilder, NotationScheme, PerPiece, PerSticker, Piece, PieceInfo, PieceType,
@@ -20,24 +22,28 @@ pub struct PieceSet(pub Set64<Piece>);
 
 #[derive(Debug)]
 pub struct PuzzleBuilder {
+    pub id: String,
     pub name: String,
     pub space: Arc<Mutex<Space>>,
-    pieces: PerPiece<PieceBuilder>,
+    pub pieces: PerPiece<PieceBuilder>,
+    pub colors: PerColor<()>,
 }
 impl PuzzleBuilder {
     /// Returns a builder for a puzzle that starts with an empty Euclidean space
     /// with no pieces.
-    pub fn new_soup(name: String, ndim: u8) -> Self {
+    pub fn new_soup(name: String, id: String, ndim: u8) -> Self {
         PuzzleBuilder {
             name,
+            id,
             space: Arc::new(Mutex::new(Space::new(ndim))),
             pieces: PerPiece::new(),
+            colors: PerColor::new(),
         }
     }
     /// Returns a builder for a puzzle that starts with a single solid piece
     /// occupying all of Euclidean space.
-    pub fn new_solid(name: String, ndim: u8) -> (Self, Piece) {
-        let mut this = PuzzleBuilder::new_soup(name, ndim);
+    pub fn new_solid(name: String, id: String, ndim: u8) -> (Self, Piece) {
+        let mut this = PuzzleBuilder::new_soup(name, id, ndim);
         this.pieces
             .push(PieceBuilder {
                 shape: this.space.lock().whole_space(),
@@ -49,21 +55,21 @@ impl PuzzleBuilder {
     }
 
     pub(crate) fn take(&mut self) -> Self {
-        let default = Self::new_soup(self.name.clone(), self.space.lock().ndim());
+        let default = Self::new_soup(self.name.clone(), self.id.clone(), self.space.lock().ndim());
         std::mem::replace(self, default)
     }
 
     pub fn build(self) -> Result<Arc<Puzzle>> {
         let space = self.space.lock();
 
-        let shape = Arc::new(crate::PuzzleShape {
-            name: "Unknown".to_string(),
-            ndim: space.ndim(),
-        });
         let twists = Arc::new(crate::PuzzleTwists {
             name: "Unknown".to_string(),
         });
         let mut mesh = MeshBuilder::new(space.ndim());
+
+        for (_id, ()) in self.colors {
+            mesh.add_color()
+        }
 
         // As we construct the mesh, we'll renumber all the pieces and stickers
         // to exclude inactive ones.
@@ -117,7 +123,8 @@ impl PuzzleBuilder {
                         2 => {
                             let manifold = space.manifold_of(subshape_of_sticker);
                             let blade = space.blade_of(manifold);
-                            let mut polygon_mesh = sticker_mesh.add_polygon(&blade)?;
+                            let mut polygon_mesh =
+                                sticker_mesh.add_polygon(&blade, sticker.color)?;
                             let tris = simplexifier.face_polygons(subshape_of_sticker)?;
 
                             let mut vertex_id_map: HashMap<VertexId, u32> = HashMap::new();
@@ -140,9 +147,8 @@ impl PuzzleBuilder {
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
-            name: self.name.clone(),
-            shape,
-            twists,
+            name: self.name,
+            id: self.id,
 
             mesh: mesh.finish(),
 
@@ -163,16 +169,16 @@ impl PuzzleBuilder {
     }
 }
 
-#[derive(Debug)]
-struct PieceBuilder {
-    shape: ShapeRef,
-    stickers: Vec<StickerBuilder>,
+#[derive(Debug, Clone)]
+pub struct PieceBuilder {
+    pub shape: ShapeRef,
+    pub stickers: Vec<StickerBuilder>,
     /// Whether the piece should be part of the final puzzle.
-    is_active: bool,
+    pub is_active: bool,
 }
 
-#[derive(Debug)]
-struct StickerBuilder {
-    shape: ShapeRef,
-    color: Color,
+#[derive(Debug, Clone)]
+pub struct StickerBuilder {
+    pub shape: ShapeRef,
+    pub color: Color,
 }

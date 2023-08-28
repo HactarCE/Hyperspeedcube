@@ -20,7 +20,7 @@ mod puzzle;
 mod task;
 
 pub use library::{FileData, Library, Object, ObjectData};
-pub use lua::{drain_logs, load_sandboxed, new_lua};
+pub use lua::{drain_logs, load_sandboxed, new_lua, LuaLogLine};
 pub use puzzle::*;
 pub use task::TaskHandle;
 

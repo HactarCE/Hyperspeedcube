@@ -1,3 +1,4 @@
+use anyhow::ensure;
 use itertools::Itertools;
 use std::fmt;
 
@@ -32,16 +33,18 @@ mod bindings {
         U_TANGENTS             = (1, wgpu::BufferBindingType::Storage { read_only: true });
         V_TANGENTS             = (2, wgpu::BufferBindingType::Storage { read_only: true });
         STICKER_SHRINK_VECTORS = (3, wgpu::BufferBindingType::Storage { read_only: true });
-        FACET_IDS              = (4, wgpu::BufferBindingType::Storage { read_only: true });
-        PIECE_IDS              = (5, wgpu::BufferBindingType::Storage { read_only: true });
+        PIECE_IDS              = (4, wgpu::BufferBindingType::Storage { read_only: true });
+        FACET_IDS              = (5, wgpu::BufferBindingType::Storage { read_only: true });
+        POLYGON_IDS            = (6, wgpu::BufferBindingType::Storage { read_only: true });
 
         // Static mesh data (other)
         FACET_CENTROIDS        = (0, wgpu::BufferBindingType::Storage { read_only: true });
         PIECE_CENTROIDS        = (1, wgpu::BufferBindingType::Storage { read_only: true });
-        FACET_COLORS           = (2, wgpu::BufferBindingType::Storage { read_only: true });
+        POLYGON_COLOR_IDS      = (2, wgpu::BufferBindingType::Storage { read_only: true });
+        COLOR_VALUES           = (3, wgpu::BufferBindingType::Storage { read_only: true });
         // Computed data (per-vertex)
-        VERTEX_3D_POSITIONS    = (3, wgpu::BufferBindingType::Storage { read_only: false });
-        VERTEX_LIGHTINGS       = (4, wgpu::BufferBindingType::Storage { read_only: false });
+        VERTEX_3D_POSITIONS    = (4, wgpu::BufferBindingType::Storage { read_only: false });
+        VERTEX_LIGHTINGS       = (5, wgpu::BufferBindingType::Storage { read_only: false });
 
         // View parameters and transforms
         PUZZLE_TRANSFORM       = (0, wgpu::BufferBindingType::Storage { read_only: true });
@@ -190,8 +193,8 @@ impl Pipelines {
                     pub(COMPUTE) U_TANGENTS,
                     pub(COMPUTE) V_TANGENTS,
                     pub(COMPUTE) STICKER_SHRINK_VECTORS,
-                    pub(COMPUTE) FACET_IDS,
                     pub(COMPUTE) PIECE_IDS,
+                    pub(COMPUTE) FACET_IDS,
                 ],
                 1 => [
                     pub(COMPUTE) FACET_CENTROIDS,
@@ -227,8 +230,7 @@ impl Pipelines {
                 vertex_buffers: &[
                     single_type_vertex_buffer![0 => Float32x4], // position
                     single_type_vertex_buffer![1 => Float32],   // lighting
-                    single_type_vertex_buffer![2 => Sint32],    // facet_id
-                    single_type_vertex_buffer![3 => Sint32],    // polygon_id
+                    single_type_vertex_buffer![2 => Sint32],    // polygon_id
                 ],
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: wgpu::TextureFormat::Depth24PlusStencil8,
@@ -251,12 +253,9 @@ impl Pipelines {
             device,
             bind_groups![
                 0 => [],
-                1 => [pub(FRAGMENT) FACET_COLORS],
+                1 => [pub(FRAGMENT) POLYGON_COLOR_IDS, pub(FRAGMENT) COLOR_VALUES],
                 2 => [pub(FRAGMENT) POLYGON_IDS_TEXTURE],
-                3 => [
-                    pub(FRAGMENT) COMPOSITE_PARAMS,
-                    pub(FRAGMENT) SPECIAL_COLORS,
-                ],
+                3 => [pub(FRAGMENT) COMPOSITE_PARAMS, pub(FRAGMENT) SPECIAL_COLORS],
 
             ],
         );
@@ -291,11 +290,13 @@ impl Pipelines {
                     pub(VERTEX) U_TANGENTS,
                     pub(VERTEX) V_TANGENTS,
                     pub(VERTEX) STICKER_SHRINK_VECTORS,
+                    pub(VERTEX) POLYGON_IDS,
                 ],
                 1 => [
                     pub(VERTEX) FACET_CENTROIDS,
                     pub(VERTEX) PIECE_CENTROIDS,
-                    pub(FRAGMENT) FACET_COLORS,
+                    pub(FRAGMENT) POLYGON_COLOR_IDS,
+                    pub(FRAGMENT) COLOR_VALUES,
                 ],
                 2 => [
                     pub(VERTEX) PUZZLE_TRANSFORM,
@@ -315,8 +316,9 @@ impl Pipelines {
                     &render_single_pass_bind_groups,
                     BasicRenderPipelineDescriptor {
                         vertex_buffers: &[
-                            single_type_vertex_buffer![0 => Sint32], // facet_id
-                            single_type_vertex_buffer![1 => Sint32], // piece_id
+                            single_type_vertex_buffer![0 => Sint32], // piece_id
+                            single_type_vertex_buffer![1 => Sint32], // facet_id
+                            single_type_vertex_buffer![2 => Sint32], // polygon_id
                         ],
                         depth_stencil: Some(wgpu::DepthStencilState {
                             format: wgpu::TextureFormat::Depth24PlusStencil8,
@@ -416,6 +418,18 @@ impl PipelineBindGroups {
         device: &wgpu::Device,
         bind_groups: &[&[wgpu::BindingResource]],
     ) -> Vec<(u32, wgpu::BindGroup)> {
+        assert_eq!(
+            self.bind_group_layouts
+                .iter()
+                .map(|(_, desc)| desc.entries.len())
+                .collect_vec(),
+            bind_groups
+                .iter()
+                .map(|bind_group| bind_group.len())
+                .collect_vec(),
+            "bind groups layout mismatch",
+        );
+
         let bind_groups = itertools::zip_eq(&self.bind_group_layouts, bind_groups).map(
             |((layout, layout_desc), bind_group)| {
                 device.create_bind_group(&wgpu::BindGroupDescriptor {

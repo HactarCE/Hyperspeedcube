@@ -12,7 +12,9 @@ use crate::{Facet, PerFacet};
 #[derive(Debug, Clone)]
 pub struct Mesh {
     ndim: u8,
-    vertex_count: usize,
+
+    /// Number of sticker colors in the mesh.
+    pub color_count: usize,
 
     /// Coordinates for each vertex in N-dimensional space.
     pub vertex_positions: Vec<f32>,
@@ -22,13 +24,14 @@ pub struct Mesh {
     pub v_tangents: Vec<f32>,
     /// Vector along which to move each vertex when applying sticker shrink.
     pub sticker_shrink_vectors: Vec<f32>,
-    /// Polygon ID for each vertex.
-    pub polygon_ids: Vec<u32>,
     /// Piece ID for each vertex.
     pub piece_ids: Vec<Piece>,
     /// Facet ID for each vertex.
     pub facet_ids: Vec<Facet>,
-    /// Color ID for each vertex.
+    /// Polygon ID for each vertex.
+    pub polygon_ids: Vec<u32>,
+
+    /// Color ID for each polygon.
     pub color_ids: Vec<Color>,
 
     /// Centroid for each piece, used to apply piece explode.
@@ -56,15 +59,16 @@ impl Mesh {
     pub fn new_empty(ndim: u8) -> Self {
         Mesh {
             ndim,
-            vertex_count: 0,
+            color_count: 0,
 
             vertex_positions: vec![],
             u_tangents: vec![],
             v_tangents: vec![],
             sticker_shrink_vectors: vec![],
-            polygon_ids: vec![],
             piece_ids: vec![],
             facet_ids: vec![],
+            polygon_ids: vec![],
+
             color_ids: vec![],
 
             piece_centroids: vec![],
@@ -83,7 +87,7 @@ impl Mesh {
     }
     /// Returns the number of vertices in the mesh.
     pub fn vertex_count(&self) -> usize {
-        self.vertex_count
+        self.vertex_positions.len() / self.ndim as usize
     }
     /// Returns the number of pieces in the mesh.
     pub fn piece_count(&self) -> usize {
@@ -100,6 +104,10 @@ impl Mesh {
     /// Returns the number of triangles in the mesh.
     pub fn triangle_count(&self) -> usize {
         self.triangles.len()
+    }
+    /// Returns the number of colors in the mesh.
+    pub fn color_count(&self) -> usize {
+        self.color_count
     }
 }
 
@@ -122,6 +130,10 @@ impl MeshBuilder {
             manifold_to_facet: HashMap::new(),
             next_polygon_id: 1, // polygon ID 0 is reserved
         }
+    }
+
+    pub(super) fn add_color(&mut self) {
+        self.mesh.color_count += 1;
     }
 
     pub(super) fn add_piece(&mut self, centroid_point: Vector) -> Result<MeshPieceBuilder<'_>> {
@@ -178,6 +190,15 @@ impl<'a> MeshPieceBuilder<'a> {
         })
     }
 }
+impl Drop for MeshPieceBuilder<'_> {
+    fn drop(&mut self) {
+        self.mesh
+            .mesh
+            .piece_internals_index_ranges
+            .push(0..0) // TODO: internals index range
+            .unwrap(); // TODO: unwrap icky
+    }
+}
 
 #[derive(Debug)]
 pub(super) struct MeshStickerBuilder<'a: 'b, 'b> {
@@ -190,9 +211,11 @@ impl<'a: 'b, 'b> MeshStickerBuilder<'a, 'b> {
     pub(super) fn add_polygon<'c>(
         &'c mut self,
         manifold: &'c Blade,
+        color: Color,
     ) -> Result<MeshPolygonBuilder<'a, 'b, 'c>> {
         let id = self.piece.mesh.next_polygon_id;
         self.piece.mesh.next_polygon_id = id.checked_add(1).context("too many polygons")?;
+        self.piece.mesh.mesh.color_ids.push(color);
         let tangent_space = manifold.opns_tangent_space();
         Ok(MeshPolygonBuilder {
             sticker: self,
@@ -235,10 +258,9 @@ impl MeshPolygonBuilder<'_, '_, '_> {
         mesh.v_tangents.extend(iter_f32(ndim, &tangents[1]));
         mesh.sticker_shrink_vectors
             .extend(iter_f32(ndim, &sticker_shrink_vector));
-        mesh.polygon_ids.push(self.id);
         mesh.piece_ids.push(self.sticker.piece.id);
         mesh.facet_ids.push(self.sticker.facet);
-        mesh.color_ids.push(self.sticker.color);
+        mesh.polygon_ids.push(self.id);
 
         Ok(vertex_id)
     }
