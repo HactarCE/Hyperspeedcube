@@ -410,7 +410,7 @@ impl Tab {
                             let (result, logs) = lib.construct_puzzle(&puzzle_name);
                             *log_lines = logs;
                             match result {
-                                Err(e) => log::error!("{e}"),
+                                Err(e) => log::error!("{:?}", e),
                                 Ok(p) => {
                                     if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
                                         log::info!("set active puzzle!");

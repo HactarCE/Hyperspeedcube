@@ -38,8 +38,8 @@ mod bindings {
         POLYGON_IDS            = (6, wgpu::BufferBindingType::Storage { read_only: true });
 
         // Static mesh data (other)
-        FACET_CENTROIDS        = (0, wgpu::BufferBindingType::Storage { read_only: true });
-        PIECE_CENTROIDS        = (1, wgpu::BufferBindingType::Storage { read_only: true });
+        PIECE_CENTROIDS        = (0, wgpu::BufferBindingType::Storage { read_only: true });
+        FACET_CENTROIDS        = (1, wgpu::BufferBindingType::Storage { read_only: true });
         POLYGON_COLOR_IDS      = (2, wgpu::BufferBindingType::Storage { read_only: true });
         COLOR_VALUES           = (3, wgpu::BufferBindingType::Storage { read_only: true });
         // Computed data (per-vertex)
@@ -197,8 +197,8 @@ impl Pipelines {
                     pub(COMPUTE) FACET_IDS,
                 ],
                 1 => [
-                    pub(COMPUTE) FACET_CENTROIDS,
                     pub(COMPUTE) PIECE_CENTROIDS,
+                    pub(COMPUTE) FACET_CENTROIDS,
                     pub(COMPUTE) VERTEX_3D_POSITIONS,
                     pub(COMPUTE) VERTEX_LIGHTINGS,
                 ],
@@ -293,8 +293,8 @@ impl Pipelines {
                     pub(VERTEX) POLYGON_IDS,
                 ],
                 1 => [
-                    pub(VERTEX) FACET_CENTROIDS,
                     pub(VERTEX) PIECE_CENTROIDS,
+                    pub(VERTEX) FACET_CENTROIDS,
                     pub(FRAGMENT) POLYGON_COLOR_IDS,
                     pub(FRAGMENT) COLOR_VALUES,
                 ],

@@ -157,7 +157,15 @@ impl MeshBuilder {
         }
     }
 
-    pub(super) fn finish(self) -> Mesh {
+    pub(super) fn finish(mut self) -> Mesh {
+        let ndim = self.mesh.ndim;
+        for piece_centroid in self.piece_centroids.iter_values() {
+            self.mesh
+                .piece_centroids
+                .extend(iter_f32(ndim, piece_centroid));
+            println!("piece centroid = {piece_centroid}");
+        }
+
         self.mesh
     }
 }
