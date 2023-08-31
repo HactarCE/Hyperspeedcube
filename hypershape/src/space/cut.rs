@@ -129,6 +129,7 @@ impl CutOp {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all, fields(manifold = %manifold), ret(Debug), err(Debug))]
     pub fn cached_which_side_of_cut_contains_manifold(
         &mut self,
         space: &mut Space,

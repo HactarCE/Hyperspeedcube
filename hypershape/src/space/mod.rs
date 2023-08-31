@@ -35,14 +35,12 @@ mod shapeset;
 mod signedref;
 
 use cut::CutOp;
-pub use cut::{CutParams, ShapeFate};
+pub use cut::{CutInProgress, CutParams, ShapeFate};
 pub use manifold::ManifoldData;
 use results::{ManifoldWhichSide, MergedInterval, ShapeSplitResult};
 pub use shape::ShapeData;
 pub use shapeset::ShapeSet;
 pub use signedref::SignedRef;
-
-use self::cut::CutInProgress;
 
 /// Reference to an oriented manifold in a [`Space`].
 pub type ManifoldRef = SignedRef<ManifoldId>;
@@ -458,7 +456,7 @@ impl Space {
                 let outside_boundary = self.incrementally_simplify_intersection_of_intervals(
                     shape_manifold.into(),
                     self[shape].boundary.clone(),
-                    intersection_shape,
+                    -intersection_shape,
                 )?;
                 if let Some(boundary) = outside_boundary {
                     Some(self.add_subshape(shape, boundary)?)
@@ -569,7 +567,7 @@ impl Space {
                     self_boundary_of_inside.insert(child);
                 }
                 ShapeSplitResult::ManifoldOutside => {
-                    self_boundary_of_inside.insert(child);
+                    self_boundary_of_outside.insert(child);
                 }
                 ShapeSplitResult::NonFlush {
                     inside,

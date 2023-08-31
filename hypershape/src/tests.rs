@@ -1,3 +1,5 @@
+use test_log::test;
+
 use hypermath::prelude::*;
 
 use super::*;
@@ -115,11 +117,38 @@ fn test_cube() {
             let cut = space.add_plane(Vector::unit(ax), 1.0).unwrap();
             shapes = space.carve(cut).cut_set(shapes).unwrap();
             println!("{}", space.shape_to_string(shapes.iter().next().unwrap()));
+
             let cut = space.add_plane(-Vector::unit(ax), 1.0).unwrap();
             shapes = space.carve(cut).cut_set(shapes).unwrap();
             println!("{}", space.shape_to_string(shapes.iter().next().unwrap()));
         }
         assert_eq!(1, shapes.len());
+
+        assert_is_cube(&space, shapes.iter().next().unwrap().id);
+
+        if ndim > 4 {
+            continue;
+        }
+
+        for ax in 0..ndim {
+            let cut = space.add_plane(Vector::unit(ax), 0.3).unwrap();
+            shapes = space.slice(cut).cut_set(shapes).unwrap();
+            println!("Shapes:");
+            for shape in &shapes {
+                println!("{}", space.shape_to_string(shape));
+            }
+            println!();
+
+            let cut = space.add_plane(-Vector::unit(ax), 0.3).unwrap();
+            shapes = space.slice(cut).cut_set(shapes).unwrap();
+            println!("Shapes:");
+            for shape in &shapes {
+                println!("{}", space.shape_to_string(shape));
+            }
+            println!();
+        }
+        assert_eq!(3_usize.pow(ndim as _), shapes.len());
+
         assert_is_cube(&space, shapes.iter().next().unwrap().id);
     }
 }
