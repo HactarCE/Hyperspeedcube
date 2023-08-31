@@ -164,16 +164,15 @@ pub fn build_puzzle(lua: LuaContext<'_>, id: &str) -> Result<Arc<Puzzle>> {
     let (puzzle_builder, root) = PuzzleBuilder::new_solid(name.to_string(), id.to_string(), ndim);
     let space = Arc::clone(&puzzle_builder.space);
     lua.globals().set("SPACE", LuaSpace(space))?;
-    let puzzle_builder = Arc::new(Mutex::new(puzzle_builder));
+    let puzzle_builder = Arc::new(Mutex::new(Some(puzzle_builder)));
     lua.globals()
-        .set("PUZZLE", LuaPuzzleBuilder(Arc::clone(&puzzle_builder)))?;
+        .set("PUZZLE", LuaPuzzleBuilder(puzzle_builder))?;
 
     puzzle_table
         .get::<_, LuaFunction>("build")?
         .call(LuaPieceSet(PieceSet([root].into_iter().collect())))?;
 
-    let mut puzzle_builder = puzzle_builder.lock();
-    puzzle_builder.take().build()
+    LuaPuzzleBuilder::take(lua)?.build()
 }
 
 #[cfg(test)]

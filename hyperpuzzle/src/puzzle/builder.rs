@@ -54,11 +54,6 @@ impl PuzzleBuilder {
         (this, Piece(0))
     }
 
-    pub(crate) fn take(&mut self) -> Self {
-        let default = Self::new_soup(self.name.clone(), self.id.clone(), self.space.lock().ndim());
-        std::mem::replace(self, default)
-    }
-
     pub fn build(self) -> Result<Arc<Puzzle>> {
         let space = self.space.lock();
 
