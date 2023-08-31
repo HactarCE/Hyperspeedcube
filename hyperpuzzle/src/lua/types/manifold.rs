@@ -40,9 +40,9 @@ impl LuaManifold {
             }
         };
 
-        if t.contains_key(0)? {
+        if t.contains_key(1)? {
             // anonymous vector + ...
-            let LuaVector(v) = t.get(0)?;
+            let LuaVector(v) = t.get(1)?;
             if t.contains_key("distance")? {
                 // anonymous vector + distance
                 let distance = t.get("distance")?;
