@@ -1,24 +1,18 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use hypermath::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::smallvec;
-use tinyset::Set64;
-
-use crate::PerColor;
 
 use super::simplices::{Simplexifier, VertexId};
 use super::{
-    Color, MeshBuilder, NotationScheme, PerPiece, PerSticker, Piece, PieceInfo, PieceType,
-    PieceTypeInfo, Puzzle, PuzzleState, StickerInfo,
+    Color, MeshBuilder, NotationScheme, PerColor, PerPiece, PerSticker, Piece, PieceInfo, PieceSet,
+    PieceType, PieceTypeInfo, Puzzle, PuzzleState, StickerInfo,
 };
-
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct PieceSet(pub Set64<Piece>);
 
 #[derive(Debug)]
 pub struct PuzzleBuilder {
@@ -54,6 +48,58 @@ impl PuzzleBuilder {
         (this, Piece(0))
     }
 
+    /// Cut each piece by a cut, throwing away the portions that are outside the
+    /// cut. Every piece in the old set becomes inactive, and each piece in the
+    /// new set inherits its active status from the corresponding piece in the
+    /// old set.
+    pub fn carve(&mut self, pieces: &PieceSet, cut_manifold: ManifoldRef) -> Result<PieceSet> {
+        let mut space = self.space.lock();
+        let mut cutter = space.carve(cut_manifold);
+        let sticker_color = self.colors.push(())?;
+
+        let old_pieces = pieces;
+        let mut new_pieces = PieceSet::new();
+        for piece in old_pieces.iter() {
+            let old_piece = &mut self.pieces[piece];
+
+            // Cut and deactivate piece.
+            let result = cut_piece(old_piece, &mut cutter, Some(sticker_color))?;
+
+            // Add new piece.
+            if let Some(inside_piece) = result.inside {
+                new_pieces.insert(self.pieces.push(inside_piece)?);
+            }
+        }
+
+        Ok(new_pieces)
+    }
+
+    pub fn slice(&mut self, pieces: &PieceSet, cut_manifold: ManifoldRef) -> Result<PieceSet> {
+        let mut space = self.space.lock();
+        let mut cutter = space.slice(cut_manifold);
+
+        let old_pieces = pieces;
+        let mut new_pieces = PieceSet::new();
+        for piece in old_pieces.iter() {
+            let old_piece = &mut self.pieces[piece];
+
+            // Cut and deactivate piece.
+            let result = cut_piece(old_piece, &mut cutter, None)?;
+
+            // Add new pieces.
+            if let Some(inside_piece) = result.inside {
+                new_pieces.insert(self.pieces.push(inside_piece)?);
+            }
+            if let Some(outside_piece) = result.outside {
+                new_pieces.insert(self.pieces.push(outside_piece)?);
+            }
+        }
+
+        Ok(new_pieces)
+    }
+
+    /// Performs the final steps of building a puzzle, generating the mesh and
+    /// assigning IDs to pieces etc.
     pub fn build(self) -> Result<Arc<Puzzle>> {
         let space = self.space.lock();
 
@@ -81,21 +127,17 @@ impl PuzzleBuilder {
                 stickers: smallvec![],
                 piece_type: PieceType(0), // TODO
             })?;
-            pieces[piece_id].stickers = piece
-                .stickers
-                .iter()
-                .map(|sticker| {
-                    stickers.push(StickerInfo {
-                        piece: piece_id,
-                        color: sticker.color,
-                    })
-                })
-                .try_collect()?;
 
             let piece_centroid_point = simplexifier.shape_centroid_point(piece.shape.id)?;
             let mut piece_mesh = mesh.add_piece(piece_centroid_point)?;
             piece.stickers.sort_unstable_by_key(|s| s.color);
             for sticker in piece.stickers {
+                let sticker_id = stickers.push(StickerInfo {
+                    piece: piece_id,
+                    color: sticker.color,
+                })?;
+                pieces[piece_id].stickers.push(sticker_id);
+
                 let manifold = space.manifold_of(sticker.shape).id;
                 let sticker_centroid = simplexifier.shape_centroid(sticker.shape.id)?;
                 let mut sticker_mesh =
@@ -176,4 +218,88 @@ pub struct PieceBuilder {
 pub struct StickerBuilder {
     pub shape: ShapeRef,
     pub color: Color,
+}
+
+#[derive(Debug, Clone)]
+struct PieceCutResult {
+    inside: Option<PieceBuilder>,
+    outside: Option<PieceBuilder>,
+}
+
+#[derive(Debug, Clone)]
+struct StickerSetCutResult {
+    inside: Vec<StickerBuilder>,
+    outside: Vec<StickerBuilder>,
+}
+
+fn cut_piece(
+    piece: &mut PieceBuilder,
+    cutter: &mut CutInProgress,
+    new_color: Option<Color>,
+) -> Result<PieceCutResult> {
+    let shape_cut_result = cutter.cut(piece.shape).context("cutting piece")?;
+
+    // Cut existing stickers.
+    let mut stickers_cut_result = cut_sticker_set(&piece.stickers, cutter)?;
+
+    // Add new sticker.
+    if let Some(new_color) = new_color {
+        if let Some(new_sticker_shape) = shape_cut_result.flush_facet {
+            stickers_cut_result.inside.push(StickerBuilder {
+                shape: new_sticker_shape,
+                color: new_color,
+            });
+            stickers_cut_result.outside.push(StickerBuilder {
+                shape: -new_sticker_shape,
+                color: new_color,
+            });
+        }
+    }
+
+    // Construct pieces.
+    let inside = match shape_cut_result.inside {
+        Some(inside_shape) => Some(PieceBuilder {
+            shape: inside_shape,
+            stickers: stickers_cut_result.inside,
+            is_active: piece.is_active,
+        }),
+        None => None,
+    };
+    let outside = match shape_cut_result.outside {
+        Some(outside_shape) => Some(PieceBuilder {
+            shape: outside_shape,
+            stickers: stickers_cut_result.outside,
+            is_active: piece.is_active,
+        }),
+        None => None,
+    };
+
+    // Set old piece to inactive.
+    piece.is_active = false;
+
+    Ok(PieceCutResult { inside, outside })
+}
+
+fn cut_sticker_set(
+    sticker_set: &[StickerBuilder],
+    cutter: &mut CutInProgress,
+) -> Result<StickerSetCutResult> {
+    let mut inside = vec![];
+    let mut outside = vec![];
+    for old_sticker in sticker_set {
+        let result = cutter.cut(old_sticker.shape).context("cutting sticker")?;
+        if let Some(inside_shape) = result.inside {
+            inside.push(StickerBuilder {
+                shape: inside_shape,
+                color: old_sticker.color,
+            });
+        }
+        if let Some(outside_shape) = result.outside {
+            outside.push(StickerBuilder {
+                shape: outside_shape,
+                color: old_sticker.color,
+            });
+        }
+    }
+    Ok(StickerSetCutResult { inside, outside })
 }

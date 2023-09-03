@@ -170,7 +170,7 @@ pub fn build_puzzle(lua: LuaContext<'_>, id: &str) -> Result<Arc<Puzzle>> {
 
     puzzle_table
         .get::<_, LuaFunction>("build")?
-        .call(LuaPieceSet(PieceSet([root].into_iter().collect())))?;
+        .call(LuaPieceSet(PieceSet::from_iter([root])))?;
 
     LuaPuzzleBuilder::take(lua)?.build()
 }

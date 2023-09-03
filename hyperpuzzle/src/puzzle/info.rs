@@ -1,6 +1,7 @@
 use hypermath::collections::GenericVec;
 use hypermath::prelude::*;
 use smallvec::SmallVec;
+use tinyset::Set64;
 
 macro_rules! impl_puzzle_info_trait {
     (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {
@@ -69,6 +70,11 @@ pub type PerAxis<T> = GenericVec<Axis, T>;
 pub type PerTwist<T> = GenericVec<Twist, T>;
 /// List containing a value per piece type.
 pub type PerPieceType<T> = GenericVec<PieceType, T>;
+
+/// Set of pieces in a puzzle.
+pub type PieceSet = Set64<Piece>;
+/// Set of stickers in a puzzle.
+pub type StickerSet = Set64<Sticker>;
 
 /// Piece info.
 #[derive(Debug, Clone, PartialEq)]
