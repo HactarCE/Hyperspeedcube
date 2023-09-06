@@ -1,7 +1,8 @@
 use hyperpuzzle::LuaLogLine;
 use hypershape::Space;
+use itertools::Itertools;
 use parking_lot::Mutex;
-use std::{io::Read, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 // mod debug;
 // mod puzzle_setup;
@@ -379,20 +380,33 @@ impl Tab {
             }
             Tab::PuzzleLibrary { log_lines } => {
                 ui.separator();
-                for file in crate::LUA_BUILTIN_DIR.get_dir("puzzles").unwrap().files() {
+                let id = egui::Id::new("hyperspeedcube/files");
+                let needs_reload = ui.button("Reload files").clicked()
+                    || ui.data(|data| data.get_temp::<Vec<PathBuf>>(id).is_none())
+                    || ui.input(|input| input.key_pressed(egui::Key::F5));
+                if needs_reload {
+                    ui.data_mut(|data| {
+                        data.insert_temp(
+                            id,
+                            std::fs::read_dir("../../lua/puzzles")
+                                .unwrap()
+                                .map(|path| path.unwrap().path())
+                                .collect_vec(),
+                        )
+                    });
+                }
+                let files_list: Vec<PathBuf> = ui.data(|data| data.get_temp(id)).unwrap();
+                ui.separator();
+                for path in files_list {
                     if ui
-                        .button(format!("Load {}", file.path().to_str().unwrap()))
+                        .button(format!("Load {}", path.to_str().unwrap()))
                         .clicked()
+                        || needs_reload
                     {
-                        let mut file_contents = String::new();
-                        file.contents().read_to_string(&mut file_contents).unwrap();
+                        let file_contents = std::fs::read_to_string(&path).unwrap();
                         let task = crate::LIBRARY.with(|lib| {
                             lib.load_file(
-                                file.path()
-                                    .file_name()
-                                    .unwrap()
-                                    .to_string_lossy()
-                                    .into_owned(),
+                                path.file_name().unwrap().to_string_lossy().into_owned(),
                                 file_contents,
                             )
                         });
@@ -406,7 +420,7 @@ impl Tab {
                 ui.separator();
                 crate::LIBRARY.with(|lib| {
                     for puzzle_name in lib.get_puzzles() {
-                        if ui.button(format!("Load {puzzle_name}")).clicked() {
+                        if ui.button(format!("Load {puzzle_name}")).clicked() || needs_reload {
                             let (result, logs) = lib.construct_puzzle(&puzzle_name);
                             *log_lines = logs;
                             match result {
