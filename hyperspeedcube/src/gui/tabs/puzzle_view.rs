@@ -83,9 +83,15 @@ impl PuzzleView {
             self.view_params.zoom *= (scroll_delta.y / 100.0).exp2();
         }
 
-        self.view_params.rot = Isometry::from_angle_in_axis_plane(0, 2, -drag_delta.x as Float)
-            * Isometry::from_angle_in_axis_plane(1, 2, drag_delta.y as Float)
-            * &self.view_params.rot;
+        let z_axis = if ui.input(|input| input.modifiers.shift) {
+            3
+        } else {
+            2
+        };
+        self.view_params.rot =
+            Isometry::from_angle_in_axis_plane(0, z_axis, -drag_delta.x as Float)
+                * Isometry::from_angle_in_axis_plane(1, z_axis, drag_delta.y as Float)
+                * &self.view_params.rot;
 
         // Render overlay
         let transform_point = |p: &Vector| -> Option<egui::Pos2> {

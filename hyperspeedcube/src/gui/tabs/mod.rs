@@ -85,7 +85,7 @@ impl Tab {
                     ui.horizontal(|ui| {
                         ui.add(
                             egui::DragValue::new(&mut view_params.piece_explode)
-                                .clamp_range(0.0..=1.0)
+                                .clamp_range(0.0..=5.0)
                                 .speed(0.005)
                                 .fixed_decimals(2),
                         );
