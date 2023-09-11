@@ -167,7 +167,7 @@ impl BitXor<Blade> for Term {
 
 /// Left contraction of a term and a blade.
 ///
-/// See https://youtu.be/oVyBbJl6xvo?t=180s for an intuitive explanation.
+/// See <https://youtu.be/oVyBbJl6xvo?t=180s> for an intuitive explanation.
 impl<'a> Shl<&'a Blade> for Term {
     type Output = Blade;
 
@@ -201,7 +201,7 @@ impl_forward_bin_ops_to_ref! {
 
 /// Left contraction of two blades.
 ///
-/// See https://youtu.be/oVyBbJl6xvo?t=180s for an intuitive explanation.
+/// See <https://youtu.be/oVyBbJl6xvo?t=180s> for an intuitive explanation.
 impl<'a> Shl for &'a Blade {
     type Output = Blade;
 

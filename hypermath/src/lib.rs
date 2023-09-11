@@ -44,7 +44,7 @@ pub mod util;
 
 pub use util::*;
 
-/// Structs, traits, and constants (excluding [`hypermath::collections`]).
+/// Structs, traits, and constants (excluding [`crate::collections`]).
 pub mod prelude {
     pub use crate::approx_cmp::*;
     pub use crate::cga::*;

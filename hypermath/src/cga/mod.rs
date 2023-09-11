@@ -1,6 +1,4 @@
-//! Conformal geometric algebra.
-//!
-//! https://en.wikipedia.org/wiki/Conformal_geometric_algebra
+//! [Conformal geometric algebra](https://w.wiki/7SP3).
 
 use crate::Sign;
 

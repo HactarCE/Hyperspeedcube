@@ -75,7 +75,7 @@ impl BitXor for Term {
 
 /// Left contraction of two terms. Returns `None` when exactly zero.
 ///
-/// See https://youtu.be/oVyBbJl6xvo?t=180s for an intuitive explanation.
+/// See <https://youtu.be/oVyBbJl6xvo?t=180s> for an intuitive explanation.
 impl Shl for Term {
     type Output = Option<Term>;
 

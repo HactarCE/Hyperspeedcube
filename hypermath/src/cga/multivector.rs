@@ -280,7 +280,7 @@ impl BitXor<Multivector> for Term {
 
 /// Left contraction of a term and a multivector.
 ///
-/// See https://youtu.be/oVyBbJl6xvo?t=180s for an intuitive explanation.
+/// See <https://youtu.be/oVyBbJl6xvo?t=180s> for an intuitive explanation.
 impl<'a> Shl<&'a Multivector> for Term {
     type Output = Multivector;
 
@@ -403,7 +403,7 @@ impl_forward_assign_ops_to_owned! {
 
 /// Left contraction of two multivectors.
 ///
-/// See https://youtu.be/oVyBbJl6xvo?t=180s for an intuitive explanation.
+/// See <https://youtu.be/oVyBbJl6xvo?t=180s> for an intuitive explanation.
 impl<'a> Shl for &'a Multivector {
     type Output = Multivector;
 

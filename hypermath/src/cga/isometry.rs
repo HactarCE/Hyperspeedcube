@@ -3,9 +3,8 @@ use std::ops::{Mul, MulAssign};
 
 use crate::*;
 
-/// [Isometry](https://en.wikipedia.org/wiki/Isometry) in space represented by a
-/// multivector -- i.e., some composition of translations, rotations, and
-/// reflections.
+/// [Isometry](https://w.wiki/7SP4) in space represented by a multivector --
+/// i.e., some composition of translations, rotations, and reflections.
 ///
 /// In Euclidean space, this is either a direct isometry composed of rotations
 /// and translations ("rigid" transformations) or an opposite isometry composed
