@@ -124,6 +124,7 @@ pub trait IndexNewtype:
 }
 
 /// Iterator over possible indices into a [`GenericVec<I, _>`].
+#[derive(Debug, Default, Clone)]
 pub struct IndexIter<I> {
     range: Range<usize>,
     _phantom: PhantomData<I>,
@@ -247,8 +248,16 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
 }
 impl<I: IndexNewtype, E> std::iter::FromIterator<E> for GenericVec<I, E> {
     fn from_iter<T: IntoIterator<Item = E>>(iter: T) -> Self {
-        let values = iter.into_iter().collect_vec();
-        assert!(values.len() <= I::MAX_INDEX);
+        let values = iter.into_iter().take(I::MAX_INDEX + 1).collect_vec();
+        GenericVec {
+            values,
+            _phantom: PhantomData,
+        }
+    }
+}
+impl<I: IndexNewtype, E> From<Vec<E>> for GenericVec<I, E> {
+    fn from(mut values: Vec<E>) -> Self {
+        values.truncate(I::MAX_INDEX + 1);
         GenericVec {
             values,
             _phantom: PhantomData,

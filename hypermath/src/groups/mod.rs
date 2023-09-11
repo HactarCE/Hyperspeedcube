@@ -1,0 +1,14 @@
+//! Data structures and algorithms for finite groups, specifically Coxeter
+//! groups.
+
+mod abstract_group;
+mod common;
+mod coxeter_group;
+mod isometry_group;
+mod schlafli;
+
+pub use abstract_group::{AbstractGroup, Group, GroupBuilder};
+pub use common::*;
+pub use coxeter_group::CoxeterGroup;
+pub use isometry_group::IsometryGroup;
+pub use schlafli::*;

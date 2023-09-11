@@ -36,6 +36,7 @@ pub mod collections;
 
 pub mod approx_cmp;
 pub mod cga;
+pub mod groups;
 pub mod matrix;
 pub mod permutations;
 pub mod sign;

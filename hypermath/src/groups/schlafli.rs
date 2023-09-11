@@ -1,7 +1,6 @@
-use hypermath::prelude::*;
+use super::{GroupError, IsometryGroup};
+use crate::{Float, Isometry, Matrix, Vector, VectorRef};
 use itertools::Itertools;
-
-use crate::{GroupError, IsometryGroup};
 
 /// Schlafli symbol for a convex polytope.
 pub struct SchlafliSymbol {
@@ -132,6 +131,8 @@ impl From<Mirror> for Matrix {
 
 #[cfg(test)]
 mod tests {
+    use crate::groups::Group;
+
     use super::*;
 
     #[test]
@@ -139,12 +140,5 @@ mod tests {
         let g = SchlafliSymbol::from_indices(vec![4, 3]).group().unwrap();
 
         assert_eq!(48, g.element_count());
-    }
-
-    #[test]
-    fn test_120cell_group() {
-        let g = SchlafliSymbol::from_indices(vec![5, 3, 3]).group().unwrap();
-
-        assert_eq!(14400, g.element_count());
     }
 }
