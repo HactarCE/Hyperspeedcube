@@ -1,9 +1,7 @@
 //! Data structures and algorithms for finite groups, specifically Coxeter
 //! groups.
 
-use std::fmt;
-
-use itertools::Itertools;
+use std::{cell::Cell, collections::HashMap, fmt, rc::Rc};
 
 use crate::{IndexNewtype, Matrix};
 
@@ -102,17 +100,34 @@ impl CoxeterGroup {
     /// Constructs the full group structure using an _O(n)_ algorithm, where _n_
     /// is order of the group.
     pub fn group(self) -> GroupResult<AbstractGroup> {
+        // I first understood this algorithm using the interactive demo on this
+        // page: https://syntopia.github.io/Polytopia/polytopes.html (search for
+        // the word "demo")
+        //
+        // Even after implementing this algorithm, I don't really know what they
+        // mean by the "subgroup table," but the leftmost one in that demo is
+        // the coset table (which we'll call the "successor table") and the
+        // others we'll call "relation tables."
+        //
+        // We don't actually need to keep track of the whole relation tables --
+        // just the elements to the left and right of the gap in each row. Also,
+        // we don't care which table the row comes from; just its header and
+        // contents. Instead we arrange the rows into a hashmap, indexed by the
+        // elements on either side of the gap in that row.
+
         let n = self.generator_count() as usize;
         let mut g = GroupBuilder::new(n)?;
 
-        let mut relation_tables = vec![];
+        let mut relation_table_headers = vec![];
+        let mut relation_tables = RelationTables::new();
         for (j, b) in GeneratorId::iter(n).enumerate() {
             for (i, a) in GeneratorId::iter(j).enumerate() {
-                let coxeter_matrix_element = self.coxeter_matrix_element(i as u8, j as u8) as usize;
-                let mut t = RelationTable::new([a, b].repeat(coxeter_matrix_element));
-                t.add_element(ElementId::IDENTITY); // Add the identity.
-                relation_tables.push(t);
+                let ab_order = self.coxeter_matrix_element(i as u8, j as u8);
+                relation_table_headers.push(RelationTableHeader { a, b, ab_order });
             }
+        }
+        for h in &relation_table_headers {
+            relation_tables.add_row(h.new_row(ElementId::IDENTITY));
         }
 
         let mut element_id = 0;
@@ -130,22 +145,19 @@ impl CoxeterGroup {
                 // We've discovered a new element!
                 let new_element = g.add_successor(element, gen)?;
                 g.set_successor(new_element, gen, element); // Generators are self-inverse.
-                for t in &mut relation_tables {
-                    t.add_element(new_element);
+                for h in &relation_table_headers {
+                    relation_tables.add_row(h.new_row(new_element));
                 }
 
+                let mut facts = vec![SuccessorRelation {
+                    element,
+                    generator: gen,
+                    result: new_element,
+                }];
                 // Continue updating tables until there are no more facts.
-                'update_tables: loop {
-                    for table in &mut relation_tables {
-                        let new_facts = table.fill(&g);
-                        for fact in &new_facts {
-                            g.set_successor(fact.element, fact.generator, fact.result);
-                        }
-                        if !new_facts.is_empty() {
-                            continue 'update_tables;
-                        }
-                    }
-                    break;
+                while let Some(fact) = facts.pop() {
+                    let new_facts = relation_tables.add_fact(fact, &mut g);
+                    facts.extend(new_facts);
                 }
             }
 
@@ -156,51 +168,91 @@ impl CoxeterGroup {
     }
 }
 
-/// For each group element, the elements along the relations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct RelationTable {
-    generator_sequence: Vec<GeneratorId>,
-    rows: Vec<RelationTableRow>,
-}
-impl fmt::Display for RelationTable {
+#[derive(Debug, Default, Clone)]
+struct RelationTables(HashMap<(ElementId, GeneratorId), Vec<Rc<Cell<RelationTableRow>>>>);
+impl fmt::Display for RelationTables {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "RelationTable {{")?;
-
-        let generator_sequence_string = self
-            .generator_sequence
-            .iter()
-            .map(|gen| gen.to_string())
-            .join(", ");
-        writeln!(f, "    generator_sequence: [{generator_sequence_string}]")?;
-
-        writeln!(f, "    rows: [")?;
-        for row in &self.rows {
-            let mut row_values = vec!["--".to_string(); self.generator_sequence.len()];
-            if let Some(i) = row.left_index.checked_sub(1) {
-                row_values[i as usize] = row.left_element.to_string();
+        writeln!(f, "RelationTables {{")?;
+        for ((elem, gen), rows) in &self.0 {
+            writeln!(f, "    ({elem} * {}): [", ElementId::from(*gen))?;
+            for row in rows {
+                writeln!(f, "        {},", row.get())?;
             }
-            row_values[row.right_index as usize] = row.right_element.to_string();
-            writeln!(f, "        [{}],", row_values.join(", "))?;
+            writeln!(f, "    ],")?;
         }
-        writeln!(f, "    ]")?;
-
         writeln!(f, "}}")?;
         Ok(())
     }
 }
+impl RelationTables {
+    fn new() -> Self {
+        RelationTables(HashMap::new())
+    }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-struct RelationTableRow {
-    left_index: u16,
-    right_index: u16,
-    left_element: ElementId,
-    right_element: ElementId,
+    fn add_row(&mut self, row: RelationTableRow) {
+        self.add_existing_row(Rc::new(Cell::new(row)));
+    }
+    fn add_existing_row(&mut self, row: Rc<Cell<RelationTableRow>>) {
+        let row_ref = row.get();
+        let left_key = (row_ref.left_element, row_ref.left_generator());
+        let right_key = (row_ref.right_element, row_ref.right_generator());
+        self.0.entry(left_key).or_default().push(Rc::clone(&row));
+        self.0.entry(right_key).or_default().push(row);
+    }
+
+    fn add_fact(
+        &mut self,
+        fact: SuccessorRelation,
+        g: &mut GroupBuilder,
+    ) -> Vec<SuccessorRelation> {
+        let mut new_successor_relations = vec![];
+        let key = (fact.element, fact.generator);
+        if let Some(rows) = self.0.remove(&key) {
+            for cell in rows {
+                let mut row = cell.get();
+                if row.is_complete() {
+                    continue; // The row was already completed; discard it.
+                }
+                let optional_new_successor_relation = row.fill(g);
+                cell.set(row);
+                if let Some(new_relation) = optional_new_successor_relation {
+                    // The row is now complete and we have discovered a new
+                    // relation!
+                    for r in [new_relation, new_relation.inverse()] {
+                        if g.set_successor(r.element, r.generator, r.result) {
+                            new_successor_relations.push(r);
+                        }
+                    }
+                } else {
+                    // The row is incomplete and must be added back.
+                    self.add_existing_row(cell);
+                }
+            }
+        }
+        new_successor_relations
+    }
 }
-impl RelationTableRow {
-    fn new(len: usize, element: ElementId) -> Self {
+
+/// For each group element, the elements along the relations.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+struct RelationTableHeader {
+    a: GeneratorId,
+    b: GeneratorId,
+    ab_order: u8,
+}
+impl fmt::Display for RelationTableHeader {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let generator_sequence = [self.a, self.b].repeat(self.ab_order as usize);
+        write!(f, "RelationTableHeader({generator_sequence:?})")
+    }
+}
+impl RelationTableHeader {
+    /// Constructs a row in the relation table starting with `element`.
+    fn new_row(self, element: ElementId) -> RelationTableRow {
         RelationTableRow {
+            generator_pair: [self.a, self.b],
             left_index: 0,
-            right_index: len as u16 - 1,
+            right_index: self.ab_order * 2 - 1,
             left_element: element,
             right_element: element,
         }
@@ -208,63 +260,87 @@ impl RelationTableRow {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-struct Fact {
+struct RelationTableRow {
+    generator_pair: [GeneratorId; 2],
+    left_index: u8,
+    right_index: u8,
+    left_element: ElementId,
+    right_element: ElementId,
+}
+
+impl fmt::Display for RelationTableRow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut row = vec!["--".to_string(); self.right_index as usize + 1];
+        row[self.left_index as usize] = self.left_element.to_string();
+        row[self.right_index as usize] = self.right_element.to_string();
+        write!(f, "{:?} ~ {}", self.generator_pair, row.join(", "))?;
+        Ok(())
+    }
+}
+
+impl RelationTableRow {
+    fn generator(&self, index: u8) -> GeneratorId {
+        self.generator_pair[index as usize & 1]
+    }
+    fn left_generator(&self) -> GeneratorId {
+        self.generator(self.left_index)
+    }
+    fn right_generator(&self) -> GeneratorId {
+        self.generator(self.right_index)
+    }
+
+    /// Fills in as much of the table as possible. If the row is completely
+    /// filled, returns the successor relation discovered by completing it. If
+    /// this method returns `Some`, then the row can be discarded; if it returns
+    /// `None`, then the row is incomplete and may have been modified.
+    fn fill(&mut self, g: &GroupBuilder) -> Option<SuccessorRelation> {
+        while self.left_index < self.right_index {
+            if let Some(succ) = g.successor(self.left_element, self.left_generator()) {
+                self.left_index += 1;
+                self.left_element = succ;
+            } else {
+                break;
+            }
+        }
+
+        while self.left_index < self.right_index {
+            if let Some(pred) = g.predecessor(self.right_element, self.right_generator()) {
+                self.right_index -= 1;
+                self.right_element = pred;
+            } else {
+                break;
+            }
+        }
+
+        self.is_complete().then(|| {
+            let index = self.left_index; // same as `self.right_index`
+            SuccessorRelation {
+                element: self.left_element,
+                generator: self.generator(index),
+                result: self.right_element,
+            }
+        })
+    }
+
+    /// Returns whether the row has been completed and thus can be discarded.
+    fn is_complete(&self) -> bool {
+        self.left_index == self.right_index
+    }
+}
+
+/// Representation of the fact that `element * generator = result`.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+struct SuccessorRelation {
     element: ElementId,
     generator: GeneratorId,
     result: ElementId,
 }
-
-impl RelationTable {
-    fn new(sequence: Vec<GeneratorId>) -> Self {
-        RelationTable {
-            generator_sequence: sequence,
-            rows: vec![],
-        }
-    }
-    fn add_element(&mut self, element: ElementId) {
-        self.rows.push(RelationTableRow::new(
-            self.generator_sequence.len(),
-            element,
-        ));
-    }
-    fn fill(&mut self, g: &GroupBuilder) -> Vec<Fact> {
-        let mut new_facts = vec![];
-
-        self.rows.retain_mut(|row| {
-            while row.left_index < row.right_index {
-                let left_generator = self.generator_sequence[row.left_index as usize];
-                if let Some(succ) = g.successor(row.left_element, left_generator) {
-                    row.left_index += 1;
-                    row.left_element = succ;
-                } else {
-                    break;
-                }
-            }
-
-            while row.left_index < row.right_index {
-                let right_generator = self.generator_sequence[row.right_index as usize];
-                if let Some(pred) = g.predecessor(row.right_element, right_generator) {
-                    row.right_index -= 1;
-                    row.right_element = pred;
-                } else {
-                    break;
-                }
-            }
-
-            if row.left_index < row.right_index {
-                true
-            } else {
-                let index = row.left_index; // same as `row.right_index`
-                new_facts.push(Fact {
-                    element: row.left_element,
-                    generator: self.generator_sequence[index as usize],
-                    result: row.right_element,
-                });
-                false
-            }
-        });
-
-        new_facts
+impl SuccessorRelation {
+    /// Returns the inverse of a successor relation, which is true iff
+    /// `generator` is self-inverse.
+    fn inverse(mut self) -> Self {
+        std::mem::swap(&mut self.element, &mut self.result);
+        self
     }
 }
 

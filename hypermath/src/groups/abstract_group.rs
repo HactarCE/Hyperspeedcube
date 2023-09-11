@@ -227,8 +227,16 @@ impl GroupBuilder {
         Ok(new_element)
     }
     /// Sets the composition of `element * generator` to `result`. Also sets the
-    /// predecessor: `result * generator^(-1)`.
-    pub fn set_successor(&mut self, element: ElementId, generator: GeneratorId, result: ElementId) {
+    /// predecessor: `result * generator^(-1)`. Returns `true` if the relation
+    /// was previously unknown.
+    pub fn set_successor(
+        &mut self,
+        element: ElementId,
+        generator: GeneratorId,
+        result: ElementId,
+    ) -> bool {
+        let is_new = self.successor(element, generator).is_none();
+
         *self.successors.get_mut(element, generator.0 as usize) = result;
         *self.predecessors.get_mut(result, generator.0 as usize) = element;
 
@@ -236,6 +244,8 @@ impl GroupBuilder {
             // `element * generator = 1`, so we found the inverse of `generator`.
             self.generator_inverses[generator] = Some(element);
         }
+
+        is_new
     }
 
     /// Returns the number of generators in the group. This cannot be changed
