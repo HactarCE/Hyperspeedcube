@@ -190,14 +190,18 @@ impl RelationTables {
     }
 
     fn add_row(&mut self, row: RelationTableRow) {
-        self.add_existing_row(Rc::new(Cell::new(row)));
+        self.add_existing_row(Rc::new(Cell::new(row)), true, true);
     }
-    fn add_existing_row(&mut self, row: Rc<Cell<RelationTableRow>>) {
+    fn add_existing_row(&mut self, row: Rc<Cell<RelationTableRow>>, left: bool, right: bool) {
         let row_ref = row.get();
-        let left_key = (row_ref.left_element, row_ref.left_generator());
-        let right_key = (row_ref.right_element, row_ref.right_generator());
-        self.0.entry(left_key).or_default().push(Rc::clone(&row));
-        self.0.entry(right_key).or_default().push(row);
+        if left {
+            let left_key = (row_ref.left_element, row_ref.left_generator());
+            self.0.entry(left_key).or_default().push(Rc::clone(&row));
+        }
+        if right {
+            let right_key = (row_ref.right_element, row_ref.right_generator());
+            self.0.entry(right_key).or_default().push(row);
+        }
     }
 
     fn add_fact(
@@ -213,6 +217,8 @@ impl RelationTables {
                 if row.is_complete() {
                     continue; // The row was already completed; discard it.
                 }
+                let l = row.left_index;
+                let r = row.right_index;
                 let optional_new_successor_relation = row.fill(g);
                 cell.set(row);
                 if let Some(new_relation) = optional_new_successor_relation {
@@ -224,8 +230,10 @@ impl RelationTables {
                         }
                     }
                 } else {
+                    let l = l == row.left_index;
+                    let r = r == row.right_index;
                     // The row is incomplete and must be added back.
-                    self.add_existing_row(cell);
+                    self.add_existing_row(cell, l, r);
                 }
             }
         }
