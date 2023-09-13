@@ -1,5 +1,6 @@
-use cgmath::Point3;
 use std::ops::{Add, Mul};
+
+use cgmath::Point3;
 
 pub const INVALID_STR: &str = "<invalid>";
 

@@ -75,7 +75,7 @@ fn flat_spanning_basis(blade: &Blade) -> Option<Vec<Vector>> {
             .to_vector()
             .normalize()?;
         spanning_vectors.push(new_tangent_vector);
-        dual_space = new_dual_space
+        dual_space = new_dual_space;
     }
     if blade.grade() - 2 != spanning_vectors.len() as u8 {
         log::error!("dimension of tangent space does not match manifold dimension");

@@ -1,8 +1,9 @@
+use std::fmt;
+use std::sync::Arc;
+
 use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, Puzzle};
 use hypershape::Space;
-use std::fmt;
-use std::sync::Arc;
 
 use crate::render::{GraphicsState, PuzzleRenderer, ViewParams};
 

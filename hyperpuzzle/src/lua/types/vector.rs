@@ -6,7 +6,7 @@ use super::*;
 lua_userdata_value_conversion_wrapper! {
     #[name = "vector", convert_str = "vector, table, or axis string"]
     pub struct LuaVector(Vector) = |_lua| {
-        <LuaTable>(t)  => Ok(LuaVector::construct_from_table(t)?),
+        <LuaTable<'_>>(t)  => Ok(LuaVector::construct_from_table(t)?),
         <LuaAxisName>(axis) => Ok(Vector::unit(axis.0)),
     }
 }
@@ -128,12 +128,15 @@ impl LuaUserData for LuaNamedUserData<Vector> {
 
         // We do not support `LuaMetaMethod::NewIndex` because this can be used
         // to mutate aliased vectors, which is very confusing.
-        methods.add_meta_method(LuaMetaMethod::NewIndex, |_lua, Self(this), _| {
-            Err(LuaError::external(
-                "mutation of vectors is not allowed. \
-                 construct a new vector instead.",
-            ))
-        });
+        methods.add_meta_method(
+            LuaMetaMethod::NewIndex,
+            |_lua, Self(_), _: LuaMultiValue<'_>| -> LuaResult<()> {
+                Err(LuaError::external(
+                    "mutation of vectors is not allowed. \
+                     construct a new vector instead.",
+                ))
+            },
+        );
 
         // #Vector
         methods.add_meta_method(LuaMetaMethod::Len, |_lua, Self(this), ()| Ok(this.ndim()));

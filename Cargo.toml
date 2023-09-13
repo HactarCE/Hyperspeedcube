@@ -1,3 +1,6 @@
 [workspace]
 members = [ "hypermath", "hypershape", "hyperpuzzle", "hyperspeedcube" ]
 resolver = "2"
+
+[profile.dev.package.backtrace]
+opt-level = 3

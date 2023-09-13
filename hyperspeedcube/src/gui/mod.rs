@@ -1,6 +1,7 @@
+use std::sync::Arc;
+
 use egui_dock::NodeIndex;
 use parking_lot::Mutex;
-use std::sync::Arc;
 
 macro_rules! unique_id {
     ($($args:tt)*) => {
@@ -11,8 +12,9 @@ macro_rules! unique_id {
 mod menu_bar;
 mod tabs;
 
-pub use crate::app::App;
 pub use tabs::{PuzzleView, Tab};
+
+pub use crate::app::App;
 
 pub struct AppUi {
     dock_tree: egui_dock::Tree<Tab>,

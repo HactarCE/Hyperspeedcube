@@ -1,6 +1,7 @@
-use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::Weak;
+
+use parking_lot::Mutex;
 use wgpu::TextureView;
 use winit::event::WindowEvent;
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};

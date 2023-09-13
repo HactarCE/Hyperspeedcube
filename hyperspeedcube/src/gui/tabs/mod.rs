@@ -1,17 +1,35 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use hyperpuzzle::LuaLogLine;
 use hypershape::Space;
 use itertools::Itertools;
 use parking_lot::Mutex;
-use std::{path::PathBuf, sync::Arc};
 
 // mod debug;
 // mod puzzle_setup;
 mod puzzle_view;
 
-use super::App;
 // pub use debug::PolytopeTree;
 // pub use puzzle_setup::PuzzleSetup;
 pub use puzzle_view::{PuzzleView, RenderEngine};
+
+use super::App;
+
+lazy_static! {
+    static ref LUA_PATH: PathBuf = std::env::current_exe()
+        .unwrap()
+        .canonicalize()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_owned()
+        .join("lua");
+}
 
 #[derive(Debug)]
 pub enum Tab {
@@ -386,13 +404,13 @@ impl Tab {
                     || ui.input(|input| input.key_pressed(egui::Key::F5));
                 if needs_reload {
                     ui.data_mut(|data| {
-                        data.insert_temp(
+                        data.insert_temp::<Vec<PathBuf>>(
                             id,
-                            std::fs::read_dir("../../lua/puzzles")
+                            std::fs::read_dir(LUA_PATH.join("puzzles"))
                                 .unwrap()
                                 .map(|path| path.unwrap().path())
                                 .collect_vec(),
-                        )
+                        );
                     });
                 }
                 let files_list: Vec<PathBuf> = ui.data(|data| data.get_temp(id)).unwrap();

@@ -1,4 +1,5 @@
-use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub fn serialize<S: Serializer>(rgb: &egui::Color32, serializer: S) -> Result<S::Ok, S::Error> {
     to_str(rgb).serialize(serializer)

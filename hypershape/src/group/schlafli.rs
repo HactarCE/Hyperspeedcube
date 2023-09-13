@@ -1,6 +1,7 @@
-use super::{GroupError, IsometryGroup};
 use hypermath::prelude::*;
 use itertools::Itertools;
+
+use super::{GroupError, IsometryGroup};
 
 /// Schlafli symbol for a convex polytope.
 pub struct SchlafliSymbol {

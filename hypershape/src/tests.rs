@@ -1,6 +1,5 @@
-use test_log::test;
-
 use hypermath::prelude::*;
+use test_log::test;
 
 use super::*;
 

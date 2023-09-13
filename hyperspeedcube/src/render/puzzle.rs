@@ -3,15 +3,17 @@
 //! 1. Render polygon IDs and lighting amounts to texture
 //! 2. Render result in full color.
 
-use hypermath::prelude::*;
-use hyperpuzzle::{Mesh, PerPiece, PerSticker};
-use itertools::Itertools;
 use std::fmt;
 use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
-use super::{structs::*, CachedTexture, GraphicsState};
+use hypermath::prelude::*;
+use hyperpuzzle::{Mesh, PerPiece, PerSticker};
+use itertools::Itertools;
+
+use super::structs::*;
+use super::{CachedTexture, GraphicsState};
 
 // Increment buffer IDs so each buffer has a different label in graphics
 // debuggers.

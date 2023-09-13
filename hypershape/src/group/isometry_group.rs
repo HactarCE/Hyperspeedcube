@@ -1,12 +1,14 @@
 use std::ops::Index;
 use std::sync::Arc;
 
-use super::{GroupBuilder, GroupError, PerGenerator};
 use hypermath::collections::{approx_hashmap, ApproxHashMap, MultivectorNearestNeighborsMap};
 use hypermath::prelude::*;
 use parking_lot::{Condvar, Mutex};
 
-use super::{AbstractGroup, ElementId, GeneratorId, Group, GroupResult, PerElement};
+use super::{
+    AbstractGroup, ElementId, GeneratorId, Group, GroupBuilder, GroupError, GroupResult,
+    PerElement, PerGenerator,
+};
 
 /// Discrete subgroup of the [isometry group](https://w.wiki/7QFZ) of a space.
 #[derive(Debug, Clone)]

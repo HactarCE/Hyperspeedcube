@@ -1,16 +1,15 @@
 //! Multidimensional vector, matrix, and conformal geometric algebra primitives.
 
 #![warn(
-    rust_2018_idioms,
-    missing_docs,
-    clippy::cargo,
     clippy::if_then_some_else_none,
     clippy::manual_let_else,
     clippy::semicolon_if_nothing_returned,
     clippy::semicolon_inside_block,
     clippy::too_many_lines,
     clippy::undocumented_unsafe_blocks,
-    clippy::unwrap_used
+    clippy::unwrap_used,
+    missing_docs,
+    rust_2018_idioms
 )]
 
 pub use {num_traits as num, smallvec};

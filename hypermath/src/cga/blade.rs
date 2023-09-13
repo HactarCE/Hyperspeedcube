@@ -570,7 +570,7 @@ impl Blade {
                 crate::util::merge_options(a, b, |a, b| {
                     std::cmp::min_by_key(a, b, |q| FloatOrd((p - q).mag2()))
                 })
-                .map(|p| Point::Finite(p))
+                .map(Point::Finite)
             }
             Point::Infinity if self.opns_is_flat() => Some(Point::Infinity),
             Point::Infinity | Point::Degenerate => None,

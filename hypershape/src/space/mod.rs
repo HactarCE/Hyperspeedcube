@@ -1,4 +1,4 @@
-//! Space in which shapes can be constructed.
+//! Infinite Euclidean space in which shapes can be constructed.
 //!
 //! In this module:
 //! - A 0-dimensional manifold is always a pair of points.

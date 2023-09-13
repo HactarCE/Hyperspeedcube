@@ -1,7 +1,5 @@
-use std::{
-    fmt,
-    sync::{Arc, Weak},
-};
+use std::fmt;
+use std::sync::{Arc, Weak};
 
 use super::{Mesh, PieceInfo, PieceTypeInfo, PuzzleState, StickerInfo};
 use crate::{PerPiece, PerPieceType, PerSticker};

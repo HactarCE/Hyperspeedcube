@@ -3,6 +3,7 @@
 //! https://github.com/rust-windowing/winit/issues?q=is%3Aissue+is%3Aopen+label%3A%22platform%3A+WebAssembly%22+
 
 use std::sync::{Arc, Mutex};
+
 use winit::dpi::{LogicalSize, PhysicalSize};
 use winit::event::{
     ElementState, Event, KeyboardInput, ModifiersState, VirtualKeyCode, WindowEvent,
@@ -66,7 +67,9 @@ impl WebWorkarounds {
                 event: WindowEvent::KeyboardInput { input, .. },
                 ..
             } => {
-                let Some(keycode) = input.virtual_keycode else {return};
+                let Some(keycode) = input.virtual_keycode else {
+                    return;
+                };
 
                 let bit = match keycode {
                     Vk::LShift | Vk::RShift => ModifiersState::SHIFT,

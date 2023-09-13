@@ -1,5 +1,6 @@
-use itertools::Itertools;
 use std::fmt;
+
+use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
 use super::pipelines::Pipelines;

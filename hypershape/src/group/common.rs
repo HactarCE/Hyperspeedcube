@@ -1,7 +1,7 @@
-use thiserror::Error;
-
-use hypermath::collections::{generic_vec::IndexOutOfRange, GenericVec};
+use hypermath::collections::generic_vec::IndexOutOfRange;
+use hypermath::collections::GenericVec;
 use hypermath::{idx_struct, IndexNewtype, Isometry};
+use thiserror::Error;
 
 idx_struct! {
     /// ID of a group element.

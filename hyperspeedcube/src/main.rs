@@ -1,13 +1,25 @@
 //! A keyboard-controlled speedcube simulator.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![warn(clippy::if_then_some_else_none, missing_docs)]
+#![warn(
+    clippy::cargo,
+    clippy::if_then_some_else_none,
+    clippy::manual_let_else,
+    clippy::semicolon_if_nothing_returned,
+    clippy::semicolon_inside_block,
+    clippy::too_many_lines,
+    clippy::undocumented_unsafe_blocks,
+    clippy::unwrap_used,
+    missing_docs,
+    rust_2018_idioms
+)]
 #![allow(
     clippy::collapsible_match,
     clippy::match_like_matches_macro,
+    clippy::multiple_crate_versions,
     clippy::single_match,
     clippy::useless_format,
-    missing_docs, // TODO: remove
+    missing_docs // TODO: remove
 )]
 
 #[macro_use]
@@ -15,10 +27,11 @@ extern crate lazy_static;
 #[macro_use]
 extern crate strum;
 
+use std::sync::Arc;
+
 use gui::AppUi;
 use hyperpuzzle::Library;
 use instant::{Duration, Instant};
-use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 use winit::event::{ElementState, Event, KeyboardInput, WindowEvent};

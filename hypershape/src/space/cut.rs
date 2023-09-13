@@ -1,12 +1,13 @@
 use super::*;
 
+/// Cut operation, which caches intermediate results.
 #[derive(Debug)]
 pub struct CutInProgress<'a> {
     pub(super) space: &'a mut Space,
     pub(super) op: CutOp,
 }
 impl CutInProgress<'_> {
-    #[must_use]
+    /// Cuts a shape.
     pub fn cut(&mut self, shape: ShapeRef) -> Result<ShapeCutResult> {
         self.space
             .cut_shape(shape, &mut self.op)
@@ -40,7 +41,7 @@ impl CutInProgress<'_> {
                 },
             })
     }
-    #[must_use]
+    /// Cuts multiple shapes and returns the set resulting from it.
     pub fn cut_set(&mut self, shapes: ShapeSet) -> Result<ShapeSet> {
         shapes
             .into_iter()
@@ -54,13 +55,19 @@ impl CutInProgress<'_> {
     }
 }
 
+/// Result of cutting a single shape.
 pub struct ShapeCutResult {
+    /// Portion of the shape which is inside the cut, if it is nonempty and is
+    /// kept by the cutting operation.
     pub inside: Option<ShapeRef>,
+    /// Portion of the shape which is outside the cut, if it is nonempty and is
+    /// kept by the cutting operation.
     pub outside: Option<ShapeRef>,
+    /// Intersection of the shape with the boundary of the cut.
     pub flush_facet: Option<ShapeRef>,
 }
 
-/// Parameters for cutting a bunch of shapes.
+/// Parameters for cutting shapes.
 #[derive(Debug, Clone)]
 pub struct CutParams {
     /// Manifold that divides the inside of the cut from the outside of the cut.
