@@ -1,11 +1,11 @@
 //! Data structures and algorithms for finite groups, specifically Coxeter
 //! groups.
 
-use std::{cell::Cell, collections::HashMap, fmt, rc::Rc};
+use std::fmt;
 
 use crate::{IndexNewtype, Matrix};
 
-use super::{AbstractGroup, ElementId, GeneratorId, GroupBuilder, GroupResult};
+use super::{AbstractGroup, EggTable, ElementId, GeneratorId, GroupBuilder, GroupResult};
 
 /// [Finite Coxeter group](https://w.wiki/7PLd).
 ///
@@ -112,20 +112,24 @@ impl CoxeterGroup {
         // We don't actually need to keep track of the whole relation tables --
         // just the elements to the left and right of the gap in each row. Also,
         // we don't care which table the row comes from; just its header and
-        // contents. Instead we arrange the rows into a hashmap, indexed by the
-        // elements on either side of the gap in that row.
+        // contents.
+        //
+        // See [`RelationTables`] for more info about how that's structured and
+        // why.
 
         let n = self.generator_count() as usize;
         let mut g = GroupBuilder::new(n)?;
 
         let mut relation_table_headers = vec![];
-        let mut relation_tables = RelationTables::new();
+        // Set up a relation table for each possible pair of generators.
         for (j, b) in GeneratorId::iter(n).enumerate() {
             for (i, a) in GeneratorId::iter(j).enumerate() {
                 let ab_order = self.coxeter_matrix_element(i as u8, j as u8);
                 relation_table_headers.push(RelationTableHeader { a, b, ab_order });
             }
         }
+        // Add a row with the identity for each possible pair of generators.
+        let mut relation_tables = RelationTables::new(n);
         for h in &relation_table_headers {
             relation_tables.add_row(h.new_row(ElementId::IDENTITY));
         }
@@ -145,6 +149,10 @@ impl CoxeterGroup {
                 // We've discovered a new element!
                 let new_element = g.add_successor(element, gen)?;
                 g.set_successor(new_element, gen, element); // Generators are self-inverse.
+
+                // Add a row to the relation tables for each possible pair of
+                // generators.
+                relation_tables.add_element()?;
                 for h in &relation_table_headers {
                     relation_tables.add_row(h.new_row(new_element));
                 }
@@ -154,9 +162,9 @@ impl CoxeterGroup {
                     generator: gen,
                     result: new_element,
                 }];
-                // Continue updating tables until there are no more facts.
+                // Continue updating tables until there are no more new facts.
                 while let Some(fact) = facts.pop() {
-                    let new_facts = relation_tables.add_fact(fact, &mut g);
+                    let new_facts = relation_tables.update_with_fact(fact, &mut g);
                     facts.extend(new_facts);
                 }
             }
@@ -168,75 +176,103 @@ impl CoxeterGroup {
     }
 }
 
-#[derive(Debug, Default, Clone)]
-struct RelationTables(HashMap<(ElementId, GeneratorId), Vec<Rc<Cell<RelationTableRow>>>>);
+/// See the comment at the start of [`CoxeterGroup::group()`] for an explanation
+/// of the role this structure takes in the Todd-Coxeter algorithm.
+///
+/// The most important thing about each row is the element+generator composition
+/// that must be known in order to fill in more of that row. Each row has two
+/// such pairs: the one that will shrink the gap from the left, and the one that
+/// will shrink the gap from the right. So we arrange the rows into an array
+/// indexed by an element+generator pair. Each value in the table consists of a
+/// list of rows with that pair on the left side of its gap, and a list of rows
+/// with that pair on the right side of its gap.
+#[derive(Debug, Clone)]
+struct RelationTables(EggTable<[Vec<RelationTableRow>; 2]>);
 impl fmt::Display for RelationTables {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "RelationTables {{")?;
-        for ((elem, gen), rows) in &self.0 {
-            writeln!(f, "    ({elem} * {}): [", ElementId::from(*gen))?;
-            for row in rows {
-                writeln!(f, "        {},", row.get())?;
+        for ((elem, gen), [left, right]) in self.0.iter() {
+            let gen = ElementId::from(gen);
+            writeln!(f, "    ({elem} * {gen}): {{")?;
+            writeln!(f, "        left: [")?;
+            for row in left {
+                writeln!(f, "        {row},")?;
             }
-            writeln!(f, "    ],")?;
+            writeln!(f, "        ],")?;
+            writeln!(f, "        right: [")?;
+            for row in right {
+                writeln!(f, "        {row},")?;
+            }
+            writeln!(f, "        ],")?;
+            writeln!(f, "    }}")?;
         }
         writeln!(f, "}}")?;
         Ok(())
     }
 }
 impl RelationTables {
-    fn new() -> Self {
-        RelationTables(HashMap::new())
+    /// Constructs a new structure for storing relation tables.
+    fn new(generator_count: usize) -> Self {
+        RelationTables(EggTable::new(generator_count))
     }
 
+    /// Makes the table aware of another element.
+    fn add_element(&mut self) -> GroupResult<ElementId> {
+        self.0.add_element([vec![], vec![]])
+    }
+    /// Adds a table row, indexed by both the left and right sides of its gap.
     fn add_row(&mut self, row: RelationTableRow) {
-        self.add_existing_row(Rc::new(Cell::new(row)), true, true);
+        self.add_row_left(row);
+        self.add_row_right(row);
     }
-    fn add_existing_row(&mut self, row: Rc<Cell<RelationTableRow>>, left: bool, right: bool) {
-        let row_ref = row.get();
-        if left {
-            let left_key = (row_ref.left_element, row_ref.left_generator());
-            self.0.entry(left_key).or_default().push(Rc::clone(&row));
-        }
-        if right {
-            let right_key = (row_ref.right_element, row_ref.right_generator());
-            self.0.entry(right_key).or_default().push(row);
-        }
+    /// Adds a table row, indexed by the left side of its gap.
+    fn add_row_left(&mut self, row: RelationTableRow) {
+        self.0.get_mut(row.left_element, row.left_generator())[0].push(row);
+    }
+    /// Adds a table row, indexed by the right side of its gap.
+    fn add_row_right(&mut self, row: RelationTableRow) {
+        self.0.get_mut(row.right_element, row.right_generator())[1].push(row);
     }
 
-    fn add_fact(
+    /// Makes the table aware of a new fact, updating any rows that were waiting
+    /// for it.
+    fn update_with_fact(
         &mut self,
         fact: SuccessorRelation,
         g: &mut GroupBuilder,
     ) -> Vec<SuccessorRelation> {
         let mut new_successor_relations = vec![];
-        let key = (fact.element, fact.generator);
-        if let Some(rows) = self.0.remove(&key) {
-            for cell in rows {
-                let mut row = cell.get();
-                if row.is_complete() {
-                    continue; // The row was already completed; discard it.
-                }
-                let l = row.left_index;
-                let r = row.right_index;
-                let optional_new_successor_relation = row.fill(g);
-                cell.set(row);
-                if let Some(new_relation) = optional_new_successor_relation {
-                    // The row is now complete and we have discovered a new
-                    // relation!
+
+        // Iterate over every row that was waiting on the fact for either the
+        // left or right side of its gap.
+        #[rustfmt::skip] enum SideOfGap { Left, Right }
+        let [left_rows, right_rows] = std::mem::take(self.0.get_mut(fact.element, fact.generator));
+        let left_rows = left_rows.into_iter().map(|row| (SideOfGap::Left, row));
+        let right_rows = right_rows.into_iter().map(|row| (SideOfGap::Right, row));
+
+        for (side, row) in itertools::chain!(left_rows, right_rows) {
+            match row.fill(g) {
+                // The row is now complete and we have discovered a
+                // (potentially) new relation!
+                Ok(new_relation) => {
                     for r in [new_relation, new_relation.inverse()] {
+                        // Record this new relation in the group structure.
                         if g.set_successor(r.element, r.generator, r.result) {
+                            // Also tell the caller about it so they can update
+                            // the tables again with the new fact.
                             new_successor_relations.push(r);
                         }
                     }
-                } else {
-                    let l = l == row.left_index;
-                    let r = r == row.right_index;
-                    // The row is incomplete and must be added back.
-                    self.add_existing_row(cell, l, r);
                 }
+
+                // The row is incomplete and must be added back.
+                Err(new_row) => match side {
+                    SideOfGap::Left => self.add_row_left(new_row),
+                    SideOfGap::Right => self.add_row_right(new_row),
+                },
             }
         }
+
         new_successor_relations
     }
 }
@@ -248,12 +284,14 @@ struct RelationTableHeader {
     b: GeneratorId,
     ab_order: u8,
 }
+
 impl fmt::Display for RelationTableHeader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let generator_sequence = [self.a, self.b].repeat(self.ab_order as usize);
         write!(f, "RelationTableHeader({generator_sequence:?})")
     }
 }
+
 impl RelationTableHeader {
     /// Constructs a row in the relation table starting with `element`.
     fn new_row(self, element: ElementId) -> RelationTableRow {
@@ -267,12 +305,23 @@ impl RelationTableHeader {
     }
 }
 
+/// Row in a relation table.
+///
+/// We don't need to store the whole row, just the elements on either side of
+/// the gap.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(align(8))]
 struct RelationTableRow {
+    /// Pair of generators that alternate along the header of the table.
     generator_pair: [GeneratorId; 2],
+
+    /// Column of the element on the left side of the gap.
     left_index: u8,
+    /// Column on the element on the right side of the gap.
     right_index: u8,
+    /// Element on the left side of the gap.
     left_element: ElementId,
+    /// Element on the right side of the gap.
     right_element: ElementId,
 }
 
@@ -287,30 +336,23 @@ impl fmt::Display for RelationTableRow {
 }
 
 impl RelationTableRow {
-    fn generator(&self, index: u8) -> GeneratorId {
+    /// Returns the generator for a given column in the table.
+    fn generator(self, index: u8) -> GeneratorId {
         self.generator_pair[index as usize & 1]
     }
-    fn left_generator(&self) -> GeneratorId {
+    /// Returns the generator for the column at the left side of the gap.
+    fn left_generator(self) -> GeneratorId {
         self.generator(self.left_index)
     }
-    fn right_generator(&self) -> GeneratorId {
+    /// Returns the generator for the column at the right side of the gap.
+    fn right_generator(self) -> GeneratorId {
         self.generator(self.right_index)
     }
 
-    /// Fills in as much of the table as possible. If the row is completely
-    /// filled, returns the successor relation discovered by completing it. If
-    /// this method returns `Some`, then the row can be discarded; if it returns
-    /// `None`, then the row is incomplete and may have been modified.
-    fn fill(&mut self, g: &GroupBuilder) -> Option<SuccessorRelation> {
-        while self.left_index < self.right_index {
-            if let Some(succ) = g.successor(self.left_element, self.left_generator()) {
-                self.left_index += 1;
-                self.left_element = succ;
-            } else {
-                break;
-            }
-        }
-
+    /// Fills in as much of the row as possible. This method returns `Ok` if the
+    /// row has been completely filled and thus can be discarded; it returns
+    /// `Err` if the row is incomplete, and therefore must be kept.
+    fn fill(mut self, g: &GroupBuilder) -> Result<SuccessorRelation, Self> {
         while self.left_index < self.right_index {
             if let Some(pred) = g.predecessor(self.right_element, self.right_generator()) {
                 self.right_index -= 1;
@@ -320,14 +362,25 @@ impl RelationTableRow {
             }
         }
 
-        self.is_complete().then(|| {
+        while self.left_index < self.right_index {
+            if let Some(succ) = g.successor(self.left_element, self.left_generator()) {
+                self.left_index += 1;
+                self.left_element = succ;
+            } else {
+                break;
+            }
+        }
+
+        if self.is_complete() {
             let index = self.left_index; // same as `self.right_index`
-            SuccessorRelation {
+            Ok(SuccessorRelation {
                 element: self.left_element,
                 generator: self.generator(index),
                 result: self.right_element,
-            }
-        })
+            })
+        } else {
+            Err(self)
+        }
     }
 
     /// Returns whether the row has been completed and thus can be discarded.

@@ -39,6 +39,8 @@ pub enum GroupError {
     MissingInverse(ElementId),
     #[error("missing successor for element {0} and generator {1}")]
     MissingSuccessor(ElementId, GeneratorId),
+    #[error("incomplete group structure")]
+    IncompleteGroupStructure,
 
     #[error("bad group structure")]
     BadGroupStructure,
@@ -54,66 +56,80 @@ impl From<IndexOutOfRange> for GroupError {
 /// Result type returned by group construction operations.
 pub type GroupResult<T> = Result<T, GroupError>;
 
-/// 2D array containing a fixed number of values for each element in the group.
+/// Element-generator group table.
+///
+/// 2D array containing a value for each possible element+generator pairing.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(super) struct ArrayPerElement {
+pub(super) struct EggTable<T> {
     /// Number of elements in the group.
     element_count: usize,
-    /// Number of values per element.
-    values_per_element: usize,
+    /// Number of generators in the group.
+    generator_count: usize,
     /// Flattened 2D array, indexed by a pair of element ID and value index.
-    contents: Vec<ElementId>,
+    contents: Vec<T>,
 }
-impl ArrayPerElement {
-    /// Constructs a new successor table containing only the identity.
-    pub fn new(value_count: usize) -> GroupResult<Self> {
-        let mut ret = ArrayPerElement {
-            element_count: 0,
-            values_per_element: value_count,
-            contents: vec![],
-        };
-        ret.add_element()?; // Add the identity.
-        Ok(ret)
+impl<T: Default + Clone> EggTable<T> {
+    /// Constructs a new EGG table containing only the identity.
+    pub fn new(generator_count: usize) -> Self {
+        EggTable {
+            element_count: 1,
+            generator_count,
+            contents: vec![T::default(); generator_count],
+        }
     }
-    /// Adds a new element to the table. By default, all values of are the new
-    /// element.
-    pub fn add_element(&mut self) -> GroupResult<ElementId> {
+    /// Adds a new element to the table.
+    pub fn add_element(&mut self, value: T) -> GroupResult<ElementId> {
         let new_element = ElementId::try_from_usize(self.element_count)?;
         self.element_count += 1;
         self.contents
-            .extend(std::iter::repeat(new_element).take(self.values_per_element));
+            .extend(std::iter::repeat(value).take(self.generator_count));
         Ok(new_element)
     }
     /// Returns a value from the table.
     #[inline]
-    pub fn get(&self, element: ElementId, value_index: usize) -> ElementId {
-        self.contents[self.index(element, value_index)]
-    }
-    /// Returns a value from the table, or `None` if it is still default.
-    #[inline]
-    pub fn get_non_default(&self, element: ElementId, value_index: usize) -> Option<ElementId> {
-        let result = self.get(element, value_index);
-        (result != element).then_some(result)
+    #[track_caller]
+    pub fn get(&self, element: ElementId, generator: GeneratorId) -> &T {
+        &self.contents[self.index(element, generator)]
     }
     /// Returns a mutable reference to a value in the table.
-    pub fn get_mut(&mut self, element: ElementId, value_index: usize) -> &mut ElementId {
-        let index = self.index(element, value_index);
+    #[track_caller]
+    pub fn get_mut(&mut self, element: ElementId, generator: GeneratorId) -> &mut T {
+        let index = self.index(element, generator);
         &mut self.contents[index]
     }
 
     /// Returns an integer index into `contents`.
     #[inline]
-    fn index(&self, element: ElementId, value_index: usize) -> usize {
-        element.0 as usize * self.values_per_element + value_index
+    #[track_caller]
+    fn index(&self, element: ElementId, generator: GeneratorId) -> usize {
+        assert!(
+            (generator.0 as usize) < self.generator_count,
+            "generator {generator} out of range (max {max})",
+            max = self.generator_count,
+        );
+        element.0 as usize * self.generator_count + generator.0 as usize
     }
 
     /// Returns an iterator over keys and values.
-    fn iter(&self) -> impl '_ + Iterator<Item = ((ElementId, usize), ElementId)> {
+    pub fn iter(&self) -> impl '_ + Iterator<Item = ((ElementId, GeneratorId), &T)> {
         let elements_iter = ElementId::iter(self.element_count);
-        let generators_iter = 0..self.values_per_element;
-        itertools::iproduct!(elements_iter, generators_iter).zip(self.contents.iter().copied())
+        let generators_iter = GeneratorId::iter(self.generator_count);
+        itertools::iproduct!(elements_iter, generators_iter).zip(&self.contents)
     }
-
+}
+impl<T> EggTable<Option<T>> {
+    pub fn try_unwrap(self) -> GroupResult<EggTable<T>> {
+        match self.contents.into_iter().collect::<Option<Vec<T>>>() {
+            Some(contents) => Ok(EggTable {
+                element_count: self.element_count,
+                generator_count: self.generator_count,
+                contents,
+            }),
+            None => Err(GroupError::IncompleteGroupStructure),
+        }
+    }
+}
+impl EggTable<ElementId> {
     /// Performs basic sanity checks on this table, assuming it is intended to
     /// be a table of successors, and returns an error if it does not make sense
     /// for a group.
@@ -122,7 +138,7 @@ impl ArrayPerElement {
     pub fn sanity_check_successors(&self) -> GroupResult<()> {
         let mut counts: PerElement<usize> = (0..self.element_count).map(|_| 0).collect();
 
-        for ((elem, index), successor) in self.iter() {
+        for ((elem, gen), &successor) in self.iter() {
             let mut ok = true;
 
             // Applying a generator should produce a new element.
@@ -131,8 +147,7 @@ impl ArrayPerElement {
             // Only the identity has each generator as its own corresponding
             // successor.
             let is_identity = elem == ElementId::IDENTITY;
-            let generator = GeneratorId::try_from_usize(index)?;
-            ok &= is_identity == (successor == ElementId::from(generator));
+            ok &= is_identity == (successor == ElementId::from(gen));
 
             if !ok {
                 return Err(GroupError::BadGroupStructure);
@@ -143,7 +158,7 @@ impl ArrayPerElement {
         // Check that every element has the same number of occurrences in the
         // successor table.
         for &count in counts.iter_values() {
-            if count != self.values_per_element {
+            if count != self.generator_count {
                 return Err(GroupError::BadGroupStructure);
             }
         }
