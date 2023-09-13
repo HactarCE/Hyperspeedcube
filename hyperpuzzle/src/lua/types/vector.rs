@@ -126,8 +126,14 @@ impl LuaUserData for LuaNamedUserData<Vector> {
             |_lua, Self(this), LuaVectorIndex(index)| Ok(this.get(index)),
         );
 
-        // We do not add `LuaMetaMethod::NewIndex` because this can be used to
-        // mutate aliased vectors, which is very confusing.
+        // We do not support `LuaMetaMethod::NewIndex` because this can be used
+        // to mutate aliased vectors, which is very confusing.
+        methods.add_meta_method(LuaMetaMethod::NewIndex, |_lua, Self(this), _| {
+            Err(LuaError::external(
+                "mutation of vectors is not allowed. \
+                 construct a new vector instead.",
+            ))
+        });
 
         // #Vector
         methods.add_meta_method(LuaMetaMethod::Len, |_lua, Self(this), ()| Ok(this.ndim()));
