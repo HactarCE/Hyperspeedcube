@@ -469,8 +469,10 @@ impl PuzzleRenderer {
             .write_buffer(&self.buffers.lighting_params, 0, bytemuck::bytes_of(&data));
 
         // Write the puzzle transform. TODO: make this only a 4xN matrix
-        let puzzle_transform =
-            Matrix::ident(self.model.ndim) * view_params.rot.euclidean_rotation_matrix();
+        let puzzle_transform = view_params
+            .rot
+            .euclidean_rotation_matrix()
+            .at_ndim(self.model.ndim);
         let puzzle_transform = puzzle_transform
             .as_slice()
             .iter()
