@@ -203,7 +203,6 @@ impl PuzzleRenderer {
                         self.model.u_tangents.as_entire_binding(),
                         self.model.v_tangents.as_entire_binding(),
                         self.model.sticker_shrink_vectors.as_entire_binding(),
-                        self.model.polygon_ids.as_entire_binding(),
                     ],
                     &[
                         self.model.piece_centroids.as_entire_binding(),
@@ -572,7 +571,7 @@ struct_with_constructor! {
                 /// Facet ID for each vertex.
                 facet_ids:              wgpu::Buffer = buffer!(facet_ids,          VERTEX | STORAGE),
                 /// Polygon ID for each vertex.
-                polygon_ids:            wgpu::Buffer = buffer!(mesh.polygon_ids,   VERTEX | STORAGE),
+                polygon_ids:            wgpu::Buffer = buffer!(mesh.polygon_ids,             VERTEX),
 
                 /*
                  * OTHER STORAGE BUFFERS

@@ -36,7 +36,6 @@ mod bindings {
         STICKER_SHRINK_VECTORS = (3, wgpu::BufferBindingType::Storage { read_only: true });
         PIECE_IDS              = (4, wgpu::BufferBindingType::Storage { read_only: true });
         FACET_IDS              = (5, wgpu::BufferBindingType::Storage { read_only: true });
-        POLYGON_IDS            = (6, wgpu::BufferBindingType::Storage { read_only: true });
 
         // Static mesh data (other)
         PIECE_CENTROIDS        = (0, wgpu::BufferBindingType::Storage { read_only: true });
@@ -291,7 +290,6 @@ impl Pipelines {
                     pub(VERTEX) U_TANGENTS,
                     pub(VERTEX) V_TANGENTS,
                     pub(VERTEX) STICKER_SHRINK_VECTORS,
-                    pub(VERTEX) POLYGON_IDS,
                 ],
                 1 => [
                     pub(VERTEX) PIECE_CENTROIDS,

@@ -209,7 +209,7 @@ impl Drop for MeshPieceBuilder<'_> {
 }
 
 #[derive(Debug)]
-pub(super) struct MeshStickerBuilder<'a: 'b, 'b> {
+pub(super) struct MeshStickerBuilder<'a, 'b> {
     piece: &'b mut MeshPieceBuilder<'a>,
     facet: Facet,
     color: Color,
@@ -219,11 +219,10 @@ impl<'a: 'b, 'b> MeshStickerBuilder<'a, 'b> {
     pub(super) fn add_polygon<'c>(
         &'c mut self,
         manifold: &'c Blade,
-        color: Color,
     ) -> Result<MeshPolygonBuilder<'a, 'b, 'c>> {
         let id = self.piece.mesh.next_polygon_id;
         self.piece.mesh.next_polygon_id = id.checked_add(1).context("too many polygons")?;
-        self.piece.mesh.mesh.color_ids.push(color);
+        self.piece.mesh.mesh.color_ids.push(self.color);
         let tangent_space = manifold.opns_tangent_space();
         Ok(MeshPolygonBuilder {
             sticker: self,

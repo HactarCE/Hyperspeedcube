@@ -160,8 +160,7 @@ impl PuzzleBuilder {
                         2 => {
                             let manifold = space.manifold_of(subshape_of_sticker);
                             let blade = space.blade_of(manifold);
-                            let mut polygon_mesh =
-                                sticker_mesh.add_polygon(&blade, sticker.color)?;
+                            let mut polygon_mesh = sticker_mesh.add_polygon(&blade)?;
                             let tris = simplexifier.face_polygons(subshape_of_sticker)?;
 
                             let mut vertex_id_map: HashMap<VertexId, u32> = HashMap::new();
@@ -234,7 +233,7 @@ struct StickerSetCutResult {
 
 fn cut_piece(
     piece: &mut PieceBuilder,
-    cutter: &mut CutInProgress,
+    cutter: &mut CutInProgress<'_>,
     new_color: Option<Color>,
 ) -> Result<PieceCutResult> {
     let shape_cut_result = cutter.cut(piece.shape).context("cutting piece")?;

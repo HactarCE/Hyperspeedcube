@@ -59,7 +59,6 @@ struct SpecialColors {
 @group(0) @binding(3) var<storage, read> sticker_shrink_vectors: array<f32>;
 @group(0) @binding(4) var<storage, read> piece_ids: array<i32>;
 @group(0) @binding(5) var<storage, read> facet_ids: array<i32>;
-@group(0) @binding(6) var<storage, read> polygon_ids: array<i32>;
 
 // Static mesh data (other)
 @group(1) @binding(0) var<storage, read> piece_centroids: array<f32>;
@@ -256,8 +255,8 @@ fn render_single_pass_vertex(
 @fragment
 // TODO: consider `@early_depth_test`
 fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<f32> {
-    var color_id = polygon_color_ids[in.polygon_id];
-    color_id = select(color_id + 1, 0, color_id == 65535);
+    var color_id = polygon_color_ids[in.polygon_id - 1];
+    color_id = (color_id + 1) & 0xFFFF; // wrap max value around to 0
     return vec4(color_values[color_id].rgb * in.lighting, 1.0);
 }
 
@@ -314,7 +313,7 @@ fn render_polygon_ids_fragment(in: PolygonIdsVertexOutput) -> @location(0) vec2<
         // TODO: was previously using red component to store facet ID (for color)
         //       but that's not needed anymore. consider having just a single int
         (i32(in.lighting * 16384.0) << 16u),
-        in.polygon_id + 1,
+        in.polygon_id,
     );
 }
 
@@ -358,6 +357,8 @@ fn render_composite_puzzle_fragment(in: CompositeVertexOutput) -> @location(0) v
     } else if polygon_id == 0 {
         return vec4(special_colors.background, composite_params.alpha);
     } else {
-        return vec4(color_values[polygon_id].rgb * lighting, composite_params.alpha);
+        var color_id = polygon_color_ids[polygon_id - 1];
+        color_id = (color_id + 1) & 0xFFFF; // wrap max value around to 0
+        return vec4(color_values[color_id].rgb * lighting, composite_params.alpha);
     }
 }
