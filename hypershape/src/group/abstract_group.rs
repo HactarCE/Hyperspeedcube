@@ -4,7 +4,7 @@ use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
 
 use super::{EggTable, ElementId, GeneratorId, GroupError, GroupResult, PerElement, PerGenerator};
-use crate::{collections::generic_vec::IndexIter, IndexNewtype};
+use hypermath::{collections::generic_vec::IndexIter, IndexNewtype};
 
 /// Group structure.
 pub trait Group {

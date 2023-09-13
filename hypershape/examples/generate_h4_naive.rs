@@ -2,7 +2,7 @@
 //! isometries of 4D Euclidean space. This is also useful as an imprecise
 //! benchmark.
 
-use hypermath::groups::{Group, SchlafliSymbol};
+use hypershape::group::{Group, SchlafliSymbol};
 
 fn main() {
     let before = std::time::Instant::now();

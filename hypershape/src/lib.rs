@@ -14,18 +14,15 @@
 )]
 #![allow(clippy::multiple_crate_versions)]
 
-mod group;
-mod schlafli;
-mod space;
+pub mod group;
+pub mod space;
 
 pub use group::*;
-pub use schlafli::*;
 pub use space::*;
 
 /// Structs, traits, and constants.
 pub mod prelude {
     pub use crate::group::*;
-    pub use crate::schlafli::*;
     pub use crate::space::*;
 }
 

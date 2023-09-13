@@ -3,7 +3,7 @@
 
 use std::fmt;
 
-use crate::{IndexNewtype, Matrix};
+use hypermath::prelude::*;
 
 use super::{AbstractGroup, EggTable, ElementId, GeneratorId, GroupBuilder, GroupResult};
 
@@ -407,9 +407,8 @@ impl SuccessorRelation {
 
 #[cfg(test)]
 mod tests {
-    use crate::groups::Group;
-
-    use super::CoxeterGroup;
+    use super::super::Group;
+    use super::*;
 
     #[test]
     fn test_todd_coxeter_algorithm() {

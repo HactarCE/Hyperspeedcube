@@ -1,9 +1,7 @@
 use thiserror::Error;
 
-use crate::{
-    collections::{generic_vec::IndexOutOfRange, GenericVec},
-    IndexNewtype, Isometry,
-};
+use hypermath::collections::{generic_vec::IndexOutOfRange, GenericVec};
+use hypermath::{idx_struct, IndexNewtype, Isometry};
 
 idx_struct! {
     /// ID of a group element.

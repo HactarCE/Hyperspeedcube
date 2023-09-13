@@ -1,5 +1,5 @@
 use super::{GroupError, IsometryGroup};
-use crate::{Float, Isometry, Matrix, Vector, VectorRef};
+use hypermath::prelude::*;
 use itertools::Itertools;
 
 /// Schlafli symbol for a convex polytope.
@@ -131,8 +131,7 @@ impl From<Mirror> for Matrix {
 
 #[cfg(test)]
 mod tests {
-    use crate::groups::Group;
-
+    use super::super::Group;
     use super::*;
 
     #[test]
