@@ -103,16 +103,38 @@ impl ApproxHashMapKey for Vector {
     }
 }
 
-/// Value dervied from an multivector that can be hashed. Don't use this
+/// Value dervied from a multivector that can be hashed. Don't use this
 /// directly; use via [`ApproxHashMap`].
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct MultivectorHash(SmallVec<[(Axes, FloatHash); 6]>);
 
-impl<T: AsMultivector> ApproxHashMapKey for T {
+impl<T: Clone + Eq + Hash> ApproxHashMapKey for T {
+    type Hash = T;
+
+    fn approx_hash(&self, _float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
+        self.clone()
+    }
+}
+
+impl ApproxHashMapKey for Multivector {
     type Hash = MultivectorHash;
 
     fn approx_hash(&self, mut float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
         let hash_term = |Term { axes, coef }| (axes, float_hash_fn(coef));
-        MultivectorHash(self.mv().nonzero_terms().map(hash_term).collect())
+        MultivectorHash(self.nonzero_terms().map(hash_term).collect())
+    }
+}
+impl ApproxHashMapKey for Blade {
+    type Hash = MultivectorHash;
+
+    fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
+        self.mv().approx_hash(float_hash_fn)
+    }
+}
+impl ApproxHashMapKey for Isometry {
+    type Hash = MultivectorHash;
+
+    fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
+        self.mv().approx_hash(float_hash_fn)
     }
 }
