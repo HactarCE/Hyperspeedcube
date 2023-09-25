@@ -39,10 +39,15 @@ macro_rules! idx_struct {
         $(
             $(#[$attr])*
             #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
-            #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+            #[derive(Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
             #[repr(transparent)]
             $struct_vis struct $struct_name($inner_vis $inner_type);
 
+            impl ::std::fmt::Debug for $struct_name {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    write!(f, "#{:?}", self.0)
+                }
+            }
             impl ::std::fmt::Display for $struct_name {
                 fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                     write!(f, "#{}", self.0)
@@ -145,14 +150,21 @@ impl<I: IndexNewtype> Iterator for IndexIter<I> {
 /// integer.
 ///
 /// Elements are stored using indices.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct GenericVec<I, E> {
     values: Vec<E>,
     _phantom: PhantomData<I>,
 }
+impl<I: fmt::Debug, E: fmt::Debug> fmt::Debug for GenericVec<I, E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let contents = self.values.iter().map(|v| format!("{v:?}")).join(", ");
+        write!(f, "[{contents}]")
+    }
+}
 impl<I: fmt::Display, E: fmt::Display> fmt::Display for GenericVec<I, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[ {} ]", self.values.iter().join(", "))
+        let contents = self.values.iter().join(", ");
+        write!(f, "[{}]", contents)
     }
 }
 impl<I, E> Default for GenericVec<I, E> {
@@ -189,8 +201,11 @@ impl<I, E> std::ops::DerefMut for GenericVec<I, E> {
 }
 impl<I: IndexNewtype, E> GenericVec<I, E> {
     /// Constructs a new empty slab.
-    pub fn new() -> Self {
-        GenericVec::default()
+    pub const fn new() -> Self {
+        GenericVec {
+            values: vec![],
+            _phantom: PhantomData,
+        }
     }
 
     /// Adds an element to the end of the vector and returns its index.

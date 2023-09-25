@@ -1,12 +1,25 @@
+use hypermath::collections::approx_hashmap::{self, ApproxHashMapKey};
+
 use super::*;
 
-/// Data for a manifold in a space.
+/// Planar or spherical manifold represented using a blade.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ManifoldData {
     /// Number of dimensions of the manifold.
-    pub ndim: u8,
+    pub(super) ndim: u8,
     /// OPNS blade representing the manifold.
     pub blade: Blade,
+}
+
+impl ApproxHashMapKey for ManifoldData {
+    type Hash = <Blade as ApproxHashMapKey>::Hash;
+
+    fn approx_hash(
+        &self,
+        float_hash_fn: impl FnMut(Float) -> approx_hashmap::FloatHash,
+    ) -> Self::Hash {
+        self.blade.approx_hash(float_hash_fn)
+    }
 }
 
 impl fmt::Display for ManifoldData {
@@ -32,5 +45,21 @@ impl ManifoldData {
             .checked_sub(2)
             .context("blade has too low of a grade")?;
         Ok(ManifoldData { ndim, blade })
+    }
+
+    /// Returns the number of dimensions of the manifold.
+    pub fn ndim(&self) -> u8 {
+        self.ndim
+    }
+}
+
+impl Mul<Sign> for ManifoldId {
+    type Output = ManifoldRef;
+
+    fn mul(self, rhs: Sign) -> Self::Output {
+        ManifoldRef {
+            id: self,
+            sign: rhs,
+        }
     }
 }

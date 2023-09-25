@@ -1,87 +1,20 @@
 use super::*;
 
-/// Cut operation, which caches intermediate results.
-#[derive(Debug)]
-pub struct CutInProgress<'a> {
-    pub(super) space: &'a mut Space,
-    pub(super) op: CutOp,
-}
-impl CutInProgress<'_> {
-    /// Cuts a shape.
-    pub fn cut(&mut self, shape: ShapeRef) -> Result<ShapeCutResult> {
-        self.space
-            .cut_shape(shape, &mut self.op)
-            .map(|result| match result {
-                ShapeSplitResult::Flush => ShapeCutResult {
-                    inside: Some(shape),
-                    outside: Some(shape),
-                    flush_facet: None,
-                },
-
-                ShapeSplitResult::ManifoldInside => ShapeCutResult {
-                    inside: Some(shape),
-                    outside: None,
-                    flush_facet: None,
-                },
-
-                ShapeSplitResult::ManifoldOutside => ShapeCutResult {
-                    inside: None,
-                    outside: Some(shape),
-                    flush_facet: None,
-                },
-
-                ShapeSplitResult::NonFlush {
-                    inside,
-                    outside,
-                    intersection_shape,
-                } => ShapeCutResult {
-                    inside,
-                    outside,
-                    flush_facet: intersection_shape,
-                },
-            })
-    }
-    /// Cuts multiple shapes and returns the set resulting from it.
-    pub fn cut_set(&mut self, shapes: ShapeSet) -> Result<ShapeSet> {
-        shapes
-            .into_iter()
-            .map(|shape| {
-                let result = self.cut(shape)?;
-                Ok([result.inside, result.outside])
-            })
-            .flatten_ok()
-            .flatten_ok()
-            .collect()
-    }
-}
-
-/// Result of cutting a single shape.
-pub struct ShapeCutResult {
-    /// Portion of the shape which is inside the cut, if it is nonempty and is
-    /// kept by the cutting operation.
-    pub inside: Option<ShapeRef>,
-    /// Portion of the shape which is outside the cut, if it is nonempty and is
-    /// kept by the cutting operation.
-    pub outside: Option<ShapeRef>,
-    /// Intersection of the shape with the boundary of the cut.
-    pub flush_facet: Option<ShapeRef>,
-}
-
 /// Parameters for cutting shapes.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CutParams {
     /// Manifold that divides the inside of the cut from the outside of the cut.
     pub divider: ManifoldRef,
     /// What to do with the shapes on the inside of the cut.
-    pub inside: ShapeFate,
+    pub inside: PolytopeFate,
     /// What to do with the shapes on the outside of the cut.
-    pub outside: ShapeFate,
+    pub outside: PolytopeFate,
 }
-impl fmt::Display for CutParams {
+impl fmt::Debug for CutParams {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{{ divider: {}, inside: {}, outside: {} }}",
+            "{{ divider: {:?}, inside: {}, outside: {} }}",
             self.divider, self.inside, self.outside,
         )
     }
@@ -89,55 +22,74 @@ impl fmt::Display for CutParams {
 
 /// What to do with a shape resulting from a cutting operation.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum ShapeFate {
+pub enum PolytopeFate {
     /// The shape should be removed.
     #[default]
     Remove,
     /// The shape should remain.
     Keep,
 }
-impl fmt::Display for ShapeFate {
+impl fmt::Display for PolytopeFate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ShapeFate::Remove => write!(f, "REMOVE"),
-            ShapeFate::Keep => write!(f, "KEEP"),
+            PolytopeFate::Remove => write!(f, "REMOVE"),
+            PolytopeFate::Keep => write!(f, "KEEP"),
         }
     }
 }
 
-/// In-progress slicing operation.
+/// In-progress cut operation, which caches intermediate results.
 #[derive(Debug)]
-pub(super) struct CutOp {
+pub struct Cut {
     /// Cut parameters.
-    pub cut: CutParams,
+    pub(super) params: CutParams,
 
     /// Cache of the result of splitting each shape.
-    pub shape_split_results_cache: HashMap<ShapeId, ShapeSplitResult>,
+    pub(super) polytope_cut_output_cache: HashMap<AtomicPolytopeId, AtomicPolytopeCutOutput>,
     /// Cache of which side(s) of the cut contains each manifold.
     manifold_which_side_cache: HashMap<ManifoldId, ManifoldWhichSide>,
     /// Cache of the intersection of the cut with each manifold.
-    manifold_intersections_cache: HashMap<ManifoldId, ManifoldRef>,
+    manifold_intersection_cache: HashMap<ManifoldId, ManifoldRef>,
 }
-impl fmt::Display for CutOp {
+impl fmt::Display for Cut {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CutOp")
-            .field("cut", &self.cut)
+        f.debug_struct("Cut")
+            .field("params", &self.params)
             .finish_non_exhaustive()
     }
 }
-impl CutOp {
-    pub fn new(cut: CutParams) -> Self {
-        Self {
-            cut,
+impl Cut {
+    /// Constructs a cutting operation that deletes polytopes on the outside of
+    /// the cut and keeps only those on the inside.
+    pub fn carve(divider: ManifoldRef) -> Self {
+        Self::new(CutParams {
+            divider,
+            inside: PolytopeFate::Keep,
+            outside: PolytopeFate::Remove,
+        })
+    }
+    /// Constructs a cutting operation that keeps all resulting polytopes.
+    pub fn slice(divider: ManifoldRef) -> Self {
+        Self::new(CutParams {
+            divider,
+            inside: PolytopeFate::Keep,
+            outside: PolytopeFate::Keep,
+        })
+    }
 
-            shape_split_results_cache: HashMap::new(),
+    /// Constructs a cutting operation.
+    pub fn new(params: CutParams) -> Self {
+        Self {
+            params,
+
+            polytope_cut_output_cache: HashMap::new(),
             manifold_which_side_cache: HashMap::new(),
-            manifold_intersections_cache: HashMap::new(),
+            manifold_intersection_cache: HashMap::new(),
         }
     }
 
     #[tracing::instrument(level = "trace", skip_all, fields(manifold = %manifold), ret(Debug), err(Debug))]
-    pub fn cached_which_side_of_cut_contains_manifold(
+    pub(super) fn which_side_of_cut_contains_manifold(
         &mut self,
         space: &mut Space,
         manifold: ManifoldId,
@@ -145,20 +97,20 @@ impl CutOp {
         Ok(match self.manifold_which_side_cache.entry(manifold) {
             hash_map::Entry::Occupied(e) => *e.get(),
             hash_map::Entry::Vacant(e) => {
-                *e.insert(space.which_side(space.manifold(), self.cut.divider, manifold)?)
+                *e.insert(space.which_side(space.manifold(), self.params.divider, manifold)?)
             }
         })
     }
-    pub fn cached_intersection_of_manifold_and_cut(
+    pub(super) fn intersection_of_manifold_and_cut(
         &mut self,
         space: &mut Space,
         manifold: ManifoldRef,
     ) -> Result<ManifoldRef> {
-        Ok(match self.manifold_intersections_cache.entry(manifold.id) {
+        Ok(match self.manifold_intersection_cache.entry(manifold.id) {
             hash_map::Entry::Occupied(e) => *e.get(),
             hash_map::Entry::Vacant(e) => *e.insert(space.intersect(
                 space.manifold(),
-                self.cut.divider,
+                self.params.divider,
                 manifold.id.into(),
             )?),
         } * manifold.sign)

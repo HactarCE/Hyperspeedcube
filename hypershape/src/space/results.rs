@@ -1,9 +1,14 @@
 use super::*;
 
-pub(super) enum MergedInterval {
-    Merged(ShapeRef),
+/// Union of two intervals on a topological circle (1D manifold).
+pub(super) enum IntervalUnion {
+    /// Union of the two intervals.
+    Union(AtomicPolytopeRef),
+    /// The union of the two intervals is the whole space.
     WholeSpace,
-    NoIntersection,
+    /// The two intervals do not intersect, and therefore their union is
+    /// disconnected.
+    Disconnected,
 }
 
 /// Location of one manifold relative to the half-spaces on either side of
@@ -54,44 +59,44 @@ impl ManifoldWhichSide {
     }
 }
 
-/// Result of splitting an N-dimensional shape by a slicing manifold.
+/// Output from cutting an N-dimensional atomic polytope by a slicing manifold.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(super) enum ShapeSplitResult {
-    /// The shape's manifold is flush with the slicing manifold.
+pub enum AtomicPolytopeCutOutput {
+    /// The polytope's manifold is flush with the slicing manifold.
     Flush,
-    /// The shape's manifold is completely on the inside of the slice.
+    /// The polytope's manifold is completely on the inside of the slice.
     ManifoldInside,
-    /// The shape's manifold is completely on the outside of the slice.
+    /// The polytope's manifold is completely on the outside of the slice.
     ManifoldOutside,
-    /// The shape's manifold intersects the slice but is not flush.
+    /// The polytope's manifold intersects the slice but is not flush.
     NonFlush {
-        /// N-dimensional portion of the shape that is inside the slice, if any.
-        /// If this is the whole shape, then `outside` must be `None` (but
-        /// `intersection_shape` may be `Some`). If the inside of the cut is
+        /// N-dimensional portion of the polytope that is inside the slice, if
+        /// any. If this is the whole polytope, then `outside` must be `None`
+        /// (but `intersection` may be `Some`). If the inside of the cut is
         /// being deleted, this is `None`.
-        inside: Option<ShapeRef>,
-        /// N-dimensional portion of the shape that is outside the slice, if
-        /// any. If this is the whole shape, then `inside` must be `None` (but
-        /// `intersection_shape` may be `Some`). If the outside of the cut is
+        inside: Option<AtomicPolytopeRef>,
+        /// N-dimensional portion of the polytope that is outside the slice, if
+        /// any. If this is the whole polytope, then `inside` must be `None`
+        /// (but `intersection` may be `Some`). If the outside of the cut is
         /// being deleted, this is `None`.
-        outside: Option<ShapeRef>,
+        outside: Option<AtomicPolytopeRef>,
 
-        /// (N-1)-dimensional intersection of the shape with the slicing
+        /// (N-1)-dimensional intersection of the polytope with the slicing
         /// manifold, if any. If `inside` and `outside` are both `Some`, then
         /// this must be `Some`.
-        intersection_shape: Option<ShapeRef>,
+        intersection: Option<AtomicPolytopeRef>,
     },
 }
-impl fmt::Display for ShapeSplitResult {
+impl fmt::Display for AtomicPolytopeCutOutput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ShapeSplitResult::Flush => write!(f, "Flush"),
-            ShapeSplitResult::ManifoldInside => write!(f, "ManifoldInside"),
-            ShapeSplitResult::ManifoldOutside => write!(f, "ManifoldOutside"),
-            ShapeSplitResult::NonFlush {
+            AtomicPolytopeCutOutput::Flush => write!(f, "Flush"),
+            AtomicPolytopeCutOutput::ManifoldInside => write!(f, "ManifoldInside"),
+            AtomicPolytopeCutOutput::ManifoldOutside => write!(f, "ManifoldOutside"),
+            AtomicPolytopeCutOutput::NonFlush {
                 inside,
                 outside,
-                intersection_shape,
+                intersection: intersection_shape,
             } => {
                 write!(
                     f,
@@ -104,20 +109,20 @@ impl fmt::Display for ShapeSplitResult {
         }
     }
 }
-impl Neg for ShapeSplitResult {
+impl Neg for AtomicPolytopeCutOutput {
     type Output = Self;
 
     fn neg(mut self) -> Self::Output {
-        fn negate_option_shape_ref(r: &mut Option<ShapeRef>) {
+        fn negate_option_shape_ref(r: &mut Option<AtomicPolytopeRef>) {
             if let Some(r) = r {
                 *r = -*r;
             }
         }
 
-        if let ShapeSplitResult::NonFlush {
+        if let AtomicPolytopeCutOutput::NonFlush {
             inside,
             outside,
-            intersection_shape,
+            intersection: intersection_shape,
         } = &mut self
         {
             negate_option_shape_ref(inside);
@@ -129,5 +134,5 @@ impl Neg for ShapeSplitResult {
     }
 }
 
-hypermath::impl_mul_sign!(impl Mul<Sign> for ShapeSplitResult);
-hypermath::impl_mulassign_sign!(impl MulAssign<Sign> for ShapeSplitResult);
+hypermath::impl_mul_sign!(impl Mul<Sign> for AtomicPolytopeCutOutput);
+hypermath::impl_mulassign_sign!(impl MulAssign<Sign> for AtomicPolytopeCutOutput);

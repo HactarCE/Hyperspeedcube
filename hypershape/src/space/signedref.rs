@@ -1,22 +1,37 @@
 use super::*;
 
-/// ID for an oriented object in a [`Space`].
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+/// Oriented memoized object in a [`Space`].
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct SignedRef<I> {
     /// Unoriented ID.
     pub id: I,
     /// Orientation.
     pub sign: Sign,
 }
+impl<I: fmt::Debug> fmt::Debug for SignedRef<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let SignedRef { id, sign } = self;
+        write!(f, "{sign}{id:?}")
+    }
+}
 impl<I: fmt::Display> fmt::Display for SignedRef<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}", self.sign, self.id)
+        let SignedRef { id, sign } = self;
+        write!(f, "{sign}{id}")
     }
 }
 impl<I> From<I> for SignedRef<I> {
     fn from(id: I) -> Self {
         SignedRef {
             id,
+            sign: Sign::Pos,
+        }
+    }
+}
+impl<I: Clone> From<&I> for SignedRef<I> {
+    fn from(id: &I) -> Self {
+        SignedRef {
+            id: id.clone(),
             sign: Sign::Pos,
         }
     }

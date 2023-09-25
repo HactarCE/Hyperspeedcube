@@ -1,80 +1,56 @@
-//! Infinite Euclidean space in which shapes can be constructed.
-//!
-//! In this module:
-//! - A 0-dimensional manifold is always a pair of points.
-//! - An N-dimensional manifold where N>0 is always closed (compact and with no
-//!   boundary). More specifically, it is a hyperplane or hypersphere,
-//!   represented using an OPNS blade in the conformal geometric algebra.
-//! - The **inside** and **outside** of a manifold are the half-spaces enclosed
-//!   by it when embedded with an orientation into another manifold with one
-//!   more dimension. In conformal geometry, the inside and outside must be
-//!   determined by the orientation of the manifold rather than which half-space
-//!   is finite.
-//! - An N-dimensional **shape** is the intersection of the **inside**s of
-//!   finitely many (N-1)-dimensional manifolds; equivalently, it is the
-//!   intersection of finitely many (N-1)-dimensional shapes.
+//! Infinite Euclidean space in which polytopes can be constructed.
 
 use std::cmp::Ordering;
 use std::collections::{hash_map, HashMap};
 use std::fmt;
-use std::ops::{BitOr, Index, Mul, MulAssign, Neg};
+use std::ops::{Index, Mul, MulAssign, Neg};
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use float_ord::FloatOrd;
-use hypermath::collections::ApproxHashMap;
 use hypermath::prelude::*;
 use itertools::Itertools;
-use slab::Slab;
 use tinyset::Set64;
 
+mod atomic_polytope;
 mod cut;
 mod manifold;
 mod results;
-mod shape;
-mod shapeset;
 mod signedref;
 
-use cut::CutOp;
-pub use cut::{CutInProgress, CutParams, ShapeFate};
+pub use atomic_polytope::AtomicPolytope;
+pub use cut::{Cut, CutParams, PolytopeFate};
 pub use manifold::ManifoldData;
-use results::{ManifoldWhichSide, MergedInterval, ShapeSplitResult};
-pub use shape::ShapeData;
-pub use shapeset::ShapeSet;
+use results::{AtomicPolytopeCutOutput, IntervalUnion, ManifoldWhichSide};
 pub use signedref::SignedRef;
+
+use crate::SlabMap;
 
 /// Reference to an oriented manifold in a [`Space`].
 pub type ManifoldRef = SignedRef<ManifoldId>;
-/// Reference to an oriented shape in a [`Space`].
-pub type ShapeRef = SignedRef<ShapeId>;
+/// Reference to an oriented atomic polytope in a [`Space`].
+pub type AtomicPolytopeRef = SignedRef<AtomicPolytopeId>;
+
+/// Set of oriented atomic polytopes in a [`Space`].
+pub type AtomicPolytopeSet = Set64<AtomicPolytopeRef>;
 
 hypermath::idx_struct! {
-    /// ID for an unoriented manifold in a [`Space`].
+    /// ID for a memoized unoriented manifold in a [`Space`].
     pub struct ManifoldId(pub u32);
-    /// ID for an unoriented shape in a [`Space`].
-    pub struct ShapeId(pub u32);
+    /// ID for a memoized unoriented atomic polytope in a [`Space`].
+    pub struct AtomicPolytopeId(pub u32);
 }
 
-/// Space in which shapes can be constructed.
+/// Euclidean space in which polytopes can be constructed.
 pub struct Space {
-    /// Manifold of the entire space.
-    manifold: ManifoldId,
-    /// Shape covering the entire space.
-    whole_space: ShapeId,
-
-    /// Pseudoscalar blade.
-    pseudoscalar: Blade,
-    /// Inverse pseudoscalar blade.
-    inverse_pseudoscalar: Blade,
-
     /// Submanifolds of the space.
-    submanifolds: Slab<ManifoldData>,
-    /// Lookup structure for submanifolds.
-    submanifolds_hashmap: ApproxHashMap<Blade, ManifoldId>,
+    manifolds: SlabMap<ManifoldId, ManifoldData>,
+    /// Atomic polytopes defined in the space.
+    polytopes: SlabMap<AtomicPolytopeId, AtomicPolytope>,
 
-    /// Shapes defined in the space.
-    shapes: Slab<ShapeData>,
-    /// Lookup structure for shapes.
-    shapes_hashmap: HashMap<ShapeData, ShapeId>,
+    /// Manifold of the entire space.
+    covering_manifold: ManifoldId,
+    /// Polytope with no border covering the entire space.
+    covering_polytope: AtomicPolytopeId,
 }
 
 impl fmt::Debug for Space {
@@ -89,106 +65,90 @@ impl Index<ManifoldId> for Space {
     type Output = ManifoldData;
 
     fn index(&self, index: ManifoldId) -> &Self::Output {
-        &self.submanifolds[index.0 as usize]
+        &self.manifolds[index]
     }
 }
 
-impl Index<ShapeId> for Space {
-    type Output = ShapeData;
+impl Index<AtomicPolytopeId> for Space {
+    type Output = AtomicPolytope;
 
-    fn index(&self, index: ShapeId) -> &Self::Output {
-        &self.shapes[index.0 as usize]
+    fn index(&self, index: AtomicPolytopeId) -> &Self::Output {
+        &self.polytopes[index]
     }
 }
 
 impl Space {
     /// Constructs a new Euclidean space.
-    pub fn new(ndim: u8) -> Self {
+    pub fn new(ndim: u8) -> Result<Self> {
+        let mut manifolds = SlabMap::new();
+        let mut polytopes = SlabMap::new();
+
         let pseudoscalar = Blade::pseudoscalar(ndim);
-        let inverse_pseudoscalar = Blade::inverse_pseudoscalar(ndim);
+        let covering_manifold = manifolds
+            .get_or_insert(ManifoldData::new(pseudoscalar)?)?
+            .key();
+        let covering_polytope = polytopes
+            .get_or_insert(AtomicPolytope::whole_manifold(covering_manifold))?
+            .key();
 
-        let mut submanifolds = Slab::new();
-        let mut submanifolds_hashmap = ApproxHashMap::new();
-        let manifold_data =
-            ManifoldData::new(pseudoscalar.clone()).expect("error constructing Euclidean space");
-        let manifold = ManifoldId(submanifolds.insert(manifold_data) as u32);
-        submanifolds_hashmap.insert(&pseudoscalar, manifold);
+        Ok(Space {
+            manifolds,
+            polytopes,
 
-        let mut shapes = Slab::new();
-        let mut shapes_hashmap = HashMap::new();
-        let shape_data = ShapeData::whole_manifold(manifold);
-        let whole_space = ShapeId(shapes.insert(shape_data) as u32);
-        shapes_hashmap.insert(shapes[whole_space.0 as usize].clone(), whole_space);
-
-        Space {
-            manifold,
-            whole_space,
-
-            pseudoscalar,
-            inverse_pseudoscalar,
-
-            submanifolds,
-            submanifolds_hashmap,
-
-            shapes,
-            shapes_hashmap,
-        }
+            covering_manifold,
+            covering_polytope,
+        })
     }
 
     /// Returns the number of dimensions of the whole space.
     pub fn ndim(&self) -> u8 {
-        self[self.manifold].ndim
+        self[self.covering_manifold].ndim
     }
     /// Returns the manifold of the whole space.
     pub fn manifold(&self) -> ManifoldRef {
-        self.manifold.into()
+        self.covering_manifold.into()
     }
-    /// Returns a shape representing the whole space.
-    pub fn whole_space(&self) -> ShapeRef {
-        self.whole_space.into()
+    /// Returns the polytope representing the whole space.
+    pub fn whole_space(&self) -> AtomicPolytopeRef {
+        self.covering_polytope.into()
     }
 
     /// Returns the pseudoscalar of the space. This is useful when computing the
     /// intersection of two manifolds.
     pub fn pss(&self) -> &Blade {
-        &self.pseudoscalar
-    }
-    /// Returns the inverse pseudoscalar of the space. This is useful when
-    /// computing the intersection of two manifolds.
-    pub fn inv_pss(&self) -> &Blade {
-        &self.inverse_pseudoscalar
+        &self[self.covering_manifold].blade
     }
 
-    /// Returns the number of dimensions of a shape.
-    pub fn ndim_of(&self, shape: ShapeId) -> u8 {
-        self[self[shape].manifold].ndim
+    /// Returns the number of dimensions of a manifold or polytope.
+    pub fn ndim_of(&self, thing: impl HasManifoldInSpace) -> u8 {
+        self[self.manifold_of(thing).id].ndim
     }
-    /// Returns the manifold of a shape.
-    pub fn manifold_of(&self, shape: ShapeRef) -> ManifoldRef {
-        ManifoldRef {
-            id: self[shape.id].manifold,
-            sign: shape.sign,
-        }
+    /// Returns the manifold of a polytope.
+    pub fn manifold_of(&self, thing: impl HasManifoldInSpace) -> ManifoldRef {
+        thing.get_manifold_ref(self)
     }
-    /// Returns the blade representing a manifold.
-    pub fn blade_of(&self, manifold: ManifoldRef) -> Blade {
-        &self[manifold.id].blade * manifold.sign
+    /// Returns the blade representing a manifold or a polytope's manifold.
+    pub fn blade_of(&self, thing: impl HasManifoldInSpace) -> Blade {
+        let m = self.manifold_of(thing);
+        &self[m.id].blade * m.sign
     }
-    /// Returns the signed boundary of a shape.
-    pub fn boundary_of(&self, shape: ShapeRef) -> impl Iterator<Item = ShapeRef> {
-        self[shape.id].boundary.iter().map(move |b| b * shape.sign)
+    /// Returns the signed boundary of a polytope.
+    pub fn boundary_of(
+        &self,
+        polytope: impl Into<AtomicPolytopeRef>,
+    ) -> impl '_ + Iterator<Item = AtomicPolytopeRef> {
+        let polytope = polytope.into();
+        self[polytope.id]
+            .boundary
+            .iter()
+            .map(move |boundary_elem| boundary_elem * polytope.sign)
     }
 
-    /// Returns the pair of points that comprise a 0D shape.
-    pub fn extract_point_pair(&self, shape: ShapeRef) -> Result<[Point; 2]> {
-        let [a, b] = self[self[shape.id].manifold]
-            .blade
+    /// Returns the pair of points that comprise a 0D polytope.
+    pub fn extract_point_pair(&self, polytope: AtomicPolytopeRef) -> Result<[Point; 2]> {
+        self.blade_of(polytope)
             .point_pair_to_points()
-            .context("attempt to get point pair from non-point point pair manifold")?;
-        match shape.sign {
-            Sign::Pos => Ok([a, b]),
-            Sign::Neg => Ok([b, a]),
-        }
+            .context("attempt to get point pair from non-point point pair manifold")
     }
 
     /// Adds a spherical manifold to the space.
@@ -201,86 +161,105 @@ impl Space {
     }
     /// Adds a manifold to the space.
     pub fn add_manifold(&mut self, blade: Blade) -> Result<ManifoldRef> {
-        ensure!(
-            blade.ndim() <= self.ndim(),
-            "manifold {blade} does not fit inside space",
-        );
-        ensure!(blade.grade() >= 2, "{blade} is too low-dimensional");
-
         // Canonicalize blade.
         let (blade, sign) = canonicalize_blade(blade)?;
 
-        let manifold = match self.submanifolds_hashmap.entry(&blade) {
-            hash_map::Entry::Occupied(e) => *e.get(),
-            hash_map::Entry::Vacant(e) => {
-                let manifold_data = ManifoldData::new(blade.clone())?;
-                let key = self.submanifolds.insert(manifold_data);
-                *e.insert(ManifoldId(key as u32))
-            }
-        };
+        let manifold_data = ManifoldData::new(blade)?;
+        ensure!(
+            manifold_data.ndim <= self.ndim(),
+            "manifold {manifold_data} does not fit inside space",
+        );
+        let manifold_id = self.manifolds.get_or_insert(manifold_data)?.key();
 
-        Ok(ManifoldRef { id: manifold, sign })
+        Ok(manifold_id * sign)
     }
 
-    /// Adds a shape with no boundary to the space.
-    pub fn add_shape_without_boundary(&mut self, manifold: ManifoldRef) -> Result<ShapeRef> {
-        self.add_shape(manifold, ShapeSet::new())
+    /// Adds a point pair to the space.
+    fn add_point_pair(&mut self, manifold: ManifoldRef) -> Result<AtomicPolytopeRef> {
+        ensure!(
+            self.ndim_of(manifold) == 0,
+            "add_point_pair() requires ndim = 0",
+        );
+
+        let polytope_data = AtomicPolytope::whole_manifold(manifold.id);
+        let polytope_id = self.get_or_insert_polytope_data(polytope_data)?;
+        Ok(polytope_id * manifold.sign)
     }
-    /// Adds a shape to the space.
-    fn add_shape(&mut self, manifold: ManifoldRef, boundary: ShapeSet) -> Result<ShapeRef> {
-        // Canonicalize sign.
-        let sign = manifold.sign;
+    /// Adds an atomic polytope to the space.
+    fn add_atomic_polytope(
+        &mut self,
+        manifold: ManifoldRef,
+        boundary: AtomicPolytopeSet,
+    ) -> Result<AtomicPolytopeRef> {
+        ensure!(
+            self.ndim_of(manifold) > 0,
+            "add_atomic_polytope() requires ndim > 0",
+        );
 
-        let shape_data = ShapeData {
-            manifold: manifold.id,
-            boundary: boundary * sign,
-        };
-        let manifold = self[shape_data.manifold].clone();
-
-        let shape = *self
-            .shapes_hashmap
-            .entry(shape_data)
-            .or_insert_with_key(|shape_data| {
-                let key = self.shapes.insert(shape_data.clone());
-
-                tracing::debug_span!("add_shape", id = %ShapeId(key as u32)).in_scope(|| {
-                    tracing::debug!(ndim = manifold.ndim);
-                    tracing::debug!(manifold = %manifold);
-                    tracing::debug!(boundary = %shape_data.boundary);
-                });
-
-                ShapeId(key as u32)
-            });
-
-        #[cfg(debug_assertions)]
-        self.sanity_check_shape(shape)?;
-
-        Ok(ShapeRef { id: shape, sign })
+        let polytope_data = AtomicPolytope::new(manifold.id, boundary);
+        let polytope_id = self.get_or_insert_polytope_data(polytope_data)?;
+        Ok(polytope_id * manifold.sign)
     }
+    /// Adds an atomic polytope using the manifold of an existing polytope, or
+    /// reuses the existing polytope if possible. In particular, if
+    /// `new_boundary` is the same as the boundary of `old_polytope`, then this
+    /// method returns `old_polytope`; otherwise it creates and returns a new
+    /// polytope.
+    #[tracing::instrument(skip_all, fields(%old_polytope))]
+    fn add_atomic_subpolytope(
+        &mut self,
+        old_polytope: AtomicPolytopeId,
+        new_boundary: AtomicPolytopeSet,
+    ) -> Result<AtomicPolytopeId> {
+        let old_polytope_data = &self[old_polytope];
+        let mut new_polytope_data = old_polytope_data.clone();
+        new_polytope_data.boundary = new_boundary;
 
-    /// Adds a shape using the manifold of an existing shape, or reuses the
-    /// existing shape if possible. In particular, if `new_boundary` is the same
-    /// as the boundary of `old_shape`, returns `old_shape`.
-    #[tracing::instrument(skip_all, fields(old_shape = %old_shape, new_boundary = %new_boundary))]
-    fn add_subshape(&mut self, old_shape: ShapeId, new_boundary: ShapeSet) -> Result<ShapeRef> {
-        if new_boundary == self[old_shape].boundary {
-            Ok(ShapeRef::from(old_shape))
+        if *old_polytope_data == new_polytope_data {
+            // Reuse the old polytope.
+            Ok(old_polytope)
         } else {
-            let old_shape = &self[old_shape];
-            self.add_shape(old_shape.manifold.into(), new_boundary)
+            // Make a new polytope.
+            self.get_or_insert_polytope_data(new_polytope_data)
         }
     }
+    /// Returns the ID of an atomic polytope with certain data, adding it to the
+    /// space if it does not already exist.
+    #[tracing::instrument(skip_all, fields(polytope_data))]
+    fn get_or_insert_polytope_data(
+        &mut self,
+        polytope_data: AtomicPolytope,
+    ) -> Result<AtomicPolytopeId> {
+        let ndim = self.ndim_of(&polytope_data);
 
-    /// Runs basic sanity checks on a shape and returns an error if any fails.
+        let entry = self.polytopes.get_or_insert(polytope_data.clone())?;
+        let polytope = entry.key();
+        if entry.is_new() {
+            // Log a bunch of a stuff for debugging.
+            tracing::debug_span!("add_polytope", id = ?polytope).in_scope(|| {
+                tracing::debug!(ndim);
+                tracing::debug!(data = ?polytope_data);
+            });
+
+            // Run basic sanity checks.
+            #[cfg(debug_assertions)]
+            self.sanity_check_atomic_polytope(polytope)?;
+        }
+
+        Ok(polytope)
+    }
+
+    /// Runs basic sanity checks on an atomic polytope and returns an error if
+    /// any fails.
     #[cfg(debug_assertions)]
-    fn sanity_check_shape(&self, shape: ShapeId) -> Result<()> {
-        let ndim = self.ndim_of(shape);
+    fn sanity_check_atomic_polytope(&self, polytope: AtomicPolytopeId) -> Result<()> {
+        let ndim = self.ndim_of(polytope);
 
-        // Check the rank of each boundary shape.
-        for boundary_shape in &self[shape].boundary {
+        // Check the rank of each boundary polytope.
+        for boundary_elem in self.boundary_of(polytope) {
             ensure!(
-                ndim == self.ndim_of(boundary_shape.id) + 1,
-                "shape ndim does not match boundary ndim+1",
+                ndim == self.ndim_of(boundary_elem.id) + 1,
+                "polytope ndim does not match boundary ndim+1",
             );
         }
 
@@ -288,7 +267,7 @@ impl Space {
         if ndim == 2 {
             let mut starting_points = vec![];
             let mut ending_points = vec![];
-            for edge in &self[shape].boundary {
+            for edge in self.boundary_of(polytope) {
                 for point_pair in self.boundary_of(edge) {
                     let [a, b] = self.extract_point_pair(point_pair)?;
 
@@ -307,10 +286,10 @@ impl Space {
                 }
             }
             if !(starting_points.is_empty() && ending_points.is_empty()) {
-                tracing::error_span!("invalid polygon topology", %shape).in_scope(|| {
-                    tracing::error!(boundary = %self[shape].boundary);
-                    tracing::error!(starting_points = ?starting_points);
-                    tracing::error!(ending_points = ?ending_points);
+                tracing::error_span!("invalid polygon topology", %polytope).in_scope(|| {
+                    tracing::error!(polytope_data = ?self[polytope]);
+                    tracing::error!(?starting_points);
+                    tracing::error!(?ending_points);
                 });
                 bail!("invalid polygon topology");
             }
@@ -319,193 +298,146 @@ impl Space {
         Ok(())
     }
 
-    /// Cuts a set of shapes, returning only the shapes on the inside of the
-    /// cut.
-    pub fn carve(&mut self, divider: ManifoldRef) -> CutInProgress<'_> {
-        CutInProgress {
-            space: self,
-            op: CutOp::new(CutParams {
-                divider,
-                inside: ShapeFate::Keep,
-                outside: ShapeFate::Remove,
-            }),
-        }
-    }
-    /// Cuts a set of shapes, returning shapes on both sides.
-    pub fn slice(&mut self, divider: ManifoldRef) -> CutInProgress<'_> {
-        CutInProgress {
-            space: self,
-            op: CutOp::new(CutParams {
-                divider,
-                inside: ShapeFate::Keep,
-                outside: ShapeFate::Keep,
-            }),
-        }
-    }
-
-    /// Cuts a set of shapes by a manifold.
-    #[tracing::instrument(skip_all)]
-    pub fn cut(&mut self, shapes: &ShapeSet, params: CutParams) -> Result<(ShapeSet, ShapeSet)> {
-        if params.inside == ShapeFate::Remove && params.outside == ShapeFate::Remove {
-            // Why would you do this? You're just removing everything.
-            return Ok((ShapeSet::new(), ShapeSet::new()));
-        }
-
-        let mut op = CutOp::new(params);
-        let mut ret_inside = ShapeSet::new();
-        let mut ret_outside = ShapeSet::new();
-        for shape in shapes {
-            match self.cut_shape(shape, &mut op)? {
-                ShapeSplitResult::Flush => (), // Neither inside nor outside.
-                ShapeSplitResult::ManifoldInside => {
-                    ret_inside.insert(shape);
-                }
-                ShapeSplitResult::ManifoldOutside => {
-                    ret_outside.insert(shape);
-                }
-                ShapeSplitResult::NonFlush {
-                    inside,
-                    outside,
-                    intersection_shape: _,
-                } => {
-                    ret_inside.extend(inside);
-                    ret_outside.extend(outside);
-                }
-            }
-        }
-        Ok((ret_inside, ret_outside))
-    }
-
-    /// Cuts a shape by a manifold.
-    fn cut_shape(&mut self, shape: ShapeRef, op: &mut CutOp) -> Result<ShapeSplitResult> {
-        if let Some(&cached_result) = op.shape_split_results_cache.get(&shape.id) {
-            tracing::debug!("using cached split result for {}", shape.id);
-            Ok(cached_result * shape.sign)
+    /// Cuts an atomic polytope by a manifold.
+    #[tracing::instrument(skip_all, fields(%polytope, ?cut))]
+    pub fn cut_atomic_polytope(
+        &mut self,
+        polytope: AtomicPolytopeRef,
+        cut: &mut Cut,
+    ) -> Result<AtomicPolytopeCutOutput> {
+        if let Some(&cached_result) = cut.polytope_cut_output_cache.get(&polytope.id) {
+            tracing::debug!("using cached cut output for {}", polytope.id);
+            Ok(cached_result * polytope.sign)
         } else {
             let result = self
-                .cut_shape_uncached(shape.id, op)
-                .with_context(|| format!("error cutting shape {shape}"))?;
+                .cut_atomic_polytope_uncached(polytope.id, cut)
+                .with_context(|| format!("error cutting polytope {polytope}"))?;
 
-            op.shape_split_results_cache.insert(shape.id, result);
-            Ok(result * shape.sign)
+            cut.polytope_cut_output_cache.insert(polytope.id, result);
+            Ok(result * polytope.sign)
         }
     }
 
-    /// Cuts a shape by a manifold without first checking the shape results
-    /// cache.
-    #[tracing::instrument(skip_all, fields(shape = %shape), ret(Display), err(Debug))]
-    fn cut_shape_uncached(&mut self, shape: ShapeId, op: &mut CutOp) -> Result<ShapeSplitResult> {
-        let shape_manifold = self[shape].manifold;
-
-        match op.cached_which_side_of_cut_contains_manifold(self, shape_manifold)? {
-            ManifoldWhichSide::Flush => Ok(ShapeSplitResult::Flush),
-            ManifoldWhichSide::Inside => Ok(ShapeSplitResult::ManifoldInside),
-            ManifoldWhichSide::Outside => Ok(ShapeSplitResult::ManifoldOutside),
+    /// Cuts an atomic polytope by a manifold without first checking the cache.
+    #[tracing::instrument(skip_all, fields(%polytope), ret(Display), err(Debug))]
+    fn cut_atomic_polytope_uncached(
+        &mut self,
+        polytope: AtomicPolytopeId,
+        cut: &mut Cut,
+    ) -> Result<AtomicPolytopeCutOutput> {
+        match cut.which_side_of_cut_contains_manifold(self, self.manifold_of(polytope).id)? {
+            ManifoldWhichSide::Flush => Ok(AtomicPolytopeCutOutput::Flush),
+            ManifoldWhichSide::Inside => Ok(AtomicPolytopeCutOutput::ManifoldInside),
+            ManifoldWhichSide::Outside => Ok(AtomicPolytopeCutOutput::ManifoldOutside),
             ManifoldWhichSide::Split => {
-                let intersection_manifold = op.cached_intersection_of_manifold_and_cut(
-                    self,
-                    self.manifold_of(shape.into()),
-                )?;
+                let intersection_manifold =
+                    cut.intersection_of_manifold_and_cut(self, self.manifold_of(polytope))?;
 
-                // The shape's manifold is split! Let's find out if the shape
-                // itself is split too.
+                // The polytopes's manifold is split! Let's find out if the
+                // polytope itself is split too.
 
                 // 1D manifolds may have a disconnected boundary, so they
                 // require special handling.
-                if self.ndim_of(shape) == 1 {
-                    self.cut_split_shape_1d(shape, op, intersection_manifold)
-                } else {
-                    self.cut_split_shape_nd(shape, op, intersection_manifold)
+                match self.ndim_of(polytope) {
+                    1 => self.cut_atomic_polytope_1d(polytope, cut, intersection_manifold),
+                    _ => self.cut_atomic_polytope_nd(polytope, cut, intersection_manifold),
                 }
             }
         }
     }
 
-    #[tracing::instrument(skip_all, fields(shape = %shape))]
-    fn cut_split_shape_1d(
+    /// Cuts a 1D atomic polytope, assuming it is split by the cut.
+    #[tracing::instrument(skip_all, fields(%polytope))]
+    fn cut_atomic_polytope_1d(
         &mut self,
-        shape: ShapeId,
-        op: &mut CutOp,
+        polytope: AtomicPolytopeId,
+        cut: &mut Cut,
         intersection_manifold: ManifoldRef,
-    ) -> Result<ShapeSplitResult> {
-        let shape_manifold = self[shape].manifold;
+    ) -> Result<AtomicPolytopeCutOutput> {
+        let polytope_manifold = self.manifold_of(polytope);
+        let polytope_boundary = self.boundary_of(polytope).collect_vec();
 
-        let intersection_shape = self.add_shape(intersection_manifold, ShapeSet::new())?;
+        // The intersection polytope is 0D, so it has no boundary.
+        let intersection = self.add_point_pair(intersection_manifold)?;
 
         // Simplify inside boundary.
-        let inside = match op.cut.inside {
-            ShapeFate::Remove => None,
-            ShapeFate::Keep => {
+        let inside = match cut.params.inside {
+            PolytopeFate::Remove => None,
+            PolytopeFate::Keep => {
                 let inside_boundary = self.incrementally_simplify_intersection_of_intervals(
-                    shape_manifold.into(),
-                    self[shape].boundary.clone(),
-                    intersection_shape,
+                    polytope_manifold,
+                    polytope_boundary.iter().copied(),
+                    intersection,
                 )?;
                 if let Some(boundary) = inside_boundary {
-                    Some(self.add_subshape(shape, boundary)?)
+                    Some(self.add_atomic_subpolytope(polytope, boundary)?)
                 } else {
-                    None // There is no outside shape.
+                    None // There is no outside polytope.
                 }
             }
         };
 
         // Simplify outside boundary.
-        let outside = match op.cut.outside {
-            ShapeFate::Remove => None,
-            ShapeFate::Keep => {
+        let outside = match cut.params.outside {
+            PolytopeFate::Remove => None,
+            PolytopeFate::Keep => {
                 let outside_boundary = self.incrementally_simplify_intersection_of_intervals(
-                    shape_manifold.into(),
-                    self[shape].boundary.clone(),
-                    -intersection_shape,
+                    polytope_manifold,
+                    polytope_boundary.iter().copied(),
+                    -intersection,
                 )?;
                 if let Some(boundary) = outside_boundary {
-                    Some(self.add_subshape(shape, boundary)?)
+                    Some(self.add_atomic_subpolytope(polytope, boundary)?)
                 } else {
-                    None // There is no inside shape.
+                    None // There is no inside polytope.
                 }
             }
         };
 
-        Ok(ShapeSplitResult::NonFlush {
-            inside,
-            outside,
-            intersection_shape: Some(intersection_shape),
+        Ok(AtomicPolytopeCutOutput::NonFlush {
+            inside: inside.map(AtomicPolytopeRef::from),
+            outside: outside.map(AtomicPolytopeRef::from),
+            intersection: Some(intersection),
         })
     }
 
-    #[tracing::instrument(skip_all, fields(shape = %shape))]
-    fn cut_split_shape_nd(
+    /// Cuts an N-dimensional atomic polytope, assuming it is split by the cut.
+    #[tracing::instrument(skip_all, fields(%polytope))]
+    fn cut_atomic_polytope_nd(
         &mut self,
-        shape: ShapeId,
-        op: &mut CutOp,
+        polytope: AtomicPolytopeId,
+        cut: &mut Cut,
         intersection_manifold: ManifoldRef,
-    ) -> Result<ShapeSplitResult> {
-        let shape_boundary = self[shape].boundary.clone();
+    ) -> Result<AtomicPolytopeCutOutput> {
+        let polytope_boundary = self.boundary_of(polytope).collect_vec();
+        let polytope_ref = AtomicPolytopeRef::from(polytope);
 
-        // First, scan for any boundary shape that is exactly on the cut.
-        for child in &shape_boundary {
-            if self[child.id].manifold == intersection_manifold.id {
-                tracing::debug!("found flush child {}", child);
+        // First, scan for any boundary polytope that is exactly on the cut.
+        for child in self.boundary_of(polytope) {
+            let child_manifold = self.manifold_of(child);
+            if child_manifold.id == intersection_manifold.id {
+                tracing::debug!("found flush child {child}");
 
-                // The child is flush with the cut, so `shape` is not split.
-                // `shape` is either on one side or the other or it's flush.
-                let sign = child.sign * intersection_manifold.sign;
-                return Ok(ShapeSplitResult::NonFlush {
-                    inside: (sign == Sign::Pos && op.cut.inside == ShapeFate::Keep)
-                        .then_some(shape.into()),
-                    outside: (sign == Sign::Neg && op.cut.outside == ShapeFate::Keep)
-                        .then_some(shape.into()),
-                    intersection_shape: Some(child * sign),
+                // The child is flush with the cut, so `polytope` is not split.
+                // `polytope` is either on one side or the other or it's flush.
+                let sign = child_manifold.sign * intersection_manifold.sign;
+                return Ok(AtomicPolytopeCutOutput::NonFlush {
+                    inside: (sign == Sign::Pos && cut.params.inside == PolytopeFate::Keep)
+                        .then_some(polytope_ref),
+                    outside: (sign == Sign::Neg && cut.params.outside == PolytopeFate::Keep)
+                        .then_some(polytope_ref),
+                    intersection: Some(child * sign),
                 });
             }
         }
 
-        // Next, scan for any boundary shape that is completely contained inside
-        // the cut.
-        for child in &shape_boundary {
+        // Next, scan for any boundary polytope whose manifold is completely
+        // contained inside the cut.
+        for &child in &polytope_boundary {
             // Which side of the cut contains the child?
+            let child_manifold = self.manifold_of(child).id;
             let which_side_of_cut_contains_child =
-                op.cached_which_side_of_cut_contains_manifold(self, self[child.id].manifold)?;
+                cut.which_side_of_cut_contains_manifold(self, child_manifold)?;
             match which_side_of_cut_contains_child {
                 ManifoldWhichSide::Flush => bail!("manifold is flush, but has different ID"),
                 ManifoldWhichSide::Split => continue,
@@ -514,122 +446,128 @@ impl Space {
 
             // Which side of the *child* contains the *cut*?
             if self.which_side(
-                ManifoldRef::from(self[shape].manifold),
+                self.manifold_of(polytope),
                 self.manifold_of(child),
                 intersection_manifold.id,
             )? == ManifoldWhichSide::Outside
             {
-                tracing::debug!("found child {} that excludes cut", child);
+                tracing::debug!("found child {child} that excludes cut");
 
                 // Based on just this child, the cut is completely outside
-                // `shape`. So we know that `shape` is either completely inside
-                // the cut or completely outside the cut.
+                // `polytope`. So we know that `polytope` is either completely
+                // inside the cut or completely outside the cut.
                 let mut inside = None;
                 let mut outside = None;
                 match which_side_of_cut_contains_child {
                     ManifoldWhichSide::Flush | ManifoldWhichSide::Split => {
                         unreachable!("cases already handled")
                     }
-                    ManifoldWhichSide::Inside => inside = Some(ShapeRef::from(shape)),
-                    ManifoldWhichSide::Outside => outside = Some(ShapeRef::from(shape)),
+                    ManifoldWhichSide::Inside => inside = Some(AtomicPolytopeRef::from(polytope)),
+                    ManifoldWhichSide::Outside => outside = Some(AtomicPolytopeRef::from(polytope)),
                 }
-                return Ok(ShapeSplitResult::NonFlush {
+                return Ok(AtomicPolytopeCutOutput::NonFlush {
                     inside,
                     outside,
-                    intersection_shape: None,
+                    intersection: None,
                 });
             }
         }
 
         // Alright, we've handled the edge cases. Now for the general case:
-        // `shape` may be inside, outside, or split.
+        // `polytope` may be inside, outside, or split.
 
         // Let `cut` represent the inside half-space of the cut, so `~cut` is
         // the outside half-space and `boundary(cut)` is the whole cut manifold.
 
-        // (N-1)-dimensional shapes that together comprise `boundary(shape ∩
-        // cut)`, or equivalently, `boundary(shape) ∩ cut`.
-        let mut self_boundary_of_inside = ShapeSet::new();
+        // (N-1)-dimensional polytopes that together comprise `boundary(polytope
+        // ∩ cut)`, or equivalently, `boundary(polytope) ∩ cut`.
+        let mut self_boundary_of_inside = AtomicPolytopeSet::new();
 
-        // (N-1)-dimensional shapes that together comprise `boundary(shape ∩
-        // ~cut)`, or equivalently, `boundary(shape) ∩ ~cut`.
-        let mut self_boundary_of_outside = ShapeSet::new();
+        // (N-1)-dimensional polytopes that together comprise `boundary(polytope
+        // ∩ ~cut)`, or equivalently, `boundary(polytope) ∩ ~cut`.
+        let mut self_boundary_of_outside = AtomicPolytopeSet::new();
 
-        // (N-2)-dimensional shapes that together comprise `boundary(shape ∩
-        // boundary(cut))`, or equivalently, `boundary(shape) ∩ boundary(cut)`.
-        let mut intersection_boundary = ShapeSet::new();
+        // (N-2)-dimensional polytopes that together comprise `boundary(polytope
+        // ∩ boundary(cut))`, or equivalently, `boundary(polytope) ∩
+        // boundary(cut)`.
+        let mut intersection_boundary = AtomicPolytopeSet::new();
 
-        // Split each of the "child" shapes that comprise `boundary(shape)`.
-        for child in &shape_boundary {
-            match self.cut_shape(child, op)? {
-                ShapeSplitResult::Flush => bail!("manifold is flush, but has different ID"),
-                ShapeSplitResult::ManifoldInside => {
+        // Split each of the "child" polytopes that comprise
+        // `boundary(polytope)`.
+        for &child in &polytope_boundary {
+            match self.cut_atomic_polytope(child, cut)? {
+                AtomicPolytopeCutOutput::Flush => {
+                    bail!("manifold is flush, but has different ID")
+                }
+                AtomicPolytopeCutOutput::ManifoldInside => {
                     self_boundary_of_inside.insert(child);
                 }
-                ShapeSplitResult::ManifoldOutside => {
+                AtomicPolytopeCutOutput::ManifoldOutside => {
                     self_boundary_of_outside.insert(child);
                 }
-                ShapeSplitResult::NonFlush {
+                AtomicPolytopeCutOutput::NonFlush {
                     inside,
                     outside,
-                    intersection_shape,
+                    intersection,
                 } => {
                     self_boundary_of_inside.extend(inside);
                     self_boundary_of_outside.extend(outside);
-                    intersection_boundary.extend(intersection_shape.map(|s| -s));
+                    intersection_boundary.extend(intersection.map(|s| -s));
                 }
             }
         }
 
-        tracing::trace!(self_boundary_of_inside = %self_boundary_of_inside);
-        tracing::trace!(self_boundary_of_outside = %self_boundary_of_outside);
-        tracing::trace!(intersection_boundary = %intersection_boundary);
+        use crate::util::display_list;
+        tracing::trace!(self_boundary_of_inside = %display_list(self_boundary_of_inside.iter()));
+        tracing::trace!(self_boundary_of_outside = %display_list(self_boundary_of_outside.iter()));
+        tracing::trace!(intersection_boundary = %display_list(intersection_boundary.iter()));
 
         // Simplify boundary of intersection.
         intersection_boundary =
-            self.simplify_shape_boundary(intersection_manifold, intersection_boundary)?;
+            self.simplify_polytope_boundary(intersection_manifold, intersection_boundary)?;
 
-        // Let `intersection_shape` be the (N-1)-dimensional shape that is
-        // `shape ∩ boundary(cut)`.
-        let mut intersection_shape = None;
-        // There are two cases in which `intersection_shape` should be nonempty:
-        // - `intersection_boundary` is nonempty, so `intersection_shape` should
+        // Let `intersection` be the (N-1)-dimensional polytope that is
+        // `polytope ∩ boundary(cut)`.
+        let mut intersection = None;
+        // There are two cases in which `intersection` should be nonempty:
+        // - `intersection_boundary` is nonempty, so `intersection` should
         //   obviously be nonempty.
-        // - The shape completely contains the manifold, so `intersection_shape`
+        // - The polytope completely contains the manifold, so `intersection`
         //   should be the entirety of `intersection_manifold` with no boundary.
         if !intersection_boundary.is_empty()
-            || self.shape_completely_contains_manifold(shape, intersection_manifold.id)?
+            || self.polytope_completely_contains_manifold(polytope, intersection_manifold.id)?
         {
-            let new_shape = self.add_shape(intersection_manifold, intersection_boundary)?;
+            let new_polytope =
+                self.add_atomic_polytope(intersection_manifold, intersection_boundary)?;
 
-            // `shape ∩ boundary(cut)` is part of the boundary of `shape
-            // ∩ cut` and part of the boundary of `shape ∩ ~cut`.
-            self_boundary_of_inside.insert(new_shape);
-            self_boundary_of_outside.insert(-new_shape);
+            // `polytope ∩ boundary(cut)` is part of the boundary of `polytope ∩
+            // cut` and part of the boundary of `polytope ∩ ~cut`.
+            self_boundary_of_inside.insert(new_polytope);
+            self_boundary_of_outside.insert(-new_polytope);
 
-            intersection_shape = Some(new_shape);
+            intersection = Some(new_polytope);
         }
 
-        // Construct the N-dimensional shape that is `self ∩ cut`
+        // Construct the N-dimensional polytope that is `self ∩ cut`
         let mut inside = None;
-        if op.cut.inside == ShapeFate::Keep && !self_boundary_of_inside.is_empty() {
-            let s = tracing::info_span!("constructing inside shape")
-                .in_scope(|| self.add_subshape(shape, self_boundary_of_inside))?;
+        if cut.params.inside == PolytopeFate::Keep && !self_boundary_of_inside.is_empty() {
+            let s = tracing::info_span!("constructing inside polytope")
+                .in_scope(|| self.add_atomic_subpolytope(polytope, self_boundary_of_inside))?;
             inside = Some(s);
         }
 
-        // Construct the N-dimensional shape that is `self ∩ ~cut`
+        // Construct the N-dimensional polytope that is `self ∩ ~cut`
         let mut outside = None;
-        if op.cut.outside == ShapeFate::Keep && !self_boundary_of_outside.is_empty() {
-            let s = tracing::info_span!("constructing outside shape")
-                .in_scope(|| self.add_subshape(shape, self_boundary_of_outside))?;
+        if cut.params.outside == PolytopeFate::Keep && !self_boundary_of_outside.is_empty() {
+            let s = tracing::info_span!("constructing outside polytope")
+                .in_scope(|| self.add_atomic_subpolytope(polytope, self_boundary_of_outside))?;
             outside = Some(s);
         };
 
-        Ok(ShapeSplitResult::NonFlush {
-            inside,
-            outside,
-            intersection_shape,
+        Ok(AtomicPolytopeCutOutput::NonFlush {
+            inside: inside.map(AtomicPolytopeRef::from),
+            outside: outside.map(AtomicPolytopeRef::from),
+            intersection,
         })
     }
 
@@ -777,27 +715,27 @@ impl Space {
         Ok(self.add_manifold(intersection)? * sign)
     }
 
-    fn simplify_shape_boundary(
+    fn simplify_polytope_boundary(
         &mut self,
         manifold: ManifoldRef,
-        boundary: ShapeSet,
-    ) -> Result<ShapeSet> {
+        boundary: AtomicPolytopeSet,
+    ) -> Result<AtomicPolytopeSet> {
         // This method is slightly questionable, since its return value doesn't
         // indicate the case where simplifying the boundary revealed that the
-        // shape cannot exist. It's not an issue in practice because it's only
-        // ever called in a context where we can check through other means
-        // whether the shape should exist, even if it has no boundary.
+        // polytope cannot exist. It's not an issue in practice because it's
+        // only ever called in a context where we can check through other means
+        // whether the polytope should exist, even if it has no boundary.
         if self[manifold.id].ndim == 1 {
             Ok(self
-                .simplify_intersection_of_intervals(manifold, &boundary)
+                .simplify_intersection_of_intervals(manifold, boundary)
                 .context("error simplifying boundary of 1D intersection")?
-                .unwrap_or_else(ShapeSet::new))
+                .unwrap_or_else(AtomicPolytopeSet::new))
         } else {
             // Just remove duplicates (which `Set64` does automatically for us)
             // and cancel opposite signs.
             Ok(boundary
                 .iter()
-                .filter(|&elem| !boundary.0.contains(-elem))
+                .filter(|&elem| !boundary.contains(-elem))
                 .collect())
         }
     }
@@ -809,9 +747,9 @@ impl Space {
     fn simplify_intersection_of_intervals(
         &mut self,
         space: ManifoldRef,
-        intervals: &ShapeSet,
-    ) -> Result<Option<ShapeSet>> {
-        let mut simplified = ShapeSet::new();
+        intervals: AtomicPolytopeSet,
+    ) -> Result<Option<AtomicPolytopeSet>> {
+        let mut simplified = AtomicPolytopeSet::new();
         for interval in intervals {
             match self
                 .incrementally_simplify_intersection_of_intervals(space, simplified, interval)?
@@ -825,20 +763,20 @@ impl Space {
     fn incrementally_simplify_intersection_of_intervals(
         &mut self,
         space: ManifoldRef,
-        existing_intervals: ShapeSet,
-        mut new_interval: ShapeRef,
-    ) -> Result<Option<ShapeSet>> {
-        let mut simplified = ShapeSet::new();
+        existing_intervals: impl IntoIterator<Item = AtomicPolytopeRef>,
+        mut new_interval: AtomicPolytopeRef,
+    ) -> Result<Option<AtomicPolytopeSet>> {
+        let mut simplified = AtomicPolytopeSet::new();
         for existing_interval in existing_intervals {
             // The intersection of intervals is the complement of the union of
             // the complements. (Negating a point pair corresponds to taking the
             // complement of an interval.)
             match self.try_union_intervals(space, -existing_interval, -new_interval)? {
-                MergedInterval::Merged(shape) => new_interval = -shape,
+                IntervalUnion::Union(union) => new_interval = -union,
 
-                MergedInterval::WholeSpace => return Ok(None), // whole space is excluded; there's nothing left
+                IntervalUnion::WholeSpace => return Ok(None), // whole space is excluded; there's nothing left
 
-                MergedInterval::NoIntersection => {
+                IntervalUnion::Disconnected => {
                     simplified.insert(existing_interval);
                 }
             }
@@ -867,13 +805,13 @@ impl Space {
     fn try_union_intervals(
         &mut self,
         space: ManifoldRef,
-        interval1: ShapeRef,
-        interval2: ShapeRef,
-    ) -> Result<MergedInterval> {
+        interval1: AtomicPolytopeRef,
+        interval2: AtomicPolytopeRef,
+    ) -> Result<IntervalUnion> {
         let [a, b] = self.extract_point_pair(interval1)?;
         let [p, q] = self.extract_point_pair(interval2)?;
-        let ab = ManifoldRef::from(self[interval1.id].manifold) * interval1.sign;
-        let pq = ManifoldRef::from(self[interval2.id].manifold) * interval2.sign;
+        let ab = self.manifold_of(interval1);
+        let pq = self.manifold_of(interval2);
 
         let start;
         let end;
@@ -891,7 +829,7 @@ impl Space {
             let pq_has_ab = pq_has_a && pq_has_b;
 
             if ab_has_pq && pq_has_ab {
-                return Ok(MergedInterval::WholeSpace);
+                return Ok(IntervalUnion::WholeSpace);
             }
 
             start = if ab_has_p {
@@ -899,7 +837,7 @@ impl Space {
             } else if pq_has_a {
                 &p
             } else {
-                return Ok(MergedInterval::NoIntersection);
+                return Ok(IntervalUnion::Disconnected);
             };
 
             end = if ab_has_q {
@@ -907,14 +845,14 @@ impl Space {
             } else if pq_has_b {
                 &q
             } else {
-                return Ok(MergedInterval::NoIntersection);
+                return Ok(IntervalUnion::Disconnected);
             };
         }
 
         let new_point_pair_manifold =
             self.add_manifold(start.to_normalized_1blade() ^ end.to_normalized_1blade())?;
-        let new_point_pair_shape = self.add_shape(new_point_pair_manifold, ShapeSet::new())?;
-        Ok(MergedInterval::Merged(new_point_pair_shape))
+        let new_point_pair = self.add_point_pair(new_point_pair_manifold)?;
+        Ok(IntervalUnion::Union(new_point_pair))
     }
     /// Returns whether the `interval` represented by a point pair within a 1D
     /// `space` contains `point`. The interval is considered to **include** its
@@ -929,21 +867,20 @@ impl Space {
     }
 
     /// Returns whether `manifold` (which is assumed to be a submanifold of the
-    /// manifold of `shape`) is completely inside `shape`.
+    /// manifold of `polytope`) is completely inside `polytope`.
     ///
     /// To be considered "completely inside," `manifold` may only touch the
-    /// boundary of `shape` at finitely many points. In other words, it can be
-    /// tangent to the boundary of `shape` but not flush with a boundary
+    /// boundary of `polytope` at finitely many points. In other words, it can be
+    /// tangent to the boundary of `polytope` but not flush with a boundary
     /// element.
-    fn shape_completely_contains_manifold(
+    fn polytope_completely_contains_manifold(
         &self,
-        shape: ShapeId,
+        polytope: AtomicPolytopeId,
         manifold: ManifoldId,
     ) -> Result<bool> {
-        let shape_manifold = self[shape].manifold;
-        for boundary_elem in self[shape].boundary.iter() {
+        for boundary_elem in self.boundary_of(polytope) {
             match self.which_side(
-                shape_manifold.into(),
+                self.manifold_of(polytope),
                 self.manifold_of(boundary_elem),
                 manifold,
             )? {
@@ -956,33 +893,38 @@ impl Space {
         Ok(true)
     }
 
-    /// Returns whether the inside or outside of `cut` contains `p`, within
+    /// Returns whether the inside or outside of `cut` contains `point`, within
     /// `space`.
     pub fn which_side_has_point(
         &self,
         space: ManifoldRef,
         cut: ManifoldRef,
-        p: &Point,
+        point: &Point,
     ) -> PointWhichSide {
         self[cut.id]
             .blade
             .opns_to_ipns_in_space(&self[space.id].blade)
-            .ipns_query_point(p)
+            .ipns_query_point(point)
             * (space.sign * cut.sign)
     }
 
-    /// Outputs a string representation of a shape for debugging.
-    pub fn shape_to_string(&self, shape: ShapeRef) -> String {
+    /// Outputs a multiline string representation of a polytope for debugging.
+    pub fn polytope_to_string(&self, polytope: AtomicPolytopeRef) -> String {
         let mut buffer = String::new();
-        self.shape_to_string_internal(&mut buffer, shape, 0);
+        self.polytope_to_string_internal(&mut buffer, polytope, 0);
         buffer
     }
-    fn shape_to_string_internal(&self, buffer: &mut String, shape: ShapeRef, indent: u8) {
+    fn polytope_to_string_internal(
+        &self,
+        buffer: &mut String,
+        polytope: AtomicPolytopeRef,
+        indent: u8,
+    ) {
         for _ in 0..indent {
             *buffer += "  ";
         }
-        *buffer += &format!("{}#{:<5}", shape.sign, shape.id.0);
-        let manifold = self.manifold_of(shape);
+        *buffer += &format!("{}#{:<5}", polytope.sign, polytope.id.0);
+        let manifold = self.manifold_of(polytope);
         let blade = &self[manifold.id].blade * manifold.sign;
         if self[manifold.id].ndim == 0 {
             let [a, b] = blade.point_pair_to_points().expect("bad point pair");
@@ -991,9 +933,46 @@ impl Space {
             *buffer += &blade.to_string();
         }
         buffer.push('\n');
-        for child in self.boundary_of(shape) {
-            self.shape_to_string_internal(buffer, child, indent + 1);
+        for child in self.boundary_of(polytope) {
+            self.polytope_to_string_internal(buffer, child, indent + 1);
         }
+    }
+}
+
+/// Trait unifying polytopes and manifolds.
+pub trait HasManifoldInSpace {
+    /// Returns the manifold of `self` in `space`. If `self` is unsigned, it is
+    /// assumed to have positive sign.
+    fn get_manifold_ref(&self, space: &Space) -> ManifoldRef;
+}
+impl<T: HasManifoldInSpace> HasManifoldInSpace for &T {
+    fn get_manifold_ref(&self, space: &Space) -> ManifoldRef {
+        (*self).get_manifold_ref(space)
+    }
+}
+impl HasManifoldInSpace for ManifoldId {
+    fn get_manifold_ref(&self, _space: &Space) -> ManifoldRef {
+        self.into()
+    }
+}
+impl HasManifoldInSpace for ManifoldRef {
+    fn get_manifold_ref(&self, _space: &Space) -> ManifoldRef {
+        *self
+    }
+}
+impl HasManifoldInSpace for AtomicPolytopeId {
+    fn get_manifold_ref(&self, space: &Space) -> ManifoldRef {
+        space[*self].manifold.into()
+    }
+}
+impl HasManifoldInSpace for AtomicPolytopeRef {
+    fn get_manifold_ref(&self, space: &Space) -> ManifoldRef {
+        space[self.id].manifold * self.sign
+    }
+}
+impl HasManifoldInSpace for AtomicPolytope {
+    fn get_manifold_ref(&self, _space: &Space) -> ManifoldRef {
+        self.manifold.into()
     }
 }
 
