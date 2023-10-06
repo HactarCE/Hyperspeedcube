@@ -43,7 +43,7 @@ impl ManifoldData {
         let ndim = blade
             .grade()
             .checked_sub(2)
-            .context("blade has too low of a grade")?;
+            .ok_or_else(|| eyre!("blade has too low of a grade"))?;
         Ok(ManifoldData { ndim, blade })
     }
 

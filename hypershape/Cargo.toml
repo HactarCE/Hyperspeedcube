@@ -10,8 +10,8 @@ categories = ["mathematics", "algorithms"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-anyhow = "1.0.72"
 bitflags = "2.3.3"
+eyre = "0.6"
 float-ord = "0.3.2"
 itertools = "0.11.0"
 log = "0.4.17"
@@ -31,6 +31,7 @@ hypermath = { path = "../hypermath" }
 nu-ansi-term = "*"
 
 [dev-dependencies]
+color-eyre = "0.6"
 env_logger = "*"
 test-log = { version = "0.2.12", features = ["trace"] }
 

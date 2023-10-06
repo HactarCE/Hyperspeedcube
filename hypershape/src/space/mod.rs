@@ -5,7 +5,7 @@ use std::collections::{hash_map, HashMap};
 use std::fmt;
 use std::ops::{Index, Mul, MulAssign, Neg};
 
-use anyhow::{anyhow, bail, ensure, Context, Result};
+use eyre::{bail, eyre, Context, Result};
 use float_ord::FloatOrd;
 use hypermath::prelude::*;
 use itertools::Itertools;
@@ -149,7 +149,7 @@ impl Space {
     pub fn extract_point_pair(&self, polytope: AtomicPolytopeRef) -> Result<[Point; 2]> {
         self.blade_of(polytope)
             .point_pair_to_points()
-            .context("attempt to get point pair from non-point point pair manifold")
+            .ok_or_else(|| eyre!("attempt to get point pair from non-point point pair manifold"))
     }
 
     /// Adds a spherical manifold to the space.
@@ -166,10 +166,9 @@ impl Space {
         let (blade, sign) = canonicalize_blade(blade)?;
 
         let manifold_data = ManifoldData::new(blade)?;
-        ensure!(
-            manifold_data.ndim <= self.ndim(),
-            "manifold {manifold_data} does not fit inside space",
-        );
+        if manifold_data.ndim > self.ndim() {
+            bail!("manifold {manifold_data} does not fit inside space");
+        }
         let manifold_id = self.manifolds.get_or_insert(manifold_data)?.key();
 
         Ok(manifold_id * sign)
@@ -177,10 +176,9 @@ impl Space {
 
     /// Adds a point pair to the space.
     fn add_point_pair(&mut self, manifold: ManifoldRef) -> Result<AtomicPolytopeRef> {
-        ensure!(
-            self.ndim_of(manifold) == 0,
-            "add_point_pair() requires ndim = 0",
-        );
+        if self.ndim_of(manifold) != 0 {
+            bail!("add_point_pair() requires ndim = 0");
+        }
 
         let polytope_data = AtomicPolytope::whole_manifold(manifold.id);
         let polytope_id = self.get_or_insert_polytope_data(polytope_data)?;
@@ -192,10 +190,9 @@ impl Space {
         manifold: ManifoldRef,
         boundary: AtomicPolytopeSet,
     ) -> Result<AtomicPolytopeRef> {
-        ensure!(
-            self.ndim_of(manifold) > 0,
-            "add_atomic_polytope() requires ndim > 0",
-        );
+        if self.ndim_of(manifold) == 0 {
+            bail!("`add_atomic_polytope()` does not allow ndim = 0")
+        }
 
         let unsigned_boundary = boundary.into_iter().map(|b| b * manifold.sign).collect();
         let polytope_data = AtomicPolytope::new(manifold.id, unsigned_boundary);
@@ -259,10 +256,9 @@ impl Space {
 
         // Check the rank of each boundary polytope.
         for boundary_elem in self.boundary_of(polytope) {
-            ensure!(
-                ndim == self.ndim_of(boundary_elem.id) + 1,
-                "polytope ndim does not match boundary ndim+1",
-            );
+            if ndim != self.ndim_of(boundary_elem.id) + 1 {
+                bail!("polytope ndim does not match boundary ndim+1");
+            }
         }
 
         // Check that polygons are topologically valid.
@@ -626,7 +622,9 @@ impl Space {
         let cut = &self[cut.id];
         let target = &self[target];
 
-        ensure!(cut.ndim + 1 == space.ndim);
+        if cut.ndim + 1 != space.ndim {
+            bail!("`cut` is not a (N-1)-dimensional submanifold of N-dimensional `space`");
+        }
 
         if target.ndim == space.ndim {
             // `target` = `space`, and `cut` is a submanifold of `space`, so
@@ -634,7 +632,9 @@ impl Space {
             return Ok(WhichSide::Split);
         }
         // Otherwise `target` must be a submanifold of `space`.
-        ensure!(target.ndim < space.ndim);
+        if target.ndim >= space.ndim {
+            bail!("`target` is not a submanifold of `space`");
+        }
 
         // Get the IPNS (inner product null space) representation of the
         // hypersphere that is perpendicular to `space` and tangent to `cut`.
@@ -736,17 +736,20 @@ impl Space {
         let cut = &self[cut.id];
         let target = &self[target.id];
 
-        ensure!(cut.ndim + 1 == space.ndim);
-        ensure!(target.ndim <= space.ndim);
+        if cut.ndim + 1 != space.ndim {
+            bail!("`cut` is not a (N-1)-dimensional submanifold of N-dimensional `space`");
+        }
+        if target.ndim > space.ndim {
+            bail!("`target` is not a submanifold of `space`");
+        }
 
         // Compute a "meet" which is the dual of the outer product.
         let cut_ipns = cut.blade.opns_to_ipns_in_space(&space.blade);
         let target_ipns = target.blade.opns_to_ipns_in_space(&space.blade);
         let intersection = (cut_ipns ^ target_ipns).ipns_to_opns_in_space(&space.blade);
-        ensure!(
-            !intersection.opns_is_imaginary(),
-            "intersection {intersection} is imaginary",
-        );
+        if intersection.opns_is_imaginary() {
+            bail!("intersection {intersection} is imaginary");
+        }
 
         Ok(self.add_manifold(intersection)? * sign)
     }
@@ -764,7 +767,7 @@ impl Space {
         if self[manifold.id].ndim == 1 {
             Ok(self
                 .simplify_intersection_of_intervals(manifold, boundary)
-                .context("error simplifying boundary of 1D intersection")?
+                .wrap_err("error simplifying boundary of 1D intersection")?
                 .unwrap_or_else(AtomicPolytopeSet::new))
         } else {
             // Just remove duplicates (which `Set64` does automatically for us)
@@ -985,10 +988,9 @@ impl Space {
                     // The manifold coincides with one of the boundary elements
                     // so the whole polytope is on one side of the manifold or
                     // the other.
-                    ensure!(
-                        intersection.id == manifold_of_boundary_elem.id,
-                        "manifolds are flush but not the same",
-                    );
+                    if intersection.id != manifold_of_boundary_elem.id {
+                        bail!("manifolds are flush but not the same");
+                    }
                     match intersection.sign * manifold_of_boundary_elem.sign {
                         Sign::Pos => return Ok(WhichSide::Inside { is_touching: true }),
                         Sign::Neg => return Ok(WhichSide::Outside { is_touching: true }),
@@ -1146,8 +1148,12 @@ fn canonicalize_blade(blade: Blade) -> Result<(Blade, Sign)> {
 
     // Determine the sign based on the first nonzero term, which is robust
     // against slight variations caused by float imprecision.
-    let first_term = blade.mv().nonzero_terms().next();
-    let sign = Sign::from(first_term.context("zero manifold is not valid")?.coef);
+    let first_term = blade
+        .mv()
+        .nonzero_terms()
+        .next()
+        .ok_or_else(|| eyre!("zero manifold is not valid"))?;
+    let sign = Sign::from(first_term.coef);
 
     Ok((blade * (scale_factor * sign), sign))
 }
@@ -1165,7 +1171,7 @@ fn nonzero_wedge_with_arbitrary_point(opns_blade: &Blade) -> Result<Blade> {
     candidates
         .map(|p| opns_blade ^ p)
         .max_by_key(|obj| FloatOrd(obj.abs_mag2()))
-        .ok_or_else(|| anyhow!("unable to find point not on object {opns_blade}"))
+        .ok_or_else(|| eyre!("unable to find point not on object {opns_blade}"))
 }
 
 /// Returns an arbitrary pair of points on the [container] of the manifold.
@@ -1181,7 +1187,7 @@ fn find_arbitrary_point_pair_on_container(
         let center = ipns
             .ipns_sphere_center()
             .to_finite()
-            .map_err(|_| anyhow!("error computing center of sphere"))?;
+            .map_err(|_| eyre!("error computing center of sphere"))?;
         Ok([
             Point::Finite(vector![radius] + &center),
             Point::Finite(vector![-radius] + &center),
