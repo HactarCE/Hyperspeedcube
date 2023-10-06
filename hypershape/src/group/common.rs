@@ -4,7 +4,7 @@ use hypermath::{idx_struct, IndexNewtype, Isometry};
 use thiserror::Error;
 
 idx_struct! {
-    /// ID of a group element.
+    /// ID of a group generator.
     pub struct GeneratorId(pub(super) u8);
     /// ID of a group element.
     pub struct ElementId(pub(super) u16);

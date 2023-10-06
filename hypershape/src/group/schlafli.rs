@@ -1,15 +1,16 @@
 use hypermath::prelude::*;
 use itertools::Itertools;
 
-use super::{GroupError, IsometryGroup};
+use super::{GroupResult, IsometryGroup};
 
 /// Schlafli symbol for a convex polytope.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct SchlafliSymbol {
     indices: Vec<usize>,
 }
 impl SchlafliSymbol {
     /// Constructs an integer Schlafli symbol.
-    pub fn from_indices(indices: Vec<usize>) -> Self {
+    pub const fn from_indices(indices: Vec<usize>) -> Self {
         Self { indices }
     }
 
@@ -78,12 +79,12 @@ impl SchlafliSymbol {
     }
 
     /// Returns the list of mirrors as generators.
-    pub fn generators(self) -> Vec<Isometry> {
+    pub fn generators(&self) -> Vec<Isometry> {
         self.mirrors().into_iter().map(|m| m.into()).collect()
     }
 
     /// Constructs the isometry group described by the Schlafli symbol.
-    pub fn group(self) -> Result<IsometryGroup, GroupError> {
+    pub fn group(&self) -> GroupResult<IsometryGroup> {
         IsometryGroup::from_generators(&self.generators())
     }
 }
