@@ -1,9 +1,11 @@
-use std::{collections::hash_map, marker::PhantomData, ops::Index};
+use std::collections::hash_map;
+use std::marker::PhantomData;
+use std::ops::Index;
 
-use hypermath::{
-    collections::{approx_hashmap::ApproxHashMapKey, generic_vec::IndexOutOfRange, ApproxHashMap},
-    IndexNewtype,
-};
+use hypermath::collections::approx_hashmap::ApproxHashMapKey;
+use hypermath::collections::generic_vec::IndexOutOfRange;
+use hypermath::collections::ApproxHashMap;
+use hypermath::IndexNewtype;
 use slab::Slab;
 
 trait HashMappable {}
