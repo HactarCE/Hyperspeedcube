@@ -12,10 +12,10 @@ fn test_non_null_concentric_spheres() {
         let mut space = Space::new(ndim).unwrap();
         let mut polytopes = AtomicPolytopeSet::from_iter([space.whole_space()]);
 
-        let cut = space.add_sphere(vector![0.0], 2.0).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
-        let cut = space.add_sphere(vector![0.0], -1.0).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
+        let mut cut = AtomicCut::carve(space.add_sphere(vector![0.0], 2.0).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
+        let mut cut = AtomicCut::carve(space.add_sphere(vector![0.0], -1.0).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
 
         assert_eq!(1, polytopes.len());
     }
@@ -38,18 +38,18 @@ fn test_identical_spheres() {
         let mut space = Space::new(ndim).unwrap();
         let mut polytopes = AtomicPolytopeSet::from_iter([space.whole_space()]);
 
-        let cut = space.add_sphere(vector![0.0], 1.0).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
+        let mut cut = AtomicCut::carve(space.add_sphere(vector![0.0], 1.0).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
         assert_is_sphere(&space, &polytopes);
         let prior_polytopes = polytopes.clone();
 
-        let cut = space.add_sphere(vector![0.0], 1.0).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
+        let mut cut = AtomicCut::carve(space.add_sphere(vector![0.0], 1.0).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
         assert_eq!(prior_polytopes, polytopes);
         assert_is_sphere(&space, &polytopes);
 
-        let cut = space.add_sphere(vector![0.0], -1.0).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
+        let mut cut = AtomicCut::carve(space.add_sphere(vector![0.0], -1.0).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
 
         assert!(polytopes.is_empty())
     }
@@ -64,13 +64,13 @@ fn test_null_triple_sphere() {
         let mut space = Space::new(ndim).unwrap();
         let mut polytopes = AtomicPolytopeSet::from_iter([space.whole_space()]);
 
-        let cut = space.add_sphere(vector![1.0], 1.5).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
-        let cut = space.add_sphere(vector![-1.0], 1.5).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
+        let mut cut = AtomicCut::carve(space.add_sphere(vector![1.0], 1.5).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
+        let mut cut = AtomicCut::carve(space.add_sphere(vector![-1.0], 1.5).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
         assert!(!polytopes.is_empty());
-        let cut = space.add_sphere(vector![0.0], -1.15).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
+        let mut cut = AtomicCut::carve(space.add_sphere(vector![0.0], -1.15).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
         assert!(polytopes.is_empty());
     }
 }
@@ -85,45 +85,45 @@ fn test_null_double_plane_plus_sphere() {
         let mut space = Space::new(ndim).unwrap();
         let mut polytopes = AtomicPolytopeSet::from_iter([space.whole_space()]);
 
-        let cut = space.add_plane(Vector::unit(0), -1.0).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
-        let cut = space.add_plane(Vector::unit(1), -1.0).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
-        let cut = space.add_sphere(vector![], 1.1).unwrap();
-        polytopes = space.carve(cut).cut_set(polytopes).unwrap();
+        let mut cut = AtomicCut::carve(space.add_plane(Vector::unit(0), -1.0).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
+        let mut cut = AtomicCut::carve(space.add_plane(Vector::unit(1), -1.0).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
+        let mut cut = AtomicCut::carve(space.add_sphere(vector![], 1.1).unwrap());
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
 
         assert!(polytopes.is_empty());
+    }
+}
+
+fn assert_is_cube(space: &Space, polytope: AtomicPolytopeId) {
+    let ndim = space.ndim_of(polytope);
+    let expected_boundary_len = if ndim > 1 { 2 * ndim } else { ndim } as usize;
+    let actual_boundary = space.boundary_of(polytope).collect_vec();
+    assert_eq!(expected_boundary_len, actual_boundary.len());
+    for boundary_elem in actual_boundary {
+        assert_is_cube(space, boundary_elem.id);
     }
 }
 
 /// Carves a cube.
 #[test]
 fn test_cube() {
-    fn assert_is_cube(space: &Space, polytope: AtomicPolytopeId) {
-        let ndim = space.ndim_of(polytope);
-        let expected_boundary_len = if ndim > 1 { 2 * ndim } else { ndim } as usize;
-        let actual_boundary = space.boundary_of(polytope.into()).collect_vec();
-        assert_eq!(expected_boundary_len, actual_boundary.len());
-        for boundary_elem in actual_boundary {
-            assert_is_cube(space, boundary_elem.id);
-        }
-    }
-
     for ndim in 1..6 {
         println!("Testing in {ndim}D ...");
         let mut space = Space::new(ndim).unwrap();
         let mut polytopes = AtomicPolytopeSet::from_iter([space.whole_space()]);
 
         for ax in 0..ndim {
-            let cut = space.add_plane(Vector::unit(ax), 1.0).unwrap();
-            polytopes = space.carve(cut).cut_set(polytopes).unwrap();
+            let mut cut = AtomicCut::carve(space.add_plane(Vector::unit(ax), 1.0).unwrap());
+            polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
             println!(
                 "{}",
                 space.polytope_to_string(polytopes.iter().next().unwrap())
             );
 
-            let cut = space.add_plane(-Vector::unit(ax), 1.0).unwrap();
-            polytopes = space.carve(cut).cut_set(polytopes).unwrap();
+            let mut cut = AtomicCut::carve(space.add_plane(-Vector::unit(ax), 1.0).unwrap());
+            polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
             println!(
                 "{}",
                 space.polytope_to_string(polytopes.iter().next().unwrap())
@@ -138,18 +138,18 @@ fn test_cube() {
         }
 
         for ax in 0..ndim {
-            let cut = space.add_plane(Vector::unit(ax), 0.3).unwrap();
-            polytopes = space.slice(cut).cut_set(polytopes).unwrap();
+            let mut cut = AtomicCut::slice(space.add_plane(Vector::unit(ax), 0.3).unwrap());
+            polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
             println!("Polytopes:");
-            for polytope in &polytopes {
+            for polytope in polytopes.iter() {
                 println!("{}", space.polytope_to_string(polytope));
             }
             println!();
 
-            let cut = space.add_plane(-Vector::unit(ax), 0.3).unwrap();
-            polytopes = space.slice(cut).cut_set(polytopes).unwrap();
+            let mut cut = AtomicCut::slice(space.add_plane(-Vector::unit(ax), 0.3).unwrap());
+            polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
             println!("Polytopes:");
-            for polytope in &polytopes {
+            for polytope in polytopes.iter() {
                 println!("{}", space.polytope_to_string(polytope));
             }
             println!();

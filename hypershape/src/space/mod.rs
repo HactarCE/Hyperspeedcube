@@ -18,9 +18,10 @@ mod results;
 mod signedref;
 
 pub use atomic_polytope::AtomicPolytope;
-pub use cut::{Cut, CutParams, PolytopeFate};
+pub use cut::{AtomicCut, AtomicCutParams, PolytopeFate};
 pub use manifold::ManifoldData;
-use results::{AtomicPolytopeCutOutput, IntervalUnion, ManifoldWhichSide};
+use results::IntervalUnion;
+pub use results::{AtomicPolytopeCutOutput, WhichSide};
 pub use signedref::SignedRef;
 
 use crate::SlabMap;
@@ -196,7 +197,8 @@ impl Space {
             "add_atomic_polytope() requires ndim > 0",
         );
 
-        let polytope_data = AtomicPolytope::new(manifold.id, boundary);
+        let unsigned_boundary = boundary.into_iter().map(|b| b * manifold.sign).collect();
+        let polytope_data = AtomicPolytope::new(manifold.id, unsigned_boundary);
         let polytope_id = self.get_or_insert_polytope_data(polytope_data)?;
         Ok(polytope_id * manifold.sign)
     }
@@ -286,6 +288,7 @@ impl Space {
                 }
             }
             if !(starting_points.is_empty() && ending_points.is_empty()) {
+                tracing::info!("{}", self.polytope_to_string(polytope.into()));
                 tracing::error_span!("invalid polygon topology", %polytope).in_scope(|| {
                     tracing::error!(polytope_data = ?self[polytope]);
                     tracing::error!(?starting_points);
@@ -298,12 +301,45 @@ impl Space {
         Ok(())
     }
 
-    /// Cuts an atomic polytope by a manifold.
+    /// Cuts each atomic polytope in a set.
+    pub fn cut_atomic_polytope_set(
+        &mut self,
+        polytopes: AtomicPolytopeSet,
+        cut: &mut AtomicCut,
+    ) -> Result<AtomicPolytopeSet> {
+        let mut ret = AtomicPolytopeSet::new();
+        for polytope in polytopes {
+            let mut inside = None;
+            let mut outside = None;
+            match self.cut_atomic_polytope(polytope, cut)? {
+                AtomicPolytopeCutOutput::Flush => continue,
+                AtomicPolytopeCutOutput::ManifoldInside => inside = Some(polytope),
+                AtomicPolytopeCutOutput::ManifoldOutside => outside = Some(polytope),
+                AtomicPolytopeCutOutput::NonFlush {
+                    inside: i,
+                    outside: o,
+                    intersection: _,
+                } => {
+                    inside = i;
+                    outside = o;
+                }
+            }
+            if cut.params.inside == PolytopeFate::Keep {
+                ret.extend(inside);
+            }
+            if cut.params.outside == PolytopeFate::Keep {
+                ret.extend(outside);
+            }
+        }
+        Ok(ret)
+    }
+
+    /// Cuts an atomic polytope.
     #[tracing::instrument(skip_all, fields(%polytope, ?cut))]
     pub fn cut_atomic_polytope(
         &mut self,
         polytope: AtomicPolytopeRef,
-        cut: &mut Cut,
+        cut: &mut AtomicCut,
     ) -> Result<AtomicPolytopeCutOutput> {
         if let Some(&cached_result) = cut.polytope_cut_output_cache.get(&polytope.id) {
             tracing::debug!("using cached cut output for {}", polytope.id);
@@ -323,13 +359,13 @@ impl Space {
     fn cut_atomic_polytope_uncached(
         &mut self,
         polytope: AtomicPolytopeId,
-        cut: &mut Cut,
+        cut: &mut AtomicCut,
     ) -> Result<AtomicPolytopeCutOutput> {
-        match cut.which_side_of_cut_contains_manifold(self, self.manifold_of(polytope).id)? {
-            ManifoldWhichSide::Flush => Ok(AtomicPolytopeCutOutput::Flush),
-            ManifoldWhichSide::Inside => Ok(AtomicPolytopeCutOutput::ManifoldInside),
-            ManifoldWhichSide::Outside => Ok(AtomicPolytopeCutOutput::ManifoldOutside),
-            ManifoldWhichSide::Split => {
+        match cut.which_side_of_cut_has_manifold(self, self.manifold_of(polytope).id)? {
+            WhichSide::Flush => Ok(AtomicPolytopeCutOutput::Flush),
+            WhichSide::Inside { .. } => Ok(AtomicPolytopeCutOutput::ManifoldInside),
+            WhichSide::Outside { .. } => Ok(AtomicPolytopeCutOutput::ManifoldOutside),
+            WhichSide::Split => {
                 let intersection_manifold =
                     cut.intersection_of_manifold_and_cut(self, self.manifold_of(polytope))?;
 
@@ -351,7 +387,7 @@ impl Space {
     fn cut_atomic_polytope_1d(
         &mut self,
         polytope: AtomicPolytopeId,
-        cut: &mut Cut,
+        cut: &mut AtomicCut,
         intersection_manifold: ManifoldRef,
     ) -> Result<AtomicPolytopeCutOutput> {
         let polytope_manifold = self.manifold_of(polytope);
@@ -406,7 +442,7 @@ impl Space {
     fn cut_atomic_polytope_nd(
         &mut self,
         polytope: AtomicPolytopeId,
-        cut: &mut Cut,
+        cut: &mut AtomicCut,
         intersection_manifold: ManifoldRef,
     ) -> Result<AtomicPolytopeCutOutput> {
         let polytope_boundary = self.boundary_of(polytope).collect_vec();
@@ -436,21 +472,21 @@ impl Space {
         for &child in &polytope_boundary {
             // Which side of the cut contains the child?
             let child_manifold = self.manifold_of(child).id;
-            let which_side_of_cut_contains_child =
-                cut.which_side_of_cut_contains_manifold(self, child_manifold)?;
-            match which_side_of_cut_contains_child {
-                ManifoldWhichSide::Flush => bail!("manifold is flush, but has different ID"),
-                ManifoldWhichSide::Split => continue,
+            let which_side_of_cut_has_child =
+                cut.which_side_of_cut_has_manifold(self, child_manifold)?;
+            match which_side_of_cut_has_child {
+                WhichSide::Flush => bail!("manifold is flush, but has different ID"),
+                WhichSide::Split => continue,
                 _ => (),
             }
 
             // Which side of the *child* contains the *cut*?
-            if self.which_side(
+            let which_side_of_child_has_cut = self.which_side_has_manifold(
                 self.manifold_of(polytope),
                 self.manifold_of(child),
                 intersection_manifold.id,
-            )? == ManifoldWhichSide::Outside
-            {
+            )?;
+            if matches!(which_side_of_child_has_cut, WhichSide::Outside { .. }) {
                 tracing::debug!("found child {child} that excludes cut");
 
                 // Based on just this child, the cut is completely outside
@@ -458,12 +494,12 @@ impl Space {
                 // inside the cut or completely outside the cut.
                 let mut inside = None;
                 let mut outside = None;
-                match which_side_of_cut_contains_child {
-                    ManifoldWhichSide::Flush | ManifoldWhichSide::Split => {
+                match which_side_of_cut_has_child {
+                    WhichSide::Flush | WhichSide::Split => {
                         unreachable!("cases already handled")
                     }
-                    ManifoldWhichSide::Inside => inside = Some(AtomicPolytopeRef::from(polytope)),
-                    ManifoldWhichSide::Outside => outside = Some(AtomicPolytopeRef::from(polytope)),
+                    WhichSide::Inside { .. } => inside = Some(AtomicPolytopeRef::from(polytope)),
+                    WhichSide::Outside { .. } => outside = Some(AtomicPolytopeRef::from(polytope)),
                 }
                 return Ok(AtomicPolytopeCutOutput::NonFlush {
                     inside,
@@ -578,12 +614,12 @@ impl Space {
     /// Which part of `space` is considered "inside" or "outside" depends on the
     /// orientations of `space` and `cut`. The orientation of `target` makes no
     /// difference.
-    fn which_side(
+    fn which_side_has_manifold(
         &self,
         space: ManifoldRef,
         cut: ManifoldRef,
         target: ManifoldId,
-    ) -> Result<ManifoldWhichSide> {
+    ) -> Result<WhichSide> {
         let sign = space.sign * cut.sign;
 
         let space = &self[space.id];
@@ -595,7 +631,7 @@ impl Space {
         if target.ndim == space.ndim {
             // `target` = `space`, and `cut` is a submanifold of `space`, so
             // `target` must be split.
-            return Ok(ManifoldWhichSide::Split);
+            return Ok(WhichSide::Split);
         }
         // Otherwise `target` must be a submanifold of `space`.
         ensure!(target.ndim < space.ndim);
@@ -627,7 +663,7 @@ impl Space {
             let perpendicular_bundle = &target_ipns ^ &cut_ipns;
 
             if perpendicular_bundle.is_zero() {
-                return Ok(ManifoldWhichSide::Flush);
+                return Ok(WhichSide::Flush);
             }
 
             // 2. Wedge with an arbitrary point to select one of those possible
@@ -668,10 +704,10 @@ impl Space {
         };
 
         // Query whether each one is inside or outside of `cut`.
-        Ok(ManifoldWhichSide::from_points([
-            cut_ipns.ipns_query_point(&a),
-            cut_ipns.ipns_query_point(&b),
-        ]) * sign)
+        Ok(
+            WhichSide::from_points([cut_ipns.ipns_query_point(&a), cut_ipns.ipns_query_point(&b)])
+                * sign,
+        )
     }
 
     /// Given the N-dimensional `space` containing (N-1)-dimensional `cut` and
@@ -708,8 +744,8 @@ impl Space {
         let target_ipns = target.blade.opns_to_ipns_in_space(&space.blade);
         let intersection = (cut_ipns ^ target_ipns).ipns_to_opns_in_space(&space.blade);
         ensure!(
-            intersection.opns_is_real(),
-            "intersection {intersection} is not real",
+            !intersection.opns_is_imaginary(),
+            "intersection {intersection} is imaginary",
         );
 
         Ok(self.add_manifold(intersection)? * sign)
@@ -879,15 +915,15 @@ impl Space {
         manifold: ManifoldId,
     ) -> Result<bool> {
         for boundary_elem in self.boundary_of(polytope) {
-            match self.which_side(
+            match self.which_side_has_manifold(
                 self.manifold_of(polytope),
                 self.manifold_of(boundary_elem),
                 manifold,
             )? {
-                ManifoldWhichSide::Inside => continue,
-                ManifoldWhichSide::Flush
-                | ManifoldWhichSide::Outside
-                | ManifoldWhichSide::Split => return Ok(false),
+                WhichSide::Inside { .. } => continue,
+                WhichSide::Flush | WhichSide::Outside { .. } | WhichSide::Split => {
+                    return Ok(false)
+                }
             }
         }
         Ok(true)
@@ -906,6 +942,129 @@ impl Space {
             .opns_to_ipns_in_space(&self[space.id].blade)
             .ipns_query_point(point)
             * (space.sign * cut.sign)
+    }
+
+    /// Returns whether the inside or outside of `cut` contains `polytope`,
+    /// within `space`.
+    pub fn which_side_has_polytope(
+        &mut self,
+        space: ManifoldRef,
+        cut: ManifoldRef,
+        polytope: AtomicPolytopeRef,
+    ) -> Result<WhichSide> {
+        let polytope_manifold = self.manifold_of(polytope);
+        let manifold_result = self.which_side_has_manifold(space, cut, polytope_manifold.id)?;
+
+        // If the manifolds are flush, then the polytope is flush with the cut.
+        // If the manifolds don't touch at all, then the manifold result is
+        // accurate for the polytope.
+        if manifold_result == WhichSide::Flush || !manifold_result.is_touching() {
+            return Ok(manifold_result);
+        }
+
+        // Now we know that the manifolds _do_ touch but aren't flush. There
+        // should be an intersection. Even if the manifolds are merely tangent,
+        // this should be fine -- we'll get a multivector representing the
+        // tangent space at the point of tangency.
+        dbg!(self.blade_of(polytope_manifold));
+        let intersection = self.intersect(space, cut, polytope_manifold)?;
+
+        // Check whether `manifold` is inside all boundary elements. If it is,
+        // then it's inside the polytope.
+        let mut is_inside_all = true;
+        for boundary_elem in self.boundary_of(polytope) {
+            let manifold_of_boundary_elem = self.manifold_of(boundary_elem);
+            let which_side_has_cut = self.which_side_has_manifold(
+                polytope_manifold,
+                manifold_of_boundary_elem,
+                intersection.id,
+            )?;
+            // Where is `intersection` with respect to `boundary_elem`?
+            match which_side_has_cut {
+                WhichSide::Flush => {
+                    // The manifold coincides with one of the boundary elements
+                    // so the whole polytope is on one side of the manifold or
+                    // the other.
+                    ensure!(
+                        intersection.id == manifold_of_boundary_elem.id,
+                        "manifolds are flush but not the same",
+                    );
+                    match intersection.sign * manifold_of_boundary_elem.sign {
+                        Sign::Pos => return Ok(WhichSide::Inside { is_touching: true }),
+                        Sign::Neg => return Ok(WhichSide::Outside { is_touching: true }),
+                    };
+                }
+                WhichSide::Inside { .. } => (), // This tells us nothing new.
+                WhichSide::Outside { is_touching: false } => {
+                    // If it's outside one of the boundary elements, then it's
+                    // outside the whole thing.
+                    return Ok(WhichSide::Outside { is_touching: false });
+                }
+                WhichSide::Outside { is_touching: true } | WhichSide::Split => {
+                    // We don't actually know whether `intersection` is touching
+                    // the polytope. All we know is that `intersection` is
+                    // definitely not inside the polytope.
+                    is_inside_all = false;
+                }
+            }
+        }
+        if is_inside_all {
+            // If the manifold is inside the polytope, then it trivially splits
+            // the polytope.
+            return Ok(WhichSide::Split);
+        }
+
+        // Check whether any boundary element is inside `intersection`, ...
+        let mut is_any_inside = false;
+        // ... outside the manifold, ...
+        let mut is_any_outside = false;
+        // ... or touching the manifold.
+        let mut is_touching = false;
+        for boundary_elem in self.boundary_of(polytope).collect_vec() {
+            let which_side_has_polytope =
+                self.which_side_has_polytope(polytope_manifold, intersection, boundary_elem)?;
+            is_touching |= which_side_has_polytope.is_touching();
+            match which_side_has_polytope {
+                WhichSide::Flush => bail!("unexpected flush polytope (case already handled)"),
+                WhichSide::Inside { .. } => is_any_inside = true,
+                WhichSide::Outside { .. } => is_any_outside = true,
+                WhichSide::Split => return Ok(WhichSide::Split),
+            }
+
+            // Early return if any inside & any ouside.
+            if is_any_inside && is_any_outside {
+                return Ok(WhichSide::Split);
+            }
+        }
+        // Now `is_any_inside` and `is_any_outside` are mutually exclusive.
+        let boundary_is_all_inside = is_any_inside;
+        let boundary_is_all_outside = is_any_outside;
+
+        // We know that `intersection` isn't inside the polytope, and it doesn't
+        // intersect the boundary, so it must be entirely on the outside of the
+        // polytope. The only questions is which side of it the polytope is on.
+        if boundary_is_all_inside {
+            Ok(WhichSide::Inside { is_touching })
+        } else if boundary_is_all_outside {
+            Ok(WhichSide::Outside { is_touching })
+        } else {
+            // Impossible! The first loop should've handled the case where there
+            // are no boundary elements.
+            bail!("impossible! boundaryless case should already be handled")
+        }
+    }
+
+    /// Returns whether (N-1)-dimensional `cut` intersects N-dimensional
+    /// `polytope` in `space.`
+    pub fn is_polytope_touching_cut(
+        &mut self,
+        space: ManifoldRef,
+        cut: ManifoldRef,
+        polytope: AtomicPolytopeRef,
+    ) -> Result<bool> {
+        Ok(self
+            .which_side_has_polytope(space, cut, polytope)?
+            .is_touching())
     }
 
     /// Outputs a multiline string representation of a polytope for debugging.

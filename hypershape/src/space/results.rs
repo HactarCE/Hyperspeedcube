@@ -11,50 +11,63 @@ pub(super) enum IntervalUnion {
     Disconnected,
 }
 
-/// Location of one manifold relative to the half-spaces on either side of
-/// another cut.
+/// Location of an object (manifold or polytope) relative to the half-spaces on
+/// either side of a cut.
+///
+/// An object could also be a point, but then half of the values for this enum
+/// are invalid so instead we use [`PointWhichSide`] for that.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(super) enum ManifoldWhichSide {
-    /// The manifold is flush with the cut.
+pub enum WhichSide {
+    /// The object is flush with the cut. *Every* point on the object is
+    /// touching the cut.
     Flush,
-    /// The manifold is entirely inside the cut. It may be tangent at a single
-    /// point.
-    Inside,
-    /// The manifold is entirely outside the cut. It may be tangent at a single
-    /// point.
-    Outside,
-    /// The manifold is split by the cut.
+    /// The object is inside the cut. It may be touching the cut.
+    Inside { is_touching: bool },
+    /// The object is entirely outside the cut. It may be touching the cut.
+    Outside { is_touching: bool },
+    /// The object is split by the cut. It is touching the cut.
     Split,
 }
-impl Neg for ManifoldWhichSide {
+impl Neg for WhichSide {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
         match self {
-            ManifoldWhichSide::Inside => ManifoldWhichSide::Outside,
-            ManifoldWhichSide::Outside => ManifoldWhichSide::Inside,
+            WhichSide::Inside { is_touching } => WhichSide::Outside { is_touching },
+            WhichSide::Outside { is_touching } => WhichSide::Inside { is_touching },
             other => other,
         }
     }
 }
-hypermath::impl_mul_sign!(impl Mul<Sign> for ManifoldWhichSide);
-hypermath::impl_mulassign_sign!(impl MulAssign<Sign> for ManifoldWhichSide);
-impl ManifoldWhichSide {
-    pub fn from_points(points: impl IntoIterator<Item = PointWhichSide>) -> Self {
+hypermath::impl_mul_sign!(impl Mul<Sign> for WhichSide);
+hypermath::impl_mulassign_sign!(impl MulAssign<Sign> for WhichSide);
+impl WhichSide {
+    /// Returns whether the manifolds are touching, even at a single point.
+    pub fn is_touching(self) -> bool {
+        match self {
+            WhichSide::Flush => true,
+            WhichSide::Inside { is_touching } => is_touching,
+            WhichSide::Outside { is_touching } => is_touching,
+            WhichSide::Split => true,
+        }
+    }
+    /// Constructs a `WhichSide` from several representative point locations.
+    pub(super) fn from_points(points: impl IntoIterator<Item = PointWhichSide>) -> Self {
         let mut is_any_inside = false;
         let mut is_any_outside = false;
+        let mut is_touching = false;
         for which_side in points {
             match which_side {
-                PointWhichSide::On => (),
+                PointWhichSide::On => is_touching = true,
                 PointWhichSide::Inside => is_any_inside = true,
                 PointWhichSide::Outside => is_any_outside = true,
             }
         }
         match (is_any_inside, is_any_outside) {
-            (true, true) => ManifoldWhichSide::Split,
-            (true, false) => ManifoldWhichSide::Inside,
-            (false, true) => ManifoldWhichSide::Outside,
-            (false, false) => ManifoldWhichSide::Flush,
+            (true, true) => WhichSide::Split,
+            (true, false) => WhichSide::Inside { is_touching },
+            (false, true) => WhichSide::Outside { is_touching },
+            (false, false) => WhichSide::Flush,
         }
     }
 }
