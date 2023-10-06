@@ -88,20 +88,6 @@ impl<I: Iterator> IterWithExactSizeExt for I {
     }
 }
 
-/// Stolen from
-/// <https://github.com/rust-lang/rust/blob/e6ce5627a9e8af9ae4673a390954fffaf526e5cc/library/core/src/num/int_macros.rs#L2204-L2222>
-///
-/// When `#![feature(int_roundings)]` is merged, delete this.
-pub fn next_multiple_of(lhs: u64, rhs: u64) -> u64 {
-    let m = lhs % rhs;
-
-    if m == 0 {
-        lhs
-    } else {
-        lhs + (rhs - m)
-    }
-}
-
 /// If both options are `Some`, merges them using `f`. Otherwise returns
 /// whichever one is `Some`, or `None` if they are both `None`.
 pub fn merge_options<T>(a: Option<T>, b: Option<T>, f: impl FnOnce(T, T) -> T) -> Option<T> {
