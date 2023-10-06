@@ -22,9 +22,15 @@ pub enum WhichSide {
     /// touching the cut.
     Flush,
     /// The object is inside the cut. It may be touching the cut.
-    Inside { is_touching: bool },
+    Inside {
+        /// Whether the object is touching the cut.
+        is_touching: bool,
+    },
     /// The object is entirely outside the cut. It may be touching the cut.
-    Outside { is_touching: bool },
+    Outside {
+        /// Whether the object is touching the cut.
+        is_touching: bool,
+    },
     /// The object is split by the cut. It is touching the cut.
     Split,
 }
