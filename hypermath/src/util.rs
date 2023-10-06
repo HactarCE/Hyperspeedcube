@@ -2,6 +2,9 @@
 
 use std::ops::{Add, Mul};
 
+use itertools::Itertools;
+use num_traits::{CheckedShr, PrimInt, Unsigned};
+
 use super::Float;
 
 /// Linearly interpolates (unclamped) between two values.
@@ -94,5 +97,57 @@ pub fn merge_options<T>(a: Option<T>, b: Option<T>, f: impl FnOnce(T, T) -> T) -
     match (a, b) {
         (Some(a), Some(b)) => Some(f(a, b)),
         (a, b) => a.or(b),
+    }
+}
+
+/// Iterates over the indices of set bits in `bitset`.
+pub fn iter_ones<
+    N: 'static + num_traits::PrimInt + num_traits::Unsigned + num_traits::CheckedShr,
+>(
+    bitset: N,
+) -> impl Iterator<Item = u32> {
+    let mut next = bitset.trailing_zeros();
+    let bitset = bitset >> 1_usize;
+    std::iter::from_fn(move || {
+        let ret = next;
+        next = next + 1 + bitset.checked_shr(next)?.trailing_zeros();
+        Some(ret)
+    })
+}
+
+/// Returns an iterator over the powerset of set bits in `bitset`.
+pub fn bitset_powerset<N: 'static + PrimInt + Unsigned + CheckedShr>(
+    bitset: N,
+) -> impl Iterator<Item = N> {
+    let set_bits = iter_ones(bitset).collect_vec();
+    (0..(1_u32 << bitset.count_ones())).map(move |i| {
+        iter_ones(i)
+            .map(|j| N::one() << set_bits[j as usize] as usize)
+            .fold(N::zero(), |a, b| a + b)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_iter_ones() {
+        assert_eq!(iter_ones(0b00000000_u8).collect_vec(), vec![]);
+        assert_eq!(iter_ones(0b00000001_u8).collect_vec(), vec![0]);
+        assert_eq!(iter_ones(0b00000010_u8).collect_vec(), vec![1]);
+        assert_eq!(iter_ones(0b00000011_u8).collect_vec(), vec![0, 1]);
+        assert_eq!(iter_ones(0b01010111_u8).collect_vec(), vec![0, 1, 2, 4, 6]);
+
+        assert_eq!(iter_ones(0b10000000_u8).collect_vec(), vec![7]);
+        assert_eq!(iter_ones(0b11101010_u8).collect_vec(), vec![1, 3, 5, 6, 7]);
+    }
+
+    #[test]
+    fn test_bitset_powerset() {
+        assert_eq!(
+            bitset_powerset(0b11010_u8).collect_vec(),
+            vec![0, 2, 8, 10, 16, 18, 24, 26],
+        )
     }
 }

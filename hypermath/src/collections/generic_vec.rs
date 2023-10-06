@@ -239,6 +239,17 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
         I::try_from_usize(self.len())
     }
 
+    /// Returns a reference to the element at `index`, or `None` if the list is
+    /// not long enough.
+    pub fn get(&self, index: I) -> Option<&E> {
+        self.values.get(index.to_usize())
+    }
+    /// Returns a mutable reference to the element at `index`, or `None` if the
+    /// list is not long enough.
+    pub fn get_mut(&mut self, index: I) -> Option<&mut E> {
+        self.values.get_mut(index.to_usize())
+    }
+
     /// Returns an iterator over the indices in the collection.
     pub fn iter_keys(&self) -> IndexIter<I> {
         IndexIter {
@@ -249,6 +260,10 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     /// Returns an iterator over the values in the collection.
     pub fn iter_values(&self) -> impl Iterator<Item = &E> {
         self.values.iter()
+    }
+    /// Returns a mutating iterator over the values in the collections.
+    pub fn iter_values_mut(&mut self) -> impl Iterator<Item = &mut E> {
+        self.values.iter_mut()
     }
     /// Returns an iterator over the index-value pairs in the collection.
     pub fn iter(&self) -> impl Iterator<Item = (I, &E)> {
@@ -324,6 +339,31 @@ pub struct Iter<'a, I, E> {
 }
 impl<'a, I: IndexNewtype, E> Iterator for Iter<'a, I, E> {
     type Item = (I, &'a E);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some((self.indices.next()?, self.values.next()?))
+    }
+}
+
+impl<'a, I: IndexNewtype, E> IntoIterator for &'a mut GenericVec<I, E> {
+    type Item = (I, &'a mut E);
+
+    type IntoIter = IterMut<'a, I, E>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IterMut {
+            indices: self.iter_keys(),
+            values: self.values.iter_mut(),
+        }
+    }
+}
+/// Mutably borrowing iterator over key-value pairs in a `GenericVec`.
+pub struct IterMut<'a, I, E> {
+    indices: IndexIter<I>,
+    values: std::slice::IterMut<'a, E>,
+}
+impl<'a, I: IndexNewtype, E> Iterator for IterMut<'a, I, E> {
+    type Item = (I, &'a mut E);
 
     fn next(&mut self) -> Option<Self::Item> {
         Some((self.indices.next()?, self.values.next()?))

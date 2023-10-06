@@ -3,6 +3,7 @@
 
 pub use std::collections::hash_map::{Entry, OccupiedEntry, VacantEntry};
 use std::collections::{BTreeMap, HashMap};
+use std::fmt;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
@@ -82,7 +83,7 @@ impl<K: ApproxHashMapKey, V> ApproxHashMap<K, V> {
 pub trait ApproxHashMapKey {
     /// Hashable representation of the type, using [`FloatHash`] instead of any
     /// floating-point values.
-    type Hash: Eq + Hash;
+    type Hash: fmt::Debug + Clone + Eq + Hash;
 
     /// Returns a hashable representation of a value, using [`FloatHash`]
     /// instead of any floating-point values.
@@ -108,7 +109,7 @@ impl ApproxHashMapKey for Vector {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct MultivectorHash(SmallVec<[(Axes, FloatHash); 6]>);
 
-impl<T: Clone + Eq + Hash> ApproxHashMapKey for T {
+impl<T: fmt::Debug + Clone + Eq + Hash> ApproxHashMapKey for T {
     type Hash = T;
 
     fn approx_hash(&self, _float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
