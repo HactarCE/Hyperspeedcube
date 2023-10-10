@@ -26,8 +26,9 @@ The first build may take ~10 minutes or more. Remove `--release` to disable opti
 ## Building for web
 
 1. Follow instructions above to run the native version first.
-2. Install Trunk with `cargo install --locked trunk`
-3. Run `trunk serve` to build and serve on <http://127.0.0.1:8080>. Trunk will rebuild automatically if you edit the project. Open <http://127.0.0.1:8080/index.html#dev> in a browser.
+2. Install wasm32 target with `rustup target add wasm32-unknown-unknown`
+3. Install Trunk with `cargo install --locked trunk`
+4. Run `trunk serve` to build and serve on <http://127.0.0.1:8080>. Trunk will rebuild automatically if you edit the project. Open <http://127.0.0.1:8080/index.html#dev> in a browser.
 
 Note that `assets/sw.js` script will try to cache the app, and loads the cached version when it cannot connect to server allowing the app to work offline (like PWA). appending `#dev` to `index.html` will skip this caching, allowing to load the latest builds during development.
 
