@@ -20,14 +20,12 @@ impl fmt::Debug for Multivector {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut ret = f.debug_struct("Multivector");
         for term in &self.0 {
-            if term.coef != 0.0 {
-                let field_name = if term.axes == Axes::SCALAR {
-                    "S".to_string() // scalar
-                } else {
-                    term.axes.to_string()
-                };
-                ret.field(&field_name, &term.coef);
-            }
+            let field_name = if term.axes == Axes::SCALAR {
+                "S".to_string() // scalar
+            } else {
+                term.axes.to_string()
+            };
+            ret.field(&field_name, &term.coef);
         }
         ret.finish()
     }
@@ -103,8 +101,9 @@ impl<V: VectorRef> From<V> for Multivector {
     fn from(v: V) -> Self {
         v.iter()
             .enumerate()
-            .map(|(i, v)| Term {
-                coef: v,
+            .filter(|(_, x)| is_approx_nonzero(x))
+            .map(|(i, x)| Term {
+                coef: x,
                 axes: Axes::euclidean(i as u8),
             })
             .sum()
@@ -486,11 +485,21 @@ impl Multivector {
     /// Returns the axis mask of the component in the multivector with the
     /// greatest absolute value, or a zero scalar component if the multivector
     /// is zero.
+    ///
+    /// If multiple terms have very similar absolute values, then the first one
+    /// is returned.
     pub fn most_significant_term(&self) -> Term {
+        let max_value = self
+            .0
+            .iter()
+            .map(|term| term.coef.abs())
+            .max_by_key(|&x| FloatOrd(x))
+            .unwrap_or_default();
+
         self.0
             .iter()
             .copied()
-            .max_by_key(|x| FloatOrd(x.coef.abs()))
+            .find(|term| approx_eq(&term.coef.abs(), &max_value))
             .unwrap_or_default()
     }
     /// Returns the minimum number of Euclidean dimensions that this multivector
@@ -568,7 +577,7 @@ impl Multivector {
     }
     /// Returns the sandwich product with a blade: `M * b * M_rev`.
     pub fn sandwich_blade(&self, b: &Blade) -> Blade {
-        Blade(self.sandwich(b.mv()))
+        self.sandwich(b.mv()).grade_project(b.grade())
     }
     /// Returns the Euclidean components of the sandwich product with a single
     /// term: `M * t * M_rev`.
@@ -593,15 +602,16 @@ impl Multivector {
             .copied()
             .filter(|term| is_approx_nonzero(&term.coef))
     }
-    /// Returns a multivector containing a subset of the terms of it.
-    #[must_use]
-    pub fn filter_terms(&self, mut f: impl FnMut(Axes) -> bool) -> Multivector {
-        Multivector(self.0.iter().copied().filter(|term| f(term.axes)).collect())
+    /// Removes terms from the multivector, keeping only those for which
+    /// `predicate` returns `true`.
+    pub fn retain_terms(&mut self, mut predicate: impl FnMut(Term) -> bool) {
+        self.0.retain(|&mut term| predicate(term));
+        self.0.shrink_to_fit();
     }
     /// Returns a grade projection of the multivector as a blade.
     #[must_use]
-    pub fn grade_project(&self, grade: u8) -> Blade {
-        Blade(self.filter_terms(|term| term.count() == grade))
+    pub fn grade_project(self, grade: u8) -> Blade {
+        Blade::grade_project_from(self, grade)
     }
     /// Returns the maximum grade of the multivector.
     pub fn max_grade(&self) -> u8 {

@@ -22,12 +22,16 @@ use crate::*;
 /// easier to do using OPNS form and some are easier to do using IPNS form, so
 /// this struct has methods to convert between them.
 ///
+/// The multivector inside `Blade` is assumed to never have terms with
+/// coefficients that are approximately equal to zero. This is checked whenever
+/// constructing a `Blade` from a `Multivector`.
+///
 /// # Panics
 ///
 /// Many of the methods on this type will panic if passed a blade of the wrong
 /// grade (zero is okay).
 #[derive(Debug, Clone, PartialEq)]
-pub struct Blade(pub(crate) Multivector);
+pub struct Blade(Multivector);
 
 impl fmt::Display for Blade {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -49,7 +53,7 @@ impl AbsDiffEq for Blade {
 
 impl From<Term> for Blade {
     fn from(term: Term) -> Self {
-        Blade(Multivector::from(term))
+        Blade::grade_project_from(Multivector::from(term), term.grade())
     }
 }
 
@@ -61,7 +65,8 @@ impl From<Blade> for Multivector {
 impl TryFrom<Multivector> for Blade {
     type Error = MismatchedGrade;
 
-    fn try_from(multivector: Multivector) -> std::result::Result<Self, Self::Error> {
+    fn try_from(mut multivector: Multivector) -> std::result::Result<Self, Self::Error> {
+        multivector.retain_terms(|term| !term.is_zero());
         if multivector
             .terms()
             .iter()
@@ -114,14 +119,16 @@ impl<'a> Mul<Float> for &'a Blade {
     type Output = Blade;
 
     fn mul(self, rhs: Float) -> Self::Output {
-        Blade(&self.0 * rhs)
+        let grade = self.grade();
+        Blade::grade_project_from(&self.0 * rhs, grade)
     }
 }
 impl Mul<Float> for Blade {
     type Output = Blade;
 
     fn mul(self, rhs: Float) -> Self::Output {
-        Blade(self.0 * rhs)
+        let grade = self.grade();
+        Blade::grade_project_from(self.0 * rhs, grade)
     }
 }
 impl MulAssign<Float> for Blade {
@@ -137,14 +144,16 @@ impl<'a> BitXor<Term> for &'a Blade {
     type Output = Blade;
 
     fn bitxor(self, rhs: Term) -> Self::Output {
-        Blade(&self.0 ^ rhs)
+        let grade = self.grade() + rhs.grade();
+        Blade::grade_project_from(&self.0 ^ rhs, grade)
     }
 }
 impl BitXor<Term> for Blade {
     type Output = Blade;
 
     fn bitxor(self, rhs: Term) -> Self::Output {
-        Blade(self.0 ^ rhs)
+        let grade = self.grade() + rhs.grade();
+        Blade::grade_project_from(self.0 ^ rhs, grade)
     }
 }
 /// Outer product of a term and a blade.
@@ -154,14 +163,16 @@ impl<'a> BitXor<&'a Blade> for Term {
     type Output = Blade;
 
     fn bitxor(self, rhs: &'a Blade) -> Self::Output {
-        Blade(self ^ &rhs.0)
+        let grade = self.grade() + rhs.grade();
+        Blade::grade_project_from(self ^ &rhs.0, grade)
     }
 }
 impl BitXor<Blade> for Term {
     type Output = Blade;
 
     fn bitxor(self, rhs: Blade) -> Self::Output {
-        Blade(self ^ rhs.0)
+        let grade = self.grade() + rhs.grade();
+        Blade::grade_project_from(self ^ rhs.0, grade)
     }
 }
 
@@ -172,14 +183,16 @@ impl<'a> Shl<&'a Blade> for Term {
     type Output = Blade;
 
     fn shl(self, rhs: &'a Blade) -> Self::Output {
-        Blade(self << &rhs.0)
+        let grade = rhs.grade() - self.grade();
+        Blade::grade_project_from(self << &rhs.0, grade)
     }
 }
 impl Shl<Blade> for Term {
     type Output = Blade;
 
     fn shl(self, rhs: Blade) -> Self::Output {
-        Blade(self << rhs.0)
+        let grade = rhs.grade() - self.grade();
+        Blade::grade_project_from(self << rhs.0, grade)
     }
 }
 
@@ -192,7 +205,8 @@ impl<'a> BitXor for &'a Blade {
     type Output = Blade;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
-        Blade(&self.0 ^ &rhs.0)
+        let grade = self.grade() + rhs.grade();
+        Blade::grade_project_from(&self.0 ^ &rhs.0, grade)
     }
 }
 impl_forward_bin_ops_to_ref! {
@@ -206,7 +220,8 @@ impl<'a> Shl for &'a Blade {
     type Output = Blade;
 
     fn shl(self, rhs: Self) -> Self::Output {
-        Blade(&self.0 << &rhs.0)
+        let grade = rhs.grade() - self.grade();
+        Blade::grade_project_from(&self.0 << &rhs.0, grade)
     }
 }
 impl_forward_bin_ops_to_ref! {
@@ -242,9 +257,15 @@ impl Blade {
     /// See https://w.wiki/6L8q
     pub const NI: Self = Blade(Multivector::NI);
 
+    /// Grade-projects a multivector, keeping only nonzero terms with a specific
+    /// grade.
+    pub fn grade_project_from(mut m: Multivector, grade: u8) -> Self {
+        m.retain_terms(|term| term.axes.count() == grade && !term.is_zero());
+        Blade(m)
+    }
     /// Constructs a scalar blade.
     pub fn scalar(s: Float) -> Self {
-        Blade(Multivector::scalar(s))
+        Blade::grade_project_from(Multivector::scalar(s), 0)
     }
     /// Constructs the pseudoscalar for a particular number of dimensions. This
     /// is the OPNS blade representing the whole space.
@@ -275,19 +296,22 @@ impl Blade {
     /// kind of a hack but it's convenient.
     pub fn ipns_sphere(center: impl VectorRef, radius: Float) -> Self {
         let mv = Blade::point(center).mv() - Multivector::NI * radius * radius * 0.5;
-        Blade(mv * radius.signum())
+        Blade::grade_project_from(mv * radius.signum(), 1)
     }
     /// Constructs an IPNS blade representing an imaginary hypersphere.
     pub fn ipns_imaginary_sphere(center: impl VectorRef, radius: Float) -> Self {
         let mv = Blade::point(center).mv() + Multivector::NI * radius * radius * 0.5;
-        Blade(mv * radius.signum())
+        Blade::grade_project_from(mv * radius.signum(), 1)
     }
     /// Constructs an IPNS blade representing a hyperplane. If `distance` is
     /// positive, then the origin is considered "inside."
     pub fn ipns_plane(normal: impl VectorRef, distance: Float) -> Self {
         match normal.normalize() {
             // Negate so that the origin is "inside."
-            Some(normal) => Blade(-Multivector::from(normal) - Multivector::NI * distance),
+            Some(normal) => {
+                let mv = -Multivector::from(normal) - Multivector::NI * distance;
+                Blade::grade_project_from(mv, 1)
+            }
             None => Blade::ZERO,
         }
     }
@@ -332,6 +356,23 @@ impl Blade {
     #[must_use]
     pub fn ipns_to_opns_in_space(&self, opns_space: &Blade) -> Self {
         self << opns_space
+    }
+
+    /// Returns the meet of two OPNS blades, give the number of dimensions of
+    /// the whole space. This is the dual of the join or wedge operator.
+    #[must_use]
+    pub fn meet(a: &Blade, b: &Blade, ndim: u8) -> Self {
+        let a_ipns = a.opns_to_ipns(ndim);
+        let b_ipns = b.opns_to_ipns(ndim);
+        (a_ipns ^ b_ipns).ipns_to_opns(ndim)
+    }
+    /// Returns the meet of two OPNS blades, give an OPNS blade representing the
+    /// space they inhabit. This is the dual of the join or wedge operator.
+    #[must_use]
+    pub fn meet_in_space(a: &Blade, b: &Blade, opns_space: &Blade) -> Self {
+        let a_ipns = a.opns_to_ipns_in_space(opns_space);
+        let b_ipns = b.opns_to_ipns_in_space(opns_space);
+        (a_ipns ^ b_ipns).ipns_to_opns_in_space(opns_space)
     }
 
     /// Returns the reverse blade, which has all the same terms but with the
@@ -409,7 +450,7 @@ impl Blade {
     /// Returns the grade of the blade, which is the number of basis vectors in
     /// each term, or 0 if the object is degenerate.
     pub fn grade(&self) -> u8 {
-        match self.mv().terms().first() {
+        match self.mv().nonzero_terms().next() {
             Some(term) => term.grade(),
             None => 0,
         }
@@ -486,7 +527,7 @@ impl Blade {
     #[must_use]
     pub fn ipns_reflect_ipns(&self, obj: &Blade) -> Blade {
         let sign = if obj.grade() % 2 == 0 { 1.0 } else { -1.0 };
-        Blade(self.mv() * obj.mv() * self.mv() * sign)
+        Blade::grade_project_from(self.mv() * obj.mv() * self.mv() * sign, self.grade())
     }
     /// Reflects OPNS `obj` across the hypersphere/hyperplane represented by an
     /// IPNS 1-blade.
@@ -544,6 +585,8 @@ impl Blade {
             let radius = Term::scalar(self.mag()?);
             let multiplier = (Blade::NI << self).inverse()?;
             Some([
+                // These aren't actually valid blades, but we want to reuse
+                // `Blade::to_point()`.
                 Blade((self.mv() - radius) * multiplier.mv()).to_point(),
                 Blade((self.mv() + radius) * multiplier.mv()).to_point(),
             ])

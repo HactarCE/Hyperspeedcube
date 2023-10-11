@@ -77,7 +77,8 @@ impl<V: VectorRef> ToConformalPoint for V {
     fn to_normalized_1blade(self) -> Blade {
         // p + NO + 1/2 * NI * ||p||^2
         let mag2 = self.mag2();
-        Blade(Multivector::from(self) + Multivector::NO + Multivector::NI * 0.5 * mag2)
+        let mv = Multivector::from(self) + Multivector::NO + Multivector::NI * 0.5 * mag2;
+        Blade::grade_project_from(mv, 1)
     }
 }
 impl ToConformalPoint for &'_ Blade {

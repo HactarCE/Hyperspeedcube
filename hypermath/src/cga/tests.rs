@@ -84,7 +84,7 @@ use assertions::*;
 fn test_cga_extract_ni_no() {
     let ni = 10.0;
     let no = 3.5;
-    let blade = Blade(Multivector::NI * ni + Multivector::NO * no);
+    let blade = (Multivector::NI * ni + Multivector::NO * no).grade_project(1);
     assert_eq!(ni, blade.ni());
     assert_eq!(no, blade.no());
 }
