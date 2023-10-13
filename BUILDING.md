@@ -5,7 +5,8 @@
 ## Building on Linux or macOS
 
 1. Download/install Cargo.
-2. Clone this project and build/run:
+2. On Linux, install build-time dependencies: `sudo apt install cmake libglib2.0-dev libatk1.0-dev libgtk-3-dev libxkbcommon-x11-dev`
+3. Clone this project and build/run:
 
 ```sh
 git clone https://github.com/HactarCE/Hyperspeedcube
