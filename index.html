@@ -180,22 +180,6 @@
             user-select: none;
         }
 
-        #showmodal {
-            opacity: 0;
-            position: absolute;
-            top: 30px;
-            right: 30px;
-            height: 30px;
-            width: 100px;
-            font-size: 20px;
-            line-height: 30px;
-            padding: 0px 10px;
-        }
-
-        #showmodal:hover {
-            opacity: 1;
-        }
-
         #hidemodal {
             position: fixed;
             opacity: 1;
@@ -208,26 +192,60 @@
             padding: 1px;
         }
 
+        .hidden {
+            display: none;
+        }
+
+        #loginput {
+            width: 100%;
+            height: 100%;
+        }
+
 
 
     </style>
     <script>
 
+
         // read the log file from localstorage and put it in the modal
-        function dumpLogToModal(){
-            let log = localStorage.hyperspeedcube_puzzle_log;
-            let modal = document.getElementById("copyable");
-            let logPre = document.getElementById("logpre");
+        window.dumpLogToModal = function(log){
+            const modal = document.getElementById("copyable");
+            const logPre = document.getElementById("logpre");
+            const logInput = document.getElementById("loginput");
+            const hideButton = document.getElementById("hidemodal");
+            hideButton.innerHTML = "X";
+            modal.classList.remove("hidden");
+            logPre.classList.remove("hidden");
+            logInput.classList.add("hidden");
             logPre.innerHTML = log
                 .replaceAll("<", "&lt;")
                 .replaceAll(">", "&gt;");
-            modal.style.display = "block";
+        }
+
+        // read a log file from the modal and send it to rust via magic (wasm binding)
+        window.loadLogFromModal = function(){
+            const modal = document.getElementById("copyable");
+            const logPre = document.getElementById("logpre");
+            const logInput = document.getElementById("loginput");
+            const hideButton = document.getElementById("hidemodal");
+            hideButton.innerHTML = "√";
+            modal.classList.remove("hidden");
+            logPre.classList.add("hidden");
+            logInput.classList.remove("hidden");
+
+            let intervalId = setInterval(() => {
+                if (modal.classList.contains("hidden")){
+                    // this function is from rust
+                    loadPuzzleLog(logInput.value);
+                    clearInterval(intervalId);
+                }
+            }, 100);
         }
 
         // close the modal
         function hideModal(){
-            let modal = document.getElementById("copyable");
-            modal.style.display = "none";
+            const modal = document.getElementById("copyable");
+            modal.classList.add("hidden")
         }
 
     </script>
@@ -240,12 +258,10 @@
     <!-- the id is hardcoded in main.rs . so, make sure both match. -->
     <canvas id="hyperspeedcube_canvas" oncontextmenu="return false;"></canvas>
 
-    <!-- the button that opens the div -->
-    <div id="showmodal" class="div-button" onclick="dumpLogToModal();">Display log</div>
-
     <!-- the div that holds the log file -->
-    <div id="copyable" style="display:none;">
-        <pre id="logpre"></pre>
+    <div id="copyable" class="hidden">
+        <pre id="logpre" class="hidden"></pre>
+        <textarea id="loginput" class="hidden"></textarea>
         <div id="hidemodal" class="div-button" onclick="hideModal();">X</div>
     </div>
 
