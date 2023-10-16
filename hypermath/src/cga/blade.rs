@@ -527,7 +527,7 @@ impl Blade {
     #[must_use]
     pub fn ipns_reflect_ipns(&self, obj: &Blade) -> Blade {
         let sign = if obj.grade() % 2 == 0 { 1.0 } else { -1.0 };
-        Blade::grade_project_from(self.mv() * obj.mv() * self.mv() * sign, self.grade())
+        Blade::grade_project_from(self.mv() * obj.mv() * self.mv() * sign, obj.grade())
     }
     /// Reflects OPNS `obj` across the hypersphere/hyperplane represented by an
     /// IPNS 1-blade.

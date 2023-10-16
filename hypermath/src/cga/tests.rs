@@ -476,6 +476,40 @@ fn test_cga_ipns_reflect_sphere() {
 }
 
 #[test]
+fn test_cga_transform_manifolds_preserves_orientation() {
+    let refl = Isometry::from_reflection(vector![1.0]).unwrap();
+    let rot = Isometry::from_vec_to_vec(vector![1.0], vector![0.0, 1.0]).unwrap();
+
+    // Point
+    let point = Blade::point(vector![1.0]);
+    println!("Testing with manifold grade=1");
+    // Reflect
+    let actual = refl.transform_blade(&point);
+    let expected = -Blade::point(vector![-1.0]);
+    assert_approx_eq!(actual, expected);
+    // Rotate
+    let actual = rot.transform_blade(&point);
+    let expected = Blade::point(vector![0.0, 1.0]);
+    assert_approx_eq!(actual, expected);
+
+    for ndim in 2..=8 {
+        let manifold = Blade::ipns_plane(vector![1.0], 1.0).opns_to_ipns(ndim);
+        let grade = manifold.grade();
+        println!("Testing with NDIM={ndim} (manifold grade={grade})",);
+
+        // Reflect
+        let actual = refl.transform_blade(&manifold);
+        let expected = Blade::ipns_plane(vector![-1.0], 1.0).opns_to_ipns(ndim);
+        assert_approx_eq!(actual, expected);
+
+        // Rotate
+        let actual = rot.transform_blade(&manifold);
+        let expected = Blade::ipns_plane(vector![0.0, 1.0], 1.0).opns_to_ipns(ndim);
+        assert_approx_eq!(actual, expected);
+    }
+}
+
+#[test]
 fn test_cga_ipns_reflect_pseudoscalar() {
     let plane = Blade::ipns_plane(vector![1.0], 0.0);
     for ndim in 1..=8 {

@@ -59,7 +59,7 @@ impl Isometry {
     /// Returns whether the isometry include an odd number of reflections.
     pub fn is_reflection(&self) -> bool {
         match self.0.nonzero_terms().next() {
-            Some(term) => term.axes.count() % 2 == 1,
+            Some(term) => term.grade() % 2 == 1,
             None => false, // bad isometry (should be nonzero)
         }
     }
@@ -128,7 +128,9 @@ impl Isometry {
     ///
     /// This constructs a rotation of **double** the angle between them.
     pub fn from_vector_product_normalized(a: impl VectorRef, b: impl VectorRef) -> Self {
-        Isometry(Multivector::from(b) * Multivector::from(a))
+        let mut m = Multivector::from(b) * Multivector::from(a);
+        m.retain_terms(|term| !term.is_zero());
+        Isometry(m)
     }
 
     /// Returns the reverse isometry.
@@ -193,9 +195,14 @@ impl Isometry {
     pub fn transform_point(&self, p: impl ToConformalPoint) -> Point {
         self.transform_blade(&p.to_normalized_1blade()).to_point()
     }
-    /// Transforms a blade by the isometry.
+    /// Transforms a blade by the isometry, preserving its orientation.
     pub fn transform_blade(&self, b: &Blade) -> Blade {
-        self.0.sandwich_blade(b)
+        let sandwich_product = self.0.sandwich_blade(b);
+        if self.is_reflection() && b.grade() % 2 == 1 {
+            -sandwich_product
+        } else {
+            sandwich_product
+        }
     }
     /// Transforms a multivector by the isometry.
     pub fn transform(&self, m: &Multivector) -> Multivector {
