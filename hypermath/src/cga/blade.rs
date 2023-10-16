@@ -183,7 +183,7 @@ impl<'a> Shl<&'a Blade> for Term {
     type Output = Blade;
 
     fn shl(self, rhs: &'a Blade) -> Self::Output {
-        let grade = rhs.grade() - self.grade();
+        let grade = rhs.grade().saturating_sub(self.grade());
         Blade::grade_project_from(self << &rhs.0, grade)
     }
 }
@@ -191,7 +191,7 @@ impl Shl<Blade> for Term {
     type Output = Blade;
 
     fn shl(self, rhs: Blade) -> Self::Output {
-        let grade = rhs.grade() - self.grade();
+        let grade = rhs.grade().saturating_sub(self.grade());
         Blade::grade_project_from(self << rhs.0, grade)
     }
 }
@@ -220,7 +220,7 @@ impl<'a> Shl for &'a Blade {
     type Output = Blade;
 
     fn shl(self, rhs: Self) -> Self::Output {
-        let grade = rhs.grade() - self.grade();
+        let grade = rhs.grade().saturating_sub(self.grade());
         Blade::grade_project_from(&self.0 << &rhs.0, grade)
     }
 }
