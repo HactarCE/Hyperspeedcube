@@ -3,6 +3,7 @@
 //! https://github.com/rust-windowing/winit/issues?q=is%3Aissue+is%3Aopen+label%3A%22platform%3A+WebAssembly%22+
 
 use std::sync::{Arc, Mutex};
+use wasm_bindgen::JsCast;
 use winit::dpi::{LogicalSize, PhysicalSize};
 use winit::event::{
     ElementState, Event, KeyboardInput, ModifiersState, VirtualKeyCode, WindowEvent,
@@ -22,6 +23,7 @@ pub(crate) struct WebWorkarounds {
     right_modifiers: ModifiersState,
 
     queued_paste_event: Arc<Mutex<Option<String>>>,
+    closure: Option<wasm_bindgen::closure::Closure<dyn FnMut(wasm_bindgen::JsValue)>>,
 }
 impl WebWorkarounds {
     pub(crate) fn new(event_loop: &EventLoop<AppEvent>, window: &Window) -> Self {
@@ -37,6 +39,7 @@ impl WebWorkarounds {
             right_modifiers: ModifiersState::default(),
 
             queued_paste_event: Arc::new(Mutex::new(None)),
+            closure: None,
         };
 
         ret.generate_resize_event(window);
@@ -66,7 +69,9 @@ impl WebWorkarounds {
                 event: WindowEvent::KeyboardInput { input, .. },
                 ..
             } => {
-                let Some(keycode) = input.virtual_keycode else {return};
+                let Some(keycode) = input.virtual_keycode else {
+                    return;
+                };
 
                 let bit = match keycode {
                     Vk::LShift | Vk::RShift => ModifiersState::SHIFT,
@@ -128,7 +133,12 @@ impl WebWorkarounds {
     }
 
     // stolen from https://github.com/emilk/egui/blob/6c4fc50fdf5ab4866ee29669c110e178b741c8e9/crates/egui-winit/src/lib.rs#L716-L721
-    pub(crate) fn intercept_paste(&mut self, mods: ModifiersState, event: &WindowEvent) -> bool {
+    pub(crate) fn intercept_paste(
+        &mut self,
+        mods: ModifiersState,
+        event: &WindowEvent,
+        use_fallback: bool,
+    ) -> bool {
         let is_paste = mods.ctrl()
             && matches!(
                 event,
@@ -143,13 +153,32 @@ impl WebWorkarounds {
             );
 
         if is_paste {
-            self.request_paste();
+            self.request_paste(use_fallback);
         }
 
         is_paste
     }
-    pub(crate) fn request_paste(&mut self) {
+    pub(crate) fn request_paste(&mut self, use_fallback: bool) {
         if let Some(window) = web_sys::window() {
+            if use_fallback {
+                if let Ok(promise) = &js_sys::Reflect::get(&window, &"requestPasteText".into())
+                    .unwrap()
+                    .dyn_ref::<js_sys::Function>()
+                    .unwrap()
+                    .call0(&wasm_bindgen::JsValue::UNDEFINED)
+                {
+                    let queued_paste_event = Arc::clone(&self.queued_paste_event);
+                    let closure = wasm_bindgen::closure::Closure::once(
+                        move |pasted_string: wasm_bindgen::JsValue| {
+                            *queued_paste_event.lock().unwrap() = pasted_string.as_string();
+                        },
+                    );
+                    let _ = js_sys::Promise::from(promise.clone()).then(&closure);
+                    self.closure = Some(closure);
+                }
+                return;
+            }
+
             if let Some(clipboard) = window.navigator().clipboard() {
                 if js_sys::Reflect::get(&clipboard, &"readText".into())
                     .unwrap()
@@ -159,8 +188,8 @@ impl WebWorkarounds {
                         .set_description(
                             "Pasting from clipboard is not \
                              supported in this browser.\n\n\
-                             I love Firefox too, but Hyperspeedcube \
-                             only officially supports Chrome.",
+                             Enable 'use clipboard fallback' \
+                             in settings.",
                         )
                         .show();
                     return;
@@ -190,8 +219,20 @@ impl WebWorkarounds {
         }
     }
 
-    pub(crate) fn set_clipboard_text(&mut self, s: &str) {
+    pub(crate) fn set_clipboard_text(&mut self, s: &str, use_fallback: bool) {
         if let Some(window) = web_sys::window() {
+            if use_fallback {
+                let _ = &js_sys::Reflect::get(&window, &"requestCopyText".into())
+                    .unwrap()
+                    .dyn_ref::<js_sys::Function>()
+                    .unwrap()
+                    .call1(
+                        &wasm_bindgen::JsValue::UNDEFINED,
+                        &wasm_bindgen::JsValue::from(s),
+                    );
+                return;
+            }
+
             if let Some(clipboard) = window.navigator().clipboard() {
                 let promise = clipboard.write_text(s);
                 let future = wasm_bindgen_futures::JsFuture::from(promise);
