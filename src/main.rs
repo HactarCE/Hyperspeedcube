@@ -231,7 +231,11 @@ async fn run() {
                     #[cfg(not(target_arch = "wasm32"))]
                     let suppress_paste = false;
                     #[cfg(target_arch = "wasm32")]
-                    let suppress_paste = web_workarounds.intercept_paste(app.modifiers(), &event);
+                    let suppress_paste = web_workarounds.intercept_paste(
+                        app.modifiers(),
+                        &event,
+                        app.prefs.use_clipboard_fallback,
+                    );
 
                     if !suppress_paste {
                         let r = egui_winit_state.on_event(&egui_ctx, &event);
@@ -276,7 +280,7 @@ async fn run() {
                 let r = app.handle_app_event(event, control_flow);
                 if r.request_paste {
                     #[cfg(target_arch = "wasm32")]
-                    web_workarounds.request_paste();
+                    web_workarounds.request_paste(app.prefs.use_clipboard_fallback);
                     #[cfg(not(target_arch = "wasm32"))]
                     {
                         request_paste |= request_paste;
@@ -284,7 +288,8 @@ async fn run() {
                 }
                 if let Some(copy_string) = r.copy_string {
                     #[cfg(target_arch = "wasm32")]
-                    web_workarounds.set_clipboard_text(&copy_string);
+                    web_workarounds
+                        .set_clipboard_text(&copy_string, app.prefs.use_clipboard_fallback);
                     #[cfg(not(target_arch = "wasm32"))]
                     clipboard.set(copy_string);
                 }
@@ -334,8 +339,10 @@ async fn run() {
                     // Handle cut & copy on web, which winit *should* do for us.
                     #[cfg(target_arch = "wasm32")]
                     if !egui_output.platform_output.copied_text.is_empty() {
-                        web_workarounds
-                            .set_clipboard_text(&egui_output.platform_output.copied_text);
+                        web_workarounds.set_clipboard_text(
+                            &egui_output.platform_output.copied_text,
+                            app.prefs.use_clipboard_fallback,
+                        );
                     }
 
                     egui_winit_state.handle_platform_output(
