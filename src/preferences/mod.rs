@@ -64,6 +64,9 @@ pub struct Preferences {
 
     pub show_welcome_at_startup: bool,
 
+    #[cfg(target_arch = "wasm32")]
+    pub use_clipboard_fallback: bool,
+
     pub info: InfoPreferences,
 
     pub gfx: GfxPreferences,
