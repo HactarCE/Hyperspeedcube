@@ -6,8 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 [@Edan-Purple]: https://github.com/Edan-Purple
 [@Leoongithub]: https://github.com/Leoongithub
+[@milojacquet]: https://github.com/milojacquet
 [@picuber]: https://github.com/picuber
 [@Sonicpineapple]: https://github.com/Sonicpineapple
+
+## [1.0.6] - 2023-10-18
+
+### Added
+
+- Fallback copy/paste ([@milojacquet] #37)
 
 ## [1.0.5] - 2023-01-21
 

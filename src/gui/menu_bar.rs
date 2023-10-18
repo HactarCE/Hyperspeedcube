@@ -74,6 +74,17 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             windows::GLOBAL_KEYBINDS.menu_button_toggle(ui);
             windows::PUZZLE_KEYBINDS.menu_button_toggle(ui);
             windows::MOUSEBINDS.menu_button_toggle(ui);
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                ui.separator();
+                app.prefs.needs_save |= ui
+                    .checkbox(
+                        &mut app.prefs.use_clipboard_fallback,
+                        "Use clipboard fallback",
+                    )
+                    .changed();
+            }
         });
 
         ui.menu_button("Tools", |ui| {
