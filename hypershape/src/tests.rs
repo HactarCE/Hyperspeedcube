@@ -1,6 +1,5 @@
 use hypermath::prelude::*;
 use itertools::Itertools;
-use test_log::test;
 
 use super::*;
 
@@ -96,6 +95,7 @@ fn test_null_double_plane_plus_sphere() {
     }
 }
 
+#[track_caller]
 fn assert_is_cube(space: &Space, polytope: AtomicPolytopeId) {
     let ndim = space.ndim_of(polytope);
     let expected_boundary_len = if ndim > 1 { 2 * ndim } else { ndim } as usize;
@@ -158,4 +158,106 @@ fn test_cube() {
 
         assert_is_cube(&space, polytopes.iter().next().unwrap().id);
     }
+}
+
+#[test]
+fn test_patchwork_cube() {
+    init_test_logging();
+
+    let schlafli_indices = vec![4, 3, 3, 3, 3, 3];
+    for ndim in 2..6 {
+        let mut space = PatchworkSpace::new(ndim).unwrap();
+        let folded_patch = space
+            .add_schlafli_patch(SchlafliSymbol::from_indices(
+                schlafli_indices[..ndim as usize - 1].to_owned(),
+            ))
+            .unwrap();
+        let cut_manifold = space
+            .add_manifold(Blade::ipns_plane(vector![0.0, 0.0, 1.0], 1.0).ipns_to_opns(ndim))
+            .unwrap();
+        let mut cut = space.slice(folded_patch, cut_manifold).unwrap();
+
+        let initial_polytope = Polytope::from((folded_patch, space[folded_patch].polytope));
+        let mut cube = space
+            .cut(&mut cut, &initial_polytope)
+            .unwrap()
+            .to_vec()
+            .into_iter()
+            .filter_map(|x| x)
+            .collect_vec();
+
+        println!("HERE WE GO {ndim}");
+        for p in dbg!(&cube) {
+            for p in &p.components {
+                for (_patch, &polytope) in &p.by_patch {
+                    println!("{}", space.internal_space().polytope_to_string(polytope));
+                }
+            }
+        }
+
+        assert_eq!(cube.len(), 1);
+        assert_eq!(cube[0].components.len(), 1);
+        assert_eq!(cube[0].components[0].by_patch.len(), 1);
+        let cube = cube
+            .pop()
+            .unwrap()
+            .components
+            .pop()
+            .unwrap()
+            .by_patch
+            .into_iter()
+            .next()
+            .unwrap()
+            .1;
+
+        assert_is_cube(space.internal_space(), cube.id);
+    }
+}
+
+fn init_test_logging() {
+    // Initialize tracing
+    use tracing_error::ErrorLayer;
+    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    let fmt_layer = fmt::layer().with_target(false);
+    let filter_layer = EnvFilter::try_from_default_env()
+        .or_else(|_| EnvFilter::try_new("info"))
+        .unwrap();
+
+    tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(fmt_layer)
+        .with(ErrorLayer::default())
+        .init();
+
+    // Initialize color_eyre.
+    color_eyre::install().unwrap();
+}
+
+#[test]
+fn test_spooky() {
+    let mut space = Space::new(2).unwrap();
+    let mut polytopes = AtomicPolytopeSet::new();
+    polytopes.insert(space.whole_space());
+    for manifold in [
+        space.add_sphere(vector![3.0], -2.0).unwrap(),
+        space.add_sphere(vector![-3.0], -2.0).unwrap(),
+        space.add_plane(vector![0.0, 1.0], 1.0).unwrap(),
+        space.add_plane(vector![0.0, -1.0], 1.0).unwrap(),
+    ] {
+        let mut cut = AtomicCut::carve(manifold);
+        polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
+    }
+    for p in polytopes.iter() {
+        println!("{}", space.polytope_to_string(p));
+    }
+    println!("Final cut ...");
+    let manifold = space.add_sphere(vector![], 3.0).unwrap();
+    let mut cut = AtomicCut::carve(manifold);
+    polytopes = space.cut_atomic_polytope_set(polytopes, &mut cut).unwrap();
+    for p in polytopes.iter() {
+        println!("{}", space.polytope_to_string(p));
+    }
+    panic!()
 }

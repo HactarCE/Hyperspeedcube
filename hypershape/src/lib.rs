@@ -38,23 +38,27 @@
     clippy::too_many_lines,
     clippy::undocumented_unsafe_blocks,
     clippy::unwrap_used,
-    missing_docs,
+    // missing_docs,
     rust_2018_idioms
 )]
 
 pub mod group;
-// pub mod patchwork;
+pub mod patchwork;
 mod slabmap;
 pub mod space;
 mod util;
 
 pub use group::*;
+pub use patchwork::*;
 use slabmap::SlabMap;
 pub use space::*;
 
 /// Structs, traits, and constants.
 pub mod prelude {
+    // TODO: figure out what we should export here, and reevaluate everything's
+    // names
     pub use crate::group::*;
+    pub use crate::patchwork::*;
     pub use crate::space::*;
 }
 

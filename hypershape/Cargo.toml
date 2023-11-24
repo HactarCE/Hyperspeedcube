@@ -28,9 +28,8 @@ tracing-subscriber = { version = "0.3.17", default-features = false, features = 
 
 hypermath = { path = "../hypermath" }
 
-nu-ansi-term = "*"
-
 [dev-dependencies]
+tracing-error = { version = "0.2.0" }
 color-eyre = "0.6"
 env_logger = "*"
 test-log = { version = "0.2.12", features = ["trace"] }
