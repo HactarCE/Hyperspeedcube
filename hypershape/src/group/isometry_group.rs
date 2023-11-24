@@ -118,7 +118,7 @@ impl IsometryGroup {
                             unprocessed_successors.push(Arc::clone(&task))?;
                             let generators_ref = &generators;
                             s.spawn(move |_| {
-                                task.store(generators_ref.map(|(_id, gen)| {
+                                task.store(generators_ref.map_ref(|_id, gen| {
                                     (&new_elem * gen).canonicalize().unwrap_or_default()
                                 }));
                             });

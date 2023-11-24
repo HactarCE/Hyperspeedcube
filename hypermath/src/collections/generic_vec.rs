@@ -144,7 +144,20 @@ impl<I: IndexNewtype> Iterator for IndexIter<I> {
         // `I::MAX_INDEX`.
         self.range.next().map(|i| unsafe { I::from_u64(i as u64) })
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.range.size_hint()
+    }
 }
+impl<I: IndexNewtype> DoubleEndedIterator for IndexIter<I> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        // SAFETY: see `next()` above.
+        self.range
+            .next_back()
+            .map(|i| unsafe { I::from_u64(i as u64) })
+    }
+}
+impl<I: IndexNewtype> ExactSizeIterator for IndexIter<I> {}
 
 /// Wrapper around a `Vec<E>` that is indexed using `I` by converting it to an
 /// integer.
@@ -258,22 +271,32 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
         }
     }
     /// Returns an iterator over the values in the collection.
-    pub fn iter_values(&self) -> impl Iterator<Item = &E> {
+    pub fn iter_values(&self) -> impl Iterator<Item = &E> + DoubleEndedIterator {
         self.values.iter()
     }
     /// Returns a mutating iterator over the values in the collections.
-    pub fn iter_values_mut(&mut self) -> impl Iterator<Item = &mut E> {
+    pub fn iter_values_mut(&mut self) -> impl Iterator<Item = &mut E> + DoubleEndedIterator {
         self.values.iter_mut()
     }
     /// Returns an iterator over the index-value pairs in the collection.
-    pub fn iter(&self) -> impl Iterator<Item = (I, &E)> {
+    pub fn iter(&self) -> impl Iterator<Item = (I, &E)> + DoubleEndedIterator {
         self.iter_keys().zip(&self.values)
+    }
+    /// Returns a mutating iterator over the index-value pairs in the
+    /// collection.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (I, &mut E)> + DoubleEndedIterator {
+        self.iter_keys().zip(&mut self.values)
     }
 
     /// Applies a function to every value in the collection and returns a new
     /// collection.
-    pub fn map<U>(&self, f: impl FnMut((I, &E)) -> U) -> GenericVec<I, U> {
-        self.iter().map(f).collect()
+    pub fn map<U>(self, mut f: impl FnMut(I, E) -> U) -> GenericVec<I, U> {
+        self.into_iter().map(|(i, e)| f(i, e)).collect()
+    }
+    /// Applies a function to every value in the collection and returns a new
+    /// collection.
+    pub fn map_ref<U>(&self, mut f: impl FnMut(I, &E) -> U) -> GenericVec<I, U> {
+        self.iter().map(|(i, e)| f(i, e)).collect()
     }
 }
 impl<I: IndexNewtype, E> std::iter::FromIterator<E> for GenericVec<I, E> {
