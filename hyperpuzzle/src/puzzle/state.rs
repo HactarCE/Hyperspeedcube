@@ -10,7 +10,7 @@ pub struct PuzzleState {
 }
 impl PuzzleState {
     pub fn new(puzzle_type: Arc<Puzzle>) -> Self {
-        let piece_rotations = puzzle_type.pieces.map(|(_, _)| Isometry::ident());
+        let piece_rotations = puzzle_type.pieces.map_ref(|_, _| Isometry::ident());
         PuzzleState {
             puzzle_type,
             piece_rotations,

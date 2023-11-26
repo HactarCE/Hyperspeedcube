@@ -1,7 +1,7 @@
 use std::collections::{hash_map, HashMap};
 use std::ops::Range;
 
-use anyhow::{ensure, Context, Result};
+use eyre::{ensure, eyre, Result};
 use hypermath::prelude::*;
 use hypershape::ManifoldId;
 
@@ -163,7 +163,6 @@ impl MeshBuilder {
             self.mesh
                 .piece_centroids
                 .extend(iter_f32(ndim, piece_centroid));
-            println!("piece centroid = {piece_centroid}");
         }
 
         self.mesh
@@ -221,7 +220,9 @@ impl<'a: 'b, 'b> MeshStickerBuilder<'a, 'b> {
         manifold: &'c Blade,
     ) -> Result<MeshPolygonBuilder<'a, 'b, 'c>> {
         let id = self.piece.mesh.next_polygon_id;
-        self.piece.mesh.next_polygon_id = id.checked_add(1).context("too many polygons")?;
+        self.piece.mesh.next_polygon_id = id
+            .checked_add(1)
+            .ok_or_else(|| eyre!("too many polygons"))?;
         self.piece.mesh.mesh.color_ids.push(self.color);
         let tangent_space = manifold.opns_tangent_space();
         Ok(MeshPolygonBuilder {
@@ -259,7 +260,10 @@ impl MeshPolygonBuilder<'_, '_, '_> {
         let vertex_id = mesh.vertex_count() as u32;
 
         mesh.vertex_positions.extend(iter_f32(ndim, &pos));
-        let tangents = self.tangent_space.at(pos).context("bad tangent space")?;
+        let tangents = self
+            .tangent_space
+            .at(pos)
+            .ok_or_else(|| eyre!("bad tangent space"))?;
         ensure!(tangents.len() == 2, "tangent space must be 2D");
         mesh.u_tangents.extend(iter_f32(ndim, &tangents[0]));
         mesh.v_tangents.extend(iter_f32(ndim, &tangents[1]));

@@ -27,6 +27,10 @@ impl LuaVector {
         lua: LuaContext<'lua>,
         values: LuaMultiValue<'lua>,
     ) -> LuaResult<Vector> {
+        if let Ok(t) = LuaTable::from_lua_multi(values.clone(), lua) {
+            return Self::construct_from_table(t);
+        }
+
         values
             .into_iter()
             .map(|v| Float::from_lua(v, lua))

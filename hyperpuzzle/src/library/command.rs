@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use eyre::Result;
 
 use crate::{Puzzle, TaskHandle};
 

@@ -28,9 +28,9 @@ impl LuaMultivector {
         values: LuaMultiValue<'lua>,
     ) -> LuaResult<Multivector> {
         match lua.unpack_multi(values) {
-            Ok(LuaConstructVector(v)) => Ok(Multivector::from(v)),
+            Ok(LuaConstructMultivector(m)) => Ok(m),
             Err(_) => Err(LuaError::external(
-                "expected multivector, vector, table, axis name, or sequence of numbers",
+                "expected multivector, vector, table, or axis name",
             )),
         }
     }
@@ -105,13 +105,18 @@ impl LuaUserData for LuaNamedUserData<Multivector> {
             Ok(LuaMultivector(-m))
         });
 
+        // Multivector ^ Multivector
         methods.add_meta_function(
             LuaMetaMethod::Pow,
             |_lua, (LuaMultivector(lhs), LuaMultivector(rhs))| Ok(LuaMultivector(lhs ^ rhs)),
         );
+
+        // ~Multivector
         methods.add_meta_function(LuaMetaMethod::BNot, |_lua, LuaMultivector(m)| {
             Ok(LuaMultivector(m.reverse()))
         });
+
+        // Multivector << Multivector
         methods.add_meta_function(
             LuaMetaMethod::Shl,
             |_lua, (LuaMultivector(lhs), LuaMultivector(rhs))| Ok(LuaMultivector(lhs << rhs)),

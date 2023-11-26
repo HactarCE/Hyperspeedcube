@@ -16,7 +16,7 @@ function test_vector_ops()
   assert(vec(3, 0, 4) ~= vec(3, 4))
 
   -- Test constructing vector from list
-  local v = vec {10, 20, 30}
+  local v = vec{10, 20, 30}
   assert(tostring(v) == '(10, 20, 30)')
   assert(#v == 3)
 
@@ -24,7 +24,7 @@ function test_vector_ops()
   local v = vec()
   assert(tostring(v) == '()')
   assert(#v == 0)
-  local v = vec {}
+  local v = vec{}
   assert(tostring(v) == '()')
   assert(#v == 0)
 

@@ -7,13 +7,14 @@ lua_userdata_value_conversion_wrapper! {
     #[name = "manifold", convert_str = "manifold or multivector"]
     pub struct LuaManifold(ManifoldRef) = |lua| {
         <_>(LuaMultivector(m)) => Ok(LuaManifold::construct_from_multivector(lua, m)?),
+        <LuaTable<'_>>(t) => Ok(LuaManifold::construct_from_table(lua, t)?),
     }
 }
 
 impl LuaUserData for LuaNamedUserData<ManifoldRef> {
     fn add_methods<'lua, T: LuaUserDataMethods<'lua, Self>>(methods: &mut T) {
         methods.add_method("ndim", |lua, Self(this), ()| {
-            LuaSpace::with(lua, |space| Ok(space[this.id].ndim))
+            LuaSpace::with(lua, |space| Ok(space.ndim_of(this)))
         });
     }
 }
@@ -25,6 +26,13 @@ impl LuaManifold {
                 .add_manifold(Blade::try_from(m).map_err(LuaError::external)?)
                 .map_err(LuaError::external)
         })
+    }
+
+    fn construct_from_table<'lua>(
+        lua: LuaContext<'_>,
+        t: LuaTable<'lua>,
+    ) -> LuaResult<ManifoldRef> {
+        Ok(Self::construct_plane_or_sphere(t)?.to_manifold(lua)?.0)
     }
 
     fn construct_plane_or_sphere<'lua>(t: LuaTable<'lua>) -> LuaResult<LuaPlaneOrSphere> {
@@ -69,6 +77,11 @@ impl LuaManifold {
                 ensure_args_len(2)?;
                 let LuaVector(point) = t.get("point")?;
                 LuaPlaneOrSphere::plane_from_point_and_normal(point, normal)
+            } else if t.contains_key("distance")? {
+                // normal + distance
+                ensure_args_len(2)?;
+                let distance = t.get("distance")?;
+                Ok(LuaPlaneOrSphere::Plane { normal, distance })
             } else {
                 // normal
                 ensure_args_len(1)?;

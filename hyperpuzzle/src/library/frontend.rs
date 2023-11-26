@@ -1,6 +1,6 @@
 use std::sync::{mpsc, Arc};
 
-use anyhow::{anyhow, Result};
+use eyre::{eyre, Result};
 use parking_lot::{RwLock, RwLockReadGuard};
 
 use super::{LibraryCommand, ObjectLoader, ObjectStore};
@@ -53,7 +53,7 @@ impl Library {
         task: TaskHandle<Result<T>>,
     ) -> TaskHandle<Result<T>> {
         if let Err(e) = self.tx.send(command) {
-            task.complete(Err(anyhow!(e)));
+            task.complete(Err(eyre!(e)));
         }
         task
     }

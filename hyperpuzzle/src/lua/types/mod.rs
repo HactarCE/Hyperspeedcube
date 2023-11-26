@@ -9,6 +9,7 @@ mod object;
 mod pieceset;
 mod puzzle;
 mod space;
+mod symmetry;
 mod vector;
 
 pub use manifold::LuaManifold;
@@ -17,6 +18,7 @@ pub use ndim::LuaNdim;
 pub use pieceset::LuaPieceSet;
 pub use puzzle::LuaPuzzleBuilder;
 pub use space::LuaSpace;
+pub use symmetry::LuaSymmetry;
 pub use vector::{LuaConstructVector, LuaVector};
 pub use wrappers::*;
 
@@ -36,6 +38,7 @@ pub fn lua_type_name(lua_value: &LuaValue<'_>) -> &'static str {
         return_name_if_type!(userdata, LuaPuzzleBuilder);
         return_name_if_type!(userdata, LuaPieceSet);
         return_name_if_type!(userdata, LuaSpace);
+        return_name_if_type!(userdata, LuaSymmetry);
         return_name_if_type!(userdata, LuaVector);
     }
     lua_value.type_name()

@@ -1,5 +1,8 @@
+use hypershape::prelude::*;
+use itertools::Itertools;
+
 use super::*;
-use crate::PieceSet;
+use crate::{Piece, PieceSet};
 
 lua_userdata_value_conversion_wrapper! {
     #[name = "pieceset"]
@@ -8,6 +11,8 @@ lua_userdata_value_conversion_wrapper! {
 
 impl LuaUserData for LuaNamedUserData<PieceSet> {
     fn add_methods<'lua, T: LuaUserDataMethods<'lua, Self>>(methods: &mut T) {
+        methods.add_method("copy", |_lua, this, ()| Ok(this.clone()));
+
         methods.add_method_mut("carve", |lua, Self(this), LuaManifold(m)| {
             *this = LuaPuzzleBuilder::with(lua, |puzzle| {
                 puzzle.carve(this, m).map_err(|e| LuaError::external(e))

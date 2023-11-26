@@ -210,13 +210,14 @@ impl<'lua> FromLua<'lua> for LuaAxesString {
                 '2' | 'y' | 'Y' => Axes::Y,
                 '3' | 'z' | 'Z' => Axes::Z,
                 '4' | 'w' | 'W' => Axes::W,
-                '5' | 'u' | 'U' => Axes::U,
-                '6' | 'v' | 'V' => Axes::V,
-                '7' | 'r' | 'R' => Axes::R,
-                '8' | 's' | 'S' => Axes::S,
+                '5' | 'v' | 'V' => Axes::U,
+                '6' | 'u' | 'U' => Axes::V,
+                '7' => Axes::T,
+                '8' => Axes::S,
+                '9' => Axes::R,
 
                 // Ignore these characters.
-                'e' | 'n' | ' ' => continue,
+                's' | 'e' | 'n' | '_' | ' ' => continue,
 
                 // Store nₒ in `E_MINUS` for now.
                 'o' => {
@@ -231,11 +232,11 @@ impl<'lua> FromLua<'lua> for LuaAxesString {
                     Axes::E_PLUS
                 }
 
-                '-' => {
+                'm' | '-' => {
                     use_true_basis = true;
                     Axes::E_MINUS
                 }
-                '+' => {
+                'p' | '+' => {
                     use_true_basis = true;
                     Axes::E_PLUS
                 }

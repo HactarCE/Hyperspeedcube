@@ -156,7 +156,7 @@ impl<V: VectorRef> VectorRef for &'_ V {
 
 impl fmt::Display for Vector {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[")?;
+        write!(f, "(")?;
         let mut iter = self.0.iter();
         if let Some(first) = iter.next() {
             first.fmt(f)?;
@@ -165,7 +165,7 @@ impl fmt::Display for Vector {
                 elem.fmt(f)?;
             }
         }
-        write!(f, "]")?;
+        write!(f, ")")?;
         Ok(())
     }
 }

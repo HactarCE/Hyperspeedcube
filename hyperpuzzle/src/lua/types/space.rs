@@ -17,8 +17,10 @@ impl LuaUserData for LuaNamedUserData<Arc<Mutex<Space>>> {
 }
 
 impl LuaSpace {
-    pub fn new(ndim: u8) -> Self {
-        LuaSpace(Arc::new(Mutex::new(Space::new(ndim))))
+    pub fn new(ndim: u8) -> LuaResult<Self> {
+        Ok(LuaSpace(Arc::new(Mutex::new(
+            Space::new(ndim).map_err(LuaError::external)?,
+        ))))
     }
 
     pub fn lock(&self) -> MutexGuard<'_, Space> {

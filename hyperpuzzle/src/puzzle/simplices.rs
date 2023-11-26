@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::Index;
 
-use anyhow::{anyhow, ensure, Context, Result};
+use eyre::{ensure, eyre, Result};
 use hypermath::collections::ApproxHashMap;
 use hypermath::*;
 use hypershape::*;
@@ -17,7 +17,7 @@ pub struct Simplexifier<'a> {
 
     vertices: Vec<Vector>,
     vertex_ids: ApproxHashMap<Vector, VertexId>,
-    shape_simplices_cache: HashMap<ShapeId, SimplexBlob>,
+    shape_simplices_cache: HashMap<AtomicPolytopeId, SimplexBlob>,
 }
 impl Index<VertexId> for Simplexifier<'_> {
     type Output = Vector;
@@ -38,7 +38,7 @@ impl<'a> Simplexifier<'a> {
     }
 
     fn add_vertex(&mut self, p: Point) -> Result<VertexId> {
-        let v = p.to_finite().ok().context("infinite point")?;
+        let v = p.to_finite().map_err(|_| eyre!("infinite point"))?;
         Ok(*self.vertex_ids.entry(&v).or_insert_with(|| {
             let id = VertexId(self.vertices.len() as u32);
             self.vertices.push(v);
@@ -49,7 +49,7 @@ impl<'a> Simplexifier<'a> {
         cga::Point::Finite(self[v].clone())
     }
 
-    pub fn shape_centroid_point(&mut self, shape: ShapeId) -> Result<Vector> {
+    pub fn shape_centroid_point(&mut self, shape: AtomicPolytopeId) -> Result<Vector> {
         let manifold = self.space[shape].manifold;
         let blade = &self.space[manifold].blade;
         // Add up those centroids.
@@ -58,9 +58,9 @@ impl<'a> Simplexifier<'a> {
         blade
             .project_point(&cga::Point::Finite(centroid.center()))
             .and_then(|p| p.to_finite().ok())
-            .context("unable to compute centroid of shape")
+            .ok_or_else(|| eyre!("unable to compute centroid of shape"))
     }
-    pub fn shape_centroid(&mut self, shape: ShapeId) -> Result<Centroid> {
+    pub fn shape_centroid(&mut self, shape: AtomicPolytopeId) -> Result<Centroid> {
         let shape_manifold = self.space[shape].manifold;
         // Turn the shape into simplices.
         let simplices = self.shape_simplices(shape)?.0.into_iter();
@@ -96,11 +96,11 @@ impl<'a> Simplexifier<'a> {
             blade
                 .project_point(&cga::Point::Finite(point))
                 .and_then(|p| p.to_finite().ok())
-                .context("failed to project point onto manifold")
+                .ok_or_else(|| eyre!("failed to project point onto manifold"))
         }
     }
 
-    fn shape_simplices(&mut self, shape: ShapeId) -> Result<SimplexBlob> {
+    fn shape_simplices(&mut self, shape: AtomicPolytopeId) -> Result<SimplexBlob> {
         match self.shape_simplices_cache.get(&shape) {
             Some(cached) => Ok(cached.clone()),
             None => {
@@ -110,7 +110,7 @@ impl<'a> Simplexifier<'a> {
             }
         }
     }
-    fn shape_simplices_uncached(&mut self, shape: ShapeId) -> Result<SimplexBlob> {
+    fn shape_simplices_uncached(&mut self, shape: AtomicPolytopeId) -> Result<SimplexBlob> {
         let manifold = self.space[shape].manifold;
         let blade = &self.space[manifold].blade;
 
@@ -119,13 +119,12 @@ impl<'a> Simplexifier<'a> {
             "spherical shapes are not yet supported",
         );
 
-        if self.space[manifold].ndim == 1 {
+        if self.space.ndim_of(manifold) == 1 {
             let edge = self.space[shape]
                 .boundary
                 .iter()
                 .exactly_one()
-                .ok()
-                .context("edge has multiple boundary elements")?;
+                .map_err(|_| eyre!("edge has multiple boundary elements"))?;
             let [a, b] = self.space.extract_point_pair(edge)?;
             let a = self.add_vertex(a)?;
             let b = self.add_vertex(b)?;
@@ -140,12 +139,12 @@ impl<'a> Simplexifier<'a> {
         }
     }
 
-    pub fn face_polygons(&mut self, shape: ShapeRef) -> Result<Vec<[VertexId; 3]>> {
+    pub fn face_polygons(&mut self, shape: AtomicPolytopeRef) -> Result<Vec<[VertexId; 3]>> {
         let manifold = self.space.manifold_of(shape);
         let blade = self.space.blade_of(manifold);
 
         ensure!(
-            self.space[manifold.id].ndim == 2,
+            self.space.ndim_of(manifold) == 2,
             "cannot triangulate non-polygon",
         );
 
@@ -159,20 +158,20 @@ impl<'a> Simplexifier<'a> {
             "spherical shapes are not yet supported",
         );
 
-        let edges = self
-            .space
-            .boundary_of(shape)
-            .map(|edge| {
-                let edge_bounds = self.space.boundary_of(edge).exactly_one().map_err(|e| {
-                    anyhow!("edge should be bounded by exactly one point pair: {e}")
-                })?;
-                let [a, b] = self.space.extract_point_pair(edge_bounds)?;
-                let a = self.add_vertex(a)?;
-                let b = self.add_vertex(b)?;
-                Ok([a, b])
-            })
-            .collect::<Result<Vec<[VertexId; 2]>>>()?;
-        let initial_vertex = edges.get(0).context("polygon has no edges")?[0];
+        let edges =
+            self.space
+                .boundary_of(shape)
+                .map(|edge| {
+                    let edge_bounds = self.space.boundary_of(edge).exactly_one().map_err(|e| {
+                        eyre!("edge should be bounded by exactly one point pair: {e}")
+                    })?;
+                    let [a, b] = self.space.extract_point_pair(edge_bounds)?;
+                    let a = self.add_vertex(a)?;
+                    let b = self.add_vertex(b)?;
+                    Ok([a, b])
+                })
+                .collect::<Result<Vec<[VertexId; 2]>>>()?;
+        let initial_vertex = edges.get(0).ok_or_else(|| eyre!("polygon has no edges"))?[0];
         Ok(edges
             .into_iter()
             .filter(|edge| !edge.contains(&initial_vertex))
@@ -195,7 +194,7 @@ impl Simplex {
     fn ndim(&self) -> Result<u8> {
         (self.0.len() as u8)
             .checked_sub(1)
-            .context("simplex cannot be empty")
+            .ok_or_else(|| eyre!("simplex cannot be empty"))
     }
     fn try_into_array<const N: usize>(&self) -> Option<[VertexId; N]> {
         (self.0.len() == N).then(|| {
@@ -204,7 +203,10 @@ impl Simplex {
         })
     }
     fn arbitrary_vertex(&self) -> Result<VertexId> {
-        self.0.iter().next().context("simplex is empty")
+        self.0
+            .iter()
+            .next()
+            .ok_or_else(|| eyre!("simplex is empty"))
     }
     /// Returns all 1-dimensional elemenst of the simplex.
     fn edges(&self) -> impl '_ + Iterator<Item = [VertexId; 2]> {
@@ -217,7 +219,9 @@ impl Simplex {
     /// Returns all (N-1)-dimensional elements of the simplex.
     fn facets(&self) -> Result<impl '_ + Iterator<Item = Simplex>> {
         let ndim = self.ndim()?;
-        let facet_ndim = ndim.checked_sub(1).context("0D simplex has no facets")?;
+        let facet_ndim = ndim
+            .checked_sub(1)
+            .ok_or_else(|| eyre!("0D simplex has no facets"))?;
         Ok(self.elements(facet_ndim))
     }
     /// Returns all elements of the simplex with a given number of dimensions.

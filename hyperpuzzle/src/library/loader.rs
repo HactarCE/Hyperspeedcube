@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use eyre::Result;
 use parking_lot::RwLock;
 use rlua::prelude::*;
 
@@ -40,12 +40,13 @@ impl ObjectLoader {
     }
 
     fn load_file(&mut self, filename: String, contents: String) -> Result<()> {
-        let objects = crate::lua::load_sandboxed(&self.lua, &filename, &contents)?;
+        todo!();
+        // let objects = crate::lua::load_sandboxed(&self.lua, &filename, &contents)?;
         let mut puzzle_list = self.store.write();
         puzzle_list.update_file(FileData {
             name: filename,
             contents,
-            objects,
+            objects: todo!(),
             dependencies: vec![], // TODO: dependencies
         });
         Ok(())

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
-use anyhow::{Context, Result};
+use eyre::{eyre, Result, WrapErr};
 use parking_lot::RwLock;
 
-use crate::{Object, ObjectData, Puzzle, TaskHandle};
+use crate::{Puzzle, PuzzleDefinition, TaskHandle};
 
 /// Storage for loaded objects. These objects haven't been constructed, but we
 /// know some metadata like the number of dimensions of each object and which
@@ -42,16 +42,18 @@ impl ObjectStore {
 
         // Load new file.
         for obj in &file_data.objects {
-            self.file_of_each_object
-                .insert(obj.id.clone(), file_data.name.clone());
+            todo!()
+            // self.file_of_each_object
+            //     .insert(obj.id.clone(), file_data.name.clone());
         }
         self.files.insert(file_data.name.clone(), file_data);
     }
     fn unload_file(&mut self, filename: &str) {
         if let Some(old) = self.files.remove(filename) {
-            for obj in old.objects {
-                self.file_of_each_object.remove(&obj.id);
-            }
+            todo!()
+            // for obj in old.objects {
+            //     self.file_of_each_object.remove(&obj.id);
+            // }
         }
     }
 
@@ -72,15 +74,16 @@ impl ObjectStore {
                 let store_reader = store.read();
                 let file = store_reader
                     .get_file_containing_definition(&format!("puzzle[{name:?}]")) // TODO: this relies on Lua and Rust string escaping being the same
-                    .with_context(|| format!("no puzzle named {name:?}"))?
+                    .ok_or_else(|| eyre!("no puzzle named {name:?}"))?
                     .clone(); // TODO: instead of cloning, construct dependency graph
                 drop(store_reader);
 
                 let lua = crate::lua::new_lua();
                 // IIFE to mimic try_block
                 let result = (|| {
-                    crate::lua::load_sandboxed(&lua, &file.name, &file.contents)
-                        .with_context(|| format!("error loading file {:?}", file.name))?;
+                    todo!();
+                    // crate::lua::load_sandboxed(&lua, &file.name, &file.contents)
+                    //     .wrap_err_with(|| format!("error loading file {:?}", file.name))?;
                     let puzzle = lua.context(|lua| crate::lua::build_puzzle(lua, &name))?;
                     store
                         .write()
@@ -98,15 +101,16 @@ impl ObjectStore {
     }
 
     pub fn puzzles(&self) -> Vec<String> {
-        self.files
-            .values()
-            .flat_map(|file| {
-                file.objects
-                    .iter()
-                    .filter(|obj| matches!(obj.data, ObjectData::Puzzle { .. }))
-                    .map(|obj| obj.name.clone())
-            })
-            .collect()
+        todo!()
+        // self.files
+        //     .values()
+        //     .flat_map(|file| {
+        //         file.objects
+        //             .iter()
+        //             .filter(|obj| matches!(obj.data, ObjectData::Puzzle { .. }))
+        //             .map(|obj| obj.name.clone())
+        //     })
+        //     .collect()
     }
 }
 
@@ -114,6 +118,6 @@ impl ObjectStore {
 pub struct FileData {
     pub name: String,
     pub contents: String,
-    pub objects: Vec<Object>,
+    pub objects: Vec<PuzzleDefinition>,
     pub dependencies: Vec<String>,
 }
