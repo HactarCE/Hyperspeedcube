@@ -43,13 +43,11 @@
 )]
 
 pub mod group;
-pub mod patchwork;
 mod slabmap;
 pub mod space;
 mod util;
 
 pub use group::*;
-pub use patchwork::*;
 use slabmap::SlabMap;
 pub use space::*;
 
@@ -58,7 +56,6 @@ pub mod prelude {
     // TODO: figure out what we should export here, and reevaluate everything's
     // names
     pub use crate::group::*;
-    pub use crate::patchwork::*;
     pub use crate::space::*;
 }
 
