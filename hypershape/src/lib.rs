@@ -31,6 +31,7 @@
 //! unions are not given IDs.
 
 #![warn(
+    clippy::doc_markdown,
     clippy::if_then_some_else_none,
     clippy::manual_let_else,
     clippy::semicolon_if_nothing_returned,
