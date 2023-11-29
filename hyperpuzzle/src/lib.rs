@@ -18,8 +18,8 @@ mod lua;
 mod puzzle;
 mod task;
 
-pub use library::{FileData, Library, PuzzleDefinition};
-pub use lua::{drain_logs, load_sandboxed, new_lua, LuaLogLine};
+pub use library::{Library, PuzzleData};
+pub use lua::LuaLogLine;
 pub use puzzle::*;
 pub use task::TaskHandle;
 

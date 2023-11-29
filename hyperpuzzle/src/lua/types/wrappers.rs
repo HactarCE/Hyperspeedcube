@@ -79,7 +79,7 @@ macro_rules! lua_convert {
         }
     ) => {{
         let lua = $lua;
-        let val: &::rlua::Value = $lua_value;
+        let val: &::rlua::Value<'_> = $lua_value;
         lua_convert!(@ lua, val; $($tok)*).map_err(|message| {
             ::rlua::Error::FromLuaConversionError {
                 from: $crate::lua::lua_type_name(val),

@@ -5,12 +5,14 @@ use eyre::Result;
 use crate::{Puzzle, TaskHandle};
 
 pub(super) enum LibraryCommand {
-    LoadFile {
+    AddFile {
         filename: String,
         contents: String,
-        progress: TaskHandle<Result<()>>,
     },
-    ConstructPuzzle {
+    LoadFiles {
+        progress: TaskHandle<()>,
+    },
+    BuildPuzzle {
         name: String,
         progress: TaskHandle<Result<Arc<Puzzle>>>,
     },

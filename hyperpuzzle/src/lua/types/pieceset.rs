@@ -1,8 +1,5 @@
-use hypershape::prelude::*;
-use itertools::Itertools;
-
 use super::*;
-use crate::{Piece, PieceSet};
+use crate::PieceSet;
 
 lua_userdata_value_conversion_wrapper! {
     #[name = "pieceset"]

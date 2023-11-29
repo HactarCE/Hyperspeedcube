@@ -5,7 +5,6 @@ mod wrappers;
 mod manifold;
 mod multivector;
 mod ndim;
-mod object;
 mod pieceset;
 mod puzzle;
 mod space;
@@ -50,15 +49,13 @@ pub struct LuaLogLine {
     pub file: String,
     pub level: String,
 }
-impl<'lua> TryFrom<LuaTable<'lua>> for LuaLogLine {
-    type Error = LuaError;
-
-    fn try_from(value: LuaTable<'lua>) -> std::result::Result<Self, Self::Error> {
-        Ok(LuaLogLine {
-            msg: value.get("msg")?,
-            file: value.get("file")?,
-            level: value.get("level")?,
-        })
+impl<'lua> From<LuaTable<'lua>> for LuaLogLine {
+    fn from(value: LuaTable<'lua>) -> Self {
+        LuaLogLine {
+            msg: value.get("msg").unwrap_or_else(|_| "nil".to_string()),
+            file: value.get("file").unwrap_or_else(|_| "?.lua".to_string()),
+            level: value.get("level").unwrap_or_else(|_| "????".to_string()),
+        }
     }
 }
 

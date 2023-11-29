@@ -6,7 +6,7 @@ lua_userdata_value_conversion_wrapper! {
     #[name = "multivector", convert_str = "multivector, vector, table, or number"]
     pub struct LuaMultivector(Multivector) = |_lua| {
         <_>(LuaVector(v)) => Ok(v.into()),
-        <LuaTable>(t)  => Ok(LuaMultivector::construct_from_table(t)?),
+        <LuaTable<'_>>(t)  => Ok(LuaMultivector::construct_from_table(t)?),
         <Float>(x) => Ok(Multivector::scalar(x)),
         <LuaAxesString>(axes) => Ok(axes.to_multivector()),
     }
@@ -163,7 +163,7 @@ impl LuaUserData for LuaNamedUserData<Multivector> {
                 fn add_methods<'lua, T: LuaUserDataMethods<'lua, Self>>(methods: &mut T) {
                     methods.add_meta_method_mut(
                         LuaMetaMethod::Call,
-                        |_lua, this, _: LuaMultiValue| {
+                        |_lua, this, _: LuaMultiValue<'_>| {
                             Ok(match this.0.next() {
                                 Some(term) => (Some(term.axes.to_string()), Some(term.coef)),
                                 None => (None, None),
