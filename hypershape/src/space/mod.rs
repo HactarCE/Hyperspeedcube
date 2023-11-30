@@ -1004,7 +1004,7 @@ impl Space {
                 let intersection = Blade::meet_in_space(
                     &self.blade_of(cut),
                     &self.blade_of(polytope),
-                    &self.blade_of(&space),
+                    &self.blade_of(space),
                 );
                 if !intersection.is_null_vector() {
                     bail!("expected tangent point");

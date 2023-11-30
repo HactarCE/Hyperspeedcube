@@ -139,7 +139,8 @@ impl MulAssign<Float> for Blade {
 
 /// Outer product of a blade and a term.
 ///
-/// See https://w.wiki/6L8p
+/// See [Geometric algebra - Extensions of the inner and exterior
+/// products](https://w.wiki/6L8p).
 impl<'a> BitXor<Term> for &'a Blade {
     type Output = Blade;
 
@@ -158,7 +159,8 @@ impl BitXor<Term> for Blade {
 }
 /// Outer product of a term and a blade.
 ///
-/// See https://w.wiki/6L8p
+/// See [Geometric algebra - Extensions of the inner and exterior
+/// products](https://w.wiki/6L8p).
 impl<'a> BitXor<&'a Blade> for Term {
     type Output = Blade;
 
@@ -250,11 +252,13 @@ impl Blade {
 
     /// Null vector representing the point at the origin.
     ///
-    /// See https://w.wiki/6L8q
+    /// See [Conformal geometric algebra - Base and representation
+    /// spaces](https://w.wiki/6L8q).
     pub const NO: Self = Blade(Multivector::NO);
     /// Null vector representing the point at infinity.
     ///
-    /// See https://w.wiki/6L8q
+    /// See [Conformal geometric algebra - Base and representation
+    /// spaces](https://w.wiki/6L8q).
     pub const NI: Self = Blade(Multivector::NI);
 
     /// Grade-projects a multivector, keeping only nonzero terms with a specific
@@ -431,13 +435,15 @@ impl Blade {
 
     /// Returns the Ni component of a 1-blade.
     ///
-    /// See https://w.wiki/6L8q
+    /// See [Conformal geometric algebra - Base and representation
+    /// spaces](https://w.wiki/6L8q).
     pub fn ni(&self) -> Float {
         (self.mv()[Axes::E_MINUS] + self.mv()[Axes::E_PLUS]) / 2.0
     }
     /// Returns the No component of a 1-blade.
     ///
-    /// See https://w.wiki/6L8q
+    /// See [Conformal geometric algebra - Base and representation
+    /// spaces](https://w.wiki/6L8q).
     pub fn no(&self) -> Float {
         self.mv()[Axes::E_MINUS] - self.mv()[Axes::E_PLUS]
     }

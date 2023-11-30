@@ -73,7 +73,8 @@ pub trait ToConformalPoint {
 impl<V: VectorRef> ToConformalPoint for V {
     /// Constructs the OPNS blade representing a point.
     ///
-    /// See https://w.wiki/6L8o
+    /// See [Conformal geometric algebra - Mapping between the base space and
+    /// the representation space](https://w.wiki/6L8o).
     fn to_normalized_1blade(self) -> Blade {
         // p + NO + 1/2 * NI * ||p||^2
         let mag2 = self.mag2();

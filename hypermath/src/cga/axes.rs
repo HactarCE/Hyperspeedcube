@@ -81,7 +81,7 @@ impl Axes {
     /// Returns the sign of the reverse of the basis blade.
     pub const fn sign_of_reverse(self) -> Float {
         // The number of swaps required to reverse a sequence of length n is
-        // n*(n+1)/2. See https://oeis.org/A000217. This sequence alternates
+        // n*(n+1)/2. See <https://oeis.org/A000217>. This sequence alternates
         // between pairs of even and odd numbers; if its parity is odd, then
         // negate the coefficient.
         match self.bits().count_ones() % 4 {

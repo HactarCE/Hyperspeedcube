@@ -244,7 +244,8 @@ impl MulAssign<Term> for Multivector {
 
 /// Outer product of a multivector and a term.
 ///
-/// See https://w.wiki/6L8p
+/// See [Geometric algebra - Extensions of the inner and exterior
+/// products](https://w.wiki/6L8p).
 impl<'a> BitXor<Term> for &'a Multivector {
     type Output = Multivector;
 
@@ -261,7 +262,8 @@ impl BitXor<Term> for Multivector {
 }
 /// Outer product of a term and a multivector.
 ///
-/// See https://w.wiki/6L8p
+/// See [Geometric algebra - Extensions of the inner and exterior
+/// products](https://w.wiki/6L8p).
 impl<'a> BitXor<&'a Multivector> for Term {
     type Output = Multivector;
 
@@ -374,7 +376,8 @@ impl_forward_assign_ops_to_owned! {
 
 /// Outer product of two multivectors.
 ///
-/// See https://w.wiki/6L8p
+/// See [Geometric algebra - Extensions of the inner and exterior
+/// products](https://w.wiki/6L8p).
 impl<'a> BitXor for &'a Multivector {
     type Output = Multivector;
 
@@ -450,11 +453,13 @@ impl Multivector {
 
     /// Null vector representing the origin.
     ///
-    /// See https://w.wiki/6L8q
+    /// See [Conformal geometric algebra - Base and representation
+    /// spaces](https://w.wiki/6L8q).
     pub const NO: Self = Self(smallvec_inline![Term::e_minus(0.5), Term::e_plus(-0.5)]);
     /// Null vector representing the point at infinity.
     ///
-    /// See https://w.wiki/6L8q
+    /// See [Conformal geometric algebra - Base and representation
+    /// spaces](https://w.wiki/6L8q).
     pub const NI: Self = Self(smallvec_inline![Term::e_minus(1.0), Term::e_plus(1.0)]);
 
     /// Returns a scalar multivector.

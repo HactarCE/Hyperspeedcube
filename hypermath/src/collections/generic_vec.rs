@@ -151,10 +151,10 @@ impl<I: IndexNewtype> Iterator for IndexIter<I> {
 }
 impl<I: IndexNewtype> DoubleEndedIterator for IndexIter<I> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        // SAFETY: see `next()` above.
-        self.range
-            .next_back()
-            .map(|i| unsafe { I::from_u64(i as u64) })
+        self.range.next_back().map(|i| {
+            // SAFETY: see `next()` above.
+            unsafe { I::from_u64(i as u64) }
+        })
     }
 }
 impl<I: IndexNewtype> ExactSizeIterator for IndexIter<I> {}
