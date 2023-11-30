@@ -146,7 +146,7 @@ impl Space {
     }
 
     /// Returns the pair of points that comprise a 0D polytope.
-    pub fn extract_point_pair(&self, polytope: AtomicPolytopeRef) -> Result<[Point; 2]> {
+    pub fn extract_point_pair(&self, polytope: impl HasManifoldInSpace) -> Result<[Point; 2]> {
         self.blade_of(polytope)
             .point_pair_to_points()
             .ok_or_else(|| eyre!("attempt to get point pair from non-point point pair manifold"))
@@ -1134,18 +1134,36 @@ impl Space {
         cut: ManifoldRef,
         polytope: AtomicPolytopeRef,
     ) -> Result<WhichSide> {
-        let mut is_any_inside = false;
-        let mut is_any_outside = false;
-        let mut is_any_touching = false;
-        for boundary_elem in self.boundary_of(polytope).collect_vec() {
-            match self.which_side_has_manifold(todo!(), cut, todo!("target"))? {
-                WhichSide::Flush => todo!(),
-                WhichSide::Inside { is_touching } => todo!(),
-                WhichSide::Outside { is_touching } => todo!(),
-                WhichSide::Split => todo!(),
-            }
+        let cut_polytope = self.add_point_pair(cut)?;
+
+        let space = self.manifold_of(polytope);
+
+        let intervals = self.boundary_of(polytope).collect_vec();
+        let is_any_inside = self
+            .incrementally_simplify_intersection_of_intervals(space, intervals, cut_polytope)?
+            .is_some();
+
+        let intervals = self.boundary_of(polytope).collect_vec();
+        let is_any_outside = self
+            .incrementally_simplify_intersection_of_intervals(space, intervals, -cut_polytope)?
+            .is_some();
+
+        // TODO: inside && outside does not imply touching
+        let is_touching = (is_any_inside && is_any_outside) || {
+            let [a, b] = self.extract_point_pair(cut)?;
+            self.boundary_of(polytope)
+                .map(|boundary_elem| self.extract_point_pair(boundary_elem))
+                .collect::<Result<Vec<_>>>()?
+                .into_iter()
+                .any(|[c, d]| a == c || a == d || b == c || b == d)
+        };
+
+        match (is_any_inside, is_any_outside) {
+            (true, true) => Ok(WhichSide::Split),
+            (true, false) => Ok(WhichSide::Inside { is_touching }),
+            (false, true) => Ok(WhichSide::Outside { is_touching }),
+            (false, false) => Ok(WhichSide::Flush),
         }
-        self.which_side_has_manifold(todo!(), cut, todo!("target"))
     }
 
     /// Returns the location of `point` relative to `polytope`, assuming they
