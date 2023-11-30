@@ -8,8 +8,6 @@ use hypermath::collections::ApproxHashMap;
 use hypermath::IndexNewtype;
 use slab::Slab;
 
-trait HashMappable {}
-
 /// Data structure that assigns an ID to each unique element inserted into it
 /// and allows efficient lookups in both directions.
 #[derive(Debug, Default, Clone)]

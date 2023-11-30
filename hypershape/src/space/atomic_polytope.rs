@@ -1,7 +1,6 @@
 use super::*;
 
-/// Conformally convex polytope in a single patch defined by a manifold and a
-/// boundary.
+/// Conformally convex polytope defined by a manifold and a boundary.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct AtomicPolytope {
     /// Manifold of the polytope.
