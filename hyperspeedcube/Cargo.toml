@@ -16,6 +16,8 @@ bytemuck = { version = "1.9.1", features = ["derive"] }
 cgmath = "0.18.0"
 colorous = "1.0.10"
 config = "0.13.1"
+color-eyre = "0.6"
+eyre = "0.6"
 dark-light = "0.2.1"
 directories = "4.0.1"
 enum-iterator = "1.4.0"
@@ -56,7 +58,7 @@ egui = "0.22.0"
 egui_dock = "0.6.3"
 egui_extras = "0.22.0"
 egui-wgpu = "0.22.0"
-winit = { version = "0.28.6", features = ["serde"] }
+winit = { version = "0.28.7", features = ["serde"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

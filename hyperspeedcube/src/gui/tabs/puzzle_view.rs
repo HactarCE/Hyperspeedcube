@@ -28,7 +28,7 @@ impl PuzzleView {
             wgpu::FilterMode::Linear,
         );
 
-        let space = Space::new(3);
+        let space = Space::new(3).unwrap();
         let mesh = Mesh::default();
 
         PuzzleView {

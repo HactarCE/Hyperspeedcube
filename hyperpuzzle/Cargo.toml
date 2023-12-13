@@ -28,6 +28,7 @@ smallvec = { version = "1.11.0", features = ["const_new", "union"] }
 strum = { version = "0.24.0", features = ["derive"] }
 thiserror = "1.0.44"
 tinyset = "0.4.15"
+walkdir = "2.4.0"
 
 hypermath = { path = "../hypermath" }
 hypershape = { path = "../hypershape" }

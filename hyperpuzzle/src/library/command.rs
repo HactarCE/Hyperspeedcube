@@ -15,6 +15,8 @@ pub(super) enum LibraryCommand {
     AddFile { filename: String, contents: String },
     /// Remove a Lua file from the library.
     RemoveFile { filename: String },
+    /// Removes all Lua files from the library.
+    RemoveAllFiles,
     /// Execute all Lua files that haven't been executed yet.
     LoadFiles { progress: TaskHandle<()> },
 

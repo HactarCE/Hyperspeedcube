@@ -116,6 +116,10 @@ impl LuaLoader {
         self.call_global("set_file_contents", (filename, contents))
     }
 
+    pub fn remove_all_files(&self) -> Result<()> {
+        self.call_global("remove_all_files", ())
+    }
+
     pub fn load_all_files(&self) {
         self.call_global("load_all_files", ())
             .expect("infallible Lua function failed!")
@@ -128,9 +132,10 @@ impl LuaLoader {
                 .expect("error reading Lua puzzle table")
                 .pairs()
                 .map(|pair| {
-                    let (name, data): (String, LuaTable<'_>) = pair?;
+                    let (id, data): (String, LuaTable<'_>) = pair?;
+                    let name = data.get("name")?;
                     let filename = data.get::<_, LuaTable<'_>>("file")?.get("name")?;
-                    Ok(PuzzleData { name, filename })
+                    Ok(PuzzleData { id, name, filename })
                 })
                 .filter_map(|data: LuaResult<_>| {
                     if data.is_err() {

@@ -64,13 +64,13 @@ local function pstring_internal(t, indent, exclude)
 end
 
 function pstring(...)
-  return pstring_internal(...)
+  local outputs = {}
+  for i, arg in ipairs{...} do
+    table.insert(outputs, pstring_internal(arg))
+  end
+  return table.unpack(outputs)
 end
 
 function pprint(...)
-  local args = {}
-  for i, arg in ipairs{...} do
-    table.insert(args, pstring(arg))
-  end
-  print(table.unpack(args))
+  print(pstring(...))
 end

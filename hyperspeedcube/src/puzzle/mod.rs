@@ -17,7 +17,7 @@ pub use rubiks_3d::Rubiks3D;
 pub use rubiks_4d::Rubiks4D;
 
 pub mod traits {
-    pub use super::{PuzzleInfo, PuzzleState, PuzzleType};
+    pub use super::{PuzzleState, PuzzleType};
 }
 
 #[cfg(test)]

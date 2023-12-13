@@ -24,8 +24,8 @@ SANDBOX_ENV = {
   warn = function(...) warn(FILE.name, ...) end,
   info = function(...) info(FILE.name, ...) end,
   pstring = pstring,
-  print = print,
-  pprint = pprint,
+  print = function(...) info(FILE.name, ...) end,
+  pprint = function(...) info(FILE.name, pstring(...)) end,
   type = type,
 
   -- Library access

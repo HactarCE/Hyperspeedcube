@@ -1,5 +1,6 @@
 use parking_lot::{Mutex, MutexGuard};
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::{mpsc, Arc};
 
 use eyre::Result;
@@ -40,18 +41,27 @@ impl Library {
                 match command {
                     LibraryCommand::SetLogLineHandler { handler } => {
                         if let Err(e) = loader.set_log_line_handler(handler) {
-                            log::error!("failed to set Lua log line handler: {e}");
+                            let e = e.wrap_err("failed to set Lua log line handler");
+                            log::error!("{e:?}");
                         }
                     }
 
                     LibraryCommand::AddFile { filename, contents } => {
                         if let Err(e) = loader.set_file_contents(&filename, Some(&contents)) {
-                            log::error!("failed to add file {filename}: {e}");
+                            let e = e.wrap_err(format!("failed to add file {filename}"));
+                            log::error!("{e:?}");
                         }
                     }
                     LibraryCommand::RemoveFile { filename } => {
                         if let Err(e) = loader.set_file_contents(&filename, None) {
-                            log::error!("failed to remove file {filename}: {e}");
+                            let e = e.wrap_err(format!("failed to remove file {filename}"));
+                            log::error!("{e:?}");
+                        }
+                    }
+                    LibraryCommand::RemoveAllFiles => {
+                        if let Err(e) = loader.remove_all_files() {
+                            let e = e.wrap_err("failed to remove all files");
+                            log::error!("{e:?}");
                         }
                     }
                     LibraryCommand::LoadFiles { progress } => {
@@ -92,9 +102,48 @@ impl Library {
     pub fn add_file(&self, filename: String, contents: String) {
         self.send_command(LibraryCommand::AddFile { filename, contents });
     }
+    /// Reads a file from the disk and adds it to the Lua library. It will not
+    /// immediately be loaded. Logs an error if the file could not be read.
+    ///
+    /// If the filename conflicts with an existing one, then the existing file
+    /// will be overwritten.
+    pub fn read_file(&self, filename: String, file_path: &Path) {
+        let file_path = file_path.strip_prefix(".").unwrap_or(file_path);
+        match std::fs::read_to_string(file_path) {
+            Ok(contents) => self.add_file(filename, contents),
+            Err(e) => log::error!("error loading {file_path:?}: {e}"),
+        }
+    }
+    /// Reads a directory recursively and adds all files ending in `.lua` to the
+    /// Lua library. They will not immediately be loaded.
+    ///
+    /// If any filename conflicts with an existing one, then the existing file
+    /// will be overwritten.
+    pub fn read_directory(&self, directory: &Path) {
+        for entry in walkdir::WalkDir::new(directory).follow_links(true) {
+            match entry {
+                Ok(entry) => {
+                    let path = entry.path();
+                    if path.extension().is_some_and(|ext| ext == "lua") {
+                        let name = path
+                            .strip_prefix(directory)
+                            .unwrap_or(path)
+                            .to_string_lossy()
+                            .into_owned();
+                        self.read_file(name, path);
+                    }
+                }
+                Err(e) => log::warn!("error reading filesystem entry: {e:?}"),
+            }
+        }
+    }
     /// Removes a file from the Lua library.
     pub fn remove_file(&self, filename: String) {
         self.send_command(LibraryCommand::RemoveFile { filename });
+    }
+    /// Unloads all files.
+    pub fn remove_all_files(&self) {
+        self.send_command(LibraryCommand::RemoveAllFiles);
     }
     /// Loads all files that haven't been loaded yet. Lua execution happens
     /// asynchronously, so changes might not take effect immediately; use the
@@ -105,6 +154,17 @@ impl Library {
             progress: task.clone(),
         });
         task
+    }
+    /// Reads a directory recursively and adds all files ending in `.lua` to the
+    /// Lua library, then loads them all. Lua execution happens asynchronously,
+    /// so changes might not take effect immediately; use the returned
+    /// [`TaskHandle`] to check progress.
+    ///
+    /// If any filename conflicts with an existing one, then the existing file
+    /// will be overwritten.
+    pub fn load_directory(&self, directory: &Path) -> TaskHandle<()> {
+        self.read_directory(directory);
+        self.load_files()
     }
     /// Returns the full list of loaded puzzles.
     pub fn puzzles(&self) -> MutexGuard<'_, HashMap<String, PuzzleData>> {

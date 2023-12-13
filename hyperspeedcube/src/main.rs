@@ -68,45 +68,22 @@ static LUA_BUILTIN_DIR: include_dir::Dir = include_dir::include_dir!("$CARGO_MAN
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     // Initialize logging.
+    let hsc_level = if cfg!(debug_assertions) {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Warn
+    };
     env_logger::builder()
-        .filter_module(
-            "hyperspeedcube",
-            if cfg!(debug_assertions) {
-                log::LevelFilter::Debug
-            } else {
-                log::LevelFilter::Warn
-            },
-        )
+        .filter_module("hypermath", hsc_level)
+        .filter_module("hypershape", hsc_level)
+        .filter_module("hyperpuzzle", hsc_level)
+        .filter_module("hyperspeedcube", hsc_level)
         .init();
 
-    let human_panic_metadata = human_panic::Metadata {
-        name: TITLE.into(),
-        version: env!("CARGO_PKG_VERSION").into(),
-        authors: env!("CARGO_PKG_AUTHORS").into(),
-        homepage: env!("CARGO_PKG_REPOSITORY").into(),
-    };
-
-    let std_panic_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        let file_path = human_panic::handle_dump(&human_panic_metadata, info);
-        human_panic::print_msg(file_path.as_ref(), &human_panic_metadata)
-            .expect("human-panic: printing error message to console failed");
-
-        rfd::MessageDialog::new()
-            .set_title(&format!("{TITLE} crashed"))
-            .set_description(&match file_path {
-                Some(fp) => format!(
-                    "A crash report has been saved to \"{}\"\n\n\
-                     Please submit this to the developer",
-                    fp.display(),
-                ),
-                None => format!("Error saving crash report"),
-            })
-            .set_level(rfd::MessageLevel::Error)
-            .show();
-
-        std_panic_hook(info);
-    }));
+    #[cfg(debug_assertions)]
+    color_eyre::install();
+    #[cfg(not(debug_assertions))]
+    init_human_panic();
 
     pollster::block_on(run());
 }
@@ -291,7 +268,7 @@ async fn run() {
                     web_workarounds.request_paste();
                     #[cfg(not(target_arch = "wasm32"))]
                     {
-                        request_paste |= request_paste;
+                        request_paste |= request_paste; // TODO: wtf??
                     }
                 }
                 if let Some(copy_string) = r.copy_string {
@@ -507,6 +484,38 @@ fn set_style_overrides(ctx: &egui::Context) {
     style_mut.visuals.widgets.open.bg_stroke.width *= 2.0;
     style_mut.spacing.interact_size.x *= 1.2;
     ctx.set_style(style);
+}
+
+#[cfg(not(debug_assertions))]
+fn init_human_panic() {
+    let human_panic_metadata = human_panic::Metadata {
+        name: TITLE.into(),
+        version: env!("CARGO_PKG_VERSION").into(),
+        authors: env!("CARGO_PKG_AUTHORS").into(),
+        homepage: env!("CARGO_PKG_REPOSITORY").into(),
+    };
+
+    let std_panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let file_path = human_panic::handle_dump(&human_panic_metadata, info);
+        human_panic::print_msg(file_path.as_ref(), &human_panic_metadata)
+            .expect("human-panic: printing error message to console failed");
+
+        rfd::MessageDialog::new()
+            .set_title(&format!("{TITLE} crashed"))
+            .set_description(&match file_path {
+                Some(fp) => format!(
+                    "A crash report has been saved to \"{}\"\n\n\
+                     Please submit this to the developer",
+                    fp.display(),
+                ),
+                None => format!("Error saving crash report"),
+            })
+            .set_level(rfd::MessageLevel::Error)
+            .show();
+
+        std_panic_hook(info);
+    }));
 }
 
 #[cfg(target_arch = "wasm32")]

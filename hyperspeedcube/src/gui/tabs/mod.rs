@@ -399,56 +399,26 @@ impl Tab {
             Tab::PuzzleLibrary { log_lines } => {
                 ui.separator();
                 let id = egui::Id::new("hyperspeedcube/files");
-                let needs_reload = ui.button("Reload files").clicked()
-                    || ui.data(|data| data.get_temp::<Vec<PathBuf>>(id).is_none())
+                let needs_reload = ui.button("Reload all files").clicked()
+                    || ui.data(|data| data.get_temp::<()>(id).is_none())
                     || ui.input(|input| input.key_pressed(egui::Key::F5));
                 if needs_reload {
-                    ui.data_mut(|data| {
-                        data.insert_temp::<Vec<PathBuf>>(
-                            id,
-                            std::fs::read_dir(LUA_PATH.join("puzzles"))
-                                .unwrap()
-                                .map(|path| path.unwrap().path())
-                                .collect_vec(),
-                        );
-                    });
-                }
-                let files_list: Vec<PathBuf> = ui.data(|data| data.get_temp(id)).unwrap();
-                ui.separator();
-                for path in files_list {
-                    if ui
-                        .button(format!("Load {}", path.to_str().unwrap()))
-                        .clicked()
-                        || needs_reload
-                    {
-                        let file_contents = std::fs::read_to_string(&path).unwrap();
-                        let task = crate::LIBRARY.with(|lib| {
-                            lib.load_file(
-                                path.file_name().unwrap().to_string_lossy().into_owned(),
-                                file_contents,
-                            )
-                        });
-                        let result = task.take_result_blocking();
-                        *log_lines = task.logs().clone();
-                        if let Err(e) = result {
-                            log::error!("{e:?}");
-                        }
-                    }
+                    ui.data_mut(|data| data.insert_temp(id, ()));
+                    crate::LIBRARY.with(|lib| lib.load_directory(&*LUA_PATH));
                 }
                 ui.separator();
                 crate::LIBRARY.with(|lib| {
-                    for puzzle_name in lib.get_puzzles() {
-                        if ui.button(format!("Load {puzzle_name}")).clicked() || needs_reload {
-                            let (result, logs) = lib.construct_puzzle(&puzzle_name);
-                            *log_lines = logs;
+                    for puzzle in lib.puzzles().values() {
+                        if ui.button(format!("Load {}", puzzle.name)).clicked() {
+                            let result = lib.build_puzzle(&puzzle.id).take_result_blocking();
                             match result {
-                                Err(e) => log::error!("{:?}", e),
+                                Err(e) => log::error!("{e:?}"),
                                 Ok(p) => {
                                     if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
                                         log::info!("set active puzzle!");
                                         puzzle_view.lock().set_mesh(
                                             &app.gfx,
-                                            Space::new(p.mesh.ndim()),
+                                            Space::new(p.mesh.ndim()).expect("bad space"),
                                             Some(&p.mesh),
                                         );
                                         puzzle_view.lock().puzzle = Some(p);
