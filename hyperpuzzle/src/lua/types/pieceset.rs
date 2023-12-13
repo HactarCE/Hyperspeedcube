@@ -12,14 +12,14 @@ impl LuaUserData for LuaNamedUserData<PieceSet> {
 
         methods.add_method_mut("carve", |lua, Self(this), LuaManifold(m)| {
             *this = LuaPuzzleBuilder::with(lua, |puzzle| {
-                puzzle.carve(this, m).map_err(|e| LuaError::external(e))
+                puzzle.carve(this, m).map_err(LuaError::external)
             })?;
             Ok(())
         });
 
         methods.add_method_mut("slice", |lua, Self(this), LuaManifold(m)| {
             *this = LuaPuzzleBuilder::with(lua, |puzzle| {
-                puzzle.slice(this, m).map_err(|e| LuaError::external(e))
+                puzzle.slice(this, m).map_err(LuaError::external)
             })?;
             Ok(())
         });

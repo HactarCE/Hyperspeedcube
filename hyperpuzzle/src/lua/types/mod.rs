@@ -43,10 +43,14 @@ pub fn lua_type_name(lua_value: &LuaValue<'_>) -> &'static str {
     lua_value.type_name()
 }
 
+/// Log line emitted by Lua code.
 #[derive(Debug, Clone)]
 pub struct LuaLogLine {
+    /// Log message.
     pub msg: String,
+    /// Lua file that emitted the message.
     pub file: String,
+    /// Log level, either `WARN` or `INFO`.
     pub level: String,
 }
 impl<'lua> From<LuaTable<'lua>> for LuaLogLine {
@@ -57,14 +61,4 @@ impl<'lua> From<LuaTable<'lua>> for LuaLogLine {
             level: value.get("level").unwrap_or_else(|_| "????".to_string()),
         }
     }
-}
-
-#[derive(thiserror::Error, Debug, Clone)]
-pub enum LuaObjectLoadError {
-    #[error("missing dependencies: {0:?}")]
-    MissingDependencies(Vec<String>),
-    #[error("error: {0}")]
-    UserError(LuaError),
-    #[error("internal error: {0}")]
-    InternalError(LuaError),
 }

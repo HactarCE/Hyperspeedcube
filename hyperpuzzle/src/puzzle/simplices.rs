@@ -1,3 +1,5 @@
+#![allow(dead_code)] // TODO: remove when extending simplexifier to work with curved cuts
+
 use std::collections::HashMap;
 use std::fmt;
 use std::ops::Index;
@@ -44,9 +46,6 @@ impl<'a> Simplexifier<'a> {
             self.vertices.push(v);
             id
         }))
-    }
-    fn vertex_point(&self, v: VertexId) -> cga::Point {
-        cga::Point::Finite(self[v].clone())
     }
 
     pub fn shape_centroid_point(&mut self, shape: AtomicPolytopeId) -> Result<Vector> {
@@ -197,10 +196,7 @@ impl Simplex {
             .ok_or_else(|| eyre!("simplex cannot be empty"))
     }
     fn try_into_array<const N: usize>(&self) -> Option<[VertexId; N]> {
-        (self.0.len() == N).then(|| {
-            let mut it = self.0.iter();
-            [(); N].map(|_| it.next().unwrap())
-        })
+        self.0.iter().collect_vec().try_into().ok()
     }
     fn arbitrary_vertex(&self) -> Result<VertexId> {
         self.0
@@ -283,7 +279,7 @@ impl SimplexBlob {
         } else {
             // Pick a vertex to start from. This `.unwrap()` always succeeds
             // because `.ndim()` succeded.
-            let initial_vertex = arbitrary_facet.0.iter().next().unwrap();
+            let initial_vertex = arbitrary_facet.arbitrary_vertex()?;
             Ok(SimplexBlob::from_convex_hull_and_initial_vertex(
                 facets,
                 initial_vertex,
@@ -299,7 +295,7 @@ impl SimplexBlob {
 
         // For every facet that does not contain that vertex ...
         for facet in facets {
-            if facet.0.iter().all(|s| !s.0.contains(&initial_vertex)) {
+            if facet.0.iter().all(|s| !s.0.contains(initial_vertex)) {
                 // ... for every simplex in that facet ...
                 for simplex in &facet.0 {
                     // ... construct a new simplex that will be in the result.

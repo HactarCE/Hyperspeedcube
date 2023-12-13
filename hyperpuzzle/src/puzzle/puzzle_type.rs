@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::{Arc, Weak};
 
-use super::{Mesh, PieceInfo, PieceTypeInfo, PuzzleState, StickerInfo};
+use super::{Mesh, Notation, PieceInfo, PieceTypeInfo, PuzzleState, StickerInfo};
 use crate::{PerPiece, PerPieceType, PerSticker};
 
 /// Puzzle type info.
@@ -27,11 +27,12 @@ pub struct Puzzle {
     pub scramble_moves_count: usize,
 
     /// Move notation.
-    pub notation: NotationScheme,
+    pub notation: Notation,
 
     /// Function to create a new solved puzzle state.
     pub new: Box<dyn Send + Sync + Fn(Arc<Puzzle>) -> PuzzleState>,
 }
+
 impl fmt::Debug for Puzzle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Puzzle")
@@ -48,10 +49,9 @@ impl fmt::Debug for Puzzle {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct PuzzleTwists {
-    pub name: String,
+impl Puzzle {
+    /// Returns an `Arc` reference to the puzzle type.
+    pub fn arc(&self) -> Arc<Puzzle> {
+        self.this.upgrade().expect("`Puzzle` removed from `Arc`")
+    }
 }
-
-#[derive(Debug, Clone)]
-pub struct NotationScheme {}

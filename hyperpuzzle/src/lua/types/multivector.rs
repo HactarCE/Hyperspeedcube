@@ -169,10 +169,13 @@ impl LuaUserData for LuaNamedUserData<Multivector> {
                                 None => (None, None),
                             })
                         },
-                    )
+                    );
                 }
             }
 
+            // The data needs to be owned so that we can return it from the
+            // function.
+            #[allow(clippy::unnecessary_to_owned)]
             Ok(TermsIterFn(this.terms().to_vec().into_iter()))
         });
     }

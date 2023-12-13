@@ -3,10 +3,10 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::Arc;
 
-use parking_lot::{Condvar, Mutex, MutexGuard};
+use parking_lot::{Condvar, Mutex};
 
-use crate::lua::LuaLogLine;
-
+/// Handle to a task that will be completed asynchronously on another thread.
+#[must_use]
 pub struct TaskHandle<T>(Arc<TaskData<T>>);
 impl<T> fmt::Debug for TaskHandle<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -16,6 +16,7 @@ impl<T> fmt::Debug for TaskHandle<T> {
             .finish()
     }
 }
+
 impl<T> Clone for TaskHandle<T> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
@@ -23,21 +24,18 @@ impl<T> Clone for TaskHandle<T> {
 }
 
 impl<T> TaskHandle<T> {
+    /// Constructs a new task.
     pub(crate) fn new() -> Self {
         TaskHandle(Arc::new(TaskData::default()))
     }
 
-    pub fn logs(&self) -> MutexGuard<'_, Vec<LuaLogLine>> {
-        self.0.logs.lock()
-    }
-    pub fn cancel(&self) {
-        self.0.cancel_requested.store(true, Relaxed);
-    }
+    /// Marks the task as completed.
     pub(crate) fn complete(&self, result: T) {
         *self.0.result.lock() = Some(result);
         self.0.completed.store(true, Relaxed);
         self.0.condvar.notify_all();
     }
+    /// Takes the result of the task, blocking until a result is ready.
     pub fn take_result_blocking(&self) -> T {
         let mut result = self.0.result.lock();
         loop {
@@ -47,6 +45,8 @@ impl<T> TaskHandle<T> {
             }
         }
     }
+    /// Takes the result of the task, or returns `None` if no result is ready
+    /// yet or if the result has already been taken.
     pub fn take_result(&self) -> Option<T> {
         match self.0.completed.load(Relaxed) {
             true => self.0.result.lock().take(),
@@ -55,13 +55,15 @@ impl<T> TaskHandle<T> {
     }
 }
 
+/// Task that will be completed asynchronously on another thread.
 #[derive(Debug)]
 pub struct TaskData<T> {
+    /// Whether the task has been completed.
     completed: AtomicBool,
+    /// Whether the task should be canceled.
     cancel_requested: AtomicBool,
 
-    logs: Mutex<Vec<LuaLogLine>>,
-
+    /// Result of the task, once it has been completed.
     result: Mutex<Option<T>>,
     condvar: Condvar,
 }
@@ -70,8 +72,6 @@ impl<T> Default for TaskData<T> {
         Self {
             completed: AtomicBool::new(false),
             cancel_requested: AtomicBool::new(false),
-
-            logs: Mutex::new(vec![]),
 
             result: Mutex::new(None),
             condvar: Condvar::new(),

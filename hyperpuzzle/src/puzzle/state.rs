@@ -4,16 +4,28 @@ use hypermath::prelude::*;
 
 use crate::{PerPiece, Puzzle};
 
+/// Instance of a puzzle with a particular state.
 pub struct PuzzleState {
+    /// Immutable puzzle type info.
     puzzle_type: Arc<Puzzle>,
-    piece_rotations: PerPiece<Isometry>,
+    /// Position and rotation of each piece.
+    piece_transforms: PerPiece<Isometry>,
 }
 impl PuzzleState {
+    /// Constructs a new instance of a puzzle.
     pub fn new(puzzle_type: Arc<Puzzle>) -> Self {
-        let piece_rotations = puzzle_type.pieces.map_ref(|_, _| Isometry::ident());
+        let piece_transforms = puzzle_type.pieces.map_ref(|_, _| Isometry::ident());
         PuzzleState {
             puzzle_type,
-            piece_rotations,
+            piece_transforms,
         }
+    }
+    /// Returns the puzzle type
+    pub fn ty(&self) -> &Puzzle {
+        &self.puzzle_type
+    }
+    /// Returns the position and rotation of each piece.
+    pub fn piece_transforms(&self) -> &PerPiece<Isometry> {
+        &self.piece_transforms
     }
 }

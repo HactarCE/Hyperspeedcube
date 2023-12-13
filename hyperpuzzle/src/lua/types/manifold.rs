@@ -28,14 +28,11 @@ impl LuaManifold {
         })
     }
 
-    fn construct_from_table<'lua>(
-        lua: LuaContext<'_>,
-        t: LuaTable<'lua>,
-    ) -> LuaResult<ManifoldRef> {
+    fn construct_from_table(lua: LuaContext<'_>, t: LuaTable<'_>) -> LuaResult<ManifoldRef> {
         Ok(Self::construct_plane_or_sphere(t)?.to_manifold(lua)?.0)
     }
 
-    fn construct_plane_or_sphere<'lua>(t: LuaTable<'lua>) -> LuaResult<LuaPlaneOrSphere> {
+    fn construct_plane_or_sphere(t: LuaTable<'_>) -> LuaResult<LuaPlaneOrSphere> {
         let arg_count = t.clone().pairs::<LuaValue<'_>, LuaValue<'_>>().count();
 
         let ensure_args_len = |n| {
@@ -129,11 +126,9 @@ impl LuaManifold {
 
             match Self::construct_plane_or_sphere(t)? {
                 m @ LuaPlaneOrSphere::Sphere { .. } => m.to_manifold(lua),
-                LuaPlaneOrSphere::Plane { .. } => {
-                    return Err(LuaError::external(
-                        "expected sphere constructor but got plane constructor",
-                    ))
-                }
+                LuaPlaneOrSphere::Plane { .. } => Err(LuaError::external(
+                    "expected sphere constructor but got plane constructor",
+                )),
             }
         }
     }
@@ -152,11 +147,9 @@ impl LuaManifold {
 
             match Self::construct_plane_or_sphere(t)? {
                 m @ LuaPlaneOrSphere::Plane { .. } => m.to_manifold(lua),
-                LuaPlaneOrSphere::Sphere { .. } => {
-                    return Err(LuaError::external(
-                        "expected plane constructor but got sphere constructor",
-                    ));
-                }
+                LuaPlaneOrSphere::Sphere { .. } => Err(LuaError::external(
+                    "expected plane constructor but got sphere constructor",
+                )),
             }
         }
     }

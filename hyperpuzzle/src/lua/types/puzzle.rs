@@ -11,7 +11,7 @@ lua_userdata_value_conversion_wrapper! {
 }
 
 impl LuaUserData for LuaNamedUserData<Arc<Mutex<Option<PuzzleBuilder>>>> {
-    fn add_methods<'lua, T: LuaUserDataMethods<'lua, Self>>(methods: &mut T) {
+    fn add_methods<'lua, T: LuaUserDataMethods<'lua, Self>>(_methods: &mut T) {
         // TODO
     }
 }

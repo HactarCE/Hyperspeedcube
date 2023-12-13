@@ -10,16 +10,23 @@ use smallvec::smallvec;
 
 use super::simplices::{Simplexifier, VertexId};
 use super::{
-    Color, MeshBuilder, MeshStickerBuilder, NotationScheme, PerColor, PerPiece, PerSticker, Piece,
+    Color, MeshBuilder, MeshStickerBuilder, Notation, PerColor, PerPiece, PerSticker, Piece,
     PieceInfo, PieceSet, PieceType, PieceTypeInfo, Puzzle, PuzzleState, StickerInfo,
 };
 
+/// Puzzle being constructed.
 #[derive(Debug)]
 pub struct PuzzleBuilder {
+    /// Puzzle ID.
     pub id: String,
+    /// Name of the puzzle.
     pub name: String,
+
+    /// Space where the puzzle exists.
     pub space: Arc<Mutex<Space>>,
+    /// Puzzle pieces.
     pub pieces: PerPiece<PieceBuilder>,
+    /// Sticker colors.
     pub colors: PerColor<ColorBuilder>,
 }
 impl PuzzleBuilder {
@@ -38,24 +45,25 @@ impl PuzzleBuilder {
     /// occupying all of Euclidean space.
     pub fn new_solid(name: String, id: String, ndim: u8) -> Result<(Self, Piece)> {
         let mut this = PuzzleBuilder::new_soup(name, id, ndim)?;
-        let mut space = this.space.lock();
         this.pieces.push(PieceBuilder {
-            shape: space.whole_space(),
+            shape: this.space.lock().whole_space(),
             is_active: true,
         })?;
-        drop(space);
         Ok((this, Piece(0)))
     }
 
-    /// Cut each piece by a cut, throwing away the portions that are outside the
-    /// cut. Every piece in the old set becomes inactive, and each piece in the
-    /// new set inherits its active status from the corresponding piece in the
-    /// old set.
+    /// Cuts each piece by a cut, throwing away the portions that are outside
+    /// the cut. Every piece in the old set becomes inactive, and each piece in
+    /// the new set inherits its active status from the corresponding piece in
+    /// the old set.
     pub fn carve(&mut self, pieces: &PieceSet, cut_manifold: ManifoldRef) -> Result<PieceSet> {
         let mut cut = AtomicCut::carve(cut_manifold);
         self.cut_and_deactivate_pieces(&mut cut, pieces)
     }
 
+    /// Cuts each piece by a cut, keeping all results. Every piece in the old
+    /// set becomes inactive, and each piece in the new set inherits its active
+    /// status from the corresponding piece in the old set.
     pub fn slice(&mut self, pieces: &PieceSet, cut_manifold: ManifoldRef) -> Result<PieceSet> {
         let mut cut = AtomicCut::carve(cut_manifold);
         self.cut_and_deactivate_pieces(&mut cut, pieces)
@@ -86,11 +94,8 @@ impl PuzzleBuilder {
     /// Performs the final steps of building a puzzle, generating the mesh and
     /// assigning IDs to pieces etc.
     pub fn build(self) -> Result<Arc<Puzzle>> {
-        let mut space = self.space.lock();
+        let space = self.space.lock();
 
-        let twists = Arc::new(crate::PuzzleTwists {
-            name: "Unknown".to_string(),
-        });
         let mut mesh = MeshBuilder::new(space.ndim());
 
         for _ in &self.colors {
@@ -164,29 +169,28 @@ impl PuzzleBuilder {
 
             scramble_moves_count: 500, // TODO
 
-            notation: NotationScheme {},
+            notation: Notation {},
 
             new: Box::new(PuzzleState::new),
         }))
     }
 }
 
+/// Piece of a puzzle during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct PieceBuilder {
+    /// Shape of the piece.
     pub shape: AtomicPolytopeRef,
     /// Whether the piece should be part of the final puzzle.
     pub is_active: bool,
 }
 
+/// Sticker color during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct ColorBuilder {
+    /// Manifold of the color; stickers flush with this manifold will be
+    /// assigned this color.
     pub manifold: ManifoldRef,
-}
-
-#[derive(Debug, Clone)]
-struct PieceCutResult {
-    inside: Option<PieceBuilder>,
-    outside: Option<PieceBuilder>,
 }
 
 fn cut_and_deactivate_piece(
@@ -247,34 +251,4 @@ fn build_sticker_mesh(
     }
 
     Ok(())
-}
-
-fn polygons(space: &Space, polytope: AtomicPolytopeRef) -> Vec<AtomicPolytopeRef> {
-    fn find_2d_boundary_polytopes(
-        space: &Space,
-        polytope: AtomicPolytopeRef,
-        seen: &mut HashSet<AtomicPolytopeRef>,
-        results: &mut Vec<AtomicPolytopeRef>,
-    ) {
-        match space.ndim_of(polytope) {
-            ..=1 => (), // should be unreachable
-            2 => {
-                if seen.insert(polytope) {
-                    results.push(polytope);
-                }
-            }
-            3.. => {
-                if seen.insert(polytope) {
-                    // TODO: handle non-flat shapes
-                    for b in space.boundary_of(polytope) {
-                        find_2d_boundary_polytopes(space, b, seen, results);
-                    }
-                }
-            }
-        }
-    }
-
-    let mut results = vec![];
-    find_2d_boundary_polytopes(space, polytope, &mut HashSet::new(), &mut results);
-    results
 }

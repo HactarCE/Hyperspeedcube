@@ -3,7 +3,7 @@ FILE_OUTPUTS = {}
 PUZZLES = {}
 
 function set_file_contents(filename, contents)
-  info(nil, "Loading file contents")
+  info(nil, "Updating file %q", filename)
   FILE_CONTENTS[filename] = contents
   unload_file(filename)
 end
@@ -82,6 +82,7 @@ end
 
 function unload_all_files()
   FILE_OUTPUTS = {}
+  PUZZLES = {}
   info(nil, "Unloaded all files")
 end
 function load_all_files()

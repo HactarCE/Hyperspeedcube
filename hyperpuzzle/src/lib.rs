@@ -23,4 +23,5 @@ pub use lua::LuaLogLine;
 pub use puzzle::*;
 pub use task::TaskHandle;
 
+/// Unsigned integer type used for [`LayerMask`].
 pub type LayerMaskUint = u32;

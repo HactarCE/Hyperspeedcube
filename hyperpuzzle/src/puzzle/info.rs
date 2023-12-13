@@ -3,28 +3,6 @@ use hypermath::prelude::*;
 use smallvec::SmallVec;
 use tinyset::Set64;
 
-macro_rules! impl_puzzle_info_trait {
-    (for $t:ty { fn info($thing:ty) -> &$thing_info:ty { $($tok:tt)* } }) => {
-        impl $crate::puzzle::PuzzleInfo<$thing> for $t {
-            type Output = $thing_info;
-
-            fn info(&self, thing: $thing) -> &$thing_info {
-                &self $($tok)* [thing.0 as usize]
-            }
-        }
-    };
-}
-
-/// Trait for retrieving information about puzzle elements that is independent
-/// of state.
-pub trait PuzzleInfo<T> {
-    /// Type containing info about the element.
-    type Output;
-
-    /// Returns state-independent information about a puzzle element.
-    fn info(&self, thing: T) -> &Self::Output;
-}
-
 hypermath::idx_struct! {
     /// ID of a **piece**, which is rigid component of the puzzle that moves
     /// together.

@@ -11,7 +11,7 @@ impl<'lua> FromLua<'lua> for LuaNdim {
             return LuaNdim::get_global(lua).map(LuaNdim);
         }
         lua_convert!(match (lua, &lua_value, "number of dimensions") {
-            <u8>(i) => if 1 <= i &&  i <= MAX_NDIM {
+            <u8>(i) => if (1..=MAX_NDIM).contains(&i) {
                 Ok(LuaNdim(i))
             } else {
                 Err("out of range".to_owned())

@@ -1,10 +1,7 @@
 mod command;
 mod frontend;
+mod puzzledata;
 
 use command::LibraryCommand;
 pub use frontend::Library;
-
-#[derive(Debug, Clone)]
-pub struct PuzzleData {
-    name: String,
-}
+pub use puzzledata::PuzzleData;

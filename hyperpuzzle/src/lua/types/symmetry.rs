@@ -14,7 +14,6 @@ lua_userdata_value_conversion_wrapper! {
 impl LuaSymmetry {
     fn construct_from_table(t: LuaTable<'_>) -> LuaResult<SchlafliSymbol> {
         t.sequence_values()
-            .into_iter()
             .try_collect()
             .map(SchlafliSymbol::from_indices)
     }

@@ -9,6 +9,7 @@ use super::centroid::Centroid;
 use super::{Color, PerPiece, PerSticker, Piece};
 use crate::{Facet, PerFacet};
 
+/// Data to render a puzzle, in a format that can be sent to the GPU.
 #[derive(Debug, Clone)]
 pub struct Mesh {
     ndim: u8,
@@ -56,6 +57,7 @@ impl Default for Mesh {
 }
 
 impl Mesh {
+    /// Constructs an empty mesh.
     pub fn new_empty(ndim: u8) -> Self {
         Mesh {
             ndim,
@@ -281,6 +283,6 @@ impl MeshPolygonBuilder<'_, '_, '_> {
     }
 }
 
-fn iter_f32<'v>(ndim: u8, v: &'v impl VectorRef) -> impl 'v + Iterator<Item = f32> {
+fn iter_f32(ndim: u8, v: &impl VectorRef) -> impl '_ + Iterator<Item = f32> {
     v.iter_ndim(ndim).map(|x| x as f32)
 }
