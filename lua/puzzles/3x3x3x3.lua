@@ -9,7 +9,7 @@ puzzledef{
     "Magic Cube 4D",
     "Rubik's Hypercube",
   },
-  ndim = 3,
+  ndim = 4,
   meta = {
     id = '3x3x3x3',
     author = "Andrew Farkas",
@@ -37,7 +37,7 @@ puzzledef{
   build = function()
     for v in cd{4, 3, 3}:expand('ooox') do
       carve(v)
-      -- slice(v / 3)
+      slice(v / 3)
     end
 
     if true then return end
