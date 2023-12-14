@@ -1,8 +1,0 @@
-name: 1x1x1x1
-shape:
-  ndim: 4
-  facets:
-    - symmetry:
-        - schlafli: 4,3,3
-      seeds:
-        - [1, 0, 0, 0]
