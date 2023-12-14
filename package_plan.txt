@@ -1,4 +1,0 @@
-hypermath
-hypershape
-hyperpuzzle
-hyperspeedcube
