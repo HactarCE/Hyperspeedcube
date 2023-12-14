@@ -5,7 +5,7 @@ use std::collections::{hash_map, HashMap};
 use std::fmt;
 use std::ops::{Index, Mul, MulAssign, Neg};
 
-use eyre::{bail, ensure, eyre, Context, Result};
+use eyre::{bail, ensure, eyre, Context, OptionExt, Result};
 use float_ord::FloatOrd;
 use hypermath::prelude::*;
 use itertools::Itertools;
@@ -149,7 +149,7 @@ impl Space {
     pub fn extract_point_pair(&self, polytope: impl HasManifoldInSpace) -> Result<[Point; 2]> {
         self.blade_of(polytope)
             .point_pair_to_points()
-            .ok_or_else(|| eyre!("attempt to get point pair from non-point point pair manifold"))
+            .ok_or_eyre("attempt to get point pair from non-point point pair manifold")
     }
 
     /// Adds a spherical manifold to the space.
@@ -1289,7 +1289,7 @@ fn canonicalize_blade(blade: Blade) -> Result<(Blade, Sign)> {
         .mv()
         .nonzero_terms()
         .next()
-        .ok_or_else(|| eyre!("zero manifold is not valid"))?;
+        .ok_or_eyre("zero manifold is not valid")?;
     let sign = Sign::from(first_term.coef);
 
     Ok((blade * (scale_factor * sign), sign))

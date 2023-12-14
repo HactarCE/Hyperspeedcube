@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::Index;
 
-use eyre::{ensure, eyre, Result};
+use eyre::{ensure, eyre, OptionExt, Result};
 use hypermath::collections::ApproxHashMap;
 use hypermath::*;
 use hypershape::*;
@@ -57,7 +57,7 @@ impl<'a> Simplexifier<'a> {
         blade
             .project_point(&cga::Point::Finite(centroid.center()))
             .and_then(|p| p.to_finite().ok())
-            .ok_or_else(|| eyre!("unable to compute centroid of shape"))
+            .ok_or_eyre("unable to compute centroid of shape")
     }
     pub fn shape_centroid(&mut self, shape: AtomicPolytopeId) -> Result<Centroid> {
         let shape_manifold = self.space[shape].manifold;
@@ -95,7 +95,7 @@ impl<'a> Simplexifier<'a> {
             blade
                 .project_point(&cga::Point::Finite(point))
                 .and_then(|p| p.to_finite().ok())
-                .ok_or_else(|| eyre!("failed to project point onto manifold"))
+                .ok_or_eyre("failed to project point onto manifold")
         }
     }
 
@@ -170,7 +170,7 @@ impl<'a> Simplexifier<'a> {
                     Ok([a, b])
                 })
                 .collect::<Result<Vec<[VertexId; 2]>>>()?;
-        let initial_vertex = edges.get(0).ok_or_else(|| eyre!("polygon has no edges"))?[0];
+        let initial_vertex = edges.get(0).ok_or_eyre("polygon has no edges")?[0];
         Ok(edges
             .into_iter()
             .filter(|edge| !edge.contains(&initial_vertex))
@@ -193,16 +193,13 @@ impl Simplex {
     fn ndim(&self) -> Result<u8> {
         (self.0.len() as u8)
             .checked_sub(1)
-            .ok_or_else(|| eyre!("simplex cannot be empty"))
+            .ok_or_eyre("simplex cannot be empty")
     }
     fn try_into_array<const N: usize>(&self) -> Option<[VertexId; N]> {
         self.0.iter().collect_vec().try_into().ok()
     }
     fn arbitrary_vertex(&self) -> Result<VertexId> {
-        self.0
-            .iter()
-            .next()
-            .ok_or_else(|| eyre!("simplex is empty"))
+        self.0.iter().next().ok_or_eyre("simplex is empty")
     }
     /// Returns all 1-dimensional elemenst of the simplex.
     fn edges(&self) -> impl '_ + Iterator<Item = [VertexId; 2]> {
@@ -215,9 +212,7 @@ impl Simplex {
     /// Returns all (N-1)-dimensional elements of the simplex.
     fn facets(&self) -> Result<impl '_ + Iterator<Item = Simplex>> {
         let ndim = self.ndim()?;
-        let facet_ndim = ndim
-            .checked_sub(1)
-            .ok_or_else(|| eyre!("0D simplex has no facets"))?;
+        let facet_ndim = ndim.checked_sub(1).ok_or_eyre("0D simplex has no facets")?;
         Ok(self.elements(facet_ndim))
     }
     /// Returns all elements of the simplex with a given number of dimensions.
