@@ -43,4 +43,19 @@ impl LuaPuzzleBuilder {
             .take()
             .ok_or_else(|| LuaError::external("no puzzle being bulit"))
     }
+
+    pub fn carve(lua: LuaContext<'_>, LuaManifold(m): LuaManifold) -> LuaResult<()> {
+        Self::with(lua, |this| {
+            this.carve(&this.active_pieces(), m)
+                .map_err(|e| LuaError::external(format!("{e:?}")))
+        })?;
+        Ok(())
+    }
+    pub fn slice(lua: LuaContext<'_>, LuaManifold(m): LuaManifold) -> LuaResult<()> {
+        Self::with(lua, |this| {
+            this.slice(&this.active_pieces(), m)
+                .map_err(|e| LuaError::external(format!("{e:?}")))
+        })?;
+        Ok(())
+    }
 }

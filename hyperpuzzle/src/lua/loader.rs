@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use eyre::{Result, WrapErr};
+use eyre::{bail, Result, WrapErr};
 use parking_lot::Mutex;
 use rlua::prelude::*;
 
@@ -77,8 +77,14 @@ impl LuaLoader {
             sandbox.raw_set("plane", plane_fn)?;
             let sphere_fn = lua.create_function(LuaManifold::construct_sphere)?;
             sandbox.raw_set("sphere", sphere_fn)?;
-            let schlafli_fn = lua.create_function(LuaSymmetry::construct_from_schlafli_table)?;
-            sandbox.raw_set("schlafli", schlafli_fn)?;
+            let cd_fn = lua.create_function(LuaCoxeterGroup::construct_from_cd_table)?;
+            sandbox.raw_set("cd", cd_fn)?;
+
+            // Puzzle construction functions
+            let carve_fn = lua.create_function(LuaPuzzleBuilder::carve)?;
+            sandbox.raw_set("carve", carve_fn)?;
+            let slice_fn = lua.create_function(LuaPuzzleBuilder::slice)?;
+            sandbox.raw_set("slice", slice_fn)?;
 
             LuaResult::Ok(())
         })
@@ -173,18 +179,31 @@ impl LuaLoader {
             let space = Arc::clone(&puzzle_builder.space);
 
             let puzzle_builder = Arc::new(Mutex::new(Some(puzzle_builder)));
-            let env = lua.create_table_from([
-                ("SPACE", LuaSpace(space).to_lua(lua)?),
-                ("PUZZLE", LuaPuzzleBuilder(puzzle_builder).to_lua(lua)?),
-            ])?;
-            env.set_metatable(Some(lua.create_table_from([("__index", file_env)])?));
 
-            puzzle_data
-                .get::<_, LuaFunction<'_>>("build")?
-                .call(LuaPieceSet(PieceSet::from_iter([root])))?;
+            lua.globals().set("SPACE", LuaSpace(space).to_lua(lua)?)?;
+            lua.globals()
+                .set("PUZZLE", LuaPuzzleBuilder(puzzle_builder).to_lua(lua)?)?;
+
+            let build_puzzle_result: Result<Option<String>> = call_global(
+                lua,
+                "build_puzzle",
+                (
+                    puzzle_data.clone(),
+                    LuaPieceSet(PieceSet::from_iter([root])),
+                ),
+            );
+
+            let error = build_puzzle_result?;
+            if let Some(error_message) = error {
+                bail!(error_message)
+            }
 
             let result = LuaPuzzleBuilder::take(lua)?.build()?;
             puzzle_data.set("cached", CachedPuzzle(Arc::clone(&result)))?;
+
+            lua.globals().set("SPACE", LuaNil)?;
+            lua.globals().set("PUZZLE", LuaNil)?;
+
             Ok(result)
         })
     }

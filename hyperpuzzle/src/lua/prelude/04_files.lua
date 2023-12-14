@@ -60,6 +60,7 @@ function load_file(filename)
     FILE.puzzles = {}
     FILE.environment = make_sandbox(filename)
     FILE.dependencies = {}
+    FILE.firstload = true
 
     -- Execute the file.
     info(nil, "Loading file %q", filename)
@@ -151,12 +152,26 @@ function get_puzzle(puzzle_name)
 end
 
 function puzzledef(data)
+  assert(FILE.firstload, "puzzles must be defined at top-level")
+
   assert(type(data) == 'table', "expected table")
   assert(type(data.id) == 'string', "'id' is required and must be a string")
+  assert(type(data.build) == 'function', "'bulid' is required and must be a function")
   data.file = FILE
   if FILE.puzzles[data.id] then
     error(string.format("redefinition of puzzle %q", data.id))
   else
     FILE.puzzles[data.id] = data
   end
+end
+
+function build_puzzle(puzzle_data, ...)
+  FILE = puzzle_data.file
+  local is_success, error = xpcall(puzzle_data.build, usertraceback, ...)
+  if is_success then
+    return nil
+  else
+    return error or "error"
+  end
+  FILE = nil
 end

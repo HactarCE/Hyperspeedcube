@@ -1,3 +1,4 @@
+use hypermath::collections::{approx_hashmap::ApproxHashMapKey, ApproxHashMap};
 use hypermath::prelude::*;
 use itertools::Itertools;
 
@@ -78,6 +79,15 @@ impl SchlafliSymbol {
         ret
     }
 
+    /// Returns a matrix that transforms from the mirror basis (where each
+    /// component of the vector gives a distance from a mirror plane) to the
+    /// base space.
+    pub fn mirror_basis(&self) -> Option<Matrix> {
+        Matrix::from_cols(self.mirrors().into_iter().map(|Mirror(m)| m))
+            .transpose()
+            .inverse()
+    }
+
     /// Returns the list of mirrors as generators.
     pub fn generators(&self) -> Vec<Isometry> {
         self.mirrors().into_iter().map(|m| m.into()).collect()
@@ -86,6 +96,31 @@ impl SchlafliSymbol {
     /// Constructs the isometry group described by the Schlafli symbol.
     pub fn group(&self) -> GroupResult<IsometryGroup> {
         IsometryGroup::from_generators(&self.generators())
+    }
+
+    /// Expands an object by the symmetry.
+    pub fn expand<T: Clone + ApproxHashMapKey>(
+        &self,
+        object: T,
+        transform: fn(&Isometry, &T) -> T,
+    ) -> Vec<T> {
+        let generators = self.generators();
+
+        let mut seen = ApproxHashMap::new();
+
+        let mut next_unprocessed_index = 0;
+        let mut ret = vec![object];
+        while next_unprocessed_index < ret.len() {
+            let unprocessed_object = ret[next_unprocessed_index].clone();
+            for gen in &generators {
+                let new_object = transform(gen, &unprocessed_object);
+                if seen.insert(&new_object, ()).is_none() {
+                    ret.push(new_object);
+                }
+            }
+            next_unprocessed_index += 1;
+        }
+        ret
     }
 }
 

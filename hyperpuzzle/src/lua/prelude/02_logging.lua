@@ -1,3 +1,5 @@
+PRETTY_TRACEBACK = true
+
 -- This is a default implementation that may be overwritten by Rust code.
 function log_line(args)
   local s = string.format("[%s] [%s]: %s", args.level:upper(), args.file or '<internal>', args.msg)
@@ -42,31 +44,36 @@ function assert(v, ...)
   end
 end
 
-local ASSERT_PREFIX = debug.getinfo(1, 'S').short_src
-local PREFIX_LOGGING = "\t" .. debug.getinfo(1, 'S').short_src
-local PREFIX_USER = "\t[string \"user:"
-local PREFIX_PRELUDE = "\t[string \"prelude/"
+local PREFIX_LOGGING = debug.getinfo(1, 'S').short_src
+local PREFIX_USER = "[string \"user:"
+local PREFIX_PRELUDE = "[string \"prelude/"
 
 function usertraceback(message)
-  message = message:gsub("^%[[^%]]+%]:%d+: ", "")
+  if not PRETTY_TRACEBACK then
+    return debug.traceback(message)
+  end
+
+  if type(message) == 'string' then
+    message = message:gsub("^%[[^%]]+%]:%d+: ", "")
+  end
 
   local output = ""
   for line in debug.traceback(1):gmatch("[^\r\n]+") do
-    if line:sub(1, #PREFIX_LOGGING) == PREFIX_LOGGING then
+    if line:sub(2, #PREFIX_LOGGING + 1) == PREFIX_LOGGING then
       output = "" -- delete this line and all prior ones
     elseif line == "\t[C]: in function 'xpcall'" then
       break -- ignore this line and stop parsing
-    elseif line:sub(1, #PREFIX_USER) == PREFIX_USER then
-      output = output .. "\n\t[file \"" .. line:sub(#PREFIX_USER + 1)
-    elseif line:sub(1, #PREFIX_PRELUDE) == PREFIX_PRELUDE then
-      output = output .. "\n\t[internal \"" .. line:sub(#PREFIX_PRELUDE + 1)
+    elseif line:sub(2, #PREFIX_USER + 1) == PREFIX_USER then
+      output = output .. "\n\t[file \"" .. line:sub(#PREFIX_USER + 2)
+    elseif line:sub(2, #PREFIX_PRELUDE + 1) == PREFIX_PRELUDE then
+      output = output .. "\n\t[internal \"" .. line:sub(#PREFIX_PRELUDE + 2)
     else
       output = output .. "\n" .. line
     end
   end
 
   if message then
-    return message .. "\nstack traceback:" .. output
+    return tostring(message) .. "\nstack traceback:" .. output
   else
     return "stack traceback:" .. output
   end

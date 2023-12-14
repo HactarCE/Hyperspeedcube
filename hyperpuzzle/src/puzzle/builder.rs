@@ -65,8 +65,17 @@ impl PuzzleBuilder {
     /// set becomes inactive, and each piece in the new set inherits its active
     /// status from the corresponding piece in the old set.
     pub fn slice(&mut self, pieces: &PieceSet, cut_manifold: ManifoldRef) -> Result<PieceSet> {
-        let mut cut = AtomicCut::carve(cut_manifold);
+        let mut cut = AtomicCut::slice(cut_manifold);
         self.cut_and_deactivate_pieces(&mut cut, pieces)
+    }
+
+    /// Returns the set of active pieces.
+    pub fn active_pieces(&self) -> PieceSet {
+        self.pieces
+            .iter()
+            .filter(|(_id, piece)| piece.is_active)
+            .map(|(id, _piece)| id)
+            .collect()
     }
 
     fn cut_and_deactivate_pieces(
@@ -203,7 +212,7 @@ fn cut_and_deactivate_piece(
 
     Ok(space
         .cut_atomic_polytope_set([piece.shape].into_iter().collect(), cut)
-        .context("cutting piece")?
+        .context("error cutting piece")?
         .into_iter()
         .map(|shape| PieceBuilder { shape, is_active })
         .collect())

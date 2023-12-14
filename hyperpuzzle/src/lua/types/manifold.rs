@@ -6,8 +6,9 @@ use super::*;
 lua_userdata_value_conversion_wrapper! {
     #[name = "manifold", convert_str = "manifold or multivector"]
     pub struct LuaManifold(ManifoldRef) = |lua| {
-        <_>(LuaMultivector(m)) => Ok(LuaManifold::construct_from_multivector(lua, m)?),
+        <LuaVector>(v) => Ok(LuaManifold::construct_from_vector(lua, v)?),
         <LuaTable<'_>>(t) => Ok(LuaManifold::construct_from_table(lua, t)?),
+        <_>(LuaMultivector(m)) => Ok(LuaManifold::construct_from_multivector(lua, m)?),
     }
 }
 
@@ -30,6 +31,10 @@ impl LuaManifold {
 
     fn construct_from_table(lua: LuaContext<'_>, t: LuaTable<'_>) -> LuaResult<ManifoldRef> {
         Ok(Self::construct_plane_or_sphere(t)?.to_manifold(lua)?.0)
+    }
+
+    fn construct_from_vector(lua: LuaContext<'_>, v: LuaVector) -> LuaResult<ManifoldRef> {
+        Ok(Self::construct_plane(lua, v.to_lua_multi(lua)?)?.0)
     }
 
     fn construct_plane_or_sphere(t: LuaTable<'_>) -> LuaResult<LuaPlaneOrSphere> {
@@ -161,7 +166,7 @@ enum LuaPlaneOrSphere {
 }
 impl LuaPlaneOrSphere {
     fn plane_from_pole(pole: Vector) -> LuaResult<Self> {
-        let distance = pole.mag2();
+        let distance = pole.mag();
         let normal = pole
             .normalize()
             .ok_or_else(|| LuaError::external("plane pole cannot be zero"))?;
