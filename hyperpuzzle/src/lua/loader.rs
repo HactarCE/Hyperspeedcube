@@ -161,9 +161,6 @@ impl LuaLoader {
                 return Ok(cached_puzzle);
             }
 
-            let file: LuaTable<'_> = puzzle_data.get("file")?;
-            let file_env: LuaTable<'_> = file.get("environment")?;
-
             let id: String = puzzle_data
                 .get("id")
                 .wrap_err("expected `id` to be a string")?;

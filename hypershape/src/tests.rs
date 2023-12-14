@@ -160,27 +160,6 @@ fn test_cube() {
     }
 }
 
-fn init_test_logging() {
-    // Initialize tracing
-    use tracing_error::ErrorLayer;
-    use tracing_subscriber::prelude::*;
-    use tracing_subscriber::{fmt, EnvFilter};
-
-    let fmt_layer = fmt::layer().with_target(false);
-    let filter_layer = EnvFilter::try_from_default_env()
-        .or_else(|_| EnvFilter::try_new("info"))
-        .unwrap();
-
-    tracing_subscriber::registry()
-        .with(filter_layer)
-        .with(fmt_layer)
-        .with(ErrorLayer::default())
-        .init();
-
-    // Initialize color_eyre.
-    color_eyre::install().unwrap();
-}
-
 #[ignore = "known bug"]
 #[test]
 fn test_accidental_split_shape() {
@@ -207,4 +186,26 @@ fn test_accidental_split_shape() {
         println!("{}", space.polytope_to_string(p));
     }
     panic!()
+}
+
+#[allow(unused)]
+fn init_test_logging() {
+    // Initialize tracing
+    use tracing_error::ErrorLayer;
+    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    let fmt_layer = fmt::layer().with_target(false);
+    let filter_layer = EnvFilter::try_from_default_env()
+        .or_else(|_| EnvFilter::try_new("info"))
+        .unwrap();
+
+    tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(fmt_layer)
+        .with(ErrorLayer::default())
+        .init();
+
+    // Initialize color_eyre.
+    color_eyre::install().unwrap();
 }
