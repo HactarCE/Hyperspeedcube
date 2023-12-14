@@ -163,6 +163,10 @@ impl Space {
     /// Adds a manifold to the space.
     #[tracing::instrument(skip(self), fields(%blade))]
     pub fn add_manifold(&mut self, blade: Blade) -> Result<ManifoldRef> {
+        if blade.ndim() > self.ndim() {
+            bail!("blade {blade} cannot fit in {}D space!", self.ndim());
+        }
+
         // Canonicalize blade.
         let (blade, sign) = canonicalize_blade(blade)?;
 
@@ -339,6 +343,14 @@ impl Space {
         polytope: AtomicPolytopeRef,
         cut: &mut AtomicCut,
     ) -> Result<AtomicPolytopeCutOutput> {
+        let cut_ndim = self.ndim_of(cut.params.divider);
+        let space_ndim = self.ndim();
+        ensure!(
+            cut_ndim == space_ndim - 1,
+            "expected {}D cut in {space_ndim}D space; got {cut_ndim}D cut",
+            space_ndim - 1,
+        );
+
         if let Some(&cached_result) = cut.polytope_cut_output_cache.get(&polytope.id) {
             tracing::debug!("using cached cut output for {}", polytope.id);
             Ok(cached_result * polytope.sign)
@@ -475,7 +487,9 @@ impl Space {
             let which_side_of_cut_has_child =
                 cut.which_side_of_cut_has_manifold(self, child_manifold)?;
             match which_side_of_cut_has_child {
-                WhichSide::Flush => bail!("manifold is flush, but has different ID"),
+                WhichSide::Flush => {
+                    bail!("manifold is flush, but has different ID")
+                }
                 WhichSide::Split => continue,
                 _ => (),
             }

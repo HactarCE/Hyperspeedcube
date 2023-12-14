@@ -180,17 +180,29 @@ impl LuaPlaneOrSphere {
         Ok(LuaPlaneOrSphere::Plane { normal, distance })
     }
 
-    fn to_blade(&self, ndim: u8) -> Blade {
-        match self {
-            LuaPlaneOrSphere::Plane { normal, distance } => Blade::ipns_plane(normal, *distance),
-            LuaPlaneOrSphere::Sphere { center, radius } => Blade::ipns_sphere(center, *radius),
+    fn to_blade(&self, space_ndim: u8) -> LuaResult<Blade> {
+        Ok(match self {
+            LuaPlaneOrSphere::Plane { normal, distance } => {
+                let normal_ndim = normal.ndim();
+                if normal_ndim > space_ndim{
+                 return Err(LuaError::external(format!(    "plane normal has {normal_ndim} dimensions but space is only {space_ndim}D")));
+                }
+                Blade::ipns_plane(normal, *distance)
+            },
+            LuaPlaneOrSphere::Sphere { center, radius } => {
+                let center_ndim = center.ndim();
+                if center_ndim > space_ndim {
+                    return Err(LuaError::external(format!("sphere center has {center_ndim} dimensions but space is only {space_ndim}D")));
+                }
+                Blade::ipns_sphere(center, *radius)
+            },
         }
-        .ipns_to_opns(ndim)
+        .ipns_to_opns(space_ndim))
     }
 
     fn to_manifold(&self, lua: LuaContext<'_>) -> LuaResult<LuaManifold> {
         LuaSpace::with(lua, |space| {
-            match space.add_manifold(self.to_blade(space.ndim())) {
+            match space.add_manifold(self.to_blade(space.ndim())?) {
                 Ok(m) => Ok(LuaManifold(m)),
                 Err(e) => Err(LuaError::external(e)),
             }
