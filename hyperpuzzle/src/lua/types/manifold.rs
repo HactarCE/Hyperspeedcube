@@ -15,18 +15,14 @@ lua_userdata_value_conversion_wrapper! {
 impl LuaUserData for LuaNamedUserData<ManifoldRef> {
     fn add_methods<'lua, T: LuaUserDataMethods<'lua, Self>>(methods: &mut T) {
         methods.add_method("ndim", |lua, Self(this), ()| {
-            LuaSpace::with(lua, |space| Ok(space.ndim_of(this)))
+            LuaSpace::with(lua, |space| LuaResult::Ok(space.ndim_of(this)))
         });
     }
 }
 
 impl LuaManifold {
     fn construct_from_multivector(lua: LuaContext<'_>, m: Multivector) -> LuaResult<ManifoldRef> {
-        LuaSpace::with(lua, |space| {
-            space
-                .add_manifold(Blade::try_from(m).map_err(LuaError::external)?)
-                .map_err(LuaError::external)
-        })
+        LuaSpace::with(lua, |space| space.add_manifold(Blade::try_from(m)?))
     }
 
     fn construct_from_table(lua: LuaContext<'_>, t: LuaTable<'_>) -> LuaResult<ManifoldRef> {

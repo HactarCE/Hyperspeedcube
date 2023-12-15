@@ -24,10 +24,10 @@ impl LuaSpace {
     pub fn get(lua: LuaContext<'_>) -> LuaResult<Self> {
         lua.globals().get("SPACE")
     }
-    pub fn with<R>(
+    pub fn with<T, E: LuaExternalError>(
         lua: LuaContext<'_>,
-        f: impl FnOnce(&mut Space) -> LuaResult<R>,
-    ) -> LuaResult<R> {
-        f(&mut Self::get(lua)?.lock())
+        f: impl FnOnce(&mut Space) -> Result<T, E>,
+    ) -> LuaResult<T> {
+        f(&mut Self::get(lua)?.lock()).to_lua_err()
     }
 }

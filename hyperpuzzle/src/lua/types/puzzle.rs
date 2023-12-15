@@ -26,16 +26,16 @@ impl LuaPuzzleBuilder {
             .get("PUZZLE")
             .map_err(|_| LuaError::external("no puzzle being built"))
     }
-    pub fn with<R>(
+    pub fn with<T, E: LuaExternalError>(
         lua: LuaContext<'_>,
-        f: impl FnOnce(&mut PuzzleBuilder) -> LuaResult<R>,
-    ) -> LuaResult<R> {
+        f: impl FnOnce(&mut PuzzleBuilder) -> Result<T, E>,
+    ) -> LuaResult<T> {
         let mutex = Self::get(lua)?;
         let mut mutex_guard = mutex.lock();
         let puzzle_builder = mutex_guard
             .as_mut()
             .ok_or_else(|| LuaError::external("no puzzle being built"))?;
-        f(puzzle_builder)
+        f(puzzle_builder).to_lua_err()
     }
     pub fn take(lua: LuaContext<'_>) -> LuaResult<PuzzleBuilder> {
         Self::get(lua)?
@@ -45,10 +45,7 @@ impl LuaPuzzleBuilder {
     }
 
     pub fn carve(lua: LuaContext<'_>, LuaManifold(m): LuaManifold) -> LuaResult<()> {
-        Self::with(lua, |this| {
-            this.carve(&this.active_pieces(), m)
-                .map_err(|e| LuaError::external(format!("{e:?}")))
-        })?;
+        Self::with(lua, |this| this.carve(&this.active_pieces(), m))?;
         Ok(())
     }
     pub fn slice(lua: LuaContext<'_>, LuaManifold(m): LuaManifold) -> LuaResult<()> {
