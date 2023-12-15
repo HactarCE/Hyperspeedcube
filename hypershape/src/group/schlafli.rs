@@ -107,6 +107,7 @@ impl SchlafliSymbol {
         let generators = self.generators();
 
         let mut seen = ApproxHashMap::new();
+        seen.insert(&object, ());
 
         let mut next_unprocessed_index = 0;
         let mut ret = vec![object];

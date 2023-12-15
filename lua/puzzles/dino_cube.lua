@@ -30,10 +30,10 @@ puzzledef{
     for v in cd{4, 3}:expand('xoo') do
       slice(v:normalized() / math.sqrt(3))
     end
+    common.colors.cube()
 
     if true then return end
 
-    define_facets(common.facets.cube())
     define_axes{
       id = 'octahedral',
       symmetry = {4, 3},

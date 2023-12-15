@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak};
 
-use eyre::{Result, WrapErr};
+use debug_ignore::DebugIgnore;
+use eyre::{OptionExt, Result, WrapErr};
 use hypermath::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
@@ -10,8 +11,8 @@ use smallvec::smallvec;
 
 use super::simplices::{Simplexifier, VertexId};
 use super::{
-    Color, MeshBuilder, MeshStickerBuilder, Notation, PerColor, PerPiece, PerSticker, Piece,
-    PieceInfo, PieceSet, PieceType, PieceTypeInfo, Puzzle, PuzzleState, StickerInfo,
+    Color, ColorInfo, MeshBuilder, MeshStickerBuilder, Notation, PerColor, PerPiece, PerSticker,
+    Piece, PieceInfo, PieceSet, PieceType, PieceTypeInfo, Puzzle, PuzzleState, StickerInfo,
 };
 
 /// Puzzle being constructed.
@@ -100,6 +101,45 @@ impl PuzzleBuilder {
         Ok(new_pieces)
     }
 
+    /// Adds a new color, assigned to a manifold.
+    pub fn add_color(&mut self, manifold: ManifoldRef) -> Result<Color> {
+        Ok(self.colors.push(ColorBuilder {
+            manifold,
+            default_color: None,
+            name: None,
+        })?)
+    }
+    /// Sets the name for a color.
+    pub fn set_color_name(&mut self, color: Color, name: String) -> Result<()> {
+        self.colors
+            .get_mut(color)
+            .ok_or_eyre("index out of range")?
+            .name = Some(name);
+        Ok(())
+    }
+    /// Sets the default for a color.
+    pub fn set_color_default_color(&mut self, color: Color, default_color: String) -> Result<()> {
+        self.colors
+            .get_mut(color)
+            .ok_or_eyre("index out of range")?
+            .default_color = Some(default_color);
+        Ok(())
+    }
+    /// Sets the order of all colors, given a list of the new color order. Each
+    /// `i`th element in `new_order` is the ID of the old color that should be
+    /// the new `i`th color.
+    pub fn set_color_order(&mut self, new_order: PerColor<Color>) -> Result<()> {
+        let mut old_colors = std::mem::take(&mut self.colors).map(|_, color| Some(color));
+        self.colors = new_order.try_map(|_, old_color_id| {
+            old_colors
+                .get_mut(old_color_id)
+                .ok_or_eyre("index out of range")?
+                .take()
+                .ok_or_eyre("duplicate color in order")
+        })?;
+        Ok(())
+    }
+
     /// Performs the final steps of building a puzzle, generating the mesh and
     /// assigning IDs to pieces etc.
     pub fn build(self) -> Result<Arc<Puzzle>> {
@@ -112,9 +152,22 @@ impl PuzzleBuilder {
         }
         let stickered_manifolds: HashMap<ManifoldRef, Color> = self
             .colors
-            .into_iter()
+            .iter()
             .map(|(color_id, color_builder)| (color_builder.manifold, color_id))
             .collect();
+
+        let used_names: HashSet<String> = self
+            .colors
+            .iter_values()
+            .filter_map(|color| color.default_color.clone())
+            .collect();
+        let mut unused_names = uppercase_names().filter(|name| !used_names.contains(name));
+        let colors = self.colors.map(|_, color| ColorInfo {
+            name: color
+                .name
+                .unwrap_or_else(|| unused_names.next().expect("ran out of names")),
+            default_color: color.default_color,
+        });
 
         // As we construct the mesh, we'll renumber all the pieces and stickers
         // to exclude inactive ones.
@@ -175,12 +228,13 @@ impl PuzzleBuilder {
             }]
             .into_iter()
             .collect(),
+            colors,
 
             scramble_moves_count: 500, // TODO
 
             notation: Notation {},
 
-            new: Box::new(PuzzleState::new),
+            new: DebugIgnore(Box::new(PuzzleState::new)),
         }))
     }
 }
@@ -200,6 +254,11 @@ pub struct ColorBuilder {
     /// Manifold of the color; stickers flush with this manifold will be
     /// assigned this color.
     pub manifold: ManifoldRef,
+
+    /// Name for the color, which will be automatically chosen if omitted.
+    pub name: Option<String>,
+    /// Default color string.
+    pub default_color: Option<String>,
 }
 
 fn cut_and_deactivate_piece(
@@ -260,4 +319,47 @@ fn build_sticker_mesh(
     }
 
     Ok(())
+}
+
+fn uppercase_names() -> impl Iterator<Item = String> {
+    fn string_from_base_26(bytes: &[u8]) -> String {
+        bytes.iter().rev().map(|&byte| byte as char).collect()
+    }
+
+    let mut digits = vec![];
+    std::iter::from_fn(move || {
+        for char in &mut digits {
+            *char += 1;
+            if *char <= b'Z' {
+                return Some(string_from_base_26(&digits));
+            }
+            *char = b'A';
+        }
+        digits.push(b'A');
+        Some(string_from_base_26(&digits))
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_uppercase_names() {
+        let mut iter = uppercase_names();
+        assert_eq!(iter.next().as_deref(), Some("A"));
+        assert_eq!(iter.next().as_deref(), Some("B"));
+        assert_eq!(iter.next().as_deref(), Some("C"));
+        let mut iter = iter.skip(22);
+        assert_eq!(iter.next().as_deref(), Some("Z"));
+        assert_eq!(iter.next().as_deref(), Some("AA"));
+        assert_eq!(iter.next().as_deref(), Some("AB"));
+        let mut iter = iter.skip(26);
+        assert_eq!(iter.next().as_deref(), Some("BC"));
+        let mut iter = iter.skip(645);
+        assert_eq!(iter.next().as_deref(), Some("ZY"));
+        assert_eq!(iter.next().as_deref(), Some("ZZ"));
+        assert_eq!(iter.next().as_deref(), Some("AAA"));
+        assert_eq!(iter.next().as_deref(), Some("AAB"));
+    }
 }

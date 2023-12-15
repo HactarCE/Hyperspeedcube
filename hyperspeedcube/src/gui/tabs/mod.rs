@@ -39,6 +39,7 @@ pub enum Tab {
     // PolytopeTree(PolytopeTree),
     PuzzleLibraryDemo,
     PuzzleLibrary { log_lines: Vec<LuaLogLine> },
+    PuzzleInfo,
 }
 impl Tab {
     pub fn title(&self) -> egui::WidgetText {
@@ -52,6 +53,7 @@ impl Tab {
             // Tab::PolytopeTree(_) => "Polytope Tree".into(),
             Tab::PuzzleLibraryDemo => "Puzzle Library".into(),
             Tab::PuzzleLibrary { .. } => "Puzzle Library".into(),
+            Tab::PuzzleInfo { .. } => "Puzzle Info".into(),
         }
     }
 
@@ -433,6 +435,38 @@ impl Tab {
                 ui.separator();
 
                 colored_logs(ui, log_lines);
+            }
+            Tab::PuzzleInfo => {
+                if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
+                    if let Some(puzzle) = &puzzle_view.lock().puzzle {
+                        ui.label(format!("ID: {}", puzzle.id));
+                        ui.label(format!("Name: {}", puzzle.name));
+                        ui.label(format!("Piece count: {}", puzzle.pieces.len()));
+                        ui.label(format!("Sticker count: {}", puzzle.stickers.len()));
+                        ui.label(format!("Color count: {}", puzzle.colors.len()));
+
+                        ui.add_space(10.0);
+                        ui.heading("Piece types");
+                        for piece_type in puzzle.piece_types.iter_values() {
+                            ui.label(format!("• {}", &piece_type.name));
+                        }
+
+                        ui.add_space(10.0);
+                        ui.heading("Colors");
+                        for color in puzzle.colors.iter_values() {
+                            let name = &color.name;
+                            let default_color_string = match &color.default_color {
+                                Some(default) => format!(" (default={default})"),
+                                None => String::new(),
+                            };
+                            ui.label(format!("• {name}{default_color_string}"));
+                        }
+                    } else {
+                        ui.label("No active puzzle");
+                    }
+                } else {
+                    ui.label("No active puzzle");
+                }
             }
         }
     }

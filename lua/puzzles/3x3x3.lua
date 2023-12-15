@@ -31,10 +31,8 @@ puzzledef{
 
   build = function()
     common.carve_and_slice_face_turning({4, 3}, 1/3)
-
+    common.colors.cube()
     if true then return end
-
-    define_facets(common.facets.cube())
     define_axes(common.axes.cubic{1/3, -1/3})
 
     R, U, F = axes.R, axes.U, axes.F

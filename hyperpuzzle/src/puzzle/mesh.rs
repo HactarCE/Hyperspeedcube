@@ -1,7 +1,7 @@
 use std::collections::{hash_map, HashMap};
 use std::ops::Range;
 
-use eyre::{ensure, eyre, OptionExt, Result};
+use eyre::{ensure, OptionExt, Result};
 use hypermath::prelude::*;
 use hypershape::ManifoldId;
 
@@ -179,21 +179,21 @@ pub(super) struct MeshPieceBuilder<'a> {
 impl<'a> MeshPieceBuilder<'a> {
     pub(super) fn add_sticker<'b>(
         &'b mut self,
-        surface_manifold: ManifoldId,
+        facet_manifold: ManifoldId,
         color: Color,
         centroid: Centroid,
     ) -> Result<MeshStickerBuilder<'a, 'b>>
     where
         'a: 'b,
     {
-        let surface = self.mesh.manifold_to_facet(surface_manifold)?;
-        if let Some(surface_centroid) = self.mesh.facet_centroid_mut(surface) {
-            *surface_centroid += centroid;
+        let facet = self.mesh.manifold_to_facet(facet_manifold)?;
+        if let Some(facet_centroid) = self.mesh.facet_centroid_mut(facet) {
+            *facet_centroid += centroid;
         }
         let index_range_start = self.mesh.mesh.triangles.len() as u32;
         Ok(MeshStickerBuilder {
             piece: self,
-            facet: surface,
+            facet,
             color,
             index_range_start,
         })

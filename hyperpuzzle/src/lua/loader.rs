@@ -86,6 +86,16 @@ impl LuaLoader {
             let slice_fn = lua.create_function(LuaPuzzleBuilder::slice)?;
             sandbox.raw_set("slice", slice_fn)?;
 
+            let add_color_fn = lua.create_function(LuaPuzzleBuilder::add_color)?;
+            sandbox.raw_set("add_color", add_color_fn)?;
+            let name_colors_fn = lua.create_function(LuaPuzzleBuilder::name_colors)?;
+            sandbox.raw_set("name_colors", name_colors_fn)?;
+            let reorder_colors_fn = lua.create_function(LuaPuzzleBuilder::reorder_colors)?;
+            sandbox.raw_set("reorder_colors", reorder_colors_fn)?;
+            let set_default_colors_fn =
+                lua.create_function(LuaPuzzleBuilder::set_default_colors)?;
+            sandbox.raw_set("set_default_colors", set_default_colors_fn)?;
+
             LuaResult::Ok(())
         })
         .expect("error initializing lua");

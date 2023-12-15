@@ -39,10 +39,10 @@ puzzledef{
       carve(v)
       slice(v / 3)
     end
+    common.colors.hypercube()
 
     if true then return end
 
-    define_facets(common.facets.hypercube())
     define_axes(common.axes.hypercubic{1/3, -1/3})
 
     R, L = axes.R, axes.L

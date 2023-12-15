@@ -41,7 +41,7 @@ impl AppUi {
                 Tab::ViewSettings,
             ],
         );
-        // dock_tree.split_below(right, 0.5, vec![Tab::ViewSettings]);
+        dock_tree.split_below(right, 0.5, vec![Tab::PuzzleInfo]);
         AppUi { dock_tree }
     }
 

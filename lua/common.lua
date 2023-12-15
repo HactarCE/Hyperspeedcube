@@ -1,5 +1,5 @@
 axes = require('common/axes')
-facets = require('common/facets')
+colors = require('common/colors')
 
 function carve_and_slice_face_turning(sym, depth, init_vector)
   init_vector = init_vector or 'oox'

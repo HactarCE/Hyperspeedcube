@@ -8,7 +8,7 @@ hypermath::idx_struct! {
     /// together.
     pub struct Piece(pub u16);
     /// ID of a **sticker**, which is a facet of a **piece** having a single
-    /// color and belonging to a single **surface**.
+    /// color and belonging to a single **facet**.
     pub struct Sticker(pub u16);
     /// ID of a **facet**, which is a manifold shared by one or more
     /// **stickers**.
@@ -134,4 +134,13 @@ impl AsRef<str> for PieceTypeInfo {
     fn as_ref(&self) -> &str {
         &self.name
     }
+}
+
+/// Color info.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ColorInfo {
+    /// User-facing color name.
+    pub name: String,
+    /// Optional string selecting a default color from the global color palette.
+    pub default_color: Option<String>,
 }

@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
+use eyre::{bail, Result};
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
-use crate::PuzzleBuilder;
+use crate::{Color, PuzzleBuilder};
 
 lua_userdata_value_conversion_wrapper! {
     #[name = "puzzlebuilder"]
@@ -49,10 +50,81 @@ impl LuaPuzzleBuilder {
         Ok(())
     }
     pub fn slice(lua: LuaContext<'_>, LuaManifold(m): LuaManifold) -> LuaResult<()> {
-        Self::with(lua, |this| {
-            this.slice(&this.active_pieces(), m)
-                .map_err(|e| LuaError::external(format!("{e:?}")))
-        })?;
+        Self::with(lua, |this| this.slice(&this.active_pieces(), m))?;
         Ok(())
+    }
+
+    pub fn add_color(lua: LuaContext<'_>, LuaManifold(m): LuaManifold) -> LuaResult<()> {
+        Self::with(lua, |this| this.add_color(m))?;
+        Ok(())
+    }
+    pub fn name_colors(lua: LuaContext<'_>, names: LuaTable<'_>) -> LuaResult<()> {
+        Self::with(lua, |this| {
+            for (i, name) in names.sequence_values().enumerate() {
+                this.set_color_name(Color(i as u16), name?)?;
+            }
+            eyre::Ok(())
+        })
+    }
+    pub fn reorder_colors<'lua>(lua: LuaContext<'lua>, new_order: LuaTable<'lua>) -> LuaResult<()> {
+        Self::with(lua, |this| {
+            let expected_len = this.colors.len();
+            let actual_len = new_order.len()? as usize;
+            if expected_len != actual_len {
+                bail!("{expected_len} colors are defined but {actual_len} colors are given")
+            }
+
+            let colors_by_name: HashMap<String, Color> = this
+                .colors
+                .iter()
+                .filter_map(|(id, color)| Some((color.name.clone()?, id)))
+                .collect();
+            let mut colors_seen = this.colors.map_ref(|_, _| false);
+
+            let new_order = new_order
+                .sequence_values()
+                .map(|value| {
+                    let name_or_id: LuaValue<'_> = value?;
+                    if let Ok(s) = String::from_lua(name_or_id.clone(), lua) {
+                        match colors_by_name.get(&s) {
+                            Some(&color) => Ok(color),
+                            None => bail!("no color named {s:?}"),
+                        }
+                    } else if let Ok(color_index) = u16::from_lua(name_or_id.clone(), lua) {
+                        if (1..=this.colors.len() as u16).contains(&color_index) {
+                            Ok(Color(color_index - 1)) // -1 because Lua is 1-indexed
+                        } else {
+                            bail!("color index {color_index} out of range");
+                        }
+                    } else {
+                        bail!("expected color name or index; got {name_or_id:?}");
+                    }
+                })
+                .map(|color| {
+                    let color = color?;
+                    if std::mem::replace(&mut colors_seen[color], true) {
+                        // +1 because Lua is 1-indexed
+                        bail!("duplicate color order assignment for #{}", color.0 + 1);
+                    }
+                    Ok(color)
+                })
+                .collect::<Result<Vec<Color>>>()?;
+
+            this.set_color_order(new_order.into())
+        })
+    }
+    pub fn set_default_colors(lua: LuaContext<'_>, colors: LuaTable<'_>) -> LuaResult<()> {
+        Self::with(lua, |this| {
+            let expected_len = this.colors.len();
+            let actual_len = colors.len()? as usize;
+            if expected_len != actual_len {
+                bail!("{expected_len} colors are defined but {actual_len} colors are given")
+            }
+
+            for (i, default_color) in colors.sequence_values().enumerate() {
+                this.set_color_default_color(Color(i as u16), default_color?)?;
+            }
+            eyre::Ok(())
+        })
     }
 }

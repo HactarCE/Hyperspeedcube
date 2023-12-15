@@ -37,6 +37,7 @@ puzzledef{
     local D = 1 / math.phi
 
     common.carve_and_slice_face_turning({5, 3}, D)
+    common.colors.dodecahedron()
 
     -- define_facets(common.facets.dodecahedron())
     -- define_axes(common.axes.dodecahedral{D, -D}) -- TODO: check cut depth

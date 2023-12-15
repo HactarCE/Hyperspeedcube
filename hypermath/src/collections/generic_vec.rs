@@ -298,6 +298,18 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     pub fn map_ref<U>(&self, mut f: impl FnMut(I, &E) -> U) -> GenericVec<I, U> {
         self.iter().map(|(i, e)| f(i, e)).collect()
     }
+    /// Applies a function to every value in the collection and returns a new
+    /// collection, or the first error returned by the function.
+    pub fn try_map<U, S>(
+        self,
+        mut f: impl FnMut(I, E) -> Result<U, S>,
+    ) -> Result<GenericVec<I, U>, S> {
+        Ok(self
+            .into_iter()
+            .map(|(i, e)| f(i, e))
+            .collect::<Result<Vec<_>, _>>()?
+            .into())
+    }
 }
 impl<I: IndexNewtype, E> std::iter::FromIterator<E> for GenericVec<I, E> {
     fn from_iter<T: IntoIterator<Item = E>>(iter: T) -> Self {
