@@ -5,6 +5,7 @@ use hypermath::prelude::*;
 use crate::{PerPiece, Puzzle};
 
 /// Instance of a puzzle with a particular state.
+#[derive(Debug, Clone)]
 pub struct PuzzleState {
     /// Immutable puzzle type info.
     puzzle_type: Arc<Puzzle>,

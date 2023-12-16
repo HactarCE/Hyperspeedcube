@@ -14,7 +14,6 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 color-eyre = "0.6"
-debug-ignore = "1.0.5"
 enum-iterator = "1.4.1"
 eyre = "0.6"
 float-ord = "0.3.2"

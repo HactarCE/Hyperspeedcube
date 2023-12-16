@@ -1,7 +1,5 @@
 use std::sync::{Arc, Weak};
 
-use debug_ignore::DebugIgnore;
-
 use super::{ColorInfo, Mesh, Notation, PieceInfo, PieceTypeInfo, PuzzleState, StickerInfo};
 use crate::{PerColor, PerPiece, PerPieceType, PerSticker};
 
@@ -32,9 +30,6 @@ pub struct Puzzle {
 
     /// Move notation.
     pub notation: Notation,
-
-    /// Function to create a new solved puzzle state.
-    pub(crate) new: DebugIgnore<Box<dyn Send + Sync + Fn(Arc<Puzzle>) -> PuzzleState>>,
 }
 
 impl Puzzle {
@@ -43,7 +38,7 @@ impl Puzzle {
         self.this.upgrade().expect("`Puzzle` removed from `Arc`")
     }
     /// Constructs a new instance of the puzzle.
-    pub fn new(&self) -> PuzzleState {
-        (self.new)(self.arc())
+    pub fn new_solved_state(&self) -> PuzzleState {
+        PuzzleState::new(self.arc())
     }
 }

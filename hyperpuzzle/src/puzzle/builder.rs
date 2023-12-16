@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak};
 
-use debug_ignore::DebugIgnore;
 use eyre::{OptionExt, Result, WrapErr};
 use hypermath::prelude::*;
 use hypershape::prelude::*;
@@ -12,7 +11,7 @@ use smallvec::smallvec;
 use super::simplices::{Simplexifier, VertexId};
 use super::{
     Color, ColorInfo, MeshBuilder, MeshStickerBuilder, Notation, PerColor, PerPiece, PerSticker,
-    Piece, PieceInfo, PieceSet, PieceType, PieceTypeInfo, Puzzle, PuzzleState, StickerInfo,
+    Piece, PieceInfo, PieceSet, PieceType, PieceTypeInfo, Puzzle, StickerInfo,
 };
 
 /// Puzzle being constructed.
@@ -233,8 +232,6 @@ impl PuzzleBuilder {
             scramble_moves_count: 500, // TODO
 
             notation: Notation {},
-
-            new: DebugIgnore(Box::new(PuzzleState::new)),
         }))
     }
 }
