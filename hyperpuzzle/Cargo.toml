@@ -14,7 +14,6 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 color-eyre = "0.6"
-enum-iterator = "1.4.1"
 eyre = "0.6"
 float-ord = "0.3.2"
 itertools = "0.11.0"
@@ -25,8 +24,7 @@ rand = "0.8.5"
 rlua = "0.19.5"
 serde = { version = "1.0.176", features = ["derive"] }
 smallvec = { version = "1.11.0", features = ["const_new", "union"] }
-strum = { version = "0.24.0", features = ["derive"] }
-thiserror = "1.0.44"
+strum = { version = "0.25.0", features = ["derive"] }
 tinyset = "0.4.15"
 walkdir = "2.4.0"
 

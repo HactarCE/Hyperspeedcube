@@ -42,12 +42,12 @@ use winit::platform::web::WindowBuilderExtWebSys;
 
 #[macro_use]
 mod debug;
-// mod commands;
+mod commands;
 mod gui;
 #[cfg(not(target_arch = "wasm32"))]
 mod icon;
 // mod logfile;
-// mod preferences;
+mod preferences;
 // pub mod puzzle;
 mod app;
 mod render;

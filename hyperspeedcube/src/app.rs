@@ -8,13 +8,14 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::Window;
 
 use crate::gui::PuzzleView;
+use crate::preferences::Preferences;
 use crate::render::GraphicsState;
 
 pub struct App {
     pub(crate) gfx: GraphicsState,
     events: EventLoopProxy<AppEvent>,
 
-    pub(crate) prefs: PrefsTemporary,
+    pub(crate) prefs: Preferences,
 
     pub(crate) active_puzzle_view: Weak<Mutex<PuzzleView>>,
 }
@@ -31,13 +32,7 @@ impl App {
             gfx: GraphicsState::new(&window).await,
             events: event_loop.create_proxy(),
 
-            prefs: PrefsTemporary {
-                needs_save: false,
-                gfx: GfxPrefsTemporary {},
-                colors: ColorsPrefsTemporary {
-                    background: egui::Color32::BLACK,
-                },
-            },
+            prefs: Preferences::load(None),
 
             active_puzzle_view: Weak::new(),
         }
@@ -85,38 +80,6 @@ impl App {
 
 #[derive(Debug, Default, Clone)]
 pub struct PuzzleTemporary {}
-impl PuzzleTemporary {
-    pub fn has_undo(&self) -> bool {
-        false
-    }
-    pub fn has_redo(&self) -> bool {
-        false
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct PrefsTemporary {
-    pub needs_save: bool,
-    pub gfx: GfxPrefsTemporary,
-    pub colors: ColorsPrefsTemporary,
-}
-impl PrefsTemporary {
-    pub fn save(&mut self) {
-        println!("TODO: save prefs");
-    }
-}
-#[derive(Debug, Default, Clone)]
-pub struct GfxPrefsTemporary {}
-impl GfxPrefsTemporary {
-    pub fn frame_duration(&self) -> instant::Duration {
-        instant::Duration::from_secs_f64(1.0 / 60.0)
-    }
-}
-#[derive(Debug, Default, Clone)]
-pub struct ColorsPrefsTemporary {
-    pub background: egui::Color32,
-}
-impl ColorsPrefsTemporary {}
 
 #[derive(Debug, Clone)]
 pub(crate) enum AppEvent {

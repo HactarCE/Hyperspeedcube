@@ -5,7 +5,7 @@ use serde::{de, Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
-use crate::puzzle::*;
+use hyperpuzzle::*;
 
 /// Minimum number of moves for a partial scramble.
 pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MIN: usize = 1;
@@ -36,7 +36,7 @@ pub enum Command {
     ScrambleFull,
 
     // Puzzle menu
-    NewPuzzle(PuzzleTypeEnum),
+    NewPuzzle(String),
 
     ToggleBlindfold,
 
@@ -63,7 +63,7 @@ impl Command {
             Command::ScrambleN(n) => format!("🔀 {n}"),
             Command::ScrambleFull => "🔀".to_owned(),
 
-            Command::NewPuzzle(ty) => format!("New {}", ty.name()),
+            Command::NewPuzzle(ty) => format!("New {ty}"), // TODO: convert ID to name
 
             Command::ToggleBlindfold => "BLD".to_owned(),
 
@@ -128,7 +128,7 @@ pub enum PuzzleCommand {
     None,
 }
 impl PuzzleCommand {
-    pub fn short_description(&self, ty: PuzzleTypeEnum) -> String {
+    pub fn short_description(&self, ty: &Puzzle) -> String {
         match self {
             PuzzleCommand::Grip { axis, layers } => {
                 let layers = layers.to_layer_mask(ty.layer_count());
@@ -157,10 +157,10 @@ impl PuzzleCommand {
                     .and_then(|axis_name| ty.twist_axis_from_name(axis_name))
                 {
                     Some(twist_axis) => match ty.make_recenter_twist(twist_axis) {
-                        Ok(twist) => ty.twist_command_short_description(
-                            Some(twist.axis),
-                            twist.direction,
-                            twist.layers,
+                        Ok((twist, layers)) => ty.twist_command_short_description(
+                            todo!("twist_axis"),
+                            todo!("twist_direction"),
+                            todo!("twist_layers"),
                         ),
                         Err(_) => crate::util::INVALID_STR.to_string(),
                     },
