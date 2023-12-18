@@ -5,6 +5,7 @@ use thiserror::Error;
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
 const PREFS_FILE_EXTENSION: &str = "yaml";
+const IS_MACOS_APP: bool = std::option_env!("HSC_MACOS_APP").is_some();
 
 // File paths
 lazy_static! {
@@ -19,10 +20,10 @@ lazy_static! {
     ))()
     .ok_or(PrefsError::NoExecutablePath);
     static ref NONPORTABLE: bool = {
-        if cfg!(target_os = "macos") {
-            // If we are on macOS, we are always nonportable because macOS
-            // doesn't allow storing files in the same directory as the
-            // executable.
+        if IS_MACOS_APP {
+            // If we are in a macOS app package, then we are always nonportable
+            // because macOS doesn't allow storing files in the same directory
+            // as the executable.
             true
         } else if let Ok(mut p) = LOCAL_DIR.clone() {
             // If not, check if the `nonportable` file exists in the same

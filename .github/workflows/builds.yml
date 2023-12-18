@@ -74,6 +74,8 @@ jobs:
   macos:
     name: Build macOS latest
     runs-on: macos-latest
+    env:
+      HSC_MACOS_APP: 1
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
