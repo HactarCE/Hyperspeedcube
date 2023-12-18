@@ -166,6 +166,11 @@ impl MeshBuilder {
                 .piece_centroids
                 .extend(iter_f32(ndim, piece_centroid));
         }
+        for facet_centroid in self.facet_centroids.iter_values() {
+            self.mesh
+                .facet_centroids
+                .extend(iter_f32(ndim, &facet_centroid.center()));
+        }
 
         self.mesh
     }
