@@ -197,6 +197,7 @@ impl PuzzleBuilder {
                         .unwrap_or(&Color::INTERNAL);
                     (color, sticker_shape)
                 })
+                .filter(|(color, _sticker_shape)| space.ndim() <= 4 && *color != Color::INTERNAL)
                 .sorted();
             for (color, sticker_shape) in piece_stickers {
                 let sticker_id = stickers.push(StickerInfo {
