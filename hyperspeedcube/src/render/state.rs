@@ -111,7 +111,7 @@ impl GraphicsState {
         usage: wgpu::BufferUsages,
     ) -> wgpu::Buffer {
         let mut contents = contents.to_vec();
-        pad_buffer_if_necessary(&mut contents);
+        super::pad_buffer_to_wgpu_copy_buffer_alignment(&mut contents);
 
         self.device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -172,7 +172,7 @@ impl GraphicsState {
         }
 
         let tex = self.device.create_texture(&desc);
-        let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = tex.create_view(&wgpu::TextureViewDescriptor::default()); // TODO: consider not creating a view here
         (tex, view)
     }
 
@@ -264,15 +264,4 @@ async fn request_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> 
     }
 
     panic!("unable to request graphics adapter")
-}
-
-/// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.
-pub(super) fn pad_buffer_if_necessary<T: Default + bytemuck::NoUninit>(buf: &mut Vec<T>) {
-    loop {
-        let bytes_len = bytemuck::cast_slice::<T, u8>(buf).len();
-        if bytes_len > 0 && bytes_len as u64 % wgpu::COPY_BUFFER_ALIGNMENT == 0 {
-            break;
-        }
-        buf.push(T::default());
-    }
 }

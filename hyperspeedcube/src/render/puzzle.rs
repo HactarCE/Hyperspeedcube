@@ -1,6 +1,6 @@
-//! Mesh rendering.
+//! Puzzle mesh rendering.
 //!
-//! 1. Render polygon IDs and lighting amounts to texture
+//! 1. Render polygon ID, depth, and lighting textures.
 //! 2. Render result in full color.
 
 use std::fmt;
@@ -110,6 +110,10 @@ impl ViewParams {
     }
 }
 
+/// Define a struct with fields, doc comments, and initial values all at once.
+/// This is useful in cases like defining a struct of GPU buffers, where the
+/// usage of a buffer is conceptually part of its type even though it's defined
+/// at runtime.
 macro_rules! struct_with_constructor {
     (
         $(#[$struct_attr:meta])*
@@ -787,7 +791,7 @@ impl DynamicPuzzleBuffers {
     }
 }
 
-fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass, count: u32) {
+fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass<'_>, count: u32) {
     const WORKGROUP_SIZE: u32 = 256;
     // Divide, rounding up
     let group_count = (count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;

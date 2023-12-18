@@ -37,7 +37,11 @@ impl CachedDynamicBuffer {
         })
     }
 
-    pub fn slice(&mut self, gfx: &GraphicsState, len: usize) -> (&wgpu::Buffer, wgpu::BufferSlice) {
+    pub fn slice(
+        &mut self,
+        gfx: &GraphicsState,
+        len: usize,
+    ) -> (&wgpu::Buffer, wgpu::BufferSlice<'_>) {
         let element_size = self.element_size;
         let b = self.at_min_len(gfx, len);
         (b, b.slice(0..(len * element_size) as u64))
@@ -47,9 +51,9 @@ impl CachedDynamicBuffer {
         &mut self,
         gfx: &GraphicsState,
         data: &mut Vec<T>,
-    ) -> wgpu::BufferSlice {
+    ) -> wgpu::BufferSlice<'_> {
         let original_len = data.len();
-        pad_buffer_if_necessary(data);
+        super::pad_buffer_to_wgpu_copy_buffer_alignment(data);
         let (buf, buf_slice) = self.slice(gfx, data.len());
         gfx.queue.write_buffer(buf, 0, bytemuck::cast_slice(data));
         data.truncate(original_len); // undo padding
@@ -126,15 +130,8 @@ impl CachedTexture {
             })
         })
     }
-}
 
-/// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.
-fn pad_buffer_if_necessary<T: Default + bytemuck::NoUninit>(buf: &mut Vec<T>) {
-    loop {
-        let bytes_len = bytemuck::cast_slice::<T, u8>(buf).len();
-        if bytes_len > 0 && bytes_len as u64 % wgpu::COPY_BUFFER_ALIGNMENT == 0 {
-            break;
-        }
-        buf.push(T::default());
+    pub fn get(&self) -> Option<&(wgpu::Texture, wgpu::TextureView)> {
+        self.texture.as_ref()
     }
 }
