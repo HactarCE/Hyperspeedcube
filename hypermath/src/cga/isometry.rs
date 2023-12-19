@@ -193,7 +193,7 @@ impl Isometry {
     }
     /// Transforms a point by the isometry.
     pub fn transform_point(&self, p: impl ToConformalPoint) -> Point {
-        self.transform_blade(&p.to_normalized_1blade()).to_point()
+        self.transform_blade(&p.to_1blade()).to_point()
     }
     /// Transforms a blade by the isometry, preserving its orientation.
     pub fn transform_blade(&self, b: &Blade) -> Blade {
@@ -343,4 +343,65 @@ impl_forward_bin_ops_to_ref! {
 }
 impl_forward_assign_ops_to_owned! {
     impl MulAssign for Isometry { fn mul_assign() { * } }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_isometry_sandwich_signs() {
+        let s = Blade::scalar(1.0);
+        let v1 = Blade::vector(vector![1.0, 2.0, 3.0]);
+        let v2 = Blade::vector(vector![-3.0, 2.0, 1.0]);
+        let v3 = Blade::vector(vector![1.0, -2.0, 3.0]);
+        let bv = &v1 ^ &v2;
+        let tv = &v1 ^ &v2 ^ &v3;
+
+        let ident = Isometry::ident();
+        assert_approx_eq!(ident.transform_blade(&s), s);
+        assert_approx_eq!(ident.transform_blade(&v1), v1);
+        assert_approx_eq!(ident.transform_blade(&bv), bv);
+        assert_approx_eq!(ident.transform_blade(&tv), tv);
+
+        let refl_z = Isometry::from_reflection_normalized(vector![0.0, 0.0, 1.0]);
+        assert_approx_eq!(refl_z.transform_blade(&s), s);
+        assert_approx_eq!(
+            refl_z.transform_blade(&v1),
+            Blade::vector(vector![1.0, 2.0, -3.0]),
+        );
+        let v1_new = refl_z.transform_blade(&v1);
+        let v2_new = refl_z.transform_blade(&v2);
+        let v3_new = refl_z.transform_blade(&v3);
+        assert_approx_eq!(refl_z.transform_blade(&bv), &v1_new ^ &v2_new);
+        assert_approx_eq!(refl_z.transform_blade(&tv), &v1_new ^ &v2_new ^ v3_new);
+
+        let rot_xy =
+            Isometry::from_vec_to_vec_normalized(&vector![1.0], &vector![0.0, 1.0]).unwrap();
+        assert_approx_eq!(rot_xy.transform_blade(&s), s);
+        assert_approx_eq!(
+            rot_xy.transform_blade(&v1),
+            Blade::vector(vector![-2.0, 1.0, 3.0]),
+        );
+        let v1_new = rot_xy.transform_blade(&v1);
+        let v2_new = rot_xy.transform_blade(&v2);
+        let v3_new = rot_xy.transform_blade(&v3);
+        assert_approx_eq!(rot_xy.transform_blade(&bv), &v1_new ^ &v2_new);
+        assert_approx_eq!(rot_xy.transform_blade(&tv), &v1_new ^ &v2_new ^ v3_new);
+
+        let rot_xy_refl_z = &rot_xy * &refl_z;
+        assert_approx_eq!(rot_xy_refl_z.transform_blade(&s), s);
+        assert_approx_eq!(
+            rot_xy_refl_z.transform_blade(&v1),
+            Blade::vector(vector![-2.0, 1.0, -3.0]),
+        );
+        let v1_new = rot_xy_refl_z.transform_blade(&v1);
+        let v2_new = rot_xy_refl_z.transform_blade(&v2);
+        let v3_new = rot_xy_refl_z.transform_blade(&v3);
+        assert_approx_eq!(rot_xy_refl_z.transform_blade(&bv), &v1_new ^ &v2_new);
+        assert_approx_eq!(
+            rot_xy_refl_z.transform_blade(&tv),
+            &v1_new ^ &v2_new ^ v3_new
+        );
+    }
 }

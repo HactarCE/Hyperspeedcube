@@ -27,6 +27,14 @@ pub const AXIS_NAMES: &str = "XYZWVUTSRQ";
 /// Maximum number of dimensions, which defaults to 10.
 pub const MAX_NDIM: u8 = 10;
 
+/// Asserts that both arguments are approximately equal.
+#[macro_export]
+macro_rules! assert_approx_eq {
+    ($a:expr, $b:expr $(,)?) => {
+        approx::assert_abs_diff_eq!($a, $b, epsilon = $crate::EPSILON)
+    };
+}
+
 #[macro_use]
 mod impl_macros;
 #[macro_use]

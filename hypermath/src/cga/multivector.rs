@@ -13,6 +13,8 @@ use crate::*;
 /// Sum of terms in the conformal geometric algebra. Terms are stored sorted by
 /// their `axes` bitmask. No two terms in one multivector may have the same set
 /// of axes.
+///
+/// TODO(optimization): store axes and floats in separate lists
 #[derive(Default, Clone, PartialEq)]
 pub struct Multivector(SmallVec<[Term; 2]>);
 
@@ -474,7 +476,7 @@ impl Multivector {
     pub fn identity() -> Self {
         Self::scalar(1.0)
     }
-    /// Returns the Minkowski plane, defined as E=∞∧o.
+    /// Returns the Minkowski plane, defined as E=o∧∞.
     pub fn minkowski_plane() -> Self {
         Multivector(smallvec![Term::unit(Axes::E_PLANE)])
     }

@@ -261,6 +261,11 @@ impl Blade {
     /// spaces](https://w.wiki/6L8q).
     pub const NI: Self = Blade(Multivector::NI);
 
+    /// Returns the Minkowski plane, defined as E=o∧∞.
+    pub fn minkowski_plane() -> Self {
+        Self(Multivector::minkowski_plane())
+    }
+
     /// Grade-projects a multivector, keeping only nonzero terms with a specific
     /// grade.
     pub fn grade_project_from(mut m: Multivector, grade: u8) -> Self {
@@ -287,7 +292,7 @@ impl Blade {
     }
     /// Constructs the normalized OPNS blade representing a point.
     pub fn point(p: impl ToConformalPoint) -> Self {
-        p.to_normalized_1blade()
+        p.to_1blade()
     }
     /// Constructs the OPNS blade representing the pair of `p` and the point at
     /// infinity, which is called a "flat point."
@@ -318,21 +323,6 @@ impl Blade {
             }
             None => Blade::ZERO,
         }
-    }
-
-    /// Normalizes an OPNS point to +No, if the No component is nonzero, or +Ni
-    /// otherwise.
-    #[must_use]
-    pub fn normalize_point(&self) -> Self {
-        let no = self.no();
-        if is_approx_nonzero(&no) {
-            return self * no.recip();
-        }
-        let ni = self.ni();
-        if is_approx_nonzero(&ni) {
-            return self * ni.recip();
-        }
-        self.clone()
     }
 
     /// Converts an OPNS blade to an IPNS blade, given the number of dimensions
@@ -424,7 +414,8 @@ impl Blade {
     /// Given an IPNS-form hypersphere/hyperplane, query whether a point is
     /// inside, outside, or on the hypersphere/hyperplane.
     pub fn ipns_query_point(&self, point: impl ToConformalPoint) -> PointWhichSide {
-        let blade = point.to_normalized_1blade();
+        let mut blade = point.to_1blade();
+        blade *= (blade.no() + blade.ni()).signum(); // Normalize sign.
         let dot = self.dot(&blade);
         match approx_cmp(&dot, &0.0) {
             std::cmp::Ordering::Less => PointWhichSide::Outside,

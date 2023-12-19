@@ -6,12 +6,6 @@ use crate::*;
 mod assertions {
     use super::*;
 
-    macro_rules! assert_approx_eq {
-        ($a:expr, $b:expr $(,)?) => {
-            approx::assert_abs_diff_eq!($a, $b, epsilon = $crate::EPSILON)
-        };
-    }
-
     pub fn assert_scaling_invariant<T>(
         expected: &T,
         blade: &Blade,
@@ -485,26 +479,43 @@ fn test_cga_transform_manifolds_preserves_orientation() {
     println!("Testing with manifold grade=1");
     // Reflect
     let actual = refl.transform_blade(&point);
-    let expected = -Blade::point(vector![-1.0]);
+    let expected = Blade::point(vector![-1.0]);
     assert_approx_eq!(actual, expected);
     // Rotate
     let actual = rot.transform_blade(&point);
     let expected = Blade::point(vector![0.0, 1.0]);
     assert_approx_eq!(actual, expected);
 
-    for ndim in 2..=8 {
-        let manifold = Blade::ipns_plane(vector![1.0], 1.0).opns_to_ipns(ndim);
-        let grade = manifold.grade();
+    fn wedge_axes(range: std::ops::Range<u8>) -> Blade {
+        range.fold(Blade::scalar(1.0), |a, i| a ^ Blade::point(Vector::unit(i)))
+    }
+
+    #[allow(non_snake_case)]
+    let E = Blade::minkowski_plane();
+
+    for ndim in 3..=8 {
+        let manifold_with_x = &E ^ wedge_axes(0..ndim - 1);
+        let manifold_without_x = &E ^ wedge_axes(1..ndim);
+        let grade = manifold_with_x.grade();
         println!("Testing with NDIM={ndim} (manifold grade={grade})",);
 
         // Reflect
-        let actual = refl.transform_blade(&manifold);
-        let expected = Blade::ipns_plane(vector![-1.0], 1.0).opns_to_ipns(ndim);
+
+        let actual = refl.transform_blade(&manifold_with_x);
+        let expected = &E ^ Blade::point(vector![-1.0]) ^ wedge_axes(1..ndim - 1);
+        assert_approx_eq!(actual, expected);
+
+        let actual = refl.transform_blade(&manifold_without_x);
+        let expected = &manifold_without_x;
         assert_approx_eq!(actual, expected);
 
         // Rotate
-        let actual = rot.transform_blade(&manifold);
-        let expected = Blade::ipns_plane(vector![0.0, 1.0], 1.0).opns_to_ipns(ndim);
+
+        let actual = rot.transform_blade(&manifold_with_x);
+        assert_approx_eq!(actual, &manifold_with_x);
+
+        let actual = rot.transform_blade(&manifold_without_x);
+        let expected = &E ^ Blade::point(vector![-1.0]) ^ wedge_axes(2..ndim);
         assert_approx_eq!(actual, expected);
     }
 }

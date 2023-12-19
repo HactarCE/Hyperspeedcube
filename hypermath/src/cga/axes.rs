@@ -85,8 +85,8 @@ impl Axes {
         // between pairs of even and odd numbers; if its parity is odd, then
         // negate the coefficient.
         match self.bits().count_ones() % 4 {
-            0 | 3 => 1.0,
-            1 | 2 => -1.0,
+            0 | 1 => 1.0,
+            2 | 3 => -1.0,
             _ => unreachable!(),
         }
     }

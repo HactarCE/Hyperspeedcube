@@ -68,14 +68,14 @@ impl Point {
 pub trait ToConformalPoint {
     /// Returns the OPNS representation of a point in the conformal geometric
     /// algebra.
-    fn to_normalized_1blade(self) -> Blade;
+    fn to_1blade(self) -> Blade;
 }
 impl<V: VectorRef> ToConformalPoint for V {
     /// Constructs the OPNS blade representing a point.
     ///
     /// See [Conformal geometric algebra - Mapping between the base space and
     /// the representation space](https://w.wiki/6L8o).
-    fn to_normalized_1blade(self) -> Blade {
+    fn to_1blade(self) -> Blade {
         // p + NO + 1/2 * NI * ||p||^2
         let mag2 = self.mag2();
         let mv = Multivector::from(self) + Multivector::NO + Multivector::NI * 0.5 * mag2;
@@ -83,17 +83,17 @@ impl<V: VectorRef> ToConformalPoint for V {
     }
 }
 impl ToConformalPoint for &'_ Blade {
-    fn to_normalized_1blade(self) -> Blade {
-        self.normalize_point()
+    fn to_1blade(self) -> Blade {
+        self.clone()
     }
 }
 impl ToConformalPoint for Blade {
-    fn to_normalized_1blade(self) -> Blade {
-        self.normalize_point()
+    fn to_1blade(self) -> Blade {
+        self
     }
 }
 impl ToConformalPoint for &'_ Point {
-    fn to_normalized_1blade(self) -> Blade {
+    fn to_1blade(self) -> Blade {
         match self {
             Point::Finite(p) => Blade::point(p),
             Point::Infinity => Blade::NI,
@@ -102,7 +102,7 @@ impl ToConformalPoint for &'_ Point {
     }
 }
 impl ToConformalPoint for Point {
-    fn to_normalized_1blade(self) -> Blade {
-        (&self).to_normalized_1blade()
+    fn to_1blade(self) -> Blade {
+        (&self).to_1blade()
     }
 }
