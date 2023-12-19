@@ -3,6 +3,18 @@ from typing import Iterable, Optional
 import itertools
 
 AXES = '-+xyz'
+GANJA_AXES = {
+    '-': 'eminus',
+    '+': 'eplus',
+    'i': 'ni',
+    'o': 'no',
+    'x': '1e1',
+    'y': '1e2',
+    'z': '1e3',
+    'E': '(eminus*eplus)'
+}
+
+LATEX = False
 
 
 def powerset(iterable):
@@ -88,18 +100,25 @@ class ScalarExpr:
             if power == 1:
                 return var
             else:
-                return f'{var}^{power}'
+                if LATEX:
+                    return f'{{{var}}}^{power}'
+                else:
+                    return f'{var}**{power}'
 
         def term_to_string(coef, vars):
             vars = Counter(vars)
-            var_string = ' '.join(var_to_string(v, vars[v])
-                                  for v in sorted(vars.keys()))
+            if LATEX:
+                var_string = ' '.join(var_to_string(v, vars[v])
+                                      for v in sorted(vars.keys()))
+            else:
+                var_string = ' * '.join(var_to_string(v, vars[v])
+                                        for v in sorted(vars.keys()))
             if coef == 1 and var_string:
                 return var_string
             elif coef == -1 and var_string:
-                return f'-{var_string}'
+                return f'-{var_string}' if LATEX else f'-({var_string})'
             else:
-                return f'{coef} {var_string}'
+                return f'{coef} {var_string}' if LATEX else f'{coef} * {var_string}'
 
         return ' + '.join(
             term_to_string(self.terms[var], var)
@@ -174,21 +193,31 @@ class CgaExpr:
     def __lshift__(self, rhs):
         return (self * rhs).grade_project(rhs.grade - self.grade)
 
+    def __xor__(self, rhs):
+        return (self * rhs).grade_project(self.grade + rhs.grade)
+
     def __bool__(self):
         return any(self.terms.values())
 
     def __str__(self):
-        return '&= ' + '\\\\\n&+ '.join(
-            it
-            for axes in map(lambda x: ''.join(x), powerset(AXES[2:]))
-            for it in [
-                self.get_human_term(axes),
-                self.get_human_term('o'+axes),
-                self.get_human_term('i'+axes),
-                self.get_human_term('E'+axes),
-            ]
-            if it
-        ).replace('.0 ', ' ').replace(' + -', ' - ')
+        if LATEX:
+            return '&= ' + '\\\\\n&+ '.join(
+                it
+                for axes in map(lambda x: ''.join(x), powerset(AXES[2:]))
+                for it in [
+                    self.get_human_term(axes),
+                    self.get_human_term('o'+axes),
+                    self.get_human_term('i'+axes),
+                    self.get_human_term('E'+axes),
+                ]
+                if it
+            ).replace('.0 ', ' ').replace(' + -', ' - ')
+        else:
+            return ' + '.join(
+                self.get_human_term(axes)
+                for axes in map(lambda x: ''.join(x), powerset(AXES))
+                if self.get_human_term(axes)
+            ).replace('.0 ', ' ').replace(' + -', ' - ')
 
     def get_human_term(self, axes):
         a = axes[1:]
@@ -204,15 +233,24 @@ class CgaExpr:
         if not coef:
             return ''
 
-        axes_string = axes.replace('i', '\infty ')
+        if LATEX:
+            axes_string = axes.replace('i', '\infty ')
+        else:
+            axes_string = '*'.join(GANJA_AXES[c] for c in axes)
         if coef == 1 and axes_string:
             return axes_string
         elif coef == -1 and axes_string:
             return f'-{axes_string}'
         elif len(coef.terms.items()) > 1:
-            return f'({coef}) {axes_string}'
+            if LATEX:
+                return f'({coef}) {axes_string}'
+            else:
+                return f'({coef}) * {axes_string}'
         else:
-            return f'{coef} {axes_string}'
+            if LATEX:
+                return f'{coef} {axes_string}'
+            else:
+                return f'{coef} * {axes_string}'
 
     @property
     def grade(self):
@@ -230,6 +268,10 @@ class CgaExpr:
     def inv(self):
         # Formula from https://math.stackexchange.com/a/556232/1115019
         return self.rev * (self << self.rev).s.recip
+
+    @property
+    def dual(self):
+        return self << CgaExpr([(AXES, 1)])
 
     def grade_project(self, grade):
         return CgaExpr({k: v for k, v in self.terms.items() if len(k) == grade})
@@ -301,7 +343,16 @@ transform = alpha * c1 * c2 + c2 * c1
 
 # print(transform)
 
-print(transform * point(''))
+# print(transform * point(''))
+
+w1 = ScalarExpr('w_1')  # 1/w
+w2 = ScalarExpr('w_2')  # 1/(1+wy)
+x = ScalarExpr('q')
+x_prime = x * w2
+f = point_at(0, w1)
+
+print(point('1') ^ NI)
+# print(((point('1') ^ NI).dual ^ NO).dual)
 
 # print(NI * NO)
 # print(NO * NI)
