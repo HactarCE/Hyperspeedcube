@@ -56,6 +56,10 @@ mod bindings {
         // Composite parameters
         COMPOSITE_PARAMS       = (0, wgpu::BufferBindingType::Uniform);
         SPECIAL_COLORS         = (1, wgpu::BufferBindingType::Uniform);
+
+        // Raycasting data
+        FACET_PLANES           = (0, wgpu::BufferBindingType::Storage { read_only: true });
+        COLOR_VALUES_RAYCAST   = (1, wgpu::BufferBindingType::Storage { read_only: true });
     }
     bindings! {
         POLYGON_IDS_TEXTURE = (50, wgpu::BindingType::Texture {
@@ -136,6 +140,9 @@ pub(super) struct Pipelines {
 
     pub render_single_pass: Vec<wgpu::RenderPipeline>,
     pub render_single_pass_bind_groups: PipelineBindGroups,
+
+    pub render_raycast: wgpu::RenderPipeline,
+    pub render_raycast_bind_groups: PipelineBindGroups,
 }
 impl Pipelines {
     pub(super) fn new(device: &wgpu::Device) -> Self {
@@ -337,6 +344,52 @@ impl Pipelines {
             })
             .collect_vec();
 
+        let render_raycast_bind_groups = PipelineBindGroups::new(
+            "render_raycast",
+            device,
+            bind_groups![
+                0 => [
+                    pub(FRAGMENT) FACET_PLANES,
+                    pub(FRAGMENT) COLOR_VALUES_RAYCAST,
+                ],
+                1 => [],
+                2 => [
+                    pub(FRAGMENT) PUZZLE_TRANSFORM,
+                    pub(FRAGMENT) PIECE_TRANSFORMS,
+                    pub(VERTEX) PROJECTION_PARAMS,
+                    pub(VERTEX) LIGHTING_PARAMS,
+                    pub(VERTEX) VIEW_PARAMS,
+                ],
+            ],
+        );
+        let render_raycast = make_render_pipeline(
+            device,
+            &device.create_shader_module(include_wgsl_with_params!("raycast.wgsl")),
+            &render_raycast_bind_groups,
+            BasicRenderPipelineDescriptor {
+                vertex_buffers: &[
+                    single_type_vertex_buffer![0 => Float32x2], // vertex position
+                ],
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleStrip,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth24PlusStencil8,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Greater,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+                fragment_target: Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Bgra8Unorm,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                }),
+                ..Default::default()
+            },
+        );
+
         // TODO: lazily create pipelines
         Self {
             compute_transform_points,
@@ -350,6 +403,9 @@ impl Pipelines {
 
             render_single_pass,
             render_single_pass_bind_groups,
+
+            render_raycast,
+            render_raycast_bind_groups,
         }
     }
 
@@ -415,7 +471,7 @@ impl PipelineBindGroups {
     pub fn bind_groups(
         &self,
         device: &wgpu::Device,
-        bind_groups: &[&[wgpu::BindingResource]],
+        bind_groups: &[&[wgpu::BindingResource<'_>]],
     ) -> Vec<(u32, wgpu::BindGroup)> {
         assert_eq!(
             self.bind_group_layouts

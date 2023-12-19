@@ -1,0 +1,55 @@
+ax + by + cz + pe_ + qe+ = 5 numbers for a plane
+
+xy + xz + xe_ + xe+ + yz + ye_ + ye+ + ze_ + ze+ + E = 10 numbers for a line
+
+IPNS plane (5) wedge IPNS line (10) -> IPNS point pair (10 numbers)
+
+OPNS point = vector
+OPNS point pair = bivector
+...
+OPNS hyperline = (n-2)-vector
+OPNS hyperplane = (n+1)-vector
+
+IPNS hyperplane = vector
+IPNS hyperline = bivector
+...
+IPNS point pair = n-vector
+IPNS point = (n+1)-vector
+
+
+
+intersect line & hyperplane
+- IPNS line ^ IPNS hyperplane
+- bivector ^ vector -> trivector
+
+whichside of pointpair along line
+- OPNS point pair ^ OPNS point
+- bivector ^ vector -> trivector
+
+
+
+
+- + x y z
+
+-+ -x -y -z
+   +x +y +z
+      xy xz
+         yz
+
+
+
+
+
+
+
+
+-> extract points
+-> test each point
+
+
+
+
+
+point within range (along line)
+
+= OPNS point pair (10) ^ OPNS point (5) -> OPNS line (10)

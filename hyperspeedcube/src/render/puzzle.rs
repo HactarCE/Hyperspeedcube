@@ -15,6 +15,14 @@ use itertools::Itertools;
 use super::structs::*;
 use super::{CachedTexture, GraphicsState};
 
+#[rustfmt::skip]
+const RECT_VERTS_DATA: &[f32] = &[
+    -1.0, -1.0,
+     1.0, -1.0,
+    -1.0,  1.0,
+     1.0,  1.0,
+];
+
 // Increment buffer IDs so each buffer has a different label in graphics
 // debuggers.
 fn next_buffer_id() -> usize {
@@ -452,6 +460,85 @@ impl PuzzleRenderer {
         Ok(color_texture_view)
     }
 
+    pub fn draw_puzzle_raycast(
+        &mut self,
+        gfx: &GraphicsState,
+        encoder: &mut wgpu::CommandEncoder,
+        view_params: &ViewParams,
+    ) -> Result<&wgpu::TextureView, ()> {
+        let triangle_count = self.init_buffers(gfx, encoder, view_params)?;
+
+        let tex_size = wgpu::Extent3d {
+            width: view_params.width,
+            height: view_params.height,
+            depth_or_array_layers: 1,
+        };
+
+        // Make the textures the right size.
+        let (depth_texture, depth_texture_view) = self.buffers.depth_texture.at_size(gfx, tex_size);
+        let (color_texture, color_texture_view) = self.buffers.out_texture.at_size(gfx, tex_size);
+
+        if self.model.is_empty() {
+            return Ok(color_texture_view);
+        }
+
+        // Render in a single pass.
+        {
+            let bind_groups = gfx.pipelines.render_raycast_bind_groups.bind_groups(
+                &gfx.device,
+                &[
+                    &[
+                        self.model.facet_planes.as_entire_binding(),
+                        self.buffers.color_values.as_entire_binding(),
+                    ],
+                    &[],
+                    &[
+                        self.buffers.puzzle_transform.as_entire_binding(),
+                        self.buffers.piece_transforms.as_entire_binding(),
+                        self.buffers.projection_params.as_entire_binding(),
+                        self.buffers.lighting_params.as_entire_binding(),
+                        self.buffers.view_params.as_entire_binding(),
+                    ],
+                ],
+            );
+
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("render_puzzle_raycast"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: color_texture_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.6,
+                            g: 0.7,
+                            b: 0.8,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: depth_texture_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
+            });
+
+            render_pass.set_pipeline(&gfx.pipelines.render_raycast);
+            for (index, bind_group) in &bind_groups {
+                render_pass.set_bind_group(*index, bind_group, &[]);
+            }
+            render_pass.set_vertex_buffer(0, self.model.rect_verts.slice(..));
+            render_pass.draw(0..4, 0..1);
+            drop(render_pass);
+        }
+
+        Ok(color_texture_view)
+    }
+
     /// Initializes buffers and returns the number of triangles to draw.
     fn init_buffers(
         &mut self,
@@ -605,6 +692,28 @@ struct_with_constructor! {
                 let piece_ids = mesh.piece_ids.iter().map(|&i| i.0 as u32).collect_vec();
                 let facet_ids = mesh.facet_ids.iter().map(|&i| i.0 as u32).collect_vec();
                 let color_ids = mesh.color_ids.iter().map(|&i| i.0 as u32).collect_vec();
+
+                let facet_planes_data = mesh
+                    .facet_blades
+                    .iter_values()
+                    .flat_map(|blade| {
+                        let blade_ipns = blade.opns_to_ipns(mesh.ndim());
+                        let normal = blade_ipns
+                            .ipns_plane_normal()
+                            .unwrap_or(vector![])
+                            .iter_ndim(3)
+                            .collect_vec();
+
+                        [
+                            normal[0],
+                            normal[1],
+                            normal[2],
+                            blade_ipns.ipns_plane_distance().unwrap_or(0.0),
+                        ]
+                    })
+                    .collect_vec();
+
+                let rect_verts_data = RECT_VERTS_DATA;
             }
 
             StaticPuzzleModel {
@@ -644,6 +753,9 @@ struct_with_constructor! {
                 facet_centroids:        wgpu::Buffer = buffer!(mesh.facet_centroids,        STORAGE),
                 /// Vertex IDs for each triangle in the whole mesh.
                 triangles:              wgpu::Buffer = buffer!(mesh.triangles,     COPY_SRC | INDEX), // TODO: this isn't index; sorted is
+
+                facet_planes:           wgpu::Buffer = buffer!(facet_planes_data,           STORAGE),
+                rect_verts:             wgpu::Buffer = buffer!(rect_verts_data,              VERTEX),
 
                 sticker_index_ranges: PerSticker<Range<u32>> = mesh.sticker_index_ranges.clone(),
                 piece_internals_index_ranges: PerPiece<Range<u32>> = mesh.piece_internals_index_ranges.clone(),

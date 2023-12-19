@@ -70,14 +70,19 @@ impl Tab {
                     let mut puzzle_view_mutex_guard = puzzle_view.lock();
 
                     ui.horizontal(|ui| {
-                        let options = [RenderEngine::SinglePass, RenderEngine::MultiPass];
+                        let options = [
+                            RenderEngine::SinglePass,
+                            RenderEngine::MultiPass,
+                            RenderEngine::Raycaster,
+                        ];
                         let mut i = match puzzle_view_mutex_guard.render_engine {
                             RenderEngine::SinglePass => 0,
                             RenderEngine::MultiPass => 1,
+                            RenderEngine::Raycaster => 2,
                         };
                         let get_fn = |i: usize| options[i].to_string();
                         egui::ComboBox::new(unique_id!(), "Render engine")
-                            .show_index(ui, &mut i, 2, get_fn);
+                            .show_index(ui, &mut i, 3, get_fn);
                         puzzle_view_mutex_guard.render_engine = options[i];
                     });
 

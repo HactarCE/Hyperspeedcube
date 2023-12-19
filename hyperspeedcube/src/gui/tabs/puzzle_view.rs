@@ -39,7 +39,7 @@ impl PuzzleView {
 
             texture_id,
             rect: egui::Rect::NOTHING,
-            render_engine: RenderEngine::SinglePass,
+            render_engine: RenderEngine::Raycaster,
 
             overlay: vec![],
         }
@@ -156,6 +156,10 @@ impl PuzzleView {
                     .draw_puzzle_single_pass(gfx, encoder, &view_params)
             }
             RenderEngine::MultiPass => self.renderer.draw_puzzle(gfx, encoder, &view_params),
+            RenderEngine::Raycaster => {
+                self.renderer
+                    .draw_puzzle_raycast(gfx, encoder, &view_params)
+            }
         };
 
         // Draw puzzle if necessary.
@@ -179,14 +183,16 @@ impl PuzzleView {
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum RenderEngine {
     SinglePass,
-    #[default]
     MultiPass,
+    #[default]
+    Raycaster,
 }
 impl fmt::Display for RenderEngine {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RenderEngine::SinglePass => write!(f, "Fast"),
             RenderEngine::MultiPass => write!(f, "Fancy"),
+            RenderEngine::Raycaster => write!(f, "Fancier"),
         }
     }
 }
