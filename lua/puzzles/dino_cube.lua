@@ -26,11 +26,11 @@ puzzledef{
   build = function()
     for v in cd{4, 3}:expand('oox') do
       carve(v:normalized())
+      add_color(v:normalized())
     end
     for v in cd{4, 3}:expand('xoo') do
       slice(v:normalized() / math.sqrt(3))
     end
-    common.colors.cube()
 
     if true then return end
 

@@ -3,7 +3,7 @@ use std::ops::Range;
 
 use eyre::{ensure, OptionExt, Result};
 use hypermath::prelude::*;
-use hypershape::ManifoldId;
+use hypershape::{ManifoldRef, Space};
 
 use super::centroid::Centroid;
 use super::{Color, PerPiece, PerSticker, Piece};
@@ -48,6 +48,12 @@ pub struct Mesh {
     /// For each piece, the range in `triangles` containing its internals'
     /// triangles.
     pub piece_internals_index_ranges: PerPiece<Range<u32>>,
+
+    /// Facet ID for each sticker.
+    pub sticker_facets: PerSticker<Facet>,
+    /// Blade for each facet, in N-dimensional space. This is used for backface
+    /// culling.
+    pub facet_blades: PerFacet<Blade>,
 }
 
 impl Default for Mesh {
@@ -75,6 +81,9 @@ impl Mesh {
 
             piece_centroids: vec![],
             facet_centroids: vec![],
+
+            sticker_facets: PerSticker::new(),
+            facet_blades: PerFacet::new(),
 
             triangles: vec![],
 
@@ -119,7 +128,7 @@ pub(super) struct MeshBuilder {
 
     piece_centroids: PerPiece<Vector>,
     facet_centroids: PerFacet<Centroid>,
-    manifold_to_facet: HashMap<ManifoldId, Facet>,
+    manifold_to_facet: HashMap<ManifoldRef, Facet>,
     next_polygon_id: u32,
 }
 impl MeshBuilder {
@@ -143,10 +152,18 @@ impl MeshBuilder {
         Ok(MeshPieceBuilder { mesh: self, id })
     }
 
-    pub(super) fn manifold_to_facet(&mut self, manifold_id: ManifoldId) -> Result<Facet> {
-        Ok(match self.manifold_to_facet.entry(manifold_id) {
+    pub(super) fn manifold_to_facet(
+        &mut self,
+        space: &Space,
+        manifold: ManifoldRef,
+    ) -> Result<Facet> {
+        Ok(match self.manifold_to_facet.entry(manifold) {
             hash_map::Entry::Occupied(e) => *e.get(),
-            hash_map::Entry::Vacant(e) => *e.insert(self.facet_centroids.push(Centroid::ZERO)?),
+            hash_map::Entry::Vacant(e) => {
+                let facet_id = self.mesh.facet_blades.push(space.blade_of(manifold))?;
+                self.facet_centroids.push(Centroid::ZERO)?;
+                *e.insert(facet_id)
+            }
         })
     }
 
@@ -184,14 +201,16 @@ pub(super) struct MeshPieceBuilder<'a> {
 impl<'a> MeshPieceBuilder<'a> {
     pub(super) fn add_sticker<'b>(
         &'b mut self,
-        facet_manifold: ManifoldId,
+        space: &Space,
+        facet_manifold: ManifoldRef,
         color: Color,
         centroid: Centroid,
     ) -> Result<MeshStickerBuilder<'a, 'b>>
     where
         'a: 'b,
     {
-        let facet = self.mesh.manifold_to_facet(facet_manifold)?;
+        let facet = self.mesh.manifold_to_facet(space, facet_manifold)?;
+        self.mesh.mesh.sticker_facets.push(facet)?;
         if let Some(facet_centroid) = self.mesh.facet_centroid_mut(facet) {
             *facet_centroid += centroid;
         }

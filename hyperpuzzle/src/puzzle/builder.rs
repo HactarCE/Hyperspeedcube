@@ -197,7 +197,7 @@ impl PuzzleBuilder {
                         .unwrap_or(&Color::INTERNAL);
                     (color, sticker_shape)
                 })
-                .filter(|(color, _sticker_shape)| space.ndim() <= 4 && *color != Color::INTERNAL)
+                .filter(|(color, _sticker_shape)| space.ndim() < 4 || *color != Color::INTERNAL)
                 .sorted();
             for (color, sticker_shape) in piece_stickers {
                 let sticker_id = stickers.push(StickerInfo {
@@ -206,9 +206,10 @@ impl PuzzleBuilder {
                 })?;
                 pieces[piece_id].stickers.push(sticker_id);
 
-                let manifold = space.manifold_of(sticker_shape).id;
+                let manifold = space.manifold_of(sticker_shape);
                 let sticker_centroid = simplexifier.shape_centroid(sticker_shape.id)?;
-                let mut sticker_mesh = piece_mesh.add_sticker(manifold, color, sticker_centroid)?;
+                let mut sticker_mesh =
+                    piece_mesh.add_sticker(&space, manifold, color, sticker_centroid)?;
 
                 build_sticker_mesh(&space, &mut simplexifier, &mut sticker_mesh, sticker_shape)?;
             }

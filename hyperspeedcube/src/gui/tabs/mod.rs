@@ -129,7 +129,7 @@ impl Tab {
                     ui.horizontal(|ui| {
                         ui.add(
                             egui::DragValue::new(&mut view_params.fov_4d)
-                                .clamp_range(-1.0..=120.0)
+                                .clamp_range(1.0..=160.0)
                                 .speed(0.5)
                                 .fixed_decimals(0)
                                 .suffix("°"),
@@ -410,7 +410,7 @@ impl Tab {
                 }
                 ui.separator();
                 crate::LIBRARY.with(|lib| {
-                    for puzzle in lib.puzzles().values() {
+                    for puzzle in lib.puzzles().values().sorted_by_key(|p| &p.name) {
                         if ui.button(format!("Load {}", puzzle.name)).clicked() {
                             let result = lib.build_puzzle(&puzzle.id).take_result_blocking();
                             match result {

@@ -9,7 +9,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use hypermath::prelude::*;
-use hyperpuzzle::{Mesh, PerPiece, PerSticker};
+use hyperpuzzle::{Facet, Mesh, PerFacet, PerPiece, PerSticker};
 use itertools::Itertools;
 
 use super::structs::*;
@@ -181,7 +181,7 @@ impl PuzzleRenderer {
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
     ) -> Result<&wgpu::TextureView, ()> {
-        self.init_buffers(gfx, view_params)?;
+        let triangle_count = self.init_buffers(gfx, encoder, view_params)?;
 
         let tex_size = wgpu::Extent3d {
             width: view_params.width,
@@ -260,8 +260,11 @@ impl PuzzleRenderer {
             render_pass.set_vertex_buffer(0, self.model.piece_ids.slice(..));
             render_pass.set_vertex_buffer(1, self.model.facet_ids.slice(..));
             render_pass.set_vertex_buffer(2, self.model.polygon_ids.slice(..));
-            render_pass.set_index_buffer(self.model.triangles.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..self.model.triangle_count as u32 * 3, 0, 0..1);
+            render_pass.set_index_buffer(
+                self.buffers.sorted_triangles.slice(..),
+                wgpu::IndexFormat::Uint32,
+            );
+            render_pass.draw_indexed(0..triangle_count * 3, 0, 0..1);
             drop(render_pass);
         }
 
@@ -274,7 +277,7 @@ impl PuzzleRenderer {
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
     ) -> Result<&wgpu::TextureView, ()> {
-        self.init_buffers(gfx, view_params)?;
+        let triangle_count = self.init_buffers(gfx, encoder, view_params)?;
 
         let tex_size = wgpu::Extent3d {
             width: view_params.width,
@@ -377,8 +380,11 @@ impl PuzzleRenderer {
             render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
             render_pass.set_vertex_buffer(1, self.buffers.vertex_lightings.slice(..));
             render_pass.set_vertex_buffer(2, self.model.polygon_ids.slice(..));
-            render_pass.set_index_buffer(self.model.triangles.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..self.model.triangle_count as u32 * 3, 0, 0..1);
+            render_pass.set_index_buffer(
+                self.buffers.sorted_triangles.slice(..),
+                wgpu::IndexFormat::Uint32,
+            );
+            render_pass.draw_indexed(0..triangle_count * 3, 0, 0..1);
             drop(render_pass);
         }
 
@@ -446,9 +452,15 @@ impl PuzzleRenderer {
         Ok(color_texture_view)
     }
 
-    fn init_buffers(&mut self, gfx: &GraphicsState, view_params: &ViewParams) -> Result<(), ()> {
+    /// Initializes buffers and returns the number of triangles to draw.
+    fn init_buffers(
+        &mut self,
+        gfx: &GraphicsState,
+        encoder: &mut wgpu::CommandEncoder,
+        view_params: &ViewParams,
+    ) -> Result<u32, ()> {
         if self.model.is_empty() {
-            return Ok(());
+            return Ok(0);
         }
 
         let scale = view_params.xy_scale()?;
@@ -519,7 +531,51 @@ impl PuzzleRenderer {
         gfx.queue
             .write_buffer(&self.buffers.view_params, 0, bytemuck::bytes_of(&data));
 
-        Ok(())
+        // Write triangle indices.
+        let mut destination_offset = 0;
+        let index_bytes = std::mem::size_of::<u32>() as u64;
+        let focal_point = view_params
+            .rot
+            .reverse()
+            .transform_blade(&Blade::grade_project_from(
+                Multivector::from(Term {
+                    coef: 1.0,
+                    axes: Axes::W,
+                }) - Multivector::NO * view_params.w_factor_4d() as f64,
+                1,
+            ));
+        for (sticker, index_range) in &self.model.sticker_index_ranges {
+            let facet = self.model.sticker_facets[sticker];
+
+            // Cull 4D backfaces.
+            if self.model.ndim >= 4 {
+                // Which side of the tangent surface contains the focal point of
+                // the camera?
+                match self.model.facet_blades[facet]
+                    .opns_to_ipns(self.model.ndim)
+                    .ipns_query_point(&focal_point)
+                {
+                    // Skip; we'd be seeing the backface.
+                    PointWhichSide::On => continue,
+                    PointWhichSide::Inside => {}
+                    PointWhichSide::Outside => continue,
+                }
+            }
+
+            let start = index_range.start as u64 * index_bytes * 3;
+            let len = index_range.len() as u64 * index_bytes * 3;
+            encoder.copy_buffer_to_buffer(
+                &self.model.triangles,
+                start,
+                &self.buffers.sorted_triangles,
+                destination_offset,
+                len,
+            );
+            destination_offset += len;
+        }
+        // TODO: handle piece internals separately
+
+        Ok((destination_offset / index_bytes / 3) as u32)
     }
 }
 
@@ -591,6 +647,9 @@ struct_with_constructor! {
 
                 sticker_index_ranges: PerSticker<Range<u32>> = mesh.sticker_index_ranges.clone(),
                 piece_internals_index_ranges: PerPiece<Range<u32>> = mesh.piece_internals_index_ranges.clone(),
+
+                sticker_facets: PerSticker<Facet> = mesh.sticker_facets.clone(),
+                facet_blades: PerFacet<Blade> = mesh.facet_blades.clone(),
             }
         }
     }

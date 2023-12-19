@@ -911,8 +911,7 @@ impl Space {
             };
         }
 
-        let new_point_pair_manifold =
-            self.add_manifold(start.to_normalized_1blade() ^ end.to_normalized_1blade())?;
+        let new_point_pair_manifold = self.add_manifold(start.to_1blade() ^ end.to_1blade())?;
         let new_point_pair = self.add_point_pair(new_point_pair_manifold)?;
         Ok(IntervalUnion::Union(new_point_pair))
     }

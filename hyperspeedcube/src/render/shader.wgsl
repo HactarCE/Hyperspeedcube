@@ -8,6 +8,9 @@ const NDIM: i32 = {{ndim}};
 // Larger number means less clipping, but also less Z buffer precision.
 const Z_CLIP: f32 = 16.0;
 
+// `w_divisor` below which geometry gets clipped.
+const W_NEAR_CLIPPING_PLANE: f32 = -1.0;
+
 
 
 /*
@@ -120,6 +123,8 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
         new_pos[i] += facet_centroids[facet_centroid_idx];
         // Apply piece explode.
         new_pos[i] += piece_centroids[piece_centroid_idx] * projection_params.piece_explode;
+        // Scale back from piece explode.
+        new_pos[i] /= 1.0 + projection_params.piece_explode;
 
         vert_idx++;
         facet_centroid_idx++;
@@ -171,7 +176,11 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     }
 
     // Apply 4D perspective transformation.
-    let w_divisor = 1.0 / (1.0 + w * projection_params.w_factor_4d);
+    var w_divisor = 1.0 / (1.0 + (w + 1.0) * projection_params.w_factor_4d);
+    if w < W_NEAR_CLIPPING_PLANE {
+        // Clip geometry that is behind the 4D camera.
+        w_divisor = 0.0 / 0.0;
+    }
     let vertex_3d_position = point_4d.xyz * w_divisor;
 
     // Apply 3D perspective transformation.
