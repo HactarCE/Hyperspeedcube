@@ -30,8 +30,17 @@ impl LuaUserData for LuaNamedUserData<SchlafliSymbol> {
     fn add_methods<'lua, T: LuaUserDataMethods<'lua, Self>>(methods: &mut T) {
         methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.ndim()));
 
-        methods.add_method("vec", |_lua, Self(this), LuaConstructVector(v)| {
-            Ok(LuaVector(mirror_basis(this)? * v))
+        methods.add_method("vec", |lua, Self(this), args: LuaMultiValue<'_>| {
+            let vector = if let Ok(s) = String::from_lua_multi(args.clone(), lua) {
+                mirror_basis(this)? * parse_wendy_krieger_vector(this.ndim(), &s)?
+            } else if let Ok(LuaConstructVector(v)) = <_>::from_lua_multi(args, lua) {
+                v
+            } else {
+                return Err(LuaError::external(
+                    "expected vector constructor or coxeter vector string",
+                ));
+            };
+            Ok(LuaVector(vector))
         });
 
         methods.add_method("expand", |lua, Self(this), args: LuaMultiValue<'_>| {
