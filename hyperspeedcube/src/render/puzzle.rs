@@ -8,6 +8,7 @@ use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
+use eyre::{bail, OptionExt, Result};
 use hypermath::prelude::*;
 use hyperpuzzle::{Facet, Mesh, PerFacet, PerPiece, PerSticker};
 use itertools::Itertools;
@@ -58,9 +59,9 @@ impl Default for ViewParams {
 impl ViewParams {
     /// Returns the X and Y scale factors to use in the view matrix. Returns
     /// `Err` if either the width or height is smaller than one pixel.
-    pub fn xy_scale(&self) -> Result<cgmath::Vector2<f32>, ()> {
+    pub fn xy_scale(&self) -> Result<cgmath::Vector2<f32>> {
         if self.width == 0 || self.height == 0 {
-            return Err(());
+            bail!("puzzle view has zero size");
         }
         let w = self.width as f32;
         let h = self.height as f32;
@@ -180,7 +181,7 @@ impl PuzzleRenderer {
         gfx: &GraphicsState,
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
-    ) -> Result<&wgpu::TextureView, ()> {
+    ) -> Result<&wgpu::TextureView> {
         let triangle_count = self.init_buffers(gfx, encoder, view_params)?;
 
         let tex_size = wgpu::Extent3d {
@@ -252,7 +253,7 @@ impl PuzzleRenderer {
             render_pass.set_pipeline(
                 gfx.pipelines
                     .render_single_pass(self.model.ndim)
-                    .ok_or(())?,
+                    .ok_or_eyre("error fetching single-pass render pipeline")?,
             );
             for (index, bind_group) in &bind_groups {
                 render_pass.set_bind_group(*index, bind_group, &[]);
@@ -276,7 +277,7 @@ impl PuzzleRenderer {
         gfx: &GraphicsState,
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
-    ) -> Result<&wgpu::TextureView, ()> {
+    ) -> Result<&wgpu::TextureView> {
         let triangle_count = self.init_buffers(gfx, encoder, view_params)?;
 
         let tex_size = wgpu::Extent3d {
@@ -332,7 +333,7 @@ impl PuzzleRenderer {
             compute_pass.set_pipeline(
                 gfx.pipelines
                     .compute_transform_points(self.model.ndim)
-                    .ok_or(())?,
+                    .ok_or_eyre("error fetching transform points compute pipeline")?,
             );
             for (index, bind_group) in &bind_groups {
                 compute_pass.set_bind_group(*index, bind_group, &[]);
@@ -458,7 +459,7 @@ impl PuzzleRenderer {
         gfx: &GraphicsState,
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
-    ) -> Result<u32, ()> {
+    ) -> Result<u32> {
         if self.model.is_empty() {
             return Ok(0);
         }

@@ -1,10 +1,10 @@
 //! Puzzle wrapper that adds animation and undo history functionality.
 
-use anyhow::Result;
 use bitvec::bitvec;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 use cgmath::{Deg, InnerSpace, One, Quaternion, Rotation, Rotation3};
+use eyre::Result;
 use instant::Duration;
 use num_enum::FromPrimitive;
 use std::borrow::Cow;

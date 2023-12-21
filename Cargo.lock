@@ -2028,7 +2028,6 @@ dependencies = [
 name = "hyperspeedcube"
 version = "2.0.0-dev-pre1"
 dependencies = [
- "anyhow",
  "bitvec",
  "bytemuck",
  "cgmath",

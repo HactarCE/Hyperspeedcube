@@ -1,4 +1,4 @@
-use anyhow::Result;
+use eyre::Result;
 use itertools::Itertools;
 use ndpuzzle::{collections::*, geometry::*, math::*, puzzle::*, vector};
 
@@ -294,7 +294,7 @@ impl PuzzleSetup {
     fn try_generate_partial_mesh(&mut self, num_steps: usize) -> Result<ShapeArena> {
         let mut arena = ShapeArena::new_euclidean_cga(self.ndim);
 
-        let result = || -> anyhow::Result<()> {
+        let result = || -> Result<()> {
             for step in &self.construction_steps[..num_steps] {
                 match step {
                     ConstructStep::CarvePlane {

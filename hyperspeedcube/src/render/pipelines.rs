@@ -1,6 +1,5 @@
 use std::fmt;
 
-use anyhow::ensure;
 use itertools::Itertools;
 
 use super::CompositeVertex;

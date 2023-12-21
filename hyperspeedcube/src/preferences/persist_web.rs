@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use eyre::eyre;
 use serde::Serialize;
 
 const PREFS_KEY: &str = "hyperspeedcube_preferences";
@@ -22,11 +22,11 @@ pub fn user_config_source() -> Result<impl config::Source, PrefsError> {
     ))
 }
 
-pub fn save(prefs_data: &impl Serialize) -> anyhow::Result<()> {
-    let prefs_string = serde_yaml::to_string(prefs_data).map_err(|e| anyhow!(e))?;
+pub fn save(prefs_data: &impl Serialize) -> Result<()> {
+    let prefs_string = serde_yaml::to_string(prefs_data).map_err(|e| eyre!(e))?;
     local_storage()?
         .set_item(PREFS_KEY, &prefs_string)
-        .map_err(|e| anyhow!(format!("{e:?}")))
+        .map_err(|e| eyre!(format!("{e:?}")))
 }
 
 pub fn backup_prefs_file() {

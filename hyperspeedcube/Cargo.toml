@@ -10,7 +10,6 @@ repository = "https://github.com/HactarCE/Hyperspeedcube/"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-anyhow = "1.0.65"
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 bytemuck = { version = "1.9.1", features = ["derive"] }
 cgmath = "0.18.0"

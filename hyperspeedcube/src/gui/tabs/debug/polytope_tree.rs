@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use anyhow::{Context, Result};
+use eyre::Result;
 use ndpuzzle::geometry::*;
 use ndpuzzle::math::{cga, VectorRef};
 use ndpuzzle::vector;

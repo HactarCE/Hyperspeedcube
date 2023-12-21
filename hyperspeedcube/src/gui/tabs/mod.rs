@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use hyperpuzzle::LuaLogLine;
-use hypershape::Space;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
@@ -418,11 +417,7 @@ impl Tab {
                                 Ok(p) => {
                                     if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
                                         log::info!("set active puzzle!");
-                                        puzzle_view.lock().set_mesh(
-                                            &app.gfx,
-                                            Space::new(p.mesh.ndim()).expect("bad space"),
-                                            Some(&p.mesh),
-                                        );
+                                        puzzle_view.lock().set_mesh(&app.gfx, Some(&p.mesh));
                                         puzzle_view.lock().puzzle = Some(p);
                                     } else {
                                         log::warn!("no active puzzle view");
@@ -467,6 +462,10 @@ impl Tab {
                 } else {
                     ui.label("No active puzzle");
                 }
+
+                let mut debug_info =
+                    std::mem::take(&mut *crate::debug::FRAME_DEBUG_INFO.lock().unwrap());
+                ui.add(egui::TextEdit::multiline(&mut debug_info).code_editor());
             }
         }
     }

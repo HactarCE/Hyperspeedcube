@@ -1,4 +1,5 @@
 use directories::ProjectDirs;
+use eyre::Result;
 use serde::Serialize;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -66,7 +67,7 @@ pub fn user_config_source() -> Result<impl config::Source, PrefsError> {
         .map(|path| config::File::from(path.as_ref()))
 }
 
-pub fn save(prefs_data: &impl Serialize) -> anyhow::Result<()> {
+pub fn save(prefs_data: &impl Serialize) -> Result<()> {
     let path = PREFS_FILE_PATH.as_ref()?;
     if let Some(p) = path.parent() {
         std::fs::create_dir_all(p)?;
