@@ -77,19 +77,21 @@ impl ViewPreferences {
 
     // TODO: make a proc macro crate to generate a trait impl like this
     pub fn interpolate(&self, rhs: &Self, t: f32) -> Self {
+        use hypermath::util::lerp;
+
         Self {
             // I know, I know, I should use quaternions for interpolation. But
             // cgmath uses XYZ order by default instead of YXZ so doing this
             // properly isn't trivial.
-            pitch: crate::util::mix(self.pitch, rhs.pitch, t),
-            yaw: crate::util::mix(self.yaw, rhs.yaw, t),
-            roll: crate::util::mix(self.roll, rhs.roll, t),
+            pitch: lerp(self.pitch, rhs.pitch, t),
+            yaw: lerp(self.yaw, rhs.yaw, t),
+            roll: lerp(self.roll, rhs.roll, t),
 
-            scale: crate::util::mix(self.scale, rhs.scale, t),
-            fov_3d: crate::util::mix(self.fov_3d, rhs.fov_3d, t),
-            fov_4d: crate::util::mix(self.fov_4d, rhs.fov_4d, t),
-            align_h: crate::util::mix(self.align_h, rhs.align_h, t),
-            align_v: crate::util::mix(self.align_v, rhs.align_v, t),
+            scale: lerp(self.scale, rhs.scale, t),
+            fov_3d: lerp(self.fov_3d, rhs.fov_3d, t),
+            fov_4d: lerp(self.fov_4d, rhs.fov_4d, t),
+            align_h: lerp(self.align_h, rhs.align_h, t),
+            align_v: lerp(self.align_v, rhs.align_v, t),
             show_frontfaces: if t < 0.5 {
                 self.show_frontfaces
             } else {
@@ -101,13 +103,13 @@ impl ViewPreferences {
                 rhs.show_backfaces
             },
             clip_4d: if t < 0.5 { self.clip_4d } else { rhs.clip_4d },
-            face_spacing: crate::util::mix(self.face_spacing, rhs.face_spacing, t),
-            sticker_spacing: crate::util::mix(self.sticker_spacing, rhs.sticker_spacing, t),
-            outline_thickness: crate::util::mix(self.outline_thickness, rhs.outline_thickness, t),
-            light_ambient: crate::util::mix(self.light_ambient, rhs.light_ambient, t),
-            light_directional: crate::util::mix(self.light_directional, rhs.light_directional, t),
-            light_pitch: crate::util::mix(self.light_pitch, rhs.light_pitch, t),
-            light_yaw: crate::util::mix(self.light_yaw, rhs.light_yaw, t),
+            face_spacing: lerp(self.face_spacing, rhs.face_spacing, t),
+            sticker_spacing: lerp(self.sticker_spacing, rhs.sticker_spacing, t),
+            outline_thickness: lerp(self.outline_thickness, rhs.outline_thickness, t),
+            light_ambient: lerp(self.light_ambient, rhs.light_ambient, t),
+            light_directional: lerp(self.light_directional, rhs.light_directional, t),
+            light_pitch: lerp(self.light_pitch, rhs.light_pitch, t),
+            light_yaw: lerp(self.light_yaw, rhs.light_yaw, t),
         }
     }
 }

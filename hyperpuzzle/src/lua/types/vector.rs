@@ -62,7 +62,7 @@ impl LuaUserData for LuaNamedUserData<Vector> {
 
         methods.add_method("normalized", |_lua, Self(this), new_mag: Option<Float>| {
             let new_mag = new_mag.unwrap_or(1.0);
-            let ret = match hypermath::try_div(new_mag, this.mag()) {
+            let ret = match hypermath::util::try_div(new_mag, this.mag()) {
                 Some(scale) => this * scale,
                 None => this.clone(),
             };

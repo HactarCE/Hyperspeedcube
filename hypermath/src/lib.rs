@@ -49,8 +49,6 @@ pub mod permutations;
 pub mod sign;
 pub mod util;
 
-pub use util::*;
-
 /// Structs, traits, and constants (excluding [`crate::collections`]).
 pub mod prelude {
     pub use crate::approx_cmp::*;

@@ -296,7 +296,7 @@ impl Isometry {
         if a.is_reflection() == b.is_reflection() {
             Self::slerp(a, b, t).euclidean_rotation_matrix()
         } else {
-            util::mix(
+            util::lerp(
                 a.euclidean_rotation_matrix(),
                 b.euclidean_rotation_matrix(),
                 t,
@@ -315,7 +315,7 @@ impl Isometry {
         if a.is_reflection() == b.is_reflection() {
             Self::slerp(a, b, t).euclidean_projective_transformation_matrix(ndim)
         } else {
-            util::mix(
+            util::lerp(
                 a.euclidean_projective_transformation_matrix(ndim),
                 b.euclidean_projective_transformation_matrix(ndim),
                 t,

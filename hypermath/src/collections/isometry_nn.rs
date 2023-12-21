@@ -91,7 +91,7 @@ impl ball_tree::Point for MultivectorPoint {
         let t = d / self.distance(other);
         MultivectorPoint(
             std::iter::zip(&self.0, &other.0)
-                .map(|(a, b)| util::mix(a, b, t as Float))
+                .map(|(a, b)| util::lerp(a, b, t as Float))
                 .collect(),
         )
     }

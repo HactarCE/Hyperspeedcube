@@ -5,15 +5,16 @@ use std::ops::{Add, Mul};
 use itertools::Itertools;
 use num_traits::{CheckedShr, PrimInt, Unsigned};
 
-use super::Float;
+use crate::Float;
 
 /// Linearly interpolates (unclamped) between two values.
-pub fn mix<T>(a: T, b: T, t: Float) -> <T::Output as Add>::Output
+pub fn lerp<A, T>(a: A, b: A, t: T) -> <A::Output as Add>::Output
 where
-    T: Mul<Float>,
-    T::Output: Add,
+    A: Mul<T>,
+    A::Output: Add,
+    T: num_traits::Float,
 {
-    a * (1.0 - t) + b * t
+    a * (T::one() - t) + b * t
 }
 
 /// Returns the element of an iterator with the minimum value, allowing floats
