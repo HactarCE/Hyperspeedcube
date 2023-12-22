@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use hypermath::Isometry;
 use hyperpuzzle::LuaLogLine;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -139,6 +140,10 @@ impl Tab {
                         );
                         ui.label("4D FOV");
                     });
+
+                    if ui.button("Reset camera").clicked() {
+                        view_params.rot = Isometry::ident();
+                    }
                 }
             }
             // Tab::PolytopeTree(polytope_tree) => polytope_tree.ui(ui, app),
