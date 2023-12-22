@@ -409,7 +409,8 @@ impl Tab {
                     || ui.input(|input| input.key_pressed(egui::Key::F5));
                 if needs_reload {
                     ui.data_mut(|data| data.insert_temp(id, ()));
-                    crate::LIBRARY.with(|lib| lib.load_directory(&*LUA_PATH));
+                    log::info!("Loading Lua files from path {}", LUA_PATH.to_string_lossy());
+                    crate::LIBRARY.with(|lib| lib.load_directory(&LUA_PATH));
                 }
                 ui.separator();
                 crate::LIBRARY.with(|lib| {
