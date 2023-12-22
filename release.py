@@ -50,12 +50,12 @@ if do_subcommand('git'):
 
 if do_subcommand('write'):
     # Set package `version`.
-    sed_inplace('Cargo.toml',
+    sed_inplace('hyperspeedcube/Cargo.toml',
                 r'^version = "[^"\n]*"$',
                 f'version = "{version}"')
 
     # Set Windows metadata `ProductVersion`.
-    sed_inplace('Cargo.toml',
+    sed_inplace('hyperspeedcube/Cargo.toml',
                 r'^ProductVersion = "[^"]*"$',
                 f'ProductVersion = "{version}"')
 
