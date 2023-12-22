@@ -79,7 +79,7 @@ struct SpecialColors {
 @group(1) @binding(7) var<storage, read_write> vertex_culls: array<f32>;
 
 // View parameters and transforms
-@group(2) @binding(0) var<storage, read> puzzle_transform: array<f32>;
+@group(2) @binding(0) var<storage, read> puzzle_transform: array<vec4<f32>>;
 @group(2) @binding(1) var<storage, read> piece_transforms: array<f32>;
 @group(2) @binding(2) var<storage, read> camera_4d_pos: array<f32>;
 @group(2) @binding(3) var<uniform> projection_params: ProjectionParams;
@@ -188,15 +188,9 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     var v = vec4<f32>();
     i = 0;
     for (var col = 0; col < NDIM; col++) {
-        // TODO: optimize this
-        for (var row = 0; row < NDIM; row++) {
-            if (row < 4) {
-                point_4d[row] += puzzle_transform[i] * old_pos[col];
-                u[row] += puzzle_transform[i] * old_u[col];
-                v[row] += puzzle_transform[i] * old_v[col];
-            }
-            i++;
-        }
+        point_4d += puzzle_transform[col] * old_pos[col];
+        u += puzzle_transform[col] * old_u[col];
+        v += puzzle_transform[col] * old_v[col];
     }
 
     // Offset the camera to W = -1. Equivalently, move the whole model to be

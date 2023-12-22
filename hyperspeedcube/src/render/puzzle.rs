@@ -495,16 +495,13 @@ impl PuzzleRenderer {
         gfx.queue
             .write_buffer(&self.buffers.lighting_params, 0, bytemuck::bytes_of(&data));
 
-        // Write the puzzle transform. TODO: make this only a 4xN matrix
-        let puzzle_transform = view_params
-            .rot
-            .euclidean_rotation_matrix()
-            .at_ndim(self.model.ndim);
-        let puzzle_transform = puzzle_transform
-            .as_slice()
-            .iter()
-            .map(|&x| x as f32)
-            .collect_vec();
+        // Write the puzzle transform.
+        let puzzle_transform = view_params.rot.euclidean_rotation_matrix();
+        let puzzle_transform: Vec<f32> = puzzle_transform
+            .cols_ndim(self.model.ndim)
+            .flat_map(|column| column.iter_ndim(4).collect_vec())
+            .map(|x| x as f32)
+            .collect();
         gfx.queue.write_buffer(
             &self.buffers.puzzle_transform,
             0,
@@ -713,7 +710,7 @@ struct_with_constructor! {
                 /// NxN transformation matrix for the whole puzzle.
                 puzzle_transform: wgpu::Buffer = gfx.create_buffer::<f32>(
                     label("puzzle_transform"),
-                    ndim as usize * ndim as usize,
+                    ndim as usize * 4,
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
                 ),
                 /// NxN transformation matrix for each piece.
