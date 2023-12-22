@@ -1,7 +1,7 @@
 //! Structs shared between the CPU and GPU (vertices, uniforms, etc.).
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct GfxLightingParams {
     pub dir: [f32; 3],
     pub ambient: f32,
@@ -10,7 +10,7 @@ pub(super) struct GfxLightingParams {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct GfxProjectionParams {
     pub facet_shrink: f32,
     pub sticker_shrink: f32,
@@ -22,14 +22,14 @@ pub(super) struct GfxProjectionParams {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct GfxCompositeParams {
     pub alpha: f32,
     pub outline_radius: u32,
 }
 
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct GfxSpecialColors {
     pub background: [f32; 3],
     pub _padding1: u32,
@@ -38,7 +38,7 @@ pub(super) struct GfxSpecialColors {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct CompositeVertex {
     pub position: [f32; 2],
     pub uv: [f32; 2],
@@ -73,7 +73,7 @@ impl CompositeVertex {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct BasicVertex {
     pub pos: [f32; 3],
     pub color: [f32; 3],
@@ -90,8 +90,11 @@ impl BasicVertex {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub struct GfxViewParams {
     pub scale: [f32; 2],
     pub align: [f32; 2],
+
+    pub clip_4d_backfaces: i32,     // bool
+    pub clip_4d_behind_camera: i32, // bool
 }

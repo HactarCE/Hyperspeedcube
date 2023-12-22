@@ -18,7 +18,9 @@ pub(crate) struct GraphicsState {
     pub(crate) scale_factor: f32,
 
     /// 1x1 texture used as a temporary value. Its contents are not important.
-    pub(crate) dummy_texture: wgpu::Texture,
+    #[allow(unused)]
+    dummy_texture: wgpu::Texture,
+    dummy_texture_view: wgpu::TextureView,
 }
 impl GraphicsState {
     pub(crate) async fn new(window: &winit::window::Window) -> Self {
@@ -70,6 +72,7 @@ impl GraphicsState {
             usage: wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         });
+        let dummy_texture_view = dummy_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         Self {
             size,
@@ -83,6 +86,7 @@ impl GraphicsState {
             scale_factor,
 
             dummy_texture,
+            dummy_texture_view,
         }
     }
 
@@ -99,9 +103,10 @@ impl GraphicsState {
         self.scale_factor = new_scale_factor;
     }
 
-    pub(crate) fn dummy_texture_view(&self) -> wgpu::TextureView {
-        self.dummy_texture
-            .create_view(&wgpu::TextureViewDescriptor::default())
+    /// Returns a 1x1 texture used as a temporary value. Its contents are not
+    /// important.
+    pub(crate) fn dummy_texture_view(&self) -> &wgpu::TextureView {
+        &self.dummy_texture_view
     }
 
     pub(super) fn create_buffer_init<T: Default + bytemuck::NoUninit>(
