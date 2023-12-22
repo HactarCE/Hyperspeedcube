@@ -16,7 +16,7 @@ pub use puzzle_view::{PuzzleView, RenderEngine};
 use super::App;
 
 lazy_static! {
-    #[cfg]
+    #[rustfmt::skip]
     static ref LUA_PATH: PathBuf = if std::option_env!("HSC_OFFICIAL_BUILD").is_some() {
         std::env::current_exe().unwrap()
             .canonicalize().unwrap()
