@@ -38,7 +38,7 @@ impl GraphicsState {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::PUSH_CONSTANTS,
+                    features: wgpu::Features::empty(),
                     limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
