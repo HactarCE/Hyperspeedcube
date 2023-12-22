@@ -323,6 +323,7 @@ impl PuzzleRenderer {
                         &[
                             self.model.piece_centroids.as_entire_binding(),
                             self.model.facet_centroids.as_entire_binding(),
+                            self.model.facet_normals.as_entire_binding(),
                             self.buffers.vertex_3d_positions.as_entire_binding(),
                             self.buffers.vertex_lightings.as_entire_binding(),
                             self.buffers.vertex_culls.as_entire_binding(),
