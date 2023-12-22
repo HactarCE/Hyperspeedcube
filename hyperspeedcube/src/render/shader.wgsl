@@ -190,12 +190,12 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     for (var col = 0; col < NDIM; col++) {
         // TODO: optimize this
         for (var row = 0; row < NDIM; row++) {
-            if (row < NDIM) {
+            if (row < 4) {
                 point_4d[row] += puzzle_transform[i] * old_pos[col];
                 u[row] += puzzle_transform[i] * old_u[col];
                 v[row] += puzzle_transform[i] * old_v[col];
-                i++;
             }
+            i++;
         }
     }
 
