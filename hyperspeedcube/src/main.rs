@@ -68,17 +68,7 @@ static LUA_BUILTIN_DIR: include_dir::Dir = include_dir::include_dir!("$CARGO_MAN
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     // Initialize logging.
-    let hsc_level = if cfg!(debug_assertions) {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Warn
-    };
-    env_logger::builder()
-        .filter_module("hypermath", hsc_level)
-        .filter_module("hypershape", hsc_level)
-        .filter_module("hyperpuzzle", hsc_level)
-        .filter_module("hyperspeedcube", hsc_level)
-        .init();
+    env_logger::builder().init();
 
     #[cfg(debug_assertions)]
     color_eyre::install();
