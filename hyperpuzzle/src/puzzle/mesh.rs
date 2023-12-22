@@ -39,6 +39,8 @@ pub struct Mesh {
     pub piece_centroids: Vec<f32>,
     /// Centroid for each facet, used to apply facet shrink.
     pub facet_centroids: Vec<f32>,
+    /// Normal vector for each facet, used to cull 4D backfaces.
+    pub facet_normals: Vec<f32>,
 
     /// Vertex indices for triangles.
     pub triangles: Vec<[u32; 3]>,
@@ -48,12 +50,6 @@ pub struct Mesh {
     /// For each piece, the range in `triangles` containing its internals'
     /// triangles.
     pub piece_internals_index_ranges: PerPiece<Range<u32>>,
-
-    /// Facet ID for each sticker.
-    pub sticker_facets: PerSticker<Facet>,
-    /// Blade for each facet, in N-dimensional space. This is used for backface
-    /// culling.
-    pub facet_blades: PerFacet<Blade>,
 }
 
 impl Default for Mesh {
@@ -81,9 +77,7 @@ impl Mesh {
 
             piece_centroids: vec![],
             facet_centroids: vec![],
-
-            sticker_facets: PerSticker::new(),
-            facet_blades: PerFacet::new(),
+            facet_normals: vec![],
 
             triangles: vec![],
 
@@ -128,6 +122,7 @@ pub(super) struct MeshBuilder {
 
     piece_centroids: PerPiece<Vector>,
     facet_centroids: PerFacet<Centroid>,
+    facet_normals: PerFacet<Vector>,
     manifold_to_facet: HashMap<ManifoldRef, Facet>,
     next_polygon_id: u32,
 }
@@ -138,6 +133,7 @@ impl MeshBuilder {
 
             piece_centroids: PerPiece::new(),
             facet_centroids: PerFacet::new(),
+            facet_normals: PerFacet::new(),
             manifold_to_facet: HashMap::new(),
             next_polygon_id: 1, // polygon ID 0 is reserved
         }
@@ -160,8 +156,19 @@ impl MeshBuilder {
         Ok(match self.manifold_to_facet.entry(manifold) {
             hash_map::Entry::Occupied(e) => *e.get(),
             hash_map::Entry::Vacant(e) => {
-                let facet_id = self.mesh.facet_blades.push(space.blade_of(manifold))?;
-                self.facet_centroids.push(Centroid::ZERO)?;
+                let facet_id = self.facet_centroids.push(Centroid::ZERO)?;
+
+                let ipns_blade = space.blade_of(manifold).opns_to_ipns(space.ndim());
+                ensure!(
+                    ipns_blade.ipns_is_flat(),
+                    "4D backface culling assumes flat faces",
+                );
+                self.facet_normals.push(
+                    ipns_blade
+                        .ipns_plane_normal()
+                        .ok_or_eyre("no plane normal")?,
+                )?;
+
                 *e.insert(facet_id)
             }
         })
@@ -188,6 +195,9 @@ impl MeshBuilder {
                 .facet_centroids
                 .extend(iter_f32(ndim, &facet_centroid.center()));
         }
+        for facet_normal in self.facet_normals.iter_values() {
+            self.mesh.facet_normals.extend(iter_f32(ndim, facet_normal));
+        }
 
         self.mesh
     }
@@ -210,7 +220,6 @@ impl<'a> MeshPieceBuilder<'a> {
         'a: 'b,
     {
         let facet = self.mesh.manifold_to_facet(space, facet_manifold)?;
-        self.mesh.mesh.sticker_facets.push(facet)?;
         if let Some(facet_centroid) = self.mesh.facet_centroid_mut(facet) {
             *facet_centroid += centroid;
         }

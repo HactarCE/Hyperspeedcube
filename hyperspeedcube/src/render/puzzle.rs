@@ -8,7 +8,7 @@ use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
-use eyre::{bail, OptionExt, Result};
+use eyre::{bail, eyre, OptionExt, Result};
 use hypermath::prelude::*;
 use hyperpuzzle::{Facet, Mesh, PerFacet, PerPiece, PerSticker};
 use itertools::Itertools;
@@ -37,6 +37,9 @@ pub struct ViewParams {
 
     pub fov_3d: f32,
     pub fov_4d: f32,
+
+    pub clip_4d_backfaces: bool,
+    pub clip_4d_behind_camera: bool,
 }
 impl Default for ViewParams {
     fn default() -> Self {
@@ -47,12 +50,15 @@ impl Default for ViewParams {
             rot: Isometry::ident(),
             zoom: 0.3,
 
-            facet_shrink: 0.0,
+            facet_shrink: 0.7,
             sticker_shrink: 0.0,
-            piece_explode: 0.25,
+            piece_explode: 0.12,
 
             fov_3d: 0.0,
             fov_4d: 30.0,
+
+            clip_4d_backfaces: true,
+            clip_4d_behind_camera: true,
         }
     }
 }
@@ -212,12 +218,14 @@ impl PuzzleRenderer {
                     &[
                         self.model.piece_centroids.as_entire_binding(),
                         self.model.facet_centroids.as_entire_binding(),
+                        self.model.facet_normals.as_entire_binding(),
                         self.model.polygon_color_ids.as_entire_binding(),
                         self.buffers.color_values.as_entire_binding(),
                     ],
                     &[
                         self.buffers.puzzle_transform.as_entire_binding(),
                         self.buffers.piece_transforms.as_entire_binding(),
+                        self.buffers.camera_4d_pos.as_entire_binding(),
                         self.buffers.projection_params.as_entire_binding(),
                         self.buffers.lighting_params.as_entire_binding(),
                         self.buffers.view_params.as_entire_binding(),
@@ -317,12 +325,15 @@ impl PuzzleRenderer {
                             self.model.facet_centroids.as_entire_binding(),
                             self.buffers.vertex_3d_positions.as_entire_binding(),
                             self.buffers.vertex_lightings.as_entire_binding(),
+                            self.buffers.vertex_culls.as_entire_binding(),
                         ],
                         &[
                             self.buffers.puzzle_transform.as_entire_binding(),
                             self.buffers.piece_transforms.as_entire_binding(),
+                            self.buffers.camera_4d_pos.as_entire_binding(),
                             self.buffers.projection_params.as_entire_binding(),
                             self.buffers.lighting_params.as_entire_binding(),
+                            self.buffers.view_params.as_entire_binding(),
                         ],
                     ],
                 );
@@ -379,8 +390,9 @@ impl PuzzleRenderer {
                 render_pass.set_bind_group(*index, bind_group, &[]);
             }
             render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
-            render_pass.set_vertex_buffer(1, self.buffers.vertex_lightings.slice(..));
-            render_pass.set_vertex_buffer(2, self.model.polygon_ids.slice(..));
+            render_pass.set_vertex_buffer(1, self.buffers.vertex_culls.slice(..));
+            render_pass.set_vertex_buffer(2, self.buffers.vertex_lightings.slice(..));
+            render_pass.set_vertex_buffer(3, self.model.polygon_ids.slice(..));
             render_pass.set_index_buffer(
                 self.buffers.sorted_triangles.slice(..),
                 wgpu::IndexFormat::Uint32,
@@ -464,8 +476,6 @@ impl PuzzleRenderer {
             return Ok(0);
         }
 
-        let scale = view_params.xy_scale()?;
-
         // Write the projection parameters.
         let data = view_params.gfx_projection_params();
         gfx.queue.write_buffer(
@@ -513,6 +523,24 @@ impl PuzzleRenderer {
             bytemuck::cast_slice(&piece_transforms_data),
         );
 
+        // Write the position of the 4D camera.
+        let camera_w = -1.0 - 1.0 / view_params.w_factor_4d() as Float;
+        let camera_4d_pos = view_params
+            .rot
+            .reverse()
+            .transform_point(vector![0.0, 0.0, 0.0, camera_w]);
+        let camera_4d_pos_data: Vec<f32> = camera_4d_pos
+            .to_finite()
+            .map_err(|_| eyre!("camera 4D position is not finite"))?
+            .iter_ndim(self.model.ndim)
+            .map(|x| x as f32)
+            .collect();
+        gfx.queue.write_buffer(
+            &self.buffers.camera_4d_pos,
+            0,
+            bytemuck::cast_slice(&camera_4d_pos_data),
+        );
+
         // Write the facet colors.
         let mut colors = vec![[0.5, 0.5, 0.5, 1.0]];
         colors.extend(
@@ -525,9 +553,13 @@ impl PuzzleRenderer {
             .write_buffer(&self.buffers.color_values, 0, bytemuck::cast_slice(&colors));
 
         // Write the view parameters.
+        let scale = view_params.xy_scale()?;
         let data = GfxViewParams {
             scale: [scale.x, scale.y],
             align: [0.0, 0.0],
+
+            clip_4d_backfaces: view_params.clip_4d_backfaces as i32,
+            clip_4d_behind_camera: view_params.clip_4d_behind_camera as i32,
         };
         gfx.queue
             .write_buffer(&self.buffers.view_params, 0, bytemuck::bytes_of(&data));
@@ -535,34 +567,7 @@ impl PuzzleRenderer {
         // Write triangle indices.
         let mut destination_offset = 0;
         let index_bytes = std::mem::size_of::<u32>() as u64;
-        let focal_point = view_params
-            .rot
-            .reverse()
-            .transform_blade(&Blade::grade_project_from(
-                Multivector::from(Term {
-                    coef: 1.0,
-                    axes: Axes::W,
-                }) - Multivector::NO * view_params.w_factor_4d() as f64,
-                1,
-            ));
         for (sticker, index_range) in &self.model.sticker_index_ranges {
-            let facet = self.model.sticker_facets[sticker];
-
-            // Cull 4D backfaces.
-            if self.model.ndim >= 4 {
-                // Which side of the tangent surface contains the focal point of
-                // the camera?
-                match self.model.facet_blades[facet]
-                    .opns_to_ipns(self.model.ndim)
-                    .ipns_query_point(&focal_point)
-                {
-                    // Skip; we'd be seeing the backface.
-                    PointWhichSide::On => continue,
-                    PointWhichSide::Inside => {}
-                    PointWhichSide::Outside => continue,
-                }
-            }
-
             let start = index_range.start as u64 * index_bytes * 3;
             let len = index_range.len() as u64 * index_bytes * 3;
             encoder.copy_buffer_to_buffer(
@@ -643,14 +648,15 @@ struct_with_constructor! {
                 piece_centroids:        wgpu::Buffer = buffer!(mesh.piece_centroids,        STORAGE),
                 /// Centroid for each facet.
                 facet_centroids:        wgpu::Buffer = buffer!(mesh.facet_centroids,        STORAGE),
+                /// Normal vector for each facet.
+                facet_normals:          wgpu::Buffer = buffer!(mesh.facet_normals,          STORAGE),
                 /// Vertex IDs for each triangle in the whole mesh.
-                triangles:              wgpu::Buffer = buffer!(mesh.triangles,     COPY_SRC | INDEX), // TODO: this isn't index; sorted is
+                triangles:              wgpu::Buffer = buffer!(mesh.triangles,             COPY_SRC),
 
                 sticker_index_ranges: PerSticker<Range<u32>> = mesh.sticker_index_ranges.clone(),
                 piece_internals_index_ranges: PerPiece<Range<u32>> = mesh.piece_internals_index_ranges.clone(),
 
-                sticker_facets: PerSticker<Facet> = mesh.sticker_facets.clone(),
-                facet_blades: PerFacet<Blade> = mesh.facet_blades.clone(),
+                m: Mesh = mesh.clone(),
             }
         }
     }
@@ -715,6 +721,12 @@ struct_with_constructor! {
                     ndim as usize * ndim as usize * mesh.piece_count(),
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
                 ),
+                /// Position of the 4D camera in N-dimensional space.
+                camera_4d_pos: wgpu::Buffer = gfx.create_buffer::<f32>(
+                    label("camera_4d_pos"),
+                    ndim as usize,
+                    wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                ),
 
                 view_params: wgpu::Buffer = gfx.create_buffer::<GfxViewParams>(
                     label("view_params"),
@@ -739,6 +751,11 @@ struct_with_constructor! {
                 /// Lighting amount for each vertex.
                 vertex_lightings: wgpu::Buffer = gfx.create_buffer::<f32>(
                     label("vertex_lightings"),
+                    mesh.vertex_count(),
+                    wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
+                ),
+                vertex_culls: wgpu::Buffer = gfx.create_buffer::<f32>(
+                    label("vertex_culls"),
                     mesh.vertex_count(),
                     wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
                 ),
@@ -835,10 +852,12 @@ impl DynamicPuzzleBuffers {
             lighting_params: clone_buffer!(gfx, id, self.lighting_params),
             puzzle_transform: clone_buffer!(gfx, id, self.puzzle_transform),
             piece_transforms: clone_buffer!(gfx, id, self.piece_transforms),
+            camera_4d_pos: clone_buffer!(gfx, id, self.camera_4d_pos),
             view_params: clone_buffer!(gfx, id, self.view_params),
             composite_params: clone_buffer!(gfx, id, self.composite_params),
             vertex_3d_positions: clone_buffer!(gfx, id, self.vertex_3d_positions),
             vertex_lightings: clone_buffer!(gfx, id, self.vertex_lightings),
+            vertex_culls: clone_buffer!(gfx, id, self.vertex_culls),
             composite_vertices: clone_buffer!(gfx, id, self.composite_vertices),
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
             special_colors: clone_buffer!(gfx, id, self.special_colors),

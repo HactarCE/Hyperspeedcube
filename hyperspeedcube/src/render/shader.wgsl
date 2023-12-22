@@ -9,7 +9,7 @@ const NDIM: i32 = {{ndim}};
 const Z_CLIP: f32 = 16.0;
 
 // `w_divisor` below which geometry gets clipped.
-const W_NEAR_CLIPPING_PLANE: f32 = -1.0;
+const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 
 
 
@@ -37,6 +37,9 @@ struct LightingParams {
 struct ViewParams {
     scale: vec2<f32>,
     align: vec2<f32>,
+
+    clip_4d_backfaces: i32,
+    clip_4d_behind_camera: i32,
 }
 
 struct CompositeParams {
@@ -66,19 +69,22 @@ struct SpecialColors {
 // Static mesh data (other)
 @group(1) @binding(0) var<storage, read> piece_centroids: array<f32>;
 @group(1) @binding(1) var<storage, read> facet_centroids: array<f32>;
-@group(1) @binding(2) var<storage, read> polygon_color_ids: array<i32>;
-@group(1) @binding(3) var<storage, read> color_values: array<vec4<f32>>;
+@group(1) @binding(2) var<storage, read> facet_normals: array<f32>;
+@group(1) @binding(3) var<storage, read> polygon_color_ids: array<i32>;
+@group(1) @binding(4) var<storage, read> color_values: array<vec4<f32>>;
 
 // Computed data (per-vertex)
-@group(1) @binding(4) var<storage, read_write> vertex_3d_positions: array<vec4<f32>>;
-@group(1) @binding(5) var<storage, read_write> vertex_lightings: array<f32>;
+@group(1) @binding(5) var<storage, read_write> vertex_3d_positions: array<vec4<f32>>;
+@group(1) @binding(6) var<storage, read_write> vertex_lightings: array<f32>;
+@group(1) @binding(7) var<storage, read_write> vertex_culls: array<f32>;
 
 // View parameters and transforms
 @group(2) @binding(0) var<storage, read> puzzle_transform: array<f32>;
 @group(2) @binding(1) var<storage, read> piece_transforms: array<f32>;
-@group(2) @binding(2) var<uniform> projection_params: ProjectionParams;
-@group(2) @binding(3) var<uniform> lighting_params: LightingParams;
-@group(2) @binding(4) var<uniform> view_params: ViewParams;
+@group(2) @binding(2) var<storage, read> camera_4d_pos: array<f32>;
+@group(2) @binding(3) var<uniform> projection_params: ProjectionParams;
+@group(2) @binding(4) var<uniform> lighting_params: LightingParams;
+@group(2) @binding(5) var<uniform> view_params: ViewParams;
 
 // Texture samplers
 @group(2) @binding(50) var polygon_ids_texture: texture_2d<i32>;
@@ -97,6 +103,7 @@ struct SpecialColors {
 struct TransformedVertex {
     position: vec4<f32>,
     lighting: f32,
+    cull: i32, // 0 = no cull. 1 = cull.
 }
 
 /// Transforms a point from NDIM dimensions to 3D.
@@ -106,34 +113,41 @@ struct TransformedVertex {
 /// - all static mesh data except `polygon_color_ids` and `color_values`
 fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> TransformedVertex {
     var ret: TransformedVertex;
+    ret.cull = 0;
 
     let base_idx = NDIM * vertex_index;
 
     var new_pos = array<f32, NDIM>();
+    var new_normal = array<f32, NDIM>();
     var vert_idx = base_idx;
-    var facet_centroid_idx = NDIM * facet;
-    var piece_centroid_idx = NDIM * piece;
+    var facet_idx = NDIM * facet;
+    var piece_idx = NDIM * piece;
     for (var i = 0; i < NDIM; i++) {
         new_pos[i] = vertex_positions[vert_idx];
+        new_normal[i] = facet_normals[facet_idx];
         // Apply sticker shrink.
         new_pos[i] += sticker_shrink_vectors[vert_idx] * projection_params.sticker_shrink;
         // Apply facet shrink.
-        new_pos[i] -= facet_centroids[facet_centroid_idx];
+        new_pos[i] -= facet_centroids[facet_idx];
         new_pos[i] *= 1.0 - projection_params.facet_shrink;
-        new_pos[i] += facet_centroids[facet_centroid_idx];
+        new_pos[i] += facet_centroids[facet_idx];
+        // Scale the whole puzzle to compensate for facet shrink.
+        new_pos[i] /= 1.0 - projection_params.facet_shrink / 2.0;
         // Apply piece explode.
-        new_pos[i] += piece_centroids[piece_centroid_idx] * projection_params.piece_explode;
+        new_pos[i] += piece_centroids[piece_idx] * projection_params.piece_explode;
         // Scale back from piece explode.
         new_pos[i] /= 1.0 + projection_params.piece_explode;
 
         vert_idx++;
-        facet_centroid_idx++;
-        piece_centroid_idx++;
+        facet_idx++;
+        piece_idx++;
     }
     var old_pos = new_pos;
+    var old_normal = new_normal;
 
     // Apply piece transform.
     new_pos = array<f32, NDIM>();
+    new_normal = array<f32, NDIM>();
     var new_u = array<f32, NDIM>();
     var new_v = array<f32, NDIM>();
     vert_idx = base_idx;
@@ -141,6 +155,7 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     for (var col = 0; col < NDIM; col++) {
         for (var row = 0; row < NDIM; row++) {
             new_pos[row] += piece_transforms[i] * old_pos[col];
+            new_normal[row] += piece_transforms[i] * old_normal[col];
             new_u[row] += piece_transforms[i] * u_tangents[vert_idx];
             new_v[row] += piece_transforms[i] * v_tangents[vert_idx];
             i++;
@@ -150,6 +165,22 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     old_pos = new_pos;
     var old_u = new_u;
     var old_v = new_v;
+
+    // Clip 4D backfaces.
+    if view_params.clip_4d_backfaces != 0 {
+        // TODO: these should be `let` bindings. workaround for https://github.com/gfx-rs/wgpu/issues/4920
+        var vertex_pos: array<f32, NDIM> = new_pos;
+        var vertex_normal: array<f32, NDIM> = new_normal;
+
+        // Compute the dot product `normal · (camera - vertex)`.
+        var dot_product_result = 0.0;
+        for (var i = 0; i < NDIM; i++) {
+            dot_product_result += vertex_normal[i] * (camera_4d_pos[i] - vertex_pos[i]);
+        }
+        // Cull if the dot product is positive (i.e., the camera is behind the
+        // geometry).
+        ret.cull |= i32(dot_product_result >= 0.0);
+    }
 
     // Apply puzzle transformation and collapse to 4D.
     var point_4d = vec4<f32>();
@@ -168,20 +199,17 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
         }
     }
 
-    var w: f32;
-    if NDIM < 3 {
-        w = 1.0;
-    } else {
-        w = point_4d.w;
-    }
+    // Offset the camera to W = -1. Equivalently, move the whole model to be
+    // centered on W = 1.
+    let w = point_4d.w + 1.0;
 
     // Apply 4D perspective transformation.
-    var w_divisor = 1.0 / (1.0 + (w + 1.0) * projection_params.w_factor_4d);
-    if w < W_NEAR_CLIPPING_PLANE {
-        // Clip geometry that is behind the 4D camera.
-        w_divisor = 0.0 / 0.0;
+    var w_divisor = 1.0 + w * projection_params.w_factor_4d;
+    let vertex_3d_position = point_4d.xyz / w_divisor;
+    // Clip geometry that is behind the 4D camera.
+    if view_params.clip_4d_behind_camera != 0 {
+        ret.cull |= i32(w_divisor < W_DIVISOR_CLIPPING_PLANE);
     }
-    let vertex_3d_position = point_4d.xyz * w_divisor;
 
     // Apply 3D perspective transformation.
     let xy = vertex_3d_position.xy;
@@ -241,8 +269,9 @@ struct SinglePassVertexInput {
 
 struct SinglePassVertexOutput {
     @builtin(position) position: vec4<f32>,
-    @location(0) lighting: f32,
-    @location(1) polygon_id: i32,
+    @location(0) cull: f32, // 0 = no cull. 1 = cull.
+    @location(1) lighting: f32,
+    @location(2) polygon_id: i32,
 }
 
 @vertex
@@ -258,12 +287,17 @@ fn render_single_pass_vertex(
     out.position = vec4(transformed.position * scale + offset);
     out.polygon_id = in.polygon_id;
     out.lighting = clamp(transformed.lighting, 0.0, 1.0);
+    out.cull = f32(transformed.cull);
     return out;
 }
 
 @fragment
 // TODO: consider `@early_depth_test`
 fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<f32> {
+    if in.cull > 0.0 {
+        discard;
+    }
+
     var color_id = polygon_color_ids[in.polygon_id - 1];
     color_id = (color_id + 1) & 0xFFFF; // wrap max value around to 0
     return vec4(color_values[color_id].rgb * in.lighting, 1.0);
@@ -277,13 +311,15 @@ fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<
 
 struct PolygonIdsVertexInput {
     @location(0) position: vec4<f32>,
-    @location(1) lighting: f32,
-    @location(2) polygon_id: i32,
+    @location(1) cull: f32, // 0 = no cull. 1 = cull.
+    @location(2) lighting: f32,
+    @location(3) polygon_id: i32,
 }
 struct PolygonIdsVertexOutput {
     @builtin(position) position: vec4<f32>,
-    @location(0) lighting: f32,
-    @location(1) polygon_id: i32,
+    @location(0) cull: f32, // 0 = no cull. 1 = cull.
+    @location(1) lighting: f32,
+    @location(2) polygon_id: i32,
 }
 
 @compute
@@ -297,6 +333,7 @@ fn compute_transform_points(@builtin(global_invocation_id) global_invocation_id:
 
     let result = transform_point_to_3d(index, facet_ids[index], piece_ids[index]);
 
+    vertex_culls[index] = f32(result.cull);
     vertex_3d_positions[index] = result.position;
     vertex_lightings[index] = result.lighting;
 }
@@ -312,12 +349,17 @@ fn render_polygon_ids_vertex(
     out.position = vec4(in.position * scale + offset);
     out.lighting = clamp(in.lighting, 0.0, 1.0);
     out.polygon_id = in.polygon_id;
+    out.cull = f32(in.cull);
     return out;
 }
 
 @fragment
 // TODO: consider `@early_depth_test`
 fn render_polygon_ids_fragment(in: PolygonIdsVertexOutput) -> @location(0) vec2<i32> {
+    if in.cull > 0.0 {
+        discard;
+    }
+
     return vec2(
         // TODO: was previously using red component to store facet ID (for color)
         //       but that's not needed anymore. consider having just a single int

@@ -39,18 +39,21 @@ mod bindings {
         // Static mesh data (other)
         PIECE_CENTROIDS        = (0, wgpu::BufferBindingType::Storage { read_only: true });
         FACET_CENTROIDS        = (1, wgpu::BufferBindingType::Storage { read_only: true });
-        POLYGON_COLOR_IDS      = (2, wgpu::BufferBindingType::Storage { read_only: true });
-        COLOR_VALUES           = (3, wgpu::BufferBindingType::Storage { read_only: true });
+        FACET_NORMALS          = (2, wgpu::BufferBindingType::Storage { read_only: true });
+        POLYGON_COLOR_IDS      = (3, wgpu::BufferBindingType::Storage { read_only: true });
+        COLOR_VALUES           = (4, wgpu::BufferBindingType::Storage { read_only: true });
         // Computed data (per-vertex)
-        VERTEX_3D_POSITIONS    = (4, wgpu::BufferBindingType::Storage { read_only: false });
-        VERTEX_LIGHTINGS       = (5, wgpu::BufferBindingType::Storage { read_only: false });
+        VERTEX_3D_POSITIONS    = (5, wgpu::BufferBindingType::Storage { read_only: false });
+        VERTEX_LIGHTINGS       = (6, wgpu::BufferBindingType::Storage { read_only: false });
+        VERTEX_CULLS           = (7, wgpu::BufferBindingType::Storage { read_only: false });
 
         // View parameters and transforms
         PUZZLE_TRANSFORM       = (0, wgpu::BufferBindingType::Storage { read_only: true });
         PIECE_TRANSFORMS       = (1, wgpu::BufferBindingType::Storage { read_only: true });
-        PROJECTION_PARAMS      = (2, wgpu::BufferBindingType::Uniform);
-        LIGHTING_PARAMS        = (3, wgpu::BufferBindingType::Uniform);
-        VIEW_PARAMS            = (4, wgpu::BufferBindingType::Uniform);
+        CAMERA_4D_POS          = (2, wgpu::BufferBindingType::Storage { read_only: true });
+        PROJECTION_PARAMS      = (3, wgpu::BufferBindingType::Uniform);
+        LIGHTING_PARAMS        = (4, wgpu::BufferBindingType::Uniform);
+        VIEW_PARAMS            = (5, wgpu::BufferBindingType::Uniform);
 
         // Composite parameters
         COMPOSITE_PARAMS       = (0, wgpu::BufferBindingType::Uniform);
@@ -121,7 +124,8 @@ macro_rules! blend_component {
 }
 
 pub(super) struct Pipelines {
-    /// Pipeline to populate `vertex_3d_positions` and `vertex_lightings`.
+    /// Pipeline to populate `vertex_3d_positions`, `vertex_lightings`, and
+    /// `vertex_culls`.
     pub compute_transform_points: Vec<wgpu::ComputePipeline>,
     pub compute_transform_points_bind_groups: PipelineBindGroups,
 
@@ -198,14 +202,18 @@ impl Pipelines {
                 1 => [
                     pub(COMPUTE) PIECE_CENTROIDS,
                     pub(COMPUTE) FACET_CENTROIDS,
+                    pub(COMPUTE) FACET_NORMALS,
                     pub(COMPUTE) VERTEX_3D_POSITIONS,
                     pub(COMPUTE) VERTEX_LIGHTINGS,
+                    pub(COMPUTE) VERTEX_CULLS,
                 ],
                 2 => [
                     pub(COMPUTE) PUZZLE_TRANSFORM,
                     pub(COMPUTE) PIECE_TRANSFORMS,
+                    pub(COMPUTE) CAMERA_4D_POS,
                     pub(COMPUTE) PROJECTION_PARAMS,
                     pub(COMPUTE) LIGHTING_PARAMS,
+                    pub(COMPUTE) VIEW_PARAMS,
                 ],
             ],
         );
@@ -228,8 +236,9 @@ impl Pipelines {
             BasicRenderPipelineDescriptor {
                 vertex_buffers: &[
                     single_type_vertex_buffer![0 => Float32x4], // position
-                    single_type_vertex_buffer![1 => Float32],   // lighting
-                    single_type_vertex_buffer![2 => Sint32],    // polygon_id
+                    single_type_vertex_buffer![1 => Float32],   // cull
+                    single_type_vertex_buffer![2 => Float32],   // lighting
+                    single_type_vertex_buffer![3 => Sint32],    // polygon_id
                 ],
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: wgpu::TextureFormat::Depth24PlusStencil8,
@@ -293,12 +302,14 @@ impl Pipelines {
                 1 => [
                     pub(VERTEX) PIECE_CENTROIDS,
                     pub(VERTEX) FACET_CENTROIDS,
+                    pub(VERTEX) FACET_NORMALS,
                     pub(FRAGMENT) POLYGON_COLOR_IDS,
                     pub(FRAGMENT) COLOR_VALUES,
                 ],
                 2 => [
                     pub(VERTEX) PUZZLE_TRANSFORM,
                     pub(VERTEX) PIECE_TRANSFORMS,
+                    pub(VERTEX) CAMERA_4D_POS,
                     pub(VERTEX) PROJECTION_PARAMS,
                     pub(VERTEX) LIGHTING_PARAMS,
                     pub(VERTEX) VIEW_PARAMS,
