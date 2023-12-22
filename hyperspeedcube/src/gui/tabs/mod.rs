@@ -417,7 +417,7 @@ impl Tab {
                                 Ok(p) => {
                                     if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
                                         log::info!("set active puzzle!");
-                                        puzzle_view.lock().set_mesh(&app.gfx, Some(&p.mesh));
+                                        puzzle_view.lock().set_mesh(&app.gfx, &p.mesh);
                                         puzzle_view.lock().puzzle = Some(p);
                                     } else {
                                         log::warn!("no active puzzle view");

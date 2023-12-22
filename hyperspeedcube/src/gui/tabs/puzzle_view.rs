@@ -3,13 +3,11 @@ use std::sync::Arc;
 
 use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, Puzzle};
-use hypershape::Space;
 
 use crate::render::{GraphicsState, PuzzleRenderer, ViewParams};
 
 #[derive(Debug)]
 pub struct PuzzleView {
-    pub space: Space,
     pub puzzle: Option<Arc<Puzzle>>,
     renderer: PuzzleRenderer,
     pub view_params: ViewParams,
@@ -28,13 +26,9 @@ impl PuzzleView {
             wgpu::FilterMode::Linear,
         );
 
-        let space = Space::new(3).unwrap();
-        let mesh = Mesh::default();
-
         PuzzleView {
-            space,
             puzzle: None,
-            renderer: PuzzleRenderer::new(gfx, &mesh),
+            renderer: PuzzleRenderer::new(gfx, &Mesh::default()),
             view_params: ViewParams::default(),
 
             texture_id,
@@ -44,11 +38,8 @@ impl PuzzleView {
             overlay: vec![],
         }
     }
-    pub(crate) fn set_mesh(&mut self, gfx: &GraphicsState, space: Space, mesh: Option<&Mesh>) {
-        self.space = space;
-        if let Some(mesh) = mesh {
-            self.renderer = PuzzleRenderer::new(gfx, mesh);
-        }
+    pub(crate) fn set_mesh(&mut self, gfx: &GraphicsState, mesh: &Mesh) {
+        self.renderer = PuzzleRenderer::new(gfx, mesh);
     }
     pub fn ui(&mut self, ui: &mut egui::Ui) -> bool {
         let dpi = ui.ctx().pixels_per_point();
