@@ -31,11 +31,16 @@ jobs:
             override: true
       - name: Build Hyperspeedcube
         run: cargo build --release
-      - name: Upload executable
+      - name: Assemble release
+        run: |
+          mkdir release
+          move target/release/hyperspeedcube.exe release
+          move lua release/lua
+      - name: Upload release
         uses: actions/upload-artifact@v2
         with:
           name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_win64
-          path: target/release/hyperspeedcube.exe
+          path: release/*
 
   linux:
     name: Build Linux latest
@@ -65,8 +70,8 @@ jobs:
       - name: Build Hyperspeedcube
         run: cargo build --release
       - name: Make tarball
-        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz target/release/hyperspeedcube
-      - name: Upload executable
+        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz target/release/hyperspeedcube lua
+      - name: Upload release
         uses: actions/upload-artifact@v2
         with:
           name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux
