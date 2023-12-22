@@ -463,9 +463,12 @@ impl Tab {
                     ui.label("No active puzzle");
                 }
 
-                let mut debug_info =
-                    std::mem::take(&mut *crate::debug::FRAME_DEBUG_INFO.lock().unwrap());
-                ui.add(egui::TextEdit::multiline(&mut debug_info).code_editor());
+                #[cfg(debug_assertions)]
+                {
+                    let mut debug_info =
+                        std::mem::take(&mut *crate::debug::FRAME_DEBUG_INFO.lock().unwrap());
+                    ui.add(egui::TextEdit::multiline(&mut debug_info).code_editor());
+                }
             }
         }
     }
