@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 use std::collections::HashMap;
 use std::path::Path;
@@ -128,8 +129,9 @@ impl Library {
                         let name = path
                             .strip_prefix(directory)
                             .unwrap_or(path)
-                            .to_string_lossy()
-                            .into_owned();
+                            .components()
+                            .map(|component| component.as_os_str().to_string_lossy())
+                            .join("/");
                         self.read_file(name, path);
                     }
                 }
