@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  HYPERSPEEDCUBE_VERSION: 2.0.0-dev-pre1
+  HYPERSPEEDCUBE_VERSION: 2.0.0-pre1
   HSC_OFFICIAL_BUILD: 1
 
 jobs:
