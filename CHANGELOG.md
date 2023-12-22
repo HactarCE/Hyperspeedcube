@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@picuber]: https://github.com/picuber
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 
-## [UNRELEASED]
+## [2.0.0-pre.1] - 2023-12-21
 
 ### Changed
 
