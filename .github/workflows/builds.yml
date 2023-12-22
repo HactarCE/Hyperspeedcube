@@ -8,6 +8,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   HYPERSPEEDCUBE_VERSION: 2.0.0-dev-pre1
+  HSC_OFFICIAL_BUILD: 1
 
 jobs:
 
@@ -74,8 +75,6 @@ jobs:
   macos:
     name: Build macOS latest
     runs-on: macos-latest
-    env:
-      HSC_MACOS_APP: 1
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2

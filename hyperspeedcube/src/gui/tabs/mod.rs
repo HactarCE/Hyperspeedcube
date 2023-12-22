@@ -16,18 +16,22 @@ pub use puzzle_view::{PuzzleView, RenderEngine};
 use super::App;
 
 lazy_static! {
-    static ref LUA_PATH: PathBuf = std::env::current_exe()
-        .unwrap()
-        .canonicalize()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .to_owned()
-        .join("lua");
+    #[cfg]
+    static ref LUA_PATH: PathBuf = if std::option_env!("HSC_OFFICIAL_BUILD").is_some() {
+        std::env::current_exe().unwrap()
+            .canonicalize().unwrap()
+            .parent().unwrap()
+            .parent().unwrap()
+            .parent().unwrap()
+            .to_owned()
+            .join("lua")
+    } else {
+        std::env::current_exe().unwrap()
+            .canonicalize().unwrap()
+            .parent().unwrap()
+            .to_owned()
+            .join("lua")
+    };
 }
 
 #[derive(Debug)]
