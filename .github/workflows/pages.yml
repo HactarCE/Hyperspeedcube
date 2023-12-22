@@ -4,7 +4,7 @@ name: Github Pages
 on:
   release:
     types:
-      - published
+      - released
   workflow_dispatch:
 
 permissions:
