@@ -77,6 +77,8 @@ impl PuzzleView {
 
         let z_axis = if ui.input(|input| input.modifiers.shift) {
             3
+        } else if ui.input(|input| input.modifiers.alt) {
+            4
         } else {
             2
         };
