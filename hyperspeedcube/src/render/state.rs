@@ -43,6 +43,7 @@ impl GraphicsState {
                     } else {
                         wgpu::Limits::default()
                     },
+                    features: Default::default(),
                     label: None,
                 },
                 None,
