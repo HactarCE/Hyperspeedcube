@@ -170,7 +170,7 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     var old_v = new_v;
 
     // Clip 4D backfaces.
-    if view_params.clip_4d_backfaces != 0 {
+    if NDIM >= 4 && view_params.clip_4d_backfaces != 0 {
         // TODO: these should be `let` bindings. workaround for https://github.com/gfx-rs/wgpu/issues/4920
         var vertex_pos: array<f32, NDIM> = new_pos;
         var vertex_normal: array<f32, NDIM> = new_normal;

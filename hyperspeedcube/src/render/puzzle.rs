@@ -689,7 +689,8 @@ impl fmt::Debug for StaticPuzzleModel {
 
 impl StaticPuzzleModel {
     fn is_empty(&self) -> bool {
-        self.vertex_count == 0 || self.piece_count == 0 || self.sticker_index_ranges.is_empty()
+        // TODO: what if internals are hidden? this isn't really surefire
+        self.vertex_count == 0
     }
 }
 

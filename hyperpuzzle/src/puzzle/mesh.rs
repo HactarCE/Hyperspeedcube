@@ -167,6 +167,7 @@ impl Mesh {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub(super) struct MeshVertexData<'a> {
     pub position: &'a Vector,
     pub u_tangent: &'a Vector,
