@@ -59,6 +59,7 @@ mod web_workarounds;
 use app::App;
 
 const TITLE: &str = "Hyperspeedcube";
+const IS_OFFICIAL_BUILD: bool = std::option_env!("HSC_OFFICIAL_BUILD").is_some();
 
 thread_local! {
     static LIBRARY: Library = Library::new();

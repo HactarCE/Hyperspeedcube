@@ -18,7 +18,7 @@ use super::App;
 
 lazy_static! {
     #[rustfmt::skip]
-    static ref LUA_PATH: PathBuf = if std::option_env!("HSC_OFFICIAL_BUILD").is_some() {
+    static ref LUA_PATH: PathBuf = if crate::IS_OFFICIAL_BUILD {
         std::env::current_exe().unwrap()
             .canonicalize().unwrap()
             .parent().unwrap()
