@@ -2,7 +2,12 @@ PRETTY_TRACEBACK = true
 
 -- This is a default implementation that may be overwritten by Rust code.
 function log_line(args)
-  local s = string.format("[%s] [%s]: %s", args.level:upper(), args.file or '<internal>', args.msg)
+  local s
+  if args.file == nil then
+    s = string.format("[%s] %s", args.level:upper(), args.msg)
+  else
+    s = string.format("[%s] [%s] %s", args.level:upper(), args.file, args.msg)
+  end
   print(s)
 end
 
