@@ -53,6 +53,10 @@ pub type PerPieceType<T> = GenericVec<PieceType, T>;
 pub type PieceSet = Set64<Piece>;
 /// Set of stickers in a puzzle.
 pub type StickerSet = Set64<Sticker>;
+/// Set of facets in a puzzle.
+pub type FacetSet = Set64<Facet>;
+/// Set of colors in a puzzle.
+pub type ColorSet = Set64<Color>;
 
 /// Piece info.
 #[derive(Debug, Clone, PartialEq)]
@@ -61,6 +65,8 @@ pub struct PieceInfo {
     pub stickers: SmallVec<[Sticker; 8]>,
     /// Piece type.
     pub piece_type: PieceType,
+    /// Centroid of the piece.
+    pub centroid: Vector,
 }
 
 /// Sticker info.
