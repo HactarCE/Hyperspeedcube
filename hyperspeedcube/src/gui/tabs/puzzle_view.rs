@@ -78,12 +78,12 @@ impl PuzzleView {
             self.view_params.zoom *= (scroll_delta.y / 100.0).exp2();
         }
 
-        let z_axis = if ui.input(|input| input.modifiers.shift) {
-            3
-        } else if ui.input(|input| input.modifiers.alt) {
-            4
-        } else {
-            2
+        let mut z_axis = 2;
+        if ui.input(|input| input.modifiers.shift) {
+            z_axis += 1;
+        }
+        if ui.input(|input| input.modifiers.alt) {
+            z_axis += 2;
         };
         self.view_params.rot =
             Isometry::from_angle_in_axis_plane(0, z_axis, -drag_delta.x as Float)
