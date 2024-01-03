@@ -41,6 +41,9 @@ impl PuzzleView {
     pub(crate) fn set_mesh(&mut self, gfx: &GraphicsState, mesh: &Mesh) {
         self.renderer = PuzzleRenderer::new(gfx, mesh);
     }
+    pub(crate) fn ndim(&self) -> Option<u8> {
+        self.puzzle.as_ref().map(|puzzle| puzzle.ndim())
+    }
     pub fn ui(&mut self, ui: &mut egui::Ui) -> bool {
         let dpi = ui.ctx().pixels_per_point();
 
