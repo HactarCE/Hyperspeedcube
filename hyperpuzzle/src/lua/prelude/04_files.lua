@@ -65,12 +65,10 @@ function load_file(filename)
     -- Execute the file.
     info(nil, "Loading file %q", filename)
     local error
-    local is_success, load_result = pcall(load, file_contents, "user:" .. filename, 't', FILE.environment)
-    if is_success then
-      local chunk = load_result
+    local chunk, error = load(file_contents, "user:" .. filename, 't', FILE.environment)
+    local is_success
+    if chunk then
       is_success, error = xpcall(chunk, usertraceback)
-    else
-      error = load_result
     end
 
     -- Does any puzzle conflict?
