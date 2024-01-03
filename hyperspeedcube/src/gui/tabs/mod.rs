@@ -18,7 +18,7 @@ use super::App;
 
 lazy_static! {
     #[rustfmt::skip]
-    static ref LUA_PATH: PathBuf = if std::option_env!("HSC_OFFICIAL_BUILD").is_some() {
+    static ref LUA_PATH: PathBuf = if crate::IS_OFFICIAL_BUILD {
         std::env::current_exe().unwrap()
             .canonicalize().unwrap()
             .parent().unwrap()
@@ -71,24 +71,28 @@ impl Tab {
             // Tab::PuzzleSetup(puzzle_setup) => puzzle_setup.ui(ui, app),
             Tab::ViewSettings => {
                 if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
-                    let mut puzzle_view_mutex_guard = puzzle_view.lock();
+                    let mut puzzle_view = puzzle_view.lock();
 
                     ui.horizontal(|ui| {
                         let options = [RenderEngine::SinglePass, RenderEngine::MultiPass];
-                        let mut i = match puzzle_view_mutex_guard.render_engine {
+                        let mut i = match puzzle_view.render_engine {
                             RenderEngine::SinglePass => 0,
                             RenderEngine::MultiPass => 1,
                         };
                         let get_fn = |i: usize| options[i].to_string();
                         egui::ComboBox::new(unique_id!(), "Render engine")
                             .show_index(ui, &mut i, 2, get_fn);
-                        puzzle_view_mutex_guard.render_engine = options[i];
+                        puzzle_view.render_engine = options[i];
                     });
 
                     ui.separator();
 
-                    let view_params = &mut puzzle_view_mutex_guard.view_params;
+                    let ndim = puzzle_view.ndim();
+                    let view_params = &mut puzzle_view.view_params;
 
+                    if matches!(ndim, None | Some(3)) {
+                        ui.checkbox(&mut view_params.show_internals, "Show internals");
+                    }
                     ui.horizontal(|ui| {
                         ui.add(
                             egui::DragValue::new(&mut view_params.facet_shrink)
@@ -99,12 +103,14 @@ impl Tab {
                         ui.label("Facet shrink");
                     });
                     ui.horizontal(|ui| {
-                        ui.add(
+                        let r = ui.add_enabled(
+                            !view_params.show_internals || ndim != Some(3),
                             egui::DragValue::new(&mut view_params.sticker_shrink)
                                 .clamp_range(0.0..=0.9)
                                 .speed(0.005)
                                 .fixed_decimals(2),
                         );
+                        r.on_disabled_hover_text("Disabled when internals are shown");
                         ui.label("Sticker shrink");
                     });
                     ui.horizontal(|ui| {

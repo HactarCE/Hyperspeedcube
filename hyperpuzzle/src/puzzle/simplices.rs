@@ -1,10 +1,10 @@
 #![allow(dead_code)] // TODO: remove when extending simplexifier to work with curved cuts
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::ops::Index;
 
-use eyre::{ensure, eyre, OptionExt, Result};
+use eyre::{ensure, eyre, Context, OptionExt, Result};
 use hypermath::collections::ApproxHashMap;
 use hypermath::*;
 use hypershape::*;
@@ -49,15 +49,22 @@ impl<'a> Simplexifier<'a> {
     }
 
     pub fn shape_centroid_point(&mut self, shape: AtomicPolytopeId) -> Result<Vector> {
+        let shape_centroid = self.shape_centroid(shape)?;
+        self.project_point_onto_shape(&Point::Finite(shape_centroid.center()), shape)
+            .wrap_err("unable to compute centroid of shape")
+    }
+    pub fn project_point_onto_shape(
+        &self,
+        point: &Point,
+        shape: AtomicPolytopeId,
+    ) -> Result<Vector> {
         let manifold = self.space[shape].manifold;
         let blade = &self.space[manifold].blade;
-        // Add up those centroids.
-        let centroid = self.shape_centroid(shape)?;
         // Project the point back onto the manifold.
         blade
-            .project_point(&cga::Point::Finite(centroid.center()))
+            .project_point(point)
             .and_then(|p| p.to_finite().ok())
-            .ok_or_eyre("unable to compute centroid of shape")
+            .ok_or_eyre("unable to project centroid of shape")
     }
     pub fn shape_centroid(&mut self, shape: AtomicPolytopeId) -> Result<Centroid> {
         let shape_manifold = self.space[shape].manifold;
@@ -138,8 +145,33 @@ impl<'a> Simplexifier<'a> {
         }
     }
 
-    pub fn face_polygons(&mut self, shape: AtomicPolytopeRef) -> Result<Vec<[VertexId; 3]>> {
-        let manifold = self.space.manifold_of(shape);
+    pub fn polygons(&mut self, root: AtomicPolytopeRef) -> Result<Vec<AtomicPolytopeRef>> {
+        // TODO: move this function to `Space`
+
+        let mut queue = vec![root];
+        let mut seen = HashSet::new();
+        let mut results = vec![];
+
+        while let Some(shape) = queue.pop() {
+            match self.space.ndim_of(shape) {
+                0..=1 => continue, // should be unreachable
+                3.. => {
+                    // TODO: handle non-flat shapes
+                    for b in self.space.boundary_of(shape) {
+                        if seen.insert(b.id) {
+                            queue.push(b);
+                        }
+                    }
+                }
+                2 => results.push(shape),
+            }
+        }
+
+        Ok(results)
+    }
+
+    fn polygon_edges(&mut self, polygon: AtomicPolytopeRef) -> Result<Vec<[VertexId; 2]>> {
+        let manifold = self.space.manifold_of(polygon);
         let blade = self.space.blade_of(manifold);
 
         ensure!(
@@ -150,32 +182,44 @@ impl<'a> Simplexifier<'a> {
         let is_flat = blade.opns_is_flat();
         let boundary_is_flat = self
             .space
-            .boundary_of(shape)
+            .boundary_of(polygon)
             .all(|b| self.space[self.space[b.id].manifold].blade.opns_is_flat());
         ensure!(
             is_flat && boundary_is_flat,
             "spherical shapes are not yet supported",
         );
 
-        let edges =
-            self.space
-                .boundary_of(shape)
-                .map(|edge| {
-                    let edge_bounds = self.space.boundary_of(edge).exactly_one().map_err(|e| {
+        self.space
+            .boundary_of(polygon)
+            .map(|edge| {
+                let edge_bounds =
+                    self.space.boundary_of(edge).exactly_one().map_err(|e| {
                         eyre!("edge should be bounded by exactly one point pair: {e}")
                     })?;
-                    let [a, b] = self.space.extract_point_pair(edge_bounds)?;
-                    let a = self.add_vertex(a)?;
-                    let b = self.add_vertex(b)?;
-                    Ok([a, b])
-                })
-                .collect::<Result<Vec<[VertexId; 2]>>>()?;
+                let [a, b] = self.space.extract_point_pair(edge_bounds)?;
+                let a = self.add_vertex(a)?;
+                let b = self.add_vertex(b)?;
+                Ok([a, b])
+            })
+            .collect()
+    }
+    pub fn triangles(&mut self, polygon: AtomicPolytopeRef) -> Result<Vec<[VertexId; 3]>> {
+        let edges = self.polygon_edges(polygon)?;
         let initial_vertex = edges.get(0).ok_or_eyre("polygon has no edges")?[0];
         Ok(edges
             .into_iter()
             .filter(|edge| !edge.contains(&initial_vertex))
             .map(|[a, b]| [initial_vertex, a, b])
             .collect())
+    }
+
+    pub fn vertex_set(&mut self, root: AtomicPolytopeRef) -> Result<HashSet<VertexId>> {
+        self.polygons(root)?
+            .into_iter()
+            .map(|polygon| self.polygon_edges(polygon))
+            .flatten_ok()
+            .flatten_ok()
+            .collect()
     }
 }
 
@@ -312,7 +356,7 @@ impl SimplexBlob {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct VertexId(u32);
 impl fmt::Display for VertexId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

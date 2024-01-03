@@ -414,14 +414,18 @@ impl Blade {
     /// Given an IPNS-form hypersphere/hyperplane, query whether a point is
     /// inside, outside, or on the hypersphere/hyperplane.
     pub fn ipns_query_point(&self, point: impl ToConformalPoint) -> PointWhichSide {
-        let mut blade = point.to_1blade();
-        blade *= (blade.no() + blade.ni()).signum(); // Normalize sign.
-        let dot = self.dot(&blade);
+        let mut point_blade = point.to_1blade();
+        point_blade *= point_blade.mv()[Axes::E_MINUS].signum(); // Normalize sign.
+        let dot = self.dot(&point_blade);
         match approx_cmp(&dot, &0.0) {
             std::cmp::Ordering::Less => PointWhichSide::Outside,
             std::cmp::Ordering::Equal => PointWhichSide::On,
             std::cmp::Ordering::Greater => PointWhichSide::Inside,
         }
+    }
+    /// Given an OPNS-form manifold, query whether a point is on the manifold.
+    pub fn opns_contains_point(&self, point: impl ToConformalPoint) -> bool {
+        (self ^ point.to_1blade()).is_zero()
     }
 
     /// Returns the Ni component of a 1-blade.

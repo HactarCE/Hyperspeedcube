@@ -1,13 +1,10 @@
-use std::collections::{hash_map, HashMap};
 use std::ops::Range;
 
-use eyre::{ensure, OptionExt, Result};
+use eyre::{OptionExt, Result};
 use hypermath::prelude::*;
-use hypershape::{ManifoldRef, Space};
 
-use super::centroid::Centroid;
 use super::{Color, PerPiece, PerSticker, Piece};
-use crate::{Facet, PerFacet};
+use crate::Facet;
 
 /// Data to render a puzzle, in a format that can be sent to the GPU.
 #[derive(Debug, Clone)]
@@ -16,6 +13,8 @@ pub struct Mesh {
 
     /// Number of sticker colors in the mesh.
     pub color_count: usize,
+    /// Number of polygons in the mesh.
+    pub polygon_count: usize,
 
     /// Coordinates for each vertex in N-dimensional space.
     pub vertex_positions: Vec<f32>,
@@ -29,11 +28,11 @@ pub struct Mesh {
     pub piece_ids: Vec<Piece>,
     /// Facet ID for each vertex.
     pub facet_ids: Vec<Facet>,
-    /// Polygon ID for each vertex.
+    /// Polygon ID for each vertex. Outlines are drawn between polygons.
     pub polygon_ids: Vec<u32>,
 
     /// Color ID for each polygon.
-    pub color_ids: Vec<Color>,
+    pub polygon_color_ids: Vec<Color>,
 
     /// Centroid for each piece, used to apply piece explode.
     pub piece_centroids: Vec<f32>,
@@ -64,6 +63,7 @@ impl Mesh {
         Mesh {
             ndim,
             color_count: 0,
+            polygon_count: 0,
 
             vertex_positions: vec![],
             u_tangents: vec![],
@@ -73,7 +73,7 @@ impl Mesh {
             facet_ids: vec![],
             polygon_ids: vec![],
 
-            color_ids: vec![],
+            polygon_color_ids: vec![],
 
             piece_centroids: vec![],
             facet_centroids: vec![],
@@ -114,203 +114,70 @@ impl Mesh {
     pub fn color_count(&self) -> usize {
         self.color_count
     }
-}
 
-#[derive(Debug)]
-pub(super) struct MeshBuilder {
-    mesh: Mesh,
+    pub(super) fn add_vertex(&mut self, data: MeshVertexData<'_>) -> u32 {
+        let vertex_id = self.vertex_count() as u32;
 
-    piece_centroids: PerPiece<Vector>,
-    facet_centroids: PerFacet<Centroid>,
-    facet_normals: PerFacet<Vector>,
-    manifold_to_facet: HashMap<ManifoldRef, Facet>,
-    next_polygon_id: u32,
-}
-impl MeshBuilder {
-    pub(super) fn new(ndim: u8) -> Self {
-        MeshBuilder {
-            mesh: Mesh::new_empty(ndim),
+        let ndim = self.ndim();
+        self.vertex_positions.extend(iter_f32(ndim, data.position));
+        self.u_tangents.extend(iter_f32(ndim, data.u_tangent));
+        self.v_tangents.extend(iter_f32(ndim, data.v_tangent));
+        self.sticker_shrink_vectors
+            .extend(iter_f32(ndim, data.sticker_shrink_vector));
+        self.piece_ids.push(data.piece_id);
+        self.facet_ids.push(data.facet_id);
+        self.polygon_ids.push(data.polygon_id);
 
-            piece_centroids: PerPiece::new(),
-            facet_centroids: PerFacet::new(),
-            facet_normals: PerFacet::new(),
-            manifold_to_facet: HashMap::new(),
-            next_polygon_id: 1, // polygon ID 0 is reserved
-        }
+        vertex_id
+    }
+    pub(super) fn next_polygon_id(&mut self) -> Result<u32> {
+        let ret = self.polygon_count as u32;
+        self.polygon_count = self
+            .polygon_count
+            .checked_add(1)
+            .ok_or_eyre("too many polygons")?;
+        Ok(ret)
     }
 
-    pub(super) fn add_color(&mut self) {
-        self.mesh.color_count += 1;
-    }
-
-    pub(super) fn add_piece(&mut self, centroid_point: Vector) -> Result<MeshPieceBuilder<'_>> {
-        let id = self.piece_centroids.push(centroid_point)?;
-        Ok(MeshPieceBuilder { mesh: self, id })
-    }
-
-    pub(super) fn manifold_to_facet(
+    /// Adds a piece to the mesh, given its centroid and a function to add its
+    /// internal facets.
+    pub(super) fn add_piece(
         &mut self,
-        space: &Space,
-        manifold: ManifoldRef,
-    ) -> Result<Facet> {
-        Ok(match self.manifold_to_facet.entry(manifold) {
-            hash_map::Entry::Occupied(e) => *e.get(),
-            hash_map::Entry::Vacant(e) => {
-                let facet_id = self.facet_centroids.push(Centroid::ZERO)?;
+        centroid: &impl VectorRef,
+        internals_index_range: Range<u32>,
+    ) -> Result<()> {
+        let ndim = self.ndim();
+        self.piece_centroids.extend(iter_f32(ndim, centroid));
+        self.piece_internals_index_ranges
+            .push(internals_index_range)?;
 
-                let ipns_blade = space.blade_of(manifold).opns_to_ipns(space.ndim());
-                ensure!(
-                    ipns_blade.ipns_is_flat(),
-                    "4D backface culling assumes flat faces",
-                );
-                self.facet_normals.push(
-                    ipns_blade
-                        .ipns_plane_normal()
-                        .ok_or_eyre("no plane normal")?,
-                )?;
-
-                *e.insert(facet_id)
-            }
-        })
+        Ok(())
     }
 
-    fn facet_centroid_mut(&mut self, facet: Facet) -> Option<&mut Centroid> {
-        if facet == Facet::NONE {
-            None
-        } else {
-            self.facet_centroids.extend_to_contain(facet).ok()?;
-            Some(&mut self.facet_centroids[facet])
-        }
-    }
-
-    pub(super) fn finish(mut self) -> Mesh {
-        let ndim = self.mesh.ndim;
-        for piece_centroid in self.piece_centroids.iter_values() {
-            self.mesh
-                .piece_centroids
-                .extend(iter_f32(ndim, piece_centroid));
-        }
-        for facet_centroid in self.facet_centroids.iter_values() {
-            self.mesh
-                .facet_centroids
-                .extend(iter_f32(ndim, &facet_centroid.center()));
-        }
-        for facet_normal in self.facet_normals.iter_values() {
-            self.mesh.facet_normals.extend(iter_f32(ndim, facet_normal));
-        }
-
-        self.mesh
-    }
-}
-
-#[derive(Debug)]
-pub(super) struct MeshPieceBuilder<'a> {
-    mesh: &'a mut MeshBuilder,
-    id: Piece,
-}
-impl<'a> MeshPieceBuilder<'a> {
-    pub(super) fn add_sticker<'b>(
-        &'b mut self,
-        space: &Space,
-        facet_manifold: ManifoldRef,
-        color: Color,
-        centroid: Centroid,
-    ) -> Result<MeshStickerBuilder<'a, 'b>>
-    where
-        'a: 'b,
-    {
-        let facet = self.mesh.manifold_to_facet(space, facet_manifold)?;
-        if let Some(facet_centroid) = self.mesh.facet_centroid_mut(facet) {
-            *facet_centroid += centroid;
-        }
-        let index_range_start = self.mesh.mesh.triangles.len() as u32;
-        Ok(MeshStickerBuilder {
-            piece: self,
-            facet,
-            color,
-            index_range_start,
-        })
-    }
-}
-impl Drop for MeshPieceBuilder<'_> {
-    fn drop(&mut self) {
-        self.mesh
-            .mesh
-            .piece_internals_index_ranges
-            .push(0..0) // TODO: internals index range
-            .unwrap(); // TODO: unwrap icky
-    }
-}
-
-#[derive(Debug)]
-pub(super) struct MeshStickerBuilder<'a, 'b> {
-    piece: &'b mut MeshPieceBuilder<'a>,
-    facet: Facet,
-    color: Color,
-    index_range_start: u32,
-}
-impl<'a: 'b, 'b> MeshStickerBuilder<'a, 'b> {
-    pub(super) fn add_polygon<'c>(
-        &'c mut self,
-        manifold: &'c Blade,
-    ) -> Result<MeshPolygonBuilder<'a, 'b, 'c>> {
-        let id = self.piece.mesh.next_polygon_id;
-        self.piece.mesh.next_polygon_id = id.checked_add(1).ok_or_eyre("too many polygons")?;
-        self.piece.mesh.mesh.color_ids.push(self.color);
-        let tangent_space = manifold.opns_tangent_space();
-        Ok(MeshPolygonBuilder {
-            sticker: self,
-            id,
-            tangent_space,
-        })
-    }
-}
-impl Drop for MeshStickerBuilder<'_, '_> {
-    fn drop(&mut self) {
-        let mesh = &mut self.piece.mesh.mesh;
-        let index_range_end = mesh.triangles.len() as u32;
-        let _ = mesh
-            .sticker_index_ranges
-            .push(self.index_range_start..index_range_end);
-    }
-}
-
-#[derive(Debug)]
-pub(super) struct MeshPolygonBuilder<'a, 'b, 'c> {
-    sticker: &'c mut MeshStickerBuilder<'a, 'b>,
-    id: u32,
-    tangent_space: TangentSpace,
-}
-impl MeshPolygonBuilder<'_, '_, '_> {
-    pub(super) fn add_vertex(
+    pub(super) fn add_facet(
         &mut self,
-        pos: impl VectorRef,
-        sticker_shrink_vector: impl VectorRef,
-    ) -> Result<u32> {
-        let mesh = &mut self.sticker.piece.mesh.mesh;
-        let ndim = mesh.ndim();
+        centroid: impl VectorRef,
+        normal: impl VectorRef,
+    ) -> Result<()> {
+        let ndim = self.ndim();
+        self.facet_centroids.extend(iter_f32(ndim, &centroid));
+        self.facet_normals.extend(iter_f32(ndim, &normal));
 
-        let vertex_id = mesh.vertex_count() as u32;
-
-        mesh.vertex_positions.extend(iter_f32(ndim, &pos));
-        let tangents = self.tangent_space.at(pos).ok_or_eyre("bad tangent space")?;
-        ensure!(tangents.len() == 2, "tangent space must be 2D");
-        mesh.u_tangents.extend(iter_f32(ndim, &tangents[0]));
-        mesh.v_tangents.extend(iter_f32(ndim, &tangents[1]));
-        mesh.sticker_shrink_vectors
-            .extend(iter_f32(ndim, &sticker_shrink_vector));
-        mesh.piece_ids.push(self.sticker.piece.id);
-        mesh.facet_ids.push(self.sticker.facet);
-        mesh.polygon_ids.push(self.id);
-
-        Ok(vertex_id)
-    }
-    pub(super) fn add_tri(&mut self, verts: [u32; 3]) {
-        let mesh = &mut self.sticker.piece.mesh.mesh;
-        mesh.triangles.push(verts);
+        Ok(())
     }
 }
 
-fn iter_f32(ndim: u8, v: &impl VectorRef) -> impl '_ + Iterator<Item = f32> {
+#[derive(Debug, Copy, Clone)]
+pub(super) struct MeshVertexData<'a> {
+    pub position: &'a Vector,
+    pub u_tangent: &'a Vector,
+    pub v_tangent: &'a Vector,
+    pub sticker_shrink_vector: &'a Vector,
+    pub piece_id: Piece,
+    pub facet_id: Facet,
+    pub polygon_id: u32,
+}
+
+fn iter_f32<'a>(ndim: u8, v: &'a impl VectorRef) -> impl 'a + Iterator<Item = f32> {
     v.iter_ndim(ndim).map(|x| x as f32)
 }

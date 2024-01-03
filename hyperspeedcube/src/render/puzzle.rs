@@ -31,6 +31,7 @@ pub struct ViewParams {
     pub rot: Isometry,
     pub zoom: f32,
 
+    pub show_internals: bool,
     pub facet_shrink: f32,
     pub sticker_shrink: f32,
     pub piece_explode: f32,
@@ -50,6 +51,7 @@ impl Default for ViewParams {
             rot: Isometry::ident(),
             zoom: 0.3,
 
+            show_internals: true,
             facet_shrink: 0.7,
             sticker_shrink: 0.0,
             piece_explode: 0.12,
@@ -104,10 +106,14 @@ impl ViewParams {
     }
 
     /// Returns the projection parameters to send to the GPU.
-    fn gfx_projection_params(&self) -> GfxProjectionParams {
+    fn gfx_projection_params(&self, ndim: u8) -> GfxProjectionParams {
         GfxProjectionParams {
             facet_shrink: self.facet_shrink,
-            sticker_shrink: self.sticker_shrink,
+            sticker_shrink: if self.show_internals && ndim == 3 {
+                0.0
+            } else {
+                self.sticker_shrink
+            },
             piece_explode: self.piece_explode,
 
             w_factor_4d: self.w_factor_4d(),
@@ -478,7 +484,7 @@ impl PuzzleRenderer {
         }
 
         // Write the projection parameters.
-        let data = view_params.gfx_projection_params();
+        let data = view_params.gfx_projection_params(self.model.ndim);
         gfx.queue.write_buffer(
             &self.buffers.projection_params,
             0,
@@ -577,7 +583,21 @@ impl PuzzleRenderer {
             );
             destination_offset += len;
         }
-        // TODO: handle piece internals separately
+
+        if view_params.show_internals {
+            for (piece, index_range) in &self.model.piece_internals_index_ranges {
+                let start = index_range.start as u64 * index_bytes * 3;
+                let len = index_range.len() as u64 * index_bytes * 3;
+                encoder.copy_buffer_to_buffer(
+                    &self.model.triangles,
+                    start,
+                    &self.buffers.sorted_triangles,
+                    destination_offset,
+                    len,
+                );
+                destination_offset += len;
+            }
+        }
 
         Ok((destination_offset / index_bytes / 3) as u32)
     }
@@ -608,7 +628,7 @@ struct_with_constructor! {
                 // Convert to i32 because WGSL doesn't support 16-bit integers yet.
                 let piece_ids = mesh.piece_ids.iter().map(|&i| i.0 as u32).collect_vec();
                 let facet_ids = mesh.facet_ids.iter().map(|&i| i.0 as u32).collect_vec();
-                let color_ids = mesh.color_ids.iter().map(|&i| i.0 as u32).collect_vec();
+                let polygon_color_ids = mesh.polygon_color_ids.iter().map(|&i| i.0 as u32).collect_vec();
             }
 
             StaticPuzzleModel {
@@ -641,7 +661,7 @@ struct_with_constructor! {
                  * OTHER STORAGE BUFFERS
                  */
                 /// Color ID for each polygon.
-                polygon_color_ids:      wgpu::Buffer = buffer!(color_ids,                   STORAGE),
+                polygon_color_ids:      wgpu::Buffer = buffer!(polygon_color_ids,           STORAGE),
                 /// Centroid for each piece.
                 piece_centroids:        wgpu::Buffer = buffer!(mesh.piece_centroids,        STORAGE),
                 /// Centroid for each facet.
@@ -677,7 +697,8 @@ impl fmt::Debug for StaticPuzzleModel {
 
 impl StaticPuzzleModel {
     fn is_empty(&self) -> bool {
-        self.vertex_count == 0 || self.piece_count == 0 || self.sticker_index_ranges.is_empty()
+        // TODO: what if internals are hidden? this isn't really surefire
+        self.vertex_count == 0
     }
 }
 

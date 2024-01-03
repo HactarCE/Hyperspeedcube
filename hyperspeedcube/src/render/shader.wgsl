@@ -11,6 +11,9 @@ const Z_CLIP: f32 = 16.0;
 // `w_divisor` below which geometry gets clipped.
 const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 
+// Sentinel value indicating no geometry.
+const NO_POLYGON: i32 = -1;
+
 
 
 /*
@@ -167,7 +170,7 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     var old_v = new_v;
 
     // Clip 4D backfaces.
-    if view_params.clip_4d_backfaces != 0 {
+    if NDIM >= 4 && view_params.clip_4d_backfaces != 0 {
         // TODO: these should be `let` bindings. workaround for https://github.com/gfx-rs/wgpu/issues/4920
         var vertex_pos: array<f32, NDIM> = new_pos;
         var vertex_normal: array<f32, NDIM> = new_normal;
@@ -292,7 +295,7 @@ fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<
         discard;
     }
 
-    var color_id = polygon_color_ids[in.polygon_id - 1];
+    var color_id = polygon_color_ids[in.polygon_id];
     color_id = (color_id + 1) & 0xFFFF; // wrap max value around to 0
     return vec4(color_values[color_id].rgb * in.lighting, 1.0);
 }
@@ -342,7 +345,7 @@ fn render_polygon_ids_vertex(
     let offset = vec4(view_params.align, 0.5, 0.5);
     out.position = vec4(in.position * scale + offset);
     out.lighting = clamp(in.lighting, 0.0, 1.0);
-    out.polygon_id = in.polygon_id;
+    out.polygon_id = in.polygon_id + 1; // +1 because the texture is cleared to 0
     out.cull = f32(in.cull);
     return out;
 }
@@ -389,7 +392,7 @@ fn render_composite_puzzle_fragment(in: CompositeVertexOutput) -> @location(0) v
     // TODO: was previously using red component to store facet ID (for color)
     //       but that's not needed anymore. consider having just a single int
     let lighting: f32 = f32(textureLoad(polygon_ids_texture, tex_coords, 0).r >> 16u) / 16384.0;
-    let polygon_id: i32 = textureLoad(polygon_ids_texture, tex_coords, 0).g;
+    let polygon_id: i32 = textureLoad(polygon_ids_texture, tex_coords, 0).g - 1;
     let r = i32(composite_params.outline_radius);
 
     // Fetch polygon IDs
@@ -399,10 +402,10 @@ fn render_composite_puzzle_fragment(in: CompositeVertexOutput) -> @location(0) v
     let d = textureLoad(polygon_ids_texture, tex_coords + vec2(r, -r), 0).g;
     if a != d || b != c {
         return vec4(special_colors.outline, composite_params.alpha);
-    } else if polygon_id == 0 {
+    } else if polygon_id == NO_POLYGON {
         return vec4(special_colors.background, composite_params.alpha);
     } else {
-        var color_id = polygon_color_ids[polygon_id - 1];
+        var color_id = polygon_color_ids[polygon_id];
         color_id = (color_id + 1) & 0xFFFF; // wrap max value around to 0
         return vec4(color_values[color_id].rgb * lighting, composite_params.alpha);
     }

@@ -26,43 +26,56 @@ impl LuaCoxeterGroup {
     }
 }
 
+impl LuaNamedUserData<SchlafliSymbol> {}
+
 impl LuaUserData for LuaNamedUserData<SchlafliSymbol> {
     fn add_methods<'lua, T: LuaUserDataMethods<'lua, Self>>(methods: &mut T) {
-        methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.ndim()));
-
-        methods.add_method("vec", |lua, Self(this), args: LuaMultiValue<'_>| {
-            let vector = if let Ok(s) = String::from_lua_multi(args.clone(), lua) {
-                mirror_basis(this)? * parse_wendy_krieger_vector(this.ndim(), &s)?
-            } else if let Ok(LuaConstructVector(v)) = <_>::from_lua_multi(args, lua) {
-                v
-            } else {
-                return Err(LuaError::external(
-                    "expected vector constructor or coxeter vector string",
-                ));
-            };
-            Ok(LuaVector(vector))
+        methods.add_meta_method(LuaMetaMethod::Call, |lua, Self(this), args| {
+            expand_vec_lua_iter(lua, this, args)
         });
 
-        methods.add_method("expand", |lua, Self(this), args: LuaMultiValue<'_>| {
-            let vector = if let Ok(s) = String::from_lua_multi(args.clone(), lua) {
-                mirror_basis(this)? * parse_wendy_krieger_vector(this.ndim(), &s)?
-            } else if let Ok(LuaConstructVector(v)) = <_>::from_lua_multi(args, lua) {
-                v
-            } else {
-                return Err(LuaError::external(
-                    "expected vector constructor or coxeter vector string",
-                ));
-            };
-            let mut vectors_iter = this
-                .expand(vector, |t, point| t.transform_vector(point))
-                .into_iter()
-                .map(LuaVector);
-            lua.create_function_mut(move |_lua, ()| Ok(vectors_iter.next()))
+        methods.add_method("expand", |lua, Self(this), args| {
+            expand_vec_lua_iter(lua, this, args)
+        });
+
+        methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.ndim()));
+
+        methods.add_method("vec", |lua, Self(this), args| {
+            Ok(LuaVector(vec_from_args(lua, this, args)?))
         });
     }
 
     fn get_uvalues_count(&self) -> std::os::raw::c_int {
         1
+    }
+}
+
+fn expand_vec_lua_iter<'lua>(
+    lua: LuaContext<'lua>,
+    s: &SchlafliSymbol,
+    args: LuaMultiValue<'lua>,
+) -> LuaResult<LuaFunction<'lua>> {
+    let vector = vec_from_args(lua, s, args)?;
+    let mut vectors_iter = s
+        .expand(vector, |t, point| t.transform_vector(point))
+        .into_iter()
+        .map(LuaVector);
+    lua.create_function_mut(move |_lua, ()| Ok(vectors_iter.next()))
+}
+
+fn vec_from_args<'lua>(
+    lua: LuaContext<'lua>,
+    s: &SchlafliSymbol,
+    args: LuaMultiValue<'lua>,
+) -> LuaResult<Vector> {
+    if let Ok(string) = String::from_lua_multi(args.clone(), lua) {
+        Ok(mirror_basis(s)? * parse_wendy_krieger_vector(s.ndim(), &string)?)
+    } else if let Ok(LuaConstructVector(v)) = <_>::from_lua_multi(args, lua) {
+        Ok(v)
+    } else {
+        Err(LuaError::external(
+            "expected vector constructor or coxeter vector string",
+        ))
     }
 }
 

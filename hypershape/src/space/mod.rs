@@ -302,6 +302,20 @@ impl Space {
         Ok(())
     }
 
+    /// Returns a set of the elements of a polytope, of all ranks.
+    pub fn elements_of(&self, root: AtomicPolytopeId) -> Result<AtomicPolytopeIdSet> {
+        let mut ret = AtomicPolytopeIdSet::new();
+        let mut queue = vec![root];
+        while let Some(p) = queue.pop() {
+            if ret.insert(p) {
+                for elem in self.boundary_of(p) {
+                    queue.push(elem.id);
+                }
+            }
+        }
+        Ok(ret)
+    }
+
     /// Cuts each atomic polytope in a set.
     pub fn cut_atomic_polytope_set(
         &mut self,
