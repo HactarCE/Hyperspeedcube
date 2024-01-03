@@ -14,7 +14,7 @@ use crate::*;
 
 /// Arbitrary hash value for a float.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct FloatHash(u16);
+pub struct FloatHash(u32);
 
 /// Approximate hash map for objects with floating-point values, using a
 /// `BTreeMap` to record arbitrary hash values for floats.
