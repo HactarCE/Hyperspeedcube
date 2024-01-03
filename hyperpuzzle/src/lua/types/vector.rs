@@ -31,6 +31,10 @@ impl LuaVector {
             return Self::construct_from_table(t);
         }
 
+        if let Ok(LuaAxisName(i)) = <_>::from_lua_multi(values.clone(), lua) {
+            return Ok(Vector::unit(i));
+        }
+
         values
             .into_iter()
             .map(|v| Float::from_lua(v, lua))
