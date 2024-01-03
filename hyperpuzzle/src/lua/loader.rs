@@ -202,7 +202,9 @@ impl LuaLoader {
 
             let error = build_puzzle_result?;
             if let Some(error_message) = error {
-                bail!(error_message)
+                lua.globals()
+                    .get::<_, LuaFunction<'_>>("error")?
+                    .call(error_message)?;
             }
 
             let result = LuaPuzzleBuilder::take(lua)?.build()?;
