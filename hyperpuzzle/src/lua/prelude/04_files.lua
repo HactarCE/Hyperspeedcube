@@ -169,6 +169,7 @@ function build_puzzle(puzzle_data, ...)
   FILE = puzzle_data.file
   local is_success, error = xpcall(puzzle_data.build, usertraceback, ...)
   if is_success then
+    info(nil, "Built puzzle %q", puzzle_data.name)
     return nil
   else
     return error or "error"
