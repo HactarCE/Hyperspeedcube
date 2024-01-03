@@ -6,7 +6,7 @@
 const NDIM: i32 = {{ndim}};
 
 // Larger number means less clipping, but also less Z buffer precision.
-const Z_CLIP: f32 = 16.0;
+const Z_CLIP: f32 = 256.0;
 
 // `w_divisor` below which geometry gets clipped.
 const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
