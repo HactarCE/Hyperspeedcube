@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::ops::Index;
 
-use eyre::{ensure, eyre, OptionExt, Result};
+use eyre::{ensure, eyre, Context, OptionExt, Result};
 use hypermath::collections::ApproxHashMap;
 use hypermath::*;
 use hypershape::*;
@@ -49,15 +49,22 @@ impl<'a> Simplexifier<'a> {
     }
 
     pub fn shape_centroid_point(&mut self, shape: AtomicPolytopeId) -> Result<Vector> {
+        let shape_centroid = self.shape_centroid(shape)?;
+        self.project_point_onto_shape(&Point::Finite(shape_centroid.center()), shape)
+            .wrap_err("unable to compute centroid of shape")
+    }
+    pub fn project_point_onto_shape(
+        &self,
+        point: &Point,
+        shape: AtomicPolytopeId,
+    ) -> Result<Vector> {
         let manifold = self.space[shape].manifold;
         let blade = &self.space[manifold].blade;
-        // Add up those centroids.
-        let centroid = self.shape_centroid(shape)?;
         // Project the point back onto the manifold.
         blade
-            .project_point(&cga::Point::Finite(centroid.center()))
+            .project_point(point)
             .and_then(|p| p.to_finite().ok())
-            .ok_or_eyre("unable to compute centroid of shape")
+            .ok_or_eyre("unable to project centroid of shape")
     }
     pub fn shape_centroid(&mut self, shape: AtomicPolytopeId) -> Result<Centroid> {
         let shape_manifold = self.space[shape].manifold;

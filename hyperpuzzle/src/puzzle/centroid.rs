@@ -65,4 +65,7 @@ impl Centroid {
             Vector::EMPTY
         }
     }
+    pub fn is_zero(&self) -> bool {
+        approx_eq(&self.weight, &0.0)
+    }
 }
