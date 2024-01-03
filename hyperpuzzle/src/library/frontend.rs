@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
 
 use eyre::Result;
@@ -19,6 +19,7 @@ use crate::{LuaLogLine, Puzzle, TaskHandle};
 pub struct Library {
     tx: mpsc::Sender<LibraryCommand>,
     puzzles: Arc<Mutex<HashMap<String, PuzzleData>>>,
+    file_paths: Arc<Mutex<HashMap<String, PathBuf>>>,
 }
 
 impl Default for Library {
@@ -33,7 +34,9 @@ impl Library {
         let (tx, rx) = mpsc::channel();
 
         let puzzles = Arc::new(Mutex::new(HashMap::new()));
+        let file_paths = Arc::new(Mutex::new(HashMap::new()));
         let puzzles_ref2 = Arc::clone(&puzzles);
+        let file_paths_ref2 = Arc::clone(&file_paths);
 
         std::thread::spawn(move || {
             let loader = LuaLoader::new();
@@ -47,7 +50,14 @@ impl Library {
                         }
                     }
 
-                    LibraryCommand::AddFile { filename, contents } => {
+                    LibraryCommand::AddFile {
+                        path,
+                        filename,
+                        contents,
+                    } => {
+                        if let Some(path) = path {
+                            file_paths_ref2.lock().insert(filename.clone(), path);
+                        }
                         if let Err(e) = loader.set_file_contents(&filename, Some(&contents)) {
                             let e = e.wrap_err(format!("failed to add file {filename}"));
                             log::error!("{e:?}");
@@ -82,7 +92,11 @@ impl Library {
             }
         });
 
-        Library { tx, puzzles }
+        Library {
+            tx,
+            puzzles,
+            file_paths,
+        }
     }
     /// Sends a command to the [`LuaLoader`], which is on another thread.
     fn send_command(&self, command: LibraryCommand) {
@@ -100,18 +114,22 @@ impl Library {
     ///
     /// If the filename conflicts with an existing one, then the existing file
     /// will be overwritten.
-    pub fn add_file(&self, filename: String, contents: String) {
-        self.send_command(LibraryCommand::AddFile { filename, contents });
+    pub fn add_file(&self, path: Option<PathBuf>, filename: String, contents: String) {
+        self.send_command(LibraryCommand::AddFile {
+            path,
+            filename,
+            contents,
+        });
     }
     /// Reads a file from the disk and adds it to the Lua library. It will not
     /// immediately be loaded. Logs an error if the file could not be read.
     ///
     /// If the filename conflicts with an existing one, then the existing file
     /// will be overwritten.
-    pub fn read_file(&self, filename: String, file_path: &Path) {
+    pub fn read_file(&self, file_path: &Path, filename: String) {
         let file_path = file_path.strip_prefix(".").unwrap_or(file_path);
         match std::fs::read_to_string(file_path) {
-            Ok(contents) => self.add_file(filename, contents),
+            Ok(contents) => self.add_file(Some(file_path.to_path_buf()), filename, contents),
             Err(e) => log::error!("error loading {file_path:?}: {e}"),
         }
     }
@@ -132,7 +150,7 @@ impl Library {
                             .components()
                             .map(|component| component.as_os_str().to_string_lossy())
                             .join("/");
-                        self.read_file(name, path);
+                        self.read_file(path, name);
                     }
                 }
                 Err(e) => log::warn!("error reading filesystem entry: {e:?}"),
@@ -167,6 +185,10 @@ impl Library {
     pub fn load_directory(&self, directory: &Path) -> TaskHandle<()> {
         self.read_directory(directory);
         self.load_files()
+    }
+    /// Returns the list of known file paths.
+    pub fn file_paths(&self) -> MutexGuard<'_, HashMap<String, PathBuf>> {
+        self.file_paths.lock()
     }
     /// Returns the full list of loaded puzzles.
     pub fn puzzles(&self) -> MutexGuard<'_, HashMap<String, PuzzleData>> {

@@ -431,19 +431,7 @@ impl Tab {
                 crate::LIBRARY.with(|lib| {
                     for puzzle in lib.puzzles().values().sorted_by_key(|p| &p.name) {
                         if ui.button(format!("Load {}", puzzle.name)).clicked() {
-                            let result = lib.build_puzzle(&puzzle.id).take_result_blocking();
-                            match result {
-                                Err(e) => log::error!("{e:?}"),
-                                Ok(p) => {
-                                    if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
-                                        log::info!("set active puzzle!");
-                                        puzzle_view.lock().set_mesh(&app.gfx, &p.mesh);
-                                        puzzle_view.lock().puzzle = Some(p);
-                                    } else {
-                                        log::warn!("no active puzzle view");
-                                    }
-                                }
-                            }
+                            app.load_puzzle(lib, &puzzle.id);
                         }
                     }
                 });

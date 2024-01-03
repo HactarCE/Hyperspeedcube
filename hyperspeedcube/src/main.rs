@@ -203,6 +203,20 @@ async fn run() {
         // Prioritize sending events to the key combo popup.
         match &ev {
             Event::WindowEvent { window_id, event } if *window_id == window.id() => {
+                match event {
+                    WindowEvent::KeyboardInput {
+                        input:
+                            KeyboardInput {
+                                state: winit::event::ElementState::Pressed,
+                                virtual_keycode: Some(winit::event::VirtualKeyCode::F5),
+                                ..
+                            },
+                        ..
+                    } => app.reload_puzzle(),
+
+                    _ => (),
+                }
+
                 // TODO: key_combo_popup_handle_event
 
                 // gui::key_combo_popup_handle_event(&egui_ctx, &mut app, event);

@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use eyre::Result;
@@ -12,7 +13,11 @@ pub(super) enum LibraryCommand {
     },
 
     /// Add a Lua file to the library.
-    AddFile { filename: String, contents: String },
+    AddFile {
+        path: Option<PathBuf>,
+        filename: String,
+        contents: String,
+    },
     /// Remove a Lua file from the library.
     RemoveFile { filename: String },
     /// Removes all Lua files from the library.
