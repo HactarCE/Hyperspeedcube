@@ -96,12 +96,14 @@ impl Tab {
                         ui.checkbox(&mut view_params.show_internals, "Show internals");
                     }
                     ui.horizontal(|ui| {
-                        ui.add(
+                        let r = ui.add_enabled(
+                            !view_params.show_internals || ndim != Some(3),
                             egui::DragValue::new(&mut view_params.facet_shrink)
                                 .clamp_range(0.0..=0.99)
                                 .speed(0.005)
                                 .fixed_decimals(2),
                         );
+                        r.on_disabled_hover_text("Disabled when internals are shown");
                         ui.label("Facet shrink");
                     });
                     ui.horizontal(|ui| {

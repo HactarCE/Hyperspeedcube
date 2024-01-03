@@ -108,7 +108,11 @@ impl ViewParams {
     /// Returns the projection parameters to send to the GPU.
     fn gfx_projection_params(&self, ndim: u8) -> GfxProjectionParams {
         GfxProjectionParams {
-            facet_shrink: self.facet_shrink,
+            facet_shrink: if self.show_internals && ndim == 3 {
+                0.0
+            } else {
+                self.facet_shrink
+            },
             sticker_shrink: if self.show_internals && ndim == 3 {
                 0.0
             } else {
