@@ -4,6 +4,10 @@ local function add_symmetric_colors(...)
   end
 end
 
+function tetrahedron(radius)
+  add_symmetric_colors(cd{3, 3}:expand('oox'))
+end
+
 function cube(radius)
   add_symmetric_colors(cd{4, 3}:expand('oox'))
   name_colors{'Right', 'Up', 'Left', 'Down', 'Front', 'Back'}
