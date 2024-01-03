@@ -42,8 +42,9 @@ pub enum Tab {
     ViewSettings,
     // PolytopeTree(PolytopeTree),
     PuzzleLibraryDemo,
-    PuzzleLibrary { log_lines: Vec<LuaLogLine> },
+    PuzzleLibrary,
     PuzzleInfo,
+    LuaLogs,
 }
 impl Tab {
     pub fn title(&self) -> egui::WidgetText {
@@ -58,6 +59,7 @@ impl Tab {
             Tab::PuzzleLibraryDemo => "Puzzle Library".into(),
             Tab::PuzzleLibrary { .. } => "Puzzle Library".into(),
             Tab::PuzzleInfo { .. } => "Puzzle Info".into(),
+            Tab::LuaLogs => "Lua Logs".into(),
         }
     }
 
@@ -412,7 +414,7 @@ impl Tab {
                         });
                     });
             }
-            Tab::PuzzleLibrary { log_lines } => {
+            Tab::PuzzleLibrary => {
                 ui.separator();
                 let id = egui::Id::new("hyperspeedcube/files");
                 let needs_reload = ui.button("Reload all files").clicked()
@@ -444,8 +446,6 @@ impl Tab {
                     }
                 });
                 ui.separator();
-
-                colored_logs(ui, log_lines);
             }
             Tab::PuzzleInfo => {
                 if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
@@ -486,17 +486,47 @@ impl Tab {
                     ui.add(egui::TextEdit::multiline(&mut debug_info).code_editor());
                 }
             }
+            Tab::LuaLogs => {
+                let mut log_lines = crate::LIBRARY_LOG_LINES.lock();
+                if ui.button("Clear logs").clicked() {
+                    log_lines.clear();
+                }
+
+                let filter_string_id = unique_id!();
+                let mut filter_string: String =
+                    ui.data_mut(|data| data.get_temp(filter_string_id).clone().unwrap_or_default());
+                ui.horizontal(|ui| {
+                    ui.label("Filter:");
+                    ui.text_edit_singleline(&mut filter_string);
+                });
+                ui.data_mut(|data| data.insert_temp(filter_string_id, filter_string.clone()));
+
+                egui::ScrollArea::new([true; 2]).show(ui, |ui| {
+                    for line in &**log_lines {
+                        if line.matches_filter_string(&filter_string) {
+                            colored_log_line(ui, line)
+                        }
+                    }
+                });
+            }
         }
     }
 }
 
-fn colored_logs(ui: &mut egui::Ui, logs: &[LuaLogLine]) {
-    for line in logs {
-        let color = match line.level.as_str() {
-            "info" => egui::Color32::LIGHT_BLUE,
-            "warn" | "warning" => egui::Color32::LIGHT_RED,
-            _ => egui::Color32::DEBUG_COLOR,
-        };
-        ui.colored_label(color, format!("{}: {}", line.file, line.msg));
-    }
+fn colored_log_line(ui: &mut egui::Ui, line: &LuaLogLine) {
+    let color = match line.level.as_deref() {
+        Some("info") => egui::Color32::LIGHT_BLUE,
+        Some("warn" | "warning") => egui::Color32::YELLOW,
+        Some("error") => egui::Color32::LIGHT_RED,
+        _ => egui::Color32::WHITE,
+    };
+    let s = match &line.file {
+        Some(file) => format!("[{}] {}", file, line.msg),
+        None => format!("{}", line.msg),
+    };
+    ui.label(
+        egui::RichText::new(s)
+            .color(color)
+            .text_style(egui::TextStyle::Monospace),
+    );
 }

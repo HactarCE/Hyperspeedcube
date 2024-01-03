@@ -33,6 +33,7 @@ use std::sync::Arc;
 use gui::AppUi;
 use hyperpuzzle::Library;
 use instant::{Duration, Instant};
+use parking_lot::Mutex;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 use winit::event::{ElementState, Event, KeyboardInput, WindowEvent};
@@ -64,6 +65,9 @@ const IS_OFFICIAL_BUILD: bool = std::option_env!("HSC_OFFICIAL_BUILD").is_some()
 thread_local! {
     static LIBRARY: Library = Library::new();
 }
+lazy_static! {
+    static ref LIBRARY_LOG_LINES: Mutex<Vec<hyperpuzzle::LuaLogLine>> = Mutex::new(vec![]);
+}
 static LUA_BUILTIN_DIR: include_dir::Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/../lua");
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -94,6 +98,13 @@ fn main() {
 }
 
 async fn run() {
+    // Initialize puzzle library.
+    crate::LIBRARY.with(|lib| {
+        lib.set_log_line_handler(Box::new(|log_line| {
+            crate::LIBRARY_LOG_LINES.lock().push(log_line)
+        }))
+    });
+
     // Initialize window.
     let event_loop = EventLoopBuilder::with_user_event().build();
     #[cfg(not(target_arch = "wasm32"))]

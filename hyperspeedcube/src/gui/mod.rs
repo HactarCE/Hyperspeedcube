@@ -37,11 +37,11 @@ impl AppUi {
                 // Tab::PuzzleSetup(PuzzleSetup::default()),
                 // Tab::PolytopeTree(PolytopeTree::default()),
                 // Tab::PuzzleLibraryDemo,
-                Tab::PuzzleLibrary { log_lines: vec![] },
+                Tab::PuzzleLibrary,
                 Tab::ViewSettings,
             ],
         );
-        dock_tree.split_below(right, 0.5, vec![Tab::PuzzleInfo]);
+        dock_tree.split_below(right, 0.5, vec![Tab::LuaLogs, Tab::PuzzleInfo]);
         AppUi { dock_tree }
     }
 

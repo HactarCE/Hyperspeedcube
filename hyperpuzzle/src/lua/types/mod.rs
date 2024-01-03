@@ -49,16 +49,26 @@ pub struct LuaLogLine {
     /// Log message.
     pub msg: String,
     /// Lua file that emitted the message.
-    pub file: String,
+    pub file: Option<String>,
     /// Log level, either `WARN` or `INFO`.
-    pub level: String,
+    pub level: Option<String>,
 }
 impl<'lua> From<LuaTable<'lua>> for LuaLogLine {
     fn from(value: LuaTable<'lua>) -> Self {
         LuaLogLine {
             msg: value.get("msg").unwrap_or_else(|_| "nil".to_string()),
-            file: value.get("file").unwrap_or_else(|_| "?.lua".to_string()),
-            level: value.get("level").unwrap_or_else(|_| "????".to_string()),
+            file: value.get("file").ok(),
+            level: value.get("level").ok(),
         }
+    }
+}
+impl LuaLogLine {
+    pub fn matches_filter_string(&self, filter_string: &str) -> bool {
+        filter_string.is_empty()
+            || self
+                .file
+                .as_ref()
+                .is_some_and(|file| file.contains(&filter_string))
+            || self.msg.contains(&filter_string)
     }
 }
