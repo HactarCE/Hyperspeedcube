@@ -220,8 +220,8 @@ impl PuzzleBuilder {
             let sticker_shrink_vectors = compute_sticker_shrink_vectors(
                 &space,
                 &mut simplexifier,
+                piece.shape,
                 &piece_stickers,
-                Point::Finite(piece_centroid.clone()),
             )?;
 
             let mut piece_internals_indices_start = None;
@@ -250,7 +250,6 @@ impl PuzzleBuilder {
                     &mut mesh,
                     &mut simplexifier,
                     &sticker_shrink_vectors,
-                    &piece_centroid,
                     sticker_shape,
                     sticker_color,
                     piece_id,
@@ -357,63 +356,155 @@ impl TempFacetData {
 fn compute_sticker_shrink_vectors(
     space: &Space,
     simplexifier: &mut Simplexifier<'_>,
+    piece_shape: AtomicPolytopeRef,
     stickers: &[(Color, AtomicPolytopeRef)],
-    piece_centroid: Point,
 ) -> Result<HashMap<VertexId, Vector>> {
+    // For the purposes of sticker shrink, we don't care about internal facets.
+    let colored_sticker_shapes = stickers
+        .iter()
+        .filter(|&&(color, _sticker_shape)| color != Color::INTERNAL)
+        .map(|&(_color, sticker_shape)| sticker_shape)
+        .collect_vec();
+
     let ndim = space.ndim();
 
-    // Make our own facet IDs that will stay within this object.
+    // Make our own facet IDs that will stay within this object. We only care
+    // about the facets that this piece has stickers on.
     let mut facet_blades_ipns = PerFacet::new();
 
-    // For each vertex, compute a set of the facet manifolds that have stickers
-    // containing the vertex.
-    let mut facet_set_per_vertex: HashMap<VertexId, FacetSet> = HashMap::new();
-    for &(color, sticker_shape) in stickers {
-        if color == Color::INTERNAL {
-            continue; // We don't care about shrinking along internal facets.
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+    enum Element {
+        Point(VertexId),
+        NonPoint(AtomicPolytopeId),
+    }
+    fn sum_centroids(
+        simplexifier: &mut Simplexifier<'_>,
+        elements: impl Iterator<Item = Element>,
+    ) -> Result<Option<Centroid>> {
+        let mut ret = Centroid::ZERO;
+        for element in elements {
+            ret += match element {
+                Element::Point(p) => Ok(Centroid::new(&simplexifier[p], 1.0)),
+                Element::NonPoint(p) => simplexifier.shape_centroid(p),
+            }?
         }
+        Ok((!ret.is_zero()).then_some(ret))
+    }
+
+    // For each element of the polytope, compute a set of the facet manifolds
+    // that have a sticker containing the element.
+    let mut facet_set_per_vertex: HashMap<VertexId, FacetSet> = HashMap::new();
+    let mut elements_and_facet_sets_by_rank: Vec<HashMap<Element, FacetSet>> = vec![];
+    for rank in 0..=space.ndim() {
+        elements_and_facet_sets_by_rank.push(HashMap::new());
+    }
+    for &sticker_shape in &colored_sticker_shapes {
         let manifold = space.manifold_of(sticker_shape);
         let facet = facet_blades_ipns.push(space.blade_of(manifold).opns_to_ipns(ndim))?;
+
         for vertex in simplexifier.vertex_set(sticker_shape)? {
             facet_set_per_vertex
                 .entry(vertex)
                 .or_default()
                 .insert(facet);
         }
+        for element in space.elements_of(sticker_shape.id)? {
+            if space.ndim_of(element) > 0 {
+                elements_and_facet_sets_by_rank[space.ndim_of(element) as usize]
+                    .entry(Element::NonPoint(element))
+                    .or_default()
+                    .insert(facet);
+            }
+        }
+    }
+    elements_and_facet_sets_by_rank[0] = facet_set_per_vertex
+        .iter()
+        .map(|(&vertex, facet_set)| (Element::Point(vertex), facet_set.clone()))
+        .collect();
+
+    // Find the largest (by rank) elements contained by all the sticker facets
+    // of the piece.
+    let centroid_of_greatest_common_elements: Option<Centroid> = elements_and_facet_sets_by_rank
+        .iter()
+        .rev()
+        .map(|elements_and_facet_sets| {
+            // Find elements that are contained by all sticker facets of the
+            // piece.
+            let elements_with_maximal_facet_set = elements_and_facet_sets
+                .iter()
+                .filter(|(_element, facet_set)| facet_set.len() == colored_sticker_shapes.len())
+                .map(|(element, _facet_set)| *element);
+            // Add up their centroids. Technically we should take the centroid
+            // of their convex hull, but this works well enough.
+            sum_centroids(simplexifier, elements_with_maximal_facet_set)
+        })
+        // Select the elements with the largest rank.
+        .find_map(|result_option| result_option.transpose())
+        .transpose()?;
+    // If such elements exist, then all vertices can shrink to the same point.
+    if let Some(centroid) = centroid_of_greatest_common_elements {
+        let shrink_target = centroid.center();
+        return Ok(simplexifier
+            .vertex_set(piece_shape)?
+            .into_iter()
+            .map(|vertex| {
+                let vertex_position = &simplexifier[vertex];
+                (vertex, &shrink_target - vertex_position)
+            })
+            .collect());
     }
 
+    // Otherwise, find the best elements for each set of facets. If a vertex is
+    // not contained by any facets, then it will shrink toward the centroid of
+    // the piece.
+    let piece_centroid = simplexifier.shape_centroid_point(piece_shape.id)?;
+
+    // Compute the shrink target for each possible facet set that has a good
+    // shrink target.
+    let unique_facet_sets_of_vertices = elements_and_facet_sets_by_rank[0].values().unique();
+    let shrink_target_by_facet_set: HashMap<&FacetSet, Vector> = unique_facet_sets_of_vertices
+        .map(|facet_set| {
+            // Find the largest elements of the piece that are contained by all
+            // the facets in this set. There must be at least one vertex.
+            let centroid_of_greatest_common_elements: Centroid = elements_and_facet_sets_by_rank
+                .iter()
+                .rev()
+                .map(|elements_and_facet_sets| {
+                    // Find elements that are contained by all sticker facets of
+                    // the vertex.
+                    let elements_with_superset_of_facets = elements_and_facet_sets
+                        .iter()
+                        .filter(|(_element, fs)| facet_set.iter().all(|f| fs.contains(f)))
+                        .map(|(element, _fs)| *element);
+                    // Add up their centroids. Technically we should take the
+                    // centroid of their convex hull, but this works well
+                    // enough.
+                    sum_centroids(simplexifier, elements_with_superset_of_facets)
+                })
+                // Select the elements with the largest rank.
+                .find_map(|result_option| result_option.transpose())
+                // There must be some element with a superset of `facet_set`
+                // because `facet_set` came from a vertex.
+                .expect("no element with facet subset")?;
+
+            eyre::Ok((facet_set, centroid_of_greatest_common_elements.center()))
+        })
+        .try_collect()?;
+
     // Compute shrink vectors for all vertices.
-    let shrink_vectors = facet_set_per_vertex.into_iter().map(|(vertex, facet_set)| {
-        let vertex_pos = &simplexifier[vertex];
+    let shrink_vectors = simplexifier
+        .vertex_set(piece_shape)?
+        .into_iter()
+        .map(|vertex| {
+            let facet_set = facet_set_per_vertex.remove(&vertex).unwrap_or_default();
+            let vertex_pos = &simplexifier[vertex];
+            let shrink_vector = match shrink_target_by_facet_set.get(&facet_set) {
+                Some(target) => target - vertex_pos,
+                None => &piece_centroid - vertex_pos,
+            };
 
-        // Intersect (meet) the sticker manifolds that this point is on. This
-        // produces the manifold of the smallest element of the overall polytope
-        // that this vertex is on. For example, if the vertex is on an edge of
-        // the polytope but not a corner, then this produces the manifold of
-        // that edge.
-        let mut ipns_meet = Blade::scalar(1.0);
-        for facet in facet_set.iter() {
-            let new_ipns_meet = &ipns_meet ^ &facet_blades_ipns[facet];
-            if new_ipns_meet.is_zero() {
-                continue; // The new facet is redundant.
-            }
-            ipns_meet = new_ipns_meet;
-        }
-        let opns_meet = ipns_meet.ipns_to_opns(ndim);
-
-        // Project the piece centroid onto the manifold. If that fails, don't
-        // move the point at all.
-        let shrink_target = opns_meet
-            .project_point(&piece_centroid)
-            .and_then(|point| point.to_finite().ok());
-
-        let shrink_vector = match shrink_target {
-            Some(target) => target - vertex_pos,
-            None => Vector::EMPTY,
-        };
-
-        (vertex, shrink_vector)
-    });
+            (vertex, shrink_vector)
+        });
     Ok(shrink_vectors.collect())
 }
 
@@ -438,7 +529,6 @@ fn build_shape_polygons(
     mesh: &mut Mesh,
     simplexifier: &mut Simplexifier<'_>,
     sticker_shrink_vectors: &HashMap<VertexId, Vector>,
-    piece_centroid: &Vector,
     sticker_shape: AtomicPolytopeRef,
     sticker_color: Color,
     piece_id: Piece,
@@ -476,7 +566,7 @@ fn build_shape_polygons(
 
                         let sticker_shrink_vector = sticker_shrink_vectors
                             .get(&old_vertex_id)
-                            .unwrap_or(piece_centroid);
+                            .ok_or_eyre("missing sticker shrink vector for vertex")?;
 
                         let new_vertex_id = mesh.add_vertex(MeshVertexData {
                             position,

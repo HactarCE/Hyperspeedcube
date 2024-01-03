@@ -33,6 +33,8 @@ pub type AtomicPolytopeRef = SignedRef<AtomicPolytopeId>;
 
 /// Set of oriented atomic polytopes in a [`Space`].
 pub type AtomicPolytopeSet = Set64<AtomicPolytopeRef>;
+/// Set of unoriented atomic polytopes in a [`Space`].
+pub type AtomicPolytopeIdSet = Set64<AtomicPolytopeId>;
 
 hypermath::idx_struct! {
     /// ID for a memoized unoriented manifold in a [`Space`].
@@ -300,6 +302,20 @@ impl Space {
         }
 
         Ok(())
+    }
+
+    /// Returns a set of the elements of a polytope, of all ranks.
+    pub fn elements_of(&self, root: AtomicPolytopeId) -> Result<AtomicPolytopeIdSet> {
+        let mut ret = AtomicPolytopeIdSet::new();
+        let mut queue = vec![root];
+        while let Some(p) = queue.pop() {
+            if ret.insert(p) {
+                for elem in self.boundary_of(p) {
+                    queue.push(elem.id);
+                }
+            }
+        }
+        Ok(ret)
     }
 
     /// Cuts each atomic polytope in a set.
