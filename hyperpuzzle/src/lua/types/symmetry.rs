@@ -34,6 +34,10 @@ impl LuaUserData for LuaNamedUserData<SchlafliSymbol> {
             expand_vec_lua_iter(lua, this, args)
         });
 
+        methods.add_meta_method(LuaMetaMethod::ToString, |lua, Self(this), ()| {
+            Ok(this.indices().iter().map(|i| i.to_string()).join("o"))
+        });
+
         methods.add_method("expand", |lua, Self(this), args| {
             expand_vec_lua_iter(lua, this, args)
         });

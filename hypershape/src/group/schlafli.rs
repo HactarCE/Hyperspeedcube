@@ -15,6 +15,11 @@ impl SchlafliSymbol {
         Self { indices }
     }
 
+    /// Returns the indices of the Schlafli symbol.
+    pub fn indices(&self) -> &[usize] {
+        &self.indices
+    }
+
     /// Constructs an integer Schlafli symbol from a string.
     pub fn from_string(string: &str) -> Self {
         let xs = string
