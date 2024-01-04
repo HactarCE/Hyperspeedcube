@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use eyre::{bail, eyre, OptionExt, Result};
 use hypermath::prelude::*;
-use hyperpuzzle::{Facet, Mesh, PerFacet, PerPiece, PerSticker};
+use hyperpuzzle::{Mesh, PerPiece, PerSticker};
 use itertools::Itertools;
 
 use super::structs::*;
