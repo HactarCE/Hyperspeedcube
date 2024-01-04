@@ -28,6 +28,10 @@ SANDBOX_ENV = {
   pprint = function(...) info(FILE.name, pstring(...)) end,
   type = type,
 
+  -- Safe utility functions
+  collect = collect,
+  iter = iter,
+
   -- Library access
   puzzledef = puzzledef,
   require = require,

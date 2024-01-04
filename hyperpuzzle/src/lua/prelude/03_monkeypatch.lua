@@ -10,6 +10,31 @@ function string.join(connector, t)
   return result
 end
 
+function collect(...)
+  if type(...) == 'table' then
+    return ...
+  end
+
+  local t = {}
+  for elem in ... do
+    table.insert(t, elem)
+  end
+  return t
+end
+
+function iter(t)
+  if type(t) == 'table' then
+    local i = 0
+    local n = #t
+    return function()
+      i = i + 1
+      if i <= n then return t[i] end
+    end
+  else
+    return t
+  end
+end
+
 -- Remove randomness
 math.random = nil
 math.randomseed = nil
