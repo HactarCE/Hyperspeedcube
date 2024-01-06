@@ -70,7 +70,7 @@ jobs:
       - name: Build Hyperspeedcube
         run: cargo build --release
       - name: Make tarball
-        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz target/release/hyperspeedcube lua
+        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz lua -C target/release hyperspeedcube
       - name: Upload release
         uses: actions/upload-artifact@v4
         with:
