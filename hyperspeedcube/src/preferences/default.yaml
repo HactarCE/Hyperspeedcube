@@ -44,15 +44,18 @@ view_3d:
   yaw: -20.0
   roll: 0.0
   scale: 1.25
-  fov_3d: 30.0
+  fov_3d: 15.0
   fov_4d: 30.0
   align_h: 0.0
   align_v: 0.0
   show_frontfaces: true
   show_backfaces: false
-  clip_4d: true
-  face_spacing: 0.03
-  sticker_spacing: 0.05
+  clip_4d_backfaces: true
+  clip_4d_behind_camera: true
+  show_internals: true
+  facet_shrink: 0.0
+  sticker_shrink: 0.0
+  piece_explode: 0.2
   outline_thickness: 1.0
   light_ambient: 1.0
   light_directional: 0.0
@@ -64,15 +67,17 @@ view_3d:
     yaw: -20.0
     roll: 0.0
     scale: 1.25
-    fov_3d: 30.0
+    fov_3d: 15.0
     fov_4d: 30.0
     align_h: 0.0
     align_v: 0.0
     show_frontfaces: true
     show_backfaces: false
-    clip_4d: true
-    face_spacing: 0.03
-    sticker_spacing: 0.05
+    clip_4d_backfaces: true
+    clip_4d_behind_camera: true
+    facet_shrink: 0.03
+    sticker_shrink: 0.05
+    piece_explode: 0.0
     outline_thickness: 1.0
     light_ambient: 1.0
     light_directional: 0.0
@@ -84,15 +89,18 @@ view_3d:
       yaw: -20.0
       roll: 0.0
       scale: 1.25
-      fov_3d: 30.0
+      fov_3d: 15.0
       fov_4d: 30.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: true
       show_backfaces: false
-      clip_4d: true
-      face_spacing: 0.03
-      sticker_spacing: 0.05
+      clip_4d_backfaces: true
+      clip_4d_behind_camera: true
+      show_internals: true
+      facet_shrink: 0.03
+      sticker_shrink: 0.05
+      piece_explode: 0.0
       outline_thickness: 1.0
       light_ambient: 1.0
       light_directional: 0.0
@@ -103,15 +111,18 @@ view_3d:
       yaw: 0.0
       roll: 0.0
       scale: 3.0
-      fov_3d: 120.0
+      fov_3d: 60.0
       fov_4d: 30.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: false
       show_backfaces: true
-      clip_4d: true
-      face_spacing: 0.4
-      sticker_spacing: 0.2
+      clip_4d_backfaces: true
+      clip_4d_behind_camera: true
+      show_internals: false
+      facet_shrink: 0.4
+      sticker_shrink: 0.2
+      piece_explode: 0.0
       outline_thickness: 1.0
       light_ambient: 1.0
       light_directional: 0.0
@@ -122,15 +133,18 @@ view_3d:
       yaw: 0.0
       roll: 0.0
       scale: 3.0
-      fov_3d: -120.0
+      fov_3d: -60.0
       fov_4d: 30.0
       align_h: 0.0
       align_v: 0.0
       show_frontfaces: true
       show_backfaces: false
-      clip_4d: true
-      face_spacing: 0.4
-      sticker_spacing: 0.2
+      clip_4d_backfaces: true
+      clip_4d_behind_camera: true
+      show_internals: false
+      facet_shrink: 0.4
+      sticker_shrink: 0.2
+      piece_explode: 0.0
       outline_thickness: 1.0
       light_ambient: 1.0
       light_directional: 0.0
@@ -147,9 +161,12 @@ view_4d:
   align_v: 0.0
   show_frontfaces: true
   show_backfaces: true
-  clip_4d: true
-  face_spacing: 0.7
-  sticker_spacing: 0.3
+  clip_4d_backfaces: true
+  clip_4d_behind_camera: true
+  show_internals: false
+  facet_shrink: 0.7
+  sticker_shrink: 0.3
+  piece_explode: 0.0
   outline_thickness: 1.0
   light_ambient: 0.0
   light_directional: 1.0
@@ -167,9 +184,12 @@ view_4d:
     align_v: 0.0
     show_frontfaces: true
     show_backfaces: true
-    clip_4d: true
-    face_spacing: 0.7
-    sticker_spacing: 0.3
+    clip_4d_backfaces: true
+    clip_4d_behind_camera: true
+    show_internals: false
+    facet_shrink: 0.7
+    sticker_shrink: 0.3
+    piece_explode: 0.0
     outline_thickness: 1.0
     light_ambient: 0.0
     light_directional: 1.0
@@ -187,9 +207,12 @@ view_4d:
       align_v: 0.0
       show_frontfaces: true
       show_backfaces: true
-      clip_4d: true
-      face_spacing: 0.7
-      sticker_spacing: 0.3
+      clip_4d_backfaces: true
+      clip_4d_behind_camera: true
+      show_internals: false
+      facet_shrink: 0.7
+      sticker_shrink: 0.3
+      piece_explode: 0.0
       outline_thickness: 1.0
       light_ambient: 0.0
       light_directional: 1.0
@@ -199,639 +222,7 @@ colors:
   background: "#444444"
   blind_face: "#cccccc"
   blindfold: false
-  faces:
-    Rubiks3D:
-      B: "#4488ff"
-      D: "#ffff00"
-      F: "#66cc44"
-      L: "#ff9922"
-      R: "#cc3333"
-      U: "#ffffff"
-    Rubiks4D:
-      B: "#ffff00"
-      D: "#88ee66"
-      F: "#ffffff"
-      I: "#8822cc"
-      L: "#ff9922"
-      O: "#ff66ff"
-      R: "#cc3333"
-      U: "#33aaff"
-piece_filters: {}
-global_keybinds:
-  - vk: C
-    ctrl: true
-    command: copy_hsc_log
-  - vk: C
-    ctrl: true
-    shift: true
-    command: copy_mc4d_log
-  - vk: V
-    ctrl: true
-    command: paste_log
-  - vk: O
-    ctrl: true
-    command: open
-  - vk: S
-    ctrl: true
-    command: save
-  - vk: S
-    ctrl: true
-    shift: true
-    command: save_as
-  - vk: Q
-    ctrl: true
-    command: exit
-  - vk: Z
-    ctrl: true
-    command: undo
-  - vk: Z
-    ctrl: true
-    shift: true
-    command: redo
-  - vk: Y
-    ctrl: true
-    command: redo
-  - vk: R
-    ctrl: true
-    command: reset
-  - vk: B
-    ctrl: true
-    command: toggle_blindfold
-  - vk: F
-    ctrl: true
-    command: scramble_full
-  - vk: F3
-    command:
-      new_puzzle:
-        Rubiks3D:
-          layer_count: 3
-  - vk: F4
-    command:
-      new_puzzle:
-        Rubiks4D:
-          layer_count: 3
-puzzle_keybinds:
-  Rubiks3D:
-    active: Default
-    sets:
-      - preset_name: ^Layers
-        keybinds:
-          - sc: Digit1
-            command:
-              grip:
-                layers: "1"
-          - sc: Digit2
-            command:
-              grip:
-                layers: "2"
-          - sc: Digit3
-            command:
-              grip:
-                layers: "3"
-          - sc: Digit4
-            command:
-              grip:
-                layers: "4"
-          - sc: Digit5
-            command:
-              grip:
-                layers: "5"
-          - sc: Digit6
-            command:
-              grip:
-                layers: "6"
-          - sc: Digit7
-            command:
-              grip:
-                layers: "7"
-          - sc: Digit8
-            command:
-              grip:
-                layers: "8"
-          - sc: Digit9
-            command:
-              grip:
-                layers: "9"
-      - preset_name: Default
-        includes:
-          - ^Layers
-        keybinds:
-          - sc: ShiftLeft
-            command:
-              grip:
-                layers: 1..2
-          - sc: ShiftRight
-            command:
-              grip:
-                layers: 1..2
-          - sc: KeyE
-            command:
-              twist:
-                axis: L
-                direction: CCW
-                layers: "1"
-          - sc: KeyD
-            command:
-              twist:
-                axis: L
-                direction: CW
-                layers: "1"
-          - sc: KeyI
-            command:
-              twist:
-                axis: R
-                direction: CW
-                layers: "1"
-          - sc: KeyK
-            command:
-              twist:
-                axis: R
-                direction: CCW
-                layers: "1"
-          - sc: KeyR
-            command:
-              twist:
-                axis: L
-                direction: CCW
-                layers: 2..-2
-          - sc: KeyV
-            command:
-              twist:
-                axis: L
-                direction: CW
-                layers: 2..-2
-          - sc: KeyU
-            command:
-              twist:
-                axis: R
-                direction: CW
-                layers: 2..-2
-          - sc: KeyM
-            command:
-              twist:
-                axis: R
-                direction: CCW
-                layers: 2..-2
-          - sc: KeyF
-            command:
-              twist:
-                axis: U
-                direction: CCW
-                layers: "1"
-          - sc: KeyJ
-            command:
-              twist:
-                axis: U
-                direction: CW
-                layers: "1"
-          - sc: KeyS
-            command:
-              twist:
-                axis: D
-                direction: CW
-                layers: "1"
-          - sc: KeyL
-            command:
-              twist:
-                axis: D
-                direction: CCW
-                layers: "1"
-          - sc: KeyG
-            command:
-              twist:
-                axis: F
-                direction: CCW
-                layers: "1"
-          - sc: KeyH
-            command:
-              twist:
-                axis: F
-                direction: CW
-                layers: "1"
-          - sc: KeyW
-            command:
-              twist:
-                axis: B
-                direction: CW
-                layers: "1"
-          - sc: KeyO
-            command:
-              twist:
-                axis: B
-                direction: CCW
-                layers: "1"
-          - sc: KeyT
-            command:
-              twist:
-                axis: L
-                direction: CCW
-                layers: 1..-1
-          - sc: KeyB
-            command:
-              twist:
-                axis: L
-                direction: CW
-                layers: 1..-1
-          - sc: KeyY
-            command:
-              twist:
-                axis: R
-                direction: CW
-                layers: 1..-1
-          - sc: KeyN
-            command:
-              twist:
-                axis: R
-                direction: CCW
-                layers: 1..-1
-          - sc: KeyA
-            command:
-              recenter:
-                axis: L
-          - sc: Semicolon
-            command:
-              recenter:
-                axis: R
-          - sc: KeyQ
-            command:
-              twist:
-                axis: F
-                direction: CCW
-                layers: 1..-1
-          - sc: KeyP
-            command:
-              twist:
-                axis: F
-                direction: CW
-                layers: 1..-1
-          - sc: KeyZ
-            command:
-              twist:
-                axis: F
-                direction: CCW
-                layers: 2..-2
-          - sc: Slash
-            command:
-              twist:
-                axis: F
-                direction: CW
-                layers: 2..-2
-          - sc: KeyX
-            command:
-              twist:
-                axis: D
-                direction: CW
-                layers: 2..-2
-          - sc: Period
-            command:
-              twist:
-                axis: D
-                direction: CCW
-                layers: 2..-2
-  Rubiks4D:
-    active: Default
-    sets:
-      - preset_name: ^Basic twists
-        keybinds:
-          - sc: KeyI
-            command:
-              twist:
-                direction: x
-                layers: "1"
-          - sc: KeyK
-            command:
-              twist:
-                direction: "x'"
-                layers: "1"
-          - sc: KeyJ
-            command:
-              twist:
-                direction: y
-                layers: "1"
-          - sc: KeyL
-            command:
-              twist:
-                direction: "y'"
-                layers: "1"
-          - sc: KeyU
-            command:
-              twist:
-                direction: "z'"
-                layers: "1"
-          - sc: KeyO
-            command:
-              twist:
-                direction: z
-                layers: "1"
-      - preset_name: Default
-        includes:
-          - ^Basic twists
-          - ^Filters
-          - ^Layers
-        keybinds:
-          - sc: ShiftLeft
-            command:
-              grip:
-                layers: 1..2
-          - sc: ShiftRight
-            command:
-              grip:
-                layers: 1..2
-          - sc: AltLeft
-            command:
-              grip:
-                layers: "2"
-          - sc: AltRight
-            command:
-              grip:
-                layers: "2"
-          - sc: KeyW
-            command:
-              grip:
-                axis: L
-          - sc: KeyE
-            command:
-              grip:
-                axis: U
-          - sc: KeyR
-            command:
-              grip:
-                axis: B
-          - sc: KeyS
-            command:
-              grip:
-                axis: F
-          - sc: KeyD
-            command:
-              grip:
-                axis: I
-          - sc: KeyF
-            command:
-              grip:
-                axis: R
-          - sc: KeyC
-            command:
-              grip:
-                axis: D
-          - sc: KeyV
-            command:
-              grip:
-                axis: O
-          - sc: KeyX
-            command:
-              grip:
-                axis: I
-                layers: 1..-1
-          - sc: Space
-            command:
-              recenter: {}
-      - preset_name: RKT
-        includes:
-          - ^Basic twists
-          - ^Filters
-          - ^Layers
-          - ^Rotations
-        keybinds:
-          - sc: ShiftLeft
-            command:
-              grip:
-                layers: 1..2
-          - sc: Space
-            command:
-              grip:
-                axis: I
-                layers: "1"
-          - sc: KeyE
-            command:
-              twist:
-                axis: L
-                direction: x
-                layers: "1"
-          - sc: KeyD
-            command:
-              twist:
-                axis: L
-                direction: "x'"
-                layers: "1"
-          - sc: KeyI
-            command:
-              twist:
-                axis: R
-                direction: x
-                layers: "1"
-          - sc: KeyK
-            command:
-              twist:
-                axis: R
-                direction: "x'"
-                layers: "1"
-          - sc: KeyR
-            command:
-              twist:
-                axis: L
-                direction: x
-                layers: 2..-2
-          - sc: KeyV
-            command:
-              twist:
-                axis: L
-                direction: "x'"
-                layers: 2..-2
-          - sc: KeyU
-            command:
-              twist:
-                axis: R
-                direction: x
-                layers: 2..-2
-          - sc: KeyM
-            command:
-              twist:
-                axis: R
-                direction: "x'"
-                layers: 2..-2
-          - sc: KeyF
-            command:
-              twist:
-                axis: U
-                direction: "y'"
-                layers: "1"
-          - sc: KeyJ
-            command:
-              twist:
-                axis: U
-                direction: y
-                layers: "1"
-          - sc: KeyS
-            command:
-              twist:
-                axis: D
-                direction: "y'"
-                layers: "1"
-          - sc: KeyL
-            command:
-              twist:
-                axis: D
-                direction: y
-                layers: "1"
-          - sc: KeyG
-            command:
-              twist:
-                axis: F
-                direction: "z'"
-                layers: "1"
-          - sc: KeyH
-            command:
-              twist:
-                axis: F
-                direction: z
-                layers: "1"
-          - sc: KeyW
-            command:
-              twist:
-                axis: B
-                direction: "z'"
-                layers: "1"
-          - sc: KeyO
-            command:
-              twist:
-                axis: B
-                direction: z
-                layers: "1"
-          - sc: KeyZ
-            command:
-              twist:
-                axis: F
-                direction: "z'"
-                layers: 2..-2
-          - sc: Slash
-            command:
-              twist:
-                axis: F
-                direction: z
-                layers: 2..-2
-          - sc: KeyX
-            command:
-              twist:
-                axis: D
-                direction: "y'"
-                layers: 2..-2
-          - sc: Period
-            command:
-              twist:
-                axis: D
-                direction: y
-                layers: 2..-2
-      - preset_name: ^Rotations
-        keybinds:
-          - sc: KeyT
-            command:
-              twist:
-                axis: I
-                direction: x
-                layers: 1..-1
-          - sc: KeyY
-            command:
-              twist:
-                axis: I
-                direction: x
-                layers: 1..-1
-          - sc: KeyB
-            command:
-              twist:
-                axis: I
-                direction: "x'"
-                layers: 1..-1
-          - sc: KeyN
-            command:
-              twist:
-                axis: I
-                direction: "x'"
-                layers: 1..-1
-          - sc: KeyA
-            command:
-              twist:
-                axis: I
-                direction: "y'"
-                layers: 1..-1
-          - sc: Semicolon
-            command:
-              twist:
-                axis: I
-                direction: y
-                layers: 1..-1
-          - sc: KeyQ
-            command:
-              twist:
-                axis: I
-                direction: "z'"
-                layers: 1..-1
-          - sc: KeyP
-            command:
-              twist:
-                axis: I
-                direction: z
-                layers: 1..-1
-      - preset_name: ^Layers
-        keybinds:
-          - sc: Digit1
-            command:
-              grip:
-                layers: "1"
-          - sc: Digit2
-            command:
-              grip:
-                layers: "2"
-          - sc: Digit3
-            command:
-              grip:
-                layers: "3"
-          - sc: Digit4
-            command:
-              grip:
-                layers: "4"
-          - sc: Digit5
-            command:
-              grip:
-                layers: "5"
-          - sc: Digit6
-            command:
-              grip:
-                layers: "6"
-          - sc: Digit7
-            command:
-              grip:
-                layers: "7"
-          - sc: Digit8
-            command:
-              grip:
-                layers: "8"
-          - sc: Digit9
-            command:
-              grip:
-                layers: "9"
-      - preset_name: ^Filters
-        keybinds:
-          - sc: Backquote
-            command:
-              filter:
-                mode: show_exactly
-                filter_name: Everything
-          - sc: Backquote
-            shift: true
-            command:
-              filter:
-                mode: show_exactly
-                filter_name: Everything
-mousebinds:
-  - button: left
-    ctrl: true
-    command: recenter
-  - button: left
-    shift: true
-    command: select_piece
-  - button: middle
-    command: recenter
-  - button: left
-    command: twist_ccw
-  - button: right
-    command: twist_cw
+piece_filters: ~
+global_keybinds: []
+puzzle_keybinds: ~
+mousebinds: []

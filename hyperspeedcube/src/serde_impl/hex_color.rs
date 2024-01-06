@@ -1,3 +1,5 @@
+// TODO: make a custom type
+
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
