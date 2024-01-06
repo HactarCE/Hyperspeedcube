@@ -1,6 +1,7 @@
 use std::path::PathBuf;
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
+use hyperpuzzle::Puzzle;
 use parking_lot::Mutex;
 use wgpu::TextureView;
 use winit::event::WindowEvent;
@@ -34,6 +35,12 @@ impl App {
 
             active_puzzle_view: Weak::new(),
         }
+    }
+
+    pub(crate) fn active_puzzle_type(&self) -> Option<Arc<Puzzle>> {
+        let puzzle_view = self.active_puzzle_view.upgrade()?;
+        let puzzle_view_mutex_guard = puzzle_view.lock();
+        Some(Arc::clone(puzzle_view_mutex_guard.puzzle.as_ref()?))
     }
 
     pub(crate) fn reload_puzzle(&mut self) {
@@ -100,6 +107,10 @@ impl App {
             copy_string: None,
             request_paste: false,
         }
+    }
+
+    pub(crate) fn request_redraw_puzzle(&mut self) {
+        // TODO
     }
 
     pub(crate) fn draw_puzzle(&mut self, gfx: &GraphicsState) -> Option<TextureView> {

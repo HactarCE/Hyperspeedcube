@@ -4,7 +4,10 @@ use std::sync::Arc;
 use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, Puzzle};
 
-use crate::render::{GraphicsState, PuzzleRenderer, ViewParams};
+use crate::{
+    preferences::ViewPreferences,
+    render::{GraphicsState, PuzzleRenderer, ViewParams},
+};
 
 #[derive(Debug)]
 pub struct PuzzleView {
@@ -141,11 +144,15 @@ impl PuzzleView {
         egui_ctx: &egui::Context,
         egui_renderer: &mut egui_wgpu::Renderer,
         encoder: &mut wgpu::CommandEncoder,
+        view_prefs: ViewPreferences,
     ) {
         let view_params = &mut self.view_params;
 
         view_params.width = self.rect.width() as u32;
         view_params.height = self.rect.height() as u32;
+
+        view_params.prefs = view_prefs;
+
         let new_texture = match self.render_engine {
             RenderEngine::SinglePass => {
                 self.renderer
@@ -169,6 +176,12 @@ impl PuzzleView {
             // Request a repaint.
             egui_ctx.request_repaint();
         }
+    }
+
+    /// Adds an animation to the view settings animation queue.
+    pub fn animate_from_view_settings(&mut self, view_prefs: ViewPreferences) {
+        // TODO: animate
+        // self.view_settings_anim.queue.push_back(view_prefs);
     }
 }
 

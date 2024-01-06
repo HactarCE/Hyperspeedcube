@@ -13,6 +13,8 @@ use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, PerPiece, PerSticker};
 use itertools::Itertools;
 
+use crate::preferences::ViewPreferences;
+
 use super::structs::*;
 use super::{CachedTexture, GraphicsState};
 
@@ -31,16 +33,7 @@ pub struct ViewParams {
     pub rot: Isometry,
     pub zoom: f32,
 
-    pub show_internals: bool,
-    pub facet_shrink: f32,
-    pub sticker_shrink: f32,
-    pub piece_explode: f32,
-
-    pub fov_3d: f32,
-    pub fov_4d: f32,
-
-    pub clip_4d_backfaces: bool,
-    pub clip_4d_behind_camera: bool,
+    pub prefs: ViewPreferences,
 }
 impl Default for ViewParams {
     fn default() -> Self {
@@ -51,16 +44,7 @@ impl Default for ViewParams {
             rot: Isometry::ident(),
             zoom: 0.3,
 
-            show_internals: true,
-            facet_shrink: 0.7,
-            sticker_shrink: 0.0,
-            piece_explode: 0.12,
-
-            fov_3d: 0.0,
-            fov_4d: 30.0,
-
-            clip_4d_backfaces: true,
-            clip_4d_behind_camera: true,
+            prefs: ViewPreferences::default(),
         }
     }
 }
@@ -79,10 +63,10 @@ impl ViewParams {
     }
 
     pub fn w_factor_4d(&self) -> f32 {
-        (self.fov_4d.to_radians() * 0.5).tan()
+        (self.prefs.fov_4d.to_radians() * 0.5).tan()
     }
     pub fn w_factor_3d(&self) -> f32 {
-        (self.fov_3d.to_radians() * 0.5).tan()
+        (self.prefs.fov_3d.to_radians() * 0.5).tan()
     }
     pub fn project_point(&self, p: impl ToConformalPoint) -> Option<cgmath::Point2<f32>> {
         let mut p = self.rot.transform_point(p).to_finite().ok()?;
@@ -95,7 +79,7 @@ impl ViewParams {
         // Apply 3D perspective transformation.
         let z = p.get(2) as f32;
         p.resize(2);
-        let p = p / (1.0 + (self.fov_3d.signum() - z) * self.w_factor_3d()) as Float;
+        let p = p / (1.0 + (self.prefs.fov_3d.signum() - z) * self.w_factor_3d()) as Float;
 
         // Apply scaling.
         let xy_scale = self.xy_scale().ok()?;
@@ -108,21 +92,21 @@ impl ViewParams {
     /// Returns the projection parameters to send to the GPU.
     fn gfx_projection_params(&self, ndim: u8) -> GfxProjectionParams {
         GfxProjectionParams {
-            facet_shrink: if self.show_internals && ndim == 3 {
+            facet_shrink: if self.prefs.show_internals && ndim == 3 {
                 0.0
             } else {
-                self.facet_shrink
+                self.prefs.facet_shrink
             },
-            sticker_shrink: if self.show_internals && ndim == 3 {
+            sticker_shrink: if self.prefs.show_internals && ndim == 3 {
                 0.0
             } else {
-                self.sticker_shrink
+                self.prefs.sticker_shrink
             },
-            piece_explode: self.piece_explode,
+            piece_explode: self.prefs.piece_explode,
 
             w_factor_4d: self.w_factor_4d(),
             w_factor_3d: self.w_factor_3d(),
-            fov_signum: self.fov_3d.signum(),
+            fov_signum: self.prefs.fov_3d.signum(),
         }
     }
 }
@@ -590,8 +574,8 @@ impl PuzzleRenderer {
             scale: [scale.x, scale.y],
             align: [0.0, 0.0],
 
-            clip_4d_backfaces: view_params.clip_4d_backfaces as i32,
-            clip_4d_behind_camera: view_params.clip_4d_behind_camera as i32,
+            clip_4d_backfaces: view_params.prefs.clip_4d_backfaces as i32,
+            clip_4d_behind_camera: view_params.prefs.clip_4d_behind_camera as i32,
         };
         gfx.queue
             .write_buffer(&self.buffers.view_params, 0, bytemuck::bytes_of(&data));
@@ -612,7 +596,7 @@ impl PuzzleRenderer {
             destination_offset += len;
         }
 
-        if view_params.show_internals {
+        if view_params.prefs.show_internals {
             for (piece, index_range) in &self.model.piece_internals_index_ranges {
                 let start = index_range.start as u64 * index_bytes * 3;
                 let len = index_range.len() as u64 * index_bytes * 3;

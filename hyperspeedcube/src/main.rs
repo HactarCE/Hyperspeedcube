@@ -362,7 +362,7 @@ async fn run() {
                     }
 
                     // Draw puzzle if necessary.
-                    ui.render_puzzle_views(&app.gfx, &egui_ctx, &mut egui_renderer);
+                    ui.render_puzzle_views(&app.gfx, &egui_ctx, &mut egui_renderer, &app);
 
                     let frame_duration = app.prefs.gfx.frame_duration();
                     next_frame_time += frame_duration;

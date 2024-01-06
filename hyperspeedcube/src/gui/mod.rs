@@ -9,6 +9,10 @@ macro_rules! unique_id {
     };
 }
 
+#[macro_use]
+mod util;
+mod components;
+mod ext;
 mod menu_bar;
 mod tabs;
 
@@ -30,7 +34,7 @@ impl AppUi {
             // Tab::Puzzle("3x3x3".to_string()),
             // Tab::Puzzle("Curvy Copter".to_string()),
         ]);
-        let [_left, right] = dock_tree.split_right(
+        let [left, right] = dock_tree.split_right(
             NodeIndex::root(),
             0.70,
             vec![
@@ -38,7 +42,15 @@ impl AppUi {
                 // Tab::PolytopeTree(PolytopeTree::default()),
                 // Tab::PuzzleLibraryDemo,
                 Tab::PuzzleLibrary,
+            ],
+        );
+        dock_tree.split_left(
+            left,
+            0.4,
+            vec![
                 Tab::ViewSettings,
+                Tab::InteractionSettings,
+                Tab::AppearanceSettings,
             ],
         );
         dock_tree.split_below(right, 0.5, vec![Tab::LuaLogs, Tab::PuzzleInfo]);
@@ -74,6 +86,7 @@ impl AppUi {
         gfx: &crate::render::GraphicsState,
         egui_ctx: &egui::Context,
         egui_renderer: &mut egui_wgpu::Renderer,
+        app: &App,
     ) {
         let mut encoder = gfx
             .device
@@ -83,11 +96,18 @@ impl AppUi {
 
         for tab in self.dock_tree.tabs() {
             if let Tab::PuzzleView(puzzle_view) = tab {
-                puzzle_view.lock().render_and_update_texture(
+                let mut puzzle_view = puzzle_view.lock();
+                let view_prefs = puzzle_view
+                    .puzzle
+                    .as_ref()
+                    .map(|puzzle_type| app.prefs.view(&puzzle_type).clone())
+                    .unwrap_or_default();
+                puzzle_view.render_and_update_texture(
                     gfx,
                     egui_ctx,
                     egui_renderer,
                     &mut encoder,
+                    view_prefs,
                 );
             }
         }

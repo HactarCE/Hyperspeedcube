@@ -25,10 +25,13 @@ pub struct ViewPreferences {
 
     pub show_frontfaces: bool,
     pub show_backfaces: bool,
-    pub clip_4d: bool,
+    pub clip_4d_backfaces: bool,
+    pub clip_4d_behind_camera: bool,
 
-    pub face_spacing: f32,
-    pub sticker_spacing: f32,
+    pub show_internals: bool,
+    pub facet_shrink: f32,
+    pub sticker_shrink: f32,
+    pub piece_explode: f32,
 
     pub outline_thickness: f32,
 
@@ -40,23 +43,26 @@ pub struct ViewPreferences {
 impl Default for ViewPreferences {
     fn default() -> Self {
         Self {
-            pitch: 0_f32,
-            yaw: 0_f32,
-            roll: 0_f32,
+            pitch: 0.0,
+            yaw: 0.0,
+            roll: 0.0,
 
             scale: 1.0,
-            fov_3d: 30_f32,
-            fov_4d: 30_f32,
+            fov_3d: 0.0,
+            fov_4d: 30.0,
 
             align_h: 0.0,
             align_v: 0.0,
 
-            face_spacing: 0.0,
-            sticker_spacing: 0.0,
-
             show_frontfaces: true,
             show_backfaces: true,
-            clip_4d: true,
+            clip_4d_backfaces: true,
+            clip_4d_behind_camera: true,
+
+            show_internals: true,
+            facet_shrink: 0.0,
+            sticker_shrink: 0.0,
+            piece_explode: 0.0,
 
             outline_thickness: 1.0,
 
@@ -92,24 +98,27 @@ impl ViewPreferences {
             fov_4d: lerp(self.fov_4d, rhs.fov_4d, t),
             align_h: lerp(self.align_h, rhs.align_h, t),
             align_v: lerp(self.align_v, rhs.align_v, t),
-            show_frontfaces: if t < 0.5 {
-                self.show_frontfaces
-            } else {
-                rhs.show_frontfaces
-            },
-            show_backfaces: if t < 0.5 {
-                self.show_backfaces
-            } else {
-                rhs.show_backfaces
-            },
-            clip_4d: if t < 0.5 { self.clip_4d } else { rhs.clip_4d },
-            face_spacing: lerp(self.face_spacing, rhs.face_spacing, t),
-            sticker_spacing: lerp(self.sticker_spacing, rhs.sticker_spacing, t),
+            show_frontfaces: lerp_bool(self.show_frontfaces, rhs.show_frontfaces, t),
+            show_backfaces: lerp_bool(self.show_backfaces, rhs.show_backfaces, t),
+            clip_4d_backfaces: self.clip_4d_backfaces || rhs.clip_4d_backfaces,
+            clip_4d_behind_camera: self.clip_4d_backfaces || rhs.clip_4d_backfaces,
+            show_internals: self.show_internals && rhs.show_internals,
+            facet_shrink: lerp(self.facet_shrink, rhs.facet_shrink, t),
+            sticker_shrink: lerp(self.sticker_shrink, rhs.sticker_shrink, t),
+            piece_explode: lerp(self.piece_explode, rhs.piece_explode, t),
             outline_thickness: lerp(self.outline_thickness, rhs.outline_thickness, t),
             light_ambient: lerp(self.light_ambient, rhs.light_ambient, t),
             light_directional: lerp(self.light_directional, rhs.light_directional, t),
             light_pitch: lerp(self.light_pitch, rhs.light_pitch, t),
             light_yaw: lerp(self.light_yaw, rhs.light_yaw, t),
         }
+    }
+}
+
+fn lerp_bool<T>(a: T, b: T, t: f32) -> T {
+    if t < 0.5 {
+        a
+    } else {
+        b
     }
 }

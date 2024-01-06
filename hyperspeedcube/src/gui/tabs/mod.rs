@@ -37,9 +37,12 @@ lazy_static! {
 
 #[derive(Debug)]
 pub enum Tab {
+    AppearanceSettings,
+    InteractionSettings,
+    ViewSettings,
+
     PuzzleView(Arc<Mutex<PuzzleView>>),
     // PuzzleSetup(PuzzleSetup),
-    ViewSettings,
     // PolytopeTree(PolytopeTree),
     PuzzleLibraryDemo,
     PuzzleLibrary,
@@ -49,12 +52,15 @@ pub enum Tab {
 impl Tab {
     pub fn title(&self) -> egui::WidgetText {
         match self {
+            Tab::AppearanceSettings => "Appearance".into(),
+            Tab::InteractionSettings => "Interaction".into(),
+            Tab::ViewSettings => "View".into(),
+
             Tab::PuzzleView(p) => match &p.lock().puzzle {
                 Some(p) => p.name.clone().into(),
                 None => "No Puzzle".into(),
             },
             // Tab::PuzzleSetup(_) => "Puzzle Setup".into(),
-            Tab::ViewSettings => "View Settings".into(),
             // Tab::PolytopeTree(_) => "Polytope Tree".into(),
             Tab::PuzzleLibraryDemo => "Puzzle Library".into(),
             Tab::PuzzleLibrary { .. } => "Puzzle Library".into(),
@@ -64,13 +70,26 @@ impl Tab {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, app: &mut App) {
+        use crate::gui::components::prefs;
+
         match self {
-            Tab::PuzzleView(puzzle_view) => {
-                if puzzle_view.lock().ui(ui) {
-                    app.active_puzzle_view = Arc::downgrade(puzzle_view);
-                }
+            Tab::AppearanceSettings => {
+                egui::CollapsingHeader::new("Colors")
+                    .default_open(true)
+                    .show(ui, |ui| prefs::build_colors_section(ui, app));
+                egui::CollapsingHeader::new("Outlines")
+                    .default_open(true)
+                    .show(ui, |ui| prefs::build_outlines_section(ui, app));
+                egui::CollapsingHeader::new("Opacity")
+                    .default_open(true)
+                    .show(ui, |ui| prefs::build_opacity_section(ui, app));
+                egui::CollapsingHeader::new("Performance")
+                    .default_open(true)
+                    .show(ui, |ui| prefs::build_graphics_section(ui, app));
             }
-            // Tab::PuzzleSetup(puzzle_setup) => puzzle_setup.ui(ui, app),
+            Tab::InteractionSettings => {
+                prefs::build_interaction_section(ui, app);
+            }
             Tab::ViewSettings => {
                 if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
                     let mut puzzle_view = puzzle_view.lock();
@@ -89,74 +108,22 @@ impl Tab {
 
                     ui.separator();
 
-                    let ndim = puzzle_view.ndim();
-                    let view_params = &mut puzzle_view.view_params;
-
-                    if matches!(ndim, None | Some(3)) {
-                        ui.checkbox(&mut view_params.show_internals, "Show internals");
+                    if ui.button("Reset camera").clicked() {
+                        puzzle_view.view_params.rot = Isometry::ident();
                     }
-                    ui.horizontal(|ui| {
-                        let r = ui.add_enabled(
-                            !view_params.show_internals || ndim != Some(3),
-                            egui::DragValue::new(&mut view_params.facet_shrink)
-                                .clamp_range(0.0..=0.99)
-                                .speed(0.005)
-                                .fixed_decimals(2),
-                        );
-                        r.on_disabled_hover_text("Disabled when internals are shown");
-                        ui.label("Facet shrink");
-                    });
-                    ui.horizontal(|ui| {
-                        let r = ui.add_enabled(
-                            !view_params.show_internals || ndim != Some(3),
-                            egui::DragValue::new(&mut view_params.sticker_shrink)
-                                .clamp_range(0.0..=0.9)
-                                .speed(0.005)
-                                .fixed_decimals(2),
-                        );
-                        r.on_disabled_hover_text("Disabled when internals are shown");
-                        ui.label("Sticker shrink");
-                    });
-                    ui.horizontal(|ui| {
-                        ui.add(
-                            egui::DragValue::new(&mut view_params.piece_explode)
-                                .clamp_range(0.0..=5.0)
-                                .speed(0.005)
-                                .fixed_decimals(2),
-                        );
-                        ui.label("Piece explode");
-                    });
 
                     ui.separator();
+                }
 
-                    ui.horizontal(|ui| {
-                        ui.add(
-                            egui::DragValue::new(&mut view_params.fov_3d)
-                                .clamp_range(-120.0..=120.0)
-                                .speed(0.5)
-                                .fixed_decimals(0)
-                                .suffix("°"),
-                        );
-                        ui.label("3D FOV");
-                    });
+                prefs::build_view_section(ui, app);
+            }
 
-                    ui.horizontal(|ui| {
-                        ui.add(
-                            egui::DragValue::new(&mut view_params.fov_4d)
-                                .clamp_range(1.0..=160.0)
-                                .speed(0.5)
-                                .fixed_decimals(0)
-                                .suffix("°"),
-                        );
-                        ui.label("4D FOV");
-                    });
-
-                    if ui.button("Reset camera").clicked() {
-                        view_params.rot = Isometry::ident();
-                    }
+            Tab::PuzzleView(puzzle_view) => {
+                if puzzle_view.lock().ui(ui) {
+                    app.active_puzzle_view = Arc::downgrade(puzzle_view);
                 }
             }
-            // Tab::PolytopeTree(polytope_tree) => polytope_tree.ui(ui, app),
+
             Tab::PuzzleLibraryDemo => {
                 use rand::prelude::*;
                 lazy_static! {
