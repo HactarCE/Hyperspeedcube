@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments, clippy::too_many_lines)]
+
 use std::collections::{hash_map, HashMap, HashSet};
 use std::ops::Range;
 use std::sync::{Arc, Weak};
@@ -386,7 +388,7 @@ fn compute_sticker_shrink_vectors(
             ret += match element {
                 Element::Point(p) => Ok(Centroid::new(&simplexifier[p], 1.0)),
                 Element::NonPoint(p) => simplexifier.shape_centroid(p),
-            }?
+            }?;
         }
         Ok((!ret.is_zero()).then_some(ret))
     }
@@ -394,10 +396,8 @@ fn compute_sticker_shrink_vectors(
     // For each element of the polytope, compute a set of the facet manifolds
     // that have a sticker containing the element.
     let mut facet_set_per_vertex: HashMap<VertexId, FacetSet> = HashMap::new();
-    let mut elements_and_facet_sets_by_rank: Vec<HashMap<Element, FacetSet>> = vec![];
-    for rank in 0..=space.ndim() {
-        elements_and_facet_sets_by_rank.push(HashMap::new());
-    }
+    let mut elements_and_facet_sets_by_rank: Vec<HashMap<Element, FacetSet>> =
+        vec![HashMap::new(); space.ndim() as usize + 1];
     for &sticker_shape in &colored_sticker_shapes {
         let manifold = space.manifold_of(sticker_shape);
         let facet = facet_blades_ipns.push(space.blade_of(manifold).opns_to_ipns(ndim))?;

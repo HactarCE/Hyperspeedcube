@@ -76,7 +76,7 @@ fn main() {
     env_logger::builder().init();
 
     #[cfg(debug_assertions)]
-    color_eyre::install();
+    color_eyre::install().expect("error initializing panic handler");
     #[cfg(not(debug_assertions))]
     init_human_panic();
 
@@ -101,8 +101,8 @@ async fn run() {
     // Initialize puzzle library.
     crate::LIBRARY.with(|lib| {
         lib.set_log_line_handler(Box::new(|log_line| {
-            crate::LIBRARY_LOG_LINES.lock().push(log_line)
-        }))
+            crate::LIBRARY_LOG_LINES.lock().push(log_line);
+        }));
     });
 
     // Initialize window.
@@ -320,7 +320,7 @@ async fn run() {
                     egui_ctx.input_mut(|input| {
                         input
                             .events
-                            .push(egui::Event::Paste(clipboard.get().unwrap_or_default()))
+                            .push(egui::Event::Paste(clipboard.get().unwrap_or_default()));
                     });
 
                     // Pass paste event to the application.

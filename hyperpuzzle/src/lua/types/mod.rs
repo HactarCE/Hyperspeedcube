@@ -12,7 +12,7 @@ mod symmetry;
 mod vector;
 
 pub use manifold::LuaManifold;
-pub use multivector::{LuaConstructMultivector, LuaMultivector};
+pub use multivector::LuaMultivector;
 pub use ndim::LuaNdim;
 pub use pieceset::LuaPieceSet;
 pub use puzzle::LuaPuzzleBuilder;
@@ -68,7 +68,7 @@ impl LuaLogLine {
             || self
                 .file
                 .as_ref()
-                .is_some_and(|file| file.contains(&filter_string))
-            || self.msg.contains(&filter_string)
+                .is_some_and(|file| file.contains(filter_string))
+            || self.msg.contains(filter_string)
     }
 }

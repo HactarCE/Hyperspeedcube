@@ -63,16 +63,16 @@ impl TwistMetric {
         match self {
             Self::Stm | Self::Qstm => bullets.push("Slice twists count as one move."),
             Self::Btm | Self::Qbtm => {
-                bullets.push("Noncontiguous slice twists are split into contiguous slice twists.")
+                bullets.push("Noncontiguous slice twists are split into contiguous slice twists.");
             }
             Self::Obtm | Self::Qobtm => {
-                bullets.push("Slice twists are split into contiguous outer-block twists.")
+                bullets.push("Slice twists are split into contiguous outer-block twists.");
             }
             _ => (),
         }
         match self.is_qtm() {
             Some(false) => {
-                bullets.push("Consecutive twists of the same axis and layers are combined.")
+                bullets.push("Consecutive twists of the same axis and layers are combined.");
             }
             Some(true) => bullets.push("Double twists are split into quarters."),
             None => (),
@@ -155,12 +155,12 @@ impl TwistMetric {
 
             Self::Stm | Self::Qstm => slice_multiplier = |_, _| 1,
             Self::Btm | Self::Qbtm => {
-                slice_multiplier = |layers, _| layers.count_contiguous_slices()
+                slice_multiplier = |layers, _| layers.count_contiguous_slices();
             }
             Self::Obtm | Self::Qobtm => slice_multiplier = LayerMask::count_outer_blocks,
         }
 
-        let is_qtm = self.is_qtm().unwrap();
+        let is_qtm = self.is_qtm().expect("ATM and ETM cases already handled");
 
         let mut count = 0;
 

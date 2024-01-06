@@ -67,7 +67,8 @@ impl tinyset::Fits64 for Axes {
 
 impl Axes {
     /// Human-friendly name of each axis.
-    pub const NAMES: &[&'static str] = &["e₋", "e₊", "x", "y", "z", "w", "v", "u", "t", "s", "r"];
+    pub const NAMES: &'static [&'static str] =
+        &["e₋", "e₊", "x", "y", "z", "w", "v", "u", "t", "s", "r"];
 
     /// Returns the `i`th Euclidean axis (zero-indexed).
     pub const fn euclidean(i: u8) -> Self {

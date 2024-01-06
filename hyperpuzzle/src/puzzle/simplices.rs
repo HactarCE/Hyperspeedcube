@@ -205,7 +205,7 @@ impl<'a> Simplexifier<'a> {
     }
     pub fn triangles(&mut self, polygon: AtomicPolytopeRef) -> Result<Vec<[VertexId; 3]>> {
         let edges = self.polygon_edges(polygon)?;
-        let initial_vertex = edges.get(0).ok_or_eyre("polygon has no edges")?[0];
+        let initial_vertex = edges.first().ok_or_eyre("polygon has no edges")?[0];
         Ok(edges
             .into_iter()
             .filter(|edge| !edge.contains(&initial_vertex))
@@ -289,7 +289,7 @@ impl SimplexBlob {
     }
 
     fn from_convex_hull(facets: &[SimplexBlob]) -> Result<Self> {
-        let Some(arbitrary_facet) = facets.iter().find_map(|f| f.0.get(0)) else {
+        let Some(arbitrary_facet) = facets.iter().find_map(|f| f.0.first()) else {
             return Ok(SimplexBlob::EMPTY);
         };
         let facet_ndim = arbitrary_facet.ndim()?;

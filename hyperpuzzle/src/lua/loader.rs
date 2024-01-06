@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use eyre::{bail, Result, WrapErr};
+use eyre::{Result, WrapErr};
 use parking_lot::Mutex;
 use rlua::prelude::*;
 

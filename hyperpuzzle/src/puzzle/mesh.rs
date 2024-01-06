@@ -178,6 +178,6 @@ pub(super) struct MeshVertexData<'a> {
     pub polygon_id: u32,
 }
 
-fn iter_f32<'a>(ndim: u8, v: &'a impl VectorRef) -> impl 'a + Iterator<Item = f32> {
+fn iter_f32(ndim: u8, v: &impl VectorRef) -> impl '_ + Iterator<Item = f32> {
     v.iter_ndim(ndim).map(|x| x as f32)
 }
