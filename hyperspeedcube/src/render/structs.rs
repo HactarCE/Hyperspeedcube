@@ -30,15 +30,6 @@ pub(super) struct GfxCompositeParams {
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
-pub(super) struct GfxSpecialColors {
-    pub background: [f32; 3],
-    pub _padding1: u32,
-    pub outline: [f32; 3],
-    pub _padding2: u32,
-}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct CompositeVertex {
     pub position: [f32; 2],
     pub uv: [f32; 2],
@@ -70,23 +61,6 @@ impl CompositeVertex {
             uv: [1.0, 1.0],
         },
     ];
-}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
-pub(super) struct BasicVertex {
-    pub pos: [f32; 3],
-    pub color: [f32; 3],
-}
-impl BasicVertex {
-    pub const LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
-        array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-        step_mode: wgpu::VertexStepMode::Vertex,
-        attributes: &wgpu::vertex_attr_array![
-            0 => Float32x3,
-            1 => Float32x3,
-        ],
-    };
 }
 
 #[repr(C)]

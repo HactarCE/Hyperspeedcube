@@ -97,6 +97,8 @@ fn main() {
     wasm_bindgen_futures::spawn_local(run());
 }
 
+static mut BACKGROUND: egui::Color32 = egui::Color32::from_rgb(64, 64, 64);
+
 async fn run() {
     // Initialize puzzle library.
     crate::LIBRARY.with(|lib| {

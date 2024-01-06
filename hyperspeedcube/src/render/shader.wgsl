@@ -12,7 +12,12 @@ const Z_CLIP: f32 = 256.0;
 const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 
 // Sentinel value indicating no geometry.
-const NO_POLYGON: i32 = -1;
+const POLYGON_ID_NONE: i32 = -1;
+
+// Color ID for background.
+const COLOR_BACKGROUND: u32 = 0x10000u;
+// Color ID for outline.
+const COLOR_OUTLINE: u32 = 0x10001u;
 
 
 
@@ -74,7 +79,6 @@ struct SpecialColors {
 @group(1) @binding(1) var<storage, read> facet_centroids: array<f32>;
 @group(1) @binding(2) var<storage, read> facet_normals: array<f32>;
 @group(1) @binding(3) var<storage, read> polygon_color_ids: array<i32>;
-@group(1) @binding(4) var<storage, read> color_values: array<vec4<f32>>;
 
 // Computed data (per-vertex)
 @group(1) @binding(5) var<storage, read_write> vertex_3d_positions: array<vec4<f32>>;
@@ -91,10 +95,11 @@ struct SpecialColors {
 
 // Texture samplers
 @group(2) @binding(50) var polygon_ids_texture: texture_2d<i32>;
+@group(2) @binding(51) var sticker_colors: texture_1d<f32>;
+@group(2) @binding(52) var special_colors: texture_1d<f32>;
 
 // Composite parameters, which change during a single frame
-@group(3) @binding(0)  var<uniform> composite_params: CompositeParams;
-@group(3) @binding(1)  var<uniform> special_colors: SpecialColors;
+@group(3) @binding(0) var<uniform> composite_params: CompositeParams;
 
 
 
@@ -113,7 +118,7 @@ struct TransformedVertex {
 ///
 /// Reads from these buffers:
 /// - `projection_params`, `lighting_params`, `puzzle_transform`, `piece_transforms`
-/// - all static mesh data except `polygon_color_ids` and `color_values`
+/// - all static mesh data except `polygon_color_ids`
 fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> TransformedVertex {
     var ret: TransformedVertex;
     ret.cull = 0;
@@ -252,6 +257,16 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     return ret;
 }
 
+/// Returns a sticker color or special.
+fn get_color(color_id: u32, lighting: f32) -> vec3<f32> {
+    let is_special_color = i32(color_id & 0x10000u) != 0;
+    return select(
+        textureLoad(sticker_colors, color_id, 0).rgb * lighting,
+        textureLoad(special_colors, color_id & 0xFFFFu, 0).rgb,
+        is_special_color,
+    );
+}
+
 
 
 /*
@@ -295,9 +310,8 @@ fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<
         discard;
     }
 
-    var color_id = polygon_color_ids[in.polygon_id];
-    color_id = (color_id + 1) & 0xFFFF; // wrap max value around to 0
-    return vec4(color_values[color_id].rgb * in.lighting, 1.0);
+    let color_id = u32((polygon_color_ids[in.polygon_id] + 1) & 0xFFFF); // wrap max value around to 0
+    return vec4(get_color(color_id, in.lighting), 1.0);
 }
 
 
@@ -400,13 +414,13 @@ fn render_composite_puzzle_fragment(in: CompositeVertexOutput) -> @location(0) v
     let b = textureLoad(polygon_ids_texture, tex_coords + vec2(-r, -r), 0).g;
     let c = textureLoad(polygon_ids_texture, tex_coords + vec2(r, r), 0).g;
     let d = textureLoad(polygon_ids_texture, tex_coords + vec2(r, -r), 0).g;
+    var color_id: u32;
     if a != d || b != c {
-        return vec4(special_colors.outline, composite_params.alpha);
-    } else if polygon_id == NO_POLYGON {
-        return vec4(special_colors.background, composite_params.alpha);
+        color_id = COLOR_OUTLINE;
+    } else if polygon_id == POLYGON_ID_NONE {
+        color_id = COLOR_BACKGROUND;
     } else {
-        var color_id = polygon_color_ids[polygon_id];
-        color_id = (color_id + 1) & 0xFFFF; // wrap max value around to 0
-        return vec4(color_values[color_id].rgb * lighting, composite_params.alpha);
+        color_id = u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF); // wrap max value around to 0
     }
+    return vec4(get_color(color_id, lighting), composite_params.alpha);
 }

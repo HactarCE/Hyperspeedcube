@@ -214,6 +214,11 @@ impl PuzzleRenderer {
             return Ok(color_texture_view);
         }
 
+        let (_, sticker_colors_texture_view) = (self.buffers.sticker_colors_texture.get())
+            .ok_or_eyre("error fetching sticker_colors texture")?;
+        let (_, special_colors_texture_view) = (self.buffers.special_colors_texture.get())
+            .ok_or_eyre("error fetching special_colors texture")?;
+
         // Render in a single pass.
         {
             let bind_groups = gfx.pipelines.render_single_pass_bind_groups.bind_groups(
@@ -230,7 +235,6 @@ impl PuzzleRenderer {
                         self.model.facet_centroids.as_entire_binding(),
                         self.model.facet_normals.as_entire_binding(),
                         self.model.polygon_color_ids.as_entire_binding(),
-                        self.buffers.color_values.as_entire_binding(),
                     ],
                     &[
                         self.buffers.puzzle_transform.as_entire_binding(),
@@ -239,22 +243,21 @@ impl PuzzleRenderer {
                         self.buffers.projection_params.as_entire_binding(),
                         self.buffers.lighting_params.as_entire_binding(),
                         self.buffers.view_params.as_entire_binding(),
+                        wgpu::BindingResource::TextureView(sticker_colors_texture_view),
+                        wgpu::BindingResource::TextureView(special_colors_texture_view),
                     ],
                 ],
             );
 
+            let [r, g, b, _a] = egui::Rgba::from(unsafe { crate::BACKGROUND }).to_array();
+            let [r, g, b] = [r as f64, g as f64, b as f64];
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render_puzzle"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: color_texture_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.6,
-                            g: 0.7,
-                            b: 0.8,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color { r, g, b, a: 1.0 }),
                         store: true,
                     },
                 })],
@@ -420,15 +423,10 @@ impl PuzzleRenderer {
         gfx.queue
             .write_buffer(&self.buffers.composite_params, 0, bytemuck::bytes_of(&data));
 
-        // Write the special colors.
-        let data = GfxSpecialColors {
-            background: [0.6, 0.7, 0.8],
-            _padding1: 0,
-            outline: [0.0, 0.0, 0.0],
-            _padding2: 0,
-        };
-        gfx.queue
-            .write_buffer(&self.buffers.special_colors, 0, bytemuck::bytes_of(&data));
+        let (_, sticker_colors_texture_view) = (self.buffers.sticker_colors_texture.get())
+            .ok_or_eyre("error fetching sticker_colors texture")?;
+        let (_, special_colors_texture_view) = (self.buffers.special_colors_texture.get())
+            .ok_or_eyre("error fetching special_colors texture")?;
 
         // Render second pass.
         {
@@ -439,15 +437,13 @@ impl PuzzleRenderer {
                     &gfx.device,
                     &[
                         &[],
+                        &[self.model.polygon_color_ids.as_entire_binding()],
                         &[
-                            self.model.polygon_color_ids.as_entire_binding(),
-                            self.buffers.color_values.as_entire_binding(),
+                            wgpu::BindingResource::TextureView(first_pass_texture_view),
+                            wgpu::BindingResource::TextureView(sticker_colors_texture_view),
+                            wgpu::BindingResource::TextureView(special_colors_texture_view),
                         ],
-                        &[wgpu::BindingResource::TextureView(first_pass_texture_view)],
-                        &[
-                            self.buffers.composite_params.as_entire_binding(),
-                            self.buffers.special_colors.as_entire_binding(),
-                        ],
+                        &[self.buffers.composite_params.as_entire_binding()],
                     ],
                 );
 
@@ -549,16 +545,44 @@ impl PuzzleRenderer {
             bytemuck::cast_slice(&camera_4d_pos_data),
         );
 
-        // Write the facet colors.
-        let mut colors = vec![[0.5, 0.5, 0.5, 1.0]];
-        colors.extend(
+        // Write the sticker colors.
+        let mut colors_data = vec![[127, 127, 127, 255]];
+        colors_data.extend(
             (0..self.model.color_count)
                 .map(|i| colorous::RAINBOW.eval_rational(i, self.model.color_count))
-                .map(|c| c.into_array().map(|x| x as f32 / 255.0))
-                .map(|[r, g, b]| [r, g, b, 1.0]),
+                .map(|c| c.into_array())
+                .map(|[r, g, b]| [r, g, b, 255]),
         );
-        gfx.queue
-            .write_buffer(&self.buffers.color_values, 0, bytemuck::cast_slice(&colors));
+        let tex_size = wgpu::Extent3d {
+            width: colors_data.len() as u32,
+            height: 1,
+            depth_or_array_layers: 1,
+        };
+        let (sticker_colors_texture, _sticker_colors_texture_view) =
+            self.buffers.sticker_colors_texture.at_size(gfx, tex_size);
+        gfx.queue.write_texture(
+            sticker_colors_texture.as_image_copy(),
+            bytemuck::cast_slice(&colors_data),
+            wgpu::ImageDataLayout::default(),
+            tex_size,
+        );
+
+        // Write the special colors.
+        let bg = unsafe { crate::BACKGROUND };
+        let colors_data = [[bg[0], bg[1], bg[2], 255], [0, 0, 0, 255]];
+        let tex_size = wgpu::Extent3d {
+            width: colors_data.len() as u32,
+            height: 1,
+            depth_or_array_layers: 1,
+        };
+        let (special_colors_texture, _special_colors_texture_view) =
+            self.buffers.special_colors_texture.at_size(gfx, tex_size);
+        gfx.queue.write_texture(
+            special_colors_texture.as_image_copy(),
+            bytemuck::bytes_of(&colors_data),
+            wgpu::ImageDataLayout::default(),
+            tex_size,
+        );
 
         // Write the view parameters.
         let scale = view_params.xy_scale()?;
@@ -800,22 +824,6 @@ struct_with_constructor! {
                 ),
 
                 /*
-                 * COLORS
-                 */
-                /// Special colors.
-                special_colors: wgpu::Buffer = gfx.create_buffer::<GfxSpecialColors>(
-                    label("special_colors"),
-                    1,
-                    wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-                ),
-                /// Value for each color.
-                color_values: wgpu::Buffer = gfx.create_buffer::<[f32; 4]>(
-                    label("color_values"),
-                    mesh.color_count() + 1,
-                    wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
-                ),
-
-                /*
                  * TEXTURES
                  */
                 /// First pass texture, which includes lighting, facet ID, and
@@ -834,8 +842,20 @@ struct_with_constructor! {
                 /// Output color texture.
                 out_texture: CachedTexture = CachedTexture::new_2d(
                     label("color_texture"),
-                    wgpu::TextureFormat::Bgra8Unorm,
+                    wgpu::TextureFormat::Rgba8Unorm,
                     wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                ),
+                /// Sticker colors texture.
+                sticker_colors_texture: CachedTexture = CachedTexture::new_1d(
+                    label("sticker_colors"),
+                    wgpu::TextureFormat::Rgba8UnormSrgb,
+                    wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
+                ),
+                /// Special colors texture.
+                special_colors_texture: CachedTexture = CachedTexture::new_1d(
+                    label("special_colors"),
+                    wgpu::TextureFormat::Rgba8UnormSrgb,
+                    wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
                 ),
             }
         }
@@ -883,12 +903,12 @@ impl DynamicPuzzleBuffers {
             vertex_culls: clone_buffer!(gfx, id, self.vertex_culls),
             composite_vertices: clone_buffer!(gfx, id, self.composite_vertices),
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
-            special_colors: clone_buffer!(gfx, id, self.special_colors),
-            color_values: clone_buffer!(gfx, id, self.color_values),
 
             first_pass_texture: clone_texture!(gfx, id, self.first_pass_texture),
             depth_texture: clone_texture!(gfx, id, self.depth_texture),
             out_texture: clone_texture!(gfx, id, self.out_texture),
+            sticker_colors_texture: clone_texture!(gfx, id, self.sticker_colors_texture),
+            special_colors_texture: clone_texture!(gfx, id, self.special_colors_texture),
         }
     }
 }

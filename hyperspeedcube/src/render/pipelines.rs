@@ -41,7 +41,6 @@ mod bindings {
         FACET_CENTROIDS        = (1, wgpu::BufferBindingType::Storage { read_only: true });
         FACET_NORMALS          = (2, wgpu::BufferBindingType::Storage { read_only: true });
         POLYGON_COLOR_IDS      = (3, wgpu::BufferBindingType::Storage { read_only: true });
-        COLOR_VALUES           = (4, wgpu::BufferBindingType::Storage { read_only: true });
         // Computed data (per-vertex)
         VERTEX_3D_POSITIONS    = (5, wgpu::BufferBindingType::Storage { read_only: false });
         VERTEX_LIGHTINGS       = (6, wgpu::BufferBindingType::Storage { read_only: false });
@@ -57,12 +56,21 @@ mod bindings {
 
         // Composite parameters
         COMPOSITE_PARAMS       = (0, wgpu::BufferBindingType::Uniform);
-        SPECIAL_COLORS         = (1, wgpu::BufferBindingType::Uniform);
     }
     bindings! {
         POLYGON_IDS_TEXTURE = (50, wgpu::BindingType::Texture {
             sample_type: wgpu::TextureSampleType::Sint,
             view_dimension: wgpu::TextureViewDimension::D2,
+            multisampled: false,
+        });
+        STICKER_COLORS_TEXTURE = (51, wgpu::BindingType::Texture {
+            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+            view_dimension: wgpu::TextureViewDimension::D1,
+            multisampled: false,
+        });
+        SPECIAL_COLORS_TEXTURE = (52, wgpu::BindingType::Texture {
+            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+            view_dimension: wgpu::TextureViewDimension::D1,
             multisampled: false,
         });
     }
@@ -261,9 +269,13 @@ impl Pipelines {
             device,
             bind_groups![
                 0 => [],
-                1 => [pub(FRAGMENT) POLYGON_COLOR_IDS, pub(FRAGMENT) COLOR_VALUES],
-                2 => [pub(FRAGMENT) POLYGON_IDS_TEXTURE],
-                3 => [pub(FRAGMENT) COMPOSITE_PARAMS, pub(FRAGMENT) SPECIAL_COLORS],
+                1 => [pub(FRAGMENT) POLYGON_COLOR_IDS],
+                2 => [
+                    pub(FRAGMENT) POLYGON_IDS_TEXTURE,
+                    pub(FRAGMENT) STICKER_COLORS_TEXTURE,
+                    pub(FRAGMENT) SPECIAL_COLORS_TEXTURE,
+                ],
+                3 => [pub(FRAGMENT) COMPOSITE_PARAMS],
 
             ],
         );
@@ -278,7 +290,7 @@ impl Pipelines {
                     ..Default::default()
                 },
                 fragment_target: Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Bgra8Unorm,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
                     blend: Some(wgpu::BlendState {
                         color: blend_component!(Add(src * SrcAlpha, dst * One)),
                         alpha: blend_component!(Add(src * One, dst * One)),
@@ -304,7 +316,6 @@ impl Pipelines {
                     pub(VERTEX) FACET_CENTROIDS,
                     pub(VERTEX) FACET_NORMALS,
                     pub(FRAGMENT) POLYGON_COLOR_IDS,
-                    pub(FRAGMENT) COLOR_VALUES,
                 ],
                 2 => [
                     pub(VERTEX) PUZZLE_TRANSFORM,
@@ -313,6 +324,8 @@ impl Pipelines {
                     pub(VERTEX) PROJECTION_PARAMS,
                     pub(VERTEX) LIGHTING_PARAMS,
                     pub(VERTEX) VIEW_PARAMS,
+                    pub(FRAGMENT) STICKER_COLORS_TEXTURE,
+                    pub(FRAGMENT) SPECIAL_COLORS_TEXTURE,
                 ],
             ],
         );
@@ -337,7 +350,7 @@ impl Pipelines {
                             bias: wgpu::DepthBiasState::default(),
                         }),
                         fragment_target: Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Bgra8Unorm,
+                            format: wgpu::TextureFormat::Rgba8Unorm,
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         }),
@@ -425,7 +438,7 @@ impl PipelineBindGroups {
     pub fn bind_groups(
         &self,
         device: &wgpu::Device,
-        bind_groups: &[&[wgpu::BindingResource]],
+        bind_groups: &[&[wgpu::BindingResource<'_>]],
     ) -> Vec<(u32, wgpu::BindGroup)> {
         assert_eq!(
             self.bind_group_layouts

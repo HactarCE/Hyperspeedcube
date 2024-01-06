@@ -417,6 +417,7 @@ impl Tab {
                     });
             }
             Tab::PuzzleLibrary => {
+                ui.color_edit_button_srgba(unsafe { &mut crate::BACKGROUND });
                 ui.separator();
                 let id = egui::Id::new("hyperspeedcube/files");
                 let needs_reload = ui.button("Reload all files").clicked()
