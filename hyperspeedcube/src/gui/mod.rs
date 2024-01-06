@@ -21,40 +21,23 @@ pub use tabs::{PuzzleView, Tab};
 pub use crate::app::App;
 
 pub struct AppUi {
-    dock_tree: egui_dock::Tree<Tab>,
+    dock_state: egui_dock::DockState<Tab>,
 }
 
 impl AppUi {
     pub(crate) fn new(egui_renderer: &mut egui_wgpu::Renderer, app: &mut App) -> Self {
         let puzzle_view = Arc::new(Mutex::new(PuzzleView::new(&app.gfx, egui_renderer)));
         app.active_puzzle_view = Arc::downgrade(&puzzle_view);
-        let mut dock_tree = egui_dock::Tree::new(vec![
+        let dock_state = egui_dock::DockState::new(vec![
             Tab::PuzzleView(puzzle_view),
-            // Tab::Puzzle("3x3x3x3".to_string()),
-            // Tab::Puzzle("3x3x3".to_string()),
-            // Tab::Puzzle("Curvy Copter".to_string()),
+            Tab::PuzzleLibrary,
+            Tab::ViewSettings,
+            Tab::InteractionSettings,
+            Tab::AppearanceSettings,
+            Tab::LuaLogs,
+            Tab::PuzzleInfo,
         ]);
-        let [left, right] = dock_tree.split_right(
-            NodeIndex::root(),
-            0.70,
-            vec![
-                // Tab::PuzzleSetup(PuzzleSetup::default()),
-                // Tab::PolytopeTree(PolytopeTree::default()),
-                // Tab::PuzzleLibraryDemo,
-                Tab::PuzzleLibrary,
-            ],
-        );
-        dock_tree.split_left(
-            left,
-            0.4,
-            vec![
-                Tab::ViewSettings,
-                Tab::InteractionSettings,
-                Tab::AppearanceSettings,
-            ],
-        );
-        dock_tree.split_below(right, 0.5, vec![Tab::LuaLogs, Tab::PuzzleInfo]);
-        AppUi { dock_tree }
+        AppUi { dock_state }
     }
 
     pub fn build(&mut self, ctx: &egui::Context, app: &mut App) {
@@ -68,13 +51,13 @@ impl AppUi {
             .frame(egui::Frame::none().fill(app.prefs.colors.background))
             .show(ctx, |ui| {
                 let mut style = egui_dock::Style::from_egui(ui.style());
-                style.tabs.fill_tab_bar = true;
-                egui_dock::DockArea::new(&mut self.dock_tree)
+                style.tab_bar.fill_tab_bar = true;
+                egui_dock::DockArea::new(&mut self.dock_state)
                     .style(style)
                     .show(ctx, app);
             });
 
-        if let Some((_rect, Tab::PuzzleView(puzzle_view))) = self.dock_tree.find_active_focused() {
+        if let Some((_rect, Tab::PuzzleView(puzzle_view))) = self.dock_state.find_active_focused() {
             app.active_puzzle_view = Arc::downgrade(&puzzle_view);
         }
 
@@ -94,7 +77,7 @@ impl AppUi {
                 label: Some("puzzle_command_encoder"),
             });
 
-        for tab in self.dock_tree.tabs() {
+        for (_, tab) in self.dock_state.iter_all_tabs() {
             if let Tab::PuzzleView(puzzle_view) = tab {
                 let mut puzzle_view = puzzle_view.lock();
                 let view_prefs = puzzle_view

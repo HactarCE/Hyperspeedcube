@@ -68,7 +68,7 @@ impl PuzzleView {
 
         let r = ui.put(
             egui_rect,
-            egui::Image::new(self.texture_id, egui_rect.size())
+            egui::Image::new((self.texture_id, egui_rect.size()))
                 .sense(egui::Sense::click_and_drag()),
         );
 

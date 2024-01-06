@@ -242,17 +242,18 @@ impl PuzzleRenderer {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color { r, g, b, a: 1.0 }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: depth_texture_view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(0.0),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
                 }),
+                ..wgpu::RenderPassDescriptor::default()
             });
 
             render_pass.set_pipeline(
@@ -338,6 +339,7 @@ impl PuzzleRenderer {
 
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("compute_3d_vertex_positions"),
+                ..wgpu::ComputePassDescriptor::default()
             });
             compute_pass.set_pipeline(
                 gfx.pipelines
@@ -370,17 +372,18 @@ impl PuzzleRenderer {
                             b: 0.0,
                             a: 0.0,
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: depth_texture_view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(0.0),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
                 }),
+                ..wgpu::RenderPassDescriptor::default()
             });
 
             render_pass.set_pipeline(&gfx.pipelines.render_polygon_ids);
@@ -438,10 +441,10 @@ impl PuzzleRenderer {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                ..wgpu::RenderPassDescriptor::default()
             });
 
             render_pass.set_pipeline(&gfx.pipelines.render_composite_puzzle);

@@ -135,7 +135,8 @@ async fn run() {
 
     // Initialize egui.
     let egui_ctx = egui::Context::default();
-    let mut egui_winit_state = egui_winit::State::new(&event_loop);
+    let mut egui_winit_state =
+        egui_winit::State::new(egui_ctx.viewport_id(), &event_loop, None, None);
     match dark_light::detect() {
         dark_light::Mode::Light => switch_to_light_mode(&egui_ctx),
         dark_light::Mode::Dark => switch_to_dark_mode(&egui_ctx),
@@ -241,7 +242,7 @@ async fn run() {
                     let suppress_paste = web_workarounds.intercept_paste(app.modifiers(), &event);
 
                     if !suppress_paste {
-                        let r = egui_winit_state.on_event(&egui_ctx, &event);
+                        let r = egui_winit_state.on_window_event(&egui_ctx, &event);
                         event_has_been_captured |= r.consumed && allow_egui_capture;
                         if r.repaint {
                             egui_ctx.request_repaint();
@@ -307,9 +308,6 @@ async fn run() {
                 let now = Instant::now();
 
                 if next_frame_time <= now {
-                    // Update scale factor.
-                    egui_winit_state.set_pixels_per_point(app.gfx.scale_factor);
-
                     // Start egui frame.
                     #[allow(unused_mut)]
                     let mut egui_input = egui_winit_state.take_egui_input(&window);
@@ -398,7 +396,7 @@ async fn run() {
                         }
                     };
 
-                    let paint_jobs = egui_ctx.tessellate(egui_output.shapes);
+                    let paint_jobs = egui_ctx.tessellate(egui_output.shapes, 1.0);
 
                     let gfx = &app.gfx;
                     let mut encoder =
@@ -436,10 +434,12 @@ async fn run() {
                                     resolve_target: None,
                                     ops: wgpu::Operations {
                                         load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
-                                        store: true,
+                                        store: wgpu::StoreOp::Store,
                                     },
                                 })],
                                 depth_stencil_attachment: None,
+                                timestamp_writes: None,
+                                occlusion_query_set: None,
                             });
 
                         egui_renderer.render(
