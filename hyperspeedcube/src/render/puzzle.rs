@@ -89,6 +89,7 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
             render_pass.set_bind_group(*index, bind_group, &[]);
         }
 
+        render_pass.set_vertex_buffer(0, self.gfx.uv_vertex_buffer.slice(..));
         render_pass.draw(0..4, 0..1);
     }
 }
@@ -325,6 +326,12 @@ impl PuzzleRenderer {
                 &self.gfx.device,
                 &[
                     &[
+                        wgpu::BindingResource::TextureView(
+                            &self.buffers.sticker_colors_texture.view,
+                        ),
+                        wgpu::BindingResource::TextureView(
+                            &self.buffers.special_colors_texture.view,
+                        ),
                         self.model.vertex_positions.as_entire_binding(),
                         self.model.u_tangents.as_entire_binding(),
                         self.model.v_tangents.as_entire_binding(),
@@ -343,12 +350,6 @@ impl PuzzleRenderer {
                         self.buffers.projection_params.as_entire_binding(),
                         self.buffers.lighting_params.as_entire_binding(),
                         self.buffers.view_params.as_entire_binding(),
-                        wgpu::BindingResource::TextureView(
-                            &self.buffers.sticker_colors_texture.view,
-                        ),
-                        wgpu::BindingResource::TextureView(
-                            &self.buffers.special_colors_texture.view,
-                        ),
                     ],
                 ],
             );
@@ -736,13 +737,13 @@ impl PuzzleRenderer {
         let bind_groups = pipelines.render_composite_puzzle_bind_groups.bind_groups(
             &self.gfx.device,
             &[
-                &[],
-                &[self.model.polygon_color_ids.as_entire_binding()],
                 &[
-                    wgpu::BindingResource::TextureView(&self.buffers.first_pass_texture.view),
                     wgpu::BindingResource::TextureView(&self.buffers.sticker_colors_texture.view),
                     wgpu::BindingResource::TextureView(&self.buffers.special_colors_texture.view),
+                    wgpu::BindingResource::TextureView(&self.buffers.first_pass_texture.view),
                 ],
+                &[self.model.polygon_color_ids.as_entire_binding()],
+                &[],
                 &[self.buffers.composite_params.as_entire_binding()],
             ],
         );
@@ -767,7 +768,7 @@ impl PuzzleRenderer {
         for (index, bind_group) in &bind_groups {
             render_pass.set_bind_group(*index, bind_group, &[]);
         }
-        render_pass.set_vertex_buffer(0, self.buffers.composite_vertices.slice(..));
+        render_pass.set_vertex_buffer(0, self.gfx.uv_vertex_buffer.slice(..));
         render_pass.set_blend_constant(wgpu::Color {
             r: alpha as f64,
             g: alpha as f64,
@@ -902,7 +903,7 @@ struct_with_constructor! {
                 puzzle_transform: wgpu::Buffer = gfx.create_buffer::<f32>(
                     label("puzzle_transform"),
                     ndim as usize * 4,
-                    wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+                    wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
                 ),
                 /// NxN transformation matrix for each piece.
                 piece_transforms: wgpu::Buffer = gfx.create_buffer::<f32>(
@@ -943,16 +944,11 @@ struct_with_constructor! {
                     mesh.vertex_count(),
                     wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
                 ),
+                /// Vertex cull flag for each vertex.
                 vertex_culls: wgpu::Buffer = gfx.create_buffer::<f32>(
                     label("vertex_culls"),
                     mesh.vertex_count(),
                     wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
-                ),
-                /// Composite vertices. TODO: globally cache this
-                composite_vertices: wgpu::Buffer = gfx.create_buffer_init::<CompositeVertex>(
-                    label("composite_vertices"),
-                    &CompositeVertex::SQUARE,
-                    wgpu::BufferUsages::VERTEX,
                 ),
 
                 /*
@@ -1048,7 +1044,6 @@ impl DynamicPuzzleBuffers {
             vertex_3d_positions: clone_buffer!(gfx, id, self.vertex_3d_positions),
             vertex_lightings: clone_buffer!(gfx, id, self.vertex_lightings),
             vertex_culls: clone_buffer!(gfx, id, self.vertex_culls),
-            composite_vertices: clone_buffer!(gfx, id, self.composite_vertices),
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
 
             first_pass_texture: clone_texture!(gfx, id, self.first_pass_texture),

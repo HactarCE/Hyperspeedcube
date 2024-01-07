@@ -2,7 +2,7 @@ use std::fmt;
 
 use itertools::Itertools;
 
-use super::CompositeVertex;
+use super::UvVertex;
 
 const MIN_NDIM: u8 = 2;
 const MAX_NDIM: u8 = 8;
@@ -16,70 +16,72 @@ mod bindings {
         };
     }
     macro_rules! buffer_bindings {
-        ($($name:ident = ($binding:expr, $buffer_binding_type:expr);)+) => {
+        ($($name:ident = ($binding:expr, $($buffer_binding_type:tt)*);)+) => {
             bindings! {
-                $($name = ($binding, wgpu::BindingType::Buffer {
-                    ty: $buffer_binding_type,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-            }   );)+
+                $(
+                    $name = ($binding, wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::$($buffer_binding_type)*,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    });
+                )+
+            }
+        };
+    }
+    macro_rules! texture_bindings {
+        ($($name:ident = ($binding:expr, $view_dimension:ident, $($sample_type:tt)*);)+) => {
+            bindings! {
+                $(
+                    $name = ($binding, wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::$($sample_type)*,
+                        view_dimension: wgpu::TextureViewDimension::$view_dimension,
+                        multisampled: false,
+                    });
+                )+
             }
         };
     }
 
     buffer_bindings! {
         // Static mesh data (per-vertex)
-        VERTEX_POSITIONS       = (0, wgpu::BufferBindingType::Storage { read_only: true });
-        U_TANGENTS             = (1, wgpu::BufferBindingType::Storage { read_only: true });
-        V_TANGENTS             = (2, wgpu::BufferBindingType::Storage { read_only: true });
-        STICKER_SHRINK_VECTORS = (3, wgpu::BufferBindingType::Storage { read_only: true });
-        PIECE_IDS              = (4, wgpu::BufferBindingType::Storage { read_only: true });
-        FACET_IDS              = (5, wgpu::BufferBindingType::Storage { read_only: true });
+        VERTEX_POSITIONS       = (0, Storage { read_only: true });
+        U_TANGENTS             = (1, Storage { read_only: true });
+        V_TANGENTS             = (2, Storage { read_only: true });
+        STICKER_SHRINK_VECTORS = (3, Storage { read_only: true });
+        PIECE_IDS              = (4, Storage { read_only: true });
+        FACET_IDS              = (5, Storage { read_only: true });
 
         // Static mesh data (other)
-        PIECE_CENTROIDS        = (0, wgpu::BufferBindingType::Storage { read_only: true });
-        FACET_CENTROIDS        = (1, wgpu::BufferBindingType::Storage { read_only: true });
-        FACET_NORMALS          = (2, wgpu::BufferBindingType::Storage { read_only: true });
-        POLYGON_COLOR_IDS      = (3, wgpu::BufferBindingType::Storage { read_only: true });
+        PIECE_CENTROIDS        = (0, Storage { read_only: true });
+        FACET_CENTROIDS        = (1, Storage { read_only: true });
+        FACET_NORMALS          = (2, Storage { read_only: true });
+        POLYGON_COLOR_IDS      = (3, Storage { read_only: true });
         // Computed data (per-vertex)
-        VERTEX_3D_POSITIONS    = (5, wgpu::BufferBindingType::Storage { read_only: false });
-        VERTEX_LIGHTINGS       = (6, wgpu::BufferBindingType::Storage { read_only: false });
-        VERTEX_CULLS           = (7, wgpu::BufferBindingType::Storage { read_only: false });
+        VERTEX_3D_POSITIONS    = (5, Storage { read_only: false });
+        VERTEX_LIGHTINGS       = (6, Storage { read_only: false });
+        VERTEX_CULLS           = (7, Storage { read_only: false });
 
         // View parameters and transforms
-        PUZZLE_TRANSFORM       = (0, wgpu::BufferBindingType::Storage { read_only: true });
-        PIECE_TRANSFORMS       = (1, wgpu::BufferBindingType::Storage { read_only: true });
-        CAMERA_4D_POS          = (2, wgpu::BufferBindingType::Storage { read_only: true });
-        PROJECTION_PARAMS      = (3, wgpu::BufferBindingType::Uniform);
-        LIGHTING_PARAMS        = (4, wgpu::BufferBindingType::Uniform);
-        VIEW_PARAMS            = (5, wgpu::BufferBindingType::Uniform);
+        PUZZLE_TRANSFORM       = (0, Uniform);
+        PIECE_TRANSFORMS       = (1, Storage { read_only: true });
+        CAMERA_4D_POS          = (2, Storage { read_only: true });
+        PROJECTION_PARAMS      = (3, Uniform);
+        LIGHTING_PARAMS        = (4, Uniform);
+        VIEW_PARAMS            = (5, Uniform);
 
         // Composite parameters
-        COMPOSITE_PARAMS       = (0, wgpu::BufferBindingType::Uniform);
+        COMPOSITE_PARAMS       = (0, Uniform);
+    }
+    texture_bindings! {
+        STICKER_COLORS_TEXTURE = (50, D1, Float { filterable: false });
+        SPECIAL_COLORS_TEXTURE = (51, D1, Float { filterable: false });
+
+        POLYGON_IDS_TEXTURE = (100, D2, Sint);
+        EDGES_TEXTURE = (101, D2, Float { filterable: false });
+        BLIT_SRC_TEXTURE = (102, D2, Float { filterable: true });
     }
     bindings! {
-        POLYGON_IDS_TEXTURE = (50, wgpu::BindingType::Texture {
-            sample_type: wgpu::TextureSampleType::Sint,
-            view_dimension: wgpu::TextureViewDimension::D2,
-            multisampled: false,
-        });
-        STICKER_COLORS_TEXTURE = (51, wgpu::BindingType::Texture {
-            sample_type: wgpu::TextureSampleType::Float { filterable: false },
-            view_dimension: wgpu::TextureViewDimension::D1,
-            multisampled: false,
-        });
-        SPECIAL_COLORS_TEXTURE = (52, wgpu::BindingType::Texture {
-            sample_type: wgpu::TextureSampleType::Float { filterable: false },
-            view_dimension: wgpu::TextureViewDimension::D1,
-            multisampled: false,
-        });
-
-        BLIT_TEXTURE = (0, wgpu::BindingType::Texture {
-            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-            view_dimension: wgpu::TextureViewDimension::D2,
-            multisampled: false,
-        });
-        BLIT_TEXTURE_SAMPLER = (1, wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering));
+        BLIT_SRC_SAMPLER = (150, wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering));
     }
 }
 
@@ -177,6 +179,8 @@ impl Pipelines {
         fn make_render_pipeline(
             device: &wgpu::Device,
             shader_module: &wgpu::ShaderModule,
+            vertex_entry_point: &str,
+            fragment_entry_point: &str,
             bind_groups: &PipelineBindGroups,
             desc: BasicRenderPipelineDescriptor<'_>,
         ) -> wgpu::RenderPipeline {
@@ -186,7 +190,7 @@ impl Pipelines {
                 layout: Some(&bind_groups.pipeline_layout(device)),
                 vertex: wgpu::VertexState {
                     module: shader_module,
-                    entry_point: &format!("{label}_vertex"),
+                    entry_point: vertex_entry_point,
                     buffers: desc.vertex_buffers,
                 },
                 primitive: desc.primitive,
@@ -194,16 +198,18 @@ impl Pipelines {
                 multisample: desc.multisample,
                 fragment: Some(wgpu::FragmentState {
                     module: shader_module,
-                    entry_point: &format!("{label}_fragment"),
+                    entry_point: fragment_entry_point,
                     targets: &[desc.fragment_target],
                 }),
                 multiview: None,
             })
         }
 
-        let shader_modules = (MIN_NDIM..=MAX_NDIM)
+        let shader_modules_by_dimension = (MIN_NDIM..=MAX_NDIM)
             .map(|ndim| device.create_shader_module(include_wgsl!("shader.wgsl", ndim)))
             .collect_vec();
+        // Most shader programs don't care about the number of dimensions.
+        let shader_module = &shader_modules_by_dimension[0];
 
         let compute_transform_points_bind_groups = PipelineBindGroups::new(
             "compute_transform_points",
@@ -235,7 +241,7 @@ impl Pipelines {
                 ],
             ],
         );
-        let compute_transform_points = shader_modules
+        let compute_transform_points = shader_modules_by_dimension
             .iter()
             .map(|shader_module| {
                 make_compute_pipeline(device, shader_module, &compute_transform_points_bind_groups)
@@ -249,7 +255,9 @@ impl Pipelines {
         );
         let render_polygon_ids = make_render_pipeline(
             device,
-            &shader_modules[0],
+            shader_module,
+            "render_polygon_ids_vertex",
+            "render_polygon_ids_fragment",
             &render_polygon_ids_bind_groups,
             BasicRenderPipelineDescriptor {
                 vertex_buffers: &[
@@ -278,23 +286,25 @@ impl Pipelines {
             "render_composite_puzzle",
             device,
             bind_groups![
-                0 => [],
-                1 => [pub(FRAGMENT) POLYGON_COLOR_IDS],
-                2 => [
-                    pub(FRAGMENT) POLYGON_IDS_TEXTURE,
+                0 => [
                     pub(FRAGMENT) STICKER_COLORS_TEXTURE,
                     pub(FRAGMENT) SPECIAL_COLORS_TEXTURE,
+                    pub(FRAGMENT) POLYGON_IDS_TEXTURE,
                 ],
+                1 => [pub(FRAGMENT) POLYGON_COLOR_IDS],
+                2 => [],
                 3 => [pub(FRAGMENT) COMPOSITE_PARAMS],
 
             ],
         );
         let render_composite_puzzle = make_render_pipeline(
             device,
-            &shader_modules[0],
+            shader_module,
+            "uv_vertex",
+            "render_composite_puzzle_fragment",
             &render_composite_puzzle_bind_groups,
             BasicRenderPipelineDescriptor {
-                vertex_buffers: &[CompositeVertex::LAYOUT],
+                vertex_buffers: &[UvVertex::LAYOUT],
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleStrip,
                     ..Default::default()
@@ -316,6 +326,9 @@ impl Pipelines {
             device,
             bind_groups![
                 0 => [
+                    pub(FRAGMENT) STICKER_COLORS_TEXTURE,
+                    pub(FRAGMENT) SPECIAL_COLORS_TEXTURE,
+
                     pub(VERTEX) VERTEX_POSITIONS,
                     pub(VERTEX) U_TANGENTS,
                     pub(VERTEX) V_TANGENTS,
@@ -334,17 +347,17 @@ impl Pipelines {
                     pub(VERTEX) PROJECTION_PARAMS,
                     pub(VERTEX) LIGHTING_PARAMS,
                     pub(VERTEX) VIEW_PARAMS,
-                    pub(FRAGMENT) STICKER_COLORS_TEXTURE,
-                    pub(FRAGMENT) SPECIAL_COLORS_TEXTURE,
                 ],
             ],
         );
-        let render_single_pass = shader_modules
+        let render_single_pass = shader_modules_by_dimension
             .iter()
             .map(|shader_module| {
                 make_render_pipeline(
                     device,
                     shader_module,
+                    "render_single_pass_vertex",
+                    "render_single_pass_fragment",
                     &render_single_pass_bind_groups,
                     BasicRenderPipelineDescriptor {
                         vertex_buffers: &[
@@ -370,22 +383,19 @@ impl Pipelines {
             })
             .collect_vec();
 
-        let shader_module = device.create_shader_module(include_wgsl!("blit.wgsl"));
         let blit_bind_groups = PipelineBindGroups::new(
             "blit",
             device,
-            bind_groups![
-                0 => [
-                    pub(FRAGMENT) BLIT_TEXTURE,
-                    pub(FRAGMENT) BLIT_TEXTURE_SAMPLER,
-                ]
-            ],
+            bind_groups![0 => [pub(FRAGMENT) BLIT_SRC_TEXTURE, pub(FRAGMENT) BLIT_SRC_SAMPLER]],
         );
         let blit = make_render_pipeline(
             device,
             &shader_module,
+            "uv_vertex",
+            "blit_fragment",
             &blit_bind_groups,
             BasicRenderPipelineDescriptor {
+                vertex_buffers: &[UvVertex::LAYOUT],
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleStrip,
                     ..Default::default()

@@ -63,6 +63,14 @@ struct SpecialColors {
  * BUFFER BINDINGS
  */
 
+// Textures and texture samplers
+@group(0) @binding(50)  var sticker_colors: texture_1d<f32>;
+@group(0) @binding(51)  var special_colors: texture_1d<f32>;
+@group(0) @binding(100) var polygon_ids_texture: texture_2d<i32>;
+@group(0) @binding(101) var edges_texture: texture_2d<f32>;
+@group(0) @binding(102) var blit_src_texture: texture_2d<f32>;
+@group(0) @binding(150) var blit_src_sampler: sampler;
+
 // Static mesh data (per-vertex)
 @group(0) @binding(0) var<storage, read> vertex_positions: array<f32>;
 @group(0) @binding(1) var<storage, read> u_tangents: array<f32>;
@@ -83,17 +91,12 @@ struct SpecialColors {
 @group(1) @binding(7) var<storage, read_write> vertex_culls: array<f32>;
 
 // View parameters and transforms
-@group(2) @binding(0) var<storage, read> puzzle_transform: array<vec4<f32>>;
+@group(2) @binding(0) var<uniform> puzzle_transform: array<vec4<f32>, NDIM>;
 @group(2) @binding(1) var<storage, read> piece_transforms: array<f32>;
-@group(2) @binding(2) var<storage, read> camera_4d_pos: array<f32>;
+@group(2) @binding(2) var<storage, read> camera_4d_pos: array<f32, NDIM>;
 @group(2) @binding(3) var<uniform> projection_params: ProjectionParams;
 @group(2) @binding(4) var<uniform> lighting_params: LightingParams;
 @group(2) @binding(5) var<uniform> view_params: ViewParams;
-
-// Texture samplers
-@group(2) @binding(50) var polygon_ids_texture: texture_2d<i32>;
-@group(2) @binding(51) var sticker_colors: texture_1d<f32>;
-@group(2) @binding(52) var special_colors: texture_1d<f32>;
 
 // Composite parameters, which change during a single frame
 @group(3) @binding(0) var<uniform> composite_params: CompositeParams;
@@ -269,6 +272,35 @@ fn get_color(color_id: u32, lighting: f32) -> vec3<f32> {
 
 
 /*
+ * BLITTING PIPELINE
+ */
+
+ struct UvVertexInput {
+    @location(0) position: vec2<f32>,
+    @location(1) uv: vec2<f32>,
+ }
+
+struct UvVertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
+@vertex
+fn uv_vertex(in: UvVertexInput) -> UvVertexOutput {
+    var out: UvVertexOutput;
+    out.position = vec4(in.position, 0.0, 1.0);
+    out.uv = in.uv;
+    return out;
+}
+
+@fragment
+fn blit_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
+    return textureSample(blit_src_texture, blit_src_sampler, in.uv);
+}
+
+
+
+/*
  * SINGLE-PASS PIPELINE
  */
 
@@ -373,37 +405,22 @@ fn render_polygon_ids_fragment(in: PolygonIdsVertexOutput) -> @location(0) vec2<
     return vec2(
         // TODO: was previously using red component to store facet ID (for color)
         //       but that's not needed anymore. consider having just a single int
+        //
+        //       use 8 bits for lighting and 24 bits for polygon ID
         (i32(in.lighting * 16384.0) << 16u),
         in.polygon_id,
     );
 }
 
-struct CompositeVertexInput {
-    @location(0) position: vec2<f32>,
-    @location(1) uv: vec2<f32>,
-}
-struct CompositeVertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-}
-
-@vertex
-fn render_composite_puzzle_vertex(
-    in: CompositeVertexInput,
-    @builtin(vertex_index) idx: u32,
-) -> CompositeVertexOutput {
-    var out: CompositeVertexOutput;
-    out.position = vec4<f32>(in.position, 0.0, 1.0);
-    out.uv = in.uv;
-    return out;
-}
-
+/// Use with `uv_vertex` as vertex shader.
 @fragment
-fn render_composite_puzzle_fragment(in: CompositeVertexOutput) -> @location(0) vec4<f32> {
+fn render_composite_puzzle_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
     let tex_coords: vec2<i32> = vec2<i32>(in.uv * vec2<f32>(textureDimensions(polygon_ids_texture) - vec2(1u, 1u)));
 
     // TODO: was previously using red component to store facet ID (for color)
     //       but that's not needed anymore. consider having just a single int
+    //
+    //       use 8 bits for lighting and 24 bits for polygon ID
     let lighting: f32 = f32(textureLoad(polygon_ids_texture, tex_coords, 0).r >> 16u) / 16384.0;
     let polygon_id: i32 = textureLoad(polygon_ids_texture, tex_coords, 0).g - 1;
     let r = i32(composite_params.outline_radius);
@@ -422,4 +439,16 @@ fn render_composite_puzzle_fragment(in: CompositeVertexOutput) -> @location(0) v
         color_id = u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF); // wrap max value around to 0
     }
     return vec4(get_color(color_id, lighting), 1.0);
+}
+
+
+
+/*
+ * MLAA EDGE DETECTION PIPELINE
+ */
+
+/// Use with `uv_vertex` as vertex shader.
+@fragment
+fn mlaa_edge_detect_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
+    return vec4(0.0, 0.0, 0.0, 0.0);
 }

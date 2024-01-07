@@ -13,6 +13,8 @@ pub(crate) struct GraphicsState {
     pub(crate) target_format: wgpu::TextureFormat,
 
     pub(crate) pipelines: Pipelines,
+
+    pub(crate) uv_vertex_buffer: wgpu::Buffer,
 }
 impl fmt::Debug for GraphicsState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -27,12 +29,21 @@ impl GraphicsState {
 
         let pipelines = Pipelines::new(&device, target_format);
 
+        let uv_vertex_buffer = create_buffer_init::<super::structs::UvVertex>(
+            &device,
+            "uv_vertices",
+            &super::structs::UvVertex::SQUARE,
+            wgpu::BufferUsages::VERTEX,
+        );
+
         Self {
             device,
             queue,
             target_format,
 
             pipelines,
+
+            uv_vertex_buffer,
         }
     }
 
@@ -42,15 +53,7 @@ impl GraphicsState {
         contents: &[T],
         usage: wgpu::BufferUsages,
     ) -> wgpu::Buffer {
-        let mut contents = contents.to_vec();
-        super::pad_buffer_to_wgpu_copy_buffer_alignment(&mut contents);
-
-        self.device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(&label.to_string()),
-                contents: bytemuck::cast_slice::<T, u8>(contents.as_slice()),
-                usage,
-            })
+        create_buffer_init(&self.device, label, contents, usage)
     }
     pub(super) fn create_buffer<T>(
         &self,
@@ -174,4 +177,20 @@ impl GraphicsState {
                     .collect_vec(),
             })
     }
+}
+
+fn create_buffer_init<T: Default + bytemuck::NoUninit>(
+    device: &wgpu::Device,
+    label: impl fmt::Display,
+    contents: &[T],
+    usage: wgpu::BufferUsages,
+) -> wgpu::Buffer {
+    let mut contents = contents.to_vec();
+    super::pad_buffer_to_wgpu_copy_buffer_alignment(&mut contents);
+
+    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some(&label.to_string()),
+        contents: bytemuck::cast_slice::<T, u8>(contents.as_slice()),
+        usage,
+    })
 }

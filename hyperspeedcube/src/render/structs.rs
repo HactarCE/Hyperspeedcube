@@ -27,11 +27,16 @@ pub(super) struct GfxCompositeParams {
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
-pub(super) struct CompositeVertex {
+pub(super) struct UvVertex {
     pub position: [f32; 2],
     pub uv: [f32; 2],
 }
-impl CompositeVertex {
+impl UvVertex {
+    const fn new(position: [f32; 2], uv: [f32; 2]) -> Self {
+        Self { position, uv }
+    }
+}
+impl UvVertex {
     pub const LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
         array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
         step_mode: wgpu::VertexStepMode::Vertex,
@@ -41,22 +46,10 @@ impl CompositeVertex {
         ],
     };
     pub const SQUARE: [Self; 4] = [
-        CompositeVertex {
-            position: [-1.0, 1.0],
-            uv: [0.0, 0.0],
-        },
-        CompositeVertex {
-            position: [1.0, 1.0],
-            uv: [1.0, 0.0],
-        },
-        CompositeVertex {
-            position: [-1.0, -1.0],
-            uv: [0.0, 1.0],
-        },
-        CompositeVertex {
-            position: [1.0, -1.0],
-            uv: [1.0, 1.0],
-        },
+        UvVertex::new([-1.0, 1.0], [0.0, 0.0]),
+        UvVertex::new([1.0, 1.0], [1.0, 0.0]),
+        UvVertex::new([-1.0, -1.0], [0.0, 1.0]),
+        UvVertex::new([1.0, -1.0], [1.0, 1.0]),
     ];
 }
 
