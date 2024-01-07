@@ -297,10 +297,12 @@ impl PuzzleRenderer {
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
     ) -> Result<()> {
-        let triangle_count = self.init_buffers(encoder, view_params)?;
-        if triangle_count == 0 {
+        let opacity_buckets = self.init_buffers(encoder, view_params)?;
+        if opacity_buckets.is_empty() {
             return Ok(());
         }
+        let index_range =
+            opacity_buckets[0].index_range.start..opacity_buckets.last().unwrap().index_range.end;
 
         let pipelines = &self.gfx.pipelines;
 
@@ -381,7 +383,7 @@ impl PuzzleRenderer {
                 self.buffers.sorted_triangles.slice(..),
                 wgpu::IndexFormat::Uint32,
             );
-            render_pass.draw_indexed(0..triangle_count * 3, 0, 0..1);
+            render_pass.draw_indexed(index_range, 0, 0..1);
             drop(render_pass);
         }
 
@@ -393,12 +395,12 @@ impl PuzzleRenderer {
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
     ) -> Result<()> {
-        let triangle_count = self.init_buffers(encoder, view_params)?;
-        if triangle_count == 0 {
+        let opacity_buckets = self.init_buffers(encoder, view_params)?;
+        if opacity_buckets.is_empty() {
             return Ok(());
         }
-
-        let pipelines = &self.gfx.pipelines;
+        let index_range =
+            opacity_buckets[0].index_range.start..opacity_buckets.last().unwrap().index_range.end;
 
         // Make the textures the right size.
         let size = [view_params.width, view_params.height];
@@ -407,152 +409,19 @@ impl PuzzleRenderer {
         self.buffers.out_texture.set_size(size);
 
         // Compute 3D vertex positions on the GPU.
-        {
-            let bind_groups = pipelines.compute_transform_points_bind_groups.bind_groups(
-                &self.gfx.device,
-                &[
-                    &[
-                        self.model.vertex_positions.as_entire_binding(),
-                        self.model.u_tangents.as_entire_binding(),
-                        self.model.v_tangents.as_entire_binding(),
-                        self.model.sticker_shrink_vectors.as_entire_binding(),
-                        self.model.piece_ids.as_entire_binding(),
-                        self.model.facet_ids.as_entire_binding(),
-                    ],
-                    &[
-                        self.model.piece_centroids.as_entire_binding(),
-                        self.model.facet_centroids.as_entire_binding(),
-                        self.model.facet_normals.as_entire_binding(),
-                        self.buffers.vertex_3d_positions.as_entire_binding(),
-                        self.buffers.vertex_lightings.as_entire_binding(),
-                        self.buffers.vertex_culls.as_entire_binding(),
-                    ],
-                    &[
-                        self.buffers.puzzle_transform.as_entire_binding(),
-                        self.buffers.piece_transforms.as_entire_binding(),
-                        self.buffers.camera_4d_pos.as_entire_binding(),
-                        self.buffers.projection_params.as_entire_binding(),
-                        self.buffers.lighting_params.as_entire_binding(),
-                        self.buffers.view_params.as_entire_binding(),
-                    ],
-                ],
-            );
-
-            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("compute_3d_vertex_positions"),
-                ..wgpu::ComputePassDescriptor::default()
-            });
-            compute_pass.set_pipeline(
-                pipelines
-                    .compute_transform_points(self.model.ndim)
-                    .ok_or_eyre("error fetching transform points compute pipeline")?,
-            );
-            for (index, bind_group) in &bind_groups {
-                compute_pass.set_bind_group(*index, bind_group, &[]);
-            }
-
-            dispatch_work_groups(&mut compute_pass, self.model.vertex_count as u32);
-        }
+        self.compute_3d_vertex_positions(encoder)?;
 
         // Render first pass.
-        {
-            let bind_groups = pipelines.render_polygon_ids_bind_groups.bind_groups(
-                &self.gfx.device,
-                &[&[], &[], &[self.buffers.view_params.as_entire_binding()]],
-            );
-
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("render_polygon_ids"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.buffers.first_pass_texture.view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 0.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.buffers.depth_texture.view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(0.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                ..wgpu::RenderPassDescriptor::default()
-            });
-
-            render_pass.set_pipeline(&pipelines.render_polygon_ids);
-            for (index, bind_group) in &bind_groups {
-                render_pass.set_bind_group(*index, bind_group, &[]);
-            }
-            render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
-            render_pass.set_vertex_buffer(1, self.buffers.vertex_culls.slice(..));
-            render_pass.set_vertex_buffer(2, self.buffers.vertex_lightings.slice(..));
-            render_pass.set_vertex_buffer(3, self.model.polygon_ids.slice(..));
-            render_pass.set_index_buffer(
-                self.buffers.sorted_triangles.slice(..),
-                wgpu::IndexFormat::Uint32,
-            );
-            render_pass.draw_indexed(0..triangle_count * 3, 0, 0..1);
-            drop(render_pass);
-        }
-
-        // Write the composite parameters. TODO: use push constants
-        let data = GfxCompositeParams {
-            alpha: 1.0,
-            outline_radius: 1,
-        };
-        self.gfx
-            .queue
-            .write_buffer(&self.buffers.composite_params, 0, bytemuck::bytes_of(&data));
+        self.render_polygon_ids(encoder, index_range)?;
 
         // Render second pass.
-        {
-            let bind_groups = pipelines.render_composite_puzzle_bind_groups.bind_groups(
-                &self.gfx.device,
-                &[
-                    &[],
-                    &[self.model.polygon_color_ids.as_entire_binding()],
-                    &[
-                        wgpu::BindingResource::TextureView(&self.buffers.first_pass_texture.view),
-                        wgpu::BindingResource::TextureView(
-                            &self.buffers.sticker_colors_texture.view,
-                        ),
-                        wgpu::BindingResource::TextureView(
-                            &self.buffers.special_colors_texture.view,
-                        ),
-                    ],
-                    &[self.buffers.composite_params.as_entire_binding()],
-                ],
-            );
-
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("render_composite_puzzle"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.buffers.out_texture.view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                ..wgpu::RenderPassDescriptor::default()
-            });
-
-            render_pass.set_pipeline(&pipelines.render_composite_puzzle);
-            for (index, bind_group) in &bind_groups {
-                render_pass.set_bind_group(*index, bind_group, &[]);
-            }
-            render_pass.set_vertex_buffer(0, self.buffers.composite_vertices.slice(..));
-            render_pass.draw(0..4, 0..1);
-            drop(render_pass);
-        }
+        self.render_composite_puzzle(
+            encoder,
+            GfxCompositeParams {
+                alpha: 1.0,
+                outline_radius: 1,
+            },
+        )?;
 
         Ok(())
     }
@@ -562,9 +431,9 @@ impl PuzzleRenderer {
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
-    ) -> Result<u32> {
+    ) -> Result<Vec<OpacityBucket>> {
         if self.model.is_empty() {
-            return Ok(0);
+            return Ok(vec![]);
         }
 
         // Write the projection parameters.
@@ -689,7 +558,172 @@ impl PuzzleRenderer {
             }
         }
 
-        Ok((destination_offset / index_bytes / 3) as u32)
+        let triangle_count = (destination_offset / index_bytes / 3) as u32;
+        let mid = triangle_count / 2 * 3;
+        let end = triangle_count * 3;
+        Ok(vec![
+            OpacityBucket {
+                opacity: 1.0,
+                index_range: 0..mid,
+            },
+            OpacityBucket {
+                opacity: 0.5,
+                index_range: mid..end,
+            },
+        ])
+    }
+
+    fn compute_3d_vertex_positions(&mut self, encoder: &mut wgpu::CommandEncoder) -> Result<()> {
+        let pipelines = &self.gfx.pipelines;
+
+        let bind_groups = pipelines.compute_transform_points_bind_groups.bind_groups(
+            &self.gfx.device,
+            &[
+                &[
+                    self.model.vertex_positions.as_entire_binding(),
+                    self.model.u_tangents.as_entire_binding(),
+                    self.model.v_tangents.as_entire_binding(),
+                    self.model.sticker_shrink_vectors.as_entire_binding(),
+                    self.model.piece_ids.as_entire_binding(),
+                    self.model.facet_ids.as_entire_binding(),
+                ],
+                &[
+                    self.model.piece_centroids.as_entire_binding(),
+                    self.model.facet_centroids.as_entire_binding(),
+                    self.model.facet_normals.as_entire_binding(),
+                    self.buffers.vertex_3d_positions.as_entire_binding(),
+                    self.buffers.vertex_lightings.as_entire_binding(),
+                    self.buffers.vertex_culls.as_entire_binding(),
+                ],
+                &[
+                    self.buffers.puzzle_transform.as_entire_binding(),
+                    self.buffers.piece_transforms.as_entire_binding(),
+                    self.buffers.camera_4d_pos.as_entire_binding(),
+                    self.buffers.projection_params.as_entire_binding(),
+                    self.buffers.lighting_params.as_entire_binding(),
+                    self.buffers.view_params.as_entire_binding(),
+                ],
+            ],
+        );
+
+        let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some("compute_3d_vertex_positions"),
+            ..wgpu::ComputePassDescriptor::default()
+        });
+        compute_pass.set_pipeline(
+            pipelines
+                .compute_transform_points(self.model.ndim)
+                .ok_or_eyre("error fetching transform points compute pipeline")?,
+        );
+        for (index, bind_group) in &bind_groups {
+            compute_pass.set_bind_group(*index, bind_group, &[]);
+        }
+
+        dispatch_work_groups(&mut compute_pass, self.model.vertex_count as u32);
+        Ok(())
+    }
+
+    fn render_polygon_ids(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        index_range: Range<u32>,
+    ) -> Result<()> {
+        let pipelines = &self.gfx.pipelines;
+
+        let bind_groups = pipelines.render_polygon_ids_bind_groups.bind_groups(
+            &self.gfx.device,
+            &[&[], &[], &[self.buffers.view_params.as_entire_binding()]],
+        );
+
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("render_polygon_ids"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &self.buffers.first_pass_texture.view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 0.0,
+                    }),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.buffers.depth_texture.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(0.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            ..wgpu::RenderPassDescriptor::default()
+        });
+
+        render_pass.set_pipeline(&pipelines.render_polygon_ids);
+        for (index, bind_group) in &bind_groups {
+            render_pass.set_bind_group(*index, bind_group, &[]);
+        }
+        render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
+        render_pass.set_vertex_buffer(1, self.buffers.vertex_culls.slice(..));
+        render_pass.set_vertex_buffer(2, self.buffers.vertex_lightings.slice(..));
+        render_pass.set_vertex_buffer(3, self.model.polygon_ids.slice(..));
+        render_pass.set_index_buffer(
+            self.buffers.sorted_triangles.slice(..),
+            wgpu::IndexFormat::Uint32,
+        );
+        render_pass.draw_indexed(index_range, 0, 0..1);
+        Ok(())
+    }
+
+    fn render_composite_puzzle(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        composite_params: GfxCompositeParams,
+    ) -> Result<()> {
+        let pipelines = &self.gfx.pipelines;
+
+        self.gfx.queue.write_buffer(
+            &self.buffers.composite_params,
+            0,
+            bytemuck::bytes_of(&composite_params),
+        );
+
+        let bind_groups = pipelines.render_composite_puzzle_bind_groups.bind_groups(
+            &self.gfx.device,
+            &[
+                &[],
+                &[self.model.polygon_color_ids.as_entire_binding()],
+                &[
+                    wgpu::BindingResource::TextureView(&self.buffers.first_pass_texture.view),
+                    wgpu::BindingResource::TextureView(&self.buffers.sticker_colors_texture.view),
+                    wgpu::BindingResource::TextureView(&self.buffers.special_colors_texture.view),
+                ],
+                &[self.buffers.composite_params.as_entire_binding()],
+            ],
+        );
+
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("render_composite_puzzle"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &self.buffers.out_texture.view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            ..wgpu::RenderPassDescriptor::default()
+        });
+
+        render_pass.set_pipeline(&pipelines.render_composite_puzzle);
+        for (index, bind_group) in &bind_groups {
+            render_pass.set_bind_group(*index, bind_group, &[]);
+        }
+        render_pass.set_vertex_buffer(0, self.buffers.composite_vertices.slice(..));
+        render_pass.draw(0..4, 0..1);
+        Ok(())
     }
 }
 
@@ -981,4 +1015,9 @@ fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass<'_>, count: u32) {
     // Divide, rounding up
     let group_count = (count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
     compute_pass.dispatch_workgroups(group_count, 1, 1);
+}
+
+struct OpacityBucket {
+    opacity: f32,
+    index_range: Range<u32>,
 }
