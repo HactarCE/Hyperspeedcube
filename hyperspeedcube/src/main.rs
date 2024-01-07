@@ -45,7 +45,9 @@ mod serde_impl;
 mod util;
 
 const TITLE: &str = "Hyperspeedcube";
+const APP_ID: &str = "Hyperspeedcube";
 const IS_OFFICIAL_BUILD: bool = std::option_env!("HSC_OFFICIAL_BUILD").is_some();
+const ICON_32_PNG_DATA: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
 
 thread_local! {
     static LIBRARY: Library = Library::new();
@@ -56,7 +58,7 @@ lazy_static! {
 static LUA_BUILTIN_DIR: include_dir::Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/../lua");
 
 #[cfg(not(target_arch = "wasm32"))]
-fn main() {
+fn main() -> eframe::Result<()> {
     // Initialize logging.
     env_logger::builder().init();
 
@@ -65,11 +67,11 @@ fn main() {
     #[cfg(not(debug_assertions))]
     init_human_panic();
 
-    pollster::block_on(run2());
+    pollster::block_on(run())
 }
 
 #[cfg(target_arch = "wasm32")]
-fn main() {
+fn main() -> eframe::Result<()> {
     // Initialize logging.
     wasm_logger::init(wasm_logger::Config::default());
 
@@ -82,18 +84,16 @@ fn main() {
     wasm_bindgen_futures::spawn_local(run());
 }
 
-const ICON_32_PNG_DATA: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
-
-async fn run2() {
+async fn run() -> eframe::Result<()> {
     let icon_data = eframe::icon_data::from_png_bytes(ICON_32_PNG_DATA)
         .expect("error loading application icon");
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_app_id("Hyperspeedcube")
-            .with_min_inner_size([400.0, 300.0])
+            .with_title(crate::TITLE)
+            .with_app_id(crate::APP_ID)
             .with_icon(icon_data)
-            .with_title(crate::TITLE),
+            .with_min_inner_size([400.0, 300.0]),
         ..Default::default()
     };
 
@@ -101,10 +101,8 @@ async fn run2() {
         "eframe template",
         native_options,
         Box::new(|cc| Box::new(AppUi::new(cc))),
-    );
+    )
 }
-
-static mut BACKGROUND: egui::Color32 = egui::Color32::from_rgb(64, 64, 64);
 
 impl eframe::App for AppUi {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {

@@ -58,8 +58,8 @@ view_3d:
   piece_explode: 0.2
   outline_thickness: 1.0
   light_ambient: 1.0
-  light_directional: 0.0
-  light_pitch: 0.0
+  light_directional: 1.0
+  light_pitch: 35.0
   light_yaw: 0.0
   active_preset:
     preset_name: Default
@@ -80,8 +80,8 @@ view_3d:
     piece_explode: 0.0
     outline_thickness: 1.0
     light_ambient: 1.0
-    light_directional: 0.0
-    light_pitch: 0.0
+    light_directional: 1.0
+    light_pitch: 35.0
     light_yaw: 0.0
   presets:
     - preset_name: Default
@@ -103,8 +103,8 @@ view_3d:
       piece_explode: 0.0
       outline_thickness: 1.0
       light_ambient: 1.0
-      light_directional: 0.0
-      light_pitch: 0.0
+      light_directional: 1.0
+      light_pitch: 35.0
       light_yaw: 0.0
     - preset_name: Unfolded (back)
       pitch: 0.0
@@ -125,8 +125,8 @@ view_3d:
       piece_explode: 0.0
       outline_thickness: 1.0
       light_ambient: 1.0
-      light_directional: 0.0
-      light_pitch: 0.0
+      light_directional: 1.0
+      light_pitch: 35.0
       light_yaw: 0.0
     - preset_name: Unfolded (front)
       pitch: 0.0
@@ -147,8 +147,8 @@ view_3d:
       piece_explode: 0.0
       outline_thickness: 1.0
       light_ambient: 1.0
-      light_directional: 0.0
-      light_pitch: 0.0
+      light_directional: 1.0
+      light_pitch: 35.0
       light_yaw: 0.0
 view_4d:
   pitch: 35.0
@@ -168,7 +168,7 @@ view_4d:
   sticker_shrink: 0.3
   piece_explode: 0.0
   outline_thickness: 1.0
-  light_ambient: 0.0
+  light_ambient: 1.0
   light_directional: 1.0
   light_pitch: 65.0
   light_yaw: -55.0
@@ -191,7 +191,7 @@ view_4d:
     sticker_shrink: 0.3
     piece_explode: 0.0
     outline_thickness: 1.0
-    light_ambient: 0.0
+    light_ambient: 1.0
     light_directional: 1.0
     light_pitch: 65.0
     light_yaw: -55.0
@@ -214,7 +214,7 @@ view_4d:
       sticker_shrink: 0.3
       piece_explode: 0.0
       outline_thickness: 1.0
-      light_ambient: 0.0
+      light_ambient: 1.0
       light_directional: 1.0
       light_pitch: 65.0
       light_yaw: -55.0

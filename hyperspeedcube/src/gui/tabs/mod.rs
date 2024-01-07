@@ -121,11 +121,9 @@ impl Tab {
 
             Tab::PuzzleView(puzzle_view) => {
                 let mut puzzle_view_mutex_guard = puzzle_view.lock();
-                if let Some(puzzle) = &puzzle_view_mutex_guard.puzzle {
-                    let view_prefs = app.prefs.view(puzzle);
-                    if puzzle_view_mutex_guard.ui(ui, view_prefs) {
-                        app.active_puzzle_view = Arc::downgrade(puzzle_view);
-                    }
+                let r = puzzle_view_mutex_guard.ui(ui, &app.prefs);
+                if r.gained_focus() {
+                    app.active_puzzle_view = Arc::downgrade(puzzle_view);
                 }
             }
 
@@ -389,8 +387,6 @@ impl Tab {
                     });
             }
             Tab::PuzzleLibrary => {
-                ui.color_edit_button_srgba(unsafe { &mut crate::BACKGROUND });
-                ui.separator();
                 let id = egui::Id::new("hyperspeedcube/files");
                 let needs_reload = ui.button("Reload all files").clicked()
                     || ui.data(|data| data.get_temp::<()>(id).is_none())

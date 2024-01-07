@@ -123,6 +123,9 @@ pub struct ViewParams {
     pub rot: Isometry,
     pub zoom: f32,
 
+    pub background_color: egui::Color32,
+    pub outlines_color: egui::Color32,
+
     pub prefs: ViewPreferences,
 }
 impl Default for ViewParams {
@@ -133,6 +136,9 @@ impl Default for ViewParams {
 
             rot: Isometry::ident(),
             zoom: 0.3,
+
+            background_color: egui::Color32::BLACK,
+            outlines_color: egui::Color32::BLACK,
 
             prefs: ViewPreferences::default(),
         }
@@ -337,7 +343,7 @@ impl PuzzleRenderer {
                 ],
             );
 
-            let [r, g, b, _a] = egui::Rgba::from(unsafe { crate::BACKGROUND }).to_array();
+            let [r, g, b, _] = view_params.background_color.to_srgba_unmultiplied();
             let [r, g, b] = [r as f64, g as f64, b as f64];
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render_puzzle"),
@@ -633,8 +639,10 @@ impl PuzzleRenderer {
         self.buffers.sticker_colors_texture.write(&colors_data);
 
         // Write the special colors.
-        let bg = unsafe { crate::BACKGROUND };
-        let colors_data = [[bg[0], bg[1], bg[2], 255], [0, 0, 0, 255]];
+        let colors_data = [
+            view_params.background_color.to_array(),
+            view_params.outlines_color.to_array(),
+        ];
         self.buffers.special_colors_texture.write(&colors_data);
 
         // Write the view parameters.

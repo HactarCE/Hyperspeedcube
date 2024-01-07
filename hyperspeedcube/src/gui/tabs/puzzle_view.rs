@@ -5,7 +5,7 @@ use hyperpuzzle::{Mesh, Puzzle};
 use parking_lot::Mutex;
 
 use crate::{
-    preferences::ViewPreferences,
+    preferences::{Preferences, ViewPreferences},
     render::{GraphicsState, PuzzleRenderResources, PuzzleRenderer, RenderEngine, ViewParams},
 };
 
@@ -44,7 +44,7 @@ impl PuzzleView {
         self.puzzle.as_ref().map(|puzzle| puzzle.ndim())
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, view_prefs: &ViewPreferences) -> bool {
+    pub fn ui(&mut self, ui: &mut egui::Ui, prefs: &Preferences) -> egui::Response {
         let dpi = ui.ctx().pixels_per_point();
 
         // Round rectangle to pixel boundary for crisp image.
@@ -64,16 +64,6 @@ impl PuzzleView {
         self.rect = egui_rect;
 
         let r = ui.allocate_rect(egui_rect, egui::Sense::click_and_drag());
-        let painter = ui.painter_at(egui_rect);
-        painter.add(eframe::egui_wgpu::Callback::new_paint_callback(
-            egui_rect,
-            PuzzleRenderResources {
-                gfx: Arc::clone(&self.gfx),
-                renderer: Arc::clone(&self.renderer),
-                render_engine: self.render_engine,
-                view_params: self.view_params.clone(),
-            },
-        ));
 
         let min_size = egui_rect.size().min_elem();
         const DRAG_SPEED: f32 = 5.0;
@@ -99,7 +89,11 @@ impl PuzzleView {
         self.view_params.width = self.rect.width() as u32;
         self.view_params.height = self.rect.height() as u32;
 
-        self.view_params.prefs = view_prefs.clone();
+        if let Some(puzzle) = &self.puzzle {
+            self.view_params.prefs = prefs.view(puzzle).clone();
+            self.view_params.background_color = prefs.colors.background;
+            self.view_params.outlines_color = prefs.outlines.default_color;
+        }
 
         // Render overlay
         let transform_point = |p: &Vector| -> Option<egui::Pos2> {
@@ -137,13 +131,32 @@ impl PuzzleView {
             })();
         }
 
+        if self.puzzle.is_some() {
+            // Draw puzzle.
+            let painter = ui.painter_at(egui_rect);
+            painter.add(eframe::egui_wgpu::Callback::new_paint_callback(
+                egui_rect,
+                PuzzleRenderResources {
+                    gfx: Arc::clone(&self.gfx),
+                    renderer: Arc::clone(&self.renderer),
+                    render_engine: self.render_engine,
+                    view_params: self.view_params.clone(),
+                },
+            ));
+        } else {
+            // Hint to the user to load a puzzle.
+            ui.allocate_ui_at_rect(egui_rect, |ui| {
+                ui.centered_and_justified(|ui| {
+                    ui.label("Select a puzzle from the puzzle list");
+                });
+            });
+        }
+
         if r.is_pointer_button_down_on() {
             // TODO: request focus not working?
             r.request_focus();
-            true
-        } else {
-            false
         }
+        r
     }
 
     /// Adds an animation to the view settings animation queue.

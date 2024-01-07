@@ -148,17 +148,15 @@ impl<T> PrefsUi<'_, T> {
 }
 
 pub fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
-    ui.label("TODO: color customization");
-    // let puzzle_type = app.puzzle.ty();
-    // let prefs = &mut app.prefs;
+    let prefs = &mut app.prefs;
 
-    // let mut changed = false;
-    // let mut prefs_ui = PrefsUi {
-    //     ui,
-    //     current: &mut prefs.colors,
-    //     defaults: &DEFAULT_PREFS.colors,
-    //     changed: &mut changed,
-    // };
+    let mut changed = false;
+    let mut prefs_ui = PrefsUi {
+        ui,
+        current: &mut prefs.colors,
+        defaults: &DEFAULT_PREFS.colors,
+        changed: &mut changed,
+    };
 
     // prefs_ui.ui.strong("Faces");
     // for (i, &face) in puzzle_type.faces().iter().enumerate() {
@@ -167,15 +165,15 @@ pub fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
 
     // prefs_ui.ui.separator();
 
-    // prefs_ui.ui.strong("Special");
-    // prefs_ui.color("Background", access!(.background));
-    // prefs_ui.color("Blindfolded stickers", access!(.blind_face));
-    // prefs_ui.checkbox("Blindfold mode", access!(.blindfold));
+    prefs_ui.ui.strong("Special");
+    prefs_ui.color("Background", access!(.background));
+    prefs_ui.color("Blindfolded stickers", access!(.blind_face));
+    prefs_ui.checkbox("Blindfold mode", access!(.blindfold));
 
-    // prefs.needs_save |= changed;
-    // if changed {
-    //     app.request_redraw_puzzle();
-    // }
+    prefs.needs_save |= changed;
+    if changed {
+        app.request_redraw_puzzle();
+    }
 }
 pub fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
