@@ -417,11 +417,6 @@ impl PuzzleRenderer {
         // Compute 3D vertex positions on the GPU.
         self.compute_3d_vertex_positions(encoder)?;
 
-        // Compute incremental opacity for each bucket.
-        for i in 0..opacity_buckets.len() - 1 {
-            opacity_buckets[i].opacity -= opacity_buckets[i + 1].opacity;
-        }
-
         // Render each bucket.
         let mut is_first = true;
         for bucket in opacity_buckets {
@@ -441,7 +436,7 @@ impl PuzzleRenderer {
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
-    ) -> Result<Vec<OpacityBucket>> {
+    ) -> Result<Vec<GeometryBucket>> {
         if self.model.is_empty() {
             return Ok(vec![]);
         }
@@ -537,11 +532,13 @@ impl PuzzleRenderer {
             .queue
             .write_buffer(&self.buffers.view_params, 0, bytemuck::bytes_of(&data));
 
-        // Sort pieces into buckets by opacity and write triangle indices.
+        // Sort pieces into buckets by opacity and outlines and write triangle
+        // indices.
         let mut buffer_index = 0;
-        let mut buckets: Vec<OpacityBucket> = vec![];
-        let mut new_bucket = OpacityBucket {
+        let mut buckets: Vec<GeometryBucket> = vec![];
+        let mut new_bucket = GeometryBucket {
             opacity: 1.0,
+            outline_width: 1.0,
             index_range: 0..0,
         };
         for (piece, &opacity) in view_params
@@ -555,8 +552,9 @@ impl PuzzleRenderer {
             }
             if opacity != new_bucket.opacity {
                 buckets.push(new_bucket);
-                new_bucket = OpacityBucket {
+                new_bucket = GeometryBucket {
                     opacity,
+                    outline_width: 1.0,
                     index_range: buffer_index..buffer_index,
                 };
             }
@@ -564,6 +562,12 @@ impl PuzzleRenderer {
             new_bucket.index_range.end = buffer_index;
         }
         buckets.push(new_bucket);
+
+        // Replace absolute opacity with incrmental opacity (difference from
+        // previous bucket).
+        for i in 0..buckets.len() - 1 {
+            buckets[i].opacity -= buckets[i + 1].opacity;
+        }
 
         Ok(buckets)
     }
@@ -1064,7 +1068,8 @@ fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass<'_>, count: u32) {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct OpacityBucket {
+struct GeometryBucket {
     opacity: f32,
+    outline_width: f32,
     index_range: Range<u32>,
 }
