@@ -36,10 +36,8 @@ struct ProjectionParams {
 }
 
 struct LightingParams {
-    dir: vec3<f32>,
+    directional: vec3<f32>,
     ambient: f32,
-    _padding1: vec3<f32>,
-    directional: f32,
 }
 
 struct ViewParams {
@@ -222,10 +220,12 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     // Store the 3D position.
     ret.position = vec4(vertex_2d_position, z, 1.0);
 
+    ret.lighting = lighting_params.ambient;
     // Skip lighting computations if possible.
-    if lighting_params.directional == 0.0 {
-        ret.lighting = lighting_params.ambient;
-    } else {
+    let skip_lighting = lighting_params.directional.x == 0.0
+                     && lighting_params.directional.y == 0.0
+                     && lighting_params.directional.z == 0.0;
+    if !skip_lighting {
         // Let:
         //
         //   [ x  y  z  w ] = the initial 4D point
@@ -250,8 +250,8 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
         let orientation = sign(u_2d.x * v_2d.y - u_2d.y * v_2d.x);
         let normal = normalize(cross(u_3d, v_3d));
 
-        let directional_lighting_amt = dot(normal * orientation, lighting_params.dir) * 0.5 + 0.5;
-        ret.lighting = directional_lighting_amt * lighting_params.directional + lighting_params.ambient;
+        let directional_lighting_amt = dot(normal * orientation, lighting_params.directional) * 0.5 + 0.5;
+        ret.lighting += directional_lighting_amt;
     }
 
     return ret;

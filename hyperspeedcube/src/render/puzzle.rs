@@ -190,6 +190,22 @@ impl ViewParams {
             fov_signum: self.prefs.fov_3d.signum(),
         }
     }
+
+    fn light_ambient_amount(&self) -> f32 {
+        hypermath::util::lerp(
+            0.0,
+            1.0 - self.prefs.light_directional,
+            self.prefs.light_ambient,
+        )
+    }
+    fn light_vector(&self) -> cgmath::Vector3<f32> {
+        use cgmath::{Deg, Matrix3, Vector3};
+
+        Matrix3::from_angle_y(Deg(self.prefs.light_yaw))
+            * Matrix3::from_angle_x(Deg(-self.prefs.light_pitch)) // pitch>0 means light comes from above
+            * Vector3::unit_z()
+            * self.prefs.light_directional
+    }
 }
 
 /// Define a struct with fields, doc comments, and initial values all at once.
@@ -548,10 +564,8 @@ impl PuzzleRenderer {
 
         // Write the lighting parameters.
         let data = GfxLightingParams {
-            dir: [1.0, 0.0, 0.0],
-            ambient: 0.0,
-            _padding1: [0.0; 3],
-            directional: 1.0,
+            dir: view_params.light_vector().into(),
+            ambient: view_params.light_ambient_amount(),
         };
         self.gfx
             .queue
@@ -603,16 +617,6 @@ impl PuzzleRenderer {
 
         // Write the sticker colors.
         let mut colors_data = vec![[127, 127, 127, 255]];
-        // colors_data.extend([
-        //     [255, 0, 0, 255],
-        //     [0, 255, 0, 255],
-        //     [0, 0, 255, 255],
-        //     [255, 255, 0, 255],
-        //     [0, 255, 255, 255],
-        //     [255, 0, 255, 255],
-        //     [255, 255, 255, 255],
-        //     [0, 0, 0, 255],
-        // ]);
         colors_data.extend(
             (0..self.model.color_count)
                 .map(|i| colorous::RAINBOW.eval_rational(i, self.model.color_count))
