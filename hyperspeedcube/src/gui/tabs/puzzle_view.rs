@@ -86,8 +86,8 @@ impl PuzzleView {
                 * Isometry::from_angle_in_axis_plane(1, z_axis, drag_delta.y as Float)
                 * &self.view_params.rot;
 
-        self.view_params.width = self.rect.width() as u32;
-        self.view_params.height = self.rect.height() as u32;
+        self.view_params.width = pixels_rect.width() as u32;
+        self.view_params.height = pixels_rect.height() as u32;
 
         if let Some(puzzle) = &self.puzzle {
             self.view_params.prefs = prefs.view(puzzle).clone();
