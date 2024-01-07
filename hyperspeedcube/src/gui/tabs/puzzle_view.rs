@@ -32,7 +32,7 @@ impl PuzzleView {
             gfx: Arc::clone(gfx),
 
             rect: egui::Rect::NOTHING,
-            render_engine: RenderEngine::SinglePass,
+            render_engine: RenderEngine::default(),
 
             overlay: vec![],
         }
