@@ -1,53 +1,50 @@
-use std::fmt;
 use std::sync::Arc;
 
 use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, Puzzle};
+use parking_lot::Mutex;
 
 use crate::{
     preferences::ViewPreferences,
-    render::{GraphicsState, PuzzleRenderer, ViewParams},
+    render::{GraphicsState, PuzzleRenderResources, PuzzleRenderer, RenderEngine, ViewParams},
 };
 
 #[derive(Debug)]
 pub struct PuzzleView {
     pub puzzle: Option<Arc<Puzzle>>,
-    renderer: PuzzleRenderer,
+    renderer: Arc<Mutex<PuzzleRenderer>>,
     pub view_params: ViewParams,
+    gfx: Arc<GraphicsState>,
 
-    texture_id: egui::TextureId,
     rect: egui::Rect,
+    // TODO: rename this to `render_strategy`
     pub render_engine: RenderEngine,
 
     pub overlay: Vec<(Overlay, f32, egui::Color32)>,
 }
 impl PuzzleView {
-    pub(crate) fn new(gfx: &GraphicsState, egui_renderer: &mut egui_wgpu::Renderer) -> Self {
-        let texture_id = egui_renderer.register_native_texture(
-            &gfx.device,
-            &gfx.dummy_texture_view(),
-            wgpu::FilterMode::Linear,
-        );
-
+    // TODO: remove `cc` parameter if not needed
+    pub(crate) fn new(gfx: &Arc<GraphicsState>) -> Self {
         PuzzleView {
             puzzle: None,
-            renderer: PuzzleRenderer::new(gfx, &Mesh::default()),
+            renderer: Arc::new(Mutex::new(PuzzleRenderer::new(&gfx, &Mesh::default()))),
             view_params: ViewParams::default(),
+            gfx: Arc::clone(gfx),
 
-            texture_id,
             rect: egui::Rect::NOTHING,
             render_engine: RenderEngine::SinglePass,
 
             overlay: vec![],
         }
     }
-    pub(crate) fn set_mesh(&mut self, gfx: &GraphicsState, mesh: &Mesh) {
-        self.renderer = PuzzleRenderer::new(gfx, mesh);
+    pub(crate) fn set_mesh(&mut self, mesh: &Mesh) {
+        self.renderer = Arc::new(Mutex::new(PuzzleRenderer::new(&self.gfx, mesh)));
     }
     pub(crate) fn ndim(&self) -> Option<u8> {
         self.puzzle.as_ref().map(|puzzle| puzzle.ndim())
     }
-    pub fn ui(&mut self, ui: &mut egui::Ui) -> bool {
+
+    pub fn ui(&mut self, ui: &mut egui::Ui, view_prefs: &ViewPreferences) -> bool {
         let dpi = ui.ctx().pixels_per_point();
 
         // Round rectangle to pixel boundary for crisp image.
@@ -66,11 +63,17 @@ impl PuzzleView {
 
         self.rect = egui_rect;
 
-        let r = ui.put(
+        let r = ui.allocate_rect(egui_rect, egui::Sense::click_and_drag());
+        let painter = ui.painter_at(egui_rect);
+        painter.add(eframe::egui_wgpu::Callback::new_paint_callback(
             egui_rect,
-            egui::Image::new((self.texture_id, egui_rect.size()))
-                .sense(egui::Sense::click_and_drag()),
-        );
+            PuzzleRenderResources {
+                gfx: Arc::clone(&self.gfx),
+                renderer: Arc::clone(&self.renderer),
+                render_engine: self.render_engine,
+                view_params: self.view_params.clone(),
+            },
+        ));
 
         let min_size = egui_rect.size().min_elem();
         const DRAG_SPEED: f32 = 5.0;
@@ -92,6 +95,11 @@ impl PuzzleView {
             Isometry::from_angle_in_axis_plane(0, z_axis, -drag_delta.x as Float)
                 * Isometry::from_angle_in_axis_plane(1, z_axis, drag_delta.y as Float)
                 * &self.view_params.rot;
+
+        self.view_params.width = self.rect.width() as u32;
+        self.view_params.height = self.rect.height() as u32;
+
+        self.view_params.prefs = view_prefs.clone();
 
         // Render overlay
         let transform_point = |p: &Vector| -> Option<egui::Pos2> {
@@ -138,65 +146,10 @@ impl PuzzleView {
         }
     }
 
-    pub(crate) fn render_and_update_texture(
-        &mut self,
-        gfx: &GraphicsState,
-        egui_ctx: &egui::Context,
-        egui_renderer: &mut egui_wgpu::Renderer,
-        encoder: &mut wgpu::CommandEncoder,
-        view_prefs: ViewPreferences,
-    ) {
-        let view_params = &mut self.view_params;
-
-        view_params.width = self.rect.width() as u32;
-        view_params.height = self.rect.height() as u32;
-
-        view_params.prefs = view_prefs;
-
-        let new_texture = match self.render_engine {
-            RenderEngine::SinglePass => {
-                self.renderer
-                    .draw_puzzle_single_pass(gfx, encoder, &view_params)
-            }
-            RenderEngine::MultiPass => self.renderer.draw_puzzle(gfx, encoder, &view_params),
-        };
-
-        // Draw puzzle if necessary.
-        if let Ok(texture) = new_texture {
-            log::trace!("Updating puzzle texture");
-
-            // Update texture for egui.
-            egui_renderer.update_egui_texture_from_wgpu_texture(
-                &gfx.device,
-                texture,
-                wgpu::FilterMode::Linear,
-                self.texture_id,
-            );
-
-            // Request a repaint.
-            egui_ctx.request_repaint();
-        }
-    }
-
     /// Adds an animation to the view settings animation queue.
     pub fn animate_from_view_settings(&mut self, view_prefs: ViewPreferences) {
         // TODO: animate
         // self.view_settings_anim.queue.push_back(view_prefs);
-    }
-}
-
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum RenderEngine {
-    SinglePass,
-    #[default]
-    MultiPass,
-}
-impl fmt::Display for RenderEngine {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RenderEngine::SinglePass => write!(f, "Fast"),
-            RenderEngine::MultiPass => write!(f, "Fancy"),
-        }
     }
 }
 

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::GraphicsState;
 
 pub(super) struct CachedDynamicBuffer {
@@ -61,77 +63,140 @@ impl CachedDynamicBuffer {
     }
 }
 
-pub(super) struct CachedTexture {
+pub(crate) type CachedTexture1d = CachedTexture<u32>;
+impl CachedTexture1d {
+    pub fn new(
+        gfx: Arc<GraphicsState>,
+        label: String,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
+    ) -> Self {
+        Self::new_generic(CachedTextureInner {
+            gfx,
+
+            label,
+            dimension: wgpu::TextureDimension::D1,
+            format,
+            usage,
+
+            size: 1,
+            size_to_extent_3d: |x| wgpu::Extent3d {
+                width: x,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        })
+    }
+
+    pub fn write<T: bytemuck::Pod>(&mut self, data: &[T]) {
+        self.set_size(data.len() as u32);
+        self.inner.gfx.queue.write_texture(
+            self.texture.as_image_copy(),
+            bytemuck::cast_slice(data),
+            wgpu::ImageDataLayout::default(),
+            self.inner.extent_3d(),
+        );
+    }
+}
+
+pub(crate) type CachedTexture2d = CachedTexture<[u32; 2]>;
+impl CachedTexture2d {
+    pub fn new(
+        gfx: Arc<GraphicsState>,
+        label: String,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
+    ) -> Self {
+        Self::new_generic(CachedTextureInner {
+            gfx,
+
+            label,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage,
+
+            size: [1, 1],
+            size_to_extent_3d: |[x, y]| wgpu::Extent3d {
+                width: x,
+                height: y,
+                depth_or_array_layers: 1,
+            },
+        })
+    }
+}
+
+pub(crate) struct CachedTexture<S> {
+    pub view: wgpu::TextureView,
+    pub linear_view: wgpu::TextureView,
+    pub srgb_view: wgpu::TextureView,
+
+    pub texture: wgpu::Texture,
+
+    inner: CachedTextureInner<S>,
+}
+impl<S: PartialEq + Copy> CachedTexture<S> {
+    fn new_generic(inner: CachedTextureInner<S>) -> Self {
+        let texture = inner.gfx.create_texture(wgpu::TextureDescriptor {
+            label: Some(&inner.label),
+            size: inner.extent_3d(),
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: inner.dimension,
+            format: inner.format,
+            usage: inner.usage,
+            view_formats: &[
+                inner.format.add_srgb_suffix(),
+                inner.format.remove_srgb_suffix(),
+            ],
+        });
+
+        let view_descriptor = |format| wgpu::TextureViewDescriptor {
+            format,
+            ..Default::default()
+        };
+
+        CachedTexture {
+            view: texture.create_view(&view_descriptor(None)),
+            linear_view: texture
+                .create_view(&view_descriptor(Some(inner.format.remove_srgb_suffix()))),
+            srgb_view: texture.create_view(&view_descriptor(Some(inner.format.add_srgb_suffix()))),
+
+            texture,
+
+            inner,
+        }
+    }
+
+    pub fn clone(&self, label: String) -> Self {
+        Self::new_generic(CachedTextureInner {
+            label,
+            ..self.inner.clone()
+        })
+    }
+
+    pub fn set_size(&mut self, size: S) {
+        // Invalidate the buffer if it is the wrong size.
+        if size != self.inner.size {
+            self.inner.size = size;
+            *self = Self::new_generic(self.inner.clone());
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CachedTextureInner<S> {
+    gfx: Arc<GraphicsState>,
+
     label: String,
     dimension: wgpu::TextureDimension,
     format: wgpu::TextureFormat,
     usage: wgpu::TextureUsages,
 
-    size: Option<wgpu::Extent3d>,
-    texture: Option<(wgpu::Texture, wgpu::TextureView)>,
+    size: S,
+    size_to_extent_3d: fn(S) -> wgpu::Extent3d,
 }
-impl CachedTexture {
-    pub fn new(
-        label: String,
-        dimension: wgpu::TextureDimension,
-        format: wgpu::TextureFormat,
-        usage: wgpu::TextureUsages,
-    ) -> Self {
-        CachedTexture {
-            label,
-            dimension,
-            format,
-            usage,
-
-            size: None,
-            texture: None,
-        }
-    }
-    pub fn new_2d(label: String, format: wgpu::TextureFormat, usage: wgpu::TextureUsages) -> Self {
-        Self::new(label, wgpu::TextureDimension::D2, format, usage)
-    }
-    pub fn new_1d(label: String, format: wgpu::TextureFormat, usage: wgpu::TextureUsages) -> Self {
-        Self::new(label, wgpu::TextureDimension::D1, format, usage)
-    }
-
-    pub fn clone(&self, label: String) -> Self {
-        Self {
-            label,
-            dimension: self.dimension,
-            format: self.format,
-            usage: self.usage,
-
-            size: None,
-            texture: None,
-        }
-    }
-
-    pub fn at_size(
-        &mut self,
-        gfx: &GraphicsState,
-        size: wgpu::Extent3d,
-    ) -> &(wgpu::Texture, wgpu::TextureView) {
-        // Invalidate the buffer if it is the wrong size.
-        if self.size != Some(size) {
-            self.texture = None;
-        }
-
-        self.texture.get_or_insert_with(|| {
-            self.size = Some(size);
-            gfx.create_texture(wgpu::TextureDescriptor {
-                label: Some(&self.label),
-                size,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: self.dimension,
-                format: self.format,
-                usage: self.usage,
-                view_formats: &[],
-            })
-        })
-    }
-
-    pub fn get(&self) -> Option<&(wgpu::Texture, wgpu::TextureView)> {
-        self.texture.as_ref()
+impl<S: Copy> CachedTextureInner<S> {
+    fn extent_3d(&self) -> wgpu::Extent3d {
+        (self.size_to_extent_3d)(self.size)
     }
 }

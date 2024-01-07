@@ -73,6 +73,13 @@ mod bindings {
             view_dimension: wgpu::TextureViewDimension::D1,
             multisampled: false,
         });
+
+        BLIT_TEXTURE = (0, wgpu::BindingType::Texture {
+            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+            view_dimension: wgpu::TextureViewDimension::D2,
+            multisampled: false,
+        });
+        BLIT_TEXTURE_SAMPLER = (1, wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering));
     }
 }
 
@@ -95,7 +102,7 @@ macro_rules! bind_groups {
     }};
 }
 
-macro_rules! include_wgsl_with_params {
+macro_rules! include_wgsl {
     ($file_path:literal $(, $var:ident)* $(,)?) => {
         wgpu::ShaderModuleDescriptor {
             label: Some($file_path),
@@ -131,7 +138,7 @@ macro_rules! blend_component {
     };
 }
 
-pub(super) struct Pipelines {
+pub(crate) struct Pipelines {
     /// Pipeline to populate `vertex_3d_positions`, `vertex_lightings`, and
     /// `vertex_culls`.
     pub compute_transform_points: Vec<wgpu::ComputePipeline>,
@@ -147,9 +154,12 @@ pub(super) struct Pipelines {
 
     pub render_single_pass: Vec<wgpu::RenderPipeline>,
     pub render_single_pass_bind_groups: PipelineBindGroups,
+
+    pub blit: wgpu::RenderPipeline,
+    pub blit_bind_groups: PipelineBindGroups,
 }
 impl Pipelines {
-    pub(super) fn new(device: &wgpu::Device) -> Self {
+    pub(super) fn new(device: &wgpu::Device, target_format: wgpu::TextureFormat) -> Self {
         fn make_compute_pipeline(
             device: &wgpu::Device,
             shader_module: &wgpu::ShaderModule,
@@ -192,7 +202,7 @@ impl Pipelines {
         }
 
         let shader_modules = (MIN_NDIM..=MAX_NDIM)
-            .map(|ndim| device.create_shader_module(include_wgsl_with_params!("shader.wgsl", ndim)))
+            .map(|ndim| device.create_shader_module(include_wgsl!("shader.wgsl", ndim)))
             .collect_vec();
 
         let compute_transform_points_bind_groups = PipelineBindGroups::new(
@@ -290,7 +300,7 @@ impl Pipelines {
                     ..Default::default()
                 },
                 fragment_target: Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
                     blend: Some(wgpu::BlendState {
                         color: blend_component!(Add(src * SrcAlpha, dst * One)),
                         alpha: blend_component!(Add(src * One, dst * One)),
@@ -350,7 +360,7 @@ impl Pipelines {
                             bias: wgpu::DepthBiasState::default(),
                         }),
                         fragment_target: Some(wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8Unorm,
+                            format: wgpu::TextureFormat::Rgba8UnormSrgb,
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         }),
@@ -359,6 +369,31 @@ impl Pipelines {
                 )
             })
             .collect_vec();
+
+        let shader_module = device.create_shader_module(include_wgsl!("blit.wgsl"));
+        let blit_bind_groups = PipelineBindGroups::new(
+            "blit",
+            device,
+            bind_groups![
+                0 => [
+                    pub(FRAGMENT) BLIT_TEXTURE,
+                    pub(FRAGMENT) BLIT_TEXTURE_SAMPLER,
+                ]
+            ],
+        );
+        let blit = make_render_pipeline(
+            device,
+            &shader_module,
+            &blit_bind_groups,
+            BasicRenderPipelineDescriptor {
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleStrip,
+                    ..Default::default()
+                },
+                fragment_target: Some(wgpu::ColorTargetState::from(target_format)),
+                ..Default::default()
+            },
+        );
 
         // TODO: lazily create pipelines
         Self {
@@ -373,6 +408,9 @@ impl Pipelines {
 
             render_single_pass,
             render_single_pass_bind_groups,
+
+            blit,
+            blit_bind_groups,
         }
     }
 
@@ -387,7 +425,7 @@ impl Pipelines {
     }
 }
 
-pub(super) struct PipelineBindGroups {
+pub(crate) struct PipelineBindGroups {
     label: String,
     bind_group_layouts: Vec<(
         wgpu::BindGroupLayout,

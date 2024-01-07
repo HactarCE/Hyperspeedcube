@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::Arc;
 
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
@@ -7,106 +8,32 @@ use super::pipelines::Pipelines;
 
 /// Graphics state for the whole window.
 pub(crate) struct GraphicsState {
-    pub(crate) size: winit::dpi::PhysicalSize<u32>,
-    pub(crate) surface: wgpu::Surface,
-    pub(crate) device: wgpu::Device,
-    pub(crate) queue: wgpu::Queue,
-    pub(crate) config: wgpu::SurfaceConfiguration,
+    pub(crate) device: Arc<wgpu::Device>,
+    pub(crate) queue: Arc<wgpu::Queue>,
+    pub(crate) target_format: wgpu::TextureFormat,
 
-    pub(super) pipelines: Pipelines,
-
-    pub(crate) scale_factor: f32,
-
-    /// 1x1 texture used as a temporary value. Its contents are not important.
-    #[allow(unused)]
-    dummy_texture: wgpu::Texture,
-    dummy_texture_view: wgpu::TextureView,
+    pub(crate) pipelines: Pipelines,
+}
+impl fmt::Debug for GraphicsState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GraphicsState").finish_non_exhaustive()
+    }
 }
 impl GraphicsState {
-    pub(crate) async fn new(window: &winit::window::Window) -> Self {
-        let size = window.inner_size();
+    pub(crate) fn new(render_state: &eframe::egui_wgpu::RenderState) -> Self {
+        let device = Arc::clone(&render_state.device);
+        let queue = Arc::clone(&render_state.queue);
+        let target_format = render_state.target_format;
 
-        // Create surface.
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
-        let surface =
-            unsafe { instance.create_surface(&window) }.expect("failed to create surface");
-
-        // Request adapter.
-        let adapter = request_adapter(&instance, &surface).await;
-
-        // Request device.
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::empty(),
-                    limits: if cfg!(target_arch = "wasm32") {
-                        wgpu::Limits::downlevel_webgl2_defaults()
-                    } else {
-                        wgpu::Limits::default()
-                    },
-                    label: None,
-                },
-                None,
-            )
-            .await
-            .unwrap();
-
-        // Configure surface.
-        // TODO: consider different VSync modes
-        let config = surface
-            .get_default_config(&adapter, size.width, size.height)
-            .expect("unsupported surface");
-        surface.configure(&device, &config);
-
-        let pipelines = Pipelines::new(&device);
-
-        let scale_factor = window.scale_factor() as f32;
-
-        let dummy_texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("dummy_texture"),
-            size: wgpu::Extent3d::default(),
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: config.format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-        let dummy_texture_view = dummy_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let pipelines = Pipelines::new(&device, target_format);
 
         Self {
-            size,
-            surface,
             device,
             queue,
-            config,
+            target_format,
 
             pipelines,
-
-            scale_factor,
-
-            dummy_texture,
-            dummy_texture_view,
         }
-    }
-
-    pub(crate) fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        if new_size.width > 0 && new_size.height > 0 {
-            self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
-        }
-    }
-
-    pub(crate) fn set_scale_factor(&mut self, new_scale_factor: f32) {
-        self.scale_factor = new_scale_factor;
-    }
-
-    /// Returns a 1x1 texture used as a temporary value. Its contents are not
-    /// important.
-    pub(crate) fn dummy_texture_view(&self) -> &wgpu::TextureView {
-        &self.dummy_texture_view
     }
 
     pub(super) fn create_buffer_init<T: Default + bytemuck::NoUninit>(
@@ -148,10 +75,7 @@ impl GraphicsState {
         )
     }
 
-    pub(super) fn create_texture(
-        &self,
-        mut desc: wgpu::TextureDescriptor,
-    ) -> (wgpu::Texture, wgpu::TextureView) {
+    pub(super) fn create_texture(&self, mut desc: wgpu::TextureDescriptor<'_>) -> wgpu::Texture {
         fn clamp_u32(n: &mut u32, limit: u32) {
             if *n > limit {
                 *n = limit;
@@ -177,8 +101,7 @@ impl GraphicsState {
         }
 
         let tex = self.device.create_texture(&desc);
-        let view = tex.create_view(&wgpu::TextureViewDescriptor::default()); // TODO: consider not creating a view here
-        (tex, view)
+        tex
     }
 
     pub(super) fn create_bind_group_of_buffers(
@@ -251,22 +174,4 @@ impl GraphicsState {
                     .collect_vec(),
             })
     }
-}
-
-async fn request_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::Adapter {
-    let mut opts = wgpu::RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::HighPerformance,
-        compatible_surface: Some(surface),
-        force_fallback_adapter: false,
-    };
-
-    if let Some(adapter) = instance.request_adapter(&opts).await {
-        return adapter;
-    }
-    opts.force_fallback_adapter = true;
-    if let Some(adapter) = instance.request_adapter(&opts).await {
-        return adapter;
-    }
-
-    panic!("unable to request graphics adapter")
 }

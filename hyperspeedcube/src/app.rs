@@ -13,8 +13,7 @@ use crate::preferences::Preferences;
 use crate::render::GraphicsState;
 
 pub struct App {
-    pub(crate) gfx: GraphicsState,
-    events: EventLoopProxy<AppEvent>,
+    pub(crate) gfx: Arc<GraphicsState>,
 
     pub(crate) prefs: Preferences,
 
@@ -22,14 +21,11 @@ pub struct App {
 }
 
 impl App {
-    pub(crate) async fn new(
-        window: &Window,
-        event_loop: &EventLoop<AppEvent>,
-        _initial_file: Option<PathBuf>,
-    ) -> Self {
+    pub(crate) fn new(cc: &eframe::CreationContext<'_>, _initial_file: Option<PathBuf>) -> Self {
         Self {
-            gfx: GraphicsState::new(&window).await,
-            events: event_loop.create_proxy(),
+            gfx: Arc::new(GraphicsState::new(
+                cc.wgpu_render_state.as_ref().expect("no wgpu render state"),
+            )),
 
             prefs: Preferences::load(None),
 
@@ -70,24 +66,12 @@ impl App {
             Ok(p) => {
                 if let Some(puzzle_view) = self.active_puzzle_view.upgrade() {
                     log::info!("set active puzzle!");
-                    puzzle_view.lock().set_mesh(&self.gfx, &p.mesh);
+                    puzzle_view.lock().set_mesh(&p.mesh);
                     puzzle_view.lock().puzzle = Some(p);
                 } else {
                     log::warn!("no active puzzle view");
                 }
             }
-        }
-    }
-
-    pub(crate) fn handle_window_event(&mut self, ev: &WindowEvent<'_>) {
-        // TODO
-        match ev {
-            WindowEvent::CloseRequested => self
-                .events
-                .send_event(AppEvent::Exit)
-                .expect("failed to send event"),
-
-            _ => (),
         }
     }
 

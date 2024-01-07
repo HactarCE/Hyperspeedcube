@@ -12,7 +12,8 @@ mod puzzle_view;
 
 // pub use debug::PolytopeTree;
 // pub use puzzle_setup::PuzzleSetup;
-pub use puzzle_view::{PuzzleView, RenderEngine};
+use crate::render::RenderEngine;
+pub use puzzle_view::PuzzleView;
 
 use super::App;
 
@@ -119,8 +120,12 @@ impl Tab {
             }
 
             Tab::PuzzleView(puzzle_view) => {
-                if puzzle_view.lock().ui(ui) {
-                    app.active_puzzle_view = Arc::downgrade(puzzle_view);
+                let mut puzzle_view_mutex_guard = puzzle_view.lock();
+                if let Some(puzzle) = &puzzle_view_mutex_guard.puzzle {
+                    let view_prefs = app.prefs.view(puzzle);
+                    if puzzle_view_mutex_guard.ui(ui, view_prefs) {
+                        app.active_puzzle_view = Arc::downgrade(puzzle_view);
+                    }
                 }
             }
 

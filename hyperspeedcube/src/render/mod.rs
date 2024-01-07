@@ -9,8 +9,8 @@ mod structs;
 
 // use crate::app::App;
 // use crate::puzzle::ProjectedStickerGeometry;
-use cache::CachedTexture;
-pub(crate) use puzzle::{PuzzleRenderer, ViewParams};
+use cache::{CachedTexture1d, CachedTexture2d};
+pub(crate) use puzzle::{PuzzleRenderResources, PuzzleRenderer, RenderEngine, ViewParams};
 pub(crate) use state::GraphicsState;
 use structs::*;
 
