@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use egui_dock::NodeIndex;
 use parking_lot::Mutex;
 
 macro_rules! unique_id {
@@ -39,15 +40,21 @@ impl AppUi {
 
         let puzzle_view = Arc::new(Mutex::new(PuzzleView::new(&app.gfx)));
         app.active_puzzle_view = Arc::downgrade(&puzzle_view);
-        let dock_state = egui_dock::DockState::new(vec![
-            Tab::PuzzleView(puzzle_view),
-            Tab::PuzzleLibrary,
-            Tab::ViewSettings,
-            Tab::InteractionSettings,
-            Tab::AppearanceSettings,
-            Tab::LuaLogs,
-            Tab::PuzzleInfo,
-        ]);
+        let mut dock_state = egui_dock::DockState::new(vec![Tab::PuzzleView(puzzle_view)]);
+        let main = NodeIndex::root();
+        let surface = dock_state.main_surface_mut();
+        let [main, left] = surface.split_left(main, 0.2, vec![Tab::PuzzleLibrary]);
+        surface.split_below(left, 0.7, vec![Tab::PuzzleInfo]);
+        surface.split_right(
+            main,
+            0.6,
+            vec![
+                Tab::LuaLogs,
+                Tab::AppearanceSettings,
+                Tab::InteractionSettings,
+                Tab::ViewSettings,
+            ],
+        );
 
         AppUi { app, dock_state }
     }
