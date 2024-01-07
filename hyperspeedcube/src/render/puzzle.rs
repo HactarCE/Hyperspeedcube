@@ -343,7 +343,7 @@ impl PuzzleRenderer {
                 ],
             );
 
-            let [r, g, b, _] = view_params.background_color.to_srgba_unmultiplied();
+            let [r, g, b, _] = egui::Rgba::from(view_params.background_color).to_array();
             let [r, g, b] = [r as f64, g as f64, b as f64];
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render_puzzle"),
