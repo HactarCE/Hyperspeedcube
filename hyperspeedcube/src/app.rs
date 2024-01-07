@@ -66,7 +66,7 @@ impl App {
             Ok(p) => {
                 if let Some(puzzle_view) = self.active_puzzle_view.upgrade() {
                     log::info!("set active puzzle!");
-                    puzzle_view.lock().set_mesh(&p.mesh);
+                    puzzle_view.lock().set_puzzle(Arc::clone(&p));
                     puzzle_view.lock().puzzle = Some(p);
                 } else {
                     log::warn!("no active puzzle view");

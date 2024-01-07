@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hypermath::prelude::*;
-use hyperpuzzle::{Mesh, Puzzle};
+use hyperpuzzle::{Mesh, Piece, Puzzle};
 use parking_lot::Mutex;
 
 use crate::{
@@ -12,13 +12,15 @@ use crate::{
 #[derive(Debug)]
 pub struct PuzzleView {
     pub puzzle: Option<Arc<Puzzle>>,
-    renderer: Arc<Mutex<PuzzleRenderer>>,
+    renderer: Option<Arc<Mutex<PuzzleRenderer>>>,
     pub view_params: ViewParams,
     gfx: Arc<GraphicsState>,
 
     rect: egui::Rect,
     // TODO: rename this to `render_strategy`
     pub render_engine: RenderEngine,
+
+    highlighted_piece_types: [bool; 10],
 
     pub overlay: Vec<(Overlay, f32, egui::Color32)>,
 }
@@ -27,18 +29,22 @@ impl PuzzleView {
     pub(crate) fn new(gfx: &Arc<GraphicsState>) -> Self {
         PuzzleView {
             puzzle: None,
-            renderer: Arc::new(Mutex::new(PuzzleRenderer::new(&gfx, &Mesh::default()))),
+            renderer: None,
             view_params: ViewParams::default(),
             gfx: Arc::clone(gfx),
 
             rect: egui::Rect::NOTHING,
             render_engine: RenderEngine::default(),
 
+            highlighted_piece_types: [true; 10],
+
             overlay: vec![],
         }
     }
-    pub(crate) fn set_mesh(&mut self, mesh: &Mesh) {
-        self.renderer = Arc::new(Mutex::new(PuzzleRenderer::new(&self.gfx, mesh)));
+    pub(crate) fn set_puzzle(&mut self, puzzle: Arc<Puzzle>) {
+        self.view_params.piece_opacities = puzzle.pieces.map_ref(|_, _| 1.0);
+        self.puzzle = Some(Arc::clone(&puzzle));
+        self.renderer = Some(Arc::new(Mutex::new(PuzzleRenderer::new(&self.gfx, puzzle))));
     }
     pub(crate) fn ndim(&self) -> Option<u8> {
         self.puzzle.as_ref().map(|puzzle| puzzle.ndim())
@@ -64,6 +70,20 @@ impl PuzzleView {
         self.rect = egui_rect;
 
         let r = ui.allocate_rect(egui_rect, egui::Sense::click_and_drag());
+        if r.is_pointer_button_down_on() {
+            // TODO: request focus not working?
+            r.request_focus();
+        }
+
+        let (Some(puzzle), Some(renderer)) = (&self.puzzle, &self.renderer) else {
+            // Hint to the user to load a puzzle.
+            ui.allocate_ui_at_rect(egui_rect, |ui| {
+                ui.centered_and_justified(|ui| {
+                    ui.label("Select a puzzle from the puzzle list");
+                });
+            });
+            return r;
+        };
 
         let min_size = egui_rect.size().min_elem();
         const DRAG_SPEED: f32 = 5.0;
@@ -88,12 +108,56 @@ impl PuzzleView {
 
         self.view_params.width = pixels_rect.width() as u32;
         self.view_params.height = pixels_rect.height() as u32;
-
-        if let Some(puzzle) = &self.puzzle {
-            self.view_params.prefs = prefs.view(puzzle).clone();
-            self.view_params.background_color = prefs.colors.background;
-            self.view_params.outlines_color = prefs.outlines.default_color;
+        if r.has_focus() {
+            ui.input(|input| {
+                if input.key_pressed(egui::Key::Num1) {
+                    self.highlighted_piece_types[1] ^= true;
+                }
+                if input.key_pressed(egui::Key::Num2) {
+                    self.highlighted_piece_types[2] ^= true;
+                }
+                if input.key_pressed(egui::Key::Num3) {
+                    self.highlighted_piece_types[3] ^= true;
+                }
+                if input.key_pressed(egui::Key::Num4) {
+                    self.highlighted_piece_types[4] ^= true;
+                }
+                if input.key_pressed(egui::Key::Num5) {
+                    self.highlighted_piece_types[5] ^= true;
+                }
+                if input.key_pressed(egui::Key::Num6) {
+                    self.highlighted_piece_types[6] ^= true;
+                }
+                if input.key_pressed(egui::Key::Num7) {
+                    self.highlighted_piece_types[7] ^= true;
+                }
+                if input.key_pressed(egui::Key::Num8) {
+                    self.highlighted_piece_types[8] ^= true;
+                }
+                if input.key_pressed(egui::Key::Num9) {
+                    self.highlighted_piece_types[9] ^= true;
+                }
+                if input.key_pressed(egui::Key::Num0) {
+                    self.highlighted_piece_types[0] ^= true;
+                }
+            });
         }
+        self.view_params.piece_opacities = puzzle.pieces.map_ref(|piece, info| {
+            let sticker_count = info.stickers.len();
+            let fallback = self.highlighted_piece_types[0];
+            match self
+                .highlighted_piece_types
+                .get(sticker_count)
+                .unwrap_or(&fallback)
+            {
+                true => 1.0,
+                false => 0.2,
+            }
+        });
+
+        self.view_params.prefs = prefs.view(puzzle).clone();
+        self.view_params.background_color = prefs.colors.background;
+        self.view_params.outlines_color = prefs.outlines.default_color;
 
         // Render overlay
         let transform_point = |p: &Vector| -> Option<egui::Pos2> {
@@ -131,31 +195,18 @@ impl PuzzleView {
             })();
         }
 
-        if self.puzzle.is_some() {
-            // Draw puzzle.
-            let painter = ui.painter_at(egui_rect);
-            painter.add(eframe::egui_wgpu::Callback::new_paint_callback(
-                egui_rect,
-                PuzzleRenderResources {
-                    gfx: Arc::clone(&self.gfx),
-                    renderer: Arc::clone(&self.renderer),
-                    render_engine: self.render_engine,
-                    view_params: self.view_params.clone(),
-                },
-            ));
-        } else {
-            // Hint to the user to load a puzzle.
-            ui.allocate_ui_at_rect(egui_rect, |ui| {
-                ui.centered_and_justified(|ui| {
-                    ui.label("Select a puzzle from the puzzle list");
-                });
-            });
-        }
+        // Draw puzzle.
+        let painter = ui.painter_at(egui_rect);
+        painter.add(eframe::egui_wgpu::Callback::new_paint_callback(
+            egui_rect,
+            PuzzleRenderResources {
+                gfx: Arc::clone(&self.gfx),
+                renderer: Arc::clone(&renderer),
+                render_engine: self.render_engine,
+                view_params: self.view_params.clone(),
+            },
+        ));
 
-        if r.is_pointer_button_down_on() {
-            // TODO: request focus not working?
-            r.request_focus();
-        }
         r
     }
 

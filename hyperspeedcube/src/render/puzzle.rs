@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use eyre::{bail, eyre, OptionExt, Result};
 use hypermath::prelude::*;
-use hyperpuzzle::{Mesh, PerPiece, PerSticker};
+use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, Puzzle};
 use itertools::Itertools;
 use parking_lot::Mutex;
 
@@ -127,6 +127,8 @@ pub struct ViewParams {
     pub outlines_color: egui::Color32,
 
     pub prefs: ViewPreferences,
+
+    pub piece_opacities: PerPiece<f32>,
 }
 impl Default for ViewParams {
     fn default() -> Self {
@@ -141,6 +143,8 @@ impl Default for ViewParams {
             outlines_color: egui::Color32::BLACK,
 
             prefs: ViewPreferences::default(),
+
+            piece_opacities: PerPiece::default(),
         }
     }
 }
@@ -272,21 +276,25 @@ pub(crate) struct PuzzleRenderer {
     model: Arc<StaticPuzzleModel>,
     /// GPU dynamic buffers, whose contents do change.
     buffers: DynamicPuzzleBuffers,
+    /// Puzzle info.
+    puzzle: Arc<Puzzle>,
 }
 
 impl PuzzleRenderer {
-    pub fn new(gfx: &Arc<GraphicsState>, mesh: &Mesh) -> Self {
+    pub fn new(gfx: &Arc<GraphicsState>, puzzle: Arc<Puzzle>) -> Self {
         let id = next_buffer_id();
         PuzzleRenderer {
             gfx: Arc::clone(gfx),
-            model: Arc::new(StaticPuzzleModel::new(&gfx, mesh, id)),
-            buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), mesh, id),
+            model: Arc::new(StaticPuzzleModel::new(&gfx, &puzzle.mesh, id)),
+            buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &puzzle.mesh, id),
+            puzzle,
         }
     }
 
     pub fn clone(&self) -> Self {
         Self {
             gfx: Arc::clone(&self.gfx),
+            puzzle: Arc::clone(&self.puzzle),
             model: Arc::clone(&self.model),
             buffers: self.buffers.clone(&self.gfx),
         }
@@ -395,12 +403,10 @@ impl PuzzleRenderer {
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
     ) -> Result<()> {
-        let opacity_buckets = self.init_buffers(encoder, view_params)?;
+        let mut opacity_buckets = self.init_buffers(encoder, view_params)?;
         if opacity_buckets.is_empty() {
             return Ok(());
         }
-        let index_range =
-            opacity_buckets[0].index_range.start..opacity_buckets.last().unwrap().index_range.end;
 
         // Make the textures the right size.
         let size = [view_params.width, view_params.height];
@@ -411,17 +417,21 @@ impl PuzzleRenderer {
         // Compute 3D vertex positions on the GPU.
         self.compute_3d_vertex_positions(encoder)?;
 
-        // Render first pass.
-        self.render_polygon_ids(encoder, index_range)?;
+        // Compute incremental opacity for each bucket.
+        for i in 0..opacity_buckets.len() - 1 {
+            opacity_buckets[i].opacity -= opacity_buckets[i + 1].opacity;
+        }
 
-        // Render second pass.
-        self.render_composite_puzzle(
-            encoder,
-            GfxCompositeParams {
-                alpha: 1.0,
-                outline_radius: 1,
-            },
-        )?;
+        // Render each bucket.
+        let mut is_first = true;
+        for bucket in opacity_buckets {
+            let composite_params = GfxCompositeParams { outline_radius: 1 };
+
+            self.render_polygon_ids(encoder, bucket.index_range, is_first)?;
+            self.render_composite_puzzle(encoder, composite_params, bucket.opacity, is_first)?;
+
+            is_first = false;
+        }
 
         Ok(())
     }
@@ -467,7 +477,7 @@ impl PuzzleRenderer {
         );
 
         // Write the piece transforms.
-        let piece_transforms = vec![Matrix::ident(self.model.ndim); self.model.piece_count];
+        let piece_transforms = vec![Matrix::ident(self.model.ndim); self.puzzle.pieces.len()];
         let piece_transforms_data: Vec<f32> = piece_transforms
             .iter()
             .flat_map(|m| m.as_slice())
@@ -527,50 +537,75 @@ impl PuzzleRenderer {
             .queue
             .write_buffer(&self.buffers.view_params, 0, bytemuck::bytes_of(&data));
 
-        // Write triangle indices.
-        let mut destination_offset = 0;
-        let index_bytes = std::mem::size_of::<u32>() as u64;
-        for (sticker, index_range) in &self.model.sticker_index_ranges {
-            let start = index_range.start as u64 * index_bytes * 3;
-            let len = index_range.len() as u64 * index_bytes * 3;
-            encoder.copy_buffer_to_buffer(
-                &self.model.triangles,
-                start,
-                &self.buffers.sorted_triangles,
-                destination_offset,
-                len,
-            );
-            destination_offset += len;
-        }
-
-        if view_params.prefs.show_internals {
-            for (piece, index_range) in &self.model.piece_internals_index_ranges {
-                let start = index_range.start as u64 * index_bytes * 3;
-                let len = index_range.len() as u64 * index_bytes * 3;
-                encoder.copy_buffer_to_buffer(
-                    &self.model.triangles,
-                    start,
-                    &self.buffers.sorted_triangles,
-                    destination_offset,
-                    len,
-                );
-                destination_offset += len;
+        // Sort pieces into buckets by opacity and write triangle indices.
+        let mut buffer_index = 0;
+        let mut buckets: Vec<OpacityBucket> = vec![];
+        let mut new_bucket = OpacityBucket {
+            opacity: 1.0,
+            index_range: 0..0,
+        };
+        for (piece, &opacity) in view_params
+            .piece_opacities
+            .iter()
+            .sorted_by(|a, b| f32::total_cmp(&a.1, &b.1))
+            .rev()
+        {
+            if opacity == 0.0 {
+                break;
             }
+            if opacity != new_bucket.opacity {
+                buckets.push(new_bucket);
+                new_bucket = OpacityBucket {
+                    opacity,
+                    index_range: buffer_index..buffer_index,
+                };
+            }
+            self.write_triangles_for_piece(encoder, piece, &mut buffer_index, view_params);
+            new_bucket.index_range.end = buffer_index;
         }
+        buckets.push(new_bucket);
 
-        let triangle_count = (destination_offset / index_bytes / 3) as u32;
-        let mid = triangle_count / 2 * 3;
-        let end = triangle_count * 3;
-        Ok(vec![
-            OpacityBucket {
-                opacity: 1.0,
-                index_range: 0..mid,
-            },
-            OpacityBucket {
-                opacity: 0.5,
-                index_range: mid..end,
-            },
-        ])
+        Ok(buckets)
+    }
+    fn write_triangles_for_piece(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        piece: Piece,
+        destination_offset: &mut u32,
+        view_params: &ViewParams,
+    ) {
+        if view_params.prefs.show_internals {
+            self.write_triangles(
+                encoder,
+                &self.model.piece_internals_index_ranges[piece],
+                destination_offset,
+            );
+        }
+        for &sticker in &self.puzzle.pieces[piece].stickers {
+            self.write_triangles(
+                encoder,
+                &self.model.sticker_index_ranges[sticker],
+                destination_offset,
+            );
+        }
+    }
+    fn write_triangles(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        triangles_index_range: &Range<u32>,
+        destination_offset: &mut u32,
+    ) {
+        const INDEX_SIZE: u64 = std::mem::size_of::<u32>() as u64;
+        let start = triangles_index_range.start * 3;
+        let len = triangles_index_range.len() * 3;
+        encoder.copy_buffer_to_buffer(
+            &self.model.triangles,
+            start as u64 * INDEX_SIZE,
+            &self.buffers.sorted_triangles,
+            *destination_offset as u64 * INDEX_SIZE,
+            len as u64 * INDEX_SIZE,
+        );
+        *destination_offset += len as u32;
     }
 
     fn compute_3d_vertex_positions(&mut self, encoder: &mut wgpu::CommandEncoder) -> Result<()> {
@@ -627,6 +662,7 @@ impl PuzzleRenderer {
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         index_range: Range<u32>,
+        clear: bool,
     ) -> Result<()> {
         let pipelines = &self.gfx.pipelines;
 
@@ -641,19 +677,20 @@ impl PuzzleRenderer {
                 view: &self.buffers.first_pass_texture.view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 0.0,
-                    }),
+                    load: match clear {
+                        true => wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        false => wgpu::LoadOp::Load,
+                    },
                     store: wgpu::StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &self.buffers.depth_texture.view,
                 depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(0.0),
+                    load: match clear {
+                        true => wgpu::LoadOp::Clear(0.0),
+                        false => wgpu::LoadOp::Load,
+                    },
                     store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
@@ -681,6 +718,8 @@ impl PuzzleRenderer {
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         composite_params: GfxCompositeParams,
+        alpha: f32,
+        clear: bool,
     ) -> Result<()> {
         let pipelines = &self.gfx.pipelines;
 
@@ -710,7 +749,10 @@ impl PuzzleRenderer {
                 view: &self.buffers.out_texture.view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    load: match clear {
+                        true => wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        false => wgpu::LoadOp::Load,
+                    },
                     store: wgpu::StoreOp::Store,
                 },
             })],
@@ -722,6 +764,12 @@ impl PuzzleRenderer {
             render_pass.set_bind_group(*index, bind_group, &[]);
         }
         render_pass.set_vertex_buffer(0, self.buffers.composite_vertices.slice(..));
+        render_pass.set_blend_constant(wgpu::Color {
+            r: alpha as f64,
+            g: alpha as f64,
+            b: alpha as f64,
+            a: alpha as f64,
+        });
         render_pass.draw(0..4, 0..1);
         Ok(())
     }
@@ -756,7 +804,6 @@ struct_with_constructor! {
 
             StaticPuzzleModel {
                 ndim: u8 = mesh.ndim(),
-                piece_count: usize = mesh.piece_count(),
                 color_count: usize = mesh.color_count(),
                 vertex_count: usize = mesh.vertex_count(),
                 triangle_count: usize = mesh.triangle_count(),
@@ -803,7 +850,6 @@ impl fmt::Debug for StaticPuzzleModel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("StaticPuzzleModel")
             .field("ndim", &self.ndim)
-            .field("piece_count", &self.piece_count)
             .field("vertex_count", &self.vertex_count)
             .field("triangle_count", &self.triangle_count)
             .field("sticker_index_ranges", &self.sticker_index_ranges)
@@ -1017,6 +1063,7 @@ fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass<'_>, count: u32) {
     compute_pass.dispatch_workgroups(group_count, 1, 1);
 }
 
+#[derive(Debug, Clone, PartialEq)]
 struct OpacityBucket {
     opacity: f32,
     index_range: Range<u32>,

@@ -302,8 +302,8 @@ impl Pipelines {
                 fragment_target: Some(wgpu::ColorTargetState {
                     format: wgpu::TextureFormat::Rgba8UnormSrgb,
                     blend: Some(wgpu::BlendState {
-                        color: blend_component!(Add(src * SrcAlpha, dst * One)),
-                        alpha: blend_component!(Add(src * One, dst * One)),
+                        color: blend_component!(Add(src * Constant, dst * One)),
+                        alpha: blend_component!(Add(src * Constant, dst * One)),
                     }),
                     write_mask: wgpu::ColorWrites::ALL,
                 }),

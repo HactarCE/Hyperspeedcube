@@ -22,7 +22,6 @@ pub(super) struct GfxProjectionParams {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct GfxCompositeParams {
-    pub alpha: f32,
     pub outline_radius: u32,
 }
 

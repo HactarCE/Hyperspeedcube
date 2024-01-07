@@ -229,11 +229,13 @@ impl PuzzleBuilder {
             let mut piece_internals_indices_start = None;
 
             for (sticker_color, sticker_shape) in piece_stickers {
-                let sticker_id = stickers.push(StickerInfo {
-                    piece: piece_id,
-                    color: sticker_color,
-                })?;
-                pieces[piece_id].stickers.push(sticker_id);
+                if sticker_color != Color::INTERNAL {
+                    let sticker_id = stickers.push(StickerInfo {
+                        piece: piece_id,
+                        color: sticker_color,
+                    })?;
+                    pieces[piece_id].stickers.push(sticker_id);
+                }
 
                 let sticker_centroid = simplexifier.shape_centroid(sticker_shape.id)?;
                 let manifold = space.manifold_of(sticker_shape);

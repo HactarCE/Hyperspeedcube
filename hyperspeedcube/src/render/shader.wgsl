@@ -49,7 +49,6 @@ struct ViewParams {
 }
 
 struct CompositeParams {
-    alpha: f32,
     outline_radius: u32,
 }
 
@@ -422,5 +421,5 @@ fn render_composite_puzzle_fragment(in: CompositeVertexOutput) -> @location(0) v
     } else {
         color_id = u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF); // wrap max value around to 0
     }
-    return vec4(get_color(color_id, lighting), composite_params.alpha);
+    return vec4(get_color(color_id, lighting), 1.0);
 }
