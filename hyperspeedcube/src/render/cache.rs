@@ -126,13 +126,9 @@ impl CachedTexture2d {
 }
 
 pub(crate) struct CachedTexture<S> {
-    pub view: wgpu::TextureView,
-    pub linear_view: wgpu::TextureView,
-    pub srgb_view: wgpu::TextureView,
-
-    pub texture: wgpu::Texture,
-
     inner: CachedTextureInner<S>,
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
 }
 impl<S: PartialEq + Copy> CachedTexture<S> {
     fn new_generic(inner: CachedTextureInner<S>) -> Self {
@@ -150,21 +146,17 @@ impl<S: PartialEq + Copy> CachedTexture<S> {
             ],
         });
 
-        let view_descriptor = |format| wgpu::TextureViewDescriptor {
-            format,
-            ..Default::default()
-        };
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         CachedTexture {
-            view: texture.create_view(&view_descriptor(None)),
-            linear_view: texture
-                .create_view(&view_descriptor(Some(inner.format.remove_srgb_suffix()))),
-            srgb_view: texture.create_view(&view_descriptor(Some(inner.format.add_srgb_suffix()))),
-
-            texture,
-
             inner,
+            texture,
+            view,
         }
+    }
+
+    pub fn format(&self) -> wgpu::TextureFormat {
+        self.inner.format
     }
 
     pub fn clone(&self, label: String) -> Self {

@@ -50,11 +50,20 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
             .device
             .create_sampler(&wgpu::SamplerDescriptor::default());
 
+        // egui expects sRGB colors in the shader, so we have to read the sRGB
+        // texture as though it were linear to prevent the GPU from doing gamma
+        // conversion.
+        let format = Some(renderer.buffers.out_texture.format().remove_srgb_suffix());
+        let texture = &renderer.buffers.out_texture.texture;
+        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor {
+            format,
+            ..Default::default()
+        });
         let bind_groups: Vec<(u32, wgpu::BindGroup)> =
             self.gfx.pipelines.blit_bind_groups.bind_groups(
                 &self.gfx.device,
                 &[&[
-                    wgpu::BindingResource::TextureView(&renderer.buffers.out_texture.linear_view),
+                    wgpu::BindingResource::TextureView(&texture_view),
                     wgpu::BindingResource::Sampler(&sampler),
                 ]],
             );
@@ -319,10 +328,10 @@ impl PuzzleRenderer {
                         self.buffers.lighting_params.as_entire_binding(),
                         self.buffers.view_params.as_entire_binding(),
                         wgpu::BindingResource::TextureView(
-                            &self.buffers.sticker_colors_texture.srgb_view,
+                            &self.buffers.sticker_colors_texture.view,
                         ),
                         wgpu::BindingResource::TextureView(
-                            &self.buffers.special_colors_texture.srgb_view,
+                            &self.buffers.special_colors_texture.view,
                         ),
                     ],
                 ],
@@ -333,7 +342,7 @@ impl PuzzleRenderer {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render_puzzle"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.buffers.out_texture.srgb_view,
+                    view: &self.buffers.out_texture.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color { r, g, b, a: 1.0 }),
@@ -341,7 +350,7 @@ impl PuzzleRenderer {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.buffers.depth_texture.srgb_view,
+                    view: &self.buffers.depth_texture.view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(0.0),
                         store: wgpu::StoreOp::Store,
@@ -387,9 +396,9 @@ impl PuzzleRenderer {
 
         // Make the textures the right size.
         let size = [view_params.width, view_params.height];
-        let first_pass_texture = self.buffers.first_pass_texture.set_size(size);
-        let depth_texture = self.buffers.depth_texture.set_size(size);
-        let color_texture = self.buffers.out_texture.set_size(size);
+        self.buffers.first_pass_texture.set_size(size);
+        self.buffers.depth_texture.set_size(size);
+        self.buffers.out_texture.set_size(size);
 
         // Compute 3D vertex positions on the GPU.
         {
@@ -505,14 +514,12 @@ impl PuzzleRenderer {
                     &[],
                     &[self.model.polygon_color_ids.as_entire_binding()],
                     &[
+                        wgpu::BindingResource::TextureView(&self.buffers.first_pass_texture.view),
                         wgpu::BindingResource::TextureView(
-                            &self.buffers.first_pass_texture.srgb_view,
+                            &self.buffers.sticker_colors_texture.view,
                         ),
                         wgpu::BindingResource::TextureView(
-                            &self.buffers.sticker_colors_texture.srgb_view,
-                        ),
-                        wgpu::BindingResource::TextureView(
-                            &self.buffers.special_colors_texture.srgb_view,
+                            &self.buffers.special_colors_texture.view,
                         ),
                     ],
                     &[self.buffers.composite_params.as_entire_binding()],
@@ -522,7 +529,7 @@ impl PuzzleRenderer {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render_composite_puzzle"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.buffers.out_texture.srgb_view,
+                    view: &self.buffers.out_texture.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
