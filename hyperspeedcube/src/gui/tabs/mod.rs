@@ -460,13 +460,16 @@ impl Tab {
                 });
                 ui.data_mut(|data| data.insert_temp(filter_string_id, filter_string.clone()));
 
-                egui::ScrollArea::new([true; 2]).show(ui, |ui| {
-                    for line in &**log_lines {
-                        if line.matches_filter_string(&filter_string) {
-                            colored_log_line(ui, line)
+                egui::ScrollArea::new([true; 2])
+                    .auto_shrink(false)
+                    .stick_to_bottom(true)
+                    .show(ui, |ui| {
+                        for line in &**log_lines {
+                            if line.matches_filter_string(&filter_string) {
+                                colored_log_line(ui, line)
+                            }
                         }
-                    }
-                });
+                    });
             }
         }
     }
