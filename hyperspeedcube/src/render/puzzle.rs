@@ -696,7 +696,6 @@ struct_with_constructor! {
                 }
 
                 const COPY_SRC: wgpu::BufferUsages = wgpu::BufferUsages::COPY_SRC;
-                const INDEX: wgpu::BufferUsages = wgpu::BufferUsages::INDEX;
                 const VERTEX: wgpu::BufferUsages = wgpu::BufferUsages::VERTEX;
                 const STORAGE: wgpu::BufferUsages = wgpu::BufferUsages::STORAGE;
 
@@ -709,7 +708,6 @@ struct_with_constructor! {
             StaticPuzzleModel {
                 ndim: u8 = mesh.ndim(),
                 piece_count: usize = mesh.piece_count(),
-                facet_count: usize = mesh.facet_count(),
                 color_count: usize = mesh.color_count(),
                 vertex_count: usize = mesh.vertex_count(),
                 triangle_count: usize = mesh.triangle_count(),
@@ -748,8 +746,6 @@ struct_with_constructor! {
 
                 sticker_index_ranges: PerSticker<Range<u32>> = mesh.sticker_index_ranges.clone(),
                 piece_internals_index_ranges: PerPiece<Range<u32>> = mesh.piece_internals_index_ranges.clone(),
-
-                m: Mesh = mesh.clone(),
             }
         }
     }
