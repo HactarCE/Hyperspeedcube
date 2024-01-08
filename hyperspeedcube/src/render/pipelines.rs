@@ -76,7 +76,7 @@ mod bindings {
         STICKER_COLORS_TEXTURE = (50, D1, Float { filterable: false });
         SPECIAL_COLORS_TEXTURE = (51, D1, Float { filterable: false });
 
-        POLYGON_IDS_TEXTURE = (100, D2, Sint);
+        POLYGON_IDS_TEXTURE = (100, D2, Uint);
         EDGES_TEXTURE = (101, D2, Float { filterable: false });
         BLIT_SRC_TEXTURE = (102, D2, Float { filterable: true });
     }
@@ -274,7 +274,7 @@ impl Pipelines {
                     bias: wgpu::DepthBiasState::default(),
                 }),
                 fragment_target: Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Rg32Sint,
+                    format: wgpu::TextureFormat::R32Uint,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 }),

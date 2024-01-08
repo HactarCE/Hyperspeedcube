@@ -53,8 +53,8 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         // egui expects sRGB colors in the shader, so we have to read the sRGB
         // texture as though it were linear to prevent the GPU from doing gamma
         // conversion.
-        let format = Some(renderer.buffers.out_texture.format().remove_srgb_suffix());
-        let texture = &renderer.buffers.out_texture.texture;
+        let format = Some(renderer.buffers.color_texture.format().remove_srgb_suffix());
+        let texture = &renderer.buffers.color_texture.texture;
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor {
             format,
             ..Default::default()
@@ -317,8 +317,8 @@ impl PuzzleRenderer {
 
         // Make the textures the right size.
         let size = [view_params.width, view_params.height];
-        self.buffers.depth_texture.set_size(size);
-        self.buffers.out_texture.set_size(size);
+        self.buffers.polygon_ids_depth_texture.set_size(size);
+        self.buffers.color_texture.set_size(size);
 
         // Render in a single pass.
         {
@@ -359,7 +359,7 @@ impl PuzzleRenderer {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render_puzzle"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.buffers.out_texture.view,
+                    view: &self.buffers.color_texture.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color { r, g, b, a: 1.0 }),
@@ -367,7 +367,7 @@ impl PuzzleRenderer {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.buffers.depth_texture.view,
+                    view: &self.buffers.polygon_ids_depth_texture.view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(0.0),
                         store: wgpu::StoreOp::Store,
@@ -404,16 +404,13 @@ impl PuzzleRenderer {
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
     ) -> Result<()> {
-        let mut opacity_buckets = self.init_buffers(encoder, view_params)?;
-        if opacity_buckets.is_empty() {
-            return Ok(());
-        }
+        let opacity_buckets = self.init_buffers(encoder, view_params)?;
 
         // Make the textures the right size.
         let size = [view_params.width, view_params.height];
-        self.buffers.first_pass_texture.set_size(size);
-        self.buffers.depth_texture.set_size(size);
-        self.buffers.out_texture.set_size(size);
+        self.buffers.polygon_ids_texture.set_size(size);
+        self.buffers.polygon_ids_depth_texture.set_size(size);
+        self.buffers.color_texture.set_size(size);
 
         // Compute 3D vertex positions on the GPU.
         self.compute_3d_vertex_positions(encoder)?;
@@ -564,8 +561,8 @@ impl PuzzleRenderer {
         }
         buckets.push(new_bucket);
 
-        // Replace absolute opacity with incrmental opacity (difference from
-        // previous bucket).
+        // Replace absolute opacity with incrmental opacity (difference between
+        // opacities of the current bucket and the next bucket).
         for i in 0..buckets.len() - 1 {
             buckets[i].opacity -= buckets[i + 1].opacity;
         }
@@ -679,7 +676,7 @@ impl PuzzleRenderer {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("render_polygon_ids"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &self.buffers.first_pass_texture.view,
+                view: &self.buffers.polygon_ids_texture.view,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: match clear {
@@ -690,7 +687,7 @@ impl PuzzleRenderer {
                 },
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                view: &self.buffers.depth_texture.view,
+                view: &self.buffers.polygon_ids_depth_texture.view,
                 depth_ops: Some(wgpu::Operations {
                     load: match clear {
                         true => wgpu::LoadOp::Clear(0.0),
@@ -740,7 +737,7 @@ impl PuzzleRenderer {
                 &[
                     wgpu::BindingResource::TextureView(&self.buffers.sticker_colors_texture.view),
                     wgpu::BindingResource::TextureView(&self.buffers.special_colors_texture.view),
-                    wgpu::BindingResource::TextureView(&self.buffers.first_pass_texture.view),
+                    wgpu::BindingResource::TextureView(&self.buffers.polygon_ids_texture.view),
                 ],
                 &[self.model.polygon_color_ids.as_entire_binding()],
                 &[],
@@ -751,7 +748,7 @@ impl PuzzleRenderer {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("render_composite_puzzle"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &self.buffers.out_texture.view,
+                view: &self.buffers.color_texture.view,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: match clear {
@@ -964,41 +961,54 @@ struct_with_constructor! {
                 /*
                  * TEXTURES
                  */
-                /// First pass texture, which includes lighting, facet ID, and
-                /// polygon ID for each pixel.
-                first_pass_texture: CachedTexture2d = CachedTexture2d::new(
-                    Arc::clone(&gfx),
-                    label("first_pass_texture"),
-                    wgpu::TextureFormat::Rg32Sint,
-                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                ),
-                /// Depth texture for use in the first pass.
-                depth_texture: CachedTexture2d = CachedTexture2d::new(
-                    Arc::clone(&gfx),
-                    label("depth_texture"),
-                    wgpu::TextureFormat::Depth24PlusStencil8,
-                    wgpu::TextureUsages::RENDER_ATTACHMENT,
-                ),
-                /// Output color texture.
-                out_texture: CachedTexture2d = CachedTexture2d::new(
-                    Arc::clone(&gfx),
-                    label("color_texture"),
-                    wgpu::TextureFormat::Rgba8UnormSrgb,
-                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                ),
                 /// Sticker colors texture.
                 sticker_colors_texture: CachedTexture1d = CachedTexture1d::new(
                     Arc::clone(&gfx),
-                    label("sticker_colors"),
+                    label("sticker_colors_texture"),
                     wgpu::TextureFormat::Rgba8UnormSrgb,
                     wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
                 ),
                 /// Special colors texture.
                 special_colors_texture: CachedTexture1d = CachedTexture1d::new(
                     Arc::clone(&gfx),
-                    label("special_colors"),
+                    label("special_colors_texture"),
                     wgpu::TextureFormat::Rgba8UnormSrgb,
                     wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
+                ),
+                /// Polygon ID and lighting for each pixel.
+                polygon_ids_texture: CachedTexture2d = CachedTexture2d::new(
+                    Arc::clone(&gfx),
+                    label("polygon_ids_texture"),
+                    wgpu::TextureFormat::R32Uint,
+                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                ),
+                /// Depth texture for use with `polygon_ids_texture`.
+                polygon_ids_depth_texture: CachedTexture2d = CachedTexture2d::new(
+                    Arc::clone(&gfx),
+                    label("polygon_ids_depth_texture"),
+                    wgpu::TextureFormat::Depth24PlusStencil8,
+                    wgpu::TextureUsages::RENDER_ATTACHMENT,
+                ),
+                /// Texture for JFA.
+                jfa_edges_texture_1: CachedTexture2d = CachedTexture2d::new(
+                    Arc::clone(&gfx),
+                    label("edges_texture_1"),
+                    wgpu::TextureFormat::Rgba32Float,
+                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                ),
+                /// Texture for JFA.
+                jfa_edges_texture_2: CachedTexture2d = CachedTexture2d::new(
+                    Arc::clone(&gfx),
+                    label("edges_texture_2"),
+                    wgpu::TextureFormat::Rgba32Float,
+                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                ),
+                /// Output color texture.
+                color_texture: CachedTexture2d = CachedTexture2d::new(
+                    Arc::clone(&gfx),
+                    label("color_texture"),
+                    wgpu::TextureFormat::Rgba8UnormSrgb,
+                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 ),
             }
         }
@@ -1046,11 +1056,13 @@ impl DynamicPuzzleBuffers {
             vertex_culls: clone_buffer!(gfx, id, self.vertex_culls),
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
 
-            first_pass_texture: clone_texture!(gfx, id, self.first_pass_texture),
-            depth_texture: clone_texture!(gfx, id, self.depth_texture),
-            out_texture: clone_texture!(gfx, id, self.out_texture),
             sticker_colors_texture: clone_texture!(gfx, id, self.sticker_colors_texture),
             special_colors_texture: clone_texture!(gfx, id, self.special_colors_texture),
+            polygon_ids_texture: clone_texture!(gfx, id, self.polygon_ids_texture),
+            polygon_ids_depth_texture: clone_texture!(gfx, id, self.polygon_ids_depth_texture),
+            jfa_edges_texture_1: clone_texture!(gfx, id, self.jfa_edges_texture_1),
+            jfa_edges_texture_2: clone_texture!(gfx, id, self.jfa_edges_texture_2),
+            color_texture: clone_texture!(gfx, id, self.color_texture),
         }
     }
 }

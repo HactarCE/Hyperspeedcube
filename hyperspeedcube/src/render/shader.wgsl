@@ -66,7 +66,7 @@ struct SpecialColors {
 // Textures and texture samplers
 @group(0) @binding(50)  var sticker_colors: texture_1d<f32>;
 @group(0) @binding(51)  var special_colors: texture_1d<f32>;
-@group(0) @binding(100) var polygon_ids_texture: texture_2d<i32>;
+@group(0) @binding(100) var polygon_ids_texture: texture_2d<u32>;
 @group(0) @binding(101) var edges_texture: texture_2d<f32>;
 @group(0) @binding(102) var blit_src_texture: texture_2d<f32>;
 @group(0) @binding(150) var blit_src_sampler: sampler;
@@ -269,6 +269,20 @@ fn get_color(color_id: u32, lighting: f32) -> vec3<f32> {
     );
 }
 
+/// Returns the polygon ID at the given coordinates.
+fn load_polygon_id(tex_coords: vec2<i32>) -> i32 {
+    return i32(textureLoad(polygon_ids_texture, tex_coords, 0).r & 0x00FFFFFFu) - 1;
+}
+/// Returns the polygon lighting at the given coordinates.
+fn load_polygon_lighting(tex_coords: vec2<i32>) -> f32 {
+    return f32(textureLoad(polygon_ids_texture, tex_coords, 0).r >> 24u) / 255.0;
+}
+
+/// Converts UV coordinates (0..1) to texture coordinates (0..n-1).
+fn uv_to_tex_coords(uv: vec2<f32>, tex_dim: vec2<u32>) -> vec2<i32> {
+    return vec2<i32>(uv * vec2<f32>(tex_dim - 1u));
+}
+
 
 
 /*
@@ -397,39 +411,29 @@ fn render_polygon_ids_vertex(
 
 @fragment
 // TODO: consider `@early_depth_test`
-fn render_polygon_ids_fragment(in: PolygonIdsVertexOutput) -> @location(0) vec2<i32> {
+fn render_polygon_ids_fragment(in: PolygonIdsVertexOutput) -> @location(0) u32 {
     if in.cull > 0.0 {
         discard;
     }
 
-    return vec2(
-        // TODO: was previously using red component to store facet ID (for color)
-        //       but that's not needed anymore. consider having just a single int
-        //
-        //       use 8 bits for lighting and 24 bits for polygon ID
-        (i32(in.lighting * 16384.0) << 16u),
-        in.polygon_id,
-    );
+    // Use the top 8 bits for lighting and the bottom 24 bits for polygon ID.
+    return (u32(in.lighting * 255.0) << 24u) | u32(in.polygon_id);
 }
 
 /// Use with `uv_vertex` as vertex shader.
 @fragment
 fn render_composite_puzzle_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
-    let tex_coords: vec2<i32> = vec2<i32>(in.uv * vec2<f32>(textureDimensions(polygon_ids_texture) - vec2(1u, 1u)));
+    let tex_coords: vec2<i32> = uv_to_tex_coords(in.uv, textureDimensions(polygon_ids_texture));
 
-    // TODO: was previously using red component to store facet ID (for color)
-    //       but that's not needed anymore. consider having just a single int
-    //
-    //       use 8 bits for lighting and 24 bits for polygon ID
-    let lighting: f32 = f32(textureLoad(polygon_ids_texture, tex_coords, 0).r >> 16u) / 16384.0;
-    let polygon_id: i32 = textureLoad(polygon_ids_texture, tex_coords, 0).g - 1;
+    let lighting: f32 = load_polygon_lighting(tex_coords);
+    let polygon_id: i32 = load_polygon_id(tex_coords);
     let r = i32(composite_params.outline_radius);
 
     // Fetch polygon IDs
-    let a = textureLoad(polygon_ids_texture, tex_coords + vec2(-r, r), 0).g;
-    let b = textureLoad(polygon_ids_texture, tex_coords + vec2(-r, -r), 0).g;
-    let c = textureLoad(polygon_ids_texture, tex_coords + vec2(r, r), 0).g;
-    let d = textureLoad(polygon_ids_texture, tex_coords + vec2(r, -r), 0).g;
+    let a = load_polygon_id(tex_coords + vec2(-r, r));
+    let b = load_polygon_id(tex_coords + vec2(-r, -r));
+    let c = load_polygon_id(tex_coords + vec2(r, r));
+    let d = load_polygon_id(tex_coords + vec2(r, -r));
     var color_id: u32;
     if a != d || b != c {
         color_id = COLOR_OUTLINE;
