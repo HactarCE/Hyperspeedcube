@@ -1,16 +1,17 @@
 [package]
 name = "hyperpuzzle"
-description = "Multidimensional twisty puzzle generator and simulator backend"
+description = "Multidimensional twisty puzzle generator and simulator backend for Hyperspeedcube"
 version = "0.1.0"
 authors = ["Andrew Farkas"]
-edition = "2021"
-repository = "https://github.com/HactarCE/Hyperspeedcube/"
-keywords = [
-    "math", "geometry", "puzzle", "rubiks-cube",
-    "conformal-geometric-algebra"
-]
-categories = ["mathematics", "algorithms", "computational-geometry"]
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords = ["cubing", "hypercubing", "rubik", "conformal-geometric-algebra", "4d"]
+categories = ["algorithms", "mathematics", "simulation"]
 license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
 
 [dependencies]
 color-eyre = "0.6"

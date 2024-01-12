@@ -2,5 +2,28 @@
 members = [ "hypermath", "hypershape", "hyperpuzzle", "hyperspeedcube" ]
 resolver = "2"
 
+[workspace.package]
+edition = "2021"
+homepage = "https://dev.hypercubing.xyz/internals/"
+repository = "https://github.com/HactarCE/Hyperspeedcube/"
+rust-version = "1.75"
+
+[workspace.lints.rust]
+missing_docs = "warn"
+rust_2018_idioms = "warn"
+
+[workspace.lints.clippy]
+cargo = "warn"
+doc_markdown = "warn"
+if_then_some_else_none = "warn"
+manual_let_else = "warn"
+semicolon_if_nothing_returned = "warn"
+semicolon_inside_block = "warn"
+too_many_lines = "warn"
+undocumented_unsafe_blocks = "warn"
+unwrap_used = "warn"
+
+multiple_crate_versions = { level = "allow", priority = 1 }
+
 [profile.dev.package.backtrace]
 opt-level = 3

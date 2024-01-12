@@ -19,19 +19,6 @@
 //!
 //! Atomic polytopes are memoized and given IDs.
 
-#![warn(
-    clippy::doc_markdown,
-    clippy::if_then_some_else_none,
-    clippy::manual_let_else,
-    clippy::semicolon_if_nothing_returned,
-    clippy::semicolon_inside_block,
-    clippy::too_many_lines,
-    clippy::undocumented_unsafe_blocks,
-    clippy::unwrap_used,
-    missing_docs,
-    rust_2018_idioms
-)]
-
 pub mod group;
 mod slabmap;
 pub mod space;

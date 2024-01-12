@@ -1,27 +1,7 @@
 //! A keyboard-controlled speedcube simulator.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![warn(
-    clippy::cargo,
-    clippy::doc_markdown,
-    clippy::if_then_some_else_none,
-    clippy::manual_let_else,
-    clippy::semicolon_if_nothing_returned,
-    clippy::semicolon_inside_block,
-    clippy::too_many_lines,
-    clippy::undocumented_unsafe_blocks,
-    clippy::unwrap_used,
-    missing_docs,
-    rust_2018_idioms
-)]
-#![allow(
-    clippy::collapsible_match,
-    clippy::match_like_matches_macro,
-    clippy::multiple_crate_versions,
-    clippy::single_match,
-    clippy::useless_format,
-    missing_docs // TODO: remove
-)]
+#![allow(missing_docs)] // TODO: remove
 
 #[macro_use]
 extern crate lazy_static;

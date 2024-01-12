@@ -1,13 +1,18 @@
 [package]
 name = "hyperspeedcube"
+description = "Multidimensional twisty puzzle simulator"
 version = "2.0.0-pre.7"
 authors = ["HactarCE"]
-edition = "2021"
-rust-version = "1.68"
+edition.workspace = true
 homepage = "https://ajfarkas.dev/hyperspeedcube/"
-description = "Multidimensional twisty puzzle simulator"
-repository = "https://github.com/HactarCE/Hyperspeedcube/"
+repository.workspace = true
+keywords = ["cubing", "hypercubing", "rubik", "game", "4d"]
+categories = ["games", "mathematics", "simulation"]
 license = "MIT OR Apache-2.0"
+
+[lints.rust]
+missing_docs = "warn"
+rust_2018_idioms = "warn"
 
 [dependencies]
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }

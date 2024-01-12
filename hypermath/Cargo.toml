@@ -1,17 +1,17 @@
 [package]
 name = "hypermath"
-description = "Multidimensional vector, matrix, and conformal geometric algebra primitives"
+description = "Multidimensional vector, matrix, and conformal geometric algebra primitives developed for Hyperspeedcube"
 version = "0.1.0"
 authors = ["Andrew Farkas"]
-edition = "2021"
-repository = "https://github.com/HactarCE/Hyperspeedcube/"
-keywords = [
-    "math", "matrix", "vector", "quaternion",
-    "rotor", "geometric-algebra", "cga",
-    "conformal-geometry", "conformal-geometric-algebra"
-]
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords = ["math", "rotor", "geometric-algebra", "conformal-geometric-algebra", "4d"]
 categories = ["mathematics", "data-structures"]
 license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
 
 [dependencies]
 approx = "0.5.1"

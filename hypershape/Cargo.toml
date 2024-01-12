@@ -1,13 +1,17 @@
 [package]
 name = "hypershape"
-description = "Multidimensional shape slicing and other geometric algorithms"
+description = "Multidimensional shape slicing and other geometric algorithms developed for Hyperspeedcube"
 version = "0.1.0"
 authors = ["Andrew Farkas"]
-edition = "2021"
-repository = "https://github.com/HactarCE/Hyperspeedcube/"
-keywords = ["math", "geomtery", "computational-geometry"]
-categories = ["mathematics", "algorithms"]
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords = ["cubing", "hypercubing", "rubik", "game", "4d"]
+categories = ["algorithms", "mathematics"]
 license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
 
 [dependencies]
 bitflags = "2.3.3"
