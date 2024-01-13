@@ -8,7 +8,7 @@ use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
-use eyre::{bail, eyre, OptionExt, Result};
+use eyre::{bail, eyre, Result};
 use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, Puzzle};
 use itertools::Itertools;
@@ -16,6 +16,8 @@ use parking_lot::Mutex;
 
 use crate::preferences::ViewPreferences;
 
+use super::bindings::{BindGroups, WgpuPassExt};
+use super::pipelines;
 use super::structs::*;
 use super::{CachedTexture1d, CachedTexture2d, GraphicsState};
 
@@ -45,11 +47,6 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
             log::error!("{e}");
         }
 
-        let sampler = self
-            .gfx
-            .device
-            .create_sampler(&wgpu::SamplerDescriptor::default());
-
         // egui expects sRGB colors in the shader, so we have to read the sRGB
         // texture as though it were linear to prevent the GPU from doing gamma
         // conversion.
@@ -59,14 +56,12 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
             format,
             ..Default::default()
         });
-        let bind_groups: Vec<(u32, wgpu::BindGroup)> =
-            self.gfx.pipelines.blit_bind_groups.bind_groups(
-                &self.gfx.device,
-                &[&[
-                    wgpu::BindingResource::TextureView(&texture_view),
-                    wgpu::BindingResource::Sampler(&sampler),
-                ]],
-            );
+
+        let pipeline = &self.gfx.pipelines.blit;
+        let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
+            src_texture: &texture_view,
+            src_sampler: &self.gfx.default_sampler,
+        });
 
         callback_resources.insert(bind_groups);
 
@@ -79,16 +74,13 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         render_pass: &mut wgpu::RenderPass<'a>,
         callback_resources: &'a eframe::egui_wgpu::CallbackResources,
     ) {
-        render_pass.set_pipeline(&self.gfx.pipelines.blit);
-
-        let Some(bind_groups) = callback_resources.get::<Vec<(u32, wgpu::BindGroup)>>() else {
+        let Some(bind_groups) = callback_resources.get::<BindGroups>() else {
             log::error!("lost bind groups for blitting puzzle view");
             return;
         };
-        for (index, bind_group) in bind_groups {
-            render_pass.set_bind_group(*index, bind_group, &[]);
-        }
 
+        render_pass.set_pipeline(&self.gfx.pipelines.blit.pipeline);
+        render_pass.set_bind_groups(&bind_groups);
         render_pass.set_vertex_buffer(0, self.gfx.uv_vertex_buffer.slice(..));
         render_pass.draw(0..4, 0..1);
     }
@@ -313,7 +305,7 @@ impl PuzzleRenderer {
         let index_range =
             opacity_buckets[0].index_range.start..opacity_buckets.last().unwrap().index_range.end;
 
-        let pipelines = &self.gfx.pipelines;
+        let pipeline = &self.gfx.pipelines.render_single_pass(self.model.ndim)?;
 
         // Make the textures the right size.
         let size = [view_params.width, view_params.height];
@@ -322,69 +314,36 @@ impl PuzzleRenderer {
 
         // Render in a single pass.
         {
-            let bind_groups = pipelines.render_single_pass_bind_groups.bind_groups(
-                &self.gfx.device,
-                &[
-                    &[
-                        wgpu::BindingResource::TextureView(
-                            &self.buffers.sticker_colors_texture.view,
-                        ),
-                        wgpu::BindingResource::TextureView(
-                            &self.buffers.special_colors_texture.view,
-                        ),
-                        self.model.vertex_positions.as_entire_binding(),
-                        self.model.u_tangents.as_entire_binding(),
-                        self.model.v_tangents.as_entire_binding(),
-                        self.model.sticker_shrink_vectors.as_entire_binding(),
-                    ],
-                    &[
-                        self.model.piece_centroids.as_entire_binding(),
-                        self.model.facet_centroids.as_entire_binding(),
-                        self.model.facet_normals.as_entire_binding(),
-                        self.model.polygon_color_ids.as_entire_binding(),
-                    ],
-                    &[
-                        self.buffers.puzzle_transform.as_entire_binding(),
-                        self.buffers.piece_transforms.as_entire_binding(),
-                        self.buffers.camera_4d_pos.as_entire_binding(),
-                        self.buffers.projection_params.as_entire_binding(),
-                        self.buffers.lighting_params.as_entire_binding(),
-                        self.buffers.view_params.as_entire_binding(),
-                    ],
-                ],
-            );
-
-            let [r, g, b, _] = egui::Rgba::from(view_params.background_color).to_array();
-            let [r, g, b] = [r as f64, g as f64, b as f64];
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("render_puzzle"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.buffers.color_texture.view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color { r, g, b, a: 1.0 }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.buffers.polygon_ids_depth_texture.view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(0.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                ..wgpu::RenderPassDescriptor::default()
+            let bind_groups = pipeline.bind_groups(pipelines::render_single_pass::Bindings {
+                sticker_colors_texture: &self.buffers.sticker_colors_texture.view,
+                special_colors_texture: &self.buffers.special_colors_texture.view,
+                vertex_positions: &self.model.vertex_positions,
+                u_tangents: &self.model.u_tangents,
+                v_tangents: &self.model.v_tangents,
+                sticker_shrink_vectors: &self.model.sticker_shrink_vectors,
+                piece_centroids: &self.model.piece_centroids,
+                facet_centroids: &self.model.facet_centroids,
+                facet_normals: &self.model.facet_normals,
+                polygon_color_ids: &self.model.polygon_color_ids,
+                puzzle_transform: &self.buffers.puzzle_transform,
+                piece_transforms: &self.buffers.piece_transforms,
+                camera_4d_pos: &self.buffers.camera_4d_pos,
+                projection_params: &self.buffers.projection_params,
+                lighting_params: &self.buffers.lighting_params,
+                view_params: &self.buffers.view_params,
             });
 
-            render_pass.set_pipeline(
-                pipelines
-                    .render_single_pass(self.model.ndim)
-                    .ok_or_eyre("error fetching single-pass render pipeline")?,
-            );
-            for (index, bind_group) in &bind_groups {
-                render_pass.set_bind_group(*index, bind_group, &[]);
+            let [r, g, b, _] = egui::Rgba::from(view_params.background_color).to_array();
+
+            let mut render_pass = pipelines::render_single_pass::PassParams {
+                clear_color: [r as f64, g as f64, b as f64],
+                color_texture: &self.buffers.color_texture.view,
+                depth_texture: &self.buffers.polygon_ids_depth_texture.view,
             }
+            .begin_pass(encoder);
+
+            render_pass.set_pipeline(&pipeline.pipeline);
+            render_pass.set_bind_groups(&bind_groups);
             render_pass.set_vertex_buffer(0, self.model.piece_ids.slice(..));
             render_pass.set_vertex_buffer(1, self.model.facet_ids.slice(..));
             render_pass.set_vertex_buffer(2, self.model.polygon_ids.slice(..));
@@ -611,50 +570,37 @@ impl PuzzleRenderer {
     }
 
     fn compute_3d_vertex_positions(&mut self, encoder: &mut wgpu::CommandEncoder) -> Result<()> {
-        let pipelines = &self.gfx.pipelines;
+        let pipeline = self
+            .gfx
+            .pipelines
+            .compute_transform_points(self.model.ndim)?;
 
-        let bind_groups = pipelines.compute_transform_points_bind_groups.bind_groups(
-            &self.gfx.device,
-            &[
-                &[
-                    self.model.vertex_positions.as_entire_binding(),
-                    self.model.u_tangents.as_entire_binding(),
-                    self.model.v_tangents.as_entire_binding(),
-                    self.model.sticker_shrink_vectors.as_entire_binding(),
-                    self.model.piece_ids.as_entire_binding(),
-                    self.model.facet_ids.as_entire_binding(),
-                ],
-                &[
-                    self.model.piece_centroids.as_entire_binding(),
-                    self.model.facet_centroids.as_entire_binding(),
-                    self.model.facet_normals.as_entire_binding(),
-                    self.buffers.vertex_3d_positions.as_entire_binding(),
-                    self.buffers.vertex_lightings.as_entire_binding(),
-                    self.buffers.vertex_culls.as_entire_binding(),
-                ],
-                &[
-                    self.buffers.puzzle_transform.as_entire_binding(),
-                    self.buffers.piece_transforms.as_entire_binding(),
-                    self.buffers.camera_4d_pos.as_entire_binding(),
-                    self.buffers.projection_params.as_entire_binding(),
-                    self.buffers.lighting_params.as_entire_binding(),
-                    self.buffers.view_params.as_entire_binding(),
-                ],
-            ],
-        );
-
-        let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some("compute_3d_vertex_positions"),
-            ..wgpu::ComputePassDescriptor::default()
+        let bind_groups = pipeline.bind_groups(pipelines::compute_transform_points::Bindings {
+            vertex_positions: &self.model.vertex_positions,
+            u_tangents: &self.model.u_tangents,
+            v_tangents: &self.model.v_tangents,
+            sticker_shrink_vectors: &self.model.sticker_shrink_vectors,
+            piece_ids: &self.model.piece_ids,
+            facet_ids: &self.model.facet_ids,
+            piece_centroids: &self.model.piece_centroids,
+            facet_centroids: &self.model.facet_centroids,
+            facet_normals: &self.model.facet_normals,
+            vertex_3d_positions: &self.buffers.vertex_3d_positions,
+            vertex_lightings: &self.buffers.vertex_lightings,
+            vertex_culls: &self.buffers.vertex_culls,
+            puzzle_transform: &self.buffers.puzzle_transform,
+            piece_transforms: &self.buffers.piece_transforms,
+            camera_4d_pos: &self.buffers.camera_4d_pos,
+            projection_params: &self.buffers.projection_params,
+            lighting_params: &self.buffers.lighting_params,
+            view_params: &self.buffers.view_params,
         });
-        compute_pass.set_pipeline(
-            pipelines
-                .compute_transform_points(self.model.ndim)
-                .ok_or_eyre("error fetching transform points compute pipeline")?,
-        );
-        for (index, bind_group) in &bind_groups {
-            compute_pass.set_bind_group(*index, bind_group, &[]);
-        }
+
+        let mut compute_pass =
+            encoder.begin_compute_pass(&pipelines::compute_transform_points::PASS_DESCRIPTOR);
+
+        compute_pass.set_pipeline(&pipeline.pipeline);
+        compute_pass.set_bind_groups(&bind_groups);
 
         dispatch_work_groups(&mut compute_pass, self.model.vertex_count as u32);
         Ok(())
@@ -666,44 +612,21 @@ impl PuzzleRenderer {
         index_range: Range<u32>,
         clear: bool,
     ) -> Result<()> {
-        let pipelines = &self.gfx.pipelines;
+        let pipeline = &self.gfx.pipelines.render_polygon_ids;
 
-        let bind_groups = pipelines.render_polygon_ids_bind_groups.bind_groups(
-            &self.gfx.device,
-            &[&[], &[], &[self.buffers.view_params.as_entire_binding()]],
-        );
-
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("render_polygon_ids"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &self.buffers.polygon_ids_texture.view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: match clear {
-                        true => wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        false => wgpu::LoadOp::Load,
-                    },
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                view: &self.buffers.polygon_ids_depth_texture.view,
-                depth_ops: Some(wgpu::Operations {
-                    load: match clear {
-                        true => wgpu::LoadOp::Clear(0.0),
-                        false => wgpu::LoadOp::Load,
-                    },
-                    store: wgpu::StoreOp::Store,
-                }),
-                stencil_ops: None,
-            }),
-            ..wgpu::RenderPassDescriptor::default()
+        let bind_groups = pipeline.bind_groups(pipelines::render_polygon_ids::Bindings {
+            view_params: &self.buffers.view_params,
         });
 
-        render_pass.set_pipeline(&pipelines.render_polygon_ids);
-        for (index, bind_group) in &bind_groups {
-            render_pass.set_bind_group(*index, bind_group, &[]);
+        let mut render_pass = pipelines::render_polygon_ids::PassParams {
+            clear,
+            polygon_ids_texture: &self.buffers.polygon_ids_texture.view,
+            polygon_ids_depth_texture: &self.buffers.polygon_ids_depth_texture.view,
         }
+        .begin_pass(encoder);
+
+        render_pass.set_pipeline(&pipeline.pipeline);
+        render_pass.set_bind_groups(&bind_groups);
         render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
         render_pass.set_vertex_buffer(1, self.buffers.vertex_culls.slice(..));
         render_pass.set_vertex_buffer(2, self.buffers.vertex_lightings.slice(..));
@@ -712,6 +635,7 @@ impl PuzzleRenderer {
             self.buffers.sorted_triangles.slice(..),
             wgpu::IndexFormat::Uint32,
         );
+
         render_pass.draw_indexed(index_range, 0, 0..1);
         Ok(())
     }
@@ -723,48 +647,31 @@ impl PuzzleRenderer {
         alpha: f32,
         clear: bool,
     ) -> Result<()> {
-        let pipelines = &self.gfx.pipelines;
+        let pipeline = &self.gfx.pipelines.render_composite_puzzle;
 
+        // TODO: needs offsets if we want different composite params each time
         self.gfx.queue.write_buffer(
             &self.buffers.composite_params,
             0,
             bytemuck::bytes_of(&composite_params),
         );
 
-        let bind_groups = pipelines.render_composite_puzzle_bind_groups.bind_groups(
-            &self.gfx.device,
-            &[
-                &[
-                    wgpu::BindingResource::TextureView(&self.buffers.sticker_colors_texture.view),
-                    wgpu::BindingResource::TextureView(&self.buffers.special_colors_texture.view),
-                    wgpu::BindingResource::TextureView(&self.buffers.polygon_ids_texture.view),
-                ],
-                &[self.model.polygon_color_ids.as_entire_binding()],
-                &[],
-                &[self.buffers.composite_params.as_entire_binding()],
-            ],
-        );
-
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("render_composite_puzzle"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &self.buffers.color_texture.view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: match clear {
-                        true => wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        false => wgpu::LoadOp::Load,
-                    },
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
-            ..wgpu::RenderPassDescriptor::default()
+        let bind_groups = pipeline.bind_groups(pipelines::render_composite_puzzle::Bindings {
+            sticker_colors_texture: &self.buffers.sticker_colors_texture.view,
+            special_colors_texture: &self.buffers.special_colors_texture.view,
+            polygon_ids_texture: &self.buffers.polygon_ids_texture.view,
+            polygon_color_ids: &self.model.polygon_color_ids,
+            composite_params: &self.buffers.composite_params,
         });
 
-        render_pass.set_pipeline(&pipelines.render_composite_puzzle);
-        for (index, bind_group) in &bind_groups {
-            render_pass.set_bind_group(*index, bind_group, &[]);
+        let mut render_pass = pipelines::render_composite_puzzle::PassParams {
+            clear,
+            target: &self.buffers.color_texture.view,
         }
+        .begin_pass(encoder);
+
+        render_pass.set_pipeline(&pipeline.pipeline);
+        render_pass.set_bind_groups(&bind_groups);
         render_pass.set_vertex_buffer(0, self.gfx.uv_vertex_buffer.slice(..));
         render_pass.set_blend_constant(wgpu::Color {
             r: alpha as f64,
@@ -772,6 +679,7 @@ impl PuzzleRenderer {
             b: alpha as f64,
             a: alpha as f64,
         });
+
         render_pass.draw(0..4, 0..1);
         Ok(())
     }
@@ -885,16 +793,12 @@ struct_with_constructor! {
                  * VIEW PARAMETERS AND TRANSFORMS
                  */
                 /// Projection parameters uniform.
-                projection_params: wgpu::Buffer = gfx.create_buffer::<GfxProjectionParams>(
+                projection_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxProjectionParams>(
                     label("projection_params"),
-                    1,
-                    wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
                 ),
                 /// Lighting parameters uniform.
-                lighting_params: wgpu::Buffer = gfx.create_buffer::<GfxLightingParams>(
+                lighting_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxLightingParams>(
                     label("lighting_params"),
-                    1,
-                    wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
                 ),
                 /// NxN transformation matrix for the whole puzzle.
                 puzzle_transform: wgpu::Buffer = gfx.create_buffer::<f32>(
@@ -915,15 +819,11 @@ struct_with_constructor! {
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
                 ),
 
-                view_params: wgpu::Buffer = gfx.create_buffer::<GfxViewParams>(
+                view_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxViewParams>(
                     label("view_params"),
-                    1,
-                    wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
                 ),
-                composite_params: wgpu::Buffer = gfx.create_buffer::<GfxCompositeParams>(
+                composite_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxCompositeParams>(
                     label("composite_params"),
-                    1,
-                    wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
                 ),
 
                 /*

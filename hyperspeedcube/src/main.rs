@@ -20,7 +20,7 @@ mod gui;
 mod preferences;
 // pub mod puzzle;
 mod app;
-mod render;
+mod gfx;
 mod serde_impl;
 mod util;
 

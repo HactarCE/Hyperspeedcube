@@ -12,7 +12,7 @@ mod puzzle_view;
 
 // pub use debug::PolytopeTree;
 // pub use puzzle_setup::PuzzleSetup;
-use crate::render::RenderEngine;
+use crate::gfx::RenderEngine;
 pub use puzzle_view::PuzzleView;
 
 use super::App;

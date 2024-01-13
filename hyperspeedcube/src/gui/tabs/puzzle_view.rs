@@ -5,8 +5,8 @@ use hyperpuzzle::{Mesh, Piece, Puzzle};
 use parking_lot::Mutex;
 
 use crate::{
+    gfx::{GraphicsState, PuzzleRenderResources, PuzzleRenderer, RenderEngine, ViewParams},
     preferences::{Preferences, ViewPreferences},
-    render::{GraphicsState, PuzzleRenderResources, PuzzleRenderer, RenderEngine, ViewParams},
 };
 
 #[derive(Debug)]

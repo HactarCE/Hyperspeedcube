@@ -8,9 +8,9 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::Window;
 
+use crate::gfx::GraphicsState;
 use crate::gui::PuzzleView;
 use crate::preferences::Preferences;
-use crate::render::GraphicsState;
 
 pub struct App {
     pub(crate) gfx: Arc<GraphicsState>,

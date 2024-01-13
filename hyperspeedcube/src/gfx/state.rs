@@ -8,13 +8,13 @@ use super::pipelines::Pipelines;
 
 /// Graphics state for the whole window.
 pub(crate) struct GraphicsState {
-    pub(crate) device: Arc<wgpu::Device>,
-    pub(crate) queue: Arc<wgpu::Queue>,
-    pub(crate) target_format: wgpu::TextureFormat,
+    pub(in crate::gfx) device: Arc<wgpu::Device>,
+    pub(in crate::gfx) queue: Arc<wgpu::Queue>,
 
-    pub(crate) pipelines: Pipelines,
+    pub(in crate::gfx) pipelines: Pipelines,
 
-    pub(crate) uv_vertex_buffer: wgpu::Buffer,
+    pub(in crate::gfx) uv_vertex_buffer: wgpu::Buffer,
+    pub(in crate::gfx) default_sampler: wgpu::Sampler,
 }
 impl fmt::Debug for GraphicsState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -35,15 +35,16 @@ impl GraphicsState {
             &super::structs::UvVertex::SQUARE,
             wgpu::BufferUsages::VERTEX,
         );
+        let default_sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
 
         Self {
             device,
             queue,
-            target_format,
 
             pipelines,
 
             uv_vertex_buffer,
+            default_sampler,
         }
     }
 
