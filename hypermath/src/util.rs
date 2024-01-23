@@ -1,9 +1,9 @@
 //! Common mathematical utility functions that didn't fit anywhere else.
 
-use std::ops::{Add, Mul};
+use std::ops::{Add, BitXorAssign, Mul};
 
 use itertools::Itertools;
-use num_traits::{CheckedShr, PrimInt, Unsigned};
+use num_traits::{CheckedShl, PrimInt, Unsigned};
 
 use crate::Float;
 
@@ -102,22 +102,18 @@ pub fn merge_options<T>(a: Option<T>, b: Option<T>, f: impl FnOnce(T, T) -> T) -
 }
 
 /// Iterates over the indices of set bits in `bitset`.
-pub fn iter_ones<
-    N: 'static + num_traits::PrimInt + num_traits::Unsigned + num_traits::CheckedShr,
->(
-    bitset: N,
+pub fn iter_ones<N: 'static + PrimInt + Unsigned + CheckedShl + BitXorAssign>(
+    mut bitset: N,
 ) -> impl Iterator<Item = u32> {
-    let mut next = bitset.trailing_zeros();
-    let bitset = bitset >> 1_usize;
     std::iter::from_fn(move || {
-        let ret = next;
-        next = next + 1 + bitset.checked_shr(next)?.trailing_zeros();
+        let ret = bitset.trailing_zeros();
+        bitset ^= N::one().checked_shl(ret)?;
         Some(ret)
     })
 }
 
 /// Returns an iterator over the powerset of set bits in `bitset`.
-pub fn bitset_powerset<N: 'static + PrimInt + Unsigned + CheckedShr>(
+pub fn bitset_powerset<N: 'static + PrimInt + Unsigned + CheckedShl + BitXorAssign>(
     bitset: N,
 ) -> impl Iterator<Item = N> {
     let set_bits = iter_ones(bitset).collect_vec();
