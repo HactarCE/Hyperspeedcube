@@ -8,9 +8,11 @@ SANDBOX_ENV = {
   ipairs = ipairs,
   next = next,
   pairs = pairs,
+  pcall = pcall,
   select = select,
   tonumber = tonumber,
   tostring = tostring,
+  unpack = unpack,
 
   -- Safe built-in modules
   math = math,
