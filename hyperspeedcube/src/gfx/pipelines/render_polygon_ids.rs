@@ -16,7 +16,7 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
             single_type_vertex_buffer![3 => Sint32],    // polygon_id
         ],
         depth_stencil: Some(wgpu::DepthStencilState {
-            format: wgpu::TextureFormat::Depth24PlusStencil8,
+            format: wgpu::TextureFormat::Depth32Float,
             depth_write_enabled: true,
             depth_compare: wgpu::CompareFunction::Greater,
             stencil: wgpu::StencilState::default(),
