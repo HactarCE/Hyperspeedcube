@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use egui::NumExt;
 use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, Piece, Puzzle};
 use parking_lot::Mutex;
@@ -88,6 +89,9 @@ impl PuzzleView {
         let min_size = egui_rect.size().min_elem();
         const DRAG_SPEED: f32 = 5.0;
         let drag_delta = r.drag_delta() * DRAG_SPEED / min_size.abs();
+        // Convert to higher precision before dividing.
+        let scaled_drag_x = drag_delta.x as Float / self.view_params.zoom.at_least(1.0) as Float;
+        let scaled_drag_y = drag_delta.y as Float / self.view_params.zoom.at_least(1.0) as Float;
 
         let scroll_delta = ui.input(|input| input.scroll_delta);
         if r.hovered() {
@@ -105,13 +109,12 @@ impl PuzzleView {
         if ui.input(|input| input.modifiers.alt) {
             z_axis += 2;
         };
-        self.view_params.rot =
-            Isometry::from_angle_in_axis_plane(0, z_axis, -drag_delta.x as Float)
-                * Isometry::from_angle_in_axis_plane(1, z_axis, drag_delta.y as Float)
-                * &self.view_params.rot;
+        self.view_params.rot = Isometry::from_angle_in_axis_plane(0, z_axis, -scaled_drag_x)
+            * Isometry::from_angle_in_axis_plane(1, z_axis, scaled_drag_y)
+            * &self.view_params.rot;
 
-        self.view_params.width = pixels_rect.width() as u32;
-        self.view_params.height = pixels_rect.height() as u32;
+        self.view_params.width = pixels_rect.width() as u32 / 4;
+        self.view_params.height = pixels_rect.height() as u32 / 4;
         if r.has_focus() {
             ui.input(|input| {
                 if input.key_pressed(egui::Key::Num1) {
