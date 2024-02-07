@@ -92,6 +92,10 @@ impl PuzzleView {
         let scroll_delta = ui.input(|input| input.scroll_delta);
         if r.hovered() {
             self.view_params.zoom *= (scroll_delta.y / 100.0).exp2();
+            self.view_params.zoom = self
+                .view_params
+                .zoom
+                .clamp(2.0_f32.powf(-6.0), 2.0_f32.powf(12.0));
         }
 
         let mut z_axis = 2;
