@@ -99,7 +99,7 @@ impl PuzzleView {
             self.view_params.zoom = self
                 .view_params
                 .zoom
-                .clamp(2.0_f32.powf(-6.0), 2.0_f32.powf(12.0));
+                .clamp(2.0_f32.powf(-6.0), 2.0_f32.powf(8.0));
         }
 
         let mut z_axis = 2;

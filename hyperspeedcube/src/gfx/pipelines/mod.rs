@@ -8,6 +8,7 @@ use crate::gfx::structs::UvVertex;
 pub(in crate::gfx) mod blit;
 pub(in crate::gfx) mod compute_transform_points;
 pub(in crate::gfx) mod render_composite_puzzle;
+pub(in crate::gfx) mod render_edge_ids;
 pub(in crate::gfx) mod render_polygon_ids;
 pub(in crate::gfx) mod render_single_pass;
 
@@ -21,41 +22,44 @@ mod bindings {
     use crate::gfx::bindings::{buffer, sampler, texture, BindingMetadata};
 
     // Static mesh data (per-vertex)
-    pub const VERTEX_POSITIONS:       BindingMetadata = buffer(0, 0, Storage { read_only: true });
-    pub const U_TANGENTS:             BindingMetadata = buffer(0, 1, Storage { read_only: true });
-    pub const V_TANGENTS:             BindingMetadata = buffer(0, 2, Storage { read_only: true });
-    pub const STICKER_SHRINK_VECTORS: BindingMetadata = buffer(0, 3, Storage { read_only: true });
-    pub const PIECE_IDS:              BindingMetadata = buffer(0, 4, Storage { read_only: true });
-    pub const FACET_IDS:              BindingMetadata = buffer(0, 5, Storage { read_only: true });
+    pub const VERTEX_POSITIONS:             BindingMetadata = buffer(0, 0, Storage { read_only: true });
+    pub const U_TANGENTS:                   BindingMetadata = buffer(0, 1, Storage { read_only: true });
+    pub const V_TANGENTS:                   BindingMetadata = buffer(0, 2, Storage { read_only: true });
+    pub const STICKER_SHRINK_VECTORS:       BindingMetadata = buffer(0, 3, Storage { read_only: true });
+    pub const PIECE_IDS:                    BindingMetadata = buffer(0, 4, Storage { read_only: true });
+    pub const FACET_IDS:                    BindingMetadata = buffer(0, 5, Storage { read_only: true });
 
     // Static mesh data (other)
-    pub const PIECE_CENTROIDS:        BindingMetadata = buffer(1, 0, Storage { read_only: true });
-    pub const FACET_CENTROIDS:        BindingMetadata = buffer(1, 1, Storage { read_only: true });
-    pub const FACET_NORMALS:          BindingMetadata = buffer(1, 2, Storage { read_only: true });
-    pub const POLYGON_COLOR_IDS:      BindingMetadata = buffer(1, 3, Storage { read_only: true });
+    pub const PIECE_CENTROIDS:              BindingMetadata = buffer(1, 0, Storage { read_only: true });
+    pub const FACET_CENTROIDS:              BindingMetadata = buffer(1, 1, Storage { read_only: true });
+    pub const FACET_NORMALS:                BindingMetadata = buffer(1, 2, Storage { read_only: true });
+    pub const POLYGON_COLOR_IDS:            BindingMetadata = buffer(1, 3, Storage { read_only: true });
+    pub const EDGE_VERTS:                   BindingMetadata = buffer(1, 4, Storage { read_only: true });
     // Computed data (per-vertex)
-    pub const VERTEX_3D_POSITIONS:    BindingMetadata = buffer(1, 5, Storage { read_only: false });
-    pub const VERTEX_LIGHTINGS:       BindingMetadata = buffer(1, 6, Storage { read_only: false });
-    pub const VERTEX_CULLS:           BindingMetadata = buffer(1, 7, Storage { read_only: false });
+    pub const VERTEX_3D_POSITIONS:          BindingMetadata = buffer(1, 5, Storage { read_only: false });
+    pub const VERTEX_3D_POSITIONS_READONLY: BindingMetadata = buffer(1, 5, Storage { read_only: true });
+    pub const VERTEX_LIGHTINGS:             BindingMetadata = buffer(1, 6, Storage { read_only: false });
+    pub const VERTEX_CULLS:                 BindingMetadata = buffer(1, 7, Storage { read_only: false });
+    pub const VERTEX_CULLS_READONLY:        BindingMetadata = buffer(1, 7, Storage { read_only: true });
 
     // View parameters and transforms
-    pub const PUZZLE_TRANSFORM:       BindingMetadata = buffer(2, 0, Uniform);
-    pub const PIECE_TRANSFORMS:       BindingMetadata = buffer(2, 1, Storage { read_only: true });
-    pub const CAMERA_4D_POS:          BindingMetadata = buffer(2, 2, Storage { read_only: true });
-    pub const PROJECTION_PARAMS:      BindingMetadata = buffer(2, 3, Uniform);
-    pub const LIGHTING_PARAMS:        BindingMetadata = buffer(2, 4, Uniform);
-    pub const VIEW_PARAMS:            BindingMetadata = buffer(2, 5, Uniform);
+    pub const PUZZLE_TRANSFORM:             BindingMetadata = buffer(2, 0, Uniform);
+    pub const PIECE_TRANSFORMS:             BindingMetadata = buffer(2, 1, Storage { read_only: true });
+    pub const CAMERA_4D_POS:                BindingMetadata = buffer(2, 2, Storage { read_only: true });
+    pub const PROJECTION_PARAMS:            BindingMetadata = buffer(2, 3, Uniform);
+    pub const LIGHTING_PARAMS:              BindingMetadata = buffer(2, 4, Uniform);
+    pub const VIEW_PARAMS:                  BindingMetadata = buffer(2, 5, Uniform);
+    pub const TARGET_SIZE:                  BindingMetadata = buffer(2, 6, Uniform);
 
     // Composite parameters
-    pub const COMPOSITE_PARAMS:       BindingMetadata = buffer(3, 0, Uniform);
+    pub const COMPOSITE_PARAMS:             BindingMetadata = buffer(3, 0, Uniform);
 
-    pub const STICKER_COLORS_TEXTURE: BindingMetadata = texture(0, 50, D1, Float { filterable: false });
-    pub const SPECIAL_COLORS_TEXTURE: BindingMetadata = texture(0, 51, D1, Float { filterable: false });
+    pub const STICKER_COLORS_TEXTURE:       BindingMetadata = texture(0, 50, D1, Float { filterable: false });
+    pub const SPECIAL_COLORS_TEXTURE:       BindingMetadata = texture(0, 51, D1, Float { filterable: false });
 
-    pub const POLYGON_IDS_TEXTURE:    BindingMetadata = texture(0, 100, D2, Uint);
-    pub const EDGES_TEXTURE:          BindingMetadata = texture(0, 101, D2, Float { filterable: false });
-    pub const BLIT_SRC_TEXTURE:       BindingMetadata = texture(0, 102, D2, Float { filterable: true });
-    pub const BLIT_SRC_SAMPLER:       BindingMetadata = sampler(0, 150, Filtering);
+    pub const IDS_TEXTURE:                  BindingMetadata = texture(0, 100, D2, Uint);
+    pub const BLIT_SRC_TEXTURE:             BindingMetadata = texture(0, 102, D2, Float { filterable: true });
+    pub const BLIT_SRC_SAMPLER:             BindingMetadata = sampler(0, 150, Filtering);
 }
 
 const MIN_NDIM: u8 = 2;
@@ -66,6 +70,8 @@ pub(in crate::gfx) struct Pipelines {
     pub compute_transform_points: Vec<compute_transform_points::Pipeline>,
     /// Render polygon IDs.
     pub render_polygon_ids: render_polygon_ids::Pipeline,
+    /// Render edge IDs.
+    pub render_edge_ids: render_edge_ids::Pipeline,
     /// Render color from polygon IDs.
     pub render_composite_puzzle: render_composite_puzzle::Pipeline,
     /// Render the whole puzzle in a single pass.
@@ -87,16 +93,13 @@ impl Pipelines {
                 .iter()
                 .map(|shader_module| compute_transform_points::Pipeline::new(device, shader_module))
                 .collect(),
-
             render_polygon_ids: render_polygon_ids::Pipeline::new(device, shader_module),
-
+            render_edge_ids: render_edge_ids::Pipeline::new(device, shader_module),
             render_composite_puzzle: render_composite_puzzle::Pipeline::new(device, shader_module),
-
             render_single_pass: shader_modules_by_dimension
                 .iter()
                 .map(|shader_module| render_single_pass::Pipeline::new(device, shader_module))
                 .collect(),
-
             blit: blit::Pipeline::new(
                 device,
                 shader_module,

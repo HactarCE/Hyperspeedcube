@@ -15,6 +15,10 @@ pub struct Mesh {
     pub color_count: usize,
     /// Number of polygons in the mesh.
     pub polygon_count: usize,
+    /// Number of stickers in the mesh.
+    pub sticker_count: usize,
+    /// Number of pieces in the mesh.
+    pub piece_count: usize,
 
     /// Coordinates for each vertex in N-dimensional space.
     pub vertex_positions: Vec<f32>,
@@ -43,12 +47,18 @@ pub struct Mesh {
 
     /// Vertex indices for triangles.
     pub triangles: Vec<[u32; 3]>,
-
     /// For each sticker, the range in `triangles` containing its triangles.
-    pub sticker_index_ranges: PerSticker<Range<u32>>,
+    pub sticker_triangle_ranges: PerSticker<Range<u32>>,
     /// For each piece, the range in `triangles` containing its internals'
     /// triangles.
-    pub piece_internals_index_ranges: PerPiece<Range<u32>>,
+    pub piece_internals_triangle_ranges: PerPiece<Range<u32>>,
+
+    /// Vertex indices for edges.
+    pub edges: Vec<[u32; 2]>,
+    /// For each sticker, the range in `edges` containing its edges.
+    pub sticker_edge_ranges: PerSticker<Range<u32>>,
+    /// For each piece, the range in `edges` containing its internal's edges.
+    pub piece_internals_edge_ranges: PerPiece<Range<u32>>,
 }
 
 impl Default for Mesh {
@@ -64,6 +74,8 @@ impl Mesh {
             ndim,
             color_count: 0,
             polygon_count: 0,
+            sticker_count: 0,
+            piece_count: 0,
 
             vertex_positions: vec![],
             u_tangents: vec![],
@@ -80,9 +92,12 @@ impl Mesh {
             facet_normals: vec![],
 
             triangles: vec![],
+            sticker_triangle_ranges: PerSticker::new(),
+            piece_internals_triangle_ranges: PerPiece::new(),
 
-            sticker_index_ranges: PerSticker::new(),
-            piece_internals_index_ranges: PerPiece::new(),
+            edges: vec![],
+            sticker_edge_ranges: PerSticker::new(),
+            piece_internals_edge_ranges: PerPiece::new(),
         }
     }
 
@@ -94,21 +109,25 @@ impl Mesh {
     pub fn vertex_count(&self) -> usize {
         self.vertex_positions.len() / self.ndim as usize
     }
+    /// Returns the number of stickers in the mesh.
+    pub fn sticker_count(&self) -> usize {
+        self.sticker_count
+    }
     /// Returns the number of pieces in the mesh.
     pub fn piece_count(&self) -> usize {
-        self.piece_internals_index_ranges.len()
+        self.piece_count
     }
     /// Returns the number of facets in the mesh.
     pub fn facet_count(&self) -> usize {
         self.facet_centroids.len() / self.ndim as usize
     }
-    /// Returns the number of stickers in the mesh.
-    pub fn sticker_count(&self) -> usize {
-        self.sticker_index_ranges.len()
-    }
     /// Returns the number of triangles in the mesh.
     pub fn triangle_count(&self) -> usize {
         self.triangles.len()
+    }
+    /// Returns the number of edges in the mesh.
+    pub fn edge_count(&self) -> usize {
+        self.edges.len()
     }
     /// Returns the number of colors in the mesh.
     pub fn color_count(&self) -> usize {
@@ -139,17 +158,32 @@ impl Mesh {
         Ok(ret)
     }
 
-    /// Adds a piece to the mesh, given its centroid and a function to add its
-    /// internal facets.
+    /// Adds a sticker to the mesh.
+    pub(super) fn add_sticker(
+        &mut self,
+        triangle_range: Range<u32>,
+        edge_range: Range<u32>,
+    ) -> Result<()> {
+        self.sticker_count += 1;
+        self.sticker_triangle_ranges.push(triangle_range)?;
+        self.sticker_edge_ranges.push(edge_range)?;
+
+        Ok(())
+    }
+    /// Adds a piece to the mesh.
     pub(super) fn add_piece(
         &mut self,
         centroid: &impl VectorRef,
-        internals_index_range: Range<u32>,
+        internals_triangle_range: Range<u32>,
+        internals_edge_range: Range<u32>,
     ) -> Result<()> {
         let ndim = self.ndim();
+        self.piece_count += 1;
         self.piece_centroids.extend(iter_f32(ndim, centroid));
-        self.piece_internals_index_ranges
-            .push(internals_index_range)?;
+        self.piece_internals_triangle_ranges
+            .push(internals_triangle_range)?;
+        self.piece_internals_edge_ranges
+            .push(internals_edge_range)?;
 
         Ok(())
     }

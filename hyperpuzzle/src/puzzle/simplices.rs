@@ -145,32 +145,7 @@ impl<'a> Simplexifier<'a> {
         }
     }
 
-    pub fn polygons(&mut self, root: AtomicPolytopeRef) -> Result<Vec<AtomicPolytopeRef>> {
-        // TODO: move this function to `Space`
-
-        let mut queue = vec![root];
-        let mut seen = HashSet::new();
-        let mut results = vec![];
-
-        while let Some(shape) = queue.pop() {
-            match self.space.ndim_of(shape) {
-                0..=1 => continue, // should be unreachable
-                3.. => {
-                    // TODO: handle non-flat shapes
-                    for b in self.space.boundary_of(shape) {
-                        if seen.insert(b.id) {
-                            queue.push(b);
-                        }
-                    }
-                }
-                2 => results.push(shape),
-            }
-        }
-
-        Ok(results)
-    }
-
-    fn polygon_edges(&mut self, polygon: AtomicPolytopeRef) -> Result<Vec<[VertexId; 2]>> {
+    pub fn polygon_edges(&mut self, polygon: AtomicPolytopeRef) -> Result<Vec<[VertexId; 2]>> {
         let manifold = self.space.manifold_of(polygon);
         let blade = self.space.blade_of(manifold);
 
@@ -214,7 +189,8 @@ impl<'a> Simplexifier<'a> {
     }
 
     pub fn vertex_set(&mut self, root: AtomicPolytopeRef) -> Result<HashSet<VertexId>> {
-        self.polygons(root)?
+        self.space
+            .children_with_ndim(root, 2)
             .into_iter()
             .map(|polygon| self.polygon_edges(polygon))
             .flatten_ok()

@@ -23,6 +23,8 @@ too_many_lines = "warn"
 undocumented_unsafe_blocks = "warn"
 unwrap_used = "warn"
 
+correctness = "deny"
+
 multiple_crate_versions = { level = "allow", priority = 1 }
 
 [profile.dev.package.backtrace]

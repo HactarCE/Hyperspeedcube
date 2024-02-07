@@ -50,10 +50,11 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         // egui expects sRGB colors in the shader, so we have to read the sRGB
         // texture as though it were linear to prevent the GPU from doing gamma
         // conversion.
-        let format = Some(renderer.buffers.color_texture.format().remove_srgb_suffix());
-        let texture = &renderer.buffers.color_texture.texture;
+        let src_format = renderer.buffers.composite_texture.format();
+        let src_format_with_no_conversion = Some(src_format.remove_srgb_suffix());
+        let texture = &renderer.buffers.composite_texture.texture;
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor {
-            format,
+            format: src_format_with_no_conversion,
             ..Default::default()
         });
 
@@ -130,7 +131,7 @@ impl Default for ViewParams {
             height: 0,
 
             rot: Isometry::ident(),
-            zoom: 0.3,
+            zoom: 0.5,
 
             background_color: egui::Color32::BLACK,
             outlines_color: egui::Color32::BLACK,
@@ -273,6 +274,17 @@ pub(crate) struct PuzzleRenderer {
     puzzle: Arc<Puzzle>,
 }
 
+impl Clone for PuzzleRenderer {
+    fn clone(&self) -> Self {
+        Self {
+            gfx: Arc::clone(&self.gfx),
+            puzzle: Arc::clone(&self.puzzle),
+            model: Arc::clone(&self.model),
+            buffers: self.buffers.clone(&self.gfx),
+        }
+    }
+}
+
 impl PuzzleRenderer {
     pub fn new(gfx: &Arc<GraphicsState>, puzzle: Arc<Puzzle>) -> Self {
         let id = next_buffer_id();
@@ -281,15 +293,6 @@ impl PuzzleRenderer {
             model: Arc::new(StaticPuzzleModel::new(&gfx, &puzzle.mesh, id)),
             buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &puzzle.mesh, id),
             puzzle,
-        }
-    }
-
-    pub fn clone(&self) -> Self {
-        Self {
-            gfx: Arc::clone(&self.gfx),
-            puzzle: Arc::clone(&self.puzzle),
-            model: Arc::clone(&self.model),
-            buffers: self.buffers.clone(&self.gfx),
         }
     }
 
@@ -302,15 +305,10 @@ impl PuzzleRenderer {
         if opacity_buckets.is_empty() {
             return Ok(());
         }
-        let index_range =
-            opacity_buckets[0].index_range.start..opacity_buckets.last().unwrap().index_range.end;
+        let index_range = opacity_buckets[0].triangles_range.start
+            ..opacity_buckets.last().unwrap().triangles_range.end;
 
         let pipeline = &self.gfx.pipelines.render_single_pass(self.model.ndim)?;
-
-        // Make the textures the right size.
-        let size = [view_params.width, view_params.height];
-        self.buffers.polygon_ids_depth_texture.set_size(size);
-        self.buffers.color_texture.set_size(size);
 
         // Render in a single pass.
         {
@@ -337,8 +335,8 @@ impl PuzzleRenderer {
 
             let mut render_pass = pipelines::render_single_pass::PassParams {
                 clear_color: [r as f64, g as f64, b as f64],
-                color_texture: &self.buffers.color_texture.view,
-                depth_texture: &self.buffers.polygon_ids_depth_texture.view,
+                color_texture: &self.buffers.composite_texture.view,
+                depth_texture: &self.buffers.ids_depth_texture.view,
             }
             .begin_pass(encoder);
 
@@ -364,12 +362,9 @@ impl PuzzleRenderer {
         view_params: &ViewParams,
     ) -> Result<()> {
         let opacity_buckets = self.init_buffers(encoder, view_params)?;
-
-        // Make the textures the right size.
-        let size = [view_params.width, view_params.height];
-        self.buffers.polygon_ids_texture.set_size(size);
-        self.buffers.polygon_ids_depth_texture.set_size(size);
-        self.buffers.color_texture.set_size(size);
+        if opacity_buckets.is_empty() {
+            return Ok(());
+        }
 
         // Compute 3D vertex positions on the GPU.
         self.compute_3d_vertex_positions(encoder)?;
@@ -379,7 +374,7 @@ impl PuzzleRenderer {
         for bucket in opacity_buckets {
             let composite_params = GfxCompositeParams { outline_radius: 1 };
 
-            self.render_polygon_ids(encoder, bucket.index_range, is_first)?;
+            self.render_polygon_ids(encoder, &bucket, is_first)?;
             self.render_composite_puzzle(encoder, composite_params, bucket.opacity, is_first)?;
 
             is_first = false;
@@ -394,9 +389,21 @@ impl PuzzleRenderer {
         encoder: &mut wgpu::CommandEncoder,
         view_params: &ViewParams,
     ) -> Result<Vec<GeometryBucket>> {
+        // Make the textures the right size.
+        let size = [view_params.width, view_params.height];
+        self.buffers.ids_texture.set_size(size);
+        self.buffers.ids_depth_texture.set_size(size);
+        self.buffers.composite_texture.set_size(size);
+
         if self.model.is_empty() {
             return Ok(vec![]);
         }
+
+        // Write the target size.
+        let data = size.map(|x| x as f32);
+        self.gfx
+            .queue
+            .write_buffer(&self.buffers.target_size, 0, bytemuck::bytes_of(&data));
 
         // Write the projection parameters.
         let data = view_params.gfx_projection_params(self.model.ndim);
@@ -491,12 +498,14 @@ impl PuzzleRenderer {
 
         // Sort pieces into buckets by opacity and outlines and write triangle
         // indices.
-        let mut buffer_index = 0;
+        let mut triangles_buffer_index = 0;
+        let mut edges_buffer_index = 0;
         let mut buckets: Vec<GeometryBucket> = vec![];
         let mut new_bucket = GeometryBucket {
             opacity: 1.0,
             outline_width: 1.0,
-            index_range: 0..0,
+            triangles_range: 0..0,
+            edges_range: 0..0,
         };
         for (piece, &opacity) in view_params
             .piece_opacities
@@ -512,11 +521,19 @@ impl PuzzleRenderer {
                 new_bucket = GeometryBucket {
                     opacity,
                     outline_width: 1.0,
-                    index_range: buffer_index..buffer_index,
+                    triangles_range: triangles_buffer_index..triangles_buffer_index,
+                    edges_range: edges_buffer_index..edges_buffer_index,
                 };
             }
-            self.write_triangles_for_piece(encoder, piece, &mut buffer_index, view_params);
-            new_bucket.index_range.end = buffer_index;
+            self.write_triangles_and_edges_for_piece(
+                encoder,
+                piece,
+                &mut triangles_buffer_index,
+                &mut edges_buffer_index,
+                view_params,
+            );
+            new_bucket.triangles_range.end = triangles_buffer_index;
+            new_bucket.edges_range.end = edges_buffer_index;
         }
         buckets.push(new_bucket);
 
@@ -528,45 +545,64 @@ impl PuzzleRenderer {
 
         Ok(buckets)
     }
-    fn write_triangles_for_piece(
+    fn write_triangles_and_edges_for_piece(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         piece: Piece,
-        destination_offset: &mut u32,
+        triangles_destination_offset: &mut u32,
+        edges_destination_offset: &mut u32,
         view_params: &ViewParams,
     ) {
         if view_params.prefs.show_internals {
-            self.write_triangles(
+            self.write_triangles_and_edges(
                 encoder,
-                &self.model.piece_internals_index_ranges[piece],
-                destination_offset,
+                &self.model.piece_internals_triangle_ranges[piece],
+                triangles_destination_offset,
+                &self.model.piece_internals_edge_ranges[piece],
+                edges_destination_offset,
             );
         }
         for &sticker in &self.puzzle.pieces[piece].stickers {
-            self.write_triangles(
+            self.write_triangles_and_edges(
                 encoder,
-                &self.model.sticker_index_ranges[sticker],
-                destination_offset,
+                &self.model.sticker_triangle_ranges[sticker],
+                triangles_destination_offset,
+                &self.model.sticker_edge_ranges[sticker],
+                edges_destination_offset,
             );
         }
     }
-    fn write_triangles(
+    fn write_triangles_and_edges(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         triangles_index_range: &Range<u32>,
-        destination_offset: &mut u32,
+        triangles_destination_offset: &mut u32,
+        edges_index_range: &Range<u32>,
+        edges_destination_offset: &mut u32,
     ) {
         const INDEX_SIZE: u64 = std::mem::size_of::<u32>() as u64;
+
         let start = triangles_index_range.start * 3;
         let len = triangles_index_range.len() * 3;
         encoder.copy_buffer_to_buffer(
             &self.model.triangles,
             start as u64 * INDEX_SIZE,
             &self.buffers.sorted_triangles,
-            *destination_offset as u64 * INDEX_SIZE,
+            *triangles_destination_offset as u64 * INDEX_SIZE,
             len as u64 * INDEX_SIZE,
         );
-        *destination_offset += len as u32;
+        *triangles_destination_offset += len as u32;
+
+        let start = edges_index_range.start;
+        let len = edges_index_range.len();
+        encoder.copy_buffer_to_buffer(
+            &self.model.edge_ids,
+            start as u64 * INDEX_SIZE,
+            &self.buffers.sorted_edges,
+            *edges_destination_offset as u64 * INDEX_SIZE,
+            len as u64 * INDEX_SIZE,
+        );
+        *edges_destination_offset += len as u32;
     }
 
     fn compute_3d_vertex_positions(&mut self, encoder: &mut wgpu::CommandEncoder) -> Result<()> {
@@ -609,24 +645,35 @@ impl PuzzleRenderer {
     fn render_polygon_ids(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
-        index_range: Range<u32>,
+        bucket: &GeometryBucket,
         clear: bool,
     ) -> Result<()> {
-        let pipeline = &self.gfx.pipelines.render_polygon_ids;
+        let polygons_pipeline = &self.gfx.pipelines.render_polygon_ids;
+        let edges_pipeline = &self.gfx.pipelines.render_edge_ids;
 
-        let bind_groups = pipeline.bind_groups(pipelines::render_polygon_ids::Bindings {
+        let polygons_bind_groups =
+            polygons_pipeline.bind_groups(pipelines::render_polygon_ids::Bindings {
+                projection_params: &self.buffers.projection_params,
+                view_params: &self.buffers.view_params,
+            });
+        let edges_bind_groups = edges_pipeline.bind_groups(pipelines::render_edge_ids::Bindings {
+            edge_verts: &self.model.edges,
+            vertex_3d_positions: &self.buffers.vertex_3d_positions,
+            vertex_culls: &self.buffers.vertex_culls,
+            projection_params: &self.buffers.projection_params,
             view_params: &self.buffers.view_params,
+            target_size: &self.buffers.target_size,
         });
 
         let mut render_pass = pipelines::render_polygon_ids::PassParams {
             clear,
-            polygon_ids_texture: &self.buffers.polygon_ids_texture.view,
-            polygon_ids_depth_texture: &self.buffers.polygon_ids_depth_texture.view,
+            ids_texture: &self.buffers.ids_texture.view,
+            ids_depth_texture: &self.buffers.ids_depth_texture.view,
         }
         .begin_pass(encoder);
 
-        render_pass.set_pipeline(&pipeline.pipeline);
-        render_pass.set_bind_groups(&bind_groups);
+        render_pass.set_pipeline(&polygons_pipeline.pipeline);
+        render_pass.set_bind_groups(&polygons_bind_groups);
         render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
         render_pass.set_vertex_buffer(1, self.buffers.vertex_culls.slice(..));
         render_pass.set_vertex_buffer(2, self.buffers.vertex_lightings.slice(..));
@@ -635,8 +682,13 @@ impl PuzzleRenderer {
             self.buffers.sorted_triangles.slice(..),
             wgpu::IndexFormat::Uint32,
         );
+        render_pass.draw_indexed(bucket.triangles_range.clone(), 0, 0..1);
 
-        render_pass.draw_indexed(index_range, 0, 0..1);
+        render_pass.set_pipeline(&edges_pipeline.pipeline);
+        render_pass.set_bind_groups(&edges_bind_groups);
+        render_pass.set_vertex_buffer(0, self.buffers.sorted_edges.slice(..));
+        render_pass.draw(0..6, bucket.edges_range.clone());
+
         Ok(())
     }
 
@@ -659,14 +711,21 @@ impl PuzzleRenderer {
         let bind_groups = pipeline.bind_groups(pipelines::render_composite_puzzle::Bindings {
             sticker_colors_texture: &self.buffers.sticker_colors_texture.view,
             special_colors_texture: &self.buffers.special_colors_texture.view,
-            polygon_ids_texture: &self.buffers.polygon_ids_texture.view,
+            ids_texture: &self.buffers.ids_texture.view,
             polygon_color_ids: &self.model.polygon_color_ids,
+            edges: &self.model.edges,
+            vertex_3d_positions: &self.buffers.vertex_3d_positions,
+            lighting_params: &self.buffers.lighting_params,
             composite_params: &self.buffers.composite_params,
+
+            projection_params: &self.buffers.projection_params,
+            view_params: &self.buffers.view_params,
+            target_size: &self.buffers.target_size,
         });
 
         let mut render_pass = pipelines::render_composite_puzzle::PassParams {
             clear,
-            target: &self.buffers.color_texture.view,
+            target: &self.buffers.composite_texture.view,
         }
         .begin_pass(encoder);
 
@@ -710,12 +769,17 @@ struct_with_constructor! {
                 let piece_ids = mesh.piece_ids.iter().map(|&i| i.0 as u32).collect_vec();
                 let facet_ids = mesh.facet_ids.iter().map(|&i| i.0 as u32).collect_vec();
                 let polygon_color_ids = mesh.polygon_color_ids.iter().map(|&i| i.0 as u32).collect_vec();
+
+                // This is just a buffer full of sequential integers so that we
+                // don't have to send that data to the GPU each frame.
+                let edge_ids = (0..mesh.edges.len() as u32).collect_vec();
             }
 
             StaticPuzzleModel {
                 ndim: u8 = mesh.ndim(),
                 color_count: usize = mesh.color_count(),
                 vertex_count: usize = mesh.vertex_count(),
+                edge_count: usize = mesh.edge_count(),
                 triangle_count: usize = mesh.triangle_count(),
 
                 /*
@@ -749,9 +813,16 @@ struct_with_constructor! {
                 facet_normals:          wgpu::Buffer = buffer!(mesh.facet_normals,          STORAGE),
                 /// Vertex IDs for each triangle in the whole mesh.
                 triangles:              wgpu::Buffer = buffer!(mesh.triangles,             COPY_SRC),
+                /// Vertex IDs for each edge in the whole mesh.
+                edges:                  wgpu::Buffer = buffer!(mesh.edges,                  STORAGE),
+                /// Sequential edge IDs.
+                edge_ids:               wgpu::Buffer = buffer!(edge_ids,                   COPY_SRC),
 
-                sticker_index_ranges: PerSticker<Range<u32>> = mesh.sticker_index_ranges.clone(),
-                piece_internals_index_ranges: PerPiece<Range<u32>> = mesh.piece_internals_index_ranges.clone(),
+                sticker_triangle_ranges: PerSticker<Range<u32>> = mesh.sticker_triangle_ranges.clone(),
+                piece_internals_triangle_ranges: PerPiece<Range<u32>> = mesh.piece_internals_triangle_ranges.clone(),
+
+                sticker_edge_ranges: PerSticker<Range<u32>> = mesh.sticker_edge_ranges.clone(),
+                piece_internals_edge_ranges: PerPiece<Range<u32>> = mesh.piece_internals_edge_ranges.clone(),
             }
         }
     }
@@ -761,12 +832,8 @@ impl fmt::Debug for StaticPuzzleModel {
         f.debug_struct("StaticPuzzleModel")
             .field("ndim", &self.ndim)
             .field("vertex_count", &self.vertex_count)
+            .field("edge_count", &self.edge_count)
             .field("triangle_count", &self.triangle_count)
-            .field("sticker_index_ranges", &self.sticker_index_ranges)
-            .field(
-                "piece_internals_index_ranges",
-                &self.piece_internals_index_ranges,
-            )
             .finish_non_exhaustive()
     }
 }
@@ -825,6 +892,9 @@ struct_with_constructor! {
                 composite_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxCompositeParams>(
                     label("composite_params"),
                 ),
+                target_size: wgpu::Buffer = gfx.create_uniform_buffer::<[f32; 2]>(
+                    label("target_size"),
+                ),
 
                 /*
                  * VERTEX BUFFERS
@@ -857,6 +927,12 @@ struct_with_constructor! {
                     mesh.triangle_count(),
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX,
                 ),
+                /// Indices of edges to draw, sorted by opacity.
+                sorted_edges: wgpu::Buffer = gfx.create_buffer::<i32>(
+                    label("sorted_edges"),
+                    mesh.edge_count(),
+                    wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
+                ),
 
                 /*
                  * TEXTURES
@@ -875,38 +951,26 @@ struct_with_constructor! {
                     wgpu::TextureFormat::Rgba8UnormSrgb,
                     wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
                 ),
+
                 /// Polygon ID and lighting for each pixel.
-                polygon_ids_texture: CachedTexture2d = CachedTexture2d::new(
+                ids_texture: CachedTexture2d = CachedTexture2d::new(
                     Arc::clone(&gfx),
-                    label("polygon_ids_texture"),
-                    wgpu::TextureFormat::R32Uint,
+                    label("ids_texture"),
+                    wgpu::TextureFormat::Rg32Uint,
                     wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 ),
-                /// Depth texture for use with `polygon_ids_texture`.
-                polygon_ids_depth_texture: CachedTexture2d = CachedTexture2d::new(
+                /// Depth texture for use with `ids_texture`.
+                ids_depth_texture: CachedTexture2d = CachedTexture2d::new(
                     Arc::clone(&gfx),
                     label("polygon_ids_depth_texture"),
-                    wgpu::TextureFormat::Depth24PlusStencil8,
-                    wgpu::TextureUsages::RENDER_ATTACHMENT,
-                ),
-                /// Texture for JFA.
-                jfa_edges_texture_1: CachedTexture2d = CachedTexture2d::new(
-                    Arc::clone(&gfx),
-                    label("edges_texture_1"),
-                    wgpu::TextureFormat::Rgba32Float,
+                    wgpu::TextureFormat::Depth32Float,
                     wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 ),
-                /// Texture for JFA.
-                jfa_edges_texture_2: CachedTexture2d = CachedTexture2d::new(
-                    Arc::clone(&gfx),
-                    label("edges_texture_2"),
-                    wgpu::TextureFormat::Rgba32Float,
-                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                ),
+
                 /// Output color texture.
-                color_texture: CachedTexture2d = CachedTexture2d::new(
+                composite_texture: CachedTexture2d = CachedTexture2d::new(
                     Arc::clone(&gfx),
-                    label("color_texture"),
+                    label("composite_texture"),
                     wgpu::TextureFormat::Rgba8UnormSrgb,
                     wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 ),
@@ -936,7 +1000,7 @@ impl DynamicPuzzleBuffers {
             };
         }
         macro_rules! clone_texture {
-            ($gfx:ident, $id:ident, $self:ident.$field:ident) => {
+            ($id:ident, $self:ident.$field:ident) => {
                 $self
                     .$field
                     .clone(format!("puzzle{}_{}", $id, stringify!($field)))
@@ -951,18 +1015,19 @@ impl DynamicPuzzleBuffers {
             camera_4d_pos: clone_buffer!(gfx, id, self.camera_4d_pos),
             view_params: clone_buffer!(gfx, id, self.view_params),
             composite_params: clone_buffer!(gfx, id, self.composite_params),
+            target_size: clone_buffer!(gfx, id, self.target_size),
+
             vertex_3d_positions: clone_buffer!(gfx, id, self.vertex_3d_positions),
             vertex_lightings: clone_buffer!(gfx, id, self.vertex_lightings),
             vertex_culls: clone_buffer!(gfx, id, self.vertex_culls),
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
+            sorted_edges: clone_buffer!(gfx, id, self.sorted_edges),
 
-            sticker_colors_texture: clone_texture!(gfx, id, self.sticker_colors_texture),
-            special_colors_texture: clone_texture!(gfx, id, self.special_colors_texture),
-            polygon_ids_texture: clone_texture!(gfx, id, self.polygon_ids_texture),
-            polygon_ids_depth_texture: clone_texture!(gfx, id, self.polygon_ids_depth_texture),
-            jfa_edges_texture_1: clone_texture!(gfx, id, self.jfa_edges_texture_1),
-            jfa_edges_texture_2: clone_texture!(gfx, id, self.jfa_edges_texture_2),
-            color_texture: clone_texture!(gfx, id, self.color_texture),
+            sticker_colors_texture: clone_texture!(id, self.sticker_colors_texture),
+            special_colors_texture: clone_texture!(id, self.special_colors_texture),
+            ids_texture: clone_texture!(id, self.ids_texture),
+            ids_depth_texture: clone_texture!(id, self.ids_depth_texture),
+            composite_texture: clone_texture!(id, self.composite_texture),
         }
     }
 }
@@ -978,5 +1043,6 @@ fn dispatch_work_groups(compute_pass: &mut wgpu::ComputePass<'_>, count: u32) {
 struct GeometryBucket {
     opacity: f32,
     outline_width: f32,
-    index_range: Range<u32>,
+    triangles_range: Range<u32>,
+    edges_range: Range<u32>,
 }

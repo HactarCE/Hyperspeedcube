@@ -249,7 +249,7 @@ impl PuzzleBuilder {
 
                 facets[facet_id].centroid += sticker_centroid;
 
-                let triangles_index_range = build_shape_polygons(
+                let (triangles_index_range, edges_index_range) = build_shape_polygons(
                     &space,
                     &mut mesh,
                     &mut simplexifier,
@@ -262,20 +262,25 @@ impl PuzzleBuilder {
 
                 if sticker_color == Color::INTERNAL {
                     if piece_internals_indices_start.is_none() {
-                        piece_internals_indices_start = Some(triangles_index_range.start);
+                        piece_internals_indices_start =
+                            Some((triangles_index_range.start, edges_index_range.start));
                     }
                 } else {
-                    mesh.sticker_index_ranges.push(triangles_index_range)?;
+                    mesh.add_sticker(triangles_index_range, edges_index_range)?;
                 }
             }
 
-            let piece_internals_index_range = if let Some(start) = piece_internals_indices_start {
-                let end = mesh.triangle_count() as u32;
-                start..end
-            } else {
-                0..0
-            };
-            mesh.add_piece(&piece_centroid, piece_internals_index_range)?;
+            let mut piece_internals_triangle_range = 0..0;
+            let mut piece_internals_edge_range = 0..0;
+            if let Some((tri_start, edge_start)) = piece_internals_indices_start {
+                piece_internals_triangle_range = tri_start..mesh.triangle_count() as u32;
+                piece_internals_edge_range = edge_start..mesh.edge_count() as u32;
+            }
+            mesh.add_piece(
+                &piece_centroid,
+                piece_internals_triangle_range,
+                piece_internals_edge_range,
+            )?;
         }
 
         for (_, facet_data) in facets {
@@ -535,10 +540,11 @@ fn build_shape_polygons(
     sticker_color: Color,
     piece_id: Piece,
     facet_id: Facet,
-) -> Result<Range<u32>> {
-    let indices_start = mesh.triangle_count() as u32;
+) -> Result<(Range<u32>, Range<u32>)> {
+    let triangles_start = mesh.triangle_count() as u32;
+    let edges_start = mesh.edge_count() as u32;
 
-    for polygon in simplexifier.polygons(sticker_shape)? {
+    for polygon in space.children_with_ndim(sticker_shape, 2) {
         let polygon_id = mesh.next_polygon_id()?;
 
         // Get the tangent space so that we can compute tangent vectors
@@ -586,11 +592,18 @@ fn build_shape_polygons(
             mesh.triangles.push(new_vertex_ids);
         }
 
+        for edge in simplexifier.polygon_edges(polygon)? {
+            // We should have seen all these vertices before because they show
+            // up in triangles.
+            mesh.edges.push(edge.map(|id| vertex_id_map[&id]))
+        }
+
         mesh.polygon_color_ids.push(sticker_color);
     }
 
-    let indices_end = mesh.triangle_count() as u32;
-    Ok(indices_start..indices_end)
+    let triangles_end = mesh.triangle_count() as u32;
+    let edges_end = mesh.edge_count() as u32;
+    Ok((triangles_start..triangles_end, edges_start..edges_end))
 }
 
 fn uppercase_names() -> impl Iterator<Item = String> {

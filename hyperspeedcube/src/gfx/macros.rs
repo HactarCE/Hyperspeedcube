@@ -15,12 +15,15 @@ macro_rules! include_wgsl {
 }
 
 macro_rules! single_type_vertex_buffer {
-    ($loc:expr => $fmt:ident) => {
+    [for $step_mode:ident, $loc:expr => $fmt:ident] => {
         ::wgpu::VertexBufferLayout {
             array_stride: ::wgpu::VertexFormat::$fmt.size(),
-            step_mode: ::wgpu::VertexStepMode::Vertex,
+            step_mode: ::wgpu::VertexStepMode::$step_mode,
             attributes: &::wgpu::vertex_attr_array![$loc => $fmt],
         }
+    };
+    [$loc:expr => $fmt:ident] => {
+        single_type_vertex_buffer![for Vertex, $loc => $fmt]
     };
 }
 

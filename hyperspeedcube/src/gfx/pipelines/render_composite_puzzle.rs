@@ -6,9 +6,16 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
     struct Bindings<'a> {
         sticker_colors_texture: &'a wgpu::TextureView = pub(FRAGMENT) bindings::STICKER_COLORS_TEXTURE,
         special_colors_texture: &'a wgpu::TextureView = pub(FRAGMENT) bindings::SPECIAL_COLORS_TEXTURE,
-        polygon_ids_texture:    &'a wgpu::TextureView = pub(FRAGMENT) bindings::POLYGON_IDS_TEXTURE,
+        ids_texture:            &'a wgpu::TextureView = pub(FRAGMENT) bindings::IDS_TEXTURE,
         polygon_color_ids:      &'a wgpu::Buffer = pub(FRAGMENT) bindings::POLYGON_COLOR_IDS,
+        edges:                  &'a wgpu::Buffer = pub(FRAGMENT) bindings::EDGE_VERTS,
+        vertex_3d_positions:    &'a wgpu::Buffer = pub(FRAGMENT) bindings::VERTEX_3D_POSITIONS_READONLY,
+        lighting_params:        &'a wgpu::Buffer = pub(FRAGMENT) bindings::LIGHTING_PARAMS,
         composite_params:       &'a wgpu::Buffer = pub(FRAGMENT) bindings::COMPOSITE_PARAMS,
+
+        projection_params:      &'a wgpu::Buffer = pub(FRAGMENT) bindings::PROJECTION_PARAMS,
+        view_params:            &'a wgpu::Buffer = pub(FRAGMENT) bindings::VIEW_PARAMS,
+        target_size:            &'a wgpu::Buffer = pub(FRAGMENT) bindings::TARGET_SIZE,
     }
 
     let pipeline_descriptor = RenderPipelineDescriptor {

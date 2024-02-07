@@ -4,7 +4,8 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
     type = wgpu::RenderPipeline;
 
     struct Bindings<'a> {
-        view_params: &'a wgpu::Buffer = pub(VERTEX) bindings::VIEW_PARAMS,
+        projection_params: &'a wgpu::Buffer = pub(VERTEX) bindings::PROJECTION_PARAMS,
+        view_params:       &'a wgpu::Buffer = pub(VERTEX) bindings::VIEW_PARAMS, // TODO: shouldn't need view_params
     }
 
     let pipeline_descriptor = RenderPipelineDescriptor {
@@ -23,7 +24,7 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
             bias: wgpu::DepthBiasState::default(),
         }),
         fragment_target: Some(wgpu::ColorTargetState {
-            format: wgpu::TextureFormat::R32Uint,
+            format: wgpu::TextureFormat::Rg32Uint,
             blend: None,
             write_mask: wgpu::ColorWrites::ALL,
         }),
@@ -33,15 +34,15 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
 
 pub(in crate::gfx) struct PassParams<'tex> {
     pub clear: bool,
-    pub polygon_ids_texture: &'tex wgpu::TextureView,
-    pub polygon_ids_depth_texture: &'tex wgpu::TextureView,
+    pub ids_texture: &'tex wgpu::TextureView,
+    pub ids_depth_texture: &'tex wgpu::TextureView,
 }
 impl<'pass> PassParams<'pass> {
     pub fn begin_pass(self, encoder: &'pass mut wgpu::CommandEncoder) -> wgpu::RenderPass<'pass> {
         encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("render_polygon_ids"),
+            label: Some("render_ids"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: self.polygon_ids_texture,
+                view: self.ids_texture,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: match self.clear {
@@ -52,7 +53,7 @@ impl<'pass> PassParams<'pass> {
                 },
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                view: self.polygon_ids_depth_texture,
+                view: self.ids_depth_texture,
                 depth_ops: Some(wgpu::Operations {
                     load: match self.clear {
                         true => wgpu::LoadOp::Clear(0.0),

@@ -1,7 +1,7 @@
 //! Infinite Euclidean space in which polytopes can be constructed.
 
 use std::cmp::Ordering;
-use std::collections::{hash_map, HashMap};
+use std::collections::{hash_map, HashMap, HashSet};
 use std::fmt;
 use std::ops::{Index, Mul, MulAssign, Neg};
 
@@ -145,6 +145,32 @@ impl Space {
             .boundary
             .iter()
             .map(move |boundary_elem| boundary_elem * polytope.sign)
+    }
+
+    /// Returns all children of `root` that have the given number of dimensions.
+    ///
+    /// Polytopes are signed, so the same polytope may be returned twice with
+    /// different signs; otherwise, there are no duplicates.
+    pub fn children_with_ndim(&self, root: AtomicPolytopeRef, ndim: u8) -> Vec<AtomicPolytopeRef> {
+        let mut queue = vec![root];
+        let mut seen = HashSet::new();
+        let mut results = vec![];
+
+        while let Some(shape) = queue.pop() {
+            let shape_ndim = self.ndim_of(shape);
+            if shape_ndim == ndim {
+                results.push(shape);
+            } else if shape_ndim > ndim {
+                // TODO: handle non-flat shapes
+                for b in self.boundary_of(shape) {
+                    if seen.insert(b.id) {
+                        queue.push(b);
+                    }
+                }
+            }
+        }
+
+        results
     }
 
     /// Returns the pair of points that comprise a 0D polytope.
