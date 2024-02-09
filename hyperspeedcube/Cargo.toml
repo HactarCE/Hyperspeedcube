@@ -100,11 +100,11 @@ FileDescription = "Hyperspeedcube"
 ProductName = "Hyperspeedcube"
 ProductVersion = "2.0.0-pre.7"
 OriginalFilename = "hyperspeedcube.exe"
-LegalCopyright = "Copyright © 2022 HactarCE"
+LegalCopyright = "Copyright © 2024 HactarCE"
 
 [package.metadata.bundle]
 name = "Hyperspeedcube"
 identifier = "dev.ajfarkas.hyperspeedcube"
 icon = ["resources/icon/*.png", "resources/icon/*.ico"]
-copyright = "Copyright © 2022 HactarCE"
+copyright = "Copyright © 2024 HactarCE"
 category = "Puzzle Game"
