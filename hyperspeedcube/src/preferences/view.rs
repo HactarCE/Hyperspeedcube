@@ -35,7 +35,7 @@ pub struct ViewPreferences {
 
     pub outline_thickness: f32,
 
-    pub light_ambient: f32,
+    pub light_ambient: f32, // TODO: remove ambient light setting
     pub light_directional: f32,
     pub light_pitch: f32,
     pub light_yaw: f32,

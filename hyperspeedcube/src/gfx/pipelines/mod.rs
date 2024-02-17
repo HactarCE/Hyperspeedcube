@@ -16,7 +16,7 @@ pub(in crate::gfx) mod render_single_pass;
 mod bindings {
     use wgpu::BufferBindingType::{Storage, Uniform};
     use wgpu::SamplerBindingType::Filtering;
-    use wgpu::TextureSampleType::{Float, Uint};
+    use wgpu::TextureSampleType::{Float, Uint, Depth};
     use wgpu::TextureViewDimension::{D1, D2};
 
     use crate::gfx::bindings::{buffer, sampler, texture, BindingMetadata};
@@ -38,7 +38,7 @@ mod bindings {
     // Computed data (per-vertex)
     pub const VERTEX_3D_POSITIONS:          BindingMetadata = buffer(1, 5, Storage { read_only: false });
     pub const VERTEX_3D_POSITIONS_READONLY: BindingMetadata = buffer(1, 5, Storage { read_only: true });
-    pub const VERTEX_LIGHTINGS:             BindingMetadata = buffer(1, 6, Storage { read_only: false });
+    pub const VERTEX_3D_NORMALS:            BindingMetadata = buffer(1, 6, Storage { read_only: false });
     pub const VERTEX_CULLS:                 BindingMetadata = buffer(1, 7, Storage { read_only: false });
     pub const VERTEX_CULLS_READONLY:        BindingMetadata = buffer(1, 7, Storage { read_only: true });
 
@@ -57,8 +57,11 @@ mod bindings {
     pub const STICKER_COLORS_TEXTURE:       BindingMetadata = texture(0, 50, D1, Float { filterable: false });
     pub const SPECIAL_COLORS_TEXTURE:       BindingMetadata = texture(0, 51, D1, Float { filterable: false });
 
-    pub const IDS_TEXTURE:                  BindingMetadata = texture(0, 100, D2, Uint);
-    pub const BLIT_SRC_TEXTURE:             BindingMetadata = texture(0, 102, D2, Float { filterable: true });
+    pub const POLYGON_IDS_TEXTURE:          BindingMetadata = texture(0, 100, D2, Uint);
+    pub const POLYGON_IDS_DEPTH_TEXTURE:    BindingMetadata = texture(0, 101, D2, Depth);
+    pub const EDGE_IDS_TEXTURE:             BindingMetadata = texture(0, 102, D2, Uint);
+    pub const EDGE_IDS_DEPTH_TEXTURE:       BindingMetadata = texture(0, 103, D2, Depth);
+    pub const BLIT_SRC_TEXTURE:             BindingMetadata = texture(0, 104, D2, Float { filterable: true });
     pub const BLIT_SRC_SAMPLER:             BindingMetadata = sampler(0, 150, Filtering);
 }
 

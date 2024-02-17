@@ -10,6 +10,8 @@ use crate::{
     preferences::{Preferences, ViewPreferences},
 };
 
+const PIXELY: u32 = 1;
+
 #[derive(Debug)]
 pub struct PuzzleView {
     pub puzzle: Option<Arc<Puzzle>>,
@@ -113,8 +115,8 @@ impl PuzzleView {
             * Isometry::from_angle_in_axis_plane(1, z_axis, scaled_drag_y)
             * &self.view_params.rot;
 
-        self.view_params.width = pixels_rect.width() as u32 / 4;
-        self.view_params.height = pixels_rect.height() as u32 / 4;
+        self.view_params.width = pixels_rect.width() as u32 / PIXELY;
+        self.view_params.height = pixels_rect.height() as u32 / PIXELY;
         if r.has_focus() {
             ui.input(|input| {
                 if input.key_pressed(egui::Key::Num1) {

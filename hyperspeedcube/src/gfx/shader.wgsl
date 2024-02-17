@@ -20,7 +20,7 @@ const COLOR_BACKGROUND: u32 = 0x10000u;
 /// Color ID for outline.
 const COLOR_OUTLINE: u32 = 0x10001u;
 
-const OUTLINE_RADIUS: f32 = 0.02;
+const OUTLINE_RADIUS: f32 = 0.05;
 
 
 
@@ -39,13 +39,12 @@ struct ProjectionParams {
 }
 
 struct LightingParams {
-    directional: vec3<f32>,
-    ambient: f32,
+    dir: vec3<f32>,
+    amt: f32,
 }
 
 struct ViewParams {
     scale: vec2<f32>,
-    align: vec2<f32>,
 
     clip_4d_backfaces: i32,
     clip_4d_behind_camera: i32,
@@ -69,8 +68,11 @@ struct SpecialColors {
 // Textures and texture samplers
 @group(0) @binding(50)  var sticker_colors: texture_1d<f32>;
 @group(0) @binding(51)  var special_colors: texture_1d<f32>;
-@group(0) @binding(100) var ids_texture: texture_2d<u32>;
-@group(0) @binding(102) var blit_src_texture: texture_2d<f32>;
+@group(0) @binding(100) var polygon_ids_texture: texture_2d<u32>;
+@group(0) @binding(101) var polygon_ids_depth_texture: texture_depth_2d;
+@group(0) @binding(102) var edge_ids_texture: texture_2d<u32>;
+@group(0) @binding(103) var edge_ids_depth_texture: texture_depth_2d;
+@group(0) @binding(104) var blit_src_texture: texture_2d<f32>;
 @group(0) @binding(150) var blit_src_sampler: sampler;
 
 // Static mesh data (per-vertex)
@@ -92,7 +94,7 @@ struct SpecialColors {
 // Computed data (per-vertex)
 @group(1) @binding(5) var<storage, read_write> vertex_3d_positions: array<vec4<f32>>;
 @group(1) @binding(5) var<storage, read> read_vertex_3d_positions: array<vec4<f32>>;
-@group(1) @binding(6) var<storage, read_write> vertex_lightings: array<f32>;
+@group(1) @binding(6) var<storage, read_write> vertex_3d_normals: array<vec4<f32>>;
 @group(1) @binding(7) var<storage, read_write> vertex_culls: array<f32>; // TODO: pack into bit array
 @group(1) @binding(7) var<storage, read> read_vertex_culls: array<f32>; // TODO: pack into bit array
 
@@ -120,7 +122,7 @@ struct TransformedVertex {
     /// 3D position of the vertex, including W coordinate for
     /// perspective-correct interpolation.
     position: vec4<f32>,
-    lighting: f32,
+    normal: vec3<f32>,
     cull: i32, // 0 = no cull. 1 = cull.
 }
 
@@ -224,48 +226,38 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
         ret.cull |= i32(w_divisor < W_DIVISOR_CLIPPING_PLANE);
     }
 
-    // Store the 3D position.
+    // Store the 3D position, before 3D perspective transformation.
     let z_divisor = z_divisor(vertex_3d_position.z);
     ret.position = vec4(vertex_3d_position, z_divisor);
 
-    ret.lighting = lighting_params.ambient;
-    // Skip lighting computations if possible.
-    let skip_lighting = lighting_params.directional.x == 0.0
-                     && lighting_params.directional.y == 0.0
-                     && lighting_params.directional.z == 0.0;
-    if !skip_lighting {
-        // Apply 3D perspective transformation.
-        let xy = vertex_3d_position.xy;
-        let recip_z_divisor = 1.0 / z_divisor;
-        var vertex_2d_position = xy * recip_z_divisor;
+    // Apply 3D perspective transformation.
+    let xy = vertex_3d_position.xy;
+    let recip_z_divisor = 1.0 / z_divisor;
+    var vertex_2d_position = xy * recip_z_divisor;
 
-        // Let:
-        //
-        //   [ x  y  z  w ] = the initial 4D point
-        //   [ x' y' z'   ] = the projected 4D point
-        //   α = w_factor_4d
-        //
-        // We have already computed [x' y' z'] using this formula:
-        //
-        //   b = 1 / (1 + α w)      = `recip_w_divisor`
-        //   x' = x * b
-        //
-        // Take the Jacobian of this transformation and multiply each tangent
-        // vector by it.
-        let u_3d = (u.xyz - vertex_3d_position * u.w * projection_params.w_factor_4d) * recip_w_divisor;
-        let v_3d = (v.xyz - vertex_3d_position * v.w * projection_params.w_factor_4d) * recip_w_divisor;
-        // Do the same thing to project from 3D to 2D.
-        let u_2d = (u_3d.xy + vertex_2d_position * u_3d.z * projection_params.w_factor_3d) * recip_z_divisor;
-        let v_2d = (v_3d.xy + vertex_2d_position * v_3d.z * projection_params.w_factor_3d) * recip_z_divisor;
+    // Let:
+    //
+    //   [ x  y  z  w ] = the initial 4D point
+    //   [ x' y' z'   ] = the projected 4D point
+    //   α = w_factor_4d
+    //
+    // We have already computed [x' y' z'] using this formula:
+    //
+    //   b = 1 / (1 + α w)      = `recip_w_divisor`
+    //   x' = x * b
+    //
+    // Take the Jacobian of this transformation and multiply each tangent
+    // vector by it.
+    let u_3d = (u.xyz - vertex_3d_position * u.w * projection_params.w_factor_4d) * recip_w_divisor;
+    let v_3d = (v.xyz - vertex_3d_position * v.w * projection_params.w_factor_4d) * recip_w_divisor;
+    // Do the same thing to project from 3D to 2D.
+    let u_2d = (u_3d.xy + vertex_2d_position * u_3d.z * projection_params.w_factor_3d) * recip_z_divisor;
+    let v_2d = (v_3d.xy + vertex_2d_position * v_3d.z * projection_params.w_factor_3d) * recip_z_divisor;
 
-        // Use the 3D-perspective-transformed normal to the Z component to
-        // figure out which side of the surface is visible.
-        var orientation = sign(u_2d.x * v_2d.y - u_2d.y * v_2d.x) * sign(z_divisor);
-        let normal = normalize(cross(u_3d, v_3d));
-
-        let directional_lighting_amt = dot(normal * orientation, lighting_params.directional) * 0.5 + 0.5;
-        ret.lighting += directional_lighting_amt;
-    }
+    // Use the 3D-perspective-transformed normal to the Z component to
+    // figure out which side of the surface is visible.
+    var orientation = sign(u_2d.x * v_2d.y - u_2d.y * v_2d.x) * sign(z_divisor);
+    ret.normal = normalize(cross(u_3d, v_3d)) * orientation;
 
     return ret;
 }
@@ -286,7 +278,7 @@ fn z_divisor(z: f32) -> f32 {
 /// coordinate must be transformed by `depth_value()` before being written to
 /// the depth buffer.
 fn transform_world_to_clip_space(pos_3d: vec4<f32>) -> vec4<f32> {
-    let xy = pos_3d.xy * view_params.scale + view_params.align;
+    let xy = pos_3d.xy * view_params.scale;
     let z = transform_world_z_to_clip_space(pos_3d.z, pos_3d.w);
     let w = pos_3d.w;
 
@@ -322,12 +314,26 @@ fn transform_small_world_vector_to_pixel_vector(v: vec2<f32>, z: f32) -> vec2<f3
     return v * view_params.scale * target_size / (2.0 * z_divisor(z));
 }
 
+fn transform_depth_to_world_z(depth: f32) -> f32 {
+    // TODO: move these to CPU
+    let near = Z_CLIP;
+    let far = -Z_CLIP;
+
+    // Invert `transform_world_z_to_ndc()`.
+    return far + depth * (near - far);
+}
+fn transform_ndc_to_world_point(ndc: vec3<f32>) -> vec3<f32> {
+    let z = transform_depth_to_world_z(ndc.z);
+    let xy = ndc.xy / view_params.scale;
+    return vec3(xy * z_divisor(z), z);
+}
+
 struct Ray {
     origin: vec3<f32>,
     direction: vec3<f32>,
 }
 fn transform_ndc_to_world_ray(ndc: vec2<f32>) -> Ray {
-    let xy = (ndc - view_params.align) / view_params.scale;
+    let xy = ndc / view_params.scale;
     // TODO: move some this computation to CPU
     let p1: vec3<f32> = vec3(xy * z_divisor(1.0), 1.0);
     let p2: vec3<f32> = vec3(xy * z_divisor(-1.0), -1.0);
@@ -348,26 +354,21 @@ fn get_color(color_id: u32, lighting: f32) -> vec3<f32> {
     );
 }
 
-/// Returns the polygon ID at the given coordinates.
-fn get_polygon_id(texture_value: vec2<u32>) -> i32 {
-    return i32(texture_value.r & 0x00FFFFFFu) - 1;
-}
-/// Returns the polygon lighting at the given coordinates.
-fn get_polygon_lighting(texture_value: vec2<u32>) -> f32 {
-    return f32(texture_value.r >> 24u) / 255.0;
-}
-/// Returns the edge ID at the given coordinates.
-fn get_edge_id(texture_value: vec2<u32>) -> i32 {
-    return i32(texture_value.g) - 1;
+/// Converts UV coordinates (0..1) to texture coordinates (0..n-1).
+fn uv_to_tex_coords(uv: vec2<f32>) -> vec2<i32> {
+    return vec2<i32>(uv * target_size);
 }
 
-/// Converts UV coordinates (0..1) to texture coordinates (0..n-1).
-fn uv_to_tex_coords(uv: vec2<f32>, tex_dim: vec2<u32>) -> vec2<i32> {
-    return vec2<i32>(uv * vec2<f32>(tex_dim));
+struct RayCapsuleIntersection {
+    intersects: i32, // TODO: boolean
+    t_ray: f32,
+    t_edge: f32,
 }
 
 /// Intersect ray with capsule: https://iquilezles.org/articles/intersectors
-fn intersect_ray_with_capsule(ray: Ray, pa: vec3<f32>, pb: vec3<f32>, r: f32) -> f32 {
+fn intersect_ray_with_capsule(ray: Ray, pa: vec3<f32>, pb: vec3<f32>, r: f32) -> RayCapsuleIntersection {
+    var out: RayCapsuleIntersection;
+
     let ro = ray.origin;
     let rd = ray.direction;
 
@@ -387,9 +388,12 @@ fn intersect_ray_with_capsule(ray: Ray, pa: vec3<f32>, pb: vec3<f32>, r: f32) ->
     if h >= 0.0 {
         let t: f32 = (-b-sqrt(h))/a;
         let y: f32 = baoa + t*bard;
+        out.t_edge = saturate(y / baba);
         // body
         if y > 0.0 && y < baba {
-            return t;
+            out.intersects = 1;
+            out.t_ray = t;
+            return out;
         }
         // caps
         let oc: vec3<f32> = select(ro - pb, oa, y <= 0.0);
@@ -397,10 +401,14 @@ fn intersect_ray_with_capsule(ray: Ray, pa: vec3<f32>, pb: vec3<f32>, r: f32) ->
         c = dot(oc,oc) - r*r;
         h = b*b - c;
         if h > 0.0 {
-            return -b - sqrt(h);
+            out.intersects = 1;
+            out.t_ray = -b - sqrt(h);
+            return out;
         }
     }
-    return -Z_CLIP;
+
+    out.intersects = 0;
+    return out;
 }
 
 /// Compute normal vector on surface of capsule:
@@ -408,8 +416,15 @@ fn intersect_ray_with_capsule(ray: Ray, pa: vec3<f32>, pb: vec3<f32>, r: f32) ->
 fn capsule_normal(pos: vec3<f32>, a: vec3<f32>, b: vec3<f32>, r: f32) -> vec3<f32> {
     let ba: vec3<f32> = b - a;
     let pa: vec3<f32> = pos - a;
-    let h: f32 = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    let h: f32 = saturate(dot(pa, ba) / dot(ba, ba));
     return (pa - h * ba) / r;
+}
+
+fn pack_f32_to_u16(f: f32) -> u32 {
+    return u32((saturate(f) + 1.0) * 32767.0);
+}
+fn unpack_u16_to_f32(u: u32) -> f32 {
+    return f32(f32(u) / 32767.0 - 1.0);
 }
 
 
@@ -469,7 +484,7 @@ fn render_single_pass_vertex(
     var out: SinglePassVertexOutput;
     out.position = transform_world_to_clip_space(point_3d.position);
     out.polygon_id = in.polygon_id;
-    out.lighting = clamp(point_3d.lighting, 0.0, 1.0);
+    out.lighting = 1.0;//saturate(point_3d.lighting);
     out.cull = f32(point_3d.cull);
     return out;
 }
@@ -492,15 +507,15 @@ fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<
 
 struct PolygonIdsVertexInput {
     @location(0) position: vec4<f32>,
-    @location(1) cull: f32, // 0 = no cull. 1 = cull.
-    @location(2) lighting: f32,
-    @location(3) polygon_id: i32,
+    @location(1) normal: vec4<f32>,
+    @location(2) polygon_id: i32,
+    @location(3) cull: f32, // 0 = no cull. 1 = cull.
 }
 struct PolygonIdsVertexOutput {
     @builtin(position) position: vec4<f32>,
-    @location(0) cull: f32, // 0 = no cull. 1 = cull.
-    @location(1) lighting: f32,
-    @location(2) polygon_id: i32,
+    @location(0) @interpolate(perspective) normal_xy: vec2<f32>,
+    @location(1) polygon_id: i32,
+    @location(2) cull: f32, // 0 = no cull. 1 = cull.
 }
 
 @compute
@@ -514,19 +529,16 @@ fn compute_transform_points(@builtin(global_invocation_id) global_invocation_id:
 
     let point_3d = transform_point_to_3d(index, facet_ids[index], piece_ids[index]);
 
-    vertex_culls[index] = f32(point_3d.cull);
     vertex_3d_positions[index] = point_3d.position;
-    vertex_lightings[index] = clamp(point_3d.lighting, 0.0, 1.0);
+    vertex_3d_normals[index] = vec4(point_3d.normal, 1.0);
+    vertex_culls[index] = f32(point_3d.cull);
 }
 
 @vertex
-fn render_polygon_ids_vertex(
-    in: PolygonIdsVertexInput,
-    @builtin(vertex_index) idx: u32,
-) -> PolygonIdsVertexOutput {
+fn render_polygon_ids_vertex(in: PolygonIdsVertexInput) -> PolygonIdsVertexOutput {
     var out: PolygonIdsVertexOutput;
     out.position = transform_world_to_clip_space(in.position);
-    out.lighting = in.lighting;
+    out.normal_xy = in.normal.xy;
     out.polygon_id = in.polygon_id + 1; // +1 because the texture is cleared to 0
     out.cull = f32(in.cull);
     return out;
@@ -538,9 +550,11 @@ fn render_polygon_ids_fragment(in: PolygonIdsVertexOutput) -> @location(0) vec2<
         discard;
     }
 
-    // Use the top 8 bits for lighting and the bottom 24 bits for polygon ID.
-    let out = (u32(in.lighting * 255.0) << 24u) | u32(in.polygon_id);
-    return vec2(out, 0u);
+    // Pack X and Y into a single integer. Use the lower 16 bits for X and the
+    // upper 16 bits for Y.
+    let packed_normal_xy = pack_f32_to_u16(in.normal_xy.x) | (pack_f32_to_u16(in.normal_xy.y) << 16u);
+
+    return vec2(u32(in.polygon_id), packed_normal_xy);
 }
 
 
@@ -551,11 +565,12 @@ fn render_polygon_ids_fragment(in: PolygonIdsVertexOutput) -> @location(0) vec2<
 
 struct EdgeIdsVertexOutput {
     @builtin(position) position: vec4<f32>,
-    @location(0) @interpolate(perspective) xy: vec2<f32>,
-    @location(1) @interpolate(flat) a: vec3<f32>,
-    @location(3) @interpolate(flat) b: vec3<f32>,
-    @location(2) @interpolate(flat) cull: f32, // 0 = no cull. 1 = cull.
-    @location(4) @interpolate(flat) edge_id: i32,
+    @location(0) @interpolate(linear) a: vec4<f32>,
+    @location(1) @interpolate(linear) b: vec4<f32>,
+    @location(2) @interpolate(linear) t: f32,
+    @location(3) @interpolate(linear) u: f32,
+    @location(4) @interpolate(linear) cull: f32, // 0 = no cull. 1 = cull.
+    @location(5) @interpolate(flat) edge_id: i32,
 }
 struct EdgeIdsFragmentOutput {
     @builtin(frag_depth) depth: f32, // written to depth texture
@@ -568,10 +583,14 @@ fn render_edge_ids_vertex(
     @builtin(vertex_index) idx: u32,
 ) -> EdgeIdsVertexOutput {
     let edge_verts = edge_verts[edge_id];
-    var a = read_vertex_3d_positions[edge_verts.r];
-    var b = read_vertex_3d_positions[edge_verts.g];
-    a = a * 0.999 + b * 0.001;
-    b = b * 0.999 + a * 0.001;
+
+    let world_a = read_vertex_3d_positions[edge_verts.r];
+    let world_b = read_vertex_3d_positions[edge_verts.g];
+
+    // Do perspective divide so that we can operate in a sort of screen space
+    // with square pixels (as opposed to NDC, where pixels are not square).
+    let a = world_a.xy / world_a.w;
+    let b = world_b.xy / world_b.w;
 
     // The goal here is to generate a minimal quad that covers the capsule shape
     // of the outline. The correct thing to do here is to compute the
@@ -584,46 +603,97 @@ fn render_edge_ids_vertex(
     // exact, since we'll trim a pixel or two around the edges in the fragment
     // shader anyway. This approximation is only bad for spheres that are very
     // close to the camera, which is rare and unimportant in this application.
-    let min_z_divisor = min(a.w, b.w);
-    let max_radius = OUTLINE_RADIUS / min_z_divisor * 10.0;
 
-    let clip_a = transform_world_to_clip_space(a);
-    let clip_b = transform_world_to_clip_space(b);
-    let ndc_a = clip_a.xy / clip_a.w;
-    let ndc_b = clip_b.xy / clip_b.w;
-    var u = normalize(ndc_b.xy - ndc_a.xy);
-    var v = vec2(-u.y, u.x); // Rotate 90 degrees CCW
-    u *= max_radius * view_params.scale;
-    v *= max_radius * view_params.scale;
-    let base = select(ndc_a, ndc_b, idx % 2u == 1u);
-    let offset = select(vec2(-1.0), vec2(1.0), vec2(idx % 2u == 1u, idx == 0u || idx == 1u || idx == 3u));
+    // Compute the maximum radius of the outline in NDC.
+    let min_z_divisor = min(world_a.w, world_b.w);
+    let radius_ndc = OUTLINE_RADIUS / min_z_divisor;
+
+    // Starting with the edge from `a` to `b`, expand it to a rectangle by
+    // adding radius `radius_ndc`.
+    let vt = b - a;
+    var vu = vec2(-vt.y, vt.x); // Rotate 90 degrees CCW
+    let extra_radius_as_ratio = radius_ndc / length(vt);
+
+    let t = select(-extra_radius_as_ratio, 1.0 + extra_radius_as_ratio, idx < 2u);
+    let u = select(-extra_radius_as_ratio, extra_radius_as_ratio, (idx & 1u) != 0u);
+
+    let pos = a + mat2x2(vt, vu) * vec2(t, u);
 
     var out: EdgeIdsVertexOutput;
-    out.xy = base + mat2x2(u, v) * offset;
-    out.position = vec4(out.xy, 0.0, 1.0);
-    out.a = a.xyz;
-    out.b = b.xyz;
+    out.position = vec4(pos * view_params.scale, 0.0, 1.0);
+    out.a = world_a;
+    out.b = world_b;
+    out.t = t;
+    out.u = select(-radius_ndc, radius_ndc, (idx & 1u) != 0u);
     out.cull = read_vertex_culls[edge_verts.r] + read_vertex_culls[edge_verts.g];
-    out.edge_id = edge_id;
+    out.edge_id = edge_id + 1; // +1 because the texture is cleared to 0
     return out;
 }
 
+/// Computes the T value and depth coordinate of a pixel on an outline.
 @fragment
 fn render_edge_ids_fragment(in: EdgeIdsVertexOutput) -> EdgeIdsFragmentOutput {
     if in.cull > 0.0 {
         discard;
     }
 
-    let ray = transform_ndc_to_world_ray(in.xy);
-    let t = intersect_ray_with_capsule(ray, in.a, in.b, OUTLINE_RADIUS);
-    if t <= -Z_CLIP {
-        discard;
+    // Compute perspective-correct W value: https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/perspective-correct-interpolation-vertex-attributes.html
+    let w = 1.0 / (saturate(1.0 - in.t) / in.a.w + saturate(in.t) / in.b.w);
+
+    // Compute radius out from the center, in world coordinates.
+    let u = in.u * w;
+
+    // Compute perspective-correct T value. "Flat" here means that we have not
+    // yet accounted for the thickness of the capsule.
+    let t_flat = in.t * w / in.b.w;
+
+    // Let's define a new orthogonal coordinate system that will be more useful.
+    // Its origin is `a` and its three basis vectors are:
+    // - vt = b - a
+    // - vu = vector perpendicular to b-a and parallel to view plane
+    //        (may have any length)
+    // - vr = unit vector perpendicular to `t` and `u` vectors
+    let vt = in.b.xyz - in.a.xyz;
+    let vu = vec3(-vt.y, vt.x, 0.0);
+    let vr = normalize(cross(vt, vu));
+    // Note that we don't really care about the `vu` axis. The camera ray lies
+    // within the plane of `vt` and `vr`, and the 3D capsule's intersection with
+    // that plane is a 2D capsule with the following radius:
+    let r = sqrt(OUTLINE_RADIUS * OUTLINE_RADIUS - u * u);
+
+    // Compute the camera ray.
+    // TODO: move some this computation to CPU
+    let p1: vec3<f32> = in.a.xyz + (in.b.xyz - in.a.xyz) * t_flat;
+    let ndc_xy = p1.xy * z_divisor(p1.z);
+    let p2: vec3<f32> = vec3(ndc_xy / z_divisor(p1.z + 1.0), p1.z + 1.0);
+    let camera_ray_direction = normalize(p2 - p1);
+
+    // Intersect the camera ray with the near edge of the outline and compute a
+    // new T value.
+    let ray_vt = dot(camera_ray_direction, vt) / dot(vt, vt);
+    let ray_vr = dot(camera_ray_direction, vr);
+    let t = saturate(t_flat + ray_vt * r / ray_vr);
+
+
+    // Now compute distance to a sphere, ignoring perspective distortion.
+    let center = in.a.xyz + vt * t;
+    let xy = ndc_xy * z_divisor(center.z) / view_params.scale;
+    let xy_delta = xy - center.xy;
+    if true {
+        var out: EdgeIdsFragmentOutput;
+        out.depth = transform_world_z_to_ndc(in.a.z + (in.b.z-in.a.z) * t);
+        out.color = vec2(u32(in.edge_id), bitcast<u32>(length(xy_delta)));
+        return out;
     }
-    let z = ray.origin.z + ray.direction.z * t;
+    let dz_squared = OUTLINE_RADIUS * OUTLINE_RADIUS - dot(xy_delta, xy_delta);
+    if dz_squared <= 0.0 {
+        discard; // Too far away!
+    }
+    let z = center.z + sqrt(OUTLINE_RADIUS - dz_squared);
 
     var out: EdgeIdsFragmentOutput;
     out.depth = transform_world_z_to_ndc(z);
-    out.color = vec2(0u, u32(in.edge_id + 1));
+    out.color = vec2(u32(in.edge_id), bitcast<u32>(t));
     return out;
 }
 
@@ -636,12 +706,21 @@ fn render_edge_ids_fragment(in: EdgeIdsVertexOutput) -> EdgeIdsFragmentOutput {
 /// Use with `uv_vertex` as vertex shader.
 @fragment
 fn render_composite_puzzle_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
-    let tex_coords: vec2<i32> = uv_to_tex_coords(in.uv, textureDimensions(ids_texture));
-    let tex_value: vec2<u32> = textureLoad(ids_texture, tex_coords, 0).rg;
+    let tex_coords: vec2<i32> = uv_to_tex_coords(in.uv);
+    let polygon_tex_value: vec2<u32> = textureLoad(polygon_ids_texture, tex_coords, 0).rg;
+    let edge_tex_value: vec2<u32> = textureLoad(edge_ids_texture, tex_coords, 0).rg;
+    let polygon_depth = textureLoad(polygon_ids_depth_texture, tex_coords, 0);
+    let edge_depth = textureLoad(edge_ids_depth_texture, tex_coords, 0);
 
-    let lighting: f32 = get_polygon_lighting(tex_value);
-    let polygon_id: i32 = get_polygon_id(tex_value);
-    let edge_id: i32 = get_edge_id(tex_value);
+    let polygon_id = i32(polygon_tex_value.r) - 1;
+    let polygon_normal_xy = vec2(
+        unpack_u16_to_f32(polygon_tex_value.g & 0x0000FFFFu),
+        unpack_u16_to_f32(polygon_tex_value.g >> 16u),
+    );
+    let polygon_normal = vec3(polygon_normal_xy, sqrt(1.0 - dot(polygon_normal_xy, polygon_normal_xy))); // TODO: this line causes wrong black lighting
+    let lighting = mix(1.0, dot(polygon_normal, lighting_params.dir) * 0.5 + 0.5, lighting_params.amt);
+
+    let edge_id = i32(edge_tex_value.r) - 1;
 
     // TODO: perf of `select()` vs branch
     let color_id: u32 = select(
@@ -652,7 +731,7 @@ fn render_composite_puzzle_fragment(in: UvVertexOutput) -> @location(0) vec4<f32
             COLOR_BACKGROUND,
             polygon_id == NONE,
         ),
-        edge_id == NONE,
+        edge_id == NONE || polygon_depth > edge_depth,
     );
     // if edge_id >= 0 {
     //     color_id = edge_color(edge_id)
@@ -662,70 +741,110 @@ fn render_composite_puzzle_fragment(in: UvVertexOutput) -> @location(0) vec4<f32
     //     color_id = u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF); // wrap max value around to 0
     // }
 
+    let uv = ((vec2<f32>(tex_coords) + vec2(0.5, 0.5)) / vec2<f32>(target_size) * 2.0 - 1.0) * vec2(1.0, -1.0);
+
+    if color_id == COLOR_OUTLINE {
+        let t = bitcast<f32>(edge_tex_value.g);
+        let xyz = transform_ndc_to_world_point(vec3(uv, edge_depth));
+        let a = read_vertex_3d_positions[edge_verts[edge_id].r].xyz;
+        let b = read_vertex_3d_positions[edge_verts[edge_id].g].xyz;
+        let p = a + (b - a) * t;
+        let lighting2 = mix(1.0, dot(normalize(p-xyz), lighting_params.dir) * 0.5 + 0.5, lighting_params.amt);
+        // return vec4(get_color(COLOR_OUTLINE, lighting2), 1.0);
+        return vec4(1.0-t, t, 0.0, 1.0);
+    }
+
     let base_color = vec4(get_color(color_id, lighting), 1.0);
+    return base_color;
 
-    let uv = ((vec2<f32>(tex_coords) + vec2(0.5, 0.5)) / vec2<f32>(textureDimensions(ids_texture)) * 2.0 - 1.0) * vec2(1.0, -1.0);
-    let ray = transform_ndc_to_world_ray(uv);
+    // let uv = ((vec2<f32>(tex_coords) + vec2(0.5, 0.5)) / vec2<f32>(target_size) * 2.0 - 1.0) * vec2(1.0, -1.0);
+    // let ray = transform_ndc_to_world_ray(uv);
 
-    // TODO: consider sampling depth to do accurate blending according to depth
-    let color_n = edge_color_at_pixel(ray, tex_coords + vec2( 0, -1));
-    let color_s = edge_color_at_pixel(ray, tex_coords + vec2( 0,  1));
-    let color_w = edge_color_at_pixel(ray, tex_coords + vec2(-1,  0));
-    let color_e = edge_color_at_pixel(ray, tex_coords + vec2( 1,  0));
-    let total_alpha: f32 = 1.0 - (1.0 - color_n.a) * (1.0 - color_s.a) * (1.0 - color_w.a) * (1.0 - color_e.a);
-    let blending_weight = select(0.0, total_alpha / (color_n.a + color_s.a + color_w.a + color_e.a), total_alpha > 0.0);
-    let blended_color = (color_n + color_s + color_w + color_e) * blending_weight;
-    return base_color * (1.0 - blended_color.a) + blended_color;
+    // let has_polygon = polygon_id != NONE;
+    // let polygon_point = transform_ndc_to_world_point(vec3(uv, polygon_depth));
+
+    // let t = bitcast<f32>(edge_tex_value.g);
+    // let edge_verts = edge_verts[edge_id];
+    // let a = read_vertex_3d_positions[edge_verts.r].xyz;
+    // let b = read_vertex_3d_positions[edge_verts.g].xyz;
+    // let edge_point = a + (b - a) * t;
+    // let edge_normal = transform_ndc_to_world_point(vec3(uv, edge_depth)) - edge_point;
+
+    // // TODO: consider sampling depth to do accurate blending according to depth
+    // // polygon_point.xy = todo!("offset plane points by tex_coords offset");
+    // let color_n = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2( 0, -1));
+    // let color_s = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2( 0,  1));
+    // let color_w = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2(-1,  0));
+    // let color_e = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2( 1,  0));
+    // let total_alpha: f32 = 1.0 - (1.0 - color_n.a) * (1.0 - color_s.a) * (1.0 - color_w.a) * (1.0 - color_e.a);
+    // let blending_weight = select(0.0, total_alpha / (color_n.a + color_s.a + color_w.a + color_e.a), total_alpha > 0.0);
+    // let blended_color = (color_n + color_s + color_w + color_e) * blending_weight;
+    // return base_color * (1.0 - blended_color.a) + blended_color;
 }
 
-fn edge_color_at_pixel(ray: Ray, tex_coords: vec2<i32>) -> vec4<f32> {
-    let edge_id = get_edge_id(textureLoad(ids_texture, tex_coords, 0).rg);
-    // TODO: perf of `select()` vs branch
-    return select(
-        vec4<f32>(),
-        edge_color_with_alpha(ray, edge_id),
-        is_in_bounds(tex_coords) && edge_id != NONE,
-    );
+fn edge_color_at_pixel(edge_plane: Plane, has_plane: bool, polygon_plane: Plane, tex_coords: vec2<i32>) -> vec4<f32> {
+    return vec4<f32>();
+
+    // let edge_id = i32(textureLoad(edge_ids_texture, tex_coords, 0).r) - 1;
+    // let z = textureLoad(edge_ids_depth_texture, tex_coords, 0);
+    // // TODO: perf of `select()` vs branch
+    // return select(
+    //     vec4<f32>(),
+    //     edge_color_with_alpha(ray, edge_id, edge_plane, has_plane, polygon_plane, z),
+    //     is_in_bounds(tex_coords) && edge_id != NONE,
+    // );
 }
 
 fn is_in_bounds(tex_coords: vec2<i32>) -> bool {
     return 0 <= tex_coords.x
         && 0 <= tex_coords.y
-        && tex_coords.x < i32(textureDimensions(ids_texture).x)
-        && tex_coords.y < i32(textureDimensions(ids_texture).y);
+        && tex_coords.x < i32(target_size.x)
+        && tex_coords.y < i32(target_size.y);
 }
 
-fn edge_color_with_alpha(ray: Ray, edge_id: i32) -> vec4<f32> {
+/// Plane in 3D defined by a point and a normal vector. The point is relative to
+/// the current pixel.
+struct Plane {
+    point: vec3<f32>,
+    normal: vec3<f32>,
+}
+
+fn edge_color_with_alpha(ray: Ray, edge_id: i32, edge_plane: Plane, has_polygon: bool, polygon_plane: Plane, z: f32) -> vec4<f32> {
     let edge_verts = edge_verts[edge_id];
     let a = read_vertex_3d_positions[edge_verts.r].xyz;
     let b = read_vertex_3d_positions[edge_verts.g].xyz;
 
-    // Find the closest points on the outline and the ray.
-    // https://math.stackexchange.com/a/2217845/1115019
-    let perp = cross(b - a, ray.direction);
+    // Intersect with a 1-pixel-wider capsule.
+    let intersection = intersect_ray_with_capsule(ray, a, b, OUTLINE_RADIUS + 1.0 / (view_params.scale.x * target_size.x) * z_divisor(z));
+    let t = intersection.t_ray;
+    let intersect_point = (ray.origin + ray.direction * t);
 
-    // The edge is parametrized from `t=0` at `a` to `t=1` at `b`.
-    let t_edge = clamp(dot(cross(ray.direction, perp), ray.origin - a) / dot(perp, perp), 0.0, 1.0);
-    let pos_edge = a + (b - a) * clamp(t_edge, 0.0, 1.0);
+    let plane_point = vec3<f32>(0.0, 0.0, 0.0); // BADDDDD
 
-    // The ray is parametrized from `t=0` at `ray.origin` to `t=1` at
-    // `ray.origin + ray.direction`.
-    let t_ray = dot(cross(b - a, perp), ray.origin - a) / dot(perp, perp);
-    let pos_ray = ray.origin + ray.direction * t_ray;
+    var alpha: f32;
+    if has_polygon && intersection.intersects != 0 {
+        if intersect_point.z < plane_point.z {
+            alpha = capsule_alpha_from_radius_vector(plane_plane_intersect_to_line(polygon_plane, edge_plane), z);
+            return vec4(1.0, 0.0, 0.0, 1.0);
+        } else {
+            alpha = 1.0;
+            return vec4(1.0, 1.0, 0.0, 1.0);
+        }
+    } else {
+        alpha = capsule_alpha_from_radius_vector(vector_to_capsule_edge(ray, a, b), z);
+            // return vec4(0.0, 0.0, 1.0, 1.0);
+    }
+    // if has_plane &&  {
+    //     alpha = 1.0;
+    // } else {
+    //     alpha = 0.0;
+    // }
 
-    // Compute the vector from the edge to the pixel.
-    let delta_from_edge = pos_ray - pos_edge;
-    // Get the component of the vector that is parallel to the screen.
-    let xy_delta = delta_from_edge.xy;
-    let xy_delta_unit = normalize(delta_from_edge).xy;
-    // Compute the vector from the nearest point on the capsule to the pixel.
-    let delta_from_capsule = xy_delta - xy_delta_unit * OUTLINE_RADIUS;
-    // Convert to NDC screen space.
-    let subpixel_delta_from_capsule = transform_small_world_vector_to_pixel_vector(delta_from_capsule, pos_ray.z);
-    // Get the length of `subpixel_delta_from_capsule` in pixel units.
-    let subpixel_distance = length(subpixel_delta_from_capsule);
-    // That subpixel delta is the alpha value for the outline.
-    let alpha = sqrt(clamp(1.0 - subpixel_distance, 0.0, 1.0));
+    // let alpha = select(
+    //     capsule_edge_alpha(ray, a, b),
+    //     capsule_plane_alpha(ray, a, b, plane_point),
+    //     has_plane && t > -Z_CLIP && intersect_point.z < plane_point.z,
+    // );
 
     // TODO: apply lighting
     let lighting = 1.0;
@@ -735,4 +854,59 @@ fn edge_color_with_alpha(ray: Ray, edge_id: i32) -> vec4<f32> {
     // Premultiply alpha.
     let color = vec4(get_color(COLOR_OUTLINE, lighting) * alpha, alpha);
     return color;
+}
+
+fn capsule_alpha_from_radius_vector(delta: vec2<f32>, z: f32) -> f32 {
+    // Convert to NDC screen space.
+    let subpixel_delta = transform_small_world_vector_to_pixel_vector(delta, z);
+    // Get the length of `subpixel_delta` in pixel units.
+    let subpixel_distance = length(-subpixel_delta); // TODO: handle diagonals better (maybe `max()`?)
+    // That subpixel delta is the alpha value for the outline.
+    return sqrt(saturate(1.0 - subpixel_distance));
+}
+
+fn vector_to_capsule_edge(ray: Ray, a: vec3<f32>, b: vec3<f32>) -> vec2<f32> {
+    // Find the closest points on the outline and the ray.
+    // https://math.stackexchange.com/a/2217845/1115019
+    let perp = cross(b - a, ray.direction);
+
+    // The edge is parametrized from `t=0` at `a` to `t=1` at `b`.
+    let t_edge = saturate(dot(cross(ray.direction, perp), ray.origin - a) / dot(perp, perp));
+    let pos_edge = a + (b - a) * saturate(t_edge);
+
+    // The ray is parametrized from `t=0` at `ray.origin` to `t=1` at
+    // `ray.origin + ray.direction`.
+    let t_ray = dot(cross(b - a, perp), ray.origin - a) / dot(perp, perp);
+    let pos_ray = ray.origin + ray.direction * t_ray;
+
+    // Compute the vector from the edge to the pixel.
+    let vector_from_central_line = pos_ray - pos_edge;
+
+    // Get the component of the vector that is parallel to the screen.
+    let xy_delta = vector_from_central_line.xy;
+    let xy_delta_unit = normalize(vector_from_central_line).xy;
+    // Compute the vector from the pixel to the nearest point on the capsule.
+    return xy_delta_unit * OUTLINE_RADIUS - xy_delta;
+}
+
+/// Intersects two planes and returns a line (as 2D vector to the nearest
+/// point on it and a Z coordinate).
+fn plane_plane_intersect_to_line(p1: Plane, p2: Plane) -> vec2<f32> {
+    // plane 1: 0 = a1 (x-x1) + b1 (y-y1) + c1 (z-z1)
+    // plane 2: 0 = a2 (x-x2) + b2 (y-y2) + c2 (z-z2)
+    // intersection (ignoring Z coordinate):
+    // 0 = (+ a1 c2
+    //      - a2 c1) x
+    //   + (+ b1 c2
+    //      - b2 c1) y
+    //   + (+ a2 x2 c1
+    //      + b2 y2 c1
+    //      + c2 z2 c1
+    //      - a1 x1 c2
+    //      - b1 y1 c2
+    //      - c1 z1 c2)
+    let a = determinant(mat2x2(p1.normal.xz, p2.normal.xz));
+    let b = determinant(mat2x2(p1.normal.yz, p2.normal.yz));
+    let c = dot(p2.normal, p2.point) * p1.normal.z - dot(p1.normal, p1.point) * p2.normal.z;
+    return vec2(c * -0.5) / vec2(a, b);
 }

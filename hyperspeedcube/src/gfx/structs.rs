@@ -4,7 +4,7 @@
 #[derive(Debug, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct GfxLightingParams {
     pub dir: [f32; 3],
-    pub ambient: f32,
+    pub amt: f32,
 }
 
 #[repr(C)]
@@ -35,8 +35,7 @@ impl UvVertex {
     const fn new(position: [f32; 2], uv: [f32; 2]) -> Self {
         Self { position, uv }
     }
-}
-impl UvVertex {
+
     pub const LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
         array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
         step_mode: wgpu::VertexStepMode::Vertex,
@@ -57,7 +56,6 @@ impl UvVertex {
 #[derive(Debug, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub struct GfxViewParams {
     pub scale: [f32; 2],
-    pub align: [f32; 2],
 
     pub clip_4d_backfaces: i32,     // bool
     pub clip_4d_behind_camera: i32, // bool

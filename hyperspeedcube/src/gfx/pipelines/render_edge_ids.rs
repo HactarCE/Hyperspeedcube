@@ -17,6 +17,10 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
         vertex_buffers: &[
             single_type_vertex_buffer![for Instance, 0 => Sint32], // edge_id
         ],
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleStrip,
+            ..Default::default()
+        },
         depth_stencil: Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth32Float,
             depth_write_enabled: true,
@@ -27,8 +31,10 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
         fragment_target: Some(wgpu::ColorTargetState {
             format: wgpu::TextureFormat::Rg32Uint,
             blend: None,
-            write_mask: wgpu::ColorWrites::GREEN,
+            write_mask: wgpu::ColorWrites::ALL,
         }),
         ..Default::default()
     };
 });
+
+pub type PassParams<'tex> = super::render_polygon_ids::PassParams<'tex>;
