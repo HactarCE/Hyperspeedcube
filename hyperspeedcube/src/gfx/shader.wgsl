@@ -20,7 +20,7 @@ const COLOR_BACKGROUND: u32 = 0x10000u;
 /// Color ID for outline.
 const COLOR_OUTLINE: u32 = 0x10001u;
 
-const OUTLINE_RADIUS: f32 = 0.05;
+const OUTLINE_RADIUS: f32 = 0.1;
 
 
 
@@ -349,7 +349,7 @@ fn get_color(color_id: u32, lighting: f32) -> vec3<f32> {
     let is_special_color = i32(color_id & 0x10000u) != 0;
     return select(
         textureLoad(sticker_colors, color_id, 0).rgb * lighting,
-        textureLoad(special_colors, color_id & 0xFFFFu, 0).rgb,
+        textureLoad(special_colors, color_id & 0xFFFFu, 0).rgb * lighting,
         is_special_color,
     );
 }
@@ -567,10 +567,11 @@ struct EdgeIdsVertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) @interpolate(linear) a: vec4<f32>,
     @location(1) @interpolate(linear) b: vec4<f32>,
-    @location(2) @interpolate(linear) t: f32,
-    @location(3) @interpolate(linear) u: f32,
-    @location(4) @interpolate(linear) cull: f32, // 0 = no cull. 1 = cull.
-    @location(5) @interpolate(flat) edge_id: i32,
+    @location(2) @interpolate(linear) xy: vec2<f32>,
+    @location(3) @interpolate(linear) t: f32,
+    @location(4) @interpolate(linear) u: f32,
+    @location(5) @interpolate(linear) cull: f32, // 0 = no cull. 1 = cull.
+    @location(6) @interpolate(flat) edge_id: i32,
 }
 struct EdgeIdsFragmentOutput {
     @builtin(frag_depth) depth: f32, // written to depth texture
@@ -621,6 +622,7 @@ fn render_edge_ids_vertex(
 
     var out: EdgeIdsVertexOutput;
     out.position = vec4(pos * view_params.scale, 0.0, 1.0);
+    out.xy = pos;
     out.a = world_a;
     out.b = world_b;
     out.t = t;
@@ -656,44 +658,38 @@ fn render_edge_ids_fragment(in: EdgeIdsVertexOutput) -> EdgeIdsFragmentOutput {
     let vt = in.b.xyz - in.a.xyz;
     let vu = vec3(-vt.y, vt.x, 0.0);
     let vr = normalize(cross(vt, vu));
+    if abs(u) > OUTLINE_RADIUS { discard; }
     // Note that we don't really care about the `vu` axis. The camera ray lies
     // within the plane of `vt` and `vr`, and the 3D capsule's intersection with
     // that plane is a 2D capsule with the following radius:
     let r = sqrt(OUTLINE_RADIUS * OUTLINE_RADIUS - u * u);
 
     // Compute the camera ray.
-    // TODO: move some this computation to CPU
-    let p1: vec3<f32> = in.a.xyz + (in.b.xyz - in.a.xyz) * t_flat;
-    let ndc_xy = p1.xy * z_divisor(p1.z);
-    let p2: vec3<f32> = vec3(ndc_xy / z_divisor(p1.z + 1.0), p1.z + 1.0);
-    let camera_ray_direction = normalize(p2 - p1);
+    // TODO: move some of this computation to CPU
+    let p1: vec3<f32> = vec3(in.xy * z_divisor(0.0), 0.0);
+    let p2: vec3<f32> = vec3(in.xy * z_divisor(1.0), 1.0);
+    let camera_ray_direction = p2 - p1;
 
     // Intersect the camera ray with the near edge of the outline and compute a
     // new T value.
     let ray_vt = dot(camera_ray_direction, vt) / dot(vt, vt);
     let ray_vr = dot(camera_ray_direction, vr);
-    let t = saturate(t_flat + ray_vt * r / ray_vr);
-
+    let t = t_flat + ray_vt * r / ray_vr;
 
     // Now compute distance to a sphere, ignoring perspective distortion.
     let center = in.a.xyz + vt * t;
-    let xy = ndc_xy * z_divisor(center.z) / view_params.scale;
-    let xy_delta = xy - center.xy;
-    if true {
-        var out: EdgeIdsFragmentOutput;
-        out.depth = transform_world_z_to_ndc(in.a.z + (in.b.z-in.a.z) * t);
-        out.color = vec2(u32(in.edge_id), bitcast<u32>(length(xy_delta)));
-        return out;
-    }
+    let xy_world = in.xy * z_divisor(center.z);
+    let xy_delta = xy_world - center.xy;
     let dz_squared = OUTLINE_RADIUS * OUTLINE_RADIUS - dot(xy_delta, xy_delta);
-    if dz_squared <= 0.0 {
-        discard; // Too far away!
-    }
-    let z = center.z + sqrt(OUTLINE_RADIUS - dz_squared);
+    // if dz_squared <= 0.0 {
+    //     discard; // Too far away!
+    // }
+    let z = center.z + sqrt(saturate(dz_squared));
 
     var out: EdgeIdsFragmentOutput;
     out.depth = transform_world_z_to_ndc(z);
-    out.color = vec2(u32(in.edge_id), bitcast<u32>(t));
+    // out.color = vec2(u32(in.edge_id), bitcast<u32>((OUTLINE_RADIUS - length(xy_delta))*10.0));
+    out.color = vec2(u32(in.edge_id), bitcast<u32>(t - 0.5));
     return out;
 }
 
@@ -749,9 +745,9 @@ fn render_composite_puzzle_fragment(in: UvVertexOutput) -> @location(0) vec4<f32
         let a = read_vertex_3d_positions[edge_verts[edge_id].r].xyz;
         let b = read_vertex_3d_positions[edge_verts[edge_id].g].xyz;
         let p = a + (b - a) * t;
-        let lighting2 = mix(1.0, dot(normalize(p-xyz), lighting_params.dir) * 0.5 + 0.5, lighting_params.amt);
+        let lighting2 = mix(1.0, dot(normalize(xyz-p), lighting_params.dir) * 0.5 + 0.5, lighting_params.amt);
         // return vec4(get_color(COLOR_OUTLINE, lighting2), 1.0);
-        return vec4(1.0-t, t, 0.0, 1.0);
+        return vec4(0.0-t, t, 0.0, 1.0);
     }
 
     let base_color = vec4(get_color(color_id, lighting), 1.0);
