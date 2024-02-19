@@ -705,7 +705,7 @@ impl PuzzleRenderer {
         render_pass.set_pipeline(&pipeline.pipeline);
         render_pass.set_bind_groups(&bind_groups);
         render_pass.set_vertex_buffer(0, self.buffers.sorted_edges.slice(..));
-        render_pass.draw(0..4, 0..1); // TODO: bucket.edges_range.clone()
+        render_pass.draw(0..4, bucket.edges_range.clone());
 
         Ok(())
     }

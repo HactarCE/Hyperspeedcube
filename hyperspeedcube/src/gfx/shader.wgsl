@@ -20,7 +20,7 @@ const COLOR_BACKGROUND: u32 = 0x10000u;
 /// Color ID for outline.
 const COLOR_OUTLINE: u32 = 0x10001u;
 
-const OUTLINE_RADIUS: f32 = 0.1;
+const OUTLINE_RADIUS: f32 = 0.02;
 
 
 
@@ -71,7 +71,7 @@ struct SpecialColors {
 @group(0) @binding(100) var polygon_ids_texture: texture_2d<u32>;
 @group(0) @binding(101) var polygon_ids_depth_texture: texture_depth_2d;
 @group(0) @binding(102) var edge_ids_texture: texture_2d<u32>;
-@group(0) @binding(103) var edge_ids_depth_texture: texture_depth_2d;
+@group(0) @binding(103) var edge_ids_depth_texture: texture_depth_2d; // TODO: might not be needed?
 @group(0) @binding(104) var blit_src_texture: texture_2d<f32>;
 @group(0) @binding(150) var blit_src_sampler: sampler;
 
@@ -327,20 +327,23 @@ fn transform_ndc_to_world_point(ndc: vec3<f32>) -> vec3<f32> {
     let xy = ndc.xy / view_params.scale;
     return vec3(xy * z_divisor(z), z);
 }
+fn transform_unscaled_ndc_to_world_point(unscaled_ndc: vec2<f32>, depth: f32) -> vec3<f32> {
+    let z = transform_depth_to_world_z(depth);
+    return vec3(unscaled_ndc * z_divisor(z), z);
+}
 
 struct Ray {
     origin: vec3<f32>,
     direction: vec3<f32>,
 }
-fn transform_ndc_to_world_ray(ndc: vec2<f32>) -> Ray {
-    let xy = ndc / view_params.scale;
+/// Returns a ray that crosses the perspective-fixed plane (either Z=+1.0 or
+/// Z=-1.0, depending on FOV sign) at the given XY coordinates.
+fn transform_unscaled_ndc_to_world_ray(unscaled_ndc: vec2<f32>) -> Ray {
+    let xy = unscaled_ndc;
     // TODO: move some this computation to CPU
-    let p1: vec3<f32> = vec3(xy * z_divisor(1.0), 1.0);
-    let p2: vec3<f32> = vec3(xy * z_divisor(-1.0), -1.0);
-
     var out: Ray;
-    out.origin = p1;
-    out.direction = normalize(p2 - p1);
+    out.origin = vec3(xy * z_divisor(1.0), 1.0);
+    out.direction = normalize(vec3(xy * projection_params.w_factor_3d, -1.0));
     return out;
 }
 
@@ -353,6 +356,10 @@ fn get_color(color_id: u32, lighting: f32) -> vec3<f32> {
         is_special_color,
     );
 }
+/// Returns the lighting multiplier, given a normal vector.
+fn compute_lighting(normal: vec3<f32>) -> f32 {
+    return mix(1.0, dot(normal, lighting_params.dir) * 0.5 + 0.5, lighting_params.amt);
+}
 
 /// Converts UV coordinates (0..1) to texture coordinates (0..n-1).
 fn uv_to_tex_coords(uv: vec2<f32>) -> vec2<i32> {
@@ -364,7 +371,6 @@ struct RayCapsuleIntersection {
     t_ray: f32,
     t_edge: f32,
 }
-
 /// Intersect ray with capsule: https://iquilezles.org/articles/intersectors
 fn intersect_ray_with_capsule(ray: Ray, pa: vec3<f32>, pb: vec3<f32>, r: f32) -> RayCapsuleIntersection {
     var out: RayCapsuleIntersection;
@@ -565,13 +571,11 @@ fn render_polygon_ids_fragment(in: PolygonIdsVertexOutput) -> @location(0) vec2<
 
 struct EdgeIdsVertexOutput {
     @builtin(position) position: vec4<f32>,
-    @location(0) @interpolate(linear) a: vec4<f32>,
-    @location(1) @interpolate(linear) b: vec4<f32>,
-    @location(2) @interpolate(linear) xy: vec2<f32>,
-    @location(3) @interpolate(linear) t: f32,
-    @location(4) @interpolate(linear) u: f32,
-    @location(5) @interpolate(linear) cull: f32, // 0 = no cull. 1 = cull.
-    @location(6) @interpolate(flat) edge_id: i32,
+    @location(0) @interpolate(flat) a: vec4<f32>,
+    @location(1) @interpolate(flat) b: vec4<f32>,
+    @location(2) @interpolate(linear) unscaled_ndc_xy: vec2<f32>,
+    @location(3) @interpolate(flat) cull: f32, // 0 = no cull. 1 = cull.
+    @location(4) @interpolate(flat) edge_id: i32,
 }
 struct EdgeIdsFragmentOutput {
     @builtin(frag_depth) depth: f32, // written to depth texture
@@ -622,11 +626,9 @@ fn render_edge_ids_vertex(
 
     var out: EdgeIdsVertexOutput;
     out.position = vec4(pos * view_params.scale, 0.0, 1.0);
-    out.xy = pos;
+    out.unscaled_ndc_xy = pos;
     out.a = world_a;
     out.b = world_b;
-    out.t = t;
-    out.u = select(-radius_ndc, radius_ndc, (idx & 1u) != 0u);
     out.cull = read_vertex_culls[edge_verts.r] + read_vertex_culls[edge_verts.g];
     out.edge_id = edge_id + 1; // +1 because the texture is cleared to 0
     return out;
@@ -639,57 +641,17 @@ fn render_edge_ids_fragment(in: EdgeIdsVertexOutput) -> EdgeIdsFragmentOutput {
         discard;
     }
 
-    // Compute perspective-correct W value: https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/perspective-correct-interpolation-vertex-attributes.html
-    let w = 1.0 / (saturate(1.0 - in.t) / in.a.w + saturate(in.t) / in.b.w);
-
-    // Compute radius out from the center, in world coordinates.
-    let u = in.u * w;
-
-    // Compute perspective-correct T value. "Flat" here means that we have not
-    // yet accounted for the thickness of the capsule.
-    let t_flat = in.t * w / in.b.w;
-
-    // Let's define a new orthogonal coordinate system that will be more useful.
-    // Its origin is `a` and its three basis vectors are:
-    // - vt = b - a
-    // - vu = vector perpendicular to b-a and parallel to view plane
-    //        (may have any length)
-    // - vr = unit vector perpendicular to `t` and `u` vectors
-    let vt = in.b.xyz - in.a.xyz;
-    let vu = vec3(-vt.y, vt.x, 0.0);
-    let vr = normalize(cross(vt, vu));
-    if abs(u) > OUTLINE_RADIUS { discard; }
-    // Note that we don't really care about the `vu` axis. The camera ray lies
-    // within the plane of `vt` and `vr`, and the 3D capsule's intersection with
-    // that plane is a 2D capsule with the following radius:
-    let r = sqrt(OUTLINE_RADIUS * OUTLINE_RADIUS - u * u);
-
-    // Compute the camera ray.
-    // TODO: move some of this computation to CPU
-    let p1: vec3<f32> = vec3(in.xy * z_divisor(0.0), 0.0);
-    let p2: vec3<f32> = vec3(in.xy * z_divisor(1.0), 1.0);
-    let camera_ray_direction = p2 - p1;
-
-    // Intersect the camera ray with the near edge of the outline and compute a
-    // new T value.
-    let ray_vt = dot(camera_ray_direction, vt) / dot(vt, vt);
-    let ray_vr = dot(camera_ray_direction, vr);
-    let t = t_flat + ray_vt * r / ray_vr;
-
-    // Now compute distance to a sphere, ignoring perspective distortion.
-    let center = in.a.xyz + vt * t;
-    let xy_world = in.xy * z_divisor(center.z);
-    let xy_delta = xy_world - center.xy;
-    let dz_squared = OUTLINE_RADIUS * OUTLINE_RADIUS - dot(xy_delta, xy_delta);
-    // if dz_squared <= 0.0 {
-    //     discard; // Too far away!
-    // }
-    let z = center.z + sqrt(saturate(dz_squared));
+    let ray = transform_unscaled_ndc_to_world_ray(in.unscaled_ndc_xy);
+    let intersection = intersect_ray_with_capsule(ray, in.a.xyz, in.b.xyz, OUTLINE_RADIUS);
+    if intersection.intersects == 0 {
+        discard;
+    }
+    let z = ray.origin.z + ray.direction.z * intersection.t_ray;
+    let t = intersection.t_edge;
 
     var out: EdgeIdsFragmentOutput;
     out.depth = transform_world_z_to_ndc(z);
-    // out.color = vec2(u32(in.edge_id), bitcast<u32>((OUTLINE_RADIUS - length(xy_delta))*10.0));
-    out.color = vec2(u32(in.edge_id), bitcast<u32>(t - 0.5));
+    out.color = vec2(u32(in.edge_id), bitcast<u32>(t));
     return out;
 }
 
@@ -703,79 +665,256 @@ fn render_edge_ids_fragment(in: EdgeIdsVertexOutput) -> EdgeIdsFragmentOutput {
 @fragment
 fn render_composite_puzzle_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
     let tex_coords: vec2<i32> = uv_to_tex_coords(in.uv);
-    let polygon_tex_value: vec2<u32> = textureLoad(polygon_ids_texture, tex_coords, 0).rg;
-    let edge_tex_value: vec2<u32> = textureLoad(edge_ids_texture, tex_coords, 0).rg;
-    let polygon_depth = textureLoad(polygon_ids_depth_texture, tex_coords, 0);
-    let edge_depth = textureLoad(edge_ids_depth_texture, tex_coords, 0);
+    let unscaled_ndc = (in.uv * 2.0 - 1.0) / view_params.scale;
+    let ray = transform_unscaled_ndc_to_world_ray(unscaled_ndc);
 
-    let polygon_id = i32(polygon_tex_value.r) - 1;
-    let polygon_normal_xy = vec2(
-        unpack_u16_to_f32(polygon_tex_value.g & 0x0000FFFFu),
-        unpack_u16_to_f32(polygon_tex_value.g >> 16u),
+    // Compute the rectangle for the current pixel in unscaled NDC.
+    var pixel_rect: Rect;
+    pixel_rect.bl = unscaled_ndc - vec2(-1.0, -1.0) / target_size;
+    pixel_rect.tr = unscaled_ndc + vec2( 1.0,  1.0) / target_size;
+
+    // Compute the polygon plane.
+    let polygon = get_polygon_pixel(unscaled_ndc, tex_coords);
+
+    // For each edge (center, N, S, W, E), compute its color.
+    let center = get_edge_pixel(ray, tex_coords);
+    // let n = get_edge_pixel(ray, tex_coords + vec2( 0, -1));
+    // let s = get_edge_pixel(ray, tex_coords + vec2( 0,  1));
+    // let w = get_edge_pixel(ray, tex_coords + vec2(-1,  0));
+    // let e = get_edge_pixel(ray, tex_coords + vec2( 1,  0));
+
+    // If the polygon is behind the midline of the edge, then use the midline of
+    // the edge instead.
+    let edge_plane_z_coord = plane_z_coord(center.flat_plane, polygon.point.xy);
+    let z = max(polygon.point.z, edge_plane_z_coord);
+    let is_polygon_in_front: bool = polygon.point.z > edge_plane_z_coord;
+    var polygon_plane: Plane;
+    polygon_plane.v = select(center.flat_plane.v, polygon.plane.v, is_polygon_in_front);
+
+    // Approximate the capsule of the edge as a plane.
+    let edge_plane = compute_edge_plane(center, vec3(unscaled_ndc, z));
+
+    // Perspective-project the planes, then compute the intersection of the edge
+    // plane and the polygon plane.
+    let edge_coverage = screen_space_plane_intersection_area(
+        perspective_transform_plane(polygon_plane),
+        perspective_transform_plane(edge_plane),
+        pixel_rect,
     );
-    let polygon_normal = vec3(polygon_normal_xy, sqrt(1.0 - dot(polygon_normal_xy, polygon_normal_xy))); // TODO: this line causes wrong black lighting
-    let lighting = mix(1.0, dot(polygon_normal, lighting_params.dir) * 0.5 + 0.5, lighting_params.amt);
 
-    let edge_id = i32(edge_tex_value.r) - 1;
+    // Blend edge colors.
+    return mix(polygon.color, vec4(get_color(COLOR_OUTLINE, 1.0), 1.0), edge_coverage);
 
-    // TODO: perf of `select()` vs branch
-    let color_id: u32 = select(
-        COLOR_OUTLINE,
-        select(
-            // wrap max value around to 0
-            u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF),
-            COLOR_BACKGROUND,
-            polygon_id == NONE,
-        ),
-        edge_id == NONE || polygon_depth > edge_depth,
-    );
-    // if edge_id >= 0 {
-    //     color_id = edge_color(edge_id)
-    // } else if polygon_id == NONE {
-    //     color_id = COLOR_BACKGROUND;
-    // } else {
-    //     color_id = u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF); // wrap max value around to 0
+
+
+
+    // let polygon_tex_value: vec2<u32> = textureLoad(polygon_ids_texture, tex_coords, 0).rg;
+    // let edge_tex_value: vec2<u32> = textureLoad(edge_ids_texture, tex_coords, 0).rg;
+    // let polygon_depth = textureLoad(polygon_ids_depth_texture, tex_coords, 0);
+    // let edge_depth = textureLoad(edge_ids_depth_texture, tex_coords, 0);
+
+    // let polygon_id = i32(polygon_tex_value.r) - 1;
+    // let polygon_normal_xy = vec2(
+    //     unpack_u16_to_f32(polygon_tex_value.g & 0x0000FFFFu),
+    //     unpack_u16_to_f32(polygon_tex_value.g >> 16u),
+    // );
+    // let polygon_normal = vec3(polygon_normal_xy, sqrt(1.0 - dot(polygon_normal_xy, polygon_normal_xy))); // TODO: this line causes wrong black lighting
+    // let lighting = mix(1.0, dot(polygon_normal, lighting_params.dir) * 0.5 + 0.5, lighting_params.amt);
+
+    // let edge_id = i32(edge_tex_value.r) - 1;
+
+    // // TODO: perf of `select()` vs branch
+    // let color_id: u32 = select(
+    //     COLOR_OUTLINE,
+    //     select(
+    //         // wrap max value around to 0
+    //         u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF),
+    //         COLOR_BACKGROUND,
+    //         polygon_id == NONE,
+    //     ),
+    //     edge_id == NONE || polygon_depth > edge_depth,
+    // );
+    // // if edge_id >= 0 {
+    // //     color_id = edge_color(edge_id)
+    // // } else if polygon_id == NONE {
+    // //     color_id = COLOR_BACKGROUND;
+    // // } else {
+    // //     color_id = u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF); // wrap max value around to 0
+    // // }
+
+
+    // if color_id == COLOR_OUTLINE {
+    //     let t = bitcast<f32>(edge_tex_value.g);
+    //     let xyz = transform_ndc_to_world_point(vec3(xy, edge_depth));
+    //     let a = read_vertex_3d_positions[edge_verts[edge_id].r].xyz;
+    //     let b = read_vertex_3d_positions[edge_verts[edge_id].g].xyz;
+    //     let p = a + (b - a) * t;
+    //     let lighting2 = mix(1.0, dot(normalize(xyz-p), lighting_params.dir) * 0.5 + 0.5, lighting_params.amt);
+    //     return vec4(get_color(COLOR_OUTLINE, lighting2), 1.0);
+    //     // return vec4(0.0-t, t, 0.0, 1.0);
     // }
 
-    let uv = ((vec2<f32>(tex_coords) + vec2(0.5, 0.5)) / vec2<f32>(target_size) * 2.0 - 1.0) * vec2(1.0, -1.0);
+    // let base_color = vec4(get_color(color_id, lighting), 1.0);
+    // // return base_color;
 
-    if color_id == COLOR_OUTLINE {
-        let t = bitcast<f32>(edge_tex_value.g);
-        let xyz = transform_ndc_to_world_point(vec3(uv, edge_depth));
-        let a = read_vertex_3d_positions[edge_verts[edge_id].r].xyz;
-        let b = read_vertex_3d_positions[edge_verts[edge_id].g].xyz;
-        let p = a + (b - a) * t;
-        let lighting2 = mix(1.0, dot(normalize(xyz-p), lighting_params.dir) * 0.5 + 0.5, lighting_params.amt);
-        // return vec4(get_color(COLOR_OUTLINE, lighting2), 1.0);
-        return vec4(0.0-t, t, 0.0, 1.0);
+    // // let uv = ((vec2<f32>(tex_coords) + vec2(0.5, 0.5)) / vec2<f32>(target_size) * 2.0 - 1.0) * vec2(1.0, -1.0);
+    // // let ray = transform_ndc_to_world_ray(uv);
+
+    // // let has_polygon = polygon_id != NONE;
+    // // let polygon_point = transform_ndc_to_world_point(vec3(uv, polygon_depth));
+
+    // // let t = bitcast<f32>(edge_tex_value.g);
+    // // let edge_verts = edge_verts[edge_id];
+    // // let a = read_vertex_3d_positions[edge_verts.r].xyz;
+    // // let b = read_vertex_3d_positions[edge_verts.g].xyz;
+    // // let edge_point = a + (b - a) * t;
+    // // let edge_normal = transform_ndc_to_world_point(vec3(uv, edge_depth)) - edge_point;
+
+    // // // TODO: consider sampling depth to do accurate blending according to depth
+    // // // polygon_point.xy = todo!("offset plane points by tex_coords offset");
+    // // let color_n = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2( 0, -1));
+    // // let color_s = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2( 0,  1));
+    // // let color_w = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2(-1,  0));
+    // // let color_e = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2( 1,  0));
+    // // let total_alpha: f32 = 1.0 - (1.0 - color_n.a) * (1.0 - color_s.a) * (1.0 - color_w.a) * (1.0 - color_e.a);
+    // // let blending_weight = select(0.0, total_alpha / (color_n.a + color_s.a + color_w.a + color_e.a), total_alpha > 0.0);
+    // // let blended_color = (color_n + color_s + color_w + color_e) * blending_weight;
+    // // return base_color * (1.0 - blended_color.a) + blended_color;
+}
+
+// fn antialias_planes(plane1: Plane, color1: vec4<f32>, plane2: Plane, color2: vec4<f32>) -> vec4<f32> {
+//     return mix(color1, color2, screen_space_plane_intersection_area(plane1, plane2));
+// }
+
+struct PolygonPixel {
+    plane: Plane,
+    color: vec4<f32>,
+    point: vec3<f32>
+}
+fn get_polygon_pixel(unscaled_ndc: vec2<f32>, tex_coords: vec2<i32>) -> PolygonPixel {
+    var out: PolygonPixel;
+
+    let tex_value: vec2<u32> = textureLoad(polygon_ids_texture, tex_coords, 0).rg;
+    let polygon_id = i32(tex_value.r) - 1;
+    // TODO(optimization): try early return here if `polygon_id == NONE`
+    if polygon_id == NONE {
+        out.plane.v = vec4(0.0, 0.0, 1.0, -Z_CLIP);
+        out.color = vec4(0.0, 0.0, 0.0, 0.0);
+        out.point = vec3(0.0, 0.0, -Z_CLIP);
+        return out;
     }
+    let polygon_normal_xy = vec2(
+        unpack_u16_to_f32(tex_value.g & 0x0000FFFFu),
+        unpack_u16_to_f32(tex_value.g >> 16u),
+    );
+    let polygon_normal = vec3(polygon_normal_xy, sqrt(1.0 - dot(polygon_normal_xy, polygon_normal_xy))); // TODO: this line causes wrong black lighting
 
-    let base_color = vec4(get_color(color_id, lighting), 1.0);
-    return base_color;
+    let color_id = u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF); // TODO: why `& 0xFFFF`
+    out.color = vec4(get_color(color_id, compute_lighting(polygon_normal)), 1.0);
 
-    // let uv = ((vec2<f32>(tex_coords) + vec2(0.5, 0.5)) / vec2<f32>(target_size) * 2.0 - 1.0) * vec2(1.0, -1.0);
-    // let ray = transform_ndc_to_world_ray(uv);
+    let depth: f32 = textureLoad(polygon_ids_depth_texture, tex_coords, 0);
+    out.point = transform_unscaled_ndc_to_world_point(unscaled_ndc, depth);
+    out.plane = plane_from_point_and_normal(out.point, polygon_normal);
 
-    // let has_polygon = polygon_id != NONE;
-    // let polygon_point = transform_ndc_to_world_point(vec3(uv, polygon_depth));
+    return out;
+}
 
-    // let t = bitcast<f32>(edge_tex_value.g);
-    // let edge_verts = edge_verts[edge_id];
-    // let a = read_vertex_3d_positions[edge_verts.r].xyz;
-    // let b = read_vertex_3d_positions[edge_verts.g].xyz;
-    // let edge_point = a + (b - a) * t;
-    // let edge_normal = transform_ndc_to_world_point(vec3(uv, edge_depth)) - edge_point;
+struct EdgePixel {
+    flat_plane: Plane,
+    point_on_line_segment: vec3<f32>,
+    edge_id: i32,
+}
+fn get_edge_pixel(ray: Ray, tex_coords: vec2<i32>) -> EdgePixel {
+    var out: EdgePixel;
 
-    // // TODO: consider sampling depth to do accurate blending according to depth
-    // // polygon_point.xy = todo!("offset plane points by tex_coords offset");
-    // let color_n = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2( 0, -1));
-    // let color_s = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2( 0,  1));
-    // let color_w = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2(-1,  0));
-    // let color_e = edge_color_at_pixel(has_polygon, polygon_point, ray, tex_coords + vec2( 1,  0));
-    // let total_alpha: f32 = 1.0 - (1.0 - color_n.a) * (1.0 - color_s.a) * (1.0 - color_w.a) * (1.0 - color_e.a);
-    // let blending_weight = select(0.0, total_alpha / (color_n.a + color_s.a + color_w.a + color_e.a), total_alpha > 0.0);
-    // let blended_color = (color_n + color_s + color_w + color_e) * blending_weight;
-    // return base_color * (1.0 - blended_color.a) + blended_color;
+    let tex_value: vec2<u32> = textureLoad(edge_ids_texture, tex_coords, 0).rg;
+    out.edge_id = i32(tex_value.r) - 1;
+    let t = bitcast<f32>(tex_value.g);
+
+    let a = read_vertex_3d_positions[edge_verts[out.edge_id].r].xyz;
+    let b = read_vertex_3d_positions[edge_verts[out.edge_id].g].xyz;
+    let vt = b - a;
+    out.point_on_line_segment = a + vt * t;
+
+    let normal = cross(cross(ray.direction, vt), vt);
+    out.flat_plane = plane_from_point_and_normal(out.point_on_line_segment, normal);
+
+    return out;
+}
+fn compute_edge_plane(edge: EdgePixel, nearest_point_to_plane: vec3<f32>) -> Plane {
+    let normal = nearest_point_to_plane - edge.point_on_line_segment;
+    return plane_from_point_and_normal(
+        edge.point_on_line_segment + normal,
+        normalize(normal) * OUTLINE_RADIUS,
+    );
+}
+
+struct Rect {
+    bl: vec2<f32>, // bottom left
+    tr: vec2<f32>, // top right
+}
+fn screen_space_plane_intersection_area(p: Plane, q: Plane, r: Rect) -> f32 {
+    // Compute line intersection of the two planes by writing the plane
+    // equations, scaling each by the other's Z value, and subtracting.
+    let a = determinant(mat2x2(p.v.xz, q.v.xz));
+    let b = determinant(mat2x2(p.v.yz, q.v.yz));
+    let c = determinant(mat2x2(p.v.wz, q.v.wz));
+    // Now the line is in the form ax+by=c.
+
+    //a(x-s)+b(y-t)=c
+    //ax-as+by-bt=c
+    //ax+by=c+as+bt
+
+    // x = (c-by)/a
+    // y = (c-ax)/b
+
+    // Compute the area of the unit square that is on one side of the line.
+    // https://www.desmos.com/calculator/vbbqun97c7
+
+    // Start with the intersection points.
+    let recip_a = 1.0 / a;
+    let recip_b = 1.0 / b;
+    let intersections = (c + 0.5 * vec4(b, -b, a, -a)) / vec4(a, a, b, b);
+    let x1 = intersections.r;
+    let x2 = intersections.g;
+    let y1 = intersections.b;
+    let y2 = intersections.a;
+
+    // TODO: vectorize this code better
+
+    // let xs = vec4(x1,x1,x2,x2);
+    // let ys = vec4(y1,y2,y1,y2);
+
+    return 0.5 * (
+          select(0.0, (x1 + r.bl.x) * (y1 + r.bl.y), a * x1 + b * y1 < c)
+        + select(0.0, (x1 + r.tr.x) * (y2 + r.bl.y), a * x1 + b * y2 < c)
+        + select(0.0, (x2 + r.bl.x) * (y1 + r.tr.y), a * x2 + b * y1 < c)
+        + select(0.0, (x2 + r.tr.x) * (y2 + r.tr.y), a * x2 + b * y2 < c)
+    );
+}
+
+// fn edge_color_at_pixel(has_polygon: bool, polygon_plane: Plane, edge_pixel: EdgePixel, xy: vec2<f32>) -> vec4<f32> {
+//     let polygon = select(
+//         Plane
+//         polygon_plane,
+//         has_polygon,
+//     )
+// }
+
+
+
+
+
+
+fn edge_plane_at_pixel(tex_coords: vec2<i32>) -> Plane {
+    var out: Plane;
+
+    let edge_tex_value: vec2<u32> = textureLoad(edge_ids_texture, tex_coords, 0).rg;
+    let edge_depth = textureLoad(edge_ids_depth_texture, tex_coords, 0);
+
+    // edge_tex_value.g
+
+    return out;
 }
 
 fn edge_color_at_pixel(edge_plane: Plane, has_plane: bool, polygon_plane: Plane, tex_coords: vec2<i32>) -> vec4<f32> {
@@ -798,111 +937,158 @@ fn is_in_bounds(tex_coords: vec2<i32>) -> bool {
         && tex_coords.y < i32(target_size.y);
 }
 
-/// Plane in 3D defined by a point and a normal vector. The point is relative to
-/// the current pixel.
+/// Line in 2D represented using the equation v.xy ⋅ p = v.z, where `p` is an
+/// arbitrary point.
+struct Line2D {
+    v: vec3<f32>,
+}
+
+/// Plane in 3D represented using the equation v.xyz ⋅ p = v.w, where `p` is an
+/// arbitrary point.
 struct Plane {
-    point: vec3<f32>,
-    normal: vec3<f32>,
+    v: vec4<f32>,
+}
+fn perspective_transform_plane(plane: Plane) -> Plane {
+    // Using these equations:
+    // - w = 1.0 + (fov_signum - z) * w_factor_3d;
+    // - v' = v / w
+    //
+    // We can transform the plane equation v.xyz ⋅ p = v.w to work in
+    // perspective-projected space:
+    //
+    // v.xyz / w ⋅ p = v.w
+    // v.xyz ⋅ p = v.w * w
+    //
+    // Note that `w` depends on `p.z` so it does affect `v'.z` but it's still
+    // not so bad:
+    let z_offset = plane.v.w * projection_params.w_factor_3d;
+    let w_offset = z_offset * projection_params.fov_signum;
+    var out: Plane;
+    out.v = plane.v + vec4(0.0, 0.0, z_offset, w_offset);
+    return out;
+}
+/// Constructs a plane from a point and a normal vector. The normal vector does
+//not need to be normalized.
+fn plane_from_point_and_normal(point: vec3<f32>, normal: vec3<f32>) -> Plane {
+    var out: Plane;
+    out.v = vec4(normal, dot(point, normal));
+    return out;
+}
+fn plane_z_coord(plane: Plane, xy: vec2<f32>) -> f32 {
+    // TODO(optimization): move division out into multiplication on the other
+    //                     side of the equation
+
+    // ax + by + cz = d
+    // z = (d - ax - by)/c
+    return (plane.v.w - dot(plane.v.xy, xy)) / plane.v.z;
 }
 
-fn edge_color_with_alpha(ray: Ray, edge_id: i32, edge_plane: Plane, has_polygon: bool, polygon_plane: Plane, z: f32) -> vec4<f32> {
-    let edge_verts = edge_verts[edge_id];
-    let a = read_vertex_3d_positions[edge_verts.r].xyz;
-    let b = read_vertex_3d_positions[edge_verts.g].xyz;
+// /// Plane in 3D defined by a point and a normal vector. The point is relative to
+// /// the current pixel.
+// struct Plane {
+//     point: vec3<f32>,
+//     normal: vec3<f32>,
+// }
 
-    // Intersect with a 1-pixel-wider capsule.
-    let intersection = intersect_ray_with_capsule(ray, a, b, OUTLINE_RADIUS + 1.0 / (view_params.scale.x * target_size.x) * z_divisor(z));
-    let t = intersection.t_ray;
-    let intersect_point = (ray.origin + ray.direction * t);
+// fn edge_color_with_alpha(ray: Ray, edge_id: i32, edge_plane: Plane, has_polygon: bool, polygon_plane: Plane, z: f32) -> vec4<f32> {
+//     let edge_verts = edge_verts[edge_id];
+//     let a = read_vertex_3d_positions[edge_verts.r].xyz;
+//     let b = read_vertex_3d_positions[edge_verts.g].xyz;
 
-    let plane_point = vec3<f32>(0.0, 0.0, 0.0); // BADDDDD
+//     // Intersect with a 1-pixel-wider capsule.
+//     // let intersection = intersect_ray_with_capsule(ray, a, b, OUTLINE_RADIUS + 1.0 / (view_params.scale.x * target_size.x) * z_divisor(z));
+//     var intersection: RayCapsuleIntersection;
+//     let t = intersection.t_ray;
+//     let intersect_point = (ray.origin + ray.direction * t);
 
-    var alpha: f32;
-    if has_polygon && intersection.intersects != 0 {
-        if intersect_point.z < plane_point.z {
-            alpha = capsule_alpha_from_radius_vector(plane_plane_intersect_to_line(polygon_plane, edge_plane), z);
-            return vec4(1.0, 0.0, 0.0, 1.0);
-        } else {
-            alpha = 1.0;
-            return vec4(1.0, 1.0, 0.0, 1.0);
-        }
-    } else {
-        alpha = capsule_alpha_from_radius_vector(vector_to_capsule_edge(ray, a, b), z);
-            // return vec4(0.0, 0.0, 1.0, 1.0);
-    }
-    // if has_plane &&  {
-    //     alpha = 1.0;
-    // } else {
-    //     alpha = 0.0;
-    // }
+//     let plane_point = vec3<f32>(0.0, 0.0, 0.0); // BADDDDD
 
-    // let alpha = select(
-    //     capsule_edge_alpha(ray, a, b),
-    //     capsule_plane_alpha(ray, a, b, plane_point),
-    //     has_plane && t > -Z_CLIP && intersect_point.z < plane_point.z,
-    // );
+//     var alpha: f32;
+//     if has_polygon && intersection.intersects != 0 {
+//         if intersect_point.z < plane_point.z {
+//             alpha = capsule_alpha_from_radius_vector(plane_plane_intersect_to_line(polygon_plane, edge_plane), z);
+//             return vec4(1.0, 0.0, 0.0, 1.0);
+//         } else {
+//             alpha = 1.0;
+//             return vec4(1.0, 1.0, 0.0, 1.0);
+//         }
+//     } else {
+//         alpha = capsule_alpha_from_radius_vector(vector_to_capsule_edge(ray, a, b), z);
+//             // return vec4(0.0, 0.0, 1.0, 1.0);
+//     }
+//     // if has_plane &&  {
+//     //     alpha = 1.0;
+//     // } else {
+//     //     alpha = 0.0;
+//     // }
 
-    // TODO: apply lighting
-    let lighting = 1.0;
+//     // let alpha = select(
+//     //     capsule_edge_alpha(ray, a, b),
+//     //     capsule_plane_alpha(ray, a, b, plane_point),
+//     //     has_plane && t > -Z_CLIP && intersect_point.z < plane_point.z,
+//     // );
 
-    // TODO: specular highlight?
+//     // TODO: apply lighting
+//     let lighting = 1.0;
 
-    // Premultiply alpha.
-    let color = vec4(get_color(COLOR_OUTLINE, lighting) * alpha, alpha);
-    return color;
-}
+//     // TODO: specular highlight?
 
-fn capsule_alpha_from_radius_vector(delta: vec2<f32>, z: f32) -> f32 {
-    // Convert to NDC screen space.
-    let subpixel_delta = transform_small_world_vector_to_pixel_vector(delta, z);
-    // Get the length of `subpixel_delta` in pixel units.
-    let subpixel_distance = length(-subpixel_delta); // TODO: handle diagonals better (maybe `max()`?)
-    // That subpixel delta is the alpha value for the outline.
-    return sqrt(saturate(1.0 - subpixel_distance));
-}
+//     // Premultiply alpha.
+//     let color = vec4(get_color(COLOR_OUTLINE, lighting) * alpha, alpha);
+//     return color;
+// }
 
-fn vector_to_capsule_edge(ray: Ray, a: vec3<f32>, b: vec3<f32>) -> vec2<f32> {
-    // Find the closest points on the outline and the ray.
-    // https://math.stackexchange.com/a/2217845/1115019
-    let perp = cross(b - a, ray.direction);
+// fn capsule_alpha_from_radius_vector(delta: vec2<f32>, z: f32) -> f32 {
+//     // Convert to NDC screen space.
+//     let subpixel_delta = transform_small_world_vector_to_pixel_vector(delta, z);
+//     // Get the length of `subpixel_delta` in pixel units.
+//     let subpixel_distance = length(-subpixel_delta); // TODO: handle diagonals better (maybe `max()`?)
+//     // That subpixel delta is the alpha value for the outline.
+//     return sqrt(saturate(1.0 - subpixel_distance));
+// }
 
-    // The edge is parametrized from `t=0` at `a` to `t=1` at `b`.
-    let t_edge = saturate(dot(cross(ray.direction, perp), ray.origin - a) / dot(perp, perp));
-    let pos_edge = a + (b - a) * saturate(t_edge);
+// fn vector_to_capsule_edge(ray: Ray, a: vec3<f32>, b: vec3<f32>) -> vec2<f32> {
+//     // Find the closest points on the outline and the ray.
+//     // https://math.stackexchange.com/a/2217845/1115019
+//     let perp = cross(b - a, ray.direction);
 
-    // The ray is parametrized from `t=0` at `ray.origin` to `t=1` at
-    // `ray.origin + ray.direction`.
-    let t_ray = dot(cross(b - a, perp), ray.origin - a) / dot(perp, perp);
-    let pos_ray = ray.origin + ray.direction * t_ray;
+//     // The edge is parametrized from `t=0` at `a` to `t=1` at `b`.
+//     let t_edge = saturate(dot(cross(ray.direction, perp), ray.origin - a) / dot(perp, perp));
+//     let pos_edge = a + (b - a) * saturate(t_edge);
 
-    // Compute the vector from the edge to the pixel.
-    let vector_from_central_line = pos_ray - pos_edge;
+//     // The ray is parametrized from `t=0` at `ray.origin` to `t=1` at
+//     // `ray.origin + ray.direction`.
+//     let t_ray = dot(cross(b - a, perp), ray.origin - a) / dot(perp, perp);
+//     let pos_ray = ray.origin + ray.direction * t_ray;
 
-    // Get the component of the vector that is parallel to the screen.
-    let xy_delta = vector_from_central_line.xy;
-    let xy_delta_unit = normalize(vector_from_central_line).xy;
-    // Compute the vector from the pixel to the nearest point on the capsule.
-    return xy_delta_unit * OUTLINE_RADIUS - xy_delta;
-}
+//     // Compute the vector from the edge to the pixel.
+//     let vector_from_central_line = pos_ray - pos_edge;
 
-/// Intersects two planes and returns a line (as 2D vector to the nearest
-/// point on it and a Z coordinate).
-fn plane_plane_intersect_to_line(p1: Plane, p2: Plane) -> vec2<f32> {
-    // plane 1: 0 = a1 (x-x1) + b1 (y-y1) + c1 (z-z1)
-    // plane 2: 0 = a2 (x-x2) + b2 (y-y2) + c2 (z-z2)
-    // intersection (ignoring Z coordinate):
-    // 0 = (+ a1 c2
-    //      - a2 c1) x
-    //   + (+ b1 c2
-    //      - b2 c1) y
-    //   + (+ a2 x2 c1
-    //      + b2 y2 c1
-    //      + c2 z2 c1
-    //      - a1 x1 c2
-    //      - b1 y1 c2
-    //      - c1 z1 c2)
-    let a = determinant(mat2x2(p1.normal.xz, p2.normal.xz));
-    let b = determinant(mat2x2(p1.normal.yz, p2.normal.yz));
-    let c = dot(p2.normal, p2.point) * p1.normal.z - dot(p1.normal, p1.point) * p2.normal.z;
-    return vec2(c * -0.5) / vec2(a, b);
-}
+//     // Get the component of the vector that is parallel to the screen.
+//     let xy_delta = vector_from_central_line.xy;
+//     let xy_delta_unit = normalize(vector_from_central_line).xy;
+//     // Compute the vector from the pixel to the nearest point on the capsule.
+//     return xy_delta_unit * OUTLINE_RADIUS - xy_delta;
+// }
+
+// /// Intersects two planes and returns a line (as 2D vector to the nearest
+// /// point on it and a Z coordinate).
+// fn plane_plane_intersect_to_line(p1: Plane, p2: Plane) -> Line2D {
+//     // plane 1: 0 = a1 (x-x1) + b1 (y-y1) + c1 (z-z1)
+//     // plane 2: 0 = a2 (x-x2) + b2 (y-y2) + c2 (z-z2)
+//     // intersection (ignoring Z coordinate):
+//     // 0 = (+ a1 c2
+//     //      - a2 c1) x
+//     //   + (+ b1 c2
+//     //      - b2 c1) y
+//     //   + (+ a2 x2 c1
+//     //      + b2 y2 c1
+//     //      + c2 z2 c1
+//     //      - a1 x1 c2
+//     //      - b1 y1 c2
+//     //      - c1 z1 c2)
+//     let a = determinant(mat2x2(p1.normal.xz, p2.normal.xz));
+//     let b = determinant(mat2x2(p1.normal.yz, p2.normal.yz));
+//     let c = dot(p2.normal, p2.point) * p1.normal.z - dot(p1.normal, p1.point) * p2.normal.z;
+//     return vec3(a, b, c);
+// }
