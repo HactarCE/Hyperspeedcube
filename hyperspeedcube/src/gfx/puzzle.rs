@@ -396,7 +396,9 @@ impl PuzzleRenderer {
         // Write the draw parameters.
         let data = GfxDrawParams {
             light_dir: view_params.light_dir().into(),
-            light_amt: view_params.prefs.light_amt,
+            face_light_intensity: view_params.prefs.face_light_intensity,
+            _padding: [0.0; 3],
+            outline_light_intensity: view_params.prefs.outline_light_intensity,
 
             mouse_pos: view_params.mouse_pos,
 

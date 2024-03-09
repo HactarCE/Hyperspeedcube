@@ -30,7 +30,9 @@ const EPSILON: f32 = 0.00001;
 struct DrawParams {
     // Lighting
     light_dir: vec3<f32>,
-    light_amt: f32,
+    face_light_intensity: f32,
+    _padding: vec3<f32>,
+    outline_light_intensity: f32,
 
     // Mouse state
     mouse_pos: vec2<f32>,
@@ -341,8 +343,8 @@ fn get_color(color_id: u32, lighting: f32) -> vec3<f32> {
     );
 }
 /// Returns the lighting multiplier, given a normal vector.
-fn compute_lighting(normal: vec3<f32>) -> f32 {
-    return mix(1.0, dot(normal, draw_params.light_dir) * 0.5 + 0.5, draw_params.light_amt);
+fn compute_lighting(normal: vec3<f32>, intensity: f32) -> f32 {
+    return mix(1.0, dot(normal, draw_params.light_dir) * 0.5 + 0.5, intensity);
 }
 
 /// Converts UV coordinates (0..1) to texture coordinates (0..n-1).
@@ -753,7 +755,8 @@ fn get_polygon_pixel(screen_space: vec2<f32>, tex_coords: vec2<i32>) -> PolygonP
     out.plane = plane_from_point_and_normal(out.point, polygon_normal);
 
     let color_id = u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF); // TODO: why `& 0xFFFF`
-    out.color = vec4(get_color(color_id, compute_lighting(polygon_normal)), 1.0);
+    let lighting = compute_lighting(polygon_normal, draw_params.face_light_intensity);
+    out.color = vec4(get_color(color_id, lighting), 1.0);
 
     return out;
 }
@@ -852,7 +855,7 @@ fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_
     var edge_coverage = screen_space_line_rect_area(edge_line, screen_space, rect_size);
 
     // Compute lighting.
-    let lighting = compute_lighting(normalize(point_on_surface - point_on_line_segment));
+    let lighting = compute_lighting(normalize(point_on_surface - point_on_line_segment), draw_params.outline_light_intensity);
 
     let outline_color = vec3(0.2, 0.2, 0.2) * lighting;
     out.color = vec4(outline_color, 1.0) * saturate(edge_coverage);

@@ -498,7 +498,7 @@ pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         prefs_ui.angle("Yaw", access!(.light_yaw), |dv| {
             dv.clamp_range(-180.0..=180.0)
         });
-        prefs_ui.percent("Intensity", access!(.light_amt));
+        prefs_ui.percent("Intensity", access!(.face_light_intensity));
     });
 
     prefs_ui.collapsing("Performance", |mut prefs_ui| {

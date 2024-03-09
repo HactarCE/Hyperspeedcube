@@ -1,18 +1,6 @@
 //! Structs shared between the CPU and GPU (vertices, uniforms, etc.).
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
-pub(super) struct GfxProjectionParams {
-    pub facet_shrink: f32,
-    pub sticker_shrink: f32,
-    pub piece_explode: f32,
-
-    pub w_factor_4d: f32,
-    pub w_factor_3d: f32,
-    pub fov_signum: f32,
-}
-
-#[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct UvVertex {
     pub position: [f32; 2],
@@ -44,8 +32,11 @@ impl UvVertex {
 pub struct GfxDrawParams {
     /// Vector indicating the direction that light is shining from.
     pub light_dir: [f32; 3],
-    /// Intensity of directional light. (The rest is ambient light.)
-    pub light_amt: f32,
+    /// Intensity of directional light for faces.
+    pub face_light_intensity: f32,
+    pub _padding: [f32; 3],
+    /// Intensity of directional light for outlines.
+    pub outline_light_intensity: f32,
 
     /// Mouse position in NDC (normalized device coordinates).
     pub mouse_pos: [f32; 2],
