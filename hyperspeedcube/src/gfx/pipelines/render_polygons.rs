@@ -4,11 +4,12 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
     type = wgpu::RenderPipeline;
 
     struct Bindings<'a> {
-        draw_params: &'a wgpu::Buffer = pub(VERTEX) bindings::DRAW_PARAMS,
+        polygon_color_ids: &'a wgpu::Buffer = pub(VERTEX) bindings::POLYGON_COLOR_IDS,
+        draw_params:       &'a wgpu::Buffer = pub(VERTEX) bindings::DRAW_PARAMS,
     }
 
     let pipeline_descriptor = RenderPipelineDescriptor {
-        label: "render_polygon_ids",
+        label: "render_polygons",
         vertex_buffers: &[
             single_type_vertex_buffer![0 => Float32x4], // position
             single_type_vertex_buffer![1 => Float32x4], // normal
@@ -39,7 +40,7 @@ pub(in crate::gfx) struct PassParams<'tex> {
 impl<'pass> PassParams<'pass> {
     pub fn begin_pass(self, encoder: &'pass mut wgpu::CommandEncoder) -> wgpu::RenderPass<'pass> {
         encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("render_ids"),
+            label: Some("render_polygons"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: self.ids_texture,
                 resolve_target: None,

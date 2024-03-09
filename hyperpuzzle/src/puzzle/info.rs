@@ -61,7 +61,7 @@ pub type ColorSet = Set64<Color>;
 /// Piece info.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PieceInfo {
-    /// Unordered list of stickers in the piece.
+    /// Unordered list of stickers on the piece.
     pub stickers: SmallVec<[Sticker; 8]>,
     /// Piece type.
     pub piece_type: PieceType,

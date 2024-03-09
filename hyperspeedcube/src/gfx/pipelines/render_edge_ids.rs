@@ -8,6 +8,7 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
         vertex_3d_positions: &'a wgpu::Buffer = pub(VERTEX) bindings::VERTEX_3D_POSITIONS_READONLY,
         vertex_culls:        &'a wgpu::Buffer = pub(VERTEX) bindings::VERTEX_CULLS_READONLY,
 
+        outline_radii:       &'a wgpu::Buffer = pub(VERTEX_FRAGMENT) bindings::OUTLINE_RADII,
         draw_params:         &'a wgpu::Buffer = pub(VERTEX_FRAGMENT) bindings::DRAW_PARAMS,
     }
 
@@ -36,4 +37,4 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
     };
 });
 
-pub type PassParams<'tex> = super::render_polygon_ids::PassParams<'tex>;
+pub type PassParams<'tex> = super::render_polygons::PassParams<'tex>;

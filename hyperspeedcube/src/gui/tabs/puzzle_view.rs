@@ -42,7 +42,8 @@ impl PuzzleView {
         }
     }
     pub(crate) fn set_puzzle(&mut self, puzzle: Arc<Puzzle>) {
-        self.draw_params.piece_opacities = puzzle.pieces.map_ref(|_, _| 1.0);
+        self.draw_params.piece_face_opacities = puzzle.pieces.map_ref(|_, _| 1.0);
+        self.draw_params.piece_edge_opacities = puzzle.pieces.map_ref(|_, _| 1.0);
         self.puzzle = Some(Arc::clone(&puzzle));
         self.renderer = Some(Arc::new(Mutex::new(PuzzleRenderer::new(&self.gfx, puzzle))));
     }
@@ -157,7 +158,7 @@ impl PuzzleView {
                 }
             });
         }
-        self.draw_params.piece_opacities = puzzle.pieces.map_ref(|piece, info| {
+        self.draw_params.piece_face_opacities = puzzle.pieces.map_ref(|piece, info| {
             let sticker_count = info.stickers.len();
             let fallback = self.highlighted_piece_types[0];
             match self
@@ -166,9 +167,10 @@ impl PuzzleView {
                 .unwrap_or(&fallback)
             {
                 true => 1.0,
-                false => 0.2,
+                false => 0.0,
             }
         });
+        self.draw_params.piece_edge_opacities = puzzle.pieces.map_ref(|piece, info| 1.0);
 
         self.draw_params.background_color = prefs.colors.background;
         self.draw_params.outlines_color = prefs.outlines.default_color;

@@ -8,18 +8,11 @@ const NDIM: i32 = {{ndim}};
 /// `w_divisor` below which geometry gets clipped.
 const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 
-/// Sentinel value indicating no geometry.
-const NONE: i32 = -1;
-
 /// Color ID for background.
-const COLOR_BACKGROUND: u32 = 0x10000u;
-/// Color ID for outline.
-const COLOR_OUTLINE: u32 = 0x10001u;
-
-const OUTLINE_RADIUS: f32 = 0.05; // TODO: let CPU specify color & radius for each sticker.
+const COLOR_BACKGROUND: u32 = 0u;
 
 /// Small number for tiny offsets to reduce Z fighting.
-const EPSILON: f32 = 0.00001;
+const EPSILON: f32 = 1.0 / 128.0;
 
 
 
@@ -63,10 +56,9 @@ struct DrawParams {
  */
 
 // Textures and texture samplers
-@group(0) @binding(50)  var sticker_colors: texture_1d<f32>;
-@group(0) @binding(51)  var special_colors: texture_1d<f32>;
-@group(0) @binding(100) var polygon_ids_texture: texture_2d<u32>;
-@group(0) @binding(101) var polygon_ids_depth_texture: texture_depth_2d;
+@group(0) @binding(50)  var colors_texture: texture_1d<f32>;
+@group(0) @binding(100) var polygons_texture: texture_2d<u32>;
+@group(0) @binding(101) var polygons_depth_texture: texture_depth_2d;
 @group(0) @binding(102) var edge_ids_texture: texture_2d<u32>;
 @group(0) @binding(103) var edge_ids_depth_texture: texture_depth_2d;
 @group(0) @binding(104) var blit_src_texture: texture_2d<f32>;
@@ -84,22 +76,23 @@ struct DrawParams {
 @group(1) @binding(0) var<storage, read> piece_centroids: array<f32>;
 @group(1) @binding(1) var<storage, read> facet_centroids: array<f32>;
 @group(1) @binding(2) var<storage, read> facet_normals: array<f32>;
-@group(1) @binding(3) var<storage, read> polygon_color_ids: array<i32>;
-@group(1) @binding(4) var<storage, read> edge_verts: array<vec2<u32>>;
-@group(1) @binding(5) var<storage, read> edge_color_ids: array<i32>;
+@group(1) @binding(3) var<storage, read> edge_verts: array<vec2<u32>>;
 
 // Computed data (per-vertex)
-@group(1) @binding(5) var<storage, read_write> vertex_3d_positions: array<vec4<f32>>;
-@group(1) @binding(5) var<storage, read> read_vertex_3d_positions: array<vec4<f32>>;
-@group(1) @binding(6) var<storage, read_write> vertex_3d_normals: array<vec4<f32>>;
-@group(1) @binding(7) var<storage, read_write> vertex_culls: array<f32>; // TODO: maybe pack into bit array
-@group(1) @binding(7) var<storage, read> read_vertex_culls: array<f32>; // TODO: maybe pack into bit array
+@group(1) @binding(4) var<storage, read_write> vertex_3d_positions: array<vec4<f32>>;
+@group(1) @binding(4) var<storage, read> read_vertex_3d_positions: array<vec4<f32>>;
+@group(1) @binding(5) var<storage, read_write> vertex_3d_normals: array<vec4<f32>>;
+@group(1) @binding(6) var<storage, read_write> vertex_culls: array<f32>; // TODO: maybe pack into bit array
+@group(1) @binding(6) var<storage, read> read_vertex_culls: array<f32>; // TODO: maybe pack into bit array
 
 // View parameters and transforms
 @group(2) @binding(0) var<uniform> puzzle_transform: array<vec4<f32>, NDIM>;
 @group(2) @binding(1) var<storage, read> piece_transforms: array<f32>;
 @group(2) @binding(2) var<storage, read> camera_4d_pos: array<f32, NDIM>; // storage instead of uniform because it's not padded to a multiple of 16 bytes
-@group(2) @binding(3) var<uniform> draw_params: DrawParams;
+@group(2) @binding(3) var<storage, read> polygon_color_ids: array<u32>;
+@group(2) @binding(4) var<storage, read> outline_color_ids: array<u32>;
+@group(2) @binding(5) var<storage, read> outline_radii: array<f32>;
+@group(2) @binding(6) var<uniform> draw_params: DrawParams;
 
 
 
@@ -333,14 +326,9 @@ fn transform_screen_space_to_world_ray(screen_space_xy: vec2<f32>) -> Ray {
     return out;
 }
 
-/// Returns a sticker color or special color.
-fn get_color(color_id: u32, lighting: f32) -> vec3<f32> {
-    let is_special_color = i32(color_id & 0x10000u) != 0;
-    return select(
-        textureLoad(sticker_colors, color_id, 0).rgb * lighting,
-        textureLoad(special_colors, color_id & 0xFFFFu, 0).rgb * lighting,
-        is_special_color,
-    );
+/// Returns a color by ID.
+fn get_color(color_id: u32, lighting: f32) -> vec4<f32> {
+    return vec4(textureLoad(colors_texture, color_id, 0).rgb * lighting, 1.0);
 }
 /// Returns the lighting multiplier, given a normal vector.
 fn compute_lighting(normal: vec3<f32>, intensity: f32) -> f32 {
@@ -506,26 +494,26 @@ fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<
         discard;
     }
 
-    let color_id = u32((polygon_color_ids[in.polygon_id] + 1) & 0xFFFF); // wrap max value around to 0
-    return vec4(get_color(color_id, in.lighting), 1.0);
+    let color_id = polygon_color_ids[in.polygon_id];
+    return get_color(color_id, in.lighting);
 }
 
 
 
 /*
- * FANCY PIPELINE - POLYGON IDS
+ * FANCY PIPELINE - POLYGONS
  */
 
-struct PolygonIdsVertexInput {
+struct PolygonsVertexInput {
     @location(0) position: vec4<f32>,
     @location(1) normal: vec4<f32>,
     @location(2) polygon_id: i32,
     @location(3) cull: f32, // 0 = no cull. 1 = cull.
 }
-struct PolygonIdsVertexOutput {
+struct PolygonsVertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) @interpolate(perspective) normal_xy: vec2<f32>,
-    @location(1) polygon_id: i32,
+    @location(1) color_id: u32,
     @location(2) cull: f32, // 0 = no cull. 1 = cull.
 }
 
@@ -546,22 +534,22 @@ fn compute_transform_points(@builtin(global_invocation_id) global_invocation_id:
 }
 
 @vertex
-fn render_polygon_ids_vertex(in: PolygonIdsVertexInput) -> PolygonIdsVertexOutput {
-    var out: PolygonIdsVertexOutput;
+fn render_polygons_vertex(in: PolygonsVertexInput) -> PolygonsVertexOutput {
+    var out: PolygonsVertexOutput;
     out.position = transform_world_to_clip_space(in.position);
     out.normal_xy = in.normal.xy;
-    out.polygon_id = in.polygon_id + 1; // +1 because the texture is cleared to 0
+    out.color_id = polygon_color_ids[in.polygon_id];
     out.cull = f32(in.cull);
     return out;
 }
 
 @fragment
-fn render_polygon_ids_fragment(in: PolygonIdsVertexOutput) -> @location(0) vec2<u32> {
+fn render_polygons_fragment(in: PolygonsVertexOutput) -> @location(0) vec2<u32> {
     if in.cull > 0.0 {
         discard;
     }
 
-    return vec2(u32(in.polygon_id), pack_normal_vector_to_u32(in.normal_xy));
+    return vec2(u32(in.color_id), pack_normal_vector_to_u32(in.normal_xy));
 }
 
 
@@ -577,6 +565,7 @@ struct EdgeIdsVertexOutput {
     @location(2) @interpolate(linear) screen_space_xy: vec2<f32>,
     @location(3) @interpolate(flat) cull: f32, // 0 = no cull. 1 = cull.
     @location(4) @interpolate(flat) edge_id: i32,
+    @location(5) @interpolate(flat) radius: f32,
 }
 struct EdgeIdsFragmentOutput {
     @builtin(frag_depth) depth: f32, // written to depth texture
@@ -588,8 +577,8 @@ fn render_edge_ids_vertex(
     @location(0) edge_id: i32,
     @builtin(vertex_index) idx: u32,
 ) -> EdgeIdsVertexOutput {
+    let capsule_radius = outline_radii[edge_id];
     let edge_verts = edge_verts[edge_id];
-
     var world_a = read_vertex_3d_positions[edge_verts.r];
     var world_b = read_vertex_3d_positions[edge_verts.g];
     let tmp1 = world_a;
@@ -618,12 +607,12 @@ fn render_edge_ids_vertex(
 
     // Compute the maximum radius of the outline in NDC.
     let max_z = clamp(
-        max(world_a.z, world_b.z) + OUTLINE_RADIUS,
+        max(world_a.z, world_b.z) + capsule_radius,
         draw_params.far_plane_z,
         draw_params.near_plane_z,
     );
     let min_z_divisor = z_divisor(max_z);
-    let radius = OUTLINE_RADIUS / min_z_divisor;
+    let radius = capsule_radius / min_z_divisor;
 
     // Starting with the edge from `a` to `b`, expand it to a rectangle by
     // adding radius `radius`.
@@ -643,6 +632,7 @@ fn render_edge_ids_vertex(
     out.screen_space_xy = screen_space_xy;
     out.cull = read_vertex_culls[edge_verts.r] + read_vertex_culls[edge_verts.g];
     out.edge_id = edge_id + 1; // +1 because the texture is cleared to 0
+    out.radius = capsule_radius;
     return out;
 }
 
@@ -654,7 +644,7 @@ fn render_edge_ids_fragment(in: EdgeIdsVertexOutput) -> EdgeIdsFragmentOutput {
     }
 
     let ray = transform_screen_space_to_world_ray(in.screen_space_xy);
-    var intersection = intersect_ray_with_capsule(ray, in.a.xyz, in.b.xyz, OUTLINE_RADIUS);
+    var intersection = intersect_ray_with_capsule(ray, in.a.xyz, in.b.xyz, in.radius);
     if !intersection.intersects {
         discard;
     }
@@ -684,6 +674,7 @@ fn render_composite_puzzle_fragment(in: UvVertexOutput) -> @location(0) vec4<f32
 
     // For each edge (center, N, S, W, E), compute its color.
     let center = get_edge_pixel(screen_space, ray, polygon, tex_coords);
+    // TODO(optimization): ignore edge pixels that have the same ID as center
     let n = get_edge_pixel(screen_space, ray, polygon, tex_coords + vec2( 0, -1));
     let s = get_edge_pixel(screen_space, ray, polygon, tex_coords + vec2( 0,  1));
     let w = get_edge_pixel(screen_space, ray, polygon, tex_coords + vec2(-1,  0));
@@ -739,14 +730,14 @@ struct PolygonPixel {
 fn get_polygon_pixel(screen_space: vec2<f32>, tex_coords: vec2<i32>) -> PolygonPixel {
     var out: PolygonPixel;
 
-    out.depth = textureLoad(polygon_ids_depth_texture, tex_coords, 0);
+    out.depth = textureLoad(polygons_depth_texture, tex_coords, 0);
     out.point = transform_screen_space_to_world_point(screen_space, out.depth);
 
-    let tex_value: vec2<u32> = textureLoad(polygon_ids_texture, tex_coords, 0).rg;
-    let polygon_id = i32(tex_value.r) - 1;
-    if polygon_id == NONE {
+    let tex_value: vec2<u32> = textureLoad(polygons_texture, tex_coords, 0).rg;
+    let color_id = tex_value.r;
+    if color_id == COLOR_BACKGROUND { // TODO: is this special case beneficial?
         out.plane.v = vec4(0.0, 0.0, 1.0, draw_params.far_plane_z);
-        out.color = vec4<f32>();
+        out.color = get_color(COLOR_BACKGROUND, 1.0);
         out.point = vec3(screen_space * z_divisor(draw_params.far_plane_z), draw_params.far_plane_z);
         return out;
     }
@@ -754,9 +745,8 @@ fn get_polygon_pixel(screen_space: vec2<f32>, tex_coords: vec2<i32>) -> PolygonP
 
     out.plane = plane_from_point_and_normal(out.point, polygon_normal);
 
-    let color_id = u32((polygon_color_ids[polygon_id] + 1) & 0xFFFF); // TODO: why `& 0xFFFF`
     let lighting = compute_lighting(polygon_normal, draw_params.face_light_intensity);
-    out.color = vec4(get_color(color_id, lighting), 1.0);
+    out.color = get_color(color_id, lighting);
 
     return out;
 }
@@ -782,8 +772,10 @@ fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_
 
     let edge_depth: f32 = textureLoad(edge_ids_depth_texture, tex_coords, 0);
 
-    let a = read_vertex_3d_positions[edge_verts[edge_id].r].xyz;
-    let b = read_vertex_3d_positions[edge_verts[edge_id].g].xyz;
+    let capsule_radius = outline_radii[edge_id];
+    let edge_verts = edge_verts[edge_id];
+    let a = read_vertex_3d_positions[edge_verts.r].xyz;
+    let b = read_vertex_3d_positions[edge_verts.g].xyz;
     let vt = b - a;
 
     // Compute the nearest point on the line segment of the capsule.
@@ -815,7 +807,7 @@ fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_
         // plane with the surface of the capsule gives the outline of the
         // visible portion of the capsule.
         let normal = normalize(polygon.point - point_on_line_segment_near_polygon);
-        let point_on_surface_near_polygon = point_on_line_segment_near_polygon + normal * OUTLINE_RADIUS;
+        let point_on_surface_near_polygon = point_on_line_segment_near_polygon + normal * capsule_radius;
         let plane_tangent_to_capsule = plane_from_point_and_normal(point_on_surface_near_polygon, normal);
 
         // Intersect the first plane (either the "flat plane" of the capsule, or the
@@ -842,7 +834,7 @@ fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_
         // Compute the vector from the edge to the pixel, and use that to
         // compute the line on the edge of the polygon.
         let delta_from_edge = pos_ray - pos_edge;
-        let n = normalize(delta_from_edge) * OUTLINE_RADIUS;
+        let n = normalize(delta_from_edge) * capsule_radius;
         edge_line = line_from_point_and_normal(
             project_world_point_to_screen_space(pos_edge + n),
             project_world_vector_to_screen_space(pos_edge + n, n),
@@ -857,8 +849,7 @@ fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_
     // Compute lighting.
     let lighting = compute_lighting(normalize(point_on_surface - point_on_line_segment), draw_params.outline_light_intensity);
 
-    let outline_color = vec3(0.2, 0.2, 0.2) * lighting;
-    out.color = vec4(outline_color, 1.0) * saturate(edge_coverage);
+    out.color = get_color(outline_color_ids[edge_id], lighting) * saturate(edge_coverage);
     out.depth = edge_depth;
 
     return out;

@@ -4,19 +4,19 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
     type = wgpu::RenderPipeline;
 
     struct Bindings<'a> {
-        polygon_color_ids:          &'a wgpu::Buffer = pub(FRAGMENT) bindings::POLYGON_COLOR_IDS,
-        edges:                      &'a wgpu::Buffer = pub(FRAGMENT) bindings::EDGE_VERTS,
-        vertex_3d_positions:        &'a wgpu::Buffer = pub(FRAGMENT) bindings::VERTEX_3D_POSITIONS_READONLY,
+        edges:                  &'a wgpu::Buffer = pub(FRAGMENT) bindings::EDGE_VERTS,
+        vertex_3d_positions:    &'a wgpu::Buffer = pub(FRAGMENT) bindings::VERTEX_3D_POSITIONS_READONLY,
 
-        draw_params:                &'a wgpu::Buffer = pub(FRAGMENT) bindings::DRAW_PARAMS,
+        outline_color_ids:      &'a wgpu::Buffer = pub(FRAGMENT) bindings::OUTLINE_COLOR_IDS,
+        outline_radii:          &'a wgpu::Buffer = pub(FRAGMENT) bindings::OUTLINE_RADII,
+        draw_params:            &'a wgpu::Buffer = pub(FRAGMENT) bindings::DRAW_PARAMS,
 
-        sticker_colors_texture:     &'a wgpu::TextureView = pub(FRAGMENT) bindings::STICKER_COLORS_TEXTURE,
-        special_colors_texture:     &'a wgpu::TextureView = pub(FRAGMENT) bindings::SPECIAL_COLORS_TEXTURE,
+        colors_texture:         &'a wgpu::TextureView = pub(FRAGMENT) bindings::COLORS_TEXTURE,
 
-        polygon_ids_texture:        &'a wgpu::TextureView = pub(FRAGMENT) bindings::POLYGON_IDS_TEXTURE,
-        polygon_ids_depth_texture:  &'a wgpu::TextureView = pub(FRAGMENT) bindings::POLYGON_IDS_DEPTH_TEXTURE,
-        edge_ids_texture:           &'a wgpu::TextureView = pub(FRAGMENT) bindings::EDGE_IDS_TEXTURE,
-        edge_ids_depth_texture:     &'a wgpu::TextureView = pub(FRAGMENT) bindings::EDGE_IDS_DEPTH_TEXTURE,
+        polygons_texture:       &'a wgpu::TextureView = pub(FRAGMENT) bindings::POLYGONS_TEXTURE,
+        polygons_depth_texture: &'a wgpu::TextureView = pub(FRAGMENT) bindings::POLYGONS_DEPTH_TEXTURE,
+        edge_ids_texture:       &'a wgpu::TextureView = pub(FRAGMENT) bindings::EDGE_IDS_TEXTURE,
+        edge_ids_depth_texture: &'a wgpu::TextureView = pub(FRAGMENT) bindings::EDGE_IDS_DEPTH_TEXTURE,
     }
 
     let pipeline_descriptor = RenderPipelineDescriptor {

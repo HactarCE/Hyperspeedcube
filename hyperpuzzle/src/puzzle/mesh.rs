@@ -32,7 +32,7 @@ pub struct Mesh {
     pub piece_ids: Vec<Piece>,
     /// Facet ID for each vertex.
     pub facet_ids: Vec<Facet>,
-    /// Polygon ID for each vertex. Outlines are drawn between polygons.
+    /// Polygon ID for each vertex. Each polygon is a single color.
     pub polygon_ids: Vec<u32>,
 
     /// Color ID for each polygon.
