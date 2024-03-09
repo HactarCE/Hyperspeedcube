@@ -18,11 +18,6 @@ pub struct ViewPreferences {
     /// 4D FOV, in degrees.
     pub fov_4d: f32,
 
-    /// Horizontal alignment, from -1.0 to +1.0.
-    pub align_h: f32,
-    /// Vertical alignment, from -1.0 to +1.0.
-    pub align_v: f32,
-
     pub show_frontfaces: bool,
     pub show_backfaces: bool,
     pub clip_4d_backfaces: bool,
@@ -35,10 +30,14 @@ pub struct ViewPreferences {
 
     pub outline_thickness: f32,
 
-    pub light_ambient: f32,
-    pub light_directional: f32,
+    pub light_amt: f32,
     pub light_pitch: f32,
     pub light_yaw: f32,
+
+    /// Number of pixels in the UI per pixel in the render. This is mainly used
+    /// for debugging.
+    pub downscale_rate: u32,
+    pub downscale_interpolate: bool,
 }
 impl Default for ViewPreferences {
     fn default() -> Self {
@@ -50,9 +49,6 @@ impl Default for ViewPreferences {
             scale: 1.0,
             fov_3d: 0.0,
             fov_4d: 30.0,
-
-            align_h: 0.0,
-            align_v: 0.0,
 
             show_frontfaces: true,
             show_backfaces: true,
@@ -66,10 +62,12 @@ impl Default for ViewPreferences {
 
             outline_thickness: 1.0,
 
-            light_ambient: 1.0,
-            light_directional: 0.0,
+            light_amt: 0.0,
             light_pitch: 0.0,
             light_yaw: 0.0,
+
+            downscale_rate: 1,
+            downscale_interpolate: true,
         }
     }
 }
@@ -86,9 +84,8 @@ impl ViewPreferences {
         use hypermath::util::lerp;
 
         Self {
-            // I know, I know, I should use quaternions for interpolation. But
-            // cgmath uses XYZ order by default instead of YXZ so doing this
-            // properly isn't trivial.
+            // TODO: use quaternions for interpolation. cgmath uses XYZ order by
+            // default instead of YXZ so doing this properly isn't trivial.
             pitch: lerp(self.pitch, rhs.pitch, t),
             yaw: lerp(self.yaw, rhs.yaw, t),
             roll: lerp(self.roll, rhs.roll, t),
@@ -96,10 +93,8 @@ impl ViewPreferences {
             scale: lerp(self.scale, rhs.scale, t),
             fov_3d: lerp(self.fov_3d, rhs.fov_3d, t),
             fov_4d: lerp(self.fov_4d, rhs.fov_4d, t),
-            align_h: lerp(self.align_h, rhs.align_h, t),
-            align_v: lerp(self.align_v, rhs.align_v, t),
-            show_frontfaces: lerp_bool(self.show_frontfaces, rhs.show_frontfaces, t),
-            show_backfaces: lerp_bool(self.show_backfaces, rhs.show_backfaces, t),
+            show_frontfaces: lerp_discrete(self.show_frontfaces, rhs.show_frontfaces, t),
+            show_backfaces: lerp_discrete(self.show_backfaces, rhs.show_backfaces, t),
             clip_4d_backfaces: self.clip_4d_backfaces || rhs.clip_4d_backfaces,
             clip_4d_behind_camera: self.clip_4d_backfaces || rhs.clip_4d_backfaces,
             show_internals: self.show_internals && rhs.show_internals,
@@ -107,15 +102,20 @@ impl ViewPreferences {
             sticker_shrink: lerp(self.sticker_shrink, rhs.sticker_shrink, t),
             piece_explode: lerp(self.piece_explode, rhs.piece_explode, t),
             outline_thickness: lerp(self.outline_thickness, rhs.outline_thickness, t),
-            light_ambient: lerp(self.light_ambient, rhs.light_ambient, t),
-            light_directional: lerp(self.light_directional, rhs.light_directional, t),
+            light_amt: lerp(self.light_amt, rhs.light_amt, t),
             light_pitch: lerp(self.light_pitch, rhs.light_pitch, t),
             light_yaw: lerp(self.light_yaw, rhs.light_yaw, t),
+            downscale_rate: lerp(self.downscale_rate as f32, rhs.downscale_rate as f32, t) as u32,
+            downscale_interpolate: lerp_discrete(
+                self.downscale_interpolate,
+                rhs.downscale_interpolate,
+                t,
+            ),
         }
     }
 }
 
-fn lerp_bool<T>(a: T, b: T, t: f32) -> T {
+fn lerp_discrete<T>(a: T, b: T, t: f32) -> T {
     if t < 0.5 {
         a
     } else {

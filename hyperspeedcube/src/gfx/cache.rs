@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 use super::GraphicsState;
 
@@ -7,7 +7,7 @@ pub(super) struct CachedDynamicBuffer {
     usage: wgpu::BufferUsages,
     element_size: usize,
     len: Option<usize>,
-    buffer: Option<wgpu::Buffer>,
+    buffer: Option<Arc<wgpu::Buffer>>,
 }
 impl CachedDynamicBuffer {
     pub fn new<T>(label: Option<&'static str>, usage: wgpu::BufferUsages) -> Self {
@@ -20,7 +20,7 @@ impl CachedDynamicBuffer {
         }
     }
 
-    pub fn at_min_len(&mut self, gfx: &GraphicsState, min_len: usize) -> &mut wgpu::Buffer {
+    pub fn at_min_len(&mut self, gfx: &GraphicsState, min_len: usize) -> Arc<wgpu::Buffer> {
         // Invalidate the buffer if it is too small.
         if let Some(len) = self.len {
             if len < min_len {
@@ -28,25 +28,26 @@ impl CachedDynamicBuffer {
             }
         }
 
-        self.buffer.get_or_insert_with(|| {
+        Arc::clone(self.buffer.get_or_insert_with(|| {
             self.len = Some(min_len);
-            gfx.device.create_buffer(&wgpu::BufferDescriptor {
+            Arc::new(gfx.device.create_buffer(&wgpu::BufferDescriptor {
                 label: self.label,
                 size: (min_len * self.element_size) as u64,
                 usage: self.usage,
                 mapped_at_creation: false,
-            })
-        })
+            }))
+        }))
     }
 
-    pub fn slice(
-        &mut self,
-        gfx: &GraphicsState,
-        len: usize,
-    ) -> (&wgpu::Buffer, wgpu::BufferSlice<'_>) {
-        let element_size = self.element_size;
-        let b = self.at_min_len(gfx, len);
-        (b, b.slice(0..(len * element_size) as u64))
+    pub fn slice(&mut self, gfx: &GraphicsState, len: usize) -> wgpu::BufferSlice<'_> {
+        self.at_min_len(gfx, len);
+        self.buffer
+            .as_ref()
+            .expect("buffer vanished")
+            .slice(self.slice_bounds(len))
+    }
+    pub fn slice_bounds(&self, len: usize) -> Range<u64> {
+        0..(len * self.element_size) as u64
     }
 
     pub fn write_all<T: Default + bytemuck::NoUninit>(
@@ -56,10 +57,11 @@ impl CachedDynamicBuffer {
     ) -> wgpu::BufferSlice<'_> {
         let original_len = data.len();
         super::pad_buffer_to_wgpu_copy_buffer_alignment(data);
-        let (buf, buf_slice) = self.slice(gfx, data.len());
-        gfx.queue.write_buffer(buf, 0, bytemuck::cast_slice(data));
+        let buffer = self.at_min_len(gfx, data.len());
+        gfx.queue
+            .write_buffer(&buffer, 0, bytemuck::cast_slice(data));
         data.truncate(original_len); // undo padding
-        buf_slice
+        self.slice(gfx, data.len())
     }
 }
 

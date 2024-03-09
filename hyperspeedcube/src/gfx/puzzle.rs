@@ -21,11 +21,15 @@ use super::pipelines;
 use super::structs::*;
 use super::{CachedTexture1d, CachedTexture2d, GraphicsState};
 
+/// Near and far plane distance (assuming no FOV). Larger number means less
+/// clipping, but also less Z buffer precision.
+const Z_CLIP: f32 = 1024.0;
+
 pub struct PuzzleRenderResources {
     pub gfx: Arc<GraphicsState>,
     pub renderer: Arc<Mutex<PuzzleRenderer>>,
     pub render_engine: RenderEngine,
-    pub view_params: ViewParams,
+    pub view_params: DrawParams,
 }
 
 impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
@@ -61,7 +65,10 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         let pipeline = &self.gfx.pipelines.blit;
         let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
             src_texture: &texture_view,
-            src_sampler: &self.gfx.default_sampler,
+            src_sampler: match self.view_params.prefs.downscale_interpolate {
+                true => &self.gfx.bilinear_sampler,
+                false => &self.gfx.nearest_neighbor_sampler,
+            },
         });
 
         callback_resources.insert(bind_groups);
@@ -110,9 +117,13 @@ fn next_buffer_id() -> usize {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ViewParams {
-    pub width: u32,
-    pub height: u32,
+pub(crate) struct DrawParams {
+    pub prefs: ViewPreferences,
+
+    /// Width and height of the target in pixels.
+    pub target_size: [u32; 2],
+    /// Mouse position in NDC (normalized device coordinates).
+    pub mouse_pos: [f32; 2],
 
     pub rot: Isometry,
     pub zoom: f32,
@@ -120,15 +131,15 @@ pub struct ViewParams {
     pub background_color: egui::Color32,
     pub outlines_color: egui::Color32,
 
-    pub prefs: ViewPreferences,
-
     pub piece_opacities: PerPiece<f32>,
 }
-impl Default for ViewParams {
+impl Default for DrawParams {
     fn default() -> Self {
         Self {
-            width: 0,
-            height: 0,
+            prefs: ViewPreferences::default(),
+
+            target_size: [0, 0],
+            mouse_pos: [0.0, 0.0],
 
             rot: Isometry::ident(),
             zoom: 0.5,
@@ -136,32 +147,35 @@ impl Default for ViewParams {
             background_color: egui::Color32::BLACK,
             outlines_color: egui::Color32::BLACK,
 
-            prefs: ViewPreferences::default(),
-
             piece_opacities: PerPiece::default(),
         }
     }
 }
-impl ViewParams {
+impl DrawParams {
     /// Returns the X and Y scale factors to use in the view matrix. Returns
     /// `Err` if either the width or height is smaller than one pixel.
     pub fn xy_scale(&self) -> Result<cgmath::Vector2<f32>> {
-        if self.width == 0 || self.height == 0 {
+        if self.target_size.contains(&0) {
             bail!("puzzle view has zero size");
         }
-        let w = self.width as f32;
-        let h = self.height as f32;
+        let w = self.target_size[0] as f32;
+        let h = self.target_size[1] as f32;
 
         let min_dimen = f32::min(w as f32, h as f32);
         Ok(cgmath::vec2(min_dimen / w, min_dimen / h) * self.zoom)
     }
 
+    /// Returns the factor by which the W coordinate affects the XYZ coordinates
+    /// during 4D projection.
     pub fn w_factor_4d(&self) -> f32 {
         (self.prefs.fov_4d.to_radians() * 0.5).tan()
     }
+    /// Returns the factor by which the Z coordinate affects the XY coordinates
+    /// during 3D projection.
     pub fn w_factor_3d(&self) -> f32 {
         (self.prefs.fov_3d.to_radians() * 0.5).tan()
     }
+    /// Projects an N-dimensional point to a 2D point on the screen.
     pub fn project_point(&self, p: impl ToConformalPoint) -> Option<cgmath::Point2<f32>> {
         let mut p = self.rot.transform_point(p).to_finite().ok()?;
 
@@ -183,41 +197,13 @@ impl ViewParams {
         Some(cgmath::point2(x, y))
     }
 
-    /// Returns the projection parameters to send to the GPU.
-    fn gfx_projection_params(&self, ndim: u8) -> GfxProjectionParams {
-        GfxProjectionParams {
-            facet_shrink: if self.prefs.show_internals && ndim == 3 {
-                0.0
-            } else {
-                self.prefs.facet_shrink
-            },
-            sticker_shrink: if self.prefs.show_internals && ndim == 3 {
-                0.0
-            } else {
-                self.prefs.sticker_shrink
-            },
-            piece_explode: self.prefs.piece_explode,
-
-            w_factor_4d: self.w_factor_4d(),
-            w_factor_3d: self.w_factor_3d(),
-            fov_signum: self.prefs.fov_3d.signum(),
-        }
-    }
-
-    fn light_ambient_amount(&self) -> f32 {
-        hypermath::util::lerp(
-            0.0,
-            1.0 - self.prefs.light_directional,
-            self.prefs.light_ambient,
-        )
-    }
-    fn light_vector(&self) -> cgmath::Vector3<f32> {
+    /// Returns a vector indicating the direction that light is shining from.
+    fn light_dir(&self) -> cgmath::Vector3<f32> {
         use cgmath::{Deg, Matrix3, Vector3};
 
         Matrix3::from_angle_y(Deg(self.prefs.light_yaw))
             * Matrix3::from_angle_x(Deg(-self.prefs.light_pitch)) // pitch>0 means light comes from above
             * Vector3::unit_z()
-            * self.prefs.light_directional
     }
 }
 
@@ -299,7 +285,7 @@ impl PuzzleRenderer {
     pub fn draw_puzzle_single_pass(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
-        view_params: &ViewParams,
+        view_params: &DrawParams,
     ) -> Result<()> {
         let opacity_buckets = self.init_buffers(encoder, view_params)?;
         if opacity_buckets.is_empty() {
@@ -313,22 +299,23 @@ impl PuzzleRenderer {
         // Render in a single pass.
         {
             let bind_groups = pipeline.bind_groups(pipelines::render_single_pass::Bindings {
-                sticker_colors_texture: &self.buffers.sticker_colors_texture.view,
-                special_colors_texture: &self.buffers.special_colors_texture.view,
                 vertex_positions: &self.model.vertex_positions,
                 u_tangents: &self.model.u_tangents,
                 v_tangents: &self.model.v_tangents,
                 sticker_shrink_vectors: &self.model.sticker_shrink_vectors,
+
                 piece_centroids: &self.model.piece_centroids,
                 facet_centroids: &self.model.facet_centroids,
                 facet_normals: &self.model.facet_normals,
                 polygon_color_ids: &self.model.polygon_color_ids,
+
                 puzzle_transform: &self.buffers.puzzle_transform,
                 piece_transforms: &self.buffers.piece_transforms,
                 camera_4d_pos: &self.buffers.camera_4d_pos,
-                projection_params: &self.buffers.projection_params,
-                lighting_params: &self.buffers.lighting_params,
-                view_params: &self.buffers.view_params,
+                draw_params: &self.buffers.draw_params,
+
+                sticker_colors_texture: &self.buffers.sticker_colors_texture.view,
+                special_colors_texture: &self.buffers.special_colors_texture.view,
             });
 
             let [r, g, b, _] = egui::Rgba::from(view_params.background_color).to_array();
@@ -336,7 +323,7 @@ impl PuzzleRenderer {
             let mut render_pass = pipelines::render_single_pass::PassParams {
                 clear_color: [r as f64, g as f64, b as f64],
                 color_texture: &self.buffers.composite_texture.view,
-                depth_texture: &self.buffers.ids_depth_texture.view,
+                depth_texture: &self.buffers.polygon_ids_depth_texture.view,
             }
             .begin_pass(encoder);
 
@@ -359,7 +346,7 @@ impl PuzzleRenderer {
     pub fn draw_puzzle(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
-        view_params: &ViewParams,
+        view_params: &DrawParams,
     ) -> Result<()> {
         let opacity_buckets = self.init_buffers(encoder, view_params)?;
         if opacity_buckets.is_empty() {
@@ -372,10 +359,9 @@ impl PuzzleRenderer {
         // Render each bucket.
         let mut is_first = true;
         for bucket in opacity_buckets {
-            let composite_params = GfxCompositeParams { outline_radius: 1 };
-
             self.render_polygon_ids(encoder, &bucket, is_first)?;
-            self.render_composite_puzzle(encoder, composite_params, bucket.opacity, is_first)?;
+            self.render_edge_ids(encoder, &bucket, is_first)?;
+            self.render_composite_puzzle(encoder, bucket.opacity, is_first)?;
 
             is_first = false;
         }
@@ -387,40 +373,59 @@ impl PuzzleRenderer {
     fn init_buffers(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
-        view_params: &ViewParams,
+        view_params: &DrawParams,
     ) -> Result<Vec<GeometryBucket>> {
         // Make the textures the right size.
-        let size = [view_params.width, view_params.height];
-        self.buffers.ids_texture.set_size(size);
-        self.buffers.ids_depth_texture.set_size(size);
+        let size = view_params.target_size;
+        self.buffers.polygon_ids_texture.set_size(size);
+        self.buffers.polygon_ids_depth_texture.set_size(size);
+        self.buffers.edge_ids_texture.set_size(size);
+        self.buffers.edge_ids_depth_texture.set_size(size);
         self.buffers.composite_texture.set_size(size);
 
         if self.model.is_empty() {
             return Ok(vec![]);
         }
 
-        // Write the target size.
-        let data = size.map(|x| x as f32);
-        self.gfx
-            .queue
-            .write_buffer(&self.buffers.target_size, 0, bytemuck::bytes_of(&data));
+        // Compute the Z coordinate of the 3D camera; i.e., where the projection
+        // rays converge (which may be behind the puzzle). This gives us either
+        // the near plane or the far plane, depending on the sign of the 3D FOV.
+        let fov_signum = view_params.prefs.fov_3d.signum();
+        let camera_z = (fov_signum + 1.0 / view_params.w_factor_3d()).clamp(-Z_CLIP, Z_CLIP);
 
-        // Write the projection parameters.
-        let data = view_params.gfx_projection_params(self.model.ndim);
-        self.gfx.queue.write_buffer(
-            &self.buffers.projection_params,
-            0,
-            bytemuck::bytes_of(&data),
-        );
+        // Write the draw parameters.
+        let data = GfxDrawParams {
+            light_dir: view_params.light_dir().into(),
+            light_amt: view_params.prefs.light_amt,
 
-        // Write the lighting parameters.
-        let data = GfxLightingParams {
-            dir: view_params.light_vector().into(),
-            ambient: view_params.light_ambient_amount(),
+            mouse_pos: view_params.mouse_pos,
+
+            target_size: view_params.target_size.map(|x| x as f32),
+            xy_scale: view_params.xy_scale()?.into(),
+
+            facet_shrink: if view_params.prefs.show_internals && self.model.ndim == 3 {
+                0.0
+            } else {
+                view_params.prefs.facet_shrink
+            },
+            sticker_shrink: if view_params.prefs.show_internals && self.model.ndim == 3 {
+                0.0
+            } else {
+                view_params.prefs.sticker_shrink
+            },
+            piece_explode: view_params.prefs.piece_explode,
+
+            w_factor_4d: view_params.w_factor_4d(),
+            w_factor_3d: view_params.w_factor_3d(),
+            fov_signum,
+            near_plane_z: if fov_signum > 0.0 { camera_z } else { Z_CLIP },
+            far_plane_z: if fov_signum < 0.0 { camera_z } else { -Z_CLIP },
+            clip_4d_backfaces: view_params.prefs.clip_4d_backfaces as i32,
+            clip_4d_behind_camera: view_params.prefs.clip_4d_behind_camera as i32,
         };
         self.gfx
             .queue
-            .write_buffer(&self.buffers.lighting_params, 0, bytemuck::bytes_of(&data));
+            .write_buffer(&self.buffers.draw_params, 0, bytemuck::bytes_of(&data));
 
         // Write the puzzle transform.
         let puzzle_transform = view_params.rot.euclidean_rotation_matrix();
@@ -483,19 +488,6 @@ impl PuzzleRenderer {
         ];
         self.buffers.special_colors_texture.write(&colors_data);
 
-        // Write the view parameters.
-        let scale = view_params.xy_scale()?;
-        let data = GfxViewParams {
-            scale: [scale.x, scale.y],
-            align: [0.0, 0.0],
-
-            clip_4d_backfaces: view_params.prefs.clip_4d_backfaces as i32,
-            clip_4d_behind_camera: view_params.prefs.clip_4d_behind_camera as i32,
-        };
-        self.gfx
-            .queue
-            .write_buffer(&self.buffers.view_params, 0, bytemuck::bytes_of(&data));
-
         // Sort pieces into buckets by opacity and outlines and write triangle
         // indices.
         let mut triangles_buffer_index = 0;
@@ -551,7 +543,7 @@ impl PuzzleRenderer {
         piece: Piece,
         triangles_destination_offset: &mut u32,
         edges_destination_offset: &mut u32,
-        view_params: &ViewParams,
+        view_params: &DrawParams,
     ) {
         if view_params.prefs.show_internals {
             self.write_triangles_and_edges(
@@ -618,18 +610,18 @@ impl PuzzleRenderer {
             sticker_shrink_vectors: &self.model.sticker_shrink_vectors,
             piece_ids: &self.model.piece_ids,
             facet_ids: &self.model.facet_ids,
+
             piece_centroids: &self.model.piece_centroids,
             facet_centroids: &self.model.facet_centroids,
             facet_normals: &self.model.facet_normals,
             vertex_3d_positions: &self.buffers.vertex_3d_positions,
-            vertex_lightings: &self.buffers.vertex_lightings,
+            vertex_3d_normals: &self.buffers.vertex_3d_normals,
             vertex_culls: &self.buffers.vertex_culls,
+
             puzzle_transform: &self.buffers.puzzle_transform,
             piece_transforms: &self.buffers.piece_transforms,
             camera_4d_pos: &self.buffers.camera_4d_pos,
-            projection_params: &self.buffers.projection_params,
-            lighting_params: &self.buffers.lighting_params,
-            view_params: &self.buffers.view_params,
+            draw_params: &self.buffers.draw_params,
         });
 
         let mut compute_pass =
@@ -648,46 +640,61 @@ impl PuzzleRenderer {
         bucket: &GeometryBucket,
         clear: bool,
     ) -> Result<()> {
-        let polygons_pipeline = &self.gfx.pipelines.render_polygon_ids;
-        let edges_pipeline = &self.gfx.pipelines.render_edge_ids;
+        let pipeline = &self.gfx.pipelines.render_polygon_ids;
 
-        let polygons_bind_groups =
-            polygons_pipeline.bind_groups(pipelines::render_polygon_ids::Bindings {
-                projection_params: &self.buffers.projection_params,
-                view_params: &self.buffers.view_params,
-            });
-        let edges_bind_groups = edges_pipeline.bind_groups(pipelines::render_edge_ids::Bindings {
-            edge_verts: &self.model.edges,
-            vertex_3d_positions: &self.buffers.vertex_3d_positions,
-            vertex_culls: &self.buffers.vertex_culls,
-            projection_params: &self.buffers.projection_params,
-            view_params: &self.buffers.view_params,
-            target_size: &self.buffers.target_size,
+        let bind_groups = pipeline.bind_groups(pipelines::render_polygon_ids::Bindings {
+            draw_params: &self.buffers.draw_params,
         });
 
         let mut render_pass = pipelines::render_polygon_ids::PassParams {
             clear,
-            ids_texture: &self.buffers.ids_texture.view,
-            ids_depth_texture: &self.buffers.ids_depth_texture.view,
+            ids_texture: &self.buffers.polygon_ids_texture.view,
+            ids_depth_texture: &self.buffers.polygon_ids_depth_texture.view,
         }
         .begin_pass(encoder);
 
-        render_pass.set_pipeline(&polygons_pipeline.pipeline);
-        render_pass.set_bind_groups(&polygons_bind_groups);
+        render_pass.set_pipeline(&pipeline.pipeline);
+        render_pass.set_bind_groups(&bind_groups);
         render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
-        render_pass.set_vertex_buffer(1, self.buffers.vertex_culls.slice(..));
-        render_pass.set_vertex_buffer(2, self.buffers.vertex_lightings.slice(..));
-        render_pass.set_vertex_buffer(3, self.model.polygon_ids.slice(..));
+        render_pass.set_vertex_buffer(1, self.buffers.vertex_3d_normals.slice(..));
+        render_pass.set_vertex_buffer(2, self.model.polygon_ids.slice(..));
+        render_pass.set_vertex_buffer(3, self.buffers.vertex_culls.slice(..));
         render_pass.set_index_buffer(
             self.buffers.sorted_triangles.slice(..),
             wgpu::IndexFormat::Uint32,
         );
         render_pass.draw_indexed(bucket.triangles_range.clone(), 0, 0..1);
 
-        render_pass.set_pipeline(&edges_pipeline.pipeline);
-        render_pass.set_bind_groups(&edges_bind_groups);
+        Ok(())
+    }
+
+    fn render_edge_ids(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        bucket: &GeometryBucket,
+        clear: bool,
+    ) -> Result<()> {
+        let pipeline = &self.gfx.pipelines.render_edge_ids;
+
+        let bind_groups = pipeline.bind_groups(pipelines::render_edge_ids::Bindings {
+            edge_verts: &self.model.edges,
+            vertex_3d_positions: &self.buffers.vertex_3d_positions,
+            vertex_culls: &self.buffers.vertex_culls,
+
+            draw_params: &self.buffers.draw_params,
+        });
+
+        let mut render_pass = pipelines::render_edge_ids::PassParams {
+            clear,
+            ids_texture: &self.buffers.edge_ids_texture.view,
+            ids_depth_texture: &self.buffers.edge_ids_depth_texture.view,
+        }
+        .begin_pass(encoder);
+
+        render_pass.set_pipeline(&pipeline.pipeline);
+        render_pass.set_bind_groups(&bind_groups);
         render_pass.set_vertex_buffer(0, self.buffers.sorted_edges.slice(..));
-        render_pass.draw(0..6, bucket.edges_range.clone());
+        render_pass.draw(0..4, bucket.edges_range.clone());
 
         Ok(())
     }
@@ -695,32 +702,25 @@ impl PuzzleRenderer {
     fn render_composite_puzzle(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
-        composite_params: GfxCompositeParams,
         alpha: f32,
         clear: bool,
     ) -> Result<()> {
         let pipeline = &self.gfx.pipelines.render_composite_puzzle;
 
-        // TODO: needs offsets if we want different composite params each time
-        self.gfx.queue.write_buffer(
-            &self.buffers.composite_params,
-            0,
-            bytemuck::bytes_of(&composite_params),
-        );
-
         let bind_groups = pipeline.bind_groups(pipelines::render_composite_puzzle::Bindings {
-            sticker_colors_texture: &self.buffers.sticker_colors_texture.view,
-            special_colors_texture: &self.buffers.special_colors_texture.view,
-            ids_texture: &self.buffers.ids_texture.view,
             polygon_color_ids: &self.model.polygon_color_ids,
             edges: &self.model.edges,
             vertex_3d_positions: &self.buffers.vertex_3d_positions,
-            lighting_params: &self.buffers.lighting_params,
-            composite_params: &self.buffers.composite_params,
 
-            projection_params: &self.buffers.projection_params,
-            view_params: &self.buffers.view_params,
-            target_size: &self.buffers.target_size,
+            draw_params: &self.buffers.draw_params,
+
+            sticker_colors_texture: &self.buffers.sticker_colors_texture.view,
+            special_colors_texture: &self.buffers.special_colors_texture.view,
+
+            polygon_ids_texture: &self.buffers.polygon_ids_texture.view,
+            polygon_ids_depth_texture: &self.buffers.polygon_ids_depth_texture.view,
+            edge_ids_texture: &self.buffers.edge_ids_texture.view,
+            edge_ids_depth_texture: &self.buffers.edge_ids_depth_texture.view,
         });
 
         let mut render_pass = pipelines::render_composite_puzzle::PassParams {
@@ -859,14 +859,6 @@ struct_with_constructor! {
                 /*
                  * VIEW PARAMETERS AND TRANSFORMS
                  */
-                /// Projection parameters uniform.
-                projection_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxProjectionParams>(
-                    label("projection_params"),
-                ),
-                /// Lighting parameters uniform.
-                lighting_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxLightingParams>(
-                    label("lighting_params"),
-                ),
                 /// NxN transformation matrix for the whole puzzle.
                 puzzle_transform: wgpu::Buffer = gfx.create_buffer::<f32>(
                     label("puzzle_transform"),
@@ -885,15 +877,9 @@ struct_with_constructor! {
                     ndim as usize,
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
                 ),
-
-                view_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxViewParams>(
-                    label("view_params"),
-                ),
-                composite_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxCompositeParams>(
-                    label("composite_params"),
-                ),
-                target_size: wgpu::Buffer = gfx.create_uniform_buffer::<[f32; 2]>(
-                    label("target_size"),
+                /// Draw parameters uniform. (constant for a given puzzle view)
+                draw_params: wgpu::Buffer = gfx.create_uniform_buffer::<GfxDrawParams>(
+                    label("draw_params"),
                 ),
 
                 /*
@@ -905,9 +891,9 @@ struct_with_constructor! {
                     mesh.vertex_count(),
                     wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
                 ),
-                /// Lighting amount for each vertex.
-                vertex_lightings: wgpu::Buffer = gfx.create_buffer::<f32>(
-                    label("vertex_lightings"),
+                /// 3D normal vector for each vertex.
+                vertex_3d_normals: wgpu::Buffer = gfx.create_buffer::<[f32; 4]>(
+                    label("vertex_3d_normals"),
                     mesh.vertex_count(),
                     wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
                 ),
@@ -952,17 +938,32 @@ struct_with_constructor! {
                     wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
                 ),
 
-                /// Polygon ID and lighting for each pixel.
-                ids_texture: CachedTexture2d = CachedTexture2d::new(
+                /// Polygon ID and normal vector for each pixel.
+                polygon_ids_texture: CachedTexture2d = CachedTexture2d::new(
                     Arc::clone(&gfx),
-                    label("ids_texture"),
+                    label("polygon_ids_texture"),
                     wgpu::TextureFormat::Rg32Uint,
                     wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 ),
-                /// Depth texture for use with `ids_texture`.
-                ids_depth_texture: CachedTexture2d = CachedTexture2d::new(
+                /// Depth texture for use with `polygon_ids_texture`.
+                polygon_ids_depth_texture: CachedTexture2d = CachedTexture2d::new(
                     Arc::clone(&gfx),
                     label("polygon_ids_depth_texture"),
+                    wgpu::TextureFormat::Depth32Float,
+                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                ),
+
+                /// Edge ID for each pixel.
+                edge_ids_texture: CachedTexture2d = CachedTexture2d::new(
+                    Arc::clone(&gfx),
+                    label("edge_ids_texture"),
+                    wgpu::TextureFormat::R32Uint,
+                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                ),
+                /// Depth texture for use with `edge_ids_texture`.
+                edge_ids_depth_texture: CachedTexture2d = CachedTexture2d::new(
+                    Arc::clone(&gfx),
+                    label("edge_ids_depth_texture"),
                     wgpu::TextureFormat::Depth32Float,
                     wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 ),
@@ -1008,25 +1009,23 @@ impl DynamicPuzzleBuffers {
         }
 
         Self {
-            projection_params: clone_buffer!(gfx, id, self.projection_params),
-            lighting_params: clone_buffer!(gfx, id, self.lighting_params),
             puzzle_transform: clone_buffer!(gfx, id, self.puzzle_transform),
             piece_transforms: clone_buffer!(gfx, id, self.piece_transforms),
             camera_4d_pos: clone_buffer!(gfx, id, self.camera_4d_pos),
-            view_params: clone_buffer!(gfx, id, self.view_params),
-            composite_params: clone_buffer!(gfx, id, self.composite_params),
-            target_size: clone_buffer!(gfx, id, self.target_size),
+            draw_params: clone_buffer!(gfx, id, self.draw_params),
 
             vertex_3d_positions: clone_buffer!(gfx, id, self.vertex_3d_positions),
-            vertex_lightings: clone_buffer!(gfx, id, self.vertex_lightings),
+            vertex_3d_normals: clone_buffer!(gfx, id, self.vertex_3d_normals),
             vertex_culls: clone_buffer!(gfx, id, self.vertex_culls),
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
             sorted_edges: clone_buffer!(gfx, id, self.sorted_edges),
 
             sticker_colors_texture: clone_texture!(id, self.sticker_colors_texture),
             special_colors_texture: clone_texture!(id, self.special_colors_texture),
-            ids_texture: clone_texture!(id, self.ids_texture),
-            ids_depth_texture: clone_texture!(id, self.ids_depth_texture),
+            polygon_ids_texture: clone_texture!(id, self.polygon_ids_texture),
+            polygon_ids_depth_texture: clone_texture!(id, self.polygon_ids_depth_texture),
+            edge_ids_texture: clone_texture!(id, self.edge_ids_texture),
+            edge_ids_depth_texture: clone_texture!(id, self.edge_ids_depth_texture),
             composite_texture: clone_texture!(id, self.composite_texture),
         }
     }

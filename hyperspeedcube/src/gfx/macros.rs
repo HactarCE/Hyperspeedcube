@@ -128,7 +128,7 @@ macro_rules! pipeline {
             pub fn bind_groups<$bindings_lt>(
                 &self,
                 bindings: $bindings_struct_name<$bindings_lt>,
-            ) -> $crate::gfx::BindGroups {
+            ) -> $crate::gfx::bindings::BindGroups {
                 $crate::gfx::bindings::BindGroupsTrait::bind_groups(
                     bindings,
                     &self.device,

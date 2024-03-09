@@ -418,15 +418,6 @@ pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         changed: &mut changed,
     };
 
-    prefs_ui.collapsing("Position", |mut prefs_ui| {
-        prefs_ui.num("Horizontal align", access!(.align_h), |dv| {
-            dv.clamp_range(-1.0..=1.0).fixed_decimals(2).speed(0.01)
-        });
-        prefs_ui.num("Vertical align", access!(.align_v), |dv| {
-            dv.clamp_range(-1.0..=1.0).fixed_decimals(2).speed(0.01)
-        });
-    });
-
     prefs_ui.collapsing("View angle", |mut prefs_ui| {
         prefs_ui.angle("Pitch", access!(.pitch), |dv| dv.clamp_range(-90.0..=90.0));
         prefs_ui.angle("Yaw", access!(.yaw), |dv| dv.clamp_range(-180.0..=180.0));
@@ -507,8 +498,14 @@ pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         prefs_ui.angle("Yaw", access!(.light_yaw), |dv| {
             dv.clamp_range(-180.0..=180.0)
         });
-        prefs_ui.percent("Directional", access!(.light_directional));
-        prefs_ui.percent("Ambient", access!(.light_ambient));
+        prefs_ui.percent("Intensity", access!(.light_amt));
+    });
+
+    prefs_ui.collapsing("Performance", |mut prefs_ui| {
+        prefs_ui.num("Downscale factor", access!(.downscale_rate), |dv| {
+            dv.clamp_range(1..=32).speed(0.1)
+        });
+        prefs_ui.checkbox("Downscale interpolation", access!(.downscale_interpolate));
     });
 
     prefs.needs_save |= changed;

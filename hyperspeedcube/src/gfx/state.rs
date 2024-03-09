@@ -1,7 +1,6 @@
 use std::fmt;
 use std::sync::Arc;
 
-use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
 use super::pipelines::Pipelines;
@@ -14,7 +13,8 @@ pub(crate) struct GraphicsState {
     pub(in crate::gfx) pipelines: Pipelines,
 
     pub(in crate::gfx) uv_vertex_buffer: wgpu::Buffer,
-    pub(in crate::gfx) default_sampler: wgpu::Sampler,
+    pub(in crate::gfx) nearest_neighbor_sampler: wgpu::Sampler,
+    pub(in crate::gfx) bilinear_sampler: wgpu::Sampler,
 }
 impl fmt::Debug for GraphicsState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -35,7 +35,12 @@ impl GraphicsState {
             &super::structs::UvVertex::SQUARE,
             wgpu::BufferUsages::VERTEX,
         );
-        let default_sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
+        let nearest_neighbor_sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
+        let bilinear_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
 
         Self {
             device,
@@ -44,7 +49,9 @@ impl GraphicsState {
             pipelines,
 
             uv_vertex_buffer,
-            default_sampler,
+
+            nearest_neighbor_sampler,
+            bilinear_sampler,
         }
     }
 
@@ -104,79 +111,7 @@ impl GraphicsState {
             }
         }
 
-        let tex = self.device.create_texture(&desc);
-        tex
-    }
-
-    pub(super) fn create_bind_group_of_buffers(
-        &self,
-        label: &str,
-        entries: &[(wgpu::ShaderStages, wgpu::BufferBindingType, &wgpu::Buffer)],
-    ) -> wgpu::BindGroup {
-        self.create_bind_group_of_buffers_with_offsets(
-            label,
-            &entries
-                .iter()
-                .map(|&(vis, ty, buf)| (vis, ty, buf, 0))
-                .collect_vec(),
-        )
-    }
-    pub(super) fn create_bind_group_of_buffers_with_offsets(
-        &self,
-        label: &str,
-        entries: &[(
-            wgpu::ShaderStages,
-            wgpu::BufferBindingType,
-            &wgpu::Buffer,
-            u64,
-        )],
-    ) -> wgpu::BindGroup {
-        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some(label),
-            layout: &self.create_bind_group_layout_of_buffers(
-                &format!("{label}_layout"),
-                &entries
-                    .iter()
-                    .map(|&(vis, ty, _buffer, _offset)| (vis, ty))
-                    .collect_vec(),
-            ),
-            entries: &entries
-                .iter()
-                .enumerate()
-                .map(|(i, &(_vis, _ty, buffer, offset))| wgpu::BindGroupEntry {
-                    binding: i as u32,
-                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer,
-                        offset,
-                        size: None,
-                    }),
-                })
-                .collect_vec(),
-        })
-    }
-    pub(super) fn create_bind_group_layout_of_buffers(
-        &self,
-        label: &str,
-        entries: &[(wgpu::ShaderStages, wgpu::BufferBindingType)],
-    ) -> wgpu::BindGroupLayout {
-        self.device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some(label),
-                entries: &entries
-                    .iter()
-                    .enumerate()
-                    .map(|(i, &(visibility, ty))| wgpu::BindGroupLayoutEntry {
-                        binding: i as u32,
-                        visibility,
-                        ty: wgpu::BindingType::Buffer {
-                            ty,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    })
-                    .collect_vec(),
-            })
+        self.device.create_texture(&desc)
     }
 }
 

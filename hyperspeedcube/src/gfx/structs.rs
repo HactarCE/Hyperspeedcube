@@ -2,13 +2,6 @@
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
-pub(super) struct GfxLightingParams {
-    pub dir: [f32; 3],
-    pub ambient: f32,
-}
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct GfxProjectionParams {
     pub facet_shrink: f32,
     pub sticker_shrink: f32,
@@ -21,12 +14,6 @@ pub(super) struct GfxProjectionParams {
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
-pub(super) struct GfxCompositeParams {
-    pub outline_radius: u32, // TODO: make this per-edge
-}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub(super) struct UvVertex {
     pub position: [f32; 2],
     pub uv: [f32; 2],
@@ -35,8 +22,7 @@ impl UvVertex {
     const fn new(position: [f32; 2], uv: [f32; 2]) -> Self {
         Self { position, uv }
     }
-}
-impl UvVertex {
+
     pub const LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
         array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
         step_mode: wgpu::VertexStepMode::Vertex,
@@ -55,10 +41,31 @@ impl UvVertex {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
-pub struct GfxViewParams {
-    pub scale: [f32; 2],
-    pub align: [f32; 2],
+pub struct GfxDrawParams {
+    /// Vector indicating the direction that light is shining from.
+    pub light_dir: [f32; 3],
+    /// Intensity of directional light. (The rest is ambient light.)
+    pub light_amt: f32,
 
-    pub clip_4d_backfaces: i32,     // bool
-    pub clip_4d_behind_camera: i32, // bool
+    /// Mouse position in NDC (normalized device coordinates).
+    pub mouse_pos: [f32; 2],
+
+    /// Width and height of the target in pixels.
+    pub target_size: [f32; 2],
+    /// 2D X & Y scale factors to apply after perspective transformation.
+    pub xy_scale: [f32; 2],
+
+    pub facet_shrink: f32,
+    pub sticker_shrink: f32,
+    pub piece_explode: f32,
+
+    pub near_plane_z: f32,
+    pub far_plane_z: f32,
+    pub w_factor_4d: f32,
+    pub w_factor_3d: f32,
+    pub fov_signum: f32,
+    /// Whether to clip 4D backfaces. (`bool`)
+    pub clip_4d_backfaces: i32,
+    /// Whether to clip 4D geometry behind the camera. (`bool`)
+    pub clip_4d_behind_camera: i32,
 }

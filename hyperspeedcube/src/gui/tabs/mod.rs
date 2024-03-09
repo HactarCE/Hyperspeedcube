@@ -110,7 +110,7 @@ impl Tab {
                     ui.separator();
 
                     if ui.button("Reset camera").clicked() {
-                        puzzle_view.view_params.rot = Isometry::ident();
+                        puzzle_view.draw_params.rot = Isometry::ident();
                     }
 
                     ui.separator();

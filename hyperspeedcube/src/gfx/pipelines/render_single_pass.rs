@@ -4,22 +4,23 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
     type = wgpu::RenderPipeline;
 
     struct Bindings<'a> {
-        sticker_colors_texture: &'a wgpu::TextureView = pub(FRAGMENT) bindings::STICKER_COLORS_TEXTURE,
-        special_colors_texture: &'a wgpu::TextureView = pub(FRAGMENT) bindings::SPECIAL_COLORS_TEXTURE,
         vertex_positions:       &'a wgpu::Buffer = pub(VERTEX) bindings::VERTEX_POSITIONS,
         u_tangents:             &'a wgpu::Buffer = pub(VERTEX) bindings::U_TANGENTS,
         v_tangents:             &'a wgpu::Buffer = pub(VERTEX) bindings::V_TANGENTS,
         sticker_shrink_vectors: &'a wgpu::Buffer = pub(VERTEX) bindings::STICKER_SHRINK_VECTORS,
+
         piece_centroids:        &'a wgpu::Buffer = pub(VERTEX) bindings::PIECE_CENTROIDS,
         facet_centroids:        &'a wgpu::Buffer = pub(VERTEX) bindings::FACET_CENTROIDS,
         facet_normals:          &'a wgpu::Buffer = pub(VERTEX) bindings::FACET_NORMALS,
         polygon_color_ids:      &'a wgpu::Buffer = pub(FRAGMENT) bindings::POLYGON_COLOR_IDS,
+
         puzzle_transform:       &'a wgpu::Buffer = pub(VERTEX) bindings::PUZZLE_TRANSFORM,
         piece_transforms:       &'a wgpu::Buffer = pub(VERTEX) bindings::PIECE_TRANSFORMS,
         camera_4d_pos:          &'a wgpu::Buffer = pub(VERTEX) bindings::CAMERA_4D_POS,
-        projection_params:      &'a wgpu::Buffer = pub(VERTEX) bindings::PROJECTION_PARAMS,
-        lighting_params:        &'a wgpu::Buffer = pub(VERTEX) bindings::LIGHTING_PARAMS,
-        view_params:            &'a wgpu::Buffer = pub(VERTEX) bindings::VIEW_PARAMS,
+        draw_params:            &'a wgpu::Buffer = pub(VERTEX) bindings::DRAW_PARAMS,
+
+        sticker_colors_texture: &'a wgpu::TextureView = pub(FRAGMENT) bindings::STICKER_COLORS_TEXTURE,
+        special_colors_texture: &'a wgpu::TextureView = pub(FRAGMENT) bindings::SPECIAL_COLORS_TEXTURE,
     }
 
     let pipeline_descriptor = RenderPipelineDescriptor {

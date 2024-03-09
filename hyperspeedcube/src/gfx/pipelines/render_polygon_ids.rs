@@ -4,17 +4,16 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
     type = wgpu::RenderPipeline;
 
     struct Bindings<'a> {
-        projection_params: &'a wgpu::Buffer = pub(VERTEX) bindings::PROJECTION_PARAMS,
-        view_params:       &'a wgpu::Buffer = pub(VERTEX) bindings::VIEW_PARAMS, // TODO: shouldn't need view_params
+        draw_params: &'a wgpu::Buffer = pub(VERTEX) bindings::DRAW_PARAMS,
     }
 
     let pipeline_descriptor = RenderPipelineDescriptor {
         label: "render_polygon_ids",
         vertex_buffers: &[
             single_type_vertex_buffer![0 => Float32x4], // position
-            single_type_vertex_buffer![1 => Float32],   // cull
-            single_type_vertex_buffer![2 => Float32],   // lighting
-            single_type_vertex_buffer![3 => Sint32],    // polygon_id
+            single_type_vertex_buffer![1 => Float32x4], // normal
+            single_type_vertex_buffer![2 => Sint32],    // polygon_id
+            single_type_vertex_buffer![3 => Float32],   // cull
         ],
         depth_stencil: Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth32Float,
