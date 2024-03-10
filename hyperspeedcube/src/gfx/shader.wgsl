@@ -11,9 +11,6 @@ const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 /// Color ID for background.
 const COLOR_BACKGROUND: u32 = 0u;
 
-/// Small number for tiny offsets to reduce Z fighting.
-const EPSILON: f32 = 1.0 / 128.0;
-
 
 
 /*
@@ -581,11 +578,6 @@ fn render_edge_ids_vertex(
     let edge_verts = edge_verts[edge_id];
     var world_a = read_vertex_3d_positions[edge_verts.r];
     var world_b = read_vertex_3d_positions[edge_verts.g];
-    let tmp1 = world_a;
-    let tmp2 = world_b;
-    // Shrink each edge a tiny bit to reduce Z-fighting.
-    world_a = mix(tmp1, tmp2, EPSILON);
-    world_b = mix(tmp2, tmp1, EPSILON);
 
     // Do perspective divide so that we can operate in a sort of screen space
     // with square pixels (as opposed to NDC, where pixels are not square).
