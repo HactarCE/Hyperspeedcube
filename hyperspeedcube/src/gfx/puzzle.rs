@@ -32,6 +32,7 @@ pub struct PuzzleRenderResources {
     pub renderer: Arc<Mutex<PuzzleRenderer>>,
     pub render_engine: RenderEngine,
     pub view_params: DrawParams, // TODO: rename to draw_params
+    pub force_redraw: bool,
 }
 
 impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
@@ -43,14 +44,16 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         callback_resources: &mut eframe::egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
         let mut renderer = self.renderer.lock();
-        let result = match self.render_engine {
-            RenderEngine::SinglePass => {
-                renderer.draw_puzzle_single_pass(egui_encoder, &self.view_params)
+        if self.force_redraw {
+            let result = match self.render_engine {
+                RenderEngine::SinglePass => {
+                    renderer.draw_puzzle_single_pass(egui_encoder, &self.view_params)
+                }
+                RenderEngine::MultiPass => renderer.draw_puzzle(egui_encoder, &self.view_params),
+            };
+            if let Err(e) = result {
+                log::error!("{e}");
             }
-            RenderEngine::MultiPass => renderer.draw_puzzle(egui_encoder, &self.view_params),
-        };
-        if let Err(e) = result {
-            log::error!("{e}");
         }
 
         // egui expects sRGB colors in the shader, so we have to read the sRGB
@@ -130,30 +133,12 @@ pub(crate) struct DrawParams {
     pub rot: Isometry,
     pub zoom: f32,
 
+    // TODO: these don't actually do anything, do they?
     pub background_color: egui::Color32,
     pub outlines_color: egui::Color32,
 
     pub piece_face_opacities: PerPiece<f32>,
     pub piece_edge_opacities: PerPiece<f32>,
-}
-impl Default for DrawParams {
-    fn default() -> Self {
-        Self {
-            prefs: ViewPreferences::default(),
-
-            target_size: [0, 0],
-            mouse_pos: [0.0, 0.0],
-
-            rot: Isometry::ident(),
-            zoom: 0.5,
-
-            background_color: egui::Color32::BLACK,
-            outlines_color: egui::Color32::BLACK,
-
-            piece_face_opacities: PerPiece::default(),
-            piece_edge_opacities: PerPiece::default(),
-        }
-    }
 }
 impl DrawParams {
     /// Returns the X and Y scale factors to use in the view matrix. Returns

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use egui::NumExt;
 use hypermath::prelude::*;
-use hyperpuzzle::{Mesh, Piece, Puzzle};
+use hyperpuzzle::{PerPiece, Puzzle};
 use parking_lot::Mutex;
 
 use crate::{
@@ -14,8 +14,13 @@ use crate::{
 pub struct PuzzleView {
     pub puzzle: Option<Arc<Puzzle>>,
     renderer: Option<Arc<Mutex<PuzzleRenderer>>>,
-    pub draw_params: DrawParams,
     gfx: Arc<GraphicsState>,
+
+    prev_draw_params: Option<DrawParams>,
+    pub rot: Isometry,
+    zoom: f32,
+    piece_face_opacities: PerPiece<f32>,
+    piece_edge_opacities: PerPiece<f32>,
 
     rect: egui::Rect,
     // TODO: rename this to `render_strategy`
@@ -30,8 +35,13 @@ impl PuzzleView {
         PuzzleView {
             puzzle: None,
             renderer: None,
-            draw_params: DrawParams::default(),
             gfx: Arc::clone(gfx),
+
+            prev_draw_params: None,
+            rot: Isometry::ident(),
+            zoom: 0.5,
+            piece_face_opacities: PerPiece::default(),
+            piece_edge_opacities: PerPiece::default(),
 
             rect: egui::Rect::NOTHING,
             render_engine: RenderEngine::default(),
@@ -42,8 +52,11 @@ impl PuzzleView {
         }
     }
     pub(crate) fn set_puzzle(&mut self, puzzle: Arc<Puzzle>) {
-        self.draw_params.piece_face_opacities = puzzle.pieces.map_ref(|_, _| 1.0);
-        self.draw_params.piece_edge_opacities = puzzle.pieces.map_ref(|_, _| 1.0);
+        self.piece_face_opacities = puzzle.pieces.map_ref(|_, _| 1.0);
+        self.piece_edge_opacities = puzzle.pieces.map_ref(|_, _| 1.0);
+        self.zoom = 1.0;
+        self.rot = Isometry::ident();
+
         self.puzzle = Some(Arc::clone(&puzzle));
         self.renderer = Some(Arc::new(Mutex::new(PuzzleRenderer::new(&self.gfx, puzzle))));
     }
@@ -87,29 +100,28 @@ impl PuzzleView {
             return r;
         };
 
-        self.draw_params.prefs = prefs.view(puzzle).clone();
-        self.draw_params.target_size = [
-            pixels_rect.width() as u32 / self.draw_params.prefs.downscale_rate,
-            pixels_rect.height() as u32 / self.draw_params.prefs.downscale_rate,
+        let view_prefs = prefs.view(puzzle).clone();
+
+        let target_size = [
+            pixels_rect.width() as u32 / view_prefs.downscale_rate,
+            pixels_rect.height() as u32 / view_prefs.downscale_rate,
         ];
 
         let min_size = egui_rect.size().min_elem();
         const DRAG_SPEED: f32 = 5.0;
         let drag_delta = r.drag_delta() * DRAG_SPEED / min_size.abs();
         // Convert to higher precision before dividing.
-        let scaled_drag_x = drag_delta.x as Float / self.draw_params.zoom.at_least(1.0) as Float;
-        let scaled_drag_y = drag_delta.y as Float / self.draw_params.zoom.at_least(1.0) as Float;
+        let scaled_drag_x = drag_delta.x as Float / self.zoom.at_least(1.0) as Float;
+        let scaled_drag_y = drag_delta.y as Float / self.zoom.at_least(1.0) as Float;
 
         let scroll_delta = ui.input(|input| input.scroll_delta);
+        let mut mouse_pos: Option<[f32; 2]> = None;
         if r.hovered() {
-            self.draw_params.zoom *= (scroll_delta.y / 100.0).exp2();
-            self.draw_params.zoom = self
-                .draw_params
-                .zoom
-                .clamp(2.0_f32.powf(-6.0), 2.0_f32.powf(8.0));
+            self.zoom *= (scroll_delta.y / 100.0).exp2();
+            self.zoom = self.zoom.clamp(2.0_f32.powf(-6.0), 2.0_f32.powf(8.0));
             if let Some(pos) = r.hover_pos() {
                 let mouse_pos_ndc = (pos - r.rect.min) / r.rect.size();
-                self.draw_params.mouse_pos = mouse_pos_ndc.into();
+                mouse_pos = Some(mouse_pos_ndc.into());
             }
         }
 
@@ -120,9 +132,9 @@ impl PuzzleView {
         if ui.input(|input| input.modifiers.alt) {
             z_axis += 2;
         };
-        self.draw_params.rot = Isometry::from_angle_in_axis_plane(0, z_axis, -scaled_drag_x)
+        self.rot = Isometry::from_angle_in_axis_plane(0, z_axis, -scaled_drag_x)
             * Isometry::from_angle_in_axis_plane(1, z_axis, scaled_drag_y)
-            * &self.draw_params.rot;
+            * &self.rot;
 
         if r.has_focus() {
             ui.input(|input| {
@@ -158,7 +170,7 @@ impl PuzzleView {
                 }
             });
         }
-        self.draw_params.piece_face_opacities = puzzle.pieces.map_ref(|piece, info| {
+        self.piece_face_opacities = puzzle.pieces.map_ref(|piece, info| {
             let sticker_count = info.stickers.len();
             let fallback = self.highlighted_piece_types[0];
             match self
@@ -170,45 +182,26 @@ impl PuzzleView {
                 false => 0.0,
             }
         });
-        self.draw_params.piece_edge_opacities = puzzle.pieces.map_ref(|piece, info| 1.0);
+        self.piece_edge_opacities = puzzle.pieces.map_ref(|piece, info| 1.0);
 
-        self.draw_params.background_color = prefs.colors.background;
-        self.draw_params.outlines_color = prefs.outlines.default_color;
-
-        // Render overlay
-        let transform_point = |p: &Vector| -> Option<egui::Pos2> {
-            let mut p = self.draw_params.project_point(p)?;
-            p.x *= egui_rect.size().x / 2.0 / 1.5;
-            p.y *= egui_rect.size().y / 2.0 / 1.5;
-            Some(egui_rect.center() + egui::vec2(p.x, -p.y))
+        let current_draw_params = DrawParams {
+            prefs: view_prefs,
+            target_size,
+            mouse_pos: [0.0; 2], // Don't bother refreshing when mouse moves.
+            rot: self.rot.clone(),
+            zoom: self.zoom,
+            background_color: prefs.colors.background,
+            outlines_color: prefs.outlines.default_color,
+            piece_face_opacities: self.piece_face_opacities.clone(),
+            piece_edge_opacities: self.piece_edge_opacities.clone(),
         };
-        for (overlay, size, color) in &self.overlay {
-            let color = *color;
-            // IIFE to mimic try_block
-            let _ = (|| -> Option<()> {
-                match overlay {
-                    Overlay::Point(p) => {
-                        ui.painter()
-                            .circle_filled(transform_point(p)?, 5.0 * size, color)
-                    }
-                    Overlay::Line(p1, p2) => ui.painter().line_segment(
-                        [transform_point(p1)?, transform_point(p2)?],
-                        egui::Stroke {
-                            width: 4.0 * size,
-                            color,
-                        },
-                    ),
-                    Overlay::Arrow(p1, p2) => ui.painter().arrow(
-                        transform_point(p1)?,
-                        transform_point(p2)? - transform_point(p1)?,
-                        egui::Stroke {
-                            width: 4.0 * size,
-                            color,
-                        },
-                    ),
-                }
-                None
-            })();
+
+        let force_redraw = !self
+            .prev_draw_params
+            .as_ref()
+            .is_some_and(|x| *x == current_draw_params);
+        if force_redraw {
+            self.prev_draw_params = Some(current_draw_params.clone());
         }
 
         // Draw puzzle.
@@ -219,7 +212,8 @@ impl PuzzleView {
                 gfx: Arc::clone(&self.gfx),
                 renderer: Arc::clone(&renderer),
                 render_engine: self.render_engine,
-                view_params: self.draw_params.clone(),
+                view_params: current_draw_params,
+                force_redraw,
             },
         ));
 
