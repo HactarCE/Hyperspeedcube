@@ -267,7 +267,7 @@ pub(crate) struct PuzzleRenderer {
 
     vertex_3d_positions_try_map_flag: Arc<AtomicBool>,
     vertex_3d_positions_mapped_flag: Arc<AtomicBool>,
-    vertex_3d_positions: Vec<cgmath::Point3<f32>>,
+    vertex_3d_positions: Arc<Mutex<Option<Vec<cgmath::Vector4<f32>>>>>,
 }
 
 impl Clone for PuzzleRenderer {
@@ -280,7 +280,7 @@ impl Clone for PuzzleRenderer {
 
             vertex_3d_positions_try_map_flag: Arc::new(AtomicBool::new(false)),
             vertex_3d_positions_mapped_flag: Arc::new(AtomicBool::new(false)),
-            vertex_3d_positions: vec![],
+            vertex_3d_positions: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -296,7 +296,7 @@ impl PuzzleRenderer {
 
             vertex_3d_positions_try_map_flag: Arc::new(AtomicBool::new(false)),
             vertex_3d_positions_mapped_flag: Arc::new(AtomicBool::new(false)),
-            vertex_3d_positions: vec![],
+            vertex_3d_positions: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -394,6 +394,8 @@ impl PuzzleRenderer {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
         self.compute_3d_vertex_positions(&mut new_encoder)?;
+        let output = Arc::clone(&self.vertex_3d_positions);
+        let buf = Arc::clone(&self.buffers.vertex_3d_positions_mmappable);
         self.buffers
             .vertex_3d_positions_mmappable
             .slice(..)
@@ -403,6 +405,12 @@ impl PuzzleRenderer {
                     Ok(()) => {
                         println!("successsssss!!!!!");
                         // flag.store(true, std::sync::atomic::Ordering::SeqCst)
+                        *output.lock() = Some(
+                            bytemuck::cast_slice::<u8, f32>(&*buf.slice(..).get_mapped_range())
+                                .chunks_exact(4)
+                                .map(|a| cgmath::vec4(a[0], a[1], a[2], a[3]))
+                                .collect(),
+                        )
                     }
                     Err(wgpu::BufferAsyncError) => {
                         log::error!("Error mapping 3D vertex positions buffer")
@@ -1073,11 +1081,11 @@ struct_with_constructor! {
                  * MEMORY-MAPPED BUFFERS
                  */
                 /// 3D position for each vertex (memory-mapped).
-                vertex_3d_positions_mmappable: wgpu::Buffer = gfx.create_buffer::<[f32; 4]>(
+                vertex_3d_positions_mmappable: Arc<wgpu::Buffer> = Arc::new(gfx.create_buffer::<[f32; 4]>(
                     label("vertex_3d_positions_mmappable"),
                     mesh.vertex_count(),
                     wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-                ),
+                )),
 
                 /*
                  * TEXTURES
@@ -1175,11 +1183,11 @@ impl DynamicPuzzleBuffers {
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
             sorted_edges: clone_buffer!(gfx, id, self.sorted_edges),
 
-            vertex_3d_positions_mmappable: clone_buffer!(
+            vertex_3d_positions_mmappable: Arc::new(clone_buffer!(
                 gfx,
                 id,
                 self.vertex_3d_positions_mmappable
-            ),
+            )),
 
             colors_texture: clone_texture!(id, self.colors_texture),
 
