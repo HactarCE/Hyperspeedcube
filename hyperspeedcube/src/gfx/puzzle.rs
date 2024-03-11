@@ -7,7 +7,7 @@
 
 use std::fmt;
 use std::ops::Range;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::Arc;
 
 use eyre::{bail, eyre, Result};
@@ -119,6 +119,23 @@ impl fmt::Display for RenderEngine {
 fn next_buffer_id() -> usize {
     static ID: AtomicUsize = AtomicUsize::new(0);
     ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Complete set of values that controls 3D vertex positions.
+pub(crate) struct GeometryCacheKey {
+    pub pitch: f32,
+    pub yaw: f32,
+    pub roll: f32,
+    pub scale: f32,
+    pub fov_3d: f32,
+    pub fov_4d: f32,
+    pub facet_shrink: f32,
+    pub sticker_shrink: f32,
+    pub piece_explode: f32,
+
+    pub target_size: [u32; 2],
+    pub rot: Isometry,
+    pub zoom: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -247,6 +264,10 @@ pub(crate) struct PuzzleRenderer {
     buffers: DynamicPuzzleBuffers,
     /// Puzzle info.
     puzzle: Arc<Puzzle>,
+
+    vertex_3d_positions_try_map_flag: Arc<AtomicBool>,
+    vertex_3d_positions_mapped_flag: Arc<AtomicBool>,
+    vertex_3d_positions: Vec<cgmath::Point3<f32>>,
 }
 
 impl Clone for PuzzleRenderer {
@@ -256,6 +277,10 @@ impl Clone for PuzzleRenderer {
             puzzle: Arc::clone(&self.puzzle),
             model: Arc::clone(&self.model),
             buffers: self.buffers.clone(&self.gfx),
+
+            vertex_3d_positions_try_map_flag: Arc::new(AtomicBool::new(false)),
+            vertex_3d_positions_mapped_flag: Arc::new(AtomicBool::new(false)),
+            vertex_3d_positions: vec![],
         }
     }
 }
@@ -268,7 +293,28 @@ impl PuzzleRenderer {
             model: Arc::new(StaticPuzzleModel::new(&gfx, &puzzle.mesh, id, &puzzle)),
             buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &puzzle.mesh, id),
             puzzle,
+
+            vertex_3d_positions_try_map_flag: Arc::new(AtomicBool::new(false)),
+            vertex_3d_positions_mapped_flag: Arc::new(AtomicBool::new(false)),
+            vertex_3d_positions: vec![],
         }
+    }
+
+    pub fn vertex_3d_positions(&self) -> Option<Vec<cgmath::Vector4<f32>>> {
+        self.vertex_3d_positions_mapped_flag
+            .load(std::sync::atomic::Ordering::SeqCst)
+            .then(|| {
+                bytemuck::cast_slice::<u8, f32>(
+                    &*self
+                        .buffers
+                        .vertex_3d_positions
+                        .slice(..)
+                        .get_mapped_range(),
+                )
+                .chunks_exact(4)
+                .map(|a| cgmath::vec4(a[0], a[1], a[2], a[3]))
+                .collect()
+            })
     }
 
     pub fn draw_puzzle_single_pass(
@@ -342,7 +388,39 @@ impl PuzzleRenderer {
         }
 
         // Compute 3D vertex positions on the GPU.
-        self.compute_3d_vertex_positions(encoder)?;
+        let t = std::time::Instant::now();
+        let mut new_encoder = self
+            .gfx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        self.compute_3d_vertex_positions(&mut new_encoder)?;
+        self.buffers
+            .vertex_3d_positions_mmappable
+            .slice(..)
+            .map_async(wgpu::MapMode::Read, move |result| {
+                println!("mapped!");
+                match result {
+                    Ok(()) => {
+                        println!("successsssss!!!!!");
+                        // flag.store(true, std::sync::atomic::Ordering::SeqCst)
+                    }
+                    Err(wgpu::BufferAsyncError) => {
+                        log::error!("Error mapping 3D vertex positions buffer")
+                    }
+                }
+            });
+        self.gfx.queue.submit([new_encoder.finish()]);
+        println!("unmappy");
+        self.buffers.vertex_3d_positions_mmappable.unmap();
+        println!("{:?}", t.elapsed());
+        // println!("check {:?}", self.vertex_3d_positions_mapped_flag);
+        // if self
+        //     .vertex_3d_positions_mapped_flag
+        //     .swap(false, std::sync::atomic::Ordering::SeqCst)
+        // {
+        //     println!("unmap! attempt");
+        //     self.buffers.vertex_3d_positions_mmappable.unmap();
+        // }
 
         // Render each bucket.
         let mut is_first = true;
@@ -353,6 +431,23 @@ impl PuzzleRenderer {
 
             is_first = false;
         }
+
+        encoder.copy_buffer_to_buffer(
+            &self.buffers.vertex_3d_positions,
+            0,
+            &self.buffers.vertex_3d_positions_mmappable,
+            0,
+            (self.model.vertex_count * std::mem::size_of::<[f32; 4]>()) as wgpu::BufferAddress,
+        );
+
+        // self.gfx
+        //     .queue
+        //     .submit([std::mem::replace(encoder, new_encoder).finish()]);
+
+        // let flag = Arc::clone(&self.vertex_3d_positions_mapped_flag);
+        // flag.store(true, std::sync::atomic::Ordering::SeqCst);
+        // println!("map attempt!");
+        // println!("check later {:?}", self.vertex_3d_positions_mapped_flag);
 
         Ok(())
     }
@@ -943,7 +1038,7 @@ struct_with_constructor! {
                 vertex_3d_positions: wgpu::Buffer = gfx.create_buffer::<[f32; 4]>(
                     label("vertex_3d_positions"),
                     mesh.vertex_count(),
-                    wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
+                    wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
                 ),
                 /// 3D normal vector for each vertex.
                 vertex_3d_normals: wgpu::Buffer = gfx.create_buffer::<[f32; 4]>(
@@ -972,6 +1067,16 @@ struct_with_constructor! {
                     label("sorted_edges"),
                     mesh.edge_count(),
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX,
+                ),
+
+                /*
+                 * MEMORY-MAPPED BUFFERS
+                 */
+                /// 3D position for each vertex (memory-mapped).
+                vertex_3d_positions_mmappable: wgpu::Buffer = gfx.create_buffer::<[f32; 4]>(
+                    label("vertex_3d_positions_mmappable"),
+                    mesh.vertex_count(),
+                    wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
                 ),
 
                 /*
@@ -1069,6 +1174,12 @@ impl DynamicPuzzleBuffers {
             vertex_culls: clone_buffer!(gfx, id, self.vertex_culls),
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
             sorted_edges: clone_buffer!(gfx, id, self.sorted_edges),
+
+            vertex_3d_positions_mmappable: clone_buffer!(
+                gfx,
+                id,
+                self.vertex_3d_positions_mmappable
+            ),
 
             colors_texture: clone_texture!(id, self.colors_texture),
 
