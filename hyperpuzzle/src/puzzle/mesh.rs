@@ -113,10 +113,6 @@ impl Mesh {
     pub fn sticker_count(&self) -> usize {
         self.sticker_count
     }
-    /// Returns the number of pieces in the mesh.
-    pub fn piece_count(&self) -> usize {
-        self.piece_count
-    }
     /// Returns the number of facets in the mesh.
     pub fn facet_count(&self) -> usize {
         self.facet_centroids.len() / self.ndim as usize
@@ -128,10 +124,6 @@ impl Mesh {
     /// Returns the number of edges in the mesh.
     pub fn edge_count(&self) -> usize {
         self.edges.len()
-    }
-    /// Returns the number of colors in the mesh.
-    pub fn color_count(&self) -> usize {
-        self.color_count
     }
 
     pub(super) fn add_vertex(&mut self, data: MeshVertexData<'_>) -> u32 {

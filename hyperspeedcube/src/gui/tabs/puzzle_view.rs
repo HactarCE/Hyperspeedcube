@@ -212,7 +212,7 @@ impl PuzzleView {
                 gfx: Arc::clone(&self.gfx),
                 renderer: Arc::clone(&renderer),
                 render_engine: self.render_engine,
-                view_params: current_draw_params,
+                draw_params: current_draw_params,
                 force_redraw,
             },
         ));

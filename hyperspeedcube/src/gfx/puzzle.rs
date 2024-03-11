@@ -31,7 +31,7 @@ pub struct PuzzleRenderResources {
     pub gfx: Arc<GraphicsState>,
     pub renderer: Arc<Mutex<PuzzleRenderer>>,
     pub render_engine: RenderEngine,
-    pub view_params: DrawParams, // TODO: rename to draw_params
+    pub draw_params: DrawParams,
     pub force_redraw: bool,
 }
 
@@ -47,9 +47,9 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         if self.force_redraw {
             let result = match self.render_engine {
                 RenderEngine::SinglePass => {
-                    renderer.draw_puzzle_single_pass(egui_encoder, &self.view_params)
+                    renderer.draw_puzzle_single_pass(egui_encoder, &self.draw_params)
                 }
-                RenderEngine::MultiPass => renderer.draw_puzzle(egui_encoder, &self.view_params),
+                RenderEngine::MultiPass => renderer.draw_puzzle(egui_encoder, &self.draw_params),
             };
             if let Err(e) = result {
                 log::error!("{e}");
@@ -70,7 +70,7 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         let pipeline = &self.gfx.pipelines.blit;
         let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
             src_texture: &texture_view,
-            src_sampler: match self.view_params.prefs.downscale_interpolate {
+            src_sampler: match self.draw_params.prefs.downscale_interpolate {
                 true => &self.gfx.bilinear_sampler,
                 false => &self.gfx.nearest_neighbor_sampler,
             },
@@ -812,7 +812,7 @@ struct_with_constructor! {
 
             StaticPuzzleModel {
                 ndim: u8 = mesh.ndim(),
-                color_count: usize = mesh.color_count(),
+                color_count: usize = mesh.color_count,
                 vertex_count: usize = mesh.vertex_count(),
                 polygon_count: usize = mesh.polygon_count,
                 default_polygon_color_ids: Vec<hyperpuzzle::Color> = mesh.polygon_color_ids.clone(),
@@ -904,7 +904,7 @@ struct_with_constructor! {
                 /// NxN transformation matrix for each piece.
                 piece_transforms: wgpu::Buffer = gfx.create_buffer::<f32>(
                     label("piece_transforms"),
-                    ndim as usize * ndim as usize * mesh.piece_count(),
+                    ndim as usize * ndim as usize * mesh.piece_count,
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
                 ),
                 /// Position of the 4D camera in N-dimensional space.
