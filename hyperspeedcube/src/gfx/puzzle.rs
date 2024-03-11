@@ -387,6 +387,9 @@ impl PuzzleRenderer {
             return Ok(());
         }
 
+        static mut WORST1: std::time::Duration = std::time::Duration::from_secs(0);
+        static mut WORST2: std::time::Duration = std::time::Duration::from_secs(0);
+
         // Compute 3D vertex positions on the GPU.
         let t = std::time::Instant::now();
         let mut new_encoder = self
@@ -405,12 +408,23 @@ impl PuzzleRenderer {
                     Ok(()) => {
                         println!("successsssss!!!!!");
                         // flag.store(true, std::sync::atomic::Ordering::SeqCst)
+                        let t1 = std::time::Instant::now();
                         *output.lock() = Some(
                             bytemuck::cast_slice::<u8, f32>(&*buf.slice(..).get_mapped_range())
                                 .chunks_exact(4)
                                 .map(|a| cgmath::vec4(a[0], a[1], a[2], a[3]))
                                 .collect(),
-                        )
+                        );
+                        println!(
+                            "just copying: {:?} (worst was {:?})",
+                            t1.elapsed(),
+                            unsafe { WORST1 }
+                        );
+                        unsafe {
+                            if t1.elapsed() > WORST1 {
+                                WORST1 = t1.elapsed();
+                            }
+                        }
                     }
                     Err(wgpu::BufferAsyncError) => {
                         log::error!("Error mapping 3D vertex positions buffer")
@@ -420,7 +434,12 @@ impl PuzzleRenderer {
         self.gfx.queue.submit([new_encoder.finish()]);
         println!("unmappy");
         self.buffers.vertex_3d_positions_mmappable.unmap();
-        println!("{:?}", t.elapsed());
+        println!("{:?} (worst was {:?})", t.elapsed(), unsafe { WORST1 });
+        unsafe {
+            if t.elapsed() > WORST1 {
+                WORST1 = t.elapsed();
+            }
+        }
         // println!("check {:?}", self.vertex_3d_positions_mapped_flag);
         // if self
         //     .vertex_3d_positions_mapped_flag
