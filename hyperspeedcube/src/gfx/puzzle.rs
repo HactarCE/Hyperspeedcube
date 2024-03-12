@@ -27,10 +27,14 @@ use super::{CachedTexture1d, CachedTexture2d, GraphicsState};
 /// clipping, but also less Z buffer precision.
 const Z_CLIP: f32 = 1024.0;
 
+/// Whether to send the mouse position to the GPU. This is useful for debugging
+/// purposes, but causes the puzzle to redraw every frame that the mouse moves,
+/// even when not necessary.
+const SEND_MOUSE_POS: bool = false;
+
 pub struct PuzzleRenderResources {
     pub gfx: Arc<GraphicsState>,
     pub renderer: Arc<Mutex<PuzzleRenderer>>,
-    pub draw_params: DrawParams,
 }
 
 impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
@@ -42,7 +46,7 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         callback_resources: &mut eframe::egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
         let mut renderer = self.renderer.lock();
-        let result = renderer.draw_puzzle(egui_encoder, &self.draw_params);
+        let result = renderer.draw_puzzle(egui_encoder);
         if let Err(e) = result {
             log::error!("{e}");
         }
@@ -58,10 +62,14 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
             ..Default::default()
         });
 
+        let Some(draw_params) = renderer.draw_params() else {
+            return vec![];
+        };
+
         let pipeline = &self.gfx.pipelines.blit;
         let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
             src_texture: &texture_view,
-            src_sampler: match self.draw_params.prefs.downscale_interpolate {
+            src_sampler: match draw_params.prefs.downscale_interpolate {
                 true => &self.gfx.bilinear_sampler,
                 false => &self.gfx.nearest_neighbor_sampler,
             },
@@ -97,6 +105,23 @@ fn next_buffer_id() -> usize {
     ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
+/// Complete set of values that determines 3D vertex positions.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub(crate) struct GeometryCacheKey {
+    pub pitch: f32,
+    pub yaw: f32,
+    pub roll: f32,
+    pub scale: f32,
+    pub fov_3d: f32,
+    pub fov_4d: f32,
+    pub facet_shrink: f32,
+    pub sticker_shrink: f32,
+    pub piece_explode: f32,
+
+    pub target_size: [u32; 2],
+    pub rot: Isometry,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct DrawParams {
     pub prefs: ViewPreferences,
@@ -117,17 +142,23 @@ pub(crate) struct DrawParams {
     pub piece_edge_opacities: PerPiece<f32>,
 }
 impl DrawParams {
-    /// Returns the X and Y scale factors to use in the view matrix. Returns
-    /// `Err` if either the width or height is smaller than one pixel.
-    pub fn xy_scale(&self) -> Result<cgmath::Vector2<f32>> {
-        if self.target_size.contains(&0) {
+    /// Returns the X and Y scale factors to convert screen space to NDC.
+    /// Returns `Err` if either the width or height is smaller than one pixel.
+    pub fn compute_xy_scale(target_size: [u32; 2], zoom: f32) -> Result<cgmath::Vector2<f32>> {
+        if target_size.contains(&0) {
             bail!("puzzle view has zero size");
         }
-        let w = self.target_size[0] as f32;
-        let h = self.target_size[1] as f32;
+        let w = target_size[0] as f32;
+        let h = target_size[1] as f32;
 
         let min_dimen = f32::min(w as f32, h as f32);
-        Ok(cgmath::vec2(min_dimen / w, min_dimen / h) * self.zoom)
+        Ok(cgmath::vec2(min_dimen / w, min_dimen / h) * zoom)
+    }
+
+    /// Returns the X and Y scale factors to convert screen space to NDC.
+    /// Returns `Err` if either the width or height is smaller than one pixel.
+    pub fn xy_scale(&self) -> Result<cgmath::Vector2<f32>> {
+        Self::compute_xy_scale(self.target_size, self.zoom)
     }
 
     /// Returns the factor by which the W coordinate affects the XYZ coordinates
@@ -169,6 +200,23 @@ impl DrawParams {
         Matrix3::from_angle_y(Deg(self.prefs.light_yaw))
             * Matrix3::from_angle_x(Deg(-self.prefs.light_pitch)) // pitch>0 means light comes from above
             * Vector3::unit_z()
+    }
+
+    fn geometry_cache_key(&self) -> GeometryCacheKey {
+        GeometryCacheKey {
+            pitch: self.prefs.pitch,
+            yaw: self.prefs.yaw,
+            roll: self.prefs.roll,
+            scale: self.prefs.scale,
+            fov_3d: self.prefs.fov_3d,
+            fov_4d: self.prefs.fov_4d,
+            facet_shrink: self.prefs.facet_shrink,
+            sticker_shrink: self.prefs.sticker_shrink,
+            piece_explode: self.prefs.piece_explode,
+
+            target_size: self.target_size,
+            rot: self.rot.clone(),
+        }
     }
 }
 
@@ -223,6 +271,8 @@ pub(crate) struct PuzzleRenderer {
     buffers: DynamicPuzzleBuffers,
     /// Puzzle info.
     puzzle: Arc<Puzzle>,
+
+    prep: Option<DrawPrepResponse>,
 }
 
 impl Clone for PuzzleRenderer {
@@ -232,6 +282,8 @@ impl Clone for PuzzleRenderer {
             puzzle: Arc::clone(&self.puzzle),
             model: Arc::clone(&self.model),
             buffers: self.buffers.clone(&self.gfx),
+
+            prep: None,
         }
     }
 }
@@ -244,30 +296,122 @@ impl PuzzleRenderer {
             model: Arc::new(StaticPuzzleModel::new(&gfx, &puzzle.mesh, id, &puzzle)),
             buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &puzzle.mesh, id),
             puzzle,
+
+            prep: None,
         }
     }
 
-    pub fn draw_puzzle(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        draw_params: &DrawParams,
-    ) -> Result<()> {
-        let opacity_buckets = self.init_buffers(encoder, draw_params)?;
-        if opacity_buckets.is_empty() {
-            return Ok(());
+    /// Sets the draw parameters to be used for the next
+    pub fn prepare_draw(&mut self, mut draw_params: DrawParams) -> DrawPrepResponse {
+        if !SEND_MOUSE_POS {
+            draw_params.mouse_pos = [0.0; 2];
         }
 
-        // Compute 3D vertex positions on the GPU.
-        self.compute_3d_vertex_positions(encoder)?;
+        let geometry_cache_key = draw_params.geometry_cache_key();
 
-        // Render each bucket.
-        let mut is_first = true;
-        for bucket in opacity_buckets {
-            self.render_polygons(encoder, &bucket, is_first)?;
-            self.render_edge_ids(encoder, &bucket, is_first)?;
-            self.render_composite_puzzle(encoder, bucket.opacity, is_first)?;
+        let needs_recompute_vertex_3d_positions =
+            self.geometry_cache_key() != Some(&geometry_cache_key);
+        let needs_redraw =
+            needs_recompute_vertex_3d_positions || self.draw_params() != Some(&draw_params);
 
-            is_first = false;
+        let vertex_3d_positions = {
+            let existing_output = self
+                .prep
+                .as_ref()
+                .and_then(|prep| prep.vertex_3d_positions.as_ref());
+            if needs_recompute_vertex_3d_positions {
+                None
+            } else if existing_output.is_some() {
+                existing_output.map(Arc::clone)
+            } else {
+                // If we are drawing two frames in a row with the same geometry
+                // cache key, then the 3D vertex positions have stabilized, so
+                // fetch them from the GPU.
+                let output = Arc::new(Mutex::new(None));
+
+                let output_ref = Arc::clone(&output);
+                // Save the 3D vertex positions.
+                wgpu::util::DownloadBuffer::read_buffer(
+                    &self.gfx.device,
+                    &self.gfx.queue,
+                    &self.buffers.vertex_3d_positions.slice(..),
+                    move |result| match result {
+                        Ok(buffer) => {
+                            *output_ref.lock() = Some(Arc::new(
+                                bytemuck::cast_slice::<u8, f32>(&buffer)
+                                    .chunks_exact(4)
+                                    .map(|a| cgmath::vec4(a[0], a[1], a[2], a[3]))
+                                    .collect(),
+                            ));
+                        }
+                        Err(wgpu::BufferAsyncError) => {
+                            log::error!("Error mapping 3D vertex positions buffer")
+                        }
+                    },
+                );
+
+                Some(output)
+            }
+        };
+
+        let r = DrawPrepResponse {
+            geometry_cache_key,
+            needs_recompute_vertex_3d_positions,
+            vertex_3d_positions,
+
+            draw_params,
+            needs_redraw,
+        };
+
+        self.prep = Some(r.clone());
+
+        r
+    }
+
+    pub fn draw_params(&self) -> Option<&DrawParams> {
+        Some(&self.prep.as_ref()?.draw_params)
+    }
+    fn geometry_cache_key(&self) -> Option<&GeometryCacheKey> {
+        Some(&self.prep.as_ref()?.geometry_cache_key)
+    }
+    pub fn vertex_3d_positions(&self) -> Option<Arc<Vec<cgmath::Vector4<f32>>>> {
+        self.prep
+            .as_ref()?
+            .vertex_3d_positions
+            .as_ref()?
+            .lock()
+            .as_ref()
+            .map(Arc::clone)
+    }
+
+    pub fn draw_puzzle(&mut self, encoder: &mut wgpu::CommandEncoder) -> Result<()> {
+        let Some(prep) = self.prep.clone() else {
+            bail!("cannot draw without call to prepare_draw()");
+        };
+
+        if prep.needs_recompute_vertex_3d_positions {
+            log::trace!(
+                "Recomputing 3D vertex positions for puzzle {:?}",
+                self.puzzle.name,
+            );
+            // Compute 3D vertex positions on the GPU.
+            self.compute_3d_vertex_positions(encoder)?;
+        }
+
+        if prep.needs_redraw {
+            log::trace!("Redrawing puzzle {:?}", self.puzzle.name);
+            let opacity_buckets = self.init_buffers(encoder, &prep.draw_params)?;
+
+            // Render each bucket. Use `is_first` to clear the texture only on the
+            // first pass.
+            let mut is_first = true;
+            for bucket in opacity_buckets {
+                self.render_polygons(encoder, &bucket, is_first)?;
+                self.render_edge_ids(encoder, &bucket, is_first)?;
+                self.render_composite_puzzle(encoder, bucket.opacity, is_first)?;
+
+                is_first = false;
+            }
         }
 
         Ok(())
@@ -856,7 +1000,7 @@ struct_with_constructor! {
                 vertex_3d_positions: wgpu::Buffer = gfx.create_buffer::<[f32; 4]>(
                     label("vertex_3d_positions"),
                     mesh.vertex_count(),
-                    wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
+                    wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
                 ),
                 /// 3D normal vector for each vertex.
                 vertex_3d_normals: wgpu::Buffer = gfx.create_buffer::<[f32; 4]>(
@@ -1005,4 +1149,26 @@ struct GeometryBucket {
 enum GeometryType {
     Faces,
     Edges,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct DrawPrepResponse {
+    /// Cache key for `vertex_3d_positions`.
+    geometry_cache_key: GeometryCacheKey,
+    /// Whether the 3D vertex positions for the puzzle should be recomputed.
+    pub needs_recompute_vertex_3d_positions: bool,
+    /// Output location for 3D vertex positions, which will be fetched from the
+    /// GPU at some point.
+    ///
+    /// If the outer `Option` is `None`, then there is no active request so
+    /// vertex positions will not be fetched.
+    ///
+    /// If the inner `Option` is `None`, then we have fetched vertex positions
+    /// from the GPU and they should be delivered by the next frame.
+    pub vertex_3d_positions: Option<Arc<Mutex<Option<Arc<Vec<cgmath::Vector4<f32>>>>>>>,
+
+    /// Cache key for redrawing the whole puzzle.
+    pub draw_params: DrawParams,
+    /// Whether the puzzle should be redrawn.
+    pub needs_redraw: bool,
 }
