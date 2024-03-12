@@ -566,7 +566,6 @@ impl PuzzleRenderer {
             facet_normals: &self.model.facet_normals,
             vertex_3d_positions: &self.buffers.vertex_3d_positions,
             vertex_3d_normals: &self.buffers.vertex_3d_normals,
-            vertex_culls: &self.buffers.vertex_culls,
 
             puzzle_transform: &self.buffers.puzzle_transform,
             piece_transforms: &self.buffers.piece_transforms,
@@ -609,7 +608,6 @@ impl PuzzleRenderer {
         render_pass.set_vertex_buffer(0, self.buffers.vertex_3d_positions.slice(..));
         render_pass.set_vertex_buffer(1, self.buffers.vertex_3d_normals.slice(..));
         render_pass.set_vertex_buffer(2, self.model.polygon_ids.slice(..));
-        render_pass.set_vertex_buffer(3, self.buffers.vertex_culls.slice(..));
         render_pass.set_index_buffer(
             self.buffers.sorted_triangles.slice(..),
             wgpu::IndexFormat::Uint32,
@@ -630,7 +628,6 @@ impl PuzzleRenderer {
         let bind_groups = pipeline.bind_groups(pipelines::render_edge_ids::Bindings {
             edge_verts: &self.model.edges,
             vertex_3d_positions: &self.buffers.vertex_3d_positions,
-            vertex_culls: &self.buffers.vertex_culls,
 
             outline_radii: &self.buffers.outline_radii,
             draw_params: &self.buffers.draw_params,
@@ -867,12 +864,6 @@ struct_with_constructor! {
                     mesh.vertex_count(),
                     wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
                 ),
-                /// Vertex cull flag for each vertex.
-                vertex_culls: wgpu::Buffer = gfx.create_buffer::<f32>(
-                    label("vertex_culls"),
-                    mesh.vertex_count(),
-                    wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
-                ),
 
                 /*
                  * INDEX BUFFERS
@@ -982,7 +973,6 @@ impl DynamicPuzzleBuffers {
 
             vertex_3d_positions: clone_buffer!(gfx, id, self.vertex_3d_positions),
             vertex_3d_normals: clone_buffer!(gfx, id, self.vertex_3d_normals),
-            vertex_culls: clone_buffer!(gfx, id, self.vertex_culls),
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
             sorted_edges: clone_buffer!(gfx, id, self.sorted_edges),
 

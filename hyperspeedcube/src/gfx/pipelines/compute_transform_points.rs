@@ -16,7 +16,6 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
         facet_normals:          &'a wgpu::Buffer = pub(COMPUTE) bindings::FACET_NORMALS,
         vertex_3d_positions:    &'a wgpu::Buffer = pub(COMPUTE) bindings::VERTEX_3D_POSITIONS,
         vertex_3d_normals:      &'a wgpu::Buffer = pub(COMPUTE) bindings::VERTEX_3D_NORMALS,
-        vertex_culls:           &'a wgpu::Buffer = pub(COMPUTE) bindings::VERTEX_CULLS,
 
         puzzle_transform:       &'a wgpu::Buffer = pub(COMPUTE) bindings::PUZZLE_TRANSFORM,
         piece_transforms:       &'a wgpu::Buffer = pub(COMPUTE) bindings::PIECE_TRANSFORMS,

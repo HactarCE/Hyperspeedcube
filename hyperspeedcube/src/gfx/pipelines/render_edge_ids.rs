@@ -6,7 +6,6 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
     struct Bindings<'a> {
         edge_verts:          &'a wgpu::Buffer = pub(VERTEX) bindings::EDGE_VERTS,
         vertex_3d_positions: &'a wgpu::Buffer = pub(VERTEX) bindings::VERTEX_3D_POSITIONS_READONLY,
-        vertex_culls:        &'a wgpu::Buffer = pub(VERTEX) bindings::VERTEX_CULLS_READONLY,
 
         outline_radii:       &'a wgpu::Buffer = pub(VERTEX_FRAGMENT) bindings::OUTLINE_RADII,
         draw_params:         &'a wgpu::Buffer = pub(VERTEX_FRAGMENT) bindings::DRAW_PARAMS,

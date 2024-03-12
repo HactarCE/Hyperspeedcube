@@ -79,8 +79,6 @@ struct DrawParams {
 @group(1) @binding(4) var<storage, read_write> vertex_3d_positions: array<vec4<f32>>;
 @group(1) @binding(4) var<storage, read> read_vertex_3d_positions: array<vec4<f32>>;
 @group(1) @binding(5) var<storage, read_write> vertex_3d_normals: array<vec4<f32>>;
-@group(1) @binding(6) var<storage, read_write> vertex_culls: array<f32>; // TODO: maybe pack into bit array
-@group(1) @binding(6) var<storage, read> read_vertex_culls: array<f32>; // TODO: maybe pack into bit array
 
 // View parameters and transforms
 @group(2) @binding(0) var<uniform> puzzle_transform: array<vec4<f32>, NDIM>;
@@ -103,7 +101,7 @@ struct TransformedVertex {
     /// perspective-correct interpolation.
     position: vec4<f32>,
     normal: vec3<f32>,
-    cull: i32, // 0 = no cull. 1 = cull.
+    cull: bool,
 }
 
 /// Transforms a point from NDIM dimensions to 3D.
@@ -113,7 +111,7 @@ struct TransformedVertex {
 /// - all static mesh data except `polygon_color_ids`
 fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> TransformedVertex {
     var ret: TransformedVertex;
-    ret.cull = 0;
+    ret.cull = false;
 
     let base_idx = NDIM * vertex_index;
 
@@ -179,7 +177,7 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
         }
         // Cull if the dot product is positive (i.e., the camera is behind the
         // geometry).
-        ret.cull |= i32(dot_product_result >= 0.0);
+        ret.cull |= dot_product_result >= 0.0;
     }
 
     // Apply puzzle transformation and collapse to 4D.
@@ -203,7 +201,7 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     let vertex_3d_position = point_4d.xyz * recip_w_divisor;
     // Clip geometry that is behind the 4D camera.
     if draw_params.clip_4d_behind_camera != 0 {
-        ret.cull |= i32(w_divisor < W_DIVISOR_CLIPPING_PLANE);
+        ret.cull |= w_divisor < W_DIVISOR_CLIPPING_PLANE;
     }
 
     // Store the 3D position, before 3D perspective transformation.
@@ -462,7 +460,6 @@ struct PolygonsVertexInput {
     @location(0) position: vec4<f32>,
     @location(1) normal: vec4<f32>,
     @location(2) polygon_id: i32,
-    @location(3) cull: f32, // 0 = no cull. 1 = cull.
 }
 struct PolygonsVertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -480,11 +477,12 @@ fn compute_transform_points(@builtin(global_invocation_id) global_invocation_id:
         return;
     }
 
-    let point_3d = transform_point_to_3d(index, facet_ids[index], piece_ids[index]);
+    var point_3d = transform_point_to_3d(index, facet_ids[index], piece_ids[index]);
+    // Indicate that the vertex should be culled by setting W=0.
+    point_3d.position.w = select(point_3d.position.w, 0.0, point_3d.cull);
 
     vertex_3d_positions[index] = point_3d.position;
     vertex_3d_normals[index] = vec4(point_3d.normal, 1.0);
-    vertex_culls[index] = f32(point_3d.cull);
 }
 
 @vertex
@@ -493,7 +491,7 @@ fn render_polygons_vertex(in: PolygonsVertexInput) -> PolygonsVertexOutput {
     out.position = transform_world_to_clip_space(in.position);
     out.normal_xy = in.normal.xy;
     out.color_id = polygon_color_ids[in.polygon_id];
-    out.cull = f32(in.cull);
+    out.cull = f32(in.position.w == 0.0);
     return out;
 }
 
@@ -579,7 +577,7 @@ fn render_edge_ids_vertex(
     out.a = world_a;
     out.b = world_b;
     out.screen_space_xy = screen_space_xy;
-    out.cull = read_vertex_culls[edge_verts.r] + read_vertex_culls[edge_verts.g];
+    out.cull = f32((world_a.w == 0.0) | (world_b.w == 0.0));
     out.edge_id = edge_id + 1; // +1 because the texture is cleared to 0
     out.radius = capsule_radius;
     return out;

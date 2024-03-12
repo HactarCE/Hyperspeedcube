@@ -37,8 +37,6 @@ mod bindings {
     pub const VERTEX_3D_POSITIONS:          BindingMetadata = buffer(1, 4, Storage { read_only: false });
     pub const VERTEX_3D_POSITIONS_READONLY: BindingMetadata = buffer(1, 4, Storage { read_only: true });
     pub const VERTEX_3D_NORMALS:            BindingMetadata = buffer(1, 5, Storage { read_only: false });
-    pub const VERTEX_CULLS:                 BindingMetadata = buffer(1, 6, Storage { read_only: false });
-    pub const VERTEX_CULLS_READONLY:        BindingMetadata = buffer(1, 6, Storage { read_only: true });
 
     // View parameters and transforms
     pub const PUZZLE_TRANSFORM:             BindingMetadata = buffer(2, 0, Uniform);
@@ -63,7 +61,7 @@ const MIN_NDIM: u8 = 2;
 const MAX_NDIM: u8 = 8;
 
 pub(in crate::gfx) struct Pipelines {
-    /// Populate `vertex_3d_positions`, `vertex_lightings`, and `vertex_culls`.
+    /// Populate `vertex_3d_positions` and `vertex_lightings`.
     pub compute_transform_points: Vec<compute_transform_points::Pipeline>,
     /// Render polygons.
     pub render_polygons: render_polygons::Pipeline,

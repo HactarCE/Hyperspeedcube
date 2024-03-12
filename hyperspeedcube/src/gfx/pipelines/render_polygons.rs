@@ -14,7 +14,6 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
             single_type_vertex_buffer![0 => Float32x4], // position
             single_type_vertex_buffer![1 => Float32x4], // normal
             single_type_vertex_buffer![2 => Sint32],    // polygon_id
-            single_type_vertex_buffer![3 => Float32],   // cull
         ],
         depth_stencil: Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth32Float,
