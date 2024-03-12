@@ -10,7 +10,6 @@ pub(in crate::gfx) mod compute_transform_points;
 pub(in crate::gfx) mod render_composite_puzzle;
 pub(in crate::gfx) mod render_edge_ids;
 pub(in crate::gfx) mod render_polygons;
-pub(in crate::gfx) mod render_single_pass;
 
 #[rustfmt::skip]
 mod bindings {
@@ -72,8 +71,6 @@ pub(in crate::gfx) struct Pipelines {
     pub render_edge_ids: render_edge_ids::Pipeline,
     /// Composite polygons and edges into antialiased output.
     pub render_composite_puzzle: render_composite_puzzle::Pipeline,
-    /// Render the whole puzzle in a single pass.
-    pub render_single_pass: Vec<render_single_pass::Pipeline>,
     /// Blit a texture onto another texture.
     pub blit: blit::Pipeline,
 }
@@ -94,10 +91,6 @@ impl Pipelines {
             render_polygons: render_polygons::Pipeline::new(device, shader_module),
             render_edge_ids: render_edge_ids::Pipeline::new(device, shader_module),
             render_composite_puzzle: render_composite_puzzle::Pipeline::new(device, shader_module),
-            render_single_pass: shader_modules_by_dimension
-                .iter()
-                .map(|shader_module| render_single_pass::Pipeline::new(device, shader_module))
-                .collect(),
             blit: blit::Pipeline::new(
                 device,
                 shader_module,
@@ -113,12 +106,6 @@ impl Pipelines {
         ndim.checked_sub(MIN_NDIM)
             .and_then(|ndim| self.compute_transform_points.get(ndim as usize))
             .ok_or_eyre("error fetching transform points compute pipeline")
-    }
-
-    pub(super) fn render_single_pass(&self, ndim: u8) -> Result<&render_single_pass::Pipeline> {
-        ndim.checked_sub(MIN_NDIM)
-            .and_then(|ndim| self.render_single_pass.get(ndim as usize))
-            .ok_or_eyre("error fetching single pass render pipeline")
     }
 }
 

@@ -9,9 +9,8 @@ mod puzzle;
 mod state;
 mod structs;
 
-use bindings::BindGroups;
 use cache::{CachedTexture1d, CachedTexture2d};
-pub(crate) use puzzle::{DrawParams, PuzzleRenderResources, PuzzleRenderer, RenderEngine};
+pub(crate) use puzzle::{DrawParams, PuzzleRenderResources, PuzzleRenderer};
 pub(crate) use state::GraphicsState;
 
 /// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.

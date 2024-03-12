@@ -6,7 +6,7 @@ use hyperpuzzle::{PerPiece, Puzzle};
 use parking_lot::Mutex;
 
 use crate::{
-    gfx::{DrawParams, GraphicsState, PuzzleRenderResources, PuzzleRenderer, RenderEngine},
+    gfx::{DrawParams, GraphicsState, PuzzleRenderResources, PuzzleRenderer},
     preferences::{Preferences, ViewPreferences},
 };
 
@@ -16,19 +16,14 @@ pub struct PuzzleView {
     renderer: Option<Arc<Mutex<PuzzleRenderer>>>,
     gfx: Arc<GraphicsState>,
 
-    prev_draw_params: Option<DrawParams>,
     pub rot: Isometry,
     zoom: f32,
     piece_face_opacities: PerPiece<f32>,
     piece_edge_opacities: PerPiece<f32>,
 
     rect: egui::Rect,
-    // TODO: rename this to `render_strategy`
-    pub render_engine: RenderEngine,
 
     highlighted_piece_types: [bool; 10],
-
-    pub overlay: Vec<(Overlay, f32, egui::Color32)>,
 }
 impl PuzzleView {
     pub(crate) fn new(gfx: &Arc<GraphicsState>) -> Self {
@@ -37,18 +32,14 @@ impl PuzzleView {
             renderer: None,
             gfx: Arc::clone(gfx),
 
-            prev_draw_params: None,
             rot: Isometry::ident(),
             zoom: 0.5,
             piece_face_opacities: PerPiece::default(),
             piece_edge_opacities: PerPiece::default(),
 
             rect: egui::Rect::NOTHING,
-            render_engine: RenderEngine::default(),
 
             highlighted_piece_types: [true; 10],
-
-            overlay: vec![],
         }
     }
     pub(crate) fn set_puzzle(&mut self, puzzle: Arc<Puzzle>) {
@@ -184,26 +175,6 @@ impl PuzzleView {
         });
         self.piece_edge_opacities = puzzle.pieces.map_ref(|piece, info| 1.0);
 
-        let current_draw_params = DrawParams {
-            prefs: view_prefs,
-            target_size,
-            mouse_pos: [0.0; 2], // Don't bother refreshing when mouse moves.
-            rot: self.rot.clone(),
-            zoom: self.zoom,
-            background_color: prefs.colors.background,
-            outlines_color: prefs.outlines.default_color,
-            piece_face_opacities: self.piece_face_opacities.clone(),
-            piece_edge_opacities: self.piece_edge_opacities.clone(),
-        };
-
-        let force_redraw = !self
-            .prev_draw_params
-            .as_ref()
-            .is_some_and(|x| *x == current_draw_params);
-        if force_redraw {
-            self.prev_draw_params = Some(current_draw_params.clone());
-        }
-
         // Draw puzzle.
         let painter = ui.painter_at(egui_rect);
         painter.add(eframe::egui_wgpu::Callback::new_paint_callback(
@@ -211,9 +182,17 @@ impl PuzzleView {
             PuzzleRenderResources {
                 gfx: Arc::clone(&self.gfx),
                 renderer: Arc::clone(&renderer),
-                render_engine: self.render_engine,
-                draw_params: current_draw_params,
-                force_redraw,
+                draw_params: DrawParams {
+                    prefs: view_prefs,
+                    target_size,
+                    mouse_pos: [0.0; 2], // Don't bother refreshing when mouse moves.
+                    rot: self.rot.clone(),
+                    zoom: self.zoom,
+                    background_color: prefs.colors.background,
+                    outlines_color: prefs.outlines.default_color,
+                    piece_face_opacities: self.piece_face_opacities.clone(),
+                    piece_edge_opacities: self.piece_edge_opacities.clone(),
+                },
             },
         ));
 
@@ -225,11 +204,4 @@ impl PuzzleView {
         // TODO: animate
         // self.view_settings_anim.queue.push_back(view_prefs);
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum Overlay {
-    Point(Vector),
-    Line(Vector, Vector),
-    Arrow(Vector, Vector),
 }

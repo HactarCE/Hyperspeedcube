@@ -30,9 +30,7 @@ const Z_CLIP: f32 = 1024.0;
 pub struct PuzzleRenderResources {
     pub gfx: Arc<GraphicsState>,
     pub renderer: Arc<Mutex<PuzzleRenderer>>,
-    pub render_engine: RenderEngine,
     pub draw_params: DrawParams,
-    pub force_redraw: bool,
 }
 
 impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
@@ -44,16 +42,9 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         callback_resources: &mut eframe::egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
         let mut renderer = self.renderer.lock();
-        if self.force_redraw {
-            let result = match self.render_engine {
-                RenderEngine::SinglePass => {
-                    renderer.draw_puzzle_single_pass(egui_encoder, &self.draw_params)
-                }
-                RenderEngine::MultiPass => renderer.draw_puzzle(egui_encoder, &self.draw_params),
-            };
-            if let Err(e) = result {
-                log::error!("{e}");
-            }
+        let result = renderer.draw_puzzle(egui_encoder, &self.draw_params);
+        if let Err(e) = result {
+            log::error!("{e}");
         }
 
         // egui expects sRGB colors in the shader, so we have to read the sRGB
@@ -96,21 +87,6 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         render_pass.set_bind_groups(&bind_groups);
         render_pass.set_vertex_buffer(0, self.gfx.uv_vertex_buffer.slice(..));
         render_pass.draw(0..4, 0..1);
-    }
-}
-
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum RenderEngine {
-    SinglePass,
-    #[default]
-    MultiPass,
-}
-impl fmt::Display for RenderEngine {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RenderEngine::SinglePass => write!(f, "Fast"),
-            RenderEngine::MultiPass => write!(f, "Fancy"),
-        }
     }
 }
 
@@ -271,72 +247,12 @@ impl PuzzleRenderer {
         }
     }
 
-    pub fn draw_puzzle_single_pass(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        view_params: &DrawParams,
-    ) -> Result<()> {
-        let opacity_buckets = self.init_buffers(encoder, view_params)?;
-        if opacity_buckets.is_empty() {
-            return Ok(());
-        }
-        let index_range = opacity_buckets[0].triangles_range.start
-            ..opacity_buckets.last().unwrap().triangles_range.end;
-
-        let pipeline = &self.gfx.pipelines.render_single_pass(self.model.ndim)?;
-
-        // Render in a single pass.
-        {
-            let bind_groups = pipeline.bind_groups(pipelines::render_single_pass::Bindings {
-                vertex_positions: &self.model.vertex_positions,
-                u_tangents: &self.model.u_tangents,
-                v_tangents: &self.model.v_tangents,
-                sticker_shrink_vectors: &self.model.sticker_shrink_vectors,
-
-                piece_centroids: &self.model.piece_centroids,
-                facet_centroids: &self.model.facet_centroids,
-                facet_normals: &self.model.facet_normals,
-
-                puzzle_transform: &self.buffers.puzzle_transform,
-                piece_transforms: &self.buffers.piece_transforms,
-                camera_4d_pos: &self.buffers.camera_4d_pos,
-                polygon_color_ids: &self.buffers.polygon_color_ids,
-                draw_params: &self.buffers.draw_params,
-
-                colors_texture: &self.buffers.colors_texture.view,
-            });
-
-            let [r, g, b, _] = egui::Rgba::from(view_params.background_color).to_array();
-
-            let mut render_pass = pipelines::render_single_pass::PassParams {
-                clear_color: [r as f64, g as f64, b as f64],
-                color_texture: &self.buffers.composite_texture.view,
-                depth_texture: &self.buffers.polygons_depth_texture.view,
-            }
-            .begin_pass(encoder);
-
-            render_pass.set_pipeline(&pipeline.pipeline);
-            render_pass.set_bind_groups(&bind_groups);
-            render_pass.set_vertex_buffer(0, self.model.piece_ids.slice(..));
-            render_pass.set_vertex_buffer(1, self.model.facet_ids.slice(..));
-            render_pass.set_vertex_buffer(2, self.model.polygon_ids.slice(..));
-            render_pass.set_index_buffer(
-                self.buffers.sorted_triangles.slice(..),
-                wgpu::IndexFormat::Uint32,
-            );
-            render_pass.draw_indexed(index_range, 0, 0..1);
-            drop(render_pass);
-        }
-
-        Ok(())
-    }
-
     pub fn draw_puzzle(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
-        view_params: &DrawParams,
+        draw_params: &DrawParams,
     ) -> Result<()> {
-        let opacity_buckets = self.init_buffers(encoder, view_params)?;
+        let opacity_buckets = self.init_buffers(encoder, draw_params)?;
         if opacity_buckets.is_empty() {
             return Ok(());
         }
@@ -361,10 +277,10 @@ impl PuzzleRenderer {
     fn init_buffers(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
-        view_params: &DrawParams,
+        draw_params: &DrawParams,
     ) -> Result<Vec<GeometryBucket>> {
         // Make the textures the right size.
-        let size = view_params.target_size;
+        let size = draw_params.target_size;
         self.buffers.polygons_texture.set_size(size);
         self.buffers.polygons_depth_texture.set_size(size);
         self.buffers.edge_ids_texture.set_size(size);
@@ -378,47 +294,47 @@ impl PuzzleRenderer {
         // Compute the Z coordinate of the 3D camera; i.e., where the projection
         // rays converge (which may be behind the puzzle). This gives us either
         // the near plane or the far plane, depending on the sign of the 3D FOV.
-        let fov_signum = view_params.prefs.fov_3d.signum();
-        let camera_z = (fov_signum + 1.0 / view_params.w_factor_3d()).clamp(-Z_CLIP, Z_CLIP);
+        let fov_signum = draw_params.prefs.fov_3d.signum();
+        let camera_z = (fov_signum + 1.0 / draw_params.w_factor_3d()).clamp(-Z_CLIP, Z_CLIP);
 
         // Write the draw parameters.
         let data = GfxDrawParams {
-            light_dir: view_params.light_dir().into(),
-            face_light_intensity: view_params.prefs.face_light_intensity,
+            light_dir: draw_params.light_dir().into(),
+            face_light_intensity: draw_params.prefs.face_light_intensity,
             _padding: [0.0; 3],
-            outline_light_intensity: view_params.prefs.outline_light_intensity,
+            outline_light_intensity: draw_params.prefs.outline_light_intensity,
 
-            mouse_pos: view_params.mouse_pos,
+            mouse_pos: draw_params.mouse_pos,
 
-            target_size: view_params.target_size.map(|x| x as f32),
-            xy_scale: view_params.xy_scale()?.into(),
+            target_size: draw_params.target_size.map(|x| x as f32),
+            xy_scale: draw_params.xy_scale()?.into(),
 
-            facet_shrink: if view_params.prefs.show_internals && self.model.ndim == 3 {
+            facet_shrink: if draw_params.prefs.show_internals && self.model.ndim == 3 {
                 0.0
             } else {
-                view_params.prefs.facet_shrink
+                draw_params.prefs.facet_shrink
             },
-            sticker_shrink: if view_params.prefs.show_internals && self.model.ndim == 3 {
+            sticker_shrink: if draw_params.prefs.show_internals && self.model.ndim == 3 {
                 0.0
             } else {
-                view_params.prefs.sticker_shrink
+                draw_params.prefs.sticker_shrink
             },
-            piece_explode: view_params.prefs.piece_explode,
+            piece_explode: draw_params.prefs.piece_explode,
 
-            w_factor_4d: view_params.w_factor_4d(),
-            w_factor_3d: view_params.w_factor_3d(),
+            w_factor_4d: draw_params.w_factor_4d(),
+            w_factor_3d: draw_params.w_factor_3d(),
             fov_signum,
             near_plane_z: if fov_signum > 0.0 { camera_z } else { Z_CLIP },
             far_plane_z: if fov_signum < 0.0 { camera_z } else { -Z_CLIP },
-            clip_4d_backfaces: view_params.prefs.clip_4d_backfaces as i32,
-            clip_4d_behind_camera: view_params.prefs.clip_4d_behind_camera as i32,
+            clip_4d_backfaces: draw_params.prefs.clip_4d_backfaces as i32,
+            clip_4d_behind_camera: draw_params.prefs.clip_4d_behind_camera as i32,
         };
         self.gfx
             .queue
             .write_buffer(&self.buffers.draw_params, 0, bytemuck::bytes_of(&data));
 
         // Write the puzzle transform.
-        let puzzle_transform = view_params.rot.euclidean_rotation_matrix();
+        let puzzle_transform = draw_params.rot.euclidean_rotation_matrix();
         let puzzle_transform: Vec<f32> = puzzle_transform
             .cols_ndim(self.model.ndim)
             .flat_map(|column| column.iter_ndim(4).collect_vec())
@@ -444,8 +360,8 @@ impl PuzzleRenderer {
         );
 
         // Write the position of the 4D camera.
-        let camera_w = -1.0 - 1.0 / view_params.w_factor_4d() as Float;
-        let camera_4d_pos = view_params
+        let camera_w = -1.0 - 1.0 / draw_params.w_factor_4d() as Float;
+        let camera_4d_pos = draw_params
             .rot
             .reverse()
             .transform_point(vector![0.0, 0.0, 0.0, camera_w]);
@@ -517,11 +433,11 @@ impl PuzzleRenderer {
 
         // Sort pieces into buckets by opacity and write triangle & edge
         // indices.
-        let face_opacities = view_params
+        let face_opacities = draw_params
             .piece_face_opacities
             .iter()
             .map(|(piece, &opacity)| (opacity, piece, GeometryType::Faces));
-        let edge_opacities = view_params
+        let edge_opacities = draw_params
             .piece_edge_opacities
             .iter()
             .map(|(piece, &opacity)| (opacity, piece, GeometryType::Edges));
@@ -550,7 +466,7 @@ impl PuzzleRenderer {
                         encoder,
                         piece,
                         geometry_type,
-                        view_params.prefs.show_internals,
+                        draw_params.prefs.show_internals,
                         dst_offset,
                     );
                 }

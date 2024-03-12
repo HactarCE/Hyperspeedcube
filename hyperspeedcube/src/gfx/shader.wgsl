@@ -455,50 +455,7 @@ fn blit_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
 
 
 /*
- * SINGLE-PASS PIPELINE
- */
-
-struct SinglePassVertexInput {
-    @location(0) piece_id: i32,
-    @location(1) facet_id: i32,
-    @location(2) polygon_id: i32,
-}
-struct SinglePassVertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) cull: f32, // 0 = no cull. 1 = cull.
-    @location(1) lighting: f32,
-    @location(2) polygon_id: i32,
-}
-
-@vertex
-fn render_single_pass_vertex(
-    in: SinglePassVertexInput,
-    @builtin(vertex_index) idx: u32,
-) -> SinglePassVertexOutput {
-    let point_3d = transform_point_to_3d(i32(idx), in.facet_id, in.piece_id);
-
-    var out: SinglePassVertexOutput;
-    out.position = transform_world_to_clip_space(point_3d.position);
-    out.polygon_id = in.polygon_id;
-    out.lighting = 1.0;//saturate(point_3d.lighting);
-    out.cull = f32(point_3d.cull);
-    return out;
-}
-
-@fragment
-fn render_single_pass_fragment(in: SinglePassVertexOutput) -> @location(0) vec4<f32> {
-    if in.cull > 0.0 {
-        discard;
-    }
-
-    let color_id = polygon_color_ids[in.polygon_id];
-    return get_color(color_id, in.lighting);
-}
-
-
-
-/*
- * FANCY PIPELINE - POLYGONS
+ * RENDER POLYGONS
  */
 
 struct PolygonsVertexInput {
@@ -552,7 +509,7 @@ fn render_polygons_fragment(in: PolygonsVertexOutput) -> @location(0) vec2<u32> 
 
 
 /*
- * FANCY PIPELINE - EDGE IDS
+ * RENDER EDGES
  */
 
 struct EdgeIdsVertexOutput {
@@ -651,7 +608,7 @@ fn render_edge_ids_fragment(in: EdgeIdsVertexOutput) -> EdgeIdsFragmentOutput {
 
 
 /*
- * FANCY PIPELINE - COMPOSITING
+ * COMPOSITE POLYGONS & EDGES
  */
 
 /// Use with `uv_vertex` as vertex shader.

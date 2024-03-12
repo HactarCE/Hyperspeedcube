@@ -12,7 +12,6 @@ mod puzzle_view;
 
 // pub use debug::PolytopeTree;
 // pub use puzzle_setup::PuzzleSetup;
-use crate::gfx::RenderEngine;
 pub use puzzle_view::PuzzleView;
 
 use super::App;
@@ -94,20 +93,6 @@ impl Tab {
             Tab::ViewSettings => {
                 if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
                     let mut puzzle_view = puzzle_view.lock();
-
-                    ui.horizontal(|ui| {
-                        let options = [RenderEngine::SinglePass, RenderEngine::MultiPass];
-                        let mut i = match puzzle_view.render_engine {
-                            RenderEngine::SinglePass => 0,
-                            RenderEngine::MultiPass => 1,
-                        };
-                        let get_fn = |i: usize| options[i].to_string();
-                        egui::ComboBox::new(unique_id!(), "Render engine")
-                            .show_index(ui, &mut i, 2, get_fn);
-                        puzzle_view.render_engine = options[i];
-                    });
-
-                    ui.separator();
 
                     if ui.button("Reset camera").clicked() {
                         puzzle_view.rot = Isometry::ident();
