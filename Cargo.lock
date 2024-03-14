@@ -2315,6 +2315,7 @@ dependencies = [
 name = "hyperspeedcube"
 version = "2.0.0-pre.7"
 dependencies = [
+ "bitflags 2.4.2",
  "bitvec",
  "bytemuck",
  "cgmath",
@@ -2338,6 +2339,7 @@ dependencies = [
  "hyperpuzzle",
  "hypershape",
  "include_dir",
+ "indexmap 2.2.5",
  "instant",
  "itertools 0.10.5",
  "js-sys",
@@ -2445,6 +2447,7 @@ checksum = "7b0b929d511467233429c45a44ac1dcaa21ba0f5ba11e4879e6ed28ddb4f9df4"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.3",
+ "serde",
 ]
 
 [[package]]

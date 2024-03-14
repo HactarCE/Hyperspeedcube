@@ -47,7 +47,7 @@ mod bindings {
     pub const OUTLINE_RADII:                BindingMetadata = buffer(2, 5, Storage { read_only: true });
     pub const DRAW_PARAMS:                  BindingMetadata = buffer(2, 6, Uniform);
 
-    pub const COLORS_TEXTURE:               BindingMetadata = texture(0, 50, D1, Float { filterable: false });
+    pub const COLOR_PALETTE_TEXTURE:        BindingMetadata = texture(0, 50, D1, Float { filterable: false });
 
     pub const POLYGONS_TEXTURE:             BindingMetadata = texture(0, 100, D2, Uint);
     pub const POLYGONS_DEPTH_TEXTURE:       BindingMetadata = texture(0, 101, D2, Depth);

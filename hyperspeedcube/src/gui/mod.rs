@@ -38,7 +38,7 @@ impl AppUi {
         let initial_file = std::env::args().nth(1).map(std::path::PathBuf::from);
         let mut app = App::new(cc, initial_file);
 
-        let puzzle_view = Arc::new(Mutex::new(PuzzleView::new(&app.gfx)));
+        let puzzle_view = Arc::new(Mutex::new(None));
         app.active_puzzle_view = Arc::downgrade(&puzzle_view);
         let mut dock_state = egui_dock::DockState::new(vec![Tab::PuzzleView(puzzle_view)]);
         let main = NodeIndex::root();
@@ -66,8 +66,10 @@ impl AppUi {
             ui.label("todo");
         });
 
+        let dark_mode = ctx.style().visuals.dark_mode;
+        let background_color = self.app.prefs.styles.background_color(dark_mode);
         egui::CentralPanel::default()
-            .frame(egui::Frame::none().fill(self.app.prefs.colors.background))
+            .frame(egui::Frame::none().fill(background_color))
             .show(ctx, |ui| {
                 let mut style = egui_dock::Style::from_egui(ui.style());
                 style.tab_bar.fill_tab_bar = true;

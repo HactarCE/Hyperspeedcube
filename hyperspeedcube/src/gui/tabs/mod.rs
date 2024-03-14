@@ -41,7 +41,7 @@ pub enum Tab {
     InteractionSettings,
     ViewSettings,
 
-    PuzzleView(Arc<Mutex<PuzzleView>>),
+    PuzzleView(Arc<Mutex<Option<PuzzleView>>>),
     // PuzzleSetup(PuzzleSetup),
     // PolytopeTree(PolytopeTree),
     PuzzleLibraryDemo,
@@ -56,8 +56,8 @@ impl Tab {
             Tab::InteractionSettings => "Interaction".into(),
             Tab::ViewSettings => "View".into(),
 
-            Tab::PuzzleView(p) => match &p.lock().puzzle {
-                Some(p) => p.name.clone().into(),
+            Tab::PuzzleView(p) => match &*p.lock() {
+                Some(p) => p.puzzle().name.clone().into(),
                 None => "No Puzzle".into(),
             },
             // Tab::PuzzleSetup(_) => "Puzzle Setup".into(),
@@ -74,15 +74,16 @@ impl Tab {
 
         match self {
             Tab::AppearanceSettings => {
-                egui::CollapsingHeader::new("Colors")
-                    .default_open(true)
-                    .show(ui, |ui| prefs::build_colors_section(ui, app));
-                egui::CollapsingHeader::new("Outlines")
-                    .default_open(true)
-                    .show(ui, |ui| prefs::build_outlines_section(ui, app));
-                egui::CollapsingHeader::new("Opacity")
-                    .default_open(true)
-                    .show(ui, |ui| prefs::build_opacity_section(ui, app));
+                // TODO style settings
+                // egui::CollapsingHeader::new("Colors")
+                //     .default_open(true)
+                //     .show(ui, |ui| prefs::build_colors_section(ui, app));
+                // egui::CollapsingHeader::new("Outlines")
+                //     .default_open(true)
+                //     .show(ui, |ui| prefs::build_outlines_section(ui, app));
+                // egui::CollapsingHeader::new("Style")
+                //     .default_open(true)
+                //     .show(ui, |ui| prefs::build_style_section(ui, app));
                 egui::CollapsingHeader::new("Performance")
                     .default_open(true)
                     .show(ui, |ui| prefs::build_graphics_section(ui, app));
@@ -93,20 +94,31 @@ impl Tab {
             Tab::ViewSettings => {
                 if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
                     let mut puzzle_view = puzzle_view.lock();
+                    if let Some(puzzle_view) = &mut *puzzle_view {
+                        if ui.button("Reset camera").clicked() {
+                            puzzle_view.view_controller.rot = Isometry::ident();
+                        }
 
-                    if ui.button("Reset camera").clicked() {
-                        puzzle_view.rot = Isometry::ident();
+                        ui.separator();
                     }
-
-                    ui.separator();
                 }
 
                 prefs::build_view_section(ui, app);
             }
 
             Tab::PuzzleView(puzzle_view) => {
-                let mut puzzle_view_mutex_guard = puzzle_view.lock();
-                let r = puzzle_view_mutex_guard.ui(ui, &app.prefs);
+                let r = match &mut *puzzle_view.lock() {
+                    Some(puzzle_view) => puzzle_view.ui(ui, &app.prefs),
+                    None => {
+                        // Hint to the user to load a puzzle.
+                        ui.allocate_ui_at_rect(ui.available_rect_before_wrap(), |ui| {
+                            ui.centered_and_justified(|ui| {
+                                ui.label("Select a puzzle from the puzzle list");
+                            });
+                        })
+                        .response
+                    }
+                };
                 if r.gained_focus() {
                     app.active_puzzle_view = Arc::downgrade(puzzle_view);
                 }
@@ -392,32 +404,28 @@ impl Tab {
                 ui.separator();
             }
             Tab::PuzzleInfo => {
-                if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
-                    if let Some(puzzle) = &puzzle_view.lock().puzzle {
-                        ui.label(format!("ID: {}", puzzle.id));
-                        ui.label(format!("Name: {}", puzzle.name));
-                        ui.label(format!("Piece count: {}", puzzle.pieces.len()));
-                        ui.label(format!("Sticker count: {}", puzzle.stickers.len()));
-                        ui.label(format!("Color count: {}", puzzle.colors.len()));
+                if let Some(puzzle) = app.active_puzzle_type() {
+                    ui.label(format!("ID: {}", puzzle.id));
+                    ui.label(format!("Name: {}", puzzle.name));
+                    ui.label(format!("Piece count: {}", puzzle.pieces.len()));
+                    ui.label(format!("Sticker count: {}", puzzle.stickers.len()));
+                    ui.label(format!("Color count: {}", puzzle.colors.len()));
 
-                        ui.add_space(10.0);
-                        ui.heading("Piece types");
-                        for piece_type in puzzle.piece_types.iter_values() {
-                            ui.label(format!("• {}", &piece_type.name));
-                        }
+                    ui.add_space(10.0);
+                    ui.heading("Piece types");
+                    for piece_type in puzzle.piece_types.iter_values() {
+                        ui.label(format!("• {}", &piece_type.name));
+                    }
 
-                        ui.add_space(10.0);
-                        ui.heading("Colors");
-                        for color in puzzle.colors.iter_values() {
-                            let name = &color.name;
-                            let default_color_string = match &color.default_color {
-                                Some(default) => format!(" (default={default})"),
-                                None => String::new(),
-                            };
-                            ui.label(format!("• {name}{default_color_string}"));
-                        }
-                    } else {
-                        ui.label("No active puzzle");
+                    ui.add_space(10.0);
+                    ui.heading("Colors");
+                    for color in puzzle.colors.iter_values() {
+                        let name = &color.name;
+                        let default_color_string = match &color.default_color {
+                            Some(default) => format!(" (default={default})"),
+                            None => String::new(),
+                        };
+                        ui.label(format!("• {name}{default_color_string}"));
                     }
                 } else {
                     ui.label("No active puzzle");

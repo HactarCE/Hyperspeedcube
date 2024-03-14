@@ -4,7 +4,7 @@ use crate::app::App;
 use crate::gui::components::{with_reset_button, PresetsUi, WidgetWithReset};
 use crate::gui::ext::*;
 use crate::gui::util::Access;
-use crate::preferences::{OpacityPreferences, DEFAULT_PREFS};
+use crate::preferences::DEFAULT_PREFS;
 use crate::serde_impl::hex_color;
 
 pub struct PrefsUi<'a, T> {
@@ -147,34 +147,34 @@ impl<T> PrefsUi<'_, T> {
     }
 }
 
-pub fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
-    let prefs = &mut app.prefs;
+// pub fn build_colors_section(ui: &mut egui::Ui, app: &mut App) {
+//     let prefs = &mut app.prefs;
 
-    let mut changed = false;
-    let mut prefs_ui = PrefsUi {
-        ui,
-        current: &mut prefs.colors,
-        defaults: &DEFAULT_PREFS.colors,
-        changed: &mut changed,
-    };
+//     let mut changed = false;
+//     let mut prefs_ui = PrefsUi {
+//         ui,
+//         current: &mut prefs.colors,
+//         defaults: &DEFAULT_PREFS.colors,
+//         changed: &mut changed,
+//     };
 
-    // prefs_ui.ui.strong("Faces");
-    // for (i, &face) in puzzle_type.faces().iter().enumerate() {
-    //     prefs_ui.color(face.name, access!([(puzzle_type, Face(i as _))]));
-    // }
+//     // prefs_ui.ui.strong("Faces");
+//     // for (i, &face) in puzzle_type.faces().iter().enumerate() {
+//     //     prefs_ui.color(face.name, access!([(puzzle_type, Face(i as _))]));
+//     // }
 
-    // prefs_ui.ui.separator();
+//     // prefs_ui.ui.separator();
 
-    prefs_ui.ui.strong("Special");
-    prefs_ui.color("Background", access!(.background));
-    prefs_ui.color("Blindfolded stickers", access!(.blind_face));
-    prefs_ui.checkbox("Blindfold mode", access!(.blindfold));
+//     prefs_ui.ui.strong("Special");
+//     prefs_ui.color("Background", access!(.background));
+//     prefs_ui.color("Blindfolded stickers", access!(.blind_face));
+//     prefs_ui.checkbox("Blindfold mode", access!(.blindfold));
 
-    prefs.needs_save |= changed;
-    if changed {
-        app.request_redraw_puzzle();
-    }
-}
+//     prefs.needs_save |= changed;
+//     if changed {
+//         app.request_redraw_puzzle();
+//     }
+// }
 pub fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
 
@@ -296,66 +296,73 @@ pub fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
 
     prefs.needs_save |= changed;
 }
-pub fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
-    let prefs = &mut app.prefs;
+// pub fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
+//     let prefs = &mut app.prefs;
 
-    let mut changed = false;
-    let mut prefs_ui = PrefsUi {
-        ui,
-        current: &mut prefs.outlines,
-        defaults: &DEFAULT_PREFS.outlines,
-        changed: &mut changed,
-    };
+//     let mut changed = false;
+//     let mut prefs_ui = PrefsUi {
+//         ui,
+//         current: &mut prefs.outlines,
+//         defaults: &DEFAULT_PREFS.outlines,
+//         changed: &mut changed,
+//     };
 
-    prefs_ui.ui.strong("Colors");
-    prefs_ui.color("Default", access!(.default_color));
-    prefs_ui.color("Hidden", access!(.hidden_color));
-    prefs_ui.color("Hovered", access!(.hovered_color));
-    prefs_ui.color("Sel. sticker", access!(.selected_sticker_color));
-    prefs_ui.color("Sel. piece", access!(.selected_piece_color));
+//     prefs_ui.collapsing("Outline colors", |mut prefs_ui| {
+//         prefs_ui
+//             .checkbox("Use sticker colors", access!(.use_sticker_colors))
+//             .on_hover_explanation(
+//                 "",
+//                 "No effect when internals are visible and \
+//                  stickers have some spacing between them.",
+//             );
 
-    prefs_ui.ui.separator();
+//         prefs_ui.color("Default", access!(.default_color));
+//         prefs_ui.color("Hidden", access!(.hidden_color));
+//         prefs_ui.color("Hovered", access!(.hovered_color));
+//         prefs_ui.color("Sel. sticker", access!(.selected_sticker_color));
+//         prefs_ui.color("Sel. piece", access!(.selected_piece_color));
+//     });
 
-    prefs_ui.ui.strong("Sizes");
+//     prefs_ui.collapsing("Outline sizes", |mut prefs_ui| {
+//         fn outline_size_dv(drag_value: egui::DragValue<'_>) -> egui::DragValue<'_> {
+//             drag_value
+//                 .fixed_decimals(1)
+//                 .clamp_range(0.0..=5.0_f32)
+//                 .speed(0.01)
+//         }
+//         prefs_ui.num("Default", access!(.default_size), outline_size_dv);
+//         prefs_ui.num("Hidden", access!(.hidden_size), outline_size_dv);
+//         prefs_ui.num("Hovered", access!(.hovered_size), outline_size_dv);
+//         prefs_ui.num("Selected", access!(.selected_size), outline_size_dv);
+//     });
 
-    fn outline_size_dv(drag_value: egui::DragValue<'_>) -> egui::DragValue<'_> {
-        drag_value
-            .fixed_decimals(1)
-            .clamp_range(0.0..=5.0_f32)
-            .speed(0.01)
-    }
-    prefs_ui.num("Default", access!(.default_size), outline_size_dv);
-    prefs_ui.num("Hidden", access!(.hidden_size), outline_size_dv);
-    prefs_ui.num("Hovered", access!(.hovered_size), outline_size_dv);
-    prefs_ui.num("Selected", access!(.selected_size), outline_size_dv);
+//     prefs.needs_save |= changed;
+//     if changed {
+//         app.request_redraw_puzzle();
+//     }
+// }
+// pub fn build_opacity_section(ui: &mut egui::Ui, app: &mut App) {
+//     let prefs = &mut app.prefs;
 
-    prefs.needs_save |= changed;
-    if changed {
-        app.request_redraw_puzzle();
-    }
-}
-pub fn build_opacity_section(ui: &mut egui::Ui, app: &mut App) {
-    let prefs = &mut app.prefs;
+//     let mut changed = false;
+//     let mut prefs_ui = PrefsUi {
+//         ui,
+//         current: &mut prefs.opacity,
+//         defaults: &DEFAULT_PREFS.opacity,
+//         changed: &mut changed,
+//     };
 
-    let mut changed = false;
-    let mut prefs_ui = PrefsUi {
-        ui,
-        current: &mut prefs.opacity,
-        defaults: &DEFAULT_PREFS.opacity,
-        changed: &mut changed,
-    };
+//     prefs_ui.percent("Base", access!(.base));
+//     prefs_ui.percent("Ungripped", access!(.ungripped));
+//     prefs_ui.percent("Hidden", access!(.hidden));
+//     prefs_ui.percent("Selected", access!(.selected));
+//     build_unhide_grip_checkbox(&mut prefs_ui);
 
-    prefs_ui.percent("Base", access!(.base));
-    prefs_ui.percent("Ungripped", access!(.ungripped));
-    prefs_ui.percent("Hidden", access!(.hidden));
-    prefs_ui.percent("Selected", access!(.selected));
-    build_unhide_grip_checkbox(&mut prefs_ui);
-
-    prefs.needs_save |= changed;
-    if changed {
-        app.request_redraw_puzzle();
-    }
-}
+//     prefs.needs_save |= changed;
+//     if changed {
+//         app.request_redraw_puzzle();
+//     }
+// }
 pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     let Some(puzzle_type) = app.active_puzzle_type() else {
         ui.label("No puzzle loaded");
@@ -389,9 +396,6 @@ pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
                 let mut r = ui.scope(|ui| {
                     if ui.button("Load").clicked() {
                         let old = std::mem::replace(&mut presets.current, preset.value.clone());
-                        if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
-                            puzzle_view.lock().animate_from_view_settings(old);
-                        }
                         presets.active_preset = Some(preset.clone());
                         changed = true;
                     }
@@ -498,7 +502,8 @@ pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
         prefs_ui.angle("Yaw", access!(.light_yaw), |dv| {
             dv.clamp_range(-180.0..=180.0)
         });
-        prefs_ui.percent("Intensity", access!(.face_light_intensity));
+        prefs_ui.percent("Intensity (faces)", access!(.face_light_intensity));
+        prefs_ui.percent("Intensity (outlines)", access!(.outline_light_intensity));
     });
 
     prefs_ui.collapsing("Performance", |mut prefs_ui| {
@@ -512,14 +517,4 @@ pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
     if changed {
         app.request_redraw_puzzle();
     }
-}
-
-pub fn build_unhide_grip_checkbox(prefs_ui: &mut PrefsUi<'_, OpacityPreferences>) {
-    prefs_ui
-        .checkbox("Unhide grip", access!(.unhide_grip))
-        .on_hover_explanation(
-            "",
-            "When enabled, gripping a face will temporarily \
-             disable piece filters.",
-        );
 }

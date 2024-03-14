@@ -1,5 +1,3 @@
-use std::ops::{Add, Mul};
-
 use cgmath::Point3;
 
 pub const INVALID_STR: &str = "<invalid>";
@@ -98,4 +96,10 @@ pub fn wrap_words<S: AsRef<str>>(words: impl Iterator<Item = S>) -> String {
         }
     }
     ret
+}
+
+/// Converts an `egui::Color32` to a `[u8; 3]`, ignoring alpha.
+pub(crate) fn color_to_u8x3(color: egui::Color32) -> [u8; 3] {
+    let [r, g, b, _a] = color.to_array();
+    [r, g, b]
 }

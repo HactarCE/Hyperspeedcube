@@ -22,23 +22,48 @@ interaction:
   dynamic_twist_speed: true
   twist_duration: 0.2
   other_anim_duration: 0.15
-opacity:
-  base: 1.0
-  ungripped: 0.3
-  hidden: 0.1
-  selected: 1.0
-  unhide_grip: false
-  save_opacity_in_piece_filter_preset: false
-outlines:
-  default_size: 1.0
-  hidden_size: 1.0
-  hovered_size: 3.0
-  selected_size: 2.0
-  default_color: "#000000"
-  hidden_color: "#000000"
-  hovered_color: "#ffffff"
-  selected_sticker_color: "#ff7700"
-  selected_piece_color: "#bbbb00"
+styles:
+  dark_background_color: "#444444"
+  light_background_color: "#cccccc"
+  internals_color: "#777777"
+  default:
+    interactable: true
+    face_opacity: 1.0
+    face_color: "#cccccc"
+    face_sticker_color: true
+    outline_opacity: 1.0
+    outline_color: "#000000"
+    outline_sticker_color: false
+    outline_size: 1.0
+  gripped:
+    face_opacity: 1.0
+    outline_opacity: 1.0
+    outline_size: 1.0
+  ungripped:
+    interactable: false
+    face_opacity: 0.3
+    outline_opacity: 0.3
+    outline_size: 0.0
+  hovered_piece:
+    face_opacity: 1.0
+    outline_opacity: 3.0
+    outline_color: "#ffffff"
+    outline_sticker_color: false
+    outline_size: 3.0
+  hovered_sticker: {}
+  selected_piece:
+    face_opacity: 1.0
+    outline_opacity: 1.0
+    outline_color: "#66ccdd"
+    outline_size: 0.2
+  selected_sticker: {}
+  hidden:
+    interactable: false
+    face_opacity: 0.1
+    outline_opacity: 0.1
+    outline_size: 0.0
+  blind: {}
+  custom: {}
 view_3d:
   pitch: 35.0
   yaw: -20.0
@@ -218,10 +243,6 @@ view_4d:
       light_directional: 1.0
       light_pitch: 65.0
       light_yaw: -55.0
-colors:
-  background: "#444444"
-  blind_face: "#cccccc"
-  blindfold: false
 piece_filters: ~
 global_keybinds: []
 puzzle_keybinds: ~

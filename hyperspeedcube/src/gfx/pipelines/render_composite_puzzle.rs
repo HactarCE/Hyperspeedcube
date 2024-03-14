@@ -11,7 +11,7 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
         outline_radii:          &'a wgpu::Buffer = pub(FRAGMENT) bindings::OUTLINE_RADII,
         draw_params:            &'a wgpu::Buffer = pub(FRAGMENT) bindings::DRAW_PARAMS,
 
-        colors_texture:         &'a wgpu::TextureView = pub(FRAGMENT) bindings::COLORS_TEXTURE,
+        color_palette_texture:         &'a wgpu::TextureView = pub(FRAGMENT) bindings::COLOR_PALETTE_TEXTURE,
 
         polygons_texture:       &'a wgpu::TextureView = pub(FRAGMENT) bindings::POLYGONS_TEXTURE,
         polygons_depth_texture: &'a wgpu::TextureView = pub(FRAGMENT) bindings::POLYGONS_DEPTH_TEXTURE,

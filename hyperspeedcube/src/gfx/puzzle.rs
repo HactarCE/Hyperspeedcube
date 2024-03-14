@@ -5,11 +5,15 @@
 //! 3. Composite results and antialias.
 //! 4. Repeat all three steps for each opacity level.
 
+use std::collections::HashMap;
 use std::fmt;
 use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
+use bitvec::bitbox;
+use bitvec::boxed::BitBox;
+use bitvec::order::Lsb0;
 use eyre::{bail, eyre, Result};
 use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, Puzzle};
@@ -17,6 +21,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::preferences::ViewPreferences;
+use crate::puzzle::PieceStyleValues;
 
 use super::bindings::{BindGroups, WgpuPassExt};
 use super::pipelines;
@@ -32,6 +37,16 @@ const Z_CLIP: f32 = 1024.0;
 /// even when not necessary.
 const SEND_MOUSE_POS: bool = false;
 
+/// Color ID for the background.
+const BACKGROUND_COLOR_ID: u32 = 0;
+/// Color ID for the internals.
+const INTERNALS_COLOR_ID: u32 = 1;
+/// First color ID for stickers.
+const FACES_BASE_COLOR_ID: u32 = 2;
+
+/// How much to scale outline radius values compared to size of one 3D unit.
+const OUTLINE_RADIUS_SCALE_FACTOR: f32 = 0.005;
+
 pub struct PuzzleRenderResources {
     pub gfx: Arc<GraphicsState>,
     pub renderer: Arc<Mutex<PuzzleRenderer>>,
@@ -46,6 +61,7 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         callback_resources: &mut eframe::egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
         let mut renderer = self.renderer.lock();
+
         let result = renderer.draw_puzzle(egui_encoder);
         if let Err(e) = result {
             log::error!("{e}");
@@ -134,12 +150,9 @@ pub(crate) struct DrawParams {
     pub rot: Isometry,
     pub zoom: f32,
 
-    // TODO: these don't actually do anything, do they?
-    pub background_color: egui::Color32,
-    pub outlines_color: egui::Color32,
-
-    pub piece_face_opacities: PerPiece<f32>,
-    pub piece_edge_opacities: PerPiece<f32>,
+    pub background_color: [u8; 3],
+    pub internals_color: [u8; 3],
+    pub piece_styles: Vec<(PieceStyleValues, BitBox<u64>)>,
 }
 impl DrawParams {
     /// Returns the X and Y scale factors to convert screen space to NDC.
@@ -218,6 +231,29 @@ impl DrawParams {
             rot: self.rot.clone(),
         }
     }
+
+    pub fn show_internals(&self, ndim: u8) -> bool {
+        self.prefs.show_internals && ndim == 3
+    }
+    pub fn facet_shrink(&self, ndim: u8) -> f32 {
+        if self.show_internals(ndim) {
+            0.0
+        } else {
+            self.prefs.facet_shrink
+        }
+    }
+    pub fn sticker_shrink(&self, ndim: u8) -> f32 {
+        if self.show_internals(ndim) {
+            0.0
+        } else {
+            self.prefs.sticker_shrink
+        }
+    }
+    pub fn outlines_may_use_sticker_color(&self, ndim: u8) -> bool {
+        !self.show_internals(ndim)
+            && self.prefs.facet_shrink > 0.0
+            && (self.prefs.sticker_shrink > 0.0 || self.prefs.piece_explode > 0.0)
+    }
 }
 
 /// Define a struct with fields, doc comments, and initial values all at once.
@@ -289,13 +325,13 @@ impl Clone for PuzzleRenderer {
 }
 
 impl PuzzleRenderer {
-    pub fn new(gfx: &Arc<GraphicsState>, puzzle: Arc<Puzzle>) -> Self {
+    pub fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Self {
         let id = next_buffer_id();
         PuzzleRenderer {
             gfx: Arc::clone(gfx),
             model: Arc::new(StaticPuzzleModel::new(&gfx, &puzzle.mesh, id, &puzzle)),
             buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &puzzle.mesh, id),
-            puzzle,
+            puzzle: Arc::clone(puzzle),
 
             prep: None,
         }
@@ -442,128 +478,215 @@ impl PuzzleRenderer {
         let camera_z = (fov_signum + 1.0 / draw_params.w_factor_3d()).clamp(-Z_CLIP, Z_CLIP);
 
         // Write the draw parameters.
-        let data = GfxDrawParams {
-            light_dir: draw_params.light_dir().into(),
-            face_light_intensity: draw_params.prefs.face_light_intensity,
-            _padding: [0.0; 3],
-            outline_light_intensity: draw_params.prefs.outline_light_intensity,
+        {
+            let data = GfxDrawParams {
+                light_dir: draw_params.light_dir().into(),
+                face_light_intensity: draw_params.prefs.face_light_intensity,
+                _padding: [0.0; 3],
+                outline_light_intensity: draw_params.prefs.outline_light_intensity,
 
-            mouse_pos: draw_params.mouse_pos,
+                mouse_pos: draw_params.mouse_pos,
 
-            target_size: draw_params.target_size.map(|x| x as f32),
-            xy_scale: draw_params.xy_scale()?.into(),
+                target_size: draw_params.target_size.map(|x| x as f32),
+                xy_scale: draw_params.xy_scale()?.into(),
 
-            facet_shrink: if draw_params.prefs.show_internals && self.model.ndim == 3 {
-                0.0
-            } else {
-                draw_params.prefs.facet_shrink
-            },
-            sticker_shrink: if draw_params.prefs.show_internals && self.model.ndim == 3 {
-                0.0
-            } else {
-                draw_params.prefs.sticker_shrink
-            },
-            piece_explode: draw_params.prefs.piece_explode,
+                facet_shrink: draw_params.facet_shrink(self.puzzle.ndim()),
+                sticker_shrink: draw_params.sticker_shrink(self.puzzle.ndim()),
+                piece_explode: draw_params.prefs.piece_explode,
 
-            w_factor_4d: draw_params.w_factor_4d(),
-            w_factor_3d: draw_params.w_factor_3d(),
-            fov_signum,
-            near_plane_z: if fov_signum > 0.0 { camera_z } else { Z_CLIP },
-            far_plane_z: if fov_signum < 0.0 { camera_z } else { -Z_CLIP },
-            clip_4d_backfaces: draw_params.prefs.clip_4d_backfaces as i32,
-            clip_4d_behind_camera: draw_params.prefs.clip_4d_behind_camera as i32,
-        };
-        self.gfx
-            .queue
-            .write_buffer(&self.buffers.draw_params, 0, bytemuck::bytes_of(&data));
+                w_factor_4d: draw_params.w_factor_4d(),
+                w_factor_3d: draw_params.w_factor_3d(),
+                fov_signum,
+                near_plane_z: if fov_signum > 0.0 { camera_z } else { Z_CLIP },
+                far_plane_z: if fov_signum < 0.0 { camera_z } else { -Z_CLIP },
+                clip_4d_backfaces: draw_params.prefs.clip_4d_backfaces as i32,
+                clip_4d_behind_camera: draw_params.prefs.clip_4d_behind_camera as i32,
+            };
+            self.gfx
+                .queue
+                .write_buffer(&self.buffers.draw_params, 0, bytemuck::bytes_of(&data));
+        }
 
         // Write the puzzle transform.
-        let puzzle_transform = draw_params.rot.euclidean_rotation_matrix();
-        let puzzle_transform: Vec<f32> = puzzle_transform
-            .cols_ndim(self.model.ndim)
-            .flat_map(|column| column.iter_ndim(4).collect_vec())
-            .map(|x| x as f32)
-            .collect();
-        self.gfx.queue.write_buffer(
-            &self.buffers.puzzle_transform,
-            0,
-            bytemuck::cast_slice(puzzle_transform.as_slice()),
-        );
+        {
+            let puzzle_transform = draw_params.rot.euclidean_rotation_matrix();
+            let puzzle_transform: Vec<f32> = puzzle_transform
+                .cols_ndim(self.model.ndim)
+                .flat_map(|column| column.iter_ndim(4).collect_vec())
+                .map(|x| x as f32)
+                .collect();
+            self.gfx.queue.write_buffer(
+                &self.buffers.puzzle_transform,
+                0,
+                bytemuck::cast_slice(puzzle_transform.as_slice()),
+            );
+        }
 
         // Write the piece transforms.
-        let piece_transforms = vec![Matrix::ident(self.model.ndim); self.puzzle.pieces.len()];
-        let piece_transforms_data: Vec<f32> = piece_transforms
-            .iter()
-            .flat_map(|m| m.as_slice())
-            .map(|&x| x as f32)
-            .collect();
-        self.gfx.queue.write_buffer(
-            &self.buffers.piece_transforms,
-            0,
-            bytemuck::cast_slice(&piece_transforms_data),
-        );
+        {
+            let piece_transforms = vec![Matrix::ident(self.model.ndim); self.puzzle.pieces.len()];
+            let piece_transforms_data: Vec<f32> = piece_transforms
+                .iter()
+                .flat_map(|m| m.as_slice())
+                .map(|&x| x as f32)
+                .collect();
+            self.gfx.queue.write_buffer(
+                &self.buffers.piece_transforms,
+                0,
+                bytemuck::cast_slice(&piece_transforms_data),
+            );
+        }
 
         // Write the position of the 4D camera.
-        let camera_w = -1.0 - 1.0 / draw_params.w_factor_4d() as Float;
-        let camera_4d_pos = draw_params
-            .rot
-            .reverse()
-            .transform_point(vector![0.0, 0.0, 0.0, camera_w]);
-        let camera_4d_pos_data: Vec<f32> = camera_4d_pos
-            .to_finite()
-            .map_err(|_| eyre!("camera 4D position is not finite"))?
-            .iter_ndim(self.model.ndim)
-            .map(|x| x as f32)
-            .collect();
-        self.gfx.queue.write_buffer(
-            &self.buffers.camera_4d_pos,
-            0,
-            bytemuck::cast_slice(&camera_4d_pos_data),
-        );
+        {
+            let camera_w = -1.0 - 1.0 / draw_params.w_factor_4d() as Float;
+            let camera_4d_pos = draw_params
+                .rot
+                .reverse()
+                .transform_point(vector![0.0, 0.0, 0.0, camera_w]);
+            let camera_4d_pos_data: Vec<f32> = camera_4d_pos
+                .to_finite()
+                .map_err(|_| eyre!("camera 4D position is not finite"))?
+                .iter_ndim(self.model.ndim)
+                .map(|x| x as f32)
+                .collect();
+            self.gfx.queue.write_buffer(
+                &self.buffers.camera_4d_pos,
+                0,
+                bytemuck::cast_slice(&camera_4d_pos_data),
+            );
+        }
 
-        // Write the sticker colors. TOOD: only write to buffer when it changes
+        // Assign each unique color an identifying index.
         // 0 = background
         // 1 = internals
         // 2+N = sticker color N
-        // others = outline colors
-        let mut colors_data = vec![[41, 41, 41, 255], [63, 63, 63, 255]];
-        colors_data.extend(
-            (0..self.model.color_count)
-                .map(|i| colorous::RAINBOW.eval_rational(i, self.model.color_count))
-                .map(|c| c.into_array())
-                .map(|[r, g, b]| [r, g, b, 255]),
-        );
-        colors_data.push([0, 0, 0, 255]); // outlines color
-        self.buffers.colors_texture.write(&colors_data);
-
-        // Write the polygon color IDs. TODO: only write to buffer when it changes
-        let mut polygon_color_ids_data = vec![0; self.model.polygon_count];
-        for (polygon_id, &polygon_color_id) in
-            self.model.default_polygon_color_ids.iter().enumerate()
+        // others = other colors (such as outlines)
+        let mut color_palette = vec![draw_params.background_color, draw_params.internals_color];
+        color_palette.extend((0..self.model.color_count).map(|i| {
+            colorous::RAINBOW
+                .eval_rational(i, self.model.color_count)
+                .into_array()
+        }));
+        let mut color_ids: HashMap<[u8; 3], u32> = color_palette
+            .iter()
+            .enumerate()
+            .map(|(i, &color)| (color, i as u32))
+            .collect();
+        for new_color in draw_params
+            .piece_styles
+            .iter()
+            .flat_map(|(style_values, _)| [style_values.face_color, style_values.outline_color])
         {
-            polygon_color_ids_data[polygon_id] = if polygon_color_id == hyperpuzzle::Color::INTERNAL
-            {
-                1
-            } else {
-                2 + polygon_color_id.0 as u32
-            };
+            color_ids.entry(new_color).or_insert_with(|| {
+                let idx = color_palette.len() as u32;
+                color_palette.push(new_color);
+                idx
+            });
         }
+        let mut color_palette_size = color_palette.len() as u32;
+        let max_color_palette_size = self.gfx.device.limits().max_texture_dimension_1d;
+        if color_palette_size > max_color_palette_size {
+            log::warn!(
+                "Color palette size ({color_palette_size}) exceeds \
+                 maximum 1D texture size ({max_color_palette_size})"
+            );
+            color_palette_size = max_color_palette_size;
+        }
+        self.buffers
+            .color_palette_texture
+            .set_size(color_palette_size);
+
+        // Write color palette. TOOD: only write to buffer when it changes
+        let color_palette_data = color_palette
+            .into_iter()
+            .map(|[r, g, b]| [r, g, b, 255])
+            .collect_vec();
+        self.buffers
+            .color_palette_texture
+            .write(&color_palette_data);
+
+        if draw_params.piece_styles.is_empty() {
+            log::error!("no piece styles");
+            return Ok(vec![]);
+        }
+
+        // Create a map from pieces to styles.
+        let mut piece_style_indices = self.puzzle.pieces.map_ref(|_, _| 0);
+        for (i, (_style, piece_set)) in draw_params.piece_styles.iter().enumerate() {
+            for piece in piece_set.iter_ones() {
+                piece_style_indices[Piece(piece as _)] = i;
+            }
+        }
+
+        let mut polygon_color_ids_data = vec![0; self.model.polygon_count];
+        let mut outline_color_ids_data = vec![0; self.model.edge_count];
+        let mut outline_radii_data = vec![0.0; self.model.edge_count];
+
+        fn u32_range_to_usize(r: &Range<u32>) -> Range<usize> {
+            r.start as usize..r.end as usize
+        }
+
+        for (piece, piece_info) in &self.puzzle.pieces {
+            let style = draw_params.piece_styles[piece_style_indices[piece]].0;
+            let fallback_face_color = color_ids[&style.face_color];
+            let fallback_outline_color = color_ids[&style.outline_color];
+
+            // Should the faces/outlines use the sticker color?
+            let face_sticker_color = style.face_sticker_color;
+            let outline_sticker_color = style.outline_sticker_color
+                && draw_params.outlines_may_use_sticker_color(self.puzzle.ndim());
+
+            for &sticker in &piece_info.stickers {
+                let sticker_color =
+                    FACES_BASE_COLOR_ID + self.puzzle.stickers[sticker].color.0 as u32;
+
+                // Write sticker face colors.
+                let face_color_id = match face_sticker_color {
+                    true => sticker_color,
+                    false => fallback_face_color,
+                };
+                let polygon_range = &self.model.sticker_polygon_ranges[sticker];
+                polygon_color_ids_data[polygon_range.clone()].fill(face_color_id);
+
+                // Write sticker outline colors.
+                let outline_color_id = match outline_sticker_color {
+                    true => sticker_color,
+                    false => fallback_outline_color,
+                };
+                let edge_range = u32_range_to_usize(&self.model.sticker_edge_ranges[sticker]);
+                outline_color_ids_data[edge_range.clone()].fill(outline_color_id);
+                // Write sticker outline radii.
+                outline_radii_data[edge_range]
+                    .fill(style.outline_size * OUTLINE_RADIUS_SCALE_FACTOR);
+            }
+
+            // Write internals face colors.
+            let face_color_id = match face_sticker_color {
+                true => INTERNALS_COLOR_ID,
+                false => fallback_face_color,
+            };
+            let polygon_range = &self.model.piece_internals_polygon_ranges[piece];
+            polygon_color_ids_data[polygon_range.clone()].fill(face_color_id);
+
+            // Write internals outline colors.
+            let outline_color_id = match outline_sticker_color {
+                true => INTERNALS_COLOR_ID,
+                false => fallback_outline_color,
+            };
+            let edge_range = u32_range_to_usize(&self.model.piece_internals_edge_ranges[piece]);
+            outline_color_ids_data[edge_range.clone()].fill(outline_color_id);
+            // Write internals outline radii.
+            outline_radii_data[edge_range].fill(style.outline_size * OUTLINE_RADIUS_SCALE_FACTOR);
+        }
+
+        // Ok but now actually write that data.
+        // TODO: only write to buffer when it changes
         self.gfx.queue.write_buffer(
             &self.buffers.polygon_color_ids,
             0,
             bytemuck::cast_slice(&polygon_color_ids_data),
         );
-
-        // Write the outline color IDs and radii. TOOD: only write to buffer when it changes
-        let mut outline_color_ids_data: Vec<u32> =
-            vec![colors_data.len() as u32 - 1; self.model.edge_count];
-        let outline_radii_data: Vec<f32> = vec![0.005; self.model.edge_count];
-        for (sticker, edge_range) in &self.model.sticker_edge_ranges {
-            for edge_id in edge_range.clone() {
-                outline_color_ids_data[edge_id as usize] =
-                    self.model.stickers[sticker].color.0 as u32 + 2;
-            }
-        }
         self.gfx.queue.write_buffer(
             &self.buffers.outline_color_ids,
             0,
@@ -575,53 +698,80 @@ impl PuzzleRenderer {
             bytemuck::cast_slice(&outline_radii_data),
         );
 
-        // Sort pieces into buckets by opacity and write triangle & edge
-        // indices.
-        let face_opacities = draw_params
-            .piece_face_opacities
+        // Make a list of unique opacity values in sorted order.
+        let mut bucket_opacities: Vec<u8> = draw_params
+            .piece_styles
             .iter()
-            .map(|(piece, &opacity)| (opacity, piece, GeometryType::Faces));
-        let edge_opacities = draw_params
-            .piece_edge_opacities
-            .iter()
-            .map(|(piece, &opacity)| (opacity, piece, GeometryType::Edges));
-
-        let opacities = face_opacities.chain(edge_opacities);
-        let opacity_groups = opacities
-            .sorted_by(|a, b| f32::total_cmp(&a.0, &b.0))
+            .flat_map(|(style, _)| [style.face_opacity, style.outline_opacity])
+            .sorted_unstable()
             .rev()
-            .group_by(|&(opacity, _, _)| opacity);
+            .dedup()
+            .collect();
+        let mut bucket_id_by_opacity = vec![0; 256];
+        for (i, &opacity) in bucket_opacities.iter().enumerate() {
+            bucket_id_by_opacity[opacity as usize] = i as u8;
+        }
+        // For each bucket, get the set of pieces whose faces/edges are in that
+        // bucket.
+        let empty_piece_set = bitbox![u64, Lsb0; 0; self.puzzle.pieces.len()];
+        let mut bucket_face_pieces = vec![empty_piece_set; bucket_opacities.len()];
+        let mut bucket_edge_pieces = bucket_face_pieces.clone();
+        for (style, piece_set) in &draw_params.piece_styles {
+            let triangles_bucket_id = bucket_id_by_opacity[style.face_opacity as usize];
+            bucket_face_pieces[triangles_bucket_id as usize] |= piece_set;
+
+            let edges_bucket_id = bucket_id_by_opacity[style.outline_opacity as usize];
+            bucket_edge_pieces[edges_bucket_id as usize] |= piece_set;
+        }
+
+        // If the first bucket is totally transparent, then skip it.
+        if bucket_opacities.first() == Some(&0) {
+            bucket_opacities.remove(0);
+            bucket_face_pieces.remove(0);
+            bucket_edge_pieces.remove(0);
+        }
+        if bucket_opacities.is_empty() {
+            // TODO: still draw background color somehow!
+            return Ok(vec![]);
+        }
 
         let mut triangles_buffer_index = 0;
         let mut edges_buffer_index = 0;
 
-        let mut buckets: Vec<GeometryBucket> = opacity_groups
-            .into_iter()
-            .map(|(opacity, geometry_elements)| {
-                let triangles_buffer_start = triangles_buffer_index;
-                let edges_buffer_start = edges_buffer_index;
+        let mut buckets: Vec<GeometryBucket> =
+            itertools::izip!(bucket_opacities, bucket_face_pieces, bucket_edge_pieces)
+                .map(|(opacity, face_pieces, outline_pieces)| {
+                    let triangles_buffer_start = triangles_buffer_index;
+                    for piece_id in face_pieces.iter_ones() {
+                        self.write_geometry_for_piece(
+                            encoder,
+                            Piece(piece_id as _),
+                            GeometryType::Faces,
+                            draw_params.prefs.show_internals,
+                            &mut triangles_buffer_index,
+                        );
+                    }
+                    let triangles_range = triangles_buffer_start..triangles_buffer_index;
 
-                for (_opacity, piece, geometry_type) in geometry_elements {
-                    let dst_offset = match geometry_type {
-                        GeometryType::Faces => &mut triangles_buffer_index,
-                        GeometryType::Edges => &mut edges_buffer_index,
-                    };
-                    self.write_geometry_for_piece(
-                        encoder,
-                        piece,
-                        geometry_type,
-                        draw_params.prefs.show_internals,
-                        dst_offset,
-                    );
-                }
+                    let edges_buffer_start = edges_buffer_index;
+                    for piece_id in outline_pieces.iter_ones() {
+                        self.write_geometry_for_piece(
+                            encoder,
+                            Piece(piece_id as _),
+                            GeometryType::Edges,
+                            draw_params.prefs.show_internals,
+                            &mut edges_buffer_index,
+                        );
+                    }
+                    let edges_range = edges_buffer_start..edges_buffer_index;
 
-                GeometryBucket {
-                    opacity,
-                    triangles_range: triangles_buffer_start..triangles_buffer_index,
-                    edges_range: edges_buffer_start..edges_buffer_index,
-                }
-            })
-            .collect();
+                    GeometryBucket {
+                        opacity: opacity as f32 / 255.0,
+                        triangles_range,
+                        edges_range,
+                    }
+                })
+                .collect();
 
         // Replace absolute opacity with incrmental opacity (difference between
         // opacities of the current bucket and the next bucket).
@@ -808,7 +958,7 @@ impl PuzzleRenderer {
             outline_radii: &self.buffers.outline_radii,
             draw_params: &self.buffers.draw_params,
 
-            colors_texture: &self.buffers.colors_texture.view,
+            color_palette_texture: &self.buffers.color_palette_texture.view,
 
             polygons_texture: &self.buffers.polygons_texture.view,
             polygons_depth_texture: &self.buffers.polygons_depth_texture.view,
@@ -872,10 +1022,10 @@ struct_with_constructor! {
                 color_count: usize = mesh.color_count,
                 vertex_count: usize = mesh.vertex_count(),
                 polygon_count: usize = mesh.polygon_count,
-                default_polygon_color_ids: Vec<hyperpuzzle::Color> = mesh.polygon_color_ids.clone(),
                 edge_count: usize = mesh.edge_count(),
                 triangle_count: usize = mesh.triangle_count(),
-                stickers: PerSticker<hyperpuzzle::StickerInfo> = puzzle.stickers.clone(),
+                sticker_polygon_ranges: PerSticker<Range<usize>> = mesh.sticker_polygon_ranges.clone(),
+                piece_internals_polygon_ranges: PerPiece<Range<usize>> = mesh.piece_internals_polygon_ranges.clone(),
 
                 /*
                  * PER-VERTEX STORAGE BUFFERS
@@ -1028,10 +1178,10 @@ struct_with_constructor! {
                 /*
                  * TEXTURES
                  */
-                /// Colors texture.
-                colors_texture: CachedTexture1d = CachedTexture1d::new(
+                /// Color palette texture.
+                color_palette_texture: CachedTexture1d = CachedTexture1d::new(
                     Arc::clone(&gfx),
-                    label("colors_texture"),
+                    label("color_palette_texture"),
                     wgpu::TextureFormat::Rgba8UnormSrgb,
                     wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
                 ),
@@ -1120,7 +1270,7 @@ impl DynamicPuzzleBuffers {
             sorted_triangles: clone_buffer!(gfx, id, self.sorted_triangles),
             sorted_edges: clone_buffer!(gfx, id, self.sorted_edges),
 
-            colors_texture: clone_texture!(id, self.colors_texture),
+            color_palette_texture: clone_texture!(id, self.color_palette_texture),
 
             polygons_texture: clone_texture!(id, self.polygons_texture),
             polygons_depth_texture: clone_texture!(id, self.polygons_depth_texture),

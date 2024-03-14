@@ -4,9 +4,7 @@ use std::sync::{Arc, Weak};
 use hyperpuzzle::Puzzle;
 use parking_lot::Mutex;
 use wgpu::TextureView;
-use winit::event::WindowEvent;
-use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
-use winit::window::Window;
+use winit::event_loop::ControlFlow;
 
 use crate::gfx::GraphicsState;
 use crate::gui::PuzzleView;
@@ -17,7 +15,7 @@ pub struct App {
 
     pub(crate) prefs: Preferences,
 
-    pub(crate) active_puzzle_view: Weak<Mutex<PuzzleView>>,
+    pub(crate) active_puzzle_view: Weak<Mutex<Option<PuzzleView>>>,
 }
 
 impl App {
@@ -34,16 +32,21 @@ impl App {
     }
 
     pub(crate) fn active_puzzle_type(&self) -> Option<Arc<Puzzle>> {
-        let puzzle_view = self.active_puzzle_view.upgrade()?;
-        let puzzle_view_mutex_guard = puzzle_view.lock();
-        Some(Arc::clone(puzzle_view_mutex_guard.puzzle.as_ref()?))
+        self.with_active_puzzle_view(|puzzle_view| puzzle_view.puzzle())
+    }
+    pub(crate) fn with_active_puzzle_view<R>(
+        &self,
+        f: impl FnOnce(&mut PuzzleView) -> R,
+    ) -> Option<R> {
+        let active_puzzle_view = self.active_puzzle_view.upgrade()?;
+        let mut puzzle_view_mutex_guard = active_puzzle_view.lock();
+        Some(f(puzzle_view_mutex_guard.as_mut()?))
     }
 
     pub(crate) fn reload_puzzle(&mut self) {
         if let Some(puzzle_view) = self.active_puzzle_view.upgrade() {
             crate::LIBRARY.with(|lib| {
-                let puzzle_view = puzzle_view.lock();
-                let puzzle = puzzle_view.puzzle.as_ref()?;
+                let puzzle = self.active_puzzle_type()?;
                 let puzzle_db = lib.puzzles();
                 let puzzle_data = puzzle_db.get(&puzzle.id)?;
                 drop(puzzle_view);
@@ -66,8 +69,7 @@ impl App {
             Ok(p) => {
                 if let Some(puzzle_view) = self.active_puzzle_view.upgrade() {
                     log::info!("set active puzzle!");
-                    puzzle_view.lock().set_puzzle(Arc::clone(&p));
-                    puzzle_view.lock().puzzle = Some(p);
+                    *puzzle_view.lock() = Some(PuzzleView::new(&self.gfx, &p));
                 } else {
                     log::warn!("no active puzzle view");
                 }

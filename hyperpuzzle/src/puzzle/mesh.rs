@@ -3,7 +3,7 @@ use std::ops::Range;
 use eyre::{OptionExt, Result};
 use hypermath::prelude::*;
 
-use super::{Color, PerPiece, PerSticker, Piece};
+use super::{PerPiece, PerSticker, Piece};
 use crate::Facet;
 
 /// Data to render a puzzle, in a format that can be sent to the GPU.
@@ -35,15 +35,17 @@ pub struct Mesh {
     /// Polygon ID for each vertex. Each polygon is a single color.
     pub polygon_ids: Vec<u32>,
 
-    /// Color ID for each polygon.
-    pub polygon_color_ids: Vec<Color>,
-
     /// Centroid for each piece, used to apply piece explode.
     pub piece_centroids: Vec<f32>,
     /// Centroid for each facet, used to apply facet shrink.
     pub facet_centroids: Vec<f32>,
     /// Normal vector for each facet, used to cull 4D backfaces.
     pub facet_normals: Vec<f32>,
+
+    /// For each sticker, the range of polygon IDs it spans.
+    pub sticker_polygon_ranges: PerSticker<Range<usize>>,
+    /// For each piece, the range of polygon IDs its internals spans.
+    pub piece_internals_polygon_ranges: PerPiece<Range<usize>>,
 
     /// Vertex indices for triangles.
     pub triangles: Vec<[u32; 3]>,
@@ -57,7 +59,7 @@ pub struct Mesh {
     pub edges: Vec<[u32; 2]>,
     /// For each sticker, the range in `edges` containing its edges.
     pub sticker_edge_ranges: PerSticker<Range<u32>>,
-    /// For each piece, the range in `edges` containing its internal's edges.
+    /// For each piece, the range in `edges` containing its internals' edges.
     pub piece_internals_edge_ranges: PerPiece<Range<u32>>,
 }
 
@@ -85,8 +87,6 @@ impl Mesh {
             facet_ids: vec![],
             polygon_ids: vec![],
 
-            polygon_color_ids: vec![],
-
             piece_centroids: vec![],
             facet_centroids: vec![],
             facet_normals: vec![],
@@ -98,6 +98,9 @@ impl Mesh {
             edges: vec![],
             sticker_edge_ranges: PerSticker::new(),
             piece_internals_edge_ranges: PerPiece::new(),
+
+            sticker_polygon_ranges: PerSticker::new(),
+            piece_internals_polygon_ranges: PerPiece::new(),
         }
     }
 
@@ -153,10 +156,12 @@ impl Mesh {
     /// Adds a sticker to the mesh.
     pub(super) fn add_sticker(
         &mut self,
+        polygon_range: Range<usize>,
         triangle_range: Range<u32>,
         edge_range: Range<u32>,
     ) -> Result<()> {
         self.sticker_count += 1;
+        self.sticker_polygon_ranges.push(polygon_range)?;
         self.sticker_triangle_ranges.push(triangle_range)?;
         self.sticker_edge_ranges.push(edge_range)?;
 
@@ -166,12 +171,15 @@ impl Mesh {
     pub(super) fn add_piece(
         &mut self,
         centroid: &impl VectorRef,
+        internals_polygon_range: Range<usize>,
         internals_triangle_range: Range<u32>,
         internals_edge_range: Range<u32>,
     ) -> Result<()> {
         let ndim = self.ndim();
         self.piece_count += 1;
         self.piece_centroids.extend(iter_f32(ndim, centroid));
+        self.piece_internals_polygon_ranges
+            .push(internals_polygon_range)?;
         self.piece_internals_triangle_ranges
             .push(internals_triangle_range)?;
         self.piece_internals_edge_ranges

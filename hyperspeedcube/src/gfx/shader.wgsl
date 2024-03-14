@@ -53,7 +53,7 @@ struct DrawParams {
  */
 
 // Textures and texture samplers
-@group(0) @binding(50)  var colors_texture: texture_1d<f32>;
+@group(0) @binding(50)  var color_palette_texture: texture_1d<f32>;
 @group(0) @binding(100) var polygons_texture: texture_2d<u32>;
 @group(0) @binding(101) var polygons_depth_texture: texture_depth_2d;
 @group(0) @binding(102) var edge_ids_texture: texture_2d<u32>;
@@ -323,7 +323,7 @@ fn transform_screen_space_to_world_ray(screen_space_xy: vec2<f32>) -> Ray {
 
 /// Returns a color by ID.
 fn get_color(color_id: u32, lighting: f32) -> vec4<f32> {
-    return vec4(textureLoad(colors_texture, color_id, 0).rgb * lighting, 1.0);
+    return vec4(textureLoad(color_palette_texture, color_id, 0).rgb * lighting, 1.0);
 }
 /// Returns the lighting multiplier, given a normal vector.
 fn compute_lighting(normal: vec3<f32>, intensity: f32) -> f32 {

@@ -9,7 +9,6 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-mod colors;
 mod gfx;
 mod info;
 mod interaction;
@@ -19,27 +18,24 @@ mod migration {
     pub const LATEST_VERSION: u32 = 2;
 }
 mod mousebinds;
-mod opacity;
-mod outlines;
 #[cfg(not(target_arch = "wasm32"))]
 mod persist_local;
 #[cfg(target_arch = "wasm32")]
 mod persist_web;
+mod styles;
 mod view;
 
 use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
-pub use colors::*;
 pub use gfx::*;
 pub use info::*;
 pub use interaction::*;
 pub use keybinds::*;
 pub use mousebinds::*;
-pub use opacity::*;
-pub use outlines::*;
 #[cfg(not(target_arch = "wasm32"))]
 use persist_local as persist;
 #[cfg(target_arch = "wasm32")]
 use persist_web as persist;
+pub use styles::*;
 pub use view::*;
 
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
@@ -69,13 +65,10 @@ pub struct Preferences {
 
     pub gfx: GfxPreferences,
     pub interaction: InteractionPreferences,
-    pub opacity: OpacityPreferences,
-    pub outlines: OutlinePreferences,
+    pub styles: StylePreferences,
 
     pub view_3d: WithPresets<ViewPreferences>,
     pub view_4d: WithPresets<ViewPreferences>,
-
-    pub colors: ColorPreferences,
 
     pub piece_filters: (), // TODO
 

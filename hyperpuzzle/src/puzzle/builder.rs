@@ -249,35 +249,45 @@ impl PuzzleBuilder {
 
                 facets[facet_id].centroid += sticker_centroid;
 
-                let (triangles_index_range, edges_index_range) = build_shape_polygons(
-                    &space,
-                    &mut mesh,
-                    &mut simplexifier,
-                    &sticker_shrink_vectors,
-                    sticker_shape,
-                    sticker_color,
-                    piece_id,
-                    facet_id,
-                )?;
+                let (polygon_index_range, triangles_index_range, edges_index_range) =
+                    build_shape_polygons(
+                        &space,
+                        &mut mesh,
+                        &mut simplexifier,
+                        &sticker_shrink_vectors,
+                        sticker_shape,
+                        piece_id,
+                        facet_id,
+                    )?;
 
                 if sticker_color == Color::INTERNAL {
                     if piece_internals_indices_start.is_none() {
-                        piece_internals_indices_start =
-                            Some((triangles_index_range.start, edges_index_range.start));
+                        piece_internals_indices_start = Some((
+                            polygon_index_range.start,
+                            triangles_index_range.start,
+                            edges_index_range.start,
+                        ));
                     }
                 } else {
-                    mesh.add_sticker(triangles_index_range, edges_index_range)?;
+                    mesh.add_sticker(
+                        polygon_index_range,
+                        triangles_index_range,
+                        edges_index_range,
+                    )?;
                 }
             }
 
+            let mut piece_internals_polygon_range = 0..0;
             let mut piece_internals_triangle_range = 0..0;
             let mut piece_internals_edge_range = 0..0;
-            if let Some((tri_start, edge_start)) = piece_internals_indices_start {
+            if let Some((polygon_start, tri_start, edge_start)) = piece_internals_indices_start {
+                piece_internals_polygon_range = polygon_start..mesh.polygon_count;
                 piece_internals_triangle_range = tri_start..mesh.triangle_count() as u32;
                 piece_internals_edge_range = edge_start..mesh.edge_count() as u32;
             }
             mesh.add_piece(
                 &piece_centroid,
+                piece_internals_polygon_range,
                 piece_internals_triangle_range,
                 piece_internals_edge_range,
             )?;
@@ -537,10 +547,10 @@ fn build_shape_polygons(
     simplexifier: &mut Simplexifier<'_>,
     sticker_shrink_vectors: &HashMap<VertexId, Vector>,
     sticker_shape: AtomicPolytopeRef,
-    sticker_color: Color,
     piece_id: Piece,
     facet_id: Facet,
-) -> Result<(Range<u32>, Range<u32>)> {
+) -> Result<(Range<usize>, Range<u32>, Range<u32>)> {
+    let polygons_start = mesh.polygon_count;
     let triangles_start = mesh.triangle_count() as u32;
     let edges_start = mesh.edge_count() as u32;
 
@@ -597,13 +607,16 @@ fn build_shape_polygons(
             // up in triangles.
             mesh.edges.push(edge.map(|id| vertex_id_map[&id]))
         }
-
-        mesh.polygon_color_ids.push(sticker_color);
     }
 
+    let polygons_end = mesh.polygon_count;
     let triangles_end = mesh.triangle_count() as u32;
     let edges_end = mesh.edge_count() as u32;
-    Ok((triangles_start..triangles_end, edges_start..edges_end))
+    Ok((
+        polygons_start..polygons_end,
+        triangles_start..triangles_end,
+        edges_start..edges_end,
+    ))
 }
 
 fn uppercase_names() -> impl Iterator<Item = String> {

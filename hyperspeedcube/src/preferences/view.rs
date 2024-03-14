@@ -28,8 +28,6 @@ pub struct ViewPreferences {
     pub sticker_shrink: f32,
     pub piece_explode: f32,
 
-    pub outline_thickness: f32,
-
     pub face_light_intensity: f32,
     pub outline_light_intensity: f32,
     pub light_pitch: f32,
@@ -61,10 +59,8 @@ impl Default for ViewPreferences {
             sticker_shrink: 0.0,
             piece_explode: 0.0,
 
-            outline_thickness: 1.0,
-
-            face_light_intensity: 0.0,
-            outline_light_intensity: 1.0,
+            face_light_intensity: 1.0,
+            outline_light_intensity: 0.0,
             light_pitch: 0.0,
             light_yaw: 0.0,
 
@@ -103,7 +99,6 @@ impl ViewPreferences {
             facet_shrink: lerp(self.facet_shrink, rhs.facet_shrink, t),
             sticker_shrink: lerp(self.sticker_shrink, rhs.sticker_shrink, t),
             piece_explode: lerp(self.piece_explode, rhs.piece_explode, t),
-            outline_thickness: lerp(self.outline_thickness, rhs.outline_thickness, t),
             face_light_intensity: lerp(self.face_light_intensity, rhs.face_light_intensity, t),
             outline_light_intensity: lerp(
                 self.outline_light_intensity,

@@ -17,10 +17,10 @@ mod debug;
 mod commands;
 mod gui;
 // mod logfile;
-mod preferences;
-// pub mod puzzle;
 mod app;
 mod gfx;
+mod preferences;
+mod puzzle;
 mod serde_impl;
 mod util;
 

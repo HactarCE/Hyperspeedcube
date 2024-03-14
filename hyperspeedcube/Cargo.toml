@@ -14,6 +14,7 @@ license = "CC-BY-NC-SA-4.0"
 workspace = true
 
 [dependencies]
+bitflags = "2.4.2"
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 bytemuck = { version = "1.9.1", features = ["derive"] }
 cgmath = "0.18.0"
@@ -28,6 +29,7 @@ rand = "*"
 getrandom = { version = "*", features = ["js"] } # TODO: prefer `rand` crate
 hex = "0.4.3"
 include_dir = "0.7.3"
+indexmap = { version = "2.2.5", features = ["serde"] }
 instant = "0.1.12"
 itertools = "0.10.3"
 key-names = { git = "https://github.com/HactarCE/key-names", tag = "v1.5.1", features = ["winit"] }
