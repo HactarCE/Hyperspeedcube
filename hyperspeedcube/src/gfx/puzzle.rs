@@ -130,6 +130,7 @@ pub(crate) struct GeometryCacheKey {
     pub scale: f32,
     pub fov_3d: f32,
     pub fov_4d: f32,
+    pub show_internals: bool,
     pub facet_shrink: f32,
     pub sticker_shrink: f32,
     pub piece_explode: f32,
@@ -215,7 +216,7 @@ impl DrawParams {
             * Vector3::unit_z()
     }
 
-    fn geometry_cache_key(&self) -> GeometryCacheKey {
+    fn geometry_cache_key(&self, ndim: u8) -> GeometryCacheKey {
         GeometryCacheKey {
             pitch: self.prefs.pitch,
             yaw: self.prefs.yaw,
@@ -223,7 +224,8 @@ impl DrawParams {
             scale: self.prefs.scale,
             fov_3d: self.prefs.fov_3d,
             fov_4d: self.prefs.fov_4d,
-            facet_shrink: self.prefs.facet_shrink,
+            show_internals: self.show_internals(ndim),
+            facet_shrink: self.facet_shrink(ndim),
             sticker_shrink: self.prefs.sticker_shrink,
             piece_explode: self.prefs.piece_explode,
 
@@ -343,7 +345,7 @@ impl PuzzleRenderer {
             draw_params.mouse_pos = [0.0; 2];
         }
 
-        let geometry_cache_key = draw_params.geometry_cache_key();
+        let geometry_cache_key = draw_params.geometry_cache_key(self.puzzle.ndim());
 
         let needs_recompute_vertex_3d_positions =
             self.geometry_cache_key() != Some(&geometry_cache_key);
