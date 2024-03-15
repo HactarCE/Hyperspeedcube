@@ -16,10 +16,11 @@ use crate::{
 #[derive(Debug)]
 pub struct PuzzleView {
     pub view_controller: PuzzleViewController,
-
     /// Puzzle renderer. This is wrapped in an `Arc<Mutex<T>>` because egui
     /// needs access to it during rendering, when we are not in control.
     renderer: Arc<Mutex<PuzzleRenderer>>,
+
+    is_dragging: bool,
 }
 impl PuzzleView {
     pub(crate) fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Self {
@@ -35,6 +36,8 @@ impl PuzzleView {
         Self {
             view_controller,
             renderer,
+
+            is_dragging: false,
         }
     }
 
@@ -73,6 +76,16 @@ impl PuzzleView {
             r.request_focus();
         }
 
+        // egui reports `r.dragged()` whenever the mouse is held, even if it
+        // didn't move, so we manually keep track of whether the mouse has
+        // moved.
+        if !r.dragged() {
+            self.is_dragging = false;
+        }
+        if r.drag_delta() != egui::Vec2::ZERO {
+            self.is_dragging = true
+        }
+
         let puzzle = self.puzzle();
         let view_prefs = prefs.view(&puzzle).clone();
 
@@ -92,7 +105,7 @@ impl PuzzleView {
 
         let scroll_delta = ui.input(|input| input.scroll_delta);
         let mut mouse_pos: Option<cgmath::Point2<f32>> = None;
-        if r.hovered() && !r.dragged() {
+        if r.hovered() && !self.is_dragging {
             view_ctrl.zoom *= (scroll_delta.y / 100.0).exp2();
             view_ctrl.zoom = view_ctrl.zoom.clamp(2.0_f32.powf(-6.0), 2.0_f32.powf(8.0));
             if let Some(pos) = r.hover_pos() {
