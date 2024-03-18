@@ -18,7 +18,7 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
         depth_stencil: Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth32Float,
             depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::Greater,
+            depth_compare: wgpu::CompareFunction::Less,
             stencil: wgpu::StencilState::default(),
             bias: wgpu::DepthBiasState::default(),
         }),
@@ -39,7 +39,7 @@ pub(in crate::gfx) struct PassParams<'tex> {
 impl<'pass> PassParams<'pass> {
     pub fn begin_pass(self, encoder: &'pass mut wgpu::CommandEncoder) -> wgpu::RenderPass<'pass> {
         encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("render_polygons"),
+            label: Some("render_ids"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: self.ids_texture,
                 resolve_target: None,
@@ -55,7 +55,7 @@ impl<'pass> PassParams<'pass> {
                 view: self.ids_depth_texture,
                 depth_ops: Some(wgpu::Operations {
                     load: match self.clear {
-                        true => wgpu::LoadOp::Clear(0.0),
+                        true => wgpu::LoadOp::Clear(1.0),
                         false => wgpu::LoadOp::Load,
                     },
                     store: wgpu::StoreOp::Store,

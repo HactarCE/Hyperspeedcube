@@ -18,6 +18,10 @@ const COLOR_BACKGROUND: u32 = 0u;
  */
 
 struct DrawParams {
+    // Precomputed values for functions
+    transform_depth_to_world_z_values: vec4<f32>,
+    transform_world_z_to_depth_values: vec4<f32>,
+
     // Lighting
     light_dir: vec3<f32>,
     face_light_intensity: f32,
@@ -141,7 +145,7 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
         piece_idx++;
     }
     var old_pos = new_pos;
-    var old_normal = new_normal;
+    var old_normal = new_normal; // TODO: should be `let`. workaround for https://github.com/gfx-rs/wgpu/issues/4920
 
     // Apply piece transform.
     new_pos = array<f32, NDIM>();
@@ -211,7 +215,7 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     // Apply 3D perspective transformation.
     let xy = vertex_3d_position.xy;
     let recip_z_divisor = 1.0 / z_divisor;
-    var vertex_2d_position = xy * recip_z_divisor;
+    let vertex_2d_position = xy * recip_z_divisor;
 
     // Let:
     //
@@ -234,7 +238,7 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
 
     // Use the 3D-perspective-transformed normal to the Z component to
     // figure out which side of the surface is visible.
-    var orientation = sign(u_2d.x * v_2d.y - u_2d.y * v_2d.x) * sign(z_divisor);
+    let orientation = sign(u_2d.x * v_2d.y - u_2d.y * v_2d.x) * sign(z_divisor);
     ret.normal = normalize(cross(u_3d, v_3d)) * orientation;
 
     return ret;
@@ -255,17 +259,53 @@ fn z_divisor(z: f32) -> f32 {
 /// Converts a 3D world space Z coordinate to a value written directly to the
 /// depth buffer.
 fn transform_world_z_to_depth(z: f32) -> f32 {
-    // Map [far, near] to [0, 1]
-    let near = draw_params.near_plane_z;
-    let far = draw_params.far_plane_z;
-    return (z - far) / (near - far);
+    // Map [near, far] to [0, 1] in the shape of a reciprocal function with an
+    // asymptote at the camera Z coordinate.
+    //
+    // Here's a Desmos plot showing this function and its inverse:
+    // https://www.desmos.com/calculator/micuh2ldlw
+    //
+    // ( z - n )( wf*(s-f) + 1 )
+    // -------------------------
+    // ( f - n )( wf*(s-z) + 1 )
+    //
+    // We can rearrange this formula into a form that is easy to compute with
+    // respect to z:
+    //
+    // z * (wf*(f+s)+1) + -n*(wf*(s-f)+1)
+    // ----------------------------------
+    // z *  -wf*(f-n)   +  (f-n)*(wf*s+1)
+    //
+    // Since those values are the same for all points, we compute them on the
+    // CPU ahead of time:
+    //
+    // X * z + Y
+    // ---------
+    // Z * z + W
+    let v = draw_params.transform_world_z_to_depth_values;
+    return (v.x * z + v.y) / (v.z * z + v.w);
 }
 /// Converts a depth value to a 3D world space Z coordinate.
 fn transform_depth_to_world_z(depth: f32) -> f32 {
-    // Map [0, 1] to [far, near]
-    let near = draw_params.near_plane_z;
-    let far = draw_params.far_plane_z;
-    return mix(far, near, depth);
+    // Map [1, 0] to [far, near] in the shape of a reciprocal function with an
+    // asymptote at the camera's depth coordinate.
+    //
+    // See `transform_world_z_to_depth()` for the function we want to invert
+    // (and the corresponding Desmos plot). Suffice to say, this is the function
+    // we want to implement (where d=depth):
+    //
+    // d * (f-n)*(wf*s+1) + n*(wf*(s-f)+1)
+    // -----------------------------------
+    // d *   (wf*(f-n))   +   wf*(s-f)+1
+    //
+    // As with `transform_world_z_to_depth()`, we compute most of those values
+    // on the CPU ahead of time:
+    //
+    // X * d + Y
+    // ---------
+    // Z * d + W
+    let v = draw_params.transform_depth_to_world_z_values;
+    return (v.x * depth + v.y) / (v.z * depth + v.w);
 }
 
 /// Converts a 3D world space Z coordinate to the NDC Z coordinate.
@@ -531,8 +571,8 @@ fn render_edge_ids_vertex(
 ) -> EdgeIdsVertexOutput {
     let capsule_radius = outline_radii[edge_id];
     let edge_verts = edge_verts[edge_id];
-    var world_a = read_vertex_3d_positions[edge_verts.r];
-    var world_b = read_vertex_3d_positions[edge_verts.g];
+    let world_a = read_vertex_3d_positions[edge_verts.r];
+    let world_b = read_vertex_3d_positions[edge_verts.g];
 
     // Do perspective divide so that we can operate in a sort of screen space
     // with square pixels (as opposed to NDC, where pixels are not square).
@@ -564,7 +604,7 @@ fn render_edge_ids_vertex(
     // Starting with the edge from `a` to `b`, expand it to a rectangle by
     // adding radius `radius`.
     let vt = b - a;
-    var vu = vec2(-vt.y, vt.x); // Rotate 90 degrees CCW
+    let vu = vec2(-vt.y, vt.x); // Rotate 90 degrees CCW
     let extra_radius_as_ratio = radius / length(vt);
 
     let t = select(-extra_radius_as_ratio, 1.0 + extra_radius_as_ratio, idx < 2u);
@@ -591,7 +631,7 @@ fn render_edge_ids_fragment(in: EdgeIdsVertexOutput) -> EdgeIdsFragmentOutput {
     }
 
     let ray = transform_screen_space_to_world_ray(in.screen_space_xy);
-    var intersection = intersect_ray_with_capsule(ray, in.a.xyz, in.b.xyz, in.radius);
+    let intersection = intersect_ray_with_capsule(ray, in.a.xyz, in.b.xyz, in.radius);
     if !intersection.intersects {
         discard;
     }
@@ -658,7 +698,7 @@ struct DepthsAndColors {
 }
 fn compare_and_swap(a: DepthsAndColors, i: i32, j: i32) -> DepthsAndColors {
     var in = a; // TODO: this line shouldn't be necessary. workaround for https://github.com/gfx-rs/wgpu/issues/4920
-    let swap = in.depths[i] > in.depths[j];
+    let swap = in.depths[i] < in.depths[j];
 
     var out = in;
     out.depths[i] = select(in.depths[i], in.depths[j], swap);
@@ -739,10 +779,10 @@ fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_
     // To figure out which case we're in, compute a piecewise plane that exactly
     // bounds the edges of the capsule.
     let is_at_endpoint = t <= 0.0 || t >= 1.0;
-    let flat_plane_normal = select(cross(cross(ray.direction, vt), vt), -ray.direction, is_at_endpoint);
+    let flat_plane_normal = select(cross(cross(ray.direction, vt), vt), -ray.direction, is_at_endpoint); // TODO: unused??
     let flat_plane_of_capsule = plane_from_point_and_normal(point_on_line_segment, -ray.direction);
 
-    let is_polygon_in_front = polygon.point.z > ray.origin.z + ray.direction.z * intersect_ray_with_plane(ray, flat_plane_of_capsule);
+    let is_polygon_in_front = polygon.point.z > point_on_line_segment.z;
     if is_polygon_in_front {
         // If the polygon is in front of that plane, then the capsule may be
         // occluded by the polygon. In that case, compute the point on the line
@@ -791,7 +831,7 @@ fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_
     // Compute how much of the pixel is on one side of the line. This is the
     // "coverage" value, which we'll use to determine alpha.
     let rect_size = 4.0 / draw_params.target_size / draw_params.xy_scale;
-    var edge_coverage = screen_space_line_rect_area(edge_line, screen_space, rect_size);
+    let edge_coverage = screen_space_line_rect_area(edge_line, screen_space, rect_size);
 
     // Compute lighting.
     let lighting = compute_lighting(normalize(point_on_surface - point_on_line_segment), draw_params.outline_light_intensity);
@@ -862,6 +902,10 @@ struct Plane {
 
 /// Returns the `t` value along the ray where it intersects a plane.
 fn intersect_ray_with_plane(ray: Ray, plane: Plane) -> f32 {
+    // v.xyz . (ro + rd * t) = v.w
+    // v.xyz . ro + v.xyz . rd * t = v.w
+    // v.xyz . rd * t = v.w - v.xyz . ro
+    // t = (v.w - v.xyz . ro) / (v.xyz . rd)
     return (plane.v.w - dot(ray.origin, plane.v.xyz)) / dot(ray.direction, plane.v.xyz);
 }
 

@@ -30,6 +30,11 @@ impl UvVertex {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, bytemuck::NoUninit, bytemuck::Zeroable)]
 pub struct GfxDrawParams {
+    /// Precomputed values for `transform_depth_to_world_z()`.
+    pub transform_depth_to_world_z_values: [f32; 4],
+    /// Precomputed values for `transform_world_z_to_depth()`.
+    pub transform_world_z_to_depth_values: [f32; 4],
+
     /// Vector indicating the direction that light is shining from.
     pub light_dir: [f32; 3],
     /// Intensity of directional light for faces.

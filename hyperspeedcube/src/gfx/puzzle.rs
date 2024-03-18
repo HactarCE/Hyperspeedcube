@@ -14,6 +14,7 @@ use std::sync::Arc;
 use bitvec::bitbox;
 use bitvec::boxed::BitBox;
 use bitvec::order::Lsb0;
+use egui::NumExt;
 use eyre::{bail, eyre, Result};
 use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, Puzzle};
@@ -29,13 +30,18 @@ use super::structs::*;
 use super::{CachedTexture1d, CachedTexture2d, GraphicsState};
 
 /// Near and far plane distance (assuming no FOV). Larger number means less
-/// clipping, but also less Z buffer precision.
-const Z_CLIP: f32 = 1024.0;
+/// clipping far from the camera, but also less Z buffer precision.
+const Z_CLIP: f32 = 8.0;
+
+/// Minimum distance of the near/far clipping plane from the camera Z
+/// coordinate. Larger number means more clipping near the camera, but also more
+/// Z buffer precision.
+const Z_EPSILON: f32 = 0.01;
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
 /// purposes, but causes the puzzle to redraw every frame that the mouse moves,
 /// even when not necessary.
-const SEND_MOUSE_POS: bool = false;
+const SEND_MOUSE_POS: bool = true;
 
 /// Color ID for the background.
 const BACKGROUND_COLOR_ID: u32 = 0;
@@ -481,13 +487,54 @@ impl PuzzleRenderer {
 
         // Write the draw parameters.
         {
+            let near_plane_z = if fov_signum > 0.0 {
+                (camera_z - Z_EPSILON).at_most(Z_CLIP)
+            } else {
+                Z_CLIP
+            };
+            let far_plane_z = if fov_signum < 0.0 {
+                (camera_z + Z_EPSILON).at_least(-Z_CLIP)
+            } else {
+                -Z_CLIP
+            };
+
+            let w_factor_4d = draw_params.w_factor_4d();
+            let w_factor_3d = draw_params.w_factor_3d();
+
+            // See the shader code for documentation on where these
+            // heretical formulas come from.
+            let transform_world_z_to_depth_values;
+            let transform_depth_to_world_z_values;
+            {
+                let n = near_plane_z;
+                let f = far_plane_z;
+                let s = fov_signum;
+                let wf = w_factor_3d;
+                transform_depth_to_world_z_values = [
+                    (f - n) * (wf * s + 1.0),
+                    n * (wf * (s - f) + 1.0),
+                    wf * (f - n),
+                    wf * (s - f) + 1.0,
+                ];
+                transform_world_z_to_depth_values = [
+                    -transform_depth_to_world_z_values[3],
+                    transform_depth_to_world_z_values[1],
+                    transform_depth_to_world_z_values[2],
+                    -transform_depth_to_world_z_values[0],
+                ];
+            }
+
             let data = GfxDrawParams {
+                transform_depth_to_world_z_values,
+                transform_world_z_to_depth_values,
+
                 light_dir: draw_params.light_dir().into(),
                 face_light_intensity: draw_params.prefs.face_light_intensity,
-                _padding: [0.0; 3],
+                _padding: [0.0; 2],
+                id: crate::ID.load(std::sync::atomic::Ordering::Relaxed),
                 outline_light_intensity: draw_params.prefs.outline_light_intensity,
 
-                mouse_pos: draw_params.mouse_pos,
+                mouse_pos: [draw_params.mouse_pos[0], -draw_params.mouse_pos[1]],
 
                 target_size: draw_params.target_size.map(|x| x as f32),
                 xy_scale: draw_params.xy_scale()?.into(),
@@ -496,11 +543,11 @@ impl PuzzleRenderer {
                 sticker_shrink: draw_params.sticker_shrink(self.puzzle.ndim()),
                 piece_explode: draw_params.prefs.piece_explode,
 
-                w_factor_4d: draw_params.w_factor_4d(),
-                w_factor_3d: draw_params.w_factor_3d(),
+                w_factor_4d,
+                w_factor_3d,
                 fov_signum,
-                near_plane_z: if fov_signum > 0.0 { camera_z } else { Z_CLIP },
-                far_plane_z: if fov_signum < 0.0 { camera_z } else { -Z_CLIP },
+                near_plane_z,
+                far_plane_z,
                 clip_4d_backfaces: draw_params.prefs.clip_4d_backfaces as i32,
                 clip_4d_behind_camera: draw_params.prefs.clip_4d_behind_camera as i32,
             };
