@@ -5,7 +5,7 @@ function carve_and_slice_face_turning(sym, depth, init_vector)
   init_vector = init_vector or 'oox'
   for v in cd(sym):expand(init_vector) do
     carve(v)
-    slice(v * depth)
+    slice{ normal = v, distance = v:mag() * depth }
   end
 end
 
