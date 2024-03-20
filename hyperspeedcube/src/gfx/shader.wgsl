@@ -17,23 +17,54 @@ const COLOR_BACKGROUND: u32 = 0u;
  * UNIFORM STRUCTS
  */
 
+struct PrecomputedValues {
+    /// Near plane Z coordinate.
+    n: f32,
+    /// Far plane Z coordinate.
+    f: f32,
+
+    /// Near plane Z divisor: `z_divisor(near_plane_z)`
+    npzd: f32,
+    /// Far plane Z divisor: `z_divisor(far_plane_z)`
+    fpzd: f32,
+    /// Z divisor at Z=0: `z_divisor(0.0)`
+    z0zd: f32,
+
+    /// `z_divisor(near_plane_z) * z_divisor(far_plane_z)`
+    npzd_fpzd: f32,
+
+    /// `w_factor_3d * fov_signum + 1.0`
+    wf_s_plus_1: f32,
+
+    /// `n * z_divisor(far_plane_z)`
+    n_fpzd: f32,
+    /// `w_factor_3d * z_divisor(far_plane_z)`
+    wf_fpzd: f32,
+
+    /// `n - f`
+    nf: f32,
+    /// `(n - f) * wf`
+    nf_wf: f32,
+    /// `(n - f) * z_divisor(0.0)`
+    nf_z0zd: f32,
+}
+
 struct DrawParams {
     // Precomputed values for functions
-    transform_depth_to_world_z_values: vec4<f32>,
-    transform_world_z_to_depth_values: vec4<f32>,
+    pre: PrecomputedValues,
 
     // Lighting
     light_dir: vec3<f32>,
     face_light_intensity: f32,
-    _padding: vec3<f32>,
     outline_light_intensity: f32,
+
+    // Rendering
+    pixel_size: f32,
+    target_size: vec2<f32>,
+    xy_scale: vec2<f32>,
 
     // Mouse state
     mouse_pos: vec2<f32>,
-
-    // Rendering
-    target_size: vec2<f32>,
-    xy_scale: vec2<f32>,
 
     // Geometry
     facet_shrink: f32,
@@ -48,6 +79,8 @@ struct DrawParams {
     fov_signum: f32,
     clip_4d_backfaces: i32,
     clip_4d_behind_camera: i32,
+
+    _padding: vec2<f32>,
 }
 
 
@@ -253,7 +286,10 @@ fn w_divisor(w: f32) -> f32 {
 /// Returns the XY divisor for projection from 3D to 2D, which is based on the Z
 /// coordinate.
 fn z_divisor(z: f32) -> f32 {
-    return 1.0 + (draw_params.fov_signum - z) * draw_params.w_factor_3d;
+    // 1.0 + (draw_params.fov_signum - z) * draw_params.w_factor_3d
+    // = (wf * s + 1) - (wf * z)
+    let pre = draw_params.pre;
+    return pre.wf_s_plus_1 - draw_params.w_factor_3d * z;
 }
 
 /// Converts a 3D world space Z coordinate to a value written directly to the
@@ -262,28 +298,40 @@ fn transform_world_z_to_depth(z: f32) -> f32 {
     // Map [near, far] to [0, 1] in the shape of a reciprocal function with an
     // asymptote at the camera Z coordinate.
     //
+    // Given these constants:
+    //
+    //    n  = near_plane_z
+    //    f  = far_plane_z
+    //    wf = w_factor_3d
+    //    s  = fov_signum
+    //
     // Here's a Desmos plot showing this function and its inverse:
     // https://www.desmos.com/calculator/micuh2ldlw
     //
-    // ( z - n )( wf*(s-f) + 1 )
+    // ( n - z )( wf*(s-f) + 1 )
     // -------------------------
-    // ( f - n )( wf*(s-z) + 1 )
+    // ( n - f )( wf*(s-z) + 1 )
     //
     // We can rearrange this formula into a form that is easy to compute with
     // respect to z:
     //
-    // z * (wf*(f+s)+1) + -n*(wf*(s-f)+1)
-    // ----------------------------------
-    // z *  -wf*(f-n)   +  (f-n)*(wf*s+1)
+    // z * -(wf*(s-f)+1) + n*(wf*(s-f)+1)
+    // ---------------------------------
+    // z *    (n-f)*wf   + (n-f)*(wf*s+1)
     //
-    // Since those values are the same for all points, we compute them on the
-    // CPU ahead of time:
+    // Some of those values are things we have names for:
     //
-    // X * z + Y
-    // ---------
-    // Z * z + W
-    let v = draw_params.transform_world_z_to_depth_values;
-    return (v.x * z + v.y) / (v.z * z + v.w);
+    // n-f                       = nf
+    // wf*(s-f)+1 = z_divisor(f) = fpzd
+    // wf*s+1     = z_divisor(0) = z0zd
+    //
+    // Using those values precomputed on the CPU, we get this compact form:
+    //
+    // z * -fpzd + n_fpzd
+    // -------------------
+    // z * nf_wf + nf_z0zd
+    let pre = draw_params.pre;
+    return (z * -pre.fpzd + pre.n_fpzd) / (z * -pre.nf_wf + pre.nf_z0zd);
 }
 /// Converts a depth value to a 3D world space Z coordinate.
 fn transform_depth_to_world_z(depth: f32) -> f32 {
@@ -294,18 +342,23 @@ fn transform_depth_to_world_z(depth: f32) -> f32 {
     // (and the corresponding Desmos plot). Suffice to say, this is the function
     // we want to implement (where d=depth):
     //
-    // d * (f-n)*(wf*s+1) + n*(wf*(s-f)+1)
-    // -----------------------------------
-    // d *   (wf*(f-n))   +   wf*(s-f)+1
+    // d * -(n-f)*(wf*s+1) + n*(wf*(s-f)+1)
+    // ------------------------------------
+    // d *   (wf*(f-n))    +   wf*(s-f)+1
     //
-    // As with `transform_world_z_to_depth()`, we compute most of those values
-    // on the CPU ahead of time:
+    // Some of those values are things we have names for:
     //
-    // X * d + Y
-    // ---------
-    // Z * d + W
-    let v = draw_params.transform_depth_to_world_z_values;
-    return (v.x * depth + v.y) / (v.z * depth + v.w);
+    // n-f                       = nf
+    // wf*(s-f)+1 = z_divisor(f) = fpzd
+    // wf*s+1     = z_divisor(0) = z0zd
+    //
+    // Using those values precomputed on the CPU, we get this compact form:
+    //
+    //  d * -nf_z0zd + n_fpzd
+    // ----------------------
+    //    d * nf_wf + fpzd
+    let pre = draw_params.pre;
+    return (depth * -pre.nf_z0zd + pre.n_fpzd) / (depth * -pre.nf_wf + pre.fpzd);
 }
 
 /// Converts a 3D world space Z coordinate to the NDC Z coordinate.
@@ -569,7 +622,7 @@ fn render_edge_ids_vertex(
     @location(0) edge_id: i32,
     @builtin(vertex_index) idx: u32,
 ) -> EdgeIdsVertexOutput {
-    let capsule_radius = outline_radii[edge_id];
+    var capsule_radius = outline_radii[edge_id];
     let edge_verts = edge_verts[edge_id];
     let world_a = read_vertex_3d_positions[edge_verts.r];
     let world_b = read_vertex_3d_positions[edge_verts.g];
@@ -592,9 +645,20 @@ fn render_edge_ids_vertex(
     // close to the camera, which is rare and unimportant in this application,
     // and in that case it'll overestimate.
 
+    // Compute the minimum radius of the outline in NDC.
+    let min_z = clamp(
+        min(world_a.z, world_b.z) - capsule_radius,
+        draw_params.far_plane_z,
+        draw_params.near_plane_z,
+    );
+    let max_z_divisor = z_divisor(min_z);
+    let min_radius = capsule_radius / max_z_divisor;
+    // Ensure the outline radius is at least 2 pixels wide.
+    capsule_radius *= max(1.0, draw_params.pixel_size / min_radius);
+
     // Compute the maximum radius of the outline in NDC.
     let max_z = clamp(
-        max(world_a.z, world_b.z) + capsule_radius,
+        max(world_a.z, world_b.z),
         draw_params.far_plane_z,
         draw_params.near_plane_z,
     );
@@ -660,12 +724,12 @@ fn render_composite_puzzle_fragment(in: UvVertexOutput) -> @location(0) vec4<f32
     let polygon = get_polygon_pixel(screen_space, tex_coords);
 
     // For each edge (center, N, S, W, E), compute its color.
-    let center = get_edge_pixel(screen_space, ray, polygon, tex_coords);
+    let center = get_edge_pixel(ray, polygon, screen_space, tex_coords);
     // TODO(optimization): ignore edge pixels that have the same ID as center
-    let n = get_edge_pixel(screen_space, ray, polygon, tex_coords + vec2( 0, -1));
-    let s = get_edge_pixel(screen_space, ray, polygon, tex_coords + vec2( 0,  1));
-    let w = get_edge_pixel(screen_space, ray, polygon, tex_coords + vec2(-1,  0));
-    let e = get_edge_pixel(screen_space, ray, polygon, tex_coords + vec2( 1,  0));
+    let n = get_edge_pixel(ray, polygon, screen_space, tex_coords + vec2( 0, -1));
+    let s = get_edge_pixel(ray, polygon, screen_space, tex_coords + vec2( 0,  1));
+    let w = get_edge_pixel(ray, polygon, screen_space, tex_coords + vec2(-1,  0));
+    let e = get_edge_pixel(ray, polygon, screen_space, tex_coords + vec2( 1,  0));
 
     let depths = array(center.depth, n.depth, s.depth, w.depth, e.depth);
     let colors = array(center.color, n.color, s.color, w.color, e.color);
@@ -709,6 +773,7 @@ fn compare_and_swap(a: DepthsAndColors, i: i32, j: i32) -> DepthsAndColors {
 }
 
 struct PolygonPixel {
+    /// Perspective-projected plane of the polygon surface.
     plane: Plane,
     color: vec4<f32>,
     point: vec3<f32>,
@@ -730,7 +795,9 @@ fn get_polygon_pixel(screen_space: vec2<f32>, tex_coords: vec2<i32>) -> PolygonP
     }
     let polygon_normal = unpack_normal_vector_from_u32(tex_value.g);
 
-    out.plane = plane_from_point_and_normal(out.point, polygon_normal);
+    out.plane = perspective_project_plane(
+        plane_from_point_and_normal(out.point, polygon_normal)
+    );
 
     let lighting = compute_lighting(polygon_normal, draw_params.face_light_intensity);
     out.color = get_color(color_id, lighting);
@@ -742,7 +809,7 @@ struct EdgePixel {
     color: vec4<f32>,
     depth: f32,
 }
-fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_coords: vec2<i32>) -> EdgePixel {
+fn get_edge_pixel(ray: Ray, polygon: PolygonPixel, screen_space: vec2<f32>, tex_coords: vec2<i32>) -> EdgePixel {
     var out: EdgePixel;
 
     let tex_value: u32 = select(
@@ -771,18 +838,12 @@ fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_
     let point_on_line_segment = a + vt * t;
 
     // There's two possible cases for anti-aliasing here: either the capsule is
-    // not occluded by a polygon, or it is occluded by a polygon. Either way,
-    // we'll find a 2D line that locally exactly bounds the visible part of the
-    // capsule.
+    // not occluded by a polygon, or it is occluded by a polygon.
+    let is_polygon_in_front = polygon.point.z > point_on_line_segment.z;
+    // Either way, we'll find a 2D line that locally exactly bounds the visible
+    // part of the capsule.
     var edge_line: Line2D;
 
-    // To figure out which case we're in, compute a piecewise plane that exactly
-    // bounds the edges of the capsule.
-    let is_at_endpoint = t <= 0.0 || t >= 1.0;
-    let flat_plane_normal = select(cross(cross(ray.direction, vt), vt), -ray.direction, is_at_endpoint); // TODO: unused??
-    let flat_plane_of_capsule = plane_from_point_and_normal(point_on_line_segment, -ray.direction);
-
-    let is_polygon_in_front = polygon.point.z > point_on_line_segment.z;
     if is_polygon_in_front {
         // If the polygon is in front of that plane, then the capsule may be
         // occluded by the polygon. In that case, compute the point on the line
@@ -795,33 +856,33 @@ fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_
         // visible portion of the capsule.
         let normal = normalize(polygon.point - point_on_line_segment_near_polygon);
         let point_on_surface_near_polygon = point_on_line_segment_near_polygon + normal * capsule_radius;
-        let plane_tangent_to_capsule = plane_from_point_and_normal(point_on_surface_near_polygon, normal);
+        let plane_tangent_to_capsule = perspective_project_plane(
+            plane_from_point_and_normal(point_on_surface_near_polygon, normal)
+        );
 
-        // Intersect the first plane (either the "flat plane" of the capsule, or the
-        // polygon plane) with the plane tangent to the capsule to get a line.
-        edge_line = plane_plane_intersect_to_line(plane_tangent_to_capsule, polygon.plane);
+        // Intersect the polygon plane with the plane tangent to the capsule to get a line.
+        edge_line = plane_plane_intersect_to_line(polygon.plane, plane_tangent_to_capsule);
+    }
 
-        // Scale the line depending on the Z coordinate.
-        edge_line.v.z /= z_divisor(polygon.point.z);
-    } else {
-        // Find the closest points on the outline and the ray.
-        // https://math.stackexchange.com/a/2217845/1115019
-        let perp = cross(vt, ray.direction);
+    // Find the closest points on the outline and the ray.
+    // https://math.stackexchange.com/a/2217845/1115019
+    let perp = cross(vt, ray.direction);
 
-        // The edge is parametrized from `t=0` at `a` to `t=1` at `b`.
-        let t_edge = saturate(dot(cross(ray.direction, perp), ray.origin - a) / dot(perp, perp));
-        let pos_edge = a + vt * t_edge;
+    // The edge is parametrized from `t=0` at `a` to `t=1` at `b`.
+    let t_edge = saturate(dot(cross(ray.direction, perp), ray.origin - a) / dot(perp, perp));
+    let pos_edge = a + vt * t_edge;
 
-        // The ray is parametrized from `t=0` at `ray.origin` to `t=1` at
-        // `ray.origin + ray.direction`.
-        let t_ray = dot(pos_edge - ray.origin, ray.direction) / dot(ray.direction, ray.direction);
-        // let t_ray = dot(cross(vt, perp), ray.origin - a) / dot(perp, perp);
-        let pos_ray = ray.origin + ray.direction * t_ray;
+    // The ray is parametrized from `t=0` at `ray.origin` to `t=1` at
+    // `ray.origin + ray.direction`.
+    let t_ray = dot(pos_edge - ray.origin, ray.direction) / dot(ray.direction, ray.direction);
+    // let t_ray = dot(cross(vt, perp), ray.origin - a) / dot(perp, perp);
+    let pos_ray = ray.origin + ray.direction * t_ray;
 
-        // Compute the vector from the edge to the pixel, and use that to
-        // compute the line on the edge of the polygon.
-        let delta_from_edge = pos_ray - pos_edge;
-        let n = normalize(delta_from_edge) * capsule_radius;
+    // Compute the vector from the edge to the pixel, and use that to
+    // compute the line on the edge of the polygon.
+    let delta_from_edge = pos_ray - pos_edge;
+    let n = normalize(delta_from_edge) * capsule_radius;
+    if !is_polygon_in_front {
         edge_line = line_from_point_and_normal(
             project_world_point_to_screen_space(pos_edge + n),
             project_world_vector_to_screen_space(pos_edge + n, n),
@@ -830,8 +891,16 @@ fn get_edge_pixel(screen_space: vec2<f32>, ray: Ray, polygon: PolygonPixel, tex_
 
     // Compute how much of the pixel is on one side of the line. This is the
     // "coverage" value, which we'll use to determine alpha.
-    let rect_size = 4.0 / draw_params.target_size / draw_params.xy_scale;
-    let edge_coverage = screen_space_line_rect_area(edge_line, screen_space, rect_size);
+    let rect_size = vec2(4.0 * draw_params.pixel_size);
+    var edge_coverage = screen_space_line_rect_area(edge_line, screen_space, rect_size);
+
+    // Subtract the amount from the other side of the line. This only has an
+    // effect for very thin outlines.
+    let far_edge_line = line_from_point_and_normal(
+        project_world_point_to_screen_space(pos_edge - n),
+        project_world_vector_to_screen_space(pos_edge - n, -n)
+    );
+    edge_coverage -= 1.0 - screen_space_line_rect_area(far_edge_line, screen_space, rect_size);
 
     // Compute lighting.
     let lighting = compute_lighting(normalize(point_on_surface - point_on_line_segment), draw_params.outline_light_intensity);
@@ -917,22 +986,66 @@ fn plane_from_point_and_normal(point: vec3<f32>, normal: vec3<f32>) -> Plane {
     return out;
 }
 
+/// Applies the perspective projection transformation to a plane.
+fn perspective_project_plane(p: Plane) -> Plane {
+    // This is REAL nasty.
+    //
+    // Given these constants:
+    //
+    //    n  = near_plane_z
+    //    f  = far_plane_z
+    //    wf = w_factor_3d
+    //    s  = fov_signum
+    //
+    // And this initial plane equation:
+    //
+    //    ax + by + cz = d
+    //
+    // Our goal is to write a new plane equation in terms of:
+    //
+    //    x' = x / z_divisor(z); y' = y / z_divisor(z); z' =
+    //    transform_world_z_to_depth(z);
+    //
+    // Of course, those values are expressed in terms of z, whereas we want them
+    // in terms of z'. Luckily we have `transform_depth_to_world_z()` which
+    // gives us z in terms of z'. Substituting that into the equation gives us a
+    // really awful plane equation with a z' in the denominator, but we can
+    // scale the whole equation by that denominator and then combine like terms
+    // to get this new plane equation:
+    //
+    //    x' * a * z_divisor(n) * z_divisor(f)
+    //  + y' * b * z_divisor(n) * z_divisor(f)
+    //  + z' * ( c * -(n-f) * z_divisor(0) + d * (n-f) * wf )
+    //  =      + c *    - n * z_divisor(f) + d * z_divisor(f)
+    //
+    // Luckily most of those are pure constants, so we can precompute them on
+    // the CPU:
+    let pre = draw_params.pre;
+    let ab = p.v.xy;
+    let cd = p.v.zw;
+    var out: Plane;
+    out.v = vec4(
+        ab * pre.npzd_fpzd,
+        dot(cd, vec2(-pre.nf_z0zd, pre.nf_wf)),
+        dot(cd, vec2(-pre.n_fpzd, pre.fpzd)),
+    );
+    return out;
+}
+
 /// Intersects two planes in 3D space and returns a line projected into 2D
 /// screen space.
 fn plane_plane_intersect_to_line(p1: Plane, p2: Plane) -> Line2D {
-    // plane 1: 0 = a1 (x-x1) + b1 (y-y1) + c1 (z-z1)
-    // plane 2: 0 = a2 (x-x2) + b2 (y-y2) + c2 (z-z2)
-    // intersection (ignoring Z coordinate):
+    // plane 1: 0 = a1 x + b1 y + c1 z - d1
+    // plane 2: 0 = a2 x + b2 y + c2 z - d2
+    //
+    // Intersection (ignoring Z coordinate):
+    //
     // 0 = (+ a1 c2
     //      - a2 c1) x
     //   + (+ b1 c2
     //      - b2 c1) y
-    //   + (+ a2 x2 c1
-    //      + b2 y2 c1
-    //      + c2 z2 c1
-    //      - a1 x1 c2
-    //      - b1 y1 c2
-    //      - c1 z1 c2)
+    //   - (+ d1 c2
+    //      - d2 c1)
     let a = determinant(mat2x2(p1.v.xz, p2.v.xz));
     let b = determinant(mat2x2(p1.v.yz, p2.v.yz));
     let c = determinant(mat2x2(p1.v.wz, p2.v.wz));

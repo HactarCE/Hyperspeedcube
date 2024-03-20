@@ -162,19 +162,38 @@ pub(crate) struct DrawParams {
     pub piece_styles: Vec<(PieceStyleValues, BitBox<u64>)>,
 }
 impl DrawParams {
+    /// Returns the number of pixels in 1 screen space unit.
+    fn compute_pixel_scale(target_size: [u32; 2], zoom: f32) -> Result<f32> {
+        let w = target_size[0] as f32;
+        let h = target_size[1] as f32;
+        let min_dimen = f32::min(w as f32, h as f32);
+        if min_dimen == 0.0 {
+            bail!("puzzle view has zero size");
+        }
+        Ok(min_dimen * zoom)
+    }
+    /// Returns the size of a pixel in screen space.
+    pub fn compute_pixel_size(target_size: [u32; 2], zoom: f32) -> Result<f32> {
+        Ok(1.0 / Self::compute_pixel_scale(target_size, zoom)?)
+    }
+
     /// Returns the X and Y scale factors to convert screen space to NDC.
     /// Returns `Err` if either the width or height is smaller than one pixel.
     pub fn compute_xy_scale(target_size: [u32; 2], zoom: f32) -> Result<cgmath::Vector2<f32>> {
-        if target_size.contains(&0) {
-            bail!("puzzle view has zero size");
-        }
+        let pixel_scale = Self::compute_pixel_scale(target_size, zoom)?;
         let w = target_size[0] as f32;
         let h = target_size[1] as f32;
-
-        let min_dimen = f32::min(w as f32, h as f32);
-        Ok(cgmath::vec2(min_dimen / w, min_dimen / h) * zoom)
+        Ok(cgmath::vec2(pixel_scale / w, pixel_scale / h))
     }
 
+    /// Returns the target size in pixels as a vector.
+    pub fn target_size_f32(&self) -> cgmath::Vector2<f32> {
+        cgmath::Vector2::from(self.target_size.map(|x| x as f32))
+    }
+    /// Returns the size of a pixel in screen space.
+    pub fn pixel_size(&self) -> Result<f32> {
+        Self::compute_pixel_size(self.target_size, self.zoom)
+    }
     /// Returns the X and Y scale factors to convert screen space to NDC.
     /// Returns `Err` if either the width or height is smaller than one pixel.
     pub fn xy_scale(&self) -> Result<cgmath::Vector2<f32>> {
@@ -191,6 +210,14 @@ impl DrawParams {
     pub fn w_factor_3d(&self) -> f32 {
         (self.prefs.fov_3d.to_radians() * 0.5).tan()
     }
+    /// Returns the 4D perspective divisor based on the W coordinate of a point.
+    pub fn w_divisor(&self, w: f32) -> f32 {
+        1.0 + w * self.w_factor_3d()
+    }
+    /// Returns the 3D perspective divisor based on the Z coordinate of a point.
+    pub fn z_divisor(&self, z: f32) -> f32 {
+        1.0 + (self.prefs.fov_3d.signum() - z) * self.w_factor_3d()
+    }
     /// Projects an N-dimensional point to a 2D point on the screen.
     pub fn project_point(&self, p: impl ToConformalPoint) -> Option<cgmath::Point2<f32>> {
         let mut p = self.rot.transform_point(p).to_finite().ok()?;
@@ -198,12 +225,12 @@ impl DrawParams {
         // Apply 4D perspective transformation.
         let w = p.get(3) as f32;
         p.resize(3);
-        let mut p = p / (1.0 + w * self.w_factor_4d()) as Float;
+        let mut p = p / self.w_divisor(w) as Float;
 
         // Apply 3D perspective transformation.
         let z = p.get(2) as f32;
         p.resize(2);
-        let p = p / (1.0 + (self.prefs.fov_3d.signum() - z) * self.w_factor_3d()) as Float;
+        let p = p / self.z_divisor(z) as Float;
 
         // Apply scaling.
         let xy_scale = self.xy_scale().ok()?;
@@ -501,43 +528,18 @@ impl PuzzleRenderer {
             let w_factor_4d = draw_params.w_factor_4d();
             let w_factor_3d = draw_params.w_factor_3d();
 
-            // See the shader code for documentation on where these
-            // heretical formulas come from.
-            let transform_world_z_to_depth_values;
-            let transform_depth_to_world_z_values;
-            {
-                let n = near_plane_z;
-                let f = far_plane_z;
-                let s = fov_signum;
-                let wf = w_factor_3d;
-                transform_depth_to_world_z_values = [
-                    (f - n) * (wf * s + 1.0),
-                    n * (wf * (s - f) + 1.0),
-                    wf * (f - n),
-                    wf * (s - f) + 1.0,
-                ];
-                transform_world_z_to_depth_values = [
-                    -transform_depth_to_world_z_values[3],
-                    transform_depth_to_world_z_values[1],
-                    transform_depth_to_world_z_values[2],
-                    -transform_depth_to_world_z_values[0],
-                ];
-            }
-
             let data = GfxDrawParams {
-                transform_depth_to_world_z_values,
-                transform_world_z_to_depth_values,
+                pre: GfxPrecomputedValues::new(w_factor_3d, near_plane_z, far_plane_z),
 
                 light_dir: draw_params.light_dir().into(),
                 face_light_intensity: draw_params.prefs.face_light_intensity,
-                _padding: [0.0; 2],
-                id: crate::ID.load(std::sync::atomic::Ordering::Relaxed),
                 outline_light_intensity: draw_params.prefs.outline_light_intensity,
 
-                mouse_pos: [draw_params.mouse_pos[0], -draw_params.mouse_pos[1]],
-
-                target_size: draw_params.target_size.map(|x| x as f32),
+                pixel_size: draw_params.pixel_size()?,
+                target_size: draw_params.target_size_f32().into(),
                 xy_scale: draw_params.xy_scale()?.into(),
+
+                mouse_pos: draw_params.mouse_pos,
 
                 facet_shrink: draw_params.facet_shrink(self.puzzle.ndim()),
                 sticker_shrink: draw_params.sticker_shrink(self.puzzle.ndim()),
@@ -550,6 +552,8 @@ impl PuzzleRenderer {
                 far_plane_z,
                 clip_4d_backfaces: draw_params.prefs.clip_4d_backfaces as i32,
                 clip_4d_behind_camera: draw_params.prefs.clip_4d_behind_camera as i32,
+
+                _padding: [0.0; 2],
             };
             self.gfx
                 .queue
