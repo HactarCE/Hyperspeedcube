@@ -46,4 +46,16 @@ function test_vector_ops()
   assert(tostring(vec(1, 2, 3) * 10) == '(10, 20, 30)')
   assert(tostring(10 * vec(1, 2, 3)) == '(10, 20, 30)')
   assert(vec(10, 20, 30) / 10 == vec(1, 2, 3))
+
+  -- Test dot product
+  assert(vec(1, 2, 3):dot{4, -3, 0, 1} == -2)
+
+  -- Test cross product
+  assert(tostring(vec(1, 2, 3):cross(vec(4, -3, 0, 1))) == '(9, 12, -11)')
+
+  -- Test projection
+  assert(tostring(vec(1, 2, 3):projected_to('y')) == '(0, 2)')
+
+  -- Test rejection
+  assert(tostring(vec(1, 2, 3):rejected_from('y')) == '(1, 0, 3)')
 end

@@ -73,14 +73,29 @@ impl LuaUserData for LuaNamedUserData<Vector> {
             Ok(LuaVector(ret))
         });
 
+        methods.add_method("dot", |_lua, Self(this), LuaConstructVector(other)| {
+            Ok(this.dot(other))
+        });
+        methods.add_method("cross", |_lua, Self(this), LuaConstructVector(other)| {
+            Ok(LuaVector(vector![
+                this[1] * other[2] - this[2] * other[1],
+                this[2] * other[0] - this[0] * other[2],
+                this[0] * other[1] - this[1] * other[0],
+            ]))
+        });
+
         methods.add_method(
             "projected_to",
-            |_lua, Self(this), LuaConstructVector(other)| {
-                let Some(scale_factor) = hypermath::util::try_div(this.dot(&other), other.mag2())
-                else {
-                    return Err(LuaError::external("cannot project to zero vector"));
-                };
-                Ok(LuaVector(&other * scale_factor))
+            |_lua, Self(this), LuaConstructVector(other)| match this.projected_to(&other) {
+                Some(result) => Ok(LuaVector(result)),
+                None => Err(LuaError::external("cannot project to zero vector")),
+            },
+        );
+        methods.add_method(
+            "rejected_from",
+            |_lua, Self(this), LuaConstructVector(other)| match this.rejected_from(&other) {
+                Some(result) => Ok(LuaVector(result)),
+                None => Err(LuaError::external("cannot reject from zero vector")),
             },
         );
 

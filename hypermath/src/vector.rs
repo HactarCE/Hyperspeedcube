@@ -8,6 +8,7 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 
 use crate::approx_cmp::is_approx_nonzero;
+use crate::util;
 use crate::Float;
 
 /// Constructs an N-dimensional vector, using the same syntax as `vec![]`.
@@ -101,6 +102,16 @@ pub trait VectorRef: Sized + fmt::Debug {
     /// component.
     fn approx_eq(&self, other: impl VectorRef, epsilon: Float) -> bool {
         Vector::zip(self, other).all(|(l, r)| (l - r).abs() <= epsilon)
+    }
+
+    /// Returns the component of the vector that is parallel to `other`.
+    fn projected_to(&self, other: &Vector) -> Option<Vector> {
+        let scale_factor = util::try_div(self.dot(&other), other.mag2())?;
+        Some(other * scale_factor)
+    }
+    /// Returns the component of the vector that is perpendicular to `other`.
+    fn rejected_from(&self, other: &Vector) -> Option<Vector> {
+        Some(-self.projected_to(other)? + self)
     }
 }
 
