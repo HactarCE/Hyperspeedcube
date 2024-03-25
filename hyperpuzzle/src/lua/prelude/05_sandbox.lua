@@ -23,11 +23,11 @@ SANDBOX_ENV = {
   -- Safe custom functions
   assert = assert,
   error = error,
-  warn = function(...) warn(FILE.name, ...) end,
-  info = function(...) info(FILE.name, ...) end,
+  warn = function(...) warn(FILE and FILE.name, ...) end,
+  info = function(...) info(FILE and FILE.name, ...) end,
   pstring = pstring,
-  print = function(...) info(FILE.name, ...) end,
-  pprint = function(...) info(FILE.name, pstring(...)) end,
+  print = function(...) info(FILE and FILE.name, ...) end,
+  pprint = function(...) info(FILE and FILE.name, pstring(...)) end,
   type = type,
 
   -- Safe utility functions

@@ -1,5 +1,15 @@
 PRETTY_TRACEBACK = true
 
+local function format_msg(...)
+  if select('#', ...) == 0 then
+    return ''
+  elseif select('#', ...) == 1 then
+    return tostring(...)
+  else
+    return string.format(...)
+  end
+end
+
 -- This is a default implementation that may be overwritten by Rust code.
 function log_line(args)
   local s
@@ -12,40 +22,46 @@ function log_line(args)
 end
 
 function log(file, level, ...)
-  local msg
-  if select('#', ...) == 0 then
-    msg = ''
-  elseif select('#', ...) == 1 then
-    msg = tostring(...)
-  else
-    msg = string.format(...)
-  end
-
   log_line{
-    msg = msg,
+    msg = format_msg(...),
     file = file,
     level = level,
   }
 end
 
 function info(file, ...)
-  log(file, 'info', ...)
+  if file then
+    log(file, 'info', ...)
+  else
+    print(format_msg(...))
+  end
 end
 
 -- Overwrite `warn()`
+local old_warn = warn
 function warn(file, ...)
-  log(file, 'warn', ...)
+  if file then
+    log(file, 'warn', ...)
+  else
+    old_warn(format_msg(...))
+  end
 end
 
 local old_error = error
 function error(message)
-  log(FILE.name, 'error', message)
+  if FILE then
+    log(FILE.name, 'error', message)
+  end
   old_error(message)
 end
 
 function assert(v, ...)
   if not v then
-    error(string.format(...) or "assertion failed!")
+    if select('#', ...) == 0 then
+      error("assertion failed!")
+    else
+      error(format_msg(...))
+    end
   end
 end
 
