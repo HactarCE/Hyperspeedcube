@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use hypermath::prelude::*;
 use itertools::Itertools;
 
@@ -68,7 +70,7 @@ macro_rules! lua_userdata_multivalue_conversion_wrapper {
     };
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct LuaNamedUserData<T>(pub T);
 
 macro_rules! lua_convert {
@@ -78,6 +80,7 @@ macro_rules! lua_convert {
             $($tok:tt)*
         }
     ) => {{
+        #[allow(unused)]
         let lua = $lua;
         let val: &::rlua::Value<'_> = $lua_value;
         lua_convert!(@ lua, val; $($tok)*).map_err(|message| {
@@ -116,12 +119,13 @@ macro_rules! lua_convert {
 
     // Convert from Lua built-in type
     (
-        @ $lua:ident, $val:ident, $result_type_name:literal;
+        @ $lua:ident, $val:ident;
         $pattern:pat => $ret:expr
         $(, $($rest:tt)*)?
     ) => {
-        if let $pattern = $val {
-            let ret = Result<_, String> = $ret;
+        if let $pattern = $val.clone() {
+            let ret: Result<_, String> = $ret;
+            #[allow(unreachable_code)]
             ret.map_err(Some)
         } else {
             lua_convert!(
@@ -132,40 +136,58 @@ macro_rules! lua_convert {
     };
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LuaAxisName(pub u8);
 impl<'lua> FromLua<'lua> for LuaAxisName {
     fn from_lua(lua_value: LuaValue<'lua>, lua: LuaContext<'lua>) -> LuaResult<Self> {
         lua_convert!(match (lua, &lua_value, "axis name") {
-            <String>(s) => {
-                match s.chars().exactly_one() {
-                    Ok(c) => match AXIS_NAMES.find(c.to_ascii_uppercase()) {
-                        Some(i) => Ok(LuaAxisName(i as u8)),
-                        None => Err(format!("no axis named '{c}'")),
-                    }
-                    Err(_) => Err("axis name must be single character".to_owned()),
-                }
-            },
+            <String>(s) => s.parse(),
         })
     }
 }
+impl FromStr for LuaAxisName {
+    type Err = String;
 
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.chars().exactly_one() {
+            Ok(c) => match c {
+                // Remember, Lua is 1-indexed so the X axis is 1.
+                '1' | 'x' | 'X' => Ok(LuaAxisName(0)),
+                '2' | 'y' | 'Y' => Ok(LuaAxisName(1)),
+                '3' | 'z' | 'Z' => Ok(LuaAxisName(2)),
+                '4' | 'w' | 'W' => Ok(LuaAxisName(3)),
+                '5' | 'v' | 'V' => Ok(LuaAxisName(4)),
+                '6' | 'u' | 'U' => Ok(LuaAxisName(5)),
+                '7' => Ok(LuaAxisName(6)),
+                '8' => Ok(LuaAxisName(7)),
+                '9' => Ok(LuaAxisName(8)),
+                _ => Err(format!("no axis named '{c}'")),
+            },
+            Err(_) => Err("axis name must be single character".to_owned()),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LuaVectorIndex(pub u8);
 impl<'lua> FromLua<'lua> for LuaVectorIndex {
     fn from_lua(lua_value: LuaValue<'lua>, lua: LuaContext<'lua>) -> LuaResult<Self> {
         lua_convert!(match (lua, &lua_value, "vector index") {
-            <LuaNdim>(ndim) => Ok(LuaVectorIndex(ndim.0 - 1)),
-            <LuaAxisName>(axis) => Ok(LuaVectorIndex(axis.0)),
+            <_>(LuaNdim(i)) =>  Ok(LuaVectorIndex(i - 1)),
+            LuaValue::String(s) => s.to_str()?.parse().map(|LuaAxisName(i)| LuaVectorIndex(i)),
         })
     }
 }
 
 /// ∞ or nₒ.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum NiNo {
     // nₒ
     No,
     /// ∞
     Ni,
 }
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct LuaAxesString {
     /// Which of nₒ or ∞ to the beginning of the axes, if either.
     pub nino: Option<NiNo>,
@@ -190,14 +212,28 @@ impl LuaAxesString {
 }
 impl<'lua> FromLua<'lua> for LuaAxesString {
     fn from_lua(lua_value: LuaValue<'lua>, lua: LuaContext<'lua>) -> LuaResult<Self> {
-        let string = if matches!(lua_value, LuaValue::Nil) {
-            String::new()
+        if matches!(lua_value, LuaValue::Nil) {
+            "".parse()
         } else if let Ok(LuaVectorIndex(i)) = LuaVectorIndex::from_lua(lua_value.clone(), lua) {
-            i.to_string()
+            Ok(LuaAxesString {
+                nino: None,
+                axes: Axes::euclidean(i),
+                sign: Sign::Pos,
+                string: match lua.coerce_string(lua_value)? {
+                    Some(s) => s.to_str()?.to_string(),
+                    None => String::new(),
+                },
+            })
         } else {
-            String::from_lua(lua_value, lua)?
-        };
+            String::from_lua(lua_value, lua)?.parse()
+        }
+        .map_err(LuaError::external)
+    }
+}
+impl FromStr for LuaAxesString {
+    type Err = String;
 
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
         let mut use_true_basis = false;
         let mut use_null_vector_basis = false;
         let mut axes = Axes::empty();
@@ -245,22 +281,18 @@ impl<'lua> FromLua<'lua> for LuaAxesString {
                     Axes::E_PLANE
                 }
 
-                _ => return Err(LuaError::external(format!("unknown axis {c:?}"))),
+                _ => return Err(format!("unknown axis {c:?}")),
             };
             sign *= axes * new_axis;
             axes ^= new_axis;
         }
 
         if use_true_basis && use_null_vector_basis {
-            return Err(LuaError::external(
-                "cannot mix true basis (e₋ e₊) with null vector basis (o ∞)",
-            ));
+            return Err("cannot mix true basis (e₋ e₊) with null vector basis (o ∞)".to_string());
         }
 
         if zeroed {
-            return Err(LuaError::external(format!(
-                "component '{string}' is always zero",
-            )));
+            return Err(format!("component '{string}' is always zero",));
         }
 
         let mut nino = None;
@@ -268,9 +300,7 @@ impl<'lua> FromLua<'lua> for LuaAxesString {
             // We stored nₒ in `E_MINUS` and ∞ in `E_PLUS`.
             // nₒ and ∞ are each allowed, but not at the same time.
             if axes.contains(Axes::E_PLANE) {
-                return Err(LuaError::external(format!(
-                    "cannot access component {string:?}",
-                )));
+                return Err(format!("cannot access component {string:?}",));
             }
             if axes.contains(Axes::E_MINUS) {
                 nino = Some(NiNo::No);
@@ -286,7 +316,36 @@ impl<'lua> FromLua<'lua> for LuaAxesString {
             nino,
             axes,
             sign,
-            string,
+            string: string.to_owned(),
+        })
+    }
+}
+
+/// Conversion wrapper for a Lua number that does not convert from a string.
+pub struct LuaNumberNoConvert(pub LuaNumber);
+impl<'lua> FromLua<'lua> for LuaNumberNoConvert {
+    fn from_lua(lua_value: LuaValue<'lua>, lua: LuaContext<'lua>) -> LuaResult<Self> {
+        lua_convert!(match (lua, &lua_value, "number") {
+            LuaValue::Integer(x) => Ok(LuaNumberNoConvert(x as LuaNumber)),
+            LuaValue::Number(x) => Ok(LuaNumberNoConvert(x)),
+        })
+    }
+}
+
+/// Conversion wrapper for a Lua integer that does not convert from a string,
+/// but does convert from a floating point number with an exact integer value.
+pub struct LuaIntegerNoConvert(pub LuaInteger);
+impl<'lua> FromLua<'lua> for LuaIntegerNoConvert {
+    fn from_lua(lua_value: LuaValue<'lua>, lua: LuaContext<'lua>) -> LuaResult<Self> {
+        lua_convert!(match (lua, &lua_value, "integer") {
+            LuaValue::Integer(x) => Ok(LuaIntegerNoConvert(x)),
+            LuaValue::Number(x) => {
+                if x % 1.0 == 0.0 {
+                    Ok(LuaIntegerNoConvert(x as LuaInteger))
+                } else {
+                    Err(String::new())
+                }
+            }
         })
     }
 }

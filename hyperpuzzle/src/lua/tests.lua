@@ -58,4 +58,8 @@ function test_vector_ops()
 
   -- Test rejection
   assert(tostring(vec(1, 2, 3):rejected_from('y')) == '(1, 0, 3)')
+
+  -- Test constructing a multivector
+  assert(tostring(mvec{xy = 3, s = 2, z = -1}) == '2 + 3xy + -1z')
+  assert(tostring(vec(mvec{xy = 3, s = 2, z = -1})) == '(0, 0, -1)')
 end

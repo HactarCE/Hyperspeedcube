@@ -85,14 +85,17 @@ impl LuaPuzzleBuilder {
                 .sequence_values()
                 .map(|value| {
                     let name_or_id: LuaValue<'_> = value?;
-                    if let Ok(s) = String::from_lua(name_or_id.clone(), lua) {
-                        match colors_by_name.get(&s) {
+                    if let LuaValue::String(s) = name_or_id {
+                        let s = s.to_str()?;
+                        match colors_by_name.get(s) {
                             Some(&color) => Ok(color),
                             None => bail!("no color named {s:?}"),
                         }
-                    } else if let Ok(color_index) = u16::from_lua(name_or_id.clone(), lua) {
-                        if (1..=this.colors.len() as u16).contains(&color_index) {
-                            Ok(Color(color_index - 1)) // -1 because Lua is 1-indexed
+                    } else if let Ok(LuaIntegerNoConvert(color_index)) =
+                        <_>::from_lua(name_or_id.clone(), lua)
+                    {
+                        if (1..=this.colors.len() as LuaInteger).contains(&color_index) {
+                            Ok(Color(color_index as u16 - 1)) // -1 because Lua is 1-indexed
                         } else {
                             bail!("color index {color_index} out of range");
                         }

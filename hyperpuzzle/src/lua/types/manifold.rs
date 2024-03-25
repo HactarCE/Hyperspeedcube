@@ -122,7 +122,7 @@ impl LuaManifold {
         } else {
             let arg: LuaValue<'_> = lua.unpack_multi(args)?;
             let t = lua_convert!(match (lua, &arg, "sphere constructor (number or table)") {
-                <LuaTable<'_>>(t) => Ok(t),
+                LuaValue::Table(t) => Ok(t),
             })?;
 
             match Self::construct_plane_or_sphere(t)? {
@@ -143,7 +143,7 @@ impl LuaManifold {
         } else {
             let arg: LuaValue<'_> = lua.unpack_multi(args)?;
             let t = lua_convert!(match (lua, &arg, "plane constructor (vector or table)") {
-                <LuaTable<'_>>(t) => Ok(t),
+                LuaValue::Table(t) => Ok(t),
             })?;
 
             match Self::construct_plane_or_sphere(t)? {

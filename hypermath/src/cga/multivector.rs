@@ -48,10 +48,10 @@ impl fmt::Display for Multivector {
                 let e_plane_component = self[axes | Axes::E_PLANE];
 
                 [
-                    (format!(" {axes}"), scalar_component),
-                    (format!(" nₒ{axes}"), no_component),
-                    (format!(" ∞{axes}"), ni_component),
-                    (format!(" E{axes}"), e_plane_component),
+                    (format!("{axes}"), scalar_component),
+                    (format!("nₒ{axes}"), no_component),
+                    (format!("∞{axes}"), ni_component),
+                    (format!("E{axes}"), e_plane_component),
                 ]
             })
             .filter(|(_axes_string, coef)| is_approx_nonzero(coef));

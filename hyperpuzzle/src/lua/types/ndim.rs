@@ -11,12 +11,20 @@ impl<'lua> FromLua<'lua> for LuaNdim {
             return LuaNdim::get_global(lua).map(LuaNdim);
         }
         lua_convert!(match (lua, &lua_value, "number of dimensions") {
-            <u8>(i) => if (1..=MAX_NDIM).contains(&i) {
-                Ok(LuaNdim(i))
-            } else {
-                Err("out of range".to_owned())
-            },
+            <_>(LuaIntegerNoConvert(i)) => LuaNdim::try_from(i),
         })
+    }
+}
+
+impl TryFrom<LuaInteger> for LuaNdim {
+    type Error = String;
+
+    fn try_from(value: LuaInteger) -> Result<Self, Self::Error> {
+        if (1..=MAX_NDIM as _).contains(&value) {
+            Ok(LuaNdim(value as u8))
+        } else {
+            Err("out of range".to_owned())
+        }
     }
 }
 

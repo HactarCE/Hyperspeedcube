@@ -3,12 +3,13 @@ use hypermath::prelude::*;
 use super::*;
 
 lua_userdata_value_conversion_wrapper! {
-    #[name = "multivector", convert_str = "multivector, vector, table, or number"]
+    #[name = "multivector", convert_str = "multivector, vector, table, number, or axes string"]
     pub struct LuaMultivector(Multivector) = |_lua| {
-        <_>(LuaVector(v)) => Ok(v.into()),
-        <LuaTable<'_>>(t)  => Ok(LuaMultivector::construct_from_table(t)?),
-        <Float>(x) => Ok(Multivector::scalar(x)),
-        <LuaAxesString>(axes) => Ok(axes.to_multivector()),
+        <_>(LuaNamedUserData::<Vector>(v)) => Ok(v.into()),
+        LuaValue::Table(t)  => Ok(LuaMultivector::construct_from_table(t)?),
+        LuaValue::Integer(x) => Ok(Multivector::scalar(x as _)),
+        LuaValue::Number(x) => Ok(Multivector::scalar(x as _)),
+        LuaValue::String(s) => s.to_str()?.parse().map(|axes: LuaAxesString| axes.to_multivector()),
     }
 }
 lua_userdata_multivalue_conversion_wrapper!(pub struct LuaConstructMultivector(Multivector) = LuaMultivector::construct_unwrapped_from_multivalue);
@@ -28,10 +29,8 @@ impl LuaMultivector {
         values: LuaMultiValue<'lua>,
     ) -> LuaResult<Multivector> {
         match lua.unpack_multi(values) {
-            Ok(LuaConstructMultivector(m)) => Ok(m),
-            Err(_) => Err(LuaError::external(
-                "expected multivector, vector, table, or axis name",
-            )),
+            Ok(LuaMultivector(m)) => Ok(m),
+            Err(e) => Err(e),
         }
     }
 
@@ -69,6 +68,10 @@ impl LuaUserData for LuaNamedUserData<Multivector> {
         });
         methods.add_method("inverse", |_lua, Self(this), ()| {
             Ok(this.inverse().map(LuaMultivector))
+        });
+
+        methods.add_method("to_grade", |_lua, Self(this), LuaNdim(grade)| {
+            Ok(LuaMultivector(this.clone().grade_project(grade).into_mv()))
         });
 
         // Multivector + Multivector

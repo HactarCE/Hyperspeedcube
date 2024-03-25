@@ -4,10 +4,11 @@ use itertools::Itertools;
 use super::*;
 
 lua_userdata_value_conversion_wrapper! {
-    #[name = "vector", convert_str = "vector, table, or axis string"]
+    #[name = "vector", convert_str = "vector, multivector, table, or axis name"]
     pub struct LuaVector(Vector) = |_lua| {
-        <LuaTable<'_>>(t)  => Ok(LuaVector::construct_from_table(t)?),
-        <LuaAxisName>(axis) => Ok(Vector::unit(axis.0)),
+        <_>(LuaNamedUserData::<Multivector>(m)) => Ok(m.grade_project(1).to_vector()),
+        LuaValue::Table(t) => Ok(LuaVector::construct_from_table(t)?),
+        LuaValue::String(s) => s.to_str()?.parse().map(|LuaAxisName(i)| Vector::unit(i)),
     }
 }
 lua_userdata_multivalue_conversion_wrapper!(pub struct LuaConstructVector(Vector) = LuaVector::construct_unwrapped_from_multivalue);
@@ -27,21 +28,13 @@ impl LuaVector {
         lua: LuaContext<'lua>,
         values: LuaMultiValue<'lua>,
     ) -> LuaResult<Vector> {
-        if let Ok(t) = LuaTable::from_lua_multi(values.clone(), lua) {
-            return Self::construct_from_table(t);
+        match lua.unpack_multi(values.clone()) {
+            Ok(LuaVector(v)) => Ok(v),
+            Err(_) => values
+                .into_iter()
+                .map(|v| <_>::from_lua(v, lua).map(|LuaNumberNoConvert(x)| x as Float))
+                .try_collect(),
         }
-
-        if let Ok(LuaAxisName(i)) = <_>::from_lua_multi(values.clone(), lua) {
-            return Ok(Vector::unit(i));
-        }
-
-        values
-            .into_iter()
-            .map(|v| Float::from_lua(v, lua))
-            .try_collect()
-            .map_err(|_| {
-                LuaError::external("expected vector, table, axis name, or sequence of numbers")
-            })
     }
 
     pub fn construct_from_multivalue<'lua>(
