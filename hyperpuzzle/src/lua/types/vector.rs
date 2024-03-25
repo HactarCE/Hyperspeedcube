@@ -8,7 +8,7 @@ lua_userdata_value_conversion_wrapper! {
     pub struct LuaVector(Vector) = |_lua| {
         <_>(LuaNamedUserData::<Multivector>(m)) => Ok(m.grade_project(1).to_vector()),
         LuaValue::Table(t) => Ok(LuaVector::construct_from_table(t)?),
-        LuaValue::String(s) => s.to_str()?.parse().map(|LuaAxisName(i)| Vector::unit(i)),
+        LuaValue::String(s) => s.to_str()?.parse().map(|LuaVectorIndex(i)| Vector::unit(i)),
     }
 }
 lua_userdata_multivalue_conversion_wrapper!(pub struct LuaConstructVector(Vector) = LuaVector::construct_unwrapped_from_multivalue);

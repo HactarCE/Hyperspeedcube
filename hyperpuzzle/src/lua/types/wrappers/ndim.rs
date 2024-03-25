@@ -2,6 +2,7 @@ use hypermath::prelude::*;
 
 use super::*;
 
+/// Conversion wrapper for a number of dimensions.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LuaNdim(pub u8);
 

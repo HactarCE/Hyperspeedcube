@@ -4,7 +4,6 @@ use rlua::prelude::*;
 mod wrappers;
 mod manifold;
 mod multivector;
-mod ndim;
 mod pieceset;
 mod puzzle;
 mod space;
@@ -13,7 +12,6 @@ mod vector;
 
 pub use manifold::LuaManifold;
 pub use multivector::LuaMultivector;
-pub use ndim::LuaNdim;
 pub use pieceset::LuaPieceSet;
 pub use puzzle::LuaPuzzleBuilder;
 pub use space::LuaSpace;

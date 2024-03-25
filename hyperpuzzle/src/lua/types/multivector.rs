@@ -9,7 +9,7 @@ lua_userdata_value_conversion_wrapper! {
         LuaValue::Table(t)  => Ok(LuaMultivector::construct_from_table(t)?),
         LuaValue::Integer(x) => Ok(Multivector::scalar(x as _)),
         LuaValue::Number(x) => Ok(Multivector::scalar(x as _)),
-        LuaValue::String(s) => s.to_str()?.parse().map(|axes: LuaAxesString| axes.to_multivector()),
+        LuaValue::String(s) => s.to_str()?.parse().map(|axes: LuaMultivectorIndex| axes.to_multivector()),
     }
 }
 lua_userdata_multivalue_conversion_wrapper!(pub struct LuaConstructMultivector(Multivector) = LuaMultivector::construct_unwrapped_from_multivalue);
@@ -18,7 +18,7 @@ impl LuaMultivector {
     fn construct_from_table(t: LuaTable<'_>) -> LuaResult<Multivector> {
         let mut ret = Multivector::ZERO;
         for pair in t.pairs() {
-            let (k, v): (LuaAxesString, Float) = pair?;
+            let (k, v): (LuaMultivectorIndex, Float) = pair?;
             ret += k.to_multivector() * v;
         }
         Ok(ret)
@@ -134,7 +134,7 @@ impl LuaUserData for LuaNamedUserData<Multivector> {
         // Multivector[index]
         methods.add_meta_method(
             LuaMetaMethod::Index,
-            |_lua, Self(this), axes: LuaAxesString| {
+            |_lua, Self(this), axes: LuaMultivectorIndex| {
                 Ok(match axes.nino {
                     Some(NiNo::No) => this.get_no(axes.axes),
                     Some(NiNo::Ni) => this.get_ni(axes.axes),
