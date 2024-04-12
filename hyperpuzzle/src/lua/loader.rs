@@ -1,13 +1,15 @@
 #![allow(clippy::semicolon_if_nothing_returned)] // useful for type inference of `()`
 
+use eyre::Result;
 use std::sync::Arc;
 
-use eyre::{Result, WrapErr};
+use itertools::Itertools;
+use mlua::prelude::*;
 use parking_lot::Mutex;
-use rlua::prelude::*;
+
+use crate::library::{LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryFileLoadState};
 
 use super::*;
-use crate::{PieceSet, Puzzle, PuzzleBuilder, PuzzleData};
 
 macro_rules! lua_module {
     ($filename:literal) => {
@@ -16,45 +18,62 @@ macro_rules! lua_module {
 }
 
 const LUA_MODULES: &[(&str, &str)] = &[
-    lua_module!("prelude/01_pprint.lua"),
-    lua_module!("prelude/02_logging.lua"),
-    lua_module!("prelude/03_monkeypatch.lua"),
-    lua_module!("prelude/04_files.lua"),
-    lua_module!("prelude/05_sandbox.lua"),
+    lua_module!("prelude/pprint.lua"),
+    lua_module!("prelude/utils.lua"),
+    lua_module!("prelude/sandbox.lua"),
 ];
 
-#[derive(Debug, Clone)]
-pub struct CachedPuzzle(Arc<Puzzle>);
-impl rlua::UserData for CachedPuzzle {}
-
+/// Lua runtime for loading Lua files.
 #[derive(Debug)]
-pub struct LuaLoader {
+pub(crate) struct LuaLoader {
+    /// Lua instance.
     lua: Lua,
+    /// Database of shapes, puzzles, etc.
+    db: Arc<Mutex<LibraryDb>>,
+    /// Handle to the Lua logger.
+    logger: LuaLogger,
 }
 impl LuaLoader {
-    pub fn new() -> Self {
+    /// Initializes a Lua runtime and loads all the functionality of the
+    /// `hyperpuzzle` Lua API.
+    pub fn new(db: Arc<Mutex<LibraryDb>>, logger: LuaLogger) -> Self {
         // SAFETY: We need the debug library to get traceback info for better error
         // reporting. We use Lua sandboxing functionality so the user should never
         // be able to access the debug module.
         let lua = unsafe {
             Lua::unsafe_new_with(
-                rlua::StdLib::BASE
-                    | rlua::StdLib::TABLE
-                    | rlua::StdLib::STRING
-                    | rlua::StdLib::UTF8
-                    | rlua::StdLib::MATH
-                    | rlua::StdLib::DEBUG,
+                mlua::StdLib::TABLE
+                    | mlua::StdLib::STRING
+                    | mlua::StdLib::UTF8
+                    | mlua::StdLib::MATH
+                    | mlua::StdLib::DEBUG, // TODO: shouldn't be necessary (so no `unsafe`!)
+                LuaOptions::new(),
             )
         };
 
-        lua.context(|lua| {
+        // Registry library.
+        lua.set_app_data(Arc::clone(&db));
+
+        let logger_ref2 = logger.clone();
+
+        // IIFE to mimic try_block
+        (|| {
             // Monkeypatch builtin `type` function.
             let globals = lua.globals();
-            globals.set("type", lua.create_function(|_, v| Ok(lua_type_name(&v)))?)?;
+            let type_fn = |_lua, v| Ok(lua_type_name(&v));
+            globals.raw_set("type", lua.create_function(type_fn)?)?;
+
+            if crate::CAPTURE_LUA_OUTPUT {
+                globals.raw_set("print", logger.lua_info_fn(&lua)?)?;
+                lua.set_warning_function(move |lua, msg, to_continue| match to_continue {
+                    true => Ok(logger.warn(crate::lua::current_filename(lua), msg)),
+                    false => Ok(logger.error(crate::lua::current_filename(lua), msg)),
+                });
+            }
 
             for (module_name, module_source) in LUA_MODULES {
                 log::info!("Loading Lua module {module_name:?}");
-                if let Err(e) = lua.load(module_source).set_name(module_name)?.exec() {
+                if let Err(e) = lua.load(*module_source).set_name(*module_name).exec() {
                     panic!("error loading Lua module {module_name:?}:\n\n{e}\n\n");
                 }
             }
@@ -63,208 +82,193 @@ impl LuaLoader {
             let sandbox: LuaTable<'_> = lua.globals().get("SANDBOX_ENV")?;
 
             // Constants
-            let puzzle_engine_version_string =
-                format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-            sandbox.raw_set("_PUZZLE_ENGINE", puzzle_engine_version_string)?;
-            sandbox.raw_set("AXES", lua_axes_table(lua)?)?;
+            sandbox.raw_set("_PUZZLE_ENGINE", crate::PUZZLE_ENGINE_VERSION_STRING)?;
+            sandbox.raw_set("AXES", lua_axes_table(&lua)?)?;
+
+            // Database
+            sandbox.raw_set("shapes", LuaShapeDb)?;
+            sandbox.raw_set("axis_systems", LuaAxisSystemDb)?;
+            sandbox.raw_set("twist_systems", LuaTwistSystemDb)?;
+            sandbox.raw_set("puzzles", LuaPuzzleDb)?;
 
             // Constructors
-            let vec_fn = lua.create_function(LuaVector::construct_from_multivalue)?;
-            sandbox.raw_set("vec", vec_fn)?;
-            let mvec_fn = lua.create_function(LuaMultivector::construct_from_multivalue)?;
-            sandbox.raw_set("mvec", mvec_fn)?;
-            let plane_fn = lua.create_function(LuaManifold::construct_plane)?;
-            sandbox.raw_set("plane", plane_fn)?;
-            let sphere_fn = lua.create_function(LuaManifold::construct_sphere)?;
-            sandbox.raw_set("sphere", sphere_fn)?;
-            let cd_fn = lua.create_function(LuaCoxeterGroup::construct_from_cd_table)?;
-            sandbox.raw_set("cd", cd_fn)?;
-
-            // Puzzle construction functions
-            let carve_fn = lua.create_function(LuaPuzzleBuilder::carve)?;
-            sandbox.raw_set("carve", carve_fn)?;
-            let slice_fn = lua.create_function(LuaPuzzleBuilder::slice)?;
-            sandbox.raw_set("slice", slice_fn)?;
-
-            let add_color_fn = lua.create_function(LuaPuzzleBuilder::add_color)?;
-            sandbox.raw_set("add_color", add_color_fn)?;
-            let name_colors_fn = lua.create_function(LuaPuzzleBuilder::name_colors)?;
-            sandbox.raw_set("name_colors", name_colors_fn)?;
-            let reorder_colors_fn = lua.create_function(LuaPuzzleBuilder::reorder_colors)?;
-            sandbox.raw_set("reorder_colors", reorder_colors_fn)?;
-            let set_default_colors_fn =
-                lua.create_function(LuaPuzzleBuilder::set_default_colors)?;
-            sandbox.raw_set("set_default_colors", set_default_colors_fn)?;
+            let vec_fn = |_lua, LuaVectorFromMultiValue(v)| Ok(LuaVector(v));
+            sandbox.raw_set("vec", lua.create_function(vec_fn)?)?;
+            let mvec_fn = |_lua, m: LuaMultivector| Ok(m);
+            sandbox.raw_set("mvec", lua.create_function(mvec_fn)?)?;
+            let plane_fn = LuaManifold::construct_plane;
+            sandbox.raw_set("plane", lua.create_function(plane_fn)?)?;
+            let sphere_fn = LuaManifold::construct_sphere;
+            sandbox.raw_set("sphere", lua.create_function(sphere_fn)?)?;
+            let cd_fn = |_lua, t| LuaSymmetry::construct_from_table(t);
+            sandbox.raw_set("cd", lua.create_function(cd_fn)?)?;
+            let refl_fn = LuaTransform::construct_reflection;
+            sandbox.raw_set("refl", lua.create_function(refl_fn)?)?;
+            let rot_fn = LuaTransform::construct_rotation;
+            sandbox.raw_set("rot", lua.create_function(rot_fn)?)?;
 
             LuaResult::Ok(())
-        })
+        })()
         .expect("error initializing lua");
 
-        LuaLoader { lua }
+        let logger = logger_ref2;
+        LuaLoader { lua, db, logger }
     }
 
-    fn call_global<A: for<'lua> ToLuaMulti<'lua>, R: for<'lua> FromLuaMulti<'lua>>(
-        &self,
+    /// Loads all files that have not yet been loaded.
+    pub fn load_all_files(&self) {
+        let files = self.db.lock().files.values().cloned().collect_vec();
+        for file in files {
+            if !file.is_loaded() {
+                if let Err(e) = self.load_file(&file.name) {
+                    let e = e.context(format!("error loading file {:?}", file.name));
+                    self.logger.error(Some(file.name.clone()), e.to_string());
+                }
+            }
+        }
+    }
+
+    /// Loads a file if it has not yet been loaded, and then returns the file's
+    /// export table.
+    fn load_file<'lua>(&'lua self, filename: &str) -> LuaResult<LuaTable<'lua>> {
+        let db = self.db.lock();
+
+        // If the file doesn't exist, return an error.
+        let Some(file) = db.files.get(filename) else {
+            return Err(LuaError::external(format!("no such file {filename:?}")));
+        };
+        let file = Arc::clone(file);
+
+        // If the file was already loaded, then return that.
+        let mut load_state = file.load_state.lock();
+        match &*load_state {
+            LibraryFileLoadState::Unloaded => (), // Good! We're about to load it.
+            LibraryFileLoadState::Loading(_) => {
+                return Err(LuaError::external(format!(
+                    "recursive dependency on file {filename:?}",
+                )));
+            }
+            LibraryFileLoadState::Done(load_result) => {
+                return match load_result {
+                    Ok(f) => self.lua.registry_value(&f.exports),
+                    Err(e) => Err(e.clone()),
+                };
+            }
+        }
+
+        let sandbox_env: LuaTable<'_> = self.call_global("make_sandbox", filename)?;
+        let exports_table = self.lua.create_registry_value(sandbox_env.clone())?;
+
+        // There must be no way to exit the function during this block.
+        {
+            *load_state =
+                LibraryFileLoadState::Loading(LibraryFileLoadResult::with_exports(exports_table));
+            // Set the currently-loading file.
+            let old_file = self.lua.set_app_data::<Arc<LibraryFile>>(Arc::clone(&file));
+
+            // Unlock the mutexes before we execute user code.
+            drop(load_state);
+            drop(db);
+
+            let chunk = self
+                .lua
+                .load(&file.contents)
+                .set_name(filename)
+                .set_environment(sandbox_env.clone());
+            let exec_result = chunk.exec();
+
+            match old_file {
+                Some(f) => self.lua.set_app_data::<Arc<LibraryFile>>(f),
+                None => self.lua.remove_app_data::<Arc<LibraryFile>>(),
+            };
+            match exec_result {
+                Ok(()) => {
+                    {
+                        let LibraryFileLoadResult {
+                            dependencies: _,
+
+                            exports: _,
+
+                            shapes,
+                            axis_systems,
+                            twist_systems,
+                            puzzles,
+                        } = &*file.as_loading()?;
+
+                        let mut db = self.db.lock();
+                        let kv = |k: &String| (k.clone(), Arc::clone(&file));
+                        db.shapes.extend(shapes.keys().map(kv));
+                        db.axis_systems.extend(axis_systems.keys().map(kv));
+                        db.twist_systems.extend(twist_systems.keys().map(kv));
+                        db.puzzles.extend(puzzles.keys().map(kv));
+                    }
+
+                    file.load_state.lock().complete_ok(&self.lua)
+                }
+                Err(e) => Err(file.load_state.lock().complete_err(e)),
+            }
+        }
+    }
+
+    /// Builds a puzzle, or returns a cached puzzle if it has already been
+    /// built.
+    pub fn build_puzzle(&self, id: &str) -> Result<Arc<crate::Puzzle>> {
+        let result = LibraryDb::build_puzzle(&self.lua, &id);
+        if let Err(e) = &result {
+            let file = LibraryDb::get(&self.lua)
+                .ok()
+                .and_then(|lib| Some(lib.lock().puzzles.get(id)?.name.clone()));
+            self.logger.error(file, e);
+        }
+        result
+    }
+
+    fn call_global<'lua, A: IntoLuaMulti<'lua>, R: FromLuaMulti<'lua>>(
+        &'lua self,
         func_name: &str,
         args: A,
-    ) -> Result<R> {
-        self.lua.context(|lua| call_global(lua, func_name, args))
-    }
-
-    pub fn set_log_line_handler(
-        &self,
-        log_line_handler: impl 'static + Send + Fn(LuaLogLine),
-    ) -> Result<()> {
+    ) -> LuaResult<R> {
         self.lua
-            .context(move |lua| {
-                lua.globals().set(
-                    "log_line",
-                    lua.create_function(move |_lua, args: LuaTable<'_>| {
-                        log_line_handler(LuaLogLine::from(args));
-                        Ok(())
-                    })?,
-                )
-            })
-            .wrap_err("error setting Lua log line handler")
-    }
-
-    pub fn set_file_contents(&self, filename: &str, contents: Option<&str>) -> Result<()> {
-        self.call_global("set_file_contents", (filename, contents))
-    }
-
-    pub fn remove_all_files(&self) -> Result<()> {
-        self.call_global("remove_all_files", ())
-    }
-
-    pub fn load_all_files(&self) {
-        self.call_global("load_all_files", ())
-            .expect("infallible Lua function failed!")
-    }
-
-    pub fn get_puzzle_data(&self) -> Vec<PuzzleData> {
-        self.lua.context(|lua| {
-            lua.globals()
-                .get::<_, LuaTable<'_>>("PUZZLES")
-                .expect("error reading Lua puzzle table")
-                .pairs()
-                .map(|pair| {
-                    let (id, data): (String, LuaTable<'_>) = pair?;
-                    let name = data.get("name")?;
-                    let filename = data.get::<_, LuaTable<'_>>("file")?.get("name")?;
-                    Ok(PuzzleData { id, name, filename })
-                })
-                .filter_map(|data: LuaResult<_>| {
-                    if data.is_err() {
-                        log::error!("ignoring broken puzzle");
-                    }
-                    data.ok()
-                })
-                .collect()
-        })
-    }
-
-    pub fn build_puzzle(&self, puzzle_name: &str) -> Result<Arc<Puzzle>> {
-        self.lua.context(|lua| {
-            let puzzle_data: LuaTable<'_> = call_global(lua, "get_puzzle", puzzle_name)?;
-
-            if let Some(CachedPuzzle(cached_puzzle)) = puzzle_data.get("cached")? {
-                return Ok(cached_puzzle);
-            }
-
-            let id: String = puzzle_data
-                .get("id")
-                .wrap_err("expected `id` to be a string")?;
-            let LuaNdim(ndim) = puzzle_data
-                .get("ndim")
-                .wrap_err("expected `ndim` to be a number of dimensions")?;
-            let name: String = puzzle_data
-                .get("name")
-                .wrap_err("expected `name` to be a string")?;
-
-            let (puzzle_builder, root) =
-                PuzzleBuilder::new_solid(name.to_string(), id.to_string(), ndim)?;
-            let space = Arc::clone(&puzzle_builder.space);
-
-            let puzzle_builder = Arc::new(Mutex::new(Some(puzzle_builder)));
-
-            lua.globals().set("SPACE", LuaSpace(space).to_lua(lua)?)?;
-            lua.globals()
-                .set("PUZZLE", LuaPuzzleBuilder(puzzle_builder).to_lua(lua)?)?;
-
-            let build_puzzle_result: Result<Option<String>> = call_global(
-                lua,
-                "build_puzzle",
-                (
-                    puzzle_data.clone(),
-                    LuaPieceSet(PieceSet::from_iter([root])),
-                ),
-            );
-
-            let error = build_puzzle_result?;
-            if let Some(error_message) = error {
-                lua.globals()
-                    .get::<_, LuaFunction<'_>>("error")?
-                    .call(error_message)?;
-            }
-
-            let result = LuaPuzzleBuilder::take(lua)?.build()?;
-            puzzle_data.set("cached", CachedPuzzle(Arc::clone(&result)))?;
-
-            lua.globals().set("SPACE", LuaNil)?;
-            lua.globals().set("PUZZLE", LuaNil)?;
-
-            Ok(result)
-        })
+            .globals()
+            .get::<_, LuaFunction<'_>>(func_name)?
+            .call::<A, R>(args)
     }
 
     #[cfg(test)]
     pub fn run_test_suite(&self, filename: &str, contents: &str) {
-        self.set_file_contents(filename, Some(contents))
-            .expect("failed to load tests");
-        self.lua.context(|lua| {
-            let file = load_file(lua, filename).expect("error loading test file");
-            let env: rlua::Table<'_> = file.get("environment").expect("no env");
+        self.db
+            .lock()
+            .add_file(filename.to_string(), None, contents.to_string());
+        let env = self.load_file(filename).expect("error loading test file");
 
-            for pair in env.pairs::<String, rlua::Function<'_>>() {
-                if let Ok((name, function)) = pair {
-                    if name.starts_with("test_") {
-                        println!("Running {name:?} ...");
-                        if let Err(e) = function.call::<(), ()>(()) {
-                            eprintln!("{e:#?}");
-                            panic!("{e}");
-                        }
-                    }
+        let mut ran_any_tests = false;
+        for pair in env.pairs::<LuaValue<'_>, LuaValue<'_>>() {
+            let (k, v) = pair.unwrap();
+            let Ok(name) = self.lua.unpack::<String>(k) else {
+                continue;
+            };
+            let Ok(function) = self.lua.unpack::<LuaFunction<'_>>(v) else {
+                continue;
+            };
+            if name.starts_with("test_") {
+                ran_any_tests = true;
+                println!("Running {name:?} ...");
+                if let Err(e) = function.call::<(), ()>(()) {
+                    panic!("{e}");
                 }
             }
-        });
+        }
+        assert!(ran_any_tests, "no tests ran!");
     }
 }
 
-fn call_global<'lua, A: ToLuaMulti<'lua>, R: FromLuaMulti<'lua>>(
-    lua: LuaContext<'lua>,
-    func_name: &str,
-    args: A,
-) -> Result<R> {
-    lua.globals()
-        .get::<_, LuaFunction<'_>>(func_name)
-        .wrap_err_with(|| format!("missing global Lua function {func_name}"))?
-        .call::<A, R>(args)
-        .wrap_err_with(|| format!("error calling global Lua function {func_name}"))
-}
-
-fn lua_axes_table(lua: LuaContext<'_>) -> LuaResult<LuaTable<'_>> {
-    let ret = lua.create_table()?;
-    for (i, c) in hypermath::AXIS_NAMES.chars().enumerate() {
-        ret.set(i, c.to_string())?;
-        ret.set(c.to_string(), i)?;
-        ret.set(c.to_ascii_lowercase().to_string(), i)?;
+fn lua_axes_table(lua: &Lua) -> LuaResult<LuaTable<'_>> {
+    let axes_table = lua.create_table()?;
+    for (i, c) in hypermath::AXIS_NAMES.chars().enumerate().take(6) {
+        axes_table.set(i, c.to_string())?;
+        axes_table.set(c.to_string(), i)?;
+        axes_table.set(c.to_ascii_lowercase().to_string(), i)?;
     }
-    let read_only_metatable: LuaTable<'_> = lua.globals().get("READ_ONLY_METATABLE")?;
-    ret.set_metatable(Some(read_only_metatable));
-    Ok(ret)
-}
-
-#[cfg(test)]
-fn load_file<'lua>(lua: LuaContext<'lua>, filename: &str) -> Result<LuaTable<'lua>> {
-    call_global(lua, "load_file", filename)
+    seal_table(lua, &axes_table)?;
+    Ok(axes_table)
 }

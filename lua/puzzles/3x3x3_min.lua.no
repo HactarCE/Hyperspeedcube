@@ -1,0 +1,22 @@
+puzzles:add('3x3x3', {
+  name = "3x3x3",
+  ndim = 3,
+  symmetry = cd{4, 3}, -- auto expand carve, colors, axes, twists, slice, and layers
+  build = function(p)
+    -- shape
+    p.shape:carve('z')
+
+    -- axes
+    p.twists.axes:add('z')
+
+    -- twists
+    local R = p.twists.axes[1]
+    local U = p.twists.axes[2]
+    local F = p.twists.axes[5]
+    p.twists:add{axis = U, transform = rot{fix = U, from = R, to = F}}
+
+    -- slicing & layers
+    p:slice(vec('z') / 3)
+    U.layers:add(vec('z') / 3)
+  end,
+})

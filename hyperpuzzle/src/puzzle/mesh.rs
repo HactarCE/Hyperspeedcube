@@ -129,7 +129,7 @@ impl Mesh {
         self.edges.len()
     }
 
-    pub(super) fn add_vertex(&mut self, data: MeshVertexData<'_>) -> u32 {
+    pub(crate) fn add_vertex(&mut self, data: MeshVertexData<'_>) -> u32 {
         let vertex_id = self.vertex_count() as u32;
 
         let ndim = self.ndim();
@@ -144,7 +144,7 @@ impl Mesh {
 
         vertex_id
     }
-    pub(super) fn next_polygon_id(&mut self) -> Result<u32> {
+    pub(crate) fn next_polygon_id(&mut self) -> Result<u32> {
         let ret = self.polygon_count as u32;
         self.polygon_count = self
             .polygon_count
@@ -154,7 +154,7 @@ impl Mesh {
     }
 
     /// Adds a sticker to the mesh.
-    pub(super) fn add_sticker(
+    pub(crate) fn add_sticker(
         &mut self,
         polygon_range: Range<usize>,
         triangle_range: Range<u32>,
@@ -168,7 +168,7 @@ impl Mesh {
         Ok(())
     }
     /// Adds a piece to the mesh.
-    pub(super) fn add_piece(
+    pub(crate) fn add_piece(
         &mut self,
         centroid: &impl VectorRef,
         internals_polygon_range: Range<usize>,
@@ -188,7 +188,7 @@ impl Mesh {
         Ok(())
     }
 
-    pub(super) fn add_facet(
+    pub(crate) fn add_facet(
         &mut self,
         centroid: impl VectorRef,
         normal: impl VectorRef,
@@ -202,7 +202,7 @@ impl Mesh {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(super) struct MeshVertexData<'a> {
+pub(crate) struct MeshVertexData<'a> {
     pub position: &'a Vector,
     pub u_tangent: &'a Vector,
     pub v_tangent: &'a Vector,

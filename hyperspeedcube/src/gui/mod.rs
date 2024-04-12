@@ -27,13 +27,6 @@ pub struct AppUi {
 
 impl AppUi {
     pub(crate) fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Initialize puzzle library.
-        crate::LIBRARY.with(|lib| {
-            lib.set_log_line_handler(Box::new(|log_line| {
-                crate::LIBRARY_LOG_LINES.lock().push(log_line);
-            }));
-        });
-
         // Initialize app state.
         let initial_file = std::env::args().nth(1).map(std::path::PathBuf::from);
         let mut app = App::new(cc, initial_file);

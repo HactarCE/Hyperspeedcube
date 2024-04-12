@@ -1,5 +1,4 @@
-use hypermath::collections::generic_vec::IndexOutOfRange;
-use hypermath::collections::GenericVec;
+use hypermath::collections::generic_vec::{GenericVec, IndexOverflow};
 use hypermath::{idx_struct, IndexNewtype, Isometry};
 use thiserror::Error;
 
@@ -31,7 +30,7 @@ pub enum GroupError {
     #[error("invalid group generator {0}")]
     InvalidGenerator(Isometry),
     #[error("overflow ({0})")]
-    Overflow(IndexOutOfRange),
+    Overflow(IndexOverflow),
 
     #[error("missing inverse for element {0}")]
     MissingInverse(ElementId),
@@ -45,8 +44,8 @@ pub enum GroupError {
     #[error("bad inverse; inverse of {0} is {1} but inverse of {1} is {2}")]
     BadInverse(ElementId, ElementId, ElementId),
 }
-impl From<IndexOutOfRange> for GroupError {
-    fn from(value: IndexOutOfRange) -> Self {
+impl From<IndexOverflow> for GroupError {
+    fn from(value: IndexOverflow) -> Self {
         GroupError::Overflow(value)
     }
 }

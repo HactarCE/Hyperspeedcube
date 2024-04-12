@@ -1,4 +1,4 @@
-use hypermath::collections::approx_hashmap::{self, ApproxHashMapKey};
+use hypermath::collections::approx_hashmap::FloatHash;
 
 use super::*;
 
@@ -14,10 +14,7 @@ pub struct ManifoldData {
 impl ApproxHashMapKey for ManifoldData {
     type Hash = <Blade as ApproxHashMapKey>::Hash;
 
-    fn approx_hash(
-        &self,
-        float_hash_fn: impl FnMut(Float) -> approx_hashmap::FloatHash,
-    ) -> Self::Hash {
+    fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
         self.blade.approx_hash(float_hash_fn)
     }
 }

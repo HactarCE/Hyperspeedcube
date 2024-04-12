@@ -1,4 +1,4 @@
-use hypermath::collections::{approx_hashmap::ApproxHashMapKey, ApproxHashMap};
+use hypermath::collections::ApproxHashMap;
 use hypermath::prelude::*;
 use itertools::Itertools;
 
@@ -109,20 +109,20 @@ impl SchlafliSymbol {
         &self,
         object: T,
         transform: fn(&Isometry, &T) -> T,
-    ) -> Vec<T> {
+    ) -> Vec<(Isometry, T)> {
         let generators = self.generators();
 
         let mut seen = ApproxHashMap::new();
-        seen.insert(&object, ());
+        seen.insert(object.clone(), ());
 
         let mut next_unprocessed_index = 0;
-        let mut ret = vec![object];
+        let mut ret = vec![(Isometry::ident(), object)];
         while next_unprocessed_index < ret.len() {
-            let unprocessed_object = ret[next_unprocessed_index].clone();
+            let (unprocessed_transform, unprocessed_object) = ret[next_unprocessed_index].clone();
             for gen in &generators {
                 let new_object = transform(gen, &unprocessed_object);
-                if seen.insert(&new_object, ()).is_none() {
-                    ret.push(new_object);
+                if seen.insert(new_object.clone(), ()).is_none() {
+                    ret.push((gen * &unprocessed_transform, new_object));
                 }
             }
             next_unprocessed_index += 1;

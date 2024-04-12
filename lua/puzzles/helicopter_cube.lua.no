@@ -1,0 +1,57 @@
+axis_systems:add('et_cubic', {
+  symmetry = cd{4, 3},
+  build = function(axes)
+    axes:add(axes.symmetry:vec('oxo'):normalized())
+    -- axes:rename{'R', 'U', 'L', 'D', 'F', 'B'}
+    -- axes:reorder{'R', 'L', 'U', 'D', 'F', 'B'}
+  end,
+})
+
+twist_systems:add('et_cubic', {
+  axes = 'cubic',
+  symmetry = cd{4, 3},
+  build = function(twists)
+    for _, axis in ipairs(twists.axes) do
+      -- Doctrinaire twist
+      twists:add({
+        axis = axis,
+        transform = rot{around = RU, angle = math.pi},
+        name = "",
+        inv_name = "'",
+        direction = "CW",
+        inv_direction = "CCW",
+      })
+      -- Jumbling twist
+      local j = twists:add({
+        axis = axis,
+        transform = rot{around = RU, angle = math.acos(1/3)},
+        name = '+',
+        inv_name = '-',
+        direction = "CW jumble",
+        inv_direction = "CCW jumble",
+        jumbling = true,
+      })
+      axis.jumbling_stops = { j, j.inv }
+    end
+  end,
+})
+
+puzzles:add('helicopter_cube', {
+  name = "Helicopter Cube",
+  ndim = 3,
+
+  properties = {
+    jumbling = true,
+  },
+
+  shape = 'cube',
+  twists = 'et_cubic',
+
+  build = function(p)
+    for ax in iter(p.twists.axes) do
+      local cut = plane{normal = ax.v, distance = math.sqrt(2)/4}
+      p:slice(cut)
+      ax.layers:add(cut) -- TODO: is this a good API?
+    end
+  end,
+})

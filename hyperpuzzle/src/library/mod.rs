@@ -1,7 +1,11 @@
 mod command;
+mod db;
+mod file;
 mod frontend;
-mod puzzledata;
+mod objects;
 
 use command::LibraryCommand;
-pub use frontend::Library;
-pub use puzzledata::PuzzleData;
+pub use db::*;
+pub use file::*;
+pub use frontend::*;
+pub use objects::*;

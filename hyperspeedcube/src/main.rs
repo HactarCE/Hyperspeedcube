@@ -30,7 +30,7 @@ const IS_OFFICIAL_BUILD: bool = std::option_env!("HSC_OFFICIAL_BUILD").is_some()
 const ICON_32_PNG_DATA: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
 
 thread_local! {
-    static LIBRARY: Library = Library::new();
+    static LIBRARY: hyperpuzzle::Library = Library::new();
 }
 lazy_static! {
     static ref LIBRARY_LOG_LINES: Mutex<Vec<hyperpuzzle::LuaLogLine>> = Mutex::new(vec![]);

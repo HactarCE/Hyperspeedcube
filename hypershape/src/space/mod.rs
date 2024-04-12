@@ -14,12 +14,14 @@ use tinyset::Set64;
 mod atomic_polytope;
 mod cut;
 mod manifold;
+mod map;
 mod results;
 mod signedref;
 
 pub use atomic_polytope::AtomicPolytope;
 pub use cut::{AtomicCut, AtomicCutParams, PolytopeFate};
 pub use manifold::ManifoldData;
+pub use map::{SpaceMap, SpaceMapFor};
 use results::IntervalUnion;
 pub use results::{AtomicPolytopeCutOutput, WhichSide};
 pub use signedref::SignedRef;
@@ -31,6 +33,8 @@ pub type ManifoldRef = SignedRef<ManifoldId>;
 /// Reference to an oriented atomic polytope in a [`Space`].
 pub type AtomicPolytopeRef = SignedRef<AtomicPolytopeId>;
 
+/// Set of oriented manifolds in a [`Space`].
+pub type ManifoldSet = Set64<ManifoldRef>;
 /// Set of oriented atomic polytopes in a [`Space`].
 pub type AtomicPolytopeSet = Set64<AtomicPolytopeRef>;
 /// Set of unoriented atomic polytopes in a [`Space`].
@@ -224,7 +228,8 @@ impl Space {
         boundary: AtomicPolytopeSet,
     ) -> Result<AtomicPolytopeRef> {
         if self.ndim_of(manifold) == 0 {
-            bail!("`add_atomic_polytope()` does not allow ndim = 0")
+            ensure!(boundary.is_empty(), "point pair must have no boundary");
+            return self.add_point_pair(manifold);
         }
 
         let unsigned_boundary = boundary.into_iter().map(|b| b * manifold.sign).collect();

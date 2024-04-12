@@ -2,10 +2,9 @@ use std::collections::hash_map;
 use std::marker::PhantomData;
 use std::ops::Index;
 
-use hypermath::collections::approx_hashmap::ApproxHashMapKey;
-use hypermath::collections::generic_vec::IndexOutOfRange;
+use hypermath::collections::generic_vec::IndexOverflow;
 use hypermath::collections::ApproxHashMap;
-use hypermath::IndexNewtype;
+use hypermath::{ApproxHashMapKey, IndexNewtype};
 use slab::Slab;
 
 /// Data structure that assigns an ID to each unique element inserted into it
@@ -39,11 +38,11 @@ impl<I: IndexNewtype, T: Clone + ApproxHashMapKey> SlabMap<I, T> {
 
     /// Returns the ID for a value, adding it to the map and assigning it an ID
     /// if it doesn't already have one.
-    pub fn get_or_insert(&mut self, value: T) -> Result<SlabMapEntry<I>, IndexOutOfRange> {
-        match self.hashmap.entry(&value) {
+    pub fn get_or_insert(&mut self, value: T) -> Result<SlabMapEntry<I>, IndexOverflow> {
+        match self.hashmap.entry(value.clone()) {
             hash_map::Entry::Occupied(e) => Ok(SlabMapEntry::Old(*e.get())),
             hash_map::Entry::Vacant(e) => {
-                let index = I::try_from_usize(self.slab.insert(value.clone()))?;
+                let index = I::try_from_usize(self.slab.insert(value))?;
                 Ok(SlabMapEntry::New(*e.insert(index)))
             }
         }

@@ -1,9 +1,12 @@
 use std::sync::{Arc, Weak};
 
+use crate::{AxisInfo, PerAxis};
+
 use super::{
     Axis, ColorInfo, LayerMask, Mesh, Notation, PerColor, PerPiece, PerPieceType, PerSticker,
     PieceInfo, PieceTypeInfo, PuzzleState, StickerInfo, Twist,
 };
+use hypershape::prelude::*;
 
 /// Puzzle type info.
 #[derive(Debug)]
@@ -32,11 +35,21 @@ pub struct Puzzle {
 
     /// Move notation.
     pub notation: Notation,
+
+    /// List of axes, indexed by ID.
+    pub axes: PerAxis<AxisInfo>,
+
+    /// Space containing a polytope for each piece.
+    pub(crate) space: Space,
+    /// Polytope for each piece.
+    pub(crate) piece_polytopes: PerPiece<AtomicPolytopeRef>,
+    /// Manifold for each axis, for each layer.
+    pub(crate) axis_manifolds: PerAxis<Vec<ManifoldRef>>,
 }
 
 impl Puzzle {
     /// Returns an `Arc` reference to the puzzle type.
-    pub fn arc(&self) -> Arc<Puzzle> {
+    pub fn arc(&self) -> Arc<Self> {
         self.this.upgrade().expect("`Puzzle` removed from `Arc`")
     }
     /// Constructs a new instance of the puzzle.

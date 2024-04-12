@@ -44,23 +44,16 @@ impl App {
     }
 
     pub(crate) fn reload_puzzle(&mut self) {
-        if let Some(puzzle_view) = self.active_puzzle_view.upgrade() {
-            crate::LIBRARY.with(|lib| {
-                let puzzle = self.active_puzzle_type()?;
-                let puzzle_db = lib.puzzles();
-                let puzzle_data = puzzle_db.get(&puzzle.id)?;
-                drop(puzzle_view);
-                let filename = puzzle_data.filename.clone();
-                let file_path = lib.file_paths()[&filename].clone();
-                let puzzle_id = puzzle_data.id.clone();
-                drop(puzzle_db);
-                lib.read_file(&file_path, filename);
-                lib.load_files();
-                self.load_puzzle(lib, &puzzle_id);
+        crate::LIBRARY.with(|lib: &hyperpuzzle::Library| {
+            let puzzle = self.active_puzzle_type()?;
+            let file = lib.file_containing_puzzle(&puzzle.id)?;
+            let path = file.path.as_ref()?;
+            lib.read_file(file.name.clone(), path);
+            lib.load_files().take_result_blocking();
+            self.load_puzzle(lib, &puzzle.id);
 
-                Some(())
-            });
-        }
+            Some(())
+        });
     }
     pub(crate) fn load_puzzle(&mut self, lib: &hyperpuzzle::Library, puzzle_id: &str) {
         let result = lib.build_puzzle(puzzle_id).take_result_blocking();

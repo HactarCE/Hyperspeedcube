@@ -32,7 +32,7 @@ impl LuaMultivectorIndex {
 }
 
 impl<'lua> FromLua<'lua> for LuaMultivectorIndex {
-    fn from_lua(lua_value: LuaValue<'lua>, lua: LuaContext<'lua>) -> LuaResult<Self> {
+    fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         if let Ok(LuaVectorIndex(i)) = LuaVectorIndex::from_lua(lua_value.clone(), lua) {
             Ok(LuaMultivectorIndex {
                 nino: None,
@@ -46,7 +46,7 @@ impl<'lua> FromLua<'lua> for LuaMultivectorIndex {
         } else {
             String::from_lua(lua_value, lua)?.parse()
         }
-        .map_err(LuaError::external)
+        .into_lua_err()
     }
 }
 

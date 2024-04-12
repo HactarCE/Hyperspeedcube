@@ -1,0 +1,116 @@
+shapes:add('hypercube', {
+  symmetry = cd{4, 3, 3},
+  build = function(shape)
+    shape:carve(shape.symmetry:vec('ooox'))
+    shape.colors:add(shape.symmetry:vec('ooox'))
+
+    shape.colors:rename{'Right', 'Up', 'Left', 'Down', 'Front', 'Back', 'In', 'Out'}
+    shape.colors:reorder{'Right', 'Left', 'Up', 'Down', 'Front', 'Back', 'In', 'Out'}
+    shape.colors:set_defaults{'red', 'orange', 'white', 'yellow', 'green', 'blue', 'purple', 'pink'}
+  end,
+})
+
+axis_systems:add('hypercubic', {
+  symmetry = cd{4, 3, 3},
+  build = function(axes)
+    axes:add(axes.symmetry:vec('ooox'))
+    axes:rename{'R', 'U', 'L', 'D', 'F', 'B', 'I', 'O'}
+    axes:reorder{'R', 'L', 'U', 'D', 'F', 'B', 'I', 'O'}
+  end,
+})
+
+twist_systems:add('ft_hypercubic', {
+  axes = 'cubic',
+  symmetry = cd{4, 3},
+  build = function(twists)
+    local R = twists.axes.R
+    local L = twists.axes.L
+    local U = twists.axes.U
+    local D = twists.axes.D
+    local F = twists.axes.F
+    local B = twists.axes.B
+    local I = twists.axes.I
+    local O = twists.axes.O
+
+    local twist_rot = rot{fix = {I, U}, from = R, to = F}
+    for transform, ax1, ax2, twist_rot in cd{4, 3, 3}:chiral():orbit(I, U, twist_rot) do
+      twists:add({
+        axis_prefix = true,
+        name = ax2.name,
+        axis = ax1,
+        transform = twist_rot,
+        inverse = false,
+      })
+    end
+
+    local function get_twist_fn(pos, neg)
+      return function(ax)
+        local other = pos
+        if ax == pos then other = O   end
+        if ax == neg then other = I   end
+        if ax == O   then other = neg end
+        return twists[ax .. other.name]
+      end
+    end
+    twists.directions:add("x", {twist = get_twist_fn(R, L)})
+    twists.directions:add("y", {twist = get_twist_fn(U, D)})
+    twists.directions:add("z", {twist = get_twist_fn(F, B)})
+    twists.directions:add("x'", {twist = get_twist_fn(L, R)})
+    twists.directions:add("y'", {twist = get_twist_fn(D, U)})
+    twists.directions:add("z'", {twist = get_twist_fn(B, F)})
+  end,
+})
+
+puzzles:add('3x3x3x3', {
+  name = "3x3x3x3",
+  aliases = {
+    "{4, 3, 3} 3",
+    "3^4",
+    "Rubik's Hypercube",
+  },
+  ndim = 4,
+  meta = {
+    id = '3x3x3x3',
+    author = "Andrew Farkas",
+
+    year = 1987,
+    inventor = {"Andrey Astrelin", "Melinda Green", "Don Hatch"},
+
+    external = {
+      mc4d = "3x3x3x3",
+    },
+  },
+
+  properties = {
+    shallow_cut = true,
+    doctrinaire = true,
+  },
+
+  shape = 'hypercube',
+  twists = 'ft_hypercubic',
+
+  build = function(p)
+    for ax in iter(p.twists.axes) do
+      local cut = plane{normal = ax.v, distance = 1/3}
+      local opposite_cut = plane{normal = ax.v, distance = -1/3}
+      p:slice(cut)
+      ax.layers:add({cut, opposite_cut}) -- TODO: is this a good API?
+    end
+
+    twists.aliases:add("M", {2, "L"})
+    twists.aliases:add("E", {2, "D"})
+    twists.aliases:add("S", {2, "F"})
+    twists.aliases:add("P", {2, "O"})
+    twists.aliases:add_wide_move_suffix("w")
+
+    local R = p.twists.axes.R
+    local U = p.twists.axes.U
+    local F = p.twists.axes.F
+    local I = p.twists.axes.I
+
+    p.piece_types:add('corner', {symmetry = cd{4, 3}, seed = R(1) & U(1) & F(1) & I(1)})
+    p.piece_types:add('edge', {symmetry = cd{4, 3}, seed = R(1) & U(1) & F(1)})
+    p.piece_types:add('ridge', {symmetry = cd{4, 3}, seed = R(1) & U(1)})
+    p.piece_types:add('center', {symmetry = cd{4, 3}, seed = R(1)})
+  end,
+})

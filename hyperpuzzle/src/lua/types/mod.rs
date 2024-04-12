@@ -1,72 +1,92 @@
-use rlua::prelude::*;
+use hypershape::Space;
+use mlua::prelude::*;
 
 #[macro_use]
 mod wrappers;
-mod manifold;
-mod multivector;
-mod pieceset;
+mod axis_system;
+mod color_system;
+mod database_traits;
+mod geometry;
 mod puzzle;
-mod space;
+mod shape;
 mod symmetry;
-mod vector;
+mod twist_system;
 
-pub use manifold::LuaManifold;
-pub use multivector::LuaMultivector;
-pub use pieceset::LuaPieceSet;
-pub use puzzle::LuaPuzzleBuilder;
-pub use space::LuaSpace;
-pub use symmetry::LuaCoxeterGroup;
-pub use vector::{LuaConstructVector, LuaVector};
+pub use axis_system::*;
+pub use color_system::*;
+pub use database_traits::*;
+pub use geometry::*;
+pub use puzzle::*;
+pub use shape::*;
+pub use symmetry::*;
+pub use twist_system::*;
 pub use wrappers::*;
 
-pub fn lua_type_name(lua_value: &LuaValue<'_>) -> &'static str {
-    if let LuaValue::UserData(userdata) = lua_value {
-        macro_rules! return_name_if_type {
-            ($userdata:ident, $wrapper_type:ty) => {
-                if $userdata
-                    .is::<LuaNamedUserData<<$wrapper_type as LuaUserDataConvertWrap>::Inner>>()
-                {
-                    return <$wrapper_type as LuaUserDataConvertWrap>::TYPE_NAME;
-                }
-            };
-        }
-        return_name_if_type!(userdata, LuaManifold);
-        return_name_if_type!(userdata, LuaMultivector);
-        return_name_if_type!(userdata, LuaPuzzleBuilder);
-        return_name_if_type!(userdata, LuaPieceSet);
-        return_name_if_type!(userdata, LuaSpace);
-        return_name_if_type!(userdata, LuaCoxeterGroup);
-        return_name_if_type!(userdata, LuaVector);
+pub fn cast_userdata<T: 'static + LuaUserData + Clone>(
+    lua: &Lua,
+    value: &LuaValue<'_>,
+) -> LuaResult<T> {
+    match value.as_userdata().and_then(|d| d.borrow::<T>().ok()) {
+        Some(value) => Ok(value.clone()),
+        None => lua_convert_err(value, lua_userdata_type_name::<T>(lua)?),
     }
-    lua_value.type_name()
 }
 
-/// Log line emitted by Lua code.
-#[derive(Debug, Clone)]
-pub struct LuaLogLine {
-    /// Log message.
-    pub msg: String,
-    /// Lua file that emitted the message.
-    pub file: Option<String>,
-    /// Log level, either `WARN` or `INFO`.
-    pub level: Option<String>,
-}
-impl<'lua> From<LuaTable<'lua>> for LuaLogLine {
-    fn from(value: LuaTable<'lua>) -> Self {
-        LuaLogLine {
-            msg: value.get("msg").unwrap_or_else(|_| "nil".to_string()),
-            file: value.get("file").ok(),
-            level: value.get("level").ok(),
-        }
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+struct LuaStaticStr(&'static str);
+impl LuaUserData for LuaStaticStr {}
+impl<'lua> FromLua<'lua> for LuaStaticStr {
+    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        value
+            .as_userdata()
+            .ok_or(LuaError::FromLuaConversionError {
+                // Don't use our custom `lua_type_name()` because that could
+                // potentially cause infinite recursion!
+                from: value.type_name(),
+                to: "Rust `&'static str`",
+                message: None,
+            })?
+            .borrow()
+            .map(|s| *s)
     }
 }
-impl LuaLogLine {
-    pub fn matches_filter_string(&self, filter_string: &str) -> bool {
-        filter_string.is_empty()
-            || self
-                .file
-                .as_ref()
-                .is_some_and(|file| file.contains(filter_string))
-            || self.msg.contains(filter_string)
+
+/// Shortcut function to construct the obvious
+/// [`LuaError::FromLuaConversionError`].
+fn lua_convert_err<T>(value: &LuaValue<'_>, to: &'static str) -> Result<T, LuaError> {
+    Err(lua_convert_error(value, to))
+}
+/// Shortcut function to construct the obvious
+/// [`LuaError::FromLuaConversionError`].
+fn lua_convert_error(value: &LuaValue<'_>, to: &'static str) -> LuaError {
+    LuaError::FromLuaConversionError {
+        from: lua_type_name(value),
+        to,
+        message: None,
     }
+}
+
+pub fn lua_userdata_type_name<'lua, T: 'static + LuaUserData>(
+    lua: &'lua Lua,
+) -> LuaResult<&'static str> {
+    Ok(lua_type_name(&LuaValue::UserData(lua.create_proxy::<T>()?)))
+}
+pub fn lua_type_name<'lua>(value: &LuaValue<'lua>) -> &'static str {
+    // IIFE to mimic try_block
+    match (|| {
+        value
+            .as_userdata()?
+            .get_metatable()
+            .ok()?
+            .get("type")
+            .ok()?
+    })() {
+        Some(LuaStaticStr(s)) => s,
+        None => value.type_name(),
+    }
+}
+
+/// Sets the metatable on `table` to make it read-only.
+pub fn seal_table<'lua>(lua: &'lua Lua, table: &LuaTable<'lua>) -> LuaResult<()> {
+    lua.globals().get::<_, LuaFunction<'_>>("seal")?.call(table)
 }

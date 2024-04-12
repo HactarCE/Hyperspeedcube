@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use hypermath::Isometry;
+use hyperpuzzle::lua::LuaLogLevel;
 use hyperpuzzle::LuaLogLine;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -92,23 +93,17 @@ impl Tab {
                 prefs::build_interaction_section(ui, app);
             }
             Tab::ViewSettings => {
-                if let Some(puzzle_view) = app.active_puzzle_view.upgrade() {
-                    let mut puzzle_view = puzzle_view.lock();
-                    if let Some(puzzle_view) = &mut *puzzle_view {
-                        if ui.button("Reset camera").clicked() {
-                            puzzle_view.view_controller.rot = Isometry::ident();
-                        }
-
-                        ui.separator();
-                    }
-                }
-
                 prefs::build_view_section(ui, app);
             }
 
             Tab::PuzzleView(puzzle_view) => {
                 let r = match &mut *puzzle_view.lock() {
-                    Some(puzzle_view) => puzzle_view.ui(ui, &app.prefs),
+                    Some(puzzle_view) => {
+                        if ui.button("Reset camera").clicked() {
+                            puzzle_view.view_controller.rot = Isometry::ident();
+                        }
+                        puzzle_view.ui(ui, &app.prefs)
+                    }
                     None => {
                         // Hint to the user to load a puzzle.
                         ui.allocate_ui_at_rect(ui.available_rect_before_wrap(), |ui| {
@@ -395,7 +390,7 @@ impl Tab {
                 }
                 ui.separator();
                 crate::LIBRARY.with(|lib| {
-                    for puzzle in lib.puzzles().values().sorted_by_key(|p| &p.name) {
+                    for puzzle in lib.puzzles() {
                         if ui.button(format!("Load {}", puzzle.name)).clicked() {
                             app.load_puzzle(lib, &puzzle.id);
                         }
@@ -444,6 +439,9 @@ impl Tab {
                     log_lines.clear();
                 }
 
+                crate::LIBRARY
+                    .with(|lib: &hyperpuzzle::Library| log_lines.extend(lib.pending_log_lines()));
+
                 let filter_string_id = unique_id!();
                 let mut filter_string: String =
                     ui.data_mut(|data| data.get_temp(filter_string_id).clone().unwrap_or_default());
@@ -457,11 +455,35 @@ impl Tab {
                     .auto_shrink(false)
                     .stick_to_bottom(true)
                     .show(ui, |ui| {
-                        for line in &**log_lines {
-                            if line.matches_filter_string(&filter_string) {
-                                colored_log_line(ui, line)
+                        // no wrap
+                        ui.with_layout(ui.layout().with_main_wrap(false), |ui| {
+                            let mut is_first = true;
+                            let mut last_file = &None;
+                            for line in log_lines
+                                .iter()
+                                .filter(|line| line.matches_filter_string(&*filter_string))
+                            {
+                                if is_first {
+                                    is_first = false;
+                                } else if last_file != &line.file {
+                                    ui.separator();
+                                }
+
+                                if last_file != &line.file {
+                                    if let Some(f) = &line.file {
+                                        ui.label(
+                                            egui::RichText::new(f)
+                                                .strong()
+                                                .text_style(egui::TextStyle::Monospace),
+                                        );
+                                    }
+                                }
+
+                                colored_log_line(ui, line);
+
+                                last_file = &line.file;
                             }
-                        }
+                        });
                     });
             }
         }
@@ -469,18 +491,17 @@ impl Tab {
 }
 
 fn colored_log_line(ui: &mut egui::Ui, line: &LuaLogLine) {
-    let color = match line.level.as_deref() {
-        Some("info") => egui::Color32::LIGHT_BLUE,
-        Some("warn" | "warning") => egui::Color32::YELLOW,
-        Some("error") => egui::Color32::LIGHT_RED,
-        _ => egui::Color32::WHITE,
+    let color = match line.level {
+        LuaLogLevel::Info => egui::Color32::LIGHT_BLUE,
+        LuaLogLevel::Warn => egui::Color32::YELLOW,
+        LuaLogLevel::Error => egui::Color32::LIGHT_RED,
     };
-    let s = match &line.file {
-        Some(file) => format!("[{}] {}", file, line.msg),
-        None => format!("{}", line.msg),
-    };
+    // let s = match &line.file {
+    //     Some(file) => format!("[{}] {}", file, line.msg),
+    //     None => format!("{}", line.msg),
+    // };
     ui.label(
-        egui::RichText::new(s)
+        egui::RichText::new(&line.msg)
             .color(color)
             .text_style(egui::TextStyle::Monospace),
     );

@@ -3,8 +3,7 @@ use itertools::Itertools;
 pub fn puzzle_type_menu(ui: &mut egui::Ui) -> Option<String> {
     let ret = crate::LIBRARY.with(|lib| {
         lib.puzzles()
-            .values()
-            .sorted_by_key(|puzzle| &puzzle.name)
+            .into_iter()
             .find(|puzzle| ui.button(&puzzle.name).clicked())
             .map(|puzzle| puzzle.id.clone())
     });

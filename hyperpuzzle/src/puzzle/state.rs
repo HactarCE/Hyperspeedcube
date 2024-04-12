@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use hypermath::prelude::*;
+use hypershape::prelude::*;
 
-use crate::{PerPiece, Puzzle};
+use crate::{Axis, LayerMask, PerPiece, Piece, Puzzle};
 
 /// Instance of a puzzle with a particular state.
 #[derive(Debug, Clone)]
@@ -28,5 +29,9 @@ impl PuzzleState {
     /// Returns the position and rotation of each piece.
     pub fn piece_transforms(&self) -> &PerPiece<Isometry> {
         &self.piece_transforms
+    }
+
+    pub fn pieces_in_grip(&self, axis: Axis, layer: LayerMask) -> Vec<Piece> {
+        todo!("pieces_in_grip")
     }
 }

@@ -9,14 +9,28 @@ use super::*;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LuaVectorIndex(pub u8);
 impl<'lua> FromLua<'lua> for LuaVectorIndex {
-    fn from_lua(lua_value: LuaValue<'lua>, lua: LuaContext<'lua>) -> LuaResult<Self> {
-        lua_convert!(match (lua, &lua_value, "vector index") {
-            <_>(LuaIntegerNoConvert(i)) => {
-                let i = u8::try_from(i).map_err(|_| LuaError::external("dimension count out of range"))?;
-                Ok(LuaVectorIndex(i - 1))
-            },
-            LuaValue::String(s) => s.to_str()?.parse().map(|LuaVectorIndex(i)| LuaVectorIndex(i)),
-        })
+    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        if let Ok(LuaIndex(i)) = lua.unpack(value.clone()) {
+            match u8::try_from(i) {
+                Ok(i) => Ok(LuaVectorIndex(i)),
+                Err(_) => Err(LuaError::FromLuaConversionError {
+                    from: "number",
+                    to: "vector index",
+                    message: Some("out of range".to_string()),
+                }),
+            }
+        } else if let LuaValue::String(s) = value {
+            match s.to_str()?.parse() {
+                Ok(LuaVectorIndex(i)) => Ok(LuaVectorIndex(i)),
+                Err(e) => Err(LuaError::FromLuaConversionError {
+                    from: "string",
+                    to: "vector index",
+                    message: Some(e),
+                }),
+            }
+        } else {
+            lua_convert_err(&value, "vector index (number or string)")
+        }
     }
 }
 

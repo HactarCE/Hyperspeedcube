@@ -67,7 +67,7 @@ impl IsometryGroup {
 
         let mut elements = PerElement::from_iter([Isometry::ident()]);
         let mut element_ids = ApproxHashMap::new();
-        element_ids.insert(&Isometry::ident(), ElementId::IDENTITY);
+        element_ids.insert(Isometry::ident(), ElementId::IDENTITY);
 
         // Computing inverses directly is doable, but might involve a lot of
         // floating-point math. Instead, keep track of the inverse of each
@@ -92,7 +92,7 @@ impl IsometryGroup {
                 // goes.
                 for (gen, new_elem) in successors_to_process.into_iter() {
                     let id;
-                    match element_ids.entry(&new_elem) {
+                    match element_ids.entry(new_elem.clone()) {
                         // We've already seen `new_elem`.
                         approx_hashmap::Entry::Occupied(e) => {
                             id = *e.into_mut();

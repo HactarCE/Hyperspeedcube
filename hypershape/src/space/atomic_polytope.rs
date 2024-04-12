@@ -1,3 +1,5 @@
+use hypermath::collections::approx_hashmap::FloatHash;
+
 use super::*;
 
 /// Conformally convex polytope defined by a manifold and a boundary.
@@ -23,6 +25,14 @@ impl fmt::Debug for AtomicPolytope {
             "AtomicPolytope {{ manifold: {}, boundary: [{}] }}",
             manifold_str, boundary_str,
         )
+    }
+}
+
+impl ApproxHashMapKey for AtomicPolytope {
+    type Hash = Self;
+
+    fn approx_hash(&self, _float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
+        self.clone()
     }
 }
 

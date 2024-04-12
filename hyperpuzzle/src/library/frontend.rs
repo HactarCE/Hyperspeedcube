@@ -1,25 +1,23 @@
 use itertools::Itertools;
-use parking_lot::{Mutex, MutexGuard};
-use std::collections::HashMap;
+use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
 
 use eyre::Result;
 
-use super::{LibraryCommand, PuzzleData};
-use crate::lua::LuaLoader;
+use super::{LibraryCommand, LibraryDb, LibraryFile};
+use crate::lua::{LuaLoader, LuaLogger, PuzzleParams};
 use crate::{LuaLogLine, Puzzle, TaskHandle};
 
-/// Handle to a library of puzzles. This type is cheap to `Clone` (just an
-/// `mpsc::Sender` and `Arc`).
+/// Handle to a library of puzzles.
 ///
 /// All Lua execution and puzzle construction happens asynchronously on other
 /// threads.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Library {
-    tx: mpsc::Sender<LibraryCommand>,
-    puzzles: Arc<Mutex<HashMap<String, PuzzleData>>>,
-    file_paths: Arc<Mutex<HashMap<String, PathBuf>>>,
+    cmd_tx: mpsc::Sender<LibraryCommand>,
+    log_rx: mpsc::Receiver<LuaLogLine>,
+    db: Arc<Mutex<LibraryDb>>,
 }
 
 impl Default for Library {
@@ -31,105 +29,61 @@ impl Default for Library {
 impl Library {
     /// Constructs a new puzzle library with its own Lua instance.
     pub fn new() -> Self {
-        let (tx, rx) = mpsc::channel();
+        let (cmd_tx, cmd_rx) = mpsc::channel();
+        let (logger, log_rx) = LuaLogger::new();
 
-        let puzzles = Arc::new(Mutex::new(HashMap::new()));
-        let file_paths = Arc::new(Mutex::new(HashMap::new()));
-        let puzzles_ref2 = Arc::clone(&puzzles);
-        let file_paths_ref2 = Arc::clone(&file_paths);
+        let db = LibraryDb::new();
+        let db_ref2 = Arc::clone(&db);
 
         std::thread::spawn(move || {
-            let loader = LuaLoader::new();
+            let loader = LuaLoader::new(db, logger);
 
-            for command in rx {
+            for command in cmd_rx {
                 match command {
-                    LibraryCommand::SetLogLineHandler { handler } => {
-                        if let Err(e) = loader.set_log_line_handler(handler) {
-                            let e = e.wrap_err("failed to set Lua log line handler");
-                            log::error!("{e:?}");
-                        }
-                    }
-
-                    LibraryCommand::AddFile {
-                        path,
-                        filename,
-                        contents,
-                    } => {
-                        if let Some(path) = path {
-                            file_paths_ref2.lock().insert(filename.clone(), path);
-                        }
-                        if let Err(e) = loader.set_file_contents(&filename, Some(&contents)) {
-                            let e = e.wrap_err(format!("failed to add file {filename}"));
-                            log::error!("{e:?}");
-                        }
-                    }
-                    LibraryCommand::RemoveFile { filename } => {
-                        if let Err(e) = loader.set_file_contents(&filename, None) {
-                            let e = e.wrap_err(format!("failed to remove file {filename}"));
-                            log::error!("{e:?}");
-                        }
-                    }
-                    LibraryCommand::RemoveAllFiles => {
-                        if let Err(e) = loader.remove_all_files() {
-                            let e = e.wrap_err("failed to remove all files");
-                            log::error!("{e:?}");
-                        }
-                    }
                     LibraryCommand::LoadFiles { progress } => {
                         loader.load_all_files();
-                        *puzzles_ref2.lock() = loader
-                            .get_puzzle_data()
-                            .into_iter()
-                            .map(|data| (data.name.clone(), data))
-                            .collect();
                         progress.complete(());
                     }
 
-                    LibraryCommand::BuildPuzzle { name, progress } => {
-                        progress.complete(loader.build_puzzle(&name));
+                    LibraryCommand::BuildPuzzle { id, progress } => {
+                        progress.complete(loader.build_puzzle(&id));
                     }
                 }
             }
         });
 
-        Library {
-            tx,
-            puzzles,
-            file_paths,
-        }
+        let db = db_ref2;
+        Library { cmd_tx, log_rx, db }
     }
     /// Sends a command to the [`LuaLoader`], which is on another thread.
     fn send_command(&self, command: LibraryCommand) {
-        self.tx
+        self.cmd_tx
             .send(command)
             .expect("error sending library command to loader thread");
     }
 
-    /// Sets a callback to be run for log lines emitted by Lua code.
-    pub fn set_log_line_handler(&self, handler: Box<dyn 'static + Send + Fn(LuaLogLine)>) {
-        self.send_command(LibraryCommand::SetLogLineHandler { handler });
+    /// Returns an iterator over all pending log lines. The iterator never
+    /// blocks waiting for more log lines; when there are no more, it stops.
+    pub fn pending_log_lines(&self) -> impl '_ + Iterator<Item = LuaLogLine> {
+        self.log_rx.try_iter()
     }
 
     /// Adds a file to the Lua library. It will not immediately be loaded.
     ///
     /// If the filename conflicts with an existing one, then the existing file
-    /// will be overwritten.
-    pub fn add_file(&self, path: Option<PathBuf>, filename: String, contents: String) {
-        self.send_command(LibraryCommand::AddFile {
-            path,
-            filename,
-            contents,
-        });
+    /// will be unloaded and overwritten.
+    pub fn add_file(&self, filename: String, path: Option<PathBuf>, contents: String) {
+        self.db.lock().add_file(filename, path, contents);
     }
     /// Reads a file from the disk and adds it to the Lua library. It will not
     /// immediately be loaded. Logs an error if the file could not be read.
     ///
     /// If the filename conflicts with an existing one, then the existing file
     /// will be overwritten.
-    pub fn read_file(&self, file_path: &Path, filename: String) {
+    pub fn read_file(&self, filename: String, file_path: &Path) {
         let file_path = file_path.strip_prefix(".").unwrap_or(file_path);
         match std::fs::read_to_string(file_path) {
-            Ok(contents) => self.add_file(Some(file_path.to_path_buf()), filename, contents),
+            Ok(contents) => self.add_file(filename, Some(file_path.to_path_buf()), contents),
             Err(e) => log::error!("error loading {file_path:?}: {e}"),
         }
     }
@@ -150,20 +104,16 @@ impl Library {
                             .components()
                             .map(|component| component.as_os_str().to_string_lossy())
                             .join("/");
-                        self.read_file(path, name);
+                        self.read_file(name, path);
                     }
                 }
                 Err(e) => log::warn!("error reading filesystem entry: {e:?}"),
             }
         }
     }
-    /// Removes a file from the Lua library.
-    pub fn remove_file(&self, filename: String) {
-        self.send_command(LibraryCommand::RemoveFile { filename });
-    }
-    /// Unloads all files.
-    pub fn remove_all_files(&self) {
-        self.send_command(LibraryCommand::RemoveAllFiles);
+    /// Unloads and removes a file from the Lua library.
+    pub fn remove_file(&self, filename: &str) {
+        self.db.lock().remove_file(&filename);
     }
     /// Loads all files that haven't been loaded yet. Lua execution happens
     /// asynchronously, so changes might not take effect immediately; use the
@@ -186,21 +136,38 @@ impl Library {
         self.read_directory(directory);
         self.load_files()
     }
-    /// Returns the list of known file paths.
-    pub fn file_paths(&self) -> MutexGuard<'_, HashMap<String, PathBuf>> {
-        self.file_paths.lock()
-    }
     /// Returns the full list of loaded puzzles.
-    pub fn puzzles(&self) -> MutexGuard<'_, HashMap<String, PuzzleData>> {
-        self.puzzles.lock()
+    pub fn puzzles(&self) -> Vec<Arc<PuzzleParams>> {
+        self.db
+            .lock()
+            .puzzles
+            .iter()
+            .filter_map(|(id, file)| {
+                let Some(load_result) = file.as_completed() else {
+                    log::error!("file {:?} owns puzzle {id:?} but is unloaded", file.name);
+                    return None;
+                };
+                let Some(puzzle) = load_result.puzzles.get(id) else {
+                    log::error!("puzzle {id:?} not found in file {:?}", file.name);
+                    return None;
+                };
+                Some(Arc::clone(&puzzle.params))
+            })
+            .sorted_by_cached_key(|params| params.name.clone())
+            .collect_vec()
     }
     /// Builds a puzzle from a Lua specification.
-    pub fn build_puzzle(&self, name: &str) -> TaskHandle<Result<Arc<Puzzle>>> {
+    pub fn build_puzzle(&self, id: &str) -> TaskHandle<Result<Arc<Puzzle>>> {
         let task = TaskHandle::new();
         self.send_command(LibraryCommand::BuildPuzzle {
-            name: name.to_string(),
+            id: id.to_string(),
             progress: task.clone(),
         });
         task
+    }
+
+    /// Returns the file that defined the puzzle with the given ID.
+    pub fn file_containing_puzzle(&self, id: &str) -> Option<Arc<LibraryFile>> {
+        self.db.lock().puzzles.get(id).map(Arc::clone)
     }
 }

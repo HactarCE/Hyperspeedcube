@@ -8,20 +8,34 @@ use itertools::Itertools;
 
 /// Error value returned by some operations related to [`GenericVec`]s when the
 /// maximum value of an indexing type is exceeded.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct IndexOutOfRange {
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct IndexOverflow {
     /// Name of the indexing type.
     pub type_name: &'static str,
     /// Maximum allowed value for the indexing type.
     pub max_value: u64,
 }
-impl fmt::Display for IndexOutOfRange {
+impl fmt::Display for IndexOverflow {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "exceeded maximum {} count of {}",
             self.type_name, self.max_value,
         )
+    }
+}
+impl std::error::Error for IndexOverflow {}
+
+/// Error value returned by some operations related to [`GenericVec`]s when the
+/// index is too large for the vector.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct IndexOutOfRange {
+    /// Name of the indexing type.
+    pub type_name: &'static str,
+}
+impl fmt::Display for IndexOutOfRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} index out of range", self.type_name)
     }
 }
 impl std::error::Error for IndexOutOfRange {}
@@ -67,11 +81,12 @@ macro_rules! idx_struct {
             impl $crate::collections::generic_vec::IndexNewtype for $struct_name {
                 const MAX: Self = Self(<$inner_type>::MAX);
                 const MAX_INDEX: usize = <$inner_type>::MAX as usize;
+                const TYPE_NAME: &'static str = stringify!($struct_name);
 
-                fn try_from_usize(index: usize) -> Result<Self, $crate::collections::generic_vec::IndexOutOfRange> {
+                fn try_from_usize(index: usize) -> Result<Self, $crate::collections::generic_vec::IndexOverflow> {
                     match index.try_into() {
                         Ok(i) => Ok(Self(i)),
-                        Err(_) => Err($crate::collections::generic_vec::IndexOutOfRange {
+                        Err(_) => Err($crate::collections::generic_vec::IndexOverflow {
                             type_name: stringify!($struct_name),
                             max_value: <$inner_type>::MAX as u64,
                         }),
@@ -96,11 +111,15 @@ pub trait IndexNewtype:
     + PartialOrd
     + Ord
     + tinyset::Fits64
+    + Send
+    + Sync
 {
     /// Maximum index representable by the type.
     const MAX: Self;
     /// Maximum index representable by the type.
     const MAX_INDEX: usize;
+    /// User-friendly type name (lowercase).
+    const TYPE_NAME: &'static str;
 
     /// Returns the index as a `usize`.
     fn to_usize(self) -> usize {
@@ -108,7 +127,7 @@ pub trait IndexNewtype:
     }
 
     /// Returns an index from a `usize`, or an error if it does not fit.
-    fn try_from_usize(index: usize) -> Result<Self, IndexOutOfRange>;
+    fn try_from_usize(index: usize) -> Result<Self, IndexOverflow>;
 
     /// Returns an iterator over all indices up to `count` (exclusive). If
     /// `count` exceeds the maximum value, then the iterator stops before
@@ -123,7 +142,7 @@ pub trait IndexNewtype:
     }
 
     /// Increments the index, or returns an error if it does not fit.
-    fn next(self) -> Result<Self, IndexOutOfRange> {
+    fn next(self) -> Result<Self, IndexOverflow> {
         Self::try_from_usize(self.to_usize().checked_add(1).unwrap_or(usize::MAX))
     }
 }
@@ -222,14 +241,14 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     }
 
     /// Adds an element to the end of the vector and returns its index.
-    pub fn push(&mut self, value: E) -> Result<I, IndexOutOfRange> {
+    pub fn push(&mut self, value: E) -> Result<I, IndexOverflow> {
         let idx = self.next_idx()?;
         self.values.push(value);
         Ok(idx)
     }
 
     /// Extends the vector until it contains `index`.
-    pub fn extend_to_contain(&mut self, index: I) -> Result<(), IndexOutOfRange>
+    pub fn extend_to_contain(&mut self, index: I) -> Result<(), IndexOverflow>
     where
         E: Default,
     {
@@ -248,19 +267,38 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
         self.values.len()
     }
     /// Returns the index of the next element to be added to the collection.
-    pub fn next_idx(&self) -> Result<I, IndexOutOfRange> {
+    pub fn next_idx(&self) -> Result<I, IndexOverflow> {
         I::try_from_usize(self.len())
     }
 
-    /// Returns a reference to the element at `index`, or `None` if the list is
-    /// not long enough.
-    pub fn get(&self, index: I) -> Option<&E> {
-        self.values.get(index.to_usize())
+    /// Returns a reference to the element at `index`, or an error if the index
+    /// is out of range.
+    pub fn get(&self, index: I) -> Result<&E, IndexOutOfRange> {
+        self.values.get(index.to_usize()).ok_or(IndexOutOfRange {
+            type_name: I::TYPE_NAME,
+        })
     }
-    /// Returns a mutable reference to the element at `index`, or `None` if the
-    /// list is not long enough.
-    pub fn get_mut(&mut self, index: I) -> Option<&mut E> {
-        self.values.get_mut(index.to_usize())
+    /// Returns a mutable reference to the element at `index`, or an error if
+    /// the index is out of range.
+    pub fn get_mut(&mut self, index: I) -> Result<&mut E, IndexOutOfRange> {
+        self.values
+            .get_mut(index.to_usize())
+            .ok_or(IndexOutOfRange {
+                type_name: I::TYPE_NAME,
+            })
+    }
+
+    /// Swaps two elements, or returns an error if the index is out of range.
+    pub fn swap(&mut self, i: I, j: I) -> Result<(), IndexOutOfRange> {
+        let i = i.to_usize();
+        let j = j.to_usize();
+        if i < self.len() && j < self.len() {
+            Ok(self.values.swap(i, j))
+        } else {
+            Err(IndexOutOfRange {
+                type_name: I::TYPE_NAME,
+            })
+        }
     }
 
     /// Returns an iterator over the indices in the collection.
