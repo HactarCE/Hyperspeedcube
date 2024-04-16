@@ -45,6 +45,8 @@ hypermath::idx_struct! {
     pub struct ManifoldId(pub u32);
     /// ID for a memoized unoriented atomic polytope in a [`Space`].
     pub struct AtomicPolytopeId(pub u32);
+    /// ID for a memoized isometry in a [`Space`].
+    pub struct IsometryId(pub u32);
 }
 
 /// Euclidean space in which polytopes can be constructed.
@@ -53,11 +55,23 @@ pub struct Space {
     manifolds: SlabMap<ManifoldId, ManifoldData>,
     /// Atomic polytopes defined in the space.
     polytopes: SlabMap<AtomicPolytopeId, AtomicPolytope>,
+    /// Isometries defined in the space.
+    isometries: SlabMap<IsometryId, Isometry>,
 
     /// Manifold of the entire space.
     covering_manifold: ManifoldId,
     /// Polytope with no border covering the entire space.
     covering_polytope: AtomicPolytopeId,
+
+    /// Cache for reverse of an isometry.
+    transform_reverse_cache: HashMap<IsometryId, IsometryId>,
+    /// Cache for composition of two isometries.
+    transform_composition_cache: HashMap<(IsometryId, IsometryId), IsometryId>,
+    /// Cache for transformation of a manifold.
+    manifold_transform_cache: HashMap<(IsometryId, ManifoldId), ManifoldRef>,
+    /// Cache for polytope which-side checks. This is not used by default (as
+    /// most cuts are only performed once).
+    polytope_which_side_cache: HashMap<(ManifoldId, AtomicPolytopeId), WhichSide>,
 }
 
 impl fmt::Debug for Space {
@@ -84,11 +98,20 @@ impl Index<AtomicPolytopeId> for Space {
     }
 }
 
+impl Index<IsometryId> for Space {
+    type Output = Isometry;
+
+    fn index(&self, index: IsometryId) -> &Self::Output {
+        &self.isometries[index]
+    }
+}
+
 impl Space {
     /// Constructs a new Euclidean space.
     pub fn new(ndim: u8) -> Result<Self> {
         let mut manifolds = SlabMap::new();
         let mut polytopes = SlabMap::new();
+        let transforms = SlabMap::new();
 
         let pseudoscalar = Blade::pseudoscalar(ndim);
         let covering_manifold = manifolds
@@ -101,9 +124,15 @@ impl Space {
         Ok(Space {
             manifolds,
             polytopes,
+            isometries: transforms,
 
             covering_manifold,
             covering_polytope,
+
+            transform_reverse_cache: HashMap::new(),
+            transform_composition_cache: HashMap::new(),
+            manifold_transform_cache: HashMap::new(),
+            polytope_which_side_cache: HashMap::new(),
         })
     }
 
@@ -347,6 +376,11 @@ impl Space {
             }
         }
         Ok(ret)
+    }
+
+    /// Adds an isometry to the space.
+    pub fn add_isometry(&mut self, isometry: Isometry) -> Result<IsometryId> {
+        Ok(self.isometries.get_or_insert(isometry)?.key())
     }
 
     /// Cuts each atomic polytope in a set.
@@ -1217,7 +1251,7 @@ impl Space {
 
     /// Returns the location of `point` relative to `polytope`, assuming they
     /// are in the same manifold.
-    fn is_polytope_touching_point(
+    pub fn is_polytope_touching_point(
         &mut self,
         point: &Point,
         polytope: AtomicPolytopeRef,
@@ -1238,6 +1272,61 @@ impl Space {
             Ok(PointWhichSide::On)
         } else {
             Ok(PointWhichSide::Inside)
+        }
+    }
+
+    /// Composes two transforms `a * b`. Results are cached.
+    pub fn compose_transforms(&mut self, a: IsometryId, b: IsometryId) -> Result<IsometryId> {
+        let key = (a, b);
+        if let Some(&result) = self.transform_composition_cache.get(&key) {
+            Ok(result)
+        } else {
+            let result = self.add_isometry(&self[a] * &self[b])?;
+            self.transform_composition_cache.insert(key, result);
+            Ok(result)
+        }
+    }
+    /// Reverses a transform. Results are cached.
+    pub fn reverse_transform(&mut self, t: IsometryId) -> Result<IsometryId> {
+        if let Some(&result) = self.transform_reverse_cache.get(&t) {
+            Ok(result)
+        } else {
+            let result = self.add_isometry(self[t].reverse())?;
+            self.transform_reverse_cache.insert(t, result);
+            Ok(result)
+        }
+    }
+
+    /// Transforms `manifold` by `transform`. Results are cached.
+    pub fn transform_manifold(
+        &mut self,
+        isometry: IsometryId,
+        manifold: ManifoldRef,
+    ) -> Result<ManifoldRef> {
+        let key = (isometry, manifold.id);
+        if let Some(&result) = self.manifold_transform_cache.get(&key) {
+            Ok(result * manifold.sign)
+        } else {
+            let blade = &self[manifold.id].blade;
+            let result = self.add_manifold(self[isometry].transform_blade(blade))?;
+            self.manifold_transform_cache.insert(key, result);
+            Ok(result * manifold.sign)
+        }
+    }
+    /// Returns which side of `manifold` contains `polytope`. Results are
+    /// cached.
+    pub fn cached_which_side_has_polytope(
+        &mut self,
+        manifold: ManifoldRef,
+        polytope: AtomicPolytopeId,
+    ) -> Result<WhichSide> {
+        let key = (manifold.id, polytope);
+        if let Some(&result) = self.polytope_which_side_cache.get(&key) {
+            Ok(result * manifold.sign)
+        } else {
+            let result = self.which_side_has_polytope(manifold.id.into(), polytope, true)?;
+            self.polytope_which_side_cache.insert(key, result);
+            Ok(result * manifold.sign)
         }
     }
 
