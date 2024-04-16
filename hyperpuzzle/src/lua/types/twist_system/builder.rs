@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use parking_lot::Mutex;
 
-use crate::builder::{NamingScheme, TwistSystemBuilder};
+use crate::builder::{NamingScheme, TwistBuilder, TwistSystemBuilder};
 use crate::puzzle::Twist;
 
 use super::*;
@@ -32,6 +32,8 @@ impl LuaUserData for LuaTwistSystem {
 
         TwistSystemBuilder::add_db_metamethods(methods, |Self(shape)| shape.lock());
         TwistSystemBuilder::add_named_db_methods(methods, |Self(shape)| shape.lock());
+
+        methods.add_method("add", |lua, this, data| this.add(lua, data));
     }
 }
 
@@ -63,5 +65,48 @@ impl<'lua> LuaNamedIdDatabase<'lua, Twist> for TwistSystemBuilder {
     }
     fn names_mut(&mut self) -> &mut NamingScheme<Twist> {
         &mut self.names
+    }
+}
+
+impl LuaTwistSystem {
+    fn add<'lua>(&self, lua: &'lua Lua, data: LuaTable<'lua>) -> LuaResult<LuaTwist> {
+        let axis_prefix: Option<bool>;
+        let name: Option<String>;
+        let inv_name: Option<String>;
+        let inverse: Option<bool>;
+        let axis: LuaAxis;
+        let transform: LuaTransform;
+
+        unpack_table!(lua.unpack(data {
+            axis_prefix,
+            name,
+            inv_name,
+            inverse,
+            axis,
+            transform,
+        }));
+
+        let mut name = name.unwrap_or_default();
+        if axis_prefix.unwrap_or(true) {
+            match axis.name() {
+                Some(axis_name) => name.insert_str(0, &axis_name),
+                None => {
+                    lua.warning("cannot name twist without having named axis", true);
+                    lua.warning("consider calling axes:autoname()", true);
+                    lua.warning("or use axis_prefix=false", false);
+                }
+            }
+        }
+
+        let mut twists = self.0.lock();
+        let id = twists
+            .add(TwistBuilder {
+                axis: axis.id,
+                transform: transform.0,
+            })
+            .into_lua_err()?;
+        twists.names.set(id, Some(name)).into_lua_err()?;
+
+        Ok(twists.wrap_id(id))
     }
 }

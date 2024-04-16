@@ -85,7 +85,8 @@ puzzles:add('3x3x3', {
       local cut = plane{normal = ax.vector, distance = 1/3}
       local opposite_cut = plane{normal = ax.vector, distance = -1/3}
       p.shape:slice(cut)
-      -- ax.layers:add({cut, opposite_cut}) -- TODO: is this a good API?
+      ax.layers:add(cut)
+      ax.layers:add(opposite_cut, nil)
     end
 
     -- p.twists.aliases:add("M", {2, "L"})

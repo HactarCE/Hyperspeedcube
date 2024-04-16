@@ -9,18 +9,24 @@ use hypershape::prelude::*;
 use parking_lot::Mutex;
 
 use super::{CustomOrdering, NamingScheme};
-use crate::{Axis, PerAxis};
+use crate::{Axis, PerAxis, PerLayer};
 
 /// Layer of a twist axis during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct AxisLayerBuilder {
-    pub boundary: ManifoldSet,
+    /// Manifold bounding the bottom of the layer.
+    pub bottom: ManifoldRef,
+    /// Manifold bounding the top of the layer, which is inferred to be the
+    /// bottom of the next layer out (or unbounded, this is the outermost
+    /// layer).
+    pub top: Option<ManifoldRef>,
 }
 impl AxisLayerBuilder {
     /// Returns a deep copy of the axis layer.
     fn clone(&self, space_map: &mut SpaceMap<'_>) -> Self {
         Self {
-            boundary: space_map.map_set(&self.boundary),
+            bottom: space_map.map(self.bottom),
+            top: self.top.map(|m| space_map.map(m)),
         }
     }
 }
@@ -29,7 +35,7 @@ impl AxisLayerBuilder {
 #[derive(Debug, Clone)]
 pub struct AxisBuilder {
     vector: Vector,
-    pub layers: Vec<AxisLayerBuilder>,
+    pub layers: PerLayer<AxisLayerBuilder>,
 }
 impl AxisBuilder {
     /// Returns the axis's vector.
@@ -41,11 +47,7 @@ impl AxisBuilder {
     fn clone(&self, space_map: &mut SpaceMap<'_>) -> Self {
         Self {
             vector: self.vector.clone(),
-            layers: self
-                .layers
-                .iter()
-                .map(|layer| layer.clone(space_map))
-                .collect(),
+            layers: self.layers.map_ref(|_id, layer| layer.clone(space_map)),
         }
     }
 }
@@ -139,10 +141,8 @@ impl AxisSystemBuilder {
         match self.vector_to_id.entry(vector.clone()) {
             hash_map::Entry::Occupied(_) => Err(eyre!("axis vector is already taken")),
             hash_map::Entry::Vacant(e) => {
-                let id = self.by_id.push(AxisBuilder {
-                    vector,
-                    layers: vec![],
-                })?;
+                let layers = PerLayer::new();
+                let id = self.by_id.push(AxisBuilder { vector, layers })?;
                 self.ordering.add(id)?;
                 e.insert(id);
                 Ok(id)

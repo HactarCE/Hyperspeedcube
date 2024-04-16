@@ -13,7 +13,7 @@ use parking_lot::Mutex;
 use crate::builder::NamingScheme;
 use crate::puzzle::{Axis, PerTwist, Twist};
 
-use super::AxisSystemBuilder;
+use super::{AxisSystemBuilder, CustomOrdering};
 
 /// Twist during puzzle construction.
 #[derive(Debug, Clone)]
@@ -106,13 +106,12 @@ impl TwistSystemBuilder {
         }))
     }
 
+    /// Returns the twist axes in canonical alphabetical order.
     pub fn alphabetized(&self) -> Vec<Twist> {
-        self.names
-            .names_to_ids()
-            .iter()
-            .sorted_by_key(|(name, _twist)| *name)
-            .map(|(_name, &twist)| twist)
-            .collect()
+        let mut ordering =
+            CustomOrdering::with_len(self.len()).expect("error constructing default ordering");
+        ordering.sort_by_name(self.names.ids_to_names());
+        ordering.ids_in_order().to_vec()
     }
 
     /// Adds a new twist.

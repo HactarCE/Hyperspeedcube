@@ -8,7 +8,7 @@ mod puzzle_type;
 mod state;
 
 pub use info::*;
-pub use layers::{LayerId, LayerMask};
+pub use layers::LayerMask;
 pub use mesh::*;
 pub use metric::TwistMetric;
 pub use notation::Notation;

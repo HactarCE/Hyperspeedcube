@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::hash::Hash;
+
+use hypermath::IndexNewtype;
 
 /// Mutable assignment of names to elements. By default, all elements are
 /// unnamed.
@@ -37,10 +39,18 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
     pub fn get(&self, id: I) -> Option<String> {
         self.ids_to_names.get(&id).cloned()
     }
-    /// Assigns a name for to element, returning an error if there is a name
+    /// Assigns a name to an element, returning an error if there is a name
     /// conflict.
-    pub fn set(&mut self, id: I, name: Option<String>) -> Result<(), NameConflict> {
+    pub fn set(&mut self, id: I, mut name: Option<String>) -> Result<(), BadName> {
         let old_name = self.ids_to_names.get(&id);
+
+        // Canonicalize the name by removing leading & trailing whitespace.
+        if let Some(new_name) = &mut name {
+            *new_name = new_name.trim().to_string();
+            if new_name.is_empty() {
+                name = None;
+            }
+        }
 
         // If the new name is the same, do nothing.
         if name.as_ref() == old_name {
@@ -52,10 +62,15 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
             self.names_to_ids.remove(old_name);
         }
 
-        // Ensure the new name is free.
         if let Some(new_name) = name.clone() {
+            // Ensure the new name is valid.
+            if new_name.starts_with(|c: char| c.is_numeric()) {
+                return Err(BadName::InvalidName { name: new_name });
+            }
+
+            // Ensure the new name is free.
             if self.names_to_ids.contains_key(&new_name) {
-                return Err(NameConflict { name: new_name });
+                return Err(BadName::Conflict { name: new_name });
             }
         }
 
@@ -72,15 +87,38 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
 
         Ok(())
     }
+
+    /// Names unnamed elements using `autonames`.
+    pub fn autoname(
+        &mut self,
+        len: usize,
+        autonames: impl IntoIterator<Item = String>,
+    ) -> Result<(), BadName>
+    where
+        I: IndexNewtype,
+    {
+        let used_names: HashSet<String> = self.names_to_ids.keys().cloned().collect();
+        let mut autonames = autonames.into_iter().filter(|s| !used_names.contains(s));
+        for i in I::iter(len) {
+            if !self.ids_to_names.contains_key(&i) {
+                self.set(i, autonames.next())?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
-pub struct NameConflict {
-    pub name: String,
+pub enum BadName {
+    Conflict { name: String },
+    InvalidName { name: String },
 }
-impl fmt::Display for NameConflict {
+impl fmt::Display for BadName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "name {:?} already taken", self.name)
+        match self {
+            BadName::Conflict { name } => write!(f, "name {name:?} already taken"),
+            BadName::InvalidName { name } => write!(f, "name {name:?} is invalid"),
+        }
     }
 }
-impl std::error::Error for NameConflict {}
+impl std::error::Error for BadName {}

@@ -19,6 +19,10 @@ impl LuaUserData for LuaAxis {
             let v = db.get(this.id).into_lua_err()?.vector();
             Ok(LuaVector(v.clone()))
         });
+
+        fields.add_field_method_get("layers", |_lua, this| {
+            Ok(LuaLayerSystem { axis: this.clone() })
+        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {

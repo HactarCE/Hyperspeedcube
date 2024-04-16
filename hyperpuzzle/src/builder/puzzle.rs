@@ -1,22 +1,22 @@
 #![allow(clippy::too_many_arguments, clippy::too_many_lines)]
 
-use std::collections::{hash_map, HashMap, HashSet};
+use std::collections::{hash_map, HashMap};
 use std::ops::Range;
 use std::sync::{Arc, Weak};
 
-use eyre::{bail, ensure, OptionExt, Result, WrapErr};
+use eyre::{bail, ensure, OptionExt, Result};
 use hypermath::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
-use smallvec::{smallvec, SmallVec};
+use smallvec::smallvec;
 
 use crate::builder::AxisSystemBuilder;
 use crate::puzzle::PerAxis;
 
 use super::centroid::Centroid;
 use super::simplexifier::{Simplexifier, VertexId};
-use super::{ColorBuilder, ShapeBuilder, TwistSystemBuilder};
+use super::{ShapeBuilder, TwistSystemBuilder};
 use crate::puzzle::*;
 
 /// Puzzle being constructed.
@@ -61,8 +61,10 @@ impl PuzzleBuilder {
         let space_arc = Arc::new(Mutex::new(Space::new(self.ndim())?));
         let shape_mutex = self.shape.lock().clone(&space_arc)?;
         let shape = shape_mutex.lock();
-        let twists_mutex = self.twists.lock().clone(&space_arc);
-        let mut space = space_arc.lock();
+        let twist_system_mutex = self.twists.lock().clone(&space_arc)?;
+        let twist_system = twist_system_mutex.lock();
+        let mut space = std::mem::replace(&mut *space_arc.lock(), Space::new(self.ndim())?);
+        drop(space_arc); // Don't use that new space! It's dead to us.
 
         let mut mesh = Mesh::new_empty(self.ndim());
         mesh.color_count = shape.colors.len();
@@ -102,7 +104,7 @@ impl PuzzleBuilder {
         for old_piece_id in shape.active_pieces.iter() {
             let piece = &shape.pieces[old_piece_id];
 
-            let piece_centroid = simplexifier.shape_centroid_point(piece.shape.id)?;
+            let piece_centroid = simplexifier.shape_centroid_point(piece.polytope.id)?;
 
             let piece_id = pieces.push(PieceInfo {
                 stickers: smallvec![],
@@ -114,7 +116,7 @@ impl PuzzleBuilder {
             // that internal stickers are processed last, so that they are all
             // in a consecutive range for `piece_internals_index_ranges`.
             let mut piece_stickers = space
-                .boundary_of(piece.shape)
+                .boundary_of(piece.polytope)
                 .map(|sticker_shape| {
                     let facet_manifold = space.manifold_of(sticker_shape);
                     let color = *manifold_colors
@@ -130,7 +132,7 @@ impl PuzzleBuilder {
             let sticker_shrink_vectors = compute_sticker_shrink_vectors(
                 &space,
                 &mut simplexifier,
-                piece.shape,
+                piece.polytope,
                 &piece_stickers,
             )?;
 
@@ -205,8 +207,69 @@ impl PuzzleBuilder {
             mesh.add_facet(facet_data.centroid.center(), facet_data.normal)?;
         }
 
+        let axis_system = twist_system.axes.lock();
+        let mut axes = PerAxis::new();
+        let mut axis_map = HashMap::new();
+        for (old_id, name) in super::iter_autonamed(
+            &axis_system.names,
+            &axis_system.ordering,
+            crate::util::iter_uppercase_letter_names(),
+        ) {
+            let old_layers = &axis_system.get(old_id)?.layers;
+
+            // Check that the manifolds are manotonic.
+            let mut layer_manifolds = vec![];
+            for layer in old_layers.iter_values() {
+                layer_manifolds.extend(layer.top);
+                layer_manifolds.push(-layer.bottom);
+            }
+            for (&a, &b) in layer_manifolds.iter().zip(layer_manifolds.iter().skip(1)) {
+                // We expect `a` is above `b`.
+                if a == b {
+                    continue;
+                }
+                let is_b_below_a =
+                    space.which_side_has_manifold(space.manifold(), a, b.id)? == WhichSide::Inside;
+                let is_a_above_b =
+                    space.which_side_has_manifold(space.manifold(), b, a.id)? == WhichSide::Outside;
+                if !is_b_below_a || !is_a_above_b {
+                    bail!("layers of axis {name:?} are not monotonic");
+                }
+            }
+
+            let layers = old_layers
+                .iter_values()
+                .map(|layer| LayerInfo {
+                    bottom: layer.bottom,
+                    top: layer.top,
+                })
+                .collect();
+
+            let new_id = axes.push(AxisInfo { name, layers })?;
+
+            axis_map.insert(old_id, new_id);
+        }
+        let mut twists = PerTwist::new();
+        for old_id in twist_system.alphabetized() {
+            let twist = twist_system.get(old_id)?;
+            let _new_id = twists.push(TwistInfo {
+                name: match twist_system.names.get(old_id) {
+                    Some(s) => s.clone(),
+                    None => (old_id.0 + 1).to_string(), // 1-indexed
+                },
+                qtm: 1, // TODO: QTM
+                axis: *axis_map.get(&twist.axis).ok_or_eyre("bad axis ID")?,
+                transform: space.add_isometry(twist.transform.clone())?,
+                opposite: None,    // will be assigned later
+                reverse: Twist(0), // will be assigned later
+            });
+
+            // TODO: check that transform keeps layer manifolds fixed
+        }
+        // TODO: assign opposite twists.
+        // TODO: assign reverse twists
+
         // Take `space` out of the `Arc<Mutex<T>>`.
-        let space = std::mem::replace(&mut *space, Space::new(self.ndim())?);
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
@@ -228,13 +291,15 @@ impl PuzzleBuilder {
 
             notation: Notation {},
 
-            axes: PerAxis::new(),
+            axes,
 
-            space,
+            twists,
+
+            space: Mutex::new(space),
             piece_polytopes: shape
                 .active_pieces
                 .iter()
-                .map(|id| shape.pieces[id].shape)
+                .map(|id| shape.pieces[id].polytope)
                 .collect(),
             axis_manifolds: PerAxis::new(),
         }))
@@ -244,16 +309,16 @@ impl PuzzleBuilder {
 /// Piece of a puzzle during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct PieceBuilder {
-    /// Shape of the piece.
-    pub shape: AtomicPolytopeRef,
+    /// Polytope of the peice in the space.
+    pub polytope: AtomicPolytopeRef,
     /// If the piece is defunct because it was cut, these are the pieces it was
     /// cut up into.
     pub cut_result: PieceSet,
 }
 impl PieceBuilder {
-    pub(super) fn new(shape: AtomicPolytopeRef) -> Self {
+    pub(super) fn new(polytope: AtomicPolytopeRef) -> Self {
         Self {
-            shape,
+            polytope,
             cut_result: PieceSet::new(),
         }
     }

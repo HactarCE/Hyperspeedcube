@@ -43,6 +43,7 @@ pub enum Tab {
     ViewSettings,
 
     PuzzleView(Arc<Mutex<Option<PuzzleView>>>),
+    PuzzleControls,
     // PuzzleSetup(PuzzleSetup),
     // PolytopeTree(PolytopeTree),
     PuzzleLibraryDemo,
@@ -61,6 +62,7 @@ impl Tab {
                 Some(p) => p.puzzle().name.clone().into(),
                 None => "No Puzzle".into(),
             },
+            Tab::PuzzleControls => "Puzzle Controls".into(),
             // Tab::PuzzleSetup(_) => "Puzzle Setup".into(),
             // Tab::PolytopeTree(_) => "Polytope Tree".into(),
             Tab::PuzzleLibraryDemo => "Puzzle Library".into(),
@@ -117,6 +119,15 @@ impl Tab {
                 if r.gained_focus() {
                     app.active_puzzle_view = Arc::downgrade(puzzle_view);
                 }
+            }
+            Tab::PuzzleControls => {
+                app.with_active_puzzle_view(|p| {
+                    for (twist, info) in &p.puzzle().twists {
+                        if ui.button(&info.name).clicked() {
+                            p.controller().lock().do_twist(twist);
+                        }
+                    }
+                });
             }
 
             Tab::PuzzleLibraryDemo => {
@@ -493,7 +504,7 @@ impl Tab {
 fn colored_log_line(ui: &mut egui::Ui, line: &LuaLogLine) {
     let color = match line.level {
         LuaLogLevel::Info => egui::Color32::LIGHT_BLUE,
-        LuaLogLevel::Warn => egui::Color32::YELLOW,
+        LuaLogLevel::Warn => egui::Color32::GOLD,
         LuaLogLevel::Error => egui::Color32::LIGHT_RED,
     };
     // let s = match &line.file {

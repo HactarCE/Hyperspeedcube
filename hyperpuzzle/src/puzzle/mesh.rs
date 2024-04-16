@@ -3,8 +3,7 @@ use std::ops::Range;
 use eyre::{OptionExt, Result};
 use hypermath::prelude::*;
 
-use super::{PerPiece, PerSticker, Piece};
-use crate::Facet;
+use super::{Facet, PerPiece, PerSticker, Piece};
 
 /// Data to render a puzzle, in a format that can be sent to the GPU.
 #[derive(Debug, Clone)]

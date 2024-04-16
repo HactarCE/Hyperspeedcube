@@ -6,11 +6,7 @@ use std::str::FromStr;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-hypermath::idx_struct! {
-    /// Layer ID, not to be confused with a _layer mask_, which is a bitmask
-    /// where each bit corresponds to a layer ID.
-    pub struct LayerId(pub u8);
-}
+use super::Layer;
 
 /// Bitmask selecting a subset of a puzzle's layers.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -143,6 +139,11 @@ impl LayerMask {
     /// Returns a mask containing all layers.
     pub fn all_layers(total_layer_count: u8) -> Self {
         Self((1 << total_layer_count as u32) - 1)
+    }
+
+    /// Returns an iterator over the layers in the layer mask.
+    pub fn iter(self) -> impl Iterator<Item = Layer> {
+        hypermath::util::iter_ones(self.0).map(|i| Layer(i as _))
     }
 
     /// Returns whether the layer mask is the default, which contains only the outermost layer.

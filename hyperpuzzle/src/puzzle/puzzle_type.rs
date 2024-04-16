@@ -1,12 +1,13 @@
 use std::sync::{Arc, Weak};
 
-use crate::{AxisInfo, PerAxis};
+use crate::{AxisInfo, PerAxis, PerTwist, TwistInfo};
 
 use super::{
     Axis, ColorInfo, LayerMask, Mesh, Notation, PerColor, PerPiece, PerPieceType, PerSticker,
     PieceInfo, PieceTypeInfo, PuzzleState, StickerInfo, Twist,
 };
 use hypershape::prelude::*;
+use parking_lot::Mutex;
 
 /// Puzzle type info.
 #[derive(Debug)]
@@ -39,8 +40,11 @@ pub struct Puzzle {
     /// List of axes, indexed by ID.
     pub axes: PerAxis<AxisInfo>,
 
+    /// List of twists, indexed by ID.
+    pub twists: PerTwist<TwistInfo>,
+
     /// Space containing a polytope for each piece.
-    pub(crate) space: Space,
+    pub(crate) space: Mutex<Space>,
     /// Polytope for each piece.
     pub(crate) piece_polytopes: PerPiece<AtomicPolytopeRef>,
     /// Manifold for each axis, for each layer.

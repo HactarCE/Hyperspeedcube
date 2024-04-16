@@ -16,6 +16,15 @@ impl<I: IndexNewtype> CustomOrdering<I> {
         Self::default()
     }
 
+    /// Constructs a new ordering with `len` elements.
+    pub fn with_len(len: usize) -> Result<Self, IndexOverflow> {
+        let mut ret = Self::new();
+        for id in I::iter(len) {
+            ret.add(id)?;
+        }
+        Ok(ret)
+    }
+
     /// Adds an element to the ordering.
     ///
     /// If this ordering is part of a larger structure, this will be called
@@ -122,6 +131,15 @@ impl<I: IndexNewtype> CustomOrdering<I> {
             self.swap_to_index(id, index)?;
         }
         Ok(())
+    }
+}
+impl<'a, I: IndexNewtype> IntoIterator for &'a CustomOrdering<I> {
+    type Item = I;
+
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, I>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.ids_in_order().iter().copied()
     }
 }
 

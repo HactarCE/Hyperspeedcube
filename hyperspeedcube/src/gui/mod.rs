@@ -43,6 +43,7 @@ impl AppUi {
             0.6,
             vec![
                 Tab::LuaLogs,
+                Tab::PuzzleControls,
                 Tab::AppearanceSettings,
                 Tab::InteractionSettings,
                 Tab::ViewSettings,

@@ -2,7 +2,6 @@ use eyre::{Context, Result};
 use itertools::Itertools;
 use std::sync::{Arc, Weak};
 
-use hypermath::{collections::GenericVec, prelude::*};
 use hypershape::prelude::*;
 use parking_lot::Mutex;
 
@@ -90,7 +89,7 @@ impl ShapeBuilder {
             .active_pieces
             .iter()
             .map(|piece| PieceBuilder {
-                shape: map.map(self.pieces[piece].shape),
+                polytope: map.map(self.pieces[piece].polytope),
                 cut_result: PieceSet::new(),
             })
             .collect();
@@ -145,13 +144,16 @@ impl ShapeBuilder {
 
         for old_piece in pieces.iter() {
             // Cut the old piece and add the new pieces as active.
-            let new_piece_shapes = space
-                .cut_atomic_polytope_set([self.pieces[old_piece].shape].into_iter().collect(), cut)
+            let new_piece_polytopes = space
+                .cut_atomic_polytope_set(
+                    [self.pieces[old_piece].polytope].into_iter().collect(),
+                    cut,
+                )
                 .context("error cutting piece")?;
-            let new_pieces: PieceSet = new_piece_shapes
+            let new_pieces: PieceSet = new_piece_polytopes
                 .into_iter()
-                .map(|new_piece_shape| {
-                    let new_piece = self.pieces.push(PieceBuilder::new(new_piece_shape))?;
+                .map(|new_piece_polytope| {
+                    let new_piece = self.pieces.push(PieceBuilder::new(new_piece_polytope))?;
                     self.active_pieces.insert(new_piece);
                     eyre::Ok(new_piece)
                 })

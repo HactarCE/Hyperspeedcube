@@ -47,7 +47,7 @@ impl PuzzleView {
     }
     /// Returns the puzzle type.
     pub fn puzzle(&self) -> Arc<Puzzle> {
-        Arc::clone(&self.controller().lock().puzzle)
+        Arc::clone(&self.controller().lock().puzzle_type())
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, prefs: &Preferences) -> egui::Response {
@@ -188,6 +188,9 @@ impl PuzzleView {
             background_color,
             internals_color,
             piece_styles: view_ctrl.styles.values(&prefs.styles),
+            piece_transforms: view_ctrl.state.lock().peice_transforms().map_ref(
+                |_piece, transform| transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim()),
+            ),
         };
 
         let draw_prep = renderer.prepare_draw(draw_params);

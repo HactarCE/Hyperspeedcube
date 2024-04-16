@@ -326,6 +326,14 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
         self.iter_keys().zip(&mut self.values)
     }
 
+    /// Returns an iterator over keys for which a predicate returns `true`.
+    pub fn iter_filter<'a>(
+        &'a self,
+        mut pred: impl 'a + FnMut(I, &E) -> bool,
+    ) -> impl 'a + Iterator<Item = I> + DoubleEndedIterator {
+        self.iter_keys().filter(move |&i| pred(i, &self[i]))
+    }
+
     /// Applies a function to every value in the collection and returns a new
     /// collection.
     pub fn map<U>(self, mut f: impl FnMut(I, E) -> U) -> GenericVec<I, U> {

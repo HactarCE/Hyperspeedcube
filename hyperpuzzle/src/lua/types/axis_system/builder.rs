@@ -21,6 +21,13 @@ impl LuaUserData for LuaAxisSystem {
         AxisSystemBuilder::add_ordered_db_methods(methods, |Self(shape)| shape.lock());
 
         methods.add_method("add", |lua, this, data| this.add(lua, data));
+
+        methods.add_method_mut("autoname", |_lua, this, ()| {
+            let autonames = crate::util::iter_uppercase_letter_names();
+            let mut this = this.lock();
+            let len = this.len();
+            this.names.autoname(len, autonames).into_lua_err()
+        })
     }
 }
 

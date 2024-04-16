@@ -33,13 +33,13 @@ impl PuzzleViewController {
             rot: Isometry::ident(),
             zoom: 0.5,
 
-            styles: PuzzleStyleStates::new(puzzle.lock().puzzle.pieces.len()),
+            styles: PuzzleStyleStates::new(puzzle.lock().puzzle_type().pieces.len()),
             hover_state: None,
         }
     }
 
     pub fn puzzle(&self) -> Arc<Puzzle> {
-        Arc::clone(&self.state.lock().puzzle)
+        Arc::clone(&self.state.lock().puzzle_type())
     }
 
     pub fn hover_state(&self) -> Option<HoverState> {

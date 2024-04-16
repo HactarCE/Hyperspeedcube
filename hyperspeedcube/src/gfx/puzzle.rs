@@ -143,6 +143,7 @@ pub(crate) struct GeometryCacheKey {
 
     pub target_size: [u32; 2],
     pub rot: Isometry,
+    pub piece_transforms: PerPiece<Matrix>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -160,6 +161,7 @@ pub(crate) struct DrawParams {
     pub background_color: [u8; 3],
     pub internals_color: [u8; 3],
     pub piece_styles: Vec<(PieceStyleValues, BitBox<u64>)>,
+    pub piece_transforms: PerPiece<Matrix>,
 }
 impl DrawParams {
     /// Returns the number of pixels in 1 screen space unit.
@@ -264,6 +266,7 @@ impl DrawParams {
 
             target_size: self.target_size,
             rot: self.rot.clone(),
+            piece_transforms: self.piece_transforms.clone(),
         }
     }
 
@@ -577,9 +580,9 @@ impl PuzzleRenderer {
 
         // Write the piece transforms.
         {
-            let piece_transforms = vec![Matrix::ident(self.model.ndim); self.puzzle.pieces.len()];
-            let piece_transforms_data: Vec<f32> = piece_transforms
-                .iter()
+            let piece_transforms_data: Vec<f32> = draw_params
+                .piece_transforms
+                .iter_values()
                 .flat_map(|m| m.as_slice())
                 .map(|&x| x as f32)
                 .collect();
