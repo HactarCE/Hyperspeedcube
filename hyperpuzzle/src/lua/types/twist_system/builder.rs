@@ -9,6 +9,7 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct LuaTwistSystem(pub Arc<Mutex<TwistSystemBuilder>>);
+
 impl LuaUserData for LuaTwistSystem {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("twistsystem"));
@@ -19,10 +20,21 @@ impl LuaUserData for LuaTwistSystem {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
+            let this = this.lock();
+            let len = this.len();
+            if let Some(id) = &this.id {
+                Ok(format!("twistsystem({id:?}, len={len})"))
+            } else {
+                Ok(format!("twistsystem(len={len})"))
+            }
+        });
+
         TwistSystemBuilder::add_db_metamethods(methods, |Self(shape)| shape.lock());
         TwistSystemBuilder::add_named_db_methods(methods, |Self(shape)| shape.lock());
     }
 }
+
 impl<'lua> LuaIdDatabase<'lua, Twist> for TwistSystemBuilder {
     const ELEMENT_NAME_SINGULAR: &'static str = "twist";
     const ELEMENT_NAME_PLURAL: &'static str = "twists";
@@ -44,6 +56,7 @@ impl<'lua> LuaIdDatabase<'lua, Twist> for TwistSystemBuilder {
         Cow::Owned(self.alphabetized())
     }
 }
+
 impl<'lua> LuaNamedIdDatabase<'lua, Twist> for TwistSystemBuilder {
     fn names(&self) -> &NamingScheme<Twist> {
         &self.names

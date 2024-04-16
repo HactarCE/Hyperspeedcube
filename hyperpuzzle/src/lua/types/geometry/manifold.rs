@@ -194,6 +194,10 @@ impl LuaUserData for LuaManifold {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(format!("manifold({})", this.manifold))
+        });
+
         methods.add_method("ndim", |lua, Self { manifold, .. }, ()| {
             LuaSpace::with(lua, |space| LuaResult::Ok(space.ndim_of(manifold)))
         });

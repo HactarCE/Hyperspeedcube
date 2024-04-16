@@ -103,12 +103,19 @@ where
     }
 
     /// Defines the following methods:
+    /// - `__tostring` (metamethod)
     /// - `__index` (metamethod)
     /// - `__len` (metamethod)
-    fn add_db_metamethods<T: 'static, M: LuaUserDataMethods<'lua, T>>(
+    fn add_db_metamethods<T: 'static + mlua::UserData, M: LuaUserDataMethods<'lua, T>>(
         methods: &mut M,
         lock: fn(&T) -> MutexGuard<'_, Self>,
     ) {
+        methods.add_meta_method(LuaMetaMethod::ToString, move |lua, this, ()| {
+            let type_name = lua_userdata_type_name::<T>(lua)?;
+            let ptr = lock(this).db_arc().data_ptr();
+            Ok(format!("{type_name}({ptr:p})"))
+        });
+
         methods.add_meta_method(LuaMetaMethod::Index, move |lua, this, index| {
             let db = lock(this);
             match db.value_to_id(lua, index) {

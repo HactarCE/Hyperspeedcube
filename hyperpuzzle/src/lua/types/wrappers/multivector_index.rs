@@ -112,7 +112,7 @@ impl FromStr for LuaMultivectorIndex {
         }
 
         if zeroed {
-            return Err(format!("component '{string}' is always zero",));
+            return Err(format!("component '{string}' is always zero"));
         }
 
         let mut nino = None;
@@ -120,7 +120,7 @@ impl FromStr for LuaMultivectorIndex {
             // We stored nₒ in `E_MINUS` and ∞ in `E_PLUS`.
             // nₒ and ∞ are each allowed, but not at the same time.
             if axes.contains(Axes::E_PLANE) {
-                return Err(format!("cannot access component {string:?}",));
+                return Err(format!("cannot access component {string:?}"));
             }
             if axes.contains(Axes::E_MINUS) {
                 nino = Some(NiNo::No);

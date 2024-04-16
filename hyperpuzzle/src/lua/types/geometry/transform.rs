@@ -17,7 +17,6 @@ impl LuaTransform {
         let from: LuaVector;
         let to: LuaVector;
         unpack_table!(lua.unpack(t { fix, from, to }));
-        dbg!(&fix, &from, &to);
 
         let fix = match fix {
             Some(LuaMultivector(m)) => m,
@@ -33,8 +32,6 @@ impl LuaTransform {
         // Reject `from` and `to` from `fix`.
         let from = (&fix_inv << (Blade::vector(from.0) ^ &fix)).to_vector();
         let to = (&fix_inv << (Blade::vector(to.0) ^ &fix)).to_vector();
-
-        dbg!(&from, &to);
 
         let rot = Isometry::from_vec_to_vec(from, to).ok_or_else(|| {
             LuaError::external("error constructing rotation (vectors may be zero, or opposite")
@@ -64,6 +61,10 @@ impl LuaUserData for LuaTransform {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
+            Ok(format!("transform({this})"))
+        });
+
         methods.add_method("ndim", |lua, Self(this), ()| Ok(this.ndim()));
 
         methods.add_meta_method(LuaMetaMethod::Mul, |lua, Self(this), rhs| {

@@ -50,11 +50,21 @@ impl LuaUserData for LuaShape {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            let this = this.lock();
+            let ndim = this.ndim();
+            if let Some(id) = &this.id {
+                Ok(format!("shape({id:?}, ndim={ndim})"))
+            } else {
+                Ok(format!("shape(ndim={ndim})"))
+            }
+        });
+
         methods.add_method("carve", |lua, this, LuaManifold { manifold, .. }| {
             let cuts = this.symmetry_expand_manifold(manifold)?;
             let mut this = this.lock();
             for cut in cuts {
-                this.carve(None, dbg!(cut)).into_lua_err()?;
+                this.carve(None, cut).into_lua_err()?;
                 this.colors
                     .add(ManifoldSet::from_iter([cut]))
                     .into_lua_err()?;

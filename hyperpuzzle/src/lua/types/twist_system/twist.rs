@@ -26,6 +26,16 @@ impl LuaUserData for LuaTwist {
             Ok(LuaTransform(this.get()?.transform))
         });
     }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            if let Some(name) = this.db.lock().names.get(this.id) {
+                Ok(format!("twist({name:?})"))
+            } else {
+                Ok(format!("twist({})", this.id))
+            }
+        });
+    }
 }
 
 impl LuaTwist {

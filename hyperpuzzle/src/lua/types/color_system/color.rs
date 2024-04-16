@@ -39,6 +39,16 @@ impl LuaUserData for LuaColor {
             Ok(())
         });
     }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            if let Some(name) = this.db.lock().names().get(this.id) {
+                Ok(format!("color({name:?})"))
+            } else {
+                Ok(format!("color({})", this.id))
+            }
+        });
+    }
 }
 
 impl LuaColor {

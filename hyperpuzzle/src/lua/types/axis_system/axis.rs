@@ -20,11 +20,28 @@ impl LuaUserData for LuaAxis {
             Ok(LuaVector(v.clone()))
         });
     }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            this.lua_into_string()
+        });
+    }
 }
 
 impl LuaAxis {
     pub fn vector(&self) -> LuaResult<Vector> {
         Ok(self.db.lock().get(self.id).into_lua_err()?.vector().clone())
+    }
+    pub fn name(&self) -> Option<String> {
+        self.db.lock().names.get(self.id)
+    }
+
+    pub fn lua_into_string(&self) -> LuaResult<String> {
+        if let Some(name) = self.name() {
+            Ok(format!("axis({name:?}, vector={})", self.vector()?))
+        } else {
+            Ok(format!("axis({})", self.id))
+        }
     }
 
     pub fn transform(&self, t: &Isometry) -> LuaResult<Option<Self>> {

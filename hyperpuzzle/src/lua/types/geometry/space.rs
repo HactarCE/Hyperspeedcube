@@ -52,6 +52,10 @@ impl LuaUserData for LuaSpace {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
+            Ok(format!("space(ndim = {})", this.lock().ndim()))
+        });
+
         methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.lock().ndim()));
     }
 }

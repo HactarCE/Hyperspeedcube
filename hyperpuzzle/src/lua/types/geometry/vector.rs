@@ -77,6 +77,10 @@ impl LuaUserData for LuaVector {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
+            Ok(format!("vec({})", this.iter().join(", ")))
+        });
+
         methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.ndim()));
         methods.add_method("mag2", |_lua, Self(this), ()| Ok(this.mag2()));
         methods.add_method("mag", |_lua, Self(this), ()| Ok(this.mag()));

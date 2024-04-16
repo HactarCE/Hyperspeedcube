@@ -40,5 +40,9 @@ impl LuaUserData for LuaPuzzleBuilder {
         });
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {}
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
+            Ok(format!("puzzle({:?})", this.lock().name))
+        });
+    }
 }

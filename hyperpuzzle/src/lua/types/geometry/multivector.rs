@@ -55,6 +55,10 @@ impl LuaUserData for LuaMultivector {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
+            Ok(format!("multivector({this})"))
+        });
+
         methods.add_method("mag2", |_lua, Self(this), ()| Ok(this.mag2()));
         methods.add_method("mag", |_lua, Self(this), ()| Ok(this.mag()));
 
