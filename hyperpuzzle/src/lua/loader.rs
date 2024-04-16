@@ -13,7 +13,8 @@ use super::*;
 
 macro_rules! lua_module {
     ($filename:literal) => {
-        ($filename, include_str!($filename))
+        // Start with an `=` so that the logger skips this file
+        (concat!("=", $filename), include_str!($filename))
     };
 }
 
@@ -41,14 +42,14 @@ impl LuaLoader {
         // reporting. We use Lua sandboxing functionality so the user should never
         // be able to access the debug module.
         let lua = unsafe {
-            Lua::unsafe_new_with(
+            Lua::new_with(
                 mlua::StdLib::TABLE
                     | mlua::StdLib::STRING
                     | mlua::StdLib::UTF8
-                    | mlua::StdLib::MATH
-                    | mlua::StdLib::DEBUG, // TODO: shouldn't be necessary (so no `unsafe`!)
+                    | mlua::StdLib::MATH,
                 LuaOptions::new(),
             )
+            .expect("error initializing Lua runtime")
         };
 
         // Registry library.
@@ -65,9 +66,8 @@ impl LuaLoader {
 
             if crate::CAPTURE_LUA_OUTPUT {
                 globals.raw_set("print", logger.lua_info_fn(&lua)?)?;
-                lua.set_warning_function(move |lua, msg, to_continue| match to_continue {
-                    true => Ok(logger.warn(crate::lua::current_filename(lua), msg)),
-                    false => Ok(logger.error(crate::lua::current_filename(lua), msg)),
+                lua.set_warning_function(move |lua, msg, _to_continue| {
+                    Ok(logger.warn(crate::lua::current_filename(lua), msg))
                 });
             }
 
@@ -109,7 +109,7 @@ impl LuaLoader {
 
             LuaResult::Ok(())
         })()
-        .expect("error initializing lua");
+        .expect("error initializing Lua environment");
 
         let logger = logger_ref2;
         LuaLoader { lua, db, logger }

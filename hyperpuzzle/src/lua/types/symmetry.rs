@@ -101,7 +101,7 @@ impl LuaSymmetry {
                         Err(e) => return Some(Err(e)),
                     }
                 }
-                Some(lua.pack_multi(values))
+                Some(Ok(LuaMultiValue::from_vec(values)))
             })
             .unwrap_or_else(|| lua.pack_multi(LuaNil))
         })
@@ -131,10 +131,6 @@ impl LuaUserData for LuaSymmetry {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_meta_method(LuaMetaMethod::Call, |lua, this, args: LuaMultiValue<'_>| {
-            Ok(LuaMultiValue::from_vec(args.into_vec()))
-        });
-
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             Ok(this
                 .schlafli
@@ -142,6 +138,10 @@ impl LuaUserData for LuaSymmetry {
                 .iter()
                 .map(|i| i.to_string())
                 .join("o"))
+        });
+
+        methods.add_meta_method(LuaMetaMethod::Call, |lua, this, args: LuaMultiValue<'_>| {
+            Ok(LuaMultiValue::from_vec(args.into_vec()))
         });
 
         methods.add_method("chiral", |_lua, Self { schlafli, .. }, ()| {

@@ -21,16 +21,12 @@ pub enum WhichSide {
     /// The object is flush with the cut. *Every* point on the object is
     /// touching the cut.
     Flush,
-    /// The object is inside the cut. It may be touching the cut.
-    Inside {
-        /// Whether the object is touching the cut.
-        is_touching: bool,
-    },
-    /// The object is entirely outside the cut. It may be touching the cut.
-    Outside {
-        /// Whether the object is touching the cut.
-        is_touching: bool,
-    },
+    /// The object is inside the cut. It may be tangent to the cut at a single
+    /// point.
+    Inside,
+    /// The object is entirely outside the cut. It may be tangent to the cut at
+    /// a single point.
+    Outside,
     /// The object is split by the cut. It may or may not be touching the cut;
     /// most code assumes it is, which is ok.
     //
@@ -45,8 +41,8 @@ impl Neg for WhichSide {
 
     fn neg(self) -> Self::Output {
         match self {
-            WhichSide::Inside { is_touching } => WhichSide::Outside { is_touching },
-            WhichSide::Outside { is_touching } => WhichSide::Inside { is_touching },
+            WhichSide::Inside => WhichSide::Outside,
+            WhichSide::Outside => WhichSide::Inside,
             other => other,
         }
     }
@@ -54,31 +50,21 @@ impl Neg for WhichSide {
 hypermath::impl_mul_sign!(impl Mul<Sign> for WhichSide);
 hypermath::impl_mulassign_sign!(impl MulAssign<Sign> for WhichSide);
 impl WhichSide {
-    /// Returns whether the manifolds are touching, even at a single point.
-    pub fn is_touching(self) -> bool {
-        match self {
-            WhichSide::Flush => true,
-            WhichSide::Inside { is_touching } => is_touching,
-            WhichSide::Outside { is_touching } => is_touching,
-            WhichSide::Split => true,
-        }
-    }
     /// Constructs a `WhichSide` from several representative point locations.
     pub(super) fn from_points(points: impl IntoIterator<Item = PointWhichSide>) -> Self {
         let mut is_any_inside = false;
         let mut is_any_outside = false;
-        let mut is_touching = false;
         for which_side in points {
             match which_side {
-                PointWhichSide::On => is_touching = true,
+                PointWhichSide::On => (),
                 PointWhichSide::Inside => is_any_inside = true,
                 PointWhichSide::Outside => is_any_outside = true,
             }
         }
         match (is_any_inside, is_any_outside) {
             (true, true) => WhichSide::Split,
-            (true, false) => WhichSide::Inside { is_touching },
-            (false, true) => WhichSide::Outside { is_touching },
+            (true, false) => WhichSide::Inside,
+            (false, true) => WhichSide::Outside,
             (false, false) => WhichSide::Flush,
         }
     }

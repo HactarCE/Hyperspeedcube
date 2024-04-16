@@ -118,7 +118,7 @@ pub trait ApproxHashMapKey {
         &self,
         mut float_hash_fn: impl FnMut(Float) -> Option<FloatHash>,
     ) -> Option<Self::Hash> {
-        let mut success = false;
+        let mut success = true;
         Some(self.approx_hash(|x| match float_hash_fn(x) {
             Some(h) => h,
             None => {
