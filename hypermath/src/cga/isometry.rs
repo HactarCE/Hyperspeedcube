@@ -371,17 +371,17 @@ mod tests {
         assert_approx_eq!(ident.transform_blade(&qv), qv);
 
         let refl_v = Isometry::from_reflection_normalized(Vector::unit(4));
-        assert_approx_eq!(refl_v.transform_blade(&s), s);
+        assert_approx_eq!(refl_v.transform_blade(&s), -&s);
         assert_approx_eq!(refl_v.transform_blade(&v1), v1);
         assert_approx_eq!(refl_v.transform_blade(&v2), v2);
         assert_approx_eq!(refl_v.transform_blade(&v3), v3);
         assert_approx_eq!(refl_v.transform_blade(&v4), v4);
-        assert_approx_eq!(refl_v.transform_blade(&bv), bv);
+        assert_approx_eq!(refl_v.transform_blade(&bv), -&bv);
         assert_approx_eq!(refl_v.transform_blade(&tv), tv);
-        assert_approx_eq!(refl_v.transform_blade(&qv), qv);
+        assert_approx_eq!(refl_v.transform_blade(&qv), -&qv);
 
         let refl_z = Isometry::from_reflection_normalized(vector![0.0, 0.0, 1.0]);
-        assert_approx_eq!(refl_z.transform_blade(&s), s);
+        assert_approx_eq!(refl_z.transform_blade(&s), -&s);
         assert_approx_eq!(
             refl_z.transform_blade(&v1),
             Blade::vector(vector![1.0, 2.0, -3.0]),
@@ -390,11 +390,11 @@ mod tests {
         let v2_new = refl_z.transform_blade(&v2);
         let v3_new = refl_z.transform_blade(&v3);
         let v4_new = refl_z.transform_blade(&v4);
-        assert_approx_eq!(refl_z.transform_blade(&bv), &v1_new ^ &v2_new);
-        assert_approx_eq!(-refl_z.transform_blade(&tv), &v1_new ^ &v2_new ^ &v3_new);
+        assert_approx_eq!(refl_z.transform_blade(&bv), -&v1_new ^ &v2_new);
+        assert_approx_eq!(refl_z.transform_blade(&tv), &v1_new ^ &v2_new ^ &v3_new);
         assert_approx_eq!(
             refl_z.transform_blade(&qv),
-            &v1_new ^ &v2_new ^ &v3_new ^ &v4_new,
+            -&v1_new ^ &v2_new ^ &v3_new ^ &v4_new,
         );
 
         let rot_xy =
@@ -416,7 +416,7 @@ mod tests {
         );
 
         let rot_xy_refl_z = &rot_xy * &refl_z;
-        assert_approx_eq!(rot_xy_refl_z.transform_blade(&s), s);
+        assert_approx_eq!(rot_xy_refl_z.transform_blade(&s), -&s);
         assert_approx_eq!(
             rot_xy_refl_z.transform_blade(&v1),
             Blade::vector(vector![-2.0, 1.0, -3.0]),
@@ -425,14 +425,14 @@ mod tests {
         let v2_new = rot_xy_refl_z.transform_blade(&v2);
         let v3_new = rot_xy_refl_z.transform_blade(&v3);
         let v4_new = rot_xy_refl_z.transform_blade(&v4);
-        assert_approx_eq!(rot_xy_refl_z.transform_blade(&bv), &v1_new ^ &v2_new);
+        assert_approx_eq!(rot_xy_refl_z.transform_blade(&bv), -&v1_new ^ &v2_new);
         assert_approx_eq!(
-            -rot_xy_refl_z.transform_blade(&tv),
+            rot_xy_refl_z.transform_blade(&tv),
             &v1_new ^ &v2_new ^ &v3_new,
         );
         assert_approx_eq!(
             rot_xy_refl_z.transform_blade(&qv),
-            &v1_new ^ &v2_new ^ &v3_new ^ &v4_new,
+            -&v1_new ^ &v2_new ^ &v3_new ^ &v4_new,
         );
     }
 }

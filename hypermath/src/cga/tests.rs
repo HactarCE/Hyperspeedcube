@@ -501,13 +501,15 @@ fn test_cga_transform_manifolds_preserves_orientation() {
 
         // Reflect
 
+        let sign_change = if ndim % 2 == 0 { 1.0 } else { -1.0 };
+
         let actual = refl.transform_blade(&manifold_with_x);
         let expected = &E ^ Blade::point(vector![-1.0]) ^ wedge_axes(1..ndim - 1);
-        assert_approx_eq!(actual, expected);
+        assert_approx_eq!(actual, expected * sign_change);
 
         let actual = refl.transform_blade(&manifold_without_x);
         let expected = &manifold_without_x;
-        assert_approx_eq!(actual, expected);
+        assert_approx_eq!(actual, expected * sign_change);
 
         // Rotate
 
