@@ -110,6 +110,7 @@ impl PuzzleBuilder {
                 stickers: smallvec![],
                 piece_type: PieceType(0), // TODO: piece types
                 centroid: piece_centroid.clone(),
+                polytope: piece.polytope,
             })?;
 
             // Add stickers to mesh, sorted ordered by color. It's important
@@ -296,12 +297,6 @@ impl PuzzleBuilder {
             twists,
 
             space: Mutex::new(space),
-            piece_polytopes: shape
-                .active_pieces
-                .iter()
-                .map(|id| shape.pieces[id].polytope)
-                .collect(),
-            axis_manifolds: PerAxis::new(),
         }))
     }
 }

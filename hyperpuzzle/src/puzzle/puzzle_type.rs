@@ -45,10 +45,6 @@ pub struct Puzzle {
 
     /// Space containing a polytope for each piece.
     pub(crate) space: Mutex<Space>,
-    /// Polytope for each piece.
-    pub(crate) piece_polytopes: PerPiece<AtomicPolytopeRef>,
-    /// Manifold for each axis, for each layer.
-    pub(crate) axis_manifolds: PerAxis<Vec<ManifoldRef>>,
 }
 
 impl Puzzle {

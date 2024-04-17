@@ -97,52 +97,45 @@ impl PuzzleState {
 
         let mut space = self.space();
 
-        self.puzzle_type
-            .piece_polytopes
-            .iter_keys()
-            .map(|piece| {
-                // IIFE to mimic try_block
-                (|| {
-                    let polytope = self.puzzle_type.piece_polytopes[piece].id;
-                    let piece_transform = self.piece_transforms[piece];
-                    let rev_piece_transform = space
-                        .reverse_transform(piece_transform)
-                        .wrap_err("error computing reverse of peice transform")?;
-                    let mut is_inside_any = false;
-                    'per_segment: for &(bottom, top) in &segments {
-                        for cut in [Some(bottom), top] {
-                            let Some(cut) = cut else { continue };
-                            let transformed_cut = space
-                                .transform_manifold(rev_piece_transform, cut)
-                                .wrap_err("error transforming layer manifold")?;
-                            match space
-                                .cached_which_side_has_polytope(transformed_cut, polytope)
-                                .wrap_err("error computing whether piece is contained by layer")?
-                            {
-                                WhichSide::Outside => continue 'per_segment, // not in this segment; continue to next segment
-                                WhichSide::Split => return Ok(WhichSide::Split), // split by one segment; cannot turn!
-                                _ => (),
-                            }
-                        }
-                        is_inside_any = true;
-                    }
-                    match is_inside_any {
-                        true => Ok(WhichSide::Inside),
-                        false => Ok(WhichSide::Outside),
-                    }
-                })()
-                .unwrap_or_else(|e: eyre::Report| {
-                    log::error!("{e}");
-                    WhichSide::Split
-                })
-            })
-            .collect()
+        self.puzzle_type.pieces.map_ref(|piece, piece_info| {
+            // IIFE to mimic try_block
+            (|| {
+                let polytope = piece_info.polytope.id;
+                let piece_transform = self.piece_transforms[piece];
+                let rev_piece_transform = space
+                    .reverse_transform(piece_transform)
+                    .wrap_err("error computing reverse of peice transform")?;
+                let mut is_inside_any = false;
+                'per_segment: for &(bottom, top) in &segments {
+                    for cut in [Some(bottom), top] {
+                        let Some(cut) = cut else { continue };
 
-        // let axis =& self.puzzle_type.axes[axis];layers.count_contiguous_slices()
-        // let manifold_which_side_results=axis.layers.iter().map(f);
-        // axis.layers
-        // for (piece, transform) in &mut self.piece_transforms {
-        //     match  self.puzzle_type.space.which_side_has_polytope(cut, polytope)
-        // }
+                        let transformed_cut = space
+                            .transform_manifold(rev_piece_transform, cut)
+                            .wrap_err("error transforming layer manifold")?;
+
+                        match space
+                            .cached_which_side_has_polytope(transformed_cut, polytope)
+                            .wrap_err("error computing whether piece is contained by layer")?
+                        {
+                            WhichSide::Outside => continue 'per_segment, // not in this segment; continue to next segment
+                            WhichSide::Split => return Ok(WhichSide::Split), // split by one segment; cannot turn!
+                            _ => (),
+                        }
+                    }
+                    // This piece wasn't excluded by either the bottom or the
+                    // top, so it should be good!
+                    is_inside_any = true;
+                }
+                match is_inside_any {
+                    true => Ok(WhichSide::Inside),
+                    false => Ok(WhichSide::Outside),
+                }
+            })()
+            .unwrap_or_else(|e: eyre::Report| {
+                log::error!("{e}");
+                WhichSide::Split
+            })
+        })
     }
 }

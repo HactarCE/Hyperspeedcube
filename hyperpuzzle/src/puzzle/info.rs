@@ -72,6 +72,8 @@ pub struct PieceInfo {
     pub piece_type: PieceType,
     /// Centroid of the piece.
     pub centroid: Vector,
+    /// Polytope of the piece.
+    pub(crate) polytope: AtomicPolytopeRef,
 }
 
 /// Sticker info.
