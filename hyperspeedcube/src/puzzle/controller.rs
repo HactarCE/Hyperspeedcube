@@ -21,10 +21,6 @@ mod interpolate {
 
     /// Interpolate using cosine from 0.0 to PI.
     pub const COSINE: InterpolateFn = |x| (1.0 - (x * PI).cos()) / 2.0;
-    /// Interpolate using cosine from 0.0 to PI/2.0.
-    pub const COSINE_ACCEL: InterpolateFn = |x| 1.0 - (x * PI / 2.0).cos();
-    /// Interpolate using cosine from PI/2.0 to 0.0.
-    pub const COSINE_DECEL: InterpolateFn = |x| ((1.0 - x) * PI / 2.0).cos();
 }
 
 use crate::preferences::Preferences;
