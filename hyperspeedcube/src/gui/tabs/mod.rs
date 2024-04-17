@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use hypermath::Isometry;
 use hyperpuzzle::lua::LuaLogLevel;
-use hyperpuzzle::LuaLogLine;
-use itertools::Itertools;
+use hyperpuzzle::{LayerMask, LuaLogLine};
 use parking_lot::Mutex;
 
 // mod debug;
@@ -124,7 +123,7 @@ impl Tab {
                 app.with_active_puzzle_view(|p| {
                     for (twist, info) in &p.puzzle().twists {
                         if ui.button(&info.name).clicked() {
-                            p.controller().lock().do_twist(twist);
+                            p.controller().lock().do_twist(twist, LayerMask(1));
                         }
                     }
                 });

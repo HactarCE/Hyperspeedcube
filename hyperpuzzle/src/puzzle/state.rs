@@ -40,6 +40,23 @@ impl PuzzleState {
         self.piece_transforms
             .map_ref(|_piece, &id| space[id].clone())
     }
+    /// Returns the position and rotation of each piece during an animation.
+    ///
+    /// `t` ranges from `0.0` to `1.0`.
+    pub fn animated_piece_transforms(
+        &self,
+        twist: Twist,
+        layers: LayerMask,
+        t: Float,
+    ) -> PerPiece<Isometry> {
+        let grip = self.compute_grip(self.ty().twists[twist].axis, layers);
+        let twist_transform = self.ty().partial_twist_transform(twist, t);
+        self.piece_transforms()
+            .map(|piece, current_piece_transform| match grip[piece] {
+                WhichSide::Inside => &twist_transform * current_piece_transform,
+                _ => current_piece_transform,
+            })
+    }
 
     fn space(&self) -> MutexGuard<'_, Space> {
         self.puzzle_type.space.lock()
@@ -47,7 +64,8 @@ impl PuzzleState {
 
     /// Does a twist, or returns an error containing the set of pieces that
     /// prevented the twist.
-    pub fn do_twist(&mut self, twist: Twist, layers: LayerMask) -> Result<(), Vec<Piece>> {
+    #[must_use]
+    pub fn do_twist(&self, twist: Twist, layers: LayerMask) -> Result<Self, Vec<Piece>> {
         let twist = &self.puzzle_type.twists[twist];
         let grip = self.compute_grip(twist.axis, layers);
 
@@ -60,17 +78,24 @@ impl PuzzleState {
         }
 
         let mut space = self.puzzle_type.space.lock(); // can't call `space()` due to borrowing
-        for (piece, which_side) in grip {
-            if which_side == WhichSide::Inside {
-                let piece_transform = &mut self.piece_transforms[piece];
-                match space.compose_transforms(twist.transform, *piece_transform) {
-                    Ok(t) => *piece_transform = t,
-                    Err(e) => log::error!("error applying transform to piece: {e}"),
-                }
+        let piece_transforms = self.piece_transforms.map_ref(|piece, &piece_transform| {
+            if grip[piece] == WhichSide::Inside {
+                let piece_transform = self.piece_transforms[piece];
+                space
+                    .compose_transforms(twist.transform, piece_transform)
+                    .unwrap_or_else(|e| {
+                        log::error!("error applying transform to piece: {e}");
+                        piece_transform
+                    })
+            } else {
+                piece_transform
             }
-        }
+        });
 
-        Ok(())
+        Ok(Self {
+            puzzle_type: Arc::clone(&self.puzzle_type),
+            piece_transforms,
+        })
     }
 
     pub fn compute_grip(&self, axis: Axis, layers: LayerMask) -> PerPiece<WhichSide> {

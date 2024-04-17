@@ -132,7 +132,7 @@ pub struct TwistInfo {
     /// Twist axis to use to determine which pieces are moved by the twist.
     pub axis: Axis,
     /// Transforation to apply to pieces.
-    pub transform: IsometryId,
+    pub(crate) transform: IsometryId,
 
     /// Opposite twist. With a reversed layer mask, this applies the
     /// same transformation to the same pieces. For example, R and L' are

@@ -6,6 +6,7 @@ use super::{
     Axis, ColorInfo, LayerMask, Mesh, Notation, PerColor, PerPiece, PerPieceType, PerSticker,
     PieceInfo, PieceTypeInfo, PuzzleState, StickerInfo, Twist,
 };
+use hypermath::{Float, Isometry};
 use hypershape::prelude::*;
 use parking_lot::Mutex;
 
@@ -60,6 +61,16 @@ impl Puzzle {
     /// Returns the number of dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
         self.mesh.ndim()
+    }
+
+    /// Returns the transform to apply to pieces during an animation.
+    ///
+    /// `t` ranges from `0.0` to `1.0`.
+    pub fn partial_twist_transform(&self, twist: Twist, t: Float) -> Isometry {
+        let space = self.space.lock();
+        let identity = Isometry::ident();
+        let twist_transform = &space[self.twists[twist].transform];
+        Isometry::slerp(&identity, twist_transform, t)
     }
 
     pub(crate) fn opposite_twist_axis(&self, _axis: Axis) -> Option<Axis> {

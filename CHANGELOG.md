@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@picuber]: https://github.com/picuber
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 
-## [2.0.0-pre.1] - 2023-12-21
+## [UNRELEASED]
 
 ### Changed
 
@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Renamed "Realign puzzle on release" to "Snap puzzle on release"
 - 4D FOV now keeps W=0 plane fixed instead of W=1
 - Menu buttons (file, edit, etc.) collapse into one menu button when there's not enough space (such as on mobile)
+- Dynamic twist speed lasts until the queue is empty instead of slowing down as the queue gets shorter
 
 ### Removed
 

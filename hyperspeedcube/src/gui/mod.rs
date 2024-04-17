@@ -72,6 +72,20 @@ impl AppUi {
                     .show(ctx, &mut self.app);
             });
 
+        // Animate puzzle views.
+        for (_, tab) in self.dock_state.iter_all_tabs() {
+            if let Tab::PuzzleView(puzzle_view) = tab {
+                if let Some(puzzle_view) = &*puzzle_view.lock() {
+                    let mut controller = puzzle_view.controller().lock();
+                    let needs_redraw = controller.update_geometry(&self.app.prefs);
+                    if needs_redraw {
+                        // TODO: only request redraw for visible puzzles
+                        ctx.request_repaint();
+                    }
+                }
+            }
+        }
+
         if let Some((_rect, Tab::PuzzleView(puzzle_view))) = self.dock_state.find_active_focused() {
             self.app.active_puzzle_view = Arc::downgrade(&puzzle_view);
         }
