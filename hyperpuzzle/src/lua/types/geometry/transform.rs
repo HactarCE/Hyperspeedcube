@@ -2,6 +2,7 @@ use hypermath::{Blade, Isometry, Multivector};
 
 use super::*;
 
+/// Lua wrapper for an isometry.
 #[derive(Debug, Default, Clone)]
 pub struct LuaTransform(pub Isometry);
 
@@ -12,6 +13,7 @@ impl<'lua> FromLua<'lua> for LuaTransform {
 }
 
 impl LuaTransform {
+    /// Constructs a rotation from a table of values.
     pub fn construct_rotation(lua: &Lua, t: LuaTable<'_>) -> LuaResult<Self> {
         let fix: Option<LuaMultivector>;
         let from: LuaVector;
@@ -39,6 +41,8 @@ impl LuaTransform {
 
         Ok(LuaTransform(rot))
     }
+    /// Constructs a reflection through a vector constructed from a Lua
+    /// multivalue.
     pub fn construct_reflection(lua: &Lua, args: LuaMultiValue<'_>) -> LuaResult<Self> {
         if args.is_empty() {
             return Err(LuaError::external("at least one vector is required"));
@@ -69,7 +73,7 @@ impl LuaUserData for LuaTransform {
 
         methods.add_meta_method(LuaMetaMethod::Mul, |lua, Self(this), rhs| {
             Transformable::from_lua(rhs, lua)?
-                .transform(this)?
+                .transform(this)
                 .into_lua(lua)
                 .transpose()
         });

@@ -2,6 +2,7 @@ use hypermath::prelude::*;
 
 use super::*;
 
+/// Lua wrapper for a multivector.
 #[derive(Debug, Clone)]
 pub struct LuaMultivector(pub Multivector);
 

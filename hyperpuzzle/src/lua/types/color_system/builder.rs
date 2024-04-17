@@ -7,6 +7,7 @@ use super::*;
 use crate::builder::{CustomOrdering, NamingScheme, ShapeBuilder};
 use crate::puzzle::Color;
 
+/// Lua handle to the color system of a shape under construction.
 #[derive(Debug, Clone)]
 pub struct LuaColorSystem(pub Arc<Mutex<ShapeBuilder>>);
 
@@ -70,6 +71,7 @@ impl<'lua> LuaNamedIdDatabase<'lua, Color> for ShapeBuilder {
 }
 
 impl LuaColorSystem {
+    /// Adds a new color.
     fn add<'lua>(&self, lua: &'lua Lua, data: LuaValue<'lua>) -> LuaResult<LuaColor> {
         let name: Option<String>;
         let manifolds: LuaManifoldSet;
@@ -89,12 +91,18 @@ impl LuaColorSystem {
         };
 
         let mut shape = self.0.lock();
-        let id = shape.colors.add(manifolds.0).into_lua_err()?;
+        let manifolds = shape
+            .space
+            .lock()
+            .add_manifolds(manifolds.0)
+            .into_lua_err()?;
+        let id = shape.colors.add(manifolds).into_lua_err()?;
         shape.colors.get_mut(id).into_lua_err()?.default_color = default_color;
         shape.colors.names.set(id, name).into_lua_err()?;
         Ok(shape.wrap_id(id))
     }
 
+    /// Sets some default colors, leaving other unmodified.
     fn set_default_colors<'lua>(
         &self,
         lua: &'lua Lua,

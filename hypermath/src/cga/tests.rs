@@ -257,7 +257,7 @@ fn test_cga_flat_point() {
     let p = vector![1.0, -2.0, 3.0];
 
     let flat_point = Blade::flat_point(&p);
-    assert_eq!(2, flat_point.grade());
+    assert_eq!(Some(0), flat_point.cga_opns_ndim());
 
     assert_approx_eq!(p, flat_point.flat_point_to_point().unwrap());
 
@@ -273,7 +273,7 @@ fn test_cga_point_pair() {
     let p2 = vector![-2.0, 5.0];
 
     let pair = Blade::point(&p1) ^ Blade::point(&p2);
-    assert_eq!(2, pair.grade());
+    assert_eq!(Some(0), pair.cga_opns_ndim());
 
     let [a, b] = pair.point_pair_to_points().unwrap();
     assert_approx_eq!(p1, a.unwrap());

@@ -79,14 +79,18 @@ impl<I: IndexNewtype> CustomOrdering<I> {
         let Ok(&j) = self.index_by_id.get(b) else {
             return;
         };
-        self.index_by_id.swap(a, b);
+        self.index_by_id
+            .swap(a, b)
+            .expect("bad index in CustomOrdering::swap()");
         self.id_by_index.swap(i, j);
     }
 
     fn swap_indices_unchecked(&mut self, i: usize, j: usize) {
         let a = self.id_by_index[i];
         let b = self.id_by_index[j];
-        self.index_by_id.swap(a, b);
+        self.index_by_id
+            .swap(a, b)
+            .expect("bad index in CustomOrdering::swap_indices_unchecked()");
         self.id_by_index.swap(i, j);
     }
 
@@ -108,7 +112,8 @@ impl<I: IndexNewtype> CustomOrdering<I> {
             .iter_keys()
             .sorted_by_key(|id| id_to_name.get(id));
         for (index, id) in new_order.enumerate() {
-            self.swap_to_index(id, index);
+            // Ignore errors; it doesn't matter.
+            let _ = self.swap_to_index(id, index);
         }
     }
 
@@ -154,11 +159,11 @@ mod tests {
     #[test]
     fn test_custom_ordering() {
         let mut ordering = CustomOrdering::new();
-        ordering.add(Index(0));
-        ordering.add(Index(1));
-        ordering.add(Index(2));
-        ordering.add(Index(3));
-        ordering.add(Index(4));
+        ordering.add(Index(0)).unwrap();
+        ordering.add(Index(1)).unwrap();
+        ordering.add(Index(2)).unwrap();
+        ordering.add(Index(3)).unwrap();
+        ordering.add(Index(4)).unwrap();
 
         // Test `.swap()`.
         ordering.swap(Index(1), Index(2));

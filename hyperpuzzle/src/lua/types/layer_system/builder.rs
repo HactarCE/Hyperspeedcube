@@ -7,8 +7,10 @@ use super::*;
 use crate::builder::AxisLayerBuilder;
 use crate::puzzle::{Layer, PerLayer};
 
+/// Lua handle to the layer system of an axis in an axis system.
 #[derive(Debug, Clone)]
 pub struct LuaLayerSystem {
+    /// Axis.
     pub axis: LuaAxis,
 }
 
@@ -23,12 +25,10 @@ impl LuaUserData for LuaLayerSystem {
         });
 
         methods.add_meta_method(LuaMetaMethod::Index, move |lua, this, LuaIndex(index)| {
-            let space = this.space();
+            let space_mutex = this.space();
+            let space = space_mutex.lock();
             let this = this.lock()?;
-            let manifold_to_lua = |manifold| LuaManifold {
-                manifold,
-                space: Arc::clone(&space),
-            };
+            let manifold_to_lua = |manifold| LuaManifold(space.blade_of(manifold));
             match this.get(Layer::try_from_usize(index).into_lua_err()?) {
                 Ok(layer) => Ok(LuaMultiValue::from_vec(vec![
                     Some(manifold_to_lua(layer.bottom)).into_lua(lua)?,
@@ -42,29 +42,22 @@ impl LuaUserData for LuaLayerSystem {
         });
 
         methods.add_method("add", |_lua, this, (bottom, top)| {
-            let expected_space = this.space();
+            let space_mutex = this.space();
+            let mut space = space_mutex.lock();
 
-            let LuaManifold { manifold, space } = bottom;
-            if !Arc::ptr_eq(&expected_space, &space) {
-                return Err(LuaError::external(
-                    "cannot mix manifolds from different spaces",
-                ));
-            }
-            let bottom = -manifold;
+            // Reverse the bottom manifold so that it faces up.
+            let LuaManifold(bottom) = bottom;
+            let bottom = space.add_manifold(-bottom).into_lua_err()?;
 
+            // Leave the top manifold as-is.
             let top = match top {
-                Some(LuaManifold { manifold, space }) => {
-                    if !Arc::ptr_eq(&expected_space, &space) {
-                        return Err(LuaError::external(
-                            "cannot mix manifolds from different spaces",
-                        ));
-                    }
-                    Some(manifold)
-                }
+                Some(LuaManifold(m)) => Some(space.add_manifold(m).into_lua_err()?),
                 None => None,
             };
 
-            this.lock()?.push(AxisLayerBuilder { bottom, top });
+            this.lock()?
+                .push(AxisLayerBuilder { bottom, top })
+                .into_lua_err()?;
 
             Ok(())
         });
@@ -72,13 +65,16 @@ impl LuaUserData for LuaLayerSystem {
 }
 
 impl LuaLayerSystem {
-    fn lock(&self) -> LuaResult<MappedMutexGuard<'_, PerLayer<AxisLayerBuilder>>> {
+    /// Returns a mutex guard granting temporary access to the underlying layer
+    /// list.
+    pub fn lock(&self) -> LuaResult<MappedMutexGuard<'_, PerLayer<AxisLayerBuilder>>> {
         MutexGuard::try_map(self.axis.db.lock(), |db| {
             Some(&mut db.get_mut(self.axis.id).ok()?.layers)
         })
         .map_err(|_| LuaError::external("error fetching layer system"))
     }
 
+    /// Returns the space in which the layer system is constructed.
     fn space(&self) -> Arc<Mutex<Space>> {
         Arc::clone(&self.axis.db.lock().space)
     }

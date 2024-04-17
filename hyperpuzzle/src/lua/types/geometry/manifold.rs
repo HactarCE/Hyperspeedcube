@@ -1,24 +1,18 @@
-use std::sync::Arc;
-
 use hypermath::prelude::*;
-use hypershape::prelude::*;
-use parking_lot::Mutex;
 
 use super::*;
 
+/// Lua wrapper for a set of manifolds.
 #[derive(Debug, Clone)]
-pub struct LuaManifoldSet(pub ManifoldSet);
+pub struct LuaManifoldSet(pub Vec<Blade>);
 
 impl<'lua> FromLua<'lua> for LuaManifoldSet {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        if let Ok(LuaManifold { manifold, .. }) = lua.unpack(value.clone()) {
-            Ok(Self(ManifoldSet::from_iter([manifold])))
+        if let Ok(LuaManifold(m)) = lua.unpack(value.clone()) {
+            Ok(Self(vec![m]))
         } else if let Ok(LuaSequence(manifolds)) = lua.unpack(value.clone()) {
             Ok(Self(
-                manifolds
-                    .into_iter()
-                    .map(|LuaManifold { manifold, .. }| manifold)
-                    .collect(),
+                manifolds.into_iter().map(|LuaManifold(m)| m).collect(),
             ))
         } else {
             lua_convert_err(&value, "manifold or table of manifolds")
@@ -26,22 +20,20 @@ impl<'lua> FromLua<'lua> for LuaManifoldSet {
     }
 }
 
+/// Lua conversion wrapper for a manifold.
+///
+/// This is not actually a Lua type since it does not implement [`LuaUserData`].
 #[derive(Debug, Clone)]
-pub struct LuaManifold {
-    pub manifold: ManifoldRef,
-    pub space: Arc<Mutex<Space>>,
-}
+pub struct LuaManifold(pub Blade);
 
 impl<'lua> FromLua<'lua> for LuaManifold {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         if let Ok(m) = cast_userdata(lua, &value) {
             Ok(m)
         } else if let Ok(LuaVector(v)) = cast_userdata(lua, &value) {
-            LuaPlaneOrSphere::plane_from_pole(v)?.to_manifold(lua)
+            LuaManifoldParams::plane_from_pole(v)?.to_manifold(lua)
         } else if let Ok(LuaMultivector(m)) = lua.unpack(value.clone()) {
-            let manifold = LuaSpace::with(lua, |space| space.add_manifold(Blade::try_from(m)?))?;
-            let LuaSpace(space) = LuaSpace::get(lua)?;
-            Ok(LuaManifold { manifold, space })
+            Blade::try_from(m).map(Self).into_lua_err()
         } else if let LuaValue::Table(t) = value {
             Self::construct_plane_or_sphere(t)?.to_manifold(lua)
         } else {
@@ -50,10 +42,25 @@ impl<'lua> FromLua<'lua> for LuaManifold {
     }
 }
 
-impl LuaManifold {
-    fn construct_plane_or_sphere(t: LuaTable<'_>) -> LuaResult<LuaPlaneOrSphere> {
-        let distance: Option<Float>;
+impl LuaUserData for LuaManifold {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_meta_field("type", LuaStaticStr("manifold"));
+    }
 
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(m), ()| {
+            Ok(format!("manifold({m})"))
+        });
+
+        methods.add_meta_method(LuaMetaMethod::Unm, |_lua, Self(m), ()| Ok(Self(-m)));
+
+        methods.add_method("ndim", |_lua, Self(m), ()| Ok(m.cga_opns_ndim()));
+    }
+}
+
+impl LuaManifold {
+    /// Constructs a plane or sphere from a table of values.
+    fn construct_plane_or_sphere(t: LuaTable<'_>) -> LuaResult<LuaManifoldParams> {
         let arg_count = t.clone().pairs::<LuaValue<'_>, LuaValue<'_>>().count();
 
         let ensure_args_len = |n| {
@@ -73,20 +80,20 @@ impl LuaManifold {
                 // anonymous vector + distance
                 let distance = t.get("distance")?;
                 ensure_args_len(2)?;
-                Ok(LuaPlaneOrSphere::Plane {
+                Ok(LuaManifoldParams::Plane {
                     normal: v,
                     distance,
                 })
             } else {
                 // anonymous vector
                 ensure_args_len(1)?;
-                LuaPlaneOrSphere::plane_from_pole(v)
+                LuaManifoldParams::plane_from_pole(v)
             }
         } else if t.contains_key("pole")? {
             // pole
             let LuaVector(pole) = t.get("pole")?;
             ensure_args_len(1)?;
-            LuaPlaneOrSphere::plane_from_pole(pole)
+            LuaManifoldParams::plane_from_pole(pole)
         } else if t.contains_key("normal")? {
             // normal + ...
             let LuaVector(normal) = t.get("normal")?;
@@ -94,16 +101,16 @@ impl LuaManifold {
                 // normal + point
                 ensure_args_len(2)?;
                 let LuaVector(point) = t.get("point")?;
-                LuaPlaneOrSphere::plane_from_point_and_normal(point, normal)
+                LuaManifoldParams::plane_from_point_and_normal(point, normal)
             } else if t.contains_key("distance")? {
                 // normal + distance
                 ensure_args_len(2)?;
                 let distance = t.get("distance")?;
-                Ok(LuaPlaneOrSphere::Plane { normal, distance })
+                Ok(LuaManifoldParams::Plane { normal, distance })
             } else {
                 // normal
                 ensure_args_len(1)?;
-                Ok(LuaPlaneOrSphere::Plane {
+                Ok(LuaManifoldParams::Plane {
                     normal,
                     distance: 0.0,
                 })
@@ -115,11 +122,11 @@ impl LuaManifold {
                 // radius + center
                 let LuaVector(center) = t.get("center")?;
                 ensure_args_len(2)?;
-                Ok(LuaPlaneOrSphere::Sphere { center, radius })
+                Ok(LuaManifoldParams::Sphere { center, radius })
             } else {
                 // radius
                 ensure_args_len(1)?;
-                Ok(LuaPlaneOrSphere::Sphere {
+                Ok(LuaManifoldParams::Sphere {
                     center: Vector::EMPTY,
                     radius,
                 })
@@ -133,17 +140,19 @@ impl LuaManifold {
         }
     }
 
+    /// Constructs a sphere from a single value, which may be a number or a
+    /// table.
     pub fn construct_sphere<'lua>(lua: &'lua Lua, arg: LuaValue<'lua>) -> LuaResult<LuaManifold> {
         if let Ok(LuaNumberNoConvert(radius)) = lua.unpack(arg.clone()) {
-            LuaPlaneOrSphere::Sphere {
+            LuaManifoldParams::Sphere {
                 center: Vector::EMPTY,
                 radius: radius as Float,
             }
             .to_manifold(lua)
         } else if let Ok(LuaValue::Table(t)) = lua.unpack(arg.clone()) {
             match Self::construct_plane_or_sphere(t)? {
-                m @ LuaPlaneOrSphere::Sphere { .. } => m.to_manifold(lua),
-                LuaPlaneOrSphere::Plane { .. } => Err(LuaError::external(
+                m @ LuaManifoldParams::Sphere { .. } => m.to_manifold(lua),
+                LuaManifoldParams::Plane { .. } => Err(LuaError::external(
                     "expected sphere constructor but got plane constructor",
                 )),
             }
@@ -152,21 +161,23 @@ impl LuaManifold {
         }
     }
 
+    /// Constructs a plane from a multivalue, which may be a vector, a series of
+    /// numbers representing a vector, or a table.
     pub fn construct_plane<'lua>(
         lua: &'lua Lua,
         args: LuaMultiValue<'lua>,
     ) -> LuaResult<LuaManifold> {
         if args.len() > 1 {
             let LuaVectorFromMultiValue(v) = lua.unpack_multi(args)?;
-            LuaPlaneOrSphere::plane_from_pole(v)?.to_manifold(lua)
+            LuaManifoldParams::plane_from_pole(v)?.to_manifold(lua)
         } else if let Ok(LuaVectorFromMultiValue(v)) = lua.unpack_multi(args.clone()) {
-            LuaPlaneOrSphere::plane_from_pole(v)?.to_manifold(lua)
+            LuaManifoldParams::plane_from_pole(v)?.to_manifold(lua)
         } else {
             let value: LuaValue<'_> = lua.unpack_multi(args)?;
             match value {
                 LuaValue::Table(t) => match Self::construct_plane_or_sphere(t)? {
-                    m @ LuaPlaneOrSphere::Plane { .. } => m.to_manifold(lua),
-                    LuaPlaneOrSphere::Sphere { .. } => Err(LuaError::external(
+                    m @ LuaManifoldParams::Plane { .. } => m.to_manifold(lua),
+                    LuaManifoldParams::Sphere { .. } => Err(LuaError::external(
                         "expected plane constructor but got sphere constructor",
                     )),
                 },
@@ -175,65 +186,41 @@ impl LuaManifold {
         }
     }
 
-    pub fn transform(&self, t: &Isometry) -> LuaResult<Self> {
-        let mut space = self.space.lock();
-        let transformed_blade = t.transform_blade(&space.blade_of(self.manifold));
-        match space.add_manifold(transformed_blade) {
-            Ok(manifold) => Ok(Self {
-                manifold,
-                space: self.space.clone(),
-            }),
-            Err(e) => Err(e.into_lua_err()),
-        }
+    /// Transforms the manifold by `t`.
+    pub fn transform(&self, t: &Isometry) -> Self {
+        Self(t.transform_blade(&self.0))
     }
 }
 
-impl LuaUserData for LuaManifold {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_meta_field("type", LuaStaticStr("manifold"));
-    }
-
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
-            Ok(format!("manifold({})", this.manifold))
-        });
-
-        methods.add_meta_method(LuaMetaMethod::Unm, |_lua, Self { manifold, space }, ()| {
-            Ok(Self {
-                manifold: -*manifold,
-                space: Arc::clone(space),
-            })
-        });
-
-        methods.add_method("ndim", |lua, Self { manifold, .. }, ()| {
-            LuaSpace::with(lua, |space| LuaResult::Ok(space.ndim_of(manifold)))
-        });
-    }
-}
-
-enum LuaPlaneOrSphere {
+/// Type representing a Lua description of a manifold.
+enum LuaManifoldParams {
     Plane { normal: Vector, distance: Float },
     Sphere { center: Vector, radius: Float },
 }
-impl LuaPlaneOrSphere {
+impl LuaManifoldParams {
+    /// Constructs a plane from a pole, which is a vector from the origin to the
+    /// nearest point on the plane. The pole is always perpendicular to the
+    /// plane.
     fn plane_from_pole(pole: Vector) -> LuaResult<Self> {
         let distance = pole.mag();
         let normal = pole
             .normalize()
             .ok_or_else(|| LuaError::external("plane pole cannot be zero"))?;
-        Ok(LuaPlaneOrSphere::Plane { normal, distance })
+        Ok(LuaManifoldParams::Plane { normal, distance })
     }
+    /// Constructs a plane from a point and a normal vector.
     fn plane_from_point_and_normal(point: Vector, normal: Vector) -> LuaResult<Self> {
         let normal = normal
             .normalize()
             .ok_or_else(|| LuaError::external("normal vector cannot be zero"))?;
         let distance = point.dot(&normal);
-        Ok(LuaPlaneOrSphere::Plane { normal, distance })
+        Ok(LuaManifoldParams::Plane { normal, distance })
     }
 
+    /// Returns a blade representing the manifoild.
     fn to_blade(&self, space_ndim: u8) -> LuaResult<Blade> {
         Ok(match self {
-            LuaPlaneOrSphere::Plane { normal, distance } => {
+            LuaManifoldParams::Plane { normal, distance } => {
                 let normal_ndim = normal.ndim();
                 if normal_ndim > space_ndim {
                     return Err(LuaError::external(format!(
@@ -243,7 +230,7 @@ impl LuaPlaneOrSphere {
                 }
                 Blade::ipns_plane(normal, *distance)
             }
-            LuaPlaneOrSphere::Sphere { center, radius } => {
+            LuaManifoldParams::Sphere { center, radius } => {
                 let center_ndim = center.ndim();
                 if center_ndim > space_ndim {
                     return Err(LuaError::external(format!(
@@ -257,15 +244,8 @@ impl LuaPlaneOrSphere {
         .ipns_to_opns(space_ndim))
     }
 
+    /// Returns a Lua value representing the manifold.
     fn to_manifold(&self, lua: &Lua) -> LuaResult<LuaManifold> {
-        LuaSpace::with(lua, |space| {
-            match space.add_manifold(self.to_blade(space.ndim())?) {
-                Ok(manifold) => {
-                    let LuaSpace(space) = LuaSpace::get(lua)?;
-                    Ok(LuaManifold { manifold, space })
-                }
-                Err(e) => Err(LuaError::external(e)),
-            }
-        })
+        LuaSpace::with(lua, |space| self.to_blade(space.ndim()).map(LuaManifold))
     }
 }

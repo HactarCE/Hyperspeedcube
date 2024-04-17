@@ -5,7 +5,7 @@ mod frontend;
 mod objects;
 
 use command::LibraryCommand;
-pub use db::*;
+pub(crate) use db::*;
 pub use file::*;
 pub use frontend::*;
-pub use objects::*;
+pub(crate) use objects::*;

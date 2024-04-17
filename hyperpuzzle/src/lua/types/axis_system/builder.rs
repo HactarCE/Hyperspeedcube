@@ -7,6 +7,7 @@ use super::*;
 use crate::builder::{AxisSystemBuilder, CustomOrdering, NamingScheme};
 use crate::puzzle::Axis;
 
+/// Lua handle for an axis system under construction.
 #[derive(Debug, Clone)]
 pub struct LuaAxisSystem(pub Arc<Mutex<AxisSystemBuilder>>);
 
@@ -74,10 +75,13 @@ impl<'lua> LuaNamedIdDatabase<'lua, Axis> for AxisSystemBuilder {
 }
 
 impl LuaAxisSystem {
-    fn lock(&self) -> MutexGuard<'_, AxisSystemBuilder> {
+    /// Returns a mutex guard granting temporary access to the underlying
+    /// [`AxisSystemBuilder`].
+    pub fn lock(&self) -> MutexGuard<'_, AxisSystemBuilder> {
         self.0.lock()
     }
 
+    /// Adds a new twist axis.
     fn add<'lua>(&self, lua: &'lua Lua, data: LuaValue<'lua>) -> LuaResult<LuaValue<'lua>> {
         let name: Option<String>;
         let vector: LuaVector;
@@ -101,7 +105,7 @@ impl LuaAxisSystem {
                         "`name` is invalid when symmetry-expanding vector",
                     ));
                 }
-                sym.expand(vector, |t, v| t.transform_vector(v))
+                sym.orbit(vector, |t, v| t.transform_vector(v))
                     .into_iter()
                     .enumerate()
                     .map(|(i, (_transform, v))| {

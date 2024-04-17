@@ -98,6 +98,9 @@ impl PuzzleState {
         })
     }
 
+    /// Returns each piece's location with respect to a grip (axis + layer
+    /// mask). A piece may be inside the grip, outside the grip, or blocking the
+    /// grip. [`WhichSide::Flush`] is not used.
     pub fn compute_grip(&self, axis: Axis, layers: LayerMask) -> PerPiece<WhichSide> {
         let Ok(axis) = self.puzzle_type.axes.get(axis) else {
             log::error!("bad axis ID");

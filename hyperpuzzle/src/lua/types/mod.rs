@@ -24,6 +24,7 @@ pub use symmetry::*;
 pub use twist_system::*;
 pub use wrappers::*;
 
+/// Casts userdata to `T` if it is the correct type; otherwise returns an error.
 pub fn cast_userdata<T: 'static + LuaUserData + Clone>(
     lua: &Lua,
     value: &LuaValue<'_>,
@@ -34,6 +35,9 @@ pub fn cast_userdata<T: 'static + LuaUserData + Clone>(
     }
 }
 
+/// Lua wrapper around a `&'static str`.
+///
+/// This is useful for storing the type name for userdata.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 struct LuaStaticStr(&'static str);
 impl LuaUserData for LuaStaticStr {}
@@ -68,11 +72,19 @@ fn lua_convert_error(value: &LuaValue<'_>, to: &'static str) -> LuaError {
     }
 }
 
+/// Returns the type name for a custom userdata type.
 pub fn lua_userdata_type_name<'lua, T: 'static + LuaUserData>(
     lua: &'lua Lua,
 ) -> LuaResult<&'static str> {
     Ok(lua_type_name(&LuaValue::UserData(lua.create_proxy::<T>()?)))
 }
+/// Returns the name of a Lua type.
+///
+/// For built-in Lua types, this behaves the same as Lua's built-in `type()`
+/// function.
+///
+/// For userdata types defined in this crate, the `"type"` metadata key is used
+/// instead, which gives better information to users of the Lua API.
 pub fn lua_type_name<'lua>(value: &LuaValue<'lua>) -> &'static str {
     // IIFE to mimic try_block
     match (|| {

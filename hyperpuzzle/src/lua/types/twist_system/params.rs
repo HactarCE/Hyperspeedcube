@@ -8,15 +8,23 @@ use super::*;
 use crate::builder::{AxisSystemBuilder, TwistSystemBuilder};
 use crate::library::{Cached, LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryObjectParams};
 
+/// Set of parameters that define a wtist system.
 #[derive(Debug)]
 pub struct TwistSystemParams {
+    /// String ID of the twist system, which may be `None` if it is not being
+    /// stored in a library.
     pub id: Option<String>,
-
+    /// Number of dimensions of the space in which the twist system is
+    /// constructed.
     pub ndim: LuaNdim,
+    /// Symmetry of the twist system.
     pub symmetry: Option<LuaSymmetry>,
 
+    /// Parameters to construct the axis system, or an ID of a known axis
+    /// system, or `nil` to start with a default axis system.
     axes: NilStringOrRegisteredTable,
 
+    /// Lua function to build the twist system.
     user_build_fn: LuaRegistryKey,
 }
 

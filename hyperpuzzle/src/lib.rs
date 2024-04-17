@@ -7,7 +7,7 @@ mod puzzle;
 mod task;
 mod util;
 
-pub use library::Library;
+pub use library::*;
 pub use lua::LuaLogLine;
 pub use puzzle::*;
 pub use task::TaskHandle;

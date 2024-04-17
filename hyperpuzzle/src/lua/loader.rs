@@ -148,7 +148,8 @@ impl LuaLoader {
             }
         }
 
-        let sandbox_env: LuaTable<'_> = self.call_global("make_sandbox", filename)?;
+        let make_sandbox_fn: LuaFunction<'_> = self.lua.globals().get("make_sandbox")?;
+        let sandbox_env: LuaTable<'_> = make_sandbox_fn.call(filename)?;
         let exports_table = self.lua.create_registry_value(sandbox_env.clone())?;
 
         // There must be no way to exit the function during this block.
@@ -177,8 +178,6 @@ impl LuaLoader {
                 Ok(()) => {
                     {
                         let LibraryFileLoadResult {
-                            dependencies: _,
-
                             exports: _,
 
                             shapes,
@@ -215,17 +214,6 @@ impl LuaLoader {
         result
     }
 
-    fn call_global<'lua, A: IntoLuaMulti<'lua>, R: FromLuaMulti<'lua>>(
-        &'lua self,
-        func_name: &str,
-        args: A,
-    ) -> LuaResult<R> {
-        self.lua
-            .globals()
-            .get::<_, LuaFunction<'_>>(func_name)?
-            .call::<A, R>(args)
-    }
-
     #[cfg(test)]
     pub fn run_test_suite(&self, filename: &str, contents: &str) {
         self.db
@@ -252,15 +240,4 @@ impl LuaLoader {
         }
         assert!(ran_any_tests, "no tests ran!");
     }
-}
-
-fn lua_axes_table(lua: &Lua) -> LuaResult<LuaTable<'_>> {
-    let axes_table = lua.create_table()?;
-    for (i, c) in hypermath::AXIS_NAMES.chars().enumerate().take(6) {
-        axes_table.set(i, c.to_string())?;
-        axes_table.set(c.to_string(), i)?;
-        axes_table.set(c.to_ascii_lowercase().to_string(), i)?;
-    }
-    seal_table(lua, &axes_table)?;
-    Ok(axes_table)
 }

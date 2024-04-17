@@ -6,6 +6,7 @@ use super::*;
 use crate::builder::{TwistBuilder, TwistSystemBuilder};
 use crate::puzzle::Twist;
 
+/// Lua handle to a twist in a twist system under construction.
 pub type LuaTwist = LuaDbEntry<Twist, TwistSystemBuilder>;
 
 impl LuaUserData for LuaTwist {
@@ -14,12 +15,7 @@ impl LuaUserData for LuaTwist {
 
         TwistSystemBuilder::add_named_db_entry_fields(fields);
 
-        fields.add_field_method_get("axis", |_lua, this| {
-            Ok(LuaAxis {
-                id: this.get()?.axis,
-                db: Arc::clone(&this.db.lock().axes),
-            })
-        });
+        fields.add_field_method_get("axis", |_lua, this| this.axis());
         fields.add_field_method_get("transform", |_lua, this| {
             Ok(LuaTransform(this.get()?.transform))
         });
@@ -42,6 +38,8 @@ impl LuaTwist {
         self.db.lock().get(self.id).into_lua_err().cloned()
     }
 
+    /// Returns the twist that contains an equivalent axis and transform to this
+    /// twist, but transformed by `t`.
     pub fn transform(&self, t: &Isometry) -> LuaResult<Option<Self>> {
         let db = self.db.lock();
 
@@ -66,5 +64,13 @@ impl LuaTwist {
             .data_to_id()
             .get(&transformed_twist_data)
             .map(|&id| db.wrap_id(id)))
+    }
+
+    /// Returns the axis of the twist.
+    pub fn axis(&self) -> LuaResult<LuaAxis> {
+        Ok(LuaAxis {
+            id: self.get()?.axis,
+            db: Arc::clone(&self.db.lock().axes),
+        })
     }
 }

@@ -239,6 +239,13 @@ impl Space {
 
         Ok(manifold_id * sign)
     }
+    /// Adds a set of manifolds to the space.
+    pub fn add_manifolds(
+        &mut self,
+        blades: impl IntoIterator<Item = Blade>,
+    ) -> Result<ManifoldSet> {
+        blades.into_iter().map(|b| self.add_manifold(b)).collect()
+    }
 
     /// Adds a point pair to the space.
     fn add_point_pair(&mut self, manifold: ManifoldRef) -> Result<AtomicPolytopeRef> {

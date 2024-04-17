@@ -61,6 +61,7 @@ impl PuzzleBuilder {
         let shape = shape_mutex.lock();
         let twist_system_mutex = self.twists.lock().clone(&space_arc)?;
         let twist_system = twist_system_mutex.lock();
+        // Take `space` out of the `Arc<Mutex<T>>`.
         let mut space = std::mem::replace(&mut *space_arc.lock(), Space::new(self.ndim())?);
         drop(space_arc); // Don't use that new space! It's dead to us.
 
@@ -268,7 +269,14 @@ impl PuzzleBuilder {
         // TODO: assign opposite twists.
         // TODO: assign reverse twists
 
-        // Take `space` out of the `Arc<Mutex<T>>`.
+        let axis_by_name = axes
+            .iter()
+            .map(|(id, info)| (info.name.clone(), id))
+            .collect();
+        let twist_by_name = twists
+            .iter()
+            .map(|(id, info)| (info.name.clone(), id))
+            .collect();
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
@@ -291,8 +299,10 @@ impl PuzzleBuilder {
             notation: Notation {},
 
             axes,
+            axis_by_name,
 
             twists,
+            twist_by_name,
 
             space: Mutex::new(space),
         }))
@@ -520,7 +530,9 @@ fn build_shape_polygons(
         // for each vertex.
         let manifold = space.manifold_of(polygon);
         let blade = space.blade_of(manifold);
-        ensure!(blade.grade() == 4, "polygon must lie on 2D manifold");
+        if blade.cga_opns_ndim() != Some(2) {
+            bail!("polygon must lie on 2D manifold")
+        }
         let tangent_space = blade.opns_tangent_space();
 
         // Triangulate the polygon.
@@ -576,47 +588,4 @@ fn build_shape_polygons(
         triangles_start..triangles_end,
         edges_start..edges_end,
     ))
-}
-
-fn uppercase_names() -> impl Iterator<Item = String> {
-    fn string_from_base_26(bytes: &[u8]) -> String {
-        bytes.iter().rev().map(|&byte| byte as char).collect()
-    }
-
-    let mut digits = vec![];
-    std::iter::from_fn(move || {
-        for char in &mut digits {
-            *char += 1;
-            if *char <= b'Z' {
-                return Some(string_from_base_26(&digits));
-            }
-            *char = b'A';
-        }
-        digits.push(b'A');
-        Some(string_from_base_26(&digits))
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_uppercase_names() {
-        let mut iter = uppercase_names();
-        assert_eq!(iter.next().as_deref(), Some("A"));
-        assert_eq!(iter.next().as_deref(), Some("B"));
-        assert_eq!(iter.next().as_deref(), Some("C"));
-        let mut iter = iter.skip(22);
-        assert_eq!(iter.next().as_deref(), Some("Z"));
-        assert_eq!(iter.next().as_deref(), Some("AA"));
-        assert_eq!(iter.next().as_deref(), Some("AB"));
-        let mut iter = iter.skip(26);
-        assert_eq!(iter.next().as_deref(), Some("BC"));
-        let mut iter = iter.skip(645);
-        assert_eq!(iter.next().as_deref(), Some("ZY"));
-        assert_eq!(iter.next().as_deref(), Some("ZZ"));
-        assert_eq!(iter.next().as_deref(), Some("AAA"));
-        assert_eq!(iter.next().as_deref(), Some("AAB"));
-    }
 }

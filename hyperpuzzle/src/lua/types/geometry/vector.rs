@@ -3,6 +3,7 @@ use itertools::Itertools;
 
 use super::*;
 
+/// Lua conversion wrapper for constructing a vector from a multivalue.
 #[derive(Debug, Clone)]
 pub struct LuaVectorFromMultiValue(pub Vector);
 
@@ -28,6 +29,7 @@ impl<'lua> FromLuaMulti<'lua> for LuaVectorFromMultiValue {
     }
 }
 
+/// Lua wrapper for a vector.
 #[derive(Debug, Clone)]
 pub struct LuaVector(pub Vector);
 
@@ -56,7 +58,8 @@ impl<'lua> FromLua<'lua> for LuaVector {
 }
 
 impl LuaVector {
-    fn construct_from_table(t: LuaTable<'_>) -> LuaResult<Self> {
+    /// Constructs a vector from a table of values.
+    pub fn construct_from_table(t: LuaTable<'_>) -> LuaResult<Self> {
         let mut ret = vector![];
         for pair in t.pairs() {
             let (LuaVectorIndex(k), v): (_, Float) = pair?;
@@ -66,8 +69,9 @@ impl LuaVector {
         Ok(LuaVector(ret))
     }
 
-    pub fn transform(&self, t: &Isometry) -> LuaResult<Self> {
-        Ok(Self(t.transform_vector(&self.0)))
+    /// Transforms the vector by `t`.
+    pub fn transform(&self, t: &Isometry) -> Self {
+        Self(t.transform_vector(&self.0))
     }
 }
 

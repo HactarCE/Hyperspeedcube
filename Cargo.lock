@@ -2280,6 +2280,7 @@ dependencies = [
  "serde",
  "smallvec",
  "strum",
+ "thiserror",
  "tinyset",
  "walkdir",
  "wasm_thread",

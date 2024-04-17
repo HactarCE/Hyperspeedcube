@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::fmt;
 use std::hash::Hash;
 
 use hypermath::IndexNewtype;
@@ -70,7 +69,7 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
 
             // Ensure the new name is free.
             if self.names_to_ids.contains_key(&new_name) {
-                return Err(BadName::Conflict { name: new_name });
+                return Err(BadName::AlreadyTaken { name: new_name });
             }
         }
 
@@ -108,17 +107,14 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
     }
 }
 
-#[derive(Debug, Clone)]
+/// Error indicating a bad name
+#[derive(thiserror::Error, Debug, Clone)]
+#[allow(missing_docs)]
 pub enum BadName {
-    Conflict { name: String },
+    /// The name is already taken.
+    #[error("name {name:?} is already taken")]
+    AlreadyTaken { name: String },
+    /// The name is invalid.
+    #[error("name {name:?} is invalid")]
     InvalidName { name: String },
 }
-impl fmt::Display for BadName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            BadName::Conflict { name } => write!(f, "name {name:?} already taken"),
-            BadName::InvalidName { name } => write!(f, "name {name:?} is invalid"),
-        }
-    }
-}
-impl std::error::Error for BadName {}

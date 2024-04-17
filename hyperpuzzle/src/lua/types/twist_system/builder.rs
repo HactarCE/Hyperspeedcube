@@ -7,6 +7,7 @@ use super::*;
 use crate::builder::{NamingScheme, TwistBuilder, TwistSystemBuilder};
 use crate::puzzle::Twist;
 
+/// Lua handle to a twist system under construction.
 #[derive(Debug, Clone)]
 pub struct LuaTwistSystem(pub Arc<Mutex<TwistSystemBuilder>>);
 
@@ -69,6 +70,7 @@ impl<'lua> LuaNamedIdDatabase<'lua, Twist> for TwistSystemBuilder {
 }
 
 impl LuaTwistSystem {
+    /// Adds a new twist.
     fn add<'lua>(&self, lua: &'lua Lua, data: LuaTable<'lua>) -> LuaResult<LuaTwist> {
         let axis_prefix: Option<bool>;
         let name: Option<String>;

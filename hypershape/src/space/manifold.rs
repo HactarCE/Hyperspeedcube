@@ -38,8 +38,7 @@ impl ManifoldData {
     /// Constructs a manifold from a blade.
     pub fn new(blade: Blade) -> Result<Self> {
         let ndim = blade
-            .grade()
-            .checked_sub(2)
+            .cga_opns_ndim()
             .ok_or_eyre("blade has too low of a grade")?;
         Ok(ManifoldData { ndim, blade })
     }

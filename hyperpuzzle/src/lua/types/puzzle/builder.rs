@@ -5,18 +5,13 @@ use parking_lot::{Mutex, MutexGuard};
 use super::*;
 use crate::builder::PuzzleBuilder;
 
+/// Lua handle to a puzzle under construction.
 #[derive(Debug, Clone)]
 pub struct LuaPuzzleBuilder(pub Arc<Mutex<PuzzleBuilder>>);
 
 impl<'lua> FromLua<'lua> for LuaPuzzleBuilder {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         cast_userdata(lua, &value)
-    }
-}
-
-impl LuaPuzzleBuilder {
-    fn lock(&self) -> MutexGuard<'_, PuzzleBuilder> {
-        self.0.lock()
     }
 }
 
@@ -43,5 +38,13 @@ impl LuaUserData for LuaPuzzleBuilder {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             Ok(format!("puzzle({:?})", this.lock().name))
         });
+    }
+}
+
+impl LuaPuzzleBuilder {
+    /// Returns a mutex guard granting temporary access to the underlying
+    /// [`PuzzleBuilder`].
+    pub fn lock(&self) -> MutexGuard<'_, PuzzleBuilder> {
+        self.0.lock()
     }
 }

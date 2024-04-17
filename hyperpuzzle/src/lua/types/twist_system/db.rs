@@ -1,6 +1,7 @@
 use super::*;
-use crate::library::{Cached, LibraryDb, LibraryFile};
+use crate::library::{LibraryDb, LibraryFile};
 
+/// Lua handle to the library database of all known twist systems.
 #[derive(Debug, Default, Copy, Clone)]
 pub struct LuaTwistSystemDb;
 impl LuaUserData for LuaTwistSystemDb {
@@ -15,11 +16,7 @@ impl LuaUserData for LuaTwistSystemDb {
         methods.add_method("add", |lua, Self, pair: (String, TwistSystemParams)| {
             let (id, mut params) = pair;
             params.id = Some(id.clone());
-            LibraryFile::get_current(lua)?
-                .as_loading()?
-                .twist_systems
-                .insert(id, Cached::new(params));
-            Ok(())
+            LibraryFile::get_current(lua)?.define(id, params)
         })
     }
 }

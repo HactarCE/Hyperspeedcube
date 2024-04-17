@@ -8,13 +8,19 @@ use super::*;
 use crate::builder::AxisSystemBuilder;
 use crate::library::{Cached, LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryObjectParams};
 
+/// Set of parameters that define an axis system.
 #[derive(Debug)]
 pub struct AxisSystemParams {
+    /// String ID of the axis system, which may be `None` if it is not being
+    /// stored in a library.
     pub id: Option<String>,
-
+    /// Number of dimensions of the space in which the axis system is
+    /// constructed.
     pub ndim: LuaNdim,
+    /// Symmetry of the axis system.
     pub symmetry: Option<LuaSymmetry>,
 
+    /// Lua function to build the axis system.
     user_build_fn: LuaRegistryKey,
 }
 

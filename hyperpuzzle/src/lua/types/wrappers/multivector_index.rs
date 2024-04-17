@@ -8,16 +8,21 @@ use super::*;
 /// multivector.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct LuaMultivectorIndex {
-    /// Which of nₒ or ∞ to the beginning of the axes, if either.
+    /// Which of nₒ or ∞ to add the beginning of the axes, if either.
     pub nino: Option<NiNo>,
 
+    /// Set of axes.
     pub axes: Axes,
+    /// Sign to apply when reading/writing this term.
     pub sign: Sign,
 
+    /// String description of the index.
     pub string: String,
 }
 
 impl LuaMultivectorIndex {
+    /// Constructs a multivector with a coefficient of 1 at this index, and no
+    /// other values.
     pub fn to_multivector(&self) -> Multivector {
         let t = Term {
             coef: self.sign.to_num(),
@@ -66,8 +71,8 @@ impl FromStr for LuaMultivectorIndex {
                 '2' | 'y' | 'Y' => Axes::Y,
                 '3' | 'z' | 'Z' => Axes::Z,
                 '4' | 'w' | 'W' => Axes::W,
-                '5' | 'v' | 'V' => Axes::U,
-                '6' | 'u' | 'U' => Axes::V,
+                '5' | 'v' | 'V' => Axes::V,
+                '6' | 'u' | 'U' => Axes::U,
                 '7' => Axes::T,
                 '8' => Axes::S,
                 '9' => Axes::R,
@@ -144,7 +149,7 @@ impl FromStr for LuaMultivectorIndex {
 /// ∞ or nₒ.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum NiNo {
-    // nₒ
+    /// nₒ
     No,
     /// ∞
     Ni,

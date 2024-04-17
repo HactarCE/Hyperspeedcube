@@ -153,11 +153,15 @@ impl TwistMetric {
             }
             Self::Etm => return twists.into_iter().count(),
 
-            Self::Stm | Self::Qstm => slice_multiplier = |_, _| 1,
+            Self::Stm | Self::Qstm => {
+                slice_multiplier = |_, _| 1;
+            }
             Self::Btm | Self::Qbtm => {
                 slice_multiplier = |layers, _| layers.count_contiguous_slices();
             }
-            Self::Obtm | Self::Qobtm => slice_multiplier = LayerMask::count_outer_blocks,
+            Self::Obtm | Self::Qobtm => {
+                slice_multiplier = LayerMask::count_outer_blocks;
+            }
         }
 
         let is_qtm = self.is_qtm().expect("ATM and ETM cases already handled");
@@ -194,7 +198,8 @@ impl TwistMetric {
             prev_axis = Some(twist_axis);
             prev_layers = Some(layers);
 
-            count += direction_multiplier * slice_multiplier(layers, puzzle.layer_count()) as usize;
+            let layer_count = puzzle.axes[twist_axis].layers.len() as u8;
+            count += direction_multiplier * slice_multiplier(layers, layer_count) as usize;
         }
 
         count

@@ -10,43 +10,58 @@ use hypermath::collections::approx_hashmap::{
 use hypermath::{Blade, Float, Isometry, Vector};
 use itertools::Itertools;
 use parking_lot::Mutex;
-use tinyset::Fits64;
 
 use super::*;
 use crate::builder::{AxisSystemBuilder, ShapeBuilder, TwistBuilder, TwistSystemBuilder};
 
+/// Lua value that can be transformed by an isometry.
+///
+/// This abstraction is useful for the method defined on `LuaSymmetry` that
+/// computes objects' orbits.
 #[derive(Debug, Clone)]
 pub enum Transformable {
+    /// Axis in an axis system.
     Axis {
+        /// Axis system.
         db: Arc<Mutex<AxisSystemBuilder>>,
+        /// Vector of the axis.
         vector: Vector,
     },
+    /// Color in the color system of a shape.
     Color {
+        /// Shape.
         db: Arc<Mutex<ShapeBuilder>>,
+        /// Manifolds of the color.
         blades: Vec<Blade>,
     },
+    /// Manifold.
     Manifold(LuaManifold),
+    /// Multivector.
     Multivector(LuaMultivector),
     // TODO: piece
+    /// Transform (isometry).
     Transform(LuaTransform),
+    /// Twist in a twist system.
     Twist {
-        axis_vector: Vector,
-        transform: Isometry,
+        /// Twist system.
         db: Arc<Mutex<TwistSystemBuilder>>,
+        /// Vector of the axis of the twist.
+        axis_vector: Vector,
+        /// Transform of the twist.
+        transform: Isometry,
     },
+    /// Vector.
     Vector(LuaVector),
-
-    Error(LuaError),
 }
 impl<'lua> FromLua<'lua> for Transformable {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        None.or_else(|| lua.unpack(value.clone()).ok().and_then(Self::from_axis))
-            .or_else(|| lua.unpack(value.clone()).ok().and_then(Self::from_color))
-            .or_else(|| lua.unpack(value.clone()).ok().map(Self::Manifold))
-            .or_else(|| lua.unpack(value.clone()).ok().map(Self::Multivector))
-            .or_else(|| lua.unpack(value.clone()).ok().map(Self::Transform))
-            .or_else(|| lua.unpack(value.clone()).ok().and_then(Self::from_twist))
-            .or_else(|| lua.unpack(value.clone()).ok().map(Self::Vector))
+        None.or_else(|| lua.unpack(value.clone()).and_then(Self::from_axis).ok())
+            .or_else(|| lua.unpack(value.clone()).and_then(Self::from_color).ok())
+            .or_else(|| lua.unpack(value.clone()).map(Self::Manifold).ok())
+            .or_else(|| lua.unpack(value.clone()).map(Self::Multivector).ok())
+            .or_else(|| lua.unpack(value.clone()).map(Self::Transform).ok())
+            .or_else(|| lua.unpack(value.clone()).and_then(Self::from_twist).ok())
+            .or_else(|| lua.unpack(value.clone()).map(Self::Vector).ok())
             .ok_or_else(|| {
                 lua_convert_error(
                     &value,
@@ -57,28 +72,29 @@ impl<'lua> FromLua<'lua> for Transformable {
     }
 }
 impl Transformable {
-    fn from_axis(axis: LuaAxis) -> Option<Self> {
-        let vector = axis.vector().ok()?;
+    fn from_axis(axis: LuaAxis) -> LuaResult<Self> {
+        let vector = axis.vector()?;
         let db = axis.db;
-        Some(Self::Axis { db, vector })
+        Ok(Self::Axis { db, vector })
     }
-    fn from_color(color: LuaColor) -> Option<Self> {
-        let blades = color.blades().ok()?;
+    fn from_color(color: LuaColor) -> LuaResult<Self> {
+        let blades = color.blades()?;
         let db = color.db;
-        Some(Self::Color { db, blades })
+        Ok(Self::Color { db, blades })
     }
-    fn from_twist(twist: LuaTwist) -> Option<Self> {
-        let t = twist.get().ok()?;
-        let db = twist.db;
-        let axis_vector = db.lock().axes.lock().get(t.axis).ok()?.vector().clone();
+    fn from_twist(twist: LuaTwist) -> LuaResult<Self> {
+        let t = twist.get()?;
+        let axis_vector = twist.axis()?.vector()?;
         let transform = t.transform.clone();
-        Some(Self::Twist {
+        let db = twist.db;
+        Ok(Self::Twist {
+            db,
             axis_vector,
             transform,
-            db,
         })
     }
 
+    /// Converts
     pub fn into_lua<'lua>(&self, lua: &'lua Lua) -> Option<LuaResult<LuaValue<'lua>>> {
         match self {
             Self::Axis { db, vector } => {
@@ -121,40 +137,43 @@ impl Transformable {
                 Some(LuaTwist { id, db }.into_lua(lua))
             }
             Self::Vector(v) => Some(v.clone().into_lua(lua)),
-
-            Self::Error(e) => Some(Err(e.clone())),
         }
     }
 
-    pub fn transform(&self, t: &Isometry) -> LuaResult<Self> {
+    /// Transforms the object by `t`.
+    ///
+    /// Generally if the object is a pure mathematical object (vector,
+    /// multivector, etc.) then it is transformed directly, and if it is a
+    /// puzzle element (twist axis, color, etc.) then the nearest equivalent one
+    /// is returned. See the `transform()` method on individual Lua wrapper
+    /// types to learn how each one is transformed.
+    pub fn transform(&self, t: &Isometry) -> Self {
         match self {
-            Self::Axis { db, vector } => Ok(Self::Axis {
+            Self::Axis { db, vector } => Self::Axis {
                 db: Arc::clone(db),
                 vector: t.transform_vector(vector),
-            }),
-            Self::Color { db, blades } => Ok(Self::Color {
+            },
+            Self::Color { db, blades } => Self::Color {
                 db: Arc::clone(db),
                 blades: blades.into_iter().map(|b| t.transform_blade(b)).collect(),
-            }),
-            Self::Manifold(m) => Ok(Self::Manifold(m.transform(t)?)),
+            },
+            Self::Manifold(m) => Self::Manifold(m.transform(t)),
             Self::Multivector(LuaMultivector(m)) => {
-                Ok(Self::Multivector(LuaMultivector(t.transform(m))))
+                Self::Multivector(LuaMultivector(t.transform(m)))
             }
             Self::Transform(LuaTransform(t2)) => {
-                Ok(Self::Transform(LuaTransform(t.transform_isometry(t2))))
+                Self::Transform(LuaTransform(t.transform_isometry(t2)))
             }
             Self::Twist {
+                db,
                 axis_vector,
                 transform,
-                db,
-            } => Ok(Self::Twist {
+            } => Self::Twist {
+                db: Arc::clone(db),
                 axis_vector: t.transform_vector(axis_vector),
                 transform: t.transform_isometry(transform),
-                db: Arc::clone(db),
-            }),
-            Self::Vector(v) => Ok(Self::Vector(v.transform(t)?)),
-
-            Self::Error(e) => Err(e.clone()),
+            },
+            Self::Vector(v) => Self::Vector(v.transform(t)),
         }
     }
 }
@@ -168,13 +187,13 @@ impl ApproxHashMapKey for Transformable {
                 .iter()
                 .map(|blade| blade.approx_hash(&mut float_hash_fn).into())
                 .collect(),
-            Self::Manifold(LuaManifold { manifold, .. }) => manifold.to_u64().into(),
+            Self::Manifold(LuaManifold(b)) => b.approx_hash(float_hash_fn).into(),
             Self::Multivector(LuaMultivector(m)) => m.approx_hash(float_hash_fn).into(),
             Self::Transform(LuaTransform(t)) => t.approx_hash(float_hash_fn).into(),
             Self::Twist {
+                db: _,
                 axis_vector,
                 transform,
-                db: _,
             } => [
                 axis_vector.approx_hash(&mut float_hash_fn).into(),
                 transform.approx_hash(&mut float_hash_fn).into(),
@@ -182,24 +201,19 @@ impl ApproxHashMapKey for Transformable {
             .into_iter()
             .collect(),
             Self::Vector(LuaVector(v)) => v.approx_hash(float_hash_fn).into(),
-
-            Self::Error(_) => TransformableHash::Nil,
         }
     }
 }
 
+/// Hash of a [`Transformable`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TransformableHash {
-    Nil,
-    Id(u64),
+    /// Hash of a vector.
     Vector(VectorHash),
+    /// Hash of a multivector or blade.
     Multivector(MultivectorHash),
+    /// Hash of multiple vectors, multivectors, or blades.
     Vec(Vec<TransformableHash>),
-}
-impl From<u64> for TransformableHash {
-    fn from(value: u64) -> Self {
-        Self::Id(value)
-    }
 }
 impl From<VectorHash> for TransformableHash {
     fn from(value: VectorHash) -> Self {

@@ -8,13 +8,18 @@ use super::*;
 use crate::builder::ShapeBuilder;
 use crate::library::{Cached, LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryObjectParams};
 
+/// Set of parameters that define a shape.
 #[derive(Debug)]
 pub struct ShapeParams {
+    /// String ID of the shape, which may be `None` if it is not being stored in
+    /// a library.
     pub id: Option<String>,
-
+    /// Number of dimensions of the space in which the shape is constructed.
     pub ndim: LuaNdim,
+    /// Symmetry of the shape.
     pub symmetry: Option<LuaSymmetry>,
 
+    /// Lua function to build the shape.
     user_build_fn: LuaRegistryKey,
 }
 

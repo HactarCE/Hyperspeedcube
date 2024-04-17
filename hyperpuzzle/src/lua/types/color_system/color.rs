@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use hypermath::{Blade, Isometry};
 use itertools::Itertools;
 
@@ -7,7 +5,7 @@ use super::*;
 use crate::builder::ShapeBuilder;
 use crate::puzzle::Color;
 
-// TODO: `ColorSystemBuilder`?
+/// Lua handle to a color in the color system of a shape under construction.
 pub type LuaColor = LuaDbEntry<Color, ShapeBuilder>;
 
 impl LuaUserData for LuaColor {
@@ -19,11 +17,11 @@ impl LuaUserData for LuaColor {
 
         fields.add_field_method_get("manifolds", |lua, this| {
             let db = this.db.lock();
+            let space = db.space.lock();
             let manifolds = db.colors.get(this.id).into_lua_err()?.manifolds();
-            let lua_manifolds = manifolds.iter().map(|manifold| {
-                let space = Arc::clone(&db.space);
-                LuaManifold { manifold, space }
-            });
+            let lua_manifolds = manifolds
+                .iter()
+                .map(|manifold| LuaManifold(space.blade_of(manifold)));
             let t = lua.create_table_from(lua_manifolds.enumerate())?;
             seal_table(lua, &t)?;
             Ok(t)
@@ -52,6 +50,7 @@ impl LuaUserData for LuaColor {
 }
 
 impl LuaColor {
+    /// Returns the blade for each manifold that is assigned this color.
     pub fn blades(&self) -> LuaResult<Vec<Blade>> {
         let db = self.db.lock();
         let space = db.space.lock();
@@ -59,6 +58,8 @@ impl LuaColor {
         Ok(manifold_set.iter().map(|m| space.blade_of(m)).collect())
     }
 
+    /// Returns the color that contains an equivalent manifold set to this
+    /// color, but transformed by `t`.
     pub fn transform(&self, t: &Isometry) -> LuaResult<Option<Self>> {
         let db = self.db.lock();
         let mut space = db.space.lock();

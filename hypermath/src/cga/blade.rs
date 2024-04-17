@@ -456,6 +456,11 @@ impl Blade {
             None => 0,
         }
     }
+    /// Returns the dimension of the OPNS manifold represented by this blade in
+    /// CGA, or `None` if it has too low of a grade.
+    pub fn cga_opns_ndim(&self) -> Option<u8> {
+        self.grade().checked_sub(2)
+    }
 
     /// Returns `true` if the blade is a null vector (has zero magnitude).
     pub fn is_null_vector(&self) -> bool {
@@ -561,7 +566,7 @@ impl Blade {
         if self.is_zero() {
             return Point::Degenerate;
         }
-        assert_eq!(2, self.grade(), "expected 1-blade; got {self}");
+        assert_eq!(2, self.grade(), "expected 2-blade; got {self}");
         (Blade::NO << self).to_point()
     }
     /// Factors an OPNS point pair into two OPNS points. Returns `None` if the

@@ -14,7 +14,9 @@ use crate::puzzle::{Axis, PerTwist, Twist};
 /// Twist during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct TwistBuilder {
+    /// Axis that is twisted.
     pub axis: Axis,
+    /// Transform to apply to pieces.
     pub transform: Isometry,
 }
 impl ApproxHashMapKey for TwistBuilder {

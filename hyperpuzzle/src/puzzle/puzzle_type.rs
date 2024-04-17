@@ -1,4 +1,7 @@
-use std::sync::{Arc, Weak};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Weak},
+};
 
 use hypermath::{Float, Isometry};
 use hypershape::prelude::*;
@@ -36,9 +39,13 @@ pub struct Puzzle {
 
     /// List of axes, indexed by ID.
     pub axes: PerAxis<AxisInfo>,
+    /// Map from axis name to axis.
+    pub axis_by_name: HashMap<String, Axis>,
 
     /// List of twists, indexed by ID.
     pub twists: PerTwist<TwistInfo>,
+    /// Map from twist name to twist.
+    pub twist_by_name: HashMap<String, Twist>,
 
     /// Space containing a polytope for each piece.
     pub(crate) space: Mutex<Space>,
@@ -75,29 +82,13 @@ impl Puzzle {
     pub(crate) fn axis_of(&self, _twist: Twist) -> Axis {
         todo!()
     }
-    pub fn layer_count(&self) -> u8 {
-        todo!()
-    }
     pub(crate) fn all_layers(&self) -> LayerMask {
         todo!()
     }
     pub(crate) fn count_quarter_turns(&self, _twist: Twist) -> usize {
         todo!()
     }
-    pub fn twist_direction_from_name(&self, _direction: &str) -> Option<String> {
-        todo!()
-    }
-    pub fn twist_command_short_description(
-        &self,
-        _axis_name: Option<String>,
-        _direction_name: String,
-        _layers: LayerMask,
-    ) -> String {
-        todo!()
-    }
-    pub fn twist_axis_from_name(&self, _axis_name: &str) -> Option<String> {
-        todo!()
-    }
+    /// Returns a twist that recenters the given twist axis.
     pub fn make_recenter_twist(&self, _twist_axis: String) -> Result<(Twist, LayerMask), ()> {
         todo!()
     }

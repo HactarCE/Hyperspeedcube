@@ -131,39 +131,30 @@ impl PuzzleCommand {
     pub fn short_description(&self, ty: &Puzzle) -> String {
         match self {
             PuzzleCommand::Grip { axis, layers } => {
-                let layers = layers.to_layer_mask(ty.layer_count());
-                let mut s = String::new();
-                if layers != LayerMask(0) || axis.is_none() {
-                    s += &layers.to_string();
+                let axis = axis
+                    .as_ref()
+                    .and_then(|name| ty.axis_by_name.get(name))
+                    .map(|&id| &ty.axes[id]);
+                match axis {
+                    Some(ax) => {
+                        let layer_mask = layers.to_layer_mask(&ax);
+                        if layer_mask == LayerMask(0) {
+                            ax.name.clone()
+                        } else {
+                            layer_mask.to_string() + &ax.name
+                        }
+                    }
+                    None => layers.to_string(),
                 }
-                if let Some(axis_name) = axis {
-                    s += axis_name;
-                }
-                s
             }
             PuzzleCommand::Twist {
                 axis,
                 direction,
                 layers,
-            } => ty.twist_command_short_description(
-                axis.as_deref()
-                    .and_then(|axis_name| ty.twist_axis_from_name(axis_name)),
-                ty.twist_direction_from_name(direction).unwrap_or_default(),
-                layers.to_layer_mask(ty.layer_count()),
-            ),
+            } => todo!("description of twist command"),
             PuzzleCommand::Recenter { axis } => {
-                match axis
-                    .as_deref()
-                    .and_then(|axis_name| ty.twist_axis_from_name(axis_name))
-                {
-                    Some(twist_axis) => match ty.make_recenter_twist(twist_axis) {
-                        Ok((twist, layers)) => ty.twist_command_short_description(
-                            todo!("twist_axis"),
-                            todo!("twist_direction"),
-                            todo!("twist_layers"),
-                        ),
-                        Err(_) => crate::util::INVALID_STR.to_string(),
-                    },
+                match axis.as_ref().and_then(|name| ty.axis_by_name.get(name)) {
+                    Some(twist_axis) => todo!("description of recenter command"),
                     None => "Recenter".to_string(),
                 }
             }
@@ -325,8 +316,10 @@ impl LayerMaskDesc {
         *self == Self::default()
     }
 
-    pub(crate) fn to_layer_mask(&self, layer_count: u8) -> LayerMask {
+    pub(crate) fn to_layer_mask(&self, axis: &AxisInfo) -> LayerMask {
         let mut ret = LayerMask(0);
+
+        let layer_count = axis.layers.len() as u8;
 
         fn layer_idx(i: i8, layer_count: u8) -> u8 {
             if i > 0 {

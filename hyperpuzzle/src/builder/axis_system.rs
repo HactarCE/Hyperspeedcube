@@ -34,7 +34,12 @@ impl AxisLayerBuilder {
 /// Twist axis during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct AxisBuilder {
+    /// The axis's vector, which all layers must be perpendicular to and which
+    /// all twists must keep fixed.
+    ///
+    /// Once an axis has been constructed, its vector cannot be modified.
     vector: Vector,
+    /// Layer data for each layer on the axis.
     pub layers: PerLayer<AxisLayerBuilder>,
 }
 impl AxisBuilder {

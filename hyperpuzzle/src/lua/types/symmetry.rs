@@ -5,9 +5,12 @@ use itertools::Itertools;
 
 use super::*;
 
+/// Lua symmetry object.
 #[derive(Debug, Clone)]
 pub struct LuaSymmetry {
+    /// Base Schäfli symbol.
     pub schlafli: SchlafliSymbol,
+    /// Whether to discount symmetry elements that have a net reflection.
     pub chiral: bool,
 }
 
@@ -27,6 +30,7 @@ impl From<SchlafliSymbol> for LuaSymmetry {
 }
 
 impl LuaSymmetry {
+    /// Constructs a symmetry object from a table of values.
     pub fn construct_from_table(t: LuaTable<'_>) -> LuaResult<Self> {
         t.sequence_values()
             .try_collect()
@@ -34,12 +38,13 @@ impl LuaSymmetry {
             .map(LuaSymmetry::from)
     }
 
-    fn orbit<T: Clone + ApproxHashMapKey>(
+    /// Returns the orbit of an object under the symmetry.
+    pub fn orbit<T: Clone + ApproxHashMapKey>(
         &self,
         object: T,
         transform: fn(&Isometry, &T) -> T,
     ) -> Vec<(Isometry, T)> {
-        let ret = self.schlafli.expand(object, transform);
+        let ret = self.schlafli.orbit(object, transform);
         match self.chiral {
             true => ret
                 .into_iter()
@@ -49,7 +54,8 @@ impl LuaSymmetry {
         }
     }
 
-    fn orbit_lua_iter<'lua>(
+    /// Returns the orbit of a collection of objects under the symmetry.
+    pub fn orbit_lua_iter<'lua>(
         &self,
         lua: &'lua Lua,
         args: LuaMultiValue<'lua>,
@@ -77,11 +83,7 @@ impl LuaSymmetry {
         };
 
         let mut iter = self
-            .orbit(init, |t, obj| {
-                obj.iter()
-                    .map(|v| v.transform(t).unwrap_or_else(|e| Transformable::Error(e)))
-                    .collect()
-            })
+            .orbit(init, |t, obj| obj.iter().map(|v| v.transform(t)).collect())
             .into_iter();
         lua.create_function_mut(move |lua, ()| {
             iter.find_map(move |(transform, objects)| {

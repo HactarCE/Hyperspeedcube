@@ -1,6 +1,7 @@
 use super::*;
-use crate::library::{Cached, LibraryDb, LibraryFile};
+use crate::library::{LibraryDb, LibraryFile};
 
+/// Lua handle to the library of all known puzzles.
 #[derive(Debug, Default, Copy, Clone)]
 pub struct LuaPuzzleDb;
 impl LuaUserData for LuaPuzzleDb {
@@ -15,11 +16,7 @@ impl LuaUserData for LuaPuzzleDb {
         methods.add_method("add", |lua, Self, pair| {
             let (id, mut params): (String, PuzzleParams) = pair;
             params.id = id.clone();
-            LibraryFile::get_current(lua)?
-                .as_loading()?
-                .puzzles
-                .insert(id, Cached::new(params));
-            Ok(())
+            LibraryFile::get_current(lua)?.define(id, params)
         });
     }
 }

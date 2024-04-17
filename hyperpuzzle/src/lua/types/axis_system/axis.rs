@@ -4,6 +4,7 @@ use super::*;
 use crate::builder::AxisSystemBuilder;
 use crate::puzzle::Axis;
 
+/// Lua handle for a twist axis in an axis system under construction.
 pub type LuaAxis = LuaDbEntry<Axis, AxisSystemBuilder>;
 
 impl LuaUserData for LuaAxis {
@@ -32,13 +33,17 @@ impl LuaUserData for LuaAxis {
 }
 
 impl LuaAxis {
+    /// Returns the vector of the axis.
     pub fn vector(&self) -> LuaResult<Vector> {
         Ok(self.db.lock().get(self.id).into_lua_err()?.vector().clone())
     }
+    /// Returns the name of the axis, or `None` if one has not been assigned.
     pub fn name(&self) -> Option<String> {
         self.db.lock().names.get(self.id)
     }
 
+    /// Returns the expected result of calling the Lua `tostring` function with
+    /// `self`.
     pub fn lua_into_string(&self) -> LuaResult<String> {
         if let Some(name) = self.name() {
             Ok(format!("axis({name:?}, vector={})", self.vector()?))
@@ -47,6 +52,8 @@ impl LuaAxis {
         }
     }
 
+    /// Returns the axis that has an equivalent vector to this one, but
+    /// transformed by `t`.
     pub fn transform(&self, t: &Isometry) -> LuaResult<Option<Self>> {
         let v = t.transform_vector(self.vector()?);
         Ok(self.db.lock().vector_to_id().get(&v).map(|&id| {

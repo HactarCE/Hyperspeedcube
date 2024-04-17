@@ -10,9 +10,12 @@ use parking_lot::{Mutex, MutexGuard};
 use super::*;
 use crate::builder::{CustomOrdering, NamingScheme};
 
+/// Lua handle to an object in a collection, indexed by some ID.
 #[derive(Debug)]
 pub struct LuaDbEntry<I, D> {
+    /// ID of the object.
     pub id: I,
+    /// Underlying database.
     pub db: Arc<Mutex<D>>,
 }
 impl<I: Clone, D> Clone for LuaDbEntry<I, D> {
@@ -39,7 +42,9 @@ where
     I: 'static + Clone,
     LuaDbEntry<I, Self>: LuaUserData,
 {
+    /// User-friendly string for a single object in the collection.
     const ELEMENT_NAME_SINGULAR: &'static str;
+    /// User-friendly string for multiple objects in the collection.
     const ELEMENT_NAME_PLURAL: &'static str;
 
     /// Converts the ID of an entry to a [`LuaValue`].
@@ -48,7 +53,8 @@ where
         LuaDbEntry { id, db }
     }
     /// Converts a [`LuaValue`] to an entry ID, or returns an error if no such
-    /// entry exists.
+    /// entry exists. Many different types are accepted depending on the
+    /// collection; most often, names and indices are accepted.
     fn value_to_id(&self, lua: &'lua Lua, value: LuaValue<'lua>) -> LuaResult<I>;
 
     /// Converts a [`LuaValue`] to an entry ID if it is a [`LuaDbEntry`]
@@ -77,6 +83,8 @@ where
     /// Returns a list of IDs in the database, ideally in some canonical order.
     fn ids_in_order(&self) -> Cow<'_, [I]>;
 
+    /// Constructs a mapping from ID to `T` from a lua value, which may be a
+    /// table of pairs `(id, T)` or a function from ID to `T`.
     fn mapping_from_value<T: FromLua<'lua>>(
         &self,
         lua: &'lua Lua,
@@ -270,6 +278,7 @@ where
         Ok(())
     }
 
+    /// Swaps two elements.
     fn swap(&mut self, lua: &'lua Lua, i: LuaValue<'lua>, j: LuaValue<'lua>) -> LuaResult<()> {
         let i = self.value_to_id(lua, i)?;
         let j = self.value_to_id(lua, j)?;

@@ -27,7 +27,9 @@ mod tests {
         let mut it = it.skip(23);
         assert_eq!(it.next().unwrap(), "AZ");
         assert_eq!(it.next().unwrap(), "BA");
-        let mut it = it.skip(647);
+        assert_eq!(it.next().unwrap(), "BB");
+        assert_eq!(it.next().unwrap(), "BC");
+        let mut it = it.skip(645);
         assert_eq!(it.next().unwrap(), "ZY");
         assert_eq!(it.next().unwrap(), "ZZ");
         assert_eq!(it.next().unwrap(), "AAA");

@@ -9,26 +9,27 @@ use super::{
     Cached, CachedAxisSystem, CachedPuzzle, CachedShape, CachedTwistSystem, LibraryObjectParams,
 };
 
+/// File stored in a [`super::Library`].
 #[derive(Debug)]
 pub struct LibraryFile {
+    /// Name of the file. This may be chosen arbitrarily by the calling code,
+    /// and may include some or all of the path.
     pub name: String,
+    /// The path to the file. If specified, this may be used to reload the file
+    /// if it changes.
     pub path: Option<PathBuf>,
+    /// Contents of the file. This should be valid Lua code.
     pub contents: String,
-    pub load_state: Mutex<LibraryFileLoadState>,
+    /// Load state of the file, which includes whether it has been loaded and
+    /// the IDs of any library objects that were defined in it.
+    pub(crate) load_state: Mutex<LibraryFileLoadState>,
+    /// List of files that depend on this one. If this file is reloaded, those
+    /// others must be reloaded as well.
     pub dependents: Mutex<Vec<Arc<LibraryFile>>>,
 }
 impl LibraryFile {
-    pub fn new(name: String, path: Option<PathBuf>, contents: String) -> Self {
-        Self {
-            name,
-            path,
-            contents,
-            load_state: Mutex::new(LibraryFileLoadState::Unloaded),
-            dependents: Mutex::new(vec![]),
-        }
-    }
-
-    pub fn get_current(lua: &Lua) -> LuaResult<Arc<LibraryFile>> {
+    /// Returns the file currently being loaded, given a Lua instance.
+    pub(crate) fn get_current(lua: &Lua) -> LuaResult<Arc<LibraryFile>> {
         match lua.app_data_ref::<Arc<LibraryFile>>() {
             Some(file) => Ok(Arc::clone(&*file)),
             None => Err(LuaError::external(
@@ -36,7 +37,12 @@ impl LibraryFile {
             )),
         }
     }
-    pub fn as_loading(&self) -> LuaResult<MappedMutexGuard<'_, LibraryFileLoadResult>> {
+
+    /// Returns the in-progress result of the file, assuming it is the one
+    /// currently being loaded.
+    ///
+    /// Returns an error if the file is not currently being loaded.
+    pub(crate) fn as_loading(&self) -> LuaResult<MappedMutexGuard<'_, LibraryFileLoadResult>> {
         MutexGuard::try_map(self.load_state.lock(), |load_state| match load_state {
             LibraryFileLoadState::Loading(result) => Some(result),
             _ => None,
@@ -44,7 +50,8 @@ impl LibraryFile {
         .map_err(|_| LuaError::external("current file is not in 'loading' state"))
     }
 
-    pub fn insert<P: LibraryObjectParams>(&self, id: String, params: P) -> LuaResult<()> {
+    /// Defines an object in the file.
+    pub(crate) fn define<P: LibraryObjectParams>(&self, id: String, params: P) -> LuaResult<()> {
         match P::get_id_map_within_file(&mut *self.as_loading()?)
             .insert(id.clone(), Cached::new(params))
         {
@@ -56,11 +63,16 @@ impl LibraryFile {
         }
     }
 
+    /// Returns whether the file is loaded.
     pub fn is_loaded(&self) -> bool {
         matches!(*self.load_state.lock(), LibraryFileLoadState::Done(_))
     }
 
-    pub fn as_completed(&self) -> Option<MappedMutexGuard<'_, LibraryFileLoadResult>> {
+    /// Returns the completed result of the file, assuming it has already been
+    /// loaded.
+    ///
+    /// Returns `None` if the file has not yet been loaded.
+    pub(crate) fn as_completed(&self) -> Option<MappedMutexGuard<'_, LibraryFileLoadResult>> {
         MutexGuard::try_map(self.load_state.lock(), |load_state| {
             load_state.completed_mut()
         })
@@ -68,15 +80,22 @@ impl LibraryFile {
     }
 }
 
+/// Load state and data for a [`LibraryFile`].
 #[derive(Debug, Default)]
-pub enum LibraryFileLoadState {
+pub(crate) enum LibraryFileLoadState {
+    /// The file has not yet been loaded.
     #[default]
     Unloaded,
+    /// The file is currently being loaded.
     Loading(LibraryFileLoadResult),
+    /// The file has been loaded.
     Done(LuaResult<LibraryFileLoadResult>),
 }
 impl LibraryFileLoadState {
-    pub fn complete_ok<'lua>(&mut self, lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+    /// Finish loading the file successfully.
+    ///
+    /// Returns an error if the file is not currently being loaded.
+    pub(crate) fn complete_ok<'lua>(&mut self, lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
         match std::mem::take(self) {
             LibraryFileLoadState::Loading(load_result) => {
                 let exports_table = lua.registry_value(&load_result.exports);
@@ -89,16 +108,13 @@ impl LibraryFileLoadState {
             }
         }
     }
+    /// Finish loading the file unsuccessfully. The error `e` is recorded for
+    /// the file and then returned.
     pub fn complete_err(&mut self, e: LuaError) -> LuaError {
         *self = LibraryFileLoadState::Done(Err(e.clone()));
         e
     }
-    pub fn completed_ref(&mut self) -> Option<&LibraryFileLoadResult> {
-        match self {
-            LibraryFileLoadState::Done(result) => result.as_ref().ok(),
-            _ => None,
-        }
-    }
+    /// Returns a mutable reference to the completed load result for the file.
     pub fn completed_mut(&mut self) -> Option<&mut LibraryFileLoadResult> {
         match self {
             LibraryFileLoadState::Done(result) => result.as_mut().ok(),
@@ -107,22 +123,27 @@ impl LibraryFileLoadState {
     }
 }
 
+/// Data from loading a [`LibraryFile`].
 #[derive(Debug)]
-pub struct LibraryFileLoadResult {
-    pub dependencies: Vec<Arc<LibraryFile>>,
-
+pub(crate) struct LibraryFileLoadResult {
+    /// Table of exports to other Lua code that imports this file.
+    ///
+    /// TODO: implement Lua importing
     pub exports: LuaRegistryKey,
 
+    /// Shapes defined in this file, indexed by ID.
     pub shapes: HashMap<String, CachedShape>,
+    /// Axis systems defined in this file, indexed by ID.
     pub axis_systems: HashMap<String, CachedAxisSystem>,
+    /// Twist systems defined in this file, indexed by ID.
     pub twist_systems: HashMap<String, CachedTwistSystem>,
+    /// Puzzles defined in this file, indexed by ID.
     pub puzzles: HashMap<String, CachedPuzzle>,
 }
 impl LibraryFileLoadResult {
-    pub fn with_exports(exports_table: LuaRegistryKey) -> Self {
+    /// Constructs an empty load result.
+    pub(crate) fn with_exports(exports_table: LuaRegistryKey) -> Self {
         Self {
-            dependencies: vec![],
-
             exports: exports_table,
 
             shapes: HashMap::new(),

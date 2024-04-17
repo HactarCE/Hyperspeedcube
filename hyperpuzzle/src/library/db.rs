@@ -17,12 +17,17 @@ use crate::puzzle::Puzzle;
 
 /// Global library of shapes, puzzles, twist systems, etc.
 #[derive(Default)]
-pub struct LibraryDb {
+pub(crate) struct LibraryDb {
+    /// Map from filename to file.
     pub files: HashMap<String, Arc<LibraryFile>>,
 
+    /// Map from the name of a shape to the file in which it was defined.
     pub shapes: BTreeMap<String, Arc<LibraryFile>>,
+    /// Map from the name of an axis system to the file in which it was defined.
     pub axis_systems: BTreeMap<String, Arc<LibraryFile>>,
+    /// Map from the name of a twist system to the file in which it was defined.
     pub twist_systems: BTreeMap<String, Arc<LibraryFile>>,
+    /// Map from the name of a puzzle to the file in which it was defined.
     pub puzzles: BTreeMap<String, Arc<LibraryFile>>,
 }
 impl fmt::Debug for LibraryDb {
@@ -31,9 +36,11 @@ impl fmt::Debug for LibraryDb {
     }
 }
 impl LibraryDb {
+    /// Consturcts a new library.
     pub fn new() -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self::default()))
     }
+    /// Returns the global library, given a Lua instance.
     pub fn get<'lua>(lua: &'lua Lua) -> LuaResult<Arc<Mutex<LibraryDb>>> {
         Ok(Arc::clone(
             &*lua
@@ -42,6 +49,11 @@ impl LibraryDb {
         ))
     }
 
+    /// Locks the library, finds an object of type `P` with ID `id`, and
+    /// executes `f` with that object.
+    ///
+    /// Returns an error if no such object exists or if the file containing the
+    /// object has not been loaded.
     fn with_object<P: LibraryObjectParams, R>(
         lua: &Lua,
         id: &str,
@@ -64,7 +76,11 @@ impl LibraryDb {
         f(cached)
     }
 
-    pub(crate) fn build_from_id<P: LibraryObjectParams>(
+    /// Constructs the object of type `P` with ID `id`.
+    ///
+    /// Returns an error if no such object exists or if the file containing the
+    /// object has not been loaded.
+    pub fn build_from_id<P: LibraryObjectParams>(
         lua: &Lua,
         space: &Arc<Mutex<Space>>,
         id: &str,
@@ -88,7 +104,9 @@ impl LibraryDb {
         }
     }
 
-    pub(crate) fn build_from_value<P: LibraryObjectParams>(
+    /// Constructs an object of type `P` from a string ID (via
+    /// [`Self::build_from_id()`]) or a table containing parameters for it.
+    pub fn build_from_value<P: LibraryObjectParams>(
         lua: &Lua,
         space: &Arc<Mutex<Space>>,
         id_or_table: &NilStringOrRegisteredTable,
@@ -105,6 +123,11 @@ impl LibraryDb {
         }
     }
 
+    /// Constructs the puzzle with ID `id`, or returns a previously cached
+    /// result if it has already been constructed.
+    ///
+    /// Returns an error if an internal error occurred or if the user's code
+    /// produced errors.
     pub fn build_puzzle(lua: &Lua, id: &str) -> Result<Arc<Puzzle>> {
         let LuaNdim(ndim) =
             Self::with_object(lua, id, |cached: &CachedPuzzle| Ok(cached.params.ndim))?;
@@ -144,8 +167,6 @@ impl LibraryDb {
 
         if let LibraryFileLoadState::Done(Ok(result)) = load_state {
             let LibraryFileLoadResult {
-                dependencies: _,
-
                 exports: _,
 
                 shapes,

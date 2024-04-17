@@ -104,8 +104,8 @@ impl SchlafliSymbol {
         IsometryGroup::from_generators(&self.generators())
     }
 
-    /// Expands an object by the symmetry.
-    pub fn expand<T: Clone + ApproxHashMapKey>(
+    /// Returns the orbit of an object under the symmetry.
+    pub fn orbit<T: Clone + ApproxHashMapKey>(
         &self,
         object: T,
         transform: fn(&Isometry, &T) -> T,

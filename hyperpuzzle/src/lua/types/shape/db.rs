@@ -1,6 +1,7 @@
 use super::*;
 use crate::library::{LibraryDb, LibraryFile};
 
+/// Lua handle to the library database of all known shapes.
 #[derive(Debug, Default, Copy, Clone)]
 pub struct LuaShapeDb;
 impl LuaUserData for LuaShapeDb {
@@ -15,7 +16,7 @@ impl LuaUserData for LuaShapeDb {
         methods.add_method("add", |lua, Self, pair| {
             let (id, mut params): (String, ShapeParams) = pair;
             params.id = Some(id.clone());
-            LibraryFile::get_current(lua)?.insert(id, params)
+            LibraryFile::get_current(lua)?.define(id, params)
         });
     }
 }

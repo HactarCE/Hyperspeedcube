@@ -1,36 +1,19 @@
 use std::sync::Arc;
 
-use hypershape::{ManifoldRef, ManifoldSet};
+use hypermath::Blade;
+use hypershape::ManifoldSet;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
 use crate::builder::ShapeBuilder;
 
+/// Lua handle to a shape under construction.
 #[derive(Debug, Clone)]
 pub struct LuaShape(pub Arc<Mutex<ShapeBuilder>>);
 
 impl<'lua> FromLua<'lua> for LuaShape {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         cast_userdata(lua, &value)
-    }
-}
-
-impl LuaShape {
-    fn lock(&self) -> MutexGuard<'_, ShapeBuilder> {
-        self.0.lock()
-    }
-
-    fn symmetry_expand_manifold(&self, manifold: ManifoldRef) -> LuaResult<Vec<ManifoldRef>> {
-        let shape = self.lock();
-        let mut space = shape.space.lock();
-        match &shape.symmetry {
-            Some(sym) => sym
-                .expand(space.blade_of(manifold), |t, b| t.transform_blade(b))
-                .into_iter()
-                .map(|(_transform, blade)| space.add_manifold(blade).into_lua_err())
-                .collect(),
-            None => Ok(vec![manifold]),
-        }
     }
 }
 
@@ -59,35 +42,56 @@ impl LuaUserData for LuaShape {
             }
         });
 
-        methods.add_method("carve", |_lua, this, LuaManifold { manifold, .. }| {
-            let cuts = this.symmetry_expand_manifold(manifold)?;
+        methods.add_method("carve", |_lua, this, LuaManifold(blade)| {
+            let cuts = this.symmetry_orbit_of_blade(blade)?;
             let mut this = this.lock();
             for cut in cuts {
-                this.carve(None, cut).into_lua_err()?;
+                let m = this.space.lock().add_manifold(cut).into_lua_err()?;
+                this.carve(None, m).into_lua_err()?;
                 this.colors
-                    .add(ManifoldSet::from_iter([cut]))
+                    .add(ManifoldSet::from_iter([m]))
                     .into_lua_err()?;
             }
             Ok(())
         });
-        methods.add_method(
-            "carve_unstickered",
-            |_lua, this, LuaManifold { manifold, .. }| {
-                let cuts = this.symmetry_expand_manifold(manifold)?;
-                let mut this = this.lock();
-                for cut in cuts {
-                    this.carve(None, cut).into_lua_err()?;
-                }
-                Ok(())
-            },
-        );
-        methods.add_method("slice", |_lua, this, LuaManifold { manifold, .. }| {
-            let cuts = this.symmetry_expand_manifold(manifold)?;
+        methods.add_method("carve_unstickered", |_lua, this, LuaManifold(blade)| {
+            let cuts = this.symmetry_orbit_of_blade(blade)?;
             let mut this = this.lock();
             for cut in cuts {
-                this.slice(None, cut).into_lua_err()?;
+                let m = this.space.lock().add_manifold(cut).into_lua_err()?;
+                this.carve(None, m).into_lua_err()?;
             }
             Ok(())
         });
+        methods.add_method("slice", |_lua, this, LuaManifold(blade)| {
+            let cuts = this.symmetry_orbit_of_blade(blade)?;
+            let mut this = this.lock();
+            for cut in cuts {
+                let m = this.space.lock().add_manifold(cut).into_lua_err()?;
+                this.slice(None, m).into_lua_err()?;
+            }
+            Ok(())
+        });
+    }
+}
+
+impl LuaShape {
+    /// Returns a mutex guard granting temporary access to the underlying
+    /// [`ShapeBuilder`].
+    pub fn lock(&self) -> MutexGuard<'_, ShapeBuilder> {
+        self.0.lock()
+    }
+
+    /// Returns a list of the elements in the orbit of `blade` under the shape's
+    /// symmetry.
+    fn symmetry_orbit_of_blade(&self, blade: Blade) -> LuaResult<Vec<Blade>> {
+        match &self.lock().symmetry {
+            Some(sym) => Ok(sym
+                .orbit(blade, |t, b| t.transform_blade(b))
+                .into_iter()
+                .map(|(_transform, blade)| blade)
+                .collect()),
+            None => Ok(vec![blade]),
+        }
     }
 }

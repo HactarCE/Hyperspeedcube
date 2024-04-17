@@ -9,21 +9,33 @@ use crate::builder::PuzzleBuilder;
 use crate::library::{Cached, LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryObjectParams};
 use crate::Puzzle;
 
+/// Set of parameters that define a puzzle.
 #[derive(Debug)]
 pub struct PuzzleParams {
+    /// String ID of the puzzle.
     pub id: String,
-
-    pub name: String,
+    /// Number of dimensions of the space in which the puzzle is constructed.
     pub ndim: LuaNdim,
+    /// Symmetry of the puzzle.
     pub symmetry: Option<LuaSymmetry>,
 
+    /// User-friendly name for the puzzle.
+    pub name: String,
+    /// Alternative user-friendly names for the puzzle.
+    pub aliases: Vec<String>,
+    /// Lua table containing metadata about the puzzle.
+    pub meta: Option<LuaRegistryKey>,
+    /// Lua table containing additional properties of the puzzle.
+    pub properties: Option<LuaRegistryKey>,
+
+    /// Parameters to construct the shape, or an ID of a known shape, or `nil`
+    /// to start with a default shape.
     shape: NilStringOrRegisteredTable,
+    /// Parameters to construct the twist system, or an ID of a known twist
+    /// system, or `nil` to start with a default twist system.
     twists: NilStringOrRegisteredTable,
 
-    aliases: Option<LuaRegistryKey>,
-    meta: Option<LuaRegistryKey>,
-    properties: Option<LuaRegistryKey>,
-
+    /// Lua function to build the puzzle.
     user_build_fn: LuaRegistryKey,
 }
 
@@ -36,7 +48,7 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
         let symmetry: Option<LuaSymmetry>;
         let shape: LuaNilStringOrTable<'lua>;
         let twists: LuaNilStringOrTable<'lua>;
-        let aliases: Option<LuaTable<'lua>>;
+        let aliases: Option<Vec<String>>;
         let meta: Option<LuaTable<'lua>>;
         let properties: Option<LuaTable<'lua>>;
         let build: LuaFunction<'lua>;
@@ -66,15 +78,14 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
 
         Ok(PuzzleParams {
             id: String::new(), // This is overwritten in `puzzledb:add()`.
-
-            name,
             ndim,
             symmetry,
 
             shape: shape.to_lua_registry(lua)?,
             twists: twists.to_lua_registry(lua)?,
 
-            aliases: create_opt_registry_value(aliases)?,
+            name,
+            aliases: aliases.unwrap_or(vec![]),
             meta: create_opt_registry_value(meta)?,
             properties: create_opt_registry_value(properties)?,
 

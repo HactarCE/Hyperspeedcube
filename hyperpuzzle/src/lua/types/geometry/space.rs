@@ -5,6 +5,7 @@ use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
 
+/// Lua handle to a space.
 #[derive(Debug, Clone)]
 pub struct LuaSpace(pub Arc<Mutex<Space>>);
 
@@ -15,21 +16,24 @@ impl<'lua> FromLua<'lua> for LuaSpace {
 }
 
 impl LuaSpace {
+    /// Returns a mutex guard granting temporary access to the underlying
+    /// [`Space`].
     pub fn lock(&self) -> MutexGuard<'_, Space> {
         self.0.lock()
     }
 
+    /// Returns the global space, given a Lua instance.
     pub fn get(lua: &Lua) -> LuaResult<Self> {
         lua.globals().get("SPACE").context("no global space")
     }
 
-    pub fn with<T, E: LuaExternalError>(
-        lua: &Lua,
-        f: impl FnOnce(&mut Space) -> Result<T, E>,
-    ) -> LuaResult<T> {
+    /// Locks the global space and executes `f` with it.
+    pub fn with<R>(lua: &Lua, f: impl FnOnce(&mut Space) -> LuaResult<R>) -> LuaResult<R> {
         f(&mut Self::get(lua)?.lock()).into_lua_err()
     }
 
+    /// Sets a space to be the global space, executes `f`, and then restores the
+    /// global space to its prior value.
     pub fn with_this_as_global_space<R>(
         &self,
         lua: &Lua,
