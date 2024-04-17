@@ -135,10 +135,6 @@ impl LuaUserData for LuaSymmetry {
                 .join("o"))
         });
 
-        methods.add_meta_method(LuaMetaMethod::Call, |lua, this, args: LuaMultiValue<'_>| {
-            Ok(LuaMultiValue::from_vec(args.into_vec()))
-        });
-
         methods.add_method("chiral", |_lua, Self { schlafli, .. }, ()| {
             Ok(Self {
                 schlafli: schlafli.clone(),
