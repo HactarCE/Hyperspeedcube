@@ -1,4 +1,5 @@
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
+use std::sync::Arc;
 
 use bitvec::prelude::*;
 use cgmath::SquareMatrix;
@@ -6,9 +7,9 @@ use hypermath::prelude::*;
 use hyperpuzzle::{PerPiece, Piece, Puzzle, Sticker};
 use parking_lot::Mutex;
 
+use super::controller::PuzzleController;
+use super::styles::*;
 use crate::preferences::Preferences;
-
-use super::{controller::PuzzleController, styles::*};
 
 #[derive(Debug)]
 pub struct PuzzleViewController {

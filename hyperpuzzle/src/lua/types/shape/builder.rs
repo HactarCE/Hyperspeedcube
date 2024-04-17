@@ -3,9 +3,8 @@ use std::sync::Arc;
 use hypershape::{ManifoldRef, ManifoldSet};
 use parking_lot::{Mutex, MutexGuard};
 
-use crate::builder::ShapeBuilder;
-
 use super::*;
+use crate::builder::ShapeBuilder;
 
 #[derive(Debug, Clone)]
 pub struct LuaShape(pub Arc<Mutex<ShapeBuilder>>);

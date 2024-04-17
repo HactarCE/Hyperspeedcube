@@ -1,7 +1,8 @@
-use key_names::KeyMappingCode;
-use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeSet;
 use std::fmt;
+
+use key_names::KeyMappingCode;
+use serde::{Deserialize, Deserializer, Serialize};
 use winit::event::{ModifiersState, VirtualKeyCode};
 
 use super::is_false;
@@ -142,8 +143,7 @@ pub enum Key {
 }
 impl Key {
     pub fn is_shift(self) -> bool {
-        use KeyMappingCode as Sc;
-        use VirtualKeyCode as Vk;
+        use {KeyMappingCode as Sc, VirtualKeyCode as Vk};
         match self {
             Self::Sc(Sc::ShiftLeft | Sc::ShiftRight) => true,
             Self::Vk(Vk::LShift | Vk::RShift) => true,
@@ -151,8 +151,7 @@ impl Key {
         }
     }
     pub fn is_ctrl(self) -> bool {
-        use KeyMappingCode as Sc;
-        use VirtualKeyCode as Vk;
+        use {KeyMappingCode as Sc, VirtualKeyCode as Vk};
         match self {
             Self::Sc(Sc::ControlLeft | Sc::ControlRight) => true,
             Self::Vk(Vk::LControl | Vk::RControl) => true,
@@ -160,8 +159,7 @@ impl Key {
         }
     }
     pub fn is_alt(self) -> bool {
-        use KeyMappingCode as Sc;
-        use VirtualKeyCode as Vk;
+        use {KeyMappingCode as Sc, VirtualKeyCode as Vk};
         match self {
             Self::Sc(Sc::AltLeft | Sc::AltRight) => true,
             Self::Vk(Vk::LAlt | Vk::RAlt) => true,
@@ -169,8 +167,7 @@ impl Key {
         }
     }
     pub fn is_logo(self) -> bool {
-        use KeyMappingCode as Sc;
-        use VirtualKeyCode as Vk;
+        use {KeyMappingCode as Sc, VirtualKeyCode as Vk};
         match self {
             Self::Sc(Sc::MetaLeft | Sc::MetaRight) => true,
             Self::Vk(Vk::LWin | Vk::RWin) => true,

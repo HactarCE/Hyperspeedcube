@@ -1,17 +1,12 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::Arc,
-};
+use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 
 use hypershape::Space;
 use parking_lot::Mutex;
 
-use crate::{
-    builder::AxisSystemBuilder,
-    library::{Cached, LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryObjectParams},
-};
-
 use super::*;
+use crate::builder::AxisSystemBuilder;
+use crate::library::{Cached, LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryObjectParams};
 
 #[derive(Debug)]
 pub struct AxisSystemParams {

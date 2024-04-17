@@ -1,4 +1,5 @@
-use std::sync::{atomic::AtomicU64, Arc};
+use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};

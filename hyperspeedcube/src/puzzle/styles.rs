@@ -1,5 +1,6 @@
-use bitvec::prelude::*;
 use std::collections::HashMap;
+
+use bitvec::prelude::*;
 
 use crate::preferences::{PieceStyle, StyleId, StylePreferences};
 

@@ -3,11 +3,12 @@
 //! For a list of key names, see `VirtualKeyCode` in this file:
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
+use std::path::PathBuf;
+
 use bitvec::vec::BitVec;
 use hyperpuzzle::Puzzle;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 mod gfx;
 mod info;
@@ -25,7 +26,6 @@ mod persist_web;
 mod styles;
 mod view;
 
-use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
 pub use gfx::*;
 pub use info::*;
 pub use interaction::*;
@@ -37,6 +37,8 @@ use persist_local as persist;
 use persist_web as persist;
 pub use styles::*;
 pub use view::*;
+
+use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
 
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");

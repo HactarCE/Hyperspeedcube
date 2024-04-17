@@ -1,11 +1,11 @@
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
+use std::sync::Arc;
 
 use parking_lot::{Mutex, MutexGuard};
 
+use super::*;
 use crate::builder::{AxisSystemBuilder, CustomOrdering, NamingScheme};
 use crate::puzzle::Axis;
-
-use super::*;
 
 #[derive(Debug, Clone)]
 pub struct LuaAxisSystem(pub Arc<Mutex<AxisSystemBuilder>>);

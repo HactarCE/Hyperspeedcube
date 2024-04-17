@@ -11,12 +11,10 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::smallvec;
 
-use crate::builder::AxisSystemBuilder;
-use crate::puzzle::PerAxis;
-
 use super::centroid::Centroid;
 use super::simplexifier::{Simplexifier, VertexId};
 use super::{ShapeBuilder, TwistSystemBuilder};
+use crate::builder::AxisSystemBuilder;
 use crate::puzzle::*;
 
 /// Puzzle being constructed.

@@ -1,11 +1,11 @@
-use hypermath::{Blade, Isometry};
-use itertools::Itertools;
 use std::sync::Arc;
 
-use crate::builder::ShapeBuilder;
-use crate::puzzle::Color;
+use hypermath::{Blade, Isometry};
+use itertools::Itertools;
 
 use super::*;
+use crate::builder::ShapeBuilder;
+use crate::puzzle::Color;
 
 // TODO: `ColorSystemBuilder`?
 pub type LuaColor = LuaDbEntry<Color, ShapeBuilder>;

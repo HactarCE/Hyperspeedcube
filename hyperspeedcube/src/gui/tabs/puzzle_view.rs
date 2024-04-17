@@ -7,11 +7,9 @@ use hypermath::prelude::*;
 use hyperpuzzle::Puzzle;
 use parking_lot::Mutex;
 
-use crate::{
-    gfx::*,
-    preferences::Preferences,
-    puzzle::{PieceStyleState, PuzzleController, PuzzleViewController},
-};
+use crate::gfx::*;
+use crate::preferences::Preferences;
+use crate::puzzle::{PieceStyleState, PuzzleController, PuzzleViewController};
 
 #[derive(Debug)]
 pub struct PuzzleView {

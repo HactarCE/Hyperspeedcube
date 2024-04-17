@@ -1,11 +1,11 @@
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
+use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+use super::*;
 use crate::builder::{CustomOrdering, NamingScheme, ShapeBuilder};
 use crate::puzzle::Color;
-
-use super::*;
 
 #[derive(Debug, Clone)]
 pub struct LuaColorSystem(pub Arc<Mutex<ShapeBuilder>>);

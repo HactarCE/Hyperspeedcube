@@ -1,6 +1,6 @@
-use eyre::{OptionExt, Result};
 use std::sync::Arc;
 
+use eyre::{OptionExt, Result};
 use itertools::Itertools;
 
 use crate::gfx::structs::UvVertex;

@@ -5,9 +5,8 @@ use hypershape::Space;
 use mlua::FromLua;
 use parking_lot::Mutex;
 
-use crate::lua::{AxisSystemParams, PuzzleParams, ShapeParams, TwistSystemParams};
-
 use super::{LibraryDb, LibraryFile, LibraryFileLoadResult};
+use crate::lua::{AxisSystemParams, PuzzleParams, ShapeParams, TwistSystemParams};
 
 pub type CachedShape = Cached<ShapeParams>;
 pub type CachedAxisSystem = Cached<AxisSystemParams>;

@@ -1,20 +1,19 @@
-use eyre::Result;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use eyre::Result;
 use hypershape::Space;
 use mlua::prelude::*;
 use parking_lot::Mutex;
-
-use crate::lua::{LuaNdim, NilStringOrRegisteredTable, PuzzleParams};
-use crate::puzzle::Puzzle;
 
 use super::{
     Cached, CachedPuzzle, LibraryFile, LibraryFileLoadResult, LibraryFileLoadState,
     LibraryObjectParams,
 };
+use crate::lua::{LuaNdim, NilStringOrRegisteredTable, PuzzleParams};
+use crate::puzzle::Puzzle;
 
 /// Global library of shapes, puzzles, twist systems, etc.
 #[derive(Default)]

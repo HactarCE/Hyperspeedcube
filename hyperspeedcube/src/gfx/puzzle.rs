@@ -21,13 +21,11 @@ use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, Puzzle};
 use itertools::Itertools;
 use parking_lot::Mutex;
 
+use super::bindings::{BindGroups, WgpuPassExt};
+use super::structs::*;
+use super::{pipelines, CachedTexture1d, CachedTexture2d, GraphicsState};
 use crate::preferences::ViewPreferences;
 use crate::puzzle::PieceStyleValues;
-
-use super::bindings::{BindGroups, WgpuPassExt};
-use super::pipelines;
-use super::structs::*;
-use super::{CachedTexture1d, CachedTexture2d, GraphicsState};
 
 /// Near and far plane distance (assuming no FOV). Larger number means less
 /// clipping far from the camera, but also less Z buffer precision.

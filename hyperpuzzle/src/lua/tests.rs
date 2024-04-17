@@ -1,6 +1,5 @@
-use crate::library::LibraryDb;
-
 use super::*;
+use crate::library::LibraryDb;
 
 #[test]
 fn run_lua_tests() {

@@ -1,13 +1,12 @@
-use eyre::{Context, Result};
-use itertools::Itertools;
 use std::sync::{Arc, Weak};
 
+use eyre::{Context, Result};
 use hypershape::prelude::*;
+use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::puzzle::*;
-
 use super::{ColorSystemBuilder, PieceBuilder};
+use crate::puzzle::*;
 
 /// Soup of shapes being constructed.
 #[derive(Debug)]

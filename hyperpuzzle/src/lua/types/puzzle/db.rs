@@ -1,6 +1,5 @@
-use crate::library::{Cached, LibraryDb, LibraryFile};
-
 use super::*;
+use crate::library::{Cached, LibraryDb, LibraryFile};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct LuaPuzzleDb;

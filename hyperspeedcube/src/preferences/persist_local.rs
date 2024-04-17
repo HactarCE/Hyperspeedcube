@@ -1,7 +1,8 @@
+use std::path::PathBuf;
+
 use directories::ProjectDirs;
 use eyre::Result;
 use serde::Serialize;
-use std::path::PathBuf;
 use thiserror::Error;
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";

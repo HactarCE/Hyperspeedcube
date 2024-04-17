@@ -1,6 +1,5 @@
-use crate::library::{LibraryDb, LibraryFile};
-
 use super::*;
+use crate::library::{LibraryDb, LibraryFile};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct LuaShapeDb;

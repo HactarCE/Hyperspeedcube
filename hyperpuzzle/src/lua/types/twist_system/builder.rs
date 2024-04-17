@@ -1,11 +1,11 @@
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
+use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+use super::*;
 use crate::builder::{NamingScheme, TwistBuilder, TwistSystemBuilder};
 use crate::puzzle::Twist;
-
-use super::*;
 
 #[derive(Debug, Clone)]
 pub struct LuaTwistSystem(pub Arc<Mutex<TwistSystemBuilder>>);

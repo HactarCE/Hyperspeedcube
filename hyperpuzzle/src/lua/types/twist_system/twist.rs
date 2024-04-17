@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use hypermath::Isometry;
 
+use super::*;
 use crate::builder::{TwistBuilder, TwistSystemBuilder};
 use crate::puzzle::Twist;
-
-use super::*;
 
 pub type LuaTwist = LuaDbEntry<Twist, TwistSystemBuilder>;
 

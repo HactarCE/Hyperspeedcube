@@ -1,9 +1,8 @@
 use hypermath::{Isometry, Vector};
 
+use super::*;
 use crate::builder::AxisSystemBuilder;
 use crate::puzzle::Axis;
-
-use super::*;
 
 pub type LuaAxis = LuaDbEntry<Axis, AxisSystemBuilder>;
 

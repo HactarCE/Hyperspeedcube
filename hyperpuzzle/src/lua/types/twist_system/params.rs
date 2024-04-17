@@ -4,10 +4,9 @@ use std::sync::Arc;
 use hypershape::Space;
 use parking_lot::Mutex;
 
+use super::*;
 use crate::builder::{AxisSystemBuilder, TwistSystemBuilder};
 use crate::library::{Cached, LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryObjectParams};
-
-use super::*;
 
 #[derive(Debug)]
 pub struct TwistSystemParams {

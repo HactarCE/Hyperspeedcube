@@ -1,14 +1,10 @@
 use std::sync::{Arc, Weak};
 
-use crate::{AxisInfo, PerAxis, PerTwist, TwistInfo};
-
-use super::{
-    Axis, ColorInfo, LayerMask, Mesh, Notation, PerColor, PerPiece, PerPieceType, PerSticker,
-    PieceInfo, PieceTypeInfo, PuzzleState, StickerInfo, Twist,
-};
 use hypermath::{Float, Isometry};
 use hypershape::prelude::*;
 use parking_lot::Mutex;
+
+use super::*;
 
 /// Puzzle type info.
 #[derive(Debug)]

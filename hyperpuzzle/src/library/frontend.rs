@@ -1,9 +1,9 @@
-use itertools::Itertools;
-use parking_lot::Mutex;
 use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
 
 use eyre::Result;
+use itertools::Itertools;
+use parking_lot::Mutex;
 
 use super::{LibraryCommand, LibraryDb, LibraryFile};
 use crate::lua::{LuaLoader, LuaLogger, PuzzleParams};

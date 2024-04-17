@@ -1,12 +1,14 @@
-use itertools::Itertools;
-use parking_lot::{Mutex, MutexGuard};
-use std::{borrow::Cow, collections::HashMap, hash::Hash, sync::Arc};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::sync::Arc;
 
 use hypermath::prelude::*;
-
-use crate::builder::{CustomOrdering, NamingScheme};
+use itertools::Itertools;
+use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
+use crate::builder::{CustomOrdering, NamingScheme};
 
 #[derive(Debug)]
 pub struct LuaDbEntry<I, D> {

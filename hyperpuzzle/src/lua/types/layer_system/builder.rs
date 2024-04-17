@@ -3,10 +3,9 @@ use std::sync::Arc;
 use hypermath::IndexNewtype;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 
+use super::*;
 use crate::builder::AxisLayerBuilder;
 use crate::puzzle::{Layer, PerLayer};
-
-use super::*;
 
 #[derive(Debug, Clone)]
 pub struct LuaLayerSystem {

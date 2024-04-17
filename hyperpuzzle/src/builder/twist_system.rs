@@ -1,18 +1,15 @@
-use eyre::{bail, Result};
 use std::sync::{Arc, Weak};
 
-use hypermath::collections::{
-    approx_hashmap::{ApproxHashMap, ApproxHashMapKey},
-    generic_vec::IndexOutOfRange,
-};
+use eyre::{bail, Result};
+use hypermath::collections::approx_hashmap::{ApproxHashMap, ApproxHashMapKey};
+use hypermath::collections::generic_vec::IndexOutOfRange;
 use hypermath::Isometry;
 use hypershape::Space;
 use parking_lot::Mutex;
 
+use super::{AxisSystemBuilder, CustomOrdering};
 use crate::builder::NamingScheme;
 use crate::puzzle::{Axis, PerTwist, Twist};
-
-use super::{AxisSystemBuilder, CustomOrdering};
 
 /// Twist during puzzle construction.
 #[derive(Debug, Clone)]

@@ -1,7 +1,7 @@
-use eyre::{eyre, Result};
 use std::collections::hash_map;
 use std::sync::{Arc, Weak};
 
+use eyre::{eyre, Result};
 use hypermath::collections::generic_vec::IndexOutOfRange;
 use hypermath::collections::ApproxHashMap;
 use hypermath::prelude::*;

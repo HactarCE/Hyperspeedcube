@@ -1,13 +1,13 @@
-use hypershape::Space;
-use parking_lot::Mutex;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
+use hypershape::Space;
+use parking_lot::Mutex;
+
+use super::*;
 use crate::builder::PuzzleBuilder;
 use crate::library::{Cached, LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryObjectParams};
 use crate::Puzzle;
-
-use super::*;
 
 #[derive(Debug)]
 pub struct PuzzleParams {

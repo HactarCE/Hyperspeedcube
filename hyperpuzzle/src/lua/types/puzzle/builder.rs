@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use parking_lot::{Mutex, MutexGuard};
 
-use crate::builder::PuzzleBuilder;
-
 use super::*;
+use crate::builder::PuzzleBuilder;
 
 #[derive(Debug, Clone)]
 pub struct LuaPuzzleBuilder(pub Arc<Mutex<PuzzleBuilder>>);

@@ -1,11 +1,11 @@
 //! Commands to grip and manipulate parts of the puzzle.
 
-use itertools::Itertools;
-use serde::{de, Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
 use hyperpuzzle::*;
+use itertools::Itertools;
+use serde::{de, Deserialize, Serialize};
 
 /// Minimum number of moves for a partial scramble.
 pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MIN: usize = 1;

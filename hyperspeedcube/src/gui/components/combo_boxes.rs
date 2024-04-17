@@ -1,6 +1,7 @@
-use itertools::Itertools;
 use std::borrow::Cow;
 use std::hash::Hash;
+
+use itertools::Itertools;
 
 use crate::gui::ext::*;
 

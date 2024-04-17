@@ -1,15 +1,12 @@
-#![allow(clippy::semicolon_if_nothing_returned)] // useful for type inference of `()`
-
-use eyre::Result;
 use std::sync::Arc;
 
+use eyre::Result;
 use itertools::Itertools;
 use mlua::prelude::*;
 use parking_lot::Mutex;
 
-use crate::library::{LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryFileLoadState};
-
 use super::*;
+use crate::library::{LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryFileLoadState};
 
 macro_rules! lua_module {
     ($filename:literal) => {
@@ -41,16 +38,11 @@ impl LuaLoader {
         // SAFETY: We need the debug library to get traceback info for better error
         // reporting. We use Lua sandboxing functionality so the user should never
         // be able to access the debug module.
-        let lua = unsafe {
-            Lua::new_with(
-                mlua::StdLib::TABLE
-                    | mlua::StdLib::STRING
-                    | mlua::StdLib::UTF8
-                    | mlua::StdLib::MATH,
-                LuaOptions::new(),
-            )
-            .expect("error initializing Lua runtime")
-        };
+        let lua = Lua::new_with(
+            mlua::StdLib::TABLE | mlua::StdLib::STRING | mlua::StdLib::UTF8 | mlua::StdLib::MATH,
+            LuaOptions::new(),
+        )
+        .expect("error initializing Lua runtime");
 
         // Registry library.
         lua.set_app_data(Arc::clone(&db));
