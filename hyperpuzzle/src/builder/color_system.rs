@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use eyre::{bail, Result};
-use hypermath::collections::generic_vec::{IndexOutOfRange, IndexOverflow};
+use hypermath::collections::generic_vec::IndexOutOfRange;
 use hypershape::prelude::*;
 
 use super::{CustomOrdering, NamingScheme};

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use hypermath::Isometry;
-use parking_lot::MutexGuard;
 
 use crate::builder::{TwistBuilder, TwistSystemBuilder};
 use crate::puzzle::Twist;

@@ -38,7 +38,7 @@ pub fn cast_userdata<T: 'static + LuaUserData + Clone>(
 struct LuaStaticStr(&'static str);
 impl LuaUserData for LuaStaticStr {}
 impl<'lua> FromLua<'lua> for LuaStaticStr {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+    fn from_lua(value: LuaValue<'lua>, _lua: &'lua Lua) -> LuaResult<Self> {
         value
             .as_userdata()
             .ok_or(LuaError::FromLuaConversionError {

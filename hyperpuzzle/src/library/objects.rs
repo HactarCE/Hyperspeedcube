@@ -5,9 +5,7 @@ use hypershape::Space;
 use mlua::FromLua;
 use parking_lot::Mutex;
 
-use crate::builder::{AxisSystemBuilder, ShapeBuilder, TwistSystemBuilder};
 use crate::lua::{AxisSystemParams, PuzzleParams, ShapeParams, TwistSystemParams};
-use crate::puzzle::Puzzle;
 
 use super::{LibraryDb, LibraryFile, LibraryFileLoadResult};
 

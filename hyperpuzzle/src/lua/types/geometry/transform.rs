@@ -65,7 +65,7 @@ impl LuaUserData for LuaTransform {
             Ok(format!("transform({this})"))
         });
 
-        methods.add_method("ndim", |lua, Self(this), ()| Ok(this.ndim()));
+        methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.ndim()));
 
         methods.add_meta_method(LuaMetaMethod::Mul, |lua, Self(this), rhs| {
             Transformable::from_lua(rhs, lua)?

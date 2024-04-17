@@ -1,6 +1,6 @@
 use hypermath::collections::GenericVec;
 use hypermath::prelude::*;
-use hypershape::{AtomicPolytopeRef, IsometryId, ManifoldRef, ManifoldSet};
+use hypershape::{AtomicPolytopeRef, IsometryId, ManifoldRef};
 use smallvec::SmallVec;
 use tinyset::Set64;
 

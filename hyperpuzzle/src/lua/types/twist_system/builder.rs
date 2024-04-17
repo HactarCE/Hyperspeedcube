@@ -14,7 +14,7 @@ impl LuaUserData for LuaTwistSystem {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("twistsystem"));
 
-        fields.add_field_method_get("axes", |lua, this| {
+        fields.add_field_method_get("axes", |_lua, this| {
             Ok(LuaAxisSystem(Arc::clone(&this.0.lock().axes)))
         });
     }

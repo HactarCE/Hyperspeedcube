@@ -60,7 +60,7 @@ impl LuaUserData for LuaShape {
             }
         });
 
-        methods.add_method("carve", |lua, this, LuaManifold { manifold, .. }| {
+        methods.add_method("carve", |_lua, this, LuaManifold { manifold, .. }| {
             let cuts = this.symmetry_expand_manifold(manifold)?;
             let mut this = this.lock();
             for cut in cuts {
@@ -73,7 +73,7 @@ impl LuaUserData for LuaShape {
         });
         methods.add_method(
             "carve_unstickered",
-            |lua, this, LuaManifold { manifold, .. }| {
+            |_lua, this, LuaManifold { manifold, .. }| {
                 let cuts = this.symmetry_expand_manifold(manifold)?;
                 let mut this = this.lock();
                 for cut in cuts {
@@ -82,7 +82,7 @@ impl LuaUserData for LuaShape {
                 Ok(())
             },
         );
-        methods.add_method("slice", |lua, this, LuaManifold { manifold, .. }| {
+        methods.add_method("slice", |_lua, this, LuaManifold { manifold, .. }| {
             let cuts = this.symmetry_expand_manifold(manifold)?;
             let mut this = this.lock();
             for cut in cuts {

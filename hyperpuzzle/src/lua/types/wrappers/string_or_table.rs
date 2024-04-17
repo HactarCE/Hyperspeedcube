@@ -3,7 +3,7 @@ use super::*;
 /// Conversion wrapper for a string or table.
 pub type LuaNilStringOrTable<'lua> = NilStringOrTable<LuaTable<'lua>>;
 impl<'lua> FromLua<'lua> for LuaNilStringOrTable<'lua> {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+    fn from_lua(value: LuaValue<'lua>, _lua: &'lua Lua) -> LuaResult<Self> {
         match value {
             LuaNil => Ok(Self::Nil),
             LuaValue::String(s) => Ok(Self::String(s.to_string_lossy().to_string())),

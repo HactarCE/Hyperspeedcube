@@ -97,7 +97,7 @@ impl LibraryObjectParams for PuzzleParams {
         &mut result.puzzles
     }
 
-    fn new_constructed(space: &Arc<Mutex<Space>>) -> LuaResult<Self::Constructed> {
+    fn new_constructed(_space: &Arc<Mutex<Space>>) -> LuaResult<Self::Constructed> {
         Err(LuaError::external("missing puzzle constructor"))
     }
     fn clone_constructed(

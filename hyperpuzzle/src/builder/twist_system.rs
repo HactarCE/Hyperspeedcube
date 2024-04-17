@@ -7,7 +7,6 @@ use hypermath::collections::{
 };
 use hypermath::Isometry;
 use hypershape::Space;
-use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::builder::NamingScheme;

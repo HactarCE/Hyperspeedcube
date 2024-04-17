@@ -1,10 +1,5 @@
-use hypermath::{
-    collections::{
-        approx_hashmap::{ApproxHashMapKey, FloatHash, MultivectorHash, VectorHash},
-        ApproxHashMap,
-    },
-    prelude::*,
-};
+use hypermath::collections::approx_hashmap::ApproxHashMapKey;
+use hypermath::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
 
