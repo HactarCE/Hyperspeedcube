@@ -458,7 +458,7 @@ pub trait KeybindSetAccessor: 'static + Clone + Hash + Send + Sync {
     fn confirm_reset(&self) -> bool {
         let name = self.display_name();
         rfd::MessageDialog::new()
-            .set_title(&format!("Reset {name} keybinds",))
+            .set_title(&format!("Reset {name} keybinds"))
             .set_description(&format!("Restore {name} keybinds to defaults?"))
             .set_buttons(rfd::MessageButtons::YesNo)
             .show()
