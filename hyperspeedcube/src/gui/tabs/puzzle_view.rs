@@ -28,7 +28,7 @@ impl PuzzleView {
         gfx: &Arc<GraphicsState>,
         controller: &Arc<Mutex<PuzzleController>>,
     ) -> Self {
-        let view_controller = PuzzleViewController::with_state(&controller);
+        let view_controller = PuzzleViewController::new(&controller);
         let puzzle = view_controller.puzzle();
         let renderer = Arc::new(Mutex::new(PuzzleRenderer::new(gfx, &puzzle)));
         Self {

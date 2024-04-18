@@ -24,10 +24,7 @@ pub struct PuzzleViewController {
     hover_state: Option<HoverState>,
 }
 impl PuzzleViewController {
-    pub(crate) fn new(puzzle: &Arc<Puzzle>) -> Self {
-        Self::with_state(&Arc::new(Mutex::new(PuzzleController::new(puzzle))))
-    }
-    pub(crate) fn with_state(puzzle: &Arc<Mutex<PuzzleController>>) -> Self {
+    pub(crate) fn new(puzzle: &Arc<Mutex<PuzzleController>>) -> Self {
         Self {
             state: Arc::clone(puzzle),
 
