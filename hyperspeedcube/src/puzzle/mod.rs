@@ -1,3 +1,4 @@
+mod animations;
 mod controller;
 mod styles;
 mod view_controller;

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+// TODO: consider moving some of these to "animation" prefs
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct InteractionPreferences {
@@ -12,5 +13,6 @@ pub struct InteractionPreferences {
 
     pub dynamic_twist_speed: bool,
     pub twist_duration: f32,
+    pub blocking_anim_duration: f32,
     pub other_anim_duration: f32,
 }

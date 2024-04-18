@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use bitvec::prelude::*;
 
-use crate::preferences::{PieceStyle, StyleId, StylePreferences};
+use crate::preferences::{StyleId, StylePreferences};
+
+// TODO: make a proper type for a piece set (represented using a bitbox) and
+//       then profile whether that's better than a set64 (it probably is)
 
 /// Style (selected, hovered, hidden, etc.) for each piece in a puzzle.
 #[derive(Debug, Clone)]
@@ -31,21 +34,39 @@ impl PuzzleStyleStates {
         piece_set: &BitBox<u64>,
         modify_state: impl Fn(PieceStyleState) -> PieceStyleState,
     ) {
-        use std::collections::hash_map::Entry;
+        // Early exit
+        if piece_set.count_ones() == 0 {
+            return;
+        }
 
+        self.set_piece_states_with_opposite(piece_set, modify_state, |style| style);
+    }
+
+    /// Modifies the states of all pieces, given their current state, depending
+    /// on whether they are in the set.
+    ///
+    /// `modify_state_in_set` and `modify_state_not_in_set` are expected to be
+    /// pure functions.
+    pub fn set_piece_states_with_opposite(
+        &mut self,
+        piece_set: &BitBox<u64>,
+        modify_state_in_set: impl Fn(PieceStyleState) -> PieceStyleState,
+        modify_state_not_in_set: impl Fn(PieceStyleState) -> PieceStyleState,
+    ) {
         debug_assert_eq!(piece_set.len(), self.piece_count, "piece count mismatch");
 
         let inv_piece_set = !piece_set.clone();
 
         for (old_state, old_pieces) in std::mem::take(&mut self.peice_sets) {
-            let new_state = modify_state(old_state);
-            if new_state != old_state {
-                let unchanged_pieces = old_pieces.clone() & &inv_piece_set;
-                let changed_pieces = old_pieces.clone() & piece_set;
-                self.raw_set_piece_states(unchanged_pieces, old_state);
-                self.raw_set_piece_states(changed_pieces, new_state);
+            let new_state_in_set = modify_state_in_set(old_state);
+            let new_state_not_in_set = modify_state_not_in_set(old_state);
+            if new_state_in_set != new_state_not_in_set {
+                let pieces_in_set = old_pieces.clone() & piece_set;
+                let pieces_not_in_set = old_pieces.clone() & &inv_piece_set;
+                self.raw_set_piece_states(pieces_in_set, new_state_in_set);
+                self.raw_set_piece_states(pieces_not_in_set, new_state_not_in_set);
             } else {
-                self.raw_set_piece_states(old_pieces, old_state);
+                self.raw_set_piece_states(old_pieces, new_state_in_set);
             }
         }
     }
@@ -131,6 +152,7 @@ pub struct PieceStyleState {
     pub hovered_sticker: bool,
     pub selected_piece: bool,
     pub selected_sticker: bool,
+    pub blocking_amount: u8,
 }
 impl PieceStyleState {
     /// Returns whether a piece with this style state is interactable (can be
@@ -206,10 +228,18 @@ impl PieceStyleState {
                 .or(base.and_then(|s| s.outline_opacity))
                 .unwrap_or(def.outline_opacity.unwrap_or_default()),
             ),
-            outline_color: color_to_u8x3(first_or_default(color_order.map(|s| s?.outline_color))),
+            outline_color: color_to_u8x3(hypermath::util::lerp(
+                egui::Rgba::from(first_or_default(color_order.map(|s| s?.outline_color))),
+                egui::Rgba::from(styles.blocking_color),
+                self.blocking_amount as f32 / 255.0,
+            )),
             outline_sticker_color: first_or_default(color_order.map(|s| s?.outline_sticker_color)),
 
-            outline_size: first_or_default(size_order.map(|s| s?.outline_size)),
+            outline_size: hypermath::util::lerp(
+                first_or_default(size_order.map(|s| s?.outline_size)),
+                styles.blocking_outline_size,
+                self.blocking_amount as f32 / 255.0,
+            ),
         }
     }
 }

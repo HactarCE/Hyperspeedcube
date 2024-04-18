@@ -21,11 +21,14 @@ interaction:
   smart_realign: true
   dynamic_twist_speed: true
   twist_duration: 0.2
+  blocking_anim_duration: 1.0
   other_anim_duration: 0.15
 styles:
   dark_background_color: "#444444"
   light_background_color: "#cccccc"
   internals_color: "#777777"
+  blocking_color: "#ff0000"
+  blocking_outline_size: 5.0
   default:
     interactable: true
     face_opacity: 1.0

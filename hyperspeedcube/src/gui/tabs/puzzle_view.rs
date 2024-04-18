@@ -170,6 +170,8 @@ impl PuzzleView {
             view_ctrl.compute_hover_state(screen_space_mouse_pos, &vertex_3d_positions, prefs)
         })());
 
+        view_ctrl.update_styles(prefs);
+
         let dark_mode = ui.ctx().style().visuals.dark_mode;
         let background_color = crate::util::color_to_u8x3(prefs.styles.background_color(dark_mode));
         let internals_color = crate::util::color_to_u8x3(prefs.styles.internals_color);

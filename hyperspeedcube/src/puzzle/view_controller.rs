@@ -121,6 +121,31 @@ impl PuzzleViewController {
             })
             .max_by(|a, b| f32::total_cmp(&a.z, &b.z))
     }
+
+    /// Updates piece styles based on the puzzle controller state.
+    pub(crate) fn update_styles(&mut self, prefs: &Preferences) {
+        let state = self.state.lock();
+
+        // TODO: maybe optimize this better?
+        // TODO: make crate-wide function for f32<->u8 conversion
+        let blocking_amount =
+            (state.blocking_pieces().blocking_amount(&prefs.interaction) * 255.0) as u8;
+        let mut pieces = bitbox![u64, Lsb0; 0; state.puzzle_type().pieces.len()];
+        for piece in state.blocking_pieces().pieces() {
+            pieces.set(piece.0 as usize, true);
+        }
+        self.styles.set_piece_states_with_opposite(
+            &pieces,
+            |style| PieceStyleState {
+                blocking_amount,
+                ..style
+            },
+            |style| PieceStyleState {
+                blocking_amount: 0,
+                ..style
+            },
+        );
+    }
 }
 
 /// Returns data about triangles that contain the screen-space point `p`.

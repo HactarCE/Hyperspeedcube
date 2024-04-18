@@ -99,7 +99,7 @@ pub fn wrap_words<S: AsRef<str>>(words: impl Iterator<Item = S>) -> String {
 }
 
 /// Converts an `egui::Color32` to a `[u8; 3]`, ignoring alpha.
-pub(crate) fn color_to_u8x3(color: egui::Color32) -> [u8; 3] {
-    let [r, g, b, _a] = color.to_array();
+pub(crate) fn color_to_u8x3(color: impl Into<egui::Color32>) -> [u8; 3] {
+    let [r, g, b, _a] = color.into().to_array();
     [r, g, b]
 }
