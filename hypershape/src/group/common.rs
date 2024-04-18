@@ -1,6 +1,5 @@
 use hypermath::collections::generic_vec::{GenericVec, IndexOverflow};
 use hypermath::{idx_struct, IndexNewtype, Isometry};
-use thiserror::Error;
 
 idx_struct! {
     /// ID of a group generator.
@@ -25,7 +24,7 @@ pub type PerElement<T> = GenericVec<ElementId, T>;
 
 /// Error that can occur during group construction.
 #[allow(missing_docs)]
-#[derive(Error, Debug, Clone)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum GroupError {
     #[error("invalid group generator {0}")]
     InvalidGenerator(Isometry),

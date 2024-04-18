@@ -1,7 +1,5 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Weak},
-};
+use std::collections::HashMap;
+use std::sync::{Arc, Weak};
 
 use hypermath::{Float, Isometry};
 use hypershape::prelude::*;
