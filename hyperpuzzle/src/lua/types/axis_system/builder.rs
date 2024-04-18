@@ -105,7 +105,7 @@ impl LuaAxisSystem {
                         "`name` is invalid when symmetry-expanding vector",
                     ));
                 }
-                sym.orbit(vector, |t, v| t.transform_vector(v))
+                sym.orbit(vector, |t, v| t.transform_vector(v), false)
                     .into_iter()
                     .enumerate()
                     .map(|(i, (_transform, v))| {

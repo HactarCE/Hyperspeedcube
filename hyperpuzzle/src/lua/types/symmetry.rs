@@ -44,14 +44,7 @@ impl LuaSymmetry {
         object: T,
         transform: fn(&Isometry, &T) -> T,
     ) -> Vec<(Isometry, T)> {
-        let ret = self.schlafli.orbit(object, transform);
-        match self.chiral {
-            true => ret
-                .into_iter()
-                .filter(|(t, _obj)| !t.is_reflection())
-                .collect(),
-            false => ret,
-        }
+        self.schlafli.orbit(object, transform, self.chiral)
     }
 
     /// Returns the orbit of a collection of objects under the symmetry.

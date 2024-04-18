@@ -109,8 +109,14 @@ impl SchlafliSymbol {
         &self,
         object: T,
         transform: fn(&Isometry, &T) -> T,
+        chiral: bool,
     ) -> Vec<(Isometry, T)> {
-        let generators = self.generators();
+        let mut generators = self.generators();
+        if chiral {
+            generators = itertools::iproduct!(&generators, &generators)
+                .map(|(g1, g2)| g1 * g2)
+                .collect();
+        }
 
         let mut seen = ApproxHashMap::new();
         seen.insert(object.clone(), ());

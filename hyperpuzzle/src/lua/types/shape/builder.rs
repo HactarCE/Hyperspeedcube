@@ -87,7 +87,7 @@ impl LuaShape {
     fn symmetry_orbit_of_blade(&self, blade: Blade) -> LuaResult<Vec<Blade>> {
         match &self.lock().symmetry {
             Some(sym) => Ok(sym
-                .orbit(blade, |t, b| t.transform_blade(b))
+                .orbit(blade, |t, b| t.transform_blade(b), false)
                 .into_iter()
                 .map(|(_transform, blade)| blade)
                 .collect()),
