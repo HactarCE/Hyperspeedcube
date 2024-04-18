@@ -150,12 +150,15 @@ impl LuaUserData for LuaMultivector {
         // Multivector[index]
         methods.add_meta_method(
             LuaMetaMethod::Index,
-            |_lua, Self(this), axes: LuaMultivectorIndex| {
-                Ok(match axes.nino {
-                    Some(NiNo::No) => this.get_no(axes.axes),
-                    Some(NiNo::Ni) => this.get_ni(axes.axes),
-                    None => this.get(axes.axes).unwrap_or(0.0),
-                } * axes.sign)
+            |lua, Self(this), arg: LuaValue<'_>| match lua.unpack::<LuaMultivectorIndex>(arg) {
+                Ok(axes) => Ok(Some(
+                    match axes.nino {
+                        Some(NiNo::No) => this.get_no(axes.axes),
+                        Some(NiNo::Ni) => this.get_ni(axes.axes),
+                        None => this.get(axes.axes).unwrap_or(0.0),
+                    } * axes.sign,
+                )),
+                Err(_) => Ok(None),
             },
         );
 

@@ -177,7 +177,10 @@ impl LuaUserData for LuaVector {
         // Vector[index]
         methods.add_meta_method(
             LuaMetaMethod::Index,
-            |_lua, Self(this), LuaVectorIndex(index)| Ok(this.get(index)),
+            |lua, Self(this), arg: LuaValue<'_>| match lua.unpack(arg) {
+                Ok(LuaVectorIndex(index)) => Ok(Some(this.get(index))),
+                Err(_) => Ok(None),
+            },
         );
 
         // We do not support `LuaMetaMethod::NewIndex` because this can be used
