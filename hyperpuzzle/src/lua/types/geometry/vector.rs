@@ -169,6 +169,12 @@ impl LuaUserData for LuaVector {
         // -Vector
         methods.add_meta_function(LuaMetaMethod::Unm, |_lua, LuaVector(v)| Ok(LuaVector(-v)));
 
+        // Vector ^ Vector
+        methods.add_meta_function(
+            LuaMetaMethod::Pow,
+            |_lua, (LuaMultivector(lhs), LuaMultivector(rhs))| Ok(LuaMultivector(lhs ^ rhs)),
+        );
+
         // Vector == Vector
         methods.add_meta_function(LuaMetaMethod::Eq, |_lua, (LuaVector(a), LuaVector(b))| {
             Ok(approx_eq(&a, &b))
