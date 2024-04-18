@@ -10,6 +10,8 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
                      has the same features, but runs faster.",
                 );
 
+            egui::widgets::global_dark_light_mode_switch(ui);
+
             egui::warn_if_debug_build(ui);
 
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
