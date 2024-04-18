@@ -1,4 +1,3 @@
-use hypershape::Space;
 use mlua::prelude::*;
 
 #[macro_use]
@@ -39,7 +38,7 @@ pub fn cast_userdata<T: 'static + LuaUserData + Clone>(
 ///
 /// This is useful for storing the type name for userdata.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-struct LuaStaticStr(&'static str);
+pub(super) struct LuaStaticStr(&'static str);
 impl LuaUserData for LuaStaticStr {}
 impl<'lua> FromLua<'lua> for LuaStaticStr {
     fn from_lua(value: LuaValue<'lua>, _lua: &'lua Lua) -> LuaResult<Self> {

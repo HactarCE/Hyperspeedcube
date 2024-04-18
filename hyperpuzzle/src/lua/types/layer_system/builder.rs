@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hypermath::IndexNewtype;
+use hypershape::Space;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 
 use super::*;

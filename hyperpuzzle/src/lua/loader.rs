@@ -163,6 +163,7 @@ impl LuaLoader {
             drop(load_state);
             drop(db);
 
+            crate::lua::reset_warnings(&self.lua);
             let chunk = self
                 .lua
                 .load(&file.contents)

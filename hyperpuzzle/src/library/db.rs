@@ -100,7 +100,10 @@ impl LibraryDb {
 
         match constructed {
             Lazy::Constructed(builder) => Ok(builder),
-            Lazy::Unconstrurcted(params) => params.build(lua, &space),
+            Lazy::Unconstrurcted(params) => {
+                crate::lua::reset_warnings(lua);
+                params.build(lua, &space)
+            }
         }
     }
 
@@ -118,6 +121,7 @@ impl LibraryDb {
             NilStringOrRegisteredTable::String(id) => Self::build_from_id::<P>(lua, space, &id),
             // Build a bespoke object just for this.
             NilStringOrRegisteredTable::Table(key) => {
+                crate::lua::reset_warnings(lua);
                 P::from_lua(lua.registry_value(key)?, lua)?.build(lua, space)
             }
         }

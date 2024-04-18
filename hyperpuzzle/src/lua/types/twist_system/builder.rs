@@ -93,9 +93,14 @@ impl LuaTwistSystem {
             match axis.name() {
                 Some(axis_name) => name.insert_str(0, &axis_name),
                 None => {
-                    lua.warning("cannot name twist without having named axis", true);
-                    lua.warning("consider calling axes:autoname()", true);
-                    lua.warning("or use axis_prefix=false", false);
+                    if crate::lua::first_warning(lua, "autonamed_twist_with_no_axis_name") {
+                        lua.warning("cannot name twist without having named axis", true);
+                        lua.warning(
+                            "consider calling axes:autoname() \
+                             or using axis_prefix=false",
+                            false,
+                        );
+                    }
                 }
             }
         }
