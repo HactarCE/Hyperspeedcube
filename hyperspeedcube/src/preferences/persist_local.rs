@@ -1,9 +1,10 @@
+// TODO: use [`crate::paths`] here
+
 use std::path::PathBuf;
 
 use directories::ProjectDirs;
 use eyre::Result;
 use serde::Serialize;
-use thiserror::Error;
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
 const PREFS_FILE_EXTENSION: &str = "yaml";
@@ -50,10 +51,9 @@ lazy_static! {
         p.push(format!("{}.{}", PREFS_FILE_NAME, PREFS_FILE_EXTENSION));
         Ok(p)
     };
-
 }
 
-#[derive(Error, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PrefsError {
     #[error("unable to get executable file path")]
     NoExecutablePath,

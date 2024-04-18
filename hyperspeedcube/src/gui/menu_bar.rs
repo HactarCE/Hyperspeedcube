@@ -36,8 +36,25 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app: &mut App) {
     ui.menu_button("Scramble", |ui| {
         ui.label("yo");
     });
-    ui.menu_button("Puzzle", |ui| {
-        ui.label("yo");
+    ui.menu_button("Puzzles", |ui| {
+        if let Some(paths) = &*crate::PATHS {
+            if ui.button("Show Lua directory").clicked() {
+                crate::open_dir(&paths.lua_dir);
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        if ui.button("Extract built-in Lua files").clicked() {
+            if let Some(mut dir_path) = rfd::FileDialog::new()
+                .set_title("Extract built-in Lua files")
+                .pick_folder()
+            {
+                dir_path.push("lua");
+                match crate::LUA_BUILTIN_DIR.extract(&dir_path) {
+                    Ok(()) => crate::open_dir(&dir_path),
+                    Err(e) => log::error!("Error extracting built-in Lua files: {e}"),
+                }
+            }
+        }
     });
     ui.menu_button("Settings", |ui| {
         ui.label("yo");

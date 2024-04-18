@@ -19,10 +19,15 @@ mod gui;
 // mod logfile;
 mod app;
 mod gfx;
+#[cfg_attr(not(target_arch = "wasm32"), path = "paths_local.rs")]
+#[cfg_attr(target_arch = "wasm32", path = "paths_web.rs")]
+mod paths;
 mod preferences;
 mod puzzle;
 mod serde_impl;
 mod util;
+
+use paths::PATHS;
 
 const TITLE: &str = "Hyperspeedcube";
 const APP_ID: &str = "Hyperspeedcube";
@@ -35,7 +40,11 @@ thread_local! {
 lazy_static! {
     static ref LIBRARY_LOG_LINES: Mutex<Vec<hyperpuzzle::LuaLogLine>> = Mutex::new(vec![]);
 }
-static LUA_BUILTIN_DIR: include_dir::Dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/../lua");
+static LUA_BUILTIN_DIR: include_dir::Dir<'_> = if crate::IS_OFFICIAL_BUILD {
+    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../lua")
+} else {
+    include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources/lua")
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
@@ -88,6 +97,38 @@ impl eframe::App for AppUi {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Build all the UI.
         self.build(ctx);
+    }
+}
+
+fn load_built_in_puzzles() {
+    let mut stack = vec![crate::LUA_BUILTIN_DIR.clone()];
+    LIBRARY.with(|lib| {
+        while let Some(dir) = stack.pop() {
+            for entry in dir.entries() {
+                match entry {
+                    include_dir::DirEntry::Dir(subdir) => {
+                        stack.push(subdir.clone());
+                    }
+                    include_dir::DirEntry::File(file) => {
+                        if file.path().extension().is_some_and(|ext| ext == "lua") {
+                            let name = Library::relative_path_to_filename(file.path());
+                            match file.contents_utf8() {
+                                Some(contents) => lib.add_file(name, None, contents.to_string()),
+                                None => {
+                                    log::error!("Error loading built-in file {name}")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn open_dir(dir: &std::path::Path) {
+    if let Err(e) = opener::open(dir) {
+        log::error!("Error opening directory {dir:?}: {e}")
     }
 }
 

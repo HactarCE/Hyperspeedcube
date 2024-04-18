@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use hypermath::Isometry;
@@ -15,25 +15,6 @@ mod puzzle_view;
 pub use puzzle_view::PuzzleView;
 
 use super::App;
-
-lazy_static! {
-    #[rustfmt::skip]
-    static ref LUA_PATH: PathBuf = if crate::IS_OFFICIAL_BUILD {
-        std::env::current_exe().unwrap()
-            .canonicalize().unwrap()
-            .parent().unwrap()
-            .to_owned()
-            .join("lua")
-    } else {
-        std::env::current_exe().unwrap()
-            .canonicalize().unwrap()
-            .parent().unwrap()
-            .parent().unwrap()
-            .parent().unwrap()
-            .to_owned()
-            .join("lua")
-    };
-}
 
 #[derive(Debug)]
 pub enum Tab {
@@ -389,24 +370,34 @@ impl Tab {
                     });
             }
             Tab::PuzzleLibrary => {
-                let id = egui::Id::new("hyperspeedcube/files");
-                let needs_reload = ui.button("Reload all files").clicked()
-                    || ui.data(|data| data.get_temp::<()>(id).is_none())
-                    || ui.input(|input| input.key_pressed(egui::Key::F5));
-                if needs_reload {
-                    ui.data_mut(|data| data.insert_temp(id, ()));
-                    log::info!("Loading Lua files from path {}", LUA_PATH.to_string_lossy());
-                    crate::LIBRARY.with(|lib| lib.load_directory(&LUA_PATH));
+                static FIRST_LOAD: AtomicBool = AtomicBool::new(true);
+                if FIRST_LOAD.swap(false, Ordering::Relaxed) {
+                    crate::load_built_in_puzzles();
                 }
-                ui.separator();
-                crate::LIBRARY.with(|lib| {
-                    for puzzle in lib.puzzles() {
-                        if ui.button(format!("Load {}", puzzle.name)).clicked() {
-                            app.load_puzzle(lib, &puzzle.id);
-                        }
+
+                let id = egui::Id::new("hyperspeedcube/files");
+                if let Some(paths) = &*crate::PATHS {
+                    let needs_reload = ui.button("Reload all files").clicked()
+                        || ui.data(|data| data.get_temp::<()>(id).is_none())
+                        || ui.input(|input| input.key_pressed(egui::Key::F5));
+                    if needs_reload {
+                        ui.data_mut(|data| data.insert_temp(id, ()));
+                        log::info!(
+                            "Loading Lua files from path {}",
+                            paths.lua_dir.to_string_lossy(),
+                        );
+                        crate::LIBRARY.with(|lib| lib.load_directory(&paths.lua_dir));
                     }
-                });
-                ui.separator();
+                    ui.separator();
+                    crate::LIBRARY.with(|lib| {
+                        for puzzle in lib.puzzles() {
+                            if ui.button(format!("Load {}", puzzle.name)).clicked() {
+                                app.load_puzzle(lib, &puzzle.id);
+                            }
+                        }
+                    });
+                    ui.separator();
+                }
             }
             Tab::PuzzleInfo => {
                 if let Some(puzzle) = app.active_puzzle_type() {
@@ -449,8 +440,7 @@ impl Tab {
                     log_lines.clear();
                 }
 
-                crate::LIBRARY
-                    .with(|lib: &hyperpuzzle::Library| log_lines.extend(lib.pending_log_lines()));
+                crate::LIBRARY.with(|lib| log_lines.extend(lib.pending_log_lines()));
 
                 let filter_string_id = unique_id!();
                 let mut filter_string: String =

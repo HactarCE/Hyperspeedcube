@@ -98,18 +98,20 @@ impl Library {
                 Ok(entry) => {
                     let path = entry.path();
                     if path.extension().is_some_and(|ext| ext == "lua") {
-                        let name = path
-                            .strip_prefix(directory)
-                            .unwrap_or(path)
-                            .components()
-                            .map(|component| component.as_os_str().to_string_lossy())
-                            .join("/");
+                        let relative_path = path.strip_prefix(directory).unwrap_or(path);
+                        let name = Self::relative_path_to_filename(relative_path);
                         self.read_file(name, path);
                     }
                 }
                 Err(e) => log::warn!("error reading filesystem entry: {e:?}"),
             }
         }
+    }
+    /// Canonicalizes a relative file path to make a suitable filename.
+    pub fn relative_path_to_filename(path: &Path) -> String {
+        path.components()
+            .map(|component| component.as_os_str().to_string_lossy())
+            .join("/")
     }
     /// Unloads and removes a file from the Lua library.
     pub fn remove_file(&self, filename: &str) {

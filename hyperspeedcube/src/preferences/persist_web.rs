@@ -3,7 +3,7 @@ use serde::Serialize;
 
 const PREFS_KEY: &str = "hyperspeedcube_preferences";
 
-#[derive(Error, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PrefsError {
     #[error("unable to access browser local storage")]
     CannotAccessLocalStorage,
