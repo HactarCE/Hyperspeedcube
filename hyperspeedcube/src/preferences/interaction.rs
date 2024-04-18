@@ -13,6 +13,6 @@ pub struct InteractionPreferences {
 
     pub dynamic_twist_speed: bool,
     pub twist_duration: f32,
-    pub blocking_anim_duration: f32,
+    pub blocking_anim_duration: f32, // TODO: add this to prefs UI
     pub other_anim_duration: f32,
 }

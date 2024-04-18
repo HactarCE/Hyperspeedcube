@@ -29,7 +29,7 @@ pub struct StylePreferences {
     pub internals_color: egui::Color32,
     #[serde(with = "hex_color")]
     pub blocking_color: egui::Color32, // TODO: move to its own style, maybe?
-    pub blocking_outline_size: f32,
+    pub blocking_outline_size: f32, // TODO: otherwise, add this to prefs UI
 
     pub default: PieceStyle,
 
