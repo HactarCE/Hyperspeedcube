@@ -1,5 +1,6 @@
 use std::sync::mpsc;
 
+use itertools::Itertools;
 use mlua::prelude::*;
 
 /// Lua logging facade.
@@ -12,21 +13,6 @@ impl LuaLogger {
     pub fn new() -> (Self, mpsc::Receiver<LuaLogLine>) {
         let (tx, rx) = mpsc::channel();
         (Self { tx }, rx)
-    }
-
-    /// Formats a message using Lua's built-in `string.format()`.
-    fn format_msg<'lua>(lua: &'lua Lua, args: LuaMultiValue<'lua>) -> LuaResult<String> {
-        match args.len() {
-            0..=1 => match args.get(0) {
-                Some(s) => s.to_string(),
-                None => Ok(String::new()),
-            },
-            2.. => lua
-                .globals()
-                .get::<_, LuaTable<'_>>("string")?
-                .get::<_, LuaFunction<'_>>("format")?
-                .call::<_, String>(args),
-        }
     }
 
     /// Logs a message.
@@ -53,10 +39,10 @@ impl LuaLogger {
     /// then logs the result as an info line.
     pub(super) fn lua_info_fn<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaFunction<'lua>> {
         let this = self.clone();
-        lua.create_function(move |lua, args| {
+        lua.create_function(move |lua, args: LuaMultiValue<'_>| {
             let file = crate::lua::current_filename(lua);
-            let msg = Self::format_msg(lua, args)?;
-            this.info(file, msg);
+            let args: Vec<String> = args.iter().map(|arg| arg.to_string()).try_collect()?;
+            this.info(file, args.into_iter().join("\t"));
             Ok(())
         })
     }
