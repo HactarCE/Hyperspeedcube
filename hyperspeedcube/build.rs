@@ -1,3 +1,5 @@
+//! Build script that sets the application icon on Windows.
+
 fn main() {
     #[cfg(all(windows, not(debug_assertions)))]
     {
