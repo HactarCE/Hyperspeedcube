@@ -3,14 +3,19 @@ use crate::app::App;
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     egui::menu::bar(ui, |ui| {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            const PROGRAM: &str = concat!("HSC v", env!("CARGO_PKG_VERSION"));
+            let version_text = egui::RichText::new(PROGRAM).small();
+            let version_button = egui::Button::new(version_text).frame(false);
+            if ui.add(version_button).clicked() {
+                // TODO: open "about" window
+            }
+
             #[cfg(target_arch = "wasm32")]
             ui.hyperlink_to("Download desktop app", env!("CARGO_PKG_HOMEPAGE"))
                 .on_hover_text(
                     "The desktop version of Hyperspeedcube \
                      has the same features, but runs faster.",
                 );
-
-            egui::widgets::global_dark_light_mode_switch(ui);
 
             egui::warn_if_debug_build(ui);
 
@@ -35,6 +40,11 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app: &mut App) {
     ui.menu_button("Edit", |ui| {
         ui.label("yo");
     });
+    ui.menu_button("View", |ui| {
+        ui.label("yo");
+        ui.separator();
+        egui::global_dark_light_mode_buttons(ui);
+    });
     ui.menu_button("Scramble", |ui| {
         ui.label("yo");
     });
@@ -58,12 +68,12 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app: &mut App) {
             }
         }
     });
-    ui.menu_button("Settings", |ui| {
-        ui.label("yo");
-    });
-    ui.menu_button("Tools", |ui| {
-        ui.label("yo");
-    });
+    // ui.menu_button("Settings", |ui| {
+    //     ui.label("yo");
+    // });
+    // ui.menu_button("Tools", |ui| {
+    //     ui.label("yo");
+    // });
     ui.menu_button("Help", |ui| {
         ui.label("yo");
     });

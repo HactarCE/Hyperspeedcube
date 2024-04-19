@@ -101,7 +101,7 @@ impl PuzzleView {
         let scaled_drag_x = drag_delta.x as Float / view_ctrl.zoom.at_least(1.0) as Float;
         let scaled_drag_y = drag_delta.y as Float / view_ctrl.zoom.at_least(1.0) as Float;
 
-        let scroll_delta = ui.input(|input| input.scroll_delta);
+        let scroll_delta = ui.input(|input| input.raw_scroll_delta);
         let mut mouse_pos: Option<cgmath::Point2<f32>> = None;
         if r.hovered() && !self.is_dragging {
             view_ctrl.zoom *= (scroll_delta.y / 100.0).exp2();

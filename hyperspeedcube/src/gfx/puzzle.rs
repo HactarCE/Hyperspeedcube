@@ -61,6 +61,7 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         &self,
         _device: &wgpu::Device,
         _queue: &wgpu::Queue,
+        _screen_descriptor: &eframe::egui_wgpu::ScreenDescriptor,
         egui_encoder: &mut wgpu::CommandEncoder,
         callback_resources: &mut eframe::egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {

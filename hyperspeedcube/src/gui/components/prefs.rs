@@ -211,9 +211,6 @@ pub fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
     });
 
     prefs.needs_save |= changed;
-    if changed {
-        app.request_redraw_puzzle();
-    }
 }
 pub fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
     let prefs = &mut app.prefs;
@@ -610,8 +607,5 @@ pub fn build_view_section(ui: &mut egui::Ui, app: &mut App) {
             });
 
             prefs.needs_save |= changed;
-            if changed {
-                app.request_redraw_puzzle();
-            }
         });
 }

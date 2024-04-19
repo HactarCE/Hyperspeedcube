@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use winit::event::ModifiersState;
+use winit::keyboard::ModifiersState;
 
 use super::is_false;
 
@@ -26,13 +26,13 @@ impl<C> Mousebind<C> {
             ret |= ModifiersState::SHIFT;
         }
         if self.ctrl {
-            ret |= ModifiersState::CTRL;
+            ret |= ModifiersState::CONTROL;
         }
         if self.alt {
             ret |= ModifiersState::ALT;
         }
         if self.logo {
-            ret |= ModifiersState::LOGO;
+            ret |= ModifiersState::SUPER;
         }
         ret
     }
