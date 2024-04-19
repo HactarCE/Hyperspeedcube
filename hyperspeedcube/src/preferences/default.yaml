@@ -24,8 +24,8 @@ interaction:
   blocking_anim_duration: 1.0
   other_anim_duration: 0.15
 styles:
-  dark_background_color: "#444444"
-  light_background_color: "#cccccc"
+  dark_background_color: "#1b1b1b"
+  light_background_color: "#f8f8f8"
   internals_color: "#777777"
   blocking_color: "#ff0000"
   blocking_outline_size: 5.0

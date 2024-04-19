@@ -143,6 +143,10 @@ impl PuzzleViewController {
             },
         );
     }
+
+    pub(crate) fn reset_camera(&mut self) {
+        self.rot = Isometry::ident();
+    }
 }
 
 /// Returns data about triangles that contain the screen-space point `p`.

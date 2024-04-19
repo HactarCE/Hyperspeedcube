@@ -94,7 +94,7 @@ async fn run() -> eframe::Result<()> {
 }
 
 impl eframe::App for AppUi {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Build all the UI.
         self.build(ctx);
     }
@@ -124,6 +124,15 @@ fn load_built_in_puzzles() {
             }
         }
     })
+}
+
+fn reload_user_puzzles() -> Option<hyperpuzzle::TaskHandle<()>> {
+    let paths = crate::PATHS.as_ref()?;
+    log::info!(
+        "Loading Lua files from path {}",
+        paths.lua_dir.to_string_lossy(),
+    );
+    Some(LIBRARY.with(|lib| lib.load_directory(&paths.lua_dir)))
 }
 
 fn open_dir(dir: &std::path::Path) {

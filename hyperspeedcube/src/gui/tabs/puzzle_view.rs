@@ -8,8 +8,28 @@ use hyperpuzzle::Puzzle;
 use parking_lot::Mutex;
 
 use crate::gfx::*;
+use crate::gui::App;
 use crate::preferences::Preferences;
 use crate::puzzle::{PieceStyleState, PuzzleController, PuzzleViewController};
+
+pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<PuzzleView>>>) {
+    let r = match &mut *puzzle_view.lock() {
+        Some(puzzle_view) => puzzle_view.ui(ui, &app.prefs),
+        None => {
+            // Hint to the user to load a puzzle.
+            ui.allocate_ui_at_rect(ui.available_rect_before_wrap(), |ui| {
+                ui.centered_and_justified(|ui| {
+                    ui.label("Select a puzzle from the puzzle list");
+                });
+            })
+            .response
+        }
+    };
+
+    if r.gained_focus() {
+        app.active_puzzle_view = Arc::downgrade(puzzle_view);
+    }
+}
 
 #[derive(Debug)]
 pub struct PuzzleView {

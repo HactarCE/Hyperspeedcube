@@ -56,6 +56,12 @@ pub struct PuzzleRenderResources {
     pub renderer: Arc<Mutex<PuzzleRenderer>>,
 }
 
+impl PuzzleRenderResources {
+    fn unique_key(&self) -> usize {
+        Arc::as_ptr(&self.renderer) as usize
+    }
+}
+
 impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
     fn prepare(
         &self,
@@ -96,7 +102,10 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
             },
         });
 
-        callback_resources.insert(bind_groups);
+        callback_resources
+            .entry()
+            .or_insert(HashMap::new())
+            .insert(self.unique_key(), bind_groups);
 
         vec![]
     }
@@ -107,13 +116,16 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         render_pass: &mut wgpu::RenderPass<'a>,
         callback_resources: &'a eframe::egui_wgpu::CallbackResources,
     ) {
-        let Some(bind_groups) = callback_resources.get::<BindGroups>() else {
+        let Some(bind_groups) = callback_resources
+            .get::<HashMap<usize, BindGroups>>()
+            .and_then(|map| map.get(&self.unique_key()))
+        else {
             log::error!("lost bind groups for blitting puzzle view");
             return;
         };
 
         render_pass.set_pipeline(&self.gfx.pipelines.blit.pipeline);
-        render_pass.set_bind_groups(&bind_groups);
+        render_pass.set_bind_groups(bind_groups);
         render_pass.set_vertex_buffer(0, self.gfx.uv_vertex_buffer.slice(..));
         render_pass.draw(0..4, 0..1);
     }
