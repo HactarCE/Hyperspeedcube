@@ -35,30 +35,39 @@ impl LuaLoader {
     /// Initializes a Lua runtime and loads all the functionality of the
     /// `hyperpuzzle` Lua API.
     pub fn new(db: Arc<Mutex<LibraryDb>>, logger: LuaLogger) -> Self {
-        // SAFETY: We need the debug library to get traceback info for better error
-        // reporting. We use Lua sandboxing functionality so the user should never
-        // be able to access the debug module.
         let lua = Lua::new_with(
             mlua::StdLib::TABLE | mlua::StdLib::STRING | mlua::StdLib::UTF8 | mlua::StdLib::MATH,
             LuaOptions::new(),
         )
         .expect("error initializing Lua runtime");
 
-        // Registry library.
+        // Register library.
         lua.set_app_data(Arc::clone(&db));
 
-        let logger_ref2 = logger.clone();
+        let logger2 = logger.clone();
 
         // IIFE to mimic try_block
         (|| {
+            let logger = logger2;
+
             // Monkeypatch builtin `type` function.
             let globals = lua.globals();
             let type_fn = |_lua, v| Ok(lua_type_name(&v));
             globals.raw_set("type", lua.create_function(type_fn)?)?;
 
+            // Monkeypatch math lib.
+            let math: LuaTable<'_> = globals.get("math")?;
+            let round_fn = |_lua, x: LuaNumber| Ok(x.round());
+            math.raw_set("round", lua.create_function(round_fn)?)?;
+            let eq_fn = |_lua, (a, b): (LuaNumber, LuaNumber)| Ok(hypermath::approx_eq(&a, &b));
+            math.raw_set("eq", lua.create_function(eq_fn)?)?;
+            let neq_fn = |_lua, (a, b): (LuaNumber, LuaNumber)| Ok(!hypermath::approx_eq(&a, &b));
+            math.raw_set("neq", lua.create_function(neq_fn)?)?;
+
             if crate::CAPTURE_LUA_OUTPUT {
-                globals.raw_set("print", logger.lua_info_fn(&lua)?)?;
-                lua.set_warning_function(move |lua, msg, _to_continue| Ok(logger.warn(lua, msg)));
+                let logger2 = logger.clone();
+                globals.raw_set("print", logger2.lua_info_fn(&lua)?)?;
+                lua.set_warning_function(move |lua, msg, _to_continue| Ok(logger2.warn(lua, msg)));
             }
 
             for (module_name, module_source) in LUA_MODULES {
@@ -74,6 +83,12 @@ impl LuaLoader {
             // Constants
             sandbox.raw_set("_PUZZLE_ENGINE", crate::PUZZLE_ENGINE_VERSION_STRING)?;
             sandbox.raw_set("AXES", lua_axes_table(&lua)?)?;
+
+            // Imports
+            let db2 = Arc::clone(&db);
+            let require_fn =
+                move |lua, filename| LuaLoaderRef { lua, db: &db2 }.load_file_dependency(filename);
+            sandbox.raw_set("require", lua.create_function(require_fn)?)?;
 
             // Database
             sandbox.raw_set("shapes", LuaShapeDb)?;
@@ -101,7 +116,6 @@ impl LuaLoader {
         })()
         .expect("error initializing Lua environment");
 
-        let logger = logger_ref2;
         LuaLoader { lua, db, logger }
     }
 
@@ -110,7 +124,7 @@ impl LuaLoader {
         let files = self.db.lock().files.values().cloned().collect_vec();
         for file in files {
             if !file.is_loaded() {
-                if let Err(e) = self.load_file(&file.name) {
+                if let Err(e) = self.as_ref().load_file(&file.name) {
                     let e = e.context(format!("error loading file {:?}", file.name));
                     self.logger.error(Some(file.name.clone()), e);
                 }
@@ -118,9 +132,65 @@ impl LuaLoader {
         }
     }
 
+    fn as_ref(&self) -> LuaLoaderRef<'_, '_> {
+        LuaLoaderRef {
+            lua: &self.lua,
+            db: &self.db,
+        }
+    }
+
+    /// Builds a puzzle, or returns a cached puzzle if it has already been
+    /// built.
+    pub fn build_puzzle(&self, id: &str) -> Result<Arc<crate::Puzzle>> {
+        let result = LibraryDb::build_puzzle(&self.lua, &id);
+        if let Err(e) = &result {
+            let file = LibraryDb::get(&self.lua)
+                .ok()
+                .and_then(|lib| Some(lib.lock().puzzles.get(id)?.name.clone()));
+            self.logger.error(file, e);
+        }
+        result
+    }
+
+    #[cfg(test)]
+    pub fn run_test_suite(&self, filename: &str, contents: &str) {
+        self.db
+            .lock()
+            .add_file(filename.to_string(), None, contents.to_string());
+        let env = self
+            .as_ref()
+            .load_file(filename)
+            .expect("error loading test file");
+
+        let mut ran_any_tests = false;
+        for pair in env.pairs::<LuaValue<'_>, LuaValue<'_>>() {
+            let (k, v) = pair.unwrap();
+            let Ok(name) = self.lua.unpack::<String>(k) else {
+                continue;
+            };
+            let Ok(function) = self.lua.unpack::<LuaFunction<'_>>(v) else {
+                continue;
+            };
+            if name.starts_with("test_") {
+                ran_any_tests = true;
+                println!("Running {name:?} ...");
+                if let Err(e) = function.call::<(), ()>(()) {
+                    panic!("{e}");
+                }
+            }
+        }
+        assert!(ran_any_tests, "no tests ran!");
+    }
+}
+
+struct LuaLoaderRef<'lua, 'db> {
+    lua: &'lua Lua,
+    db: &'db Mutex<LibraryDb>,
+}
+impl<'lua> LuaLoaderRef<'lua, '_> {
     /// Loads a file if it has not yet been loaded, and then returns the file's
     /// export table.
-    fn load_file<'lua>(&'lua self, filename: &str) -> LuaResult<LuaTable<'lua>> {
+    fn load_file(&self, filename: &str) -> LuaResult<LuaTable<'lua>> {
         let db = self.db.lock();
 
         // If the file doesn't exist, return an error.
@@ -200,43 +270,16 @@ impl LuaLoader {
         }
     }
 
-    /// Builds a puzzle, or returns a cached puzzle if it has already been
-    /// built.
-    pub fn build_puzzle(&self, id: &str) -> Result<Arc<crate::Puzzle>> {
-        let result = LibraryDb::build_puzzle(&self.lua, &id);
-        if let Err(e) = &result {
-            let file = LibraryDb::get(&self.lua)
-                .ok()
-                .and_then(|lib| Some(lib.lock().puzzles.get(id)?.name.clone()));
-            self.logger.error(file, e);
+    /// Records a file dependency, then loads it using `load_file()`.
+    fn load_file_dependency(&self, mut filename: String) -> LuaResult<LuaTable<'lua>> {
+        if !filename.ends_with(".lua") {
+            filename.push_str(".lua");
         }
-        result
-    }
-
-    #[cfg(test)]
-    pub fn run_test_suite(&self, filename: &str, contents: &str) {
-        self.db
-            .lock()
-            .add_file(filename.to_string(), None, contents.to_string());
-        let env = self.load_file(filename).expect("error loading test file");
-
-        let mut ran_any_tests = false;
-        for pair in env.pairs::<LuaValue<'_>, LuaValue<'_>>() {
-            let (k, v) = pair.unwrap();
-            let Ok(name) = self.lua.unpack::<String>(k) else {
-                continue;
-            };
-            let Ok(function) = self.lua.unpack::<LuaFunction<'_>>(v) else {
-                continue;
-            };
-            if name.starts_with("test_") {
-                ran_any_tests = true;
-                println!("Running {name:?} ...");
-                if let Err(e) = function.call::<(), ()>(()) {
-                    panic!("{e}");
-                }
-            }
+        if let Some(dependency) = self.db.lock().files.get(&filename) {
+            // Record the dependency.
+            let current_file = LibraryFile::get_current(&self.lua)?;
+            dependency.dependents.lock().push(current_file);
         }
-        assert!(ran_any_tests, "no tests ran!");
+        self.load_file(&filename)
     }
 }

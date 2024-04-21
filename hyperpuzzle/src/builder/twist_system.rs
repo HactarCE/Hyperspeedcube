@@ -3,7 +3,7 @@ use std::sync::{Arc, Weak};
 use eyre::Result;
 use hypermath::collections::approx_hashmap::{ApproxHashMap, ApproxHashMapKey};
 use hypermath::collections::generic_vec::IndexOutOfRange;
-use hypermath::{approx_eq, Isometry};
+use hypermath::Isometry;
 use hypershape::Space;
 use parking_lot::Mutex;
 
@@ -115,21 +115,10 @@ impl TwistSystemBuilder {
     }
 
     /// Adds a new twist.
-    pub fn add(&mut self, mut data: TwistBuilder) -> Result<Result<Twist, BadTwist>> {
-        let Some(canonicalized_transform) = data.transform.canonicalize() else {
-            return Ok(Err(BadTwist::BadTransform));
-        };
-
+    pub fn add(&mut self, data: TwistBuilder) -> Result<Result<Twist, BadTwist>> {
         // Reject the identity twist.
-        if approx_eq(&canonicalized_transform, &Isometry::ident()) {
+        if data.transform.is_ident() {
             return Ok(Err(BadTwist::Identity));
-        }
-
-        if approx_eq(&data.transform, &data.transform.reverse()) {
-            // The transform is self-inverse, so we do care which direction it
-            // rotates. Do not canonicalize.
-        } else {
-            data.transform = canonicalized_transform;
         }
 
         // Check that there is not already an identical twist.

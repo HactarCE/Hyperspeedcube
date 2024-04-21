@@ -1,5 +1,7 @@
-sym = cd{5, 3}
-cut_depth = 2/3
+local utils = require('utils')
+
+local sym = cd{5, 3}
+local cut_depth = 2/3
 
 puzzles:add('megaminx', {
   name = "Megaminx",
@@ -9,7 +11,7 @@ puzzles:add('megaminx', {
   build = function(p)
     -- axes
     for _, v in sym:orbit('oox') do
-      p.twists.axes:add(v)
+      p.twists.axes:add(v:normalized())
     end
     p.twists.axes:autoname()
 
@@ -24,13 +26,7 @@ puzzles:add('megaminx', {
     local F = p.twists.axes[2]
     local twist_rot = rot{fix = U, from = R, to = F}
     for _, axis, twist_rot in sym:chiral():orbit(U, twist_rot) do
-      p.twists:add({
-        axis = axis,
-        transform = twist_rot,
-        prefix = axis.name,
-        inverse = true,
-        multipliers = true,
-      })
+      p.twists:add(utils.twist3d(axis, twist_rot))
     end
 
     -- slicing & layers

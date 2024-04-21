@@ -51,6 +51,12 @@ impl Isometry {
         Isometry(Multivector::scalar(1.0))
     }
 
+    /// Returns whether this is the identity isometry.
+    pub fn is_ident(&self) -> bool {
+        self.canonicalize()
+            .is_some_and(|i| approx_eq(&i, &Self::ident()))
+    }
+
     /// Returns the minimum number of Euclidean dimensions that this isometry
     /// requires.
     pub fn ndim(&self) -> u8 {

@@ -58,13 +58,15 @@ impl<'lua> FromLua<'lua> for Transformable {
         if value.is_nil() {
             None
         } else {
+            // Be careful with the order here so that we don't accidentally
+            // coerce things in the wrong way.
             None.or_else(|| lua.unpack(value.clone()).and_then(Self::from_axis).ok())
                 .or_else(|| lua.unpack(value.clone()).and_then(Self::from_color).ok())
-                .or_else(|| lua.unpack(value.clone()).map(Self::Manifold).ok())
-                .or_else(|| lua.unpack(value.clone()).map(Self::Multivector).ok())
-                .or_else(|| lua.unpack(value.clone()).map(Self::Transform).ok())
                 .or_else(|| lua.unpack(value.clone()).and_then(Self::from_twist).ok())
                 .or_else(|| lua.unpack(value.clone()).map(Self::Vector).ok())
+                .or_else(|| lua.unpack(value.clone()).map(Self::Multivector).ok())
+                .or_else(|| lua.unpack(value.clone()).map(Self::Transform).ok())
+                .or_else(|| lua.unpack(value.clone()).map(Self::Manifold).ok())
         }
         .ok_or_else(|| {
             lua_convert_error(
@@ -149,7 +151,7 @@ impl Transformable {
     /// puzzle element (twist axis, color, etc.) then the nearest equivalent one
     /// is returned. See the `transform()` method on individual Lua wrapper
     /// types to learn how each one is transformed.
-    pub fn transform(&self, t: &Isometry) -> Self {
+    pub fn transform_by(&self, t: &Isometry) -> Self {
         match self {
             Self::Axis { db, vector } => Self::Axis {
                 db: Arc::clone(db),

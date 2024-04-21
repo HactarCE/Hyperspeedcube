@@ -53,6 +53,12 @@ impl LuaMultivector {
 impl LuaUserData for LuaMultivector {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("multivector"));
+
+        fields.add_field_method_get("reverse", |_lua, Self(this)| Ok(Self(this.reverse())));
+        fields.add_field_method_get("rev", |_lua, Self(this)| Ok(Self(this.reverse())));
+
+        fields.add_field_method_get("inverse", |_lua, Self(this)| Ok(this.inverse().map(Self)));
+        fields.add_field_method_get("inv", |_lua, Self(this)| Ok(this.inverse().map(Self)));
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
@@ -77,20 +83,6 @@ impl LuaUserData for LuaMultivector {
                 Ok(blade) => Ok(Some(blade.grade())),
                 Err(MismatchedGrade) => Ok(None),
             }
-        });
-
-        methods.add_method("reverse", |_lua, Self(this), ()| {
-            Ok(LuaMultivector(this.reverse()))
-        });
-        methods.add_method("rev", |_lua, Self(this), ()| {
-            Ok(LuaMultivector(this.reverse()))
-        });
-
-        methods.add_method("inverse", |_lua, Self(this), ()| {
-            Ok(this.inverse().map(LuaMultivector))
-        });
-        methods.add_method("inv", |_lua, Self(this), ()| {
-            Ok(this.inverse().map(LuaMultivector))
         });
 
         methods.add_method("to_grade", |_lua, Self(this), LuaNdim(grade)| {

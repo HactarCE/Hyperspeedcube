@@ -15,6 +15,9 @@ impl<'lua> FromLua<'lua> for LuaTransform {
 impl LuaUserData for LuaTransform {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("transform"));
+
+        fields.add_field_method_get("reverse", |_lua, Self(this)| Ok(Self(this.reverse())));
+        fields.add_field_method_get("rev", |_lua, Self(this)| Ok(Self(this.reverse())));
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
@@ -22,14 +25,20 @@ impl LuaUserData for LuaTransform {
             Ok(format!("transform({this})"))
         });
 
-        methods.add_meta_method(LuaMetaMethod::Mul, |lua, Self(this), rhs| {
-            Transformable::from_lua(rhs, lua)?
-                .transform(this)
-                .into_lua(lua)
-                .transpose()
+        // Composition of transforms
+        methods.add_meta_method(LuaMetaMethod::Mul, |_lua, Self(this), Self(rhs)| {
+            Ok(Self(this * rhs))
         });
 
         methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.ndim()));
+
+        // Application of transforms
+        methods.add_method("transform", |lua, Self(this), rhs| {
+            Transformable::from_lua(rhs, lua)?
+                .transform_by(this)
+                .into_lua(lua)
+                .transpose()
+        });
     }
 }
 

@@ -76,7 +76,9 @@ impl LuaSymmetry {
         };
 
         let mut iter = self
-            .orbit(init, |t, obj| obj.iter().map(|v| v.transform(t)).collect())
+            .orbit(init, |t, obj| {
+                obj.iter().map(|v| v.transform_by(t)).collect()
+            })
             .into_iter();
         lua.create_function_mut(move |lua, ()| {
             iter.find_map(move |(transform, objects)| {

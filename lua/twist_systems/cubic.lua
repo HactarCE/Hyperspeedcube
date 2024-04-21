@@ -1,10 +1,12 @@
+local utils = require('utils')
+
 local sym = cd{4, 3}
 
 axis_systems:add('cubic', {
   ndim = 3,
   symmetry = sym,
   build = function(axes)
-    axes:add(sym:vec('oox'))
+    axes:add(sym:vec('oox'):normalized())
     axes:rename{'F', 'U', 'R', 'L', 'D', 'B'}
     axes:reorder{'R', 'L', 'U', 'D', 'F', 'B'}
   end,
@@ -19,14 +21,8 @@ twist_systems:add('ft_cubic', {
     local U = twists.axes.U
     local F = twists.axes.F
     local twist_rot = rot{fix = U, from = R, to = F}
-    for transform, axis, twist_rot in sym:chiral():orbit(U, twist_rot) do
-      twists:add{
-        axis = axis,
-        transform = twist_rot,
-        prefix = axis.name,
-        inverse = true,
-        multipliers = true,
-      }
+    for _, axis, twist_rot in sym:chiral():orbit(U, twist_rot) do
+      twists:add(utils.twist3d(axis, twist_rot))
     end
 
     -- Twist directions are not implemented yet.
