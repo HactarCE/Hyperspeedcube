@@ -12,6 +12,27 @@ impl<'lua> FromLua<'lua> for LuaTransform {
     }
 }
 
+impl LuaUserData for LuaTransform {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_meta_field("type", LuaStaticStr("transform"));
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
+            Ok(format!("transform({this})"))
+        });
+
+        methods.add_meta_method(LuaMetaMethod::Mul, |lua, Self(this), rhs| {
+            Transformable::from_lua(rhs, lua)?
+                .transform(this)
+                .into_lua(lua)
+                .transpose()
+        });
+
+        methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.ndim()));
+    }
+}
+
 impl LuaTransform {
     /// Constructs a rotation from a table of values.
     pub fn construct_rotation(lua: &Lua, t: LuaTable<'_>) -> LuaResult<Self> {
@@ -56,26 +77,5 @@ impl LuaTransform {
                 Ok(t * refl)
             })
             .map(LuaTransform)
-    }
-}
-
-impl LuaUserData for LuaTransform {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_meta_field("type", LuaStaticStr("transform"));
-    }
-
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
-            Ok(format!("transform({this})"))
-        });
-
-        methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.ndim()));
-
-        methods.add_meta_method(LuaMetaMethod::Mul, |lua, Self(this), rhs| {
-            Transformable::from_lua(rhs, lua)?
-                .transform(this)
-                .into_lua(lua)
-                .transpose()
-        });
     }
 }

@@ -3,6 +3,8 @@ use std::sync::mpsc;
 use itertools::Itertools;
 use mlua::prelude::*;
 
+use super::{lua_current_filename, lua_stack_trace};
+
 /// Lua logging facade.
 #[derive(Debug, Clone)]
 pub struct LuaLogger {
@@ -15,24 +17,36 @@ impl LuaLogger {
         (Self { tx }, rx)
     }
 
+    fn send(&self, line: LuaLogLine) {
+        self.tx.send(line).expect("error in Lua logging");
+    }
+
     /// Logs a message.
-    pub(super) fn log(&self, level: LuaLogLevel, file: Option<String>, msg: String) {
-        self.tx
-            .send(LuaLogLine { msg, file, level })
-            .expect("error in Lua logging");
+    fn log(&self, lua: &Lua, level: LuaLogLevel, msg: String) {
+        self.send(LuaLogLine {
+            level,
+            file: lua_current_filename(lua),
+            msg,
+            traceback: Some(lua_stack_trace(lua)),
+        });
     }
 
     /// Logs an info line.
-    pub fn info(&self, file: Option<String>, msg: impl ToString) {
-        self.log(LuaLogLevel::Info, file, msg.to_string());
+    pub fn info(&self, lua: &Lua, msg: impl ToString) {
+        self.log(lua, LuaLogLevel::Info, msg.to_string());
     }
     /// Logs a warning.
-    pub fn warn(&self, file: Option<String>, msg: impl ToString) {
-        self.log(LuaLogLevel::Warn, file, msg.to_string());
+    pub fn warn(&self, lua: &Lua, msg: impl ToString) {
+        self.log(lua, LuaLogLevel::Warn, msg.to_string());
     }
     /// Logs an error.
     pub fn error(&self, file: Option<String>, msg: impl ToString) {
-        self.log(LuaLogLevel::Error, file, msg.to_string());
+        self.send(LuaLogLine {
+            level: LuaLogLevel::Error,
+            file,
+            msg: msg.to_string(),
+            traceback: None,
+        });
     }
 
     /// Returns a Lua function that calls `string.format()` on its arguments and
@@ -40,9 +54,8 @@ impl LuaLogger {
     pub(super) fn lua_info_fn<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaFunction<'lua>> {
         let this = self.clone();
         lua.create_function(move |lua, args: LuaMultiValue<'_>| {
-            let file = crate::lua::current_filename(lua);
             let args: Vec<String> = args.iter().map(|arg| arg.to_string()).try_collect()?;
-            this.info(file, args.into_iter().join("\t"));
+            this.info(lua, args.into_iter().join("\t"));
             Ok(())
         })
     }
@@ -51,12 +64,14 @@ impl LuaLogger {
 /// Log line emitted by Lua code.
 #[derive(Debug, Clone)]
 pub struct LuaLogLine {
-    /// Log message.
-    pub msg: String,
-    /// Lua file that emitted the message.
-    pub file: Option<String>,
     /// Log level.
     pub level: LuaLogLevel,
+    /// Lua file that emitted the message.
+    pub file: Option<String>,
+    /// Log message.
+    pub msg: String,
+    /// Traceback.
+    pub traceback: Option<String>,
 }
 impl LuaLogLine {
     /// Returns whether the line matches a filter string entered by the user.

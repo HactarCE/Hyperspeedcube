@@ -10,7 +10,6 @@ puzzles:add('3x3x3x3', {
       local axis = p.axes:add(v) -- axes
       p.shape:slice(v / 3) -- cuts
       axis.layers:add(v / 3) -- layers
-      print(v)
     end
 
     p.axes:rename{'I', 'B', 'D', 'L', 'R', 'U', 'F', 'O'}
@@ -24,8 +23,10 @@ puzzles:add('3x3x3x3', {
     for _, I, U, transform in sym:orbit(I, U, transform) do
       p.twists:add{
         axis = I,
+        transform = transform,
+        prefix = I.name,
         name = U.name,
-        transform = transform
+        inverse = false,
       }
     end
   end,

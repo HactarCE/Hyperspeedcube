@@ -29,6 +29,41 @@ impl LuaUserData for LuaTwist {
                 Ok(format!("twist({})", this.id))
             }
         });
+
+        methods.add_meta_method(LuaMetaMethod::Mul, |_lua, this, other: Self| {
+            if !Arc::ptr_eq(&this.db, &other.db) {
+                return Err(LuaError::external(
+                    "cannot compose twists from different twist systems",
+                ));
+            }
+            if this.id != other.id {
+                return Err(LuaError::external(
+                    "cannot compose twists with different axes",
+                ));
+            }
+            let db = this.db.lock();
+
+            let lhs = db.get(this.id).into_lua_err()?;
+            let rhs = db.get(other.id).into_lua_err()?;
+            Ok(db
+                .data_to_id(lhs.axis, &(&lhs.transform * &rhs.transform))
+                .map(|id| Self { id, db: db.arc() }))
+        });
+
+        methods.add_meta_method(LuaMetaMethod::Pow, |_lua, this, power: i16| {
+            let db = this.db.lock();
+            let this = db.get(this.id).into_lua_err()?;
+            // Convert to `i64` to guard against overflow.
+            let mut transform = (0..(power as i64).abs())
+                .map(|_| &this.transform)
+                .fold(Isometry::ident(), |a, b| b * a);
+            if power < 0 {
+                transform = transform.reverse();
+            }
+            Ok(db
+                .data_to_id(this.axis, &transform)
+                .map(|id| LuaTwist { id, db: db.arc() }))
+        });
     }
 }
 
@@ -55,15 +90,9 @@ impl LuaTwist {
 
         let transformed_transform = t.transform_isometry(transform); // TODO: maybe transform uninverted?
 
-        let transformed_twist_data = TwistBuilder {
-            axis: transformed_axis.id,
-            transform: transformed_transform,
-        };
-
         Ok(db
-            .data_to_id()
-            .get(&transformed_twist_data)
-            .map(|&id| db.wrap_id(id)))
+            .data_to_id(transformed_axis.id, &transformed_transform)
+            .map(|id| db.wrap_id(id)))
     }
 
     /// Returns the axis of the twist.

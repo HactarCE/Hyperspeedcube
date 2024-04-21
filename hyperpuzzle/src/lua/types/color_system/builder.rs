@@ -5,6 +5,7 @@ use parking_lot::Mutex;
 
 use super::*;
 use crate::builder::{CustomOrdering, NamingScheme, ShapeBuilder};
+use crate::lua::lua_warn_fn;
 use crate::puzzle::Color;
 
 /// Lua handle to the color system of a shape under construction.
@@ -98,7 +99,7 @@ impl LuaColorSystem {
             .into_lua_err()?;
         let id = shape.colors.add(manifolds).into_lua_err()?;
         shape.colors.get_mut(id).into_lua_err()?.default_color = default_color;
-        shape.colors.names.set(id, name).into_lua_err()?;
+        shape.colors.names.set(id, name, lua_warn_fn(lua));
         Ok(shape.wrap_id(id))
     }
 

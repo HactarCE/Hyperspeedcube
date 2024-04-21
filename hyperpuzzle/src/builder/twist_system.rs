@@ -1,9 +1,9 @@
 use std::sync::{Arc, Weak};
 
-use eyre::{bail, Result};
+use eyre::Result;
 use hypermath::collections::approx_hashmap::{ApproxHashMap, ApproxHashMapKey};
 use hypermath::collections::generic_vec::IndexOutOfRange;
-use hypermath::Isometry;
+use hypermath::{approx_eq, Isometry};
 use hypershape::Space;
 use parking_lot::Mutex;
 
@@ -48,6 +48,8 @@ pub struct TwistSystemBuilder {
     /// Twist data (not including name).
     by_id: PerTwist<TwistBuilder>,
     /// Map from twist data to twist ID for each axis.
+    ///
+    /// Does not include inverses.
     data_to_id: ApproxHashMap<TwistBuilder, Twist>,
     /// User-specified twist names.
     pub names: NamingScheme<Twist>,
@@ -113,16 +115,53 @@ impl TwistSystemBuilder {
     }
 
     /// Adds a new twist.
-    pub fn add(&mut self, data: TwistBuilder) -> Result<Twist> {
+    pub fn add(&mut self, mut data: TwistBuilder) -> Result<Result<Twist, BadTwist>> {
+        let Some(canonicalized_transform) = data.transform.canonicalize() else {
+            return Ok(Err(BadTwist::BadTransform));
+        };
+
+        // Reject the identity twist.
+        if approx_eq(&canonicalized_transform, &Isometry::ident()) {
+            return Ok(Err(BadTwist::Identity));
+        }
+
+        if approx_eq(&data.transform, &data.transform.reverse()) {
+            // The transform is self-inverse, so we do care which direction it
+            // rotates. Do not canonicalize.
+        } else {
+            data.transform = canonicalized_transform;
+        }
+
         // Check that there is not already an identical twist.
-        if self.data_to_id.get(&data).is_some() {
-            bail!("identical twist already exists")
+        if let Some(&id) = self.data_to_id.get(&data) {
+            let name = self.names.get(id).unwrap_or_default();
+            return Ok(Err(BadTwist::DuplicateTwist { id, name }));
         }
 
         let id = self.by_id.push(data.clone())?;
         self.data_to_id.insert(data, id);
 
-        Ok(id)
+        Ok(Ok(id))
+    }
+    /// Adds a new twist and assigns it a name.
+    ///
+    /// If the twist is invalid, `warn_fn` is called with info about what went
+    /// wrong and no twist is created.
+    pub fn add_named(
+        &mut self,
+        data: TwistBuilder,
+        name: String,
+        mut warn_fn: impl FnMut(String),
+    ) -> Result<Option<Twist>> {
+        let id = match self.add(data)? {
+            Ok(ok) => ok,
+            Err(err) => {
+                warn_fn(err.to_string());
+                return Ok(None);
+            }
+        };
+        self.names.set(id, Some(name), |e| warn_fn(e.to_string()));
+        Ok(Some(id))
     }
 
     /// Returns a reference to a twist by ID, or an error if the ID is out of
@@ -131,8 +170,39 @@ impl TwistSystemBuilder {
         self.by_id.get(id)
     }
 
-    /// Returns a map from manifold set to color ID.
-    pub fn data_to_id(&self) -> &ApproxHashMap<TwistBuilder, Twist> {
-        &self.data_to_id
+    /// Returns a twist ID from its axis and transform.
+    pub fn data_to_id(&self, axis: Axis, transform: &Isometry) -> Option<Twist> {
+        None.or_else(|| {
+            self.data_to_id.get(&TwistBuilder {
+                axis,
+                transform: transform.clone(),
+            })
+        })
+        .or_else(|| {
+            self.data_to_id.get(&TwistBuilder {
+                axis,
+                transform: transform.canonicalize()?,
+            })
+        })
+        .copied()
     }
+
+    /// Returns the inverse of a twist, or an error if the ID is out of range.
+    pub fn inverse(&self, id: Twist) -> Result<Option<Twist>, IndexOutOfRange> {
+        let twist = self.get(id)?;
+        let rev_transform = twist.transform.reverse();
+        Ok(self.data_to_id(twist.axis, &rev_transform))
+    }
+}
+
+/// Error indicating a bad twist.
+#[derive(thiserror::Error, Debug, Clone)]
+#[allow(missing_docs)]
+pub enum BadTwist {
+    #[error("twist transform cannot be identity")]
+    Identity,
+    #[error("identical twist already exists with ID {id} and name {name:?}")]
+    DuplicateTwist { id: Twist, name: String },
+    #[error("bad twist transform")]
+    BadTransform,
 }

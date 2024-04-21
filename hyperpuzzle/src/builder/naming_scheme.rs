@@ -40,7 +40,10 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
     }
     /// Assigns a name to an element, returning an error if there is a name
     /// conflict.
-    pub fn set(&mut self, id: I, mut name: Option<String>) -> Result<(), BadName> {
+    ///
+    /// If the name is invalid, `warn_fn` is called with info about what went
+    /// wrong and an empty name is assigned instead of halting execution flow.
+    pub fn set(&mut self, id: I, mut name: Option<String>, mut warn_fn: impl FnMut(BadName)) {
         let old_name = self.ids_to_names.get(&id);
 
         // Canonicalize the name by removing leading & trailing whitespace.
@@ -53,7 +56,7 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
 
         // If the new name is the same, do nothing.
         if name.as_ref() == old_name {
-            return Ok(());
+            return;
         }
 
         // Remove the old name.
@@ -61,15 +64,14 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
             self.names_to_ids.remove(old_name);
         }
 
+        // Validate the new name.
         if let Some(new_name) = name.clone() {
-            // Ensure the new name is valid.
             if new_name.starts_with(|c: char| c.is_numeric()) {
-                return Err(BadName::InvalidName { name: new_name });
-            }
-
-            // Ensure the new name is free.
-            if self.names_to_ids.contains_key(&new_name) {
-                return Err(BadName::AlreadyTaken { name: new_name });
+                warn_fn(BadName::InvalidName { name: new_name });
+                name = None;
+            } else if self.names_to_ids.contains_key(&new_name) {
+                warn_fn(BadName::AlreadyTaken { name: new_name });
+                name = None;
             }
         }
 
@@ -83,8 +85,6 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
             Some(new_name) => self.ids_to_names.insert(id, new_name),
             None => self.ids_to_names.remove(&id),
         };
-
-        Ok(())
     }
 
     /// Names unnamed elements using `autonames`.
@@ -92,29 +92,26 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
         &mut self,
         len: usize,
         autonames: impl IntoIterator<Item = String>,
-    ) -> Result<(), BadName>
-    where
+        mut warn_fn: impl FnMut(BadName),
+    ) where
         I: IndexNewtype,
     {
         let used_names: HashSet<String> = self.names_to_ids.keys().cloned().collect();
         let mut autonames = autonames.into_iter().filter(|s| !used_names.contains(s));
         for i in I::iter(len) {
             if !self.ids_to_names.contains_key(&i) {
-                self.set(i, autonames.next())?;
+                self.set(i, autonames.next(), &mut warn_fn);
             }
         }
-        Ok(())
     }
 }
 
-/// Error indicating a bad name
+/// Error indicating a bad name.
 #[derive(thiserror::Error, Debug, Clone)]
 #[allow(missing_docs)]
 pub enum BadName {
-    /// The name is already taken.
     #[error("name {name:?} is already taken")]
     AlreadyTaken { name: String },
-    /// The name is invalid.
     #[error("name {name:?} is invalid")]
     InvalidName { name: String },
 }

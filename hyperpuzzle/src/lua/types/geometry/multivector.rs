@@ -82,7 +82,14 @@ impl LuaUserData for LuaMultivector {
         methods.add_method("reverse", |_lua, Self(this), ()| {
             Ok(LuaMultivector(this.reverse()))
         });
+        methods.add_method("rev", |_lua, Self(this), ()| {
+            Ok(LuaMultivector(this.reverse()))
+        });
+
         methods.add_method("inverse", |_lua, Self(this), ()| {
+            Ok(this.inverse().map(LuaMultivector))
+        });
+        methods.add_method("inv", |_lua, Self(this), ()| {
             Ok(this.inverse().map(LuaMultivector))
         });
 

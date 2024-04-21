@@ -1,10 +1,12 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use hypermath::{approx_eq, Isometry};
 use parking_lot::Mutex;
 
 use super::*;
 use crate::builder::{NamingScheme, TwistBuilder, TwistSystemBuilder};
+use crate::lua::lua_warn_fn;
 use crate::puzzle::Twist;
 
 /// Lua handle to a twist system under construction.
@@ -71,49 +73,160 @@ impl<'lua> LuaNamedIdDatabase<'lua, Twist> for TwistSystemBuilder {
 
 impl LuaTwistSystem {
     /// Adds a new twist.
-    fn add<'lua>(&self, lua: &'lua Lua, data: LuaTable<'lua>) -> LuaResult<LuaTwist> {
-        let axis_prefix: Option<bool>;
-        let name: Option<String>;
-        let inv_name: Option<String>;
-        let inverse: Option<bool>;
+    fn add<'lua>(&self, lua: &'lua Lua, data: LuaTable<'lua>) -> LuaResult<Option<LuaTwist>> {
         let axis: LuaAxis;
         let transform: LuaTransform;
+        let multipliers: Option<bool>;
+        let prefix: Option<String>;
+        let name: Option<String>;
+        let suffix: Option<String>;
+        let inv_name: Option<String>;
+        let inv_suffix: Option<String>;
+        let inverse: Option<bool>;
+        let name_fn: Option<LuaFunction<'_>>;
 
         unpack_table!(lua.unpack(data {
-            axis_prefix,
-            name,
-            inv_name,
-            inverse,
             axis,
             transform,
+            multipliers,
+            prefix,
+            name,
+            suffix,
+            inv_name,
+            inv_suffix,
+            inverse,
+            name_fn,
         }));
 
-        let mut name = name.unwrap_or_default();
-        if axis_prefix.unwrap_or(true) {
-            match axis.name() {
-                Some(axis_name) => name.insert_str(0, &axis_name),
-                None => {
-                    if crate::lua::first_warning(lua, "autonamed_twist_with_no_axis_name") {
-                        lua.warning("cannot name twist without having named axis", true);
-                        lua.warning(
-                            "consider calling axes:autoname() \
-                             or using axis_prefix=false",
-                            false,
-                        );
-                    }
+        let do_naming = prefix.is_some()
+            || name.is_some()
+            || suffix.is_some()
+            || inv_name.is_some()
+            || inv_suffix.is_some()
+            || name_fn.is_some();
+
+        let inverse = inverse.unwrap_or(false);
+        let multipliers = multipliers.unwrap_or(false);
+
+        let suffix = suffix.unwrap_or_default();
+        let inv_suffix = inv_suffix.unwrap_or_else(|| match &inv_name {
+            Some(_) => suffix.clone(),
+            None => "'".to_string(),
+        });
+
+        if name_fn.is_some() && (name.is_some() || inv_name.is_some()) {
+            return Err(LuaError::external(
+                "when `name_fn` is specified, `name` and `inv_name` must not be specified",
+            ));
+        }
+
+        let prefix = prefix.unwrap_or_default();
+        let name = name.unwrap_or_default();
+        let inv_name = inv_name.unwrap_or_else(|| name.clone());
+
+        let mut twists = self.0.lock();
+        let axis = axis.id;
+
+        let base_transform = transform.0;
+
+        let get_name = |i: i32| {
+            if let Some(name_fn) = &name_fn {
+                name_fn.call(i)
+            } else if do_naming {
+                match i {
+                    1 => Ok(format!("{prefix}{name}{suffix}")),
+                    -1 => Ok(format!("{prefix}{inv_name}{inv_suffix}")),
+                    2.. => Ok(format!("{prefix}{name}{i}{suffix}")),
+                    ..=-2 => Ok(format!("{prefix}{inv_name}{}{inv_suffix}", -i)),
+                    0 => Err(LuaError::external("bad twist multiplier")),
                 }
+            } else {
+                Ok(String::new())
+            }
+        };
+
+        let transform = base_transform.clone();
+        let Some(first_twist_id) = twists
+            .add_named(
+                TwistBuilder { axis, transform },
+                get_name(1)?,
+                lua_warn_fn(lua),
+            )
+            .into_lua_err()?
+        else {
+            return Ok(None);
+        };
+        if inverse {
+            let transform = base_transform.reverse();
+            twists
+                .add_named(
+                    TwistBuilder { axis, transform },
+                    get_name(-1)?,
+                    lua_warn_fn(lua),
+                )
+                .into_lua_err()?;
+        }
+
+        let mut previous_transform = base_transform.clone();
+        for i in 2.. {
+            if !multipliers {
+                break;
+            }
+
+            // Check whether we've exceeded the max repeat count.
+            if i > crate::MAX_TWIST_REPEAT as i32 {
+                return Err(LuaError::external(format!(
+                    "twist transform takes too long to repeat! exceeded maximum of {}",
+                    crate::MAX_TWIST_REPEAT,
+                )));
+            }
+
+            let transform = &previous_transform * &base_transform;
+
+            // Check whether we've reached the inverse.
+            if inverse {
+                if isometry_is_self_inverse(&previous_transform)
+                    || isometries_eq(&transform, &previous_transform.reverse())
+                {
+                    break;
+                }
+            } else {
+                if isometries_eq(&transform, &Isometry::ident()) {
+                    break;
+                }
+            }
+            previous_transform = transform.clone();
+
+            twists
+                .add_named(
+                    TwistBuilder { axis, transform },
+                    get_name(i)?,
+                    lua_warn_fn(lua),
+                )
+                .into_lua_err()?;
+
+            if inverse {
+                let transform = previous_transform.reverse();
+                twists
+                    .add_named(
+                        TwistBuilder { axis, transform },
+                        get_name(-i)?,
+                        lua_warn_fn(lua),
+                    )
+                    .into_lua_err()?;
             }
         }
 
-        let mut twists = self.0.lock();
-        let id = twists
-            .add(TwistBuilder {
-                axis: axis.id,
-                transform: transform.0,
-            })
-            .into_lua_err()?;
-        twists.names.set(id, Some(name)).into_lua_err()?;
-
-        Ok(twists.wrap_id(id))
+        Ok(Some(twists.wrap_id(first_twist_id)))
     }
+}
+
+fn isometries_eq(i: &Isometry, j: &Isometry) -> bool {
+    match Option::zip(i.canonicalize(), j.canonicalize()) {
+        Some((i, j)) => approx_eq(&i, &j),
+        None => true,
+    }
+}
+fn isometry_is_self_inverse(i: &Isometry) -> bool {
+    isometries_eq(i, &i.reverse())
 }

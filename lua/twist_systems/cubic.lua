@@ -20,14 +20,13 @@ twist_systems:add('ft_cubic', {
     local F = twists.axes.F
     local twist_rot = rot{fix = U, from = R, to = F}
     for transform, axis, twist_rot in sym:chiral():orbit(U, twist_rot) do
-      twists:add({
-        axis_prefix = true, -- this is default
-        name = "", -- this is default
-        inv_name = "'", -- this is default (not yet implemented)
-        inverse = true, -- this is default (not yet implemented)
+      twists:add{
         axis = axis,
         transform = twist_rot,
-      })
+        prefix = axis.name,
+        inverse = true,
+        multipliers = true,
+      }
     end
 
     -- Twist directions are not implemented yet.

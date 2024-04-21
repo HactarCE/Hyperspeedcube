@@ -8,7 +8,10 @@ use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
-use crate::builder::{CustomOrdering, NamingScheme};
+use crate::{
+    builder::{CustomOrdering, NamingScheme},
+    lua::lua_warn_fn,
+};
 
 /// Lua handle to an object in a collection, indexed by some ID.
 #[derive(Debug)]
@@ -177,7 +180,7 @@ where
 
         // Set the new names.
         for (k, v) in kv_pairs {
-            new_names.set(k, v).into_lua_err()?;
+            new_names.set(k, v, lua_warn_fn(lua));
         }
 
         Ok(new_names)
@@ -203,9 +206,11 @@ where
             let db = this.db.lock();
             Ok(db.names().get(this.id.clone()))
         });
-        fields.add_field_method_set("name", |_lua, this, new_name| {
+        fields.add_field_method_set("name", |lua, this, new_name| {
             let mut db = this.db.lock();
-            db.names_mut().set(this.id.clone(), new_name).into_lua_err()
+            db.names_mut()
+                .set(this.id.clone(), new_name, lua_warn_fn(lua));
+            Ok(())
         });
     }
 }

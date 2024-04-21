@@ -23,6 +23,14 @@ impl LuaUserData for LuaAxis {
         fields.add_field_method_get("layers", |_lua, this| {
             Ok(LuaLayerSystem { axis: this.clone() })
         });
+
+        fields.add_field_method_get("opposite", |_lua, this| {
+            let vector = this.vector()?;
+            Ok(this.db.lock().vector_to_id().get(&-vector).map(|&id| Self {
+                db: this.db.clone(),
+                id,
+            }))
+        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {

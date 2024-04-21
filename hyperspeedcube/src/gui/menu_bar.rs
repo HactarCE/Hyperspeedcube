@@ -88,6 +88,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::Keybinds);
         show_tab_toggle(ui, app_ui, Tab::Mousebinds);
         ui.separator();
+        // TODO: add "auto" mode that follows OS
         egui::global_dark_light_mode_buttons(ui);
     });
     ui.menu_button("Tools", |ui| {

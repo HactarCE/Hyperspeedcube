@@ -58,9 +58,7 @@ impl LuaLoader {
 
             if crate::CAPTURE_LUA_OUTPUT {
                 globals.raw_set("print", logger.lua_info_fn(&lua)?)?;
-                lua.set_warning_function(move |lua, msg, _to_continue| {
-                    Ok(logger.warn(crate::lua::current_filename(lua), msg))
-                });
+                lua.set_warning_function(move |lua, msg, _to_continue| Ok(logger.warn(lua, msg)));
             }
 
             for (module_name, module_source) in LUA_MODULES {
@@ -114,7 +112,7 @@ impl LuaLoader {
             if !file.is_loaded() {
                 if let Err(e) = self.load_file(&file.name) {
                     let e = e.context(format!("error loading file {:?}", file.name));
-                    self.logger.error(Some(file.name.clone()), e.to_string());
+                    self.logger.error(Some(file.name.clone()), e);
                 }
             }
         }

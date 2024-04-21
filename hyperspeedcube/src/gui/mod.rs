@@ -40,10 +40,12 @@ impl AppUi {
         // Initialize UI.
         let puzzle_view = Arc::new(Mutex::new(None));
         app.active_puzzle_view = Arc::downgrade(&puzzle_view);
-        let mut dock_state = egui_dock::DockState::new(vec![Tab::PuzzleView(puzzle_view)]);
+        let mut dock_state =
+            egui_dock::DockState::new(vec![Tab::PuzzleView(puzzle_view), Tab::LuaLogs]);
         let main = NodeIndex::root();
         let surface = dock_state.main_surface_mut();
-        let [main, left] = surface.split_left(main, 0.2, vec![Tab::PuzzleLibrary]);
+        let [main, left] =
+            surface.split_left(main, 0.2, vec![Tab::PuzzleLibrary, Tab::PuzzleControls]);
         surface.split_below(left, 0.7, vec![Tab::PuzzleInfo]);
         surface.split_right(main, 0.6, vec![Tab::View]);
 

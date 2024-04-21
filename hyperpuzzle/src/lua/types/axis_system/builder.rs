@@ -5,6 +5,7 @@ use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
 use crate::builder::{AxisSystemBuilder, CustomOrdering, NamingScheme};
+use crate::lua::lua_warn_fn;
 use crate::puzzle::Axis;
 
 /// Lua handle for an axis system under construction.
@@ -23,12 +24,13 @@ impl LuaUserData for LuaAxisSystem {
 
         methods.add_method("add", |lua, this, data| this.add(lua, data));
 
-        methods.add_method_mut("autoname", |_lua, this, ()| {
+        methods.add_method_mut("autoname", |lua, this, ()| {
             let autonames = crate::util::iter_uppercase_letter_names();
             let mut this = this.lock();
             let len = this.len();
-            this.names.autoname(len, autonames).into_lua_err()
-        })
+            this.names.autoname(len, autonames, lua_warn_fn(lua));
+            Ok(())
+        });
     }
 }
 
@@ -118,7 +120,7 @@ impl LuaAxisSystem {
             }
             None => {
                 let id = this.add(vector).into_lua_err()?;
-                this.names.set(id, name).into_lua_err()?;
+                this.names.set(id, name, lua_warn_fn(lua));
                 this.wrap_id(id).into_lua(lua)
             }
         }

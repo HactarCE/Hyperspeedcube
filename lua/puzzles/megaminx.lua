@@ -23,14 +23,13 @@ puzzles:add('megaminx', {
     local U = p.twists.axes[3]
     local F = p.twists.axes[2]
     local twist_rot = rot{fix = U, from = R, to = F}
-    for transform, axis, twist_rot in sym:chiral():orbit(U, twist_rot) do
+    for _, axis, twist_rot in sym:chiral():orbit(U, twist_rot) do
       p.twists:add({
-        axis_prefix = true, -- this is default
-        name = "", -- this is default
-        inv_name = "'", -- this is default (not yet implemented)
-        inverse = true, -- this is default (not yet implemented)
         axis = axis,
         transform = twist_rot,
+        prefix = axis.name,
+        inverse = true,
+        multipliers = true,
       })
     end
 

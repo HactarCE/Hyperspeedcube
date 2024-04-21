@@ -22,3 +22,5 @@ pub const PUZZLE_ENGINE_VERSION_STRING: &str =
 /// Whether to capture Lua `print()`, `warn()`, and `error()` to prevent them
 /// from going to stdout/stderr.
 const CAPTURE_LUA_OUTPUT: bool = cfg!(debug_assertions);
+
+const MAX_TWIST_REPEAT: usize = 50;

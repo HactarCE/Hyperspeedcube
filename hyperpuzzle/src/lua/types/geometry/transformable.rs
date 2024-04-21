@@ -12,7 +12,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::{AxisSystemBuilder, ShapeBuilder, TwistBuilder, TwistSystemBuilder};
+use crate::builder::{AxisSystemBuilder, ShapeBuilder, TwistSystemBuilder};
 
 /// Lua value that can be transformed by an isometry.
 ///
@@ -55,20 +55,24 @@ pub enum Transformable {
 }
 impl<'lua> FromLua<'lua> for Transformable {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        None.or_else(|| lua.unpack(value.clone()).and_then(Self::from_axis).ok())
-            .or_else(|| lua.unpack(value.clone()).and_then(Self::from_color).ok())
-            .or_else(|| lua.unpack(value.clone()).map(Self::Manifold).ok())
-            .or_else(|| lua.unpack(value.clone()).map(Self::Multivector).ok())
-            .or_else(|| lua.unpack(value.clone()).map(Self::Transform).ok())
-            .or_else(|| lua.unpack(value.clone()).and_then(Self::from_twist).ok())
-            .or_else(|| lua.unpack(value.clone()).map(Self::Vector).ok())
-            .ok_or_else(|| {
-                lua_convert_error(
-                    &value,
-                    "axis, color, manifold, multivector, transform, twist, \
+        if value.is_nil() {
+            None
+        } else {
+            None.or_else(|| lua.unpack(value.clone()).and_then(Self::from_axis).ok())
+                .or_else(|| lua.unpack(value.clone()).and_then(Self::from_color).ok())
+                .or_else(|| lua.unpack(value.clone()).map(Self::Manifold).ok())
+                .or_else(|| lua.unpack(value.clone()).map(Self::Multivector).ok())
+                .or_else(|| lua.unpack(value.clone()).map(Self::Transform).ok())
+                .or_else(|| lua.unpack(value.clone()).and_then(Self::from_twist).ok())
+                .or_else(|| lua.unpack(value.clone()).map(Self::Vector).ok())
+        }
+        .ok_or_else(|| {
+            lua_convert_error(
+                &value,
+                "axis, color, manifold, multivector, transform, twist, \
                      vector, or table containing only those types as values",
-                )
-            })
+            )
+        })
     }
 }
 impl Transformable {
@@ -129,10 +133,8 @@ impl Transformable {
             } => {
                 let db = Arc::clone(&db);
                 let db_guard = db.lock();
-                let id = *db_guard.data_to_id().get(&TwistBuilder {
-                    axis: *db_guard.axes.lock().vector_to_id().get(axis_vector)?,
-                    transform: transform.clone(),
-                })?;
+                let axis = *db_guard.axes.lock().vector_to_id().get(axis_vector)?;
+                let id = db_guard.data_to_id(axis, transform)?;
                 drop(db_guard);
                 Some(LuaTwist { id, db }.into_lua(lua))
             }

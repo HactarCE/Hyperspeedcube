@@ -62,13 +62,12 @@ fn colored_log_line(ui: &mut egui::Ui, line: &LuaLogLine) {
         LuaLogLevel::Warn => egui::Color32::GOLD,
         LuaLogLevel::Error => egui::Color32::LIGHT_RED,
     };
-    // let s = match &line.file {
-    //     Some(file) => format!("[{}] {}", file, line.msg),
-    //     None => format!("{}", line.msg),
-    // };
-    ui.label(
-        egui::RichText::new(&line.msg)
-            .color(color)
-            .text_style(egui::TextStyle::Monospace),
-    );
+    let text = egui::RichText::new(&line.msg).monospace().color(color);
+    let label = egui::Label::new(text);
+    if let Some(traceback) = &line.traceback {
+        ui.add(label.sense(egui::Sense::hover()))
+            .on_hover_text(egui::RichText::new(traceback).monospace());
+    } else {
+        ui.add(label);
+    }
 }
