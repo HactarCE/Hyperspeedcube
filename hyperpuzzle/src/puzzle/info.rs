@@ -102,6 +102,8 @@ pub struct FacetInfo {
 pub struct AxisInfo {
     /// Human-friendly name for the twist axis. (e.g, "U", "R", etc.)
     pub name: String,
+    /// Vector preserved by all twists of the axis.
+    pub vector: Vector,
     /// Layer.
     pub layers: PerLayer<LayerInfo>,
 }

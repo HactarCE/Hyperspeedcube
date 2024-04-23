@@ -1,7 +1,7 @@
 use std::collections::hash_map;
 use std::sync::{Arc, Weak};
 
-use eyre::{eyre, Result};
+use eyre::{eyre, OptionExt, Result};
 use hypermath::collections::generic_vec::IndexOutOfRange;
 use hypermath::collections::ApproxHashMap;
 use hypermath::prelude::*;
@@ -142,6 +142,10 @@ impl AxisSystemBuilder {
 
     /// Adds a new axis.
     pub fn add(&mut self, vector: Vector) -> Result<Axis> {
+        let vector = vector
+            .normalize()
+            .ok_or_eyre("axis vector cannot be zero")?;
+
         // Check that the vector isn't already taken.
         match self.vector_to_id.entry(vector.clone()) {
             hash_map::Entry::Occupied(_) => Err(eyre!("axis vector is already taken")),
@@ -166,9 +170,9 @@ impl AxisSystemBuilder {
         self.by_id.get_mut(id)
     }
 
-    /// Returns a map from vector to axis ID.
-    pub fn vector_to_id(&self) -> &ApproxHashMap<Vector, Axis> {
-        &self.vector_to_id
+    /// Returns an axis ID from its vector.
+    pub fn vector_to_id(&self, vector: impl VectorRef) -> Option<Axis> {
+        Some(*self.vector_to_id.get(&vector.normalize()?)?)
     }
 
     /// Returns an iterator over all the axes, in the canonical ordering.

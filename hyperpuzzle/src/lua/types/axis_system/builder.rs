@@ -44,7 +44,7 @@ impl<'lua> LuaIdDatabase<'lua, Axis> for AxisSystemBuilder {
             .or_else(|| self.value_to_id_by_index(lua, &value))
             .or_else(|| {
                 let LuaVector(v) = lua.unpack(value.clone()).ok()?;
-                self.vector_to_id().get(&v).copied().map(Ok)
+                self.vector_to_id(v).map(Ok)
             })
             .unwrap_or_else(|| lua_convert_err(&value, "axis, string, or integer index"))
     }

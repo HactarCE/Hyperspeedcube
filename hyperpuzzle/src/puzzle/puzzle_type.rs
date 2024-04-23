@@ -64,6 +64,10 @@ impl Puzzle {
         self.mesh.ndim()
     }
 
+    /// Returns the transform applied to pieces after a twist.
+    pub fn twist_transform(&self, twist: Twist) -> Isometry {
+        self.space.lock()[self.twists[twist].transform].clone()
+    }
     /// Returns the transform to apply to pieces during an animation.
     ///
     /// `t` ranges from `0.0` to `1.0`.

@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use bitvec::prelude::*;
 use cgmath::SquareMatrix;
+use float_ord::FloatOrd;
 use hypermath::prelude::*;
-use hyperpuzzle::{PerPiece, Piece, Puzzle, Sticker};
+use hyperpuzzle::{LayerMask, PerPiece, Piece, Puzzle, Sticker};
 use parking_lot::Mutex;
 
 use super::controller::PuzzleController;
@@ -40,8 +41,8 @@ impl PuzzleViewController {
         Arc::clone(&self.state.lock().puzzle_type())
     }
 
-    pub fn hover_state(&self) -> Option<HoverState> {
-        self.hover_state
+    pub fn hover_state(&self) -> Option<&HoverState> {
+        self.hover_state.as_ref()
     }
 
     /// Sets the hover state.
@@ -147,6 +148,69 @@ impl PuzzleViewController {
     pub(crate) fn reset_camera(&mut self) {
         self.rot = Isometry::ident();
     }
+
+    pub(crate) fn do_sticker_click(&self, direction: Sign) {
+        let mut state = self.state.lock();
+        let puzzle = state.puzzle_type();
+
+        if let Some(hov) = &self.hover_state {
+            if puzzle.ndim() == 3 {
+                // Only do a move if we are hovering a sticker.
+                if hov.sticker.is_none() {
+                    return;
+                }
+
+                // Find the axis aligned with the normal vector of this
+                // sticker.
+                let u = Blade::vector(&hov.u_tangent);
+                let v = Blade::vector(&hov.v_tangent);
+                let bivector = u ^ v;
+                let xyz = Blade::from(Term::unit(Axes::X | Axes::Y | Axes::Z));
+                let Some(target_vector) = (&bivector << xyz).to_vector().normalize() else {
+                    return;
+                };
+                // TODO: this assumes that the axis vectors are normalized,
+                //       which they are, but is that assumption documented or
+                //       enforced anywhere? it feels a little sus.
+                let Some(axis) = puzzle
+                    .axes
+                    .find(|_, axis_info| approx_eq(&axis_info.vector, &target_vector))
+                else {
+                    return;
+                };
+
+                // Find the twist that turns the least in the correct direction.
+                // TODO: search only twists on `axis`
+                let candidates = puzzle
+                    .twists
+                    .iter_filter(|twist, twist_info| twist_info.axis == axis);
+
+                // First, can we get the bivector to have the correct sign?
+                // for twist in candidates {
+                //     println!(
+                //         "{} ... {}",
+                //         puzzle.twists[twist].name,
+                //         puzzle.twist_transform(twist).mv().dot(bivector.mv())
+                //     );
+                // }
+                let best_twist = candidates.min_by_key(|&twist| {
+                    // `score` ranges from -1 to +1. If it's a positive number,
+                    // then the twist goes in the desired direction; if it's
+                    // negative, then it goes in the other direction. `score` is
+                    // larger if the twist travels through a larger angle:
+                    // - no rotation = 0
+                    // - 180-degree rotation = ±1
+                    let score = puzzle.twist_transform(twist).mv().dot(bivector.mv());
+                    (-Sign::from(score) * direction, FloatOrd(score.abs()))
+                });
+                if let Some(twist) = best_twist {
+                    state.do_twist(twist, LayerMask(1));
+                }
+            }
+        } else if puzzle.ndim() == 4 {
+            // TODO: 4D click controls
+        }
+    }
 }
 
 /// Returns data about triangles that contain the screen-space point `p`.
@@ -163,10 +227,14 @@ fn triangle_hovers<'a>(
         .filter_map(move |&vertex_ids| {
             let tri_verts @ [a, b, c] = vertex_ids.map(|i| vertex_3d_positions[i as usize]);
             let [qa, qb, qc] = triangle_hover_barycentric_coordinates(p, tri_verts)?;
+            let [ua, ub, uc] = vertex_ids.map(|i| puzzle.mesh.u_tangent(i as _));
+            let [va, vb, vc] = vertex_ids.map(|i| puzzle.mesh.v_tangent(i as _));
             Some(HoverState {
                 piece,
                 sticker,
                 z: qa * a.z + qb * b.z + qc * c.z,
+                u_tangent: ua * qa as _ + ub * qb as _ + uc * qc as _,
+                v_tangent: va * qa as _ + vb * qb as _ + vc * qc as _,
             })
         })
 }
@@ -222,9 +290,11 @@ fn triangle_area_2x([a, b, c]: [cgmath::Point2<f32>; 3]) -> f32 {
     cgmath::Matrix2::from_cols(b - a, b - c).determinant()
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HoverState {
     piece: Piece,
     sticker: Option<Sticker>,
     z: f32,
+    u_tangent: Vector,
+    v_tangent: Vector,
 }

@@ -198,6 +198,24 @@ impl Mesh {
 
         Ok(())
     }
+
+    /// Returns the position of the `i`th vertex.
+    pub fn vertex_position(&self, i: u32) -> Vector {
+        self.index_vertex_vector(&self.vertex_positions, i)
+    }
+    /// Returns the U tangent of the `i`th vertex.
+    pub fn u_tangent(&self, i: u32) -> Vector {
+        self.index_vertex_vector(&self.u_tangents, i)
+    }
+    /// Returns the V tangent of the `i`th vertex.
+    pub fn v_tangent(&self, i: u32) -> Vector {
+        self.index_vertex_vector(&self.v_tangents, i)
+    }
+    fn index_vertex_vector(&self, v: &[f32], i: u32) -> Vector {
+        let start = i as usize * self.ndim as usize;
+        let end = (i + 1) as usize * self.ndim as usize;
+        v[start..end].iter().map(|&x| x as _).collect()
+    }
 }
 
 #[derive(Debug, Copy, Clone)]

@@ -215,7 +215,9 @@ impl PuzzleBuilder {
             &axis_system.ordering,
             crate::util::iter_uppercase_letter_names(),
         ) {
-            let old_layers = &axis_system.get(old_id)?.layers;
+            let old_axis = axis_system.get(old_id)?;
+            let vector = old_axis.vector().clone();
+            let old_layers = &old_axis.layers;
 
             // Check that the manifolds are manotonic.
             let mut layer_manifolds = vec![];
@@ -245,7 +247,11 @@ impl PuzzleBuilder {
                 })
                 .collect();
 
-            let new_id = axes.push(AxisInfo { name, layers })?;
+            let new_id = axes.push(AxisInfo {
+                name,
+                vector,
+                layers,
+            })?;
 
             axis_map.insert(old_id, new_id);
         }

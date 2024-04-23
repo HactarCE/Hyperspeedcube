@@ -1,3 +1,5 @@
+--HSC v2.1.10
+
 local utils = require('utils')
 local cuboid_shapes = require('shapes/cuboids')
 
@@ -52,3 +54,5 @@ function make_cuboid_puzzle(p, q, r)
 end
 
 make_cuboid_puzzle(2, 3, 4)
+make_cuboid_puzzle(3, 1, 3)
+make_cuboid_puzzle(2, 3, 6)

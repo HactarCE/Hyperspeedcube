@@ -192,6 +192,14 @@ impl PuzzleView {
 
         view_ctrl.update_styles(prefs);
 
+        // Check for twist clicks.
+        if r.clicked() {
+            view_ctrl.do_sticker_click(Sign::Neg);
+        }
+        if r.secondary_clicked() {
+            view_ctrl.do_sticker_click(Sign::Pos);
+        }
+
         let dark_mode = ui.ctx().style().visuals.dark_mode;
         let background_color = crate::util::color_to_u8x3(prefs.styles.background_color(dark_mode));
         let internals_color = crate::util::color_to_u8x3(prefs.styles.internals_color);

@@ -25,8 +25,8 @@ impl LuaUserData for LuaAxis {
         });
 
         fields.add_field_method_get("opposite", |_lua, this| {
-            let vector = this.vector()?;
-            Ok(this.db.lock().vector_to_id().get(&-vector).map(|&id| Self {
+            let v = this.vector()?;
+            Ok(this.db.lock().vector_to_id(-v).map(|id| Self {
                 db: this.db.clone(),
                 id,
             }))
@@ -64,7 +64,7 @@ impl LuaAxis {
     /// transformed by `t`.
     pub fn transform(&self, t: &Isometry) -> LuaResult<Option<Self>> {
         let v = t.transform_vector(self.vector()?);
-        Ok(self.db.lock().vector_to_id().get(&v).map(|&id| {
+        Ok(self.db.lock().vector_to_id(v).map(|id| {
             let db = self.db.clone();
             Self { id, db }
         }))

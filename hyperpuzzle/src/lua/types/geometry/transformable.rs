@@ -105,7 +105,7 @@ impl Transformable {
         match self {
             Self::Axis { db, vector } => {
                 let db = Arc::clone(&db);
-                let id = *db.lock().vector_to_id().get(vector)?;
+                let id = db.lock().vector_to_id(vector)?;
                 Some(LuaAxis { id, db }.into_lua(lua))
             }
             Self::Color { db, blades } => {
@@ -135,7 +135,7 @@ impl Transformable {
             } => {
                 let db = Arc::clone(&db);
                 let db_guard = db.lock();
-                let axis = *db_guard.axes.lock().vector_to_id().get(axis_vector)?;
+                let axis = db_guard.axes.lock().vector_to_id(axis_vector)?;
                 let id = db_guard.data_to_id(axis, transform)?;
                 drop(db_guard);
                 Some(LuaTwist { id, db }.into_lua(lua))

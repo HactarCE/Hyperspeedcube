@@ -333,6 +333,10 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     ) -> impl 'a + Iterator<Item = I> + DoubleEndedIterator {
         self.iter_keys().filter(move |&i| pred(i, &self[i]))
     }
+    /// Returns the first key for which a predicate returns `true`.
+    pub fn find<'a>(&'a self, pred: impl FnMut(I, &E) -> bool) -> Option<I> {
+        self.iter_filter(pred).next()
+    }
 
     /// Applies a function to every value in the collection and returns a new
     /// collection.
