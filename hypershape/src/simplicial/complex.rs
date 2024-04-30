@@ -58,8 +58,8 @@ impl<'space> SimplicialComplex<'space> {
         }
 
         let mut sum = Centroid::ZERO;
-        for simplex in self.simplices(polytope)?.iter() {
-            if let Some(blade) = self.blade_of_simplex(simplex) {
+        for simplex in self.simplices(polytope)? {
+            if let Some(blade) = self.blade_of_simplex(&simplex) {
                 // The center of a simplex is the average of its vertices.
                 let verts = simplex.vertices();
                 let center: Vector =
@@ -71,7 +71,7 @@ impl<'space> SimplicialComplex<'space> {
         Ok(sum)
     }
     fn blade_of_simplex(&self, simplex: &Simplex) -> Option<pga::Blade> {
-        let ndim = simplex.ndim().ok()?;
+        let ndim = self.space.ndim();
 
         let mut remaining_verts = simplex.vertices().iter().map(|i| &self.space[i]);
         let init = remaining_verts.next()?;
