@@ -1,5 +1,6 @@
 //! Multidimensional vector, matrix, and conformal geometric algebra primitives.
 
+pub use approx;
 pub use {num_traits as num, smallvec};
 
 /// Floating-point type used for geometry (either `f32` or `f64`).
@@ -18,7 +19,7 @@ pub const MAX_NDIM: u8 = 10;
 #[macro_export]
 macro_rules! assert_approx_eq {
     ($a:expr, $b:expr $(,)?) => {
-        approx::assert_abs_diff_eq!($a, $b, epsilon = $crate::EPSILON)
+        $crate::approx::assert_abs_diff_eq!($a, $b, epsilon = $crate::EPSILON)
     };
 }
 
