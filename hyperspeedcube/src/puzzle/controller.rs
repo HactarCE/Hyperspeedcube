@@ -18,29 +18,43 @@ pub struct PuzzleController {
     blocking_pieces: BlockingPiecesAnimationState,
     /// Time of last frame, or `None` if we are not in the middle of an animation.
     last_frame_time: Option<Instant>,
+
+    /// Latest visual piece transforms.
+    cached_piece_transforms: PerPiece<Motor>,
 }
 impl PuzzleController {
     pub fn new(puzzle: &Arc<Puzzle>) -> Self {
+        let puzzle = PuzzleState::new(Arc::clone(puzzle));
+        let cached_piece_transforms = puzzle.piece_transforms().clone();
         Self {
-            puzzle: PuzzleState::new(Arc::clone(puzzle)),
+            puzzle,
 
             twist_anim: TwistAnimationState::default(),
             blocking_pieces: BlockingPiecesAnimationState::default(),
             last_frame_time: None,
+
+            cached_piece_transforms,
         }
     }
 
+    pub fn puzzle(&self) -> &PuzzleState {
+        &self.puzzle
+    }
     pub fn puzzle_type(&self) -> &Arc<Puzzle> {
         self.puzzle.ty()
     }
 
-    pub fn peice_transforms(&self) -> PerPiece<Motor> {
-        if let Some((anim, t)) = self.twist_anim.current() {
-            anim.state
-                .animated_piece_transforms(anim.twist, anim.layers, t as _)
-        } else {
-            self.puzzle.piece_transforms().clone()
-        }
+    pub fn piece_transforms(&self) -> &PerPiece<Motor> {
+        &self.cached_piece_transforms
+    }
+    fn update_piece_transforms(&mut self) {
+        self.cached_piece_transforms = match self.twist_anim.current() {
+            Some((anim, t)) => {
+                anim.state
+                    .animated_piece_transforms(anim.twist, anim.layers, t as _)
+            }
+            None => self.puzzle.piece_transforms().clone(),
+        };
     }
 
     pub fn do_twist(&mut self, twist: Twist, layers: LayerMask) {
@@ -85,7 +99,10 @@ impl PuzzleController {
         //     }
         // }
 
-        needs_redraw |= self.twist_anim.proceed(delta, &prefs.interaction);
+        if self.twist_anim.proceed(delta, &prefs.interaction) {
+            self.update_piece_transforms();
+            needs_redraw = true;
+        }
         needs_redraw |= self.blocking_pieces.proceed(&prefs.interaction);
 
         if needs_redraw {

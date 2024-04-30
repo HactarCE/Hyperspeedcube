@@ -6,7 +6,6 @@ use std::ops::Range;
 use std::sync::{Arc, Weak};
 
 use eyre::{bail, OptionExt, Result};
-use float_ord::FloatOrd;
 use hypermath::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
@@ -177,6 +176,7 @@ impl PuzzleBuilder {
                         &mut simplices,
                         &sticker_shrink_vectors,
                         sticker.polytope,
+                        &piece_centroid,
                         piece_id,
                         facet_id,
                     )?;
@@ -516,6 +516,7 @@ fn build_shape_polygons(
     simplices: &mut SimplicialComplex<'_>,
     sticker_shrink_vectors: &HashMap<VertexId, Vector>,
     sticker_shape: PolytopeId,
+    piece_centroid: &Vector,
     piece_id: Piece,
     facet_id: Facet,
 ) -> Result<(Range<usize>, Range<u32>, Range<u32>)> {
@@ -526,29 +527,29 @@ fn build_shape_polygons(
     for polygon in space.subelements_with_rank(sticker_shape, 2) {
         let polygon_id = mesh.next_polygon_id()?;
 
-        // Get the tangent space so that we can compute tangent vectors
-        // for each vertex.
-        let vertex_set = space.vertex_set(polygon);
-        let initial_vertex = vertex_set.iter().next().ok_or_eyre("empty polygon!")?;
-        let u_tangent = vertex_set
-            .iter()
-            .map(|u| &space[u] - &space[initial_vertex])
-            .max_by_key(|u| FloatOrd(u.mag2()))
-            .and_then(|u| u.normalize())
-            .ok_or_eyre("no tangent vector")?;
-        let v_tangent = vertex_set
-            .iter()
-            .map(|v| &space[v] - &space[initial_vertex])
-            .filter_map(|v| v.rejected_from(&u_tangent))
-            .max_by_key(|v| FloatOrd(v.mag2()))
-            .and_then(|v| v.normalize())
-            .ok_or_eyre("no tangent vector")?;
+        // Triangulate the polygon.
+        let tris = simplices.triangles(polygon)?;
+
+        // Compute tangent vectors.
+        let basis = simplices.basis_for_polytope(polygon)?;
+        if basis.len() != 2 {
+            bail!("bad basis: expected 2 vectors but got {}", basis.len());
+        }
+        let mut u_tangent = &basis[0];
+        let mut v_tangent = &basis[1];
+        // Ensure that tangent vectors face the right way in 3D.
+        let mut normal = vector![];
+        if space.ndim() == 3 {
+            let init = space.arbitrary_vertex(polygon);
+            normal = u_tangent.cross_product_3d(&v_tangent);
+            if normal.dot(&space[init] - &piece_centroid) < 0.0 {
+                normal = -normal;
+                std::mem::swap(&mut u_tangent, &mut v_tangent)
+            }
+        }
 
         #[cfg(debug_assertions)]
         hypermath::assert_approx_eq!(u_tangent.dot(&v_tangent), 0.0);
-
-        // Triangulate the polygon.
-        let tris = simplices.triangles(polygon)?;
 
         // The simplices and mesh each have their own set of vertex IDs, so
         // we need to be able to map between them.
@@ -578,6 +579,16 @@ fn build_shape_polygons(
                     }
                 };
             }
+
+            // Ensure that triangles face the right way in 3D.
+            if space.ndim() == 3 {
+                let [a, b, c] = new_vertex_ids.map(|i| mesh.vertex_position(i));
+                let tri_normal = Vector::cross_product_3d(&(&c - b), &(&c - a));
+                if normal.dot(tri_normal) < 0.0 {
+                    new_vertex_ids.swap(0, 1);
+                }
+            }
+
             mesh.triangles.push(new_vertex_ids);
         }
 

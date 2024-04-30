@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use eyre::{bail, Result};
+use eyre::{bail, OptionExt, Result};
+use float_ord::FloatOrd;
 use hypermath::pga::Blade;
 use hypermath::prelude::*;
 use itertools::Itertools;
@@ -56,30 +57,30 @@ impl<'space> SimplicialComplex<'space> {
             return Ok(result.clone());
         }
 
-        let ndim = self.space.ndim();
-
         let mut sum = Centroid::ZERO;
         for simplex in self.simplices(polytope)?.iter() {
-            let verts = simplex.vertices();
+            if let Some(blade) = self.blade_of_simplex(simplex) {
+                // The center of a simplex is the average of its vertices.
+                let verts = simplex.vertices();
+                let center: Vector =
+                    verts.iter().map(|i| &self.space[i]).sum::<Vector>() / verts.len() as Float;
 
-            // Take the average of the vertices of the simplex.
-            let center: Vector = verts.iter().map(|i| &self.space[i]).sum::<Vector>()
-                / (simplex.ndim()? + 1) as Float;
-            let mut remaining_verts = verts.iter().map(|i| &self.space[i]);
-            let Some(init) = remaining_verts.next() else {
-                continue;
-            };
-
-            // This is scaled by some factor depending on the number of
-            // dimensions but that's fine.
-            if let Some(blade) = remaining_verts
-                .map(|v| Blade::from_vector(ndim, v - init))
-                .try_fold(Blade::one(ndim), |a, b| Blade::wedge(&a, &b))
-            {
                 sum += Centroid::new(&center, blade.mag());
             }
         }
         Ok(sum)
+    }
+    fn blade_of_simplex(&self, simplex: &Simplex) -> Option<pga::Blade> {
+        let ndim = simplex.ndim().ok()?;
+
+        let mut remaining_verts = simplex.vertices().iter().map(|i| &self.space[i]);
+        let init = remaining_verts.next()?;
+
+        // This is scaled by some factor depending on the number of
+        // dimensions but that's fine.
+        remaining_verts
+            .map(|v| Blade::from_vector(ndim, v - init))
+            .try_fold(Blade::one(ndim), |a, b| Blade::wedge(&a, &b))
     }
 
     /// Returns a simplicial complex representing a polytope.
@@ -127,5 +128,30 @@ impl<'space> SimplicialComplex<'space> {
             .flatten()
             .filter_map(|simplex| simplex.try_into_array())
             .collect())
+    }
+
+    /// Returns a basis for a polytope.
+    pub fn basis_for_polytope(&mut self, polytope: PolytopeId) -> Result<Vec<Vector>> {
+        let simplices = self.simplices(polytope)?;
+        let simplex = simplices
+            .iter()
+            .max_by_key(|simplex| match self.blade_of_simplex(simplex) {
+                Some(blade) => FloatOrd(blade.mag2()),
+                None => FloatOrd(0.0),
+            })
+            .ok_or_eyre("error converting polytope to simplices")?;
+        let mut verts = simplex.vertices().iter();
+        let initial_vertex = &self.space[verts.next().ok_or_eyre("degenerate simplex")?];
+        let non_orthogonal_basis = verts.map(|v| &self.space[v] - initial_vertex);
+
+        // Do Gram-Schmidt orthogonalization to get an orthonormal basis.
+        let mut basis = vec![];
+        for mut v in non_orthogonal_basis {
+            for b in &basis {
+                v = v.rejected_from(b).ok_or_eyre("degenerate simplex")?;
+            }
+            basis.push(v.normalize().ok_or_eyre("degenerate simplex")?);
+        }
+        Ok(basis)
     }
 }

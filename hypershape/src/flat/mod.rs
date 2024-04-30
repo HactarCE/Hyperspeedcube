@@ -45,7 +45,7 @@ pub struct Space {
     polytopes: GenericVec<PolytopeId, PolytopeData>,
     polytope_data_to_id: HashMap<PolytopeData, PolytopeId>,
 
-    cached_blades: Mutex<HashMap<PolytopeId, pga::Blade>>,
+    cached_subspaces: Mutex<HashMap<PolytopeId, (Vec<Vector>, pga::Blade)>>,
     cached_vertex_set: Mutex<HashMap<PolytopeId, VertexSet>>,
 
     cached_which_side_has_polytope: ApproxHashMap<Hyperplane, HashMap<PolytopeId, WhichSide>>,
@@ -92,7 +92,7 @@ impl Space {
             polytopes: GenericVec::new(),
             polytope_data_to_id: HashMap::new(),
 
-            cached_blades: Mutex::new(HashMap::new()),
+            cached_subspaces: Mutex::new(HashMap::new()),
             cached_vertex_set: Mutex::new(HashMap::new()),
 
             cached_which_side_has_polytope: ApproxHashMap::new(),
@@ -408,6 +408,14 @@ impl Space {
         result
     }
 
+    /// Returns an arbitrary vertex on the polytope.
+    pub fn arbitrary_vertex(&self, polytope: PolytopeId) -> VertexId {
+        self.vertex_set(polytope)
+            .iter()
+            .next()
+            .expect("degenerate polytope")
+    }
+
     /// Returns the hyperplane in which a facet lives. Returns an error if the
     /// polytope is not a facet (rank `ndim-1`).
     pub fn hyperplane_of_facet(&self, facet: PolytopeId) -> Result<Hyperplane> {
@@ -416,49 +424,72 @@ impl Space {
         if expected_rank != actual_rank {
             bail!("expected polytope with rank {expected_rank}; got {actual_rank}");
         }
-        self.subspace_of_polytope(facet)?
+        self.blade_for_subspace_of_polytope(facet)?
             .to_hyperplane()
             .ok_or_eyre("error converting polytope subspace to hyperplane")
     }
 
+    /// Returns a basis for the smallest subspace in which the polytope lives.
+    /// The result is cached.
+    pub fn basis_for_subspace_of_polytope(&self, polytope: PolytopeId) -> Result<Vec<Vector>> {
+        let (basis, _blade) = self.basis_and_blade_for_subspace_of_polytope(polytope)?;
+        Ok(basis)
+    }
     /// Returns a PGA blade representing the smallest subspace in which a
-    /// polytope lives.
-    pub fn subspace_of_polytope(&self, polytope: PolytopeId) -> Result<pga::Blade> {
+    /// polytope lives. The result is cached.
+    pub fn blade_for_subspace_of_polytope(&self, polytope: PolytopeId) -> Result<pga::Blade> {
+        let (_basis, blade) = self.basis_and_blade_for_subspace_of_polytope(polytope)?;
+        Ok(blade)
+    }
+    // TODO: this seems broken; remove it
+    fn basis_and_blade_for_subspace_of_polytope(
+        &self,
+        polytope: PolytopeId,
+    ) -> Result<(Vec<Vector>, pga::Blade)> {
         let ndim = self.ndim;
 
-        if let Some(result) = self.cached_blades.lock().get(&polytope) {
+        if let Some(result) = self.cached_subspaces.lock().get(&polytope) {
             return Ok(result.clone());
         }
 
         let result = match &self[polytope] {
-            PolytopeData::Vertex(p) => pga::Blade::from_point(ndim, &self[*p]),
+            PolytopeData::Vertex(p) => (vec![], pga::Blade::from_point(ndim, &self[*p])),
             PolytopeData::Polytope { boundary, .. } => {
                 let boundary = boundary.clone();
-                let blades: Vec<_> = boundary
-                    .iter()
-                    .map(|b| self.subspace_of_polytope(b))
-                    .try_collect()?;
                 // Select the blade with the largest magnitude -- this indicates
                 // a good confidence in its value.
-                let best_blade = blades
+                let (mut basis, old_blade) = boundary
+                    .iter()
+                    .map(|b| self.basis_and_blade_for_subspace_of_polytope(b))
+                    .collect::<Result<Vec<_>>>()?
                     .into_iter()
-                    .filter(|blade| !blade.is_zero())
-                    .max_by_key(|blade| FloatOrd(blade.mag2()))
+                    .max_by_key(|(_basis, blade)| FloatOrd(blade.mag2()))
                     .ok_or_eyre("degenerate polytope")?;
                 // Try to wedge with every vertex and take the one with the
                 // largest magnitude.
-                self.vertex_set(polytope)
+                let (new_vertex, new_point, new_blade) = self
+                    .vertex_set(polytope)
                     .iter()
                     .filter_map(|v| {
-                        pga::Blade::wedge(&best_blade, &pga::Blade::from_point(ndim, &self[v]))
+                        let new_point = pga::Blade::from_point(ndim, &self[v]);
+                        let new_blade = pga::Blade::wedge(&old_blade, &new_point)?;
+                        Some((v, new_point, new_blade))
                     })
-                    .filter(|blade| !blade.is_zero())
-                    .max_by_key(|blade| FloatOrd(blade.mag2()))
-                    .ok_or_eyre("degenerate polytope")?
+                    .max_by_key(|(_, _, b)| FloatOrd(b.mag2()))
+                    .ok_or_eyre("degenerate polytope")?;
+                let new_point_projected = new_point
+                    .orthogonal_projection_to(&old_blade)
+                    .and_then(|b| b.to_vector())
+                    .ok_or_eyre("degenerate polytope")?;
+                let new_vector = &self[new_vertex] - new_point_projected;
+                basis.push(new_vector.normalize().ok_or_eyre("degenerate polytope")?);
+                (basis, new_blade)
             }
         };
 
-        self.cached_blades.lock().insert(polytope, result.clone());
+        self.cached_subspaces
+            .lock()
+            .insert(polytope, result.clone());
         Ok(result)
     }
 

@@ -116,7 +116,10 @@ impl Motor {
         let mid = a.scale(cos) + b.scale(sin);
         Self::from_normalized_vector_product(ndim, a, mid)
     }
-    fn from_normalized_vector_product(ndim: u8, a: impl VectorRef, b: impl VectorRef) -> Self {
+    /// Constructs a rotation motor (also called a "rotor") from one vector to
+    /// another by twice the angle between them. `from` and `to` **must** be
+    /// unit vectors.
+    pub fn from_normalized_vector_product(ndim: u8, a: impl VectorRef, b: impl VectorRef) -> Self {
         Self::normalized_vector_reflection(ndim, b) * Self::normalized_vector_reflection(ndim, a)
     }
 

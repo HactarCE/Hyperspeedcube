@@ -1,6 +1,8 @@
 use std::fmt;
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Neg, Sub, SubAssign};
 
+use float_ord::FloatOrd;
+
 use super::{Axes, Term};
 use crate::{approx_eq, is_approx_nonzero, Float, Hyperplane, Vector, VectorRef};
 
@@ -419,6 +421,31 @@ impl Blade {
             Some(Blade::wedge(&bivector, &e0)?.antidual())
         } else {
             None
+        }
+    }
+
+    /// Returns a basis for the subspace represented by a blade.
+    pub fn basis(&self) -> Vec<Vector> {
+        let ndim = self.ndim;
+        let rest = self.clone();
+        let mut ret = vec![];
+        // Set up a bitmask of remaining axes.
+        let mut axes_left = ((1 as u8) << ndim) - 1;
+        loop {
+            let Some((axis, v)) = crate::util::iter_ones(axes_left)
+                .filter_map(|ax| {
+                    let v = Vector::unit(ax as u8);
+                    Some((
+                        ax as u8,
+                        Blade::from_vector(ndim, v).orthogonal_projection_to(&rest)?,
+                    ))
+                })
+                .max_by_key(|(_, blade)| FloatOrd(blade.mag2()))
+            else {
+                return ret;
+            };
+            axes_left &= !(1 << axis);
+            ret.extend(v.to_vector());
         }
     }
 }

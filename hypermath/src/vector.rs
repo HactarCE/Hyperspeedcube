@@ -69,6 +69,15 @@ pub trait VectorRef: Sized + fmt::Debug {
             .map(|(l, r)| l * r)
             .sum()
     }
+    /// Returns the cross product of two vectors in 3D. Components besides XYZ
+    /// are ignored.
+    fn cross_product_3d(&self, rhs: impl VectorRef) -> Vector {
+        vector![
+            self.get(1) * rhs.get(2) - self.get(2) * rhs.get(1),
+            self.get(2) * rhs.get(0) - self.get(0) * rhs.get(2),
+            self.get(0) * rhs.get(1) - self.get(1) * rhs.get(0),
+        ]
+    }
 
     /// Pads the vector with zeros up to `ndim`.
     #[must_use]

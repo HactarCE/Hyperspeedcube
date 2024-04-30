@@ -1,5 +1,5 @@
 use super::*;
-use crate::{Hyperplane, Vector};
+use crate::{Hyperplane, Vector, VectorRef};
 
 #[test]
 fn test_cross_product() {
@@ -8,6 +8,10 @@ fn test_cross_product() {
     let b = Blade::from_vector(ndim, Vector::unit(1));
     let cross = Blade::cross_product_3d(&a, &b).unwrap();
     assert_approx_eq!(cross, Blade::from_vector(ndim, Vector::unit(2)));
+    assert_approx_eq!(
+        Vector::unit(0).cross_product_3d(Vector::unit(1)),
+        Vector::unit(2),
+    );
 }
 
 #[test]

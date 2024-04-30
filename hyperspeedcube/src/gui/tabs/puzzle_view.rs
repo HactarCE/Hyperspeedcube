@@ -217,7 +217,7 @@ impl PuzzleView {
             background_color,
             internals_color,
             piece_styles: view_ctrl.styles.values(&prefs.styles),
-            piece_transforms: view_ctrl.state.lock().peice_transforms().map_ref(
+            piece_transforms: view_ctrl.state.lock().piece_transforms().map_ref(
                 |_piece, transform| transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim()),
             ),
         };

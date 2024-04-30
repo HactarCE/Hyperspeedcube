@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use bitvec::prelude::*;
 use cgmath::SquareMatrix;
+use float_ord::FloatOrd;
 use hypermath::pga::*;
 use hypermath::prelude::*;
 use hyperpuzzle::{LayerMask, PerPiece, Piece, Puzzle, Sticker};
@@ -165,37 +166,29 @@ impl PuzzleViewController {
 
                 // Find the axis aligned with the normal vector of this
                 // sticker.
-                let u = Blade::from_vector(ndim, &hov.u_tangent);
-                let v = Blade::from_vector(ndim, &hov.v_tangent);
-                let Some(target_vector) =
-                    Blade::cross_product_3d(&u, &v).and_then(|b| b.to_vector())
-                else {
-                    return;
-                };
+                let [u, v] = hov.tangent_vectors(&state);
+                let target_vector = Vector::cross_product_3d(&u, &v);
                 // TODO: this assumes that the axis vectors are normalized,
                 //       which they are, but is that assumption documented or
                 //       enforced anywhere? it feels a little sus.
-                let Some(axis) = puzzle
-                    .axes
-                    .find(|_, axis_info| approx_eq(&axis_info.vector, &target_vector))
-                else {
+                let Some(axis) = puzzle.axes.find(|_, axis_info| {
+                    axis_info
+                        .vector
+                        .normalize()
+                        .is_some_and(|v| approx_eq(&v, &target_vector))
+                }) else {
                     return;
                 };
 
                 // Find the twist that turns the least in the correct direction.
                 // TODO: search only twists on `axis`
-                let candidates = puzzle
-                    .twists
-                    .iter_filter(|twist, twist_info| twist_info.axis == axis);
+                let candidates = puzzle.twists.iter_filter(|_, info| info.axis == axis);
 
-                // First, can we get the bivector to have the correct sign?
-                // for twist in candidates {
-                //     println!(
-                //         "{} ... {}",
-                //         puzzle.twists[twist].name,
-                //         puzzle.twist_transform(twist).mv().dot(bivector.mv())
-                //     );
-                // }
+                // Aim for a 180 degree counterclockwise rotation around the axis.
+                let target = match hov.backface {
+                    false => Motor::from_normalized_vector_product(ndim, &u, &v),
+                    true => Motor::from_normalized_vector_product(ndim, &v, &u),
+                };
                 let best_twist = candidates.min_by_key(|&twist| {
                     // `score` ranges from -1 to +1. If it's a positive number,
                     // then the twist goes in the desired direction; if it's
@@ -203,10 +196,8 @@ impl PuzzleViewController {
                     // larger if the twist travels through a larger angle:
                     // - no rotation = 0
                     // - 180-degree rotation = ±1
-
-                    todo!("oops! didn't impl")
-                    // let score = puzzle.twists[twist].transform.mv().dot(bivector.mv());
-                    // (-Sign::from(score) * direction, FloatOrd(score.abs()))
+                    let score = Motor::dot(&puzzle.twists[twist].transform, &target);
+                    (Sign::from(score) * direction, FloatOrd(score.abs()))
                 });
                 if let Some(twist) = best_twist {
                     state.do_twist(twist, LayerMask(1));
@@ -231,21 +222,23 @@ fn triangle_hovers<'a>(
         .iter()
         .filter_map(move |&vertex_ids| {
             let tri_verts @ [a, b, c] = vertex_ids.map(|i| vertex_3d_positions[i as usize]);
-            let [qa, qb, qc] = triangle_hover_barycentric_coordinates(p, tri_verts)?;
-            let [ua, ub, uc] = vertex_ids.map(|i| puzzle.mesh.u_tangent(i as _));
-            let [va, vb, vc] = vertex_ids.map(|i| puzzle.mesh.v_tangent(i as _));
+            let (barycentric_coords @ [qa, qb, qc], backface) =
+                triangle_hover_barycentric_coordinates(p, tri_verts)?;
             Some(HoverState {
                 piece,
                 sticker,
                 z: qa * a.z + qb * b.z + qc * c.z,
-                u_tangent: ua * qa as _ + ub * qb as _ + uc * qc as _,
-                v_tangent: va * qa as _ + vb * qb as _ + vc * qc as _,
+                backface,
+                vertex_ids,
+                barycentric_coords,
             })
         })
 }
 
 /// Returns the perspective-correct barycentric coordinates for the point `p` in
-/// triangle `tri`. The Z coordinate is ignored; only X, Y, and W are used.
+/// triangle `tri`, and a boolean indicating whether the triangle's backface is
+/// visible (as opposed to its frontface). The Z coordinate is ignored; only X,
+/// Y, and W are used.
 ///
 /// Returns `None` if the point is not in the triangle.
 ///
@@ -254,7 +247,7 @@ fn triangle_hovers<'a>(
 fn triangle_hover_barycentric_coordinates(
     p: cgmath::Point2<f32>,
     tri: [cgmath::Vector4<f32>; 3],
-) -> Option<[f32; 3]> {
+) -> Option<([f32; 3], bool)> {
     // If any vertex is culled, skip it.
     if tri.iter().any(|p| p.w == 0.0) {
         return None;
@@ -277,7 +270,7 @@ fn triangle_hover_barycentric_coordinates(
     let qb = triangle_area_2x([a, p, c]) * recip_total_area;
     let qc = triangle_area_2x([a, b, p]) * recip_total_area;
     // If the point is inside the triangle ...
-    (qa > 0.0 && qb > 0.0 && qc > 0.0).then(|| {
+    let [ra, rb, _rc] = (qa > 0.0 && qb > 0.0 && qc > 0.0).then(|| {
         let [a, b, c] = tri;
         // ... then compute the perspective-correct W value
         let w = qa * a.w + qb * b.w + qc * c.w;
@@ -288,7 +281,10 @@ fn triangle_hover_barycentric_coordinates(
             out.reverse();
         }
         out
-    })
+    })?;
+
+    // Ensure that the barycentric coordinates add to *exactly* one.
+    Some(([ra, rb, 1.0 - ra - rb], rev))
 }
 
 fn triangle_area_2x([a, b, c]: [cgmath::Point2<f32>; 3]) -> f32 {
@@ -299,7 +295,23 @@ fn triangle_area_2x([a, b, c]: [cgmath::Point2<f32>; 3]) -> f32 {
 pub struct HoverState {
     piece: Piece,
     sticker: Option<Sticker>,
+    /// Screen-space Z coordinate.
     z: f32,
-    u_tangent: Vector,
-    v_tangent: Vector,
+    /// Whether the triangle is being hovered from behind.
+    backface: bool,
+    vertex_ids: [u32; 3],
+    barycentric_coords: [f32; 3],
+}
+impl HoverState {
+    pub fn tangent_vectors(&self, puzzle: &PuzzleController) -> [Vector; 2] {
+        let mesh = &puzzle.puzzle_type().mesh;
+        let [qa, qb, qc] = self.barycentric_coords;
+        let [ua, ub, uc] = self.vertex_ids.map(|i| mesh.u_tangent(i as _));
+        let [va, vb, vc] = self.vertex_ids.map(|i| mesh.v_tangent(i as _));
+        let u_tangent = ua * qa as _ + ub * qb as _ + uc * qc as _;
+        let v_tangent = va * qa as _ + vb * qb as _ + vc * qc as _;
+
+        let piece_transform = &puzzle.piece_transforms()[self.piece];
+        [&u_tangent, &v_tangent].map(|v| piece_transform.transform_vector(v))
+    }
 }
