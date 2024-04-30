@@ -22,7 +22,7 @@ pub struct FloatHash(u32);
 /// Multivectors representing flectors (rotors & reflectors) must be
 /// canonicalized before being inserted into the map. Vectors are automatically
 /// canonicalized by ignoring components that equal zero.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ApproxHashMap<K: ApproxHashMapKey, V> {
     keys: HashMap<K::Hash, K>,
     values: HashMap<K::Hash, V>,
@@ -37,6 +37,12 @@ impl<K: ApproxHashMapKey, V> Default for ApproxHashMap<K, V> {
             float_hashes: BTreeMap::new(),
             _phantom: PhantomData,
         }
+    }
+}
+impl<K: ApproxHashMapKey + fmt::Debug, V: fmt::Debug> fmt::Debug for ApproxHashMap<K, V> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let entries = self.keys.iter().map(|(hash, k)| (k, self.values.get(hash)));
+        f.debug_map().entries(entries).finish()
     }
 }
 impl<K: ApproxHashMapKey, V> ApproxHashMap<K, V> {
