@@ -3,13 +3,13 @@ use super::*;
 /// Description of a polytope that is stored in a [`Space`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PolytopeData {
-    /// Point
+    /// Vertex (polytope with rank 0).
     ///
-    /// This is technically redundant with just using `VertexId` directly, but
-    /// it's often handy to avoid a special case for 0-dimensional or
-    /// 1-dimensional polytopes.
-    Point(VertexId),
-    /// Polytope with rank greater than a point
+    /// This is somewhat redundant with just using `VertexId` directly, but it's
+    /// often handy to avoid a special case for 0-dimensional or 1-dimensional
+    /// polytopes.
+    Vertex(VertexId),
+    /// Polytope with rank greater than 0.
     Polytope {
         /// [Rank] of the polytope.
         ///
@@ -23,7 +23,7 @@ pub enum PolytopeData {
 }
 impl From<VertexId> for PolytopeData {
     fn from(value: VertexId) -> Self {
-        PolytopeData::Point(value)
+        PolytopeData::Vertex(value)
     }
 }
 impl PolytopeData {
@@ -32,16 +32,16 @@ impl PolytopeData {
     /// [rank]: https://polytope.miraheze.org/wiki/Rank
     pub fn rank(&self) -> u8 {
         match self {
-            PolytopeData::Point(_) => 0,
+            PolytopeData::Vertex(_) => 0,
             PolytopeData::Polytope { rank, .. } => *rank,
         }
     }
 
     /// Returns the polytope as a single vertex, or `None` if the polytope is
     /// not a vertex.
-    pub(super) fn to_vertex(&self) -> Option<VertexId> {
+    pub fn to_vertex(&self) -> Option<VertexId> {
         match self {
-            PolytopeData::Point(v) => Some(*v),
+            PolytopeData::Vertex(v) => Some(*v),
             _ => None,
         }
     }

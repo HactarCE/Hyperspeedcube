@@ -36,6 +36,20 @@ impl<'space> SimplicialComplex<'space> {
         self.space
     }
 
+    /// Returns the combined centroid of a set of polytopes, or `None` if the
+    /// combined weight is zero. This is only meaningful if all polytopes have
+    /// the same rank.
+    pub fn combined_centroid(
+        &mut self,
+        polytopes: impl IntoIterator<Item = PolytopeId>,
+    ) -> Result<Option<Centroid>> {
+        let mut ret = Centroid::ZERO;
+        for p in polytopes {
+            ret += self.centroid(p)?;
+        }
+        Ok((!ret.is_zero()).then_some(ret))
+    }
+
     /// Returns the centroid of a polytope.
     pub fn centroid(&mut self, polytope: PolytopeId) -> Result<Centroid> {
         if let Some(result) = self.cached_centroids.get(&polytope) {
@@ -75,7 +89,7 @@ impl<'space> SimplicialComplex<'space> {
         }
 
         let result = match &self.space[polytope] {
-            PolytopeData::Point(v) => {
+            PolytopeData::Vertex(v) => {
                 self.vertices.insert(*v);
                 Simplex::new([*v]).into()
             }

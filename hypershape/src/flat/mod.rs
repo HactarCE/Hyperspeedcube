@@ -81,6 +81,7 @@ impl Space {
     ///
     /// Panics if `ndim > 7`.
     pub fn new(ndim: u8) -> Self {
+        assert!(ndim >= 1, "ndim={ndim} is below min value of 1");
         assert!(ndim <= 7, "ndim={ndim} exceeds max value of 7");
         Self {
             ndim,
@@ -103,11 +104,21 @@ impl Space {
         self.ndim
     }
 
+    /// Returns the polytope ID for a vertex.
+    pub fn vertex_to_polytope(&self, v: VertexId) -> PolytopeId {
+        self.polytope_data_to_id[&PolytopeData::Vertex(v)]
+    }
+
     /// Memoizes a vertex.
     pub fn add_vertex(&mut self, v: Vector) -> Result<VertexId, IndexOverflow> {
         match self.vertex_data_to_id.entry(v.clone()) {
             hash_map::Entry::Occupied(e) => Ok(*e.get()),
-            hash_map::Entry::Vacant(e) => Ok(*e.insert(self.vertices.push(v)?)),
+            hash_map::Entry::Vacant(e) => {
+                let vertex_id = *e.insert(self.vertices.push(v)?);
+                // Ensure that the vertex has a polytope ID as well.
+                self.add_polytope(vertex_id.into())?;
+                Ok(vertex_id)
+            }
         }
     }
     /// Memoizes a line.
@@ -130,7 +141,7 @@ impl Space {
         // Validate the boundary of the polytope.
         #[cfg(debug_assertions)]
         match &mut p {
-            PolytopeData::Point(_) => (),
+            PolytopeData::Vertex(_) => (),
             PolytopeData::Polytope { rank, boundary, .. } => {
                 for b in boundary.iter() {
                     assert_eq!(self[b].rank() + 1, *rank, "bad boundary ranks of polytope");
@@ -159,17 +170,6 @@ impl Space {
         match self.polytope_data_to_id.entry(p.clone()) {
             hash_map::Entry::Occupied(e) => Ok(*e.get()),
             hash_map::Entry::Vacant(e) => Ok(*e.insert(self.polytopes.push(p)?)),
-        }
-    }
-    fn add_line_if_non_degenerate(
-        &mut self,
-        endpoints: &[VertexId],
-        flags: PolytopeFlags,
-    ) -> Result<Option<PolytopeId>, IndexOverflow> {
-        if let &[a, b] = endpoints {
-            Ok(Some(self.add_line([a, b], flags)?))
-        } else {
-            Ok(None)
         }
     }
     fn add_polytope_if_non_degenerate(
@@ -282,7 +282,7 @@ impl Space {
         let div = &cut.params.divider;
 
         let result = match self[polytope].clone() {
-            PolytopeData::Point(p) => match div.location_of_point(&self[p]) {
+            PolytopeData::Vertex(p) => match div.location_of_point(&self[p]) {
                 PointWhichSide::On => PolytopeCutOutput::Flush,
                 PointWhichSide::Inside => PolytopeCutOutput::all_inside(polytope, None),
                 PointWhichSide::Outside => PolytopeCutOutput::all_outside(polytope, None),
@@ -395,7 +395,7 @@ impl Space {
         }
 
         let result = match &self[polytope] {
-            PolytopeData::Point(p) => VertexSet::from_iter([*p]),
+            PolytopeData::Vertex(p) => VertexSet::from_iter([*p]),
             PolytopeData::Polytope { boundary, .. } => {
                 let boundary = boundary.clone();
                 boundary.iter().flat_map(|b| self.vertex_set(b)).collect()
@@ -408,6 +408,19 @@ impl Space {
         result
     }
 
+    /// Returns the hyperplane in which a facet lives. Returns an error if the
+    /// polytope is not a facet (rank `ndim-1`).
+    pub fn hyperplane_of_facet(&self, facet: PolytopeId) -> Result<Hyperplane> {
+        let expected_rank = self.ndim - 1;
+        let actual_rank = self[facet].rank();
+        if expected_rank != actual_rank {
+            bail!("expected polytope with rank {expected_rank}; got {actual_rank}");
+        }
+        self.subspace_of_polytope(facet)?
+            .to_hyperplane()
+            .ok_or_eyre("error converting polytope subspace to hyperplane")
+    }
+
     /// Returns a PGA blade representing the smallest subspace in which a
     /// polytope lives.
     pub fn subspace_of_polytope(&self, polytope: PolytopeId) -> Result<pga::Blade> {
@@ -418,7 +431,7 @@ impl Space {
         }
 
         let result = match &self[polytope] {
-            PolytopeData::Point(p) => pga::Blade::from_point(ndim, &self[*p]),
+            PolytopeData::Vertex(p) => pga::Blade::from_point(ndim, &self[*p]),
             PolytopeData::Polytope { boundary, .. } => {
                 let boundary = boundary.clone();
                 let blades: Vec<_> = boundary
@@ -562,7 +575,7 @@ impl Space {
                 s += &format!("{p}: line {} .. {}", self[a], self[b])
             } else {
                 match &self[p] {
-                    PolytopeData::Point(v) => s += &format!("{p}: point {v}"),
+                    PolytopeData::Vertex(v) => s += &format!("{p}: point {v}"),
                     PolytopeData::Polytope {
                         rank,
                         boundary,

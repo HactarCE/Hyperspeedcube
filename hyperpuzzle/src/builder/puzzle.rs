@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments, clippy::too_many_lines)]
 
+use std::borrow::Cow;
 use std::collections::{hash_map, HashMap};
 use std::ops::Range;
 use std::sync::{Arc, Weak};
@@ -119,13 +120,9 @@ impl PuzzleBuilder {
             let mut stickers_of_piece: Vec<TempStickerData> = facets_of_piece
                 .iter()
                 .map(|polytope| {
-                    let mut plane = space
-                        .subspace_of_polytope(polytope)?
-                        .to_hyperplane()
-                        .ok_or_eyre("error determining sticker plane")?;
-
-                    // Flip the plane so that the centroid of the piece is on
-                    // the inside.
+                    // Select the orientation of the facet hyperplane such that
+                    // the centroid of the piece is on the inside.
+                    let mut plane = space.hyperplane_of_facet(polytope)?;
                     if plane.location_of_point(&piece_centroid) == PointWhichSide::Outside {
                         plane = plane.flip();
                     }
@@ -402,11 +399,115 @@ fn compute_sticker_shrink_vectors(
     piece_shape: PolytopeId,
     stickers: &[TempStickerData],
 ) -> Result<HashMap<VertexId, Vector>> {
-    Ok(space
-        .vertex_set(piece_shape)
+    // For the purposes of sticker shrink, we don't care about internal facets.
+    let colored_sticker_polytopes = stickers
         .iter()
-        .map(|v| (v, vector![]))
-        .collect())
+        .filter(|sticker| sticker.color != Color::INTERNAL)
+        .map(|sticker| sticker.polytope)
+        .collect_vec();
+
+    // Make our own facet IDs that will stay within this object. We only care
+    // about the facets that this piece has stickers on.
+    let mut facet_hyperplanes = PerFacet::new();
+
+    // For each element of the polytope, compute a set of the facet manifolds
+    // that have a sticker containing the element.
+    let mut elements_and_facet_sets_by_rank: Vec<HashMap<PolytopeId, FacetSet>> =
+        vec![HashMap::new(); space.ndim() as usize + 1];
+    for &sticker_polytope in &colored_sticker_polytopes {
+        let facet = facet_hyperplanes.push(space.hyperplane_of_facet(sticker_polytope)?)?;
+
+        for element in space.elements_of(sticker_polytope) {
+            let rank = space[element].rank();
+            elements_and_facet_sets_by_rank[rank as usize]
+                .entry(element)
+                .or_default()
+                .insert(facet);
+        }
+    }
+
+    // Find the largest (by rank) elements contained by all the sticker facets
+    // of the piece.
+    let centroid_of_greatest_common_elements: Option<Centroid> = elements_and_facet_sets_by_rank
+        .iter()
+        .rev()
+        .map(|elements_and_facet_sets| {
+            // Find elements that are contained by all sticker facets of the
+            // piece.
+            let elements_with_maximal_facet_set = elements_and_facet_sets
+                .iter()
+                .filter(|(_element, facet_set)| facet_set.len() == colored_sticker_polytopes.len())
+                .map(|(element, _facet_set)| *element);
+            // Add up their centroids. Technically we should take the centroid
+            // of their convex hull, but this works well enough.
+            simplices.combined_centroid(elements_with_maximal_facet_set)
+        })
+        // Select the elements with the largest rank and nonzero centroid.
+        .find_map(|result_option| result_option.transpose())
+        .transpose()?;
+    // If such elements exist, then all vertices can shrink to the same point.
+    if let Some(centroid) = centroid_of_greatest_common_elements {
+        let shrink_target = centroid.center();
+        return Ok(space
+            .vertex_set(piece_shape)
+            .iter()
+            .map(|v| (v, &shrink_target - &space[v]))
+            .collect());
+    }
+
+    // Otherwise, find the best elements for each set of facets. If a vertex is
+    // not contained by any facets, then it will shrink toward the centroid of
+    // the piece.
+    let piece_centroid = simplices.centroid(piece_shape)?.center();
+
+    // Compute the shrink target for each possible facet set that has a good
+    // shrink target.
+    let unique_facet_sets_of_vertices = elements_and_facet_sets_by_rank[0].values().unique();
+    let shrink_target_by_facet_set: HashMap<&FacetSet, Vector> = unique_facet_sets_of_vertices
+        .map(|facet_set| {
+            // Find the largest elements of the piece that are contained by all
+            // the facets in this set. There must be at least one vertex.
+            let centroid_of_greatest_common_elements: Centroid = elements_and_facet_sets_by_rank
+                .iter()
+                .rev()
+                .map(|elements_and_facet_sets| {
+                    // Find elements that are contained by all sticker facets of
+                    // the vertex.
+                    let elements_with_superset_of_facets = elements_and_facet_sets
+                        .iter()
+                        .filter(|(_element, fs)| facet_set.iter().all(|f| fs.contains(f)))
+                        .map(|(element, _fs)| *element);
+                    // Add up their centroids. Technically we should take the
+                    // centroid of their convex hull, but this works well
+                    // enough.
+                    simplices.combined_centroid(elements_with_superset_of_facets)
+                })
+                // Select the elements with the largest rank.
+                .find_map(|result_option| result_option.transpose())
+                // There must be some element with a superset of `facet_set`
+                // because `facet_set` came from a vertex.
+                .ok_or_eyre("no element with facet subset")??;
+
+            eyre::Ok((facet_set, centroid_of_greatest_common_elements.center()))
+        })
+        .try_collect()?;
+
+    // Compute shrink vectors for all vertices.
+    let shrink_vectors = space.vertex_set(piece_shape).into_iter().map(|vertex_id| {
+        let polytope_id = space.vertex_to_polytope(vertex_id);
+        let facet_set = &elements_and_facet_sets_by_rank[0]
+            .get(&polytope_id)
+            .map(Cow::Borrowed)
+            .unwrap_or_default();
+        let vertex_pos = &space[vertex_id];
+        let shrink_vector = match shrink_target_by_facet_set.get(&**facet_set) {
+            Some(target) => target - vertex_pos,
+            None => &piece_centroid - vertex_pos,
+        };
+
+        (vertex_id, shrink_vector)
+    });
+    Ok(shrink_vectors.collect())
 }
 
 fn build_shape_polygons(

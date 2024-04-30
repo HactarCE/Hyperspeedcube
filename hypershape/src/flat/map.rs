@@ -77,7 +77,7 @@ impl SpaceMapFor<PolytopeId> for SpaceMap<'_> {
         }
 
         let polytope_data = match &self.source[thing] {
-            PolytopeData::Point(p) => PolytopeData::Point(self.map(*p)),
+            PolytopeData::Vertex(p) => PolytopeData::Vertex(self.map(*p)),
             PolytopeData::Polytope {
                 rank,
                 boundary,
