@@ -130,40 +130,24 @@ impl Hyperplane {
         let hb = self.signed_distance_to_point(&b);
         let a_loc = Self::location_of_point_from_signed_distance(ha);
         let b_loc = Self::location_of_point_from_signed_distance(hb);
-        if a_loc == PointWhichSide::On && b_loc == PointWhichSide::On {
-            HyperplaneLineIntersection::Flush
-        } else if ![a_loc, b_loc].contains(&PointWhichSide::Outside) {
-            HyperplaneLineIntersection::Inside
-        } else if ![a_loc, b_loc].contains(&PointWhichSide::Inside) {
-            HyperplaneLineIntersection::Outside
-        } else {
-            let is_a_inside = a_loc == PointWhichSide::Inside;
-            HyperplaneLineIntersection::Split {
-                inside: if is_a_inside { 0 } else { 1 },
-                outside: if is_a_inside { 1 } else { 0 },
-                intersection: (a.scale(hb) - b.scale(ha)) / (hb - ha),
-            }
+        let intersection = (a_loc != b_loc).then(|| (a.scale(hb) - b.scale(ha)) / (hb - ha));
+        HyperplaneLineIntersection {
+            a_loc,
+            b_loc,
+            intersection,
         }
     }
 }
 
 /// Intersection of a hyperplane and a line segment.
-pub enum HyperplaneLineIntersection {
-    /// The line segment is on the hyperplane.
-    Flush,
-    /// The line segment is on the inside of the hyperplane.
-    Inside,
-    /// The line segment is on the outside of the hyperplane.
-    Outside,
-    /// The line segment is split by the hyperplane.
-    Split {
-        /// Index of the vertex that is inside (either 0 or 1).
-        inside: usize,
-        /// Index of the vertex that is outside (either 0 or 1).
-        outside: usize,
-        /// Intersection point.
-        intersection: Vector,
-    },
+pub struct HyperplaneLineIntersection {
+    /// Which side of the hyperplane contains the first point.
+    pub a_loc: PointWhichSide,
+    /// Which side of the hyperplane contains the second point.
+    pub b_loc: PointWhichSide,
+    /// Intersection point of the line segment and hyperplane, if the line
+    /// segment touches the hyperplane.
+    pub intersection: Option<Vector>,
 }
 
 impl ApproxHashMapKey for Hyperplane {

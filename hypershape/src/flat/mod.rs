@@ -127,12 +127,31 @@ impl Space {
     }
     /// Memoizes a polytope.
     pub fn add_polytope(&mut self, mut p: PolytopeData) -> Result<PolytopeId, IndexOverflow> {
-        // Validate and canonicalize.
+        // Validate the boundary of the polytope.
+        #[cfg(debug_assertions)]
         match &mut p {
             PolytopeData::Point(_) => (),
             PolytopeData::Polytope { rank, boundary, .. } => {
                 for b in boundary.iter() {
-                    debug_assert_eq!(self[b].rank() + 1, *rank, "bad boundary ranks of polytope");
+                    assert_eq!(self[b].rank() + 1, *rank, "bad boundary ranks of polytope");
+                }
+                if *rank == 1 {
+                    assert_eq!(boundary.len(), 2, "line must have two endpoints");
+                    assert!(
+                        !boundary.iter().all_equal(),
+                        "line endpoints must be distinct",
+                    );
+                }
+                if *rank == 2 {
+                    let mut multiplicity = HashMap::<VertexId, usize>::new();
+                    for b in boundary.iter() {
+                        for v in self.line_endpoints(b).expect("expected line") {
+                            *multiplicity.entry(v).or_default() += 1;
+                        }
+                    }
+                    for &m in multiplicity.values() {
+                        assert_eq!(m, 2, "bad polygon structure");
+                    }
                 }
             }
         }
@@ -140,6 +159,17 @@ impl Space {
         match self.polytope_data_to_id.entry(p.clone()) {
             hash_map::Entry::Occupied(e) => Ok(*e.get()),
             hash_map::Entry::Vacant(e) => Ok(*e.insert(self.polytopes.push(p)?)),
+        }
+    }
+    fn add_line_if_non_degenerate(
+        &mut self,
+        endpoints: &[VertexId],
+        flags: PolytopeFlags,
+    ) -> Result<Option<PolytopeId>, IndexOverflow> {
+        if let &[a, b] = endpoints {
+            Ok(Some(self.add_line([a, b], flags)?))
+        } else {
+            Ok(None)
         }
     }
     fn add_polytope_if_non_degenerate(
@@ -254,52 +284,44 @@ impl Space {
         let result = match self[polytope].clone() {
             PolytopeData::Point(p) => match div.location_of_point(&self[p]) {
                 PointWhichSide::On => PolytopeCutOutput::Flush,
-                PointWhichSide::Inside => PolytopeCutOutput::all_inside(polytope),
-                PointWhichSide::Outside => PolytopeCutOutput::all_outside(polytope),
+                PointWhichSide::Inside => PolytopeCutOutput::all_inside(polytope, None),
+                PointWhichSide::Outside => PolytopeCutOutput::all_outside(polytope, None),
             },
             PolytopeData::Polytope {
                 rank,
                 boundary,
                 flags,
             } => {
-                if let Some(line) = self.line_endpoints(polytope) {
-                    match div.intersection_with_line_segment(line.map(|i| &self[i])) {
-                        HyperplaneLineIntersection::Flush => PolytopeCutOutput::Flush,
-                        HyperplaneLineIntersection::Inside => match cut.params.inside {
-                            PolytopeFate::Remove => PolytopeCutOutput::REMOVED,
-                            PolytopeFate::Keep => PolytopeCutOutput::all_inside(polytope),
-                        },
-                        HyperplaneLineIntersection::Outside => match cut.params.outside {
-                            PolytopeFate::Remove => PolytopeCutOutput::REMOVED,
-                            PolytopeFate::Keep => PolytopeCutOutput::all_outside(polytope),
-                        },
-                        HyperplaneLineIntersection::Split {
-                            inside,
-                            outside,
-                            intersection,
-                        } => {
-                            let i = line[inside];
-                            let o = line[outside];
-                            let mid = self.add_vertex(intersection)?;
+                let mut inside_boundary = PolytopeSet::new();
+                let mut outside_boundary = PolytopeSet::new();
+                let mut flush_polytopes = vec![];
+                let mut flush_polytope_boundary = PolytopeSet::new();
 
-                            PolytopeCutOutput::NonFlush {
-                                inside: match cut.params.inside {
-                                    PolytopeFate::Remove => None,
-                                    PolytopeFate::Keep => Some(self.add_line([mid, i], flags)?),
-                                },
-                                outside: match cut.params.outside {
-                                    PolytopeFate::Remove => None,
-                                    PolytopeFate::Keep => Some(self.add_line([mid, o], flags)?),
-                                },
-                                intersection: Some(self.add_polytope(mid.into())?),
+                if let Some(line @ [a, b]) = self.line_endpoints(polytope) {
+                    let HyperplaneLineIntersection {
+                        a_loc,
+                        b_loc,
+                        intersection,
+                    } = div.intersection_with_line_segment(line.map(|i| &self[i]));
+                    for (v, v_loc) in [(a, a_loc), (b, b_loc)] {
+                        let v = self.add_polytope(v.into())?;
+                        match v_loc {
+                            PointWhichSide::On => flush_polytopes.push(v),
+                            PointWhichSide::Inside => {
+                                inside_boundary.insert(v);
+                            }
+                            PointWhichSide::Outside => {
+                                outside_boundary.insert(v);
                             }
                         }
                     }
+                    if flush_polytopes.is_empty() {
+                        if let Some(intersection_point) = intersection {
+                            let v = self.add_vertex(intersection_point)?.into();
+                            flush_polytopes.push(self.add_polytope(v)?);
+                        }
+                    }
                 } else {
-                    let mut inside_boundary = PolytopeSet::new();
-                    let mut outside_boundary = PolytopeSet::new();
-                    let mut flush_polytopes = vec![];
-                    let mut flush_polytope_boundary = PolytopeSet::new();
                     for b in boundary.iter() {
                         match self.cut_polytope(b, cut)? {
                             PolytopeCutOutput::Flush => flush_polytopes.push(b),
@@ -314,40 +336,48 @@ impl Space {
                             }
                         }
                     }
+                }
 
-                    if flush_polytopes.len() > 1 {
-                        PolytopeCutOutput::Flush
-                    } else {
-                        let intersection = match flush_polytopes.first() {
-                            Some(&p) => Some(p),
-                            None => {
-                                self.add_polytope_if_non_degenerate(PolytopeData::Polytope {
-                                    rank: rank - 1,
-                                    boundary: flush_polytope_boundary,
-                                    flags: PolytopeFlags::default(),
-                                })?
-                            }
-                        };
-                        inside_boundary.extend(intersection);
-                        outside_boundary.extend(intersection);
-                        let inside =
+                if flush_polytopes.len() > 1 {
+                    PolytopeCutOutput::Flush
+                } else {
+                    let intersection = match flush_polytopes.first() {
+                        Some(&p) => Some(p),
+                        None => self.add_polytope_if_non_degenerate(PolytopeData::Polytope {
+                            rank: rank - 1,
+                            boundary: flush_polytope_boundary,
+                            flags: PolytopeFlags::default(),
+                        })?,
+                    };
+
+                    let inside = match cut.params.inside {
+                        PolytopeFate::Keep => {
+                            inside_boundary.extend(intersection);
                             self.add_polytope_if_non_degenerate(PolytopeData::Polytope {
                                 rank,
                                 boundary: inside_boundary,
                                 flags,
-                            })?;
-                        let outside =
+                            })?
+                        }
+                        PolytopeFate::Remove => None,
+                    };
+
+                    let outside = match cut.params.outside {
+                        PolytopeFate::Keep => {
+                            outside_boundary.extend(intersection);
                             self.add_polytope_if_non_degenerate(PolytopeData::Polytope {
                                 rank,
                                 boundary: outside_boundary,
                                 flags,
-                            })?;
-
-                        PolytopeCutOutput::NonFlush {
-                            inside,
-                            outside,
-                            intersection,
+                            })?
                         }
+                        PolytopeFate::Remove => None,
+                    };
+
+                    PolytopeCutOutput::NonFlush {
+                        inside,
+                        outside,
+                        intersection,
                     }
                 }
             }

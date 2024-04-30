@@ -119,10 +119,17 @@ impl PuzzleBuilder {
             let mut stickers_of_piece: Vec<TempStickerData> = facets_of_piece
                 .iter()
                 .map(|polytope| {
-                    let plane = space
+                    let mut plane = space
                         .subspace_of_polytope(polytope)?
                         .to_hyperplane()
                         .ok_or_eyre("error determining sticker plane")?;
+
+                    // Flip the plane so that the centroid of the piece is on
+                    // the inside.
+                    if plane.location_of_point(&piece_centroid) == PointWhichSide::Outside {
+                        plane = plane.flip();
+                    }
+
                     let color = *surface_colors.get(&plane).unwrap_or(&Color::INTERNAL);
                     eyre::Ok(TempStickerData {
                         polytope,
@@ -432,9 +439,12 @@ fn build_shape_polygons(
             .iter()
             .map(|v| &space[v] - &space[initial_vertex])
             .filter_map(|v| v.rejected_from(&u_tangent))
-            .filter_map(|v| v.normalize())
             .max_by_key(|v| FloatOrd(v.mag2()))
+            .and_then(|v| v.normalize())
             .ok_or_eyre("no tangent vector")?;
+
+        #[cfg(debug_assertions)]
+        hypermath::assert_approx_eq!(u_tangent.dot(&v_tangent), 0.0);
 
         // Triangulate the polygon.
         let tris = simplices.triangles(polygon)?;
@@ -470,10 +480,13 @@ fn build_shape_polygons(
             mesh.triangles.push(new_vertex_ids);
         }
 
-        for edge in space.edges_of(polygon) {
+        for edge @ [a, b] in space.edges_of(polygon) {
             // We should have seen all these vertices before because they show
-            // up in triangles.
-            mesh.edges.push(edge.map(|id| vertex_id_map[&id]))
+            // up in triangles, but check just in case so we don't panic.
+            if !(vertex_id_map.contains_key(&a) && vertex_id_map.contains_key(&b)) {
+                bail!("vertex ID for edge is not part of a triangle");
+            }
+            mesh.edges.push(edge.map(|id| vertex_id_map[&id]));
         }
     }
 

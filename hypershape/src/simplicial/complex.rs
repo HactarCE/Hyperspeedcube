@@ -48,8 +48,9 @@ impl<'space> SimplicialComplex<'space> {
         for simplex in self.simplices(polytope)?.iter() {
             let verts = simplex.vertices();
 
-            // This is scaled by `ndim+1` but that's fine.
-            let center: Vector = verts.iter().map(|i| &self.space[i]).sum();
+            // Take the average of the vertices of the simplex.
+            let center: Vector = verts.iter().map(|i| &self.space[i]).sum::<Vector>()
+                / (simplex.ndim()? + 1) as Float;
             let mut remaining_verts = verts.iter().map(|i| &self.space[i]);
             let Some(init) = remaining_verts.next() else {
                 continue;
@@ -61,7 +62,7 @@ impl<'space> SimplicialComplex<'space> {
                 .map(|v| Blade::from_vector(ndim, v - init))
                 .try_fold(Blade::one(ndim), |a, b| Blade::wedge(&a, &b))
             {
-                sum += Centroid::new(&center, blade.mag2());
+                sum += Centroid::new(&center, blade.mag());
             }
         }
         Ok(sum)

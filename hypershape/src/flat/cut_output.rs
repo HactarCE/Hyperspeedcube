@@ -55,22 +55,35 @@ impl PolytopeCutOutput {
         intersection: None,
     };
 
+    /// Constructs a result for a polytope `p` that is completely on one side of
+    /// the cut.
+    pub fn all_same(
+        which: PointWhichSide,
+        p: PolytopeId,
+        intersection: Option<PolytopeId>,
+    ) -> Self {
+        match which {
+            PointWhichSide::On => Self::Flush,
+            PointWhichSide::Inside => Self::all_inside(p, intersection),
+            PointWhichSide::Outside => Self::all_outside(p, intersection),
+        }
+    }
     /// Constructs a result for a polytope `p` that is completely inside the
     /// cut.
-    pub fn all_inside(p: PolytopeId) -> Self {
+    pub fn all_inside(p: PolytopeId, intersection: Option<PolytopeId>) -> Self {
         Self::NonFlush {
             inside: Some(p),
             outside: None,
-            intersection: None,
+            intersection,
         }
     }
     /// Constructs a result for a polytope `p` that is completely outside the
     /// cut.
-    pub fn all_outside(p: PolytopeId) -> Self {
+    pub fn all_outside(p: PolytopeId, intersection: Option<PolytopeId>) -> Self {
         Self::NonFlush {
             inside: None,
             outside: Some(p),
-            intersection: None,
+            intersection,
         }
     }
     /// Returns an iterator containing `inside` and `outside`, ignoring `None`
