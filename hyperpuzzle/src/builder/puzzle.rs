@@ -330,7 +330,7 @@ impl PuzzleBuilder {
 /// Piece of a puzzle during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct PieceBuilder {
-    /// Polytope of the peice.
+    /// Polytope of the piece.
     pub polytope: PolytopeId,
     /// If the piece is defunct because it was cut, these are the pieces it was
     /// cut up into.

@@ -13,7 +13,7 @@ pub struct PuzzleStyleStates {
     /// Number of pieces in the puzzle.
     piece_count: usize,
     /// Sets of pieces with the same decorations.
-    peice_sets: HashMap<PieceStyleState, BitBox<u64>>,
+    piece_sets: HashMap<PieceStyleState, BitBox<u64>>,
 }
 impl PuzzleStyleStates {
     /// Constructs a new `PieceStyleStates` with all pieces in the default
@@ -22,7 +22,7 @@ impl PuzzleStyleStates {
         let all_pieces = BitVec::repeat(true, piece_count).into_boxed_bitslice();
         Self {
             piece_count,
-            peice_sets: HashMap::from_iter([(PieceStyleState::default(), all_pieces)]),
+            piece_sets: HashMap::from_iter([(PieceStyleState::default(), all_pieces)]),
         }
     }
 
@@ -57,7 +57,7 @@ impl PuzzleStyleStates {
 
         let inv_piece_set = !piece_set.clone();
 
-        for (old_state, old_pieces) in std::mem::take(&mut self.peice_sets) {
+        for (old_state, old_pieces) in std::mem::take(&mut self.piece_sets) {
             let new_state_in_set = modify_state_in_set(old_state);
             let new_state_not_in_set = modify_state_not_in_set(old_state);
             if new_state_in_set != new_state_not_in_set {
@@ -71,22 +71,22 @@ impl PuzzleStyleStates {
         }
     }
 
-    fn raw_set_piece_states(&mut self, peice_set: BitBox<u64>, state: PieceStyleState) {
-        if peice_set.any() {
-            match self.peice_sets.entry(state) {
+    fn raw_set_piece_states(&mut self, piece_set: BitBox<u64>, state: PieceStyleState) {
+        if piece_set.any() {
+            match self.piece_sets.entry(state) {
                 std::collections::hash_map::Entry::Occupied(mut e) => {
-                    *e.get_mut() |= peice_set;
+                    *e.get_mut() |= piece_set;
                 }
                 std::collections::hash_map::Entry::Vacant(e) => {
-                    e.insert(peice_set);
+                    e.insert(piece_set);
                 }
             }
         }
     }
 
-    /// Returns whether any peice in `piece_set` is hidden.
+    /// Returns whether any piece in `piece_set` is hidden.
     pub fn is_any_hidden(&self, piece_set: &BitBox<u64>) -> bool {
-        self.peice_sets
+        self.piece_sets
             .iter()
             .any(|(style_state, styled_piece_set)| {
                 style_state.hidden && {
@@ -109,7 +109,7 @@ impl PuzzleStyleStates {
         &self,
         filter_fn: impl Fn(PieceStyleState) -> bool,
     ) -> BitBox<u64> {
-        self.peice_sets
+        self.piece_sets
             .iter()
             .filter(|(style_state, _piece_set)| filter_fn(**style_state))
             .map(|(_style_state, piece_set)| piece_set)
@@ -118,7 +118,7 @@ impl PuzzleStyleStates {
 
     /// Returns the style values for each set of pieces.
     pub fn values(&self, prefs: &StylePreferences) -> Vec<(PieceStyleValues, BitBox<u64>)> {
-        self.peice_sets
+        self.piece_sets
             .iter()
             .map(|(style_state, piece_set)| (style_state.values(prefs), piece_set.clone()))
             .collect()
