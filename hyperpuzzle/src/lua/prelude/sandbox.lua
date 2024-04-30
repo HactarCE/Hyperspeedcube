@@ -40,6 +40,10 @@ SANDBOX_ENV = {
   sin = math.sin,
   sqrt = math.sqrt,
   tan = math.tan,
+  -- Including custom Rust functions
+  round = math.round,
+  eq = math.eq,
+  neq = math.neq,
 
   -- Safe custom functions
   assert = assert,

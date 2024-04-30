@@ -9,19 +9,20 @@ function make_cuboid_puzzle(p, q, r)
     if abs(v.y) > 0.1 then return q end
     if abs(v.z) > 0.1 then return r end
   end
-  local size = vec(p, q, r)
 
   local twists = {
     ndim = 3,
     axes = 'cubic',
     symmetry = cd{2, 2},
     build = function(twists)
+      local size = vec(p, q, r)
+
       local R, U, F = twists.axes.R, twists.axes.U, twists.axes.F
       local twist_rot = rot{from = F, to = U}
       for t, axis, twist_rot in cd{4, 3}:chiral():orbit(R, twist_rot) do
         local s = t.rev:transform(size)
-        local y = math.round(math.abs(s.y))
-        local z = math.round(math.abs(s.z))
+        local y = round(abs(s.y))
+        local z = round(abs(s.z))
         local allow_double_turns = y % 2 == z % 2
         if not allow_double_turns then
           twist_rot = twist_rot * twist_rot
@@ -41,12 +42,14 @@ function make_cuboid_puzzle(p, q, r)
     twists = twists,
 
     build = function(puz)
+      local size = vec(p, q, r)
+
       for t, axis in cd{4, 3}:orbit(puz.axes.R) do
-        local s = math.abs(math.round(t.rev:transform(size).x))
+        local s = abs(round(t.rev:transform(size).x))
         for i = 1, s-1 do
           local v = axis.vector
-          puz.shape:slice(plane{v, distance = s/2 - i})
-          axis.layers:add(plane{v, distance = s/2 - i})
+          puz.shape:slice(plane{normal = v, distance = s/2 - i})
+          axis.layers:add(plane{normal = v, distance = s/2 - i})
         end
       end
     end,
