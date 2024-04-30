@@ -1,8 +1,9 @@
 use std::ops::Index;
 use std::sync::Arc;
 
-use hypermath::collections::{approx_hashmap, ApproxHashMap, MultivectorNearestNeighborsMap};
+use hypermath::collections::{approx_hashmap, ApproxHashMap, MotorNearestNeighborMap};
 use hypermath::prelude::*;
+use itertools::Itertools;
 use parking_lot::{Condvar, Mutex};
 
 use super::{
@@ -16,9 +17,9 @@ pub struct IsometryGroup {
     /// Underlying group structure.
     group: AbstractGroup,
     /// Elements of the group, indexed by ID.
-    elements: PerElement<Isometry>,
+    elements: PerElement<pga::Motor>,
     /// Nearest neighbors data structure.
-    nearest_neighbors: MultivectorNearestNeighborsMap<Isometry, ElementId>,
+    nearest_neighbors: MotorNearestNeighborMap<ElementId>,
 }
 
 impl Default for IsometryGroup {
@@ -34,7 +35,7 @@ impl Group for IsometryGroup {
 }
 
 impl Index<ElementId> for IsometryGroup {
-    type Output = Isometry;
+    type Output = pga::Motor;
 
     fn index(&self, index: ElementId) -> &Self::Output {
         &self.elements[index]
@@ -42,7 +43,7 @@ impl Index<ElementId> for IsometryGroup {
 }
 
 impl Index<GeneratorId> for IsometryGroup {
-    type Output = Isometry;
+    type Output = pga::Motor;
 
     fn index(&self, index: GeneratorId) -> &Self::Output {
         &self.elements[index.into()]
@@ -51,23 +52,26 @@ impl Index<GeneratorId> for IsometryGroup {
 
 impl IsometryGroup {
     /// Construct a group from a set of generators.
-    pub fn from_generators(generators: &[Isometry]) -> GroupResult<Self> {
+    pub fn from_generators(generators: &[pga::Motor]) -> GroupResult<Self> {
         let generator_count = generators.len();
 
         let mut g = GroupBuilder::new(generator_count)?;
 
-        let generators = generators
-            .iter()
-            .map(|isometry| {
-                isometry
-                    .canonicalize()
-                    .ok_or_else(|| GroupError::InvalidGenerator(isometry.clone()))
-            })
-            .collect::<GroupResult<PerGenerator<Isometry>>>()?;
+        let ndim = generators.iter().map(|gen| gen.ndim()).max().unwrap_or(2);
 
-        let mut elements = PerElement::from_iter([Isometry::ident()]);
+        let generators: PerGenerator<pga::Motor> = generators
+            .iter()
+            .map(|motor| {
+                motor
+                    .to_ndim_at_least(ndim)
+                    .canonicalize()
+                    .ok_or_else(|| GroupError::InvalidGenerator(motor.clone()))
+            })
+            .try_collect()?;
+
+        let mut elements = PerElement::from_iter([pga::Motor::ident(ndim)]);
         let mut element_ids = ApproxHashMap::new();
-        element_ids.insert(Isometry::ident(), ElementId::IDENTITY);
+        element_ids.insert(pga::Motor::ident(ndim), ElementId::IDENTITY);
 
         // Computing inverses directly is doable, but might involve a lot of
         // floating-point math. Instead, keep track of the inverse of each
@@ -119,7 +123,9 @@ impl IsometryGroup {
                             let generators_ref = &generators;
                             s.spawn(move |_| {
                                 task.store(generators_ref.map_ref(|_id, gen| {
-                                    (&new_elem * gen).canonicalize().unwrap_or_default()
+                                    (&new_elem * gen)
+                                        .canonicalize()
+                                        .unwrap_or_else(|| pga::Motor::ident(ndim))
                                 }));
                             });
 
@@ -141,7 +147,7 @@ impl IsometryGroup {
         debug_assert_eq!(elements.len(), group.element_count());
 
         let nearest_neighbors =
-            MultivectorNearestNeighborsMap::new(&elements, elements.iter_keys().collect());
+            MotorNearestNeighborMap::new(&elements, elements.iter_keys().collect());
 
         Ok(Self {
             group,
@@ -151,7 +157,7 @@ impl IsometryGroup {
     }
 
     /// Returns the nearest element.
-    pub fn nearest(&self, target: &Isometry) -> ElementId {
+    pub fn nearest(&self, target: &pga::Motor) -> ElementId {
         match self.nearest_neighbors.nearest(target) {
             Some(&e) => e,
             None => ElementId::IDENTITY,
@@ -200,7 +206,8 @@ mod tests {
     #[test]
     fn test_cyclic_groups() {
         fn cyclic_group(n: Float) -> IsometryGroup {
-            IsometryGroup::from_generators(&[Isometry::from_angle_in_normalized_plane(
+            IsometryGroup::from_generators(&[pga::Motor::from_angle_in_normalized_plane(
+                2,
                 Vector::unit(0),
                 Vector::unit(1),
                 std::f64::consts::PI as Float * 2.0 / n,

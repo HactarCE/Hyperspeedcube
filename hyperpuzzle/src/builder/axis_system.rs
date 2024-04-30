@@ -2,8 +2,7 @@ use std::collections::hash_map;
 use std::sync::{Arc, Weak};
 
 use eyre::{eyre, OptionExt, Result};
-use hypermath::collections::generic_vec::IndexOutOfRange;
-use hypermath::collections::ApproxHashMap;
+use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 use hypershape::prelude::*;
 use parking_lot::Mutex;
@@ -14,21 +13,12 @@ use crate::{Axis, PerAxis, PerLayer};
 /// Layer of a twist axis during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct AxisLayerBuilder {
-    /// Manifold bounding the bottom of the layer.
-    pub bottom: ManifoldRef,
-    /// Manifold bounding the top of the layer, which is inferred to be the
+    /// Hyperplane bounding the bottom of the layer.
+    pub bottom: Hyperplane,
+    /// Hyperplane bounding the top of the layer, which is inferred to be the
     /// bottom of the next layer out (or unbounded, this is the outermost
     /// layer).
-    pub top: Option<ManifoldRef>,
-}
-impl AxisLayerBuilder {
-    /// Returns a deep copy of the axis layer.
-    fn clone(&self, space_map: &mut SpaceMap<'_>) -> Self {
-        Self {
-            bottom: space_map.map(self.bottom),
-            top: self.top.map(|m| space_map.map(m)),
-        }
-    }
+    pub top: Option<Hyperplane>,
 }
 
 /// Twist axis during puzzle construction.
@@ -46,14 +36,6 @@ impl AxisBuilder {
     /// Returns the axis's vector.
     pub fn vector(&self) -> &Vector {
         &self.vector
-    }
-
-    /// Returns a deep copy of axis.
-    fn clone(&self, space_map: &mut SpaceMap<'_>) -> Self {
-        Self {
-            vector: self.vector.clone(),
-            layers: self.layers.map_ref(|_id, layer| layer.clone(space_map)),
-        }
     }
 }
 
@@ -118,10 +100,6 @@ impl AxisSystemBuilder {
     ///
     /// Returns an error if the new and old spaces are not compatible.
     pub fn clone(&self, space: &Arc<Mutex<Space>>) -> Result<Arc<Mutex<Self>>> {
-        let source = self.space.lock();
-        let mut destination = space.lock();
-        let mut map = SpaceMap::new(&source, &mut destination)?;
-
         Ok(Arc::new_cyclic(|this| {
             Mutex::new(Self {
                 this: this.clone(),
@@ -132,7 +110,7 @@ impl AxisSystemBuilder {
 
                 symmetry: self.symmetry.clone(),
 
-                by_id: self.by_id.map_ref(|_id, axis| axis.clone(&mut map)),
+                by_id: self.by_id.clone(),
                 vector_to_id: self.vector_to_id.clone(),
                 names: self.names.clone(),
                 ordering: self.ordering.clone(),

@@ -1,4 +1,5 @@
-use hypermath::{Blade, Isometry};
+use hypermath::pga::Motor;
+use hypermath::Hyperplane;
 use itertools::Itertools;
 
 use super::*;
@@ -15,14 +16,11 @@ impl LuaUserData for LuaColor {
         LuaNamedIdDatabase::add_named_db_entry_fields(fields);
         LuaOrderedIdDatabase::add_ordered_db_entry_fields(fields);
 
-        fields.add_field_method_get("manifolds", |lua, this| {
+        fields.add_field_method_get("surfaces", |lua, this| {
             let db = this.db.lock();
-            let space = db.space.lock();
-            let manifolds = db.colors.get(this.id).into_lua_err()?.manifolds();
-            let lua_manifolds = manifolds
-                .iter()
-                .map(|manifold| LuaManifold(space.blade_of(manifold)));
-            let t = lua.create_table_from(lua_manifolds.enumerate())?;
+            let surfaces = db.colors.get(this.id).into_lua_err()?.surfaces();
+            let lua_surfaces = surfaces.iter().cloned().map(LuaHyperplane);
+            let t = lua.create_table_from(lua_surfaces.enumerate())?;
             seal_table(lua, &t)?;
             Ok(t)
         });
@@ -50,31 +48,24 @@ impl LuaUserData for LuaColor {
 }
 
 impl LuaColor {
-    /// Returns the blade for each manifold that is assigned this color.
-    pub fn blades(&self) -> LuaResult<Vec<Blade>> {
+    /// Returns the hyperplane for each surface that is assigned this color.
+    pub fn hyperplanes(&self) -> LuaResult<Vec<Hyperplane>> {
         let db = self.db.lock();
-        let space = db.space.lock();
-        let manifold_set = db.colors.get(self.id).into_lua_err()?.manifolds();
-        Ok(manifold_set.iter().map(|m| space.blade_of(m)).collect())
+        Ok(db.colors.get(self.id).into_lua_err()?.surfaces().to_vec())
     }
 
-    /// Returns the color that contains an equivalent manifold set to this
-    /// color, but transformed by `t`.
-    pub fn transform(&self, t: &Isometry) -> LuaResult<Option<Self>> {
+    /// Returns the color that contains an equivalent surface set to this color,
+    /// but transformed by `t`.
+    pub fn transform(&self, t: &Motor) -> LuaResult<Option<Self>> {
         let db = self.db.lock();
-        let mut space = db.space.lock();
-        let transformed_manifold_set = self
-            .blades()?
+        let transformed_surfaces = self
+            .hyperplanes()?
             .into_iter()
-            .map(|b| t.transform_blade(&b))
-            .map(|blade| space.add_manifold(blade))
-            .try_collect()
-            .into_lua_err()?;
-
+            .map(|hyperplane| t.transform(&hyperplane))
+            .collect_vec();
         Ok(db
             .colors
-            .manifold_set_to_id()
-            .get(&transformed_manifold_set)
-            .map(|&id| db.wrap_id(id)))
+            .surface_set_to_id(&transformed_surfaces)
+            .map(|id| db.wrap_id(id)))
     }
 }

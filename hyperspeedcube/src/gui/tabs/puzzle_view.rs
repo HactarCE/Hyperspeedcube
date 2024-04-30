@@ -139,8 +139,9 @@ impl PuzzleView {
         if ui.input(|input| input.modifiers.alt) {
             z_axis += 2;
         };
-        view_ctrl.rot = Isometry::from_angle_in_axis_plane(0, z_axis, -scaled_drag_x)
-            * Isometry::from_angle_in_axis_plane(1, z_axis, scaled_drag_y)
+        let ndim = view_ctrl.puzzle().ndim();
+        view_ctrl.rot = pga::Motor::from_angle_in_axis_plane(ndim, 0, z_axis, -scaled_drag_x)
+            * pga::Motor::from_angle_in_axis_plane(ndim, 1, z_axis, scaled_drag_y)
             * &view_ctrl.rot;
 
         if r.has_focus() {

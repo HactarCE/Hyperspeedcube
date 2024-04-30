@@ -1,4 +1,5 @@
-use std::{borrow::Cow, collections::HashSet};
+use std::borrow::Cow;
+use std::collections::HashSet;
 
 use mlua::prelude::*;
 

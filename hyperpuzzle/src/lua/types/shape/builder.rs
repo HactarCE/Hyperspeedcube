@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use hypermath::Blade;
-use hypershape::ManifoldSet;
+use hypermath::{ApproxHashMapKey, TransformByMotor};
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
@@ -42,33 +41,31 @@ impl LuaUserData for LuaShape {
             }
         });
 
-        methods.add_method("carve", |_lua, this, LuaManifold(blade)| {
-            let cuts = this.symmetry_orbit_of_blade(blade)?;
+        methods.add_method("carve", |_lua, this, LuaHyperplane(hyperplane)| {
+            let cuts = this.orbit(hyperplane)?;
             let mut this = this.lock();
             for cut in cuts {
-                let m = this.space.lock().add_manifold(cut).into_lua_err()?;
-                this.carve(None, m).into_lua_err()?;
-                this.colors
-                    .add(ManifoldSet::from_iter([m]))
-                    .into_lua_err()?;
+                this.carve(None, cut.clone()).into_lua_err()?;
+                this.colors.add(vec![cut]).into_lua_err()?;
             }
             Ok(())
         });
-        methods.add_method("carve_unstickered", |_lua, this, LuaManifold(blade)| {
-            let cuts = this.symmetry_orbit_of_blade(blade)?;
+        methods.add_method(
+            "carve_unstickered",
+            |_lua, this, LuaHyperplane(hyperplane)| {
+                let cuts = this.orbit(hyperplane)?;
+                let mut this = this.lock();
+                for cut in cuts {
+                    this.carve(None, cut).into_lua_err()?;
+                }
+                Ok(())
+            },
+        );
+        methods.add_method("slice", |_lua, this, LuaHyperplane(hyperplane)| {
+            let cuts = this.orbit(hyperplane)?;
             let mut this = this.lock();
             for cut in cuts {
-                let m = this.space.lock().add_manifold(cut).into_lua_err()?;
-                this.carve(None, m).into_lua_err()?;
-            }
-            Ok(())
-        });
-        methods.add_method("slice", |_lua, this, LuaManifold(blade)| {
-            let cuts = this.symmetry_orbit_of_blade(blade)?;
-            let mut this = this.lock();
-            for cut in cuts {
-                let m = this.space.lock().add_manifold(cut).into_lua_err()?;
-                this.slice(None, m).into_lua_err()?;
+                this.slice(None, cut).into_lua_err()?;
             }
             Ok(())
         });
@@ -82,16 +79,16 @@ impl LuaShape {
         self.0.lock()
     }
 
-    /// Returns a list of the elements in the orbit of `blade` under the shape's
+    /// Returns a list of the elements in the orbit of `obj` under the shape's
     /// symmetry.
-    fn symmetry_orbit_of_blade(&self, blade: Blade) -> LuaResult<Vec<Blade>> {
+    fn orbit<T: ApproxHashMapKey + TransformByMotor + Clone>(&self, obj: T) -> LuaResult<Vec<T>> {
         match &self.lock().symmetry {
             Some(sym) => Ok(sym
-                .orbit(blade, |t, b| t.transform_blade(b), false)
+                .orbit(obj, false)
                 .into_iter()
-                .map(|(_transform, blade)| blade)
+                .map(|(_transform, obj)| obj)
                 .collect()),
-            None => Ok(vec![blade]),
+            None => Ok(vec![obj]),
         }
     }
 }

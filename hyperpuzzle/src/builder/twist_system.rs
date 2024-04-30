@@ -1,9 +1,10 @@
 use std::sync::{Arc, Weak};
 
 use eyre::Result;
-use hypermath::collections::approx_hashmap::{ApproxHashMap, ApproxHashMapKey};
-use hypermath::collections::generic_vec::IndexOutOfRange;
-use hypermath::Isometry;
+use hypermath::collections::approx_hashmap::FloatHash;
+use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
+use hypermath::pga::Motor;
+use hypermath::prelude::*;
 use hypershape::Space;
 use parking_lot::Mutex;
 
@@ -17,17 +18,12 @@ pub struct TwistBuilder {
     /// Axis that is twisted.
     pub axis: Axis,
     /// Transform to apply to pieces.
-    pub transform: Isometry,
+    pub transform: Motor,
 }
 impl ApproxHashMapKey for TwistBuilder {
-    type Hash = (Axis, <Isometry as ApproxHashMapKey>::Hash);
+    type Hash = (Axis, <Motor as ApproxHashMapKey>::Hash);
 
-    fn approx_hash(
-        &self,
-        float_hash_fn: impl FnMut(
-            hypermath::prelude::Float,
-        ) -> hypermath::collections::approx_hashmap::FloatHash,
-    ) -> Self::Hash {
+    fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
         let Self { axis, transform } = self;
         (*axis, transform.approx_hash(float_hash_fn))
     }
@@ -160,7 +156,7 @@ impl TwistSystemBuilder {
     }
 
     /// Returns a twist ID from its axis and transform.
-    pub fn data_to_id(&self, axis: Axis, transform: &Isometry) -> Option<Twist> {
+    pub fn data_to_id(&self, axis: Axis, transform: &Motor) -> Option<Twist> {
         None.or_else(|| {
             self.data_to_id.get(&TwistBuilder {
                 axis,

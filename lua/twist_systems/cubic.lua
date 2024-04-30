@@ -6,7 +6,7 @@ axis_systems:add('cubic', {
   ndim = 3,
   symmetry = sym,
   build = function(axes)
-    axes:add(sym:vec('oox'):normalized())
+    axes:add(sym:vec('oox'))
     axes:rename{'F', 'U', 'R', 'L', 'D', 'B'}
     axes:reorder{'R', 'L', 'U', 'D', 'F', 'B'}
   end,

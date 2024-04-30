@@ -11,7 +11,7 @@ puzzles:add('megaminx', {
   build = function(p)
     -- axes
     for _, v in sym:orbit('oox') do
-      p.twists.axes:add(v:normalized())
+      p.twists.axes:add(v.unit)
     end
     p.twists.axes:autoname()
 
@@ -30,10 +30,10 @@ puzzles:add('megaminx', {
     end
 
     -- slicing & layers
-    p.shape:slice(sym:vec('oox'):normalized() * cut_depth)
+    p.shape:slice(sym:vec('oox').unit * cut_depth)
 
     for _, ax in ipairs(p.twists.axes) do
-      ax.layers:add(ax.vector:normalized() * cut_depth)
+      ax.layers:add(ax.vector.unit * cut_depth)
     end
   end,
 

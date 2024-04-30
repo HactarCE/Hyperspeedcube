@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use hypermath::pga::*;
 use hypermath::prelude::*;
 
 use super::*;
@@ -8,9 +9,6 @@ use super::*;
 /// multivector.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct LuaMultivectorIndex {
-    /// Which of nₒ or ∞ to add the beginning of the axes, if either.
-    pub nino: Option<NiNo>,
-
     /// Set of axes.
     pub axes: Axes,
     /// Sign to apply when reading/writing this term.
@@ -21,18 +19,16 @@ pub struct LuaMultivectorIndex {
 }
 
 impl LuaMultivectorIndex {
-    /// Constructs a multivector with a coefficient of 1 at this index, and no
-    /// other values.
-    pub fn to_multivector(&self) -> Multivector {
-        let t = Term {
-            coef: self.sign.to_num(),
-            axes: self.axes,
-        };
-        match self.nino {
-            None => t.into(),
-            Some(NiNo::No) => Multivector::NO * t,
-            Some(NiNo::Ni) => Multivector::NI * t,
-        }
+    /// Constructs a blade with a coefficient of 1 at this index, and no other
+    /// values.
+    pub fn to_multivector(&self, ndim: u8) -> Blade {
+        Blade::from_term(
+            ndim,
+            Term {
+                coef: self.sign.to_num(),
+                axes: self.axes,
+            },
+        )
     }
 }
 
@@ -40,7 +36,6 @@ impl<'lua> FromLua<'lua> for LuaMultivectorIndex {
     fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         if let Ok(LuaVectorIndex(i)) = LuaVectorIndex::from_lua(lua_value.clone(), lua) {
             Ok(LuaMultivectorIndex {
-                nino: None,
                 axes: Axes::euclidean(i),
                 sign: Sign::Pos,
                 string: match lua.coerce_string(lua_value)? {
@@ -59,11 +54,8 @@ impl FromStr for LuaMultivectorIndex {
     type Err = String;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
-        let mut use_true_basis = false;
-        let mut use_null_vector_basis = false;
         let mut axes = Axes::empty();
-        let mut sign = 1.0;
-        let mut zeroed = false;
+        let mut sign = Sign::Pos;
         for c in string.chars() {
             let new_axis: Axes = match c {
                 // Remember, Lua is 1-indexed so the X axis is 1.
@@ -73,84 +65,20 @@ impl FromStr for LuaMultivectorIndex {
                 '4' | 'w' | 'W' => Axes::W,
                 '5' | 'v' | 'V' => Axes::V,
                 '6' | 'u' | 'U' => Axes::U,
-                '7' => Axes::T,
-                '8' => Axes::S,
-                '9' => Axes::R,
+                '0' => Axes::T,
 
                 // Ignore these characters.
                 's' | 'e' | 'n' | '_' | ' ' => continue,
 
-                // Store nₒ in `E_MINUS` for now.
-                'o' => {
-                    use_null_vector_basis = true;
-                    zeroed |= axes.contains(Axes::E_MINUS); // get nullvector'd lmao
-                    Axes::E_MINUS
-                }
-                // Store ∞ in `E_PLUS` for now.
-                'i' => {
-                    use_null_vector_basis = true;
-                    zeroed |= axes.contains(Axes::E_PLUS); // get nullvector'd lmao
-                    Axes::E_PLUS
-                }
-
-                'm' | '-' => {
-                    use_true_basis = true;
-                    Axes::E_MINUS
-                }
-                'p' | '+' => {
-                    use_true_basis = true;
-                    Axes::E_PLUS
-                }
-                'E' => {
-                    use_true_basis = true;
-                    Axes::E_PLANE
-                }
-
                 _ => return Err(format!("unknown axis {c:?}")),
             };
-            sign *= axes * new_axis;
+            let Some(new_sign) = Axes::sign_of_geometric_product(axes, new_axis) else {
+                return Err(format!("component '{string}' is always zero"));
+            };
+            sign *= new_sign;
             axes ^= new_axis;
         }
-
-        if use_true_basis && use_null_vector_basis {
-            return Err("cannot mix true basis (e₋ e₊) with null vector basis (o ∞)".to_string());
-        }
-
-        if zeroed {
-            return Err(format!("component '{string}' is always zero"));
-        }
-
-        let mut nino = None;
-        if use_null_vector_basis {
-            // We stored nₒ in `E_MINUS` and ∞ in `E_PLUS`.
-            // nₒ and ∞ are each allowed, but not at the same time.
-            if axes.contains(Axes::E_PLANE) {
-                return Err(format!("cannot access component {string:?}"));
-            }
-            if axes.contains(Axes::E_MINUS) {
-                nino = Some(NiNo::No);
-            } else if axes.contains(Axes::E_PLUS) {
-                nino = Some(NiNo::Ni);
-            }
-            axes.remove(Axes::E_PLANE);
-        }
-
-        let sign = Sign::from(sign);
-
-        Ok(LuaMultivectorIndex {
-            nino,
-            axes,
-            sign,
-            string: string.to_owned(),
-        })
+        let string = string.to_owned();
+        Ok(LuaMultivectorIndex { axes, sign, string })
     }
-}
-
-/// ∞ or nₒ.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum NiNo {
-    /// nₒ
-    No,
-    /// ∞
-    Ni,
 }

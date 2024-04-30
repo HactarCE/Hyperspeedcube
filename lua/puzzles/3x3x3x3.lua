@@ -6,10 +6,10 @@ puzzles:add('3x3x3x3', {
   symmetry = sym, -- auto expand carve, colors, axes, twists, slice, and layers
   build = function(p)
     for _, v in sym:orbit('ooox') do
-      p.shape:carve(v) -- shape
+      p.shape:carve(v.unit) -- shape
       local axis = p.axes:add(v) -- axes
-      p.shape:slice(v / 3) -- cuts
-      axis.layers:add(v / 3) -- layers
+      p.shape:slice(v.unit / 3) -- cuts
+      axis.layers:add(v.unit / 3) -- layers
     end
 
     p.axes:rename{'I', 'B', 'D', 'L', 'R', 'U', 'F', 'O'}

@@ -12,7 +12,7 @@ mod sequence;
 mod string_or_table;
 mod vector_index;
 
-pub use multivector_index::{LuaMultivectorIndex, NiNo};
+pub use multivector_index::LuaMultivectorIndex;
 pub use ndim::LuaNdim;
 pub use numbers::{LuaIndex, LuaIntegerNoConvert, LuaNumberNoConvert};
 pub use sequence::LuaSequence;

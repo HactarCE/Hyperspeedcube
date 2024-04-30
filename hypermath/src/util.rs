@@ -42,8 +42,12 @@ pub fn try_div<T>(lhs: T, rhs: Float) -> Option<T::Output>
 where
     T: Mul<Float>,
 {
-    let recip_rhs = rhs.recip();
-    recip_rhs.is_finite().then(|| lhs * recip_rhs)
+    Some(lhs * try_recip(rhs)?)
+}
+
+/// Returns the reciprocal of `x` if `x` is nonzero; otherwise returns `None`.
+pub fn try_recip(x: Float) -> Option<Float> {
+    crate::is_approx_nonzero(&x).then(|| x.recip())
 }
 
 /// Returns the square root of `n` if the result is finite; otherwise returns
@@ -122,6 +126,21 @@ pub fn bitset_powerset<N: 'static + PrimInt + Unsigned + CheckedShl + BitXorAssi
             .map(|j| N::one() << set_bits[j as usize] as usize)
             .fold(N::zero(), |a, b| a + b)
     })
+}
+
+/// Zips two iterators together, padding with default values to make their
+/// lengths equal.
+pub fn pad_zip<A: Default, B: Default>(
+    a: impl IntoIterator<Item = A>,
+    b: impl IntoIterator<Item = B>,
+) -> impl Iterator<Item = (A, B)> {
+    a.into_iter()
+        .zip_longest(b)
+        .map(|either_or_both| match either_or_both {
+            itertools::EitherOrBoth::Both(a, b) => (a, b),
+            itertools::EitherOrBoth::Left(a) => (a, B::default()),
+            itertools::EitherOrBoth::Right(b) => (A::default(), b),
+        })
 }
 
 #[cfg(test)]

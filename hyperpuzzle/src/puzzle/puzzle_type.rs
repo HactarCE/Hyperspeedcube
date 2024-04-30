@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
-use hypermath::{Float, Isometry};
-use hypershape::prelude::*;
+use hypermath::pga::Motor;
+use hypermath::Float;
+use hypershape::Space;
 use parking_lot::Mutex;
 
 use super::*;
@@ -64,18 +65,13 @@ impl Puzzle {
         self.mesh.ndim()
     }
 
-    /// Returns the transform applied to pieces after a twist.
-    pub fn twist_transform(&self, twist: Twist) -> Isometry {
-        self.space.lock()[self.twists[twist].transform].clone()
-    }
     /// Returns the transform to apply to pieces during an animation.
     ///
     /// `t` ranges from `0.0` to `1.0`.
-    pub fn partial_twist_transform(&self, twist: Twist, t: Float) -> Isometry {
-        let space = self.space.lock();
-        let identity = Isometry::ident();
-        let twist_transform = &space[self.twists[twist].transform];
-        Isometry::slerp(&identity, twist_transform, t)
+    pub fn partial_twist_transform(&self, twist: Twist, t: Float) -> Motor {
+        let identity = Motor::ident(self.ndim());
+        let twist_transform = &self.twists[twist].transform;
+        Motor::slerp_infallible(&identity, twist_transform, t)
     }
 
     pub(crate) fn opposite_twist_axis(&self, _axis: Axis) -> Option<Axis> {

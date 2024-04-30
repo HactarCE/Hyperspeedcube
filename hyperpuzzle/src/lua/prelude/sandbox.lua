@@ -20,6 +20,27 @@ SANDBOX_ENV = {
   table = table,
   utf8 = utf8,
 
+  -- Unpack most of the math module
+  abs = math.abs,
+  acos = math.acos,
+  asin = math.asin,
+  atan = math.atan,
+  ceil = math.ceil,
+  cos = math.cos,
+  deg = math.deg,
+  exp = math.exp,
+  floor = math.floor,
+  fmod = math.fmod,
+  log = math.log,
+  max = math.max,
+  min = math.min,
+  PI = math.pi,
+  TAU = math.pi * 2,
+  rad = math.rad,
+  sin = math.sin,
+  sqrt = math.sqrt,
+  tan = math.tan,
+
   -- Safe custom functions
   assert = assert,
   error = error,

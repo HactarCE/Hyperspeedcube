@@ -95,8 +95,11 @@ impl SchlafliSymbol {
     }
 
     /// Returns the list of mirrors as generators.
-    pub fn generators(&self) -> Vec<Isometry> {
-        self.mirrors().into_iter().map(|m| m.into()).collect()
+    pub fn generators(&self) -> Vec<pga::Motor> {
+        self.mirrors()
+            .into_iter()
+            .map(|m| m.to_motor(self.ndim()))
+            .collect()
     }
 
     /// Constructs the isometry group described by the Schlafli symbol.
@@ -105,12 +108,11 @@ impl SchlafliSymbol {
     }
 
     /// Returns the orbit of an object under the symmetry.
-    pub fn orbit<T: Clone + ApproxHashMapKey>(
+    pub fn orbit<T: ApproxHashMapKey + Clone + TransformByMotor>(
         &self,
         object: T,
-        transform: fn(&Isometry, &T) -> T,
         chiral: bool,
-    ) -> Vec<(Isometry, T)> {
+    ) -> Vec<(pga::Motor, T)> {
         let mut generators = self.generators();
         if chiral {
             generators = itertools::iproduct!(&generators, &generators)
@@ -122,11 +124,11 @@ impl SchlafliSymbol {
         seen.insert(object.clone(), ());
 
         let mut next_unprocessed_index = 0;
-        let mut ret = vec![(Isometry::ident(), object)];
+        let mut ret = vec![(pga::Motor::ident(self.ndim()), object)];
         while next_unprocessed_index < ret.len() {
             let (unprocessed_transform, unprocessed_object) = ret[next_unprocessed_index].clone();
             for gen in &generators {
-                let new_object = transform(gen, &unprocessed_object);
+                let new_object = gen.transform(&unprocessed_object);
                 if seen.insert(new_object.clone(), ()).is_none() {
                     ret.push((gen * &unprocessed_transform, new_object));
                 }
@@ -137,35 +139,9 @@ impl SchlafliSymbol {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-struct MirrorGenerator {
-    mirrors: Vec<Mirror>,
-}
-impl From<MirrorGenerator> for Isometry {
-    fn from(gen: MirrorGenerator) -> Self {
-        gen.mirrors
-            .into_iter()
-            .map(Isometry::from)
-            .fold(Isometry::ident(), |a, b| a * b)
-    }
-}
-impl From<MirrorGenerator> for Matrix {
-    fn from(gen: MirrorGenerator) -> Self {
-        gen.mirrors
-            .into_iter()
-            .map(Matrix::from)
-            .fold(Matrix::EMPTY_IDENT, |a, b| a * b)
-    }
-}
-
 /// Mirror hyperplane that intersects the origin, defined by its normal vector.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mirror(pub Vector);
-impl From<Mirror> for Isometry {
-    fn from(Mirror(v): Mirror) -> Self {
-        Isometry::from_reflection_normalized(v)
-    }
-}
 impl From<Mirror> for Matrix {
     fn from(Mirror(v): Mirror) -> Self {
         let ndim = v.ndim();
@@ -176,6 +152,11 @@ impl From<Mirror> for Matrix {
             }
         }
         ret
+    }
+}
+impl Mirror {
+    fn to_motor(&self, ndim: u8) -> pga::Motor {
+        pga::Motor::normalized_vector_reflection(ndim, &self.0)
     }
 }
 

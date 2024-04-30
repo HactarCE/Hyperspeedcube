@@ -1,4 +1,4 @@
-use hypermath::collections::approx_hashmap::ApproxHashMapKey;
+use hypermath::collections::ApproxHashMapKey;
 use hypermath::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
@@ -39,12 +39,11 @@ impl LuaSymmetry {
     }
 
     /// Returns the orbit of an object under the symmetry.
-    pub fn orbit<T: Clone + ApproxHashMapKey>(
+    pub fn orbit<T: ApproxHashMapKey + Clone + TransformByMotor>(
         &self,
         object: T,
-        transform: fn(&Isometry, &T) -> T,
-    ) -> Vec<(Isometry, T)> {
-        self.schlafli.orbit(object, transform, self.chiral)
+    ) -> Vec<(pga::Motor, T)> {
+        self.schlafli.orbit(object, self.chiral)
     }
 
     /// Returns the orbit of a collection of objects under the symmetry.
@@ -53,21 +52,22 @@ impl LuaSymmetry {
         lua: &'lua Lua,
         args: LuaMultiValue<'lua>,
     ) -> LuaResult<LuaFunction<'lua>> {
-        let ndim = self.schlafli.ndim();
+        let ndim = LuaNdim::get(lua)?;
 
         let is_all_numbers = args.iter().all(|arg| arg.is_integer() || arg.is_number());
 
         let init: Vec<Transformable> = if is_all_numbers {
-            vec![Transformable::Vector(LuaVector(
+            vec![Transformable::Blade(LuaBlade(pga::Blade::from_vector(
+                ndim,
                 self.vector_from_args(lua, args)?,
-            ))]
+            )))]
         } else {
             args.iter()
                 .map(|v| {
                     if v.is_string() {
                         let s = &v.to_string()?;
                         let vector = parse_wendy_krieger_vector(ndim, s)?;
-                        Ok(Transformable::Vector(LuaVector(vector)))
+                        Transformable::from_vector(lua, vector)
                     } else {
                         Transformable::from_lua(v.clone(), lua)
                     }
@@ -75,11 +75,7 @@ impl LuaSymmetry {
                 .try_collect()?
         };
 
-        let mut iter = self
-            .orbit(init, |t, obj| {
-                obj.iter().map(|v| v.transform_by(t)).collect()
-            })
-            .into_iter();
+        let mut iter = self.orbit(init).into_iter();
         lua.create_function_mut(move |lua, ()| {
             iter.find_map(move |(transform, objects)| {
                 let mut values = vec![];

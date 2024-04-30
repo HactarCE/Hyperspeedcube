@@ -1,5 +1,6 @@
-use hypermath::collections::generic_vec::{GenericVec, IndexOverflow};
-use hypermath::{idx_struct, IndexNewtype, Isometry};
+use hypermath::collections::{GenericVec, IndexOverflow};
+use hypermath::pga;
+use hypermath::{idx_struct, IndexNewtype};
 
 idx_struct! {
     /// ID of a group generator.
@@ -27,7 +28,7 @@ pub type PerElement<T> = GenericVec<ElementId, T>;
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum GroupError {
     #[error("invalid group generator {0}")]
-    InvalidGenerator(Isometry),
+    InvalidGenerator(pga::Motor),
     #[error("overflow ({0})")]
     Overflow(IndexOverflow),
 

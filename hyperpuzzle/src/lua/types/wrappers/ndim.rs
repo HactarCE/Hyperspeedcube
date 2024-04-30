@@ -28,3 +28,14 @@ impl TryFrom<LuaInteger> for LuaNdim {
         }
     }
 }
+
+impl LuaNdim {
+    /// Returns the number of dimensions of the current space.
+    pub fn get(lua: &Lua) -> LuaResult<u8> {
+        let Self(ndim) = lua
+            .globals()
+            .get("NDIM")
+            .context("no global number of dimensions")?;
+        Ok(ndim)
+    }
+}

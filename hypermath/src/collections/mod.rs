@@ -3,10 +3,10 @@
 #[macro_use]
 pub mod generic_vec;
 pub mod approx_hashmap;
-mod isometry_nn;
+mod motor_nn;
 mod vecmap;
 
-pub use approx_hashmap::ApproxHashMap;
-pub use generic_vec::GenericVec;
-pub use isometry_nn::MultivectorNearestNeighborsMap;
+pub use approx_hashmap::{ApproxHashMap, ApproxHashMapKey};
+pub use generic_vec::{GenericVec, IndexNewtype, IndexOutOfRange, IndexOverflow};
+pub use motor_nn::MotorNearestNeighborMap;
 pub use vecmap::VecMap;

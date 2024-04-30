@@ -1,23 +1,27 @@
+//! Centroid and Lebasgue measure.
+
 use std::fmt;
 use std::iter::Sum;
 use std::ops::{Add, AddAssign};
 
-use hypermath::prelude::*;
+use super::{approx_eq, is_approx_positive, Float, Vector};
 
 /// Centroid and Lebasgue measure of a polytope. In simpler terms: the "center
 /// of mass" and "N-dimensional mass" of a polytope.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Centroid {
-    /// Center of mass.
+    /// Center of mass, scaled by `weight`.
     weighted_center: Vector,
-    /// Lebasgue measure (https://w.wiki/FLd), A.K.A. volume.
+    /// [Lebasgue measure](https://w.wiki/FLd), a.k.a. volume.
     weight: Float,
 }
+
 impl fmt::Display for Centroid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self:?}")
     }
 }
+
 impl Add for Centroid {
     type Output = Self;
 
@@ -26,17 +30,20 @@ impl Add for Centroid {
         self
     }
 }
+
 impl AddAssign<&Centroid> for Centroid {
     fn add_assign(&mut self, rhs: &Centroid) {
         self.weighted_center += &rhs.weighted_center;
         self.weight += rhs.weight;
     }
 }
+
 impl AddAssign<Centroid> for Centroid {
     fn add_assign(&mut self, rhs: Centroid) {
         *self += &rhs;
     }
 }
+
 impl Sum<Centroid> for Centroid {
     fn sum<I: Iterator<Item = Centroid>>(mut iter: I) -> Self {
         let mut ret = iter.next().unwrap_or_default();
@@ -46,18 +53,22 @@ impl Sum<Centroid> for Centroid {
         ret
     }
 }
+
 impl Centroid {
+    /// Zero centroid.
     pub const ZERO: Self = Centroid {
         weighted_center: Vector::EMPTY,
         weight: 0.0,
     };
 
+    /// Constructs a new weighted centroid.
     pub fn new(center: &Vector, weight: Float) -> Self {
         Centroid {
             weighted_center: center * weight,
             weight,
         }
     }
+    /// Returns the centroid point.
     pub fn center(&self) -> Vector {
         if is_approx_positive(&self.weight) {
             &self.weighted_center / self.weight
@@ -65,6 +76,11 @@ impl Centroid {
             Vector::EMPTY
         }
     }
+    /// Returns the weight.
+    pub fn weight(&self) -> Float {
+        self.weight
+    }
+    /// Returns whether the weight is zero.
     pub fn is_zero(&self) -> bool {
         approx_eq(&self.weight, &0.0)
     }

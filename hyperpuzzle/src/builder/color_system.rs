@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use eyre::{bail, Result};
-use hypermath::collections::generic_vec::IndexOutOfRange;
-use hypershape::prelude::*;
+use hypermath::prelude::*;
+use itertools::Itertools;
 
 use super::{CustomOrdering, NamingScheme};
 use crate::{Color, PerColor};
@@ -10,27 +8,25 @@ use crate::{Color, PerColor};
 /// Sticker color during shape construction.
 #[derive(Debug, Clone)]
 pub struct ColorBuilder {
-    manifolds: ManifoldSet,
+    surfaces: Vec<Hyperplane>,
 
     /// Default color string.
     pub default_color: Option<String>,
 }
 impl ColorBuilder {
-    /// Returns the color's manifold set.
-    pub fn manifolds(&self) -> &ManifoldSet {
-        &self.manifolds
+    /// Returns the color's surface set.
+    pub fn surfaces(&self) -> &[Hyperplane] {
+        &self.surfaces
     }
 }
 
 /// Set of all sticker colors during shape construction.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ColorSystemBuilder {
     /// Color data (not including name and ordering).
     by_id: PerColor<ColorBuilder>,
-    /// Map from manifold set to color ID.
-    manifold_set_to_id: HashMap<ManifoldSet, Color>,
-    /// Set of manifolds with colors assigned.
-    used_manifolds: ManifoldSet,
+    /// Map from surface to color ID.
+    surface_to_id: ApproxHashMap<Hyperplane, Color>,
     /// User-specified color names.
     pub names: NamingScheme<Color>,
     /// User-specified ordering of colors.
@@ -47,44 +43,23 @@ impl ColorSystemBuilder {
         self.by_id.len()
     }
 
-    /// Returns a deep copy of the color system in a new space.
-    pub fn clone(&self, space_map: &mut SpaceMap<'_>) -> Self {
-        Self {
-            by_id: self
-                .by_id
-                .iter()
-                .map(|(_id, color)| ColorBuilder {
-                    manifolds: space_map.map_set(&color.manifolds),
-                    default_color: color.default_color.clone(),
-                })
-                .collect(),
-            manifold_set_to_id: self
-                .manifold_set_to_id
-                .iter()
-                .map(|(manifolds, &color)| (space_map.map_set(manifolds), color))
-                .collect(),
-            used_manifolds: space_map.map_set(&self.used_manifolds),
-            names: self.names.clone(),
-            ordering: self.ordering.clone(),
-        }
-    }
-
     /// Adds a new color.
-    pub fn add(&mut self, manifolds: ManifoldSet) -> Result<Color> {
-        // Check that the manifolds aren't already taken.
-        for m in manifolds.iter() {
-            if self.used_manifolds.contains(m) {
-                bail!("manifold is already taken");
+    pub fn add(&mut self, surfaces: Vec<Hyperplane>) -> Result<Color> {
+        // Check that the surfaces aren't already taken.
+        for s in &surfaces {
+            if self.surface_to_id.get(s).is_some() {
+                bail!("surface is already taken");
             }
         }
 
         let id = self.by_id.push(ColorBuilder {
-            manifolds: manifolds.clone(),
+            surfaces: surfaces.clone(),
             default_color: None,
         })?;
         self.ordering.add(id)?;
-        self.manifold_set_to_id.insert(manifolds.clone(), id);
-        self.used_manifolds.extend(manifolds);
+        for s in surfaces {
+            self.surface_to_id.insert(s, id);
+        }
 
         Ok(id)
     }
@@ -100,9 +75,20 @@ impl ColorSystemBuilder {
         self.by_id.get_mut(id)
     }
 
-    /// Returns a map from manifold set to color ID.
-    pub fn manifold_set_to_id(&self) -> &HashMap<ManifoldSet, Color> {
-        &self.manifold_set_to_id
+    /// Returns a map from surface to a color ID.
+    pub fn surface_to_id(&self) -> &ApproxHashMap<Hyperplane, Color> {
+        &self.surface_to_id
+    }
+    /// Returns a color ID from a set of surfaces.
+    pub fn surface_set_to_id(&self, surfaces: &[Hyperplane]) -> Option<Color> {
+        let mut colors_for_each_surface = surfaces.iter().filter_map(|s| self.surface_to_id.get(s));
+        let &common_color = colors_for_each_surface.all_equal_value().ok()?;
+        // Check that the resulting surface has the exact same number of colors.
+        if self.by_id.get(common_color).ok()?.surfaces.len() == surfaces.len() {
+            Some(common_color)
+        } else {
+            None
+        }
     }
 
     /// Returns an iterator over all the colors, in the canonical ordering.

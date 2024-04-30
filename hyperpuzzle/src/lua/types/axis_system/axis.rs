@@ -1,4 +1,5 @@
-use hypermath::{Isometry, Vector};
+use hypermath::pga::Motor;
+use hypermath::Vector;
 
 use super::*;
 use crate::builder::AxisSystemBuilder;
@@ -61,12 +62,10 @@ impl LuaAxis {
     }
 
     /// Returns the axis that has an equivalent vector to this one, but
-    /// transformed by `t`.
-    pub fn transform(&self, t: &Isometry) -> LuaResult<Option<Self>> {
-        let v = t.transform_vector(self.vector()?);
-        Ok(self.db.lock().vector_to_id(v).map(|id| {
-            let db = self.db.clone();
-            Self { id, db }
-        }))
+    /// transformed by `t`, or returns `None` if one does not exist.
+    pub fn transform_by(&self, m: &Motor) -> LuaResult<Option<Self>> {
+        let db = self.db.lock();
+        let v = m.transform_vector(self.vector()?);
+        Ok(db.vector_to_id(v).map(|id| db.wrap_id(id)))
     }
 }

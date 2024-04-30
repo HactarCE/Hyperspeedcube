@@ -1,6 +1,7 @@
 use hypermath::collections::GenericVec;
+use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hypershape::{AtomicPolytopeRef, IsometryId, ManifoldRef};
+use hypershape::PolytopeId;
 use smallvec::SmallVec;
 use tinyset::Set64;
 
@@ -11,7 +12,7 @@ hypermath::idx_struct! {
     /// ID of a **sticker**, which is a facet of a **piece** having a single
     /// color and belonging to a single **facet**.
     pub struct Sticker(pub u16);
-    /// ID of a **facet**, which is a manifold shared by one or more
+    /// ID of a **facet**, which is a surface shared by one or more
     /// **stickers**.
     pub struct Facet(pub u16);
     /// ID of a **color** that appears on stickers.
@@ -73,7 +74,7 @@ pub struct PieceInfo {
     /// Centroid of the piece.
     pub centroid: Vector,
     /// Polytope of the piece.
-    pub(crate) polytope: AtomicPolytopeRef,
+    pub(crate) polytope: PolytopeId,
 }
 
 /// Sticker info.
@@ -116,14 +117,14 @@ impl AsRef<str> for AxisInfo {
 /// Layer info.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LayerInfo {
-    /// Manifold that bounds the bottom of the layer.
-    pub(crate) bottom: ManifoldRef,
-    /// Manifold that bounds the top of the layer, if any.
-    pub(crate) top: Option<ManifoldRef>,
+    /// Plane that bounds the bottom of the layer.
+    pub(crate) bottom: Hyperplane,
+    /// Plane that bounds the top of the layer, if any.
+    pub(crate) top: Option<Hyperplane>,
 }
 
 /// Twist info.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct TwistInfo {
     /// Human-friendly name for the twist. (e.g., "U2", "R'", etc.)
     pub name: String,
@@ -134,7 +135,7 @@ pub struct TwistInfo {
     /// Twist axis to use to determine which pieces are moved by the twist.
     pub axis: Axis,
     /// Transforation to apply to pieces.
-    pub(crate) transform: IsometryId,
+    pub transform: Motor,
 
     /// Opposite twist. With a reversed layer mask, this applies the
     /// same transformation to the same pieces. For example, R and L' are

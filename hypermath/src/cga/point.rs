@@ -1,5 +1,6 @@
 use std::fmt;
 
+use super::*;
 use crate::*;
 
 /// Point on the one-point compactification of N-dimensional Euclidean space.

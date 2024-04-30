@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hypermath::Isometry;
+use hypermath::pga::Motor;
 use hyperpuzzle::{LayerMask, PerPiece, Puzzle, PuzzleState, Twist};
 use instant::Instant;
 
@@ -34,12 +34,12 @@ impl PuzzleController {
         self.puzzle.ty()
     }
 
-    pub fn peice_transforms(&self) -> PerPiece<Isometry> {
+    pub fn peice_transforms(&self) -> PerPiece<Motor> {
         if let Some((anim, t)) = self.twist_anim.current() {
             anim.state
                 .animated_piece_transforms(anim.twist, anim.layers, t as _)
         } else {
-            self.puzzle.piece_transforms()
+            self.puzzle.piece_transforms().clone()
         }
     }
 

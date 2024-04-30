@@ -144,10 +144,10 @@ impl ApproxHashMapKey for Vector {
     }
 }
 
-/// Value dervied from a multivector that can be hashed. Don't use this
+/// Value dervied from a CGA multivector that can be hashed. Don't use this
 /// directly; use via [`ApproxHashMap`].
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct MultivectorHash(SmallVec<[(Axes, FloatHash); 6]>);
+pub struct MultivectorHash(SmallVec<[(u16, FloatHash); 6]>);
 
 impl<T: ApproxHashMapKey> ApproxHashMapKey for Option<T> {
     type Hash = Option<T::Hash>;
@@ -166,25 +166,42 @@ impl<T: ApproxHashMapKey> ApproxHashMapKey for Vec<T> {
     }
 }
 
-impl ApproxHashMapKey for Multivector {
+impl ApproxHashMapKey for cga::Multivector {
     type Hash = MultivectorHash;
 
     fn approx_hash(&self, mut float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
-        let hash_term = |Term { axes, coef }| (axes, float_hash_fn(coef));
+        let hash_term = |cga::Term { axes, coef }| (axes.bits(), float_hash_fn(coef));
         MultivectorHash(self.nonzero_terms().map(hash_term).collect())
     }
 }
-impl ApproxHashMapKey for Blade {
+impl ApproxHashMapKey for cga::Blade {
     type Hash = MultivectorHash;
 
     fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
         self.mv().approx_hash(float_hash_fn)
     }
 }
-impl ApproxHashMapKey for Isometry {
+impl ApproxHashMapKey for cga::Isometry {
     type Hash = MultivectorHash;
 
     fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
         self.mv().approx_hash(float_hash_fn)
+    }
+}
+
+impl ApproxHashMapKey for pga::Blade {
+    type Hash = MultivectorHash;
+
+    fn approx_hash(&self, mut float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
+        let hash_term = |pga::Term { coef, axes }| (axes.bits() as u16, float_hash_fn(coef));
+        MultivectorHash(self.nonzero_terms().map(hash_term).collect())
+    }
+}
+impl ApproxHashMapKey for pga::Motor {
+    type Hash = MultivectorHash;
+
+    fn approx_hash(&self, mut float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
+        let hash_term = |pga::Term { coef, axes }| (axes.bits() as u16, float_hash_fn(coef));
+        MultivectorHash(self.nonzero_terms().map(hash_term).collect())
     }
 }

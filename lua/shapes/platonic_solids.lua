@@ -3,7 +3,7 @@ local function platonic_solid_3d(id, schlalfi, modify_colors_fn)
     ndim = 3,
     symmetry = cd(schlalfi),
     build = function(shape)
-      shape:carve(cd(schlalfi):vec('oox'):normalized())
+      shape:carve(cd(schlalfi):vec('oox').unit)
 
       if modify_colors_fn then
         modify_colors_fn(shape.colors)

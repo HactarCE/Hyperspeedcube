@@ -6,6 +6,7 @@ use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 use float_ord::FloatOrd;
 use itertools::Itertools;
 
+use super::*;
 use crate::*;
 
 /// Multivector of a single grade, which can represent a point, line, plane,

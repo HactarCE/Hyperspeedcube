@@ -153,7 +153,7 @@ pub(crate) struct GeometryCacheKey {
     pub piece_explode: f32,
 
     pub target_size: [u32; 2],
-    pub rot: Isometry,
+    pub rot: Option<pga::Motor>,
     pub piece_transforms: PerPiece<Matrix>,
 }
 
@@ -166,7 +166,7 @@ pub(crate) struct DrawParams {
     /// Mouse position in NDC (normalized device coordinates).
     pub mouse_pos: [f32; 2],
 
-    pub rot: Isometry,
+    pub rot: pga::Motor,
     pub zoom: f32,
 
     pub background_color: [u8; 3],
@@ -232,8 +232,8 @@ impl DrawParams {
         1.0 + (self.prefs.fov_3d.signum() - z) * self.w_factor_3d()
     }
     /// Projects an N-dimensional point to a 2D point on the screen.
-    pub fn project_point(&self, p: impl ToConformalPoint) -> Option<cgmath::Point2<f32>> {
-        let mut p = self.rot.transform_point(p).to_finite().ok()?;
+    pub fn project_point(&self, p: impl VectorRef) -> Option<cgmath::Point2<f32>> {
+        let mut p = self.rot.transform_point(p);
 
         // Apply 4D perspective transformation.
         let w = p.get(3) as f32;
@@ -276,7 +276,7 @@ impl DrawParams {
             piece_explode: self.prefs.piece_explode,
 
             target_size: self.target_size,
-            rot: self.rot.clone(),
+            rot: Some(self.rot.clone()),
             piece_transforms: self.piece_transforms.clone(),
         }
     }
@@ -612,8 +612,6 @@ impl PuzzleRenderer {
                 .reverse()
                 .transform_point(vector![0.0, 0.0, 0.0, camera_w]);
             let camera_4d_pos_data: Vec<f32> = camera_4d_pos
-                .to_finite()
-                .map_err(|_| eyre!("camera 4D position is not finite"))?
                 .iter_ndim(self.model.ndim)
                 .map(|x| x as f32)
                 .collect();

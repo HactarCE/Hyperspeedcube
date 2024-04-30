@@ -8,6 +8,7 @@ use float_ord::FloatOrd;
 use itertools::Itertools;
 use smallvec::{smallvec, smallvec_inline, SmallVec};
 
+use super::*;
 use crate::*;
 
 /// Sum of terms in the conformal geometric algebra. Terms are stored sorted by

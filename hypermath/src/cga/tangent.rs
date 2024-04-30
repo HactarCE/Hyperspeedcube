@@ -1,5 +1,6 @@
 use float_ord::FloatOrd;
 
+use super::*;
 use crate::*;
 
 /// Tangent space for a manifold at a point.

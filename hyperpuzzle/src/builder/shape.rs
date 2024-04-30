@@ -1,6 +1,7 @@
 use std::sync::{Arc, Weak};
 
 use eyre::{Context, Result};
+use hypermath::Hyperplane;
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -53,12 +54,18 @@ impl ShapeBuilder {
         }))
     }
 
-    /// Constructs a shape builder that starts with a single solid piece
-    /// occupying all of Euclidean space.
-    pub fn new_full(id: Option<String>, space: Arc<Mutex<Space>>) -> Result<Arc<Mutex<Self>>> {
+    /// Constructs a shape builder that starts with a single solid piece (the
+    /// primordial cube)
+    pub fn new_with_primordial_cube(
+        id: Option<String>,
+        space: Arc<Mutex<Space>>,
+    ) -> Result<Arc<Mutex<Self>>> {
         let this = Self::new_empty(id, Arc::clone(&space))?;
         let mut this_guard = this.lock();
-        let root_piece_builder = PieceBuilder::new(space.lock().whole_space());
+        let primordial_cube = space
+            .lock()
+            .add_primordial_cube(crate::PRIMORDIAL_CUBE_RADIUS)?;
+        let root_piece_builder = PieceBuilder::new(primordial_cube);
         let root_piece = this_guard.pieces.push(root_piece_builder)?;
         this_guard.active_pieces.insert(root_piece);
         drop(this_guard);
@@ -105,7 +112,7 @@ impl ShapeBuilder {
                 symmetry: self.symmetry.clone(),
                 pieces,
                 active_pieces,
-                colors: self.colors.clone(&mut map),
+                colors: self.colors.clone(),
             })
         }))
     }
@@ -116,8 +123,8 @@ impl ShapeBuilder {
     /// the old set.
     ///
     /// If `pieces` is `None`, then it is assumed to be all active pieces.
-    pub fn carve(&mut self, pieces: Option<&PieceSet>, cut_manifold: ManifoldRef) -> Result<()> {
-        let mut cut = AtomicCut::carve(cut_manifold);
+    pub fn carve(&mut self, pieces: Option<&PieceSet>, cut_plane: Hyperplane) -> Result<()> {
+        let mut cut = Cut::carve(cut_plane);
         self.cut_and_deactivate_pieces(&mut cut, pieces)
     }
     /// Cuts each piece by a cut, keeping all results. Each piece in the old set
@@ -125,13 +132,13 @@ impl ShapeBuilder {
     /// status from the corresponding piece in the old set.
     ///
     /// If `pieces` is `None`, then it is assumed to be all active pieces.
-    pub fn slice(&mut self, pieces: Option<&PieceSet>, cut_manifold: ManifoldRef) -> Result<()> {
-        let mut cut = AtomicCut::slice(cut_manifold);
+    pub fn slice(&mut self, pieces: Option<&PieceSet>, cut_plane: Hyperplane) -> Result<()> {
+        let mut cut = Cut::slice(cut_plane);
         self.cut_and_deactivate_pieces(&mut cut, pieces)
     }
     fn cut_and_deactivate_pieces(
         &mut self,
-        cut: &mut AtomicCut,
+        cut: &mut Cut,
         pieces: Option<&PieceSet>,
     ) -> Result<()> {
         let pieces = match pieces {
@@ -144,10 +151,7 @@ impl ShapeBuilder {
         for old_piece in pieces.iter() {
             // Cut the old piece and add the new pieces as active.
             let new_piece_polytopes = space
-                .cut_atomic_polytope_set(
-                    [self.pieces[old_piece].polytope].into_iter().collect(),
-                    cut,
-                )
+                .cut_polytope_set([self.pieces[old_piece].polytope].into_iter().collect(), cut)
                 .context("error cutting piece")?;
             let new_pieces: PieceSet = new_piece_polytopes
                 .into_iter()

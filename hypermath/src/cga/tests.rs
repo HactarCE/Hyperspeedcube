@@ -1,5 +1,6 @@
 use std::fmt;
 
+use super::*;
 use crate::*;
 
 #[macro_use]

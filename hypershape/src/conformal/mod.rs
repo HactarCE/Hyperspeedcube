@@ -1,4 +1,23 @@
 //! Infinite Euclidean space in which polytopes can be constructed.
+//!
+//! In this module:
+//! - A 0-dimensional **manifold** is always a pair of points.
+//! - An N-dimensional **manifold** where N>0 is always closed (compact and with
+//!   no boundary). More specifically, it is a hyperplane or hypersphere,
+//!   represented using an OPNS blade in the [conformal geometric algebra].
+//! - The **inside** and **outside** of a manifold are the half-spaces enclosed
+//!   by it when embedded with an orientation into another manifold with one
+//!   more dimension. In conformal geometry, the inside and outside must be
+//!   determined by the orientation of the manifold rather than which half-space
+//!   is finite.
+//! - An **atomic polytope** in N-dimensional space is the intersection of the
+//!   **inside**s of finitely many (N-1)-dimensional manifolds. It is
+//!   represented as an N-dimensional manifold (on which the polytope lives) and
+//!   a set of oriented (N-1)-dimensional polytopes that bound it.
+//!
+//! [conformal geometric algebra]: https://w.wiki/7SP3
+//!
+//! Atomic polytopes are memoized and given IDs.
 
 use std::cmp::Ordering;
 use std::collections::{hash_map, HashMap, HashSet};
@@ -7,6 +26,7 @@ use std::ops::{Index, Mul, MulAssign, Neg};
 
 use eyre::{bail, ensure, eyre, Context, OptionExt, Result};
 use float_ord::FloatOrd;
+use hypermath::cga::*;
 use hypermath::prelude::*;
 use itertools::Itertools;
 use tinyset::Set64;

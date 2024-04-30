@@ -96,8 +96,6 @@ impl LuaAxisSystem {
             return lua_convert_err(&data, "vector or table");
         };
 
-        let LuaVector(vector) = vector;
-
         let mut this = self.lock();
 
         match &this.symmetry {
@@ -107,10 +105,10 @@ impl LuaAxisSystem {
                         "`name` is invalid when symmetry-expanding vector",
                     ));
                 }
-                sym.orbit(vector, |t, v| t.transform_vector(v), false)
+                sym.orbit(vector, false)
                     .into_iter()
                     .enumerate()
-                    .map(|(i, (_transform, v))| {
+                    .map(|(i, (_transform, LuaVector(v)))| {
                         let id = this.add(v).into_lua_err()?;
                         Ok((i, this.wrap_id(id)))
                     })
@@ -119,7 +117,8 @@ impl LuaAxisSystem {
                     .map(LuaValue::Table)
             }
             None => {
-                let id = this.add(vector).into_lua_err()?;
+                let LuaVector(v) = vector;
+                let id = this.add(v).into_lua_err()?;
                 this.names.set(id, name, lua_warn_fn(lua));
                 this.wrap_id(id).into_lua(lua)
             }

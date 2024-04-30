@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use hypermath::{approx_eq, Isometry};
 use parking_lot::Mutex;
 
 use super::*;
@@ -185,13 +184,13 @@ impl LuaTwistSystem {
 
             // Check whether we've reached the inverse.
             if inverse {
-                if isometry_is_self_inverse(&previous_transform)
-                    || isometries_eq(&transform, &previous_transform.reverse())
+                if previous_transform.is_self_reverse()
+                    || transform.is_equivalent_to(&previous_transform.reverse())
                 {
                     break;
                 }
             } else {
-                if isometries_eq(&transform, &Isometry::ident()) {
+                if transform.is_ident() {
                     break;
                 }
             }
@@ -219,14 +218,4 @@ impl LuaTwistSystem {
 
         Ok(Some(twists.wrap_id(first_twist_id)))
     }
-}
-
-fn isometries_eq(i: &Isometry, j: &Isometry) -> bool {
-    match Option::zip(i.canonicalize(), j.canonicalize()) {
-        Some((i, j)) => approx_eq(&i, &j),
-        None => true,
-    }
-}
-fn isometry_is_self_inverse(i: &Isometry) -> bool {
-    isometries_eq(i, &i.reverse())
 }

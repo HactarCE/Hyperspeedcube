@@ -8,10 +8,8 @@ use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
-use crate::{
-    builder::{CustomOrdering, NamingScheme},
-    lua::lua_warn_fn,
-};
+use crate::builder::{CustomOrdering, NamingScheme};
+use crate::lua::lua_warn_fn;
 
 /// Lua handle to an object in a collection, indexed by some ID.
 #[derive(Debug)]

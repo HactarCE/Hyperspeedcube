@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hypermath::Isometry;
+use hypermath::pga::Motor;
 
 use super::*;
 use crate::builder::{TwistBuilder, TwistSystemBuilder};
@@ -50,13 +50,15 @@ impl LuaUserData for LuaTwist {
                 .map(|id| Self { id, db: db.arc() }))
         });
 
-        methods.add_meta_method(LuaMetaMethod::Pow, |_lua, this, power: i16| {
+        methods.add_meta_method(LuaMetaMethod::Pow, |lua, this, power: i16| {
+            let ndim = LuaNdim::get(lua)?;
+
             let db = this.db.lock();
             let this = db.get(this.id).into_lua_err()?;
             // Convert to `i64` to guard against overflow.
             let mut transform = (0..(power as i64).abs())
                 .map(|_| &this.transform)
-                .fold(Isometry::ident(), |a, b| b * a);
+                .fold(Motor::ident(ndim), |a, b| b * a);
             if power < 0 {
                 transform = transform.reverse();
             }
@@ -75,7 +77,7 @@ impl LuaTwist {
 
     /// Returns the twist that contains an equivalent axis and transform to this
     /// twist, but transformed by `t`.
-    pub fn transform(&self, t: &Isometry) -> LuaResult<Option<Self>> {
+    pub fn transform_by(&self, m: &Motor) -> LuaResult<Option<Self>> {
         let db = self.db.lock();
 
         let TwistBuilder { axis, transform } = db.get(self.id).into_lua_err()?;
@@ -84,11 +86,11 @@ impl LuaTwist {
             id: *axis,
             db: Arc::clone(&db.axes),
         };
-        let Some(transformed_axis) = axis.transform(t)? else {
+        let Some(transformed_axis) = axis.transform_by(m)? else {
             return Ok(None);
         };
 
-        let transformed_transform = t.transform_isometry(transform); // TODO: maybe transform uninverted?
+        let transformed_transform = m.transform(transform); // TODO: maybe transform uninverted?
 
         Ok(db
             .data_to_id(transformed_axis.id, &transformed_transform)

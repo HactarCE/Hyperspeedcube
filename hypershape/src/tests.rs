@@ -1,7 +1,7 @@
 use hypermath::prelude::*;
 use itertools::Itertools;
 
-use super::*;
+use super::conformal::*;
 
 /// Carves two concentric spheres and keep the shell between them.
 #[test]

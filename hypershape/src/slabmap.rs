@@ -2,8 +2,7 @@ use std::collections::hash_map;
 use std::marker::PhantomData;
 use std::ops::Index;
 
-use hypermath::collections::generic_vec::IndexOverflow;
-use hypermath::collections::ApproxHashMap;
+use hypermath::collections::{ApproxHashMap, IndexOverflow};
 use hypermath::{ApproxHashMapKey, IndexNewtype};
 use slab::Slab;
 

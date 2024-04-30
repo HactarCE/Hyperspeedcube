@@ -62,7 +62,7 @@ impl LibraryObjectParams for ShapeParams {
     }
 
     fn new_constructed(space: &Arc<Mutex<Space>>) -> LuaResult<Self::Constructed> {
-        ShapeBuilder::new_full(None, Arc::clone(space)).into_lua_err()
+        ShapeBuilder::new_with_primordial_cube(None, Arc::clone(space)).into_lua_err()
     }
     fn clone_constructed(
         existing: &Self::Constructed,
@@ -79,8 +79,9 @@ impl LibraryObjectParams for ShapeParams {
             )));
         }
 
-        let shape_builder = ShapeBuilder::new_full(self.id.clone(), Arc::clone(space))
-            .map_err(LuaError::external)?;
+        let shape_builder =
+            ShapeBuilder::new_with_primordial_cube(self.id.clone(), Arc::clone(space))
+                .map_err(LuaError::external)?;
 
         shape_builder.lock().symmetry = self.symmetry.clone().map(|sym| sym.schlafli);
 

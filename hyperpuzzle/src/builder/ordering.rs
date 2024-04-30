@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use hypermath::collections::generic_vec::*;
+use hypermath::collections::{GenericVec, IndexNewtype, IndexOutOfRange, IndexOverflow};
 use itertools::Itertools;
 
 /// Mutable ordering of elements. By default, elements remain in insertion

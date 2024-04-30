@@ -1,14 +1,16 @@
 use super::*;
 
-mod manifold;
-mod multivector;
+mod blade;
+mod hyperplane;
+mod point;
 mod space;
 mod transform;
 mod transformable;
 mod vector;
 
-pub use manifold::*;
-pub use multivector::*;
+pub use blade::*;
+pub use hyperplane::*;
+pub use point::*;
 pub use space::*;
 pub use transform::*;
 pub use transformable::*;

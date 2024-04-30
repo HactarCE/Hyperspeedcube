@@ -21,6 +21,10 @@ pub const PUZZLE_ENGINE_VERSION_STRING: &str =
 
 /// Whether to capture Lua `print()`, `warn()`, and `error()` to prevent them
 /// from going to stdout/stderr.
-const CAPTURE_LUA_OUTPUT: bool = cfg!(debug_assertions);
+const CAPTURE_LUA_OUTPUT: bool = !cfg!(test);
 
 const MAX_TWIST_REPEAT: usize = 50;
+
+/// Radius of the promordial cube, which determines the maximum extent of all
+/// vertices along any axis.
+pub const PRIMORDIAL_CUBE_RADIUS: hypermath::Float = 1_048_576.0; // big power of 2 feels good

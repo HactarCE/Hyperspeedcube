@@ -30,22 +30,32 @@ mod vector;
 pub mod collections;
 
 pub mod approx_cmp;
+pub mod centroid;
 pub mod cga;
+pub mod hyperplane;
 pub mod matrix;
 pub mod permutations;
+pub mod pga;
 pub mod sign;
 pub mod util;
+pub mod which_side;
+
+pub use sign::Sign;
+pub use which_side::PointWhichSide;
 
 /// Structs, traits, and constants (excluding [`crate::collections`]).
 pub mod prelude {
     pub use crate::approx_cmp::*;
-    pub use crate::cga::*;
+    pub use crate::centroid::Centroid;
+    pub use crate::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange, IndexOverflow};
+    pub use crate::hyperplane::*;
     pub use crate::matrix::*;
     pub use crate::permutations::{self, Parity};
     pub use crate::sign::Sign;
     pub use crate::traits::*;
     pub use crate::vector::*;
-    pub use crate::{vector, Float, AXIS_NAMES, EPSILON, MAX_NDIM};
+    pub use crate::which_side::*;
+    pub use crate::{cga, pga, vector, Float, AXIS_NAMES, EPSILON, MAX_NDIM};
 }
 pub use prelude::*;
 
@@ -55,8 +65,8 @@ pub mod traits {
     pub use tinyset::Fits64;
 
     pub use crate::cga::{AsMultivector, ToConformalPoint};
-    pub use crate::collections::approx_hashmap::ApproxHashMapKey;
-    pub use crate::collections::generic_vec::IndexNewtype;
+    pub use crate::collections::{ApproxHashMapKey, IndexNewtype};
+    pub use crate::pga::TransformByMotor;
     pub use crate::util::IterWithExactSizeExt;
     pub use crate::vector::VectorRef;
 }

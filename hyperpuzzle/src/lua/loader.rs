@@ -57,8 +57,9 @@ impl LuaLoader {
 
             // Monkeypatch math lib.
             let math: LuaTable<'_> = globals.get("math")?;
-            let round_fn = |_lua, x: LuaNumber| Ok(x.round());
-            math.raw_set("round", lua.create_function(round_fn)?)?;
+            let round_fn = lua.create_function(|_lua, x: LuaNumber| Ok(x.round()))?;
+            math.raw_set("round", round_fn.clone())?;
+            globals.raw_set("round", round_fn)?; // unpack into globals table
             let eq_fn = |_lua, (a, b): (LuaNumber, LuaNumber)| Ok(hypermath::approx_eq(&a, &b));
             math.raw_set("eq", lua.create_function(eq_fn)?)?;
             let neq_fn = |_lua, (a, b): (LuaNumber, LuaNumber)| Ok(!hypermath::approx_eq(&a, &b));
@@ -97,14 +98,14 @@ impl LuaLoader {
             sandbox.raw_set("puzzles", LuaPuzzleDb)?;
 
             // Constructors
-            let vec_fn = |_lua, LuaVectorFromMultiValue(v)| Ok(LuaVector(v));
+            let vec_fn = |lua, LuaVectorFromMultiValue(v)| LuaBlade::from_vector(lua, v);
             sandbox.raw_set("vec", lua.create_function(vec_fn)?)?;
-            let mvec_fn = |_lua, m: LuaMultivector| Ok(m);
-            sandbox.raw_set("mvec", lua.create_function(mvec_fn)?)?;
-            let plane_fn = LuaManifold::construct_plane;
+            let point_fn = |lua, LuaPointFromMultiValue(v)| LuaBlade::from_point(lua, v);
+            sandbox.raw_set("point", lua.create_function(point_fn)?)?;
+            let blade_fn = |_lua, b: LuaBlade| Ok(b);
+            sandbox.raw_set("blade", lua.create_function(blade_fn)?)?;
+            let plane_fn = |_lua, h: LuaHyperplane| Ok(h);
             sandbox.raw_set("plane", lua.create_function(plane_fn)?)?;
-            let sphere_fn = LuaManifold::construct_sphere;
-            sandbox.raw_set("sphere", lua.create_function(sphere_fn)?)?;
             let cd_fn = |_lua, t| LuaSymmetry::construct_from_table(t);
             sandbox.raw_set("cd", lua.create_function(cd_fn)?)?;
             let refl_fn = LuaTransform::construct_reflection;
@@ -173,10 +174,21 @@ impl LuaLoader {
             };
             if name.starts_with("test_") {
                 ran_any_tests = true;
-                println!("Running {name:?} ...");
-                if let Err(e) = function.call::<(), ()>(()) {
-                    panic!("{e}");
+
+                if let Some(digit) = name
+                    .strip_suffix(&['d', 'D'])
+                    .and_then(|s| s.chars().last())
+                    .filter(|c| c.is_ascii_digit())
+                {
+                    let ndim: u8 = digit.to_string().parse().expect("bad ndim for test");
+                    println!("Running {name:?} in {ndim}D space ...");
+                    LuaSpace(Arc::new(Mutex::new(hypershape::flat::Space::new(ndim))))
+                        .with_this_as_global_space(&self.lua, || function.call::<(), ()>(()))
+                } else {
+                    println!("Running {name:?} ...");
+                    function.call::<(), ()>(())
                 }
+                .expect("test failed")
             }
         }
         assert!(ran_any_tests, "no tests ran!");

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use bitvec::prelude::*;
 use cgmath::SquareMatrix;
-use float_ord::FloatOrd;
+use hypermath::pga::*;
 use hypermath::prelude::*;
 use hyperpuzzle::{LayerMask, PerPiece, Piece, Puzzle, Sticker};
 use parking_lot::Mutex;
@@ -18,7 +18,7 @@ pub struct PuzzleViewController {
     /// puzzle views can access the same state.
     pub state: Arc<Mutex<PuzzleController>>,
 
-    pub rot: Isometry,
+    pub rot: Motor,
     pub zoom: f32,
 
     pub styles: PuzzleStyleStates,
@@ -26,13 +26,15 @@ pub struct PuzzleViewController {
 }
 impl PuzzleViewController {
     pub(crate) fn new(puzzle: &Arc<Mutex<PuzzleController>>) -> Self {
+        let puzzle_controller = puzzle.lock();
+        let puzzle_type = puzzle_controller.puzzle_type();
         Self {
             state: Arc::clone(puzzle),
 
-            rot: Isometry::ident(),
+            rot: Motor::ident(puzzle_type.ndim()),
             zoom: 0.5,
 
-            styles: PuzzleStyleStates::new(puzzle.lock().puzzle_type().pieces.len()),
+            styles: PuzzleStyleStates::new(puzzle_type.pieces.len()),
             hover_state: None,
         }
     }
@@ -146,12 +148,13 @@ impl PuzzleViewController {
     }
 
     pub(crate) fn reset_camera(&mut self) {
-        self.rot = Isometry::ident();
+        self.rot = Motor::ident(self.puzzle().ndim());
     }
 
     pub(crate) fn do_sticker_click(&self, direction: Sign) {
         let mut state = self.state.lock();
         let puzzle = state.puzzle_type();
+        let ndim = puzzle.ndim();
 
         if let Some(hov) = &self.hover_state {
             if puzzle.ndim() == 3 {
@@ -162,11 +165,11 @@ impl PuzzleViewController {
 
                 // Find the axis aligned with the normal vector of this
                 // sticker.
-                let u = Blade::vector(&hov.u_tangent);
-                let v = Blade::vector(&hov.v_tangent);
-                let bivector = u ^ v;
-                let xyz = Blade::from(Term::unit(Axes::X | Axes::Y | Axes::Z));
-                let Some(target_vector) = (&bivector << xyz).to_vector().normalize() else {
+                let u = Blade::from_vector(ndim, &hov.u_tangent);
+                let v = Blade::from_vector(ndim, &hov.v_tangent);
+                let Some(target_vector) =
+                    Blade::cross_product_3d(&u, &v).and_then(|b| b.to_vector())
+                else {
                     return;
                 };
                 // TODO: this assumes that the axis vectors are normalized,
@@ -200,8 +203,10 @@ impl PuzzleViewController {
                     // larger if the twist travels through a larger angle:
                     // - no rotation = 0
                     // - 180-degree rotation = ±1
-                    let score = puzzle.twist_transform(twist).mv().dot(bivector.mv());
-                    (-Sign::from(score) * direction, FloatOrd(score.abs()))
+
+                    todo!("oops! didn't impl")
+                    // let score = puzzle.twists[twist].transform.mv().dot(bivector.mv());
+                    // (-Sign::from(score) * direction, FloatOrd(score.abs()))
                 });
                 if let Some(twist) = best_twist {
                     state.do_twist(twist, LayerMask(1));

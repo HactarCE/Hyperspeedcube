@@ -1,6 +1,7 @@
 use std::fmt;
 use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 
+use super::*;
 use crate::*;
 
 /// Term in the conformal geometric algebra, consisting of a real coefficient

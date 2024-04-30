@@ -5,13 +5,11 @@
 //! aliasing in the Lua API, so the Rust API must also have mutable aliasing.
 
 mod axis_system;
-mod centroid;
 mod color_system;
 mod naming_scheme;
 mod ordering;
 mod puzzle;
 mod shape;
-mod simplexifier;
 mod twist_system;
 
 pub use axis_system::{AxisBuilder, AxisLayerBuilder, AxisSystemBuilder};

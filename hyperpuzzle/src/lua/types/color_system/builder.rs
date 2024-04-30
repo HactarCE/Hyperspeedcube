@@ -35,7 +35,7 @@ impl<'lua> LuaIdDatabase<'lua, Color> for ShapeBuilder {
     const ELEMENT_NAME_PLURAL: &'static str = "colors";
 
     fn value_to_id(&self, lua: &'lua Lua, value: LuaValue<'lua>) -> LuaResult<Color> {
-        // TODO: lookup by manifold (single manifold, or exact set of manifolds)
+        // TODO: lookup by surface (single surface, or exact set of surfaces)
         self.value_to_id_by_userdata(lua, &value)
             .or_else(|| self.value_to_id_by_name(lua, &value))
             .or_else(|| self.value_to_id_by_index(lua, &value))
@@ -75,29 +75,24 @@ impl LuaColorSystem {
     /// Adds a new color.
     fn add<'lua>(&self, lua: &'lua Lua, data: LuaValue<'lua>) -> LuaResult<LuaColor> {
         let name: Option<String>;
-        let manifolds: LuaManifoldSet;
+        let surfaces: LuaHyperplaneSet;
         let default_color: Option<String>;
         if let Ok(m) = lua.unpack(data.clone()) {
             name = None;
-            manifolds = m;
+            surfaces = m;
             default_color = None;
         } else if let LuaValue::Table(t) = data {
             unpack_table!(lua.unpack(t {
                 name,
-                manifolds,
+                surfaces,
                 default_color,
             }));
         } else {
-            return lua_convert_err(&data, "manifold or table");
+            return lua_convert_err(&data, "hyperplane or table");
         };
 
         let mut shape = self.0.lock();
-        let manifolds = shape
-            .space
-            .lock()
-            .add_manifolds(manifolds.0)
-            .into_lua_err()?;
-        let id = shape.colors.add(manifolds).into_lua_err()?;
+        let id = shape.colors.add(surfaces.0).into_lua_err()?;
         shape.colors.get_mut(id).into_lua_err()?.default_color = default_color;
         shape.colors.names.set(id, name, lua_warn_fn(lua));
         Ok(shape.wrap_id(id))

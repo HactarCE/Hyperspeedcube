@@ -36,7 +36,7 @@ impl fmt::Debug for LibraryDb {
     }
 }
 impl LibraryDb {
-    /// Consturcts a new library.
+    /// Constructs a new library.
     pub fn new() -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self::default()))
     }
@@ -135,7 +135,7 @@ impl LibraryDb {
     pub fn build_puzzle(lua: &Lua, id: &str) -> Result<Arc<Puzzle>> {
         let LuaNdim(ndim) =
             Self::with_object(lua, id, |cached: &CachedPuzzle| Ok(cached.params.ndim))?;
-        let space = Arc::new(Mutex::new(Space::new(ndim)?));
+        let space = Arc::new(Mutex::new(Space::new(ndim)));
         Ok(Self::build_from_id::<PuzzleParams>(lua, &space, id)?)
     }
 

@@ -97,7 +97,8 @@ impl Axes {
         self.bits().count_ones() as _
     }
 
-    /// Returns the minimum number of Euclidean dimensions required.
+    /// Returns the minimum number of Euclidean dimensions required to represent
+    /// this set of axes.
     pub fn min_euclidean_ndim(self) -> u8 {
         let bits = self.bits();
         let total_bits = std::mem::size_of_val(&bits) as u32 * 8;
@@ -106,7 +107,7 @@ impl Axes {
     /// Returns the Euclidean axis, if it is exactly one axis and that axis is
     /// Euclidean.
     pub fn single_euclidean_axis(self) -> Option<u8> {
-        (self.count() == 1).then(|| self.min_euclidean_ndim() - 1)
+        (self.count() == 1).then(|| self.min_euclidean_ndim())
     }
 }
 

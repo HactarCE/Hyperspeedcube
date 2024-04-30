@@ -1,6 +1,7 @@
 use std::fmt;
 use std::ops::{Mul, MulAssign};
 
+use super::*;
 use crate::*;
 
 /// [Isometry](https://w.wiki/7SP4) in space represented by a multivector --
@@ -145,14 +146,14 @@ impl Isometry {
         Isometry(self.0.reverse())
     }
 
-    /// Computes the rotation matrix for an isometry in Euclidean space which
+    /// Returns the rotation matrix for an isometry in Euclidean space which
     /// keeps the origin fixed.
     ///
     /// The result is undefined for any other isometry.
     pub fn euclidean_rotation_matrix(&self) -> Matrix {
         Matrix::from_cols(self.euclidean_matrix_cols(self.ndim()))
     }
-    /// Computes the projective transformation matrix for an isometry in
+    /// Returns the projective transformation matrix for an isometry in
     /// `ndim`-dimensional Euclidean space.
     ///
     /// The result is undefined for any other isometry.

@@ -8,6 +8,7 @@ use super::*;
 /// vector.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LuaVectorIndex(pub u8);
+
 impl<'lua> FromLua<'lua> for LuaVectorIndex {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         if let Ok(LuaIndex(i)) = lua.unpack(value.clone()) {
@@ -31,6 +32,12 @@ impl<'lua> FromLua<'lua> for LuaVectorIndex {
         } else {
             lua_convert_err(&value, "vector index (number or string)")
         }
+    }
+}
+
+impl<'lua> IntoLua<'lua> for LuaVectorIndex {
+    fn into_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+        self.0.checked_add(1).into_lua(&lua)
     }
 }
 

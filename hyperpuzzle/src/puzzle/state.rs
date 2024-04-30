@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use eyre::Context;
 use hypermath::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
@@ -14,17 +13,13 @@ pub struct PuzzleState {
     /// Immutable puzzle type info.
     puzzle_type: Arc<Puzzle>,
     /// Position and rotation of each piece.
-    piece_transforms: PerPiece<IsometryId>,
+    piece_transforms: PerPiece<pga::Motor>,
 }
 impl PuzzleState {
     /// Constructs a new instance of a puzzle.
     pub fn new(puzzle_type: Arc<Puzzle>) -> Self {
-        let ident = puzzle_type
-            .space
-            .lock()
-            .add_isometry(Isometry::ident())
-            .expect("error adding identity transform to space");
-        let piece_transforms = puzzle_type.pieces.map_ref(|_, _| ident);
+        let ident = pga::Motor::ident(puzzle_type.ndim());
+        let piece_transforms = puzzle_type.pieces.map_ref(|_, _| ident.clone());
         PuzzleState {
             puzzle_type,
             piece_transforms,
@@ -35,10 +30,8 @@ impl PuzzleState {
         &self.puzzle_type
     }
     /// Returns the position and rotation of each piece.
-    pub fn piece_transforms(&self) -> PerPiece<Isometry> {
-        let space = self.space();
-        self.piece_transforms
-            .map_ref(|_piece, &id| space[id].clone())
+    pub fn piece_transforms(&self) -> &PerPiece<pga::Motor> {
+        &self.piece_transforms
     }
     /// Returns the position and rotation of each piece during an animation.
     ///
@@ -48,13 +41,13 @@ impl PuzzleState {
         twist: Twist,
         layers: LayerMask,
         t: Float,
-    ) -> PerPiece<Isometry> {
+    ) -> PerPiece<pga::Motor> {
         let grip = self.compute_grip(self.ty().twists[twist].axis, layers);
         let twist_transform = self.ty().partial_twist_transform(twist, t);
         self.piece_transforms()
-            .map(|piece, current_piece_transform| match grip[piece] {
+            .map_ref(|piece, current_piece_transform| match grip[piece] {
                 WhichSide::Inside => &twist_transform * current_piece_transform,
-                _ => current_piece_transform,
+                _ => current_piece_transform.clone(),
             })
     }
 
@@ -77,18 +70,11 @@ impl PuzzleState {
             return Err(split_pieces);
         }
 
-        let mut space = self.puzzle_type.space.lock(); // can't call `space()` due to borrowing
-        let piece_transforms = self.piece_transforms.map_ref(|piece, &piece_transform| {
+        let piece_transforms = self.piece_transforms.map_ref(|piece, piece_transform| {
             if grip[piece] == WhichSide::Inside {
-                let piece_transform = self.piece_transforms[piece];
-                space
-                    .compose_transforms(twist.transform, piece_transform)
-                    .unwrap_or_else(|e| {
-                        log::error!("error applying transform to piece: {e}");
-                        piece_transform
-                    })
+                &twist.transform * &self.piece_transforms[piece]
             } else {
-                piece_transform
+                piece_transform.clone()
             }
         });
 
@@ -115,12 +101,12 @@ impl PuzzleState {
         let mut segments = vec![];
         for layer in grip_layers {
             if let Some((_, last_top)) = segments.last_mut() {
-                if *last_top == Some(-layer.bottom) {
-                    *last_top = layer.top;
+                if *last_top == Some(layer.bottom.flip()) {
+                    *last_top = layer.top.clone();
                     continue;
                 }
             }
-            segments.push((layer.bottom, layer.top));
+            segments.push((layer.bottom.clone(), layer.top.clone()));
         }
 
         let mut space = self.space();
@@ -128,24 +114,17 @@ impl PuzzleState {
         self.puzzle_type.pieces.map_ref(|piece, piece_info| {
             // IIFE to mimic try_block
             (|| {
-                let polytope = piece_info.polytope.id;
-                let piece_transform = self.piece_transforms[piece];
-                let rev_piece_transform = space
-                    .reverse_transform(piece_transform)
-                    .wrap_err("error computing reverse of peice transform")?;
+                let polytope = piece_info.polytope;
+                let piece_transform = &self.piece_transforms[piece];
+                let rev_piece_transform = piece_transform.reverse();
                 let mut is_inside_any = false;
-                'per_segment: for &(bottom, top) in &segments {
-                    for cut in [Some(bottom), top] {
+                'per_segment: for (bottom, top) in &segments {
+                    for cut in [Some(bottom), top.as_ref()] {
                         let Some(cut) = cut else { continue };
 
-                        let transformed_cut = space
-                            .transform_manifold(rev_piece_transform, cut)
-                            .wrap_err("error transforming layer manifold")?;
+                        let transformed_cut = rev_piece_transform.transform(cut);
 
-                        match space
-                            .cached_which_side_has_polytope(transformed_cut, polytope)
-                            .wrap_err("error computing whether piece is contained by layer")?
-                        {
+                        match space.which_side_has_polytope(&transformed_cut, polytope) {
                             WhichSide::Outside => continue 'per_segment, // not in this segment; continue to next segment
                             WhichSide::Split => return Ok(WhichSide::Split), // split by one segment; cannot turn!
                             _ => (),
