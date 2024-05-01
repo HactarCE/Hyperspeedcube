@@ -56,6 +56,9 @@ fn main() -> eframe::Result<()> {
     #[cfg(not(debug_assertions))]
     init_human_panic();
 
+    #[cfg(feature = "deadlock_detection")]
+    init_deadlock_detection();
+
     pollster::block_on(run())
 }
 
@@ -174,4 +177,25 @@ fn init_human_panic() {
 
         std_panic_hook(info);
     }));
+}
+
+/// Create a background thread that checks for deadlocks every 10 seconds.
+#[cfg(feature = "deadlock_detection")]
+fn init_deadlock_detection() {
+    std::thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        let deadlocks = parking_lot::deadlock::check_deadlock();
+        if deadlocks.is_empty() {
+            continue;
+        }
+
+        log::error!("{} deadlocks detected", deadlocks.len());
+        for (i, threads) in deadlocks.iter().enumerate() {
+            log::error!("Deadlock #{}", i);
+            for t in threads {
+                log::error!("Thread Id {:#?}", t.thread_id());
+                log::error!("{:#?}", t.backtrace());
+            }
+        }
+    });
 }

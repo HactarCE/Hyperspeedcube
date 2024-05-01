@@ -95,6 +95,7 @@ web-sys = { version = "=0.3.69", features = [
 
 [features]
 optick = ["dep:optick", "dep:optick-attr"]
+deadlock_detection = ["parking_lot/deadlock_detection"]
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
