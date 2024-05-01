@@ -1,7 +1,6 @@
 //! Multidimensional vector, matrix, and conformal geometric algebra primitives.
 
-pub use approx;
-pub use {num_traits as num, smallvec};
+pub use {approx, num_traits as num, smallvec};
 
 /// Floating-point type used for geometry (either `f32` or `f64`).
 pub type Float = f64;

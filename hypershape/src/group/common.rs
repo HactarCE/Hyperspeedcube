@@ -1,6 +1,5 @@
 use hypermath::collections::{GenericVec, IndexOverflow};
-use hypermath::pga;
-use hypermath::{idx_struct, IndexNewtype};
+use hypermath::{idx_struct, pga, IndexNewtype};
 
 idx_struct! {
     /// ID of a group generator.

@@ -1,4 +1,5 @@
-use hypermath::{collections::approx_hashmap::FloatHash, prelude::*};
+use hypermath::collections::approx_hashmap::FloatHash;
+use hypermath::prelude::*;
 use itertools::Itertools;
 
 use super::*;

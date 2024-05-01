@@ -2,7 +2,8 @@ use std::fmt;
 
 use ball_tree::BallTree;
 
-use crate::{pga::Motor, *};
+use crate::pga::Motor;
+use crate::*;
 
 /// Nearest-neighbors query structure for motors in the projective geometric
 /// algebra.
