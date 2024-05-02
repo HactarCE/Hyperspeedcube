@@ -37,7 +37,7 @@ puzzles:add('3x3x3', {
       local opposite_cut = plane{normal = ax.vector, distance = -1/3}
       p.shape:slice(cut)
       ax.layers:add(cut)
-      ax.layers:add(opposite_cut, nil)
+      ax.layers:add(opposite_cut)
     end
 
     -- p.twists.aliases:add("M", {2, "L"})

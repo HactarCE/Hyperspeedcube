@@ -46,6 +46,16 @@ static LUA_BUILTIN_DIR: include_dir::Dir<'_> = if crate::IS_OFFICIAL_BUILD {
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources/lua")
 };
 
+/// Number of points that the mouse must be dragged to twist the puzzle.
+///
+/// TODO: move this to preferences
+const TWIST_DRAG_THRESHOLD: f32 = 5.0;
+
+/// Speed multiplier for twists using mouse dragging.
+///
+/// TODO: reword this and move it to preferences
+const TWIST_DRAG_SPEED: f32 = 2.0;
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
     // Initialize logging.

@@ -11,18 +11,20 @@ use parking_lot::Mutex;
 
 use super::controller::PuzzleController;
 use super::styles::*;
-use crate::preferences::Preferences;
+use super::Camera;
+use crate::preferences::{Preferences, ViewPreferences};
 
+/// View into a puzzle simulation, which has its own piece filters.
 #[derive(Debug)]
 pub struct PuzzleViewController {
     /// Puzzle state. This is wrapped in an `Arc<Mutex<T>>` so that multiple
     /// puzzle views can access the same state.
     pub state: Arc<Mutex<PuzzleController>>,
 
-    pub rot: Motor,
-    pub zoom: f32,
+    pub camera: Camera,
 
     pub styles: PuzzleStyleStates,
+
     hover_state: Option<HoverState>,
 }
 impl PuzzleViewController {
@@ -32,8 +34,12 @@ impl PuzzleViewController {
         Self {
             state: Arc::clone(puzzle),
 
-            rot: Motor::ident(puzzle_type.ndim()),
-            zoom: 0.5,
+            camera: Camera {
+                prefs: ViewPreferences::default(),
+                target_size: [1, 1],
+                rot: Motor::ident(puzzle_type.ndim()),
+                zoom: 0.5,
+            },
 
             styles: PuzzleStyleStates::new(puzzle_type.pieces.len()),
             hover_state: None,
@@ -44,8 +50,8 @@ impl PuzzleViewController {
         Arc::clone(&self.state.lock().puzzle_type())
     }
 
-    pub fn hover_state(&self) -> Option<&HoverState> {
-        self.hover_state.as_ref()
+    pub fn hover_state(&self) -> Option<HoverState> {
+        self.hover_state.clone()
     }
 
     /// Sets the hover state.
@@ -82,15 +88,6 @@ impl PuzzleViewController {
     ) -> Option<HoverState> {
         let puzzle = self.puzzle();
 
-        // On my machine, parallelizing this using rayon made it ~2x faster
-        // (~900µs -> ~400µs) for 3^5, and a bit slower for smaller puzzles. It
-        // may be worth parallelizing in the future if it turns out to be taking
-        // a lot of time for large puzzles, especially on slow hardware.
-        //
-        // Another option is to compute it asynchronously while other
-        // computations happen on another thread, although I'm not sure what
-        // other expensive computations would need to happen every frame.
-
         let interactable_pieces = self.styles.interactable_pieces(&prefs.styles);
 
         let sticker_tri_ranges = puzzle
@@ -110,10 +107,9 @@ impl PuzzleViewController {
 
         itertools::chain(sticker_tri_ranges, internals_tri_ranges)
             .filter(|(piece, _sticker, _tri_range)| interactable_pieces[piece.0 as usize])
-            .flat_map(|(piece, sticker, tri_range)| {
-                triangle_hovers(
+            .filter_map(|(piece, sticker, tri_range)| {
+                self.triangle_hover(
                     screen_space_mouse_pos,
-                    &puzzle,
                     piece,
                     sticker,
                     tri_range,
@@ -149,7 +145,7 @@ impl PuzzleViewController {
     }
 
     pub(crate) fn reset_camera(&mut self) {
-        self.rot = Motor::ident(self.puzzle().ndim());
+        self.camera.rot = Motor::ident(self.puzzle().ndim());
     }
 
     pub(crate) fn do_sticker_click(&self, direction: Sign) {
@@ -166,7 +162,7 @@ impl PuzzleViewController {
 
                 // Find the axis aligned with the normal vector of this
                 // sticker.
-                let [u, v] = hov.tangent_vectors(&state);
+                let [u, v] = [&hov.u_tangent, &hov.v_tangent];
                 let target_vector = Vector::cross_product_3d(&u, &v);
                 // TODO: this assumes that the axis vectors are normalized,
                 //       which they are, but is that assumption documented or
@@ -207,32 +203,53 @@ impl PuzzleViewController {
             // TODO: 4D click controls
         }
     }
-}
 
-/// Returns data about triangles that contain the screen-space point `p`.
-fn triangle_hovers<'a>(
-    p: cgmath::Point2<f32>,
-    puzzle: &'a Puzzle,
-    piece: Piece,
-    sticker: Option<Sticker>,
-    tri_range: &Range<u32>,
-    vertex_3d_positions: &'a [cgmath::Vector4<f32>],
-) -> impl 'a + Iterator<Item = HoverState> {
-    puzzle.mesh.triangles[tri_range.start as usize..tri_range.end as usize]
-        .iter()
-        .filter_map(move |&vertex_ids| {
-            let tri_verts @ [a, b, c] = vertex_ids.map(|i| vertex_3d_positions[i as usize]);
-            let (barycentric_coords @ [qa, qb, qc], backface) =
-                triangle_hover_barycentric_coordinates(p, tri_verts)?;
-            Some(HoverState {
-                piece,
-                sticker,
-                z: qa * a.z + qb * b.z + qc * c.z,
-                backface,
-                vertex_ids,
-                barycentric_coords,
+    /// Returns the nearest triangle on a sticker that contain the screen-space
+    /// point `p`.
+    fn triangle_hover<'a>(
+        &self,
+        p: cgmath::Point2<f32>,
+        piece: Piece,
+        sticker: Option<Sticker>,
+        tri_range: &Range<u32>,
+        vertex_3d_positions: &'a [cgmath::Vector4<f32>],
+    ) -> Option<HoverState> {
+        let puzzle_state = self.state.lock();
+        let piece_transform = &puzzle_state.piece_transforms()[piece];
+        let mesh = &puzzle_state.puzzle_type().mesh;
+        mesh.triangles[tri_range.start as usize..tri_range.end as usize]
+            .iter()
+            .filter_map(move |&vertex_ids| {
+                let tri_verts @ [a, b, c] = vertex_ids.map(|i| vertex_3d_positions[i as usize]);
+                let (barycentric_coords @ [qa, qb, qc], backface) =
+                    triangle_hover_barycentric_coordinates(p, tri_verts)?;
+
+                let [pa, pb, pc] = vertex_ids.map(|i| mesh.vertex_position(i));
+                let position =
+                    piece_transform.transform_point(pa * qa as _ + pb * qb as _ + pc * qc as _);
+
+                let [ua, ub, uc] = vertex_ids.map(|i| mesh.u_tangent(i as _));
+                let [va, vb, vc] = vertex_ids.map(|i| mesh.v_tangent(i as _));
+                let u_tangent =
+                    piece_transform.transform_vector(ua * qa as _ + ub * qb as _ + uc * qc as _);
+                let v_tangent =
+                    piece_transform.transform_vector(va * qa as _ + vb * qb as _ + vc * qc as _);
+
+                Some(HoverState {
+                    piece,
+                    sticker,
+                    z: qa * a.z + qb * b.z + qc * c.z,
+                    backface,
+                    vertex_ids,
+                    barycentric_coords,
+
+                    position,
+                    u_tangent,
+                    v_tangent,
+                })
             })
-        })
+            .max_by(|a, b| f32::total_cmp(&a.z, &b.z))
+    }
 }
 
 /// Returns the perspective-correct barycentric coordinates for the point `p` in
@@ -293,25 +310,21 @@ fn triangle_area_2x([a, b, c]: [cgmath::Point2<f32>; 3]) -> f32 {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HoverState {
-    piece: Piece,
-    sticker: Option<Sticker>,
+    pub piece: Piece,
+    pub sticker: Option<Sticker>,
     /// Screen-space Z coordinate.
     z: f32,
     /// Whether the triangle is being hovered from behind.
-    backface: bool,
+    pub backface: bool,
     vertex_ids: [u32; 3],
     barycentric_coords: [f32; 3],
-}
-impl HoverState {
-    pub fn tangent_vectors(&self, puzzle: &PuzzleController) -> [Vector; 2] {
-        let mesh = &puzzle.puzzle_type().mesh;
-        let [qa, qb, qc] = self.barycentric_coords;
-        let [ua, ub, uc] = self.vertex_ids.map(|i| mesh.u_tangent(i as _));
-        let [va, vb, vc] = self.vertex_ids.map(|i| mesh.v_tangent(i as _));
-        let u_tangent = ua * qa as _ + ub * qb as _ + uc * qc as _;
-        let v_tangent = va * qa as _ + vb * qb as _ + vc * qc as _;
 
-        let piece_transform = &puzzle.piece_transforms()[self.piece];
-        [&u_tangent, &v_tangent].map(|v| piece_transform.transform_vector(v))
-    }
+    /// Position of the cursor on the surface of the sticker, in puzzle space.
+    pub position: Vector,
+    /// First tangent vector of the surface on the sticker at the cursor, in
+    /// puzzle space.
+    pub u_tangent: Vector,
+    /// Second tangent vector of the surface on the sticker at the cursor, in
+    /// puzzle space.
+    pub v_tangent: Vector,
 }

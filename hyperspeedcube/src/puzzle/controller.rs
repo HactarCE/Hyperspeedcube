@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use hypermath::pga::Motor;
-use hyperpuzzle::{LayerMask, PerPiece, Puzzle, PuzzleState, Twist};
+use float_ord::FloatOrd;
+use hypermath::pga::{Axes, Motor};
+use hyperpuzzle::{Axis, LayerMask, PerPiece, Puzzle, PuzzleState, Twist};
 use instant::Instant;
 
 use super::animations::{BlockingPiecesAnimationState, TwistAnimation, TwistAnimationState};
 use crate::preferences::Preferences;
 
+/// Puzzle simulation, which manages the puzzle state, animations, undo stack,
+/// etc.
 #[derive(Debug, Clone)]
 pub struct PuzzleController {
     /// Latest puzzle state, not including any transient rotation.
@@ -18,6 +21,8 @@ pub struct PuzzleController {
     blocking_pieces: BlockingPiecesAnimationState,
     /// Time of last frame, or `None` if we are not in the middle of an animation.
     last_frame_time: Option<Instant>,
+
+    partial_twist_drag_state: Option<(Axis, LayerMask, Motor)>,
 
     /// Latest visual piece transforms.
     cached_piece_transforms: PerPiece<Motor>,
@@ -32,6 +37,8 @@ impl PuzzleController {
             twist_anim: TwistAnimationState::default(),
             blocking_pieces: BlockingPiecesAnimationState::default(),
             last_frame_time: None,
+
+            partial_twist_drag_state: None,
 
             cached_piece_transforms,
         }
@@ -48,13 +55,26 @@ impl PuzzleController {
         &self.cached_piece_transforms
     }
     fn update_piece_transforms(&mut self) {
-        self.cached_piece_transforms = match self.twist_anim.current() {
-            Some((anim, t)) => {
-                anim.state
-                    .animated_piece_transforms(anim.twist, anim.layers, t as _)
-            }
-            None => self.puzzle.piece_transforms().clone(),
-        };
+        self.cached_piece_transforms = None
+            .or_else(|| {
+                self.twist_anim.current().map(|(anim, t)| {
+                    anim.state.animated_piece_transforms(
+                        &anim.initial_transform,
+                        anim.twist,
+                        anim.layers,
+                        t as _,
+                    )
+                })
+            })
+            .or_else(|| {
+                self.partial_twist_drag_state
+                    .as_ref()
+                    .map(|(axis, layers, motor)| {
+                        let grip = self.puzzle.compute_grip(*axis, *layers);
+                        self.puzzle.partial_piece_transforms(grip, motor)
+                    })
+            })
+            .unwrap_or_else(|| self.puzzle.piece_transforms().clone());
     }
 
     pub fn do_twist(&mut self, twist: Twist, layers: LayerMask) {
@@ -65,6 +85,10 @@ impl PuzzleController {
                     state: old_state,
                     twist,
                     layers,
+                    initial_transform: match self.partial_twist_drag_state.take() {
+                        Some((_, _, m)) => m,
+                        None => Motor::ident(self.puzzle.ty().ndim()),
+                    },
                 });
                 self.blocking_pieces.clear();
             }
@@ -116,5 +140,28 @@ impl PuzzleController {
 
     pub fn blocking_pieces(&self) -> &BlockingPiecesAnimationState {
         &self.blocking_pieces
+    }
+
+    pub fn set_partial_twist_drag_state(&mut self, value: Option<(Axis, LayerMask, Motor)>) {
+        if value.is_none() {
+            if let Some((axis, layers, m)) = &self.partial_twist_drag_state {
+                if let Some((twist, _)) = self
+                    .puzzle_type()
+                    .twists
+                    .iter()
+                    .filter(|(_, twist_info)| twist_info.axis == *axis)
+                    .max_by_key(|(_, twist_info)| {
+                        FloatOrd(Motor::dot(&twist_info.transform, &m).abs())
+                    })
+                    .filter(|(_, twist_info)| {
+                        Motor::dot(&twist_info.transform, &m).abs() > m.get(Axes::SCALAR)
+                    })
+                {
+                    self.do_twist(twist, *layers);
+                }
+            }
+        }
+        self.partial_twist_drag_state = value;
+        self.update_piece_transforms(); // TODO: is this necessary?
     }
 }

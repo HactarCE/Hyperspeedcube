@@ -4,13 +4,15 @@
 mod macros;
 mod bindings;
 mod cache;
+mod draw_params;
 mod pipelines;
 mod puzzle;
 mod state;
 mod structs;
 
 use cache::{CachedTexture1d, CachedTexture2d};
-pub(crate) use puzzle::{DrawParams, PuzzleRenderResources, PuzzleRenderer};
+pub(crate) use draw_params::DrawParams;
+pub(crate) use puzzle::{PuzzleRenderResources, PuzzleRenderer};
 pub(crate) use state::GraphicsState;
 
 /// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.

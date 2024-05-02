@@ -33,20 +33,32 @@ impl PuzzleState {
     pub fn piece_transforms(&self) -> &PerPiece<pga::Motor> {
         &self.piece_transforms
     }
-    /// Returns the position and rotation of each piece during an animation.
+    /// Returns the position and rotation of each piece during a twist
+    /// animation.
     ///
     /// `t` ranges from `0.0` to `1.0`.
     pub fn animated_piece_transforms(
         &self,
+        init: &pga::Motor,
         twist: Twist,
         layers: LayerMask,
         t: Float,
     ) -> PerPiece<pga::Motor> {
         let grip = self.compute_grip(self.ty().twists[twist].axis, layers);
-        let twist_transform = self.ty().partial_twist_transform(twist, t);
+        let twist_transform = &self.ty().twists[twist].transform;
+        let partial_twist_transform = pga::Motor::slerp_infallible(&init, twist_transform, t);
+        self.partial_piece_transforms(grip, &partial_twist_transform)
+    }
+    /// Returns the position and rotation of each piece during an arbitrary
+    /// animation affecting a subset of pieces.
+    pub fn partial_piece_transforms(
+        &self,
+        grip: PerPiece<WhichSide>,
+        transform: &pga::Motor,
+    ) -> PerPiece<pga::Motor> {
         self.piece_transforms()
             .map_ref(|piece, current_piece_transform| match grip[piece] {
-                WhichSide::Inside => &twist_transform * current_piece_transform,
+                WhichSide::Inside => transform * current_piece_transform,
                 _ => current_piece_transform.clone(),
             })
     }
@@ -144,5 +156,32 @@ impl PuzzleState {
                 WhichSide::Split
             })
         })
+    }
+
+    /// Returns the smallest layer mask on `axis` that contains `piece`.
+    pub fn compute_minimum_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
+        let space = self.space();
+
+        let piece_transform = &self.piece_transforms[piece];
+
+        // TODO: This assumes the piece only spans one layer. It does not
+        //       account for bandaging.
+        self.ty().axes[axis]
+            .layers
+            .find(|_layer, layer_info| {
+                space
+                    .vertex_set(self.ty().pieces[piece].polytope)
+                    .iter()
+                    .all(|v| {
+                        let p = piece_transform.transform_point(&space[v]);
+                        layer_info.bottom.location_of_point(&p) != PointWhichSide::Outside && {
+                            match &layer_info.top {
+                                Some(top) => top.location_of_point(&p) != PointWhichSide::Outside,
+                                None => true,
+                            }
+                        }
+                    })
+            })
+            .map(LayerMask::from)
     }
 }

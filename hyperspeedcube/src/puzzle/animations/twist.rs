@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use hypermath::pga;
 use hyperpuzzle::{LayerMask, PuzzleState, Twist};
 use instant::Duration;
 
@@ -80,4 +81,7 @@ pub struct TwistAnimation {
     pub twist: Twist,
     /// Layers to twist.
     pub layers: LayerMask,
+    /// Initial transform of the pieces (identity, unless the move was inputted
+    /// using a mouse drag).
+    pub initial_transform: pga::Motor,
 }

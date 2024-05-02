@@ -251,11 +251,18 @@ impl PuzzleBuilder {
                 }
             }
 
+            let mut last_bottom = None;
             let layers = old_layers
                 .iter_values()
-                .map(|layer| LayerInfo {
-                    bottom: layer.bottom.clone(),
-                    top: layer.top.clone(),
+                .map(|layer| {
+                    // Bound the top of each layer at the bottom of the previous one.
+                    LayerInfo {
+                        bottom: layer.bottom.clone(),
+                        top: layer.top.clone().or(std::mem::replace(
+                            &mut last_bottom,
+                            Some(layer.bottom.flip()),
+                        )),
+                    }
                 })
                 .collect();
 
@@ -582,7 +589,7 @@ fn build_shape_polygons(
 
             // Ensure that triangles face the right way in 3D.
             if space.ndim() == 3 {
-                let [a, b, c] = new_vertex_ids.map(|i| mesh.vertex_position(i));
+                let [a, b, c] = new_vertex_ids.map(|v| mesh.vertex_position(v));
                 let tri_normal = Vector::cross_product_3d(&(&c - b), &(&c - a));
                 if normal.dot(tri_normal) < 0.0 {
                     new_vertex_ids.swap(0, 1);

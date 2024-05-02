@@ -135,6 +135,11 @@ impl FromStr for LayerMask {
         .ok_or("invalid layer mask")
     }
 }
+impl From<Layer> for LayerMask {
+    fn from(value: Layer) -> Self {
+        Self(1 << value.0)
+    }
+}
 impl LayerMask {
     /// Returns a mask containing all layers.
     pub fn all_layers(total_layer_count: u8) -> Self {

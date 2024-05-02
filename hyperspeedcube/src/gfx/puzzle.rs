@@ -12,20 +12,18 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use bitvec::bitbox;
-use bitvec::boxed::BitBox;
 use bitvec::order::Lsb0;
 use egui::NumExt;
-use eyre::{bail, eyre, Result};
+use eyre::{bail, Result};
 use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, Puzzle};
 use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::bindings::{BindGroups, WgpuPassExt};
+use super::draw_params::GeometryCacheKey;
 use super::structs::*;
-use super::{pipelines, CachedTexture1d, CachedTexture2d, GraphicsState};
-use crate::preferences::ViewPreferences;
-use crate::puzzle::PieceStyleValues;
+use super::{pipelines, CachedTexture1d, CachedTexture2d, DrawParams, GraphicsState};
 
 /// Near and far plane distance (assuming no FOV). Larger number means less
 /// clipping far from the camera, but also less Z buffer precision.
@@ -39,7 +37,7 @@ const Z_EPSILON: f32 = 0.01;
 /// Whether to send the mouse position to the GPU. This is useful for debugging
 /// purposes, but causes the puzzle to redraw every frame that the mouse moves,
 /// even when not necessary.
-const SEND_MOUSE_POS: bool = true;
+const SEND_MOUSE_POS: bool = false;
 
 /// Color ID for the background.
 const BACKGROUND_COLOR_ID: u32 = 0;
@@ -96,7 +94,7 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         let pipeline = &self.gfx.pipelines.blit;
         let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
             src_texture: &texture_view,
-            src_sampler: match draw_params.prefs.downscale_interpolate {
+            src_sampler: match draw_params.cam.prefs.downscale_interpolate {
                 true => &self.gfx.bilinear_sampler,
                 false => &self.gfx.nearest_neighbor_sampler,
             },
@@ -136,173 +134,6 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
 fn next_buffer_id() -> usize {
     static ID: AtomicUsize = AtomicUsize::new(0);
     ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-}
-
-/// Complete set of values that determines 3D vertex positions.
-#[derive(Debug, Default, Clone, PartialEq)]
-pub(crate) struct GeometryCacheKey {
-    pub pitch: f32,
-    pub yaw: f32,
-    pub roll: f32,
-    pub scale: f32,
-    pub fov_3d: f32,
-    pub fov_4d: f32,
-    pub show_internals: bool,
-    pub facet_shrink: f32,
-    pub sticker_shrink: f32,
-    pub piece_explode: f32,
-
-    pub target_size: [u32; 2],
-    pub rot: Option<pga::Motor>,
-    pub piece_transforms: PerPiece<Matrix>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct DrawParams {
-    pub prefs: ViewPreferences,
-
-    /// Width and height of the target in pixels.
-    pub target_size: [u32; 2],
-    /// Mouse position in NDC (normalized device coordinates).
-    pub mouse_pos: [f32; 2],
-
-    pub rot: pga::Motor,
-    pub zoom: f32,
-
-    pub background_color: [u8; 3],
-    pub internals_color: [u8; 3],
-    pub piece_styles: Vec<(PieceStyleValues, BitBox<u64>)>,
-    pub piece_transforms: PerPiece<Matrix>,
-}
-impl DrawParams {
-    /// Returns the number of pixels in 1 screen space unit.
-    fn compute_pixel_scale(target_size: [u32; 2], zoom: f32) -> Result<f32> {
-        let w = target_size[0] as f32;
-        let h = target_size[1] as f32;
-        let min_dimen = f32::min(w as f32, h as f32);
-        if min_dimen == 0.0 {
-            bail!("puzzle view has zero size");
-        }
-        Ok(min_dimen * zoom)
-    }
-    /// Returns the size of a pixel in screen space.
-    pub fn compute_pixel_size(target_size: [u32; 2], zoom: f32) -> Result<f32> {
-        Ok(1.0 / Self::compute_pixel_scale(target_size, zoom)?)
-    }
-
-    /// Returns the X and Y scale factors to convert screen space to NDC.
-    /// Returns `Err` if either the width or height is smaller than one pixel.
-    pub fn compute_xy_scale(target_size: [u32; 2], zoom: f32) -> Result<cgmath::Vector2<f32>> {
-        let pixel_scale = Self::compute_pixel_scale(target_size, zoom)?;
-        let w = target_size[0] as f32;
-        let h = target_size[1] as f32;
-        Ok(cgmath::vec2(pixel_scale / w, pixel_scale / h))
-    }
-
-    /// Returns the target size in pixels as a vector.
-    pub fn target_size_f32(&self) -> cgmath::Vector2<f32> {
-        cgmath::Vector2::from(self.target_size.map(|x| x as f32))
-    }
-    /// Returns the size of a pixel in screen space.
-    pub fn pixel_size(&self) -> Result<f32> {
-        Self::compute_pixel_size(self.target_size, self.zoom)
-    }
-    /// Returns the X and Y scale factors to convert screen space to NDC.
-    /// Returns `Err` if either the width or height is smaller than one pixel.
-    pub fn xy_scale(&self) -> Result<cgmath::Vector2<f32>> {
-        Self::compute_xy_scale(self.target_size, self.zoom)
-    }
-
-    /// Returns the factor by which the W coordinate affects the XYZ coordinates
-    /// during 4D projection.
-    pub fn w_factor_4d(&self) -> f32 {
-        (self.prefs.fov_4d.to_radians() * 0.5).tan()
-    }
-    /// Returns the factor by which the Z coordinate affects the XY coordinates
-    /// during 3D projection.
-    pub fn w_factor_3d(&self) -> f32 {
-        (self.prefs.fov_3d.to_radians() * 0.5).tan()
-    }
-    /// Returns the 4D perspective divisor based on the W coordinate of a point.
-    pub fn w_divisor(&self, w: f32) -> f32 {
-        1.0 + w * self.w_factor_3d()
-    }
-    /// Returns the 3D perspective divisor based on the Z coordinate of a point.
-    pub fn z_divisor(&self, z: f32) -> f32 {
-        1.0 + (self.prefs.fov_3d.signum() - z) * self.w_factor_3d()
-    }
-    /// Projects an N-dimensional point to a 2D point on the screen.
-    pub fn project_point(&self, p: impl VectorRef) -> Option<cgmath::Point2<f32>> {
-        let mut p = self.rot.transform_point(p);
-
-        // Apply 4D perspective transformation.
-        let w = p.get(3) as f32;
-        p.resize(3);
-        let mut p = p / self.w_divisor(w) as Float;
-
-        // Apply 3D perspective transformation.
-        let z = p.get(2) as f32;
-        p.resize(2);
-        let p = p / self.z_divisor(z) as Float;
-
-        // Apply scaling.
-        let xy_scale = self.xy_scale().ok()?;
-        let x = p[0] as f32 * xy_scale.x;
-        let y = p[1] as f32 * xy_scale.y;
-
-        Some(cgmath::point2(x, y))
-    }
-
-    /// Returns a vector indicating the direction that light is shining from.
-    fn light_dir(&self) -> cgmath::Vector3<f32> {
-        use cgmath::{Deg, Matrix3, Vector3};
-
-        Matrix3::from_angle_y(Deg(self.prefs.light_yaw))
-            * Matrix3::from_angle_x(Deg(-self.prefs.light_pitch)) // pitch>0 means light comes from above
-            * Vector3::unit_z()
-    }
-
-    fn geometry_cache_key(&self, ndim: u8) -> GeometryCacheKey {
-        GeometryCacheKey {
-            pitch: self.prefs.pitch,
-            yaw: self.prefs.yaw,
-            roll: self.prefs.roll,
-            scale: self.prefs.scale,
-            fov_3d: self.prefs.fov_3d,
-            fov_4d: self.prefs.fov_4d,
-            show_internals: self.show_internals(ndim),
-            facet_shrink: self.facet_shrink(ndim),
-            sticker_shrink: self.prefs.sticker_shrink,
-            piece_explode: self.prefs.piece_explode,
-
-            target_size: self.target_size,
-            rot: Some(self.rot.clone()),
-            piece_transforms: self.piece_transforms.clone(),
-        }
-    }
-
-    pub fn show_internals(&self, ndim: u8) -> bool {
-        self.prefs.show_internals && ndim == 3
-    }
-    pub fn facet_shrink(&self, ndim: u8) -> f32 {
-        if self.show_internals(ndim) {
-            0.0
-        } else {
-            self.prefs.facet_shrink
-        }
-    }
-    pub fn sticker_shrink(&self, ndim: u8) -> f32 {
-        if self.show_internals(ndim) {
-            0.0
-        } else {
-            self.prefs.sticker_shrink
-        }
-    }
-    pub fn outlines_may_use_sticker_color(&self, ndim: u8) -> bool {
-        !self.show_internals(ndim)
-            && self.prefs.facet_shrink > 0.0
-            && (self.prefs.sticker_shrink > 0.0 || self.prefs.piece_explode > 0.0)
-    }
 }
 
 /// Define a struct with fields, doc comments, and initial values all at once.
@@ -509,7 +340,7 @@ impl PuzzleRenderer {
         draw_params: &DrawParams,
     ) -> Result<Vec<GeometryBucket>> {
         // Make the textures the right size.
-        let size = draw_params.target_size;
+        let size = draw_params.cam.target_size;
         self.buffers.polygons_texture.set_size(size);
         self.buffers.polygons_depth_texture.set_size(size);
         self.buffers.edge_ids_texture.set_size(size);
@@ -523,8 +354,8 @@ impl PuzzleRenderer {
         // Compute the Z coordinate of the 3D camera; i.e., where the projection
         // rays converge (which may be behind the puzzle). This gives us either
         // the near plane or the far plane, depending on the sign of the 3D FOV.
-        let fov_signum = draw_params.prefs.fov_3d.signum();
-        let camera_z = (fov_signum + 1.0 / draw_params.w_factor_3d()).clamp(-Z_CLIP, Z_CLIP);
+        let fov_signum = draw_params.cam.prefs.fov_3d.signum();
+        let camera_z = (fov_signum + 1.0 / draw_params.cam.w_factor_3d()).clamp(-Z_CLIP, Z_CLIP);
 
         // Write the draw parameters.
         {
@@ -539,33 +370,33 @@ impl PuzzleRenderer {
                 -Z_CLIP
             };
 
-            let w_factor_4d = draw_params.w_factor_4d();
-            let w_factor_3d = draw_params.w_factor_3d();
+            let w_factor_4d = draw_params.cam.w_factor_4d();
+            let w_factor_3d = draw_params.cam.w_factor_3d();
 
             let data = GfxDrawParams {
                 pre: GfxPrecomputedValues::new(w_factor_3d, near_plane_z, far_plane_z),
 
                 light_dir: draw_params.light_dir().into(),
-                face_light_intensity: draw_params.prefs.face_light_intensity,
-                outline_light_intensity: draw_params.prefs.outline_light_intensity,
+                face_light_intensity: draw_params.cam.prefs.face_light_intensity,
+                outline_light_intensity: draw_params.cam.prefs.outline_light_intensity,
 
-                pixel_size: draw_params.pixel_size()?,
-                target_size: draw_params.target_size_f32().into(),
-                xy_scale: draw_params.xy_scale()?.into(),
+                pixel_size: draw_params.cam.pixel_size()?,
+                target_size: draw_params.cam.target_size_f32().into(),
+                xy_scale: draw_params.cam.xy_scale()?.into(),
 
                 mouse_pos: draw_params.mouse_pos,
 
                 facet_shrink: draw_params.facet_shrink(self.puzzle.ndim()),
                 sticker_shrink: draw_params.sticker_shrink(self.puzzle.ndim()),
-                piece_explode: draw_params.prefs.piece_explode,
+                piece_explode: draw_params.cam.prefs.piece_explode,
 
                 w_factor_4d,
                 w_factor_3d,
                 fov_signum,
                 near_plane_z,
                 far_plane_z,
-                clip_4d_backfaces: draw_params.prefs.clip_4d_backfaces as i32,
-                clip_4d_behind_camera: draw_params.prefs.clip_4d_behind_camera as i32,
+                clip_4d_backfaces: draw_params.cam.prefs.clip_4d_backfaces as i32,
+                clip_4d_behind_camera: draw_params.cam.prefs.clip_4d_behind_camera as i32,
 
                 _padding: [0.0; 2],
             };
@@ -576,7 +407,7 @@ impl PuzzleRenderer {
 
         // Write the puzzle transform.
         {
-            let puzzle_transform = draw_params.rot.euclidean_rotation_matrix();
+            let puzzle_transform = draw_params.cam.rot.euclidean_rotation_matrix();
             let puzzle_transform: Vec<f32> = puzzle_transform
                 .cols_ndim(self.model.ndim)
                 .flat_map(|column| column.iter_ndim(4).collect_vec())
@@ -606,8 +437,9 @@ impl PuzzleRenderer {
 
         // Write the position of the 4D camera.
         {
-            let camera_w = -1.0 - 1.0 / draw_params.w_factor_4d() as Float;
+            let camera_w = -1.0 - 1.0 / draw_params.cam.w_factor_4d() as Float;
             let camera_4d_pos = draw_params
+                .cam
                 .rot
                 .reverse()
                 .transform_point(vector![0.0, 0.0, 0.0, camera_w]);
@@ -812,7 +644,7 @@ impl PuzzleRenderer {
                             encoder,
                             Piece(piece_id as _),
                             GeometryType::Faces,
-                            draw_params.prefs.show_internals,
+                            draw_params.cam.prefs.show_internals,
                             &mut triangles_buffer_index,
                         );
                     }
@@ -824,7 +656,7 @@ impl PuzzleRenderer {
                             encoder,
                             Piece(piece_id as _),
                             GeometryType::Edges,
-                            draw_params.prefs.show_internals,
+                            draw_params.cam.prefs.show_internals,
                             &mut edges_buffer_index,
                         );
                     }
