@@ -135,8 +135,8 @@ pub struct GfxDrawParams {
     /// 2D X & Y scale factors to apply after perspective transformation.
     pub xy_scale: [f32; 2],
 
-    /// Mouse position in NDC (normalized device coordinates).
-    pub mouse_pos: [f32; 2],
+    /// Mouse cursor position in NDC (normalized device coordinates).
+    pub cursor_pos: [f32; 2],
 
     pub facet_shrink: f32,
     pub sticker_shrink: f32,

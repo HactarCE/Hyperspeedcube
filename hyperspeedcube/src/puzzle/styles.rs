@@ -1,28 +1,44 @@
 use std::collections::HashMap;
 
-use bitvec::prelude::*;
+use hyperpuzzle::{Piece, PieceMask};
 
 use crate::preferences::{StyleId, StylePreferences};
 
-// TODO: make a proper type for a piece set (represented using a bitbox) and
-//       then profile whether that's better than a set64 (it probably is)
+/// Returns a closure that updates the given style state.
+#[macro_export]
+macro_rules! update_styles {
+    ($($field:ident = $value:expr),* $(,)?) => {
+        (|mut styles| {
+            $(styles.$field = $value;)*
+            styles
+        })
+    };
+}
 
 /// Style (selected, hovered, hidden, etc.) for each piece in a puzzle.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PuzzleStyleStates {
     /// Number of pieces in the puzzle.
     piece_count: usize,
     /// Sets of pieces with the same decorations.
-    piece_sets: HashMap<PieceStyleState, BitBox<u64>>,
+    piece_sets: HashMap<PieceStyleState, PieceMask>,
+
+    cached_hovered_piece: Option<Piece>,
+    cached_blocking_pieces: (PieceMask, f32),
 }
 impl PuzzleStyleStates {
     /// Constructs a new `PieceStyleStates` with all pieces in the default
     /// style.
     pub fn new(piece_count: usize) -> Self {
-        let all_pieces = BitVec::repeat(true, piece_count).into_boxed_bitslice();
         Self {
             piece_count,
-            piece_sets: HashMap::from_iter([(PieceStyleState::default(), all_pieces)]),
+            piece_sets: HashMap::from_iter([(
+                PieceStyleState::default(),
+                PieceMask::new_full(piece_count),
+            )]),
+
+            cached_hovered_piece: None,
+            cached_blocking_pieces: (PieceMask::new_empty(piece_count), 0.0),
         }
     }
 
@@ -31,15 +47,44 @@ impl PuzzleStyleStates {
     /// `modify_state` is expected to be a pure function.
     pub fn set_piece_states(
         &mut self,
-        piece_set: &BitBox<u64>,
+        pieces: &PieceMask,
         modify_state: impl Fn(PieceStyleState) -> PieceStyleState,
     ) {
         // Early exit
-        if piece_set.count_ones() == 0 {
+        if pieces.is_empty() {
             return;
         }
 
-        self.set_piece_states_with_opposite(piece_set, modify_state, |style| style);
+        self.set_piece_states_with_opposite(pieces, modify_state, |style| style);
+    }
+
+    /// Sets the hovered piece.
+    pub fn set_hovered_piece(&mut self, piece: Option<Piece>) {
+        if self.cached_hovered_piece == piece {
+            return;
+        }
+        self.cached_hovered_piece = piece;
+
+        self.set_piece_states_with_opposite(
+            &PieceMask::from_iter(self.piece_count, piece),
+            update_styles!(hovered_piece = true),
+            update_styles!(hovered_piece = false),
+        );
+    }
+    pub fn set_blocking_pieces(&mut self, pieces: PieceMask, blocking_amount: f32) {
+        let new_cache_value = (pieces.clone(), blocking_amount);
+        if self.cached_blocking_pieces == new_cache_value {
+            return;
+        }
+        self.cached_blocking_pieces = new_cache_value;
+
+        // TODO: make crate-wide function for f32<->u8 conversion
+        let amt = (blocking_amount * 255.0) as u8;
+        self.set_piece_states_with_opposite(
+            &pieces,
+            update_styles!(blocking_amount = amt),
+            update_styles!(blocking_amount = 0),
+        );
     }
 
     /// Modifies the states of all pieces, given their current state, depending
@@ -47,22 +92,22 @@ impl PuzzleStyleStates {
     ///
     /// `modify_state_in_set` and `modify_state_not_in_set` are expected to be
     /// pure functions.
-    pub fn set_piece_states_with_opposite(
+    fn set_piece_states_with_opposite(
         &mut self,
-        piece_set: &BitBox<u64>,
+        pieces: &PieceMask,
         modify_state_in_set: impl Fn(PieceStyleState) -> PieceStyleState,
         modify_state_not_in_set: impl Fn(PieceStyleState) -> PieceStyleState,
     ) {
-        debug_assert_eq!(piece_set.len(), self.piece_count, "piece count mismatch");
+        debug_assert_eq!(pieces.max_len(), self.piece_count, "piece count mismatch");
 
-        let inv_piece_set = !piece_set.clone();
+        let inv_pieces = !pieces.clone();
 
         for (old_state, old_pieces) in std::mem::take(&mut self.piece_sets) {
             let new_state_in_set = modify_state_in_set(old_state);
             let new_state_not_in_set = modify_state_not_in_set(old_state);
             if new_state_in_set != new_state_not_in_set {
-                let pieces_in_set = old_pieces.clone() & piece_set;
-                let pieces_not_in_set = old_pieces.clone() & &inv_piece_set;
+                let pieces_in_set = old_pieces.clone() & pieces;
+                let pieces_not_in_set = old_pieces.clone() & &inv_pieces;
                 self.raw_set_piece_states(pieces_in_set, new_state_in_set);
                 self.raw_set_piece_states(pieces_not_in_set, new_state_not_in_set);
             } else {
@@ -71,53 +116,46 @@ impl PuzzleStyleStates {
         }
     }
 
-    fn raw_set_piece_states(&mut self, piece_set: BitBox<u64>, state: PieceStyleState) {
-        if piece_set.any() {
+    fn raw_set_piece_states(&mut self, pieces: PieceMask, state: PieceStyleState) {
+        if !pieces.is_empty() {
             match self.piece_sets.entry(state) {
                 std::collections::hash_map::Entry::Occupied(mut e) => {
-                    *e.get_mut() |= piece_set;
+                    *e.get_mut() |= pieces;
                 }
                 std::collections::hash_map::Entry::Vacant(e) => {
-                    e.insert(piece_set);
+                    e.insert(pieces);
                 }
             }
         }
     }
 
     /// Returns whether any piece in `piece_set` is hidden.
-    pub fn is_any_hidden(&self, piece_set: &BitBox<u64>) -> bool {
+    pub fn is_any_hidden(&self, pieces: &PieceMask) -> bool {
         self.piece_sets
             .iter()
             .any(|(style_state, styled_piece_set)| {
-                style_state.hidden && {
-                    let mut intersection = styled_piece_set.clone();
-                    intersection &= piece_set;
-                    intersection.any()
-                }
+                style_state.hidden && styled_piece_set.any_overlap(pieces)
             })
     }
 
     /// Returns the set of pieces that are interactable (can be hovered with the
     /// cursor).
-    pub fn interactable_pieces(&self, styles: &StylePreferences) -> BitBox<u64> {
+    pub fn interactable_pieces(&self, styles: &StylePreferences) -> PieceMask {
         self.filter_pieces_by_style(|s| s.interactable(styles))
     }
 
     /// Returns the set of pieces for which `filter_fn` returns `true` on their
     /// style.
-    pub fn filter_pieces_by_style(
-        &self,
-        filter_fn: impl Fn(PieceStyleState) -> bool,
-    ) -> BitBox<u64> {
+    pub fn filter_pieces_by_style(&self, filter_fn: impl Fn(PieceStyleState) -> bool) -> PieceMask {
         self.piece_sets
             .iter()
             .filter(|(style_state, _piece_set)| filter_fn(**style_state))
             .map(|(_style_state, piece_set)| piece_set)
-            .fold(bitbox![u64, Lsb0; 0; self.piece_count], |a, b| a | b)
+            .fold(PieceMask::new_empty(self.piece_count), |a, b| a | b)
     }
 
     /// Returns the style values for each set of pieces.
-    pub fn values(&self, prefs: &StylePreferences) -> Vec<(PieceStyleValues, BitBox<u64>)> {
+    pub fn values(&self, prefs: &StylePreferences) -> Vec<(PieceStyleValues, PieceMask)> {
         self.piece_sets
             .iter()
             .map(|(style_state, piece_set)| (style_state.values(prefs), piece_set.clone()))

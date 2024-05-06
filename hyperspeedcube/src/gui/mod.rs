@@ -16,7 +16,7 @@ mod ext;
 mod menu_bar;
 mod tabs;
 
-pub use tabs::{PuzzleView, Tab};
+pub use tabs::{PuzzleWidget, Tab};
 
 pub use crate::app::App;
 
@@ -94,8 +94,8 @@ impl AppUi {
         for (_, tab) in self.dock_state.iter_all_tabs() {
             if let Tab::PuzzleView(puzzle_view) = tab {
                 if let Some(puzzle_view) = &*puzzle_view.lock() {
-                    let mut controller = puzzle_view.controller().lock();
-                    let needs_redraw = controller.update_geometry(&self.app.prefs);
+                    let mut sim = puzzle_view.sim().lock();
+                    let needs_redraw = sim.step(&self.app.prefs);
                     if needs_redraw {
                         // TODO: only request redraw for visible puzzles
                         ctx.request_repaint();

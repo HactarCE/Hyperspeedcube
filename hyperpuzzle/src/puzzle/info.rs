@@ -1,4 +1,4 @@
-use hypermath::collections::GenericVec;
+use hypermath::collections::{GenericMask, GenericVec};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hypershape::PolytopeId;
@@ -55,14 +55,17 @@ pub type PerLayer<T> = GenericVec<Layer, T>;
 /// List containing a value per piece type.
 pub type PerPieceType<T> = GenericVec<PieceType, T>;
 
-/// Set of pieces in a puzzle.
+/// Sparse set of pieces in a puzzle.
 pub type PieceSet = Set64<Piece>;
-/// Set of stickers in a puzzle.
+/// Sparse set of stickers in a puzzle.
 pub type StickerSet = Set64<Sticker>;
-/// Set of facets in a puzzle.
+/// Sparse set of facets in a puzzle.
 pub type FacetSet = Set64<Facet>;
-/// Set of colors in a puzzle.
+/// Sparse set of colors in a puzzle.
 pub type ColorSet = Set64<Color>;
+
+/// Dense set of pieces in a puzzle.
+pub type PieceMask = GenericMask<Piece>;
 
 /// Piece info.
 #[derive(Debug, Clone, PartialEq)]

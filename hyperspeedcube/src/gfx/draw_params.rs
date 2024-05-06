@@ -1,6 +1,5 @@
-use bitvec::boxed::BitBox;
 use hypermath::prelude::*;
-use hyperpuzzle::PerPiece;
+use hyperpuzzle::{PerPiece, PieceMask};
 
 use crate::puzzle::{Camera, PieceStyleValues};
 
@@ -27,12 +26,12 @@ pub(crate) struct GeometryCacheKey {
 pub(crate) struct DrawParams {
     pub cam: Camera,
 
-    /// Mouse position in NDC (normalized device coordinates).
-    pub mouse_pos: [f32; 2],
+    /// Mouse cursor position in NDC (normalized device coordinates).
+    pub cursor_pos: [f32; 2],
 
     pub background_color: [u8; 3],
     pub internals_color: [u8; 3],
-    pub piece_styles: Vec<(PieceStyleValues, BitBox<u64>)>,
+    pub piece_styles: Vec<(PieceStyleValues, PieceMask)>,
     pub piece_transforms: PerPiece<Matrix>,
 }
 impl DrawParams {

@@ -3,14 +3,15 @@ use instant::Instant;
 
 use crate::preferences::InteractionPreferences;
 
+/// State of the animation that indicates which pieces are blocking a turn.
 #[derive(Debug, Clone)]
-pub struct BlockingPiecesAnimationState {
+pub struct BlockingAnimationState {
     /// Pieces that are blocking the last attempted twist.
     blocking_pieces: Vec<Piece>,
     /// Time elapsed since the move was attempted.
     start: Instant,
 }
-impl Default for BlockingPiecesAnimationState {
+impl Default for BlockingAnimationState {
     fn default() -> Self {
         Self {
             blocking_pieces: vec![],
@@ -18,7 +19,7 @@ impl Default for BlockingPiecesAnimationState {
         }
     }
 }
-impl BlockingPiecesAnimationState {
+impl BlockingAnimationState {
     /// Steps the animation forward. Returns whether the puzzle should be
     /// redrawn next frame.
     pub fn proceed(&mut self, prefs: &InteractionPreferences) -> bool {

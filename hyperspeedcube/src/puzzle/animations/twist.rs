@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use hypermath::pga;
-use hyperpuzzle::{LayerMask, PuzzleState, Twist};
+use hyperpuzzle::{PieceMask, PuzzleState};
 use instant::Duration;
 
 use super::interpolate;
@@ -75,13 +75,13 @@ impl TwistAnimationState {
 
 #[derive(Debug, Clone)]
 pub struct TwistAnimation {
-    /// Puzzle state before twist.
+    /// Puzzle state before the twist.
     pub state: PuzzleState,
-    /// Twist to animate.
-    pub twist: Twist,
-    /// Layers to twist.
-    pub layers: LayerMask,
-    /// Initial transform of the pieces (identity, unless the move was inputted
-    /// using a mouse drag).
+    /// Set of pieces affected by the twist.
+    pub grip: PieceMask,
+    /// Initial transform of the gripped pieces (identity, unless the move was
+    /// inputted using a mouse drag).
     pub initial_transform: pga::Motor,
+    /// Final transform for the the gripped pieces.
+    pub final_transform: pga::Motor,
 }

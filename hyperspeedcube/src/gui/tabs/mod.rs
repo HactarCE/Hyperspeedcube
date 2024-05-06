@@ -25,14 +25,14 @@ mod timeline;
 mod timer;
 mod view;
 
-pub use puzzle_view::PuzzleView;
+pub use puzzle_view::PuzzleWidget;
 
 use super::App;
 
 pub fn ui_with_active_puzzle_view(
     ui: &mut egui::Ui,
     app: &mut App,
-    f: impl FnOnce(&mut egui::Ui, &mut App, &mut PuzzleView),
+    f: impl FnOnce(&mut egui::Ui, &mut App, &mut PuzzleWidget),
 ) {
     if let Some(active_puzzle_view) = app.active_puzzle_view.upgrade() {
         let mut puzzle_view_mutex_guard = active_puzzle_view.lock();
@@ -47,7 +47,7 @@ pub fn ui_with_active_puzzle_view(
 
 #[derive(Debug, Clone)]
 pub enum Tab {
-    PuzzleView(Arc<Mutex<Option<PuzzleView>>>),
+    PuzzleView(Arc<Mutex<Option<PuzzleWidget>>>),
     PuzzleLibrary,
     PuzzleInfo,
     LuaLogs,

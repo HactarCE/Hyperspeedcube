@@ -5,7 +5,7 @@ use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::MutexGuard;
 
-use crate::{Axis, LayerMask, PerPiece, Piece, Puzzle, Twist};
+use crate::{Axis, LayerMask, PerPiece, Piece, PieceMask, Puzzle, Twist};
 
 /// Instance of a puzzle with a particular state.
 #[derive(Debug, Clone)]
@@ -33,33 +33,17 @@ impl PuzzleState {
     pub fn piece_transforms(&self) -> &PerPiece<pga::Motor> {
         &self.piece_transforms
     }
-    /// Returns the position and rotation of each piece during a twist
-    /// animation.
-    ///
-    /// `t` ranges from `0.0` to `1.0`.
-    pub fn animated_piece_transforms(
-        &self,
-        init: &pga::Motor,
-        twist: Twist,
-        layers: LayerMask,
-        t: Float,
-    ) -> PerPiece<pga::Motor> {
-        let grip = self.compute_grip(self.ty().twists[twist].axis, layers);
-        let twist_transform = &self.ty().twists[twist].transform;
-        let partial_twist_transform = pga::Motor::slerp_infallible(&init, twist_transform, t);
-        self.partial_piece_transforms(grip, &partial_twist_transform)
-    }
     /// Returns the position and rotation of each piece during an arbitrary
     /// animation affecting a subset of pieces.
     pub fn partial_piece_transforms(
         &self,
-        grip: PerPiece<WhichSide>,
+        grip: &PieceMask,
         transform: &pga::Motor,
     ) -> PerPiece<pga::Motor> {
         self.piece_transforms()
-            .map_ref(|piece, current_piece_transform| match grip[piece] {
-                WhichSide::Inside => transform * current_piece_transform,
-                _ => current_piece_transform.clone(),
+            .map_ref(|piece, static_transform| match grip.contains(piece) {
+                true => transform * static_transform,
+                _ => static_transform.clone(),
             })
     }
 
@@ -94,6 +78,17 @@ impl PuzzleState {
             puzzle_type: Arc::clone(&self.puzzle_type),
             piece_transforms,
         })
+    }
+
+    /// Returns the set of pieces on the inside of a grip (axis + layer mask).
+    /// This considers blocking pieces to be outside the grip; use
+    /// `compute_grip()` to see which pieces are blocking a twist.
+    pub fn compute_gripped_pieces(&self, axis: Axis, layers: LayerMask) -> PieceMask {
+        PieceMask::from_iter(
+            self.puzzle_type.pieces.len(),
+            self.compute_grip(axis, layers)
+                .iter_filter(|_, &status| status == WhichSide::Inside),
+        )
     }
 
     /// Returns each piece's location with respect to a grip (axis + layer
@@ -159,7 +154,7 @@ impl PuzzleState {
     }
 
     /// Returns the smallest layer mask on `axis` that contains `piece`.
-    pub fn compute_minimum_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
+    pub fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
         let space = self.space();
 
         let piece_transform = &self.piece_transforms[piece];

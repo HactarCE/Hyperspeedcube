@@ -17,6 +17,7 @@ workspace = true
 approx = "0.5.1"
 ball-tree = "0.4.0"
 bitflags = "2.3.3"
+bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 bytemuck = { version = "1.13.1", optional = true }
 float-ord = "0.3.2"
 itertools = "0.11.0"

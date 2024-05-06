@@ -5,7 +5,7 @@ use hyperpuzzle::Puzzle;
 use parking_lot::Mutex;
 
 use crate::gfx::GraphicsState;
-use crate::gui::PuzzleView;
+use crate::gui::PuzzleWidget;
 use crate::preferences::Preferences;
 
 pub struct App {
@@ -13,7 +13,7 @@ pub struct App {
 
     pub(crate) prefs: Preferences,
 
-    pub(crate) active_puzzle_view: Weak<Mutex<Option<PuzzleView>>>,
+    pub(crate) active_puzzle_view: Weak<Mutex<Option<PuzzleWidget>>>,
 }
 
 impl App {
@@ -40,7 +40,7 @@ impl App {
     }
     pub(crate) fn with_active_puzzle_view<R>(
         &self,
-        f: impl FnOnce(&mut PuzzleView) -> R,
+        f: impl FnOnce(&mut PuzzleWidget) -> R,
     ) -> Option<R> {
         let active_puzzle_view = self.active_puzzle_view.upgrade()?;
         let mut puzzle_view_mutex_guard = active_puzzle_view.lock();
@@ -66,7 +66,7 @@ impl App {
             Ok(p) => {
                 if let Some(puzzle_view) = self.active_puzzle_view.upgrade() {
                     log::info!("set active puzzle!");
-                    *puzzle_view.lock() = Some(PuzzleView::new(&self.gfx, &p));
+                    *puzzle_view.lock() = Some(PuzzleWidget::new(&self.gfx, &p));
                 } else {
                     log::warn!("no active puzzle view");
                 }

@@ -1,10 +1,10 @@
 mod animations;
 mod camera;
-mod controller;
+mod simulation;
 mod styles;
-mod view_controller;
+mod view;
 
 pub use camera::Camera;
-pub use controller::PuzzleController;
+pub use simulation::PuzzleSimulation;
 pub use styles::*;
-pub use view_controller::{HoverState, PuzzleViewController};
+pub use view::{DragState, HoverState, PuzzleView, PuzzleViewInput};

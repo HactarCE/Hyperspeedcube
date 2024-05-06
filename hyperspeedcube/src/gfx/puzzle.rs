@@ -11,12 +11,10 @@ use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
-use bitvec::bitbox;
-use bitvec::order::Lsb0;
 use egui::NumExt;
 use eyre::{bail, Result};
 use hypermath::prelude::*;
-use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, Puzzle};
+use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle};
 use itertools::Itertools;
 use parking_lot::Mutex;
 
@@ -220,7 +218,7 @@ impl PuzzleRenderer {
     /// Sets the draw parameters to be used for the next
     pub fn prepare_draw(&mut self, mut draw_params: DrawParams) -> DrawPrepResponse {
         if !SEND_MOUSE_POS {
-            draw_params.mouse_pos = [0.0; 2];
+            draw_params.cursor_pos = [0.0; 2];
         }
 
         let geometry_cache_key = draw_params.geometry_cache_key(self.puzzle.ndim());
@@ -384,7 +382,7 @@ impl PuzzleRenderer {
                 target_size: draw_params.cam.target_size_f32().into(),
                 xy_scale: draw_params.cam.xy_scale()?.into(),
 
-                mouse_pos: draw_params.mouse_pos,
+                cursor_pos: draw_params.cursor_pos,
 
                 facet_shrink: draw_params.facet_shrink(self.puzzle.ndim()),
                 sticker_shrink: draw_params.sticker_shrink(self.puzzle.ndim()),
@@ -511,8 +509,8 @@ impl PuzzleRenderer {
         // Create a map from pieces to styles.
         let mut piece_style_indices = self.puzzle.pieces.map_ref(|_, _| 0);
         for (i, (_style, piece_set)) in draw_params.piece_styles.iter().enumerate() {
-            for piece in piece_set.iter_ones() {
-                piece_style_indices[Piece(piece as _)] = i;
+            for piece in piece_set.iter() {
+                piece_style_indices[piece] = i;
             }
         }
 
@@ -610,7 +608,7 @@ impl PuzzleRenderer {
         }
         // For each bucket, get the set of pieces whose faces/edges are in that
         // bucket.
-        let empty_piece_set = bitbox![u64, Lsb0; 0; self.puzzle.pieces.len()];
+        let empty_piece_set = PieceMask::new_empty(self.puzzle.pieces.len());
         let mut bucket_face_pieces = vec![empty_piece_set; bucket_opacities.len()];
         let mut bucket_edge_pieces = bucket_face_pieces.clone();
         for (style, piece_set) in &draw_params.piece_styles {
@@ -639,10 +637,10 @@ impl PuzzleRenderer {
             itertools::izip!(bucket_opacities, bucket_face_pieces, bucket_edge_pieces)
                 .map(|(opacity, face_pieces, outline_pieces)| {
                     let triangles_buffer_start = triangles_buffer_index;
-                    for piece_id in face_pieces.iter_ones() {
+                    for piece in face_pieces.iter() {
                         self.write_geometry_for_piece(
                             encoder,
-                            Piece(piece_id as _),
+                            piece,
                             GeometryType::Faces,
                             draw_params.cam.prefs.show_internals,
                             &mut triangles_buffer_index,
@@ -651,10 +649,10 @@ impl PuzzleRenderer {
                     let triangles_range = triangles_buffer_start..triangles_buffer_index;
 
                     let edges_buffer_start = edges_buffer_index;
-                    for piece_id in outline_pieces.iter_ones() {
+                    for piece in outline_pieces.iter() {
                         self.write_geometry_for_piece(
                             encoder,
-                            Piece(piece_id as _),
+                            piece,
                             GeometryType::Edges,
                             draw_params.cam.prefs.show_internals,
                             &mut edges_buffer_index,
