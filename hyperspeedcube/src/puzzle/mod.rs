@@ -7,4 +7,4 @@ mod view;
 pub use camera::Camera;
 pub use simulation::PuzzleSimulation;
 pub use styles::*;
-pub use view::{DragState, HoverState, PuzzleView, PuzzleViewInput};
+pub use view::{DragState, PuzzleView, PuzzleViewInput};

@@ -70,11 +70,6 @@ impl PuzzleView {
 
     pub fn set_drag_state(&mut self, new_drag_state: DragState) {
         self.confirm_drag();
-        match new_drag_state {
-            DragState::ViewRot { .. } => (),
-            DragState::PreTwist => (),
-            DragState::Twist => (),
-        }
         self.drag_state = Some(new_drag_state);
     }
     pub fn drag_state(&self) -> Option<DragState> {
@@ -86,15 +81,17 @@ impl PuzzleView {
                 DragState::ViewRot { .. } => (),
                 DragState::PreTwist => (),
                 DragState::Twist => self.sim.lock().confirm_partial_twist(),
+                DragState::Canceled => (),
             }
         }
     }
     pub fn cancel_drag(&mut self) {
-        if let Some(drag) = self.drag_state.take() {
+        if let Some(drag) = self.drag_state.replace(DragState::Canceled) {
             match drag {
                 DragState::ViewRot { .. } => (),
                 DragState::PreTwist => (),
                 DragState::Twist => self.sim.lock().cancel_partial_twist(),
+                DragState::Canceled => (),
             }
         }
     }
@@ -168,7 +165,7 @@ impl PuzzleView {
                                     self.drag_state = Some(DragState::Twist);
                                 } else {
                                     log::trace!("canceling partial twist");
-                                    self.drag_state = None;
+                                    self.drag_state = Some(DragState::Canceled);
                                 }
                             }
                             _ => (),
@@ -181,13 +178,20 @@ impl PuzzleView {
                     (|| {
                         // IIFE to mimic try_block
                         let hov = self.hover_state()?;
-                        let parallel_drag_delta = self.parallel_drag_delta()?;
-                        self.sim
-                            .lock()
-                            .update_partial_twist(hov.normal_3d(), parallel_drag_delta);
+                        let mut parallel_drag_delta = self.parallel_drag_delta()?;
+                        let mut sim = self.sim.lock();
+                        let axis = sim.partial_twist().as_ref()?.axis;
+                        let axis_vector = &sim.puzzle_type().axes[axis].vector;
+                        if prefs.interaction.scale_twist_drag_by_radius {
+                            parallel_drag_delta = parallel_drag_delta
+                                / hov.position.rejected_from(&axis_vector)?.mag();
+                        }
+                        sim.update_partial_twist(hov.normal_3d(), parallel_drag_delta);
                         Some(())
                     })();
                 }
+
+                DragState::Canceled => (),
             }
         } else {
             // Update hover state, only when not in the middle of a drag.
@@ -368,7 +372,7 @@ impl PuzzleView {
         let initial_hover_state = self.hover_state()?;
 
         let screen_space_delta = self.cursor_pos? - initial_hover_state.cursor_pos;
-        let delta_2d = screen_space_delta * crate::TWIST_DRAG_SPEED;
+        let delta_2d = screen_space_delta;
         // Get the 3D position where the drag started.
         let drag_start = initial_hover_state.position.clone();
         // Get the tangent vectors at that position.
@@ -377,8 +381,8 @@ impl PuzzleView {
             &initial_hover_state.v_tangent,
         ];
         // Project the tangent vectors onto the screen.
-        let u_2d = self.camera.project_vector(&drag_start, u)?;
-        let v_2d = self.camera.project_vector(&drag_start, v)?;
+        let u_2d = self.camera.project_vector_to_screen_space(&drag_start, u)?;
+        let v_2d = self.camera.project_vector_to_screen_space(&drag_start, v)?;
         // Convert the drag delta into the basis formed using the projected
         // tangent vectors, then use that to reconstruct the 3D vector.
         let screen_to_uv = cgmath::Matrix2::from_cols(u_2d, v_2d).invert()?;
@@ -386,7 +390,7 @@ impl PuzzleView {
         let delta_3d = u * delta_uv.x as _ + v * delta_uv.y as _;
 
         Some(match delta_3d.normalize() {
-            Some(v) => v * delta_2d.magnitude() as _,
+            Some(v) => v * delta_2d.magnitude() as _ * crate::TWIST_DRAG_SPEED as _,
             None => vector![],
         })
     }
@@ -496,6 +500,9 @@ pub enum DragState {
     PreTwist,
     /// Dragging a piece to twist.
     Twist,
+    /// Drag canceled; ignore drag inputs until the mouse button is released
+    /// again.
+    Canceled,
 }
 
 pub struct PuzzleViewInput<'a> {

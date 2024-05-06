@@ -66,14 +66,15 @@ impl Camera {
     pub fn z_divisor(&self, z: f32) -> f32 {
         1.0 + (self.prefs.fov_3d.signum() - z) * self.w_factor_3d()
     }
-    /// Projects an N-dimensional point to a 2D point on the screen.
-    pub fn project_point(&self, p: impl VectorRef) -> Option<cgmath::Point2<f32>> {
+    /// Projects an N-dimensional point to a 2D point in normalized device
+    /// coordinates.
+    pub fn project_point_to_ndc(&self, p: impl VectorRef) -> Option<cgmath::Point2<f32>> {
         // This mimics a similar function in the WGSL shader.
         let p = self.rot.transform_point(p); // Rotate
         let p = hypermath_to_cgmath_vec4(p); // Convert to cgmath vector
         let p = self.project_4d_to_3d(p); // Apply 4D perspective transformation
         let p = self.project_3d_to_2d(p); // Apply 3D perspective transformation
-        self.scale_2d_world_to_screen_space(p.to_vec()) // Apply scaling
+        self.scale_screen_space_to_ndc(p.to_vec()) // Apply scaling
             .map(cgmath::Point2::from_vec)
     }
     fn project_4d_to_3d(&self, p: cgmath::Vector4<f32>) -> cgmath::Point3<f32> {
@@ -85,19 +86,16 @@ impl Camera {
         let z = p.z as f32;
         cgmath::Point2::from_vec(p.to_vec().truncate() / self.z_divisor(z))
     }
-    fn scale_2d_world_to_screen_space(
-        &self,
-        p: cgmath::Vector2<f32>,
-    ) -> Option<cgmath::Vector2<f32>> {
+    fn scale_screen_space_to_ndc(&self, p: cgmath::Vector2<f32>) -> Option<cgmath::Vector2<f32>> {
         let xy_scale = self.xy_scale().ok()?;
         let x = p.x as f32 * xy_scale.x;
         let y = p.y as f32 * xy_scale.y;
         Some(cgmath::vec2(x, y))
     }
-    /// Projects an N-dimensional vector `v` to a 2D vector on the screen.
+    /// Projects an N-dimensional vector `v` to a 2D vector in screen space.
     /// Because the perspective projection is nonlinear, this also requires an
     /// initial point `p` where the vector `v` originates.
-    pub fn project_vector(
+    pub fn project_vector_to_screen_space(
         &self,
         p: impl VectorRef,
         v: impl VectorRef,
@@ -122,7 +120,7 @@ impl Camera {
         let v_2d = (v_3d.truncate() + p_2d.to_vec() * p_3d.z * self.w_factor_3d())
             / self.z_divisor(p_3d.z);
 
-        self.scale_2d_world_to_screen_space(v_2d)
+        Some(v_2d)
     }
 }
 

@@ -240,7 +240,7 @@ impl PuzzleWidget {
         self.queued_arrows.extend(self.view.drag_delta_3d());
 
         let project_point = |p: &Vector| {
-            let ndc = self.view.camera.project_point(p)?;
+            let ndc = self.view.camera.project_point_to_ndc(p)?;
             let egui_pos = egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5);
             Some(r.rect.lerp_inside(egui_pos))
         };

@@ -174,9 +174,9 @@ impl PuzzleSimulation {
         &self.blocking_anim
     }
 
-    /// Returns whether there is currently an active partial twist.
-    pub fn has_partial_twist(&self) -> bool {
-        self.partial_twist_drag_state.is_some()
+    /// Returns the currently active partial twist.
+    pub fn partial_twist(&self) -> &Option<PartialTwistDragState> {
+        &self.partial_twist_drag_state
     }
     /// Begins a partial twist, which is used for mouse drag twist input.
     pub fn begin_partial_twist(&mut self, axis: Axis, layers: LayerMask) {
@@ -257,9 +257,9 @@ impl PuzzleSimulation {
 }
 
 #[derive(Debug, Clone)]
-struct PartialTwistDragState {
-    axis: Axis,
-    layers: LayerMask,
-    grip: PieceMask,
-    transform: Motor,
+pub struct PartialTwistDragState {
+    pub axis: Axis,
+    pub layers: LayerMask,
+    pub grip: PieceMask,
+    pub transform: Motor,
 }

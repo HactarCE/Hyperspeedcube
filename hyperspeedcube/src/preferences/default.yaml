@@ -16,6 +16,7 @@ gfx:
 interaction:
   confirm_discard_only_when_scrambled: true
   drag_sensitivity: 0.7
+  scale_twist_drag_by_radius: false
   realign_on_release: false
   realign_on_keypress: true
   smart_realign: true
