@@ -1,6 +1,6 @@
 //! Approximate comparison functions that automatically use [`EPSILON`].
 
-pub use ::approx::AbsDiffEq;
+pub use approx::AbsDiffEq;
 use num_traits::Zero;
 
 use crate::{Float, EPSILON};
@@ -8,7 +8,7 @@ use crate::{Float, EPSILON};
 /// Compares two numbers, but considers them equal if they are separated by less
 /// than `EPSILON`.
 pub fn approx_eq<T: AbsDiffEq<Epsilon = Float>>(a: &T, b: &T) -> bool {
-    ::approx::abs_diff_eq!(a, b, epsilon = EPSILON)
+    approx::abs_diff_eq!(a, b, epsilon = EPSILON)
 }
 
 /// Compares two numbers, but considers them equal if they are separated by less
