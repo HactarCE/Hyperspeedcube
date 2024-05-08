@@ -200,14 +200,14 @@ impl Motor {
             .expect("bad index into motor multivector")
     }
 
-    /// Returns an iterator over the terms in the blade.
+    /// Returns an iterator over the terms in the motor.
     pub fn terms(&self) -> impl '_ + Clone + Iterator<Item = Term> {
         self.coefficients.iter().enumerate().map(|(i, &coef)| Term {
             coef,
             axes: self.axes_at_index(i),
         })
     }
-    /// Returns an iterator over the terms in the blade that are approximately
+    /// Returns an iterator over the terms in the motor that are approximately
     /// nonzero.
     pub fn nonzero_terms(&self) -> impl '_ + Clone + Iterator<Item = Term> {
         self.terms().filter(|term| !term.is_zero())
