@@ -4,8 +4,11 @@ use std::ops::{BitXor, Mul, MulAssign, Neg, Shl};
 use super::Axes;
 use crate::*;
 
-/// Term in the conformal geometric algebra, consisting of a real coefficient
+/// Term in the projective geometric algebra, consisting of a real coefficient
 /// and a bitmask representing the bases.
+///
+/// This struct isn't stored anywhere; it's mostly just construrcted temporarily
+/// for iteration over the terms of a multivector.
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub struct Term {
     /// Coefficient.
