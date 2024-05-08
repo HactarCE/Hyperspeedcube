@@ -7,6 +7,7 @@ use std::sync::{Arc, Weak};
 
 use eyre::{bail, OptionExt, Result};
 use hypermath::prelude::*;
+use hypermath::VecMap;
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -118,17 +119,21 @@ impl PuzzleBuilder {
             let facets_of_piece = space[piece.polytope].boundary()?.clone();
             let mut stickers_of_piece: Vec<TempStickerData> = facets_of_piece
                 .iter()
-                .map(|polytope| {
+                .map(|facet_polytope| {
                     // Select the orientation of the facet hyperplane such that
                     // the centroid of the piece is on the inside.
-                    let mut plane = space.hyperplane_of_facet(polytope)?;
+                    let mut plane = space.hyperplane_of_facet(facet_polytope)?;
                     if plane.location_of_point(&piece_centroid) == PointWhichSide::Outside {
                         plane = plane.flip();
                     }
 
-                    let color = *surface_colors.get(&plane).unwrap_or(&Color::INTERNAL);
+                    let color = *piece
+                        .stickers
+                        .get(&facet_polytope)
+                        .unwrap_or(&Color::INTERNAL);
+
                     eyre::Ok(TempStickerData {
-                        polytope,
+                        polytope: facet_polytope,
                         plane,
                         color,
                     })
@@ -342,12 +347,15 @@ pub struct PieceBuilder {
     /// If the piece is defunct because it was cut, these are the pieces it was
     /// cut up into.
     pub cut_result: PieceSet,
+    /// Colored stickers of the piece.
+    pub stickers: VecMap<PolytopeId, Color>,
 }
 impl PieceBuilder {
-    pub(super) fn new(polytope: PolytopeId) -> Self {
+    pub(super) fn new(polytope: PolytopeId, stickers: VecMap<PolytopeId, Color>) -> Self {
         Self {
             polytope,
             cut_result: PieceSet::new(),
+            stickers,
         }
     }
 }

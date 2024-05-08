@@ -86,6 +86,13 @@ impl PolytopeCutOutput {
             intersection,
         }
     }
+
+    /// Returns whether the polytope `original` was unchanged by the cut. It may
+    /// still have had a facet that was flush with the cutting plane.
+    pub fn is_unchanged_from(self, original: PolytopeId) -> bool {
+        self.iter_inside_and_outside().eq([original])
+    }
+
     /// Returns an iterator containing `inside` and `outside`, ignoring `None`
     /// values.
     pub fn iter_inside_and_outside(self) -> impl Iterator<Item = PolytopeId> {

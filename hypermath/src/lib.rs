@@ -65,7 +65,7 @@ pub mod traits {
     pub use tinyset::Fits64;
 
     pub use crate::cga::{AsMultivector, ToConformalPoint};
-    pub use crate::collections::{ApproxHashMapKey, IndexNewtype};
+    pub use crate::collections::{ApproxHashMapKey, IndexNewtype, VecMap};
     pub use crate::pga::TransformByMotor;
     pub use crate::util::IterWithExactSizeExt;
     pub use crate::vector::VectorRef;

@@ -1,7 +1,7 @@
 use std::sync::{Arc, Weak};
 
-use eyre::{Context, Result};
-use hypermath::Hyperplane;
+use eyre::{bail, Context, Result};
+use hypermath::{Hyperplane, VecMap};
 use hypershape::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
@@ -65,7 +65,7 @@ impl ShapeBuilder {
         let primordial_cube = space
             .lock()
             .add_primordial_cube(crate::PRIMORDIAL_CUBE_RADIUS)?;
-        let root_piece_builder = PieceBuilder::new(primordial_cube);
+        let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new());
         let root_piece = this_guard.pieces.push(root_piece_builder)?;
         this_guard.active_pieces.insert(root_piece);
         drop(this_guard);
@@ -94,11 +94,20 @@ impl ShapeBuilder {
         let pieces: PerPiece<PieceBuilder> = self
             .active_pieces
             .iter()
-            .map(|piece| PieceBuilder {
-                polytope: map.map(self.pieces[piece].polytope),
-                cut_result: PieceSet::new(),
+            .map(|piece| {
+                let polytope = self.pieces[piece].polytope;
+                let stickers = self.pieces[piece]
+                    .stickers
+                    .iter()
+                    .map(|(&k, &v)| eyre::Ok((map.map(k)?, v)))
+                    .try_collect()?;
+                eyre::Ok(PieceBuilder {
+                    polytope: map.map(polytope)?,
+                    cut_result: PieceSet::new(),
+                    stickers,
+                })
             })
-            .collect();
+            .try_collect()?;
         let active_pieces = pieces.iter_keys().collect();
 
         Ok(Arc::new_cyclic(|this| {
@@ -123,23 +132,36 @@ impl ShapeBuilder {
     /// the old set.
     ///
     /// If `pieces` is `None`, then it is assumed to be all active pieces.
-    pub fn carve(&mut self, pieces: Option<&PieceSet>, cut_plane: Hyperplane) -> Result<()> {
+    pub fn carve(
+        &mut self,
+        pieces: Option<&PieceSet>,
+        cut_plane: Hyperplane,
+        inside_color: Option<Color>,
+    ) -> Result<()> {
         let mut cut = Cut::carve(cut_plane);
-        self.cut_and_deactivate_pieces(&mut cut, pieces)
+        self.cut_and_deactivate_pieces(&mut cut, pieces, inside_color, None)
     }
     /// Cuts each piece by a cut, keeping all results. Each piece in the old set
     /// becomes defunct, and each piece in the new set inherits its active
     /// status from the corresponding piece in the old set.
     ///
     /// If `pieces` is `None`, then it is assumed to be all active pieces.
-    pub fn slice(&mut self, pieces: Option<&PieceSet>, cut_plane: Hyperplane) -> Result<()> {
+    pub fn slice(
+        &mut self,
+        pieces: Option<&PieceSet>,
+        cut_plane: Hyperplane,
+        inside_color: Option<Color>,
+        outside_color: Option<Color>,
+    ) -> Result<()> {
         let mut cut = Cut::slice(cut_plane);
-        self.cut_and_deactivate_pieces(&mut cut, pieces)
+        self.cut_and_deactivate_pieces(&mut cut, pieces, inside_color, outside_color)
     }
     fn cut_and_deactivate_pieces(
         &mut self,
         cut: &mut Cut,
         pieces: Option<&PieceSet>,
+        inside_color: Option<Color>,
+        outside_color: Option<Color>,
     ) -> Result<()> {
         let pieces = match pieces {
             Some(piece_set) => self.update_piece_set(piece_set),
@@ -149,24 +171,84 @@ impl ShapeBuilder {
         let mut space = self.space.lock();
 
         for old_piece in pieces.iter() {
+            let inside_polytope;
+            let outside_polytope;
+            let mut inside_stickers = VecMap::new();
+            let mut outside_stickers = VecMap::new();
+
             // Cut the old piece and add the new pieces as active.
-            let new_piece_polytopes = space
-                .cut_polytope_set([self.pieces[old_piece].polytope].into_iter().collect(), cut)
-                .context("error cutting piece")?;
-            let new_pieces: PieceSet = new_piece_polytopes
-                .into_iter()
-                .map(|new_piece_polytope| {
-                    let new_piece = self.pieces.push(PieceBuilder::new(new_piece_polytope))?;
-                    self.active_pieces.insert(new_piece);
-                    eyre::Ok(new_piece)
-                })
-                .try_collect()?;
-            self.active_pieces.extend(new_pieces.iter());
+            let old_piece_polytope = self.pieces[old_piece].polytope;
+            match space
+                .cut_polytope(old_piece_polytope, cut)
+                .context("error cutting piece")?
+            {
+                PolytopeCutOutput::Flush => bail!("piece is flush with cut"),
+
+                out @ PolytopeCutOutput::NonFlush {
+                    inside,
+                    outside,
+                    intersection,
+                } => {
+                    if intersection.is_none() && out.is_unchanged_from(old_piece_polytope) {
+                        // Leave this piece unchanged.
+                        continue;
+                    }
+
+                    inside_polytope = inside;
+                    outside_polytope = outside;
+
+                    if let Some(p) = intersection {
+                        if let Some(c) = inside_color {
+                            inside_stickers.insert(p, c);
+                        }
+                        if let Some(c) = outside_color {
+                            outside_stickers.insert(p, c);
+                        }
+                    }
+                }
+            }
+
+            // Cut the old stickers.
+            for (&old_sticker_polytope, &old_color) in &self.pieces[old_piece].stickers {
+                match space
+                    .cut_polytope(old_sticker_polytope, cut)
+                    .context("error cutting sticker")?
+                {
+                    PolytopeCutOutput::Flush => (), // Leave the sticker unchanged
+                    PolytopeCutOutput::NonFlush {
+                        inside, outside, ..
+                    } => {
+                        // Use `get_or_insert()` instead to keep old color for
+                        // flush stickers instead of assigning the new color.
+                        if let Some(p) = inside {
+                            inside_stickers.insert(p, old_color);
+                        }
+                        if let Some(p) = outside {
+                            outside_stickers.insert(p, old_color);
+                        }
+                    }
+                }
+            }
+
+            let new_inside_piece = match inside_polytope {
+                Some(p) => Some(self.pieces.push(PieceBuilder::new(p, inside_stickers))?),
+                None => None,
+            };
+            let new_outside_piece = match outside_polytope {
+                Some(p) => Some(self.pieces.push(PieceBuilder::new(p, outside_stickers))?),
+                None => None,
+            };
+
+            self.active_pieces.extend(new_inside_piece);
+            self.active_pieces.extend(new_outside_piece);
 
             // The old piece is defunct, so deactivate it and record its cut
             // result.
             self.active_pieces.remove(&old_piece);
-            self.pieces[old_piece].cut_result = new_pieces;
+            self.pieces[old_piece].cut_result =
+                itertools::chain(new_inside_piece, new_outside_piece).collect();
+
+            self.active_pieces.remove(&old_piece);
         }
 
         Ok(())

@@ -45,8 +45,8 @@ impl LuaUserData for LuaShape {
             let cuts = this.orbit(hyperplane)?;
             let mut this = this.lock();
             for cut in cuts {
-                this.carve(None, cut.clone()).into_lua_err()?;
-                this.colors.add(vec![cut]).into_lua_err()?;
+                let color = this.colors.add(vec![cut.clone()]).into_lua_err()?;
+                this.carve(None, cut, Some(color)).into_lua_err()?;
             }
             Ok(())
         });
@@ -56,7 +56,7 @@ impl LuaUserData for LuaShape {
                 let cuts = this.orbit(hyperplane)?;
                 let mut this = this.lock();
                 for cut in cuts {
-                    this.carve(None, cut).into_lua_err()?;
+                    this.carve(None, cut, None).into_lua_err()?;
                 }
                 Ok(())
             },
@@ -65,7 +65,7 @@ impl LuaUserData for LuaShape {
             let cuts = this.orbit(hyperplane)?;
             let mut this = this.lock();
             for cut in cuts {
-                this.slice(None, cut).into_lua_err()?;
+                this.slice(None, cut, None, None).into_lua_err()?;
             }
             Ok(())
         });

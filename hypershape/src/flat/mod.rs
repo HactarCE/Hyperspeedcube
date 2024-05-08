@@ -35,14 +35,20 @@ hypermath::idx_struct! {
     pub struct PolytopeId(pub u32);
 }
 
-/// Infinite Euclidean space in which polytopes can be constructed.
+/// List containing a value per vertex.
+pub type PerVertex<T> = GenericVec<VertexId, T>;
+/// List containing a value per polytope.
+pub type PerPolytope<T> = GenericVec<PolytopeId, T>;
+
+/// Patch of Euclidean (i.e., flat) space in which polytopes can be constructed.
 pub struct Space {
+    /// Number of dimensions of the space.
     ndim: u8,
 
-    vertices: GenericVec<VertexId, Vector>,
+    vertices: PerVertex<Vector>,
     vertex_data_to_id: ApproxHashMap<Vector, VertexId>,
 
-    polytopes: GenericVec<PolytopeId, PolytopeData>,
+    polytopes: PerPolytope<PolytopeData>,
     polytope_data_to_id: HashMap<PolytopeData, PolytopeId>,
 
     cached_subspaces: Mutex<HashMap<PolytopeId, (Vec<Vector>, pga::Blade)>>,
@@ -86,10 +92,10 @@ impl Space {
         Self {
             ndim,
 
-            vertices: GenericVec::new(),
+            vertices: PerVertex::new(),
             vertex_data_to_id: ApproxHashMap::new(),
 
-            polytopes: GenericVec::new(),
+            polytopes: PerPolytope::new(),
             polytope_data_to_id: HashMap::new(),
 
             cached_subspaces: Mutex::new(HashMap::new()),
