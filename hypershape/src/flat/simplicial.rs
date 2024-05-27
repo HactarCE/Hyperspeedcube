@@ -23,27 +23,33 @@ impl Space {
 
         let mut sum = Centroid::ZERO;
         for simplex in self.simplices(element)? {
-            if let Some(blade) = self.blade_of_simplex(&simplex) {
-                // The center of a simplex is the average of its vertices.
-                let verts = simplex.vertices(self);
-                let center = verts.iter().map(|v| v.pos()).sum::<Vector>() / verts.len() as Float;
+            // The center of a simplex is the average of its vertices.
+            let verts = simplex.vertices(self);
+            let center = verts.iter().map(|v| v.pos()).sum::<Vector>() / verts.len() as Float;
 
-                sum += Centroid::new(&center, blade.mag());
+            // Orthogonalize the vectors spanning the simplex.
+            let mut verts_iter = verts.iter().map(|v| v.pos());
+            let initial_vertex = verts_iter.next().ok_or_eyre("simplex is empty")?;
+            let mut vectors = verts_iter.map(|v| v - &initial_vertex).collect_vec();
+            for i in 1..vectors.len() {
+                for j in 0..i {
+                    let Some(rejected) = vectors[i].rejected_from(&vectors[j]) else {
+                        return Ok(Centroid::ZERO);
+                    };
+                    vectors[i] = rejected;
+                }
             }
+            // This is scaled by some factor depending on the number of
+            // dimensions but that's fine.
+            let weight = vectors
+                .into_iter()
+                .map(|v| v.mag2())
+                .product::<Float>()
+                .sqrt();
+
+            sum += Centroid::new(&center, weight);
         }
         Ok(sum)
-    }
-    fn blade_of_simplex(&self, simplex: &Simplex) -> Option<pga::Blade> {
-        let mut remaining_verts = simplex.vertices(self).iter();
-        let init = remaining_verts.next()?;
-
-        // This is scaled by some factor depending on the number of
-        // dimensions but that's fine.
-        remaining_verts
-            .map(|v| pga::Blade::from_vector(self.ndim(), v.pos() - init.pos()))
-            .try_fold(pga::Blade::one(self.ndim()), |a, b| {
-                pga::Blade::wedge(&a, &b)
-            })
     }
 
     /// Returns a simplicial complex representing a polytope element.
@@ -89,32 +95,6 @@ impl Space {
             .flatten()
             .filter_map(|simplex| simplex.try_into_array())
             .collect())
-    }
-
-    /// Returns a basis for a polytope.
-    pub(super) fn basis_for_polytope(&self, polytope: ElementId) -> Result<Vec<Vector>> {
-        let simplices = self.simplices(polytope)?;
-        let simplex = simplices
-            .iter()
-            .max_by_key(|simplex| match self.blade_of_simplex(simplex) {
-                Some(blade) => FloatOrd(blade.mag2()),
-                None => FloatOrd(0.0),
-            })
-            .ok_or_eyre("error converting polytope to simplices")?;
-        let mut verts = simplex.vertices(&self).iter();
-        let initial_vertex = verts.next().ok_or_eyre("degenerate simplex")?.pos();
-        let non_orthogonal_basis = verts.map(|v| v.pos() - &initial_vertex);
-
-        // Do Gram-Schmidt orthogonalization to get an orthonormal basis.
-        let mut basis = vec![];
-
-        for mut v in non_orthogonal_basis {
-            for b in &basis {
-                v = v.rejected_from(b).ok_or_eyre("degenerate simplex")?;
-            }
-            basis.push(v.normalize().ok_or_eyre("degenerate simplex")?);
-        }
-        Ok(basis)
     }
 }
 

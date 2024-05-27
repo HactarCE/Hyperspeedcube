@@ -113,10 +113,6 @@ impl<'a, I: ToElementId> SpaceRef<'a, I> {
     pub fn triangles(self) -> Result<Vec<[VertexId; 3]>> {
         self.space.triangles(self.as_element().id)
     }
-    /// Returns a basis for the subspace of the element.
-    pub fn subspace_basis(self) -> Result<Vec<Vector>> {
-        self.space.basis_for_polytope(self.as_element().id)
-    }
     /// Returns an arbitrary vertex of the element.
     pub fn arbitrary_vertex(self) -> Result<Vertex<'a>> {
         self.vertex_set()
