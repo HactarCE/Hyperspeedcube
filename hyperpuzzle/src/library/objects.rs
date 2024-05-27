@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use hypershape::Space;
 use mlua::FromLua;
-use parking_lot::Mutex;
 
 use super::{LibraryDb, LibraryFile, LibraryFileLoadResult};
 use crate::lua::{AxisSystemParams, PuzzleParams, ShapeParams, TwistSystemParams};
@@ -56,12 +55,12 @@ pub(crate) trait LibraryObjectParams: Sized + for<'lua> FromLua<'lua> {
     ) -> &mut HashMap<String, Cached<Self>>;
 
     /// Returns a default empty object. This is only allowed for some types.
-    fn new_constructed(space: &Arc<Mutex<Space>>) -> mlua::Result<Self::Constructed>;
+    fn new_constructed(space: &Arc<Space>) -> mlua::Result<Self::Constructed>;
     /// Clones a constructed object into a new space.
     fn clone_constructed(
         existing: &Self::Constructed,
-        space: &Arc<Mutex<Space>>,
+        space: &Arc<Space>,
     ) -> mlua::Result<Self::Constructed>;
     /// Builds an object from this set of parameters.
-    fn build(&self, lua: &mlua::Lua, space: &Arc<Mutex<Space>>) -> mlua::Result<Self::Constructed>;
+    fn build(&self, lua: &mlua::Lua, space: &Arc<Space>) -> mlua::Result<Self::Constructed>;
 }

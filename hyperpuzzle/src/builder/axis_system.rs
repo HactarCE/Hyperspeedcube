@@ -49,7 +49,7 @@ pub struct AxisSystemBuilder {
     pub id: Option<String>,
 
     /// Space where the axis system exists.
-    pub space: Arc<Mutex<Space>>,
+    pub space: Arc<Space>,
 
     /// Symmetry group of the axis system.
     pub symmetry: Option<SchlafliSymbol>,
@@ -65,7 +65,7 @@ pub struct AxisSystemBuilder {
 }
 impl AxisSystemBuilder {
     /// Constructs a new empty axis system builder.
-    pub fn new(id: Option<String>, space: Arc<Mutex<Space>>) -> Arc<Mutex<Self>> {
+    pub fn new(id: Option<String>, space: Arc<Space>) -> Arc<Mutex<Self>> {
         Arc::new_cyclic(|this| {
             Mutex::new(Self {
                 this: this.clone(),
@@ -99,7 +99,7 @@ impl AxisSystemBuilder {
     /// Creates a deep copy in a new space.
     ///
     /// Returns an error if the new and old spaces are not compatible.
-    pub fn clone(&self, space: &Arc<Mutex<Space>>) -> Result<Arc<Mutex<Self>>> {
+    pub fn clone(&self, space: &Arc<Space>) -> Result<Arc<Mutex<Self>>> {
         Ok(Arc::new_cyclic(|this| {
             Mutex::new(Self {
                 this: this.clone(),

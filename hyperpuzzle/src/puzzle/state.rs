@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use hypermath::prelude::*;
-use hypershape::prelude::*;
 use itertools::Itertools;
-use parking_lot::MutexGuard;
 
 use crate::{Axis, LayerMask, PerPiece, Piece, PieceMask, Puzzle, Twist};
 
@@ -45,10 +43,6 @@ impl PuzzleState {
                 true => transform * static_transform,
                 _ => static_transform.clone(),
             })
-    }
-
-    fn space(&self) -> MutexGuard<'_, Space> {
-        self.puzzle_type.space.lock()
     }
 
     /// Does a twist, or returns an error containing the set of pieces that
@@ -116,7 +110,7 @@ impl PuzzleState {
             segments.push((layer.bottom.clone(), layer.top.clone()));
         }
 
-        let mut space = self.space();
+        let space = &self.puzzle_type.space;
 
         self.puzzle_type.pieces.map_ref(|piece, piece_info| {
             // IIFE to mimic try_block
@@ -131,7 +125,7 @@ impl PuzzleState {
 
                         let transformed_cut = rev_piece_transform.transform(cut);
 
-                        match space.which_side_has_polytope(&transformed_cut, polytope) {
+                        match space.get(polytope).is_on_which_side_of(&transformed_cut) {
                             WhichSide::Outside => continue 'per_segment, // not in this segment; continue to next segment
                             WhichSide::Split => return Ok(WhichSide::Split), // split by one segment; cannot turn!
                             _ => (),
@@ -155,7 +149,7 @@ impl PuzzleState {
 
     /// Returns the smallest layer mask on `axis` that contains `piece`.
     pub fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
-        let space = self.space();
+        let space = &self.puzzle_type.space;
 
         let piece_transform = &self.piece_transforms[piece];
 
@@ -165,10 +159,10 @@ impl PuzzleState {
             .layers
             .find(|_layer, layer_info| {
                 space
-                    .vertex_set(self.ty().pieces[piece].polytope)
-                    .iter()
+                    .get(self.ty().pieces[piece].polytope)
+                    .vertex_set()
                     .all(|v| {
-                        let p = piece_transform.transform_point(&space[v]);
+                        let p = piece_transform.transform_point(v.pos());
                         layer_info.bottom.location_of_point(&p) != PointWhichSide::Outside && {
                             match &layer_info.top {
                                 Some(top) => top.location_of_point(&p) != PointWhichSide::Outside,

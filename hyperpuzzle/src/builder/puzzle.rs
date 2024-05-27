@@ -37,11 +37,11 @@ impl PuzzleBuilder {
     /// Returns the nubmer of dimensions of the underlying space the puzzle is
     /// built in. Equivalent to `self.shape.lock().space.ndim()`.
     pub fn ndim(&self) -> u8 {
-        self.space().lock().ndim()
+        self.space().ndim()
     }
     /// Returns the underlying space the puzzle is built in. Equivalent to
     /// `self.shape.lock().space`
-    pub fn space(&self) -> Arc<Mutex<Space>> {
+    pub fn space(&self) -> Arc<Space> {
         Arc::clone(&self.shape.lock().space)
     }
     /// Returns the axis system of the puzzle. Equivalent to
@@ -56,17 +56,18 @@ impl PuzzleBuilder {
         let name = self.name.clone();
         let id = self.id.clone();
 
-        let space_arc = Arc::new(Mutex::new(Space::new(self.ndim())));
-        let shape_mutex = self.shape.lock().clone(&space_arc)?;
+        // TODO: clone space properly
+        // let space = Space::new(self.ndim());
+        // let shape_mutex = self.shape.lock().clone(&space)?;
+        let space = Arc::clone(&self.shape.lock().space);
+        let shape_mutex = Arc::clone(&self.shape);
         let shape = shape_mutex.lock();
-        let twist_system_mutex = self.twists.lock().clone(&space_arc)?;
+        // let twist_system_mutex = self.twists.lock().clone(&space)?;
+        let twist_system_mutex = Arc::clone(&self.twists);
         let twist_system = twist_system_mutex.lock();
-        // Take `space` out of the `Arc<Mutex<T>>`.
-        let space = std::mem::replace(&mut *space_arc.lock(), Space::new(self.ndim()));
-        drop(space_arc); // Don't use that new space! It's dead to us.
         let ndim = space.ndim();
 
-        let mut mesh = Mesh::new_empty(self.ndim());
+        let mut mesh = Mesh::new_empty(ndim);
         mesh.color_count = shape.colors.len();
 
         // Only colored surfaces have an entry in `surface_colors`.
@@ -76,14 +77,14 @@ impl PuzzleBuilder {
                 surface_colors.insert(surface.clone(), id);
             }
         }
-        // All surfaces have an entry in `surface_to_facet`.
-        let mut surface_to_facet: ApproxHashMap<Hyperplane, Facet> = ApproxHashMap::new();
+        // All surfaces have an entry in `hyperplane_to_surface`.
+        let mut hyperplane_to_surface: ApproxHashMap<Hyperplane, Surface> = ApproxHashMap::new();
 
         // As we construct the mesh, we'll renumber all the pieces and stickers
         // to exclude inactive ones.
         let mut pieces = PerPiece::<PieceInfo>::new();
         let mut stickers = PerSticker::<StickerInfo>::new();
-        let mut facets = PerFacet::<TempFacetData>::new();
+        let mut surfaces = PerSurface::<TempSurfaceData>::new();
         let colors = super::iter_autonamed(
             &shape.colors.names,
             &shape.colors.ordering,
@@ -98,13 +99,11 @@ impl PuzzleBuilder {
         })
         .try_collect()?;
 
-        let mut simplices = SimplicialComplex::new(&space);
-
         // Construct the mesh for each active piece.
         for old_piece_id in shape.active_pieces.iter() {
             let piece = &shape.pieces[old_piece_id];
 
-            let piece_centroid = simplices.centroid(piece.polytope)?.center();
+            let piece_centroid = space.get(piece.polytope).centroid()?.center();
 
             let piece_id = pieces.push(PieceInfo {
                 stickers: smallvec![],
@@ -116,26 +115,21 @@ impl PuzzleBuilder {
             // Add stickers to the mesh sorted by color. It's important that
             // internal stickers are processed last, so that they are all in a
             // consecutive range for `piece_internals_index_ranges`.
-            let facets_of_piece = space[piece.polytope].boundary()?.clone();
-            let mut stickers_of_piece: Vec<TempStickerData> = facets_of_piece
-                .iter()
+            let mut stickers_of_piece: Vec<TempStickerData> = space
+                .get(piece.polytope)
+                .facets()
                 .map(|facet_polytope| {
                     // Select the orientation of the facet hyperplane such that
                     // the centroid of the piece is on the inside.
-                    let mut plane = space.hyperplane_of_facet(facet_polytope)?;
+                    let mut plane = facet_polytope.hyperplane()?;
                     if plane.location_of_point(&piece_centroid) == PointWhichSide::Outside {
                         plane = plane.flip();
                     }
 
-                    let color = *piece
-                        .stickers
-                        .get(&facet_polytope)
-                        .unwrap_or(&Color::INTERNAL);
-
                     eyre::Ok(TempStickerData {
-                        polytope: facet_polytope,
+                        facet: facet_polytope.id(),
                         plane,
-                        color,
+                        color: piece.sticker_color(facet_polytope.id()),
                     })
                 })
                 // Skip internals for 4D+.
@@ -144,12 +138,8 @@ impl PuzzleBuilder {
             // Sort the stickers, as mentioned above.
             stickers_of_piece.sort();
 
-            let sticker_shrink_vectors = compute_sticker_shrink_vectors(
-                &space,
-                &mut simplices,
-                piece.polytope,
-                &stickers_of_piece,
-            )?;
+            let sticker_shrink_vectors =
+                compute_sticker_shrink_vectors(space.get(piece.polytope), &stickers_of_piece)?;
 
             let mut piece_internals_indices_start = None;
 
@@ -162,28 +152,27 @@ impl PuzzleBuilder {
                     pieces[piece_id].stickers.push(sticker_id);
                 }
 
-                let sticker_centroid = simplices.centroid(sticker.polytope)?;
+                let sticker_centroid = space.get(sticker.facet).centroid()?;
                 let sticker_plane = sticker.plane;
-                let facet_id = match surface_to_facet.entry(sticker_plane.clone()) {
+                let surface_id = match hyperplane_to_surface.entry(sticker_plane.clone()) {
                     hash_map::Entry::Occupied(e) => *e.get(),
                     hash_map::Entry::Vacant(e) => {
-                        let facet_id = facets.push(TempFacetData::new(&sticker_plane)?)?;
-                        *e.insert(facet_id)
+                        let surface_id = surfaces.push(TempSurfaceData::new(&sticker_plane)?)?;
+                        *e.insert(surface_id)
                     }
                 };
 
-                facets[facet_id].centroid += sticker_centroid;
+                surfaces[surface_id].centroid += sticker_centroid;
 
                 let (polygon_index_range, triangles_index_range, edges_index_range) =
                     build_shape_polygons(
                         &space,
                         &mut mesh,
-                        &mut simplices,
                         &sticker_shrink_vectors,
-                        sticker.polytope,
+                        space.get(sticker.facet),
                         &piece_centroid,
                         piece_id,
-                        facet_id,
+                        surface_id,
                     )?;
 
                 if sticker.color == Color::INTERNAL {
@@ -219,8 +208,8 @@ impl PuzzleBuilder {
             )?;
         }
 
-        for (_, facet_data) in facets {
-            mesh.add_facet(facet_data.centroid.center(), facet_data.normal)?;
+        for (_, surface_data) in surfaces {
+            mesh.add_surface(surface_data.centroid.center(), surface_data.normal)?;
         }
 
         let axis_system = twist_system.axes.lock();
@@ -334,7 +323,7 @@ impl PuzzleBuilder {
             twists,
             twist_by_name,
 
-            space: Mutex::new(space),
+            space,
         }))
     }
 }
@@ -348,22 +337,30 @@ pub struct PieceBuilder {
     /// cut up into.
     pub cut_result: PieceSet,
     /// Colored stickers of the piece.
-    pub stickers: VecMap<PolytopeId, Color>,
+    pub stickers: VecMap<FacetId, Color>,
 }
 impl PieceBuilder {
-    pub(super) fn new(polytope: PolytopeId, stickers: VecMap<PolytopeId, Color>) -> Self {
-        Self {
-            polytope,
+    pub(super) fn new(
+        polytope: SpaceRef<'_, impl ToElementId>,
+        stickers: VecMap<FacetId, Color>,
+    ) -> Result<Self> {
+        Ok(Self {
+            polytope: polytope.as_element().as_polytope()?.id(),
             cut_result: PieceSet::new(),
             stickers,
-        }
+        })
+    }
+    /// Returns the color of a facet, or `Color::INTERNAL` if there is no
+    /// color assigned.
+    pub fn sticker_color(&self, sticker_id: FacetId) -> Color {
+        *self.stickers.get(&sticker_id).unwrap_or(&Color::INTERNAL)
     }
 }
 
 #[derive(Debug, Clone)]
 struct TempStickerData {
-    /// Polytope of the sticker.
-    polytope: PolytopeId,
+    /// Facet of the sticker.
+    facet: FacetId,
     /// Plane of the sticker.
     plane: Hyperplane,
     /// Color of the sticker.
@@ -371,7 +368,7 @@ struct TempStickerData {
 }
 impl PartialEq for TempStickerData {
     fn eq(&self, other: &Self) -> bool {
-        self.polytope == other.polytope && self.color == other.color
+        self.facet == other.facet && self.color == other.color
     }
 }
 impl Eq for TempStickerData {}
@@ -382,16 +379,16 @@ impl PartialOrd for TempStickerData {
 }
 impl Ord for TempStickerData {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (self.color, self.polytope).cmp(&(other.color, other.polytope))
+        (self.color, self.facet).cmp(&(other.color, other.facet))
     }
 }
 
 #[derive(Debug)]
-struct TempFacetData {
+struct TempSurfaceData {
     centroid: Centroid,
     normal: Vector,
 }
-impl TempFacetData {
+impl TempSurfaceData {
     fn new(plane: &Hyperplane) -> Result<Self> {
         Ok(Self {
             centroid: Centroid::ZERO,
@@ -409,41 +406,45 @@ impl TempFacetData {
 /// that edge. If a vertex is on a corner of its polytope, then its shrink
 /// vector is zero.
 fn compute_sticker_shrink_vectors(
-    space: &Space,
-    simplices: &mut SimplicialComplex<'_>,
-    piece_shape: PolytopeId,
+    piece_shape: Polytope<'_>,
     stickers: &[TempStickerData],
 ) -> Result<HashMap<VertexId, Vector>> {
+    let space = piece_shape.space();
+
     // For the purposes of sticker shrink, we don't care about internal facets.
     let colored_sticker_polytopes = stickers
         .iter()
         .filter(|sticker| sticker.color != Color::INTERNAL)
-        .map(|sticker| sticker.polytope)
+        .map(|sticker| sticker.facet)
         .collect_vec();
 
-    // Make our own facet IDs that will stay within this object. We only care
-    // about the facets that this piece has stickers on.
-    let mut facet_hyperplanes = PerFacet::new();
+    // Make our own surface IDs that will stay within this object. We only care
+    // about the surfaces that this piece has stickers on.
+    let mut surface_hyperplanes = PerSurface::new();
 
-    // For each element of the polytope, compute a set of the facet manifolds
+    // TODO: I don't think this is correctly dimension-generic.
+
+    // For each element of the polytope, compute a set of the surface manifolds
     // that have a sticker containing the element.
-    let mut elements_and_facet_sets_by_rank: Vec<HashMap<PolytopeId, FacetSet>> =
+    let mut elements_and_surface_sets_by_rank: Vec<HashMap<ElementId, SurfaceSet>> =
         vec![HashMap::new(); space.ndim() as usize + 1];
     for &sticker_polytope in &colored_sticker_polytopes {
-        let facet = facet_hyperplanes.push(space.hyperplane_of_facet(sticker_polytope)?)?;
+        let sticker_element = space.get(sticker_polytope);
 
-        for element in space.elements_of(sticker_polytope) {
-            let rank = space[element].rank();
-            elements_and_facet_sets_by_rank[rank as usize]
-                .entry(element)
+        let surface = surface_hyperplanes.push(sticker_element.hyperplane()?)?;
+
+        for ridge in sticker_element.ridges() {
+            let rank = ridge.rank();
+            elements_and_surface_sets_by_rank[rank as usize]
+                .entry(ridge.id())
                 .or_default()
-                .insert(facet);
+                .insert(surface);
         }
     }
 
     // Find the largest (by rank) elements contained by all the sticker facets
     // of the piece.
-    let centroid_of_greatest_common_elements: Option<Centroid> = elements_and_facet_sets_by_rank
+    let centroid_of_greatest_common_elements: Option<Centroid> = elements_and_surface_sets_by_rank
         .iter()
         .rev()
         .map(|elements_and_facet_sets| {
@@ -455,7 +456,7 @@ fn compute_sticker_shrink_vectors(
                 .map(|(element, _facet_set)| *element);
             // Add up their centroids. Technically we should take the centroid
             // of their convex hull, but this works well enough.
-            simplices.combined_centroid(elements_with_maximal_facet_set)
+            space.combined_centroid(elements_with_maximal_facet_set)
         })
         // Select the elements with the largest rank and nonzero centroid.
         .find_map(|result_option| result_option.transpose())
@@ -463,26 +464,25 @@ fn compute_sticker_shrink_vectors(
     // If such elements exist, then all vertices can shrink to the same point.
     if let Some(centroid) = centroid_of_greatest_common_elements {
         let shrink_target = centroid.center();
-        return Ok(space
-            .vertex_set(piece_shape)
-            .iter()
-            .map(|v| (v, &shrink_target - &space[v]))
+        return Ok(piece_shape
+            .vertex_set()
+            .map(|v| (v.id(), &shrink_target - v.pos()))
             .collect());
     }
 
     // Otherwise, find the best elements for each set of facets. If a vertex is
     // not contained by any facets, then it will shrink toward the centroid of
     // the piece.
-    let piece_centroid = simplices.centroid(piece_shape)?.center();
+    let piece_centroid = piece_shape.centroid()?.center();
 
     // Compute the shrink target for each possible facet set that has a good
     // shrink target.
-    let unique_facet_sets_of_vertices = elements_and_facet_sets_by_rank[0].values().unique();
-    let shrink_target_by_facet_set: HashMap<&FacetSet, Vector> = unique_facet_sets_of_vertices
+    let unique_facet_sets_of_vertices = elements_and_surface_sets_by_rank[0].values().unique();
+    let shrink_target_by_surface_set: HashMap<&SurfaceSet, Vector> = unique_facet_sets_of_vertices
         .map(|facet_set| {
             // Find the largest elements of the piece that are contained by all
             // the facets in this set. There must be at least one vertex.
-            let centroid_of_greatest_common_elements: Centroid = elements_and_facet_sets_by_rank
+            let centroid_of_greatest_common_elements: Centroid = elements_and_surface_sets_by_rank
                 .iter()
                 .rev()
                 .map(|elements_and_facet_sets| {
@@ -495,7 +495,7 @@ fn compute_sticker_shrink_vectors(
                     // Add up their centroids. Technically we should take the
                     // centroid of their convex hull, but this works well
                     // enough.
-                    simplices.combined_centroid(elements_with_superset_of_facets)
+                    space.combined_centroid(elements_with_superset_of_facets)
                 })
                 // Select the elements with the largest rank.
                 .find_map(|result_option| result_option.transpose())
@@ -508,19 +508,18 @@ fn compute_sticker_shrink_vectors(
         .try_collect()?;
 
     // Compute shrink vectors for all vertices.
-    let shrink_vectors = space.vertex_set(piece_shape).into_iter().map(|vertex_id| {
-        let polytope_id = space.vertex_to_polytope(vertex_id);
-        let facet_set = &elements_and_facet_sets_by_rank[0]
-            .get(&polytope_id)
+    let shrink_vectors = piece_shape.vertex_set().into_iter().map(|vertex| {
+        let surface_set = &elements_and_surface_sets_by_rank[0]
+            .get(&vertex.as_element().id())
             .map(Cow::Borrowed)
             .unwrap_or_default();
-        let vertex_pos = &space[vertex_id];
-        let shrink_vector = match shrink_target_by_facet_set.get(&**facet_set) {
+        let vertex_pos = vertex.pos();
+        let shrink_vector = match shrink_target_by_surface_set.get(&**surface_set) {
             Some(target) => target - vertex_pos,
             None => &piece_centroid - vertex_pos,
         };
 
-        (vertex_id, shrink_vector)
+        (vertex.id(), shrink_vector)
     });
     Ok(shrink_vectors.collect())
 }
@@ -528,25 +527,24 @@ fn compute_sticker_shrink_vectors(
 fn build_shape_polygons(
     space: &Space,
     mesh: &mut Mesh,
-    simplices: &mut SimplicialComplex<'_>,
     sticker_shrink_vectors: &HashMap<VertexId, Vector>,
-    sticker_shape: PolytopeId,
+    sticker_shape: Facet<'_>,
     piece_centroid: &Vector,
     piece_id: Piece,
-    facet_id: Facet,
+    surface_id: Surface,
 ) -> Result<(Range<usize>, Range<u32>, Range<u32>)> {
     let polygons_start = mesh.polygon_count;
     let triangles_start = mesh.triangle_count() as u32;
     let edges_start = mesh.edge_count() as u32;
 
-    for polygon in space.subelements_with_rank(sticker_shape, 2) {
+    for polygon in sticker_shape.as_element().face_set() {
         let polygon_id = mesh.next_polygon_id()?;
 
         // Triangulate the polygon.
-        let tris = simplices.triangles(polygon)?;
+        let tris = polygon.triangles()?;
 
         // Compute tangent vectors.
-        let basis = simplices.basis_for_polytope(polygon)?;
+        let basis = polygon.subspace_basis()?;
         if basis.len() != 2 {
             bail!("bad basis: expected 2 vectors but got {}", basis.len());
         }
@@ -555,9 +553,9 @@ fn build_shape_polygons(
         // Ensure that tangent vectors face the right way in 3D.
         let mut normal = vector![];
         if space.ndim() == 3 {
-            let init = space.arbitrary_vertex(polygon);
+            let init = polygon.arbitrary_vertex()?;
             normal = u_tangent.cross_product_3d(&v_tangent);
-            if normal.dot(&space[init] - &piece_centroid) < 0.0 {
+            if normal.dot(init.pos() - &piece_centroid) < 0.0 {
                 normal = -normal;
                 std::mem::swap(&mut u_tangent, &mut v_tangent)
             }
@@ -575,19 +573,19 @@ fn build_shape_polygons(
                 new_vertex_ids[i] = match vertex_id_map.entry(old_vertex_id) {
                     hash_map::Entry::Occupied(e) => *e.get(),
                     hash_map::Entry::Vacant(e) => {
-                        let position = &space[old_vertex_id];
+                        let position = space.get(old_vertex_id).pos();
 
                         let sticker_shrink_vector = sticker_shrink_vectors
                             .get(&old_vertex_id)
                             .ok_or_eyre("missing sticker shrink vector for vertex")?;
 
                         let new_vertex_id = mesh.add_vertex(MeshVertexData {
-                            position,
+                            position: &position,
                             u_tangent: &u_tangent,
                             v_tangent: &v_tangent,
                             sticker_shrink_vector,
                             piece_id,
-                            facet_id,
+                            surface_id,
                             polygon_id,
                         });
                         *e.insert(new_vertex_id)
@@ -607,13 +605,14 @@ fn build_shape_polygons(
             mesh.triangles.push(new_vertex_ids);
         }
 
-        for edge @ [a, b] in space.edges_of(polygon) {
+        for edge in polygon.edge_endpoints() {
+            let edge @ [a, b] = edge?;
             // We should have seen all these vertices before because they show
             // up in triangles, but check just in case so we don't panic.
-            if !(vertex_id_map.contains_key(&a) && vertex_id_map.contains_key(&b)) {
+            if !(vertex_id_map.contains_key(&a.id()) && vertex_id_map.contains_key(&b.id())) {
                 bail!("vertex ID for edge is not part of a triangle");
             }
-            mesh.edges.push(edge.map(|id| vertex_id_map[&id]));
+            mesh.edges.push(edge.map(|v| vertex_id_map[&v.id()]));
         }
     }
 

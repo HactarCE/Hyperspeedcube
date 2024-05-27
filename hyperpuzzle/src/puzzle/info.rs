@@ -12,9 +12,9 @@ hypermath::idx_struct! {
     /// ID of a **sticker**, which is a facet of a **piece** having a single
     /// color and belonging to a single **facet**.
     pub struct Sticker(pub u16);
-    /// ID of a **facet**, which is a surface shared by one or more
-    /// **stickers**.
-    pub struct Facet(pub u16);
+    /// ID of a **surface**, which is an external facet of the puzzle shared by
+    /// one or more **stickers**.
+    pub struct Surface(pub u16);
     /// ID of a **color** that appears on stickers.
     pub struct Color(pub u16);
     /// ID of a **twist axis**, an organizational unit containing several
@@ -29,9 +29,9 @@ hypermath::idx_struct! {
     pub struct PieceType(pub u8);
 }
 
-impl Facet {
-    /// Facet ID for pieces that are not on a facet, such as internals.
-    pub const NONE: Facet = Facet::MAX;
+impl Surface {
+    /// Surface ID for pieces that are not on a external surface, such as internals.
+    pub const NONE: Surface = Surface::MAX;
 }
 impl Color {
     /// Color ID for internals.
@@ -42,8 +42,8 @@ impl Color {
 pub type PerPiece<T> = GenericVec<Piece, T>;
 /// List containing a value per sticker.
 pub type PerSticker<T> = GenericVec<Sticker, T>;
-/// List containing a value per facet.
-pub type PerFacet<T> = GenericVec<Facet, T>;
+/// List containing a value per surface.
+pub type PerSurface<T> = GenericVec<Surface, T>;
 /// List containing a value per color.
 pub type PerColor<T> = GenericVec<Color, T>;
 /// List containing a value per twist axis.
@@ -59,8 +59,8 @@ pub type PerPieceType<T> = GenericVec<PieceType, T>;
 pub type PieceSet = Set64<Piece>;
 /// Sparse set of stickers in a puzzle.
 pub type StickerSet = Set64<Sticker>;
-/// Sparse set of facets in a puzzle.
-pub type FacetSet = Set64<Facet>;
+/// Sparse set of surfaces in a puzzle.
+pub type SurfaceSet = Set64<Surface>;
 /// Sparse set of colors in a puzzle.
 pub type ColorSet = Set64<Color>;
 

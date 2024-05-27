@@ -16,9 +16,18 @@ pub enum PolytopeData {
         /// [Rank]: https://polytope.miraheze.org/wiki/Rank
         rank: u8,
         /// Facets of the polytope.
-        boundary: PolytopeSet,
-        /// Extra data about the polytope.
-        flags: PolytopeFlags,
+        boundary: Set64<ElementId>,
+
+        /// Whether the facet is on the surface of the primordial cube. This is
+        /// only used for facets.
+        is_primordial: bool,
+        /// Which seam if any, this facet links across. This is only used for
+        /// facets.
+        seam: Option<SeamId>,
+
+        /// Which patch of space the polytope exists in. This is only used for
+        /// top-level polytopes.
+        patch: Option<PatchId>,
     },
 }
 impl From<VertexId> for PolytopeData {
@@ -48,17 +57,10 @@ impl PolytopeData {
 
     /// Returns the set of boundary elements, or an error if the polytope has
     /// rank less than 2.
-    pub fn boundary(&self) -> Result<&PolytopeSet> {
+    pub fn boundary(&self) -> Result<&Set64<ElementId>> {
         match self {
             PolytopeData::Polytope { boundary, .. } => Ok(boundary),
             _ => bail!("cannot take boundary of rank<2 polytope"),
         }
     }
-}
-
-/// Extra data about a polytope.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct PolytopeFlags {
-    /// Whether the polytope is on the surface of the primordial cube.
-    pub is_primordial: bool,
 }

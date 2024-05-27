@@ -5,7 +5,7 @@ use std::fmt;
 
 use hypermath::prelude::*;
 
-use super::{AbstractGroup, EggTable, ElementId, GeneratorId, GroupBuilder, GroupResult};
+use super::{AbstractGroup, EggTable, GeneratorId, GroupBuilder, GroupElementId, GroupResult};
 
 /// [Finite Coxeter group](https://w.wiki/7PLd).
 ///
@@ -131,13 +131,13 @@ impl CoxeterGroup {
         // Add a row with the identity for each possible pair of generators.
         let mut relation_tables = RelationTables::new(n);
         for h in &relation_table_headers {
-            relation_tables.add_row(h.new_row(ElementId::IDENTITY));
+            relation_tables.add_row(h.new_row(GroupElementId::IDENTITY));
         }
 
         let mut element_id = 0;
 
         while element_id < g.element_count() {
-            let element = ElementId::try_from_usize(element_id)?;
+            let element = GroupElementId::try_from_usize(element_id)?;
 
             for gen in GeneratorId::iter(n) {
                 // If we already know the result of `element * gen` then skip
@@ -192,7 +192,7 @@ impl fmt::Display for RelationTables {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "RelationTables {{")?;
         for ((elem, gen), [left, right]) in self.0.iter() {
-            let gen = ElementId::from(gen);
+            let gen = GroupElementId::from(gen);
             writeln!(f, "    ({elem} * {gen}): {{")?;
             writeln!(f, "        left: [")?;
             for row in left {
@@ -217,7 +217,7 @@ impl RelationTables {
     }
 
     /// Makes the table aware of another element.
-    fn add_element(&mut self) -> GroupResult<ElementId> {
+    fn add_element(&mut self) -> GroupResult<GroupElementId> {
         self.0.add_element([vec![], vec![]])
     }
     /// Adds a table row, indexed by both the left and right sides of its gap.
@@ -294,7 +294,7 @@ impl fmt::Display for RelationTableHeader {
 
 impl RelationTableHeader {
     /// Constructs a row in the relation table starting with `element`.
-    fn new_row(self, element: ElementId) -> RelationTableRow {
+    fn new_row(self, element: GroupElementId) -> RelationTableRow {
         RelationTableRow {
             generator_pair: [self.a, self.b],
             left_index: 0,
@@ -320,9 +320,9 @@ struct RelationTableRow {
     /// Column on the element on the right side of the gap.
     right_index: u8,
     /// Element on the left side of the gap.
-    left_element: ElementId,
+    left_element: GroupElementId,
     /// Element on the right side of the gap.
-    right_element: ElementId,
+    right_element: GroupElementId,
 }
 
 impl fmt::Display for RelationTableRow {
@@ -392,9 +392,9 @@ impl RelationTableRow {
 /// Representation of the fact that `element * generator = result`.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 struct SuccessorRelation {
-    element: ElementId,
+    element: GroupElementId,
     generator: GeneratorId,
-    result: ElementId,
+    result: GroupElementId,
 }
 impl SuccessorRelation {
     /// Returns the inverse of a successor relation, which is true iff

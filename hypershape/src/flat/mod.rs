@@ -2,7 +2,7 @@
 
 use std::collections::{hash_map, HashMap};
 use std::fmt;
-use std::ops::Index;
+use std::sync::{Arc, Weak};
 
 use eyre::{bail, ensure, eyre, OptionExt, Result};
 use float_ord::FloatOrd;
@@ -11,36 +11,54 @@ use hypermath::collections::{ApproxHashMap, GenericVec};
 use hypermath::prelude::*;
 use itertools::Itertools;
 use parking_lot::Mutex;
+use smallvec::{smallvec, SmallVec};
 use tinyset::Set64;
 
 mod cut;
 mod cut_output;
+mod elements;
 mod map;
-mod polytope;
+mod patchwork;
+mod polytope_data;
+mod primordial;
+mod simplicial;
 mod space;
+mod spaceref;
 
 pub use cut::{Cut, CutParams, PolytopeFate};
-pub use cut_output::PolytopeCutOutput;
+pub use cut_output::ElementCutOutput;
+pub use elements::*;
 pub use map::{SpaceMap, SpaceMapFor};
-pub use polytope::{PolytopeData, PolytopeFlags};
+pub use patchwork::{Patch, Seam};
+pub use polytope_data::PolytopeData;
+pub use simplicial::{Simplex, SimplexBlob};
 pub use space::Space;
-
-/// Set of vertices in a [`Space`].
-pub type VertexSet = Set64<VertexId>;
-/// Set of polytopes in a [`Space`].
-pub type PolytopeSet = Set64<PolytopeId>;
+pub use spaceref::SpaceRef;
 
 hypermath::idx_struct! {
+    /// ID for a memoized element of a polytope in a [`Space`].
+    pub struct ElementId(pub u32);
+    /// ID for a memoized top-level polytope in a [`Space`].
+    pub struct PolytopeId(pub u32);
+    /// ID for a memoized facet in a [`Space`].
+    pub struct FacetId(pub u32);
+    /// ID for a memoized face in a [`Space`].
+    pub struct FaceId(pub u32);
+    /// ID for a memoized edge in a [`Space`].
+    pub struct EdgeId(pub u32);
     /// ID for a memoized vertex in a [`Space`].
     pub struct VertexId(pub u32);
-    /// ID for a memoized polytope in a [`Space`].
-    pub struct PolytopeId(pub u32);
+
+    /// ID for a patch in a [`Space`].
+    pub struct PatchId(pub u16);
+    /// ID for a seam of a patch in a [`Space`].
+    pub struct SeamId(pub u16);
 }
 
+/// List containing a value per polytope.
+pub type PerElement<T> = GenericVec<ElementId, T>;
 /// List containing a value per vertex.
 pub type PerVertex<T> = GenericVec<VertexId, T>;
-/// List containing a value per polytope.
-pub type PerPolytope<T> = GenericVec<PolytopeId, T>;
 
 #[cfg(test)]
 mod tests {
@@ -48,18 +66,15 @@ mod tests {
 
     #[test]
     fn test_cube() {
-        let mut space = Space::new(2);
+        let space = Space::new(2);
         let root = space.add_primordial_cube(10.0).unwrap();
-        println!("{}", space.dump_to_string(root));
-        let result = space
-            .cut_polytope(
-                root,
-                &mut Cut::carve(Hyperplane::from_pole(vector![1.0]).unwrap()),
-            )
+        println!("{}", space.dump_to_string(root.as_element().id));
+        let result = Cut::carve(&space, Hyperplane::from_pole(vector![1.0]).unwrap())
+            .cut(root)
             .unwrap();
         match result {
-            PolytopeCutOutput::Flush => println!("flush"),
-            PolytopeCutOutput::NonFlush {
+            ElementCutOutput::Flush => println!("flush"),
+            ElementCutOutput::NonFlush {
                 inside,
                 outside,
                 intersection,

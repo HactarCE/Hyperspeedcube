@@ -108,17 +108,17 @@ impl LibraryObjectParams for PuzzleParams {
         &mut result.puzzles
     }
 
-    fn new_constructed(_space: &Arc<Mutex<Space>>) -> LuaResult<Self::Constructed> {
+    fn new_constructed(_space: &Arc<Space>) -> LuaResult<Self::Constructed> {
         Err(LuaError::external("missing puzzle constructor"))
     }
     fn clone_constructed(
         existing: &Self::Constructed,
-        _space: &Arc<Mutex<Space>>,
+        _space: &Arc<Space>,
     ) -> LuaResult<Self::Constructed> {
         // Ignore `space` if we don't need it.
         Ok(Arc::clone(existing))
     }
-    fn build(&self, lua: &Lua, space: &Arc<Mutex<Space>>) -> LuaResult<Self::Constructed> {
+    fn build(&self, lua: &Lua, space: &Arc<Space>) -> LuaResult<Self::Constructed> {
         let shape = LibraryDb::build_from_value::<ShapeParams>(lua, space, &self.shape)?;
         let twists = LibraryDb::build_from_value::<TwistSystemParams>(lua, space, &self.twists)?;
 

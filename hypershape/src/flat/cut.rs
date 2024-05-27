@@ -41,10 +41,11 @@ impl fmt::Display for PolytopeFate {
 /// In-progress cut operation, which caches intermediate results.
 #[derive(Debug)]
 pub struct Cut {
+    space: Arc<Space>,
     /// Cut parameters.
-    pub(super) params: CutParams,
+    params: CutParams,
     /// Cache of the result of splitting each shape.
-    pub(super) polytope_cut_output_cache: HashMap<PolytopeId, PolytopeCutOutput>,
+    output_cache: HashMap<ElementId, ElementCutOutput>,
 }
 impl fmt::Display for Cut {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -56,32 +57,150 @@ impl fmt::Display for Cut {
 impl Cut {
     /// Constructs a cutting operation that deletes polytopes on the outside of
     /// the cut and keeps only those on the inside.
-    pub fn carve(divider: Hyperplane) -> Self {
-        Self::new(CutParams {
+    pub fn carve(space: &Space, divider: Hyperplane) -> Self {
+        let params = CutParams {
             divider,
             inside: PolytopeFate::Keep,
             outside: PolytopeFate::Remove,
-        })
+        };
+        Self::new(space, params)
     }
     /// Constructs a cutting operation that keeps all resulting polytopes.
-    pub fn slice(divider: Hyperplane) -> Self {
-        Self::new(CutParams {
+    pub fn slice(space: &Space, divider: Hyperplane) -> Self {
+        let params = CutParams {
             divider,
             inside: PolytopeFate::Keep,
             outside: PolytopeFate::Keep,
-        })
+        };
+        Self::new(space, params)
     }
 
     /// Constructs a cutting operation.
-    pub fn new(params: CutParams) -> Self {
+    pub fn new(space: &Space, params: CutParams) -> Self {
         Self {
+            space: space.arc(),
             params,
-            polytope_cut_output_cache: HashMap::new(),
+            output_cache: HashMap::new(),
         }
     }
 
     /// Returns the parameters used to create the cut.
     pub fn params(&self) -> &CutParams {
         &self.params
+    }
+
+    /// Cuts an element.
+    pub fn cut(&mut self, element: impl ToElementId) -> Result<ElementCutOutput> {
+        let cut = &mut *self;
+        let space = cut.space.arc(); // TODO(perf): is this bad for perf?
+        let element = element.to_element_id(&space);
+
+        if let Some(&result) = cut.output_cache.get(&element) {
+            return Ok(result);
+        }
+
+        let div = &cut.params.divider;
+
+        let polytopes = space.polytopes.lock();
+        let result = match polytopes[element].clone() {
+            PolytopeData::Vertex(p) => match div.location_of_point(&space.vertices.lock()[p]) {
+                PointWhichSide::On => ElementCutOutput::Flush,
+                PointWhichSide::Inside => ElementCutOutput::all_inside(element, None),
+                PointWhichSide::Outside => ElementCutOutput::all_outside(element, None),
+            },
+            PolytopeData::Polytope { rank, boundary, .. } => {
+                let mut inside_boundary = Set64::<ElementId>::new();
+                let mut outside_boundary = Set64::<ElementId>::new();
+                let mut flush_polytopes = vec![];
+                let mut flush_polytope_boundary = Set64::<ElementId>::new();
+
+                drop(polytopes);
+
+                if let Some(line @ [a, b]) = space.line_endpoints(element) {
+                    let vertices = space.vertices.lock();
+                    let HyperplaneLineIntersection {
+                        a_loc,
+                        b_loc,
+                        intersection,
+                    } = div.intersection_with_line_segment(line.map(|i| &vertices[i]));
+                    drop(vertices);
+                    for (v, v_loc) in [(a, a_loc), (b, b_loc)] {
+                        let v = space.add_polytope(v.into())?;
+                        match v_loc {
+                            PointWhichSide::On => flush_polytopes.push(v),
+                            PointWhichSide::Inside => {
+                                inside_boundary.insert(v);
+                            }
+                            PointWhichSide::Outside => {
+                                outside_boundary.insert(v);
+                            }
+                        }
+                    }
+                    if flush_polytopes.is_empty() {
+                        if let Some(intersection_point) = intersection {
+                            let v = space.add_vertex(intersection_point)?.into();
+                            flush_polytopes.push(space.add_polytope(v)?);
+                        }
+                    }
+                } else {
+                    for b in boundary.iter() {
+                        match cut.cut(b)? {
+                            ElementCutOutput::Flush => flush_polytopes.push(b),
+                            ElementCutOutput::NonFlush {
+                                inside,
+                                outside,
+                                intersection,
+                            } => {
+                                inside_boundary.extend(inside);
+                                outside_boundary.extend(outside);
+                                flush_polytope_boundary.extend(intersection);
+                            }
+                        }
+                    }
+                }
+
+                if flush_polytopes.len() > 1 {
+                    ElementCutOutput::Flush
+                } else {
+                    let intersection = match flush_polytopes.first() {
+                        Some(&p) => Some(p),
+                        None => space.add_polytope_if_non_degenerate(PolytopeData::Polytope {
+                            rank: rank - 1,
+                            boundary: flush_polytope_boundary,
+
+                            is_primordial: false,
+
+                            seam: None,
+                            patch: None,
+                        })?,
+                    };
+
+                    let inside = match cut.params.inside {
+                        PolytopeFate::Keep => {
+                            inside_boundary.extend(intersection);
+                            space.add_subpolytope_if_non_degenerate(element, inside_boundary)?
+                        }
+                        PolytopeFate::Remove => None,
+                    };
+
+                    let outside = match cut.params.outside {
+                        PolytopeFate::Keep => {
+                            outside_boundary.extend(intersection);
+                            space.add_subpolytope_if_non_degenerate(element, outside_boundary)?
+                        }
+                        PolytopeFate::Remove => None,
+                    };
+
+                    ElementCutOutput::NonFlush {
+                        inside,
+                        outside,
+                        intersection,
+                    }
+                }
+            }
+        };
+
+        cut.output_cache.insert(element, result);
+        Ok(result)
     }
 }

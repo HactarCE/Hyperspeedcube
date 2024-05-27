@@ -70,17 +70,17 @@ impl LibraryObjectParams for TwistSystemParams {
         &mut result.twist_systems
     }
 
-    fn new_constructed(space: &Arc<Mutex<Space>>) -> LuaResult<Self::Constructed> {
+    fn new_constructed(space: &Arc<Space>) -> LuaResult<Self::Constructed> {
         let axes = AxisSystemBuilder::new(None, Arc::clone(space));
         Ok(TwistSystemBuilder::new(None, axes))
     }
     fn clone_constructed(
         existing: &Self::Constructed,
-        space: &Arc<Mutex<Space>>,
+        space: &Arc<Space>,
     ) -> LuaResult<Self::Constructed> {
         existing.lock().clone(space).into_lua_err()
     }
-    fn build(&self, lua: &Lua, space: &Arc<Mutex<Space>>) -> LuaResult<Self::Constructed> {
+    fn build(&self, lua: &Lua, space: &Arc<Space>) -> LuaResult<Self::Constructed> {
         let axes = LibraryDb::build_from_value::<AxisSystemParams>(lua, space, &self.axes)?;
 
         let twist_system_builder = TwistSystemBuilder::new(self.id.clone(), axes);

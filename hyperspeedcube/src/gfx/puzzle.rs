@@ -748,11 +748,11 @@ impl PuzzleRenderer {
             v_tangents: &self.model.v_tangents,
             sticker_shrink_vectors: &self.model.sticker_shrink_vectors,
             piece_ids: &self.model.piece_ids,
-            facet_ids: &self.model.facet_ids,
+            surface_ids: &self.model.surface_ids,
 
             piece_centroids: &self.model.piece_centroids,
-            facet_centroids: &self.model.facet_centroids,
-            facet_normals: &self.model.facet_normals,
+            surface_centroids: &self.model.surface_centroids,
+            surface_normals: &self.model.surface_normals,
             vertex_3d_positions: &self.buffers.vertex_3d_positions,
             vertex_3d_normals: &self.buffers.vertex_3d_normals,
 
@@ -905,7 +905,7 @@ struct_with_constructor! {
 
                 // Convert to i32 because WGSL doesn't support 16-bit integers yet.
                 let piece_ids = mesh.piece_ids.iter().map(|&i| i.0 as u32).collect_vec();
-                let facet_ids = mesh.facet_ids.iter().map(|&i| i.0 as u32).collect_vec();
+                let surface_ids = mesh.surface_ids.iter().map(|&i| i.0 as u32).collect_vec();
 
                 // This is just a buffer full of sequential integers so that we
                 // don't have to send that data to the GPU each frame.
@@ -936,7 +936,7 @@ struct_with_constructor! {
                 /// Piece ID for each vertex.
                 piece_ids:              wgpu::Buffer = buffer!(piece_ids,          VERTEX | STORAGE), // TODO: only VERTEX for single-pass pipeline
                 /// Facet ID for each vertex.
-                facet_ids:              wgpu::Buffer = buffer!(facet_ids,          VERTEX | STORAGE), // TODO: only VERTEX for single-pass pipeline
+                surface_ids:            wgpu::Buffer = buffer!(surface_ids,        VERTEX | STORAGE), // TODO: only VERTEX for single-pass pipeline
                 /// Polygon ID for each vertex.
                 polygon_ids:            wgpu::Buffer = buffer!(mesh.polygon_ids,   VERTEX | STORAGE), // TODO: only VERTEX for single-pass pipeline
 
@@ -946,9 +946,9 @@ struct_with_constructor! {
                 /// Centroid for each piece.
                 piece_centroids:        wgpu::Buffer = buffer!(mesh.piece_centroids,        STORAGE),
                 /// Centroid for each facet.
-                facet_centroids:        wgpu::Buffer = buffer!(mesh.facet_centroids,        STORAGE),
+                surface_centroids:      wgpu::Buffer = buffer!(mesh.surface_centroids,      STORAGE),
                 /// Normal vector for each facet.
-                facet_normals:          wgpu::Buffer = buffer!(mesh.facet_normals,          STORAGE),
+                surface_normals:        wgpu::Buffer = buffer!(mesh.surface_normals,        STORAGE),
                 /// Vertex IDs for each triangle in the whole mesh.
                 triangles:              wgpu::Buffer = buffer!(mesh.triangles,             COPY_SRC),
                 /// Vertex IDs for each edge in the whole mesh.

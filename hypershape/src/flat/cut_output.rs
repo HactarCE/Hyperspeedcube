@@ -1,39 +1,39 @@
 use super::*;
 
-/// Output from cutting an N-dimensional atomic polytope by a slicing plane.
+/// Output from cutting an N-dimensional polytope element by a slicing plane.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum PolytopeCutOutput {
-    /// The polytope is flush with the cutting plane.
+pub enum ElementCutOutput {
+    /// The element is flush with the cutting plane.
     Flush,
-    /// The polytope is not flush with the cutting plane.
+    /// The element is not flush with the cutting plane.
     NonFlush {
-        /// N-dimensional portion of the polytope that is inside the slice, if
-        /// any. If this is the whole polytope, then `outside` must be `None`
+        /// N-dimensional portion of the element that is inside the slice, if
+        /// any. If this is the whole element, then `outside` must be `None`
         /// (but `intersection` may be `Some`). If the inside of the cut is
         /// being deleted, this is `None`.
-        inside: Option<PolytopeId>,
-        /// N-dimensional portion of the polytope that is outside the slice, if
-        /// any. If this is the whole polytope, then `inside` must be `None`
-        /// (but `intersection` may be `Some`). If the outside of the cut is
-        /// being deleted, this is `None`.
-        outside: Option<PolytopeId>,
+        inside: Option<ElementId>,
+        /// N-dimensional portion of the element that is outside the slice, if
+        /// any. If this is the whole element, then `inside` must be `None` (but
+        /// `intersection` may be `Some`). If the outside of the cut is being
+        /// deleted, this is `None`.
+        outside: Option<ElementId>,
 
-        /// (N-1)-dimensional intersection of the polytope with the slicing
+        /// (N-1)-dimensional intersection of the element with the slicing
         /// plane, if any. If `inside` and `outside` are both `Some`, then this
         /// must be `Some`.
-        intersection: Option<PolytopeId>,
+        intersection: Option<ElementId>,
     },
 }
-impl fmt::Display for PolytopeCutOutput {
+impl fmt::Display for ElementCutOutput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let fmt_option_polytope = |p: Option<PolytopeId>| match p {
+        let fmt_option_polytope = |p: Option<ElementId>| match p {
             Some(id) => id.to_string(),
             None => "<none>".to_string(),
         };
 
         match self {
-            PolytopeCutOutput::Flush => write!(f, "Flush"),
-            PolytopeCutOutput::NonFlush {
+            ElementCutOutput::Flush => write!(f, "Flush"),
+            ElementCutOutput::NonFlush {
                 inside,
                 outside,
                 intersection,
@@ -47,39 +47,35 @@ impl fmt::Display for PolytopeCutOutput {
         }
     }
 }
-impl PolytopeCutOutput {
-    /// Result for a polytope that is completely removed by the cut.
+impl ElementCutOutput {
+    /// Result for an element that is completely removed by the cut.
     pub const REMOVED: Self = Self::NonFlush {
         inside: None,
         outside: None,
         intersection: None,
     };
 
-    /// Constructs a result for a polytope `p` that is completely on one side of
+    /// Constructs a result for an element `p` that is completely on one side of
     /// the cut.
-    pub fn all_same(
-        which: PointWhichSide,
-        p: PolytopeId,
-        intersection: Option<PolytopeId>,
-    ) -> Self {
+    pub fn all_same(which: PointWhichSide, p: ElementId, intersection: Option<ElementId>) -> Self {
         match which {
             PointWhichSide::On => Self::Flush,
             PointWhichSide::Inside => Self::all_inside(p, intersection),
             PointWhichSide::Outside => Self::all_outside(p, intersection),
         }
     }
-    /// Constructs a result for a polytope `p` that is completely inside the
+    /// Constructs a result for an element `p` that is completely inside the
     /// cut.
-    pub fn all_inside(p: PolytopeId, intersection: Option<PolytopeId>) -> Self {
+    pub fn all_inside(p: ElementId, intersection: Option<ElementId>) -> Self {
         Self::NonFlush {
             inside: Some(p),
             outside: None,
             intersection,
         }
     }
-    /// Constructs a result for a polytope `p` that is completely outside the
+    /// Constructs a result for an element `p` that is completely outside the
     /// cut.
-    pub fn all_outside(p: PolytopeId, intersection: Option<PolytopeId>) -> Self {
+    pub fn all_outside(p: ElementId, intersection: Option<ElementId>) -> Self {
         Self::NonFlush {
             inside: None,
             outside: Some(p),
@@ -87,18 +83,19 @@ impl PolytopeCutOutput {
         }
     }
 
-    /// Returns whether the polytope `original` was unchanged by the cut. It may
-    /// still have had a facet that was flush with the cutting plane.
-    pub fn is_unchanged_from(self, original: PolytopeId) -> bool {
+    /// Returns whether the element `original` that was cut was unchanged by the
+    /// cut. It may still have had a facet that was flush with the cutting
+    /// plane.
+    pub fn is_unchanged_from(self, original: ElementId) -> bool {
         self.iter_inside_and_outside().eq([original])
     }
 
     /// Returns an iterator containing `inside` and `outside`, ignoring `None`
     /// values.
-    pub fn iter_inside_and_outside(self) -> impl Iterator<Item = PolytopeId> {
+    pub fn iter_inside_and_outside(self) -> impl Iterator<Item = ElementId> {
         match self {
-            PolytopeCutOutput::Flush => itertools::chain(None, None),
-            PolytopeCutOutput::NonFlush {
+            ElementCutOutput::Flush => itertools::chain(None, None),
+            ElementCutOutput::NonFlush {
                 inside, outside, ..
             } => itertools::chain(inside, outside),
         }

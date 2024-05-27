@@ -6,8 +6,8 @@ use std::ops::{Add, AddAssign};
 
 use super::{approx_eq, is_approx_positive, Float, Vector};
 
-/// Centroid and Lebasgue measure of a polytope. In simpler terms: the "center
-/// of mass" and "N-dimensional mass" of a polytope.
+/// Centroid and Lebasgue measure of a polytope element. In simpler terms: the
+/// "center of mass" and "N-dimensional mass" of a polytope element.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Centroid {
     /// Center of mass, scaled by `weight`.

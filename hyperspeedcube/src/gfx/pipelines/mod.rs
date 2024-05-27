@@ -26,12 +26,12 @@ mod bindings {
     pub const V_TANGENTS:                   BindingMetadata = buffer(0, 2, Storage { read_only: true });
     pub const STICKER_SHRINK_VECTORS:       BindingMetadata = buffer(0, 3, Storage { read_only: true });
     pub const PIECE_IDS:                    BindingMetadata = buffer(0, 4, Storage { read_only: true });
-    pub const FACET_IDS:                    BindingMetadata = buffer(0, 5, Storage { read_only: true });
+    pub const SURFACE_IDS:                  BindingMetadata = buffer(0, 5, Storage { read_only: true });
 
     // Static mesh data (other)
     pub const PIECE_CENTROIDS:              BindingMetadata = buffer(1, 0, Storage { read_only: true });
-    pub const FACET_CENTROIDS:              BindingMetadata = buffer(1, 1, Storage { read_only: true });
-    pub const FACET_NORMALS:                BindingMetadata = buffer(1, 2, Storage { read_only: true });
+    pub const SURFACE_CENTROIDS:            BindingMetadata = buffer(1, 1, Storage { read_only: true });
+    pub const SURFACE_NORMALS:              BindingMetadata = buffer(1, 2, Storage { read_only: true });
     pub const EDGE_VERTS:                   BindingMetadata = buffer(1, 3, Storage { read_only: true });
     // Computed data (per-vertex)
     pub const VERTEX_3D_POSITIONS:          BindingMetadata = buffer(1, 4, Storage { read_only: false });

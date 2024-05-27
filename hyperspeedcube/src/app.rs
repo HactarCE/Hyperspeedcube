@@ -60,10 +60,12 @@ impl App {
         });
     }
     pub(crate) fn load_puzzle(&mut self, lib: &hyperpuzzle::Library, puzzle_id: &str) {
+        let start_time = instant::Instant::now();
         let result = lib.build_puzzle(puzzle_id).take_result_blocking();
         match result {
             Err(e) => log::error!("{e:?}"),
             Ok(p) => {
+                log::info!("Built {:?} in {:?}", p.name, start_time.elapsed());
                 if let Some(puzzle_view) = self.active_puzzle_view.upgrade() {
                     log::info!("set active puzzle!");
                     *puzzle_view.lock() = Some(PuzzleWidget::new(&self.gfx, &p));

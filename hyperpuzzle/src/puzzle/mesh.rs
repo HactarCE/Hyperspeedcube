@@ -3,7 +3,7 @@ use std::ops::Range;
 use eyre::{OptionExt, Result};
 use hypermath::prelude::*;
 
-use super::{Facet, PerPiece, PerSticker, Piece};
+use super::{PerPiece, PerSticker, Piece, Surface};
 
 /// Data to render a puzzle, in a format that can be sent to the GPU.
 #[derive(Debug, Clone)]
@@ -29,17 +29,17 @@ pub struct Mesh {
     pub sticker_shrink_vectors: Vec<f32>,
     /// Piece ID for each vertex.
     pub piece_ids: Vec<Piece>,
-    /// Facet ID for each vertex.
-    pub facet_ids: Vec<Facet>,
+    /// Surface ID for each vertex.
+    pub surface_ids: Vec<Surface>,
     /// Polygon ID for each vertex. Each polygon is a single color.
     pub polygon_ids: Vec<u32>,
 
     /// Centroid for each piece, used to apply piece explode.
     pub piece_centroids: Vec<f32>,
-    /// Centroid for each facet, used to apply facet shrink.
-    pub facet_centroids: Vec<f32>,
-    /// Normal vector for each facet, used to cull 4D backfaces.
-    pub facet_normals: Vec<f32>,
+    /// Centroid for each surface, used to apply facet shrink.
+    pub surface_centroids: Vec<f32>,
+    /// Normal vector for each surface, used to cull 4D backfaces.
+    pub surface_normals: Vec<f32>,
 
     /// For each sticker, the range of polygon IDs it spans.
     pub sticker_polygon_ranges: PerSticker<Range<usize>>,
@@ -83,12 +83,12 @@ impl Mesh {
             v_tangents: vec![],
             sticker_shrink_vectors: vec![],
             piece_ids: vec![],
-            facet_ids: vec![],
+            surface_ids: vec![],
             polygon_ids: vec![],
 
             piece_centroids: vec![],
-            facet_centroids: vec![],
-            facet_normals: vec![],
+            surface_centroids: vec![],
+            surface_normals: vec![],
 
             triangles: vec![],
             sticker_triangle_ranges: PerSticker::new(),
@@ -117,7 +117,7 @@ impl Mesh {
     }
     /// Returns the number of facets in the mesh.
     pub fn facet_count(&self) -> usize {
-        self.facet_centroids.len() / self.ndim as usize
+        self.surface_centroids.len() / self.ndim as usize
     }
     /// Returns the number of triangles in the mesh.
     pub fn triangle_count(&self) -> usize {
@@ -138,7 +138,7 @@ impl Mesh {
         self.sticker_shrink_vectors
             .extend(iter_f32(ndim, data.sticker_shrink_vector));
         self.piece_ids.push(data.piece_id);
-        self.facet_ids.push(data.facet_id);
+        self.surface_ids.push(data.surface_id);
         self.polygon_ids.push(data.polygon_id);
 
         vertex_id
@@ -187,14 +187,14 @@ impl Mesh {
         Ok(())
     }
 
-    pub(crate) fn add_facet(
+    pub(crate) fn add_surface(
         &mut self,
         centroid: impl VectorRef,
         normal: impl VectorRef,
     ) -> Result<()> {
         let ndim = self.ndim();
-        self.facet_centroids.extend(iter_f32(ndim, &centroid));
-        self.facet_normals.extend(iter_f32(ndim, &normal));
+        self.surface_centroids.extend(iter_f32(ndim, &centroid));
+        self.surface_normals.extend(iter_f32(ndim, &normal));
 
         Ok(())
     }
@@ -225,7 +225,7 @@ pub(crate) struct MeshVertexData<'a> {
     pub v_tangent: &'a Vector,
     pub sticker_shrink_vector: &'a Vector,
     pub piece_id: Piece,
-    pub facet_id: Facet,
+    pub surface_id: Surface,
     pub polygon_id: u32,
 }
 

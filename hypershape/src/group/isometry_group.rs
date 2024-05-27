@@ -7,8 +7,8 @@ use itertools::Itertools;
 use parking_lot::{Condvar, Mutex};
 
 use super::{
-    AbstractGroup, ElementId, GeneratorId, Group, GroupBuilder, GroupError, GroupResult,
-    PerElement, PerGenerator,
+    AbstractGroup, GeneratorId, Group, GroupBuilder, GroupElementId, GroupError, GroupResult,
+    PerGroupElement, PerGenerator,
 };
 
 /// Discrete subgroup of the [isometry group](https://w.wiki/7QFZ) of a space.
@@ -17,9 +17,9 @@ pub struct IsometryGroup {
     /// Underlying group structure.
     group: AbstractGroup,
     /// Elements of the group, indexed by ID.
-    elements: PerElement<pga::Motor>,
+    elements: PerGroupElement<pga::Motor>,
     /// Nearest neighbors data structure.
-    nearest_neighbors: MotorNearestNeighborMap<ElementId>,
+    nearest_neighbors: MotorNearestNeighborMap<GroupElementId>,
 }
 
 impl Default for IsometryGroup {
@@ -34,10 +34,10 @@ impl Group for IsometryGroup {
     }
 }
 
-impl Index<ElementId> for IsometryGroup {
+impl Index<GroupElementId> for IsometryGroup {
     type Output = pga::Motor;
 
-    fn index(&self, index: ElementId) -> &Self::Output {
+    fn index(&self, index: GroupElementId) -> &Self::Output {
         &self.elements[index]
     }
 }
@@ -69,23 +69,23 @@ impl IsometryGroup {
             })
             .try_collect()?;
 
-        let mut elements = PerElement::from_iter([pga::Motor::ident(ndim)]);
+        let mut elements = PerGroupElement::from_iter([pga::Motor::ident(ndim)]);
         let mut element_ids = ApproxHashMap::new();
-        element_ids.insert(pga::Motor::ident(ndim), ElementId::IDENTITY);
+        element_ids.insert(pga::Motor::ident(ndim), GroupElementId::IDENTITY);
 
         // Computing inverses directly is doable, but might involve a lot of
         // floating-point math. Instead, keep track of the inverse of each
         // generator.
         let mut generator_inverses =
-            PerGenerator::from_iter((0..generator_count).map(|_| ElementId::IDENTITY));
+            PerGenerator::from_iter((0..generator_count).map(|_| GroupElementId::IDENTITY));
 
         rayon::scope(|s| -> GroupResult<()> {
             // Use `elements` as a queue. Keep pushing elements onto the end of
             // it, and "popping" them off the front by moving
             // `next_unprocessed_id` forward.
-            let mut next_unprocessed_id = ElementId::IDENTITY;
+            let mut next_unprocessed_id = GroupElementId::IDENTITY;
             let mut unprocessed_successors =
-                PerElement::from_iter([Arc::new(Task::new_already_computed(generators.clone()))]);
+                PerGroupElement::from_iter([Arc::new(Task::new_already_computed(generators.clone()))]);
             while (next_unprocessed_id.0 as usize) < elements.len() {
                 // Get the result of applying each generator to
                 // `next_unprocessed`.
@@ -101,7 +101,7 @@ impl IsometryGroup {
                         approx_hashmap::Entry::Occupied(e) => {
                             id = *e.into_mut();
 
-                            if id == ElementId::IDENTITY {
+                            if id == GroupElementId::IDENTITY {
                                 // We multiplied `next_unprocessed * gen` and
                                 // got the identity element, so
                                 // `next_unprocessed` and `gen` must be
@@ -157,10 +157,10 @@ impl IsometryGroup {
     }
 
     /// Returns the nearest element.
-    pub fn nearest(&self, target: &pga::Motor) -> ElementId {
+    pub fn nearest(&self, target: &pga::Motor) -> GroupElementId {
         match self.nearest_neighbors.nearest(target) {
             Some(&e) => e,
-            None => ElementId::IDENTITY,
+            None => GroupElementId::IDENTITY,
         }
     }
 }

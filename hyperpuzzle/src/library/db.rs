@@ -82,7 +82,7 @@ impl LibraryDb {
     /// object has not been loaded.
     pub fn build_from_id<P: LibraryObjectParams>(
         lua: &Lua,
-        space: &Arc<Mutex<Space>>,
+        space: &Arc<Space>,
         id: &str,
     ) -> LuaResult<P::Constructed> {
         enum Lazy<P: LibraryObjectParams> {
@@ -111,7 +111,7 @@ impl LibraryDb {
     /// [`Self::build_from_id()`]) or a table containing parameters for it.
     pub fn build_from_value<P: LibraryObjectParams>(
         lua: &Lua,
-        space: &Arc<Mutex<Space>>,
+        space: &Arc<Space>,
         id_or_table: &NilStringOrRegisteredTable,
     ) -> LuaResult<P::Constructed> {
         match id_or_table {
@@ -135,7 +135,7 @@ impl LibraryDb {
     pub fn build_puzzle(lua: &Lua, id: &str) -> Result<Arc<Puzzle>> {
         let LuaNdim(ndim) =
             Self::with_object(lua, id, |cached: &CachedPuzzle| Ok(cached.params.ndim))?;
-        let space = Arc::new(Mutex::new(Space::new(ndim)));
+        let space = Space::new(ndim);
         Ok(Self::build_from_id::<PuzzleParams>(lua, &space, id)?)
     }
 

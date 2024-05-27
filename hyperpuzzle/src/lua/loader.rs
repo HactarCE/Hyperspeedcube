@@ -181,7 +181,7 @@ impl LuaLoader {
                 {
                     let ndim: u8 = digit.to_string().parse().expect("bad ndim for test");
                     println!("Running {name:?} in {ndim}D space ...");
-                    LuaSpace(Arc::new(Mutex::new(hypershape::flat::Space::new(ndim))))
+                    LuaSpace(hypershape::flat::Space::new(ndim))
                         .with_this_as_global_space(&self.lua, || function.call::<(), ()>(()))
                 } else {
                     println!("Running {name:?} ...");

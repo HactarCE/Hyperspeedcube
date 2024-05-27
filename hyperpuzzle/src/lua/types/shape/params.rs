@@ -61,18 +61,18 @@ impl LibraryObjectParams for ShapeParams {
         &mut result.shapes
     }
 
-    fn new_constructed(space: &Arc<Mutex<Space>>) -> LuaResult<Self::Constructed> {
+    fn new_constructed(space: &Arc<Space>) -> LuaResult<Self::Constructed> {
         ShapeBuilder::new_with_primordial_cube(None, Arc::clone(space)).into_lua_err()
     }
     fn clone_constructed(
         existing: &Self::Constructed,
-        space: &Arc<Mutex<Space>>,
+        space: &Arc<Space>,
     ) -> LuaResult<Self::Constructed> {
         existing.lock().clone(space).into_lua_err()
     }
-    fn build(&self, lua: &Lua, space: &Arc<Mutex<Space>>) -> LuaResult<Self::Constructed> {
+    fn build(&self, lua: &Lua, space: &Arc<Space>) -> LuaResult<Self::Constructed> {
         let LuaNdim(self_ndim) = self.ndim;
-        let space_ndim = space.lock().ndim();
+        let space_ndim = space.ndim();
         if space_ndim != self_ndim {
             return Err(LuaError::external(format!(
                 "shape requires {self_ndim}D space but was given {space_ndim}D space",

@@ -83,7 +83,7 @@ impl TwistSystemBuilder {
     /// Creates a deep copy in a new space.
     ///
     /// Returns an error if the new and old spaces are not compatible.
-    pub fn clone(&self, space: &Arc<Mutex<Space>>) -> Result<Arc<Mutex<Self>>> {
+    pub fn clone(&self, space: &Arc<Space>) -> Result<Arc<Mutex<Self>>> {
         let axes = self.axes.lock();
         let new_axes = axes.clone(space)?;
 

@@ -19,7 +19,7 @@ pub struct ShapeBuilder {
     pub id: Option<String>,
 
     /// Space where the puzzle exists.
-    pub space: Arc<Mutex<Space>>,
+    pub space: Arc<Space>,
 
     /// Symmetry group of the whole shape.
     pub symmetry: Option<SchlafliSymbol>,
@@ -35,7 +35,7 @@ pub struct ShapeBuilder {
 }
 impl ShapeBuilder {
     /// Constructs a shape builder that starts with an empty Euclidean space.
-    pub fn new_empty(id: Option<String>, space: Arc<Mutex<Space>>) -> Result<Arc<Mutex<Self>>> {
+    pub fn new_empty(id: Option<String>, space: Arc<Space>) -> Result<Arc<Mutex<Self>>> {
         Ok(Arc::new_cyclic(|this| {
             Mutex::new(Self {
                 this: this.clone(),
@@ -58,14 +58,12 @@ impl ShapeBuilder {
     /// primordial cube)
     pub fn new_with_primordial_cube(
         id: Option<String>,
-        space: Arc<Mutex<Space>>,
+        space: Arc<Space>,
     ) -> Result<Arc<Mutex<Self>>> {
         let this = Self::new_empty(id, Arc::clone(&space))?;
         let mut this_guard = this.lock();
-        let primordial_cube = space
-            .lock()
-            .add_primordial_cube(crate::PRIMORDIAL_CUBE_RADIUS)?;
-        let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new());
+        let primordial_cube = space.add_primordial_cube(crate::PRIMORDIAL_CUBE_RADIUS)?;
+        let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new())?;
         let root_piece = this_guard.pieces.push(root_piece_builder)?;
         this_guard.active_pieces.insert(root_piece);
         drop(this_guard);
@@ -81,15 +79,15 @@ impl ShapeBuilder {
 
     /// Returns the number of dimensions of the underlying space.
     pub fn ndim(&self) -> u8 {
-        self.space.lock().ndim()
+        self.space.ndim()
     }
 
     /// Returns a deep copy of the shape. This is a relatively expensive
     /// operation.
-    pub fn clone(&self, space: &Arc<Mutex<Space>>) -> Result<Arc<Mutex<Self>>> {
-        let old_space = self.space.lock();
-        let mut new_space = space.lock();
-        let mut map = SpaceMap::new(&old_space, &mut new_space)?;
+    pub fn clone(&self, space: &Arc<Space>) -> Result<Arc<Mutex<Self>>> {
+        let old_space = &self.space;
+        let new_space = space;
+        let mut map = SpaceMap::new(&old_space, &new_space)?;
 
         let pieces: PerPiece<PieceBuilder> = self
             .active_pieces
@@ -99,10 +97,21 @@ impl ShapeBuilder {
                 let stickers = self.pieces[piece]
                     .stickers
                     .iter()
-                    .map(|(&k, &v)| eyre::Ok((map.map(k)?, v)))
+                    .map(|(&k, &v)| {
+                        eyre::Ok((
+                            space
+                                .get(map.map(space.get(k).as_element().id())?)
+                                .as_facet()?
+                                .id(),
+                            v,
+                        ))
+                    })
                     .try_collect()?;
                 eyre::Ok(PieceBuilder {
-                    polytope: map.map(polytope)?,
+                    polytope: space
+                        .get(map.map(space.get(polytope).as_element().id())?)
+                        .as_polytope()?
+                        .id(),
                     cut_result: PieceSet::new(),
                     stickers,
                 })
@@ -138,7 +147,7 @@ impl ShapeBuilder {
         cut_plane: Hyperplane,
         inside_color: Option<Color>,
     ) -> Result<()> {
-        let mut cut = Cut::carve(cut_plane);
+        let mut cut = Cut::carve(&self.space, cut_plane);
         self.cut_and_deactivate_pieces(&mut cut, pieces, inside_color, None)
     }
     /// Cuts each piece by a cut, keeping all results. Each piece in the old set
@@ -153,7 +162,7 @@ impl ShapeBuilder {
         inside_color: Option<Color>,
         outside_color: Option<Color>,
     ) -> Result<()> {
-        let mut cut = Cut::slice(cut_plane);
+        let mut cut = Cut::slice(&self.space, cut_plane);
         self.cut_and_deactivate_pieces(&mut cut, pieces, inside_color, outside_color)
     }
     fn cut_and_deactivate_pieces(
@@ -168,8 +177,6 @@ impl ShapeBuilder {
             None => self.active_pieces.clone(),
         };
 
-        let mut space = self.space.lock();
-
         for old_piece in pieces.iter() {
             let inside_polytope;
             let outside_polytope;
@@ -178,18 +185,18 @@ impl ShapeBuilder {
 
             // Cut the old piece and add the new pieces as active.
             let old_piece_polytope = self.pieces[old_piece].polytope;
-            match space
-                .cut_polytope(old_piece_polytope, cut)
-                .context("error cutting piece")?
-            {
-                PolytopeCutOutput::Flush => bail!("piece is flush with cut"),
+            match cut.cut(old_piece_polytope).context("error cutting piece")? {
+                ElementCutOutput::Flush => bail!("piece is flush with cut"),
 
-                out @ PolytopeCutOutput::NonFlush {
+                out @ ElementCutOutput::NonFlush {
                     inside,
                     outside,
                     intersection,
                 } => {
-                    if intersection.is_none() && out.is_unchanged_from(old_piece_polytope) {
+                    if intersection.is_none()
+                        && out
+                            .is_unchanged_from(self.space.get(old_piece_polytope).as_element().id())
+                    {
                         // Leave this piece unchanged.
                         continue;
                     }
@@ -199,10 +206,10 @@ impl ShapeBuilder {
 
                     if let Some(p) = intersection {
                         if let Some(c) = inside_color {
-                            inside_stickers.insert(p, c);
+                            inside_stickers.insert(self.space.get(p).as_facet()?.id(), c);
                         }
                         if let Some(c) = outside_color {
-                            outside_stickers.insert(p, c);
+                            outside_stickers.insert(self.space.get(p).as_facet()?.id(), c);
                         }
                     }
                 }
@@ -210,32 +217,38 @@ impl ShapeBuilder {
 
             // Cut the old stickers.
             for (&old_sticker_polytope, &old_color) in &self.pieces[old_piece].stickers {
-                match space
-                    .cut_polytope(old_sticker_polytope, cut)
+                match cut
+                    .cut(old_sticker_polytope)
                     .context("error cutting sticker")?
                 {
-                    PolytopeCutOutput::Flush => (), // Leave the sticker unchanged
-                    PolytopeCutOutput::NonFlush {
+                    ElementCutOutput::Flush => (), // Leave the sticker unchanged
+                    ElementCutOutput::NonFlush {
                         inside, outside, ..
                     } => {
                         // Use `get_or_insert()` instead to keep old color for
                         // flush stickers instead of assigning the new color.
                         if let Some(p) = inside {
-                            inside_stickers.insert(p, old_color);
+                            inside_stickers.insert(self.space.get(p).as_facet()?.id(), old_color);
                         }
                         if let Some(p) = outside {
-                            outside_stickers.insert(p, old_color);
+                            outside_stickers.insert(self.space.get(p).as_facet()?.id(), old_color);
                         }
                     }
                 }
             }
 
             let new_inside_piece = match inside_polytope {
-                Some(p) => Some(self.pieces.push(PieceBuilder::new(p, inside_stickers))?),
+                Some(p) => {
+                    let inside_piece = PieceBuilder::new(self.space.get(p), inside_stickers)?;
+                    Some(self.pieces.push(inside_piece)?)
+                }
                 None => None,
             };
             let new_outside_piece = match outside_polytope {
-                Some(p) => Some(self.pieces.push(PieceBuilder::new(p, outside_stickers))?),
+                Some(p) => {
+                    let outside_piece = PieceBuilder::new(self.space.get(p), outside_stickers)?;
+                    Some(self.pieces.push(outside_piece)?)
+                }
                 None => None,
             };
 

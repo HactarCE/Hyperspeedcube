@@ -9,11 +9,11 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
         v_tangents:             &'a wgpu::Buffer = pub(COMPUTE) bindings::V_TANGENTS,
         sticker_shrink_vectors: &'a wgpu::Buffer = pub(COMPUTE) bindings::STICKER_SHRINK_VECTORS,
         piece_ids:              &'a wgpu::Buffer = pub(COMPUTE) bindings::PIECE_IDS,
-        facet_ids:              &'a wgpu::Buffer = pub(COMPUTE) bindings::FACET_IDS,
+        surface_ids:            &'a wgpu::Buffer = pub(COMPUTE) bindings::SURFACE_IDS,
 
         piece_centroids:        &'a wgpu::Buffer = pub(COMPUTE) bindings::PIECE_CENTROIDS,
-        facet_centroids:        &'a wgpu::Buffer = pub(COMPUTE) bindings::FACET_CENTROIDS,
-        facet_normals:          &'a wgpu::Buffer = pub(COMPUTE) bindings::FACET_NORMALS,
+        surface_centroids:      &'a wgpu::Buffer = pub(COMPUTE) bindings::SURFACE_CENTROIDS,
+        surface_normals:        &'a wgpu::Buffer = pub(COMPUTE) bindings::SURFACE_NORMALS,
         vertex_3d_positions:    &'a wgpu::Buffer = pub(COMPUTE) bindings::VERTEX_3D_POSITIONS,
         vertex_3d_normals:      &'a wgpu::Buffer = pub(COMPUTE) bindings::VERTEX_3D_NORMALS,
 

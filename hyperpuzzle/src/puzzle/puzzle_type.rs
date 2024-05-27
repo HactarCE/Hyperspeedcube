@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
 use hypershape::Space;
-use parking_lot::Mutex;
 
 use super::*;
 
@@ -45,7 +44,7 @@ pub struct Puzzle {
     pub twist_by_name: HashMap<String, Twist>,
 
     /// Space containing a polytope for each piece.
-    pub(crate) space: Mutex<Space>,
+    pub(crate) space: Arc<Space>,
 }
 
 impl Puzzle {

@@ -5,7 +5,9 @@ use hypermath::IndexNewtype;
 use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
 
-use super::{EggTable, ElementId, GeneratorId, GroupError, GroupResult, PerElement, PerGenerator};
+use super::{
+    EggTable, GeneratorId, GroupElementId, GroupError, GroupResult, PerGenerator, PerGroupElement,
+};
 
 /// Group structure.
 pub trait Group {
@@ -26,30 +28,30 @@ pub trait Group {
         GeneratorId::iter(self.generator_count())
     }
     /// Returns an iterator over the elements of the group.
-    fn elements(&self) -> generic_vec::IndexIter<ElementId> {
-        ElementId::iter(self.element_count())
+    fn elements(&self) -> generic_vec::IndexIter<GroupElementId> {
+        GroupElementId::iter(self.element_count())
     }
 
     /// Returns the shortest factorization of `element` into generators. Ties
     /// are broken by lexicographical ordering.
-    fn factorization(&self, element: ElementId) -> &[GeneratorId] {
+    fn factorization(&self, element: GroupElementId) -> &[GeneratorId] {
         &self.group().factorizations[element]
     }
     /// Returns the inverse of `element`.
-    fn inverse(&self, element: ElementId) -> ElementId {
+    fn inverse(&self, element: GroupElementId) -> GroupElementId {
         self.group().inverses[element]
     }
     /// Returns the composition of `element` and `generator`.
-    fn successor(&self, element: ElementId, generator: GeneratorId) -> ElementId {
+    fn successor(&self, element: GroupElementId, generator: GeneratorId) -> GroupElementId {
         *self.group().successors.get(element, generator)
     }
     /// Returns the composition of `element` and the inverse of `generator`.
-    fn predecessor(&self, element: ElementId, generator: GeneratorId) -> ElementId {
+    fn predecessor(&self, element: GroupElementId, generator: GeneratorId) -> GroupElementId {
         *self.group().predecessors.get(element, generator)
     }
 
     /// Composes two elements of the group.
-    fn compose(&self, a: ElementId, b: ElementId) -> ElementId {
+    fn compose(&self, a: GroupElementId, b: GroupElementId) -> GroupElementId {
         let mut ret = a;
         for &gen in self.factorization(b) {
             ret = self.successor(ret, gen);
@@ -71,13 +73,13 @@ pub struct AbstractGroup {
     element_count: usize,
 
     /// Shortest generator sequence that produces each element.
-    factorizations: PerElement<SmallVec<[GeneratorId; 16]>>,
+    factorizations: PerGroupElement<SmallVec<[GeneratorId; 16]>>,
     /// Inverse of each element.
-    inverses: PerElement<ElementId>,
+    inverses: PerGroupElement<GroupElementId>,
     /// Result of multiplying each element by each generator.
-    successors: EggTable<ElementId>,
+    successors: EggTable<GroupElementId>,
     /// Result of multiplying each element by the inverse of each generator.
-    predecessors: EggTable<ElementId>,
+    predecessors: EggTable<GroupElementId>,
 }
 
 impl Default for AbstractGroup {
@@ -101,7 +103,7 @@ impl AbstractGroup {
             element_count: 1,
             factorizations: std::iter::once(smallvec![]).collect(),
 
-            inverses: std::iter::once(ElementId(0)).collect(),
+            inverses: std::iter::once(GroupElementId(0)).collect(),
             successors: EggTable::new(0),
             predecessors: EggTable::new(0),
         }
@@ -114,11 +116,11 @@ pub struct GroupBuilder {
     generator_count: usize,
     element_count: usize,
 
-    generator_inverses: PerGenerator<Option<ElementId>>,
+    generator_inverses: PerGenerator<Option<GroupElementId>>,
 
-    factorizations: PerElement<SmallVec<[GeneratorId; 16]>>,
-    successors: EggTable<Option<ElementId>>,
-    predecessors: EggTable<Option<ElementId>>,
+    factorizations: PerGroupElement<SmallVec<[GeneratorId; 16]>>,
+    successors: EggTable<Option<GroupElementId>>,
+    predecessors: EggTable<Option<GroupElementId>>,
 }
 impl fmt::Display for GroupBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -126,7 +128,7 @@ impl fmt::Display for GroupBuilder {
         writeln!(f, "    generator_count: {}", self.generator_count)?;
         writeln!(f, "    element_count: {}", self.element_count)?;
 
-        fn opt_elem_iter_to_string(iter: impl Iterator<Item = Option<ElementId>>) -> String {
+        fn opt_elem_iter_to_string(iter: impl Iterator<Item = Option<GroupElementId>>) -> String {
             iter.map(|opt_elem| match opt_elem {
                 Some(e) => e.to_string(),
                 None => "?".to_string(),
@@ -140,13 +142,13 @@ impl fmt::Display for GroupBuilder {
 
         writeln!(f, "    factorizations: [")?;
         for (elem, gen_seq) in &self.factorizations {
-            let factorization_string = gen_seq.iter().copied().map(ElementId::from).join(", ");
+            let factorization_string = gen_seq.iter().copied().map(GroupElementId::from).join(", ");
             writeln!(f, "        {elem}: [{factorization_string}],")?;
         }
         writeln!(f, "    ]")?;
 
         writeln!(f, "    successors: [")?;
-        for elem in ElementId::iter(self.element_count) {
+        for elem in GroupElementId::iter(self.element_count) {
             let successors_string = opt_elem_iter_to_string(
                 GeneratorId::iter(self.generator_count).map(|gen| self.successor(elem, gen)),
             );
@@ -155,7 +157,7 @@ impl fmt::Display for GroupBuilder {
         writeln!(f, "    ]")?;
 
         writeln!(f, "    predecessors: [")?;
-        for elem in ElementId::iter(self.element_count) {
+        for elem in GroupElementId::iter(self.element_count) {
             let predecessors_string = opt_elem_iter_to_string(
                 GeneratorId::iter(self.generator_count).map(|gen| self.predecessor(elem, gen)),
             );
@@ -173,7 +175,7 @@ impl GroupBuilder {
         // Check that there aren't too many generators.
         GeneratorId::try_from_usize(generator_count)?;
 
-        let mut factorizations = PerElement::new();
+        let mut factorizations = PerGroupElement::new();
         let table = EggTable::new(generator_count);
         factorizations.push(smallvec![])?; // identity has empty factorization
 
@@ -194,9 +196,9 @@ impl GroupBuilder {
     /// unknown.
     pub fn get_or_add_successor(
         &mut self,
-        element: ElementId,
+        element: GroupElementId,
         generator: GeneratorId,
-    ) -> GroupResult<ElementId> {
+    ) -> GroupResult<GroupElementId> {
         match self.successor(element, generator) {
             Some(existing_element) => Ok(existing_element),
             None => self.add_successor(element, generator),
@@ -207,9 +209,9 @@ impl GroupBuilder {
     /// predecessor of the new element.
     pub fn add_successor(
         &mut self,
-        element: ElementId,
+        element: GroupElementId,
         generator: GeneratorId,
-    ) -> GroupResult<ElementId> {
+    ) -> GroupResult<GroupElementId> {
         self.element_count += 1;
 
         let mut factorization = self.factorization(element).clone();
@@ -230,16 +232,16 @@ impl GroupBuilder {
     /// was previously unknown.
     pub fn set_successor(
         &mut self,
-        element: ElementId,
+        element: GroupElementId,
         generator: GeneratorId,
-        result: ElementId,
+        result: GroupElementId,
     ) -> bool {
         let is_new = self.successor(element, generator).is_none();
 
         *self.successors.get_mut(element, generator) = Some(result);
         *self.predecessors.get_mut(result, generator) = Some(element);
 
-        if result == ElementId::IDENTITY {
+        if result == GroupElementId::IDENTITY {
             // `element * generator = 1`, so we found the inverse of `generator`.
             self.generator_inverses[generator] = Some(element);
         }
@@ -259,16 +261,24 @@ impl GroupBuilder {
     }
 
     /// Returns the factorization of an element into generators.
-    pub fn factorization(&self, element: ElementId) -> &SmallVec<[GeneratorId; 16]> {
+    pub fn factorization(&self, element: GroupElementId) -> &SmallVec<[GeneratorId; 16]> {
         &self.factorizations[element]
     }
     /// Returns the result of `element * generator`, or `None` if it is unknown.
-    pub fn successor(&self, element: ElementId, generator: GeneratorId) -> Option<ElementId> {
+    pub fn successor(
+        &self,
+        element: GroupElementId,
+        generator: GeneratorId,
+    ) -> Option<GroupElementId> {
         *self.successors.get(element, generator)
     }
     /// Returns the result of `element * generator^(-1)`, or `None` if it is
     /// unknown.
-    pub fn predecessor(&self, element: ElementId, generator: GeneratorId) -> Option<ElementId> {
+    pub fn predecessor(
+        &self,
+        element: GroupElementId,
+        generator: GeneratorId,
+    ) -> Option<GroupElementId> {
         *self.predecessors.get(element, generator)
     }
 
@@ -285,11 +295,11 @@ impl GroupBuilder {
                 factorization
                     .iter()
                     .rev()
-                    .fold(ElementId::IDENTITY, |elem, &gen| {
+                    .fold(GroupElementId::IDENTITY, |elem, &gen| {
                         *predecessors.get(elem, gen)
                     })
             })
-            .collect::<PerElement<ElementId>>();
+            .collect::<PerGroupElement<GroupElementId>>();
 
         // Check that the inverse property holds.
         for (elem, &inverse) in &inverses {

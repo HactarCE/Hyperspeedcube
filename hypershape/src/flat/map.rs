@@ -11,17 +11,18 @@ pub trait SpaceMapFor<T: Copy> {
 #[derive(Debug)]
 pub struct SpaceMap<'a> {
     source: &'a Space,
-    destination: &'a mut Space,
+    destination: &'a Space,
     vertices: HashMap<VertexId, VertexId>,
-    polytopes: HashMap<PolytopeId, PolytopeId>,
+    polytopes: HashMap<ElementId, ElementId>,
 }
 impl<'a> SpaceMap<'a> {
     /// Constructs a map from `old_space` to `new_space`.
-    pub fn new(source: &'a Space, destination: &'a mut Space) -> Result<Self> {
+    pub fn new(source: &'a Space, destination: &'a Space) -> Result<Self> {
         ensure!(
             source.ndim() == destination.ndim(),
             "cannot map between spaces of different dimensions",
         );
+        source.ensure_not_same_as(destination)?;
         Ok(Self {
             source,
             destination,
@@ -34,29 +35,45 @@ impl SpaceMapFor<VertexId> for SpaceMap<'_> {
     fn map(&mut self, thing: VertexId) -> Result<VertexId> {
         match self.vertices.entry(thing) {
             hash_map::Entry::Occupied(e) => Ok(*e.get()),
-            hash_map::Entry::Vacant(e) => {
-                Ok(*e.insert(self.destination.add_vertex(self.source[thing].clone())?))
-            }
+            hash_map::Entry::Vacant(e) => Ok(*e.insert(
+                self.destination
+                    .add_vertex(self.source.vertices.lock()[thing].clone())?,
+            )),
         }
     }
 }
-impl SpaceMapFor<PolytopeId> for SpaceMap<'_> {
-    fn map(&mut self, thing: PolytopeId) -> Result<PolytopeId> {
+impl SpaceMapFor<ElementId> for SpaceMap<'_> {
+    fn map(&mut self, thing: ElementId) -> Result<ElementId> {
         if let Some(&p) = self.polytopes.get(&thing) {
             return Ok(p);
         }
 
-        let polytope_data = match &self.source[thing] {
-            PolytopeData::Vertex(p) => PolytopeData::Vertex(self.map(*p)?),
+        let polytopes = self.source.polytopes.lock();
+        let polytope_data = match polytopes[thing].clone() {
+            PolytopeData::Vertex(p) => {
+                drop(polytopes);
+                PolytopeData::Vertex(self.map(p)?)
+            }
             PolytopeData::Polytope {
                 rank,
                 boundary,
-                flags,
-            } => PolytopeData::Polytope {
-                rank: *rank,
-                boundary: boundary.iter().map(|b| self.map(b)).try_collect()?,
-                flags: *flags,
-            },
+
+                is_primordial,
+
+                seam,
+                patch,
+            } => {
+                drop(polytopes);
+                PolytopeData::Polytope {
+                    rank,
+                    boundary: boundary.iter().map(|b| self.map(b)).try_collect()?,
+
+                    is_primordial,
+
+                    seam,
+                    patch,
+                }
+            }
         };
         let new_id = self.destination.add_polytope(polytope_data)?;
 

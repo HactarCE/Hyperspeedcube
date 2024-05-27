@@ -108,8 +108,8 @@ struct DrawParams {
 
 // Static mesh data (other)
 @group(1) @binding(0) var<storage, read> piece_centroids: array<f32>;
-@group(1) @binding(1) var<storage, read> facet_centroids: array<f32>;
-@group(1) @binding(2) var<storage, read> facet_normals: array<f32>;
+@group(1) @binding(1) var<storage, read> surface_centroids: array<f32>;
+@group(1) @binding(2) var<storage, read> surface_normals: array<f32>;
 @group(1) @binding(3) var<storage, read> edge_verts: array<vec2<u32>>;
 
 // Computed data (per-vertex)
@@ -159,13 +159,13 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     var piece_idx = NDIM * piece;
     for (var i = 0; i < NDIM; i++) {
         new_pos[i] = vertex_positions[vert_idx];
-        new_normal[i] = facet_normals[facet_idx];
+        new_normal[i] = surface_normals[facet_idx];
         // Apply sticker shrink.
         new_pos[i] += sticker_shrink_vectors[vert_idx] * draw_params.sticker_shrink;
         // Apply facet shrink.
-        new_pos[i] -= facet_centroids[facet_idx];
+        new_pos[i] -= surface_centroids[facet_idx];
         new_pos[i] *= 1.0 - draw_params.facet_shrink;
-        new_pos[i] += facet_centroids[facet_idx];
+        new_pos[i] += surface_centroids[facet_idx];
         // Scale the whole puzzle to compensate for facet shrink.
         new_pos[i] /= 1.0 - draw_params.facet_shrink / 2.0;
         // Apply piece explode.
