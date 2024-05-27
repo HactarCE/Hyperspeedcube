@@ -37,8 +37,3 @@ tracing-error = { version = "0.2.0" }
 color-eyre = "0.6"
 env_logger = "*"
 test-log = { version = "0.2.12", features = ["trace"] }
-
-[features]
-default = ["tracing"]
-# tracing = ["dep:tracing", "dep:tracing-log"]
-tracing = []

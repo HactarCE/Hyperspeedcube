@@ -173,10 +173,6 @@ impl<'a> Element<'a> {
                 .unwrap_or_default(),
         )
     }
-    /// Returns the blade of the element.
-    pub fn blade(self) -> Result<pga::Blade> {
-        self.space.blade_for_subspace_of_polytope(self.id)
-    }
 
     /// Returns the element if it is a polytope; otherwise returns an error.
     pub fn as_polytope(self) -> Result<Polytope<'a>> {
@@ -273,7 +269,7 @@ impl<'a> Facet<'a> {
     }
     /// Returns the hyperplane of the facet.
     pub fn hyperplane(self) -> Result<Hyperplane> {
-        self.space.hyperplane_of_facet(self.as_element().id)
+        self.space.hyperplane_of_facet(self.id)
     }
 }
 
@@ -295,11 +291,38 @@ impl<'a> Face<'a> {
     }
     /// Returns an orthonormal pair of vectors spanning the face.
     pub fn tangent_vectors(self) -> Result<[Vector; 2]> {
-        <[_; 2]>::try_from(
-            self.space
-                .basis_for_subspace_of_polytope(self.as_element().id)?,
-        )
-        .map_err(|e| eyre!("bad tangent space: {e:?}"))
+        // IIFE to mimic try_block
+        (|| {
+            // This algorithm runs in O(n) time rather than O(1) because we want to
+            // select a "good" triplet of vertices to maintain numerical precision.
+            let mut verts = self.vertex_set().map(|v| v.pos()).collect_vec();
+            // Pick one vertex arbitrarily to start.
+            let initial_vertex = verts.pop()?;
+
+            // Compute the delta from the initial vertex to each remaining point.
+            let mut tangent_vectors = verts.into_iter().map(|v| v - &initial_vertex).collect_vec();
+
+            // Pick the longest tangent vector, then normalize it.
+            let i = tangent_vectors
+                .iter()
+                .position_max_by_key(|v| FloatOrd(v.mag2()))?;
+            let u_tangent = tangent_vectors.swap_remove(i).normalize()?;
+
+            // Orthogonalize the remaining vectors.
+            let mut tangent_vectors = tangent_vectors
+                .into_iter()
+                .filter_map(|v| v.rejected_from(&u_tangent))
+                .collect_vec();
+
+            // Pick the longest tangent vector, then normalize it.
+            let i = tangent_vectors
+                .iter()
+                .position_max_by_key(|v| FloatOrd(v.mag2()))?;
+            let v_tangent = tangent_vectors.swap_remove(i).normalize()?;
+
+            Some([u_tangent, v_tangent])
+        })()
+        .ok_or_eyre("degenerate face")
     }
 }
 

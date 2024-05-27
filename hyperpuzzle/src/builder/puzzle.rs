@@ -412,15 +412,15 @@ fn compute_sticker_shrink_vectors(
     let space = piece_shape.space();
 
     // For the purposes of sticker shrink, we don't care about internal facets.
-    let colored_sticker_polytopes = stickers
+    let colored_sticker_facets = stickers
         .iter()
         .filter(|sticker| sticker.color != Color::INTERNAL)
-        .map(|sticker| sticker.facet)
+        .map(|sticker| space.get(sticker.facet))
         .collect_vec();
 
     // Make our own surface IDs that will stay within this object. We only care
     // about the surfaces that this piece has stickers on.
-    let mut surface_hyperplanes = PerSurface::new();
+    let mut next_surface_id = Surface(0);
 
     // TODO: I don't think this is correctly dimension-generic.
 
@@ -428,17 +428,15 @@ fn compute_sticker_shrink_vectors(
     // that have a sticker containing the element.
     let mut elements_and_surface_sets_by_rank: Vec<HashMap<ElementId, SurfaceSet>> =
         vec![HashMap::new(); space.ndim() as usize + 1];
-    for &sticker_polytope in &colored_sticker_polytopes {
-        let sticker_element = space.get(sticker_polytope);
+    for &sticker_facet in &colored_sticker_facets {
+        let temp_surface_id = next_surface_id.take_and_increment()?;
 
-        let surface = surface_hyperplanes.push(sticker_element.hyperplane()?)?;
-
-        for ridge in sticker_element.ridges() {
+        for ridge in sticker_facet.subelements() {
             let rank = ridge.rank();
             elements_and_surface_sets_by_rank[rank as usize]
                 .entry(ridge.id())
                 .or_default()
-                .insert(surface);
+                .insert(temp_surface_id);
         }
     }
 
@@ -452,7 +450,7 @@ fn compute_sticker_shrink_vectors(
             // piece.
             let elements_with_maximal_facet_set = elements_and_facet_sets
                 .iter()
-                .filter(|(_element, facet_set)| facet_set.len() == colored_sticker_polytopes.len())
+                .filter(|(_element, facet_set)| facet_set.len() == colored_sticker_facets.len())
                 .map(|(element, _facet_set)| *element);
             // Add up their centroids. Technically we should take the centroid
             // of their convex hull, but this works well enough.
@@ -544,22 +542,18 @@ fn build_shape_polygons(
         let tris = polygon.triangles()?;
 
         // Compute tangent vectors.
-        let basis = polygon.subspace_basis()?;
-        if basis.len() != 2 {
-            bail!("bad basis: expected 2 vectors but got {}", basis.len());
-        }
-        let mut u_tangent = &basis[0];
-        let mut v_tangent = &basis[1];
+        let mut basis = polygon.tangent_vectors()?;
         // Ensure that tangent vectors face the right way in 3D.
         let mut normal = vector![];
         if space.ndim() == 3 {
             let init = polygon.arbitrary_vertex()?;
-            normal = u_tangent.cross_product_3d(&v_tangent);
+            normal = basis[0].cross_product_3d(&basis[1]);
             if normal.dot(init.pos() - &piece_centroid) < 0.0 {
                 normal = -normal;
-                std::mem::swap(&mut u_tangent, &mut v_tangent)
+                basis.reverse();
             }
         }
+        let [u_tangent, v_tangent] = &basis;
 
         #[cfg(debug_assertions)]
         hypermath::assert_approx_eq!(u_tangent.dot(&v_tangent), 0.0);
@@ -581,8 +575,8 @@ fn build_shape_polygons(
 
                         let new_vertex_id = mesh.add_vertex(MeshVertexData {
                             position: &position,
-                            u_tangent: &u_tangent,
-                            v_tangent: &v_tangent,
+                            u_tangent,
+                            v_tangent,
                             sticker_shrink_vector,
                             piece_id,
                             surface_id,

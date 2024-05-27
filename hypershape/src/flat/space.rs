@@ -15,7 +15,7 @@ pub struct Space {
     pub(super) polytopes: Mutex<PerElement<PolytopeData>>,
     pub(super) polytope_data_to_id: Mutex<HashMap<PolytopeData, ElementId>>,
 
-    pub(super) cached_subspaces: Mutex<HashMap<ElementId, (Vec<Vector>, pga::Blade)>>,
+    pub(super) cached_hyperplane_of_facet: Mutex<HashMap<ElementId, Hyperplane>>,
     pub(super) cached_vertex_set: Mutex<HashMap<ElementId, Set64<VertexId>>>,
 
     pub(super) cached_which_side_has_polytope:
@@ -54,7 +54,7 @@ impl Space {
             polytopes: Mutex::new(PerElement::new()),
             polytope_data_to_id: Mutex::new(HashMap::new()),
 
-            cached_subspaces: Mutex::new(HashMap::new()),
+            cached_hyperplane_of_facet: Mutex::new(HashMap::new()),
             cached_vertex_set: Mutex::new(HashMap::new()),
 
             cached_which_side_has_polytope: Mutex::new(ApproxHashMap::new()),
@@ -196,7 +196,19 @@ impl Space {
                 patch: *patch,
             },
         };
-        Ok(self.add_polytope_if_non_degenerate(p)?)
+        let new_id = self.add_polytope_if_non_degenerate(p)?;
+
+        if let Some(new) = new_id {
+            if self.polytopes.lock()[new].rank() + 1 == self.ndim {
+                // Intersection is a new facet! Copy the facet hyperplane.
+                let mut cache = self.cached_hyperplane_of_facet.lock();
+                if let Some(plane) = cache.get(&original).cloned() {
+                    cache.insert(new, plane);
+                }
+            }
+        }
+
+        Ok(new_id)
     }
 
     /// Returns the endpoints of a line, or an error if `line` is not a line.
@@ -233,86 +245,13 @@ impl Space {
         result
     }
 
-    /// Returns the hyperplane in which a facet lives. Returns an error if the
-    /// polytope is not a facet (rank `ndim-1`).
-    pub fn hyperplane_of_facet(&self, facet: ElementId) -> Result<Hyperplane> {
-        let expected_rank = self.ndim - 1;
-        let actual_rank = self.polytopes.lock()[facet].rank();
-        if expected_rank != actual_rank {
-            bail!("expected polytope with rank {expected_rank}; got {actual_rank}");
-        }
-        self.blade_for_subspace_of_polytope(facet)?
-            .to_hyperplane()
-            .ok_or_eyre("error converting polytope subspace to hyperplane")
-    }
-
-    /// Returns a basis for the smallest subspace in which the polytope lives.
-    /// The result is cached.
-    pub fn basis_for_subspace_of_polytope(&self, polytope: ElementId) -> Result<Vec<Vector>> {
-        let (basis, _blade) = self.basis_and_blade_for_subspace_of_polytope(polytope)?;
-        Ok(basis)
-    }
-    /// Returns a PGA blade representing the smallest subspace in which a
-    /// polytope lives. The result is cached.
-    pub fn blade_for_subspace_of_polytope(&self, polytope: ElementId) -> Result<pga::Blade> {
-        let (_basis, blade) = self.basis_and_blade_for_subspace_of_polytope(polytope)?;
-        Ok(blade)
-    }
-    // TODO: this seems broken; remove it
-    fn basis_and_blade_for_subspace_of_polytope(
-        &self,
-        polytope: ElementId,
-    ) -> Result<(Vec<Vector>, pga::Blade)> {
-        let ndim = self.ndim;
-
-        if let Some(result) = self.cached_subspaces.lock().get(&polytope) {
-            return Ok(result.clone());
-        }
-
-        let polytopes = self.polytopes.lock();
-        let result = match polytopes[polytope].clone() {
-            PolytopeData::Vertex(p) => (
-                vec![],
-                pga::Blade::from_point(ndim, &self.vertices.lock()[p]),
-            ),
-            PolytopeData::Polytope { boundary, .. } => {
-                drop(polytopes);
-                let boundary = boundary.clone();
-                // Select the blade with the largest magnitude -- this indicates
-                // a good confidence in its value.
-                let (mut basis, old_blade) = boundary
-                    .iter()
-                    .map(|b| self.basis_and_blade_for_subspace_of_polytope(b))
-                    .collect::<Result<Vec<_>>>()?
-                    .into_iter()
-                    .max_by_key(|(_basis, blade)| FloatOrd(blade.mag2()))
-                    .ok_or_eyre("degenerate polytope")?;
-                // Try to wedge with every vertex and take the one with the
-                // largest magnitude.
-                let (new_vertex, new_point, new_blade) = self
-                    .vertex_set(polytope)
-                    .iter()
-                    .filter_map(|v| {
-                        let new_point = pga::Blade::from_point(ndim, &self.vertices.lock()[v]);
-                        let new_blade = pga::Blade::wedge(&old_blade, &new_point)?;
-                        Some((v, new_point, new_blade))
-                    })
-                    .max_by_key(|(_, _, b)| FloatOrd(b.mag2()))
-                    .ok_or_eyre("degenerate polytope")?;
-                let new_point_projected = new_point
-                    .orthogonal_projection_to(&old_blade)
-                    .and_then(|b| b.to_vector())
-                    .ok_or_eyre("degenerate polytope")?;
-                let new_vector = &self.vertices.lock()[new_vertex] - new_point_projected;
-                basis.push(new_vector.normalize().ok_or_eyre("degenerate polytope")?);
-                (basis, new_blade)
-            }
-        };
-
-        self.cached_subspaces
+    /// Returns the hyperplane in which a facet lives.
+    pub fn hyperplane_of_facet(&self, facet: FacetId) -> Result<Hyperplane> {
+        self.cached_hyperplane_of_facet
             .lock()
-            .insert(polytope, result.clone());
-        Ok(result)
+            .get(&ElementId(facet.0))
+            .cloned()
+            .ok_or_eyre("missing hyperplane for facet")
     }
 
     /// Returns a set of subelements of a polytope, of all ranks except points.

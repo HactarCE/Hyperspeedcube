@@ -164,15 +164,26 @@ impl Cut {
                 } else {
                     let intersection = match flush_polytopes.first() {
                         Some(&p) => Some(p),
-                        None => space.add_polytope_if_non_degenerate(PolytopeData::Polytope {
-                            rank: rank - 1,
-                            boundary: flush_polytope_boundary,
+                        None => {
+                            let new_id =
+                                space.add_polytope_if_non_degenerate(PolytopeData::Polytope {
+                                    rank: rank - 1,
+                                    boundary: flush_polytope_boundary,
 
-                            is_primordial: false,
+                                    is_primordial: false,
 
-                            seam: None,
-                            patch: None,
-                        })?,
+                                    seam: None,
+                                    patch: None,
+                                })?;
+
+                            if let Some(new) = new_id {
+                                // New facet! Cache the hyperplane.
+                                let plane = cut.params.divider.clone();
+                                space.cached_hyperplane_of_facet.lock().insert(new, plane);
+                            }
+
+                            new_id
+                        }
                     };
 
                     let inside = match cut.params.inside {

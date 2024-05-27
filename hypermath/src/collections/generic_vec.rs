@@ -145,6 +145,11 @@ pub trait IndexNewtype:
     fn next(self) -> Result<Self, IndexOverflow> {
         Self::try_from_usize(self.to_usize().checked_add(1).unwrap_or(usize::MAX))
     }
+    /// Increments the index in-place and returns the old one, or returns an
+    /// error if it doesn't fit.
+    fn take_and_increment(&mut self) -> Result<Self, IndexOverflow> {
+        Ok(std::mem::replace(self, self.next()?))
+    }
 }
 
 /// Iterator over possible indices into a [`GenericVec<I, _>`].
