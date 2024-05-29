@@ -105,7 +105,7 @@ impl LuaLoader {
             sandbox.raw_set("blade", lua.create_function(blade_fn)?)?;
             let plane_fn = |_lua, h: LuaHyperplane| Ok(h);
             sandbox.raw_set("plane", lua.create_function(plane_fn)?)?;
-            let cd_fn = |_lua, t| LuaSymmetry::construct_from_table(t);
+            let cd_fn = |_lua, v| LuaSymmetry::construct_from_lua_value(v);
             sandbox.raw_set("cd", lua.create_function(cd_fn)?)?;
             let refl_fn = LuaTransform::construct_reflection;
             sandbox.raw_set("refl", lua.create_function(refl_fn)?)?;

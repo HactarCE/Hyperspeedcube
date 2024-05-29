@@ -83,7 +83,7 @@ impl LibraryObjectParams for ShapeParams {
             ShapeBuilder::new_with_primordial_cube(self.id.clone(), Arc::clone(space))
                 .map_err(LuaError::external)?;
 
-        shape_builder.lock().symmetry = self.symmetry.clone().map(|sym| sym.schlafli);
+        shape_builder.lock().symmetry = self.symmetry.clone().map(|sym| sym.coxeter);
 
         let () = LuaSpace(Arc::clone(space)).with_this_as_global_space(lua, || {
             lua.registry_value::<LuaFunction<'_>>(&self.user_build_fn)?

@@ -8,8 +8,8 @@ use super::*;
 /// Lua symmetry object.
 #[derive(Debug, Clone)]
 pub struct LuaSymmetry {
-    /// Base Schäfli symbol.
-    pub schlafli: SchlafliSymbol,
+    /// Base Coxeter group.
+    pub coxeter: CoxeterGroup,
     /// Whether to discount symmetry elements that have a net reflection.
     pub chiral: bool,
 }
@@ -20,22 +20,50 @@ impl<'lua> FromLua<'lua> for LuaSymmetry {
     }
 }
 
-impl From<SchlafliSymbol> for LuaSymmetry {
-    fn from(schlafli: SchlafliSymbol) -> Self {
+impl<T: Into<CoxeterGroup>> From<T> for LuaSymmetry {
+    fn from(value: T) -> Self {
         Self {
-            schlafli,
+            coxeter: value.into(),
             chiral: false,
         }
     }
 }
 
 impl LuaSymmetry {
-    /// Constructs a symmetry object from a table of values.
-    pub fn construct_from_table(t: LuaTable<'_>) -> LuaResult<Self> {
-        t.sequence_values()
-            .try_collect()
-            .map(SchlafliSymbol::from_indices)
-            .map(LuaSymmetry::from)
+    /// Constructs a symmetry object from a Lua value (string or table).
+    pub fn construct_from_lua_value(v: LuaValue<'_>) -> LuaResult<Self> {
+        fn split_alpha_number(s: &str) -> Option<(&str, u8)> {
+            let (num_index, _) = s.match_indices(char::is_numeric).next()?;
+            let num = s[num_index..].parse().ok()?;
+            Some((&s[0..num_index], num))
+        }
+
+        match v {
+            LuaValue::String(s) => match s.to_string_lossy().to_ascii_lowercase().as_str() {
+                "e6" => FiniteCoxeterGroup::E6.try_into(),
+                "e7" => FiniteCoxeterGroup::E7.try_into(),
+                "e8" => FiniteCoxeterGroup::E8.try_into(),
+                "f4" => FiniteCoxeterGroup::F4.try_into(),
+                "g2" => FiniteCoxeterGroup::G2.try_into(),
+                "h2" => FiniteCoxeterGroup::H2.try_into(),
+                "h3" => FiniteCoxeterGroup::H3.try_into(),
+                "h4" => FiniteCoxeterGroup::H4.try_into(),
+                s => match split_alpha_number(&s) {
+                    Some(("a", n)) => FiniteCoxeterGroup::A(n).try_into(),
+                    Some(("b" | "c" | "bc", n)) => FiniteCoxeterGroup::B(n).try_into(),
+                    Some(("d", n)) => FiniteCoxeterGroup::D(n).try_into(),
+                    Some(("i", n)) => FiniteCoxeterGroup::I(n).try_into(),
+                    _ => return Err(LuaError::external("unknown coxeter group string")),
+                },
+            },
+            LuaValue::Table(t) => {
+                let indices: Vec<usize> = t.sequence_values().try_collect()?;
+                CoxeterGroup::new_linear(&indices)
+            }
+            _ => return lua_convert_err(&v, "string or table"),
+        }
+        .map(LuaSymmetry::from)
+        .into_lua_err()
     }
 
     /// Returns the orbit of an object under the symmetry.
@@ -43,7 +71,7 @@ impl LuaSymmetry {
         &self,
         object: T,
     ) -> Vec<(pga::Motor, T)> {
-        self.schlafli.orbit(object, self.chiral)
+        self.coxeter.orbit(object, self.chiral)
     }
 
     /// Returns the orbit of a collection of objects under the symmetry.
@@ -100,9 +128,10 @@ impl LuaSymmetry {
         lua: &'lua Lua,
         args: LuaMultiValue<'lua>,
     ) -> LuaResult<Vector> {
-        let s = &self.schlafli;
+        let s = &self.coxeter;
         if let Ok(string) = String::from_lua_multi(args.clone(), lua) {
-            Ok(mirror_basis(s)? * parse_wendy_krieger_vector(s.ndim(), &string)?)
+            Ok(s.mirror_basis().into_lua_err()?
+                * parse_wendy_krieger_vector(s.mirror_count(), &string)?)
         } else if let Ok(LuaVector(v)) = <_>::from_lua_multi(args, lua) {
             Ok(v)
         } else {
@@ -120,17 +149,12 @@ impl LuaUserData for LuaSymmetry {
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
-            Ok(this
-                .schlafli
-                .indices()
-                .iter()
-                .map(|i| i.to_string())
-                .join("o"))
+            Ok(this.coxeter.to_string())
         });
 
-        methods.add_method("chiral", |_lua, Self { schlafli, .. }, ()| {
+        methods.add_method("chiral", |_lua, Self { coxeter, .. }, ()| {
             Ok(Self {
-                schlafli: schlafli.clone(),
+                coxeter: coxeter.clone(),
                 chiral: true,
             })
         });
@@ -139,17 +163,12 @@ impl LuaUserData for LuaSymmetry {
             this.orbit_lua_iter(lua, args)
         });
 
-        methods.add_method("ndim", |_lua, this, ()| Ok(this.schlafli.ndim()));
+        methods.add_method("ndim", |_lua, this, ()| Ok(this.coxeter.min_ndim()));
 
         methods.add_method("vec", |lua, this, args| {
             Ok(LuaVector(this.vector_from_args(lua, args)?))
         });
     }
-}
-
-fn mirror_basis(s: &SchlafliSymbol) -> LuaResult<Matrix> {
-    s.mirror_basis()
-        .ok_or_else(|| LuaError::external("coxeter diagram matrix be invertible"))
 }
 
 fn parse_wendy_krieger_vector(ndim: u8, s: &str) -> LuaResult<Vector> {

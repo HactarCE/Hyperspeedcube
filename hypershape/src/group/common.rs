@@ -30,6 +30,8 @@ pub enum GroupError {
     InvalidGenerator(pga::Motor),
     #[error("overflow ({0})")]
     Overflow(IndexOverflow),
+    #[error("group is too high-dimensional")]
+    TooHighDimensional,
 
     #[error("missing inverse for element {0}")]
     MissingInverse(GroupElementId),
@@ -42,6 +44,13 @@ pub enum GroupError {
     BadGroupStructure,
     #[error("bad inverse; inverse of {0} is {1} but inverse of {1} is {2}")]
     BadInverse(GroupElementId, GroupElementId, GroupElementId),
+
+    #[error("coxeter-dynkin diagram is hyperbolic")]
+    HyperbolicCD,
+    #[error("coxeter-dynkin diagram is euclidean")]
+    EuclideanCD,
+    #[error("invalid coxeter-dynkin diagram")]
+    BadCD,
 }
 impl From<IndexOverflow> for GroupError {
     fn from(value: IndexOverflow) -> Self {

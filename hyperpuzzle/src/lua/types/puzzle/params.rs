@@ -126,7 +126,7 @@ impl LibraryObjectParams for PuzzleParams {
             id: self.id.clone(),
             name: self.name.clone(),
 
-            symmetry: self.symmetry.clone().map(|sym| sym.schlafli),
+            symmetry: self.symmetry.clone().map(|sym| sym.coxeter),
 
             shape,
             twists,

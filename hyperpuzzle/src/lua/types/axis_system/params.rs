@@ -82,7 +82,7 @@ impl LibraryObjectParams for AxisSystemParams {
 
         let axis_builder = AxisSystemBuilder::new(self.id.clone(), Arc::clone(space));
 
-        axis_builder.lock().symmetry = self.symmetry.clone().map(|sym| sym.schlafli);
+        axis_builder.lock().symmetry = self.symmetry.clone().map(|sym| sym.coxeter);
 
         let () = LuaSpace(Arc::clone(space)).with_this_as_global_space(lua, || {
             lua.registry_value::<LuaFunction<'_>>(&self.user_build_fn)?

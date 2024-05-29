@@ -22,7 +22,7 @@ pub struct ShapeBuilder {
     pub space: Arc<Space>,
 
     /// Symmetry group of the whole shape.
-    pub symmetry: Option<SchlafliSymbol>,
+    pub symmetry: Option<CoxeterGroup>,
 
     /// Puzzle pieces.
     pub pieces: PerPiece<PieceBuilder>,

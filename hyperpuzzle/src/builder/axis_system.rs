@@ -52,7 +52,7 @@ pub struct AxisSystemBuilder {
     pub space: Arc<Space>,
 
     /// Symmetry group of the axis system.
-    pub symmetry: Option<SchlafliSymbol>,
+    pub symmetry: Option<CoxeterGroup>,
 
     /// Axis data (not including name and ordering).
     by_id: PerAxis<AxisBuilder>,

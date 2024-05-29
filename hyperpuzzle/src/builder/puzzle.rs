@@ -26,7 +26,7 @@ pub struct PuzzleBuilder {
     pub name: String,
 
     /// Symmetry group of the whole puzzle.
-    pub symmetry: Option<SchlafliSymbol>,
+    pub symmetry: Option<CoxeterGroup>,
 
     /// Shape of the puzzle.
     pub shape: Arc<Mutex<ShapeBuilder>>,
