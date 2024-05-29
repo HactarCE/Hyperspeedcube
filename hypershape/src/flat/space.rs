@@ -128,10 +128,10 @@ impl Space {
         })
     }
     /// Memoizes a polytope.
-    pub fn add_polytope(&self, mut p: PolytopeData) -> Result<ElementId, IndexOverflow> {
+    pub fn add_polytope(&self, p: PolytopeData) -> Result<ElementId, IndexOverflow> {
         // Validate the boundary of the polytope.
         #[cfg(debug_assertions)]
-        match &mut p {
+        match &p {
             PolytopeData::Vertex(_) => (),
             PolytopeData::Polytope { rank, boundary, .. } => {
                 for b in boundary.iter() {
@@ -359,22 +359,32 @@ impl Space {
 
     /// Returns a human-readable string representation of a polytope element.
     pub fn dump_to_string(&self, root: ElementId) -> String {
-        let max_rank = self.polytopes.lock()[root].rank();
+        let polytopes = self.polytopes.lock();
+        let vertices = self.vertices.lock();
+
+        let max_rank = polytopes[root].rank();
         let mut s = String::new();
         let mut stack = vec![root];
         while let Some(p) = stack.pop() {
-            for _ in self.polytopes.lock()[p].rank()..max_rank {
+            for _ in polytopes[p].rank()..max_rank {
                 s += "  ";
             }
 
-            if let Some([a, b]) = self.line_endpoints(p) {
-                s += &format!(
-                    "{p}: line {} .. {}",
-                    self.vertices.lock()[a],
-                    self.vertices.lock()[b]
-                )
+            if polytopes[p].rank() == 1 {
+                // IIFE to mimic try_block
+                s += &match (|| {
+                    let mut points = polytopes[p]
+                        .boundary()
+                        .ok()?
+                        .iter()
+                        .map(|p| polytopes[p].to_vertex());
+                    Some([points.next()??, points.next()??])
+                })() {
+                    Some([a, b]) => format!("{p}: line {} .. {}", vertices[a], vertices[b]),
+                    None => format!("{p}: invalid edge"),
+                }
             } else {
-                match &self.polytopes.lock()[p] {
+                match &polytopes[p] {
                     PolytopeData::Vertex(v) => s += &format!("{p}: point {v}"),
                     PolytopeData::Polytope {
                         rank,
