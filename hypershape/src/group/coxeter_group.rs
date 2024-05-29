@@ -64,7 +64,8 @@ impl CoxeterGroup {
         match self {
             CoxeterGroup::A(_) if i + 1 == j => 3,
 
-            CoxeterGroup::B(n) if i + 1 == j => 3 + (j + 1 == n) as u8,
+            CoxeterGroup::B(_) if j == 1 => 4,
+            CoxeterGroup::B(_) if i + 1 == j => 3,
 
             CoxeterGroup::D(n) if i + 1 == j && j + 1 < n => 3,
             CoxeterGroup::D(n) if i + 3 == n => 3,
