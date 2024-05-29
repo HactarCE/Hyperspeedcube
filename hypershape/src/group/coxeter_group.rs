@@ -62,32 +62,24 @@ impl CoxeterGroup {
         }
 
         match self {
-            CoxeterGroup::A(_) if i + 1 == j => 3,
+            // Linear diagrams
+            CoxeterGroup::A(_) if j == 1 => 3, // (i, j) = (0, 1)
+            CoxeterGroup::B(_) if j == 1 => 4, // (i, j) = (0, 1)
+            CoxeterGroup::H2 | CoxeterGroup::H3 | CoxeterGroup::H4 if j == 1 => 5, // (i, j) = (0, 1)
 
-            CoxeterGroup::B(_) if j == 1 => 4,
-            CoxeterGroup::B(_) if i + 1 == j => 3,
+            // Branched diagrams
+            CoxeterGroup::D(_) if i == 0 && j == 2 => 3,
+            CoxeterGroup::E6 | CoxeterGroup::E7 | CoxeterGroup::E8 if i == 0 && j == 3 => 3,
 
-            CoxeterGroup::D(n) if i + 1 == j && j + 1 < n => 3,
-            CoxeterGroup::D(n) if i + 3 == n => 3,
-
-            CoxeterGroup::E6 | CoxeterGroup::E7 | CoxeterGroup::E8 if i == 2 && j + 1 == n => 3,
-            CoxeterGroup::E6 | CoxeterGroup::E7 | CoxeterGroup::E8 if i + 1 == j && j + 1 < n => 3,
-
+            // F4 (unique)
+            CoxeterGroup::F4 if j == 1 => 3, // (i, j) = (0, 1)
             CoxeterGroup::F4 if i == 1 && j == 2 => 4,
-            CoxeterGroup::F4 if i + 1 == j => 3,
 
+            // 2D diagrams
             CoxeterGroup::G2 => 6,
-
-            CoxeterGroup::H2 => 5,
-
-            CoxeterGroup::H3 if j == 1 => 5, // (i, j) = (0, 1)
-            CoxeterGroup::H3 if i == 1 => 3, // (i, j) = (1, 2)
-
-            CoxeterGroup::H4 if j == 1 => 5, // (i, j) = (0, 1)
-            CoxeterGroup::H4 if i + 1 == j => 3,
-
             CoxeterGroup::I(n) => n,
 
+            _ if i > 0 && i + 1 == j => 3,
             _ => 2, // no edge
         }
     }
