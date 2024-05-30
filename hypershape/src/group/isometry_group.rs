@@ -8,7 +8,7 @@ use parking_lot::{Condvar, Mutex};
 
 use super::{
     AbstractGroup, GeneratorId, Group, GroupBuilder, GroupElementId, GroupError, GroupResult,
-    PerGroupElement, PerGenerator,
+    PerGenerator, PerGroupElement,
 };
 
 /// Discrete subgroup of the [isometry group](https://w.wiki/7QFZ) of a space.
@@ -84,8 +84,9 @@ impl IsometryGroup {
             // it, and "popping" them off the front by moving
             // `next_unprocessed_id` forward.
             let mut next_unprocessed_id = GroupElementId::IDENTITY;
-            let mut unprocessed_successors =
-                PerGroupElement::from_iter([Arc::new(Task::new_already_computed(generators.clone()))]);
+            let mut unprocessed_successors = PerGroupElement::from_iter([Arc::new(
+                Task::new_already_computed(generators.clone()),
+            )]);
             while (next_unprocessed_id.0 as usize) < elements.len() {
                 // Get the result of applying each generator to
                 // `next_unprocessed`.

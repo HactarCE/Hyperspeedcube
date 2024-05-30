@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
 use float_ord::FloatOrd;
-use hypermath::{
-    pga::{Axes, Motor},
-    Vector, VectorRef,
-};
+use hypermath::pga::{Axes, Motor};
+use hypermath::{Vector, VectorRef};
 use hyperpuzzle::{Axis, LayerMask, PerPiece, PieceMask, Puzzle, PuzzleState, Twist};
 use instant::Instant;
 

@@ -1,13 +1,11 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use cgmath::InnerSpace;
-use cgmath::SquareMatrix;
+use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
 use hypermath::pga::*;
 use hypermath::prelude::*;
-use hyperpuzzle::PieceMask;
-use hyperpuzzle::{LayerMask, PerPiece, Piece, Puzzle, Sticker};
+use hyperpuzzle::{LayerMask, PerPiece, Piece, PieceMask, Puzzle, Sticker};
 use parking_lot::Mutex;
 
 use super::simulation::PuzzleSimulation;

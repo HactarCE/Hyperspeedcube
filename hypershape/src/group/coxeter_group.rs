@@ -1,6 +1,7 @@
 use core::fmt;
 
-use hypermath::collections::{approx_hashmap::ApproxHashMapKey, ApproxHashMap};
+use hypermath::collections::approx_hashmap::ApproxHashMapKey;
+use hypermath::collections::ApproxHashMap;
 use hypermath::prelude::*;
 use itertools::Itertools;
 
