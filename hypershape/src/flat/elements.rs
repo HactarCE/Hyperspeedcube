@@ -224,16 +224,6 @@ impl<'a> Polytope<'a> {
             .boundary()
             .map(|e| e.map_id(|e| FacetId(e.0)))
     }
-    /// Returns the patch that contains the polytope.
-    pub fn patch(self) -> Result<Patch<'a>> {
-        let space = self.space;
-        match &space.polytopes.lock()[self.as_element().id] {
-            PolytopeData::Vertex(_) => None,
-            PolytopeData::Polytope { patch, .. } => *patch,
-        }
-        .ok_or_eyre("polytope has no patch")
-        .map(|id| Patch { space, id })
-    }
 }
 
 impl<'a> From<Facet<'a>> for Element<'a> {
@@ -253,15 +243,6 @@ impl<'a> Facet<'a> {
             PolytopeData::Polytope { is_primordial, .. } => is_primordial,
             _ => false,
         }
-    }
-    /// Returns the seam taht the polytope is on, if any.
-    pub fn seam(self) -> Option<Seam<'a>> {
-        let space = self.space;
-        match &space.polytopes.lock()[self.as_element().id] {
-            PolytopeData::Vertex(_) => None,
-            PolytopeData::Polytope { seam, .. } => *seam,
-        }
-        .map(|id| Seam { space, id })
     }
     /// Returns the hyperplane of the facet.
     pub fn hyperplane(self) -> Result<Hyperplane> {
