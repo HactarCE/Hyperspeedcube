@@ -59,7 +59,7 @@ impl LibraryDb {
         id: &str,
         f: impl FnOnce(&Cached<P>) -> LuaResult<R>,
     ) -> LuaResult<R> {
-        let err = || LuaError::external(format!("no puzzle with ID {id:?}"));
+        let err = || LuaError::external(format!("no {} with ID {id:?}", P::NAME));
         let db = LibraryDb::get(lua)?;
         let db_guard = db.lock();
         let file = P::get_file_map(&db_guard).get(id).ok_or_else(err)?;
