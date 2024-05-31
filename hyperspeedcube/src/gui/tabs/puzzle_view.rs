@@ -245,6 +245,9 @@ impl PuzzleWidget {
             Some(r.rect.lerp_inside(egui_pos))
         };
         // TODO: proper overlay system
+        if cfg!(not(debug_assertions)) {
+            self.queued_arrows.clear();
+        }
         for [start, end] in std::mem::take(&mut self.queued_arrows) {
             (|| {
                 let start = project_point(&start)?;
