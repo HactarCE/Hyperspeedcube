@@ -32,7 +32,7 @@ puzzles:add('foldy_3x3x3', {
       vectors = oox,
       layers = {-1/3, 1/3},
     })
-    for _, ax, t in sym:orbit(p.axes[oox], sym:thru(1, 2)) do
+    for _, ax, t in sym:orbit(p.axes[oox], sym:thru(2, 1)) do
       p.twists:add{
         axis = ax,
         transform = t,

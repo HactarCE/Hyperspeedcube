@@ -15,7 +15,7 @@ puzzles:add('3x3x3', {
     p:add_axes(sym:orbit(oox):with(cubic.AXIS_NAMES), {1/3, -1/3})
 
     -- Define twists
-    for _, axis, twist_transform in sym:chiral():orbit(p.axes[oox], sym:thru(1, 2)) do
+    for _, axis, twist_transform in sym:chiral():orbit(p.axes[oox], sym:thru(2, 1)) do
       p.twists:add(axis, twist_transform)
     end
   end,

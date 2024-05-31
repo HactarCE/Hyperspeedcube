@@ -587,7 +587,7 @@ fn build_shape_polygons(
             // Ensure that triangles face the right way in 3D.
             if space.ndim() == 3 {
                 let [a, b, c] = new_vertex_ids.map(|v| mesh.vertex_position(v));
-                let tri_normal = Vector::cross_product_3d(&(&c - b), &(&c - a));
+                let tri_normal = Vector::cross_product_3d(&(&c - a), &(&c - b));
                 if normal.dot(tri_normal) < 0.0 {
                     new_vertex_ids.swap(0, 1);
                 }

@@ -6,7 +6,7 @@ puzzles:add('3x3x3_min', {
     local v = sym.oox.unit
     p:carve(sym:orbit(v))
     p:add_axes(sym:orbit(v), {1/3, -1/3})
-    for _, ax, tr in sym:chiral():orbit(p.axes[v], sym:thru(1, 2)) do
+    for _, ax, tr in sym:chiral():orbit(p.axes[v], sym:thru(2, 1)) do
       p.twists:add(ax, tr)
     end
   end,

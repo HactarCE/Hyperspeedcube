@@ -16,7 +16,7 @@ puzzles:add('megaminx', {
     p:add_axes(sym:orbit(oox):with(dodecahedral.AXIS_NAMES), {1/PHI})
 
     -- Define twists
-    for _, axis, twist_transform in sym:chiral():orbit(p.axes[oox], sym:thru(1, 2)) do
+    for _, axis, twist_transform in sym:chiral():orbit(p.axes[oox], sym:thru(2, 1)) do
       p.twists:add(axis, twist_transform)
     end
   end,

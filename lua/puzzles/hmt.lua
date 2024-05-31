@@ -20,10 +20,10 @@ puzzles:add('hmt', {
     p:add_axes(sym:orbit(xoo):with(tetrahedral.VERTEX_AXIS_NAMES), {0})
 
     -- Define twists
-    for _, axis, twist_transform in sym:chiral():orbit(p.axes[oox], sym:thru(1, 2)) do
+    for _, axis, twist_transform in sym:chiral():orbit(p.axes[oox], sym:thru(2, 1)) do
       p.twists:add(axis, twist_transform)
     end
-    for _, axis, twist_transform in sym:chiral():orbit(p.axes[xoo], sym:thru(2, 3)) do
+    for _, axis, twist_transform in sym:chiral():orbit(p.axes[xoo], sym:thru(3, 2)) do
       p.twists:add(axis, twist_transform)
     end
   end,

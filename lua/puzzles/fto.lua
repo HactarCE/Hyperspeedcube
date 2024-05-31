@@ -15,7 +15,7 @@ puzzles:add('fto', {
     p:add_axes(sym:orbit(xoo):with(octahedral.AXIS_NAMES), {1/3, -1/3})
 
     -- Define twists
-    for _, axis, twist_transform in sym:chiral():orbit(p.axes[xoo], sym:thru(2, 3)) do
+    for _, axis, twist_transform in sym:chiral():orbit(p.axes[xoo], sym:thru(3, 2)) do
       p.twists:add(axis, twist_transform)
     end
   end,
