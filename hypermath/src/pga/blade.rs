@@ -424,14 +424,15 @@ impl Blade {
         }
     }
 
-    /// Returns a basis for the subspace represented by a blade.
+    /// Returns an orthonormal basis for the subspace represented by a blade, or
+    /// `None` if the basis is invalid.
     pub fn basis(&self) -> Vec<Vector> {
         let ndim = self.ndim;
         let rest = self.clone();
         let mut ret = vec![];
         // Set up a bitmask of remaining axes.
         let mut axes_left = ((1 as u8) << ndim) - 1;
-        loop {
+        while ret.len() < self.grade() as usize - 1 {
             let Some((axis, v)) = crate::util::iter_ones(axes_left)
                 .filter_map(|ax| {
                     let v = Vector::unit(ax as u8);
@@ -442,11 +443,12 @@ impl Blade {
                 })
                 .max_by_key(|(_, blade)| FloatOrd(blade.mag2()))
             else {
-                return ret;
+                break;
             };
             axes_left &= !(1 << axis);
-            ret.extend(v.to_vector());
+            ret.extend(v.to_vector().and_then(|v| v.normalize()));
         }
+        ret
     }
 }
 
