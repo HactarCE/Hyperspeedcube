@@ -1,33 +1,22 @@
-sym = cd{4, 3, 3}:chiral()
+local hypercubic = require('symmetries/hypercubic')
 
 puzzles:add('3x3x3x3', {
   name = "3x3x3x3",
   ndim = 4,
-  symmetry = sym, -- auto expand carve, colors, axes, twists, slice, and layers
   build = function(p)
-    for _, v in sym:orbit('ooox') do
-      p.shape:carve(v.unit) -- shape
-      local axis = p.axes:add(v) -- axes
-      p.shape:slice(v.unit / 3) -- cuts
-      axis.layers:add(v.unit / 3) -- layers
-    end
+    local sym = cd'bc4'
+    local ooox = sym.ooox.unit
 
-    p.axes:rename{'I', 'B', 'D', 'L', 'R', 'U', 'F', 'O'}
+    -- Build shape
+    p:carve(sym:orbit(ooox):with(hypercubic.FACE_NAMES))
+    -- p.colors:set_defaults(hypercubic.FACE_COLORS)
 
-    local I, U, R, F = p.axes.I, p.axes.U, p.axes.R, p.axes.F
-    local transform = rot{
-      fix = I.vector ^ U.vector,
-      from = R,
-      to = F,
-    }
-    for _, I, U, transform in sym:orbit(I, U, transform) do
-      p.twists:add{
-        axis = I,
-        transform = transform,
-        prefix = I.name,
-        name = U.name,
-        inverse = false,
-      }
+    -- Define axes and slices
+    p:add_axes(sym:orbit(ooox):with(hypercubic.AXIS_NAMES), {1/3, -1/3})
+
+    -- Define twists
+    for _, axis, twist_transform in sym:chiral():orbit(p.axes[ooox], sym:thru(1, 2)) do
+      p.twists:add(axis, twist_transform, {})
     end
   end,
 })

@@ -1,40 +1,23 @@
+local dodecahedral = require('symmetries/dodecahedral')
 local utils = require('utils')
-
-local sym = cd{5, 3}
-local cut_depth = 2/3
 
 puzzles:add('megaminx', {
   name = "Megaminx",
   ndim = 3,
-  shape = 'dodecahedron',
-  symmetry = sym, -- auto expand carve, colors, axes, twists, slice, and layers
   build = function(p)
-    -- axes
-    for _, v in sym:orbit('oox') do
-      p.twists.axes:add(v.unit)
-    end
-    p.twists.axes:autoname()
+    local sym = cd'h3'
+    local oox = sym:vec('oox').unit;
 
-    -- -- print axes so we know which is which
-    -- for i, ax in ipairs(p.twists.axes) do
-    --   print(i, ax.vector)
-    -- end
+    -- Build shape
+    p:carve(sym:orbit(oox):with(dodecahedral.FACE_NAMES))
+    p.colors:set_defaults(dodecahedral.FACE_COLORS)
 
-    -- twists
-    local R = p.twists.axes[1]
-    local U = p.twists.axes[3]
-    local F = p.twists.axes[2]
-    local twist_rot = rot{fix = U, from = R, to = F}
-    for _, axis, twist_rot in sym:chiral():orbit(U, twist_rot) do
-      p.twists:add(utils.twist3d(axis, twist_rot))
-    end
+    -- Define axes and slices
+    p:add_axes(sym:orbit(oox):with(dodecahedral.AXIS_NAMES), {1/PHI})
 
-    -- slicing & layers
-    p.shape:slice(sym:vec('oox').unit * cut_depth)
-
-    for _, ax in ipairs(p.twists.axes) do
-      ax.layers:add(ax.vector.unit * cut_depth)
+    -- Define twists
+    for _, axis, twist_transform in sym:chiral():orbit(p.axes[oox], sym:thru(1, 2)) do
+      p.twists:add(axis, twist_transform)
     end
   end,
-
 })

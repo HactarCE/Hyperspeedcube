@@ -51,9 +51,6 @@ pub struct AxisSystemBuilder {
     /// Space where the axis system exists.
     pub space: Arc<Space>,
 
-    /// Symmetry group of the axis system.
-    pub symmetry: Option<CoxeterGroup>,
-
     /// Axis data (not including name and ordering).
     by_id: PerAxis<AxisBuilder>,
     /// Map from vector to axis ID.
@@ -73,8 +70,6 @@ impl AxisSystemBuilder {
                 id,
 
                 space,
-
-                symmetry: None,
 
                 by_id: PerAxis::new(),
                 vector_to_id: ApproxHashMap::new(),
@@ -107,8 +102,6 @@ impl AxisSystemBuilder {
                 id: self.id.clone(),
 
                 space: Arc::clone(&space),
-
-                symmetry: self.symmetry.clone(),
 
                 by_id: self.by_id.clone(),
                 vector_to_id: self.vector_to_id.clone(),

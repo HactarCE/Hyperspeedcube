@@ -70,6 +70,12 @@ impl<'lua> IntoLua<'lua> for LuaVector {
     }
 }
 
+impl LuaTypeName for LuaVector {
+    fn type_name(_lua: &Lua) -> LuaResult<&'static str> {
+        Ok("vector")
+    }
+}
+
 impl LuaVector {
     /// Constructs a vector from a table of values.
     pub fn construct_from_table(t: LuaTable<'_>) -> LuaResult<Self> {

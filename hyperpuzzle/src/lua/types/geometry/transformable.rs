@@ -126,6 +126,13 @@ impl Transformable {
             }
         }
     }
+
+    /// Converts the object back into a Lua value. Returns `Ok(LuaNil)` if there
+    /// is no such transformed object (e.g., no such twist axis after
+    /// transformation).
+    pub fn into_nillable_lua<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+        self.into_lua(lua).transpose()?.into_lua(lua)
+    }
 }
 
 impl TransformByMotor for Transformable {

@@ -14,7 +14,7 @@ mod vector_index;
 
 pub use multivector_index::LuaMultivectorIndex;
 pub use ndim::LuaNdim;
-pub use numbers::{LuaIndex, LuaIntegerNoConvert, LuaNumberNoConvert};
+pub use numbers::{LuaIndex, LuaIntegerNoConvert, LuaMirrorIndex, LuaNumberNoConvert};
 pub use sequence::LuaSequence;
 pub use string_or_table::{LuaNilStringOrTable, NilStringOrRegisteredTable};
 pub use vector_index::LuaVectorIndex;

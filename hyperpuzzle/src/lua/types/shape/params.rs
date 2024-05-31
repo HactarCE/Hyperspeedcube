@@ -16,8 +16,6 @@ pub struct ShapeParams {
     pub id: Option<String>,
     /// Number of dimensions of the space in which the shape is constructed.
     pub ndim: LuaNdim,
-    /// Symmetry of the shape.
-    pub symmetry: Option<LuaSymmetry>,
 
     /// Lua function to build the shape.
     user_build_fn: LuaRegistryKey,
@@ -28,19 +26,13 @@ impl<'lua> FromLua<'lua> for ShapeParams {
         let table = lua.unpack(value)?;
 
         let ndim: LuaNdim;
-        let symmetry: Option<LuaSymmetry>;
         let build: LuaFunction<'_>;
-        unpack_table!(lua.unpack(table {
-            ndim,
-            symmetry,
-            build,
-        }));
+        unpack_table!(lua.unpack(table { ndim, build }));
 
         Ok(ShapeParams {
             id: None,
 
             ndim,
-            symmetry,
 
             user_build_fn: lua.create_registry_value(build)?,
         })
@@ -82,8 +74,6 @@ impl LibraryObjectParams for ShapeParams {
         let shape_builder =
             ShapeBuilder::new_with_primordial_cube(self.id.clone(), Arc::clone(space))
                 .map_err(LuaError::external)?;
-
-        shape_builder.lock().symmetry = self.symmetry.clone().map(|sym| sym.coxeter);
 
         let () = LuaSpace(Arc::clone(space)).with_this_as_global_space(lua, || {
             lua.registry_value::<LuaFunction<'_>>(&self.user_build_fn)?

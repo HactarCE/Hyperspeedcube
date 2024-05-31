@@ -1,10 +1,12 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use hypermath::Hyperplane;
+use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
-use crate::builder::{AxisSystemBuilder, CustomOrdering, NamingScheme};
+use crate::builder::{AxisLayerBuilder, AxisSystemBuilder, CustomOrdering, NamingScheme};
 use crate::lua::lua_warn_fn;
 use crate::puzzle::Axis;
 
@@ -21,8 +23,6 @@ impl LuaUserData for LuaAxisSystem {
         AxisSystemBuilder::add_db_metamethods(methods, |Self(shape)| shape.lock());
         AxisSystemBuilder::add_named_db_methods(methods, |Self(shape)| shape.lock());
         AxisSystemBuilder::add_ordered_db_methods(methods, |Self(shape)| shape.lock());
-
-        methods.add_method("add", |lua, this, data| this.add(lua, data));
 
         methods.add_method_mut("autoname", |lua, this, ()| {
             let autonames = crate::util::iter_uppercase_letter_names();
@@ -83,45 +83,59 @@ impl LuaAxisSystem {
         self.0.lock()
     }
 
-    /// Adds a new twist axis.
-    fn add<'lua>(&self, lua: &'lua Lua, data: LuaValue<'lua>) -> LuaResult<LuaValue<'lua>> {
-        let name: Option<String>;
-        let vector: LuaVector;
-        if let Ok(v) = lua.unpack(data.clone()) {
-            name = None;
-            vector = v;
-        } else if let LuaValue::Table(t) = data {
-            unpack_table!(lua.unpack(t { name, vector }));
-        } else {
-            return lua_convert_err(&data, "vector or table");
-        };
-
-        let mut this = self.lock();
-
-        match &this.symmetry {
-            Some(sym) => {
-                if name.is_some() {
-                    return Err(LuaError::external(
-                        "`name` is invalid when symmetry-expanding vector",
-                    ));
-                }
-                sym.orbit(vector, false)
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, (_transform, LuaVector(v)))| {
-                        let id = this.add(v).into_lua_err()?;
-                        Ok((i, this.wrap_id(id)))
-                    })
-                    .collect::<LuaResult<Vec<_>>>()
-                    .and_then(|new_axes| lua.create_table_from(new_axes))
-                    .map(LuaValue::Table)
+    /// Adds a new symmetric set of twist axes and returns a table containing
+    /// them in sequence.
+    pub fn add<'lua>(
+        &self,
+        lua: &'lua Lua,
+        vectors: LuaSymmetricSet<LuaVector>,
+        extra: Option<LuaTable<'lua>>,
+    ) -> LuaResult<Vec<LuaAxis>> {
+        let depths: Vec<hypermath::Float>;
+        if let Some(t) = extra {
+            let layers: LuaTable<'lua>;
+            if t.len()? > 0 {
+                layers = t;
+            } else {
+                unpack_table!(lua.unpack(t { layers }));
             }
-            None => {
-                let LuaVector(v) = vector;
-                let id = this.add(v).into_lua_err()?;
-                this.names.set(id, name, lua_warn_fn(lua));
-                this.wrap_id(id).into_lua(lua)
+            depths = layers.sequence_values().try_collect()?;
+        } else {
+            depths = vec![];
+        }
+
+        // Check that layers are monotonic. This check happens later too, but we
+        // can give a better error here with a nice message and line number.
+        // This is an especially easy mistake to make, so it's important to have
+        // a good error message for it.
+        for (a, b) in depths.iter().tuple_windows() {
+            if a < b {
+                return Err(LuaError::external(
+                    "layers must be sorted from shallowest to deepest",
+                ));
             }
         }
+
+        let mut this = self.lock();
+        let mut new_ids = vec![];
+        for (name, LuaVector(v)) in vectors.to_vec(lua)? {
+            let id = this.add(v.clone()).into_lua_err()?;
+            this.names.set(id, name, lua_warn_fn(lua));
+            new_ids.push(this.wrap_id(id));
+
+            let axis = this.get_mut(id).into_lua_err()?;
+            for &depth in &depths {
+                let layer_plane = Hyperplane::new(&v, depth)
+                    .ok_or("axis vector cannot be zero")
+                    .into_lua_err()?;
+                // Flip the bottom plane so that it faces up.
+                let layer = AxisLayerBuilder {
+                    bottom: layer_plane.flip(),
+                    top: None,
+                };
+                axis.layers.push(layer).into_lua_err()?;
+            }
+        }
+        Ok(new_ids)
     }
 }

@@ -35,7 +35,9 @@ impl LuaUserData for LuaTwistSystem {
         TwistSystemBuilder::add_db_metamethods(methods, |Self(shape)| shape.lock());
         TwistSystemBuilder::add_named_db_methods(methods, |Self(shape)| shape.lock());
 
-        methods.add_method("add", |lua, this, data| this.add(lua, data));
+        methods.add_method("add", |lua, this, (axis, transform, data)| {
+            this.add(lua, axis, transform, data)
+        });
     }
 }
 
@@ -72,9 +74,13 @@ impl<'lua> LuaNamedIdDatabase<'lua, Twist> for TwistSystemBuilder {
 
 impl LuaTwistSystem {
     /// Adds a new twist.
-    fn add<'lua>(&self, lua: &'lua Lua, data: LuaTable<'lua>) -> LuaResult<Option<LuaTwist>> {
-        let axis: LuaAxis;
-        let transform: LuaTransform;
+    fn add<'lua>(
+        &self,
+        lua: &'lua Lua,
+        axis: LuaAxis,
+        transform: LuaTransform,
+        data: Option<LuaTable<'lua>>,
+    ) -> LuaResult<Option<LuaTwist>> {
         let multipliers: Option<bool>;
         let prefix: Option<String>;
         let name: Option<String>;
@@ -83,19 +89,28 @@ impl LuaTwistSystem {
         let inv_suffix: Option<String>;
         let inverse: Option<bool>;
         let name_fn: Option<LuaFunction<'_>>;
-
-        unpack_table!(lua.unpack(data {
-            axis,
-            transform,
-            multipliers,
-            prefix,
-            name,
-            suffix,
-            inv_name,
-            inv_suffix,
-            inverse,
-            name_fn,
-        }));
+        if let Some(data_table) = data {
+            unpack_table!(lua.unpack(data_table {
+                multipliers,
+                prefix,
+                name,
+                suffix,
+                inv_name,
+                inv_suffix,
+                inverse,
+                name_fn,
+            }));
+        } else {
+            // These are reasonable defaults, especially for 3D.
+            multipliers = Some(true);
+            prefix = axis.name();
+            name = None;
+            suffix = None;
+            inv_name = None;
+            inv_suffix = None;
+            inverse = Some(true);
+            name_fn = None;
+        }
 
         let do_naming = prefix.is_some()
             || name.is_some()

@@ -17,8 +17,6 @@ pub struct AxisSystemParams {
     /// Number of dimensions of the space in which the axis system is
     /// constructed.
     pub ndim: LuaNdim,
-    /// Symmetry of the axis system.
-    pub symmetry: Option<LuaSymmetry>,
 
     /// Lua function to build the axis system.
     user_build_fn: LuaRegistryKey,
@@ -29,19 +27,12 @@ impl<'lua> FromLua<'lua> for AxisSystemParams {
         let table = lua.unpack(value)?;
 
         let ndim: LuaNdim;
-        let symmetry: Option<LuaSymmetry>;
         let build: LuaFunction<'_>;
-        unpack_table!(lua.unpack(table {
-            ndim,
-            symmetry,
-            build,
-        }));
+        unpack_table!(lua.unpack(table { ndim, build }));
 
         Ok(AxisSystemParams {
             id: None,
-
             ndim,
-            symmetry,
 
             user_build_fn: lua.create_registry_value(build)?,
         })
@@ -81,8 +72,6 @@ impl LibraryObjectParams for AxisSystemParams {
         }
 
         let axis_builder = AxisSystemBuilder::new(self.id.clone(), Arc::clone(space));
-
-        axis_builder.lock().symmetry = self.symmetry.clone().map(|sym| sym.coxeter);
 
         let () = LuaSpace(Arc::clone(space)).with_this_as_global_space(lua, || {
             lua.registry_value::<LuaFunction<'_>>(&self.user_build_fn)?

@@ -16,8 +16,6 @@ pub struct PuzzleParams {
     pub id: String,
     /// Number of dimensions of the space in which the puzzle is constructed.
     pub ndim: LuaNdim,
-    /// Symmetry of the puzzle.
-    pub symmetry: Option<LuaSymmetry>,
 
     /// User-friendly name for the puzzle.
     pub name: String,
@@ -45,7 +43,6 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
 
         let name: String;
         let ndim: LuaNdim;
-        let symmetry: Option<LuaSymmetry>;
         let shape: LuaNilStringOrTable<'lua>;
         let twists: LuaNilStringOrTable<'lua>;
         let aliases: Option<Vec<String>>;
@@ -57,7 +54,6 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
             name,
 
             ndim,
-            symmetry,
 
             shape,
             twists,
@@ -79,7 +75,6 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
         Ok(PuzzleParams {
             id: String::new(), // This is overwritten in `puzzledb:add()`.
             ndim,
-            symmetry,
 
             shape: shape.to_lua_registry(lua)?,
             twists: twists.to_lua_registry(lua)?,
@@ -125,8 +120,6 @@ impl LibraryObjectParams for PuzzleParams {
         let puzzle_builder = Arc::new(Mutex::new(PuzzleBuilder {
             id: self.id.clone(),
             name: self.name.clone(),
-
-            symmetry: self.symmetry.clone().map(|sym| sym.coxeter),
 
             shape,
             twists,

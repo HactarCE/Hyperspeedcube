@@ -74,53 +74,10 @@ impl LuaSymmetry {
         self.coxeter.orbit(object, self.chiral)
     }
 
-    /// Returns the orbit of a collection of objects under the symmetry.
-    pub fn orbit_lua_iter<'lua>(
-        &self,
-        lua: &'lua Lua,
-        args: LuaMultiValue<'lua>,
-    ) -> LuaResult<LuaFunction<'lua>> {
-        let ndim = LuaNdim::get(lua)?;
-
-        let is_all_numbers = args.iter().all(|arg| arg.is_integer() || arg.is_number());
-
-        let init: Vec<Transformable> = if is_all_numbers {
-            vec![Transformable::Blade(LuaBlade(pga::Blade::from_vector(
-                ndim,
-                self.vector_from_args(lua, args)?,
-            )))]
-        } else {
-            args.iter()
-                .map(|v| {
-                    if v.is_string() {
-                        let s = &v.to_string()?;
-                        let vector = parse_wendy_krieger_vector(ndim, s)?;
-                        Transformable::from_vector(lua, vector)
-                    } else {
-                        Transformable::from_lua(v.clone(), lua)
-                    }
-                })
-                .try_collect()?
-        };
-
-        let mut iter = self.orbit(init).into_iter();
-        lua.create_function_mut(move |lua, ()| {
-            iter.find_map(move |(transform, objects)| {
-                let mut values = vec![];
-                match LuaTransform(transform).into_lua(lua) {
-                    Ok(t) => values.push(t),
-                    Err(e) => return Some(Err(e)),
-                }
-                for obj in objects {
-                    match obj.into_lua(lua)? {
-                        Ok(v) => values.push(v),
-                        Err(e) => return Some(Err(e)),
-                    }
-                }
-                Some(Ok(LuaMultiValue::from_vec(values)))
-            })
-            .unwrap_or_else(|| lua.pack_multi(LuaNil))
-        })
+    /// Constructs a vector in the symmetry basis from Wendy Krieger's notation.
+    pub fn wendy_krieger_vector(&self, string: &str) -> LuaResult<Vector> {
+        Ok(self.coxeter.mirror_basis().into_lua_err()?
+            * parse_wendy_krieger_vector(self.coxeter.mirror_count(), &string)?)
     }
 
     fn vector_from_args<'lua>(
@@ -128,17 +85,34 @@ impl LuaSymmetry {
         lua: &'lua Lua,
         args: LuaMultiValue<'lua>,
     ) -> LuaResult<Vector> {
-        let s = &self.coxeter;
         if let Ok(string) = String::from_lua_multi(args.clone(), lua) {
-            Ok(s.mirror_basis().into_lua_err()?
-                * parse_wendy_krieger_vector(s.mirror_count(), &string)?)
+            self.wendy_krieger_vector(&string)
         } else if let Ok(LuaVector(v)) = <_>::from_lua_multi(args, lua) {
-            Ok(v)
+            Ok(self.coxeter.mirror_basis().into_lua_err()? * v)
         } else {
             Err(LuaError::external(
                 "expected vector constructor or coxeter vector string",
             ))
         }
+    }
+
+    /// Returns a motor representing a sequence of mirror reflections, specified
+    /// using indices into the symmetry's mirror.
+    pub fn motor_for_mirror_seq(
+        &self,
+        mirror_sequence: impl IntoIterator<Item = usize>,
+    ) -> LuaResult<pga::Motor> {
+        let ndim = self.coxeter.min_ndim();
+        let mirrors = self.coxeter.mirrors();
+        mirror_sequence
+            .into_iter()
+            .map(|i| -> Result<pga::Motor, &str> {
+                let mirror = mirrors.get(i).ok_or("mirror index out of range")?;
+                Ok(mirror.motor(ndim))
+            })
+            .reduce(|a, b| Ok(a? * b?))
+            .unwrap_or(Ok(pga::Motor::ident(ndim)))
+            .into_lua_err()
     }
 }
 
@@ -152,6 +126,14 @@ impl LuaUserData for LuaSymmetry {
             Ok(this.coxeter.to_string())
         });
 
+        methods.add_meta_method(LuaMetaMethod::Index, |_lua, this, index: String| {
+            if may_be_wendy_kreiger_vector(&index) {
+                this.wendy_krieger_vector(&index).map(LuaVector).map(Some)
+            } else {
+                Ok(None)
+            }
+        });
+
         methods.add_method("chiral", |_lua, Self { coxeter, .. }, ()| {
             Ok(Self {
                 coxeter: coxeter.clone(),
@@ -160,7 +142,11 @@ impl LuaUserData for LuaSymmetry {
         });
 
         methods.add_method("orbit", |lua, this, args: LuaMultiValue<'_>| {
-            this.orbit_lua_iter(lua, args)
+            let objects: Vec<Transformable> = args
+                .into_iter()
+                .map(|arg| Transformable::from_lua(arg, lua))
+                .try_collect()?;
+            Ok(LuaOrbit::new(this.clone(), objects))
         });
 
         methods.add_method("ndim", |_lua, this, ()| Ok(this.coxeter.min_ndim()));
@@ -168,17 +154,29 @@ impl LuaUserData for LuaSymmetry {
         methods.add_method("vec", |lua, this, args| {
             Ok(LuaVector(this.vector_from_args(lua, args)?))
         });
+
+        methods.add_method("thru", |lua, this, indices: LuaMultiValue<'_>| {
+            let indices: Vec<usize> = indices
+                .into_iter()
+                .map(|v| LuaIndex::from_lua(v, lua).map(|LuaIndex(i)| i))
+                .try_collect()?;
+            this.motor_for_mirror_seq(indices).map(LuaTransform)
+        })
     }
 }
 
+fn may_be_wendy_kreiger_vector(s: &str) -> bool {
+    s.chars().all(|c| match c {
+        'o' | 'x' | 'q' | 'f' | 'u' => true,
+        _ => false,
+    })
+}
+
 fn parse_wendy_krieger_vector(ndim: u8, s: &str) -> LuaResult<Vector> {
-    // TODO: normalization syntax?
-    // if s.starts_with('|')&& s.ends_with('|') {
-    //     s.strip_prefix('|').and_then(|s|s.strip_suffix('|'))
-    // }
     if s.len() != ndim as usize {
         return Err(LuaError::external(format!(
-            "expected coxeter vector of length {ndim}",
+            "expected coxeter vector of length {ndim}; {s:?} has length {}",
+            s.len(),
         )));
     }
     s.chars()

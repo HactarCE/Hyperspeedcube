@@ -17,8 +17,6 @@ pub struct TwistSystemParams {
     /// Number of dimensions of the space in which the twist system is
     /// constructed.
     pub ndim: LuaNdim,
-    /// Symmetry of the twist system.
-    pub symmetry: Option<LuaSymmetry>,
 
     /// Parameters to construct the axis system, or an ID of a known axis
     /// system, or `nil` to start with a default axis system.
@@ -33,21 +31,13 @@ impl<'lua> FromLua<'lua> for TwistSystemParams {
         let table = lua.unpack(value)?;
 
         let ndim: LuaNdim;
-        let symmetry: Option<LuaSymmetry>;
         let axes: LuaNilStringOrTable<'_>;
         let build: LuaFunction<'_>;
-        unpack_table!(lua.unpack(table {
-            ndim,
-            symmetry,
-            build,
-            axes,
-        }));
+        unpack_table!(lua.unpack(table { ndim, build, axes }));
 
         Ok(TwistSystemParams {
             id: None,
-
             ndim,
-            symmetry,
 
             axes: axes.to_lua_registry(lua)?,
 

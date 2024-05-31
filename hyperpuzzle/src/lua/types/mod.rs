@@ -7,6 +7,7 @@ mod color_system;
 mod database_traits;
 mod geometry;
 mod layer_system;
+mod orbit;
 mod puzzle;
 mod shape;
 mod symmetry;
@@ -17,11 +18,23 @@ pub use color_system::*;
 pub use database_traits::*;
 pub use geometry::*;
 pub use layer_system::*;
+pub use orbit::*;
 pub use puzzle::*;
 pub use shape::*;
 pub use symmetry::*;
 pub use twist_system::*;
 pub use wrappers::*;
+
+/// Type that has a user-friendly name for error messages.
+pub trait LuaTypeName {
+    /// Returns a user-friendly name for the type.
+    fn type_name(lua: &Lua) -> LuaResult<&'static str>;
+}
+impl<T: 'static + LuaUserData> LuaTypeName for T {
+    fn type_name(lua: &Lua) -> LuaResult<&'static str> {
+        lua_userdata_type_name::<T>(lua)
+    }
+}
 
 /// Casts userdata to `T` if it is the correct type; otherwise returns an error.
 pub fn cast_userdata<T: 'static + LuaUserData + Clone>(

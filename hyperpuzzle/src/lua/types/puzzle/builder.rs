@@ -26,6 +26,9 @@ impl LuaUserData for LuaPuzzleBuilder {
         fields.add_field_method_get("shape", |_lua, this| {
             Ok(LuaShape(Arc::clone(&this.lock().shape)))
         });
+        fields.add_field_method_get("colors", |_lua, this| {
+            Ok(LuaColorSystem(Arc::clone(&this.lock().shape)))
+        });
         fields.add_field_method_get("twists", |_lua, this| {
             Ok(LuaTwistSystem(Arc::clone(&this.lock().twists)))
         });
@@ -38,6 +41,38 @@ impl LuaUserData for LuaPuzzleBuilder {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             Ok(format!("puzzle({:?})", this.lock().name))
         });
+
+        // Shortcut methods (could be called on `.shape` instead)
+        methods.add_method("carve", |lua, this, cuts| {
+            this.shape()
+                .cut(lua, cuts, CutMode::Carve, StickerMode::NewColor)
+        });
+        methods.add_method("carve_unstickered", |lua, this, cuts| {
+            this.shape()
+                .cut(lua, cuts, CutMode::Carve, StickerMode::None)
+        });
+        methods.add_method("slice", |lua, this, cuts| {
+            this.shape()
+                .cut(lua, cuts, CutMode::Slice, StickerMode::None)
+        });
+
+        // Shortcut methods (could be called on `.axes` instead)
+        methods.add_method("add_axes", |lua, this, (vectors, extra)| {
+            let ret = LuaAxisSystem(this.lock().axis_system()).add(lua, vectors, extra)?;
+
+            let shape = this.shape();
+            let mut shape_guard = shape.lock();
+            for axis in &ret {
+                for cut in axis.layers().cuts()? {
+                    shape_guard.slice(None, cut, None, None).into_lua_err()?;
+                }
+            }
+
+            Ok(ret)
+        });
+        methods.add_method("add_axes_unsliced", |lua, this, (vectors, extra)| {
+            LuaAxisSystem(this.lock().axis_system()).add(lua, vectors, extra)
+        });
     }
 }
 
@@ -46,5 +81,10 @@ impl LuaPuzzleBuilder {
     /// [`PuzzleBuilder`].
     pub fn lock(&self) -> MutexGuard<'_, PuzzleBuilder> {
         self.0.lock()
+    }
+
+    /// Returns the shape of the puzzle.
+    pub fn shape(&self) -> LuaShape {
+        LuaShape(Arc::clone(&self.lock().shape))
     }
 }

@@ -21,9 +21,6 @@ pub struct ShapeBuilder {
     /// Space where the puzzle exists.
     pub space: Arc<Space>,
 
-    /// Symmetry group of the whole shape.
-    pub symmetry: Option<CoxeterGroup>,
-
     /// Puzzle pieces.
     pub pieces: PerPiece<PieceBuilder>,
     /// Pieces that are not defunct (removed or cut) and so should be included
@@ -43,8 +40,6 @@ impl ShapeBuilder {
                 id,
 
                 space,
-
-                symmetry: None,
 
                 pieces: PerPiece::new(),
                 active_pieces: PieceSet::new(),
@@ -127,7 +122,6 @@ impl ShapeBuilder {
 
                 space: Arc::clone(space),
 
-                symmetry: self.symmetry.clone(),
                 pieces,
                 active_pieces,
                 colors: self.colors.clone(),

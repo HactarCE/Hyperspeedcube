@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use hypermath::{ApproxHashMapKey, TransformByMotor};
+use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
-use crate::builder::ShapeBuilder;
+use crate::{builder::ShapeBuilder, lua::lua_warn_fn};
 
 /// Lua handle to a shape under construction.
 #[derive(Debug, Clone)]
@@ -41,33 +41,14 @@ impl LuaUserData for LuaShape {
             }
         });
 
-        methods.add_method("carve", |_lua, this, LuaHyperplane(hyperplane)| {
-            let cuts = this.orbit(hyperplane)?;
-            let mut this = this.lock();
-            for cut in cuts {
-                let color = this.colors.add(vec![cut.clone()]).into_lua_err()?;
-                this.carve(None, cut, Some(color)).into_lua_err()?;
-            }
-            Ok(())
+        methods.add_method("carve", |lua, this, cuts| {
+            this.cut(lua, cuts, CutMode::Carve, StickerMode::NewColor)
         });
-        methods.add_method(
-            "carve_unstickered",
-            |_lua, this, LuaHyperplane(hyperplane)| {
-                let cuts = this.orbit(hyperplane)?;
-                let mut this = this.lock();
-                for cut in cuts {
-                    this.carve(None, cut, None).into_lua_err()?;
-                }
-                Ok(())
-            },
-        );
-        methods.add_method("slice", |_lua, this, LuaHyperplane(hyperplane)| {
-            let cuts = this.orbit(hyperplane)?;
-            let mut this = this.lock();
-            for cut in cuts {
-                this.slice(None, cut, None, None).into_lua_err()?;
-            }
-            Ok(())
+        methods.add_method("carve_unstickered", |lua, this, cuts| {
+            this.cut(lua, cuts, CutMode::Carve, StickerMode::None)
+        });
+        methods.add_method("slice", |lua, this, cuts| {
+            this.cut(lua, cuts, CutMode::Slice, StickerMode::None)
         });
     }
 }
@@ -79,16 +60,103 @@ impl LuaShape {
         self.0.lock()
     }
 
-    /// Returns a list of the elements in the orbit of `obj` under the shape's
-    /// symmetry.
-    fn orbit<T: ApproxHashMapKey + TransformByMotor + Clone>(&self, obj: T) -> LuaResult<Vec<T>> {
-        match &self.lock().symmetry {
-            Some(sym) => Ok(sym
-                .orbit(obj, false)
-                .into_iter()
-                .map(|(_transform, obj)| obj)
-                .collect()),
-            None => Ok(vec![obj]),
+    /// Cut the puzzle.
+    pub fn cut<'lua>(
+        &self,
+        lua: &'lua Lua,
+        cuts: LuaSymmetricSet<LuaHyperplane>,
+        cut_mode: CutMode,
+        sticker_mode: StickerMode,
+    ) -> LuaResult<()> {
+        let mut this = self.lock();
+
+        for (name, LuaHyperplane(plane)) in cuts.to_vec(lua)? {
+            let color = match sticker_mode {
+                StickerMode::NewColor => Some({
+                    let c = this.colors.add(vec![plane.clone()]).into_lua_err()?;
+                    this.colors.names.set(c, name, lua_warn_fn(lua));
+                    c
+                }),
+                StickerMode::None => None,
+            };
+            match cut_mode {
+                CutMode::Carve => this.carve(None, plane, color).into_lua_err()?,
+                CutMode::Slice => this.slice(None, plane, color, color).into_lua_err()?,
+            }
         }
+
+        Ok(())
+    }
+}
+
+/// Which pieces to keep when cutting the shape.
+pub enum CutMode {
+    /// Delete any pieces outside the cut; keep only pieces inside the cut.
+    Carve,
+    /// Keep all pieces on both sides of the cut.
+    Slice,
+}
+/// How to sticker new facets created by a cut.
+pub enum StickerMode {
+    /// Add a new color for each cut and create new stickers with that color on
+    /// both sides of the cut.
+    NewColor,
+    /// Do not add new stickers.
+    None,
+}
+
+/// Symmetric set of a particular type of object.
+#[derive(Debug, Clone)]
+pub enum LuaSymmetricSet<T> {
+    /// Single object (using the trivial symmetry).
+    Single(T),
+    /// Symmetric orbit of an object.
+    Orbit(LuaOrbit),
+}
+impl<'lua, T: LuaTypeName + FromLua<'lua>> FromLua<'lua> for LuaSymmetricSet<T> {
+    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        if let Ok(orbit) = <_>::from_lua(value.clone(), lua) {
+            Ok(Self::Orbit(orbit))
+        } else if let Ok(h) = <_>::from_lua(value.clone(), lua) {
+            Ok(Self::Single(h))
+        } else {
+            // This error isn't quite accurate, but it's close enough. The error
+            // message will say that we need a value of type `T`, but in fact we
+            // accept an orbit of `T` as well.
+            lua_convert_err(&value, T::type_name(lua)?)
+        }
+    }
+}
+impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
+    /// Returns a list of all the objects in the orbit.
+    pub fn to_vec(&self, lua: &'lua Lua) -> LuaResult<Vec<(Option<String>, T)>> {
+        match self {
+            LuaSymmetricSet::Single(v) => Ok(vec![(None, v.clone())]),
+            LuaSymmetricSet::Orbit(orbit) => orbit
+                .iter_in_order()
+                .map(|(_transform, name, values)| {
+                    let v = Self::to_expected_type(lua, values.get(0))?;
+                    Ok((name.clone(), v))
+                })
+                .try_collect(),
+        }
+    }
+    /// Returns the initial object from which the others are generated.
+    pub fn first(&self, lua: &'lua Lua) -> LuaResult<T> {
+        match self {
+            LuaSymmetricSet::Single(v) => Ok(v.clone()),
+            LuaSymmetricSet::Orbit(orbit) => Self::to_expected_type(lua, orbit.init().get(0)),
+        }
+    }
+
+    fn to_expected_type(lua: &'lua Lua, maybe_obj: Option<&Transformable>) -> LuaResult<T> {
+        let lua_value =
+            maybe_obj
+                .and_then(|obj| obj.into_lua(lua))
+                .ok_or(LuaError::external(format!(
+                    "expected orbit of {}",
+                    T::type_name(lua)?,
+                )))??;
+        T::from_lua(lua_value, lua)
     }
 }

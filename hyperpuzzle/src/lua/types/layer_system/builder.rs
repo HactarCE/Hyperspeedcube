@@ -1,4 +1,4 @@
-use hypermath::IndexNewtype;
+use hypermath::{Hyperplane, IndexNewtype};
 use parking_lot::{MappedMutexGuard, MutexGuard};
 
 use super::*;
@@ -64,5 +64,14 @@ impl LuaLayerSystem {
             Some(&mut db.get_mut(self.axis.id).ok()?.layers)
         })
         .map_err(|_| LuaError::external("error fetching layer system"))
+    }
+
+    /// Returns all cuts in the layer.
+    pub fn cuts(&self) -> LuaResult<Vec<Hyperplane>> {
+        Ok(self
+            .lock()?
+            .iter_values()
+            .flat_map(|layer| itertools::chain([layer.bottom.clone()], layer.top.clone()))
+            .collect())
     }
 }

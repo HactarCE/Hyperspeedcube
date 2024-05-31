@@ -50,6 +50,10 @@ impl LuaAxis {
     pub fn name(&self) -> Option<String> {
         self.db.lock().names.get(self.id)
     }
+    /// Returns the layer system of the axis.
+    pub fn layers(&self) -> LuaLayerSystem {
+        LuaLayerSystem { axis: self.clone() }
+    }
 
     /// Returns the expected result of calling the Lua `tostring` function with
     /// `self`.

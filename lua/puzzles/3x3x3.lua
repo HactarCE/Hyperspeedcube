@@ -1,56 +1,22 @@
-sym = cd{4, 3}
+local cubic = require('symmetries/cubic')
 
 puzzles:add('3x3x3', {
   name = "3x3x3",
-  aliases = {
-    "{4, 3} 3",
-    "3^3",
-    "Rubik's Cube",
-  },
   ndim = 3,
-  meta = {
-    id = '3x3x3',
-    author = "Andrew Farkas",
-
-    year = 1970,
-    inventor = "Ernő Rubik",
-
-    family = "wca",
-    external = {
-      pcubes = "3x3x3",
-      gelatinbrain = "3.1.2",
-      museum = 2968,
-    },
-  },
-
-  properties = {
-    shallow_cut = true,
-    doctrinaire = true,
-  },
-
-  shape = 'cube',
-  twists = 'ft_cubic',
-
   build = function(p)
-    for _, ax in ipairs(p.twists.axes) do
-      local cut = plane{normal = ax.vector, distance = 1/3}
-      local opposite_cut = plane{normal = ax.vector, distance = -1/3}
-      p.shape:slice(cut)
-      ax.layers:add(cut)
-      ax.layers:add(opposite_cut)
+    local sym = cd'bc3'
+    local oox = sym.oox.unit
+
+    -- Build shape
+    p:carve(sym:orbit(oox):with(cubic.FACE_NAMES))
+    p.colors:set_defaults(cubic.FACE_COLORS)
+
+    -- Define axes and slices
+    p:add_axes(sym:orbit(oox):with(cubic.AXIS_NAMES), {1/3, -1/3})
+
+    -- Define twists
+    for _, axis, twist_transform in sym:chiral():orbit(p.axes[oox], sym:thru(1, 2)) do
+      p.twists:add(axis, twist_transform)
     end
-
-    -- p.twists.aliases:add("M", {2, "L"})
-    -- p.twists.aliases:add("E", {2, "D"})
-    -- p.twists.aliases:add("S", {2, "F"})
-    -- p.twists.aliases:add_wide_move_suffix("w")
-
-    -- local R = p.twists.axes.R
-    -- local U = p.twists.axes.U
-    -- local F = p.twists.axes.F
-
-    -- p.piece_types:add('corner', {symmetry = sym, seed = R(1) & U(1) & F(1)})
-    -- p.piece_types:add('edge', {symmetry = sym, seed = R(1) & U(1)})
-    -- p.piece_types:add('center', {symmetry = sym, seed = R(1)})
   end,
 })

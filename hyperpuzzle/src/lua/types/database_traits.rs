@@ -84,7 +84,7 @@ where
     /// Returns a list of IDs in the database, ideally in some canonical order.
     fn ids_in_order(&self) -> Cow<'_, [I]>;
 
-    /// Constructs a mapping from ID to `T` from a lua value, which may be a
+    /// Constructs a mapping from ID to `T` from a Lua value, which may be a
     /// table of pairs `(id, T)` or a function from ID to `T`.
     fn mapping_from_value<T: FromLua<'lua>>(
         &self,
@@ -122,7 +122,7 @@ where
         lock: fn(&T) -> MutexGuard<'_, Self>,
     ) {
         methods.add_meta_method(LuaMetaMethod::ToString, move |lua, this, ()| {
-            let type_name = lua_userdata_type_name::<T>(lua)?;
+            let type_name = T::type_name(lua)?;
             let ptr = lock(this).db_arc().data_ptr();
             Ok(format!("{type_name}({ptr:p})"))
         });
@@ -262,6 +262,14 @@ where
                 .collect()
         };
 
+        self.reorder_all_by_key(lua, new_order_keys)
+    }
+    /// Reorders all elements according to a hashmap.
+    fn reorder_all_by_key(
+        &mut self,
+        _lua: &'lua Lua,
+        new_order_keys: HashMap<I, f64>,
+    ) -> LuaResult<()> {
         // By default, leave unspecified entries in the same order at the end.
         // This sort is guaranteed to be stable.
         let mut new_ordering: Vec<I> = self.ordering().ids_in_order().to_vec();

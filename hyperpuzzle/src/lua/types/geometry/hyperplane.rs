@@ -56,6 +56,12 @@ impl<'lua> IntoLua<'lua> for LuaHyperplane {
     }
 }
 
+impl LuaTypeName for LuaHyperplane {
+    fn type_name(_lua: &Lua) -> LuaResult<&'static str> {
+        Ok("hyperplane")
+    }
+}
+
 impl LuaHyperplane {
     /// Constructs a plane from a table of values.
     pub fn construct_from_table(lua: &Lua, t: LuaTable<'_>) -> LuaResult<Self> {

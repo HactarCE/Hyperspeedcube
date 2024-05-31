@@ -1,5 +1,5 @@
 use hypermath::pga::{Blade, Motor};
-use hypermath::vector;
+use hypermath::{vector, Float, VectorRef};
 
 use super::*;
 
@@ -45,34 +45,74 @@ impl LuaTransform {
     pub fn construct_rotation(lua: &Lua, t: LuaTable<'_>) -> LuaResult<Self> {
         let ndim = LuaNdim::get(lua)?;
 
-        // TODO: allow fixing multiple vectors using blades
         let fix: Option<LuaBlade>;
-        let from: LuaVector;
-        let to: LuaVector;
-        unpack_table!(lua.unpack(t { fix, from, to }));
+        let from: Option<LuaVector>;
+        let to: Option<LuaVector>;
+        let angle: Option<Float>;
+        unpack_table!(lua.unpack(t {
+            fix,
+            from,
+            to,
+            angle,
+        }));
 
         let LuaBlade(fix) = fix.unwrap_or(LuaBlade(Blade::one(ndim)));
-        let LuaVector(from) = from;
-        let LuaVector(to) = to;
+        let fix = fix.ensure_nonzero_weight();
 
-        let from = Blade::from_vector(ndim, from);
-        let to = Blade::from_vector(ndim, to);
+        let half_angle = angle.map(|a| a / 2.0);
+        let sincos_of_half_angle = half_angle.map(|a| (a.sin(), a.cos()));
 
-        // Reject `from` and `to` from `fix`.
-        let from = from
-            .orthogonal_rejection_from(&fix)
-            .and_then(|b| b.to_vector())
-            .unwrap_or(vector![]);
-        let to = to
-            .orthogonal_rejection_from(&fix)
-            .and_then(|b| b.to_vector())
-            .unwrap_or(vector![]);
+        let (a, b) = match (from, to) {
+            (Some(LuaVector(from)), Some(LuaVector(to))) => {
+                // IIFE to mimic try_block
+                (|| {
+                    // Reject `from` and `to` from `fix`.
+                    let from = Blade::from_vector(ndim, from)
+                        .orthogonal_rejection_from(&fix)?
+                        .to_vector()?
+                        .normalize()?;
+                    let to = Blade::from_vector(ndim, to)
+                        .orthogonal_rejection_from(&fix)?
+                        .to_vector()?
+                        .normalize()?;
 
-        let rot = Motor::rotation(ndim, from, to)
-            .ok_or("error constructing rotation (vectors may be zero, or opposite")
-            .into_lua_err()?;
+                    let a = from.clone();
+                    let b = match sincos_of_half_angle {
+                        Some((sin, cos)) => {
+                            let perpendicular = to.rejected_from(&from)?.normalize()?;
+                            from * cos + perpendicular * sin
+                        }
+                        None => (from + to).normalize()?,
+                    };
 
-        Ok(LuaTransform(rot))
+                    Some((a, b))
+                })()
+                .ok_or("error constructing rotation (vectors may be zero, or opposite")
+                .into_lua_err()?
+            }
+
+            (None, None) if fix.antigrade() == 2 && !fix.is_zero() => {
+                let [from, perpendicular] = fix
+                    .antidual()
+                    .ensure_nonzero_weight()
+                    .basis()
+                    .try_into()
+                    .map_err(|e| format!("bad basis for dual of `fix`: {e:?}"))
+                    .into_lua_err()?;
+
+                let (sin, cos) = sincos_of_half_angle.unwrap_or((1.0, 0.0));
+                let a = from.clone();
+                let b = from * cos + perpendicular * sin;
+
+                (a, b)
+            }
+
+            _ => return Err(LuaError::external("ambiguous rotation")),
+        };
+
+        Ok(LuaTransform(Motor::from_normalized_vector_product(
+            ndim, a, b,
+        )))
     }
     /// Constructs a reflection through a vector, across a hyperplane, through a
     /// point, or through the origin.
