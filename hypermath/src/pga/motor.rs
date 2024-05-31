@@ -117,8 +117,8 @@ impl Motor {
         Self::from_normalized_vector_product(ndim, a, mid)
     }
     /// Constructs a rotation motor (also called a "rotor") from one vector to
-    /// another by twice the angle between them. `from` and `to` **must** be
-    /// unit vectors.
+    /// another by twice the angle between them. `a` and `b` **must** be unit
+    /// vectors.
     pub fn from_normalized_vector_product(ndim: u8, a: impl VectorRef, b: impl VectorRef) -> Self {
         Self::normalized_vector_reflection(ndim, b) * Self::normalized_vector_reflection(ndim, a)
     }
