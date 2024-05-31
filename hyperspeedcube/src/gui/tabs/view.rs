@@ -9,95 +9,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             return;
         };
 
-        use parking_lot::Mutex;
-        lazy_static! {
-            static ref LOADED: Mutex<String> = Mutex::new("Fallback".to_string());
-            static ref NAME: Mutex<String> = Mutex::new("Fallback".to_string());
-        }
-
-        ui.strong("Saved presets");
-        ui.horizontal_wrapped(|ui| {
-            ui.allocate_ui_with_layout(
-                egui::Vec2::splat(22.0),
-                egui::Layout {
-                    main_dir: egui::Direction::LeftToRight,
-                    main_wrap: false,
-                    main_align: egui::Align::Center,
-                    main_justify: true,
-                    cross_align: egui::Align::Center,
-                    cross_justify: true,
-                },
-                |ui| {
-                    ui.menu_button("➕", |ui| {
-                        ui.set_max_width(200.0);
-                        ui.button("New empty preset");
-                        ui.button("New preset from current settings");
-                    });
-                },
-            );
-
-            for s in [
-                "Fallback",
-                "Speedsolving",
-                "Unfolded (back)",
-                "Unfolded (front)",
-            ] {
-                if ui.selectable_label(*LOADED.lock() == s, s).clicked() {
-                    *LOADED.lock() = s.to_string();
-                }
-            }
-        });
-        ui.separator();
-
-        ui.strong("Current preset");
-        ui.horizontal(|ui| {
-            big_icon_button(ui, "🗑", &format!("Delete preset {}", NAME.lock()));
-            big_icon_button(ui, "💾", &format!("Overwrite preset {}", NAME.lock()));
-            with_reset_button(ui, &mut *NAME.lock(), LOADED.lock().clone(), "", |ui, s| {
-                ui.add(egui::TextEdit::singleline(s).desired_width(150.0))
-            });
-
-            static A: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
-            // ui.add_enabled_ui(A.load(std::sync::atomic::Ordering::Relaxed), |ui| {
-            //     if ui.button("Save").clicked() {
-            //         A.store(false, std::sync::atomic::Ordering::Relaxed);
-            //     }
-            // });
-        });
-        ui.collapsing("Defaults", |ui| {
-            egui::ComboBox::new(unique_id!(), "Everything")
-                .selected_text("(none)")
-                .show_ui(ui, |ui| {
-                    ui.button("(none)");
-                    ui.button("Fallback");
-                    ui.button("Speedsolving");
-                    ui.button("Unfolded (back)");
-                    ui.button("Unfolded (fallback)");
-                    Some(())
-                });
-            egui::ComboBox::new(unique_id!(), "Cube")
-                .selected_text("(none)")
-                .show_ui(ui, |ui| {
-                    ui.button("(none)");
-                    ui.button("Fallback");
-                    ui.button("Speedsolving");
-                    ui.button("Unfolded (back)");
-                    ui.button("Unfolded (fallback)");
-                    Some(())
-                });
-            egui::ComboBox::new(unique_id!(), "3x3x3x3")
-                .selected_text("(none)")
-                .show_ui(ui, |ui| {
-                    ui.button("(none)");
-                    ui.button("Fallback");
-                    ui.button("Speedsolving");
-                    ui.button("Unfolded (back)");
-                    ui.button("Unfolded (fallback)");
-                    Some(())
-                });
-        });
-
-        ui.separator();
+        #[cfg(debug_assertions)]
+        show_presets_ui_draft(ui);
 
         egui::ScrollArea::vertical()
             .auto_shrink(false)
@@ -212,4 +125,96 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 prefs.needs_save |= changed;
             });
     });
+}
+
+fn show_presets_ui_draft(ui: &mut egui::Ui) {
+    use parking_lot::Mutex;
+    lazy_static! {
+        static ref LOADED: Mutex<String> = Mutex::new("Fallback".to_string());
+        static ref NAME: Mutex<String> = Mutex::new("Fallback".to_string());
+    }
+
+    ui.strong("Saved presets");
+    ui.horizontal_wrapped(|ui| {
+        ui.allocate_ui_with_layout(
+            egui::Vec2::splat(22.0),
+            egui::Layout {
+                main_dir: egui::Direction::LeftToRight,
+                main_wrap: false,
+                main_align: egui::Align::Center,
+                main_justify: true,
+                cross_align: egui::Align::Center,
+                cross_justify: true,
+            },
+            |ui| {
+                ui.menu_button("➕", |ui| {
+                    ui.set_max_width(200.0);
+                    ui.button("New empty preset");
+                    ui.button("New preset from current settings");
+                });
+            },
+        );
+
+        for s in [
+            "Fallback",
+            "Speedsolving",
+            "Unfolded (back)",
+            "Unfolded (front)",
+        ] {
+            if ui.selectable_label(*LOADED.lock() == s, s).clicked() {
+                *LOADED.lock() = s.to_string();
+            }
+        }
+    });
+    ui.separator();
+
+    ui.strong("Current preset");
+    ui.horizontal(|ui| {
+        big_icon_button(ui, "🗑", &format!("Delete preset {}", NAME.lock()));
+        big_icon_button(ui, "💾", &format!("Overwrite preset {}", NAME.lock()));
+        with_reset_button(ui, &mut *NAME.lock(), LOADED.lock().clone(), "", |ui, s| {
+            ui.add(egui::TextEdit::singleline(s).desired_width(150.0))
+        });
+
+        static A: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+        // ui.add_enabled_ui(A.load(std::sync::atomic::Ordering::Relaxed), |ui| {
+        //     if ui.button("Save").clicked() {
+        //         A.store(false, std::sync::atomic::Ordering::Relaxed);
+        //     }
+        // });
+    });
+    ui.collapsing("Defaults", |ui| {
+        egui::ComboBox::new(unique_id!(), "Everything")
+            .selected_text("(none)")
+            .show_ui(ui, |ui| {
+                ui.button("(none)");
+                ui.button("Fallback");
+                ui.button("Speedsolving");
+                ui.button("Unfolded (back)");
+                ui.button("Unfolded (fallback)");
+                Some(())
+            });
+        egui::ComboBox::new(unique_id!(), "Cube")
+            .selected_text("(none)")
+            .show_ui(ui, |ui| {
+                ui.button("(none)");
+                ui.button("Fallback");
+                ui.button("Speedsolving");
+                ui.button("Unfolded (back)");
+                ui.button("Unfolded (fallback)");
+                Some(())
+            });
+        egui::ComboBox::new(unique_id!(), "3x3x3x3")
+            .selected_text("(none)")
+            .show_ui(ui, |ui| {
+                ui.button("(none)");
+                ui.button("Fallback");
+                ui.button("Speedsolving");
+                ui.button("Unfolded (back)");
+                ui.button("Unfolded (fallback)");
+                Some(())
+            });
+    });
+
+    ui.separator();
 }
