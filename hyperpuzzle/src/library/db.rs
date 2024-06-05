@@ -68,7 +68,6 @@ impl LibraryDb {
     /// If the filename conflicts with an existing one, then the existing file
     /// will be unloaded and overwritten.
     pub fn add_file(&mut self, filename: String, path: Option<PathBuf>, contents: String) {
-        self.unload_file(&filename);
         let file = LibraryFile {
             name: filename.clone(),
             path,
@@ -76,6 +75,16 @@ impl LibraryDb {
             load_state: Mutex::new(LibraryFileLoadState::Unloaded),
             dependents: Mutex::new(vec![]),
         };
+
+        if let Some(existing_file) = self.files.get(&filename) {
+            if **existing_file == file {
+                // If the name, path, and contents are the same, then we don't
+                // need to reload it.
+                return;
+            }
+        }
+
+        self.unload_file(&filename);
         self.files.insert(filename, Arc::new(file));
     }
 

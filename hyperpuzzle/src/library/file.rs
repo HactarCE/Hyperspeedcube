@@ -27,6 +27,12 @@ pub struct LibraryFile {
     /// others must be reloaded as well.
     pub dependents: Mutex<Vec<Arc<LibraryFile>>>,
 }
+impl PartialEq for LibraryFile {
+    fn eq(&self, other: &Self) -> bool {
+        // Ignore load state and dependents when comparing files.
+        self.name == other.name && self.path == other.path && self.contents == other.contents
+    }
+}
 impl LibraryFile {
     /// Returns the file currently being loaded, given a Lua instance.
     pub(crate) fn get_current(lua: &Lua) -> LuaResult<Arc<LibraryFile>> {
