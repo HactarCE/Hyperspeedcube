@@ -99,7 +99,12 @@ impl LuaUserData for LuaOrbit {
                 .transpose()
         });
 
-        methods.add_method("with", |lua, this, names_and_order_table| {
+        methods.add_method("with", |lua, this, arg| {
+            let Some(names_and_order_table) = arg else {
+                lua.warning("orbit:with() called with nil value", false);
+                return Ok(this.clone());
+            };
+
             if this.order.is_some() {
                 return Err(LuaError::external("orbit already has names and ordering"));
             }
