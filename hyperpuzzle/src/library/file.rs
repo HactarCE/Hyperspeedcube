@@ -5,9 +5,8 @@ use std::sync::Arc;
 use mlua::prelude::*;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 
-use crate::lua::PuzzleParams;
-
 use super::LazyPuzzle;
+use crate::lua::PuzzleParams;
 
 /// File stored in a [`super::Library`].
 #[derive(Debug)]

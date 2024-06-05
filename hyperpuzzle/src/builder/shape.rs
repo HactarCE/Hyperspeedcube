@@ -1,9 +1,7 @@
-use std::{
-    borrow::Cow,
-    collections::{hash_map, HashMap},
-    ops::Range,
-    sync::Arc,
-};
+use std::borrow::Cow;
+use std::collections::{hash_map, HashMap};
+use std::ops::Range;
+use std::sync::Arc;
 
 use eyre::{bail, Context, OptionExt, Result};
 use hypermath::prelude::*;
