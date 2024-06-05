@@ -1,4 +1,4 @@
-AXIS_NAMES = {
+FACE_NAMES_SHORT = {
   symmetry = cd'bc3',
   {'R', {'U', 2}},
   {'L', {'R', 1}},
@@ -8,7 +8,7 @@ AXIS_NAMES = {
   {'B', {'D', 3}},
 }
 
-FACE_NAMES = require('utils').map_string_values(AXIS_NAMES, {
+FACE_NAMES_LONG = require('utils').map_string_values(FACE_NAMES_SHORT, {
   R = 'Right',
   L = 'Left',
   U = 'Up',
@@ -25,3 +25,48 @@ FACE_COLORS = {
   Front = 'green',
   Back = 'blue',
 }
+
+VERTEX_AXIS_NAMES = {
+  symmetry = cd'bc3',
+  {'RUF', {}}, -- xoo
+  {'L', {'RUF', 1}},
+  {'D', {'L', 2}},
+  {'BL', {'D', 1}},
+  {'R', {'D', 3}},
+  {'U', {'BL', 3}},
+  {'BR', {'U', 2}},
+  {'BD', {'BR', 1}}, -- B in standard notation
+}
+
+VERTEX_NAMES = {
+  symmetry = cd'bc3',
+  {'Front', {}}, -- xoo
+  {'L', {'F', 1}},
+  {'D', {'L', 2}},
+  {'BL', {'D', 1}},
+  {'R', {'D', 3}},
+  {'U', {'BL', 3}},
+  {'BR', {'U', 2}},
+  {'BD', {'BR', 1}}, -- B in standard notation
+}
+
+local meta = require('meta')
+
+cuboctahedron = {
+  sym = cd'bc3',
+  carve_into = function(self, p)
+    p:carve(self.sym:orbit(self.oox.unit):with(FACE_NAMES_LONG))
+    p:carve(self.sym:orbit(self.xoo.unit):with(VERTEX_NAMES_LONG))
+    -- TODO: cuboctahedron colors
+  end,
+}
+cuboctahedron = setmetatable(cuboctahedron, meta.shape)
+
+cube = {
+  sym = cd'bc3',
+  carve_into = function(self, p)
+    p:carve(self.sym:orbit(self.oox.unit):with(FACE_NAMES_LONG))
+    p.colors:set_defaults(FACE_COLORS)
+  end,
+}
+cube = setmetatable(cube, meta.shape)
