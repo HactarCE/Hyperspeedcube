@@ -54,9 +54,11 @@ local meta = require('meta')
 
 cuboctahedron = {
   sym = cd'bc3',
+  cubic_pole = function(self) return self.oox.unit end,
+  octahedral_pole = function(self) return self.xoo * 2/3 end,
   carve_into = function(self, p)
-    p:carve(self.sym:orbit(self.oox.unit):with(FACE_NAMES_LONG))
-    p:carve(self.sym:orbit(self.xoo.unit):with(VERTEX_NAMES_LONG))
+    p:carve(self.sym:orbit(self:cubic_pole()):with(FACE_NAMES_LONG))
+    p:carve(self.sym:orbit(self:octahedral_pole()):with(VERTEX_NAMES_LONG))
     -- TODO: cuboctahedron colors
   end,
 }

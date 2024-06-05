@@ -1,12 +1,6 @@
 local shapes = require('shapes')
 local symmetries = require('symmetries')
 
-function carve_cube(p, radius)
-  local sym = cd'bc3'
-  p:carve(sym:orbit(sym.oox.unit * (radius or 1)):with(cubic.FACE_NAMES))
-  p.colors:set_defaults(cubic.FACE_COLORS)
-end
-
 puzzles:add('cuboctahedron', {
   name = "Cuboctahedron",
   ndim = 3,
