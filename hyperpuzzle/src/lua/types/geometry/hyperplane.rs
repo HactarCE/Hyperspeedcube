@@ -3,12 +3,14 @@ use hypermath::prelude::*;
 use super::*;
 
 /// Lua wrapper for a set of hyperplanes.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct LuaHyperplaneSet(pub Vec<Hyperplane>);
 
 impl<'lua> FromLua<'lua> for LuaHyperplaneSet {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        if let Ok(LuaHyperplane(h)) = lua.unpack(value.clone()) {
+        if value.is_nil() {
+            Ok(Self(vec![]))
+        } else if let Ok(LuaHyperplane(h)) = lua.unpack(value.clone()) {
             Ok(Self(vec![h]))
         } else if let Ok(LuaSequence(surfaces)) = lua.unpack(value.clone()) {
             Ok(Self(

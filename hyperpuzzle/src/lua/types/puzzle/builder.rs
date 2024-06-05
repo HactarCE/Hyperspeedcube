@@ -35,11 +35,27 @@ impl LuaUserData for LuaPuzzleBuilder {
         });
 
         // Shortcut methods (could be called on `.shape` instead)
-        methods.add_method("carve", |lua, this, cuts| {
-            LuaShape(this.arc()).cut(lua, cuts, CutMode::Carve, StickerMode::NewColor)
-        });
-        methods.add_method("carve_unstickered", |lua, this, cuts| {
-            LuaShape(this.arc()).cut(lua, cuts, CutMode::Carve, StickerMode::None)
+        methods.add_method("carve", |lua, this, (cuts, args)| {
+            let sticker_mode;
+            if let Some(table) = args {
+                let stickers: LuaValue<'_>;
+                unpack_table!(lua.unpack(table { stickers }));
+                if stickers.is_nil() {
+                    sticker_mode = StickerMode::NewColor; // default
+                } else if let Some(stickers) = stickers.as_boolean() {
+                    match stickers {
+                        true => sticker_mode = StickerMode::NewColor,
+                        false => sticker_mode = StickerMode::None,
+                    }
+                } else if let Ok(color) = LuaColor::from_lua(stickers.clone(), lua) {
+                    sticker_mode = StickerMode::Color(color.id);
+                } else {
+                    return Err(LuaError::external("bad value for key \"stickers\""));
+                }
+            } else {
+                sticker_mode = StickerMode::NewColor
+            }
+            LuaShape(this.arc()).cut(lua, cuts, CutMode::Carve, sticker_mode)
         });
         methods.add_method("slice", |lua, this, cuts| {
             LuaShape(this.arc()).cut(lua, cuts, CutMode::Slice, StickerMode::None)

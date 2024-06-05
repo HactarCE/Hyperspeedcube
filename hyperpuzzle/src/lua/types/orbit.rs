@@ -261,3 +261,59 @@ pub fn names_and_order_from_table<'lua>(
         })
         .collect())
 }
+
+/// Symmetric set of a particular type of object.
+#[derive(Debug, Clone)]
+pub enum LuaSymmetricSet<T> {
+    /// Single object (using the trivial symmetry).
+    Single(T),
+    /// Symmetric orbit of an object.
+    Orbit(LuaOrbit),
+}
+impl<'lua, T: LuaTypeName + FromLua<'lua>> FromLua<'lua> for LuaSymmetricSet<T> {
+    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        if let Ok(orbit) = <_>::from_lua(value.clone(), lua) {
+            Ok(Self::Orbit(orbit))
+        } else if let Ok(h) = <_>::from_lua(value.clone(), lua) {
+            Ok(Self::Single(h))
+        } else {
+            // This error isn't quite accurate, but it's close enough. The error
+            // message will say that we need a value of type `T`, but in fact we
+            // accept an orbit of `T` as well.
+            lua_convert_err(&value, T::type_name(lua)?)
+        }
+    }
+}
+impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
+    /// Returns a list of all the objects in the orbit.
+    pub fn to_vec(&self, lua: &'lua Lua) -> LuaResult<Vec<(Option<String>, T)>> {
+        match self {
+            LuaSymmetricSet::Single(v) => Ok(vec![(None, v.clone())]),
+            LuaSymmetricSet::Orbit(orbit) => orbit
+                .iter_in_order()
+                .map(|(_transform, name, values)| {
+                    let v = Self::to_expected_type(lua, values.get(0))?;
+                    Ok((name.clone(), v))
+                })
+                .try_collect(),
+        }
+    }
+    /// Returns the initial object from which the others are generated.
+    pub fn first(&self, lua: &'lua Lua) -> LuaResult<T> {
+        match self {
+            LuaSymmetricSet::Single(v) => Ok(v.clone()),
+            LuaSymmetricSet::Orbit(orbit) => Self::to_expected_type(lua, orbit.init().get(0)),
+        }
+    }
+
+    fn to_expected_type(lua: &'lua Lua, maybe_obj: Option<&Transformable>) -> LuaResult<T> {
+        let lua_value =
+            maybe_obj
+                .and_then(|obj| obj.into_lua(lua))
+                .ok_or(LuaError::external(format!(
+                    "expected orbit of {}",
+                    T::type_name(lua)?,
+                )))??;
+        T::from_lua(lua_value, lua)
+    }
+}

@@ -77,9 +77,13 @@ impl LuaColorSystem {
         let name: Option<String>;
         let surfaces: LuaHyperplaneSet;
         let default_color: Option<String>;
-        if let Ok(m) = lua.unpack(data.clone()) {
+        if let Ok(s) = lua.unpack(data.clone()) {
+            name = s;
+            surfaces = LuaHyperplaneSet::default();
+            default_color = None;
+        } else if let Ok(h) = lua.unpack(data.clone()) {
             name = None;
-            surfaces = m;
+            surfaces = h;
             default_color = None;
         } else if let LuaValue::Table(t) = data {
             unpack_table!(lua.unpack(t {
