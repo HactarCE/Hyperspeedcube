@@ -80,6 +80,7 @@ impl LuaTwistSystem {
         let inv_suffix: Option<String>;
         let inverse: Option<bool>;
         let name_fn: Option<LuaFunction<'_>>;
+        let qtm: Option<usize>;
         if let Some(data_table) = data {
             unpack_table!(lua.unpack(data_table {
                 multipliers,
@@ -90,6 +91,7 @@ impl LuaTwistSystem {
                 inv_suffix,
                 inverse,
                 name_fn,
+                qtm,
             }));
         } else {
             // These are reasonable defaults, especially for 3D.
@@ -101,6 +103,7 @@ impl LuaTwistSystem {
             inv_suffix = None;
             inverse = Some(true);
             name_fn = None;
+            qtm = None;
         }
 
         let do_naming = prefix.is_some()
@@ -129,6 +132,11 @@ impl LuaTwistSystem {
         let name = name.unwrap_or_default();
         let inv_name = inv_name.unwrap_or_else(|| name.clone());
 
+        let qtm = qtm.unwrap_or(1);
+        if qtm < 1 {
+            lua.warning("twist has QTM value less than 1", false);
+        }
+
         let mut puz = self.0.lock();
         let twists = &mut puz.twists;
         let axis = axis.id;
@@ -154,7 +162,11 @@ impl LuaTwistSystem {
         let transform = base_transform.clone();
         let Some(first_twist_id) = twists
             .add_named(
-                TwistBuilder { axis, transform },
+                TwistBuilder {
+                    axis,
+                    transform,
+                    qtm,
+                },
                 get_name(1)?,
                 lua_warn_fn(lua),
             )
@@ -166,7 +178,11 @@ impl LuaTwistSystem {
             let transform = base_transform.reverse();
             twists
                 .add_named(
-                    TwistBuilder { axis, transform },
+                    TwistBuilder {
+                        axis,
+                        transform,
+                        qtm,
+                    },
                     get_name(-1)?,
                     lua_warn_fn(lua),
                 )
@@ -205,7 +221,11 @@ impl LuaTwistSystem {
 
             twists
                 .add_named(
-                    TwistBuilder { axis, transform },
+                    TwistBuilder {
+                        axis,
+                        transform,
+                        qtm: qtm * i as usize,
+                    },
                     get_name(i)?,
                     lua_warn_fn(lua),
                 )
@@ -215,7 +235,11 @@ impl LuaTwistSystem {
                 let transform = previous_transform.reverse();
                 twists
                     .add_named(
-                        TwistBuilder { axis, transform },
+                        TwistBuilder {
+                            axis,
+                            transform,
+                            qtm: qtm * i as usize,
+                        },
                         get_name(-i)?,
                         lua_warn_fn(lua),
                     )

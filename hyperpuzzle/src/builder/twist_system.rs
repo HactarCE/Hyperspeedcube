@@ -15,12 +15,16 @@ pub struct TwistBuilder {
     pub axis: Axis,
     /// Transform to apply to pieces.
     pub transform: Motor,
+    /// Value in the quarter-turn metric (or its contextual equivalent).
+    pub qtm: usize,
 }
 impl ApproxHashMapKey for TwistBuilder {
     type Hash = (Axis, <Motor as ApproxHashMapKey>::Hash);
 
     fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
-        let Self { axis, transform } = self;
+        let Self {
+            axis, transform, ..
+        } = self;
         (*axis, transform.approx_hash(float_hash_fn))
     }
 }
@@ -116,12 +120,14 @@ impl TwistSystemBuilder {
             self.data_to_id.get(&TwistBuilder {
                 axis,
                 transform: transform.clone(),
+                qtm: 0, // should be ignored
             })
         })
         .or_else(|| {
             self.data_to_id.get(&TwistBuilder {
                 axis,
                 transform: transform.canonicalize()?,
+                qtm: 0, // should be ignored
             })
         })
         .copied()

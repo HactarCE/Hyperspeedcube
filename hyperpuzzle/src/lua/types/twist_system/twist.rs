@@ -82,7 +82,9 @@ impl LuaTwist {
     pub fn transform_by(&self, m: &Motor) -> LuaResult<Option<Self>> {
         let db = self.db.lock();
 
-        let TwistBuilder { axis, transform } = db.twists.get(self.id).into_lua_err()?;
+        let TwistBuilder {
+            axis, transform, ..
+        } = db.twists.get(self.id).into_lua_err()?;
 
         let axis = db.wrap_id(*axis);
         let Some(transformed_axis) = axis.transform_by(m)? else {
