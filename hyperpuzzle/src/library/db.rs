@@ -21,12 +21,6 @@ pub(crate) struct LibraryDb {
     /// Map from filename to file.
     pub files: HashMap<String, Arc<LibraryFile>>,
 
-    /// Map from the name of a shape to the file in which it was defined.
-    pub shapes: BTreeMap<String, Arc<LibraryFile>>,
-    /// Map from the name of an axis system to the file in which it was defined.
-    pub axis_systems: BTreeMap<String, Arc<LibraryFile>>,
-    /// Map from the name of a twist system to the file in which it was defined.
-    pub twist_systems: BTreeMap<String, Arc<LibraryFile>>,
     /// Map from the name of a puzzle to the file in which it was defined.
     pub puzzles: BTreeMap<String, Arc<LibraryFile>>,
 }
@@ -173,21 +167,9 @@ impl LibraryDb {
             let LibraryFileLoadResult {
                 exports: _,
 
-                shapes,
-                axis_systems,
-                twist_systems,
                 puzzles,
             } = result;
 
-            for shape_id in shapes.keys() {
-                self.shapes.remove(shape_id);
-            }
-            for axis_system_id in axis_systems.keys() {
-                self.axis_systems.remove(axis_system_id);
-            }
-            for twist_system_id in twist_systems.keys() {
-                self.twist_systems.remove(twist_system_id);
-            }
             for puzzle_id in puzzles.keys() {
                 self.puzzles.remove(puzzle_id);
             }

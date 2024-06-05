@@ -6,13 +6,13 @@ use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
-use crate::builder::{AxisLayerBuilder, AxisSystemBuilder, CustomOrdering, NamingScheme};
+use crate::builder::{AxisLayerBuilder, CustomOrdering, NamingScheme, PuzzleBuilder};
 use crate::lua::lua_warn_fn;
 use crate::puzzle::Axis;
 
 /// Lua handle for an axis system under construction.
 #[derive(Debug, Clone)]
-pub struct LuaAxisSystem(pub Arc<Mutex<AxisSystemBuilder>>);
+pub struct LuaAxisSystem(pub Arc<Mutex<PuzzleBuilder>>);
 
 impl LuaUserData for LuaAxisSystem {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
@@ -20,21 +20,23 @@ impl LuaUserData for LuaAxisSystem {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        AxisSystemBuilder::add_db_metamethods(methods, |Self(shape)| shape.lock());
-        AxisSystemBuilder::add_named_db_methods(methods, |Self(shape)| shape.lock());
-        AxisSystemBuilder::add_ordered_db_methods(methods, |Self(shape)| shape.lock());
+        LuaIdDatabase::<Axis>::add_db_metamethods(methods, |Self(puz)| puz.lock());
+        // AxisSystemBuilder::add_db_metamethods(methods, |Self(puz)| puz.lock());
+        // AxisSystemBuilder::add_named_db_methods(methods, |Self(puz)| puz.lock());
+        // AxisSystemBuilder::add_ordered_db_methods(methods, |Self(puz)| puz.lock());
 
         methods.add_method_mut("autoname", |lua, this, ()| {
             let autonames = crate::util::iter_uppercase_letter_names();
-            let mut this = this.lock();
-            let len = this.len();
-            this.names.autoname(len, autonames, lua_warn_fn(lua));
+            let mut puz = this.lock();
+            let axes = &mut puz.twists.axes;
+            let len = axes.len();
+            axes.names.autoname(len, autonames, lua_warn_fn(lua));
             Ok(())
         });
     }
 }
 
-impl<'lua> LuaIdDatabase<'lua, Axis> for AxisSystemBuilder {
+impl<'lua> LuaIdDatabase<'lua, Axis> for PuzzleBuilder {
     const ELEMENT_NAME_SINGULAR: &'static str = "axis";
     const ELEMENT_NAME_PLURAL: &'static str = "axes";
 
@@ -44,7 +46,7 @@ impl<'lua> LuaIdDatabase<'lua, Axis> for AxisSystemBuilder {
             .or_else(|| self.value_to_id_by_index(lua, &value))
             .or_else(|| {
                 let LuaVector(v) = lua.unpack(value.clone()).ok()?;
-                self.vector_to_id(v).map(Ok)
+                self.twists.axes.vector_to_id(v).map(Ok)
             })
             .unwrap_or_else(|| lua_convert_err(&value, "axis, string, or integer index"))
     }
@@ -53,33 +55,33 @@ impl<'lua> LuaIdDatabase<'lua, Axis> for AxisSystemBuilder {
         self.arc()
     }
     fn db_len(&self) -> usize {
-        self.len()
+        self.twists.axes.len()
     }
     fn ids_in_order(&self) -> Cow<'_, [Axis]> {
-        Cow::Borrowed(self.ordering.ids_in_order())
+        Cow::Borrowed(self.twists.axes.ordering.ids_in_order())
     }
 }
-impl<'lua> LuaOrderedIdDatabase<'lua, Axis> for AxisSystemBuilder {
+impl<'lua> LuaOrderedIdDatabase<'lua, Axis> for PuzzleBuilder {
     fn ordering(&self) -> &CustomOrdering<Axis> {
-        &self.ordering
+        &self.twists.axes.ordering
     }
     fn ordering_mut(&mut self) -> &mut CustomOrdering<Axis> {
-        &mut self.ordering
+        &mut self.twists.axes.ordering
     }
 }
-impl<'lua> LuaNamedIdDatabase<'lua, Axis> for AxisSystemBuilder {
+impl<'lua> LuaNamedIdDatabase<'lua, Axis> for PuzzleBuilder {
     fn names(&self) -> &NamingScheme<Axis> {
-        &self.names
+        &self.twists.axes.names
     }
     fn names_mut(&mut self) -> &mut NamingScheme<Axis> {
-        &mut self.names
+        &mut self.twists.axes.names
     }
 }
 
 impl LuaAxisSystem {
     /// Returns a mutex guard granting temporary access to the underlying
-    /// [`AxisSystemBuilder`].
-    pub fn lock(&self) -> MutexGuard<'_, AxisSystemBuilder> {
+    /// [`PuzzleBuilder`].
+    pub fn lock(&self) -> MutexGuard<'_, PuzzleBuilder> {
         self.0.lock()
     }
 
@@ -116,14 +118,14 @@ impl LuaAxisSystem {
             }
         }
 
-        let mut this = self.lock();
+        let mut puz = self.lock();
         let mut new_ids = vec![];
         for (name, LuaVector(v)) in vectors.to_vec(lua)? {
-            let id = this.add(v.clone()).into_lua_err()?;
-            this.names.set(id, name, lua_warn_fn(lua));
-            new_ids.push(this.wrap_id(id));
+            let id = puz.twists.axes.add(v.clone()).into_lua_err()?;
+            puz.twists.axes.names.set(id, name, lua_warn_fn(lua));
+            new_ids.push(puz.wrap_id(id));
 
-            let axis = this.get_mut(id).into_lua_err()?;
+            let axis = puz.twists.axes.get_mut(id).into_lua_err()?;
             for &depth in &depths {
                 let layer_plane = Hyperplane::new(&v, depth)
                     .ok_or("axis vector cannot be zero")

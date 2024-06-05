@@ -1,10 +1,9 @@
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use eyre::{bail, Context, Result};
 use hypermath::{Hyperplane, VecMap};
 use hypershape::prelude::*;
 use itertools::Itertools;
-use parking_lot::Mutex;
 
 use super::{ColorSystemBuilder, PieceBuilder};
 use crate::puzzle::*;
@@ -12,19 +11,13 @@ use crate::puzzle::*;
 /// Soup of shapes being constructed.
 #[derive(Debug)]
 pub struct ShapeBuilder {
-    /// Reference-counted pointer to this struct.
-    pub this: Weak<Mutex<Self>>,
-
-    /// Shape ID.
-    pub id: Option<String>,
-
     /// Space where the puzzle exists.
     pub space: Arc<Space>,
 
     /// Puzzle pieces.
     pub pieces: PerPiece<PieceBuilder>,
-    /// Pieces that are not defunct (removed or cut) and so should be included
-    /// in the final puzzle.
+    /// Puzzle pieces that are not defunct (removed or cut) and so should be
+    /// included in the final puzzle.
     pub active_pieces: PieceSet,
 
     /// Facet colors.
@@ -32,101 +25,31 @@ pub struct ShapeBuilder {
 }
 impl ShapeBuilder {
     /// Constructs a shape builder that starts with an empty Euclidean space.
-    pub fn new_empty(id: Option<String>, space: Arc<Space>) -> Result<Arc<Mutex<Self>>> {
-        Ok(Arc::new_cyclic(|this| {
-            Mutex::new(Self {
-                this: this.clone(),
+    pub fn new_empty(space: Arc<Space>) -> Self {
+        Self {
+            space,
 
-                id,
+            pieces: PerPiece::new(),
+            active_pieces: PieceSet::new(),
 
-                space,
-
-                pieces: PerPiece::new(),
-                active_pieces: PieceSet::new(),
-
-                colors: ColorSystemBuilder::new(),
-            })
-        }))
+            colors: ColorSystemBuilder::new(),
+        }
     }
 
     /// Constructs a shape builder that starts with a single solid piece (the
     /// primordial cube)
-    pub fn new_with_primordial_cube(
-        id: Option<String>,
-        space: Arc<Space>,
-    ) -> Result<Arc<Mutex<Self>>> {
-        let this = Self::new_empty(id, Arc::clone(&space))?;
-        let mut this_guard = this.lock();
+    pub fn new_with_primordial_cube(space: Arc<Space>) -> Result<Self> {
+        let mut this = Self::new_empty(Arc::clone(&space));
         let primordial_cube = space.add_primordial_cube(crate::PRIMORDIAL_CUBE_RADIUS)?;
         let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new())?;
-        let root_piece = this_guard.pieces.push(root_piece_builder)?;
-        this_guard.active_pieces.insert(root_piece);
-        drop(this_guard);
+        let root_piece = this.pieces.push(root_piece_builder)?;
+        this.active_pieces.insert(root_piece);
         Ok(this)
-    }
-
-    /// Returns an `Arc` reference to the shape builder.
-    pub fn arc(&self) -> Arc<Mutex<Self>> {
-        self.this
-            .upgrade()
-            .expect("`ShapeBuilder` removed from `Arc`")
     }
 
     /// Returns the number of dimensions of the underlying space.
     pub fn ndim(&self) -> u8 {
         self.space.ndim()
-    }
-
-    /// Returns a deep copy of the shape. This is a relatively expensive
-    /// operation.
-    pub fn clone(&self, space: &Arc<Space>) -> Result<Arc<Mutex<Self>>> {
-        let old_space = &self.space;
-        let new_space = space;
-        let mut map = SpaceMap::new(&old_space, &new_space)?;
-
-        let pieces: PerPiece<PieceBuilder> = self
-            .active_pieces
-            .iter()
-            .map(|piece| {
-                let polytope = self.pieces[piece].polytope;
-                let stickers = self.pieces[piece]
-                    .stickers
-                    .iter()
-                    .map(|(&k, &v)| {
-                        eyre::Ok((
-                            space
-                                .get(map.map(space.get(k).as_element().id())?)
-                                .as_facet()?
-                                .id(),
-                            v,
-                        ))
-                    })
-                    .try_collect()?;
-                eyre::Ok(PieceBuilder {
-                    polytope: space
-                        .get(map.map(space.get(polytope).as_element().id())?)
-                        .as_polytope()?
-                        .id(),
-                    cut_result: PieceSet::new(),
-                    stickers,
-                })
-            })
-            .try_collect()?;
-        let active_pieces = pieces.iter_keys().collect();
-
-        Ok(Arc::new_cyclic(|this| {
-            Mutex::new(Self {
-                this: this.clone(),
-
-                id: self.id.clone(),
-
-                space: Arc::clone(space),
-
-                pieces,
-                active_pieces,
-                colors: self.colors.clone(),
-            })
-        }))
     }
 
     /// Cuts each piece by a cut, throwing away the portions that are outside

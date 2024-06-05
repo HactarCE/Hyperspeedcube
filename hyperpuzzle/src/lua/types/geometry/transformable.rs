@@ -10,7 +10,7 @@ use hypermath::prelude::*;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::{AxisSystemBuilder, ShapeBuilder, TwistSystemBuilder};
+use crate::builder::PuzzleBuilder;
 
 /// Lua value that can be transformed by an isometry.
 ///
@@ -20,8 +20,8 @@ use crate::builder::{AxisSystemBuilder, ShapeBuilder, TwistSystemBuilder};
 pub enum Transformable {
     /// Axis in an axis system.
     Axis {
-        /// Axis system.
-        db: Arc<Mutex<AxisSystemBuilder>>,
+        /// Puzzle containing the axis system.
+        db: Arc<Mutex<PuzzleBuilder>>,
         /// Vector of the axis.
         vector: Vector,
     },
@@ -29,8 +29,8 @@ pub enum Transformable {
     Blade(LuaBlade),
     /// Color in the color system of a shape.
     Color {
-        /// Shape.
-        db: Arc<Mutex<ShapeBuilder>>,
+        /// Puzzle containing the color system.
+        db: Arc<Mutex<PuzzleBuilder>>,
         /// Surfaces of the color.
         hyperplanes: Vec<Hyperplane>,
     },
@@ -39,8 +39,8 @@ pub enum Transformable {
     Transform(LuaTransform),
     /// Twist in a twist system.
     Twist {
-        /// Twist system.
-        db: Arc<Mutex<TwistSystemBuilder>>,
+        /// Puzzle containing the twist system.
+        db: Arc<Mutex<PuzzleBuilder>>,
         /// Vector of the axis of the twist.
         axis_vector: Vector,
         /// Transform of the twist.
@@ -100,15 +100,13 @@ impl Transformable {
         match self {
             Self::Axis { db, vector } => {
                 let db = Arc::clone(&db);
-                let id = db.lock().vector_to_id(vector)?;
+                let id = db.lock().twists.axes.vector_to_id(vector)?;
                 Some(LuaAxis { id, db }.into_lua(lua))
             }
             Self::Blade(b) => Some(b.clone().into_lua(lua)),
             Self::Color { db, hyperplanes } => {
                 let db = Arc::clone(&db);
-                let db_guard = db.lock();
-                let id = db_guard.colors.surface_set_to_id(&hyperplanes)?;
-                drop(db_guard);
+                let id = db.lock().shape.colors.surface_set_to_id(&hyperplanes)?;
                 Some(LuaColor { id, db }.into_lua(lua))
             }
             Self::Transform(t) => Some(t.clone().into_lua(lua)),
@@ -118,10 +116,10 @@ impl Transformable {
                 transform,
             } => {
                 let db = Arc::clone(&db);
-                let db_guard = db.lock();
-                let axis = db_guard.axes.lock().vector_to_id(axis_vector)?;
-                let id = db_guard.data_to_id(axis, transform)?;
-                drop(db_guard);
+                let puz = db.lock();
+                let axis = puz.twists.axes.vector_to_id(axis_vector)?;
+                let id = puz.twists.data_to_id(axis, transform)?;
+                drop(puz);
                 Some(LuaTwist { id, db }.into_lua(lua))
             }
         }

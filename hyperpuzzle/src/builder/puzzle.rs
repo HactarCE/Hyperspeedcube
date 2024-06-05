@@ -14,37 +14,57 @@ use parking_lot::Mutex;
 use smallvec::smallvec;
 
 use super::{ShapeBuilder, TwistSystemBuilder};
-use crate::builder::AxisSystemBuilder;
 use crate::puzzle::*;
 
 /// Puzzle being constructed.
 #[derive(Debug)]
 pub struct PuzzleBuilder {
+    /// Reference-counted pointer to this struct.
+    pub this: Weak<Mutex<Self>>,
+
     /// Puzzle ID.
     pub id: String,
     /// Name of the puzzle.
     pub name: String,
 
     /// Shape of the puzzle.
-    pub shape: Arc<Mutex<ShapeBuilder>>,
+    pub shape: ShapeBuilder,
     /// Twist system of the puzzle.
-    pub twists: Arc<Mutex<TwistSystemBuilder>>,
+    pub twists: TwistSystemBuilder,
 }
 impl PuzzleBuilder {
+    pub fn new(id: String, name: String, ndim: u8) -> Result<Arc<Mutex<Self>>> {
+        let shape = ShapeBuilder::new_with_primordial_cube(Space::new(ndim))?;
+        let twists = TwistSystemBuilder::new();
+        Ok(Arc::new_cyclic(|this| {
+            Mutex::new(Self {
+                this: this.clone(),
+
+                id,
+                name,
+
+                shape,
+                twists,
+            })
+        }))
+    }
+
+    /// Returns an `Arc` reference to the puzzle builder.
+    pub fn arc(&self) -> Arc<Mutex<Self>> {
+        self.this
+            .upgrade()
+            .expect("`PuzzleBuilder` removed from `Arc`")
+    }
+
     /// Returns the nubmer of dimensions of the underlying space the puzzle is
     /// built in. Equivalent to `self.shape.lock().space.ndim()`.
     pub fn ndim(&self) -> u8 {
-        self.space().ndim()
+        self.shape.space.ndim()
     }
     /// Returns the underlying space the puzzle is built in. Equivalent to
     /// `self.shape.lock().space`
     pub fn space(&self) -> Arc<Space> {
-        Arc::clone(&self.shape.lock().space)
-    }
-    /// Returns the axis system of the puzzle. Equivalent to
-    /// `self.twists.lock().axes`.
-    pub fn axis_system(&self) -> Arc<Mutex<AxisSystemBuilder>> {
-        Arc::clone(&self.twists.lock().axes)
+        Arc::clone(&self.shape.space)
     }
 
     /// Performs the final steps of building a puzzle, generating the mesh and
@@ -53,15 +73,10 @@ impl PuzzleBuilder {
         let name = self.name.clone();
         let id = self.id.clone();
 
-        // TODO: clone space properly
-        // let space = Space::new(self.ndim());
-        // let shape_mutex = self.shape.lock().clone(&space)?;
-        let space = Arc::clone(&self.shape.lock().space);
-        let shape_mutex = Arc::clone(&self.shape);
-        let shape = shape_mutex.lock();
-        // let twist_system_mutex = self.twists.lock().clone(&space)?;
-        let twist_system_mutex = Arc::clone(&self.twists);
-        let twist_system = twist_system_mutex.lock();
+        let shape = &self.shape;
+        let space = Arc::clone(&shape.space);
+        let twist_system = &self.twists;
+        let axis_system = &twist_system.axes;
         let ndim = space.ndim();
 
         let mut mesh = Mesh::new_empty(ndim);
@@ -209,15 +224,14 @@ impl PuzzleBuilder {
             mesh.add_surface(surface_data.centroid.center(), surface_data.normal)?;
         }
 
-        let axis_system = twist_system.axes.lock();
         let mut axes = PerAxis::new();
         let mut axis_map = HashMap::new();
         for (old_id, name) in super::iter_autonamed(
-            &axis_system.names,
-            &axis_system.ordering,
+            &self.twists.axes.names,
+            &self.twists.axes.ordering,
             crate::util::iter_uppercase_letter_names(),
         ) {
-            let old_axis = axis_system.get(old_id)?;
+            let old_axis = self.twists.axes.get(old_id)?;
             let vector = old_axis.vector().clone();
             let old_layers = &old_axis.layers;
 

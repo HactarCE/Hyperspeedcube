@@ -5,9 +5,7 @@ use std::sync::Arc;
 use mlua::prelude::*;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 
-use super::{
-    Cached, CachedAxisSystem, CachedPuzzle, CachedShape, CachedTwistSystem, LibraryObjectParams,
-};
+use super::{Cached, CachedPuzzle, LibraryObjectParams};
 
 /// File stored in a [`super::Library`].
 #[derive(Debug)]
@@ -127,16 +125,8 @@ impl LibraryFileLoadState {
 #[derive(Debug)]
 pub(crate) struct LibraryFileLoadResult {
     /// Table of exports to other Lua code that imports this file.
-    ///
-    /// TODO: implement Lua importing
     pub exports: LuaRegistryKey,
 
-    /// Shapes defined in this file, indexed by ID.
-    pub shapes: HashMap<String, CachedShape>,
-    /// Axis systems defined in this file, indexed by ID.
-    pub axis_systems: HashMap<String, CachedAxisSystem>,
-    /// Twist systems defined in this file, indexed by ID.
-    pub twist_systems: HashMap<String, CachedTwistSystem>,
     /// Puzzles defined in this file, indexed by ID.
     pub puzzles: HashMap<String, CachedPuzzle>,
 }
@@ -146,9 +136,6 @@ impl LibraryFileLoadResult {
         Self {
             exports: exports_table,
 
-            shapes: HashMap::new(),
-            axis_systems: HashMap::new(),
-            twist_systems: HashMap::new(),
             puzzles: HashMap::new(),
         }
     }

@@ -4,11 +4,12 @@ use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
-use crate::{builder::ShapeBuilder, lua::lua_warn_fn};
+use crate::builder::PuzzleBuilder;
+use crate::lua::lua_warn_fn;
 
 /// Lua handle to a shape under construction.
 #[derive(Debug, Clone)]
-pub struct LuaShape(pub Arc<Mutex<ShapeBuilder>>);
+pub struct LuaShape(pub Arc<Mutex<PuzzleBuilder>>);
 
 impl<'lua> FromLua<'lua> for LuaShape {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
@@ -20,25 +21,17 @@ impl LuaUserData for LuaShape {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("shape"));
 
-        fields.add_field_method_get("id", |_lua, this| Ok(this.lock().id.clone()));
         fields.add_field_method_get("space", |_lua, this| {
-            Ok(LuaSpace(Arc::clone(&this.lock().space)))
+            Ok(LuaSpace(Arc::clone(&this.lock().space())))
         });
         fields.add_field_method_get("ndim", |_lua, this| Ok(this.lock().ndim()));
-        fields.add_field_method_get("colors", |_lua, Self(this)| {
-            Ok(LuaColorSystem(Arc::clone(this)))
-        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             let this = this.lock();
             let ndim = this.ndim();
-            if let Some(id) = &this.id {
-                Ok(format!("shape({id:?}, ndim={ndim})"))
-            } else {
-                Ok(format!("shape(ndim={ndim})"))
-            }
+            Ok(format!("shape(ndim={ndim})"))
         });
 
         methods.add_method("carve", |lua, this, cuts| {
@@ -55,8 +48,8 @@ impl LuaUserData for LuaShape {
 
 impl LuaShape {
     /// Returns a mutex guard granting temporary access to the underlying
-    /// [`ShapeBuilder`].
-    pub fn lock(&self) -> MutexGuard<'_, ShapeBuilder> {
+    /// [`PuzzleBuilder`].
+    pub fn lock(&self) -> MutexGuard<'_, PuzzleBuilder> {
         self.0.lock()
     }
 
@@ -68,20 +61,21 @@ impl LuaShape {
         cut_mode: CutMode,
         sticker_mode: StickerMode,
     ) -> LuaResult<()> {
-        let mut this = self.lock();
+        let mut puz = self.lock();
+        let shape = &mut puz.shape;
 
         for (name, LuaHyperplane(plane)) in cuts.to_vec(lua)? {
             let color = match sticker_mode {
                 StickerMode::NewColor => Some({
-                    let c = this.colors.add(vec![plane.clone()]).into_lua_err()?;
-                    this.colors.names.set(c, name, lua_warn_fn(lua));
+                    let c = shape.colors.add(vec![plane.clone()]).into_lua_err()?;
+                    shape.colors.names.set(c, name, lua_warn_fn(lua));
                     c
                 }),
                 StickerMode::None => None,
             };
             match cut_mode {
-                CutMode::Carve => this.carve(None, plane, color).into_lua_err()?,
-                CutMode::Slice => this.slice(None, plane, color, color).into_lua_err()?,
+                CutMode::Carve => shape.carve(None, plane, color).into_lua_err()?,
+                CutMode::Slice => shape.slice(None, plane, color, color).into_lua_err()?,
             }
         }
 

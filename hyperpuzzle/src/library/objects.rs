@@ -5,14 +5,8 @@ use hypershape::Space;
 use mlua::FromLua;
 
 use super::{LibraryDb, LibraryFile, LibraryFileLoadResult};
-use crate::lua::{AxisSystemParams, PuzzleParams, ShapeParams, TwistSystemParams};
+use crate::lua::PuzzleParams;
 
-/// Cached shape defined in a Lua file.
-pub(crate) type CachedShape = Cached<ShapeParams>;
-/// Cached axis system defined in a Lua file.
-pub(crate) type CachedAxisSystem = Cached<AxisSystemParams>;
-/// Cached twist system defined in a Lua file.
-pub(crate) type CachedTwistSystem = Cached<TwistSystemParams>;
 /// Cached puzzle defined in a Lua file.
 pub(crate) type CachedPuzzle = Cached<PuzzleParams>;
 

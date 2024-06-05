@@ -1,11 +1,8 @@
 use std::collections::hash_map;
-use std::sync::{Arc, Weak};
 
 use eyre::{eyre, OptionExt, Result};
 use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
-use hypershape::prelude::*;
-use parking_lot::Mutex;
 
 use super::{CustomOrdering, NamingScheme};
 use crate::{Axis, PerAxis, PerLayer};
@@ -42,15 +39,6 @@ impl AxisBuilder {
 /// Axis system during puzzle construction.
 #[derive(Debug)]
 pub struct AxisSystemBuilder {
-    /// Reference-counted pointer to this struct.
-    pub this: Weak<Mutex<Self>>,
-
-    /// Optional ID for the whole axis system.
-    pub id: Option<String>,
-
-    /// Space where the axis system exists.
-    pub space: Arc<Space>,
-
     /// Axis data (not including name and ordering).
     by_id: PerAxis<AxisBuilder>,
     /// Map from vector to axis ID.
@@ -62,53 +50,18 @@ pub struct AxisSystemBuilder {
 }
 impl AxisSystemBuilder {
     /// Constructs a new empty axis system builder.
-    pub fn new(id: Option<String>, space: Arc<Space>) -> Arc<Mutex<Self>> {
-        Arc::new_cyclic(|this| {
-            Mutex::new(Self {
-                this: this.clone(),
-
-                id,
-
-                space,
-
-                by_id: PerAxis::new(),
-                vector_to_id: ApproxHashMap::new(),
-                names: NamingScheme::new(),
-                ordering: CustomOrdering::default(),
-            })
-        })
-    }
-
-    /// Returns an `Arc` reference to the axis system builder.
-    pub fn arc(&self) -> Arc<Mutex<Self>> {
-        self.this
-            .upgrade()
-            .expect("`AxisSystemBuilder` removed from `Arc`")
+    pub fn new() -> Self {
+        Self {
+            by_id: PerAxis::new(),
+            vector_to_id: ApproxHashMap::new(),
+            names: NamingScheme::new(),
+            ordering: CustomOrdering::default(),
+        }
     }
 
     /// Returns the number of axes in the axis system.
     pub fn len(&self) -> usize {
         self.by_id.len()
-    }
-
-    /// Creates a deep copy in a new space.
-    ///
-    /// Returns an error if the new and old spaces are not compatible.
-    pub fn clone(&self, space: &Arc<Space>) -> Result<Arc<Mutex<Self>>> {
-        Ok(Arc::new_cyclic(|this| {
-            Mutex::new(Self {
-                this: this.clone(),
-
-                id: self.id.clone(),
-
-                space: Arc::clone(&space),
-
-                by_id: self.by_id.clone(),
-                vector_to_id: self.vector_to_id.clone(),
-                names: self.names.clone(),
-                ordering: self.ordering.clone(),
-            })
-        }))
     }
 
     /// Adds a new axis.

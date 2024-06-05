@@ -4,13 +4,13 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::{CustomOrdering, NamingScheme, ShapeBuilder};
+use crate::builder::{CustomOrdering, NamingScheme, PuzzleBuilder};
 use crate::lua::lua_warn_fn;
 use crate::puzzle::Color;
 
 /// Lua handle to the color system of a shape under construction.
 #[derive(Debug, Clone)]
-pub struct LuaColorSystem(pub Arc<Mutex<ShapeBuilder>>);
+pub struct LuaColorSystem(pub Arc<Mutex<PuzzleBuilder>>);
 
 impl LuaUserData for LuaColorSystem {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
@@ -18,9 +18,9 @@ impl LuaUserData for LuaColorSystem {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        ShapeBuilder::add_db_metamethods(methods, |Self(shape)| shape.lock());
-        ShapeBuilder::add_named_db_methods(methods, |Self(shape)| shape.lock());
-        ShapeBuilder::add_ordered_db_methods(methods, |Self(shape)| shape.lock());
+        LuaIdDatabase::<Color>::add_db_metamethods(methods, |Self(puz)| puz.lock());
+        LuaNamedIdDatabase::<Color>::add_named_db_methods(methods, |Self(puz)| puz.lock());
+        LuaOrderedIdDatabase::<Color>::add_ordered_db_methods(methods, |Self(puz)| puz.lock());
 
         methods.add_method("add", |lua, this, data| this.add(lua, data));
 
@@ -30,7 +30,7 @@ impl LuaUserData for LuaColorSystem {
     }
 }
 
-impl<'lua> LuaIdDatabase<'lua, Color> for ShapeBuilder {
+impl<'lua> LuaIdDatabase<'lua, Color> for PuzzleBuilder {
     const ELEMENT_NAME_SINGULAR: &'static str = "color";
     const ELEMENT_NAME_PLURAL: &'static str = "colors";
 
@@ -46,28 +46,28 @@ impl<'lua> LuaIdDatabase<'lua, Color> for ShapeBuilder {
         self.arc()
     }
     fn db_len(&self) -> usize {
-        self.colors.len()
+        self.shape.colors.len()
     }
     fn ids_in_order(&self) -> Cow<'_, [Color]> {
-        Cow::Borrowed(self.colors.ordering.ids_in_order())
+        Cow::Borrowed(self.shape.colors.ordering.ids_in_order())
     }
 }
 
-impl<'lua> LuaOrderedIdDatabase<'lua, Color> for ShapeBuilder {
+impl<'lua> LuaOrderedIdDatabase<'lua, Color> for PuzzleBuilder {
     fn ordering(&self) -> &CustomOrdering<Color> {
-        &self.colors.ordering
+        &self.shape.colors.ordering
     }
     fn ordering_mut(&mut self) -> &mut CustomOrdering<Color> {
-        &mut self.colors.ordering
+        &mut self.shape.colors.ordering
     }
 }
 
-impl<'lua> LuaNamedIdDatabase<'lua, Color> for ShapeBuilder {
+impl<'lua> LuaNamedIdDatabase<'lua, Color> for PuzzleBuilder {
     fn names(&self) -> &NamingScheme<Color> {
-        &self.colors.names
+        &self.shape.colors.names
     }
     fn names_mut(&mut self) -> &mut NamingScheme<Color> {
-        &mut self.colors.names
+        &mut self.shape.colors.names
     }
 }
 
@@ -91,11 +91,12 @@ impl LuaColorSystem {
             return lua_convert_err(&data, "hyperplane or table");
         };
 
-        let mut shape = self.0.lock();
-        let id = shape.colors.add(surfaces.0).into_lua_err()?;
-        shape.colors.get_mut(id).into_lua_err()?.default_color = default_color;
-        shape.colors.names.set(id, name, lua_warn_fn(lua));
-        Ok(shape.wrap_id(id))
+        let mut puz = self.0.lock();
+        let colors = &mut puz.shape.colors;
+        let id = colors.add(surfaces.0).into_lua_err()?;
+        colors.get_mut(id).into_lua_err()?.default_color = default_color;
+        colors.names.set(id, name, lua_warn_fn(lua));
+        Ok(puz.wrap_id(id))
     }
 
     /// Sets some default colors, leaving other unmodified.
@@ -105,13 +106,13 @@ impl LuaColorSystem {
         new_default_colors: LuaValue<'lua>,
     ) -> LuaResult<()> {
         // First, assemble a list of all the new default colors.
-        let mut shape = self.0.lock();
+        let mut puz = self.0.lock();
 
         let kv_pairs: Vec<(Color, Option<String>)> =
-            shape.mapping_from_value(lua, new_default_colors)?;
+            puz.mapping_from_value(lua, new_default_colors)?;
 
         for (k, v) in kv_pairs {
-            shape.colors.get_mut(k).into_lua_err()?.default_color = v;
+            puz.shape.colors.get_mut(k).into_lua_err()?.default_color = v;
         }
 
         Ok(())

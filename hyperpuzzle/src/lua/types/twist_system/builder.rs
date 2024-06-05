@@ -4,36 +4,27 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::{NamingScheme, TwistBuilder, TwistSystemBuilder};
+use crate::builder::{NamingScheme, PuzzleBuilder, TwistBuilder};
 use crate::lua::lua_warn_fn;
 use crate::puzzle::Twist;
 
 /// Lua handle to a twist system under construction.
 #[derive(Debug, Clone)]
-pub struct LuaTwistSystem(pub Arc<Mutex<TwistSystemBuilder>>);
+pub struct LuaTwistSystem(pub Arc<Mutex<PuzzleBuilder>>);
 
 impl LuaUserData for LuaTwistSystem {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("twistsystem"));
-
-        fields.add_field_method_get("axes", |_lua, this| {
-            Ok(LuaAxisSystem(Arc::clone(&this.0.lock().axes)))
-        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
-            let this = this.lock();
-            let len = this.len();
-            if let Some(id) = &this.id {
-                Ok(format!("twistsystem({id:?}, len={len})"))
-            } else {
-                Ok(format!("twistsystem(len={len})"))
-            }
+            let len = this.lock().twists.len();
+            Ok(format!("twistsystem(len={len})"))
         });
 
-        TwistSystemBuilder::add_db_metamethods(methods, |Self(shape)| shape.lock());
-        TwistSystemBuilder::add_named_db_methods(methods, |Self(shape)| shape.lock());
+        LuaIdDatabase::<Twist>::add_db_metamethods(methods, |Self(puz)| puz.lock());
+        LuaNamedIdDatabase::<Twist>::add_named_db_methods(methods, |Self(puz)| puz.lock());
 
         methods.add_method("add", |lua, this, (axis, transform, data)| {
             this.add(lua, axis, transform, data)
@@ -41,7 +32,7 @@ impl LuaUserData for LuaTwistSystem {
     }
 }
 
-impl<'lua> LuaIdDatabase<'lua, Twist> for TwistSystemBuilder {
+impl<'lua> LuaIdDatabase<'lua, Twist> for PuzzleBuilder {
     const ELEMENT_NAME_SINGULAR: &'static str = "twist";
     const ELEMENT_NAME_PLURAL: &'static str = "twists";
 
@@ -56,19 +47,19 @@ impl<'lua> LuaIdDatabase<'lua, Twist> for TwistSystemBuilder {
         self.arc()
     }
     fn db_len(&self) -> usize {
-        self.len()
+        self.twists.len()
     }
     fn ids_in_order(&self) -> Cow<'_, [Twist]> {
-        Cow::Owned(self.alphabetized())
+        Cow::Owned(self.twists.alphabetized())
     }
 }
 
-impl<'lua> LuaNamedIdDatabase<'lua, Twist> for TwistSystemBuilder {
+impl<'lua> LuaNamedIdDatabase<'lua, Twist> for PuzzleBuilder {
     fn names(&self) -> &NamingScheme<Twist> {
-        &self.names
+        &self.twists.names
     }
     fn names_mut(&mut self) -> &mut NamingScheme<Twist> {
-        &mut self.names
+        &mut self.twists.names
     }
 }
 
@@ -138,7 +129,8 @@ impl LuaTwistSystem {
         let name = name.unwrap_or_default();
         let inv_name = inv_name.unwrap_or_else(|| name.clone());
 
-        let mut twists = self.0.lock();
+        let mut puz = self.0.lock();
+        let mut twists = &mut puz.twists;
         let axis = axis.id;
 
         let base_transform = transform.0;
@@ -231,6 +223,6 @@ impl LuaTwistSystem {
             }
         }
 
-        Ok(Some(twists.wrap_id(first_twist_id)))
+        Ok(Some(puz.wrap_id(first_twist_id)))
     }
 }

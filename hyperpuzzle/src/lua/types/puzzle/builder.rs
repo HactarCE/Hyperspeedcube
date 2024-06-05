@@ -23,18 +23,10 @@ impl LuaUserData for LuaPuzzleBuilder {
         fields.add_field_method_get("space", |_lua, this| Ok(LuaSpace(this.lock().space())));
         fields.add_field_method_get("ndim", |_lua, this| Ok(this.lock().ndim()));
 
-        fields.add_field_method_get("shape", |_lua, this| {
-            Ok(LuaShape(Arc::clone(&this.lock().shape)))
-        });
-        fields.add_field_method_get("colors", |_lua, this| {
-            Ok(LuaColorSystem(Arc::clone(&this.lock().shape)))
-        });
-        fields.add_field_method_get("twists", |_lua, this| {
-            Ok(LuaTwistSystem(Arc::clone(&this.lock().twists)))
-        });
-        fields.add_field_method_get("axes", |_lua, this| {
-            Ok(LuaAxisSystem(Arc::clone(&this.lock().twists.lock().axes)))
-        });
+        fields.add_field_method_get("shape", |_lua, this| Ok(LuaShape(this.arc())));
+        fields.add_field_method_get("colors", |_lua, this| Ok(LuaColorSystem(this.arc())));
+        fields.add_field_method_get("twists", |_lua, this| Ok(LuaTwistSystem(this.arc())));
+        fields.add_field_method_get("axes", |_lua, this| Ok(LuaAxisSystem(this.arc())));
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
@@ -44,34 +36,30 @@ impl LuaUserData for LuaPuzzleBuilder {
 
         // Shortcut methods (could be called on `.shape` instead)
         methods.add_method("carve", |lua, this, cuts| {
-            this.shape()
-                .cut(lua, cuts, CutMode::Carve, StickerMode::NewColor)
+            LuaShape(this.arc()).cut(lua, cuts, CutMode::Carve, StickerMode::NewColor)
         });
         methods.add_method("carve_unstickered", |lua, this, cuts| {
-            this.shape()
-                .cut(lua, cuts, CutMode::Carve, StickerMode::None)
+            LuaShape(this.arc()).cut(lua, cuts, CutMode::Carve, StickerMode::None)
         });
         methods.add_method("slice", |lua, this, cuts| {
-            this.shape()
-                .cut(lua, cuts, CutMode::Slice, StickerMode::None)
+            LuaShape(this.arc()).cut(lua, cuts, CutMode::Slice, StickerMode::None)
         });
 
         // Shortcut methods (could be called on `.axes` instead)
         methods.add_method("add_axes", |lua, this, (vectors, extra)| {
-            let ret = LuaAxisSystem(this.lock().axis_system()).add(lua, vectors, extra)?;
+            let ret = LuaAxisSystem(this.arc()).add(lua, vectors, extra)?;
 
-            let shape = this.shape();
-            let mut shape_guard = shape.lock();
             for axis in &ret {
                 for cut in axis.layers().cuts()? {
-                    shape_guard.slice(None, cut, None, None).into_lua_err()?;
+                    let mut puz = this.lock();
+                    puz.shape.slice(None, cut, None, None).into_lua_err()?;
                 }
             }
 
             Ok(ret)
         });
         methods.add_method("add_axes_unsliced", |lua, this, (vectors, extra)| {
-            LuaAxisSystem(this.lock().axis_system()).add(lua, vectors, extra)
+            LuaAxisSystem(this.arc()).add(lua, vectors, extra)
         });
     }
 }
@@ -83,8 +71,8 @@ impl LuaPuzzleBuilder {
         self.0.lock()
     }
 
-    /// Returns the shape of the puzzle.
-    pub fn shape(&self) -> LuaShape {
-        LuaShape(Arc::clone(&self.lock().shape))
+    /// Returns a reference to the underlying puzzle builder.
+    pub fn arc(&self) -> Arc<Mutex<PuzzleBuilder>> {
+        Arc::clone(&self.0)
     }
 }

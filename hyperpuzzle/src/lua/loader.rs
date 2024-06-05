@@ -91,9 +91,6 @@ impl LuaLoader {
             sandbox.raw_set("require", lua.create_function(require_fn)?)?;
 
             // Database
-            sandbox.raw_set("shapes", LuaShapeDb)?;
-            sandbox.raw_set("axis_systems", LuaAxisSystemDb)?;
-            sandbox.raw_set("twist_systems", LuaTwistSystemDb)?;
             sandbox.raw_set("puzzles", LuaPuzzleDb)?;
 
             // Constructors
@@ -260,17 +257,11 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
                         let LibraryFileLoadResult {
                             exports: _,
 
-                            shapes,
-                            axis_systems,
-                            twist_systems,
                             puzzles,
                         } = &*file.as_loading()?;
 
                         let mut db = self.db.lock();
                         let kv = |k: &String| (k.clone(), Arc::clone(&file));
-                        db.shapes.extend(shapes.keys().map(kv));
-                        db.axis_systems.extend(axis_systems.keys().map(kv));
-                        db.twist_systems.extend(twist_systems.keys().map(kv));
                         db.puzzles.extend(puzzles.keys().map(kv));
                     }
 

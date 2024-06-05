@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use hypershape::Space;
-use parking_lot::Mutex;
 
 use super::*;
 use crate::builder::PuzzleBuilder;
@@ -25,13 +24,6 @@ pub struct PuzzleParams {
     pub meta: Option<LuaRegistryKey>,
     /// Lua table containing additional properties of the puzzle.
     pub properties: Option<LuaRegistryKey>,
-
-    /// Parameters to construct the shape, or an ID of a known shape, or `nil`
-    /// to start with a default shape.
-    shape: NilStringOrRegisteredTable,
-    /// Parameters to construct the twist system, or an ID of a known twist
-    /// system, or `nil` to start with a default twist system.
-    twists: NilStringOrRegisteredTable,
 
     /// Lua function to build the puzzle.
     user_build_fn: LuaRegistryKey,
@@ -76,9 +68,6 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
             id: String::new(), // This is overwritten in `puzzledb:add()`.
             ndim,
 
-            shape: shape.to_lua_registry(lua)?,
-            twists: twists.to_lua_registry(lua)?,
-
             name,
             aliases: aliases.unwrap_or(vec![]),
             meta: create_opt_registry_value(meta)?,
@@ -114,18 +103,12 @@ impl LibraryObjectParams for PuzzleParams {
         Ok(Arc::clone(existing))
     }
     fn build(&self, lua: &Lua, space: &Arc<Space>) -> LuaResult<Self::Constructed> {
-        let shape = LibraryDb::build_from_value::<ShapeParams>(lua, space, &self.shape)?;
-        let twists = LibraryDb::build_from_value::<TwistSystemParams>(lua, space, &self.twists)?;
+        let LuaNdim(ndim) = self.ndim;
+        let puzzle_builder =
+            PuzzleBuilder::new(self.id.clone(), self.name.clone(), ndim).into_lua_err()?;
+        let space = puzzle_builder.lock().space();
 
-        let puzzle_builder = Arc::new(Mutex::new(PuzzleBuilder {
-            id: self.id.clone(),
-            name: self.name.clone(),
-
-            shape,
-            twists,
-        }));
-
-        let () = LuaSpace(Arc::clone(space)).with_this_as_global_space(lua, || {
+        let () = LuaSpace(space).with_this_as_global_space(lua, || {
             lua.registry_value::<LuaFunction<'_>>(&self.user_build_fn)?
                 .call(LuaPuzzleBuilder(Arc::clone(&puzzle_builder)))
                 .context("error executing puzzle definition")

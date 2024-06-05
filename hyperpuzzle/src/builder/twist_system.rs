@@ -1,12 +1,8 @@
-use std::sync::{Arc, Weak};
-
 use eyre::Result;
 use hypermath::collections::approx_hashmap::FloatHash;
 use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
-use hypershape::Space;
-use parking_lot::Mutex;
 
 use super::{AxisSystemBuilder, CustomOrdering};
 use crate::builder::NamingScheme;
@@ -32,14 +28,8 @@ impl ApproxHashMapKey for TwistBuilder {
 /// Twist system being constructed.
 #[derive(Debug)]
 pub struct TwistSystemBuilder {
-    /// Reference-counted pointer to this struct.
-    pub this: Weak<Mutex<Self>>,
-
-    /// Optional ID for the whole twist system.
-    pub id: Option<String>,
-
-    /// Axis system.
-    pub axes: Arc<Mutex<AxisSystemBuilder>>,
+    /// Axis system being constructed.
+    pub axes: AxisSystemBuilder,
 
     /// Twist data (not including name).
     by_id: PerTwist<TwistBuilder>,
@@ -52,54 +42,19 @@ pub struct TwistSystemBuilder {
 }
 impl TwistSystemBuilder {
     /// Constructs a empty twist system with a given axis system.
-    pub fn new(id: Option<String>, axes: Arc<Mutex<AxisSystemBuilder>>) -> Arc<Mutex<Self>> {
-        Arc::new_cyclic(|this| {
-            Mutex::new(Self {
-                this: this.clone(),
+    pub fn new() -> Self {
+        Self {
+            axes: AxisSystemBuilder::new(),
 
-                id,
-
-                axes,
-
-                by_id: PerTwist::new(),
-                data_to_id: ApproxHashMap::new(),
-                names: NamingScheme::new(),
-            })
-        })
-    }
-
-    /// Returns an `Arc` reference to the twist system builder.
-    pub fn arc(&self) -> Arc<Mutex<Self>> {
-        self.this
-            .upgrade()
-            .expect("`TwistSystemBuilder` removed from `Arc`")
+            by_id: PerTwist::new(),
+            data_to_id: ApproxHashMap::new(),
+            names: NamingScheme::new(),
+        }
     }
 
     /// Returns the number of twists in the twist system.
     pub fn len(&self) -> usize {
         self.by_id.len()
-    }
-
-    /// Creates a deep copy in a new space.
-    ///
-    /// Returns an error if the new and old spaces are not compatible.
-    pub fn clone(&self, space: &Arc<Space>) -> Result<Arc<Mutex<Self>>> {
-        let axes = self.axes.lock();
-        let new_axes = axes.clone(space)?;
-
-        Ok(Arc::new_cyclic(|this| {
-            Mutex::new(Self {
-                this: this.clone(),
-
-                id: self.id.clone(),
-
-                axes: new_axes,
-
-                by_id: self.by_id.clone(),
-                data_to_id: self.data_to_id.clone(),
-                names: self.names.clone(),
-            })
-        }))
     }
 
     /// Returns the twist axes in canonical alphabetical order.

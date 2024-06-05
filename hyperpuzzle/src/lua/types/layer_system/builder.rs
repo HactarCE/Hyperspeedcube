@@ -60,8 +60,8 @@ impl LuaLayerSystem {
     /// Returns a mutex guard granting temporary access to the underlying layer
     /// list.
     pub fn lock(&self) -> LuaResult<MappedMutexGuard<'_, PerLayer<AxisLayerBuilder>>> {
-        MutexGuard::try_map(self.axis.db.lock(), |db| {
-            Some(&mut db.get_mut(self.axis.id).ok()?.layers)
+        MutexGuard::try_map(self.axis.db.lock(), |puz| {
+            Some(&mut puz.twists.axes.get_mut(self.axis.id).ok()?.layers)
         })
         .map_err(|_| LuaError::external("error fetching layer system"))
     }
