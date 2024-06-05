@@ -54,14 +54,19 @@ SANDBOX_ENV = {
   print = print,
   pprint = pprint,
   type = type,
+  setmetatable = function(table, metatable)
+    -- Make a new table with the given metatable, which is much safer
+    local t = {}
+    for k, v in pairs(table) do
+      t[k] = v
+    end
+    setmetatable(t, metatable)
+    return t
+  end,
 
   -- Safe utility functions
   collect = collect,
   iter = iter,
-
-  -- Library access
-  puzzledef = puzzledef,
-  require = require,
 
   -- Rust code will inject more entries into this table
 }
