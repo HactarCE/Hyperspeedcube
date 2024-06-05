@@ -14,9 +14,7 @@ puzzles:add('hmt', {
     p.colors:set_defaults(tetrahedral.FACE_COLORS)
 
     -- Define axes and slices
-    pprint({0})
     p:add_axes(sym:orbit(oox):with(tetrahedral.FACE_AXIS_NAMES), {0})
-    pprint({1})
     p:add_axes(sym:orbit(xoo):with(tetrahedral.VERTEX_AXIS_NAMES), {0})
 
     -- Define twists

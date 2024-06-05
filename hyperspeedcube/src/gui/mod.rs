@@ -33,9 +33,7 @@ impl AppUi {
 
         // Initialize puzzle library.
         crate::load_built_in_puzzles();
-        if let Some(task) = crate::reload_user_puzzles() {
-            task.take_result_blocking(); // TODO: load puzzle library async
-        }
+        crate::reload_user_puzzles();
 
         // Initialize UI.
         let puzzle_view = Arc::new(Mutex::new(None));

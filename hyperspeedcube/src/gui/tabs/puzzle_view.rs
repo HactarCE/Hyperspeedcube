@@ -41,8 +41,25 @@ pub struct PuzzleWidget {
     queued_arrows: Vec<[Vector; 2]>,
 }
 impl PuzzleWidget {
-    pub(crate) fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Self {
-        Self::with_sim(gfx, &Arc::new(Mutex::new(PuzzleSimulation::new(puzzle))))
+    pub(crate) fn new(
+        lib: &hyperpuzzle::Library,
+        puzzle_id: &str,
+        gfx: &Arc<GraphicsState>,
+    ) -> Option<Self> {
+        let start_time = instant::Instant::now();
+        let result = lib.build_puzzle(puzzle_id).take_result_blocking();
+        match result {
+            Err(e) => {
+                log::error!("{e:?}");
+                None
+            }
+            Ok(p) => {
+                log::info!("Built {:?} in {:?}", p.name, start_time.elapsed());
+                log::info!("Updated active puzzle");
+                let sim = &Arc::new(Mutex::new(PuzzleSimulation::new(&p)));
+                Some(Self::with_sim(gfx, sim))
+            }
+        }
     }
     pub(crate) fn with_sim(gfx: &Arc<GraphicsState>, sim: &Arc<Mutex<PuzzleSimulation>>) -> Self {
         let view = PuzzleView::new(&sim);
@@ -63,6 +80,19 @@ impl PuzzleWidget {
     /// Returns the puzzle type.
     pub fn puzzle(&self) -> Arc<Puzzle> {
         Arc::clone(&self.sim().lock().puzzle_type())
+    }
+
+    /// Reloads the active puzzle. Returns `true` if the reload was successful.
+    pub fn reload(&mut self, lib: &hyperpuzzle::Library) -> bool {
+        crate::reload_user_puzzles();
+        let current_puzzle = self.puzzle();
+        let gfx = Arc::clone(&self.renderer.lock().gfx);
+        if let Some(new_puzzle_view) = Self::new(lib, &current_puzzle.id, &gfx) {
+            *self = new_puzzle_view;
+            true
+        } else {
+            false
+        }
     }
 
     /// Draws the puzzle in the UI and handles input.
@@ -125,7 +155,7 @@ impl PuzzleWidget {
             .unwrap_or(false);
 
         // Compute the screen-space cursor position.
-        let scroll_delta = ui.input(|input| input.raw_scroll_delta);
+        let scroll_delta = ui.input(|input| input.smooth_scroll_delta); // TODO: make raw vs. smooth a setting
         let mut cursor_pos: Option<cgmath::Point2<f32>> = None;
         if r.hovered() || r.is_pointer_button_down_on() {
             // IIFE to mimic try_block
@@ -142,7 +172,7 @@ impl PuzzleWidget {
             if self.view.drag_state().is_none() {
                 // Adjust camera zoom using scroll wheel.
                 let cam = &mut self.view.camera;
-                cam.zoom *= (scroll_delta.y / 100.0).exp2();
+                cam.zoom *= (scroll_delta.y / 500.0).exp2();
                 cam.zoom = cam.zoom.clamp(2.0_f32.powf(-6.0), 2.0_f32.powf(8.0));
             }
         }
@@ -175,6 +205,14 @@ impl PuzzleWidget {
                     }
                 }
             });
+
+            if ui.input(|input| input.key_pressed(egui::Key::F5)) {
+                if crate::LIBRARY.with(|lib| self.reload(lib)) {
+                    // Don't even try to redraw the puzzle. Just wait for the
+                    // next frame.
+                    return r;
+                }
+            }
         }
 
         let mut renderer = self.renderer.lock();

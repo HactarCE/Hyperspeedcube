@@ -114,6 +114,7 @@ impl eframe::App for AppUi {
 }
 
 fn load_built_in_puzzles() {
+    // TODO: load puzzle library async
     let mut stack = vec![crate::LUA_BUILTIN_DIR.clone()];
     LIBRARY.with(|lib| {
         while let Some(dir) = stack.pop() {
@@ -139,13 +140,17 @@ fn load_built_in_puzzles() {
     })
 }
 
-fn reload_user_puzzles() -> Option<hyperpuzzle::TaskHandle<()>> {
-    let paths = crate::PATHS.as_ref()?;
+fn reload_user_puzzles() {
+    let Some(paths) = &*crate::PATHS else {
+        log::error!("Error locating Lua directory");
+        return;
+    };
     log::info!(
         "Loading Lua files from path {}",
         paths.lua_dir.to_string_lossy(),
     );
-    Some(LIBRARY.with(|lib| lib.load_directory(&paths.lua_dir)))
+    // TODO: load puzzle library async
+    LIBRARY.with(|lib| lib.load_directory(&paths.lua_dir).take_result_blocking());
 }
 
 fn open_dir(dir: &std::path::Path) {

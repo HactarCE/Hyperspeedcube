@@ -47,32 +47,10 @@ impl App {
         Some(f(puzzle_view_mutex_guard.as_mut()?))
     }
 
-    pub(crate) fn reload_puzzle(&mut self) {
-        crate::LIBRARY.with(|lib: &hyperpuzzle::Library| {
-            let puzzle = self.active_puzzle_type()?;
-            let file = lib.file_containing_puzzle(&puzzle.id)?;
-            let path = file.path.as_ref()?;
-            lib.read_file(file.name.clone(), path);
-            lib.load_files().take_result_blocking();
-            self.load_puzzle(lib, &puzzle.id);
-
-            Some(())
-        });
-    }
     pub(crate) fn load_puzzle(&mut self, lib: &hyperpuzzle::Library, puzzle_id: &str) {
-        let start_time = instant::Instant::now();
-        let result = lib.build_puzzle(puzzle_id).take_result_blocking();
-        match result {
-            Err(e) => log::error!("{e:?}"),
-            Ok(p) => {
-                log::info!("Built {:?} in {:?}", p.name, start_time.elapsed());
-                if let Some(puzzle_view) = self.active_puzzle_view.upgrade() {
-                    log::info!("set active puzzle!");
-                    *puzzle_view.lock() = Some(PuzzleWidget::new(&self.gfx, &p));
-                } else {
-                    log::warn!("no active puzzle view");
-                }
-            }
+        match self.active_puzzle_view.upgrade() {
+            Some(puzzle_view) => *puzzle_view.lock() = PuzzleWidget::new(lib, puzzle_id, &self.gfx),
+            None => log::warn!("No active puzzle view"),
         }
     }
 }

@@ -19,9 +19,9 @@ puzzles:add('3x3x3x3', {
     local a2 = sym:thru(4):transform(a1)
     local t = sym:thru(2, 1)
     for _, axis1, axis2, twist_transform in sym:chiral():orbit(a1, a2, t) do
-      print(axis1.name, axis2.name)
       p.twists:add(axis1, twist_transform, {
-        name = axis1.name .. axis2.name
+        name = axis1.name .. axis2.name,
+        -- gizmo_pole_distance = axis2.vector,
       })
     end
   end,
