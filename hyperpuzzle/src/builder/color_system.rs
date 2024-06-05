@@ -3,7 +3,7 @@ use hypermath::prelude::*;
 use itertools::Itertools;
 
 use super::{CustomOrdering, NamingScheme};
-use crate::{Color, PerColor};
+use crate::{Color, ColorInfo, PerColor};
 
 /// Sticker color during shape construction.
 #[derive(Debug, Clone)]
@@ -97,5 +97,22 @@ impl ColorSystemBuilder {
             .ids_in_order()
             .iter()
             .map(|&id| (id, &self.by_id[id]))
+    }
+
+    /// Validates and constructs a color system.
+    pub fn build(&self) -> Result<PerColor<ColorInfo>> {
+        super::iter_autonamed(
+            &self.names,
+            &self.ordering,
+            crate::util::iter_uppercase_letter_names(),
+        )
+        .map(|(id, name)| {
+            let default_color = self.get(id)?.default_color.clone();
+            eyre::Ok(ColorInfo {
+                name,
+                default_color,
+            })
+        })
+        .try_collect()
     }
 }
