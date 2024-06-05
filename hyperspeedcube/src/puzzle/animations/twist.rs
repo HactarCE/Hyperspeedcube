@@ -4,7 +4,7 @@ use hypermath::pga;
 use hyperpuzzle::{PieceMask, PuzzleState};
 use instant::Duration;
 
-use super::interpolate;
+use super::interpolate::InterpolateFn;
 use crate::preferences::InteractionPreferences;
 
 /// If at least this much of a twist is animated in one frame, just skip the
@@ -14,7 +14,7 @@ const MIN_TWIST_DELTA: f32 = 1.0 / 3.0;
 /// Higher number means faster exponential increase in twist speed.
 const EXP_TWIST_FACTOR: f32 = 0.5;
 
-const TWIST_INTERPOLATION_FN: interpolate::InterpolateFn = interpolate::COSINE;
+const TWIST_INTERPOLATION_FN: InterpolateFn = InterpolateFn::Cosine;
 
 #[derive(Debug, Default, Clone)]
 pub struct TwistAnimationState {
@@ -69,7 +69,10 @@ impl TwistAnimationState {
     }
 
     pub fn current(&self) -> Option<(&TwistAnimation, f32)> {
-        Some((self.queue.front()?, TWIST_INTERPOLATION_FN(self.progress)))
+        Some((
+            self.queue.front()?,
+            TWIST_INTERPOLATION_FN.interpolate(self.progress),
+        ))
     }
 }
 

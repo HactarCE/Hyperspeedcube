@@ -27,8 +27,15 @@ impl LuaUserData for LuaTransform {
         });
 
         // Composition of transforms
-        methods.add_meta_method(LuaMetaMethod::Mul, |_lua, Self(this), Self(rhs)| {
-            Ok(Self(this * rhs))
+        methods.add_meta_method(LuaMetaMethod::Mul, |lua, Self(this), rhs: LuaValue<'_>| {
+            if let Ok(LuaTransform(rhs)) = <_>::from_lua(rhs.clone(), lua) {
+                Ok(Self(this * rhs))
+            } else {
+                Err(LuaError::external(format!(
+                    "cannot multiply transform by {}; use `:transform()` to transform an object",
+                    lua_type_name(&rhs),
+                )))
+            }
         });
 
         methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.ndim()));
