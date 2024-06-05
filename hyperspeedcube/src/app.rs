@@ -49,7 +49,11 @@ impl App {
 
     pub(crate) fn load_puzzle(&mut self, lib: &hyperpuzzle::Library, puzzle_id: &str) {
         match self.active_puzzle_view.upgrade() {
-            Some(puzzle_view) => *puzzle_view.lock() = PuzzleWidget::new(lib, puzzle_id, &self.gfx),
+            Some(puzzle_view) => {
+                if let Some(new_puzzle_view) = PuzzleWidget::new(lib, puzzle_id, &self.gfx) {
+                    *puzzle_view.lock() = Some(new_puzzle_view);
+                }
+            }
             None => log::warn!("No active puzzle view"),
         }
     }
