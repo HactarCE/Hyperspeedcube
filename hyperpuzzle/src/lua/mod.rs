@@ -5,12 +5,10 @@ mod macros;
 mod loader;
 mod logger;
 mod types;
-mod warnings;
 
 pub(crate) use loader::*;
 pub use logger::*;
 pub use types::*;
-pub(crate) use warnings::*;
 
 #[cfg(test)]
 mod tests;
