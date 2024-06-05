@@ -4,6 +4,8 @@ use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
 use crate::builder::PuzzleBuilder;
+use crate::lua::lua_warn_fn;
+use crate::Color;
 
 /// Lua handle to a puzzle under construction.
 #[derive(Debug, Clone)]
@@ -23,7 +25,7 @@ impl LuaUserData for LuaPuzzleBuilder {
         fields.add_field_method_get("space", |_lua, this| Ok(LuaSpace(this.lock().space())));
         fields.add_field_method_get("ndim", |_lua, this| Ok(this.lock().ndim()));
 
-        fields.add_field_method_get("shape", |_lua, this| Ok(LuaShape(this.arc())));
+        fields.add_field_method_get("space", |_lua, this| Ok(LuaSpace(this.lock().space())));
         fields.add_field_method_get("colors", |_lua, this| Ok(LuaColorSystem(this.arc())));
         fields.add_field_method_get("twists", |_lua, this| Ok(LuaTwistSystem(this.arc())));
         fields.add_field_method_get("axes", |_lua, this| Ok(LuaAxisSystem(this.arc())));
@@ -34,7 +36,6 @@ impl LuaUserData for LuaPuzzleBuilder {
             Ok(format!("puzzle({:?})", this.lock().name))
         });
 
-        // Shortcut methods (could be called on `.shape` instead)
         methods.add_method("carve", |lua, this, (cuts, args)| {
             let sticker_mode;
             if let Some(table) = args {
@@ -53,29 +54,27 @@ impl LuaUserData for LuaPuzzleBuilder {
                     return Err(LuaError::external("bad value for key \"stickers\""));
                 }
             } else {
-                sticker_mode = StickerMode::NewColor
+                sticker_mode = StickerMode::NewColor;
             }
-            LuaShape(this.arc()).cut(lua, cuts, CutMode::Carve, sticker_mode)
+            this.cut(lua, cuts, CutMode::Carve, sticker_mode)
         });
         methods.add_method("slice", |lua, this, cuts| {
-            LuaShape(this.arc()).cut(lua, cuts, CutMode::Slice, StickerMode::None)
+            this.cut(lua, cuts, CutMode::Slice, StickerMode::None)
         });
 
-        // Shortcut methods (could be called on `.axes` instead)
         methods.add_method("add_axes", |lua, this, (vectors, extra)| {
-            let ret = LuaAxisSystem(this.arc()).add(lua, vectors, extra)?;
+            let (new_axes, slice) = LuaAxisSystem(this.arc()).add(lua, vectors, extra)?;
 
-            for axis in &ret {
-                for cut in axis.layers().cuts()? {
-                    let mut puz = this.lock();
-                    puz.shape.slice(None, cut, None, None).into_lua_err()?;
+            if slice == SliceAxisLayers::Slice {
+                for axis in &new_axes {
+                    for cut in axis.layers().cuts()? {
+                        let mut puz = this.lock();
+                        puz.shape.slice(None, cut, None, None).into_lua_err()?;
+                    }
                 }
             }
 
-            Ok(ret)
-        });
-        methods.add_method("add_axes_unsliced", |lua, this, (vectors, extra)| {
-            LuaAxisSystem(this.arc()).add(lua, vectors, extra)
+            Ok(new_axes)
         });
     }
 }
@@ -91,4 +90,53 @@ impl LuaPuzzleBuilder {
     pub fn arc(&self) -> Arc<Mutex<PuzzleBuilder>> {
         Arc::clone(&self.0)
     }
+
+    /// Cut the puzzle.
+    fn cut<'lua>(
+        &self,
+        lua: &'lua Lua,
+        cuts: LuaSymmetricSet<LuaHyperplane>,
+        cut_mode: CutMode,
+        sticker_mode: StickerMode,
+    ) -> LuaResult<()> {
+        let mut puz = self.lock();
+        let shape = &mut puz.shape;
+
+        for (name, LuaHyperplane(plane)) in cuts.to_vec(lua)? {
+            let color = match sticker_mode {
+                StickerMode::NewColor => Some({
+                    let c = shape.colors.add(vec![plane.clone()]).into_lua_err()?;
+                    shape.colors.names.set(c, name, lua_warn_fn(lua));
+                    c
+                }),
+                StickerMode::None => None,
+                StickerMode::Color(c) => Some(c),
+            };
+            match cut_mode {
+                CutMode::Carve => shape.carve(None, plane, color).into_lua_err()?,
+                CutMode::Slice => shape.slice(None, plane, color, color).into_lua_err()?,
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Which pieces to keep when cutting the shape.
+enum CutMode {
+    /// Delete any pieces outside the cut; keep only pieces inside the cut.
+    Carve,
+    /// Keep all pieces on both sides of the cut.
+    Slice,
+}
+
+/// How to sticker new facets created by a cut.
+enum StickerMode {
+    /// Add a new color for each cut and create new stickers with that color on
+    /// both sides of the cut.
+    NewColor,
+    /// Do not add new stickers.
+    None,
+    /// Add new stickers, all with the same existing color.
+    Color(Color),
 }

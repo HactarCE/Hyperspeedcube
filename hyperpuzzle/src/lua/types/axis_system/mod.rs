@@ -4,4 +4,4 @@ mod axis;
 mod builder;
 
 pub use axis::LuaAxis;
-pub use builder::LuaAxisSystem;
+pub use builder::{LuaAxisSystem, SliceAxisLayers};

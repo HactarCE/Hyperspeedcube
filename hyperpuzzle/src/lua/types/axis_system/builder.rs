@@ -92,18 +92,21 @@ impl LuaAxisSystem {
         lua: &'lua Lua,
         vectors: LuaSymmetricSet<LuaVector>,
         extra: Option<LuaTable<'lua>>,
-    ) -> LuaResult<Vec<LuaAxis>> {
+    ) -> LuaResult<(Vec<LuaAxis>, SliceAxisLayers)> {
         let depths: Vec<hypermath::Float>;
+        let slice: Option<bool>;
         if let Some(t) = extra {
             let layers: LuaTable<'lua>;
             if t.len()? > 0 {
+                slice = t.get("slice")?;
                 layers = t;
             } else {
-                unpack_table!(lua.unpack(t { layers }));
+                unpack_table!(lua.unpack(t { layers, slice }));
             }
             depths = layers.sequence_values().try_collect()?;
         } else {
             depths = vec![];
+            slice = None;
         }
 
         // Check that layers are monotonic. This check happens later too, but we
@@ -138,6 +141,26 @@ impl LuaAxisSystem {
                 axis.layers.push(layer).into_lua_err()?;
             }
         }
-        Ok(new_ids)
+
+        Ok((new_ids, SliceAxisLayers::from(slice)))
+    }
+}
+
+/// Whether to slice the puzzle when adding axis layers.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum SliceAxisLayers {
+    /// Slice all pieces for each new axis layer.
+    #[default]
+    Slice,
+    /// Don't slice the puzzle when adding axes.
+    DontSlice,
+}
+impl From<Option<bool>> for SliceAxisLayers {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Slice,
+            Some(false) => Self::DontSlice,
+            None => Self::default(),
+        }
     }
 }
