@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::{builder::PuzzleBuilder, Puzzle};
+use crate::{builder::PuzzleBuilder, lua::lua_warn_fn, Puzzle};
 
 /// Set of parameters that define a puzzle.
 #[derive(Debug)]
@@ -83,6 +83,6 @@ impl PuzzleParams {
         })?;
 
         let puzzle_builder = puzzle_builder.lock();
-        puzzle_builder.build().into_lua_err()
+        puzzle_builder.build(lua_warn_fn(lua)).into_lua_err()
     }
 }
