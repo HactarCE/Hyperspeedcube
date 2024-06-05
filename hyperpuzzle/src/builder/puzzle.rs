@@ -5,7 +5,7 @@ use std::collections::{hash_map, HashMap};
 use std::ops::Range;
 use std::sync::{Arc, Weak};
 
-use eyre::{bail, OptionExt, Result};
+use eyre::{bail, Context, OptionExt, Result};
 use hypermath::prelude::*;
 use hypermath::VecMap;
 use hypershape::prelude::*;
@@ -233,44 +233,9 @@ impl PuzzleBuilder {
         ) {
             let old_axis = self.twists.axes.get(old_id)?;
             let vector = old_axis.vector().clone();
-            let old_layers = &old_axis.layers;
-
-            // Check that the layer planes are monotonic.
-            let mut layer_planes = vec![];
-            for layer in old_layers.iter_values() {
-                layer_planes.extend(layer.top.clone());
-                layer_planes.push(layer.bottom.flip());
-            }
-            for (a, b) in layer_planes.iter().zip(layer_planes.iter().skip(1)) {
-                // We expect `a` is above `b`.
-                if a == b {
-                    continue;
-                }
-                if !approx_eq(&a.normal().dot(b.normal()).abs(), &1.0) {
-                    bail!("layers of axis {name:?} are not parallel")
-                }
-                let is_b_below_a = a.location_of_point(b.pole()) == PointWhichSide::Inside;
-                let is_a_above_b = b.location_of_point(a.pole()) == PointWhichSide::Outside;
-                if !is_b_below_a || !is_a_above_b {
-                    bail!("layers of axis {name:?} are not monotonic");
-                }
-            }
-
-            let mut last_bottom = None;
-            let layers = old_layers
-                .iter_values()
-                .map(|layer| {
-                    // Bound the top of each layer at the bottom of the previous one.
-                    LayerInfo {
-                        bottom: layer.bottom.clone(),
-                        top: layer.top.clone().or(std::mem::replace(
-                            &mut last_bottom,
-                            Some(layer.bottom.flip()),
-                        )),
-                    }
-                })
-                .collect();
-
+            let layers = old_axis
+                .build_layers()
+                .wrap_err_with(|| format!("building axis {name:?}"))?;
             let new_id = axes.push(AxisInfo {
                 name,
                 vector,

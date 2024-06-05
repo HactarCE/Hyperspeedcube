@@ -1,11 +1,11 @@
 use std::collections::hash_map;
 
-use eyre::{eyre, OptionExt, Result};
+use eyre::{bail, eyre, OptionExt, Result};
 use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 
 use super::{CustomOrdering, NamingScheme};
-use crate::{Axis, PerAxis, PerLayer};
+use crate::{Axis, LayerInfo, PerAxis, PerLayer};
 
 /// Layer of a twist axis during puzzle construction.
 #[derive(Debug, Clone)]
@@ -33,6 +33,44 @@ impl AxisBuilder {
     /// Returns the axis's vector.
     pub fn vector(&self) -> &Vector {
         &self.vector
+    }
+
+    fn ensure_monotonic_layers(&self) -> Result<()> {
+        let mut layer_planes = vec![];
+        for layer in self.layers.iter_values() {
+            layer_planes.extend(layer.top.clone());
+            layer_planes.push(layer.bottom.flip());
+        }
+        for (a, b) in layer_planes.iter().zip(layer_planes.iter().skip(1)) {
+            // We expect `a` is above `b`.
+            if a == b {
+                continue;
+            }
+            if !approx_eq(&a.normal().dot(b.normal()).abs(), &1.0) {
+                bail!("axis layers are not parallel")
+            }
+            let is_b_below_a = a.location_of_point(b.pole()) == PointWhichSide::Inside;
+            let is_a_above_b = b.location_of_point(a.pole()) == PointWhichSide::Outside;
+            if !is_b_below_a || !is_a_above_b {
+                bail!("axis layers are not monotonic");
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn build_layers(&self) -> Result<PerLayer<LayerInfo>> {
+        // Check that the layer planes are monotonic.
+        self.ensure_monotonic_layers()?;
+
+        // Bound the top of each layer at the bottom of the previous one.
+        let mut last_bottom = None;
+        Ok(self.layers.map_ref(|_, layer| LayerInfo {
+            bottom: layer.bottom.clone(),
+            top: layer.top.clone().or(std::mem::replace(
+                &mut last_bottom,
+                Some(layer.bottom.flip()),
+            )),
+        }))
     }
 }
 
