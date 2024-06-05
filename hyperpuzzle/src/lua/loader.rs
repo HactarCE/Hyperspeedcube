@@ -277,9 +277,42 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
         if !filename.ends_with(".lua") {
             filename.push_str(".lua");
         }
+
+        let current_file = LibraryFile::get_current(&self.lua)?;
+
+        // Handle basic globs.
+        if let Some(prefix) = filename.strip_suffix("/*.lua") {
+            // Assemble a list of files to load.
+            let files_to_load = self
+                .db
+                .lock()
+                .files
+                .iter()
+                // Don't depend on the current file.
+                .filter(|(_file_key, lib_file)| !Arc::ptr_eq(lib_file, &current_file))
+                // Depend on files that match the glob pattern.
+                .filter_map(|(k, v)| Some((k, k.strip_prefix(prefix)?.strip_prefix('/')?, v)))
+                .map(|(file_key, table_key, lib_file)| {
+                    // Record the dependency.
+                    lib_file.dependents.lock().push(Arc::clone(&current_file));
+                    // Remove the `.lua` suffix for the table key.
+                    let table_key = table_key.strip_suffix(".lua").unwrap_or(table_key);
+                    (table_key.to_owned(), file_key.to_owned())
+                })
+                .collect_vec();
+
+            // Unlock the database, then load all those files.
+            let return_table = self.lua.create_table()?;
+            for (table_key, file_key) in files_to_load {
+                if let Ok(exports) = self.load_file(&file_key) {
+                    return_table.raw_set(table_key, exports)?;
+                }
+            }
+            return Ok(return_table);
+        }
+
         if let Some(dependency) = self.db.lock().files.get(&filename) {
             // Record the dependency.
-            let current_file = LibraryFile::get_current(&self.lua)?;
             dependency.dependents.lock().push(current_file);
         }
         self.load_file(&filename)
