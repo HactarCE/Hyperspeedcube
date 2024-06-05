@@ -130,7 +130,7 @@ impl LuaTwistSystem {
         let inv_name = inv_name.unwrap_or_else(|| name.clone());
 
         let mut puz = self.0.lock();
-        let mut twists = &mut puz.twists;
+        let twists = &mut puz.twists;
         let axis = axis.id;
 
         let base_transform = transform.0;

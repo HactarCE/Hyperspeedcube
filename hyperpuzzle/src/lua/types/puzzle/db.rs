@@ -16,7 +16,7 @@ impl LuaUserData for LuaPuzzleDb {
         methods.add_method("add", |lua, Self, pair| {
             let (id, mut params): (String, PuzzleParams) = pair;
             params.id = id.clone();
-            LibraryFile::get_current(lua)?.define(id, params)
+            LibraryFile::get_current(lua)?.define_puzzle(id, params)
         });
     }
 }

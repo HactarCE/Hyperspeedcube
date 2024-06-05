@@ -33,6 +33,7 @@ pub struct PuzzleBuilder {
     pub twists: TwistSystemBuilder,
 }
 impl PuzzleBuilder {
+    /// Constructs a new puzzle builder with a primordial cube.
     pub fn new(id: String, name: String, ndim: u8) -> Result<Arc<Mutex<Self>>> {
         let shape = ShapeBuilder::new_with_primordial_cube(Space::new(ndim))?;
         let twists = TwistSystemBuilder::new();
@@ -76,7 +77,6 @@ impl PuzzleBuilder {
         let shape = &self.shape;
         let space = Arc::clone(&shape.space);
         let twist_system = &self.twists;
-        let axis_system = &twist_system.axes;
         let ndim = space.ndim();
 
         let mut mesh = Mesh::new_empty(ndim);

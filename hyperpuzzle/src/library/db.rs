@@ -4,15 +4,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use eyre::Result;
-use hypershape::Space;
 use mlua::prelude::*;
 use parking_lot::Mutex;
 
-use super::{
-    Cached, CachedPuzzle, LibraryFile, LibraryFileLoadResult, LibraryFileLoadState,
-    LibraryObjectParams,
-};
-use crate::lua::{LuaNdim, NilStringOrRegisteredTable, PuzzleParams};
+use super::{LibraryFile, LibraryFileLoadResult, LibraryFileLoadState};
 use crate::puzzle::Puzzle;
 
 /// Global library of shapes, puzzles, twist systems, etc.
@@ -43,94 +38,29 @@ impl LibraryDb {
         ))
     }
 
-    /// Locks the library, finds an object of type `P` with ID `id`, and
-    /// executes `f` with that object.
-    ///
-    /// Returns an error if no such object exists or if the file containing the
-    /// object has not been loaded.
-    fn with_object<P: LibraryObjectParams, R>(
-        lua: &Lua,
-        id: &str,
-        f: impl FnOnce(&Cached<P>) -> LuaResult<R>,
-    ) -> LuaResult<R> {
-        let err = || LuaError::external(format!("no {} with ID {id:?}", P::NAME));
-        let db = LibraryDb::get(lua)?;
-        let db_guard = db.lock();
-        let file = P::get_file_map(&db_guard).get(id).ok_or_else(err)?;
-        let mut result = file.as_completed().ok_or_else(|| {
-            LuaError::external(format!(
-                "file {:?} owns {} with ID {id:?} but is unloaded",
-                file.name,
-                P::NAME,
-            ))
-        })?;
-        let cached = P::get_id_map_within_file(&mut *result)
-            .get(id)
-            .ok_or_else(err)?;
-        f(cached)
-    }
-
-    /// Constructs the object of type `P` with ID `id`.
-    ///
-    /// Returns an error if no such object exists or if the file containing the
-    /// object has not been loaded.
-    pub fn build_from_id<P: LibraryObjectParams>(
-        lua: &Lua,
-        space: &Arc<Space>,
-        id: &str,
-    ) -> LuaResult<P::Constructed> {
-        enum Lazy<P: LibraryObjectParams> {
-            Constructed(P::Constructed),
-            Unconstrurcted(Arc<P>),
-        }
-
-        let constructed = Self::with_object::<P, _>(lua, id, |cached| match &cached.constructed {
-            Some(builder) => match P::clone_constructed(builder, &space) {
-                Ok(constructed) => Ok(Lazy::Constructed(constructed)),
-                Err(e) => Err(LuaError::external(e)),
-            },
-            None => Ok(Lazy::Unconstrurcted(Arc::clone(&cached.params))),
-        })?;
-
-        match constructed {
-            Lazy::Constructed(builder) => Ok(builder),
-            Lazy::Unconstrurcted(params) => {
-                crate::lua::reset_warnings(lua);
-                params.build(lua, &space)
-            }
-        }
-    }
-
-    /// Constructs an object of type `P` from a string ID (via
-    /// [`Self::build_from_id()`]) or a table containing parameters for it.
-    pub fn build_from_value<P: LibraryObjectParams>(
-        lua: &Lua,
-        space: &Arc<Space>,
-        id_or_table: &NilStringOrRegisteredTable,
-    ) -> LuaResult<P::Constructed> {
-        match id_or_table {
-            // Build a default empty object.
-            NilStringOrRegisteredTable::Nil => P::new_constructed(space),
-            // Use an existing object.
-            NilStringOrRegisteredTable::String(id) => Self::build_from_id::<P>(lua, space, &id),
-            // Build a bespoke object just for this.
-            NilStringOrRegisteredTable::Table(key) => {
-                crate::lua::reset_warnings(lua);
-                P::from_lua(lua.registry_value(key)?, lua)?.build(lua, space)
-            }
-        }
-    }
-
     /// Constructs the puzzle with ID `id`, or returns a previously cached
     /// result if it has already been constructed.
     ///
     /// Returns an error if an internal error occurred or if the user's code
     /// produced errors.
     pub fn build_puzzle(lua: &Lua, id: &str) -> Result<Arc<Puzzle>> {
-        let LuaNdim(ndim) =
-            Self::with_object(lua, id, |cached: &CachedPuzzle| Ok(cached.params.ndim))?;
-        let space = Space::new(ndim);
-        Ok(Self::build_from_id::<PuzzleParams>(lua, &space, id)?)
+        let err_not_found = || LuaError::external(format!("no puzzle with ID {id:?}"));
+        let db = LibraryDb::get(lua)?;
+        let db_guard = db.lock();
+        let file = db_guard.puzzles.get(id).ok_or_else(err_not_found)?;
+        let mut file_result = file.as_completed().ok_or_else(|| {
+            LuaError::external(format!(
+                "file {:?} owns puzzle with ID {id:?} but is unloaded",
+                file.name,
+            ))
+        })?;
+        let cache = file_result.puzzles.get_mut(id).ok_or_else(err_not_found)?;
+        if let Some(constructed) = &cache.constructed {
+            return Ok(Arc::clone(&constructed));
+        }
+        let constructed_puzzle = cache.params.build(lua)?;
+        cache.constructed = Some(Arc::clone(&constructed_puzzle));
+        Ok(constructed_puzzle)
     }
 
     /// Adds a file to the Lua library. It will not immediately be loaded.

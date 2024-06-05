@@ -1,12 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use hypershape::Space;
-
 use super::*;
-use crate::builder::PuzzleBuilder;
-use crate::library::{Cached, LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryObjectParams};
-use crate::Puzzle;
+use crate::{builder::PuzzleBuilder, Puzzle};
 
 /// Set of parameters that define a puzzle.
 #[derive(Debug)]
@@ -35,8 +30,6 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
 
         let name: String;
         let ndim: LuaNdim;
-        let shape: LuaNilStringOrTable<'lua>;
-        let twists: LuaNilStringOrTable<'lua>;
         let aliases: Option<Vec<String>>;
         let meta: Option<LuaTable<'lua>>;
         let properties: Option<LuaTable<'lua>>;
@@ -46,9 +39,6 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
             name,
 
             ndim,
-
-            shape,
-            twists,
 
             aliases,
             meta,
@@ -78,31 +68,9 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
     }
 }
 
-impl LibraryObjectParams for PuzzleParams {
-    const NAME: &'static str = "puzzle";
-
-    type Constructed = Arc<Puzzle>;
-
-    fn get_file_map(lib: &LibraryDb) -> &BTreeMap<String, Arc<LibraryFile>> {
-        &lib.puzzles
-    }
-    fn get_id_map_within_file(
-        result: &mut LibraryFileLoadResult,
-    ) -> &mut HashMap<String, Cached<Self>> {
-        &mut result.puzzles
-    }
-
-    fn new_constructed(_space: &Arc<Space>) -> LuaResult<Self::Constructed> {
-        Err(LuaError::external("missing puzzle constructor"))
-    }
-    fn clone_constructed(
-        existing: &Self::Constructed,
-        _space: &Arc<Space>,
-    ) -> LuaResult<Self::Constructed> {
-        // Ignore `space` if we don't need it.
-        Ok(Arc::clone(existing))
-    }
-    fn build(&self, lua: &Lua, space: &Arc<Space>) -> LuaResult<Self::Constructed> {
+impl PuzzleParams {
+    /// Runs initial setup, user Lua code, and final construction for a puzzle.
+    pub fn build(&self, lua: &Lua) -> LuaResult<Arc<Puzzle>> {
         let LuaNdim(ndim) = self.ndim;
         let puzzle_builder =
             PuzzleBuilder::new(self.id.clone(), self.name.clone(), ndim).into_lua_err()?;

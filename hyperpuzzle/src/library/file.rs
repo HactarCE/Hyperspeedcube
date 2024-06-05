@@ -5,7 +5,9 @@ use std::sync::Arc;
 use mlua::prelude::*;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 
-use super::{Cached, CachedPuzzle, LibraryObjectParams};
+use crate::lua::PuzzleParams;
+
+use super::LazyPuzzle;
 
 /// File stored in a [`super::Library`].
 #[derive(Debug)]
@@ -49,13 +51,14 @@ impl LibraryFile {
     }
 
     /// Defines an object in the file.
-    pub(crate) fn define<P: LibraryObjectParams>(&self, id: String, params: P) -> LuaResult<()> {
-        match P::get_id_map_within_file(&mut *self.as_loading()?)
-            .insert(id.clone(), Cached::new(params))
+    pub(crate) fn define_puzzle(&self, id: String, params: PuzzleParams) -> LuaResult<()> {
+        match self
+            .as_loading()?
+            .puzzles
+            .insert(id.clone(), LazyPuzzle::new(params))
         {
             Some(_old) => Err(LuaError::external(format!(
-                "duplicate {} with ID {id:?}",
-                P::NAME
+                "duplicate puzzle with ID {id:?}",
             ))),
             None => Ok(()),
         }
@@ -126,16 +129,14 @@ impl LibraryFileLoadState {
 pub(crate) struct LibraryFileLoadResult {
     /// Table of exports to other Lua code that imports this file.
     pub exports: LuaRegistryKey,
-
     /// Puzzles defined in this file, indexed by ID.
-    pub puzzles: HashMap<String, CachedPuzzle>,
+    pub puzzles: HashMap<String, LazyPuzzle>,
 }
 impl LibraryFileLoadResult {
     /// Constructs an empty load result.
     pub(crate) fn with_exports(exports_table: LuaRegistryKey) -> Self {
         Self {
             exports: exports_table,
-
             puzzles: HashMap::new(),
         }
     }
