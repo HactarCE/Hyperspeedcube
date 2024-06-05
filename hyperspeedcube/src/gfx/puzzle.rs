@@ -934,11 +934,11 @@ struct_with_constructor! {
                 /// Vector along which to apply sticker shrink for each vertex.
                 sticker_shrink_vectors: wgpu::Buffer = buffer!(mesh.sticker_shrink_vectors, STORAGE),
                 /// Piece ID for each vertex.
-                piece_ids:              wgpu::Buffer = buffer!(piece_ids,          VERTEX | STORAGE), // TODO: only VERTEX for single-pass pipeline
+                piece_ids:              wgpu::Buffer = buffer!(piece_ids,                   STORAGE),
                 /// Facet ID for each vertex.
-                surface_ids:            wgpu::Buffer = buffer!(surface_ids,        VERTEX | STORAGE), // TODO: only VERTEX for single-pass pipeline
+                surface_ids:            wgpu::Buffer = buffer!(surface_ids,                 STORAGE),
                 /// Polygon ID for each vertex.
-                polygon_ids:            wgpu::Buffer = buffer!(mesh.polygon_ids,   VERTEX | STORAGE), // TODO: only VERTEX for single-pass pipeline
+                polygon_ids:            wgpu::Buffer = buffer!(mesh.polygon_ids,             VERTEX),
 
                 /*
                  * OTHER STORAGE BUFFERS
