@@ -92,22 +92,24 @@ where
         mapping_value: LuaValue<'lua>,
     ) -> LuaResult<Vec<(I, T)>> {
         match mapping_value {
-            LuaValue::Table(t) => t
+            LuaValue::Table(t) => Ok(t
                 .pairs()
                 .map(|pair| {
                     let (id, new_value) = pair?;
-                    Ok((self.value_to_id(lua, id)?, new_value))
+                    LuaResult::Ok((self.value_to_id(lua, id)?, new_value))
                 })
-                .try_collect(),
+                .filter_map(result_to_ok_or_warn(lua_warn_fn::<LuaError>(lua)))
+                .collect()),
 
-            LuaValue::Function(f) => self
+            LuaValue::Function(f) => Ok(self
                 .ids_in_order()
                 .iter()
                 .map(|id| {
                     let new_value = f.call(self.wrap_id(id.clone()))?;
                     Ok((id.clone(), new_value))
                 })
-                .try_collect(),
+                .filter_map(result_to_ok_or_warn(lua_warn_fn::<LuaError>(lua)))
+                .collect()),
 
             _ => return lua_convert_err(&mapping_value, "table or function"),
         }
@@ -330,5 +332,15 @@ where
             db.ordering_mut().shift_to(this.id, new_index);
             Ok(())
         });
+    }
+}
+
+fn result_to_ok_or_warn<T, E>(mut warn_fn: impl FnMut(E)) -> impl FnMut(Result<T, E>) -> Option<T> {
+    move |result| match result {
+        Ok(value) => Some(value),
+        Err(e) => {
+            warn_fn(e);
+            None
+        }
     }
 }
