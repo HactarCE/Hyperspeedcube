@@ -6,7 +6,7 @@ puzzles:add('megaminx', {
   ndim = 3,
   build = function(p)
     local sym = cd'h3'
-    local oox = sym:vec('oox').unit;
+    local oox = sym:vec('oox').unit
 
     -- Build shape
     p:carve(sym:orbit(oox):with(dodecahedral.FACE_NAMES))

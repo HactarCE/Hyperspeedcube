@@ -6,8 +6,8 @@ puzzles:add('hmt', {
   ndim = 3,
   build = function(p)
     local sym = cd'a3'
-    local xoo = sym:vec('xoo').unit;
-    local oox = sym:vec('oox').unit;
+    local xoo = sym:vec('xoo').unit
+    local oox = sym:vec('oox').unit
 
     -- Build shape
     p:carve(sym:orbit(oox):with(tetrahedral.FACE_NAMES))

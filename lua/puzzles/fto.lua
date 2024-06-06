@@ -5,7 +5,7 @@ puzzles:add('fto', {
   ndim = 3,
   build = function(p)
     local sym = cd'bc3'
-    local xoo = sym:vec('xoo').unit;
+    local xoo = sym:vec('xoo').unit
 
     -- Build shape
     p:carve(sym:orbit(xoo):with(octahedral.FACE_NAMES))
