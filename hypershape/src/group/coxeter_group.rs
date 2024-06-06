@@ -263,6 +263,10 @@ impl From<Mirror> for Matrix {
     }
 }
 impl Mirror {
+    /// Returns the normal vector of the mirror.
+    pub fn normal(&self) -> &Vector {
+        &self.0
+    }
     /// Returns the hyperplane of the mirror, or `None` if the mirror is
     /// degenerate. The hyperplane may be flipped and still correspond to the
     /// same mirror.

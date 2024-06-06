@@ -119,6 +119,15 @@ impl LuaSymmetry {
 impl LuaUserData for LuaSymmetry {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("symmetry"));
+
+        fields.add_field_method_get("mirror_vectors", |lua, this| {
+            lua.create_sequence_from(
+                this.coxeter
+                    .mirrors()
+                    .iter()
+                    .map(|m| LuaVector(m.normal().clone())),
+            )
+        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
@@ -161,7 +170,7 @@ impl LuaUserData for LuaSymmetry {
                 .map(|v| LuaIndex::from_lua(v, lua).map(|LuaIndex(i)| i))
                 .try_collect()?;
             this.motor_for_mirror_seq(indices).map(LuaTransform)
-        })
+        });
     }
 }
 
