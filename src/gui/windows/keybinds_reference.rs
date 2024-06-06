@@ -281,7 +281,8 @@ fn autosize_button_text(
     let max_size = button_size - ui.spacing().button_padding * 2.0;
     let mut text = egui::RichText::new(button_text);
     let mut font_size = egui::TextStyle::Button.resolve(ui.style()).size * max_font_size;
-    while font_size > 0.0 {
+    font_size = font_size.round().at_least(2.0);
+    while font_size > 2.0 {
         text = text.size(font_size);
         let text_size = egui::WidgetText::RichText(text.clone())
             .into_galley(ui, Some(false), f32::INFINITY, egui::TextStyle::Button)
@@ -291,7 +292,7 @@ fn autosize_button_text(
         }
         font_size -= 1.0;
     }
-    egui::RichText::new(".")
+    egui::RichText::new("•")
 }
 
 macro_rules! keyboard_key {
