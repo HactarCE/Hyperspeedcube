@@ -116,7 +116,10 @@ impl LuaColorSystem {
             puz.mapping_from_value(lua, new_default_colors)?;
 
         for (k, v) in kv_pairs {
-            puz.shape.colors.get_mut(k).into_lua_err()?.default_color = v;
+            match puz.shape.colors.get_mut(k) {
+                Ok(color) => color.default_color = v,
+                Err(e) => lua.warning(e.to_string(), false),
+            }
         }
 
         Ok(())
