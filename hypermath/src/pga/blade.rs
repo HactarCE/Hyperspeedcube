@@ -394,7 +394,7 @@ impl Blade {
 
     /// Returns the orthogonal projection of `self` onto `other`, or returns
     /// `None` if the operation is invalid for blades of this grade and
-    /// dimensionality.
+    /// dimensionality or if the blades are totally orthogonal.
     ///
     /// If the weight of `other` is zero, then the result would always be zero,
     /// so instead it is wedged with e₀ first.
@@ -402,7 +402,10 @@ impl Blade {
     pub fn orthogonal_projection_to(&self, other: &Self) -> Option<Blade> {
         let ndim = common_ndim(self, other);
         let other = other.to_ndim_at_least(ndim).ensure_nonzero_weight();
-        Blade::antiwedge(&other, &Blade::wedge(self, &other.antidual())?)
+        crate::util::try_div(
+            Blade::antiwedge(&other, &Blade::wedge(self, &other.antidual())?)?,
+            other.mag2(),
+        )
     }
     /// Returns the orthogonal rejection of `self` from `other`, or returns
     /// `None` if the operation is invalid for blades of this grade and
@@ -564,4 +567,31 @@ impl Mul<Float> for &Blade {
 /// Returns the minimum number of dimensions containing two blades.
 fn common_ndim(m1: &Blade, m2: &Blade) -> u8 {
     std::cmp::max(m1.ndim, m2.ndim)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_blade_orthogonal_rejection() {
+        for scalar in [1.0, 0.5, 2.0, 3.5] {
+            let fix = Blade::wedge(
+                &Blade::from_vector(4, vector![0.0, 0.0, 0.0, 1.0]), // +W
+                &Blade::from_vector(4, vector![0.0, 1.0, 1.0, 0.0]), // +Y+Z
+            )
+            .unwrap()
+                * scalar;
+
+            let a = vector![0.0, 0.0, 1.0, 0.0]; // +Z
+
+            let new_a = Blade::from_vector(4, &a)
+                .orthogonal_rejection_from(&fix)
+                .unwrap()
+                .to_vector()
+                .unwrap();
+
+            assert_approx_eq!(new_a, vector![0.0, -1.0, 1.0, 0.0] * 0.5);
+        }
+    }
 }
