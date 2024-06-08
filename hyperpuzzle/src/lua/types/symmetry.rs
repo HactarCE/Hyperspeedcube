@@ -74,10 +74,10 @@ impl LuaSymmetry {
         self.coxeter.orbit(object, self.chiral)
     }
 
-    /// Constructs a vector in the symmetry basis from Wendy Krieger's notation.
-    pub fn wendy_krieger_vector(&self, string: &str) -> LuaResult<Vector> {
+    /// Constructs a vector in the symmetry basis from Dynkin notation.
+    pub fn dynkin_vector(&self, string: &str) -> LuaResult<Vector> {
         Ok(self.coxeter.mirror_basis().into_lua_err()?
-            * parse_wendy_krieger_vector(self.coxeter.mirror_count(), &string)?)
+            * parse_dynkin_notation(self.coxeter.mirror_count(), &string)?)
     }
 
     fn vector_from_args<'lua>(
@@ -86,12 +86,12 @@ impl LuaSymmetry {
         args: LuaMultiValue<'lua>,
     ) -> LuaResult<Vector> {
         if let Ok(string) = String::from_lua_multi(args.clone(), lua) {
-            self.wendy_krieger_vector(&string)
+            self.dynkin_vector(&string)
         } else if let Ok(LuaVector(v)) = <_>::from_lua_multi(args, lua) {
             Ok(self.coxeter.mirror_basis().into_lua_err()? * v)
         } else {
             Err(LuaError::external(
-                "expected vector constructor or coxeter vector string",
+                "expected vector constructor or dynkin notation string",
             ))
         }
     }
@@ -120,6 +120,8 @@ impl LuaUserData for LuaSymmetry {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("symmetry"));
 
+        fields.add_field_method_get("ndim", |_lua, this| Ok(this.coxeter.min_ndim()));
+
         fields.add_field_method_get("mirror_vectors", |lua, this| {
             lua.create_sequence_from(
                 this.coxeter
@@ -127,6 +129,13 @@ impl LuaUserData for LuaSymmetry {
                     .iter()
                     .map(|m| LuaVector(m.normal().clone())),
             )
+        });
+
+        fields.add_field_method_get("chiral", |_lua, Self { coxeter, .. }| {
+            Ok(Self {
+                coxeter: coxeter.clone(),
+                chiral: true,
+            })
         });
     }
 
@@ -136,18 +145,11 @@ impl LuaUserData for LuaSymmetry {
         });
 
         methods.add_meta_method(LuaMetaMethod::Index, |_lua, this, index: String| {
-            if may_be_wendy_kreiger_vector(&index) {
-                this.wendy_krieger_vector(&index).map(LuaVector).map(Some)
+            if !index.is_empty() && index.chars().all(|c| c == 'o' || c == 'x') {
+                this.dynkin_vector(&index).map(LuaVector).map(Some)
             } else {
                 Ok(None)
             }
-        });
-
-        methods.add_method("chiral", |_lua, Self { coxeter, .. }, ()| {
-            Ok(Self {
-                coxeter: coxeter.clone(),
-                chiral: true,
-            })
         });
 
         methods.add_method("orbit", |lua, this, args: LuaMultiValue<'_>| {
@@ -157,8 +159,6 @@ impl LuaUserData for LuaSymmetry {
                 .try_collect()?;
             Ok(LuaOrbit::new(this.clone(), objects))
         });
-
-        methods.add_method("ndim", |_lua, this, ()| Ok(this.coxeter.min_ndim()));
 
         methods.add_method("vec", |lua, this, args| {
             Ok(LuaVector(this.vector_from_args(lua, args)?))
@@ -174,24 +174,16 @@ impl LuaUserData for LuaSymmetry {
     }
 }
 
-fn may_be_wendy_kreiger_vector(s: &str) -> bool {
-    s.chars().all(|c| match c {
-        'o' | 'x' | 'q' | 'f' | 'u' => true,
-        _ => false,
-    })
-}
-
-fn parse_wendy_krieger_vector(ndim: u8, s: &str) -> LuaResult<Vector> {
+fn parse_dynkin_notation(ndim: u8, s: &str) -> LuaResult<Vector> {
     if s.len() != ndim as usize {
         return Err(LuaError::external(format!(
-            "expected coxeter vector of length {ndim}; {s:?} has length {}",
+            "expected dynkin notation string of length {ndim}; {s:?} has length {}",
             s.len(),
         )));
     }
     s.chars()
         .map(|c| match c {
-            // Blame Wendy Krieger for this notation.
-            // https://bendwavy.org/klitzing/explain/dynkin-notation.htm
+            // Source: https://web.archive.org/web/20230410033043/https://bendwavy.org/klitzing//explain/dynkin-notation.htm
             'o' => Ok(0.0),
             'x' => Ok(1.0),
             'q' => Ok(std::f64::consts::SQRT_2),
