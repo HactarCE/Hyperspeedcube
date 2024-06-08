@@ -11,14 +11,11 @@ impl<'lua> FromLua<'lua> for LuaBlade {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         if let Ok(m) = cast_userdata(lua, &value) {
             Ok(m)
-        } else if let Ok(n) = lua.unpack(value.clone()) {
-            Ok(Self(Blade::scalar(LuaNdim::get(lua)?, n)))
         } else if let Ok(LuaVector(v)) = lua.unpack(value.clone()) {
             let ndim = enforce_ndim(lua, v.ndim())?;
             Ok(Self(Blade::from_vector(ndim, v)))
-        } else if let Ok(LuaHyperplane(h)) = lua.unpack(value.clone()) {
-            let ndim = enforce_ndim(lua, h.normal().ndim())?;
-            Ok(Self(Blade::from_hyperplane(ndim, &h)))
+        } else if let Ok(n) = lua.unpack(value.clone()) {
+            Ok(Self(Blade::scalar(LuaNdim::get(lua)?, n)))
         } else {
             lua_convert_err(&value, "blade (scalar, vector, point, hyperplane, etc.)")
         }
@@ -40,10 +37,10 @@ impl LuaUserData for LuaBlade {
         });
 
         fields.add_field_method_get("unit", |_lua, Self(this)| {
-            match hypermath::util::try_div(this, this.mag()) {
-                Some(v) => Ok(Self(v)),
-                None => Err(LuaError::external("cannot normalize zero vector")),
-            }
+            None.or_else(|| hypermath::util::try_div(this, this.weight_norm()))
+                .or_else(|| hypermath::util::try_div(this, this.mag()))
+                .map(LuaBlade)
+                .ok_or_else(|| LuaError::external("cannot normalize zero blade"))
         });
         fields.add_field_method_get("normalize", |_lua, _| {
             Err::<LuaValue<'_>, _>(LuaError::external("use `.unit` instead"))
@@ -71,7 +68,12 @@ impl LuaUserData for LuaBlade {
         });
 
         methods.add_meta_method("cross", |_lua, Self(this), Self(other)| {
-            Ok(Blade::cross_product_3d(&this, &other).map(Self))
+            match Blade::cross_product_3d(&this, &other) {
+                Some(v) => Ok(Self(v)),
+                None => Err(LuaError::external(
+                    "cross product is only allowed between 3D vectors",
+                )),
+            }
         });
 
         methods.add_method("projected_to", |_lua, Self(this), Self(other)| {
@@ -179,24 +181,21 @@ impl LuaUserData for LuaBlade {
         );
 
         // pairs(Vector)
-        methods.add_meta_function(LuaMetaMethod::Pairs, |lua, this: LuaValue<'_>| {
-            match lua.unpack(this.clone()) {
-                Ok(LuaVector(_)) => {
-                    let vector_iter =
-                        lua.create_function(|_lua, (LuaVector(v), LuaVectorIndex(i))| {
-                            if i < v.ndim() {
-                                Ok((Some(LuaVectorIndex(i + 1)), Some(v[i])))
-                            } else {
-                                Ok((None, None))
-                            }
-                        })?;
+        methods.add_meta_function(LuaMetaMethod::Pairs, |lua, LuaBlade(this)| {
+            if let Some(v) = this.to_point().or_else(|| this.to_vector()) {
+                let vector_iter = lua.create_function(|_lua, (LuaVector(v), i)| {
+                    if i < v.ndim() {
+                        Ok((Some(i + 1), Some(v[i])))
+                    } else {
+                        Ok((None, None))
+                    }
+                })?;
 
-                    Ok((vector_iter, this, LuaVectorIndex(0)))
-                }
-
-                Err(_) => Err(LuaError::external(
+                Ok((vector_iter, LuaVector(v), 0))
+            } else {
+                Err(LuaError::external(
                     "iteration is only supported for blades representing a point or vector",
-                )),
+                ))
             }
         });
     }
@@ -210,6 +209,10 @@ impl LuaBlade {
     /// Constructs a blade representing a point.
     pub fn from_point(lua: &Lua, v: impl VectorRef) -> LuaResult<Self> {
         Ok(Self(Blade::from_point(LuaNdim::get(lua)?, v)))
+    }
+    /// Constructs a blade representing a hyperplane.
+    pub fn from_hyperplane(lua: &Lua, h: &Hyperplane) -> LuaResult<Self> {
+        Ok(Self(Blade::from_hyperplane(LuaNdim::get(lua)?, h)))
     }
 }
 

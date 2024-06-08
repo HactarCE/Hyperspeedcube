@@ -45,7 +45,7 @@ impl<'lua> FromLua<'lua> for LuaVector {
             }
             v => {
                 if let Ok(LuaBlade(b)) = cast_userdata(lua, &v) {
-                    match b.to_vector().or_else(|| b.to_point()) {
+                    match b.to_point().or_else(|| b.to_vector()) {
                         Some(v) => Ok(Self(v)),
                         None => Err(LuaError::FromLuaConversionError {
                             from: "blade",
@@ -56,7 +56,7 @@ impl<'lua> FromLua<'lua> for LuaVector {
                 } else if let Ok(axis) = cast_userdata::<LuaAxis>(lua, &v) {
                     Ok(Self(axis.vector()?.into()))
                 } else {
-                    lua_convert_err(&v, "vector, multivector, table, or axis name")
+                    lua_convert_err(&v, "vector, point, table, or axis name")
                 }
             }
         }

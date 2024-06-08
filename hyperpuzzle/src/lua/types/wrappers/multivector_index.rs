@@ -59,6 +59,7 @@ impl FromStr for LuaMultivectorIndex {
         for c in string.chars() {
             let new_axis: Axes = match c {
                 // Remember, Lua is 1-indexed so the X axis is 1.
+                '0' => Axes::E0,
                 '1' | 'x' | 'X' => Axes::X,
                 '2' | 'y' | 'Y' => Axes::Y,
                 '3' | 'z' | 'Z' => Axes::Z,

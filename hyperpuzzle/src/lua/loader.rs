@@ -59,6 +59,7 @@ impl LuaLoader {
             let math: LuaTable<'_> = globals.get("math")?;
             let round_fn = lua.create_function(|_lua, x: LuaNumber| Ok(x.round()))?;
             math.raw_set("round", round_fn)?;
+            // TODO: support other numbers
             let eq_fn = |_lua, (a, b): (LuaNumber, LuaNumber)| Ok(hypermath::approx_eq(&a, &b));
             math.raw_set("eq", lua.create_function(eq_fn)?)?;
             let neq_fn = |_lua, (a, b): (LuaNumber, LuaNumber)| Ok(!hypermath::approx_eq(&a, &b));
@@ -100,7 +101,7 @@ impl LuaLoader {
             sandbox.raw_set("point", lua.create_function(point_fn)?)?;
             let blade_fn = |_lua, b: LuaBlade| Ok(b);
             sandbox.raw_set("blade", lua.create_function(blade_fn)?)?;
-            let plane_fn = |_lua, h: LuaHyperplane| Ok(h);
+            let plane_fn = |lua, LuaHyperplaneFromMultivalue(h)| LuaBlade::from_hyperplane(lua, &h);
             sandbox.raw_set("plane", lua.create_function(plane_fn)?)?;
             let cd_fn = |_lua, v| LuaSymmetry::construct_from_lua_value(v);
             sandbox.raw_set("cd", lua.create_function(cd_fn)?)?;

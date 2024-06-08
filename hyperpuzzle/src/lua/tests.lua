@@ -69,3 +69,52 @@ function test_vector_ops_3d()
   -- assert(tostring(mvec{xy = 3, s = 2, z = -1}) == '2 + 3xy + -1z')
   -- assert(tostring(vec(mvec{xy = 3, s = 2, z = -1})) == 'vec(0, 0, -1)')
 end
+
+function test_blade_iteration_3d()
+  local j = 0
+  for i, x in pairs(vec(0, 20)) do
+    j = j + 1
+    if j == 1 then assert(i == 1 and x == 0) end
+    if j == 2 then assert(i == 2 and x == 20) end
+    if j == 3 then assert(i == 3 and x == 0) end
+  end
+  assert(j == 3)
+
+  local j = 0
+  for i, x in pairs(point(0, 20) * 6) do
+    j = j + 1
+    if j == 1 then assert(i == 1 and x == 0) end
+    if j == 2 then assert(i == 2 and x == 20) end
+    if j == 3 then assert(i == 3 and x == 0) end
+  end
+  assert(j == 3)
+
+  local is_success, err = pcall(pairs, plane('x'))
+  assert(not is_success)
+end
+
+function test_plane_construction_3d()
+  local expected
+
+  -- plane through point (2, -3, 6) with normal vector (2/7, -3/7, 6/7)
+  expected = plane{normal = vec(2/7, -3/7, 6/7), point = vec(2, -3, 6)}
+  assert(expected == plane(vec(2, -3, 6)))
+  assert(expected == plane(point(2, -3, 6)))
+
+  -- plane through point (1, 0, 0) perpendicular to the X axis
+  expected = plane{normal = vec(1, 0, 0), point = vec(1, 0, 0)}
+  assert(expected == plane('x'))
+  assert(expected == plane{pole = vec(1)})
+  assert(expected == plane{normal = vec(3), distance = 1})
+
+  -- plane through point (1, 0, 0) perpendicular to the X axis, but facing the other way
+  expected = plane{normal = -vec(1, 0, 0), point = vec(1, 0, 0)}
+  assert(expected == -plane('x'))
+  assert(expected == plane(-vec('x'), -1))
+
+  -- plane through the origin with normal vector (0, 0, 1)
+  expected = plane{normal = vec(0, 0, 1), point = vec(0, 0, 0)}
+  assert(expected == plane('z', 0))
+  assert(expected == plane{normal = 'z', point = vec()})
+  assert(expected == plane{normal = 'z', distance = 0})
+end

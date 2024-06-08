@@ -22,6 +22,26 @@ impl<'lua> FromLua<'lua> for LuaHyperplaneSet {
     }
 }
 
+/// Lua conversion wrapper for constructing a hyperplane from a multivalue.
+#[derive(Debug, Clone)]
+pub struct LuaHyperplaneFromMultivalue(pub Hyperplane);
+
+impl<'lua> FromLuaMulti<'lua> for LuaHyperplaneFromMultivalue {
+    fn from_lua_multi(values: LuaMultiValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        let hyperplane = if values.len() == 2 {
+            let LuaVector(normal) = <_>::from_lua(values.get(0).unwrap_or(&LuaNil).clone(), lua)?;
+            let distance: Float = <_>::from_lua(values.get(1).unwrap_or(&LuaNil).clone(), lua)?;
+            Hyperplane::new(normal, distance)
+                .ok_or("plane normal vector cannot be zero")
+                .into_lua_err()?
+        } else {
+            LuaHyperplane::from_lua_multi(values, lua)?.0
+        };
+
+        Ok(Self(hyperplane))
+    }
+}
+
 /// Lua conversion wrapper for a hyperplane.
 ///
 /// This is not actually a Lua type since it does not implement [`LuaUserData`].

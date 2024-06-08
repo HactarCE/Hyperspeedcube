@@ -34,17 +34,16 @@ SANDBOX_ENV = {
   log = math.log,
   max = math.max,
   min = math.min,
-  PI = math.pi,
-  TAU = math.tau,
-  PHI = math.phi,
+  modf = math.modf,
+  pi = math.pi,
+  tau = math.tau,
+  phi = math.phi,
   rad = math.rad,
   sin = math.sin,
   sqrt = math.sqrt,
   tan = math.tan,
-  -- Including custom Rust functions
+  -- Including some custom Rust functions
   round = math.round,
-  eq = math.eq,
-  neq = math.neq,
 
   -- Safe custom functions
   assert = assert,
@@ -63,10 +62,6 @@ SANDBOX_ENV = {
     setmetatable(t, metatable)
     return t
   end,
-
-  -- Safe utility functions
-  collect = collect,
-  iter = iter,
 
   -- Rust code will inject more entries into this table
 }

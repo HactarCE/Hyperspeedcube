@@ -35,7 +35,7 @@ local function pstring_internal(t, indent, exclude)
       exclude[t] = true
     end
 
-    result = result .. ' {';
+    result = result .. ' {'
 
     if next(t) ~= nil then
       -- if table is nonempty, print newline
