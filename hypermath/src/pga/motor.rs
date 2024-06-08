@@ -253,6 +253,16 @@ impl Motor {
             .all(|(a, b)| approx_eq(&(a * scale_factor), &b))
     }
 
+    /// Returns the grade projection of the motor to a blade.
+    #[must_use]
+    pub fn grade_project(&self, grade: u8) -> Blade {
+        let mut ret = Blade::zero(self.ndim, grade);
+        for term in self.nonzero_terms().filter(|t| t.grade() == grade) {
+            ret += term;
+        }
+        ret
+    }
+
     /// Returns the motor for the reverse transformation.
     #[must_use]
     pub fn reverse(&self) -> Motor {
@@ -611,4 +621,30 @@ fn common_ndim(m1: &Motor, m2: &Motor) -> u8 {
 /// common parity, or returns `None` if they have different parities.
 fn common_ndim_and_parity(m1: &Motor, m2: &Motor) -> Option<(u8, bool)> {
     (m1.is_reflection == m2.is_reflection).then(|| (common_ndim(m1, m2), m1.is_reflection))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test a formula for extracting the second fixed axis of a rotation in 4D,
+    /// given the rotation and one known fixed axis.
+    #[test]
+    fn test_4d_extract_second_fixed_axis() {
+        let rot = Motor::from_angle_in_axis_plane(4, 0, 1, 0.2);
+
+        let ax1 = vector![0.0, 0.0, 1.0];
+        let ax2 = Blade::wedge(
+            &Blade::wedge(&Blade::origin(4), &Blade::from_vector(4, ax1)).unwrap(),
+            &rot.grade_project(2),
+        )
+        .unwrap()
+        .antidual();
+
+        // ax2 should be a unit vector along the W axis.
+        assert_eq!(1, ax2.grade());
+        assert!(!ax2.is_zero());
+        let wedge = Blade::wedge(&ax2, &Blade::from_vector(4, vector![0.0, 0.0, 0.0, 1.0]));
+        assert!(wedge.is_some_and(|b| b.is_zero()));
+    }
 }

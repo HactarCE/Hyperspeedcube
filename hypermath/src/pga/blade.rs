@@ -164,6 +164,23 @@ impl Blade {
         self.mag2().sqrt()
     }
 
+    /// Returns an iterator over all terms in the [bulk] of the blade; i.e., the
+    /// components that do not have e₀ as a factor.
+    ///
+    /// [bulk]:
+    ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Bulk_and_weight
+    fn bulk_terms(&self) -> impl '_ + Iterator<Item = Term> {
+        self.terms().filter(|term| !term.axes.contains(Axes::E0))
+    }
+    /// Returns an iterator over all terms in the [weight] of the blade; i.e.,
+    /// the components that have e₀ as a factor.
+    ///
+    /// [weight]:
+    ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Weight_and_weight
+    fn weight_terms(&self) -> impl '_ + Iterator<Item = Term> {
+        self.terms().filter(|term| term.axes.contains(Axes::E0))
+    }
+
     /// Returns the [bulk] of the blade; i.e., a blade with only the components
     /// that do not have e₀ as a factor.
     ///
@@ -171,10 +188,8 @@ impl Blade {
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Bulk_and_weight
     pub fn bulk(&self) -> Self {
         let mut bulk = Blade::zero(self.ndim, self.grade);
-        for (i, &x) in self.coefficients.iter().enumerate() {
-            if !self.axes_at_index(i).contains(Axes::E0) {
-                bulk.coefficients[i] = x;
-            }
+        for term in self.bulk_terms() {
+            bulk += term;
         }
         bulk
     }
@@ -185,12 +200,33 @@ impl Blade {
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Bulk_and_weight
     pub fn weight(&self) -> Self {
         let mut weight = Blade::zero(self.ndim, self.grade);
-        for (i, &x) in self.coefficients.iter().enumerate() {
-            if self.axes_at_index(i).contains(Axes::E0) {
-                weight.coefficients[i] = x;
-            }
+        for term in self.weight_terms() {
+            weight += term;
         }
         weight
+    }
+
+    /// Returns the [bulk norm] of the blade; i.e., the magnitude of the terms
+    /// that do not have e₀ as a factor.
+    ///
+    /// [bulk norm]:
+    ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Geometric_norm#Bulk_Norm
+    pub fn bulk_norm(&self) -> Float {
+        self.bulk_terms()
+            .map(|term| term.coef * term.coef)
+            .sum::<Float>()
+            .sqrt()
+    }
+    /// Returns the [weight norm] of the blade; i.e., the magnitude of the terms
+    /// that have e₀ as a factor.
+    ///
+    /// [weight norm]:
+    ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Geometric_norm#Weight_Norm
+    pub fn weight_norm(&self) -> Float {
+        self.weight_terms()
+            .map(|term| term.coef * term.coef)
+            .sum::<Float>()
+            .sqrt()
     }
 
     /// Returns whether the blade is approximately zero.
