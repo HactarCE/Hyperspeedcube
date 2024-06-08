@@ -17,8 +17,14 @@ impl LuaUserData for LuaTransform {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("transform"));
 
-        fields.add_field_method_get("reverse", |_lua, Self(this)| Ok(Self(this.reverse())));
+        fields.add_field_method_get("ndim", |_lua, Self(this)| Ok(this.ndim()));
+        fields.add_field_method_get("is_ident", |_lua, Self(this)| Ok(this.is_ident()));
+        fields.add_field_method_get("is_refl", |_lua, Self(this)| Ok(this.is_reflection()));
+
         fields.add_field_method_get("rev", |_lua, Self(this)| Ok(Self(this.reverse())));
+        fields.add_field_method_get("reverse", |_lua, _| {
+            Err::<LuaValue<'_>, _>(LuaError::external("use `.rev` instead"))
+        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
@@ -38,16 +44,23 @@ impl LuaUserData for LuaTransform {
             }
         });
 
-        methods.add_method("ndim", |_lua, Self(this), ()| Ok(this.ndim()));
-
         // Application of transforms
         methods.add_method("transform", |lua, Self(this), obj: Transformable| {
             this.transform(&obj).into_lua(lua).transpose()
+        });
+
+        // Comparison of transforms
+        methods.add_meta_method(LuaMetaMethod::Eq, |_lua, Self(this), Self(other)| {
+            Ok(this.is_equivalent_to(&other))
         });
     }
 }
 
 impl LuaTransform {
+    /// Constructs the identity transformation.
+    pub fn construct_identity(lua: &Lua, _: ()) -> LuaResult<Self> {
+        Ok(Self(Motor::ident(LuaNdim::get(lua)?)))
+    }
     /// Constructs a rotation from a table of values.
     pub fn construct_rotation(lua: &Lua, t: LuaTable<'_>) -> LuaResult<Self> {
         let ndim = LuaNdim::get(lua)?;
