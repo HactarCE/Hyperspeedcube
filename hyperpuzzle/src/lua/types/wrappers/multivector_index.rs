@@ -65,7 +65,7 @@ impl FromStr for LuaMultivectorIndex {
                 '4' | 'w' | 'W' => Axes::W,
                 '5' | 'v' | 'V' => Axes::V,
                 '6' | 'u' | 'U' => Axes::U,
-                '0' => Axes::T,
+                '7' | 't' | 'T' => Axes::T,
 
                 // Ignore these characters.
                 's' | 'e' | 'n' | '_' | ' ' => continue,

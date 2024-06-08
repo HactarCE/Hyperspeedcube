@@ -8,11 +8,11 @@ pub type Float = f64;
 /// Small floating-point value used for comparisons and tiny offsets.
 pub const EPSILON: Float = 0.000001;
 
-/// Names for axes up to 10 dimensions.
-pub const AXIS_NAMES: &str = "XYZWVUTSRQ";
+/// Names for axes up to 7 dimensions.
+pub const AXIS_NAMES: &str = "XYZWVUT";
 
-/// Maximum number of dimensions, which defaults to 10.
-pub const MAX_NDIM: u8 = 10;
+/// Maximum number of dimensions.
+pub const MAX_NDIM: u8 = 7;
 
 /// Asserts that both arguments are approximately equal.
 #[macro_export]
