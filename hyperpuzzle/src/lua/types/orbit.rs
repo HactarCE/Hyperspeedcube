@@ -45,7 +45,15 @@ impl LuaUserData for LuaOrbit {
             )
         });
 
-        fields.add_field_method_get("has_names", |_lua, this| Ok(this.has_names));
+        fields.add_field_method_get("names", |lua, this| {
+            this.has_names
+                .then(|| {
+                    lua.create_sequence_from(
+                        this.orbit_list.iter().map(|(_, name, _)| name.clone()),
+                    )
+                })
+                .transpose()
+        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
@@ -87,16 +95,6 @@ impl LuaUserData for LuaOrbit {
                 iter_index: Arc::new(AtomicUsize::new(0)),
                 ..this.clone()
             })
-        });
-
-        methods.add_method("names", |lua, this, ()| {
-            this.has_names
-                .then(|| {
-                    lua.create_sequence_from(
-                        this.orbit_list.iter().map(|(_, name, _)| name.clone()),
-                    )
-                })
-                .transpose()
         });
 
         methods.add_method("with", |lua, this, arg| {
@@ -216,23 +214,28 @@ pub fn names_and_order_from_table<'lua>(
         let new_name = String::from_lua(new_name, lua)?;
         order.push(new_name.clone());
 
-        let mirror_seq = LuaTable::from_lua(key.clone(), lua)?;
-        let mut iter = mirror_seq.sequence_values::<LuaValue<'_>>();
-        match iter.next() {
-            None => {
-                let motor = symmetry.motor_for_mirror_seq([])?;
-                known.insert(new_name, motor);
+        let mut mirror_seq: Vec<LuaValue<'_>> = LuaTable::from_lua(key.clone(), lua)?
+            .sequence_values::<LuaValue<'_>>()
+            .try_collect()?;
+        let init_name = match mirror_seq.last().cloned() {
+            Some(LuaValue::String(s)) => {
+                mirror_seq.pop();
+                Some(s.to_string_lossy().to_string())
             }
-            Some(init) => {
-                let init_name = String::from_lua(init?, lua)?;
-                let mirror_indices: Vec<usize> = iter
-                    .map(|v| LuaIndex::from_lua(v?, lua).map(|LuaIndex(i)| i))
-                    .try_collect()?;
-                let motor = symmetry.motor_for_mirror_seq(mirror_indices)?;
-                unknown
-                    .entry(init_name)
-                    .or_default()
-                    .push((new_name, motor));
+            _ => None,
+        };
+        let mirror_indices: Vec<usize> = mirror_seq
+            .into_iter()
+            .map(|v| LuaIndex::from_lua(v, lua).map(|LuaIndex(i)| i))
+            .try_collect()?;
+        let motor = symmetry.motor_for_mirror_seq(mirror_indices)?;
+        match init_name {
+            Some(init_name) => unknown
+                .entry(init_name)
+                .or_default()
+                .push((new_name, motor)),
+            None => {
+                known.insert(new_name, motor);
             }
         }
     }

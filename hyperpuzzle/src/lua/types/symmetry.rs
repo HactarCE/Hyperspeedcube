@@ -137,6 +137,7 @@ impl LuaUserData for LuaSymmetry {
                 chiral: true,
             })
         });
+        fields.add_field_method_get("is_chiral", |_lua, Self { chiral, .. }| Ok(*chiral));
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {

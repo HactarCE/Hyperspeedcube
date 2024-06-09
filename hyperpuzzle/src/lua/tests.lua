@@ -118,3 +118,18 @@ function test_plane_construction_3d()
   assert(expected == plane{normal = 'z', point = vec()})
   assert(expected == plane{normal = 'z', distance = 0})
 end
+
+function test_bc3_mirror_vectors_5d()
+  local mirrors = cd'bc3'.mirror_vectors
+  assert(#mirrors == 3)
+  assert(mirrors[1] == vec(1))
+  assert(mirrors[2] == vec(-1, 1) / sqrt(2))
+  assert(mirrors[3] == vec(0, -1, 1) / sqrt(2))
+end
+
+function test_symmetry_thru_3d()
+  local sym = cd'bc3'
+  local a = sym:thru(1, 2, 3)
+  local b = sym:thru(1) * sym:thru(2) * sym:thru(3)
+  assert(a == b)
+end

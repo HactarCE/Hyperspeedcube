@@ -105,6 +105,8 @@ impl LuaLoader {
             sandbox.raw_set("plane", lua.create_function(plane_fn)?)?;
             let cd_fn = |_lua, v| LuaSymmetry::construct_from_lua_value(v);
             sandbox.raw_set("cd", lua.create_function(cd_fn)?)?;
+            let ident_fn = LuaTransform::construct_identity;
+            sandbox.raw_set("ident", lua.create_function(ident_fn)?)?;
             let refl_fn = LuaTransform::construct_reflection;
             sandbox.raw_set("refl", lua.create_function(refl_fn)?)?;
             let rot_fn = LuaTransform::construct_rotation;
