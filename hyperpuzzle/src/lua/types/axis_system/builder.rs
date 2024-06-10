@@ -21,17 +21,20 @@ impl LuaUserData for LuaAxisSystem {
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         LuaIdDatabase::<Axis>::add_db_metamethods(methods, |Self(puz)| puz.lock());
-        // AxisSystemBuilder::add_db_metamethods(methods, |Self(puz)| puz.lock());
-        // AxisSystemBuilder::add_named_db_methods(methods, |Self(puz)| puz.lock());
-        // AxisSystemBuilder::add_ordered_db_methods(methods, |Self(puz)| puz.lock());
+        LuaNamedIdDatabase::<Axis>::add_named_db_methods(methods, |Self(puz)| puz.lock());
+        LuaOrderedIdDatabase::<Axis>::add_ordered_db_methods(methods, |Self(puz)| puz.lock());
 
-        methods.add_method_mut("autoname", |lua, this, ()| {
+        methods.add_method("autoname", |lua, this, ()| {
             let autonames = crate::util::iter_uppercase_letter_names();
             let mut puz = this.lock();
             let axes = &mut puz.twists.axes;
             let len = axes.len();
             axes.names.autoname(len, autonames, lua_warn_fn(lua));
             Ok(())
+        });
+
+        methods.add_method("add", |lua, this, (vectors, extra)| {
+            this.add(lua, vectors, extra)
         });
     }
 }
@@ -92,7 +95,7 @@ impl LuaAxisSystem {
         lua: &'lua Lua,
         vectors: LuaSymmetricSet<LuaVector>,
         extra: Option<LuaTable<'lua>>,
-    ) -> LuaResult<(Vec<LuaAxis>, SliceAxisLayers)> {
+    ) -> LuaResult<Vec<LuaAxis>> {
         let depths: Vec<hypermath::Float>;
         let slice: Option<bool>;
         if let Some(t) = extra {
@@ -109,6 +112,8 @@ impl LuaAxisSystem {
             slice = None;
         }
 
+        let slice = slice.unwrap_or(true);
+
         // Check that layers are monotonic. This check happens later too, but we
         // can give a better error here with a nice message and line number.
         // This is an especially easy mistake to make, so it's important to have
@@ -122,13 +127,14 @@ impl LuaAxisSystem {
         }
 
         let mut puz = self.lock();
-        let mut new_ids = vec![];
+        let mut new_axes = vec![];
         for (name, LuaVector(v)) in vectors.to_vec(lua)? {
             let id = puz.twists.axes.add(v.clone()).into_lua_err()?;
             puz.twists.axes.names.set(id, name, lua_warn_fn(lua));
-            new_ids.push(puz.wrap_id(id));
+            new_axes.push(puz.wrap_id(id));
 
             let axis = puz.twists.axes.get_mut(id).into_lua_err()?;
+            let mut layer_planes = vec![];
             for &depth in &depths {
                 let layer_plane = Hyperplane::new(&v, depth)
                     .ok_or("axis vector cannot be zero")
@@ -139,28 +145,15 @@ impl LuaAxisSystem {
                     top: None,
                 };
                 axis.layers.push(layer).into_lua_err()?;
+                layer_planes.push(layer_plane);
+            }
+            if slice {
+                for cut in layer_planes {
+                    puz.shape.slice(None, cut, None, None).into_lua_err()?;
+                }
             }
         }
 
-        Ok((new_ids, SliceAxisLayers::from(slice)))
-    }
-}
-
-/// Whether to slice the puzzle when adding axis layers.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum SliceAxisLayers {
-    /// Slice all pieces for each new axis layer.
-    #[default]
-    Slice,
-    /// Don't slice the puzzle when adding axes.
-    DontSlice,
-}
-impl From<Option<bool>> for SliceAxisLayers {
-    fn from(value: Option<bool>) -> Self {
-        match value {
-            Some(true) => Self::Slice,
-            Some(false) => Self::DontSlice,
-            None => Self::default(),
-        }
+        Ok(new_axes)
     }
 }

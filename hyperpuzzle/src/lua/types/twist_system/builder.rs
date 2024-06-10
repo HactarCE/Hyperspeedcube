@@ -37,7 +37,6 @@ impl<'lua> LuaIdDatabase<'lua, Twist> for PuzzleBuilder {
     const ELEMENT_NAME_PLURAL: &'static str = "twists";
 
     fn value_to_id(&self, lua: &'lua Lua, value: LuaValue<'lua>) -> LuaResult<Twist> {
-        // TODO: lookup by axis vector
         self.value_to_id_by_userdata(lua, &value)
             .or_else(|| self.value_to_id_by_name(lua, &value))
             .unwrap_or_else(|| lua_convert_err(&value, "axis, string, or integer index"))
@@ -73,35 +72,35 @@ impl LuaTwistSystem {
         data: Option<LuaTable<'lua>>,
     ) -> LuaResult<Option<LuaTwist>> {
         let multipliers: Option<bool>;
+        let inverse: Option<bool>;
         let prefix: Option<String>;
         let name: Option<String>;
         let suffix: Option<String>;
         let inv_name: Option<String>;
         let inv_suffix: Option<String>;
-        let inverse: Option<bool>;
         let name_fn: Option<LuaFunction<'_>>;
         let qtm: Option<usize>;
         if let Some(data_table) = data {
             unpack_table!(lua.unpack(data_table {
                 multipliers,
+                inverse,
                 prefix,
                 name,
                 suffix,
                 inv_name,
                 inv_suffix,
-                inverse,
                 name_fn,
                 qtm,
             }));
         } else {
             // These are reasonable defaults, especially for 3D.
             multipliers = Some(true);
+            inverse = Some(true);
             prefix = axis.name();
             name = None;
             suffix = None;
             inv_name = None;
             inv_suffix = None;
-            inverse = Some(true);
             name_fn = None;
             qtm = None;
         }

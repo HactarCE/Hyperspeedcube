@@ -277,8 +277,8 @@ impl<'lua, T: LuaTypeName + FromLua<'lua>> FromLua<'lua> for LuaSymmetricSet<T> 
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         if let Ok(orbit) = <_>::from_lua(value.clone(), lua) {
             Ok(Self::Orbit(orbit))
-        } else if let Ok(h) = <_>::from_lua(value.clone(), lua) {
-            Ok(Self::Single(h))
+        } else if let Ok(v) = <_>::from_lua(value.clone(), lua) {
+            Ok(Self::Single(v))
         } else {
             // This error isn't quite accurate, but it's close enough. The error
             // message will say that we need a value of type `T`, but in fact we

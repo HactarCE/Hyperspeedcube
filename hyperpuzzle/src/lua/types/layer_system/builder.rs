@@ -25,11 +25,13 @@ impl LuaUserData for LuaLayerSystem {
         methods.add_meta_method(LuaMetaMethod::Index, move |lua, this, LuaIndex(index)| {
             let this = this.lock()?;
             match this.get(Layer::try_from_usize(index).into_lua_err()?) {
-                Ok(layer) => Ok(LuaMultiValue::from_vec(vec![
-                    Some(LuaHyperplane(layer.bottom.clone())).into_lua(lua)?,
-                    layer.top.clone().map(LuaHyperplane).into_lua(lua)?,
-                ])),
-                Err(_) => LuaNil.into_lua_multi(lua),
+                Ok(layer) => {
+                    let bottom = Some(LuaHyperplane(layer.bottom.clone())).into_lua(lua)?;
+                    let top = layer.top.clone().map(LuaHyperplane).into_lua(lua)?;
+                    lua.create_table_from([("bottom", bottom), ("top", top)])?
+                        .into_lua(lua)
+                }
+                Err(_) => Ok(LuaNil),
             }
         });
         methods.add_meta_method(LuaMetaMethod::Len, move |_lua, this, ()| {

@@ -61,21 +61,6 @@ impl LuaUserData for LuaPuzzleBuilder {
         methods.add_method("slice", |lua, this, cuts| {
             this.cut(lua, cuts, CutMode::Slice, StickerMode::None)
         });
-
-        methods.add_method("add_axes", |lua, this, (vectors, extra)| {
-            let (new_axes, slice) = LuaAxisSystem(this.arc()).add(lua, vectors, extra)?;
-
-            if slice == SliceAxisLayers::Slice {
-                for axis in &new_axes {
-                    for cut in axis.layers().cuts()? {
-                        let mut puz = this.lock();
-                        puz.shape.slice(None, cut, None, None).into_lua_err()?;
-                    }
-                }
-            }
-
-            Ok(new_axes)
-        });
     }
 }
 

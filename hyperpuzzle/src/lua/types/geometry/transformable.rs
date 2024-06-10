@@ -57,12 +57,12 @@ impl<'lua> FromLua<'lua> for Transformable {
         } else {
             // Be careful with the order here so that we don't accidentally
             // coerce things in the wrong way.
-            None.or_else(|| lua.unpack(value.clone()).and_then(Self::from_axis).ok())
-                .or_else(|| lua.unpack(value.clone()).and_then(Self::from_color).ok())
-                .or_else(|| lua.unpack(value.clone()).and_then(Self::from_twist).ok())
-                .or_else(|| lua.unpack(value.clone()).map(Self::Hyperplane).ok())
-                .or_else(|| lua.unpack(value.clone()).map(Self::Blade).ok())
-                .or_else(|| lua.unpack(value.clone()).map(Self::Transform).ok())
+            None.or_else(|| cast_userdata(lua, &value).and_then(Self::from_axis).ok())
+                .or_else(|| cast_userdata(lua, &value).and_then(Self::from_color).ok())
+                .or_else(|| cast_userdata(lua, &value).and_then(Self::from_twist).ok())
+                .or_else(|| cast_userdata(lua, &value).map(Self::Hyperplane).ok())
+                .or_else(|| cast_userdata(lua, &value).map(Self::Blade).ok())
+                .or_else(|| cast_userdata(lua, &value).map(Self::Transform).ok())
         }
         .ok_or_else(|| lua_convert_error(&value, "axis, color, transform, twist, or vector"))
     }
