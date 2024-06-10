@@ -25,10 +25,9 @@ impl LuaUserData for LuaPuzzleBuilder {
         fields.add_field_method_get("space", |_lua, this| Ok(LuaSpace(this.lock().space())));
         fields.add_field_method_get("ndim", |_lua, this| Ok(this.lock().ndim()));
 
-        fields.add_field_method_get("space", |_lua, this| Ok(LuaSpace(this.lock().space())));
         fields.add_field_method_get("colors", |_lua, this| Ok(LuaColorSystem(this.arc())));
-        fields.add_field_method_get("twists", |_lua, this| Ok(LuaTwistSystem(this.arc())));
         fields.add_field_method_get("axes", |_lua, this| Ok(LuaAxisSystem(this.arc())));
+        fields.add_field_method_get("twists", |_lua, this| Ok(LuaTwistSystem(this.arc())));
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
@@ -56,6 +55,7 @@ impl LuaUserData for LuaPuzzleBuilder {
             } else {
                 sticker_mode = StickerMode::NewColor;
             }
+            // TODO: allow naming a single carve operation
             this.cut(lua, cuts, CutMode::Carve, sticker_mode)
         });
         methods.add_method("slice", |lua, this, cuts| {

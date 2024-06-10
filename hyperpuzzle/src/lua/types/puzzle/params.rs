@@ -32,21 +32,19 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
 
         let name: String;
         let ndim: LuaNdim;
+        let build: LuaFunction<'lua>;
         let aliases: Option<Vec<String>>;
         let meta: Option<LuaTable<'lua>>;
         let properties: Option<LuaTable<'lua>>;
-        let build: LuaFunction<'lua>;
 
         unpack_table!(lua.unpack(table {
             name,
-
             ndim,
+            build,
 
             aliases,
             meta,
             properties,
-
-            build,
         }));
 
         let create_opt_registry_value = |v| -> LuaResult<Option<LuaRegistryKey>> {
