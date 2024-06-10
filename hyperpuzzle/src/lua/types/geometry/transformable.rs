@@ -34,6 +34,8 @@ pub enum Transformable {
         /// Surfaces of the color.
         hyperplanes: Vec<Hyperplane>,
     },
+    /// Hyperplane.
+    Hyperplane(LuaHyperplane),
     // TODO: piece
     /// Transform (isometry).
     Transform(LuaTransform),
@@ -58,6 +60,7 @@ impl<'lua> FromLua<'lua> for Transformable {
             None.or_else(|| lua.unpack(value.clone()).and_then(Self::from_axis).ok())
                 .or_else(|| lua.unpack(value.clone()).and_then(Self::from_color).ok())
                 .or_else(|| lua.unpack(value.clone()).and_then(Self::from_twist).ok())
+                .or_else(|| lua.unpack(value.clone()).map(Self::Hyperplane).ok())
                 .or_else(|| lua.unpack(value.clone()).map(Self::Blade).ok())
                 .or_else(|| lua.unpack(value.clone()).map(Self::Transform).ok())
         }
@@ -109,6 +112,7 @@ impl Transformable {
                 let id = db.lock().shape.colors.surface_set_to_id(&hyperplanes)?;
                 Some(LuaColor { id, db }.into_lua(lua))
             }
+            Self::Hyperplane(h) => Some(h.clone().into_lua(lua)),
             Self::Transform(t) => Some(t.clone().into_lua(lua)),
             Self::Twist {
                 db,
@@ -152,7 +156,8 @@ impl TransformByMotor for Transformable {
                 db: Arc::clone(db),
                 hyperplanes: hyperplanes.into_iter().map(|h| m.transform(h)).collect(),
             },
-            Self::Transform(LuaTransform(t2)) => Self::Transform(LuaTransform(m.transform(t2))),
+            Self::Hyperplane(LuaHyperplane(h)) => Self::Hyperplane(LuaHyperplane(m.transform(h))),
+            Self::Transform(LuaTransform(t)) => Self::Transform(LuaTransform(m.transform(t))),
             Self::Twist {
                 db,
                 axis_vector,
@@ -177,6 +182,7 @@ impl ApproxHashMapKey for Transformable {
                 .iter()
                 .map(|hyperplane| hyperplane.approx_hash(&mut float_hash_fn).into())
                 .collect(),
+            Self::Hyperplane(LuaHyperplane(h)) => h.approx_hash(float_hash_fn).into(),
             Self::Transform(LuaTransform(t)) => t.approx_hash(float_hash_fn).into(),
             Self::Twist {
                 db: _,

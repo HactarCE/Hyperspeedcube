@@ -50,7 +50,9 @@ pub struct LuaHyperplane(pub Hyperplane);
 
 impl<'lua> FromLua<'lua> for LuaHyperplane {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        if let Ok(LuaVector(v)) = lua.unpack(value.clone()) {
+        if let Ok(this) = cast_userdata(lua, &value) {
+            Ok(this)
+        } else if let Ok(LuaVector(v)) = lua.unpack(value.clone()) {
             Ok(Self(
                 Hyperplane::from_pole(v)
                     .ok_or("plane pole cannot be zero")
@@ -72,15 +74,28 @@ impl<'lua> FromLua<'lua> for LuaHyperplane {
     }
 }
 
-impl<'lua> IntoLua<'lua> for LuaHyperplane {
-    fn into_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        LuaBlade(pga::Blade::from_hyperplane(LuaNdim::get(lua)?, &self.0)).into_lua(lua)
-    }
-}
+impl LuaUserData for LuaHyperplane {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_meta_field("type", LuaStaticStr("hyperplane"));
 
-impl LuaTypeName for LuaHyperplane {
-    fn type_name(_lua: &Lua) -> LuaResult<&'static str> {
-        Ok("hyperplane")
+        fields.add_field_method_get("ndim", |_lua, Self(this)| Ok(this.normal().ndim()));
+        fields.add_field_method_get("flip", |_lua, Self(this)| Ok(Self(this.flip())));
+        fields.add_field_method_get("normal", |_lua, Self(this)| {
+            Ok(LuaVector(this.normal().clone()))
+        });
+        fields.add_field_method_get("distance", |_lua, Self(this)| Ok(this.distance()));
+        fields.add_field_method_get("blade", |lua, this| this.to_blade(lua));
+    }
+
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("flip", |_lua, Self(this), ()| Ok(Self(this.flip())));
+        methods.add_method("signed_distance", |_lua, Self(this), LuaPoint(p)| {
+            Ok(this.signed_distance_to_point(p))
+        });
+
+        methods.add_meta_method(LuaMetaMethod::Eq, |_lua, Self(this), Self(other)| {
+            Ok(approx_eq(this, &other))
+        })
     }
 }
 

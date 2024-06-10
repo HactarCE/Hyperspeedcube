@@ -11,6 +11,8 @@ impl<'lua> FromLua<'lua> for LuaBlade {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         if let Ok(m) = cast_userdata(lua, &value) {
             Ok(m)
+        } else if let Ok(h) = cast_userdata::<LuaHyperplane>(lua, &value) {
+            h.to_blade(lua)
         } else if let Ok(LuaVector(v)) = lua.unpack(value.clone()) {
             let ndim = enforce_ndim(lua, v.ndim())?;
             Ok(Self(Blade::from_vector(ndim, v)))
