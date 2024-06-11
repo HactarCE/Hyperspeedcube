@@ -1,11 +1,13 @@
+-- All of these assume BC3 symmetry
+
 FACE_NAMES_SHORT = {
-  symmetry = cd'bc3',
-  {'R', {'U', 2}},
-  {'L', {'R', 1}},
-  {'U', {'F', 3}},
-  {'D', {'L', 2}},
+  symmetry = 'bc3',
+  {'R', {2, 'U'}},
+  {'L', {1, 'R'}},
+  {'U', {3, 'F'}},
+  {'D', {2, 'L'}},
   {'F', {}}, -- oox
-  {'B', {'D', 3}},
+  {'B', {3, 'D'}},
 }
 
 FACE_NAMES_LONG = require('utils').map_string_values(FACE_NAMES_SHORT, {
