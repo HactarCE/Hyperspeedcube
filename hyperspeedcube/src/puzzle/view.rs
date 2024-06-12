@@ -122,11 +122,15 @@ impl PuzzleView {
                 // Update camera.
                 DragState::ViewRot { z_axis } => {
                     if let Some(delta) = cursor_delta {
-                        let cgmath::Vector2 { x: dx, y: dy } = delta;
-                        self.camera.rot =
-                            pga::Motor::from_angle_in_axis_plane(ndim, 0, *z_axis, dx as _)
-                                * pga::Motor::from_angle_in_axis_plane(ndim, 1, *z_axis, dy as _)
-                                * &self.camera.rot;
+                        if *z_axis < ndim {
+                            let cgmath::Vector2 { x: dx, y: dy } = delta;
+                            self.camera.rot =
+                                pga::Motor::from_angle_in_axis_plane(ndim, 0, *z_axis, dx as _)
+                                    * pga::Motor::from_angle_in_axis_plane(
+                                        ndim, 1, *z_axis, dy as _,
+                                    )
+                                    * &self.camera.rot;
+                        }
                     }
                 }
 
