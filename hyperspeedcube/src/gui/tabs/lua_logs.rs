@@ -57,12 +57,21 @@ pub fn show(ui: &mut egui::Ui, _app: &mut App) {
 }
 
 fn colored_log_line(ui: &mut egui::Ui, line: &LuaLogLine) {
-    let color = match line.level {
-        LuaLogLevel::Info => egui::Color32::LIGHT_BLUE,
-        LuaLogLevel::Warn => egui::Color32::GOLD,
-        LuaLogLevel::Error => egui::Color32::LIGHT_RED,
+    let text = egui::RichText::new(&line.msg).monospace();
+    let text = match ui.visuals().dark_mode {
+        true => match line.level {
+            LuaLogLevel::Info => text.color(egui::Color32::LIGHT_BLUE),
+            LuaLogLevel::Warn => text.color(egui::Color32::GOLD),
+            LuaLogLevel::Error => text.color(egui::Color32::LIGHT_RED),
+        },
+        false => match line.level {
+            LuaLogLevel::Info => text.color(egui::Color32::BLUE),
+            LuaLogLevel::Warn => text.color(egui::Color32::DARK_RED),
+            LuaLogLevel::Error => text
+                .color(egui::Color32::DARK_RED)
+                .background_color(egui::Color32::from_rgb(255, 223, 223)),
+        },
     };
-    let text = egui::RichText::new(&line.msg).monospace().color(color);
     let label = egui::Label::new(text);
     if let Some(traceback) = &line.traceback {
         ui.add(label.sense(egui::Sense::hover()))
