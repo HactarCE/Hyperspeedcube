@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cgmath::EuclideanSpace;
 use hypermath::prelude::*;
-use hyperpuzzle::{PieceMask, Puzzle};
+use hyperpuzzle::{LayerMask, PieceMask, Puzzle};
 use parking_lot::Mutex;
 
 use crate::gfx::*;
@@ -223,6 +223,7 @@ impl PuzzleWidget {
             vertex_3d_positions: renderer.vertex_3d_positions(),
             prefs,
             exceeded_twist_drag_threshold,
+            show_sticker_hover: ui.input(|input| input.modifiers.shift),
         });
 
         // Redraw each frame until the image is stable and we have computed 3D
@@ -283,7 +284,7 @@ impl PuzzleWidget {
             Some(r.rect.lerp_inside(egui_pos))
         };
         // TODO: proper overlay system
-        if cfg!(not(debug_assertions)) {
+        if cfg!(not(debug_assertions)) || true {
             self.queued_arrows.clear();
         }
         for [start, end] in std::mem::take(&mut self.queued_arrows) {
@@ -299,6 +300,67 @@ impl PuzzleWidget {
                 Some(())
             })();
         }
+
+        let to_egui = |screen_space: cgmath::Point2<f32>| {
+            let ndc = self
+                .view
+                .camera
+                .scale_screen_space_to_ndc(screen_space)
+                .unwrap_or(cgmath::point2(f32::NAN, f32::NAN));
+            r.rect
+                .lerp_inside(egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5))
+        };
+
+        let stroke = egui::Stroke::new(2.0, egui::Color32::LIGHT_BLUE);
+        let fill = stroke.color.gamma_multiply(0.2);
+        for edge in draw_prep.gizmo_edges {
+            painter.line_segment(edge.map(to_egui), stroke);
+        }
+        for face in draw_prep.gizmo_faces {
+            painter.add(egui::Shape::convex_polygon(
+                face.iter().copied().map(to_egui).collect(),
+                fill,
+                egui::Stroke::NONE,
+            ));
+        }
+        if let Some(twist) = draw_prep.gizmo_click_twist {
+            let layers = LayerMask::default();
+            if r.clicked() {
+                self.sim().lock().do_twist(twist, layers)
+            } else if r.secondary_clicked() {
+                let rev_twist = puzzle.twists[twist].reverse;
+                self.sim().lock().do_twist(rev_twist, layers)
+            }
+        }
+
+        // TODO: draw debug plane??
+        // let group = hypershape::CoxeterGroup::new_linear(&[5, 3]).unwrap();
+        // for mirror in group.mirrors() {
+        //     let pole = mirror.hyperplane().unwrap().pole();
+        //     let basis =
+        //         pga::Blade::from_hyperplane(puzzle.ndim(), &mirror.hyperplane().unwrap()).basis();
+        //     basis[0]
+        // }
+
+        // (|| {
+        //     // TODO: reject polygons whose 3D normal vectors are nearly parallel
+        //     //       with the screen.
+        //     let [a, b, c, d] = [
+        //         project_point(&vector![1.0, -1.0, -1.0])?,
+        //         project_point(&vector![1.0, 1.0, -1.0])?,
+        //         project_point(&vector![1.0, 1.0, 1.0])?,
+        //         project_point(&vector![1.0, -1.0, 1.0])?,
+        //     ];
+        //     for (p, q) in [(a, b), (b, c), (c, d), (d, a)] {
+        //         painter.line_segment([p, q]);
+        //     }
+        //     painter.add(egui::Shape::convex_polygon(
+        //         vec![a, b, c, d],
+        //         egui::Color32::LIGHT_BLUE.gamma_multiply(0.2),
+        //         egui::Stroke::NONE,
+        //     ));
+        //     Some(())
+        // })();
 
         r
     }

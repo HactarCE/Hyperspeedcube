@@ -455,8 +455,7 @@ fn build_shape_polygons(
             mesh.triangles.push(new_vertex_ids);
         }
 
-        for edge in polygon.edge_endpoints() {
-            let edge @ [a, b] = edge?;
+        for edge @ [a, b] in polygon.edge_endpoints()? {
             // We should have seen all these vertices before because they show
             // up in triangles, but check just in case so we don't panic.
             if !(vertex_id_map.contains_key(&a.id()) && vertex_id_map.contains_key(&b.id())) {

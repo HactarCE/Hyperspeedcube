@@ -180,11 +180,11 @@ impl<'a> Element<'a> {
     }
     /// Returns the element if it is a face; otherwise returns an error.
     pub fn as_face(self) -> Result<Face<'a>> {
-        self.as_rank(self.space.ndim() - 1, FaceId)
+        self.as_rank(2, FaceId)
     }
     /// Returns the element if it is an edge; otherwise returns an error.
     pub fn as_edge(self) -> Result<Edge<'a>> {
-        self.as_rank(self.space.ndim() - 1, EdgeId)
+        self.as_rank(1, EdgeId)
     }
     /// Returns the element if it is a vertex; otherwise returns an error.
     pub fn as_vertex(self) -> Result<Vertex<'a>> {
@@ -256,15 +256,34 @@ impl<'a> From<Face<'a>> for Element<'a> {
     }
 }
 impl<'a> Face<'a> {
-    /// Returns the edges of the face.
+    /// Returns the edges of the face, in any order.
     pub fn edges(self) -> MappedElementIter<'a, EdgeId> {
         self.as_element()
             .boundary()
             .map(|e| e.map_id(|e| EdgeId(e.0)))
     }
-    /// Returns the endpoints of each edge in the face.
-    pub fn edge_endpoints(self) -> impl Iterator<Item = Result<[Vertex<'a>; 2]>> {
-        self.edges().map(|e| e.endpoints())
+    /// Returns the endpoints of each edge in the face, in cyclic order.
+    pub fn edge_endpoints(self) -> Result<impl Iterator<Item = [Vertex<'a>; 2]>> {
+        let mut adjacency_map = HashMap::<VertexId, SmallVec<[VertexId; 2]>>::new();
+
+        for edge in self.edges() {
+            let [a, b] = edge.endpoints()?;
+            adjacency_map.entry(a.id).or_default().push(b.id);
+            adjacency_map.entry(b.id).or_default().push(a.id);
+        }
+
+        let init = self.arbitrary_vertex()?;
+        let space = self.space;
+        let mut take_adjacent = move |v: Vertex<'_>| {
+            let adj = adjacency_map.get_mut(&v.id)?.pop()?;
+            adjacency_map.get_mut(&adj)?.retain(|u| *u != v.id);
+            Some(space.get(adj))
+        };
+
+        let init_edge = [init, take_adjacent(init).ok_or_eyre("bad polygon")?];
+        Ok(std::iter::successors(Some(init_edge), move |&[_, b]| {
+            Some([b, take_adjacent(b)?])
+        }))
     }
     /// Returns an orthonormal pair of vectors spanning the face.
     pub fn tangent_vectors(self) -> Result<[Vector; 2]> {
@@ -360,5 +379,20 @@ impl<'a, T: Fits64> ElementIter<'a, T> {
             space,
             ids: ids.into_iter(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_face_edge_endpoints() -> Result<()> {
+        let space = Space::new(2);
+        let square = space.add_primordial_cube(3.0)?.as_element().as_face()?;
+        let edge_endpoints = square.edge_endpoints()?.collect_vec();
+        println!("{edge_endpoints:?}");
+        assert_eq!(edge_endpoints.len(), 4);
+        Ok(())
     }
 }

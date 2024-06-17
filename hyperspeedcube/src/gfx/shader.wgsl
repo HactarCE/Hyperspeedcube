@@ -79,8 +79,9 @@ struct DrawParams {
     fov_signum: f32,
     clip_4d_backfaces: i32,
     clip_4d_behind_camera: i32,
+    camera_4d_w: f32,
 
-    _padding: vec2<f32>,
+    _padding: f32,
 }
 
 
@@ -166,12 +167,8 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
         new_pos[i] -= surface_centroids[facet_idx];
         new_pos[i] *= 1.0 - draw_params.facet_shrink;
         new_pos[i] += surface_centroids[facet_idx];
-        // Scale the whole puzzle to compensate for facet shrink.
-        new_pos[i] /= 1.0 - draw_params.facet_shrink / 2.0;
         // Apply piece explode.
         new_pos[i] += piece_centroids[piece_idx] * draw_params.piece_explode;
-        // Scale back from piece explode.
-        new_pos[i] /= 1.0 + draw_params.piece_explode;
 
         vert_idx++;
         facet_idx++;
@@ -198,42 +195,38 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
         vert_idx++;
     }
     old_pos = new_pos;
+    old_normal = new_normal;
     var old_u = new_u;
     var old_v = new_v;
 
-    // Clip 4D backfaces.
-    if NDIM >= 4 && draw_params.clip_4d_backfaces != 0 {
-        // TODO: these should be `let` bindings. workaround for https://github.com/gfx-rs/wgpu/issues/4920
-        var vertex_pos: array<f32, NDIM> = new_pos;
-        var vertex_normal: array<f32, NDIM> = new_normal;
-
-        // Compute the dot product `normal · (camera - vertex)`.
-        var dot_product_result = 0.0;
-        for (var i = 0; i < NDIM; i++) {
-            dot_product_result += vertex_normal[i] * (camera_4d_pos[i] - vertex_pos[i]);
-        }
-        // Cull if the dot product is positive (i.e., the camera is behind the
-        // geometry).
-        ret.cull |= dot_product_result >= 0.0;
-    }
-
     // Apply puzzle transformation and collapse to 4D.
     var point_4d = vec4<f32>();
+    var normal_4d = vec4<f32>();
     var u = vec4<f32>();
     var v = vec4<f32>();
     i = 0;
     for (var col = 0; col < NDIM; col++) {
         point_4d += puzzle_transform[col] * old_pos[col];
+        normal_4d += puzzle_transform[col] * old_normal[col];
         u += puzzle_transform[col] * old_u[col];
         v += puzzle_transform[col] * old_v[col];
     }
 
+    // Clip 4D backfaces.
+    if NDIM >= 4 && draw_params.clip_4d_backfaces != 0 {
+        let camera_ray_4d = point_4d - vec4(0.0, 0.0, 0.0, draw_params.camera_4d_w);
+        let dot_product_result = dot(normal_4d, camera_ray_4d);
+        // Cull if the dot product is positive (i.e., the camera is behind the
+        // geometry).
+        ret.cull |= dot_product_result <= 0.0;
+    }
+
     // Offset the camera to W = -1. Equivalently, move the whole model to be
     // centered on W = 1.
-    let w = point_4d.w + 1.0;
+    point_4d.w += 1.0;
 
     // Apply 4D perspective transformation.
-    let w_divisor = w_divisor(w);
+    let w_divisor = w_divisor(point_4d.w);
     let recip_w_divisor = 1.0 / w_divisor;
     let vertex_3d_position = point_4d.xyz * recip_w_divisor;
     // Clip geometry that is behind the 4D camera.

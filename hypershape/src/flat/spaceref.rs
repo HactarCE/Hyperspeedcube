@@ -19,6 +19,16 @@ impl<I: PartialEq> PartialEq for SpaceRef<'_, I> {
     }
 }
 impl<I: Eq> Eq for SpaceRef<'_, I> {}
+impl<I: Ord> Ord for SpaceRef<'_, I> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+impl<I: PartialOrd> PartialOrd for SpaceRef<'_, I> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.id.partial_cmp(&other.id)
+    }
+}
 impl<'a, I> SpaceRef<'a, I> {
     pub(super) fn new(space: &'a Space, id: I) -> Self {
         Self { space, id }

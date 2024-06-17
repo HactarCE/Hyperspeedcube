@@ -133,3 +133,9 @@ function test_symmetry_thru_3d()
   local b = sym:thru(1) * sym:thru(2) * sym:thru(3)
   assert(a == b)
 end
+
+function test_get_ndim_3d()
+  assert(3, vec(1).ndim)
+  assert(3, cd'bc2'.ndim)
+  assert(3, cd'bc2':thru(1).ndim)
+end

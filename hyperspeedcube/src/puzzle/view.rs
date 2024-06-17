@@ -108,6 +108,7 @@ impl PuzzleView {
             vertex_3d_positions,
             prefs,
             exceeded_twist_drag_threshold,
+            show_sticker_hover,
         } = input;
 
         let ndim = self.puzzle().ndim();
@@ -197,14 +198,12 @@ impl PuzzleView {
             }
         } else {
             // Update hover state, only when not in the middle of a drag.
-            let old_hovered_piece = self.hovered_piece();
             self.hover_state = vertex_3d_positions.and_then(|vertex_3d_positions| {
                 self.compute_hover_state(&vertex_3d_positions, prefs)
             });
             let new_hovered_piece = self.hovered_piece();
-            if old_hovered_piece != new_hovered_piece {
-                self.styles.set_hovered_piece(new_hovered_piece);
-            }
+            self.styles
+                .set_hovered_piece(new_hovered_piece.filter(|_| show_sticker_hover));
         }
 
         // Update blocking state.
@@ -315,8 +314,6 @@ impl PuzzleView {
                     state.do_twist(twist, LayerMask(1));
                 }
             }
-        } else if puzzle.ndim() == 4 {
-            // TODO: 4D click controls
         }
     }
 
@@ -338,7 +335,7 @@ impl PuzzleView {
             .filter_map(move |&vertex_ids| {
                 let tri_verts @ [a, b, c] = vertex_ids.map(|i| vertex_3d_positions[i as usize]);
                 let (barycentric_coords @ [qa, qb, qc], backface) =
-                    triangle_hover_barycentric_coordinates(cursor_pos, tri_verts)?;
+                    crate::util::triangle_hover_barycentric_coordinates(cursor_pos, tri_verts)?;
 
                 let [pa, pb, pc] = vertex_ids.map(|i| mesh.vertex_position(i));
                 let position =
@@ -396,62 +393,6 @@ impl PuzzleView {
             None => vector![],
         })
     }
-}
-
-/// Returns the perspective-correct barycentric coordinates for the point `p` in
-/// triangle `tri`, and a boolean indicating whether the triangle's backface is
-/// visible (as opposed to its frontface). The Z coordinate is ignored; only X,
-/// Y, and W are used.
-///
-/// Returns `None` if the point is not in the triangle.
-///
-/// This method uses the math described at
-/// <https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/visibility-problem-depth-buffer-depth-interpolation.html>
-fn triangle_hover_barycentric_coordinates(
-    p: cgmath::Point2<f32>,
-    tri: [cgmath::Vector4<f32>; 3],
-) -> Option<([f32; 3], bool)> {
-    // If any vertex is culled, skip it.
-    if tri.iter().any(|p| p.w == 0.0) {
-        return None;
-    }
-
-    let mut tri_2d = tri.map(|p| cgmath::point2(p.x / p.w, p.y / p.w));
-
-    // Ensure the triangle is counterclockwise.
-    let mut total_area = triangle_area_2x(tri_2d);
-    let rev = total_area < 0.0;
-    if rev {
-        tri_2d.reverse();
-        total_area = -total_area;
-    }
-
-    // Compute the barycentric coordinates in screen space.
-    let [a, b, c] = tri_2d;
-    let recip_total_area = total_area.recip();
-    let qa = triangle_area_2x([p, b, c]) * recip_total_area;
-    let qb = triangle_area_2x([a, p, c]) * recip_total_area;
-    let qc = triangle_area_2x([a, b, p]) * recip_total_area;
-    // If the point is inside the triangle ...
-    let [ra, rb, _rc] = (qa > 0.0 && qb > 0.0 && qc > 0.0).then(|| {
-        let [a, b, c] = tri;
-        // ... then compute the perspective-correct W value
-        let w = qa * a.w + qb * b.w + qc * c.w;
-        // ... and use that to compute perspective-correct barycentric
-        //     coordinates.
-        let mut out = [qa * w / a.w, qb * w / b.w, qc * w / c.w];
-        if rev {
-            out.reverse();
-        }
-        out
-    })?;
-
-    // Ensure that the barycentric coordinates add to *exactly* one.
-    Some(([ra, rb, 1.0 - ra - rb], rev))
-}
-
-fn triangle_area_2x([a, b, c]: [cgmath::Point2<f32>; 3]) -> f32 {
-    cgmath::Matrix2::from_cols(b - a, b - c).determinant()
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -519,4 +460,6 @@ pub struct PuzzleViewInput<'a> {
     /// Whether the cursor has been dragged enough to begin a drag twist, if
     /// that's the type of drag happening.
     pub exceeded_twist_drag_threshold: bool,
+    /// Whether to show the hovered sticker.
+    pub show_sticker_hover: bool,
 }

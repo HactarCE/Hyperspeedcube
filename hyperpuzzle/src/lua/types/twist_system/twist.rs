@@ -3,7 +3,7 @@ use std::sync::Arc;
 use hypermath::pga::Motor;
 
 use super::*;
-use crate::builder::{PuzzleBuilder, TwistBuilder};
+use crate::builder::{PuzzleBuilder, TwistBuilder, TwistKey};
 use crate::puzzle::Twist;
 
 /// Lua handle to a twist in a twist system under construction.
@@ -45,9 +45,11 @@ impl LuaUserData for LuaTwist {
 
             let lhs = puz.twists.get(this.id).into_lua_err()?;
             let rhs = puz.twists.get(other.id).into_lua_err()?;
+            let combined_transform = &lhs.transform * &rhs.transform;
+            let twist_key = TwistKey::new(lhs.axis, &combined_transform).into_lua_err()?;
             Ok(puz
                 .twists
-                .data_to_id(lhs.axis, &(&lhs.transform * &rhs.transform))
+                .data_to_id(&twist_key)
                 .map(|id| Self { id, db: puz.arc() }))
         });
 
@@ -65,7 +67,7 @@ impl LuaUserData for LuaTwist {
             }
             Ok(puz
                 .twists
-                .data_to_id(this.axis, &transform)
+                .data_to_id(&TwistKey::new(this.axis, &transform).into_lua_err()?)
                 .map(|id| LuaTwist { id, db: puz.arc() }))
         });
     }
@@ -95,7 +97,7 @@ impl LuaTwist {
 
         Ok(db
             .twists
-            .data_to_id(transformed_axis.id, &transformed_transform)
+            .data_to_id(&TwistKey::new(transformed_axis.id, &transformed_transform).into_lua_err()?)
             .map(|id| db.wrap_id(id)))
     }
 

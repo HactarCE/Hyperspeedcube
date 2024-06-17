@@ -278,7 +278,7 @@ impl Motor {
     }
 
     /// Normalizes the motor so that the magnitude is `1`, or returns `None` if
-    /// the isometry is zero.
+    /// the motor is zero.
     pub fn normalize(&self) -> Option<Self> {
         let bulk_norm = self
             .terms()
@@ -291,8 +291,8 @@ impl Motor {
         Some(self * recip)
     }
     /// Normalizes the motor so that the magnitude is `1` and the first nonzero
-    /// component is positive, or returns `None` if the isometry is zero (which
-    /// is invalid).
+    /// component is positive, or returns `None` if the motor is zero (which is
+    /// invalid).
     #[must_use]
     pub fn canonicalize(&self) -> Option<Self> {
         let normalized = self.normalize()?;
@@ -300,6 +300,18 @@ impl Motor {
         let coef = normalized.coefs().find(|coef| is_approx_nonzero(coef))?;
         // Normalize so that that coefficient is zero.
         Some(if coef > 0.0 { normalized } else { -normalized })
+    }
+    /// Normalizes the motor so that the magnitude is `1`. If the motor is
+    /// self-reverse and a rotation, then its sign is preserved; otherwise the
+    /// motor is canonicalized. Returns `None` if the motor is zero (which is
+    /// invalid).
+    #[must_use]
+    pub fn canonicalize_up_to_180(&self) -> Option<Self> {
+        if !self.is_reflection() && self.is_self_reverse() {
+            self.normalize()
+        } else {
+            self.canonicalize()
+        }
     }
 
     /// Transforms an object using the motor.
@@ -355,7 +367,7 @@ impl Motor {
         let (ndim, is_reflection) = common_ndim_and_parity(a, b)?;
 
         let mut dot = Motor::dot(a, b);
-        // Negate the second isometry if that brings the rotations closer.
+        // Negate the second motor if that brings the rotations closer.
         let sign = if is_approx_negative(&dot) { -1.0 } else { 1.0 };
         dot = dot.abs();
 
@@ -363,7 +375,7 @@ impl Motor {
         let robust_dot = dot.clamp(-1.0, 1.0);
         let angle = robust_dot.acos();
         let scale1 = (angle * (1.0 - t)).sin();
-        let scale2 = (angle * t).sin() * sign; // Reverse the second isometry if negative dot product
+        let scale2 = (angle * t).sin() * sign; // Reverse the second motor if negative dot product
 
         Some(Motor {
             ndim,

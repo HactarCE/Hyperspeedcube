@@ -13,8 +13,11 @@ use std::sync::Arc;
 
 use egui::NumExt;
 use eyre::{bail, Result};
+use float_ord::FloatOrd;
 use hypermath::prelude::*;
-use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle};
+use hyperpuzzle::{
+    Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Twist, TwistGizmoPolyhedron,
+};
 use itertools::Itertools;
 use parking_lot::Mutex;
 
@@ -217,17 +220,12 @@ impl PuzzleRenderer {
 
     /// Sets the draw parameters to be used for the next
     pub fn prepare_draw(&mut self, mut draw_params: DrawParams) -> DrawPrepResponse {
-        if !SEND_MOUSE_POS {
-            draw_params.cursor_pos = [0.0; 2];
-        }
-
         let geometry_cache_key = draw_params.geometry_cache_key(self.puzzle.ndim());
 
         let needs_recompute_vertex_3d_positions =
             self.geometry_cache_key() != Some(&geometry_cache_key);
-        let needs_redraw =
-            needs_recompute_vertex_3d_positions || self.draw_params() != Some(&draw_params);
 
+        // Fetch 3D vertex positions from the GPU.
         let vertex_3d_positions = {
             let existing_output = self
                 .prep
@@ -268,6 +266,106 @@ impl PuzzleRenderer {
             }
         };
 
+        // Compute twist gizmo info.
+        let mut gizmo_edges = vec![];
+        let mut gizmo_faces = vec![];
+        let mut gizmo_click_twist = None;
+        {
+            let camera = &draw_params.cam;
+            let ndim = self.puzzle.ndim();
+            let hover_pos = cgmath::Point2::from(draw_params.cursor_pos);
+
+            let visible_gizmos = self
+                .puzzle
+                .twist_gizmos
+                .iter()
+                .filter(|polyhedron| !camera.cull_4d_backface(polyhedron.axis_vector))
+                .map(|gizmo| {
+                    let verts_4d = gizmo.compute_vertex_positions(
+                        pga::Motor::ident(4),
+                        draw_params.facet_shrink(ndim), // TODO: separate twist gizmo shrink
+                    );
+                    let verts_3d = verts_4d
+                        .into_iter()
+                        .map(|p| camera.project_point_to_3d_screen_space(p))
+                        .collect_vec();
+                    (gizmo, verts_3d)
+                })
+                .collect_vec();
+
+            struct GizmoHoverResponse<'a> {
+                polyhedron: &'a TwistGizmoPolyhedron,
+                verts_3d: &'a [Option<cgmath::Vector4<f32>>],
+                face_index: usize,
+                z: f32,
+            }
+
+            let hovered_gizmo = visible_gizmos
+                .iter()
+                .flat_map(|(polyhedron, verts_3d)| {
+                    polyhedron
+                        .faces
+                        .iter()
+                        .enumerate()
+                        .filter_map(move |(face_index, (_twist, face_verts))| {
+                            let mut face_vertex_positions =
+                                face_verts.iter().map(|&i| verts_3d[i as usize]);
+                            let a = face_vertex_positions.next()?;
+                            let tris = face_vertex_positions
+                                .tuple_windows()
+                                .filter_map(move |(b, c)| Some([a?, b?, c?]));
+                            Some(tris.filter_map(move |[a, b, c]| {
+                                // Check if the cursor is hovering the triangle, and if
+                                // it is, get the barycentric coordinates.
+                                let ([qa, qb, qc], _backface) =
+                                    crate::util::triangle_hover_barycentric_coordinates(
+                                        hover_pos,
+                                        [a, b, c],
+                                    )?;
+                                Some(GizmoHoverResponse {
+                                    polyhedron,
+                                    verts_3d,
+                                    face_index,
+                                    // Use the barycentric coordinates to compute the Z value.
+                                    z: qa * a.z + qb * b.z + qc * c.z,
+                                })
+                            }))
+                        })
+                        .flatten()
+                })
+                .max_by_key(|hov| FloatOrd(hov.z));
+
+            if let Some(hov) = hovered_gizmo {
+                let get_point = |i| {
+                    let p = hov.verts_3d[i as usize]?;
+                    Some(cgmath::point2(p.x, p.y) / p.w)
+                };
+
+                // Draw outlines for the whole gizmo.
+                for edge in &hov.polyhedron.edges {
+                    (|| {
+                        let [a, b] = edge.map(get_point);
+                        gizmo_edges.push([a?, b?]);
+                        Some(())
+                    })();
+                }
+
+                // Draw the hovered face.
+                let (twist, face_verts) = &hov.polyhedron.faces[hov.face_index];
+                if let Some(face_verts_xy) = face_verts.iter().map(|&i| get_point(i)).collect() {
+                    gizmo_faces.push(face_verts_xy);
+                    gizmo_click_twist = Some(*twist);
+                }
+            }
+        }
+
+        if !SEND_MOUSE_POS {
+            // TODO: this line is dubious. it's already caused me one headache.
+            draw_params.cursor_pos = [0.0; 2];
+        }
+        let needs_redraw =
+            needs_recompute_vertex_3d_positions || self.draw_params() != Some(&draw_params);
+
         let r = DrawPrepResponse {
             geometry_cache_key,
             needs_recompute_vertex_3d_positions,
@@ -275,6 +373,10 @@ impl PuzzleRenderer {
 
             draw_params,
             needs_redraw,
+
+            gizmo_edges,
+            gizmo_faces,
+            gizmo_click_twist,
         };
 
         self.prep = Some(r.clone());
@@ -395,8 +497,9 @@ impl PuzzleRenderer {
                 far_plane_z,
                 clip_4d_backfaces: draw_params.cam.prefs.clip_4d_backfaces as i32,
                 clip_4d_behind_camera: draw_params.cam.prefs.clip_4d_behind_camera as i32,
+                camera_4d_w: draw_params.cam.camera_4d_w(),
 
-                _padding: [0.0; 2],
+                _padding: 0.0,
             };
             self.gfx
                 .queue
@@ -409,7 +512,7 @@ impl PuzzleRenderer {
             let puzzle_transform: Vec<f32> = puzzle_transform
                 .cols_ndim(self.model.ndim)
                 .flat_map(|column| column.iter_ndim(4).collect_vec())
-                .map(|x| x as f32)
+                .map(|x| x as f32 * draw_params.cam.global_scale())
                 .collect();
             self.gfx.queue.write_buffer(
                 &self.buffers.puzzle_transform,
@@ -435,12 +538,7 @@ impl PuzzleRenderer {
 
         // Write the position of the 4D camera.
         {
-            let camera_w = -1.0 - 1.0 / draw_params.cam.w_factor_4d() as Float;
-            let camera_4d_pos = draw_params
-                .cam
-                .rot
-                .reverse()
-                .transform_point(vector![0.0, 0.0, 0.0, camera_w]);
+            let camera_4d_pos = draw_params.cam.camera_4d_pos();
             let camera_4d_pos_data: Vec<f32> = camera_4d_pos
                 .iter_ndim(self.model.ndim)
                 .map(|x| x as f32)
@@ -1216,4 +1314,11 @@ pub(crate) struct DrawPrepResponse {
     pub draw_params: DrawParams,
     /// Whether the puzzle should be redrawn.
     pub needs_redraw: bool,
+
+    /// Twist gizmo edges to draw.
+    pub gizmo_edges: Vec<[cgmath::Point2<f32>; 2]>,
+    /// Twist gizmo faces to draw.
+    pub gizmo_faces: Vec<Vec<cgmath::Point2<f32>>>,
+    /// Twist to execute if the gizmo is clicked.
+    pub gizmo_click_twist: Option<Twist>,
 }

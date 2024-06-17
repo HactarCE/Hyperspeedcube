@@ -1,7 +1,7 @@
 -- All of these assume BC3 symmetry
 
 FACE_NAMES_SHORT = {
-  symmetry = 'bc3',
+  symmetry = cd'bc3',
   {'R', {2, 'U'}},
   {'L', {1, 'R'}},
   {'U', {3, 'F'}},

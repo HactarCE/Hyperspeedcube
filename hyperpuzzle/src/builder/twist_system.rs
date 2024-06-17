@@ -3,13 +3,14 @@ use std::collections::HashMap;
 use eyre::{eyre, OptionExt, Result, WrapErr};
 use hypermath::collections::approx_hashmap::FloatHash;
 use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
-use hypermath::pga::Motor;
 use hypermath::prelude::*;
+use hypershape::Space;
+use pga::{Blade, Motor};
 
 use super::{AxisSystemBuilder, CustomOrdering};
 use crate::builder::NamingScheme;
 use crate::puzzle::{Axis, PerTwist, Twist};
-use crate::{AxisInfo, PerAxis, TwistInfo};
+use crate::{AxisInfo, PerAxis, TwistGizmoPolyhedron, TwistInfo};
 
 /// Twist during puzzle construction.
 #[derive(Debug, Clone)]
@@ -20,12 +21,52 @@ pub struct TwistBuilder {
     pub transform: Motor,
     /// Value in the quarter-turn metric (or its contextual equivalent).
     pub qtm: usize,
+    /// Distance of the pole for the corresponding facet in the 4D facet gizmo.
+    pub gizmo_pole_distance: Option<f32>,
 }
-impl ApproxHashMapKey for TwistBuilder {
+impl TwistBuilder {
+    /// Canonicalizes the twist.
+    #[must_use]
+    pub fn canonicalize(self) -> Result<Self> {
+        let transform = self
+            .transform
+            .canonicalize_up_to_180()
+            .ok_or(BadTwist::BadTransform)?;
+        Ok(Self { transform, ..self })
+    }
+    /// Returns the key used to hash or look up the twist.
+    pub fn key(&self) -> Result<TwistKey, BadTwist> {
+        TwistKey::new(self.axis, &self.transform)
+    }
+    /// Returns the key used to look up the reverse twist.
+    pub fn rev_key(&self) -> Result<TwistKey, BadTwist> {
+        TwistKey::new(self.axis, &self.transform.reverse())
+    }
+}
+
+/// Unique key for a twist.
+#[derive(Debug, Clone)]
+pub struct TwistKey {
+    /// Axis that is twisted.
+    axis: Axis,
+    /// Transform to apply to pieces.
+    transform: Motor,
+}
+impl ApproxHashMapKey for TwistKey {
     type Hash = (Axis, <Motor as ApproxHashMapKey>::Hash);
 
     fn approx_hash(&self, float_hash_fn: impl FnMut(Float) -> FloatHash) -> Self::Hash {
         (self.axis, self.transform.approx_hash(float_hash_fn))
+    }
+}
+impl TwistKey {
+    /// Constructs a twist key from an axis and a transform, which does not need
+    /// to be canonicalized.
+    pub fn new(axis: Axis, transform: &Motor) -> Result<Self, BadTwist> {
+        let transform = transform
+            .canonicalize_up_to_180()
+            .ok_or(BadTwist::BadTransform)?;
+        Ok(Self { axis, transform })
     }
 }
 
@@ -40,7 +81,7 @@ pub struct TwistSystemBuilder {
     /// Map from twist data to twist ID for each axis.
     ///
     /// Does not include inverses.
-    data_to_id: ApproxHashMap<TwistBuilder, Twist>,
+    data_to_id: ApproxHashMap<TwistKey, Twist>,
     /// User-specified twist names.
     pub names: NamingScheme<Twist>,
 }
@@ -71,19 +112,22 @@ impl TwistSystemBuilder {
 
     /// Adds a new twist.
     pub fn add(&mut self, data: TwistBuilder) -> Result<Result<Twist, BadTwist>> {
+        let data = data.canonicalize()?;
+        let key = data.key()?;
+
         // Reject the identity twist.
         if data.transform.is_ident() {
             return Ok(Err(BadTwist::Identity));
         }
 
         // Check that there is not already an identical twist.
-        if let Some(&id) = self.data_to_id.get(&data) {
+        if let Some(&id) = self.data_to_id.get(&key) {
             let name = self.names.get(id).unwrap_or_default();
             return Ok(Err(BadTwist::DuplicateTwist { id, name }));
         }
 
-        let id = self.by_id.push(data.clone())?;
-        self.data_to_id.insert(data, id);
+        let id = self.by_id.push(data)?;
+        self.data_to_id.insert(key, id);
 
         Ok(Ok(id))
     }
@@ -115,37 +159,29 @@ impl TwistSystemBuilder {
     }
 
     /// Returns a twist ID from its axis and transform.
-    pub fn data_to_id(&self, axis: Axis, transform: &Motor) -> Option<Twist> {
-        None.or_else(|| {
-            self.data_to_id.get(&TwistBuilder {
-                axis,
-                transform: transform.clone(),
-                qtm: 0, // should be ignored
-            })
-        })
-        .or_else(|| {
-            self.data_to_id.get(&TwistBuilder {
-                axis,
-                transform: transform.canonicalize()?,
-                qtm: 0, // should be ignored
-            })
-        })
-        .copied()
+    pub fn data_to_id(&self, key: &TwistKey) -> Option<Twist> {
+        None.or_else(|| self.data_to_id.get(&key))
+            .or_else(|| self.data_to_id.get(&key))
+            .copied()
     }
 
     /// Returns the inverse of a twist, or an error if the ID is out of range.
-    pub fn inverse(&self, id: Twist) -> Result<Option<Twist>, IndexOutOfRange> {
-        let twist = self.get(id)?;
-        let rev_transform = twist.transform.reverse();
-        Ok(self.data_to_id(twist.axis, &rev_transform))
+    pub fn inverse(&self, id: Twist) -> Result<Option<Twist>> {
+        Ok(self.data_to_id(&self.get(id)?.rev_key()?))
     }
 
     /// Finalizes the axis system and twist system, and validates them to check
     /// for errors in the definition.
     pub fn build(
         &self,
+        space: &Space,
         mut warn_fn: impl FnMut(eyre::Report),
-    ) -> Result<(PerAxis<AxisInfo>, PerTwist<TwistInfo>)> {
+    ) -> Result<(
+        PerAxis<AxisInfo>,
+        PerTwist<TwistInfo>,
+        Vec<TwistGizmoPolyhedron>,
+    )> {
+        // Assemble list of axes.
         let mut axes = PerAxis::new();
         let mut axis_map = HashMap::new();
         for (old_id, name) in super::iter_autonamed(
@@ -166,32 +202,70 @@ impl TwistSystemBuilder {
 
             axis_map.insert(old_id, new_id);
         }
+
+        // Assemble list of twists.
         let mut twists = PerTwist::new();
         let mut twist_id_map = HashMap::new();
+        let mut gizmo_poles_per_axis: PerAxis<Vec<(Vector, Twist)>> = axes.map_ref(|_, _| vec![]);
         for old_id in self.alphabetized() {
-            let twist = self.get(old_id)?;
+            let old_twist = self.get(old_id)?;
+            let axis = *axis_map.get(&old_twist.axis).ok_or_eyre("bad axis ID")?;
             let new_id = twists.push(TwistInfo {
                 name: match self.names.get(old_id) {
                     Some(s) => s.clone(),
                     None => (old_id.0 + 1).to_string(), // 1-indexed
                 },
-                qtm: 1, // TODO: QTM
-                axis: *axis_map.get(&twist.axis).ok_or_eyre("bad axis ID")?,
-                transform: twist.transform.clone(),
+                qtm: old_twist.qtm,
+                axis,
+                transform: old_twist.transform.clone(),
                 opposite: None,    // will be assigned later
                 reverse: Twist(0), // will be assigned later
             })?;
             twist_id_map.insert(old_id, new_id);
 
+            if let Some(pole_distance) = old_twist.gizmo_pole_distance {
+                // We already know one vector that's fixed by the twist.
+                let axis_vector = Blade::from_vector(4, &axes[axis].vector);
+                // Compute the other one.
+                let origin = Blade::origin(4);
+                let face_normal = (|| {
+                    Blade::wedge(
+                        &old_twist.transform.grade_project(2),
+                        &Blade::wedge(&origin, &axis_vector)?,
+                    )?
+                    .antidual()
+                    .to_vector()?
+                    .normalize()
+                })()
+                .ok_or_eyre("error computing normal vector for twist gizmo")?;
+
+                gizmo_poles_per_axis[axis].push((face_normal * pole_distance as _, new_id));
+            };
+
             // TODO: check that transform keeps layer manifolds fixed
         }
         // TODO: assign opposite twists.
+
+        // Generate twist gizmo polyhedra.
+        let mut gizmos = vec![];
+        for (axis, gizmo_poles) in gizmo_poles_per_axis {
+            if !gizmo_poles.is_empty() {
+                gizmos.push(TwistGizmoPolyhedron::new(
+                    space,
+                    &axes[axis].vector,
+                    gizmo_poles,
+                    &axes[axis].name,
+                    |twist| &twists[twist].name,
+                    &mut warn_fn,
+                )?);
+            }
+        }
 
         // Assign reverse twists.
         let mut twists_without_reverse = vec![];
         for (id, twist) in &mut twists {
             match self
-                .data_to_id(twist.axis, &twist.transform.reverse())
+                .data_to_id(&TwistKey::new(twist.axis, &twist.transform.reverse())?)
                 .and_then(|old_id| twist_id_map.get(&old_id))
             {
                 Some(&reverse_twist) => twist.reverse = reverse_twist,
@@ -221,7 +295,7 @@ impl TwistSystemBuilder {
             twists.push(new_twist_info)?;
         }
 
-        Ok((axes, twists))
+        Ok((axes, twists, gizmos))
     }
 }
 

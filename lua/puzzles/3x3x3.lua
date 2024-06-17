@@ -15,16 +15,13 @@ puzzles:add('3x3x3', {
     local oox = sym.oox.unit
 
     -- Build shape
-    -- p:view(my_transform):carve(shapes.cube, 1)
-
-    -- Build shape
     shapes.cube:carve_into(p)
 
     -- Define axes and slices
-    p:add_axes(sym:orbit(oox):with(symmetries.cubic.FACE_NAMES_SHORT), {1/3, -1/3})
+    p.axes:add(sym:orbit(oox):with(symmetries.cubic.FACE_NAMES_SHORT), {1/3, -1/3})
 
     -- Define twists
-    for _, axis, twist_transform in sym:chiral():orbit(p.axes[oox], sym:thru(2, 1)) do
+    for _, axis, twist_transform in sym.chiral:orbit(p.axes[oox], sym:thru(2, 1)) do
       p.twists:add(axis, twist_transform)
     end
   end,

@@ -1,6 +1,15 @@
 use super::*;
 
 impl Space {
+    /// Returns a primordial cube that has already been generated.
+    pub fn get_primordial_cube(&self) -> Result<Polytope<'_>> {
+        Ok(self.get(
+            self.primordial_cube
+                .lock()
+                .ok_or_eyre("no primordial cube has been generated")?,
+        ))
+    }
+
     /// Adds a primordial cube to the space. When converting a shape to
     /// simplexes, any polytope flush with a facet of the primordial cube will
     /// produce an error.
@@ -50,7 +59,9 @@ impl Space {
             let new_id = self.add_polytope(polytope_data)?;
             if element_rank == self.ndim() {
                 // We've constructed the whole cube!
-                return self.get(new_id).as_polytope();
+                let whole_cube = self.get(new_id).as_polytope()?;
+                *self.primordial_cube.lock() = Some(whole_cube.id);
+                return Ok(whole_cube);
             }
             elements.push(new_id);
 

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 /// Returns an iterator over the strings `A`, `B`, `C`, ..., `Z`, `AA`, `AB`,
 /// ..., `ZY`, `ZZ`, `AAA`, `AAB`, etc.
 pub(crate) fn iter_uppercase_letter_names() -> impl Iterator<Item = String> {
@@ -9,6 +11,38 @@ pub(crate) fn iter_uppercase_letter_names() -> impl Iterator<Item = String> {
                 .collect()
         })
     })
+}
+
+/// Maps IDs from one list to another.
+pub struct LazyIdMap<K, V> {
+    map: HashMap<K, V>,
+    keys: Vec<K>,
+    next_id: V,
+    next_id_fn: fn(V) -> V,
+}
+impl<K: Clone + std::hash::Hash + Eq, V: Copy> LazyIdMap<K, V> {
+    pub fn new(first_id: V, next_id_fn: fn(V) -> V) -> Self {
+        Self {
+            map: HashMap::new(),
+            keys: vec![],
+            next_id: first_id,
+            next_id_fn,
+        }
+    }
+    pub fn get_or_insert(&mut self, id: K) -> V {
+        match self.map.entry(id.clone()) {
+            std::collections::hash_map::Entry::Occupied(e) => *e.get(),
+            std::collections::hash_map::Entry::Vacant(e) => {
+                self.keys.push(id);
+                let new_id = self.next_id;
+                self.next_id = (self.next_id_fn)(self.next_id);
+                *e.insert(new_id)
+            }
+        }
+    }
+    pub fn keys(&self) -> &[K] {
+        &self.keys
+    }
 }
 
 #[cfg(test)]

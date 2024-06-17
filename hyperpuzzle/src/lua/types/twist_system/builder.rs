@@ -80,6 +80,7 @@ impl LuaTwistSystem {
         let inv_suffix: Option<String>;
         let name_fn: Option<LuaFunction<'_>>;
         let qtm: Option<usize>;
+        let gizmo_pole_distance: Option<f32>;
         if let Some(data_table) = data {
             unpack_table!(lua.unpack(data_table {
                 multipliers,
@@ -91,6 +92,7 @@ impl LuaTwistSystem {
                 inv_suffix,
                 name_fn,
                 qtm,
+                gizmo_pole_distance,
             }));
         } else {
             // These are reasonable defaults, especially for 3D.
@@ -103,6 +105,7 @@ impl LuaTwistSystem {
             inv_suffix = None;
             name_fn = None;
             qtm = None;
+            gizmo_pole_distance = None;
         }
 
         let do_naming = prefix.is_some()
@@ -137,6 +140,11 @@ impl LuaTwistSystem {
         }
 
         let mut puz = self.0.lock();
+
+        if gizmo_pole_distance.is_some() && puz.ndim() != 4 {
+            return Err(LuaError::external("twist gizmo is only supported in 4D"));
+        }
+
         let twists = &mut puz.twists;
         let axis = axis.id;
 
@@ -165,6 +173,7 @@ impl LuaTwistSystem {
                     axis,
                     transform,
                     qtm,
+                    gizmo_pole_distance,
                 },
                 get_name(1)?,
                 lua_warn_fn(lua),
@@ -181,6 +190,7 @@ impl LuaTwistSystem {
                         axis,
                         transform,
                         qtm,
+                        gizmo_pole_distance: gizmo_pole_distance.map(|x| -x),
                     },
                     get_name(-1)?,
                     lua_warn_fn(lua),
@@ -224,6 +234,7 @@ impl LuaTwistSystem {
                         axis,
                         transform,
                         qtm: qtm * i as usize,
+                        gizmo_pole_distance: None, // no gizmo for multiples
                     },
                     get_name(i)?,
                     lua_warn_fn(lua),
@@ -238,6 +249,7 @@ impl LuaTwistSystem {
                             axis,
                             transform,
                             qtm: qtm * i as usize,
+                            gizmo_pole_distance: None, // no gizmo for multiples
                         },
                         get_name(-i)?,
                         lua_warn_fn(lua),

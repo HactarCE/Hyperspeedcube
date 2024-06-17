@@ -79,7 +79,7 @@ impl PuzzleBuilder {
         .collect();
 
         // Build twist system.
-        let (axes, twists) = self.twists.build(&mut warn_fn)?;
+        let (axes, twists, twist_gizmos) = self.twists.build(&self.space(), &mut warn_fn)?;
         let axis_by_name = axes
             .iter()
             .map(|(id, info)| (info.name.clone(), id))
@@ -110,6 +110,8 @@ impl PuzzleBuilder {
 
             twists,
             twist_by_name,
+
+            twist_gizmos,
 
             space: self.space(),
         }))

@@ -90,6 +90,21 @@ impl ElementCutOutput {
         self.iter_inside_and_outside().eq([original])
     }
 
+    /// Returns the portion of the element on the inside of the cut.
+    pub fn inside(self) -> Option<ElementId> {
+        match self {
+            ElementCutOutput::Flush => None,
+            ElementCutOutput::NonFlush { inside, .. } => inside,
+        }
+    }
+    /// Returns the portion of the element on the outside of the cut.
+    pub fn outside(self) -> Option<ElementId> {
+        match self {
+            ElementCutOutput::Flush => None,
+            ElementCutOutput::NonFlush { outside, .. } => outside,
+        }
+    }
+
     /// Returns an iterator containing `inside` and `outside`, ignoring `None`
     /// values.
     pub fn iter_inside_and_outside(self) -> impl Iterator<Item = ElementId> {

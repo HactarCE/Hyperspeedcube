@@ -10,7 +10,7 @@ use hypermath::prelude::*;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::PuzzleBuilder;
+use crate::builder::{PuzzleBuilder, TwistKey};
 
 /// Lua value that can be transformed by an isometry.
 ///
@@ -122,7 +122,8 @@ impl Transformable {
                 let db = Arc::clone(&db);
                 let puz = db.lock();
                 let axis = puz.twists.axes.vector_to_id(axis_vector)?;
-                let id = puz.twists.data_to_id(axis, transform)?;
+                let twist_key = TwistKey::new(axis, transform).ok()?;
+                let id = puz.twists.data_to_id(&twist_key)?;
                 drop(puz);
                 Some(LuaTwist { id, db }.into_lua(lua))
             }

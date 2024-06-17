@@ -163,6 +163,22 @@ impl VectorRef for Vector {
     }
 }
 
+impl<const N: usize, F: fmt::Debug + num_traits::Float> VectorRef for [F; N] {
+    fn ndim(&self) -> u8 {
+        self.len().try_into().unwrap_or(u8::MAX)
+    }
+
+    fn get(&self, idx: u8) -> Float {
+        // We actually can't call the typical `.get()` here because the trait
+        // would match first. Whoops!
+        if idx < self.ndim() {
+            self[idx as usize].to_f64().unwrap_or(0.0) as Float
+        } else {
+            0.0
+        }
+    }
+}
+
 impl<V: VectorRef> VectorRef for &'_ V {
     fn ndim(&self) -> u8 {
         (*self).ndim()

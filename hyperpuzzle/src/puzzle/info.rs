@@ -68,7 +68,7 @@ pub type ColorSet = Set64<Color>;
 pub type PieceMask = GenericMask<Piece>;
 
 /// Piece info.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct PieceInfo {
     /// Unordered list of stickers on the piece.
     pub stickers: SmallVec<[Sticker; 8]>,
@@ -81,7 +81,7 @@ pub struct PieceInfo {
 }
 
 /// Sticker info.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct StickerInfo {
     /// Piece that the sticker is part of.
     pub piece: Piece,
@@ -90,7 +90,7 @@ pub struct StickerInfo {
 }
 
 /// Facet info.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct FacetInfo {
     /// Human-friendly name for the facet. (e.g., "Up", "Right", etc.)
     pub name: String,
@@ -102,7 +102,7 @@ pub struct FacetInfo {
 }
 
 /// Twist axis info.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct AxisInfo {
     /// Human-friendly name for the twist axis. (e.g, "U", "R", etc.)
     pub name: String,
@@ -118,7 +118,7 @@ impl AsRef<str> for AxisInfo {
 }
 
 /// Layer info.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct LayerInfo {
     /// Plane that bounds the bottom of the layer.
     pub(crate) bottom: Hyperplane,
@@ -127,7 +127,7 @@ pub struct LayerInfo {
 }
 
 /// Twist info.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TwistInfo {
     /// Human-friendly name for the twist. (e.g., "U2", "R'", etc.)
     pub name: String,
@@ -155,7 +155,7 @@ impl AsRef<str> for TwistInfo {
 }
 
 /// Piece type info.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct PieceTypeInfo {
     /// TODO: remove and replace with piece type hierarchy
     pub name: String,
@@ -167,7 +167,7 @@ impl AsRef<str> for PieceTypeInfo {
 }
 
 /// Color info.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ColorInfo {
     /// User-facing color name.
     pub name: String,

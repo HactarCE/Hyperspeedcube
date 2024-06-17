@@ -8,6 +8,9 @@ pub struct Space {
     /// Reference-counted pointer to this struct.
     this: Weak<Self>,
 
+    /// Primordial cube.
+    pub(super) primordial_cube: Mutex<Option<PolytopeId>>,
+
     // TODO: consider using `boxcar` for vectors and `dashmap` for hashmaps
     pub(super) vertices: Mutex<PerVertex<Vector>>,
     pub(super) vertex_data_to_id: Mutex<ApproxHashMap<Vector, VertexId>>,
@@ -47,6 +50,8 @@ impl Space {
         Arc::new_cyclic(|this| Self {
             ndim,
             this: this.clone(),
+
+            primordial_cube: Mutex::new(None),
 
             vertices: Mutex::new(PerVertex::new()),
             vertex_data_to_id: Mutex::new(ApproxHashMap::new()),

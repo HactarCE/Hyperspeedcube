@@ -151,6 +151,8 @@ pub struct GfxDrawParams {
     pub clip_4d_backfaces: i32,
     /// Whether to clip 4D geometry behind the camera. (`bool`)
     pub clip_4d_behind_camera: i32,
+    /// W coordinate of the 4D camera.
+    pub camera_4d_w: f32,
 
-    pub _padding: [f32; 2],
+    pub _padding: f32,
 }

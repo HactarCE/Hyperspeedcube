@@ -43,6 +43,9 @@ pub struct Puzzle {
     /// Map from twist name to twist.
     pub twist_by_name: HashMap<String, Twist>,
 
+    /// Twist gizmos for the puzzle.
+    pub twist_gizmos: Vec<TwistGizmoPolyhedron>,
+
     /// Space containing a polytope for each piece.
     pub(crate) space: Arc<Space>,
 }
