@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 keywords = ["math", "rotor", "geometric-algebra", "conformal-geometric-algebra", "4d"]
 categories = ["mathematics", "data-structures"]
-license = "CC-BY-NC-SA-4.0"
+license = "MIT OR Apache-2.0"
 
 [lints]
 workspace = true
