@@ -13,10 +13,10 @@ puzzles:add('megaminx', {
     p.colors:set_defaults(dodecahedral.FACE_COLORS)
 
     -- Define axes and slices
-    p:add_axes(sym:orbit(oox):with(dodecahedral.AXIS_NAMES), {1/PHI})
+    p.axes:add(sym:orbit(oox):with(dodecahedral.AXIS_NAMES), {1/phi})
 
     -- Define twists
-    for _, axis, twist_transform in sym:chiral():orbit(p.axes[oox], sym:thru(2, 1)) do
+    for _, axis, twist_transform in sym.chiral:orbit(p.axes[oox], sym:thru(2, 1)) do
       p.twists:add(axis, twist_transform)
     end
   end,

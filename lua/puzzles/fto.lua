@@ -12,10 +12,10 @@ puzzles:add('fto', {
     p.colors:set_defaults(octahedral.FACE_COLORS)
 
     -- Define axes and slices
-    p:add_axes(sym:orbit(xoo):with(octahedral.AXIS_NAMES), {1/3, -1/3})
+    p.axes:add(sym:orbit(xoo):with(octahedral.AXIS_NAMES), {1/3, -1/3})
 
     -- Define twists
-    for _, axis, twist_transform in sym:chiral():orbit(p.axes[xoo], sym:thru(3, 2)) do
+    for _, axis, twist_transform in sym.chiral:orbit(p.axes[xoo], sym:thru(3, 2)) do
       p.twists:add(axis, twist_transform)
     end
   end,

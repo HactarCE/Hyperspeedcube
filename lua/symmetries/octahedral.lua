@@ -1,13 +1,13 @@
 AXIS_NAMES = {
   symmetry = cd'bc3',
   {'F', {}}, -- xoo
-  {'L', {'F', 1}},
-  {'D', {'L', 2}},
-  {'BL', {'D', 1}},
-  {'R', {'D', 3}},
-  {'U', {'BL', 3}},
-  {'BR', {'U', 2}},
-  {'BD', {'BR', 1}}, -- B in standard notation
+  {'L', {1, 'F'}},
+  {'D', {2, 'L'}},
+  {'BL', {1, 'D'}},
+  {'R', {3, 'D'}},
+  {'U', {3, 'BL'}},
+  {'BR', {2, 'U'}},
+  {'BD', {1, 'BR'}}, -- B in standard notation
 }
 
 FACE_NAMES = require('utils').map_string_values(AXIS_NAMES, {

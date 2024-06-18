@@ -1,17 +1,17 @@
 AXIS_NAMES = {
   symmetry = cd'h3',
   {'U', {}}, -- oox
-  {'F', {'U', 3}},
-  {'R', {'F', 2}},
-  {'L', {'R', 1}},
-  {'BR', {'L', 2}},
-  {'BL', {'BR', 1}},
-  {'DR', {'BR', 3}},
-  {'DL', {'BL', 3}},
-  {'PR', {'DL', 2}},
-  {'PL', {'PR', 1}},
-  {'PB', {'PL', 2}},
-  {'PD', {'PB', 3}},
+  {'F', {3, 'U'}},
+  {'R', {2, 'F'}},
+  {'L', {1, 'R'}},
+  {'BR', {2, 'L'}},
+  {'BL', {1, 'BR'}},
+  {'DR', {3, 'BR'}},
+  {'DL', {3, 'BL'}},
+  {'PR', {2, 'DL'}},
+  {'PL', {1, 'PR'}},
+  {'PB', {2, 'PL'}},
+  {'PD', {3, 'PB'}},
 }
 
 FACE_NAMES = require('utils').map_string_values(AXIS_NAMES, {

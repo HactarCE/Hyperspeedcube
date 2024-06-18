@@ -11,14 +11,15 @@ puzzles:add('120_cell', {
     p:carve(sym:orbit(ooox))
     -- p:slice(ooox * 0.96)
 
-    p:add_axes(sym:orbit(ooox), {3/2 * 1/PHI})
+    p.axes:add(sym:orbit(ooox), {3/2 * 1/phi})
 
     local a1 = p.axes[ooox]
     local a2 = sym:thru(4):transform(a1)
     local t = sym:thru(2, 1)
-    for _, axis1, axis2, twist_transform in sym:chiral():orbit(a1, a2, t) do
+    print(sym.chiral)
+    for _, axis1, axis2, twist_transform in sym.chiral:orbit(a1, a2, t) do
       p.twists:add(axis1, twist_transform, {
-        -- gizmo_pole_distance = axis2.vector,
+        gizmo_pole_distance = tan(pi/10) * 1.1,
       })
     end
   end,
