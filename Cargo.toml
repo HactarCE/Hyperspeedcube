@@ -6,7 +6,7 @@ resolver = "2"
 edition = "2021"
 homepage = "https://dev.hypercubing.xyz/internals/"
 repository = "https://github.com/HactarCE/Hyperspeedcube/"
-rust-version = "1.75"
+rust-version = "1.79.0"
 
 [workspace.lints.rust]
 missing_docs = "warn"

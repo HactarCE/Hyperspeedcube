@@ -23,12 +23,11 @@ config = "0.13.1"
 color-eyre = "0.6"
 eyre = "0.6"
 directories = "4.0.1"
-enum-iterator = "1.4.0"
 env_logger = "0.10.0"
 float-ord = "0.3.2"
 getrandom = { version = "*", features = ["js"] } # TODO: prefer `rand` crate
 hex = "0.4.3"
-include_dir = "0.7.3"
+include_dir = "0.7.4"
 indexmap = { version = "2.2.5", features = ["serde"] }
 instant = "0.1.12"
 itertools = "0.10.3"
