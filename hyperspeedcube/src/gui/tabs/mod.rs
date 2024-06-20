@@ -34,7 +34,7 @@ pub fn ui_with_active_puzzle_view(
     app: &mut App,
     f: impl FnOnce(&mut egui::Ui, &mut App, &mut PuzzleWidget),
 ) {
-    if let Some(active_puzzle_view) = app.active_puzzle_view.upgrade() {
+    if let Some(active_puzzle_view) = app.active_puzzle_view() {
         let mut puzzle_view_mutex_guard = active_puzzle_view.lock();
         if let Some(puzzle_view) = &mut *puzzle_view_mutex_guard {
             f(ui, app, puzzle_view);

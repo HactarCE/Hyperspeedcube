@@ -39,13 +39,13 @@ impl DrawParams {
     pub fn light_dir(&self) -> cgmath::Vector3<f32> {
         use cgmath::{Deg, Matrix3, Vector3};
 
-        Matrix3::from_angle_y(Deg(self.cam.prefs.light_yaw))
-            * Matrix3::from_angle_x(Deg(-self.cam.prefs.light_pitch)) // pitch>0 means light comes from above
+        Matrix3::from_angle_y(Deg(self.cam.prefs().light_yaw))
+            * Matrix3::from_angle_x(Deg(-self.cam.prefs().light_pitch)) // pitch>0 means light comes from above
             * Vector3::unit_z()
     }
 
     pub(super) fn geometry_cache_key(&self, ndim: u8) -> GeometryCacheKey {
-        let prefs = &self.cam.prefs;
+        let prefs = &self.cam.prefs();
 
         GeometryCacheKey {
             pitch: prefs.pitch,
@@ -66,25 +66,25 @@ impl DrawParams {
     }
 
     pub fn show_internals(&self, ndim: u8) -> bool {
-        self.cam.prefs.show_internals && ndim == 3
+        self.cam.prefs().show_internals && ndim == 3
     }
     pub fn facet_shrink(&self, ndim: u8) -> f32 {
         if self.show_internals(ndim) {
             0.0
         } else {
-            self.cam.prefs.facet_shrink
+            self.cam.prefs().facet_shrink
         }
     }
     pub fn sticker_shrink(&self, ndim: u8) -> f32 {
         if self.show_internals(ndim) {
             0.0
         } else {
-            self.cam.prefs.sticker_shrink
+            self.cam.prefs().sticker_shrink
         }
     }
     pub fn outlines_may_use_sticker_color(&self, ndim: u8) -> bool {
         !self.show_internals(ndim)
-            && self.cam.prefs.facet_shrink > 0.0
-            && (self.cam.prefs.sticker_shrink > 0.0 || self.cam.prefs.piece_explode > 0.0)
+            && self.cam.prefs().facet_shrink > 0.0
+            && (self.cam.prefs().sticker_shrink > 0.0 || self.cam.prefs().piece_explode > 0.0)
     }
 }

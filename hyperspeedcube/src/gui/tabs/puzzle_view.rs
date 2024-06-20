@@ -25,7 +25,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<Puz
     };
 
     if r.gained_focus() {
-        app.active_puzzle_view = Arc::downgrade(puzzle_view);
+        app.set_active_puzzle_view(puzzle_view);
     }
 }
 
@@ -43,8 +43,9 @@ pub struct PuzzleWidget {
 impl PuzzleWidget {
     pub(crate) fn new(
         lib: &hyperpuzzle::Library,
-        puzzle_id: &str,
         gfx: &Arc<GraphicsState>,
+        prefs: &Preferences,
+        puzzle_id: &str,
     ) -> Option<Self> {
         let start_time = instant::Instant::now();
         let result = lib.build_puzzle(puzzle_id).take_result_blocking();
@@ -57,12 +58,16 @@ impl PuzzleWidget {
                 log::info!("Built {:?} in {:?}", p.name, start_time.elapsed());
                 log::info!("Updated active puzzle");
                 let sim = &Arc::new(Mutex::new(PuzzleSimulation::new(&p)));
-                Some(Self::with_sim(gfx, sim))
+                Some(Self::with_sim(gfx, prefs, sim))
             }
         }
     }
-    pub(crate) fn with_sim(gfx: &Arc<GraphicsState>, sim: &Arc<Mutex<PuzzleSimulation>>) -> Self {
-        let view = PuzzleView::new(&sim);
+    pub(crate) fn with_sim(
+        gfx: &Arc<GraphicsState>,
+        prefs: &Preferences,
+        sim: &Arc<Mutex<PuzzleSimulation>>,
+    ) -> Self {
+        let view = PuzzleView::new(prefs, sim);
         let puzzle = view.puzzle();
         let renderer = Arc::new(Mutex::new(PuzzleRenderer::new(gfx, &puzzle)));
         Self {
@@ -83,11 +88,11 @@ impl PuzzleWidget {
     }
 
     /// Reloads the active puzzle. Returns `true` if the reload was successful.
-    pub fn reload(&mut self, lib: &hyperpuzzle::Library) -> bool {
+    pub fn reload(&mut self, lib: &hyperpuzzle::Library, prefs: &Preferences) -> bool {
         crate::reload_user_puzzles();
         let current_puzzle = self.puzzle();
         let gfx = Arc::clone(&self.renderer.lock().gfx);
-        if let Some(new_puzzle_view) = Self::new(lib, &current_puzzle.id, &gfx) {
+        if let Some(new_puzzle_view) = Self::new(lib, &gfx, prefs, &current_puzzle.id) {
             *self = new_puzzle_view;
             true
         } else {
@@ -98,13 +103,12 @@ impl PuzzleWidget {
     /// Draws the puzzle in the UI and handles input.
     pub fn ui(&mut self, ui: &mut egui::Ui, prefs: &Preferences) -> egui::Response {
         let puzzle = self.puzzle();
-        let view_prefs = prefs.view(&puzzle).clone();
 
         // Allocate space in the UI.
         let (egui_rect, target_size) = crate::gui::util::rounded_pixel_rect(
             ui,
             ui.available_rect_before_wrap(),
-            view_prefs.downscale_rate,
+            self.view.camera.prefs().downscale_rate,
         );
         let r = ui.allocate_rect(egui_rect, egui::Sense::click_and_drag());
 
@@ -207,7 +211,7 @@ impl PuzzleWidget {
             });
 
             if ui.input(|input| input.key_pressed(egui::Key::F5)) {
-                if crate::LIBRARY.with(|lib| self.reload(lib)) {
+                if crate::LIBRARY.with(|lib| self.reload(lib, prefs)) {
                     // Don't even try to redraw the puzzle. Just wait for the
                     // next frame.
                     return r;

@@ -18,24 +18,36 @@ pub struct ViewPreferences {
     /// 4D FOV, in degrees.
     pub fov_4d: f32,
 
+    /// Show 3D or 4D frontfaces.
     pub show_frontfaces: bool,
+    /// Show 3D or 4D backfaces.
     pub show_backfaces: bool,
-    pub clip_4d_backfaces: bool,
-    pub clip_4d_behind_camera: bool,
+    /// Show geometry behind the 4D camera.
+    pub show_behind_4d_camera: bool,
 
+    /// Show internal pieces in 3D.
     pub show_internals: bool,
+    /// Facet shrink.
     pub facet_shrink: f32,
+    /// Sticker shrink.
     pub sticker_shrink: f32,
+    /// Piece explode.
     pub piece_explode: f32,
 
-    pub face_light_intensity: f32,
-    pub outline_light_intensity: f32,
+    /// Pitch of 3D directional light source.
     pub light_pitch: f32,
+    /// Yaw of 3D directional light source.
     pub light_yaw: f32,
+    /// Intensity of directional lighting on faces.
+    pub face_light_intensity: f32,
+    /// Intensity of directional lighting on outlines.
+    pub outline_light_intensity: f32,
 
     /// Number of pixels in the UI per pixel in the render. This is mainly used
     /// for debugging.
     pub downscale_rate: u32,
+    /// Whether to use bilinear sampling instead of nearest-neighbor sampling to
+    /// upscale the render.
     pub downscale_interpolate: bool,
 }
 impl Default for ViewPreferences {
@@ -51,18 +63,17 @@ impl Default for ViewPreferences {
 
             show_frontfaces: true,
             show_backfaces: true,
-            clip_4d_backfaces: true,
-            clip_4d_behind_camera: true,
+            show_behind_4d_camera: true,
 
             show_internals: true,
             facet_shrink: 0.0,
             sticker_shrink: 0.0,
             piece_explode: 0.0,
 
-            face_light_intensity: 1.0,
-            outline_light_intensity: 0.0,
             light_pitch: 0.0,
             light_yaw: 0.0,
+            face_light_intensity: 1.0,
+            outline_light_intensity: 0.0,
 
             downscale_rate: 1,
             downscale_interpolate: true,
@@ -93,8 +104,11 @@ impl ViewPreferences {
             fov_4d: lerp(self.fov_4d, rhs.fov_4d, t),
             show_frontfaces: lerp_discrete(self.show_frontfaces, rhs.show_frontfaces, t),
             show_backfaces: lerp_discrete(self.show_backfaces, rhs.show_backfaces, t),
-            clip_4d_backfaces: self.clip_4d_backfaces || rhs.clip_4d_backfaces,
-            clip_4d_behind_camera: self.clip_4d_backfaces || rhs.clip_4d_backfaces,
+            show_behind_4d_camera: lerp_discrete(
+                self.show_behind_4d_camera,
+                rhs.show_behind_4d_camera,
+                t,
+            ),
             show_internals: self.show_internals && rhs.show_internals,
             facet_shrink: lerp(self.facet_shrink, rhs.facet_shrink, t),
             sticker_shrink: lerp(self.sticker_shrink, rhs.sticker_shrink, t),

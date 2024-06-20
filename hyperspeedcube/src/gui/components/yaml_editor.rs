@@ -4,7 +4,7 @@ use crate::gui::components::big_icon_button;
 use crate::gui::ext::*;
 
 #[derive(Debug, Clone)]
-struct PlaintextState {
+struct PlaintextYamlEditorState {
     contents: String,
     modified: bool,
 }
@@ -13,30 +13,40 @@ pub struct PlaintextYamlEditor {
     pub id: egui::Id,
 }
 impl PlaintextYamlEditor {
+    pub fn get(id: egui::Id) -> PlaintextYamlEditor {
+        Self { id }
+    }
+
     pub fn is_active(&self, ui: &egui::Ui) -> bool {
         self.state(ui).is_some()
     }
-    pub fn set_active<T>(&self, ui: &egui::Ui, value: &T)
+    pub fn open<T>(&self, ui: &egui::Ui, value: &T)
     where
         T: Serialize + for<'de> Deserialize<'de> + Clone,
     {
         self.set_state(
             ui,
-            Some(PlaintextState {
+            Some(PlaintextYamlEditorState {
                 contents: serde_yaml::to_string(value)
                     .unwrap_or_else(|e| format!("serialization error: {e}")),
                 modified: false,
             }),
         );
     }
-
-    fn state(&self, ui: &egui::Ui) -> Option<PlaintextState> {
-        ui.data(|data| data.get_temp::<PlaintextState>(self.id))
+    pub fn close(&self, ui: &egui::Ui) {
+        todo!()
+        // self.
     }
-    fn set_state(&self, ui: &egui::Ui, state: Option<PlaintextState>) {
+
+    fn state(&self, ui: &egui::Ui) -> Option<PlaintextYamlEditorState> {
+        ui.data(|data| data.get_temp::<PlaintextYamlEditorState>(self.id))
+    }
+    fn set_state(&self, ui: &egui::Ui, state: Option<PlaintextYamlEditorState>) {
         match state {
-            Some(state) => ui.data_mut(|data| data.insert_temp::<PlaintextState>(self.id, state)),
-            None => ui.data_mut(|data| data.remove::<PlaintextState>(self.id)),
+            Some(state) => {
+                ui.data_mut(|data| data.insert_temp::<PlaintextYamlEditorState>(self.id, state))
+            }
+            None => ui.data_mut(|data| data.remove::<PlaintextYamlEditorState>(self.id)),
         }
     }
 

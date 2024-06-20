@@ -11,7 +11,9 @@ use parking_lot::Mutex;
 use super::simulation::PuzzleSimulation;
 use super::styles::*;
 use super::Camera;
-use crate::preferences::{Preferences, ViewPreferences};
+use crate::preferences::Preferences;
+use crate::preferences::PuzzleViewPreferencesSet;
+use crate::preferences::DEFAULT_PREFS;
 
 /// View into a puzzle simulation, which has its own piece filters.
 #[derive(Debug)]
@@ -32,14 +34,23 @@ pub struct PuzzleView {
     drag_state: Option<DragState>,
 }
 impl PuzzleView {
-    pub(crate) fn new(puzzle_simulation: &Arc<Mutex<PuzzleSimulation>>) -> Self {
+    pub(crate) fn new(
+        prefs: &Preferences,
+        puzzle_simulation: &Arc<Mutex<PuzzleSimulation>>,
+    ) -> Self {
         let simulation = puzzle_simulation.lock();
         let puzzle = simulation.puzzle_type();
+        let view_prefs_set = PuzzleViewPreferencesSet::from_ndim(puzzle.ndim());
+        let view_preset = None
+            .or_else(|| prefs[view_prefs_set].current_preset())
+            .or_else(|| DEFAULT_PREFS[view_prefs_set].current_preset())
+            .unwrap_or_default()
+            .clone();
         Self {
             sim: Arc::clone(puzzle_simulation),
 
             camera: Camera {
-                prefs: ViewPreferences::default(),
+                view_preset,
                 target_size: [1, 1],
                 rot: Motor::ident(puzzle.ndim()),
                 zoom: 0.5,
@@ -217,10 +228,7 @@ impl PuzzleView {
         }
 
         // Update camera.
-        {
-            self.camera.prefs = prefs.view(&self.puzzle()).clone();
-            self.camera.target_size = target_size;
-        }
+        self.camera.target_size = target_size;
     }
 
     /// Computes the new hover state from the pixel position of the cursor.
@@ -243,7 +251,7 @@ impl PuzzleView {
             .map(|(sticker, tri_range)| (puzzle.stickers[sticker].piece, Some(sticker), tri_range));
 
         let empty_internals_list = PerPiece::new();
-        let internals_tri_ranges = if prefs.view(&puzzle).show_internals {
+        let internals_tri_ranges = if self.camera.prefs().show_internals {
             &puzzle.mesh.piece_internals_triangle_ranges
         } else {
             &empty_internals_list

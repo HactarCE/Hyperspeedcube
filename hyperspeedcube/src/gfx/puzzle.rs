@@ -95,7 +95,7 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         let pipeline = &self.gfx.pipelines.blit;
         let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
             src_texture: &texture_view,
-            src_sampler: match draw_params.cam.prefs.downscale_interpolate {
+            src_sampler: match draw_params.cam.prefs().downscale_interpolate {
                 true => &self.gfx.bilinear_sampler,
                 false => &self.gfx.nearest_neighbor_sampler,
             },
@@ -454,7 +454,7 @@ impl PuzzleRenderer {
         // Compute the Z coordinate of the 3D camera; i.e., where the projection
         // rays converge (which may be behind the puzzle). This gives us either
         // the near plane or the far plane, depending on the sign of the 3D FOV.
-        let fov_signum = draw_params.cam.prefs.fov_3d.signum();
+        let fov_signum = draw_params.cam.prefs().fov_3d.signum();
         let camera_z = (fov_signum + 1.0 / draw_params.cam.w_factor_3d()).clamp(-Z_CLIP, Z_CLIP);
 
         // Write the draw parameters.
@@ -477,8 +477,8 @@ impl PuzzleRenderer {
                 pre: GfxPrecomputedValues::new(w_factor_3d, near_plane_z, far_plane_z),
 
                 light_dir: draw_params.light_dir().into(),
-                face_light_intensity: draw_params.cam.prefs.face_light_intensity,
-                outline_light_intensity: draw_params.cam.prefs.outline_light_intensity,
+                face_light_intensity: draw_params.cam.prefs().face_light_intensity,
+                outline_light_intensity: draw_params.cam.prefs().outline_light_intensity,
 
                 pixel_size: draw_params.cam.pixel_size()?,
                 target_size: draw_params.cam.target_size_f32().into(),
@@ -488,15 +488,15 @@ impl PuzzleRenderer {
 
                 facet_shrink: draw_params.facet_shrink(self.puzzle.ndim()),
                 sticker_shrink: draw_params.sticker_shrink(self.puzzle.ndim()),
-                piece_explode: draw_params.cam.prefs.piece_explode,
+                piece_explode: draw_params.cam.prefs().piece_explode,
 
                 w_factor_4d,
                 w_factor_3d,
                 fov_signum,
                 near_plane_z,
                 far_plane_z,
-                clip_4d_backfaces: draw_params.cam.prefs.clip_4d_backfaces as i32,
-                clip_4d_behind_camera: draw_params.cam.prefs.clip_4d_behind_camera as i32,
+                clip_4d_backfaces: !draw_params.cam.prefs().show_backfaces as i32,
+                clip_4d_behind_camera: !draw_params.cam.prefs().show_behind_4d_camera as i32,
                 camera_4d_w: draw_params.cam.camera_4d_w(),
 
                 _padding: 0.0,
@@ -740,7 +740,7 @@ impl PuzzleRenderer {
                             encoder,
                             piece,
                             GeometryType::Faces,
-                            draw_params.cam.prefs.show_internals,
+                            draw_params.cam.prefs().show_internals,
                             &mut triangles_buffer_index,
                         );
                     }
@@ -752,7 +752,7 @@ impl PuzzleRenderer {
                             encoder,
                             piece,
                             GeometryType::Edges,
-                            draw_params.cam.prefs.show_internals,
+                            draw_params.cam.prefs().show_internals,
                             &mut edges_buffer_index,
                         );
                     }

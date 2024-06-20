@@ -2,7 +2,7 @@ use cgmath::{EuclideanSpace, InnerSpace};
 use eyre::{bail, Result};
 use hypermath::prelude::*;
 
-use crate::preferences::ViewPreferences;
+use crate::preferences::{Preset, ViewPreferences};
 
 /// `w_divisor` below which geometry gets clipped.
 const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
@@ -10,7 +10,7 @@ const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 /// Parameters controlling the camera and lighting.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Camera {
-    pub prefs: ViewPreferences,
+    pub view_preset: Preset<ViewPreferences>,
 
     /// Width and height of the target in pixels.
     pub target_size: [u32; 2],
@@ -19,6 +19,11 @@ pub struct Camera {
     pub zoom: f32,
 }
 impl Camera {
+    /// Returns the view preferences that the camera is using
+    pub fn prefs(&self) -> &ViewPreferences {
+        &self.view_preset.value
+    }
+
     /// Returns the number of pixels in 1 screen space unit.
     fn compute_pixel_scale(target_size: [u32; 2], zoom: f32) -> Result<f32> {
         let w = target_size[0] as f32;
@@ -55,18 +60,18 @@ impl Camera {
     pub fn global_scale(&self) -> f32 {
         // Scale the whole puzzle to compensate for facet shrink, and scale back
         // from piece explode.
-        1.0 / (1.0 - self.prefs.facet_shrink * 0.5) / (1.0 + self.prefs.piece_explode)
+        1.0 / (1.0 - self.prefs().facet_shrink * 0.5) / (1.0 + self.prefs().piece_explode)
     }
 
     /// Returns the factor by which the W coordinate affects the XYZ coordinates
     /// during 4D projection.
     pub fn w_factor_4d(&self) -> f32 {
-        (self.prefs.fov_4d.to_radians() * 0.5).tan()
+        (self.prefs().fov_4d.to_radians() * 0.5).tan()
     }
     /// Returns the factor by which the Z coordinate affects the XY coordinates
     /// during 3D projection.
     pub fn w_factor_3d(&self) -> f32 {
-        (self.prefs.fov_3d.to_radians() * 0.5).tan()
+        (self.prefs().fov_3d.to_radians() * 0.5).tan()
     }
     /// Returns the 4D perspective divisor based on the W coordinate of a point.
     pub fn w_divisor(&self, w: f32) -> f32 {
@@ -74,7 +79,7 @@ impl Camera {
     }
     /// Returns the 3D perspective divisor based on the Z coordinate of a point.
     pub fn z_divisor(&self, z: f32) -> f32 {
-        1.0 + (self.prefs.fov_3d.signum() - z) * self.w_factor_3d()
+        1.0 + (self.prefs().fov_3d.signum() - z) * self.w_factor_3d()
     }
     /// Projects an N-dimensional point to a 3D point in normalized device
     /// coordinates.
@@ -94,7 +99,7 @@ impl Camera {
         let w = p.w + 1.0;
 
         // Clip geometry that is behind the 4D camera.
-        if self.prefs.clip_4d_behind_camera && self.w_divisor(w) < W_DIVISOR_CLIPPING_PLANE {
+        if !self.prefs().show_behind_4d_camera && self.w_divisor(w) < W_DIVISOR_CLIPPING_PLANE {
             return None;
         }
 
@@ -176,7 +181,7 @@ impl Camera {
     }
     /// Returns whether to cull a 4D backface based on its pole.
     pub fn cull_4d_backface(&self, pole: impl VectorRef) -> bool {
-        if !self.prefs.clip_4d_backfaces {
+        if self.prefs().show_backfaces {
             return false;
         }
 

@@ -1,6 +1,7 @@
 #[macro_use]
 mod combo_boxes;
 // mod keybinds;
+mod hint;
 mod layer_mask;
 pub mod prefs;
 mod presets;
@@ -10,6 +11,7 @@ mod reset;
 mod yaml_editor;
 
 pub use combo_boxes::*;
+pub use hint::*;
 // pub use keybinds::*;
 pub use layer_mask::*;
 pub use prefs::PrefsUi;

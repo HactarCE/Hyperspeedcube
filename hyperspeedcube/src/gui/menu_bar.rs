@@ -148,15 +148,12 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
 fn width_of_all_menu_buttons(ui: &mut egui::Ui) -> f32 {
     MENU_BUTTON_NAMES
         .iter()
-        .map(|text| menu_button_size(ui, text))
+        .map(|text| menu_button_width(ui, text))
         .sum()
 }
 
-fn menu_button_size(ui: &mut egui::Ui, text: &str) -> f32 {
-    let wrap = None;
-    let max_width = f32::INFINITY;
-    let text_size = egui::WidgetText::from(text)
-        .into_galley(ui, wrap, max_width, egui::TextStyle::Button)
-        .size();
-    text_size.x + ui.spacing().button_padding.x * 2.0 + ui.spacing().item_spacing.x
+fn menu_button_width(ui: &egui::Ui, text: &str) -> f32 {
+    super::util::text_width(ui, text)
+        + ui.spacing().button_padding.x * 2.0
+        + ui.spacing().item_spacing.x
 }
