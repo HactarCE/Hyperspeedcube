@@ -112,6 +112,20 @@ impl eframe::App for AppUi {
         // Build all the UI.
         self.build(ctx);
     }
+
+    fn save(&mut self, _storage: &mut dyn eframe::Storage) {
+        let prefs = &mut self.app.prefs;
+        if prefs.needs_save {
+            prefs.save();
+        }
+    }
+
+    fn on_exit(&mut self) {
+        let prefs = &mut self.app.prefs;
+        if prefs.needs_save || prefs.needs_save_eventually {
+            prefs.save();
+        }
+    }
 }
 
 fn load_built_in_puzzles() {

@@ -118,19 +118,20 @@ impl Preferences {
     }
 
     pub fn save(&mut self) {
-        if self.needs_save {
-            self.needs_save = false;
+        self.needs_save = false;
 
-            // Set version number.
-            self.version = migration::LATEST_VERSION;
+        // Set version number.
+        self.version = migration::LATEST_VERSION;
 
-            let result = persist::save(self);
+        let prefs = self.clone();
+        std::thread::spawn(move || {
+            let result = persist::save(&prefs);
 
             match result {
                 Ok(()) => log::debug!("Saved preferences"),
                 Err(e) => log::error!("Error saving preferences: {}", e),
             }
-        }
+        });
     }
 
     pub fn view(&self, ty: &Puzzle) -> &ViewPreferences {

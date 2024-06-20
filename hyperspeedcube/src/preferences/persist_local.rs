@@ -6,7 +6,7 @@ use directories::ProjectDirs;
 use eyre::Result;
 use serde::Serialize;
 
-const PREFS_FILE_NAME: &str = "hyperspeedcube";
+const PREFS_FILE_NAME: &str = "hsc2-prefs";
 const PREFS_FILE_EXTENSION: &str = "yaml";
 
 // File paths
