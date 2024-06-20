@@ -31,7 +31,7 @@ The first build may take ~10 minutes or more. Remove `--release` to disable opti
 3. Install Trunk with `cargo install --locked trunk`
 4. Run `trunk serve` to build and serve on <http://127.0.0.1:8080>. Trunk will rebuild automatically if you edit the project. Open <http://127.0.0.1:8080/index.html#dev> in a browser.
 
-If you get an error on `trunk serve` about failing to downloat wasm-bindgen, try installing wasm-bindgen-cli with `cargo install --locked wasm-bindgengen-cli --version 0.2.83`. In case I haven't updated this guide, check `Cargo.toml` (or `hyperspeedcube/Cargo.toml`) for the version in use.
+If you get an error on `trunk serve` about failing to downloat wasm-bindgen, try installing wasm-bindgen-cli with `cargo install --locked wasm-bindgen-cli --version 0.2.83`. In case I haven't updated this guide, check `Cargo.toml` (or `hyperspeedcube/Cargo.toml`) for the version in use.
 
 Note that `assets/sw.js` script will try to cache the app, and loads the cached version when it cannot connect to server allowing the app to work offline (like PWA). appending `#dev` to `index.html` will skip this caching, allowing to load the latest builds during development.
 
