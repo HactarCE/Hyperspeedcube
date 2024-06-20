@@ -95,6 +95,7 @@ async fn run() -> eframe::Result<()> {
             .with_title(crate::TITLE)
             .with_app_id(crate::APP_ID)
             .with_icon(icon_data)
+            .with_maximized(true)
             .with_min_inner_size([400.0, 300.0]),
         ..Default::default()
     };
