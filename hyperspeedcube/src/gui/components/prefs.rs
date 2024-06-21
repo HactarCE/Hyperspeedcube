@@ -6,7 +6,7 @@ use crate::gui::components::{
 };
 use crate::gui::ext::*;
 use crate::gui::util::Access;
-use crate::preferences::{PuzzleViewPreferencesSet, ViewPreferences, DEFAULT_PREFS};
+use crate::preferences::{InteractionPreferences, PuzzleViewPreferencesSet, ViewPreferences};
 use crate::serde_impl::hex_color;
 
 pub struct PrefsUi<'a, T> {
@@ -211,89 +211,77 @@ impl<'a, T> PrefsUi<'a, T> {
 
 //     prefs.needs_save |= changed;
 // }
-// pub fn build_interaction_section(ui: &mut egui::Ui, app: &mut App) {
-//     let prefs = &mut app.prefs;
+pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreferences>) {
+    prefs_ui
+        .checkbox(
+            "Confirm discard only when scrambled",
+            access!(.confirm_discard_only_when_scrambled),
+        )
+        .on_hover_explanation(
+            "",
+            "When enabled, a confirmation dialog before \
+             destructive actions (like resetting the puzzle) \
+             is only shown when the puzzle has been fully \
+             scrambled.",
+        );
 
-//     let mut changed = false;
-//     let mut prefs_ui = PrefsUi {
-//         ui,
-//         current: &mut prefs.interaction,
-//         defaults: &DEFAULT_PREFS.interaction,
-//         changed: &mut changed,
-//     };
+    prefs_ui.ui.separator();
 
-//     prefs_ui
-//         .checkbox(
-//             "Confirm discard only when scrambled",
-//             access!(.confirm_discard_only_when_scrambled),
-//         )
-//         .on_hover_explanation(
-//             "",
-//             "When enabled, a confirmation dialog before \
-//              destructive actions (like resetting the puzzle) \
-//              is only shown when the puzzle has been fully \
-//              scrambled.",
-//         );
+    prefs_ui.num("Drag sensitivity", access!(.drag_sensitivity), |dv| {
+        dv.fixed_decimals(2).clamp_range(0.0..=3.0_f32).speed(0.01)
+    });
+    prefs_ui
+        .checkbox("Realign puzzle on release", access!(.realign_on_release))
+        .on_hover_explanation(
+            "",
+            "When enabled, the puzzle snaps back immediately when \
+             the mouse is released after dragging to rotate it.",
+        );
+    prefs_ui
+        .checkbox("Realign puzzle on keypress", access!(.realign_on_keypress))
+        .on_hover_explanation(
+            "",
+            "When enabled, the puzzle snaps back immediately when \
+             the keyboard is used to grip or do a move.",
+        );
+    prefs_ui
+        .checkbox("Smart realign", access!(.smart_realign))
+        .on_hover_explanation(
+            "",
+            "When enabled, the puzzle snaps to the nearest \
+             similar orientation, not the original. This \
+             adds a full-puzzle rotation to the undo history.",
+        );
 
-//     prefs_ui.ui.separator();
+    prefs_ui.ui.separator();
 
-//     prefs_ui.num("Drag sensitivity", access!(.drag_sensitivity), |dv| {
-//         dv.fixed_decimals(2).clamp_range(0.0..=3.0_f32).speed(0.01)
-//     });
-//     prefs_ui
-//         .checkbox("Realign puzzle on release", access!(.realign_on_release))
-//         .on_hover_explanation(
-//             "",
-//             "When enabled, the puzzle snaps back immediately when \
-//              the mouse is released after dragging to rotate it.",
-//         );
-//     prefs_ui
-//         .checkbox("Realign puzzle on keypress", access!(.realign_on_keypress))
-//         .on_hover_explanation(
-//             "",
-//             "When enabled, the puzzle snaps back immediately when \
-//              the keyboard is used to grip or do a move.",
-//         );
-//     prefs_ui
-//         .checkbox("Smart realign", access!(.smart_realign))
-//         .on_hover_explanation(
-//             "",
-//             "When enabled, the puzzle snaps to the nearest \
-//              similar orientation, not the original. This \
-//              adds a full-puzzle rotation to the undo history.",
-//         );
+    prefs_ui.collapsing("Animations", |mut prefs_ui| {
+        prefs_ui
+            .checkbox("Dynamic twist speed", access!(.dynamic_twist_speed))
+            .on_hover_explanation(
+                "",
+                "When enabled, the puzzle twists faster when \
+                 many moves are queued up. When all queued \
+                 moves are complete, the twist speed resets.",
+            );
 
-//     prefs_ui.ui.separator();
+        let speed = prefs_ui.current.twist_duration.at_least(0.1) / 100.0; // logarithmic speed
+        prefs_ui.num("Twist duration", access!(.twist_duration), |dv| {
+            dv.fixed_decimals(2).clamp_range(0.0..=5.0_f32).speed(speed)
+        });
 
-//     prefs_ui.collapsing("Animations", |mut prefs_ui| {
-//         prefs_ui
-//             .checkbox("Dynamic twist speed", access!(.dynamic_twist_speed))
-//             .on_hover_explanation(
-//                 "",
-//                 "When enabled, the puzzle twists faster when \
-//                  many moves are queued up. When all queued \
-//                  moves are complete, the twist speed resets.",
-//             );
-
-//         let speed = prefs_ui.current.twist_duration.at_least(0.1) / 100.0; // logarithmic speed
-//         prefs_ui.num("Twist duration", access!(.twist_duration), |dv| {
-//             dv.fixed_decimals(2).clamp_range(0.0..=5.0_f32).speed(speed)
-//         });
-
-//         let speed = prefs_ui.current.other_anim_duration.at_least(0.1) / 100.0; // logarithmic speed
-//         prefs_ui
-//             .num("Other animations", access!(.other_anim_duration), |dv| {
-//                 dv.fixed_decimals(2).clamp_range(0.0..=1.0_f32).speed(speed)
-//             })
-//             .on_hover_explanation(
-//                 "",
-//                 "Number of seconds for other animations, \
-//                  such as hiding a piece.",
-//             );
-//     });
-
-//     prefs.needs_save |= changed;
-// }
+        let speed = prefs_ui.current.other_anim_duration.at_least(0.1) / 100.0; // logarithmic speed
+        prefs_ui
+            .num("Other animations", access!(.other_anim_duration), |dv| {
+                dv.fixed_decimals(2).clamp_range(0.0..=1.0_f32).speed(speed)
+            })
+            .on_hover_explanation(
+                "",
+                "Number of seconds for other animations, \
+                 such as hiding a piece.",
+            );
+    });
+}
 // pub fn build_outlines_section(ui: &mut egui::Ui, app: &mut App) {
 //     let prefs = &mut app.prefs;
 

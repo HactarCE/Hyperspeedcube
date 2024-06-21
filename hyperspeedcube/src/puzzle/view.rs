@@ -196,7 +196,7 @@ impl PuzzleView {
                         let mut sim = self.sim.lock();
                         let axis = sim.partial_twist().as_ref()?.axis;
                         let axis_vector = &sim.puzzle_type().axes[axis].vector;
-                        if prefs.interaction.scale_twist_drag_by_radius {
+                        if sim.interaction_prefs.value.scale_twist_drag_by_radius {
                             parallel_drag_delta = parallel_drag_delta
                                 / hov.position.rejected_from(&axis_vector)?.mag();
                         }
@@ -222,7 +222,7 @@ impl PuzzleView {
             let puzzle = self.puzzle();
             let sim = self.sim.lock();
             let anim = sim.blocking_pieces_anim();
-            let amt = anim.blocking_amount(&prefs.interaction);
+            let amt = anim.blocking_amount(&sim.interaction_prefs.value);
             let pieces = PieceMask::from_iter(puzzle.pieces.len(), anim.pieces().iter().copied());
             self.styles.set_blocking_pieces(pieces, amt);
         }

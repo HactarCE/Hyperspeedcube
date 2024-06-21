@@ -73,7 +73,7 @@ pub struct Preferences {
     pub info: InfoPreferences,
 
     pub gfx: GfxPreferences,
-    pub interaction: InteractionPreferences,
+    pub interaction: WithPresets<InteractionPreferences>,
     pub styles: StylePreferences,
 
     pub view_3d: WithPresets<ViewPreferences>,

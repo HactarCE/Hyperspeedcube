@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
 use itertools::Itertools;
-use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
+use parking_lot::{Mutex, MutexGuard};
 
 macro_rules! unique_id {
     ($($args:tt)*) => {
@@ -136,6 +136,14 @@ impl AppUi {
                     if puzzle_widget.view.camera.view_preset.name == old {
                         puzzle_widget.view.camera.view_preset.name = new.clone();
                     }
+                }
+            }
+        }
+        if let Some((old, new)) = self.app.prefs.interaction.recent_rename_op.take() {
+            for puzzle_widget in &mut puzzle_widgets {
+                let mut sim = puzzle_widget.sim().lock();
+                if sim.interaction_prefs.name == old {
+                    sim.interaction_prefs.name = new.clone();
                 }
             }
         }

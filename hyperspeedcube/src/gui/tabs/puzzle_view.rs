@@ -59,7 +59,7 @@ impl PuzzleWidget {
             Ok(p) => {
                 log::info!("Built {:?} in {:?}", p.name, start_time.elapsed());
                 log::info!("Updated active puzzle");
-                let sim = &Arc::new(Mutex::new(PuzzleSimulation::new(&p)));
+                let sim = &Arc::new(Mutex::new(PuzzleSimulation::new(&p, prefs)));
                 Some(Self::with_sim(gfx, prefs, sim))
             }
         }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 // TODO: consider moving some of these to "animation" prefs
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
 #[serde(default)]
 pub struct InteractionPreferences {
     pub confirm_discard_only_when_scrambled: bool,
