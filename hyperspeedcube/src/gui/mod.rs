@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
-use parking_lot::Mutex;
+use itertools::Itertools;
+use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 
 macro_rules! unique_id {
     ($($args:tt)*) => {
@@ -19,6 +20,7 @@ mod tabs;
 pub use tabs::{PuzzleWidget, Tab};
 
 pub use crate::app::App;
+use crate::preferences::PuzzleViewPreferencesSet;
 
 pub struct AppUi {
     pub app: App,
@@ -101,6 +103,35 @@ impl AppUi {
                 }
             }
         }
+
+        // Handle preset renames.
+        let mut puzzle_widgets = self
+            .dock_state
+            .iter_all_tabs()
+            .filter_map(|(_, tab)| match tab {
+                Tab::PuzzleView(p) => MutexGuard::try_map(p.lock(), |m| m.as_mut()).ok(),
+                _ => None,
+            })
+            .collect_vec();
+        if let Some((old, new)) = self.app.prefs.view_3d.recent_rename_op.take() {
+            for puzzle_widget in &mut puzzle_widgets {
+                if puzzle_widget.view_prefs_set() == PuzzleViewPreferencesSet::Dim3D {
+                    if puzzle_widget.view.camera.view_preset.name == old {
+                        puzzle_widget.view.camera.view_preset.name = new.clone();
+                    }
+                }
+            }
+        }
+        if let Some((old, new)) = self.app.prefs.view_4d.recent_rename_op.take() {
+            for puzzle_widget in &mut puzzle_widgets {
+                if puzzle_widget.view_prefs_set() == PuzzleViewPreferencesSet::Dim4D {
+                    if puzzle_widget.view.camera.view_preset.name == old {
+                        puzzle_widget.view.camera.view_preset.name = new.clone();
+                    }
+                }
+            }
+        }
+        drop(puzzle_widgets);
 
         if let Some((_rect, Tab::PuzzleView(puzzle_view))) = self.dock_state.find_active_focused() {
             self.app.set_active_puzzle_view(puzzle_view);

@@ -459,5 +459,4 @@ pub fn build_view_section(
     });
 
     prefs_ui.ui.add_space(prefs_ui.ui.spacing().item_spacing.y);
-    prefs_ui.ui.button("Reset all to puzzle defaults");
 }

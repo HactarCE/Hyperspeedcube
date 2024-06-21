@@ -228,6 +228,10 @@ pub struct WithPresets<T: Default> {
     pub last_loaded: String,
     /// List of all saved presets.
     pub presets: Vec<Preset<T>>,
+
+    /// Rename operation completed during the last frame, if any.
+    #[serde(skip)]
+    pub recent_rename_op: Option<(String, String)>,
 }
 impl<T: Default + Clone> WithPresets<T> {
     pub fn has(&self, name: &str) -> bool {
@@ -257,10 +261,22 @@ impl<T: Default + Clone> WithPresets<T> {
             }
         }
     }
+    pub fn add_preset(&mut self, name: String) {
+        if let Some(value) = self.current.clone() {
+            self.presets.push(Preset { name, value });
+        }
+    }
     pub fn rename(&mut self, old_name: &str, new_name: &str) {
+        if let Some(preset) = self.get_mut(old_name) {
+            preset.name = new_name.to_string();
+        }
         if self.last_loaded == old_name {
             self.last_loaded = new_name.to_string();
         }
+        if self.recent_rename_op.is_some() {
+            log::warn!("shadowing unhandled preset rename operation!")
+        }
+        self.recent_rename_op = Some((old_name.to_string(), new_name.to_string()));
     }
     pub fn delete(&mut self, name: &str) {
         self.presets.retain(|p| p.name != name);
@@ -285,6 +301,20 @@ impl<T: Default + Clone> WithPresets<T> {
     pub fn load_preset(&mut self, name: &str) {
         if let Some(p) = self.get(name) {
             self.set_current_preset(p.clone());
+        }
+    }
+    /// Moves the preset `from` to `to`, shifting all the presents in between.
+    pub fn reorder(&mut self, from: &str, to: &str) {
+        let Some(i) = self.presets.iter().position(|p| p.name == from) else {
+            return;
+        };
+        let Some(j) = self.presets.iter().position(|p| p.name == to) else {
+            return;
+        };
+        if i < j {
+            self.presets[i..=j].rotate_left(1);
+        } else if j < i {
+            self.presets[j..=i].rotate_right(1);
         }
     }
 }

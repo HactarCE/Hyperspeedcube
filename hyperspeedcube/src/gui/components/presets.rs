@@ -1,15 +1,12 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::gui::components::{PlaintextYamlEditor, ReorderableList};
+use crate::gui::components::PlaintextYamlEditor;
 use crate::gui::ext::ResponseExt;
 use crate::gui::util::{body_text_format, strong_text_format};
 use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
 
-use super::{HintWidget, PrefsUi, BIG_ICON_BUTTON_SIZE};
-
-struct PresetsState {
-    yaml_text: Option<String>,
-}
+use super::{HintWidget, PrefsUi, BIG_ICON_BUTTON_SIZE, SMALL_ICON_BUTTON_SIZE};
 
 fn show_presets_help_ui(ui: &mut egui::Ui) {
     // TODO: markdown renderer
@@ -40,16 +37,75 @@ impl<'a, T> PresetsUi<'a, T>
 where
     T: Serialize + for<'de> Deserialize<'de> + Default + Clone,
 {
-    fn edit_popup_id(&self, preset_name: &str) -> egui::Id {
-        egui::Id::new((self.id, "edit", preset_name))
+    fn popup_id_edit(&self, preset_name: &str) -> egui::Id {
+        self.id.with(("edit", preset_name))
+    }
+    fn popup_id_new(&self) -> egui::Id {
+        self.id.with("new")
+    }
+    fn show_preset_name_widget(
+        &self,
+        ui: &mut egui::Ui,
+        is_first_frame: bool,
+        first_frame_value: &str,
+    ) -> egui::InnerResponse<String> {
+        let id = self.id.with("new_name");
+        let mut s = match is_first_frame {
+            true => first_frame_value.to_string(),
+            false => ui.data(|data| data.get_temp(id).unwrap_or_default()),
+        };
+        let mut r = egui::TextEdit::singleline(&mut s)
+            .hint_text("New preset name")
+            .desired_width(120.0)
+            .show(ui);
+        if is_first_frame {
+            // Focus the textbox
+            r.response.request_focus();
+
+            // Select everything in the textbox
+            r.state
+                .cursor
+                .set_char_range(Some(egui::text::CCursorRange::two(
+                    egui::text::CCursor::new(0),
+                    egui::text::CCursor::new(s.len()),
+                )));
+            r.state.store(ui.ctx(), r.response.id);
+        }
+        ui.data_mut(|data| data.insert_temp(id, s.clone()));
+        egui::InnerResponse::new(s, r.response)
+    }
+
+    fn set_drag_state(&self, ui: &egui::Ui, name: Option<String>) {
+        let id = self.id.with("drag");
+        match name {
+            Some(name) => {
+                ui.data_mut(|data| data.insert_temp::<String>(id, name));
+            }
+            None => {
+                ui.data_mut(|data| data.remove_temp::<String>(id));
+            }
+        }
+    }
+    fn get_drag_state(&self, ui: &egui::Ui) -> Option<String> {
+        let id = self.id.with("drag");
+        ui.data(|data| data.get_temp::<String>(id))
     }
 
     pub fn show_presets_selector(
         &mut self,
         ui: &mut egui::Ui,
-        add_selector: impl FnOnce(&mut egui::Ui),
+        add_extra_heading: impl FnOnce(&mut egui::Ui),
     ) -> egui::Response {
         let mut preset_to_activate = None;
+        let mut is_first_frame_of_popup = false;
+
+        let drag_start = self.get_drag_state(ui);
+        let end_drag_this_frame = !ui.input(|input| input.pointer.is_decidedly_dragging());
+        if end_drag_this_frame {
+            // Reset drag state.
+            self.set_drag_state(ui, None);
+        }
+        let mut drag_end = None;
 
         // Presets selector.
         let r = ui.group(|ui| {
@@ -57,14 +113,24 @@ where
 
             ui.horizontal(|ui| {
                 ui.strong("Saved presets");
-                add_selector(ui);
+                add_extra_heading(ui);
                 HintWidget::show(ui, show_presets_help_ui);
             });
             ui.separator();
             ui.horizontal_wrapped(|ui| {
                 for preset in &self.presets.presets {
                     let is_current = preset.name == self.presets.last_loaded;
-                    let r = ui.selectable_label(is_current, &preset.name);
+
+                    let max_width = ui.available_width() - ui.spacing().button_padding.x * 2.0;
+                    let elided_preset_name = elide_overflowing_line(ui, &preset.name, max_width);
+
+                    let mut r = ui
+                        .selectable_label(is_current, &elided_preset_name)
+                        .interact(egui::Sense::drag());
+
+                    if elided_preset_name != preset.name {
+                        r = r.on_hover_text(&preset.name);
+                    }
 
                     // Left click -> Activate preset
                     if r.clicked() {
@@ -74,112 +140,119 @@ where
 
                     // Right click -> Edit preset
                     if r.secondary_clicked() {
-                        ui.close_menu();
-                        ui.memory_mut(|mem| mem.toggle_popup(self.edit_popup_id(&preset.name)));
+                        ui.memory_mut(|mem| mem.toggle_popup(self.popup_id_edit(&preset.name)));
+                        is_first_frame_of_popup = true;
+                    }
+
+                    // Drag -> Reorder preset
+                    if r.drag_started() {
+                        self.set_drag_state(ui, Some(preset.name.clone()));
+                    }
+                    if drag_start.is_some() && r.contains_pointer() {
+                        ui.painter_at(r.rect).rect(
+                            r.rect,
+                            egui::Rounding::same(3.0),
+                            ui.visuals().selection.bg_fill.linear_multiply(0.75),
+                            ui.visuals().selection.stroke,
+                        );
+                        if end_drag_this_frame {
+                            drag_end = Some(preset.name.clone());
+                        }
                     }
                 }
 
-                ui.allocate_ui_with_layout(
-                    egui::Vec2::splat(18.0),
-                    egui::Layout {
-                        main_dir: egui::Direction::LeftToRight,
-                        main_wrap: false,
-                        main_align: egui::Align::Center,
-                        main_justify: true,
-                        cross_align: egui::Align::Center,
-                        cross_justify: true,
-                    },
-                    |ui| {
-                        let mut is_open = false;
-                        let r = ui.menu_button("+", |ui| {
-                            is_open = true;
-                            ui.set_max_width(200.0);
-                            let s: Option<String> = ui
-                                .data_mut(|data| data.get_temp::<String>("my_preset_name".into()));
-                            let is_first = s.is_none();
-                            let mut s = s.unwrap_or_else(|| "My Preset Name".to_string());
-                            let r = ui.text_edit_singleline(&mut s);
-                            if is_first {
-                                r.request_focus();
-                            }
-                            ui.data_mut(|data| {
-                                data.insert_temp::<String>("my_preset_name".into(), s)
-                            });
-                            ui.button("Confirm");
-                            // ui.button("New empty preset");
-                            // ui.button("New preset from current settings");
-                        });
-                        r.response.on_hover_text("Add preset");
-                        if !is_open {
-                            ui.data_mut(|data| data.remove_temp::<String>("my_preset_name".into()));
-                        }
-                    },
-                );
+                let r = ui
+                    .add(egui::Button::new("+").min_size(SMALL_ICON_BUTTON_SIZE))
+                    .on_hover_text("Add preset");
+
+                // Left click -> New preset
+                if r.clicked() {
+                    ui.memory_mut(|mem| mem.toggle_popup(self.popup_id_new()));
+                    is_first_frame_of_popup = true;
+                }
             });
         });
 
+        // Activate the new preset.
         if let Some(preset_to_activate) = preset_to_activate {
             self.presets.load_preset(&preset_to_activate);
             *self.changed = true;
         }
 
+        // Reorder the presets.
+        if let (Some(from), Some(to)) = (drag_start, drag_end) {
+            self.presets.reorder(&from, &to);
+        }
+
+        let preset_names = self
+            .presets
+            .presets
+            .iter()
+            .map(|p| p.name.clone())
+            .collect_vec();
+        for preset_name in preset_names {
+            let id = self.popup_id_edit(&preset_name);
+            fake_popup(ui, id, is_first_frame_of_popup, r.response.rect, |ui| {
+                ui.strong("Rename preset");
+
+                let r = self.show_preset_name_widget(ui, is_first_frame_of_popup, &preset_name);
+                let new_name = r.inner;
+                let is_name_valid = !new_name.is_empty() && !self.presets.has(&new_name);
+
+                ui.add_enabled_ui(is_name_valid, |ui| {
+                    let r = ui
+                        .add(egui::Button::new("✔").min_size(BIG_ICON_BUTTON_SIZE))
+                        .on_hover_text("Rename preset")
+                        .on_disabled_hover_text(if new_name.is_empty() {
+                            "Name cannot be empty"
+                        } else {
+                            "There is already a preset with this name"
+                        });
+                    let wants_confirm =
+                        r.clicked() || ui.input(|input| input.key_pressed(egui::Key::Enter));
+                    if is_name_valid && wants_confirm {
+                        self.presets.rename(&preset_name, &new_name);
+                        ui.memory_mut(|mem| mem.close_popup());
+                    }
+                });
+
+                let r = ui
+                    .add(egui::Button::new("🗑").min_size(BIG_ICON_BUTTON_SIZE))
+                    .on_hover_text("Delete preset");
+                if r.clicked() {
+                    self.presets.delete(&preset_name);
+                    ui.memory_mut(|mem| mem.close_popup());
+                }
+            });
+        }
+
+        let id = self.popup_id_new();
+        fake_popup(ui, id, is_first_frame_of_popup, r.response.rect, |ui| {
+            ui.strong("Add preset");
+
+            let r = self.show_preset_name_widget(ui, is_first_frame_of_popup, "");
+            let new_name = r.inner;
+            let is_name_valid = !new_name.is_empty() && !self.presets.has(&new_name);
+
+            ui.add_enabled_ui(is_name_valid, |ui| {
+                let r = ui
+                    .add(egui::Button::new("✔").min_size(BIG_ICON_BUTTON_SIZE))
+                    .on_hover_text("Add preset")
+                    .on_disabled_hover_text(if new_name.is_empty() {
+                        "Name cannot be empty"
+                    } else {
+                        "There is already a preset with this name"
+                    });
+                let wants_confirm =
+                    r.clicked() || ui.input(|input| input.key_pressed(egui::Key::Enter));
+                if is_name_valid && wants_confirm {
+                    self.presets.add_preset(new_name.clone());
+                    ui.memory_mut(|mem| mem.close_popup());
+                }
+            });
+        });
+
         r.response
-        // for &s in &preset_names {
-        //     let id = format!("edit_{s}").into();
-        //     if ui.memory(|mem| mem.is_popup_open(id)) {
-        //         let area_resp = egui::Area::new(id)
-        //             .order(egui::Order::Foreground)
-        //             .fixed_pos(r.response.rect.left_bottom())
-        //             .constrain_to(ui.ctx().available_rect())
-        //             // .constrain(true)
-        //             // .constrain_to(ui.ctx().screen_rect())
-        //             .sense(egui::Sense::hover())
-        //             .show(ui.ctx(), |ui| {
-        //                 // let style = ui.style_mut();
-        //                 // style.spacing.button_padding = egui::vec2(2.0, 0.0);
-        //                 // style.visuals.widgets.active.bg_stroke = egui::Stroke::NONE;
-        //                 // style.visuals.widgets.hovered.bg_stroke = egui::Stroke::NONE;
-        //                 // style.visuals.widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
-        //                 // style.visuals.widgets.inactive.bg_stroke = egui::Stroke::NONE;
-
-        //                 egui::Frame::menu(ui.style())
-        //                     .show(ui, |ui| {
-        //                         ui.set_max_width(ui.spacing().menu_width);
-
-        //                         ui.horizontal(|ui| {
-        //                             set_widget_spacing_to_space_width(ui);
-        //                             ui.strong(s);
-        //                             ui.label("preset")
-        //                         });
-        //                         ui.horizontal(|ui| {
-        //                             ui.text_edit_singleline(&mut s.to_string());
-        //                             ui.button("Rename");
-        //                             ui.button("Delete");
-        //                         });
-        //                         // ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-        //                         //     ui.with_layout(
-        //                         //         egui::Layout::left_to_right(egui::Align::TOP),
-        //                         //         |ui| {
-        //                         //         },
-        //                         //     );
-        //                         // });
-        //                         // ui.with_layout(
-        //                         //     egui::Layout::top_down_justified(egui::Align::LEFT),
-        //                         //     |ui| {
-        //                         //     },
-        //                         // )
-        //                         // .inner
-        //                     })
-        //                     .inner
-        //             });
-
-        //         if ui.input(|i| i.key_pressed(egui::Key::Escape))
-        //             || (area_resp.response.clicked_elsewhere() && r.response.clicked_elsewhere())
-        //         {
-        //             ui.memory_mut(|mem| mem.close_popup());
-        //         }
-        //     }
-        // }
     }
 
     pub fn show_current_prefs_ui(
@@ -293,126 +366,49 @@ where
             *self.changed = true;
         }
     }
-
-    // fn plaintext_yaml_editor(&self) -> PlaintextYamlEditor {
-    //     PlaintextYamlEditor { id: self.id }
-    // }
-
-    // pub fn show_header_with_active_preset(
-    //     &mut self,
-    //     ui: &mut egui::Ui,
-    //     get_current: impl FnOnce() -> T,
-    //     set_active: impl FnOnce(&Preset<T>),
-    // ) {
-    //     self._show_header(ui, get_current, set_active)
-    // }
-    // pub fn show_header(&mut self, ui: &mut egui::Ui, get_current: impl FnOnce() -> T) {
-    //     self._show_header(ui, get_current, |_| ())
-    // }
-    // fn _show_header(
-    //     &mut self,
-    //     ui: &mut egui::Ui,
-    //     get_current: impl FnOnce() -> T,
-    //     on_new_preset: impl FnOnce(&Preset<T>),
-    // ) {
-    //     let mut edit_presets = ui.data(|data| data.get_temp::<bool>(self.id).unwrap_or(false));
-    //     ui.checkbox(&mut edit_presets, self.strings.edit);
-    //     ui.data_mut(|data| data.insert_temp::<bool>(self.id, edit_presets));
-
-    //     if !edit_presets {
-    //         return;
-    //     }
-
-    //     if let Some(r) = self.plaintext_yaml_editor().show(ui, self.presets) {
-    //         *self.changed |= r.changed();
-    //         return;
-    //     }
-
-    //     ui.horizontal(|ui| {
-    //         ui.add_visible_ui(self.enable_yaml, |ui| {
-    //             if big_icon_button(ui, "✏", "Edit as plaintext").clicked() {
-    //                 self.plaintext_yaml_editor().set_active(ui, self.presets);
-    //             }
-    //         });
-
-    //         let preset_name_id = self.id.with("preset_name");
-    //         let mut preset_name =
-    //             ui.data(|data| data.get_temp::<String>(preset_name_id).unwrap_or_default());
-    //         let trimmed_preset_name = preset_name.trim().to_string();
-    //         let is_preset_name_valid = !trimmed_preset_name.is_empty();
-
-    //         let button_resp = ui
-    //             .add_enabled_ui(is_preset_name_valid, |ui| {
-    //                 big_icon_button(ui, "➕", self.strings.save)
-    //             })
-    //             .inner;
-    //         let button_clicked = button_resp.clicked();
-
-    //         let text_edit_resp = ui.add(
-    //             egui::TextEdit::singleline(&mut preset_name)
-    //                 .hint_text(self.strings.name)
-    //                 .desired_width(f32::INFINITY),
-    //         );
-    //         let text_edit_confirmed = text_edit_resp.lost_focus()
-    //             && ui.input(|input| input.key_pressed(egui::Key::Enter));
-
-    //         if (button_clicked || text_edit_confirmed) && is_preset_name_valid {
-    //             let new_preset = Preset {
-    //                 name: trimmed_preset_name,
-    //                 value: get_current(),
-    //             };
-    //             on_new_preset(&new_preset);
-    //             self.presets.push(new_preset);
-    //             preset_name.clear();
-    //             *self.changed = true;
-    //         }
-
-    //         ui.data_mut(|data| data.insert_temp(preset_name_id, preset_name));
-    //     });
-    // }
-
-    // pub fn show_postheader<R>(
-    //     &mut self,
-    //     ui: &mut egui::Ui,
-    //     postheader_ui: impl FnOnce(&mut egui::Ui) -> R,
-    // ) -> Option<R> {
-    //     let edit_presets = ui.data(|data| data.get_temp::<bool>(self.id).unwrap_or(false));
-    //     (edit_presets && !self.plaintext_yaml_editor().is_active(ui)).then(|| postheader_ui(ui))
-    // }
-
-    // pub fn show_list(
-    //     &mut self,
-    //     ui: &mut egui::Ui,
-    //     mut preset_ui: impl FnMut(&mut egui::Ui, usize, &mut Preset<T>) -> egui::Response,
-    // ) {
-    //     let edit_presets = ui.data(|data| data.get_temp::<bool>(self.id).unwrap_or(false));
-
-    //     if edit_presets {
-    //         if !self.plaintext_yaml_editor().is_active(ui) {
-    //             *self.changed |= ReorderableList::new(self.id, self.presets)
-    //                 .show(ui, preset_ui)
-    //                 .changed();
-    //         }
-    //     } else {
-    //         for (idx, preset) in self.presets.iter_mut().enumerate() {
-    //             ui.horizontal(|ui| *self.changed |= preset_ui(ui, idx, preset).changed());
-    //         }
-    //     }
-    // }
 }
 
-// #[derive(Debug, Copy, Clone)]
-// pub struct PresetsUiStrings {
-//     pub edit: &'static str,
-//     pub save: &'static str,
-//     pub name: &'static str,
-// }
-// impl Default for PresetsUiStrings {
-//     fn default() -> Self {
-//         Self {
-//             edit: "Edit presets",
-//             save: "Save preset",
-//             name: "Preset name",
-//         }
-//     }
-// }
+fn fake_popup<R>(
+    ui: &mut egui::Ui,
+    id: egui::Id,
+    is_first_frame: bool,
+    below_rect: egui::Rect,
+    add_contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> Option<egui::InnerResponse<R>> {
+    if ui.memory(|mem| mem.is_popup_open(id)) {
+        let area_resp = egui::Area::new(unique_id!())
+            .order(egui::Order::Foreground)
+            .fixed_pos(below_rect.left_bottom())
+            .constrain_to(ui.ctx().available_rect())
+            .sense(egui::Sense::hover())
+            .show(ui.ctx(), |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    ui.set_height(BIG_ICON_BUTTON_SIZE.y);
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        add_contents(ui)
+                    })
+                    .inner
+                })
+            });
+        if area_resp.response.clicked_elsewhere() && !is_first_frame
+            || ui.input(|input| input.key_pressed(egui::Key::Escape))
+        {
+            ui.memory_mut(|mem| mem.close_popup());
+        }
+        Some(area_resp.inner)
+    } else {
+        None
+    }
+}
+
+fn elide_overflowing_line(ui: &mut egui::Ui, s: &str, max_width: f32) -> String {
+    let mut job = egui::text::LayoutJob::default();
+    job.append(s, 0.0, body_text_format(ui));
+    job.wrap.max_rows = 1;
+    job.wrap.max_width = max_width;
+    ui.fonts(|fonts| fonts.layout_job(job))
+        .rows
+        .first()
+        .map(|row| row.text())
+        .unwrap_or_default()
+}

@@ -48,8 +48,7 @@ impl App {
     fn notify_active_puzzle_changed(&mut self) {
         if let Some(puzzle_view) = self.active_puzzle_view() {
             if let Some(p) = &*puzzle_view.lock() {
-                self.prefs.latest_view_prefs_set =
-                    PuzzleViewPreferencesSet::from_ndim(p.puzzle().ndim());
+                self.prefs.latest_view_prefs_set = p.view_prefs_set();
                 self.prefs
                     .view_presets_mut()
                     .set_current_preset(p.view.camera.view_preset.clone());
