@@ -39,6 +39,8 @@ pub struct PuzzleWidget {
     renderer: Arc<Mutex<PuzzleRenderer>>,
 
     queued_arrows: Vec<[Vector; 2]>,
+
+    pub wants_focus: bool,
 }
 impl PuzzleWidget {
     pub(crate) fn new(
@@ -75,6 +77,8 @@ impl PuzzleWidget {
             renderer,
 
             queued_arrows: vec![],
+
+            wants_focus: false,
         }
     }
 
@@ -118,8 +122,8 @@ impl PuzzleWidget {
 
         // Request focus on click.
         if r.is_pointer_button_down_on() {
-            // TODO: request focus not working?
             r.request_focus();
+            self.wants_focus = true;
         }
 
         // egui reports `r.dragged()` whenever the mouse is held, even if it

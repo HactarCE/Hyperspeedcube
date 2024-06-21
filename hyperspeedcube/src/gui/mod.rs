@@ -91,9 +91,14 @@ impl AppUi {
         if ctx.input(|input| input.key_pressed(egui::Key::A)) {}
 
         // Animate puzzle views.
-        for (_, tab) in self.dock_state.iter_all_tabs() {
-            if let Tab::PuzzleView(puzzle_view) = tab {
-                if let Some(puzzle_view) = &*puzzle_view.lock() {
+        let mut puzzle_view_to_focus = None;
+        for (i, tab) in self.dock_state.iter_all_tabs() {
+            if let Tab::PuzzleView(puzzle_widget) = tab {
+                if let Some(puzzle_view) = &mut *puzzle_widget.lock() {
+                    if puzzle_view.wants_focus {
+                        puzzle_view.wants_focus = false;
+                        puzzle_view_to_focus = Some(i);
+                    }
                     let mut sim = puzzle_view.sim().lock();
                     let needs_redraw = sim.step(&self.app.prefs);
                     if needs_redraw {
@@ -102,6 +107,9 @@ impl AppUi {
                     }
                 }
             }
+        }
+        if let Some(i) = puzzle_view_to_focus {
+            self.dock_state.set_focused_node_and_surface(i);
         }
 
         // Handle preset renames.
