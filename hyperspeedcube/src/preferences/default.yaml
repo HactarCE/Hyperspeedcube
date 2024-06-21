@@ -14,16 +14,19 @@ gfx:
   fps_limit: 60
   msaa: true
 interaction:
-  confirm_discard_only_when_scrambled: true
-  drag_sensitivity: 0.7
-  scale_twist_drag_by_radius: false
-  realign_on_release: false
-  realign_on_keypress: true
-  smart_realign: true
-  dynamic_twist_speed: true
-  twist_duration: 0.2
-  blocking_anim_duration: 1.0
-  other_anim_duration: 0.15
+  last_loaded: Default
+  presets:
+    - preset_name: Default
+      confirm_discard_only_when_scrambled: true
+      drag_sensitivity: 0.7
+      scale_twist_drag_by_radius: false
+      realign_on_release: false
+      realign_on_keypress: true
+      smart_realign: true
+      dynamic_twist_speed: true
+      twist_duration: 0.2
+      blocking_anim_duration: 0.0
+      other_anim_duration: 0.15
 styles:
   dark_background_color: "#1b1b1b"
   light_background_color: "#f8f8f8"
@@ -78,21 +81,19 @@ view_3d:
       scale: 1.25
       fov_3d: 15.0
       fov_4d: 30.0
-      align_h: 0.0
-      align_v: 0.0
       show_frontfaces: true
       show_backfaces: false
-      clip_4d_backfaces: true
-      clip_4d_behind_camera: true
+      show_behind_4d_camera: false
       show_internals: true
       facet_shrink: 0.03
       sticker_shrink: 0.05
       piece_explode: 0.0
-      outline_thickness: 1.0
-      light_ambient: 1.0
-      light_directional: 1.0
       light_pitch: 35.0
       light_yaw: 0.0
+      face_light_intensity: 1.0
+      outline_light_intensity: 0.0
+      downscale_rate: 1
+      downscale_interpolate: true
     - preset_name: Unfolded (back)
       pitch: 0.0
       yaw: 0.0
@@ -100,43 +101,39 @@ view_3d:
       scale: 3.0
       fov_3d: 60.0
       fov_4d: 30.0
-      align_h: 0.0
-      align_v: 0.0
       show_frontfaces: false
       show_backfaces: true
-      clip_4d_backfaces: true
-      clip_4d_behind_camera: true
+      show_behind_4d_camera: false
       show_internals: false
       facet_shrink: 0.4
       sticker_shrink: 0.2
       piece_explode: 0.0
-      outline_thickness: 1.0
-      light_ambient: 1.0
-      light_directional: 1.0
       light_pitch: 35.0
       light_yaw: 0.0
+      face_light_intensity: 1.0
+      outline_light_intensity: 0.0
+      downscale_rate: 1
+      downscale_interpolate: true
     - preset_name: Unfolded (front)
       pitch: 0.0
       yaw: 0.0
       roll: 0.0
-      scale: 3.0
-      fov_3d: -60.0
+      scale: 1.0
+      fov_3d: 0.0
       fov_4d: 30.0
-      align_h: 0.0
-      align_v: 0.0
       show_frontfaces: true
-      show_backfaces: false
-      clip_4d_backfaces: true
-      clip_4d_behind_camera: true
-      show_internals: false
-      facet_shrink: 0.4
-      sticker_shrink: 0.2
+      show_backfaces: true
+      show_behind_4d_camera: false
+      show_internals: true
+      facet_shrink: 0.0
+      sticker_shrink: 0.0
       piece_explode: 0.0
-      outline_thickness: 1.0
-      light_ambient: 1.0
-      light_directional: 1.0
-      light_pitch: 35.0
+      light_pitch: 0.0
       light_yaw: 0.0
+      face_light_intensity: 1.0
+      outline_light_intensity: 0.0
+      downscale_rate: 1
+      downscale_interpolate: true
 view_4d:
   last_loaded: Default
   presets:
@@ -147,21 +144,19 @@ view_4d:
       scale: 1.0
       fov_3d: 0.0
       fov_4d: 30.0
-      align_h: 0.0
-      align_v: 0.0
       show_frontfaces: true
       show_backfaces: true
-      clip_4d_backfaces: true
-      clip_4d_behind_camera: true
+      show_behind_4d_camera: true
       show_internals: false
       facet_shrink: 0.7
       sticker_shrink: 0.3
       piece_explode: 0.0
-      outline_thickness: 1.0
-      light_ambient: 1.0
-      light_directional: 1.0
       light_pitch: 65.0
       light_yaw: -55.0
+      face_light_intensity: 1.0
+      outline_light_intensity: 0.0
+      downscale_rate: 1
+      downscale_interpolate: true
 piece_filters: ~
 global_keybinds: []
 puzzle_keybinds: ~
