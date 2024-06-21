@@ -1,9 +1,8 @@
-use egui::InnerResponse;
 use serde::{Deserialize, Serialize};
 
-use crate::gui::components::{big_icon_button, PlaintextYamlEditor, ReorderableList};
+use crate::gui::components::{PlaintextYamlEditor, ReorderableList};
 use crate::gui::ext::ResponseExt;
-use crate::gui::util::{body_text_format, set_widget_spacing_to_space_width, strong_text_format};
+use crate::gui::util::{body_text_format, strong_text_format};
 use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
 
 use super::{HintWidget, PrefsUi, BIG_ICON_BUTTON_SIZE};
@@ -208,6 +207,8 @@ where
         let is_unsaved = current != defaults;
         let mut save_changes = false;
 
+        let yaml = PlaintextYamlEditor::<T>::get(self.id);
+
         ui.group(|ui| {
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -223,19 +224,20 @@ where
                     });
 
                     // Edit as plaintext button
-                    let yaml = PlaintextYamlEditor::get(self.id);
                     let r = ui
                         .add_sized(
                             BIG_ICON_BUTTON_SIZE,
-                            egui::SelectableLabel::new(yaml.is_active(ui), "✏"),
+                            egui::SelectableLabel::new(yaml.is_open(ui), "✏"),
                         )
                         .on_hover_explanation(
                             "Edit as plaintext",
-                            "View and edit presets as plaintext to share them with others",
+                            "View and edit settings as plaintext to share them with others",
                         );
                     if r.clicked() {
-                        dbg!("ya! this thing");
-                        // yaml.toggle_active(ui);
+                        match yaml.is_open(ui) {
+                            true => yaml.close(ui),
+                            false => yaml.open(ui, current),
+                        }
                     }
 
                     // TODO: factor out text layout
@@ -260,14 +262,30 @@ where
                 });
             });
             ui.separator();
-            egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
-                add_contents(PrefsUi {
-                    ui,
-                    current,
-                    defaults,
-                    changed: &mut self.changed,
+            egui::ScrollArea::both()
+                .id_source(self.id.with(yaml.is_open(ui)))
+                .auto_shrink(false)
+                .show(ui, |ui| match yaml.is_open(ui) {
+                    true => {
+                        if let Some(r) = yaml.show(ui) {
+                            if r.changed() {
+                                // Update value from YAML editor.
+                                if let Some(Ok(deserialized)) = yaml.deserialize(ui) {
+                                    *current = deserialized;
+                                    *self.changed |= r.changed();
+                                }
+                            }
+                        }
+                    }
+                    false => {
+                        add_contents(PrefsUi {
+                            ui,
+                            current,
+                            defaults,
+                            changed: &mut self.changed,
+                        });
+                    }
                 });
-            });
         });
 
         if save_changes {

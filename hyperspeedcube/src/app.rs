@@ -64,6 +64,12 @@ impl App {
     pub(crate) fn has_active_puzzle_view(&self) -> bool {
         self.active_puzzle_view().is_some()
     }
+    /// Returns whether the active puzzle view has a puzzle in it. Do NOT rely
+    /// on this being up-to-date; the result of this function may change by the
+    /// time it returns.
+    pub(crate) fn has_active_puzzle(&self) -> bool {
+        self.active_puzzle_type().is_some()
+    }
     pub(crate) fn active_puzzle_type(&self) -> Option<Arc<Puzzle>> {
         self.with_active_puzzle_view(|puzzle_view| puzzle_view.puzzle())
     }

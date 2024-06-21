@@ -1,41 +1,42 @@
-use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 
-use crate::gui::components::big_icon_button;
-use crate::gui::ext::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 struct PlaintextYamlEditorState {
     contents: String,
-    modified: bool,
 }
 
-pub struct PlaintextYamlEditor {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct PlaintextYamlEditor<T> {
     pub id: egui::Id,
+    _marker: PhantomData<T>,
 }
-impl PlaintextYamlEditor {
-    pub fn get(id: egui::Id) -> PlaintextYamlEditor {
-        Self { id }
+impl<T> PlaintextYamlEditor<T>
+where
+    T: Serialize + for<'de> Deserialize<'de> + Clone,
+{
+    pub fn get(id: egui::Id) -> PlaintextYamlEditor<T> {
+        Self {
+            id,
+            _marker: PhantomData,
+        }
     }
 
-    pub fn is_active(&self, ui: &egui::Ui) -> bool {
+    pub fn is_open(&self, ui: &egui::Ui) -> bool {
         self.state(ui).is_some()
     }
-    pub fn open<T>(&self, ui: &egui::Ui, value: &T)
-    where
-        T: Serialize + for<'de> Deserialize<'de> + Clone,
-    {
+    pub fn open(&self, ui: &egui::Ui, value: &T) {
         self.set_state(
             ui,
             Some(PlaintextYamlEditorState {
                 contents: serde_yaml::to_string(value)
                     .unwrap_or_else(|e| format!("serialization error: {e}")),
-                modified: false,
             }),
         );
     }
     pub fn close(&self, ui: &egui::Ui) {
-        todo!()
-        // self.
+        self.set_state(ui, None);
     }
 
     fn state(&self, ui: &egui::Ui) -> Option<PlaintextYamlEditorState> {
@@ -50,61 +51,39 @@ impl PlaintextYamlEditor {
         }
     }
 
-    pub fn show<T>(&self, ui: &mut egui::Ui, value: &mut T) -> Option<egui::Response>
-    where
-        T: Serialize + for<'de> Deserialize<'de> + Clone,
-    {
+    pub fn show(&self, ui: &mut egui::Ui) -> Option<egui::Response> {
         self.state(ui).map(|mut state| {
-            let mut changed = false;
-
-            let mut r = ui.scope(|ui| {
-                ui.horizontal(|ui| {
-                    let parsed_value: Result<T, _> = serde_yaml::from_str(&state.contents);
-                    ui.add_enabled_ui(parsed_value.is_ok(), |ui| {
-                        if big_icon_button(ui, "✔", "Confirm changes").clicked() {
-                            self.set_state(ui, None);
-                            *value = parsed_value.as_ref().unwrap().clone();
-                            changed = true;
-                        }
-                    });
-                    if big_icon_button(ui, "✖", "Discard changes").clicked() {
-                        self.set_state(ui, None);
-                    }
-                    if big_icon_button(ui, "🗐", "Click to copy").clicked() {
-                        ui.output_mut(|out| out.copied_text = state.contents.clone());
-                    }
-                    if let Err(e) = parsed_value {
-                        ui.label(
-                            egui::RichText::new("Parse error (hover for info)")
-                                .color(egui::Color32::RED),
-                        )
-                        .on_hover_explanation("", &e.to_string());
-                    }
-                });
-
-                ui.separator();
-
-                egui::ScrollArea::new([false, true]).show(ui, |ui| {
-                    // Setting `.lock_focus(true)` makes the tab key insert tab
-                    // characters (`\t`). YAML wants two spaces per tab, but
-                    // right now there's no easy way to make that happen.
-                    let r = egui::TextEdit::multiline(&mut state.contents)
-                        .code_editor()
-                        .lock_focus(false)
-                        .desired_width(f32::INFINITY)
-                        .show(ui);
-
-                    if r.response.changed() {
-                        state.modified = true;
-                        self.set_state(ui, Some(state));
-                    }
-                });
-            });
-
-            if changed {
-                r.response.mark_changed();
+            let deserialization_error = self.deserialize(ui).and_then(|result| result.err());
+            if deserialization_error.is_some() {
+                // Change the outline around the text editor to red.
+                let visuals = ui.visuals_mut();
+                let error_color = visuals.error_fg_color;
+                visuals.selection.stroke.color = error_color;
+                visuals.widgets.active.bg_stroke.color = error_color;
+                visuals.widgets.hovered.bg_stroke.color = error_color;
+                visuals.widgets.inactive.bg_stroke.color = error_color;
             }
+
+            // Setting `.lock_focus(true)` makes the tab key insert tab
+            // characters (`\t`). YAML wants two spaces per tab, but
+            // right now there's no easy way to make that happen.
+            let r = egui::TextEdit::multiline(&mut state.contents)
+                .font(egui::TextStyle::Monospace) // for cursor height
+                .code_editor()
+                .lock_focus(false)
+                .min_size(ui.available_size())
+                .show(ui);
+
+            if r.response.changed() {
+                self.set_state(ui, Some(state));
+            }
+
             r.response
         })
+    }
+
+    pub fn deserialize(&self, ui: &egui::Ui) -> Option<serde_yaml::Result<T>> {
+        self.state(ui)
+            .map(|state| serde_yaml::from_str(&state.contents))
     }
 }
