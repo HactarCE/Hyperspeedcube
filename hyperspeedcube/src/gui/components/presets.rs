@@ -216,13 +216,16 @@ where
                     }
                 });
 
-                let r = ui
-                    .add(egui::Button::new("🗑").min_size(BIG_ICON_BUTTON_SIZE))
-                    .on_hover_text("Delete preset");
-                if r.clicked() {
-                    self.presets.delete(&preset_name);
-                    ui.memory_mut(|mem| mem.close_popup());
-                }
+                ui.add_enabled_ui(self.presets.presets.len() > 1, |ui| {
+                    let r = ui
+                        .add(egui::Button::new("🗑").min_size(BIG_ICON_BUTTON_SIZE))
+                        .on_hover_text("Delete preset")
+                        .on_disabled_hover_text("Cannot delete last preset");
+                    if r.clicked() {
+                        self.presets.delete(&preset_name);
+                        ui.memory_mut(|mem| mem.close_popup());
+                    }
+                });
             });
         }
 
