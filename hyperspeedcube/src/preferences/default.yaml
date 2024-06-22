@@ -88,8 +88,8 @@ view_3d:
       facet_shrink: 0.03
       sticker_shrink: 0.05
       piece_explode: 0.0
-      light_pitch: 35.0
-      light_yaw: 0.0
+      light_pitch: 65.0
+      light_yaw: -55.0
       face_light_intensity: 1.0
       outline_light_intensity: 0.0
       downscale_rate: 1
@@ -108,9 +108,9 @@ view_3d:
       facet_shrink: 0.4
       sticker_shrink: 0.2
       piece_explode: 0.0
-      light_pitch: 35.0
-      light_yaw: 0.0
-      face_light_intensity: 1.0
+      light_pitch: 65.0
+      light_yaw: -55.0
+      face_light_intensity: 0.0
       outline_light_intensity: 0.0
       downscale_rate: 1
       downscale_interpolate: true
@@ -118,19 +118,19 @@ view_3d:
       pitch: 0.0
       yaw: 0.0
       roll: 0.0
-      scale: 1.0
-      fov_3d: 0.0
+      scale: 3.0
+      fov_3d: -60.0
       fov_4d: 30.0
       show_frontfaces: true
-      show_backfaces: true
+      show_backfaces: false
       show_behind_4d_camera: false
-      show_internals: true
-      facet_shrink: 0.0
-      sticker_shrink: 0.0
+      show_internals: false
+      facet_shrink: 0.4
+      sticker_shrink: 0.2
       piece_explode: 0.0
-      light_pitch: 0.0
-      light_yaw: 0.0
-      face_light_intensity: 1.0
+      light_pitch: 65.0
+      light_yaw: -55.0
+      face_light_intensity: 0.0
       outline_light_intensity: 0.0
       downscale_rate: 1
       downscale_interpolate: true
