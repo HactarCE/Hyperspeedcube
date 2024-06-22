@@ -231,7 +231,7 @@ impl TwistSystemBuilder {
                 let face_normal = (|| {
                     Blade::wedge(
                         &old_twist.transform.grade_project(2),
-                        &Blade::wedge(&origin, &axis_vector)?,
+                        &Blade::wedge(&axis_vector, &origin)?,
                     )?
                     .antidual()
                     .to_vector()?

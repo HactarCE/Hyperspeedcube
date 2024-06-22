@@ -279,7 +279,7 @@ impl PuzzleRenderer {
                 .puzzle
                 .twist_gizmos
                 .iter()
-                .filter(|polyhedron| !camera.cull_4d_backface(polyhedron.axis_vector))
+                .filter(|polyhedron| camera.is_4d_face_unculled(polyhedron.axis_vector))
                 .map(|gizmo| {
                     let verts_4d = gizmo.compute_vertex_positions(
                         pga::Motor::ident(4),
@@ -557,9 +557,11 @@ impl PuzzleRenderer {
         // others = other colors (such as outlines)
         let mut color_palette = vec![draw_params.background_color, draw_params.internals_color];
         color_palette.extend((0..self.model.color_count).map(|i| {
-            colorous::RAINBOW
-                .eval_rational(i, self.model.color_count)
-                .into_array()
+            draw_params
+                .sticker_colors
+                .get(i)
+                .copied()
+                .unwrap_or_default()
         }));
         let mut color_ids: HashMap<[u8; 3], u32> = color_palette
             .iter()

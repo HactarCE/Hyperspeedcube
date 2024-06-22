@@ -6,20 +6,22 @@ use crate::puzzle::{Camera, PieceStyleValues};
 /// Complete set of values that determines 3D vertex positions.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub(crate) struct GeometryCacheKey {
-    pub pitch: f32,
-    pub yaw: f32,
-    pub roll: f32,
-    pub scale: f32,
-    pub fov_3d: f32,
-    pub fov_4d: f32,
-    pub show_internals: bool,
-    pub facet_shrink: f32,
-    pub sticker_shrink: f32,
-    pub piece_explode: f32,
+    pitch: f32,
+    yaw: f32,
+    roll: f32,
+    scale: f32,
+    fov_3d: f32,
+    fov_4d: f32,
+    show_internals: bool,
+    facet_shrink: f32,
+    sticker_shrink: f32,
+    piece_explode: f32,
 
-    pub target_size: [u32; 2],
-    pub rot: Option<pga::Motor>,
-    pub piece_transforms: PerPiece<Matrix>,
+    target_size: [u32; 2],
+    rot: Option<pga::Motor>,
+    // TODO: piece styles in here?
+    piece_transforms: PerPiece<Matrix>,
+    // TODO: colors in here?
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,6 +33,7 @@ pub(crate) struct DrawParams {
 
     pub background_color: [u8; 3],
     pub internals_color: [u8; 3],
+    pub sticker_colors: Vec<[u8; 3]>,
     pub piece_styles: Vec<(PieceStyleValues, PieceMask)>,
     pub piece_transforms: PerPiece<Matrix>,
 }

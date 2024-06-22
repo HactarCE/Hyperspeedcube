@@ -75,10 +75,14 @@ impl Camera {
     }
     /// Returns the 4D perspective divisor based on the W coordinate of a point.
     pub fn w_divisor(&self, w: f32) -> f32 {
-        1.0 + w * self.w_factor_4d()
+        // Offset the model along W and keep the new W=0 plane fixed with
+        // respect to FOV changes.
+        1.0 + (1.0 - w) * self.w_factor_4d()
     }
     /// Returns the 3D perspective divisor based on the Z coordinate of a point.
     pub fn z_divisor(&self, z: f32) -> f32 {
+        // Offset the model along Z and keep the new Z=0 plane fixed with
+        // respect to FOV changes.
         1.0 + (self.prefs().fov_3d.signum() - z) * self.w_factor_3d()
     }
     /// Projects an N-dimensional point to a 3D point in normalized device
@@ -94,12 +98,8 @@ impl Camera {
         let p = hypermath_to_cgmath_vec4(p); // Convert to cgmath vector
         let p = p * self.global_scale(); // Scale
 
-        // Offset the camera to W = -1. Equivalently, move the whole model to be
-        // centered on W = 1.
-        let w = p.w + 1.0;
-
         // Clip geometry that is behind the 4D camera.
-        if !self.prefs().show_behind_4d_camera && self.w_divisor(w) < W_DIVISOR_CLIPPING_PLANE {
+        if !self.prefs().show_behind_4d_camera && self.w_divisor(p.w) < W_DIVISOR_CLIPPING_PLANE {
             return None;
         }
 
@@ -123,8 +123,8 @@ impl Camera {
     }
 
     fn project_4d_to_3d(&self, p: cgmath::Vector4<f32>) -> cgmath::Point3<f32> {
-        // Offset the camera to W = -1 and apply 4D perspective transformation.
-        cgmath::Point3::from_vec(p.truncate()) / self.w_divisor(p.w + 1.0)
+        // Apply 4D perspective transformation.
+        cgmath::Point3::from_vec(p.truncate()) / self.w_divisor(p.w)
     }
     fn project_3d_to_2d(&self, p: cgmath::Point3<f32>) -> cgmath::Point2<f32> {
         cgmath::point2(p.x, p.y) / self.z_divisor(p.z)
@@ -153,14 +153,10 @@ impl Camera {
         let p_4d = hypermath_to_cgmath_vec4(p);
         let v_4d = hypermath_to_cgmath_vec4(v);
 
-        // Offset the camera to W = -1. Equivalently, move the whole model to be
-        // centered on W = 1.
-        let w = p_4d.w + 1.0;
-
         // Apply 4D perspective transformation.
         let p_3d = self.project_4d_to_3d(p_4d);
-        let v_3d =
-            (v_4d.truncate() - p_3d.to_vec() * v_4d.w * self.w_factor_4d()) / self.w_divisor(w);
+        let v_3d = (v_4d.truncate() + p_3d.to_vec() * v_4d.w * self.w_factor_4d())
+            / self.w_divisor(p_4d.w);
 
         // Apply 3D perspective transformation.
         let p_2d = self.project_3d_to_2d(p_3d);
@@ -172,24 +168,28 @@ impl Camera {
 
     /// Returns the W coordinate of the 4D camera in N-dimensional global space.
     pub fn camera_4d_w(&self) -> f32 {
-        -1.0 - 1.0 / self.w_factor_4d()
+        1.0 + 1.0 / self.w_factor_4d()
     }
     /// Returns the position of the 4D camera in N-dimensional puzzle space.
     pub fn camera_4d_pos(&self) -> Vector {
         let global_camera_4d_pos = vector![0.0, 0.0, 0.0, self.camera_4d_w() as Float];
         self.rot.reverse().transform_point(global_camera_4d_pos)
     }
-    /// Returns whether to cull a 4D backface based on its pole.
-    pub fn cull_4d_backface(&self, pole: impl VectorRef) -> bool {
-        if self.prefs().show_backfaces {
-            return false;
-        }
-
+    /// Returns whether to a 4D frontface/backface is unculled based on its
+    /// pole.
+    pub fn is_4d_face_unculled(&self, pole: impl VectorRef) -> bool {
         let p = self.rot.transform_point(pole); // Rotate
         let p = hypermath_to_cgmath_vec4(p); // Convert to cgmath vector
         let p = p * self.global_scale(); // Scale
 
-        p.dot(cgmath::vec4(0.0, 0.0, 0.0, self.camera_4d_w()) - p) >= 0.0
+        let dot_product = p.dot(cgmath::vec4(0.0, 0.0, 0.0, self.camera_4d_w()) - p);
+        if dot_product < 0.0 {
+            self.prefs().show_frontfaces
+        } else if dot_product > 0.0 {
+            self.prefs().show_backfaces
+        } else {
+            false
+        }
     }
 }
 

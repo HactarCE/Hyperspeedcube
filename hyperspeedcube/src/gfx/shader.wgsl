@@ -216,14 +216,10 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     if NDIM >= 4 && draw_params.clip_4d_backfaces != 0 {
         let camera_ray_4d = point_4d - vec4(0.0, 0.0, 0.0, draw_params.camera_4d_w);
         let dot_product_result = dot(normal_4d, camera_ray_4d);
-        // Cull if the dot product is positive (i.e., the camera is behind the
+        // Cull if the dot product is negative (i.e., the camera is behind the
         // geometry).
         ret.cull |= dot_product_result <= 0.0;
     }
-
-    // Offset the camera to W = -1. Equivalently, move the whole model to be
-    // centered on W = 1.
-    point_4d.w += 1.0;
 
     // Apply 4D perspective transformation.
     let w_divisor = w_divisor(point_4d.w);
@@ -256,8 +252,8 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     //
     // Take the Jacobian of this transformation and multiply each tangent
     // vector by it.
-    let u_3d = (u.xyz - vertex_3d_position * u.w * draw_params.w_factor_4d) * recip_w_divisor;
-    let v_3d = (v.xyz - vertex_3d_position * v.w * draw_params.w_factor_4d) * recip_w_divisor;
+    let u_3d = (u.xyz + vertex_3d_position * u.w * draw_params.w_factor_4d) * recip_w_divisor;
+    let v_3d = (v.xyz + vertex_3d_position * v.w * draw_params.w_factor_4d) * recip_w_divisor;
     // Do the same thing to project from 3D to 2D.
     let u_2d = (u_3d.xy + vertex_2d_position * u_3d.z * draw_params.w_factor_3d) * recip_z_divisor;
     let v_2d = (v_3d.xy + vertex_2d_position * v_3d.z * draw_params.w_factor_3d) * recip_z_divisor;
@@ -273,7 +269,7 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
 /// Returns the XYZ divisor for projection from 4D to 3D, which is based on the
 /// W coordinate.
 fn w_divisor(w: f32) -> f32 {
-    return 1.0 + w * draw_params.w_factor_4d;
+    return 1.0 + (1.0 - w) * draw_params.w_factor_4d;
 }
 
 /// Returns the XY divisor for projection from 3D to 2D, which is based on the Z

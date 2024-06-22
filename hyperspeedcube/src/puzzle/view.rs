@@ -133,7 +133,10 @@ impl PuzzleView {
             match drag_state {
                 // Update camera.
                 DragState::ViewRot { z_axis } => {
-                    if let Some(delta) = cursor_delta {
+                    if let Some(mut delta) = cursor_delta {
+                        if *z_axis > 2 {
+                            delta = -delta;
+                        }
                         if *z_axis < ndim {
                             let cgmath::Vector2 { x: dx, y: dy } = delta;
                             self.camera.rot =
@@ -305,8 +308,8 @@ impl PuzzleView {
 
                 // Aim for a 180 degree counterclockwise rotation around the axis.
                 let target = match hov.backface {
-                    false => Motor::from_normalized_vector_product(ndim, &u, &v),
-                    true => Motor::from_normalized_vector_product(ndim, &v, &u),
+                    false => Motor::from_normalized_vector_product(ndim, &v, &u),
+                    true => Motor::from_normalized_vector_product(ndim, &u, &v),
                 };
                 let best_twist = candidates.min_by_key(|&twist| {
                     // `score` ranges from -1 to +1. If it's a positive number,

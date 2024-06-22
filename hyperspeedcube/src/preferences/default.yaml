@@ -143,10 +143,10 @@ view_4d:
       roll: 0.0
       scale: 1.0
       fov_3d: 0.0
-      fov_4d: 30.0
+      fov_4d: 60.0
       show_frontfaces: true
-      show_backfaces: true
-      show_behind_4d_camera: true
+      show_backfaces: false
+      show_behind_4d_camera: false
       show_internals: false
       facet_shrink: 0.7
       sticker_shrink: 0.3
