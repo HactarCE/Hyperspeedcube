@@ -77,11 +77,10 @@ struct DrawParams {
     w_factor_4d: f32,
     w_factor_3d: f32,
     fov_signum: f32,
-    clip_4d_backfaces: i32,
+    show_frontfaces: i32,
+    show_backfaces: i32,
     clip_4d_behind_camera: i32,
     camera_4d_w: f32,
-
-    _padding: f32,
 }
 
 
@@ -213,12 +212,20 @@ fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> Transform
     }
 
     // Clip 4D backfaces.
-    if NDIM >= 4 && draw_params.clip_4d_backfaces != 0 {
+    if NDIM >= 4 {
+        // Is the camera behind or in front of the geometry? Compute the dot
+        // product `normal · (vertex - camera)`.
         let camera_ray_4d = point_4d - vec4(0.0, 0.0, 0.0, draw_params.camera_4d_w);
-        let dot_product_result = dot(normal_4d, camera_ray_4d);
-        // Cull if the dot product is negative (i.e., the camera is behind the
-        // geometry).
-        ret.cull |= dot_product_result <= 0.0;
+        var dot_product_result = dot(normal_4d, camera_ray_4d);
+        // Add extra dimensions into the dot product.
+        for (var i = 4; i < NDIM; i++) {
+            // The puzzle transform doesn't apply to dimensions higher than 4D.
+            dot_product_result += old_normal[i] * old_pos[i];
+        }
+        let show = dot_product_result == 0.0
+            || (dot_product_result > 0.0 && draw_params.show_frontfaces != 0)
+            || (dot_product_result < 0.0 && draw_params.show_backfaces != 0);
+        ret.cull |= !show;
     }
 
     // Apply 4D perspective transformation.

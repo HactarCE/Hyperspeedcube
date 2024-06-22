@@ -495,11 +495,10 @@ impl PuzzleRenderer {
                 fov_signum,
                 near_plane_z,
                 far_plane_z,
-                clip_4d_backfaces: !draw_params.cam.prefs().show_backfaces as i32,
+                show_frontfaces: draw_params.cam.prefs().show_frontfaces as i32,
+                show_backfaces: draw_params.cam.prefs().show_backfaces as i32,
                 clip_4d_behind_camera: !draw_params.cam.prefs().show_behind_4d_camera as i32,
                 camera_4d_w: draw_params.cam.camera_4d_w(),
-
-                _padding: 0.0,
             };
             self.gfx
                 .queue

@@ -182,14 +182,11 @@ impl Camera {
         let p = hypermath_to_cgmath_vec4(p); // Convert to cgmath vector
         let p = p * self.global_scale(); // Scale
 
-        let dot_product = p.dot(cgmath::vec4(0.0, 0.0, 0.0, self.camera_4d_w()) - p);
-        if dot_product < 0.0 {
-            self.prefs().show_frontfaces
-        } else if dot_product > 0.0 {
-            self.prefs().show_backfaces
-        } else {
-            false
-        }
+        let dot_product_result = p.dot(p - cgmath::vec4(0.0, 0.0, 0.0, self.camera_4d_w()));
+
+        dot_product_result == 0.0
+            || (dot_product_result > 0.0 && self.prefs().show_frontfaces)
+            || (dot_product_result < 0.0 && self.prefs().show_backfaces)
     }
 }
 
