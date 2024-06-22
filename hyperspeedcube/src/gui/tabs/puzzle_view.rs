@@ -9,6 +9,7 @@ use crate::gfx::*;
 use crate::gui::App;
 use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
 use crate::puzzle::{DragState, PieceStyleState, PuzzleSimulation, PuzzleView, PuzzleViewInput};
+use crate::util::IterCyclicPairsExt;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>) {
     let r = match &mut *puzzle_view.lock() {
@@ -263,6 +264,22 @@ impl PuzzleWidget {
 
             background_color,
             internals_color,
+            sticker_colors: puzzle
+                .colors
+                .iter()
+                .map(|(id, c)| {
+                    match c.default_color.as_ref().and_then(|default_color_name| {
+                        prefs.colors.iter().find(|saved_color| {
+                            saved_color.name.to_ascii_lowercase() == *default_color_name
+                        })
+                    }) {
+                        Some(saved) => saved.rgb,
+                        None => colorous::RAINBOW
+                            .eval_rational(id.0 as usize, puzzle.colors.len())
+                            .into_array(),
+                    }
+                })
+                .collect(),
             piece_styles: self.view.styles.values(&prefs.styles),
             piece_transforms: self.view.sim.lock().piece_transforms().map_ref(
                 |_piece, transform| transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim()),
@@ -323,10 +340,13 @@ impl PuzzleWidget {
                 .lerp_inside(egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5))
         };
 
-        let stroke = egui::Stroke::new(2.0, egui::Color32::LIGHT_BLUE);
-        let fill = stroke.color.gamma_multiply(0.2);
+        let strong_color = egui::Color32::LIGHT_BLUE;
+        let weak_color = strong_color.linear_multiply(0.05);
+        let stroke_weak = egui::Stroke::new(2.0, weak_color);
+        let stroke_strong = egui::Stroke::new(2.0, strong_color);
+        let fill = weak_color;
         for edge in draw_prep.gizmo_edges {
-            painter.line_segment(edge.map(to_egui), stroke);
+            painter.line_segment(edge.map(to_egui), stroke_weak);
         }
         for face in draw_prep.gizmo_faces {
             painter.add(egui::Shape::convex_polygon(
@@ -334,6 +354,9 @@ impl PuzzleWidget {
                 fill,
                 egui::Stroke::NONE,
             ));
+            for (&a, &b) in face.iter().cyclic_pairs() {
+                painter.line_segment([a, b].map(to_egui), stroke_strong);
+            }
         }
         if let Some(twist) = draw_prep.gizmo_click_twist {
             let layers = LayerMask::default();

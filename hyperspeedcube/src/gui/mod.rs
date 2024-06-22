@@ -46,7 +46,7 @@ impl AppUi {
         let [main, left] =
             surface.split_left(main, 0.15, vec![Tab::PuzzleLibrary, Tab::PuzzleControls]);
         surface.split_below(left, 0.7, vec![Tab::PuzzleInfo]);
-        let [_main, right] = surface.split_right(main, 0.8, vec![Tab::View]);
+        let [_main, right] = surface.split_right(main, 0.8, vec![Tab::Colors, Tab::View]);
         surface.split_below(right, 0.6, vec![Tab::LuaLogs]);
 
         crate::LIBRARY.with(|lib| app.load_puzzle(lib, "3x3x3"));

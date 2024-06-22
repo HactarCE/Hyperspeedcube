@@ -157,6 +157,81 @@ view_4d:
       outline_light_intensity: 0.0
       downscale_rate: 1
       downscale_interpolate: true
+colors:
+  - name: White
+    rgb:
+      - 255
+      - 255
+      - 255
+  - name: Red
+    rgb:
+      - 204
+      - 51
+      - 51
+  - name: Orange
+    rgb:
+      - 255
+      - 153
+      - 34
+  - name: Yellow
+    rgb:
+      - 255
+      - 255
+      - 0
+  - name: Green
+    rgb:
+      - 136
+      - 238
+      - 102
+  - name: Cyan
+    rgb:
+      - 0
+      - 255
+      - 255
+  - name: Blue
+    rgb:
+      - 51
+      - 170
+      - 255
+  - name: Purple
+    rgb:
+      - 136
+      - 34
+      - 204
+  - name: Magenta
+    rgb:
+      - 255
+      - 0
+      - 255
+  - name: Pink
+    rgb:
+      - 255
+      - 102
+      - 255
+  # - { name: c1, rgb: [127, 0, 0] }
+  # - { name: c2, rgb: [0, 127, 0] }
+  # - { name: c3, rgb: [0, 0, 127] }
+  # - { name: c4, rgb: [127, 0, 0] }
+  # - { name: c5, rgb: [0, 127, 0] }
+  # - { name: c6, rgb: [0, 0, 127] }
+  # - { name: c7, rgb: [127, 0, 0] }
+  # - { name: c8, rgb: [0, 127, 0] }
+  # - { name: c9, rgb: [0, 0, 127] }
+  # - { name: c10, rgb: [127, 0, 0] }
+  # - { name: c11, rgb: [0, 127, 0] }
+  # - { name: c12, rgb: [0, 0, 127] }
+  # - { name: c13, rgb: [127, 0, 0] }
+  # - { name: c14, rgb: [0, 127, 0] }
+  # - { name: c15, rgb: [0, 0, 127] }
+  # - { name: c16, rgb: [127, 0, 0] }
+  # - { name: c17, rgb: [0, 127, 0] }
+  # - { name: c18, rgb: [0, 0, 127] }
+  # - { name: c19, rgb: [127, 0, 0] }
+  # - { name: c20, rgb: [0, 127, 0] }
+  # - { name: c21, rgb: [0, 0, 127] }
+  # - { name: c22, rgb: [127, 0, 0] }
+  # - { name: c23, rgb: [0, 127, 0] }
+  # - { name: c24, rgb: [0, 0, 127] }
 piece_filters: ~
 global_keybinds: []
 puzzle_keybinds: ~

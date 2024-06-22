@@ -23,6 +23,7 @@ mod keybinds;
 mod migration {
     pub const LATEST_VERSION: u32 = 2;
 }
+mod colors;
 mod mousebinds;
 #[cfg(not(target_arch = "wasm32"))]
 mod persist_local;
@@ -31,6 +32,7 @@ mod persist_web;
 mod styles;
 mod view;
 
+pub use colors::*;
 pub use gfx::*;
 pub use info::*;
 pub use interaction::*;
@@ -80,6 +82,8 @@ pub struct Preferences {
     pub view_4d: WithPresets<ViewPreferences>,
     #[serde(skip)]
     pub latest_view_prefs_set: PuzzleViewPreferencesSet,
+
+    pub colors: Vec<SavedColor>,
 
     pub piece_filters: (), // TODO
 
