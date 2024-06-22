@@ -27,6 +27,8 @@ struct PuzzleRenderParams {
 }
 
 pub(crate) struct PuzzleRenderCache {
+    pub want_screenshot: bool,
+
     last_render_time: Instant,
     last_params: Option<PuzzleRenderParams>,
     last_puzzle_geometry: Option<Arc<Vec<ProjectedStickerGeometry>>>,
@@ -44,6 +46,8 @@ pub(crate) struct PuzzleRenderCache {
 impl Default for PuzzleRenderCache {
     fn default() -> Self {
         Self {
+            want_screenshot: false,
+
             last_render_time: Instant::now(),
             last_params: None,
             last_puzzle_geometry: None,
@@ -102,7 +106,11 @@ pub(crate) fn draw_puzzle(
     gfx: &mut GraphicsState,
     mut force_redraw: bool,
 ) -> Option<wgpu::TextureView> {
-    let (width, height) = app.puzzle_texture_size;
+    let (mut width, mut height) = app.puzzle_texture_size;
+    if app.render_cache.want_screenshot {
+        width = 4096;
+        height = 2926;
+    }
     let size = cgmath::vec2(width as f32, height as f32);
 
     // Avoid divide-by-zero errors.
@@ -193,7 +201,9 @@ pub(crate) fn draw_puzzle(
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: gfx.config.format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_SRC,
         })
     });
 
@@ -350,7 +360,57 @@ pub(crate) fn draw_puzzle(
 
     drop(render_pass);
 
-    gfx.queue.submit(std::iter::once(encoder.finish()));
+    if cache.want_screenshot {
+        cache.want_screenshot = false;
+
+        let output_buffer_size = (4 * width * height) as wgpu::BufferAddress;
+        let output_buffer_desc = wgpu::BufferDescriptor {
+            size: output_buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            label: Some("who?"),
+            mapped_at_creation: false,
+        };
+        let output_buffer = gfx.device.create_buffer(&output_buffer_desc);
+
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                aspect: wgpu::TextureAspect::All,
+                texture: out_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: &output_buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some((4 * width).try_into().unwrap()),
+                    rows_per_image: Some(height.try_into().unwrap()),
+                },
+            },
+            extent3d(width, height),
+        );
+
+        gfx.queue.submit(std::iter::once(encoder.finish()));
+
+        let output_buffer = Box::leak(Box::new(output_buffer));
+
+        let buffer_slice = output_buffer.slice(..);
+
+        // NOTE: We have to create the mapping THEN device.poll() before await
+        // the future. Otherwise the application will freeze.
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            result.unwrap();
+            use image::{ImageBuffer, Rgba};
+            let data = buffer_slice.get_mapped_range();
+
+            let buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, data).unwrap();
+            buffer.save("image.png").unwrap();
+        });
+        gfx.device.poll(wgpu::Maintain::Wait);
+        output_buffer.unmap();
+    } else {
+        gfx.queue.submit(std::iter::once(encoder.finish()));
+    }
 
     Some(out_texture.create_view(&wgpu::TextureViewDescriptor::default()))
 }
