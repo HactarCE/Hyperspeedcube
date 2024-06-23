@@ -269,11 +269,21 @@ impl PuzzleWidget {
                 .iter()
                 .map(|(id, c)| {
                     match c.default_color.as_ref().and_then(|default_color_name| {
-                        prefs.colors.iter().find(|saved_color| {
-                            saved_color.name.to_ascii_lowercase() == *default_color_name
-                        })
+                        if let Some(hex_code) = default_color_name.strip_prefix('#') {
+                            hex::decode(hex_code).ok()?.try_into().ok()
+                        } else {
+                            Some(
+                                prefs
+                                    .colors
+                                    .iter()
+                                    .find(|saved_color| {
+                                        saved_color.name.to_ascii_lowercase() == *default_color_name
+                                    })?
+                                    .rgb,
+                            )
+                        }
                     }) {
-                        Some(saved) => saved.rgb,
+                        Some(default) => default,
                         None => colorous::RAINBOW
                             .eval_rational(id.0 as usize, puzzle.colors.len())
                             .into_array(),

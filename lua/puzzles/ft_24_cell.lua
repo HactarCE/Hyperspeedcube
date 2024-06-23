@@ -10,12 +10,8 @@ puzzles:add('ft_24_cell', {
 
     -- Build shape
     p:carve(sym:orbit(ooox))
-    local t = {}
-    for i = 1,24 do
-      table.insert(t, 'c' .. i)
-    end
-    t = {
-      'greys.4.1',
+    local t = {
+      '#ffffff',
       'greys.4.2',
       'greys.4.3',
       'reds.4.1',
