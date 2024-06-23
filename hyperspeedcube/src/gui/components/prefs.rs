@@ -135,7 +135,7 @@ impl<'a, T> PrefsUi<'a, T> {
         })
     }
 
-    pub fn color(&mut self, label: &str, access: Access<T, egui::Color32>) -> egui::Response {
+    pub fn color(&mut self, label: &str, access: Access<T, [u8; 3]>) -> egui::Response {
         let reset_value = *(access.get_ref)(self.defaults);
         let reset_value_str = hex_color::to_str(&reset_value);
         self.add(|current| WidgetWithReset {
@@ -143,7 +143,34 @@ impl<'a, T> PrefsUi<'a, T> {
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str,
-            make_widget: |value| |ui: &mut egui::Ui| ui.color_edit_button_srgba(value),
+            make_widget: |value| |ui: &mut egui::Ui| ui.color_edit_button_srgb(value),
+        })
+    }
+    pub fn fixed_multi_color(
+        &mut self,
+        label: &str,
+        access: Access<T, Vec<[u8; 3]>>,
+    ) -> egui::Response {
+        let reset_value = (access.get_ref)(self.defaults).clone();
+        self.add(|current| WidgetWithReset {
+            label,
+            value: (access.get_mut)(current),
+            reset_value,
+            reset_value_str: String::new(),
+            make_widget: |values| {
+                |ui: &mut egui::Ui| {
+                    let mut changed = false;
+                    let mut r = ui.horizontal(|ui| {
+                        for value in values {
+                            changed |= ui.color_edit_button_srgb(value).changed();
+                        }
+                    });
+                    if changed {
+                        r.response.mark_changed();
+                    }
+                    r.response
+                }
+            },
         })
     }
 }

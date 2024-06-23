@@ -84,6 +84,7 @@ pub struct Preferences {
     pub latest_view_prefs_set: PuzzleViewPreferencesSet,
 
     pub colors: Vec<SavedColor>,
+    pub color_sets: Vec<SavedColorSet>,
 
     pub piece_filters: (), // TODO
 

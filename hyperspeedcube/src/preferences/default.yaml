@@ -41,7 +41,7 @@ styles:
     outline_opacity: 1.0
     outline_color: "#000000"
     outline_sticker_color: false
-    outline_size: 1.0
+    outline_size: 0.5
   gripped:
     face_opacity: 1.0
     outline_opacity: 1.0
@@ -90,7 +90,7 @@ view_3d:
       piece_explode: 0.0
       light_pitch: 65.0
       light_yaw: -55.0
-      face_light_intensity: 1.0
+      face_light_intensity: 0.0
       outline_light_intensity: 0.0
       downscale_rate: 1
       downscale_interpolate: true
@@ -159,79 +159,114 @@ view_4d:
       downscale_interpolate: true
 colors:
   - name: White
-    rgb:
-      - 255
-      - 255
-      - 255
+    rgb: "#ffffff"
   - name: Red
-    rgb:
-      - 204
-      - 51
-      - 51
+    rgb: "#cc3333"
   - name: Orange
-    rgb:
-      - 255
-      - 153
-      - 34
+    rgb: "#ff9922"
   - name: Yellow
-    rgb:
-      - 255
-      - 255
-      - 0
+    rgb: "#ffff00"
   - name: Green
-    rgb:
-      - 136
-      - 238
-      - 102
+    rgb: "#88ee66"
   - name: Cyan
-    rgb:
-      - 0
-      - 255
-      - 255
+    rgb: "#00ffff"
   - name: Blue
-    rgb:
-      - 51
-      - 170
-      - 255
+    rgb: "#33aaff"
   - name: Purple
-    rgb:
-      - 136
-      - 34
-      - 204
+    rgb: "#8822cc"
   - name: Magenta
-    rgb:
-      - 255
-      - 0
-      - 255
+    rgb: "#ff00ff"
   - name: Pink
-    rgb:
-      - 255
-      - 102
-      - 255
-  # - { name: c1, rgb: [127, 0, 0] }
-  # - { name: c2, rgb: [0, 127, 0] }
-  # - { name: c3, rgb: [0, 0, 127] }
-  # - { name: c4, rgb: [127, 0, 0] }
-  # - { name: c5, rgb: [0, 127, 0] }
-  # - { name: c6, rgb: [0, 0, 127] }
-  # - { name: c7, rgb: [127, 0, 0] }
-  # - { name: c8, rgb: [0, 127, 0] }
-  # - { name: c9, rgb: [0, 0, 127] }
-  # - { name: c10, rgb: [127, 0, 0] }
-  # - { name: c11, rgb: [0, 127, 0] }
-  # - { name: c12, rgb: [0, 0, 127] }
-  # - { name: c13, rgb: [127, 0, 0] }
-  # - { name: c14, rgb: [0, 127, 0] }
-  # - { name: c15, rgb: [0, 0, 127] }
-  # - { name: c16, rgb: [127, 0, 0] }
-  # - { name: c17, rgb: [0, 127, 0] }
-  # - { name: c18, rgb: [0, 0, 127] }
-  # - { name: c19, rgb: [127, 0, 0] }
-  # - { name: c20, rgb: [0, 127, 0] }
-  # - { name: c21, rgb: [0, 0, 127] }
-  # - { name: c22, rgb: [127, 0, 0] }
-  # - { name: c23, rgb: [0, 127, 0] }
-  # - { name: c24, rgb: [0, 0, 127] }
+    rgb: "#ff66ff"
+color_sets:
+  - name: Grey triad
+    colors:
+      - "#a5a5a5"
+      - "#ffffff"
+      - "#595959"
+  - name: Red triad
+    colors:
+      - "#ff8a8a"
+      - "#d33535"
+      - "#6d1616"
+  - name: Orange triad
+    colors:
+      - "#ffb663"
+      - "#f1870d"
+      - "#834d0e"
+  - name: Yellow triad
+    colors:
+      - "#f7f89b"
+      - "#dcdd70"
+      - "#858628"
+  - name: Green triad
+    colors:
+      - "#b1f79c"
+      - "#5eff27"
+      - "#2c7714"
+  - name: Blue triad
+    colors:
+      - "#79c7ff"
+      - "#0481d7"
+      - "#09436d"
+  - name: Purple triad
+    colors:
+      - "#c18aff"
+      - "#7524d1"
+      - "#3f1075"
+  - name: Magenta triad
+    colors:
+      - "#ff8bf6"
+      - "#cf21c1"
+      - "#691161"
+  - name: Grey tetrad
+    colors:
+      - "#a5a5a5"
+      - "#ffffff"
+      - "#595959"
+      - "#343434"
+  - name: Red tetrad
+    colors:
+      - "#ff8a8a"
+      - "#d33535"
+      - "#6d1616"
+      - "#3b0606"
+  - name: Orange tetrad
+    colors:
+      - "#ffb663"
+      - "#f1870d"
+      - "#834d0e"
+      - "#4d300e"
+  - name: Yellow tetrad
+    colors:
+      - "#f7f89b"
+      - "#dcdd70"
+      - "#858628"
+      - "#5a5b05"
+  - name: Green tetrad
+    colors:
+      - "#b1f79c"
+      - "#5eff27"
+      - "#2c7714"
+      - "#14300a"
+  - name: Blue tetrad
+    colors:
+      - "#79c7ff"
+      - "#0481d7"
+      - "#09436d"
+      - "#0b2638"
+  - name: Purple tetrad
+    colors:
+      - "#c18aff"
+      - "#7524d1"
+      - "#3f1075"
+      - "#240648"
+  - name: Magenta tetrad
+    colors:
+      - "#ff8bf6"
+      - "#cf21c1"
+      - "#691161"
+      - "#370932"
 piece_filters: ~
 global_keybinds: []
 puzzle_keybinds: ~

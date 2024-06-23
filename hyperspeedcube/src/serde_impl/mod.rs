@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 pub(crate) mod hex_bitvec;
 pub(crate) mod hex_color;
+pub(crate) mod hex_color_list;
 pub(crate) mod opt_hex_color;
 
 /// Taken from docs here:

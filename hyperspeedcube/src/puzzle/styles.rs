@@ -243,8 +243,6 @@ impl PieceStyleState {
             (f.clamp(0.0, 1.0) * 255.0) as u8
         }
 
-        use crate::util::color_to_u8x3;
-
         // Apply styles in order from highest priority to lowest priority.
         PieceStyleValues {
             face_opacity: f32_to_u8(
@@ -255,7 +253,7 @@ impl PieceStyleState {
                 .or(base.and_then(|s| s.face_opacity))
                 .unwrap_or(def.face_opacity.unwrap_or_default()),
             ),
-            face_color: color_to_u8x3(first_or_default(color_order.map(|s| s?.face_color))),
+            face_color: first_or_default(color_order.map(|s| s?.face_color)),
             face_sticker_color: first_or_default(color_order.map(|s| s?.face_sticker_color)),
 
             outline_opacity: f32_to_u8(
@@ -266,9 +264,9 @@ impl PieceStyleState {
                 .or(base.and_then(|s| s.outline_opacity))
                 .unwrap_or(def.outline_opacity.unwrap_or_default()),
             ),
-            outline_color: color_to_u8x3(hypermath::util::lerp(
-                egui::Rgba::from(first_or_default(color_order.map(|s| s?.outline_color))),
-                egui::Rgba::from(styles.blocking_color),
+            outline_color: crate::util::color_to_u8x3(hypermath::util::lerp(
+                rgba(first_or_default(color_order.map(|s| s?.outline_color))),
+                rgba(styles.blocking_color),
                 self.blocking_amount as f32 / 255.0,
             )),
             outline_sticker_color: first_or_default(color_order.map(|s| s?.outline_sticker_color)),
@@ -280,4 +278,9 @@ impl PieceStyleState {
             ),
         }
     }
+}
+
+fn rgba(rgb: [u8; 3]) -> egui::Rgba {
+    let [r, g, b] = rgb;
+    egui::Rgba::from_srgba_unmultiplied(r, g, b, 255)
 }

@@ -40,13 +40,14 @@ impl AppUi {
         // Initialize UI.
         let puzzle_view = Arc::new(Mutex::new(None));
         app.set_active_puzzle_view(&puzzle_view);
-        let mut dock_state = egui_dock::DockState::new(vec![Tab::PuzzleView(puzzle_view)]);
+        let mut dock_state =
+            egui_dock::DockState::new(vec![Tab::PuzzleView(puzzle_view), Tab::GlobalColorPalette]);
         let main = NodeIndex::root();
         let surface = dock_state.main_surface_mut();
         let [main, left] =
             surface.split_left(main, 0.15, vec![Tab::PuzzleLibrary, Tab::PuzzleControls]);
         surface.split_below(left, 0.7, vec![Tab::PuzzleInfo]);
-        let [_main, right] = surface.split_right(main, 0.8, vec![Tab::Colors, Tab::View]);
+        let [_main, right] = surface.split_right(main, 0.8, vec![Tab::ActiveColors, Tab::View]);
         surface.split_below(right, 0.6, vec![Tab::LuaLogs]);
 
         crate::LIBRARY.with(|lib| app.load_puzzle(lib, "3x3x3"));
@@ -64,7 +65,10 @@ impl AppUi {
         let dark_mode = ctx.style().visuals.dark_mode;
         let background_color = self.app.prefs.styles.background_color(dark_mode);
         egui::CentralPanel::default()
-            .frame(egui::Frame::none().fill(background_color))
+            .frame(egui::Frame::none().fill({
+                let [r, g, b] = background_color;
+                egui::Color32::from_rgb(r, g, b)
+            }))
             .show(ctx, |ui| {
                 let mut style = egui_dock::Style::from_egui(ui.style());
                 style.tab_bar.fill_tab_bar = true;

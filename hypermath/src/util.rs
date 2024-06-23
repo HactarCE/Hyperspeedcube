@@ -17,6 +17,21 @@ where
     a * (T::one() - t) + b * t
 }
 
+/// Linearly interpolates (unclamped) componentwise between two arrays of
+/// values.
+pub fn lerp_array<A: Copy, T: Copy, const N: usize>(
+    a: [A; N],
+    b: [A; N],
+    t: T,
+) -> [<A::Output as Add>::Output; N]
+where
+    A: Mul<T>,
+    A::Output: Add,
+    T: num_traits::Float,
+{
+    std::array::from_fn(|i| lerp(a[i], b[i], t))
+}
+
 /// Returns the element of an iterator with the minimum value, allowing floats
 /// or other `PartialOrd` types.
 pub fn min_by_key<T, K: PartialOrd>(

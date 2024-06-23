@@ -22,13 +22,13 @@ lazy_static! {
 #[serde(default)]
 pub struct StylePreferences {
     #[serde(with = "hex_color")]
-    pub dark_background_color: egui::Color32,
+    pub dark_background_color: [u8; 3],
     #[serde(with = "hex_color")]
-    pub light_background_color: egui::Color32,
+    pub light_background_color: [u8; 3],
     #[serde(with = "hex_color")]
-    pub internals_color: egui::Color32,
+    pub internals_color: [u8; 3],
     #[serde(with = "hex_color")]
-    pub blocking_color: egui::Color32, // TODO: move to its own style, maybe?
+    pub blocking_color: [u8; 3], // TODO: move to its own style, maybe?
     pub blocking_outline_size: f32, // TODO: otherwise, add this to prefs UI
 
     pub default: PieceStyle,
@@ -45,7 +45,7 @@ pub struct StylePreferences {
     pub custom: IndexMap<Arc<String>, PieceStyle>,
 }
 impl StylePreferences {
-    pub fn background_color(&self, dark_mode: bool) -> egui::Color32 {
+    pub fn background_color(&self, dark_mode: bool) -> [u8; 3] {
         match dark_mode {
             true => self.dark_background_color,
             false => self.light_background_color,
@@ -66,14 +66,14 @@ pub struct PieceStyle {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub face_opacity: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none", with = "opt_hex_color")]
-    pub face_color: Option<egui::Color32>,
+    pub face_color: Option<[u8; 3]>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub face_sticker_color: Option<bool>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outline_opacity: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none", with = "opt_hex_color")]
-    pub outline_color: Option<egui::Color32>,
+    pub outline_color: Option<[u8; 3]>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outline_sticker_color: Option<bool>,
 

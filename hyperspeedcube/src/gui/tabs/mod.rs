@@ -52,12 +52,16 @@ pub enum Tab {
     PuzzleInfo,
     LuaLogs,
 
-    Colors,
     Styles,
     View,
     Animations,
     Interaction,
 
+    // Colors
+    ActiveColors,
+    GlobalColorPalette,
+
+    // Input
     Keybinds,
     Mousebinds,
 
@@ -93,12 +97,14 @@ impl Tab {
             Tab::PuzzleInfo => "Puzzle info",
             Tab::KeybindsReference => "Keybinds reference",
 
-            Tab::Colors => "Colors",
             Tab::Styles => "Styles",
             Tab::View => "View",
             Tab::Animations => "Animations",
-            Tab::Interaction => "Interaction",
 
+            Tab::ActiveColors => "Active colors",
+            Tab::GlobalColorPalette => "Global color palette",
+
+            Tab::Interaction => "Interaction",
             Tab::Keybinds => "Keybinds",
             Tab::Mousebinds => "Mousebinds",
 
@@ -128,19 +134,21 @@ impl Tab {
             Tab::PuzzleInfo => "Puzzle Info".into(),
             Tab::KeybindsReference => "Keybinds Reference".into(),
 
-            Tab::Colors => "Colors".into(),
             Tab::Styles => "Styles".into(),
             Tab::View => "View".into(),
             Tab::Animations => "Animations".into(),
-            Tab::Interaction => "Interaction".into(),
 
+            Tab::ActiveColors => "Active Colors".into(),
+            Tab::GlobalColorPalette => "Global Color Palette".into(),
+
+            Tab::Interaction => "Interaction".into(),
             Tab::Keybinds => "Keybinds".into(),
             Tab::Mousebinds => "Mousebinds".into(),
 
             Tab::Camera => "Camera".into(),
             Tab::Macros => "Macros".into(),
             Tab::ModifierKeys => "Modifier Keys".into(),
-            Tab::MoveInput => "Move input".into(),
+            Tab::MoveInput => "Move Input".into(),
             Tab::PieceFilters => "Piece Filters".into(),
             Tab::PuzzleControls => "Puzzle Controls".into(),
             Tab::Scrambler => "Scrambles".into(),
@@ -160,12 +168,14 @@ impl Tab {
             Tab::PuzzleInfo => puzzle_info::show(ui, app),
             Tab::LuaLogs => lua_logs::show(ui, app),
 
-            Tab::Colors => colors::show(ui, app),
             Tab::Styles => styles::show(ui, app),
             Tab::View => view::show(ui, app),
             Tab::Animations => animations::show(ui, app),
-            Tab::Interaction => interaction::show(ui, app),
 
+            Tab::ActiveColors => colors::active_colors::show(ui, app),
+            Tab::GlobalColorPalette => colors::global_color_palette::show(ui, app),
+
+            Tab::Interaction => interaction::show(ui, app),
             Tab::Keybinds => keybinds::show(ui, app),
             Tab::Mousebinds => mousebinds::show(ui, app),
 

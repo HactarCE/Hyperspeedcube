@@ -79,12 +79,14 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::Scrambler);
     });
     ui.menu_button("Settings", |ui| {
-        show_tab_toggle(ui, app_ui, Tab::Colors);
+        show_tab_toggle(ui, app_ui, Tab::ActiveColors);
+        show_tab_toggle(ui, app_ui, Tab::GlobalColorPalette);
+        ui.separator();
         show_tab_toggle(ui, app_ui, Tab::Styles);
         show_tab_toggle(ui, app_ui, Tab::View);
         show_tab_toggle(ui, app_ui, Tab::Animations);
-        show_tab_toggle(ui, app_ui, Tab::Interaction);
         ui.separator();
+        show_tab_toggle(ui, app_ui, Tab::Interaction);
         show_tab_toggle(ui, app_ui, Tab::Keybinds);
         show_tab_toggle(ui, app_ui, Tab::Mousebinds);
         ui.separator();
