@@ -180,115 +180,89 @@ view_4d:
       downscale_rate: 1
       downscale_interpolate: true
 colors:
-  - name: White
-    rgb: "#ffffff"
-  - name: Red
-    rgb: "#cc3333"
-  - name: Orange
-    rgb: "#ff9922"
-  - name: Yellow
-    rgb: "#ffff00"
-  - name: Green
-    rgb: "#88ee66"
-  - name: Cyan
-    rgb: "#00ffff"
-  - name: Blue
-    rgb: "#33aaff"
-  - name: Purple
-    rgb: "#8822cc"
-  - name: Magenta
-    rgb: "#ff00ff"
-  - name: Pink
-    rgb: "#ff66ff"
+  White: "#ffffff"
+  Red: "#cc3333"
+  Orange: "#ff9922"
+  Yellow: "#ffff00"
+  Green: "#88ee66"
+  Cyan: "#00ffff"
+  Blue: "#33aaff"
+  Purple: "#8822cc"
+  Magenta: "#ff00ff"
+  Pink: "#ff66ff"
 color_sets:
-  - name: Grey triad
-    colors:
-      - "#a5a5a5"
-      - "#ffffff"
-      - "#595959"
-  - name: Red triad
-    colors:
-      - "#ff8a8a"
-      - "#d33535"
-      - "#6d1616"
-  - name: Orange triad
-    colors:
-      - "#ffb663"
-      - "#f1870d"
-      - "#834d0e"
-  - name: Yellow triad
-    colors:
-      - "#f7f89b"
-      - "#dcdd70"
-      - "#858628"
-  - name: Green triad
-    colors:
-      - "#b1f79c"
-      - "#5eff27"
-      - "#2c7714"
-  - name: Blue triad
-    colors:
-      - "#79c7ff"
-      - "#0481d7"
-      - "#09436d"
-  - name: Purple triad
-    colors:
-      - "#c18aff"
-      - "#7524d1"
-      - "#3f1075"
-  - name: Magenta triad
-    colors:
-      - "#ff8bf6"
-      - "#cf21c1"
-      - "#691161"
-  - name: Grey tetrad
-    colors:
-      - "#a5a5a5"
-      - "#ffffff"
-      - "#595959"
-      - "#343434"
-  - name: Red tetrad
-    colors:
-      - "#ff8a8a"
-      - "#d33535"
-      - "#6d1616"
-      - "#3b0606"
-  - name: Orange tetrad
-    colors:
-      - "#ffb663"
-      - "#f1870d"
-      - "#834d0e"
-      - "#4d300e"
-  - name: Yellow tetrad
-    colors:
-      - "#f7f89b"
-      - "#dcdd70"
-      - "#858628"
-      - "#5a5b05"
-  - name: Green tetrad
-    colors:
-      - "#b1f79c"
-      - "#5eff27"
-      - "#2c7714"
-      - "#14300a"
-  - name: Blue tetrad
-    colors:
-      - "#79c7ff"
-      - "#0481d7"
-      - "#09436d"
-      - "#0b2638"
-  - name: Purple tetrad
-    colors:
-      - "#c18aff"
-      - "#7524d1"
-      - "#3f1075"
-      - "#240648"
-  - name: Magenta tetrad
-    colors:
-      - "#ff8bf6"
-      - "#cf21c1"
-      - "#691161"
-      - "#370932"
+  Grey triad:
+    - "#a5a5a5"
+    - "#ffffff"
+    - "#595959"
+  Red triad:
+    - "#ff8a8a"
+    - "#d33535"
+    - "#6d1616"
+  Orange triad:
+    - "#ffb663"
+    - "#f1870d"
+    - "#834d0e"
+  Yellow triad:
+    - "#f7f89b"
+    - "#dcdd70"
+    - "#858628"
+  Green triad:
+    - "#b1f79c"
+    - "#5eff27"
+    - "#2c7714"
+  Blue triad:
+    - "#79c7ff"
+    - "#0481d7"
+    - "#09436d"
+  Purple triad:
+    - "#c18aff"
+    - "#7524d1"
+    - "#3f1075"
+  Magenta triad:
+    - "#ff8bf6"
+    - "#cf21c1"
+    - "#691161"
+  Grey tetrad:
+    - "#a5a5a5"
+    - "#ffffff"
+    - "#595959"
+    - "#343434"
+  Red tetrad:
+    - "#ff8a8a"
+    - "#d33535"
+    - "#6d1616"
+    - "#3b0606"
+  Orange tetrad:
+    - "#ffb663"
+    - "#f1870d"
+    - "#834d0e"
+    - "#4d300e"
+  Yellow tetrad:
+    - "#f7f89b"
+    - "#dcdd70"
+    - "#858628"
+    - "#5a5b05"
+  Green tetrad:
+    - "#b1f79c"
+    - "#5eff27"
+    - "#2c7714"
+    - "#14300a"
+  Blue tetrad:
+    - "#79c7ff"
+    - "#0481d7"
+    - "#09436d"
+    - "#0b2638"
+  Purple tetrad:
+    - "#c18aff"
+    - "#7524d1"
+    - "#3f1075"
+    - "#240648"
+  Magenta tetrad:
+    - "#ff8bf6"
+    - "#cf21c1"
+    - "#691161"
+    - "#370932"
 piece_filters: ~
 global_keybinds: []
 puzzle_keybinds: ~

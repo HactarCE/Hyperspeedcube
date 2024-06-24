@@ -20,12 +20,12 @@ FACE_NAMES_LONG = require('utils').map_string_values(FACE_NAMES_SHORT, {
 })
 
 FACE_COLORS = {
-  Right = 'red',
-  Left = 'orange',
-  Up = 'white',
-  Down = 'yellow',
-  Front = 'green',
-  Back = 'blue',
+  Right = 'Red',
+  Left = 'Orange',
+  Up = 'White',
+  Down = 'Yellow',
+  Front = 'Green',
+  Back = 'Blue',
 }
 
 VERTEX_AXIS_NAMES = {

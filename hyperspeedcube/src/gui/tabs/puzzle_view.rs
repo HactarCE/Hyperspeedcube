@@ -268,25 +268,14 @@ impl PuzzleWidget {
                 .colors
                 .iter()
                 .map(|(id, c)| {
-                    match c.default_color.as_ref().and_then(|default_color_name| {
-                        Some(if default_color_name.starts_with('#') {
-                            default_color_name.parse::<Rgb>().ok()?.rgb
-                        } else {
-                            prefs
-                                .colors
-                                .iter()
-                                .find(|saved_color| {
-                                    saved_color.name.to_ascii_lowercase() == *default_color_name
-                                })?
-                                .rgb
-                                .rgb
+                    c.default_color
+                        .as_ref()
+                        .and_then(|s| Some(prefs.named_sticker_color(s)?.rgb))
+                        .unwrap_or_else(|| {
+                            colorous::RAINBOW
+                                .eval_rational(id.0 as usize, puzzle.colors.len())
+                                .into_array()
                         })
-                    }) {
-                        Some(default) => default,
-                        None => colorous::RAINBOW
-                            .eval_rational(id.0 as usize, puzzle.colors.len())
-                            .into_array(),
-                    }
                 })
                 .collect(),
             piece_styles: self.view.styles.values(&prefs.styles),

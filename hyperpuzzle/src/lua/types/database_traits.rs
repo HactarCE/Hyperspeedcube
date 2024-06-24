@@ -9,7 +9,7 @@ use parking_lot::{Mutex, MutexGuard};
 
 use super::*;
 use crate::builder::{CustomOrdering, NamingScheme};
-use crate::lua::lua_warn_fn;
+use crate::lua::{lua_warn_fn, result_to_ok_or_warn};
 
 /// Lua handle to an object in a collection, indexed by some ID.
 #[derive(Debug)]
@@ -332,15 +332,5 @@ where
             db.ordering_mut().shift_to(this.id, new_index);
             Ok(())
         });
-    }
-}
-
-fn result_to_ok_or_warn<T, E>(mut warn_fn: impl FnMut(E)) -> impl FnMut(Result<T, E>) -> Option<T> {
-    move |result| match result {
-        Ok(value) => Some(value),
-        Err(e) => {
-            warn_fn(e);
-            None
-        }
     }
 }

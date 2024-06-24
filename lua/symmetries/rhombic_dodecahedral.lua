@@ -18,10 +18,10 @@ FACE_NAMES = require('utils').map_string_values(AXIS_NAMES, {
 })
 
 FACE_COLORS = {
-  Right = 'red',
-  Left = 'orange',
-  Up = 'white',
-  Down = 'yellow',
-  Front = 'green',
-  Back = 'blue',
+  Right = 'Red',
+  Left = 'Orange',
+  Up = 'White',
+  Down = 'Yellow',
+  Front = 'Green',
+  Back = 'Blue',
 }

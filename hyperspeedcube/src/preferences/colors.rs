@@ -5,20 +5,16 @@ use serde::{de::Error, Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
-pub struct SavedColorSet {
+pub struct SavedCustomColor {
     pub name: String,
-    pub colors: Vec<Rgb>,
-}
-
-pub struct SavedColorSets {
-    pub traids: HashMap<String, Vec<Rgb>>,
+    pub rgb: Rgb,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
-pub struct SavedColor {
+pub struct SavedCustomColorSet {
     pub name: String,
-    pub rgb: Rgb,
+    pub colors: Vec<Rgb>,
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]

@@ -112,8 +112,45 @@ impl LuaColorSystem {
         // First, assemble a list of all the new default colors.
         let mut puz = self.0.lock();
 
-        let kv_pairs: Vec<(Color, Option<String>)> =
-            puz.mapping_from_value(lua, new_default_colors)?;
+        // This is similar to `LuaIdDatabase::mapping_from_value()`, but it
+        // allows the keys themselves to be tables of values (and then adds
+        // `[n]` to the end of the value string).
+        let mut kv_pairs: Vec<(Color, Option<String>)> = vec![];
+        match new_default_colors {
+            LuaValue::Table(t) => {
+                for pair in t.pairs() {
+                    let (key, value): (LuaValue<'_>, Option<String>) = pair?;
+                    // IIFE to mimic try_block
+                    let result = (|| {
+                        if let LuaValue::Table(t2) = key {
+                            // Table of values -> color set
+                            for (i, k) in t2.sequence_values().enumerate() {
+                                let v = match &value {
+                                    Some(s) => Some(format!("{s} [{}]", i + 1)),
+                                    None => None,
+                                };
+                                kv_pairs.push((puz.value_to_id(lua, k?)?, v));
+                            }
+                        } else {
+                            kv_pairs.push((puz.value_to_id(lua, key)?, value));
+                        }
+                        LuaResult::Ok(())
+                    })();
+                    if let Err(e) = result {
+                        lua.warning(e.to_string(), true);
+                    }
+                }
+            }
+
+            LuaValue::Function(f) => {
+                for &id in &*puz.ids_in_order() {
+                    let value = f.call(puz.wrap_id(id))?;
+                    kv_pairs.push((id, value));
+                }
+            }
+
+            mapping_value => return lua_convert_err(&mapping_value, "table or function"),
+        }
 
         for (k, v) in kv_pairs {
             puz.shape.colors.get_mut(k).into_lua_err()?.default_color = v;

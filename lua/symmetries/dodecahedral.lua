@@ -30,16 +30,16 @@ FACE_NAMES = require('utils').map_string_values(AXIS_NAMES, {
 })
 
 FACE_COLORS = {
-  ['Up'] = 'white',
-  ['Front'] = 'green',
-  ['Right'] = 'red',
-  ['Left'] = 'purple',
-  ['Back-right'] = 'blue',
-  ['Back-left'] = 'yellow',
-  ['Down-right'] = 'light yellow',
-  ['Down-left'] = 'light blue',
-  ['Para-right'] = 'pink',
-  ['Para-left'] = 'orange',
-  ['Para-back'] = 'light green',
-  ['Para-down'] = 'gray',
+  ['Up'] = 'White',
+  ['Front'] = 'Green',
+  ['Right'] = 'Red',
+  ['Left'] = 'Purple',
+  ['Back-right'] = 'Blue',
+  ['Back-left'] = 'Yellow',
+  ['Down-right'] = 'Light Yellow',
+  ['Down-left'] = 'Light Blue',
+  ['Para-right'] = 'Pink',
+  ['Para-left'] = 'Orange',
+  ['Para-back'] = 'Light Green',
+  ['Para-down'] = 'Gray',
 }

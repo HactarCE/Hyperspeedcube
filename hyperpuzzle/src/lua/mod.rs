@@ -41,3 +41,13 @@ fn lua_axes_table(lua: &mlua::Lua) -> mlua::Result<mlua::Table<'_>> {
 fn lua_warn_fn<'lua, E: ToString>(lua: &'lua mlua::Lua) -> impl 'lua + FnMut(E) {
     move |error| lua.warning(error.to_string(), false)
 }
+
+fn result_to_ok_or_warn<T, E>(mut warn_fn: impl FnMut(E)) -> impl FnMut(Result<T, E>) -> Option<T> {
+    move |result| match result {
+        Ok(value) => Some(value),
+        Err(e) => {
+            warn_fn(e);
+            None
+        }
+    }
+}

@@ -35,24 +35,24 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     ui.heading("Single colors");
                     ui.add_space(ui.spacing().item_spacing.y);
                     for i in 0..app.prefs.colors.len() {
-                        if let Some(saved_color) = app.prefs.colors.get_mut(i) {
-                            ui.horizontal(|ui| {
-                                ui.set_width(300.0);
-                                // let r = ui.color_edit_button_srgb(saved_color);
-                                // changed |= r.changed();
-                                if i < 7 {
-                                    color_label(
-                                        ui,
-                                        &saved_color.name,
-                                        active_only.then_some(i % 7 == 0),
-                                    );
-                                } else {
-                                    let r =
-                                        egui::TextEdit::singleline(&mut saved_color.name).show(ui);
-                                    changed |= r.response.changed();
-                                }
-                            });
-                        }
+                        // if let Some(saved_color) = app.prefs.colors.get_mut(i) {
+                        //     ui.horizontal(|ui| {
+                        //         ui.set_width(300.0);
+                        //         // let r = ui.color_edit_button_srgb(saved_color);
+                        //         // changed |= r.changed();
+                        //         if i < 7 {
+                        //             color_label(
+                        //                 ui,
+                        //                 &saved_color.name,
+                        //                 active_only.then_some(i % 7 == 0),
+                        //             );
+                        //         } else {
+                        //             let r =
+                        //                 egui::TextEdit::singleline(&mut saved_color.name).show(ui);
+                        //             changed |= r.response.changed();
+                        //         }
+                        //     });
+                        // }
                     }
                 });
 
@@ -70,12 +70,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                             defaults: &DEFAULT_PREFS.color_sets,
                             changed: &mut changed,
                         };
-                        let name = prefs_ui.current[i]
-                            .name
-                            .strip_suffix(" triad")
-                            .unwrap()
-                            .to_string();
-                        prefs_ui.fixed_multi_color(&name, access!([i].colors));
+                        // let name = prefs_ui.current[i]
+                        //     .name
+                        //     .strip_suffix(" triad")
+                        //     .unwrap()
+                        //     .to_string();
+                        // prefs_ui.fixed_multi_color(&name, access!([i].colors));
                         // color_label(
                         //     ui,
                         //     ,
@@ -91,14 +91,14 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     ui.add_space(ui.spacing().item_spacing.y);
                     for (i, set) in &mut app.prefs.color_sets[split..].iter_mut().enumerate() {
                         ui.horizontal(|ui| {
-                            for color in &mut set.colors {
-                                // ui.color_edit_button_srgb(color);
-                            }
-                            color_label(
-                                ui,
-                                set.name.strip_suffix(" tetrad").unwrap(),
-                                active_only.then_some(i % 4 == 2),
-                            );
+                            // for color in &mut set.colors {
+                            //     // ui.color_edit_button_srgb(color);
+                            // }
+                            // color_label(
+                            //     ui,
+                            //     set.name.strip_suffix(" tetrad").unwrap(),
+                            //     active_only.then_some(i % 4 == 2),
+                            // );
                         });
                     }
                 });

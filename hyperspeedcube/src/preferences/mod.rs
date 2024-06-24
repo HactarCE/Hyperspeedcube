@@ -11,6 +11,7 @@ use std::{
 
 use bitvec::vec::BitVec;
 use hyperpuzzle::Puzzle;
+use indexmap::IndexMap;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -83,8 +84,10 @@ pub struct Preferences {
     #[serde(skip)]
     pub latest_view_prefs_set: PuzzleViewPreferencesSet,
 
-    pub colors: Vec<SavedColor>,
-    pub color_sets: Vec<SavedColorSet>,
+    pub colors: IndexMap<String, Rgb>,
+    pub color_sets: IndexMap<String, Vec<Rgb>>,
+    pub custom_colors: IndexMap<String, Rgb>,
+    pub custom_color_sets: IndexMap<String, Vec<Rgb>>,
 
     pub piece_filters: (), // TODO
 
@@ -169,6 +172,26 @@ impl Preferences {
     pub fn view_presets_mut(&mut self) -> &mut WithPresets<ViewPreferences> {
         let view_prefs_set = self.latest_view_prefs_set;
         &mut self[view_prefs_set]
+    }
+
+    pub fn named_sticker_color(&self, s: &str) -> Option<Rgb> {
+        let s = s.trim();
+
+        if s.starts_with('#') {
+            return s.parse().ok();
+        }
+
+        None.or_else(|| self.custom_colors.get(s))
+            .or_else(|| self.colors.get(s))
+            .or_else(|| {
+                let (set, index) = s.strip_suffix(']')?.split_once('[')?;
+                let set = set.trim();
+                let index: usize = index.trim().parse().ok()?; // 1-indexed
+                None.or_else(|| self.custom_color_sets.get(set))
+                    .or_else(|| self.color_sets.get(set))?
+                    .get(index.checked_sub(1)?)
+            })
+            .copied()
     }
 }
 
