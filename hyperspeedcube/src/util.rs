@@ -155,10 +155,29 @@ pub fn wrap_words<S: AsRef<str>>(words: impl Iterator<Item = S>) -> String {
     ret
 }
 
-/// Converts an `egui::Color32` to a `[u8; 3]`, ignoring alpha.
+/// Converts an [`egui::Color32`] to a `[u8; 3]`, ignoring alpha.
 pub(crate) fn color_to_u8x3(color: impl Into<egui::Color32>) -> [u8; 3] {
     let [r, g, b, _a] = color.into().to_array();
     [r, g, b]
+}
+
+/// Serializes a color to a hex string like `#ff00ff`.
+pub(crate) fn color_to_hex_string(rgb: [u8; 3]) -> String {
+    format!("#{}", hex::encode(rgb))
+}
+
+/// Deserializes a color from a hex string like `#ff00ff` or `#f0f`.
+pub(crate) fn color_from_hex_str(s: &str) -> Result<[u8; 3], hex::FromHexError> {
+    let mut rgb = [0_u8; 3];
+    let s = s.strip_prefix('#').unwrap_or(s).trim();
+    match s.len() {
+        3 => {
+            let s = &s.chars().flat_map(|c| [c, c]).collect::<String>();
+            hex::decode_to_slice(&s, &mut rgb)?;
+        }
+        _ => hex::decode_to_slice(s, &mut rgb)?,
+    }
+    Ok(rgb)
 }
 
 #[cfg(test)]

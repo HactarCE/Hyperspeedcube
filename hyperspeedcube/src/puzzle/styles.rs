@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hyperpuzzle::{Piece, PieceMask};
 
-use crate::preferences::{StyleId, StylePreferences};
+use crate::preferences::{Rgb, StyleId, StylePreferences};
 
 /// Returns a closure that updates the given style state.
 #[macro_export]
@@ -253,7 +253,7 @@ impl PieceStyleState {
                 .or(base.and_then(|s| s.face_opacity))
                 .unwrap_or(def.face_opacity.unwrap_or_default()),
             ),
-            face_color: first_or_default(color_order.map(|s| s?.face_color)),
+            face_color: first_or_default(color_order.map(|s| s?.face_color)).rgb,
             face_sticker_color: first_or_default(color_order.map(|s| s?.face_sticker_color)),
 
             outline_opacity: f32_to_u8(
@@ -264,11 +264,12 @@ impl PieceStyleState {
                 .or(base.and_then(|s| s.outline_opacity))
                 .unwrap_or(def.outline_opacity.unwrap_or_default()),
             ),
-            outline_color: crate::util::color_to_u8x3(hypermath::util::lerp(
-                rgba(first_or_default(color_order.map(|s| s?.outline_color))),
-                rgba(styles.blocking_color),
+            outline_color: Rgb::lerp(
+                first_or_default(color_order.map(|s| s?.outline_color)),
+                styles.blocking_color,
                 self.blocking_amount as f32 / 255.0,
-            )),
+            )
+            .rgb,
             outline_sticker_color: first_or_default(color_order.map(|s| s?.outline_sticker_color)),
 
             outline_size: hypermath::util::lerp(
@@ -278,9 +279,4 @@ impl PieceStyleState {
             ),
         }
     }
-}
-
-fn rgba(rgb: [u8; 3]) -> egui::Rgba {
-    let [r, g, b] = rgb;
-    egui::Rgba::from_srgba_unmultiplied(r, g, b, 255)
 }

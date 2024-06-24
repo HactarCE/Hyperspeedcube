@@ -66,7 +66,7 @@ impl AppUi {
         let background_color = self.app.prefs.styles.background_color(dark_mode);
         egui::CentralPanel::default()
             .frame(egui::Frame::none().fill({
-                let [r, g, b] = background_color;
+                let [r, g, b] = background_color.rgb;
                 egui::Color32::from_rgb(r, g, b)
             }))
             .show(ctx, |ui| {

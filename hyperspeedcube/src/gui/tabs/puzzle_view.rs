@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 
 use crate::gfx::*;
 use crate::gui::App;
-use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
+use crate::preferences::{Preferences, PuzzleViewPreferencesSet, Rgb};
 use crate::puzzle::{DragState, PieceStyleState, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 use crate::util::IterCyclicPairsExt;
 
@@ -254,8 +254,8 @@ impl PuzzleWidget {
         }
 
         let dark_mode = ui.visuals().dark_mode;
-        let background_color = prefs.styles.background_color(dark_mode);
-        let internals_color = prefs.styles.internals_color;
+        let background_color = prefs.styles.background_color(dark_mode).rgb;
+        let internals_color = prefs.styles.internals_color.rgb;
 
         let draw_params = DrawParams {
             cam: self.view.camera.clone(),
@@ -269,19 +269,18 @@ impl PuzzleWidget {
                 .iter()
                 .map(|(id, c)| {
                     match c.default_color.as_ref().and_then(|default_color_name| {
-                        if let Some(hex_code) = default_color_name.strip_prefix('#') {
-                            hex::decode(hex_code).ok()?.try_into().ok()
+                        Some(if default_color_name.starts_with('#') {
+                            default_color_name.parse::<Rgb>().ok()?.rgb
                         } else {
-                            Some(
-                                prefs
-                                    .colors
-                                    .iter()
-                                    .find(|saved_color| {
-                                        saved_color.name.to_ascii_lowercase() == *default_color_name
-                                    })?
-                                    .rgb,
-                            )
-                        }
+                            prefs
+                                .colors
+                                .iter()
+                                .find(|saved_color| {
+                                    saved_color.name.to_ascii_lowercase() == *default_color_name
+                                })?
+                                .rgb
+                                .rgb
+                        })
                     }) {
                         Some(default) => default,
                         None => colorous::RAINBOW

@@ -6,8 +6,7 @@ use crate::gui::components::{
 };
 use crate::gui::ext::*;
 use crate::gui::util::Access;
-use crate::preferences::{InteractionPreferences, PuzzleViewPreferencesSet, ViewPreferences};
-use crate::serde_impl::hex_color;
+use crate::preferences::{InteractionPreferences, PuzzleViewPreferencesSet, Rgb, ViewPreferences};
 
 pub struct PrefsUi<'a, T> {
     pub ui: &'a mut egui::Ui,
@@ -135,21 +134,21 @@ impl<'a, T> PrefsUi<'a, T> {
         })
     }
 
-    pub fn color(&mut self, label: &str, access: Access<T, [u8; 3]>) -> egui::Response {
+    pub fn color(&mut self, label: &str, access: Access<T, Rgb>) -> egui::Response {
         let reset_value = *(access.get_ref)(self.defaults);
-        let reset_value_str = hex_color::to_str(&reset_value);
+        let reset_value_str = reset_value.to_string();
         self.add(|current| WidgetWithReset {
             label,
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str,
-            make_widget: |value| |ui: &mut egui::Ui| ui.color_edit_button_srgb(value),
+            make_widget: |value| |ui: &mut egui::Ui| ui.color_edit_button_srgb(&mut value.rgb),
         })
     }
     pub fn fixed_multi_color(
         &mut self,
         label: &str,
-        access: Access<T, Vec<[u8; 3]>>,
+        access: Access<T, Vec<Rgb>>,
     ) -> egui::Response {
         let reset_value = (access.get_ref)(self.defaults).clone();
         self.add(|current| WidgetWithReset {
@@ -162,7 +161,7 @@ impl<'a, T> PrefsUi<'a, T> {
                     let mut changed = false;
                     let mut r = ui.horizontal(|ui| {
                         for value in values {
-                            changed |= ui.color_edit_button_srgb(value).changed();
+                            changed |= ui.color_edit_button_srgb(&mut value.rgb).changed();
                         }
                     });
                     if changed {

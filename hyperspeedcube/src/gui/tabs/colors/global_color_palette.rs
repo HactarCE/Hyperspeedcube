@@ -22,6 +22,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             active_only = value;
         });
 
+        // let default_sets = color_set
+
+        // for set in DEFAULT_PREFS.color_sets.iter().map(|color_set|color_set.name)
+
         // let num_columns = (ui.available_width() / 300.0).floor().at_least(1.0) as usize;
         let num_columns = 1;
         ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
@@ -34,8 +38,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                         if let Some(saved_color) = app.prefs.colors.get_mut(i) {
                             ui.horizontal(|ui| {
                                 ui.set_width(300.0);
-                                let r = ui.color_edit_button_srgb(&mut saved_color.rgb);
-                                changed |= r.changed();
+                                // let r = ui.color_edit_button_srgb(saved_color);
+                                // changed |= r.changed();
                                 if i < 7 {
                                     color_label(
                                         ui,
@@ -88,7 +92,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     for (i, set) in &mut app.prefs.color_sets[split..].iter_mut().enumerate() {
                         ui.horizontal(|ui| {
                             for color in &mut set.colors {
-                                ui.color_edit_button_srgb(color);
+                                // ui.color_edit_button_srgb(color);
                             }
                             color_label(
                                 ui,

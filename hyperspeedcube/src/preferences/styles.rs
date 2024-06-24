@@ -4,7 +4,7 @@ use std::sync::Arc;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::serde_impl::{hex_color, opt_hex_color};
+use super::Rgb;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct StyleId(u64);
@@ -21,14 +21,10 @@ lazy_static! {
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct StylePreferences {
-    #[serde(with = "hex_color")]
-    pub dark_background_color: [u8; 3],
-    #[serde(with = "hex_color")]
-    pub light_background_color: [u8; 3],
-    #[serde(with = "hex_color")]
-    pub internals_color: [u8; 3],
-    #[serde(with = "hex_color")]
-    pub blocking_color: [u8; 3], // TODO: move to its own style, maybe?
+    pub dark_background_color: Rgb,
+    pub light_background_color: Rgb,
+    pub internals_color: Rgb,
+    pub blocking_color: Rgb,        // TODO: move to its own style, maybe?
     pub blocking_outline_size: f32, // TODO: otherwise, add this to prefs UI
 
     pub default: PieceStyle,
@@ -45,7 +41,7 @@ pub struct StylePreferences {
     pub custom: IndexMap<Arc<String>, PieceStyle>,
 }
 impl StylePreferences {
-    pub fn background_color(&self, dark_mode: bool) -> [u8; 3] {
+    pub fn background_color(&self, dark_mode: bool) -> Rgb {
         match dark_mode {
             true => self.dark_background_color,
             false => self.light_background_color,
@@ -65,15 +61,15 @@ pub struct PieceStyle {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub face_opacity: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none", with = "opt_hex_color")]
-    pub face_color: Option<[u8; 3]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub face_color: Option<Rgb>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub face_sticker_color: Option<bool>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outline_opacity: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none", with = "opt_hex_color")]
-    pub outline_color: Option<[u8; 3]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outline_color: Option<Rgb>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outline_sticker_color: Option<bool>,
 

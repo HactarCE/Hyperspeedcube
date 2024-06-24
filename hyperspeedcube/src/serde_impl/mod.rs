@@ -4,9 +4,6 @@ use key_names::KeyMappingCode;
 use serde::{Deserialize, Serialize};
 
 pub(crate) mod hex_bitvec;
-pub(crate) mod hex_color;
-pub(crate) mod hex_color_list;
-pub(crate) mod opt_hex_color;
 
 /// Taken from docs here:
 /// https://docs.rs/keycode/0.3.0/keycode/enum.KeyMappingCode.html
