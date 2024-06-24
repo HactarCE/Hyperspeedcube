@@ -17,12 +17,12 @@ puzzles:add('helicopter_cube', {
     p.colors:set_defaults(cubic.FACE_COLORS)
 
     -- Define axes and slices
-    p:add_axes(sym:orbit(sym.oxo.unit), {layers = {1/sqrt(2)}})
+    p.axes:add(sym:orbit(sym.oxo.unit), {1/sqrt(2)})
 
     -- Define twists
-    for _, axis in sym:chiral():orbit(p.axes[sym.oxo.unit]) do
-      p.twists:add{ axis = axis, transform = rot{ fix = axis, angle = PI } }
-      p.twists:add{ axis = axis, transform = rot{ fix = axis, angle = acos(1/3) }, inverse = true, multipliers = false }
+    for _, axis in sym.chiral:orbit(p.axes[sym.oxo.unit]) do
+      p.twists:add(axis, rot{ fix = axis, angle = pi })
+      p.twists:add(axis, rot{ fix = axis, angle = acos(1/3) }, {inverse = true, multipliers = false})
     end
   end,
 })
