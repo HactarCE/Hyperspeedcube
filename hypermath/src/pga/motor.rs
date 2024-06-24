@@ -55,7 +55,7 @@ impl Motor {
         Self::reflection_across_blade(ndim, &Blade::from_point(ndim, point))
     }
     fn reflection_across_blade(ndim: u8, blade: &Blade) -> Self {
-        let mut ret = Self::zero(ndim, true);
+        let mut ret = Self::zero(ndim, ndim % 2 == 1);
         for term in blade.terms() {
             ret += term.right_complement(ndim);
         }
