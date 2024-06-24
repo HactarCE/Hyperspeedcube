@@ -467,7 +467,7 @@ impl Blade {
     /// `None` if the basis is invalid.
     pub fn basis(&self) -> Vec<Vector> {
         let ndim = self.ndim;
-        let rest = self.clone();
+        let mut covered = self.right_complement(); // left vs. right doesn't matter
         let mut ret = vec![];
         // Set up a bitmask of remaining axes.
         let mut axes_left = ((1 as u8) << ndim) - 1;
@@ -477,7 +477,7 @@ impl Blade {
                     let v = Vector::unit(ax as u8);
                     Some((
                         ax as u8,
-                        Blade::from_vector(ndim, v).orthogonal_projection_to(&rest)?,
+                        Blade::from_vector(ndim, v).orthogonal_rejection_from(&covered)?,
                     ))
                 })
                 .max_by_key(|(_, blade)| FloatOrd(blade.mag2()))
@@ -485,6 +485,7 @@ impl Blade {
                 break;
             };
             axes_left &= !(1 << axis);
+            covered = Blade::wedge(&covered, &v).unwrap_or(covered);
             ret.extend(v.to_vector().and_then(|v| v.normalize()));
         }
         ret

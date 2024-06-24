@@ -111,7 +111,7 @@ impl LuaTransform {
                 .into_lua_err()?
             }
 
-            (None, None) if fix.antigrade() == 2 && !fix.is_zero() => {
+            (None, None) if fix.antigrade() == 2 && !fix.is_zero() && angle.is_some() => {
                 let [from, perpendicular] = fix
                     .antidual()
                     .ensure_nonzero_weight()
