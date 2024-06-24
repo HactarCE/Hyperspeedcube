@@ -1,6 +1,8 @@
 # Building Hyperspeedcube
 
-**Hyperspeedcube requires the latest version of the Rust compiler.**
+**Hyperspeedcube requires the latest version of the Rust compiler.** If you are getting errors building Hyperspeedcube, check that `cargo --version` matches the latest stable version on [whatrustisit.com](https://www.whatrustisit.com/).
+
+If you tell me you have trouble building HSC and it turns out you _don't_ have the latest version of the Rust compiler, I will bop you on the head with a 24-cell. You have been warned!
 
 ## Building on Linux or macOS
 
