@@ -158,6 +158,27 @@ view_4d:
       outline_light_intensity: 0.0
       downscale_rate: 1
       downscale_interpolate: true
+    - preset_name: Contiguous pieces
+      pitch: 35.0
+      yaw: -45.0
+      roll: 0.0
+      scale: 1.0
+      fov_3d: 0.0
+      fov_4d: 20.0
+      show_frontfaces: true
+      show_backfaces: false
+      show_behind_4d_camera: false
+      show_internals: false
+      gizmo_scale: 0.5
+      facet_shrink: 0.0
+      sticker_shrink: 0.4
+      piece_explode: 0.0
+      light_pitch: 65.0
+      light_yaw: -55.0
+      face_light_intensity: 1.0
+      outline_light_intensity: 0.0
+      downscale_rate: 1
+      downscale_interpolate: true
 colors:
   - name: White
     rgb: "#ffffff"
