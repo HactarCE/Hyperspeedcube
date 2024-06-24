@@ -71,6 +71,9 @@ impl DrawParams {
     pub fn show_internals(&self, ndim: u8) -> bool {
         self.cam.prefs().show_internals && ndim == 3
     }
+    pub fn gizmo_scale(&self, ndim: u8) -> f32 {
+        self.cam.prefs().gizmo_scale * (1.0 - self.facet_shrink(ndim))
+    }
     pub fn facet_shrink(&self, ndim: u8) -> f32 {
         if self.show_internals(ndim) {
             0.0

@@ -27,6 +27,8 @@ pub struct ViewPreferences {
 
     /// Show internal pieces in 3D.
     pub show_internals: bool,
+    /// Gizmo scale, on top of facet shrink.
+    pub gizmo_scale: f32,
     /// Facet shrink.
     pub facet_shrink: f32,
     /// Sticker shrink.
@@ -66,6 +68,7 @@ impl Default for ViewPreferences {
             show_behind_4d_camera: true,
 
             show_internals: true,
+            gizmo_scale: 1.0,
             facet_shrink: 0.0,
             sticker_shrink: 0.0,
             piece_explode: 0.0,
@@ -110,6 +113,7 @@ impl ViewPreferences {
                 t,
             ),
             show_internals: self.show_internals && rhs.show_internals,
+            gizmo_scale: lerp(self.gizmo_scale, rhs.gizmo_scale, t),
             facet_shrink: lerp(self.facet_shrink, rhs.facet_shrink, t),
             sticker_shrink: lerp(self.sticker_shrink, rhs.sticker_shrink, t),
             piece_explode: lerp(self.piece_explode, rhs.piece_explode, t),

@@ -148,6 +148,7 @@ view_4d:
       show_backfaces: false
       show_behind_4d_camera: false
       show_internals: false
+      gizmo_scale: 1.0
       facet_shrink: 0.7
       sticker_shrink: 0.3
       piece_explode: 0.0

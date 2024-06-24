@@ -27,7 +27,7 @@ impl TwistGizmoPolyhedron {
     pub fn compute_vertex_positions(
         &self,
         transform: pga::Motor,
-        shrink_factor: f32,
+        scale_factor: f32,
     ) -> Vec<[f32; 4]> {
         let m = transform.euclidean_rotation_matrix();
         let rows: [[f32; 4]; 4] = [0, 1, 2, 3].map(|j| [0, 1, 2, 3].map(|i| m.get(i, j) as f32));
@@ -36,7 +36,7 @@ impl TwistGizmoPolyhedron {
             .map(|&v| {
                 // Apply the shrink factor.
                 let v: [f32; 4] = std::array::from_fn(|i| {
-                    hypermath::util::lerp(v[i], self.axis_vector[i], shrink_factor)
+                    hypermath::util::lerp(self.axis_vector[i], v[i], scale_factor)
                 });
                 // Apply the transform.
                 std::array::from_fn(|j| rows[j].iter().zip(v).map(|(mx, vx)| mx as f32 * vx).sum())

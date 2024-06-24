@@ -395,7 +395,7 @@ pub fn build_view_section(
 
         if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
             prefs_ui.angle("4D FOV", access!(.fov_4d), |dv| {
-                dv.clamp_range(1.0..=120.0).speed(0.5)
+                dv.clamp_range(-5.0..=120.0).speed(0.5)
             });
         }
 
@@ -427,11 +427,16 @@ pub fn build_view_section(
         }
         let showing_internals = prefs_ui.current.show_internals;
 
+        if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
+            prefs_ui.num("Gizmo scale", access!(.gizmo_scale), |dv| {
+                dv.fixed_decimals(2).clamp_range(0.1..=5.0_f32).speed(0.01)
+            });
+        }
         prefs_ui.add_enabled_ui(
             !showing_internals,
             "Disabled when showing internals",
             |mut prefs_ui| {
-                prefs_ui.num("Face shrink", access!(.facet_shrink), |dv| {
+                prefs_ui.num("Facet shrink", access!(.facet_shrink), |dv| {
                     dv.fixed_decimals(2)
                         .clamp_range(0.0..=0.95_f32)
                         .speed(0.005)

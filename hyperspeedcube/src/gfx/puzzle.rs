@@ -283,7 +283,7 @@ impl PuzzleRenderer {
                 .map(|gizmo| {
                     let verts_4d = gizmo.compute_vertex_positions(
                         pga::Motor::ident(4),
-                        draw_params.facet_shrink(ndim), // TODO: separate twist gizmo shrink
+                        draw_params.gizmo_scale(ndim),
                     );
                     let verts_3d = verts_4d
                         .into_iter()
