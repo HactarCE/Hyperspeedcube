@@ -190,7 +190,7 @@ impl LuaTwistSystem {
                         axis,
                         transform,
                         qtm,
-                        gizmo_pole_distance: gizmo_pole_distance.map(|x| -x),
+                        gizmo_pole_distance,
                     },
                     get_name(-1)?,
                     lua_warn_fn(lua),
