@@ -25,7 +25,7 @@ interaction:
       smart_realign: true
       dynamic_twist_speed: true
       twist_duration: 0.2
-      blocking_anim_duration: 0.0
+      blocking_anim_duration: 1.0
       other_anim_duration: 0.15
 styles:
   dark_background_color: "#1b1b1b"
