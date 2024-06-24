@@ -2,7 +2,7 @@ local gizmo_size = 0.75
 local alpha = 0.3
 
 puzzles:add('ft_24_cell', {
-  name = "Face-Turning 24-cell",
+  name = "Facet-Turning 24-cell",
   ndim = 4,
   build = function(p)
     local sym = cd'f4'

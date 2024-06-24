@@ -2,10 +2,10 @@ local gizmo_size = 0.5
 local alpha = 0.8
 
 puzzles:add('duoprism_6_8', {
-  name = "{6}x{8} Corn Duoprism",
+  name = "{6}x{8} Shallow-Cut Duoprism",
   ndim = 4,
   build = function(p)
-    local sym = cd{6,2,8}
+    local sym = cd{6, 2, 8} -- TODO: wants to be `cd'i6 x i8'`
     local ooox = sym.ooox.unit
     local oxoo = sym.oxoo.unit
 
