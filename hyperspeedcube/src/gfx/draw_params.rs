@@ -6,9 +6,6 @@ use crate::puzzle::{Camera, PieceStyleValues};
 /// Complete set of values that determines 3D vertex positions.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub(crate) struct GeometryCacheKey {
-    pitch: f32,
-    yaw: f32,
-    roll: f32,
     scale: f32,
     fov_3d: f32,
     fov_4d: f32,
@@ -21,6 +18,7 @@ pub(crate) struct GeometryCacheKey {
     rot: Option<pga::Motor>,
     // TODO: piece styles in here?
     piece_transforms: PerPiece<Matrix>,
+    // TODO(optimization): matrix to apply on GPU to currently-twisting pieces on GPU
     // TODO: colors in here?
 }
 
@@ -51,10 +49,7 @@ impl DrawParams {
         let prefs = &self.cam.prefs();
 
         GeometryCacheKey {
-            pitch: prefs.pitch,
-            yaw: prefs.yaw,
-            roll: prefs.roll,
-            scale: prefs.scale,
+            scale: prefs.view_scale,
             fov_3d: prefs.fov_3d,
             fov_4d: prefs.fov_4d,
             show_internals: self.show_internals(ndim),

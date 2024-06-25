@@ -1,18 +1,10 @@
-use cgmath::{Deg, Quaternion, Rotation3};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct ViewPreferences {
-    /// Puzzle angle around X axis, in degrees.
-    pub pitch: f32,
-    /// Puzzle angle around Y axis, in degrees.
-    pub yaw: f32,
-    /// Puzzle angle around Z axis, in degrees.
-    pub roll: f32,
-
-    /// Global puzzle scale.
-    pub scale: f32,
+    /// View scale.
+    pub view_scale: f32,
     /// 3D FOV, in degrees (may be negative).
     pub fov_3d: f32,
     /// 4D FOV, in degrees.
@@ -55,11 +47,7 @@ pub struct ViewPreferences {
 impl Default for ViewPreferences {
     fn default() -> Self {
         Self {
-            pitch: 0.0,
-            yaw: 0.0,
-            roll: 0.0,
-
-            scale: 1.0,
+            view_scale: 1.0,
             fov_3d: 0.0,
             fov_4d: 30.0,
 
@@ -85,24 +73,12 @@ impl Default for ViewPreferences {
 }
 
 impl ViewPreferences {
-    pub fn view_angle(&self) -> Quaternion<f32> {
-        Quaternion::from_angle_z(Deg(self.roll))
-            * Quaternion::from_angle_x(Deg(self.pitch))
-            * Quaternion::from_angle_y(Deg(self.yaw))
-    }
-
     // TODO: make a proc macro crate to generate a trait impl like this
     pub fn interpolate(&self, rhs: &Self, t: f32) -> Self {
         use hypermath::util::lerp;
 
         Self {
-            // TODO: use quaternions for interpolation. cgmath uses XYZ order by
-            // default instead of YXZ so doing this properly isn't trivial.
-            pitch: lerp(self.pitch, rhs.pitch, t),
-            yaw: lerp(self.yaw, rhs.yaw, t),
-            roll: lerp(self.roll, rhs.roll, t),
-
-            scale: lerp(self.scale, rhs.scale, t),
+            view_scale: lerp(self.view_scale, rhs.view_scale, t),
             fov_3d: lerp(self.fov_3d, rhs.fov_3d, t),
             fov_4d: lerp(self.fov_4d, rhs.fov_4d, t),
             show_frontfaces: lerp_discrete(self.show_frontfaces, rhs.show_frontfaces, t),

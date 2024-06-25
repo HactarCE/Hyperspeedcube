@@ -75,9 +75,6 @@ view_3d:
   last_loaded: Default
   presets:
     - preset_name: Default
-      pitch: 35.0
-      yaw: -20.0
-      roll: 0.0
       scale: 1.25
       fov_3d: 15.0
       fov_4d: 30.0
@@ -95,9 +92,6 @@ view_3d:
       downscale_rate: 1
       downscale_interpolate: true
     - preset_name: Unfolded (back)
-      pitch: 0.0
-      yaw: 0.0
-      roll: 0.0
       scale: 3.0
       fov_3d: 60.0
       fov_4d: 30.0
@@ -115,9 +109,6 @@ view_3d:
       downscale_rate: 1
       downscale_interpolate: true
     - preset_name: Unfolded (front)
-      pitch: 0.0
-      yaw: 0.0
-      roll: 0.0
       scale: 3.0
       fov_3d: -60.0
       fov_4d: 30.0
@@ -138,9 +129,6 @@ view_4d:
   last_loaded: Default
   presets:
     - preset_name: Default
-      pitch: 35.0
-      yaw: -45.0
-      roll: 0.0
       scale: 1.0
       fov_3d: 0.0
       fov_4d: 60.0
@@ -159,9 +147,6 @@ view_4d:
       downscale_rate: 1
       downscale_interpolate: true
     - preset_name: Contiguous pieces
-      pitch: 35.0
-      yaw: -45.0
-      roll: 0.0
       scale: 1.0
       fov_3d: 0.0
       fov_4d: 20.0

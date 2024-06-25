@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use egui::NumExt;
 
 use crate::app::App;
@@ -7,6 +9,9 @@ use crate::gui::components::{
 use crate::gui::ext::*;
 use crate::gui::util::Access;
 use crate::preferences::{InteractionPreferences, PuzzleViewPreferencesSet, Rgb, ViewPreferences};
+
+const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
+const FOV_3D_RANGE: RangeInclusive<f32> = -120.0..=120.0;
 
 pub struct PrefsUi<'a, T> {
     pub ui: &'a mut egui::Ui,
@@ -380,33 +385,15 @@ pub fn build_view_section(
     view_prefs_set: PuzzleViewPreferencesSet,
     mut prefs_ui: PrefsUi<'_, ViewPreferences>,
 ) {
-    prefs_ui.collapsing("View angle", |mut prefs_ui| {
-        prefs_ui.angle("Pitch", access!(.pitch), |dv| dv.clamp_range(-90.0..=90.0));
-        prefs_ui.angle("Yaw", access!(.yaw), |dv| dv.clamp_range(-180.0..=180.0));
-        prefs_ui.angle("Roll", access!(.roll), |dv| dv.clamp_range(-180.0..=180.0));
-    });
-
     prefs_ui.collapsing("Projection", |mut prefs_ui| {
-        let speed = prefs_ui.current.scale / 100.0; // logarithmic speed
-        prefs_ui.num("Scale", access!(.scale), |dv| {
-            dv.fixed_decimals(2).clamp_range(0.1..=5.0_f32).speed(speed)
-        });
-
         if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
             prefs_ui.angle("4D FOV", access!(.fov_4d), |dv| {
-                dv.clamp_range(-5.0..=120.0).speed(0.5)
+                dv.clamp_range(FOV_4D_RANGE).speed(0.5)
             });
         }
 
-        let label = if prefs_ui.current.fov_3d == 120.0 {
-            "QUAKE PRO"
-        } else if prefs_ui.current.fov_3d == -120.0 {
-            "ORP EKAUQ"
-        } else {
-            "3D FOV"
-        };
-        prefs_ui.angle(label, access!(.fov_3d), |dv| {
-            dv.clamp_range(-120.0..=120.0).speed(0.5)
+        prefs_ui.angle(fov_3d_label(&prefs_ui), access!(.fov_3d), |dv| {
+            dv.clamp_range(FOV_3D_RANGE).speed(0.5)
         });
     });
 
@@ -478,4 +465,14 @@ pub fn build_view_section(
     });
 
     prefs_ui.ui.add_space(prefs_ui.ui.spacing().item_spacing.y);
+}
+
+fn fov_3d_label(prefs_ui: &PrefsUi<'_, ViewPreferences>) -> &'static str {
+    if prefs_ui.current.fov_3d == FOV_3D_RANGE.start() {
+        "ORP EKAUQ"
+    } else if prefs_ui.current.fov_3d == FOV_3D_RANGE.end() {
+        "QUAKE PRO"
+    } else {
+        "3D FOV"
+    }
 }
