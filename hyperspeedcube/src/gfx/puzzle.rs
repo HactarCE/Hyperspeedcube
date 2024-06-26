@@ -265,19 +265,22 @@ impl PuzzleRenderer {
             }
         }
 
-        self.puzzle_vertex_3d_positions
-            .download_if_stable(&self.buffers.vertex_3d_positions.slice(..), |buffer| {
-                bytes_to_vec_cgmath_vector4_f32(&buffer)
-            });
-        if let Some(data) = &self.puzzle_vertex_3d_positions.data {
-            // Steal the data from the other cache.
-            self.gizmo_vertex_3d_positions.data = Some(Arc::clone(data));
-        } else {
-            // Download the whole buffer, since
-            self.gizmo_vertex_3d_positions
+        if !draw_params.is_dragging_view {
+            self.puzzle_vertex_3d_positions
                 .download_if_stable(&self.buffers.vertex_3d_positions.slice(..), |buffer| {
                     bytes_to_vec_cgmath_vector4_f32(&buffer)
                 });
+            // Steal the data from the other cache.
+            self.gizmo_vertex_3d_positions
+                .use_data_from(&self.puzzle_vertex_3d_positions);
+            // If that didn't work, and there's no outstanding request for the other
+            // cache, then download the data ourselves.
+            if self.puzzle_vertex_3d_positions.data.is_none() {
+                self.gizmo_vertex_3d_positions
+                    .download_if_stable(&self.buffers.vertex_3d_positions.slice(..), |buffer| {
+                        bytes_to_vec_cgmath_vector4_f32(&buffer)
+                    });
+            }
         }
 
         Ok(())
@@ -1231,6 +1234,12 @@ impl<K: PartialEq, T: 'static + Send + Sync> CachedGpuCompute<K, T> {
                 }
             },
         );
+    }
+
+    pub fn use_data_from<K2: PartialEq>(&mut self, other: &CachedGpuCompute<K2, T>) {
+        if other.get().is_some() {
+            self.data = other.data.clone();
+        }
     }
 }
 

@@ -49,6 +49,8 @@ pub(crate) struct DrawParams {
     ///
     /// This is set to `None` if the cursor position does not affect the render.
     pub cursor_pos: Option<cgmath::Point2<f32>>,
+    /// Whether the cursor is currently dragging the view.
+    pub is_dragging_view: bool,
 
     pub background_color: [u8; 3],
     pub internals_color: [u8; 3],

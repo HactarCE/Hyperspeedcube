@@ -220,22 +220,19 @@ impl PuzzleView {
 
                 DragState::Canceled => (),
             }
-        } else {
-            // Update hover state, only when not in the middle of a drag.
-
-            // Update puzzle hover state.
-            self.puzzle_hover_state = puzzle_vertex_3d_positions.and_then(|vertex_3d_positions| {
-                self.compute_sticker_hover_state(&vertex_3d_positions, prefs)
-            });
-            let new_hovered_piece = self.hovered_piece();
-            self.styles
-                .set_hovered_piece(new_hovered_piece.filter(|_| show_sticker_hover));
-
-            // Update gizmo hover state.
-            self.gizmo_hover_state = gizmo_vertex_3d_positions.and_then(|vertex_3d_positions| {
-                self.compute_gizmo_hover_state(&vertex_3d_positions)
-            });
         }
+
+        // Update puzzle hover state.
+        self.puzzle_hover_state = puzzle_vertex_3d_positions.and_then(|vertex_3d_positions| {
+            self.compute_sticker_hover_state(&vertex_3d_positions, prefs)
+        });
+        let new_hovered_piece = self.hovered_piece();
+        self.styles
+            .set_hovered_piece(new_hovered_piece.filter(|_| show_sticker_hover));
+
+        // Update gizmo hover state.
+        self.gizmo_hover_state = gizmo_vertex_3d_positions
+            .and_then(|vertex_3d_positions| self.compute_gizmo_hover_state(&vertex_3d_positions));
 
         // Update blocking state.
         {

@@ -235,7 +235,9 @@ impl PuzzleWidget {
 
         // Redraw each frame until the image is stable and we have computed 3D
         // vertex positions.
-        if renderer.puzzle_vertex_3d_positions.get().is_none() {
+        if renderer.puzzle_vertex_3d_positions.get().is_none()
+            || renderer.gizmo_vertex_3d_positions.get().is_none()
+        {
             ui.ctx().request_repaint();
         }
 
@@ -266,6 +268,10 @@ impl PuzzleWidget {
             cam: self.view.camera.clone(),
 
             cursor_pos: cursor_pos.map(|p| p.into()).filter(|_| SEND_CURSOR_POS),
+            is_dragging_view: match self.view.drag_state() {
+                Some(DragState::ViewRot { .. }) => true,
+                Some(DragState::Canceled | DragState::PreTwist | DragState::Twist) | None => false,
+            },
 
             background_color,
             internals_color,
