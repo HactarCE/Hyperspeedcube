@@ -12,6 +12,9 @@ hypermath::idx_struct! {
     /// ID of a **sticker**, which is a facet of a **piece** having a single
     /// color and belonging to a single **facet**.
     pub struct Sticker(pub u16);
+    /// ID of a **twist gizmo face**, which is a single face that can be clicked
+    /// to twist the puzzle.
+    pub struct GizmoFace(pub u16);
     /// ID of a **surface**, which is an external facet of the puzzle shared by
     /// one or more **stickers**.
     pub struct Surface(pub u16);
@@ -42,6 +45,8 @@ impl Color {
 pub type PerPiece<T> = GenericVec<Piece, T>;
 /// List containing a value per sticker.
 pub type PerSticker<T> = GenericVec<Sticker, T>;
+/// List containing a value per twist gizmo face.
+pub type PerGizmoFace<T> = GenericVec<GizmoFace, T>;
 /// List containing a value per surface.
 pub type PerSurface<T> = GenericVec<Surface, T>;
 /// List containing a value per color.

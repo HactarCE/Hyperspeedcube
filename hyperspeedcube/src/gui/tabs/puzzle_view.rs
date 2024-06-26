@@ -1,15 +1,18 @@
 use std::sync::Arc;
 
-use cgmath::EuclideanSpace;
 use hypermath::prelude::*;
-use hyperpuzzle::{LayerMask, PieceMask, Puzzle};
+use hyperpuzzle::{PieceMask, Puzzle};
 use parking_lot::Mutex;
 
 use crate::gfx::*;
 use crate::gui::App;
-use crate::preferences::{Preferences, PuzzleViewPreferencesSet, Rgb};
+use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
 use crate::puzzle::{DragState, PieceStyleState, PuzzleSimulation, PuzzleView, PuzzleViewInput};
-use crate::util::IterCyclicPairsExt;
+
+/// Whether to send the mouse position to the GPU. This is useful for debugging
+/// purposes, but causes the puzzle to redraw every frame that the mouse moves,
+/// even when not necessary.
+const SEND_CURSOR_POS: bool = false;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>) {
     let r = match &mut *puzzle_view.lock() {
@@ -132,7 +135,7 @@ impl PuzzleWidget {
         // moved.
         if r.drag_delta() != egui::Vec2::ZERO && self.view.drag_state().is_none() {
             let is_primary = ui.input(|input| input.pointer.primary_down());
-            if is_primary && self.view.hover_state().is_some() {
+            if is_primary && self.view.puzzle_hover_state().is_some() {
                 self.view.set_drag_state(DragState::PreTwist);
             } else {
                 self.view.set_drag_state(DragState::ViewRot { z_axis: 2 });
@@ -228,29 +231,30 @@ impl PuzzleWidget {
             }
         }
 
-        let mut renderer = self.renderer.lock();
+        let renderer = self.renderer.lock();
+
+        // Redraw each frame until the image is stable and we have computed 3D
+        // vertex positions.
+        if renderer.puzzle_vertex_3d_positions.get().is_none() {
+            ui.ctx().request_repaint();
+        }
 
         self.view.update(PuzzleViewInput {
             cursor_pos,
             target_size,
-            vertex_3d_positions: renderer.vertex_3d_positions(),
+            puzzle_vertex_3d_positions: renderer.puzzle_vertex_3d_positions.get(),
+            gizmo_vertex_3d_positions: renderer.gizmo_vertex_3d_positions.get(),
             prefs,
             exceeded_twist_drag_threshold,
             show_sticker_hover: ui.input(|input| input.modifiers.shift),
         });
 
-        // Redraw each frame until the image is stable and we have computed 3D
-        // vertex positions.
-        if renderer.vertex_3d_positions().is_none() {
-            ui.ctx().request_repaint();
-        }
-
         // Check for twist clicks.
         if r.clicked() {
-            self.view.do_sticker_click(Sign::Neg);
+            self.view.do_click_twist(Sign::Neg);
         }
         if r.secondary_clicked() {
-            self.view.do_sticker_click(Sign::Pos);
+            self.view.do_click_twist(Sign::Pos);
         }
 
         let dark_mode = ui.visuals().dark_mode;
@@ -258,9 +262,10 @@ impl PuzzleWidget {
         let internals_color = prefs.styles.internals_color.rgb;
 
         let draw_params = DrawParams {
+            ndim: puzzle.ndim(),
             cam: self.view.camera.clone(),
 
-            cursor_pos: cursor_pos.unwrap_or_else(cgmath::Point2::origin).into(),
+            cursor_pos: cursor_pos.map(|p| p.into()).filter(|_| SEND_CURSOR_POS),
 
             background_color,
             internals_color,
@@ -284,15 +289,6 @@ impl PuzzleWidget {
             ),
         };
 
-        let draw_prep = renderer.prepare_draw(draw_params);
-
-        if !draw_prep
-            .vertex_3d_positions
-            .is_some_and(|inner| inner.lock().is_some())
-        {
-            ui.ctx().request_repaint();
-        }
-
         // Draw puzzle.
         let painter = ui.painter_at(r.rect);
         painter.add(eframe::egui_wgpu::Callback::new_paint_callback(
@@ -300,6 +296,7 @@ impl PuzzleWidget {
             PuzzleRenderResources {
                 gfx: Arc::clone(&renderer.gfx),
                 renderer: Arc::clone(&self.renderer),
+                draw_params,
             },
         ));
 
@@ -328,41 +325,55 @@ impl PuzzleWidget {
             })();
         }
 
-        let to_egui = |screen_space: cgmath::Point2<f32>| {
+        let to_egui = |screen_space: cgmath::Vector4<f32>| {
             let ndc = self
                 .view
                 .camera
-                .scale_screen_space_to_ndc(screen_space)
-                .unwrap_or(cgmath::point2(f32::NAN, f32::NAN));
+                .project_3d_screen_space_to_ndc(screen_space)
+                .unwrap_or(cgmath::Point2::new(f32::NAN, f32::NAN));
             r.rect
                 .lerp_inside(egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5))
         };
 
+        // Draw gizmos (TODO: move to GPU?)
         let strong_color = egui::Color32::LIGHT_BLUE;
         let weak_color = strong_color.linear_multiply(0.05);
         let stroke_weak = egui::Stroke::new(2.0, weak_color);
         let stroke_strong = egui::Stroke::new(2.0, strong_color);
         let fill = weak_color;
-        for edge in draw_prep.gizmo_edges {
-            painter.line_segment(edge.map(to_egui), stroke_weak);
-        }
-        for face in draw_prep.gizmo_faces {
-            painter.add(egui::Shape::convex_polygon(
-                face.iter().copied().map(to_egui).collect(),
-                fill,
-                egui::Stroke::NONE,
-            ));
-            for (&a, &b) in face.iter().cyclic_pairs() {
-                painter.line_segment([a, b].map(to_egui), stroke_strong);
-            }
-        }
-        if let Some(twist) = draw_prep.gizmo_click_twist {
-            let layers = LayerMask::default();
-            if r.clicked() {
-                self.sim().lock().do_twist(twist, layers)
-            } else if r.secondary_clicked() {
-                let rev_twist = puzzle.twists[twist].reverse;
-                self.sim().lock().do_twist(rev_twist, layers)
+        if let Some(gizmo_vertex_3d_positions) = renderer.gizmo_vertex_3d_positions.get() {
+            if let Some(hover) = self.view.gizmo_hover_state() {
+                let twist = puzzle.gizmo_twists[hover.gizmo_face];
+                let axis = puzzle.twists[twist].axis;
+                let other_faces_on_same_gizmo = puzzle
+                    .gizmo_twists
+                    .iter_filter(|_gizmo_face, &twist| puzzle.twists[twist].axis == axis);
+
+                for face in other_faces_on_same_gizmo {
+                    let edge_id_range = &puzzle.mesh.gizmo_edge_ranges[face];
+                    for edge_id in edge_id_range.clone() {
+                        let edge = puzzle.mesh.edges[edge_id as usize]
+                            .map(|i| gizmo_vertex_3d_positions[i as usize]);
+                        painter.line_segment(edge.map(to_egui), stroke_weak);
+                    }
+                }
+
+                let tri_id_range = &puzzle.mesh.gizmo_triangle_ranges[hover.gizmo_face];
+                for tri_id in tri_id_range.clone() {
+                    let tri = puzzle.mesh.triangles[tri_id as usize]
+                        .map(|i| gizmo_vertex_3d_positions[i as usize]);
+                    painter.add(egui::Shape::convex_polygon(
+                        tri.into_iter().map(to_egui).collect(),
+                        fill,
+                        egui::Stroke::NONE,
+                    ));
+                }
+                let edge_id_range = &puzzle.mesh.gizmo_edge_ranges[hover.gizmo_face];
+                for edge_id in edge_id_range.clone() {
+                    let edge = puzzle.mesh.edges[edge_id as usize]
+                        .map(|i| gizmo_vertex_3d_positions[i as usize]);
+                    painter.line_segment(edge.map(to_egui), stroke_strong);
+                }
             }
         }
 

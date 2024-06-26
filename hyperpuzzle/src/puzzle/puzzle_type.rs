@@ -15,6 +15,8 @@ pub struct Puzzle {
     /// Internal ID for the puzzle.
     pub id: String,
 
+    /// Space containing a polytope for each piece.
+    pub(crate) space: Arc<Space>,
     /// Puzzle mesh for rendering.
     pub mesh: Mesh,
 
@@ -43,11 +45,8 @@ pub struct Puzzle {
     /// Map from twist name to twist.
     pub twist_by_name: HashMap<String, Twist>,
 
-    /// Twist gizmos for the puzzle.
-    pub twist_gizmos: Vec<TwistGizmoPolyhedron>,
-
-    /// Space containing a polytope for each piece.
-    pub(crate) space: Arc<Space>,
+    /// Twist for each face of a twist gizmo.
+    pub gizmo_twists: PerGizmoFace<Twist>,
 }
 
 impl Puzzle {
@@ -62,7 +61,7 @@ impl Puzzle {
 
     /// Returns the number of dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
-        self.mesh.ndim()
+        self.mesh.ndim
     }
 
     pub(crate) fn opposite_twist_axis(&self, _axis: Axis) -> Option<Axis> {

@@ -331,7 +331,7 @@ impl ShapeBuilder {
         }
 
         for (_, surface_data) in surfaces {
-            mesh.add_surface(surface_data.centroid.center(), surface_data.normal)?;
+            mesh.add_puzzle_surface(surface_data.centroid.center(), surface_data.normal)?;
         }
 
         Ok((mesh, pieces, stickers))
@@ -429,7 +429,7 @@ fn build_shape_polygons(
                             .get(&old_vertex_id)
                             .ok_or_eyre("missing sticker shrink vector for vertex")?;
 
-                        let new_vertex_id = mesh.add_vertex(MeshVertexData {
+                        let new_vertex_id = mesh.add_puzzle_vertex(MeshVertexData {
                             position: &position,
                             u_tangent,
                             v_tangent,
@@ -437,7 +437,7 @@ fn build_shape_polygons(
                             piece_id,
                             surface_id,
                             polygon_id,
-                        });
+                        })?;
                         *e.insert(new_vertex_id)
                     }
                 };

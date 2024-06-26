@@ -468,9 +468,9 @@ pub fn build_view_section(
 }
 
 fn fov_3d_label(prefs_ui: &PrefsUi<'_, ViewPreferences>) -> &'static str {
-    if prefs_ui.current.fov_3d == FOV_3D_RANGE.start() {
+    if prefs_ui.current.fov_3d == *FOV_3D_RANGE.start() {
         "ORP EKAUQ"
-    } else if prefs_ui.current.fov_3d == FOV_3D_RANGE.end() {
+    } else if prefs_ui.current.fov_3d == *FOV_3D_RANGE.end() {
         "QUAKE PRO"
     } else {
         "3D FOV"

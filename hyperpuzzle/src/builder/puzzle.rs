@@ -66,7 +66,7 @@ impl PuzzleBuilder {
     /// assigning IDs to pieces, stickers, etc.
     pub fn build(&self, mut warn_fn: impl FnMut(eyre::Error)) -> Result<Arc<Puzzle>> {
         // Build shape.
-        let (mesh, pieces, stickers) = self.shape.build()?;
+        let (mut mesh, pieces, stickers) = self.shape.build()?;
 
         // Build color system.
         let colors = self.shape.colors.build()?;
@@ -79,7 +79,8 @@ impl PuzzleBuilder {
         .collect();
 
         // Build twist system.
-        let (axes, twists, twist_gizmos) = self.twists.build(&self.space(), &mut warn_fn)?;
+        let (axes, twists, gizmo_twists) =
+            self.twists.build(&self.space(), &mut mesh, &mut warn_fn)?;
         let axis_by_name = axes
             .iter()
             .map(|(id, info)| (info.name.clone(), id))
@@ -94,6 +95,7 @@ impl PuzzleBuilder {
             name: self.name.clone(),
             id: self.id.clone(),
 
+            space: self.space(),
             mesh,
 
             pieces,
@@ -111,9 +113,7 @@ impl PuzzleBuilder {
             twists,
             twist_by_name,
 
-            twist_gizmos,
-
-            space: self.space(),
+            gizmo_twists,
         }))
     }
 }

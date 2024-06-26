@@ -63,17 +63,16 @@ struct DrawParams {
     target_size: vec2<f32>,
     xy_scale: vec2<f32>,
 
-    // Mouse state
-    mouse_pos: vec2<f32>,
+    // Cursor state
+    cursor_pos: vec2<f32>,
 
     // Geometry
-    facet_shrink: f32,
+    facet_scale: f32,
+    gizmo_scale: f32,
     sticker_shrink: f32,
     piece_explode: f32,
 
     // Projection
-    near_plane_z: f32,
-    far_plane_z: f32,
     w_factor_4d: f32,
     w_factor_3d: f32,
     fov_signum: f32,
@@ -81,6 +80,8 @@ struct DrawParams {
     show_backfaces: i32,
     clip_4d_behind_camera: i32,
     camera_4d_w: f32,
+
+    first_gizmo_vertex_index: i32,
 }
 
 
@@ -104,14 +105,13 @@ struct DrawParams {
 @group(0) @binding(2) var<storage, read> v_tangents: array<f32>;
 @group(0) @binding(3) var<storage, read> sticker_shrink_vectors: array<f32>;
 @group(0) @binding(4) var<storage, read> piece_ids: array<i32>;
-@group(0) @binding(5) var<storage, read> facet_ids: array<i32>;
+@group(0) @binding(5) var<storage, read> surface_ids: array<i32>;
 
 // Static mesh data (other)
 @group(1) @binding(0) var<storage, read> piece_centroids: array<f32>;
 @group(1) @binding(1) var<storage, read> surface_centroids: array<f32>;
 @group(1) @binding(2) var<storage, read> surface_normals: array<f32>;
 @group(1) @binding(3) var<storage, read> edge_verts: array<vec2<u32>>;
-
 // Computed data (per-vertex)
 @group(1) @binding(4) var<storage, read_write> vertex_3d_positions: array<vec4<f32>>;
 @group(1) @binding(4) var<storage, read> read_vertex_3d_positions: array<vec4<f32>>;
@@ -146,57 +146,71 @@ struct TransformedVertex {
 /// Reads from these buffers:
 /// - `puzzle_transform`, `piece_transforms`, `draw_params`
 /// - all static mesh data except `polygon_color_ids`
-fn transform_point_to_3d(vertex_index: i32, facet: i32, piece: i32) -> TransformedVertex {
+fn transform_point_to_3d(vertex_index: i32, surface: i32, piece: i32) -> TransformedVertex {
     var ret: TransformedVertex;
     ret.cull = false;
+
+    let is_puzzle_vertex: bool = vertex_index < draw_params.first_gizmo_vertex_index;
 
     let base_idx = NDIM * vertex_index;
 
     var new_pos = array<f32, NDIM>();
     var new_normal = array<f32, NDIM>();
     var vert_idx = base_idx;
-    var facet_idx = NDIM * facet;
+    var surface_idx = NDIM * surface;
     var piece_idx = NDIM * piece;
     for (var i = 0; i < NDIM; i++) {
         new_pos[i] = vertex_positions[vert_idx];
-        new_normal[i] = surface_normals[facet_idx];
-        // Apply sticker shrink.
-        new_pos[i] += sticker_shrink_vectors[vert_idx] * draw_params.sticker_shrink;
+        new_normal[i] = surface_normals[surface_idx];
+        if is_puzzle_vertex {
+            // Apply sticker shrink.
+            new_pos[i] += sticker_shrink_vectors[vert_idx] * draw_params.sticker_shrink;
+        }
         // Apply facet shrink.
-        new_pos[i] -= surface_centroids[facet_idx];
-        new_pos[i] *= 1.0 - draw_params.facet_shrink;
-        new_pos[i] += surface_centroids[facet_idx];
-        // Apply piece explode.
-        new_pos[i] += piece_centroids[piece_idx] * draw_params.piece_explode;
+        new_pos[i] -= surface_centroids[surface_idx];
+        if is_puzzle_vertex {
+            new_pos[i] *= draw_params.facet_scale;
+        } else {
+            new_pos[i] *= draw_params.gizmo_scale;
+        }
+        new_pos[i] += surface_centroids[surface_idx];
+        if is_puzzle_vertex {
+            // Apply piece explode.
+            new_pos[i] += piece_centroids[piece_idx] * draw_params.piece_explode;
+        }
 
         vert_idx++;
-        facet_idx++;
+        surface_idx++;
         piece_idx++;
     }
     var old_pos = new_pos;
-    var old_normal = new_normal; // TODO: should be `let`. workaround for https://github.com/gfx-rs/wgpu/issues/4920
-
-    // Apply piece transform.
-    new_pos = array<f32, NDIM>();
-    new_normal = array<f32, NDIM>();
-    var new_u = array<f32, NDIM>();
-    var new_v = array<f32, NDIM>();
-    vert_idx = base_idx;
-    var i: i32 = NDIM * NDIM * piece;
-    for (var col = 0; col < NDIM; col++) {
-        for (var row = 0; row < NDIM; row++) {
-            new_pos[row] += piece_transforms[i] * old_pos[col];
-            new_normal[row] += piece_transforms[i] * old_normal[col];
-            new_u[row] += piece_transforms[i] * u_tangents[vert_idx];
-            new_v[row] += piece_transforms[i] * v_tangents[vert_idx];
-            i++;
+    var old_normal = new_normal;
+    var old_u: array<f32, NDIM>;
+    var old_v: array<f32, NDIM>;
+    var i: i32;
+    if is_puzzle_vertex {
+        // Apply piece transform.
+        new_pos = array<f32, NDIM>();
+        new_normal = array<f32, NDIM>();
+        var new_u = array<f32, NDIM>();
+        var new_v = array<f32, NDIM>();
+        vert_idx = base_idx;
+        i = NDIM * NDIM * piece;
+        for (var col = 0; col < NDIM; col++) {
+            for (var row = 0; row < NDIM; row++) {
+                new_pos[row] += piece_transforms[i] * old_pos[col];
+                new_normal[row] += piece_transforms[i] * old_normal[col];
+                new_u[row] += piece_transforms[i] * u_tangents[vert_idx];
+                new_v[row] += piece_transforms[i] * v_tangents[vert_idx];
+                i++;
+            }
+            vert_idx++;
         }
-        vert_idx++;
+        old_pos = new_pos;
+        old_normal = new_normal;
+        old_u = new_u;
+        old_v = new_v;
     }
-    old_pos = new_pos;
-    old_normal = new_normal;
-    var old_u = new_u;
-    var old_v = new_v;
 
     // Apply puzzle transformation and collapse to 4D.
     var point_4d = vec4<f32>();
@@ -566,7 +580,7 @@ fn compute_transform_points(@builtin(global_invocation_id) global_invocation_id:
         return;
     }
 
-    var point_3d = transform_point_to_3d(index, facet_ids[index], piece_ids[index]);
+    var point_3d = transform_point_to_3d(index, surface_ids[index], piece_ids[index]);
     // Indicate that the vertex should be culled by setting W=0.
     point_3d.position.w = select(point_3d.position.w, 0.0, point_3d.cull);
 
@@ -644,8 +658,8 @@ fn render_edge_ids_vertex(
     // Compute the minimum radius of the outline in NDC.
     let min_z = clamp(
         min(world_a.z, world_b.z) - capsule_radius,
-        draw_params.far_plane_z,
-        draw_params.near_plane_z,
+        draw_params.pre.f, // far plane Z
+        draw_params.pre.n, // near plane Z
     );
     let max_z_divisor = z_divisor(min_z);
     let min_radius = capsule_radius / max_z_divisor;
@@ -655,8 +669,8 @@ fn render_edge_ids_vertex(
     // Compute the maximum radius of the outline in NDC.
     let max_z = clamp(
         max(world_a.z, world_b.z),
-        draw_params.far_plane_z,
-        draw_params.near_plane_z,
+        draw_params.pre.f, // far plane Z
+        draw_params.pre.n, // near plane Z
     );
     let min_z_divisor = z_divisor(max_z);
     let radius = capsule_radius / min_z_divisor;
@@ -784,9 +798,9 @@ fn get_polygon_pixel(screen_space: vec2<f32>, tex_coords: vec2<i32>) -> PolygonP
     let tex_value: vec2<u32> = textureLoad(polygons_texture, tex_coords, 0).rg;
     let color_id = tex_value.r;
     if color_id == COLOR_BACKGROUND { // TODO: is this special case beneficial?
-        out.plane.v = vec4(0.0, 0.0, 1.0, draw_params.far_plane_z);
+        out.plane.v = vec4(0.0, 0.0, 1.0, draw_params.pre.f);
         out.color = get_color(COLOR_BACKGROUND, 1.0);
-        out.point = vec3(screen_space * z_divisor(draw_params.far_plane_z), draw_params.far_plane_z);
+        out.point = vec3(screen_space * z_divisor(draw_params.pre.f), draw_params.pre.f);
         return out;
     }
     let polygon_normal = unpack_normal_vector_from_u32(tex_value.g);
@@ -816,7 +830,7 @@ fn get_edge_pixel(ray: Ray, polygon: PolygonPixel, screen_space: vec2<f32>, tex_
     let edge_id = i32(tex_value) - 1;
     if edge_id == -1 {
         out.color = vec4<f32>();
-        out.depth = draw_params.far_plane_z;
+        out.depth = draw_params.pre.f;
         return out;
     }
 

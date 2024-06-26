@@ -5,6 +5,7 @@ use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
 use hypermath::pga::*;
 use hypermath::prelude::*;
+use hyperpuzzle::GizmoFace;
 use hyperpuzzle::{LayerMask, PerPiece, Piece, PieceMask, Puzzle, Sticker};
 use parking_lot::Mutex;
 
@@ -28,8 +29,11 @@ pub struct PuzzleView {
 
     /// Latest screen-space cursor position.
     cursor_pos: Option<cgmath::Point2<f32>>,
-    /// What the cursor is hovering over. This is frozen during a drag.
-    hover_state: Option<HoverState>,
+    /// What puzzle geometry the cursor is hovering over. This is frozen during
+    /// a drag.
+    puzzle_hover_state: Option<PuzzleHoverState>,
+    /// What twist gizmo the cursor is hovering over. This is frozen during a drag.
+    gizmo_hover_state: Option<GizmoHoverState>,
     /// Cursor drag state.
     drag_state: Option<DragState>,
 }
@@ -59,7 +63,8 @@ impl PuzzleView {
             styles: PuzzleStyleStates::new(puzzle.pieces.len()),
 
             cursor_pos: None,
-            hover_state: None,
+            puzzle_hover_state: None,
+            gizmo_hover_state: None,
             drag_state: None,
         }
     }
@@ -69,12 +74,16 @@ impl PuzzleView {
     }
 
     /// Returns what the cursor was hovering over.
-    pub fn hover_state(&self) -> Option<HoverState> {
-        self.hover_state.clone()
+    pub fn puzzle_hover_state(&self) -> Option<PuzzleHoverState> {
+        self.puzzle_hover_state.clone()
     }
     /// Returns the hovered piece.
     fn hovered_piece(&self) -> Option<Piece> {
-        Some(self.hover_state.as_ref()?.piece)
+        Some(self.puzzle_hover_state.as_ref()?.piece)
+    }
+
+    pub fn gizmo_hover_state(&self) -> Option<GizmoHoverState> {
+        self.gizmo_hover_state.clone()
     }
 
     pub fn set_drag_state(&mut self, new_drag_state: DragState) {
@@ -106,7 +115,7 @@ impl PuzzleView {
     }
     pub fn drag_delta_3d(&self) -> Option<[Vector; 2]> {
         // TODO: where does this method want to live? does it want to exist at all?
-        let a = self.hover_state()?.position;
+        let a = self.puzzle_hover_state()?.position;
         let b = &a + self.parallel_drag_delta()?;
         Some([a, b])
     }
@@ -116,7 +125,8 @@ impl PuzzleView {
         let PuzzleViewInput {
             cursor_pos,
             target_size,
-            vertex_3d_positions,
+            puzzle_vertex_3d_positions,
+            gizmo_vertex_3d_positions,
             prefs,
             exceeded_twist_drag_threshold,
             show_sticker_hover,
@@ -158,7 +168,7 @@ impl PuzzleView {
                                 let puzzle = sim.puzzle();
                                 // IIFE to mimic try_block
                                 let best_grip = (|| {
-                                    let hov = self.hover_state()?;
+                                    let hov = self.puzzle_hover_state()?;
                                     let parallel_drag_delta = self.parallel_drag_delta()?;
                                     let target =
                                         hov.normal_3d().cross_product_3d(&parallel_drag_delta);
@@ -194,7 +204,7 @@ impl PuzzleView {
                 DragState::Twist => {
                     (|| {
                         // IIFE to mimic try_block
-                        let hov = self.hover_state()?;
+                        let hov = self.puzzle_hover_state()?;
                         let mut parallel_drag_delta = self.parallel_drag_delta()?;
                         let mut sim = self.sim.lock();
                         let axis = sim.partial_twist().as_ref()?.axis;
@@ -212,12 +222,19 @@ impl PuzzleView {
             }
         } else {
             // Update hover state, only when not in the middle of a drag.
-            self.hover_state = vertex_3d_positions.and_then(|vertex_3d_positions| {
-                self.compute_hover_state(&vertex_3d_positions, prefs)
+
+            // Update puzzle hover state.
+            self.puzzle_hover_state = puzzle_vertex_3d_positions.and_then(|vertex_3d_positions| {
+                self.compute_sticker_hover_state(&vertex_3d_positions, prefs)
             });
             let new_hovered_piece = self.hovered_piece();
             self.styles
                 .set_hovered_piece(new_hovered_piece.filter(|_| show_sticker_hover));
+
+            // Update gizmo hover state.
+            self.gizmo_hover_state = gizmo_vertex_3d_positions.and_then(|vertex_3d_positions| {
+                self.compute_gizmo_hover_state(&vertex_3d_positions)
+            });
         }
 
         // Update blocking state.
@@ -234,13 +251,13 @@ impl PuzzleView {
         self.camera.target_size = target_size;
     }
 
-    /// Computes the new hover state from the pixel position of the cursor.
+    /// Computes the new puzzle hover state using the latest cursor position.
     #[must_use]
-    fn compute_hover_state(
+    fn compute_sticker_hover_state(
         &self,
         vertex_3d_positions: &[cgmath::Vector4<f32>],
         prefs: &Preferences,
-    ) -> Option<HoverState> {
+    ) -> Option<PuzzleHoverState> {
         let puzzle = self.puzzle();
 
         let cursor_pos = self.cursor_pos?;
@@ -262,10 +279,42 @@ impl PuzzleView {
         .iter()
         .map(|(piece, tri_range)| (piece, None, tri_range));
 
+        let sim = self.sim.lock();
+
         itertools::chain(sticker_tri_ranges, internals_tri_ranges)
             .filter(|(piece, _sticker, _tri_range)| interactable_pieces.contains(*piece))
-            .filter_map(|(piece, sticker, tri_range)| {
-                self.triangle_hover(cursor_pos, piece, sticker, tri_range, vertex_3d_positions)
+            .flat_map(|(piece, sticker, tri_range)| {
+                self.puzzle_triangle_hovers(
+                    &sim,
+                    cursor_pos,
+                    piece,
+                    sticker,
+                    tri_range,
+                    vertex_3d_positions,
+                )
+            })
+            .max_by(|a, b| f32::total_cmp(&a.z, &b.z))
+    }
+
+    /// Computes the new gizmo hover state using the latest cursor position.
+    #[must_use]
+    fn compute_gizmo_hover_state(
+        &self,
+        vertex_3d_positions: &[cgmath::Vector4<f32>],
+    ) -> Option<GizmoHoverState> {
+        let puzzle = self.puzzle();
+
+        let cursor_pos = self.cursor_pos?;
+
+        let gizmo_tri_ranges = puzzle
+            .mesh
+            .gizmo_triangle_ranges
+            .iter()
+            .map(|(gizmo, tri_range)| (gizmo, tri_range));
+
+        gizmo_tri_ranges
+            .flat_map(|(gizmo, tri_range)| {
+                self.gizmo_triangle_hover(cursor_pos, gizmo, tri_range, vertex_3d_positions)
             })
             .max_by(|a, b| f32::total_cmp(&a.z, &b.z))
     }
@@ -274,12 +323,21 @@ impl PuzzleView {
         self.camera.rot = Motor::ident(self.puzzle().ndim());
     }
 
-    pub(crate) fn do_sticker_click(&self, direction: Sign) {
+    pub(crate) fn do_click_twist(&self, direction: Sign) {
         let mut state = self.sim.lock();
         let puzzle = state.puzzle_type();
         let ndim = puzzle.ndim();
 
-        if let Some(hov) = &self.hover_state {
+        if let Some(hov) = &self.gizmo_hover_state {
+            let twist = puzzle.gizmo_twists[hov.gizmo_face];
+            match direction {
+                Sign::Neg => state.do_twist(twist, LayerMask(1)),
+                Sign::Pos => {
+                    let rev_twist = puzzle.twists[twist].reverse;
+                    state.do_twist(rev_twist, LayerMask(1))
+                }
+            }
+        } else if let Some(hov) = &self.puzzle_hover_state {
             if puzzle.ndim() == 3 {
                 // Only do a move if we are hovering a sticker.
                 if hov.sticker.is_none() {
@@ -328,23 +386,26 @@ impl PuzzleView {
         }
     }
 
-    /// Returns the nearest triangle on a sticker that contain the screen-space
-    /// point `p`.
-    fn triangle_hover<'a>(
-        &self,
+    /// Returns the triangles on the puzzle that contain the screen-space point
+    /// `cursor_pos`.
+    fn puzzle_triangle_hovers<'a>(
+        &'a self,
+        puzzle_state: &'a PuzzleSimulation,
         cursor_pos: cgmath::Point2<f32>,
         piece: Piece,
         sticker: Option<Sticker>,
-        tri_range: &Range<u32>,
-        vertex_3d_positions: &'a [cgmath::Vector4<f32>],
-    ) -> Option<HoverState> {
-        let puzzle_state = self.sim.lock();
+        tri_range: &'a Range<u32>,
+        puzzle_vertex_3d_positions: &'a [cgmath::Vector4<f32>],
+    ) -> impl 'a + Iterator<Item = PuzzleHoverState> {
         let piece_transform = &puzzle_state.piece_transforms()[piece];
         let mesh = &puzzle_state.puzzle_type().mesh;
         mesh.triangles[tri_range.start as usize..tri_range.end as usize]
             .iter()
             .filter_map(move |&vertex_ids| {
-                let tri_verts @ [a, b, c] = vertex_ids.map(|i| vertex_3d_positions[i as usize]);
+                let tri_verts @ [a, b, c] =
+                    vertex_ids.map(|i| puzzle_vertex_3d_positions[i as usize]);
+                // If the cursor isn't hovering the triangle, then
+                // `triangle_hover_barycentric_coordinates()` returns `None`.
                 let (barycentric_coords @ [qa, qb, qc], backface) =
                     crate::util::triangle_hover_barycentric_coordinates(cursor_pos, tri_verts)?;
 
@@ -359,7 +420,7 @@ impl PuzzleView {
                 let v_tangent =
                     piece_transform.transform_vector(va * qa as _ + vb * qb as _ + vc * qc as _);
 
-                Some(HoverState {
+                Some(PuzzleHoverState {
                     cursor_pos,
                     z: qa * a.z + qb * b.z + qc * c.z,
 
@@ -375,11 +436,41 @@ impl PuzzleView {
                     v_tangent,
                 })
             })
-            .max_by(|a, b| f32::total_cmp(&a.z, &b.z))
+    }
+
+    /// Returns the triangle on a gizmo face that contains the screen-space
+    /// point `cursor_pos`, or `None` if there is none.
+    fn gizmo_triangle_hover<'a>(
+        &self,
+        cursor_pos: cgmath::Point2<f32>,
+        gizmo_face: GizmoFace,
+        tri_range: &Range<u32>,
+        gizmo_vertex_3d_positions: &'a [cgmath::Vector4<f32>],
+    ) -> Option<GizmoHoverState> {
+        let puzzle_state = self.sim.lock();
+        let mesh = &puzzle_state.puzzle_type().mesh;
+        mesh.triangles[tri_range.start as usize..tri_range.end as usize]
+            .iter()
+            .find_map(move |&vertex_ids| {
+                let tri_verts @ [a, b, c] =
+                    vertex_ids.map(|i| gizmo_vertex_3d_positions[i as usize]);
+                // If the cursor isn't hovering the triangle, then
+                // `triangle_hover_barycentric_coordinates()` returns `None`.
+                let (_barycentric_coords @ [qa, qb, qc], backface) =
+                    crate::util::triangle_hover_barycentric_coordinates(cursor_pos, tri_verts)?;
+
+                Some(GizmoHoverState {
+                    z: qa * a.z + qb * b.z + qc * c.z,
+
+                    gizmo_face,
+
+                    backface,
+                })
+            })
     }
 
     fn parallel_drag_delta(&self) -> Option<Vector> {
-        let initial_hover_state = self.hover_state()?;
+        let initial_hover_state = self.puzzle_hover_state()?;
 
         let screen_space_delta = self.cursor_pos? - initial_hover_state.cursor_pos;
         let delta_2d = screen_space_delta;
@@ -407,7 +498,7 @@ impl PuzzleView {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct HoverState {
+pub struct PuzzleHoverState {
     /// Screen-space cursor coordinates within the puzzle view.
     pub cursor_pos: cgmath::Point2<f32>,
     /// Screen-space Z coordinate.
@@ -436,12 +527,28 @@ pub struct HoverState {
     /// Second tangent vector of the hovered surface, in puzzle space.
     pub v_tangent: Vector,
 }
-impl HoverState {
+impl PuzzleHoverState {
     /// Returns the normal vector to the hovered surface, which is only valid in
     /// 3D.
     pub fn normal_3d(&self) -> Vector {
         self.u_tangent.cross_product_3d(&self.v_tangent)
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GizmoHoverState {
+    /// Screen-space Z coordinate.
+    pub z: f32,
+
+    /// Gizmo face being hovered.
+    pub gizmo_face: GizmoFace,
+
+    /// Whether the backface of the gizmo is being hovered (as opposed to the
+    /// frontface).
+    ///
+    /// TODO: check that this is correct -- I'm not sure the gizmo mesh
+    ///       construction checks face orientation
+    pub backface: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -465,7 +572,9 @@ pub struct PuzzleViewInput<'a> {
     /// Size of the target to draw to.
     pub target_size: [u32; 2],
     /// 3D positions of vertices in the puzzle mesh.
-    pub vertex_3d_positions: Option<Arc<Vec<cgmath::Vector4<f32>>>>,
+    pub puzzle_vertex_3d_positions: Option<Arc<Vec<cgmath::Vector4<f32>>>>,
+    /// 3D positions of vertices in the twist gizmos mesh.
+    pub gizmo_vertex_3d_positions: Option<Arc<Vec<cgmath::Vector4<f32>>>>,
     /// User preferences.
     pub prefs: &'a Preferences,
     /// Whether the cursor has been dragged enough to begin a drag twist, if

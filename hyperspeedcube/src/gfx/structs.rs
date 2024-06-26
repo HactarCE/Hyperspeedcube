@@ -138,12 +138,11 @@ pub struct GfxDrawParams {
     /// Mouse cursor position in NDC (normalized device coordinates).
     pub cursor_pos: [f32; 2],
 
-    pub facet_shrink: f32,
+    pub facet_scale: f32,
+    pub gizmo_scale: f32,
     pub sticker_shrink: f32,
     pub piece_explode: f32,
 
-    pub near_plane_z: f32,
-    pub far_plane_z: f32,
     pub w_factor_4d: f32,
     pub w_factor_3d: f32,
     pub fov_signum: f32,
@@ -155,4 +154,7 @@ pub struct GfxDrawParams {
     pub clip_4d_behind_camera: i32,
     /// W coordinate of the 4D camera.
     pub camera_4d_w: f32,
+
+    /// Index of the first twist gizmo vertex.
+    pub first_gizmo_vertex_index: i32,
 }

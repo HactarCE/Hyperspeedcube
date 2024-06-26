@@ -12,17 +12,14 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use egui::NumExt;
-use eyre::{bail, Result};
-use float_ord::FloatOrd;
+use eyre::Result;
 use hypermath::prelude::*;
-use hyperpuzzle::{
-    Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Twist, TwistGizmoPolyhedron,
-};
+use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle};
 use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::bindings::{BindGroups, WgpuPassExt};
-use super::draw_params::GeometryCacheKey;
+use super::draw_params::{GizmoGeometryCacheKey, PuzzleGeometryCacheKey};
 use super::structs::*;
 use super::{pipelines, CachedTexture1d, CachedTexture2d, DrawParams, GraphicsState};
 
@@ -34,11 +31,6 @@ const Z_CLIP: f32 = 8.0;
 /// coordinate. Larger number means more clipping near the camera, but also more
 /// Z buffer precision.
 const Z_EPSILON: f32 = 0.01;
-
-/// Whether to send the mouse position to the GPU. This is useful for debugging
-/// purposes, but causes the puzzle to redraw every frame that the mouse moves,
-/// even when not necessary.
-const SEND_MOUSE_POS: bool = false;
 
 /// Color ID for the background.
 const BACKGROUND_COLOR_ID: u32 = 0;
@@ -53,6 +45,7 @@ const OUTLINE_RADIUS_SCALE_FACTOR: f32 = 0.005;
 pub struct PuzzleRenderResources {
     pub gfx: Arc<GraphicsState>,
     pub renderer: Arc<Mutex<PuzzleRenderer>>,
+    pub draw_params: DrawParams,
 }
 
 impl PuzzleRenderResources {
@@ -72,7 +65,7 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
     ) -> Vec<wgpu::CommandBuffer> {
         let mut renderer = self.renderer.lock();
 
-        let result = renderer.draw_puzzle(egui_encoder);
+        let result = renderer.draw_puzzle(egui_encoder, &self.draw_params);
         if let Err(e) = result {
             log::error!("{e}");
         }
@@ -88,14 +81,10 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
             ..Default::default()
         });
 
-        let Some(draw_params) = renderer.draw_params() else {
-            return vec![];
-        };
-
         let pipeline = &self.gfx.pipelines.blit;
         let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
             src_texture: &texture_view,
-            src_sampler: match draw_params.cam.prefs().downscale_interpolate {
+            src_sampler: match self.draw_params.cam.prefs().downscale_interpolate {
                 true => &self.gfx.bilinear_sampler,
                 false => &self.gfx.nearest_neighbor_sampler,
             },
@@ -189,7 +178,17 @@ pub(crate) struct PuzzleRenderer {
     /// Puzzle info.
     puzzle: Arc<Puzzle>,
 
-    prep: Option<DrawPrepResponse>,
+    /// Puzzle vertex positions in homogeneous 3D space.
+    pub puzzle_vertex_3d_positions:
+        CachedGpuCompute<PuzzleGeometryCacheKey, Vec<cgmath::Vector4<f32>>>,
+    /// Gizmo vertex positions in homogeneous 3D space.
+    pub gizmo_vertex_3d_positions:
+        CachedGpuCompute<GizmoGeometryCacheKey, Vec<cgmath::Vector4<f32>>>,
+
+    /// Most recently used draw parameters.
+    last_draw_params: Option<DrawParams>,
+    /// Most recent cursor position.
+    cursor_pos: Option<[f32; 2]>,
 }
 
 impl Clone for PuzzleRenderer {
@@ -200,7 +199,11 @@ impl Clone for PuzzleRenderer {
             model: Arc::clone(&self.model),
             buffers: self.buffers.clone(&self.gfx),
 
-            prep: None,
+            puzzle_vertex_3d_positions: self.puzzle_vertex_3d_positions.clone(),
+            gizmo_vertex_3d_positions: self.gizmo_vertex_3d_positions.clone(),
+
+            last_draw_params: None,
+            cursor_pos: None,
         }
     }
 }
@@ -214,213 +217,45 @@ impl PuzzleRenderer {
             buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &puzzle.mesh, id),
             puzzle: Arc::clone(puzzle),
 
-            prep: None,
+            puzzle_vertex_3d_positions: CachedGpuCompute::new(Arc::clone(&gfx)),
+            gizmo_vertex_3d_positions: CachedGpuCompute::new(Arc::clone(&gfx)),
+
+            last_draw_params: None,
+            cursor_pos: None,
         }
     }
 
-    /// Sets the draw parameters to be used for the next
-    pub fn prepare_draw(&mut self, mut draw_params: DrawParams) -> DrawPrepResponse {
-        let geometry_cache_key = draw_params.geometry_cache_key(self.puzzle.ndim());
+    pub fn draw_puzzle(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        draw_params: &DrawParams,
+    ) -> Result<()> {
+        self.puzzle_vertex_3d_positions
+            .update_cache_key_and_invalidate(draw_params.puzzle_geometry_cache_key());
+        self.gizmo_vertex_3d_positions
+            .update_cache_key_and_invalidate(draw_params.gizmo_geometry_cache_key());
 
-        let needs_recompute_vertex_3d_positions =
-            self.geometry_cache_key() != Some(&geometry_cache_key);
+        let needs_redraw = self.puzzle_vertex_3d_positions.changed
+            || self.gizmo_vertex_3d_positions.changed
+            || self.last_draw_params.as_ref() != Some(draw_params);
 
-        // Fetch 3D vertex positions from the GPU.
-        let vertex_3d_positions = {
-            let existing_output = self
-                .prep
-                .as_ref()
-                .and_then(|prep| prep.vertex_3d_positions.as_ref());
-            if needs_recompute_vertex_3d_positions {
-                None
-            } else if existing_output.is_some() {
-                existing_output.map(Arc::clone)
-            } else {
-                // If we are drawing two frames in a row with the same geometry
-                // cache key, then the 3D vertex positions have stabilized, so
-                // fetch them from the GPU.
-                let output = Arc::new(Mutex::new(None));
-
-                let output_ref = Arc::clone(&output);
-                // Save the 3D vertex positions.
-                wgpu::util::DownloadBuffer::read_buffer(
-                    &self.gfx.device,
-                    &self.gfx.queue,
-                    &self.buffers.vertex_3d_positions.slice(..),
-                    move |result| match result {
-                        Ok(buffer) => {
-                            *output_ref.lock() = Some(Arc::new(
-                                bytemuck::cast_slice::<u8, f32>(&buffer)
-                                    .chunks_exact(4)
-                                    .map(|a| cgmath::vec4(a[0], a[1], a[2], a[3]))
-                                    .collect(),
-                            ));
-                        }
-                        Err(wgpu::BufferAsyncError) => {
-                            log::error!("Error mapping 3D vertex positions buffer")
-                        }
-                    },
-                );
-
-                Some(output)
-            }
-        };
-
-        // Compute twist gizmo info.
-        let mut gizmo_edges = vec![];
-        let mut gizmo_faces = vec![];
-        let mut gizmo_click_twist = None;
-        {
-            let camera = &draw_params.cam;
-            let ndim = self.puzzle.ndim();
-            let hover_pos = cgmath::Point2::from(draw_params.cursor_pos);
-
-            let visible_gizmos = self
-                .puzzle
-                .twist_gizmos
-                .iter()
-                .filter(|polyhedron| camera.is_4d_face_unculled(polyhedron.axis_vector))
-                .map(|gizmo| {
-                    let verts_4d = gizmo.compute_vertex_positions(
-                        pga::Motor::ident(4),
-                        draw_params.gizmo_scale(ndim),
-                    );
-                    let verts_3d = verts_4d
-                        .into_iter()
-                        .map(|p| camera.project_point_to_3d_screen_space(p))
-                        .collect_vec();
-                    (gizmo, verts_3d)
-                })
-                .collect_vec();
-
-            struct GizmoHoverResponse<'a> {
-                polyhedron: &'a TwistGizmoPolyhedron,
-                verts_3d: &'a [Option<cgmath::Vector4<f32>>],
-                face_index: usize,
-                z: f32,
-            }
-
-            let hovered_gizmo = visible_gizmos
-                .iter()
-                .flat_map(|(polyhedron, verts_3d)| {
-                    polyhedron
-                        .faces
-                        .iter()
-                        .enumerate()
-                        .filter_map(move |(face_index, (_twist, face_verts))| {
-                            let mut face_vertex_positions =
-                                face_verts.iter().map(|&i| verts_3d[i as usize]);
-                            let a = face_vertex_positions.next()?;
-                            let tris = face_vertex_positions
-                                .tuple_windows()
-                                .filter_map(move |(b, c)| Some([a?, b?, c?]));
-                            Some(tris.filter_map(move |[a, b, c]| {
-                                // Check if the cursor is hovering the triangle, and if
-                                // it is, get the barycentric coordinates.
-                                let ([qa, qb, qc], _backface) =
-                                    crate::util::triangle_hover_barycentric_coordinates(
-                                        hover_pos,
-                                        [a, b, c],
-                                    )?;
-                                Some(GizmoHoverResponse {
-                                    polyhedron,
-                                    verts_3d,
-                                    face_index,
-                                    // Use the barycentric coordinates to compute the Z value.
-                                    z: qa * a.z + qb * b.z + qc * c.z,
-                                })
-                            }))
-                        })
-                        .flatten()
-                })
-                .max_by_key(|hov| FloatOrd(hov.z));
-
-            if let Some(hov) = hovered_gizmo {
-                let get_point = |i| {
-                    let p = hov.verts_3d[i as usize]?;
-                    Some(cgmath::point2(p.x, p.y) / p.w)
-                };
-
-                // Draw outlines for the whole gizmo.
-                for edge in &hov.polyhedron.edges {
-                    (|| {
-                        let [a, b] = edge.map(get_point);
-                        gizmo_edges.push([a?, b?]);
-                        Some(())
-                    })();
-                }
-
-                // Draw the hovered face.
-                let (twist, face_verts) = &hov.polyhedron.faces[hov.face_index];
-                if let Some(face_verts_xy) = face_verts.iter().map(|&i| get_point(i)).collect() {
-                    gizmo_faces.push(face_verts_xy);
-                    gizmo_click_twist = Some(*twist);
-                }
-            }
-        }
-
-        if !SEND_MOUSE_POS {
-            // TODO: this line is dubious. it's already caused me one headache.
-            draw_params.cursor_pos = [0.0; 2];
-        }
-        let needs_redraw =
-            needs_recompute_vertex_3d_positions || self.draw_params() != Some(&draw_params);
-
-        let r = DrawPrepResponse {
-            geometry_cache_key,
-            needs_recompute_vertex_3d_positions,
-            vertex_3d_positions,
-
-            draw_params,
-            needs_redraw,
-
-            gizmo_edges,
-            gizmo_faces,
-            gizmo_click_twist,
-        };
-
-        self.prep = Some(r.clone());
-
-        r
-    }
-
-    pub fn draw_params(&self) -> Option<&DrawParams> {
-        Some(&self.prep.as_ref()?.draw_params)
-    }
-    fn geometry_cache_key(&self) -> Option<&GeometryCacheKey> {
-        Some(&self.prep.as_ref()?.geometry_cache_key)
-    }
-    pub fn vertex_3d_positions(&self) -> Option<Arc<Vec<cgmath::Vector4<f32>>>> {
-        self.prep
-            .as_ref()?
-            .vertex_3d_positions
-            .as_ref()?
-            .lock()
-            .as_ref()
-            .map(Arc::clone)
-    }
-
-    pub fn draw_puzzle(&mut self, encoder: &mut wgpu::CommandEncoder) -> Result<()> {
-        let Some(prep) = self.prep.clone() else {
-            bail!("cannot draw without call to prepare_draw()");
-        };
-
-        if prep.needs_recompute_vertex_3d_positions {
-            log::trace!(
-                "Recomputing 3D vertex positions for puzzle {:?}",
-                self.puzzle.name,
-            );
-            // Compute 3D vertex positions on the GPU.
-            self.compute_3d_vertex_positions(encoder)?;
-        }
-
-        if prep.needs_redraw {
+        if needs_redraw {
             log::trace!("Redrawing puzzle {:?}", self.puzzle.name);
-            let opacity_buckets = self.init_buffers(encoder, &prep.draw_params)?;
+            self.last_draw_params = Some(draw_params.clone());
 
-            // Render each bucket. Use `is_first` to clear the texture only on the
-            // first pass.
+            // Recompute 3D vertex positions and fetch them from the GPU.
+            if self.puzzle_vertex_3d_positions.changed || self.gizmo_vertex_3d_positions.changed {
+                log::trace!(
+                    "Recomputing 3D vertex positions for puzzle {:?}",
+                    self.puzzle.name,
+                );
+                self.compute_3d_vertex_positions(encoder)?;
+            }
+
+            // Render each bucket. Use `is_first` to clear the texture only on
+            // the first pass.
             let mut is_first = true;
+            let opacity_buckets = self.init_buffers(encoder, draw_params)?;
             for bucket in opacity_buckets {
                 self.render_polygons(encoder, &bucket, is_first)?;
                 self.render_edge_ids(encoder, &bucket, is_first)?;
@@ -428,6 +263,21 @@ impl PuzzleRenderer {
 
                 is_first = false;
             }
+        }
+
+        self.puzzle_vertex_3d_positions
+            .download_if_stable(&self.buffers.vertex_3d_positions.slice(..), |buffer| {
+                bytes_to_vec_cgmath_vector4_f32(&buffer)
+            });
+        if let Some(data) = &self.puzzle_vertex_3d_positions.data {
+            // Steal the data from the other cache.
+            self.gizmo_vertex_3d_positions.data = Some(Arc::clone(data));
+        } else {
+            // Download the whole buffer, since
+            self.gizmo_vertex_3d_positions
+                .download_if_stable(&self.buffers.vertex_3d_positions.slice(..), |buffer| {
+                    bytes_to_vec_cgmath_vector4_f32(&buffer)
+                });
         }
 
         Ok(())
@@ -484,21 +334,22 @@ impl PuzzleRenderer {
                 target_size: draw_params.cam.target_size_f32().into(),
                 xy_scale: draw_params.cam.xy_scale()?.into(),
 
-                cursor_pos: draw_params.cursor_pos,
+                cursor_pos: draw_params.cursor_pos.map(|p| p.into()).unwrap_or([0.0; 2]),
 
-                facet_shrink: draw_params.facet_shrink(self.puzzle.ndim()),
-                sticker_shrink: draw_params.sticker_shrink(self.puzzle.ndim()),
+                facet_scale: draw_params.facet_scale(),
+                gizmo_scale: draw_params.gizmo_scale(),
+                sticker_shrink: draw_params.sticker_shrink(),
                 piece_explode: draw_params.cam.prefs().piece_explode,
 
                 w_factor_4d,
                 w_factor_3d,
                 fov_signum,
-                near_plane_z,
-                far_plane_z,
                 show_frontfaces: draw_params.cam.prefs().show_frontfaces as i32,
                 show_backfaces: draw_params.cam.prefs().show_backfaces as i32,
                 clip_4d_behind_camera: !draw_params.cam.prefs().show_behind_4d_camera as i32,
                 camera_4d_w: draw_params.cam.camera_4d_w(),
+
+                first_gizmo_vertex_index: self.model.first_gizmo_vertex_index as i32,
             };
             self.gfx
                 .queue
@@ -628,8 +479,8 @@ impl PuzzleRenderer {
 
             // Should the faces/outlines use the sticker color?
             let face_sticker_color = style.face_sticker_color;
-            let outline_sticker_color = style.outline_sticker_color
-                && draw_params.outlines_may_use_sticker_color(self.puzzle.ndim());
+            let outline_sticker_color =
+                style.outline_sticker_color && draw_params.outlines_may_use_sticker_color();
 
             for &sticker in &piece_info.stickers {
                 let sticker_color =
@@ -1002,17 +853,13 @@ struct_with_constructor! {
                 const VERTEX: wgpu::BufferUsages = wgpu::BufferUsages::VERTEX;
                 const STORAGE: wgpu::BufferUsages = wgpu::BufferUsages::STORAGE;
 
-                // Convert to i32 because WGSL doesn't support 16-bit integers yet.
-                let piece_ids = mesh.piece_ids.iter().map(|&i| i.0 as u32).collect_vec();
-                let surface_ids = mesh.surface_ids.iter().map(|&i| i.0 as u32).collect_vec();
-
                 // This is just a buffer full of sequential integers so that we
                 // don't have to send that data to the GPU each frame.
                 let edge_ids = (0..mesh.edges.len() as u32).collect_vec();
             }
 
             StaticPuzzleModel {
-                ndim: u8 = mesh.ndim(),
+                ndim: u8 = mesh.ndim,
                 color_count: usize = mesh.color_count,
                 vertex_count: usize = mesh.vertex_count(),
                 polygon_count: usize = mesh.polygon_count,
@@ -1020,6 +867,7 @@ struct_with_constructor! {
                 triangle_count: usize = mesh.triangle_count(),
                 sticker_polygon_ranges: PerSticker<Range<usize>> = mesh.sticker_polygon_ranges.clone(),
                 piece_internals_polygon_ranges: PerPiece<Range<usize>> = mesh.piece_internals_polygon_ranges.clone(),
+                first_gizmo_vertex_index: usize = mesh.puzzle_vertex_count,
 
                 /*
                  * PER-VERTEX STORAGE BUFFERS
@@ -1033,9 +881,9 @@ struct_with_constructor! {
                 /// Vector along which to apply sticker shrink for each vertex.
                 sticker_shrink_vectors: wgpu::Buffer = buffer!(mesh.sticker_shrink_vectors, STORAGE),
                 /// Piece ID for each vertex.
-                piece_ids:              wgpu::Buffer = buffer!(piece_ids,                   STORAGE),
+                piece_ids:              wgpu::Buffer = buffer!(mesh.piece_ids,              STORAGE),
                 /// Facet ID for each vertex.
-                surface_ids:            wgpu::Buffer = buffer!(surface_ids,                 STORAGE),
+                surface_ids:            wgpu::Buffer = buffer!(mesh.surface_ids,            STORAGE),
                 /// Polygon ID for each vertex.
                 polygon_ids:            wgpu::Buffer = buffer!(mesh.polygon_ids,             VERTEX),
 
@@ -1088,7 +936,7 @@ struct_with_constructor! {
     impl DynamicPuzzleBuffers {
         fn new(gfx: Arc<GraphicsState>, mesh: &Mesh, id: usize) -> Self {
             {
-                let ndim = mesh.ndim();
+                let ndim = mesh.ndim;
                 let label = |s| format!("puzzle{id}_{s}");
             }
 
@@ -1296,30 +1144,101 @@ enum GeometryType {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct DrawPrepResponse {
-    /// Cache key for `vertex_3d_positions`.
-    geometry_cache_key: GeometryCacheKey,
-    /// Whether the 3D vertex positions for the puzzle should be recomputed.
-    pub needs_recompute_vertex_3d_positions: bool,
-    /// Output location for 3D vertex positions, which will be fetched from the
-    /// GPU at some point.
-    ///
-    /// If the outer `Option` is `None`, then there is no active request so
-    /// vertex positions will not be fetched.
-    ///
-    /// If the inner `Option` is `None`, then we have fetched vertex positions
-    /// from the GPU and they should be delivered by the next frame.
-    pub vertex_3d_positions: Option<Arc<Mutex<Option<Arc<Vec<cgmath::Vector4<f32>>>>>>>,
+pub struct CachedGpuCompute<K, T> {
+    gfx: Arc<GraphicsState>,
 
-    /// Cache key for redrawing the whole puzzle.
-    pub draw_params: DrawParams,
-    /// Whether the puzzle should be redrawn.
-    pub needs_redraw: bool,
+    /// Cache key
+    cache_key: Option<K>,
+    /// Whether the cache key has changed in the last frame, and so the data
+    /// needs to be recomputed.
+    pub changed: bool,
+    /// Output location for the data, which will be fetched from the GPU at some
+    /// point.
+    ///
+    /// If the outer `Option` is `None`, then there is no active request so the
+    /// data will not be fetched.
+    ///
+    /// If the inner `Option` is `None`, then we have requested data from the
+    /// GPU and it should be delivered soon, probably by the next frame.
+    pub data: Option<Arc<Mutex<Option<Arc<T>>>>>,
+}
+impl<K: PartialEq, T: 'static + Send + Sync> CachedGpuCompute<K, T> {
+    fn new(gfx: Arc<GraphicsState>) -> Self {
+        Self {
+            gfx,
 
-    /// Twist gizmo edges to draw.
-    pub gizmo_edges: Vec<[cgmath::Point2<f32>; 2]>,
-    /// Twist gizmo faces to draw.
-    pub gizmo_faces: Vec<Vec<cgmath::Point2<f32>>>,
-    /// Twist to execute if the gizmo is clicked.
-    pub gizmo_click_twist: Option<Twist>,
+            cache_key: None,
+            changed: false,
+            data: None,
+        }
+    }
+
+    /// Updates the cache key, and invalidates the cache if it has changed.
+    pub fn update_cache_key_and_invalidate(&mut self, new_key: K) {
+        if self.cache_key.as_ref() == Some(&new_key) {
+            self.changed = false;
+        } else {
+            self.cache_key = Some(new_key);
+            self.changed = true;
+            self.data = None;
+        }
+    }
+
+    /// Returns the cached data, if it is available.
+    pub fn get(&self) -> Option<Arc<T>> {
+        self.data.as_ref()?.lock().as_ref().map(Arc::clone)
+    }
+
+    /// Downloads the latest data from the GPU if the cache is empty and the
+    /// cache key did not change since the last frame.
+    pub fn download_if_stable(
+        &mut self,
+        buffer: &wgpu::BufferSlice<'_>,
+        convert: impl 'static + Send + FnOnce(wgpu::util::DownloadBuffer) -> T,
+    ) {
+        if self.changed {
+            // The data changed since the last frame, so it's likely to change
+            // again this frame. Don't bother downloading the data yet.
+            return;
+        }
+
+        self.download(buffer, convert);
+    }
+
+    /// Downloads the latest data from the GPU if the cache is empty.
+    pub fn download(
+        &mut self,
+        buffer: &wgpu::BufferSlice<'_>,
+        convert: impl 'static + Send + FnOnce(wgpu::util::DownloadBuffer) -> T,
+    ) {
+        if self.data.is_some() {
+            // There is already a download in progress, or it has completed.
+            return;
+        }
+
+        let data_ref = Arc::new(Mutex::new(None));
+        self.data = Some(Arc::clone(&data_ref));
+        wgpu::util::DownloadBuffer::read_buffer(
+            &self.gfx.device,
+            &self.gfx.queue,
+            buffer,
+            move |result| match result {
+                Ok(buffer) => {
+                    *data_ref.lock() = Some(Arc::new(convert(buffer)));
+                }
+                Err(wgpu::BufferAsyncError) => {
+                    log::error!("Error mapping wgpu buffer")
+                }
+            },
+        );
+    }
+}
+
+fn bytes_to_vec_cgmath_vector4_f32<T: bytemuck::AnyBitPattern>(
+    bytes: &[u8],
+) -> Vec<cgmath::Vector4<T>> {
+    bytemuck::cast_slice::<u8, T>(bytes)
+        .chunks_exact(4)
+        .map(|a| cgmath::vec4(a[0], a[1], a[2], a[3]))
+        .collect()
 }

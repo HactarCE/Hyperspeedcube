@@ -1,14 +1,17 @@
 use std::ops::Range;
 
-use eyre::{OptionExt, Result};
+use eyre::{bail, ensure, OptionExt, Result};
 use hypermath::prelude::*;
 
-use super::{PerPiece, PerSticker, Piece, Surface};
+use crate::GizmoFace;
+
+use super::{PerGizmoFace, PerPiece, PerSticker, Piece, Surface};
 
 /// Data to render a puzzle, in a format that can be sent to the GPU.
 #[derive(Debug, Clone)]
 pub struct Mesh {
-    ndim: u8,
+    /// Number of dimensions of the mesh.
+    pub ndim: u8,
 
     /// Number of sticker colors in the mesh.
     pub color_count: usize,
@@ -18,6 +21,17 @@ pub struct Mesh {
     pub sticker_count: usize,
     /// Number of pieces in the mesh.
     pub piece_count: usize,
+    /// Number of puzzle surfaces in the mesh.
+    pub puzzle_surface_count: usize,
+    /// Number of puzzle vertices in the mesh.
+    pub puzzle_vertex_count: usize,
+
+    /// Number of twist gizmo faces in the mesh.
+    pub gizmo_face_count: usize,
+    /// Number of twist gizmo surfaces in the mesh.
+    pub gizmo_surface_count: usize,
+    /// Number of twist gizmo vertices in the mesh.
+    pub gizmo_vertex_count: usize,
 
     /// Coordinates for each vertex in N-dimensional space.
     pub vertex_positions: Vec<f32>,
@@ -28,9 +42,9 @@ pub struct Mesh {
     /// Vector along which to move each vertex when applying sticker shrink.
     pub sticker_shrink_vectors: Vec<f32>,
     /// Piece ID for each vertex.
-    pub piece_ids: Vec<Piece>,
+    pub piece_ids: Vec<u32>,
     /// Surface ID for each vertex.
-    pub surface_ids: Vec<Surface>,
+    pub surface_ids: Vec<u32>,
     /// Polygon ID for each vertex. Each polygon is a single color.
     pub polygon_ids: Vec<u32>,
 
@@ -53,6 +67,8 @@ pub struct Mesh {
     /// For each piece, the range in `triangles` containing its internals'
     /// triangles.
     pub piece_internals_triangle_ranges: PerPiece<Range<u32>>,
+    /// For each twist gizmo, the range in `triangles` contains its triangles.
+    pub gizmo_triangle_ranges: PerGizmoFace<Range<u32>>,
 
     /// Vertex indices for edges.
     pub edges: Vec<[u32; 2]>,
@@ -60,6 +76,8 @@ pub struct Mesh {
     pub sticker_edge_ranges: PerSticker<Range<u32>>,
     /// For each piece, the range in `edges` containing its internals' edges.
     pub piece_internals_edge_ranges: PerPiece<Range<u32>>,
+    /// For each twist gizmo, the range in `edges` containing its edges.
+    pub gizmo_edge_ranges: PerGizmoFace<Range<u32>>,
 }
 
 impl Default for Mesh {
@@ -77,6 +95,12 @@ impl Mesh {
             polygon_count: 0,
             sticker_count: 0,
             piece_count: 0,
+            puzzle_surface_count: 0,
+            puzzle_vertex_count: 0,
+
+            gizmo_face_count: 0,
+            gizmo_surface_count: 0,
+            gizmo_vertex_count: 0,
 
             vertex_positions: vec![],
             u_tangents: vec![],
@@ -93,6 +117,7 @@ impl Mesh {
             triangles: vec![],
             sticker_triangle_ranges: PerSticker::new(),
             piece_internals_triangle_ranges: PerPiece::new(),
+            gizmo_triangle_ranges: PerGizmoFace::new(),
 
             edges: vec![],
             sticker_edge_ranges: PerSticker::new(),
@@ -100,20 +125,19 @@ impl Mesh {
 
             sticker_polygon_ranges: PerSticker::new(),
             piece_internals_polygon_ranges: PerPiece::new(),
+            gizmo_edge_ranges: PerGizmoFace::new(),
         }
     }
 
-    /// Returns the number of dimensions of the mesh.
-    pub fn ndim(&self) -> u8 {
-        self.ndim
+    /// Returns the number of surfaces in the mesh, including puzzle surfaces
+    /// and twist gizmo surfaces.
+    pub fn surface_count(&self) -> usize {
+        self.puzzle_surface_count + self.gizmo_surface_count
     }
-    /// Returns the number of vertices in the mesh.
+    /// Returns the number of vertices in the mesh, including puzzle vertices
+    /// and twist gizmo vertices.
     pub fn vertex_count(&self) -> usize {
-        self.vertex_positions.len() / self.ndim as usize
-    }
-    /// Returns the number of stickers in the mesh.
-    pub fn sticker_count(&self) -> usize {
-        self.sticker_count
+        self.puzzle_vertex_count + self.gizmo_vertex_count
     }
     /// Returns the number of facets in the mesh.
     pub fn facet_count(&self) -> usize {
@@ -128,20 +152,39 @@ impl Mesh {
         self.edges.len()
     }
 
-    pub(crate) fn add_vertex(&mut self, data: MeshVertexData<'_>) -> u32 {
-        let vertex_id = self.vertex_count() as u32;
+    pub(crate) fn add_puzzle_vertex(&mut self, data: MeshVertexData<'_>) -> Result<u32> {
+        ensure!(
+            self.gizmo_vertex_count == 0,
+            "puzzle mesh must be constructed before twist gizmos",
+        );
 
-        let ndim = self.ndim();
+        let ndim = self.ndim;
+        let vertex_id = self.vertex_count() as u32;
+        self.puzzle_vertex_count += 1;
         self.vertex_positions.extend(iter_f32(ndim, data.position));
         self.u_tangents.extend(iter_f32(ndim, data.u_tangent));
         self.v_tangents.extend(iter_f32(ndim, data.v_tangent));
         self.sticker_shrink_vectors
             .extend(iter_f32(ndim, data.sticker_shrink_vector));
-        self.piece_ids.push(data.piece_id);
-        self.surface_ids.push(data.surface_id);
+        self.piece_ids.push(data.piece_id.0 as u32);
+        self.surface_ids.push(data.surface_id.0 as u32);
         self.polygon_ids.push(data.polygon_id);
 
-        vertex_id
+        Ok(vertex_id)
+    }
+    pub(crate) fn add_gizmo_vertex(&mut self, pos: impl VectorRef, surface_id: u32) -> Result<u32> {
+        let ndim = self.ndim;
+        let vertex_id = self.vertex_count() as u32;
+        self.gizmo_vertex_count += 1;
+        self.vertex_positions.extend(iter_f32(ndim, &pos));
+        // No tangent vectors needed.
+        // No sticker shrink vectors needed.
+        // No piece ID needed.
+        // We *do* need a surface ID.
+        self.surface_ids.push(surface_id);
+        // No polygon ID needed.
+
+        Ok(vertex_id)
     }
     pub(crate) fn next_polygon_id(&mut self) -> Result<u32> {
         let ret = self.polygon_count as u32;
@@ -174,7 +217,7 @@ impl Mesh {
         internals_triangle_range: Range<u32>,
         internals_edge_range: Range<u32>,
     ) -> Result<()> {
-        let ndim = self.ndim();
+        let ndim = self.ndim;
         self.piece_count += 1;
         self.piece_centroids.extend(iter_f32(ndim, centroid));
         self.piece_internals_polygon_ranges
@@ -187,16 +230,47 @@ impl Mesh {
         Ok(())
     }
 
-    pub(crate) fn add_surface(
+    /// Adds a gizmo face to the mesh.
+    pub(crate) fn add_gizmo_face(
+        &mut self,
+        triangle_range: Range<u32>,
+        edge_range: Range<u32>,
+    ) -> Result<GizmoFace> {
+        let ret = GizmoFace(self.gizmo_face_count as _);
+        self.gizmo_face_count += 1;
+        self.gizmo_triangle_ranges.push(triangle_range)?;
+        self.gizmo_edge_ranges.push(edge_range)?;
+        Ok(ret)
+    }
+
+    pub(crate) fn add_puzzle_surface(
         &mut self,
         centroid: impl VectorRef,
         normal: impl VectorRef,
     ) -> Result<()> {
-        let ndim = self.ndim();
+        let ndim = self.ndim;
+        self.puzzle_surface_count += 1;
+        if self.gizmo_surface_count > 0 {
+            bail!("puzzle surfaces must precede gizmo surfaces");
+        }
         self.surface_centroids.extend(iter_f32(ndim, &centroid));
         self.surface_normals.extend(iter_f32(ndim, &normal));
 
         Ok(())
+    }
+
+    pub(crate) fn add_gizmo_surface(
+        &mut self,
+        centroid: impl VectorRef,
+        normal: impl VectorRef,
+    ) -> Result<u32> {
+        let ndim = self.ndim;
+        let surface_id = self.surface_count() as u32;
+        self.gizmo_surface_count += 1;
+        self.surface_centroids.extend(iter_f32(ndim, &centroid));
+        self.surface_normals.extend(iter_f32(ndim, &normal));
+
+        Ok(surface_id)
     }
 
     /// Returns the position of the `i`th vertex.
