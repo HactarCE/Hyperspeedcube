@@ -231,6 +231,10 @@ impl PuzzleSimulation {
             final_transform: Motor::ident(self.ndim()),
         })
     }
+    /// Returns whether there's a twist animation queued or animating currently.
+    pub fn has_twist_anim_queued(&self) -> bool {
+        self.twist_anim.current().is_some()
+    }
     /// Confirms a partial twist, completing whatever move is closest (or
     /// canceling it, if the identity twist is closest).
     ///
