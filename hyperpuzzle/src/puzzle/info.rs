@@ -171,8 +171,6 @@ pub struct ColorInfo {
     pub short_name: String,
     /// Human-friendly long name for the color. (e.g., "Up", "Right", etc.)
     pub long_name: String,
-    /// Optional string selecting a default color from the global color palette.
-    pub default_color: Option<DefaultColor>,
 }
 
 /// Default color for a puzzle color.

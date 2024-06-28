@@ -30,3 +30,6 @@ const MAX_TWIST_REPEAT: usize = 50;
 /// Radius of the promordial cube, which determines the maximum extent of all
 /// vertices along any axis.
 pub const PRIMORDIAL_CUBE_RADIUS: hypermath::Float = 1_048_576.0; // big power of 2 feels good
+
+/// Name of the default color scheme, if no other is specified.
+pub const DEFAULT_COLOR_SCHEME_NAME: &str = "Default";

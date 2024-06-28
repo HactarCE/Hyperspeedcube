@@ -275,20 +275,18 @@ impl PuzzleWidget {
 
             background_color,
             internals_color,
-            sticker_colors: puzzle
-                .colors
-                .iter()
-                .map(|(id, c)| {
-                    c.default_color
-                        .as_ref()
-                        .and_then(|default_color| Some(prefs.colors.get(default_color)?.rgb))
-                        .unwrap_or_else(|| {
-                            colorous::RAINBOW
-                                .eval_rational(id.0 as usize, puzzle.colors.len())
-                                .into_array()
-                        })
-                })
-                .collect(),
+            sticker_colors: {
+                puzzle
+                    .default_color_scheme()
+                    .iter()
+                    .map(|(id, default_color)| {
+                        default_color
+                            .as_ref()
+                            .and_then(|c| Some(prefs.colors.get(c)?.rgb))
+                            .unwrap_or_else(|| sample_rainbow(id.0 as usize, puzzle.colors.len()))
+                    })
+                    .collect()
+            },
             piece_styles: self.view.styles.values(&prefs.styles),
             piece_transforms: self.view.sim.lock().piece_transforms().map_ref(
                 |_piece, transform| transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim()),
@@ -414,4 +412,8 @@ impl PuzzleWidget {
 
         r
     }
+}
+
+fn sample_rainbow(i: usize, n: usize) -> [u8; 3] {
+    colorous::RAINBOW.eval_rational(i, n).into_array()
 }

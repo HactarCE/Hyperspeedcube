@@ -3,23 +3,23 @@ use std::collections::HashSet;
 use hyperpuzzle::DefaultColor;
 use indexmap::map::MutableKeys;
 
-use crate::{
-    app::App,
-    gui::components::{reset_button, HintWidget, PrefsUi, SMALL_ICON_BUTTON_SIZE},
-    preferences::DEFAULT_PREFS,
-};
+use crate::app::App;
+use crate::gui::components::{reset_button, HintWidget, PrefsUi, SMALL_ICON_BUTTON_SIZE};
+use crate::preferences::DEFAULT_PREFS;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
-    let active_colors = match app.active_puzzle_type() {
-        Some(p) => p
-            .colors
-            .iter_values()
-            .filter_map(|c| c.default_color.clone())
-            .collect(),
-        None => HashSet::new(),
-    };
+    // let active_colors = match app.active_puzzle_type() {
+    //     Some(p) => p
+    //         .colors
+    //         .iter_values()
+    //         .filter_map(|c| c.default_color.clone())
+    //         .collect(),
+    //     None => HashSet::new(),
+    // };
+
+    let active_colors = HashSet::<DefaultColor>::new();
 
     ui.group(|ui| {
         ui.horizontal(|ui| {

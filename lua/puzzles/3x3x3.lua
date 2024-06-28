@@ -10,13 +10,15 @@ end
 puzzles:add('3x3x3', {
   name = "3x3x3",
   ndim = 3,
+  -- colors_id = '3d/cube',
+  -- twists_id = '3d/cubic/ft',
   build = function(p)
-    local cube = symmetries.cubic.cube()
-    local sym = cube.sym
+    local shape = symmetries.cubic.cube()
+    local sym = shape.sym
     local oox = sym.oox.unit
 
     -- Build shape
-    cube:carve_into(p)
+    shape:carve_into(p)
 
     -- Define axes and slices
     p.axes:add(sym:orbit(oox):with(symmetries.cubic.FACE_NAMES), {1/3, -1/3})

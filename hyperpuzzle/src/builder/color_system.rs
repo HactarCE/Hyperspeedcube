@@ -1,17 +1,15 @@
-use eyre::{bail, Result};
+use eyre::{bail, eyre, Result};
 use hypermath::prelude::*;
+use indexmap::IndexMap;
 use itertools::Itertools;
 
 use super::{CustomOrdering, NamingScheme};
-use crate::{Color, ColorInfo, PerColor};
+use crate::{Color, ColorInfo, DefaultColor, PerColor};
 
 /// Sticker color during shape construction.
 #[derive(Debug, Clone)]
 pub struct ColorBuilder {
     surfaces: Vec<Hyperplane>,
-
-    /// Default color string.
-    pub default_color: Option<String>,
 }
 impl ColorBuilder {
     /// Returns the color's surface set.
@@ -31,6 +29,11 @@ pub struct ColorSystemBuilder {
     pub names: NamingScheme<Color>,
     /// User-specified ordering of colors.
     pub ordering: CustomOrdering<Color>,
+
+    /// Color schemes.
+    pub schemes: IndexMap<String, PerColor<Option<DefaultColor>>>,
+    /// Default color scheme.
+    pub default_scheme: Option<String>,
 }
 impl ColorSystemBuilder {
     /// Constructs a new empty color system.
@@ -54,7 +57,6 @@ impl ColorSystemBuilder {
 
         let id = self.by_id.push(ColorBuilder {
             surfaces: surfaces.clone(),
-            default_color: None,
         })?;
         self.ordering.add(id)?;
         for s in surfaces {
@@ -62,6 +64,42 @@ impl ColorSystemBuilder {
         }
 
         Ok(id)
+    }
+
+    /// Adds a new color scheme.
+    pub fn add_scheme(&mut self, name: String, mapping: PerColor<Option<DefaultColor>>) {
+        match self.schemes.entry(name) {
+            indexmap::map::Entry::Occupied(mut e) => {
+                for (id, c) in mapping {
+                    e.get_mut().extend_to_contain(id);
+                    if let Some(new_default_color) = c {
+                        e.get_mut()[id] = Some(new_default_color);
+                    }
+                }
+            }
+            indexmap::map::Entry::Vacant(e) => {
+                e.insert(mapping);
+            }
+        }
+    }
+
+    /// Sets the default color for a single color.
+    pub fn set_default_color(&mut self, id: Color, default_color: Option<DefaultColor>) {
+        let scheme = self
+            .schemes
+            .entry(crate::DEFAULT_COLOR_SCHEME_NAME.to_owned())
+            .or_default();
+        scheme.extend_to_contain(id);
+        scheme[id] = default_color;
+    }
+    /// Returns the default color for a single color, or `None` if it has not
+    /// been set.
+    pub fn get_default_color(&self, id: Color) -> Option<&DefaultColor> {
+        self.schemes
+            .get(&crate::DEFAULT_COLOR_SCHEME_NAME.to_string())?
+            .get(id)
+            .ok()?
+            .as_ref()
     }
 
     /// Returns a reference to a color by ID, or an error if the ID is out of
@@ -100,30 +138,43 @@ impl ColorSystemBuilder {
     }
 
     /// Validates and constructs a color system.
-    pub fn build(&self, warn_fn: impl Copy + Fn(eyre::Report)) -> Result<PerColor<ColorInfo>> {
-        super::iter_autonamed(
+    pub fn build(
+        &self,
+        warn_fn: impl Copy + Fn(eyre::Report),
+    ) -> Result<(
+        PerColor<ColorInfo>,
+        IndexMap<String, PerColor<Option<DefaultColor>>>,
+        String,
+    )> {
+        let colors = super::iter_autonamed(
             &self.names,
             &self.ordering,
             crate::util::iter_uppercase_letter_names(),
             warn_fn,
         )
-        .map(|(id, (short_name, long_name))| {
-            let default_color = self.get(id)?.default_color.clone();
+        .map(|(_id, (short_name, long_name))| {
             eyre::Ok(ColorInfo {
                 short_name,
                 long_name,
-                default_color: match default_color {
-                    Some(s) => match s.parse() {
-                        Ok(c) => Some(c),
-                        Err(e) => {
-                            warn_fn(e);
-                            None
-                        }
-                    },
-                    None => None,
-                },
             })
         })
-        .try_collect()
+        .try_collect()?;
+
+        let mut color_schemes = self.schemes.clone();
+        for (_name, list) in &mut color_schemes {
+            list.resize(self.len())?;
+        }
+
+        let default_color_scheme = self
+            .default_scheme
+            .clone()
+            .unwrap_or(crate::DEFAULT_COLOR_SCHEME_NAME.to_string());
+        if !color_schemes.contains_key(&default_color_scheme) {
+            warn_fn(eyre!(
+                "missing default color scheme {default_color_scheme:?}"
+            ));
+        }
+
+        Ok((colors, color_schemes, default_color_scheme))
     }
 }

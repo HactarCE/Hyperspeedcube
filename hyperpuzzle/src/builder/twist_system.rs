@@ -1,12 +1,12 @@
-use float_ord::FloatOrd;
-use itertools::Itertools;
 use std::collections::HashMap;
 
 use eyre::{bail, eyre, OptionExt, Result, WrapErr};
+use float_ord::FloatOrd;
 use hypermath::collections::approx_hashmap::FloatHash;
 use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
 use hypermath::prelude::*;
 use hypershape::Space;
+use itertools::Itertools;
 use pga::{Blade, Motor};
 
 use super::{AxisSystemBuilder, CustomOrdering};

@@ -1,4 +1,5 @@
 use cgmath::{Point3, SquareMatrix};
+use float_ord::FloatOrd;
 use hyperpuzzle::Rgb;
 
 pub const INVALID_STR: &str = "<invalid>";
@@ -172,6 +173,13 @@ pub(crate) fn lerp_colors(a: Rgb, b: Rgb, t: f32) -> Rgb {
     let b = crate::util::rgb_to_egui_rgba(b);
     let [r, g, b, _a] = hypermath::util::lerp(a, b, t).to_srgba_unmultiplied();
     Rgb { rgb: [r, g, b] }
+}
+
+pub(crate) fn contrasting_text_color(background: egui::Color32) -> egui::Color32 {
+    [egui::Color32::BLACK, egui::Color32::WHITE]
+        .into_iter()
+        .max_by_key(|&text_color| FloatOrd(egui_color_distance(text_color, background)))
+        .unwrap_or_default()
 }
 
 /// Returns the perceptual distance between two colors using CIE2000.

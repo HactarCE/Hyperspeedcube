@@ -3,9 +3,8 @@ use std::ops::Range;
 use eyre::{bail, ensure, OptionExt, Result};
 use hypermath::prelude::*;
 
-use crate::GizmoFace;
-
 use super::{PerGizmoFace, PerPiece, PerSticker, Piece, Surface};
+use crate::GizmoFace;
 
 /// Data to render a puzzle, in a format that can be sent to the GPU.
 #[derive(Debug, Clone)]

@@ -253,13 +253,23 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     }
 
     /// Extends the vector until it contains `index`.
-    pub fn extend_to_contain(&mut self, index: I) -> Result<(), IndexOverflow>
+    pub fn extend_to_contain(&mut self, index: I)
     where
         E: Default,
     {
         while index.to_u64() >= self.len() as u64 {
-            self.push(E::default())?;
+            self.push(E::default()).expect("impossible overflow!");
         }
+    }
+    /// Resizes the vector to exactly `len`.
+    pub fn resize(&mut self, len: usize) -> Result<(), IndexOverflow>
+    where
+        E: Default,
+    {
+        // Check that the new length is valid.
+        I::try_from_usize(len.saturating_sub(1))?;
+
+        self.values.resize_with(len, E::default);
         Ok(())
     }
 

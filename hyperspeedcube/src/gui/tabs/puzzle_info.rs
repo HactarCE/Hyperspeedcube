@@ -19,13 +19,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.add_space(10.0);
         ui.heading("Colors");
         for color in puzzle.colors.iter_values() {
-            // TODO: also show short name
-            let name = &color.long_name;
-            let default_color_string = match &color.default_color {
-                Some(default) => format!(" (default={default})"),
-                None => String::new(),
-            };
-            ui.label(format!("• {name}{default_color_string}"));
+            let short_name = &color.short_name;
+            let long_name = &color.long_name;
+            ui.label(format!("• {short_name} = {long_name}"));
         }
     });
 }

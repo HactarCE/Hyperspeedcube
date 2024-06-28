@@ -69,7 +69,7 @@ impl PuzzleBuilder {
         let (mut mesh, pieces, stickers) = self.shape.build()?;
 
         // Build color system.
-        let colors = self.shape.colors.build(warn_fn)?;
+        let (colors, color_schemes, default_color_scheme) = self.shape.colors.build(warn_fn)?;
 
         // Build list of piece types.
         let piece_types = [PieceTypeInfo {
@@ -101,6 +101,9 @@ impl PuzzleBuilder {
             stickers,
             piece_types,
             colors,
+
+            color_schemes,
+            default_color_scheme,
 
             scramble_moves_count: 500, // TODO
 

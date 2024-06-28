@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -5,16 +6,16 @@ use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
 use hypermath::pga::*;
 use hypermath::prelude::*;
-use hyperpuzzle::GizmoFace;
-use hyperpuzzle::{LayerMask, PerPiece, Piece, PieceMask, Puzzle, Sticker};
+use hyperpuzzle::{
+    Color, DefaultColor, GizmoFace, LayerMask, PerColor, PerPiece, Piece, PieceMask, Puzzle,
+    Sticker,
+};
 use parking_lot::Mutex;
 
 use super::simulation::PuzzleSimulation;
 use super::styles::*;
 use super::Camera;
-use crate::preferences::Preferences;
-use crate::preferences::PuzzleViewPreferencesSet;
-use crate::preferences::DEFAULT_PREFS;
+use crate::preferences::{Preferences, PuzzleViewPreferencesSet, DEFAULT_PREFS};
 
 /// View into a puzzle simulation, which has its own piece filters.
 #[derive(Debug)]
@@ -25,6 +26,7 @@ pub struct PuzzleView {
 
     pub camera: Camera,
 
+    pub colors: PuzzleColors,
     pub styles: PuzzleStyleStates,
 
     /// Latest screen-space cursor position.
@@ -50,6 +52,13 @@ impl PuzzleView {
             .or_else(|| DEFAULT_PREFS[view_prefs_set].current_preset())
             .unwrap_or_default()
             .clone();
+
+        let colors = puzzle.default_color_scheme().into_owned();
+        let colors = PuzzleColors {
+            scheme_name: puzzle.default_color_scheme.clone(),
+            colors,
+        };
+
         Self {
             sim: Arc::clone(puzzle_simulation),
 
@@ -60,6 +69,7 @@ impl PuzzleView {
                 zoom: 0.5,
             },
 
+            colors,
             styles: PuzzleStyleStates::new(puzzle.pieces.len()),
 
             cursor_pos: None,
@@ -584,4 +594,23 @@ pub struct PuzzleViewInput<'a> {
     pub exceeded_twist_drag_threshold: bool,
     /// Whether to show the hovered sticker.
     pub show_sticker_hover: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct PuzzleColors {
+    /// Name of the current color scheme.
+    pub scheme_name: String,
+    /// Colors in use by the current scheme.
+    pub colors: PerColor<Option<DefaultColor>>,
+}
+impl PuzzleColors {
+    pub fn color_to_name_mapping(&self) -> HashMap<DefaultColor, Vec<Color>> {
+        let mut ret = HashMap::<DefaultColor, Vec<Color>>::new();
+        for (color, default_color) in &self.colors {
+            if let Some(default_color) = default_color {
+                ret.entry(default_color.clone()).or_default().push(color);
+            }
+        }
+        ret
+    }
 }

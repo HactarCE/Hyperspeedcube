@@ -29,13 +29,17 @@ impl LuaUserData for LuaColor {
         fields.add_field_method_get("default_color", |_lua, this| {
             let puz = this.db.lock();
             let colors = &puz.shape.colors;
-            Ok(colors.get(this.id).into_lua_err()?.default_color.clone())
+            Ok(colors
+                .get_default_color(this.id)
+                .map(|default_color| default_color.to_string()))
         });
-        fields.add_field_method_set("default_color", |_lua, this, new_default_color| {
+        fields.add_field_method_set("default_color", |lua, this, new_default_color| {
             let mut puz = this.db.lock();
             let colors = &mut puz.shape.colors;
-            colors.get_mut(this.id).into_lua_err()?.default_color = new_default_color;
-            Ok(())
+            Ok(colors.set_default_color(
+                this.id,
+                super::default_color_from_str(lua, new_default_color),
+            ))
         });
     }
 

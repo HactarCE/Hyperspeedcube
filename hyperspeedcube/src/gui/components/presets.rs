@@ -1,12 +1,11 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
+use super::{HintWidget, PrefsUi, BIG_ICON_BUTTON_SIZE, SMALL_ICON_BUTTON_SIZE};
 use crate::gui::components::PlaintextYamlEditor;
 use crate::gui::ext::ResponseExt;
 use crate::gui::util::{body_text_format, strong_text_format};
 use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
-
-use super::{HintWidget, PrefsUi, BIG_ICON_BUTTON_SIZE, SMALL_ICON_BUTTON_SIZE};
 
 fn show_presets_help_ui(ui: &mut egui::Ui) {
     // TODO: markdown renderer

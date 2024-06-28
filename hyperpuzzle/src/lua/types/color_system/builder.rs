@@ -7,6 +7,7 @@ use super::*;
 use crate::builder::{CustomOrdering, NamingScheme, PuzzleBuilder};
 use crate::lua::lua_warn_fn;
 use crate::puzzle::Color;
+use crate::{DefaultColor, PerColor};
 
 /// Lua handle to the color system of a shape under construction.
 #[derive(Debug, Clone)]
@@ -23,6 +24,10 @@ impl LuaUserData for LuaColorSystem {
         LuaOrderedIdDatabase::<Color>::add_ordered_db_methods(methods, |Self(puz)| puz.lock());
 
         methods.add_method("add", |lua, this, data| this.add(lua, data));
+
+        methods.add_method("add_scheme", |lua, this, (name, data)| {
+            this.add_scheme(lua, name, data)
+        });
 
         methods.add_method("set_defaults", |lua, this, new_default_colors| {
             this.set_default_colors(lua, new_default_colors)
@@ -98,41 +103,59 @@ impl LuaColorSystem {
         let mut puz = self.0.lock();
         let colors = &mut puz.shape.colors;
         let id = colors.add(surfaces.0).into_lua_err()?;
-        colors.get_mut(id).into_lua_err()?.default_color = default_color;
+        colors.set_default_color(id, default_color_from_str(lua, default_color));
         colors.names.set_short_name(id, name, lua_warn_fn(lua));
         Ok(puz.wrap_id(id))
     }
 
-    /// Sets some default colors, leaving other unmodified.
-    fn set_default_colors<'lua>(
+    /// Adds a new named color scheme.
+    fn add_scheme<'lua>(
         &self,
         lua: &'lua Lua,
-        new_default_colors: LuaValue<'lua>,
+        name: String,
+        data: LuaValue<'lua>,
     ) -> LuaResult<()> {
-        // First, assemble a list of all the new default colors.
-        let mut puz = self.0.lock();
+        let mapping = self.color_mapping_from_value(lua, data)?;
+        self.0.lock().shape.colors.add_scheme(name, mapping);
+        Ok(())
+    }
+
+    /// Sets the default color scheme.
+    fn set_default_colors<'lua>(&self, lua: &'lua Lua, data: LuaValue<'lua>) -> LuaResult<()> {
+        self.add_scheme(lua, crate::DEFAULT_COLOR_SCHEME_NAME.to_string(), data)
+    }
+
+    fn color_mapping_from_value<'lua>(
+        &self,
+        lua: &'lua Lua,
+        mapping_to_color_names: LuaValue<'lua>,
+    ) -> LuaResult<PerColor<Option<DefaultColor>>> {
+        let puz = self.0.lock();
 
         // This is similar to `LuaIdDatabase::mapping_from_value()`, but it
         // allows the keys themselves to be tables of values (and then adds
         // `[n]` to the end of the value string).
-        let mut kv_pairs: Vec<(Color, Option<String>)> = vec![];
-        match new_default_colors {
+        let mut mapping: PerColor<Option<DefaultColor>> = std::iter::repeat(None)
+            .take(puz.shape.colors.len())
+            .collect();
+        match mapping_to_color_names {
             LuaValue::Table(t) => {
                 for pair in t.pairs() {
-                    let (key, value): (LuaValue<'_>, Option<String>) = pair?;
+                    let (key, value): (LuaValue<'_>, String) = pair?;
                     // IIFE to mimic try_block
                     let result = (|| {
                         if let LuaValue::Table(t2) = key {
                             // Table of values -> color set
                             for (i, k) in t2.sequence_values().enumerate() {
-                                let v = match &value {
-                                    Some(s) => Some(format!("{s} [{}]", i + 1)),
-                                    None => None,
+                                let value = DefaultColor::Set {
+                                    set_name: value.clone(),
+                                    index: i, // 0-indexed
                                 };
-                                kv_pairs.push((puz.value_to_id(lua, k?)?, v));
+                                mapping[puz.value_to_id(lua, k?)?] = Some(value);
                             }
                         } else {
-                            kv_pairs.push((puz.value_to_id(lua, key)?, value));
+                            mapping[puz.value_to_id(lua, key)?] =
+                                default_color_from_str(lua, Some(value));
                         }
                         LuaResult::Ok(())
                     })();
@@ -145,17 +168,13 @@ impl LuaColorSystem {
             LuaValue::Function(f) => {
                 for &id in &*puz.ids_in_order() {
                     let value = f.call(puz.wrap_id(id))?;
-                    kv_pairs.push((id, value));
+                    mapping[id] = default_color_from_str(lua, Some(value));
                 }
             }
 
             mapping_value => return lua_convert_err(&mapping_value, "table or function"),
         }
 
-        for (k, v) in kv_pairs {
-            puz.shape.colors.get_mut(k).into_lua_err()?.default_color = v;
-        }
-
-        Ok(())
+        Ok(mapping)
     }
 }

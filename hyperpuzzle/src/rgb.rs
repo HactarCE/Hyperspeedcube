@@ -1,5 +1,7 @@
+use std::fmt;
+use std::str::FromStr;
+
 use serde::de::Error;
-use std::{fmt, str::FromStr};
 
 /// 8-bit sRGB color that serializes to a string like `"#ff00ff"`.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]

@@ -1,5 +1,5 @@
 FACE_NAMES = {
-  symmetry = cd'bc3',
+  symmetry = 'bc3',
   {{3, "D" }, "R", "Right"},
   {{1, "F" }, "L", "Left"},
   {{3, "BL"}, "U", "Up"},
@@ -21,7 +21,7 @@ OCTAHEDRON_COLOR_SCHEMES = {
     BL = "Orange",
     BD = "Blue",
   },
-  ["Classic"] = {
+  ["Benpuzzles Classic"] = {
     R = "Yellow",
     L = "Cyan",
     U = "Mono Dyad [1]",
@@ -31,7 +31,7 @@ OCTAHEDRON_COLOR_SCHEMES = {
     BL = "Blue",
     BD = "Magenta",
   },
-  ["Alt"] = {
+  ["Benpuzzles Alt"] = {
     R = "Red",
     L = "Yellow",
     U = "Mono Dyad [1]",
@@ -66,11 +66,16 @@ OCTAHEDRON_COLOR_SCHEMES = {
 OCTAHEDRON_COLORS = OCTAHEDRON_COLOR_SCHEMES["Diansheng"]
 
 function octahedron()
-  local shape = setmetatable({ sym = cd'bc3' }, meta.shape)
+  local shape = setmetatable({}, meta.shape)
+  shape.sym = cd'bc3'
+  shape.pole = shape.xoo.unit
 
   function shape:carve_into(p)
     p:carve(self.sym:orbit(self.oox.unit):with(FACE_NAMES))
-    p.colors:set_defaults(OCTAHEDRON_COLORS)
+    for _, name in ipairs{"Lanlan", "Benpuzzles Classic", "Benpuzzles Alt", "Diansheng", "MF8"} do
+      p.colors:add_scheme(name, OCTAHEDRON_COLOR_SCHEMES[name])
+    end
+    p.colors:set_defaults("Diansheng")
   end
 
   return shape
