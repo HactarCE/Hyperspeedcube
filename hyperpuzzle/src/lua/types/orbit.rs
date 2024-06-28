@@ -20,7 +20,7 @@ pub struct LuaOrbit {
     /// to be equivalent to `0..orbit_len.len()`.
     order: Option<Vec<usize>>,
     /// Elements, in the order that they were generated.
-    orbit_list: Vec<(Motor, Option<String>, Vec<Transformable>)>,
+    orbit_list: Vec<OrbitElement>,
 
     iter_index: Arc<AtomicUsize>,
 }
@@ -49,7 +49,25 @@ impl LuaUserData for LuaOrbit {
             this.has_names
                 .then(|| {
                     lua.create_sequence_from(
-                        this.orbit_list.iter().map(|(_, name, _)| name.clone()),
+                        this.orbit_list.iter().map(|elem| elem.short_name.clone()),
+                    )
+                })
+                .transpose()
+        });
+        fields.add_field_method_get("short_names", |lua, this| {
+            this.has_names
+                .then(|| {
+                    lua.create_sequence_from(
+                        this.orbit_list.iter().map(|elem| elem.short_name.clone()),
+                    )
+                })
+                .transpose()
+        });
+        fields.add_field_method_get("long_names", |lua, this| {
+            this.has_names
+                .then(|| {
+                    lua.create_sequence_from(
+                        this.orbit_list.iter().map(|elem| elem.long_name.clone()),
                     )
                 })
                 .transpose()
@@ -73,17 +91,24 @@ impl LuaUserData for LuaOrbit {
             // Return multiple values.
             let mut values = vec![];
             if let Some(i) = orbit_index {
-                if let Some((transform, name, objects)) = this.orbit_list.get(i) {
+                if let Some(element) = this.orbit_list.get(i) {
+                    let OrbitElement {
+                        transform,
+                        short_name,
+                        long_name,
+                        objects,
+                    } = element;
                     // The first value is the transform.
                     values.push(LuaTransform(transform.clone()).into_lua(lua)?);
                     // Then push the objects.
                     for obj in objects {
                         values.push(obj.into_nillable_lua(lua)?);
                     }
-                    // If custom names are given, then the last value is the
-                    // custom name.
+                    // If custom names are given, then the last values are the
+                    // custom names.
                     if this.has_names {
-                        values.push(name.as_deref().into_lua(lua)?);
+                        values.push(short_name.as_deref().into_lua(lua)?);
+                        values.push(long_name.as_deref().into_lua(lua)?);
                     }
                 }
             }
@@ -108,24 +133,26 @@ impl LuaUserData for LuaOrbit {
             }
             let names_and_order = names_and_order_from_table(lua, names_and_order_table)?;
             let mut lookup = ApproxHashMap::new();
-            for (i, (_motor, _empty_name, objects)) in this.orbit_list.iter().enumerate() {
-                lookup.insert(objects.clone(), i);
+            for (i, element) in this.orbit_list.iter().enumerate() {
+                lookup.insert(element.objects.clone(), i);
             }
             let mut order = vec![];
             let mut new_orbit_list = this.orbit_list.clone();
             let mut seen: Vec<bool> = vec![false; new_orbit_list.len()];
-            for (name, motor) in names_and_order {
+            for ((short_name, long_name), motor) in names_and_order {
                 if let Some(&index) = lookup.get(&motor.transform(&this.init)) {
                     seen[index] = true;
-                    let (_motor, name_mut, _objects) = &mut new_orbit_list[index];
-                    if let Some(old_name) = name_mut {
-                        let msg =
-                            format!("duplicate in symmetry orbit order: {old_name:?} and {name:?}");
+                    let element = &mut new_orbit_list[index];
+                    if let Some(old_name) = &element.short_name {
+                        let msg = format!(
+                            "duplicate in symmetry orbit order: {old_name:?} and {short_name:?}"
+                        );
                         lua.warning(msg, false);
                     } else {
-                        *name_mut = Some(name);
+                        element.short_name = Some(short_name);
                         order.push(index);
                     }
+                    element.long_name = long_name;
                 }
             }
 
@@ -155,8 +182,14 @@ impl LuaOrbit {
             .orbit(init.clone())
             .into_iter()
             // Assign empty names.
-            .map(|(motor, objects)| (motor, None, objects))
-            .collect_vec();
+            .map(|(transform, objects)| OrbitElement {
+                transform,
+                short_name: None,
+                long_name: None,
+                objects,
+            })
+            .collect();
+
         Self {
             symmetry,
             init,
@@ -184,9 +217,7 @@ impl LuaOrbit {
         self.has_names
     }
     /// Returns an iterator over the whole orbit.
-    pub fn iter_in_order(
-        &self,
-    ) -> impl Iterator<Item = &(Motor, Option<String>, Vec<Transformable>)> {
+    fn iter_in_order(&self) -> impl Iterator<Item = &OrbitElement> {
         match &self.order {
             Some(order) => order.iter().flat_map(|&i| self.orbit_list.get(i)).collect(),
             None => self.orbit_list.iter().collect_vec(),
@@ -197,11 +228,16 @@ impl LuaOrbit {
 
 /// Constructs an assignment of names and ordering based on a table for a
 /// particular symmetry group.
+///
+/// The first string in each pair is the **short name**, which is required. The
+/// second string in each pair is the **long name**, which is optional.
 pub fn names_and_order_from_table<'lua>(
     lua: &'lua Lua,
     table: LuaTable<'lua>,
-) -> LuaResult<Vec<(String, Motor)>> {
-    let symmetry = table.get::<_, LuaSymmetry>("symmetry")?;
+) -> LuaResult<Vec<((String, Option<String>), Motor)>> {
+    // TODO: just compare against the existing symmetry, and use the existing
+    // symmetry for calculations
+    let symmetry = LuaSymmetry::construct_from_lua_value(table.get("symmetry")?)?;
 
     let mut order = vec![];
     // Some values are given directly.
@@ -210,9 +246,10 @@ pub fn names_and_order_from_table<'lua>(
     let mut unknown = HashMap::<String, Vec<(String, Motor)>>::new();
 
     for entry in table.sequence_values::<LuaValue<'_>>() {
-        let [new_name, key]: [LuaValue<'_>; 2] = <_>::from_lua(entry?, lua)?;
-        let new_name = String::from_lua(new_name, lua)?;
-        order.push(new_name.clone());
+        let [key, short_name, long_name]: [LuaValue<'_>; 3] = <_>::from_lua(entry?, lua)?;
+        let short_name = String::from_lua(short_name, lua)?;
+        let long_name = Option::<String>::from_lua(long_name, lua)?;
+        order.push((short_name.clone(), long_name));
 
         let mut mirror_seq: Vec<LuaValue<'_>> = LuaTable::from_lua(key.clone(), lua)?
             .sequence_values::<LuaValue<'_>>()
@@ -233,9 +270,9 @@ pub fn names_and_order_from_table<'lua>(
             Some(init_name) => unknown
                 .entry(init_name)
                 .or_default()
-                .push((new_name, motor)),
+                .push((short_name, motor)),
             None => {
-                known.insert(new_name, motor);
+                known.insert(short_name, motor);
             }
         }
     }
@@ -258,9 +295,9 @@ pub fn names_and_order_from_table<'lua>(
     // Assemble into ordered list.
     Ok(order
         .into_iter()
-        .filter_map(|name| {
-            let motor = known.remove(&name)?;
-            Some((name, motor))
+        .filter_map(|(short_name, long_name)| {
+            let motor = known.remove(&short_name)?;
+            Some(((short_name, long_name), motor))
         })
         .collect())
 }
@@ -289,14 +326,14 @@ impl<'lua, T: LuaTypeName + FromLua<'lua>> FromLua<'lua> for LuaSymmetricSet<T> 
 }
 impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
     /// Returns a list of all the objects in the orbit.
-    pub fn to_vec(&self, lua: &'lua Lua) -> LuaResult<Vec<(Option<String>, T)>> {
+    pub fn to_vec(&self, lua: &'lua Lua) -> LuaResult<Vec<((Option<String>, Option<String>), T)>> {
         match self {
-            LuaSymmetricSet::Single(v) => Ok(vec![(None, v.clone())]),
+            LuaSymmetricSet::Single(v) => Ok(vec![((None, None), v.clone())]),
             LuaSymmetricSet::Orbit(orbit) => orbit
                 .iter_in_order()
-                .map(|(_transform, name, values)| {
-                    let v = Self::to_expected_type(lua, values.get(0))?;
-                    Ok((name.clone(), v))
+                .map(|element| {
+                    let v = Self::to_expected_type(lua, element.objects.get(0))?;
+                    Ok(((element.short_name.clone(), element.long_name.clone()), v))
                 })
                 .try_collect(),
         }
@@ -319,4 +356,13 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
                 )))??;
         T::from_lua(lua_value, lua)
     }
+}
+
+/// Element in an orbit.
+#[derive(Debug, Clone)]
+struct OrbitElement {
+    transform: Motor,
+    short_name: Option<String>,
+    long_name: Option<String>,
+    objects: Vec<Transformable>,
 }

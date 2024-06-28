@@ -281,7 +281,7 @@ impl PuzzleWidget {
                 .map(|(id, c)| {
                     c.default_color
                         .as_ref()
-                        .and_then(|s| Some(prefs.named_sticker_color(s)?.rgb))
+                        .and_then(|default_color| Some(prefs.colors.get(default_color)?.rgb))
                         .unwrap_or_else(|| {
                             colorous::RAINBOW
                                 .eval_rational(id.0 as usize, puzzle.colors.len())

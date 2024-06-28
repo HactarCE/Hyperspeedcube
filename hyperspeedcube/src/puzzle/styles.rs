@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use hyperpuzzle::{Piece, PieceMask};
+use hyperpuzzle::{Piece, PieceMask, Rgb};
 
-use crate::preferences::{Rgb, StyleId, StylePreferences};
+use crate::preferences::{StyleId, StylePreferences};
 
 /// Returns a closure that updates the given style state.
 #[macro_export]
@@ -264,7 +264,7 @@ impl PieceStyleState {
                 .or(base.and_then(|s| s.outline_opacity))
                 .unwrap_or(def.outline_opacity.unwrap_or_default()),
             ),
-            outline_color: Rgb::lerp(
+            outline_color: crate::util::lerp_colors(
                 first_or_default(color_order.map(|s| s?.outline_color)),
                 styles.blocking_color,
                 self.blocking_amount as f32 / 255.0,

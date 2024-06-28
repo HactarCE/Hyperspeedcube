@@ -10,7 +10,7 @@ puzzles:add('rt_hypercube', {
 
     -- Build shape
     p:carve(sym:orbit(ooox):with(hypercubic.FACE_NAMES))
-    -- p.colors:set_defaults(hypercubic.FACE_COLORS)
+    p.colors:set_defaults(hypercubic.FACE_COLORS)
 
     -- Define axes and slices
     p.axes:add(sym:orbit(ooxo), {1})

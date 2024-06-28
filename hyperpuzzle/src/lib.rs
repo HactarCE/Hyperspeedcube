@@ -4,12 +4,14 @@ pub mod builder;
 mod library;
 pub mod lua;
 mod puzzle;
+mod rgb;
 mod task;
 mod util;
 
 pub use library::*;
 pub use lua::LuaLogLine;
 pub use puzzle::*;
+pub use rgb::Rgb;
 pub use task::TaskHandle;
 
 /// Unsigned integer type used for [`LayerMask`].

@@ -8,11 +8,11 @@ puzzles:add('20cell', {
     -- Build shape
     p:carve(sym:orbit(xoox))
     local t = {
-      [{1, 3, 6, 10}] = 'Red tetrad',
-      [{2, 5, 9, 14}] = 'Green tetrad',
-      [{4, 8, 13, 17}] = 'Grey tetrad',
-      [{7, 12, 16, 19}] = 'Blue tetrad',
-      [{11, 15, 18, 20}] = 'Purple tetrad',
+      [{1, 3, 6, 10}] = 'Red Tetrad',
+      [{2, 5, 9, 14}] = 'Green Tetrad',
+      [{4, 8, 13, 17}] = 'Mono Tetrad',
+      [{7, 12, 16, 19}] = 'Blue Tetrad',
+      [{11, 15, 18, 20}] = 'Purple Tetrad',
     }
     p.colors:set_defaults(t)
 

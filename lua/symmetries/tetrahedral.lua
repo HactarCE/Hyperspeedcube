@@ -1,28 +1,21 @@
-FACE_AXIS_NAMES = {
-  symmetry = cd'a3',
-  {'r', {2, 'f'}},
-  {'l', {1, 'r'}},
-  {'f', {3, 'd'}},
-  {'d', {}}, -- oox
+FACE_NAMES = {
+  symmetry = 'a3',
+  {{2, "f"}, "r", "Right face"},
+  {{1, "r"}, "l", "Left face"},
+  {{3, "d"}, "f", "Front face"},
+  {{      }, "d", "Down face"}, -- oox
 }
-VERTEX_AXIS_NAMES = {
-  symmetry = cd'a3',
-  {'R', {}}, -- xoo
-  {'L', {1, 'R'}},
-  {'U', {3, 'B'}},
-  {'B', {2, 'L'}},
+VERTEX_NAMES = {
+  symmetry = 'a3',
+  {{      }, "R", "Right"}, -- xoo
+  {{1, "R"}, "L", "Left"},
+  {{3, "B"}, "U", "Up"},
+  {{2, "L"}, "B", "Back"},
 }
-
-FACE_NAMES = require('utils').map_string_values(FACE_AXIS_NAMES, {
-  r = 'Right',
-  l = 'Left',
-  f = 'Front',
-  d = 'Down',
-})
 
 FACE_COLORS = {
-  Right = 'Blue',
-  Left = 'Red',
-  Front = 'Green',
-  Down = 'Yellow',
+  R = "Blue",
+  L = "Red",
+  F = "Green",
+  D = "Yellow",
 }

@@ -1,9 +1,14 @@
+use std::fmt;
+use std::str::FromStr;
+
 use hypermath::collections::{GenericMask, GenericVec};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hypershape::PolytopeId;
 use smallvec::SmallVec;
 use tinyset::Set64;
+
+use crate::Rgb;
 
 hypermath::idx_struct! {
     /// ID of a **piece**, which is rigid component of the puzzle that moves
@@ -94,23 +99,11 @@ pub struct StickerInfo {
     pub color: Color,
 }
 
-/// Facet info.
-#[derive(Debug)]
-pub struct FacetInfo {
-    /// Human-friendly name for the facet. (e.g., "Up", "Right", etc.)
-    pub name: String,
-    /// Point on the facet that is closest to the origin. This is a scalar
-    /// multiple of the facet's normal vector.
-    pub pole: Vector,
-    /// Name of default color.
-    pub default_color: Option<String>,
-}
-
 /// Twist axis info.
 #[derive(Debug)]
 pub struct AxisInfo {
-    /// Human-friendly name for the twist axis. (e.g, "U", "R", etc.)
-    pub name: String,
+    /// Short name for the twist axis. (e.g, "U", "R", etc.)
+    pub short_name: String,
     /// Vector preserved by all twists of the axis.
     pub vector: Vector,
     /// Layer.
@@ -118,7 +111,7 @@ pub struct AxisInfo {
 }
 impl AsRef<str> for AxisInfo {
     fn as_ref(&self) -> &str {
-        &self.name
+        &self.short_name
     }
 }
 
@@ -174,8 +167,53 @@ impl AsRef<str> for PieceTypeInfo {
 /// Color info.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ColorInfo {
-    /// User-facing color name.
-    pub name: String,
+    /// Short name for the color. (e.g., "U", "R", etc.)
+    pub short_name: String,
+    /// Human-friendly long name for the color. (e.g., "Up", "Right", etc.)
+    pub long_name: String,
     /// Optional string selecting a default color from the global color palette.
-    pub default_color: Option<String>,
+    pub default_color: Option<DefaultColor>,
+}
+
+/// Default color for a puzzle color.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[allow(missing_docs)]
+pub enum DefaultColor {
+    /// Specific hexcode, such as `#ff00ff` or `#f0f`.
+    HexCode { rgb: Rgb },
+    /// Single named color.
+    Single { name: String },
+    /// Color from a named set.
+    Set { set_name: String, index: usize },
+}
+impl FromStr for DefaultColor {
+    type Err = eyre::Report;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.trim();
+
+        if s.starts_with('#') {
+            return Ok(Self::HexCode { rgb: s.parse()? });
+        }
+
+        let name = s.to_string();
+
+        // IIFE to mimic try_block
+        Ok((|| {
+            let (set_name, index) = s.strip_suffix(']')?.split_once('[')?;
+            let set_name = set_name.trim().to_string();
+            let index: usize = index.trim().parse::<usize>().ok()?.checked_sub(1)?; // 1-indexed
+            Some(Self::Set { set_name, index })
+        })()
+        .unwrap_or_else(|| Self::Single { name }))
+    }
+}
+impl fmt::Display for DefaultColor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DefaultColor::HexCode { rgb } => write!(f, "{rgb}"),
+            DefaultColor::Single { name } => write!(f, "{name}"),
+            DefaultColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index + 1), // 1-indexed
+        }
+    }
 }

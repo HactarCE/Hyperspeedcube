@@ -1,14 +1,12 @@
 use std::ops::RangeInclusive;
 
 use egui::NumExt;
+use hyperpuzzle::Rgb;
 
-use crate::app::App;
-use crate::gui::components::{
-    big_icon_button, small_icon_button, with_reset_button, PresetsUi, WidgetWithReset,
-};
+use crate::gui::components::{with_reset_button, WidgetWithReset};
 use crate::gui::ext::*;
 use crate::gui::util::Access;
-use crate::preferences::{InteractionPreferences, PuzzleViewPreferencesSet, Rgb, ViewPreferences};
+use crate::preferences::{InteractionPreferences, PuzzleViewPreferencesSet, ViewPreferences};
 
 const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
 const FOV_3D_RANGE: RangeInclusive<f32> = -120.0..=120.0;
@@ -139,15 +137,29 @@ impl<'a, T> PrefsUi<'a, T> {
         })
     }
 
-    pub fn color(&mut self, label: &str, access: Access<T, Rgb>) -> egui::Response {
+    pub fn color(
+        &mut self,
+        label: &str,
+        access: Access<T, Rgb>,
+        is_active: Option<bool>,
+    ) -> egui::Response {
         let reset_value = *(access.get_ref)(self.defaults);
         let reset_value_str = reset_value.to_string();
         self.add(|current| WidgetWithReset {
-            label,
+            label: "",
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str,
-            make_widget: |value| |ui: &mut egui::Ui| ui.color_edit_button_srgb(&mut value.rgb),
+            make_widget: |value| {
+                |ui: &mut egui::Ui| {
+                    ui.color_edit_button_srgb(&mut value.rgb);
+                    match is_active {
+                        Some(true) => ui.strong(label),
+                        Some(false) => ui.add_enabled(false, egui::Label::new(label)),
+                        None => ui.label(label),
+                    }
+                }
+            },
         })
     }
     pub fn fixed_multi_color(

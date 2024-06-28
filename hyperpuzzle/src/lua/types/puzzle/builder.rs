@@ -55,7 +55,7 @@ impl LuaUserData for LuaPuzzleBuilder {
             } else {
                 sticker_mode = StickerMode::NewColor;
             }
-            // TODO: allow naming a single carve operation
+            // TODO: allow assigning face name when carving a single face (i.e., not using orbits)
             this.cut(lua, cuts, CutMode::Carve, sticker_mode)
         });
         methods.add_method("slice", |lua, this, cuts| {
@@ -87,11 +87,15 @@ impl LuaPuzzleBuilder {
         let mut puz = self.lock();
         let shape = &mut puz.shape;
 
-        for (name, LuaHyperplane(plane)) in cuts.to_vec(lua)? {
+        for ((short_name, long_name), LuaHyperplane(plane)) in cuts.to_vec(lua)? {
             let color = match sticker_mode {
                 StickerMode::NewColor => Some({
                     let c = shape.colors.add(vec![plane.clone()]).into_lua_err()?;
-                    shape.colors.names.set(c, name, lua_warn_fn(lua));
+                    shape
+                        .colors
+                        .names
+                        .set_short_name(c, short_name, lua_warn_fn(lua));
+                    shape.colors.names.set_long_name(c, long_name);
                     c
                 }),
                 StickerMode::None => None,

@@ -1,45 +1,44 @@
-AXIS_NAMES = {
-  symmetry = cd'h3',
-  {'U', {}}, -- oox
-  {'F', {3, 'U'}},
-  {'R', {2, 'F'}},
-  {'L', {1, 'R'}},
-  {'BR', {2, 'L'}},
-  {'BL', {1, 'BR'}},
-  {'DR', {3, 'BR'}},
-  {'DL', {3, 'BL'}},
-  {'PR', {2, 'DL'}},
-  {'PL', {1, 'PR'}},
-  {'PB', {2, 'PL'}},
-  {'PD', {3, 'PB'}},
+FACE_NAMES = {
+  symmetry = 'h3',
+  [{       }] = {"U", "Up"}, -- oox
+  [{3, "U" }] = {"F", "Front"},
+  [{2, "F" }] = {"R", "Right"},
+  [{1, "R" }] = {"L", "Left"},
+  [{2, "L" }] = {"BR", "Back-right"},
+  [{1, "BR"}] = {"BL", "Back-left"},
+  [{3, "BR"}] = {"DR", "Down-right"},
+  [{3, "BL"}] = {"DL", "Down-left"},
+  [{2, "DL"}] = {"PR", "Para-right"},
+  [{1, "PR"}] = {"PL", "Para-left"},
+  [{2, "PL"}] = {"PB", "Para-back"},
+  [{3, "PB"}] = {"PD", "Para-down"},
 }
 
-FACE_NAMES = require('utils').map_string_values(AXIS_NAMES, {
-  U = 'Up',
-  F = 'Front',
-  R = 'Right',
-  L = 'Left',
-  BR = 'Back-right',
-  BL = 'Back-left',
-  DR = 'Down-right',
-  DL = 'Down-left',
-  PR = 'Para-right',
-  PL = 'Para-left',
-  PB = 'Para-back',
-  PD = 'Para-down',
-})
-
-FACE_COLORS = {
-  ['Up'] = 'White',
-  ['Front'] = 'Green',
-  ['Right'] = 'Red',
-  ['Left'] = 'Purple',
-  ['Back-right'] = 'Blue',
-  ['Back-left'] = 'Yellow',
-  ['Down-right'] = 'Light Yellow',
-  ['Down-left'] = 'Light Blue',
-  ['Para-right'] = 'Pink',
-  ['Para-left'] = 'Orange',
-  ['Para-back'] = 'Light Green',
-  ['Para-down'] = 'Gray',
+DODECAHEDRON_COLORS = {
+  U = 'White',
+  F = 'Green',
+  R = 'Red',
+  L = 'Purple',
+  BR = 'Blue',
+  BL = 'Yellow',
+  DR = 'Light Yellow',
+  DL = 'Light Blue',
+  PR = 'Pink',
+  PL = 'Orange',
+  PB = 'Light Green',
+  PD = 'Gray',
 }
+
+function dodecahedron()
+  local shape = setmetatable({}, meta.shape)
+  shape.sym = cd'h3'
+  shape.pole = shape.oox.unit
+  shape.colors = shape.colors
+
+  function shape:carve_into(p)
+    p:carve(shape.sym:orbit(shape.pole):with(FACE_NAMES))
+    p.colors:set_defaults(FACE_COLORS)
+  end
+
+  return setmetatable(shape, meta.shape)
+end

@@ -1,4 +1,5 @@
 use cgmath::{Point3, SquareMatrix};
+use hyperpuzzle::Rgb;
 
 pub const INVALID_STR: &str = "<invalid>";
 
@@ -155,29 +156,39 @@ pub fn wrap_words<S: AsRef<str>>(words: impl Iterator<Item = S>) -> String {
     ret
 }
 
-/// Converts an [`egui::Color32`] to a `[u8; 3]`, ignoring alpha.
-pub(crate) fn color_to_u8x3(color: impl Into<egui::Color32>) -> [u8; 3] {
-    let [r, g, b, _a] = color.into().to_array();
-    [r, g, b]
+/// Converts a [`hyperpuzzle::Rgb`] to an [`egui::Color32`].
+pub(crate) fn rgb_to_egui_color32(color: Rgb) -> egui::Color32 {
+    let [r, g, b] = color.rgb;
+    egui::Color32::from_rgb(r, g, b)
+}
+/// Converts a [`hyperpuzzle::Rgb`] to an [`egui::Rgba`].
+pub(crate) fn rgb_to_egui_rgba(color: Rgb) -> egui::Rgba {
+    let [r, g, b] = color.rgb;
+    egui::Rgba::from_srgba_unmultiplied(r, g, b, 255)
+}
+/// Interpolates between two colors in linear color space.
+pub(crate) fn lerp_colors(a: Rgb, b: Rgb, t: f32) -> Rgb {
+    let a = crate::util::rgb_to_egui_rgba(a);
+    let b = crate::util::rgb_to_egui_rgba(b);
+    let [r, g, b, _a] = hypermath::util::lerp(a, b, t).to_srgba_unmultiplied();
+    Rgb { rgb: [r, g, b] }
 }
 
-/// Serializes a color to a hex string like `#ff00ff`.
-pub(crate) fn color_to_hex_string(rgb: [u8; 3]) -> String {
-    format!("#{}", hex::encode(rgb))
+/// Returns the perceptual distance between two colors using CIE2000.
+pub(crate) fn egui_color_distance(a: egui::Color32, b: egui::Color32) -> f32 {
+    empfindung::cie00::diff(egui_color32_to_lab(a), egui_color32_to_lab(b))
 }
-
-/// Deserializes a color from a hex string like `#ff00ff` or `#f0f`.
-pub(crate) fn color_from_hex_str(s: &str) -> Result<[u8; 3], hex::FromHexError> {
-    let mut rgb = [0_u8; 3];
-    let s = s.strip_prefix('#').unwrap_or(s).trim();
-    match s.len() {
-        3 => {
-            let s = &s.chars().flat_map(|c| [c, c]).collect::<String>();
-            hex::decode_to_slice(&s, &mut rgb)?;
-        }
-        _ => hex::decode_to_slice(s, &mut rgb)?,
-    }
-    Ok(rgb)
+/// Returns the perceptual distance between two colors using CIE2000.
+pub(crate) fn color_distance(a: Rgb, b: Rgb) -> f32 {
+    empfindung::cie00::diff(rgb_to_lab(a), rgb_to_lab(b))
+}
+fn egui_color32_to_lab(color: egui::Color32) -> (f32, f32, f32) {
+    let rgb = [color.r(), color.g(), color.b()];
+    rgb_to_lab(Rgb { rgb })
+}
+fn rgb_to_lab(rgb: Rgb) -> (f32, f32, f32) {
+    let [r, g, b] = rgb.rgb;
+    empfindung::ToLab::to_lab(&rgb_crate::RGB { r, g, b })
 }
 
 #[cfg(test)]

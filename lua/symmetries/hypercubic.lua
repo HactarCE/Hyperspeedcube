@@ -1,33 +1,22 @@
-AXIS_NAMES = {
-  symmetry = cd'bc4',
-  {'R', {2, 'U'}},
-  {'L', {1, 'R'}},
-  {'U', {3, 'F'}},
-  {'D', {2, 'L'}},
-  {'F', {4, 'O'}},
-  {'B', {3, 'D'}},
-  {'I', {4, 'B'}},
-  {'O', {}}, -- ooox
+CELL_NAMES = {
+  symmetry = 'bc4',
+  {{2, "U"}, "R", "Right"},
+  {{1, "R"}, "L", "Left"},
+  {{3, "F"}, "U", "Up"},
+  {{2, "L"}, "D", "Down"},
+  {{4, "O"}, "F", "Front"},
+  {{3, "D"}, "B", "Back"},
+  {{4, "B"}, "I", "In"},
+  {{      }, "O", "Out"}, -- ooox
 }
 
-FACE_NAMES = require('utils').map_string_values(AXIS_NAMES, {
-  R = 'Right',
-  L = 'Left',
-  U = 'Up',
-  D = 'Down',
-  F = 'Front',
-  B = 'Back',
-  I = 'In',
-  O = 'Out',
-})
-
-FACE_COLORS = {
-  Right = 'Red',
-  Left = 'Orange',
-  Up = 'White',
-  Down = 'Yellow',
-  Front = 'Green',
-  Back = 'Blue',
-  Out = 'Pink',
-  In = 'Purple',
+HYPERCUBE_COLORS = {
+  R = "Red",
+  L = "Orange",
+  U = "White",
+  D = "Yellow",
+  F = "Green",
+  B = "Blue",
+  O = "Pink",
+  I = "Purple",
 }

@@ -100,17 +100,28 @@ impl ColorSystemBuilder {
     }
 
     /// Validates and constructs a color system.
-    pub fn build(&self) -> Result<PerColor<ColorInfo>> {
+    pub fn build(&self, warn_fn: impl Copy + Fn(eyre::Report)) -> Result<PerColor<ColorInfo>> {
         super::iter_autonamed(
             &self.names,
             &self.ordering,
             crate::util::iter_uppercase_letter_names(),
+            warn_fn,
         )
-        .map(|(id, name)| {
+        .map(|(id, (short_name, long_name))| {
             let default_color = self.get(id)?.default_color.clone();
             eyre::Ok(ColorInfo {
-                name,
-                default_color,
+                short_name,
+                long_name,
+                default_color: match default_color {
+                    Some(s) => match s.parse() {
+                        Ok(c) => Some(c),
+                        Err(e) => {
+                            warn_fn(e);
+                            None
+                        }
+                    },
+                    None => None,
+                },
             })
         })
         .try_collect()

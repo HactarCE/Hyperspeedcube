@@ -19,7 +19,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.add_space(10.0);
         ui.heading("Colors");
         for color in puzzle.colors.iter_values() {
-            let name = &color.name;
+            // TODO: also show short name
+            let name = &color.long_name;
             let default_color_string = match &color.default_color {
                 Some(default) => format!(" (default={default})"),
                 None => String::new(),

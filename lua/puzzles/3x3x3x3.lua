@@ -11,11 +11,11 @@ puzzles:add('3x3x3x3', {
     local ooox = sym.ooox.unit
 
     -- Build shape
-    p:carve(sym:orbit(ooox):with(hypercubic.FACE_NAMES))
-    p.colors:set_defaults(hypercubic.FACE_COLORS)
+    p:carve(sym:orbit(ooox):with(hypercubic.CELL_NAMES))
+    p.colors:set_defaults(hypercubic.HYPERCUBE_COLORS)
 
     -- Define axes and slices
-    p.axes:add(sym:orbit(ooox):with(hypercubic.AXIS_NAMES), {1/3, -1/3})
+    p.axes:add(sym:orbit(ooox):with(hypercubic.CELL_NAMES), {1/3, -1/3})
 
     -- Define twists
     local a1 = p.axes[ooox]

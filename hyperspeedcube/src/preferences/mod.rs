@@ -4,17 +4,14 @@
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
 use std::{
-    fmt::write,
     ops::{Index, IndexMut},
     path::PathBuf,
 };
 
 use bitvec::vec::BitVec;
-use hyperpuzzle::Puzzle;
-use indexmap::IndexMap;
+use hyperpuzzle::Rgb;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 mod gfx;
 mod info;
@@ -84,10 +81,7 @@ pub struct Preferences {
     #[serde(skip)]
     pub latest_view_prefs_set: PuzzleViewPreferencesSet,
 
-    pub colors: IndexMap<String, Rgb>,
-    pub color_sets: IndexMap<String, Vec<Rgb>>,
-    pub custom_colors: IndexMap<String, Rgb>,
-    pub custom_color_sets: IndexMap<String, Vec<Rgb>>,
+    pub colors: ColorPreferences,
 
     pub piece_filters: (), // TODO
 
@@ -150,6 +144,7 @@ impl Preferences {
                     })
                     .unwrap_or_default()
             })
+            .canonicalize()
     }
 
     pub fn save(&mut self) {
@@ -174,24 +169,13 @@ impl Preferences {
         &mut self[view_prefs_set]
     }
 
-    pub fn named_sticker_color(&self, s: &str) -> Option<Rgb> {
-        let s = s.trim();
-
-        if s.starts_with('#') {
-            return s.parse().ok();
-        }
-
-        None.or_else(|| self.custom_colors.get(s))
-            .or_else(|| self.colors.get(s))
-            .or_else(|| {
-                let (set, index) = s.strip_suffix(']')?.split_once('[')?;
-                let set = set.trim();
-                let index: usize = index.trim().parse().ok()?; // 1-indexed
-                None.or_else(|| self.custom_color_sets.get(set))
-                    .or_else(|| self.color_sets.get(set))?
-                    .get(index.checked_sub(1)?)
-            })
-            .copied()
+    /// Modifies the preferences to ensure that any invariants not encoded into
+    /// the type are respected.
+    ///
+    /// For example, this ensures that the default color names are correct.
+    fn canonicalize(mut self) -> Self {
+        self.colors.canonicalize();
+        self
     }
 }
 

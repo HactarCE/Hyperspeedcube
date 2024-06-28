@@ -108,7 +108,7 @@ impl TwistSystemBuilder {
     pub fn alphabetized(&self) -> Vec<Twist> {
         let mut ordering =
             CustomOrdering::with_len(self.len()).expect("error constructing default ordering");
-        ordering.sort_by_name(self.names.ids_to_names());
+        ordering.sort_by_name(self.names.ids_to_short_names());
         ordering.ids_in_order().to_vec()
     }
 
@@ -141,7 +141,7 @@ impl TwistSystemBuilder {
         &mut self,
         data: TwistBuilder,
         name: String,
-        mut warn_fn: impl FnMut(String),
+        warn_fn: impl Fn(String),
     ) -> Result<Option<Twist>> {
         let id = match self.add(data)? {
             Ok(ok) => ok,
@@ -150,7 +150,8 @@ impl TwistSystemBuilder {
                 return Ok(None);
             }
         };
-        self.names.set(id, Some(name), |e| warn_fn(e.to_string()));
+        self.names
+            .set_short_name(id, Some(name), |e| warn_fn(e.to_string()));
         Ok(Some(id))
     }
 
@@ -178,23 +179,24 @@ impl TwistSystemBuilder {
         &self,
         space: &Space,
         mesh: &mut Mesh,
-        mut warn_fn: impl FnMut(eyre::Report),
+        warn_fn: impl Copy + Fn(eyre::Report),
     ) -> Result<(PerAxis<AxisInfo>, PerTwist<TwistInfo>, PerGizmoFace<Twist>)> {
         // Assemble list of axes.
         let mut axes = PerAxis::new();
         let mut axis_map = HashMap::new();
-        for (old_id, name) in super::iter_autonamed(
+        for (old_id, (short_name, _long_name)) in super::iter_autonamed(
             &self.axes.names,
             &self.axes.ordering,
             crate::util::iter_uppercase_letter_names(),
+            warn_fn,
         ) {
             let old_axis = self.axes.get(old_id)?;
             let vector = old_axis.vector().clone();
             let layers = old_axis
                 .build_layers()
-                .wrap_err_with(|| format!("building axis {name:?}"))?;
+                .wrap_err_with(|| format!("building axis {short_name:?}"))?;
             let new_id = axes.push(AxisInfo {
-                name,
+                short_name,
                 vector,
                 layers,
             })?;
@@ -256,7 +258,7 @@ impl TwistSystemBuilder {
                     &axes[axis],
                     &axis_twists,
                     |id| &twists[id].name,
-                    &mut warn_fn,
+                    warn_fn,
                 )?;
                 for (_gizmo_pole, twist) in axis_twists {
                     gizmo_face_twists.push(twist)?;
@@ -307,7 +309,7 @@ impl TwistSystemBuilder {
         axis: &AxisInfo,
         twists: &[(Vector, Twist)],
         mut get_twist_name: impl FnMut(Twist) -> &'a str,
-        mut warn_fn: impl FnMut(eyre::Report),
+        warn_fn: impl Fn(eyre::Report),
     ) -> Result<()> {
         use hypershape::flat::*;
 
@@ -409,7 +411,7 @@ impl TwistSystemBuilder {
         }
 
         if space.get(polyhedron).boundary().count() > face_polygons.len() {
-            let axis_name = &axis.name;
+            let axis_name = &axis.short_name;
             let r = primordial_face_radius;
             warn_fn(eyre!(
                 "twist gizmo for axis {axis_name:?} is infinite; \

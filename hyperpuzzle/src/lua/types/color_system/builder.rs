@@ -99,7 +99,7 @@ impl LuaColorSystem {
         let colors = &mut puz.shape.colors;
         let id = colors.add(surfaces.0).into_lua_err()?;
         colors.get_mut(id).into_lua_err()?.default_color = default_color;
-        colors.names.set(id, name, lua_warn_fn(lua));
+        colors.names.set_short_name(id, name, lua_warn_fn(lua));
         Ok(puz.wrap_id(id))
     }
 

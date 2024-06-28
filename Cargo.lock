@@ -937,6 +937,20 @@ dependencies = [
 
 [[package]]
 name = "color-eyre"
+version = "0.6.2"
+source = "git+https://github.com/FlareFlo/color-eyre.git?rev=3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1#3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1"
+dependencies = [
+ "backtrace",
+ "color-spantrace",
+ "eyre",
+ "indenter",
+ "once_cell",
+ "owo-colors",
+ "tracing-error",
+]
+
+[[package]]
+name = "color-eyre"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55146f5e46f237f7423d74111267d4597b59b0dad0ffaf7303bce9945d843ad5"
@@ -1527,6 +1541,16 @@ checksum = "e4c3a552cfca14630702449d35f41c84a0d15963273771c6059175a803620f3f"
 dependencies = [
  "bytemuck",
  "serde",
+]
+
+[[package]]
+name = "empfindung"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8af095ec32b4a626b56a2e188515e4e5480d82b02e5d8a830fdb61934226b0df"
+dependencies = [
+ "lab",
+ "rgb",
 ]
 
 [[package]]
@@ -2316,9 +2340,10 @@ dependencies = [
 name = "hyperpuzzle"
 version = "0.1.0"
 dependencies = [
- "color-eyre",
+ "color-eyre 0.6.3",
  "eyre",
  "float-ord",
+ "hex",
  "hypermath",
  "hypershape",
  "itertools 0.11.0",
@@ -2341,7 +2366,7 @@ name = "hypershape"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.5.0",
- "color-eyre",
+ "color-eyre 0.6.3",
  "env_logger 0.11.3",
  "eyre",
  "float-ord",
@@ -2370,7 +2395,7 @@ dependencies = [
  "bitvec",
  "bytemuck",
  "cgmath",
- "color-eyre",
+ "color-eyre 0.6.2",
  "colorous",
  "config",
  "console_error_panic_hook",
@@ -2380,11 +2405,11 @@ dependencies = [
  "egui-winit",
  "egui_dock",
  "egui_extras",
+ "empfindung",
  "env_logger 0.10.2",
  "eyre",
  "float-ord",
  "getrandom",
- "hex",
  "human-panic",
  "hypermath",
  "hyperpuzzle",
@@ -2409,6 +2434,7 @@ dependencies = [
  "rand",
  "regex",
  "rfd",
+ "rgb",
  "send_wrapper",
  "serde",
  "serde_yaml",
@@ -2625,7 +2651,7 @@ dependencies = [
 [[package]]
 name = "key-names"
 version = "1.5.1"
-source = "git+https://github.com/HactarCE/key-names?tag=v1.5.1#49e9e2e0e74197fb1a74503563ff69bf6036508e"
+source = "git+https://github.com/HactarCE/key-names.git?tag=v1.5.1#49e9e2e0e74197fb1a74503563ff69bf6036508e"
 dependencies = [
  "cty",
  "keycode",
@@ -2677,6 +2703,12 @@ name = "khronos_api"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
+
+[[package]]
+name = "lab"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf36173d4167ed999940f804952e6b08197cae5ad5d572eb4db150ce8ad5d58f"
 
 [[package]]
 name = "lazy_static"
@@ -3895,6 +3927,15 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "windows 0.37.0",
+]
+
+[[package]]
+name = "rgb"
+version = "0.8.37"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05aaa8004b64fd573fc9d002f4e632d51ad4f026c2b5ba95fcb6c2f32c2c47d8"
+dependencies = [
+ "bytemuck",
 ]
 
 [[package]]
