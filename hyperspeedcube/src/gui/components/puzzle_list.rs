@@ -4,7 +4,7 @@ pub fn puzzle_type_menu(ui: &mut egui::Ui) -> Option<String> {
     let ret = crate::LIBRARY.with(|lib| {
         lib.puzzles()
             .into_iter()
-            .find(|puzzle| ui.button(&puzzle.name).clicked())
+            .find(|puzzle| ui.button(puzzle.display_name()).clicked())
             .map(|puzzle| puzzle.id.clone())
     });
 

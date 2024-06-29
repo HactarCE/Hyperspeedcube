@@ -14,7 +14,7 @@ pub struct PuzzleParams {
     pub ndim: LuaNdim,
 
     /// User-friendly name for the puzzle.
-    pub name: String,
+    pub name: Option<String>,
     /// Alternative user-friendly names for the puzzle.
     pub aliases: Vec<String>,
     /// Lua table containing metadata about the puzzle.
@@ -30,7 +30,7 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         let table: LuaTable<'lua> = lua.unpack(value)?;
 
-        let name: String;
+        let name: Option<String>;
         let ndim: LuaNdim;
         let build: LuaFunction<'lua>;
         let aliases: Option<Vec<String>>;
@@ -72,8 +72,9 @@ impl PuzzleParams {
     /// Runs initial setup, user Lua code, and final construction for a puzzle.
     pub fn build(&self, lua: &Lua) -> LuaResult<Arc<Puzzle>> {
         let LuaNdim(ndim) = self.ndim;
-        let puzzle_builder =
-            PuzzleBuilder::new(self.id.clone(), self.name.clone(), ndim).into_lua_err()?;
+        let id = self.id.clone();
+        let name = self.name.clone().unwrap_or(self.id.clone());
+        let puzzle_builder = PuzzleBuilder::new(id, name, ndim).into_lua_err()?;
         let space = puzzle_builder.lock().space();
 
         let () = LuaSpace(space).with_this_as_global_space(lua, || {
@@ -84,5 +85,10 @@ impl PuzzleParams {
 
         let puzzle_builder = puzzle_builder.lock();
         puzzle_builder.build(lua_warn_fn(lua)).into_lua_err()
+    }
+
+    /// Returns the name or the ID of the puzzle.
+    pub fn display_name(&self) -> &str {
+        self.name.as_deref().unwrap_or(&self.id)
     }
 }
