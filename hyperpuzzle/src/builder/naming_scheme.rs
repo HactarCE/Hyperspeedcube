@@ -7,16 +7,16 @@ use hypermath::IndexNewtype;
 /// unnamed.
 #[derive(Debug, Clone)]
 pub struct NamingScheme<I> {
-    ids_to_short_names: HashMap<I, String>,
-    ids_to_long_names: HashMap<I, String>,
-    short_names_to_ids: HashMap<String, I>,
+    ids_to_names: HashMap<I, String>,
+    ids_to_display_names: HashMap<I, String>,
+    names_to_ids: HashMap<String, I>,
 }
 impl<I> Default for NamingScheme<I> {
     fn default() -> Self {
         Self {
-            ids_to_short_names: Default::default(),
-            ids_to_long_names: Default::default(),
-            short_names_to_ids: Default::default(),
+            ids_to_names: Default::default(),
+            ids_to_display_names: Default::default(),
+            names_to_ids: Default::default(),
         }
     }
 }
@@ -26,36 +26,36 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
         Self::default()
     }
 
-    /// Returns a map from IDs to short names.
-    pub fn ids_to_short_names(&self) -> &HashMap<I, String> {
-        &self.ids_to_short_names
+    /// Returns a map from IDs to names.
+    pub fn ids_to_names(&self) -> &HashMap<I, String> {
+        &self.ids_to_names
     }
-    /// Returns a map from IDs to long names.
-    pub fn ids_to_long_names(&self) -> &HashMap<I, String> {
-        &self.ids_to_long_names
+    /// Returns a map from IDs to display names.
+    pub fn ids_to_display_names(&self) -> &HashMap<I, String> {
+        &self.ids_to_display_names
     }
-    /// Returns a map from short names to IDs.
-    pub fn short_names_to_ids(&self) -> &HashMap<String, I> {
-        &self.short_names_to_ids
+    /// Returns a map from names to IDs.
+    pub fn names_to_ids(&self) -> &HashMap<String, I> {
+        &self.names_to_ids
     }
 
-    /// Returns the short name of an element, or `None` if the element has not
-    /// been assigned a short name.
+    /// Returns the name of an element, or `None` if the element has not been
+    /// assigned a name.
     pub fn get(&self, id: I) -> Option<String> {
-        self.ids_to_short_names.get(&id).cloned()
+        self.ids_to_names.get(&id).cloned()
     }
-    /// Returns the long name of an element, or `None` if the element has not
-    /// been assigned a long name.
-    pub fn get_long(&self, id: I) -> Option<String> {
-        self.ids_to_long_names.get(&id).cloned()
+    /// Returns the display name of an element, or `None` if the element has not
+    /// been assigned a display name.
+    pub fn get_display(&self, id: I) -> Option<String> {
+        self.ids_to_display_names.get(&id).cloned()
     }
-    /// Assigns a short name to an element, returning an error if there is a name
+    /// Assigns a name to an element, returning an error if there is a name
     /// conflict.
     ///
     /// If the name is invalid, `warn_fn` is called with info about what went
     /// wrong and an empty name is assigned instead of halting execution flow.
-    pub fn set_short_name(&mut self, id: I, mut name: Option<String>, warn_fn: impl Fn(BadName)) {
-        let old_name = self.ids_to_short_names.get(&id);
+    pub fn set_name(&mut self, id: I, mut name: Option<String>, warn_fn: impl Fn(BadName)) {
+        let old_name = self.ids_to_names.get(&id);
 
         // Canonicalize the name by removing leading & trailing whitespace.
         if let Some(new_name) = &mut name {
@@ -72,7 +72,7 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
 
         // Remove the old name.
         if let Some(old_name) = old_name {
-            self.short_names_to_ids.remove(old_name);
+            self.names_to_ids.remove(old_name);
         }
 
         // Validate the new name.
@@ -81,7 +81,7 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
             if new_name.starts_with(|c: char| c.is_numeric() || c == '<' || c == '>') {
                 warn_fn(BadName::InvalidName { name: new_name });
                 name = None;
-            } else if self.short_names_to_ids.contains_key(&new_name) {
+            } else if self.names_to_ids.contains_key(&new_name) {
                 warn_fn(BadName::AlreadyTaken { name: new_name });
                 name = None;
             }
@@ -89,25 +89,25 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
 
         // Update `names_to_ids`.
         if let Some(new_name) = name.clone() {
-            self.short_names_to_ids.insert(new_name, id.clone());
+            self.names_to_ids.insert(new_name, id.clone());
         }
 
         // Update `ids_to_names`.
         match name {
-            Some(new_name) => self.ids_to_short_names.insert(id, new_name),
-            None => self.ids_to_short_names.remove(&id),
+            Some(new_name) => self.ids_to_names.insert(id, new_name),
+            None => self.ids_to_names.remove(&id),
         };
     }
 
-    /// Assigns a long name to an element. No validation is performed.
-    pub fn set_long_name(&mut self, id: I, name: Option<String>) {
+    /// Assigns a display name to an element. No validation is performed.
+    pub fn set_display(&mut self, id: I, name: Option<String>) {
         match name {
-            Some(s) => self.ids_to_long_names.insert(id, s.trim().to_string()),
-            None => self.ids_to_long_names.remove(&id),
+            Some(s) => self.ids_to_display_names.insert(id, s.trim().to_string()),
+            None => self.ids_to_display_names.remove(&id),
         };
     }
 
-    /// Assings short names to unnamed elements using `autonames`.
+    /// Assings names to unnamed elements using `autonames`.
     pub fn autoname(
         &mut self,
         len: usize,
@@ -116,11 +116,11 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
     ) where
         I: IndexNewtype,
     {
-        let used_names: HashSet<String> = self.short_names_to_ids.keys().cloned().collect();
+        let used_names: HashSet<String> = self.names_to_ids.keys().cloned().collect();
         let mut autonames = autonames.into_iter().filter(|s| !used_names.contains(s));
         for i in I::iter(len) {
-            if !self.ids_to_short_names.contains_key(&i) {
-                self.set_short_name(i, autonames.next(), warn_fn);
+            if !self.ids_to_names.contains_key(&i) {
+                self.set_name(i, autonames.next(), warn_fn);
             }
         }
     }

@@ -139,9 +139,9 @@ impl PuzzleCommand {
                     Some(ax) => {
                         let layer_mask = layers.to_layer_mask(&ax);
                         if layer_mask == LayerMask(0) {
-                            ax.short_name.clone()
+                            ax.name.clone()
                         } else {
-                            layer_mask.to_string() + &ax.short_name
+                            layer_mask.to_string() + &ax.name
                         }
                     }
                     None => layers.to_string(),

@@ -1,48 +1,48 @@
-FACE_NAMES = {
-  symmetry = 'bc3',
-  {{2, "U"}, "R", "Right"},
-  {{1, "R"}, "L", "Left"},
-  {{3, "F"}, "U", "Up"},
-  {{2, "L"}, "D", "Down"},
-  {{      }, "F", "Front"}, -- oox
-  {{3, "D"}, "B", "Back"},
-}
+color_systems:add('cube', {
+  name = "Cube",
 
-CUBE_COLORS = {
-  R = 'Red',
-  L = 'Orange',
-  U = 'White',
-  D = 'Yellow',
-  F = 'Green',
-  B = 'Blue',
-}
+  colors = {
+    { name = 'R', display = "Right" },
+    { name = 'L', display = "Left" },
+    { name = 'U', display = "Up" },
+    { name = 'D', display = "Down" },
+    { name = 'F', display = "Front" },
+    { name = 'B', display = "Back" },
+  },
 
-local meta = require('meta')
-
-function cuboctahedron()
-  local shape = setmetatable({}, meta.shape)
-  shape.sym = cd'bc3'
-  shape.cubic_pole = shape.oox.unit
-  shape.octahedral_pole = shape.oox.unit * 2/3
-
-  function shape:carve_into(p)
-    p:carve(self.sym:orbit(self.cubic_pole):with(FACE_NAMES))
-    p:carve(self.sym:orbit(self.octahedral_pole)) -- TODO: vertex names
-    -- TODO: cuboctahedron colors
-  end
-
-  return shape
-end
+  color_schemes = {
+    ["Western"] = {
+      R = "Red",
+      L = "Orange",
+      U = "White",
+      D = "Yellow",
+      F = "Green",
+      B = "Blue",
+    },
+    ["Japanese"] = {
+      R = "Red",
+      L = "Orange",
+      U = "White",
+      D = "Blue",
+      F = "Green",
+      B = "Yellow",
+    },
+  },
+  default_scheme = "Western",
+})
 
 function cube()
-  local shape = setmetatable({}, meta.shape)
-  shape.sym = cd'bc3'
-  shape.pole = shape.oox.unit
-
-  function shape:carve_into(p)
-    p:carve(self.sym:orbit(self.pole):with(FACE_NAMES))
-    p.colors:set_defaults(CUBE_COLORS)
-  end
-
-  return shape
+  return {
+    sym = cd'bc3',
+    iter_poles = function(self)
+      return self.sym:orbit(self.sym.oox.unit):with({
+        F = {},
+        U = {3, 'F'},
+        R = {2, 'U'},
+        L = {1, 'R'},
+        D = {2, 'L'},
+        B = {3, 'D'},
+      })
+    end,
+  }
 end

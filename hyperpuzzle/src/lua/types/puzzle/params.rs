@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::builder::PuzzleBuilder;
+use crate::builder::{ColorSystemBuilder, PuzzleBuilder};
 use crate::lua::lua_warn_fn;
-use crate::Puzzle;
+use crate::{LibraryDb, Puzzle};
 
 /// Set of parameters that define a puzzle.
 #[derive(Debug)]
@@ -12,6 +12,9 @@ pub struct PuzzleParams {
     pub id: String,
     /// Number of dimensions of the space in which the puzzle is constructed.
     pub ndim: LuaNdim,
+
+    /// Color system.
+    pub colors: Option<ColorSystemParams>,
 
     /// User-friendly name for the puzzle.
     pub name: Option<String>,
@@ -33,6 +36,7 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
         let name: Option<String>;
         let ndim: LuaNdim;
         let build: LuaFunction<'lua>;
+        let colors: Option<ColorSystemParams>;
         let aliases: Option<Vec<String>>;
         let meta: Option<LuaTable<'lua>>;
         let properties: Option<LuaTable<'lua>>;
@@ -41,6 +45,8 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
             name,
             ndim,
             build,
+
+            colors,
 
             aliases,
             meta,
@@ -57,6 +63,8 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
         Ok(PuzzleParams {
             id: String::new(), // This is overwritten in `puzzledb:add()`.
             ndim,
+
+            colors,
 
             name,
             aliases: aliases.unwrap_or(vec![]),
@@ -75,6 +83,9 @@ impl PuzzleParams {
         let id = self.id.clone();
         let name = self.name.clone().unwrap_or(self.id.clone());
         let puzzle_builder = PuzzleBuilder::new(id, name, ndim).into_lua_err()?;
+        if let Some(colors) = &self.colors {
+            puzzle_builder.lock().shape.colors = colors.build(lua)?;
+        }
         let space = puzzle_builder.lock().space();
 
         let () = LuaSpace(space).with_this_as_global_space(lua, || {
@@ -90,5 +101,32 @@ impl PuzzleParams {
     /// Returns the name or the ID of the puzzle.
     pub fn display_name(&self) -> &str {
         self.name.as_deref().unwrap_or(&self.id)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ColorSystemParams {
+    ById(String),
+    Bespoke(ColorSystemBuilder),
+}
+impl<'lua> FromLua<'lua> for ColorSystemParams {
+    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        match value {
+            LuaValue::Table(t) => Ok(Self::Bespoke(
+                crate::lua::types::color_system::from_lua_table(lua, None, t)?,
+            )),
+            LuaValue::String(id) => Ok(Self::ById(id.to_string_lossy().into_owned())),
+            _ => Err(LuaError::external(
+                "expected string, table, or nil for `colors`",
+            )),
+        }
+    }
+}
+impl ColorSystemParams {
+    pub fn build(&self, lua: &Lua) -> LuaResult<ColorSystemBuilder> {
+        match self {
+            ColorSystemParams::ById(id) => LibraryDb::build_color_system(lua, id),
+            ColorSystemParams::Bespoke(colors) => Ok(colors.clone()),
+        }
     }
 }

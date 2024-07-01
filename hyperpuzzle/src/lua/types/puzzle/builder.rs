@@ -87,16 +87,23 @@ impl LuaPuzzleBuilder {
         let mut puz = self.lock();
         let shape = &mut puz.shape;
 
-        for ((short_name, long_name), LuaHyperplane(plane)) in cuts.to_vec(lua)? {
+        for ((name, display), LuaHyperplane(plane)) in cuts.to_vec(lua)? {
             let color = match sticker_mode {
                 StickerMode::NewColor => Some({
-                    let c = shape.colors.add(vec![plane.clone()]).into_lua_err()?;
-                    shape
-                        .colors
-                        .names
-                        .set_short_name(c, short_name, lua_warn_fn(lua));
-                    shape.colors.names.set_long_name(c, long_name);
-                    c
+                    match name
+                        .as_ref()
+                        .and_then(|s| shape.colors.names.names_to_ids().get(s))
+                    {
+                        // Use an existing color unmodified.
+                        Some(&existing_color) => existing_color,
+                        // Create new color.
+                        None => {
+                            let c = shape.colors.add().into_lua_err()?;
+                            shape.colors.names.set_name(c, name, lua_warn_fn(lua));
+                            shape.colors.names.set_display(c, display);
+                            c
+                        }
+                    }
                 }),
                 StickerMode::None => None,
                 StickerMode::Color(c) => Some(c),

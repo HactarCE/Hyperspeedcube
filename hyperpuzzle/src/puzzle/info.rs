@@ -102,8 +102,8 @@ pub struct StickerInfo {
 /// Twist axis info.
 #[derive(Debug)]
 pub struct AxisInfo {
-    /// Short name for the twist axis. (e.g, "U", "R", etc.)
-    pub short_name: String,
+    /// Name for the twist axis. (e.g, "U", "R", etc.)
+    pub name: String,
     /// Vector preserved by all twists of the axis.
     pub vector: Vector,
     /// Layer.
@@ -111,7 +111,7 @@ pub struct AxisInfo {
 }
 impl AsRef<str> for AxisInfo {
     fn as_ref(&self) -> &str {
-        &self.short_name
+        &self.name
     }
 }
 
@@ -167,10 +167,10 @@ impl AsRef<str> for PieceTypeInfo {
 /// Color info.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ColorInfo {
-    /// Short name for the color. (e.g., "U", "R", etc.)
-    pub short_name: String,
-    /// Human-friendly long name for the color. (e.g., "Up", "Right", etc.)
-    pub long_name: String,
+    /// Name for the color. (e.g., "U", "R", etc.)
+    pub name: String,
+    /// Display name for the color. (e.g., "Up", "Right", etc.)
+    pub display: String,
 }
 
 /// Default color for a puzzle color.

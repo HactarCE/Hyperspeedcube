@@ -159,7 +159,7 @@ where
     #[must_use]
     fn value_to_id_by_name(&self, _lua: &'lua Lua, value: &LuaValue<'lua>) -> Option<LuaResult<I>> {
         let s = value.as_str()?;
-        Some(match self.names().short_names_to_ids().get(s) {
+        Some(match self.names().names_to_ids().get(s) {
             Some(id) => Ok(id.clone()),
             None => Err(LuaError::external(format!("no entry named {s:?}"))),
         })
@@ -180,7 +180,7 @@ where
 
         // Set the new names.
         for (k, v) in kv_pairs {
-            new_names.set_short_name(k, v, lua_warn_fn(lua));
+            new_names.set_name(k, v, lua_warn_fn(lua));
         }
 
         Ok(new_names)
@@ -209,7 +209,7 @@ where
         fields.add_field_method_set("name", |lua, this, new_name| {
             let mut db = this.db.lock();
             db.names_mut()
-                .set_short_name(this.id.clone(), new_name, lua_warn_fn(lua));
+                .set_name(this.id.clone(), new_name, lua_warn_fn(lua));
             Ok(())
         });
     }

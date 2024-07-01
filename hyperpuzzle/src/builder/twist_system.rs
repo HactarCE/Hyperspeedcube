@@ -108,7 +108,7 @@ impl TwistSystemBuilder {
     pub fn alphabetized(&self) -> Vec<Twist> {
         let mut ordering =
             CustomOrdering::with_len(self.len()).expect("error constructing default ordering");
-        ordering.sort_by_name(self.names.ids_to_short_names());
+        ordering.sort_by_name(self.names.ids_to_names());
         ordering.ids_in_order().to_vec()
     }
 
@@ -151,7 +151,7 @@ impl TwistSystemBuilder {
             }
         };
         self.names
-            .set_short_name(id, Some(name), |e| warn_fn(e.to_string()));
+            .set_name(id, Some(name), |e| warn_fn(e.to_string()));
         Ok(Some(id))
     }
 
@@ -184,7 +184,7 @@ impl TwistSystemBuilder {
         // Assemble list of axes.
         let mut axes = PerAxis::new();
         let mut axis_map = HashMap::new();
-        for (old_id, (short_name, _long_name)) in super::iter_autonamed(
+        for (old_id, (name, _display)) in super::iter_autonamed(
             &self.axes.names,
             &self.axes.ordering,
             crate::util::iter_uppercase_letter_names(),
@@ -194,9 +194,9 @@ impl TwistSystemBuilder {
             let vector = old_axis.vector().clone();
             let layers = old_axis
                 .build_layers()
-                .wrap_err_with(|| format!("building axis {short_name:?}"))?;
+                .wrap_err_with(|| format!("building axis {name:?}"))?;
             let new_id = axes.push(AxisInfo {
-                short_name,
+                name,
                 vector,
                 layers,
             })?;
@@ -411,7 +411,7 @@ impl TwistSystemBuilder {
         }
 
         if space.get(polyhedron).boundary().count() > face_polygons.len() {
-            let axis_name = &axis.short_name;
+            let axis_name = &axis.name;
             let r = primordial_face_radius;
             warn_fn(eyre!(
                 "twist gizmo for axis {axis_name:?} is infinite; \

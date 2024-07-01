@@ -82,7 +82,7 @@ impl PuzzleBuilder {
         let (axes, twists, gizmo_twists) = self.twists.build(&self.space(), &mut mesh, warn_fn)?;
         let axis_by_name = axes
             .iter()
-            .map(|(id, info)| (info.short_name.clone(), id))
+            .map(|(id, info)| (info.name.clone(), id))
             .collect();
         let twist_by_name = twists
             .iter()

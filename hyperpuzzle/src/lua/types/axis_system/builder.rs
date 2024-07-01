@@ -100,7 +100,7 @@ impl LuaAxisSystem {
         let slice: Option<bool>;
         if let Some(t) = extra {
             let layers: LuaTable<'lua>;
-            if t.len()? > 0 {
+            if t.len()? > 0 || t.is_empty() {
                 slice = t.get("slice")?;
                 layers = t;
             } else {
@@ -128,13 +128,10 @@ impl LuaAxisSystem {
 
         let mut puz = self.lock();
         let mut new_axes = vec![];
-        for ((short_name, long_name), LuaVector(v)) in vectors.to_vec(lua)? {
+        for ((name, display), LuaVector(v)) in vectors.to_vec(lua)? {
             let id = puz.twists.axes.add(v.clone()).into_lua_err()?;
-            puz.twists
-                .axes
-                .names
-                .set_short_name(id, short_name, lua_warn_fn(lua));
-            puz.twists.axes.names.set_long_name(id, long_name);
+            puz.twists.axes.names.set_name(id, name, lua_warn_fn(lua));
+            puz.twists.axes.names.set_display(id, display);
             new_axes.push(puz.wrap_id(id));
 
             let axis = puz.twists.axes.get_mut(id).into_lua_err()?;

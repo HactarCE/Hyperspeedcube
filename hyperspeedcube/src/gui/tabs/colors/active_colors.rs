@@ -55,7 +55,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             if let Some(ty) = app.active_puzzle_type() {
                 for (id, face_color) in &ty.colors {
                     ui.horizontal(|ui| {
-                        ui.label(&face_color.long_name);
+                        ui.label(&face_color.display);
                         // if let Some(default_color) = &face_color.default_color {
                         //     let popup_id = unique_id!(&ty.name, id);
                         //     let rgb = app.prefs.colors.get(default_color).unwrap_or_default();

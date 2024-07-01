@@ -12,7 +12,9 @@ use smallvec::smallvec;
 use super::{ColorSystemBuilder, PieceBuilder};
 use crate::puzzle::*;
 
-/// Soup of shapes being constructed.
+// TODO: build color system separately and statically?
+
+/// Soup of pieces being constructed.
 #[derive(Debug)]
 pub struct ShapeBuilder {
     /// Space where the puzzle exists.

@@ -6,7 +6,7 @@ use mlua::prelude::*;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 
 use super::LazyPuzzle;
-use crate::lua::PuzzleParams;
+use crate::{builder::ColorSystemBuilder, lua::PuzzleParams};
 
 /// File stored in a [`super::Library`].
 #[derive(Debug)]
@@ -55,7 +55,7 @@ impl LibraryFile {
         .map_err(|_| LuaError::external("current file is not in 'loading' state"))
     }
 
-    /// Defines an object in the file.
+    /// Defines a puzzle in the file.
     pub(crate) fn define_puzzle(&self, id: String, params: PuzzleParams) -> LuaResult<()> {
         match self
             .as_loading()?
@@ -64,6 +64,23 @@ impl LibraryFile {
         {
             Some(_old) => Err(LuaError::external(format!(
                 "duplicate puzzle with ID {id:?}",
+            ))),
+            None => Ok(()),
+        }
+    }
+    /// Defines a color system in the file.
+    pub(crate) fn define_color_system(
+        &self,
+        id: String,
+        color_system: ColorSystemBuilder,
+    ) -> LuaResult<()> {
+        match self
+            .as_loading()?
+            .color_systems
+            .insert(id.clone(), color_system)
+        {
+            Some(_old) => Err(LuaError::external(format!(
+                "duplicate color system with ID {id:?}",
             ))),
             None => Ok(()),
         }
@@ -136,6 +153,8 @@ pub(crate) struct LibraryFileLoadResult {
     pub exports: LuaRegistryKey,
     /// Puzzles defined in this file, indexed by ID.
     pub puzzles: HashMap<String, LazyPuzzle>,
+    /// Color systems defined in this file, indexed by ID.
+    pub color_systems: HashMap<String, ColorSystemBuilder>,
 }
 impl LibraryFileLoadResult {
     /// Constructs an empty load result.
@@ -143,6 +162,7 @@ impl LibraryFileLoadResult {
         Self {
             exports: exports_table,
             puzzles: HashMap::new(),
+            color_systems: HashMap::new(),
         }
     }
 }

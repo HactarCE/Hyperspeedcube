@@ -1,4 +1,8 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::hash::Hash;
+
+use itertools::Itertools;
 
 /// Returns an iterator over the strings `A`, `B`, `C`, ..., `Z`, `AA`, `AB`,
 /// ..., `ZY`, `ZZ`, `AAA`, `AAB`, etc.
@@ -45,6 +49,58 @@ impl<K: Clone + std::hash::Hash + Eq, V: Copy> LazyIdMap<K, V> {
     }
 }
 
+/// Titlecases a string, replacing underscore `_` with space.
+pub fn titlecase(s: &str) -> String {
+    s.split(&[' ', '_'])
+        .filter(|word| !word.is_empty())
+        .map(|word| {
+            if let Some((char_boundary, _)) = word.char_indices().skip(1).next() {
+                let (left, right) = word.split_at(char_boundary);
+                left.to_uppercase() + right
+            } else {
+                word.to_uppercase()
+            }
+        })
+        .join(" ")
+}
+
+pub fn lazy_resolve<K: fmt::Debug + Clone + Eq + Hash, V: Clone>(
+    key_value_dependencies: Vec<(K, (V, Option<K>))>,
+    compose: fn(V, &V) -> V,
+    warn_fn: impl Fn(String),
+) -> HashMap<K, V> {
+    // Some values are given directly.
+    let mut known = Vec::<(K, V)>::new();
+    // Some must be computed based on other values.
+    let mut unknown = HashMap::<K, Vec<(K, V)>>::new();
+
+    for (k, (v, other_key)) in key_value_dependencies {
+        match other_key {
+            Some(k2) => unknown.entry(k2).or_default().push((k, v)),
+            None => known.push((k, v)),
+        }
+    }
+
+    let mut known: HashMap<K, V> = known.iter().cloned().collect();
+
+    // Resolve lazy evaluation.
+    let mut queue = known.iter().map(|(k, _v)| k.clone()).collect_vec();
+    while let Some(next_known) = queue.pop() {
+        if let Some(unprocessed) = unknown.remove(&next_known) {
+            for (k, v) in unprocessed {
+                let value = compose(v, &known[&next_known]);
+                known.insert(k.clone(), value);
+                queue.push(k);
+            }
+        }
+    }
+    if let Some(unprocessed_key) = unknown.keys().next() {
+        warn_fn(format!("unknown key {unprocessed_key:?}"));
+    }
+
+    known
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -68,5 +124,10 @@ mod tests {
         assert_eq!(it.next().unwrap(), "ZZ");
         assert_eq!(it.next().unwrap(), "AAA");
         assert_eq!(it.next().unwrap(), "AAB");
+    }
+
+    #[test]
+    fn test_titlecase() {
+        assert_eq!(titlecase("  this_was a__triumph_"), "This Was A Triumph");
     }
 }

@@ -8,23 +8,19 @@ use crate::{Color, ColorInfo, DefaultColor, PerColor};
 
 /// Sticker color during shape construction.
 #[derive(Debug, Clone)]
-pub struct ColorBuilder {
-    surfaces: Vec<Hyperplane>,
-}
-impl ColorBuilder {
-    /// Returns the color's surface set.
-    pub fn surfaces(&self) -> &[Hyperplane] {
-        &self.surfaces
-    }
-}
+pub struct ColorBuilder {}
+impl ColorBuilder {}
 
 /// Set of all sticker colors during shape construction.
 #[derive(Debug, Default, Clone)]
 pub struct ColorSystemBuilder {
-    /// Color data (not including name and ordering).
+    /// Color system ID.
+    pub id: Option<String>,
+    /// Name of the color system.
+    pub name: Option<String>,
+
+    /// Data for each color.
     by_id: PerColor<ColorBuilder>,
-    /// Map from surface to color ID.
-    surface_to_id: ApproxHashMap<Hyperplane, Color>,
     /// User-specified color names.
     pub names: NamingScheme<Color>,
     /// User-specified ordering of colors.
@@ -34,6 +30,9 @@ pub struct ColorSystemBuilder {
     pub schemes: IndexMap<String, PerColor<Option<DefaultColor>>>,
     /// Default color scheme.
     pub default_scheme: Option<String>,
+
+    /// Whether the color system has been modified.
+    pub is_modified: bool,
 }
 impl ColorSystemBuilder {
     /// Constructs a new empty color system.
@@ -47,27 +46,18 @@ impl ColorSystemBuilder {
     }
 
     /// Adds a new color.
-    pub fn add(&mut self, surfaces: Vec<Hyperplane>) -> Result<Color> {
-        // Check that the surfaces aren't already taken.
-        for s in &surfaces {
-            if self.surface_to_id.get(s).is_some() {
-                bail!("surface is already taken");
-            }
-        }
+    pub fn add(&mut self) -> Result<Color> {
+        self.is_modified = true;
 
-        let id = self.by_id.push(ColorBuilder {
-            surfaces: surfaces.clone(),
-        })?;
+        let id = self.by_id.push(ColorBuilder {})?;
         self.ordering.add(id)?;
-        for s in surfaces {
-            self.surface_to_id.insert(s, id);
-        }
-
         Ok(id)
     }
 
     /// Adds a new color scheme.
     pub fn add_scheme(&mut self, name: String, mapping: PerColor<Option<DefaultColor>>) {
+        self.is_modified = true;
+
         match self.schemes.entry(name) {
             indexmap::map::Entry::Occupied(mut e) => {
                 for (id, c) in mapping {
@@ -85,6 +75,8 @@ impl ColorSystemBuilder {
 
     /// Sets the default color for a single color.
     pub fn set_default_color(&mut self, id: Color, default_color: Option<DefaultColor>) {
+        self.is_modified = true;
+
         let scheme = self
             .schemes
             .entry(crate::DEFAULT_COLOR_SCHEME_NAME.to_owned())
@@ -110,23 +102,9 @@ impl ColorSystemBuilder {
     /// Returns a mutable reference to a color by ID, or an error if the ID is
     /// out of range.
     pub fn get_mut(&mut self, id: Color) -> Result<&mut ColorBuilder, IndexOutOfRange> {
-        self.by_id.get_mut(id)
-    }
+        self.is_modified = true;
 
-    /// Returns a map from surface to a color ID.
-    pub fn surface_to_id(&self) -> &ApproxHashMap<Hyperplane, Color> {
-        &self.surface_to_id
-    }
-    /// Returns a color ID from a set of surfaces.
-    pub fn surface_set_to_id(&self, surfaces: &[Hyperplane]) -> Option<Color> {
-        let mut colors_for_each_surface = surfaces.iter().filter_map(|s| self.surface_to_id.get(s));
-        let &common_color = colors_for_each_surface.all_equal_value().ok()?;
-        // Check that the resulting surface has the exact same number of colors.
-        if self.by_id.get(common_color).ok()?.surfaces.len() == surfaces.len() {
-            Some(common_color)
-        } else {
-            None
-        }
+        self.by_id.get_mut(id)
     }
 
     /// Returns an iterator over all the colors, in the canonical ordering.
@@ -146,18 +124,17 @@ impl ColorSystemBuilder {
         IndexMap<String, PerColor<Option<DefaultColor>>>,
         String,
     )> {
+        if self.id.is_some() && self.is_modified {
+            bail!("shared color system cannot be modified");
+        }
+
         let colors = super::iter_autonamed(
             &self.names,
             &self.ordering,
             crate::util::iter_uppercase_letter_names(),
             warn_fn,
         )
-        .map(|(_id, (short_name, long_name))| {
-            eyre::Ok(ColorInfo {
-                short_name,
-                long_name,
-            })
-        })
+        .map(|(_id, (name, display))| eyre::Ok(ColorInfo { name, display }))
         .try_collect()?;
 
         let mut color_schemes = self.schemes.clone();

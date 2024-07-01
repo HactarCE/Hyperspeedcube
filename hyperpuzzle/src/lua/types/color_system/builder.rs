@@ -80,20 +80,16 @@ impl LuaColorSystem {
     /// Adds a new color.
     fn add<'lua>(&self, lua: &'lua Lua, data: LuaValue<'lua>) -> LuaResult<LuaColor> {
         let name: Option<String>;
-        let surfaces: LuaHyperplaneSet;
+        let display: Option<String>;
         let default_color: Option<String>;
         if let Ok(s) = lua.unpack(data.clone()) {
             name = s;
-            surfaces = LuaHyperplaneSet::default();
-            default_color = None;
-        } else if let Ok(h) = lua.unpack(data.clone()) {
-            name = None;
-            surfaces = h;
+            display = None;
             default_color = None;
         } else if let LuaValue::Table(t) = data {
             unpack_table!(lua.unpack(t {
                 name,
-                surfaces,
+                display,
                 default_color,
             }));
         } else {
@@ -102,9 +98,10 @@ impl LuaColorSystem {
 
         let mut puz = self.0.lock();
         let colors = &mut puz.shape.colors;
-        let id = colors.add(surfaces.0).into_lua_err()?;
+        let id = colors.add().into_lua_err()?;
         colors.set_default_color(id, default_color_from_str(lua, default_color));
-        colors.names.set_short_name(id, name, lua_warn_fn(lua));
+        colors.names.set_name(id, name, lua_warn_fn(lua));
+        colors.names.set_display(id, display);
         Ok(puz.wrap_id(id))
     }
 

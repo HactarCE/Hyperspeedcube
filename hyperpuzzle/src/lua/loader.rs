@@ -93,6 +93,7 @@ impl LuaLoader {
 
             // Database
             sandbox.raw_set("puzzles", LuaPuzzleDb)?;
+            sandbox.raw_set("color_systems", LuaColorSystemDb)?;
 
             // Constructors
             let vec_fn = |lua, LuaVectorFromMultiValue(v)| LuaBlade::from_vector(lua, v);
@@ -124,10 +125,7 @@ impl LuaLoader {
         let files = self.db.lock().files.values().cloned().collect_vec();
         for file in files {
             if !file.is_loaded() {
-                if let Err(e) = self.as_ref().load_file(&file.name) {
-                    let e = e.context(format!("error loading file {:?}", file.name));
-                    self.logger.error(Some(file.name.clone()), e);
-                }
+                self.try_load_file(&file.name);
             }
         }
     }
@@ -150,6 +148,17 @@ impl LuaLoader {
             self.logger.error(file, e);
         }
         result
+    }
+    /// Loads a file if it has not yet been loaded. If loading fails, an error
+    /// is reported to the Lua console.
+    fn try_load_file(&self, filename: &str) {
+        if let Err(e) = self.as_ref().load_file(filename) {
+            self.logger.error(
+                Some(filename.to_string()),
+                e.clone()
+                    .context(format!("error loading file {filename:?}")),
+            );
+        }
     }
 
     #[cfg(test)]
@@ -260,11 +269,13 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
                             exports: _,
 
                             puzzles,
+                            color_systems,
                         } = &*file.as_loading()?;
 
                         let mut db = self.db.lock();
                         let kv = |k: &String| (k.clone(), Arc::clone(&file));
                         db.puzzles.extend(puzzles.keys().map(kv));
+                        db.color_systems.extend(color_systems.keys().map(kv));
                     }
 
                     file.load_state.lock().complete_ok(&self.lua)
@@ -305,12 +316,14 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
 
             // Unlock the database, then load all those files.
             let return_table = self.lua.create_table()?;
+            let mut ret = Ok(return_table.clone());
             for (table_key, file_key) in files_to_load {
-                if let Ok(exports) = self.load_file(&file_key) {
-                    return_table.raw_set(table_key, exports)?;
+                match self.load_file(&file_key) {
+                    Ok(exports) => return_table.raw_set(table_key, exports)?,
+                    Err(e) => ret = Err(e),
                 }
             }
-            return Ok(return_table);
+            return ret;
         }
 
         if let Some(dependency) = self.db.lock().files.get(&filename) {

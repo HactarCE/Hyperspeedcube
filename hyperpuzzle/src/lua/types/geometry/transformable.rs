@@ -28,12 +28,7 @@ pub enum Transformable {
     /// Blade.
     Blade(LuaBlade),
     /// Color in the color system of a shape.
-    Color {
-        /// Puzzle containing the color system.
-        db: Arc<Mutex<PuzzleBuilder>>,
-        /// Surfaces of the color.
-        hyperplanes: Vec<Hyperplane>,
-    },
+    Color(Option<LuaColor>),
     /// Hyperplane.
     Hyperplane(LuaHyperplane),
     // TODO: piece
@@ -81,9 +76,7 @@ impl Transformable {
         Ok(Self::Axis { db, vector })
     }
     fn from_color(color: LuaColor) -> LuaResult<Self> {
-        let hyperplanes = color.hyperplanes()?;
-        let db = color.db;
-        Ok(Self::Color { db, hyperplanes })
+        Ok(Self::Color(Some(color)))
     }
     fn from_twist(twist: LuaTwist) -> LuaResult<Self> {
         let t = twist.get()?;
@@ -107,11 +100,7 @@ impl Transformable {
                 Some(LuaAxis { id, db }.into_lua(lua))
             }
             Self::Blade(b) => Some(b.clone().into_lua(lua)),
-            Self::Color { db, hyperplanes } => {
-                let db = Arc::clone(&db);
-                let id = db.lock().shape.colors.surface_set_to_id(&hyperplanes)?;
-                Some(LuaColor { id, db }.into_lua(lua))
-            }
+            Self::Color(c) => Some(c.clone().into_lua(lua)),
             Self::Hyperplane(h) => Some(h.clone().into_lua(lua)),
             Self::Transform(t) => Some(t.clone().into_lua(lua)),
             Self::Twist {
@@ -153,10 +142,7 @@ impl TransformByMotor for Transformable {
                 vector: m.transform_vector(vector),
             },
             Self::Blade(b) => Self::Blade(m.transform(b)),
-            Self::Color { db, hyperplanes } => Self::Color {
-                db: Arc::clone(db),
-                hyperplanes: hyperplanes.into_iter().map(|h| m.transform(h)).collect(),
-            },
+            Self::Color(_) => Self::Color(None), // TODO: support transforming colors
             Self::Hyperplane(LuaHyperplane(h)) => Self::Hyperplane(LuaHyperplane(m.transform(h))),
             Self::Transform(LuaTransform(t)) => Self::Transform(LuaTransform(m.transform(t))),
             Self::Twist {
@@ -179,10 +165,7 @@ impl ApproxHashMapKey for Transformable {
         match self {
             Self::Axis { db: _, vector } => vector.approx_hash(float_hash_fn).into(),
             Self::Blade(LuaBlade(b)) => b.approx_hash(float_hash_fn).into(),
-            Self::Color { db: _, hyperplanes } => hyperplanes
-                .iter()
-                .map(|hyperplane| hyperplane.approx_hash(&mut float_hash_fn).into())
-                .collect(),
+            Self::Color(color) => color.as_ref().map(|c| c.id.0 as u64).into(),
             Self::Hyperplane(LuaHyperplane(h)) => h.approx_hash(float_hash_fn).into(),
             Self::Transform(LuaTransform(t)) => t.approx_hash(float_hash_fn).into(),
             Self::Twist {
@@ -208,6 +191,8 @@ pub enum TransformableHash {
     Multivector(MultivectorHash),
     /// Hash of multiple vectors or multivectors.
     Vec(Vec<TransformableHash>),
+    /// Hash of an ID.
+    Id(Option<u64>),
 }
 impl From<VectorHash> for TransformableHash {
     fn from(value: VectorHash) -> Self {
@@ -222,5 +207,10 @@ impl From<MultivectorHash> for TransformableHash {
 impl FromIterator<TransformableHash> for TransformableHash {
     fn from_iter<T: IntoIterator<Item = TransformableHash>>(iter: T) -> Self {
         Self::Vec(iter.into_iter().collect())
+    }
+}
+impl From<Option<u64>> for TransformableHash {
+    fn from(value: Option<u64>) -> Self {
+        Self::Id(value)
     }
 }

@@ -1,10 +1,12 @@
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
 use hypermath::ApproxHashMap;
 use itertools::Itertools;
+
+use crate::lua::lua_warn_fn;
+use crate::util::lazy_resolve;
 
 use super::*;
 
@@ -48,26 +50,15 @@ impl LuaUserData for LuaOrbit {
         fields.add_field_method_get("names", |lua, this| {
             this.has_names
                 .then(|| {
-                    lua.create_sequence_from(
-                        this.orbit_list.iter().map(|elem| elem.short_name.clone()),
-                    )
+                    lua.create_sequence_from(this.orbit_list.iter().map(|elem| elem.name.clone()))
                 })
                 .transpose()
         });
-        fields.add_field_method_get("short_names", |lua, this| {
+        fields.add_field_method_get("displays", |lua, this| {
             this.has_names
                 .then(|| {
                     lua.create_sequence_from(
-                        this.orbit_list.iter().map(|elem| elem.short_name.clone()),
-                    )
-                })
-                .transpose()
-        });
-        fields.add_field_method_get("long_names", |lua, this| {
-            this.has_names
-                .then(|| {
-                    lua.create_sequence_from(
-                        this.orbit_list.iter().map(|elem| elem.long_name.clone()),
+                        this.orbit_list.iter().map(|elem| elem.display.clone()),
                     )
                 })
                 .transpose()
@@ -94,8 +85,8 @@ impl LuaUserData for LuaOrbit {
                 if let Some(element) = this.orbit_list.get(i) {
                     let OrbitElement {
                         transform,
-                        short_name,
-                        long_name,
+                        name,
+                        display,
                         objects,
                     } = element;
                     // The first value is the transform.
@@ -107,8 +98,8 @@ impl LuaUserData for LuaOrbit {
                     // If custom names are given, then the last values are the
                     // custom names.
                     if this.has_names {
-                        values.push(short_name.as_deref().into_lua(lua)?);
-                        values.push(long_name.as_deref().into_lua(lua)?);
+                        values.push(name.as_deref().into_lua(lua)?);
+                        values.push(display.as_deref().into_lua(lua)?);
                     }
                 }
             }
@@ -123,8 +114,35 @@ impl LuaUserData for LuaOrbit {
         });
 
         methods.add_method("with", |lua, this, arg| {
+            let Some(names_table) = arg else {
+                lua.warning("orbit:with() called nil value", false);
+                return Ok(this.clone());
+            };
+
+            let mut motor_to_name = ApproxHashMap::new();
+            for (name, mirror_seq) in names_from_table(lua, names_table)? {
+                let motor = this.symmetry.motor_for_mirror_seq(mirror_seq)?;
+                if let Some(existing_name) = motor_to_name.insert(motor, name.clone()) {
+                    lua.warning(
+                        format!("duplicate mirror sequence: {name:?} and {existing_name:?}"),
+                        false,
+                    );
+                }
+            }
+
+            let mut ret = this.clone();
+            ret.has_names = true;
+            for elem in &mut ret.orbit_list {
+                if let Some(name) = motor_to_name.get(&elem.transform) {
+                    elem.name = Some(name.clone());
+                }
+            }
+            Ok(ret)
+        });
+
+        methods.add_method("with_names_and_order", |lua, this, arg| {
             let Some(names_and_order_table) = arg else {
-                lua.warning("orbit:with() called with nil value", false);
+                lua.warning("orbit:with_names_and_order() called with nil value", false);
                 return Ok(this.clone());
             };
 
@@ -139,20 +157,19 @@ impl LuaUserData for LuaOrbit {
             let mut order = vec![];
             let mut new_orbit_list = this.orbit_list.clone();
             let mut seen: Vec<bool> = vec![false; new_orbit_list.len()];
-            for ((short_name, long_name), motor) in names_and_order {
+            for ((name, display), motor) in names_and_order {
                 if let Some(&index) = lookup.get(&motor.transform(&this.init)) {
                     seen[index] = true;
                     let element = &mut new_orbit_list[index];
-                    if let Some(old_name) = &element.short_name {
-                        let msg = format!(
-                            "duplicate in symmetry orbit order: {old_name:?} and {short_name:?}"
-                        );
+                    if let Some(old_name) = &element.name {
+                        let msg =
+                            format!("duplicate in symmetry orbit order: {old_name:?} and {name:?}");
                         lua.warning(msg, false);
                     } else {
-                        element.short_name = Some(short_name);
+                        element.name = Some(name);
                         order.push(index);
                     }
-                    element.long_name = long_name;
+                    element.display = display;
                 }
             }
 
@@ -184,8 +201,8 @@ impl LuaOrbit {
             // Assign empty names.
             .map(|(transform, objects)| OrbitElement {
                 transform,
-                short_name: None,
-                long_name: None,
+                name: None,
+                display: None,
                 objects,
             })
             .collect();
@@ -226,11 +243,41 @@ impl LuaOrbit {
     }
 }
 
+/// Constructs an assignment of names based on a table for a particular symmetry
+/// group.
+///
+/// The keys are mirror sequences and the values are names.
+pub fn names_from_table<'lua>(
+    lua: &'lua Lua,
+    table: LuaTable<'lua>,
+) -> LuaResult<Vec<(String, Vec<usize>)>> {
+    let mut key_value_dependencies = vec![];
+
+    for pair in table.pairs() {
+        let (k, v) = pair?;
+        let (mirror_seq, init_name) = mirror_seq_and_opt_name_from_value(lua, v)?;
+        key_value_dependencies.push((k, (mirror_seq, init_name)));
+    }
+
+    // Resolve lazy evaluation.
+    Ok(lazy_resolve(
+        key_value_dependencies,
+        |mut seq1, seq2| {
+            // TODO: O(n^2)
+            seq1.extend(seq2);
+            seq1
+        },
+        lua_warn_fn(lua),
+    )
+    .into_iter()
+    .collect())
+}
+
 /// Constructs an assignment of names and ordering based on a table for a
 /// particular symmetry group.
 ///
-/// The first string in each pair is the **short name**, which is required. The
-/// second string in each pair is the **long name**, which is optional.
+/// The first string in each pair is the name, which is required. The second
+/// string in each pair is the display name, which is optional.
 pub fn names_and_order_from_table<'lua>(
     lua: &'lua Lua,
     table: LuaTable<'lua>,
@@ -240,64 +287,30 @@ pub fn names_and_order_from_table<'lua>(
     let symmetry = LuaSymmetry::construct_from_lua_value(table.get("symmetry")?)?;
 
     let mut order = vec![];
-    // Some values are given directly.
-    let mut known = HashMap::<String, Motor>::new();
-    // Some must be computed based on other values.
-    let mut unknown = HashMap::<String, Vec<(String, Motor)>>::new();
+
+    let mut key_value_dependencies = vec![];
 
     for entry in table.sequence_values::<LuaValue<'_>>() {
-        let [key, short_name, long_name]: [LuaValue<'_>; 3] = <_>::from_lua(entry?, lua)?;
-        let short_name = String::from_lua(short_name, lua)?;
-        let long_name = Option::<String>::from_lua(long_name, lua)?;
-        order.push((short_name.clone(), long_name));
+        let [key, name, display]: [LuaValue<'_>; 3] = <_>::from_lua(entry?, lua)?;
+        let name = String::from_lua(name, lua)?;
+        let display = Option::<String>::from_lua(display, lua)?;
+        order.push((name.clone(), display));
 
-        let mut mirror_seq: Vec<LuaValue<'_>> = LuaTable::from_lua(key.clone(), lua)?
-            .sequence_values::<LuaValue<'_>>()
-            .try_collect()?;
-        let init_name = match mirror_seq.last().cloned() {
-            Some(LuaValue::String(s)) => {
-                mirror_seq.pop();
-                Some(s.to_string_lossy().to_string())
-            }
-            _ => None,
-        };
-        let mirror_indices: Vec<usize> = mirror_seq
-            .into_iter()
-            .map(|v| LuaIndex::from_lua(v, lua).map(|LuaIndex(i)| i))
-            .try_collect()?;
-        let motor = symmetry.motor_for_mirror_seq(mirror_indices)?;
-        match init_name {
-            Some(init_name) => unknown
-                .entry(init_name)
-                .or_default()
-                .push((short_name, motor)),
-            None => {
-                known.insert(short_name, motor);
-            }
-        }
+        let (mirror_seq, init_name) = mirror_seq_and_opt_name_from_value(lua, key)?;
+        let motor = symmetry.motor_for_mirror_seq(mirror_seq)?;
+
+        key_value_dependencies.push((name, (motor, init_name)));
     }
 
     // Resolve lazy evaluation.
-    let mut queue = known.keys().cloned().collect_vec();
-    while let Some(next_known) = queue.pop() {
-        if let Some(unprocessed) = unknown.remove(&next_known) {
-            for (new_name, motor) in unprocessed {
-                let value = motor * &known[&next_known];
-                known.insert(new_name.clone(), value);
-                queue.push(new_name);
-            }
-        }
-    }
-    if let Some(unprocessed_key) = unknown.keys().next() {
-        lua.warning(format!("unknown key {unprocessed_key:?}"), false);
-    }
+    let mut map = lazy_resolve(key_value_dependencies, |m1, m2| m1 * m2, lua_warn_fn(lua));
 
     // Assemble into ordered list.
     Ok(order
         .into_iter()
-        .filter_map(|(short_name, long_name)| {
-            let motor = known.remove(&short_name)?;
-            Some(((short_name, long_name), motor))
+        .filter_map(|(name, display)| {
+            let motor = map.remove(&name)?;
+            Some(((name, display), motor))
         })
         .collect())
 }
@@ -333,7 +346,7 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
                 .iter_in_order()
                 .map(|element| {
                     let v = Self::to_expected_type(lua, element.objects.get(0))?;
-                    Ok(((element.short_name.clone(), element.long_name.clone()), v))
+                    Ok(((element.name.clone(), element.display.clone()), v))
                 })
                 .try_collect(),
         }
@@ -362,7 +375,28 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
 #[derive(Debug, Clone)]
 struct OrbitElement {
     transform: Motor,
-    short_name: Option<String>,
-    long_name: Option<String>,
+    name: Option<String>,
+    display: Option<String>,
     objects: Vec<Transformable>,
+}
+
+fn mirror_seq_and_opt_name_from_value<'lua>(
+    lua: &'lua Lua,
+    value: LuaValue<'lua>,
+) -> LuaResult<(Vec<usize>, Option<String>)> {
+    let mut seq: Vec<LuaValue<'_>> = LuaTable::from_lua(value, lua)?
+        .sequence_values::<LuaValue<'_>>()
+        .try_collect()?;
+    let init_name = match seq.last().cloned() {
+        Some(LuaValue::String(s)) => {
+            seq.pop();
+            Some(s.to_string_lossy().to_string())
+        }
+        _ => None,
+    };
+    let mirror_indices: Vec<usize> = seq
+        .into_iter()
+        .map(|v| LuaIndex::from_lua(v, lua).map(|LuaIndex(i)| i))
+        .try_collect()?;
+    Ok((mirror_indices, init_name))
 }
