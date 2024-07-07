@@ -81,3 +81,28 @@ end
 for size = 1, 9 do
   define_ft_cube_4d(size)
 end
+
+puzzles:add('opposite_colors_same_cube', {
+  ndim = 3,
+  name = "Opposite colors are the same",
+  colors = 'half_cube',
+  build = function(self)
+    local sym = cd'bc3'
+    local shape = symmetries.cubic.cube()
+    self:carve(shape:iter_poles(), {
+      stickers = {
+        R = 'X', L = 'X',
+        U = 'Y', D = 'Y',
+        F = 'Z', B = 'Z',
+      },
+    })
+
+    -- Define axes and slices
+    self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, size))
+
+    -- Define twists
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox], sym:thru(2, 1)) do
+      self.twists:add(axis, twist_transform)
+    end
+  end,
+})

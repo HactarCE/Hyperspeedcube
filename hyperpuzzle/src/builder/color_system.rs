@@ -3,7 +3,7 @@ use hypermath::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
 
-use super::{CustomOrdering, NamingScheme};
+use super::{BadName, CustomOrdering, NamingScheme};
 use crate::{Color, ColorInfo, ColorSystem, DefaultColor, PerColor};
 
 const PUZZLE_PREFIX: &str = "puzzle:";
@@ -109,6 +109,22 @@ impl ColorSystemBuilder {
         self.by_id.get_mut(id)
     }
 
+    /// Returns the ID for the color with the given name, adding it to the color
+    /// system if it does not already exist.
+    pub fn get_or_add_with_name(
+        &mut self,
+        name: String,
+        warn_fn: impl Fn(BadName),
+    ) -> Result<Color> {
+        if let Some(&id) = self.names.names_to_ids().get(&name) {
+            Ok(id)
+        } else {
+            let id = self.add()?;
+            self.names.set_name(id, Some(name), warn_fn);
+            Ok(id)
+        }
+    }
+
     /// Returns an iterator over all the colors, in the canonical ordering.
     pub fn iter(&self) -> impl Iterator<Item = (Color, &ColorBuilder)> {
         self.ordering
@@ -145,9 +161,6 @@ impl ColorSystemBuilder {
         .try_collect()?;
 
         let mut schemes = self.schemes.clone();
-        for (_name, list) in &mut schemes {
-            list.resize(self.len())?;
-        }
 
         let default_scheme = self
             .default_scheme
@@ -155,6 +168,11 @@ impl ColorSystemBuilder {
             .unwrap_or(crate::DEFAULT_COLOR_SCHEME_NAME.to_string());
         if !schemes.contains_key(&default_scheme) {
             warn_fn(eyre!("missing default color scheme {default_scheme:?}"));
+            schemes.insert(default_scheme.clone(), PerColor::new());
+        }
+
+        for (_name, list) in &mut schemes {
+            list.resize(self.len())?;
         }
 
         Ok(ColorSystem {

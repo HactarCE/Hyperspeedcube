@@ -1,3 +1,5 @@
+use itertools::Itertools;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use parking_lot::{Mutex, MutexGuard};
@@ -49,6 +51,21 @@ impl LuaUserData for LuaPuzzleBuilder {
                     }
                 } else if let Ok(color) = LuaColor::from_lua(stickers.clone(), lua) {
                     sticker_mode = StickerMode::Color(color.id);
+                } else if let LuaValue::Table(mapping_table) = stickers {
+                    let mut puz = this.lock();
+                    let color_system = &mut puz.shape.colors;
+                    sticker_mode = StickerMode::Map(
+                        mapping_table
+                            .pairs()
+                            .map(|pair| {
+                                let (name, color_name) = pair?;
+                                let color = color_system
+                                    .get_or_add_with_name(color_name, lua_warn_fn(lua))?;
+                                eyre::Ok((name, color))
+                            })
+                            .try_collect()
+                            .into_lua_err()?,
+                    );
                 } else {
                     return Err(LuaError::external("bad value for key \"stickers\""));
                 }
@@ -88,7 +105,7 @@ impl LuaPuzzleBuilder {
         let shape = &mut puz.shape;
 
         for ((name, display), LuaHyperplane(plane)) in cuts.to_vec(lua)? {
-            let color = match sticker_mode {
+            let color = match &sticker_mode {
                 StickerMode::NewColor => Some({
                     match name
                         .as_ref()
@@ -106,7 +123,11 @@ impl LuaPuzzleBuilder {
                     }
                 }),
                 StickerMode::None => None,
-                StickerMode::Color(c) => Some(c),
+                StickerMode::Color(c) => Some(*c),
+                StickerMode::Map(m) => match name {
+                    Some(s) => Some(m[&s]),
+                    None => None,
+                },
             };
             match cut_mode {
                 CutMode::Carve => shape.carve(None, plane, color).into_lua_err()?,
@@ -119,6 +140,7 @@ impl LuaPuzzleBuilder {
 }
 
 /// Which pieces to keep when cutting the shape.
+#[derive(Debug)]
 enum CutMode {
     /// Delete any pieces outside the cut; keep only pieces inside the cut.
     Carve,
@@ -127,12 +149,16 @@ enum CutMode {
 }
 
 /// How to sticker new facets created by a cut.
+#[derive(Debug, Default)]
 enum StickerMode {
     /// Add a new color for each cut and create new stickers with that color on
     /// both sides of the cut.
+    #[default]
     NewColor,
     /// Do not add new stickers.
     None,
     /// Add new stickers, all with the same existing color.
     Color(Color),
+    /// Adds new colors or uses existing colors as determined by the mapping.
+    Map(HashMap<String, Color>),
 }
