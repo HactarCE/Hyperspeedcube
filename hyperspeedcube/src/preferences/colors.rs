@@ -14,27 +14,55 @@ pub type ColorScheme = IndexMap<String, Option<DefaultColor>>;
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct ColorPreferences {
-    pub singles: IndexMap<String, Rgb>,
-    pub sets: IndexMap<String, Vec<Rgb>>,
-
-    pub custom_singles: IndexMap<String, Rgb>,
-    pub custom_sets: IndexMap<String, Vec<Rgb>>,
-
+    #[serde(flatten)]
     pub color_systems: BTreeMap<String, ColorSystemPreferences>,
     #[serde(skip)]
     empty_color_system: ColorSystemPreferences,
 }
 impl ColorPreferences {
     pub(super) fn post_init(&mut self) {
+        for color_system_prefs in self.color_systems.values_mut() {
+            color_system_prefs.post_init();
+        }
+    }
+
+    pub fn color_system_mut(&mut self, color_system: &ColorSystem) -> &mut ColorSystemPreferences {
+        if color_system.id.is_empty() {
+            &mut self.empty_color_system // don't save this in the `color_systems` map.
+        } else {
+            match self.color_systems.entry(color_system.id.clone()) {
+                btree_map::Entry::Vacant(e) => {
+                    e.insert(ColorSystemPreferences::from_color_system(color_system))
+                }
+                btree_map::Entry::Occupied(mut e) => {
+                    e.get_mut().update_builtin_schemes(color_system);
+                    e.into_mut()
+                }
+            }
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(default)]
+pub struct GlobalColorPalette {
+    pub singles: IndexMap<String, Rgb>,
+    pub sets: IndexMap<String, Vec<Rgb>>,
+
+    pub custom_singles: IndexMap<String, Rgb>,
+    pub custom_sets: IndexMap<String, Vec<Rgb>>,
+}
+impl GlobalColorPalette {
+    pub(super) fn post_init(&mut self) {
         self.singles = DEFAULT_PREFS
-            .colors
+            .color_palette
             .singles
             .iter()
             .map(|(k, v)| (k.clone(), self.singles.get(k).unwrap_or(v).clone()))
             .collect();
 
         self.sets = DEFAULT_PREFS
-            .colors
+            .color_palette
             .sets
             .iter()
             .map(|(k, v)| {
@@ -48,13 +76,9 @@ impl ColorPreferences {
                 )
             })
             .collect();
-
-        for color_system_prefs in self.color_systems.values_mut() {
-            color_system_prefs.post_init();
-        }
     }
 
-    pub fn get_color(&self, color: &DefaultColor) -> Option<Rgb> {
+    pub fn get(&self, color: &DefaultColor) -> Option<Rgb> {
         match color {
             DefaultColor::HexCode { rgb } => Some(*rgb),
             DefaultColor::Single { name } => None
@@ -93,28 +117,6 @@ impl ColorPreferences {
                 )
             })
             .collect()
-    }
-
-    pub fn color_system_mut(&mut self, color_system: &ColorSystem) -> &mut ColorSystemPreferences {
-        if color_system.id.is_empty() {
-            &mut self.empty_color_system // don't save this in the `color_systems` map.
-        } else {
-            match self.color_systems.entry(color_system.id.clone()) {
-                btree_map::Entry::Vacant(e) => {
-                    e.insert(ColorSystemPreferences::from_color_system(color_system))
-                }
-                btree_map::Entry::Occupied(mut e) => {
-                    e.get_mut().update_builtin_schemes(color_system);
-                    e.into_mut()
-                }
-            }
-        }
-    }
-    pub fn current_color_scheme(&self, color_system: &ColorSystem) -> Preset<ColorScheme> {
-        match self.color_systems.get(&color_system.id) {
-            Some(color_system_prefs) => color_system_prefs.schemes.current_preset(),
-            None => preset_from_color_scheme(color_system, &color_system.default_scheme),
-        }
     }
 }
 

@@ -39,7 +39,7 @@ pub struct PuzzleView {
 }
 impl PuzzleView {
     pub(crate) fn new(
-        prefs: &Preferences,
+        prefs: &mut Preferences,
         puzzle_simulation: &Arc<Mutex<PuzzleSimulation>>,
     ) -> Self {
         let simulation = puzzle_simulation.lock();
@@ -47,7 +47,11 @@ impl PuzzleView {
         let view_prefs_set = PuzzleViewPreferencesSet::from_ndim(puzzle.ndim());
         let view_preset = prefs[view_prefs_set].current_preset();
 
-        let colors = prefs.colors.current_color_scheme(&puzzle.colors);
+        let colors = prefs
+            .color_schemes
+            .color_system_mut(&puzzle.colors)
+            .schemes
+            .current_preset();
 
         Self {
             sim: Arc::clone(puzzle_simulation),

@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map, HashMap, HashSet},
     sync::Arc,
 };
 
@@ -12,21 +12,21 @@ use indexmap::IndexMap;
 use crate::{
     app::App,
     gui::util::text_width,
-    preferences::{ColorPreferences, Preferences, Preset, WithPresets},
+    preferences::{ColorPreferences, GlobalColorPalette, Preferences, Preset, WithPresets},
 };
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 enum ColorsTab {
-    GlobalPalette,
     #[default]
-    PuzzleColors,
+    ByColor,
     ByFacet,
     ContrastMatrix,
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let active_puzzle_ty = app.active_puzzle_type();
-    ui.set_enabled(active_puzzle_ty.is_some());
+    let has_active_puzzle = active_puzzle_ty.is_some();
+    ui.set_enabled(has_active_puzzle);
 
     let color_system = match &active_puzzle_ty {
         Some(puz) => Arc::clone(&puz.colors),
@@ -37,7 +37,19 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     let mut changed = false;
 
-    let color_system_prefs = app.prefs.colors.color_system_mut(&color_system);
+    let color_system_prefs = app.prefs.color_schemes.color_system_mut(&color_system);
+    let mut active_colors = HashMap::<Option<DefaultColor>, String>::new();
+    for (name, default_color) in &color_system_prefs.schemes.current {
+        match active_colors.entry(default_color.clone()) {
+            hash_map::Entry::Occupied(mut e) => {
+                *e.get_mut() += ", ";
+                *e.get_mut() += name;
+            }
+            hash_map::Entry::Vacant(e) => {
+                e.insert(name.clone());
+            }
+        }
+    }
     let mut presets_ui = crate::gui::components::PresetsUi {
         id: unique_id!(),
         presets: &mut color_system_prefs.schemes,
@@ -65,111 +77,97 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             default_preset.as_ref()
         },
         |prefs_ui| {
-            prefs_ui.ui.label("hullo!");
+            let ui = prefs_ui.ui;
+            let tab = ui
+                .horizontal_wrapped(|ui| {
+                    let id = unique_id!();
+                    let mut tab = ui.data(|data| data.get_temp(id)).unwrap_or_default();
+                    ui.selectable_value(&mut tab, ColorsTab::ByColor, "By color");
+                    ui.selectable_value(&mut tab, ColorsTab::ByFacet, "By facet");
+                    ui.selectable_value(&mut tab, ColorsTab::ContrastMatrix, "Contrast matrix");
+                    ui.data_mut(|data| data.insert_temp(id, tab));
+                    tab
+                })
+                .inner;
+            ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                ui.separator()
+            });
 
-            // let ui = prefs_ui.ui;
-            // let tab = ui
-            //     .horizontal_wrapped(|ui| {
-            //         let id = unique_id!();
-            //         let mut tab = ui.data(|data| data.get_temp(id)).unwrap_or_default();
-            //         ui.selectable_value(&mut tab, ColorsTab::GlobalPalette, "Global palette");
-            //         ui.selectable_value(
-            //             &mut tab,
-            //             ColorsTab::PuzzleColors,
-            //             "Color assignment (palette view)",
-            //         );
-            //         ui.selectable_value(
-            //             &mut tab,
-            //             ColorsTab::ByFacet,
-            //             "Color assignment (stickers view)",
-            //         );
-            //         ui.selectable_value(&mut tab, ColorsTab::ContrastMatrix, "Contrast matrix");
-            //         ui.data_mut(|data| data.insert_temp(id, tab));
-            //         tab
-            //     })
-            //     .inner;
-            // ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
-            //     ui.separator()
-            // });
+            ui.set_enabled(has_active_puzzle);
 
-            // ui.set_enabled(app.has_active_puzzle());
-
-            // match tab {
-            //     ColorsTab::GlobalPalette => {
-            //         show_color_palette(
-            //             ui,
-            //             &mut DefaultColor::Single {
-            //                 name: "Red".to_string(),
-            //             },
-            //             &HashMap::new(),
-            //             &app.prefs,
-            //         );
-            //         return;
-            //     }
-            //     ColorsTab::PuzzleColors => ui.label("eh"),
-            //     ColorsTab::ByFacet => ui.label("This is a different UI"),
-            //     ColorsTab::ContrastMatrix => ui.label("TOTALLY DIFFERENT"),
-            // };
-            // if tab == ColorsTab::ByFacet {
-            //     ui.group(|ui| {});
-            // }
+            match tab {
+                ColorsTab::ByColor => {
+                    show_color_palette(ui, None, &active_colors, &app.prefs.color_palette)
+                }
+                ColorsTab::ByFacet => ui.label("This is a different UI"),
+                ColorsTab::ContrastMatrix => ui.label("TOTALLY DIFFERENT"),
+            };
+            if tab == ColorsTab::ByFacet {
+                ui.group(|ui| {});
+            }
 
             // app.with_active_puzzle_view(|p| {
-            //     let mut active_colors = HashMap::<DefaultColor, Vec<Color>>::new();
+            //     let mut active_colors = HashMap::<DefaultColor, Vec<String>>::new();
             //     for (color, default_color) in &p.view.colors.value {
             //         if let Some(default_color) = default_color {
             //             active_colors
             //                 .entry(default_color.clone())
             //                 .or_default()
-            //                 .push(color);
+            //                 .push(color.clone());
             //         }
             //     }
             //     active_colors
             // });
-            // let scheme = ui.group(|ui| {
-            //     ui.collapsing("Puzzle colors", |ui| {
-            //         if let Some(ty) = app.active_puzzle_type() {
-            //             for (id, face_color) in &ty.colors.list {
-            //                 ui.horizontal(|ui| {
-            //                     ui.label(&face_color.display);
-            //                     // if let Some(default_color) = &face_color.default_color {
-            //                     //     let popup_id = unique_id!(&ty.name, id);
-            //                     //     let rgb = app.prefs.colors.get(default_color).unwrap_or_default();
-            //                     //     let r = color_button(ui, rgb, false, None)
-            //                     //         .on_hover_text(default_color.to_string());
-            //                     //     if r.clicked() {
-            //                     //         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
-            //                     //     }
-            //                     //     let mut new_default_color = default_color.clone();
-            //                     //     egui::popup_below_widget(ui, popup_id, &r, |ui| {
-            //                     //         let r = show_color_palette(
-            //                     //             ui,
-            //                     //             &mut new_default_color,
-            //                     //             &active_colors,
-            //                     //             &app.prefs,
-            //                     //         );
-            //                     //         if r.changed() {
-            //                     //             ui.memory_mut(|mem| mem.close_popup());
-            //                     //             dbg!("color selected!");
-            //                     //         }
-            //                     //     });
+            let scheme = ui.group(|ui| {
+                ui.collapsing("Puzzle colors", |ui| {
+                    if let Some(ty) = active_puzzle_ty {
+                        for (id, face_color) in &ty.colors.list {
+                            ui.horizontal(|ui| {
+                                ui.label(&face_color.display);
+                                // if let Some(default_color) = &face_color.default_color {
+                                //     let popup_id = unique_id!(&ty.name, id);
+                                //     let rgb = app.prefs.colors.get(default_color).unwrap_or_default();
+                                //     let r = color_button(ui, rgb, false, None)
+                                //         .on_hover_text(default_color.to_string());
+                                //     if r.clicked() {
+                                //         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
+                                //     }
+                                //     let mut new_default_color = default_color.clone();
+                                //     egui::popup_below_widget(ui, popup_id, &r, |ui| {
+                                //         let r = show_color_palette(
+                                //             ui,
+                                //             &mut new_default_color,
+                                //             &active_colors,
+                                //             &app.prefs,
+                                //         );
+                                //         if r.changed() {
+                                //             ui.memory_mut(|mem| mem.close_popup());
+                                //             dbg!("color selected!");
+                                //         }
+                                //     });
 
-            //                     //     ui.label(default_color.to_string());
-            //                     // }
-            //                 });
-            //             }
-            //         } else {
-            //             ui.label("No puzzle loaded");
-            //         }
-            //     });
-            // });
+                                //     ui.label(default_color.to_string());
+                                // }
+                            });
+                        }
+                    } else {
+                        ui.label("No puzzle loaded");
+                    }
+                });
+            });
         },
     );
 
     // Copy settings back to active puzzle.
     if changed {
+        let current_color_scheme = app
+            .prefs
+            .color_schemes
+            .color_system_mut(&color_system)
+            .schemes
+            .current_preset();
         app.with_active_puzzle_view(|p| {
-            p.view.colors = app.prefs.colors.current_color_scheme(&color_system);
+            p.view.colors = current_color_scheme;
         });
     }
 
@@ -215,9 +213,9 @@ fn color_button(ui: &mut egui::Ui, color: Rgb, open: bool, label: Option<&str>) 
 
 fn show_color_palette(
     ui: &mut egui::Ui,
-    selected_color: &mut DefaultColor,
-    active_colors: &HashMap<DefaultColor, String>,
-    prefs: &Preferences,
+    mut selected_color: Option<&mut DefaultColor>,
+    color_labels: &HashMap<Option<DefaultColor>, String>,
+    palette: &GlobalColorPalette,
 ) -> egui::Response {
     let mut changed = false;
 
@@ -226,23 +224,25 @@ fn show_color_palette(
             ui.vertical(|ui| {
                 ui.add(egui::Label::new(egui::RichText::from("Singles").strong()).wrap(false));
                 ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);
-                for (color_name, &rgb) in &prefs.colors.singles {
+                for (color_name, &rgb) in &palette.singles {
                     let tooltip_pos = ui.cursor().left_top();
                     ui.horizontal(|ui| {
                         let default_color = DefaultColor::Single {
                             name: color_name.clone(),
                         };
-                        if display_color(ui, rgb, &default_color, active_colors, tooltip_pos)
+                        if display_color(ui, rgb, &default_color, color_labels, tooltip_pos)
                             .clicked()
                         {
-                            *selected_color = default_color;
+                            if let Some(selected) = &mut selected_color {
+                                **selected = default_color;
+                            }
                             changed = true;
                         }
                     });
                 }
             });
 
-            for (group_name, sets) in prefs.colors.groups_of_sets() {
+            for (group_name, sets) in palette.groups_of_sets() {
                 ui.separator();
                 ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing = ui.spacing_mut().item_spacing.yx();
@@ -260,7 +260,7 @@ fn show_color_palette(
                                     ui,
                                     rgb,
                                     &default_color,
-                                    active_colors,
+                                    color_labels,
                                     tooltip_pos,
                                 );
                                 if r.hovered() || r.has_focus() || r.dragged() {
@@ -271,7 +271,9 @@ fn show_color_palette(
                                     }
                                 }
                                 if r.clicked() {
-                                    *selected_color = default_color;
+                                    if let Some(selected) = &mut selected_color {
+                                        **selected = default_color;
+                                    }
                                     changed = true;
                                 }
                             }
@@ -281,6 +283,8 @@ fn show_color_palette(
             }
         })
         .response;
+
+    ui.separator();
 
     if changed {
         r.mark_changed();
@@ -292,10 +296,12 @@ fn display_color(
     ui: &mut egui::Ui,
     rgb: Rgb,
     default_color: &DefaultColor,
-    active_colors: &HashMap<DefaultColor, String>,
+    active_colors: &HashMap<Option<DefaultColor>, String>,
     tooltip_pos: egui::Pos2,
 ) -> egui::Response {
-    let label = active_colors.get(&default_color).map(|s| s.as_str());
+    let label = active_colors
+        .get(&Some(default_color.clone()))
+        .map(|s| s.as_str());
     let r = color_button(ui, rgb, false, label);
     if r.hovered() || r.has_focus() || r.is_pointer_button_down_on() {
         let color_square_size = egui::Vec2::splat(ui.spacing().interact_size.x);

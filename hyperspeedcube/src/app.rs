@@ -54,7 +54,7 @@ impl App {
                     .set_current_preset(p.view.camera.view_preset.clone());
 
                 self.prefs
-                    .colors
+                    .color_schemes
                     .color_system_mut(&p.puzzle().colors)
                     .schemes
                     .set_current_preset(p.view.colors.clone());
@@ -93,7 +93,8 @@ impl App {
 
     pub(crate) fn load_puzzle(&mut self, lib: &hyperpuzzle::Library, puzzle_id: &str) {
         if self.has_active_puzzle_view() {
-            if let Some(new_puzzle_view) = PuzzleWidget::new(lib, &self.gfx, &self.prefs, puzzle_id)
+            if let Some(new_puzzle_view) =
+                PuzzleWidget::new(lib, &self.gfx, &mut self.prefs, puzzle_id)
             {
                 self.set_active_puzzle(Some(new_puzzle_view))
             }

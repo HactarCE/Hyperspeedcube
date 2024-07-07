@@ -163,7 +163,7 @@ view_4d:
       outline_light_intensity: 0.0
       downscale_rate: 1
       downscale_interpolate: true
-colors:
+color_palette:
   singles:
     White: "#ffffff"
     Red: "#cc3333"

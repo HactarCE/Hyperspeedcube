@@ -86,7 +86,8 @@ pub struct Preferences {
     #[serde(skip)]
     pub latest_view_prefs_set: PuzzleViewPreferencesSet,
 
-    pub colors: ColorPreferences,
+    pub color_palette: GlobalColorPalette,
+    pub color_schemes: ColorPreferences,
 
     pub piece_filters: (), // TODO
 
@@ -202,7 +203,8 @@ impl Preferences {
             view_3d,
             view_4d,
             latest_view_prefs_set: _,
-            colors,
+            color_palette,
+            color_schemes,
             piece_filters,
             global_keybinds,
             puzzle_keybinds,
@@ -216,7 +218,8 @@ impl Preferences {
         styles.post_init();
         view_3d.post_init(Some(&DEFAULT_PREFS.view_3d));
         view_4d.post_init(Some(&DEFAULT_PREFS.view_4d));
-        colors.post_init();
+        color_palette.post_init();
+        color_schemes.post_init();
 
         self
     }
@@ -301,6 +304,13 @@ impl<T: Default + Clone + PartialEq> WithPresets<T> {
         let taken_names: HashSet<&String> = builtin_presets.iter().map(|p| &p.name).collect();
         self.user.retain(|p| !taken_names.contains(&p.name));
         self.builtin = builtin_presets;
+
+        // If the most-recently-loaded preset is a built-in preset, then the
+        // color couldn't be loaded when preferences were first deserialized.
+        // This solution isn't perfect, but it's good enough.
+        if self.current == T::default() && self.builtin.iter().any(|p| p.name == self.last_loaded) {
+            self.post_init(None);
+        }
     }
 
     /// Returns the number of presets, including built-in and user presets.

@@ -16,7 +16,7 @@ const SEND_CURSOR_POS: bool = false;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>) {
     let r = match &mut *puzzle_view.lock() {
-        Some(puzzle_view) => puzzle_view.ui(ui, &app.prefs),
+        Some(puzzle_view) => puzzle_view.ui(ui, &mut app.prefs),
         None => {
             // Hint to the user to load a puzzle.
             ui.allocate_ui_at_rect(ui.available_rect_before_wrap(), |ui| {
@@ -50,7 +50,7 @@ impl PuzzleWidget {
     pub(crate) fn new(
         lib: &hyperpuzzle::Library,
         gfx: &Arc<GraphicsState>,
-        prefs: &Preferences,
+        prefs: &mut Preferences,
         puzzle_id: &str,
     ) -> Option<Self> {
         let start_time = instant::Instant::now();
@@ -70,7 +70,7 @@ impl PuzzleWidget {
     }
     pub(crate) fn with_sim(
         gfx: &Arc<GraphicsState>,
-        prefs: &Preferences,
+        prefs: &mut Preferences,
         sim: &Arc<Mutex<PuzzleSimulation>>,
     ) -> Self {
         let view = PuzzleView::new(prefs, sim);
@@ -100,7 +100,7 @@ impl PuzzleWidget {
     }
 
     /// Reloads the active puzzle. Returns `true` if the reload was successful.
-    pub fn reload(&mut self, lib: &hyperpuzzle::Library, prefs: &Preferences) -> bool {
+    pub fn reload(&mut self, lib: &hyperpuzzle::Library, prefs: &mut Preferences) -> bool {
         crate::reload_user_puzzles();
         let current_puzzle = self.puzzle();
         let gfx = Arc::clone(&self.renderer.lock().gfx);
@@ -113,7 +113,7 @@ impl PuzzleWidget {
     }
 
     /// Draws the puzzle in the UI and handles input.
-    pub fn ui(&mut self, ui: &mut egui::Ui, prefs: &Preferences) -> egui::Response {
+    pub fn ui(&mut self, ui: &mut egui::Ui, prefs: &mut Preferences) -> egui::Response {
         let puzzle = self.puzzle();
 
         // Allocate space in the UI.
@@ -285,7 +285,7 @@ impl PuzzleWidget {
                             .colors
                             .value
                             .get(&color_info.name)
-                            .and_then(|c| Some(prefs.colors.get_color(c.as_ref()?)?.rgb))
+                            .and_then(|c| Some(prefs.color_palette.get(c.as_ref()?)?.rgb))
                             .unwrap_or_else(|| sample_rainbow(id.0 as usize, puzzle.colors.len()))
                     })
                     .collect()

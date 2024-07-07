@@ -61,12 +61,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
             let mut prefs_ui = PrefsUi {
                 ui,
-                current: &mut app.prefs.colors,
-                defaults: &DEFAULT_PREFS.colors,
+                current: &mut app.prefs.color_palette,
+                defaults: &DEFAULT_PREFS.color_palette,
                 changed: &mut changed,
             };
 
-            for (i, color_name) in DEFAULT_PREFS.colors.singles.keys().enumerate() {
+            for (i, color_name) in DEFAULT_PREFS.color_palette.singles.keys().enumerate() {
                 let is_active = active_only.then(|| {
                     active_colors.contains(&DefaultColor::Single {
                         name: color_name.clone(),
