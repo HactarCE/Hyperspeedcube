@@ -3,12 +3,17 @@
 //! For a list of key names, see `VirtualKeyCode` in this file:
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
+use std::collections::{HashSet, VecDeque};
 use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
+use std::sync::mpsc;
 
 use bitvec::vec::BitVec;
+use eyre::{eyre, OptionExt};
 use hyperpuzzle::Rgb;
+use instant::Duration;
 use itertools::Itertools;
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 mod gfx;
@@ -49,6 +54,10 @@ const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
 lazy_static! {
     pub static ref DEFAULT_PREFS: Preferences =
         serde_yaml::from_str(DEFAULT_PREFS_STR).expect("error loading default preferences");
+    static ref PREFS_SAVE_THREAD: (
+        mpsc::Sender<PrefsSaveCommand>,
+        Mutex<Option<std::thread::JoinHandle<()>>>
+    ) = spawn_save_thread();
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
@@ -65,8 +74,6 @@ pub struct Preferences {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
-
-    pub show_welcome_at_startup: bool,
 
     pub info: InfoPreferences,
 
@@ -142,24 +149,33 @@ impl Preferences {
                     })
                     .unwrap_or_default()
             })
-            .canonicalize()
+            .post_init()
     }
 
     pub fn save(&mut self) {
         self.needs_save = false;
-
-        // Set version number.
-        self.version = migration::LATEST_VERSION;
-
-        let prefs = self.clone();
-        std::thread::spawn(move || {
-            let result = persist::save(&prefs);
-
-            match result {
-                Ok(()) => log::debug!("Saved preferences"),
-                Err(e) => log::error!("Error saving preferences: {}", e),
-            }
-        });
+        self.needs_save_eventually = false;
+        let (tx, _join_handle) = &*PREFS_SAVE_THREAD;
+        if let Err(e) = tx.send(PrefsSaveCommand::Save(self.clone())) {
+            log::error!("Error saving preferences: {e}")
+        }
+    }
+    pub fn block_on_final_save(&mut self) {
+        // IIFE to mimic try_block
+        let result = (|| -> eyre::Result<()> {
+            let (tx, join_handle) = &*PREFS_SAVE_THREAD;
+            tx.send(PrefsSaveCommand::Quit)?;
+            let join_handle = join_handle
+                .lock()
+                .take()
+                .ok_or_eyre("no thread join handle")?;
+            join_handle.join().map_err(|e| eyre!("{e:?}"))?;
+            Ok(())
+        })();
+        if let Err(e) = result {
+            log::error!("Error waiting for preferences saving: {e}");
+            return;
+        }
     }
 
     pub fn view_presets_mut(&mut self) -> &mut WithPresets<ViewPreferences> {
@@ -170,9 +186,38 @@ impl Preferences {
     /// Modifies the preferences to ensure that any invariants not encoded into
     /// the type are respected.
     ///
-    /// For example, this ensures that the default color names are correct.
-    fn canonicalize(mut self) -> Self {
-        self.colors.canonicalize();
+    /// For example, this ensures that the default color names are correct. It
+    /// also loads each preset.
+    #[must_use]
+    fn post_init(mut self) -> Self {
+        let Self {
+            needs_save: _,
+            needs_save_eventually: _,
+            version,
+            log_file: _,
+            info,
+            gfx,
+            interaction,
+            styles,
+            view_3d,
+            view_4d,
+            latest_view_prefs_set: _,
+            colors,
+            piece_filters,
+            global_keybinds,
+            puzzle_keybinds,
+            mousebinds,
+        } = &mut self;
+
+        *version = migration::LATEST_VERSION;
+        info.post_init();
+        gfx.post_init();
+        interaction.post_init(Some(&DEFAULT_PREFS.interaction));
+        styles.post_init();
+        view_3d.post_init(Some(&DEFAULT_PREFS.view_3d));
+        view_4d.post_init(Some(&DEFAULT_PREFS.view_4d));
+        colors.post_init();
+
         self
     }
 }
@@ -233,77 +278,94 @@ pub struct WithPresets<T: Default> {
     /// If this is `None`, then it is assumed to be taken from the `presets`
     /// list.
     #[serde(skip)]
-    pub current: Option<T>,
+    pub current: T,
     /// Name of the most recently-loaded preset.
-    pub last_loaded: String,
-    /// List of all saved presets.
-    pub presets: Vec<Preset<T>>,
-
-    /// Rename operation completed during the last frame, if any.
+    last_loaded: String,
+    /// List of all built-in presets.
     #[serde(skip)]
-    pub recent_rename_op: Option<(String, String)>,
+    builtin: Vec<Preset<T>>,
+    /// List of all saved user presets.
+    #[serde(rename = "presets")]
+    user: Vec<Preset<T>>,
+
+    /// Rename operations completed during the last frame, if any.
+    #[serde(skip)]
+    recent_renames: VecDeque<Rename>,
 }
-impl<T: Default + Clone> WithPresets<T> {
+impl<T: Default + Clone + PartialEq> WithPresets<T> {
+    /// Sets the builtin presets list.
+    ///
+    /// Deletes any user presets with the same name.
+    pub fn set_builtin_presets(&mut self, builtin_presets: Vec<Preset<T>>) {
+        // Remove user presets with name overlap.
+        let taken_names: HashSet<&String> = builtin_presets.iter().map(|p| &p.name).collect();
+        self.user.retain(|p| !taken_names.contains(&p.name));
+        self.builtin = builtin_presets;
+    }
+
+    /// Returns the number of presets, including built-in and user presets.
+    pub fn len(&self) -> usize {
+        self.builtin.len() + self.user.len()
+    }
+    /// Returns whether there is a preset with the given name.
     pub fn has(&self, name: &str) -> bool {
         self.get(name).is_some()
     }
+    /// Returns the preset with the given name, or `None` if it does not exist.
     pub fn get(&self, name: &str) -> Option<&Preset<T>> {
-        self.presets.iter().find(|p| p.name == name)
+        None.or_else(|| self.user.iter().find(|p| p.name == name))
+            .or_else(|| self.builtin.iter().find(|p| p.name == name))
     }
-    pub fn get_mut(&mut self, name: &str) -> Option<&mut Preset<T>> {
-        self.presets.iter_mut().find(|p| p.name == name)
+    /// Returns the preset with the given name, or `None` if it does not exist
+    /// or cannot be modified.
+    fn get_mut(&mut self, name: &str) -> Option<&mut Preset<T>> {
+        self.user.iter_mut().find(|p| p.name == name)
     }
+
+    /// Returns the list of built-in presets.
+    pub fn builtin_list(&self) -> &[Preset<T>] {
+        &self.builtin
+    }
+    /// Returns the list of saved user presets.
+    pub fn user_list(&self) -> &[Preset<T>] {
+        &self.user
+    }
+
+    /// Returns the name of the most-recently-loaded preset.
+    pub fn last_loaded_name(&self) -> &String {
+        &self.last_loaded
+    }
+    /// Returns the most-recently-loaded preset.
     pub fn last_loaded_preset(&self) -> Option<&Preset<T>> {
-        self.get(&self.last_loaded.clone())
+        self.get(&self.last_loaded)
     }
-    pub fn last_loaded_preset_mut(&mut self) -> Option<&mut Preset<T>> {
-        self.get_mut(&self.last_loaded.clone())
+    /// Returns the current preset, with the name of the most-recently-loaded
+    /// preset.
+    pub fn current_preset(&self) -> Preset<T> {
+        Preset {
+            name: self.last_loaded.clone(),
+            value: self.current.clone(),
+        }
     }
-    pub fn save_preset(&mut self) {
-        if let Some(new_value) = self.current.clone() {
-            match self.presets.iter_mut().find(|p| p.name == self.last_loaded) {
-                Some(p) => p.value = new_value,
-                None => {
-                    if let Some(p) = self.current_preset() {
-                        self.presets.push(p);
-                    }
-                }
+    /// Returns the current preset, with the name that would be saved if the
+    /// user saves it. This may be different from the most-recently-loaded
+    /// preset.
+    pub fn preset_to_save(&self) -> Preset<T> {
+        let mut ret = self.current_preset();
+
+        if self.is_modified() {
+            while self.builtin.iter().any(|p| p.name == ret.name) {
+                // Keep looping until we get a free name, just in case the
+                // built-in presets are named pathologically.
+                ret.name += " (modified)";
             }
         }
-    }
-    pub fn add_preset(&mut self, name: String) {
-        if let Some(value) = self.current.clone() {
-            self.presets.push(Preset { name, value });
-        }
-    }
-    pub fn rename(&mut self, old_name: &str, new_name: &str) {
-        if let Some(preset) = self.get_mut(old_name) {
-            preset.name = new_name.to_string();
-        }
-        if self.last_loaded == old_name {
-            self.last_loaded = new_name.to_string();
-        }
-        if self.recent_rename_op.is_some() {
-            log::warn!("shadowing unhandled preset rename operation!")
-        }
-        self.recent_rename_op = Some((old_name.to_string(), new_name.to_string()));
-    }
-    pub fn delete(&mut self, name: &str) {
-        self.presets.retain(|p| p.name != name);
-    }
-    /// Returns the current preset (what would be saved if the user saves it).
-    pub fn current_preset(&self) -> Option<Preset<T>> {
-        match &self.current {
-            Some(value) => Some(Preset {
-                name: self.last_loaded.clone(),
-                value: value.clone(),
-            }),
-            None => self.last_loaded_preset().cloned(),
-        }
+
+        ret
     }
     /// Sets the current preset name and value.
     pub fn set_current_preset(&mut self, preset: Preset<T>) {
-        self.current = Some(preset.value);
+        self.current = preset.value;
         self.last_loaded = preset.name;
     }
     /// Loads a named preset. If there is no preset with the given name, then
@@ -313,19 +375,78 @@ impl<T: Default + Clone> WithPresets<T> {
             self.set_current_preset(p.clone());
         }
     }
+    /// Loads the most-recently-loaded preset.
+    fn post_init(&mut self, backup: Option<&WithPresets<T>>) {
+        self.current = None
+            .or_else(|| self.last_loaded_preset())
+            .or_else(|| backup?.last_loaded_preset())
+            .map(|p| p.value.clone())
+            .unwrap_or_default()
+    }
+
+    /// Returns whether the current preset has been modified from what was most
+    /// recently loaded.
+    pub fn is_modified(&self) -> bool {
+        Some(&self.current) != self.last_loaded_preset().map(|p| &p.value)
+    }
+    /// Returns whether the given name is a valid name for a new preset.
+    pub fn is_name_available(&self, new_name: &str) -> bool {
+        !new_name.is_empty() && !self.has(new_name)
+    }
+
+    /// Saves the current settings to the most-recently-loaded preset.
+    pub fn save_preset(&mut self) {
+        let to_save = self.preset_to_save();
+        self.last_loaded = to_save.name.clone();
+        match self.user.iter_mut().find(|p| p.name == to_save.name) {
+            Some(p) => p.value = to_save.value,
+            None => self.user.push(to_save),
+        }
+    }
+    /// Adds a new preset with the current settings. The name is assumed to be
+    /// available.
+    pub fn add_preset(&mut self, name: String) {
+        let value = self.current.clone();
+        self.last_loaded = name.clone();
+        self.user.push(Preset { name, value });
+    }
+    /// Renames the preset `old_name` to `new_name`. The new name is assumed to
+    /// be available.
+    pub fn rename(&mut self, old_name: &str, new_name: &str) {
+        if let Some(preset) = self.get_mut(old_name) {
+            preset.name = new_name.to_string();
+        }
+        if self.last_loaded == old_name {
+            self.last_loaded = new_name.to_string();
+        }
+        self.recent_renames.push_back(Rename {
+            old: old_name.to_string(),
+            new: new_name.to_string(),
+        });
+    }
+    /// Deletes a preset, if it exists.
+    pub fn delete(&mut self, name: &str) {
+        self.user.retain(|p| p.name != name);
+    }
     /// Moves the preset `from` to `to`, shifting all the presents in between.
     pub fn reorder(&mut self, from: &str, to: &str) {
-        let Some(i) = self.presets.iter().position(|p| p.name == from) else {
+        let Some(i) = self.user.iter().position(|p| p.name == from) else {
             return;
         };
-        let Some(j) = self.presets.iter().position(|p| p.name == to) else {
+        let Some(j) = self.user.iter().position(|p| p.name == to) else {
             return;
         };
         if i < j {
-            self.presets[i..=j].rotate_left(1);
+            self.user[i..=j].rotate_left(1);
         } else if j < i {
-            self.presets[j..=i].rotate_right(1);
+            self.user[j..=i].rotate_right(1);
         }
+    }
+
+    /// Returns an iterator over the rename operations that have happened since
+    /// the last time this method was called.
+    pub fn take_renames(&mut self) -> impl Iterator<Item = Rename> {
+        std::mem::take(&mut self.recent_renames).into_iter()
     }
 }
 
@@ -362,7 +483,18 @@ pub struct PieceFilter {
 }
 
 #[derive(
-    Serialize, Deserialize, Debug, Default, Display, EnumIter, Copy, Clone, PartialEq, Eq, Hash,
+    Serialize,
+    Deserialize,
+    Debug,
+    Default,
+    Display,
+    AsRefStr,
+    EnumIter,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
 )]
 pub enum PuzzleViewPreferencesSet {
     #[serde(rename = "3D")]
@@ -380,4 +512,40 @@ impl PuzzleViewPreferencesSet {
             4.. => Self::Dim4D,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Rename {
+    pub old: String,
+    pub new: String,
+}
+
+fn spawn_save_thread() -> (
+    mpsc::Sender<PrefsSaveCommand>,
+    Mutex<Option<std::thread::JoinHandle<()>>>,
+) {
+    let (tx, rx) = mpsc::channel();
+
+    let join_handle = std::thread::spawn(move || {
+        for command in rx {
+            match command {
+                PrefsSaveCommand::Save(prefs) => {
+                    let result = persist::save(&prefs);
+                    match result {
+                        Ok(()) => log::debug!("Saved preferences"),
+                        Err(e) => log::error!("Error saving preferences: {e}"),
+                    }
+                }
+                PrefsSaveCommand::Quit => return,
+            }
+        }
+    });
+
+    (tx, Mutex::new(Some(join_handle)))
+}
+
+#[derive(Debug)]
+enum PrefsSaveCommand {
+    Save(Preferences),
+    Quit,
 }

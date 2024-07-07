@@ -16,6 +16,8 @@ impl Default for GfxPreferences {
     }
 }
 impl GfxPreferences {
+    pub(super) fn post_init(&mut self) {}
+
     /// Returns the duration of one frame based on the configured FPS value.
     pub fn frame_duration(&self) -> Duration {
         Duration::from_secs_f64(1.0 / self.fps_limit as f64)

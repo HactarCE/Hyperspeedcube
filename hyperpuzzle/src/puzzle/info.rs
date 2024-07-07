@@ -1,3 +1,4 @@
+use serde::{de::Error, Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
@@ -213,5 +214,23 @@ impl fmt::Display for DefaultColor {
             DefaultColor::Single { name } => write!(f, "{name}"),
             DefaultColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index + 1), // 1-indexed
         }
+    }
+}
+impl Serialize for DefaultColor {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.to_string().serialize(serializer)
+    }
+}
+impl<'de> Deserialize<'de> for DefaultColor {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e| D::Error::custom(e))
     }
 }

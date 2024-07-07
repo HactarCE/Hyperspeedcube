@@ -1,6 +1,5 @@
 ---
 # no version here, so we can see a missing "version" tag in user prefs
-show_welcome_at_startup: true
 info:
   metric: STM
   keybinds_reference:

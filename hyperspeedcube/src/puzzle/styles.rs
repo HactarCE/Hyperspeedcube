@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use hyperpuzzle::{Piece, PieceMask, Rgb};
+use hyperpuzzle::{Piece, PieceMask};
 
 use crate::preferences::{StyleId, StylePreferences};
 

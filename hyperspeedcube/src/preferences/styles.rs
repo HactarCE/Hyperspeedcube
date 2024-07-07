@@ -41,6 +41,8 @@ pub struct StylePreferences {
     pub custom: IndexMap<Arc<String>, PieceStyle>,
 }
 impl StylePreferences {
+    pub(super) fn post_init(&mut self) {}
+
     pub fn background_color(&self, dark_mode: bool) -> Rgb {
         match dark_mode {
             true => self.dark_background_color,

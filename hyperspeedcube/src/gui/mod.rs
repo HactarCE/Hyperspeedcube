@@ -47,7 +47,7 @@ impl AppUi {
         let [main, left] =
             surface.split_left(main, 0.15, vec![Tab::PuzzleLibrary, Tab::PuzzleControls]);
         surface.split_below(left, 0.7, vec![Tab::PuzzleInfo]);
-        let [_main, right] = surface.split_right(main, 0.8, vec![Tab::ActiveColors, Tab::View]);
+        let [_main, right] = surface.split_right(main, 0.8, vec![Tab::ColorScheme, Tab::View]);
         surface.split_below(right, 0.6, vec![Tab::LuaLogs]);
 
         crate::LIBRARY.with(|lib| app.load_puzzle(lib, "3x3x3"));
@@ -125,29 +125,29 @@ impl AppUi {
                 _ => None,
             })
             .collect_vec();
-        if let Some((old, new)) = self.app.prefs.view_3d.recent_rename_op.take() {
+        for rename in self.app.prefs.view_3d.take_renames() {
             for puzzle_widget in &mut puzzle_widgets {
                 if puzzle_widget.view_prefs_set() == PuzzleViewPreferencesSet::Dim3D {
-                    if puzzle_widget.view.camera.view_preset.name == old {
-                        puzzle_widget.view.camera.view_preset.name = new.clone();
+                    if puzzle_widget.view.camera.view_preset.name == rename.old {
+                        puzzle_widget.view.camera.view_preset.name = rename.new.clone();
                     }
                 }
             }
         }
-        if let Some((old, new)) = self.app.prefs.view_4d.recent_rename_op.take() {
+        for rename in self.app.prefs.view_4d.take_renames() {
             for puzzle_widget in &mut puzzle_widgets {
                 if puzzle_widget.view_prefs_set() == PuzzleViewPreferencesSet::Dim4D {
-                    if puzzle_widget.view.camera.view_preset.name == old {
-                        puzzle_widget.view.camera.view_preset.name = new.clone();
+                    if puzzle_widget.view.camera.view_preset.name == rename.old {
+                        puzzle_widget.view.camera.view_preset.name = rename.new.clone();
                     }
                 }
             }
         }
-        if let Some((old, new)) = self.app.prefs.interaction.recent_rename_op.take() {
+        for rename in self.app.prefs.interaction.take_renames() {
             for puzzle_widget in &mut puzzle_widgets {
                 let mut sim = puzzle_widget.sim().lock();
-                if sim.interaction_prefs.name == old {
-                    sim.interaction_prefs.name = new.clone();
+                if sim.interaction_prefs.name == rename.old {
+                    sim.interaction_prefs.name = rename.new.clone();
                 }
             }
         }

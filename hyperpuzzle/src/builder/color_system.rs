@@ -4,7 +4,9 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 
 use super::{CustomOrdering, NamingScheme};
-use crate::{Color, ColorInfo, DefaultColor, PerColor};
+use crate::{Color, ColorInfo, ColorSystem, DefaultColor, PerColor};
+
+const PUZZLE_PREFIX: &str = "puzzle:";
 
 /// Sticker color during shape construction.
 #[derive(Debug, Clone)]
@@ -118,15 +120,20 @@ impl ColorSystemBuilder {
     /// Validates and constructs a color system.
     pub fn build(
         &self,
+        puzzle_id: &str,
         warn_fn: impl Copy + Fn(eyre::Report),
-    ) -> Result<(
-        PerColor<ColorInfo>,
-        IndexMap<String, PerColor<Option<DefaultColor>>>,
-        String,
-    )> {
+    ) -> Result<ColorSystem> {
         if self.id.is_some() && self.is_modified {
             bail!("shared color system cannot be modified");
         }
+        let id = self
+            .id
+            .clone()
+            .unwrap_or_else(|| format!("{PUZZLE_PREFIX}{puzzle_id}"));
+        let name = self
+            .name
+            .clone()
+            .unwrap_or_else(|| crate::util::titlecase(self.id.as_deref().unwrap_or(puzzle_id)));
 
         let colors = super::iter_autonamed(
             &self.names,
@@ -137,21 +144,27 @@ impl ColorSystemBuilder {
         .map(|(_id, (name, display))| eyre::Ok(ColorInfo { name, display }))
         .try_collect()?;
 
-        let mut color_schemes = self.schemes.clone();
-        for (_name, list) in &mut color_schemes {
+        let mut schemes = self.schemes.clone();
+        for (_name, list) in &mut schemes {
             list.resize(self.len())?;
         }
 
-        let default_color_scheme = self
+        let default_scheme = self
             .default_scheme
             .clone()
             .unwrap_or(crate::DEFAULT_COLOR_SCHEME_NAME.to_string());
-        if !color_schemes.contains_key(&default_color_scheme) {
-            warn_fn(eyre!(
-                "missing default color scheme {default_color_scheme:?}"
-            ));
+        if !schemes.contains_key(&default_scheme) {
+            warn_fn(eyre!("missing default color scheme {default_scheme:?}"));
         }
 
-        Ok((colors, color_schemes, default_color_scheme))
+        Ok(ColorSystem {
+            id,
+            name,
+
+            list: colors,
+
+            schemes,
+            default_scheme,
+        })
     }
 }

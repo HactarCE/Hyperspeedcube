@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 
 use crate::gfx::GraphicsState;
 use crate::gui::PuzzleWidget;
-use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
+use crate::preferences::Preferences;
 
 pub struct App {
     pub(crate) gfx: Arc<GraphicsState>,
@@ -52,6 +52,13 @@ impl App {
                 self.prefs
                     .view_presets_mut()
                     .set_current_preset(p.view.camera.view_preset.clone());
+
+                self.prefs
+                    .colors
+                    .color_system_mut(&p.puzzle().colors)
+                    .schemes
+                    .set_current_preset(p.view.colors.clone());
+
                 // TODO: add more presets here as relevant
                 self.prefs.needs_save_eventually = true;
             }

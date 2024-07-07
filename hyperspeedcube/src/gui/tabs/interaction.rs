@@ -11,8 +11,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         id: unique_id!(),
         presets,
         changed: &mut changed,
+        text: crate::gui::components::PresetsUiText {
+            what: "interaction settings",
+            ..Default::default()
+        },
     };
-    presets_ui.show_presets_selector(ui, |_| ());
+    presets_ui.show_presets_selector(ui);
     presets_ui.show_current_prefs_ui(
         ui,
         |p| p.interaction.last_loaded_preset(),
@@ -21,11 +25,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     // Copy settings back to active puzzle.
     if changed {
-        if let Some(current) = presets.current_preset() {
-            app.with_active_puzzle_view(|p| {
-                p.sim().lock().interaction_prefs = current;
-            });
-        }
+        let current_preset = presets.current_preset();
+        app.with_active_puzzle_view(|p| {
+            p.sim().lock().interaction_prefs = current_preset;
+        });
     }
 
     app.prefs.needs_save |= changed;

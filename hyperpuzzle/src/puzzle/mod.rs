@@ -1,5 +1,6 @@
 #[macro_use]
 mod info;
+mod colors;
 mod layers;
 mod mesh;
 mod metric;
@@ -7,6 +8,7 @@ mod notation;
 mod puzzle_type;
 mod state;
 
+pub use colors::ColorSystem;
 pub use info::*;
 pub use layers::LayerMask;
 pub use mesh::*;

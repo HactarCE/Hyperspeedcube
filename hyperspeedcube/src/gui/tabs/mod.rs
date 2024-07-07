@@ -58,7 +58,7 @@ pub enum Tab {
     Interaction,
 
     // Colors
-    ActiveColors,
+    ColorScheme,
     GlobalColorPalette,
 
     // Input
@@ -101,7 +101,7 @@ impl Tab {
             Tab::View => "View",
             Tab::Animations => "Animations",
 
-            Tab::ActiveColors => "Active colors",
+            Tab::ColorScheme => "Color scheme",
             Tab::GlobalColorPalette => "Global color palette",
 
             Tab::Interaction => "Interaction",
@@ -138,7 +138,7 @@ impl Tab {
             Tab::View => "View".into(),
             Tab::Animations => "Animations".into(),
 
-            Tab::ActiveColors => "Active Colors".into(),
+            Tab::ColorScheme => "Color Scheme".into(),
             Tab::GlobalColorPalette => "Global Color Palette".into(),
 
             Tab::Interaction => "Interaction".into(),
@@ -172,7 +172,7 @@ impl Tab {
             Tab::View => view::show(ui, app),
             Tab::Animations => animations::show(ui, app),
 
-            Tab::ActiveColors => colors::active_colors::show(ui, app),
+            Tab::ColorScheme => colors::color_scheme::show(ui, app),
             Tab::GlobalColorPalette => colors::global_color_palette::show(ui, app),
 
             Tab::Interaction => interaction::show(ui, app),

@@ -1,9 +1,7 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
 use hypershape::Space;
-use indexmap::IndexMap;
 
 use super::*;
 
@@ -28,13 +26,9 @@ pub struct Puzzle {
     pub stickers: PerSticker<StickerInfo>,
     /// List of piece types, indexed by ID.
     pub piece_types: PerPieceType<PieceTypeInfo>,
-    /// List of colors, indexed by ID.
-    pub colors: PerColor<ColorInfo>,
 
-    /// List of named color schemes.
-    pub color_schemes: IndexMap<String, PerColor<Option<DefaultColor>>>,
-    /// Name of the default color scheme, which is typically `"Default"`.
-    pub default_color_scheme: String,
+    /// Color system.
+    pub colors: Arc<ColorSystem>,
 
     /// Number of moves for a full scramble.
     pub scramble_moves_count: usize,
@@ -69,18 +63,6 @@ impl Puzzle {
     /// Returns the number of dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
         self.mesh.ndim
-    }
-
-    /// Returns the default color scheme for the puzzle.
-    pub fn default_color_scheme(&self) -> Cow<'_, PerColor<Option<DefaultColor>>> {
-        match self.color_schemes.get(&self.default_color_scheme) {
-            Some(scheme) => Cow::Borrowed(scheme),
-            None => {
-                let mut ret = PerColor::new();
-                ret.resize(self.colors.len()).expect("impossible overflow!");
-                Cow::Owned(ret)
-            }
-        }
     }
 
     pub(crate) fn opposite_twist_axis(&self, _axis: Axis) -> Option<Axis> {

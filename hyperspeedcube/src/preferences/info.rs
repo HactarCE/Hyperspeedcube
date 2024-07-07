@@ -12,6 +12,9 @@ pub struct InfoPreferences {
 
     pub modifier_toggles: bool,
 }
+impl InfoPreferences {
+    pub(super) fn post_init(&mut self) {}
+}
 
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone)]
 #[serde(default)]

@@ -129,6 +129,7 @@ impl eframe::App for AppUi {
         if prefs.needs_save || prefs.needs_save_eventually {
             prefs.save();
         }
+        prefs.block_on_final_save();
     }
 }
 

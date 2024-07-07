@@ -8,7 +8,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.label(format!("Name: {}", puzzle.name));
         ui.label(format!("Piece count: {}", puzzle.pieces.len()));
         ui.label(format!("Sticker count: {}", puzzle.stickers.len()));
-        ui.label(format!("Color count: {}", puzzle.colors.len()));
+        ui.label(format!("Color count: {}", puzzle.colors.list.len()));
 
         ui.add_space(10.0);
         ui.heading("Piece types");
@@ -18,7 +18,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         ui.add_space(10.0);
         ui.heading("Colors");
-        for color in puzzle.colors.iter_values() {
+        for color in puzzle.colors.list.iter_values() {
             let name = &color.name;
             let display = &color.display;
             ui.label(format!("• {name} = {display}"));

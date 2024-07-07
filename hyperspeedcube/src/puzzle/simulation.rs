@@ -7,7 +7,7 @@ use hyperpuzzle::{Axis, LayerMask, PerPiece, PieceMask, Puzzle, PuzzleState, Twi
 use instant::Instant;
 
 use super::animations::{BlockingAnimationState, TwistAnimation, TwistAnimationState};
-use crate::preferences::{InteractionPreferences, Preferences, Preset, DEFAULT_PREFS};
+use crate::preferences::{InteractionPreferences, Preferences, Preset};
 
 /// Puzzle simulation, which manages the puzzle state, animations, undo stack,
 /// etc.
@@ -46,10 +46,7 @@ impl PuzzleSimulation {
 
             cached_piece_transforms,
 
-            interaction_prefs: None
-                .or_else(|| prefs.interaction.current_preset())
-                .or_else(|| DEFAULT_PREFS.interaction.current_preset())
-                .unwrap_or_default(),
+            interaction_prefs: prefs.interaction.current_preset(),
         }
     }
 

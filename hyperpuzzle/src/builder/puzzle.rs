@@ -68,8 +68,8 @@ impl PuzzleBuilder {
         // Build shape.
         let (mut mesh, pieces, stickers) = self.shape.build()?;
 
-        // Build color system.
-        let (colors, color_schemes, default_color_scheme) = self.shape.colors.build(warn_fn)?;
+        // Build color system. TODO: cache this across puzzles?
+        let colors = Arc::new(self.shape.colors.build(&self.id, warn_fn)?);
 
         // Build list of piece types.
         let piece_types = [PieceTypeInfo {
@@ -100,10 +100,8 @@ impl PuzzleBuilder {
             pieces,
             stickers,
             piece_types,
-            colors,
 
-            color_schemes,
-            default_color_scheme,
+            colors,
 
             scramble_moves_count: 500, // TODO
 

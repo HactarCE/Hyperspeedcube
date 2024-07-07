@@ -277,12 +277,15 @@ impl PuzzleWidget {
             internals_color,
             sticker_colors: {
                 puzzle
-                    .default_color_scheme()
+                    .colors
+                    .list
                     .iter()
-                    .map(|(id, default_color)| {
-                        default_color
-                            .as_ref()
-                            .and_then(|c| Some(prefs.colors.get(c)?.rgb))
+                    .map(|(id, color_info)| {
+                        self.view
+                            .colors
+                            .value
+                            .get(&color_info.name)
+                            .and_then(|c| Some(prefs.colors.get_color(c.as_ref()?)?.rgb))
                             .unwrap_or_else(|| sample_rainbow(id.0 as usize, puzzle.colors.len()))
                     })
                     .collect()
