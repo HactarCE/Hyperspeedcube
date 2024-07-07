@@ -33,3 +33,14 @@ pub const PRIMORDIAL_CUBE_RADIUS: hypermath::Float = 1_048_576.0; // big power o
 
 /// Name of the default color scheme, if no other is specified.
 pub const DEFAULT_COLOR_SCHEME_NAME: &str = "Default";
+
+fn validate_id(s: String) -> eyre::Result<String> {
+    if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        Ok(s)
+    } else {
+        Err(eyre::eyre!(
+            "invalid ID; ID must be nonempty and contain \
+             only alphanumeric characters and '_'",
+        ))
+    }
+}

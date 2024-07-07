@@ -15,6 +15,7 @@ impl LuaUserData for LuaColorSystemDb {
 
         methods.add_method("add", |lua, Self, pair| {
             let (id, params): (String, _) = pair;
+            let id = crate::validate_id(id).into_lua_err()?;
             let color_system = super::from_lua_table(lua, Some(id.clone()), params)?;
             LibraryFile::get_current(lua)?.define_color_system(id, color_system)
         });

@@ -30,7 +30,7 @@ pub fn from_lua_table<'lua>(
 
     let mut colors = ColorSystemBuilder::new();
 
-    colors.id = id;
+    colors.id = id.map(crate::validate_id).transpose().into_lua_err()?;
     colors.name = name;
 
     // Add colors.
