@@ -84,7 +84,7 @@ where
         };
         let mut r = egui::TextEdit::singleline(&mut new_name)
             .hint_text(format!("New {} name", self.text.preset))
-            .desired_width(120.0)
+            .desired_width(150.0)
             .show(ui);
         if is_first_frame {
             // Focus the textbox
