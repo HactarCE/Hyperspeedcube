@@ -247,7 +247,13 @@ async fn run() {
                 }
 
                 match &event {
-                    WindowEvent::Resized(new_size) => gfx.resize(*new_size),
+                    WindowEvent::Resized(new_size) => {
+                        // There's a problem in the first Resized event on some systems that results in both dimensions being maxed out
+                        if !(new_size.width == u32::MAX && new_size.height == u32::MAX) {
+                            // Only refresh the size if that is not detected
+                            gfx.resize(*new_size)
+                        }
+                    },
                     WindowEvent::ScaleFactorChanged {
                         scale_factor,
                         new_inner_size,
