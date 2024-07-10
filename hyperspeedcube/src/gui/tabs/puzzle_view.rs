@@ -263,6 +263,15 @@ impl PuzzleWidget {
         let background_color = prefs.styles.background_color(dark_mode).rgb;
         let internals_color = prefs.styles.internals_color.rgb;
 
+        // Ensure that the color scheme is valid. Ignore whether it actually got
+        // modified.
+        let _ = prefs
+            .color_palette
+            .ensure_color_scheme_is_valid_for_color_system(
+                &mut self.view.colors.value,
+                &puzzle.colors,
+            );
+
         let draw_params = DrawParams {
             ndim: puzzle.ndim(),
             cam: self.view.camera.clone(),
@@ -285,7 +294,7 @@ impl PuzzleWidget {
                             .colors
                             .value
                             .get(&color_info.name)
-                            .and_then(|c| Some(prefs.color_palette.get(c.as_ref()?)?.rgb))
+                            .and_then(|c| Some(prefs.color_palette.get(c)?.rgb))
                             .unwrap_or_else(|| sample_rainbow(id.0 as usize, puzzle.colors.len()))
                     })
                     .collect()

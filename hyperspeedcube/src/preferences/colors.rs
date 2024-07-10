@@ -9,7 +9,43 @@ use crate::preferences::DEFAULT_PREFS;
 
 use super::{Preset, WithPresets};
 
-pub type ColorScheme = IndexMap<String, Option<DefaultColor>>;
+pub type ColorScheme = IndexMap<String, DefaultColor>;
+
+#[derive(Debug, Default, Display, EnumString, EnumIter, Copy, Clone, PartialEq, Eq, Hash)]
+
+pub enum DefaultColorGradient {
+    #[default]
+    Rainbow,
+    // Sinebow,
+    // Turbo,
+    // Spectral,
+    // Cool,
+    // Warm,
+    // Plasma,
+    // Viridis,
+    // Cividis,
+}
+impl DefaultColorGradient {
+    /// Returns the gradient as a [`colorous::Gradient`].
+    pub fn to_colorous(self) -> colorous::Gradient {
+        match self {
+            Self::Rainbow => colorous::RAINBOW,
+            // Self::Sinebow => colorous::SINEBOW,
+            // Self::Turbo => colorous::TURBO,
+            // Self::Spectral => colorous::SPECTRAL,
+            // Self::Cool => colorous::COOL,
+            // Self::Warm => colorous::WARM,
+            // Self::Plasma => colorous::PLASMA,
+            // Self::Viridis => colorous::VIRIDIS,
+            // Self::Cividis => colorous::CIVIDIS,
+        }
+    }
+    /// Samples the gradient at a point.
+    pub fn sample(self, index: usize, total: usize) -> Rgb {
+        let rgb = self.to_colorous().eval_rational(index, total).as_array();
+        Rgb { rgb }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
@@ -78,18 +114,77 @@ impl GlobalColorPalette {
             .collect();
     }
 
+    pub fn has(&self, color: &DefaultColor) -> bool {
+        match color {
+            // Skip sampling the gradient
+            DefaultColor::Gradient { gradient_name, .. } => {
+                gradient_name.parse::<DefaultColorGradient>().is_ok()
+            }
+
+            // No way to make the other cases faster
+            _ => self.get(color).is_some(),
+        }
+    }
+
+    pub fn get_set(&self, set_name: &str) -> Option<&Vec<Rgb>> {
+        None.or_else(|| self.sets.get(set_name))
+            .or_else(|| self.custom_sets.get(set_name))
+    }
+
     pub fn get(&self, color: &DefaultColor) -> Option<Rgb> {
         match color {
+            DefaultColor::Unknown => None,
             DefaultColor::HexCode { rgb } => Some(*rgb),
             DefaultColor::Single { name } => None
                 .or_else(|| self.singles.get(name))
                 .or_else(|| self.custom_singles.get(name))
                 .copied(),
-            DefaultColor::Set { set_name, index } => None
-                .or_else(|| self.sets.get(set_name)?.get(*index))
-                .or_else(|| self.custom_sets.get(set_name)?.get(*index))
+            DefaultColor::Set { set_name, index } => self
+                .get_set(set_name)
+                .and_then(|set| set.get(*index))
                 .copied(),
+            DefaultColor::Gradient {
+                gradient_name,
+                index,
+                total,
+            } => {
+                let gradient = gradient_name.parse::<DefaultColorGradient>().ok()?;
+                Some(gradient.sample(*index, *total))
+            }
         }
+    }
+
+    /// Modfies a color scheme if necessary to ensure that it is valid for its
+    /// color system and the current global palette. Returns `true` if it was
+    /// modified.
+    #[must_use]
+    pub fn ensure_color_scheme_is_valid_for_color_system(
+        &self,
+        scheme: &mut ColorScheme,
+        color_system: &ColorSystem,
+    ) -> bool {
+        let mut changed = false;
+
+        let names_match = itertools::equal(
+            scheme.iter().map(|(k, _v)| k),
+            color_system.list.iter().map(|(_id, color)| &color.name),
+        );
+        if !names_match {
+            changed = true;
+            *scheme = color_system
+                .list
+                .iter_values()
+                .map(|color| {
+                    scheme
+                        .swap_remove_entry(&color.name)
+                        .unwrap_or_else(|| (color.name.clone(), DefaultColor::Unknown))
+                })
+                .collect();
+        }
+
+        changed |= hyperpuzzle::ensure_color_scheme_is_valid(scheme.values_mut(), |c| self.has(c));
+
+        changed
     }
 
     pub fn groups_of_sets(&self) -> Vec<(String, Vec<(&String, &[Rgb])>)> {
@@ -126,6 +221,10 @@ pub struct ColorSystemPreferences {
 }
 impl ColorSystemPreferences {
     fn post_init(&mut self) {
+        for scheme in &mut self.schemes.user {
+            hyperpuzzle::ensure_color_scheme_is_valid(scheme.value.values_mut(), |_| true);
+        }
+
         self.schemes.post_init(None);
     }
 

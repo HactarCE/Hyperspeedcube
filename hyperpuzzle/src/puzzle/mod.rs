@@ -8,7 +8,7 @@ mod notation;
 mod puzzle_type;
 mod state;
 
-pub use colors::ColorSystem;
+pub use colors::{ensure_color_scheme_is_valid, ColorSystem};
 pub use info::*;
 pub use layers::LayerMask;
 pub use mesh::*;

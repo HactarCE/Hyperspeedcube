@@ -160,7 +160,15 @@ impl ColorSystemBuilder {
         .map(|(_id, (name, display))| eyre::Ok(ColorInfo { name, display }))
         .try_collect()?;
 
-        let mut schemes = self.schemes.clone();
+        let mut schemes: IndexMap<String, PerColor<DefaultColor>> = self
+            .schemes
+            .iter()
+            .map(|(name, default_colors)| {
+                let new_default_colors =
+                    default_colors.map_ref(|_, c| c.clone().unwrap_or_default());
+                (name.clone(), new_default_colors)
+            })
+            .collect();
 
         let default_scheme = self
             .default_scheme
@@ -173,6 +181,7 @@ impl ColorSystemBuilder {
 
         for (_name, list) in &mut schemes {
             list.resize(self.len())?;
+            crate::puzzle::ensure_color_scheme_is_valid(list.iter_values_mut(), |_| true);
         }
 
         Ok(ColorSystem {

@@ -1,6 +1,7 @@
 #[macro_use]
 mod combo_boxes;
 // mod keybinds;
+mod color_widgets;
 mod hint;
 mod layer_mask;
 pub mod prefs;
@@ -10,6 +11,7 @@ mod reorder;
 mod reset;
 mod yaml_editor;
 
+pub use color_widgets::*;
 pub use combo_boxes::*;
 pub use hint::*;
 // pub use keybinds::*;

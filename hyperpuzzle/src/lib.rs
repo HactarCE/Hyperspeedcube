@@ -33,6 +33,9 @@ pub const PRIMORDIAL_CUBE_RADIUS: hypermath::Float = 1_048_576.0; // big power o
 
 /// Name of the default color scheme, if no other is specified.
 pub const DEFAULT_COLOR_SCHEME_NAME: &str = "Default";
+/// Name of the default gradient, to which unknown or conflicting colors are
+/// assigned.
+pub const DEFAULT_COLOR_GRADIENT_NAME: &str = "Rainbow";
 
 fn validate_id(s: String) -> eyre::Result<String> {
     if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_') {

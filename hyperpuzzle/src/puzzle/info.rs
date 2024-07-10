@@ -175,15 +175,24 @@ pub struct ColorInfo {
 }
 
 /// Default color for a puzzle color.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
 pub enum DefaultColor {
+    // Unknown default color.
+    #[default]
+    Unknown,
     /// Specific hexcode, such as `#ff00ff` or `#f0f`.
     HexCode { rgb: Rgb },
     /// Single named color.
     Single { name: String },
     /// Color from a named set.
     Set { set_name: String, index: usize },
+    /// Color from a gradient.
+    Gradient {
+        gradient_name: String,
+        index: usize,
+        total: usize,
+    },
 }
 impl FromStr for DefaultColor {
     type Err = eyre::Report;
@@ -210,9 +219,15 @@ impl FromStr for DefaultColor {
 impl fmt::Display for DefaultColor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            DefaultColor::Unknown => write!(f, "(unknown)"),
             DefaultColor::HexCode { rgb } => write!(f, "{rgb}"),
             DefaultColor::Single { name } => write!(f, "{name}"),
             DefaultColor::Set { set_name, index } => write!(f, "{set_name} [{}]", index + 1), // 1-indexed
+            DefaultColor::Gradient {
+                gradient_name,
+                index: numerator,
+                total: denominator,
+            } => write!(f, "{gradient_name} [{}/{}]", numerator + 1, denominator), // 1-indexed
         }
     }
 }

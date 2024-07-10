@@ -1,18 +1,12 @@
-use itertools::Itertools;
-use std::{
-    collections::{hash_map, HashMap, HashSet},
-    sync::Arc,
-};
+use std::sync::Arc;
+use strum::IntoEnumIterator;
 
-use empfindung::ToLab;
-use float_ord::FloatOrd;
-use hyperpuzzle::{Color, ColorSystem, DefaultColor, Rgb};
-use indexmap::IndexMap;
+use hyperpuzzle::ColorSystem;
 
 use crate::{
     app::App,
-    gui::util::text_width,
-    preferences::{ColorPreferences, GlobalColorPalette, Preferences, Preset, WithPresets},
+    gui::components::ReverseColorMap,
+    preferences::{DefaultColorGradient, GlobalColorPalette, Preset},
 };
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -30,18 +24,17 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
     let color_system_prefs = app.prefs.color_schemes.color_system_mut(&color_system);
-    let mut active_colors = HashMap::<Option<DefaultColor>, String>::new();
-    for (name, default_color) in &color_system_prefs.schemes.current {
-        match active_colors.entry(default_color.clone()) {
-            hash_map::Entry::Occupied(mut e) => {
-                *e.get_mut() += ", ";
-                *e.get_mut() += name;
-            }
-            hash_map::Entry::Vacant(e) => {
-                e.insert(name.clone());
-            }
-        }
-    }
+
+    // Ensure that the active color scheme is valid.
+    let current = &mut color_system_prefs.schemes.current;
+    changed |= app
+        .prefs
+        .color_palette
+        .ensure_color_scheme_is_valid_for_color_system(current, &color_system);
+
+    // Now that we know it's valid, we can generate the reverse map.
+    let rev_map = ReverseColorMap::from_color_scheme(current);
+
     let mut presets_ui = crate::gui::components::PresetsUi {
         id: unique_id!(),
         presets: &mut color_system_prefs.schemes,
@@ -71,7 +64,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         |prefs_ui| {
             let ui = prefs_ui.ui;
             ui.set_enabled(has_active_puzzle);
-            show_color_palette(ui, None, &active_colors, &app.prefs.color_palette);
+            show_color_palette(ui, &app.prefs.color_palette, &rev_map);
         },
     );
 
@@ -91,89 +84,28 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     app.prefs.needs_save |= changed;
 }
 
-fn color_button(
-    ui: &mut egui::Ui,
-    color: impl Into<ColorButtonDisplay>,
-    open: bool,
-    label: Option<&str>,
-) -> egui::Response {
-    // This function is mostly copied from `egui::color_picker`.
-
-    let color = color.into();
-
-    let mut size = ui.spacing().interact_size;
-    match color {
-        ColorButtonDisplay::Single(_) => (),
-        ColorButtonDisplay::Gradient(_) => size.x *= 5.0,
-    }
-    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
-    let mut ui = ui.child_ui(rect, egui::Layout::left_to_right(egui::Align::Center));
-    response.widget_info(|| egui::WidgetInfo::new(egui::WidgetType::ColorButton));
-
-    if ui.is_rect_visible(rect) {
-        let visuals = if open {
-            &ui.visuals().widgets.open
-        } else {
-            ui.style().interact(&response)
-        };
-        let rect = rect.expand(visuals.expansion);
-
-        display_color_rect_segments(ui.painter(), rect, 0.0, color);
-
-        let rounding = visuals.rounding.at_most(2.0);
-        ui.painter()
-            .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
-    }
-
-    // Add label.
-    if let Some(label) = label {
-        let mid_color = match color {
-            ColorButtonDisplay::Single(c) => c,
-            ColorButtonDisplay::Gradient(g) => colorous_color_to_egui_color(g.eval_continuous(0.5)),
-        };
-        let text_color = crate::util::contrasting_text_color(mid_color);
-        ui.put(
-            rect,
-            egui::Label::new(egui::RichText::new(label).color(text_color)).selectable(false),
-        );
-    }
-
-    response
-}
-
-#[derive(Debug, Copy, Clone)]
-enum ColorButtonDisplay {
-    Single(egui::Color32),
-    Gradient(colorous::Gradient),
-}
-impl From<Rgb> for ColorButtonDisplay {
-    fn from(value: Rgb) -> Self {
-        Self::Single(crate::util::rgb_to_egui_color32(value))
-    }
-}
-
 fn show_color_palette(
     ui: &mut egui::Ui,
-    mut selected_color: Option<&mut DefaultColor>,
-    color_labels: &HashMap<Option<DefaultColor>, String>,
     palette: &GlobalColorPalette,
+    rev_map: &ReverseColorMap,
 ) -> egui::Response {
     let mut changed = false;
+
+    let drag_state_id = ui.auto_id_with("hyperspeedcube::drag_state");
+    let mut drag_state: crate::gui::components::ColorDragState =
+        ui.data(|data| data.get_temp(drag_state_id).unwrap_or_default());
 
     ui.add(egui::Label::new(egui::RichText::from("Single colors").strong()).wrap(false));
     ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);
     ui.horizontal_wrapped(|ui| {
-        for (color_name, &rgb) in &palette.singles {
-            let tooltip_pos = ui.cursor().left_top();
-            let default_color = DefaultColor::Single {
-                name: color_name.clone(),
-            };
-            if display_color(ui, rgb, &default_color, color_labels, tooltip_pos).clicked() {
-                if let Some(selected) = &mut selected_color {
-                    **selected = default_color;
-                }
-                changed = true;
-            }
+        for color_name in palette.singles.keys() {
+            crate::gui::components::display_single_color(
+                ui,
+                palette,
+                color_name.clone(),
+                rev_map,
+                &mut drag_state,
+            );
         }
     });
 
@@ -197,37 +129,14 @@ fn show_color_palette(
                         ui.add(
                             egui::Label::new(egui::RichText::from(group_name).strong()).wrap(false),
                         );
-                        for (set_name, set) in sets {
-                            let mut hovered = None;
-                            let tooltip_pos = ui.cursor().left_top();
-                            ui.horizontal(|ui| {
-                                for (i, &rgb) in set.iter().enumerate() {
-                                    let default_color = DefaultColor::Set {
-                                        set_name: set_name.clone(),
-                                        index: i,
-                                    };
-                                    let r = display_color(
-                                        ui,
-                                        rgb,
-                                        &default_color,
-                                        color_labels,
-                                        tooltip_pos,
-                                    );
-                                    if r.hovered() || r.has_focus() || r.dragged() {
-                                        if hovered.is_some() {
-                                            hovered = Some(set_name.clone());
-                                        } else {
-                                            hovered = Some(default_color.to_string());
-                                        }
-                                    }
-                                    if r.clicked() {
-                                        if let Some(selected) = &mut selected_color {
-                                            **selected = default_color;
-                                        }
-                                        changed = true;
-                                    }
-                                }
-                            });
+                        for (set_name, _set) in sets {
+                            crate::gui::components::display_color_set(
+                                ui,
+                                palette,
+                                set_name,
+                                rev_map,
+                                &mut drag_state,
+                            );
                         }
                     });
                 }
@@ -239,158 +148,23 @@ fn show_color_palette(
     ui.separator();
 
     ui.strong("Gradients");
-    for (name, g) in [
-        ("Rainbow", colorous::RAINBOW),
-        ("Sinebow", colorous::SINEBOW),
-        ("Spectral", colorous::SPECTRAL),
-        ("Cividis", colorous::CIVIDIS),
-        ("Cool", colorous::COOL),
-        ("Warm", colorous::WARM),
-        ("Plasma", colorous::PLASMA),
-        ("Turbo", colorous::TURBO),
-        ("Viridis", colorous::VIRIDIS),
-    ] {
-        let tooltip_pos = ui.cursor().left_top();
-        let r = color_button(ui, ColorButtonDisplay::Gradient(g), false, None);
-        if r.hovered() || r.has_focus() || r.is_pointer_button_down_on() {
-            display_color_tooltop(
+    for gradient in DefaultColorGradient::iter() {
+        ui.group(|ui| {
+            ui.set_width(ui.available_width());
+            crate::gui::components::display_color_gradient(
                 ui,
-                unique_id!(name),
-                ColorButtonDisplay::Gradient(g),
-                tooltip_pos,
-                name,
-                "Built-in gradient",
+                palette,
+                gradient,
+                rev_map,
+                &mut drag_state,
             );
-        }
+        });
     }
 
     if changed {
         r.mark_changed();
     }
     r
-}
-
-fn display_color(
-    ui: &mut egui::Ui,
-    rgb: Rgb,
-    default_color: &DefaultColor,
-    active_colors: &HashMap<Option<DefaultColor>, String>,
-    tooltip_pos: egui::Pos2,
-) -> egui::Response {
-    let label = active_colors
-        .get(&Some(default_color.clone()))
-        .map(|s| s.as_str());
-    let r = color_button(ui, rgb, false, label);
-    if r.hovered() || r.has_focus() || r.is_pointer_button_down_on() {
-        display_color_tooltop(
-            ui,
-            unique_id!(default_color),
-            rgb,
-            tooltip_pos,
-            &default_color.to_string(),
-            &rgb.to_string(),
-        );
-    }
-    r
-}
-
-fn display_color_tooltop(
-    ui: &mut egui::Ui,
-    id: egui::Id,
-    color: impl Into<ColorButtonDisplay>,
-    tooltip_pos: egui::Pos2,
-    top_text: &str,
-    bottom_text: &str,
-) {
-    let color = color.into();
-
-    let mut color_square_size = egui::Vec2::splat(ui.spacing().interact_size.x);
-    match color {
-        ColorButtonDisplay::Single(_) => (),
-        ColorButtonDisplay::Gradient(_) => color_square_size.x *= 5.0,
-    }
-
-    let left_bottom = tooltip_pos + egui::vec2(-ui.spacing().menu_margin.left, -4.0);
-    egui::Area::new(id)
-        .interactable(false)
-        .fixed_pos(left_bottom)
-        .constrain(true)
-        .pivot(egui::Align2::LEFT_BOTTOM)
-        .show(ui.ctx(), |ui| {
-            egui::Frame::popup(ui.style()).show(ui, |ui| {
-                // ui.allocate_ui_at_rect(desired_rect, |ui| {
-                ui.horizontal(|ui| {
-                    let (rect, _response) =
-                        ui.allocate_exact_size(color_square_size, egui::Sense::hover());
-
-                    display_color_rect_segments(ui.painter(), rect, 3.0, color);
-
-                    ui.vertical(|ui| {
-                        ui.style_mut().wrap = Some(false);
-                        ui.strong(top_text);
-                        ui.label(bottom_text);
-                    });
-                });
-                // })
-            });
-        });
-}
-
-fn display_color_rect_segments(
-    painter: &egui::Painter,
-    mut rect: egui::Rect,
-    rounding: f32,
-    color: ColorButtonDisplay,
-) {
-    match color {
-        ColorButtonDisplay::Single(c) => {
-            painter.rect_filled(rect, rounding, c);
-        }
-        ColorButtonDisplay::Gradient(g) => {
-            if rounding > 0.0 {
-                let mut left = rect;
-                left.max.x = left.min.x + rounding * 2.0;
-                let left_color = colorous_color_to_egui_color(g.eval_continuous(0.0));
-                painter.rect_filled(left, rounding, left_color);
-
-                let mut right = rect;
-                right.min.x = right.max.x - rounding * 2.0;
-                let right_color = colorous_color_to_egui_color(g.eval_continuous(1.0));
-                painter.rect_filled(right, rounding, right_color);
-
-                rect.min.x += rounding;
-                rect.max.x -= rounding;
-            }
-
-            const RESOLUTION: usize = 1;
-            let block_count = (rect.size().x / RESOLUTION as f32).round() as usize;
-            for i in 0..block_count {
-                let sliver = egui::Rect::from_x_y_ranges(
-                    egui::Rangef {
-                        min: hypermath::util::lerp(
-                            rect.min.x,
-                            rect.max.x,
-                            i as f32 / block_count as f32,
-                        ),
-                        max: hypermath::util::lerp(
-                            rect.min.x,
-                            rect.max.x,
-                            (i + 1) as f32 / block_count as f32,
-                        ),
-                    },
-                    rect.y_range(),
-                );
-                let rgb = g.eval_rational(i, block_count - 1).as_array();
-                let c = crate::util::rgb_to_egui_color32(Rgb { rgb });
-                egui::color_picker::show_color_at(painter, c, sliver);
-            }
-        }
-    }
-}
-
-fn colorous_color_to_egui_color(c: colorous::Color) -> egui::Color32 {
-    let rgb = c.as_array();
-    crate::util::rgb_to_egui_color32(Rgb { rgb })
 }
 
 fn strip_set_suffix(s: &str) -> &str {

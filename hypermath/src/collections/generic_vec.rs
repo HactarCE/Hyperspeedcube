@@ -266,10 +266,15 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     where
         E: Default,
     {
+        self.resize_with(len, E::default)
+    }
+    /// Resizes the vector to exactly `len`, using `f` to generate new elements
+    /// as needed.
+    pub fn resize_with(&mut self, len: usize, f: impl FnMut() -> E) -> Result<(), IndexOverflow> {
         // Check that the new length is valid.
         I::try_from_usize(len.saturating_sub(1))?;
 
-        self.values.resize_with(len, E::default);
+        self.values.resize_with(len, f);
         Ok(())
     }
 
