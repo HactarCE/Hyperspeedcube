@@ -15,14 +15,6 @@ use crate::{
     preferences::{ColorPreferences, GlobalColorPalette, Preferences, Preset, WithPresets},
 };
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-enum ColorsTab {
-    #[default]
-    ByColor,
-    ByFacet,
-    ContrastMatrix,
-}
-
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let active_puzzle_ty = app.active_puzzle_type();
     let has_active_puzzle = active_puzzle_ty.is_some();
@@ -78,83 +70,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         },
         |prefs_ui| {
             let ui = prefs_ui.ui;
-            let tab = ui
-                .horizontal_wrapped(|ui| {
-                    let id = unique_id!();
-                    let mut tab = ui.data(|data| data.get_temp(id)).unwrap_or_default();
-                    ui.selectable_value(&mut tab, ColorsTab::ByColor, "By color");
-                    ui.selectable_value(&mut tab, ColorsTab::ByFacet, "By facet");
-                    ui.selectable_value(&mut tab, ColorsTab::ContrastMatrix, "Contrast matrix");
-                    ui.data_mut(|data| data.insert_temp(id, tab));
-                    tab
-                })
-                .inner;
-            ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                ui.separator()
-            });
-
             ui.set_enabled(has_active_puzzle);
-
-            match tab {
-                ColorsTab::ByColor => {
-                    show_color_palette(ui, None, &active_colors, &app.prefs.color_palette)
-                }
-                ColorsTab::ByFacet => ui.label("This is a different UI"),
-                ColorsTab::ContrastMatrix => ui.label("TOTALLY DIFFERENT"),
-            };
-            if tab == ColorsTab::ByFacet {
-                ui.group(|ui| {});
-            }
-
-            // app.with_active_puzzle_view(|p| {
-            //     let mut active_colors = HashMap::<DefaultColor, Vec<String>>::new();
-            //     for (color, default_color) in &p.view.colors.value {
-            //         if let Some(default_color) = default_color {
-            //             active_colors
-            //                 .entry(default_color.clone())
-            //                 .or_default()
-            //                 .push(color.clone());
-            //         }
-            //     }
-            //     active_colors
-            // });
-            let scheme = ui.group(|ui| {
-                ui.collapsing("Puzzle colors", |ui| {
-                    if let Some(ty) = active_puzzle_ty {
-                        for (id, face_color) in &ty.colors.list {
-                            ui.horizontal(|ui| {
-                                ui.label(&face_color.display);
-                                // if let Some(default_color) = &face_color.default_color {
-                                //     let popup_id = unique_id!(&ty.name, id);
-                                //     let rgb = app.prefs.colors.get(default_color).unwrap_or_default();
-                                //     let r = color_button(ui, rgb, false, None)
-                                //         .on_hover_text(default_color.to_string());
-                                //     if r.clicked() {
-                                //         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
-                                //     }
-                                //     let mut new_default_color = default_color.clone();
-                                //     egui::popup_below_widget(ui, popup_id, &r, |ui| {
-                                //         let r = show_color_palette(
-                                //             ui,
-                                //             &mut new_default_color,
-                                //             &active_colors,
-                                //             &app.prefs,
-                                //         );
-                                //         if r.changed() {
-                                //             ui.memory_mut(|mem| mem.close_popup());
-                                //             dbg!("color selected!");
-                                //         }
-                                //     });
-
-                                //     ui.label(default_color.to_string());
-                                // }
-                            });
-                        }
-                    } else {
-                        ui.label("No puzzle loaded");
-                    }
-                });
-            });
+            show_color_palette(ui, None, &active_colors, &app.prefs.color_palette);
         },
     );
 
@@ -174,12 +91,21 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     app.prefs.needs_save |= changed;
 }
 
-fn color_button(ui: &mut egui::Ui, color: Rgb, open: bool, label: Option<&str>) -> egui::Response {
+fn color_button(
+    ui: &mut egui::Ui,
+    color: impl Into<ColorButtonDisplay>,
+    open: bool,
+    label: Option<&str>,
+) -> egui::Response {
     // This function is mostly copied from `egui::color_picker`.
 
-    let color = crate::util::rgb_to_egui_color32(color);
+    let color = color.into();
 
-    let size = ui.spacing().interact_size;
+    let mut size = ui.spacing().interact_size;
+    match color {
+        ColorButtonDisplay::Single(_) => (),
+        ColorButtonDisplay::Gradient(_) => size.x *= 5.0,
+    }
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
     let mut ui = ui.child_ui(rect, egui::Layout::left_to_right(egui::Align::Center));
     response.widget_info(|| egui::WidgetInfo::new(egui::WidgetType::ColorButton));
@@ -192,7 +118,7 @@ fn color_button(ui: &mut egui::Ui, color: Rgb, open: bool, label: Option<&str>) 
         };
         let rect = rect.expand(visuals.expansion);
 
-        egui::color_picker::show_color_at(ui.painter(), color, rect);
+        display_color_rect_segments(ui.painter(), rect, 0.0, color);
 
         let rounding = visuals.rounding.at_most(2.0);
         ui.painter()
@@ -201,7 +127,11 @@ fn color_button(ui: &mut egui::Ui, color: Rgb, open: bool, label: Option<&str>) 
 
     // Add label.
     if let Some(label) = label {
-        let text_color = crate::util::contrasting_text_color(color);
+        let mid_color = match color {
+            ColorButtonDisplay::Single(c) => c,
+            ColorButtonDisplay::Gradient(g) => colorous_color_to_egui_color(g.eval_continuous(0.5)),
+        };
+        let text_color = crate::util::contrasting_text_color(mid_color);
         ui.put(
             rect,
             egui::Label::new(egui::RichText::new(label).color(text_color)).selectable(false),
@@ -209,6 +139,17 @@ fn color_button(ui: &mut egui::Ui, color: Rgb, open: bool, label: Option<&str>) 
     }
 
     response
+}
+
+#[derive(Debug, Copy, Clone)]
+enum ColorButtonDisplay {
+    Single(egui::Color32),
+    Gradient(colorous::Gradient),
+}
+impl From<Rgb> for ColorButtonDisplay {
+    fn from(value: Rgb) -> Self {
+        Self::Single(crate::util::rgb_to_egui_color32(value))
+    }
 }
 
 fn show_color_palette(
@@ -219,72 +160,109 @@ fn show_color_palette(
 ) -> egui::Response {
     let mut changed = false;
 
-    let mut r = ui
-        .horizontal(|ui| {
-            ui.vertical(|ui| {
-                ui.add(egui::Label::new(egui::RichText::from("Singles").strong()).wrap(false));
-                ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);
-                for (color_name, &rgb) in &palette.singles {
-                    let tooltip_pos = ui.cursor().left_top();
-                    ui.horizontal(|ui| {
-                        let default_color = DefaultColor::Single {
-                            name: color_name.clone(),
-                        };
-                        if display_color(ui, rgb, &default_color, color_labels, tooltip_pos)
-                            .clicked()
-                        {
-                            if let Some(selected) = &mut selected_color {
-                                **selected = default_color;
-                            }
-                            changed = true;
+    ui.add(egui::Label::new(egui::RichText::from("Single colors").strong()).wrap(false));
+    ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);
+    ui.horizontal_wrapped(|ui| {
+        for (color_name, &rgb) in &palette.singles {
+            let tooltip_pos = ui.cursor().left_top();
+            let default_color = DefaultColor::Single {
+                name: color_name.clone(),
+            };
+            if display_color(ui, rgb, &default_color, color_labels, tooltip_pos).clicked() {
+                if let Some(selected) = &mut selected_color {
+                    **selected = default_color;
+                }
+                changed = true;
+            }
+        }
+    });
+
+    ui.separator();
+
+    ui.style_mut().spacing.scroll = egui::style::ScrollStyle::solid();
+    // ui.style_mut().spacing.scroll.foreground_color = true;
+
+    let mut r = egui::ScrollArea::horizontal()
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                let mut is_first = true;
+                for (group_name, sets) in palette.groups_of_sets() {
+                    if is_first {
+                        is_first = false;
+                    } else {
+                        ui.separator();
+                    }
+                    ui.vertical(|ui| {
+                        ui.spacing_mut().item_spacing = ui.spacing_mut().item_spacing.yx();
+                        ui.add(
+                            egui::Label::new(egui::RichText::from(group_name).strong()).wrap(false),
+                        );
+                        for (set_name, set) in sets {
+                            let mut hovered = None;
+                            let tooltip_pos = ui.cursor().left_top();
+                            ui.horizontal(|ui| {
+                                for (i, &rgb) in set.iter().enumerate() {
+                                    let default_color = DefaultColor::Set {
+                                        set_name: set_name.clone(),
+                                        index: i,
+                                    };
+                                    let r = display_color(
+                                        ui,
+                                        rgb,
+                                        &default_color,
+                                        color_labels,
+                                        tooltip_pos,
+                                    );
+                                    if r.hovered() || r.has_focus() || r.dragged() {
+                                        if hovered.is_some() {
+                                            hovered = Some(set_name.clone());
+                                        } else {
+                                            hovered = Some(default_color.to_string());
+                                        }
+                                    }
+                                    if r.clicked() {
+                                        if let Some(selected) = &mut selected_color {
+                                            **selected = default_color;
+                                        }
+                                        changed = true;
+                                    }
+                                }
+                            });
                         }
                     });
                 }
-            });
-
-            for (group_name, sets) in palette.groups_of_sets() {
-                ui.separator();
-                ui.vertical(|ui| {
-                    ui.spacing_mut().item_spacing = ui.spacing_mut().item_spacing.yx();
-                    ui.add(egui::Label::new(egui::RichText::from(group_name).strong()).wrap(false));
-                    for (set_name, set) in sets {
-                        let mut hovered = None;
-                        let tooltip_pos = ui.cursor().left_top();
-                        let r = ui.horizontal(|ui| {
-                            for (i, &rgb) in set.iter().enumerate() {
-                                let default_color = DefaultColor::Set {
-                                    set_name: set_name.clone(),
-                                    index: i,
-                                };
-                                let r = display_color(
-                                    ui,
-                                    rgb,
-                                    &default_color,
-                                    color_labels,
-                                    tooltip_pos,
-                                );
-                                if r.hovered() || r.has_focus() || r.dragged() {
-                                    if hovered.is_some() {
-                                        hovered = Some(set_name.clone());
-                                    } else {
-                                        hovered = Some(default_color.to_string());
-                                    }
-                                }
-                                if r.clicked() {
-                                    if let Some(selected) = &mut selected_color {
-                                        **selected = default_color;
-                                    }
-                                    changed = true;
-                                }
-                            }
-                        });
-                    }
-                });
-            }
+            })
+            .response
         })
-        .response;
+        .inner;
 
     ui.separator();
+
+    ui.strong("Gradients");
+    for (name, g) in [
+        ("Rainbow", colorous::RAINBOW),
+        ("Sinebow", colorous::SINEBOW),
+        ("Spectral", colorous::SPECTRAL),
+        ("Cividis", colorous::CIVIDIS),
+        ("Cool", colorous::COOL),
+        ("Warm", colorous::WARM),
+        ("Plasma", colorous::PLASMA),
+        ("Turbo", colorous::TURBO),
+        ("Viridis", colorous::VIRIDIS),
+    ] {
+        let tooltip_pos = ui.cursor().left_top();
+        let r = color_button(ui, ColorButtonDisplay::Gradient(g), false, None);
+        if r.hovered() || r.has_focus() || r.is_pointer_button_down_on() {
+            display_color_tooltop(
+                ui,
+                unique_id!(name),
+                ColorButtonDisplay::Gradient(g),
+                tooltip_pos,
+                name,
+                "Built-in gradient",
+            );
+        }
+    }
 
     if changed {
         r.mark_changed();
@@ -304,35 +282,115 @@ fn display_color(
         .map(|s| s.as_str());
     let r = color_button(ui, rgb, false, label);
     if r.hovered() || r.has_focus() || r.is_pointer_button_down_on() {
-        let color_square_size = egui::Vec2::splat(ui.spacing().interact_size.x);
-        let left_bottom = tooltip_pos + egui::vec2(-ui.spacing().menu_margin.left, -4.0);
-        egui::Area::new(unique_id!(default_color))
-            .interactable(false)
-            .fixed_pos(left_bottom)
-            .constrain(true)
-            .pivot(egui::Align2::LEFT_BOTTOM)
-            .show(ui.ctx(), |ui| {
-                egui::Frame::popup(ui.style()).show(ui, |ui| {
-                    // ui.allocate_ui_at_rect(desired_rect, |ui| {
-                    ui.horizontal(|ui| {
-                        let (rect, _response) =
-                            ui.allocate_exact_size(color_square_size, egui::Sense::hover());
-                        ui.painter()
-                            .rect_filled(rect, 3.0, crate::util::rgb_to_egui_color32(rgb));
-                        ui.vertical(|ui| {
-                            ui.style_mut().wrap = Some(false);
-                            // egui::text::LayoutJob::single_section(default_color.to_string(), egui::TextFormat::simple(font_id, color))
-                            // egui::WidgetText::from(default_color.to_string())
-                            ui.strong(default_color.to_string());
-                            ui.label(rgb.to_string());
-                            // ui.set_width(ui.available_width());
-                        });
-                    });
-                    // })
-                });
-            });
+        display_color_tooltop(
+            ui,
+            unique_id!(default_color),
+            rgb,
+            tooltip_pos,
+            &default_color.to_string(),
+            &rgb.to_string(),
+        );
     }
     r
+}
+
+fn display_color_tooltop(
+    ui: &mut egui::Ui,
+    id: egui::Id,
+    color: impl Into<ColorButtonDisplay>,
+    tooltip_pos: egui::Pos2,
+    top_text: &str,
+    bottom_text: &str,
+) {
+    let color = color.into();
+
+    let mut color_square_size = egui::Vec2::splat(ui.spacing().interact_size.x);
+    match color {
+        ColorButtonDisplay::Single(_) => (),
+        ColorButtonDisplay::Gradient(_) => color_square_size.x *= 5.0,
+    }
+
+    let left_bottom = tooltip_pos + egui::vec2(-ui.spacing().menu_margin.left, -4.0);
+    egui::Area::new(id)
+        .interactable(false)
+        .fixed_pos(left_bottom)
+        .constrain(true)
+        .pivot(egui::Align2::LEFT_BOTTOM)
+        .show(ui.ctx(), |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                // ui.allocate_ui_at_rect(desired_rect, |ui| {
+                ui.horizontal(|ui| {
+                    let (rect, _response) =
+                        ui.allocate_exact_size(color_square_size, egui::Sense::hover());
+
+                    display_color_rect_segments(ui.painter(), rect, 3.0, color);
+
+                    ui.vertical(|ui| {
+                        ui.style_mut().wrap = Some(false);
+                        ui.strong(top_text);
+                        ui.label(bottom_text);
+                    });
+                });
+                // })
+            });
+        });
+}
+
+fn display_color_rect_segments(
+    painter: &egui::Painter,
+    mut rect: egui::Rect,
+    rounding: f32,
+    color: ColorButtonDisplay,
+) {
+    match color {
+        ColorButtonDisplay::Single(c) => {
+            painter.rect_filled(rect, rounding, c);
+        }
+        ColorButtonDisplay::Gradient(g) => {
+            if rounding > 0.0 {
+                let mut left = rect;
+                left.max.x = left.min.x + rounding * 2.0;
+                let left_color = colorous_color_to_egui_color(g.eval_continuous(0.0));
+                painter.rect_filled(left, rounding, left_color);
+
+                let mut right = rect;
+                right.min.x = right.max.x - rounding * 2.0;
+                let right_color = colorous_color_to_egui_color(g.eval_continuous(1.0));
+                painter.rect_filled(right, rounding, right_color);
+
+                rect.min.x += rounding;
+                rect.max.x -= rounding;
+            }
+
+            const RESOLUTION: usize = 1;
+            let block_count = (rect.size().x / RESOLUTION as f32).round() as usize;
+            for i in 0..block_count {
+                let sliver = egui::Rect::from_x_y_ranges(
+                    egui::Rangef {
+                        min: hypermath::util::lerp(
+                            rect.min.x,
+                            rect.max.x,
+                            i as f32 / block_count as f32,
+                        ),
+                        max: hypermath::util::lerp(
+                            rect.min.x,
+                            rect.max.x,
+                            (i + 1) as f32 / block_count as f32,
+                        ),
+                    },
+                    rect.y_range(),
+                );
+                let rgb = g.eval_rational(i, block_count - 1).as_array();
+                let c = crate::util::rgb_to_egui_color32(Rgb { rgb });
+                egui::color_picker::show_color_at(painter, c, sliver);
+            }
+        }
+    }
+}
+
+fn colorous_color_to_egui_color(c: colorous::Color) -> egui::Color32 {
+    let rgb = c.as_array();
+    crate::util::rgb_to_egui_color32(Rgb { rgb })
 }
 
 fn strip_set_suffix(s: &str) -> &str {
