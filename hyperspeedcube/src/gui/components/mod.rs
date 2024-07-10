@@ -2,6 +2,7 @@
 mod combo_boxes;
 // mod keybinds;
 mod color_widgets;
+mod dnd;
 mod hint;
 mod layer_mask;
 pub mod prefs;
@@ -15,6 +16,7 @@ pub use color_widgets::*;
 pub use combo_boxes::*;
 pub use hint::*;
 // pub use keybinds::*;
+pub use dnd::*;
 pub use layer_mask::*;
 pub use prefs::PrefsUi;
 pub use presets::*;

@@ -439,15 +439,19 @@ impl<T: Default + Clone + PartialEq> WithPresets<T> {
         self.user.retain(|p| p.name != name);
     }
     /// Moves the preset `from` to `to`, shifting all the presents in between.
-    pub fn reorder(&mut self, from: &str, to: &str) {
+    pub fn reorder(&mut self, from: &str, to: &str, before_or_after: BeforeOrAfter) {
         let Some(i) = self.user.iter().position(|p| p.name == from) else {
             return;
         };
-        let Some(j) = self.user.iter().position(|p| p.name == to) else {
+        let Some(mut j) = self.user.iter().position(|p| p.name == to) else {
             return;
         };
+        match before_or_after {
+            BeforeOrAfter::Before => (),
+            BeforeOrAfter::After => j += 1,
+        }
         if i < j {
-            self.user[i..=j].rotate_left(1);
+            self.user[i..j].rotate_left(1);
         } else if j < i {
             self.user[j..=i].rotate_right(1);
         }
@@ -458,6 +462,12 @@ impl<T: Default + Clone + PartialEq> WithPresets<T> {
     pub fn take_renames(&mut self) -> impl Iterator<Item = Rename> {
         std::mem::take(&mut self.recent_renames).into_iter()
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum BeforeOrAfter {
+    Before,
+    After,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]

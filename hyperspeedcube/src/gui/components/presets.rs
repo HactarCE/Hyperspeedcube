@@ -147,33 +147,11 @@ where
         r
     }
 
-    fn set_drag_state(&self, ui: &egui::Ui, name: Option<String>) {
-        let id = self.id.with("drag");
-        match name {
-            Some(name) => {
-                ui.data_mut(|data| data.insert_temp::<String>(id, name));
-            }
-            None => {
-                ui.data_mut(|data| data.remove_temp::<String>(id));
-            }
-        }
-    }
-    fn get_drag_state(&self, ui: &egui::Ui) -> Option<String> {
-        let id = self.id.with("drag");
-        ui.data(|data| data.get_temp::<String>(id))
-    }
-
     pub fn show_presets_selector(&mut self, ui: &mut egui::Ui) -> egui::Response {
         let mut preset_to_activate = None;
         let mut is_first_frame_of_popup = false;
 
-        let drag_start = self.get_drag_state(ui);
-        let end_drag_this_frame = !ui.input(|input| input.pointer.is_decidedly_dragging());
-        if end_drag_this_frame {
-            // Reset drag state.
-            self.set_drag_state(ui, None);
-        }
-        let mut drag_end = None;
+        let mut dnd = super::DragAndDrop::new(ui);
 
         // Presets selector.
         let r = ui.group(|ui| {
@@ -189,7 +167,7 @@ where
             ui.separator();
             ui.horizontal_wrapped(|ui| {
                 for preset in self.presets.builtin_list() {
-                    let r = ui.add_enabled(drag_start.is_none(), |ui: &mut egui::Ui| {
+                    let r = ui.add_enabled(!dnd.is_dragging(), |ui: &mut egui::Ui| {
                         self.show_preset_name_selectable_label(ui, &preset.name)
                     });
 
@@ -204,7 +182,10 @@ where
                 }
 
                 for preset in self.presets.user_list() {
-                    let r = self.show_preset_name_selectable_label(ui, &preset.name);
+                    crate::gui::util::wrap_if_needed_for_button(ui, &preset.name);
+                    let r = dnd.draggable(ui, preset.name.clone(), |ui| {
+                        self.show_preset_name_selectable_label(ui, &preset.name)
+                    });
 
                     // Left click -> Activate preset
                     if r.clicked() {
@@ -219,22 +200,10 @@ where
                     }
 
                     // Drag -> Reorder preset
-                    if r.drag_started() {
-                        self.set_drag_state(ui, Some(preset.name.clone()));
-                    }
-                    if drag_start.is_some() && r.contains_pointer() {
-                        ui.painter_at(r.rect).rect(
-                            r.rect,
-                            egui::Rounding::same(3.0),
-                            ui.visuals().selection.bg_fill.linear_multiply(0.75),
-                            ui.visuals().selection.stroke,
-                        );
-                        if end_drag_this_frame {
-                            drag_end = Some(preset.name.clone());
-                        }
-                    }
+                    dnd.reorder_drop_zone(ui, r, preset.name.clone());
                 }
 
+                ui.set_enabled(!dnd.is_dragging());
                 let mut r = ui.add(egui::Button::new("+").min_size(SMALL_ICON_BUTTON_SIZE));
                 if !ui.memory(|mem| mem.any_popup_open()) {
                     r = r.on_hover_text(format!("Add {}", self.text.preset));
@@ -296,9 +265,11 @@ where
         }
 
         // Reorder the presets.
-        if let (Some(from), Some(to)) = (drag_start, drag_end) {
-            self.presets.reorder(&from, &to);
-            *self.changed = true;
+        if let Some(r) = dnd.take_response() {
+            if let Some(before_or_after) = r.before_or_after {
+                self.presets.reorder(&r.payload, &r.end, before_or_after);
+                *self.changed = true;
+            }
         }
 
         if *self.changed {

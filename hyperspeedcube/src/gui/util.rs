@@ -62,13 +62,16 @@ pub fn rounded_pixel_rect(
     (egui_rect, pixel_size)
 }
 
-pub fn text_width(ui: &egui::Ui, text: &str) -> f32 {
+pub fn text_size(ui: &egui::Ui, text: &str) -> egui::Vec2 {
     let wrap = None;
     let max_width = f32::INFINITY;
-    let text_size = egui::WidgetText::from(text)
+    egui::WidgetText::from(text)
         .into_galley(ui, wrap, max_width, egui::TextStyle::Button)
-        .size();
-    text_size.x
+        .size()
+}
+
+pub fn text_width(ui: &egui::Ui, text: &str) -> f32 {
+    text_size(ui, text).x
 }
 
 pub fn bullet_list(ui: &mut egui::Ui, list_elements: &[&str]) {
@@ -109,4 +112,32 @@ pub fn strong_text_format(ui: &egui::Ui) -> egui::TextFormat {
 pub const BIG_ICON_BUTTON_SIZE: f32 = 22.0;
 pub fn big_icon_button<'a>(icon: &str) -> egui::Button<'a> {
     egui::Button::new(icon).min_size(egui::Vec2::splat(BIG_ICON_BUTTON_SIZE))
+}
+
+/// Returns whether a widget of the given width will be put on the next line,
+/// assuming a horizontal wrapping layout.
+pub fn will_wrap_for_width(ui: &egui::Ui, width: f32) -> bool {
+    ui.cursor().left() > ui.max_rect().left() && width >= ui.available_size_before_wrap().x
+}
+/// Wraps to the next line in a horizontal wrapping layout.
+pub fn force_horizontal_wrap(ui: &mut egui::Ui) {
+    // This is really hacky but I don't know anything else that works.
+    let old_x_spacing = std::mem::take(&mut ui.spacing_mut().item_spacing.x);
+    ui.add_space(ui.available_size_before_wrap().x);
+    ui.allocate_exact_size(egui::vec2(1.0, 1.0), egui::Sense::hover());
+    ui.add_space(-1.0);
+    ui.spacing_mut().item_spacing.x = old_x_spacing;
+}
+
+pub fn wrap_if_needed_for_button(ui: &mut egui::Ui, label: &str) {
+    let w = text_width(ui, label) + ui.spacing().button_padding.x * 2.0;
+    if will_wrap_for_width(ui, w) {
+        force_horizontal_wrap(ui);
+    }
+}
+
+pub fn wrap_if_needed_for_color_button(ui: &mut egui::Ui) {
+    if will_wrap_for_width(ui, ui.spacing().interact_size.x) {
+        force_horizontal_wrap(ui);
+    }
 }
