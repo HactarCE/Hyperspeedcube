@@ -140,7 +140,7 @@ where
             .selectable_label(is_current, &elided_preset_name)
             .interact(egui::Sense::drag());
 
-        if elided_preset_name != preset_name {
+        if elided_preset_name != preset_name && !ui.memory(|mem| mem.any_popup_open()) {
             r = r.on_hover_text(preset_name);
         }
 
@@ -235,9 +235,10 @@ where
                     }
                 }
 
-                let r = ui
-                    .add(egui::Button::new("+").min_size(SMALL_ICON_BUTTON_SIZE))
-                    .on_hover_text(format!("Add {}", self.text.preset));
+                let mut r = ui.add(egui::Button::new("+").min_size(SMALL_ICON_BUTTON_SIZE));
+                if !ui.memory(|mem| mem.any_popup_open()) {
+                    r = r.on_hover_text(format!("Add {}", self.text.preset));
+                }
 
                 // Left click -> New preset
                 if r.clicked() {
