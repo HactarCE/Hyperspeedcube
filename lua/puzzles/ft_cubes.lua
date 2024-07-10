@@ -98,7 +98,7 @@ puzzles:add('opposite_colors_same_cube', {
     })
 
     -- Define axes and slices
-    self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, size))
+    self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, 3))
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox], sym:thru(2, 1)) do
