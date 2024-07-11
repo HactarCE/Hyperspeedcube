@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use hyperpuzzle::{DefaultColor, Rgb};
-use itertools::Itertools;
 
 use crate::preferences::{ColorScheme, DefaultColorGradient, GlobalColorPalette};
 
@@ -16,8 +15,8 @@ const TOOLTIP_COLOR_RECT_ROUNDING: f32 = 3.0;
 
 #[derive(Debug, Default, Clone)]
 pub struct ReverseColorMap {
-    colors: HashMap<DefaultColor, String>,
-    gradient_totals: HashMap<DefaultColorGradient, usize>,
+    pub colors: HashMap<DefaultColor, String>,
+    pub gradient_totals: HashMap<DefaultColorGradient, usize>,
 }
 impl ReverseColorMap {
     pub fn from_color_scheme(scheme: &mut ColorScheme) -> Self {
@@ -61,11 +60,15 @@ impl ColorOrGradient {
     pub fn is_gradient(self) -> bool {
         matches!(self, Self::Gradient(_))
     }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct ColorDragState {
-    pub dragged_color_name: Option<String>,
+    pub fn middle_color(self) -> egui::Color32 {
+        match self {
+            Self::Color(c) => c,
+            Self::Gradient(g) => colorous_color_to_egui_color(g.eval_continuous(0.5)),
+        }
+    }
+    pub fn constrasting_text_color(self) -> egui::Color32 {
+        crate::util::contrasting_text_color(self.middle_color())
+    }
 }
 
 pub fn display_single_color(
@@ -73,11 +76,14 @@ pub fn display_single_color(
     palette: &GlobalColorPalette,
     color_name: String,
     rev_map: &ReverseColorMap,
-    drag_state: &mut ColorDragState,
+    dnd: &mut crate::gui::components::DragAndDrop<String, DefaultColor>,
 ) -> egui::Response {
+    crate::gui::util::wrap_if_needed_for_color_button(ui);
     let tooltip_pos = ui.cursor().left_top();
     let default_color = DefaultColor::Single { name: color_name };
-    display_color(ui, default_color, palette, rev_map, tooltip_pos, drag_state)
+    let r = display_color(ui, &default_color, palette, rev_map, tooltip_pos, dnd);
+    dnd.drop_zone(ui, &r, default_color);
+    r
 }
 
 pub fn display_color_set(
@@ -85,8 +91,9 @@ pub fn display_color_set(
     palette: &GlobalColorPalette,
     color_set_name: &str,
     rev_map: &ReverseColorMap,
-    drag_state: &mut ColorDragState,
+    dnd: &mut crate::gui::components::DragAndDrop<String, DefaultColor>,
 ) -> egui::InnerResponse<Vec<egui::Response>> {
+    crate::gui::util::wrap_if_needed_for_color_button(ui);
     let tooltip_pos = ui.cursor().left_top();
     let Some(color_set) = palette.get_set(color_set_name) else {
         let r = error_label(ui, format!("missing color set {color_set_name:?}"));
@@ -100,7 +107,9 @@ pub fn display_color_set(
                     set_name: color_set_name.to_string(),
                     index: i,
                 };
-                display_color(ui, default_color, palette, rev_map, tooltip_pos, drag_state)
+                let r = display_color(ui, &default_color, palette, rev_map, tooltip_pos, dnd);
+                dnd.drop_zone(ui, &r, default_color);
+                r
             })
             .collect()
     })
@@ -111,53 +120,73 @@ pub fn display_color_gradient(
     palette: &GlobalColorPalette,
     gradient: DefaultColorGradient,
     rev_map: &ReverseColorMap,
-    drag_state: &mut ColorDragState,
-) -> (egui::Response, egui::InnerResponse<Vec<egui::Response>>) {
-    let tooltip_pos = ui.cursor().left_top();
+    dnd: &mut crate::gui::components::DragAndDrop<String, DefaultColor>,
+) {
+    let total = *rev_map.gradient_totals.get(&gradient).unwrap_or(&0);
 
-    let r = color_button(ui, gradient, false, None);
-    if r.hovered() || r.has_focus() || r.is_pointer_button_down_on() {
-        let name = &gradient.to_string();
-        let description = "Built-in gradient";
-        display_color_tooltop(ui, gradient, tooltip_pos, name, description);
-    }
-    // let first_response = r;
+    let r = ui.group(|ui| {
+        ui.set_width(ui.available_width());
+        let tooltip_pos = ui.cursor().left_top();
 
-    let seq_responses = ui.horizontal_wrapped(|ui| {
-        let total = *rev_map.gradient_totals.get(&gradient).unwrap_or(&0);
-        (0..total)
-            .map(|index| {
+        let mut size = ui.spacing().interact_size;
+        size.x = ui.available_width();
+        if total == 0 {
+            size.y *= 1.5;
+        } else {
+            size.y *= 0.5;
+        }
+        let r = color_button(ui, size, gradient, false, None, dnd);
+        if r.hovered() || r.has_focus() || r.is_pointer_button_down_on() {
+            let name = &gradient.to_string();
+            let description = "Built-in gradient";
+            display_color_tooltop(ui, gradient, tooltip_pos, name, description);
+        }
+        if total == 0 {
+            return;
+        }
+
+        ui.horizontal_wrapped(|ui| {
+            for index in 0..total {
                 let default_color = DefaultColor::Gradient {
                     gradient_name: gradient.to_string(),
                     index,
                     total,
                 };
-                display_color(ui, default_color, palette, rev_map, tooltip_pos, drag_state)
-            })
-            .collect()
+                let r = display_color(ui, &default_color, palette, rev_map, tooltip_pos, dnd);
+                dnd.reorder_drop_zone(ui, r, default_color);
+            }
+        });
     });
 
-    (r, seq_responses)
+    if total == 0 {
+        dnd.drop_zone(
+            ui,
+            &r.response,
+            DefaultColor::Gradient {
+                gradient_name: gradient.to_string(),
+                index: usize::MAX,
+                total: usize::MAX,
+            },
+        );
+    }
 }
 
 fn display_color(
     ui: &mut egui::Ui,
-    default_color: DefaultColor,
+    default_color: &DefaultColor,
     palette: &GlobalColorPalette,
     rev_map: &ReverseColorMap,
     tooltip_pos: egui::Pos2,
-    drag_state: &mut ColorDragState,
+    dnd: &mut crate::gui::components::DragAndDrop<String, DefaultColor>,
 ) -> egui::Response {
     let Some(rgb) = palette.get(&default_color) else {
         return error_label(ui, format!("missing color {default_color}"));
     };
-    let label = rev_map
-        .colors
-        .get(&default_color)
-        .filter(|&s| drag_state.dragged_color_name.as_ref() != Some(s));
+    let label = rev_map.colors.get(&default_color);
 
-    let r = color_button(ui, rgb, false, label);
-    if r.hovered() || r.has_focus() || r.is_pointer_button_down_on() {
+    let size = ui.spacing().interact_size;
+    let r = color_button(ui, size, rgb, false, label, dnd);
+    if (r.hovered() || r.has_focus() || r.is_pointer_button_down_on()) && !dnd.is_dragging() {
         let name = default_color.to_string();
         let description = rgb.to_string();
         display_color_tooltop(ui, rgb, tooltip_pos, &name, &description);
@@ -167,20 +196,17 @@ fn display_color(
 
 fn color_button(
     ui: &mut egui::Ui,
+    size: egui::Vec2,
     color: impl Into<ColorOrGradient>,
     open: bool,
     label: Option<&String>,
+    dnd: &mut crate::gui::components::DragAndDrop<String, DefaultColor>,
 ) -> egui::Response {
     // This function is mostly copied from `egui::color_picker`.
 
     let color = color.into();
 
-    let mut size = ui.spacing().interact_size;
-    if color.is_gradient() && label.is_none() {
-        size.x = ui.available_width();
-        // size.x *= GRADIENT_WIDTH_MULTIPLIER;
-    }
-    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
     let mut ui = ui.child_ui(rect, egui::Layout::left_to_right(egui::Align::Center));
     response.widget_info(|| egui::WidgetInfo::new(egui::WidgetType::ColorButton));
 
@@ -201,15 +227,28 @@ fn color_button(
 
     // Add label.
     if let Some(label) = label {
-        let mid_color = match color {
-            ColorOrGradient::Color(c) => c,
-            ColorOrGradient::Gradient(g) => colorous_color_to_egui_color(g.eval_continuous(0.5)),
-        };
-        let text_color = crate::util::contrasting_text_color(mid_color);
-        ui.put(
-            rect,
-            egui::Label::new(egui::RichText::new(label).color(text_color)).selectable(false),
-        );
+        ui.allocate_ui_at_rect(rect, |ui| {
+            dnd.draggable(ui, label.clone(), |ui, is_dragging| {
+                let text_color = if is_dragging {
+                    ui.painter().rect_filled(
+                        rect,
+                        2.0,
+                        ui.visuals().window_fill.linear_multiply(0.75),
+                    );
+                    ui.visuals().strong_text_color()
+                } else {
+                    color.constrasting_text_color()
+                };
+
+                ui.put(
+                    rect,
+                    egui::Label::new(egui::RichText::new(label).color(text_color))
+                        .selectable(false),
+                );
+
+                response.clone()
+            });
+        });
     }
 
     response
@@ -231,28 +270,29 @@ fn display_color_tooltop(
         color_square_size.x *= GRADIENT_WIDTH_MULTIPLIER;
     }
 
-    let left_bottom = tooltip_pos + egui::vec2(-ui.spacing().menu_margin.left, -4.0);
+    let left_bottom = tooltip_pos + egui::vec2(-ui.spacing().menu_margin.left, -5.0);
     egui::Area::new(id)
         .interactable(false)
         .fixed_pos(left_bottom)
         .constrain(true)
         .pivot(egui::Align2::LEFT_BOTTOM)
         .show(ui.ctx(), |ui| {
-            egui::Frame::popup(ui.style()).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    let (rect, _response) =
-                        ui.allocate_exact_size(color_square_size, egui::Sense::hover());
+            egui::Frame::popup(ui.style())
+                .shadow(egui::epaint::Shadow::NONE)
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        let (rect, _response) =
+                            ui.allocate_exact_size(color_square_size, egui::Sense::hover());
 
-                    paint_colored_rect(ui.painter(), rect, TOOLTIP_COLOR_RECT_ROUNDING, color);
+                        paint_colored_rect(ui.painter(), rect, TOOLTIP_COLOR_RECT_ROUNDING, color);
 
-                    ui.vertical(|ui| {
-                        ui.style_mut().wrap = Some(false);
-                        ui.strong(top_text);
-                        ui.label(bottom_text);
+                        ui.vertical(|ui| {
+                            ui.style_mut().wrap = Some(false);
+                            ui.strong(top_text);
+                            ui.label(bottom_text);
+                        });
                     });
                 });
-                // })
-            });
         });
 }
 

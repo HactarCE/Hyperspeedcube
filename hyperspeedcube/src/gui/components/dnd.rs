@@ -12,6 +12,9 @@ pub struct DragAndDrop<Payload, End = Payload> {
     id: egui::Id,
     ctx: egui::Context,
 
+    /// Opacity of UI element being dragged.
+    pub dragging_opacity: f32,
+
     /// Response containing the initial payload and where it ended up.
     response: Option<DragAndDropResponse<Payload, End>>,
 }
@@ -25,6 +28,8 @@ where
             id: ui.next_auto_id(),
             ctx: ui.ctx().clone(),
 
+            dragging_opacity: 1.0,
+
             response: None,
         };
         ui.skip_ahead_auto_ids(1);
@@ -35,6 +40,11 @@ where
         }
 
         this
+    }
+
+    pub fn dragging_opacity(mut self, dragging_opacity: f32) -> Self {
+        self.dragging_opacity = dragging_opacity;
+        self
     }
 
     pub fn is_dragging(&self) -> bool {
@@ -53,11 +63,15 @@ where
     }
 
     /// Adds a draggable widget.
+    ///
+    /// `payload` is a value representing the value that will be dragged. The
+    /// boolean passed into `add_contents` is `true` if the widget is currently
+    /// being dragged.
     pub fn draggable(
         &self,
         ui: &mut egui::Ui,
         payload: Payload,
-        add_contents: impl FnOnce(&mut egui::Ui) -> egui::Response,
+        add_contents: impl FnOnce(&mut egui::Ui, bool) -> egui::Response,
     ) -> egui::Response {
         let drag_start_id = unique_id!();
         let id = ui.auto_id_with("hyperspeedcube::drag_and_drop");
@@ -69,8 +83,8 @@ where
             let layer_id = egui::LayerId::new(egui::Order::Tooltip, id);
             let r = ui
                 .with_layer_id(layer_id, |ui| {
-                    ui.set_opacity(0.4);
-                    add_contents(ui)
+                    ui.set_opacity(self.dragging_opacity);
+                    add_contents(ui, true)
                 })
                 .inner
                 .highlight();
@@ -93,7 +107,7 @@ where
 
             r
         } else {
-            let mut r = add_contents(ui);
+            let mut r = add_contents(ui, false);
 
             if !r.sense.click {
                 r = r.on_hover_and_drag_cursor(egui::CursorIcon::Grab);
@@ -112,6 +126,8 @@ where
     }
 
     /// Add a drop zone onto an existing widget.
+    ///
+    /// `end` is a value representing this drop zone.
     pub fn drop_zone(&mut self, ui: &mut egui::Ui, r: &egui::Response, end: End) {
         if !self.is_dragging() {
             return;

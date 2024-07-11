@@ -15,7 +15,7 @@ fn show_presets_help_ui(ui: &mut egui::Ui) {
         "A preset is a saved set of values \
          that can be loaded at any time.",
     );
-    super::super::util::bullet_list(
+    crate::gui::util::bullet_list(
         ui,
         &[
             "Click on the + button to create a preset",
@@ -151,7 +151,7 @@ where
         let mut preset_to_activate = None;
         let mut is_first_frame_of_popup = false;
 
-        let mut dnd = super::DragAndDrop::new(ui);
+        let mut dnd = super::DragAndDrop::new(ui).dragging_opacity(0.4);
 
         // Presets selector.
         let r = ui.group(|ui| {
@@ -183,7 +183,7 @@ where
 
                 for preset in self.presets.user_list() {
                     crate::gui::util::wrap_if_needed_for_button(ui, &preset.name);
-                    let r = dnd.draggable(ui, preset.name.clone(), |ui| {
+                    let r = dnd.draggable(ui, preset.name.clone(), |ui, _is_dragging| {
                         self.show_preset_name_selectable_label(ui, &preset.name)
                     });
 
