@@ -6,7 +6,10 @@ use hyperpuzzle::{ColorSystem, DefaultColor};
 
 use crate::{
     app::App,
-    gui::{components::ReverseColorMap, util::set_widget_spacing_to_space_width},
+    gui::{
+        components::{DragAndDropResponse, ReverseColorMap},
+        util::set_widget_spacing_to_space_width,
+    },
     preferences::{BeforeOrAfter, DefaultColorGradient, GlobalColorPalette, Preset},
 };
 
@@ -14,16 +17,10 @@ fn show_color_schemes_help_ui(ui: &mut egui::Ui) {
     // TODO: markdown renderer
     ui.spacing_mut().item_spacing.y = 9.0;
     ui.heading("Color assignments");
-    ui.horizontal_wrapped(|ui| {
-        set_widget_spacing_to_space_width(ui);
-        ui.label(
-            "Each facet on the puzzle is assigned to a color. \
-            Color values can be customized in the",
-        );
-        ui.strong("global color palette");
-        ui.add_space(-ui.spacing().item_spacing.x);
-        ui.label(".");
-    });
+    ui.label(
+        "Each facet on the puzzle is assigned a different color. \
+         Drag a facet name to assign a different color to it.",
+    );
     crate::gui::util::bullet_list(
         ui,
         &[
@@ -32,9 +29,15 @@ fn show_color_schemes_help_ui(ui: &mut egui::Ui) {
             "Gradients are best for large puzzles",
             "Colors within a color set are designed to contrast with \
              each other and with other color sets of the same size",
-            "Drag a facet name to assign it to a different color",
         ],
     );
+    ui.horizontal_wrapped(|ui| {
+        set_widget_spacing_to_space_width(ui);
+        ui.label("Color values can be customized in the");
+        ui.strong("global color palette");
+        ui.add_space(-ui.spacing().item_spacing.x);
+        ui.label(".");
+    });
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -76,6 +79,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     };
     presets_ui.show_presets_selector(ui);
     let mut default_preset = None;
+    let mut temp_colors_override = None; // temporary color override
     presets_ui.show_current_prefs_ui(
         ui,
         |_| {
@@ -94,22 +98,14 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             ui.set_enabled(has_active_puzzle);
             let mut dnd = crate::gui::components::DragAndDrop::new(ui).dragging_opacity(1.0);
             show_color_palette(ui, &app.prefs.color_palette, &rev_map, &mut dnd);
-            if let Some(r) = dnd.take_response() {
-                match r.before_or_after {
-                    Some(before_or_after) => reorder_color_to(
-                        prefs_ui.current,
-                        &rev_map,
-                        r.payload,
-                        r.end,
-                        before_or_after,
-                    ),
-                    None => swap_color_to(prefs_ui.current, &rev_map, r.payload, r.end),
-                }
-                let _ = app
-                    .prefs
-                    .color_palette
-                    .ensure_color_scheme_is_valid_for_color_system(prefs_ui.current, &color_system);
+            let global_palette = &app.prefs.color_palette;
+            if let Some(r) = dnd.end_drag() {
+                apply_drag(prefs_ui.current, &rev_map, r, global_palette, &color_system);
                 *prefs_ui.changed = true;
+            } else if let Some(r) = dnd.mid_drag().cloned() {
+                let mut temp = prefs_ui.current.clone();
+                apply_drag(&mut temp, &rev_map, r, global_palette, &color_system);
+                temp_colors_override = Some(temp);
             }
         },
     );
@@ -126,6 +122,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             p.view.colors = current_color_scheme;
         });
     }
+    if let Some(temp_colors) = temp_colors_override {
+        app.with_active_puzzle_view(|p| p.view.temp_colors = Some(temp_colors));
+    }
 
     app.prefs.needs_save |= changed;
 }
@@ -136,11 +135,14 @@ fn show_color_palette(
     rev_map: &ReverseColorMap,
     dnd: &mut crate::gui::components::DragAndDrop<String, DefaultColor>,
 ) {
+    let large_space = ui.spacing().item_spacing.x;
+    let small_space = ui.spacing().item_spacing.y;
+    ui.spacing_mut().item_spacing.y = large_space;
+
     ui.horizontal(|ui| {
-        ui.add(egui::Label::new(egui::RichText::from("Single colors").strong()).wrap(false));
+        ui.strong("Single colors");
         crate::gui::components::HintWidget::show(ui, show_color_schemes_help_ui);
     });
-    ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
         for color_name in palette.singles.keys() {
@@ -153,6 +155,25 @@ fn show_color_palette(
             );
         }
     });
+
+    if !palette.custom_singles.is_empty() {
+        ui.separator();
+
+        ui.strong("Custom colors");
+        ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.x);
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
+            for color_name in palette.custom_singles.keys() {
+                crate::gui::components::display_single_color(
+                    ui,
+                    palette,
+                    color_name.clone(),
+                    rev_map,
+                    dnd,
+                );
+            }
+        });
+    }
 
     ui.separator();
 
@@ -169,7 +190,7 @@ fn show_color_palette(
                         ui.separator();
                     }
                     ui.vertical(|ui| {
-                        ui.spacing_mut().item_spacing = ui.spacing().item_spacing.yx();
+                        ui.spacing_mut().item_spacing.x = small_space;
                         ui.add(
                             egui::Label::new(egui::RichText::from(group_name).strong()).wrap(false),
                         );
@@ -187,10 +208,25 @@ fn show_color_palette(
 
     ui.separator();
 
+    ui.spacing_mut().item_spacing.y = small_space;
     ui.strong("Gradients");
     for gradient in DefaultColorGradient::iter() {
         crate::gui::components::display_color_gradient(ui, palette, gradient, rev_map, dnd);
     }
+}
+
+fn apply_drag(
+    map: &mut IndexMap<String, DefaultColor>,
+    rev_map: &ReverseColorMap,
+    r: DragAndDropResponse<String, DefaultColor>,
+    global_palette: &GlobalColorPalette,
+    color_system: &ColorSystem,
+) {
+    match r.before_or_after {
+        Some(before_or_after) => reorder_color_to(map, &rev_map, r.payload, r.end, before_or_after),
+        None => swap_color_to(map, rev_map, r.payload, r.end),
+    }
+    let _ = global_palette.ensure_color_scheme_is_valid_for_color_system(map, color_system);
 }
 
 fn reorder_color_to(

@@ -272,6 +272,20 @@ impl PuzzleWidget {
                 &puzzle.colors,
             );
 
+        let color_map = self
+            .view
+            .temp_colors
+            .as_ref()
+            .unwrap_or(&self.view.colors.value);
+        let sticker_colors = puzzle
+            .colors
+            .list
+            .iter_values()
+            .map(|color_info| prefs.color_palette.get(color_map.get(&color_info.name)?))
+            .map(|maybe_rgb| maybe_rgb.unwrap_or_default().rgb)
+            .collect();
+        self.view.temp_colors = None; // Remove temporary colors
+
         let draw_params = DrawParams {
             ndim: puzzle.ndim(),
             cam: self.view.camera.clone(),
@@ -284,21 +298,7 @@ impl PuzzleWidget {
 
             background_color,
             internals_color,
-            sticker_colors: {
-                puzzle
-                    .colors
-                    .list
-                    .iter()
-                    .map(|(id, color_info)| {
-                        self.view
-                            .colors
-                            .value
-                            .get(&color_info.name)
-                            .and_then(|c| Some(prefs.color_palette.get(c)?.rgb))
-                            .unwrap_or_else(|| sample_rainbow(id.0 as usize, puzzle.colors.len()))
-                    })
-                    .collect()
-            },
+            sticker_colors,
             piece_styles: self.view.styles.values(&prefs.styles),
             piece_transforms: self.view.sim.lock().piece_transforms().map_ref(
                 |_piece, transform| transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim()),
@@ -424,8 +424,4 @@ impl PuzzleWidget {
 
         r
     }
-}
-
-fn sample_rainbow(i: usize, n: usize) -> [u8; 3] {
-    colorous::RAINBOW.eval_rational(i, n).into_array()
 }

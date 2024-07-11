@@ -2,12 +2,14 @@ use std::any::Any;
 
 use crate::preferences::BeforeOrAfter;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct DragAndDropResponse<Payload, End> {
     pub payload: Payload,
     pub end: End,
     pub before_or_after: Option<BeforeOrAfter>,
 }
 
+#[derive(Debug, Clone)]
 pub struct DragAndDrop<Payload, End = Payload> {
     id: egui::Id,
     ctx: egui::Context,
@@ -17,6 +19,7 @@ pub struct DragAndDrop<Payload, End = Payload> {
 
     /// Response containing the initial payload and where it ended up.
     response: Option<DragAndDropResponse<Payload, End>>,
+    done_dragging: bool,
 }
 impl<Payload, End> DragAndDrop<Payload, End>
 where
@@ -31,12 +34,20 @@ where
             dragging_opacity: 1.0,
 
             response: None,
+            done_dragging: ui.input(|input| input.pointer.any_released()),
         };
         ui.skip_ahead_auto_ids(1);
 
-        // Cancel drag if we get into a weird state somehow.
         if !ui.input(|input| input.pointer.any_down() || input.pointer.any_released()) {
+            // Done dragging -> delete payload
             this.take_payload();
+        }
+
+        if ui.input(|input| input.key_pressed(egui::Key::Escape) || input.pointer.any_pressed()) {
+            // Cancel drag
+            if this.take_payload().is_some() {
+                ui.ctx().stop_dragging();
+            }
         }
 
         this
@@ -147,8 +158,8 @@ where
 
         ui.painter().rect_stroke(r.rect, 3.0, stroke);
 
-        if ui.input(|input| input.pointer.any_released()) && r.contains_pointer() {
-            let Some(payload) = self.take_payload() else {
+        if r.contains_pointer() {
+            let Some(payload) = self.payload() else {
                 return;
             };
             self.response = Some(DragAndDropResponse {
@@ -157,10 +168,6 @@ where
                 before_or_after: None,
             });
         }
-    }
-
-    pub fn take_response(&mut self) -> Option<DragAndDropResponse<Payload, End>> {
-        self.response.take()
     }
 
     /// Adds a reordering drop zone onto an existing widget.
@@ -198,8 +205,8 @@ where
         ui.painter()
             .line_segment([rect.right_top(), rect.right_bottom()], right_stroke);
 
-        if ui.input(|input| input.pointer.any_released()) && (hovering_left || hovering_right) {
-            let Some(payload) = self.take_payload() else {
+        if hovering_left || hovering_right {
+            let Some(payload) = self.payload() else {
                 return;
             };
             self.response = Some(DragAndDropResponse {
@@ -207,6 +214,19 @@ where
                 end,
                 before_or_after,
             });
+        }
+    }
+
+    pub fn mid_drag(&mut self) -> Option<&DragAndDropResponse<Payload, End>> {
+        self.response.as_ref()
+    }
+
+    pub fn end_drag(&mut self) -> Option<DragAndDropResponse<Payload, End>> {
+        if self.done_dragging {
+            self.take_payload();
+            self.response.take()
+        } else {
+            None
         }
     }
 }

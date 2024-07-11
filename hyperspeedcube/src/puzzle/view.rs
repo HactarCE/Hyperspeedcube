@@ -25,6 +25,7 @@ pub struct PuzzleView {
     pub camera: Camera,
 
     pub colors: Preset<ColorScheme>,
+    pub temp_colors: Option<ColorScheme>,
     pub styles: PuzzleStyleStates,
 
     /// Latest screen-space cursor position.
@@ -64,6 +65,7 @@ impl PuzzleView {
             },
 
             colors,
+            temp_colors: None,
             styles: PuzzleStyleStates::new(puzzle.pieces.len()),
 
             cursor_pos: None,

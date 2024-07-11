@@ -265,7 +265,7 @@ where
         }
 
         // Reorder the presets.
-        if let Some(r) = dnd.take_response() {
+        if let Some(r) = dnd.end_drag() {
             if let Some(before_or_after) = r.before_or_after {
                 self.presets.reorder(&r.payload, &r.end, before_or_after);
                 *self.changed = true;
