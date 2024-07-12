@@ -13,6 +13,22 @@ use super::BIG_ICON_BUTTON_SIZE;
 const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
 const FOV_3D_RANGE: RangeInclusive<f32> = -120.0..=120.0;
 
+pub struct PartialPrefsUi<'a, T> {
+    pub current: &'a mut T,
+    pub defaults: Option<&'a T>,
+    pub changed: &'a mut bool,
+}
+impl<'a, T> PartialPrefsUi<'a, T> {
+    pub fn with(self, ui: &'a mut egui::Ui) -> PrefsUi<'a, T> {
+        PrefsUi {
+            ui,
+            current: self.current,
+            defaults: self.defaults,
+            changed: self.changed,
+        }
+    }
+}
+
 pub struct PrefsUi<'a, T> {
     pub ui: &'a mut egui::Ui,
     pub current: &'a mut T,
@@ -41,18 +57,23 @@ impl<'a, T> PrefsUi<'a, T> {
         explanation: impl Into<egui::WidgetText>,
         add_contents: impl FnOnce(PrefsUi<'_, T>) -> egui::Response,
     ) {
-        self.ui.add_enabled_ui(enabled, |ui| {
-            ui.vertical(|ui| {
-                add_contents(PrefsUi {
-                    ui,
-                    current: self.current,
-                    defaults: self.defaults,
-                    changed: self.changed,
-                })
-            })
-            .response
-            .on_disabled_hover_text(explanation);
+        let (ui, prefs) = self.split();
+        ui.add_enabled_ui(enabled, |ui| {
+            ui.vertical(|ui| add_contents(prefs.with(ui)))
+                .response
+                .on_disabled_hover_text(explanation);
         });
+    }
+
+    /// Removes the `&mut egui::Ui` so that the same preferences can be modified
+    /// in different UI scopes. Use [`PartialPrefsUi::with()`] to recombine it.
+    pub fn split(&mut self) -> (&mut egui::Ui, PartialPrefsUi<'_, T>) {
+        let partial = PartialPrefsUi {
+            current: self.current,
+            defaults: self.defaults,
+            changed: self.changed,
+        };
+        (self.ui, partial)
     }
 
     pub fn collapsing<R>(
