@@ -234,8 +234,8 @@ fn color_button(
             dnd.draggable(ui, label.clone(), |ui, is_dragging| {
                 let text_color = if is_dragging {
                     ui.painter().rect_filled(
-                        rect,
-                        2.0,
+                        rect.expand(2.0),
+                        3.0,
                         ui.visuals().window_fill.linear_multiply(0.75),
                     );
                     ui.visuals().strong_text_color()

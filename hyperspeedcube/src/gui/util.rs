@@ -223,6 +223,9 @@ impl<T: 'static + Any + Clone + Default + Send + Sync> EguiTempValue<T> {
             old_value
         })
     }
+    pub fn take(&self) -> Option<T> {
+        self.set(None)
+    }
 }
 
 /// Focuses a text edit and selects all its contents. Returns the ordinary

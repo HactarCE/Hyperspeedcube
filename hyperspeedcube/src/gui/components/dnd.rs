@@ -49,12 +49,12 @@ where
 
         if !ui.input(|input| input.pointer.any_down() || input.pointer.any_released()) {
             // Done dragging -> delete payload
-            this.take_payload();
+            this.payload.take();
         }
 
         if ui.input(|input| input.key_pressed(egui::Key::Escape) || input.pointer.any_pressed()) {
             // Cancel drag
-            if this.take_payload().is_some() {
+            if this.payload.take().is_some() {
                 ui.ctx().stop_dragging();
             }
         }
@@ -68,16 +68,7 @@ where
     }
 
     pub fn is_dragging(&self) -> bool {
-        self.payload().is_some()
-    }
-    pub fn set_payload(&self, payload: Payload) {
-        self.payload.set(Some(payload));
-    }
-    pub fn payload(&self) -> Option<Payload> {
-        self.payload.get()
-    }
-    pub fn take_payload(&self) -> Option<Payload> {
-        self.payload.set(None)
+        self.payload.get().is_some()
     }
 
     /// Adds a draggable widget.
@@ -91,7 +82,6 @@ where
         payload: Payload,
         add_contents: impl FnOnce(&mut egui::Ui, bool) -> egui::Response,
     ) -> egui::Response {
-        let drag_start_id = unique_id!();
         let id = ui.auto_id_with("hyperspeedcube::drag_and_drop");
 
         if ui.ctx().is_being_dragged(id) {
@@ -176,7 +166,7 @@ where
         ui.painter().rect_stroke(r.rect, DROP_ZONE_ROUNDING, stroke);
 
         if is_active {
-            let Some(payload) = self.payload() else {
+            let Some(payload) = self.payload.get() else {
                 return;
             };
             self.response = Some(DragAndDropResponse {
@@ -209,81 +199,51 @@ where
     }
 
     pub fn draw_reorder_drop_lines(&mut self, ui: &mut egui::Ui) {
-        let Some(payload) = self.payload() else {
-            return;
+        let Some(payload) = self.payload.get() else {
+            return; // nothing being dragged
         };
 
-        let mut last_line = None;
+        if self.response.is_some() {
+            return; // already hovering a non-reorder drop zone
+        }
+
+        let Some(interact_pos) = ui.input(|input| input.pointer.interact_pos()) else {
+            return; // no cursor position
+        };
+        let drop_pos = interact_pos + self.cursor_offset.get().unwrap_or_default();
+
+        if !ui.clip_rect().contains(drop_pos) {
+            return; // cursor position is outside the current UI
+        }
+
         let closest = std::mem::take(&mut self.reorder_drop_zones)
             .into_iter()
             .filter_map(|params| {
-                let (line, dir, _end, _before_or_after) = &params;
-                if last_line
-                    .replace(*line)
-                    .is_some_and(|it| lines_approx_eq(it, *line))
-                {
-                    return None;
-                }
-                let distance = self.draw_reorder_drop_line(ui, *line, *dir, false)?;
-                Some((params, distance))
+                let (points, dir, _, _) = &params;
+                let distance_to_cursor = if dir.is_horizontal() {
+                    (points[0].y..=points[1].y)
+                        .contains(&drop_pos.y)
+                        .then(|| (points[0].x - drop_pos.x).abs())
+                } else {
+                    (points[0].x..=points[1].x)
+                        .contains(&drop_pos.x)
+                        .then(|| (points[0].y - drop_pos.y).abs())
+                };
+                Some((params, distance_to_cursor?))
             })
-            .min_by_key(|(_params, distance)| FloatOrd(*distance));
+            .min_by_key(|(_params, distance_to_cursor)| FloatOrd(*distance_to_cursor));
 
-        let Some(((line, dir, end, before_or_after), _distance)) = closest else {
-            return;
-        };
+        self.response = closest.map(|((points, _dir, end, before_or_after), _distance)| {
+            let color = ui.visuals().widgets.active.bg_stroke.color;
+            let stroke = egui::Stroke::new(REORDER_STROKE_WIDTH, color);
+            ui.painter().line_segment(points, stroke);
 
-        self.draw_reorder_drop_line(ui, line, dir, true);
-
-        self.response = Some(DragAndDropResponse {
-            payload,
-            end,
-            before_or_after: Some(before_or_after),
+            DragAndDropResponse {
+                payload,
+                end,
+                before_or_after: Some(before_or_after),
+            }
         });
-    }
-    /// Draws a reorder drop line and returns the distance from the line to the
-    /// cursor, if the cursor is in line with the target.
-    fn draw_reorder_drop_line(
-        &self,
-        ui: &mut egui::Ui,
-        mut points: [egui::Pos2; 2],
-        dir: egui::Direction,
-        is_selected: bool,
-    ) -> Option<f32> {
-        let color = ui.visuals().widgets.active.bg_stroke.color;
-        let stroke = egui::Stroke {
-            width: REORDER_STROKE_WIDTH,
-            color: color.linear_multiply(if is_selected { 1.0 } else { 0.05 }),
-        };
-
-        let drop_pos = ui.input(|input| input.pointer.interact_pos())?
-            + self.cursor_offset.get().unwrap_or_default();
-        if !ui.clip_rect().contains(drop_pos) {
-            return None;
-        }
-
-        let distance = if dir.is_horizontal() {
-            points.sort_by_key(|p| FloatOrd(p.y));
-            (points[0].y..=points[1].y)
-                .contains(&drop_pos.y)
-                .then(|| (points[0].x - drop_pos.x).abs())
-        } else {
-            points.sort_by_key(|p| FloatOrd(p.x));
-            (points[0].x..=points[1].x)
-                .contains(&drop_pos.x)
-                .then(|| (points[0].y - drop_pos.y).abs())
-        };
-
-        // Shrink each line a tiny bit so they don't overlap in a wrapping
-        // layout. Do this after calculating distance so that there's no gap
-        // when measuring pointer position.
-        let [mut a, mut b] = points;
-        let v = (b - a).normalized();
-        a += v;
-        b -= v;
-        ui.painter().line_segment([a, b], stroke);
-
-        distance
     }
 
     pub fn mid_drag(&mut self) -> Option<&DragAndDropResponse<Payload, End>> {
@@ -292,7 +252,7 @@ where
 
     pub fn end_drag(&mut self) -> Option<DragAndDropResponse<Payload, End>> {
         if self.done_dragging {
-            self.take_payload();
+            self.payload.take();
             self.response.take()
         } else {
             None
@@ -323,10 +283,4 @@ pub fn drag_handle(ui: &mut egui::Ui) -> egui::Response {
         }
     }
     r
-}
-
-fn lines_approx_eq([a1, b1]: [egui::Pos2; 2], [a2, b2]: [egui::Pos2; 2]) -> bool {
-    [(a1.x, a2.x), (a1.y, a2.y), (b1.x, b2.x), (b1.y, b2.y)]
-        .into_iter()
-        .all(|(x1, x2)| (x1 - x2).abs() < 1.0)
 }
