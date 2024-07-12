@@ -1,10 +1,10 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use super::{HintWidget, PrefsUi, BIG_ICON_BUTTON_SIZE, SMALL_ICON_BUTTON_SIZE};
+use super::{HelpHoverWidget, PrefsUi, BIG_ICON_BUTTON_SIZE, SMALL_ICON_BUTTON_SIZE};
 use crate::gui::components::PlaintextYamlEditor;
 use crate::gui::ext::ResponseExt;
-use crate::gui::util::{body_text_format, strong_text_format};
+use crate::gui::util::{body_text_format, fake_popup, strong_text_format};
 use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
 
 fn show_presets_help_ui(ui: &mut egui::Ui) {
@@ -82,22 +82,12 @@ where
             true => first_frame_value.to_string(),
             false => ui.data(|data| data.get_temp(id).unwrap_or_default()),
         };
-        let mut r = egui::TextEdit::singleline(&mut new_name)
+        let r = egui::TextEdit::singleline(&mut new_name)
             .hint_text(format!("New {} name", self.text.preset))
             .desired_width(150.0)
             .show(ui);
         if is_first_frame {
-            // Focus the textbox
-            r.response.request_focus();
-
-            // Select everything in the textbox
-            r.state
-                .cursor
-                .set_char_range(Some(egui::text::CCursorRange::two(
-                    egui::text::CCursor::new(0),
-                    egui::text::CCursor::new(new_name.len()),
-                )));
-            r.state.store(ui.ctx(), r.response.id);
+            crate::gui::util::focus_and_select_all(ui, r);
         }
         ui.data_mut(|data| data.insert_temp(id, new_name.clone()));
 
@@ -162,11 +152,12 @@ where
                 if let Some(presets_set) = self.text.presets_set {
                     ui.label(format!("({presets_set})"));
                 }
-                HintWidget::show(ui, show_presets_help_ui);
+                HelpHoverWidget::show(ui, show_presets_help_ui);
             });
             ui.separator();
             ui.horizontal_wrapped(|ui| {
                 for preset in self.presets.builtin_list() {
+                    crate::gui::util::wrap_if_needed_for_button(ui, &preset.name);
                     let r = ui.add_enabled(!dnd.is_dragging(), |ui: &mut egui::Ui| {
                         self.show_preset_name_selectable_label(ui, &preset.name)
                     });
@@ -265,6 +256,7 @@ where
         }
 
         // Reorder the presets.
+        dnd.draw_reorder_drop_lines(ui);
         if let Some(r) = dnd.end_drag() {
             if let Some(before_or_after) = r.before_or_after {
                 self.presets.reorder(&r.payload, &r.end, before_or_after);
@@ -382,7 +374,7 @@ where
                         add_contents(PrefsUi {
                             ui,
                             current: &mut self.presets.current,
-                            defaults: &defaults.value,
+                            defaults: Some(&defaults.value),
                             changed: &mut self.changed,
                         });
                     }
@@ -393,39 +385,6 @@ where
             self.presets.save_preset();
             *self.changed = true;
         }
-    }
-}
-
-fn fake_popup<R>(
-    ui: &mut egui::Ui,
-    id: egui::Id,
-    is_first_frame: bool,
-    below_rect: egui::Rect,
-    add_contents: impl FnOnce(&mut egui::Ui) -> R,
-) -> Option<egui::InnerResponse<R>> {
-    if ui.memory(|mem| mem.is_popup_open(id)) {
-        let area_resp = egui::Area::new(unique_id!())
-            .order(egui::Order::Foreground)
-            .fixed_pos(below_rect.left_bottom())
-            .constrain_to(ui.ctx().available_rect())
-            .sense(egui::Sense::hover())
-            .show(ui.ctx(), |ui| {
-                egui::Frame::menu(ui.style()).show(ui, |ui| {
-                    ui.set_height(BIG_ICON_BUTTON_SIZE.y);
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        add_contents(ui)
-                    })
-                    .inner
-                })
-            });
-        if area_resp.response.clicked_elsewhere() && !is_first_frame
-            || ui.input(|input| input.key_pressed(egui::Key::Escape))
-        {
-            ui.memory_mut(|mem| mem.close_popup());
-        }
-        Some(area_resp.inner)
-    } else {
-        None
     }
 }
 

@@ -10,7 +10,8 @@ use crate::{
         components::{DragAndDropResponse, ReverseColorMap},
         util::set_widget_spacing_to_space_width,
     },
-    preferences::{BeforeOrAfter, DefaultColorGradient, GlobalColorPalette, Preset},
+    preferences::{DefaultColorGradient, GlobalColorPalette, Preset},
+    util::BeforeOrAfter,
 };
 
 fn show_color_schemes_help_ui(ui: &mut egui::Ui) {
@@ -35,8 +36,7 @@ fn show_color_schemes_help_ui(ui: &mut egui::Ui) {
         set_widget_spacing_to_space_width(ui);
         ui.label("Color values can be customized in the");
         ui.strong("global color palette");
-        ui.add_space(-ui.spacing().item_spacing.x);
-        ui.label(".");
+        ui.label("settings.");
     });
 }
 
@@ -99,6 +99,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             let mut dnd = crate::gui::components::DragAndDrop::new(ui).dragging_opacity(1.0);
             show_color_palette(ui, &app.prefs.color_palette, &rev_map, &mut dnd);
             let global_palette = &app.prefs.color_palette;
+            dnd.draw_reorder_drop_lines(ui);
             if let Some(r) = dnd.end_drag() {
                 apply_drag(prefs_ui.current, &rev_map, r, global_palette, &color_system);
                 *prefs_ui.changed = true;
@@ -141,7 +142,7 @@ fn show_color_palette(
 
     ui.horizontal(|ui| {
         ui.strong("Single colors");
-        crate::gui::components::HintWidget::show(ui, show_color_schemes_help_ui);
+        crate::gui::components::HelpHoverWidget::show(ui, show_color_schemes_help_ui);
     });
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;

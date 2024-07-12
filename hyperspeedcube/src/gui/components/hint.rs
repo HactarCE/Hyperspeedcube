@@ -1,5 +1,5 @@
-pub struct HintWidget;
-impl HintWidget {
+pub struct HelpHoverWidget;
+impl HelpHoverWidget {
     pub fn show<R>(
         ui: &mut egui::Ui,
         add_contents: impl FnOnce(&mut egui::Ui) -> R,
@@ -13,7 +13,7 @@ impl HintWidget {
                     .fill(egui::Color32::TRANSPARENT),
             );
 
-            if r.hovered() {
+            if r.hovered() || r.has_focus() {
                 egui::containers::show_tooltip_for(ui.ctx(), unique_id!(), &r.rect, |ui| {
                     // TODO: refactor this constant
                     ui.set_width(super::super::ext::EXPLANATION_TOOLTIP_WIDTH * 2.0);
@@ -23,11 +23,5 @@ impl HintWidget {
                 None
             }
         })
-    }
-}
-
-impl egui::Widget for HintWidget {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        todo!()
     }
 }

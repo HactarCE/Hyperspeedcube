@@ -49,3 +49,7 @@ pub fn small_icon_button(ui: &mut egui::Ui, text: &str, hover_text: &str) -> egu
     })
     .inner
 }
+
+fn error_label(ui: &mut egui::Ui, text: impl Into<egui::RichText>) -> egui::Response {
+    ui.colored_label(ui.visuals().error_fg_color, text)
+}

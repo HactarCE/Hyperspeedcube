@@ -3,10 +3,12 @@ use std::ops::RangeInclusive;
 use egui::NumExt;
 use hyperpuzzle::Rgb;
 
-use crate::gui::components::{with_reset_button, WidgetWithReset};
+use crate::gui::components::WidgetWithReset;
 use crate::gui::ext::*;
-use crate::gui::util::Access;
+use crate::gui::util::{fake_popup, Access};
 use crate::preferences::{InteractionPreferences, PuzzleViewPreferencesSet, ViewPreferences};
+
+use super::BIG_ICON_BUTTON_SIZE;
 
 const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
 const FOV_3D_RANGE: RangeInclusive<f32> = -120.0..=120.0;
@@ -14,10 +16,14 @@ const FOV_3D_RANGE: RangeInclusive<f32> = -120.0..=120.0;
 pub struct PrefsUi<'a, T> {
     pub ui: &'a mut egui::Ui,
     pub current: &'a mut T,
-    pub defaults: &'a T,
+    pub defaults: Option<&'a T>,
     pub changed: &'a mut bool,
 }
 impl<'a, T> PrefsUi<'a, T> {
+    fn get_default<U: Clone>(&self, access: &Access<T, U>) -> Option<U> {
+        Some((access.get_ref)(self.defaults.as_ref()?).clone())
+    }
+
     fn add<'s, 'w, W>(&'s mut self, make_widget: impl FnOnce(&'w mut T) -> W) -> egui::Response
     where
         's: 'w,
@@ -67,14 +73,13 @@ impl<'a, T> PrefsUi<'a, T> {
     }
 
     pub fn checkbox(&mut self, label: &str, access: Access<T, bool>) -> egui::Response {
-        let reset_value = *(access.get_ref)(self.defaults);
-        self.add(|current| {
-            |ui: &mut egui::Ui| {
-                let value = (access.get_mut)(current);
-                with_reset_button(ui, value, reset_value, "", |ui, value| {
-                    ui.checkbox(value, label)
-                })
-            }
+        let reset_value = self.get_default(&access);
+        self.add(|current| WidgetWithReset {
+            label: "",
+            value: (access.get_mut)(current),
+            reset_value,
+            reset_value_str: None,
+            make_widget: |value| egui::Checkbox::new(value, label),
         })
     }
 
@@ -84,8 +89,8 @@ impl<'a, T> PrefsUi<'a, T> {
         access: Access<T, N>,
         modify_widget: impl FnOnce(egui::DragValue<'_>) -> egui::DragValue<'_>,
     ) -> egui::Response {
-        let reset_value = *(access.get_ref)(self.defaults);
-        let reset_value_str = reset_value.to_string();
+        let reset_value = self.get_default(&access);
+        let reset_value_str = reset_value.as_ref().map(|v| v.to_string());
         self.add(|current| WidgetWithReset {
             label,
             value: (access.get_mut)(current),
@@ -96,8 +101,8 @@ impl<'a, T> PrefsUi<'a, T> {
     }
 
     pub fn percent(&mut self, label: &str, access: Access<T, f32>) -> egui::Response {
-        let reset_value = *(access.get_ref)(self.defaults);
-        let reset_value_str = reset_value.to_string();
+        let reset_value = self.get_default(&access);
+        let reset_value_str = reset_value.as_ref().map(|v| v.to_string());
         self.add(|current| WidgetWithReset {
             label,
             value: (access.get_mut)(current),
@@ -124,8 +129,8 @@ impl<'a, T> PrefsUi<'a, T> {
         access: Access<T, f32>,
         modify_widget: impl FnOnce(egui::DragValue<'_>) -> egui::DragValue<'_>,
     ) -> egui::Response {
-        let reset_value = *(access.get_ref)(self.defaults);
-        let reset_value_str = format!("{}°", &reset_value);
+        let reset_value = self.get_default(&access);
+        let reset_value_str = reset_value.map(|v| format!("{v}°"));
         self.add(|current| WidgetWithReset {
             label,
             value: (access.get_mut)(current),
@@ -141,24 +146,17 @@ impl<'a, T> PrefsUi<'a, T> {
         &mut self,
         label: &str,
         access: Access<T, Rgb>,
-        is_active: Option<bool>,
+        puzzle_color: Option<&String>,
     ) -> egui::Response {
-        let reset_value = *(access.get_ref)(self.defaults);
-        let reset_value_str = reset_value.to_string();
+        let reset_value = self.get_default(&access);
+        let reset_value_str = reset_value.as_ref().map(|v| v.to_string());
         self.add(|current| WidgetWithReset {
             label: "",
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str,
             make_widget: |value| {
-                |ui: &mut egui::Ui| {
-                    ui.color_edit_button_srgb(&mut value.rgb);
-                    match is_active {
-                        Some(true) => ui.strong(label),
-                        Some(false) => ui.add_enabled(false, egui::Label::new(label)),
-                        None => ui.label(label),
-                    }
-                }
+                |ui: &mut egui::Ui| super::color_edit(ui, value, puzzle_color, label)
             },
         })
     }
@@ -167,12 +165,12 @@ impl<'a, T> PrefsUi<'a, T> {
         label: &str,
         access: Access<T, Vec<Rgb>>,
     ) -> egui::Response {
-        let reset_value = (access.get_ref)(self.defaults).clone();
+        let reset_value = self.get_default(&access);
         self.add(|current| WidgetWithReset {
             label,
             value: (access.get_mut)(current),
             reset_value,
-            reset_value_str: String::new(),
+            reset_value_str: None,
             make_widget: |values| {
                 |ui: &mut egui::Ui| {
                     let mut changed = false;

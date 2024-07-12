@@ -47,6 +47,7 @@ pub use styles::*;
 pub use view::*;
 
 use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
+use crate::util::BeforeOrAfter;
 
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
@@ -440,21 +441,13 @@ impl<T: Default + Clone + PartialEq> WithPresets<T> {
     }
     /// Moves the preset `from` to `to`, shifting all the presents in between.
     pub fn reorder(&mut self, from: &str, to: &str, before_or_after: BeforeOrAfter) {
-        let Some(i) = self.user.iter().position(|p| p.name == from) else {
+        let Some(from) = self.user.iter().position(|p| p.name == from) else {
             return;
         };
-        let Some(mut j) = self.user.iter().position(|p| p.name == to) else {
+        let Some(to) = self.user.iter().position(|p| p.name == to) else {
             return;
         };
-        match before_or_after {
-            BeforeOrAfter::Before => (),
-            BeforeOrAfter::After => j += 1,
-        }
-        if i < j {
-            self.user[i..j].rotate_left(1);
-        } else if j < i {
-            self.user[j..=i].rotate_right(1);
-        }
+        crate::util::reorder_list(&mut self.user, from, to, before_or_after);
     }
 
     /// Returns an iterator over the rename operations that have happened since
@@ -462,12 +455,6 @@ impl<T: Default + Clone + PartialEq> WithPresets<T> {
     pub fn take_renames(&mut self) -> impl Iterator<Item = Rename> {
         std::mem::take(&mut self.recent_renames).into_iter()
     }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum BeforeOrAfter {
-    Before,
-    After,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]

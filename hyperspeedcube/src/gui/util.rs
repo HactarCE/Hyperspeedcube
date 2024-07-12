@@ -1,3 +1,5 @@
+use std::{any::Any, marker::PhantomData};
+
 pub struct Access<T, U> {
     pub get_ref: Box<dyn Fn(&T) -> &U>,
     pub get_mut: Box<dyn Fn(&mut T) -> &mut U>,
@@ -140,4 +142,102 @@ pub fn wrap_if_needed_for_color_button(ui: &mut egui::Ui) {
     if will_wrap_for_width(ui, ui.spacing().interact_size.x) {
         force_horizontal_wrap(ui);
     }
+}
+
+pub fn fake_popup<R>(
+    ui: &mut egui::Ui,
+    id: egui::Id,
+    is_first_frame: bool,
+    below_rect: egui::Rect,
+    add_contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> Option<egui::InnerResponse<R>> {
+    if ui.memory(|mem| mem.is_popup_open(id)) {
+        let area_resp = egui::Area::new(unique_id!())
+            .order(egui::Order::Foreground)
+            .fixed_pos(below_rect.left_bottom())
+            .constrain_to(ui.ctx().available_rect())
+            .sense(egui::Sense::hover())
+            .show(ui.ctx(), |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    ui.set_height(BIG_ICON_BUTTON_SIZE);
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        add_contents(ui)
+                    })
+                    .inner
+                })
+            });
+        if area_resp.response.clicked_elsewhere() && !is_first_frame
+            || ui.input(|input| input.key_pressed(egui::Key::Escape))
+        {
+            ui.memory_mut(|mem| mem.close_popup());
+        }
+        Some(area_resp.inner)
+    } else {
+        None
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EguiTempFlag(EguiTempValue<()>);
+impl EguiTempFlag {
+    pub fn from_ui(ui: &mut egui::Ui) -> Self {
+        Self(EguiTempValue::from_ui(ui))
+    }
+    pub fn get(&self) -> bool {
+        self.0.get().is_some()
+    }
+    pub fn set(&self) {
+        self.0.set(Some(()));
+    }
+    pub fn clear(&self) {
+        self.0.set(None);
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EguiTempValue<T> {
+    pub ctx: egui::Context,
+    pub id: egui::Id,
+    _marker: PhantomData<T>,
+}
+impl<T: 'static + Any + Clone + Default + Send + Sync> EguiTempValue<T> {
+    pub fn from_ui(ui: &mut egui::Ui) -> Self {
+        let ctx = ui.ctx().clone();
+        let id = ui.next_auto_id();
+        ui.next_auto_id();
+        Self {
+            ctx,
+            id,
+            _marker: PhantomData,
+        }
+    }
+    pub fn get(&self) -> Option<T> {
+        self.ctx.data(|data| data.get_temp::<T>(self.id))
+    }
+    pub fn set(&self, value: Option<T>) -> Option<T> {
+        self.ctx.data_mut(|data| {
+            let old_value = data.remove_temp::<T>(self.id);
+            if let Some(v) = value {
+                data.insert_temp::<T>(self.id, v);
+            }
+            old_value
+        })
+    }
+}
+
+/// Focuses a text edit and selects all its contents. Returns the ordinary
+/// widget response.
+pub fn focus_and_select_all(
+    ui: &egui::Ui,
+    mut r: egui::text_edit::TextEditOutput,
+) -> egui::Response {
+    r.response.request_focus();
+    r.state
+        .cursor
+        .set_char_range(Some(egui::text::CCursorRange::two(
+            egui::text::CCursor::new(0),
+            egui::text::CCursor::new(r.galley.len()),
+        )));
+    r.state.store(ui.ctx(), r.response.id);
+    r.response
 }

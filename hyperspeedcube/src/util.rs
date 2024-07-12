@@ -1,6 +1,8 @@
 use cgmath::{Point3, SquareMatrix};
 use float_ord::FloatOrd;
 use hyperpuzzle::Rgb;
+use indexmap::IndexMap;
+use itertools::Itertools;
 
 pub const INVALID_STR: &str = "<invalid>";
 
@@ -199,6 +201,50 @@ fn rgb_to_lab(rgb: Rgb) -> (f32, f32, f32) {
     empfindung::ToLab::to_lab(&rgb_crate::RGB { r, g, b })
 }
 
+// TODO: type for reordering
+pub(crate) fn reorder_list<T>(
+    list: &mut [T],
+    from: usize,
+    to: usize,
+    before_or_after: BeforeOrAfter,
+) {
+    let (i, j) = match before_or_after {
+        BeforeOrAfter::Before => (from, to),
+        BeforeOrAfter::After => (from, to + 1),
+    };
+    if i < j {
+        list[i..j].rotate_left(1);
+    } else if j < i {
+        list[j..=i].rotate_right(1);
+    }
+}
+pub(crate) fn reorder_map<K, V>(
+    map: &mut IndexMap<K, V>,
+    from: usize,
+    to: usize,
+    before_or_after: BeforeOrAfter,
+) {
+    let (i, j) = match before_or_after {
+        BeforeOrAfter::Before => (from, to),
+        BeforeOrAfter::After => (from, to + 1),
+    };
+    if i < j {
+        for (a, b) in (i..j).rev().tuple_windows() {
+            map.swap_indices(a, b)
+        }
+    } else if j < i {
+        for (a, b) in (j..=i).tuple_windows() {
+            map.swap_indices(a, b)
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum BeforeOrAfter {
+    Before,
+    After,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -222,4 +268,6 @@ mod tests {
             vec![(1, 1)],
         );
     }
+
+    // TODO: test reordering
 }
