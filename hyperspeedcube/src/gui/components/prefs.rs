@@ -5,10 +5,8 @@ use hyperpuzzle::Rgb;
 
 use crate::gui::components::WidgetWithReset;
 use crate::gui::ext::*;
-use crate::gui::util::{fake_popup, Access};
+use crate::gui::util::Access;
 use crate::preferences::{InteractionPreferences, PuzzleViewPreferencesSet, ViewPreferences};
-
-use super::BIG_ICON_BUTTON_SIZE;
 
 const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
 const FOV_3D_RANGE: RangeInclusive<f32> = -120.0..=120.0;
@@ -19,7 +17,10 @@ pub struct PartialPrefsUi<'a, T> {
     pub changed: &'a mut bool,
 }
 impl<'a, T> PartialPrefsUi<'a, T> {
-    pub fn with(self, ui: &'a mut egui::Ui) -> PrefsUi<'a, T> {
+    pub fn with<'b>(&'b mut self, ui: &'b mut egui::Ui) -> PrefsUi<'b, T>
+    where
+        'a: 'b,
+    {
         PrefsUi {
             ui,
             current: self.current,
@@ -57,7 +58,7 @@ impl<'a, T> PrefsUi<'a, T> {
         explanation: impl Into<egui::WidgetText>,
         add_contents: impl FnOnce(PrefsUi<'_, T>) -> egui::Response,
     ) {
-        let (ui, prefs) = self.split();
+        let (mut prefs, ui) = self.split();
         ui.add_enabled_ui(enabled, |ui| {
             ui.vertical(|ui| add_contents(prefs.with(ui)))
                 .response
@@ -67,13 +68,13 @@ impl<'a, T> PrefsUi<'a, T> {
 
     /// Removes the `&mut egui::Ui` so that the same preferences can be modified
     /// in different UI scopes. Use [`PartialPrefsUi::with()`] to recombine it.
-    pub fn split(&mut self) -> (&mut egui::Ui, PartialPrefsUi<'_, T>) {
+    pub fn split(&mut self) -> (PartialPrefsUi<'_, T>, &mut egui::Ui) {
         let partial = PartialPrefsUi {
             current: self.current,
             defaults: self.defaults,
             changed: self.changed,
         };
-        (self.ui, partial)
+        (partial, self.ui)
     }
 
     pub fn collapsing<R>(
@@ -163,12 +164,7 @@ impl<'a, T> PrefsUi<'a, T> {
         })
     }
 
-    pub fn color(
-        &mut self,
-        label: &str,
-        access: Access<T, Rgb>,
-        puzzle_color: Option<&String>,
-    ) -> egui::Response {
+    pub fn color(&mut self, label: &str, access: Access<T, Rgb>) -> egui::Response {
         let reset_value = self.get_default(&access);
         let reset_value_str = reset_value.as_ref().map(|v| v.to_string());
         self.add(|current| WidgetWithReset {
@@ -177,10 +173,13 @@ impl<'a, T> PrefsUi<'a, T> {
             reset_value,
             reset_value_str,
             make_widget: |value| {
-                |ui: &mut egui::Ui| super::color_edit(ui, value, puzzle_color, label)
+                |ui: &mut egui::Ui| {
+                    super::color_edit(ui, value, label, false, None::<fn()>).response
+                }
             },
         })
     }
+
     pub fn fixed_multi_color(
         &mut self,
         label: &str,

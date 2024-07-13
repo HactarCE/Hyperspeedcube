@@ -159,6 +159,11 @@ pub fn wrap_words<S: AsRef<str>>(words: impl Iterator<Item = S>) -> String {
     ret
 }
 
+/// Converts a [`hyperpuzzle::Rgb`] to an [`oklab::Oklab`].
+pub(crate) fn rgb_to_oklab(color: Rgb) -> oklab::Oklab {
+    let [r, g, b] = color.rgb;
+    oklab::srgb_to_oklab(oklab::RGB { r, g, b })
+}
 /// Converts a [`hyperpuzzle::Rgb`] to an [`egui::Color32`].
 pub(crate) fn rgb_to_egui_color32(color: Rgb) -> egui::Color32 {
     let [r, g, b] = color.rgb;
@@ -229,13 +234,9 @@ pub(crate) fn reorder_map<K, V>(
         BeforeOrAfter::After => (from, to + 1),
     };
     if i < j {
-        for (a, b) in (i..j).rev().tuple_windows() {
-            map.swap_indices(a, b)
-        }
+        map.move_index(i, j - 1);
     } else if j < i {
-        for (a, b) in (j..=i).tuple_windows() {
-            map.swap_indices(a, b)
-        }
+        map.move_index(i, j);
     }
 }
 

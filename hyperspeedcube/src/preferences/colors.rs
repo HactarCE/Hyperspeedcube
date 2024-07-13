@@ -45,6 +45,21 @@ impl DefaultColorGradient {
         let rgb = self.to_colorous().eval_rational(index, total).as_array();
         Rgb { rgb }
     }
+    /// Returns a [`DefaultColor`] for the gradient
+    pub fn default_color_at(self, index: usize, total: usize) -> DefaultColor {
+        DefaultColor::Gradient {
+            gradient_name: self.to_string(),
+            index,
+            total,
+        }
+    }
+    pub fn default_color_at_end(self) -> DefaultColor {
+        DefaultColor::Gradient {
+            gradient_name: self.to_string(),
+            index: usize::MAX,
+            total: usize::MAX,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]

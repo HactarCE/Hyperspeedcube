@@ -6,7 +6,7 @@ pub mod lua;
 mod puzzle;
 mod rgb;
 mod task;
-mod util;
+pub mod util;
 
 pub use library::*;
 pub use lua::LuaLogLine;

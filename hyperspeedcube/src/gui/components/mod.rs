@@ -10,11 +10,13 @@ mod presets;
 mod puzzle_list;
 mod reorder;
 mod reset;
+mod text_edit_popup;
 mod yaml_editor;
 
 pub use color_widgets::*;
 pub use combo_boxes::*;
 pub use hint::*;
+pub use text_edit_popup::*;
 // pub use keybinds::*;
 pub use dnd::*;
 pub use layer_mask::*;

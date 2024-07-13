@@ -2,6 +2,10 @@ use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 
+use crate::gui::ext::ResponseExt;
+
+use super::BIG_ICON_BUTTON_SIZE;
+
 #[derive(Debug, Clone)]
 struct PlaintextYamlEditorState {
     contents: String,
@@ -16,7 +20,9 @@ impl<T> PlaintextYamlEditor<T>
 where
     T: Serialize + for<'de> Deserialize<'de> + Clone,
 {
-    pub fn get(id: egui::Id) -> PlaintextYamlEditor<T> {
+    pub fn new(ui: &mut egui::Ui) -> PlaintextYamlEditor<T> {
+        let id = ui.next_auto_id();
+        ui.skip_ahead_auto_ids(1);
         Self {
             id,
             _marker: PhantomData,
@@ -37,6 +43,25 @@ where
     }
     pub fn close(&self, ui: &egui::Ui) {
         self.set_state(ui, None);
+    }
+
+    pub fn show_edit_as_plaintext_button(&self, ui: &mut egui::Ui, value: &T) -> egui::Response {
+        let r = ui
+            .add_sized(
+                BIG_ICON_BUTTON_SIZE,
+                egui::SelectableLabel::new(self.is_open(ui), "✏"),
+            )
+            .on_hover_explanation(
+                "Edit as plaintext",
+                "View and edit settings as plaintext to share them with others",
+            );
+        if r.clicked() {
+            match self.is_open(ui) {
+                true => self.close(ui),
+                false => self.open(ui, value),
+            }
+        }
+        r
     }
 
     fn state(&self, ui: &egui::Ui) -> Option<PlaintextYamlEditorState> {

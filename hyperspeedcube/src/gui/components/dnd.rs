@@ -43,8 +43,8 @@ where
             response: None,
             done_dragging: ui.input(|input| input.pointer.any_released()),
 
-            payload: EguiTempValue::from_ui(ui),
-            cursor_offset: EguiTempValue::from_ui(ui),
+            payload: EguiTempValue::new(ui),
+            cursor_offset: EguiTempValue::new(ui),
         };
 
         if !ui.input(|input| input.pointer.any_down() || input.pointer.any_released()) {
@@ -71,6 +71,30 @@ where
         self.payload.get().is_some()
     }
 
+    /// Adds a widget that is draggable only by its handle, along with a reorder
+    /// drop zone. See [`Self::draggable()`].
+    pub fn vertical_reorder_by_handle(
+        &mut self,
+        ui: &mut egui::Ui,
+        payload: Payload,
+        end: End,
+        add_contents: impl FnOnce(&mut egui::Ui, bool),
+    ) -> egui::Response {
+        let r = self
+            .draggable(ui, payload, |ui, is_dragging| {
+                ui.horizontal(|ui| {
+                    ui.set_width(ui.available_width());
+                    let r = drag_handle(ui, is_dragging);
+                    add_contents(ui, is_dragging);
+                    r
+                })
+                .inner
+            })
+            .response;
+        self.reorder_drop_zone(ui, &r, end);
+        r
+    }
+
     /// Adds a draggable widget.
     ///
     /// `payload` is a value representing the value that will be dragged. The
@@ -81,7 +105,7 @@ where
         ui: &mut egui::Ui,
         payload: Payload,
         add_contents: impl FnOnce(&mut egui::Ui, bool) -> egui::Response,
-    ) -> egui::Response {
+    ) -> egui::InnerResponse<egui::Response> {
         let id = ui.auto_id_with("hyperspeedcube::drag_and_drop");
 
         if ui.ctx().is_being_dragged(id) {
@@ -91,23 +115,21 @@ where
             // around independently. Highlight the widget so that it looks like
             // it's still being hovered.
             let layer_id = egui::LayerId::new(egui::Order::Tooltip, id);
-            let r = ui
-                .with_layer_id(layer_id, |ui| {
-                    ui.set_opacity(self.dragging_opacity);
-                    add_contents(ui, true)
-                })
-                .inner
-                .highlight();
+            let mut r = ui.with_layer_id(layer_id, |ui| {
+                ui.set_opacity(self.dragging_opacity);
+                add_contents(ui, true)
+            });
+            r.inner = r.inner.highlight();
 
             ui.painter().rect_filled(
-                r.rect,
+                r.response.rect,
                 3.0,
                 ui.visuals().widgets.hovered.bg_fill.linear_multiply(0.1),
             );
 
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
-                let delta =
-                    pointer_pos + self.cursor_offset.get().unwrap_or_default() - r.rect.center();
+                let delta = pointer_pos + self.cursor_offset.get().unwrap_or_default()
+                    - r.response.rect.center();
                 ui.ctx().transform_layer_shapes(
                     layer_id,
                     egui::emath::TSTransform::from_translation(delta),
@@ -116,18 +138,19 @@ where
 
             r
         } else {
-            let mut r = add_contents(ui, false);
+            let mut r = ui.scope(|ui| add_contents(ui, false));
 
-            if !r.sense.click {
-                r = r.on_hover_and_drag_cursor(egui::CursorIcon::Grab);
+            if !r.inner.sense.click {
+                r.inner = r.inner.on_hover_and_drag_cursor(egui::CursorIcon::Grab);
             }
 
-            if r.drag_started() {
+            if r.inner.drag_started() {
                 ui.ctx().set_dragged_id(id);
                 self.payload.set(Some(payload));
                 self.cursor_offset.set(
-                    r.interact_pointer_pos()
-                        .map(|interact_pos| r.rect.center() - interact_pos),
+                    r.inner
+                        .interact_pointer_pos()
+                        .map(|interact_pos| r.response.rect.center() - interact_pos),
                 );
             }
 
@@ -178,7 +201,7 @@ where
     }
 
     /// Adds a reordering drop zone onto an existing widget.
-    pub fn reorder_drop_zone(&mut self, ui: &mut egui::Ui, r: egui::Response, end: End) {
+    pub fn reorder_drop_zone(&mut self, ui: &mut egui::Ui, r: &egui::Response, end: End) {
         if !self.is_dragging() {
             return;
         }
@@ -198,7 +221,7 @@ where
             .push((line2, dir, end, BeforeOrAfter::After));
     }
 
-    pub fn draw_reorder_drop_lines(&mut self, ui: &mut egui::Ui) {
+    pub fn paint_reorder_drop_lines(&mut self, ui: &mut egui::Ui) {
         let Some(payload) = self.payload.get() else {
             return; // nothing being dragged
         };
@@ -260,11 +283,11 @@ where
     }
 }
 
-pub fn drag_handle(ui: &mut egui::Ui) -> egui::Response {
+pub fn drag_handle(ui: &mut egui::Ui, is_dragging: bool) -> egui::Response {
     let (rect, r) = ui.allocate_exact_size(egui::vec2(20.0, 20.0), egui::Sense::drag());
     if ui.is_rect_visible(rect) {
         // Change color based on hover/focus.
-        let color = if r.has_focus() {
+        let color = if r.has_focus() || is_dragging {
             ui.visuals().strong_text_color()
         } else if r.hovered() {
             ui.visuals().text_color()

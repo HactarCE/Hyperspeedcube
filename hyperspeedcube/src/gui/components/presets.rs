@@ -1,11 +1,15 @@
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use super::{HelpHoverWidget, PrefsUi, BIG_ICON_BUTTON_SIZE, SMALL_ICON_BUTTON_SIZE};
+use super::{
+    HelpHoverWidget, PrefsUi, TextEditPopup, TextEditPopupResponse, BIG_ICON_BUTTON_SIZE,
+    SMALL_ICON_BUTTON_SIZE,
+};
 use crate::gui::components::PlaintextYamlEditor;
 use crate::gui::ext::ResponseExt;
-use crate::gui::util::{body_text_format, fake_popup, strong_text_format};
+use crate::gui::util::{body_text_format, strong_text_format, EguiTempValue};
 use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
+
+const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
 
 fn show_presets_help_ui(ui: &mut egui::Ui) {
     // TODO: markdown renderer
@@ -20,7 +24,7 @@ fn show_presets_help_ui(ui: &mut egui::Ui) {
         &[
             "Click on the + button to create a preset",
             "Click on a preset to activate it",
-            "Right click on a preset to rename or delete it",
+            "Right-click on a preset to rename or delete it",
             "Drag a preset to reorder it",
         ],
     );
@@ -62,58 +66,23 @@ impl<'a, T> PresetsUi<'a, T>
 where
     T: Serialize + for<'de> Deserialize<'de> + Default + Clone + PartialEq,
 {
-    fn popup_id_edit(&self, preset_name: &str) -> egui::Id {
-        self.id.with(("edit", preset_name))
-    }
-    fn popup_id_new(&self) -> egui::Id {
-        self.id.with("new")
-    }
-    /// Shows a single-line text edit widget and a button to confirm. If the
-    /// user confirms the new preset name and it is valid, then the popup is
-    /// closed and the new name is returned.
-    fn show_preset_name_textedit(
+    fn validate_preset_name(
         &self,
-        ui: &mut egui::Ui,
-        is_first_frame: bool,
-        first_frame_value: &str,
-    ) -> Option<String> {
-        let id = self.id.with("new_name");
-        let mut new_name = match is_first_frame {
-            true => first_frame_value.to_string(),
-            false => ui.data(|data| data.get_temp(id).unwrap_or_default()),
-        };
-        let r = egui::TextEdit::singleline(&mut new_name)
-            .hint_text(format!("New {} name", self.text.preset))
-            .desired_width(150.0)
-            .show(ui);
-        if is_first_frame {
-            crate::gui::util::focus_and_select_all(ui, r);
+        new_name: &str,
+        verb: &str,
+    ) -> Result<Option<String>, Option<String>> {
+        if new_name.is_empty() {
+            Err(Some("Name cannot be empty".to_string()))
+        } else if !self.presets.is_name_available(&new_name) {
+            Err(Some(format!(
+                "There is already a {} with this name",
+                self.text.preset,
+            )))
+        } else {
+            Ok(Some(format!("{verb} {}", self.text.preset)))
         }
-        ui.data_mut(|data| data.insert_temp(id, new_name.clone()));
-
-        let is_name_valid = self.presets.is_name_available(&new_name);
-
-        let mut ret = None;
-
-        ui.add_enabled_ui(is_name_valid, |ui| {
-            let r = ui
-                .add(egui::Button::new("✔").min_size(BIG_ICON_BUTTON_SIZE))
-                .on_hover_text(format!("Rename {}", self.text.preset))
-                .on_disabled_hover_text(if new_name.is_empty() {
-                    "Name cannot be empty".to_string()
-                } else {
-                    format!("There is already a {} with this name", self.text.preset)
-                });
-            let wants_confirm =
-                r.clicked() || ui.input(|input| input.key_pressed(egui::Key::Enter));
-            if is_name_valid && wants_confirm {
-                ret = Some(new_name);
-                ui.memory_mut(|mem| mem.close_popup());
-            }
-        });
-
-        ret
     }
+
     /// Shows a selectable label with a preset name on it. The name is clipped
     /// to the available space so that it does not wrap.
     fn show_preset_name_selectable_label(
@@ -138,9 +107,12 @@ where
     }
 
     pub fn show_presets_selector(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        let mut preset_to_activate = None;
-        let mut is_first_frame_of_popup = false;
+        ui.set_min_width(200.0);
 
+        let mut preset_to_activate = None;
+        let preset_to_edit = EguiTempValue::new(ui);
+        let mut edit_popup = TextEditPopup::new(ui);
+        let mut new_popup = TextEditPopup::new(ui);
         let mut dnd = super::DragAndDrop::new(ui).dragging_opacity(0.4);
 
         // Presets selector.
@@ -165,7 +137,6 @@ where
                     // Left click -> Activate preset
                     if r.clicked() {
                         preset_to_activate = Some(preset.name.clone());
-                        *self.changed = true;
                     }
 
                     // Don't handle other interaction. We can't edit or reorder
@@ -177,21 +148,20 @@ where
                     let r = dnd.draggable(ui, preset.name.clone(), |ui, _is_dragging| {
                         self.show_preset_name_selectable_label(ui, &preset.name)
                     });
+                    let r = r.inner;
 
                     // Left click -> Activate preset
                     if r.clicked() {
                         preset_to_activate = Some(preset.name.clone());
-                        *self.changed = true;
                     }
 
-                    // Right click -> Edit preset
-                    if r.secondary_clicked() {
-                        ui.memory_mut(|mem| mem.toggle_popup(self.popup_id_edit(&preset.name)));
-                        is_first_frame_of_popup = true;
+                    // Right-click -> Edit preset
+                    if r.secondary_clicked() && edit_popup.toggle(preset.name.clone()) {
+                        preset_to_edit.set(Some(preset.name.clone()));
                     }
 
                     // Drag -> Reorder preset
-                    dnd.reorder_drop_zone(ui, r, preset.name.clone());
+                    dnd.reorder_drop_zone(ui, &r, preset.name.clone());
                 }
 
                 ui.set_enabled(!dnd.is_dragging());
@@ -202,52 +172,65 @@ where
 
                 // Left click -> New preset
                 if r.clicked() {
-                    ui.memory_mut(|mem| mem.toggle_popup(self.popup_id_new()));
-                    is_first_frame_of_popup = true;
+                    new_popup.toggle(String::new());
                 }
             });
         });
 
-        let user_preset_names = self
-            .presets
-            .user_list()
-            .iter()
-            .map(|p| p.name.clone())
-            .collect_vec();
-        for preset_name in user_preset_names {
-            let id = self.popup_id_edit(&preset_name);
-            fake_popup(ui, id, is_first_frame_of_popup, r.response.rect, |ui| {
-                ui.strong(format!("Rename {}", self.text.preset));
-
-                let r = self.show_preset_name_textedit(ui, is_first_frame_of_popup, &preset_name);
-                if let Some(new_name) = r {
-                    self.presets.rename(&preset_name, &new_name);
-                }
-
-                let can_delete_preset = self.presets.len() > 1;
-                ui.add_enabled_ui(can_delete_preset, |ui| {
-                    let r = ui
-                        .add(egui::Button::new("🗑").min_size(BIG_ICON_BUTTON_SIZE))
-                        .on_hover_text(format!("Delete {}", self.text.preset))
-                        .on_disabled_hover_text(format!("Cannot delete last {}", self.text.preset));
-                    if r.clicked() {
-                        self.presets.delete(&preset_name);
-                        ui.memory_mut(|mem| mem.close_popup());
+        let edit_popup_response = edit_popup.if_open(|popup| {
+            popup
+                .below(&r.response)
+                .label(format!("Rename {}", self.text.preset))
+                .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
+                .text_edit_hint(format!("New {} name", self.text.preset))
+                .confirm_button_validator(Box::new(|new_name| {
+                    self.validate_preset_name(new_name, "Rename")
+                }))
+                .delete_button_validator(Box::new(|_| {
+                    if self.presets.len() > 1 {
+                        Ok(Some(format!("Delete {}", self.text.preset)))
+                    } else {
+                        Ok(Some(format!("Cannot delete last {}", self.text.preset)))
                     }
-                });
-            });
+                }))
+                .show(ui)
+        });
+        if let Some(r) = edit_popup_response {
+            if let Some(preset_name) = preset_to_edit.take() {
+                match r {
+                    TextEditPopupResponse::Confirm(new_name) => {
+                        self.presets.rename(&preset_name, &new_name);
+                        *self.changed = true;
+                    }
+                    TextEditPopupResponse::Delete => {
+                        self.presets.delete(&preset_name);
+                        *self.changed = true;
+                    }
+                    TextEditPopupResponse::Cancel => (),
+                }
+            }
         }
 
-        let id = self.popup_id_new();
-        fake_popup(ui, id, is_first_frame_of_popup, r.response.rect, |ui| {
-            ui.strong(format!("Add {}", self.text.preset));
-
-            let r = self.show_preset_name_textedit(ui, is_first_frame_of_popup, "");
-            if let Some(new_name) = r {
-                self.presets.add_preset(new_name.clone());
-                preset_to_activate = Some(new_name);
-            }
+        let new_popup_response = new_popup.if_open(|popup| {
+            popup
+                .below(&r.response)
+                .label(format!("Add {}", self.text.preset))
+                .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
+                .text_edit_hint(format!("New {} name", self.text.preset))
+                .confirm_button_validator(Box::new(|new_name| {
+                    self.validate_preset_name(new_name, "Add")
+                }))
+                .show(ui)
         });
+        if let Some(r) = new_popup_response {
+            match r {
+                TextEditPopupResponse::Confirm(new_name) => {
+                    self.presets.add_preset(new_name.clone());
+                    preset_to_activate = Some(new_name);
+                }
+                TextEditPopupResponse::Delete | TextEditPopupResponse::Cancel => (),
+            }
+        }
 
         // Activate the new preset.
         if let Some(preset_to_activate) = preset_to_activate {
@@ -256,7 +239,7 @@ where
         }
 
         // Reorder the presets.
-        dnd.draw_reorder_drop_lines(ui);
+        dnd.paint_reorder_drop_lines(ui);
         if let Some(r) = dnd.end_drag() {
             if let Some(before_or_after) = r.before_or_after {
                 self.presets.reorder(&r.payload, &r.end, before_or_after);
@@ -293,7 +276,7 @@ where
 
         let mut save_changes = false;
 
-        let yaml = PlaintextYamlEditor::<T>::get(self.id);
+        let yaml = PlaintextYamlEditor::<T>::new(ui);
 
         ui.group(|ui| {
             ui.horizontal(|ui| {
@@ -316,42 +299,13 @@ where
                     });
 
                     // Edit as plaintext button
-                    let r = ui
-                        .add_sized(
-                            BIG_ICON_BUTTON_SIZE,
-                            egui::SelectableLabel::new(yaml.is_open(ui), "✏"),
-                        )
-                        .on_hover_explanation(
-                            "Edit as plaintext",
-                            "View and edit settings as plaintext to share them with others",
-                        );
-                    if r.clicked() {
-                        match yaml.is_open(ui) {
-                            true => yaml.close(ui),
-                            false => yaml.open(ui, &current.value),
-                        }
-                    }
+                    yaml.show_edit_as_plaintext_button(ui, &current.value);
 
-                    // TODO: factor out text layout
                     let mut job = egui::text::LayoutJob::default();
                     job.append(&current.name, 0.0, strong_text_format(ui));
                     job.append(" ", 0.0, body_text_format(ui));
                     job.append(&self.text.what, 0.0, body_text_format(ui));
-                    let widget_text = egui::WidgetText::from(job);
-                    let galley = widget_text.clone().into_galley(
-                        ui,
-                        Some(true),
-                        ui.available_width(),
-                        egui::TextStyle::Body,
-                    );
-                    let is_multiline = galley.rows.len() > 1;
-                    ui.with_layout(
-                        egui::Layout::left_to_right(egui::Align::Center)
-                            .with_main_wrap(is_multiline),
-                        |ui| {
-                            ui.label(widget_text);
-                        },
-                    )
+                    crate::gui::util::label_centered_unless_multiline(ui, job);
                 });
             });
             ui.separator();

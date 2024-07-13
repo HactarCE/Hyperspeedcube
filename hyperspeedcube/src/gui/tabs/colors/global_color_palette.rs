@@ -1,15 +1,16 @@
-use std::collections::HashSet;
-
-use hyperpuzzle::{DefaultColor, Rgb};
-use indexmap::map::MutableKeys;
+use float_ord::FloatOrd;
+use hyperpuzzle::Rgb;
+use indexmap::IndexMap;
+use itertools::Itertools;
+use rand::seq::SliceRandom;
 use rand::Rng;
 
 use crate::app::App;
 use crate::gui::components::{
-    reset_button, HelpHoverWidget, PrefsUi, BIG_ICON_BUTTON_SIZE, SMALL_ICON_BUTTON_SIZE,
+    HelpHoverWidget, PlaintextYamlEditor, PrefsUi, TextEditPopup, TextEditPopupResponse,
 };
 use crate::gui::util::set_widget_spacing_to_space_width;
-use crate::preferences::DEFAULT_PREFS;
+use crate::preferences::{GlobalColorPalette, DEFAULT_PREFS};
 
 fn show_global_color_palette_help_ui(ui: &mut egui::Ui) {
     // TODO: markdown renderer
@@ -37,30 +38,22 @@ fn show_global_color_palette_help_ui(ui: &mut egui::Ui) {
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    let mut changed = false;
+    let yaml = PlaintextYamlEditor::new(ui);
 
-    // let active_colors = match app.active_puzzle_type() {
-    //     Some(p) => p
-    //         .colors
-    //         .iter_values()
-    //         .filter_map(|c| c.default_color.clone())
-    //         .collect(),
-    //     None => HashSet::new(),
-    // };
-
-    let rev_map = app
-        .with_active_puzzle_view(|p| {
-            let color_scheme = &mut p.view.colors.value;
-            crate::gui::components::ReverseColorMap::from_color_scheme(color_scheme)
-        })
-        .unwrap_or_default();
+    ui.set_min_width(200.0);
 
     ui.group(|ui| {
-        ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
-            ui.strong("Single colors");
-            HelpHoverWidget::show(ui, show_global_color_palette_help_ui);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                yaml.show_edit_as_plaintext_button(ui, &app.prefs.color_palette);
+                HelpHoverWidget::show(ui, show_global_color_palette_help_ui);
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    ui.strong("Global color palette");
+                });
+            });
         });
+
+        let mut changed = false;
 
         let mut prefs_ui = PrefsUi {
             ui,
@@ -68,110 +61,168 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             defaults: Some(&DEFAULT_PREFS.color_palette),
             changed: &mut changed,
         };
+        let (mut prefs, ui) = prefs_ui.split();
+
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.strong("Single colors");
+        });
 
         for (i, color_name) in DEFAULT_PREFS.color_palette.singles.keys().enumerate() {
-            prefs_ui.color(
-                &color_name,
-                access!(.singles[i]),
-                rev_map.colors.get(&DefaultColor::Single {
-                    name: color_name.clone(),
-                }),
-            );
+            prefs.with(ui).color(&color_name, access!(.singles[i]));
         }
-    });
 
-    ui.group(|ui| {
-        ui.set_width(ui.available_width());
+        ui.separator();
         ui.strong("Custom single colors");
 
+        ui.horizontal(|ui| {
+            if ui.button("Add color").clicked() {
+                let name = find_autoname(|s| !prefs.current.custom_singles.contains_key(s));
+                let rgb = rand::thread_rng().gen();
+                prefs
+                    .current
+                    .custom_singles
+                    .shift_insert(0, name, Rgb { rgb });
+                *prefs.changed = true;
+            }
+            ui.menu_button("Sort colors", |ui| {
+                if ui.button("Sort by name").clicked() {
+                    sort_map_by_key_or_reverse(&mut prefs.current.custom_singles, |name, _| {
+                        name.clone()
+                    });
+                    *prefs.changed = true;
+                }
+                if ui.button("Sort by lightness (Oklab)").clicked() {
+                    sort_map_by_key_or_reverse(&mut prefs.current.custom_singles, |_, &color| {
+                        FloatOrd(crate::util::rgb_to_oklab(color).l)
+                    });
+                    *prefs.changed = true;
+                }
+            });
+        });
+
         let mut dnd = crate::gui::components::DragAndDrop::new(ui);
+        let mut to_rename = None;
         let mut to_delete = None;
 
-        for (i, (name, color)) in app
-            .prefs
-            .color_palette
-            .custom_singles
-            .iter_mut()
-            .enumerate()
-        {
-            let r = dnd.draggable(ui, i, |ui, _is_dragging| {
-                let r = ui.horizontal(|ui| {
-                    ui.set_width(ui.available_width());
+        for i in 0..prefs.current.custom_singles.len() {
+            let Some((name, color)) = prefs.current.custom_singles.get_index(i) else {
+                continue;
+            };
+            let name = name.clone();
+            let mut color = *color;
 
-                    let drag_response = crate::gui::components::drag_handle(ui);
+            dnd.vertical_reorder_by_handle(ui, i, i, |ui, _is_dragging| {
+                let on_delete = Some(|| to_delete = Some(i));
+                let r = crate::gui::components::color_edit(ui, &mut color, &name, true, on_delete);
+                *prefs.changed |= r.response.changed();
+                let label_response = r.inner;
+                if let Some((_, v)) = prefs.current.custom_singles.get_index_mut(i) {
+                    *v = color;
+                }
 
-                    // if crate::gui::components::small_icon_button(ui, "🗑", &format!("Delete {name}"))
-                    //     .clicked()
-                    // {
-                    //     to_delete = Some(i);
-                    // }
-
-                    crate::gui::components::color_edit(
-                        ui,
-                        color,
-                        rev_map
-                            .colors
-                            .get(&DefaultColor::Single { name: name.clone() }),
-                        name,
-                    );
-
-                    drag_response
+                let mut popup = TextEditPopup::new(ui);
+                if label_response.clicked() || label_response.secondary_clicked() {
+                    popup.open(name.clone());
+                }
+                let popup_response = popup.if_open(|popup| {
+                    popup
+                        .text_edit_width(150.0)
+                        .over(&label_response) // override width
+                        .confirm_button_validator(Box::new(|new_name| {
+                            validate_single_color_name(&prefs.current, new_name, "Rename")
+                        }))
+                        .delete_button_validator(Box::new(|_| Ok(Some("Delete color".to_string()))))
+                        .show(ui)
                 });
-                let drag_response = r.inner;
-                r.response | drag_response
+                if let Some(r) = popup_response {
+                    match r {
+                        TextEditPopupResponse::Confirm(new_name) => {
+                            to_rename = Some((i, new_name));
+                        }
+                        TextEditPopupResponse::Delete => to_delete = Some(i),
+                        TextEditPopupResponse::Cancel => (),
+                    }
+                }
             });
-            changed |= r.changed();
-            dnd.reorder_drop_zone(ui, r, i);
         }
 
-        dnd.draw_reorder_drop_lines(ui);
-        if let Some(r) = dnd.end_drag() {
-            if let Some(before_or_after) = r.before_or_after {
-                crate::util::reorder_map(
-                    &mut app.prefs.color_palette.custom_singles,
-                    r.payload,
-                    r.end,
-                    before_or_after,
-                );
-                changed = true;
+        if let Some((i, new_name)) = to_rename {
+            if let Some((_, v)) = prefs.current.custom_singles.swap_remove_index(i) {
+                let (j, _) = prefs.current.custom_singles.insert_full(new_name, v);
+                prefs.current.custom_singles.swap_indices(i, j);
+                *prefs.changed = true;
             }
         }
 
         if let Some(i) = to_delete {
-            app.prefs.color_palette.custom_singles.shift_remove_index(i);
-            changed = true;
+            prefs.current.custom_singles.shift_remove_index(i);
+            *prefs.changed = true;
         }
 
-        if ui.button("Add color").clicked() {
-            app.prefs.color_palette.custom_singles.insert(
-                "new color".to_string(),
-                Rgb {
-                    rgb: rand::thread_rng().gen(),
-                },
-            );
+        dnd.paint_reorder_drop_lines(ui);
+        if let Some(r) = dnd.end_drag() {
+            if let Some(before_or_after) = r.before_or_after {
+                crate::util::reorder_map(
+                    &mut prefs.current.custom_singles,
+                    r.payload,
+                    r.end,
+                    before_or_after,
+                );
+                *prefs.changed = true;
+            }
         }
+
+        app.prefs.needs_save |= changed;
     });
-
-    app.prefs.needs_save |= changed;
 }
 
-// TODO: pair/dyad, triad, tetrad, pentad, hexad, heptad, octad
-
-fn color_label(ui: &mut egui::Ui, s: &str, highlight: Option<bool>) -> egui::Response {
-    match highlight {
-        None => ui.label(s),
-        Some(true) => ui.strong(s),
-        Some(false) => ui.add_enabled(false, egui::Label::new(s)),
+fn validate_single_color_name(
+    palette: &GlobalColorPalette,
+    new_name: &str,
+    verb: &str,
+) -> Result<Option<String>, Option<String>> {
+    if new_name.is_empty() {
+        Err(Some("Name cannot be empty".to_string()))
+    } else if palette.singles.contains_key(new_name)
+        || palette.custom_singles.contains_key(new_name)
+    {
+        Err(Some("There is already a color with this name".to_string()))
+    } else {
+        Ok(Some(format!("{verb} color")))
     }
 }
 
-fn basic_checkbox(
-    ui: &mut egui::Ui,
-    id: egui::Id,
-    text: impl Into<egui::WidgetText>,
-) -> (egui::Response, bool) {
-    let mut value = ui.data(|data| data.get_temp(id).unwrap_or(false));
-    let r = ui.checkbox(&mut value, text);
-    ui.data_mut(|data| data.insert_temp(id, value));
-    (r, value)
+fn find_autoname(criteria: impl FnMut(&String) -> bool) -> String {
+    color_autonames()
+        .find(criteria)
+        .expect("ran out of autonames!")
+}
+
+fn color_autonames() -> impl Iterator<Item = String> {
+    std::iter::from_fn(move || {
+        Some(if rand::thread_rng().gen_bool(0.2) {
+            format!("{} {}", gen_adjective(), gen_noun())
+        } else {
+            gen_noun()
+        })
+    })
+}
+
+fn gen_adjective() -> String {
+    hyperpuzzle::util::titlecase(names::ADJECTIVES.choose(&mut rand::thread_rng()).unwrap())
+}
+fn gen_noun() -> String {
+    hyperpuzzle::util::titlecase(names::NOUNS.choose(&mut rand::thread_rng()).unwrap())
+}
+
+fn sort_map_by_key_or_reverse<K: Clone + PartialEq, V, T: Ord>(
+    map: &mut IndexMap<K, V>,
+    mut sort_key: impl FnMut(&K, &V) -> T,
+) {
+    let old_order = map.keys().cloned().collect_vec();
+    map.sort_by_cached_key(&mut sort_key);
+    if map.keys().eq(&old_order) {
+        map.sort_by_cached_key(|k, v| std::cmp::Reverse(sort_key(k, v)));
+    }
 }

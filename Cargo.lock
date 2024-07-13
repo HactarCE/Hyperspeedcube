@@ -2424,7 +2424,9 @@ dependencies = [
  "lazy_static",
  "log",
  "monostate",
+ "names",
  "num_enum 0.5.11",
+ "oklab",
  "once_cell",
  "opener",
  "optick",
@@ -3040,6 +3042,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "names"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7bddcd3bf5144b6392de80e04c347cd7fab2508f6df16a85fc496ecd5cec39bc"
+dependencies = [
+ "rand",
+]
+
+[[package]]
 name = "ndk"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3359,6 +3370,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6a622008b6e321afc04970976f62ee297fdbaa6f95318ca343e3eebb9648441"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "oklab"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e86d5de54a7f00130a409cce9924bc39d5ab2f089000432c6a3453b9182ec42"
+dependencies = [
+ "rgb",
 ]
 
 [[package]]

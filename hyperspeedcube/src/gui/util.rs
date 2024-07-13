@@ -153,7 +153,7 @@ pub fn fake_popup<R>(
 ) -> Option<egui::InnerResponse<R>> {
     if ui.memory(|mem| mem.is_popup_open(id)) {
         let area_resp = egui::Area::new(unique_id!())
-            .order(egui::Order::Foreground)
+            .order(egui::Order::Middle)
             .fixed_pos(below_rect.left_bottom())
             .constrain_to(ui.ctx().available_rect())
             .sense(egui::Sense::hover())
@@ -180,8 +180,8 @@ pub fn fake_popup<R>(
 #[derive(Debug, Clone)]
 pub struct EguiTempFlag(EguiTempValue<()>);
 impl EguiTempFlag {
-    pub fn from_ui(ui: &mut egui::Ui) -> Self {
-        Self(EguiTempValue::from_ui(ui))
+    pub fn new(ui: &mut egui::Ui) -> Self {
+        Self(EguiTempValue::new(ui))
     }
     pub fn get(&self) -> bool {
         self.0.get().is_some()
@@ -201,10 +201,10 @@ pub struct EguiTempValue<T> {
     _marker: PhantomData<T>,
 }
 impl<T: 'static + Any + Clone + Default + Send + Sync> EguiTempValue<T> {
-    pub fn from_ui(ui: &mut egui::Ui) -> Self {
+    pub fn new(ui: &mut egui::Ui) -> Self {
         let ctx = ui.ctx().clone();
         let id = ui.next_auto_id();
-        ui.next_auto_id();
+        ui.skip_ahead_auto_ids(1);
         Self {
             ctx,
             id,
@@ -243,4 +243,24 @@ pub fn focus_and_select_all(
         )));
     r.state.store(ui.ctx(), r.response.id);
     r.response
+}
+
+/// Adds a label to the UI, centering it unless it needs multiple lines.
+pub fn label_centered_unless_multiline(
+    ui: &mut egui::Ui,
+    text: impl Into<egui::WidgetText>,
+) -> egui::Response {
+    let widget_text = text.into();
+    let galley = widget_text.clone().into_galley(
+        ui,
+        Some(true),
+        ui.available_width(),
+        egui::TextStyle::Body,
+    );
+    let is_multiline = galley.rows.len() > 1;
+    ui.with_layout(
+        egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(is_multiline),
+        |ui| ui.label(widget_text),
+    )
+    .inner
 }
