@@ -34,6 +34,15 @@ pub(in crate::gui) fn show_color_schemes_help_ui(allow_dragging: bool) -> impl F
         if allow_dragging {
             ui.label("Drag a facet name to assign a different color to it.");
         }
+        ui.horizontal_wrapped(|ui| {
+            set_widget_spacing_to_space_width(ui);
+            ui.label("In addition to the color scheme settings, you can");
+            #[cfg(not(target_os = "macos"))]
+            ui.strong("ctrl + shift + right-click"); // TODO: customizable mousebinds!
+            #[cfg(target_os = "macos")]
+            ui.strong("cmd + shift + right-click");
+            ui.label("on a sticker to change its color assignment.");
+        });
         crate::gui::util::bullet_list(
             ui,
             // TODO: rewrite this explanation
