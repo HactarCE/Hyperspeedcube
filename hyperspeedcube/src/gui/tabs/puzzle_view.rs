@@ -268,8 +268,7 @@ impl PuzzleWidget {
             if let Some(hov) = self.view.puzzle_hover_state() {
                 if let Some(sticker) = hov.sticker {
                     ui.memory_mut(|mem| mem.open_popup(editing_color.id));
-                    let color = puzzle.stickers[sticker].color;
-                    editing_color.set(Some(puzzle.colors.list[color].name.clone()));
+                    editing_color.set(Some(puzzle.stickers[sticker].color));
                     is_first_frame = true;
                 }
             }
@@ -284,7 +283,22 @@ impl PuzzleWidget {
             }
             let area_response = area.show(ui.ctx(), |ui| {
                 egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    let colors_list = &puzzle.colors.list;
                     ui.set_max_width(500.0);
+                    if let Some(id) = editing_color.get() {
+                        ui.horizontal(|ui| {
+                            ui.heading(format!("{} color", &colors_list[id].display));
+                            crate::gui::components::HelpHoverWidget::show_right_aligned(
+                                ui,
+                                crate::gui::components::show_color_schemes_help_ui(true),
+                            );
+                        });
+                    }
+                    ui.colored_label(
+                        ui.visuals().warn_fg_color,
+                        "Don't forget to save your changes in the color scheme settings!",
+                    );
+                    ui.separator();
                     let (changed, temp_colors) =
                         crate::gui::components::ColorsUi::new(&prefs.color_palette)
                             .clickable(true)
@@ -292,7 +306,7 @@ impl PuzzleWidget {
                             .show_compact_palette(
                                 ui,
                                 Some((&mut self.view.colors.value, &puzzle.colors)),
-                                editing_color.get(),
+                                editing_color.get().map(|id| colors_list[id].name.clone()),
                             );
                     if changed {
                         // the user has no way to save the settings in this UI,
@@ -302,9 +316,13 @@ impl PuzzleWidget {
                 });
             });
 
-            let clicked_elsewhere =
+            // Allow drags but not clicks
+            let any_cursor_input_outside_puzzle =
                 crate::gui::util::clicked_elsewhere(ui, &area_response.response)
                     && crate::gui::util::clicked_elsewhere(ui, &r);
+            let any_click_inside_puzzle =
+                r.clicked() || r.secondary_clicked() || r.middle_clicked();
+            let clicked_elsewhere = any_cursor_input_outside_puzzle || any_click_inside_puzzle;
             if (clicked_elsewhere && !is_first_frame)
                 || ui.input(|input| input.key_pressed(egui::Key::Escape))
             {
