@@ -17,6 +17,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             what: "view settings",
             ..Default::default()
         },
+        help_contents: None,
     };
     presets_ui.show_presets_selector(ui);
     presets_ui.show_current_prefs_ui(

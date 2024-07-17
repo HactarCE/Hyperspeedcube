@@ -26,11 +26,13 @@ pub struct TextEditPopup<'v> {
 
     label: Option<String>,
 
+    text_edit_align: Option<egui::Align>,
     text_edit_trim: bool,
     text_edit_monospace: bool,
     text_edit_width: Option<f32>,
     text_edit_hint_text: Option<String>,
 
+    auto_confirm: bool,
     validate_confirm: Option<TextEditValidator<'v>>,
     validate_delete: Option<TextEditValidator<'v>>,
 }
@@ -40,8 +42,7 @@ impl<'v> TextEditPopup<'v> {
         let new_name = EguiTempValue::new(ui);
         let area = egui::Area::new(new_name.id.with("area"))
             .order(egui::Order::Middle)
-            .constrain_to(ui.ctx().available_rect())
-            .sense(egui::Sense::hover());
+            .constrain_to(ui.ctx().available_rect());
 
         Self {
             ctx,
@@ -52,11 +53,13 @@ impl<'v> TextEditPopup<'v> {
 
             label: None,
 
+            text_edit_align: None,
             text_edit_trim: true, // enable by default
             text_edit_monospace: false,
             text_edit_width: None,
             text_edit_hint_text: None,
 
+            auto_confirm: false,
             validate_confirm: None,
             validate_delete: None,
         }
@@ -74,8 +77,10 @@ impl<'v> TextEditPopup<'v> {
         self.area = self.area.fixed_pos(r.rect.left_bottom());
         self
     }
-    pub fn over(mut self, r: &egui::Response) -> Self {
-        let padding = egui::Vec2::splat(10.0); // TODO: do this properly
+    pub fn over(mut self, ui: &mut egui::Ui, r: &egui::Response, vertical_fudge: f32) -> Self {
+        let padding = ui.spacing().window_margin.left_top()
+            + ui.spacing().button_padding
+            + egui::vec2(0.0, vertical_fudge);
         self.area = self.area.fixed_pos(r.rect.left_top() - padding);
         if !self.text_edit_width.is_some_and(|w| w > r.rect.width()) {
             self.text_edit_width = Some(r.rect.width());
@@ -85,6 +90,10 @@ impl<'v> TextEditPopup<'v> {
 
     pub fn label(mut self, label: String) -> Self {
         self.label = Some(label);
+        self
+    }
+    pub fn text_edit_align(mut self, align: egui::Align) -> Self {
+        self.text_edit_align = Some(align);
         self
     }
     pub fn text_edit_trim(mut self, trim: bool) -> Self {
@@ -104,6 +113,10 @@ impl<'v> TextEditPopup<'v> {
         self
     }
 
+    pub fn auto_confirm(mut self, auto_confirm: bool) -> Self {
+        self.auto_confirm = auto_confirm;
+        self
+    }
     pub fn confirm_button_validator(mut self, confirm_validator: TextEditValidator<'v>) -> Self {
         self.validate_confirm = Some(confirm_validator);
         self
@@ -134,7 +147,16 @@ impl<'v> TextEditPopup<'v> {
     }
 
     pub fn show(self, ui: &mut egui::Ui) -> Option<TextEditPopupResponse> {
+        self.show_with(ui, |_| ()).0
+    }
+
+    pub fn show_with<R>(
+        self,
+        ui: &mut egui::Ui,
+        inner: impl FnOnce(&mut egui::Ui) -> R,
+    ) -> (Option<TextEditPopupResponse>, Option<R>) {
         let mut response = None;
+        let mut inner_response = None;
 
         if self.is_open() {
             let area_response = self.area.show(ui.ctx(), |ui| {
@@ -147,6 +169,9 @@ impl<'v> TextEditPopup<'v> {
 
                         let mut s = self.new_name.get().unwrap_or_default();
                         let mut text_edit = egui::TextEdit::singleline(&mut s);
+                        if let Some(align) = self.text_edit_align {
+                            text_edit = text_edit.horizontal_align(align);
+                        }
                         if self.text_edit_monospace {
                             text_edit = text_edit.font(egui::TextStyle::Monospace);
                         }
@@ -164,9 +189,14 @@ impl<'v> TextEditPopup<'v> {
 
                         let s = if self.text_edit_trim { s.trim() } else { &s };
                         if let Some(validator) = self.validate_confirm {
-                            if validated_button(ui, "✔", validator(&s), true) {
+                            if self.auto_confirm || validated_button(ui, "✔", validator(&s), true)
+                            {
                                 response = Some(TextEditPopupResponse::Confirm(s.to_string()));
-                                ui.memory_mut(|mem| mem.close_popup());
+                                if !self.auto_confirm
+                                    || ui.input(|input| input.key_pressed(egui::Key::Enter))
+                                {
+                                    ui.memory_mut(|mem| mem.close_popup());
+                                }
                             }
                         }
                         if let Some(validator) = self.validate_delete {
@@ -175,12 +205,14 @@ impl<'v> TextEditPopup<'v> {
                                 ui.memory_mut(|mem| mem.close_popup());
                             }
                         }
-                    })
-                    .inner
-                })
+                    });
+                    inner_response = Some(inner(ui));
+                });
             });
 
-            if (area_response.response.clicked_elsewhere() && !self.is_first_frame)
+            let clicked_elsewhere =
+                crate::gui::util::clicked_elsewhere(ui, &area_response.response);
+            if (clicked_elsewhere && !self.is_first_frame)
                 || ui.input(|input| input.key_pressed(egui::Key::Escape))
             {
                 response = Some(TextEditPopupResponse::Cancel);
@@ -188,7 +220,7 @@ impl<'v> TextEditPopup<'v> {
             }
         }
 
-        response
+        (response, inner_response)
     }
 }
 

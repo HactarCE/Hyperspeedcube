@@ -179,94 +179,94 @@ color_palette:
     Mono Dyad:
       - "#ffffff"
       - "#595959"
-    Red Dyad:
-      - "#ff8a8a"
-      - "#6d1616"
-    Orange Dyad:
-      - "#ffb663"
-      - "#834d0e"
-    Yellow Dyad:
-      - "#f7f89b"
-      - "#858628"
-    Green Dyad:
-      - "#b1f79c"
-      - "#2c7714"
-    Blue Dyad:
-      - "#79c7ff"
-      - "#09436d"
-    Purple Dyad:
-      - "#c18aff"
-      - "#3f1075"
-    Magenta Dyad:
-      - "#ff8bf6"
-      - "#691161"
     Mono Triad:
       - "#a5a5a5"
       - "#ffffff"
       - "#595959"
-    Red Triad:
-      - "#ff8a8a"
-      - "#d33535"
-      - "#6d1616"
-    Orange Triad:
-      - "#ffb663"
-      - "#f1870d"
-      - "#834d0e"
-    Yellow Triad:
-      - "#f7f89b"
-      - "#dcdd70"
-      - "#858628"
-    Green Triad:
-      - "#b1f79c"
-      - "#5eff27"
-      - "#2c7714"
-    Blue Triad:
-      - "#79c7ff"
-      - "#0481d7"
-      - "#09436d"
-    Purple Triad:
-      - "#c18aff"
-      - "#7524d1"
-      - "#3f1075"
-    Magenta Triad:
-      - "#ff8bf6"
-      - "#cf21c1"
-      - "#691161"
     Mono Tetrad:
       - "#a5a5a5"
       - "#ffffff"
       - "#595959"
       - "#343434"
+    Red Dyad:
+      - "#ff8a8a"
+      - "#6d1616"
+    Red Triad:
+      - "#ff8a8a"
+      - "#d33535"
+      - "#6d1616"
     Red Tetrad:
       - "#ff8a8a"
       - "#d33535"
       - "#6d1616"
       - "#3b0606"
+    Orange Dyad:
+      - "#ffb663"
+      - "#834d0e"
+    Orange Triad:
+      - "#ffb663"
+      - "#f1870d"
+      - "#834d0e"
     Orange Tetrad:
       - "#ffb663"
       - "#f1870d"
       - "#834d0e"
       - "#4d300e"
+    Yellow Dyad:
+      - "#f7f89b"
+      - "#858628"
+    Yellow Triad:
+      - "#f7f89b"
+      - "#dcdd70"
+      - "#858628"
     Yellow Tetrad:
       - "#f7f89b"
       - "#dcdd70"
       - "#858628"
       - "#5a5b05"
+    Green Dyad:
+      - "#b1f79c"
+      - "#2c7714"
+    Green Triad:
+      - "#b1f79c"
+      - "#5eff27"
+      - "#2c7714"
     Green Tetrad:
       - "#b1f79c"
       - "#5eff27"
       - "#2c7714"
       - "#14300a"
+    Blue Dyad:
+      - "#79c7ff"
+      - "#09436d"
+    Blue Triad:
+      - "#79c7ff"
+      - "#0481d7"
+      - "#09436d"
     Blue Tetrad:
       - "#79c7ff"
       - "#0481d7"
       - "#09436d"
       - "#0b2638"
+    Purple Dyad:
+      - "#c18aff"
+      - "#3f1075"
+    Purple Triad:
+      - "#c18aff"
+      - "#7524d1"
+      - "#3f1075"
     Purple Tetrad:
       - "#c18aff"
       - "#7524d1"
       - "#3f1075"
       - "#240648"
+    Magenta Dyad:
+      - "#ff8bf6"
+      - "#691161"
+    Magenta Triad:
+      - "#ff8bf6"
+      - "#cf21c1"
+      - "#691161"
     Magenta Tetrad:
       - "#ff8bf6"
       - "#cf21c1"

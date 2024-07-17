@@ -101,7 +101,6 @@ pub struct GlobalColorPalette {
     pub sets: IndexMap<String, Vec<Rgb>>,
 
     pub custom_singles: IndexMap<String, Rgb>,
-    pub custom_sets: IndexMap<String, Vec<Rgb>>,
 }
 impl GlobalColorPalette {
     pub(super) fn post_init(&mut self) {
@@ -142,8 +141,7 @@ impl GlobalColorPalette {
     }
 
     pub fn get_set(&self, set_name: &str) -> Option<&Vec<Rgb>> {
-        None.or_else(|| self.sets.get(set_name))
-            .or_else(|| self.custom_sets.get(set_name))
+        self.sets.get(set_name)
     }
 
     pub fn get(&self, color: &DefaultColor) -> Option<Rgb> {
@@ -205,6 +203,7 @@ impl GlobalColorPalette {
     pub fn groups_of_sets(&self) -> Vec<(String, Vec<(&String, &[Rgb])>)> {
         self.sets
             .iter()
+            .sorted_by_key(|(_, colors)| colors.len())
             .group_by(|(_, colors)| colors.len())
             .into_iter()
             .map(|(value, sets)| {

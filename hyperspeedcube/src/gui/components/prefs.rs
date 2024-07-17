@@ -168,15 +168,11 @@ impl<'a, T> PrefsUi<'a, T> {
         let reset_value = self.get_default(&access);
         let reset_value_str = reset_value.as_ref().map(|v| v.to_string());
         self.add(|current| WidgetWithReset {
-            label: "",
+            label,
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str,
-            make_widget: |value| {
-                |ui: &mut egui::Ui| {
-                    super::color_edit(ui, value, label, false, None::<fn()>).response
-                }
-            },
+            make_widget: |value| |ui: &mut egui::Ui| super::color_edit(ui, value, None::<fn()>),
         })
     }
 
@@ -195,8 +191,9 @@ impl<'a, T> PrefsUi<'a, T> {
                 |ui: &mut egui::Ui| {
                     let mut changed = false;
                     let mut r = ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = ui.spacing().item_spacing.y;
                         for value in values {
-                            changed |= ui.color_edit_button_srgb(&mut value.rgb).changed();
+                            changed |= super::color_edit(ui, value, None::<fn()>).changed();
                         }
                     });
                     if changed {

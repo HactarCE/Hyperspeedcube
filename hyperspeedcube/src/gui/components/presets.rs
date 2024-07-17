@@ -61,6 +61,8 @@ pub struct PresetsUi<'a, T: Default> {
     pub changed: &'a mut bool,
     /// Text strings to put on the UI.
     pub text: PresetsUiText<'a>,
+    /// Help text to show for the current settings UI.
+    pub help_contents: Option<Box<dyn Fn(&mut egui::Ui)>>,
 }
 impl<'a, T> PresetsUi<'a, T>
 where
@@ -124,7 +126,7 @@ where
                 if let Some(presets_set) = self.text.presets_set {
                     ui.label(format!("({presets_set})"));
                 }
-                HelpHoverWidget::show(ui, show_presets_help_ui);
+                HelpHoverWidget::show_right_aligned(ui, show_presets_help_ui);
             });
             ui.separator();
             ui.horizontal_wrapped(|ui| {
@@ -300,6 +302,11 @@ where
 
                     // Edit as plaintext button
                     yaml.show_edit_as_plaintext_button(ui, &current.value);
+
+                    // Help hover widget
+                    if let Some(help_contents) = &self.help_contents {
+                        crate::gui::components::HelpHoverWidget::show(ui, help_contents);
+                    }
 
                     let mut job = egui::text::LayoutJob::default();
                     job.append(&current.name, 0.0, strong_text_format(ui));

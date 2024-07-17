@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
-use egui::Widget;
 use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
 use strum::IntoEnumIterator;
 
 use crate::{
-    gui::util::set_widget_spacing_to_space_width,
+    gui::util::{set_widget_spacing_to_space_width, EguiTempFlag},
     preferences::{ColorScheme, DefaultColorGradient, GlobalColorPalette},
     util::BeforeOrAfter,
 };
@@ -26,7 +25,7 @@ const GRADIENT_COMPACT_HEIGHT_MULTIPLIER: f32 = 0.5;
 /// Rounding of the colored box in the big color preview tooltip.
 const TOOLTIP_COLOR_RECT_ROUNDING: f32 = 3.0;
 
-fn show_color_schemes_help_ui(allow_dragging: bool) -> impl FnOnce(&mut egui::Ui) {
+pub(in crate::gui) fn show_color_schemes_help_ui(allow_dragging: bool) -> impl Fn(&mut egui::Ui) {
     move |ui| {
         // TODO: markdown renderer
         ui.spacing_mut().item_spacing.y = 9.0;
@@ -157,13 +156,13 @@ impl<'a> ColorsUi<'a> {
     /// that can be dragged to reassign colors.
     ///
     /// Returns a boolean indicating whether any modification was made to the
-    /// global palette, along with an optional temporary color scheme to allow
-    /// for just the next frame.
+    /// color scheme, along with an optional temporary color scheme to allow for
+    /// just the next frame.
     pub fn show_compact_palette(
         &mut self,
         ui: &mut egui::Ui,
         current_colors: Option<(&mut ColorScheme, &ColorSystem)>,
-        color_to_modify: Option<DefaultColor>,
+        puzzle_color_to_modify: Option<String>,
     ) -> (bool, Option<ColorScheme>) {
         self.default_color_to_puzzle_color = HashMap::new();
         self.gradient_totals = HashMap::new();
@@ -176,21 +175,7 @@ impl<'a> ColorsUi<'a> {
         ui.spacing_mut().item_spacing.y = large_space;
         ui.style_mut().spacing.scroll = egui::style::ScrollStyle::solid();
 
-        ui.horizontal(|ui| {
-            ui.strong("Single colors");
-            let allow_dragging = self.dnd.is_some();
-            let show_help_ui = show_color_schemes_help_ui(allow_dragging);
-            crate::gui::components::HelpHoverWidget::show(ui, show_help_ui);
-        });
-        ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
-            for color_name in self.palette.singles.keys() {
-                self.show_single_color(ui, color_name.clone());
-            }
-        });
-
         if !self.palette.custom_singles.is_empty() {
-            ui.separator();
             ui.strong("Custom colors");
             ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.x);
             ui.horizontal_wrapped(|ui| {
@@ -199,9 +184,18 @@ impl<'a> ColorsUi<'a> {
                     self.show_single_color(ui, color_name.clone());
                 }
             });
+            ui.separator();
         }
 
+        ui.strong("Single colors");
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
+            for color_name in self.palette.singles.keys() {
+                self.show_single_color(ui, color_name.clone());
+            }
+        });
         ui.separator();
+
         egui::ScrollArea::horizontal()
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -243,10 +237,8 @@ impl<'a> ColorsUi<'a> {
                 dnd.paint_reorder_drop_lines(ui);
                 temp_modification = dnd.mid_drag().cloned();
                 modification = dnd.end_drag();
-            } else if let Some(color_to_modify) = color_to_modify
-                .and_then(|c| self.default_color_to_puzzle_color.get(&c))
-                .cloned()
-            {
+            }
+            if let Some(color_to_modify) = puzzle_color_to_modify {
                 if let Some(hovered_color) = self.hovered_color.take() {
                     temp_modification = Some(DragAndDropResponse {
                         payload: color_to_modify.clone(),
@@ -300,21 +292,21 @@ impl<'a> ColorsUi<'a> {
         &self,
         map: &mut ColorScheme,
         name: String,
-        new_default_color: DefaultColor,
+        mut new_default_color: DefaultColor,
         before_or_after: BeforeOrAfter,
     ) {
         let DefaultColor::Gradient {
             gradient_name,
-            mut index,
+            index,
             total: _,
-        } = &new_default_color
+        } = &mut new_default_color
         else {
             log::error!("attempt to reorder color to something other than a gradient");
             return;
         };
 
         if before_or_after == BeforeOrAfter::After {
-            index += 1;
+            *index += 1;
         }
 
         let Ok(gradient) = gradient_name.parse::<DefaultColorGradient>() else {
@@ -324,7 +316,7 @@ impl<'a> ColorsUi<'a> {
 
         // Shift other colors up by one.
         let total = *self.gradient_totals.get(&gradient).unwrap_or(&0);
-        for i in index..total {
+        for i in *index..total {
             if let Some(name) = self
                 .default_color_to_puzzle_color
                 .get(&DefaultColor::Gradient {
@@ -412,20 +404,23 @@ impl<'a> ColorsUi<'a> {
 
                 color_name: gradient.to_string(),
                 color: gradient.clone().into(),
-                default_color: None,
                 puzzle_color: None,
             }
             .show(ui, self);
             self.click_zone(&r, &gradient.default_color_at_end());
 
-            ui.horizontal_wrapped(|ui| {
-                for index in 0..total {
-                    let default_color = gradient.default_color_at(index, total);
-                    let r = self.show_generic_color(ui, &default_color, tooltip_pos);
-                    self.click_zone(&r, &default_color);
-                    self.reorder_drag_drop_zone(ui, &r, &default_color);
-                }
-            });
+            if total == 0 {
+                self.drag_drop_zone(ui, &r, &gradient.default_color_at(0, 1));
+            } else {
+                ui.horizontal_wrapped(|ui| {
+                    for index in 0..total {
+                        let default_color = gradient.default_color_at(index, total);
+                        let r = self.show_generic_color(ui, &default_color, tooltip_pos);
+                        self.click_zone(&r, &default_color);
+                        self.reorder_drag_drop_zone(ui, &r, &default_color);
+                    }
+                });
+            }
         });
     }
 
@@ -453,7 +448,6 @@ impl<'a> ColorsUi<'a> {
 
             color_name: default_color.to_string(),
             color: rgb.into(),
-            default_color: Some(default_color.clone()),
             puzzle_color,
         }
         .show(ui, self)
@@ -466,7 +460,6 @@ struct ColorButton {
 
     pub color_name: String,
     pub color: ColorOrGradient,
-    pub default_color: Option<DefaultColor>,
     pub puzzle_color: Option<String>,
 }
 impl ColorButton {
@@ -480,15 +473,7 @@ impl ColorButton {
             focusable: true,
         };
         let (rect, r) = ui.allocate_exact_size(self.size, sense);
-        if ui.is_rect_visible(rect) {
-            let visuals = ui.style().interact(&r);
-            let rect = rect.expand(visuals.expansion);
-            paint_colored_rect(ui.painter(), rect, 0.0, self.color);
-
-            let rounding = visuals.rounding.at_most(2.0);
-            ui.painter()
-                .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
-        }
+        paint_color_button(ui, &r, self.color, false);
 
         // Draggable label
         if let Some(puzzle_color) = self.puzzle_color.filter(|_| colors_ui.show_puzzle_colors) {
@@ -607,6 +592,27 @@ impl ColorOrGradient {
     }
 }
 
+fn paint_color_button(
+    ui: &mut egui::Ui,
+    response: &egui::Response,
+    color: impl Into<ColorOrGradient>,
+    is_open: bool,
+) {
+    if ui.is_rect_visible(response.rect) {
+        let visuals = if is_open {
+            &ui.visuals().widgets.open
+        } else {
+            ui.style().interact(response)
+        };
+        let rect = response.rect.expand(visuals.expansion);
+        paint_colored_rect(ui.painter(), rect, 0.0, color.into());
+
+        let rounding = visuals.rounding.at_most(2.0);
+        ui.painter()
+            .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
+    }
+}
+
 fn paint_colored_rect(
     painter: &egui::Painter,
     mut rect: egui::Rect,
@@ -665,15 +671,28 @@ fn colorous_color_to_egui_color(c: colorous::Color) -> egui::Color32 {
     crate::util::rgb_to_egui_color32(Rgb { rgb })
 }
 
-pub fn color_hex_editor(
+pub fn color_edit(
     ui: &mut egui::Ui,
     color: &mut Rgb,
     on_delete: Option<impl FnOnce()>,
 ) -> egui::Response {
-    let mut r = ui.add(
-        egui::Label::new(egui::RichText::new(color.to_string()).monospace())
-            .selectable(false)
-            .sense(egui::Sense::click_and_drag()), // for when it's draggable
+    let mut changed = false;
+
+    let mut size = ui.spacing().interact_size;
+    size.x *= 1.5;
+    let (_, mut r) = ui.allocate_exact_size(size, egui::Sense::click());
+    paint_color_button(ui, &r, *color, false);
+
+    let contrasting_text_color =
+        crate::util::contrasting_text_color(crate::util::rgb_to_egui_color32(*color));
+    ui.put(
+        r.rect,
+        egui::Label::new(
+            egui::RichText::new(color.to_string())
+                .color(contrasting_text_color)
+                .monospace(),
+        )
+        .selectable(false),
     );
 
     // Right-click to copy
@@ -688,7 +707,7 @@ pub fn color_hex_editor(
             egui::show_tooltip_for(ui.ctx(), r.id, &r.rect, |ui| ui.label("Copied!"));
         } else {
             // Hide the tooltip when the mouse leaves
-            has_been_copied.clear();
+            has_been_copied.reset();
         }
     } else {
         r = r.on_hover_ui(|ui| {
@@ -699,78 +718,72 @@ pub fn color_hex_editor(
             });
             ui.horizontal(|ui| {
                 ui.strong("Right-click");
-                ui.label("to copy");
+                ui.label("to copy hex");
             });
             if on_delete.is_some() {
                 ui.horizontal(|ui| {
-                    ui.strong("Alt + click");
+                    ui.strong("Middle-click");
+                    ui.label("or");
+                    ui.strong("alt + click");
                     ui.label("to delete");
                 });
             }
         });
     }
+
+    let mods = ui.input(|input| input.modifiers);
+    let cmd = mods.command;
+    let alt = mods.alt;
+
     // Alt+click to delete
     if let Some(on_delete) = on_delete {
-        if r.clicked() && ui.input(|input| input.modifiers.alt) {
+        if r.middle_clicked() || alt && !cmd && r.clicked() {
             on_delete()
         }
     }
 
     // Left-click to edit
+    let reopen = EguiTempFlag::new(ui);
     let mut hex_edit_popup = TextEditPopup::new(ui);
-    if r.clicked() && ui.input(|input| !input.modifiers.alt) {
+    if r.clicked() || reopen.reset() {
         hex_edit_popup.open(color.to_string());
     }
     let popup_response = hex_edit_popup.if_open(|popup| {
         popup
-            .over(&r)
+            .over(ui, &r, 1.0)
+            .text_edit_align(egui::Align::Center)
             .text_edit_monospace()
+            .auto_confirm(true)
             .confirm_button_validator(Box::new(|s| {
                 s.parse::<Rgb>().map(|_| None).map_err(|_| None)
             }))
-            .show(ui)
+            .show_with(ui, |ui| {
+                // TODO: custom color picker
+                let mut egui_color = crate::util::rgb_to_egui_color32(*color);
+                let alpha = egui::color_picker::Alpha::Opaque;
+                ui.spacing_mut().slider_width = 220.0;
+                if egui::color_picker::color_picker_color32(ui, &mut egui_color, alpha) {
+                    *color = crate::util::egui_color32_to_rgb(egui_color);
+                    reopen.set();
+                    changed = true;
+                }
+            })
+            .0
     });
     if let Some(r) = popup_response {
         match r {
             super::TextEditPopupResponse::Confirm(new_hex_string) => {
                 if let Ok(new_color) = new_hex_string.parse() {
                     *color = new_color;
+                    changed = true;
                 }
             }
             _ => (),
         }
     }
 
-    r
-}
-
-pub fn color_edit(
-    ui: &mut egui::Ui,
-    color: &mut Rgb,
-    label: &str,
-    clickable: bool,
-    on_delete: Option<impl FnOnce()>,
-) -> egui::InnerResponse<egui::Response> {
-    let mut changed = false;
-
-    let mut r = ui.horizontal(|ui| {
-        changed |= super::color_hex_editor(ui, color, on_delete).changed();
-
-        let r = ui.color_edit_button_srgb(&mut color.rgb);
-        changed |= r.changed();
-
-        if clickable {
-            egui::Label::new(label)
-                .selectable(false)
-                .sense(egui::Sense::click())
-                .ui(ui)
-        } else {
-            ui.label(label)
-        }
-    });
-
     if changed {
-        r.response.mark_changed();
+        r.mark_changed();
     }
     r
 }

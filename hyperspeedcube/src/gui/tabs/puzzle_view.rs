@@ -5,6 +5,7 @@ use hyperpuzzle::{PieceMask, Puzzle};
 use parking_lot::Mutex;
 
 use crate::gfx::*;
+use crate::gui::util::EguiTempValue;
 use crate::gui::App;
 use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
 use crate::puzzle::{DragState, PieceStyleState, PuzzleSimulation, PuzzleView, PuzzleViewInput};
@@ -150,9 +151,10 @@ impl PuzzleWidget {
             self.view.cancel_drag();
         }
 
+        let modifiers = ui.input(|input| input.modifiers);
+
         // Change which axis we're rotating depending on modifiers.
         if matches!(self.view.drag_state(), Some(DragState::ViewRot { .. })) {
-            let modifiers = ui.input(|input| input.modifiers);
             let mut z_axis = 2;
             if modifiers.shift {
                 z_axis += 1;
@@ -251,12 +253,63 @@ impl PuzzleWidget {
             show_sticker_hover: ui.input(|input| input.modifiers.shift),
         });
 
-        // Check for twist clicks.
-        if r.clicked() {
+        // Click = twist
+        if r.clicked() && modifiers.is_none() {
             self.view.do_click_twist(Sign::Neg);
         }
-        if r.secondary_clicked() {
+        if r.secondary_clicked() && modifiers.is_none() {
             self.view.do_click_twist(Sign::Pos);
+        }
+
+        // Ctrl+shift+click = edit sticker color
+        let editing_color = EguiTempValue::new(ui);
+        let mut is_first_frame = false;
+        if r.secondary_clicked() && modifiers.command && modifiers.shift && !modifiers.alt {
+            if let Some(hov) = self.view.puzzle_hover_state() {
+                if let Some(sticker) = hov.sticker {
+                    ui.memory_mut(|mem| mem.open_popup(editing_color.id));
+                    let color = puzzle.stickers[sticker].color;
+                    editing_color.set(Some(puzzle.colors.list[color].name.clone()));
+                    is_first_frame = true;
+                }
+            }
+        }
+        if ui.memory(|mem| mem.is_popup_open(editing_color.id)) {
+            let mut area = egui::Area::new(editing_color.id.with("area"))
+                .order(egui::Order::Middle)
+                .constrain_to(ui.ctx().available_rect())
+                .movable(true);
+            if let Some(pos) = r.interact_pointer_pos().filter(|_| is_first_frame) {
+                area = area.current_pos(pos);
+            }
+            let area_response = area.show(ui.ctx(), |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    ui.set_max_width(500.0);
+                    let (changed, temp_colors) =
+                        crate::gui::components::ColorsUi::new(&prefs.color_palette)
+                            .clickable(true)
+                            .drag_puzzle_colors(ui, true)
+                            .show_compact_palette(
+                                ui,
+                                Some((&mut self.view.colors.value, &puzzle.colors)),
+                                editing_color.get(),
+                            );
+                    if changed {
+                        // the user has no way to save the settings in this UI,
+                        // so there's not much we can do
+                    }
+                    self.view.temp_colors = temp_colors;
+                });
+            });
+
+            let clicked_elsewhere =
+                crate::gui::util::clicked_elsewhere(ui, &area_response.response)
+                    && crate::gui::util::clicked_elsewhere(ui, &r);
+            if (clicked_elsewhere && !is_first_frame)
+                || ui.input(|input| input.key_pressed(egui::Key::Escape))
+            {
+                ui.memory_mut(|mem| mem.close_popup());
+            }
         }
 
         let dark_mode = ui.visuals().dark_mode;

@@ -1,15 +1,17 @@
+use egui::Widget;
 use float_ord::FloatOrd;
 use hyperpuzzle::Rgb;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use rand::seq::SliceRandom;
 use rand::Rng;
+use strum::{EnumIter, IntoEnumIterator};
 
 use crate::app::App;
 use crate::gui::components::{
     HelpHoverWidget, PlaintextYamlEditor, PrefsUi, TextEditPopup, TextEditPopupResponse,
 };
-use crate::gui::util::set_widget_spacing_to_space_width;
+use crate::gui::util::{set_widget_spacing_to_space_width, EguiTempValue};
 use crate::preferences::{GlobalColorPalette, DEFAULT_PREFS};
 
 fn show_global_color_palette_help_ui(ui: &mut egui::Ui) {
@@ -46,12 +48,14 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 yaml.show_edit_as_plaintext_button(ui, &app.prefs.color_palette);
-                HelpHoverWidget::show(ui, show_global_color_palette_help_ui);
+                HelpHoverWidget::show_right_aligned(ui, show_global_color_palette_help_ui);
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                     ui.strong("Global color palette");
                 });
             });
         });
+
+        ui.separator();
 
         let mut changed = false;
 
@@ -61,117 +65,155 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             defaults: Some(&DEFAULT_PREFS.color_palette),
             changed: &mut changed,
         };
-        let (mut prefs, ui) = prefs_ui.split();
 
-        ui.separator();
-        ui.horizontal(|ui| {
-            ui.strong("Single colors");
-        });
+        prefs_ui.collapsing("Custom colors", |mut prefs_ui| {
+            let (prefs, ui) = prefs_ui.split();
 
-        for (i, color_name) in DEFAULT_PREFS.color_palette.singles.keys().enumerate() {
-            prefs.with(ui).color(&color_name, access!(.singles[i]));
-        }
+            let mut dnd = crate::gui::components::DragAndDrop::new(ui);
+            let mut to_rename = None;
+            let mut to_delete = None;
 
-        ui.separator();
-        ui.strong("Custom single colors");
+            ui.horizontal(|ui| {
+                if ui.button("Add color").clicked() {
+                    let name = find_autoname(|s| !prefs.current.custom_singles.contains_key(s));
+                    let rgb = rand::thread_rng().gen();
+                    prefs
+                        .current
+                        .custom_singles
+                        .shift_insert(0, name, Rgb { rgb });
+                    *prefs.changed = true;
+                }
+                ui.menu_button("Sort colors", |ui| {
+                    if ui.button("Sort by name").clicked() {
+                        sort_map_by_key_or_reverse(&mut prefs.current.custom_singles, |name, _| {
+                            name.clone()
+                        });
+                        *prefs.changed = true;
+                    }
+                    if ui.button("Sort by lightness (Oklab)").clicked() {
+                        sort_map_by_key_or_reverse(
+                            &mut prefs.current.custom_singles,
+                            |_, &color| FloatOrd(crate::util::rgb_to_oklab(color).l),
+                        );
+                        *prefs.changed = true;
+                    }
+                });
+            });
 
-        ui.horizontal(|ui| {
-            if ui.button("Add color").clicked() {
-                let name = find_autoname(|s| !prefs.current.custom_singles.contains_key(s));
-                let rgb = rand::thread_rng().gen();
-                prefs
-                    .current
-                    .custom_singles
-                    .shift_insert(0, name, Rgb { rgb });
+            for i in 0..prefs.current.custom_singles.len() {
+                let Some((name, color)) = prefs.current.custom_singles.get_index(i) else {
+                    continue;
+                };
+                let name = name.clone();
+                let mut color = *color;
+
+                dnd.vertical_reorder_by_handle(ui, i, i, |ui, _is_dragging| {
+                    let on_delete = Some(|| to_delete = Some(i));
+                    let r = crate::gui::components::color_edit(ui, &mut color, on_delete);
+                    *prefs.changed |= r.changed();
+                    let label_response = egui::Label::new(&name)
+                        .selectable(false)
+                        .sense(egui::Sense::click())
+                        .ui(ui);
+                    if let Some((_, v)) = prefs.current.custom_singles.get_index_mut(i) {
+                        *v = color;
+                    }
+
+                    let mut popup = TextEditPopup::new(ui);
+                    if label_response.clicked() || label_response.secondary_clicked() {
+                        popup.open(name.clone());
+                    }
+                    let popup_response = popup.if_open(|popup| {
+                        popup
+                            .text_edit_width(150.0)
+                            .over(ui, &label_response, 3.0) // overwrite width
+                            .confirm_button_validator(Box::new(|new_name| {
+                                validate_single_color_name(&prefs.current, new_name, "Rename")
+                            }))
+                            .delete_button_validator(Box::new(|_| {
+                                Ok(Some("Delete color".to_string()))
+                            }))
+                            .show(ui)
+                    });
+                    if let Some(r) = popup_response {
+                        match r {
+                            TextEditPopupResponse::Confirm(new_name) => {
+                                to_rename = Some((i, new_name));
+                            }
+                            TextEditPopupResponse::Delete => to_delete = Some(i),
+                            TextEditPopupResponse::Cancel => (),
+                        }
+                    }
+                });
+            }
+
+            if let Some((i, new_name)) = to_rename {
+                if let Some((_, v)) = prefs.current.custom_singles.swap_remove_index(i) {
+                    let (j, _) = prefs.current.custom_singles.insert_full(new_name, v);
+                    prefs.current.custom_singles.swap_indices(i, j);
+                    *prefs.changed = true;
+                }
+            }
+
+            if let Some(i) = to_delete {
+                prefs.current.custom_singles.shift_remove_index(i);
                 *prefs.changed = true;
             }
-            ui.menu_button("Sort colors", |ui| {
-                if ui.button("Sort by name").clicked() {
-                    sort_map_by_key_or_reverse(&mut prefs.current.custom_singles, |name, _| {
-                        name.clone()
-                    });
+
+            dnd.paint_reorder_drop_lines(ui);
+            if let Some(r) = dnd.end_drag() {
+                if let Some(before_or_after) = r.before_or_after {
+                    crate::util::reorder_map(
+                        &mut prefs.current.custom_singles,
+                        r.payload,
+                        r.end,
+                        before_or_after,
+                    );
                     *prefs.changed = true;
                 }
-                if ui.button("Sort by lightness (Oklab)").clicked() {
-                    sort_map_by_key_or_reverse(&mut prefs.current.custom_singles, |_, &color| {
-                        FloatOrd(crate::util::rgb_to_oklab(color).l)
-                    });
-                    *prefs.changed = true;
-                }
-            });
+            }
         });
 
-        let mut dnd = crate::gui::components::DragAndDrop::new(ui);
-        let mut to_rename = None;
-        let mut to_delete = None;
+        prefs_ui.collapsing("Built-in colors", |mut prefs_ui| {
+            for (i, color_name) in DEFAULT_PREFS.color_palette.singles.keys().enumerate() {
+                prefs_ui.color(&color_name, access!(.singles[i]));
+            }
+        });
 
-        for i in 0..prefs.current.custom_singles.len() {
-            let Some((name, color)) = prefs.current.custom_singles.get_index(i) else {
-                continue;
-            };
-            let name = name.clone();
-            let mut color = *color;
+        prefs_ui.collapsing("Built-in color sets", |mut prefs_ui| {
+            let (mut prefs, ui) = prefs_ui.split();
 
-            dnd.vertical_reorder_by_handle(ui, i, i, |ui, _is_dragging| {
-                let on_delete = Some(|| to_delete = Some(i));
-                let r = crate::gui::components::color_edit(ui, &mut color, &name, true, on_delete);
-                *prefs.changed |= r.response.changed();
-                let label_response = r.inner;
-                if let Some((_, v)) = prefs.current.custom_singles.get_index_mut(i) {
-                    *v = color;
-                }
+            let mut default_sets = DEFAULT_PREFS.color_palette.sets.iter().collect_vec();
 
-                let mut popup = TextEditPopup::new(ui);
-                if label_response.clicked() || label_response.secondary_clicked() {
-                    popup.open(name.clone());
-                }
-                let popup_response = popup.if_open(|popup| {
-                    popup
-                        .text_edit_width(150.0)
-                        .over(&label_response) // override width
-                        .confirm_button_validator(Box::new(|new_name| {
-                            validate_single_color_name(&prefs.current, new_name, "Rename")
-                        }))
-                        .delete_button_validator(Box::new(|_| Ok(Some("Delete color".to_string()))))
-                        .show(ui)
-                });
-                if let Some(r) = popup_response {
-                    match r {
-                        TextEditPopupResponse::Confirm(new_name) => {
-                            to_rename = Some((i, new_name));
-                        }
-                        TextEditPopupResponse::Delete => to_delete = Some(i),
-                        TextEditPopupResponse::Cancel => (),
+            #[derive(Debug, Default, EnumIter, AsRefStr, Copy, Clone, PartialEq, Eq, Hash)]
+            enum ColorSetsSortMethod {
+                #[default]
+                #[strum(serialize = "Sort by count")]
+                ByCount,
+                #[strum(serialize = "Sort by color")]
+                ByColor,
+            }
+            let sort_method = EguiTempValue::new(ui);
+            let mut sort = sort_method.get().unwrap_or_default();
+            ui.horizontal(|ui| {
+                for s in ColorSetsSortMethod::iter() {
+                    if ui.selectable_label(sort == s, s.as_ref()).clicked() {
+                        sort = s;
                     }
                 }
             });
-        }
+            sort_method.set(Some(sort));
 
-        if let Some((i, new_name)) = to_rename {
-            if let Some((_, v)) = prefs.current.custom_singles.swap_remove_index(i) {
-                let (j, _) = prefs.current.custom_singles.insert_full(new_name, v);
-                prefs.current.custom_singles.swap_indices(i, j);
-                *prefs.changed = true;
+            if sort == ColorSetsSortMethod::ByCount {
+                default_sets.sort_by_cached_key(|(_, v)| v.len()); // stable sort
             }
-        }
 
-        if let Some(i) = to_delete {
-            prefs.current.custom_singles.shift_remove_index(i);
-            *prefs.changed = true;
-        }
-
-        dnd.paint_reorder_drop_lines(ui);
-        if let Some(r) = dnd.end_drag() {
-            if let Some(before_or_after) = r.before_or_after {
-                crate::util::reorder_map(
-                    &mut prefs.current.custom_singles,
-                    r.payload,
-                    r.end,
-                    before_or_after,
-                );
-                *prefs.changed = true;
+            for (set_name, _set_values) in default_sets {
+                prefs
+                    .with(ui)
+                    .fixed_multi_color(&set_name, access!(.sets[set_name]));
             }
-        }
+        });
 
         app.prefs.needs_save |= changed;
     });

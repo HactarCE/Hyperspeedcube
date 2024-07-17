@@ -174,6 +174,11 @@ pub(crate) fn rgb_to_egui_rgba(color: Rgb) -> egui::Rgba {
     let [r, g, b] = color.rgb;
     egui::Rgba::from_srgba_unmultiplied(r, g, b, 255)
 }
+/// Converts an [`egui::Color32`] to a [`hyperpuzzle::Rgb`].
+pub(crate) fn egui_color32_to_rgb(color: egui::Color32) -> Rgb {
+    let [r, g, b, _] = color.to_array();
+    Rgb { rgb: [r, g, b] }
+}
 /// Interpolates between two colors in linear color space.
 pub(crate) fn lerp_colors(a: Rgb, b: Rgb, t: f32) -> Rgb {
     let a = crate::util::rgb_to_egui_rgba(a);

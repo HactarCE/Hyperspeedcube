@@ -144,56 +144,29 @@ pub fn wrap_if_needed_for_color_button(ui: &mut egui::Ui) {
     }
 }
 
-pub fn fake_popup<R>(
-    ui: &mut egui::Ui,
-    id: egui::Id,
-    is_first_frame: bool,
-    below_rect: egui::Rect,
-    add_contents: impl FnOnce(&mut egui::Ui) -> R,
-) -> Option<egui::InnerResponse<R>> {
-    if ui.memory(|mem| mem.is_popup_open(id)) {
-        let area_resp = egui::Area::new(unique_id!())
-            .order(egui::Order::Middle)
-            .fixed_pos(below_rect.left_bottom())
-            .constrain_to(ui.ctx().available_rect())
-            .sense(egui::Sense::hover())
-            .show(ui.ctx(), |ui| {
-                egui::Frame::menu(ui.style()).show(ui, |ui| {
-                    ui.set_height(BIG_ICON_BUTTON_SIZE);
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        add_contents(ui)
-                    })
-                    .inner
-                })
-            });
-        if area_resp.response.clicked_elsewhere() && !is_first_frame
-            || ui.input(|input| input.key_pressed(egui::Key::Escape))
-        {
-            ui.memory_mut(|mem| mem.close_popup());
-        }
-        Some(area_resp.inner)
-    } else {
-        None
-    }
-}
-
+/// Boolean flag stored in egui temporary memory.
 #[derive(Debug, Clone)]
 pub struct EguiTempFlag(EguiTempValue<()>);
 impl EguiTempFlag {
+    /// Returns a temporary value based on the current position in the UI.
     pub fn new(ui: &mut egui::Ui) -> Self {
         Self(EguiTempValue::new(ui))
     }
+    /// Returns the current value of the flag.
     pub fn get(&self) -> bool {
         self.0.get().is_some()
     }
-    pub fn set(&self) {
-        self.0.set(Some(()));
+    /// Sets the flag to `true`, returning the old value.
+    pub fn set(&self) -> bool {
+        self.0.set(Some(())).is_some()
     }
-    pub fn clear(&self) {
-        self.0.set(None);
+    /// Resets the flag to `false`, returning the old value.
+    pub fn reset(&self) -> bool {
+        self.0.set(None).is_some()
     }
 }
 
+/// Arbitrary value stored in egui temporary memory.
 #[derive(Debug, Clone)]
 pub struct EguiTempValue<T> {
     pub ctx: egui::Context,
@@ -201,6 +174,7 @@ pub struct EguiTempValue<T> {
     _marker: PhantomData<T>,
 }
 impl<T: 'static + Any + Clone + Default + Send + Sync> EguiTempValue<T> {
+    /// Returns a temporary value based on the current position in the UI.
     pub fn new(ui: &mut egui::Ui) -> Self {
         let ctx = ui.ctx().clone();
         let id = ui.next_auto_id();
@@ -211,9 +185,11 @@ impl<T: 'static + Any + Clone + Default + Send + Sync> EguiTempValue<T> {
             _marker: PhantomData,
         }
     }
+    /// Returns the currently stored value.
     pub fn get(&self) -> Option<T> {
         self.ctx.data(|data| data.get_temp::<T>(self.id))
     }
+    /// Sets the value, returning the old value.
     pub fn set(&self, value: Option<T>) -> Option<T> {
         self.ctx.data_mut(|data| {
             let old_value = data.remove_temp::<T>(self.id);
@@ -223,6 +199,7 @@ impl<T: 'static + Any + Clone + Default + Send + Sync> EguiTempValue<T> {
             old_value
         })
     }
+    /// Deletes the value, returning the old value.
     pub fn take(&self) -> Option<T> {
         self.set(None)
     }
@@ -263,4 +240,16 @@ pub fn label_centered_unless_multiline(
         |ui| ui.label(widget_text),
     )
     .inner
+}
+
+/// Same as [`egui::Response::clicked_elsewhere()`], but considers all
+/// pointer-down events.
+pub fn clicked_elsewhere(ui: &egui::Ui, r: &egui::Response) -> bool {
+    ui.input(|input| {
+        input.pointer.any_pressed()
+            && input
+                .pointer
+                .interact_pos()
+                .is_some_and(|pos| !r.rect.contains(pos))
+    })
 }

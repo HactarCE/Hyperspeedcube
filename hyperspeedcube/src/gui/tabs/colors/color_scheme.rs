@@ -37,6 +37,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             presets: "color schemes",
             what: "color scheme",
         },
+        help_contents: Some(Box::new(
+            crate::gui::components::show_color_schemes_help_ui(true),
+        )),
     };
 
     presets_ui.show_presets_selector(ui);
