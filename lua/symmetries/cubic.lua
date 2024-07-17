@@ -11,22 +11,22 @@ color_systems:add('cube', {
   },
 
   color_schemes = {
-    ["Western"] = {
+    {"Western", {
       R = "Red",
       L = "Orange",
       U = "White",
       D = "Yellow",
       F = "Green",
       B = "Blue",
-    },
-    ["Japanese"] = {
+    }},
+    {"Japanese", {
       R = "Red",
       L = "Orange",
       U = "White",
       D = "Blue",
       F = "Green",
       B = "Yellow",
-    },
+    }},
   },
   default_scheme = "Western",
 })

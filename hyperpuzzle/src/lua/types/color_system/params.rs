@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::*;
 use crate::builder::ColorSystemBuilder;
 use crate::lua::lua_warn_fn;
@@ -38,9 +40,20 @@ pub fn from_lua_table<'lua>(
 
     // Add color schemes.
     if let Some(color_schemes_table) = color_schemes {
-        for pair in color_schemes_table.pairs::<String, LuaTable<'_>>() {
-            let (name, mapping_table) = pair?;
-            add_color_scheme_from_table(&mut colors, name, mapping_table)?;
+        for scheme in color_schemes_table.sequence_values::<LuaTable<'_>>() {
+            let (name, mapping_table) =
+                scheme?.sequence_values().collect_tuple().ok_or_else(|| {
+                    LuaError::external(
+                        "expected color scheme to be \
+                         a sequence containing a name \
+                         and a table of color mappings",
+                    )
+                })?;
+            add_color_scheme_from_table(
+                &mut colors,
+                lua.unpack(name?)?,
+                lua.unpack(mapping_table?)?,
+            )?;
         }
     }
 
