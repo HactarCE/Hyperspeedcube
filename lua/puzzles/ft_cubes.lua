@@ -16,7 +16,7 @@ function define_ft_cube_3d(size)
       self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, size))
 
       -- Define twists
-      for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox], sym:thru(2, 1)) do
+      for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
         self.twists:add(axis, twist_transform)
       end
     end,
