@@ -184,12 +184,12 @@ impl<'a> ColorsUi<'a> {
         ui.spacing_mut().item_spacing.y = large_space;
         ui.style_mut().spacing.scroll = egui::style::ScrollStyle::solid();
 
-        if !self.palette.custom_singles.is_empty() {
+        if !self.palette.custom_colors.is_empty() {
             ui.strong("Custom colors");
             ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.x);
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
-                for color_name in self.palette.custom_singles.keys() {
+                for color_name in self.palette.custom_colors.keys() {
                     self.show_single_color(ui, color_name.clone());
                 }
             });
@@ -199,7 +199,7 @@ impl<'a> ColorsUi<'a> {
         ui.strong("Single colors");
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
-            for color_name in self.palette.singles.keys() {
+            for color_name in self.palette.builtin_colors.keys() {
                 self.show_single_color(ui, color_name.clone());
             }
         });
@@ -779,7 +779,7 @@ pub fn color_edit(
             })
             .0
     });
-    if let Some(r) = popup_response {
+    if let Some(r) = popup_response.filter(|_| !reopen.get()) {
         match r {
             super::TextEditPopupResponse::Confirm(new_hex_string) => {
                 if let Ok(new_color) = new_hex_string.parse() {

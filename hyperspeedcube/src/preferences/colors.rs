@@ -97,26 +97,28 @@ impl ColorPreferences {
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct GlobalColorPalette {
-    pub singles: IndexMap<String, Rgb>,
-    pub sets: IndexMap<String, Vec<Rgb>>,
-
-    pub custom_singles: IndexMap<String, Rgb>,
+    pub custom_colors: IndexMap<String, Rgb>,
+    pub builtin_colors: IndexMap<String, Rgb>,
+    pub builtin_color_sets: IndexMap<String, Vec<Rgb>>,
 }
 impl GlobalColorPalette {
     pub(super) fn post_init(&mut self) {
-        self.singles = DEFAULT_PREFS
+        self.builtin_colors = DEFAULT_PREFS
             .color_palette
-            .singles
+            .builtin_colors
             .iter()
-            .map(|(k, v)| (k.clone(), self.singles.get(k).unwrap_or(v).clone()))
+            .map(|(k, v)| (k.clone(), self.builtin_colors.get(k).unwrap_or(v).clone()))
             .collect();
 
-        self.sets = DEFAULT_PREFS
+        self.builtin_color_sets = DEFAULT_PREFS
             .color_palette
-            .sets
+            .builtin_color_sets
             .iter()
             .map(|(k, v)| {
-                let user_value = self.sets.get(k).unwrap_or(const { &Vec::new() });
+                let user_value = self
+                    .builtin_color_sets
+                    .get(k)
+                    .unwrap_or(const { &Vec::new() });
                 (
                     k.clone(),
                     v.iter()
@@ -141,7 +143,7 @@ impl GlobalColorPalette {
     }
 
     pub fn get_set(&self, set_name: &str) -> Option<&Vec<Rgb>> {
-        self.sets.get(set_name)
+        self.builtin_color_sets.get(set_name)
     }
 
     pub fn get(&self, color: &DefaultColor) -> Option<Rgb> {
@@ -149,8 +151,8 @@ impl GlobalColorPalette {
             DefaultColor::Unknown => None,
             DefaultColor::HexCode { rgb } => Some(*rgb),
             DefaultColor::Single { name } => None
-                .or_else(|| self.singles.get(name))
-                .or_else(|| self.custom_singles.get(name))
+                .or_else(|| self.builtin_colors.get(name))
+                .or_else(|| self.custom_colors.get(name))
                 .copied(),
             DefaultColor::Set { set_name, index } => self
                 .get_set(set_name)
@@ -201,7 +203,7 @@ impl GlobalColorPalette {
     }
 
     pub fn groups_of_sets(&self) -> Vec<(String, Vec<(&String, &[Rgb])>)> {
-        self.sets
+        self.builtin_color_sets
             .iter()
             .sorted_by_key(|(_, colors)| colors.len())
             .group_by(|(_, colors)| colors.len())

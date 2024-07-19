@@ -75,24 +75,24 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
             ui.horizontal(|ui| {
                 if ui.button("Add color").clicked() {
-                    let name = find_autoname(|s| !prefs.current.custom_singles.contains_key(s));
+                    let name = find_autoname(|s| !prefs.current.custom_colors.contains_key(s));
                     let rgb = rand::thread_rng().gen();
                     prefs
                         .current
-                        .custom_singles
+                        .custom_colors
                         .shift_insert(0, name, Rgb { rgb });
                     *prefs.changed = true;
                 }
                 ui.menu_button("Sort colors", |ui| {
                     if ui.button("Sort by name").clicked() {
-                        sort_map_by_key_or_reverse(&mut prefs.current.custom_singles, |name, _| {
+                        sort_map_by_key_or_reverse(&mut prefs.current.custom_colors, |name, _| {
                             name.clone()
                         });
                         *prefs.changed = true;
                     }
                     if ui.button("Sort by lightness (Oklab)").clicked() {
                         sort_map_by_key_or_reverse(
-                            &mut prefs.current.custom_singles,
+                            &mut prefs.current.custom_colors,
                             |_, &color| FloatOrd(crate::util::rgb_to_oklab(color).l),
                         );
                         *prefs.changed = true;
@@ -100,8 +100,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 });
             });
 
-            for i in 0..prefs.current.custom_singles.len() {
-                let Some((name, color)) = prefs.current.custom_singles.get_index(i) else {
+            for i in 0..prefs.current.custom_colors.len() {
+                let Some((name, color)) = prefs.current.custom_colors.get_index(i) else {
                     continue;
                 };
                 let name = name.clone();
@@ -115,7 +115,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                         .selectable(false)
                         .sense(egui::Sense::click())
                         .ui(ui);
-                    if let Some((_, v)) = prefs.current.custom_singles.get_index_mut(i) {
+                    if let Some((_, v)) = prefs.current.custom_colors.get_index_mut(i) {
                         *v = color;
                     }
 
@@ -148,15 +148,15 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             }
 
             if let Some((i, new_name)) = to_rename {
-                if let Some((_, v)) = prefs.current.custom_singles.swap_remove_index(i) {
-                    let (j, _) = prefs.current.custom_singles.insert_full(new_name, v);
-                    prefs.current.custom_singles.swap_indices(i, j);
+                if let Some((_, v)) = prefs.current.custom_colors.swap_remove_index(i) {
+                    let (j, _) = prefs.current.custom_colors.insert_full(new_name, v);
+                    prefs.current.custom_colors.swap_indices(i, j);
                     *prefs.changed = true;
                 }
             }
 
             if let Some(i) = to_delete {
-                prefs.current.custom_singles.shift_remove_index(i);
+                prefs.current.custom_colors.shift_remove_index(i);
                 *prefs.changed = true;
             }
 
@@ -164,7 +164,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             if let Some(r) = dnd.end_drag() {
                 if let Some(before_or_after) = r.before_or_after {
                     crate::util::reorder_map(
-                        &mut prefs.current.custom_singles,
+                        &mut prefs.current.custom_colors,
                         r.payload,
                         r.end,
                         before_or_after,
@@ -175,44 +175,54 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         });
 
         prefs_ui.collapsing("Built-in colors", |mut prefs_ui| {
-            for (i, color_name) in DEFAULT_PREFS.color_palette.singles.keys().enumerate() {
-                prefs_ui.color(&color_name, access!(.singles[i]));
+            for (i, color_name) in DEFAULT_PREFS
+                .color_palette
+                .builtin_colors
+                .keys()
+                .enumerate()
+            {
+                prefs_ui.color(&color_name, access!(.builtin_colors[i]));
             }
         });
 
         prefs_ui.collapsing("Built-in color sets", |mut prefs_ui| {
             let (mut prefs, ui) = prefs_ui.split();
+            egui::ScrollArea::horizontal().show(ui, |ui| {
+                let mut default_sets = DEFAULT_PREFS
+                    .color_palette
+                    .builtin_color_sets
+                    .iter()
+                    .collect_vec();
 
-            let mut default_sets = DEFAULT_PREFS.color_palette.sets.iter().collect_vec();
-
-            #[derive(Debug, Default, EnumIter, AsRefStr, Copy, Clone, PartialEq, Eq, Hash)]
-            enum ColorSetsSortMethod {
-                #[default]
-                #[strum(serialize = "Sort by count")]
-                ByCount,
-                #[strum(serialize = "Sort by color")]
-                ByColor,
-            }
-            let sort_method = EguiTempValue::new(ui);
-            let mut sort = sort_method.get().unwrap_or_default();
-            ui.horizontal(|ui| {
-                for s in ColorSetsSortMethod::iter() {
-                    if ui.selectable_label(sort == s, s.as_ref()).clicked() {
-                        sort = s;
+                #[derive(Debug, Default, EnumIter, AsRefStr, Copy, Clone, PartialEq, Eq, Hash)]
+                enum ColorSetsSortMethod {
+                    #[default]
+                    #[strum(serialize = "Sort by count")]
+                    ByCount,
+                    #[strum(serialize = "Sort by color")]
+                    ByColor,
+                }
+                let sort_method = EguiTempValue::new(ui);
+                let mut sort = sort_method.get().unwrap_or_default();
+                ui.horizontal(|ui| {
+                    for s in ColorSetsSortMethod::iter() {
+                        if ui.selectable_label(sort == s, s.as_ref()).clicked() {
+                            sort = s;
+                        }
                     }
+                });
+                sort_method.set(Some(sort));
+
+                if sort == ColorSetsSortMethod::ByCount {
+                    default_sets.sort_by_cached_key(|(_, v)| v.len()); // stable sort
+                }
+
+                for (set_name, _set_values) in default_sets {
+                    prefs
+                        .with(ui)
+                        .fixed_multi_color(&set_name, access!(.builtin_color_sets[set_name]));
                 }
             });
-            sort_method.set(Some(sort));
-
-            if sort == ColorSetsSortMethod::ByCount {
-                default_sets.sort_by_cached_key(|(_, v)| v.len()); // stable sort
-            }
-
-            for (set_name, _set_values) in default_sets {
-                prefs
-                    .with(ui)
-                    .fixed_multi_color(&set_name, access!(.sets[set_name]));
-            }
         });
 
         app.prefs.needs_save |= changed;
@@ -226,8 +236,8 @@ fn validate_single_color_name(
 ) -> Result<Option<String>, Option<String>> {
     if new_name.is_empty() {
         Err(Some("Name cannot be empty".to_string()))
-    } else if palette.singles.contains_key(new_name)
-        || palette.custom_singles.contains_key(new_name)
+    } else if palette.builtin_colors.contains_key(new_name)
+        || palette.custom_colors.contains_key(new_name)
     {
         Err(Some("There is already a color with this name".to_string()))
     } else {

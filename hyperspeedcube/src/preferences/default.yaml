@@ -164,18 +164,21 @@ view_4d:
       downscale_rate: 1
       downscale_interpolate: true
 color_palette:
-  singles:
+  builtin_colors:
     White: "#ffffff"
+    Gray: "#777777"
+    Black: "#222222"
+    Brown: "#885522"
     Red: "#cc3333"
     Orange: "#ff9922"
+    # Amber: "#ffcc00"
     Yellow: "#ffff00"
     Green: "#88ee66"
-    Cyan: "#00ffff"
+    Teal: "#009977"
     Blue: "#33aaff"
     Purple: "#8822cc"
-    Magenta: "#ff00ff"
     Pink: "#ff66ff"
-  sets:
+  builtin_color_sets:
     Mono Dyad:
       - "#ffffff"
       - "#595959"
