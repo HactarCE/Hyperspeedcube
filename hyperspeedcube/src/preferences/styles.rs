@@ -4,11 +4,16 @@ use serde::{Deserialize, Serialize};
 
 use super::{Rgb, WithPresets};
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct StyleId(u64);
 impl StyleId {
     pub fn next() -> Self {
         Self(NEXT_STYLE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+    }
+}
+impl Default for StyleId {
+    fn default() -> Self {
+        Self::next()
     }
 }
 
@@ -49,7 +54,7 @@ impl StylePreferences {
 #[serde(default)]
 pub struct PieceStyle {
     /// Unique ID that lasts only for the lifetime of the program.
-    #[serde(skip, default = "StyleId::next")]
+    #[serde(skip)]
     pub id: StyleId,
 
     #[serde(skip_serializing_if = "Option::is_none")]
