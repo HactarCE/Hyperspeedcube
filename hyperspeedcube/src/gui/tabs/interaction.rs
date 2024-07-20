@@ -15,12 +15,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             what: "interaction settings",
             ..Default::default()
         },
+        autosave: false,
+        vscroll: true,
         help_contents: None,
     };
-    presets_ui.show_presets_selector(ui);
-    presets_ui.show_current_prefs_ui(
+    presets_ui.show(
         ui,
-        |p| p.interaction.last_loaded_preset(),
+        |p| p.interaction.last_loaded_preset().cloned(),
         |prefs_ui| crate::gui::components::prefs::build_interaction_section(prefs_ui),
     );
 

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hyperpuzzle::{Piece, PieceMask};
 
-use crate::preferences::{StyleId, StylePreferences};
+use crate::preferences::{StyleColorMode, StyleId, StylePreferences};
 
 /// Returns a closure that updates the given style state.
 #[macro_export]
@@ -167,12 +167,11 @@ impl PuzzleStyleStates {
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub struct PieceStyleValues {
     pub face_opacity: u8, // TODO: linear or gamma??
-    pub face_color: [u8; 3],
-    pub face_sticker_color: bool,
+    pub face_color: StyleColorMode,
 
     pub outline_opacity: u8,
-    pub outline_color: [u8; 3],
-    pub outline_sticker_color: bool,
+    pub outline_color: StyleColorMode,
+    pub outline_lighting: bool,
 
     pub outline_size: f32,
 }
@@ -198,7 +197,9 @@ impl PieceStyleState {
     fn interactable(self, styles: &StylePreferences) -> bool {
         let base = styles
             .custom
-            .values()
+            .user_list()
+            .iter()
+            .map(|p| p.value)
             .find(|s| s.id == self.base)
             .and_then(|s| s.interactable);
         let hid = self.hidden.then_some(false);
@@ -209,15 +210,19 @@ impl PieceStyleState {
     /// Returns how to draw a piece with this style state.
     fn values(self, styles: &StylePreferences) -> PieceStyleValues {
         let def = styles.default;
-        let base = styles.custom.values().find(|s| s.id == self.base).copied();
-        let hid = self.hidden.then_some(styles.hidden);
-        let mut bld = self.blind.then_some(styles.blind);
+        let base = styles
+            .custom
+            .user_list()
+            .iter()
+            .map(|p| p.value)
+            .find(|s| s.id == self.base);
+        let bld = self.blind.then_some(styles.blind);
         let gp = self.gripped.then_some(styles.gripped);
         let ugp = self.ungripped.then_some(styles.ungripped);
         let hp = self.hovered_piece.then_some(styles.hovered_piece);
-        let hs = self.hovered_sticker.then_some(styles.hovered_sticker);
+        let hs = self.hovered_sticker.then_some(styles.hovered_piece); // may be different in the future
         let sp = self.selected_piece.then_some(styles.selected_piece);
-        let ss = self.selected_sticker.then_some(styles.selected_sticker);
+        let ss = self.selected_sticker.then_some(styles.selected_piece); // may be different in the future
 
         fn min(xs: impl IntoIterator<Item = Option<f32>>) -> Option<f32> {
             xs.into_iter().filter_map(|x| x).min_by(f32::total_cmp)
@@ -229,21 +234,17 @@ impl PieceStyleState {
             xs.into_iter().find_map(|x| x).unwrap_or_default()
         }
 
-        // Ensure that blindfolded faces do not reveal information.
-        if let Some(style) = &mut bld {
-            style.face_sticker_color = Some(false);
-            style.outline_sticker_color = Some(false);
-        }
-
-        let color_order = [bld, hs, hp, ss, sp, ugp, gp, hid, base, Some(def)];
-        let opacity_order = [hs, hp, ss, sp, gp, hid];
-        let size_order = [hs, hp, ss, sp, ugp, gp, hid, base, bld, Some(def)];
+        let color_order = [hs, hp, ss, sp, ugp, gp, bld, base, Some(def)];
+        let opacity_order = [hs, hp, ss, sp, gp, bld, base, Some(def)]; // `ugp` is handled separately
+        let size_order = [hs, hp, ss, sp, ugp, gp, bld, base, Some(def)];
 
         fn f32_to_u8(f: f32) -> u8 {
             (f.clamp(0.0, 1.0) * 255.0) as u8
         }
 
-        // Apply styles in order from highest priority to lowest priority.
+        // Apply styles in order from highest priority to lowest priority. Use
+        // `.is_bld_safe()` to ensure that we do not reveal information about
+        // blindfolded stickers.
         PieceStyleValues {
             face_opacity: f32_to_u8(
                 min([
@@ -253,8 +254,9 @@ impl PieceStyleState {
                 .or(base.and_then(|s| s.face_opacity))
                 .unwrap_or(def.face_opacity.unwrap_or_default()),
             ),
-            face_color: first_or_default(color_order.map(|s| s?.face_color)).rgb,
-            face_sticker_color: first_or_default(color_order.map(|s| s?.face_sticker_color)),
+            face_color: first_or_default(
+                color_order.map(|s| s?.face_color.filter(|c| c.is_bld_safe(self.blind))),
+            ),
 
             outline_opacity: f32_to_u8(
                 min([
@@ -264,13 +266,19 @@ impl PieceStyleState {
                 .or(base.and_then(|s| s.outline_opacity))
                 .unwrap_or(def.outline_opacity.unwrap_or_default()),
             ),
-            outline_color: crate::util::lerp_colors(
-                first_or_default(color_order.map(|s| s?.outline_color)),
-                styles.blocking_color,
-                self.blocking_amount as f32 / 255.0,
+            outline_color: first_or_default(
+                color_order.map(|s| s?.outline_color.filter(|c| c.is_bld_safe(self.blind))),
             )
-            .rgb,
-            outline_sticker_color: first_or_default(color_order.map(|s| s?.outline_sticker_color)),
+            .map_fixed_color(|c| {
+                // TODO: blocking pieces animation is invisible when using
+                // [`StyleColorMode::FromSticker`]
+                crate::util::lerp_colors(
+                    c,
+                    styles.blocking_outline_color,
+                    self.blocking_amount as f32 / 255.0,
+                )
+            }),
+            outline_lighting: first_or_default(color_order.map(|s| s?.outline_lighting)),
 
             outline_size: hypermath::util::lerp(
                 first_or_default(size_order.map(|s| s?.outline_size)),

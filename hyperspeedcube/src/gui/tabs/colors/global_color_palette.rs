@@ -75,7 +75,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
             ui.horizontal(|ui| {
                 if ui.button("Add color").clicked() {
-                    let name = find_autoname(|s| !prefs.current.custom_colors.contains_key(s));
+                    let name = crate::util::find_unused_autoname(&prefs.current.custom_colors);
                     let rgb = rand::thread_rng().gen();
                     prefs
                         .current
@@ -243,29 +243,6 @@ fn validate_single_color_name(
     } else {
         Ok(Some(format!("{verb} color")))
     }
-}
-
-fn find_autoname(criteria: impl FnMut(&String) -> bool) -> String {
-    color_autonames()
-        .find(criteria)
-        .expect("ran out of autonames!")
-}
-
-fn color_autonames() -> impl Iterator<Item = String> {
-    std::iter::from_fn(move || {
-        Some(if rand::thread_rng().gen_bool(0.2) {
-            format!("{} {}", gen_adjective(), gen_noun())
-        } else {
-            gen_noun()
-        })
-    })
-}
-
-fn gen_adjective() -> String {
-    hyperpuzzle::util::titlecase(names::ADJECTIVES.choose(&mut rand::thread_rng()).unwrap())
-}
-fn gen_noun() -> String {
-    hyperpuzzle::util::titlecase(names::NOUNS.choose(&mut rand::thread_rng()).unwrap())
 }
 
 fn sort_map_by_key_or_reverse<K: Clone + PartialEq, V, T: Ord>(

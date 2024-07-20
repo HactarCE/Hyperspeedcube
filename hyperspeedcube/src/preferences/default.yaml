@@ -1,5 +1,5 @@
 ---
-# no version here, so we can see a missing "version" tag in user prefs
+# no version here, so we can see a missing 'version' tag in user prefs
 info:
   metric: STM
   keybinds_reference:
@@ -27,21 +27,32 @@ interaction:
       blocking_anim_duration: 1.0
       other_anim_duration: 0.15
 styles:
-  dark_background_color: "#1b1b1b"
-  light_background_color: "#f8f8f8"
-  internals_color: "#777777"
-  blocking_color: "#ff0000"
+  dark_background_color: '#1b1b1b'
+  light_background_color: '#f8f8f8'
+  internals_color: '#777777'
+  blocking_outline_color: '#ff0000'
   blocking_outline_size: 5.0
+  custom:
+    last_loaded: Hidden
+    presets:
+    - preset_name: Hidden
+      interactable: false
+      face_opacity: 0.1
+      outline_opacity: 0.1
+      outline_size: 0.0
   default:
     interactable: true
     face_opacity: 1.0
-    face_color: "#cccccc"
-    face_sticker_color: true
+    face_color:
+      mode: sticker
     outline_opacity: 1.0
-    outline_color: "#000000"
-    outline_sticker_color: false
     outline_size: 0.5
+    outline_color:
+      mode: fixed
+      color: '#000000'
+    outline_lighting: false
   gripped:
+    interactable: true
     face_opacity: 1.0
     outline_opacity: 1.0
     outline_size: 1.0
@@ -51,25 +62,35 @@ styles:
     outline_opacity: 0.3
     outline_size: 0.0
   hovered_piece:
-    face_opacity: 1.0
-    outline_opacity: 3.0
-    outline_color: "#ffffff"
-    outline_sticker_color: false
-    outline_size: 3.0
-  hovered_sticker: {}
-  selected_piece:
+    interactable: true
     face_opacity: 1.0
     outline_opacity: 1.0
-    outline_color: "#66ccdd"
+    outline_size: 3.0
+    outline_color:
+      mode: fixed
+      color: '#ffffff'
+    outline_lighting: false
+  selected_piece:
+    interactable: true
+    face_opacity: 1.0
+    outline_opacity: 1.0
     outline_size: 0.2
-  selected_sticker: {}
-  hidden:
-    interactable: false
-    face_opacity: 0.1
-    outline_opacity: 0.1
-    outline_size: 0.0
-  blind: {}
-  custom: {}
+    outline_color:
+      mode: fixed
+      color: '#66ccdd'
+    outline_lighting: false
+  blind:
+    interactable: true
+    face_opacity: 1.0
+    face_color:
+      mode: fixed
+      color: '#cccccc'
+    outline_opacity: 1.0
+    outline_size: 1.0
+    outline_color:
+      mode: fixed
+      color: '#000000'
+    outline_lighting: false
 view_3d:
   last_loaded: Default
   presets:
@@ -87,7 +108,7 @@ view_3d:
       light_pitch: 65.0
       light_yaw: -55.0
       face_light_intensity: 0.0
-      outline_light_intensity: 0.0
+      outline_light_intensity: 1.0
       downscale_rate: 1
       downscale_interpolate: true
     - preset_name: Unfolded (back)
@@ -104,7 +125,7 @@ view_3d:
       light_pitch: 65.0
       light_yaw: -55.0
       face_light_intensity: 0.0
-      outline_light_intensity: 0.0
+      outline_light_intensity: 1.0
       downscale_rate: 1
       downscale_interpolate: true
     - preset_name: Unfolded (front)
@@ -121,7 +142,7 @@ view_3d:
       light_pitch: 65.0
       light_yaw: -55.0
       face_light_intensity: 0.0
-      outline_light_intensity: 0.0
+      outline_light_intensity: 1.0
       downscale_rate: 1
       downscale_interpolate: true
 view_4d:
@@ -142,7 +163,7 @@ view_4d:
       light_pitch: 65.0
       light_yaw: -55.0
       face_light_intensity: 1.0
-      outline_light_intensity: 0.0
+      outline_light_intensity: 1.0
       downscale_rate: 1
       downscale_interpolate: true
     - preset_name: Contiguous pieces
@@ -160,134 +181,134 @@ view_4d:
       light_pitch: 65.0
       light_yaw: -55.0
       face_light_intensity: 1.0
-      outline_light_intensity: 0.0
+      outline_light_intensity: 1.0
       downscale_rate: 1
       downscale_interpolate: true
 color_palette:
   builtin_colors:
-    White: "#ffffff"
-    Gray: "#777777"
-    Black: "#222222"
-    Brown: "#885522"
-    Red: "#cc3333"
-    Orange: "#ff9922"
-    # Amber: "#ffcc00"
-    Yellow: "#ffff00"
-    Green: "#88ee66"
-    Teal: "#009977"
-    Blue: "#33aaff"
-    Purple: "#8822cc"
-    Pink: "#ff66ff"
+    White: '#ffffff'
+    Gray: '#777777'
+    Black: '#222222'
+    Brown: '#885522'
+    Red: '#cc3333'
+    Orange: '#ff9922'
+    # Amber: '#ffcc00'
+    Yellow: '#ffff00'
+    Green: '#88ee66'
+    Teal: '#009977'
+    Blue: '#33aaff'
+    Purple: '#8822cc'
+    Pink: '#ff66ff'
   builtin_color_sets:
     Mono Dyad:
-      - "#ffffff"
-      - "#595959"
+      - '#ffffff'
+      - '#595959'
     Mono Triad:
-      - "#a5a5a5"
-      - "#ffffff"
-      - "#595959"
+      - '#a5a5a5'
+      - '#ffffff'
+      - '#595959'
     Mono Tetrad:
-      - "#a5a5a5"
-      - "#ffffff"
-      - "#595959"
-      - "#343434"
+      - '#a5a5a5'
+      - '#ffffff'
+      - '#595959'
+      - '#343434'
     Red Dyad:
-      - "#ff8a8a"
-      - "#6d1616"
+      - '#ff8a8a'
+      - '#6d1616'
     Red Triad:
-      - "#ff8a8a"
-      - "#d33535"
-      - "#6d1616"
+      - '#ff8a8a'
+      - '#d33535'
+      - '#6d1616'
     Red Tetrad:
-      - "#ff8a8a"
-      - "#d33535"
-      - "#6d1616"
-      - "#3b0606"
+      - '#ff8a8a'
+      - '#d33535'
+      - '#6d1616'
+      - '#3b0606'
     Orange Dyad:
-      - "#ffb663"
-      - "#834d0e"
+      - '#ffb663'
+      - '#834d0e'
     Orange Triad:
-      - "#ffb663"
-      - "#f1870d"
-      - "#834d0e"
+      - '#ffb663'
+      - '#f1870d'
+      - '#834d0e'
     Orange Tetrad:
-      - "#ffb663"
-      - "#f1870d"
-      - "#834d0e"
-      - "#4d300e"
+      - '#ffb663'
+      - '#f1870d'
+      - '#834d0e'
+      - '#4d300e'
     Yellow Dyad:
-      - "#f7f89b"
-      - "#858628"
+      - '#f7f89b'
+      - '#858628'
     Yellow Triad:
-      - "#f7f89b"
-      - "#dcdd70"
-      - "#858628"
+      - '#f7f89b'
+      - '#dcdd70'
+      - '#858628'
     Yellow Tetrad:
-      - "#f7f89b"
-      - "#dcdd70"
-      - "#858628"
-      - "#5a5b05"
+      - '#f7f89b'
+      - '#dcdd70'
+      - '#858628'
+      - '#5a5b05'
     Green Dyad:
-      - "#b1f79c"
-      - "#2c7714"
+      - '#b1f79c'
+      - '#2c7714'
     Green Triad:
-      - "#b1f79c"
-      - "#5eff27"
-      - "#2c7714"
+      - '#b1f79c'
+      - '#5eff27'
+      - '#2c7714'
     Green Tetrad:
-      - "#b1f79c"
-      - "#5eff27"
-      - "#2c7714"
-      - "#14300a"
+      - '#b1f79c'
+      - '#5eff27'
+      - '#2c7714'
+      - '#14300a'
     Blue Dyad:
-      - "#79c7ff"
-      - "#09436d"
+      - '#79c7ff'
+      - '#09436d'
     Blue Triad:
-      - "#79c7ff"
-      - "#0481d7"
-      - "#09436d"
+      - '#79c7ff'
+      - '#0481d7'
+      - '#09436d'
     Blue Tetrad:
-      - "#79c7ff"
-      - "#0481d7"
-      - "#09436d"
-      - "#0b2638"
+      - '#79c7ff'
+      - '#0481d7'
+      - '#09436d'
+      - '#0b2638'
     Purple Dyad:
-      - "#c18aff"
-      - "#3f1075"
+      - '#c18aff'
+      - '#3f1075'
     Purple Triad:
-      - "#c18aff"
-      - "#7524d1"
-      - "#3f1075"
+      - '#c18aff'
+      - '#7524d1'
+      - '#3f1075'
     Purple Tetrad:
-      - "#c18aff"
-      - "#7524d1"
-      - "#3f1075"
-      - "#240648"
+      - '#c18aff'
+      - '#7524d1'
+      - '#3f1075'
+      - '#240648'
     Magenta Dyad:
-      - "#ff8bf6"
-      - "#691161"
+      - '#ff8bf6'
+      - '#691161'
     Magenta Triad:
-      - "#ff8bf6"
-      - "#cf21c1"
-      - "#691161"
+      - '#ff8bf6'
+      - '#cf21c1'
+      - '#691161'
     Magenta Tetrad:
-      - "#ff8bf6"
-      - "#cf21c1"
-      - "#691161"
-      - "#370932"
+      - '#ff8bf6'
+      - '#cf21c1'
+      - '#691161'
+      - '#370932'
     Blank Pentad:
-      - "#000000"
-      - "#000000"
-      - "#000000"
-      - "#000000"
-      - "#000000"
+      - '#000000'
+      - '#000000'
+      - '#000000'
+      - '#000000'
+      - '#000000'
     Blank Hexad:
-      - "#000000"
-      - "#000000"
-      - "#000000"
-      - "#000000"
-      - "#000000"
-      - "#000000"
+      - '#000000'
+      - '#000000'
+      - '#000000'
+      - '#000000'
+      - '#000000'
+      - '#000000'
 piece_filters: ~
 global_keybinds: []
 puzzle_keybinds: ~

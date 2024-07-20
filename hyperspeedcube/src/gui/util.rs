@@ -12,6 +12,14 @@ macro_rules! access {
         }
     }
 }
+macro_rules! access_option {
+    ($default:expr, $($suffix_tok:tt)*) => {
+        crate::gui::util::Access {
+            get_ref: Box::new(move |t| t $($suffix_tok)* .as_ref().unwrap_or(&$default)),
+            get_mut: Box::new(move |t| t $($suffix_tok)* .get_or_insert($default)),
+        }
+    };
+}
 
 pub fn set_widget_spacing_to_space_width(ui: &mut egui::Ui) {
     let spacing = text_spacing(ui);

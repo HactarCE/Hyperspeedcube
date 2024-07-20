@@ -2,7 +2,7 @@ use cgmath::{Point3, SquareMatrix};
 use float_ord::FloatOrd;
 use hyperpuzzle::Rgb;
 use indexmap::IndexMap;
-use itertools::Itertools;
+use rand::{seq::SliceRandom, Rng};
 
 pub const INVALID_STR: &str = "<invalid>";
 
@@ -249,6 +249,27 @@ pub(crate) fn reorder_map<K, V>(
 pub enum BeforeOrAfter {
     Before,
     After,
+}
+
+pub fn find_unused_autoname<V>(map: &IndexMap<String, V>) -> String {
+    funny_autonames()
+        .find(|name| !map.contains_key(name))
+        .expect("ran out of autonames!")
+}
+pub fn funny_autonames() -> impl Iterator<Item = String> {
+    std::iter::from_fn(move || {
+        Some(if rand::thread_rng().gen_bool(0.2) {
+            format!("{} {}", gen_adjective(), gen_noun())
+        } else {
+            gen_noun()
+        })
+    })
+}
+fn gen_adjective() -> String {
+    hyperpuzzle::util::titlecase(names::ADJECTIVES.choose(&mut rand::thread_rng()).unwrap())
+}
+fn gen_noun() -> String {
+    hyperpuzzle::util::titlecase(names::NOUNS.choose(&mut rand::thread_rng()).unwrap())
 }
 
 #[cfg(test)]

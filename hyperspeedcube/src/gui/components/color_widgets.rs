@@ -185,45 +185,44 @@ impl<'a> ColorsUi<'a> {
         ui.style_mut().spacing.scroll = egui::style::ScrollStyle::solid();
 
         if !self.palette.custom_colors.is_empty() {
-            ui.strong("Custom colors");
-            ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.x);
+            ui.group(|ui| {
+                ui.strong("Custom colors");
+                ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.x);
+                ui.horizontal_wrapped(|ui| {
+                    ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
+                    for color_name in self.palette.custom_colors.keys() {
+                        self.show_single_color(ui, color_name.clone());
+                    }
+                });
+            });
+        }
+
+        ui.group(|ui| {
+            ui.set_width(ui.available_width());
+            ui.strong("Single colors");
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
-                for color_name in self.palette.custom_colors.keys() {
+                for color_name in self.palette.builtin_colors.keys() {
                     self.show_single_color(ui, color_name.clone());
                 }
             });
-            ui.separator();
-        }
-
-        ui.strong("Single colors");
-        ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
-            for color_name in self.palette.builtin_colors.keys() {
-                self.show_single_color(ui, color_name.clone());
-            }
         });
-        ui.separator();
 
         egui::ScrollArea::horizontal()
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    let mut is_first = true;
                     for (group_name, sets) in self.palette.groups_of_sets() {
-                        if is_first {
-                            is_first = false;
-                        } else {
-                            ui.separator();
-                        }
-                        ui.vertical(|ui| {
-                            ui.add(
-                                egui::Label::new(egui::RichText::from(group_name).strong())
-                                    .wrap(false),
-                            );
-                            ui.spacing_mut().item_spacing.x = small_space;
-                            for (set_name, _set) in sets {
-                                self.show_color_set(ui, set_name);
-                            }
+                        ui.group(|ui| {
+                            ui.vertical(|ui| {
+                                ui.add(
+                                    egui::Label::new(egui::RichText::from(group_name).strong())
+                                        .wrap(false),
+                                );
+                                ui.spacing_mut().item_spacing.x = small_space;
+                                for (set_name, _set) in sets {
+                                    self.show_color_set(ui, set_name);
+                                }
+                            });
                         });
                     }
                 })
@@ -231,12 +230,13 @@ impl<'a> ColorsUi<'a> {
             })
             .inner;
 
-        ui.separator();
-
-        ui.strong("Gradients");
-        for gradient in DefaultColorGradient::iter() {
-            self.show_color_gradient(ui, gradient);
-        }
+        ui.group(|ui| {
+            ui.set_width(ui.available_width());
+            ui.strong("Gradients");
+            for gradient in DefaultColorGradient::iter() {
+                self.show_color_gradient(ui, gradient);
+            }
+        });
 
         let mut temp_modification = None;
         let mut modification = None;

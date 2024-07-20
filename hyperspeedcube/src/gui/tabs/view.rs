@@ -17,12 +17,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             what: "view settings",
             ..Default::default()
         },
+        autosave: false,
+        vscroll: true,
         help_contents: None,
     };
-    presets_ui.show_presets_selector(ui);
-    presets_ui.show_current_prefs_ui(
+    presets_ui.show(
         ui,
-        |p| p[prefs_set].last_loaded_preset(),
+        |p| p[prefs_set].last_loaded_preset().cloned(),
         |prefs_ui| crate::gui::components::prefs::build_view_section(prefs_set, prefs_ui),
     );
 

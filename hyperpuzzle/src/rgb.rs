@@ -39,6 +39,12 @@ impl<'de> serde::Deserialize<'de> for Rgb {
         s.parse::<Self>().map_err(D::Error::custom)
     }
 }
+impl Rgb {
+    /// Pure black
+    pub const BLACK: Rgb = Rgb { rgb: [0; 3] };
+    /// Pure white
+    pub const WHITE: Rgb = Rgb { rgb: [255; 3] };
+}
 
 /// Serializes a color to a hex string like `#ff00ff`.
 fn color_to_hex_string(rgb: [u8; 3]) -> String {

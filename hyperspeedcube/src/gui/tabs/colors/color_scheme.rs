@@ -34,45 +34,41 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         text: crate::gui::components::PresetsUiText {
             presets_set: Some(&color_system.name),
             preset: "color scheme",
-            presets: "color schemes",
+            saved_presets: "Saved color schemes",
             what: "color scheme",
         },
+        autosave: false,
+        vscroll: true,
         help_contents: Some(Box::new(
             crate::gui::components::show_color_schemes_help_ui(true),
         )),
     };
 
-    presets_ui.show_presets_selector(ui);
-    let mut default_preset = None;
     let mut temp_colors_override = None; // temporary color override
-    presets_ui.show_current_prefs_ui(
-        ui,
-        |_| {
-            default_preset = Some(Preset {
-                name: color_system.default_scheme.clone(),
-                value: color_system
-                    .default_scheme()
-                    .iter()
-                    .map(|(id, default_color)| (get_color_name(id), default_color.clone()))
-                    .collect(),
-            });
-            default_preset.as_ref()
-        },
-        |mut prefs_ui| {
-            let (prefs, ui) = prefs_ui.split();
+    let get_backup_defaults = |_| {
+        Some(Preset {
+            name: color_system.default_scheme.clone(),
+            value: color_system
+                .default_scheme()
+                .iter()
+                .map(|(id, default_color)| (get_color_name(id), default_color.clone()))
+                .collect(),
+        })
+    };
+    presets_ui.show(ui, get_backup_defaults, |mut prefs_ui| {
+        let (prefs, ui) = prefs_ui.split();
 
-            ui.set_enabled(has_active_puzzle);
+        ui.set_enabled(has_active_puzzle);
 
-            let mut colors_ui = crate::gui::components::ColorsUi::new(&app.prefs.color_palette)
-                .clickable(false)
-                .drag_puzzle_colors(ui, true);
+        let mut colors_ui = crate::gui::components::ColorsUi::new(&app.prefs.color_palette)
+            .clickable(false)
+            .drag_puzzle_colors(ui, true);
 
-            let (changed, temp_scheme) =
-                colors_ui.show_compact_palette(ui, Some((prefs.current, &color_system)), None);
-            *prefs.changed |= changed;
-            temp_colors_override = temp_scheme;
-        },
-    );
+        let (changed, temp_scheme) =
+            colors_ui.show_compact_palette(ui, Some((prefs.current, &color_system)), None);
+        *prefs.changed |= changed;
+        temp_colors_override = temp_scheme;
+    });
 
     // Copy settings back to active puzzle.
     if changed {

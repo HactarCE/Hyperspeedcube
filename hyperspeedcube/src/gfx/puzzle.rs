@@ -14,9 +14,11 @@ use std::sync::Arc;
 use egui::NumExt;
 use eyre::Result;
 use hypermath::prelude::*;
-use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle};
+use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb};
 use itertools::Itertools;
 use parking_lot::Mutex;
+
+use crate::preferences::StyleColorMode;
 
 use super::bindings::{BindGroups, WgpuPassExt};
 use super::draw_params::{GizmoGeometryCacheKey, PuzzleGeometryCacheKey};
@@ -416,21 +418,23 @@ impl PuzzleRenderer {
                 .copied()
                 .unwrap_or_default()
         }));
-        let mut color_ids: HashMap<[u8; 3], u32> = color_palette
+        let mut color_ids: HashMap<Rgb, u32> = color_palette
             .iter()
             .enumerate()
-            .map(|(i, &color)| (color, i as u32))
+            .map(|(i, &rgb)| (Rgb { rgb }, i as u32))
             .collect();
-        for new_color in draw_params
+        for c in draw_params
             .piece_styles
             .iter()
             .flat_map(|(style_values, _)| [style_values.face_color, style_values.outline_color])
         {
-            color_ids.entry(new_color).or_insert_with(|| {
-                let idx = color_palette.len() as u32;
-                color_palette.push(new_color);
-                idx
-            });
+            if let Some(new_color) = c.fixed_color() {
+                color_ids.entry(new_color).or_insert_with(|| {
+                    let idx = color_palette.len() as u32;
+                    color_palette.push(new_color.rgb);
+                    idx
+                });
+            }
         }
         let mut color_palette_size = color_palette.len() as u32;
         let max_color_palette_size = self.gfx.device.limits().max_texture_dimension_1d;
@@ -477,31 +481,33 @@ impl PuzzleRenderer {
 
         for (piece, piece_info) in &self.puzzle.pieces {
             let style = draw_params.piece_styles[piece_style_indices[piece]].0;
-            let fallback_face_color = color_ids[&style.face_color];
-            let fallback_outline_color = color_ids[&style.outline_color];
 
             // Should the faces/outlines use the sticker color?
-            let face_sticker_color = style.face_sticker_color;
-            let outline_sticker_color =
-                style.outline_sticker_color && draw_params.outlines_may_use_sticker_color();
+            let face_color_mode = style.face_color;
+            let mut outline_color_mode = style.outline_color;
+            outline_color_mode.make_same_if(!draw_params.outlines_may_use_sticker_color());
 
             for &sticker in &piece_info.stickers {
                 let sticker_color =
                     FACES_BASE_COLOR_ID + self.puzzle.stickers[sticker].color.0 as u32;
 
                 // Write sticker face colors.
-                let face_color_id = match face_sticker_color {
-                    true => sticker_color,
-                    false => fallback_face_color,
+                let face_color_id = match face_color_mode {
+                    StyleColorMode::FromSticker => sticker_color,
+                    StyleColorMode::FixedColor { color } => color_ids[&color],
                 };
                 let polygon_range = &self.model.sticker_polygon_ranges[sticker];
                 polygon_color_ids_data[polygon_range.clone()].fill(face_color_id);
 
                 // Write sticker outline colors.
-                let outline_color_id = match outline_sticker_color {
-                    true => sticker_color,
-                    false => fallback_outline_color,
+                let mut outline_color_id = match outline_color_mode {
+                    StyleColorMode::FromSticker => sticker_color,
+                    StyleColorMode::FixedColor { color } => color_ids[&color],
                 };
+                if !style.outline_lighting {
+                    // Disable lighting by setting highest bit
+                    outline_color_id |= 0x8000_0000;
+                }
                 let edge_range = u32_range_to_usize(&self.model.sticker_edge_ranges[sticker]);
                 outline_color_ids_data[edge_range.clone()].fill(outline_color_id);
                 // Write sticker outline radii.
@@ -510,18 +516,22 @@ impl PuzzleRenderer {
             }
 
             // Write internals face colors.
-            let face_color_id = match face_sticker_color {
-                true => INTERNALS_COLOR_ID,
-                false => fallback_face_color,
+            let face_color_id = match face_color_mode {
+                StyleColorMode::FromSticker => INTERNALS_COLOR_ID,
+                StyleColorMode::FixedColor { color } => color_ids[&color],
             };
             let polygon_range = &self.model.piece_internals_polygon_ranges[piece];
             polygon_color_ids_data[polygon_range.clone()].fill(face_color_id);
 
             // Write internals outline colors.
-            let outline_color_id = match outline_sticker_color {
-                true => INTERNALS_COLOR_ID,
-                false => fallback_outline_color,
+            let mut outline_color_id = match outline_color_mode {
+                StyleColorMode::FromSticker => INTERNALS_COLOR_ID,
+                StyleColorMode::FixedColor { color } => color_ids[&color],
             };
+            if !style.outline_lighting {
+                // Disable lighting by setting highest bit
+                outline_color_id |= 0x8000_0000;
+            }
             let edge_range = u32_range_to_usize(&self.model.piece_internals_edge_ranges[piece]);
             outline_color_ids_data[edge_range.clone()].fill(outline_color_id);
             // Write internals outline radii.

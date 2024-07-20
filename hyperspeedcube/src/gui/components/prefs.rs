@@ -6,7 +6,9 @@ use hyperpuzzle::Rgb;
 use crate::gui::components::WidgetWithReset;
 use crate::gui::ext::*;
 use crate::gui::util::Access;
-use crate::preferences::{InteractionPreferences, PuzzleViewPreferencesSet, ViewPreferences};
+use crate::preferences::{
+    InteractionPreferences, PuzzleViewPreferencesSet, StyleColorMode, ViewPreferences,
+};
 
 const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
 const FOV_3D_RANGE: RangeInclusive<f32> = -120.0..=120.0;
@@ -77,21 +79,22 @@ impl<'a, T> PrefsUi<'a, T> {
         (partial, self.ui)
     }
 
+    pub fn group<R>(
+        &mut self,
+        add_contents: impl FnOnce(PrefsUi<'_, T>) -> R,
+    ) -> egui::InnerResponse<R> {
+        let (mut prefs, ui) = self.split();
+        ui.group(|ui| add_contents(prefs.with(ui)))
+    }
     pub fn collapsing<R>(
         &mut self,
         heading: impl Into<egui::WidgetText>,
         add_contents: impl FnOnce(PrefsUi<'_, T>) -> R,
     ) -> egui::CollapsingResponse<R> {
+        let (mut prefs, ui) = self.split();
         egui::CollapsingHeader::new(heading)
             .default_open(true)
-            .show(self.ui, |ui| {
-                add_contents(PrefsUi {
-                    ui,
-                    current: self.current,
-                    defaults: self.defaults,
-                    changed: self.changed,
-                })
-            })
+            .show(ui, |ui| add_contents(prefs.with(ui)))
     }
 
     pub fn checkbox(&mut self, label: &str, access: Access<T, bool>) -> egui::Response {
@@ -130,18 +133,7 @@ impl<'a, T> PrefsUi<'a, T> {
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str,
-            make_widget: |value| {
-                egui::DragValue::from_get_set(|new_value| {
-                    if let Some(x) = new_value {
-                        *value = x as f32 / 100.0;
-                    }
-                    *value as f64 * 100.0
-                })
-                .suffix("%")
-                .fixed_decimals(0)
-                .clamp_range(0.0..=100.0_f32)
-                .speed(0.5)
-            },
+            make_widget: drag_value_percent,
         })
     }
 
@@ -196,6 +188,74 @@ impl<'a, T> PrefsUi<'a, T> {
                             changed |= super::color_edit(ui, value, None::<fn()>).changed();
                         }
                     });
+                    if changed {
+                        r.response.mark_changed();
+                    }
+                    r.response
+                }
+            },
+        })
+    }
+
+    pub fn color_mode(
+        &mut self,
+        access: Access<T, Option<StyleColorMode>>,
+        allow_fallthrough: bool,
+        allow_from_sticker_color: bool,
+    ) -> egui::Response {
+        let reset_value = self.get_default(&access);
+        self.add(|current| WidgetWithReset {
+            label: "",
+            value: (access.get_mut)(current),
+            reset_value,
+            reset_value_str: reset_value.map(|v| match v {
+                Some(mode) => match mode {
+                    StyleColorMode::FromSticker => "sticker color".to_string(),
+                    StyleColorMode::FixedColor { color } => format!("fixed color {color}"),
+                },
+                None => "default color".to_string(),
+            }),
+            make_widget: |value| {
+                move |ui: &mut egui::Ui| {
+                    let mut changed = false;
+
+                    let id = ui.next_auto_id();
+                    ui.skip_ahead_auto_ids(1);
+
+                    if !allow_fallthrough {
+                        value.get_or_insert(StyleColorMode::FromSticker);
+                    }
+                    let mut r = ui.horizontal(|ui| {
+                        // Assemble list of options
+                        let mut options = vec![];
+                        {
+                            if allow_fallthrough {
+                                options.push((None, "Default color".into()));
+                            }
+
+                            if allow_from_sticker_color {
+                                let option = Some(StyleColorMode::FromSticker);
+                                options.push((option, "Sticker color".into()));
+                            }
+
+                            let color = value.and_then(|v| v.fixed_color()).unwrap_or_default();
+                            let option = Some(StyleColorMode::FixedColor { color });
+                            options.push((option, "Fixed color".into()));
+                        }
+
+                        let r = ui.add(crate::gui::components::FancyComboBox {
+                            combo_box: egui::ComboBox::from_id_source(id),
+                            selected: value,
+                            options,
+                        });
+                        changed |= r.changed();
+
+                        if let Some(StyleColorMode::FixedColor { color }) = value {
+                            let r = crate::gui::components::color_edit(ui, color, None::<fn()>);
+                            changed |= r.changed();
+                        }
+                    });
+
                     if changed {
                         r.response.mark_changed();
                     }
@@ -270,48 +330,48 @@ impl<'a, T> PrefsUi<'a, T> {
 //     prefs.needs_save |= changed;
 // }
 pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreferences>) {
-    prefs_ui
-        .checkbox(
-            "Confirm discard only when scrambled",
-            access!(.confirm_discard_only_when_scrambled),
-        )
-        .on_hover_explanation(
-            "",
-            "When enabled, a confirmation dialog before \
+    prefs_ui.collapsing("Dialogs", |mut prefs_ui| {
+        prefs_ui
+            .checkbox(
+                "Confirm discard only when scrambled",
+                access!(.confirm_discard_only_when_scrambled),
+            )
+            .on_hover_explanation(
+                "",
+                "When enabled, a confirmation dialog before \
              destructive actions (like resetting the puzzle) \
              is only shown when the puzzle has been fully \
              scrambled.",
-        );
-
-    prefs_ui.ui.separator();
-
-    prefs_ui.num("Drag sensitivity", access!(.drag_sensitivity), |dv| {
-        dv.fixed_decimals(2).clamp_range(0.0..=3.0_f32).speed(0.01)
+            );
     });
-    prefs_ui
-        .checkbox("Realign puzzle on release", access!(.realign_on_release))
-        .on_hover_explanation(
-            "",
-            "When enabled, the puzzle snaps back immediately when \
-             the mouse is released after dragging to rotate it.",
-        );
-    prefs_ui
-        .checkbox("Realign puzzle on keypress", access!(.realign_on_keypress))
-        .on_hover_explanation(
-            "",
-            "When enabled, the puzzle snaps back immediately when \
-             the keyboard is used to grip or do a move.",
-        );
-    prefs_ui
-        .checkbox("Smart realign", access!(.smart_realign))
-        .on_hover_explanation(
-            "",
-            "When enabled, the puzzle snaps to the nearest \
-             similar orientation, not the original. This \
-             adds a full-puzzle rotation to the undo history.",
-        );
 
-    prefs_ui.ui.separator();
+    prefs_ui.collapsing("Reorientation", |mut prefs_ui| {
+        prefs_ui.num("Drag sensitivity", access!(.drag_sensitivity), |dv| {
+            dv.fixed_decimals(2).clamp_range(0.0..=3.0_f32).speed(0.01)
+        });
+        prefs_ui
+            .checkbox("Realign puzzle on release", access!(.realign_on_release))
+            .on_hover_explanation(
+                "",
+                "When enabled, the puzzle snaps back immediately when \
+                 the mouse is released after dragging to rotate it.",
+            );
+        prefs_ui
+            .checkbox("Realign puzzle on keypress", access!(.realign_on_keypress))
+            .on_hover_explanation(
+                "",
+                "When enabled, the puzzle snaps back immediately when \
+                 the keyboard is used to grip or do a move.",
+            );
+        prefs_ui
+            .checkbox("Smart realign", access!(.smart_realign))
+            .on_hover_explanation(
+                "",
+                "When enabled, the puzzle snaps to the nearest \
+                 similar orientation, not the original. This \
+                 adds a full-puzzle rotation to the undo history.",
+            );
+    });
 
     prefs_ui.collapsing("Animations", |mut prefs_ui| {
         prefs_ui
@@ -481,7 +541,14 @@ pub fn build_view_section(
             dv.clamp_range(-180.0..=180.0)
         });
         prefs_ui.percent("Intensity (faces)", access!(.face_light_intensity));
-        prefs_ui.percent("Intensity (outlines)", access!(.outline_light_intensity));
+        prefs_ui
+            .percent("Intensity (outlines)", access!(.outline_light_intensity))
+            .on_hover_explanation(
+                "",
+                "This is also enabled or disabled for each \
+                 style in the style settings. For dark outline \
+                 colors, it may have little or no effect.",
+            );
     });
 
     prefs_ui.collapsing("Performance", |mut prefs_ui| {
@@ -502,4 +569,17 @@ fn fov_3d_label(prefs_ui: &PrefsUi<'_, ViewPreferences>) -> &'static str {
     } else {
         "3D FOV"
     }
+}
+
+pub fn drag_value_percent(value: &'_ mut f32) -> egui::DragValue<'_> {
+    egui::DragValue::from_get_set(|new_value| {
+        if let Some(x) = new_value {
+            *value = x as f32 / 100.0;
+        }
+        *value as f64 * 100.0
+    })
+    .suffix("%")
+    .fixed_decimals(0)
+    .clamp_range(0.0..=100.0_f32)
+    .speed(0.5)
 }

@@ -122,8 +122,12 @@ impl DrawParams {
         }
     }
     pub fn outlines_may_use_sticker_color(&self) -> bool {
-        !self.show_internals()
-            && self.cam.prefs().facet_shrink > 0.0
-            && (self.cam.prefs().sticker_shrink > 0.0 || self.cam.prefs().piece_explode > 0.0)
+        // always allow
+        true
+
+        // // allow if non-overlapping
+        // !self.show_internals()
+        //     && self.cam.prefs().facet_shrink > 0.0
+        //     && (self.cam.prefs().sticker_shrink > 0.0 || self.cam.prefs().piece_explode > 0.0)
     }
 }

@@ -46,10 +46,16 @@ pub fn with_reset_button<'a, T: PartialEq>(
     widget: impl FnOnce(&mut egui::Ui, &'a mut T) -> egui::Response,
 ) -> egui::Response {
     ui.horizontal(|ui| {
-        let reset_resp = reset_button(ui, value, reset_value, reset_value_str);
+        let reset_resp = reset_value
+            .is_some()
+            .then(|| reset_button(ui, value, reset_value, reset_value_str));
+
         let mut r = widget(ui, value);
-        if reset_resp.clicked() {
-            r.mark_changed();
+
+        if let Some(reset_resp) = reset_resp {
+            if reset_resp.clicked() {
+                r.mark_changed();
+            }
         }
         r
     })

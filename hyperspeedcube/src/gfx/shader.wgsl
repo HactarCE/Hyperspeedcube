@@ -426,7 +426,16 @@ fn transform_screen_space_to_world_ray(screen_space_xy: vec2<f32>) -> Ray {
 
 /// Returns a color by ID.
 fn get_color(color_id: u32, lighting: f32) -> vec4<f32> {
-    return vec4(textureLoad(color_palette_texture, color_id, 0).rgb * lighting, 1.0);
+    var light_value = lighting;
+
+    // Override light_value if highest bit is set.
+    if (color_id & 0x80000000u) != 0u {
+        light_value = 1.0;
+    }
+
+    let index = color_id & 0x7FFFFFFFu;
+
+    return vec4(textureLoad(color_palette_texture, index, 0).rgb * light_value, 1.0);
 }
 /// Returns the lighting multiplier, given a normal vector.
 fn compute_lighting(normal: vec3<f32>, intensity: f32) -> f32 {
