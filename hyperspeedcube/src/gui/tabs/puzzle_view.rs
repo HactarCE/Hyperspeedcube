@@ -437,7 +437,7 @@ impl PuzzleWidget {
                     .iter_filter(|_gizmo_face, &twist| puzzle.twists[twist].axis == axis);
 
                 for face in other_faces_on_same_gizmo {
-                    let edge_id_range = &puzzle.mesh.gizmo_edge_ranges[face];
+                    let edge_id_range = &puzzle.mesh.gizmo_edge_ranges[face]; // TODO: fix crash here
                     for edge_id in edge_id_range.clone() {
                         let edge = puzzle.mesh.edges[edge_id as usize]
                             .map(|i| gizmo_vertex_3d_positions[i as usize]);
