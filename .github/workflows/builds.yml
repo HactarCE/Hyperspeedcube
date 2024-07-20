@@ -87,6 +87,7 @@ jobs:
         with:
             toolchain: stable
             components: clippy
+            target: x86_64-apple-darwin
             override: true
       - name: Install cargo-bundle
         uses: actions-rs/install@v0.1
@@ -94,8 +95,12 @@ jobs:
           crate: cargo-bundle
           version: latest
           use-tool-cache: true
-      - name: Build Hyperspeedcube
+      - name: Build Hyperspeedcube (arm64)
         run: cargo build --release
+      - name: Build Hyperspeedcube (x86_64)
+        run: cargo build --release --target=x86_64-apple-darwin
+      - name: Merge universal binary
+        run: lipo -create -output target/release/hyperspeedcube target/x86_64-apple-darwin/release/hyperspeedcube target/release/hyperspeedcube
       - name: Make app
         run: cargo bundle --release
       - name: Make tarball
