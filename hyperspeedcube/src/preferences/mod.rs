@@ -54,7 +54,7 @@ const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
 
 lazy_static! {
     pub static ref DEFAULT_PREFS: Preferences =
-        serde_yaml::from_str(DEFAULT_PREFS_STR).expect("error loading default preferences");
+        serde_yml::from_str(DEFAULT_PREFS_STR).expect("error loading default preferences");
     static ref PREFS_SAVE_THREAD: (
         mpsc::Sender<PrefsSaveCommand>,
         Mutex<Option<std::thread::JoinHandle<()>>>
@@ -555,4 +555,25 @@ fn spawn_save_thread() -> (
 enum PrefsSaveCommand {
     Save(Preferences),
     Quit,
+}
+
+#[cfg(test)]
+mod tests {
+    use indexmap::IndexMap;
+
+    #[test]
+    fn test_yaml_preserves_map_order() {
+        let mut m = IndexMap::<String, usize>::new();
+        m.insert("tenpo".to_string(), 0);
+        m.insert("mute".to_string(), 1);
+        m.insert("la".to_string(), 2);
+        m.insert("mi".to_string(), 3);
+        m.insert("toki".to_string(), 4);
+        m.insert("pona".to_string(), 5);
+        let serialized = serde_yml::to_string(&m).unwrap();
+        let deserialized: IndexMap<String, usize> = serde_yml::from_str(&serialized).unwrap();
+        for (i, &v) in deserialized.values().enumerate() {
+            assert_eq!(i, v);
+        }
+    }
 }

@@ -72,7 +72,7 @@ pub fn save(prefs_data: &impl Serialize) -> Result<()> {
     if let Some(p) = path.parent() {
         std::fs::create_dir_all(p)?;
     }
-    serde_yaml::to_writer(std::fs::File::create(path)?, prefs_data)?;
+    serde_yml::to_writer(std::fs::File::create(path)?, prefs_data)?;
     Ok(())
 }
 
