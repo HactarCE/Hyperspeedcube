@@ -1,7 +1,7 @@
 use hyperpuzzle::Piece;
 use instant::Instant;
 
-use crate::preferences::InteractionPreferences;
+use crate::preferences::AnimationPreferences;
 
 /// State of the animation that indicates which pieces are blocking a turn.
 #[derive(Debug, Clone)]
@@ -22,7 +22,7 @@ impl Default for BlockingAnimationState {
 impl BlockingAnimationState {
     /// Steps the animation forward. Returns whether the puzzle should be
     /// redrawn next frame.
-    pub fn proceed(&mut self, prefs: &InteractionPreferences) -> bool {
+    pub fn proceed(&mut self, prefs: &AnimationPreferences) -> bool {
         let needs_redraw = !self.blocking_pieces.is_empty()
             && self.start.elapsed().as_secs_f32() < prefs.blocking_anim_duration;
         if !needs_redraw {
@@ -39,7 +39,7 @@ impl BlockingAnimationState {
     pub fn pieces(&self) -> &[Piece] {
         &self.blocking_pieces
     }
-    pub fn blocking_amount(&self, prefs: &InteractionPreferences) -> f32 {
+    pub fn blocking_amount(&self, prefs: &AnimationPreferences) -> f32 {
         if prefs.blocking_anim_duration == 0.0 {
             0.0
         } else {

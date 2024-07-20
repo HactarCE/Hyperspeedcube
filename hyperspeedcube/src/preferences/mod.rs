@@ -11,11 +11,11 @@ use std::sync::mpsc;
 use bitvec::vec::BitVec;
 use eyre::{eyre, OptionExt};
 use hyperpuzzle::Rgb;
-use instant::Duration;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
+mod animations;
 mod gfx;
 mod info;
 mod interaction;
@@ -33,6 +33,7 @@ mod persist_web;
 mod styles;
 mod view;
 
+pub use animations::*;
 pub use colors::*;
 pub use gfx::*;
 pub use info::*;
@@ -78,6 +79,7 @@ pub struct Preferences {
 
     pub info: InfoPreferences,
 
+    pub animation: WithPresets<AnimationPreferences>,
     pub gfx: GfxPreferences,
     pub interaction: WithPresets<InteractionPreferences>,
     pub styles: StylePreferences,
@@ -198,6 +200,7 @@ impl Preferences {
             version,
             log_file: _,
             info,
+            animation,
             gfx,
             interaction,
             styles,
@@ -214,6 +217,7 @@ impl Preferences {
 
         *version = migration::LATEST_VERSION;
         info.post_init();
+        animation.post_init(Some(&DEFAULT_PREFS.animation));
         gfx.post_init();
         interaction.post_init(Some(&DEFAULT_PREFS.interaction));
         styles.post_init();

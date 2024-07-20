@@ -3,7 +3,6 @@ use float_ord::FloatOrd;
 use hyperpuzzle::Rgb;
 use indexmap::IndexMap;
 use itertools::Itertools;
-use rand::seq::SliceRandom;
 use rand::Rng;
 use strum::{EnumIter, IntoEnumIterator};
 

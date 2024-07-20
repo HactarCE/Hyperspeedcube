@@ -5,7 +5,7 @@ use hyperpuzzle::{PieceMask, PuzzleState};
 use instant::Duration;
 
 use super::interpolate::InterpolateFn;
-use crate::preferences::InteractionPreferences;
+use crate::preferences::AnimationPreferences;
 
 /// If at least this much of a twist is animated in one frame, just skip the
 /// animation to reduce unnecessary flashing.
@@ -28,7 +28,7 @@ pub struct TwistAnimationState {
 impl TwistAnimationState {
     /// Steps the animation forward. Returns whether the puzzle should be
     /// redrawn next frame.
-    pub fn proceed(&mut self, delta: Duration, prefs: &InteractionPreferences) -> bool {
+    pub fn proceed(&mut self, delta: Duration, prefs: &AnimationPreferences) -> bool {
         if self.queue.is_empty() {
             self.queue_max = 0;
             false // Do not request redraw

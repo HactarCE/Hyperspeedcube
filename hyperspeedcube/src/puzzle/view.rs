@@ -250,7 +250,7 @@ impl PuzzleView {
             let puzzle = self.puzzle();
             let sim = self.sim.lock();
             let anim = sim.blocking_pieces_anim();
-            let amt = anim.blocking_amount(&sim.interaction_prefs.value);
+            let amt = anim.blocking_amount(&sim.animation_prefs.value);
             let pieces = PieceMask::from_iter(puzzle.pieces.len(), anim.pieces().iter().copied());
             self.styles.set_blocking_pieces(pieces, amt);
         }

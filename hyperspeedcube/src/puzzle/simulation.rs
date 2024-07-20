@@ -7,7 +7,7 @@ use hyperpuzzle::{Axis, LayerMask, PerPiece, PieceMask, Puzzle, PuzzleState, Twi
 use instant::Instant;
 
 use super::animations::{BlockingAnimationState, TwistAnimation, TwistAnimationState};
-use crate::preferences::{InteractionPreferences, Preferences, Preset};
+use crate::preferences::{AnimationPreferences, InteractionPreferences, Preferences, Preset};
 
 /// Puzzle simulation, which manages the puzzle state, animations, undo stack,
 /// etc.
@@ -30,6 +30,7 @@ pub struct PuzzleSimulation {
     cached_piece_transforms: PerPiece<Motor>,
 
     pub interaction_prefs: Preset<InteractionPreferences>,
+    pub animation_prefs: Preset<AnimationPreferences>,
 }
 impl PuzzleSimulation {
     pub fn new(puzzle: &Arc<Puzzle>, prefs: &Preferences) -> Self {
@@ -47,6 +48,7 @@ impl PuzzleSimulation {
             cached_piece_transforms,
 
             interaction_prefs: prefs.interaction.current_preset(),
+            animation_prefs: prefs.animation.current_preset(),
         }
     }
 
@@ -157,14 +159,11 @@ impl PuzzleSimulation {
         //     }
         // }
 
-        if self
-            .twist_anim
-            .proceed(delta, &self.interaction_prefs.value)
-        {
+        if self.twist_anim.proceed(delta, &self.animation_prefs.value) {
             self.update_piece_transforms();
             needs_redraw = true;
         }
-        needs_redraw |= self.blocking_anim.proceed(&self.interaction_prefs.value);
+        needs_redraw |= self.blocking_anim.proceed(&self.animation_prefs.value);
 
         if needs_redraw {
             self.last_frame_time = Some(now);

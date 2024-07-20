@@ -9,6 +9,25 @@ info:
     opacity: 0.95
     max_font_size: 1.5
   modifier_toggles: false
+animation:
+  last_loaded: Medium
+  presets:
+  - preset_name: Slow
+    dynamic_twist_speed: true
+    twist_duration: 1.0
+    blocking_anim_duration: 2.0
+  - preset_name: Medium
+    dynamic_twist_speed: true
+    twist_duration: 0.2
+    blocking_anim_duration: 1.0
+  - preset_name: Fast
+    dynamic_twist_speed: true
+    twist_duration: 0.1
+    blocking_anim_duration: 0.5
+  - preset_name: Instant
+    dynamic_twist_speed: true
+    twist_duration: 0.0
+    blocking_anim_duration: 0.25
 gfx:
   fps_limit: 60
   msaa: true
@@ -22,10 +41,6 @@ interaction:
       realign_on_release: false
       realign_on_keypress: true
       smart_realign: true
-      dynamic_twist_speed: true
-      twist_duration: 0.2
-      blocking_anim_duration: 1.0
-      other_anim_duration: 0.15
 styles:
   dark_background_color: '#1b1b1b'
   light_background_color: '#f8f8f8'

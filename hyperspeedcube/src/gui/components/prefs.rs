@@ -7,7 +7,8 @@ use crate::gui::components::WidgetWithReset;
 use crate::gui::ext::*;
 use crate::gui::util::Access;
 use crate::preferences::{
-    InteractionPreferences, PuzzleViewPreferencesSet, StyleColorMode, ViewPreferences,
+    AnimationPreferences, InteractionPreferences, PuzzleViewPreferencesSet, StyleColorMode,
+    ViewPreferences,
 };
 
 const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
@@ -134,6 +135,14 @@ impl<'a, T> PrefsUi<'a, T> {
             reset_value,
             reset_value_str,
             make_widget: drag_value_percent,
+        })
+    }
+
+    pub fn animation_duration(&mut self, label: &str, access: Access<T, f32>) -> egui::Response {
+        let range = 0.0..=5.0_f32;
+        let speed = (access.get_ref)(self.current).at_least(0.1) / 100.0; // logarithmic speed
+        self.num(label, access, |dv| {
+            dv.fixed_decimals(2).clamp_range(range).speed(speed)
         })
     }
 
@@ -372,8 +381,9 @@ pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreference
                  adds a full-puzzle rotation to the undo history.",
             );
     });
-
-    prefs_ui.collapsing("Animations", |mut prefs_ui| {
+}
+pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) {
+    prefs_ui.collapsing("Twists", |mut prefs_ui| {
         prefs_ui
             .checkbox("Dynamic twist speed", access!(.dynamic_twist_speed))
             .on_hover_explanation(
@@ -383,20 +393,18 @@ pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreference
                  moves are complete, the twist speed resets.",
             );
 
-        let speed = prefs_ui.current.twist_duration.at_least(0.1) / 100.0; // logarithmic speed
-        prefs_ui.num("Twist duration", access!(.twist_duration), |dv| {
-            dv.fixed_decimals(2).clamp_range(0.0..=5.0_f32).speed(speed)
-        });
-
-        let speed = prefs_ui.current.other_anim_duration.at_least(0.1) / 100.0; // logarithmic speed
+        prefs_ui.animation_duration("Twist duration", access!(.twist_duration));
+    });
+    prefs_ui.collapsing("Other", |mut prefs_ui| {
         prefs_ui
-            .num("Other animations", access!(.other_anim_duration), |dv| {
-                dv.fixed_decimals(2).clamp_range(0.0..=1.0_f32).speed(speed)
-            })
+            .animation_duration(
+                "Blocking animation duration",
+                access!(.blocking_anim_duration),
+            )
             .on_hover_explanation(
                 "",
-                "Number of seconds for other animations, \
-                 such as hiding a piece.",
+                "Duration of the animation when \
+                 a piece is blocking a twist.",
             );
     });
 }
