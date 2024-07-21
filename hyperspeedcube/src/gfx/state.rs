@@ -1,6 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
+use egui::NumExt;
 use wgpu::util::DeviceExt;
 
 use super::pipelines::Pipelines;
@@ -69,7 +70,7 @@ impl GraphicsState {
         len: usize,
         usage: wgpu::BufferUsages,
     ) -> wgpu::Buffer {
-        let size = std::mem::size_of::<T>() * len;
+        let size = std::mem::size_of::<T>() * len.at_least(1); // don't make an empty buffer
         self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(&label.to_string()),
             size: wgpu::util::align_to(size as u64, wgpu::COPY_BUFFER_ALIGNMENT),
@@ -112,6 +113,16 @@ impl GraphicsState {
         }
 
         self.device.create_texture(&desc)
+    }
+
+    pub(super) fn write_buffer<T: bytemuck::NoUninit>(
+        &self,
+        buffer: &wgpu::Buffer,
+        offset: wgpu::BufferAddress,
+        data: &[T],
+    ) {
+        self.queue
+            .write_buffer(buffer, offset, bytemuck::cast_slice(data));
     }
 }
 

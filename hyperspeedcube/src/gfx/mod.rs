@@ -6,6 +6,7 @@ mod bindings;
 mod cache;
 mod draw_params;
 mod pipelines;
+mod placeholder;
 mod puzzle;
 mod state;
 mod structs;

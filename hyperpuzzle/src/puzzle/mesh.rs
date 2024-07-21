@@ -128,6 +128,11 @@ impl Mesh {
         }
     }
 
+    /// Returns whether the puzzle has no vertices.
+    pub fn is_empty(&self) -> bool {
+        self.vertex_count() == 0
+    }
+
     /// Returns the number of surfaces in the mesh, including puzzle surfaces
     /// and twist gizmo surfaces.
     pub fn surface_count(&self) -> usize {
@@ -151,7 +156,8 @@ impl Mesh {
         self.edges.len()
     }
 
-    pub(crate) fn add_puzzle_vertex(&mut self, data: MeshVertexData<'_>) -> Result<u32> {
+    /// Adds a vertex to the mesh and returns the vertex ID.
+    pub fn add_puzzle_vertex(&mut self, data: MeshVertexData<'_>) -> Result<u32> {
         ensure!(
             self.gizmo_vertex_count == 0,
             "puzzle mesh must be constructed before twist gizmos",
@@ -185,7 +191,8 @@ impl Mesh {
 
         Ok(vertex_id)
     }
-    pub(crate) fn next_polygon_id(&mut self) -> Result<u32> {
+    /// Adds a polygon to the mesh and returns its ID.
+    pub fn next_polygon_id(&mut self) -> Result<u32> {
         let ret = self.polygon_count as u32;
         self.polygon_count = self
             .polygon_count
@@ -195,7 +202,7 @@ impl Mesh {
     }
 
     /// Adds a sticker to the mesh.
-    pub(crate) fn add_sticker(
+    pub fn add_sticker(
         &mut self,
         polygon_range: Range<usize>,
         triangle_range: Range<u32>,
@@ -292,7 +299,7 @@ impl Mesh {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(crate) struct MeshVertexData<'a> {
+pub struct MeshVertexData<'a> {
     pub position: &'a Vector,
     pub u_tangent: &'a Vector,
     pub v_tangent: &'a Vector,

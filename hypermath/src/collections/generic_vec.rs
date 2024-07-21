@@ -365,7 +365,7 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     }
     /// Applies a function to every value in the collection and returns a new
     /// collection.
-    pub fn map_ref<U>(&self, mut f: impl FnMut(I, &E) -> U) -> GenericVec<I, U> {
+    pub fn map_ref<'a, U>(&'a self, mut f: impl FnMut(I, &'a E) -> U) -> GenericVec<I, U> {
         self.iter().map(|(i, e)| f(i, e)).collect()
     }
     /// Applies a function to every value in the collection and returns a new

@@ -5,6 +5,7 @@
 //! 3. Composite results and antialias.
 //! 4. Repeat all three steps for each opacity level.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::ops::Range;
@@ -14,9 +15,10 @@ use std::sync::Arc;
 use egui::NumExt;
 use eyre::Result;
 use hypermath::prelude::*;
-use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb};
+use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker};
 use itertools::Itertools;
 use parking_lot::Mutex;
+use smallvec::SmallVec;
 
 use crate::preferences::StyleColorMode;
 
@@ -177,8 +179,14 @@ pub(crate) struct PuzzleRenderer {
     model: Arc<StaticPuzzleModel>,
     /// GPU dynamic buffers, whose contents do change.
     buffers: DynamicPuzzleBuffers,
-    /// Puzzle info.
-    puzzle: Arc<Puzzle>,
+
+    /// Puzzle name.
+    puzzle_name: String,
+    /// Stickers that are part of each piece.
+    puzzle_pieces: PerPiece<SmallVec<[Sticker; 8]>>,
+    /// Color for each sticker.
+    puzzle_sticker_colors: PerSticker<hyperpuzzle::Color>,
+    is_placeholder_model: bool,
 
     /// Puzzle vertex positions in homogeneous 3D space.
     pub puzzle_vertex_3d_positions:
@@ -197,12 +205,17 @@ impl Clone for PuzzleRenderer {
     fn clone(&self) -> Self {
         Self {
             gfx: Arc::clone(&self.gfx),
-            puzzle: Arc::clone(&self.puzzle),
             model: Arc::clone(&self.model),
             buffers: self.buffers.clone(&self.gfx),
 
+            puzzle_name: self.puzzle_name.clone(),
+            puzzle_pieces: self.puzzle_pieces.clone(),
+            puzzle_sticker_colors: self.puzzle_sticker_colors.clone(),
+
             puzzle_vertex_3d_positions: self.puzzle_vertex_3d_positions.clone(),
             gizmo_vertex_3d_positions: self.gizmo_vertex_3d_positions.clone(),
+
+            is_placeholder_model: self.is_placeholder_model,
 
             last_draw_params: None,
             cursor_pos: None,
@@ -212,12 +225,37 @@ impl Clone for PuzzleRenderer {
 
 impl PuzzleRenderer {
     pub fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Self {
+        let is_empty_model = puzzle.mesh.is_empty();
+
+        let mesh = if is_empty_model {
+            let placeholder_mesh = super::placeholder::placeholder_mesh(puzzle.ndim());
+            Cow::Owned(placeholder_mesh.expect("error generating placeholder mesh"))
+        } else {
+            Cow::Borrowed(&puzzle.mesh)
+        };
+
+        let puzzle_name = puzzle.name.clone();
+        let puzzle_pieces = if is_empty_model {
+            super::placeholder::pieces()
+        } else {
+            puzzle.pieces.map_ref(|_, piece| piece.stickers.clone())
+        };
+        let puzzle_sticker_colors = if is_empty_model {
+            super::placeholder::sticker_colors()
+        } else {
+            puzzle.stickers.map_ref(|_, sticker| sticker.color)
+        };
+
         let id = next_buffer_id();
         PuzzleRenderer {
             gfx: Arc::clone(gfx),
-            model: Arc::new(StaticPuzzleModel::new(&gfx, &puzzle.mesh, id, &puzzle)),
-            buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &puzzle.mesh, id),
-            puzzle: Arc::clone(puzzle),
+            model: Arc::new(StaticPuzzleModel::new(&gfx, &mesh, id)),
+            buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &mesh, id),
+
+            puzzle_name,
+            puzzle_pieces,
+            puzzle_sticker_colors,
+            is_placeholder_model: is_empty_model,
 
             puzzle_vertex_3d_positions: CachedGpuCompute::new(Arc::clone(&gfx)),
             gizmo_vertex_3d_positions: CachedGpuCompute::new(Arc::clone(&gfx)),
@@ -242,14 +280,14 @@ impl PuzzleRenderer {
             || self.last_draw_params.as_ref() != Some(draw_params);
 
         if needs_redraw {
-            log::trace!("Redrawing puzzle {:?}", self.puzzle.name);
+            log::trace!("Redrawing puzzle {:?}", self.puzzle_name);
             self.last_draw_params = Some(draw_params.clone());
 
             // Recompute 3D vertex positions and fetch them from the GPU.
             if self.puzzle_vertex_3d_positions.changed || self.gizmo_vertex_3d_positions.changed {
                 log::trace!(
                     "Recomputing 3D vertex positions for puzzle {:?}",
-                    self.puzzle.name,
+                    self.puzzle_name,
                 );
                 self.compute_3d_vertex_positions(encoder)?;
             }
@@ -273,7 +311,7 @@ impl PuzzleRenderer {
             }
         }
 
-        if !draw_params.is_dragging_view {
+        if !draw_params.is_dragging_view && !self.model.is_empty() {
             self.puzzle_vertex_3d_positions
                 .download_if_stable(&self.buffers.vertex_3d_positions.slice(..), |buffer| {
                     bytes_to_vec_cgmath_vector4_f32(&buffer)
@@ -300,6 +338,12 @@ impl PuzzleRenderer {
         encoder: &mut wgpu::CommandEncoder,
         draw_params: &DrawParams,
     ) -> Result<Vec<GeometryBucket>> {
+        let draw_params = if self.is_placeholder_model {
+            Cow::Owned(super::placeholder::modify_draw_params(draw_params.clone()))
+        } else {
+            Cow::Borrowed(draw_params)
+        };
+
         // Make the textures the right size.
         let size = draw_params.cam.target_size;
         self.buffers.polygons_texture.set_size(size);
@@ -307,10 +351,6 @@ impl PuzzleRenderer {
         self.buffers.edge_ids_texture.set_size(size);
         self.buffers.edge_ids_depth_texture.set_size(size);
         self.buffers.composite_texture.set_size(size);
-
-        if self.model.is_empty() {
-            return Ok(vec![]);
-        }
 
         // Compute the Z coordinate of the 3D camera; i.e., where the projection
         // rays converge (which may be behind the puzzle). This gives us either
@@ -462,12 +502,16 @@ impl PuzzleRenderer {
             .write(&color_palette_data);
 
         if draw_params.piece_styles.is_empty() {
-            log::error!("no piece styles");
+            // If there's no pieces at all, then this is ok. But if there are
+            // any pieces, then we need at least one piece style as a fallback.
+            if !self.puzzle_pieces.is_empty() {
+                log::error!("no piece styles");
+            }
             return Ok(vec![]);
         }
 
         // Create a map from pieces to styles.
-        let mut piece_style_indices = self.puzzle.pieces.map_ref(|_, _| 0);
+        let mut piece_style_indices = self.puzzle_pieces.map_ref(|_, _| 0);
         for (i, (_style, piece_set)) in draw_params.piece_styles.iter().enumerate() {
             for piece in piece_set.iter() {
                 piece_style_indices[piece] = i;
@@ -482,7 +526,7 @@ impl PuzzleRenderer {
             r.start as usize..r.end as usize
         }
 
-        for (piece, piece_info) in &self.puzzle.pieces {
+        for (piece, stickers) in &self.puzzle_pieces {
             let style = draw_params.piece_styles[piece_style_indices[piece]].0;
 
             // Should the faces/outlines use the sticker color?
@@ -490,9 +534,9 @@ impl PuzzleRenderer {
             let mut outline_color_mode = style.outline_color;
             outline_color_mode.make_same_if(!draw_params.outlines_may_use_sticker_color());
 
-            for &sticker in &piece_info.stickers {
+            for &sticker in stickers {
                 let sticker_color =
-                    FACES_BASE_COLOR_ID + self.puzzle.stickers[sticker].color.0 as u32;
+                    FACES_BASE_COLOR_ID + self.puzzle_sticker_colors[sticker].0 as u32;
 
                 // Write sticker face colors.
                 let face_color_id = match face_color_mode {
@@ -543,21 +587,12 @@ impl PuzzleRenderer {
 
         // Ok but now actually write that data.
         // TODO: only write to buffer when it changes
-        self.gfx.queue.write_buffer(
-            &self.buffers.polygon_color_ids,
-            0,
-            bytemuck::cast_slice(&polygon_color_ids_data),
-        );
-        self.gfx.queue.write_buffer(
-            &self.buffers.outline_color_ids,
-            0,
-            bytemuck::cast_slice(&outline_color_ids_data),
-        );
-        self.gfx.queue.write_buffer(
-            &self.buffers.outline_radii,
-            0,
-            bytemuck::cast_slice(&outline_radii_data),
-        );
+        self.gfx
+            .write_buffer(&self.buffers.polygon_color_ids, 0, &polygon_color_ids_data);
+        self.gfx
+            .write_buffer(&self.buffers.outline_color_ids, 0, &outline_color_ids_data);
+        self.gfx
+            .write_buffer(&self.buffers.outline_radii, 0, &outline_radii_data);
 
         // Make a list of unique opacity values in sorted order.
         let mut bucket_opacities: Vec<u8> = draw_params
@@ -574,7 +609,7 @@ impl PuzzleRenderer {
         }
         // For each bucket, get the set of pieces whose faces/edges are in that
         // bucket.
-        let empty_piece_set = PieceMask::new_empty(self.puzzle.pieces.len());
+        let empty_piece_set = PieceMask::new_empty(self.puzzle_pieces.len());
         let mut bucket_face_pieces = vec![empty_piece_set; bucket_opacities.len()];
         let mut bucket_edge_pieces = bucket_face_pieces.clone();
         for (style, piece_set) in &draw_params.piece_styles {
@@ -667,7 +702,7 @@ impl PuzzleRenderer {
             self.write_geometry(encoder, geometry_type, src, dst, index_range, dst_offset);
         }
 
-        for &sticker in &self.puzzle.pieces[piece].stickers {
+        for &sticker in &self.puzzle_pieces[piece] {
             let index_range = match geometry_type {
                 GeometryType::Faces => &self.model.sticker_triangle_ranges[sticker],
                 GeometryType::Edges => &self.model.sticker_edge_ranges[sticker],
@@ -703,6 +738,10 @@ impl PuzzleRenderer {
     }
 
     fn compute_3d_vertex_positions(&mut self, encoder: &mut wgpu::CommandEncoder) -> Result<()> {
+        if self.model.is_empty() {
+            return Ok(());
+        }
+
         let pipeline = self
             .gfx
             .pipelines
@@ -744,6 +783,10 @@ impl PuzzleRenderer {
         bucket: &GeometryBucket,
         clear: bool,
     ) -> Result<()> {
+        if bucket.triangles_range.is_empty() {
+            return Ok(());
+        }
+
         let pipeline = &self.gfx.pipelines.render_polygons;
 
         let bind_groups = pipeline.bind_groups(pipelines::render_polygons::Bindings {
@@ -778,6 +821,10 @@ impl PuzzleRenderer {
         bucket: &GeometryBucket,
         clear: bool,
     ) -> Result<()> {
+        if bucket.edges_range.is_empty() {
+            return Ok(());
+        }
+
         let pipeline = &self.gfx.pipelines.render_edge_ids;
 
         let bind_groups = pipeline.bind_groups(pipelines::render_edge_ids::Bindings {
@@ -852,7 +899,7 @@ struct_with_constructor! {
     /// Static buffers for a puzzle type.
     struct StaticPuzzleModel { ... }
     impl StaticPuzzleModel {
-        fn new(gfx: &GraphicsState, mesh: &Mesh, id: usize, puzzle: &Puzzle) -> Self {
+        fn new(gfx: &GraphicsState, mesh: &Mesh, id: usize) -> Self {
             {
                 macro_rules! buffer {
                     ($mesh:ident.$name:ident, $usage:expr) => {{
@@ -941,7 +988,6 @@ impl fmt::Debug for StaticPuzzleModel {
 
 impl StaticPuzzleModel {
     fn is_empty(&self) -> bool {
-        // TODO: what if internals are hidden? this isn't really surefire
         self.vertex_count == 0
     }
 }
@@ -981,7 +1027,7 @@ struct_with_constructor! {
                 /// Polygon color IDs.
                 polygon_color_ids: wgpu::Buffer = gfx.create_buffer::<u32>(
                     label("polygon_color_ids"),
-                    mesh.edge_count(),
+                    mesh.polygon_count,
                     wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
                 ),
                 /// Outline color IDs.
