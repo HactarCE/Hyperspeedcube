@@ -102,7 +102,7 @@ jobs:
       - name: Merge universal binary
         run: lipo -create -output target/release/hyperspeedcube target/x86_64-apple-darwin/release/hyperspeedcube target/release/hyperspeedcube
       - name: Make app
-        run: cargo bundle --release
+        run: CARGO_BUNDLE_SKIP_BUILD= cargo bundle --release
       - name: Make tarball
         run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz target/release/bundle/osx/Hyperspeedcube.app
       - name: Upload app
