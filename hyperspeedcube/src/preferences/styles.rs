@@ -4,23 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use super::{Rgb, WithPresets};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct StyleId(u64);
-impl StyleId {
-    pub fn next() -> Self {
-        Self(NEXT_STYLE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
-    }
-}
-impl Default for StyleId {
-    fn default() -> Self {
-        Self::next()
-    }
-}
-
-lazy_static! {
-    static ref NEXT_STYLE_ID: AtomicU64 = AtomicU64::new(1);
-}
-
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct StylePreferences {
@@ -50,13 +33,9 @@ impl StylePreferences {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq)]
 #[serde(default)]
 pub struct PieceStyle {
-    /// Unique ID that lasts only for the lifetime of the program.
-    #[serde(skip)]
-    pub id: StyleId,
-
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interactable: Option<bool>,
 
@@ -73,18 +52,6 @@ pub struct PieceStyle {
     pub outline_color: Option<StyleColorMode>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outline_lighting: Option<bool>,
-}
-impl PartialEq for PieceStyle {
-    fn eq(&self, other: &Self) -> bool {
-        // ignore ID
-        self.interactable == other.interactable
-            && self.face_opacity == other.face_opacity
-            && self.face_color == other.face_color
-            && self.outline_opacity == other.outline_opacity
-            && self.outline_size == other.outline_size
-            && self.outline_color == other.outline_color
-            && self.outline_lighting == other.outline_lighting
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Display, Default, Copy, Clone, PartialEq, Eq, Hash)]

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hyperpuzzle::{Piece, PieceMask};
 
-use crate::preferences::{StyleColorMode, StyleId, StylePreferences};
+use crate::preferences::{StyleColorMode, StylePreferences};
 
 /// Returns a closure that updates the given style state.
 #[macro_export]
@@ -103,7 +103,7 @@ impl PuzzleStyleStates {
         let inv_pieces = !pieces.clone();
 
         for (old_state, old_pieces) in std::mem::take(&mut self.piece_sets) {
-            let new_state_in_set = modify_state_in_set(old_state);
+            let new_state_in_set = modify_state_in_set(old_state.clone());
             let new_state_not_in_set = modify_state_not_in_set(old_state);
             if new_state_in_set != new_state_not_in_set {
                 let pieces_in_set = old_pieces.clone() & pieces;
@@ -146,10 +146,13 @@ impl PuzzleStyleStates {
 
     /// Returns the set of pieces for which `filter_fn` returns `true` on their
     /// style.
-    pub fn filter_pieces_by_style(&self, filter_fn: impl Fn(PieceStyleState) -> bool) -> PieceMask {
+    pub fn filter_pieces_by_style(
+        &self,
+        filter_fn: impl Fn(&PieceStyleState) -> bool,
+    ) -> PieceMask {
         self.piece_sets
             .iter()
-            .filter(|(style_state, _piece_set)| filter_fn(**style_state))
+            .filter(|(style_state, _piece_set)| filter_fn(*style_state))
             .map(|(_style_state, piece_set)| piece_set)
             .fold(PieceMask::new_empty(self.piece_count), |a, b| a | b)
     }
@@ -177,9 +180,9 @@ pub struct PieceStyleValues {
 }
 
 /// Style state for a piece.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct PieceStyleState {
-    pub base: StyleId,
+    pub base: String,
 
     pub hidden: bool,
     pub blind: bool,
@@ -194,13 +197,11 @@ pub struct PieceStyleState {
 impl PieceStyleState {
     /// Returns whether a piece with this style state is interactable (can be
     /// hovered with the cursor).
-    fn interactable(self, styles: &StylePreferences) -> bool {
+    fn interactable(&self, styles: &StylePreferences) -> bool {
         let base = styles
             .custom
-            .user_list()
-            .iter()
+            .get(&self.base)
             .map(|p| p.value)
-            .find(|s| s.id == self.base)
             .and_then(|s| s.interactable);
         let hid = self.hidden.then_some(false);
         let ugp = self.ungripped.then_some(false);
@@ -208,14 +209,9 @@ impl PieceStyleState {
     }
 
     /// Returns how to draw a piece with this style state.
-    fn values(self, styles: &StylePreferences) -> PieceStyleValues {
+    fn values(&self, styles: &StylePreferences) -> PieceStyleValues {
         let def = styles.default;
-        let base = styles
-            .custom
-            .user_list()
-            .iter()
-            .map(|p| p.value)
-            .find(|s| s.id == self.base);
+        let base = styles.custom.get(&self.base).map(|p| p.value);
         let bld = self.blind.then_some(styles.blind);
         let gp = self.gripped.then_some(styles.gripped);
         let ugp = self.ungripped.then_some(styles.ungripped);

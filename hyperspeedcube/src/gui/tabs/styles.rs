@@ -5,7 +5,7 @@ use crate::{
     gui::{
         self,
         ext::ResponseExt,
-        util::{bullet_list, set_widget_spacing_to_space_width, EguiTempValue},
+        util::{set_widget_spacing_to_space_width, EguiTempValue},
     },
     preferences::{PieceStyle, Preset, StylePreferences, DEFAULT_PREFS},
 };
