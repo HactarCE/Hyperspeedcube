@@ -19,7 +19,11 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
             topology: wgpu::PrimitiveTopology::TriangleStrip,
             ..Default::default()
         },
-        fragment_target: Some(wgpu::ColorTargetState::from(target_format)),
+        fragment_target: Some(wgpu::ColorTargetState {
+            format: target_format,
+            blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
+            write_mask: wgpu::ColorWrites::all(),
+        }),
         ..Default::default()
     };
 });

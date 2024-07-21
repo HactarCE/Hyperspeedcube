@@ -424,7 +424,7 @@ fn transform_screen_space_to_world_ray(screen_space_xy: vec2<f32>) -> Ray {
     return out;
 }
 
-/// Returns a color by ID.
+/// Returns a color by ID, with premultiplied alpha.
 fn get_color(color_id: u32, lighting: f32) -> vec4<f32> {
     var light_value = lighting;
 
@@ -435,7 +435,9 @@ fn get_color(color_id: u32, lighting: f32) -> vec4<f32> {
 
     let index = color_id & 0x7FFFFFFFu;
 
-    return vec4(textureLoad(color_palette_texture, index, 0).rgb * light_value, 1.0);
+    let color = textureLoad(color_palette_texture, index, 0);
+    // Premultiply alpha.
+    return vec4(color.rgb * light_value, 1.0) * color.a;
 }
 /// Returns the lighting multiplier, given a normal vector.
 fn compute_lighting(normal: vec3<f32>, intensity: f32) -> f32 {
@@ -559,7 +561,7 @@ fn uv_vertex(in: UvVertexInput) -> UvVertexOutput {
 
 @fragment
 fn blit_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(blit_src_texture, blit_src_sampler, in.uv);
+    return linear_to_gamma(textureSample(blit_src_texture, blit_src_sampler, in.uv));
 }
 
 
@@ -1106,4 +1108,9 @@ fn turbo(value: f32, min: f32, max: f32) -> vec4<f32> {
         dot(v4, kBlueVec4)  + dot(v2, kBlueVec2),
         1.0,
     );
+}
+
+fn linear_to_gamma(linear: vec4<f32>) -> vec4<f32> {
+    // from http://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
+    return max(1.055 * pow(linear, vec4(0.416666667)) - 0.055, vec4(0.0));
 }

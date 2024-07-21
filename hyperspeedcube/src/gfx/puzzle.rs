@@ -258,6 +258,12 @@ impl PuzzleRenderer {
             // the first pass.
             let mut is_first = true;
             let opacity_buckets = self.init_buffers(encoder, draw_params)?;
+            if opacity_buckets.is_empty() {
+                encoder.clear_texture(
+                    &self.buffers.composite_texture.texture,
+                    &wgpu::ImageSubresourceRange::default(),
+                );
+            }
             for bucket in opacity_buckets {
                 self.render_polygons(encoder, &bucket, is_first)?;
                 self.render_edge_ids(encoder, &bucket, is_first)?;
@@ -410,18 +416,18 @@ impl PuzzleRenderer {
         // 1 = internals
         // 2+N = sticker color N
         // others = other colors (such as outlines)
-        let mut color_palette = vec![draw_params.background_color, draw_params.internals_color];
-        color_palette.extend((0..self.model.color_count).map(|i| {
+        let mut color_palette = vec![[0; 4], rgb_to_rgba(draw_params.internals_color)];
+        color_palette.extend(
             draw_params
                 .sticker_colors
-                .get(i)
-                .copied()
-                .unwrap_or_default()
-        }));
+                .iter()
+                .map(|&rgb| rgb_to_rgba(rgb)),
+        );
         let mut color_ids: HashMap<Rgb, u32> = color_palette
             .iter()
             .enumerate()
-            .map(|(i, &rgb)| (Rgb { rgb }, i as u32))
+            .filter(|(_, &[_, _, _, a])| a == 255)
+            .map(|(i, &[r, g, b, _])| (Rgb { rgb: [r, g, b] }, i as u32))
             .collect();
         for c in draw_params
             .piece_styles
@@ -431,7 +437,7 @@ impl PuzzleRenderer {
             if let Some(new_color) = c.fixed_color() {
                 color_ids.entry(new_color).or_insert_with(|| {
                     let idx = color_palette.len() as u32;
-                    color_palette.push(new_color.rgb);
+                    color_palette.push(rgb_to_rgba(new_color.rgb));
                     idx
                 });
             }
@@ -450,10 +456,7 @@ impl PuzzleRenderer {
             .set_size(color_palette_size);
 
         // Write color palette. TOOD: only write to buffer when it changes
-        let color_palette_data = color_palette
-            .into_iter()
-            .map(|[r, g, b]| [r, g, b, 255])
-            .collect_vec();
+        let color_palette_data = color_palette;
         self.buffers
             .color_palette_texture
             .write(&color_palette_data);
@@ -1075,7 +1078,7 @@ struct_with_constructor! {
                 composite_texture: CachedTexture2d = CachedTexture2d::new(
                     Arc::clone(&gfx),
                     label("composite_texture"),
-                    wgpu::TextureFormat::Rgba8UnormSrgb,
+                    wgpu::TextureFormat::Rgba16Float,
                     wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 ),
             }
@@ -1260,4 +1263,8 @@ fn bytes_to_vec_cgmath_vector4_f32<T: bytemuck::AnyBitPattern>(
         .chunks_exact(4)
         .map(|a| cgmath::vec4(a[0], a[1], a[2], a[3]))
         .collect()
+}
+
+fn rgb_to_rgba([r, g, b]: [u8; 3]) -> [u8; 4] {
+    [r, g, b, 255]
 }

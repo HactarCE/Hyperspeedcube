@@ -378,14 +378,18 @@ impl PuzzleWidget {
 
         // Draw puzzle.
         let painter = ui.painter_at(r.rect);
-        painter.add(eframe::egui_wgpu::Callback::new_paint_callback(
-            r.rect,
-            PuzzleRenderResources {
-                gfx: Arc::clone(&renderer.gfx),
-                renderer: Arc::clone(&self.renderer),
-                draw_params,
-            },
-        ));
+        let background_color =
+            crate::util::rgb_to_egui_color32(prefs.styles.background_color(ui.visuals().dark_mode));
+        ui.painter().rect_filled(r.rect, 0.0, background_color);
+        ui.painter()
+            .add(eframe::egui_wgpu::Callback::new_paint_callback(
+                r.rect,
+                PuzzleRenderResources {
+                    gfx: Arc::clone(&renderer.gfx),
+                    renderer: Arc::clone(&self.renderer),
+                    draw_params,
+                },
+            ));
 
         self.queued_arrows.extend(self.view.drag_delta_3d());
 

@@ -8,6 +8,8 @@ extern crate lazy_static;
 #[macro_use]
 extern crate strum;
 
+use std::sync::Arc;
+
 use gui::AppUi;
 use hyperpuzzle::Library;
 use parking_lot::Mutex;
@@ -90,6 +92,15 @@ async fn run() -> eframe::Result<()> {
     let icon_data = eframe::icon_data::from_png_bytes(ICON_32_PNG_DATA)
         .expect("error loading application icon");
 
+    // Request WGPU features.
+    let mut wgpu_options = eframe::egui_wgpu::WgpuConfiguration::default();
+    let old_device_descriptor_fn = Arc::clone(&wgpu_options.device_descriptor);
+    wgpu_options.device_descriptor = Arc::new(move |adapter| {
+        let mut device_descriptor = old_device_descriptor_fn(adapter);
+        device_descriptor.required_features |= wgpu::Features::CLEAR_TEXTURE;
+        device_descriptor
+    });
+
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title(crate::TITLE)
@@ -97,6 +108,7 @@ async fn run() -> eframe::Result<()> {
             .with_icon(icon_data)
             .with_maximized(true)
             .with_min_inner_size([400.0, 300.0]),
+        wgpu_options,
         ..Default::default()
     };
 
