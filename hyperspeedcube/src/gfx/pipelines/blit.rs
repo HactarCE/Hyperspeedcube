@@ -10,10 +10,15 @@ pipeline!(pub(in crate::gfx) struct Pipeline {
 
     struct PipelineParams {
         target_format: wgpu::TextureFormat,
+        premultiply_alpha: bool,
     }
     let pipeline_descriptor = RenderPipelineDescriptor {
         vertex_entry_point: "uv_vertex",
-        fragment_entry_point: "blit_fragment",
+        fragment_entry_point: if premultiply_alpha {
+            "blit_fragment"
+        } else {
+            "blit_fragment_unmultiply_alpha"
+        },
         vertex_buffers: &[UvVertex::LAYOUT],
         primitive: wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleStrip,

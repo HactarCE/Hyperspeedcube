@@ -711,8 +711,8 @@ pub fn color_edit(
         has_been_copied.set();
     }
     if has_been_copied.get() {
-        if r.hovered() {
-            // Show the tooltip immediately, with no delay
+        if r.hovered() || r.has_focus() {
+            // Show the tooltip with no delay
             egui::show_tooltip_for(ui.ctx(), r.id, &r.rect, |ui| ui.label("Copied!"));
         } else {
             // Hide the tooltip when the mouse leaves

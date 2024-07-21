@@ -106,6 +106,8 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::ModifierKeys);
         ui.separator();
         show_tab_toggle(ui, app_ui, Tab::Scrambler);
+        ui.separator();
+        show_tab_toggle(ui, app_ui, Tab::ImageGenerator);
     });
     ui.menu_button("Puzzles", |ui| {
         show_tab_toggle(ui, app_ui, Tab::PuzzleLibrary);

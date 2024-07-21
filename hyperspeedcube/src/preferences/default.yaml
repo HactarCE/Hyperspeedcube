@@ -9,6 +9,10 @@ info:
     opacity: 0.95
     max_font_size: 1.5
   modifier_toggles: false
+image_generator:
+  filename: output.png
+  width: 1024
+  height: 1024
 animation:
   last_loaded: Medium
   presets:

@@ -6,6 +6,7 @@ mod animations;
 mod camera;
 mod colors;
 mod debug;
+mod image_generator;
 mod interaction;
 mod keybinds;
 mod keybinds_reference;
@@ -67,6 +68,7 @@ pub enum Tab {
 
     // Tools
     Camera,
+    ImageGenerator,
     Macros,
     ModifierKeys,
     MoveInput,
@@ -109,6 +111,7 @@ impl Tab {
             Tab::Mousebinds => "Mousebinds",
 
             Tab::Camera => "Camera",
+            Tab::ImageGenerator => "Image generator",
             Tab::Macros => "Macros",
             Tab::ModifierKeys => "Modifier keys",
             Tab::MoveInput => "Move input",
@@ -146,6 +149,7 @@ impl Tab {
             Tab::Mousebinds => "Mousebinds".into(),
 
             Tab::Camera => "Camera".into(),
+            Tab::ImageGenerator => "Image Generator".into(),
             Tab::Macros => "Macros".into(),
             Tab::ModifierKeys => "Modifier Keys".into(),
             Tab::MoveInput => "Move Input".into(),
@@ -180,6 +184,7 @@ impl Tab {
             Tab::Mousebinds => mousebinds::show(ui, app),
 
             Tab::Camera => camera::show(ui, app),
+            Tab::ImageGenerator => image_generator::show(ui, app),
             Tab::Macros => macros::show(ui, app),
             Tab::ModifierKeys => modifier_keys::show(ui, app),
             Tab::MoveInput => move_input::show(ui, app),

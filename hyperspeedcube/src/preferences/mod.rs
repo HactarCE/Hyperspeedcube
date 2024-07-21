@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 mod animations;
 mod gfx;
+mod image_generator;
 mod info;
 mod interaction;
 mod keybinds;
@@ -36,6 +37,7 @@ mod view;
 pub use animations::*;
 pub use colors::*;
 pub use gfx::*;
+pub use image_generator::*;
 pub use info::*;
 pub use interaction::*;
 pub use keybinds::*;
@@ -78,6 +80,8 @@ pub struct Preferences {
     pub log_file: Option<PathBuf>,
 
     pub info: InfoPreferences,
+
+    pub image_generator: ImageGeneratorPreferences,
 
     pub animation: WithPresets<AnimationPreferences>,
     pub gfx: GfxPreferences,
@@ -199,6 +203,7 @@ impl Preferences {
             needs_save_eventually: _,
             version,
             log_file: _,
+            image_generator: _,
             info,
             animation,
             gfx,

@@ -124,9 +124,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         *prefs.changed |= r.changed();
     });
 
-    if changed {
-        app.prefs.needs_save = true;
-    }
+    app.prefs.needs_save |= changed;
 }
 
 fn show_builtin_style_selector<'a>(

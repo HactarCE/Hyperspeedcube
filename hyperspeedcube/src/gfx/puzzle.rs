@@ -10,12 +10,13 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 
 use egui::NumExt;
-use eyre::Result;
+use eyre::{bail, OptionExt, Result};
 use hypermath::prelude::*;
 use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker};
+use image::ImageBuffer;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::SmallVec;
@@ -85,7 +86,7 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
             ..Default::default()
         });
 
-        let pipeline = &self.gfx.pipelines.blit;
+        let pipeline = &self.gfx.pipelines.blit_to_egui;
         let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
             src_texture: &texture_view,
             src_sampler: match self.draw_params.cam.prefs().downscale_interpolate {
@@ -116,7 +117,7 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
             return;
         };
 
-        render_pass.set_pipeline(&self.gfx.pipelines.blit.pipeline);
+        render_pass.set_pipeline(&self.gfx.pipelines.blit_to_egui.pipeline);
         render_pass.set_bind_groups(bind_groups);
         render_pass.set_vertex_buffer(0, self.gfx.uv_vertex_buffer.slice(..));
         render_pass.draw(0..4, 0..1);
@@ -199,6 +200,9 @@ pub(crate) struct PuzzleRenderer {
     last_draw_params: Option<DrawParams>,
     /// Most recent cursor position.
     cursor_pos: Option<[f32; 2]>,
+
+    polygon_texture_needs_clear: bool,
+    edge_ids_texture_needs_clear: bool,
 }
 
 impl Clone for PuzzleRenderer {
@@ -219,6 +223,9 @@ impl Clone for PuzzleRenderer {
 
             last_draw_params: None,
             cursor_pos: None,
+
+            polygon_texture_needs_clear: false,
+            edge_ids_texture_needs_clear: false,
         }
     }
 }
@@ -262,7 +269,131 @@ impl PuzzleRenderer {
 
             last_draw_params: None,
             cursor_pos: None,
+
+            polygon_texture_needs_clear: false,
+            edge_ids_texture_needs_clear: false,
         }
+    }
+
+    pub fn screenshot(
+        &mut self,
+        width: u32,
+        height: u32,
+    ) -> Result<ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
+        let mut encoder = self
+            .gfx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("screenshot_encoder"),
+            });
+
+        let screenshot_size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+
+        // Draw puzzle.
+        let Some(mut draw_params) = self.last_draw_params.clone() else {
+            bail!("no draw params");
+        };
+        draw_params.cam.target_size = [width, height];
+        self.draw_puzzle(&mut encoder, &draw_params)?;
+
+        let output_texture = self.gfx.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("screenshot_texture"),
+            size: screenshot_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
+        });
+        let output_texture_view = output_texture.create_view(&wgpu::TextureViewDescriptor {
+            format: Some(dbg!(output_texture.format()).remove_srgb_suffix()),
+            ..Default::default()
+        });
+
+        let pipeline = &self.gfx.pipelines.blit_to_export;
+
+        let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
+            src_texture: &self.buffers.composite_texture.view,
+            src_sampler: match draw_params.cam.prefs().downscale_interpolate {
+                true => &self.gfx.bilinear_sampler,
+                false => &self.gfx.nearest_neighbor_sampler,
+            },
+        });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("screenshot_blit_render_pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &output_texture_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations::default(),
+                })],
+                ..Default::default()
+            });
+
+            render_pass.set_pipeline(&pipeline.pipeline);
+            render_pass.set_bind_groups(&bind_groups);
+            render_pass.set_vertex_buffer(0, self.gfx.uv_vertex_buffer.slice(..));
+            render_pass.draw(0..4, 0..1);
+        }
+
+        // Create a buffer to hold the output.
+        let output_buffer_size = (width * height * 4) as wgpu::BufferAddress;
+        let output_buffer_desc = wgpu::BufferDescriptor {
+            size: output_buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            label: Some("screenshot_buffer"),
+            mapped_at_creation: false,
+        };
+        let output_buffer = self.gfx.device.create_buffer(&output_buffer_desc);
+
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                aspect: wgpu::TextureAspect::All,
+                texture: &output_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: &output_buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some((4 * width).try_into().unwrap()),
+                    rows_per_image: Some(height.try_into().unwrap()),
+                },
+            },
+            screenshot_size,
+        );
+
+        let output_buffer = Arc::new(output_buffer);
+        let buffer_slice = output_buffer.slice(..);
+
+        let (tx, rx) = mpsc::channel();
+
+        // We have to create the mapping THEN `device.poll()` before awaiting
+        // the future. Otherwise the application will freeze.
+        let output_buffer_ref = Arc::clone(&output_buffer);
+        self.gfx.device.poll(wgpu::Maintain::wait_for(
+            self.gfx.queue.submit(std::iter::once(encoder.finish())),
+        ));
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            result.unwrap();
+            let data = output_buffer_ref.slice(..).get_mapped_range();
+
+            let _ = tx.send(
+                ImageBuffer::<image::Rgba<u8>, _>::from_raw(width, height, data.to_vec())
+                    .ok_or_eyre("error constructing image buffer"),
+            );
+        });
+        self.gfx.device.poll(wgpu::Maintain::Wait);
+        output_buffer.unmap();
+
+        Ok(rx.recv_timeout(std::time::Duration::from_secs(5))??)
     }
 
     pub fn draw_puzzle(
@@ -295,19 +426,21 @@ impl PuzzleRenderer {
             // Render each bucket. Use `is_first` to clear the texture only on
             // the first pass.
             let mut is_first = true;
+            self.polygon_texture_needs_clear = true;
+            self.edge_ids_texture_needs_clear = true;
             let opacity_buckets = self.init_buffers(encoder, draw_params)?;
-            if opacity_buckets.is_empty() {
-                encoder.clear_texture(
-                    &self.buffers.composite_texture.texture,
-                    &wgpu::ImageSubresourceRange::default(),
-                );
-            }
             for bucket in opacity_buckets {
                 self.render_polygons(encoder, &bucket, is_first)?;
                 self.render_edge_ids(encoder, &bucket, is_first)?;
                 self.render_composite_puzzle(encoder, bucket.opacity, is_first)?;
 
                 is_first = false;
+            }
+            if is_first {
+                encoder.clear_texture(
+                    &self.buffers.composite_texture.texture,
+                    &wgpu::ImageSubresourceRange::default(),
+                );
             }
         }
 
@@ -784,6 +917,9 @@ impl PuzzleRenderer {
         clear: bool,
     ) -> Result<()> {
         if bucket.triangles_range.is_empty() {
+            if clear {
+                encoder.clear_texture(&self.buffers.polygons_texture.texture, &Default::default());
+            }
             return Ok(());
         }
 
@@ -795,7 +931,7 @@ impl PuzzleRenderer {
         });
 
         let mut render_pass = pipelines::render_polygons::PassParams {
-            clear,
+            clear: std::mem::replace(&mut self.polygon_texture_needs_clear, false),
             ids_texture: &self.buffers.polygons_texture.view,
             ids_depth_texture: &self.buffers.polygons_depth_texture.view,
         }
@@ -822,6 +958,9 @@ impl PuzzleRenderer {
         clear: bool,
     ) -> Result<()> {
         if bucket.edges_range.is_empty() {
+            if clear {
+                encoder.clear_texture(&self.buffers.edge_ids_texture.texture, &Default::default());
+            }
             return Ok(());
         }
 
@@ -836,7 +975,7 @@ impl PuzzleRenderer {
         });
 
         let mut render_pass = pipelines::render_edge_ids::PassParams {
-            clear,
+            clear: std::mem::replace(&mut self.edge_ids_texture_needs_clear, false),
             ids_texture: &self.buffers.edge_ids_texture.view,
             ids_depth_texture: &self.buffers.edge_ids_depth_texture.view,
         }
@@ -1125,7 +1264,7 @@ struct_with_constructor! {
                     Arc::clone(&gfx),
                     label("composite_texture"),
                     wgpu::TextureFormat::Rgba16Float,
-                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 ),
             }
         }

@@ -561,7 +561,14 @@ fn uv_vertex(in: UvVertexInput) -> UvVertexOutput {
 
 @fragment
 fn blit_fragment(in: UvVertexOutput) -> @location(0) vec4<f32> {
-    return linear_to_gamma(textureSample(blit_src_texture, blit_src_sampler, in.uv));
+    var color = textureSample(blit_src_texture, blit_src_sampler, in.uv);
+    return linear_to_gamma(color);
+}
+
+@fragment
+fn blit_fragment_unmultiply_alpha(in: UvVertexOutput) -> @location(0) vec4<f32> {
+    var color = textureSample(blit_src_texture, blit_src_sampler, in.uv);
+    return linear_to_gamma(vec4(color.rgb / color.a, color.a));
 }
 
 

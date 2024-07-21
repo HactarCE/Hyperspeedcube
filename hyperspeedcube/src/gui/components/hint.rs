@@ -22,7 +22,8 @@ impl HelpHoverWidget {
         );
 
         let inner = if r.hovered() || r.has_focus() {
-            egui::containers::show_tooltip_for(ui.ctx(), unique_id!(), &r.rect, |ui| {
+            // Show the tooltip immediately
+            egui::show_tooltip_for(ui.ctx(), unique_id!(), &r.rect, |ui| {
                 // TODO: refactor this constant
                 ui.set_width(super::super::ext::EXPLANATION_TOOLTIP_WIDTH * 2.0);
                 add_contents(ui)

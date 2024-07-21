@@ -1,7 +1,9 @@
+use eyre::Result;
 use std::sync::Arc;
 
 use hypermath::prelude::*;
 use hyperpuzzle::{PieceMask, Puzzle};
+use image::ImageBuffer;
 use parking_lot::Mutex;
 
 use crate::gfx::*;
@@ -498,5 +500,13 @@ impl PuzzleWidget {
         // })();
 
         r
+    }
+
+    pub fn screenshot(
+        &mut self,
+        width: u32,
+        height: u32,
+    ) -> Result<ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
+        self.renderer.lock().screenshot(width, height)
     }
 }
