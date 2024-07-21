@@ -12,7 +12,7 @@ use pga::{Blade, Motor};
 use super::{AxisSystemBuilder, CustomOrdering};
 use crate::builder::NamingScheme;
 use crate::puzzle::{Axis, PerTwist, Twist};
-use crate::{AxisInfo, Mesh, PerAxis, PerGizmoFace, TwistInfo};
+use crate::{AxisInfo, GizmoFace, Mesh, PerAxis, PerGizmoFace, TwistInfo};
 
 /// Twist during puzzle construction.
 #[derive(Debug, Clone)]
@@ -252,7 +252,7 @@ impl TwistSystemBuilder {
         let mut gizmo_face_twists = PerGizmoFace::new();
         if space.ndim() == 4 {
             for (axis, axis_twists) in gizmo_twists {
-                Self::build_4d_gizmo(
+                let resulting_gizmo_faces = Self::build_4d_gizmo(
                     space,
                     mesh,
                     &axes[axis],
@@ -260,10 +260,13 @@ impl TwistSystemBuilder {
                     |id| &twists[id].name,
                     warn_fn,
                 )?;
-                for (_gizmo_pole, twist) in axis_twists {
+                for (_gizmo_face, twist) in resulting_gizmo_faces {
                     gizmo_face_twists.push(twist)?;
                 }
             }
+        }
+        if gizmo_face_twists.len() != mesh.gizmo_face_count {
+            bail!("error generating gizmo: face count mismatch");
         }
 
         // Assign reverse twists.
@@ -310,7 +313,7 @@ impl TwistSystemBuilder {
         twists: &[(Vector, Twist)],
         mut get_twist_name: impl FnMut(Twist) -> &'a str,
         warn_fn: impl Fn(eyre::Report),
-    ) -> Result<()> {
+    ) -> Result<Vec<(GizmoFace, Twist)>> {
         use hypershape::flat::*;
 
         // Cut a primordial polyhedron.
@@ -461,7 +464,7 @@ impl TwistSystemBuilder {
             resulting_gizmo_faces.push((new_gizmo_face, twist));
         }
 
-        Ok(())
+        Ok(resulting_gizmo_faces)
     }
 }
 
