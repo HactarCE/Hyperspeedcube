@@ -7,7 +7,7 @@ function def_simplex(letter, depths)
     colors = '4_simplex',
     build = function(self)
       local sym = cd'a4'
-      self:carve(sym:orbit(sym.xooo.unit):with({
+      self:carve(sym:orbit(sym.xooo.unit):named({
         A = {},
         B = {1, 'A'},
         C = {2, 'B'},
