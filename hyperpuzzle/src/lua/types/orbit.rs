@@ -16,8 +16,6 @@ pub struct LuaOrbit {
     symmetry: LuaSymmetry,
     init: Vec<Transformable>,
 
-    /// Whether names have been assigned.
-    has_names: bool,
     /// Indices into `orbit_list`, in iteration order. If `None`, it is assumed
     /// to be equivalent to `0..orbit_len.len()`.
     order: Option<Vec<usize>>,
@@ -48,20 +46,10 @@ impl LuaUserData for LuaOrbit {
         });
 
         fields.add_field_method_get("names", |lua, this| {
-            this.has_names
-                .then(|| {
-                    lua.create_sequence_from(this.orbit_list.iter().map(|elem| elem.name.clone()))
-                })
-                .transpose()
+            lua.create_sequence_from(this.orbit_list.iter().map(|elem| elem.name.clone()))
         });
         fields.add_field_method_get("displays", |lua, this| {
-            this.has_names
-                .then(|| {
-                    lua.create_sequence_from(
-                        this.orbit_list.iter().map(|elem| elem.display.clone()),
-                    )
-                })
-                .transpose()
+            lua.create_sequence_from(this.orbit_list.iter().map(|elem| elem.display.clone()))
         });
     }
 
@@ -97,10 +85,8 @@ impl LuaUserData for LuaOrbit {
                     }
                     // If custom names are given, then the last values are the
                     // custom names.
-                    if this.has_names {
-                        values.push(name.as_deref().into_lua(lua)?);
-                        values.push(display.as_deref().into_lua(lua)?);
-                    }
+                    values.push(name.as_deref().into_lua(lua)?);
+                    values.push(display.as_deref().into_lua(lua)?);
                 }
             }
             Ok(LuaMultiValue::from_vec(values))
@@ -131,7 +117,6 @@ impl LuaUserData for LuaOrbit {
             }
 
             let mut ret = this.clone();
-            ret.has_names = true;
             for elem in &mut ret.orbit_list {
                 if let Some(name) = motor_to_name.get(&elem.transform) {
                     elem.name = Some(name.clone());
@@ -182,7 +167,6 @@ impl LuaUserData for LuaOrbit {
                 symmetry: this.symmetry.clone(),
                 init: this.init.clone(),
 
-                has_names: true,
                 order: Some(order),
                 orbit_list: new_orbit_list,
 
@@ -211,7 +195,6 @@ impl LuaOrbit {
             symmetry,
             init,
 
-            has_names: false,
             order: None,
             orbit_list,
 
@@ -225,13 +208,6 @@ impl LuaOrbit {
     /// Returns the initial seed objects that this is the orbit of.
     pub fn init(&self) -> &[Transformable] {
         &self.init
-    }
-    /// Returns whether the orbit has custom names assigned to any elements.
-    pub fn has_names(&self) -> bool {
-        // Ok technically it's possible to have `names = Some(vec![])` in which
-        // case no elements have any names. But the comment above is accurate
-        // enough.
-        self.has_names
     }
     /// Returns an iterator over the whole orbit.
     fn iter_in_order(&self) -> impl Iterator<Item = &OrbitElement> {
