@@ -35,6 +35,13 @@ pub struct PuzzleView {
     puzzle_hover_state: Option<PuzzleHoverState>,
     /// What twist gizmo the cursor is hovering over. This is frozen during a drag.
     gizmo_hover_state: Option<GizmoHoverState>,
+
+    /// Whether to show the piece being hovered. This is updated every frame.
+    pub show_puzzle_hover: bool,
+    /// Whether to show the twist gizmo facet being hovered. This is updated
+    /// every frame.
+    pub show_gizmo_hover: bool,
+
     /// Cursor drag state.
     drag_state: Option<DragState>,
 }
@@ -67,6 +74,9 @@ impl PuzzleView {
             colors,
             temp_colors: None,
             styles: PuzzleStyleStates::new(puzzle.pieces.len()),
+
+            show_puzzle_hover: false,
+            show_gizmo_hover: false,
 
             cursor_pos: None,
             puzzle_hover_state: None,
@@ -135,8 +145,15 @@ impl PuzzleView {
             gizmo_vertex_3d_positions,
             prefs,
             exceeded_twist_drag_threshold,
-            show_sticker_hover,
+            hover_mode,
         } = input;
+
+        self.show_puzzle_hover = hover_mode == Some(HoverMode::Piece)
+            && self.drag_state.is_none()
+            && self.sim.lock().partial_twist().is_none()
+            && !self.sim.lock().has_twist_anim_queued();
+        self.show_gizmo_hover =
+            hover_mode == Some(HoverMode::TwistGizmo) && self.drag_state.is_none();
 
         let ndim = self.puzzle().ndim();
 
@@ -237,13 +254,8 @@ impl PuzzleView {
         }
 
         // Update hovered piece.
-        let new_hovered_piece = self.hovered_piece();
-        self.styles.set_hovered_piece(new_hovered_piece.filter(|_| {
-            show_sticker_hover
-                && self.drag_state.is_none()
-                && self.sim.lock().partial_twist().is_none()
-                && !self.sim.lock().has_twist_anim_queued()
-        }));
+        self.styles
+            .set_hovered_piece(self.hovered_piece().filter(|_| self.show_puzzle_hover));
 
         // Update blocking state.
         {
@@ -588,6 +600,13 @@ pub struct PuzzleViewInput<'a> {
     /// Whether the cursor has been dragged enough to begin a drag twist, if
     /// that's the type of drag happening.
     pub exceeded_twist_drag_threshold: bool,
-    /// Whether to show the hovered sticker.
-    pub show_sticker_hover: bool,
+    /// What the mouse can hover over.
+    pub hover_mode: Option<HoverMode>,
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum HoverMode {
+    #[default]
+    Piece,
+    TwistGizmo,
 }

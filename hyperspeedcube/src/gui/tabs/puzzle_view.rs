@@ -10,7 +10,9 @@ use crate::gfx::*;
 use crate::gui::util::EguiTempValue;
 use crate::gui::App;
 use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
-use crate::puzzle::{DragState, PieceStyleState, PuzzleSimulation, PuzzleView, PuzzleViewInput};
+use crate::puzzle::{
+    DragState, HoverMode, PieceStyleState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
+};
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
 /// purposes, but causes the puzzle to redraw every frame that the mouse moves,
@@ -252,7 +254,10 @@ impl PuzzleWidget {
             gizmo_vertex_3d_positions: renderer.gizmo_vertex_3d_positions.get(),
             prefs,
             exceeded_twist_drag_threshold,
-            show_sticker_hover: ui.input(|input| input.modifiers.shift),
+            hover_mode: match ui.input(|input| input.modifiers.shift) {
+                true => Some(HoverMode::Piece),
+                false => Some(HoverMode::TwistGizmo),
+            },
         });
 
         // Click = twist
@@ -435,7 +440,11 @@ impl PuzzleWidget {
         let stroke_strong = egui::Stroke::new(2.0, strong_color);
         let fill = weak_color;
         if let Some(gizmo_vertex_3d_positions) = renderer.gizmo_vertex_3d_positions.get() {
-            if let Some(hover) = self.view.gizmo_hover_state() {
+            if let Some(hover) = self
+                .view
+                .gizmo_hover_state()
+                .filter(|_| self.view.show_gizmo_hover)
+            {
                 let twist = puzzle.gizmo_twists[hover.gizmo_face];
                 let axis = puzzle.twists[twist].axis;
                 let other_faces_on_same_gizmo = puzzle
