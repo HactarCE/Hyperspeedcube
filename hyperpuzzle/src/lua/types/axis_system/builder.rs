@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use float_ord::FloatOrd;
 use hypermath::Hyperplane;
 use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
@@ -118,13 +119,12 @@ impl LuaAxisSystem {
         // can give a better error here with a nice message and line number.
         // This is an especially easy mistake to make, so it's important to have
         // a good error message for it.
-        for (a, b) in depths.iter().tuple_windows() {
-            if a < b {
-                return Err(LuaError::external(
-                    "layers must be sorted from shallowest to deepest",
-                ));
-            }
+        let mut sorted_depths = depths.clone();
+        sorted_depths.sort_by_key(|d| FloatOrd(-d));
+        if depths != sorted_depths {
+            lua.warning("layers should be sorted from shallowest to deepest", false);
         }
+        let depths = sorted_depths;
 
         let mut puz = self.lock();
         let mut new_axes = vec![];
