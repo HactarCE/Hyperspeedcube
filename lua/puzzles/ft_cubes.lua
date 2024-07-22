@@ -13,11 +13,15 @@ function define_ft_cube_3d(size)
       self:carve(shape:iter_poles())
 
       -- Define axes and slices
+      -- self.axes:add({
+      --   points = shape:iter_poles(),
+      --   layers = utils.layers_exclusive(1, -1, size),
+      -- })
       self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, size))
 
       -- Define twists
       for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
-        self.twists:add(axis, twist_transform)
+        self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
       end
     end,
   })

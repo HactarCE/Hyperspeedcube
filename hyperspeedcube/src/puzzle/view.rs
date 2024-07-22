@@ -339,8 +339,8 @@ impl PuzzleView {
         if let Some(hov) = &self.gizmo_hover_state {
             let twist = puzzle.gizmo_twists[hov.gizmo_face];
             match direction {
-                Sign::Neg => state.do_twist(twist, LayerMask(1)),
-                Sign::Pos => {
+                Sign::Pos => state.do_twist(twist, LayerMask(1)),
+                Sign::Neg => {
                     let rev_twist = puzzle.twists[twist].reverse;
                     state.do_twist(rev_twist, LayerMask(1))
                 }

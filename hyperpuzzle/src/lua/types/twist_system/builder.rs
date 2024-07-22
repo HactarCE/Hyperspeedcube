@@ -95,10 +95,9 @@ impl LuaTwistSystem {
                 gizmo_pole_distance,
             }));
         } else {
-            // These are reasonable defaults, especially for 3D.
-            multipliers = Some(true);
-            inverse = Some(true);
-            prefix = axis.name();
+            multipliers = None;
+            inverse = None;
+            prefix = None;
             name = None;
             suffix = None;
             inv_name = None;
@@ -108,15 +107,18 @@ impl LuaTwistSystem {
             gizmo_pole_distance = None;
         }
 
-        let do_naming = prefix.is_some()
-            || name.is_some()
-            || suffix.is_some()
-            || inv_name.is_some()
-            || inv_suffix.is_some()
+        let prefix = prefix.or(axis.name());
+
+        let do_naming = prefix.as_ref().is_some_and(|s| !s.is_empty())
+            || name.as_ref().is_some_and(|s| !s.is_empty())
+            || suffix.as_ref().is_some_and(|s| !s.is_empty())
+            || inv_name.as_ref().is_some_and(|s| !s.is_empty())
+            || inv_suffix.as_ref().is_some_and(|s| !s.is_empty())
             || name_fn.is_some();
 
-        let inverse = inverse.unwrap_or(false);
-        let multipliers = multipliers.unwrap_or(false);
+        let ndim = self.0.lock().ndim();
+        let inverse = inverse.unwrap_or(ndim == 3);
+        let multipliers = multipliers.unwrap_or(ndim == 3);
 
         let suffix = suffix.unwrap_or_default();
         let inv_suffix = inv_suffix.unwrap_or_else(|| match &inv_name {
@@ -141,8 +143,10 @@ impl LuaTwistSystem {
 
         let mut puz = self.0.lock();
 
-        if gizmo_pole_distance.is_some() && puz.ndim() != 4 {
-            return Err(LuaError::external("twist gizmo is only supported in 4D"));
+        if gizmo_pole_distance.is_some() && puz.ndim() != 3 && puz.ndim() != 4 {
+            return Err(LuaError::external(
+                "twist gizmo is only supported in 3D and 4D",
+            ));
         }
 
         let twists = &mut puz.twists;
@@ -190,7 +194,7 @@ impl LuaTwistSystem {
                         axis,
                         transform,
                         qtm,
-                        gizmo_pole_distance,
+                        gizmo_pole_distance: gizmo_pole_distance.filter(|_| ndim > 3),
                     },
                     get_name(-1)?,
                     lua_warn_fn(lua),

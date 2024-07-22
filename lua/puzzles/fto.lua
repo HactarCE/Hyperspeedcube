@@ -14,8 +14,8 @@ puzzles:add('fto', {
     self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, 3))
 
     -- Define twists
-    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(2, 3)) do
-      self.twists:add(axis, twist_transform)
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
     end
   end,
 })

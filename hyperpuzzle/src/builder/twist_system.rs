@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 
 use eyre::{bail, eyre, OptionExt, Result, WrapErr};
 use float_ord::FloatOrd;
 use hypermath::collections::approx_hashmap::FloatHash;
 use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
 use hypermath::prelude::*;
-use hypershape::Space;
+use hypershape::{ElementId, Space, ToElementId};
 use itertools::Itertools;
 use pga::{Blade, Motor};
 
@@ -225,20 +225,26 @@ impl TwistSystemBuilder {
             twist_id_map.insert(old_id, new_id);
 
             if let Some(pole_distance) = old_twist.gizmo_pole_distance {
-                // We already know one vector that's fixed by the twist.
-                let axis_vector = Blade::from_vector(4, &axes[axis].vector);
-                // Compute the other one.
-                let origin = Blade::origin(4);
-                let face_normal = (|| {
-                    Blade::wedge(
-                        &old_twist.transform.grade_project(2),
-                        &Blade::wedge(&axis_vector, &origin)?,
-                    )?
-                    .antidual()
-                    .to_vector()?
-                    .normalize()
-                })()
-                .ok_or_eyre("error computing normal vector for twist gizmo")?;
+                // The axis vector is fixed by the twist.
+                let axis_vector = &axes[axis].vector;
+
+                let face_normal = if space.ndim() == 4 {
+                    // Compute the other vector fixed by the twist.
+                    (|| {
+                        let axis_vector = Blade::from_vector(4, axis_vector);
+                        let origin = Blade::origin(4);
+                        Blade::wedge(
+                            &old_twist.transform.grade_project(2),
+                            &Blade::wedge(&origin, &axis_vector)?,
+                        )?
+                        .antidual()
+                        .to_vector()?
+                        .normalize()
+                    })()
+                    .ok_or_eyre("error computing normal vector for twist gizmo")?
+                } else {
+                    axis_vector.clone()
+                };
 
                 let gizmo_pole = face_normal * pole_distance as _;
                 gizmo_twists[axis].push((gizmo_pole, new_id));
@@ -250,16 +256,17 @@ impl TwistSystemBuilder {
 
         // Build twist gizmos.
         let mut gizmo_face_twists = PerGizmoFace::new();
-        if space.ndim() == 4 {
+        if space.ndim() == 3 {
+            let gizmo_twists = gizmo_twists.iter_values().flatten().cloned().collect_vec();
+            let resulting_gizmo_faces =
+                Self::build_3d_gizmo(space, mesh, &gizmo_twists, &twists, &axes, warn_fn)?;
+            for (_gizmo_face, twist) in resulting_gizmo_faces {
+                gizmo_face_twists.push(twist)?;
+            }
+        } else if space.ndim() == 4 {
             for (axis, axis_twists) in gizmo_twists {
-                let resulting_gizmo_faces = Self::build_4d_gizmo(
-                    space,
-                    mesh,
-                    &axes[axis],
-                    &axis_twists,
-                    |id| &twists[id].name,
-                    warn_fn,
-                )?;
+                let resulting_gizmo_faces =
+                    Self::build_4d_gizmo(space, mesh, &axes[axis], &axis_twists, &twists, warn_fn)?;
                 for (_gizmo_face, twist) in resulting_gizmo_faces {
                     gizmo_face_twists.push(twist)?;
                 }
@@ -306,29 +313,97 @@ impl TwistSystemBuilder {
         Ok((axes, twists, gizmo_face_twists))
     }
 
+    fn build_3d_gizmo<'a>(
+        space: &Space,
+        mesh: &mut Mesh,
+        twists: &[(Vector, Twist)],
+        twist_infos: &PerTwist<TwistInfo>,
+        axis_infos: &PerAxis<AxisInfo>,
+        warn_fn: impl Fn(eyre::Report),
+    ) -> Result<Vec<(GizmoFace, Twist)>> {
+        if twists.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let polyhedron = space.get_primordial_cube()?.id();
+
+        let mut gizmo_surfaces = HashMap::new();
+        for (_, twist) in twists {
+            let axis = twist_infos[*twist].axis;
+            let axis_info = &axis_infos[axis];
+            if let hash_map::Entry::Vacant(e) = gizmo_surfaces.entry(axis) {
+                e.insert(mesh.add_gizmo_surface(&axis_info.vector)?);
+            }
+        }
+
+        Self::build_gizmo(
+            space,
+            polyhedron.to_element_id(space),
+            crate::PRIMORDIAL_CUBE_RADIUS,
+            mesh,
+            twists,
+            "twist gizmo",
+            |twist| &twist_infos[twist].name,
+            |twist| gizmo_surfaces[&twist_infos[twist].axis],
+            warn_fn,
+        )
+    }
     fn build_4d_gizmo<'a>(
         space: &Space,
         mesh: &mut Mesh,
         axis: &AxisInfo,
         twists: &[(Vector, Twist)],
-        mut get_twist_name: impl FnMut(Twist) -> &'a str,
+        twist_infos: &PerTwist<TwistInfo>,
         warn_fn: impl Fn(eyre::Report),
     ) -> Result<Vec<(GizmoFace, Twist)>> {
         use hypershape::flat::*;
 
-        // Cut a primordial polyhedron.
+        if twists.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Cut a primordial polyhedron at the axis.
         let initial_cut_params = CutParams {
             divider: Hyperplane::from_pole(&axis.vector).ok_or_eyre("bad axis vector")?,
             inside: PolytopeFate::Remove,
             outside: PolytopeFate::Remove,
         };
         let primordial_cube = space.get_primordial_cube()?;
-        let mut polyhedron = match Cut::new(space, initial_cut_params).cut(primordial_cube)? {
+        let polyhedron = match Cut::new(space, initial_cut_params).cut(primordial_cube)? {
             hypershape::ElementCutOutput::Flush => bail!("bad axis vector"),
             hypershape::ElementCutOutput::NonFlush { intersection, .. } => {
                 intersection.ok_or_eyre("bad axis vector")?
             }
         };
+
+        let min_radius = axis.vector.mag();
+
+        let gizmo_surface = mesh.add_gizmo_surface(&axis.vector)?;
+
+        Self::build_gizmo(
+            space,
+            polyhedron,
+            min_radius,
+            mesh,
+            twists,
+            &format!("twist gizmo for axis {}", &axis.name),
+            |twist| &twist_infos[twist].name,
+            |_| gizmo_surface,
+            warn_fn,
+        )
+    }
+    fn build_gizmo<'a>(
+        space: &Space,
+        mut polyhedron: ElementId,
+        min_radius: Float,
+        mesh: &mut Mesh,
+        twists: &[(Vector, Twist)],
+        gizmo_name: &str,
+        mut get_twist_name: impl FnMut(Twist) -> &'a str,
+        mut get_gizmo_surface: impl FnMut(Twist) -> u32,
+        warn_fn: impl Fn(eyre::Report),
+    ) -> Result<Vec<(GizmoFace, Twist)>> {
+        use hypershape::flat::*;
 
         // Cut a primordial cube for the twist gizmo.
         let max_pole_radius = twists
@@ -336,8 +411,7 @@ impl TwistSystemBuilder {
             .map(|(v, _)| v.mag())
             .max_by_key(|&x| FloatOrd(x))
             .unwrap_or(0.0);
-        let axis_radius = axis.vector.mag();
-        let primordial_face_radius = Float::max(max_pole_radius, axis_radius) * 2.0; // can be any number greater than 1
+        let primordial_face_radius = Float::max(max_pole_radius, min_radius) * 2.0; // can be any number greater than 1
         for axis in 0..space.ndim() {
             for distance in [-1.0, 1.0] {
                 let cut_normal = Vector::unit(axis) * distance;
@@ -414,27 +488,21 @@ impl TwistSystemBuilder {
         }
 
         if space.get(polyhedron).boundary().count() > face_polygons.len() {
-            let axis_name = &axis.name;
             let r = primordial_face_radius;
             warn_fn(eyre!(
-                "twist gizmo for axis {axis_name:?} is infinite; \
-                 it has been bounded with a radius-{r} cube",
+                "{gizmo_name} is infinite; it has been bounded with a radius-{r} cube",
             ));
         }
-
-        let surface = mesh.add_gizmo_surface(
-            &axis.vector,
-            axis.vector
-                .normalize()
-                .ok_or_eyre("axis vector cannot be zero")?,
-        )?;
 
         // Add vertices to the mesh and record a map from vertex IDs in `space`
         // to vertex IDs in `mesh`.
         let vertex_map: HashMap<VertexId, u32> = face_polygons
             .iter()
-            .flat_map(|&(polygon, _twist)| space.get(polygon).vertex_set())
-            .map(|vertex| {
+            .flat_map(|&(polygon, twist)| {
+                let surface = get_gizmo_surface(twist);
+                space.get(polygon).vertex_set().map(move |v| (v, surface))
+            })
+            .map(|(vertex, surface)| {
                 let old_id = vertex.id();
                 let new_id = mesh.add_gizmo_vertex(vertex.pos(), surface)?;
                 eyre::Ok((old_id, new_id))

@@ -15,11 +15,11 @@ puzzles:add('fcto', {
     self.axes:add(sym:orbit(sym.oox.unit), utils.layers_exclusive(sqrt(3), 0, 3))
 
     -- Define twists
-    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(2, 3)) do
-      self.twists:add(axis, twist_transform)
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
     end
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
-      self.twists:add(axis, twist_transform)
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 2/sqrt(3)})
     end
   end,
 })

@@ -15,7 +15,7 @@ puzzles:add('cto', {
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
-      self.twists:add(axis, twist_transform)
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = sqrt(3)/3})
     end
   end,
 })

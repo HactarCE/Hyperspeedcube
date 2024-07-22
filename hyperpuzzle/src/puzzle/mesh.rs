@@ -265,11 +265,12 @@ impl Mesh {
         Ok(())
     }
 
-    pub(crate) fn add_gizmo_surface(
-        &mut self,
-        centroid: impl VectorRef,
-        normal: impl VectorRef,
-    ) -> Result<u32> {
+    pub(crate) fn add_gizmo_surface(&mut self, axis_vector: impl VectorRef) -> Result<u32> {
+        let normal = axis_vector
+            .normalize()
+            .ok_or_eyre("axis vector cannot be zero")?;
+        let centroid = axis_vector;
+
         let ndim = self.ndim;
         let surface_id = self.surface_count() as u32;
         self.gizmo_surface_count += 1;
