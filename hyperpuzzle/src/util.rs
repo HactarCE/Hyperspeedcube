@@ -1,3 +1,5 @@
+//! Common utility functions that didn't fit anywhere else.
+
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
@@ -17,38 +19,6 @@ pub(crate) fn iter_uppercase_letter_names() -> impl Iterator<Item = String> {
     })
 }
 
-/// Maps IDs from one list to another.
-pub struct LazyIdMap<K, V> {
-    map: HashMap<K, V>,
-    keys: Vec<K>,
-    next_id: V,
-    next_id_fn: fn(V) -> V,
-}
-impl<K: Clone + std::hash::Hash + Eq, V: Copy> LazyIdMap<K, V> {
-    pub fn new(first_id: V, next_id_fn: fn(V) -> V) -> Self {
-        Self {
-            map: HashMap::new(),
-            keys: vec![],
-            next_id: first_id,
-            next_id_fn,
-        }
-    }
-    pub fn get_or_insert(&mut self, id: K) -> V {
-        match self.map.entry(id.clone()) {
-            std::collections::hash_map::Entry::Occupied(e) => *e.get(),
-            std::collections::hash_map::Entry::Vacant(e) => {
-                self.keys.push(id);
-                let new_id = self.next_id;
-                self.next_id = (self.next_id_fn)(self.next_id);
-                *e.insert(new_id)
-            }
-        }
-    }
-    pub fn keys(&self) -> &[K] {
-        &self.keys
-    }
-}
-
 /// Titlecases a string, replacing underscore `_` with space.
 pub fn titlecase(s: &str) -> String {
     s.split(&[' ', '_'])
@@ -64,7 +34,8 @@ pub fn titlecase(s: &str) -> String {
         .join(" ")
 }
 
-pub fn lazy_resolve<K: fmt::Debug + Clone + Eq + Hash, V: Clone>(
+/// Lazily resolves a set of dependencies.
+pub(crate) fn lazy_resolve<K: fmt::Debug + Clone + Eq + Hash, V: Clone>(
     key_value_dependencies: Vec<(K, (V, Option<K>))>,
     compose: fn(V, &V) -> V,
     warn_fn: impl Fn(String),
@@ -95,7 +66,11 @@ pub fn lazy_resolve<K: fmt::Debug + Clone + Eq + Hash, V: Clone>(
         }
     }
     if let Some(unprocessed_key) = unknown.keys().next() {
-        warn_fn(format!("unknown key {unprocessed_key:?}"));
+        if unknown.contains_key(unprocessed_key) {
+            warn_fn(format!("circular dependency on key {unprocessed_key:?}"));
+        } else {
+            warn_fn(format!("unknown key {unprocessed_key:?}"));
+        }
     }
 
     known

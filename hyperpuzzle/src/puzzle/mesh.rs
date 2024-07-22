@@ -298,17 +298,31 @@ impl Mesh {
     }
 }
 
+/// Vertex that can be added to a mesh.
 #[derive(Debug, Copy, Clone)]
 pub struct MeshVertexData<'a> {
+    /// N-dimensional coordinates of the point.
     pub position: &'a Vector,
+    /// N-dimensional unit vector tangent to the surface at the point. This must
+    /// be perpendicular to `v_tangent`.
     pub u_tangent: &'a Vector,
+    /// N-dimensional unit vector tangent to the surface at the point. This must
+    /// be perpendicular to `u_tangent`.
     pub v_tangent: &'a Vector,
+    /// Vector along which to shrink the vertex for sticker shrink.
     pub sticker_shrink_vector: &'a Vector,
+    /// ID of the piece that the vertex is part of. This is used for piece
+    /// explode.
     pub piece_id: Piece,
+    /// ID of the surface that the vertex is part of. This is used for facet
+    /// shrink.
     pub surface_id: Surface,
+    /// ID of the polygon that the vertex is part of. This is used for
+    /// determining color and lighting.
     pub polygon_id: u32,
 }
 
+/// Returns an iterator over the components of `v` as `f32`s, padded to `ndim`.
 fn iter_f32(ndim: u8, v: &impl VectorRef) -> impl '_ + Iterator<Item = f32> {
     v.iter_ndim(ndim).map(|x| x as f32)
 }
