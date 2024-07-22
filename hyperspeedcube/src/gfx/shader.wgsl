@@ -174,9 +174,11 @@ fn transform_point_to_3d(vertex_index: i32, surface: i32, piece: i32) -> Transfo
             new_pos[i] *= draw_params.gizmo_scale;
         }
         new_pos[i] += surface_centroids[surface_idx];
+        // Apply piece explode.
         if is_puzzle_vertex {
-            // Apply piece explode.
             new_pos[i] += piece_centroids[piece_idx] * draw_params.piece_explode;
+        } else {
+            new_pos[i] *= 1.0 + draw_params.piece_explode;
         }
 
         vert_idx++;
