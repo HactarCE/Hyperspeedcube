@@ -2,25 +2,14 @@ color_systems:add('hypercube', {
   name = "Hypercube",
 
   colors = {
-    { name = 'R', display = "Right" },
-    { name = 'L', display = "Left" },
-    { name = 'U', display = "Up" },
-    { name = 'D', display = "Down" },
-    { name = 'F', display = "Front" },
-    { name = 'B', display = "Back" },
-    { name = 'O', display = "Out" },
-    { name = 'I', display = "In" },
-  },
-
-  default_scheme = {
-    R = "Red",
-    L = "Orange",
-    U = "White",
-    D = "Yellow",
-    F = "Green",
-    B = "Blue",
-    O = "Pink",
-    I = "Purple",
+    { name = 'R', display = "Right", default = "Red" },
+    { name = 'L', display = "Left",  default = "Orange" },
+    { name = 'U', display = "Up",    default = "White" },
+    { name = 'D', display = "Down",  default = "Yellow" },
+    { name = 'F', display = "Front", default = "Green" },
+    { name = 'B', display = "Back",  default = "Blue" },
+    { name = 'O', display = "Out",   default = "Pink" },
+    { name = 'I', display = "In",    default = "Purple" },
   },
 })
 

@@ -81,16 +81,16 @@ impl LuaColorSystem {
     fn add<'lua>(&self, lua: &'lua Lua, data: LuaValue<'lua>) -> LuaResult<LuaColor> {
         let name: Option<String>;
         let display: Option<String>;
-        let default_color: Option<String>;
+        let default: Option<String>;
         if let Ok(s) = lua.unpack(data.clone()) {
             name = s;
             display = None;
-            default_color = None;
+            default = None;
         } else if let LuaValue::Table(t) = data {
             unpack_table!(lua.unpack(t {
                 name,
                 display,
-                default_color,
+                default,
             }));
         } else {
             return lua_convert_err(&data, "hyperplane or table");
@@ -99,7 +99,7 @@ impl LuaColorSystem {
         let mut puz = self.0.lock();
         let colors = &mut puz.shape.colors;
         let id = colors.add().into_lua_err()?;
-        colors.set_default_color(id, default_color_from_str(lua, default_color));
+        colors.set_default_color(id, default_color_from_str(lua, default));
         colors.names.set_name(id, name, lua_warn_fn(lua));
         colors.names.set_display(id, display);
         Ok(puz.wrap_id(id))
@@ -119,7 +119,8 @@ impl LuaColorSystem {
 
     /// Sets the default color scheme.
     fn set_default_colors<'lua>(&self, lua: &'lua Lua, data: LuaValue<'lua>) -> LuaResult<()> {
-        self.add_scheme(lua, crate::DEFAULT_COLOR_SCHEME_NAME.to_string(), data)
+        let default_scheme_name = self.0.lock().shape.colors.default_scheme_name().to_owned();
+        self.add_scheme(lua, default_scheme_name, data)
     }
 
     fn color_mapping_from_value<'lua>(

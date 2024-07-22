@@ -10,7 +10,7 @@ color_systems:add('cube', {
     { name = 'B', display = "Back" },
   },
 
-  color_schemes = {
+  schemes = {
     {"Western", {
       R = "Red",
       L = "Orange",
@@ -28,7 +28,7 @@ color_systems:add('cube', {
       B = "Yellow",
     }},
   },
-  default_scheme = "Western",
+  default = "Western",
 })
 
 function cube()

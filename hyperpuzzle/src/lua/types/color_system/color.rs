@@ -14,14 +14,14 @@ impl LuaUserData for LuaColor {
         LuaNamedIdDatabase::add_named_db_entry_fields(fields);
         LuaOrderedIdDatabase::add_ordered_db_entry_fields(fields);
 
-        fields.add_field_method_get("default_color", |_lua, this| {
+        fields.add_field_method_get("default", |_lua, this| {
             let puz = this.db.lock();
             let colors = &puz.shape.colors;
             Ok(colors
                 .get_default_color(this.id)
                 .map(|default_color| default_color.to_string()))
         });
-        fields.add_field_method_set("default_color", |lua, this, new_default_color| {
+        fields.add_field_method_set("default", |lua, this, new_default_color| {
             let mut puz = this.db.lock();
             let colors = &mut puz.shape.colors;
             Ok(colors.set_default_color(

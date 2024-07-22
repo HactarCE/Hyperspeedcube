@@ -13,20 +13,20 @@ pub fn from_lua_table<'lua>(
 ) -> LuaResult<ColorSystemBuilder> {
     if !table.contains_key("colors")? {
         let mut colors = ColorSystemBuilder::new();
-        add_colors_from_table(lua, &mut colors, table)?;
+        add_colors_from_table(lua, &mut colors, table, true)?;
         return Ok(colors);
     }
 
     let name: Option<String>;
     let colors: LuaTable<'_>;
-    let color_schemes: Option<LuaTable<'_>>;
-    let default_scheme: Option<LuaValue<'_>>;
+    let schemes: Option<LuaTable<'_>>;
+    let default: Option<String>;
 
     unpack_table!(lua.unpack(table {
         name,
         colors,
-        color_schemes,
-        default_scheme
+        schemes,
+        default,
     }));
     let colors_table = colors;
 
@@ -35,11 +35,16 @@ pub fn from_lua_table<'lua>(
     colors.id = id.map(crate::validate_id).transpose().into_lua_err()?;
     colors.name = name;
 
+    // Set default color scheme.
+    if let Some(name) = default {
+        colors.default_scheme = Some(name);
+    }
+
     // Add colors.
-    add_colors_from_table(lua, &mut colors, colors_table)?;
+    add_colors_from_table(lua, &mut colors, colors_table, schemes.is_none())?;
 
     // Add color schemes.
-    if let Some(color_schemes_table) = color_schemes {
+    if let Some(color_schemes_table) = schemes {
         for scheme in color_schemes_table.sequence_values::<LuaTable<'_>>() {
             let (name, mapping_table) =
                 scheme?.sequence_values().collect_tuple().ok_or_else(|| {
@@ -57,23 +62,6 @@ pub fn from_lua_table<'lua>(
         }
     }
 
-    // Set default color scheme.
-    match default_scheme {
-        None => (),
-        Some(LuaValue::Table(mapping_table)) => {
-            let name = crate::DEFAULT_COLOR_SCHEME_NAME.to_string();
-            add_color_scheme_from_table(&mut colors, name, mapping_table)?;
-        }
-        Some(LuaValue::String(name)) => {
-            colors.default_scheme = Some(name.to_string_lossy().into_owned());
-        }
-        Some(_) => {
-            return Err(LuaError::external(
-                "expected string, table, or nil for `default_scheme`",
-            ));
-        }
-    }
-
     // Reset the "is modified" flag.
     colors.is_modified = false;
 
@@ -84,6 +72,7 @@ fn add_colors_from_table<'lua>(
     lua: &'lua Lua,
     colors: &mut ColorSystemBuilder,
     colors_table: LuaTable<'lua>,
+    allow_default: bool,
 ) -> LuaResult<()> {
     for color in colors_table.sequence_values() {
         let t = color?;
@@ -94,8 +83,15 @@ fn add_colors_from_table<'lua>(
         unpack_table!(lua.unpack(t {
             name,
             display,
-            default
+            default,
         }));
+
+        if default.is_some() && !allow_default {
+            lua.warning(
+                "per-color `default` key should not be used with color schemes",
+                false,
+            );
+        }
 
         let id = colors.add().into_lua_err()?;
         colors.names.set_name(id, name, lua_warn_fn(lua));

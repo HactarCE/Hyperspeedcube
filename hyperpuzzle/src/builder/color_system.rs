@@ -75,13 +75,20 @@ impl ColorSystemBuilder {
         }
     }
 
+    /// Returns the name of the default color scheme.
+    pub fn default_scheme_name(&self) -> &str {
+        self.default_scheme
+            .as_deref()
+            .unwrap_or(&crate::DEFAULT_COLOR_SCHEME_NAME)
+    }
+
     /// Sets the default color for a single color.
     pub fn set_default_color(&mut self, id: Color, default_color: Option<DefaultColor>) {
         self.is_modified = true;
 
         let scheme = self
             .schemes
-            .entry(crate::DEFAULT_COLOR_SCHEME_NAME.to_owned())
+            .entry(self.default_scheme_name().to_owned())
             .or_default();
         scheme.extend_to_contain(id);
         scheme[id] = default_color;
@@ -90,7 +97,7 @@ impl ColorSystemBuilder {
     /// been set.
     pub fn get_default_color(&self, id: Color) -> Option<&DefaultColor> {
         self.schemes
-            .get(&crate::DEFAULT_COLOR_SCHEME_NAME.to_string())?
+            .get(self.default_scheme_name())?
             .get(id)
             .ok()?
             .as_ref()
@@ -139,6 +146,9 @@ impl ColorSystemBuilder {
         puzzle_id: &str,
         warn_fn: impl Copy + Fn(eyre::Report),
     ) -> Result<ColorSystem> {
+        if self.id.is_none() {
+            warn_fn(eyre!("color scheme is not shared"));
+        }
         if self.id.is_some() && self.is_modified {
             bail!("shared color system cannot be modified");
         }
@@ -170,10 +180,7 @@ impl ColorSystemBuilder {
             })
             .collect();
 
-        let default_scheme = self
-            .default_scheme
-            .clone()
-            .unwrap_or(crate::DEFAULT_COLOR_SCHEME_NAME.to_string());
+        let default_scheme = self.default_scheme_name().to_owned();
         if !schemes.contains_key(&default_scheme) {
             warn_fn(eyre!("missing default color scheme {default_scheme:?}"));
             schemes.insert(default_scheme.clone(), PerColor::new());

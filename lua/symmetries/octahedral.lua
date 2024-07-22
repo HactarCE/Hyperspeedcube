@@ -12,7 +12,7 @@ color_systems:add('octahedron', {
     { name = "BD", display = "Back-down"},
   },
 
-  color_schemes = {
+  schemes = {
     {"Lanlan", {
       R = "Green",
       L = "Purple",
@@ -64,7 +64,7 @@ color_systems:add('octahedron', {
       BD = "Blue", -- lighter
     }},
   },
-  default_scheme = "Diansheng",
+  default = "Diansheng",
 })
 
 function octahedron()
