@@ -128,10 +128,9 @@ impl LuaAxisSystem {
 
         let mut puz = self.lock();
         let mut new_axes = vec![];
-        for ((name, display), LuaVector(v)) in vectors.to_vec(lua)? {
+        for (name, LuaVector(v)) in vectors.to_vec(lua)? {
             let id = puz.twists.axes.add(v.clone()).into_lua_err()?;
             puz.twists.axes.names.set_name(id, name, lua_warn_fn(lua));
-            puz.twists.axes.names.set_display(id, display);
             new_axes.push(puz.wrap_id(id));
 
             let axis = puz.twists.axes.get_mut(id).into_lua_err()?;

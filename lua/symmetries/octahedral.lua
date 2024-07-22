@@ -71,7 +71,7 @@ function octahedron()
   return {
     sym = cd'bc3',
     iter_poles = function(self)
-      return self.sym:orbit(self.sym.xoo.unit):with({
+      return self.sym:orbit(self.sym.xoo.unit):named({
         R = {3, "D"},
         L = {1, "F"},
         U = {3, "BL"},

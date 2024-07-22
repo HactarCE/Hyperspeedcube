@@ -35,7 +35,7 @@ function cube()
   return {
     sym = cd'bc3',
     iter_poles = function(self)
-      return self.sym:orbit(self.sym.oox.unit):with({
+      return self.sym:orbit(self.sym.oox.unit):named({
         F = {},
         U = {3, 'F'},
         R = {2, 'U'},

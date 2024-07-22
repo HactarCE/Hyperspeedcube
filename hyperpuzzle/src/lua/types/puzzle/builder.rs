@@ -104,7 +104,7 @@ impl LuaPuzzleBuilder {
         let mut puz = self.lock();
         let shape = &mut puz.shape;
 
-        for ((name, display), LuaHyperplane(plane)) in cuts.to_vec(lua)? {
+        for (name, LuaHyperplane(plane)) in cuts.to_vec(lua)? {
             let color = match &sticker_mode {
                 StickerMode::NewColor => Some({
                     match name
@@ -117,7 +117,6 @@ impl LuaPuzzleBuilder {
                         None => {
                             let c = shape.colors.add().into_lua_err()?;
                             shape.colors.names.set_name(c, name, lua_warn_fn(lua));
-                            shape.colors.names.set_display(c, display);
                             c
                         }
                     }

@@ -28,7 +28,7 @@ function hypercube()
   return {
     sym = cd'bc4',
     iter_poles = function(self)
-      return self.sym:orbit(self.sym.ooox.unit):with({
+      return self.sym:orbit(self.sym.ooox.unit):named({
         R = {2, "U"},
         L = {1, "R"},
         U = {3, "F"},
