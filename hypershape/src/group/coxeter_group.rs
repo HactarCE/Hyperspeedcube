@@ -4,8 +4,27 @@ use hypermath::collections::approx_hashmap::ApproxHashMapKey;
 use hypermath::collections::ApproxHashMap;
 use hypermath::prelude::*;
 use itertools::Itertools;
+use smallvec::{smallvec, SmallVec};
 
 use super::{FiniteCoxeterGroup, GroupError, GroupResult, IsometryGroup};
+
+/// Generator sequence to reach an element in an orbit.
+#[derive(Debug, Default, Clone)]
+pub struct GeneratorSequence {
+    /// Generator indices.
+    pub generators: SmallVec<[u8; 8]>,
+    /// Index of an optional final element, whose generators should be applied
+    /// after `generators`.
+    pub end: Option<usize>,
+}
+impl GeneratorSequence {
+    /// The empty generator sequence, which identifies the initial element in an
+    /// orbit.
+    pub const INIT: Self = Self {
+        generators: SmallVec::new_const(),
+        end: None,
+    };
+}
 
 /// Description of a Coxeter group.
 #[derive(Debug, Default, Clone)]
@@ -220,25 +239,40 @@ impl CoxeterGroup {
         &self,
         object: T,
         chiral: bool,
-    ) -> Vec<(pga::Motor, T)> {
-        let mut generators = self.generators();
-        if chiral {
-            generators = itertools::iproduct!(&generators, &generators)
-                .map(|(g1, g2)| g1 * g2)
-                .collect();
-        }
+    ) -> Vec<(GeneratorSequence, pga::Motor, T)> {
+        let generators = self
+            .generators()
+            .into_iter()
+            .enumerate()
+            .map(|(i, g)| (i as u8, g));
+        let generators = if chiral {
+            itertools::iproduct!(generators.clone(), generators)
+                .map(|((i, g1), (j, g2))| (smallvec![i, j], g1 * g2))
+                .collect_vec()
+        } else {
+            generators.map(|(i, g)| (smallvec![i], g)).collect_vec()
+        };
 
         let mut seen = ApproxHashMap::new();
         seen.insert(object.clone(), ());
 
         let mut next_unprocessed_index = 0;
-        let mut ret = vec![(pga::Motor::ident(self.min_ndim()), object)];
+        let mut ret = vec![(
+            GeneratorSequence::INIT,
+            pga::Motor::ident(self.min_ndim()),
+            object,
+        )];
         while next_unprocessed_index < ret.len() {
-            let (unprocessed_transform, unprocessed_object) = ret[next_unprocessed_index].clone();
-            for gen in &generators {
+            let (_gen_seq, unprocessed_transform, unprocessed_object) =
+                ret[next_unprocessed_index].clone();
+            for (gen_seq_ids, gen) in &generators {
                 let new_object = gen.transform(&unprocessed_object);
                 if seen.insert(new_object.clone(), ()).is_none() {
-                    ret.push((gen * &unprocessed_transform, new_object));
+                    let gen_seq = GeneratorSequence {
+                        generators: gen_seq_ids.clone(),
+                        end: Some(next_unprocessed_index),
+                    };
+                    ret.push((gen_seq, gen * &unprocessed_transform, new_object));
                 }
             }
             next_unprocessed_index += 1;

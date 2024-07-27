@@ -48,6 +48,9 @@ pub struct Puzzle {
 
     /// Twist for each face of a twist gizmo.
     pub gizmo_twists: PerGizmoFace<Twist>,
+
+    /// Data for puzzle developers.
+    pub dev_data: PuzzleDevData,
 }
 
 impl Puzzle {

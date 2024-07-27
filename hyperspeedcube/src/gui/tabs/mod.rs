@@ -6,6 +6,7 @@ mod animations;
 mod camera;
 mod colors;
 mod debug;
+mod dev_tools;
 mod image_generator;
 mod interaction;
 mod keybinds;
@@ -51,7 +52,6 @@ pub enum Tab {
     PuzzleView(Arc<Mutex<Option<PuzzleWidget>>>),
     PuzzleLibrary,
     PuzzleInfo,
-    LuaLogs,
 
     Styles,
     View,
@@ -79,6 +79,9 @@ pub enum Tab {
     Timer,
 
     KeybindsReference,
+
+    LuaLogs,
+    DevTools,
 
     #[allow(unused)]
     Debug,
@@ -122,6 +125,7 @@ impl Tab {
             Tab::Timer => "Timer",
 
             Tab::LuaLogs => "Lua logs",
+            Tab::DevTools => "Developer tools",
 
             Tab::Debug => "Debug output",
         }
@@ -160,6 +164,7 @@ impl Tab {
             Tab::Timer => "Timer".into(),
 
             Tab::LuaLogs => "Lua Logs".into(),
+            Tab::DevTools => "Developer Tools".into(),
 
             Tab::Debug => "Debug Output".into(),
         }
@@ -170,7 +175,6 @@ impl Tab {
             Tab::PuzzleView(puzzle_view) => puzzle_view::show(ui, app, puzzle_view),
             Tab::PuzzleLibrary => puzzle_library::show(ui, app),
             Tab::PuzzleInfo => puzzle_info::show(ui, app),
-            Tab::LuaLogs => lua_logs::show(ui, app),
 
             Tab::Styles => styles::show(ui, app),
             Tab::View => view::show(ui, app),
@@ -195,6 +199,9 @@ impl Tab {
             Tab::Timer => timer::show(ui, app),
 
             Tab::KeybindsReference => keybinds_reference::show(ui, app),
+
+            Tab::LuaLogs => lua_logs::show(ui, app),
+            Tab::DevTools => dev_tools::show(ui, app),
 
             Tab::Debug => debug::show(ui, app),
         }

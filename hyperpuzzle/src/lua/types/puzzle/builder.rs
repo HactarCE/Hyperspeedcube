@@ -7,7 +7,7 @@ use parking_lot::{Mutex, MutexGuard};
 use super::*;
 use crate::builder::PuzzleBuilder;
 use crate::lua::lua_warn_fn;
-use crate::Color;
+use crate::{Color, DevOrbit};
 
 /// Lua handle to a puzzle under construction.
 #[derive(Debug, Clone)]
@@ -103,8 +103,11 @@ impl LuaPuzzleBuilder {
     ) -> LuaResult<()> {
         let mut puz = self.lock();
         let shape = &mut puz.shape;
+        let mut gen_seqs = vec![];
+        let mut colors_assigned = vec![];
+        for (gen_seq, name, LuaHyperplane(plane)) in cuts.to_vec(lua)? {
+            gen_seqs.push(gen_seq);
 
-        for (name, LuaHyperplane(plane)) in cuts.to_vec(lua)? {
             let color = match &sticker_mode {
                 StickerMode::NewColor => Some({
                     match name
@@ -128,11 +131,19 @@ impl LuaPuzzleBuilder {
                     None => None,
                 },
             };
+            colors_assigned.push(color);
+
             match cut_mode {
                 CutMode::Carve => shape.carve(None, plane, color).into_lua_err()?,
                 CutMode::Slice => shape.slice(None, plane, color, color).into_lua_err()?,
             }
         }
+
+        shape.colors.color_orbits.push(DevOrbit {
+            kind: "colors",
+            elements: colors_assigned,
+            generator_sequences: gen_seqs,
+        });
 
         Ok(())
     }

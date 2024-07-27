@@ -12,7 +12,9 @@ use pga::{Blade, Motor};
 use super::{AxisSystemBuilder, CustomOrdering};
 use crate::builder::NamingScheme;
 use crate::puzzle::{Axis, PerTwist, Twist};
-use crate::{AxisInfo, GizmoFace, Mesh, PerAxis, PerGizmoFace, TwistInfo};
+use crate::{
+    AxisInfo, GizmoFace, Mesh, PerAxis, PerGizmoFace, PuzzleDevData, PuzzleElement, TwistInfo,
+};
 
 /// Twist during puzzle construction.
 #[derive(Debug, Clone)]
@@ -179,11 +181,12 @@ impl TwistSystemBuilder {
         &self,
         space: &Space,
         mesh: &mut Mesh,
+        dev_data: &mut PuzzleDevData,
         warn_fn: impl Copy + Fn(eyre::Report),
     ) -> Result<(PerAxis<AxisInfo>, PerTwist<TwistInfo>, PerGizmoFace<Twist>)> {
         // Assemble list of axes.
         let mut axes = PerAxis::new();
-        let mut axis_map = HashMap::new();
+        let mut axis_id_map = HashMap::new(); // map from old ID to new ID
         for (old_id, (name, _display)) in super::iter_autonamed(
             &self.axes.names,
             &self.axes.ordering,
@@ -201,16 +204,16 @@ impl TwistSystemBuilder {
                 layers,
             })?;
 
-            axis_map.insert(old_id, new_id);
+            axis_id_map.insert(old_id, new_id);
         }
 
         // Assemble list of twists.
         let mut twists = PerTwist::new();
-        let mut twist_id_map = HashMap::new();
+        let mut twist_id_map = HashMap::new(); // map from old ID to new ID
         let mut gizmo_twists: PerAxis<Vec<(Vector, Twist)>> = axes.map_ref(|_, _| vec![]);
         for old_id in self.alphabetized() {
             let old_twist = self.get(old_id)?;
-            let axis = *axis_map.get(&old_twist.axis).ok_or_eyre("bad axis ID")?;
+            let axis = *axis_id_map.get(&old_twist.axis).ok_or_eyre("bad axis ID")?;
             let new_id = twists.push(TwistInfo {
                 name: match self.names.get(old_id) {
                     Some(s) => s.clone(),
@@ -309,6 +312,12 @@ impl TwistSystemBuilder {
             };
             twists.push(new_twist_info)?;
         }
+
+        dev_data
+            .orbits
+            .extend(self.axes.axis_orbits.iter().map(|dev_orbit| {
+                dev_orbit.map(|old_id| axis_id_map.get(&old_id).copied().map(PuzzleElement::Axis))
+            }));
 
         Ok((axes, twists, gizmo_face_twists))
     }

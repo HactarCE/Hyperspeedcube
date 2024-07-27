@@ -1,10 +1,14 @@
+use std::collections::HashMap;
+
 use eyre::{bail, eyre, Result};
 use hypermath::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
 
 use super::{BadName, CustomOrdering, NamingScheme};
-use crate::{Color, ColorInfo, ColorSystem, DefaultColor, PerColor};
+use crate::{
+    Color, ColorInfo, ColorSystem, DefaultColor, DevOrbit, PerColor, PuzzleDevData, PuzzleElement,
+};
 
 const PUZZLE_PREFIX: &str = "puzzle:";
 
@@ -32,6 +36,9 @@ pub struct ColorSystemBuilder {
     pub schemes: IndexMap<String, PerColor<Option<DefaultColor>>>,
     /// Default color scheme.
     pub default_scheme: Option<String>,
+
+    /// Orbits used to generate colors, tracked for puzzle dev purposes.
+    pub color_orbits: Vec<DevOrbit<Color>>,
 
     /// Whether the color system has been modified.
     pub is_modified: bool,
@@ -144,6 +151,7 @@ impl ColorSystemBuilder {
     pub fn build(
         &self,
         puzzle_id: &str,
+        dev_data: &mut PuzzleDevData,
         warn_fn: impl Copy + Fn(eyre::Report),
     ) -> Result<ColorSystem> {
         if self.id.is_none() {
@@ -160,6 +168,15 @@ impl ColorSystemBuilder {
             .name
             .clone()
             .unwrap_or_else(|| crate::util::titlecase(self.id.as_deref().unwrap_or(puzzle_id)));
+
+        // map from old ID to new ID
+        let color_id_map: HashMap<Color, Color> = self
+            .ordering
+            .ids_in_order()
+            .iter()
+            .enumerate()
+            .map(|(i, &old_id)| (old_id, Color(i as _)))
+            .collect();
 
         let colors = super::iter_autonamed(
             &self.names,
@@ -190,6 +207,12 @@ impl ColorSystemBuilder {
             list.resize(self.len())?;
             crate::puzzle::ensure_color_scheme_is_valid(list.iter_values_mut(), |_| true);
         }
+
+        dev_data
+            .orbits
+            .extend(self.color_orbits.iter().map(|dev_orbit| {
+                dev_orbit.map(|old_id| color_id_map.get(&old_id).copied().map(PuzzleElement::Color))
+            }));
 
         Ok(ColorSystem {
             id,

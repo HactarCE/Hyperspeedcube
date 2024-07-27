@@ -5,6 +5,7 @@ use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
 use hypermath::pga::*;
 use hypermath::prelude::*;
+use hyperpuzzle::Axis;
 use hyperpuzzle::{GizmoFace, LayerMask, PerPiece, Piece, PieceMask, Puzzle, Sticker};
 use parking_lot::Mutex;
 
@@ -35,6 +36,7 @@ pub struct PuzzleView {
     puzzle_hover_state: Option<PuzzleHoverState>,
     /// What twist gizmo the cursor is hovering over. This is frozen during a drag.
     gizmo_hover_state: Option<GizmoHoverState>,
+    pub temp_gizmo_highlight: Option<Axis>,
 
     /// Whether to show the piece being hovered. This is updated every frame.
     pub show_puzzle_hover: bool,
@@ -77,6 +79,7 @@ impl PuzzleView {
 
             show_puzzle_hover: false,
             show_gizmo_hover: false,
+            temp_gizmo_highlight: None,
 
             cursor_pos: None,
             puzzle_hover_state: None,
@@ -514,6 +517,17 @@ impl PuzzleView {
             Some(v) => v * delta_2d.magnitude() as _ * crate::TWIST_DRAG_SPEED as _,
             None => vector![],
         })
+    }
+
+    /// Returns the color value for a given puzzle color, ignoring temporary
+    /// per-frame overrides.
+    pub fn get_rgb_color(
+        &self,
+        color: hyperpuzzle::Color,
+        prefs: &Preferences,
+    ) -> Option<hyperpuzzle::Rgb> {
+        let default_color = self.colors.value.get_index(color.0 as usize)?.1;
+        prefs.color_palette.get(default_color)
     }
 }
 

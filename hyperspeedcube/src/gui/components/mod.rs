@@ -55,3 +55,26 @@ pub fn small_icon_button(ui: &mut egui::Ui, text: &str, hover_text: &str) -> egu
 fn error_label(ui: &mut egui::Ui, text: impl Into<egui::RichText>) -> egui::Response {
     ui.colored_label(ui.visuals().error_fg_color, text)
 }
+
+/// Copies text to the clipboard if `text_to_copy` is `Some` and displays a
+/// tooltip under `r` if text has been copied to the clipboard since the last
+/// time the mouse moved away from the widget. Returns whether the tooltip was
+/// shown.
+pub fn copy_on_click(ui: &mut egui::Ui, r: &egui::Response, text_to_copy: Option<String>) -> bool {
+    let has_been_copied = crate::gui::util::EguiTempFlag::new(ui);
+    if let Some(text) = text_to_copy {
+        ui.ctx().copy_text(text);
+        has_been_copied.set();
+    }
+    if has_been_copied.get() {
+        if r.hovered() || r.has_focus() {
+            // Show the tooltip with no delay
+            egui::show_tooltip_for(ui.ctx(), r.id, &r.rect, |ui| ui.label("Copied!"));
+            return true;
+        } else {
+            // Hide the tooltip when the mouse leaves
+            has_been_copied.reset();
+        }
+    }
+    false
+}

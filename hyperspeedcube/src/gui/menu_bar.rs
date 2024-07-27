@@ -113,28 +113,31 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::PuzzleLibrary);
         show_tab_toggle(ui, app_ui, Tab::PuzzleInfo);
 
-        ui.separator();
-
-        if let Some(paths) = &*crate::PATHS {
-            if ui.button("Show Lua directory").clicked() {
-                crate::open_dir(&paths.lua_dir);
-            }
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        if ui.button("Extract built-in Lua files...").clicked() {
-            if let Some(mut dir_path) = rfd::FileDialog::new()
-                .set_title("Extract built-in Lua files")
-                .pick_folder()
-            {
-                dir_path.push("lua");
-                match crate::LUA_BUILTIN_DIR.extract(&dir_path) {
-                    Ok(()) => crate::open_dir(&dir_path),
-                    Err(e) => log::error!("Error extracting built-in Lua files: {e}"),
+        ui.menu_button("Custom puzzles", |ui| {
+            if let Some(paths) = &*crate::PATHS {
+                if ui.button("Show Lua directory").clicked() {
+                    ui.close_menu();
+                    crate::open_dir(&paths.lua_dir);
                 }
             }
-        }
+            #[cfg(not(target_arch = "wasm32"))]
+            if ui.button("Extract built-in Lua files...").clicked() {
+                ui.close_menu();
+                if let Some(mut dir_path) = rfd::FileDialog::new()
+                    .set_title("Extract built-in Lua files")
+                    .pick_folder()
+                {
+                    dir_path.push("lua");
+                    match crate::LUA_BUILTIN_DIR.extract(&dir_path) {
+                        Ok(()) => crate::open_dir(&dir_path),
+                        Err(e) => log::error!("Error extracting built-in Lua files: {e}"),
+                    }
+                }
+            }
 
-        show_tab_toggle(ui, app_ui, Tab::LuaLogs);
+            show_tab_toggle(ui, app_ui, Tab::LuaLogs);
+            show_tab_toggle(ui, app_ui, Tab::DevTools);
+        });
     });
     ui.menu_button("Help", |ui| {
         ui.heading("Guides");

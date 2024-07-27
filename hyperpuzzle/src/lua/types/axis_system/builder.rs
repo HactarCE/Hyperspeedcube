@@ -10,6 +10,7 @@ use super::*;
 use crate::builder::{AxisLayerBuilder, CustomOrdering, NamingScheme, PuzzleBuilder};
 use crate::lua::lua_warn_fn;
 use crate::puzzle::Axis;
+use crate::DevOrbit;
 
 /// Lua handle for an axis system under construction.
 #[derive(Debug, Clone)]
@@ -127,8 +128,11 @@ impl LuaAxisSystem {
         let depths = sorted_depths;
 
         let mut puz = self.lock();
+        let mut gen_seqs = vec![];
         let mut new_axes = vec![];
-        for (name, LuaVector(v)) in vectors.to_vec(lua)? {
+        for (gen_seq, name, LuaVector(v)) in vectors.to_vec(lua)? {
+            gen_seqs.push(gen_seq);
+
             let id = puz.twists.axes.add(v.clone()).into_lua_err()?;
             puz.twists.axes.names.set_name(id, name, lua_warn_fn(lua));
             new_axes.push(puz.wrap_id(id));
@@ -153,6 +157,12 @@ impl LuaAxisSystem {
                 }
             }
         }
+
+        puz.twists.axes.axis_orbits.push(DevOrbit {
+            kind: "axes",
+            elements: new_axes.iter().map(|ax| Some(ax.id)).collect(),
+            generator_sequences: gen_seqs,
+        });
 
         Ok(new_axes)
     }

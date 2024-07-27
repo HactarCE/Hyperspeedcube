@@ -5,7 +5,7 @@ use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 
 use super::{CustomOrdering, NamingScheme};
-use crate::{Axis, LayerInfo, PerAxis, PerLayer};
+use crate::{Axis, DevOrbit, LayerInfo, PerAxis, PerLayer};
 
 /// Layer of a twist axis during puzzle construction.
 #[derive(Debug, Clone)]
@@ -85,6 +85,9 @@ pub struct AxisSystemBuilder {
     pub names: NamingScheme<Axis>,
     /// User-specified ordering of axiss.
     pub ordering: CustomOrdering<Axis>,
+
+    /// Orbits used to generate axis, tracked for puzzle dev purposes.
+    pub axis_orbits: Vec<DevOrbit<Axis>>,
 }
 impl AxisSystemBuilder {
     /// Constructs a new empty axis system builder.
@@ -94,6 +97,8 @@ impl AxisSystemBuilder {
             vector_to_id: ApproxHashMap::new(),
             names: NamingScheme::new(),
             ordering: CustomOrdering::default(),
+
+            axis_orbits: vec![],
         }
     }
 

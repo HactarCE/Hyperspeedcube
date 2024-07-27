@@ -6,6 +6,7 @@ use strum::IntoEnumIterator;
 use crate::{
     gui::util::{set_widget_spacing_to_space_width, EguiTempFlag},
     preferences::{ColorScheme, DefaultColorGradient, GlobalColorPalette},
+    puzzle::PuzzleView,
     util::BeforeOrAfter,
 };
 
@@ -481,15 +482,14 @@ impl ColorButton {
             drag: colors_ui.dnd.is_some(),
             focusable: true,
         };
-        let (rect, r) = ui.allocate_exact_size(self.size, sense);
-        paint_color_button(ui, &r, self.color, false);
+        let r = show_color_button(ui, self.color, false, self.size, sense);
 
         // Draggable label
         if let Some(puzzle_color) = self.puzzle_color.filter(|_| colors_ui.show_puzzle_colors) {
             let put_puzzle_color_label = |ui: &mut egui::Ui, is_dragging: bool| {
                 let text_color = if is_dragging {
                     ui.painter().rect_filled(
-                        rect.expand(2.0),
+                        r.rect.expand(2.0),
                         3.0,
                         ui.visuals().window_fill.linear_multiply(0.75),
                     );
@@ -499,7 +499,7 @@ impl ColorButton {
                 };
 
                 ui.put(
-                    rect,
+                    r.rect,
                     egui::Label::new(egui::RichText::new(&puzzle_color).color(text_color))
                         .selectable(false),
                 );
@@ -507,7 +507,7 @@ impl ColorButton {
                 r.clone()
             };
 
-            ui.allocate_ui_at_rect(rect, |ui| {
+            ui.allocate_ui_at_rect(r.rect, |ui| {
                 if let Some(dnd) = &mut colors_ui.dnd {
                     dnd.draggable(ui, puzzle_color.clone(), put_puzzle_color_label);
                 } else {
@@ -601,25 +601,28 @@ impl ColorOrGradient {
     }
 }
 
-fn paint_color_button(
+pub fn show_color_button(
     ui: &mut egui::Ui,
-    response: &egui::Response,
     color: impl Into<ColorOrGradient>,
     is_open: bool,
-) {
-    if ui.is_rect_visible(response.rect) {
+    size: egui::Vec2,
+    sense: egui::Sense,
+) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(size, sense);
+    if ui.is_rect_visible(rect) {
         let visuals = if is_open {
             &ui.visuals().widgets.open
         } else {
-            ui.style().interact(response)
+            ui.style().interact(&response)
         };
-        let rect = response.rect.expand(visuals.expansion);
+        let rect = rect.expand(visuals.expansion);
         paint_colored_rect(ui.painter(), rect, 0.0, color.into());
 
         let rounding = visuals.rounding.at_most(2.0);
         ui.painter()
             .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
     }
+    response
 }
 
 fn paint_colored_rect(
@@ -689,8 +692,7 @@ pub fn color_edit(
 
     let mut size = ui.spacing().interact_size;
     size.x *= 1.5;
-    let (_, mut r) = ui.allocate_exact_size(size, egui::Sense::click());
-    paint_color_button(ui, &r, *color, false);
+    let mut r = show_color_button(ui, *color, false, size, egui::Sense::click());
 
     let contrasting_text_color =
         crate::util::contrasting_text_color(crate::util::rgb_to_egui_color32(*color));
@@ -705,20 +707,8 @@ pub fn color_edit(
     );
 
     // Right-click to copy
-    let has_been_copied = crate::gui::util::EguiTempFlag::new(ui);
-    if r.secondary_clicked() {
-        ui.ctx().copy_text(color.to_string());
-        has_been_copied.set();
-    }
-    if has_been_copied.get() {
-        if r.hovered() || r.has_focus() {
-            // Show the tooltip with no delay
-            egui::show_tooltip_for(ui.ctx(), r.id, &r.rect, |ui| ui.label("Copied!"));
-        } else {
-            // Hide the tooltip when the mouse leaves
-            has_been_copied.reset();
-        }
-    } else {
+    let text_to_copy = r.secondary_clicked().then(|| color.to_string());
+    if !crate::gui::components::copy_on_click(ui, &r, text_to_copy) {
         r = r.on_hover_ui(|ui| {
             set_widget_spacing_to_space_width(ui);
             ui.horizontal(|ui| {
@@ -800,4 +790,45 @@ pub fn color_edit(
 fn set_tight_spacing(ui: &mut egui::Ui) {
     let item_spacing = &mut ui.spacing_mut().item_spacing;
     *item_spacing = egui::Vec2::splat(item_spacing.min_elem());
+}
+
+pub fn color_assignment_popup(
+    ui: &mut egui::Ui,
+    puzzle_view: &mut PuzzleView,
+    color_palette: &GlobalColorPalette,
+    editing_color: Option<hyperpuzzle::Color>,
+) {
+    let puzzle = puzzle_view.puzzle();
+
+    let Some(color_data) = editing_color.and_then(|id| puzzle.colors.list.get(id).ok()) else {
+        ui.colored_label(ui.visuals().error_fg_color, "error: no such color");
+        return;
+    };
+
+    ui.set_max_width(500.0);
+    ui.horizontal(|ui| {
+        ui.heading(format!("{} color", &color_data.display));
+        crate::gui::components::HelpHoverWidget::show_right_aligned(
+            ui,
+            crate::gui::components::show_color_schemes_help_ui(true),
+        );
+    });
+    ui.colored_label(
+        ui.visuals().warn_fg_color,
+        "Don't forget to save your changes in the color scheme settings!",
+    );
+    ui.separator();
+    let (changed, temp_colors) = crate::gui::components::ColorsUi::new(color_palette)
+        .clickable(true)
+        .drag_puzzle_colors(ui, true)
+        .show_compact_palette(
+            ui,
+            Some((&mut puzzle_view.colors.value, &puzzle.colors)),
+            Some(color_data.name.clone()),
+        );
+    if changed {
+        // the user has no way to save the settings in this UI,
+        // so there's not much we can do
+    }
+    puzzle_view.temp_colors = temp_colors;
 }

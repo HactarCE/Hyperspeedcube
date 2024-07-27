@@ -1,3 +1,4 @@
+use hypershape::GeneratorSequence;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -60,6 +61,7 @@ impl LuaUserData for LuaOrbit {
             let mut values = vec![];
             if let Some(element) = this.orbit_list.get(index) {
                 let OrbitElement {
+                    gen_seq: _,
                     transform,
                     name,
                     objects,
@@ -90,11 +92,11 @@ impl LuaUserData for LuaOrbit {
             };
 
             let mut motor_to_name = ApproxHashMap::new();
-            for (name, mirror_seq) in names_from_table(lua, names_table)? {
-                let motor = this.symmetry.motor_for_mirror_seq(mirror_seq)?;
+            for (name, gen_seq) in names_from_table(lua, names_table)? {
+                let motor = this.symmetry.motor_for_gen_seq(gen_seq)?;
                 if let Some(existing_name) = motor_to_name.insert(motor, name.clone()) {
                     lua.warning(
-                        format!("duplicate mirror sequence: {name:?} and {existing_name:?}"),
+                        format!("duplicate generator sequence: {name:?} and {existing_name:?}"),
                         false,
                     );
                 }
@@ -118,7 +120,8 @@ impl LuaOrbit {
             .orbit(init.clone())
             .into_iter()
             // Assign empty names.
-            .map(|(transform, objects)| OrbitElement {
+            .map(|(gen_seq, transform, objects)| OrbitElement {
+                gen_seq,
                 transform,
                 name: None,
                 objects,
@@ -146,18 +149,16 @@ impl LuaOrbit {
 
 /// Constructs an assignment of names based on a table for a particular symmetry
 /// group.
-///
-/// The keys are mirror sequences and the values are names.
 pub fn names_from_table<'lua>(
     lua: &'lua Lua,
     table: LuaTable<'lua>,
-) -> LuaResult<Vec<(String, Vec<usize>)>> {
+) -> LuaResult<Vec<(String, Vec<u8>)>> {
     let mut key_value_dependencies = vec![];
 
     for pair in table.pairs() {
         let (k, v) = pair?;
-        let (mirror_seq, init_name) = mirror_seq_and_opt_name_from_value(lua, v)?;
-        key_value_dependencies.push((k, (mirror_seq, init_name)));
+        let (gen_seq, init_name) = gen_seq_and_opt_name_from_value(lua, v)?;
+        key_value_dependencies.push((k, (gen_seq, init_name)));
     }
 
     // Resolve lazy evaluation.
@@ -197,8 +198,8 @@ pub fn names_and_order_from_table<'lua>(
         let display = Option::<String>::from_lua(display, lua)?;
         order.push((name.clone(), display));
 
-        let (mirror_seq, init_name) = mirror_seq_and_opt_name_from_value(lua, key)?;
-        let motor = symmetry.motor_for_mirror_seq(mirror_seq)?;
+        let (gen_seq, init_name) = gen_seq_and_opt_name_from_value(lua, key)?;
+        let motor = symmetry.motor_for_gen_seq(gen_seq)?;
 
         key_value_dependencies.push((name, (motor, init_name)));
     }
@@ -240,15 +241,15 @@ impl<'lua, T: LuaTypeName + FromLua<'lua>> FromLua<'lua> for LuaSymmetricSet<T> 
 }
 impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
     /// Returns a list of all the objects in the orbit.
-    pub fn to_vec(&self, lua: &'lua Lua) -> LuaResult<Vec<(Option<String>, T)>> {
+    pub fn to_vec(&self, lua: &'lua Lua) -> LuaResult<Vec<(GeneratorSequence, Option<String>, T)>> {
         match self {
-            LuaSymmetricSet::Single(v) => Ok(vec![(None, v.clone())]),
+            LuaSymmetricSet::Single(v) => Ok(vec![(GeneratorSequence::INIT, None, v.clone())]),
             LuaSymmetricSet::Orbit(orbit) => orbit
                 .orbit_list
                 .iter()
                 .map(|element| {
                     let v = Self::to_expected_type(lua, element.objects.get(0))?;
-                    Ok((element.name.clone(), v))
+                    Ok((element.gen_seq.clone(), element.name.clone(), v))
                 })
                 .try_collect(),
         }
@@ -276,15 +277,16 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
 /// Element in an orbit.
 #[derive(Debug, Clone)]
 struct OrbitElement {
+    gen_seq: GeneratorSequence,
     transform: Motor,
     name: Option<String>,
     objects: Vec<Transformable>,
 }
 
-fn mirror_seq_and_opt_name_from_value<'lua>(
+fn gen_seq_and_opt_name_from_value<'lua>(
     lua: &'lua Lua,
     value: LuaValue<'lua>,
-) -> LuaResult<(Vec<usize>, Option<String>)> {
+) -> LuaResult<(Vec<u8>, Option<String>)> {
     let mut seq: Vec<LuaValue<'_>> = LuaTable::from_lua(value, lua)?
         .sequence_values::<LuaValue<'_>>()
         .try_collect()?;
@@ -295,9 +297,9 @@ fn mirror_seq_and_opt_name_from_value<'lua>(
         }
         _ => None,
     };
-    let mirror_indices: Vec<usize> = seq
+    let generator_indices: Vec<u8> = seq
         .into_iter()
-        .map(|v| LuaIndex::from_lua(v, lua).map(|LuaIndex(i)| i))
+        .map(|v| LuaIndex::from_lua(v, lua).map(|LuaIndex(i)| i as u8))
         .try_collect()?;
-    Ok((mirror_indices, init_name))
+    Ok((generator_indices, init_name))
 }

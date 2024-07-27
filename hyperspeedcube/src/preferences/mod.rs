@@ -55,6 +55,8 @@ use crate::util::BeforeOrAfter;
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
 
+pub const MODIFIED_SUFFIX: &str = " (modified)";
+
 lazy_static! {
     pub static ref DEFAULT_PREFS: Preferences =
         serde_yml::from_str(DEFAULT_PREFS_STR).expect("error loading default preferences");
@@ -377,7 +379,7 @@ impl<T: Default + Clone + PartialEq> WithPresets<T> {
             while self.builtin.iter().any(|p| p.name == ret.name) {
                 // Keep looping until we get a free name, just in case the
                 // built-in presets are named pathologically.
-                ret.name += " (modified)";
+                ret.name += MODIFIED_SUFFIX;
             }
         }
 

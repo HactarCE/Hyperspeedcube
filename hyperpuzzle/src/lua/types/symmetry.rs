@@ -70,7 +70,7 @@ impl LuaSymmetry {
     pub fn orbit<T: ApproxHashMapKey + Clone + TransformByMotor>(
         &self,
         object: T,
-    ) -> Vec<(pga::Motor, T)> {
+    ) -> Vec<(GeneratorSequence, pga::Motor, T)> {
         self.coxeter.orbit(object, self.chiral)
     }
 
@@ -96,18 +96,18 @@ impl LuaSymmetry {
         }
     }
 
-    /// Returns a motor representing a sequence of mirror reflections, specified
-    /// using indices into the symmetry's mirror.
-    pub fn motor_for_mirror_seq(
+    /// Returns a motor representing a sequence of generators, specified using
+    /// indices into the list of generators.
+    pub fn motor_for_gen_seq(
         &self,
-        mirror_sequence: impl IntoIterator<Item = usize>,
+        gen_seq: impl IntoIterator<Item = u8>,
     ) -> LuaResult<pga::Motor> {
         let ndim = self.coxeter.min_ndim();
         let mirrors = self.coxeter.mirrors();
-        mirror_sequence
+        gen_seq
             .into_iter()
             .map(|i| -> Result<pga::Motor, &str> {
-                let mirror = mirrors.get(i).ok_or("mirror index out of range")?;
+                let mirror = mirrors.get(i as usize).ok_or("mirror index out of range")?;
                 Ok(mirror.motor(ndim))
             })
             .reduce(|a, b| Ok(a? * b?))
@@ -166,11 +166,11 @@ impl LuaUserData for LuaSymmetry {
         });
 
         methods.add_method("thru", |lua, this, indices: LuaMultiValue<'_>| {
-            let indices: Vec<usize> = indices
+            let indices: Vec<u8> = indices
                 .into_iter()
-                .map(|v| LuaIndex::from_lua(v, lua).map(|LuaIndex(i)| i))
+                .map(|v| LuaIndex::from_lua(v, lua).map(|LuaIndex(i)| i as u8))
                 .try_collect()?;
-            this.motor_for_mirror_seq(indices).map(LuaTransform)
+            this.motor_for_gen_seq(indices).map(LuaTransform)
         });
     }
 }

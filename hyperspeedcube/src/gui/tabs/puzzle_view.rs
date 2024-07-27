@@ -2,11 +2,12 @@ use eyre::Result;
 use std::sync::Arc;
 
 use hypermath::prelude::*;
-use hyperpuzzle::{PieceMask, Puzzle};
+use hyperpuzzle::{GizmoFace, PieceMask, Puzzle};
 use image::ImageBuffer;
 use parking_lot::Mutex;
 
 use crate::gfx::*;
+use crate::gui::components::color_assignment_popup;
 use crate::gui::util::EguiTempValue;
 use crate::gui::App;
 use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
@@ -290,36 +291,12 @@ impl PuzzleWidget {
             }
             let area_response = area.show(ui.ctx(), |ui| {
                 egui::Frame::menu(ui.style()).show(ui, |ui| {
-                    let colors_list = &puzzle.colors.list;
-                    ui.set_max_width(500.0);
-                    if let Some(id) = editing_color.get() {
-                        ui.horizontal(|ui| {
-                            ui.heading(format!("{} color", &colors_list[id].display));
-                            crate::gui::components::HelpHoverWidget::show_right_aligned(
-                                ui,
-                                crate::gui::components::show_color_schemes_help_ui(true),
-                            );
-                        });
-                    }
-                    ui.colored_label(
-                        ui.visuals().warn_fg_color,
-                        "Don't forget to save your changes in the color scheme settings!",
+                    color_assignment_popup(
+                        ui,
+                        &mut self.view,
+                        &prefs.color_palette,
+                        editing_color.get(),
                     );
-                    ui.separator();
-                    let (changed, temp_colors) =
-                        crate::gui::components::ColorsUi::new(&prefs.color_palette)
-                            .clickable(true)
-                            .drag_puzzle_colors(ui, true)
-                            .show_compact_palette(
-                                ui,
-                                Some((&mut self.view.colors.value, &puzzle.colors)),
-                                editing_color.get().map(|id| colors_list[id].name.clone()),
-                            );
-                    if changed {
-                        // the user has no way to save the settings in this UI,
-                        // so there's not much we can do
-                    }
-                    self.view.temp_colors = temp_colors;
                 });
             });
 
@@ -434,48 +411,33 @@ impl PuzzleWidget {
         };
 
         // Draw gizmos (TODO: move to GPU?)
-        let strong_color = egui::Color32::LIGHT_BLUE;
-        let weak_color = strong_color.linear_multiply(0.05);
-        let stroke_weak = egui::Stroke::new(2.0, weak_color);
-        let stroke_strong = egui::Stroke::new(2.0, strong_color);
-        let fill = weak_color;
         if let Some(gizmo_vertex_3d_positions) = renderer.gizmo_vertex_3d_positions.get() {
-            if let Some(hover) = self
+            if let Some(axis) = self.view.temp_gizmo_highlight.take() {
+                for (gizmo_face, &twist) in &puzzle.gizmo_twists {
+                    if puzzle.twists[twist].axis == axis {
+                        show_gizmo_face(
+                            &puzzle,
+                            gizmo_face,
+                            &gizmo_vertex_3d_positions,
+                            &painter,
+                            to_egui,
+                            false,
+                        );
+                    }
+                }
+            } else if let Some(hover) = self
                 .view
                 .gizmo_hover_state()
                 .filter(|_| self.view.show_gizmo_hover)
             {
-                let twist = puzzle.gizmo_twists[hover.gizmo_face];
-                let axis = puzzle.twists[twist].axis;
-                let other_faces_on_same_gizmo = puzzle
-                    .gizmo_twists
-                    .iter_filter(|_gizmo_face, &twist| puzzle.twists[twist].axis == axis);
-
-                for face in other_faces_on_same_gizmo {
-                    let edge_id_range = &puzzle.mesh.gizmo_edge_ranges[face]; // TODO: fix crash here
-                    for edge_id in edge_id_range.clone() {
-                        let edge = puzzle.mesh.edges[edge_id as usize]
-                            .map(|i| gizmo_vertex_3d_positions[i as usize]);
-                        painter.line_segment(edge.map(to_egui), stroke_weak);
-                    }
-                }
-
-                let tri_id_range = &puzzle.mesh.gizmo_triangle_ranges[hover.gizmo_face];
-                for tri_id in tri_id_range.clone() {
-                    let tri = puzzle.mesh.triangles[tri_id as usize]
-                        .map(|i| gizmo_vertex_3d_positions[i as usize]);
-                    painter.add(egui::Shape::convex_polygon(
-                        tri.into_iter().map(to_egui).collect(),
-                        fill,
-                        egui::Stroke::NONE,
-                    ));
-                }
-                let edge_id_range = &puzzle.mesh.gizmo_edge_ranges[hover.gizmo_face];
-                for edge_id in edge_id_range.clone() {
-                    let edge = puzzle.mesh.edges[edge_id as usize]
-                        .map(|i| gizmo_vertex_3d_positions[i as usize]);
-                    painter.line_segment(edge.map(to_egui), stroke_strong);
-                }
+                show_gizmo_face(
+                    &puzzle,
+                    hover.gizmo_face,
+                    &gizmo_vertex_3d_positions,
+                    &painter,
+                    to_egui,
+                    true,
+                );
             }
         }
 
@@ -517,5 +479,54 @@ impl PuzzleWidget {
         height: u32,
     ) -> Result<ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
         self.renderer.lock().screenshot(width, height)
+    }
+}
+
+fn show_gizmo_face(
+    puzzle: &Puzzle,
+    gizmo_face: GizmoFace,
+    gizmo_vertex_3d_positions: &Vec<cgmath::Vector4<f32>>,
+    painter: &egui::Painter,
+    project_to_egui: impl Fn(cgmath::Vector4<f32>) -> egui::Pos2,
+    show_other_faces_on_same_gizmo: bool,
+) {
+    let strong_color = egui::Color32::LIGHT_BLUE;
+    let weak_color = strong_color.linear_multiply(0.05);
+    let stroke_weak = egui::Stroke::new(2.0, weak_color);
+    let stroke_strong = egui::Stroke::new(2.0, strong_color);
+    let fill = weak_color;
+
+    let twist = puzzle.gizmo_twists[gizmo_face];
+    let axis = puzzle.twists[twist].axis;
+    let other_faces_on_same_gizmo = puzzle
+        .gizmo_twists
+        .iter_filter(|_gizmo_face, &twist| puzzle.twists[twist].axis == axis);
+
+    if show_other_faces_on_same_gizmo {
+        for face in other_faces_on_same_gizmo {
+            let edge_id_range = &puzzle.mesh.gizmo_edge_ranges[face]; // TODO: fix crash here
+            for edge_id in edge_id_range.clone() {
+                let edge = puzzle.mesh.edges[edge_id as usize]
+                    .map(|i| gizmo_vertex_3d_positions[i as usize]);
+                painter.line_segment(edge.map(&project_to_egui), stroke_weak);
+            }
+        }
+    }
+
+    let tri_id_range = &puzzle.mesh.gizmo_triangle_ranges[gizmo_face];
+    for tri_id in tri_id_range.clone() {
+        let tri =
+            puzzle.mesh.triangles[tri_id as usize].map(|i| gizmo_vertex_3d_positions[i as usize]);
+        painter.add(egui::Shape::convex_polygon(
+            tri.into_iter().map(&project_to_egui).collect(),
+            fill,
+            egui::Stroke::NONE,
+        ));
+    }
+    let edge_id_range = &puzzle.mesh.gizmo_edge_ranges[gizmo_face];
+    for edge_id in edge_id_range.clone() {
+        let edge =
+            puzzle.mesh.edges[edge_id as usize].map(|i| gizmo_vertex_3d_positions[i as usize]);
+        painter.line_segment(edge.map(&project_to_egui), stroke_strong);
     }
 }
