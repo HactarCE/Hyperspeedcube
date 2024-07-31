@@ -10,8 +10,8 @@ use crate::library::{LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryFileL
 
 macro_rules! lua_module {
     ($filename:literal) => {
-        // Start with an `=` so that the logger skips this file
-        (concat!("=", $filename), include_str!($filename))
+        // Start with an `=` instead of an `@` so the logger skips this file
+        (concat!("=[HSC] ", $filename), include_str!($filename))
     };
 }
 
@@ -254,7 +254,7 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
             let chunk = self
                 .lua
                 .load(&file.contents)
-                .set_name(filename)
+                .set_name(format!("@{filename}"))
                 .set_environment(sandbox_env.clone());
             let exec_result = chunk.exec();
 

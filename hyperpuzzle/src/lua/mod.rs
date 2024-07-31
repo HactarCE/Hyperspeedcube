@@ -17,7 +17,7 @@ fn lua_current_filename(lua: &mlua::Lua) -> Option<String> {
     (0..)
         .map_while(|i| lua.inspect_stack(i))
         .filter_map(|debug| Some(debug.source().source?.to_string()))
-        .find(|s| !s.starts_with('='))
+        .find(|s| s.starts_with("@")) // find user file
 }
 
 fn lua_stack_trace(lua: &mlua::Lua) -> String {
