@@ -144,7 +144,11 @@ impl ShapeBuilder {
                     .cut(old_sticker_polytope)
                     .context("error cutting sticker")?
                 {
-                    ElementCutOutput::Flush => (), // Leave the sticker unchanged
+                    ElementCutOutput::Flush => {
+                        // Leave the sticker unchanged.
+                        inside_stickers.insert(old_sticker_polytope, old_color);
+                        outside_stickers.insert(old_sticker_polytope, old_color);
+                    }
                     ElementCutOutput::NonFlush {
                         inside, outside, ..
                     } => {
