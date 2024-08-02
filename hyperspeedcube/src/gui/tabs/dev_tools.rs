@@ -13,137 +13,243 @@ use crate::{
     puzzle::PuzzleView,
 };
 
-pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    let egui_stored_state = EguiTempValue::<DevToolsState>::new(ui);
-
-    let mut state = egui_stored_state.get().unwrap_or_default();
-
-    ui.group(|ui| {
-        ui.with_layout(
-            egui::Layout::top_down_justified(egui::Align::Center),
-            |ui| {
-                ui.set_enabled(app.has_active_puzzle());
-
-                let r = &ui.button("Copy color system definition");
-                app.with_active_puzzle_view(|p| {
-                    let text_to_copy = r
-                        .clicked()
-                        .then(|| color_system_to_lua_code(&p.puzzle().colors, &app.prefs));
-                    crate::gui::components::copy_on_click(ui, &r, text_to_copy);
-                });
-
-                ui.separator();
-
-                if state.loaded_orbit.is_empty() {
-                    ui.menu_button("Load orbit from current puzzle", |ui| {
-                        app.with_active_puzzle_view(|p| {
-                            let puz = p.puzzle();
-                            for (i, orbit) in puz.dev_data.orbits.iter().enumerate() {
-                                if ui
-                                    .button(format!("#{} - {}", i + 1, orbit.description()))
-                                    .clicked()
-                                {
-                                    ui.close_menu();
-                                    state.puzzle = Some(Arc::clone(&puz));
-                                    state.loaded_orbit = orbit.clone();
-                                    state.names_and_order = orbit
-                                        .elements
-                                        .iter()
-                                        .enumerate()
-                                        .filter_map(|(i, elem)| {
-                                            Some((i, elem.as_ref()?.name(&puz)?.clone()))
-                                        })
-                                        .collect();
-                                }
-                            }
-                        });
-                    });
-                } else {
-                    ui.columns(2, |uis| {
-                        let r = uis[0].button("Copy Lua code");
-
-                        let text_to_copy = r
-                            .clicked()
-                            .then(|| state.loaded_orbit.lua_code(&state.names_and_order));
-                        crate::gui::components::copy_on_click(&mut uis[0], &r, text_to_copy);
-
-                        if uis[1].button("Clear orbit").clicked() {
-                            state = Default::default();
-                        }
-                    });
-                }
-            },
-        );
-
-        let Some(puz) = state.puzzle.as_ref().map(Arc::clone) else {
-            ui.set_height(ui.available_height());
-            return;
-        };
-
-        ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);
-
-        egui::ScrollArea::vertical()
-            .auto_shrink(false)
-            .show(ui, |ui| {
-                let mut dnd = DragAndDrop::new(ui);
-                for (i, (index, name)) in state.names_and_order.iter_mut().enumerate() {
-                    dnd.vertical_reorder_by_handle(ui, i, i, |ui, _is_dragging| {
-                        let text_edit = egui::TextEdit::singleline(name);
-                        match &state.loaded_orbit.elements[*index] {
-                            Some(PuzzleElement::Axis(axis)) => {
-                                let r = ui.add(text_edit);
-                                if r.hovered() || r.has_focus() {
-                                    app.with_active_puzzle_view(|p| {
-                                        if Arc::ptr_eq(&p.puzzle(), &puz) {
-                                            p.view.temp_gizmo_highlight = Some(*axis);
-                                        }
-                                    });
-                                }
-                            }
-
-                            Some(PuzzleElement::Color(color)) => {
-                                ui.horizontal(|ui| {
-                                    app.with_active_puzzle_view(|p| {
-                                        if Arc::ptr_eq(&p.puzzle(), &puz) {
-                                            puzzle_color_edit_button(
-                                                ui,
-                                                &mut p.view,
-                                                &app.prefs,
-                                                *color,
-                                            );
-                                        }
-                                    });
-                                    ui.add(text_edit);
-                                });
-                            }
-
-                            None => todo!(),
-                        }
-                    });
-                }
-                dnd.paint_reorder_drop_lines(ui);
-                if let Some(drag) = dnd.end_drag() {
-                    if let Some(before_or_after) = drag.before_or_after {
-                        crate::util::reorder_list(
-                            &mut state.names_and_order,
-                            drag.payload,
-                            drag.end,
-                            before_or_after,
-                        )
-                    }
-                }
-            });
-    });
-
-    egui_stored_state.set(Some(state));
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+enum DevToolsTab {
+    #[default]
+    HoverInfo,
+    LuaGenerator,
 }
 
 #[derive(Debug, Default, Clone)]
 struct DevToolsState {
     puzzle: Option<Arc<Puzzle>>,
 
+    current_tab: DevToolsTab,
+
     loaded_orbit: DevOrbit<PuzzleElement>,
     names_and_order: Vec<(usize, String)>,
+}
+
+pub fn show(ui: &mut egui::Ui, app: &mut App) {
+    let egui_stored_state = EguiTempValue::<DevToolsState>::new(ui);
+
+    let mut state = egui_stored_state.get().unwrap_or_default();
+
+    ui.group(|ui| {
+        ui.set_min_size(ui.available_size());
+
+        ui.horizontal_wrapped(|ui| {
+            ui.selectable_value(&mut state.current_tab, DevToolsTab::HoverInfo, "Hover info");
+            ui.selectable_value(
+                &mut state.current_tab,
+                DevToolsTab::LuaGenerator,
+                "Lua generator",
+            );
+        });
+
+        ui.separator();
+
+        match state.current_tab {
+            DevToolsTab::HoverInfo => show_hover_info(ui, app),
+            DevToolsTab::LuaGenerator => show_lua_generator(ui, app, &mut state),
+        };
+    });
+
+    egui_stored_state.set(Some(state));
+}
+
+fn show_hover_info(ui: &mut egui::Ui, app: &mut App) {
+    crate::gui::util::set_widget_spacing_to_space_width(ui);
+
+    let info_line = |ui: &mut egui::Ui, label: &str, text: &str| {
+        ui.horizontal(|ui| {
+            ui.label(label);
+            ui.label("=");
+            ui.strong(text);
+        });
+    };
+
+    app.with_active_puzzle_view(|p| {
+        let puz = p.puzzle();
+
+        if let Some(hov) = p
+            .view
+            .puzzle_hover_state()
+            .filter(|_| p.view.show_puzzle_hover)
+        {
+            ui.strong(format!("Piece {}", hov.piece));
+            let piece_info = &puz.pieces[hov.piece];
+            info_line(ui, "Sticker count", &piece_info.stickers.len().to_string());
+            if let Some(piece_type) = piece_info.piece_type {
+                ui.label("");
+                ui.strong(format!("Piece type {}", piece_type));
+                let piece_type_info = &puz.piece_types[piece_type];
+                info_line(ui, "Piece type name", &piece_type_info.name);
+            }
+            if let Some(sticker) = hov.sticker {
+                ui.label("");
+                ui.strong(format!("Sticker {}", sticker));
+                let sticker_info = &puz.stickers[sticker];
+                ui.label("");
+                ui.strong(format!("Color {}", sticker_info.color));
+                let color_info = &puz.colors.list[sticker_info.color];
+                info_line(ui, "Color name", &color_info.name);
+                info_line(ui, "Color display", &color_info.display);
+            }
+        }
+
+        if let Some(hov) = p
+            .view
+            .gizmo_hover_state()
+            .filter(|_| p.view.show_gizmo_hover)
+        {
+            ui.strong(format!("Gizmo {}", hov.gizmo_face));
+            info_line(ui, "Backface?", &hov.backface.to_string());
+            info_line(ui, "Z", &format!("{:.3}", hov.z));
+            let twist = puz.gizmo_twists[hov.gizmo_face];
+
+            ui.label("");
+            ui.strong(format!("Twist {}", twist));
+            let twist_info = &puz.twists[twist];
+            info_line(ui, "Twist name", &twist_info.name);
+            match twist_info.opposite {
+                Some(t) => {
+                    info_line(ui, "Opposite twist", &t.to_string());
+                    info_line(ui, "Opposite twist name", &puz.twists[t].name);
+                }
+                None => {
+                    info_line(ui, "Opposite twist", "(none)");
+                    info_line(ui, "Opposite twist name", "(none)");
+                }
+            };
+            info_line(ui, "QTM", &twist_info.qtm.to_string());
+
+            ui.label("");
+            ui.strong(format!("Axis {}", twist_info.axis));
+            let axis_info = &puz.axes[twist_info.axis];
+            info_line(ui, "Axis name", &axis_info.name);
+            info_line(ui, "Layer count", &axis_info.layers.len().to_string());
+        }
+    })
+    .unwrap_or_else(|| {
+        ui.label("No active puzzle");
+    })
+}
+
+fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {
+    ui.with_layout(
+        egui::Layout::top_down_justified(egui::Align::Center),
+        |ui| {
+            ui.set_enabled(app.has_active_puzzle());
+
+            let r = &ui.button("Copy color system definition");
+            app.with_active_puzzle_view(|p| {
+                let text_to_copy = r
+                    .clicked()
+                    .then(|| color_system_to_lua_code(&p.puzzle().colors, &app.prefs));
+                crate::gui::components::copy_on_click(ui, &r, text_to_copy);
+            });
+
+            ui.separator();
+
+            if state.loaded_orbit.is_empty() {
+                ui.menu_button("Load orbit from current puzzle", |ui| {
+                    app.with_active_puzzle_view(|p| {
+                        let puz = p.puzzle();
+                        for (i, orbit) in puz.dev_data.orbits.iter().enumerate() {
+                            if ui
+                                .button(format!("#{} - {}", i + 1, orbit.description()))
+                                .clicked()
+                            {
+                                ui.close_menu();
+                                state.puzzle = Some(Arc::clone(&puz));
+                                state.loaded_orbit = orbit.clone();
+                                state.names_and_order = orbit
+                                    .elements
+                                    .iter()
+                                    .enumerate()
+                                    .filter_map(|(i, elem)| {
+                                        Some((i, elem.as_ref()?.name(&puz)?.clone()))
+                                    })
+                                    .collect();
+                            }
+                        }
+                    });
+                });
+            } else {
+                ui.columns(2, |uis| {
+                    let r = uis[0].button("Copy Lua code");
+
+                    let text_to_copy = r
+                        .clicked()
+                        .then(|| state.loaded_orbit.lua_code(&state.names_and_order));
+                    crate::gui::components::copy_on_click(&mut uis[0], &r, text_to_copy);
+
+                    if uis[1].button("Clear orbit").clicked() {
+                        *state = Default::default();
+                    }
+                });
+            }
+
+            let Some(puz) = state.puzzle.as_ref().map(Arc::clone) else {
+                return;
+            };
+
+            ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.y);
+
+            egui::ScrollArea::vertical()
+                .auto_shrink(false)
+                .show(ui, |ui| {
+                    let mut dnd = DragAndDrop::new(ui);
+                    for (i, (index, name)) in state.names_and_order.iter_mut().enumerate() {
+                        dnd.vertical_reorder_by_handle(ui, i, i, |ui, _is_dragging| {
+                            let text_edit = egui::TextEdit::singleline(name);
+                            match &state.loaded_orbit.elements[*index] {
+                                Some(PuzzleElement::Axis(axis)) => {
+                                    let r = ui.add(text_edit);
+                                    if r.hovered() || r.has_focus() {
+                                        app.with_active_puzzle_view(|p| {
+                                            if Arc::ptr_eq(&p.puzzle(), &puz) {
+                                                p.view.temp_gizmo_highlight = Some(*axis);
+                                            }
+                                        });
+                                    }
+                                }
+
+                                Some(PuzzleElement::Color(color)) => {
+                                    ui.horizontal(|ui| {
+                                        app.with_active_puzzle_view(|p| {
+                                            if Arc::ptr_eq(&p.puzzle(), &puz) {
+                                                puzzle_color_edit_button(
+                                                    ui,
+                                                    &mut p.view,
+                                                    &app.prefs,
+                                                    *color,
+                                                );
+                                            }
+                                        });
+                                        ui.add(text_edit);
+                                    });
+                                }
+
+                                None => todo!(),
+                            }
+                        });
+                    }
+                    dnd.paint_reorder_drop_lines(ui);
+                    if let Some(drag) = dnd.end_drag() {
+                        if let Some(before_or_after) = drag.before_or_after {
+                            crate::util::reorder_list(
+                                &mut state.names_and_order,
+                                drag.payload,
+                                drag.end,
+                                before_or_after,
+                            )
+                        }
+                    }
+                });
+        },
+    );
 }
 
 fn puzzle_color_edit_button(

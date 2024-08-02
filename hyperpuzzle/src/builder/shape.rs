@@ -3,13 +3,13 @@ use std::collections::{hash_map, HashMap};
 use std::ops::Range;
 use std::sync::Arc;
 
-use eyre::{bail, Context, OptionExt, Result};
+use eyre::{bail, eyre, Context, OptionExt, Result};
 use hypermath::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
 use smallvec::smallvec;
 
-use super::{ColorSystemBuilder, PieceBuilder};
+use super::{ColorSystemBuilder, PieceBuilder, PieceTypeBuilder};
 use crate::puzzle::*;
 
 // TODO: build color system separately and statically?
@@ -26,6 +26,13 @@ pub struct ShapeBuilder {
     /// included in the final puzzle.
     pub active_pieces: PieceSet,
 
+    /// Puzzle piece types.
+    piece_types: PerPieceType<PieceTypeBuilder>,
+    /// Map from piece type name to ID.
+    piece_types_by_name: HashMap<String, PieceType>,
+    /// Piece types that got overwritten.
+    overwritten_piece_types: Vec<(Piece, PieceType)>,
+
     /// Facet colors.
     pub colors: ColorSystemBuilder,
 }
@@ -37,6 +44,10 @@ impl ShapeBuilder {
 
             pieces: PerPiece::new(),
             active_pieces: PieceSet::new(),
+
+            piece_types: PerPieceType::new(),
+            piece_types_by_name: HashMap::new(),
+            overwritten_piece_types: vec![],
 
             colors: ColorSystemBuilder::new(),
         }
@@ -210,13 +221,134 @@ impl ShapeBuilder {
         output
     }
 
+    /// Returns the list of piece types.
+    pub fn piece_types(&self) -> &PerPieceType<PieceTypeBuilder> {
+        &self.piece_types
+    }
+    /// Returns the piece type with the given name, creating one if it does not
+    /// exist.
+    pub fn get_or_add_piece_type(&mut self, name: String) -> Result<PieceType, IndexOverflow> {
+        // TODO: validate piece type name
+        match self.piece_types_by_name.entry(name.clone()) {
+            hash_map::Entry::Occupied(e) => Ok(*e.get()),
+            hash_map::Entry::Vacant(e) => {
+                let id = self.piece_types.push(PieceTypeBuilder { name })?;
+                Ok(*e.insert(id))
+            }
+        }
+    }
+    /// Returns the existing piece type with the given name, or `None` if it
+    /// does not exist.
+    pub fn piece_type_from_name(&self, name: &str) -> Option<PieceType> {
+        self.piece_types_by_name.get(name).copied()
+    }
+
+    /// Marks the type of all pieces in a region defined by a membership test.
+    pub fn mark_piece_by_region(
+        &mut self,
+        name: &str,
+        has_point: impl Fn(&Vector) -> bool,
+        warn_fn: impl Fn(eyre::Error),
+    ) -> Result<(), IndexOverflow> {
+        let piece_type = self.get_or_add_piece_type(name.to_string())?;
+        let mut count = 0;
+
+        for piece in self.active_pieces.clone() {
+            if has_point(self.pieces[piece].interior_point(&self.space)) {
+                count += 1;
+                self.mark_piece(piece, piece_type);
+            }
+        }
+
+        if count != 1 {
+            warn_fn(eyre!("{count} pieces were marked with type {name}"))
+        }
+
+        Ok(())
+    }
+    /// Marks the type of a piece.
+    pub fn mark_piece(&mut self, piece: Piece, piece_type: PieceType) {
+        let old_piece_type = self.pieces[piece].piece_type.replace(piece_type);
+        if let Some(old) = old_piece_type {
+            self.overwritten_piece_types.push((piece, old));
+        }
+    }
+
+    /// Unifies piece types using the provided generators.
+    pub fn unify_piece_types(&mut self, transforms: &[pga::Motor], warn_fn: impl Fn(eyre::Error)) {
+        let active_pieces = self.active_pieces.iter().collect_vec();
+        let mut disjoint_sets = disjoint::DisjointSet::with_len(active_pieces.len());
+
+        // Union-find using the given generators.
+        for (i, &piece) in active_pieces.iter().enumerate() {
+            let point = self.pieces[piece].interior_point(&self.space).clone();
+            for t in transforms {
+                let p = t.transform_point(&point);
+                // TODO: compute whether pieces intersect
+                // TODO: optimize using space partitioning tree
+                for (j, &other_piece) in active_pieces.iter().enumerate() {
+                    if approx_eq(&p, self.pieces[other_piece].interior_point(&self.space)) {
+                        disjoint_sets.join(i, j);
+                    }
+                }
+            }
+        }
+
+        for set in disjoint_sets.sets() {
+            // Find piece type for each group.
+            let applicable_piece_types = set
+                .iter()
+                .filter_map(|&i| self.pieces[active_pieces[i]].piece_type)
+                .sorted()
+                .dedup()
+                .collect_vec();
+
+            // Warn if there's more than one applicable piece type.
+            if applicable_piece_types.len() > 1 {
+                let piece_count = set.len();
+                let names = applicable_piece_types
+                    .iter()
+                    .map(|&piece_type| &self.piece_types[piece_type].name)
+                    .join(", ");
+                warn_fn(eyre!(
+                    "{piece_count} pieces are assigned multiple piece types: {names:?}",
+                ));
+            }
+
+            // Assign the piece type.
+            if let Some(&piece_type) = applicable_piece_types.get(0) {
+                for i in set {
+                    self.pieces[active_pieces[i]]
+                        .piece_type
+                        .get_or_insert(piece_type);
+                }
+            }
+        }
+    }
+
     /// Constructs a mesh and assembles piece & sticker data for the shape.
-    pub fn build(&self) -> Result<(Mesh, PerPiece<PieceInfo>, PerSticker<StickerInfo>)> {
+    pub fn build(
+        &self,
+        warn_fn: impl Fn(eyre::Error),
+    ) -> Result<(
+        Mesh,
+        PerPiece<PieceInfo>,
+        PerSticker<StickerInfo>,
+        PerPieceType<PieceTypeInfo>,
+    )> {
         let space = &self.space;
         let ndim = space.ndim();
 
         let mut mesh = Mesh::new_empty(ndim);
         mesh.color_count = self.colors.len();
+
+        let piece_types = self.piece_types.map_ref(|_, piece_type| PieceTypeInfo {
+            name: piece_type.name.clone(),
+        });
+        if !self.overwritten_piece_types.is_empty() {
+            let count = self.overwritten_piece_types.len();
+            warn_fn(eyre!("{count} piece types overwritten"));
+        }
 
         // All surfaces have an entry in `hyperplane_to_surface`.
         let mut hyperplane_to_surface: ApproxHashMap<Hyperplane, Surface> = ApproxHashMap::new();
@@ -235,7 +367,7 @@ impl ShapeBuilder {
 
             let piece_id = pieces.push(PieceInfo {
                 stickers: smallvec![],
-                piece_type: PieceType(0), // TODO: piece types
+                piece_type: piece.piece_type,
                 centroid: piece_centroid.clone(),
                 polytope: piece.polytope,
             })?;
@@ -340,7 +472,7 @@ impl ShapeBuilder {
             mesh.add_puzzle_surface(surface_data.centroid.center(), surface_data.normal)?;
         }
 
-        Ok((mesh, pieces, stickers))
+        Ok((mesh, pieces, stickers, piece_types))
     }
 }
 

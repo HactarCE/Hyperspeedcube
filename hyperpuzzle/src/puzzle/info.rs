@@ -84,7 +84,7 @@ pub struct PieceInfo {
     /// Unordered list of stickers on the piece.
     pub stickers: SmallVec<[Sticker; 8]>,
     /// Piece type.
-    pub piece_type: PieceType,
+    pub piece_type: Option<PieceType>,
     /// Centroid of the piece.
     pub centroid: Vector,
     /// Polytope of the piece.

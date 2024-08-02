@@ -1,9 +1,7 @@
-#![allow(clippy::too_many_arguments, clippy::too_many_lines)]
-
 use std::sync::{Arc, Weak};
 
 use eyre::Result;
-use hypermath::VecMap;
+use hypermath::{vector, VecMap, Vector};
 use hypershape::prelude::*;
 use parking_lot::Mutex;
 
@@ -68,17 +66,10 @@ impl PuzzleBuilder {
         let mut dev_data = PuzzleDevData::new();
 
         // Build shape.
-        let (mut mesh, pieces, stickers) = self.shape.build()?;
+        let (mut mesh, pieces, stickers, piece_types) = self.shape.build(warn_fn)?;
 
         // Build color system. TODO: cache this across puzzles?
         let colors = Arc::new(self.shape.colors.build(&self.id, &mut dev_data, warn_fn)?);
-
-        // Build list of piece types.
-        let piece_types = [PieceTypeInfo {
-            name: "Piece".to_string(), // TODO piece types
-        }]
-        .into_iter()
-        .collect();
 
         // Build twist system.
         let (axes, twists, gizmo_twists) =
@@ -134,6 +125,11 @@ pub struct PieceBuilder {
     pub cut_result: PieceSet,
     /// Colored stickers of the piece.
     pub stickers: VecMap<FacetId, Color>,
+    /// Type of piece, if assigned.
+    pub piece_type: Option<PieceType>,
+
+    /// Cached arbitrary point inside the polytope.
+    cached_interior_point: Option<Vector>,
 }
 impl PieceBuilder {
     pub(super) fn new(
@@ -144,6 +140,9 @@ impl PieceBuilder {
             polytope: polytope.as_element().as_polytope()?.id(),
             cut_result: PieceSet::new(),
             stickers,
+            piece_type: None,
+
+            cached_interior_point: None,
         })
     }
     /// Returns the color of a facet, or `Color::INTERNAL` if there is no
@@ -151,4 +150,26 @@ impl PieceBuilder {
     pub fn sticker_color(&self, sticker_id: FacetId) -> Color {
         *self.stickers.get(&sticker_id).unwrap_or(&Color::INTERNAL)
     }
+
+    pub(super) fn interior_point(&mut self, space: &Space) -> &Vector {
+        // Average the vertices to get a point that is inside the polytope. For
+        // polytopes with many vertices, this could perhaps be improved by using
+        // blades.
+        self.cached_interior_point.get_or_insert_with(|| {
+            let mut count = 0;
+            let mut sum = vector![];
+            for v in space.get(self.polytope).vertex_set() {
+                count += 1;
+                sum += v.pos();
+            }
+            sum / count as _
+        })
+    }
+}
+
+/// Piece type of a puzzle during puzzle construction.
+#[derive(Debug, Clone)]
+pub struct PieceTypeBuilder {
+    /// User-friendly name.
+    pub name: String,
 }

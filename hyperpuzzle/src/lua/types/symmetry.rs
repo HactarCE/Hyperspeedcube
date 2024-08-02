@@ -161,10 +161,25 @@ impl LuaSymmetry {
     ///
     /// In chiral groups, these generators may include reflections and so
     /// special care must be taken when using them.
-    pub fn generators(&self) -> Cow<'_, [Motor]> {
+    pub fn underlying_generators(&self) -> Cow<'_, [Motor]> {
         match self {
             LuaSymmetry::Coxeter { coxeter, .. } => Cow::Owned(coxeter.generators()),
             LuaSymmetry::Custom { generators } => Cow::Borrowed(generators),
+        }
+    }
+    /// Returns the list of generators of the group. In chiral groups, this
+    /// returns a set of generators that does not include reflections.
+    pub fn chiral_safe_generators(&self) -> Cow<'_, [Motor]> {
+        match self {
+            LuaSymmetry::Coxeter {
+                coxeter,
+                chiral: true,
+            } => {
+                let gens = coxeter.generators();
+                let n = gens.len();
+                Cow::Owned((1..n).map(|i| &gens[0] * &gens[i]).collect_vec())
+            }
+            _ => self.underlying_generators(),
         }
     }
     /// Returns the minimum number of dimensions required to represent the
@@ -184,7 +199,7 @@ impl LuaSymmetry {
         &self,
         gen_seq: impl IntoIterator<Item = u8>,
     ) -> LuaResult<pga::Motor> {
-        let generators = self.generators();
+        let generators = self.underlying_generators();
         let ndim = self.ndim();
         gen_seq
             .into_iter()

@@ -51,3 +51,11 @@ function layers_exclusive(start, stop, steps)
   end
   return ret
 end
+
+function double_ended_layers(start, stop, steps)
+  local ret = {}
+  for i = 1, steps do
+    ret[i] = i / steps * (stop - start) + start
+  end
+  return ret
+end

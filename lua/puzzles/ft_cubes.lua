@@ -7,6 +7,14 @@ function define_ft_cube_3d(size)
     ndim = 3,
     name = size .. '^3',
     colors = 'cube',
+    -- piece_types = {
+    --   { id = 'centers', name = "Centers" },
+    --   {
+    --     id = 'moving', name = "Moving pieces",
+    --     { id = 'edges', name = "Edges" },
+    --     { id = 'corners', name = "Corners" },
+    --   },
+    -- },
     build = function(self)
       local sym = cd'bc3'
       local shape = symmetries.cubic.cube()
@@ -17,12 +25,52 @@ function define_ft_cube_3d(size)
       --   points = shape:iter_poles(),
       --   layers = utils.layers_exclusive(1, -1, size),
       -- })
-      self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, size))
+      self.axes:add(shape:iter_poles(), utils.double_ended_layers(1, -1, size))
 
       -- Define twists
       for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
         self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
       end
+
+      local R = self.axes.R
+      local L = self.axes.L
+      local U = self.axes.U
+      local F = self.axes.F
+      local U_adj = symmetry{self.twists.U}:orbit(R(1)):union()
+
+
+      -- Centers
+      local center_layer = ceil(size/2)
+      local precenter_layer = floor(size/2)
+      for i = 2, center_layer do
+        for j = 2, precenter_layer do
+          local name
+          if i == center_layer and size % 2 == 1 then
+            name = string.format('t-centers (%d)', j-1)
+          elseif i == j then
+            name = string.format('x-centers (%d)', i-1)
+          else
+            if i < j then
+              name = string.format('obliques (%d, %d) (left)', i-1, j-1)
+            else
+              name = string.format('obliques (%d, %d) (right)', j-1, i-1)
+            end
+          end
+          self:mark_pieces(name, U(1) & R(i) & F(j))
+        end
+      end
+
+      for i = 2, precenter_layer do
+        self:mark_pieces(string.format('wings (%d)', i-1), U(1) & R(1) & F(i))
+      end
+
+      if size % 2 == 1 then
+        self:mark_pieces('centers', U(1) & R(center_layer) & F(center_layer))
+        self:mark_pieces('edges', U(1) & R(1) & F(center_layer))
+      end
+
+      self:mark_pieces('corners', U(1) & F(1) & R(1))
+      self:unify_piece_types(sym.chiral)
     end,
   })
 end

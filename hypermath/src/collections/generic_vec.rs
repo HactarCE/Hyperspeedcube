@@ -64,7 +64,7 @@ macro_rules! idx_struct {
             }
             impl ::std::fmt::Display for $struct_name {
                 fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                    write!(f, "#{}", self.0)
+                    write!(f, "#{}", self.0 + 1) // 1-indexing in Lua
                 }
             }
 

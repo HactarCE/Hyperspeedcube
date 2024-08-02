@@ -40,13 +40,13 @@ impl AxisBuilder {
     pub fn boundary_of_layer(
         &self,
         layer: Layer,
-    ) -> Result<(&Hyperplane, Option<&Hyperplane>), IndexOutOfRange> {
+    ) -> Result<(Hyperplane, Option<Hyperplane>), IndexOutOfRange> {
         let l = self.layers.get(layer)?;
         Ok((
-            &l.bottom,
-            l.top.as_ref().or_else(|| {
+            l.bottom.clone(),
+            l.top.clone().or_else(|| {
                 let prev_layer = Layer(layer.0.checked_sub(1)?);
-                Some(&self.layers.get(prev_layer).ok()?.bottom)
+                Some(self.layers.get(prev_layer).ok()?.bottom.flip())
             }),
         ))
     }
@@ -59,8 +59,8 @@ impl AxisBuilder {
             .iter()
             .map(|layer| {
                 let (btm, top) = self.boundary_of_layer(layer)?;
-                let mut ret = vec![btm.clone()];
-                ret.extend(top.cloned());
+                let mut ret = vec![btm];
+                ret.extend(top);
                 Ok(ret)
             })
             .collect()

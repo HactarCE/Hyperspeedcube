@@ -15,6 +15,7 @@ workspace = true
 
 [dependencies]
 color-eyre = "0.6"
+disjoint = "0.8.0"
 eyre = "0.6"
 float-ord = "0.3.2"
 hex = "0.4.3"

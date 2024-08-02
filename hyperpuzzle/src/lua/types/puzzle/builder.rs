@@ -78,6 +78,27 @@ impl LuaUserData for LuaPuzzleBuilder {
         methods.add_method("slice", |lua, this, cuts| {
             this.cut(lua, cuts, CutMode::Slice, StickerMode::None)
         });
+
+        methods.add_method(
+            "mark_pieces",
+            |lua, this, (name, region): (String, LuaRegion)| {
+                this.lock()
+                    .shape
+                    .mark_piece_by_region(
+                        &name,
+                        |point| region.contains_point(point),
+                        lua_warn_fn(lua),
+                    )
+                    .into_lua_err()
+            },
+        );
+        methods.add_method("unify_piece_types", |lua, this, sym: LuaSymmetry| {
+            let transforms = sym.chiral_safe_generators();
+            this.lock()
+                .shape
+                .unify_piece_types(&transforms, lua_warn_fn(lua));
+            Ok(())
+        });
     }
 }
 
