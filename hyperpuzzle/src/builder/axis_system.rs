@@ -5,7 +5,7 @@ use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
 
 use super::{CustomOrdering, NamingScheme};
-use crate::{Axis, DevOrbit, LayerInfo, PerAxis, PerLayer};
+use crate::{Axis, DevOrbit, Layer, LayerInfo, LayerMask, PerAxis, PerLayer};
 
 /// Layer of a twist axis during puzzle construction.
 #[derive(Debug, Clone)]
@@ -13,7 +13,7 @@ pub struct AxisLayerBuilder {
     /// Hyperplane bounding the bottom of the layer.
     pub bottom: Hyperplane,
     /// Hyperplane bounding the top of the layer, which is inferred to be the
-    /// bottom of the next layer out (or unbounded, this is the outermost
+    /// bottom of the next layer out (or unbounded, if this is the outermost
     /// layer).
     pub top: Option<Hyperplane>,
 }
@@ -26,13 +26,44 @@ pub struct AxisBuilder {
     ///
     /// Once an axis has been constructed, its vector cannot be modified.
     vector: Vector,
-    /// Layer data for each layer on the axis.
+    /// Layer data for each layer on the axis, in order from outermost to
+    /// innermost.
     pub layers: PerLayer<AxisLayerBuilder>,
 }
 impl AxisBuilder {
     /// Returns the axis's vector.
     pub fn vector(&self) -> &Vector {
         &self.vector
+    }
+
+    /// Returns the hyperplanes bounding a layer.
+    pub fn boundary_of_layer(
+        &self,
+        layer: Layer,
+    ) -> Result<(&Hyperplane, Option<&Hyperplane>), IndexOutOfRange> {
+        let l = self.layers.get(layer)?;
+        Ok((
+            &l.bottom,
+            l.top.as_ref().or_else(|| {
+                let prev_layer = Layer(layer.0.checked_sub(1)?);
+                Some(&self.layers.get(prev_layer).ok()?.bottom)
+            }),
+        ))
+    }
+
+    /// Returns a union-of-intersections of bounded regions for the given layer
+    /// mask.
+    pub fn plane_bounded_regions(&self, layer_mask: LayerMask) -> Result<Vec<Vec<Hyperplane>>> {
+        // TODO: optimize
+        layer_mask
+            .iter()
+            .map(|layer| {
+                let (btm, top) = self.boundary_of_layer(layer)?;
+                let mut ret = vec![btm.clone()];
+                ret.extend(top.cloned());
+                Ok(ret)
+            })
+            .collect()
     }
 
     fn ensure_monotonic_layers(&self) -> Result<()> {

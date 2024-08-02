@@ -175,6 +175,8 @@ pub fn names_from_table<'lua>(
     .collect())
 }
 
+/// **TODO: deprecated. maybe remove?**
+///
 /// Constructs an assignment of names and ordering based on a table for a
 /// particular symmetry group.
 ///

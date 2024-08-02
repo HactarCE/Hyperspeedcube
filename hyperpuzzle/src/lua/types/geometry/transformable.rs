@@ -31,7 +31,8 @@ pub enum Transformable {
     Color(Option<LuaColor>),
     /// Hyperplane.
     Hyperplane(LuaHyperplane),
-    // TODO: piece
+    /// Region.
+    Region(LuaRegion),
     /// Transform (isometry).
     Transform(LuaTransform),
     /// Twist in a twist system.
@@ -102,6 +103,7 @@ impl Transformable {
             Self::Blade(b) => Some(b.clone().into_lua(lua)),
             Self::Color(c) => Some(c.clone().into_lua(lua)),
             Self::Hyperplane(h) => Some(h.clone().into_lua(lua)),
+            Self::Region(r) => Some(r.clone().into_lua(lua)),
             Self::Transform(t) => Some(t.clone().into_lua(lua)),
             Self::Twist {
                 db,
@@ -144,6 +146,7 @@ impl TransformByMotor for Transformable {
             Self::Blade(b) => Self::Blade(m.transform(b)),
             Self::Color(_) => Self::Color(None), // TODO: support transforming colors
             Self::Hyperplane(LuaHyperplane(h)) => Self::Hyperplane(LuaHyperplane(m.transform(h))),
+            Self::Region(r) => Self::Region(m.transform(r)),
             Self::Transform(LuaTransform(t)) => Self::Transform(LuaTransform(m.transform(t))),
             Self::Twist {
                 db,
@@ -167,6 +170,15 @@ impl ApproxHashMapKey for Transformable {
             Self::Blade(LuaBlade(b)) => b.approx_hash(float_hash_fn).into(),
             Self::Color(color) => color.as_ref().map(|c| c.id.0 as u64).into(),
             Self::Hyperplane(LuaHyperplane(h)) => h.approx_hash(float_hash_fn).into(),
+            Self::Region(r) => {
+                let mut planes = vec![];
+                let mut ast_structure = String::new();
+                hash_region(&mut float_hash_fn, &mut planes, &mut ast_structure, r);
+                TransformableHash::Region {
+                    planes,
+                    ast_structure,
+                }
+            }
             Self::Transform(LuaTransform(t)) => t.approx_hash(float_hash_fn).into(),
             Self::Twist {
                 db: _,
@@ -193,6 +205,13 @@ pub enum TransformableHash {
     Vec(Vec<TransformableHash>),
     /// Hash of an ID.
     Id(Option<u64>),
+    /// Hash of a region.
+    Region {
+        /// Hyperplanes that factor into the region.
+        planes: Vec<VectorHash>,
+        /// Serialization of the tree of operations to construct the region.
+        ast_structure: String,
+    },
 }
 impl From<VectorHash> for TransformableHash {
     fn from(value: VectorHash) -> Self {
@@ -212,5 +231,52 @@ impl FromIterator<TransformableHash> for TransformableHash {
 impl From<Option<u64>> for TransformableHash {
     fn from(value: Option<u64>) -> Self {
         Self::Id(value)
+    }
+}
+
+fn hash_region(
+    float_hash_fn: &mut impl FnMut(Float) -> FloatHash,
+    planes: &mut Vec<VectorHash>,
+    ast_structure: &mut String,
+    r: &LuaRegion,
+) {
+    // The hash needs to be unambigous, but we never have to decode it, so this
+    // is essentially a silly little domain-specific language.
+    match r {
+        LuaRegion::Nothing => ast_structure.push('_'),
+        LuaRegion::Everything => ast_structure.push('*'),
+        LuaRegion::HalfSpace(h) => {
+            ast_structure.push('h');
+            planes.push(h.approx_hash(float_hash_fn));
+        }
+        LuaRegion::And(xs) => {
+            // `&XYZ.` = intersection of X, Y, and Z
+            ast_structure.push('&');
+            for x in xs {
+                hash_region(float_hash_fn, planes, ast_structure, x);
+            }
+            ast_structure.push('.');
+        }
+        LuaRegion::Or(xs) => {
+            // `|XYZ.` = union of X, Y, and Z
+            ast_structure.push('|');
+            for x in xs {
+                hash_region(float_hash_fn, planes, ast_structure, x);
+            }
+            ast_structure.push('.');
+        }
+        LuaRegion::Xor(xs) => {
+            // `^XYZ.` = symmetric difference of X, Y, and Z
+            ast_structure.push('^');
+            for x in xs {
+                hash_region(float_hash_fn, planes, ast_structure, x);
+            }
+            ast_structure.push('.');
+        }
+        LuaRegion::Not(x) => {
+            // `~X` = complement of X
+            ast_structure.push('~');
+            hash_region(float_hash_fn, planes, ast_structure, &x);
+        }
     }
 }

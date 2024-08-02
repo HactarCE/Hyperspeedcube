@@ -1,5 +1,5 @@
 use hypermath::{Hyperplane, IndexNewtype};
-use parking_lot::{MappedMutexGuard, MutexGuard};
+use parking_lot::MappedMutexGuard;
 
 use super::*;
 use crate::builder::AxisLayerBuilder;
@@ -62,10 +62,9 @@ impl LuaLayerSystem {
     /// Returns a mutex guard granting temporary access to the underlying layer
     /// list.
     pub fn lock(&self) -> LuaResult<MappedMutexGuard<'_, PerLayer<AxisLayerBuilder>>> {
-        MutexGuard::try_map(self.axis.db.lock(), |puz| {
-            Some(&mut puz.twists.axes.get_mut(self.axis.id).ok()?.layers)
-        })
-        .map_err(|_| LuaError::external("error fetching layer system"))
+        Ok(MappedMutexGuard::map(self.axis.lock()?, |axis| {
+            &mut axis.layers
+        }))
     }
 
     /// Returns all cuts in the layer.
@@ -75,5 +74,10 @@ impl LuaLayerSystem {
             .iter_values()
             .flat_map(|layer| itertools::chain([layer.bottom.clone()], layer.top.clone()))
             .collect())
+    }
+
+    /// Returns the number of layers.
+    pub fn len(&self) -> LuaResult<usize> {
+        Ok(self.lock()?.len())
     }
 }

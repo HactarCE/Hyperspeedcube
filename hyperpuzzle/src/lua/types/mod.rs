@@ -9,6 +9,7 @@ mod geometry;
 mod layer_system;
 mod orbit;
 mod puzzle;
+mod region;
 mod symmetry;
 mod twist_system;
 
@@ -19,6 +20,7 @@ pub use geometry::*;
 pub use layer_system::*;
 pub use orbit::*;
 pub use puzzle::*;
+pub use region::*;
 pub use symmetry::*;
 pub use twist_system::*;
 pub use wrappers::*;

@@ -17,10 +17,17 @@ impl Default for LayerMask {
         Self(1)
     }
 }
+/// Creates a layer mask from a single **0-indexed** layer.
+impl From<u8> for LayerMask {
+    fn from(layer: u8) -> Self {
+        LayerMask(1 << layer)
+    }
+}
+/// Creates a layer mask from a **0-indexed** range of layers.
 impl From<RangeInclusive<u8>> for LayerMask {
-    fn from(range: RangeInclusive<u8>) -> Self {
-        let mut lo = *range.start();
-        let mut hi = std::cmp::min(*range.end(), 31);
+    fn from(layer_range: RangeInclusive<u8>) -> Self {
+        let mut lo = *layer_range.start();
+        let mut hi = std::cmp::min(*layer_range.end(), 31);
         if lo > hi {
             std::mem::swap(&mut lo, &mut hi);
         }
@@ -112,7 +119,9 @@ impl FromStr for LayerMask {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // IIFE
         (|| {
-            if s.trim().starts_with('{') {
+            if s.is_empty() {
+                Some(Self::default())
+            } else if s.trim().starts_with('{') {
                 s.trim()
                     .strip_prefix('{')?
                     .strip_suffix('}')?
@@ -141,6 +150,9 @@ impl From<Layer> for LayerMask {
     }
 }
 impl LayerMask {
+    /// Mask containing no layers.
+    pub const EMPTY: Self = LayerMask(0);
+
     /// Returns a mask containing all layers.
     pub fn all_layers(total_layer_count: u8) -> Self {
         Self((1 << total_layer_count as u32) - 1)
@@ -208,5 +220,22 @@ impl LayerMask {
     /// exactly one layer.
     pub fn get_single_layer(self) -> Option<u32> {
         (self.count() == 1).then(|| self.0.trailing_zeros())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_layer_mask() {
+        for s in ["", "2", "3", "{1-3}", "{1,3}"] {
+            assert_eq!(s, LayerMask::from_str(s).unwrap().to_string());
+        }
+        assert_eq!("{1-3}", LayerMask::from(0..=2).to_string());
+        assert_eq!("", LayerMask::from(0).to_string());
+        assert_eq!("2", LayerMask::from(1).to_string());
+        assert_eq!("3", LayerMask::from(2).to_string());
+        assert_eq!(LayerMask::from(0) | LayerMask::from(2), LayerMask(0b101));
     }
 }

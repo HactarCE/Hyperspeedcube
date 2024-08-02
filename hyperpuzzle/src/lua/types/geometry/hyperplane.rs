@@ -85,10 +85,13 @@ impl LuaUserData for LuaHyperplane {
         });
         fields.add_field_method_get("distance", |_lua, Self(this)| Ok(this.distance()));
         fields.add_field_method_get("blade", |lua, this| this.to_blade(lua));
+
+        fields.add_field_method_get("region", |_lua, Self(this)| {
+            Ok(LuaRegion::HalfSpace(this.clone()))
+        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_method("flip", |_lua, Self(this), ()| Ok(Self(this.flip())));
         methods.add_method("signed_distance", |_lua, Self(this), LuaPoint(p)| {
             Ok(this.signed_distance_to_point(p))
         });

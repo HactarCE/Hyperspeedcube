@@ -1,9 +1,13 @@
+use std::str::FromStr;
+
 use hypermath::pga::Motor;
 use hypermath::Vector;
+use parking_lot::{MappedMutexGuard, MutexGuard};
 
 use super::*;
-use crate::builder::PuzzleBuilder;
+use crate::builder::{AxisBuilder, PuzzleBuilder};
 use crate::puzzle::Axis;
+use crate::LayerMask;
 
 /// Lua handle for a twist axis in an axis system under construction.
 pub type LuaAxis = LuaDbEntry<Axis, PuzzleBuilder>;
@@ -41,10 +45,77 @@ impl LuaUserData for LuaAxis {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             this.lua_into_string()
         });
+
+        methods.add_meta_method(LuaMetaMethod::Call, |lua, this, args: LuaMultiValue<'_>| {
+            let layer_count = this.layers().len()?;
+            let validate_layer = |LuaIndex(n)| {
+                if n < layer_count {
+                    Ok(n as u8)
+                } else {
+                    Err(LuaError::external("layer index out of range"))
+                }
+            };
+
+            let layer_mask = if args.len() == 1 {
+                let arg: LuaValue<'_> = lua.unpack_multi(args)?;
+                if let LuaValue::Table(t) = arg {
+                    // list of individual layers
+                    let mut ret = LayerMask::EMPTY;
+                    for v in t.sequence_values() {
+                        ret |= LayerMask::from(validate_layer(lua.unpack(v?)?)?);
+                    }
+                    ret
+                } else if let Ok(n) = lua.unpack::<LuaIndex>(arg.clone()) {
+                    // single layer
+                    LayerMask::from(validate_layer(n)?)
+                } else if let Ok(s) = lua.unpack::<String>(arg.clone()) {
+                    if s.trim() == "*" {
+                        // all layers
+                        LayerMask::all_layers(layer_count as u8)
+                    } else {
+                        // layer mask string
+                        LayerMask::from_str(&s).into_lua_err()?
+                    }
+                } else {
+                    return lua_convert_err(
+                        &arg,
+                        "layer mask string, layer index number, \
+                         or list of layer index numbers",
+                    );
+                }
+            } else {
+                // layer range
+                let (lo, hi) = lua.unpack_multi(args)?;
+                LayerMask::from(validate_layer(lo)?..=validate_layer(hi)?)
+            };
+
+            let puz = this.db.lock();
+            let plane_bounded_regions = puz
+                .twists
+                .axes
+                .get(this.id)
+                .into_lua_err()?
+                .plane_bounded_regions(layer_mask)
+                .into_lua_err()?;
+            Ok(LuaRegion::Or(
+                plane_bounded_regions
+                    .into_iter()
+                    .map(|layer_region| {
+                        LuaRegion::And(layer_region.into_iter().map(LuaRegion::HalfSpace).collect())
+                    })
+                    .collect(),
+            ))
+        });
     }
 }
 
 impl LuaAxis {
+    /// Returns a mutex guard granting temporary access to the underlying axis.
+    pub fn lock(&self) -> LuaResult<MappedMutexGuard<'_, AxisBuilder>> {
+        MutexGuard::try_map(self.db.lock(), |puz| puz.twists.axes.get_mut(self.id).ok())
+            .map_err(|_| LuaError::external("error fetching axis"))
+    }
+
     /// Returns the vector of the axis.
     pub fn vector(&self) -> LuaResult<Vector> {
         let puz = self.db.lock();
