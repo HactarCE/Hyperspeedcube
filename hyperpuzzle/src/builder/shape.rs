@@ -350,6 +350,23 @@ impl ShapeBuilder {
             warn_fn(eyre!("{count} piece types overwritten"));
         }
 
+        // Check for bad spelling.
+        for piece_type in piece_types.iter_values() {
+            if piece_type.name.to_lowercase().contains("centre") {
+                // Nope out.
+                warn_fn(eyre!(
+                    "incorrect spelling detected in piece type {:?}",
+                    piece_type.name
+                ));
+                return Ok((
+                    Mesh::new_empty(self.ndim()),
+                    PerPiece::new(),
+                    PerSticker::new(),
+                    PerPieceType::new(),
+                ));
+            }
+        }
+
         // All surfaces have an entry in `hyperplane_to_surface`.
         let mut hyperplane_to_surface: ApproxHashMap<Hyperplane, Surface> = ApproxHashMap::new();
 

@@ -232,7 +232,7 @@ impl Clone for PuzzleRenderer {
 
 impl PuzzleRenderer {
     pub fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Self {
-        let is_empty_model = puzzle.mesh.is_empty();
+        let is_empty_model = puzzle.mesh.is_empty() || puzzle.pieces.is_empty();
 
         let mesh = if is_empty_model {
             let placeholder_mesh = super::placeholder::placeholder_mesh(puzzle.ndim());
