@@ -1,4 +1,4 @@
-use std::ops::{BitAnd, BitOr, Not};
+use std::ops::{BitAnd, BitOr, BitXor, Not};
 
 use hypermath::{Hyperplane, TransformByMotor, VectorRef};
 
@@ -48,7 +48,7 @@ impl LuaUserData for LuaRegion {
             Ok(lhs.clone() | rhs)
         });
         methods.add_meta_method(LuaMetaMethod::BXor, |_lua, lhs, rhs: Self| {
-            Ok((lhs.clone() & !rhs.clone()) | (!lhs.clone() & rhs))
+            Ok(lhs.clone() ^ rhs.clone())
         });
         methods.add_meta_method(LuaMetaMethod::BNot, |_lua, this, ()| Ok(!this.clone()));
 
@@ -165,6 +165,25 @@ impl BitOr for LuaRegion {
                 Self::Or(xs)
             }
             (x, y) => Self::Or(vec![x, y]),
+        }
+    }
+}
+impl BitXor for LuaRegion {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (LuaRegion::Nothing, x) | (x, LuaRegion::Nothing) => x,
+            (LuaRegion::Everything, x) | (x, LuaRegion::Everything) => !x,
+            (LuaRegion::Xor(mut xs), LuaRegion::Xor(ys)) => {
+                xs.extend(ys);
+                Self::Xor(xs)
+            }
+            (LuaRegion::Xor(mut xs), x) | (x, LuaRegion::Xor(mut xs)) => {
+                xs.push(x);
+                Self::Xor(xs)
+            }
+            (x, y) => LuaRegion::Xor(vec![x, y]),
         }
     }
 }

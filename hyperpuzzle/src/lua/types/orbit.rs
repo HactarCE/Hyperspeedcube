@@ -110,6 +110,27 @@ impl LuaUserData for LuaOrbit {
             }
             Ok(ret)
         });
+
+        methods.add_method("intersection", |_lua, this, ()| {
+            let mut ret = LuaRegion::Everything;
+            for elem in &this.orbit_list {
+                match elem.objects.get(0) {
+                    Some(Transformable::Region(r)) => ret = ret & r.clone(),
+                    _ => return Err(LuaError::external("expected orbit of regions")),
+                };
+            }
+            Ok(ret)
+        });
+        methods.add_method("union", |_lua, this, ()| {
+            let mut ret = LuaRegion::Nothing;
+            for elem in &this.orbit_list {
+                match elem.objects.get(0) {
+                    Some(Transformable::Region(r)) => ret = ret | r.clone(),
+                    _ => return Err(LuaError::external("expected orbit of regions")),
+                };
+            }
+            Ok(ret)
+        });
     }
 }
 
