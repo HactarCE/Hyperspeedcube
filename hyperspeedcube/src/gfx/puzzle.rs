@@ -311,7 +311,7 @@ impl PuzzleRenderer {
             view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
         });
         let output_texture_view = output_texture.create_view(&wgpu::TextureViewDescriptor {
-            format: Some(dbg!(output_texture.format()).remove_srgb_suffix()),
+            format: Some(output_texture.format().remove_srgb_suffix()),
             ..Default::default()
         });
 
