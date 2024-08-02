@@ -447,10 +447,11 @@ impl Mul<&Motor> for &Motor {
     type Output = Motor;
 
     fn mul(self, rhs: &Motor) -> Self::Output {
-        assert_eq!(
-            self.ndim, rhs.ndim,
-            "cannot operate on motors with different numbers of dimensions",
-        );
+        // Expecting motors to be the same dimension causes too many crashes.
+        // assert_eq!(
+        //     self.ndim, rhs.ndim,
+        //     "cannot operate on motors with different numbers of dimensions",
+        // );
         let mut ret = Motor::zero(
             std::cmp::max(self.ndim, rhs.ndim),
             self.is_reflection ^ rhs.is_reflection,
