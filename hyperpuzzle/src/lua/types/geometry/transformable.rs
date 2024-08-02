@@ -59,8 +59,11 @@ impl<'lua> FromLua<'lua> for Transformable {
                 .or_else(|| cast_userdata(lua, &value).map(Self::Hyperplane).ok())
                 .or_else(|| cast_userdata(lua, &value).map(Self::Blade).ok())
                 .or_else(|| cast_userdata(lua, &value).map(Self::Transform).ok())
+                .or_else(|| cast_userdata(lua, &value).map(Self::Region).ok())
         }
-        .ok_or_else(|| lua_convert_error(&value, "axis, color, transform, twist, or vector"))
+        .ok_or_else(|| {
+            lua_convert_error(&value, "axis, color, region, transform, twist, or vector")
+        })
     }
 }
 
