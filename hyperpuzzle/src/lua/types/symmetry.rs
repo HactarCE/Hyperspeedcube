@@ -1,17 +1,33 @@
+use std::borrow::Cow;
+
 use hypermath::collections::ApproxHashMapKey;
 use hypermath::prelude::*;
 use hypershape::prelude::*;
 use itertools::Itertools;
+use pga::Motor;
+use smallvec::smallvec;
 
 use super::*;
 
+/// Error message when trying to do a Coxeter group operation on a non-Coxeter
+/// group.
+pub const BAD_GROUP_OPERATION_MSG: &str = "this group does not support this operation";
+
 /// Lua symmetry object.
 #[derive(Debug, Clone)]
-pub struct LuaSymmetry {
-    /// Base Coxeter group.
-    pub coxeter: CoxeterGroup,
-    /// Whether to discount symmetry elements that have a net reflection.
-    pub chiral: bool,
+pub enum LuaSymmetry {
+    /// Coxeter group (optionally chiral).
+    Coxeter {
+        /// Base Coxeter group.
+        coxeter: CoxeterGroup,
+        /// Whether to discount symmetry elements that have a net reflection.
+        chiral: bool,
+    },
+    /// Symmetry from generators.
+    Custom {
+        /// Generators of the symmetry group.
+        generators: Vec<Motor>,
+    },
 }
 
 impl<'lua> FromLua<'lua> for LuaSymmetry {
@@ -22,7 +38,7 @@ impl<'lua> FromLua<'lua> for LuaSymmetry {
 
 impl<T: Into<CoxeterGroup>> From<T> for LuaSymmetry {
     fn from(value: T) -> Self {
-        Self {
+        Self::Coxeter {
             coxeter: value.into(),
             chiral: false,
         }
@@ -30,8 +46,9 @@ impl<T: Into<CoxeterGroup>> From<T> for LuaSymmetry {
 }
 
 impl LuaSymmetry {
-    /// Constructs a symmetry object from a Lua value (string or table).
-    pub fn construct_from_lua_value(v: LuaValue<'_>) -> LuaResult<Self> {
+    /// Constructs a symmetry object from a Lua value (string or table)
+    /// representing a Coxeter group.
+    pub fn construct_from_cd(v: LuaValue<'_>) -> LuaResult<Self> {
         fn split_alpha_number(s: &str) -> Option<(&str, u8)> {
             let (num_index, _) = s.match_indices(char::is_numeric).next()?;
             let num = s[num_index..].parse().ok()?;
@@ -65,19 +82,61 @@ impl LuaSymmetry {
         .map(LuaSymmetry::from)
         .into_lua_err()
     }
+    /// Returns the underlying Coxeter group, or returns an error if the group
+    /// was not constructed as a Coxeter group.
+    pub fn as_coxeter(&self) -> LuaResult<&CoxeterGroup> {
+        match self {
+            LuaSymmetry::Coxeter { coxeter, .. } => Ok(coxeter),
+            LuaSymmetry::Custom { .. } => Err(LuaError::external(BAD_GROUP_OPERATION_MSG)),
+        }
+    }
+
+    /// Constructs a symmetry object from a sequence of generators.
+    pub fn construct_from_generators<'lua>(
+        lua: &'lua Lua,
+        generators: LuaTable<'lua>,
+    ) -> LuaResult<Self> {
+        Ok(Self::Custom {
+            generators: generators
+                .sequence_values()
+                .map(|value| {
+                    let value: LuaValue<'_> = value?;
+                    if let Ok(LuaTransform(t)) = lua.unpack(value.clone()) {
+                        Ok(t)
+                    } else if let Ok(t) = lua.unpack::<LuaTwist>(value.clone()) {
+                        Ok(t.get()?.transform.clone())
+                    } else {
+                        lua_convert_err(&value, "transform or twist")
+                    }
+                })
+                .try_collect()?,
+        })
+    }
 
     /// Returns the orbit of an object under the symmetry.
     pub fn orbit<T: ApproxHashMapKey + Clone + TransformByMotor>(
         &self,
         object: T,
     ) -> Vec<(GeneratorSequence, pga::Motor, T)> {
-        self.coxeter.orbit(object, self.chiral)
+        match self {
+            LuaSymmetry::Coxeter { coxeter, chiral } => coxeter.orbit(object, *chiral),
+            LuaSymmetry::Custom { generators } => hypershape::orbit(
+                &generators
+                    .iter()
+                    .enumerate()
+                    .map(|(i, m)| (smallvec![i as u8], m.clone()))
+                    .collect_vec(),
+                object,
+            ),
+        }
     }
 
     /// Constructs a vector in the symmetry basis from Dynkin notation.
     pub fn dynkin_vector(&self, string: &str) -> LuaResult<Vector> {
-        Ok(self.coxeter.mirror_basis().into_lua_err()?
-            * parse_dynkin_notation(self.coxeter.mirror_count(), &string)?)
+        let coxeter = self.as_coxeter()?;
+
+        Ok(coxeter.mirror_basis().into_lua_err()?
+            * parse_dynkin_notation(coxeter.mirror_count(), &string)?)
     }
 
     fn vector_from_args<'lua>(
@@ -85,14 +144,37 @@ impl LuaSymmetry {
         lua: &'lua Lua,
         args: LuaMultiValue<'lua>,
     ) -> LuaResult<Vector> {
+        let coxeter = self.as_coxeter()?;
+
         if let Ok(string) = String::from_lua_multi(args.clone(), lua) {
             self.dynkin_vector(&string)
         } else if let Ok(LuaVector(v)) = <_>::from_lua_multi(args, lua) {
-            Ok(self.coxeter.mirror_basis().into_lua_err()? * v)
+            Ok(coxeter.mirror_basis().into_lua_err()? * v)
         } else {
             Err(LuaError::external(
                 "expected vector constructor or dynkin notation string",
             ))
+        }
+    }
+
+    /// Returns the list of generators of the underlying group.
+    ///
+    /// In chiral groups, these generators may include reflections and so
+    /// special care must be taken when using them.
+    pub fn generators(&self) -> Cow<'_, [Motor]> {
+        match self {
+            LuaSymmetry::Coxeter { coxeter, .. } => Cow::Owned(coxeter.generators()),
+            LuaSymmetry::Custom { generators } => Cow::Borrowed(generators),
+        }
+    }
+    /// Returns the minimum number of dimensions required to represent the
+    /// symmetry group.
+    pub fn ndim(&self) -> u8 {
+        match self {
+            LuaSymmetry::Coxeter { coxeter, .. } => coxeter.min_ndim(),
+            LuaSymmetry::Custom { generators } => {
+                generators.iter().map(|gen| gen.ndim()).max().unwrap_or(1)
+            }
         }
     }
 
@@ -102,13 +184,15 @@ impl LuaSymmetry {
         &self,
         gen_seq: impl IntoIterator<Item = u8>,
     ) -> LuaResult<pga::Motor> {
-        let ndim = self.coxeter.min_ndim();
-        let mirrors = self.coxeter.mirrors();
+        let generators = self.generators();
+        let ndim = self.ndim();
         gen_seq
             .into_iter()
             .map(|i| -> Result<pga::Motor, &str> {
-                let mirror = mirrors.get(i as usize).ok_or("mirror index out of range")?;
-                Ok(mirror.motor(ndim))
+                let gen = generators
+                    .get(i as usize)
+                    .ok_or("generator index out of range")?;
+                Ok(gen.to_ndim_at_least(ndim))
             })
             .reduce(|a, b| Ok(a? * b?))
             .unwrap_or(Ok(pga::Motor::ident(ndim)))
@@ -120,29 +204,50 @@ impl LuaUserData for LuaSymmetry {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("symmetry"));
 
-        fields.add_field_method_get("ndim", |_lua, this| Ok(this.coxeter.min_ndim()));
+        fields.add_field_method_get("ndim", |_lua, this| match this {
+            LuaSymmetry::Coxeter { coxeter, .. } => Ok(coxeter.min_ndim()),
+            LuaSymmetry::Custom { generators } => {
+                Ok(generators.iter().map(|gen| gen.ndim()).max().unwrap_or(1))
+            }
+        });
 
         fields.add_field_method_get("mirror_vectors", |lua, this| {
+            let LuaSymmetry::Coxeter { coxeter, .. } = this else {
+                return Err(LuaError::external(BAD_GROUP_OPERATION_MSG));
+            };
+
             lua.create_sequence_from(
-                this.coxeter
+                coxeter
                     .mirrors()
                     .iter()
                     .map(|m| LuaVector(m.normal().clone())),
             )
         });
 
-        fields.add_field_method_get("chiral", |_lua, Self { coxeter, .. }| {
-            Ok(Self {
-                coxeter: coxeter.clone(),
+        fields.add_field_method_get("chiral", |_lua, this| {
+            Ok(Self::Coxeter {
+                coxeter: this.as_coxeter()?.clone(),
                 chiral: true,
             })
         });
-        fields.add_field_method_get("is_chiral", |_lua, Self { chiral, .. }| Ok(*chiral));
+        fields.add_field_method_get("is_chiral", |_lua, this| match this {
+            LuaSymmetry::Coxeter { chiral, .. } => Ok(Some(*chiral)),
+            LuaSymmetry::Custom { .. } => Ok(None),
+        });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
-            Ok(this.coxeter.to_string())
+        methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| match this {
+            LuaSymmetry::Coxeter { coxeter, chiral } => {
+                let mut s = coxeter.to_string();
+                if *chiral {
+                    s += " (chiral)"
+                }
+                Ok(s)
+            }
+            LuaSymmetry::Custom { generators } => {
+                Ok(format!("symmetry({})", generators.iter().join(", ")))
+            }
         });
 
         methods.add_meta_method(LuaMetaMethod::Index, |_lua, this, index: String| {

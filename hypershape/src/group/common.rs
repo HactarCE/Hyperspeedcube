@@ -1,5 +1,38 @@
 use hypermath::collections::{GenericVec, IndexOverflow};
-use hypermath::{idx_struct, pga, IndexNewtype};
+use hypermath::{idx_struct, pga, ApproxHashMap, ApproxHashMapKey, IndexNewtype, TransformByMotor};
+
+use super::GeneratorSequence;
+
+/// Returns the orbit of an object under the symmetry. Each generator is
+/// specified along with its generator sequence.
+pub fn orbit<T: Clone + ApproxHashMapKey + TransformByMotor>(
+    generators: &[(smallvec::SmallVec<[u8; 8]>, pga::Motor)],
+    object: T,
+) -> Vec<(GeneratorSequence, pga::Motor, T)> {
+    let ndim = generators.iter().map(|(_, m)| m.ndim()).max().unwrap_or(1);
+
+    let mut seen = ApproxHashMap::new();
+    seen.insert(object.clone(), ());
+
+    let mut next_unprocessed_index = 0;
+    let mut ret = vec![(GeneratorSequence::INIT, pga::Motor::ident(ndim), object)];
+    while next_unprocessed_index < ret.len() {
+        let (_gen_seq, unprocessed_transform, unprocessed_object) =
+            ret[next_unprocessed_index].clone();
+        for (gen_seq_ids, gen) in generators {
+            let new_object = gen.transform(&unprocessed_object);
+            if seen.insert(new_object.clone(), ()).is_none() {
+                let gen_seq = GeneratorSequence {
+                    generators: gen_seq_ids.clone(),
+                    end: Some(next_unprocessed_index),
+                };
+                ret.push((gen_seq, gen * &unprocessed_transform, new_object));
+            }
+        }
+        next_unprocessed_index += 1;
+    }
+    ret
+}
 
 idx_struct! {
     /// ID of a group generator.

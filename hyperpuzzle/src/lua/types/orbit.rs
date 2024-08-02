@@ -188,7 +188,7 @@ pub fn names_and_order_from_table<'lua>(
 ) -> LuaResult<Vec<((String, Option<String>), Motor)>> {
     // TODO: just compare against the existing symmetry, and use the existing
     // symmetry for calculations
-    let symmetry = LuaSymmetry::construct_from_lua_value(table.get("symmetry")?)?;
+    let symmetry = LuaSymmetry::construct_from_cd(table.get("symmetry")?)?;
 
     let mut order = vec![];
 

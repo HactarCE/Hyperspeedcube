@@ -95,7 +95,7 @@ impl LuaLoader {
             sandbox.raw_set("puzzles", LuaPuzzleDb)?;
             sandbox.raw_set("color_systems", LuaColorSystemDb)?;
 
-            // Constructors
+            // `blade` constructors
             let vec_fn = |lua, LuaVectorFromMultiValue(v)| LuaBlade::from_vector(lua, v);
             sandbox.raw_set("vec", lua.create_function(vec_fn)?)?;
             let point_fn = |lua, LuaPointFromMultiValue(v)| LuaBlade::from_point(lua, v);
@@ -104,8 +104,14 @@ impl LuaLoader {
             sandbox.raw_set("blade", lua.create_function(blade_fn)?)?;
             let plane_fn = |lua, LuaHyperplaneFromMultivalue(h)| LuaBlade::from_hyperplane(lua, &h);
             sandbox.raw_set("plane", lua.create_function(plane_fn)?)?;
-            let cd_fn = |_lua, v| LuaSymmetry::construct_from_lua_value(v);
+
+            // `symmetry` constructors
+            let cd_fn = |_lua, v| LuaSymmetry::construct_from_cd(v);
             sandbox.raw_set("cd", lua.create_function(cd_fn)?)?;
+            let symmetry_fn = LuaSymmetry::construct_from_generators;
+            sandbox.raw_set("symmetry", lua.create_function(symmetry_fn)?)?;
+
+            // `transform` constructors
             let ident_fn = LuaTransform::construct_identity;
             sandbox.raw_set("ident", lua.create_function(ident_fn)?)?;
             let refl_fn = LuaTransform::construct_reflection;

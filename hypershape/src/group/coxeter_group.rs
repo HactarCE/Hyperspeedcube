@@ -1,7 +1,6 @@
 use core::fmt;
 
 use hypermath::collections::approx_hashmap::ApproxHashMapKey;
-use hypermath::collections::ApproxHashMap;
 use hypermath::prelude::*;
 use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
@@ -245,6 +244,7 @@ impl CoxeterGroup {
             .into_iter()
             .enumerate()
             .map(|(i, g)| (i as u8, g));
+
         let generators = if chiral {
             itertools::iproduct!(generators.clone(), generators)
                 .map(|((i, g1), (j, g2))| (smallvec![i, j], g1 * g2))
@@ -253,31 +253,7 @@ impl CoxeterGroup {
             generators.map(|(i, g)| (smallvec![i], g)).collect_vec()
         };
 
-        let mut seen = ApproxHashMap::new();
-        seen.insert(object.clone(), ());
-
-        let mut next_unprocessed_index = 0;
-        let mut ret = vec![(
-            GeneratorSequence::INIT,
-            pga::Motor::ident(self.min_ndim()),
-            object,
-        )];
-        while next_unprocessed_index < ret.len() {
-            let (_gen_seq, unprocessed_transform, unprocessed_object) =
-                ret[next_unprocessed_index].clone();
-            for (gen_seq_ids, gen) in &generators {
-                let new_object = gen.transform(&unprocessed_object);
-                if seen.insert(new_object.clone(), ()).is_none() {
-                    let gen_seq = GeneratorSequence {
-                        generators: gen_seq_ids.clone(),
-                        end: Some(next_unprocessed_index),
-                    };
-                    ret.push((gen_seq, gen * &unprocessed_transform, new_object));
-                }
-            }
-            next_unprocessed_index += 1;
-        }
-        ret
+        super::orbit(&generators, object)
     }
 }
 
