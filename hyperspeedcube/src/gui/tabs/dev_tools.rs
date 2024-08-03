@@ -187,6 +187,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
 
                     if uis[1].button("Clear orbit").clicked() {
                         *state = Default::default();
+                        state.current_tab = DevToolsTab::LuaGenerator;
                     }
                 });
             }
