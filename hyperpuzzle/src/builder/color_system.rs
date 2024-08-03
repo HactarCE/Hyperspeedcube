@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use eyre::{bail, eyre, Result};
+use eyre::{eyre, Result};
 use hypermath::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -154,16 +154,15 @@ impl ColorSystemBuilder {
         dev_data: &mut PuzzleDevData,
         warn_fn: impl Copy + Fn(eyre::Report),
     ) -> Result<ColorSystem> {
-        if self.id.is_none() {
+        let mut id = self.id.clone();
+        if id.is_none() {
             warn_fn(eyre!("color scheme is not shared"));
         }
-        if self.id.is_some() && self.is_modified {
-            bail!("shared color system cannot be modified");
+        if id.is_some() && self.is_modified {
+            warn_fn(eyre!("shared color system cannot be modified"));
+            id = None;
         }
-        let id = self
-            .id
-            .clone()
-            .unwrap_or_else(|| format!("{PUZZLE_PREFIX}{puzzle_id}"));
+        let id = id.unwrap_or_else(|| format!("{PUZZLE_PREFIX}{puzzle_id}"));
         let name = self
             .name
             .clone()
