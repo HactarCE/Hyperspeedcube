@@ -1,34 +1,35 @@
 color_systems:add('4_simplex', {
-  name = "4-simplex",
+  name = "4-Simplex",
 
   colors = {
-    { name = 'r', display = "Right", default = "Red" },
-    { name = 'l', display = "Left",  default = "Yellow" },
-    { name = 'd', display = "Down",  default = "Green" },
-    { name = 'b', display = "Back",  default = "Blue" },
-    { name = 'i', display = "In",    default = "Purple" },
+    { name = 'O',  display = "O",  default = "Purple" },
+    { name = 'D',  display = "D",  default = "Yellow" },
+    { name = 'F',  display = "F",  default = "Green" },
+    { name = 'BR', display = "BR", default = "Blue" },
+    { name = 'BL', display = "BL", default = "Red" },
   },
 })
+
 
 function simplex_4d()
   return {
     sym = cd'a4',
     iter_poles = function(self)
       return self.sym:orbit(self.sym.ooox.unit):named({
-        r = {},
-        l = {1, 'r'},
-        d = {2, 'l'},
-        b = {3, 'd'},
-        i = {4, 'b'},
+        O = {},
+        D = {4, 'O'},
+        F = {3, 'D'},
+        BR = {2, 'F'},
+        BL = {1, 'BR'},
       })
     end,
     iter_vertices = function(self)
       return self.sym:orbit(self.sym.xooo.unit):named({
-        R = {2, 'U'},
+        R = {},
         L = {1, 'R'},
-        U = {3, 'F'},
-        F = {4, 'O'},
-        O = {},
+        B = {2, 'L'},
+        U = {3, 'B'},
+        I = {4, 'U'},
       })
     end,
   }
