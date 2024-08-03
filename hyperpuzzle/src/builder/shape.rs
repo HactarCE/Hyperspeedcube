@@ -26,6 +26,9 @@ pub struct ShapeBuilder {
     /// included in the final puzzle.
     pub active_pieces: PieceSet,
 
+    /// Whether to automatically remove internal pieces as they are constructed.
+    pub remove_internals: bool,
+
     /// Puzzle piece types.
     piece_types: PerPieceType<PieceTypeBuilder>,
     /// Map from piece type name to ID.
@@ -44,6 +47,8 @@ impl ShapeBuilder {
 
             pieces: PerPiece::new(),
             active_pieces: PieceSet::new(),
+
+            remove_internals: true,
 
             piece_types: PerPieceType::new(),
             piece_types_by_name: HashMap::new(),
@@ -176,18 +181,18 @@ impl ShapeBuilder {
             }
 
             let new_inside_piece = match inside_polytope {
-                Some(p) => {
+                Some(p) if !(self.remove_internals && inside_stickers.is_empty()) => {
                     let inside_piece = PieceBuilder::new(self.space.get(p), inside_stickers)?;
                     Some(self.pieces.push(inside_piece)?)
                 }
-                None => None,
+                _ => None,
             };
             let new_outside_piece = match outside_polytope {
-                Some(p) => {
+                Some(p) if !(self.remove_internals && outside_stickers.is_empty()) => {
                     let outside_piece = PieceBuilder::new(self.space.get(p), outside_stickers)?;
                     Some(self.pieces.push(outside_piece)?)
                 }
-                None => None,
+                _ => None,
             };
 
             self.active_pieces.extend(new_inside_piece);

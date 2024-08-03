@@ -25,6 +25,9 @@ pub struct PuzzleParams {
     /// Lua table containing additional properties of the puzzle.
     pub properties: Option<LuaRegistryKey>,
 
+    /// Whether to automatically remove internal pieces as they are constructed.
+    pub remove_internals: Option<bool>,
+
     /// Lua function to build the puzzle.
     user_build_fn: LuaRegistryKey,
 }
@@ -40,6 +43,7 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
         let aliases: Option<Vec<String>>;
         let meta: Option<LuaTable<'lua>>;
         let properties: Option<LuaTable<'lua>>;
+        let remove_internals: Option<bool>;
 
         unpack_table!(lua.unpack(table {
             name,
@@ -51,6 +55,8 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
             aliases,
             meta,
             properties,
+
+            remove_internals,
         }));
 
         let create_opt_registry_value = |v| -> LuaResult<Option<LuaRegistryKey>> {
@@ -71,6 +77,8 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
             meta: create_opt_registry_value(meta)?,
             properties: create_opt_registry_value(properties)?,
 
+            remove_internals,
+
             user_build_fn: lua.create_registry_value(build)?,
         })
     }
@@ -85,6 +93,9 @@ impl PuzzleParams {
         let puzzle_builder = PuzzleBuilder::new(id, name, ndim).into_lua_err()?;
         if let Some(colors) = &self.colors {
             puzzle_builder.lock().shape.colors = colors.build(lua)?;
+        }
+        if let Some(remove_internals) = self.remove_internals {
+            puzzle_builder.lock().shape.remove_internals = remove_internals;
         }
         let space = puzzle_builder.lock().space();
 
