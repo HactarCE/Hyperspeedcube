@@ -92,7 +92,7 @@ impl PuzzleStyleStates {
     ///
     /// `modify_state_in_set` and `modify_state_not_in_set` are expected to be
     /// pure functions.
-    fn set_piece_states_with_opposite(
+    pub fn set_piece_states_with_opposite(
         &mut self,
         pieces: &PieceMask,
         modify_state_in_set: impl Fn(PieceStyleState) -> PieceStyleState,
@@ -127,15 +127,6 @@ impl PuzzleStyleStates {
                 }
             }
         }
-    }
-
-    /// Returns whether any piece in `piece_set` is hidden.
-    pub fn is_any_hidden(&self, pieces: &PieceMask) -> bool {
-        self.piece_sets
-            .iter()
-            .any(|(style_state, styled_piece_set)| {
-                style_state.hidden && styled_piece_set.any_overlap(pieces)
-            })
     }
 
     /// Returns the set of pieces that are interactable (can be hovered with the
@@ -184,7 +175,6 @@ pub struct PieceStyleValues {
 pub struct PieceStyleState {
     pub base: String,
 
-    pub hidden: bool,
     pub blind: bool,
     pub gripped: bool,
     pub ungripped: bool,
@@ -203,15 +193,18 @@ impl PieceStyleState {
             .get(&self.base)
             .map(|p| p.value)
             .and_then(|s| s.interactable);
-        let hid = self.hidden.then_some(false);
         let ugp = self.ungripped.then_some(false);
-        hid.or(ugp).or(base).unwrap_or(true)
+        ugp.or(base).unwrap_or(true)
     }
 
     /// Returns how to draw a piece with this style state.
     fn values(&self, styles: &StylePreferences) -> PieceStyleValues {
         let def = styles.default;
-        let base = styles.custom.get(&self.base).map(|p| p.value);
+        let base = styles
+            .custom
+            .get(&self.base)
+            .map(|p| p.value)
+            .unwrap_or(def);
         let bld = self.blind.then_some(styles.blind);
         let gp = self.gripped.then_some(styles.gripped);
         let ugp = self.ungripped.then_some(styles.ungripped);
@@ -230,9 +223,9 @@ impl PieceStyleState {
             xs.into_iter().find_map(|x| x).unwrap_or_default()
         }
 
-        let color_order = [hs, hp, ss, sp, ugp, gp, bld, base, Some(def)];
-        let opacity_order = [hs, hp, ss, sp, gp, bld, base, Some(def)]; // `ugp` is handled separately
-        let size_order = [hs, hp, ss, sp, ugp, gp, bld, base, Some(def)];
+        let color_order = [hs, hp, ss, sp, ugp, gp, bld, Some(base)];
+        let opacity_order = [hs, hp, ss, sp, gp, bld, Some(base)]; // `ugp` and `def` is handled separately
+        let size_order = [hs, hp, ss, sp, ugp, gp, bld, Some(base)];
 
         fn f32_to_u8(f: f32) -> u8 {
             (f.clamp(0.0, 1.0) * 255.0) as u8
@@ -247,7 +240,7 @@ impl PieceStyleState {
                     ugp.and_then(|s| s.face_opacity),
                     max(opacity_order.map(|s| s?.face_opacity)),
                 ])
-                .or(base.and_then(|s| s.face_opacity))
+                .or(base.face_opacity)
                 .unwrap_or(def.face_opacity.unwrap_or_default()),
             ),
             face_color: first_or_default(
@@ -259,7 +252,7 @@ impl PieceStyleState {
                     ugp.and_then(|s| s.outline_opacity),
                     max(opacity_order.map(|s| s?.outline_opacity)),
                 ])
-                .or(base.and_then(|s| s.outline_opacity))
+                .or(base.outline_opacity)
                 .unwrap_or(def.outline_opacity.unwrap_or_default()),
             ),
             outline_color: first_or_default(

@@ -68,6 +68,14 @@ impl Puzzle {
         self.mesh.ndim
     }
 
+    /// Returns whether the piece has a sticker with the given color.
+    pub fn piece_has_color(&self, piece: Piece, color: Color) -> bool {
+        self.pieces[piece].stickers.iter().any(|&sticker| {
+            let sticker_info = &self.stickers[sticker];
+            sticker_info.color == color
+        })
+    }
+
     pub(crate) fn opposite_twist_axis(&self, _axis: Axis) -> Option<Axis> {
         todo!()
     }

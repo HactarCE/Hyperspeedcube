@@ -2,7 +2,7 @@ use eyre::Result;
 use std::sync::Arc;
 
 use hypermath::prelude::*;
-use hyperpuzzle::{GizmoFace, PieceMask, Puzzle};
+use hyperpuzzle::{GizmoFace, Puzzle};
 use image::ImageBuffer;
 use parking_lot::Mutex;
 
@@ -11,9 +11,7 @@ use crate::gui::components::color_assignment_popup;
 use crate::gui::util::EguiTempValue;
 use crate::gui::App;
 use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
-use crate::puzzle::{
-    DragState, HoverMode, PieceStyleState, PuzzleSimulation, PuzzleView, PuzzleViewInput,
-};
+use crate::puzzle::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
 /// purposes, but causes the puzzle to redraw every frame that the mouse moves,
@@ -200,35 +198,7 @@ impl PuzzleWidget {
             }
         }
 
-        // TODO: remove temporary piece filters
         if r.has_focus() {
-            ui.input(|input| {
-                for (key, n) in [
-                    (egui::Key::Num1, 1),
-                    (egui::Key::Num2, 2),
-                    (egui::Key::Num3, 3),
-                    (egui::Key::Num4, 4),
-                    (egui::Key::Num5, 5),
-                    (egui::Key::Num6, 6),
-                    (egui::Key::Num7, 7),
-                    (egui::Key::Num8, 8),
-                    (egui::Key::Num9, 9),
-                    (egui::Key::Num0, 0),
-                ] {
-                    if input.key_pressed(key) {
-                        let all_pieces = &puzzle.pieces;
-                        let piece_set = PieceMask::from_iter(
-                            all_pieces.len(),
-                            all_pieces.iter_filter(|_, info| info.stickers.len() == n),
-                        );
-                        let hidden = !self.view.styles.is_any_hidden(&piece_set);
-                        self.view
-                            .styles
-                            .set_piece_states(&piece_set, |old| PieceStyleState { hidden, ..old });
-                    }
-                }
-            });
-
             if ui.input(|input| input.key_pressed(egui::Key::F5)) {
                 if crate::LIBRARY.with(|lib| self.reload(lib, prefs)) {
                     // Don't even try to redraw the puzzle. Just wait for the

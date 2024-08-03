@@ -12,6 +12,7 @@ use parking_lot::Mutex;
 use super::simulation::PuzzleSimulation;
 use super::styles::*;
 use super::Camera;
+use super::PuzzleFiltersState;
 use crate::preferences::ColorScheme;
 use crate::preferences::Preset;
 use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
@@ -28,6 +29,7 @@ pub struct PuzzleView {
     pub colors: Preset<ColorScheme>,
     pub temp_colors: Option<ColorScheme>,
     pub styles: PuzzleStyleStates,
+    pub filters: PuzzleFiltersState,
 
     /// Latest screen-space cursor position.
     cursor_pos: Option<cgmath::Point2<f32>>,
@@ -76,6 +78,7 @@ impl PuzzleView {
             colors,
             temp_colors: None,
             styles: PuzzleStyleStates::new(puzzle.pieces.len()),
+            filters: PuzzleFiltersState::new(puzzle),
 
             show_puzzle_hover: false,
             show_gizmo_hover: false,
@@ -137,6 +140,43 @@ impl PuzzleView {
         let a = self.puzzle_hover_state()?.position;
         let b = &a + self.parallel_drag_delta()?;
         Some([a, b])
+    }
+
+    pub fn notify_filters_changed(&mut self) {
+        let puzzle = self.puzzle();
+        let mut visible_pieces = PieceMask::new_full(puzzle.pieces.len());
+
+        // Filter by piece type.
+        for (piece_type, &state) in &self.filters.piece_types {
+            if let Some(wants_piece_type) = state {
+                for piece in puzzle.pieces.iter_keys() {
+                    if visible_pieces.contains(piece)
+                        && (puzzle.pieces[piece].piece_type == Some(piece_type)) != wants_piece_type
+                    {
+                        visible_pieces.remove(piece);
+                    }
+                }
+            }
+        }
+
+        // Filter by color.
+        for (color, &state) in &self.filters.colors {
+            if let Some(wants_color) = state {
+                for piece in puzzle.pieces.iter_keys() {
+                    if visible_pieces.contains(piece)
+                        && puzzle.piece_has_color(piece, color) != wants_color
+                    {
+                        visible_pieces.remove(piece);
+                    }
+                }
+            }
+        }
+
+        self.styles.set_piece_states_with_opposite(
+            &visible_pieces,
+            crate::update_styles!(base = String::new()),
+            crate::update_styles!(base = "Hidden".to_string()),
+        );
     }
 
     /// Updates the puzzle view for a frame. This method is idempotent.
