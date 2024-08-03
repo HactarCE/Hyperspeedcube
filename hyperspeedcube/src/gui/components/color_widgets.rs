@@ -26,6 +26,8 @@ const GRADIENT_COMPACT_HEIGHT_MULTIPLIER: f32 = 0.5;
 /// Rounding of the colored box in the big color preview tooltip.
 const TOOLTIP_COLOR_RECT_ROUNDING: f32 = 3.0;
 
+const COLOR_PALETTE_POPUP_WIDTH: f32 = 600.0;
+
 pub(in crate::gui) fn show_color_schemes_help_ui(allow_dragging: bool) -> impl Fn(&mut egui::Ui) {
     move |ui| {
         // TODO: markdown renderer
@@ -805,7 +807,7 @@ pub fn color_assignment_popup(
         return;
     };
 
-    ui.set_max_width(500.0);
+    ui.set_max_width(COLOR_PALETTE_POPUP_WIDTH);
     ui.horizontal(|ui| {
         ui.heading(format!("{} color", &color_data.display));
         crate::gui::components::HelpHoverWidget::show_right_aligned(
