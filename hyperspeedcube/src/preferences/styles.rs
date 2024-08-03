@@ -1,5 +1,3 @@
-use std::sync::atomic::AtomicU64;
-
 use serde::{Deserialize, Serialize};
 
 use super::{Rgb, WithPresets};
@@ -23,7 +21,10 @@ pub struct StylePreferences {
     pub blind: PieceStyle,
 }
 impl StylePreferences {
-    pub(super) fn post_init(&mut self) {}
+    pub(super) fn post_init(&mut self) {
+        self.custom
+            .post_init(Some(&super::DEFAULT_PREFS.styles.custom));
+    }
 
     pub fn background_color(&self, dark_mode: bool) -> Rgb {
         match dark_mode {
