@@ -1,6 +1,21 @@
 local utils = require('utils')
 local symmetries = require('symmetries')
 
+local REALISITIC_PROPORTIONS = true
+
+local function ft_cube_cut_depths(ndim, size)
+  local layer_radius = 1
+  if REALISITIC_PROPORTIONS then
+    layer_radius = min(1, 0.85 / sqrt(ndim-1) + 2 / size)
+  end
+  local cut_depths = {}
+  for i = 1, size-1 do
+    table.insert(cut_depths, layer_radius * (1 - i * 2/size))
+  end
+  table.insert(cut_depths, -1)
+  return cut_depths
+end
+
 function define_ft_cube_3d(size)
   local id = size .. 'x' .. size .. 'x' .. size
   puzzles:add(id, {
@@ -21,11 +36,7 @@ function define_ft_cube_3d(size)
       self:carve(shape:iter_poles())
 
       -- Define axes and slices
-      -- self.axes:add({
-      --   points = shape:iter_poles(),
-      --   layers = utils.layers_exclusive(1, -1, size),
-      -- })
-      self.axes:add(shape:iter_poles(), utils.double_ended_layers(1, -1, size))
+      self.axes:add(shape:iter_poles(), ft_cube_cut_depths(3, size))
 
       -- Define twists
       for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
@@ -94,7 +105,7 @@ function define_ft_cube_4d(size)
       self:carve(shape:iter_poles())
 
       -- Define axes and slices
-      self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, size))
+      self.axes:add(shape:iter_poles(), ft_cube_cut_depths(4, size))
 
       -- Define twists
       local a1 = self.axes[sym.ooox.unit]
