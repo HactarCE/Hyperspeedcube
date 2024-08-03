@@ -137,7 +137,7 @@ impl LuaAxis {
     /// `self`.
     pub fn lua_into_string(&self) -> LuaResult<String> {
         if let Some(name) = self.name() {
-            Ok(format!("axis({name:?}, vector={})", self.vector()?))
+            Ok(format!("axis({name:?})"))
         } else {
             Ok(format!("axis({})", self.id))
         }
