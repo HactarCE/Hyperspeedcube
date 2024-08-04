@@ -11,7 +11,7 @@ puzzles:add('fto', {
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, 3))
+    self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, 2))
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do

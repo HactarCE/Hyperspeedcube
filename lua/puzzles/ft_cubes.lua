@@ -2,25 +2,24 @@ local utils = require('utils')
 local symmetries = require('symmetries')
 
 local REALISITIC_PROPORTIONS = true
+local CORNER_STALK_SIZE = 0.1
 
 local function ft_cube_cut_depths(ndim, size)
-  local layer_radius = 1
+  local outermost_cut
+  local aesthetic_limit = 1 - 2/size
+  local mechanical_limit = 0
   if REALISITIC_PROPORTIONS then
-    layer_radius = min(1, 0.85 / sqrt(ndim-1) + 2 / size)
+    mechanical_limit = 1 / sqrt(ndim-1)
   end
-  local cut_depths = {}
-  for i = 1, size-1 do
-    table.insert(cut_depths, layer_radius * (1 - i * 2/size))
-  end
-  table.insert(cut_depths, -1)
-  return cut_depths
+  outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
+  return utils.layers_inclusive(outermost_cut, -outermost_cut, size-1)
 end
 
 function define_ft_cube_3d(size)
   local id = size .. 'x' .. size .. 'x' .. size
   puzzles:add(id, {
     ndim = 3,
-    name = size .. '^3',
+    name = string.format("FT Cube %d (%d^3)", size, size),
     colors = 'cube',
     -- piece_types = {
     --   { id = 'centers', name = "Centers" },
@@ -43,16 +42,15 @@ function define_ft_cube_3d(size)
         self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
       end
 
+      local center_layer = ceil(size/2)
+      local precenter_layer = floor(size/2)
       local R = self.axes.R
       local L = self.axes.L
       local U = self.axes.U
       local F = self.axes.F
-      local U_adj = symmetry{self.twists.U}:orbit(R(1)):union()
-
+      local U_adj = symmetry{self.twists.U}:orbit(R(1, precenter_layer)):union()
 
       -- Centers
-      local center_layer = ceil(size/2)
-      local precenter_layer = floor(size/2)
       for i = 2, center_layer do
         for j = 2, precenter_layer do
           local name
@@ -71,13 +69,18 @@ function define_ft_cube_3d(size)
         end
       end
 
+      if size == 1 then
+        self:mark_pieces('core', U(1))
+        return
+      end
+
       for i = 2, precenter_layer do
         self:mark_pieces(string.format('wings (%d)', i-1), U(1) & R(1) & F(i))
       end
 
       if size % 2 == 1 then
-        self:mark_pieces('centers', U(1) & R(center_layer) & F(center_layer))
-        self:mark_pieces('edges', U(1) & R(1) & F(center_layer))
+        self:mark_pieces('centers', U(1) & ~U_adj)
+        self:mark_pieces('edges', U(1) & F(1) & ~R(1, precenter_layer) & ~L(1, precenter_layer))
       end
 
       self:mark_pieces('corners', U(1) & F(1) & R(1))
@@ -86,7 +89,7 @@ function define_ft_cube_3d(size)
   })
 end
 
-for size = 1, 9 do
+for size = 1, 21 do
   define_ft_cube_3d(size)
 end
 
@@ -97,7 +100,7 @@ function define_ft_cube_4d(size)
   local id = size .. 'x' .. size .. 'x' .. size .. 'x' .. size
   puzzles:add(id, {
     ndim = 4,
-    name = size .. '^4',
+    name = string.format("Hypercube %d (%d^4)", size, size),
     colors = 'hypercube',
     build = function(self)
       local sym = cd'bc4'
@@ -137,6 +140,17 @@ function define_ft_cube_4d(size)
           gizmo_pole_distance = (1+2*alpha)/sqrt(3) * gizmo_size,
         })
       end
+
+      local R = self.axes.R
+      local U = self.axes.U
+      local F = self.axes.F
+      local I = self.axes.I
+
+      self:mark_pieces('centers', U(1) & R(2) & F(2) & I(2))
+      self:mark_pieces('ridges', U(1) & R(1) & F(2) & I(2))
+      self:mark_pieces('edges', U(1) & R(1) & F(1) & I(2))
+      self:mark_pieces('corners', U(1) & F(1) & R(1) & I(1))
+      self:unify_piece_types(sym.chiral)
     end,
   })
 end
@@ -161,7 +175,7 @@ puzzles:add('opposite_colors_same_cube', {
     })
 
     -- Define axes and slices
-    self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, 3))
+    self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, 2))
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox], sym:thru(2, 1)) do

@@ -44,10 +44,11 @@ function map_string_values(t, map)
   end
 end
 
+-- Returns evenly-spaced layer depths, excluding both endpoints
 function layers_exclusive(start, stop, steps)
   local ret = {}
-  for i = 1, steps-1 do
-    ret[i] = i / steps * (stop - start) + start
+  for i = 1, steps do
+    ret[i] = i / (steps + 1) * (stop - start) + start
   end
   return ret
 end
@@ -56,6 +57,15 @@ function double_ended_layers(start, stop, steps)
   local ret = {}
   for i = 1, steps do
     ret[i] = i / steps * (stop - start) + start
+  end
+  return ret
+end
+
+-- Returns evenly-spaced layer depths, including both endpoints
+function layers_inclusive(start, stop, steps)
+  local ret = {}
+  for i = 1, steps do
+    ret[i] = (i - 1) / (steps - 1) * (stop - start) + start
   end
   return ret
 end
