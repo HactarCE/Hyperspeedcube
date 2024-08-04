@@ -105,7 +105,11 @@ impl PuzzleParams {
                 .context("error executing puzzle definition")
         })?;
 
-        let puzzle_builder = puzzle_builder.lock();
+        let mut puzzle_builder = puzzle_builder.lock();
+
+        // Assign default piece type to remaining pieces.
+        puzzle_builder.shape.mark_untyped_pieces().into_lua_err()?;
+
         puzzle_builder.build(lua_warn_fn(lua)).into_lua_err()
     }
 

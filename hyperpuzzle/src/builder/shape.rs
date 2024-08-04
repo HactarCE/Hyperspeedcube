@@ -14,6 +14,8 @@ use crate::puzzle::*;
 
 // TODO: build color system separately and statically?
 
+const DEFAULT_PIECE_TYPE_NAME: &str = "pieces";
+
 /// Soup of pieces being constructed.
 #[derive(Debug)]
 pub struct ShapeBuilder {
@@ -329,6 +331,25 @@ impl ShapeBuilder {
                 }
             }
         }
+    }
+
+    /// Marks pieces without a piece type as having some default type.
+    pub fn mark_untyped_pieces(&mut self) -> Result<(), IndexOverflow> {
+        let untyped_pieces = self
+            .active_pieces
+            .iter()
+            .filter(|&p| self.pieces[p].piece_type.is_none())
+            .collect_vec();
+        if !untyped_pieces.is_empty() {
+            let default_piece_type =
+                self.get_or_add_piece_type(DEFAULT_PIECE_TYPE_NAME.to_string())?;
+            for p in untyped_pieces {
+                if self.pieces[p].piece_type.is_none() {
+                    self.mark_piece(p, default_piece_type);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Constructs a mesh and assembles piece & sticker data for the shape.
