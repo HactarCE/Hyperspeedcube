@@ -5,6 +5,8 @@ local REALISITIC_PROPORTIONS = true
 local CORNER_STALK_SIZE = 0.03
 
 local function ft_dodecahedron_cut_depths(size)
+  if size == 1 then return {1/phi} end
+
   local outermost_cut
   local aesthetic_limit = 1 - (1 - 1/phi)/size
   local mechanical_limit = 1
@@ -45,40 +47,41 @@ function define_ft_dodecahedron(size, id, name)
       local L = self.axes.L
       local U = self.axes.U
       local F = self.axes.F
-      local U_adj = symmetry{self.twists.U}:orbit(R('*')):union()
-
-      -- Centers
-      for i = 2, size do
-        for j = 2, size do
-          local name
-          if i == j then
-            name = string.format('x-centers (%d)', i-1)
-          else
-            if i < j then
-              name = string.format('obliques (%d, %d) (left)', i-1, j-1)
-            else
-              name = string.format('obliques (%d, %d) (right)', j-1, i-1)
-            end
-          end
-          self:mark_pieces(name, U(1) & R(i) & F(j))
-        end
-      end
 
       if size == 0 then
-        self:mark_pieces('core', U(1))
+        self:mark_pieces('core', ~U'*') -- TODO: construct 'everything' region
         return
+      else
+        local U_adj = symmetry{self.twists.U}:orbit(R('*')):union()
+
+        -- Centers
+        for i = 2, size do
+          for j = 2, size do
+            local name
+            if i == j then
+              name = string.format('x-centers (%d)', i-1)
+            else
+              if i < j then
+                name = string.format('obliques (%d, %d) (left)', i-1, j-1)
+              else
+                name = string.format('obliques (%d, %d) (right)', j-1, i-1)
+              end
+            end
+            self:mark_pieces(name, U(1) & R(i) & F(j))
+          end
+        end
+
+        for i = 2, size do
+          self:mark_pieces(string.format('t-centers (%d)', i-1), U(1) & F(i) & ~R(1, size) & ~L(1, size))
+          self:mark_pieces(string.format('wings (%d)', i-1), U(1) & F(1) & R(i))
+        end
+
+        self:mark_pieces('centers', U(1) & ~U_adj)
+        self:mark_pieces('edges', U(1) & F(1) & ~R(1, size) & ~L(1, size))
+
+        self:mark_pieces('corners', U(1) & F(1) & R(1))
+        self:unify_piece_types(sym.chiral)
       end
-
-      for i = 2, size do
-        self:mark_pieces(string.format('t-centers (%d)', i-1), U(1) & F(i) & ~R(1, size) & ~L(1, size))
-        self:mark_pieces(string.format('wings (%d)', i-1), U(1) & F(1) & R(i))
-      end
-
-      self:mark_pieces('centers', U(1) & ~U_adj)
-      self:mark_pieces('edges', U(1) & F(1) & ~R(1, size) & ~L(1, size))
-
-      self:mark_pieces('corners', U(1) & F(1) & R(1))
-      self:unify_piece_types(sym.chiral)
     end,
   })
 end

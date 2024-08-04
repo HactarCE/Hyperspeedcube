@@ -5,6 +5,8 @@ local REALISITIC_PROPORTIONS = true
 local CORNER_STALK_SIZE = 0.1
 
 local function ft_cube_cut_depths(ndim, size)
+  if size == 2 then return {0} end
+
   local outermost_cut
   local aesthetic_limit = 1 - 2/size
   local mechanical_limit = 0
@@ -48,43 +50,48 @@ function define_ft_cube_3d(size)
       local L = self.axes.L
       local U = self.axes.U
       local F = self.axes.F
-      local U_adj = symmetry{self.twists.U}:orbit(R(1, precenter_layer)):union()
-
-      -- Centers
-      for i = 2, center_layer do
-        for j = 2, precenter_layer do
-          local name
-          if i == center_layer and size % 2 == 1 then
-            name = string.format('t-centers (%d)', j-1)
-          elseif i == j then
-            name = string.format('x-centers (%d)', i-1)
-          else
-            if i < j then
-              name = string.format('obliques (%d, %d) (left)', i-1, j-1)
-            else
-              name = string.format('obliques (%d, %d) (right)', j-1, i-1)
-            end
-          end
-          self:mark_pieces(name, U(1) & R(i) & F(j))
-        end
-      end
 
       if size == 1 then
-        self:mark_pieces('core', U(1))
-        return
-      end
+        self:mark_pieces('core', ~U'*') -- TODO: construct 'everything' region
+      else
+        local U_adj = symmetry{self.twists.U}:orbit(R(1, precenter_layer)):union()
 
-      for i = 2, precenter_layer do
-        self:mark_pieces(string.format('wings (%d)', i-1), U(1) & R(1) & F(i))
-      end
+        -- Centers
+        for i = 2, center_layer do
+          for j = 2, precenter_layer do
+            local name
+            if i == center_layer and size % 2 == 1 then
+              name = string.format('t-centers (%d)', j-1)
+            elseif i == j then
+              name = string.format('x-centers (%d)', i-1)
+            else
+              if i < j then
+                name = string.format('obliques (%d, %d) (left)', i-1, j-1)
+              else
+                name = string.format('obliques (%d, %d) (right)', j-1, i-1)
+              end
+            end
+            self:mark_pieces(name, U(1) & R(i) & F(j))
+          end
+        end
 
-      if size % 2 == 1 then
-        self:mark_pieces('centers', U(1) & ~U_adj)
-        self:mark_pieces('edges', U(1) & F(1) & ~R(1, precenter_layer) & ~L(1, precenter_layer))
-      end
+        if size == 1 then
+          self:mark_pieces('core', U(1))
+          return
+        end
 
-      self:mark_pieces('corners', U(1) & F(1) & R(1))
-      self:unify_piece_types(sym.chiral)
+        for i = 2, precenter_layer do
+          self:mark_pieces(string.format('wings (%d)', i-1), U(1) & R(1) & F(i))
+        end
+
+        if size % 2 == 1 then
+          self:mark_pieces('centers', U(1) & ~U_adj)
+          self:mark_pieces('edges', U(1) & F(1) & ~R(1, precenter_layer) & ~L(1, precenter_layer))
+        end
+
+        self:mark_pieces('corners', U(1) & F(1) & R(1))
+        self:unify_piece_types(sym.chiral)
+      end
     end,
   })
 end
