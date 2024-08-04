@@ -37,7 +37,6 @@ pub struct LuaVector(pub Vector);
 impl<'lua> FromLua<'lua> for LuaVector {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         match value {
-            LuaNil => Ok(Self(vector![])),
             LuaValue::Table(t) => Self::construct_from_table(t),
             LuaValue::String(s) => {
                 let LuaVectorIndex(axis) = s.to_string_lossy().parse().into_lua_err()?;
