@@ -28,6 +28,7 @@ pub struct DragAndDrop<Payload, End = Payload> {
 
     payload: EguiTempValue<Payload>,
     cursor_offset: EguiTempValue<egui::Vec2>,
+    drop_pos: EguiTempValue<egui::Pos2>,
 }
 impl<Payload, End> DragAndDrop<Payload, End>
 where
@@ -45,6 +46,7 @@ where
 
             payload: EguiTempValue::new(ui),
             cursor_offset: EguiTempValue::new(ui),
+            drop_pos: EguiTempValue::new(ui),
         };
 
         if !ui.input(|input| input.pointer.any_down() || input.pointer.any_released()) {
@@ -129,11 +131,12 @@ where
 
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
                 let delta = pointer_pos + self.cursor_offset.get().unwrap_or_default()
-                    - r.response.rect.center();
+                    - r.response.rect.left_top();
                 ui.ctx().transform_layer_shapes(
                     layer_id,
                     egui::emath::TSTransform::from_translation(delta),
                 );
+                self.drop_pos.set(Some(r.response.rect.center() + delta));
             }
 
             r
@@ -150,8 +153,9 @@ where
                 self.cursor_offset.set(
                     r.inner
                         .interact_pointer_pos()
-                        .map(|interact_pos| r.response.rect.center() - interact_pos),
+                        .map(|interact_pos| r.response.rect.left_top() - interact_pos),
                 );
+                self.drop_pos.set(Some(r.response.rect.center()));
             }
 
             r
@@ -173,12 +177,10 @@ where
         let color = ui.visuals().widgets.noninteractive.bg_stroke.color;
         let inactive_stroke = egui::Stroke { width, color };
 
-        let is_active = ui
-            .input(|input| input.pointer.interact_pos())
-            .is_some_and(|pos| {
-                r.interact_rect
-                    .contains(pos + self.cursor_offset.get().unwrap_or_default())
-            });
+        let is_active = self
+            .drop_pos
+            .get()
+            .is_some_and(|pos| r.interact_rect.contains(pos));
 
         let stroke = if is_active {
             active_stroke
@@ -230,10 +232,9 @@ where
             return; // already hovering a non-reorder drop zone
         }
 
-        let Some(interact_pos) = ui.input(|input| input.pointer.interact_pos()) else {
+        let Some(drop_pos) = self.drop_pos.get() else {
             return; // no cursor position
         };
-        let drop_pos = interact_pos + self.cursor_offset.get().unwrap_or_default();
 
         if !ui.clip_rect().contains(drop_pos) {
             return; // cursor position is outside the current UI
