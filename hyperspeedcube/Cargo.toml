@@ -32,7 +32,7 @@ image = "0.24.9"
 include_dir = "0.7.4"
 indexmap = { version = "2.2.6", features = ["serde"] } # must match serde_yml
 instant = "0.1.12"
-itertools = "0.10.3"
+itertools = "0.13.0"
 key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }
 lazy_static = "1.4.0"
 log = "0.4.17"
@@ -55,7 +55,7 @@ send_wrapper = "0.6"
 serde = { version = "1.0.144", features = ["derive"] }
 serde_yml = "0.0.10"
 smallvec = { version = "1.8.0", features = ["serde", "union"] }
-strum = { version = "0.25.0", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.44"
 time = { version = "0.3.7", features = ["local-offset"] }
 wgpu = { version = "0.19.4", features = ["webgl"] }

@@ -20,7 +20,7 @@ eyre = "0.6"
 float-ord = "0.3.2"
 hex = "0.4.3"
 indexmap = "2.2.5"
-itertools = "0.11.0"
+itertools = "0.13.0"
 lazy_static = "1.4.0"
 log = "0.4.17"
 parking_lot = "0.12.1"
@@ -28,7 +28,7 @@ rand = "0.8.5"
 mlua = { version = "0.9.7", features = ["lua54", "parking_lot", "vendored"] }
 serde = { version = "1.0.176", features = ["derive"] }
 smallvec = { version = "1.11.0", features = ["const_new", "union"] }
-strum = { version = "0.25.0", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.58"
 tinyset = "0.4.15"
 walkdir = "2.4.0"

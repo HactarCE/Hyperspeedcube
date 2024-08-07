@@ -569,8 +569,8 @@ impl Multivector {
         let mut other_terms = itertools::put_back(other.terms());
         while let (Some(a), Some(b)) = (self_terms.next(), other_terms.next()) {
             match a.axes.cmp(&b.axes) {
-                std::cmp::Ordering::Less => other_terms.put_back(b),
-                std::cmp::Ordering::Greater => self_terms.put_back(a),
+                std::cmp::Ordering::Less => _ = other_terms.put_back(b),
+                std::cmp::Ordering::Greater => _ = self_terms.put_back(a),
                 std::cmp::Ordering::Equal => ret += (*a * *b).coef,
             }
         }

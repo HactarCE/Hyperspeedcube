@@ -20,7 +20,7 @@ bitflags = "2.3.3"
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 bytemuck = { version = "1.13.1", optional = true }
 float-ord = "0.3.2"
-itertools = "0.11.0"
+itertools = "0.13.0"
 log = "0.4.17"
 num-traits = "0.2.16"
 parking_lot = "0.12.1"
