@@ -48,7 +48,7 @@ interaction:
 styles:
   dark_background_color: '#1b1b1b'
   light_background_color: '#f8f8f8'
-  internals_color: '#777777'
+  internals_color: '#444444'
   blocking_outline_color: '#ff0000'
   blocking_outline_size: 5.0
   custom:
@@ -259,8 +259,8 @@ color_palette:
       - '#f7f89b'
       - '#858628'
     Yellow Triad:
-      - '#f7f89b'
-      - '#dcdd70'
+      - '#feffa2' # previously f7f89b
+      - '#d9da53' # previously dcdd70
       - '#858628'
     Yellow Tetrad:
       - '#f7f89b'
