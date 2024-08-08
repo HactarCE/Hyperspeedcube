@@ -78,17 +78,13 @@ impl ColorPreferences {
     }
 
     pub fn color_system_mut(&mut self, color_system: &ColorSystem) -> &mut ColorSystemPreferences {
-        if color_system.id.is_empty() {
-            &mut self.empty_color_system // don't save this in the `color_systems` map.
-        } else {
-            match self.color_systems.entry(color_system.id.clone()) {
-                btree_map::Entry::Vacant(e) => {
-                    e.insert(ColorSystemPreferences::from_color_system(color_system))
-                }
-                btree_map::Entry::Occupied(mut e) => {
-                    e.get_mut().update_builtin_schemes(color_system);
-                    e.into_mut()
-                }
+        match self.color_systems.entry(color_system.id.clone()) {
+            btree_map::Entry::Vacant(e) => {
+                e.insert(ColorSystemPreferences::from_color_system(color_system))
+            }
+            btree_map::Entry::Occupied(mut e) => {
+                e.get_mut().update_builtin_schemes(color_system);
+                e.into_mut()
             }
         }
     }

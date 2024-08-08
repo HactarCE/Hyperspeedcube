@@ -16,16 +16,12 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 mod animations;
+mod colors;
 mod gfx;
 mod image_generator;
 mod info;
 mod interaction;
 mod keybinds;
-// mod migration; // TODO
-mod migration {
-    pub const LATEST_VERSION: u32 = 2;
-}
-mod colors;
 mod mousebinds;
 #[cfg(not(target_arch = "wasm32"))]
 mod persist_local;
@@ -34,8 +30,13 @@ mod persist_web;
 mod styles;
 mod view;
 
+mod migration {
+    pub const LATEST_VERSION: u32 = 2;
+}
+
 pub use animations::*;
 pub use colors::*;
+pub use filters::*;
 pub use gfx::*;
 pub use image_generator::*;
 pub use info::*;
@@ -98,7 +99,7 @@ pub struct Preferences {
     pub color_palette: GlobalColorPalette,
     pub color_schemes: ColorPreferences,
 
-    pub piece_filters: (), // TODO
+    pub piece_filters: FilterPreferences,
 
     pub global_keybinds: Vec<Keybind<Command>>,
     pub puzzle_keybinds: (), // TODO

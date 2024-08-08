@@ -127,7 +127,7 @@ where
 
             ui.horizontal(|ui| {
                 ui.strong(self.text.saved_presets);
-                if let Some(presets_set) = self.text.presets_set {
+                if let Some(presets_set) = self.text.presets_set.filter(|s| !s.is_empty()) {
                     ui.label(format!("({presets_set})"));
                 }
                 HelpHoverWidget::show_right_aligned(ui, show_presets_help_ui);
@@ -320,8 +320,12 @@ where
                     }
 
                     let mut job = egui::text::LayoutJob::default();
-                    job.append(&current.name, 0.0, strong_text_format(ui));
-                    job.append(" ", 0.0, body_text_format(ui));
+                    if current.name.is_empty() {
+                        job.append("No ", 0.0, body_text_format(ui));
+                    } else {
+                        job.append(&current.name, 0.0, strong_text_format(ui));
+                        job.append(" ", 0.0, body_text_format(ui));
+                    }
                     job.append(&self.text.what, 0.0, body_text_format(ui));
                     crate::gui::util::label_centered_unless_multiline(ui, job);
                 });

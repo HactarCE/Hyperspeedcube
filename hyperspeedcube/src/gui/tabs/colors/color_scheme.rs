@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use hyperpuzzle::ColorSystem;
 
-use crate::{app::App, preferences::Preset};
+use crate::{
+    app::App,
+    preferences::{ColorSystemPreferences, Preset},
+};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let active_puzzle_ty = app.active_puzzle_type();
@@ -13,12 +16,15 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         Some(puz) => Arc::clone(&puz.colors),
         None => Arc::new(ColorSystem::new_empty()),
     };
+    let mut empty_color_system_prefs = ColorSystemPreferences::default();
+    let color_system_prefs = match active_puzzle_ty {
+        Some(_) => app.prefs.color_schemes.color_system_mut(&color_system),
+        None => &mut empty_color_system_prefs,
+    };
 
     let get_color_name = |id| color_system.list[id].name.clone();
 
     let mut changed = false;
-
-    let color_system_prefs = app.prefs.color_schemes.color_system_mut(&color_system);
 
     // Ensure that the active color scheme is valid.
     let current = &mut color_system_prefs.schemes.current;
