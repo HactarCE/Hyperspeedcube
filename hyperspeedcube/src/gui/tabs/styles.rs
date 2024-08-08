@@ -22,6 +22,15 @@ fn show_custom_piece_styles_help_ui(ui: &mut egui::Ui) {
     });
 }
 
+// TODO: markdown bold ("piece explode" and "view settings")
+pub const INTERNAL_FACES_COLOR_EXPLANATION: &str = "For 3D puzzles, it's sometimes possible to \
+                                                    view the internal faces of pieces, particularly \
+                                                    mid-turn or using piece explode. You can \
+                                                    configure whether internal faces are visible \
+                                                    in view settings.";
+pub const BLOCKING_PIECES_OUTLINES_COLOR: &str = "Outline color for pieces blocking a move. \
+                                                  This is only visible for puzzles that bandage.";
+
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
@@ -31,9 +40,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.horizontal(|ui| {
             ui.strong("Miscellaneous styling");
         });
-        ui.add_space(ui.spacing().item_spacing.y);
         ui.separator();
-        ui.add_space(ui.spacing().item_spacing.y);
         let mut prefs_ui = crate::gui::components::PrefsUi {
             ui,
             current: &mut app.prefs.styles,
@@ -47,23 +54,14 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         prefs_ui.collapsing("Internals", |mut prefs_ui| {
             prefs_ui
                 .color("Face color", access!(.internals_color))
-                .on_hover_explanation(
-                    "Internal faces color",
-                    // TODO: markdown bold ("piece explode" and "view settings")
-                    "For 3D puzzles, it's sometimes possible to \
-                     view the internal faces of pieces, particularly \
-                     mid-turn or using piece explode. You can \
-                     configure whether internal faces are visible \
-                     in view settings.",
-                );
+                .on_hover_explanation("Internal faces color", INTERNAL_FACES_COLOR_EXPLANATION);
         });
         prefs_ui.collapsing("Blocking pieces", |mut prefs_ui| {
             prefs_ui
                 .color("Outlines color", access!(.blocking_outline_color))
                 .on_hover_explanation(
                     "Blocking pieces outlines color",
-                    "Outline color for pieces blocking a move. \
-                     This is only visible for puzzles that bandage.",
+                    BLOCKING_PIECES_OUTLINES_COLOR,
                 );
             prefs_ui
                 .num("Outlines size", access!(.blocking_outline_size), |dv| {

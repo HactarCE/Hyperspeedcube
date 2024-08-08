@@ -53,14 +53,11 @@ pub enum Tab {
     PuzzleLibrary,
     PuzzleInfo,
 
+    Colors,
     Styles,
     View,
     Animations,
     Interaction,
-
-    // Colors
-    ColorScheme,
-    GlobalColorPalette,
 
     // Input
     Keybinds,
@@ -102,12 +99,10 @@ impl Tab {
             Tab::PuzzleInfo => "Puzzle info",
             Tab::KeybindsReference => "Keybinds reference",
 
+            Tab::Colors => "Colors",
             Tab::Styles => "Styles",
             Tab::View => "View",
             Tab::Animations => "Animations",
-
-            Tab::ColorScheme => "Color scheme",
-            Tab::GlobalColorPalette => "Global color palette",
 
             Tab::Interaction => "Interaction",
             Tab::Keybinds => "Keybinds",
@@ -141,12 +136,10 @@ impl Tab {
             Tab::PuzzleInfo => "Puzzle Info".into(),
             Tab::KeybindsReference => "Keybinds Reference".into(),
 
+            Tab::Colors => "Colors".into(),
             Tab::Styles => "Styles".into(),
             Tab::View => "View".into(),
             Tab::Animations => "Animations".into(),
-
-            Tab::ColorScheme => "Color Scheme".into(),
-            Tab::GlobalColorPalette => "Global Color Palette".into(),
 
             Tab::Interaction => "Interaction".into(),
             Tab::Keybinds => "Keybinds".into(),
@@ -176,12 +169,10 @@ impl Tab {
             Tab::PuzzleLibrary => puzzle_library::show(ui, app),
             Tab::PuzzleInfo => puzzle_info::show(ui, app),
 
+            Tab::Colors => colors::show(ui, app),
             Tab::Styles => styles::show(ui, app),
             Tab::View => view::show(ui, app),
             Tab::Animations => animations::show(ui, app),
-
-            Tab::ColorScheme => colors::color_scheme::show(ui, app),
-            Tab::GlobalColorPalette => colors::global_color_palette::show(ui, app),
 
             Tab::Interaction => interaction::show(ui, app),
             Tab::Keybinds => keybinds::show(ui, app),
