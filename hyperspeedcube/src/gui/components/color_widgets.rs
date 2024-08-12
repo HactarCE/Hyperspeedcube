@@ -245,10 +245,9 @@ impl<'a> ColorsUi<'a> {
         let mut modification = None;
 
         if let Some((color_scheme, color_system)) = current_colors {
-            if let Some(dnd) = &mut self.dnd {
-                dnd.paint_reorder_drop_lines(ui);
-                temp_modification = dnd.mid_drag().cloned();
-                modification = dnd.end_drag();
+            if let Some(mut dnd) = self.dnd.take() {
+                temp_modification = dnd.mid_drag(ui).cloned();
+                modification = dnd.end_drag(ui);
             }
             if let Some(color_to_modify) = puzzle_color_to_modify {
                 if let Some(hovered_color) = self.hovered_color.take() {
@@ -506,7 +505,7 @@ impl ColorButton {
                         .selectable(false),
                 );
 
-                r.clone()
+                egui::InnerResponse::new((), r.clone())
             };
 
             ui.allocate_ui_at_rect(r.rect, |ui| {
@@ -712,6 +711,7 @@ pub fn color_edit(
     let text_to_copy = r.secondary_clicked().then(|| color.to_string());
     if !crate::gui::components::copy_on_click(ui, &r, text_to_copy) {
         r = r.on_hover_ui(|ui| {
+            // TODO: markdown renderer
             set_widget_spacing_to_space_width(ui);
             ui.horizontal(|ui| {
                 ui.strong("Click");
@@ -755,9 +755,7 @@ pub fn color_edit(
             .text_edit_align(egui::Align::Center)
             .text_edit_monospace()
             .auto_confirm(true)
-            .confirm_button_validator(Box::new(|s| {
-                s.parse::<Rgb>().map(|_| None).map_err(|_| None)
-            }))
+            .confirm_button_validator(&|s| s.parse::<Rgb>().map(|_| None).map_err(|_| None))
             .show_with(ui, |ui| {
                 // TODO: custom color picker
                 let mut egui_color = crate::util::rgb_to_egui_color32(*color);

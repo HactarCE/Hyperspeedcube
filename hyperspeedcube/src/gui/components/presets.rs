@@ -6,7 +6,9 @@ use super::{
 };
 use crate::gui::components::PlaintextYamlEditor;
 use crate::gui::ext::ResponseExt;
-use crate::gui::util::{body_text_format, strong_text_format, EguiTempValue};
+use crate::gui::util::{
+    body_text_format, set_widget_spacing_to_space_width, strong_text_format, EguiTempValue,
+};
 use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
 
 const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
@@ -67,6 +69,10 @@ pub struct PresetsUi<'a, T: Default> {
     pub vscroll: bool,
     /// Help text to show for the current settings UI.
     pub help_contents: Option<Box<dyn Fn(&mut egui::Ui)>>,
+    /// Function to apply context-specific validation for new preset names.
+    /// Whether or not this is present, names will still be checked for
+    /// uniqueness and non-emptiness.
+    pub extra_validation: Option<Box<dyn Fn(&Self, &str) -> Result<(), String>>>,
 }
 impl<'a, T> PresetsUi<'a, T>
 where
@@ -84,6 +90,8 @@ where
                 "There is already a {} with this name",
                 self.text.preset,
             )))
+        } else if let Some(Err(e)) = self.extra_validation.as_ref().map(|f| f(self, new_name)) {
+            Err(Some(e))
         } else {
             Ok(Some(format!("{verb} {}", self.text.preset)))
         }
@@ -112,11 +120,36 @@ where
         r
     }
 
-    fn show_presets_selector(&mut self, ui: &mut egui::Ui) -> egui::Response {
+    pub fn show<'b>(
+        mut self,
+        ui: &mut egui::Ui,
+        get_backup_defaults: impl FnOnce(&'b Preferences) -> Option<Preset<T>>,
+        add_contents: impl FnOnce(PrefsUi<'_, T>),
+    ) where
+        T: 'static + PartialEq + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug,
+    {
+        ui.group(|ui| {
+            self.show_wrapping_presets_selector(ui);
+            // TODO: reconsider spacing
+            ui.add_space(ui.spacing().item_spacing.y);
+            ui.separator();
+            ui.add_space(ui.spacing().item_spacing.y);
+            self.show_preset_editor(ui, get_backup_defaults, add_contents);
+        });
+    }
+
+    pub fn show_wrapping_presets_selector(&mut self, ui: &mut egui::Ui) -> egui::Response {
         ui.set_min_width(200.0);
+
+        let can_delete = self.presets.len() > 1;
+
+        let mods = ui.input(|input| input.modifiers);
+        let cmd = mods.command;
+        let alt = mods.alt;
 
         let mut preset_to_activate = None;
         let preset_to_edit = EguiTempValue::new(ui);
+        let mut preset_to_delete = None;
         let mut edit_popup = TextEditPopup::new(ui);
         let mut new_popup = TextEditPopup::new(ui);
         let mut dnd = super::DragAndDrop::new(ui).dragging_opacity(0.4);
@@ -139,6 +172,14 @@ where
                     let r = ui.add_enabled(!dnd.is_dragging(), |ui: &mut egui::Ui| {
                         self.show_preset_name_selectable_label(ui, &preset.name)
                     });
+                    let r = r.on_hover_ui(|ui| {
+                        // TODO: markdown renderer
+                        set_widget_spacing_to_space_width(ui);
+                        ui.horizontal(|ui| {
+                            ui.strong("Click");
+                            ui.label("to activate");
+                        });
+                    });
 
                     // Left click -> Activate preset
                     if r.clicked() {
@@ -152,9 +193,33 @@ where
                 for preset in self.presets.user_list() {
                     crate::gui::util::wrap_if_needed_for_button(ui, &preset.name);
                     let r = dnd.draggable(ui, preset.name.clone(), |ui, _is_dragging| {
-                        self.show_preset_name_selectable_label(ui, &preset.name)
+                        let r = self.show_preset_name_selectable_label(ui, &preset.name);
+                        egui::InnerResponse::new((), r)
                     });
-                    let r = r.inner;
+                    let r = r.inner.response.on_hover_ui(|ui| {
+                        // TODO: markdown renderer
+                        set_widget_spacing_to_space_width(ui);
+                        ui.horizontal(|ui| {
+                            ui.strong("Click");
+                            ui.label("to activate");
+                        });
+                        ui.horizontal(|ui| {
+                            ui.strong("Right-click");
+                            ui.label("to rename");
+                        });
+                        ui.horizontal(|ui| {
+                            ui.strong("Drag");
+                            ui.label("to reorder");
+                        });
+                        ui.add_enabled_ui(can_delete, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.strong("Middle-click");
+                                ui.label("or");
+                                ui.strong("alt + click");
+                                ui.label("to delete");
+                            });
+                        });
+                    });
 
                     // Left click -> Activate preset
                     if r.clicked() {
@@ -164,6 +229,11 @@ where
                     // Right-click -> Edit preset
                     if r.secondary_clicked() && edit_popup.toggle(preset.name.clone()) {
                         preset_to_edit.set(Some(preset.name.clone()));
+                    }
+
+                    // Middle-click -> Delete preset
+                    if r.middle_clicked() || alt && !cmd && r.clicked() {
+                        preset_to_delete = Some(preset.name.clone());
                     }
 
                     // Drag -> Reorder preset
@@ -189,16 +259,14 @@ where
                 .label(format!("Rename {}", self.text.preset))
                 .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
                 .text_edit_hint(format!("New {} name", self.text.preset))
-                .confirm_button_validator(Box::new(|new_name| {
-                    self.validate_preset_name(new_name, "Rename")
-                }))
-                .delete_button_validator(Box::new(|_| {
+                .confirm_button_validator(&|new_name| self.validate_preset_name(new_name, "Rename"))
+                .delete_button_validator(&|_| {
                     if self.presets.len() > 1 {
                         Ok(Some(format!("Delete {}", self.text.preset)))
                     } else {
                         Err(Some(format!("Cannot delete last {}", self.text.preset)))
                     }
-                }))
+                })
                 .show(ui)
         });
         if let Some(r) = edit_popup_response {
@@ -215,6 +283,9 @@ where
                     TextEditPopupResponse::Cancel => (),
                 }
             }
+        } else if let Some(preset_name) = preset_to_delete {
+            self.presets.delete(&preset_name);
+            *self.changed = true;
         }
 
         let new_popup_response = new_popup.if_open(|popup| {
@@ -223,9 +294,7 @@ where
                 .label(format!("Add {}", self.text.preset))
                 .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
                 .text_edit_hint(format!("New {} name", self.text.preset))
-                .confirm_button_validator(Box::new(|new_name| {
-                    self.validate_preset_name(new_name, "Add")
-                }))
+                .confirm_button_validator(&|new_name| self.validate_preset_name(new_name, "Add"))
                 .show(ui)
         });
         if let Some(r) = new_popup_response {
@@ -245,8 +314,7 @@ where
         }
 
         // Reorder the presets.
-        dnd.paint_reorder_drop_lines(ui);
-        if let Some(r) = dnd.end_drag() {
+        if let Some(r) = dnd.end_drag(ui) {
             if let Some(before_or_after) = r.before_or_after {
                 self.presets.reorder(&r.payload, &r.end, before_or_after);
                 *self.changed = true;
@@ -254,13 +322,15 @@ where
         }
 
         if *self.changed {
+            // TODO: is this necessary here?
+            //       should we use it in other places too?
             ui.ctx().request_repaint();
         }
 
         r.response
     }
 
-    pub fn show<'b>(
+    pub fn show_preset_editor<'b>(
         &mut self,
         ui: &mut egui::Ui,
         get_backup_defaults: impl FnOnce(&'b Preferences) -> Option<Preset<T>>,
@@ -270,92 +340,84 @@ where
     {
         let mut save_changes = false;
 
-        ui.group(|ui| {
-            self.show_presets_selector(ui);
+        let defaults = match self.presets.last_loaded_preset() {
+            Some(p) => p.clone(),
+            None => get_backup_defaults(&DEFAULT_PREFS).unwrap_or_else(|| Preset {
+                name: "Default".to_string(),
+                value: T::default(),
+            }),
+        };
+        let current = self.presets.preset_to_save();
+        let is_unsaved = self.presets.is_modified();
+        save_changes |= self.autosave && is_unsaved && self.presets.has(&current.name);
 
-            ui.add_space(ui.spacing().item_spacing.y);
-            ui.separator();
-            ui.add_space(ui.spacing().item_spacing.y);
+        let yaml = PlaintextYamlEditor::<T>::new(ui);
 
-            let defaults = match self.presets.last_loaded_preset() {
-                Some(p) => p.clone(),
-                None => get_backup_defaults(&DEFAULT_PREFS).unwrap_or_else(|| Preset {
-                    name: "Default".to_string(),
-                    value: T::default(),
-                }),
-            };
-            let current = self.presets.preset_to_save();
-            let is_unsaved = self.presets.is_modified();
-            save_changes |= self.autosave && is_unsaved && self.presets.has(&current.name);
+        ui.horizontal(|ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                // Save button
+                if !self.autosave {
+                    ui.add_enabled_ui(is_unsaved, |ui| {
+                        let new_name = &current.name;
+                        let overwrite = self.presets.has(new_name);
+                        let r = ui
+                            .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾"))
+                            .on_hover_explanation(
+                                "Save changes",
+                                &format!(
+                                    "{save} {preset} {new_name}",
+                                    save = if overwrite { "Overwrite" } else { "Add new" },
+                                    preset = self.text.preset,
+                                ),
+                            );
+                        save_changes |= r.clicked();
+                    });
+                }
 
-            let yaml = PlaintextYamlEditor::<T>::new(ui);
+                // Edit as plaintext button
+                yaml.show_edit_as_plaintext_button(ui, &current.value);
 
-            ui.horizontal(|ui| {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    // Save button
-                    if !self.autosave {
-                        ui.add_enabled_ui(is_unsaved, |ui| {
-                            let new_name = &current.name;
-                            let overwrite = self.presets.has(new_name);
-                            let r = ui
-                                .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾"))
-                                .on_hover_explanation(
-                                    "Save changes",
-                                    &format!(
-                                        "{save} {preset} {new_name}",
-                                        save = if overwrite { "Overwrite" } else { "Add new" },
-                                        preset = self.text.preset,
-                                    ),
-                                );
-                            save_changes |= r.clicked();
-                        });
-                    }
+                // Help hover widget
+                if let Some(help_contents) = &self.help_contents {
+                    crate::gui::components::HelpHoverWidget::show(ui, help_contents);
+                }
 
-                    // Edit as plaintext button
-                    yaml.show_edit_as_plaintext_button(ui, &current.value);
-
-                    // Help hover widget
-                    if let Some(help_contents) = &self.help_contents {
-                        crate::gui::components::HelpHoverWidget::show(ui, help_contents);
-                    }
-
-                    let mut job = egui::text::LayoutJob::default();
-                    if current.name.is_empty() {
-                        job.append("No ", 0.0, body_text_format(ui));
-                    } else {
-                        job.append(&current.name, 0.0, strong_text_format(ui));
-                        job.append(" ", 0.0, body_text_format(ui));
-                    }
-                    job.append(&self.text.what, 0.0, body_text_format(ui));
-                    crate::gui::util::label_centered_unless_multiline(ui, job);
-                });
+                let mut job = egui::text::LayoutJob::default();
+                if current.name.is_empty() {
+                    job.append("No ", 0.0, body_text_format(ui));
+                } else {
+                    job.append(&current.name, 0.0, strong_text_format(ui));
+                    job.append(" ", 0.0, body_text_format(ui));
+                }
+                job.append(&self.text.what, 0.0, body_text_format(ui));
+                crate::gui::util::label_centered_unless_multiline(ui, job);
             });
-            ui.add_space(ui.spacing().item_spacing.y);
-            egui::ScrollArea::new([true, self.vscroll])
-                .id_source(self.id.with(yaml.is_open(ui)))
-                .auto_shrink(!self.vscroll)
-                .show(ui, |ui| match yaml.is_open(ui) {
-                    true => {
-                        if let Some(r) = yaml.show(ui) {
-                            if r.changed() {
-                                // Update value from YAML editor.
-                                if let Some(Ok(deserialized)) = yaml.deserialize(ui) {
-                                    self.presets.current = deserialized;
-                                    *self.changed |= r.changed();
-                                }
+        });
+        ui.add_space(ui.spacing().item_spacing.y);
+        egui::ScrollArea::new([true, self.vscroll])
+            .id_source(self.id.with(yaml.is_open(ui)))
+            .auto_shrink(!self.vscroll)
+            .show(ui, |ui| match yaml.is_open(ui) {
+                true => {
+                    if let Some(r) = yaml.show(ui) {
+                        if r.changed() {
+                            // Update value from YAML editor.
+                            if let Some(Ok(deserialized)) = yaml.deserialize(ui) {
+                                self.presets.current = deserialized;
+                                *self.changed |= r.changed();
                             }
                         }
                     }
-                    false => {
-                        add_contents(PrefsUi {
-                            ui,
-                            current: &mut self.presets.current,
-                            defaults: Some(&defaults.value),
-                            changed: &mut self.changed,
-                        });
-                    }
-                });
-        });
+                }
+                false => {
+                    add_contents(PrefsUi {
+                        ui,
+                        current: &mut self.presets.current,
+                        defaults: Some(&defaults.value),
+                        changed: &mut self.changed,
+                    });
+                }
+            });
 
         if save_changes {
             self.presets.save_preset();

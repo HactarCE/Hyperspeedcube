@@ -4,8 +4,7 @@ use super::BIG_ICON_BUTTON_SIZE;
 
 /// Function that returns `Ok` if the button should be enabled or `Err` if it
 /// should not be. The contained value is the hover text.
-pub type TextEditValidator<'a> =
-    Box<dyn 'a + FnOnce(&str) -> Result<Option<String>, Option<String>>>;
+pub type TextEditValidator<'a> = &'a dyn Fn(&str) -> Result<Option<String>, Option<String>>;
 
 #[derive(Debug, Default, Clone)]
 pub enum TextEditPopupResponse {
@@ -65,6 +64,8 @@ impl<'v> TextEditPopup<'v> {
         }
     }
 
+    /// Executes a function if the popup is open. This is useful to avoid
+    /// unnecessary computation.
     pub fn if_open<R>(self, f: impl FnOnce(Self) -> Option<R>) -> Option<R> {
         if self.is_open() {
             f(self)
@@ -96,23 +97,30 @@ impl<'v> TextEditPopup<'v> {
         self.text_edit_align = Some(align);
         self
     }
+    /// Trims whitespace from the beginning and end of the text before
+    /// confirming. Defaults to `true`.
     pub fn text_edit_trim(mut self, trim: bool) -> Self {
         self.text_edit_trim = trim;
         self
     }
+    /// Sets the font of the text editor to monospace. Defaults to `false`.
     pub fn text_edit_monospace(mut self) -> Self {
         self.text_edit_monospace = true;
         self
     }
+    /// Sets the exact width of the text edit.
     pub fn text_edit_width(mut self, w: f32) -> Self {
         self.text_edit_width = Some(w);
         self
     }
+    /// Adds hint text to the text edit.
     pub fn text_edit_hint(mut self, hint_text: String) -> Self {
         self.text_edit_hint_text = Some(hint_text);
         self
     }
 
+    /// If true, "confirms" the result every frame when possible. This is good
+    /// for previewing changes live. Defaults to `false`.
     pub fn auto_confirm(mut self, auto_confirm: bool) -> Self {
         self.auto_confirm = auto_confirm;
         self
@@ -146,10 +154,13 @@ impl<'v> TextEditPopup<'v> {
         self.ctx.memory(|mem| mem.is_popup_open(self.new_name.id))
     }
 
+    /// Shows the text edit popup if it is open.
     pub fn show(self, ui: &mut egui::Ui) -> Option<TextEditPopupResponse> {
         self.show_with(ui, |_| ()).0
     }
 
+    /// Shows the text edit popup if it is open, and calls `inner` to display
+    /// extra UI below the text edit component.
     pub fn show_with<R>(
         self,
         ui: &mut egui::Ui,

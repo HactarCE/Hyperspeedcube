@@ -33,7 +33,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         .color_palette
         .ensure_color_scheme_is_valid_for_color_system(current, &color_system);
 
-    let mut presets_ui = crate::gui::components::PresetsUi {
+    let presets_ui = crate::gui::components::PresetsUi {
         id: unique_id!(),
         presets: &mut color_system_prefs.schemes,
         changed: &mut changed,
@@ -48,6 +48,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         help_contents: Some(Box::new(
             crate::gui::components::show_color_schemes_help_ui(true),
         )),
+        extra_validation: None,
     };
 
     let mut temp_colors_override = None; // temporary color override

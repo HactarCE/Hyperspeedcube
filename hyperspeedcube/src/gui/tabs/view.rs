@@ -8,7 +8,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     let mut changed = false;
 
-    let mut presets_ui = crate::gui::components::PresetsUi {
+    let presets_ui = crate::gui::components::PresetsUi {
         id: unique_id!(),
         presets,
         changed: &mut changed,
@@ -20,6 +20,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         autosave: false,
         vscroll: true,
         help_contents: None,
+        extra_validation: None,
     };
     presets_ui.show(
         ui,

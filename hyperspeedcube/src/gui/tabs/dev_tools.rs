@@ -203,7 +203,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                 .show(ui, |ui| {
                     let mut dnd = DragAndDrop::new(ui);
                     for (i, (index, name)) in state.names_and_order.iter_mut().enumerate() {
-                        dnd.vertical_reorder_by_handle(ui, i, i, |ui, _is_dragging| {
+                        dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
                             let text_edit = egui::TextEdit::singleline(name);
                             match &state.loaded_orbit.elements[*index] {
                                 Some(PuzzleElement::Axis(axis)) => {
@@ -237,8 +237,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                             }
                         });
                     }
-                    dnd.paint_reorder_drop_lines(ui);
-                    if let Some(drag) = dnd.end_drag() {
+                    if let Some(drag) = dnd.end_drag(ui) {
                         if let Some(before_or_after) = drag.before_or_after {
                             crate::util::reorder_list(
                                 &mut state.names_and_order,

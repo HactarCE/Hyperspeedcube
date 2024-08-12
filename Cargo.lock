@@ -2418,6 +2418,7 @@ dependencies = [
  "mlua",
  "parking_lot",
  "rand",
+ "regex",
  "serde",
  "smallvec",
  "strum",

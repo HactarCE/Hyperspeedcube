@@ -24,6 +24,7 @@ pub struct DragAndDrop<Payload, End = Payload> {
 
     /// Response containing the initial payload and where it ended up.
     response: Option<DragAndDropResponse<Payload, End>>,
+    computed_response: bool,
     done_dragging: bool,
 
     payload: EguiTempValue<Payload>,
@@ -42,6 +43,7 @@ where
             reorder_drop_zones: vec![],
 
             response: None,
+            computed_response: false,
             done_dragging: ui.input(|input| input.pointer.any_released()),
 
             payload: EguiTempValue::new(ui),
@@ -73,41 +75,19 @@ where
         self.payload.get().is_some()
     }
 
-    /// Adds a widget that is draggable only by its handle, along with a reorder
-    /// drop zone. See [`Self::draggable()`].
-    pub fn vertical_reorder_by_handle(
-        &mut self,
-        ui: &mut egui::Ui,
-        payload: Payload,
-        end: End,
-        add_contents: impl FnOnce(&mut egui::Ui, bool),
-    ) -> egui::Response {
-        let r = self
-            .draggable(ui, payload, |ui, is_dragging| {
-                ui.horizontal(|ui| {
-                    ui.set_width(ui.available_width());
-                    let r = drag_handle(ui, is_dragging);
-                    add_contents(ui, is_dragging);
-                    r
-                })
-                .inner
-            })
-            .response;
-        self.reorder_drop_zone(ui, &r, end);
-        r
-    }
-
     /// Adds a draggable widget.
     ///
     /// `payload` is a value representing the value that will be dragged. The
     /// boolean passed into `add_contents` is `true` if the widget is currently
-    /// being dragged.
-    pub fn draggable(
+    /// being dragged. The response returned by `add_contents` is expected to be
+    /// the part of the widget that can be dragged (which may be the whole
+    /// thing).
+    pub fn draggable<R>(
         &mut self,
         ui: &mut egui::Ui,
         payload: Payload,
-        add_contents: impl FnOnce(&mut egui::Ui, bool) -> egui::Response,
-    ) -> egui::InnerResponse<egui::Response> {
+        add_contents: impl FnOnce(&mut egui::Ui, bool) -> egui::InnerResponse<R>,
+    ) -> egui::InnerResponse<egui::InnerResponse<R>> {
         let id = ui.auto_id_with("hyperspeedcube::drag_and_drop");
 
         if ui.ctx().is_being_dragged(id) {
@@ -121,7 +101,7 @@ where
                 ui.set_opacity(self.dragging_opacity);
                 add_contents(ui, true)
             });
-            r.inner = r.inner.highlight();
+            r.inner.response = r.inner.response.highlight();
 
             ui.painter().rect_filled(
                 r.response.rect,
@@ -143,15 +123,19 @@ where
         } else {
             let mut r = ui.scope(|ui| add_contents(ui, false));
 
-            if !r.inner.sense.click {
-                r.inner = r.inner.on_hover_and_drag_cursor(egui::CursorIcon::Grab);
+            if !r.inner.response.sense.click {
+                r.inner.response = r
+                    .inner
+                    .response
+                    .on_hover_and_drag_cursor(egui::CursorIcon::Grab);
             }
 
-            if r.inner.drag_started() {
+            if r.inner.response.drag_started() {
                 ui.ctx().set_dragged_id(id);
                 self.payload.set(Some(payload));
                 self.cursor_offset.set(
                     r.inner
+                        .response
                         .interact_pointer_pos()
                         .map(|interact_pos| r.response.rect.left_top() - interact_pos),
                 );
@@ -223,7 +207,13 @@ where
             .push((line2, dir, end, BeforeOrAfter::After));
     }
 
-    pub fn paint_reorder_drop_lines(&mut self, ui: &mut egui::Ui) {
+    fn compute_response(&mut self, ui: &mut egui::Ui) {
+        if self.computed_response {
+            return; // already computed
+        }
+
+        self.computed_response = true;
+
         let Some(payload) = self.payload.get() else {
             return; // nothing being dragged
         };
@@ -232,11 +222,17 @@ where
             return; // already hovering a non-reorder drop zone
         }
 
+        let Some(cursor_pos) = ui.input(|input| input.pointer.interact_pos()) else {
+            return; // no cursor position
+        };
         let Some(drop_pos) = self.drop_pos.get() else {
             return; // no cursor position
         };
 
-        if !ui.clip_rect().contains(drop_pos) {
+        let clip_rect = &ui.clip_rect();
+        if !clip_rect.contains(egui::pos2(drop_pos.x, cursor_pos.y))
+            && !clip_rect.contains(egui::pos2(cursor_pos.x, drop_pos.y))
+        {
             return; // cursor position is outside the current UI
         }
 
@@ -247,11 +243,11 @@ where
                 let distance_to_cursor = if dir.is_horizontal() {
                     (points[0].y..=points[1].y)
                         .contains(&drop_pos.y)
-                        .then(|| (points[0].x - drop_pos.x).abs())
+                        .then(|| (points[0].x - cursor_pos.x).abs())
                 } else {
                     (points[0].x..=points[1].x)
                         .contains(&drop_pos.x)
-                        .then(|| (points[0].y - drop_pos.y).abs())
+                        .then(|| (points[0].y - cursor_pos.y).abs())
                 };
                 Some((params, distance_to_cursor?))
             })
@@ -270,17 +266,52 @@ where
         });
     }
 
-    pub fn mid_drag(&mut self) -> Option<&DragAndDropResponse<Payload, End>> {
+    /// Returns the tentative response (what would be returned if the user
+    /// stopped dragging right now). This must be called after all draggables
+    /// and drop zones.
+    pub fn mid_drag(&mut self, ui: &mut egui::Ui) -> Option<&DragAndDropResponse<Payload, End>> {
+        self.compute_response(ui);
         self.response.as_ref()
     }
 
-    pub fn end_drag(&mut self) -> Option<DragAndDropResponse<Payload, End>> {
+    /// Returns the response of the drag, which is `Some` only on the frame that
+    /// the user ends the drag.
+    pub fn end_drag(mut self, ui: &mut egui::Ui) -> Option<DragAndDropResponse<Payload, End>> {
+        self.compute_response(ui);
         if self.done_dragging {
             self.payload.take();
             self.response.take()
         } else {
             None
         }
+    }
+}
+impl<T> DragAndDrop<T>
+where
+    T: Any + Default + Clone + Send + Sync,
+{
+    /// Adds a widget that is draggable only by its handle, along with a reorder
+    /// drop zone. See [`Self::draggable()`].
+    pub fn vertical_reorder_by_handle<'a, R>(
+        &mut self,
+        ui: &mut egui::Ui,
+        index: T,
+        add_contents: impl 'a + FnOnce(&mut egui::Ui, bool) -> R,
+    ) -> egui::InnerResponse<R> {
+        let payload = index.clone();
+        let end = index;
+
+        let r = self.draggable(ui, payload, |ui, is_dragging| {
+            ui.horizontal(|ui| {
+                ui.set_width(ui.available_width());
+                let response = drag_handle(ui, is_dragging);
+                let inner = add_contents(ui, is_dragging);
+                egui::InnerResponse { inner, response }
+            })
+            .inner
+        });
+        self.reorder_drop_zone(ui, &r.response, end);
+        r.inner
     }
 }
 

@@ -137,7 +137,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
         let name = name.clone();
         let mut color = *color;
 
-        dnd.vertical_reorder_by_handle(ui, i, i, |ui, _is_dragging| {
+        dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
             let on_delete = Some(|| to_delete = Some(i));
             let r = crate::gui::components::color_edit(ui, &mut color, on_delete);
             *prefs.changed |= r.changed();
@@ -156,11 +156,11 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
             let popup_response = popup.if_open(|popup| {
                 popup
                     .text_edit_width(150.0)
-                    .over(ui, &label_response, 3.0) // overwrite width
-                    .confirm_button_validator(Box::new(|new_name| {
+                    .over(ui, &label_response, 3.0) // overwrite width if wider
+                    .confirm_button_validator(&|new_name| {
                         validate_single_color_name(&prefs.current, new_name, "Rename")
-                    }))
-                    .delete_button_validator(Box::new(|_| Ok(Some("Delete color".to_string()))))
+                    })
+                    .delete_button_validator(&|_| Ok(Some("Delete color".to_string())))
                     .show(ui)
             });
             if let Some(r) = popup_response {
@@ -188,8 +188,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
         *prefs.changed = true;
     }
 
-    dnd.paint_reorder_drop_lines(ui);
-    if let Some(r) = dnd.end_drag() {
+    if let Some(r) = dnd.end_drag(ui) {
         if let Some(before_or_after) = r.before_or_after {
             crate::util::reorder_map(
                 &mut prefs.current.custom_colors,
