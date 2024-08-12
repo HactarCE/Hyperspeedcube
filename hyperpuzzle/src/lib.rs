@@ -1,5 +1,8 @@
 //! Multidimensional twisty puzzle generator and simulator backend.
 
+#[macro_use]
+extern crate lazy_static;
+
 pub mod builder;
 mod library;
 pub mod lua;
@@ -36,6 +39,14 @@ pub const DEFAULT_COLOR_SCHEME_NAME: &str = "Default";
 /// Name of the default gradient, to which unknown or conflicting colors are
 /// assigned.
 pub const DEFAULT_COLOR_GRADIENT_NAME: &str = "Rainbow";
+
+/// Regex matching allowed names for puzzle elements.
+///
+/// - Digits and `<` are reserved for auto-generated names.
+/// - Space and many special symbols are used in piece filter expressions.
+/// - Most other symbols are disallowed just for safety and
+///   forwards-compatibility.
+pub const NAME_REGEX: &str = r"[a-zA-Z_][a-zA-Z0-9_]*";
 
 fn validate_id(s: String) -> eyre::Result<String> {
     if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_') {
