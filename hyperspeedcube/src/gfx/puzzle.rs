@@ -46,6 +46,10 @@ const FACES_BASE_COLOR_ID: u32 = 2;
 
 /// How much to scale outline radius values compared to size of one 3D unit.
 const OUTLINE_RADIUS_SCALE_FACTOR: f32 = 0.005;
+/// Factor by which to scale internals outlines.
+///
+/// TODO: instead of this, move each outline slightly inward toward its polygon
+const OUTLINE_RADIUS_INTERNALS_SCALE: f32 = 0.95;
 
 pub struct PuzzleRenderResources {
     pub gfx: Arc<GraphicsState>,
@@ -715,7 +719,9 @@ impl PuzzleRenderer {
             let edge_range = u32_range_to_usize(&self.model.piece_internals_edge_ranges[piece]);
             outline_color_ids_data[edge_range.clone()].fill(outline_color_id);
             // Write internals outline radii.
-            outline_radii_data[edge_range].fill(style.outline_size * OUTLINE_RADIUS_SCALE_FACTOR);
+            outline_radii_data[edge_range].fill(
+                style.outline_size * OUTLINE_RADIUS_SCALE_FACTOR * OUTLINE_RADIUS_INTERNALS_SCALE,
+            );
         }
 
         // Ok but now actually write that data.
