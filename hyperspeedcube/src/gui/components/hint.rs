@@ -4,6 +4,7 @@ impl HelpHoverWidget {
         ui: &mut egui::Ui,
         add_contents: impl FnOnce(&mut egui::Ui) -> R,
     ) -> egui::InnerResponse<Option<R>> {
+        ui.add_space(24.0); // Ensure there's enough space
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             Self::show(ui, add_contents)
         })
