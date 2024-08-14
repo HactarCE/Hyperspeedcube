@@ -36,6 +36,13 @@ function define_ft_cube_3d(size)
       local shape = symmetries.cubic.cube()
       self:carve(shape:iter_poles())
 
+      -- Optimize piece ID usage by doing outermost cuts first
+      if size > 5 then
+        for _, v in sym:orbit(sym.oox.unit * ft_cube_cut_depths(3, size)[1]) do
+          self:slice(v)
+        end
+      end
+
       -- Define axes and slices
       self.axes:add(shape:iter_poles(), ft_cube_cut_depths(3, size))
 
