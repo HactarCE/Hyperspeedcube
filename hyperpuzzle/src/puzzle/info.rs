@@ -35,7 +35,7 @@ hypermath::idx_struct! {
     /// ID of a **layer**, which is a region of the puzzle for each axis that may be twisted by a move on that axis.
     pub struct Layer(pub u8);
     /// ID of a **piece type**, a subset of the **pieces** of the puzzle.
-    pub struct PieceType(pub u8);
+    pub struct PieceType(pub u16);
 }
 
 impl Surface {
