@@ -12,9 +12,11 @@ use parking_lot::Mutex;
 use super::simulation::PuzzleSimulation;
 use super::styles::*;
 use super::Camera;
-use super::PuzzleFiltersState;
 use crate::preferences::ColorScheme;
+use crate::preferences::FilterPreset;
+use crate::preferences::FilterRule;
 use crate::preferences::Preset;
+use crate::preferences::StylePreferences;
 use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
 
 /// View into a puzzle simulation, which has its own piece filters.
@@ -78,7 +80,7 @@ impl PuzzleView {
             colors,
             temp_colors: None,
             styles: PuzzleStyleStates::new(puzzle.pieces.len()),
-            filters: PuzzleFiltersState::new(puzzle),
+            filters: PuzzleFiltersState::new(&prefs.styles),
 
             show_puzzle_hover: false,
             show_gizmo_hover: false,
@@ -142,41 +144,15 @@ impl PuzzleView {
         Some([a, b])
     }
 
+    /// Updates the current piece filters.
     pub fn notify_filters_changed(&mut self) {
-        let puzzle = self.puzzle();
-        let mut visible_pieces = PieceMask::new_full(puzzle.pieces.len());
-
-        // Filter by piece type.
-        for (piece_type, &state) in &self.filters.piece_types {
-            if let Some(wants_piece_type) = state {
-                for piece in puzzle.pieces.iter_keys() {
-                    if visible_pieces.contains(piece)
-                        && (puzzle.pieces[piece].piece_type == Some(piece_type)) != wants_piece_type
-                    {
-                        visible_pieces.remove(piece);
-                    }
-                }
-            }
+        let all_pieces = PieceMask::new_full(self.puzzle().pieces.len());
+        self.styles
+            .set_base_styles(&all_pieces, self.filters.preset.fallback_style.clone());
+        for rule in self.filters.iter_active_rules().rev() {
+            let pieces = rule.set.eval(&self.puzzle());
+            self.styles.set_base_styles(&pieces, rule.style.clone());
         }
-
-        // Filter by color.
-        for (color, &state) in &self.filters.colors {
-            if let Some(wants_color) = state {
-                for piece in puzzle.pieces.iter_keys() {
-                    if visible_pieces.contains(piece)
-                        && puzzle.piece_has_color(piece, color) != wants_color
-                    {
-                        visible_pieces.remove(piece);
-                    }
-                }
-            }
-        }
-
-        self.styles.set_piece_states_with_opposite(
-            &visible_pieces,
-            crate::update_styles!(base = String::new()),
-            crate::update_styles!(base = "Hidden".to_string()),
-        );
     }
 
     /// Updates the puzzle view for a frame. This method is idempotent.
@@ -663,4 +639,31 @@ pub enum HoverMode {
     #[default]
     Piece,
     TwistGizmo,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PuzzleFiltersState {
+    pub sequence_name: Option<String>,
+    pub preset_name: Option<String>,
+    pub preset: FilterPreset,
+    pub active_rules: Vec<bool>,
+}
+impl PuzzleFiltersState {
+    pub fn new(styles: &StylePreferences) -> Self {
+        Self {
+            sequence_name: None,
+            preset_name: None,
+            preset: FilterPreset::new(styles),
+            active_rules: vec![],
+        }
+    }
+
+    pub fn iter_active_rules(&self) -> impl DoubleEndedIterator<Item = &FilterRule> {
+        self.preset
+            .rules
+            .iter()
+            .enumerate()
+            .filter(|(i, _rule)| *self.active_rules.get(*i).unwrap_or(&true))
+            .map(|(_i, rule)| rule)
+    }
 }

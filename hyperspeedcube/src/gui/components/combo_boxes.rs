@@ -14,7 +14,7 @@ pub struct FancyComboBox<'a, T> {
     pub options: Vec<(T, Cow<'a, str>)>,
 }
 impl<'a> FancyComboBox<'a, String> {
-    pub fn new<O: 'a + AsRef<str>>(
+    pub fn new_strings<O: 'a + AsRef<str>>(
         id_source: impl Hash,
         selected: &'a mut String,
         options: impl IntoIterator<Item = &'a O>,
@@ -27,6 +27,22 @@ impl<'a> FancyComboBox<'a, String> {
                 .map(|s| s.as_ref())
                 .map(|s| (s.to_owned(), s.into()))
                 .collect(),
+        }
+    }
+}
+impl<'a, T: Clone> FancyComboBox<'a, T> {
+    pub fn new<'b>(
+        id_source: impl Hash,
+        selected: &'a mut T,
+        options: impl Into<Cow<'b, [(T, Cow<'a, str>)]>>,
+    ) -> Self
+    where
+        'a: 'b,
+    {
+        Self {
+            combo_box: egui::ComboBox::from_id_source(id_source),
+            selected,
+            options: Cow::into_owned(options.into()),
         }
     }
 }

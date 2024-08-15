@@ -58,6 +58,9 @@ const TWIST_DRAG_THRESHOLD: f32 = 5.0;
 /// TODO: reword this and move it to preferences
 const TWIST_DRAG_SPEED: f32 = 2.0;
 
+/// Name of the default piece style.
+pub const DEFAULT_STYLE_NAME: &str = "Default";
+
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
     // Initialize logging.

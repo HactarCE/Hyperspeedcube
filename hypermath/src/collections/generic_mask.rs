@@ -41,6 +41,13 @@ impl<I> GenericMask<I> {
         self
     }
 
+    /// Flips every bit.
+    #[must_use]
+    pub fn complement(mut self) -> Self {
+        self.bits = !self.bits;
+        self
+    }
+
     /// Returns the total number of elements in the puzzle.
     pub fn max_len(&self) -> usize {
         self.bits.len()

@@ -328,7 +328,6 @@ color_palette:
       - '#000000'
       - '#000000'
       - '#000000'
-piece_filters: ~
 global_keybinds: []
 puzzle_keybinds: ~
 mousebinds: []

@@ -94,7 +94,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     ui.add_space(ui.spacing().item_spacing.x);
 
-    let mut presets_ui = gui::components::PresetsUi {
+    let presets_ui = gui::components::PresetsUi {
         id: unique_id!(),
         presets: &mut app.prefs.styles.custom,
         changed: &mut changed,
@@ -107,10 +107,17 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         autosave: true,
         vscroll: false,
         help_contents: Some(Box::new(show_custom_piece_styles_help_ui)),
+        extra_validation: Some(Box::new(|_, name| {
+            if name == crate::DEFAULT_STYLE_NAME {
+                Err("There is already a style with this name".to_string())
+            } else {
+                Ok(())
+            }
+        })),
     };
     let get_backup_defaults = |_| {
         Some(Preset {
-            name: "Default".to_string(),
+            name: crate::DEFAULT_STYLE_NAME.to_string(),
             value: app.prefs.styles.default,
         })
     };
@@ -247,22 +254,19 @@ impl egui::Widget for PieceStyleEdit<'_> {
                 );
 
                 let (mut prefs, ui) = prefs_ui.split();
-                ui.add_enabled_ui(prefs.current.outline_color.is_some(), |ui| {
-                    let r = prefs.with(ui).checkbox(
+                prefs
+                    .with(ui)
+                    .checkbox(
                         "Lighting",
                         match self.default_lighting {
                             true => access_option!(true, .outline_lighting),
                             false => access_option!(false, .outline_lighting),
                         },
-                    );
-                    r.on_hover_explanation(
+                    )
+                    .on_hover_explanation(
                         "",
                         "Lighting intensity can be configured in the view settings.", // TODO: markdown renderer
                     );
-                });
-                if prefs.current.outline_color.is_none() {
-                    prefs.current.outline_lighting = None;
-                }
             });
         });
 

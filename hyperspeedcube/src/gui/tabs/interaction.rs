@@ -1,8 +1,6 @@
 use crate::app::App;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    ui.set_enabled(app.has_active_puzzle());
-
     let mut changed = false;
 
     let presets = &mut app.prefs.interaction;

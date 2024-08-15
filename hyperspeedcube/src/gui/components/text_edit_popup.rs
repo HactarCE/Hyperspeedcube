@@ -78,19 +78,24 @@ impl<'v> TextEditPopup<'v> {
         self.area = self.area.fixed_pos(r.rect.left_bottom());
         self
     }
-    pub fn over(mut self, ui: &mut egui::Ui, r: &egui::Response, vertical_fudge: f32) -> Self {
-        let padding = ui.spacing().window_margin.left_top()
-            + ui.spacing().button_padding
-            + egui::vec2(0.0, vertical_fudge);
+    // TODO: modify `over()` to handle the case where the label is up against
+    //       the right side of the UI, then review uses of `at()`
+    pub fn at(mut self, ui: &mut egui::Ui, r: &egui::Response, fudge: egui::Vec2) -> Self {
+        let padding = ui.spacing().window_margin.left_top() + ui.spacing().button_padding + fudge;
         self.area = self.area.fixed_pos(r.rect.left_top() - padding);
+        self
+    }
+    /// Same as `at()` but sets width as well.
+    pub fn over(mut self, ui: &mut egui::Ui, r: &egui::Response, vertical_fudge: f32) -> Self {
+        self = self.at(ui, r, egui::vec2(0.0, vertical_fudge));
         if !self.text_edit_width.is_some_and(|w| w > r.rect.width()) {
             self.text_edit_width = Some(r.rect.width());
         }
         self
     }
 
-    pub fn label(mut self, label: String) -> Self {
-        self.label = Some(label);
+    pub fn label(mut self, label: impl ToString) -> Self {
+        self.label = Some(label.to_string());
         self
     }
     pub fn text_edit_align(mut self, align: egui::Align) -> Self {
@@ -114,8 +119,8 @@ impl<'v> TextEditPopup<'v> {
         self
     }
     /// Adds hint text to the text edit.
-    pub fn text_edit_hint(mut self, hint_text: String) -> Self {
-        self.text_edit_hint_text = Some(hint_text);
+    pub fn text_edit_hint(mut self, hint_text: impl ToString) -> Self {
+        self.text_edit_hint_text = Some(hint_text.to_string());
         self
     }
 

@@ -3,6 +3,7 @@ mod combo_boxes;
 // mod keybinds;
 mod color_widgets;
 mod dnd;
+mod filter_checkbox;
 mod hint;
 mod layer_mask;
 pub mod prefs;
@@ -15,6 +16,7 @@ mod yaml_editor;
 
 pub use color_widgets::*;
 pub use combo_boxes::*;
+pub use filter_checkbox::*;
 pub use hint::*;
 pub use text_edit_popup::*;
 // pub use keybinds::*;

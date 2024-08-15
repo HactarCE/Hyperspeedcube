@@ -11,7 +11,7 @@ use crate::gui::util::{
 };
 use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
 
-const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
+pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
 
 fn show_presets_help_ui(ui: &mut egui::Ui) {
     // TODO: markdown renderer
@@ -33,6 +33,7 @@ fn show_presets_help_ui(ui: &mut egui::Ui) {
     ui.label("Loading a preset discards unsaved changes.");
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PresetsUiText<'a> {
     /// Set of presets, if any.
     pub presets_set: Option<&'a str>,
@@ -353,45 +354,22 @@ where
 
         let yaml = PlaintextYamlEditor::<T>::new(ui);
 
-        ui.horizontal(|ui| {
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                // Save button
-                if !self.autosave {
-                    ui.add_enabled_ui(is_unsaved, |ui| {
-                        let new_name = &current.name;
-                        let overwrite = self.presets.has(new_name);
-                        let r = ui
-                            .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾"))
-                            .on_hover_explanation(
-                                "Save changes",
-                                &format!(
-                                    "{save} {preset} {new_name}",
-                                    save = if overwrite { "Overwrite" } else { "Add new" },
-                                    preset = self.text.preset,
-                                ),
-                            );
-                        save_changes |= r.clicked();
-                    });
-                }
+        ui.add(PresetHeaderUi {
+            text: self.text,
+            preset_name: &current.name,
 
-                // Edit as plaintext button
-                yaml.show_edit_as_plaintext_button(ui, &current.value);
-
-                // Help hover widget
-                if let Some(help_contents) = &self.help_contents {
-                    crate::gui::components::HelpHoverWidget::show(ui, help_contents);
+            help_contents: self.help_contents.as_ref(),
+            yaml: Some((&yaml, &current.value)),
+            save_status: if self.autosave {
+                PresetSaveStatus::Autosave
+            } else {
+                PresetSaveStatus::ManualSave {
+                    is_unsaved,
+                    overwrite: self.presets.has(&current.name),
                 }
+            },
 
-                let mut job = egui::text::LayoutJob::default();
-                if current.name.is_empty() {
-                    job.append("No ", 0.0, body_text_format(ui));
-                } else {
-                    job.append(&current.name, 0.0, strong_text_format(ui));
-                    job.append(" ", 0.0, body_text_format(ui));
-                }
-                job.append(&self.text.what, 0.0, body_text_format(ui));
-                crate::gui::util::label_centered_unless_multiline(ui, job);
-            });
+            save_changes: &mut save_changes,
         });
         ui.add_space(ui.spacing().item_spacing.y);
         egui::ScrollArea::new([true, self.vscroll])
@@ -424,6 +402,88 @@ where
             *self.changed = true;
         }
     }
+}
+
+pub struct PresetHeaderUi<'a, T> {
+    pub text: PresetsUiText<'a>,
+    pub preset_name: &'a str,
+
+    pub help_contents: Option<&'a Box<dyn Fn(&mut egui::Ui)>>,
+    pub yaml: Option<(&'a PlaintextYamlEditor<T>, &'a T)>,
+    pub save_status: PresetSaveStatus,
+
+    pub save_changes: &'a mut bool,
+}
+impl<T> egui::Widget for PresetHeaderUi<'_, T>
+where
+    T: Serialize + for<'de> Deserialize<'de> + Clone,
+{
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        ui.horizontal(|ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                // Save button
+                match self.save_status {
+                    PresetSaveStatus::CantSave { .. } | PresetSaveStatus::Autosave => (),
+                    PresetSaveStatus::ManualSave {
+                        is_unsaved,
+                        overwrite,
+                    } => {
+                        ui.add_enabled_ui(is_unsaved, |ui| {
+                            let r = ui
+                                .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾"))
+                                .on_hover_explanation(
+                                    "Save changes",
+                                    &format!(
+                                        "{save} {preset} {new_name}",
+                                        save = if overwrite { "Overwrite" } else { "Add new" },
+                                        preset = self.text.preset,
+                                        new_name = self.preset_name,
+                                    ),
+                                );
+                            *self.save_changes |= r.clicked();
+                        });
+                    }
+                }
+
+                // Edit as plaintext button
+                if let Some((yaml, current_value)) = self.yaml {
+                    yaml.show_edit_as_plaintext_button(ui, current_value);
+                }
+
+                // Help hover widget
+                if let Some(help_contents) = self.help_contents {
+                    crate::gui::components::HelpHoverWidget::show(ui, help_contents);
+                }
+
+                let mut job = egui::text::LayoutJob::default();
+                if self.preset_name.is_empty() {
+                    job.append("No ", 0.0, body_text_format(ui));
+                } else {
+                    job.append(self.preset_name, 0.0, strong_text_format(ui));
+                    job.append(" ", 0.0, body_text_format(ui));
+                }
+                job.append(&self.text.what, 0.0, body_text_format(ui));
+                crate::gui::util::label_centered_unless_multiline(ui, job);
+            });
+        })
+        .response
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum PresetSaveStatus {
+    CantSave {
+        message: &'static str,
+    },
+    Autosave,
+    ManualSave {
+        /// Whether the preset has unsaved changes. If this is `false`, then the
+        /// save button will be disabled.
+        is_unsaved: bool,
+        /// Whether saving changes to the preset will overwrite an existing
+        /// preset.
+        overwrite: bool,
+    },
 }
 
 fn elide_overflowing_line(ui: &mut egui::Ui, s: &str, max_width: f32) -> String {

@@ -32,6 +32,14 @@ impl StylePreferences {
             false => self.light_background_color,
         }
     }
+
+    pub fn get_custom_or_default(&self, style_name: &Option<String>) -> PieceStyle {
+        style_name
+            .as_ref()
+            .and_then(|name| self.custom.get(name))
+            .map(|preset| preset.value)
+            .unwrap_or(self.default)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq)]

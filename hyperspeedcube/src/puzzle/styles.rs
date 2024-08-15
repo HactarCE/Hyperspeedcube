@@ -42,6 +42,10 @@ impl PuzzleStyleStates {
         }
     }
 
+    pub fn set_base_styles(&mut self, pieces: &PieceMask, base: Option<String>) {
+        self.set_piece_states(pieces, update_styles!(base = base.clone()));
+    }
+
     /// Modifies the states of a piece set, given their current state.
     ///
     /// `modify_state` is expected to be a pure function.
@@ -173,7 +177,7 @@ pub struct PieceStyleValues {
 /// Style state for a piece.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct PieceStyleState {
-    pub base: String,
+    pub base: Option<String>,
 
     pub blind: bool,
     pub gripped: bool,
@@ -188,11 +192,7 @@ impl PieceStyleState {
     /// Returns whether a piece with this style state is interactable (can be
     /// hovered with the cursor).
     fn interactable(&self, styles: &StylePreferences) -> bool {
-        let base = styles
-            .custom
-            .get(&self.base)
-            .map(|p| p.value)
-            .and_then(|s| s.interactable);
+        let base = styles.get_custom_or_default(&self.base).interactable;
         let ugp = self.ungripped.then_some(false);
         ugp.or(base).unwrap_or(true)
     }
@@ -200,11 +200,7 @@ impl PieceStyleState {
     /// Returns how to draw a piece with this style state.
     fn values(&self, styles: &StylePreferences) -> PieceStyleValues {
         let def = styles.default;
-        let base = styles
-            .custom
-            .get(&self.base)
-            .map(|p| p.value)
-            .unwrap_or(def);
+        let base = styles.get_custom_or_default(&self.base);
         let bld = self.blind.then_some(styles.blind);
         let gp = self.gripped.then_some(styles.gripped);
         let ugp = self.ungripped.then_some(styles.ungripped);

@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 mod animations;
 mod colors;
+mod filters;
 mod gfx;
 mod image_generator;
 mod info;
@@ -233,6 +234,7 @@ impl Preferences {
         view_4d.post_init(Some(&DEFAULT_PREFS.view_4d));
         color_palette.post_init();
         color_schemes.post_init();
+        piece_filters.post_init();
 
         self
     }
@@ -305,6 +307,8 @@ pub struct WithPresets<T: Default> {
     user: Vec<Preset<T>>,
 
     /// Rename operations completed during the last frame, if any.
+    ///
+    /// TODO: review these
     #[serde(skip)]
     recent_renames: VecDeque<Rename>,
 }
