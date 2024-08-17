@@ -18,6 +18,7 @@ use parking_lot::Mutex;
 mod debug;
 mod commands;
 mod gui;
+mod strings;
 // mod logfile;
 mod app;
 mod gfx;

@@ -19,6 +19,7 @@ bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 bytemuck = { version = "1.9.1", features = ["derive"] }
 cgmath = "0.18.0"
 colorous = "1.0.10"
+comrak = "0.26.0"
 config = { version = "0.13.1", features = ["preserve_order"] }
 # Fork of color-eyre that does not re-export color_owo, which otherwise clogs editor completions
 color-eyre = { git = "https://github.com/FlareFlo/color-eyre.git", rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1", default-features = false, features = ["track-caller", "capture-spantrace"] }

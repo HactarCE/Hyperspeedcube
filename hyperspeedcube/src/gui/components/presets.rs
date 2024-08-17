@@ -6,32 +6,13 @@ use super::{
 };
 use crate::gui::components::PlaintextYamlEditor;
 use crate::gui::ext::ResponseExt;
+use crate::gui::markdown::md_inline;
 use crate::gui::util::{
     body_text_format, set_widget_spacing_to_space_width, strong_text_format, EguiTempValue,
 };
 use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
 
 pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
-
-fn show_presets_help_ui(ui: &mut egui::Ui) {
-    // TODO: markdown renderer
-    ui.spacing_mut().item_spacing.y = 9.0;
-    ui.heading("Presets");
-    ui.label(
-        "A preset is a saved set of values \
-         that can be loaded at any time.",
-    );
-    crate::gui::util::bullet_list(
-        ui,
-        &[
-            "Click on the + button to create a preset",
-            "Click on a preset to activate it",
-            "Right-click on a preset to rename or delete it",
-            "Drag a preset to reorder it",
-        ],
-    );
-    ui.label("Loading a preset discards unsaved changes.");
-}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PresetsUiText<'a> {
@@ -69,7 +50,7 @@ pub struct PresetsUi<'a, T: Default> {
     /// Whether to allow vertical scrolling in the content area.
     pub vscroll: bool,
     /// Help text to show for the current settings UI.
-    pub help_contents: Option<Box<dyn Fn(&mut egui::Ui)>>,
+    pub help_contents: Option<&'a str>,
     /// Function to apply context-specific validation for new preset names.
     /// Whether or not this is present, names will still be checked for
     /// uniqueness and non-emptiness.
@@ -164,7 +145,7 @@ where
                 if let Some(presets_set) = self.text.presets_set.filter(|s| !s.is_empty()) {
                     ui.label(format!("({presets_set})"));
                 }
-                HelpHoverWidget::show_right_aligned(ui, show_presets_help_ui);
+                HelpHoverWidget::show_right_aligned(ui, crate::strings::PRESETS_HELP);
             });
             ui.add_space(ui.spacing().item_spacing.y);
             ui.horizontal_wrapped(|ui| {
@@ -172,14 +153,7 @@ where
                     crate::gui::util::wrap_if_needed_for_button(ui, &preset.name);
                     let r = ui.add_enabled(!dnd.is_dragging(), |ui: &mut egui::Ui| {
                         self.show_preset_name_selectable_label(ui, &preset.name)
-                    });
-                    let r = r.on_hover_ui(|ui| {
-                        // TODO: markdown renderer
-                        set_widget_spacing_to_space_width(ui);
-                        ui.horizontal(|ui| {
-                            ui.strong("Click");
-                            ui.label("to activate");
-                        });
+                            .on_hover_text(md_inline(ui, "**Click** to activate"))
                     });
 
                     // Left click -> Activate preset
@@ -358,7 +332,7 @@ where
             text: self.text,
             preset_name: &current.name,
 
-            help_contents: self.help_contents.as_ref(),
+            help_contents: self.help_contents,
             yaml: Some((&yaml, &current.value)),
             save_status: if self.autosave {
                 PresetSaveStatus::Autosave
@@ -408,7 +382,7 @@ pub struct PresetHeaderUi<'a, T> {
     pub text: PresetsUiText<'a>,
     pub preset_name: &'a str,
 
-    pub help_contents: Option<&'a Box<dyn Fn(&mut egui::Ui)>>,
+    pub help_contents: Option<&'a str>,
     pub yaml: Option<(&'a PlaintextYamlEditor<T>, &'a T)>,
     pub save_status: PresetSaveStatus,
 

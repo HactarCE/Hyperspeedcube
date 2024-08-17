@@ -49,7 +49,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 yaml.show_edit_as_plaintext_button(ui, &app.prefs.color_palette);
-                HelpHoverWidget::show_right_aligned(ui, show_global_color_palette_help_ui);
+                HelpHoverWidget::show_right_aligned(ui, crate::strings::GLOBAL_COLOR_PALETTE_HELP);
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                     ui.strong("Global color palette");
                 });

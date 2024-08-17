@@ -14,6 +14,7 @@ macro_rules! unique_id {
 mod util;
 mod components;
 mod ext;
+mod markdown;
 mod menu_bar;
 mod tabs;
 

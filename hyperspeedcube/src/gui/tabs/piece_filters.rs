@@ -26,17 +26,6 @@ use crate::{
 const PRESET_LIST_MIN_WIDTH: f32 = 200.0;
 const CURRENT_PRESET_MIN_WIDTH: f32 = 350.0;
 
-fn show_piece_filters_help_ui(ui: &mut egui::Ui) {
-    ui.label("TODO: explain piece filters");
-}
-
-fn show_filter_presets_help_ui(ui: &mut egui::Ui) {
-    // TODO: markdown renderer
-    ui.spacing_mut().item_spacing.y = 9.0;
-    ui.heading("Filter presets");
-    ui.label("TODO");
-}
-
 fn show_two_panels<R1, R2>(
     (ui, app): (&mut egui::Ui, &mut App),
     side: egui::panel::Side,
@@ -150,7 +139,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
     ui.horizontal(|ui| {
         ui.strong("Filter presets");
         ui.label(format!("({})", puz.name));
-        HelpHoverWidget::show_right_aligned(ui, show_filter_presets_help_ui);
+        HelpHoverWidget::show_right_aligned(ui, crate::strings::PIECE_FILTER_PRESETS_HELP);
     });
 
     let filter_prefs = app.prefs.piece_filters.settings_mut(&puz);
@@ -392,7 +381,6 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
     let is_unsaved = saved_preset != current_preset.as_ref();
 
     let mut save_changes = false;
-    let help: Box<dyn Fn(&mut egui::Ui)> = Box::new(show_piece_filters_help_ui);
     ui.add(PresetHeaderUi::<()> {
         text: PresetsUiText {
             presets_set: puz.as_ref().map(|puz| puz.name.as_str()),
@@ -401,7 +389,7 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
         },
         preset_name: preset_name.as_deref().unwrap_or(""),
 
-        help_contents: Some(&help),
+        help_contents: Some(crate::strings::PIECE_FILTERS_HELP),
         yaml: None,
         save_status: if preset_name.is_some() {
             PresetSaveStatus::ManualSave {

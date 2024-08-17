@@ -10,18 +10,6 @@ use crate::{
     preferences::{PieceStyle, Preset, StylePreferences, DEFAULT_PREFS},
 };
 
-fn show_custom_piece_styles_help_ui(ui: &mut egui::Ui) {
-    // TODO: markdown renderer
-    ui.spacing_mut().item_spacing.y = 9.0;
-    ui.heading("Custom piece styles");
-    ui.horizontal_wrapped(|ui| {
-        set_widget_spacing_to_space_width(ui);
-        ui.label("Custom styles can be applied to pieces using the");
-        ui.strong("piece filters");
-        ui.label("tool.");
-    });
-}
-
 // TODO: markdown bold ("piece explode" and "view settings")
 pub const INTERNAL_FACES_COLOR_EXPLANATION: &str = "For 3D puzzles, it's sometimes possible to \
                                                     view the internal faces of pieces, particularly \
@@ -106,7 +94,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         },
         autosave: true,
         vscroll: false,
-        help_contents: Some(Box::new(show_custom_piece_styles_help_ui)),
+        help_contents: Some(crate::strings::CUSTOM_PIECE_STYLES_HELP),
         extra_validation: Some(Box::new(|_, name| {
             if name == crate::DEFAULT_STYLE_NAME {
                 Err("There is already a style with this name".to_string())

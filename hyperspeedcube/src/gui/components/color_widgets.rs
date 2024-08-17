@@ -28,42 +28,26 @@ const TOOLTIP_COLOR_RECT_ROUNDING: f32 = 3.0;
 
 const COLOR_PALETTE_POPUP_WIDTH: f32 = 600.0;
 
-pub(in crate::gui) fn show_color_schemes_help_ui(allow_dragging: bool) -> impl Fn(&mut egui::Ui) {
-    move |ui| {
-        // TODO: markdown renderer
-        ui.spacing_mut().item_spacing.y = 9.0;
-        ui.heading("Color assignments");
-        ui.label("Each facet on the puzzle is assigned a different color.");
-        if allow_dragging {
-            ui.label("Drag a facet name to assign a different color to it.");
-        }
-        ui.horizontal_wrapped(|ui| {
-            set_widget_spacing_to_space_width(ui);
-            ui.label("In addition to the color scheme settings, you can");
+pub(in crate::gui) fn get_color_schemes_markdown(allow_dragging: bool) -> String {
+    format!(
+        include_str!("../../../resources/markdown/color_assignments.md"),
+        dragging = if allow_dragging {
+            "Drag a facet name to assign a different color to it."
+        } else {
+            ""
+        },
+        color_reassign_mousebind = {
+            // TODO: customizable mousebinds!
             #[cfg(not(target_os = "macos"))]
-            ui.strong("ctrl + shift + right-click"); // TODO: customizable mousebinds!
+            {
+                "ctrl + shift + right-click"
+            }
             #[cfg(target_os = "macos")]
-            ui.strong("cmd + shift + right-click");
-            ui.label("on a sticker to change its color assignment.");
-        });
-        crate::gui::util::bullet_list(
-            ui,
-            // TODO: rewrite this explanation
-            &[
-                "Single colors are best for small puzzles",
-                "Color sets are best for medium puzzles",
-                "Gradients are best for large puzzles",
-                "Colors within a color set are designed to contrast with \
-                each other and with other color sets of the same size",
-            ],
-        );
-        ui.horizontal_wrapped(|ui| {
-            set_widget_spacing_to_space_width(ui);
-            ui.label("Color values can be customized in the");
-            ui.strong("global color palette");
-            ui.label("settings.");
-        });
-    }
+            {
+                "cmd + shift + right-click"
+            }
+        }
+    )
 }
 
 #[derive(Debug)]
@@ -810,7 +794,7 @@ pub fn color_assignment_popup(
         ui.heading(format!("{} color", &color_data.display));
         crate::gui::components::HelpHoverWidget::show_right_aligned(
             ui,
-            crate::gui::components::show_color_schemes_help_ui(true),
+            &get_color_schemes_markdown(true),
         );
     });
     ui.colored_label(

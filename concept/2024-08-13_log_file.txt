@@ -26,10 +26,12 @@ EVENTS
 - save (+ UTC wall timestamp)
 - load (+ UTC wall timestamp)
 - solve end (+ UTC wall timestamp)
+- macro start/end
+- commutator/conjugate start/mid/end
 
 
 on undo:
 - move events to redo stack until we've moved one twist
 
 on clearing redo stack:
-- 
+-

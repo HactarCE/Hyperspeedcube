@@ -33,6 +33,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         .color_palette
         .ensure_color_scheme_is_valid_for_color_system(current, &color_system);
 
+    let help_contents = crate::gui::components::get_color_schemes_markdown(true);
     let presets_ui = crate::gui::components::PresetsUi {
         id: unique_id!(),
         presets: &mut color_system_prefs.schemes,
@@ -45,9 +46,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         },
         autosave: false,
         vscroll: true,
-        help_contents: Some(Box::new(
-            crate::gui::components::show_color_schemes_help_ui(true),
-        )),
+        help_contents: Some(&help_contents),
         extra_validation: None,
     };
 
