@@ -1,21 +1,44 @@
+use std::borrow::Cow;
+
 // - egui heading is 18.0
 // - egui body text is 12.5
-const HEADING_SIZES: [f32; 6] = [18.0, 17.0, 16.0, 15.0, 14.0, 13.0];
+const HEADING_SIZES: [f32; 6] = [20.0, 16.0, 15.0, 14.0, 13.5, 13.0];
 
 const INDENT_WIDTH: f32 = 6.0;
 
+pub fn md_bold_user_text(s: &str) -> String {
+    format!("**{}**", md_escape(s))
+}
+pub fn md_escape(s: &str) -> Cow<'_, str> {
+    if s.chars().any(needs_escape) {
+        let mut ret = String::new();
+        for c in s.chars() {
+            if needs_escape(c) {
+                ret.push('\\');
+            }
+            ret.push(c);
+        }
+        ret.into()
+    } else {
+        s.into()
+    }
+}
+fn needs_escape(c: char) -> bool {
+    c.is_ascii_punctuation()
+}
+
 /// Renders inline Markdown to an `egui::text::LayoutJob`.
-pub fn md_inline(ui: &egui::Ui, markdown: &str) -> egui::text::LayoutJob {
+pub fn md_inline(ui: &egui::Ui, markdown: impl AsRef<str>) -> egui::text::LayoutJob {
     let arena = comrak::Arena::new();
-    let ast = comrak::parse_document(&arena, markdown, &options());
+    let ast = comrak::parse_document(&arena, markdown.as_ref(), &options());
     let mut job = egui::text::LayoutJob::default();
     render_inline(&mut job, InlineFormatState::new_paragraph(ui), ast);
     job
 }
 
-pub fn md(ui: &mut egui::Ui, markdown: &str) -> egui::Response {
+pub fn md(ui: &mut egui::Ui, markdown: impl AsRef<str>) -> egui::Response {
     let arena = comrak::Arena::new();
-    let ast = comrak::parse_document(&arena, markdown, &options());
+    let ast = comrak::parse_document(&arena, markdown.as_ref(), &options());
     ui.scope(|ui| {
         ui.visuals_mut().indent_has_left_vline = false;
         ui.spacing_mut().indent = INDENT_WIDTH;
@@ -66,6 +89,7 @@ impl<'a> InlineFormatState<'a> {
 
         Self {
             size: Some(HEADING_SIZES[i]),
+            bold: true,
             ..Self::new_paragraph(ui)
         }
     }
@@ -181,6 +205,9 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
         }
 
         comrak::nodes::NodeValue::Heading(heading) => {
+            if heading.level > 1 {
+                ui.add_space(ui.spacing().item_spacing.y * 2.0); // extra spacing above headings
+            }
             let format_state = InlineFormatState::new_heading(ui, heading.level);
             let mut job = egui::text::LayoutJob::default();
             job.wrap.max_width = ui.available_width();

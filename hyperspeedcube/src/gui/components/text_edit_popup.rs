@@ -1,10 +1,16 @@
+use std::borrow::Cow;
+
 use crate::gui::util::EguiTempValue;
 
 use super::BIG_ICON_BUTTON_SIZE;
 
 /// Function that returns `Ok` if the button should be enabled or `Err` if it
 /// should not be. The contained value is the hover text.
-pub type TextEditValidator<'a> = &'a dyn Fn(&str) -> Result<Option<String>, Option<String>>;
+pub type TextEditValidator<'a, 's> = &'a dyn Fn(&str) -> TextValidationResult<'s>;
+
+/// `Ok` if the button should be enabled or `Err` if it should not be. The
+/// contained value is the hover text.
+pub type TextValidationResult<'s> = Result<Option<Cow<'s, str>>, Option<Cow<'s, str>>>;
 
 #[derive(Debug, Default, Clone)]
 pub enum TextEditPopupResponse {
@@ -16,7 +22,7 @@ pub enum TextEditPopupResponse {
 
 /// Popup with a single-line text edit widget as well as several other optional
 /// widgets: a label, a confirm button, and a delete button.
-pub struct TextEditPopup<'v> {
+pub struct TextEditPopup<'v, 's> {
     ctx: egui::Context,
     new_name: EguiTempValue<String>,
     is_first_frame: bool,
@@ -32,10 +38,10 @@ pub struct TextEditPopup<'v> {
     text_edit_hint_text: Option<String>,
 
     auto_confirm: bool,
-    validate_confirm: Option<TextEditValidator<'v>>,
-    validate_delete: Option<TextEditValidator<'v>>,
+    validate_confirm: Option<TextEditValidator<'v, 's>>,
+    validate_delete: Option<TextEditValidator<'v, 's>>,
 }
-impl<'v> TextEditPopup<'v> {
+impl<'v, 's> TextEditPopup<'v, 's> {
     pub fn new(ui: &mut egui::Ui) -> Self {
         let ctx = ui.ctx().clone();
         let new_name = EguiTempValue::new(ui);
@@ -130,11 +136,14 @@ impl<'v> TextEditPopup<'v> {
         self.auto_confirm = auto_confirm;
         self
     }
-    pub fn confirm_button_validator(mut self, confirm_validator: TextEditValidator<'v>) -> Self {
+    pub fn confirm_button_validator(
+        mut self,
+        confirm_validator: TextEditValidator<'v, 's>,
+    ) -> Self {
         self.validate_confirm = Some(confirm_validator);
         self
     }
-    pub fn delete_button_validator(mut self, delete_validator: TextEditValidator<'v>) -> Self {
+    pub fn delete_button_validator(mut self, delete_validator: TextEditValidator<'v, 's>) -> Self {
         self.validate_delete = Some(delete_validator);
         self
     }
@@ -243,14 +252,14 @@ impl<'v> TextEditPopup<'v> {
 fn validated_button(
     ui: &mut egui::Ui,
     icon: &str,
-    validation_result: Result<Option<String>, Option<String>>,
+    validation_result: TextValidationResult<'_>,
     accept_enter: bool,
 ) -> bool {
     ui.add_enabled_ui(validation_result.is_ok(), |ui| {
         let mut r = ui.add(egui::Button::new(icon).min_size(BIG_ICON_BUTTON_SIZE));
         r = match &validation_result {
-            Ok(Some(hover_text)) => r.on_hover_text(hover_text),
-            Err(Some(hover_text)) => r.on_disabled_hover_text(hover_text),
+            Ok(Some(hover_text)) => r.on_hover_text(&**hover_text),
+            Err(Some(hover_text)) => r.on_disabled_hover_text(&**hover_text),
             Ok(None) | Err(None) => r,
         };
         if validation_result.is_ok() {

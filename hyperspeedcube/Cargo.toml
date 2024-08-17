@@ -52,6 +52,7 @@ rand = "*"
 regex = "1.6.0"
 rfd = "0.10.0"
 rgb_crate = { package = "rgb", version = "*" } # as required by empfindung
+rust-i18n = "3.1.1"
 send_wrapper = "0.6"
 serde = { version = "1.0.144", features = ["derive"] }
 serde_yml = "0.0.10"
@@ -101,6 +102,12 @@ web-sys = { version = "=0.3.69", features = [
 [features]
 optick = ["dep:optick", "dep:optick-attr"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
+
+[build-dependencies]
+glob = "0.3.1"
+itertools = "0.13.0"
+owo-colors = "3.5.0"
+regex = "1.6.0"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

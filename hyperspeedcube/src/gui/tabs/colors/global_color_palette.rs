@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use egui::Widget;
 use float_ord::FloatOrd;
 use hyperpuzzle::Rgb;
@@ -9,36 +11,12 @@ use strum::{EnumIter, IntoEnumIterator};
 use crate::app::App;
 use crate::gui::components::{
     HelpHoverWidget, PlaintextYamlEditor, PrefsUi, TextEditPopup, TextEditPopupResponse,
+    TextValidationResult,
 };
 use crate::gui::ext::ResponseExt;
 use crate::gui::tabs::styles::INTERNAL_FACES_COLOR_EXPLANATION;
 use crate::gui::util::{set_widget_spacing_to_space_width, EguiTempValue};
 use crate::preferences::{GlobalColorPalette, DEFAULT_PREFS};
-
-fn show_global_color_palette_help_ui(ui: &mut egui::Ui) {
-    // TODO: markdown renderer
-    ui.spacing_mut().item_spacing.y = 9.0;
-    ui.heading("Global color palette");
-    ui.horizontal_wrapped(|ui| {
-        set_widget_spacing_to_space_width(ui);
-        ui.label(
-            "The global color palette provides a way to change colors \
-             across all puzzles at once. For example, you can select a \
-             particular shade of red to use on every puzzle with red \
-             stickers.\n\
-             \n\
-             Some colors are organized into sets of colors that are \
-             similar but still contrast with each other. For example, \
-             a puzzle with two different shades of red needs those \
-             shades to be distinguishable, so it uses the \"red dyad\" \
-             from the global color palette.\n\
-             \n\
-             The color scheme for any particular puzzle can be customized in the",
-        );
-        ui.strong("color scheme");
-        ui.label("settings.");
-    });
-}
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let yaml = PlaintextYamlEditor::new(ui);
@@ -49,7 +27,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 yaml.show_edit_as_plaintext_button(ui, &app.prefs.color_palette);
-                HelpHoverWidget::show_right_aligned(ui, crate::strings::GLOBAL_COLOR_PALETTE_HELP);
+                HelpHoverWidget::show_right_aligned(ui, &t!("help.global_color_palette"));
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                     ui.strong("Global color palette");
                 });
@@ -158,9 +136,13 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
                     .text_edit_width(150.0)
                     .over(ui, &label_response, 3.0) // overwrite width if wider
                     .confirm_button_validator(&|new_name| {
-                        validate_single_color_name(&prefs.current, new_name, "Rename")
+                        validate_single_color_name(
+                            &prefs.current,
+                            new_name,
+                            t!("custom_colors.actions.rename"),
+                        )
                     })
-                    .delete_button_validator(&|_| Ok(Some("Delete color".to_string())))
+                    .delete_button_validator(&|_| Ok(Some(t!("custom_colors.actions.delete"))))
                     .show(ui)
             });
             if let Some(r) = popup_response {
@@ -253,19 +235,19 @@ fn show_builtin_color_sets_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>
     });
 }
 
-fn validate_single_color_name(
+fn validate_single_color_name<'a>(
     palette: &GlobalColorPalette,
     new_name: &str,
-    verb: &str,
-) -> Result<Option<String>, Option<String>> {
+    ok: Cow<'a, str>,
+) -> TextValidationResult<'a> {
     if new_name.is_empty() {
-        Err(Some("Name cannot be empty".to_string()))
+        Err(Some(t!("custom_colors.errors.empty_name")))
     } else if palette.builtin_colors.contains_key(new_name)
         || palette.custom_colors.contains_key(new_name)
     {
-        Err(Some("There is already a color with this name".to_string()))
+        Err(Some(t!("custom_colors.errors.name_conflict")))
     } else {
-        Ok(Some(format!("{verb} color")))
+        Ok(Some(ok))
     }
 }
 

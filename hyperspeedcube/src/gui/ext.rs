@@ -1,22 +1,32 @@
 use egui::NumExt;
 
+use super::markdown::md;
+
 pub const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 
 pub trait ResponseExt {
-    fn on_hover_explanation(self, strong_text: &str, detailed_message: &str) -> Self;
+    fn on_hover_explanation(
+        self,
+        strong_text: impl AsRef<str>,
+        detailed_message: impl AsRef<str>,
+    ) -> Self;
 }
 impl ResponseExt for egui::Response {
-    fn on_hover_explanation(self, strong_text: &str, detailed_message: &str) -> Self {
+    fn on_hover_explanation(
+        self,
+        strong_text: impl AsRef<str>,
+        detailed_message: impl AsRef<str>,
+    ) -> Self {
         self.on_hover_ui(|ui| {
             ui.allocate_ui_with_layout(
                 egui::vec2(EXPLANATION_TOOLTIP_WIDTH, 0.0),
                 egui::Layout::top_down(egui::Align::LEFT),
                 |ui| {
-                    if !strong_text.is_empty() {
-                        ui.strong(strong_text);
+                    if !strong_text.as_ref().is_empty() {
+                        ui.strong(strong_text.as_ref());
                     }
-                    if !detailed_message.is_empty() {
-                        ui.label(detailed_message);
+                    if !detailed_message.as_ref().is_empty() {
+                        md(ui, detailed_message);
                     }
                 },
             );

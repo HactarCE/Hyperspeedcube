@@ -7,6 +7,19 @@
 extern crate lazy_static;
 #[macro_use]
 extern crate strum;
+#[macro_use]
+extern crate rust_i18n;
+
+i18n!("locales", fallback = "en");
+
+/// Fetches a localized string, or return `None` if it fails.
+macro_rules! try_t {
+    ($key:expr $(, $($rest:tt)*)?) => {{
+        // I can't believe `rust_i18n` doesn't provide a proper API for this.
+        let key = $key;
+        Some(t!(key.clone() $(, $($rest)*)?)).filter(|value| *value != key)
+    }};
+}
 
 use std::sync::Arc;
 
@@ -18,7 +31,6 @@ use parking_lot::Mutex;
 mod debug;
 mod commands;
 mod gui;
-mod strings;
 // mod logfile;
 mod app;
 mod gfx;
@@ -93,6 +105,8 @@ fn main() -> eframe::Result<()> {
 }
 
 async fn run() -> eframe::Result<()> {
+    rust_i18n::set_locale("en");
+
     let icon_data = eframe::icon_data::from_png_bytes(ICON_32_PNG_DATA)
         .expect("error loading application icon");
 

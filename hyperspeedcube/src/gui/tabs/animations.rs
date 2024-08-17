@@ -9,10 +9,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         id: unique_id!(),
         presets,
         changed: &mut changed,
-        text: crate::gui::components::PresetsUiText {
-            what: "animation settings",
-            ..Default::default()
-        },
+        text: crate::gui::components::PresetsUiText::new("animation_settings"),
         autosave: false,
         vscroll: true,
         help_contents: None,

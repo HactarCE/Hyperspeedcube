@@ -139,7 +139,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
     ui.horizontal(|ui| {
         ui.strong("Filter presets");
         ui.label(format!("({})", puz.name));
-        HelpHoverWidget::show_right_aligned(ui, crate::strings::PIECE_FILTER_PRESETS_HELP);
+        HelpHoverWidget::show_right_aligned(ui, &t!("help.piece_filter_presets"));
     });
 
     let filter_prefs = app.prefs.piece_filters.settings_mut(&puz);
@@ -154,13 +154,14 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
     let mut to_rename = None;
 
     let taken_preset_names: HashSet<String> = filter_prefs.presets.keys().cloned().collect();
+    let text = PresetsUiText::new("piece_filters");
     let validate_preset_rename = move |new_name: &str| {
         if new_name.is_empty() {
-            Err(Some("Name cannot be empty".to_string()))
+            Err(Some(text.error_empty_name()))
         } else if taken_preset_names.contains(new_name) {
-            Err(Some("There is already a preset with this name".to_string()))
+            Err(Some(text.error_name_conflict()))
         } else {
-            Ok(Some(format!("Rename preset")))
+            Ok(Some(text.action_rename()))
         }
     };
 
@@ -220,7 +221,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
                 .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
                 .text_edit_hint("New preset name")
                 .confirm_button_validator(&validate_preset_rename)
-                .delete_button_validator(&|_| Ok(Some("Delete preset".to_owned())))
+                .delete_button_validator(&|_| Ok(Some(t!("presets.color_schemes.actions._delete"))))
                 .at(ui, &r, egui::vec2(-4.0, 0.0))
                 .show(ui)
         });
@@ -383,13 +384,12 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
     let mut save_changes = false;
     ui.add(PresetHeaderUi::<()> {
         text: PresetsUiText {
+            i18n_key: "piece_filters",
             presets_set: puz.as_ref().map(|puz| puz.name.as_str()),
-            what: "filter preset",
-            ..Default::default()
         },
         preset_name: preset_name.as_deref().unwrap_or(""),
 
-        help_contents: Some(crate::strings::PIECE_FILTERS_HELP),
+        help_contents: Some(&t!("help.piece_filters")),
         yaml: None,
         save_status: if preset_name.is_some() {
             PresetSaveStatus::ManualSave {
@@ -724,13 +724,4 @@ fn get_common_state<'a>(
     states: impl IntoIterator<Item = &'a Option<bool>>,
 ) -> Option<Option<bool>> {
     states.into_iter().all_equal_value().ok().cloned()
-}
-
-fn update_common_state<'a>(
-    states: impl IntoIterator<Item = &'a mut Option<bool>>,
-    new_state: Option<bool>,
-) {
-    for state in states {
-        *state = new_state;
-    }
 }

@@ -29,12 +29,12 @@ const TOOLTIP_COLOR_RECT_ROUNDING: f32 = 3.0;
 const COLOR_PALETTE_POPUP_WIDTH: f32 = 600.0;
 
 pub(in crate::gui) fn get_color_schemes_markdown(allow_dragging: bool) -> String {
-    format!(
-        include_str!("../../../resources/markdown/color_assignments.md"),
+    t!(
+        "help.color_assignments",
         dragging = if allow_dragging {
-            "Drag a facet name to assign a different color to it."
+            t!("help.color_assignments_drag_reassign")
         } else {
-            ""
+            "".into()
         },
         color_reassign_mousebind = {
             // TODO: customizable mousebinds!
@@ -46,8 +46,9 @@ pub(in crate::gui) fn get_color_schemes_markdown(allow_dragging: bool) -> String
             {
                 "cmd + shift + right-click"
             }
-        }
+        },
     )
+    .into_owned()
 }
 
 #[derive(Debug)]

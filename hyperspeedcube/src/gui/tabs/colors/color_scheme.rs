@@ -39,10 +39,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         presets: &mut color_system_prefs.schemes,
         changed: &mut changed,
         text: crate::gui::components::PresetsUiText {
+            i18n_key: "color_schemes",
             presets_set: Some(&color_system.name),
-            preset: "color scheme",
-            saved_presets: "Saved color schemes",
-            what: "color scheme",
         },
         autosave: false,
         vscroll: true,

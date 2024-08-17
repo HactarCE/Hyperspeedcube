@@ -13,9 +13,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         presets,
         changed: &mut changed,
         text: crate::gui::components::PresetsUiText {
+            i18n_key: "view_settings",
             presets_set: Some(prefs_set.as_ref()),
-            what: "view settings",
-            ..Default::default()
         },
         autosave: false,
         vscroll: true,

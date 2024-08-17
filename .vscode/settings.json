@@ -1,0 +1,12 @@
+{
+  "i18n-ally.localesPaths": ["hyperspeedcube/locales"],
+  "i18n-ally.pathMatcher": "**/(*.)?{locale}.yaml",
+  "i18n-ally.keystyle": "nested",
+  "i18n-ally.enabledFrameworks": [
+    "custom"
+  ],
+  "i18n-ally.regex.usageMatch": [
+    "[^\\w\\d]t!\\([\\s\\n\\r]*['\"]({key})['\"]"
+  ],
+  "i18n-ally.dirStructure": "dir"
+}

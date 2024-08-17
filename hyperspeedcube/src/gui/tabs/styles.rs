@@ -82,22 +82,21 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     ui.add_space(ui.spacing().item_spacing.x);
 
+    let help_contents = t!("help.custom_piece_styles");
     let presets_ui = gui::components::PresetsUi {
         id: unique_id!(),
         presets: &mut app.prefs.styles.custom,
         changed: &mut changed,
         text: gui::components::PresetsUiText {
+            i18n_key: "custom_styles",
             presets_set: None,
-            preset: "style",
-            saved_presets: "Custom styles",
-            what: "style",
         },
         autosave: true,
         vscroll: false,
-        help_contents: Some(crate::strings::CUSTOM_PIECE_STYLES_HELP),
+        help_contents: Some(&help_contents),
         extra_validation: Some(Box::new(|_, name| {
             if name == crate::DEFAULT_STYLE_NAME {
-                Err("There is already a style with this name".to_string())
+                Err(t!("presets.custom_styles.errors._name_conflict"))
             } else {
                 Ok(())
             }
