@@ -45,7 +45,7 @@ pub fn bitvec_to_b16_string(bits: &BitVec) -> String {
 }
 
 pub fn b16_string_to_bitvec(string: &str) -> BitVec {
-    let (len, contents) = string.split_once(',').unwrap_or(("", string));
+    let (len, contents) = string.split_once(':').unwrap_or(("", string));
     contents
         .chars()
         .flat_map(|c| {
