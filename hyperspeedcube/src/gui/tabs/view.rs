@@ -23,6 +23,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     };
     presets_ui.show(
         ui,
+        "prefs.view",
         |p| p[prefs_set].last_loaded_preset().cloned(),
         |prefs_ui| crate::gui::components::prefs::build_view_section(prefs_set, prefs_ui),
     );

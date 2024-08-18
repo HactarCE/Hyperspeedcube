@@ -5,6 +5,7 @@ use itertools::Itertools;
 
 use crate::gui::ext::*;
 
+// TODO: wtf?
 const NONE_TEXT: &str = "-";
 const NONE_TOOLTIP: &str = "Use the current grip";
 

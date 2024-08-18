@@ -1,9 +1,11 @@
+use std::borrow::Cow;
+
 #[must_use]
 pub struct WidgetWithReset<'a, V, W: 'a + egui::Widget, F: FnOnce(&'a mut V) -> W> {
-    pub label: &'a str,
+    pub label: egui::WidgetText,
     pub value: &'a mut V,
     pub reset_value: Option<V>,
-    pub reset_value_str: Option<String>,
+    pub reset_value_str: Option<Cow<'a, str>>,
     pub make_widget: F,
 }
 impl<'a, V, W, F> egui::Widget for WidgetWithReset<'a, V, W, F>
@@ -77,10 +79,10 @@ pub fn reset_button<T: PartialEq>(
         return r.inner;
     };
     let hover_text = match reset_value_str {
-        None => "Reset".to_owned(),
-        Some(s) => format!("Reset to {}", s),
+        None => t!("reset"),
+        Some(s) => t!("reset_to_value", value = s),
     };
-    let r = r.inner.on_hover_text(hover_text);
+    let r = r.inner.on_hover_text(&*hover_text);
     if r.clicked() {
         *value = reset_value;
     }

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
@@ -5,19 +7,11 @@ use crate::{
     gui::{
         self,
         ext::ResponseExt,
+        markdown::md,
         util::{set_widget_spacing_to_space_width, EguiTempValue},
     },
     preferences::{PieceStyle, Preset, StylePreferences, DEFAULT_PREFS},
 };
-
-// TODO: markdown bold ("piece explode" and "view settings")
-pub const INTERNAL_FACES_COLOR_EXPLANATION: &str = "For 3D puzzles, it's sometimes possible to \
-                                                    view the internal faces of pieces, particularly \
-                                                    mid-turn or using piece explode. You can \
-                                                    configure whether internal faces are visible \
-                                                    in view settings.";
-pub const BLOCKING_PIECES_OUTLINES_COLOR: &str = "Outline color for pieces blocking a move. \
-                                                  This is only visible for puzzles that bandage.";
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
@@ -26,7 +20,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     ui.group(|ui| {
         ui.horizontal(|ui| {
-            ui.strong("Miscellaneous styling");
+            ui.strong(t!("prefs.styles.misc.title"));
         });
         ui.separator();
         let mut prefs_ui = crate::gui::components::PrefsUi {
@@ -34,49 +28,33 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             current: &mut app.prefs.styles,
             defaults: Some(&DEFAULT_PREFS.styles),
             changed: &mut changed,
+            i18n_prefix: "prefs.styles.misc",
         };
-        prefs_ui.collapsing("Background", |mut prefs_ui| {
-            prefs_ui.color("Dark mode", access!(.dark_background_color));
-            prefs_ui.color("Light mode", access!(.light_background_color));
+        prefs_ui.collapsing("background", |mut prefs_ui| {
+            prefs_ui.color("dark_mode", access!(.dark_background_color));
+            prefs_ui.color("light_mode", access!(.light_background_color));
         });
-        prefs_ui.collapsing("Internals", |mut prefs_ui| {
-            prefs_ui
-                .color("Face color", access!(.internals_color))
-                .on_hover_explanation("Internal faces color", INTERNAL_FACES_COLOR_EXPLANATION);
+        prefs_ui.collapsing("internals", |mut prefs_ui| {
+            prefs_ui.color("face_color", access!(.internals_color));
         });
-        prefs_ui.collapsing("Blocking pieces", |mut prefs_ui| {
-            prefs_ui
-                .color("Outlines color", access!(.blocking_outline_color))
-                .on_hover_explanation(
-                    "Blocking pieces outlines color",
-                    BLOCKING_PIECES_OUTLINES_COLOR,
-                );
-            prefs_ui
-                .num("Outlines size", access!(.blocking_outline_size), |dv| {
-                    outline_size_drag_value(dv)
-                })
-                .on_hover_explanation(
-                    "Blocking pieces outlines size",
-                    "Outline size for pieces blocking a move. \
-                     This is only visible for puzzles that bandage.",
-                );
+        prefs_ui.collapsing("blocking_pieces", |mut prefs_ui| {
+            prefs_ui.color("outlines_color", access!(.blocking_outline_color));
+            prefs_ui.num("outlines_size", access!(.blocking_outline_size), |dv| {
+                outline_size_drag_value(dv)
+            });
         });
     });
 
     ui.add_space(ui.spacing().item_spacing.x);
 
     ui.group(|ui| {
-        ui.horizontal(|ui| ui.strong("Built-in styles"));
+        ui.strong(t!("prefs.styles.builtin.title"));
         ui.add_space(ui.spacing().item_spacing.y);
         let (name, piece_style_edit) = show_builtin_style_selector(ui, &mut app.prefs.styles);
         ui.add_space(ui.spacing().item_spacing.y);
         ui.separator();
         ui.add_space(ui.spacing().item_spacing.y);
-        ui.horizontal(|ui| {
-            set_widget_spacing_to_space_width(ui);
-            ui.strong(name);
-            ui.label("style");
-        });
+        md(ui, t!("presets.custom_styles._current", current = name));
         changed |= ui.add(piece_style_edit).changed();
     });
 
@@ -108,7 +86,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             value: app.prefs.styles.default,
         })
     };
-    presets_ui.show(ui, get_backup_defaults, |mut prefs_ui| {
+    presets_ui.show(ui, "prefs.styles", get_backup_defaults, |mut prefs_ui| {
         let (prefs, ui) = prefs_ui.split();
         let r = ui.add(
             PieceStyleEdit::new(prefs.current).default_outline_lighting(default_outline_lighting),
@@ -122,11 +100,11 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 fn show_builtin_style_selector<'a>(
     ui: &mut egui::Ui,
     style_prefs: &'a mut StylePreferences,
-) -> (&'static str, PieceStyleEdit<'a>) {
+) -> (Cow<'static, str>, PieceStyleEdit<'a>) {
     let default_outline_lighting = style_prefs.default.outline_lighting.unwrap_or(false);
 
-    #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, EnumIter, IntoStaticStr)]
-    enum CurrentStyle {
+    #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, EnumIter)]
+    enum BuiltInStyle {
         #[default]
         Default,
         Gripped,
@@ -135,38 +113,51 @@ fn show_builtin_style_selector<'a>(
         Selected,
         Blindfolded,
     }
+    impl BuiltInStyle {
+        fn name(self) -> Cow<'static, str> {
+            match self {
+                BuiltInStyle::Default => t!("prefs.styles.builtin.default"),
+                BuiltInStyle::Gripped => t!("prefs.styles.builtin.gripped"),
+                BuiltInStyle::Ungripped => t!("prefs.styles.builtin.ungripped"),
+                BuiltInStyle::Hovered => t!("prefs.styles.builtin.hovered"),
+                BuiltInStyle::Selected => t!("prefs.styles.builtin.selected"),
+                BuiltInStyle::Blindfolded => t!("prefs.styles.builtin.blindfolded"),
+            }
+        }
+    }
+
     let selected_style_tmp_val = EguiTempValue::new(ui);
     let mut selected_style = selected_style_tmp_val.get().unwrap_or_default();
     ui.horizontal_wrapped(|ui| {
-        for e in CurrentStyle::iter() {
-            ui.selectable_value(&mut selected_style, e, <&str>::from(e));
+        for style in BuiltInStyle::iter() {
+            ui.selectable_value(&mut selected_style, style, style.name());
         }
     });
     selected_style_tmp_val.set(Some(selected_style));
     let current = match selected_style {
-        CurrentStyle::Default => &mut style_prefs.default,
-        CurrentStyle::Gripped => &mut style_prefs.gripped,
-        CurrentStyle::Ungripped => &mut style_prefs.ungripped,
-        CurrentStyle::Hovered => &mut style_prefs.hovered_piece,
-        CurrentStyle::Selected => &mut style_prefs.selected_piece,
-        CurrentStyle::Blindfolded => &mut style_prefs.blind,
+        BuiltInStyle::Default => &mut style_prefs.default,
+        BuiltInStyle::Gripped => &mut style_prefs.gripped,
+        BuiltInStyle::Ungripped => &mut style_prefs.ungripped,
+        BuiltInStyle::Hovered => &mut style_prefs.hovered_piece,
+        BuiltInStyle::Selected => &mut style_prefs.selected_piece,
+        BuiltInStyle::Blindfolded => &mut style_prefs.blind,
     };
     let default = match selected_style {
-        CurrentStyle::Default => &DEFAULT_PREFS.styles.default,
-        CurrentStyle::Gripped => &DEFAULT_PREFS.styles.gripped,
-        CurrentStyle::Ungripped => &DEFAULT_PREFS.styles.ungripped,
-        CurrentStyle::Hovered => &DEFAULT_PREFS.styles.hovered_piece,
-        CurrentStyle::Selected => &DEFAULT_PREFS.styles.selected_piece,
-        CurrentStyle::Blindfolded => &DEFAULT_PREFS.styles.blind,
+        BuiltInStyle::Default => &DEFAULT_PREFS.styles.default,
+        BuiltInStyle::Gripped => &DEFAULT_PREFS.styles.gripped,
+        BuiltInStyle::Ungripped => &DEFAULT_PREFS.styles.ungripped,
+        BuiltInStyle::Hovered => &DEFAULT_PREFS.styles.hovered_piece,
+        BuiltInStyle::Selected => &DEFAULT_PREFS.styles.selected_piece,
+        BuiltInStyle::Blindfolded => &DEFAULT_PREFS.styles.blind,
     };
     let mut piece_style_edit = PieceStyleEdit::new(current).reset_value(default);
     match selected_style {
-        CurrentStyle::Default => piece_style_edit = piece_style_edit.no_fallthrough(),
-        CurrentStyle::Blindfolded => piece_style_edit = piece_style_edit.blind(),
+        BuiltInStyle::Default => piece_style_edit = piece_style_edit.no_fallthrough(),
+        BuiltInStyle::Blindfolded => piece_style_edit = piece_style_edit.blind(),
         _ => (),
     }
     (
-        <&str>::from(selected_style),
+        selected_style.name(),
         piece_style_edit.default_outline_lighting(default_outline_lighting),
     )
 }
@@ -215,6 +206,7 @@ impl egui::Widget for PieceStyleEdit<'_> {
                 current: self.style,
                 defaults: self.reset_value,
                 changed: &mut changed,
+                i18n_prefix: "prefs.styles.custom",
             };
 
             prefs_ui.collapsing("Faces", |mut prefs_ui| {

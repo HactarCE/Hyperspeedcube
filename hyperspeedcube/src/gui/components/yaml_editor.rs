@@ -51,10 +51,7 @@ where
                 BIG_ICON_BUTTON_SIZE,
                 egui::SelectableLabel::new(self.is_open(ui), "✏"),
             )
-            .on_hover_explanation(
-                "Edit as plaintext",
-                "View and edit settings as plaintext to share them with others",
-            );
+            .on_i18n_hover_explanation("edit_as_plaintext");
         if r.clicked() {
             match self.is_open(ui) {
                 true => self.close(ui),

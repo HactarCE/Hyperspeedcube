@@ -1,12 +1,40 @@
 _verison: 1
 
+# Some keys start with `_` so `build.rs` doesn't warn that they're unused. They
+# are accessed programmatically.
+
 hello: Hello, world!
 
+click_to:
+  activate: "%{click} to activate"
+  copy_hex: "%{click} to copy hex"
+  delete: "%{click} to delete"
+  edit: "%{click} to edit"
+  rename: "%{click} to rename"
+  reorder: "%{click} to reorder"
+inputs:
+  click: "**Click**"
+  right_click: "**Right-click**"
+  middle_click: "**Middle-click** or **alt + click**"
+  drag: "**Drag**"
+statuses:
+  copied: Copied!
+
+reset: Reset
+reset_to_value: Reset to %{value}
+
+edit_as_plaintext:
+  full: Edit as plaintext
+  desc: View and edit settings as plaintext to share them with others.
+
 presets:
+  save_changes: Save changes
   create_current: Create %{current}
   overwrite_current: Overwrite %{current}
 
-  # `default` is used as a fallback for others
+  default_preset_name: Default
+
+  # `default` is used as a fallback for others.
   default:
     _saved_presets: Saved presets
     _current: "%{current} preset"
@@ -65,25 +93,150 @@ presets:
       _rename: Rename style
       _delete: Delete style
 
-custom_colors:
-  errors:
-    empty_name: Color name cannot be empty
-    name_conflict: There is already a color with this name
+prefs:
+  animations:
+    twists:
+      title: Twists
+      dynamic_twist_speed:
+        label: Dynamic twist speed
+        desc: |
+          When enabled, the puzzle twists faster when many moves are queued up. When all queued moves are complete, the twist speed resets.
+      twist_duration:
+        label: Twist duration
+    other:
+      title: Other
+      blocking_animation_duration:
+        label: Blocking animation duration
+        desc: |
+          Duration of the animation when a piece is blocking a twist.
+  interaction:
+    dialogs:
+      title: Dialogs
+      confirm_discard_only_when_scrambled:
+        label: Confirm discard only when scrambled
+        desc: |
+          When enabled, a confirmation dialog before destructive actions (like resetting the puzzle) is only shown when the puzzle has been fully scrambled.
+    reorientation:
+      title: Reorientation
+      drag_sensitivity: Drag sensitivity
+      realign_puzzle_on_release:
+        label: Realign puzzle on release
+        desc: |
+          When enabled, the puzzle snaps back immediately when the mouse is released after dragging to rotate it.
+      realign_puzzle_on_keypress:
+        label: Realign puzzle on keypress
+        desc: |
+          When enabled, the puzzle snaps back immediately when the keyboard is used to grip or do a move.
+      smart_realign:
+        label: Smart realign
+        desc: |
+          When enabled, the puzzle snaps to the nearest similar orientation, not the original. This adds a full-puzzle rotation to the undo history.
+  styles:
+    misc:
+      title: Miscellaneous styles
+      background:
+        title: Background
+        dark_mode: Dark mode
+        light_mode: Light mode
+      internals:
+        title: Internals
+        face_color:
+          label: Face color
+          full: Internal faces color
+          desc: |
+            For 3D puzzles, it's sometimes possible to view the internal faces of pieces, particularly mid-turn or using **piece explode**. You can configure whether internal faces are visible in **view settings**.
+      blocking_pieces:
+        title: Blocking pieces
+        outlines_color:
+          label: Outlines color
+          full: Blocking pieces outlines color
+          desc: |
+            Outline color for pieces blocking a move. This is only visible for puzzles that bandage.
+        outlines_size:
+          label: Outlines size
+          full: Blocking pieces outlines size
+          desc: |
+            Outline size for pieces blocking a move. This is only visible for puzzles that bandage.
+    builtin:
+      title: Built-in style
+      default: Default
+      gripped: Gripped
+      ungripped: Ungripped
+      hovered: Hovered
+      selected: Selected
+      blindfolded: Blindfolded
+      current_style: "%{current} style"
+    color_mode:
+      default: Default color
+      sticker: Sticker color
+      fixed: Fixed color
+    color_mode_reset:
+      default: default color
+      sticker: sticker color
+      fixed: fixed color %{color}
+  view:
+    projection:
+      title: Projection
+      4d_fov: 4D FOV
+      3d_fov:
+        label: 3D FOV
+        quake_pro: QUAKE PRO
+        orp_ekauq: ORP EKAUQ
+    geometry:
+      title: Geometry
+      show_frontfaces: Show frontfaces
+      show_backfaces: Show backfaces
+      show_behind_4d_camera: Show behind 4D camera
+      show_internals: Show internals
+      gizmo_scale: Gizmo scale
+      facet_shrink: Facet shrink
+      sticker_shrink: Sticker shrink
+      piece_explode: Piece explode
+      disabled_when_showing_internals: Disabled when showing internals
+    lighting:
+      title: Lighting
+      pitch: Pitch
+      yaw: Yaw
+      intensity.faces: Intensity (faces)
+      intensity.outlines:
+        label: Intensity (outlines)
+        desc: |
+          This is also enabled or disabled for each style in the style settings. For dark outline colors, it may have little or no effect.
+    performance:
+      title: Performance
+      downscale_factor: Downscale factor
+      downscale_interpolation: Downscale interpolation
+
+colors:
+  global_palette: Global color palette
+  custom: Custom colors
+  singles: Single colors
+  gradients: Gradients
+  builtin: Built-in colors
+  builtin_sets: Built-in color sets
+
+  misc:
+    dark_background: Background (dark mode)
+    light_background: Background (light mode)
+    internal_faces: Internal faces
+    blocking_pieces_outlines: Blocking pieces outlines
   actions:
     add: Add color
     rename: Rename color
     delete: Delete color
+    sort: Sort colors
+    sort_by_name: Sort by name
+    sort_by_lightness: Sort by lightness (Oklab)
+    sort_by_count: Sort by count
+    sort_by_color: Sort by color
+  errors:
+    empty_name: Color name cannot be empty
+    name_conflict: There is already a color with this name
 
-click_to:
-  activate: "%{click} to activate"
-  rename: "%{click} to rename"
-  delete: "%{click} to delete"
-  reorder: "%{click} to reorder"
-inputs:
-  click: "**Click**"
-  right_click: "**Right-click**"
-  middle_click: "**Middle-click** or **alt + click**"
-  drag: "**Drag**"
+colors:
+  builtin_gradient: Built-in gradient
+  puzzle_color_popup_title: "%{puzzle_color} color"
+  warning_save_changes: Don't forget to save your changes in the color scheme settings!
 
 help:
   custom_piece_styles: |

@@ -59,20 +59,25 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 .collect(),
         })
     };
-    presets_ui.show(ui, get_backup_defaults, |mut prefs_ui| {
-        let (prefs, ui) = prefs_ui.split();
+    presets_ui.show(
+        ui,
+        "prefs.color_schemes",
+        get_backup_defaults,
+        |mut prefs_ui| {
+            let (prefs, ui) = prefs_ui.split();
 
-        ui.set_enabled(has_active_puzzle);
+            ui.set_enabled(has_active_puzzle);
 
-        let mut colors_ui = crate::gui::components::ColorsUi::new(&app.prefs.color_palette)
-            .clickable(false)
-            .drag_puzzle_colors(ui, true);
+            let mut colors_ui = crate::gui::components::ColorsUi::new(&app.prefs.color_palette)
+                .clickable(false)
+                .drag_puzzle_colors(ui, true);
 
-        let (changed, temp_scheme) =
-            colors_ui.show_compact_palette(ui, Some((prefs.current, &color_system)), None);
-        *prefs.changed |= changed;
-        temp_colors_override = temp_scheme;
-    });
+            let (changed, temp_scheme) =
+                colors_ui.show_compact_palette(ui, Some((prefs.current, &color_system)), None);
+            *prefs.changed |= changed;
+            temp_colors_override = temp_scheme;
+        },
+    );
 
     // Copy settings back to active puzzle.
     if changed {

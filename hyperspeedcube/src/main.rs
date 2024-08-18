@@ -17,9 +17,27 @@ macro_rules! try_t {
     ($key:expr $(, $($rest:tt)*)?) => {{
         // I can't believe `rust_i18n` doesn't provide a proper API for this.
         let key = $key;
-        Some(t!(key.clone() $(, $($rest)*)?)).filter(|value| *value != key)
+        Some(t!(key.clone() $(, $($rest)*)?)).filter(|value| *value != key.as_str())
     }};
 }
+
+/// Marks a string as an i18n prefix and returns it unmodified. This exists only
+/// to satisfy the build script.
+macro_rules! p { ($($tok:tt)*) => { $($tok)* }; }
+/// Marks a string as a relative i18n path and returns it unmodified. This
+/// exists only to satisfy the build script.
+///
+/// When `build.rs` scans the source code, each `ql!`-marked string is appended
+/// to the most recent `p!`-marked string and treated as a reference to the
+/// locale strings.
+macro_rules! q { ($($tok:tt)*) => { $($tok)* }; }
+/// Marker for a "label map" i18n map. It must hold either a string or a map with the following keys:
+/// - `label`
+/// - `full` (optional)
+/// - `desc` (optional)
+macro_rules! tl { ($($tok:tt)*) => { $($tok)* }; }
+/// Combination of `q` and `tl`.
+macro_rules! ql { ($($tok:tt)*) => { $($tok)* }; }
 
 use std::sync::Arc;
 

@@ -17,6 +17,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     };
     presets_ui.show(
         ui,
+        "prefs.interaction",
         |p| p.interaction.last_loaded_preset().cloned(),
         |prefs_ui| crate::gui::components::prefs::build_interaction_section(prefs_ui),
     );

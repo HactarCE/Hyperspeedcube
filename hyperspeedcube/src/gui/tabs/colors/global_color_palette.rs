@@ -14,8 +14,7 @@ use crate::gui::components::{
     TextValidationResult,
 };
 use crate::gui::ext::ResponseExt;
-use crate::gui::tabs::styles::INTERNAL_FACES_COLOR_EXPLANATION;
-use crate::gui::util::{set_widget_spacing_to_space_width, EguiTempValue};
+use crate::gui::util::EguiTempValue;
 use crate::preferences::{GlobalColorPalette, DEFAULT_PREFS};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -29,7 +28,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 yaml.show_edit_as_plaintext_button(ui, &app.prefs.color_palette);
                 HelpHoverWidget::show_right_aligned(ui, &t!("help.global_color_palette"));
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                    ui.strong("Global color palette");
+                    ui.strong(t!("colors.global_palette"));
                 });
             });
         });
@@ -46,33 +45,33 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     current: &mut app.prefs.styles,
                     defaults: Some(&DEFAULT_PREFS.styles),
                     changed: &mut changed,
+                    i18n_prefix: "prefs.styles",
                 };
 
-                prefs_ui.collapsing("Miscellaneous colors", show_misc_colors_section);
+                prefs_ui.collapsing("colors.misc", |mut prefs_ui| {
+                    prefs_ui.color("dark_background", access!(.dark_background_color));
+                    prefs_ui.color("light_background", access!(.light_background_color));
+                    prefs_ui
+                        .color("internal_faces", access!(.internals_color))
+                        .on_i18n_hover_explanation("prefs.styles.misc.internals.face_color");
+                    prefs_ui.color("blocking_pieces_outlines", access!(.blocking_outline_color));
+                });
 
                 let mut prefs_ui = PrefsUi {
                     ui,
                     current: &mut app.prefs.color_palette,
                     defaults: Some(&DEFAULT_PREFS.color_palette),
                     changed: &mut changed,
+                    i18n_prefix: "colors.global_palette",
                 };
 
-                prefs_ui.collapsing("Custom colors", show_custom_colors_section);
-                prefs_ui.collapsing("Built-in colors", show_builtin_colors_section);
-                prefs_ui.collapsing("Built-in color sets", show_builtin_color_sets_section);
+                prefs_ui.collapsing(p!("colors.custom"), show_custom_colors_section);
+                prefs_ui.collapsing(p!("colors.builtin"), show_builtin_colors_section);
+                prefs_ui.collapsing(p!("colors.builtin_sets"), show_builtin_color_sets_section);
 
                 app.prefs.needs_save |= changed;
             });
     });
-}
-
-fn show_misc_colors_section(mut prefs_ui: PrefsUi<'_, crate::preferences::StylePreferences>) {
-    prefs_ui.color("Background (dark mode)", access!(.dark_background_color));
-    prefs_ui.color("Background (light mode)", access!(.light_background_color));
-    prefs_ui
-        .color("Internal faces", access!(.internals_color))
-        .on_hover_explanation("", INTERNAL_FACES_COLOR_EXPLANATION);
-    prefs_ui.color("Blocking pieces outlines", access!(.blocking_outline_color));
 }
 
 fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
@@ -83,7 +82,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
     let mut to_delete = None;
 
     ui.horizontal(|ui| {
-        if ui.button("Add color").clicked() {
+        if ui.button(t!("colors.actions.add")).clicked() {
             let name = crate::util::find_unused_autoname(&prefs.current.custom_colors);
             let rgb = rand::thread_rng().gen();
             prefs
@@ -92,15 +91,19 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
                 .shift_insert(0, name, Rgb { rgb });
             *prefs.changed = true;
         }
-        ui.menu_button("Sort colors", |ui| {
-            if ui.button("Sort by name").clicked() {
-                sort_map_by_key_or_reverse(&mut prefs.current.custom_colors, |name, _| {
-                    name.clone()
-                });
+
+        ui.menu_button(t!("colors.actions.sort"), |ui| {
+            let custom_colors = &mut prefs.current.custom_colors;
+
+            let text = t!("colors.actions.sort_by_name");
+            if ui.button(text).clicked() {
+                sort_map_by_key_or_reverse(custom_colors, |name, _| name.clone());
                 *prefs.changed = true;
             }
-            if ui.button("Sort by lightness (Oklab)").clicked() {
-                sort_map_by_key_or_reverse(&mut prefs.current.custom_colors, |_, &color| {
+
+            let text = t!("colors.actions.sort_by_lightness");
+            if ui.button(text).clicked() {
+                sort_map_by_key_or_reverse(custom_colors, |_, &color| {
                     FloatOrd(crate::util::rgb_to_oklab(color).l)
                 });
                 *prefs.changed = true;
@@ -139,10 +142,10 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
                         validate_single_color_name(
                             &prefs.current,
                             new_name,
-                            t!("custom_colors.actions.rename"),
+                            t!("colors.actions.rename"),
                         )
                     })
-                    .delete_button_validator(&|_| Ok(Some(t!("custom_colors.actions.delete"))))
+                    .delete_button_validator(&|_| Ok(Some(t!("colors.actions.delete"))))
                     .show(ui)
             });
             if let Some(r) = popup_response {
@@ -203,19 +206,26 @@ fn show_builtin_color_sets_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>
         .iter()
         .collect_vec();
 
-    #[derive(Debug, Default, EnumIter, AsRefStr, Copy, Clone, PartialEq, Eq, Hash)]
+    #[derive(Debug, Default, EnumIter, Copy, Clone, PartialEq, Eq, Hash)]
     enum ColorSetsSortMethod {
         #[default]
-        #[strum(serialize = "Sort by count")]
         ByCount,
-        #[strum(serialize = "Sort by color")]
         ByColor,
     }
+    impl ColorSetsSortMethod {
+        fn label(self) -> Cow<'static, str> {
+            match self {
+                ColorSetsSortMethod::ByCount => t!("colors.actions.sort_by_count"),
+                ColorSetsSortMethod::ByColor => t!("colors.actions.sort_by_color"),
+            }
+        }
+    }
+
     let sort_method = EguiTempValue::new(ui);
     let mut sort = sort_method.get().unwrap_or_default();
     ui.horizontal(|ui| {
         for s in ColorSetsSortMethod::iter() {
-            if ui.selectable_label(sort == s, s.as_ref()).clicked() {
+            if ui.selectable_label(sort == s, s.label()).clicked() {
                 sort = s;
             }
         }
@@ -241,11 +251,11 @@ fn validate_single_color_name<'a>(
     ok: Cow<'a, str>,
 ) -> TextValidationResult<'a> {
     if new_name.is_empty() {
-        Err(Some(t!("custom_colors.errors.empty_name")))
+        Err(Some(t!("colors.errors.errors.empty_name")))
     } else if palette.builtin_colors.contains_key(new_name)
         || palette.custom_colors.contains_key(new_name)
     {
-        Err(Some(t!("custom_colors.errors.name_conflict")))
+        Err(Some(t!("colors.errors.name_conflict")))
     } else {
         Ok(Some(ok))
     }

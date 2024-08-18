@@ -4,7 +4,10 @@ use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
 use strum::IntoEnumIterator;
 
 use crate::{
-    gui::util::{set_widget_spacing_to_space_width, EguiTempFlag},
+    gui::{
+        markdown::md,
+        util::{set_widget_spacing_to_space_width, EguiTempFlag},
+    },
     preferences::{ColorScheme, DefaultColorGradient, GlobalColorPalette},
     puzzle::PuzzleView,
     util::BeforeOrAfter,
@@ -174,7 +177,7 @@ impl<'a> ColorsUi<'a> {
 
         if !self.palette.custom_colors.is_empty() {
             ui.group(|ui| {
-                ui.strong("Custom colors");
+                ui.strong(t!("colors.custom"));
                 ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.x);
                 ui.horizontal_wrapped(|ui| {
                     ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
@@ -187,7 +190,7 @@ impl<'a> ColorsUi<'a> {
 
         ui.group(|ui| {
             ui.set_width(ui.available_width());
-            ui.strong("Single colors");
+            ui.strong(t!("colors.singles"));
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
                 for color_name in self.palette.builtin_colors.keys() {
@@ -220,7 +223,7 @@ impl<'a> ColorsUi<'a> {
 
         ui.group(|ui| {
             ui.set_width(ui.available_width());
-            ui.strong("Gradients");
+            ui.strong(t!("colors.gradients"));
             for gradient in DefaultColorGradient::iter() {
                 self.show_color_gradient(ui, gradient);
             }
@@ -543,7 +546,7 @@ impl ColorButton {
                                             ui.monospace(Rgb { rgb: [r, g, b] }.to_string());
                                         }
                                         ColorOrGradient::Gradient(_) => {
-                                            ui.label("Built-in gradient");
+                                            ui.label(t!("colors.builtin_gradient"));
                                         }
                                     }
                                 });
@@ -695,26 +698,13 @@ pub fn color_edit(
     // Right-click to copy
     let text_to_copy = r.secondary_clicked().then(|| color.to_string());
     if !crate::gui::components::copy_on_click(ui, &r, text_to_copy) {
-        r = r.on_hover_ui(|ui| {
-            // TODO: markdown renderer
-            set_widget_spacing_to_space_width(ui);
-            ui.horizontal(|ui| {
-                ui.strong("Click");
-                ui.label("to edit");
-            });
-            ui.horizontal(|ui| {
-                ui.strong("Right-click");
-                ui.label("to copy hex");
-            });
-            if on_delete.is_some() {
-                ui.horizontal(|ui| {
-                    ui.strong("Middle-click");
-                    ui.label("or");
-                    ui.strong("alt + click");
-                    ui.label("to delete");
-                });
-            }
-        });
+        for action in [
+            t!("click_to.edit", click = t!("inputs.click")),
+            t!("click_to.copy_hex", click = t!("inputs.right_click")),
+            t!("click_to.delete", click = t!("inputs.middle_click")),
+        ] {
+            md(ui, action);
+        }
     }
 
     let mods = ui.input(|input| input.modifiers);
@@ -792,7 +782,10 @@ pub fn color_assignment_popup(
 
     ui.set_max_width(COLOR_PALETTE_POPUP_WIDTH);
     ui.horizontal(|ui| {
-        ui.heading(format!("{} color", &color_data.display));
+        ui.heading(t!(
+            "colors.puzzle_color_popup_title",
+            puzzle_color = &color_data.display
+        ));
         crate::gui::components::HelpHoverWidget::show_right_aligned(
             ui,
             &get_color_schemes_markdown(true),
@@ -800,7 +793,7 @@ pub fn color_assignment_popup(
     });
     ui.colored_label(
         ui.visuals().warn_fg_color,
-        "Don't forget to save your changes in the color scheme settings!",
+        t!("colors.warning_save_changes"),
     );
     ui.separator();
     let (changed, temp_colors) = crate::gui::components::ColorsUi::new(color_palette)

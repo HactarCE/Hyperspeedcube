@@ -16,6 +16,8 @@ use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
 
 pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
 
+pub const DEFAULT_PRESET_NAME: &str = "Default";
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PresetsUiText<'a> {
     /// Localization key.
@@ -140,6 +142,7 @@ where
     pub fn show<'b>(
         mut self,
         ui: &mut egui::Ui,
+        i18n_prefix: &str,
         get_backup_defaults: impl FnOnce(&'b Preferences) -> Option<Preset<T>>,
         add_contents: impl FnOnce(PrefsUi<'_, T>),
     ) where
@@ -151,7 +154,7 @@ where
             ui.add_space(ui.spacing().item_spacing.y);
             ui.separator();
             ui.add_space(ui.spacing().item_spacing.y);
-            self.show_preset_editor(ui, get_backup_defaults, add_contents);
+            self.show_preset_editor(ui, i18n_prefix, get_backup_defaults, add_contents);
         });
     }
 
@@ -211,6 +214,7 @@ where
                         egui::InnerResponse::new((), r)
                     });
                     let r = r.inner.response.on_hover_ui(|ui| {
+                        // TODO: don't show this if there's a popup
                         for action in [
                             t!("click_to.activate", click = t!("inputs.click")),
                             t!("click_to.rename", click = t!("inputs.right_click")),
@@ -337,6 +341,7 @@ where
     pub fn show_preset_editor<'b>(
         &mut self,
         ui: &mut egui::Ui,
+        i18n_prefix: &str,
         get_backup_defaults: impl FnOnce(&'b Preferences) -> Option<Preset<T>>,
         add_contents: impl FnOnce(PrefsUi<'_, T>),
     ) where
@@ -347,7 +352,7 @@ where
         let defaults = match self.presets.last_loaded_preset() {
             Some(p) => p.clone(),
             None => get_backup_defaults(&DEFAULT_PREFS).unwrap_or_else(|| Preset {
-                name: "Default".to_string(),
+                name: t!("presets.default_preset_name").into_owned(),
                 value: T::default(),
             }),
         };
@@ -396,6 +401,7 @@ where
                         current: &mut self.presets.current,
                         defaults: Some(&defaults.value),
                         changed: &mut self.changed,
+                        i18n_prefix,
                     });
                 }
             });
@@ -434,7 +440,7 @@ where
                         ui.add_enabled_ui(is_unsaved, |ui| {
                             let r = ui
                                 .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾"))
-                                .on_hover_explanation("Save changes", {
+                                .on_hover_explanation(t!("presets.save_changes"), {
                                     let current = md_bold_user_text(&self.preset_name);
                                     if overwrite {
                                         t!("presets.overwrite_current", current = current)

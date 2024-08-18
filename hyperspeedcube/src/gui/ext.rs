@@ -5,6 +5,8 @@ use super::markdown::md;
 pub const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 
 pub trait ResponseExt {
+    fn on_i18n_hover_explanation(self, i18n_prefix: &str) -> Self;
+
     fn on_hover_explanation(
         self,
         strong_text: impl AsRef<str>,
@@ -12,6 +14,17 @@ pub trait ResponseExt {
     ) -> Self;
 }
 impl ResponseExt for egui::Response {
+    fn on_i18n_hover_explanation(self, i18n_prefix: &str) -> Self {
+        let full = try_t!(format!("{i18n_prefix}.full"));
+        let desc = try_t!(format!("{i18n_prefix}.desc"));
+        if full.is_some() || desc.is_some() {
+            self.on_hover_explanation(full.unwrap_or("".into()), desc.unwrap_or("".into()))
+        } else {
+            self
+        }
+    }
+
+    // TODO: clean up
     fn on_hover_explanation(
         self,
         strong_text: impl AsRef<str>,
