@@ -420,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_formula_expr_parser() {
-        let s1 = "  A   & ( B|!'c (DE.(F+G))&~~H";
+        let s1 = "  A   & ( B|!'c (DE(F+G))&~~H";
         let s2 = "A (B + !'c (DE (F + G)) !!H)";
         let s3 = "A (B + !'c DE (F + G) H)";
 
