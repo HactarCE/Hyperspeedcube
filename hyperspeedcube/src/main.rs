@@ -49,6 +49,7 @@ use parking_lot::Mutex;
 mod debug;
 mod commands;
 mod gui;
+mod locales;
 // mod logfile;
 mod app;
 mod gfx;
@@ -61,6 +62,8 @@ mod serde_impl;
 mod util;
 
 use paths::PATHS;
+
+const L: locales::Lang = locales::en::LANG;
 
 const TITLE: &str = "Hyperspeedcube";
 const APP_ID: &str = "Hyperspeedcube";

@@ -1,0 +1,23 @@
+[package]
+name = "hyperstrings"
+description = "Opinionated localization and static string management library"
+version = "0.1.0"
+authors = ["Andrew Farkas"]
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords = ["i18n", "l10n", "strings"]
+categories = ["internationalization", "localization"]
+license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
+
+[dependencies]
+glob = "0.3.1"
+ident_case = "1.0.1"
+indexmap = "2.4.0"
+itertools = "0.13.0"
+kdl = "4.6.0"
+owo-colors = "3.5.0"
+unindent = "0.2.3"

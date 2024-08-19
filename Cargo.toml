@@ -1,5 +1,5 @@
 [workspace]
-members = [ "hypermath", "hypershape", "hyperpuzzle", "hyperspeedcube" ]
+members = [ "hypermath", "hypershape", "hyperpuzzle", "hyperstrings", "hyperspeedcube" ]
 resolver = "2"
 
 [workspace.package]
@@ -21,6 +21,7 @@ semicolon_if_nothing_returned = "warn"
 semicolon_inside_block = "warn"
 too_many_lines = "warn"
 undocumented_unsafe_blocks = "warn"
+uninlined_format_args = "warn"
 unwrap_used = "warn"
 
 correctness = "deny"

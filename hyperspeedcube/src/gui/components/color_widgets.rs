@@ -4,13 +4,11 @@ use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
 use strum::IntoEnumIterator;
 
 use crate::{
-    gui::{
-        markdown::md,
-        util::{set_widget_spacing_to_space_width, EguiTempFlag},
-    },
+    gui::{markdown::md, util::EguiTempFlag},
     preferences::{ColorScheme, DefaultColorGradient, GlobalColorPalette},
     puzzle::PuzzleView,
     util::BeforeOrAfter,
+    L,
 };
 
 use super::{DragAndDropResponse, TextEditPopup};
@@ -177,7 +175,7 @@ impl<'a> ColorsUi<'a> {
 
         if !self.palette.custom_colors.is_empty() {
             ui.group(|ui| {
-                ui.strong(t!("colors.custom"));
+                ui.strong(L.colors.custom);
                 ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.x);
                 ui.horizontal_wrapped(|ui| {
                     ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
