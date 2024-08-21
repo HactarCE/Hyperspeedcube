@@ -7,10 +7,11 @@ use crate::{
     gui::{
         self,
         ext::ResponseExt,
-        markdown::md,
+        markdown::{md, md_bold_user_text},
         util::{set_widget_spacing_to_space_width, EguiTempValue},
     },
     preferences::{PieceStyle, Preset, StylePreferences, DEFAULT_PREFS},
+    L,
 };
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -20,7 +21,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     ui.group(|ui| {
         ui.horizontal(|ui| {
-            ui.strong(t!("prefs.styles.misc.title"));
+            ui.strong(L.prefs.styles.misc.title);
         });
         ui.separator();
         let mut prefs_ui = crate::gui::components::PrefsUi {
@@ -28,18 +29,20 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             current: &mut app.prefs.styles,
             defaults: Some(&DEFAULT_PREFS.styles),
             changed: &mut changed,
-            i18n_prefix: "prefs.styles.misc",
         };
-        prefs_ui.collapsing("background", |mut prefs_ui| {
-            prefs_ui.color("dark_mode", access!(.dark_background_color));
-            prefs_ui.color("light_mode", access!(.light_background_color));
+        let l = L.prefs.styles.misc.background;
+        prefs_ui.collapsing(l.title, |mut prefs_ui| {
+            prefs_ui.color(&l.dark_mode, access!(.dark_background_color));
+            prefs_ui.color(&l.light_mode, access!(.light_background_color));
         });
-        prefs_ui.collapsing("internals", |mut prefs_ui| {
-            prefs_ui.color("face_color", access!(.internals_color));
+        let l = L.prefs.styles.misc.internals;
+        prefs_ui.collapsing(l.title, |mut prefs_ui| {
+            prefs_ui.color(&l.face_color, access!(.internals_color));
         });
-        prefs_ui.collapsing("blocking_pieces", |mut prefs_ui| {
-            prefs_ui.color("outlines_color", access!(.blocking_outline_color));
-            prefs_ui.num("outlines_size", access!(.blocking_outline_size), |dv| {
+        let l = L.prefs.styles.misc.blocking_pieces;
+        prefs_ui.collapsing(l.title, |mut prefs_ui| {
+            prefs_ui.color(&l.outlines_color, access!(.blocking_outline_color));
+            prefs_ui.num(&l.outlines_size, access!(.blocking_outline_size), |dv| {
                 outline_size_drag_value(dv)
             });
         });
@@ -48,33 +51,36 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.add_space(ui.spacing().item_spacing.x);
 
     ui.group(|ui| {
-        ui.strong(t!("prefs.styles.builtin.title"));
+        ui.strong(L.prefs.styles.builtin.title);
         ui.add_space(ui.spacing().item_spacing.y);
         let (name, piece_style_edit) = show_builtin_style_selector(ui, &mut app.prefs.styles);
         ui.add_space(ui.spacing().item_spacing.y);
         ui.separator();
         ui.add_space(ui.spacing().item_spacing.y);
-        md(ui, t!("presets.custom_styles._current", current = name));
+        md(
+            ui,
+            L.presets
+                .custom_styles
+                .current
+                .with(&md_bold_user_text(&name)),
+        );
         changed |= ui.add(piece_style_edit).changed();
     });
 
     ui.add_space(ui.spacing().item_spacing.x);
 
-    let help_contents = t!("help.custom_piece_styles");
+    let help_contents = L.help.custom_piece_styles;
     let presets_ui = gui::components::PresetsUi {
         id: unique_id!(),
         presets: &mut app.prefs.styles.custom,
         changed: &mut changed,
-        text: gui::components::PresetsUiText {
-            i18n_key: "custom_styles",
-            presets_set: None,
-        },
+        text: &L.presets.custom_styles,
         autosave: true,
         vscroll: false,
         help_contents: Some(&help_contents),
         extra_validation: Some(Box::new(|_, name| {
             if name == crate::DEFAULT_STYLE_NAME {
-                Err(t!("presets.custom_styles.errors._name_conflict"))
+                Err(L.presets.custom_styles.errors.name_conflict.into())
             } else {
                 Ok(())
             }
@@ -86,7 +92,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             value: app.prefs.styles.default,
         })
     };
-    presets_ui.show(ui, "prefs.styles", get_backup_defaults, |mut prefs_ui| {
+    presets_ui.show(ui, None, get_backup_defaults, |mut prefs_ui| {
         let (prefs, ui) = prefs_ui.split();
         let r = ui.add(
             PieceStyleEdit::new(prefs.current).default_outline_lighting(default_outline_lighting),
@@ -100,7 +106,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 fn show_builtin_style_selector<'a>(
     ui: &mut egui::Ui,
     style_prefs: &'a mut StylePreferences,
-) -> (Cow<'static, str>, PieceStyleEdit<'a>) {
+) -> (&'static str, PieceStyleEdit<'a>) {
     let default_outline_lighting = style_prefs.default.outline_lighting.unwrap_or(false);
 
     #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, EnumIter)]
@@ -114,14 +120,14 @@ fn show_builtin_style_selector<'a>(
         Blindfolded,
     }
     impl BuiltInStyle {
-        fn name(self) -> Cow<'static, str> {
+        fn name(self) -> &'static str {
             match self {
-                BuiltInStyle::Default => t!("prefs.styles.builtin.default"),
-                BuiltInStyle::Gripped => t!("prefs.styles.builtin.gripped"),
-                BuiltInStyle::Ungripped => t!("prefs.styles.builtin.ungripped"),
-                BuiltInStyle::Hovered => t!("prefs.styles.builtin.hovered"),
-                BuiltInStyle::Selected => t!("prefs.styles.builtin.selected"),
-                BuiltInStyle::Blindfolded => t!("prefs.styles.builtin.blindfolded"),
+                BuiltInStyle::Default => L.prefs.styles.builtin.default,
+                BuiltInStyle::Gripped => L.prefs.styles.builtin.gripped,
+                BuiltInStyle::Ungripped => L.prefs.styles.builtin.ungripped,
+                BuiltInStyle::Hovered => L.prefs.styles.builtin.hovered,
+                BuiltInStyle::Selected => L.prefs.styles.builtin.selected,
+                BuiltInStyle::Blindfolded => L.prefs.styles.builtin.blindfolded,
             }
         }
     }
@@ -206,12 +212,12 @@ impl egui::Widget for PieceStyleEdit<'_> {
                 current: self.style,
                 defaults: self.reset_value,
                 changed: &mut changed,
-                i18n_prefix: "prefs.styles.custom",
             };
 
-            prefs_ui.collapsing("Faces", |mut prefs_ui| {
-                prefs_ui.checkbox("Interactable", access_option!(true, .interactable));
-                prefs_ui.percent("Opacity", access_option!(1.0, .face_opacity));
+            let l = &L.prefs.styles.custom;
+            prefs_ui.collapsing(l.sticker_faces, |mut prefs_ui| {
+                prefs_ui.checkbox(&l.interactable, access_option!(true, .interactable));
+                prefs_ui.percent(&l.opacity, access_option!(1.0, .face_opacity));
 
                 prefs_ui.color_mode(
                     access!(.face_color),
@@ -220,9 +226,9 @@ impl egui::Widget for PieceStyleEdit<'_> {
                 );
             });
 
-            prefs_ui.collapsing("Outlines", |mut prefs_ui| {
-                prefs_ui.percent("Opacity", access_option!(1.0, .outline_opacity));
-                prefs_ui.num("Size", access_option!(1.0, .outline_size), |dv| {
+            prefs_ui.collapsing(l.sticker_outlines, |mut prefs_ui| {
+                prefs_ui.percent(&l.opacity, access_option!(1.0, .outline_opacity));
+                prefs_ui.num(&l.outline_size, access_option!(1.0, .outline_size), |dv| {
                     outline_size_drag_value(dv)
                 });
 
@@ -236,7 +242,7 @@ impl egui::Widget for PieceStyleEdit<'_> {
                 prefs
                     .with(ui)
                     .checkbox(
-                        "Lighting",
+                        &l.lighting,
                         match self.default_lighting {
                             true => access_option!(true, .outline_lighting),
                             false => access_option!(false, .outline_lighting),

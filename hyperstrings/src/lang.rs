@@ -15,7 +15,7 @@ use crate::util;
 use crate::warn::*;
 
 lazy_static! {
-    pub static ref TEMPLATE_REGEX: Regex = Regex::new(r"\{\{(.*?)}}").unwrap();
+    pub static ref TEMPLATE_REGEX: Regex = Regex::new(r"\{\{([\s\S]*?)}}").unwrap();
 }
 
 #[derive(Debug)]

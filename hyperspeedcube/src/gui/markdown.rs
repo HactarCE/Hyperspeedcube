@@ -28,6 +28,7 @@ fn needs_escape(c: char) -> bool {
 }
 
 /// Renders inline Markdown to an `egui::text::LayoutJob`.
+#[must_use]
 pub fn md_inline(ui: &egui::Ui, markdown: impl AsRef<str>) -> egui::text::LayoutJob {
     let arena = comrak::Arena::new();
     let ast = comrak::parse_document(&arena, markdown.as_ref(), &options());

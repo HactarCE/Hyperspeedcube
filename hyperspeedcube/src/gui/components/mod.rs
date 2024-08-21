@@ -29,6 +29,8 @@ pub use reorder::*;
 pub use reset::*;
 pub use yaml_editor::*;
 
+use crate::L;
+
 pub const BIG_ICON_BUTTON_SIZE: egui::Vec2 = egui::vec2(22.0, 22.0);
 pub const SMALL_ICON_BUTTON_SIZE: egui::Vec2 = egui::vec2(18.0, 18.0);
 
@@ -71,9 +73,7 @@ pub fn copy_on_click(ui: &mut egui::Ui, r: &egui::Response, text_to_copy: Option
     if has_been_copied.get() {
         if r.hovered() || r.has_focus() {
             // Show the tooltip with no delay
-            egui::show_tooltip_for(ui.ctx(), r.id, &r.rect, |ui| {
-                ui.label(t!("statuses.copied"))
-            });
+            egui::show_tooltip_for(ui.ctx(), r.id, &r.rect, |ui| ui.label(L.statuses.copied));
             return true;
         } else {
             // Hide the tooltip when the mouse leaves

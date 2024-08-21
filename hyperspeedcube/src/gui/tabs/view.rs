@@ -1,4 +1,4 @@
-use crate::app::App;
+use crate::{app::App, L};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.set_enabled(app.has_active_puzzle());
@@ -12,10 +12,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         id: unique_id!(),
         presets,
         changed: &mut changed,
-        text: crate::gui::components::PresetsUiText {
-            i18n_key: "view_settings",
-            presets_set: Some(prefs_set.as_ref()),
-        },
+        text: &L.presets.view_settings,
         autosave: false,
         vscroll: true,
         help_contents: None,
@@ -23,7 +20,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     };
     presets_ui.show(
         ui,
-        "prefs.view",
+        Some(prefs_set.as_ref()),
         |p| p[prefs_set].last_loaded_preset().cloned(),
         |prefs_ui| crate::gui::components::prefs::build_view_section(prefs_set, prefs_ui),
     );

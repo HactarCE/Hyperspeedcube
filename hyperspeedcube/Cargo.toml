@@ -52,7 +52,6 @@ rand = "*"
 regex = "1.6.0"
 rfd = "0.10.0"
 rgb_crate = { package = "rgb", version = "*" } # as required by empfindung
-rust-i18n = "3.1.1"
 send_wrapper = "0.6"
 serde = { version = "1.0.144", features = ["derive"] }
 serde_yml = "0.0.10"

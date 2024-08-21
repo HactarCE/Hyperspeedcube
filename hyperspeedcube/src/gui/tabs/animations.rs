@@ -1,4 +1,4 @@
-use crate::app::App;
+use crate::{app::App, L};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
@@ -9,7 +9,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         id: unique_id!(),
         presets,
         changed: &mut changed,
-        text: crate::gui::components::PresetsUiText::new("animation_settings"),
+        text: &L.presets.animation_settings,
         autosave: false,
         vscroll: true,
         help_contents: None,
@@ -17,7 +17,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     };
     presets_ui.show(
         ui,
-        "prefs.animations",
+        None,
         |p| p.animation.last_loaded_preset().cloned(),
         |prefs_ui| crate::gui::components::prefs::build_animation_section(prefs_ui),
     );

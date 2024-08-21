@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::ops::RangeInclusive;
 
 use egui::NumExt;
@@ -7,10 +6,12 @@ use hyperpuzzle::Rgb;
 use crate::gui::components::WidgetWithReset;
 use crate::gui::ext::*;
 use crate::gui::util::Access;
+use crate::locales::HoverStrings;
 use crate::preferences::{
     AnimationPreferences, InteractionPreferences, PuzzleViewPreferencesSet, StyleColorMode,
     ViewPreferences,
 };
+use crate::L;
 
 const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
 const FOV_3D_RANGE: RangeInclusive<f32> = -120.0..=120.0;
@@ -19,7 +20,6 @@ pub struct PartialPrefsUi<'a, T> {
     pub current: &'a mut T,
     pub defaults: Option<&'a T>,
     pub changed: &'a mut bool,
-    pub i18n_prefix: &'a str,
 }
 impl<'a, T> PartialPrefsUi<'a, T> {
     pub fn with<'b>(&'b mut self, ui: &'b mut egui::Ui) -> PrefsUi<'b, T>
@@ -31,7 +31,6 @@ impl<'a, T> PartialPrefsUi<'a, T> {
             current: self.current,
             defaults: self.defaults,
             changed: self.changed,
-            i18n_prefix: &self.i18n_prefix,
         }
     }
 }
@@ -41,31 +40,10 @@ pub struct PrefsUi<'a, T> {
     pub current: &'a mut T,
     pub defaults: Option<&'a T>,
     pub changed: &'a mut bool,
-    pub i18n_prefix: &'a str,
 }
 impl<'a, T> PrefsUi<'a, T> {
     fn get_default<U: Clone>(&self, access: &Access<T, U>) -> Option<U> {
         Some((access.get_ref)(self.defaults.as_ref()?).clone())
-    }
-
-    fn i18n_key(&self, id: &str) -> String {
-        format!("{}.{}", self.i18n_prefix, id)
-    }
-    pub fn i18n_text(&self, id: &str) -> egui::WidgetText {
-        let key = self.i18n_key(id);
-        match try_t!(&key) {
-            Some(s) => s.into(),
-            None => egui::WidgetText::from(key).color(self.ui.visuals().error_fg_color),
-        }
-    }
-    fn title(&self) -> egui::WidgetText {
-        self.i18n_text("title")
-    }
-    fn label(&self, id: &str) -> egui::WidgetText {
-        match try_t!(self.i18n_key(id)) {
-            Some(s) => s.into(),
-            None => self.i18n_text(&format!("{id}.label")),
-        }
     }
 
     fn add<'s, 'w, W>(&'s mut self, make_widget: impl FnOnce(&'w mut T) -> W) -> egui::Response
@@ -82,10 +60,9 @@ impl<'a, T> PrefsUi<'a, T> {
     pub fn add_enabled_ui(
         &mut self,
         enabled: bool,
-        explanation_i18n_id: &str,
+        explanation: &str,
         add_contents: impl FnOnce(PrefsUi<'_, T>) -> egui::Response,
     ) {
-        let explanation = self.i18n_text(explanation_i18n_id);
         let (mut prefs, ui) = self.split();
         ui.add_enabled_ui(enabled, |ui| {
             ui.vertical(|ui| add_contents(prefs.with(ui)))
@@ -101,7 +78,6 @@ impl<'a, T> PrefsUi<'a, T> {
             current: self.current,
             defaults: self.defaults,
             changed: self.changed,
-            i18n_prefix: self.i18n_prefix,
         };
         (partial, self.ui)
     }
@@ -115,79 +91,78 @@ impl<'a, T> PrefsUi<'a, T> {
     }
     pub fn collapsing<R>(
         &mut self,
-        i18n_prefix: &str,
+        title: impl Into<egui::WidgetText>,
         add_contents: impl FnOnce(PrefsUi<'_, T>) -> R,
     ) -> egui::CollapsingResponse<R> {
         let (mut prefs, ui) = self.split();
-        prefs.i18n_prefix = i18n_prefix;
-        egui::CollapsingHeader::new(prefs.with(ui).title())
+        egui::CollapsingHeader::new(title)
             .default_open(true)
             .show(ui, |ui| add_contents(prefs.with(ui)))
     }
 
-    pub fn checkbox(&mut self, i18n_id: &str, access: Access<T, bool>) -> egui::Response {
-        let label = self.label(i18n_id);
+    pub fn checkbox(&mut self, strings: &HoverStrings, access: Access<T, bool>) -> egui::Response {
         let reset_value = self.get_default(&access);
         self.add(|current| WidgetWithReset {
             label: "".into(),
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str: None,
-            make_widget: |value| egui::Checkbox::new(value, label),
+            make_widget: |value| egui::Checkbox::new(value, strings.label),
         })
-        .on_i18n_hover_explanation(&self.i18n_key(i18n_id))
+        .on_i18n_hover_explanation(strings)
     }
 
     pub fn num<N: egui::emath::Numeric + ToString>(
         &mut self,
-        i18n_id: &str,
+        strings: &HoverStrings,
         access: Access<T, N>,
         modify_widget: impl FnOnce(egui::DragValue<'_>) -> egui::DragValue<'_>,
     ) -> egui::Response {
-        let label = self.label(i18n_id);
         let reset_value = self.get_default(&access);
         let reset_value_str = reset_value.as_ref().map(|v| v.to_string().into());
         self.add(|current| WidgetWithReset {
-            label,
+            label: strings.label.into(),
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str,
             make_widget: |value| modify_widget(egui::DragValue::new(value)),
         })
-        .on_i18n_hover_explanation(&self.i18n_key(i18n_id))
+        .on_i18n_hover_explanation(strings)
     }
 
-    pub fn percent(&mut self, i18n_id: &str, access: Access<T, f32>) -> egui::Response {
-        let label = self.label(i18n_id);
+    pub fn percent(&mut self, strings: &HoverStrings, access: Access<T, f32>) -> egui::Response {
         let reset_value = self.get_default(&access);
         let reset_value_str = reset_value.as_ref().map(|v| v.to_string().into());
         self.add(|current| WidgetWithReset {
-            label,
+            label: strings.label.into(),
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str,
             make_widget: drag_value_percent,
         })
-        .on_i18n_hover_explanation(&self.i18n_key(i18n_id))
+        .on_i18n_hover_explanation(strings)
     }
 
-    pub fn animation_duration(&mut self, i18n_id: &str, access: Access<T, f32>) -> egui::Response {
+    pub fn animation_duration(
+        &mut self,
+        strings: &HoverStrings,
+        access: Access<T, f32>,
+    ) -> egui::Response {
         let range = 0.0..=5.0_f32;
         let speed = (access.get_ref)(self.current).at_least(0.1) / 100.0; // logarithmic speed
-        self.num(i18n_id, access, |dv| {
+        self.num(strings, access, |dv| {
             dv.fixed_decimals(2).clamp_range(range).speed(speed)
         })
     }
 
     pub fn angle(
         &mut self,
-        i18n_id: &str,
+        strings: &HoverStrings,
         access: Access<T, f32>,
         modify_widget: impl FnOnce(egui::DragValue<'_>) -> egui::DragValue<'_>,
     ) -> egui::Response {
-        let label = self.label(i18n_id);
-        self.angle_with_raw_label(label, access, modify_widget)
-            .on_i18n_hover_explanation(&self.i18n_key(i18n_id))
+        self.angle_with_raw_label(strings.label, access, modify_widget)
+            .on_i18n_hover_explanation(strings)
     }
     pub fn angle_with_raw_label(
         &mut self,
@@ -208,29 +183,35 @@ impl<'a, T> PrefsUi<'a, T> {
         })
     }
 
-    pub fn color(&mut self, i18n_id: &str, access: Access<T, Rgb>) -> egui::Response {
-        let label = self.label(i18n_id);
+    pub fn color(&mut self, strings: &HoverStrings, access: Access<T, Rgb>) -> egui::Response {
+        self.color_with_label(strings.label, access)
+            .on_i18n_hover_explanation(strings)
+    }
+
+    pub fn color_with_label(
+        &mut self,
+        label: impl Into<egui::WidgetText>,
+        access: Access<T, Rgb>,
+    ) -> egui::Response {
         let reset_value = self.get_default(&access);
         let reset_value_str = reset_value.as_ref().map(|v| v.to_string().into());
         self.add(|current| WidgetWithReset {
-            label,
+            label: label.into(),
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str,
             make_widget: |value| |ui: &mut egui::Ui| super::color_edit(ui, value, None::<fn()>),
         })
-        .on_i18n_hover_explanation(&self.i18n_key(i18n_id))
     }
 
     pub fn fixed_multi_color(
         &mut self,
-        i18n_id: &str,
+        label: impl Into<egui::WidgetText>,
         access: Access<T, Vec<Rgb>>,
     ) -> egui::Response {
-        let label = self.label(i18n_id);
         let reset_value = self.get_default(&access);
         self.add(|current| WidgetWithReset {
-            label,
+            label: label.into(),
             value: (access.get_mut)(current),
             reset_value,
             reset_value_str: None,
@@ -265,12 +246,13 @@ impl<'a, T> PrefsUi<'a, T> {
             reset_value,
             reset_value_str: reset_value.map(|v| match v {
                 Some(mode) => match mode {
-                    StyleColorMode::FromSticker => t!("prefs.styles.color_mode_reset.sticker"),
+                    StyleColorMode::FromSticker => L.prefs.styles.color_mode_reset.sticker.into(),
                     StyleColorMode::FixedColor { color } => {
-                        t!("prefs.styles.color_mode_reset.fixed", color = color)
+                        let rgb = color.to_string();
+                        L.prefs.styles.color_mode_reset.fixed.with(&rgb).into()
                     }
                 },
-                None => t!("prefs.styles.color_mode_reset.default"),
+                None => L.prefs.styles.color_mode_reset.default.into(),
             }),
             make_widget: |value| {
                 move |ui: &mut egui::Ui| {
@@ -282,22 +264,23 @@ impl<'a, T> PrefsUi<'a, T> {
                     if !allow_fallthrough {
                         value.get_or_insert(StyleColorMode::FromSticker);
                     }
+                    let l = L.prefs.styles.color_mode;
                     let mut r = ui.horizontal(|ui| {
                         // Assemble list of options
                         let mut options = vec![];
                         {
                             if allow_fallthrough {
-                                options.push((None, t!("prefs.styles.color_mode.default")));
+                                options.push((None, l.default.into()));
                             }
 
                             if allow_from_sticker_color {
                                 let option = Some(StyleColorMode::FromSticker);
-                                options.push((option, t!("prefs.styles.color_mode.sticker")));
+                                options.push((option, l.sticker.into()));
                             }
 
                             let color = value.and_then(|v| v.fixed_color()).unwrap_or_default();
                             let option = Some(StyleColorMode::FixedColor { color });
-                            options.push((option, t!("prefs.styles.color_mode.fixed")));
+                            options.push((option, l.fixed.into()));
                         }
 
                         let r = ui.add(crate::gui::components::FancyComboBox {
@@ -359,36 +342,34 @@ impl<'a, T> PrefsUi<'a, T> {
 //     prefs.needs_save |= changed;
 // }
 pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreferences>) {
-    prefs_ui.collapsing(p!("prefs.interaction.dialogs"), |mut prefs_ui| {
+    let l = &L.prefs.interaction.dialogs;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.checkbox(
-            ql!("confirm_discard_only_when_scrambled"),
+            &l.confirm_discard_only_when_scrambled,
             access!(.confirm_discard_only_when_scrambled),
         );
     });
 
-    prefs_ui.collapsing(p!("prefs.interaction.reorientation"), |mut prefs_ui| {
-        prefs_ui.num(ql!("drag_sensitivity"), access!(.drag_sensitivity), |dv| {
+    let l = &L.prefs.interaction.reorientation;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
+        prefs_ui.num(&l.drag_sensitivity, access!(.drag_sensitivity), |dv| {
             dv.fixed_decimals(2).clamp_range(0.0..=3.0_f32).speed(0.01)
         });
-        prefs_ui.checkbox(
-            ql!("realign_puzzle_on_release"),
-            access!(.realign_on_release),
-        );
-        prefs_ui.checkbox(
-            ql!("realign_puzzle_on_keypress"),
-            access!(.realign_on_keypress),
-        );
-        prefs_ui.checkbox(ql!("smart_realign"), access!(.smart_realign));
+        prefs_ui.checkbox(&l.realign_puzzle_on_release, access!(.realign_on_release));
+        prefs_ui.checkbox(&l.realign_puzzle_on_keypress, access!(.realign_on_keypress));
+        prefs_ui.checkbox(&l.smart_realign, access!(.smart_realign));
     });
 }
 pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) {
-    prefs_ui.collapsing(p!("prefs.animations.twists"), |mut prefs_ui| {
-        prefs_ui.checkbox(ql!("dynamic_twist_speed"), access!(.dynamic_twist_speed));
-        prefs_ui.animation_duration(ql!("twist_duration"), access!(.twist_duration));
+    let l = &L.prefs.animations.twists;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
+        prefs_ui.checkbox(&l.dynamic_twist_speed, access!(.dynamic_twist_speed));
+        prefs_ui.animation_duration(&l.twist_duration, access!(.twist_duration));
     });
-    prefs_ui.collapsing(p!("prefs.animations.other"), |mut prefs_ui| {
+    let l = &L.prefs.animations.other;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.animation_duration(
-            "blocking_animation_duration",
+            &l.blocking_animation_duration,
             access!(.blocking_anim_duration),
         );
     });
@@ -398,9 +379,10 @@ pub fn build_view_section(
     view_prefs_set: PuzzleViewPreferencesSet,
     mut prefs_ui: PrefsUi<'_, ViewPreferences>,
 ) {
-    prefs_ui.collapsing(p!("prefs.view.projection"), |mut prefs_ui| {
+    let l = &L.prefs.view.projection;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
         if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
-            prefs_ui.angle(ql!("4d_fov"), access!(.fov_4d), |dv| {
+            prefs_ui.angle(&l.fov_4d, access!(.fov_4d), |dv| {
                 dv.clamp_range(FOV_4D_RANGE).speed(0.5)
             });
         }
@@ -410,35 +392,33 @@ pub fn build_view_section(
         });
     });
 
-    prefs_ui.collapsing(p!("prefs.view.geometry"), |mut prefs_ui| {
-        prefs_ui.checkbox(ql!("show_frontfaces"), access!(.show_frontfaces));
-        prefs_ui.checkbox(ql!("show_backfaces"), access!(.show_backfaces));
+    let l = &L.prefs.view.geometry;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
+        prefs_ui.checkbox(&l.show_frontfaces, access!(.show_frontfaces));
+        prefs_ui.checkbox(&l.show_backfaces, access!(.show_backfaces));
         if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
-            prefs_ui.checkbox(
-                ql!("show_behind_4d_camera"),
-                access!(.show_behind_4d_camera),
-            );
+            prefs_ui.checkbox(&l.show_behind_4d_camera, access!(.show_behind_4d_camera));
         } else {
             prefs_ui.current.show_behind_4d_camera = false;
         }
 
         if view_prefs_set == PuzzleViewPreferencesSet::Dim3D {
-            prefs_ui.checkbox(ql!("show_internals"), access!(.show_internals));
+            prefs_ui.checkbox(&l.show_internals, access!(.show_internals));
         } else {
             prefs_ui.current.show_internals = false;
         }
         let showing_internals = prefs_ui.current.show_internals;
 
         if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
-            prefs_ui.num(ql!("gizmo_scale"), access!(.gizmo_scale), |dv| {
+            prefs_ui.num(&l.gizmo_scale, access!(.gizmo_scale), |dv| {
                 dv.fixed_decimals(2).clamp_range(0.1..=5.0_f32).speed(0.01)
             });
         }
         prefs_ui.add_enabled_ui(
             !showing_internals,
-            ql!("disabled_when_showing_internals"),
+            l.disabled_when_showing_internals,
             |mut prefs_ui| {
-                prefs_ui.num("facet_shrink", access!(.facet_shrink), |dv| {
+                prefs_ui.num(&l.facet_shrink, access!(.facet_shrink), |dv| {
                     dv.fixed_decimals(2)
                         .clamp_range(0.0..=0.95_f32)
                         .speed(0.005)
@@ -447,9 +427,9 @@ pub fn build_view_section(
         );
         prefs_ui.add_enabled_ui(
             !showing_internals,
-            ql!("disabled_when_showing_internals"),
+            l.disabled_when_showing_internals,
             |mut prefs_ui| {
-                prefs_ui.num("sticker_shrink", access!(.sticker_shrink), |dv| {
+                prefs_ui.num(&l.sticker_shrink, access!(.sticker_shrink), |dv| {
                     dv.fixed_decimals(2)
                         .clamp_range(0.0..=0.95_f32)
                         .speed(0.005)
@@ -457,42 +437,41 @@ pub fn build_view_section(
             },
         );
 
-        prefs_ui.num(ql!("piece_explode"), access!(.piece_explode), |dv| {
+        prefs_ui.num(&l.piece_explode, access!(.piece_explode), |dv| {
             dv.fixed_decimals(2).clamp_range(0.0..=5.0_f32).speed(0.01)
         });
     });
 
-    prefs_ui.collapsing(p!("prefs.view.lighting"), |mut prefs_ui| {
-        prefs_ui.angle(ql!("pitch"), access!(.light_pitch), |dv| {
+    let l = &L.prefs.view.lighting;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
+        prefs_ui.angle(&l.pitch, access!(.light_pitch), |dv| {
             dv.clamp_range(-90.0..=90.0)
         });
-        prefs_ui.angle(ql!("yaw"), access!(.light_yaw), |dv| {
+        prefs_ui.angle(&l.yaw, access!(.light_yaw), |dv| {
             dv.clamp_range(-180.0..=180.0)
         });
-        prefs_ui.percent(ql!("intensity.faces"), access!(.face_light_intensity));
-        prefs_ui.percent(ql!("intensity.outlines"), access!(.outline_light_intensity));
+        prefs_ui.percent(&l.intensity.faces, access!(.face_light_intensity));
+        prefs_ui.percent(&l.intensity.outlines, access!(.outline_light_intensity));
     });
 
-    prefs_ui.collapsing(p!("prefs.view.performance"), |mut prefs_ui| {
-        prefs_ui.num(ql!("downscale_factor"), access!(.downscale_rate), |dv| {
+    let l = &L.prefs.view.performance;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
+        prefs_ui.num(&l.downscale_factor, access!(.downscale_rate), |dv| {
             dv.clamp_range(1..=32).speed(0.1)
         });
-        prefs_ui.checkbox(
-            ql!("downscale_interpolation"),
-            access!(.downscale_interpolate),
-        );
+        prefs_ui.checkbox(&l.downscale_interpolation, access!(.downscale_interpolate));
     });
 
     prefs_ui.ui.add_space(prefs_ui.ui.spacing().item_spacing.y);
 }
 
-fn fov_3d_label(prefs_ui: &PrefsUi<'_, ViewPreferences>) -> Cow<'static, str> {
+fn fov_3d_label(prefs_ui: &PrefsUi<'_, ViewPreferences>) -> &'static str {
     if prefs_ui.current.fov_3d == *FOV_3D_RANGE.start() {
-        t!("prefs.view.projection.3d_fov.orp_ekauq")
+        L.prefs.view.projection.fov_3d.orp_ekauq
     } else if prefs_ui.current.fov_3d == *FOV_3D_RANGE.end() {
-        t!("prefs.view.projection.3d_fov.quake_pro")
+        L.prefs.view.projection.fov_3d.quake_pro
     } else {
-        t!("prefs.view.projection.3d_fov.label")
+        L.prefs.view.projection.fov_3d.label
     }
 }
 

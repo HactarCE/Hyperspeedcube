@@ -1,7 +1,5 @@
 use std::borrow::Cow;
 
-use itertools::Itertools;
-use rust_i18n::Backend;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -12,73 +10,13 @@ use crate::gui::components::PlaintextYamlEditor;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::{md, md_bold_user_text, md_inline};
 use crate::gui::util::{body_text_format, EguiTempValue};
+use crate::locales::PresetStrings;
 use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
+use crate::L;
 
 pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
 
 pub const DEFAULT_PRESET_NAME: &str = "Default";
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct PresetsUiText<'a> {
-    /// Localization key.
-    pub i18n_key: &'a str,
-    /// Set of presets, if any.
-    pub presets_set: Option<&'a str>,
-}
-impl Default for PresetsUiText<'_> {
-    fn default() -> Self {
-        Self {
-            i18n_key: "default",
-            presets_set: None,
-        }
-    }
-}
-impl<'a> PresetsUiText<'a> {
-    pub fn new(i18n_key: &'a str) -> Self {
-        Self {
-            i18n_key,
-            presets_set: None,
-        }
-    }
-}
-macro_rules! presets_ui_text_method {
-    ($(fn $method_name:ident($k:literal);)*) => {
-        impl PresetsUiText<'_> {
-            $(pub fn $method_name(self) -> Cow<'static, str> {
-                self.get($k)
-            })*
-        }
-    };
-}
-// Prefix each key with an underscore so that the build script doesn't emit a
-// warning that they're unused.
-presets_ui_text_method!(
-    fn saved_presets("_saved_presets");
-    fn current_empty("_current_empty");
-    fn new_name_hint("_new_name_hint");
-
-    fn error_empty_name("errors._empty_name");
-    fn error_name_conflict("errors._name_conflict");
-    fn error_cannot_delete_last("errors._cannot_delete_last");
-
-    fn action_add("actions._add");
-    fn action_rename("actions._rename");
-    fn action_delete("actions._delete");
-);
-impl PresetsUiText<'_> {
-    pub fn current(self, current: &str) -> Cow<'static, str> {
-        try_t!(
-            format!("presets.{}._current", self.i18n_key),
-            current = md_bold_user_text(current),
-        )
-        .unwrap_or_else(|| Self::default().current(current))
-    }
-
-    fn get<'a>(self, subkey: &str) -> Cow<'static, str> {
-        try_t!(format!("presets.{}.{}", self.i18n_key, subkey))
-            .unwrap_or_else(|| Self::default().get(subkey))
-    }
-}
 
 pub struct PresetsUi<'a, T: Default> {
     /// Unique widget ID.
@@ -88,7 +26,7 @@ pub struct PresetsUi<'a, T: Default> {
     /// Whether any part of the presets state has changed this frame.
     pub changed: &'a mut bool,
     /// Text strings to put on the UI.
-    pub text: PresetsUiText<'a>,
+    pub text: &'a PresetStrings,
     /// Whether to automatically save changes.
     pub autosave: bool,
     /// Whether to allow vertical scrolling in the content area.
@@ -104,15 +42,15 @@ impl<'a, T> PresetsUi<'a, T>
 where
     T: Serialize + for<'de> Deserialize<'de> + Default + Clone + PartialEq,
 {
-    fn validate_preset_name(&self, new_name: &str, ok: Cow<'a, str>) -> TextValidationResult<'a> {
+    fn validate_preset_name(&self, new_name: &str, ok: &'a str) -> TextValidationResult<'a> {
         if new_name.is_empty() {
-            Err(Some(self.text.error_empty_name()))
+            Err(Some(self.text.errors.empty_name.into()))
         } else if !self.presets.is_name_available(&new_name) {
-            Err(Some(self.text.error_name_conflict()))
+            Err(Some(self.text.errors.name_conflict.into()))
         } else if let Some(Err(e)) = self.extra_validation.as_ref().map(|f| f(self, new_name)) {
             Err(Some(e))
         } else {
-            Ok(Some(ok))
+            Ok(Some(ok.into()))
         }
     }
 
@@ -142,23 +80,27 @@ where
     pub fn show<'b>(
         mut self,
         ui: &mut egui::Ui,
-        i18n_prefix: &str,
+        presets_set: Option<&str>,
         get_backup_defaults: impl FnOnce(&'b Preferences) -> Option<Preset<T>>,
         add_contents: impl FnOnce(PrefsUi<'_, T>),
     ) where
         T: 'static + PartialEq + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug,
     {
         ui.group(|ui| {
-            self.show_wrapping_presets_selector(ui);
+            self.show_wrapping_presets_selector(ui, presets_set);
             // TODO: reconsider spacing
             ui.add_space(ui.spacing().item_spacing.y);
             ui.separator();
             ui.add_space(ui.spacing().item_spacing.y);
-            self.show_preset_editor(ui, i18n_prefix, get_backup_defaults, add_contents);
+            self.show_preset_editor(ui, get_backup_defaults, add_contents);
         });
     }
 
-    pub fn show_wrapping_presets_selector(&mut self, ui: &mut egui::Ui) -> egui::Response {
+    pub fn show_wrapping_presets_selector(
+        &mut self,
+        ui: &mut egui::Ui,
+        presets_set: Option<&str>,
+    ) -> egui::Response {
         ui.set_min_width(200.0);
 
         let can_delete = self.presets.len() > 1;
@@ -179,13 +121,11 @@ where
             ui.set_width(ui.available_width());
 
             ui.horizontal(|ui| {
-                ui.strong(self.text.saved_presets());
-                if let Some(presets_set) =
-                    self.text.presets_set.as_deref().filter(|s| !s.is_empty())
-                {
+                ui.strong(self.text.saved_presets);
+                if let Some(presets_set) = presets_set.filter(|s| !s.is_empty()) {
                     ui.label(format!("({presets_set})"));
                 }
-                HelpHoverWidget::show_right_aligned(ui, &t!("help.presets"));
+                HelpHoverWidget::show_right_aligned(ui, &L.help.presets);
             });
             ui.add_space(ui.spacing().item_spacing.y);
             ui.horizontal_wrapped(|ui| {
@@ -194,7 +134,7 @@ where
                     let r = ui.add_enabled(!dnd.is_dragging(), |ui: &mut egui::Ui| {
                         self.show_preset_name_selectable_label(ui, &preset.name)
                             .on_hover_ui(|ui| {
-                                md(ui, t!("click_to.activate", click = t!("inputs.click")));
+                                md(ui, L.click_to.activate.with(&L.inputs.click));
                             })
                     });
 
@@ -216,10 +156,10 @@ where
                     let r = r.inner.response.on_hover_ui(|ui| {
                         // TODO: don't show this if there's a popup
                         for action in [
-                            t!("click_to.activate", click = t!("inputs.click")),
-                            t!("click_to.rename", click = t!("inputs.right_click")),
-                            t!("click_to.reorder", click = t!("inputs.drag")),
-                            t!("click_to.delete", click = t!("inputs.middle_click")),
+                            L.click_to.activate.with(&L.inputs.click),
+                            L.click_to.rename.with(&L.inputs.right_click),
+                            L.click_to.reorder.with(&L.inputs.drag),
+                            L.click_to.delete.with(&L.inputs.middle_click),
                         ] {
                             md(ui, action);
                         }
@@ -247,7 +187,7 @@ where
                 ui.set_enabled(!dnd.is_dragging());
                 let mut r = ui.add(egui::Button::new("+").min_size(SMALL_ICON_BUTTON_SIZE));
                 if !ui.memory(|mem| mem.any_popup_open()) {
-                    r = r.on_hover_text(self.text.action_add());
+                    r = r.on_hover_text(self.text.actions.add);
                 }
 
                 // Left click -> New preset
@@ -260,17 +200,17 @@ where
         let edit_popup_response = edit_popup.if_open(|popup| {
             popup
                 .below(&r.response)
-                .label(self.text.action_rename())
+                .label(self.text.actions.rename)
                 .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
-                .text_edit_hint(self.text.new_name_hint())
+                .text_edit_hint(self.text.new_name_hint)
                 .confirm_button_validator(&|new_name| {
-                    self.validate_preset_name(new_name, self.text.action_rename())
+                    self.validate_preset_name(new_name, self.text.actions.rename)
                 })
                 .delete_button_validator(&|_| {
                     if can_delete {
-                        Ok(Some(self.text.action_delete()))
+                        Ok(Some(self.text.actions.delete.into()))
                     } else {
-                        Err(Some(self.text.error_cannot_delete_last()))
+                        Err(Some(self.text.errors.cannot_delete_last.into()))
                     }
                 })
                 .show(ui)
@@ -297,11 +237,11 @@ where
         let new_popup_response = new_popup.if_open(|popup| {
             popup
                 .below(&r.response)
-                .label(self.text.action_add())
+                .label(self.text.actions.add)
                 .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
-                .text_edit_hint(self.text.new_name_hint())
+                .text_edit_hint(self.text.new_name_hint)
                 .confirm_button_validator(&|new_name| {
-                    self.validate_preset_name(new_name, self.text.action_add())
+                    self.validate_preset_name(new_name, self.text.actions.add)
                 })
                 .show(ui)
         });
@@ -341,7 +281,6 @@ where
     pub fn show_preset_editor<'b>(
         &mut self,
         ui: &mut egui::Ui,
-        i18n_prefix: &str,
         get_backup_defaults: impl FnOnce(&'b Preferences) -> Option<Preset<T>>,
         add_contents: impl FnOnce(PrefsUi<'_, T>),
     ) where
@@ -352,7 +291,7 @@ where
         let defaults = match self.presets.last_loaded_preset() {
             Some(p) => p.clone(),
             None => get_backup_defaults(&DEFAULT_PREFS).unwrap_or_else(|| Preset {
-                name: t!("presets.default_preset_name").into_owned(),
+                name: L.presets.default_preset_name.to_owned(),
                 value: T::default(),
             }),
         };
@@ -401,7 +340,6 @@ where
                         current: &mut self.presets.current,
                         defaults: Some(&defaults.value),
                         changed: &mut self.changed,
-                        i18n_prefix,
                     });
                 }
             });
@@ -414,7 +352,7 @@ where
 }
 
 pub struct PresetHeaderUi<'a, T> {
-    pub text: PresetsUiText<'a>,
+    pub text: &'a PresetStrings,
     pub preset_name: &'a str,
 
     pub help_contents: Option<&'a str>,
@@ -440,12 +378,12 @@ where
                         ui.add_enabled_ui(is_unsaved, |ui| {
                             let r = ui
                                 .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾"))
-                                .on_hover_explanation(t!("presets.save_changes"), {
+                                .on_hover_explanation(L.presets.save_changes, {
                                     let current = md_bold_user_text(&self.preset_name);
                                     if overwrite {
-                                        t!("presets.overwrite_current", current = current)
+                                        L.presets.overwrite_current.with(&current)
                                     } else {
-                                        t!("presets.create_current", current = current)
+                                        L.presets.create_current.with(&current)
                                     }
                                 });
                             *self.save_changes |= r.clicked();
@@ -463,10 +401,13 @@ where
                     crate::gui::components::HelpHoverWidget::show(ui, help_contents);
                 }
 
-                let markdown = if self.preset_name.is_empty() {
-                    self.text.current_empty()
+                let markdown: Cow<'_, str> = if self.preset_name.is_empty() {
+                    self.text.current_empty.into()
                 } else {
-                    self.text.current(self.preset_name)
+                    self.text
+                        .current
+                        .with(&md_bold_user_text(self.preset_name))
+                        .into()
                 };
                 crate::gui::util::label_centered_unless_multiline(ui, md_inline(ui, markdown));
             });

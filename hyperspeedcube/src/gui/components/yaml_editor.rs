@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 
-use crate::gui::ext::ResponseExt;
+use crate::{gui::ext::ResponseExt, L};
 
 use super::BIG_ICON_BUTTON_SIZE;
 
@@ -51,7 +51,7 @@ where
                 BIG_ICON_BUTTON_SIZE,
                 egui::SelectableLabel::new(self.is_open(ui), "✏"),
             )
-            .on_i18n_hover_explanation("edit_as_plaintext");
+            .on_i18n_hover_explanation(&L.edit_as_plaintext);
         if r.clicked() {
             match self.is_open(ui) {
                 true => self.close(ui),

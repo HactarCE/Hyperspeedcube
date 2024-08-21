@@ -30,26 +30,15 @@ const TOOLTIP_COLOR_RECT_ROUNDING: f32 = 3.0;
 const COLOR_PALETTE_POPUP_WIDTH: f32 = 600.0;
 
 pub(in crate::gui) fn get_color_schemes_markdown(allow_dragging: bool) -> String {
-    t!(
-        "help.color_assignments",
-        dragging = if allow_dragging {
-            t!("help.color_assignments_drag_reassign")
-        } else {
-            "".into()
-        },
-        color_reassign_mousebind = {
-            // TODO: customizable mousebinds!
-            #[cfg(not(target_os = "macos"))]
-            {
-                "ctrl + shift + right-click"
-            }
-            #[cfg(target_os = "macos")]
-            {
-                "cmd + shift + right-click"
-            }
-        },
-    )
-    .into_owned()
+    // TODO: customizable mousebinds!
+    #[cfg(not(target_os = "macos"))]
+    let color_reassign_mousebind = "ctrl + shift + right-click";
+    #[cfg(target_os = "macos")]
+    let color_reassign_mousebind = "cmd + shift + right-click";
+
+    L.help
+        .color_assignments
+        .with(color_reassign_mousebind, allow_dragging)
 }
 
 #[derive(Debug)]
@@ -188,7 +177,7 @@ impl<'a> ColorsUi<'a> {
 
         ui.group(|ui| {
             ui.set_width(ui.available_width());
-            ui.strong(t!("colors.singles"));
+            ui.strong(L.colors.singles);
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
                 for color_name in self.palette.builtin_colors.keys() {
@@ -221,7 +210,7 @@ impl<'a> ColorsUi<'a> {
 
         ui.group(|ui| {
             ui.set_width(ui.available_width());
-            ui.strong(t!("colors.gradients"));
+            ui.strong(L.colors.gradients);
             for gradient in DefaultColorGradient::iter() {
                 self.show_color_gradient(ui, gradient);
             }
@@ -544,7 +533,7 @@ impl ColorButton {
                                             ui.monospace(Rgb { rgb: [r, g, b] }.to_string());
                                         }
                                         ColorOrGradient::Gradient(_) => {
-                                            ui.label(t!("colors.builtin_gradient"));
+                                            ui.label(L.colors.builtin_gradient);
                                         }
                                     }
                                 });
@@ -696,13 +685,9 @@ pub fn color_edit(
     // Right-click to copy
     let text_to_copy = r.secondary_clicked().then(|| color.to_string());
     if !crate::gui::components::copy_on_click(ui, &r, text_to_copy) {
-        for action in [
-            t!("click_to.edit", click = t!("inputs.click")),
-            t!("click_to.copy_hex", click = t!("inputs.right_click")),
-            t!("click_to.delete", click = t!("inputs.middle_click")),
-        ] {
-            md(ui, action);
-        }
+        md(ui, L.click_to.edit.with(&L.inputs.click));
+        md(ui, L.click_to.copy_hex.with(&L.inputs.right_click));
+        md(ui, L.click_to.delete.with(&L.inputs.middle_click));
     }
 
     let mods = ui.input(|input| input.modifiers);
@@ -780,19 +765,13 @@ pub fn color_assignment_popup(
 
     ui.set_max_width(COLOR_PALETTE_POPUP_WIDTH);
     ui.horizontal(|ui| {
-        ui.heading(t!(
-            "colors.puzzle_color_popup_title",
-            puzzle_color = &color_data.display
-        ));
+        ui.heading(L.colors.puzzle_color_popup_title.with(&color_data.display));
         crate::gui::components::HelpHoverWidget::show_right_aligned(
             ui,
             &get_color_schemes_markdown(true),
         );
     });
-    ui.colored_label(
-        ui.visuals().warn_fg_color,
-        t!("colors.warning_save_changes"),
-    );
+    ui.colored_label(ui.visuals().warn_fg_color, L.colors.warning_save_changes);
     ui.separator();
     let (changed, temp_colors) = crate::gui::components::ColorsUi::new(color_palette)
         .clickable(true)

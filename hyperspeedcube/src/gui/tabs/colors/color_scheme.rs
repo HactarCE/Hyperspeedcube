@@ -5,6 +5,7 @@ use hyperpuzzle::ColorSystem;
 use crate::{
     app::App,
     preferences::{ColorSystemPreferences, Preset},
+    L,
 };
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -38,10 +39,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         id: unique_id!(),
         presets: &mut color_system_prefs.schemes,
         changed: &mut changed,
-        text: crate::gui::components::PresetsUiText {
-            i18n_key: "color_schemes",
-            presets_set: Some(&color_system.name),
-        },
+        text: &L.presets.color_schemes,
         autosave: false,
         vscroll: true,
         help_contents: Some(&help_contents),
@@ -61,7 +59,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     };
     presets_ui.show(
         ui,
-        "prefs.color_schemes",
+        Some(&color_system.name),
         get_backup_defaults,
         |mut prefs_ui| {
             let (prefs, ui) = prefs_ui.split();

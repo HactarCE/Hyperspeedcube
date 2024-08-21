@@ -1,11 +1,13 @@
 use egui::NumExt;
 
+use crate::locales::HoverStrings;
+
 use super::markdown::md;
 
 pub const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 
 pub trait ResponseExt {
-    fn on_i18n_hover_explanation(self, i18n_prefix: &str) -> Self;
+    fn on_i18n_hover_explanation(self, strings: &HoverStrings) -> Self;
 
     fn on_hover_explanation(
         self,
@@ -14,11 +16,11 @@ pub trait ResponseExt {
     ) -> Self;
 }
 impl ResponseExt for egui::Response {
-    fn on_i18n_hover_explanation(self, i18n_prefix: &str) -> Self {
-        let full = try_t!(format!("{i18n_prefix}.full"));
-        let desc = try_t!(format!("{i18n_prefix}.desc"));
-        if full.is_some() || desc.is_some() {
-            self.on_hover_explanation(full.unwrap_or("".into()), desc.unwrap_or("".into()))
+    fn on_i18n_hover_explanation(self, strings: &HoverStrings) -> Self {
+        let full = strings.full;
+        let desc = strings.desc;
+        if !full.is_empty() || !desc.is_empty() {
+            self.on_hover_explanation(full, desc)
         } else {
             self
         }

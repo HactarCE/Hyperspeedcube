@@ -37,14 +37,6 @@ pub fn take_entry<'a>(
 }
 
 #[must_use]
-pub fn take_entry_name(src: &SourceInfo, entry: &KdlEntry) -> Option<String> {
-    warn_if_none(entry.name(), "expected string key", || {
-        src.at(entry.span().offset())
-    })
-    .map(|k| k.value().to_owned())
-}
-
-#[must_use]
 pub fn take_entry_str_value<'a>(src: &SourceInfo, entry: &'a KdlEntry) -> Option<&'a str> {
     warn_if_none(entry.value().as_string(), "expected string value", || {
         src.at(entry.span().offset())
@@ -100,12 +92,6 @@ pub fn take_children<'a>(src: &SourceInfo, node: &'a KdlNode) -> Option<&'a KdlD
     warn_if_none(node.children(), "expected child nodes", || {
         src.at(end_of_entries(node))
     })
-}
-
-pub fn ignore_type(src: &SourceInfo, node: &KdlNode) {
-    if let Some(ty) = node.ty() {
-        warn_at("ignoring type annotation", src.at(ty.span().offset()))
-    }
 }
 
 pub fn ignore_entries<'a>(src: &SourceInfo, entries: impl IntoIterator<Item = &'a KdlEntry>) {

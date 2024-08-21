@@ -42,9 +42,6 @@ impl KeyPath {
             None => (Self::ROOT, self.0.as_str()),
         })
     }
-    pub fn parent(&self) -> Option<Self> {
-        self.split().map(|(parent, _field)| parent)
-    }
     #[must_use]
     pub fn push(&self, field_name: &str) -> Self {
         let mut ret = self.clone();
@@ -602,13 +599,6 @@ impl StructSchema {
         }
 
         Ok(())
-    }
-
-    pub fn default_value(&self, name: &str) -> String {
-        match &self.fallback_key {
-            Some(default_path) => KeyPath(default_path.clone()).const_name(),
-            None => format!("{name}::DEFAULT"),
-        }
     }
 
     fn fits_trait(&self, trait_schema: &TraitSchema) -> bool {

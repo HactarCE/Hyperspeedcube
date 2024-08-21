@@ -9,18 +9,18 @@ use crate::{
     gui::{
         components::{
             DragAndDrop, FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates,
-            HelpHoverWidget, PresetHeaderUi, PresetSaveStatus, PresetsUiText, TextEditPopup,
+            HelpHoverWidget, PresetHeaderUi, PresetSaveStatus, TextEditPopup,
             TextEditPopupResponse, PRESET_NAME_TEXT_EDIT_WIDTH,
         },
         util::{
-            body_text_format, set_widget_spacing_to_space_width, strong_text_format, EguiTempFlag,
-            EguiTempValue,
+            body_text_format, set_widget_spacing_to_space_width, strong_text_format, EguiTempValue,
         },
     },
     preferences::{
         ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterRule, Preferences,
     },
     puzzle::PuzzleFiltersState,
+    L,
 };
 
 const PRESET_LIST_MIN_WIDTH: f32 = 200.0;
@@ -139,7 +139,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
     ui.horizontal(|ui| {
         ui.strong("Filter presets");
         ui.label(format!("({})", puz.name));
-        HelpHoverWidget::show_right_aligned(ui, &t!("help.piece_filter_presets"));
+        HelpHoverWidget::show_right_aligned(ui, L.help.piece_filter_presets);
     });
 
     let filter_prefs = app.prefs.piece_filters.settings_mut(&puz);
@@ -154,14 +154,13 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
     let mut to_rename = None;
 
     let taken_preset_names: HashSet<String> = filter_prefs.presets.keys().cloned().collect();
-    let text = PresetsUiText::new("piece_filters");
     let validate_preset_rename = move |new_name: &str| {
         if new_name.is_empty() {
-            Err(Some(text.error_empty_name()))
+            Err(Some(L.presets.piece_filters.errors.empty_name.into()))
         } else if taken_preset_names.contains(new_name) {
-            Err(Some(text.error_name_conflict()))
+            Err(Some(L.presets.piece_filters.errors.name_conflict.into()))
         } else {
-            Ok(Some(text.action_rename()))
+            Ok(Some(L.presets.piece_filters.actions.rename.into()))
         }
     };
 
@@ -221,7 +220,9 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
                 .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
                 .text_edit_hint("New preset name")
                 .confirm_button_validator(&validate_preset_rename)
-                .delete_button_validator(&|_| Ok(Some(t!("presets.color_schemes.actions._delete"))))
+                .delete_button_validator(&|_| {
+                    Ok(Some(L.presets.color_schemes.actions.delete.into()))
+                })
                 .at(ui, &r, egui::vec2(-4.0, 0.0))
                 .show(ui)
         });
@@ -383,13 +384,10 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
 
     let mut save_changes = false;
     ui.add(PresetHeaderUi::<()> {
-        text: PresetsUiText {
-            i18n_key: "piece_filters",
-            presets_set: puz.as_ref().map(|puz| puz.name.as_str()),
-        },
+        text: &L.presets.piece_filters,
         preset_name: preset_name.as_deref().unwrap_or(""),
 
-        help_contents: Some(&t!("help.piece_filters")),
+        help_contents: Some(L.help.piece_filters),
         yaml: None,
         save_status: if preset_name.is_some() {
             PresetSaveStatus::ManualSave {

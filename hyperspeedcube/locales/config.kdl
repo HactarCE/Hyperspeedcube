@@ -1,9 +1,5 @@
 fallback "en"
 
-trait "HasTitle" {
-  title
-}
-
 struct "HoverStrings" {
   label inline=true
   full

@@ -85,17 +85,17 @@ presets {
       delete "Delete color scheme"
     }
   }
-  custom_styles {
+  (PresetStrings)custom_styles {
     saved_presets "Custom styles"
     current "{{current}} style"
     current_empty "No style"
     new_name_hint "New style name"
-    errors {
+    (PresetErrors)errors {
       empty_name "Style name cannot be empty"
       name_conflict "There is already a style with this name"
       cannot_delete_last "Cannot delete last custom style"
     }
-    actions {
+    (PresetActions)actions {
       add "Add style"
       rename "Rename style"
       delete "Delete style"
@@ -157,8 +157,8 @@ prefs {
       title "Miscellaneous styles"
       background {
         title "Background"
-        dark_mode "Dark mode"
-        light_mode "Light mode"
+        (HoverStrings)dark_mode "Dark mode"
+        (HoverStrings)light_mode "Light mode"
       }
       internals {
         title "Internals"
@@ -195,7 +195,14 @@ prefs {
       hovered "Hovered"
       selected "Selected"
       blindfolded "Blindfolded"
-      current_style "{{current}} style"
+    }
+    custom {
+      sticker_faces "Faces"
+      sticker_outlines "Outlines"
+      (HoverStrings)interactable "Interactable"
+      (HoverStrings)opacity "Opacity"
+      (HoverStrings)outline_size "Size"
+      (HoverStrings)lighting "Lighting"
     }
     color_mode {
       default "Default color"
@@ -228,7 +235,7 @@ prefs {
       (HoverStrings)facet_shrink "Facet shrink"
       (HoverStrings)sticker_shrink "Sticker shrink"
       (HoverStrings)piece_explode "Piece explode"
-      (HoverStrings)disabled_when_showing_internals "Disabled when showing internals"
+      disabled_when_showing_internals "Disabled when showing internals"
     }
     lighting {
       title "Lighting"
@@ -252,9 +259,9 @@ prefs {
 }
 colors {
   global_palette "Global color palette"
-  custom "Custom colors"
   singles "Single colors"
   gradients "Gradients"
+  custom "Custom colors"
   builtin "Built-in colors"
   builtin_sets "Built-in color sets"
 
@@ -290,14 +297,13 @@ help {
 
     Custom styles can be applied to pieces using the **piece filters** tool.
   "#
-  color_assignments_drag_reassign "Drag a facet name to assign a different color to it."
   color_assignments r#"
     # Color assignments
 
     Each facet on the puzzle is assigned a different color.
-
-    {{dragging}}
-
+    {{dragging?
+    Drag a facet name to assign a different color to it.
+    }}
     In addition to the color scheme settings, you can **{{color_reassign_mousebind}}** a sticker to change its color assignment.
 
     - Single colors are best for small puzzles
