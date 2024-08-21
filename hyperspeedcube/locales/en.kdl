@@ -1,12 +1,12 @@
 hello "Hello, world!"
 
 click_to {
-  activate "%{click} to activate"
-  copy_hex "%{click} to copy hex"
-  delete "%{click} to delete"
-  edit "%{click} to edit"
-  rename "%{click} to rename"
-  reorder "%{click} to reorder"
+  activate "{{click}} to activate"
+  copy_hex "{{click}} to copy hex"
+  delete "{{click}} to delete"
+  edit "{{click}} to edit"
+  rename "{{click}} to rename"
+  reorder "{{click}} to reorder"
 }
 
 inputs {
@@ -21,7 +21,7 @@ statuses {
 }
 
 reset "Reset"
-reset_to_value "Reset to %{value}"
+reset_to_value "Reset to {{value}}"
 
 (HoverStrings)edit_as_plaintext {
   full "Edit as plaintext"
@@ -30,15 +30,15 @@ reset_to_value "Reset to %{value}"
 
 presets {
   save_changes "Save changes"
-  create_current "Create %{current}"
-  overwrite_current "Overwrite %{current}"
+  create_current "Create {{current}}"
+  overwrite_current "Overwrite {{current}}"
 
   default_preset_name "Default"
 
   // `default` is used as a fallback for others.
   (PresetStrings)default {
     saved_presets "Saved presets"
-    current "%{current} preset"
+    current "{{current}} preset"
     current_empty "No preset"
     new_name_hint "New preset name"
     (PresetErrors)errors {
@@ -54,24 +54,24 @@ presets {
   }
 
   (PresetStrings)animation_settings {
-    current "%{current} animation settings"
+    current "{{current}} animation settings"
     current_empty "No animation settings"
   }
   (PresetStrings)interaction_settings {
-    current "%{current} interaction settings"
+    current "{{current}} interaction settings"
     current_empty "No interaction settings"
   }
   (PresetStrings)view_settings {
-    current "%{current} view settings"
+    current "{{current}} view settings"
     current_empty "No view settings"
   }
   (PresetStrings)piece_filters {
-    current "%{current} piece filters"
+    current "{{current}} piece filters"
     current_empty "No piece filters"
   }
   (PresetStrings)color_schemes {
     saved_presets "Saved color schemes"
-    current "%{current} color scheme"
+    current "{{current}} color scheme"
     current_empty "No color scheme"
     new_name_hint "New color scheme name"
     (PresetErrors)errors {
@@ -87,7 +87,7 @@ presets {
   }
   custom_styles {
     saved_presets "Custom styles"
-    current "%{current} style"
+    current "{{current}} style"
     current_empty "No style"
     new_name_hint "New style name"
     errors {
@@ -195,7 +195,7 @@ prefs {
       hovered "Hovered"
       selected "Selected"
       blindfolded "Blindfolded"
-      current_style "%{current} style"
+      current_style "{{current}} style"
     }
     color_mode {
       default "Default color"
@@ -205,7 +205,7 @@ prefs {
     color_mode_reset {
       default "default color"
       sticker "sticker color"
-      fixed "fixed color %{color}"
+      fixed "fixed color {{color}}"
     }
   }
   view {
@@ -280,7 +280,7 @@ colors {
   }
 
   builtin_gradient "Built-in gradient"
-  puzzle_color_popup_title "%{puzzle_color} color"
+  puzzle_color_popup_title "{{puzzle_color}} color"
   warning_save_changes "Don't forget to save your changes in the color scheme settings!"
 }
 
@@ -296,9 +296,9 @@ help {
 
     Each facet on the puzzle is assigned a different color.
 
-    %{dragging}
+    {{dragging}}
 
-    In addition to the color scheme settings, you can **%{color_reassign_mousebind}** a sticker to change its color assignment.
+    In addition to the color scheme settings, you can **{{color_reassign_mousebind}}** a sticker to change its color assignment.
 
     - Single colors are best for small puzzles
     - Color sets are best for medium puzzles

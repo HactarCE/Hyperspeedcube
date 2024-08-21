@@ -3,8 +3,10 @@
 use std::fmt;
 use std::path::Path;
 
-use kdl::KdlDocument;
-use lang::{parse_lang, Lang};
+#[macro_use]
+extern crate lazy_static;
+
+use lang::Lang;
 use owo_colors::OwoColorize;
 
 mod lang;
@@ -36,11 +38,11 @@ impl fmt::Display for Langs {
         writeln!(f, "#[rustfmt::skip]")?;
         writeln!(
             f,
-            "const LANGS: &[(&'static str, structs::{LANG_STRUCT_TYPE})] = &["
+            "const LANGS: &[(&'static str, structs::{LANG_STRUCT_NAME})] = &["
         )?;
         for lang in &self.langs {
             let lang_name = &lang.name;
-            writeln!(f, "    ({lang_name:?}, {lang_name}::{LANG_STRUCT_NAME}),")?;
+            writeln!(f, "    ({lang_name:?}, {lang_name}::{LANG_CONST_NAME}),")?;
         }
         writeln!(f, "];")?;
         writeln!(f)?;
@@ -72,7 +74,17 @@ pub fn generate_locale_source_code(locale_dir: impl AsRef<Path>, output_file: im
         .join(format!("{CONFIG_FILE_NAME}.kdl"));
 
     // Load config file
-    let mut langs = parse_config(&config_file_path);
+    let mut schema = Schema::init_from_config_file(&config_file_path);
+
+    let Some(fallback_lang) = schema.fallback_lang.clone() else {
+        warn("missing key `fallback`. example: `fallback \"en\"`");
+        return;
+    };
+    schema.infer_from_lang_file(locale_dir.as_ref().join(fallback_lang + ".kdl"));
+    let mut langs = Langs {
+        schema,
+        langs: vec![],
+    };
 
     // Load locale files
     let locale_files = locale_dir.as_ref().read_dir().unwrap();
@@ -87,69 +99,12 @@ pub fn generate_locale_source_code(locale_dir: impl AsRef<Path>, output_file: im
             warn(&format!("ignoring file {}", file_path.blue().bold()));
             continue;
         }
-        langs.langs.push(parse_lang(file_path, &mut langs.schema))
+        langs
+            .langs
+            .push(Lang::from_file(file_path, &mut langs.schema))
     }
+
+    langs.schema.finalize();
 
     std::fs::write(output_file, langs.to_string()).expect("error writing output");
-}
-
-fn read_kdl_file(path: impl AsRef<Path>) -> (SourceInfo, KdlDocument) {
-    let src = SourceInfo {
-        filename: path.as_ref().to_string_lossy().into_owned(),
-        contents: std::fs::read_to_string(path).unwrap(),
-    };
-    match src.contents.parse() {
-        Ok(kdl) => (src, kdl),
-        Err(e) => {
-            for line in e.to_string().lines() {
-                warn(line);
-            }
-            panic!("bad KDL file");
-        }
-    }
-}
-
-fn parse_config(path: impl AsRef<Path>) -> Langs {
-    let (src, doc) = read_kdl_file(path);
-
-    let mut langs = Langs::default();
-
-    for node in doc.nodes() {
-        let node_loc = || src.at(node.span().offset());
-
-        let mut entries = node.entries().iter();
-        match node.name().value() {
-            "fallback" => {
-                // IIFE to mimic try_block
-                let fallback_lang =
-                    util::take_entry(&src, node, &mut entries, "expected fallback lang specifier")
-                        .and_then(|entry| util::take_entry_string_value(&src, entry));
-                if let Some(s) = fallback_lang {
-                    util::warn_if_overwriting(
-                        &mut langs.schema.fallback_lang,
-                        s,
-                        "duplicate `fallback` specification",
-                        || src.at(node.span().offset()),
-                    );
-                }
-
-                util::ignore_entries(&src, entries);
-                util::ignore_children(&src, node);
-            }
-
-            "trait" => langs
-                .schema
-                .traits
-                .extend(schema::parse_trait_schema(&src, node)),
-
-            "struct" => langs
-                .schema
-                .structs
-                .extend(schema::parse_struct_schema(&src, node)),
-
-            k => warn_with("unknown node", node_loc(), k.red()),
-        }
-    }
-
-    langs
 }

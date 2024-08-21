@@ -5,14 +5,14 @@ trait "HasTitle" {
 }
 
 struct "HoverStrings" {
-  label "" inline=true
-  full ""
-  desc ""
+  label inline=true
+  full
+  desc
 }
 
 struct "PresetStrings" default="presets.default" {
   saved_presets
-  current
+  current (str)"current"
   current_empty
   new_name_hint
   (PresetErrors)errors

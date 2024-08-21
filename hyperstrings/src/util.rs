@@ -1,7 +1,30 @@
+use std::path::Path;
+
 use kdl::{KdlDocument, KdlEntry, KdlNode};
 use owo_colors::OwoColorize;
 
 use crate::warn::*;
+
+pub fn read_kdl_file(path: impl AsRef<Path>) -> (SourceInfo, KdlDocument) {
+    let src = SourceInfo {
+        filename: path.as_ref().to_string_lossy().into_owned(),
+        contents: std::fs::read_to_string(path).unwrap(),
+    };
+    match src.contents.parse() {
+        Ok(kdl) => (src, kdl),
+        Err(e) => {
+            for line in e.to_string().lines() {
+                warn_at(line, src.at(e.span.offset()));
+            }
+            std::process::exit(1);
+            // panic!("bad KDL file");
+        }
+    }
+}
+
+pub fn ignore_node(src: &SourceInfo, node: &KdlNode) {
+    warn_at("ignoring node", src.at(node.span().offset()))
+}
 
 #[must_use]
 pub fn take_entry<'a>(
