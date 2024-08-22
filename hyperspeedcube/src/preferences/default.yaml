@@ -32,9 +32,6 @@ animation:
     dynamic_twist_speed: true
     twist_duration: 0.0
     blocking_anim_duration: 0.25
-gfx:
-  fps_limit: 60
-  msaa: true
 interaction:
   last_loaded: Default
   presets:

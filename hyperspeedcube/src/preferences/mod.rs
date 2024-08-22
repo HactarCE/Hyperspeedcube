@@ -18,7 +18,6 @@ use serde::{Deserialize, Serialize};
 mod animations;
 mod colors;
 mod filters;
-mod gfx;
 mod image_generator;
 mod info;
 mod interaction;
@@ -38,7 +37,6 @@ mod migration {
 pub use animations::*;
 pub use colors::*;
 pub use filters::*;
-pub use gfx::*;
 pub use image_generator::*;
 pub use info::*;
 pub use interaction::*;
@@ -88,7 +86,6 @@ pub struct Preferences {
     pub image_generator: ImageGeneratorPreferences,
 
     pub animation: WithPresets<AnimationPreferences>,
-    pub gfx: GfxPreferences,
     pub interaction: WithPresets<InteractionPreferences>,
     pub styles: StylePreferences,
 
@@ -210,7 +207,6 @@ impl Preferences {
             image_generator: _,
             info,
             animation,
-            gfx,
             interaction,
             styles,
             view_3d,
@@ -227,7 +223,6 @@ impl Preferences {
         *version = migration::LATEST_VERSION;
         info.post_init();
         animation.post_init(Some(&DEFAULT_PREFS.animation));
-        gfx.post_init();
         interaction.post_init(Some(&DEFAULT_PREFS.interaction));
         styles.post_init();
         view_3d.post_init(Some(&DEFAULT_PREFS.view_3d));

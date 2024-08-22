@@ -363,41 +363,6 @@ impl<'a, T> PrefsUi<'a, T> {
     }
 }
 
-// pub fn build_graphics_section(ui: &mut egui::Ui, app: &mut App) {
-//     let prefs = &mut app.prefs;
-
-//     let mut changed = false;
-//     let mut prefs_ui = PrefsUi {
-//         ui,
-//         current: &mut prefs.gfx,
-//         defaults: &DEFAULT_PREFS.gfx,
-//         changed: &mut changed,
-//     };
-
-//     let speed = prefs_ui.current.fps_limit as f64 / 1000.0; // logarithmic speed
-//     prefs_ui
-//         .num("FPS limit", access!(.fps_limit), |dv| {
-//             dv.fixed_decimals(0).clamp_range(30..=1000).speed(speed)
-//         })
-//         .on_hover_explanation("Frames Per Second", "Limits framerate to save power");
-
-//     let is_msaa_disabled = cfg!(target_arch = "wasm32");
-//     prefs_ui.ui.add_enabled_ui(!is_msaa_disabled, |ui| {
-//         PrefsUi { ui, ..prefs_ui }
-//             .checkbox("MSAA", access!(.msaa))
-//             .on_hover_explanation(
-//                 "Multisample Anti-Aliasing",
-//                 "Makes edges less jagged, \
-//                  but may worsen performance.",
-//             )
-//             .on_disabled_hover_text(
-//                 "Multisample anti-aliasing \
-//                  is not supported on web.",
-//             );
-//     });
-
-//     prefs.needs_save |= changed;
-// }
 pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreferences>) {
     let l = &L.prefs.interaction.dialogs;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {

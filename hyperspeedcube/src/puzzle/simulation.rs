@@ -4,10 +4,12 @@ use float_ord::FloatOrd;
 use hypermath::pga::{Axes, Motor};
 use hypermath::{Vector, VectorRef};
 use hyperpuzzle::{Axis, LayerMask, PerPiece, PieceMask, Puzzle, PuzzleState, Twist};
-use instant::Instant;
+use instant::{Duration, Instant};
 
 use super::animations::{BlockingAnimationState, TwistAnimation, TwistAnimationState};
 use crate::preferences::{AnimationPreferences, InteractionPreferences, Preferences, Preset};
+
+const ASSUMED_FPS: f32 = 120.0;
 
 /// Puzzle simulation, which manages the puzzle state, animations, undo stack,
 /// etc.
@@ -144,7 +146,7 @@ impl PuzzleSimulation {
         let now = Instant::now();
         let delta = match self.last_frame_time {
             Some(then) => now - then,
-            None => prefs.gfx.frame_duration(),
+            None => Duration::from_secs_f32(1.0 / ASSUMED_FPS),
         };
 
         let mut needs_redraw = false;
