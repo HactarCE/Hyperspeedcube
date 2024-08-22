@@ -198,7 +198,7 @@ puzzles:add('starminx', {
     local DR = self.axes.DR
 
     self:mark_pieces('edges', BR(2) & BL(2) & R(1) & L(1))
-    self:mark_pieces('x-centers', F(2) & R(1) & BR(1) & BL(1) & L(1))
+    self:mark_pieces('x-centers', U(2) & L(1) & R(1))
     self:mark_pieces('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
     self:unify_piece_types(sym.chiral)
   end,
@@ -249,7 +249,52 @@ function define_pentultimate(size, name)
       local L = self.axes.L
       local U = self.axes.U
       local F = self.axes.F
+      local BR = self.axes.BR
+      local BL = self.axes.BL
+      local DR = self.axes.DR
+      local DL = self.axes.DL
 
+      local center_layer = ceil(size/2)
+
+      local middle_prefix = ''
+      if size > 3 then
+        middle_prefix = 'middle '
+      end
+
+      -- Centers
+      for i = 2, center_layer do
+        for j = i, size+1-i do
+          local name
+          local name2 = ''
+          if i == j and j*2 - 1 == size then
+            name = middle_prefix .. 'edges'
+          elseif i == j then
+            name = string.format('wings (%d)', i-1)
+          elseif i + j == size+1 then
+            name = string.format('t-centers (%d)', i-1)
+          else
+            name = string.format('obliques (%d, %d) (right)', i-1, j-1)
+            name2 = string.format('obliques (%d, %d) (left)', i-1, j-1)
+          end
+          self:mark_pieces(name, U(1) & BL(i) & DL(j))
+          if name2 ~= '' then
+            self:mark_pieces(name2, U(1) & BL(j) & DL(i))
+          end
+        end
+      end
+
+      for i = 2, floor(size/2) do
+        self:mark_pieces(string.format('outer x-centers (%d)', i-1), DR(i) & L(1) & BR(1))
+        self:mark_pieces(string.format('inner x-centers (%d)', i-1), DR(size+1-i) & L(1) & BR(1))
+      end
+
+      if size % 2 == 1 then
+        name = self:mark_pieces(middle_prefix .. 'x-centers', DR(center_layer) & L(1) & BR(1))
+      end
+
+      self:mark_pieces('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
+      self:mark_pieces('corners', L(1) & BR(1) & DR(1))
+      self:unify_piece_types(sym.chiral)
     end,
   })
 end

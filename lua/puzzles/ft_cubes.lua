@@ -87,11 +87,9 @@ function define_ft_cube_3d(size)
         end
 
         -- this is so, on a big cube, 'edges' and 'centers' can refer to 2c and 1c
-        local middle_prefix
+        local middle_prefix = ''
         if size > 3 then
           middle_prefix = 'middle '
-        else
-          middle_prefix = ''
         end
 
         if size % 2 == 1 then
