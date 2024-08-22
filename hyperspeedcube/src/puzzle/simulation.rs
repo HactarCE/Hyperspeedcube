@@ -73,6 +73,11 @@ impl PuzzleSimulation {
             .twist_anim
             .current()
             .map(|(anim, t)| {
+                let t = self
+                    .animation_prefs
+                    .value
+                    .twist_interpolation
+                    .interpolate(t);
                 let start = &anim.initial_transform;
                 let end = &anim.final_transform;
                 let m = Motor::slerp_infallible(start, end, t as _);

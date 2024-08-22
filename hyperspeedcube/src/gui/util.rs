@@ -4,6 +4,14 @@ pub struct Access<T, U> {
     pub get_ref: Box<dyn Fn(&T) -> &U>,
     pub get_mut: Box<dyn Fn(&mut T) -> &mut U>,
 }
+impl<T, U> Access<T, U> {
+    pub fn get<'a>(&self, t: &'a T) -> &'a U {
+        (self.get_ref)(t)
+    }
+    pub fn get_mut<'a>(&self, t: &'a mut T) -> &'a mut U {
+        (self.get_mut)(t)
+    }
+}
 macro_rules! access {
     ($($suffix_tok:tt)*) => {
         crate::gui::util::Access {

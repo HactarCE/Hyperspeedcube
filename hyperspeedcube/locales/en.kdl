@@ -235,6 +235,62 @@ prefs {
         "#
       }
       (HoverStrings)twist_duration "Twist duration"
+      (HoverStrings)twist_interpolation "Twist interpolation"
+      interpolations {
+        (HoverStrings)lerp {
+          label "Linear"
+          desc r#"
+            The speed throughout a turn is constant, with no easing.
+          "#
+        }
+        (HoverStrings)cosine "Cosine"
+        (HoverStrings)cubic "Cubic"
+        (HoverStrings)circular {
+          label "Circular"
+          desc r#"
+            Two quarter circles, with a single point of infinite speed at the halfway point.
+          "#
+        }
+        (HoverStrings)bounce "Bounce"
+        (HoverStrings)overshoot "Overshoot"
+        (HoverStrings)underdamped {
+          label "Underdamped"
+          desc r#"
+            Simulates a weakly damped harmonic oscillator.
+          "#
+        }
+        (HoverStrings)critically_damped {
+          label "Critically damped"
+          desc r#"
+            Simulates a damped harmonic oscillator with a damping force such that the animation completes as quickly as possible without overshooting.
+          "#
+        }
+        (HoverStrings)critically_dried {
+          label "Critically dried"
+          desc r#"
+            Same as critically damped, but reversed.
+          "#
+        }
+        (HoverStrings)random {
+          label "Random"
+          desc r#"
+            Why?
+          "#
+        }
+        alignment "_{{alignment}}_"
+        alignments {
+          true_neutral "True Neutral"
+          neutral_good "Neutral Good"
+          neutral_evil "Neutral Evil"
+          lawful_neutral "Lawful Neutral"
+          lawful_good "Lawful Good"
+          lawful_evil "Lawful Evil"
+          chaotic_neutral "Chaotic Neutral"
+          chaotic_good "Chaotic Good"
+          chaotic_evil "Chaotic Evil"
+          eldritch "Eldritch"
+        }
+      }
     }
     other {
       title "Other"

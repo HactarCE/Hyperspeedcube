@@ -2,14 +2,15 @@ use std::ops::RangeInclusive;
 
 use egui::NumExt;
 use hyperpuzzle::Rgb;
+use strum::VariantArray;
 
 use crate::gui::components::WidgetWithReset;
 use crate::gui::ext::*;
 use crate::gui::util::Access;
 use crate::locales::HoverStrings;
 use crate::preferences::{
-    AnimationPreferences, InteractionPreferences, PuzzleViewPreferencesSet, StyleColorMode,
-    ViewPreferences,
+    AnimationPreferences, InteractionPreferences, InterpolateFn, PuzzleViewPreferencesSet,
+    StyleColorMode, ViewPreferences,
 };
 use crate::L;
 
@@ -43,7 +44,7 @@ pub struct PrefsUi<'a, T> {
 }
 impl<'a, T> PrefsUi<'a, T> {
     fn get_default<U: Clone>(&self, access: &Access<T, U>) -> Option<U> {
-        Some((access.get_ref)(self.defaults.as_ref()?).clone())
+        Some(access.get(self.defaults.as_ref()?).clone())
     }
 
     fn add<'s, 'w, W>(&'s mut self, make_widget: impl FnOnce(&'w mut T) -> W) -> egui::Response
@@ -104,7 +105,7 @@ impl<'a, T> PrefsUi<'a, T> {
         let reset_value = self.get_default(&access);
         self.add(|current| WidgetWithReset {
             label: "".into(),
-            value: (access.get_mut)(current),
+            value: access.get_mut(current),
             reset_value,
             reset_value_str: None,
             make_widget: |value| egui::Checkbox::new(value, strings.label),
@@ -122,7 +123,7 @@ impl<'a, T> PrefsUi<'a, T> {
         let reset_value_str = reset_value.as_ref().map(|v| v.to_string().into());
         self.add(|current| WidgetWithReset {
             label: strings.label.into(),
-            value: (access.get_mut)(current),
+            value: access.get_mut(current),
             reset_value,
             reset_value_str,
             make_widget: |value| modify_widget(egui::DragValue::new(value)),
@@ -135,7 +136,7 @@ impl<'a, T> PrefsUi<'a, T> {
         let reset_value_str = reset_value.as_ref().map(|v| v.to_string().into());
         self.add(|current| WidgetWithReset {
             label: strings.label.into(),
-            value: (access.get_mut)(current),
+            value: access.get_mut(current),
             reset_value,
             reset_value_str,
             make_widget: drag_value_percent,
@@ -149,7 +150,7 @@ impl<'a, T> PrefsUi<'a, T> {
         access: Access<T, f32>,
     ) -> egui::Response {
         let range = 0.0..=5.0_f32;
-        let speed = (access.get_ref)(self.current).at_least(0.1) / 100.0; // logarithmic speed
+        let speed = access.get(self.current).at_least(0.1) / 100.0; // logarithmic speed
         self.num(strings, access, |dv| {
             dv.fixed_decimals(2).clamp_range(range).speed(speed)
         })
@@ -174,7 +175,7 @@ impl<'a, T> PrefsUi<'a, T> {
         let reset_value_str = reset_value.map(|v| format!("{v}°").into());
         self.add(|current| WidgetWithReset {
             label: label.into(),
-            value: (access.get_mut)(current),
+            value: access.get_mut(current),
             reset_value,
             reset_value_str,
             make_widget: |value| {
@@ -197,7 +198,7 @@ impl<'a, T> PrefsUi<'a, T> {
         let reset_value_str = reset_value.as_ref().map(|v| v.to_string().into());
         self.add(|current| WidgetWithReset {
             label: label.into(),
-            value: (access.get_mut)(current),
+            value: access.get_mut(current),
             reset_value,
             reset_value_str,
             make_widget: |value| |ui: &mut egui::Ui| super::color_edit(ui, value, None::<fn()>),
@@ -212,7 +213,7 @@ impl<'a, T> PrefsUi<'a, T> {
         let reset_value = self.get_default(&access);
         self.add(|current| WidgetWithReset {
             label: label.into(),
-            value: (access.get_mut)(current),
+            value: access.get_mut(current),
             reset_value,
             reset_value_str: None,
             make_widget: |values| {
@@ -242,7 +243,7 @@ impl<'a, T> PrefsUi<'a, T> {
         let reset_value = self.get_default(&access);
         self.add(|current| WidgetWithReset {
             label: "".into(),
-            value: (access.get_mut)(current),
+            value: access.get_mut(current),
             reset_value,
             reset_value_str: reset_value.map(|v| match v {
                 Some(mode) => match mode {
@@ -303,6 +304,62 @@ impl<'a, T> PrefsUi<'a, T> {
                 }
             },
         })
+    }
+
+    pub fn interpolation_fn(
+        &mut self,
+        strings: &HoverStrings,
+        access: Access<T, InterpolateFn>,
+    ) -> egui::Response {
+        let reset_value = self.get_default(&access);
+        self.add(|current| WidgetWithReset {
+            label: strings.label.into(),
+            value: access.get_mut(current),
+            reset_value,
+            reset_value_str: reset_value.map(|v| v.strings().label.into()),
+            make_widget: |value| {
+                move |ui: &mut egui::Ui| {
+                    let mut changed = false;
+
+                    let id = ui.next_auto_id();
+                    ui.skip_ahead_auto_ids(1);
+                    let mut r = egui::ComboBox::from_id_source(id)
+                        .width_to_fit(
+                            ui,
+                            InterpolateFn::VARIANTS.iter().map(|f| f.strings().label),
+                        )
+                        .selected_text(value.strings().label)
+                        .show_ui(ui, |ui| {
+                            for &f in InterpolateFn::VARIANTS {
+                                let desc = f.strings().desc;
+                                let alignment_str = L
+                                    .prefs
+                                    .animations
+                                    .twists
+                                    .interpolations
+                                    .alignment
+                                    .with(f.alignment());
+                                if ui
+                                    .selectable_label(*value == f, f.strings().label)
+                                    .on_hover_explanation("", &format!("{alignment_str}\n\n{desc}"))
+                                    .clicked()
+                                {
+                                    *value = f;
+                                    changed = true;
+                                }
+                            }
+                        })
+                        .response;
+
+                    if changed {
+                        r.mark_changed();
+                    }
+
+                    r
+                }
+            },
+        })
+        .on_i18n_hover_explanation(strings)
     }
 }
 
@@ -365,6 +422,7 @@ pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) 
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.checkbox(&l.dynamic_twist_speed, access!(.dynamic_twist_speed));
         prefs_ui.animation_duration(&l.twist_duration, access!(.twist_duration));
+        prefs_ui.interpolation_fn(&l.twist_interpolation, access!(.twist_interpolation));
     });
     let l = &L.prefs.animations.other;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
