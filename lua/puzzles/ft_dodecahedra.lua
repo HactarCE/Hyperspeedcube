@@ -76,8 +76,16 @@ function define_ft_dodecahedron(size, id, name)
           self:mark_pieces(string.format('wings (%d)', i-1), U(1) & F(1) & R(i))
         end
 
-        self:mark_pieces('centers', U(1) & ~U_adj)
-        self:mark_pieces('edges', U(1) & F(1) & ~R(1, size) & ~L(1, size))
+        -- this is so, on a big cube, 'edges' and 'centers' can refer to 2c and 1c
+        local middle_prefix
+        if size > 1 then
+          middle_prefix = 'middle '
+        else
+          middle_prefix = ''
+        end
+
+        self:mark_pieces(middle_prefix .. 'centers', U(1) & ~U_adj)
+        self:mark_pieces(middle_prefix .. 'edges', U(1) & F(1) & ~R(1, size) & ~L(1, size))
 
         self:mark_pieces('corners', U(1) & F(1) & R(1))
         self:unify_piece_types(sym.chiral)
