@@ -483,7 +483,7 @@ piece_filters {
   n_match_previous_rule "(**{{n}}** pieces match a previous rule instead)"
   convert_to_text_rule "Convert to text rule"
   delete_rule "Delete rule"
-  add_checkboxes_rule "Add filter rule using chechboxes"
+  add_checkboxes_rule "Add filter rule using checkboxes"
   add_text_rule "Add filter rule using text"
 
   colors "Colors"
