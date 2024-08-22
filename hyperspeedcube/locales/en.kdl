@@ -1,5 +1,122 @@
 hello "Hello, world!"
 
+tabs {
+  menu {
+    puzzle_view "New puzzle view"
+    puzzle_library "Puzzle library"
+    puzzle_info "Puzzle info"
+    keybinds_reference "Keybinds reference"
+
+    colors "Colors"
+    styles "Styles"
+    view "View"
+    animations "Animations"
+
+    interaction "Interaction"
+    keybinds "Keybinds"
+    mousebinds "Mousebinds"
+
+    camera "Camera"
+    image_generator "Image generator"
+    macros "Macros"
+    modifier_keys "Modifier keys"
+    move_input "Move input"
+    piece_filters "Piece filters"
+    puzzle_controls "Puzzle controls"
+    scrambler "Custom scrambler"
+    timeline "Timeline"
+    timer "Timer"
+
+    lua_logs "Lua logs"
+    dev_tools "Developer tools"
+
+    debug "Debug output"
+  }
+  titles {
+    puzzle_view "No Puzzle"
+    puzzle_library "Puzzle Library"
+    puzzle_info "Puzzle Info"
+    keybinds_reference "Keybinds Reference"
+
+    colors "Colors"
+    styles "Styles"
+    view "View"
+    animations "Animations"
+
+    interaction "Interaction"
+    keybinds "Keybinds"
+    mousebinds "Mousebinds"
+
+    camera "Camera"
+    image_generator "Image Generator"
+    macros "Macros"
+    modifier_keys "Modifier Keys"
+    move_input "Move Input"
+    piece_filters "Piece Filters"
+    puzzle_controls "Puzzle Controls"
+    scrambler "Scrambles"
+    timeline "Timeline"
+    timer "Timer"
+
+    lua_logs "Lua Logs"
+    dev_tools "Developer Tools"
+
+    debug "Debug Output"
+  }
+}
+
+top_bar {
+  desktop_link "Download desktop app"
+  desktop_link_hover r#"
+    The desktop version of Hyperspeedcube has the same features, but runs faster.
+  "#
+}
+
+menu {
+  title "Menu"
+  file {
+    title "File"
+    open "Open…"
+    open_clipboard "Open from clipboard"
+    save "Save"
+    save_as "Save as…"
+    copy_hsc "Copy (.hsc)"
+    copy_log "Copy (.log)"
+    exit "Exit"
+  }
+  edit {
+    title "Edit"
+    undo_twist "Undo twist"
+    redo_twist "Redo twist"
+    reset_puzzle "Reset puzzle"
+  }
+  scramble {
+    title "Scramble"
+    full "Full"
+    one "1"
+    two "2"
+  }
+  settings {
+    title "Settings"
+  }
+  tools {
+    title "Tools"
+  }
+  puzzles {
+    title "Puzzles"
+    custom "Custom puzzles"
+    show_lua_dir "Show Lua directory"
+    extract_lua "Extra built-in Lua files…"
+  }
+  help {
+    title "Help"
+    guides "Guides"
+  }
+  debug {
+    title "Debug"
+  }
+}
+
 click_to {
   activate "{{click}} to activate"
   copy_hex "{{click}} to copy hex"
@@ -17,11 +134,15 @@ inputs {
 }
 
 statuses {
+  saved "Saved!"
   copied "Copied!"
+  error "Error: {{error}}"
 }
 
 reset "Reset"
 reset_to_value "Reset to {{value}}"
+
+no_active_puzzle "No active puzzle"
 
 (HoverStrings)edit_as_plaintext {
   full "Edit as plaintext"
@@ -66,6 +187,7 @@ presets {
     current_empty "No view settings"
   }
   (PresetStrings)piece_filters {
+    saved_presets "Filter presets"
     current "{{current}} piece filters"
     current_empty "No piece filters"
   }
@@ -152,69 +274,6 @@ prefs {
       }
     }
   }
-  styles {
-    misc {
-      title "Miscellaneous styles"
-      background {
-        title "Background"
-        (HoverStrings)dark_mode "Dark mode"
-        (HoverStrings)light_mode "Light mode"
-      }
-      internals {
-        title "Internals"
-        (HoverStrings)face_color "Face color" {
-          full "Internal faces color"
-          desc r#"
-            For 3D puzzles, it's sometimes possible to view the internal faces of pieces, particularly mid-turn or using **piece explode**. You can configure whether internal faces are visible in **view settings**.
-          "#
-        }
-      }
-      blocking_pieces {
-        title "Blocking pieces"
-        (HoverStrings)outlines_color {
-          label "Outlines color"
-          full "Blocking pieces outlines color"
-          desc r#"
-            Outline color for pieces blocking a move. This is only visible for puzzles that bandage.
-          "#
-        }
-        (HoverStrings)outlines_size {
-          label "Outlines size"
-          full "Blocking pieces outlines size"
-          desc r#"
-            Outline size for pieces blocking a move. This is only visible for puzzles that bandage.
-          "#
-        }
-      }
-    }
-    builtin {
-      title "Built-in style"
-      default "Default"
-      gripped "Gripped"
-      ungripped "Ungripped"
-      hovered "Hovered"
-      selected "Selected"
-      blindfolded "Blindfolded"
-    }
-    custom {
-      sticker_faces "Faces"
-      sticker_outlines "Outlines"
-      (HoverStrings)interactable "Interactable"
-      (HoverStrings)opacity "Opacity"
-      (HoverStrings)outline_size "Size"
-      (HoverStrings)lighting "Lighting"
-    }
-    color_mode {
-      default "Default color"
-      sticker "Sticker color"
-      fixed "Fixed color"
-    }
-    color_mode_reset {
-      default "default color"
-      sticker "sticker color"
-      fixed "fixed color {{color}}"
-    }
-  }
   view {
     projection {
       title "Projection"
@@ -257,7 +316,9 @@ prefs {
     }
   }
 }
+
 colors {
+  color_schemes "Color schemes"
   global_palette "Global color palette"
   singles "Single colors"
   gradients "Gradients"
@@ -289,6 +350,148 @@ colors {
   builtin_gradient "Built-in gradient"
   puzzle_color_popup_title "{{puzzle_color}} color"
   warning_save_changes "Don't forget to save your changes in the color scheme settings!"
+
+  set_sizes {
+    _1 "Monads"
+    _2 "Dyads"
+    _3 "Triads"
+    _4 "Tetrads"
+    _5 "Pentads"
+    _6 "Hexads"
+    _7 "Heptads"
+    _8 "Octads"
+    _9 "Nonads"
+    _10 "Decads"
+    n "{{n}}-ads"
+  }
+}
+
+styles {
+  misc {
+    title "Miscellaneous styles"
+    background {
+      title "Background"
+      (HoverStrings)dark_mode "Dark mode"
+      (HoverStrings)light_mode "Light mode"
+    }
+    internals {
+      title "Internals"
+      (HoverStrings)face_color "Face color" {
+        full "Internal faces color"
+        desc r#"
+          For 3D puzzles, it's sometimes possible to view the internal faces of pieces, particularly mid-turn or using **piece explode**. You can configure whether internal faces are visible in **view settings**.
+        "#
+      }
+    }
+    blocking_pieces {
+      title "Blocking pieces"
+      (HoverStrings)outlines_color {
+        label "Outlines color"
+        full "Blocking pieces outlines color"
+        desc r#"
+          Outline color for pieces blocking a move. This is only visible for puzzles that bandage.
+        "#
+      }
+      (HoverStrings)outlines_size {
+        label "Outlines size"
+        full "Blocking pieces outlines size"
+        desc r#"
+          Outline size for pieces blocking a move. This is only visible for puzzles that bandage.
+        "#
+      }
+    }
+  }
+  builtin {
+    title "Built-in style"
+    default "Default"
+    gripped "Gripped"
+    ungripped "Ungripped"
+    hovered "Hovered"
+    selected "Selected"
+    blindfolded "Blindfolded"
+  }
+  custom {
+    sticker_faces "Faces"
+    sticker_outlines "Outlines"
+    (HoverStrings)interactable "Interactable"
+    (HoverStrings)opacity "Opacity"
+    (HoverStrings)outline_size "Size"
+    (HoverStrings)lighting {
+      label "Lighting"
+      desc "Lighting intensity can be configured in the **view settings**."
+    }
+  }
+  color_mode {
+    default "Default color"
+    sticker "Sticker color"
+    fixed "Fixed color"
+  }
+  color_mode_reset {
+    default "default color"
+    sticker "sticker color"
+    fixed "fixed color {{color}}"
+  }
+}
+
+camera {
+  reset "Reset camera"
+  w_axis_hint "Hold {{modifier}} to rotate through W axis"
+  v_axis_hint "Hold {{modifier}} to rotate through V axis"
+}
+
+debug {
+  disabled "Debug info is disabled in release builds"
+}
+
+dev {
+  hover_info "Hover info"
+  lua_generator "Lua generator"
+  logs {
+    clear "Clear logs"
+    filter "Filter:"
+  }
+}
+
+image_generator {
+  save_image "Save image"
+  errors {
+    no_output_dir "No output directory"
+    no_output_filename "No output filename"
+    no_active_puzzle "No active puzzle"
+  }
+  already_exists_confirm "File already exists; click again if you want to overwrite"
+  browse "Browse …"
+  select_output_dir "Select image output directory"
+}
+
+library {
+  reload_all_files "Reload all files"
+}
+
+piece_filters {
+  presets_list "Presets list"
+  current_preset "Current preset"
+  both "Both"
+
+  add_preset "Add filter preset"
+  ignore_previous "Ignore previous"
+  include_privous "Include previous"
+  cant_save "Add a preset in the presets list"
+
+  show_n_pieces_with_style "Show **{{n}}** pieces with style"
+  show_remaining_peices_with_style "Show remaining pieces with style"
+  n_match_previous_rule "(**{{n}}** pieces match a previous rule instead)"
+  convert_to_text_rule "Convert to text rule"
+  delete_rule "Delete rule"
+  add_checkboxes_rule "Add filter rule using chechboxes"
+  add_text_rule "Add filter rule using text"
+
+  colors "Colors"
+  piece_types "Piece types"
+}
+
+puzzle_view {
+  select_a_puzzle "Select a puzzle from the puzzle list"
 }
 
 help {
@@ -351,5 +554,17 @@ help {
     - **Drag** a preset to reorder it
 
     Loading a preset discards unsaved changes.
+  "#
+}
+
+crash {
+  app_crashed "{{app}} crashed"
+  crash_report_saved r#"
+    A crash report has been saved to "{{loc}}"
+
+    Please submit this to the developer
+  "#
+  error_saving_crash_report r#"
+    Error saving crash report
   "#
 }

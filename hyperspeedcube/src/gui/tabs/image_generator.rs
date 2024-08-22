@@ -2,9 +2,11 @@ use std::path::Path;
 
 use eyre::bail;
 
-use crate::{app::App, gui::util::EguiTempValue};
+use crate::{app::App, gui::util::EguiTempValue, L};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
+    let l = L.image_generator;
+
     let has_active_puzzle = app.has_active_puzzle();
 
     let mut changed = false;
@@ -18,16 +20,16 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             .allocate_ui_with_layout(
                 egui::vec2(150.0, 30.0),
                 egui::Layout::centered_and_justified(egui::Direction::TopDown),
-                |ui| ui.button("Save image"),
+                |ui| ui.button(l.save_image),
             )
             .inner;
 
         if app.prefs.image_generator.dir.is_none() {
-            r = r.on_disabled_hover_text("No output directory");
+            r = r.on_disabled_hover_text(l.errors.no_output_dir);
         } else if app.prefs.image_generator.filename.is_empty() {
-            r = r.on_disabled_hover_text("No output filename");
+            r = r.on_disabled_hover_text(l.errors.no_output_filename);
         } else if !has_active_puzzle {
-            r = r.on_disabled_hover_text("No active puzzle");
+            r = r.on_disabled_hover_text(l.errors.no_active_puzzle);
         }
 
         if r.clicked() {
@@ -48,20 +50,20 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         match status.get() {
             None | Some(Status::None) => ui.label(""),
-            Some(Status::Exists) => ui.colored_label(
-                ui.visuals().warn_fg_color,
-                "File already exists; click again if you want to overwrite",
-            ),
-            Some(Status::Success) => ui.label("Saved!"),
-            Some(Status::Error(e)) => {
-                ui.colored_label(ui.visuals().error_fg_color, format!("Error: {e}"))
+            Some(Status::Exists) => {
+                ui.colored_label(ui.visuals().warn_fg_color, l.already_exists_confirm)
             }
+            Some(Status::Success) => ui.label(L.statuses.saved),
+            Some(Status::Error(e)) => ui.colored_label(
+                ui.visuals().error_fg_color,
+                L.statuses.error.with(&e.to_string()),
+            ),
         };
     });
 
     ui.horizontal_wrapped(|ui| {
-        if ui.button("Browse ...").clicked() {
-            let mut dialog = rfd::FileDialog::new().set_title("Select image output directory");
+        if ui.button(l.browse).clicked() {
+            let mut dialog = rfd::FileDialog::new().set_title(l.select_output_dir);
             if let Some(dir) = &app.prefs.image_generator.dir {
                 dialog = dialog.set_directory(dir);
             }

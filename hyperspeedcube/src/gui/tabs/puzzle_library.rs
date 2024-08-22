@@ -1,8 +1,8 @@
-use crate::app::App;
+use crate::{app::App, L};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     if crate::PATHS.is_some() {
-        if ui.button("Reload all files").clicked()
+        if ui.button(L.library.reload_all_files).clicked()
             || ui.input(|input| input.key_pressed(egui::Key::F5))
         {
             crate::reload_user_puzzles();

@@ -29,6 +29,8 @@ mod view;
 
 pub use puzzle_view::PuzzleWidget;
 
+use crate::L;
+
 use super::App;
 
 pub fn ui_with_active_puzzle_view(
@@ -44,7 +46,7 @@ pub fn ui_with_active_puzzle_view(
         }
     }
 
-    ui.label("No active puzzle");
+    ui.label(L.no_active_puzzle);
 }
 
 #[derive(Debug, Clone)]
@@ -93,73 +95,75 @@ impl PartialEq for Tab {
 }
 impl Tab {
     pub fn menu_name(&self) -> &'static str {
+        let l = &L.tabs.menu;
         match self {
-            Tab::PuzzleView(_) => "New puzzle view",
-            Tab::PuzzleLibrary => "Puzzle library",
-            Tab::PuzzleInfo => "Puzzle info",
-            Tab::KeybindsReference => "Keybinds reference",
+            Tab::PuzzleView(_) => l.puzzle_view,
+            Tab::PuzzleLibrary => l.puzzle_library,
+            Tab::PuzzleInfo => l.puzzle_info,
+            Tab::KeybindsReference => l.keybinds_reference,
 
-            Tab::Colors => "Colors",
-            Tab::Styles => "Styles",
-            Tab::View => "View",
-            Tab::Animations => "Animations",
+            Tab::Colors => l.colors,
+            Tab::Styles => l.styles,
+            Tab::View => l.view,
+            Tab::Animations => l.animations,
 
-            Tab::Interaction => "Interaction",
-            Tab::Keybinds => "Keybinds",
-            Tab::Mousebinds => "Mousebinds",
+            Tab::Interaction => l.interaction,
+            Tab::Keybinds => l.keybinds,
+            Tab::Mousebinds => l.mousebinds,
 
-            Tab::Camera => "Camera",
-            Tab::ImageGenerator => "Image generator",
-            Tab::Macros => "Macros",
-            Tab::ModifierKeys => "Modifier keys",
-            Tab::MoveInput => "Move input",
-            Tab::PieceFilters => "Piece filters",
-            Tab::PuzzleControls => "Puzzle controls",
-            Tab::Scrambler => "Custom scrambler",
-            Tab::Timeline => "Timeline",
-            Tab::Timer => "Timer",
+            Tab::Camera => l.camera,
+            Tab::ImageGenerator => l.image_generator,
+            Tab::Macros => l.macros,
+            Tab::ModifierKeys => l.modifier_keys,
+            Tab::MoveInput => l.move_input,
+            Tab::PieceFilters => l.piece_filters,
+            Tab::PuzzleControls => l.puzzle_controls,
+            Tab::Scrambler => l.scrambler,
+            Tab::Timeline => l.timeline,
+            Tab::Timer => l.timer,
 
-            Tab::LuaLogs => "Lua logs",
-            Tab::DevTools => "Developer tools",
+            Tab::LuaLogs => l.lua_logs,
+            Tab::DevTools => l.dev_tools,
 
-            Tab::Debug => "Debug output",
+            Tab::Debug => l.debug,
         }
     }
 
     pub fn title(&self) -> egui::WidgetText {
+        let l = &L.tabs.titles;
         match self {
             Tab::PuzzleView(p) => match &*p.lock() {
                 Some(p) => p.puzzle().name.clone().into(),
-                None => "No Puzzle".into(),
+                None => l.puzzle_view.into(),
             },
-            Tab::PuzzleLibrary => "Puzzle Library".into(),
-            Tab::PuzzleInfo => "Puzzle Info".into(),
-            Tab::KeybindsReference => "Keybinds Reference".into(),
+            Tab::PuzzleLibrary => l.puzzle_library.into(),
+            Tab::PuzzleInfo => l.puzzle_info.into(),
+            Tab::KeybindsReference => l.keybinds_reference.into(),
 
-            Tab::Colors => "Colors".into(),
-            Tab::Styles => "Styles".into(),
-            Tab::View => "View".into(),
-            Tab::Animations => "Animations".into(),
+            Tab::Colors => l.colors.into(),
+            Tab::Styles => l.styles.into(),
+            Tab::View => l.view.into(),
+            Tab::Animations => l.animations.into(),
 
-            Tab::Interaction => "Interaction".into(),
-            Tab::Keybinds => "Keybinds".into(),
-            Tab::Mousebinds => "Mousebinds".into(),
+            Tab::Interaction => l.interaction.into(),
+            Tab::Keybinds => l.keybinds.into(),
+            Tab::Mousebinds => l.mousebinds.into(),
 
-            Tab::Camera => "Camera".into(),
-            Tab::ImageGenerator => "Image Generator".into(),
-            Tab::Macros => "Macros".into(),
-            Tab::ModifierKeys => "Modifier Keys".into(),
-            Tab::MoveInput => "Move Input".into(),
-            Tab::PieceFilters => "Piece Filters".into(),
-            Tab::PuzzleControls => "Puzzle Controls".into(),
-            Tab::Scrambler => "Scrambles".into(),
-            Tab::Timeline => "Timeline".into(),
-            Tab::Timer => "Timer".into(),
+            Tab::Camera => l.camera.into(),
+            Tab::ImageGenerator => l.image_generator.into(),
+            Tab::Macros => l.macros.into(),
+            Tab::ModifierKeys => l.modifier_keys.into(),
+            Tab::MoveInput => l.move_input.into(),
+            Tab::PieceFilters => l.piece_filters.into(),
+            Tab::PuzzleControls => l.puzzle_controls.into(),
+            Tab::Scrambler => l.scrambler.into(),
+            Tab::Timeline => l.timeline.into(),
+            Tab::Timer => l.timer.into(),
 
-            Tab::LuaLogs => "Lua Logs".into(),
-            Tab::DevTools => "Developer Tools".into(),
+            Tab::LuaLogs => l.lua_logs.into(),
+            Tab::DevTools => l.dev_tools.into(),
 
-            Tab::Debug => "Debug Output".into(),
+            Tab::Debug => l.debug.into(),
         }
     }
 

@@ -1,4 +1,7 @@
-use crate::gui::{util::EguiTempValue, App};
+use crate::{
+    gui::{util::EguiTempValue, App},
+    L,
+};
 
 mod color_scheme;
 mod global_color_palette;
@@ -16,8 +19,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.group(|ui| {
         ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut tab, ColorsTab::Schemes, "Color schemes");
-            ui.selectable_value(&mut tab, ColorsTab::GlobalPalette, "Global color palette");
+            ui.selectable_value(&mut tab, ColorsTab::Schemes, L.colors.color_schemes);
+            ui.selectable_value(&mut tab, ColorsTab::GlobalPalette, L.colors.global_palette);
         });
     });
     tab_state.set(Some(tab));

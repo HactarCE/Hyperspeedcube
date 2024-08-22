@@ -2,10 +2,11 @@ use hyperpuzzle::lua::LuaLogLevel;
 use hyperpuzzle::LuaLogLine;
 
 use crate::app::App;
+use crate::L;
 
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
     let mut log_lines = crate::LIBRARY_LOG_LINES.lock();
-    if ui.button("Clear logs").clicked() {
+    if ui.button(L.dev.logs.clear).clicked() {
         log_lines.clear();
     }
 
@@ -15,7 +16,7 @@ pub fn show(ui: &mut egui::Ui, _app: &mut App) {
     let mut filter_string: String =
         ui.data_mut(|data| data.get_temp(filter_string_id).clone().unwrap_or_default());
     ui.horizontal(|ui| {
-        ui.label("Filter:");
+        ui.label(L.dev.logs.filter);
         ui.text_edit_singleline(&mut filter_string);
     });
     ui.data_mut(|data| data.insert_temp(filter_string_id, filter_string.clone()));

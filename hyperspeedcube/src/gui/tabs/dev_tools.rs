@@ -11,6 +11,7 @@ use crate::{
     },
     preferences::Preferences,
     puzzle::PuzzleView,
+    L,
 };
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
@@ -39,11 +40,15 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.set_min_size(ui.available_size());
 
         ui.horizontal_wrapped(|ui| {
-            ui.selectable_value(&mut state.current_tab, DevToolsTab::HoverInfo, "Hover info");
+            ui.selectable_value(
+                &mut state.current_tab,
+                DevToolsTab::HoverInfo,
+                L.dev.hover_info,
+            );
             ui.selectable_value(
                 &mut state.current_tab,
                 DevToolsTab::LuaGenerator,
-                "Lua generator",
+                L.dev.lua_generator,
             );
         });
 

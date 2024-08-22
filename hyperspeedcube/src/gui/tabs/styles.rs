@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
@@ -8,7 +6,7 @@ use crate::{
         self,
         ext::ResponseExt,
         markdown::{md, md_bold_user_text},
-        util::{set_widget_spacing_to_space_width, EguiTempValue},
+        util::EguiTempValue,
     },
     preferences::{PieceStyle, Preset, StylePreferences, DEFAULT_PREFS},
     L,
@@ -21,7 +19,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     ui.group(|ui| {
         ui.horizontal(|ui| {
-            ui.strong(L.prefs.styles.misc.title);
+            ui.strong(L.styles.misc.title);
         });
         ui.separator();
         let mut prefs_ui = crate::gui::components::PrefsUi {
@@ -30,16 +28,16 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             defaults: Some(&DEFAULT_PREFS.styles),
             changed: &mut changed,
         };
-        let l = L.prefs.styles.misc.background;
+        let l = L.styles.misc.background;
         prefs_ui.collapsing(l.title, |mut prefs_ui| {
             prefs_ui.color(&l.dark_mode, access!(.dark_background_color));
             prefs_ui.color(&l.light_mode, access!(.light_background_color));
         });
-        let l = L.prefs.styles.misc.internals;
+        let l = L.styles.misc.internals;
         prefs_ui.collapsing(l.title, |mut prefs_ui| {
             prefs_ui.color(&l.face_color, access!(.internals_color));
         });
-        let l = L.prefs.styles.misc.blocking_pieces;
+        let l = L.styles.misc.blocking_pieces;
         prefs_ui.collapsing(l.title, |mut prefs_ui| {
             prefs_ui.color(&l.outlines_color, access!(.blocking_outline_color));
             prefs_ui.num(&l.outlines_size, access!(.blocking_outline_size), |dv| {
@@ -51,7 +49,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.add_space(ui.spacing().item_spacing.x);
 
     ui.group(|ui| {
-        ui.strong(L.prefs.styles.builtin.title);
+        ui.strong(L.styles.builtin.title);
         ui.add_space(ui.spacing().item_spacing.y);
         let (name, piece_style_edit) = show_builtin_style_selector(ui, &mut app.prefs.styles);
         ui.add_space(ui.spacing().item_spacing.y);
@@ -121,13 +119,14 @@ fn show_builtin_style_selector<'a>(
     }
     impl BuiltInStyle {
         fn name(self) -> &'static str {
+            let l = L.styles.builtin;
             match self {
-                BuiltInStyle::Default => L.prefs.styles.builtin.default,
-                BuiltInStyle::Gripped => L.prefs.styles.builtin.gripped,
-                BuiltInStyle::Ungripped => L.prefs.styles.builtin.ungripped,
-                BuiltInStyle::Hovered => L.prefs.styles.builtin.hovered,
-                BuiltInStyle::Selected => L.prefs.styles.builtin.selected,
-                BuiltInStyle::Blindfolded => L.prefs.styles.builtin.blindfolded,
+                BuiltInStyle::Default => l.default,
+                BuiltInStyle::Gripped => l.gripped,
+                BuiltInStyle::Ungripped => l.ungripped,
+                BuiltInStyle::Hovered => l.hovered,
+                BuiltInStyle::Selected => l.selected,
+                BuiltInStyle::Blindfolded => l.blindfolded,
             }
         }
     }
@@ -214,7 +213,7 @@ impl egui::Widget for PieceStyleEdit<'_> {
                 changed: &mut changed,
             };
 
-            let l = &L.prefs.styles.custom;
+            let l = &L.styles.custom;
             prefs_ui.collapsing(l.sticker_faces, |mut prefs_ui| {
                 prefs_ui.checkbox(&l.interactable, access_option!(true, .interactable));
                 prefs_ui.percent(&l.opacity, access_option!(1.0, .face_opacity));
@@ -239,19 +238,13 @@ impl egui::Widget for PieceStyleEdit<'_> {
                 );
 
                 let (mut prefs, ui) = prefs_ui.split();
-                prefs
-                    .with(ui)
-                    .checkbox(
-                        &l.lighting,
-                        match self.default_lighting {
-                            true => access_option!(true, .outline_lighting),
-                            false => access_option!(false, .outline_lighting),
-                        },
-                    )
-                    .on_hover_explanation(
-                        "",
-                        "Lighting intensity can be configured in the view settings.", // TODO: markdown renderer
-                    );
+                prefs.with(ui).checkbox(
+                    &l.lighting,
+                    match self.default_lighting {
+                        true => access_option!(true, .outline_lighting),
+                        false => access_option!(false, .outline_lighting),
+                    },
+                );
             });
         });
 

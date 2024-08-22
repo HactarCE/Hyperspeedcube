@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 pub fn puzzle_type_menu(ui: &mut egui::Ui) -> Option<String> {
     let ret = crate::LIBRARY.with(|lib| {
         lib.puzzles()

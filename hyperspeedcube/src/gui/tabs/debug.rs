@@ -1,4 +1,4 @@
-use crate::gui::App;
+use crate::{gui::App, L};
 
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
     #[cfg(debug_assertions)]
@@ -7,5 +7,5 @@ pub fn show(ui: &mut egui::Ui, _app: &mut App) {
         ui.add(egui::TextEdit::multiline(&mut debug_info).code_editor());
     }
     #[cfg(not(debug_assertions))]
-    ui.label("Debug info are disabled in release builds");
+    ui.label(L.debug.disabled);
 }

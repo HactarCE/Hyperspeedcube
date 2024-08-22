@@ -12,9 +12,8 @@ use crate::{
             HelpHoverWidget, PresetHeaderUi, PresetSaveStatus, TextEditPopup,
             TextEditPopupResponse, PRESET_NAME_TEXT_EDIT_WIDTH,
         },
-        util::{
-            body_text_format, set_widget_spacing_to_space_width, strong_text_format, EguiTempValue,
-        },
+        markdown::{md, md_inline},
+        util::{set_widget_spacing_to_space_width, EguiTempValue},
     },
     preferences::{
         ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterRule, Preferences,
@@ -80,8 +79,10 @@ enum FiltersTab {
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
+    let l = &L.piece_filters;
+
     if !app.has_active_puzzle() {
-        ui.label("No active puzzle");
+        ui.label(L.no_active_puzzle);
         return;
     };
 
@@ -90,9 +91,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.group(|ui| {
         ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut tab, FiltersTab::PresetsList, "Presets list");
-            ui.selectable_value(&mut tab, FiltersTab::CurrentPreset, "Current preset");
-            ui.selectable_value(&mut tab, FiltersTab::Both, "Both");
+            ui.selectable_value(&mut tab, FiltersTab::PresetsList, l.presets_list);
+            ui.selectable_value(&mut tab, FiltersTab::CurrentPreset, l.current_preset);
+            ui.selectable_value(&mut tab, FiltersTab::Both, l.both);
         });
     });
     tab_state.set(Some(tab));
@@ -118,6 +119,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
+    let l = L.presets.piece_filters;
+
     ui.set_min_width(PRESET_LIST_MIN_WIDTH);
 
     let mut changed = false;
@@ -137,7 +140,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
     };
 
     ui.horizontal(|ui| {
-        ui.strong("Filter presets");
+        ui.strong(l.saved_presets);
         ui.label(format!("({})", puz.name));
         HelpHoverWidget::show_right_aligned(ui, L.help.piece_filter_presets);
     });
@@ -156,11 +159,11 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
     let taken_preset_names: HashSet<String> = filter_prefs.presets.keys().cloned().collect();
     let validate_preset_rename = move |new_name: &str| {
         if new_name.is_empty() {
-            Err(Some(L.presets.piece_filters.errors.empty_name.into()))
+            Err(Some(l.errors.empty_name.into()))
         } else if taken_preset_names.contains(new_name) {
-            Err(Some(L.presets.piece_filters.errors.name_conflict.into()))
+            Err(Some(l.errors.name_conflict.into()))
         } else {
-            Ok(Some(L.presets.piece_filters.actions.rename.into()))
+            Ok(Some(l.actions.rename.into()))
         }
     };
 
@@ -178,22 +181,10 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
             .inner
         });
         let r = r.inner.on_hover_ui(|ui| {
-            // TODO: markdown renderer
             set_widget_spacing_to_space_width(ui);
-            ui.horizontal(|ui| {
-                ui.strong("Click");
-                ui.label("to activate");
-            });
-            ui.horizontal(|ui| {
-                ui.strong("Right-click");
-                ui.label("to rename");
-            });
-            ui.horizontal(|ui| {
-                ui.strong("Middle-click");
-                ui.label("or");
-                ui.strong("alt + click");
-                ui.label("to delete");
-            });
+            md(ui, L.click_to.activate.with(&L.inputs.click));
+            md(ui, L.click_to.rename.with(&L.inputs.right_click));
+            md(ui, L.click_to.delete.with(&L.inputs.middle_click));
         });
 
         let mods = ui.input(|input| input.modifiers);
@@ -218,7 +209,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
         let popup_response = popup.if_open(|popup| {
             popup
                 .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
-                .text_edit_hint("New preset name")
+                .text_edit_hint(l.new_name_hint)
                 .confirm_button_validator(&validate_preset_rename)
                 .delete_button_validator(&|_| {
                     Ok(Some(L.presets.color_schemes.actions.delete.into()))
@@ -258,7 +249,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
         changed = true;
     }
 
-    if ui.button("Add filter preset").clicked() {
+    if ui.button(L.piece_filters.add_preset).clicked() {
         let name = (1..)
             .map(|i| format!("Filter preset {i}"))
             .find(|s| !filter_prefs.presets.contains_key(s))
@@ -298,14 +289,14 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
                                     let hover;
                                     if preset.include_previous {
                                         label = "★";
-                                        hover = "Ignore previous";
+                                        hover = L.piece_filters.ignore_previous;
                                     } else {
                                         let inactive_text_color =
                                             &mut ui.visuals_mut().widgets.inactive.fg_stroke.color;
                                         *inactive_text_color =
                                             inactive_text_color.gamma_multiply(0.3);
                                         label = "⮩";
-                                        hover = "Include previous";
+                                        hover = L.piece_filters.include_privous;
                                     }
                                     if ui
                                         .selectable_label(false, label)
@@ -396,7 +387,7 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
             }
         } else {
             PresetSaveStatus::CantSave {
-                message: "Add a preset in the presets list",
+                message: L.piece_filters.cant_save,
             }
         },
 
@@ -454,18 +445,15 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
                             // seems to be a bug in egui.
                             ui.visuals_mut().collapsing_header_frame = true;
                             ui.horizontal(|ui| {
-                                // TODO: markdown renderer
-                                let mut job = egui::text::LayoutJob::single_section(
-                                    "Show ".to_owned(),
-                                    body_text_format(ui),
+                                // TODO: singlular vs. plural
+                                let n = affected_piece_count.to_string();
+                                let r = ui.checkbox(
+                                    &mut active_rules[i],
+                                    md_inline(
+                                        ui,
+                                        L.piece_filters.show_n_pieces_with_style.with(&n),
+                                    ),
                                 );
-                                job.append(
-                                    &affected_piece_count.to_string(),
-                                    0.0,
-                                    strong_text_format(ui),
-                                );
-                                job.append(" pieces with style", 0.0, body_text_format(ui));
-                                let r = ui.checkbox(&mut active_rules[i], job);
                                 changed |= r.changed();
 
                                 let r = &ui.add(FancyComboBox::new(
@@ -478,25 +466,9 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
                             let previous_rule_piece_count =
                                 these_pieces.len() - affected_piece_count;
                             if previous_rule_piece_count > 0 {
-                                ui.horizontal(|ui| {
-                                    set_widget_spacing_to_space_width(ui);
-                                    // TODO: markdown renderer
-                                    let mut job = egui::text::LayoutJob::single_section(
-                                        "(".to_string(),
-                                        body_text_format(ui),
-                                    );
-                                    job.append(
-                                        &previous_rule_piece_count.to_string(),
-                                        0.0,
-                                        strong_text_format(ui),
-                                    );
-                                    job.append(
-                                        " pieces match a previous rule instead)",
-                                        0.0,
-                                        body_text_format(ui),
-                                    );
-                                    ui.label(job);
-                                });
+                                // TODO: singlular vs. plural
+                                let n = previous_rule_piece_count.to_string();
+                                md(ui, L.piece_filters.n_match_previous_rule.with(&n));
                             }
 
                             match &mut rule.set {
@@ -523,14 +495,15 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
                                             );
                                         });
                                     r.header_response.context_menu(|ui| {
-                                        if ui.button("Convert to text rule").clicked() {
+                                        if ui.button(L.piece_filters.convert_to_text_rule).clicked()
+                                        {
                                             rule.set = FilterPieceSet::Expr(expr_string);
                                         }
                                     });
                                 }
                             }
 
-                            if ui.button("Delete rule").clicked() {
+                            if ui.button(L.piece_filters.delete_rule).clicked() {
                                 to_delete = Some(i);
                             }
 
@@ -555,10 +528,10 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
                 }
 
                 ui.horizontal_wrapped(|ui| {
-                    if ui.button("Add filter rule using checkboxes").clicked() {
+                    if ui.button(L.piece_filters.add_checkboxes_rule).clicked() {
                         preset.rules.push(FilterRule::new_checkboxes());
                     }
-                    if ui.button("Add filter rule using text").clicked() {
+                    if ui.button(L.piece_filters.add_text_rule).clicked() {
                         preset.rules.push(FilterRule::new_expr());
                     }
                 });
@@ -566,7 +539,7 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
                 ui.separator();
 
                 ui.horizontal(|ui| {
-                    ui.label("Show remaining pieces with style");
+                    ui.label(L.piece_filters.show_remaining_peices_with_style);
                     let r = ui.add(FancyComboBox {
                         combo_box: egui::ComboBox::from_id_source(unique_id!()),
                         selected: &mut preset.fallback_style,
@@ -639,7 +612,7 @@ fn show_filter_checkboxes_ui(
         let r = ui.add(FilterCheckbox::new(
             allowed_states,
             common_state.as_mut(),
-            "Colors",
+            L.piece_filters.colors,
         ));
         *changed |= r.changed();
         if r.changed() {
@@ -699,7 +672,7 @@ fn show_filter_checkboxes_ui(
         let r = ui.add(FilterCheckbox::new(
             allowed_states,
             common_state.as_mut(),
-            "Piece types",
+            L.piece_filters.piece_types,
         ));
         *changed |= r.changed();
         if r.changed() {

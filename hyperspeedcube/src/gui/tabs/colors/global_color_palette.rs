@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use egui::Widget;
 use float_ord::FloatOrd;
 use hyperpuzzle::Rgb;
@@ -48,7 +46,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     changed: &mut changed,
                 };
 
-                let l = &L.prefs.styles.misc;
+                let l = &L.styles.misc;
                 prefs_ui.collapsing(l.title, |mut prefs_ui| {
                     prefs_ui.color(&l.background.dark_mode, access!(.dark_background_color));
                     prefs_ui.color(&l.background.light_mode, access!(.light_background_color));

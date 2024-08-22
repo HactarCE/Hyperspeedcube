@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::preferences::DEFAULT_PREFS;
+use crate::{preferences::DEFAULT_PREFS, L};
 
 use super::{Preset, WithPresets};
 
@@ -206,17 +206,17 @@ impl GlobalColorPalette {
             .into_iter()
             .map(|(value, sets)| {
                 let group_name = match value {
-                    1 => "Monads".to_string(),
-                    2 => "Dyads".to_string(),
-                    3 => "Triads".to_string(),
-                    4 => "Tetrads".to_string(),
-                    5 => "Pentads".to_string(),
-                    6 => "Hexads".to_string(),
-                    7 => "Heptads".to_string(),
-                    8 => "Octads".to_string(),
-                    9 => "Nonads".to_string(),
-                    10 => "Decads".to_string(),
-                    n => format!("{n}-ads"),
+                    1 => L.colors.set_sizes._1.to_string(),
+                    2 => L.colors.set_sizes._2.to_string(),
+                    3 => L.colors.set_sizes._3.to_string(),
+                    4 => L.colors.set_sizes._4.to_string(),
+                    5 => L.colors.set_sizes._5.to_string(),
+                    6 => L.colors.set_sizes._6.to_string(),
+                    7 => L.colors.set_sizes._7.to_string(),
+                    8 => L.colors.set_sizes._8.to_string(),
+                    9 => L.colors.set_sizes._9.to_string(),
+                    10 => L.colors.set_sizes._10.to_string(),
+                    n => L.colors.set_sizes.n.with(&n.to_string()),
                 };
                 (
                     group_name,

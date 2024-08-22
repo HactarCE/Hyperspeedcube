@@ -122,7 +122,7 @@ async fn run() -> eframe::Result<()> {
     };
 
     eframe::run_native(
-        "eframe template",
+        TITLE,
         native_options,
         Box::new(|cc| Box::new(AppUi::new(cc))),
     )
@@ -219,14 +219,10 @@ fn init_human_panic() {
             .expect("human-panic: printing error message to console failed");
 
         rfd::MessageDialog::new()
-            .set_title(&format!("{TITLE} crashed"))
+            .set_title(&L.crash.app_crashed.with(TITLE))
             .set_description(&match file_path {
-                Some(fp) => format!(
-                    "A crash report has been saved to \"{}\"\n\n\
-                     Please submit this to the developer",
-                    fp.display(),
-                ),
-                None => format!("Error saving crash report"),
+                Some(fp) => L.crash.crash_report_saved.with(&fp.display().to_string()),
+                None => L.crash.error_saving_crash_report.to_string(),
             })
             .set_level(rfd::MessageLevel::Error)
             .show();

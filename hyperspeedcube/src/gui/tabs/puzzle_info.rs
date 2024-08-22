@@ -4,6 +4,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     super::ui_with_active_puzzle_view(ui, app, |ui, _app, view| {
         let puzzle = view.puzzle();
 
+        // TODO: rework this UI
+
         ui.label(format!("ID: {}", puzzle.id));
         ui.label(format!("Name: {}", puzzle.name));
         ui.label(format!("Piece count: {}", puzzle.pieces.len()));

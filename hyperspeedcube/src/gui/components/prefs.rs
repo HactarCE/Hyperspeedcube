@@ -246,13 +246,13 @@ impl<'a, T> PrefsUi<'a, T> {
             reset_value,
             reset_value_str: reset_value.map(|v| match v {
                 Some(mode) => match mode {
-                    StyleColorMode::FromSticker => L.prefs.styles.color_mode_reset.sticker.into(),
+                    StyleColorMode::FromSticker => L.styles.color_mode_reset.sticker.into(),
                     StyleColorMode::FixedColor { color } => {
                         let rgb = color.to_string();
-                        L.prefs.styles.color_mode_reset.fixed.with(&rgb).into()
+                        L.styles.color_mode_reset.fixed.with(&rgb).into()
                     }
                 },
-                None => L.prefs.styles.color_mode_reset.default.into(),
+                None => L.styles.color_mode_reset.default.into(),
             }),
             make_widget: |value| {
                 move |ui: &mut egui::Ui| {
@@ -264,7 +264,7 @@ impl<'a, T> PrefsUi<'a, T> {
                     if !allow_fallthrough {
                         value.get_or_insert(StyleColorMode::FromSticker);
                     }
-                    let l = L.prefs.styles.color_mode;
+                    let l = L.styles.color_mode;
                     let mut r = ui.horizontal(|ui| {
                         // Assemble list of options
                         let mut options = vec![];

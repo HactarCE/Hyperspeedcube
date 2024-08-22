@@ -1,3 +1,5 @@
+use crate::L;
+
 use super::{AppUi, Tab};
 
 pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
@@ -11,17 +13,14 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             }
 
             #[cfg(target_arch = "wasm32")]
-            ui.hyperlink_to("Download desktop app", env!("CARGO_PKG_HOMEPAGE"))
-                .on_hover_text(
-                    "The desktop version of Hyperspeedcube \
-                     has the same features, but runs faster.",
-                );
+            ui.hyperlink_to(L.top_bar.desktop_link, env!("CARGO_PKG_HOMEPAGE"))
+                .on_hover_text(L.top_bar.desktop_link_hover);
 
             egui::warn_if_debug_build(ui);
 
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 if ui.available_width() < width_of_all_menu_buttons(ui) {
-                    ui.menu_button("Menu", |ui| draw_menu_buttons(ui, app_ui));
+                    ui.menu_button(L.menu.title, |ui| draw_menu_buttons(ui, app_ui));
                 } else {
                     draw_menu_buttons(ui, app_ui);
                 }
@@ -30,17 +29,22 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     });
 }
 
-const MENU_BUTTON_NAMES: &[&str] = &[
-    "File",
-    "Edit",
-    "Scramble",
-    "Settings",
-    "Tools",
-    "Puzzles",
-    "Help",
-    #[cfg(debug_assertions)]
-    "Debug",
-];
+fn width_of_all_menu_buttons(ui: &mut egui::Ui) -> f32 {
+    [
+        L.menu.file.title,
+        L.menu.edit.title,
+        L.menu.scramble.title,
+        L.menu.settings.title,
+        L.menu.tools.title,
+        L.menu.puzzles.title,
+        L.menu.help.title,
+        #[cfg(debug_assertions)]
+        L.menu.debug.title,
+    ]
+    .iter()
+    .map(|text| menu_button_width(ui, text))
+    .sum()
+}
 fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     fn show_tab_toggle(ui: &mut egui::Ui, app_ui: &mut AppUi, tab: Tab) {
         let mut open = app_ui.has_tab(&tab);
@@ -52,33 +56,33 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         }
     }
 
-    ui.menu_button("File", |ui| {
-        let _ = ui.button("Open...");
-        let _ = ui.button("Open from clipboard");
+    ui.menu_button(L.menu.file.title, |ui| {
+        let _ = ui.button(L.menu.file.open);
+        let _ = ui.button(L.menu.file.open_clipboard);
         ui.separator();
-        let _ = ui.button("Save");
-        let _ = ui.button("Save as...");
+        let _ = ui.button(L.menu.file.save);
+        let _ = ui.button(L.menu.file.save_as);
         ui.separator();
-        let _ = ui.button("Copy (.hsc)");
-        let _ = ui.button("Copy (.log)");
+        let _ = ui.button(L.menu.file.copy_hsc);
+        let _ = ui.button(L.menu.file.copy_log);
         ui.separator();
-        let _ = ui.button("Exit");
+        let _ = ui.button(L.menu.file.exit);
     });
-    ui.menu_button("Edit", |ui| {
-        let _ = ui.button("Undo twist");
-        let _ = ui.button("Redo twist");
+    ui.menu_button(L.menu.edit.title, |ui| {
+        let _ = ui.button(L.menu.edit.undo_twist);
+        let _ = ui.button(L.menu.edit.redo_twist);
         ui.separator();
-        let _ = ui.button("Reset puzzle");
+        let _ = ui.button(L.menu.edit.reset_puzzle);
     });
-    ui.menu_button("Scramble", |ui| {
-        let _ = ui.button("Full");
+    ui.menu_button(L.menu.scramble.title, |ui| {
+        let _ = ui.button(L.menu.scramble.full);
         ui.separator();
-        let _ = ui.button("1");
-        let _ = ui.button("2");
+        let _ = ui.button(L.menu.scramble.one);
+        let _ = ui.button(L.menu.scramble.two);
         ui.separator();
         show_tab_toggle(ui, app_ui, Tab::Scrambler);
     });
-    ui.menu_button("Settings", |ui| {
+    ui.menu_button(L.menu.settings.title, |ui| {
         show_tab_toggle(ui, app_ui, Tab::Colors);
         show_tab_toggle(ui, app_ui, Tab::Styles);
         show_tab_toggle(ui, app_ui, Tab::View);
@@ -91,7 +95,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         // TODO: add "auto" mode that follows OS
         egui::global_dark_light_mode_buttons(ui);
     });
-    ui.menu_button("Tools", |ui| {
+    ui.menu_button(L.menu.tools.title, |ui| {
         show_tab_toggle(ui, app_ui, Tab::Camera);
         show_tab_toggle(ui, app_ui, Tab::PieceFilters);
         show_tab_toggle(ui, app_ui, Tab::Timer);
@@ -107,22 +111,22 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         ui.separator();
         show_tab_toggle(ui, app_ui, Tab::ImageGenerator);
     });
-    ui.menu_button("Puzzles", |ui| {
+    ui.menu_button(L.menu.puzzles.title, |ui| {
         show_tab_toggle(ui, app_ui, Tab::PuzzleLibrary);
         show_tab_toggle(ui, app_ui, Tab::PuzzleInfo);
 
-        ui.menu_button("Custom puzzles", |ui| {
+        ui.menu_button(L.menu.puzzles.custom, |ui| {
             if let Some(paths) = &*crate::PATHS {
-                if ui.button("Show Lua directory").clicked() {
+                if ui.button(L.menu.puzzles.show_lua_dir).clicked() {
                     ui.close_menu();
                     crate::open_dir(&paths.lua_dir);
                 }
             }
             #[cfg(not(target_arch = "wasm32"))]
-            if ui.button("Extract built-in Lua files...").clicked() {
+            if ui.button(L.menu.puzzles.show_lua_dir).clicked() {
                 ui.close_menu();
                 if let Some(mut dir_path) = rfd::FileDialog::new()
-                    .set_title("Extract built-in Lua files")
+                    .set_title(L.menu.puzzles.extract_lua)
                     .pick_folder()
                 {
                     dir_path.push("lua");
@@ -137,24 +141,17 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             show_tab_toggle(ui, app_ui, Tab::DevTools);
         });
     });
-    ui.menu_button("Help", |ui| {
-        ui.heading("Guides");
+    ui.menu_button(L.menu.help.title, |ui| {
+        ui.heading(L.menu.help.guides);
         let _ = ui.button("Welcome");
         let _ = ui.button("About");
         ui.separator();
         show_tab_toggle(ui, app_ui, Tab::KeybindsReference);
     });
     #[cfg(debug_assertions)]
-    ui.menu_button("Debug", |ui| {
+    ui.menu_button(L.menu.debug.title, |ui| {
         show_tab_toggle(ui, app_ui, Tab::Debug);
     });
-}
-
-fn width_of_all_menu_buttons(ui: &mut egui::Ui) -> f32 {
-    MENU_BUTTON_NAMES
-        .iter()
-        .map(|text| menu_button_width(ui, text))
-        .sum()
 }
 
 fn menu_button_width(ui: &egui::Ui, text: &str) -> f32 {

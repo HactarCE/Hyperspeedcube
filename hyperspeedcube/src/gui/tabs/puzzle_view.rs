@@ -6,12 +6,12 @@ use hyperpuzzle::{GizmoFace, Puzzle};
 use image::ImageBuffer;
 use parking_lot::Mutex;
 
-use crate::gfx::*;
 use crate::gui::components::color_assignment_popup;
 use crate::gui::util::EguiTempValue;
 use crate::gui::App;
 use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
 use crate::puzzle::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
+use crate::{gfx::*, L};
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
 /// purposes, but causes the puzzle to redraw every frame that the mouse moves,
@@ -25,7 +25,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<Puz
             // Hint to the user to load a puzzle.
             ui.allocate_ui_at_rect(ui.available_rect_before_wrap(), |ui| {
                 ui.centered_and_justified(|ui| {
-                    ui.label("Select a puzzle from the puzzle list");
+                    ui.label(L.puzzle_view.select_a_puzzle);
                 });
             })
             .response
