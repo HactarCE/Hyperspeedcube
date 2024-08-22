@@ -466,7 +466,7 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
                             let previous_rule_piece_count =
                                 these_pieces.len() - affected_piece_count;
                             if previous_rule_piece_count > 0 {
-                                // TODO: singlular vs. plural
+                                // TODO: singular vs. plural
                                 let n = previous_rule_piece_count.to_string();
                                 md(ui, L.piece_filters.n_match_previous_rule.with(&n));
                             }

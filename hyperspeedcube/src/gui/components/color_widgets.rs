@@ -685,9 +685,11 @@ pub fn color_edit(
     // Right-click to copy
     let text_to_copy = r.secondary_clicked().then(|| color.to_string());
     if !crate::gui::components::copy_on_click(ui, &r, text_to_copy) {
-        md(ui, L.click_to.edit.with(&L.inputs.click));
-        md(ui, L.click_to.copy_hex.with(&L.inputs.right_click));
-        md(ui, L.click_to.delete.with(&L.inputs.middle_click));
+        r = r.on_hover_ui(|ui| {
+            md(ui, L.click_to.edit.with(&L.inputs.click));
+            md(ui, L.click_to.copy_hex.with(&L.inputs.right_click));
+            md(ui, L.click_to.delete.with(&L.inputs.middle_click));
+        });
     }
 
     let mods = ui.input(|input| input.modifiers);

@@ -16,8 +16,6 @@ use crate::L;
 
 pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
 
-pub const DEFAULT_PRESET_NAME: &str = "Default";
-
 pub struct PresetsUi<'a, T: Default> {
     /// Unique widget ID.
     pub id: egui::Id,
