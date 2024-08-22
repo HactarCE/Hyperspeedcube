@@ -202,7 +202,7 @@ impl GlobalColorPalette {
         self.builtin_color_sets
             .iter()
             .sorted_by_key(|(_, colors)| colors.len())
-            .group_by(|(_, colors)| colors.len())
+            .chunk_by(|(_, colors)| colors.len())
             .into_iter()
             .map(|(value, sets)| {
                 let group_name = match value {
