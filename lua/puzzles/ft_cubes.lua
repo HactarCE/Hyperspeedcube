@@ -135,7 +135,7 @@ function define_ft_cube_4d(size)
       local t = sym:thru(2, 1)
       for _, axis1, axis2, twist_transform in sym.chiral:orbit(a1, a2, t) do
         self.twists:add(axis1, twist_transform, {
-          name = axis1.name .. axis2.name,
+          name = axis2.name,
           gizmo_pole_distance = gizmo_size,
         })
       end
@@ -144,7 +144,7 @@ function define_ft_cube_4d(size)
       local init_transform = sym:thru(3, 1) -- rot{fix = a1.vector ^ edge, angle = PI}
       for t, axis1, _edge, twist_transform in sym.chiral:orbit(a1, edge, init_transform) do
         self.twists:add(axis1, twist_transform, {
-          name = axis1.name .. t:transform(a2).name .. t:transform(a3).name,
+          name = t:transform(a2).name .. t:transform(a3).name,
           gizmo_pole_distance = (1+alpha)/sqrt(2) * gizmo_size,
         })
       end
@@ -153,7 +153,7 @@ function define_ft_cube_4d(size)
       local init_transform = sym:thru(3, 2)
       for t, axis1, _vertex, twist_transform in sym.chiral:orbit(a1, vertex, init_transform) do
         self.twists:add(axis1, twist_transform, {
-          name = axis1.name .. t:transform(a2).name .. t:transform(a3).name .. t:transform(a4).name,
+          name = t:transform(a2).name .. t:transform(a3).name .. t:transform(a4).name,
           gizmo_pole_distance = (1+2*alpha)/sqrt(3) * gizmo_size,
         })
       end
