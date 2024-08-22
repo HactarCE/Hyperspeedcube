@@ -213,8 +213,6 @@ local function pentultimate_cut_depths(size)
   local mechanical_limit = sqrt(5) - 2
   if REALISITIC_PROPORTIONS then
     -- this is the negative of the galois conjugate of the corresponding value for the megaminx
-    -- i have no idea why
-    -- not sure it's mechanically correct anyway
     mechanical_limit = (-10 + 7 * sqrt(5)) / 29
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
