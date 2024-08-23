@@ -4,7 +4,6 @@ use crate::{
     app::App,
     gui::{
         self,
-        ext::ResponseExt,
         markdown::{md, md_bold_user_text},
         util::EguiTempValue,
     },
