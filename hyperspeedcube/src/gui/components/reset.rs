@@ -50,9 +50,7 @@ pub fn with_reset_button<'a, T: PartialEq>(
     widget: impl FnOnce(&mut egui::Ui, &'a mut T) -> egui::Response,
 ) -> egui::Response {
     ui.horizontal(|ui| {
-        let reset_resp = reset_value
-            .is_some()
-            .then(|| reset_button(ui, value, reset_value, reset_value_str));
+        let reset_resp = reset_value.map(|v| reset_button(ui, value, v, reset_value_str));
 
         let mut r = widget(ui, value);
 
@@ -69,22 +67,18 @@ pub fn with_reset_button<'a, T: PartialEq>(
 pub fn reset_button<T: PartialEq>(
     ui: &mut egui::Ui,
     value: &mut T,
-    reset_value: Option<T>,
+    reset_value: T,
     reset_value_str: Option<&str>,
 ) -> egui::Response {
-    let r = ui.scope(|ui| {
-        ui.set_visible(reset_value.is_some());
-        ui.set_enabled(reset_value.as_ref() != Some(&*value));
-        ui.add(egui::Button::new("⟲").min_size(egui::vec2(20.0, 20.0))) // TODO: extract into constant
-    });
-    let Some(reset_value) = reset_value else {
-        return r.inner;
-    };
+    let mut r = ui.add_enabled(
+        *value != reset_value,
+        egui::Button::new("⟲").min_size(egui::vec2(20.0, 20.0)), // TODO: extract into constant
+    );
     let hover_text: Cow<'_, str> = match reset_value_str {
         None => L.reset.into(),
         Some(s) => L.reset_to_value.with(s).into(),
     };
-    let r = r.inner.on_hover_text(&*hover_text);
+    r = r.on_hover_text(&*hover_text);
     if r.clicked() {
         *value = reset_value;
     }

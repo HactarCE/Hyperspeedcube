@@ -32,6 +32,7 @@ where
     Payload: Any + Default + Clone + Send + Sync,
     End: Clone,
 {
+    /// Constructs a new drag-and-drop scope.
     pub fn new(ui: &mut egui::Ui) -> Self {
         let this = Self {
             dragging_opacity: 1.0,
@@ -62,13 +63,21 @@ where
         this
     }
 
+    /// Sets the opacity of widgets that are being dragged.
     pub fn dragging_opacity(mut self, dragging_opacity: f32) -> Self {
         self.dragging_opacity = dragging_opacity;
         self
     }
 
+    /// Returns whether anything is being dragged in this drag-and-drop scope.
     pub fn is_dragging(&self) -> bool {
         self.payload.get().is_some()
+    }
+    /// Disables the UI if anything is being dragged in this drag-and-drop scope.
+    pub fn disable_ui_if_dragging(&self, ui: &mut egui::Ui) {
+        if self.is_dragging() {
+            ui.disable();
+        }
     }
 
     /// Adds a draggable widget.

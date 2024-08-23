@@ -13,7 +13,7 @@ use crate::{
             TextEditPopupResponse, PRESET_NAME_TEXT_EDIT_WIDTH,
         },
         markdown::{md, md_inline},
-        util::{set_widget_spacing_to_space_width, EguiTempValue},
+        util::EguiTempValue,
     },
     preferences::{
         ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterRule, Preferences,
@@ -181,7 +181,6 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
             .inner
         });
         let r = r.inner.on_hover_ui(|ui| {
-            set_widget_spacing_to_space_width(ui);
             md(ui, L.click_to.activate.with(&L.inputs.click));
             md(ui, L.click_to.rename.with(&L.inputs.right_click));
             md(ui, L.click_to.delete.with(&L.inputs.middle_click));
@@ -554,7 +553,7 @@ fn show_filter_expr_ui(
         );
         if let Some(e) = err {
             if r.has_focus() || r.hovered() {
-                egui::show_tooltip_for(ui.ctx(), unique_id!(), &r.rect, |ui| {
+                r.show_tooltip_ui(|ui| {
                     ui.colored_label(ui.visuals().warn_fg_color, e);
                 });
             }

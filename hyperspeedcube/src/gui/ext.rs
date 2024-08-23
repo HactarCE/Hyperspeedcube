@@ -68,9 +68,11 @@ impl ComboBoxExt for egui::ComboBox {
         let text_width = options
             .into_iter()
             .map(|option| {
+                let wrap_mode = Some(egui::TextWrapMode::Extend);
+                let wrap_width = f32::INFINITY;
                 option
                     .into()
-                    .into_galley(ui, Some(false), f32::INFINITY, egui::TextStyle::Button)
+                    .into_galley(ui, wrap_mode, wrap_width, egui::TextStyle::Button)
                     .size()
                     .x
             })

@@ -125,7 +125,7 @@ async fn run() -> eframe::Result<()> {
     eframe::run_native(
         TITLE,
         native_options,
-        Box::new(|cc| Box::new(AppUi::new(cc))),
+        Box::new(|cc| Ok(Box::new(AppUi::new(cc)))),
     )
 }
 

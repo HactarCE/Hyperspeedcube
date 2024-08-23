@@ -83,13 +83,6 @@ impl<'a, T> PrefsUi<'a, T> {
         (partial, self.ui)
     }
 
-    pub fn group<R>(
-        &mut self,
-        add_contents: impl FnOnce(PrefsUi<'_, T>) -> R,
-    ) -> egui::InnerResponse<R> {
-        let (mut prefs, ui) = self.split();
-        ui.group(|ui| add_contents(prefs.with(ui)))
-    }
     pub fn collapsing<R>(
         &mut self,
         title: impl Into<egui::WidgetText>,
@@ -152,7 +145,7 @@ impl<'a, T> PrefsUi<'a, T> {
         let range = 0.0..=5.0_f32;
         let speed = access.get(self.current).at_least(0.1) / 100.0; // logarithmic speed
         self.num(strings, access, |dv| {
-            dv.fixed_decimals(2).clamp_range(range).speed(speed)
+            dv.fixed_decimals(2).range(range).speed(speed)
         })
     }
 
@@ -375,7 +368,7 @@ pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreference
     let l = &L.prefs.interaction.reorientation;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.num(&l.drag_sensitivity, access!(.drag_sensitivity), |dv| {
-            dv.fixed_decimals(2).clamp_range(0.0..=3.0_f32).speed(0.01)
+            dv.fixed_decimals(2).range(0.0..=3.0_f32).speed(0.01)
         });
         prefs_ui.checkbox(&l.realign_puzzle_on_release, access!(.realign_on_release));
         prefs_ui.checkbox(&l.realign_puzzle_on_keypress, access!(.realign_on_keypress));
@@ -406,12 +399,12 @@ pub fn build_view_section(
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
             prefs_ui.angle(&l.fov_4d, access!(.fov_4d), |dv| {
-                dv.clamp_range(FOV_4D_RANGE).speed(0.5)
+                dv.range(FOV_4D_RANGE).speed(0.5)
             });
         }
 
         prefs_ui.angle_with_raw_label(&*fov_3d_label(&prefs_ui), access!(.fov_3d), |dv| {
-            dv.clamp_range(FOV_3D_RANGE).speed(0.5)
+            dv.range(FOV_3D_RANGE).speed(0.5)
         });
     });
 
@@ -434,7 +427,7 @@ pub fn build_view_section(
 
         if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
             prefs_ui.num(&l.gizmo_scale, access!(.gizmo_scale), |dv| {
-                dv.fixed_decimals(2).clamp_range(0.1..=5.0_f32).speed(0.01)
+                dv.fixed_decimals(2).range(0.1..=5.0_f32).speed(0.01)
             });
         }
         prefs_ui.add_enabled_ui(
@@ -442,9 +435,7 @@ pub fn build_view_section(
             l.disabled_when_showing_internals,
             |mut prefs_ui| {
                 prefs_ui.num(&l.facet_shrink, access!(.facet_shrink), |dv| {
-                    dv.fixed_decimals(2)
-                        .clamp_range(0.0..=0.95_f32)
-                        .speed(0.005)
+                    dv.fixed_decimals(2).range(0.0..=0.95_f32).speed(0.005)
                 })
             },
         );
@@ -453,26 +444,20 @@ pub fn build_view_section(
             l.disabled_when_showing_internals,
             |mut prefs_ui| {
                 prefs_ui.num(&l.sticker_shrink, access!(.sticker_shrink), |dv| {
-                    dv.fixed_decimals(2)
-                        .clamp_range(0.0..=0.95_f32)
-                        .speed(0.005)
+                    dv.fixed_decimals(2).range(0.0..=0.95_f32).speed(0.005)
                 })
             },
         );
 
         prefs_ui.num(&l.piece_explode, access!(.piece_explode), |dv| {
-            dv.fixed_decimals(2).clamp_range(0.0..=5.0_f32).speed(0.01)
+            dv.fixed_decimals(2).range(0.0..=5.0_f32).speed(0.01)
         });
     });
 
     let l = &L.prefs.view.lighting;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
-        prefs_ui.angle(&l.pitch, access!(.light_pitch), |dv| {
-            dv.clamp_range(-90.0..=90.0)
-        });
-        prefs_ui.angle(&l.yaw, access!(.light_yaw), |dv| {
-            dv.clamp_range(-180.0..=180.0)
-        });
+        prefs_ui.angle(&l.pitch, access!(.light_pitch), |dv| dv.range(-90.0..=90.0));
+        prefs_ui.angle(&l.yaw, access!(.light_yaw), |dv| dv.range(-180.0..=180.0));
         prefs_ui.percent(&l.intensity.faces, access!(.face_light_intensity));
         prefs_ui.percent(&l.intensity.outlines, access!(.outline_light_intensity));
     });
@@ -480,7 +465,7 @@ pub fn build_view_section(
     let l = &L.prefs.view.performance;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.num(&l.downscale_factor, access!(.downscale_rate), |dv| {
-            dv.clamp_range(1..=32).speed(0.1)
+            dv.range(1..=32).speed(0.1)
         });
         prefs_ui.checkbox(&l.downscale_interpolation, access!(.downscale_interpolate));
     });
@@ -507,6 +492,6 @@ pub fn drag_value_percent(value: &'_ mut f32) -> egui::DragValue<'_> {
     })
     .suffix("%")
     .fixed_decimals(0)
-    .clamp_range(0.0..=100.0_f32)
+    .range(0.0..=100.0_f32)
     .speed(0.5)
 }

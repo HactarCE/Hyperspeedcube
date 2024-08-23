@@ -255,5 +255,5 @@ impl egui::Widget for PieceStyleEdit<'_> {
 }
 
 fn outline_size_drag_value(dv: egui::DragValue<'_>) -> egui::DragValue<'_> {
-    dv.fixed_decimals(1).clamp_range(0.0..=5.0).speed(0.01)
+    dv.fixed_decimals(1).range(0.0..=5.0).speed(0.01)
 }

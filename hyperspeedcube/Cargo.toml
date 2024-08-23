@@ -59,18 +59,18 @@ smallvec = { version = "1.8.0", features = ["serde", "union"] }
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.44"
 time = { version = "0.3.7", features = ["local-offset"] }
-wgpu = { version = "0.19.4", features = ["webgl"] }
 
 hypermath = { path = "../hypermath" }
 hyperpuzzle = { path = "../hyperpuzzle" }
 hypershape = { path = "../hypershape" }
 
 # Windowing and UI (versions must match)
-eframe = { version = "0.27.2", default-features = false, features = ["accesskit", "default_fonts", "wayland", "web_screen_reader", "wgpu", "x11"] }
-egui = "0.27.2"
-egui_dock = "0.12.0"
-egui_extras = "0.27.2"
+eframe = { version = "0.28.1", default-features = false, features = ["accesskit", "default_fonts", "wayland", "web_screen_reader", "wgpu", "x11"] }
+egui = "0.28.1"
+egui_dock = "0.13.0"
+egui_extras = "0.28.1"
 winit = { version = "0.29", features = ["serde"] } # must match eframe
+wgpu = { version = "0.20.1", features = ["webgl"] } # must match eframe
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

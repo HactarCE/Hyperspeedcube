@@ -153,6 +153,7 @@ impl RenderPipelineDescriptor<'_> {
             vertex: wgpu::VertexState {
                 module: shader_module,
                 entry_point: &vertex_entry_point,
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
                 buffers: self.vertex_buffers,
             },
             primitive: self.primitive,
@@ -161,6 +162,7 @@ impl RenderPipelineDescriptor<'_> {
             fragment: Some(wgpu::FragmentState {
                 module: shader_module,
                 entry_point: &fragment_entry_point,
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[self.fragment_target],
             }),
             multiview: None,
@@ -184,6 +186,7 @@ impl ComputePipelineDescriptor<'_> {
             layout: Some(&pipeline_layout),
             module: shader_module,
             entry_point: &self.entry_point,
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
         })
     }
 }

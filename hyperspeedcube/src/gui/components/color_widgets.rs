@@ -194,7 +194,7 @@ impl<'a> ColorsUi<'a> {
                             ui.vertical(|ui| {
                                 ui.add(
                                     egui::Label::new(egui::RichText::from(group_name).strong())
-                                        .wrap(false),
+                                        .wrap_mode(egui::TextWrapMode::Wrap),
                                 );
                                 ui.spacing_mut().item_spacing.x = small_space;
                                 for (set_name, _set) in sets {
@@ -525,7 +525,6 @@ impl ColorButton {
                                 );
 
                                 ui.vertical(|ui| {
-                                    ui.style_mut().wrap = Some(false);
                                     ui.strong(self.color_name);
                                     match self.color {
                                         ColorOrGradient::Color(rgb) => {

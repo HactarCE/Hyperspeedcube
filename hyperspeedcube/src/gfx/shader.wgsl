@@ -3,6 +3,9 @@
  */
 
 /// When compiling the shader in Rust, we will fill in the number of dimensions.
+///
+/// This could use a pipeline-overridable constant, but was written in a time
+/// before that existed.
 const NDIM: i32 = {{ndim}};
 
 /// `w_divisor` below which geometry gets clipped.

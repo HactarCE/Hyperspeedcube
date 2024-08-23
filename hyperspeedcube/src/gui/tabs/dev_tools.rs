@@ -7,6 +7,7 @@ use crate::{
     app::App,
     gui::{
         components::{color_assignment_popup, DragAndDrop},
+        markdown::{md, md_bold_user_text},
         util::EguiTempValue,
     },
     preferences::Preferences,
@@ -64,14 +65,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn show_hover_info(ui: &mut egui::Ui, app: &mut App) {
-    crate::gui::util::set_widget_spacing_to_space_width(ui);
-
     let info_line = |ui: &mut egui::Ui, label: &str, text: &str| {
-        ui.horizontal(|ui| {
-            ui.label(label);
-            ui.label("=");
-            ui.strong(text);
-        });
+        md(ui, format!("{label} = {}", md_bold_user_text(text)))
     };
 
     app.with_active_puzzle_view(|p| {
@@ -145,7 +140,9 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
     ui.with_layout(
         egui::Layout::top_down_justified(egui::Align::Center),
         |ui| {
-            ui.set_enabled(app.has_active_puzzle());
+            if !app.has_active_puzzle() {
+                ui.disable();
+            }
 
             let r = &ui.button("Copy color system definition");
             app.with_active_puzzle_view(|p| {
@@ -272,7 +269,8 @@ fn puzzle_color_edit_button(
         ui.memory_mut(|mem| mem.open_popup(popup_id));
     }
 
-    egui::popup_below_widget(ui, popup_id, &r, |ui| {
+    let close_behavior = egui::PopupCloseBehavior::CloseOnClickOutside;
+    egui::popup_below_widget(ui, popup_id, &r, close_behavior, |ui| {
         color_assignment_popup(ui, puzzle_view, &prefs.color_palette, Some(color))
     });
 }

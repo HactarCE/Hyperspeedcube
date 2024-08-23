@@ -96,9 +96,10 @@ impl egui::Widget for FilterCheckbox<'_> {
             width += color_size.x + color_spacing;
         }
         let wrap_width = ui.available_width() - width;
+        let wrap_mode = Some(egui::TextWrapMode::Wrap);
         let galley = self
             .text
-            .into_galley(ui, Some(true), wrap_width, egui::TextStyle::Button);
+            .into_galley(ui, wrap_mode, wrap_width, egui::TextStyle::Button);
         let text_width = galley.size().x;
         width += text_width;
         let height = f32::max(icon_width, galley.size().y);
@@ -114,12 +115,13 @@ impl egui::Widget for FilterCheckbox<'_> {
             self.state.cycle_state_backward(self.allowed_states);
             response.mark_changed();
         }
+        let ty = egui::WidgetType::Checkbox;
         response.widget_info(|| match &self.state {
             FilterCheckboxState::Mixed | FilterCheckboxState::Coherent(None) => {
-                egui::WidgetInfo::labeled(egui::WidgetType::Checkbox, galley.text())
+                egui::WidgetInfo::labeled(ty, ui.is_enabled(), galley.text())
             }
             FilterCheckboxState::Coherent(Some(state)) => {
-                egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *state, galley.text())
+                egui::WidgetInfo::selected(ty, ui.is_enabled(), *state, galley.text())
             }
         });
 

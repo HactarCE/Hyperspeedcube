@@ -86,9 +86,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         .changed();
 
     ui.horizontal(|ui| {
-        ui.add(egui::DragValue::new(&mut app.prefs.image_generator.width).clamp_range(1..=2048));
+        ui.add(egui::DragValue::new(&mut app.prefs.image_generator.width).range(1..=2048));
         ui.label("×");
-        ui.add(egui::DragValue::new(&mut app.prefs.image_generator.height).clamp_range(1..=2048));
+        ui.add(egui::DragValue::new(&mut app.prefs.image_generator.height).range(1..=2048));
     });
 
     #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]

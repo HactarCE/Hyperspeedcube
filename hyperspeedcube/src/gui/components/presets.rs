@@ -9,7 +9,7 @@ use super::{
 use crate::gui::components::PlaintextYamlEditor;
 use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::{md, md_bold_user_text, md_inline};
-use crate::gui::util::{body_text_format, EguiTempValue};
+use crate::gui::util::EguiTempValue;
 use crate::locales::PresetStrings;
 use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
 use crate::L;
@@ -182,7 +182,7 @@ where
                     dnd.reorder_drop_zone(ui, &r, preset.name.clone());
                 }
 
-                ui.set_enabled(!dnd.is_dragging());
+                dnd.disable_ui_if_dragging(ui);
                 let mut r = ui.add(egui::Button::new("+").min_size(SMALL_ICON_BUTTON_SIZE));
                 if !ui.memory(|mem| mem.any_popup_open()) {
                     r = r.on_hover_text(self.text.actions.add);
@@ -426,8 +426,9 @@ pub enum PresetSaveStatus {
 }
 
 fn elide_overflowing_line(ui: &mut egui::Ui, s: &str, max_width: f32) -> String {
-    let mut job = egui::text::LayoutJob::default();
-    job.append(s, 0.0, body_text_format(ui));
+    let font_id = egui::TextStyle::Body.resolve(ui.style());
+    let color = ui.visuals().text_color();
+    let mut job = egui::text::LayoutJob::simple_singleline(s.to_owned(), font_id, color);
     job.wrap.max_rows = 1;
     job.wrap.max_width = max_width;
     ui.fonts(|fonts| fonts.layout_job(job))
