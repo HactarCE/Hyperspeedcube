@@ -196,50 +196,6 @@ pub fn names_from_table<'lua>(
     .collect())
 }
 
-/// **TODO: deprecated. maybe remove?**
-///
-/// Constructs an assignment of names and ordering based on a table for a
-/// particular symmetry group.
-///
-/// The first string in each pair is the name, which is required. The second
-/// string in each pair is the display name, which is optional.
-pub fn names_and_order_from_table<'lua>(
-    lua: &'lua Lua,
-    table: LuaTable<'lua>,
-) -> LuaResult<Vec<((String, Option<String>), Motor)>> {
-    // TODO: just compare against the existing symmetry, and use the existing
-    // symmetry for calculations
-    let symmetry = LuaSymmetry::construct_from_cd(table.get("symmetry")?)?;
-
-    let mut order = vec![];
-
-    let mut key_value_dependencies = vec![];
-
-    for entry in table.sequence_values::<LuaValue<'_>>() {
-        let [key, name, display]: [LuaValue<'_>; 3] = <_>::from_lua(entry?, lua)?;
-        let name = String::from_lua(name, lua)?;
-        let display = Option::<String>::from_lua(display, lua)?;
-        order.push((name.clone(), display));
-
-        let (gen_seq, init_name) = gen_seq_and_opt_name_from_value(lua, key)?;
-        let motor = symmetry.motor_for_gen_seq(gen_seq)?;
-
-        key_value_dependencies.push((name, (motor, init_name)));
-    }
-
-    // Resolve lazy evaluation.
-    let mut map = lazy_resolve(key_value_dependencies, |m1, m2| m1 * m2, lua_warn_fn(lua));
-
-    // Assemble into ordered list.
-    Ok(order
-        .into_iter()
-        .filter_map(|(name, display)| {
-            let motor = map.remove(&name)?;
-            Some(((name, display), motor))
-        })
-        .collect())
-}
-
 /// Symmetric set of a particular type of object.
 #[derive(Debug, Clone)]
 pub enum LuaSymmetricSet<T> {
