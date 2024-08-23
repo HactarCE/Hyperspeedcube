@@ -16,7 +16,7 @@ impl<'a, T> ReorderableList<'a, T> {
         mut row_ui: impl FnMut(&mut egui::Ui, usize, &mut T) -> egui::Response,
     ) -> egui::Response {
         let drag_id = self.id.with("drag");
-        let is_anything_being_dragged = ui.memory(|mem| mem.is_anything_being_dragged());
+        let is_anything_being_dragged = ui.ctx().dragged_id().is_some();
         let mut reorder_from: Option<usize> = ui.data(|data| {
             data.get_temp::<usize>(drag_id)
                 .filter(|_| is_anything_being_dragged)
@@ -63,7 +63,7 @@ impl<'a, T> ReorderableList<'a, T> {
                 reorder_from = Some(from);
                 reorder_to = Some(to);
             }
-        } else if ui.memory(|mem| mem.is_anything_being_dragged()) {
+        } else if ui.ctx().dragged_id().is_some() {
             // Reorder using mouse.
             if let Some(i) = drag_handle.iter().position(|r| r.drag_started()) {
                 // A drag is beginning!

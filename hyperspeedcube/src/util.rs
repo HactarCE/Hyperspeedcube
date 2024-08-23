@@ -211,46 +211,6 @@ fn rgb_to_lab(rgb: Rgb) -> (f32, f32, f32) {
     empfindung::ToLab::to_lab(&rgb_crate::RGB { r, g, b })
 }
 
-// TODO: type for reordering
-pub(crate) fn reorder_list<T>(
-    list: &mut [T],
-    from: usize,
-    to: usize,
-    before_or_after: BeforeOrAfter,
-) {
-    let (i, j) = match before_or_after {
-        BeforeOrAfter::Before => (from, to),
-        BeforeOrAfter::After => (from, to + 1),
-    };
-    if i < j {
-        list[i..j].rotate_left(1);
-    } else if j < i {
-        list[j..=i].rotate_right(1);
-    }
-}
-pub(crate) fn reorder_map<K, V>(
-    map: &mut IndexMap<K, V>,
-    from: usize,
-    to: usize,
-    before_or_after: BeforeOrAfter,
-) {
-    let (i, j) = match before_or_after {
-        BeforeOrAfter::Before => (from, to),
-        BeforeOrAfter::After => (from, to + 1),
-    };
-    if i < j {
-        map.move_index(i, j - 1);
-    } else if j < i {
-        map.move_index(i, j);
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum BeforeOrAfter {
-    Before,
-    After,
-}
-
 pub fn find_unused_autoname<V>(map: &IndexMap<String, V>) -> String {
     funny_autonames()
         .find(|name| !map.contains_key(name))

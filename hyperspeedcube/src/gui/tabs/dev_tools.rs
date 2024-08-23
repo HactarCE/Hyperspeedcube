@@ -242,16 +242,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                             }
                         });
                     }
-                    if let Some(drag) = dnd.end_drag(ui) {
-                        if let Some(before_or_after) = drag.before_or_after {
-                            crate::util::reorder_list(
-                                &mut state.names_and_order,
-                                drag.payload,
-                                drag.end,
-                                before_or_after,
-                            )
-                        }
-                    }
+                    let _ = dnd.end_reorder(ui, &mut state.names_and_order);
                 });
         },
     );

@@ -37,6 +37,7 @@ const Z_CLIP: f32 = 8.0;
 /// Z buffer precision.
 const Z_EPSILON: f32 = 0.01;
 
+#[allow(unused)]
 /// Color ID for the background.
 const BACKGROUND_COLOR_ID: u32 = 0;
 /// Color ID for the internals.
@@ -202,8 +203,6 @@ pub(crate) struct PuzzleRenderer {
 
     /// Most recently used draw parameters.
     last_draw_params: Option<DrawParams>,
-    /// Most recent cursor position.
-    cursor_pos: Option<[f32; 2]>,
 
     polygon_texture_needs_clear: bool,
     edge_ids_texture_needs_clear: bool,
@@ -226,7 +225,6 @@ impl Clone for PuzzleRenderer {
             is_placeholder_model: self.is_placeholder_model,
 
             last_draw_params: None,
-            cursor_pos: None,
 
             polygon_texture_needs_clear: false,
             edge_ids_texture_needs_clear: false,
@@ -272,7 +270,6 @@ impl PuzzleRenderer {
             gizmo_vertex_3d_positions: CachedGpuCompute::new(Arc::clone(&gfx)),
 
             last_draw_params: None,
-            cursor_pos: None,
 
             polygon_texture_needs_clear: false,
             edge_ids_texture_needs_clear: false,
@@ -1068,7 +1065,6 @@ struct_with_constructor! {
 
             StaticPuzzleModel {
                 ndim: u8 = mesh.ndim,
-                color_count: usize = mesh.color_count,
                 vertex_count: usize = mesh.vertex_count(),
                 polygon_count: usize = mesh.polygon_count,
                 edge_count: usize = mesh.edge_count(),

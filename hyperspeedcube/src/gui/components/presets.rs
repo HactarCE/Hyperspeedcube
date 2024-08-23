@@ -260,12 +260,7 @@ where
         }
 
         // Reorder the presets.
-        if let Some(r) = dnd.end_drag(ui) {
-            if let Some(before_or_after) = r.before_or_after {
-                self.presets.reorder(&r.payload, &r.end, before_or_after);
-                *self.changed = true;
-            }
-        }
+        *self.changed |= dnd.end_reorder(ui, self.presets);
 
         if *self.changed {
             // TODO: is this necessary here?

@@ -320,23 +320,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
         });
     }
 
-    if let Some(drag) = preset_dnd.end_drag(ui) {
-        if let Some(before_or_after) = drag.before_or_after {
-            let (payload_seq, payload_preset) = drag.payload;
-            let (end_seq, end_preset) = drag.end;
-            match (payload_seq, end_seq) {
-                (None, None) => crate::util::reorder_map(
-                    &mut filter_prefs.presets,
-                    payload_preset,
-                    end_preset,
-                    before_or_after,
-                ),
-                (None, Some(_)) => todo!(),
-                (Some(_), None) => todo!(),
-                (Some(_), Some(_)) => todo!(),
-            }
-        }
-    }
+    preset_dnd.end_reorder(ui, filter_prefs);
 
     if let Some(new_state) = to_activate {
         app.with_active_puzzle_view(|p| p.view.filters = new_state);
@@ -516,16 +500,7 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
                     preset.rules.remove(i);
                 }
 
-                if let Some(drag) = dnd.end_drag(ui) {
-                    if let Some(before_or_after) = drag.before_or_after {
-                        crate::util::reorder_list(
-                            &mut preset.rules,
-                            drag.payload,
-                            drag.end,
-                            before_or_after,
-                        );
-                    }
-                }
+                dnd.end_reorder(ui, &mut preset.rules);
 
                 ui.horizontal_wrapped(|ui| {
                     if ui.button(L.piece_filters.add_checkboxes_rule).clicked() {

@@ -17,6 +17,7 @@ use parking_lot::Mutex;
 #[macro_use]
 mod debug;
 mod commands;
+mod ext;
 mod gui;
 mod locales;
 // mod logfile;

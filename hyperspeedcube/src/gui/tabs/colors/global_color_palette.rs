@@ -174,17 +174,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
         *prefs.changed = true;
     }
 
-    if let Some(r) = dnd.end_drag(ui) {
-        if let Some(before_or_after) = r.before_or_after {
-            crate::util::reorder_map(
-                &mut prefs.current.custom_colors,
-                r.payload,
-                r.end,
-                before_or_after,
-            );
-            *prefs.changed = true;
-        }
-    }
+    *prefs.changed |= dnd.end_reorder(ui, &mut prefs.current.custom_colors);
 }
 
 fn show_builtin_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {

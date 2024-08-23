@@ -2,18 +2,14 @@ use std::any::Any;
 
 use float_ord::FloatOrd;
 
-use crate::{gui::util::EguiTempValue, util::BeforeOrAfter};
+use crate::{
+    ext::reorderable::{BeforeOrAfter, DragAndDropResponse, ReorderableCollection},
+    gui::util::EguiTempValue,
+};
 
 const REORDER_STROKE_WIDTH: f32 = 2.0;
 const DROP_ZONE_STROKE_WIDTH: f32 = 2.0;
 const DROP_ZONE_ROUNDING: f32 = 3.0;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct DragAndDropResponse<Payload, End> {
-    pub payload: Payload,
-    pub end: End,
-    pub before_or_after: Option<BeforeOrAfter>,
-}
 
 #[derive(Debug, Clone)]
 pub struct DragAndDrop<Payload, End = Payload> {
@@ -312,6 +308,23 @@ where
         });
         self.reorder_drop_zone(ui, &r.response, end);
         r.inner
+    }
+
+    /// Returns whether the drag ended this frame, and reorders `collection`
+    /// according to the drag if it did.
+    #[must_use]
+    pub fn end_reorder(
+        self,
+        ui: &mut egui::Ui,
+        collection: &mut impl ReorderableCollection<T>,
+    ) -> bool {
+        match self.end_drag(ui) {
+            Some(drag) => {
+                collection.reorder(drag);
+                true
+            }
+            None => false,
+        }
     }
 }
 

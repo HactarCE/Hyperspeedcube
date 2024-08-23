@@ -4,14 +4,14 @@ use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
 use strum::IntoEnumIterator;
 
 use crate::{
+    ext::reorderable::{BeforeOrAfter, DragAndDropResponse},
     gui::{markdown::md, util::EguiTempFlag},
     preferences::{ColorScheme, DefaultColorGradient, GlobalColorPalette},
     puzzle::PuzzleView,
-    util::BeforeOrAfter,
     L,
 };
 
-use super::{DragAndDropResponse, TextEditPopup};
+use super::TextEditPopup;
 
 /// Pixel resolution of gradients.
 const GRADIENT_RESOLUTION: usize = 1;

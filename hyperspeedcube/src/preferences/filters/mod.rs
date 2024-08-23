@@ -10,6 +10,8 @@ mod expr;
 pub use checkboxes::*;
 pub use expr::*;
 
+use crate::ext::reorderable::{DragAndDropResponse, ReorderableCollection};
+
 use super::StylePreferences;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
@@ -51,6 +53,22 @@ impl PuzzleFilterPreferences {
         match sequence_name {
             Some(seq) => Some(&self.sequences.get(seq)?.get(preset_name?)?.inner),
             None => self.presets.get(preset_name?),
+        }
+    }
+}
+impl ReorderableCollection<(Option<usize>, usize)> for PuzzleFilterPreferences {
+    fn reorder(&mut self, drag: DragAndDropResponse<(Option<usize>, usize)>) {
+        let (payload_seq, payload_preset) = drag.payload;
+        let (end_seq, end_preset) = drag.end;
+        match (payload_seq, end_seq) {
+            (None, None) => self.presets.reorder(DragAndDropResponse {
+                payload: payload_preset,
+                end: end_preset,
+                before_or_after: drag.before_or_after,
+            }),
+            (None, Some(_)) => todo!(),
+            (Some(_), None) => todo!(),
+            (Some(_), Some(_)) => todo!(),
         }
     }
 }
