@@ -4,7 +4,7 @@ use hypermath::pga;
 use hyperpuzzle::{PieceMask, PuzzleState};
 use instant::Duration;
 
-use crate::preferences::{AnimationPreferences};
+use crate::preferences::AnimationPreferences;
 
 /// If at least this much of a twist is animated in one frame, just skip the
 /// animation to reduce unnecessary flashing.

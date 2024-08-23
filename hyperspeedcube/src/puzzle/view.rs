@@ -94,7 +94,7 @@ impl PuzzleView {
     }
 
     pub fn puzzle(&self) -> Arc<Puzzle> {
-        Arc::clone(&self.sim.lock().puzzle_type())
+        Arc::clone(self.sim.lock().puzzle_type())
     }
 
     /// Returns what the cursor was hovering over.
@@ -253,7 +253,7 @@ impl PuzzleView {
                         let axis_vector = &sim.puzzle_type().axes[axis].vector;
                         if sim.interaction_prefs.value.scale_twist_drag_by_radius {
                             parallel_drag_delta = parallel_drag_delta
-                                / hov.position.rejected_from(&axis_vector)?.mag();
+                                / hov.position.rejected_from(axis_vector)?.mag();
                         }
                         sim.update_partial_twist(hov.normal_3d(), parallel_drag_delta);
                         Some(())
@@ -345,11 +345,7 @@ impl PuzzleView {
 
         let cursor_pos = self.cursor_pos?;
 
-        let gizmo_tri_ranges = puzzle
-            .mesh
-            .gizmo_triangle_ranges
-            .iter()
-            .map(|(gizmo, tri_range)| (gizmo, tri_range));
+        let gizmo_tri_ranges = puzzle.mesh.gizmo_triangle_ranges.iter();
 
         gizmo_tri_ranges
             .flat_map(|(gizmo, tri_range)| {
@@ -373,7 +369,7 @@ impl PuzzleView {
                 Sign::Pos => state.do_twist(twist, LayerMask(1)),
                 Sign::Neg => {
                     let rev_twist = puzzle.twists[twist].reverse;
-                    state.do_twist(rev_twist, LayerMask(1))
+                    state.do_twist(rev_twist, LayerMask(1));
                 }
             }
         } else if let Some(hov) = &self.puzzle_hover_state {
@@ -386,7 +382,7 @@ impl PuzzleView {
                 // Find the axis aligned with the normal vector of this
                 // sticker.
                 let [u, v] = [&hov.u_tangent, &hov.v_tangent];
-                let target_vector = Vector::cross_product_3d(&u, &v);
+                let target_vector = Vector::cross_product_3d(u, v);
                 // TODO: this assumes that the axis vectors are normalized,
                 //       which they are, but is that assumption documented or
                 //       enforced anywhere? it feels a little sus.
@@ -405,8 +401,8 @@ impl PuzzleView {
 
                 // Aim for a 180 degree counterclockwise rotation around the axis.
                 let target = match hov.backface {
-                    false => Motor::from_normalized_vector_product(ndim, &v, &u),
-                    true => Motor::from_normalized_vector_product(ndim, &u, &v),
+                    false => Motor::from_normalized_vector_product(ndim, v, u),
+                    true => Motor::from_normalized_vector_product(ndim, u, v),
                 };
                 let best_twist = candidates.min_by_key(|&twist| {
                     // `score` ranges from -1 to +1. If it's a positive number,
@@ -479,12 +475,12 @@ impl PuzzleView {
 
     /// Returns the triangle on a gizmo face that contains the screen-space
     /// point `cursor_pos`, or `None` if there is none.
-    fn gizmo_triangle_hover<'a>(
+    fn gizmo_triangle_hover(
         &self,
         cursor_pos: cgmath::Point2<f32>,
         gizmo_face: GizmoFace,
         tri_range: &Range<u32>,
-        gizmo_vertex_3d_positions: &'a [cgmath::Vector4<f32>],
+        gizmo_vertex_3d_positions: &[cgmath::Vector4<f32>],
     ) -> Option<GizmoHoverState> {
         let puzzle_state = self.sim.lock();
         let mesh = &puzzle_state.puzzle_type().mesh;

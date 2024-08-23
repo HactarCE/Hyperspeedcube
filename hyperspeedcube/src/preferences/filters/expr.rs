@@ -349,7 +349,7 @@ mod parser {
         }
     }
 
-    fn tokenize<'a>(s: &'a str) -> impl Iterator<Item = &'a str> {
+    fn tokenize(s: &str) -> impl Iterator<Item = &'_ str> {
         lazy_static! {
             // regex for symbols we actually care about: `[+|()!~]`
             static ref TOKEN: Regex =
@@ -357,7 +357,7 @@ mod parser {
         }
 
         // Just ignore unrecognized characters
-        TOKEN.find_iter(&s).map(|m| m.as_str())
+        TOKEN.find_iter(s).map(|m| m.as_str())
     }
 }
 

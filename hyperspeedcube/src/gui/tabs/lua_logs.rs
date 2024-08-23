@@ -31,7 +31,7 @@ pub fn show(ui: &mut egui::Ui, _app: &mut App) {
                 let mut last_file = &None;
                 for line in log_lines
                     .iter()
-                    .filter(|line| line.matches_filter_string(&*filter_string))
+                    .filter(|line| line.matches_filter_string(&filter_string))
                 {
                     if is_first {
                         is_first = false;

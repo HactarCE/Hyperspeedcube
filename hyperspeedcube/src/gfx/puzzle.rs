@@ -258,7 +258,7 @@ impl PuzzleRenderer {
         let id = next_buffer_id();
         PuzzleRenderer {
             gfx: Arc::clone(gfx),
-            model: Arc::new(StaticPuzzleModel::new(&gfx, &mesh, id)),
+            model: Arc::new(StaticPuzzleModel::new(gfx, &mesh, id)),
             buffers: DynamicPuzzleBuffers::new(Arc::clone(gfx), &mesh, id),
 
             puzzle_name,
@@ -266,8 +266,8 @@ impl PuzzleRenderer {
             puzzle_sticker_colors,
             is_placeholder_model: is_empty_model,
 
-            puzzle_vertex_3d_positions: CachedGpuCompute::new(Arc::clone(&gfx)),
-            gizmo_vertex_3d_positions: CachedGpuCompute::new(Arc::clone(&gfx)),
+            puzzle_vertex_3d_positions: CachedGpuCompute::new(Arc::clone(gfx)),
+            gizmo_vertex_3d_positions: CachedGpuCompute::new(Arc::clone(gfx)),
 
             last_draw_params: None,
 
@@ -394,7 +394,7 @@ impl PuzzleRenderer {
         self.gfx.device.poll(wgpu::Maintain::Wait);
         output_buffer.unmap();
 
-        Ok(rx.recv_timeout(std::time::Duration::from_secs(5))??)
+        rx.recv_timeout(std::time::Duration::from_secs(5))?
     }
 
     pub fn draw_puzzle(
@@ -1430,7 +1430,7 @@ impl<K: PartialEq, T: 'static + Send + Sync> CachedGpuCompute<K, T> {
                     *data_ref.lock() = Some(Arc::new(convert(buffer)));
                 }
                 Err(wgpu::BufferAsyncError) => {
-                    log::error!("Error mapping wgpu buffer")
+                    log::error!("Error mapping wgpu buffer");
                 }
             },
         );

@@ -65,12 +65,10 @@ where
         ui.data(|data| data.get_temp::<PlaintextYamlEditorState>(self.id))
     }
     fn set_state(&self, ui: &egui::Ui, state: Option<PlaintextYamlEditorState>) {
-        match state {
-            Some(state) => {
-                ui.data_mut(|data| data.insert_temp::<PlaintextYamlEditorState>(self.id, state))
-            }
-            None => ui.data_mut(|data| data.remove::<PlaintextYamlEditorState>(self.id)),
-        }
+        ui.data_mut(|data| match state {
+            Some(state) => data.insert_temp::<PlaintextYamlEditorState>(self.id, state),
+            None => data.remove::<PlaintextYamlEditorState>(self.id),
+        })
     }
 
     pub fn show(&self, ui: &mut egui::Ui) -> Option<egui::Response> {

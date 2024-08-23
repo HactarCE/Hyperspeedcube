@@ -137,7 +137,7 @@ impl<T: Default + Clone + PartialEq> WithPresets<T> {
             .or_else(|| self.last_loaded_preset())
             .or_else(|| backup?.last_loaded_preset())
             .map(|p| p.value.clone())
-            .unwrap_or_default()
+            .unwrap_or_default();
     }
 
     /// Returns whether the current preset has been modified from what was most

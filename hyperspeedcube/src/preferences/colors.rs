@@ -103,7 +103,7 @@ impl GlobalColorPalette {
             .color_palette
             .builtin_colors
             .iter()
-            .map(|(k, v)| (k.clone(), self.builtin_colors.get(k).unwrap_or(v).clone()))
+            .map(|(k, v)| (k.clone(), *self.builtin_colors.get(k).unwrap_or(v)))
             .collect();
 
         self.builtin_color_sets = DEFAULT_PREFS
@@ -119,7 +119,7 @@ impl GlobalColorPalette {
                     k.clone(),
                     v.iter()
                         .enumerate()
-                        .map(|(i, v)| user_value.get(i).unwrap_or(v).clone())
+                        .map(|(i, v)| *user_value.get(i).unwrap_or(v))
                         .collect(),
                 )
             })
@@ -243,7 +243,7 @@ impl ColorSystemPreferences {
     /// Creates factory-default preferences for a color system.
     pub fn from_color_system(color_system: &ColorSystem) -> Self {
         let mut ret = Self::default();
-        let _changed = ret.update_builtin_schemes(color_system);
+        ret.update_builtin_schemes(color_system);
         ret.schemes.load_preset(&color_system.default_scheme);
         ret
     }

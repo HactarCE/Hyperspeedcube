@@ -186,27 +186,25 @@ impl<'a> ColorsUi<'a> {
             });
         });
 
-        egui::ScrollArea::horizontal()
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    for (group_name, sets) in self.palette.groups_of_sets() {
-                        ui.group(|ui| {
-                            ui.vertical(|ui| {
-                                ui.add(
-                                    egui::Label::new(egui::RichText::from(group_name).strong())
-                                        .wrap_mode(egui::TextWrapMode::Wrap),
-                                );
-                                ui.spacing_mut().item_spacing.x = small_space;
-                                for (set_name, _set) in sets {
-                                    self.show_color_set(ui, set_name);
-                                }
-                            });
+        egui::ScrollArea::horizontal().show(ui, |ui| {
+            ui.horizontal(|ui| {
+                for (group_name, sets) in self.palette.groups_of_sets() {
+                    ui.group(|ui| {
+                        ui.vertical(|ui| {
+                            ui.add(
+                                egui::Label::new(egui::RichText::from(group_name).strong())
+                                    .wrap_mode(egui::TextWrapMode::Wrap),
+                            );
+                            ui.spacing_mut().item_spacing.x = small_space;
+                            for (set_name, _set) in sets {
+                                self.show_color_set(ui, set_name);
+                            }
                         });
-                    }
-                })
-                .response
+                    });
+                }
             })
-            .inner;
+            .response
+        });
 
         ui.group(|ui| {
             ui.set_width(ui.available_width());
@@ -266,7 +264,7 @@ impl<'a> ColorsUi<'a> {
     ) {
         match drag.before_or_after {
             Some(before_or_after) => {
-                self.reorder_color_to(map, drag.payload, drag.end, before_or_after)
+                self.reorder_color_to(map, drag.payload, drag.end, before_or_after);
             }
             None => self.swap_color_to(map, drag.payload, drag.end),
         }
@@ -389,7 +387,7 @@ impl<'a> ColorsUi<'a> {
                 tooltip_pos,
 
                 color_name: gradient.to_string(),
-                color: gradient.clone().into(),
+                color: gradient.into(),
                 puzzle_color: None,
             }
             .show(ui, self);
@@ -422,7 +420,7 @@ impl<'a> ColorsUi<'a> {
         };
         let puzzle_color = if self.show_puzzle_colors {
             self.default_color_to_puzzle_color
-                .get(&default_color)
+                .get(default_color)
                 .cloned()
         } else {
             None
@@ -685,9 +683,9 @@ pub fn color_edit(
     let text_to_copy = r.secondary_clicked().then(|| color.to_string());
     if !crate::gui::components::copy_on_click(ui, &r, text_to_copy) {
         r = r.on_hover_ui(|ui| {
-            md(ui, L.click_to.edit.with(&L.inputs.click));
-            md(ui, L.click_to.copy_hex.with(&L.inputs.right_click));
-            md(ui, L.click_to.delete.with(&L.inputs.middle_click));
+            md(ui, L.click_to.edit.with(L.inputs.click));
+            md(ui, L.click_to.copy_hex.with(L.inputs.right_click));
+            md(ui, L.click_to.delete.with(L.inputs.middle_click));
         });
     }
 
@@ -698,7 +696,7 @@ pub fn color_edit(
     // Alt+click to delete
     if let Some(on_delete) = on_delete {
         if r.middle_clicked() || alt && !cmd && r.clicked() {
-            on_delete()
+            on_delete();
         }
     }
 

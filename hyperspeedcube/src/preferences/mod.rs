@@ -164,7 +164,7 @@ impl Preferences {
         self.needs_save_eventually = false;
         let (tx, _join_handle) = &*PREFS_SAVE_THREAD;
         if let Err(e) = tx.send(PrefsSaveCommand::Save(self.clone())) {
-            log::error!("Error saving preferences: {e}")
+            log::error!("Error saving preferences: {e}");
         }
     }
     pub fn block_on_final_save(&mut self) {
@@ -181,7 +181,6 @@ impl Preferences {
         })();
         if let Err(e) = result {
             log::error!("Error waiting for preferences saving: {e}");
-            return;
         }
     }
 

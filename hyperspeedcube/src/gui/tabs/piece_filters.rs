@@ -181,9 +181,9 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
             .inner
         });
         let r = r.inner.on_hover_ui(|ui| {
-            md(ui, L.click_to.activate.with(&L.inputs.click));
-            md(ui, L.click_to.rename.with(&L.inputs.right_click));
-            md(ui, L.click_to.delete.with(&L.inputs.middle_click));
+            md(ui, L.click_to.activate.with(L.inputs.click));
+            md(ui, L.click_to.rename.with(L.inputs.right_click));
+            md(ui, L.click_to.delete.with(L.inputs.middle_click));
         });
 
         let mods = ui.input(|input| input.modifiers);
@@ -542,7 +542,7 @@ fn show_filter_expr_ui(
     puz: &std::sync::Arc<Puzzle>,
 ) -> egui::Response {
     ui.scope(|ui| {
-        let err = FilterExpr::from_str(&expr_string).validate(puz).err();
+        let err = FilterExpr::from_str(expr_string).validate(puz).err();
         if err.is_some() {
             ui.visuals_mut().selection.stroke.color = ui.visuals().warn_fg_color;
             ui.visuals_mut().widgets.hovered.bg_stroke.color = ui.visuals().warn_fg_color;

@@ -19,7 +19,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui,
         None,
         |p| p.animation.last_loaded_preset().cloned(),
-        |prefs_ui| crate::gui::components::prefs::build_animation_section(prefs_ui),
+        crate::gui::components::prefs::build_animation_section,
     );
 
     // Copy settings back to active puzzle.

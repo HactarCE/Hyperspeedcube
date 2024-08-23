@@ -232,7 +232,7 @@ impl PuzzleSimulation {
             grip: partial.grip,
             initial_transform: partial.transform,
             final_transform: Motor::ident(self.ndim()),
-        })
+        });
     }
     /// Returns whether there's a twist animation queued or animating currently.
     pub fn has_twist_anim_queued(&self) -> bool {
@@ -259,13 +259,13 @@ impl PuzzleSimulation {
                     self.do_twist(twist, partial.layers);
                 } else {
                     // The identity twist is closer.
-                    self.cancel_partial_twist()
+                    self.cancel_partial_twist();
                 }
             } else {
                 // There are no possible twists. Why did we even let the user
                 // drag the mouse in the first place? Questions such as these
                 // may never know an answer.
-                self.cancel_partial_twist()
+                self.cancel_partial_twist();
             }
         }
     }

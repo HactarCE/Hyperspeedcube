@@ -82,13 +82,13 @@ fn show_hover_info(ui: &mut egui::Ui, app: &mut App) {
             info_line(ui, "Sticker count", &piece_info.stickers.len().to_string());
             if let Some(piece_type) = piece_info.piece_type {
                 ui.label("");
-                ui.strong(format!("Piece type {}", piece_type));
+                ui.strong(format!("Piece type {piece_type}"));
                 let piece_type_info = &puz.piece_types[piece_type];
                 info_line(ui, "Piece type name", &piece_type_info.name);
             }
             if let Some(sticker) = hov.sticker {
                 ui.label("");
-                ui.strong(format!("Sticker {}", sticker));
+                ui.strong(format!("Sticker {sticker}"));
                 let sticker_info = &puz.stickers[sticker];
                 ui.label("");
                 ui.strong(format!("Color {}", sticker_info.color));
@@ -109,7 +109,7 @@ fn show_hover_info(ui: &mut egui::Ui, app: &mut App) {
             let twist = puz.gizmo_twists[hov.gizmo_face];
 
             ui.label("");
-            ui.strong(format!("Twist {}", twist));
+            ui.strong(format!("Twist {twist}"));
             let twist_info = &puz.twists[twist];
             info_line(ui, "Twist name", &twist_info.name);
             match twist_info.opposite {
@@ -149,7 +149,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                 let text_to_copy = r
                     .clicked()
                     .then(|| color_system_to_lua_code(&p.puzzle().colors, &app.prefs));
-                crate::gui::components::copy_on_click(ui, &r, text_to_copy);
+                crate::gui::components::copy_on_click(ui, r, text_to_copy);
             });
 
             ui.separator();
@@ -271,7 +271,7 @@ fn puzzle_color_edit_button(
 
     let close_behavior = egui::PopupCloseBehavior::CloseOnClickOutside;
     egui::popup_below_widget(ui, popup_id, &r, close_behavior, |ui| {
-        color_assignment_popup(ui, puzzle_view, &prefs.color_palette, Some(color))
+        color_assignment_popup(ui, puzzle_view, &prefs.color_palette, Some(color));
     });
 }
 
@@ -316,18 +316,19 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
             let display = &info.display;
             format!(" display = {display:?},")
         }));
-    let default_color_kv_pairs = match schemes.get_index(0).filter(|_| has_default_colors) {
-        Some((_name, default_colors)) => Some(
-            default_colors
-                .iter_values()
-                .map(|default_color| {
-                    let default_color_string = default_color.to_string();
-                    format!(" default = {default_color_string:?}")
-                })
-                .collect_vec(),
-        ),
-        None => None,
-    };
+    let default_color_kv_pairs =
+        schemes
+            .get_index(0)
+            .filter(|_| has_default_colors)
+            .map(|(_name, default_colors)| {
+                default_colors
+                    .iter_values()
+                    .map(|default_color| {
+                        let default_color_string = default_color.to_string();
+                        format!(" default = {default_color_string:?}")
+                    })
+                    .collect_vec()
+            });
 
     s += "\n  colors = {\n";
     for i in 0..color_system.list.len() {
@@ -338,7 +339,7 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
         } else {
             s += color_display_kv_pairs[i]
                 .trim_end()
-                .strip_suffix(",")
+                .strip_suffix(',')
                 .expect("no trailing comma");
         }
         if let Some(kv_pairs) = &default_color_kv_pairs {

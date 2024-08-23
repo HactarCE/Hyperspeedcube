@@ -8,7 +8,6 @@ mod hint;
 mod layer_mask;
 pub mod prefs;
 mod presets;
-mod puzzle_list;
 mod reset;
 mod text_edit_popup;
 mod yaml_editor;
@@ -23,7 +22,6 @@ pub use dnd::*;
 pub use layer_mask::*;
 pub use prefs::PrefsUi;
 pub use presets::*;
-pub use puzzle_list::*;
 pub use reset::*;
 pub use yaml_editor::*;
 

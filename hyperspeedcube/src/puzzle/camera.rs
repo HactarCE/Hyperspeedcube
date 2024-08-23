@@ -28,7 +28,7 @@ impl Camera {
     fn compute_pixel_scale(target_size: [u32; 2], zoom: f32) -> Result<f32> {
         let w = target_size[0] as f32;
         let h = target_size[1] as f32;
-        let min_dimen = f32::min(w as f32, h as f32);
+        let min_dimen = f32::min(w, h);
         if min_dimen == 0.0 {
             bail!("puzzle view has zero size");
         }
@@ -131,8 +131,8 @@ impl Camera {
     }
     pub fn scale_screen_space_to_ndc(&self, p: cgmath::Point2<f32>) -> Option<cgmath::Point2<f32>> {
         let xy_scale = self.xy_scale().ok()?;
-        let x = p.x as f32 * xy_scale.x;
-        let y = p.y as f32 * xy_scale.y;
+        let x = p.x * xy_scale.x;
+        let y = p.y * xy_scale.y;
         Some(cgmath::point2(x, y))
     }
     /// Projects an N-dimensional vector `v` to a 2D vector in screen space.

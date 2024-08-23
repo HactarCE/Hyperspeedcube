@@ -43,7 +43,7 @@ where
     fn validate_preset_name(&self, new_name: &str, ok: &'a str) -> TextValidationResult<'a> {
         if new_name.is_empty() {
             Err(Some(self.text.errors.empty_name.into()))
-        } else if !self.presets.is_name_available(&new_name) {
+        } else if !self.presets.is_name_available(new_name) {
             Err(Some(self.text.errors.name_conflict.into()))
         } else if let Some(Err(e)) = self.extra_validation.as_ref().map(|f| f(self, new_name)) {
             Err(Some(e))
@@ -123,7 +123,7 @@ where
                 if let Some(presets_set) = presets_set.filter(|s| !s.is_empty()) {
                     ui.label(format!("({presets_set})"));
                 }
-                HelpHoverWidget::show_right_aligned(ui, &L.help.presets);
+                HelpHoverWidget::show_right_aligned(ui, L.help.presets);
             });
             ui.add_space(ui.spacing().item_spacing.y);
             ui.horizontal_wrapped(|ui| {
@@ -132,7 +132,7 @@ where
                     let r = ui.add_enabled(!dnd.is_dragging(), |ui: &mut egui::Ui| {
                         self.show_preset_name_selectable_label(ui, &preset.name)
                             .on_hover_ui(|ui| {
-                                md(ui, L.click_to.activate.with(&L.inputs.click));
+                                md(ui, L.click_to.activate.with(L.inputs.click));
                             })
                     });
 
@@ -154,10 +154,10 @@ where
                     let r = r.inner.response.on_hover_ui(|ui| {
                         // TODO: don't show this if there's a popup
                         for action in [
-                            L.click_to.activate.with(&L.inputs.click),
-                            L.click_to.rename.with(&L.inputs.right_click),
-                            L.click_to.reorder.with(&L.inputs.drag),
-                            L.click_to.delete.with(&L.inputs.middle_click),
+                            L.click_to.activate.with(L.inputs.click),
+                            L.click_to.rename.with(L.inputs.right_click),
+                            L.click_to.reorder.with(L.inputs.drag),
+                            L.click_to.delete.with(L.inputs.middle_click),
                         ] {
                             md(ui, action);
                         }
@@ -332,7 +332,7 @@ where
                         ui,
                         current: &mut self.presets.current,
                         defaults: Some(&defaults.value),
-                        changed: &mut self.changed,
+                        changed: self.changed,
                     });
                 }
             });
@@ -372,7 +372,7 @@ where
                             let r = ui
                                 .add_sized(BIG_ICON_BUTTON_SIZE, egui::Button::new("💾"))
                                 .on_hover_explanation(L.presets.save_changes, {
-                                    let current = md_bold_user_text(&self.preset_name);
+                                    let current = md_bold_user_text(self.preset_name);
                                     if overwrite {
                                         L.presets.overwrite_current.with(&current)
                                     } else {

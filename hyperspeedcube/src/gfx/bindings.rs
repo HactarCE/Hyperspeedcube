@@ -125,7 +125,7 @@ pub(in crate::gfx) trait BindGroupsTrait<'a>: Sized {
                     visibility: binding.visibility,
                     ty: binding.ty,
                     count: None,
-                })
+                });
         }
 
         // Remove empty bind groups from the end of the list.

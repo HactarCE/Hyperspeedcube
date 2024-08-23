@@ -214,7 +214,7 @@ impl<'v, 's> TextEditPopup<'v, 's> {
 
                         let s = if self.text_edit_trim { s.trim() } else { &s };
                         if let Some(validator) = self.validate_confirm {
-                            if self.auto_confirm || validated_button(ui, "✔", validator(&s), true)
+                            if self.auto_confirm || validated_button(ui, "✔", validator(s), true)
                             {
                                 response = Some(TextEditPopupResponse::Confirm(s.to_string()));
                                 if !self.auto_confirm
@@ -225,7 +225,7 @@ impl<'v, 's> TextEditPopup<'v, 's> {
                             }
                         }
                         if let Some(validator) = self.validate_delete {
-                            if validated_button(ui, "🗑", validator(&s), false) {
+                            if validated_button(ui, "🗑", validator(s), false) {
                                 response = Some(TextEditPopupResponse::Delete);
                                 ui.memory_mut(|mem| mem.close_popup());
                             }

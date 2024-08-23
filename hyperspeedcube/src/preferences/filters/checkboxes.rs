@@ -57,7 +57,7 @@ impl FilterCheckboxes {
         colors: &PerColor<&str>,
         piece_types: &PerPieceType<&str>,
     ) -> FilterExpr {
-        let color_expr = |c| FilterExpr::Terminal(format!("{}", colors[c]));
+        let color_expr = |c| FilterExpr::Terminal(colors[c].to_string());
         let piece_type_expr = |t| FilterExpr::Terminal(format!("'{}", piece_types[t]));
 
         let colors_with_state = |state| self.colors.iter_filter(move |_, &s| s == state);

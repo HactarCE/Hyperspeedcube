@@ -129,8 +129,8 @@ fn add_base_shape(mesh: &mut Mesh) -> Result<()> {
         (0.1552163, 0.4096659),
     ];
     let z_coordinates = [-0.95, -0.75, -0.5, -0.15, 0.15, 0.5, 0.75, 0.95];
-    let layers = z_coordinates.map(|z| {
-        let scale = (1.0 - (z * z * z as f64).abs()).cbrt();
+    let layers = z_coordinates.map(|z: f64| {
+        let scale = (1.0 - (z * z * z).abs()).cbrt();
         polygon_verts.map(|xy| transform_point(xy, z * 0.4, scale))
     });
 

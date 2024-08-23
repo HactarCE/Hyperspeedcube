@@ -96,8 +96,6 @@ impl AppUi {
                 }
             });
 
-        if ctx.input(|input| input.key_pressed(egui::Key::A)) {}
-
         // Animate puzzle views.
         let mut puzzle_view_to_focus = None;
         for (i, tab) in self.dock_state.iter_all_tabs() {
@@ -131,19 +129,19 @@ impl AppUi {
             .collect_vec();
         for rename in self.app.prefs.view_3d.take_renames() {
             for puzzle_widget in &mut puzzle_widgets {
-                if puzzle_widget.view_prefs_set() == PuzzleViewPreferencesSet::Dim3D {
-                    if puzzle_widget.view.camera.view_preset.name == rename.old {
-                        puzzle_widget.view.camera.view_preset.name = rename.new.clone();
-                    }
+                if puzzle_widget.view_prefs_set() == PuzzleViewPreferencesSet::Dim3D
+                    && puzzle_widget.view.camera.view_preset.name == rename.old
+                {
+                    puzzle_widget.view.camera.view_preset.name = rename.new.clone();
                 }
             }
         }
         for rename in self.app.prefs.view_4d.take_renames() {
             for puzzle_widget in &mut puzzle_widgets {
-                if puzzle_widget.view_prefs_set() == PuzzleViewPreferencesSet::Dim4D {
-                    if puzzle_widget.view.camera.view_preset.name == rename.old {
-                        puzzle_widget.view.camera.view_preset.name = rename.new.clone();
-                    }
+                if puzzle_widget.view_prefs_set() == PuzzleViewPreferencesSet::Dim4D
+                    && puzzle_widget.view.camera.view_preset.name == rename.old
+                {
+                    puzzle_widget.view.camera.view_preset.name = rename.new.clone();
                 }
             }
         }
@@ -220,7 +218,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     type Tab = Tab;
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
-        tab.ui(ui, self.app)
+        tab.ui(ui, self.app);
     }
 
     fn id(&mut self, tab: &mut Self::Tab) -> egui::Id {
@@ -239,6 +237,6 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     }
 
     fn on_add(&mut self, surface: SurfaceIndex, node: NodeIndex) {
-        self.added_nodes.push((surface, node))
+        self.added_nodes.push((surface, node));
     }
 }

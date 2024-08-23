@@ -43,7 +43,7 @@ pub fn md(ui: &mut egui::Ui, markdown: impl AsRef<str>) -> egui::Response {
     ui.scope(|ui| {
         ui.visuals_mut().indent_has_left_vline = false;
         ui.spacing_mut().indent = INDENT_WIDTH;
-        render_block(ui, ast)
+        render_block(ui, ast);
     })
     .response
 }
@@ -171,7 +171,7 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
                         for list_item in node.children() {
                             // TODO: align numbered lists properly
                             ui.horizontal_wrapped(|ui| {
-                                ui.label(format!("{}.", i));
+                                ui.label(format!("{i}."));
                                 ui.scope(|ui| render_block(ui, list_item));
                             });
                             i += 1;
@@ -188,7 +188,7 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
         | comrak::nodes::NodeValue::DescriptionItem(_)
         | comrak::nodes::NodeValue::DescriptionTerm
         | comrak::nodes::NodeValue::DescriptionDetails => {
-            not_implemented_label(ui, "DescriptionDetails")
+            not_implemented_label(ui, "DescriptionDetails");
         }
 
         comrak::nodes::NodeValue::CodeBlock(code_block) => {
@@ -220,7 +220,7 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
         }
 
         comrak::nodes::NodeValue::FootnoteDefinition(_) => {
-            not_implemented_label(ui, "FootnoteDefinition")
+            not_implemented_label(ui, "FootnoteDefinition");
         }
 
         comrak::nodes::NodeValue::Table(_)
@@ -243,7 +243,7 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
         comrak::nodes::NodeValue::FootnoteReference(_) => (), // inline
         comrak::nodes::NodeValue::Math(_) => (),   // inline
         comrak::nodes::NodeValue::MultilineBlockQuote(_) => {
-            not_implemented_label(ui, "MultilineBlockQuote")
+            not_implemented_label(ui, "MultilineBlockQuote");
         }
         comrak::nodes::NodeValue::Escaped => (), // inline
         comrak::nodes::NodeValue::WikiLink(_) => (), // inline
@@ -283,7 +283,7 @@ fn render_inline<'a>(
         comrak::nodes::NodeValue::Link(_) => append_not_implemented(job, state, "Link"),
         comrak::nodes::NodeValue::Image(_) => append_not_implemented(job, state, "Image"),
         comrak::nodes::NodeValue::FootnoteReference(_) => {
-            append_not_implemented(job, state, "FootnoteReference")
+            append_not_implemented(job, state, "FootnoteReference");
         }
         comrak::nodes::NodeValue::Math(_) => append_not_implemented(job, state, "Math"),
         comrak::nodes::NodeValue::MultilineBlockQuote(_) => todo!(),
@@ -291,7 +291,7 @@ fn render_inline<'a>(
         comrak::nodes::NodeValue::WikiLink(_) => append_not_implemented(job, state, "WikiLink"),
         comrak::nodes::NodeValue::Underline => state.underline = true,
         comrak::nodes::NodeValue::SpoileredText => {
-            append_not_implemented(job, state, "SpoileredText")
+            append_not_implemented(job, state, "SpoileredText");
         }
         comrak::nodes::NodeValue::EscapedTag(_) => append_not_implemented(job, state, "EscapedTag"),
 

@@ -142,11 +142,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
                     .text_edit_width(150.0)
                     .over(ui, &label_response, 3.0) // overwrite width if wider
                     .confirm_button_validator(&|new_name| {
-                        validate_single_color_name(
-                            &prefs.current,
-                            new_name,
-                            L.colors.actions.rename,
-                        )
+                        validate_single_color_name(prefs.current, new_name, L.colors.actions.rename)
                     })
                     .delete_button_validator(&|_| Ok(Some(L.colors.actions.delete.into())))
                     .show(ui)

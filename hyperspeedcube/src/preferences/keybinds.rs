@@ -45,7 +45,7 @@ pub struct KeyCombo {
 impl fmt::Display for KeyCombo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mods = key_names::mods_prefix_string(self.shift, self.ctrl, self.alt, self.logo);
-        write!(f, "{}", mods)?;
+        write!(f, "{mods}")?;
 
         match &self.key {
             // Some(Key::Sc(sc)) => write!(f, "{}", key_names::key_name(sc)), // TODO: update key_names

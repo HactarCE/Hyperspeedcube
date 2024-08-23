@@ -96,7 +96,7 @@ impl PuzzleWidget {
     }
     /// Returns the puzzle type.
     pub fn puzzle(&self) -> Arc<Puzzle> {
-        Arc::clone(&self.sim().lock().puzzle_type())
+        Arc::clone(self.sim().lock().puzzle_type())
     }
     /// Returns the view preferences set to use for the puzzle.
     pub fn view_prefs_set(&self) -> PuzzleViewPreferencesSet {
@@ -198,14 +198,13 @@ impl PuzzleWidget {
             }
         }
 
-        if r.has_focus() {
-            if ui.input(|input| input.key_pressed(egui::Key::F5)) {
-                if crate::LIBRARY.with(|lib| self.reload(lib, prefs)) {
-                    // Don't even try to redraw the puzzle. Just wait for the
-                    // next frame.
-                    return r;
-                }
-            }
+        if r.has_focus()
+            && ui.input(|input| input.key_pressed(egui::Key::F5))
+            && crate::LIBRARY.with(|lib| self.reload(lib, prefs))
+        {
+            // Don't even try to redraw the puzzle. Just wait for the
+            // next frame.
+            return r;
         }
 
         let renderer = self.renderer.lock();
@@ -315,7 +314,7 @@ impl PuzzleWidget {
             ndim: puzzle.ndim(),
             cam: self.view.camera.clone(),
 
-            cursor_pos: cursor_pos.map(|p| p.into()).filter(|_| SEND_CURSOR_POS),
+            cursor_pos: cursor_pos.map(|p| p).filter(|_| SEND_CURSOR_POS),
             is_dragging_view: match self.view.drag_state() {
                 Some(DragState::ViewRot { .. }) => true,
                 Some(DragState::Canceled | DragState::PreTwist | DragState::Twist) | None => false,

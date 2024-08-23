@@ -132,7 +132,7 @@ impl PuzzleCommand {
                     .map(|&id| &ty.axes[id]);
                 match axis {
                     Some(ax) => {
-                        let layer_mask = layers.to_layer_mask(&ax);
+                        let layer_mask = layers.to_layer_mask(ax);
                         if layer_mask == LayerMask(0) {
                             ax.name.clone()
                         } else {
@@ -166,8 +166,8 @@ impl PuzzleCommand {
                 },
             },
 
-            PuzzleCommand::KeybindSet { keybind_set_name } => format!("{keybind_set_name}"),
-            PuzzleCommand::ViewPreset { view_preset_name } => format!("{view_preset_name}"),
+            PuzzleCommand::KeybindSet { keybind_set_name } => keybind_set_name.to_string(),
+            PuzzleCommand::ViewPreset { view_preset_name } => view_preset_name.to_string(),
 
             PuzzleCommand::None => String::new(),
         }

@@ -169,7 +169,7 @@ fn load_built_in_puzzles() {
                             match file.contents_utf8() {
                                 Some(contents) => lib.add_file(name, None, contents.to_string()),
                                 None => {
-                                    log::error!("Error loading built-in file {name}")
+                                    log::error!("Error loading built-in file {name}");
                                 }
                             }
                         }
@@ -192,10 +192,10 @@ fn reload_user_puzzles() {
 
 fn open_dir(dir: &std::path::Path) {
     if let Err(e) = std::fs::create_dir_all(dir) {
-        log::error!("Error creating directory {dir:?}: {e}")
+        log::error!("Error creating directory {dir:?}: {e}");
     }
     if let Err(e) = opener::open(dir) {
-        log::error!("Error opening directory {dir:?}: {e}")
+        log::error!("Error opening directory {dir:?}: {e}");
     }
 }
 

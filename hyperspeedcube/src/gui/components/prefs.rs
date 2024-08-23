@@ -403,7 +403,7 @@ pub fn build_view_section(
             });
         }
 
-        prefs_ui.angle_with_raw_label(&*fov_3d_label(&prefs_ui), access!(.fov_3d), |dv| {
+        prefs_ui.angle_with_raw_label(fov_3d_label(&prefs_ui), access!(.fov_3d), |dv| {
             dv.range(FOV_3D_RANGE).speed(0.5)
         });
     });

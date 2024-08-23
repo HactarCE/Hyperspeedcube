@@ -96,7 +96,7 @@ impl App {
             if let Some(new_puzzle_view) =
                 PuzzleWidget::new(lib, &self.gfx, &mut self.prefs, puzzle_id)
             {
-                self.set_active_puzzle(Some(new_puzzle_view))
+                self.set_active_puzzle(Some(new_puzzle_view));
             }
         }
     }

@@ -147,7 +147,7 @@ impl PuzzleStyleStates {
     ) -> PieceMask {
         self.piece_sets
             .iter()
-            .filter(|(style_state, _piece_set)| filter_fn(*style_state))
+            .filter(|(style_state, _piece_set)| filter_fn(style_state))
             .map(|(_style_state, piece_set)| piece_set)
             .fold(PieceMask::new_empty(self.piece_count), |a, b| a | b)
     }
@@ -210,10 +210,10 @@ impl PieceStyleState {
         let ss = self.selected_sticker.then_some(styles.selected_piece); // may be different in the future
 
         fn min(xs: impl IntoIterator<Item = Option<f32>>) -> Option<f32> {
-            xs.into_iter().filter_map(|x| x).min_by(f32::total_cmp)
+            xs.into_iter().flatten().min_by(f32::total_cmp)
         }
         fn max(xs: impl IntoIterator<Item = Option<f32>>) -> Option<f32> {
-            xs.into_iter().filter_map(|x| x).max_by(f32::total_cmp)
+            xs.into_iter().flatten().max_by(f32::total_cmp)
         }
         fn first_or_default<T: Default>(xs: impl IntoIterator<Item = Option<T>>) -> T {
             xs.into_iter().find_map(|x| x).unwrap_or_default()

@@ -149,7 +149,7 @@ impl RenderPipelineDescriptor<'_> {
 
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some(&format!("{}_pipeline", self.label)),
-            layout: Some(&pipeline_layout),
+            layout: Some(pipeline_layout),
             vertex: wgpu::VertexState {
                 module: shader_module,
                 entry_point: &vertex_entry_point,
@@ -183,9 +183,9 @@ impl ComputePipelineDescriptor<'_> {
     ) -> wgpu::ComputePipeline {
         device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some(&format!("{}_pipeline", self.label)),
-            layout: Some(&pipeline_layout),
+            layout: Some(pipeline_layout),
             module: shader_module,
-            entry_point: &self.entry_point,
+            entry_point: self.entry_point,
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         })
     }

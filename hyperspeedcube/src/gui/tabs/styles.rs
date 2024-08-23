@@ -59,7 +59,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             L.presets
                 .custom_styles
                 .current
-                .with(&md_bold_user_text(&name)),
+                .with(&md_bold_user_text(name)),
         );
         changed |= ui.add(piece_style_edit).changed();
     });
@@ -74,7 +74,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         text: &L.presets.custom_styles,
         autosave: true,
         vscroll: false,
-        help_contents: Some(&help_contents),
+        help_contents: Some(help_contents),
         extra_validation: Some(Box::new(|_, name| {
             if name == crate::DEFAULT_STYLE_NAME {
                 Err(L.presets.custom_styles.errors.name_conflict.into())
