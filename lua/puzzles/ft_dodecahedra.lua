@@ -22,6 +22,9 @@ function define_ft_dodecahedron(size, id, name)
     ndim = 3,
     name = string.format("FT Dodecahedron %d (%s)", size, name),
     colors = 'dodecahedron',
+    meta = {
+      author = {'Andrew Farkas', 'Milo Jacquet'},
+    },
     -- piece_types = {
     --   { id = 'centers', name = "Centers" },
     --   {
@@ -110,6 +113,9 @@ puzzles:add('megaminx_crystal', {
   ndim = 3,
   name = 'Megaminx Crystal',
   colors = 'dodecahedron',
+  meta = {
+    author = 'Milo Jacquet',
+  },
   build = function(self)
     local sym = cd'h3'
     local shape = symmetries.dodecahedral.dodecahedron()
@@ -143,6 +149,9 @@ puzzles:add('pyraminx_crystal', {
   ndim = 3,
   name = 'Pyraminx Crystal',
   colors = 'dodecahedron',
+  meta = {
+    author = 'Milo Jacquet',
+  },
   build = function(self)
     local sym = cd'h3'
     local shape = symmetries.dodecahedral.dodecahedron()
@@ -174,6 +183,9 @@ puzzles:add('curvy_starminx', {
   ndim = 3,
   name = 'Curvy Starminx',
   colors = 'dodecahedron',
+  meta = {
+    author = 'Milo Jacquet',
+  },
   build = function(self)
     local sym = cd'h3'
     local shape = symmetries.dodecahedral.dodecahedron()
@@ -208,6 +220,9 @@ puzzles:add('starminx', {
   ndim = 3,
   name = 'Starminx',
   colors = 'dodecahedron',
+  meta = {
+    author = 'Milo Jacquet',
+  },
   build = function(self)
     local sym = cd'h3'
     local shape = symmetries.dodecahedral.dodecahedron()
@@ -257,6 +272,9 @@ function define_pentultimate(size, name)
     ndim = 3,
     name = string.format("Pentultimate %d (%s)", size, name),
     colors = 'dodecahedron',
+    meta = {
+      author = 'Milo Jacquet',
+    },
     -- piece_types = {
     --   { id = 'centers', name = "Centers" },
     --   {

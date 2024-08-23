@@ -13,6 +13,9 @@ function define_fto(size, name)
     ndim = 3,
     name = 'FT Octahedron ' .. size .. name_suffix,
     colors = 'octahedron',
+    meta = {
+      author = {'Andrew Farkas', 'Milo Jacquet'},
+    },
     build = function(self)
       local sym = cd'bc3'
       local shape = symmetries.octahedral.octahedron()
@@ -32,7 +35,7 @@ end
 define_fto(1, '')
 define_fto(2, 'Skewb Diamond')
 define_fto(3, '')
-define_fto(4, '')
+define_fto(4, 'Master FTO')
 define_fto(5, '')
 define_fto(6, '')
 define_fto(7, '')
