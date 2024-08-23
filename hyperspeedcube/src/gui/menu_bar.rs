@@ -116,10 +116,10 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::PuzzleInfo);
 
         ui.menu_button(L.menu.puzzles.custom, |ui| {
-            if let Some(paths) = &*crate::PATHS {
+            if let Ok(lua_dir) = crate::paths::lua_dir() {
                 if ui.button(L.menu.puzzles.show_lua_dir).clicked() {
                     ui.close_menu();
-                    crate::open_dir(&paths.lua_dir);
+                    crate::open_dir(lua_dir);
                 }
             }
             #[cfg(not(target_arch = "wasm32"))]

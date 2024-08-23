@@ -1,7 +1,7 @@
 use crate::{app::App, L};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    if crate::PATHS.is_some() {
+    if crate::paths::lua_dir().is_ok() {
         if ui.button(L.library.reload_all_files).clicked()
             || ui.input(|input| input.key_pressed(egui::Key::F5))
         {

@@ -1,7 +1,8 @@
-use std::env;
 use std::path::PathBuf;
+use std::{env, path::Path};
 
 use directories::ProjectDirs;
+use eyre::{OptionExt, Result};
 
 const PREFS_FILE_NAME: &str = "hyperspeedcube";
 const PREFS_FILE_EXTENSION: &str = "yaml";
@@ -9,7 +10,17 @@ const PREFS_FILE_EXTENSION: &str = "yaml";
 const LUA_DIR_NAME: &str = "lua";
 
 lazy_static! {
-    pub(crate) static ref PATHS: Option<AppPaths> = app_paths();
+    static ref PATHS: Option<AppPaths> = app_paths();
+}
+
+pub fn get() -> Result<&'static AppPaths> {
+    PATHS.as_ref().ok_or_eyre("no paths")
+}
+pub fn prefs_file() -> Result<&'static Path> {
+    Ok(&get()?.prefs_file)
+}
+pub fn lua_dir() -> Result<&'static Path> {
+    Ok(&get()?.lua_dir)
 }
 
 /// Paths to external files read by Hyperspeedcube.
@@ -85,8 +96,8 @@ fn portable_dir() -> Option<PathBuf> {
 fn is_nonportable() -> bool {
     if crate::IS_OFFICIAL_BUILD && cfg!(target_os = "macos") {
         // If we are in a macOS app package, then we are always nonportable
-        // because macOS doesn't allow storing files in the same directory
-        // as the executable.
+        // because macOS doesn't allow storing files in the same directory as
+        // the executable.
         true
     } else if let Some(mut p) = portable_dir() {
         // Otherwise, check whether the `nonportable` file exists in the same

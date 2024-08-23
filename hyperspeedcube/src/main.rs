@@ -31,8 +31,6 @@ mod puzzle;
 mod serde_impl;
 mod util;
 
-use paths::PATHS;
-
 /// Strings for the current locale.
 ///
 /// This can be made customizable in the future using the crate `atomic`.
@@ -183,16 +181,13 @@ fn load_built_in_puzzles() {
 }
 
 fn reload_user_puzzles() {
-    let Some(paths) = &*crate::PATHS else {
+    let Ok(lua_dir) = crate::paths::lua_dir() else {
         log::error!("Error locating Lua directory");
         return;
     };
-    log::info!(
-        "Loading Lua files from path {}",
-        paths.lua_dir.to_string_lossy(),
-    );
+    log::info!("Loading Lua files from path {}", lua_dir.to_string_lossy());
     // TODO: load puzzle library async
-    LIBRARY.with(|lib| lib.load_directory(&paths.lua_dir).take_result_blocking());
+    LIBRARY.with(|lib| lib.load_directory(lua_dir).take_result_blocking());
 }
 
 fn open_dir(dir: &std::path::Path) {
