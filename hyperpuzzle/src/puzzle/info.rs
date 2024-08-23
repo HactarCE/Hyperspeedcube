@@ -213,7 +213,7 @@ impl FromStr for DefaultColor {
             let index: usize = index.trim().parse::<usize>().ok()?.checked_sub(1)?; // 1-indexed
             Some(Self::Set { set_name, index })
         })()
-        .unwrap_or_else(|| Self::Single { name }))
+        .unwrap_or(Self::Single { name }))
     }
 }
 impl fmt::Display for DefaultColor {
@@ -246,6 +246,6 @@ impl<'de> Deserialize<'de> for DefaultColor {
     {
         String::deserialize(deserializer)?
             .parse()
-            .map_err(|e| D::Error::custom(e))
+            .map_err(D::Error::custom)
     }
 }

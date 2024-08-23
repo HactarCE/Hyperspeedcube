@@ -24,10 +24,11 @@ impl LuaUserData for LuaColor {
         fields.add_field_method_set("default", |lua, this, new_default_color| {
             let mut puz = this.db.lock();
             let colors = &mut puz.shape.colors;
-            Ok(colors.set_default_color(
+            colors.set_default_color(
                 this.id,
                 super::default_color_from_str(lua, new_default_color),
-            ))
+            );
+            Ok(())
         });
     }
 

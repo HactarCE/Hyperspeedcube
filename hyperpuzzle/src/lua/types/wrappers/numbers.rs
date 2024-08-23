@@ -31,10 +31,11 @@ pub struct LuaIndex(pub usize);
 impl<'lua> FromLua<'lua> for LuaIndex {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         // IIFE to mimic try_block
-        match (|| {
+        let index = (|| {
             let LuaIntegerNoConvert(i) = lua.unpack(value.clone()).ok()?;
             usize::try_from(i).ok()?.checked_sub(1)
-        })() {
+        })();
+        match index {
             Some(i) => Ok(LuaIndex(i)),
             None => lua_convert_err(&value, "positive integer"),
         }
@@ -54,10 +55,11 @@ pub struct LuaMirrorIndex(pub u8);
 impl<'lua> FromLua<'lua> for LuaMirrorIndex {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         // IIFE to mimic try_block
-        match (|| {
+        let index = (|| {
             let LuaIntegerNoConvert(i) = lua.unpack(value.clone()).ok()?;
             u8::try_from(i).ok()?.checked_sub(1)
-        })() {
+        })();
+        match index {
             Some(i) => Ok(LuaMirrorIndex(i)),
             None => lua_convert_err(&value, "smallish positive integer"),
         }

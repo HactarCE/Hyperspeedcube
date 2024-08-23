@@ -6,7 +6,7 @@ use regex::Regex;
 
 lazy_static! {
     static ref NAME_REGEX_FULL_MATCH: Regex =
-        Regex::new(&format!(r"^{}$", crate::NAME_REGEX)).unwrap();
+        Regex::new(&format!(r"^{}$", crate::NAME_REGEX)).expect("bad compile-time regex");
 }
 
 /// Mutable assignment of names to elements. By default, all elements are

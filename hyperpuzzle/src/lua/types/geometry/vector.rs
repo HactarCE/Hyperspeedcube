@@ -11,7 +11,7 @@ pub struct LuaVectorFromMultiValue(pub Vector);
 impl<'lua> FromLuaMulti<'lua> for LuaVectorFromMultiValue {
     fn from_lua_multi(values: LuaMultiValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         match values.get(0) {
-            None => return Ok(Self(vector![])),
+            None => Ok(Self(vector![])),
             Some(v) if v.is_number() || v.is_integer() => values
                 .into_iter()
                 .map(|v| lua.unpack(v).map(|LuaNumberNoConvert(x)| x as Float))
@@ -24,7 +24,7 @@ impl<'lua> FromLuaMulti<'lua> for LuaVectorFromMultiValue {
             }),
             Some(v) => match lua.unpack(v.clone()) {
                 Ok(LuaVector(v)) => Ok(Self(v)),
-                Err(_) => lua_convert_err(&v, "number, vector, multivector, table, or axis name"),
+                Err(_) => lua_convert_err(v, "number, vector, multivector, table, or axis name"),
             },
         }
     }
@@ -53,7 +53,7 @@ impl<'lua> FromLua<'lua> for LuaVector {
                         }),
                     }
                 } else if let Ok(axis) = cast_userdata::<LuaAxis>(lua, &v) {
-                    Ok(Self(axis.vector()?.into()))
+                    Ok(Self(axis.vector()?))
                 } else {
                     lua_convert_err(&v, "vector, point, table, or axis name")
                 }

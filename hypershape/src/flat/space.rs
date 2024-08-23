@@ -377,14 +377,15 @@ impl Space {
 
             if polytopes[p].rank() == 1 {
                 // IIFE to mimic try_block
-                s += &match (|| {
+                let edge_verts = (|| {
                     let mut points = polytopes[p]
                         .boundary()
                         .ok()?
                         .iter()
                         .map(|p| polytopes[p].to_vertex());
                     Some([points.next()??, points.next()??])
-                })() {
+                })();
+                s += &match edge_verts {
                     Some([a, b]) => format!("{p}: line {} .. {}", vertices[a], vertices[b]),
                     None => format!("{p}: invalid edge"),
                 }
@@ -405,10 +406,10 @@ impl Space {
                             s += " (primordial)";
                         }
                         if let Some(seam) = seam {
-                            s += &format!(" (seam {seam})")
+                            s += &format!(" (seam {seam})");
                         }
                         if let Some(patch) = patch {
-                            s += &format!(" (patch {patch})")
+                            s += &format!(" (patch {patch})");
                         }
                         stack.extend(boundary.iter());
                     }

@@ -58,7 +58,7 @@ fn color_from_hex_str(s: &str) -> Result<[u8; 3], hex::FromHexError> {
     match s.len() {
         3 => {
             let s = &s.chars().flat_map(|c| [c, c]).collect::<String>();
-            hex::decode_to_slice(&s, &mut rgb)?;
+            hex::decode_to_slice(s, &mut rgb)?;
         }
         _ => hex::decode_to_slice(s, &mut rgb)?,
     }

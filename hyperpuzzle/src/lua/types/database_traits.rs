@@ -111,7 +111,7 @@ where
                 .filter_map(result_to_ok_or_warn(lua_warn_fn::<LuaError>(lua)))
                 .collect()),
 
-            _ => return lua_convert_err(&mapping_value, "table or function"),
+            _ => lua_convert_err(&mapping_value, "table or function"),
         }
     }
 

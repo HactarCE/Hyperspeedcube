@@ -115,7 +115,7 @@ impl Library {
     }
     /// Unloads and removes a file from the Lua library.
     pub fn remove_file(&self, filename: &str) {
-        self.db.lock().remove_file(&filename);
+        self.db.lock().remove_file(filename);
     }
     /// Loads all files that haven't been loaded yet. Lua execution happens
     /// asynchronously, so changes might not take effect immediately; use the

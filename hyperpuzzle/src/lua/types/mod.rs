@@ -85,8 +85,8 @@ fn lua_convert_error(value: &LuaValue<'_>, to: &'static str) -> LuaError {
 }
 
 /// Returns the type name for a custom userdata type.
-pub fn lua_userdata_type_name<'lua, T: 'static + LuaUserData>(
-    lua: &'lua Lua,
+pub fn lua_userdata_type_name<T: 'static + LuaUserData>(
+    lua: &Lua,
 ) -> LuaResult<&'static str> {
     Ok(lua_type_name(&LuaValue::UserData(lua.create_proxy::<T>()?)))
 }
@@ -97,7 +97,7 @@ pub fn lua_userdata_type_name<'lua, T: 'static + LuaUserData>(
 ///
 /// For userdata types defined in this crate, the `"type"` metadata key is used
 /// instead, which gives better information to users of the Lua API.
-pub fn lua_type_name<'lua>(value: &LuaValue<'lua>) -> &'static str {
+pub fn lua_type_name(value: &LuaValue<'_>) -> &'static str {
     // IIFE to mimic try_block
     match (|| {
         value

@@ -33,5 +33,5 @@ pub fn warn_at(msg: &str, loc: String) {
 }
 
 pub fn warn(msg: &str) {
-    println!("cargo::warning={msg}")
+    println!("cargo::warning={msg}");
 }

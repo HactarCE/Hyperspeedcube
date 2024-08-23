@@ -155,7 +155,7 @@ impl Motor {
             match self.index_of(axes) {
                 Some(i) => self.coefficients[i] = value,
                 None => {
-                    log::error!("bad index {axes} into motor multivector {self}")
+                    log::error!("bad index {axes} into motor multivector {self}");
                 }
             }
         }
@@ -297,7 +297,7 @@ impl Motor {
     pub fn canonicalize(&self) -> Option<Self> {
         let normalized = self.normalize()?;
         // Find the first nonzero coefficient.
-        let coef = normalized.coefs().find(|coef| is_approx_nonzero(coef))?;
+        let coef = normalized.coefs().find(is_approx_nonzero)?;
         // Normalize so that that coefficient is zero.
         Some(if coef > 0.0 { normalized } else { -normalized })
     }
@@ -427,7 +427,7 @@ impl Motor {
             .with_exact_size(ndim as usize + 1);
         Matrix::from_cols(cols)
     }
-    fn euclidean_matrix_cols(&self) -> impl '_ + Iterator<Item = Vector> + ExactSizeIterator {
+    fn euclidean_matrix_cols(&self) -> impl '_ + ExactSizeIterator<Item = Vector> {
         (0..self.ndim).map(|i| self.transform_vector(Vector::unit(i)))
     }
 }

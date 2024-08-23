@@ -14,7 +14,7 @@ pub(crate) fn iter_uppercase_letter_names() -> impl Iterator<Item = String> {
         (0..26_usize.pow(len)).map(move |i| {
             (0..len)
                 .rev()
-                .map(|j| ('A' as u8 + ((i / 26_usize.pow(j)) % 26) as u8) as char)
+                .map(|j| (b'A' + ((i / 26_usize.pow(j)) % 26) as u8) as char)
                 .collect()
         })
     })
@@ -25,7 +25,7 @@ pub fn titlecase(s: &str) -> String {
     s.split(&[' ', '_'])
         .filter(|word| !word.is_empty())
         .map(|word| {
-            if let Some((char_boundary, _)) = word.char_indices().skip(1).next() {
+            if let Some((char_boundary, _)) = word.char_indices().nth(1) {
                 let (left, right) = word.split_at(char_boundary);
                 left.to_uppercase() + right
             } else {
@@ -56,7 +56,7 @@ pub(crate) fn lazy_resolve<K: fmt::Debug + Clone + Eq + Hash, V: Clone>(
     let mut known: HashMap<K, V> = known.iter().cloned().collect();
 
     // Resolve lazy evaluation.
-    let mut queue = known.iter().map(|(k, _v)| k.clone()).collect_vec();
+    let mut queue = known.keys().cloned().collect_vec();
     while let Some(next_known) = queue.pop() {
         if let Some(unprocessed) = unknown.remove(&next_known) {
             for (k, v) in unprocessed {
@@ -101,7 +101,7 @@ pub fn lua_string_literal(s: &str) -> String {
     let s = format!("{s:?}");
 
     // Prefer single quotes as a matter of style
-    if s.contains("'") {
+    if s.contains('\'') {
         s
     } else {
         format!("'{}'", &s[1..s.len() - 1])

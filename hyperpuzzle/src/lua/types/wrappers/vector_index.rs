@@ -37,7 +37,7 @@ impl<'lua> FromLua<'lua> for LuaVectorIndex {
 
 impl<'lua> IntoLua<'lua> for LuaVectorIndex {
     fn into_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        self.0.checked_add(1).into_lua(&lua)
+        self.0.checked_add(1).into_lua(lua)
     }
 }
 

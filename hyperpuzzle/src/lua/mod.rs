@@ -38,7 +38,7 @@ fn lua_axes_table(lua: &mlua::Lua) -> mlua::Result<mlua::Table<'_>> {
     Ok(axes_table)
 }
 
-fn lua_warn_fn<'lua, E: ToString>(lua: &'lua mlua::Lua) -> impl 'lua + Copy + Fn(E) {
+fn lua_warn_fn<E: ToString>(lua: &mlua::Lua) -> impl '_ + Copy + Fn(E) {
     move |error| lua.warning(error.to_string(), false)
 }
 

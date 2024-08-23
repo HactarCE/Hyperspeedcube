@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_lines, clippy::unwrap_used)]
 #![allow(missing_docs)]
 
 use std::fmt;
@@ -32,7 +33,7 @@ impl fmt::Display for Langs {
             f,
             "/// DO NOT MODIFY THIS FILE DIRECTLY. Instead modify the KDL files.",
         )?;
-        writeln!(f, "")?;
+        writeln!(f)?;
 
         // List langs.
         writeln!(f, "#[rustfmt::skip]")?;
@@ -101,7 +102,7 @@ pub fn generate_locale_source_code(locale_dir: impl AsRef<Path>, output_file: im
         }
         langs
             .langs
-            .push(Lang::from_file(file_path, &mut langs.schema))
+            .push(Lang::from_file(file_path, &mut langs.schema));
     }
 
     langs.schema.finalize();

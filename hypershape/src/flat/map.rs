@@ -3,7 +3,6 @@ use super::*;
 /// Trait for [`SpaceMap`] to map different types.
 pub trait SpaceMapFor<T: Copy> {
     /// Applies the map to a `thing` and returns the result.
-    #[must_use]
     fn map(&mut self, thing: T) -> Result<T>;
 }
 

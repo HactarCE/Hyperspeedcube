@@ -30,7 +30,6 @@ pub struct TwistBuilder {
 }
 impl TwistBuilder {
     /// Canonicalizes the twist.
-    #[must_use]
     pub fn canonicalize(self) -> Result<Self> {
         let transform = self
             .transform
@@ -75,7 +74,7 @@ impl TwistKey {
 }
 
 /// Twist system being constructed.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TwistSystemBuilder {
     /// Axis system being constructed.
     pub axes: AxisSystemBuilder,
@@ -92,15 +91,13 @@ pub struct TwistSystemBuilder {
 impl TwistSystemBuilder {
     /// Constructs a empty twist system with a given axis system.
     pub fn new() -> Self {
-        Self {
-            axes: AxisSystemBuilder::new(),
-
-            by_id: PerTwist::new(),
-            data_to_id: ApproxHashMap::new(),
-            names: NamingScheme::new(),
-        }
+        Self::default()
     }
 
+    /// Returns whether there are no twists in the twist system.
+    pub fn is_empty(&self) -> bool {
+        self.by_id.is_empty()
+    }
     /// Returns the number of twists in the twist system.
     pub fn len(&self) -> usize {
         self.by_id.len()
@@ -165,8 +162,8 @@ impl TwistSystemBuilder {
 
     /// Returns a twist ID from its axis and transform.
     pub fn data_to_id(&self, key: &TwistKey) -> Option<Twist> {
-        None.or_else(|| self.data_to_id.get(&key))
-            .or_else(|| self.data_to_id.get(&key))
+        None.or_else(|| self.data_to_id.get(key))
+            .or_else(|| self.data_to_id.get(key))
             .copied()
     }
 
@@ -322,7 +319,7 @@ impl TwistSystemBuilder {
         Ok((axes, twists, gizmo_face_twists))
     }
 
-    fn build_3d_gizmo<'a>(
+    fn build_3d_gizmo(
         space: &Space,
         mesh: &mut Mesh,
         twists: &[(Vector, Twist)],
@@ -357,7 +354,7 @@ impl TwistSystemBuilder {
             warn_fn,
         )
     }
-    fn build_4d_gizmo<'a>(
+    fn build_4d_gizmo(
         space: &Space,
         mesh: &mut Mesh,
         axis: &AxisInfo,

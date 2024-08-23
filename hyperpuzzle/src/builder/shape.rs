@@ -219,7 +219,7 @@ impl ShapeBuilder {
         let mut queue = piece_set.iter().collect_vec();
         let mut output = PieceSet::new();
         while let Some(old_piece) = queue.pop() {
-            if self.active_pieces.contains(&old_piece) {
+            if self.active_pieces.contains(old_piece) {
                 output.insert(old_piece);
             } else {
                 queue.extend(self.pieces[old_piece].cut_result.iter());
@@ -268,7 +268,7 @@ impl ShapeBuilder {
         }
 
         if count != 1 {
-            warn_fn(eyre!("{count} pieces were marked with type {name}"))
+            warn_fn(eyre!("{count} pieces were marked with type {name}"));
         }
 
         Ok(())
@@ -323,7 +323,7 @@ impl ShapeBuilder {
             }
 
             // Assign the piece type.
-            if let Some(&piece_type) = applicable_piece_types.get(0) {
+            if let Some(&piece_type) = applicable_piece_types.first() {
                 for i in set {
                     self.pieces[active_pieces[i]]
                         .piece_type
@@ -353,15 +353,7 @@ impl ShapeBuilder {
     }
 
     /// Constructs a mesh and assembles piece & sticker data for the shape.
-    pub fn build(
-        &self,
-        warn_fn: impl Fn(eyre::Error),
-    ) -> Result<(
-        Mesh,
-        PerPiece<PieceInfo>,
-        PerSticker<StickerInfo>,
-        PerPieceType<PieceTypeInfo>,
-    )> {
+    pub fn build(&self, warn_fn: impl Fn(eyre::Error)) -> Result<ShapeBuildOutput> {
         let space = &self.space;
         let ndim = space.ndim();
 
@@ -384,12 +376,7 @@ impl ShapeBuilder {
                     "incorrect spelling detected in piece type {:?}",
                     piece_type.name
                 ));
-                return Ok((
-                    Mesh::new_empty(self.ndim()),
-                    PerPiece::new(),
-                    PerSticker::new(),
-                    PerPieceType::new(),
-                ));
+                return Ok(ShapeBuildOutput::new_empty(self.ndim()));
             }
         }
 
@@ -469,7 +456,7 @@ impl ShapeBuilder {
 
                 let (polygon_index_range, triangles_index_range, edges_index_range) =
                     build_shape_polygons(
-                        &space,
+                        space,
                         &mut mesh,
                         &sticker_shrink_vectors,
                         space.get(sticker.facet),
@@ -515,7 +502,30 @@ impl ShapeBuilder {
             mesh.add_puzzle_surface(surface_data.centroid.center(), surface_data.normal)?;
         }
 
-        Ok((mesh, pieces, stickers, piece_types))
+        Ok(ShapeBuildOutput {
+            mesh,
+            pieces,
+            stickers,
+            piece_types,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct ShapeBuildOutput {
+    pub mesh: Mesh,
+    pub pieces: PerPiece<PieceInfo>,
+    pub stickers: PerSticker<StickerInfo>,
+    pub piece_types: PerPieceType<PieceTypeInfo>,
+}
+impl ShapeBuildOutput {
+    fn new_empty(ndim: u8) -> Self {
+        Self {
+            mesh: Mesh::new_empty(ndim),
+            pieces: PerPiece::new(),
+            stickers: PerSticker::new(),
+            piece_types: PerPieceType::new(),
+        }
     }
 }
 
@@ -585,7 +595,7 @@ fn build_shape_polygons(
         if space.ndim() == 3 {
             let init = polygon.arbitrary_vertex()?;
             normal = basis[0].cross_product_3d(&basis[1]);
-            if normal.dot(init.pos() - &piece_centroid) < 0.0 {
+            if normal.dot(init.pos() - piece_centroid) < 0.0 {
                 normal = -normal;
                 basis.reverse();
             }
@@ -593,7 +603,7 @@ fn build_shape_polygons(
         let [u_tangent, v_tangent] = &basis;
 
         #[cfg(debug_assertions)]
-        hypermath::assert_approx_eq!(u_tangent.dot(&v_tangent), 0.0);
+        hypermath::assert_approx_eq!(u_tangent.dot(v_tangent), 0.0);
 
         // The simplices and mesh each have their own set of vertex IDs, so
         // we need to be able to map between them.
@@ -765,7 +775,7 @@ fn compute_sticker_shrink_vectors(
         .try_collect()?;
 
     // Compute shrink vectors for all vertices.
-    let shrink_vectors = piece_shape.vertex_set().into_iter().map(|vertex| {
+    let shrink_vectors = piece_shape.vertex_set().map(|vertex| {
         let surface_set = &elements_and_surface_sets_by_rank[0]
             .get(&vertex.as_element().id())
             .map(Cow::Borrowed)

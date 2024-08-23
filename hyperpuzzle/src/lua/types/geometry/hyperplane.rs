@@ -98,7 +98,7 @@ impl LuaUserData for LuaHyperplane {
 
         methods.add_meta_method(LuaMetaMethod::Eq, |_lua, Self(this), Self(other)| {
             Ok(approx_eq(this, &other))
-        })
+        });
     }
 }
 

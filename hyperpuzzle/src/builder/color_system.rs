@@ -49,6 +49,10 @@ impl ColorSystemBuilder {
         Self::default()
     }
 
+    /// Returns whether there are no colors in the color system.
+    pub fn is_empty(&self) -> bool {
+        self.by_id.is_empty()
+    }
     /// Returns the number of colors in the color system.
     pub fn len(&self) -> usize {
         self.by_id.len()
@@ -86,7 +90,7 @@ impl ColorSystemBuilder {
     pub fn default_scheme_name(&self) -> &str {
         self.default_scheme
             .as_deref()
-            .unwrap_or(&crate::DEFAULT_COLOR_SCHEME_NAME)
+            .unwrap_or(crate::DEFAULT_COLOR_SCHEME_NAME)
     }
 
     /// Sets the default color for a single color.

@@ -249,7 +249,7 @@ impl Schema {
                 fields.extend(
                     self.parse_field_schema(src, child, true)
                         .map(|(name, field)| (name, field.ty)),
-                )
+                );
             }
         }
 
@@ -425,7 +425,7 @@ impl Schema {
                 }
                 ty
             } else if let Some(children) = node.children() {
-                self.infer_struct_from_node_children(&src, &field_path, children)
+                self.infer_struct_from_node_children(src, &field_path, children)
             } else {
                 StructFieldType::StaticStr
             };
@@ -589,7 +589,7 @@ impl StructSchema {
             for (field_name, field) in &self.fields {
                 match &field.ty {
                     StructFieldType::StaticStr => {
-                        writeln!(f, "{indent}        {field_name}: \"\",")?
+                        writeln!(f, "{indent}        {field_name}: \"\",")?;
                     }
                     ty => warn(&format!("no default value for `{field_name}: {ty}`")),
                 }

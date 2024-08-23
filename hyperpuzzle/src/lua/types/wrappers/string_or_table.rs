@@ -13,7 +13,7 @@ impl<'lua> FromLua<'lua> for LuaNilStringOrTable<'lua> {
     }
 }
 impl<'lua> LuaNilStringOrTable<'lua> {
-    pub fn to_lua_registry(self, lua: &Lua) -> LuaResult<NilStringOrRegisteredTable> {
+    pub fn into_lua_registry(self, lua: &Lua) -> LuaResult<NilStringOrRegisteredTable> {
         self.try_map_table(|t| lua.create_registry_value(t))
     }
 }
@@ -21,7 +21,7 @@ impl<'lua> LuaNilStringOrTable<'lua> {
 /// Rust value is either
 pub type NilStringOrRegisteredTable = NilStringOrTable<LuaRegistryKey>;
 impl NilStringOrRegisteredTable {
-    pub fn from_lua_registry<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaNilStringOrTable<'lua>> {
+    pub fn to_lua_value<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaNilStringOrTable<'lua>> {
         self.try_map_table_ref(|t| lua.registry_value(t))
     }
 }

@@ -342,7 +342,7 @@ impl Blade {
     /// [exterior antiproduct]:
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Exterior_products
     pub fn antiwedge(lhs: &Self, rhs: &Self) -> Option<Self> {
-        Some(Self::wedge(&&lhs.left_complement(), &rhs.left_complement())?.right_complement())
+        Some(Self::wedge(&lhs.left_complement(), &rhs.left_complement())?.right_complement())
     }
     /// Returns the [dot product] between `lhs` and `rhs`, or `None` if the
     /// arguments have different grades.
@@ -455,7 +455,7 @@ impl Blade {
     #[must_use]
     pub fn cross_product_3d(lhs: &Self, rhs: &Self) -> Option<Blade> {
         if lhs.ndim == 3 && rhs.ndim == 3 && lhs.is_vector() && rhs.is_vector() {
-            let bivector = Blade::wedge(&lhs, &rhs)?;
+            let bivector = Blade::wedge(lhs, rhs)?;
             let e0 = Blade::from_term(3, Term::e0(1.0));
             Some(Blade::wedge(&bivector, &e0)?.antidual())
         } else {
@@ -470,7 +470,7 @@ impl Blade {
         let mut covered = self.right_complement(); // left vs. right doesn't matter
         let mut ret = vec![];
         // Set up a bitmask of remaining axes.
-        let mut axes_left = ((1 as u8) << ndim) - 1;
+        let mut axes_left = (1_u8 << ndim) - 1;
         while ret.len() < self.grade() as usize - 1 {
             let Some((axis, v)) = crate::util::iter_ones(axes_left)
                 .filter_map(|ax| {
@@ -518,7 +518,7 @@ impl AddAssign<Term> for Blade {
 impl AddAssign<Option<Term>> for Blade {
     fn add_assign(&mut self, rhs: Option<Term>) {
         if let Some(r) = rhs {
-            *self += r
+            *self += r;
         }
     }
 }
@@ -555,7 +555,7 @@ impl SubAssign<Term> for Blade {
 impl SubAssign<Option<Term>> for Blade {
     fn sub_assign(&mut self, rhs: Option<Term>) {
         if let Some(r) = rhs {
-            *self -= r
+            *self -= r;
         }
     }
 }

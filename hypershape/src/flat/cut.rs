@@ -90,6 +90,7 @@ impl Cut {
     }
 
     /// Cuts an element.
+    #[allow(clippy::too_many_lines)] // it's a complicated algorithm!
     pub fn cut(&mut self, element: impl ToElementId) -> Result<ElementCutOutput> {
         let cut = &mut *self;
         let space = cut.space.arc(); // TODO(perf): is this bad for perf?

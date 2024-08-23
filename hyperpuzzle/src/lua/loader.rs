@@ -68,7 +68,10 @@ impl LuaLoader {
             if crate::CAPTURE_LUA_OUTPUT {
                 let logger2 = logger.clone();
                 globals.raw_set("print", logger2.lua_info_fn(&lua)?)?;
-                lua.set_warning_function(move |lua, msg, _to_continue| Ok(logger2.warn(lua, msg)));
+                lua.set_warning_function(move |lua, msg, _to_continue| {
+                    logger2.warn(lua, msg);
+                    Ok(())
+                });
             }
 
             for (module_name, module_source) in LUA_MODULES {
@@ -146,7 +149,7 @@ impl LuaLoader {
     /// Builds a puzzle, or returns a cached puzzle if it has already been
     /// built.
     pub fn build_puzzle(&self, id: &str) -> Result<Arc<crate::Puzzle>> {
-        let result = LibraryDb::build_puzzle(&self.lua, &id);
+        let result = LibraryDb::build_puzzle(&self.lua, id);
         if let Err(e) = &result {
             let file = LibraryDb::get(&self.lua)
                 .ok()
@@ -284,7 +287,7 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
                         db.color_systems.extend(color_systems.keys().map(kv));
                     }
 
-                    file.load_state.lock().complete_ok(&self.lua)
+                    file.load_state.lock().complete_ok(self.lua)
                 }
                 Err(e) => Err(file.load_state.lock().complete_err(e)),
             }
@@ -297,7 +300,7 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
             filename.push_str(".lua");
         }
 
-        let current_file = LibraryFile::get_current(&self.lua)?;
+        let current_file = LibraryFile::get_current(self.lua)?;
 
         // Handle basic globs.
         if let Some(prefix) = filename.strip_suffix("/*.lua") {

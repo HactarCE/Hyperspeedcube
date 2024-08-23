@@ -47,7 +47,6 @@ impl PuzzleState {
 
     /// Does a twist, or returns an error containing the set of pieces that
     /// prevented the twist.
-    #[must_use]
     pub fn do_twist(&self, twist: Twist, layers: LayerMask) -> Result<Self, Vec<Piece>> {
         let twist = &self.puzzle_type.twists[twist];
         let grip = self.compute_grip(twist.axis, layers);
@@ -99,11 +98,11 @@ impl PuzzleState {
             .filter_map(|layer| axis.layers.get(layer).ok())
             .collect_vec();
 
-        let mut segments = vec![];
+        let mut segments: Vec<(Hyperplane, Option<Hyperplane>)> = vec![];
         for layer in grip_layers {
             if let Some((_, last_top)) = segments.last_mut() {
                 if *last_top == Some(layer.bottom.flip()) {
-                    *last_top = layer.top.clone();
+                    last_top.clone_from(&layer.top);
                     continue;
                 }
             }

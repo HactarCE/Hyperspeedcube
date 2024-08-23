@@ -53,7 +53,7 @@ impl Space {
     }
 
     /// Returns a simplicial complex representing a polytope element.
-    pub(super) fn simplices<'a>(&self, element: ElementId) -> Result<SimplexBlob> {
+    pub(super) fn simplices(&self, element: ElementId) -> Result<SimplexBlob> {
         if let Some(result) = self.cached_simplices.lock().get(&element) {
             return Ok(result.clone());
         }

@@ -125,7 +125,7 @@ impl TransformByMotor for LuaRegion {
             Self::And(xs) => Self::And(xs.iter().map(|x| m.transform(x)).collect()),
             Self::Or(xs) => Self::Or(xs.iter().map(|x| m.transform(x)).collect()),
             Self::Xor(xs) => Self::Xor(xs.iter().map(|x| m.transform(x)).collect()),
-            Self::Not(x) => Self::Not(Box::new(m.transform(&x))),
+            Self::Not(x) => Self::Not(Box::new(m.transform(x))),
         }
     }
 }

@@ -19,13 +19,13 @@ where
 
 /// Linearly interpolates (unclamped) componentwise between two arrays of
 /// values.
-pub fn lerp_array<A: Copy, T: Copy, const N: usize>(
+pub fn lerp_array<A, T, const N: usize>(
     a: [A; N],
     b: [A; N],
     t: T,
 ) -> [<A::Output as Add>::Output; N]
 where
-    A: Mul<T>,
+    A: Copy + Mul<T>,
     A::Output: Add,
     T: num_traits::Float,
 {

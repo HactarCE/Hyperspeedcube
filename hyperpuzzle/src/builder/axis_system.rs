@@ -106,7 +106,7 @@ impl AxisBuilder {
 }
 
 /// Axis system during puzzle construction.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct AxisSystemBuilder {
     /// Axis data (not including name and ordering).
     by_id: PerAxis<AxisBuilder>,
@@ -123,16 +123,13 @@ pub struct AxisSystemBuilder {
 impl AxisSystemBuilder {
     /// Constructs a new empty axis system builder.
     pub fn new() -> Self {
-        Self {
-            by_id: PerAxis::new(),
-            vector_to_id: ApproxHashMap::new(),
-            names: NamingScheme::new(),
-            ordering: CustomOrdering::default(),
-
-            axis_orbits: vec![],
-        }
+        Self::default()
     }
 
+    /// Returns whether there are no axes in the axis system.
+    pub fn is_empty(&self) -> bool {
+        self.by_id.is_empty()
+    }
     /// Returns the number of axes in the axis system.
     pub fn len(&self) -> usize {
         self.by_id.len()

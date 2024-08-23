@@ -63,6 +63,10 @@ impl ColorSystem {
         }
     }
 
+    /// Returns whether there are no colors in the color system.
+    pub fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
     /// Returns the number of colors in the color system.
     pub fn len(&self) -> usize {
         self.list.len()

@@ -70,7 +70,7 @@ impl LuaUserData for LuaBlade {
         });
 
         methods.add_meta_method("cross", |_lua, Self(this), Self(other)| {
-            match Blade::cross_product_3d(&this, &other) {
+            match Blade::cross_product_3d(this, &other) {
                 Some(v) => Ok(Self(v)),
                 None => Err(LuaError::external(
                     "cross product is only allowed between 3D vectors",
@@ -100,7 +100,7 @@ impl LuaUserData for LuaBlade {
 
         methods.add_method(
             "cross",
-            |_lua, Self(this), Self(other)| match Blade::cross_product_3d(&this, &other) {
+            |_lua, Self(this), Self(other)| match Blade::cross_product_3d(this, &other) {
                 Some(result) => Ok(LuaBlade(result)),
                 None => Err(LuaError::external(
                     "cross product is only allowed between vectors in 3D",

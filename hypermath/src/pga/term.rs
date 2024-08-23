@@ -253,11 +253,9 @@ impl Term {
     ///     https://rigidgeometricalgebra.org/wiki/index.php?title=Duals#Antidual
     #[must_use]
     pub fn antidual(self, ndim: u8) -> Option<Self> {
-        if self.axes.contains(Axes::E0) {
-            Some(self.right_complement(ndim))
-        } else {
-            None
-        }
+        self.axes
+            .contains(Axes::E0)
+            .then(|| self.right_complement(ndim))
     }
 }
 

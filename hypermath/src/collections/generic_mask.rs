@@ -111,7 +111,7 @@ impl<I: IndexNewtype> GenericMask<I> {
     }
     /// Inserts `element` into the set.
     pub fn insert(&mut self, element: I) {
-        self.bits.set(element.to_usize(), true)
+        self.bits.set(element.to_usize(), true);
     }
     /// Removes `element` from the set.
     pub fn remove(&mut self, element: I) {

@@ -115,9 +115,9 @@ impl LuaPuzzleBuilder {
     }
 
     /// Cut the puzzle.
-    fn cut<'lua>(
+    fn cut(
         &self,
-        lua: &'lua Lua,
+        lua: &Lua,
         cuts: LuaSymmetricSet<LuaHyperplane>,
         cut_mode: CutMode,
         sticker_mode: StickerMode,
@@ -147,10 +147,7 @@ impl LuaPuzzleBuilder {
                 }),
                 StickerMode::None => None,
                 StickerMode::Color(c) => Some(*c),
-                StickerMode::Map(m) => match name {
-                    Some(s) => Some(m[&s]),
-                    None => None,
-                },
+                StickerMode::Map(m) => name.map(|s| m[&s]),
             };
             colors_assigned.push(color);
 

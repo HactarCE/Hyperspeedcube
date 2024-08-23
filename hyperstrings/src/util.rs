@@ -23,7 +23,7 @@ pub fn read_kdl_file(path: impl AsRef<Path>) -> (SourceInfo, KdlDocument) {
 }
 
 pub fn ignore_node(src: &SourceInfo, node: &KdlNode) {
-    warn_at("ignoring node", src.at(node.span().offset()))
+    warn_at("ignoring node", src.at(node.span().offset()));
 }
 
 #[must_use]
@@ -106,7 +106,7 @@ pub fn ignore_entry(src: &SourceInfo, entry: &KdlEntry) {
 
 pub fn ignore_children(src: &SourceInfo, node: &KdlNode) {
     if let Some(children) = node.children() {
-        warn_at("ignoring children", src.at(children.span().offset()))
+        warn_at("ignoring children", src.at(children.span().offset()));
     }
 }
 
@@ -121,7 +121,7 @@ fn end_of_entries(node: &KdlNode) -> usize {
 #[must_use]
 pub fn warn_if_none<T>(value: Option<T>, msg: &str, loc: impl FnOnce() -> String) -> Option<T> {
     if value.is_none() {
-        warn_at(msg, loc())
+        warn_at(msg, loc());
     }
     value
 }

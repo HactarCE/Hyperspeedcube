@@ -201,7 +201,7 @@ impl<I: fmt::Debug, E: fmt::Debug> fmt::Debug for GenericVec<I, E> {
 impl<I: fmt::Display, E: fmt::Display> fmt::Display for GenericVec<I, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let contents = self.values.iter().join(", ");
-        write!(f, "[{}]", contents)
+        write!(f, "[{contents}]")
     }
 }
 impl<I, E> Default for GenericVec<I, E> {
@@ -313,7 +313,8 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
         let i = i.to_usize();
         let j = j.to_usize();
         if i < self.len() && j < self.len() {
-            Ok(self.values.swap(i, j))
+            self.values.swap(i, j);
+            Ok(())
         } else {
             Err(IndexOutOfRange {
                 type_name: I::TYPE_NAME,
@@ -329,20 +330,20 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
         }
     }
     /// Returns an iterator over the values in the collection.
-    pub fn iter_values(&self) -> impl Iterator<Item = &E> + DoubleEndedIterator {
+    pub fn iter_values(&self) -> impl DoubleEndedIterator<Item = &E> {
         self.values.iter()
     }
     /// Returns a mutating iterator over the values in the collections.
-    pub fn iter_values_mut(&mut self) -> impl Iterator<Item = &mut E> + DoubleEndedIterator {
+    pub fn iter_values_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut E> {
         self.values.iter_mut()
     }
     /// Returns an iterator over the index-value pairs in the collection.
-    pub fn iter(&self) -> impl Iterator<Item = (I, &E)> + DoubleEndedIterator {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (I, &E)> {
         self.iter_keys().zip(&self.values)
     }
     /// Returns a mutating iterator over the index-value pairs in the
     /// collection.
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (I, &mut E)> + DoubleEndedIterator {
+    pub fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = (I, &mut E)> {
         self.iter_keys().zip(&mut self.values)
     }
 
@@ -350,11 +351,11 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     pub fn iter_filter<'a>(
         &'a self,
         mut pred: impl 'a + FnMut(I, &E) -> bool,
-    ) -> impl 'a + Iterator<Item = I> + DoubleEndedIterator {
+    ) -> impl 'a + DoubleEndedIterator<Item = I> {
         self.iter_keys().filter(move |&i| pred(i, &self[i]))
     }
     /// Returns the first key for which a predicate returns `true`.
-    pub fn find<'a>(&'a self, pred: impl FnMut(I, &E) -> bool) -> Option<I> {
+    pub fn find(&self, pred: impl FnMut(I, &E) -> bool) -> Option<I> {
         self.iter_filter(pred).next()
     }
 

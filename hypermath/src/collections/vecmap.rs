@@ -68,7 +68,7 @@ impl<K: Eq, V> VecMap<K, V> {
 
     /// Returns an iterator over all entries in the map.
     pub fn iter(&self) -> <&Self as IntoIterator>::IntoIter {
-        (&self).into_iter()
+        self.into_iter()
     }
 }
 

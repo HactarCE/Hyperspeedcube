@@ -66,10 +66,10 @@ impl Space {
             elements.push(new_id);
 
             // Move to the next element position.
-            for k in 0..self.ndim() as usize {
-                position[k] += 1;
-                if position[k] > 2 {
-                    position[k] = 0;
+            for component in &mut position {
+                *component += 1;
+                if *component > 2 {
+                    *component = 0;
                 } else {
                     continue 'outer;
                 }

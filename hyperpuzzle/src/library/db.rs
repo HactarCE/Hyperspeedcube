@@ -33,7 +33,7 @@ impl LibraryDb {
         Arc::new(Mutex::new(Self::default()))
     }
     /// Returns the global library, given a Lua instance.
-    pub fn get<'lua>(lua: &'lua Lua) -> LuaResult<Arc<Mutex<LibraryDb>>> {
+    pub fn get(lua: &Lua) -> LuaResult<Arc<Mutex<LibraryDb>>> {
         Ok(Arc::clone(
             &*lua
                 .app_data_ref::<Arc<Mutex<LibraryDb>>>()
@@ -59,7 +59,7 @@ impl LibraryDb {
         })?;
         let cache = file_result.puzzles.get_mut(id).ok_or_else(err_not_found)?;
         if let Some(constructed) = &cache.constructed {
-            return Ok(Arc::clone(&constructed));
+            return Ok(Arc::clone(constructed));
         }
         drop(db_guard);
         let constructed_puzzle = cache.params.build(lua)?;

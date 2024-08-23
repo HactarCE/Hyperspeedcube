@@ -65,7 +65,7 @@ impl LuaSymmetry {
                 "h2" => FiniteCoxeterGroup::H2.try_into(),
                 "h3" => FiniteCoxeterGroup::H3.try_into(),
                 "h4" => FiniteCoxeterGroup::H4.try_into(),
-                s => match split_alpha_number(&s) {
+                s => match split_alpha_number(s) {
                     Some(("a", n)) => FiniteCoxeterGroup::A(n).try_into(),
                     Some(("b" | "c" | "bc", n)) => FiniteCoxeterGroup::B(n).try_into(),
                     Some(("d", n)) => FiniteCoxeterGroup::D(n).try_into(),
@@ -136,7 +136,7 @@ impl LuaSymmetry {
         let coxeter = self.as_coxeter()?;
 
         Ok(coxeter.mirror_basis().into_lua_err()?
-            * parse_dynkin_notation(coxeter.mirror_count(), &string)?)
+            * parse_dynkin_notation(coxeter.mirror_count(), string)?)
     }
 
     fn vector_from_args<'lua>(
@@ -256,7 +256,7 @@ impl LuaUserData for LuaSymmetry {
             LuaSymmetry::Coxeter { coxeter, chiral } => {
                 let mut s = coxeter.to_string();
                 if *chiral {
-                    s += " (chiral)"
+                    s += " (chiral)";
                 }
                 Ok(s)
             }

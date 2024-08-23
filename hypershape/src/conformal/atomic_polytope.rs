@@ -22,8 +22,7 @@ impl fmt::Debug for AtomicPolytope {
             .join(", ");
         write!(
             f,
-            "AtomicPolytope {{ manifold: {}, boundary: [{}] }}",
-            manifold_str, boundary_str,
+            "AtomicPolytope {{ manifold: {manifold_str}, boundary: [{boundary_str}] }}",
         )
     }
 }

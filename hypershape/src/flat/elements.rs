@@ -115,10 +115,7 @@ impl<'a, I: ToElementId> SpaceRef<'a, I> {
     }
     /// Returns an arbitrary vertex of the element.
     pub fn arbitrary_vertex(self) -> Result<Vertex<'a>> {
-        self.vertex_set()
-            .into_iter()
-            .next()
-            .ok_or_eyre("degenerate polytope")
+        self.vertex_set().next().ok_or_eyre("degenerate polytope")
     }
 
     /// Returns which side of `divider` contains the element.
@@ -134,6 +131,10 @@ impl<'a, I: ToElementId> ToElementId for SpaceRef<'a, I> {
     }
 }
 impl<'a, I: 'a + Fits64> SpaceRef<'a, Set64<I>> {
+    /// Returns whether the set is empty.
+    pub fn is_empty(&self) -> bool {
+        self.id.is_empty()
+    }
     /// Returns the number of elements in the set.
     pub fn len(&self) -> usize {
         self.id.len()
@@ -344,7 +345,7 @@ impl<'a> Edge<'a> {
 
 impl<'a> From<Vertex<'a>> for Element<'a> {
     fn from(value: Vertex<'a>) -> Self {
-        Element::new(&value.space, value.space.vertex_to_polytope(value.id))
+        Element::new(value.space, value.space.vertex_to_polytope(value.id))
     }
 }
 impl<'a> Vertex<'a> {

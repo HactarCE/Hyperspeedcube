@@ -225,10 +225,8 @@ impl LuaTwistSystem {
                 {
                     break;
                 }
-            } else {
-                if transform.is_ident() {
-                    break;
-                }
+            } else if transform.is_ident() {
+                break;
             }
             previous_transform = transform.clone();
 

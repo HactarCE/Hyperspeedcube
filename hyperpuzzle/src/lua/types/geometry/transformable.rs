@@ -99,7 +99,7 @@ impl Transformable {
     pub fn into_lua<'lua>(&self, lua: &'lua Lua) -> Option<LuaResult<LuaValue<'lua>>> {
         match self {
             Self::Axis { db, vector } => {
-                let db = Arc::clone(&db);
+                let db = Arc::clone(db);
                 let id = db.lock().twists.axes.vector_to_id(vector)?;
                 Some(LuaAxis { id, db }.into_lua(lua))
             }
@@ -113,7 +113,7 @@ impl Transformable {
                 axis_vector,
                 transform,
             } => {
-                let db = Arc::clone(&db);
+                let db = Arc::clone(db);
                 let puz = db.lock();
                 let axis = puz.twists.axes.vector_to_id(axis_vector)?;
                 let twist_key = TwistKey::new(axis, transform).ok()?;
@@ -279,7 +279,7 @@ fn hash_region(
         LuaRegion::Not(x) => {
             // `~X` = complement of X
             ast_structure.push('~');
-            hash_region(float_hash_fn, planes, ast_structure, &x);
+            hash_region(float_hash_fn, planes, ast_structure, x);
         }
     }
 }

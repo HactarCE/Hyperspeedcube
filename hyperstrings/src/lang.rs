@@ -65,7 +65,7 @@ impl Lang {
                                     "unexpected template at {field_path} in {}",
                                     self.name,
                                 ));
-                                format!("unimplemented!(\"unexpected template\")")
+                                "unimplemented!(\"unexpected template\")".to_owned()
                             }
                             None => {
                                 any_missing = true;
@@ -108,7 +108,7 @@ impl Lang {
                     match &struct_schema.fallback_key {
                         Some(fallback_key) => {
                             let fallback_const = KeyPath(fallback_key.clone()).const_name();
-                            write!(f, "{fallback_const}")?
+                            write!(f, "{fallback_const}")?;
                         }
                         None => {
                             if let Some(l) =

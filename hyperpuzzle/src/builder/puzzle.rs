@@ -5,7 +5,7 @@ use hypermath::{vector, VecMap, Vector};
 use hypershape::prelude::*;
 use parking_lot::Mutex;
 
-use super::{ShapeBuilder, TwistSystemBuilder};
+use super::{shape::ShapeBuildOutput, ShapeBuilder, TwistSystemBuilder};
 use crate::puzzle::*;
 
 /// Puzzle being constructed.
@@ -66,7 +66,12 @@ impl PuzzleBuilder {
         let mut dev_data = PuzzleDevData::new();
 
         // Build shape.
-        let (mut mesh, pieces, stickers, piece_types) = self.shape.build(warn_fn)?;
+        let ShapeBuildOutput {
+            mut mesh,
+            pieces,
+            stickers,
+            piece_types,
+        } = self.shape.build(warn_fn)?;
 
         // Build color system. TODO: cache this across puzzles?
         let colors = Arc::new(self.shape.colors.build(&self.id, &mut dev_data, warn_fn)?);

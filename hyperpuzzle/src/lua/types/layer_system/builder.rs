@@ -44,10 +44,8 @@ impl LuaUserData for LuaLayerSystem {
             let bottom = bottom.flip();
 
             // Leave the top plane as-is.
-            let top = match top {
-                Some(LuaHyperplane(m)) => Some(m),
-                None => None,
-            };
+            let top: Option<LuaHyperplane> = top;
+            let top = top.map(|LuaHyperplane(m)| m);
 
             this.lock()?
                 .push(AxisLayerBuilder { bottom, top })
@@ -76,6 +74,10 @@ impl LuaLayerSystem {
             .collect())
     }
 
+    /// Returns whether there are no layers in the layer system.
+    pub fn is_empty(&self) -> LuaResult<bool> {
+        Ok(self.lock()?.is_empty())
+    }
     /// Returns the number of layers.
     pub fn len(&self) -> LuaResult<usize> {
         Ok(self.lock()?.len())

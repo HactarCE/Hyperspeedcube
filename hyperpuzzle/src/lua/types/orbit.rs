@@ -114,7 +114,7 @@ impl LuaUserData for LuaOrbit {
         methods.add_method("intersection", |_lua, this, ()| {
             let mut ret = LuaRegion::Everything;
             for elem in &this.orbit_list {
-                match elem.objects.get(0) {
+                match elem.objects.first() {
                     Some(Transformable::Region(r)) => ret = ret & r.clone(),
                     _ => return Err(LuaError::external("expected orbit of regions")),
                 };
@@ -124,7 +124,7 @@ impl LuaUserData for LuaOrbit {
         methods.add_method("union", |_lua, this, ()| {
             let mut ret = LuaRegion::Nothing;
             for elem in &this.orbit_list {
-                match elem.objects.get(0) {
+                match elem.objects.first() {
                     Some(Transformable::Region(r)) => ret = ret | r.clone(),
                     _ => return Err(LuaError::external("expected orbit of regions")),
                 };
@@ -271,7 +271,7 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
                 .orbit_list
                 .iter()
                 .map(|element| {
-                    let v = Self::to_expected_type(lua, element.objects.get(0))?;
+                    let v = Self::to_expected_type(lua, element.objects.first())?;
                     Ok((element.gen_seq.clone(), element.name.clone(), v))
                 })
                 .try_collect(),
@@ -281,7 +281,7 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
     pub fn first(&self, lua: &'lua Lua) -> LuaResult<T> {
         match self {
             LuaSymmetricSet::Single(v) => Ok(v.clone()),
-            LuaSymmetricSet::Orbit(orbit) => Self::to_expected_type(lua, orbit.init().get(0)),
+            LuaSymmetricSet::Orbit(orbit) => Self::to_expected_type(lua, orbit.init().first()),
         }
     }
 

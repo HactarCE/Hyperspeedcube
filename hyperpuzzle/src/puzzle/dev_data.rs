@@ -97,7 +97,7 @@ impl<T: Copy + Eq + Hash> DevOrbit<T> {
         let mut s = ":named({\n".to_owned();
         for (i, new_name) in new_names_and_order {
             s += "  ";
-            s += &*crate::util::escape_lua_table_key(&new_name);
+            s += &*crate::util::escape_lua_table_key(new_name);
             s += " = {";
             let mut is_first = true;
             let mut elem_index = *i;
@@ -106,7 +106,7 @@ impl<T: Copy + Eq + Hash> DevOrbit<T> {
                     if is_first {
                         is_first = false;
                     } else {
-                        s += &format!(", ");
+                        s += ", ";
                     }
                     s += &format!("{}", g + 1); // 1-indexed
                 }

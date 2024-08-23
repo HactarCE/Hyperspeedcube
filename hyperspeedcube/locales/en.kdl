@@ -495,8 +495,8 @@ camera {
   v_axis_hint "Hold {{modifier}} to rotate through V axis"
 }
 
-debug {
-  disabled "Debug info is disabled in release builds"
+_debug {
+  _disabled "Debug info is disabled in release builds"
 }
 
 dev {

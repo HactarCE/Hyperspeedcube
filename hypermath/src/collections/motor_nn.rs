@@ -41,7 +41,7 @@ impl<V> MotorNearestNeighborMap<V> {
             let m = motor.to_ndim_at_least(ndim);
             if m.is_reflection() {
                 reflections.push(m);
-                reflection_values.push(value)
+                reflection_values.push(value);
             } else {
                 nonreflections.push(m);
                 nonreflection_values.push(value);

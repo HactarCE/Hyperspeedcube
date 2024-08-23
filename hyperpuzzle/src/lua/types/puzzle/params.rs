@@ -73,7 +73,7 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
             colors,
 
             name,
-            aliases: aliases.unwrap_or(vec![]),
+            aliases: aliases.unwrap_or_default(),
             meta: create_opt_registry_value(meta)?,
             properties: create_opt_registry_value(properties)?,
 
@@ -122,14 +122,14 @@ impl PuzzleParams {
 #[derive(Debug, Clone)]
 pub enum ColorSystemParams {
     ById(String),
-    Bespoke(ColorSystemBuilder),
+    Bespoke(Box<ColorSystemBuilder>),
 }
 impl<'lua> FromLua<'lua> for ColorSystemParams {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         match value {
-            LuaValue::Table(t) => Ok(Self::Bespoke(
+            LuaValue::Table(t) => Ok(Self::Bespoke(Box::new(
                 crate::lua::types::color_system::from_lua_table(lua, None, t)?,
-            )),
+            ))),
             LuaValue::String(id) => Ok(Self::ById(id.to_string_lossy().into_owned())),
             _ => Err(LuaError::external(
                 "expected string, table, or nil for `colors`",
@@ -141,7 +141,7 @@ impl ColorSystemParams {
     pub fn build(&self, lua: &Lua) -> LuaResult<ColorSystemBuilder> {
         match self {
             ColorSystemParams::ById(id) => LibraryDb::build_color_system(lua, id),
-            ColorSystemParams::Bespoke(colors) => Ok(colors.clone()),
+            ColorSystemParams::Bespoke(colors) => Ok((**colors).clone()),
         }
     }
 }

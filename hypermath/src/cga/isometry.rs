@@ -166,10 +166,7 @@ impl Isometry {
             .with_exact_size(ndim as usize + 1);
         Matrix::from_cols(cols)
     }
-    fn euclidean_matrix_cols(
-        &self,
-        ndim: u8,
-    ) -> impl '_ + Iterator<Item = Vector> + ExactSizeIterator {
+    fn euclidean_matrix_cols(&self, ndim: u8) -> impl '_ + ExactSizeIterator<Item = Vector> {
         (0..ndim).map(|i| {
             self.0.sandwich_term_euclidean(Term {
                 coef: 1.0,

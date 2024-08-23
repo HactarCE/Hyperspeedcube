@@ -114,7 +114,7 @@ pub trait VectorRef: Sized + fmt::Debug {
 
     /// Returns the component of the vector that is parallel to `other`.
     fn projected_to(&self, other: &Vector) -> Option<Vector> {
-        let scale_factor = util::try_div(self.dot(&other), other.mag2())?;
+        let scale_factor = util::try_div(self.dot(other), other.mag2())?;
         Some(other * scale_factor)
     }
     /// Returns the component of the vector that is perpendicular to `other`.
@@ -287,8 +287,7 @@ impl IndexMut<u8> for Vector {
         let ndim = self.ndim();
         self.0.get_mut(index as usize).unwrap_or_else(|| {
             panic!(
-                "vector index out of bounds: the dimensionality is {} but the index is {}",
-                ndim, index,
+                "vector index out of bounds: the dimensionality is {ndim} but the index is {index}",
             )
         })
     }

@@ -28,7 +28,7 @@ impl<'lua> FromLua<'lua> for LuaPoint {
                 None => Err(LuaError::FromLuaConversionError {
                     from: "blade",
                     to: "point",
-                    message: Some(format!("expected 1-blade; got {}-blade", b.grade()).into()),
+                    message: Some(format!("expected 1-blade; got {}-blade", b.grade())),
                 }),
             }
         } else {
