@@ -174,10 +174,18 @@ pub fn funny_autonames() -> impl Iterator<Item = String> {
     })
 }
 fn gen_adjective() -> String {
-    hyperpuzzle::util::titlecase(names::ADJECTIVES.choose(&mut rand::thread_rng()).unwrap())
+    hyperpuzzle::util::titlecase(
+        names::ADJECTIVES
+            .choose(&mut rand::thread_rng())
+            .unwrap_or(&"adjectivish"),
+    )
 }
 fn gen_noun() -> String {
-    hyperpuzzle::util::titlecase(names::NOUNS.choose(&mut rand::thread_rng()).unwrap())
+    hyperpuzzle::util::titlecase(
+        names::NOUNS
+            .choose(&mut rand::thread_rng())
+            .unwrap_or(&"noun"),
+    )
 }
 
 #[cfg(test)]

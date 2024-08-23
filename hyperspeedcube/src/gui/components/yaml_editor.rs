@@ -68,7 +68,7 @@ where
         ui.data_mut(|data| match state {
             Some(state) => data.insert_temp::<PlaintextYamlEditorState>(self.id, state),
             None => data.remove::<PlaintextYamlEditorState>(self.id),
-        })
+        });
     }
 
     pub fn show(&self, ui: &mut egui::Ui) -> Option<egui::Response> {

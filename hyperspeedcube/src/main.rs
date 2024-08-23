@@ -96,6 +96,7 @@ fn main() -> eframe::Result<()> {
     wasm_bindgen_futures::spawn_local(run());
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 async fn run() -> eframe::Result<()> {
     let icon_data = eframe::icon_data::from_png_bytes(ICON_32_PNG_DATA)
         .expect("error loading application icon");
@@ -177,7 +178,7 @@ fn load_built_in_puzzles() {
                 }
             }
         }
-    })
+    });
 }
 
 fn reload_user_puzzles() {

@@ -314,7 +314,7 @@ impl PuzzleWidget {
             ndim: puzzle.ndim(),
             cam: self.view.camera.clone(),
 
-            cursor_pos: cursor_pos.map(|p| p).filter(|_| SEND_CURSOR_POS),
+            cursor_pos: cursor_pos.filter(|_| SEND_CURSOR_POS),
             is_dragging_view: match self.view.drag_state() {
                 Some(DragState::ViewRot { .. }) => true,
                 Some(DragState::Canceled | DragState::PreTwist | DragState::Twist) | None => false,

@@ -11,7 +11,7 @@ use crate::{
     L,
 };
 
-use super::TextEditPopup;
+use super::{TextEditPopup, TextEditPopupResponse};
 
 /// Pixel resolution of gradients.
 const GRADIENT_RESOLUTION: usize = 1;
@@ -728,7 +728,7 @@ pub fn color_edit(
     });
     if let Some(r) = popup_response.filter(|_| !reopen.get()) {
         match r {
-            super::TextEditPopupResponse::Confirm(new_hex_string) => {
+            TextEditPopupResponse::Confirm(new_hex_string) => {
                 if let Ok(new_color) = new_hex_string.parse() {
                     *color = new_color;
                     changed = true;

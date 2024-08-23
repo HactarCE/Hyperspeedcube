@@ -1,6 +1,6 @@
 //! Special model that displays when a puzzle mesh is empty.
 
-use eyre::Result;
+use eyre::{OptionExt, Result};
 use hypermath::prelude::*;
 use hyperpuzzle::*;
 use itertools::Itertools;
@@ -45,6 +45,7 @@ pub fn modify_draw_params(mut draw_params: DrawParams) -> DrawParams {
     draw_params
 }
 
+#[allow(clippy::single_range_in_vec_init)]
 pub fn placeholder_mesh(ndim: u8) -> Result<Mesh> {
     let mut mesh = Mesh {
         ndim,
@@ -134,8 +135,8 @@ fn add_base_shape(mesh: &mut Mesh) -> Result<()> {
         polygon_verts.map(|xy| transform_point(xy, z * 0.4, scale))
     });
 
-    general_polygon(mesh, layers.first().unwrap())?;
-    general_polygon(mesh, layers.last().unwrap().iter())?;
+    general_polygon(mesh, layers.first().ok_or_eyre("too few layers")?)?;
+    general_polygon(mesh, layers.last().ok_or_eyre("too few layers")?.iter())?;
     for i in 1..layers.len() {
         let l1 = &layers[i - 1];
         let l2 = &layers[i];
@@ -217,7 +218,7 @@ fn quad(mesh: &mut Mesh, verts: [&Vector; 4]) -> Result<()> {
 
 fn general_polygon<'a>(mesh: &mut Mesh, verts: impl IntoIterator<Item = &'a Vector>) -> Result<()> {
     let mut verts = verts.into_iter().peekable();
-    let z = verts.peek().unwrap()[2];
+    let z = verts.peek().ok_or_eyre("too few vertices in polygon")?[2];
     let u = vector![1.0, 0.0, 0.0];
     let v = vector![0.0, z.signum(), 0.0];
 

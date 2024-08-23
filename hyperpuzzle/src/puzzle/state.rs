@@ -102,7 +102,7 @@ impl PuzzleState {
         for layer in grip_layers {
             if let Some((_, last_top)) = segments.last_mut() {
                 if *last_top == Some(layer.bottom.flip()) {
-                    last_top.clone_from(&layer.top);
+                    *last_top = layer.top.clone();
                     continue;
                 }
             }

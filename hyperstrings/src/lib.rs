@@ -41,7 +41,7 @@ impl fmt::Display for Langs {
         writeln!(f, "#[allow(unused)]")?;
         writeln!(
             f,
-            "const LANGS: &[(&'static str, structs::{LANG_STRUCT_NAME})] = &["
+            "const LANGS: &[(&str, structs::{LANG_STRUCT_NAME})] = &["
         )?;
         for lang in &self.langs {
             let lang_name = &lang.name;

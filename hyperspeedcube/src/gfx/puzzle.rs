@@ -364,8 +364,8 @@ impl PuzzleRenderer {
                 buffer: &output_buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some((4 * width).try_into().unwrap()),
-                    rows_per_image: Some(height.try_into().unwrap()),
+                    bytes_per_row: Some(4 * width),
+                    rows_per_image: Some(height),
                 },
             },
             screenshot_size,
@@ -383,7 +383,7 @@ impl PuzzleRenderer {
             self.gfx.queue.submit(std::iter::once(encoder.finish())),
         ));
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-            result.unwrap();
+            result.expect("error mapping buffer slice");
             let data = output_buffer_ref.slice(..).get_mapped_range();
 
             let _ = tx.send(

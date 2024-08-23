@@ -1,7 +1,7 @@
 //! User preferences.
 //!
 //! For a list of key names, see `VirtualKeyCode` in this file:
-//! https://github.com/rust-windowing/winit/blob/master/src/event.rs
+//! <https://github.com/rust-windowing/winit/blob/master/src/event.rs>
 
 use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
@@ -249,7 +249,7 @@ impl PuzzleKeybindSets {
                     name: set_name.to_string(),
                     value: KeybindSet::default(),
                 });
-                self.sets.last_mut().unwrap()
+                self.sets.last_mut().expect("preset vanished!")
             }
         }
     }

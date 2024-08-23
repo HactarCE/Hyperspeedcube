@@ -133,7 +133,7 @@ fn show_hover_info(ui: &mut egui::Ui, app: &mut App) {
     })
     .unwrap_or_else(|| {
         ui.label("No active puzzle");
-    })
+    });
 }
 
 fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {

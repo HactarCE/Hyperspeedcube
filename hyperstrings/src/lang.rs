@@ -15,7 +15,7 @@ use crate::util;
 use crate::warn::*;
 
 lazy_static! {
-    pub static ref TEMPLATE_REGEX: Regex = Regex::new(r"\{\{([\s\S]*?)}}").unwrap();
+    pub static ref TEMPLATE_REGEX: Regex = Regex::new(r"\{\{([\s\S]*?)}}").expect("bad regex");
 }
 
 #[derive(Debug)]
@@ -160,7 +160,7 @@ impl Lang {
                     TemplateSegment::Literal(s) => writeln!(f, "{s:?}")?,
                     TemplateSegment::StringParam { param_name } => {
                         unused_params.remove(&param_name);
-                        writeln!(f, "&{param_name}.to_string()")?;
+                        writeln!(f, "{param_name}")?;
                     }
                     TemplateSegment::BoolParam {
                         param_name,

@@ -303,7 +303,7 @@ mod parser {
     fn eat_atom<'a>(tokens: &mut PutBack<impl Iterator<Item = &'a str>>) -> Option<FilterExpr> {
         lazy_static! {
             static ref NAME_REGEX: Regex =
-                Regex::new(&format!(r"^{}$", hyperpuzzle::NAME_REGEX)).unwrap();
+                Regex::new(&format!(r"^{}$", hyperpuzzle::NAME_REGEX)).expect("bad regex");
         }
 
         loop {
@@ -353,7 +353,7 @@ mod parser {
         lazy_static! {
             // regex for symbols we actually care about: `[+|()!~]`
             static ref TOKEN: Regex =
-                Regex::new(&format!(r"['@]?{}|.", hyperpuzzle::NAME_REGEX)).unwrap();
+                Regex::new(&format!(r"['@]?{}|.", hyperpuzzle::NAME_REGEX)).expect("bad regex");
         }
 
         // Just ignore unrecognized characters
