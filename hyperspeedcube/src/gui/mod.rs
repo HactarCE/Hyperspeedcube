@@ -108,7 +108,7 @@ impl AppUi {
                         puzzle_view_to_focus = Some(i);
                     }
                     let mut sim = puzzle_view.sim().lock();
-                    let needs_redraw = sim.step(&self.app.prefs);
+                    let needs_redraw = sim.step();
                     if needs_redraw {
                         // TODO: only request redraw for visible puzzles
                         ctx.request_repaint();

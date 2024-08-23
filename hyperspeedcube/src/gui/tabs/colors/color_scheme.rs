@@ -11,7 +11,9 @@ use crate::{
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let active_puzzle_ty = app.active_puzzle_type();
     let has_active_puzzle = active_puzzle_ty.is_some();
-    ui.set_enabled(has_active_puzzle);
+    if !has_active_puzzle {
+        ui.disable();
+    }
 
     let color_system = match &active_puzzle_ty {
         Some(puz) => Arc::clone(&puz.colors),
@@ -63,8 +65,6 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         get_backup_defaults,
         |mut prefs_ui| {
             let (prefs, ui) = prefs_ui.split();
-
-            ui.set_enabled(has_active_puzzle);
 
             let mut colors_ui = crate::gui::components::ColorsUi::new(&app.prefs.color_palette)
                 .clickable(false)

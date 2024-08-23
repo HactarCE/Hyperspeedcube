@@ -15,6 +15,9 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             #[cfg(target_arch = "wasm32")]
             ui.hyperlink_to(L.top_bar.desktop_link, env!("CARGO_PKG_HOMEPAGE"))
                 .on_hover_text(L.top_bar.desktop_link_hover);
+            #[cfg(not(target_arch = "wasm32"))]
+            // Make rustc think that we've used these values.
+            let _ = (L.top_bar.desktop_link, L.top_bar.desktop_link_hover);
 
             egui::warn_if_debug_build(ui);
 

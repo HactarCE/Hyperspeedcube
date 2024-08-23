@@ -142,7 +142,7 @@ impl PuzzleSimulation {
     /// Advances the puzzle geometry and internal state to the next frame, using
     /// the given time delta between this frame and the last. Returns whether
     /// the puzzle must be redrawn.
-    pub fn step(&mut self, prefs: &Preferences) -> bool {
+    pub fn step(&mut self) -> bool {
         let now = Instant::now();
         let delta = match self.last_frame_time {
             Some(then) => now - then,

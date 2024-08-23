@@ -84,7 +84,6 @@ impl fmt::Display for Schema {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Re-export public structs and traits.
         writeln!(f, "#[rustfmt::skip]")?;
-        writeln!(f, "#[allow(unused_imports)]")?;
         writeln!(
             f,
             "pub use structs::{{{}}};",
@@ -517,6 +516,7 @@ fn display_template_trait(
     params: &[TemplateParameter],
 ) -> fmt::Result {
     writeln!(f, "{indent}pub trait {trait_name}: Debug {{")?;
+    writeln!(f, "{indent}    #[allow(unused)]")?;
     writeln!(f, "{indent}    fn with(")?;
     writeln!(f, "{indent}        &self,")?;
     for TemplateParameter { name, ty } in params {

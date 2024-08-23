@@ -279,7 +279,9 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
                         preset_dnd.vertical_reorder_by_handle(ui, index, |ui, _is_dragging| {
                             ui.horizontal(|ui| {
                                 ui.scope(|ui| {
-                                    ui.set_enabled(j != 0);
+                                    if j == 0 {
+                                        ui.disable();
+                                    }
                                     if j == 0 && preset.include_previous {
                                         preset.include_previous = false;
                                         changed = true;
@@ -337,7 +339,9 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
     ui.set_min_width(ui.available_width().at_least(CURRENT_PRESET_MIN_WIDTH));
 
     let puz = app.active_puzzle_type();
-    ui.set_enabled(app.has_active_puzzle());
+    if !app.has_active_puzzle() {
+        ui.disable();
+    }
 
     let sequence_name = app
         .with_active_puzzle_view(|p| p.view.filters.sequence_name.clone())

@@ -215,10 +215,10 @@ fn init_human_panic() {
             .expect("human-panic: printing error message to console failed");
 
         rfd::MessageDialog::new()
-            .set_title(&L.crash.app_crashed.with(TITLE))
+            .set_title(&L._crash._app_crashed.with(TITLE))
             .set_description(&match file_path {
-                Some(fp) => L.crash.crash_report_saved.with(&fp.display().to_string()),
-                None => L.crash.error_saving_crash_report.to_string(),
+                Some(fp) => L._crash._crash_report_saved.with(&fp.display().to_string()),
+                None => L._crash._error_saving_crash_report.to_string(),
             })
             .set_level(rfd::MessageLevel::Error)
             .show();

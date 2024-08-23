@@ -1,4 +1,4 @@
-use cgmath::{Point3, SquareMatrix};
+use cgmath::SquareMatrix;
 use float_ord::FloatOrd;
 use hyperpuzzle::Rgb;
 use indexmap::IndexMap;
@@ -48,35 +48,6 @@ where
             rest: self,
         }
     }
-}
-
-pub fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f32>) {
-    let mut min_bound = verts[0];
-    let mut max_bound = verts[0];
-
-    for v in &verts[1..] {
-        if v.x < min_bound.x {
-            min_bound.x = v.x;
-        }
-        if v.y < min_bound.y {
-            min_bound.y = v.y;
-        }
-        if v.z < min_bound.z {
-            min_bound.z = v.z;
-        }
-
-        if v.x > max_bound.x {
-            max_bound.x = v.x;
-        }
-        if v.y > max_bound.y {
-            max_bound.y = v.y;
-        }
-        if v.z > max_bound.z {
-            max_bound.z = v.z;
-        }
-    }
-
-    (min_bound, max_bound)
 }
 
 /// Returns the perspective-correct barycentric coordinates for the point `p` in
@@ -134,29 +105,6 @@ pub fn triangle_hover_barycentric_coordinates(
 /// Returns 2 times the area of a triangle.
 pub fn triangle_area_2x([a, b, c]: [cgmath::Point2<f32>; 3]) -> f32 {
     cgmath::Matrix2::from_cols(b - a, b - c).determinant()
-}
-
-pub fn wrap_words<S: AsRef<str>>(words: impl Iterator<Item = S>) -> String {
-    const WORD_WRAP_WIDTH: usize = 70;
-    let mut ret = String::new();
-    let mut column = 0;
-    for word in words {
-        let word = word.as_ref();
-        if column == 0 {
-            column += word.len();
-            ret += word;
-        } else {
-            column += word.len() + 1;
-            if column <= WORD_WRAP_WIDTH {
-                ret += " ";
-            } else {
-                column = word.len();
-                ret += "\n";
-            }
-            ret += word;
-        }
-    }
-    ret
 }
 
 /// Converts a [`hyperpuzzle::Rgb`] to an [`oklab::Oklab`].

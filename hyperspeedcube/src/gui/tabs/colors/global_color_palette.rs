@@ -46,17 +46,19 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     changed: &mut changed,
                 };
 
-                let l = &L.styles.misc;
+                let l = &L.colors.misc;
                 prefs_ui.collapsing(l.title, |mut prefs_ui| {
-                    prefs_ui.color(&l.background.dark_mode, access!(.dark_background_color));
-                    prefs_ui.color(&l.background.light_mode, access!(.light_background_color));
+                    prefs_ui.color(&l.dark_background, access!(.dark_background_color));
+                    prefs_ui.color(&l.light_background, access!(.light_background_color));
                     prefs_ui
-                        .color(&l.internals.face_color, access!(.internals_color))
-                        .on_i18n_hover_explanation(&l.internals.face_color);
-                    prefs_ui.color(
-                        &l.blocking_pieces.outlines_color,
-                        access!(.blocking_outline_color),
-                    );
+                        .color(&l.internal_faces, access!(.internals_color))
+                        .on_i18n_hover_explanation(&L.styles.misc.internals.face_color);
+                    prefs_ui
+                        .color(
+                            &l.blocking_pieces_outlines,
+                            access!(.blocking_outline_color),
+                        )
+                        .on_i18n_hover_explanation(&L.styles.misc.blocking_pieces.outlines_color);
                 });
 
                 let mut prefs_ui = PrefsUi {

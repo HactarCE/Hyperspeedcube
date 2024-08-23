@@ -1,5 +1,3 @@
-hello "Hello, world!"
-
 tabs {
   menu {
     puzzle_view "New puzzle view"
@@ -157,7 +155,7 @@ presets {
   default_preset_name "Default"
 
   // `default` is used as a fallback for others.
-  (PresetStrings)default {
+  (PresetStrings)_default {
     saved_presets "Saved presets"
     current "{{current}} preset"
     current_empty "No preset"
@@ -383,10 +381,11 @@ colors {
   builtin_sets "Built-in color sets"
 
   misc {
-    dark_background "Background (dark mode)"
-    light_background "Background (light mode)"
-    internal_faces "Internal faces"
-    blocking_pieces_outlines "Blocking pieces outlines"
+    title "Miscellaneous colors"
+    (HoverStrings)dark_background "Background (dark mode)"
+    (HoverStrings)light_background "Background (light mode)"
+    (HoverStrings)internal_faces "Internal faces"
+    (HoverStrings)blocking_pieces_outlines "Blocking pieces outlines"
   }
   actions {
     add "Add color"
@@ -613,14 +612,14 @@ help {
   "#
 }
 
-crash {
-  app_crashed "{{app}} crashed"
-  crash_report_saved r#"
+_crash {
+  _app_crashed "{{app}} crashed"
+  _crash_report_saved r#"
     A crash report has been saved to "{{loc}}"
 
     Please submit this to the developer
   "#
-  error_saving_crash_report r#"
+  _error_saving_crash_report r#"
     Error saving crash report
   "#
 }

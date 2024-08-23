@@ -7,11 +7,6 @@ use hyperpuzzle::*;
 use itertools::Itertools;
 use serde::{de, Deserialize, Serialize};
 
-/// Minimum number of moves for a partial scramble.
-pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MIN: usize = 1;
-/// Maximum number of moves for a partial scramble.
-pub const PARTIAL_SCRAMBLE_MOVE_COUNT_MAX: usize = 20;
-
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Command {

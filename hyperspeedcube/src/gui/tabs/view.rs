@@ -1,7 +1,9 @@
 use crate::{app::App, L};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    ui.set_enabled(app.has_active_puzzle());
+    if !app.has_active_puzzle() {
+        ui.disable();
+    }
 
     let prefs_set = app.prefs.latest_view_prefs_set;
     let presets = app.prefs.view_presets_mut();

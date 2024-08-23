@@ -3,7 +3,6 @@
 //! For a list of key names, see `VirtualKeyCode` in this file:
 //! https://github.com/rust-windowing/winit/blob/master/src/event.rs
 
-use std::collections::{HashSet, VecDeque};
 use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
 use std::sync::mpsc;
