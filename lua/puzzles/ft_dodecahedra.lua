@@ -106,6 +106,39 @@ define_ft_dodecahedron(8, 'ronnaminx', "Ronnaminx")
 define_ft_dodecahedron(9, 'atlasminx', "Atlasminx") -- quettaminx
 define_ft_dodecahedron(10, 'minx_of_madness', "Minx of Madness") -- no metric prefix!
 
+puzzles:add('megaminx_crystal', {
+  ndim = 3,
+  name = 'Megaminx Crystal',
+  colors = 'dodecahedron',
+  build = function(self)
+    local sym = cd'h3'
+    local shape = symmetries.dodecahedral.dodecahedron()
+    self:carve(shape:iter_poles())
+
+    -- Define axes and slices
+    depth = 0.54 -- intermediate puzzle
+    self.axes:add(shape:iter_poles(), {depth, -depth})
+
+    -- Define twists
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
+    end
+
+    local R = self.axes.R
+    local L = self.axes.L
+    local U = self.axes.U
+    local F = self.axes.F
+    local BR = self.axes.BR
+    local DR = self.axes.DR
+
+    self:mark_pieces('centers', U(1) & symmetry{self.twists.U}:orbit(R(2)):intersection())
+    self:mark_pieces('megaminx edges', U(1) & F(1) & R(2) & L(2))
+    self:mark_pieces('corners', L(2) & BR(2) & DR(2) & U(1) & R(1) & F(1))
+    self:mark_pieces('crystal edges', L(1) & R(1))
+    self:unify_piece_types(sym.chiral)
+  end,
+})
+
 puzzles:add('pyraminx_crystal', {
   ndim = 3,
   name = 'Pyraminx Crystal',
@@ -130,7 +163,7 @@ puzzles:add('pyraminx_crystal', {
     local F = self.axes.F
     local BR = self.axes.BR
     local DR = self.axes.DR
-
+    
     self:mark_pieces('corners', L(2) & BR(2) & DR(2) & U(1))
     self:mark_pieces('edges', L(1) & R(1))
     self:unify_piece_types(sym.chiral)
