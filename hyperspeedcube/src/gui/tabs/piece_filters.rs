@@ -213,7 +213,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
                 .delete_button_validator(&|_| {
                     Ok(Some(L.presets.color_schemes.actions.delete.into()))
                 })
-                .at(ui, &r, egui::vec2(-4.0, 0.0))
+                .at(ui, &r, egui::vec2(-4.0, -0.125))
                 .show(ui)
         });
         if let Some(r) = popup_response {

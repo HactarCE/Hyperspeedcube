@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::{any::Any, hash::Hash};
 
 use float_ord::FloatOrd;
 
@@ -29,7 +29,7 @@ pub struct DragAndDrop<Payload, End = Payload> {
 }
 impl<Payload, End> DragAndDrop<Payload, End>
 where
-    Payload: Any + Default + Clone + Send + Sync,
+    Payload: Any + Default + Clone + Send + Sync + Hash,
     End: Clone,
 {
     /// Constructs a new drag-and-drop scope.
@@ -82,18 +82,21 @@ where
 
     /// Adds a draggable widget.
     ///
-    /// `payload` is a value representing the value that will be dragged. The
-    /// boolean passed into `add_contents` is `true` if the widget is currently
-    /// being dragged. The response returned by `add_contents` is expected to be
-    /// the part of the widget that can be dragged (which may be the whole
-    /// thing).
+    /// `payload` is a value representing the value that will be dragged.
+    /// `payload` must be unique among all draggable containers in the UI.
+    ///
+    /// The boolean passed into `add_contents` is `true` if the widget is
+    /// currently being dragged.
+    ///
+    /// The response returned by `add_contents` is expected to be the part of
+    /// the widget that can be dragged (which may be the whole thing).
     pub fn draggable<R>(
         &mut self,
         ui: &mut egui::Ui,
         payload: Payload,
         add_contents: impl FnOnce(&mut egui::Ui, bool) -> egui::InnerResponse<R>,
     ) -> egui::InnerResponse<egui::InnerResponse<R>> {
-        let id = ui.auto_id_with("hyperspeedcube::drag_and_drop");
+        let id = ui.auto_id_with(payload.clone());
 
         if ui.ctx().is_being_dragged(id) {
             ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
@@ -104,7 +107,8 @@ where
             let layer_id = egui::LayerId::new(egui::Order::Tooltip, id);
             let mut r = ui.with_layer_id(layer_id, |ui| {
                 ui.set_opacity(self.dragging_opacity);
-                add_contents(ui, true)
+                // `push_id()` is a workaround for https://github.com/emilk/egui/issues/2253
+                ui.push_id(id, |ui| add_contents(ui, true)).inner
             });
             r.inner.response = r.inner.response.highlight();
 
@@ -126,7 +130,9 @@ where
 
             r
         } else {
-            let mut r = ui.scope(|ui| add_contents(ui, false));
+            // We must use `.scope()` *and* `.push_id()` so that the IDs are all
+            // the same as the other case.
+            let mut r = ui.scope(|ui| ui.push_id(id, |ui| add_contents(ui, false)).inner);
 
             if !r.inner.response.sense.click {
                 r.inner.response = r
@@ -293,7 +299,7 @@ where
 }
 impl<T> DragAndDrop<T>
 where
-    T: Any + Default + Clone + Send + Sync,
+    T: Any + Default + Clone + Send + Sync + Hash,
 {
     /// Adds a widget that is draggable only by its handle, along with a reorder
     /// drop zone. See [`Self::draggable()`].

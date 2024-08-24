@@ -1,4 +1,4 @@
-//! A keyboard-controlled speedcube simulator.
+//! Multidimensional twisty puzzle simulator.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(missing_docs)] // TODO: remove
