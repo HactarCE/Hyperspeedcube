@@ -10,7 +10,7 @@ mod expr;
 pub use checkboxes::*;
 pub use expr::*;
 
-use crate::ext::reorderable::{DragAndDropResponse, ReorderableCollection};
+use crate::ext::reorderable::{BeforeOrAfter, DragAndDropResponse, ReorderableCollection};
 
 use super::StylePreferences;
 
@@ -55,20 +55,60 @@ impl PuzzleFilterPreferences {
             None => self.presets.get(preset_name?),
         }
     }
+
+    pub fn remove_index(
+        &mut self,
+        seq: Option<usize>,
+        preset: usize,
+    ) -> Option<(String, FilterPresetSeq)> {
+        match seq {
+            Some(i) => {
+                let (_, seq) = self.sequences.get_index_mut(i)?;
+                seq.shift_remove_index(preset)
+            }
+            None => self
+                .presets
+                .shift_remove_index(preset)
+                .map(|(k, v)| (k, v.into())),
+        }
+    }
+    fn insert_index(
+        &mut self,
+        seq: Option<usize>,
+        preset: usize,
+        key: String,
+        value: FilterPresetSeq,
+    ) {
+        match seq {
+            Some(i) => {
+                if let Some((_, seq)) = self.sequences.get_index_mut(i) {
+                    seq.shift_insert(preset, key, value);
+                }
+            }
+            None => {
+                self.presets.shift_insert(preset, key, value.inner);
+            }
+        }
+    }
+
+    pub fn rename_preset(&mut self, seq: Option<usize>, preset: usize, new_name: String) {
+        if let Some((_, v)) = self.remove_index(seq, preset) {
+            self.insert_index(seq, preset, new_name, v);
+        }
+    }
 }
 impl ReorderableCollection<(Option<usize>, usize)> for PuzzleFilterPreferences {
     fn reorder(&mut self, drag: DragAndDropResponse<(Option<usize>, usize)>) {
         let (payload_seq, payload_preset) = drag.payload;
-        let (end_seq, end_preset) = drag.end;
-        match (payload_seq, end_seq) {
-            (None, None) => self.presets.reorder(DragAndDropResponse {
-                payload: payload_preset,
-                end: end_preset,
-                before_or_after: drag.before_or_after,
-            }),
-            (None, Some(_)) => todo!(),
-            (Some(_), None) => todo!(),
-            (Some(_), Some(_)) => todo!(),
+        let (end_seq, mut end_preset) = drag.end;
+        if drag.before_or_after == Some(BeforeOrAfter::After) {
+            end_preset += 1;
+        }
+        if payload_seq == end_seq && end_preset > payload_preset {
+            end_preset -= 1;
+        }
+        if let Some((k, v)) = self.remove_index(payload_seq, payload_preset) {
+            self.insert_index(end_seq, end_preset, k, v);
         }
     }
 }
@@ -80,6 +120,15 @@ pub struct FilterPresetSeq {
     pub skip: bool,
     #[serde(flatten)]
     pub inner: FilterPreset,
+}
+impl From<FilterPreset> for FilterPresetSeq {
+    fn from(inner: FilterPreset) -> Self {
+        Self {
+            include_previous: false,
+            skip: false,
+            inner,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]

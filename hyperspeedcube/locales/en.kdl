@@ -529,6 +529,7 @@ piece_filters {
   both "Both"
 
   add_preset "Add filter preset"
+  add_sequence "Add filter sequence"
   ignore_previous "Ignore previous"
   include_privous "Include previous"
   cant_save "Add a preset in the presets list"

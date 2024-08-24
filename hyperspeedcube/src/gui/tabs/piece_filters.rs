@@ -2,6 +2,7 @@ use std::{collections::HashSet, hash::Hash};
 
 use egui::NumExt;
 use hyperpuzzle::{PieceMask, Puzzle};
+use indexmap::IndexMap;
 use itertools::Itertools;
 
 use crate::{
@@ -16,9 +17,9 @@ use crate::{
         util::EguiTempValue,
     },
     preferences::{
-        ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterRule, Preferences,
+        ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterPresetSeq, FilterRule,
+        Preferences, PuzzleFilterPreferences,
     },
-    puzzle::PuzzleFiltersState,
     L,
 };
 
@@ -156,97 +157,22 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
     let mut to_delete = None;
     let mut to_rename = None;
 
-    let taken_preset_names: HashSet<String> = filter_prefs.presets.keys().cloned().collect();
-    let validate_preset_rename = move |new_name: &str| {
-        if new_name.is_empty() {
-            Err(Some(l.errors.empty_name.into()))
-        } else if taken_preset_names.contains(new_name) {
-            Err(Some(l.errors.name_conflict.into()))
-        } else {
-            Ok(Some(l.actions.rename.into()))
-        }
-    };
-
     // Show filter presets
-    for (i, (preset_name, preset)) in &mut filter_prefs.presets.iter().enumerate() {
-        let is_active = current_seq.is_none() && current_preset.as_ref() == Some(preset_name);
-        let index = (None, i);
-        let r = preset_dnd.vertical_reorder_by_handle(ui, index, |ui, _is_dragging| {
-            ui.with_layout(
-                egui::Layout::top_down(egui::Align::LEFT)
-                    .with_main_justify(true)
-                    .with_cross_justify(true),
-                |ui| ui.selectable_label(is_active, preset_name),
-            )
-            .inner
-        });
-        let r = r.inner.on_hover_ui(|ui| {
-            md(ui, L.click_to.activate.with(L.inputs.click));
-            md(ui, L.click_to.rename.with(L.inputs.right_click));
-            md(ui, L.click_to.delete.with(L.inputs.middle_click));
-        });
-
-        let mods = ui.input(|input| input.modifiers);
-        let cmd = mods.command;
-        let alt = mods.alt;
-
-        // Click to activate
-        if r.clicked() {
-            to_activate = Some(PuzzleFiltersState {
-                sequence_name: None,
-                preset_name: Some(preset_name.clone()),
-                preset: preset.clone(),
-                active_rules: vec![],
+    ui.scope(|ui| {
+        for i in 0..filter_prefs.presets.len() {
+            preset_dnd.vertical_reorder_by_handle(ui, (None, i), |ui, _is_dragging| {
+                show_preset_name(
+                    ui,
+                    filter_prefs,
+                    (current_seq.as_ref(), current_preset.as_ref()),
+                    (None, i),
+                    &mut to_activate,
+                    &mut to_rename,
+                    &mut to_delete,
+                );
             });
         }
-
-        // Right-click to rename
-        let mut popup = TextEditPopup::new(ui);
-        if r.secondary_clicked() {
-            popup.open(preset_name.clone());
-        }
-        let popup_response = popup.if_open(|popup| {
-            popup
-                .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
-                .text_edit_hint(l.new_name_hint)
-                .confirm_button_validator(&validate_preset_rename)
-                .delete_button_validator(&|_| {
-                    Ok(Some(L.presets.color_schemes.actions.delete.into()))
-                })
-                .at(ui, &r, egui::vec2(-4.0, -0.125))
-                .show(ui)
-        });
-        if let Some(r) = popup_response {
-            match r {
-                TextEditPopupResponse::Confirm(new_name) => {
-                    to_rename = Some((i, new_name));
-                }
-                TextEditPopupResponse::Delete => to_delete = Some(i),
-                TextEditPopupResponse::Cancel => (),
-            }
-        }
-
-        // Alt+click to delete
-        if r.middle_clicked() || alt && !cmd && r.clicked() {
-            to_delete = Some(i);
-        }
-    }
-
-    if let Some((i, new_name)) = to_rename {
-        // TODO: factor out this logic
-        if let Some((_, v)) = filter_prefs.presets.swap_remove_index(i) {
-            let (j, _) = filter_prefs.presets.insert_full(new_name, v);
-            filter_prefs.presets.swap_indices(i, j);
-            changed_current = true; // maybe we changed the current one!
-                                    // TODO: handle global rename
-            changed = true;
-        }
-    }
-    if let Some(i) = to_delete {
-        filter_prefs.presets.shift_remove_index(i);
-        changed_current = true; // TODO: is this right?
-        changed = true;
-    }
+    });
 
     if ui.button(L.piece_filters.add_preset).clicked() {
         let name = (1..)
@@ -256,76 +182,118 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
         filter_prefs
             .presets
             .insert(name.clone(), Default::default());
-        to_activate = Some(PuzzleFiltersState {
-            sequence_name: None,
-            preset_name: Some(name),
-            preset: Default::default(),
-            active_rules: vec![],
-        });
+        to_activate = Some((None, filter_prefs.presets.len() - 1));
         changed = true;
         changed_current = true;
     }
 
     // Show filter sequences
-    for (i, (seq_name, presets)) in &mut filter_prefs.sequences.iter_mut().enumerate() {
-        seq_dnd.vertical_reorder_by_handle(ui, i, |ui, is_dragging| {
-            egui::CollapsingHeader::new(seq_name)
-                .open(is_dragging.then_some(false))
-                .show_unindented(ui, |ui| {
-                    for (j, (preset_name, preset)) in presets.iter_mut().enumerate() {
-                        let is_active = current_seq.as_ref() == Some(seq_name)
-                            && current_preset.as_ref() == Some(preset_name);
-                        let index = (Some(i), j);
-                        preset_dnd.vertical_reorder_by_handle(ui, index, |ui, _is_dragging| {
-                            ui.horizontal(|ui| {
-                                ui.scope(|ui| {
-                                    if j == 0 {
-                                        ui.disable();
-                                    }
-                                    if j == 0 && preset.include_previous {
-                                        preset.include_previous = false;
-                                        changed = true;
-                                    }
-                                    let label;
-                                    let hover;
-                                    if preset.include_previous {
-                                        label = "★";
-                                        hover = L.piece_filters.ignore_previous;
-                                    } else {
-                                        let inactive_text_color =
-                                            &mut ui.visuals_mut().widgets.inactive.fg_stroke.color;
-                                        *inactive_text_color =
-                                            inactive_text_color.gamma_multiply(0.3);
-                                        label = "⮩";
-                                        hover = L.piece_filters.include_privous;
-                                    }
-                                    if ui
-                                        .selectable_label(false, label)
-                                        .on_hover_text(hover)
-                                        .clicked()
-                                    {
-                                        preset.include_previous ^= true;
-                                        changed = true;
-                                    }
-                                });
+    let mut to_delete = None;
+    let mut to_rename = None;
+    ui.scope(|ui| {
+        for i in 0..filter_prefs.sequences.len() {
+            let Some((seq_name, presets)) = filter_prefs.sequences.get_index(i) else {
+                continue; // TODO: wtf
+            };
+            let seq_name = seq_name.clone();
+            let preset_count = presets.len();
+            let is_any_dragging = seq_dnd.is_dragging();
+            seq_dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
+                egui::CollapsingHeader::new(seq_name)
+                    .open(is_any_dragging.then_some(false))
+                    .show_unindented(ui, |ui| {
+                        for j in 0..preset_count {
+                            let index = (Some(i), j);
+                            preset_dnd.vertical_reorder_by_handle(ui, index, |ui, _is_dragging| {
+                                ui.horizontal(|ui| {
+                                    ui.scope(|ui| {
+                                        let preset = &mut filter_prefs.sequences[i][j];
 
-                                ui.with_layout(
-                                    egui::Layout::top_down_justified(egui::Align::LEFT),
-                                    |ui| ui.selectable_label(is_active, preset_name),
-                                );
-                                // TODO: activate
+                                        if j == 0 {
+                                            ui.disable();
+                                        }
+                                        if j == 0 && preset.include_previous {
+                                            preset.include_previous = false;
+                                            changed = true;
+                                        }
+                                        let label;
+                                        let hover;
+                                        if preset.include_previous {
+                                            label = "★";
+                                            hover = L.piece_filters.ignore_previous;
+                                        } else {
+                                            let inactive_text_color = &mut ui
+                                                .visuals_mut()
+                                                .widgets
+                                                .inactive
+                                                .fg_stroke
+                                                .color;
+                                            *inactive_text_color =
+                                                inactive_text_color.gamma_multiply(0.3);
+                                            label = "⮩";
+                                            hover = L.piece_filters.include_privous;
+                                        }
+
+                                        if ui
+                                            .selectable_label(false, label)
+                                            .on_hover_text(hover)
+                                            .clicked()
+                                        {
+                                            preset.include_previous ^= true;
+                                            changed = true;
+                                        }
+                                    });
+
+                                    show_preset_name(
+                                        ui,
+                                        filter_prefs,
+                                        (current_seq.as_ref(), current_preset.as_ref()),
+                                        (Some(i), j),
+                                        &mut to_activate,
+                                        &mut to_rename,
+                                        &mut to_delete,
+                                    );
+                                });
                             });
-                        });
-                    }
-                });
-        });
+                        }
+                    });
+            });
+        }
+    });
+
+    if ui.button(L.piece_filters.add_sequence).clicked() {
+        let seq_name = (1..)
+            .map(|i| format!("Filter sequence {i}"))
+            .find(|s| !filter_prefs.sequences.contains_key(s))
+            .expect("ran out of sequence names!");
+        let filter_name = "Step 1".to_owned();
+        let seq = IndexMap::from_iter([(filter_name.clone(), FilterPresetSeq::default())]);
+        filter_prefs.sequences.insert(seq_name.clone(), seq);
+        to_activate = Some((Some(filter_prefs.sequences.len() - 1), 0));
+        changed = true;
+        changed_current = true;
     }
 
-    preset_dnd.end_reorder(ui, filter_prefs);
+    changed |= preset_dnd.end_reorder(ui, filter_prefs);
+    changed |= seq_dnd.end_reorder(ui, &mut filter_prefs.sequences);
 
-    if let Some(new_state) = to_activate {
-        app.with_active_puzzle_view(|p| p.view.filters = new_state);
-        changed_current = true;
+    if let Some(((seq, preset), new_name)) = to_rename {
+        filter_prefs.rename_preset(seq, preset, new_name);
+        changed_current = true; // maybe we changed the current one!
+                                // TODO: handle global rename
+        changed = true;
+    }
+    if let Some((seq, preset)) = to_delete {
+        filter_prefs.remove_index(seq, preset);
+        changed_current = true; // TODO: is this right?
+        changed = true;
+    }
+
+    if let Some((seq, preset)) = to_activate {
+        if let Some(filter_prefs) = app.prefs.piece_filters.settings(&puz) {
+            app.with_active_puzzle_view(|p| p.view.filters.load_preset(filter_prefs, seq, preset));
+            changed_current = true;
+        }
     }
 
     // Copy settings back to the active puzzle.
@@ -333,6 +301,101 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
         app.with_active_puzzle_view(|p| p.view.notify_filters_changed());
     }
     app.prefs.needs_save |= changed;
+}
+
+fn show_preset_name(
+    ui: &mut egui::Ui,
+    filter_prefs: &mut PuzzleFilterPreferences,
+    current: (Option<&String>, Option<&String>),
+    (seq_index, preset_index): (Option<usize>, usize),
+    to_activate: &mut Option<(Option<usize>, usize)>,
+    to_rename: &mut Option<((Option<usize>, usize), String)>,
+    to_delete: &mut Option<(Option<usize>, usize)>,
+) {
+    let seq_name = seq_index.and_then(|i| Some(filter_prefs.sequences.get_index(i)?.0));
+    // IIFE to mimic try_block
+    let preset_name = (|| match seq_index {
+        Some(i) => Some(
+            filter_prefs
+                .sequences
+                .get_index(i)?
+                .1
+                .get_index(preset_index)?
+                .0,
+        ),
+        None => Some(filter_prefs.presets.get_index(preset_index)?.0),
+    })();
+
+    let is_active = (seq_name, preset_name) == current;
+
+    let Some(preset_name) = preset_name else {
+        return;
+    };
+
+    let r = ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+        let text = preset_name;
+        ui.selectable_label(is_active, text)
+    });
+
+    let r = r.inner.on_hover_ui(|ui| {
+        md(ui, L.click_to.activate.with(L.inputs.click));
+        md(ui, L.click_to.rename.with(L.inputs.right_click));
+        md(ui, L.click_to.delete.with(L.inputs.middle_click));
+    });
+
+    let mods = ui.input(|input| input.modifiers);
+    let cmd = mods.command;
+    let alt = mods.alt;
+
+    // Click to activate
+    if r.clicked() {
+        *to_activate = Some((seq_index, preset_index));
+    }
+
+    // Right-click to rename
+    let mut popup = TextEditPopup::new(ui);
+    if r.secondary_clicked() {
+        popup.open(preset_name.clone());
+    }
+    let popup_response = popup.if_open(|popup| {
+        let taken_names: HashSet<&str> =
+            match seq_index.and_then(|i| filter_prefs.sequences.get_index(i)) {
+                Some((_, presets)) => presets.keys().map(|s| s.as_str()).collect(),
+                None => filter_prefs.presets.keys().map(|s| s.as_str()).collect(),
+            };
+        let validate_preset_rename = move |new_name: &str| {
+            let l = &L.presets.piece_filters;
+            if new_name.is_empty() {
+                Err(Some(l.errors.empty_name.into()))
+            } else if taken_names.contains(&new_name) {
+                Err(Some(l.errors.name_conflict.into()))
+            } else {
+                Ok(Some(l.actions.rename.into()))
+            }
+        };
+
+        popup
+            .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
+            .text_edit_hint(L.presets.piece_filters.new_name_hint)
+            .confirm_button_validator(&validate_preset_rename)
+            .delete_button_validator(&|_| Ok(Some(L.presets.color_schemes.actions.delete.into())))
+            .at(ui, &r, egui::vec2(-4.0, -0.125))
+            .show(ui)
+    });
+    if let Some(r) = popup_response {
+        match r {
+            TextEditPopupResponse::Confirm(new_name) => {
+                *to_rename = Some(((seq_index, preset_index), new_name));
+            }
+            TextEditPopupResponse::Delete => *to_delete = Some((seq_index, preset_index)),
+            TextEditPopupResponse::Cancel => (),
+        }
+    }
+
+    // Alt+click to delete
+    if r.middle_clicked() || alt && !cmd && r.clicked() {
+        *to_delete = Some((seq_index, preset_index));
+    }
 }
 
 fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
@@ -468,7 +531,7 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
                                     let r = egui::CollapsingHeader::new(&expr_string)
                                         .id_source(unique_id!(i))
                                         .default_open(true)
-                                        .open(is_any_dragging.then_some(false))
+                                        .open(is_any_dragging.then_some(false)) // TODO: reopen?
                                         .show_unindented(ui, |ui| {
                                             ui.visuals_mut().collapsing_header_frame = false;
                                             show_filter_checkboxes_ui(
@@ -503,7 +566,7 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
                     preset.rules.remove(i);
                 }
 
-                dnd.end_reorder(ui, &mut preset.rules);
+                changed |= dnd.end_reorder(ui, &mut preset.rules);
 
                 ui.horizontal_wrapped(|ui| {
                     if ui.button(L.piece_filters.add_checkboxes_rule).clicked() {

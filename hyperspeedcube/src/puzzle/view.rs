@@ -16,6 +16,7 @@ use crate::preferences::ColorScheme;
 use crate::preferences::FilterPreset;
 use crate::preferences::FilterRule;
 use crate::preferences::Preset;
+use crate::preferences::PuzzleFilterPreferences;
 use crate::preferences::StylePreferences;
 use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
 
@@ -661,5 +662,29 @@ impl PuzzleFiltersState {
             .enumerate()
             .filter(|(i, _rule)| *self.active_rules.get(*i).unwrap_or(&true))
             .map(|(_i, rule)| rule)
+    }
+
+    pub fn load_preset(
+        &self,
+        filter_prefs: &PuzzleFilterPreferences,
+        seq: Option<usize>,
+        preset: usize,
+    ) {
+        log::error!("todo!");
+        // match seq {
+        //     Some(i) => {
+        //         if let Some((sequence_name, seq)) = filter_prefs.sequences.get_index(i) {
+        //             if let Some((preset_name, preset)) = filter_prefs.sequences.get_index(seq) {
+        //                 *self = Self {
+        //                     sequence_name: Some(sequence_name.clone()),
+        //                     preset_name: todo!(),
+        //                     preset: todo!(),
+        //                     active_rules: todo!(),
+        //                 };
+        //             }
+        //         }
+        //     }
+        //     None => todo!(),
+        // }
     }
 }

@@ -20,7 +20,7 @@ pub struct Rename {
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct WithPresets<T: Default> {
-    /// Current values (might not be saved).
+    /// Current values (not saved).
     ///
     /// If this is `None`, then it is assumed to be taken from the `presets`
     /// list.
