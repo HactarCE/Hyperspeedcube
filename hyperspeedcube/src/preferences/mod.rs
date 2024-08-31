@@ -3,14 +3,14 @@
 //! For a list of key names, see `VirtualKeyCode` in this file:
 //! <https://github.com/rust-windowing/winit/blob/master/src/event.rs>
 
+use std::collections::BTreeMap;
 use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
 use std::sync::mpsc;
 
 use bitvec::vec::BitVec;
 use eyre::{eyre, OptionExt};
-use hyperpuzzle::Rgb;
-use itertools::Itertools;
+use hyperpuzzle::{Puzzle, Rgb};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
@@ -20,89 +20,171 @@ mod filters;
 mod image_generator;
 mod info;
 mod interaction;
-mod keybinds;
-mod mousebinds;
+// mod keybinds;
+// mod mousebinds;
 #[cfg(not(target_arch = "wasm32"))]
 mod persist_local;
 #[cfg(target_arch = "wasm32")]
 mod persist_web;
 mod presets;
+mod schema;
 mod styles;
 mod view;
 
-mod migration {
-    pub const LATEST_VERSION: u32 = 2;
+/// Convenient bundles of preferences that are often used together.
+///
+/// TODO: reconsider these
+mod bundles {
+    use super::*;
+
+    #[derive(Debug, Copy, Clone)]
+    pub struct ModifiedSimPrefs<'a> {
+        pub all: &'a Preferences,
+        pub animation: &'a ModifiedPreset<AnimationPreferences>,
+        pub interaction: &'a ModifiedPreset<InteractionPreferences>,
+    }
+    #[derive(Debug, Copy, Clone)]
+    pub struct ViewPrefsRefs<'a> {
+        pub all: &'a Preferences,
+        pub view: &'a ModifiedPreset<ViewPreferences>,
+        pub colors: &'a ModifiedPreset<ColorScheme>,
+    }
 }
 
 pub use animations::*;
+pub use bundles::*;
 pub use colors::*;
 pub use filters::*;
 pub use image_generator::*;
 pub use info::*;
 pub use interaction::*;
-pub use keybinds::*;
-pub use mousebinds::*;
 #[cfg(not(target_arch = "wasm32"))]
 use persist_local as persist;
 #[cfg(target_arch = "wasm32")]
 use persist_web as persist;
 pub use presets::*;
+pub use schema::PrefsConvert;
 pub use styles::*;
 pub use view::*;
-
-use crate::commands::{Command, PuzzleCommand, PuzzleMouseCommand};
 
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
 
 lazy_static! {
-    pub static ref DEFAULT_PREFS: Preferences =
+    static ref DEFAULT_PREFS_RAW: schema::current::Preferences =
         serde_yml::from_str(DEFAULT_PREFS_STR).expect("error loading default preferences");
+    pub static ref DEFAULT_PREFS: Preferences =
+        Preferences::from_serde(&(), DEFAULT_PREFS_RAW.clone());
     static ref PREFS_SAVE_THREAD: (
         mpsc::Sender<PrefsSaveCommand>,
         Mutex<Option<std::thread::JoinHandle<()>>>
     ) = spawn_save_thread();
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(default)]
+#[derive(Debug, Default)]
 pub struct Preferences {
-    #[serde(skip)]
     pub needs_save: bool,
-    #[serde(skip)]
     pub needs_save_eventually: bool,
 
-    /// Preferences file format version.
-    #[serde(skip_deserializing)]
-    pub version: u32,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
 
     pub info: InfoPreferences,
 
     pub image_generator: ImageGeneratorPreferences,
 
-    pub animation: WithPresets<AnimationPreferences>,
-    pub interaction: WithPresets<InteractionPreferences>,
+    pub animation: PresetsList<AnimationPreferences>,
+    pub interaction: PresetsList<InteractionPreferences>,
     pub styles: StylePreferences,
+    pub custom_styles: PresetsList<PieceStyle>,
 
-    pub view_3d: WithPresets<ViewPreferences>,
-    pub view_4d: WithPresets<ViewPreferences>,
-    #[serde(skip)]
-    pub latest_view_prefs_set: PuzzleViewPreferencesSet,
+    pub view_3d: PresetsList<ViewPreferences>,
+    pub view_4d: PresetsList<ViewPreferences>,
 
     pub color_palette: GlobalColorPalette,
-    pub color_schemes: ColorPreferences,
+    /// Color scheme preferences for each color system.
+    pub color_schemes: ColorSchemePreferences,
 
-    pub piece_filters: FilterPreferences,
+    /// Filter preferences for each puzzle.
+    pub filters: BTreeMap<String, PuzzleFilterPreferences>,
+}
+impl schema::PrefsConvert for Preferences {
+    type DeserContext = ();
+    type SerdeFormat = schema::current::Preferences;
 
-    pub global_keybinds: Vec<Keybind<Command>>,
-    pub puzzle_keybinds: (), // TODO
-    pub mousebinds: Vec<Mousebind<PuzzleMouseCommand>>,
+    fn to_serde(&self) -> Self::SerdeFormat {
+        let Self {
+            needs_save: _,
+            needs_save_eventually: _,
+            log_file,
+            info,
+            image_generator,
+            animation,
+            interaction,
+            styles,
+            custom_styles,
+            view_3d,
+            view_4d,
+            color_palette,
+            color_schemes,
+            filters,
+        } = self;
+
+        let filters = filters
+            .iter()
+            .map(|(k, v)| (k.clone(), v.to_serde()))
+            .collect();
+
+        schema::current::Preferences {
+            log_file: log_file.clone(),
+            info: info.clone(),
+            image_generator: image_generator.clone(),
+            animation: animation.to_serde(),
+            interaction: interaction.to_serde(),
+            styles: styles.clone(),
+            custom_styles: custom_styles.to_serde(),
+            view_3d: view_3d.to_serde(),
+            view_4d: view_4d.to_serde(),
+            color_palette: color_palette.to_serde(),
+            color_schemes: color_schemes.to_serde(),
+            filters,
+        }
+    }
+    fn reload_from_serde(&mut self, ctx: &Self::DeserContext, value: Self::SerdeFormat) {
+        let schema::current::Preferences {
+            log_file,
+            info,
+            image_generator,
+            animation,
+            interaction,
+            styles,
+            custom_styles,
+            view_3d,
+            view_4d,
+            color_palette,
+            color_schemes,
+            filters,
+        } = value;
+
+        self.log_file = log_file;
+        self.info = info;
+        self.image_generator = image_generator;
+        self.styles = styles;
+
+        self.animation.reload_from_serde(ctx, animation);
+        self.interaction.reload_from_serde(ctx, interaction);
+        self.custom_styles.reload_from_serde(ctx, custom_styles);
+
+        self.view_3d.reload_from_serde(ctx, view_3d);
+        self.view_4d.reload_from_serde(ctx, view_4d);
+
+        self.color_palette.reload_from_serde(ctx, color_palette);
+        self.color_schemes.reload_from_serde(ctx, color_schemes);
+
+        schema::reload_btreemap(&mut self.filters, &self.custom_styles, filters);
+    }
 }
 impl Index<PuzzleViewPreferencesSet> for Preferences {
-    type Output = WithPresets<ViewPreferences>;
+    type Output = PresetsList<ViewPreferences>;
 
     fn index(&self, index: PuzzleViewPreferencesSet) -> &Self::Output {
         match index {
@@ -120,8 +202,10 @@ impl IndexMut<PuzzleViewPreferencesSet> for Preferences {
     }
 }
 impl Preferences {
-    pub fn load(backup: Option<&Self>) -> Self {
-        let mut config = config::Config::builder();
+    pub fn load(backup: Option<Self>) -> Self {
+        let mut config = config::Config::builder()
+            .set_default("version", schema::CURRENT_VERSION)
+            .expect("error setting preferences schema version");
 
         // Load default preferences.
         let default_config_source = config::File::from_str(DEFAULT_PREFS_STR, PREFS_FILE_FORMAT);
@@ -135,8 +219,9 @@ impl Preferences {
 
         config
             .build()
-            .and_then(|c| c.try_deserialize())
-            // .and_then(migration::try_deserialize) // TODO: migration
+            .and_then(|c| c.try_deserialize::<schema::AnyVersion>())
+            .map(schema::AnyVersion::to_current)
+            .map(|value| schema::PrefsConvert::from_serde(&mut (), value))
             .unwrap_or_else(|e| {
                 log::warn!("Error loading preferences: {}", e);
 
@@ -144,26 +229,25 @@ impl Preferences {
 
                 // Try backup
                 backup
-                    .cloned()
-                    // Try just default config
                     .or_else(|| {
+                        // Try default config
                         config::Config::builder()
                             .add_source(default_config_source)
                             .build()
                             .ok()?
                             .try_deserialize()
+                            .map(|value| schema::PrefsConvert::from_serde(&mut (), value))
                             .ok()
                     })
                     .unwrap_or_default()
             })
-            .post_init()
     }
 
     pub fn save(&mut self) {
         self.needs_save = false;
         self.needs_save_eventually = false;
         let (tx, _join_handle) = &*PREFS_SAVE_THREAD;
-        if let Err(e) = tx.send(PrefsSaveCommand::Save(self.clone())) {
+        if let Err(e) = tx.send(PrefsSaveCommand::Save(self.to_serde())) {
             log::error!("Error saving preferences: {e}");
         }
     }
@@ -184,99 +268,33 @@ impl Preferences {
         }
     }
 
-    pub fn view_presets_mut(&mut self) -> &mut WithPresets<ViewPreferences> {
-        let view_prefs_set = self.latest_view_prefs_set;
-        &mut self[view_prefs_set]
+    pub fn view_presets_mut(
+        &mut self,
+        view_prefs_set: PuzzleViewPreferencesSet,
+    ) -> &mut PresetsList<ViewPreferences> {
+        &mut self[view_prefs_set] // TODO: consider removing indexing
     }
 
-    /// Modifies the preferences to ensure that any invariants not encoded into
-    /// the type are respected.
-    ///
-    /// For example, this ensures that the default color names are correct. It
-    /// also loads each preset.
-    #[must_use]
-    fn post_init(mut self) -> Self {
-        let Self {
-            needs_save: _,
-            needs_save_eventually: _,
-            version,
-            log_file: _,
-            image_generator: _,
-            info,
-            animation,
-            interaction,
-            styles,
-            view_3d,
-            view_4d,
-            latest_view_prefs_set: _,
-            color_palette,
-            color_schemes,
-            piece_filters,
-            global_keybinds,
-            puzzle_keybinds,
-            mousebinds,
-        } = &mut self;
-
-        *version = migration::LATEST_VERSION;
-        info.post_init();
-        animation.post_init(Some(&DEFAULT_PREFS.animation));
-        interaction.post_init(Some(&DEFAULT_PREFS.interaction));
-        styles.post_init();
-        view_3d.post_init(Some(&DEFAULT_PREFS.view_3d));
-        view_4d.post_init(Some(&DEFAULT_PREFS.view_4d));
-        color_palette.post_init();
-        color_schemes.post_init();
-        piece_filters.post_init();
-
-        self
+    pub fn filters_mut(&mut self, puzzle: &Puzzle) -> &mut PuzzleFilterPreferences {
+        self.filters.entry(puzzle.id.clone()).or_default()
     }
-}
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
-pub struct PuzzleKeybindSets {
-    pub active: String,
-    pub sets: Vec<Preset<KeybindSet<PuzzleCommand>>>,
-}
-impl PuzzleKeybindSets {
-    pub fn get(&self, set_name: &str) -> Option<&Preset<KeybindSet<PuzzleCommand>>> {
-        self.sets.iter().find(|p| p.name == set_name)
-    }
-    pub fn get_mut(&mut self, set_name: &str) -> &mut Preset<KeybindSet<PuzzleCommand>> {
-        match self.sets.iter_mut().find_position(|p| p.name == set_name) {
-            Some((i, _)) => &mut self.sets[i],
-            None => {
-                self.sets.push(Preset {
-                    name: set_name.to_string(),
-                    value: KeybindSet::default(),
-                });
-                self.sets.last_mut().expect("preset vanished!")
-            }
+    pub fn background_color(&self, dark_mode: bool) -> Rgb {
+        match dark_mode {
+            true => self.styles.dark_background_color,
+            false => self.styles.light_background_color,
         }
     }
-    pub fn get_active(&self) -> Vec<&Preset<KeybindSet<PuzzleCommand>>> {
-        let mut included_names = vec![&self.active];
-        let mut unprocessed_idx = 0;
-        while unprocessed_idx < included_names.len() {
-            if let Some(set) = self.get(included_names[unprocessed_idx]) {
-                for name in &set.value.includes {
-                    if !included_names.contains(&name) {
-                        included_names.push(name);
-                    }
-                }
-            }
-            unprocessed_idx += 1;
-        }
 
-        // Standardize order.
-        self.sets
-            .iter()
-            .filter(|set| included_names.contains(&&set.name))
-            .collect()
+    pub fn first_custom_style(&self) -> Option<PresetRef> {
+        Some(self.custom_styles.user_presets().next()?.new_ref())
     }
-    pub fn get_active_keybinds(&self) -> impl '_ + Iterator<Item = &'_ Keybind<PuzzleCommand>> {
-        self.get_active()
-            .into_iter()
-            .flat_map(|set| &set.value.keybinds)
+    pub fn base_style(&self, style_ref: &Option<PresetRef>) -> PieceStyle {
+        style_ref
+            .as_ref()
+            .and_then(|p| self.custom_styles.get(&p.name()))
+            .map(|preset| preset.value)
+            .unwrap_or(self.styles.default)
     }
 }
 
@@ -337,7 +355,7 @@ fn spawn_save_thread() -> (
         for command in rx {
             match command {
                 PrefsSaveCommand::Save(prefs) => {
-                    let result = persist::save(&prefs);
+                    let result = persist::save(&prefs.to_serde());
                     match result {
                         Ok(()) => log::debug!("Saved preferences"),
                         Err(e) => log::error!("Error saving preferences: {e}"),
@@ -353,7 +371,7 @@ fn spawn_save_thread() -> (
 
 #[derive(Debug)]
 enum PrefsSaveCommand {
-    Save(Preferences),
+    Save(schema::current::Preferences),
     Quit,
 }
 

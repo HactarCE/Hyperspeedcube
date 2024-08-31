@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hyperpuzzle::{Piece, PieceMask};
 
-use crate::preferences::{StyleColorMode, StylePreferences};
+use crate::preferences::{Preferences, PresetRef, StyleColorMode};
 
 /// Returns a closure that updates the given style state.
 #[macro_export]
@@ -42,7 +42,7 @@ impl PuzzleStyleStates {
         }
     }
 
-    pub fn set_base_styles(&mut self, pieces: &PieceMask, base: Option<String>) {
+    pub fn set_base_styles(&mut self, pieces: &PieceMask, base: Option<PresetRef>) {
         self.set_piece_states(pieces, update_styles!(base = base.clone()));
     }
 
@@ -135,8 +135,8 @@ impl PuzzleStyleStates {
 
     /// Returns the set of pieces that are interactable (can be hovered with the
     /// cursor).
-    pub fn interactable_pieces(&self, styles: &StylePreferences) -> PieceMask {
-        self.filter_pieces_by_style(|s| s.interactable(styles))
+    pub fn interactable_pieces(&self, prefs: &Preferences) -> PieceMask {
+        self.filter_pieces_by_style(|s| s.interactable(prefs))
     }
 
     /// Returns the set of pieces for which `filter_fn` returns `true` on their
@@ -153,7 +153,7 @@ impl PuzzleStyleStates {
     }
 
     /// Returns the style values for each set of pieces.
-    pub fn values(&self, prefs: &StylePreferences) -> Vec<(PieceStyleValues, PieceMask)> {
+    pub fn values(&self, prefs: &Preferences) -> Vec<(PieceStyleValues, PieceMask)> {
         self.piece_sets
             .iter()
             .map(|(style_state, piece_set)| (style_state.values(prefs), piece_set.clone()))
@@ -177,7 +177,7 @@ pub struct PieceStyleValues {
 /// Style state for a piece.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct PieceStyleState {
-    pub base: Option<String>,
+    pub base: Option<PresetRef>,
 
     pub blind: bool,
     pub gripped: bool,
@@ -191,16 +191,18 @@ pub struct PieceStyleState {
 impl PieceStyleState {
     /// Returns whether a piece with this style state is interactable (can be
     /// hovered with the cursor).
-    fn interactable(&self, styles: &StylePreferences) -> bool {
-        let base = styles.get_custom_or_default(&self.base).interactable;
+    fn interactable(&self, prefs: &Preferences) -> bool {
+        let base = prefs.base_style(&self.base).interactable;
         let ugp = self.ungripped.then_some(false);
         ugp.or(base).unwrap_or(true)
     }
 
     /// Returns how to draw a piece with this style state.
-    fn values(&self, styles: &StylePreferences) -> PieceStyleValues {
+    fn values(&self, prefs: &Preferences) -> PieceStyleValues {
+        let styles = &prefs.styles;
+
         let def = styles.default;
-        let base = styles.get_custom_or_default(&self.base);
+        let base = prefs.base_style(&self.base);
         let bld = self.blind.then_some(styles.blind);
         let gp = self.gripped.then_some(styles.gripped);
         let ugp = self.ungripped.then_some(styles.ungripped);

@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 
-use crate::preferences::WithPresets;
+use crate::preferences::{PresetData, PresetsList};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct DragAndDropResponse<Payload, End = Payload> {
@@ -63,7 +63,7 @@ impl<K, V> ReorderableCollection<usize> for IndexMap<K, V> {
     }
 }
 
-impl<T: Default + Clone + PartialEq> ReorderableCollection<String> for WithPresets<T> {
+impl<T: PresetData> ReorderableCollection<String> for PresetsList<T> {
     fn reorder(&mut self, drag: DragAndDropResponse<String, String>) {
         let Some(before_or_after) = drag.before_or_after else {
             log::error!("missing `BeforeOrAfter` in reorder");

@@ -15,6 +15,8 @@ use crate::{
     L,
 };
 
+use super::PuzzleWidget;
+
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 enum DevToolsTab {
     #[default]
@@ -56,7 +58,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.separator();
 
         match state.current_tab {
-            DevToolsTab::HoverInfo => show_hover_info(ui, app),
+            DevToolsTab::HoverInfo => app
+                .active_puzzle_view
+                .with(|p| show_hover_info(ui, p))
+                .unwrap_or_else(|| {
+                    ui.label("No active puzzle");
+                }),
             DevToolsTab::LuaGenerator => show_lua_generator(ui, app, &mut state),
         };
     });
@@ -64,88 +71,83 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     egui_stored_state.set(Some(state));
 }
 
-fn show_hover_info(ui: &mut egui::Ui, app: &mut App) {
+fn show_hover_info(ui: &mut egui::Ui, p: &mut PuzzleWidget) {
     let info_line = |ui: &mut egui::Ui, label: &str, text: &str| {
         md(ui, format!("{label} = {}", md_bold_user_text(text)))
     };
 
-    app.with_active_puzzle_view(|p| {
-        let puz = p.puzzle();
+    let puz = p.puzzle();
 
-        if let Some(hov) = p
-            .view
-            .puzzle_hover_state()
-            .filter(|_| p.view.show_puzzle_hover)
-        {
-            ui.strong(format!("Piece {}", hov.piece));
-            let piece_info = &puz.pieces[hov.piece];
-            info_line(ui, "Sticker count", &piece_info.stickers.len().to_string());
-            if let Some(piece_type) = piece_info.piece_type {
-                ui.label("");
-                ui.strong(format!("Piece type {piece_type}"));
-                let piece_type_info = &puz.piece_types[piece_type];
-                info_line(ui, "Piece type name", &piece_type_info.name);
-            }
-            if let Some(sticker) = hov.sticker {
-                ui.label("");
-                ui.strong(format!("Sticker {sticker}"));
-                let sticker_info = &puz.stickers[sticker];
-                ui.label("");
-                ui.strong(format!("Color {}", sticker_info.color));
-                let color_info = &puz.colors.list[sticker_info.color];
-                info_line(ui, "Color name", &color_info.name);
-                info_line(ui, "Color display", &color_info.display);
-            }
-        }
-
-        if let Some(hov) = p
-            .view
-            .gizmo_hover_state()
-            .filter(|_| p.view.show_gizmo_hover)
-        {
-            ui.strong(format!("Gizmo {}", hov.gizmo_face));
-            info_line(ui, "Backface?", &hov.backface.to_string());
-            info_line(ui, "Z", &format!("{:.3}", hov.z));
-            let twist = puz.gizmo_twists[hov.gizmo_face];
-
+    if let Some(hov) = p
+        .view
+        .puzzle_hover_state()
+        .filter(|_| p.view.show_puzzle_hover)
+    {
+        ui.strong(format!("Piece {}", hov.piece));
+        let piece_info = &puz.pieces[hov.piece];
+        info_line(ui, "Sticker count", &piece_info.stickers.len().to_string());
+        if let Some(piece_type) = piece_info.piece_type {
             ui.label("");
-            ui.strong(format!("Twist {twist}"));
-            let twist_info = &puz.twists[twist];
-            info_line(ui, "Twist name", &twist_info.name);
-            match twist_info.opposite {
-                Some(t) => {
-                    info_line(ui, "Opposite twist", &t.to_string());
-                    info_line(ui, "Opposite twist name", &puz.twists[t].name);
-                }
-                None => {
-                    info_line(ui, "Opposite twist", "(none)");
-                    info_line(ui, "Opposite twist name", "(none)");
-                }
-            };
-            info_line(ui, "QTM", &twist_info.qtm.to_string());
-
-            ui.label("");
-            ui.strong(format!("Axis {}", twist_info.axis));
-            let axis_info = &puz.axes[twist_info.axis];
-            info_line(ui, "Axis name", &axis_info.name);
-            info_line(ui, "Layer count", &axis_info.layers.len().to_string());
+            ui.strong(format!("Piece type {piece_type}"));
+            let piece_type_info = &puz.piece_types[piece_type];
+            info_line(ui, "Piece type name", &piece_type_info.name);
         }
-    })
-    .unwrap_or_else(|| {
-        ui.label("No active puzzle");
-    });
+        if let Some(sticker) = hov.sticker {
+            ui.label("");
+            ui.strong(format!("Sticker {sticker}"));
+            let sticker_info = &puz.stickers[sticker];
+            ui.label("");
+            ui.strong(format!("Color {}", sticker_info.color));
+            let color_info = &puz.colors.list[sticker_info.color];
+            info_line(ui, "Color name", &color_info.name);
+            info_line(ui, "Color display", &color_info.display);
+        }
+    }
+
+    if let Some(hov) = p
+        .view
+        .gizmo_hover_state()
+        .filter(|_| p.view.show_gizmo_hover)
+    {
+        ui.strong(format!("Gizmo {}", hov.gizmo_face));
+        info_line(ui, "Backface?", &hov.backface.to_string());
+        info_line(ui, "Z", &format!("{:.3}", hov.z));
+        let twist = puz.gizmo_twists[hov.gizmo_face];
+
+        ui.label("");
+        ui.strong(format!("Twist {twist}"));
+        let twist_info = &puz.twists[twist];
+        info_line(ui, "Twist name", &twist_info.name);
+        match twist_info.opposite {
+            Some(t) => {
+                info_line(ui, "Opposite twist", &t.to_string());
+                info_line(ui, "Opposite twist name", &puz.twists[t].name);
+            }
+            None => {
+                info_line(ui, "Opposite twist", "(none)");
+                info_line(ui, "Opposite twist name", "(none)");
+            }
+        };
+        info_line(ui, "QTM", &twist_info.qtm.to_string());
+
+        ui.label("");
+        ui.strong(format!("Axis {}", twist_info.axis));
+        let axis_info = &puz.axes[twist_info.axis];
+        info_line(ui, "Axis name", &axis_info.name);
+        info_line(ui, "Layer count", &axis_info.layers.len().to_string());
+    }
 }
 
 fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {
     ui.with_layout(
         egui::Layout::top_down_justified(egui::Align::Center),
         |ui| {
-            if !app.has_active_puzzle() {
+            if !app.active_puzzle_view.has_puzzle() {
                 ui.disable();
             }
 
             let r = &ui.button("Copy color system definition");
-            app.with_active_puzzle_view(|p| {
+            app.active_puzzle_view.with(|p| {
                 let text_to_copy = r
                     .clicked()
                     .then(|| color_system_to_lua_code(&p.puzzle().colors, &app.prefs));
@@ -156,7 +158,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
 
             if state.loaded_orbit.is_empty() {
                 ui.menu_button("Load orbit from current puzzle", |ui| {
-                    app.with_active_puzzle_view(|p| {
+                    app.active_puzzle_view.with(|p| {
                         let puz = p.puzzle();
                         for (i, orbit) in puz.dev_data.orbits.iter().enumerate() {
                             if ui
@@ -211,7 +213,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                 Some(PuzzleElement::Axis(axis)) => {
                                     let r = ui.add(text_edit);
                                     if r.hovered() || r.has_focus() {
-                                        app.with_active_puzzle_view(|p| {
+                                        app.active_puzzle_view.with(|p| {
                                             if Arc::ptr_eq(&p.puzzle(), &puz) {
                                                 p.view.temp_gizmo_highlight = Some(*axis);
                                             }
@@ -221,7 +223,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
 
                                 Some(PuzzleElement::Color(color)) => {
                                     ui.horizontal(|ui| {
-                                        app.with_active_puzzle_view(|p| {
+                                        app.active_puzzle_view.with(|p| {
                                             if Arc::ptr_eq(&p.puzzle(), &puz) {
                                                 puzzle_color_edit_button(
                                                     ui,
@@ -285,12 +287,12 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
     let mut default_scheme = hyperpuzzle::DEFAULT_COLOR_SCHEME_NAME.to_string();
 
     let mut schemes = color_system.schemes.clone();
-    if let Some(custom_schemes) = prefs.color_schemes.color_systems.get(&color_system.id) {
-        for scheme in custom_schemes.schemes.user_list() {
+    if let Some(custom_schemes) = prefs.color_schemes.get(color_system) {
+        for scheme in custom_schemes.schemes.user_presets() {
             let name = scheme
-                .name
+                .name()
                 .strip_suffix(MODIFIED_SUFFIX)
-                .unwrap_or(&scheme.name)
+                .unwrap_or(scheme.name())
                 .to_string();
             schemes.insert(name, scheme.value.values().cloned().collect());
         }

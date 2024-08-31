@@ -155,7 +155,7 @@ presets {
   default_preset_name "Default"
 
   // `default` is used as a fallback for others.
-  (PresetStrings)_default {
+  (PresetStrings)default {
     saved_presets "Saved presets"
     current "{{current}} preset"
     current_empty "No preset"

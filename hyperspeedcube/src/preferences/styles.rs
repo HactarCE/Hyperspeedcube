@@ -1,6 +1,5 @@
+use hyperpuzzle::Rgb;
 use serde::{Deserialize, Serialize};
-
-use super::{Rgb, WithPresets};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
@@ -11,35 +10,12 @@ pub struct StylePreferences {
     pub blocking_outline_color: Rgb, // TODO: move to its own style, maybe?
     pub blocking_outline_size: f32,  // TODO: otherwise, add this to prefs UI
 
-    pub custom: WithPresets<PieceStyle>,
-
     pub default: PieceStyle,
     pub gripped: PieceStyle,
     pub ungripped: PieceStyle,
     pub hovered_piece: PieceStyle,
     pub selected_piece: PieceStyle,
     pub blind: PieceStyle,
-}
-impl StylePreferences {
-    pub(super) fn post_init(&mut self) {
-        self.custom
-            .post_init(Some(&super::DEFAULT_PREFS.styles.custom));
-    }
-
-    pub fn background_color(&self, dark_mode: bool) -> Rgb {
-        match dark_mode {
-            true => self.dark_background_color,
-            false => self.light_background_color,
-        }
-    }
-
-    pub fn get_custom_or_default(&self, style_name: &Option<String>) -> PieceStyle {
-        style_name
-            .as_ref()
-            .and_then(|name| self.custom.get(name))
-            .map(|preset| preset.value)
-            .unwrap_or(self.default)
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, PartialEq)]

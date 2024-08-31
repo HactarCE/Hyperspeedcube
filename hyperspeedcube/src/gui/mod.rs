@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
-use itertools::Itertools;
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::Mutex;
 
 macro_rules! unique_id {
     ($($args:tt)*) => {
@@ -21,7 +20,7 @@ mod tabs;
 pub use tabs::{PuzzleWidget, Tab};
 
 pub use crate::app::App;
-use crate::preferences::PuzzleViewPreferencesSet;
+use crate::preferences::ModifiedSimPrefs;
 
 pub struct AppUi {
     pub app: App,
@@ -67,7 +66,7 @@ impl AppUi {
         });
 
         let dark_mode = ctx.style().visuals.dark_mode;
-        let background_color = self.app.prefs.styles.background_color(dark_mode);
+        let background_color = self.app.prefs.background_color(dark_mode);
         egui::CentralPanel::default()
             .frame(egui::Frame::none().fill({
                 let [r, g, b] = background_color.rgb;
@@ -106,7 +105,11 @@ impl AppUi {
                         puzzle_view_to_focus = Some(i);
                     }
                     let mut sim = puzzle_view.sim().lock();
-                    let needs_redraw = sim.step();
+                    let needs_redraw = sim.step(ModifiedSimPrefs {
+                        all: &self.app.prefs,
+                        animation: &self.app.animation_prefs,
+                        interaction: &self.app.interaction_prefs,
+                    });
                     if needs_redraw {
                         // TODO: only request redraw for visible puzzles
                         ctx.request_repaint();
@@ -117,43 +120,6 @@ impl AppUi {
         if let Some(i) = puzzle_view_to_focus {
             self.dock_state.set_focused_node_and_surface(i);
         }
-
-        // Handle preset renames.
-        let mut puzzle_widgets = self
-            .dock_state
-            .iter_all_tabs()
-            .filter_map(|(_, tab)| match tab {
-                Tab::PuzzleView(p) => MutexGuard::try_map(p.lock(), |m| m.as_mut()).ok(),
-                _ => None,
-            })
-            .collect_vec();
-        for rename in self.app.prefs.view_3d.take_renames() {
-            for puzzle_widget in &mut puzzle_widgets {
-                if puzzle_widget.view_prefs_set() == PuzzleViewPreferencesSet::Dim3D
-                    && puzzle_widget.view.camera.view_preset.name == rename.old
-                {
-                    puzzle_widget.view.camera.view_preset.name = rename.new.clone();
-                }
-            }
-        }
-        for rename in self.app.prefs.view_4d.take_renames() {
-            for puzzle_widget in &mut puzzle_widgets {
-                if puzzle_widget.view_prefs_set() == PuzzleViewPreferencesSet::Dim4D
-                    && puzzle_widget.view.camera.view_preset.name == rename.old
-                {
-                    puzzle_widget.view.camera.view_preset.name = rename.new.clone();
-                }
-            }
-        }
-        for rename in self.app.prefs.interaction.take_renames() {
-            for puzzle_widget in &mut puzzle_widgets {
-                let mut sim = puzzle_widget.sim().lock();
-                if sim.interaction_prefs.name == rename.old {
-                    sim.interaction_prefs.name = rename.new.clone();
-                }
-            }
-        }
-        drop(puzzle_widgets);
 
         if let Some((_rect, Tab::PuzzleView(puzzle_view))) = self.dock_state.find_active_focused() {
             self.app.set_active_puzzle_view(puzzle_view);

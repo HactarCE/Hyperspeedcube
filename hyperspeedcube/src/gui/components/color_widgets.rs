@@ -168,8 +168,8 @@ impl<'a> ColorsUi<'a> {
                 ui.add_space(ui.spacing().item_spacing.x - ui.spacing().item_spacing.x);
                 ui.horizontal_wrapped(|ui| {
                     ui.spacing_mut().item_spacing.y = ui.spacing().item_spacing.x;
-                    for color_name in self.palette.custom_colors.keys() {
-                        self.show_single_color(ui, color_name.clone());
+                    for color in self.palette.custom_colors.user_presets() {
+                        self.show_single_color(ui, color.name().clone());
                     }
                 });
             });

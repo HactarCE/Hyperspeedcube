@@ -33,22 +33,6 @@ use crate::L;
 
 use super::App;
 
-pub fn ui_with_active_puzzle_view(
-    ui: &mut egui::Ui,
-    app: &mut App,
-    f: impl FnOnce(&mut egui::Ui, &mut App, &mut PuzzleWidget),
-) {
-    if let Some(active_puzzle_view) = app.active_puzzle_view() {
-        let mut puzzle_view_mutex_guard = active_puzzle_view.lock();
-        if let Some(puzzle_view) = &mut *puzzle_view_mutex_guard {
-            f(ui, app, puzzle_view);
-            return;
-        }
-    }
-
-    ui.label(L.no_active_puzzle);
-}
-
 #[derive(Debug, Clone)]
 pub enum Tab {
     PuzzleView(Arc<Mutex<Option<PuzzleWidget>>>),

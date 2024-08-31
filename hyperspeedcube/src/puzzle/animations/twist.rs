@@ -4,7 +4,7 @@ use hypermath::pga;
 use hyperpuzzle::{PieceMask, PuzzleState};
 use instant::Duration;
 
-use crate::preferences::AnimationPreferences;
+use crate::preferences::ModifiedSimPrefs;
 
 /// If at least this much of a twist is animated in one frame, just skip the
 /// animation to reduce unnecessary flashing.
@@ -25,18 +25,18 @@ pub struct TwistAnimationState {
 impl TwistAnimationState {
     /// Steps the animation forward. Returns whether the puzzle should be
     /// redrawn next frame.
-    pub fn proceed(&mut self, delta: Duration, prefs: &AnimationPreferences) -> bool {
+    pub fn proceed(&mut self, delta: Duration, prefs: ModifiedSimPrefs<'_>) -> bool {
         if self.queue.is_empty() {
             self.queue_max = 0;
             false // Do not request redraw
         } else {
             // `twist_duration` is in seconds (per one twist); `base_speed` is
             // fraction of twist per frame.
-            let base_speed = delta.as_secs_f32() / prefs.twist_duration;
+            let base_speed = delta.as_secs_f32() / prefs.animation.value.twist_duration;
 
             // Twist exponentially faster if there are/were more twists in the
             // queue.
-            let speed_mod = match prefs.dynamic_twist_speed {
+            let speed_mod = match prefs.animation.value.dynamic_twist_speed {
                 true => ((self.queue_max - 1) as f32 * EXP_TWIST_FACTOR).exp(),
                 false => 1.0,
             };

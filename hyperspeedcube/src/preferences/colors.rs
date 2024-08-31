@@ -3,16 +3,47 @@ use std::collections::{btree_map, BTreeMap};
 use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
 use indexmap::IndexMap;
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 
-use crate::{preferences::DEFAULT_PREFS, L};
+use crate::L;
 
-use super::{Preset, WithPresets};
+use super::{schema, PresetsList, DEFAULT_PREFS_RAW};
 
 pub type ColorScheme = IndexMap<String, DefaultColor>;
 
-#[derive(Debug, Default, Display, EnumString, EnumIter, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default)]
+pub struct ColorSchemePreferences(BTreeMap<String, ColorSystemPreferences>);
+impl schema::PrefsConvert for ColorSchemePreferences {
+    type DeserContext = ();
+    type SerdeFormat = BTreeMap<String, schema::current::ColorSystemPreferences>;
 
+    fn to_serde(&self) -> Self::SerdeFormat {
+        self.0
+            .iter()
+            .map(|(k, v)| (k.clone(), v.to_serde()))
+            .collect()
+    }
+    fn reload_from_serde(&mut self, ctx: &Self::DeserContext, value: Self::SerdeFormat) {
+        schema::reload_btreemap(&mut self.0, ctx, value);
+    }
+}
+impl ColorSchemePreferences {
+    pub fn get(&self, color_system: &ColorSystem) -> Option<&ColorSystemPreferences> {
+        self.0.get(&color_system.id)
+    }
+    pub fn get_mut(&mut self, color_system: &ColorSystem) -> &mut ColorSystemPreferences {
+        match self.0.entry(color_system.id.clone()) {
+            btree_map::Entry::Vacant(e) => {
+                e.insert(ColorSystemPreferences::from_color_system(color_system))
+            }
+            btree_map::Entry::Occupied(mut e) => {
+                e.get_mut().update_builtin_schemes(color_system);
+                e.into_mut()
+            }
+        }
+    }
+}
+
+#[derive(Debug, Default, Display, EnumString, EnumIter, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DefaultColorGradient {
     #[default]
     Rainbow,
@@ -62,59 +93,51 @@ impl DefaultColorGradient {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(default)]
-pub struct ColorPreferences {
-    #[serde(flatten)]
-    pub color_systems: BTreeMap<String, ColorSystemPreferences>,
-    #[serde(skip)]
-    empty_color_system: ColorSystemPreferences,
-}
-impl ColorPreferences {
-    pub(super) fn post_init(&mut self) {
-        for color_system_prefs in self.color_systems.values_mut() {
-            color_system_prefs.post_init();
-        }
-    }
-
-    pub fn color_system_mut(&mut self, color_system: &ColorSystem) -> &mut ColorSystemPreferences {
-        match self.color_systems.entry(color_system.id.clone()) {
-            btree_map::Entry::Vacant(e) => {
-                e.insert(ColorSystemPreferences::from_color_system(color_system))
-            }
-            btree_map::Entry::Occupied(mut e) => {
-                e.get_mut().update_builtin_schemes(color_system);
-                e.into_mut()
-            }
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(default)]
+#[derive(Debug, Default)]
 pub struct GlobalColorPalette {
-    pub custom_colors: IndexMap<String, Rgb>,
+    pub custom_colors: PresetsList<Rgb>,
     pub builtin_colors: IndexMap<String, Rgb>,
     pub builtin_color_sets: IndexMap<String, Vec<Rgb>>,
 }
-impl GlobalColorPalette {
-    pub(super) fn post_init(&mut self) {
-        self.builtin_colors = DEFAULT_PREFS
+impl schema::PrefsConvert for GlobalColorPalette {
+    type DeserContext = ();
+    type SerdeFormat = schema::current::GlobalColorPalette;
+
+    fn to_serde(&self) -> Self::SerdeFormat {
+        let Self {
+            custom_colors,
+            builtin_colors,
+            builtin_color_sets,
+        } = self;
+
+        schema::current::GlobalColorPalette {
+            custom_colors: custom_colors.to_serde_map(),
+            builtin_colors: builtin_colors.clone(),
+            builtin_color_sets: builtin_color_sets.clone(),
+        }
+    }
+    fn reload_from_serde(&mut self, ctx: &Self::DeserContext, value: Self::SerdeFormat) {
+        let schema::current::GlobalColorPalette {
+            custom_colors,
+            builtin_colors,
+            builtin_color_sets,
+        } = value;
+
+        self.custom_colors.reload_from_serde_map(ctx, custom_colors);
+
+        self.builtin_colors = DEFAULT_PREFS_RAW
             .color_palette
             .builtin_colors
             .iter()
-            .map(|(k, v)| (k.clone(), *self.builtin_colors.get(k).unwrap_or(v)))
+            .map(|(k, v)| (k.clone(), *builtin_colors.get(k).unwrap_or(v)))
             .collect();
 
-        self.builtin_color_sets = DEFAULT_PREFS
+        self.builtin_color_sets = DEFAULT_PREFS_RAW
             .color_palette
             .builtin_color_sets
             .iter()
             .map(|(k, v)| {
-                let user_value = self
-                    .builtin_color_sets
-                    .get(k)
-                    .unwrap_or(const { &Vec::new() });
+                let user_value = builtin_color_sets.get(k).unwrap_or(const { &Vec::new() });
                 (
                     k.clone(),
                     v.iter()
@@ -125,7 +148,8 @@ impl GlobalColorPalette {
             })
             .collect();
     }
-
+}
+impl GlobalColorPalette {
     pub fn has(&self, color: &DefaultColor) -> bool {
         match color {
             // Skip sampling the gradient
@@ -148,7 +172,7 @@ impl GlobalColorPalette {
             DefaultColor::HexCode { rgb } => Some(*rgb),
             DefaultColor::Single { name } => None
                 .or_else(|| self.builtin_colors.get(name))
-                .or_else(|| self.custom_colors.get(name))
+                .or_else(|| Some(&self.custom_colors.get(name)?.value))
                 .copied(),
             DefaultColor::Set { set_name, index } => self
                 .get_set(set_name)
@@ -227,24 +251,33 @@ impl GlobalColorPalette {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub struct ColorSystemPreferences {
-    pub schemes: WithPresets<ColorScheme>,
+    pub schemes: PresetsList<ColorScheme>,
+}
+impl schema::PrefsConvert for ColorSystemPreferences {
+    type DeserContext = ();
+    type SerdeFormat = schema::current::ColorSystemPreferences;
+
+    fn to_serde(&self) -> Self::SerdeFormat {
+        let Self { schemes } = self;
+
+        schemes
+            .user_presets()
+            .map(|preset| (preset.name().clone(), preset.value.clone()))
+            .collect()
+    }
+    fn reload_from_serde(&mut self, ctx: &Self::DeserContext, value: Self::SerdeFormat) {
+        self.schemes.reload_from_serde_map(ctx, value);
+    }
 }
 impl ColorSystemPreferences {
-    fn post_init(&mut self) {
-        for scheme in &mut self.schemes.user {
-            hyperpuzzle::ensure_color_scheme_is_valid(scheme.value.values_mut(), |_| true);
-        }
-
-        self.schemes.post_init(None);
-    }
-
     /// Creates factory-default preferences for a color system.
     pub fn from_color_system(color_system: &ColorSystem) -> Self {
         let mut ret = Self::default();
         ret.update_builtin_schemes(color_system);
-        ret.schemes.load_preset(&color_system.default_scheme);
+        ret.schemes
+            .set_last_loaded(color_system.default_scheme.clone());
         ret
     }
     /// Updates the built-in schemes for the color system.
@@ -261,28 +294,11 @@ impl ColorSystemPreferences {
     }
 }
 
-fn preset_from_color_scheme(color_system: &ColorSystem, name: &str) -> Preset<ColorScheme> {
+fn preset_from_color_scheme(color_system: &ColorSystem, name: &str) -> (String, ColorScheme) {
     let value = color_system
         .get_scheme_or_default(name)
         .iter()
         .map(|(id, default_color)| (color_system.list[id].name.clone(), default_color.clone()))
         .collect();
-    Preset {
-        name: name.to_string(),
-        value,
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(default)]
-pub struct SavedCustomColor {
-    pub name: String,
-    pub rgb: Rgb,
-}
-
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(default)]
-pub struct SavedCustomColorSet {
-    pub name: String,
-    pub colors: Vec<Rgb>,
+    (name.to_string(), value)
 }

@@ -7,7 +7,7 @@ use crate::{
         markdown::{md, md_bold_user_text},
         util::EguiTempValue,
     },
-    preferences::{PieceStyle, Preset, StylePreferences, DEFAULT_PREFS},
+    preferences::{PieceStyle, StylePreferences, DEFAULT_PREFS},
     L,
 };
 
@@ -66,30 +66,27 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     ui.add_space(ui.spacing().item_spacing.x);
 
+    let mut current = app.prefs.custom_styles.load_last_loaded();
+
     let help_contents = L.help.custom_piece_styles;
     let presets_ui = gui::components::PresetsUi {
         id: unique_id!(),
-        presets: &mut app.prefs.styles.custom,
+        presets: &mut app.prefs.custom_styles,
+        current: &mut current,
         changed: &mut changed,
         text: &L.presets.custom_styles,
         autosave: true,
         vscroll: false,
         help_contents: Some(help_contents),
-        extra_validation: Some(Box::new(|_, name| {
+        extra_validation: Some(|_, name| {
             if name == crate::DEFAULT_STYLE_NAME {
                 Err(L.presets.custom_styles.errors.name_conflict.into())
             } else {
                 Ok(())
             }
-        })),
+        }),
     };
-    let get_backup_defaults = |_| {
-        Some(Preset {
-            name: crate::DEFAULT_STYLE_NAME.to_string(),
-            value: app.prefs.styles.default,
-        })
-    };
-    presets_ui.show(ui, None, get_backup_defaults, |mut prefs_ui| {
+    presets_ui.show(ui, None, |mut prefs_ui| {
         let (prefs, ui) = prefs_ui.split();
         let r = ui.add(
             PieceStyleEdit::new(prefs.current).default_outline_lighting(default_outline_lighting),

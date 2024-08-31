@@ -1,13 +1,13 @@
 use std::path::Path;
 
-use eyre::bail;
+use eyre::{OptionExt, Result};
 
 use crate::{app::App, gui::util::EguiTempValue, L};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let l = L.image_generator;
 
-    let has_active_puzzle = app.has_active_puzzle();
+    let has_active_puzzle = app.active_puzzle_view.has_puzzle();
 
     let mut changed = false;
 
@@ -41,7 +41,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     } else {
                         match save_screenshot(app, &file_path) {
                             Ok(()) => Status::Success,
-                            Err(e) => Status::Error(e),
+                            Err(e) => Status::Error(e.to_string()),
                         }
                     },
                 ));
@@ -103,8 +103,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     app.prefs.needs_save |= changed;
 }
 
-fn save_screenshot(app: &mut App, path: &Path) -> Result<(), String> {
-    app.with_active_puzzle_view(|p| {
+fn save_screenshot(app: &mut App, path: &Path) -> Result<()> {
+    app.active_puzzle_view.with_opt(|p| {
+        let p = p.ok_or_eyre("no active puzzle")?;
         p.screenshot(
             app.prefs.image_generator.width,
             app.prefs.image_generator.height,
@@ -112,6 +113,4 @@ fn save_screenshot(app: &mut App, path: &Path) -> Result<(), String> {
         .save(path)?;
         Ok(())
     })
-    .unwrap_or_else(|| bail!("no active puzzle"))
-    .map_err(|e| e.to_string())
 }

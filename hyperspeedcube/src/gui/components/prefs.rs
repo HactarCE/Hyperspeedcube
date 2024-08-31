@@ -392,12 +392,12 @@ pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) 
 }
 
 pub fn build_view_section(
-    view_prefs_set: PuzzleViewPreferencesSet,
+    view_prefs_set: Option<PuzzleViewPreferencesSet>,
     mut prefs_ui: PrefsUi<'_, ViewPreferences>,
 ) {
     let l = &L.prefs.view.projection;
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
-        if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
+        if view_prefs_set == Some(PuzzleViewPreferencesSet::Dim4D) {
             prefs_ui.angle(&l.fov_4d, access!(.fov_4d), |dv| {
                 dv.range(FOV_4D_RANGE).speed(0.5)
             });
@@ -412,20 +412,20 @@ pub fn build_view_section(
     prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.checkbox(&l.show_frontfaces, access!(.show_frontfaces));
         prefs_ui.checkbox(&l.show_backfaces, access!(.show_backfaces));
-        if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
+        if view_prefs_set == Some(PuzzleViewPreferencesSet::Dim4D) {
             prefs_ui.checkbox(&l.show_behind_4d_camera, access!(.show_behind_4d_camera));
         } else {
             prefs_ui.current.show_behind_4d_camera = false;
         }
 
-        if view_prefs_set == PuzzleViewPreferencesSet::Dim3D {
+        if view_prefs_set == Some(PuzzleViewPreferencesSet::Dim3D) {
             prefs_ui.checkbox(&l.show_internals, access!(.show_internals));
         } else {
             prefs_ui.current.show_internals = false;
         }
         let showing_internals = prefs_ui.current.show_internals;
 
-        if view_prefs_set == PuzzleViewPreferencesSet::Dim4D {
+        if view_prefs_set == Some(PuzzleViewPreferencesSet::Dim4D) {
             prefs_ui.num(&l.gizmo_scale, access!(.gizmo_scale), |dv| {
                 dv.fixed_decimals(2).range(0.1..=5.0_f32).speed(0.01)
             });

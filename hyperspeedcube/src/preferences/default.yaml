@@ -1,5 +1,5 @@
 ---
-# no version here, so we can see a missing 'version' tag in user prefs
+# `version` is not needed for defaults
 info:
   metric: STM
   keybinds_reference:
@@ -16,26 +16,30 @@ image_generator:
 animation:
   last_loaded: Medium
   presets:
-  - preset_name: Slow
-    dynamic_twist_speed: true
-    twist_duration: 1.0
-    blocking_anim_duration: 2.0
-  - preset_name: Medium
-    dynamic_twist_speed: true
-    twist_duration: 0.2
-    blocking_anim_duration: 1.0
-  - preset_name: Fast
-    dynamic_twist_speed: true
-    twist_duration: 0.1
-    blocking_anim_duration: 0.5
-  - preset_name: Instant
-    dynamic_twist_speed: true
-    twist_duration: 0.0
-    blocking_anim_duration: 0.25
+    Slow:
+      dynamic_twist_speed: true
+      twist_duration: 1.0
+      blocking_anim_duration: 2.0
+      twist_interpolation: cosine
+    Medium:
+      dynamic_twist_speed: true
+      twist_duration: 0.2
+      blocking_anim_duration: 1.0
+      twist_interpolation: cosine
+    Fast:
+      dynamic_twist_speed: true
+      twist_duration: 0.1
+      blocking_anim_duration: 0.5
+      twist_interpolation: cosine
+    Instant:
+      dynamic_twist_speed: true
+      twist_duration: 0.0
+      blocking_anim_duration: 0.25
+      twist_interpolation: cosine
 interaction:
   last_loaded: Default
   presets:
-    - preset_name: Default
+    Default:
       confirm_discard_only_when_scrambled: true
       drag_sensitivity: 0.7
       scale_twist_drag_by_radius: false
@@ -48,14 +52,6 @@ styles:
   internals_color: '#444444'
   blocking_outline_color: '#ff0000'
   blocking_outline_size: 5.0
-  custom:
-    last_loaded: Hidden
-    presets:
-    - preset_name: Hidden
-      interactable: false
-      face_opacity: 0.1
-      outline_opacity: 0.1
-      outline_size: 0.0
   default:
     interactable: true
     face_opacity: 1.0
@@ -107,10 +103,18 @@ styles:
       mode: fixed
       color: '#000000'
     outline_lighting: false
+custom_styles:
+  last_loaded: Hidden
+  presets:
+    Hidden:
+      interactable: false
+      face_opacity: 0.1
+      outline_opacity: 0.1
+      outline_size: 0.0
 view_3d:
   last_loaded: Default
   presets:
-    - preset_name: Default
+    Default:
       scale: 1.25
       fov_3d: 15.0
       fov_4d: 30.0
@@ -127,7 +131,7 @@ view_3d:
       outline_light_intensity: 1.0
       downscale_rate: 1
       downscale_interpolate: true
-    - preset_name: Unfolded (back)
+    Unfolded (back):
       scale: 3.0
       fov_3d: 60.0
       fov_4d: 30.0
@@ -144,7 +148,7 @@ view_3d:
       outline_light_intensity: 1.0
       downscale_rate: 1
       downscale_interpolate: true
-    - preset_name: Unfolded (front)
+    Unfolded (front):
       scale: 3.0
       fov_3d: -60.0
       fov_4d: 30.0
@@ -164,7 +168,7 @@ view_3d:
 view_4d:
   last_loaded: Default
   presets:
-    - preset_name: Default
+    Default:
       scale: 1.0
       fov_3d: 0.0
       fov_4d: 60.0
@@ -182,7 +186,7 @@ view_4d:
       outline_light_intensity: 1.0
       downscale_rate: 1
       downscale_interpolate: true
-    - preset_name: Contiguous pieces
+    Contiguous pieces:
       scale: 1.0
       fov_3d: 0.0
       fov_4d: 20.0

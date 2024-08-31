@@ -12,13 +12,12 @@ use parking_lot::Mutex;
 use super::simulation::PuzzleSimulation;
 use super::styles::*;
 use super::Camera;
-use crate::preferences::ColorScheme;
-use crate::preferences::FilterPreset;
-use crate::preferences::FilterRule;
-use crate::preferences::Preset;
-use crate::preferences::PuzzleFilterPreferences;
-use crate::preferences::StylePreferences;
-use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
+use crate::preferences::ModifiedSimPrefs;
+use crate::preferences::ViewPrefsRefs;
+use crate::preferences::{
+    ColorScheme, FilterPreset, FilterRule, ModifiedPreset, Preferences, PresetRef,
+    PuzzleFilterPreferences,
+};
 
 /// View into a puzzle simulation, which has its own piece filters.
 #[derive(Debug)]
@@ -29,7 +28,7 @@ pub struct PuzzleView {
 
     pub camera: Camera,
 
-    pub colors: Preset<ColorScheme>,
+    pub colors: ModifiedPreset<ColorScheme>,
     pub temp_colors: Option<ColorScheme>,
     pub styles: PuzzleStyleStates,
     pub filters: PuzzleFiltersState,
@@ -54,34 +53,26 @@ pub struct PuzzleView {
 }
 impl PuzzleView {
     pub(crate) fn new(
-        prefs: &mut Preferences,
         puzzle_simulation: &Arc<Mutex<PuzzleSimulation>>,
+        prefs: ViewPrefsRefs<'_>,
     ) -> Self {
         let simulation = puzzle_simulation.lock();
         let puzzle = simulation.puzzle_type();
-        let view_prefs_set = PuzzleViewPreferencesSet::from_ndim(puzzle.ndim());
-        let view_preset = prefs[view_prefs_set].current_preset();
-
-        let colors = prefs
-            .color_schemes
-            .color_system_mut(&puzzle.colors)
-            .schemes
-            .current_preset();
 
         Self {
             sim: Arc::clone(puzzle_simulation),
 
             camera: Camera {
-                view_preset,
+                view_preset: prefs.view.clone(),
                 target_size: [1, 1],
                 rot: Motor::ident(puzzle.ndim()),
                 zoom: 0.5,
             },
 
-            colors,
+            colors: prefs.colors.clone(),
             temp_colors: None,
             styles: PuzzleStyleStates::new(puzzle.pieces.len()),
-            filters: PuzzleFiltersState::new(&prefs.styles),
+            filters: PuzzleFiltersState::new(prefs.all.first_custom_style()),
 
             show_puzzle_hover: false,
             show_gizmo_hover: false,
@@ -91,6 +82,14 @@ impl PuzzleView {
             puzzle_hover_state: None,
             gizmo_hover_state: None,
             drag_state: None,
+        }
+    }
+
+    pub fn modified_prefs<'a>(&'a self, prefs: &'a Preferences) -> ViewPrefsRefs<'a> {
+        ViewPrefsRefs {
+            all: prefs,
+            view: &self.camera.view_preset,
+            colors: &self.colors,
         }
     }
 
@@ -157,13 +156,12 @@ impl PuzzleView {
     }
 
     /// Updates the puzzle view for a frame. This method is idempotent.
-    pub fn update(&mut self, input: PuzzleViewInput<'_>) {
+    pub fn update(&mut self, input: PuzzleViewInput, prefs: ModifiedSimPrefs<'_>) {
         let PuzzleViewInput {
             cursor_pos,
             target_size,
             puzzle_vertex_3d_positions,
             gizmo_vertex_3d_positions,
-            prefs,
             exceeded_twist_drag_threshold,
             hover_mode,
         } = input;
@@ -252,11 +250,11 @@ impl PuzzleView {
                         let mut sim = self.sim.lock();
                         let axis = sim.partial_twist().as_ref()?.axis;
                         let axis_vector = &sim.puzzle_type().axes[axis].vector;
-                        if sim.interaction_prefs.value.scale_twist_drag_by_radius {
+                        if prefs.interaction.value.scale_twist_drag_by_radius {
                             parallel_drag_delta = parallel_drag_delta
                                 / hov.position.rejected_from(axis_vector)?.mag();
                         }
-                        sim.update_partial_twist(hov.normal_3d(), parallel_drag_delta);
+                        sim.update_partial_twist(hov.normal_3d(), parallel_drag_delta, prefs);
                         Some(())
                     })();
                 }
@@ -266,7 +264,7 @@ impl PuzzleView {
         } else {
             // Update hover states, only when not in the middle of a drag.
             self.puzzle_hover_state = puzzle_vertex_3d_positions.and_then(|vertex_3d_positions| {
-                self.compute_sticker_hover_state(&vertex_3d_positions, prefs)
+                self.compute_sticker_hover_state(&vertex_3d_positions, prefs.all)
             });
             self.gizmo_hover_state = gizmo_vertex_3d_positions.and_then(|vertex_3d_positions| {
                 self.compute_gizmo_hover_state(&vertex_3d_positions)
@@ -282,7 +280,7 @@ impl PuzzleView {
             let puzzle = self.puzzle();
             let sim = self.sim.lock();
             let anim = sim.blocking_pieces_anim();
-            let amt = anim.blocking_amount(&sim.animation_prefs.value);
+            let amt = anim.blocking_amount(&prefs.animation.value);
             let pieces = PieceMask::from_iter(puzzle.pieces.len(), anim.pieces().iter().copied());
             self.styles.set_blocking_pieces(pieces, amt);
         }
@@ -302,7 +300,7 @@ impl PuzzleView {
 
         let cursor_pos = self.cursor_pos?;
 
-        let interactable_pieces = self.styles.interactable_pieces(&prefs.styles);
+        let interactable_pieces = self.styles.interactable_pieces(prefs);
 
         let sticker_tri_ranges = puzzle
             .mesh
@@ -613,7 +611,7 @@ pub enum DragState {
     Canceled,
 }
 
-pub struct PuzzleViewInput<'a> {
+pub struct PuzzleViewInput {
     /// Position of the cursor on the puzzle view, in screen space.
     pub cursor_pos: Option<cgmath::Point2<f32>>,
     /// Size of the target to draw to.
@@ -622,8 +620,6 @@ pub struct PuzzleViewInput<'a> {
     pub puzzle_vertex_3d_positions: Option<Arc<Vec<cgmath::Vector4<f32>>>>,
     /// 3D positions of vertices in the twist gizmos mesh.
     pub gizmo_vertex_3d_positions: Option<Arc<Vec<cgmath::Vector4<f32>>>>,
-    /// User preferences.
-    pub prefs: &'a Preferences,
     /// Whether the cursor has been dragged enough to begin a drag twist, if
     /// that's the type of drag happening.
     pub exceeded_twist_drag_threshold: bool,
@@ -646,11 +642,11 @@ pub struct PuzzleFiltersState {
     pub active_rules: Vec<bool>,
 }
 impl PuzzleFiltersState {
-    pub fn new(styles: &StylePreferences) -> Self {
+    pub fn new(fallback_style: Option<PresetRef>) -> Self {
         Self {
             sequence_name: None,
             preset_name: None,
-            preset: FilterPreset::new(styles),
+            preset: FilterPreset::new(fallback_style),
             active_rules: vec![],
         }
     }

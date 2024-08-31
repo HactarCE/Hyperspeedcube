@@ -1,40 +1,47 @@
-use crate::{app::App, L};
+use crate::{
+    app::App,
+    gui::components::PresetsUi,
+    preferences::{ModifiedPreset, PresetsList, PuzzleViewPreferencesSet, ViewPreferences},
+    L,
+};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    if !app.has_active_puzzle() {
-        ui.disable();
-    }
+    let id = unique_id!();
 
-    let prefs_set = app.prefs.latest_view_prefs_set;
-    let presets = app.prefs.view_presets_mut();
+    app.active_puzzle_view.with_opt(|p| {
+        if let Some(p) = p {
+            let mut changed = false;
 
-    let mut changed = false;
+            let prefs_set = PuzzleViewPreferencesSet::from_ndim(p.puzzle().ndim());
+            let presets = app.prefs.view_presets_mut(prefs_set);
+            let current = &mut p.view.camera.view_preset;
+            let presets_ui = PresetsUi::new(id, presets, current, &mut changed);
+            show_contents(ui, Some(prefs_set), presets_ui);
 
-    let presets_ui = crate::gui::components::PresetsUi {
-        id: unique_id!(),
-        presets,
-        changed: &mut changed,
-        text: &L.presets.view_settings,
-        autosave: false,
-        vscroll: true,
-        help_contents: None,
-        extra_validation: None,
-    };
-    presets_ui.show(
-        ui,
-        Some(prefs_set.as_ref()),
-        |p| p[prefs_set].last_loaded_preset().cloned(),
-        |prefs_ui| crate::gui::components::prefs::build_view_section(prefs_set, prefs_ui),
-    );
+            app.prefs.needs_save |= changed;
+        } else {
+            ui.disable();
 
-    // Copy settings back to active puzzle.
-    if changed {
-        let current_preset = presets.current_preset();
-        app.with_active_puzzle_view(|p| {
-            p.view.camera.view_preset = current_preset;
-            // TODO: tell it to redraw?
+            let mut presets = PresetsList::default();
+            let mut current = ModifiedPreset::default();
+            show_contents(
+                ui,
+                None,
+                PresetsUi::new(id, &mut presets, &mut current, &mut false),
+            );
+        }
+    });
+}
+
+fn show_contents(
+    ui: &mut egui::Ui,
+    prefs_set: Option<PuzzleViewPreferencesSet>,
+    presets_ui: PresetsUi<'_, ViewPreferences>,
+) {
+    let presets_set = prefs_set.as_ref().map(|s| s.as_ref());
+    presets_ui
+        .with_text(&L.presets.view_settings)
+        .show(ui, presets_set, |prefs_ui| {
+            crate::gui::components::prefs::build_view_section(prefs_set, prefs_ui)
         });
-    }
-
-    app.prefs.needs_save |= changed;
 }

@@ -1,7 +1,6 @@
 use cgmath::SquareMatrix;
 use float_ord::FloatOrd;
 use hyperpuzzle::Rgb;
-use indexmap::IndexMap;
 use rand::{seq::SliceRandom, Rng};
 
 pub const INVALID_STR: &str = "<invalid>";
@@ -159,11 +158,6 @@ fn rgb_to_lab(rgb: Rgb) -> (f32, f32, f32) {
     empfindung::ToLab::to_lab(&rgb_crate::RGB { r, g, b })
 }
 
-pub fn find_unused_autoname<V>(map: &IndexMap<String, V>) -> String {
-    funny_autonames()
-        .find(|name| !map.contains_key(name))
-        .expect("ran out of autonames!")
-}
 pub fn funny_autonames() -> impl Iterator<Item = String> {
     std::iter::from_fn(move || {
         Some(if rand::thread_rng().gen_bool(0.2) {

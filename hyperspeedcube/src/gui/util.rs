@@ -29,6 +29,18 @@ macro_rules! access_option {
     };
 }
 
+// TODO: is this necessary and/or good?
+macro_rules! dummy_presets_ui {
+    ($id:expr) => {
+        $crate::gui::components::PresetsUi::new(
+            $id,
+            &mut $crate::preferences::PresetsList::default(),
+            &mut $crate::preferences::ModifiedPreset::default(),
+            &mut false,
+        )
+    };
+}
+
 /// Rounds an egui rectangle to the nearest pixel boundary and returns the
 /// rounded egui rectangle, along with its width & height in pixels.
 pub fn rounded_pixel_rect(

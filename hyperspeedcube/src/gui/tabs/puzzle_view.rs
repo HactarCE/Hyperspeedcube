@@ -9,7 +9,10 @@ use parking_lot::Mutex;
 use crate::gui::components::color_assignment_popup;
 use crate::gui::util::EguiTempValue;
 use crate::gui::App;
-use crate::preferences::{Preferences, PuzzleViewPreferencesSet};
+use crate::preferences::{
+    AnimationPreferences, InteractionPreferences, ModifiedPreset, ModifiedSimPrefs, Preferences,
+    PuzzleViewPreferencesSet, ViewPrefsRefs,
+};
 use crate::puzzle::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 use crate::{gfx::*, L};
 
@@ -20,7 +23,12 @@ const SEND_CURSOR_POS: bool = false;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>) {
     let r = match &mut *puzzle_view.lock() {
-        Some(puzzle_view) => puzzle_view.ui(ui, &mut app.prefs),
+        Some(puzzle_view) => puzzle_view.ui(
+            ui,
+            &mut app.prefs,
+            &app.animation_prefs,
+            &app.interaction_prefs,
+        ),
         None => {
             // Hint to the user to load a puzzle.
             ui.allocate_ui_at_rect(ui.available_rect_before_wrap(), |ui| {
@@ -67,17 +75,32 @@ impl PuzzleWidget {
             Ok(p) => {
                 log::info!("Built {:?} in {:?}", p.name, start_time.elapsed());
                 log::info!("Updated active puzzle");
-                let sim = &Arc::new(Mutex::new(PuzzleSimulation::new(&p, prefs)));
-                Some(Self::with_sim(gfx, prefs, sim))
+                let sim = &Arc::new(Mutex::new(PuzzleSimulation::new(&p)));
+                Some(Self::with_sim(gfx, sim, prefs))
             }
         }
     }
     pub(crate) fn with_sim(
         gfx: &Arc<GraphicsState>,
-        prefs: &mut Preferences,
         sim: &Arc<Mutex<PuzzleSimulation>>,
+        prefs: &mut Preferences,
     ) -> Self {
-        let view = PuzzleView::new(prefs, sim);
+        let puz = Arc::clone(sim.lock().puzzle_type());
+        let view = prefs[PuzzleViewPreferencesSet::from_ndim(puz.ndim())].load_last_loaded();
+        let colors = prefs
+            .color_schemes
+            .get_mut(&puz.colors)
+            .schemes
+            .load_last_loaded();
+
+        let view = PuzzleView::new(
+            sim,
+            ViewPrefsRefs {
+                all: prefs,
+                view: &view,
+                colors: &colors,
+            },
+        );
         let puzzle = view.puzzle();
         let renderer = Arc::new(Mutex::new(PuzzleRenderer::new(gfx, &puzzle)));
         Self {
@@ -108,7 +131,11 @@ impl PuzzleWidget {
         crate::reload_user_puzzles();
         let current_puzzle = self.puzzle();
         let gfx = Arc::clone(&self.renderer.lock().gfx);
-        if let Some(new_puzzle_view) = Self::new(lib, &gfx, prefs, &current_puzzle.id) {
+        if let Some(mut new_puzzle_view) = Self::new(lib, &gfx, prefs, &current_puzzle.id) {
+            // Copy view and color settings from the current puzzle view.
+            new_puzzle_view.view.camera.view_preset = self.view.camera.view_preset.clone();
+            new_puzzle_view.view.colors = self.view.colors.clone();
+
             *self = new_puzzle_view;
             true
         } else {
@@ -117,7 +144,13 @@ impl PuzzleWidget {
     }
 
     /// Draws the puzzle in the UI and handles input.
-    pub fn ui(&mut self, ui: &mut egui::Ui, prefs: &mut Preferences) -> egui::Response {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        prefs: &mut Preferences,
+        animation: &ModifiedPreset<AnimationPreferences>,
+        interaction: &ModifiedPreset<InteractionPreferences>,
+    ) -> egui::Response {
         let puzzle = self.puzzle();
 
         // Allocate space in the UI.
@@ -217,18 +250,24 @@ impl PuzzleWidget {
             ui.ctx().request_repaint();
         }
 
-        self.view.update(PuzzleViewInput {
-            cursor_pos,
-            target_size,
-            puzzle_vertex_3d_positions: renderer.puzzle_vertex_3d_positions.get(),
-            gizmo_vertex_3d_positions: renderer.gizmo_vertex_3d_positions.get(),
-            prefs,
-            exceeded_twist_drag_threshold,
-            hover_mode: match ui.input(|input| input.modifiers.shift) {
-                true => Some(HoverMode::Piece),
-                false => Some(HoverMode::TwistGizmo),
+        self.view.update(
+            PuzzleViewInput {
+                cursor_pos,
+                target_size,
+                puzzle_vertex_3d_positions: renderer.puzzle_vertex_3d_positions.get(),
+                gizmo_vertex_3d_positions: renderer.gizmo_vertex_3d_positions.get(),
+                exceeded_twist_drag_threshold,
+                hover_mode: match ui.input(|input| input.modifiers.shift) {
+                    true => Some(HoverMode::Piece),
+                    false => Some(HoverMode::TwistGizmo),
+                },
             },
-        });
+            ModifiedSimPrefs {
+                all: prefs,
+                animation,
+                interaction,
+            },
+        );
 
         // Click = twist
         if r.clicked() && modifiers.is_none() {
@@ -284,7 +323,7 @@ impl PuzzleWidget {
         }
 
         let dark_mode = ui.visuals().dark_mode;
-        let background_color = prefs.styles.background_color(dark_mode).rgb;
+        let background_color = prefs.background_color(dark_mode).rgb;
         let internals_color = prefs.styles.internals_color.rgb;
 
         // Ensure that the color scheme is valid. Ignore whether it actually got
@@ -323,7 +362,7 @@ impl PuzzleWidget {
             background_color,
             internals_color,
             sticker_colors,
-            piece_styles: self.view.styles.values(&prefs.styles),
+            piece_styles: self.view.styles.values(prefs),
             piece_transforms: self.view.sim.lock().piece_transforms().map_ref(
                 |_piece, transform| transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim()),
             ),
@@ -332,7 +371,7 @@ impl PuzzleWidget {
         // Draw puzzle.
         let painter = ui.painter_at(r.rect);
         let background_color =
-            crate::util::rgb_to_egui_color32(prefs.styles.background_color(ui.visuals().dark_mode));
+            crate::util::rgb_to_egui_color32(prefs.background_color(ui.visuals().dark_mode));
         ui.painter().rect_filled(r.rect, 0.0, background_color);
         ui.painter()
             .add(eframe::egui_wgpu::Callback::new_paint_callback(

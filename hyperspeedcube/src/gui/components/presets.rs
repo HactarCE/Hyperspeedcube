@@ -11,16 +11,18 @@ use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::{md, md_bold_user_text, md_inline};
 use crate::gui::util::EguiTempValue;
 use crate::locales::PresetStrings;
-use crate::preferences::{Preferences, Preset, WithPresets, DEFAULT_PREFS};
+use crate::preferences::{ModifiedPreset, PresetData, PresetsList};
 use crate::L;
 
 pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;
 
-pub struct PresetsUi<'a, T: Default> {
+pub struct PresetsUi<'a, T: PresetData + Default> {
     /// Unique widget ID.
     pub id: egui::Id,
     /// Presets that the user can add/remove/modify.
-    pub presets: &'a mut WithPresets<T>,
+    pub presets: &'a mut PresetsList<T>,
+    /// Preset that is being edited.
+    pub current: &'a mut ModifiedPreset<T>,
     /// Whether any part of the presets state has changed this frame.
     pub changed: &'a mut bool,
     /// Text strings to put on the UI.
@@ -32,14 +34,85 @@ pub struct PresetsUi<'a, T: Default> {
     /// Help text to show for the current settings UI.
     pub help_contents: Option<&'a str>,
     /// Function to apply context-specific validation for new preset names.
+    ///
     /// Whether or not this is present, names will still be checked for
     /// uniqueness and non-emptiness.
-    pub extra_validation: Option<Box<dyn Fn(&Self, &str) -> Result<(), Cow<'a, str>>>>,
+    ///
+    /// This can't be a `Box<dyn FnOnce>` because then the lifetime would be
+    /// invariant.
+    pub extra_validation: Option<fn(&PresetsUi<'_, T>, &str) -> Result<(), Cow<'a, str>>>,
 }
-impl<'a, T> PresetsUi<'a, T>
+impl<'a, T: PresetData> PresetsUi<'a, T>
 where
     T: Serialize + for<'de> Deserialize<'de> + Default + Clone + PartialEq,
 {
+    /// Constructs a `PresetsUi` with dummy values. It should be made
+    /// noninteractive by calling `ui.disable()` before displaying it.
+    ///
+    /// Call this using `&mut Default::default()`.
+    pub fn new_dummy(
+        id: egui::Id,
+        args: &'a mut (PresetsList<T>, ModifiedPreset<T>, bool),
+    ) -> Self {
+        let (presets, current, changed) = args;
+        Self::new(id, presets, current, changed)
+    }
+    /// Constructs a `PresetsUi` with default parameters.
+    pub fn new(
+        id: egui::Id,
+        presets: &'a mut PresetsList<T>,
+        current: &'a mut ModifiedPreset<T>,
+        changed: &'a mut bool,
+    ) -> Self {
+        Self {
+            id,
+            presets,
+            current,
+            changed,
+            text: &L.presets.default,
+            autosave: false,
+            vscroll: true,
+            help_contents: None,
+            extra_validation: None,
+        }
+    }
+    /// Sets non-default text strings to put on the UI.
+    pub fn with_text(mut self, text: &'a PresetStrings) -> Self {
+        self.text = text;
+        self
+    }
+    /// Sets whether to automatically save changes.
+    ///
+    /// Default: `false`
+    pub fn with_autosave(mut self, autosave: bool) -> Self {
+        self.autosave = autosave;
+        self
+    }
+    /// Sets whether to allow vertical scrolling in the content area.
+    ///
+    /// Default: `true`
+    pub fn vscroll(mut self, vscroll: bool) -> Self {
+        self.vscroll = vscroll;
+        self
+    }
+    /// Adds help text to show for the current settings UI.
+    pub fn with_help_contents(mut self, help_contents: &'a str) -> Self {
+        self.help_contents = Some(help_contents);
+        self
+    }
+    /// Sets a function to apply context-specific validation for new preset
+    /// names.
+    ///
+    /// Whether or not this is present, names will still be checked for
+    /// uniqueness and non-emptiness.
+    pub fn with_extra_validation(
+        mut self,
+        extra_validation: fn(&PresetsUi<'_, T>, &str) -> Result<(), Cow<'a, str>>,
+    ) -> Self {
+        self.extra_validation = Some(extra_validation);
+        self
+    }
+
     fn validate_preset_name(&self, new_name: &str, ok: &'a str) -> TextValidationResult<'a> {
         if new_name.is_empty() {
             Err(Some(self.text.errors.empty_name.into()))
@@ -59,7 +132,9 @@ where
         ui: &mut egui::Ui,
         preset_name: &str,
     ) -> egui::Response {
-        let is_current = preset_name == self.presets.last_loaded_name();
+        let current_name = self.current.base.name();
+
+        let is_current = preset_name == &current_name;
 
         let max_width = ui.available_width() - ui.spacing().button_padding.x * 2.0;
         let elided_preset_name = elide_overflowing_line(ui, preset_name, max_width);
@@ -79,7 +154,6 @@ where
         mut self,
         ui: &mut egui::Ui,
         presets_set: Option<&str>,
-        get_backup_defaults: impl FnOnce(&'b Preferences) -> Option<Preset<T>>,
         add_contents: impl FnOnce(PrefsUi<'_, T>),
     ) where
         T: 'static + PartialEq + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug,
@@ -90,7 +164,7 @@ where
             ui.add_space(ui.spacing().item_spacing.y);
             ui.separator();
             ui.add_space(ui.spacing().item_spacing.y);
-            self.show_preset_editor(ui, get_backup_defaults, add_contents);
+            self.show_preset_editor(ui, add_contents);
         });
     }
 
@@ -127,10 +201,10 @@ where
             });
             ui.add_space(ui.spacing().item_spacing.y);
             ui.horizontal_wrapped(|ui| {
-                for preset in self.presets.builtin_list() {
-                    crate::gui::util::wrap_if_needed_for_button(ui, &preset.name);
+                for preset in self.presets.builtin_presets() {
+                    crate::gui::util::wrap_if_needed_for_button(ui, preset.name());
                     let r = ui.add_enabled(!dnd.is_dragging(), |ui: &mut egui::Ui| {
-                        self.show_preset_name_selectable_label(ui, &preset.name)
+                        self.show_preset_name_selectable_label(ui, preset.name())
                             .on_hover_ui(|ui| {
                                 md(ui, L.click_to.activate.with(L.inputs.click));
                             })
@@ -138,17 +212,17 @@ where
 
                     // Left click -> Activate preset
                     if r.clicked() {
-                        preset_to_activate = Some(preset.name.clone());
+                        preset_to_activate = Some(preset.name().clone());
                     }
 
                     // Don't handle other interaction. We can't edit or reorder
                     // this preset.
                 }
 
-                for preset in self.presets.user_list() {
-                    crate::gui::util::wrap_if_needed_for_button(ui, &preset.name);
-                    let r = dnd.draggable(ui, preset.name.clone(), |ui, _is_dragging| {
-                        let r = self.show_preset_name_selectable_label(ui, &preset.name);
+                for preset in self.presets.user_presets() {
+                    crate::gui::util::wrap_if_needed_for_button(ui, preset.name());
+                    let r = dnd.draggable(ui, preset.name().clone(), |ui, _is_dragging| {
+                        let r = self.show_preset_name_selectable_label(ui, preset.name());
                         egui::InnerResponse::new((), r)
                     });
                     let r = r.inner.response.on_hover_ui(|ui| {
@@ -165,21 +239,21 @@ where
 
                     // Left click -> Activate preset
                     if r.clicked() {
-                        preset_to_activate = Some(preset.name.clone());
+                        preset_to_activate = Some(preset.name().clone());
                     }
 
                     // Right-click -> Edit preset
-                    if r.secondary_clicked() && edit_popup.toggle(preset.name.clone()) {
-                        preset_to_edit.set(Some(preset.name.clone()));
+                    if r.secondary_clicked() && edit_popup.toggle(preset.name().clone()) {
+                        preset_to_edit.set(Some(preset.name().clone()));
                     }
 
                     // Middle-click -> Delete preset
                     if r.middle_clicked() || alt && !cmd && r.clicked() {
-                        preset_to_delete = Some(preset.name.clone());
+                        preset_to_delete = Some(preset.name().clone());
                     }
 
                     // Drag -> Reorder preset
-                    dnd.reorder_drop_zone(ui, &r, preset.name.clone());
+                    dnd.reorder_drop_zone(ui, &r, preset.name().clone());
                 }
 
                 dnd.disable_ui_if_dragging(ui);
@@ -221,14 +295,14 @@ where
                         *self.changed = true;
                     }
                     TextEditPopupResponse::Delete => {
-                        self.presets.delete(&preset_name);
+                        self.presets.remove(&preset_name);
                         *self.changed = true;
                     }
                     TextEditPopupResponse::Cancel => (),
                 }
             }
         } else if let Some(preset_name) = preset_to_delete {
-            self.presets.delete(&preset_name);
+            self.presets.remove(&preset_name);
             *self.changed = true;
         }
 
@@ -246,7 +320,8 @@ where
         if let Some(r) = new_popup_response {
             match r {
                 TextEditPopupResponse::Confirm(new_name) => {
-                    self.presets.add_preset(new_name.clone());
+                    self.presets
+                        .save_preset(new_name.clone(), self.current.value.clone());
                     preset_to_activate = Some(new_name);
                 }
                 TextEditPopupResponse::Delete | TextEditPopupResponse::Cancel => (),
@@ -254,8 +329,8 @@ where
         }
 
         // Activate the new preset.
-        if let Some(preset_to_activate) = preset_to_activate {
-            self.presets.load_preset(&preset_to_activate);
+        if let Some(p) = preset_to_activate.and_then(|s| self.presets.load(&s)) {
+            *self.current = p;
             *self.changed = true;
         }
 
@@ -274,38 +349,37 @@ where
     pub fn show_preset_editor<'b>(
         &mut self,
         ui: &mut egui::Ui,
-        get_backup_defaults: impl FnOnce(&'b Preferences) -> Option<Preset<T>>,
         add_contents: impl FnOnce(PrefsUi<'_, T>),
     ) where
         T: 'static + PartialEq + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug,
     {
         let mut save_changes = false;
 
-        let defaults = match self.presets.last_loaded_preset() {
-            Some(p) => p.clone(),
-            None => get_backup_defaults(&DEFAULT_PREFS).unwrap_or_else(|| Preset {
-                name: L.presets.default_preset_name.to_owned(),
-                value: T::default(),
-            }),
+        let current_name = self.current.base.name();
+
+        let defaults = match self.presets.last_loaded() {
+            Some(p) => p.value.clone(),
+            None => T::default(),
         };
-        let current = self.presets.preset_to_save();
-        let is_unsaved = self.presets.is_modified();
-        save_changes |= self.autosave && is_unsaved && self.presets.has(&current.name);
+        let is_unsaved = self.presets.is_modified(&self.current);
+        save_changes |= self.autosave && is_unsaved && self.presets.contains_key(&current_name);
 
         let yaml = PlaintextYamlEditor::<T>::new(ui);
 
+        let base_preset_name = current_name;
+
         ui.add(PresetHeaderUi {
             text: self.text,
-            preset_name: &current.name,
+            preset_name: &base_preset_name,
 
             help_contents: self.help_contents,
-            yaml: Some((&yaml, &current.value)),
+            yaml: Some((&yaml, &self.current.value)),
             save_status: if self.autosave {
                 PresetSaveStatus::Autosave
             } else {
                 PresetSaveStatus::ManualSave {
                     is_unsaved,
-                    overwrite: self.presets.has(&current.name),
+                    overwrite: self.presets.contains_key(&base_preset_name),
                 }
             },
 
@@ -321,8 +395,8 @@ where
                         if r.changed() {
                             // Update value from YAML editor.
                             if let Some(Ok(deserialized)) = yaml.deserialize(ui) {
-                                self.presets.current = deserialized;
-                                *self.changed |= r.changed();
+                                self.current.value = deserialized;
+                                *self.changed = true;
                             }
                         }
                     }
@@ -330,15 +404,15 @@ where
                 false => {
                     add_contents(PrefsUi {
                         ui,
-                        current: &mut self.presets.current,
-                        defaults: Some(&defaults.value),
+                        current: &mut self.current.value,
+                        defaults: Some(&defaults),
                         changed: self.changed,
                     });
                 }
             });
 
         if save_changes {
-            self.presets.save_preset();
+            self.presets.save_over_preset(&self.current);
             *self.changed = true;
         }
     }

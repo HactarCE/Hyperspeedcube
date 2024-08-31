@@ -2,7 +2,7 @@ use cgmath::{EuclideanSpace, InnerSpace};
 use eyre::{bail, Result};
 use hypermath::prelude::*;
 
-use crate::preferences::{Preset, ViewPreferences};
+use crate::preferences::{ModifiedPreset, ViewPreferences};
 
 /// `w_divisor` below which geometry gets clipped.
 const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
@@ -10,7 +10,7 @@ const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 /// Parameters controlling the camera and lighting.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Camera {
-    pub view_preset: Preset<ViewPreferences>,
+    pub view_preset: ModifiedPreset<ViewPreferences>,
 
     /// Width and height of the target in pixels.
     pub target_size: [u32; 2],
