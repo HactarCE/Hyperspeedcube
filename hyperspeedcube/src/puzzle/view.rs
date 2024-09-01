@@ -12,6 +12,8 @@ use parking_lot::Mutex;
 use super::simulation::PuzzleSimulation;
 use super::styles::*;
 use super::Camera;
+use crate::preferences::FilterPresetName;
+use crate::preferences::FilterPresetRef;
 use crate::preferences::ModifiedSimPrefs;
 use crate::preferences::ViewPrefsRefs;
 use crate::preferences::{
@@ -145,10 +147,26 @@ impl PuzzleView {
     }
 
     /// Updates the current piece filters.
-    pub fn notify_filters_changed(&mut self) {
+    fn notify_filters_changed(&mut self) {
         let all_pieces = PieceMask::new_full(self.puzzle().pieces.len());
-        self.styles
-            .set_base_styles(&all_pieces, self.filters.preset.fallback_style.clone());
+
+        let fallback_style = self.filters.fallback_style().clone();
+        self.styles.set_base_styles(&all_pieces, fallback_style);
+
+        let main_rules = self.filters.iter_active_rules();
+        let fallback_rules = self
+            .filters
+            .combined_fallback_preset
+            .iter()
+            .flat_map(|f| &f.rules);
+        let rules = itertools::chain(main_rules, fallback_rules);
+
+        // Iterate in an order such that later rules override earlier ones.
+        for rule in rules.rev() {
+            let pieces = rule.set.eval(&self.puzzle());
+            self.styles.set_base_styles(&pieces, rule.style.clone());
+        }
+
         for rule in self.filters.iter_active_rules().rev() {
             let pieces = rule.set.eval(&self.puzzle());
             self.styles.set_base_styles(&pieces, rule.style.clone());
@@ -157,6 +175,11 @@ impl PuzzleView {
 
     /// Updates the puzzle view for a frame. This method is idempotent.
     pub fn update(&mut self, input: PuzzleViewInput, prefs: ModifiedSimPrefs<'_>) {
+        if self.filters.changed {
+            self.filters.changed = false;
+            self.notify_filters_changed()
+        }
+
         let PuzzleViewInput {
             cursor_pos,
             target_size,
@@ -636,18 +659,21 @@ pub enum HoverMode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PuzzleFiltersState {
-    pub sequence_name: Option<String>,
-    pub preset_name: Option<String>,
+    pub base: Option<FilterPresetRef>,
     pub preset: FilterPreset,
+    pub combined_fallback_preset: Option<FilterPreset>,
     pub active_rules: Vec<bool>,
+
+    changed: bool,
 }
 impl PuzzleFiltersState {
     pub fn new(fallback_style: Option<PresetRef>) -> Self {
         Self {
-            sequence_name: None,
-            preset_name: None,
-            preset: FilterPreset::new(fallback_style),
+            base: None,
+            preset: FilterPreset::new_with_single_rule(fallback_style),
+            combined_fallback_preset: None,
             active_rules: vec![],
+            changed: true,
         }
     }
 
@@ -660,27 +686,38 @@ impl PuzzleFiltersState {
             .map(|(_i, rule)| rule)
     }
 
-    pub fn load_preset(
-        &self,
-        filter_prefs: &PuzzleFilterPreferences,
-        seq: Option<usize>,
-        preset: usize,
-    ) {
-        log::error!("todo!");
-        // match seq {
-        //     Some(i) => {
-        //         if let Some((sequence_name, seq)) = filter_prefs.sequences.get_index(i) {
-        //             if let Some((preset_name, preset)) = filter_prefs.sequences.get_index(seq) {
-        //                 *self = Self {
-        //                     sequence_name: Some(sequence_name.clone()),
-        //                     preset_name: todo!(),
-        //                     preset: todo!(),
-        //                     active_rules: todo!(),
-        //                 };
-        //             }
-        //         }
-        //     }
-        //     None => todo!(),
-        // }
+    pub fn load_preset(&mut self, filter_prefs: &PuzzleFilterPreferences, name: &FilterPresetName) {
+        let preset_ref = filter_prefs.new_ref(name);
+        let preset = filter_prefs.get(name).unwrap_or_default().inner;
+        let fallback = filter_prefs.combined_fallback_preset(&preset_ref.name());
+
+        *self = Self {
+            base: Some(preset_ref),
+            preset,
+            combined_fallback_preset: fallback,
+            active_rules: vec![],
+            changed: true,
+        };
+    }
+
+    pub fn update_combined_fallback_preset(&mut self, filter_prefs: &PuzzleFilterPreferences) {
+        if let Some(base) = &self.base {
+            let new_fallback = filter_prefs.combined_fallback_preset(&base.name());
+            if new_fallback != self.combined_fallback_preset {
+                self.combined_fallback_preset = new_fallback;
+                self.changed = true;
+            }
+        }
+    }
+
+    fn fallback_style(&self) -> &Option<PresetRef> {
+        match &self.combined_fallback_preset {
+            Some(p) => &p.fallback_style,
+            None => &self.preset.fallback_style,
+        }
+    }
+
+    pub fn mark_changed(&mut self) {
+        self.changed = true;
     }
 }

@@ -187,7 +187,7 @@ presets {
   (PresetStrings)piece_filters {
     saved_presets "Filter presets"
     current "{{current}} piece filters"
-    current_empty "No piece filters"
+    current_empty "Ad-hoc piece filters"
   }
   (PresetStrings)color_schemes {
     saved_presets "Saved color schemes"
@@ -524,9 +524,9 @@ library {
 }
 
 piece_filters {
+  ad_hoc "Ad-hoc filters"
   presets_list "Presets list"
-  current_preset "Current preset"
-  both "Both"
+  edit_presets "Edit presets"
 
   add_preset "Add filter preset"
   add_sequence "Add filter sequence"
@@ -534,8 +534,11 @@ piece_filters {
   include_privous "Include previous"
   cant_save "Add a preset in the presets list"
 
+  saved_sequences "Filter sequences"
+
   show_n_pieces_with_style "Show **{{n}}** pieces with style"
   show_remaining_peices_with_style "Show remaining pieces with style"
+  show_remaining_pieces_with_previous_filter "Show remaining pieces with previous filter"
   n_match_previous_rule "(**{{n}}** pieces match a previous rule instead)"
   convert_to_text_rule "Convert to text rule"
   delete_rule "Delete rule"
@@ -589,15 +592,20 @@ help {
 
     The color scheme for any particular puzzle can be customized in the **color scheme** settings.
   "#
+  piece_filters r#"
+    # Piece filters
+
+    TODO: explain filters
+  "#
   piece_filter_presets r#"
     # Piece filter presets
 
     TODO: explain filter presets
   "#
-  piece_filters r#"
-    # Piece filters
+  piece_filter_sequences r#"
+    # Piece filter sequences
 
-    TODO: explain filters
+    TODO: explain filter sequences
   "#
   presets r#"
     # Presets

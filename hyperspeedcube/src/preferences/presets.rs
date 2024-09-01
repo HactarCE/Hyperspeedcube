@@ -27,22 +27,22 @@
 //! is a thin wrapper around an `Arc<Mutex<String>>`. Each [`Preset`] keeps a
 //! list of all active [`PresetRef`]s, and when the preset is renamed it updates
 //! the name in each [`PresetRef`]. When a preset is deleted, its references
-//! become **orphaned** and are stored in a [`PresetTombstone`], and are
-//! **adopted** when a preset is created with the same name.
+//! become **dead** and are stored in a [`PresetTombstone`], and are **revived**
+//! when a new preset is created with the same name or an old preset is renamed
+//! to that name.
 //!
 //! We reuse [`PresetRef`]s whenever possible, and some operations will
 //! garbage-collect them if they have no remaining references. In practice, the
 //! only case where multiple [`PresetRef`]s will point to the same preset is
-//! when an existing preset is renamed in a way that consumes orphaned
-//! references.
+//! when an existing preset is renamed in a way that consumes dead references.
 //!
 //! ## [`PresetData`]
 //!
 //! But what if we have a [`PresetsList`] _of [`PresetsList`]s?_ Then when we
-//! delete an outer preset, we would lose all the orphaned references to its
-//! inner presets. We solve this using a trait [`PresetData`], which indicates
-//! data that should be preserved in the [`PresetTombstone`] along with
-//! top-level orphaned references.
+//! delete an outer preset, we would lose all the dead references to its inner
+//! presets. We solve this using a trait [`PresetData`], which indicates data
+//! that should be preserved in the [`PresetTombstone`] along with top-level
+//! dead references.
 
 use std::{collections::HashMap, fmt, hash::Hash, sync::Arc};
 
@@ -71,20 +71,20 @@ pub enum PresetKind {
 /// [`PresetRef`]s to inner presets).
 #[derive(Debug)]
 pub struct PresetTombstone<T: PresetData> {
-    orphaned_refs: Vec<PresetRef>,
-    value_tombstone: T::Tombstone,
+    pub(in crate::preferences) dead_refs: Vec<PresetRef>,
+    pub(in crate::preferences) value_tombstone: T::Tombstone,
 }
 impl<T: PresetData> Default for PresetTombstone<T> {
     fn default() -> Self {
         Self {
-            orphaned_refs: Default::default(),
+            dead_refs: Default::default(),
             value_tombstone: Default::default(),
         }
     }
 }
 impl<T: PresetData> PresetTombstone<T> {
     fn first_ref(&self) -> Option<PresetRef> {
-        self.orphaned_refs.first().cloned()
+        self.dead_refs.first().cloned()
     }
 }
 
@@ -96,11 +96,14 @@ pub trait PresetData: fmt::Debug {
     /// [`PresetRef`]s.
     type Tombstone: fmt::Debug + Default;
 
-    fn into_tombstone(self) -> Self::Tombstone;
-    fn adopt_tombstone(&mut self, data: Self::Tombstone);
-    fn adopt_opt_tombstone(&mut self, data: Option<Self::Tombstone>) {
+    /// Removes and returns any data that should be stored in a tombstone.
+    fn take_tombstone(&mut self) -> Self::Tombstone;
+    /// Adds data from a tombstone, reviving any dead references.
+    fn revive_tombstone(&mut self, data: Self::Tombstone);
+    /// Calls `revive_tombstone()` if `data` is `Some`; otherwise does nothing.
+    fn revive_opt_tombstone(&mut self, data: Option<Self::Tombstone>) {
         if let Some(data) = data {
-            self.adopt_tombstone(data);
+            self.revive_tombstone(data);
         }
     }
     /// Combines two tombstones.
@@ -114,8 +117,8 @@ macro_rules! impl_preset_data_with_empty_tombstone {
         impl PresetData for $type {
             type Tombstone = ();
 
-            fn into_tombstone(self) {}
-            fn adopt_tombstone(&mut self, _data: ()) {}
+            fn take_tombstone(&mut self) {}
+            fn revive_tombstone(&mut self, _data: ()) {}
             fn combine_tombstones(_tombstone: &mut (), _extra: ()) {}
             fn is_tombstone_empty(_tombstone: &()) -> bool {
                 true
@@ -134,44 +137,42 @@ impl_preset_data_with_empty_tombstone!(super::ViewPreferences);
 impl<T: PresetData> PresetData for Preset<T> {
     type Tombstone = PresetTombstone<T>;
 
-    fn into_tombstone(self) -> Self::Tombstone {
+    fn take_tombstone(&mut self) -> Self::Tombstone {
         PresetTombstone {
-            orphaned_refs: self.named_refs.into_inner(),
-            value_tombstone: self.value.into_tombstone(),
+            dead_refs: std::mem::take(self.named_refs.get_mut()),
+            value_tombstone: self.value.take_tombstone(),
         }
     }
-    fn adopt_tombstone(&mut self, data: Self::Tombstone) {
-        self.named_refs.get_mut().extend(
-            data.orphaned_refs
-                .into_iter()
-                .filter(|o| o.is_used_elsewhere()),
-        );
-        self.value.adopt_tombstone(data.value_tombstone);
+    fn revive_tombstone(&mut self, data: Self::Tombstone) {
+        self.named_refs
+            .get_mut()
+            .extend(data.dead_refs.into_iter().filter(|o| o.is_used_elsewhere()));
+        self.value.revive_tombstone(data.value_tombstone);
     }
     fn combine_tombstones(tombstone: &mut Self::Tombstone, extra: Self::Tombstone) {
-        tombstone.orphaned_refs.extend(
+        tombstone.dead_refs.extend(
             extra
-                .orphaned_refs
+                .dead_refs
                 .into_iter()
                 .filter(|o| o.is_used_elsewhere()),
         );
         T::combine_tombstones(&mut tombstone.value_tombstone, extra.value_tombstone);
     }
     fn is_tombstone_empty(tombstone: &Self::Tombstone) -> bool {
-        tombstone.orphaned_refs.is_empty() && T::is_tombstone_empty(&tombstone.value_tombstone)
+        tombstone.dead_refs.is_empty() && T::is_tombstone_empty(&tombstone.value_tombstone)
     }
 }
 impl<T: PresetData> PresetData for PresetsList<T> {
     type Tombstone = HashMap<String, PresetTombstone<T>>;
 
-    fn into_tombstone(mut self) -> Self::Tombstone {
+    fn take_tombstone(&mut self) -> Self::Tombstone {
         self.remove_all();
-        self.tombstones.into_inner()
+        std::mem::take(self.tombstones.get_mut())
     }
-    fn adopt_tombstone(&mut self, data: Self::Tombstone) {
+    fn revive_tombstone(&mut self, data: Self::Tombstone) {
         for (k, v) in data {
             match self.get_mut(&k) {
-                Some(p) => p.adopt_tombstone(v),
+                Some(p) => p.revive_tombstone(v),
                 None => self.add_tombstone(k, v),
             }
         }
@@ -212,7 +213,7 @@ pub struct PresetsList<T: PresetData> {
     /// List of all saved user presets.
     pub(super) user: IndexMap<String, Preset<T>>,
 
-    /// Data from deleted presets. They will be adopted if there is ever a new
+    /// Data from deleted presets. They will be revived if there is ever a new
     /// preset with this name.
     tombstones: Mutex<HashMap<String, PresetTombstone<T>>>,
 }
@@ -283,10 +284,10 @@ impl<T: PresetData> PresetsList<T> {
         ret
     }
     pub(super) fn reload_from_presets_map(&mut self, map: impl IntoIterator<Item = (String, T)>) {
-        // Remove all presets. Orphaned references are saved.
+        // Remove all presets. Dead references are saved.
         self.remove_all();
 
-        // Add presets back. Orphaned references are restored.
+        // Add presets back. Dead references are restored.
         for (k, v) in map {
             // `T::from_serde()` could be insufficient to track references if
             // things can reference `T` itself.
@@ -307,17 +308,17 @@ impl<T: PresetData> PresetsList<T> {
             .collect_vec();
 
         // Remove old built-in presets.
-        for (name, preset) in std::mem::take(&mut self.builtin) {
-            self.add_tombstone(name, preset.into_tombstone());
+        for (name, mut preset) in std::mem::take(&mut self.builtin) {
+            self.add_tombstone(name, preset.take_tombstone());
         }
 
-        self.prune_orphan_refs();
+        self.prune_dead_refs();
 
         self.builtin = builtin_presets
             .into_iter()
             .map(|(k, v)| {
                 let mut preset = Preset::new(PresetKind::Builtin, k, v);
-                preset.adopt_opt_tombstone(self.take_tombstone(&preset.name));
+                preset.revive_opt_tombstone(self.take_preset_tombstone(&preset.name));
                 (preset.name.clone(), preset)
             })
             .collect();
@@ -369,20 +370,25 @@ impl<T: PresetData> PresetsList<T> {
             preset.new_ref()
         } else {
             let tombstones_ref = self.tombstones.lock();
-            if let Some(orphan_ref) = tombstones_ref.get(name).and_then(|l| l.first_ref()) {
-                orphan_ref.clone()
+            if let Some(dead_ref) = tombstones_ref.get(name).and_then(|l| l.first_ref()) {
+                dead_ref.clone()
             } else {
                 drop(tombstones_ref); // deadlock happens if we don't do this
                 let new_ref = PresetRef {
                     name: Arc::new(Mutex::new(name.to_owned())),
                 };
                 let mut new_tombstone = PresetTombstone::default();
-                new_tombstone.orphaned_refs.push(new_ref.clone());
+                new_tombstone.dead_refs.push(new_ref.clone());
                 self.add_tombstone(name.to_owned(), new_tombstone);
-                // Do not prune orphans, because that would take O(n) time.
+                // Do not prune dead refs, because that would take O(n) time.
                 new_ref
             }
         }
+    }
+
+    /// Returns the index of the user preset with the given name.
+    pub fn get_user_preset_index_of(&self, name: &str) -> Option<usize> {
+        self.user.get_index_of(name)
     }
 
     /// Iterates over built-in presets.
@@ -467,9 +473,17 @@ impl<T: PresetData> PresetsList<T> {
             preset.value = value;
         } else {
             let mut preset = Preset::new(PresetKind::User, name.clone(), value);
-            preset.adopt_opt_tombstone(self.take_tombstone(&name));
+            preset.revive_opt_tombstone(self.take_preset_tombstone(&name));
             self.user.insert(name, preset);
         }
+    }
+    /// Saves a preset, modifying the name if needed to avoid conflicting with
+    /// an existing one. Returns the new name.
+    #[must_use]
+    pub fn save_preset_with_nonconflicting_name(&mut self, desired_name: &str, value: T) -> String {
+        let name = self.find_nonconflicting_name(&desired_name);
+        self.save_preset(name.clone(), value);
+        name
     }
     /// Saves a modified preset, creating it anew if the old one has been
     /// deleted.
@@ -501,10 +515,10 @@ impl<T: PresetData> PresetsList<T> {
             for r in preset.named_refs.get_mut() {
                 *r.name.lock() = new_name.clone();
             }
-            // Do not prune orphans, because that would take O(n) time.
+            // Do not prune dead refs, because that would take O(n) time.
 
-            // Adopt the tombstone for the new name.
-            preset.adopt_opt_tombstone(self.take_tombstone(&new_name));
+            // Revive previously-dead refs for the new name.
+            preset.revive_opt_tombstone(self.take_preset_tombstone(&new_name));
             if self.last_loaded == old_name {
                 self.last_loaded = new_name.clone();
             }
@@ -532,18 +546,19 @@ impl<T: PresetData> PresetsList<T> {
     }
     /// Removes all user presets.
     pub fn remove_all(&mut self) {
-        for (name, preset) in std::mem::take(&mut self.user) {
-            self.add_tombstone(name, preset.into_tombstone());
+        for (name, mut preset) in std::mem::take(&mut self.user) {
+            self.add_tombstone(name, preset.take_tombstone());
         }
-        self.prune_orphan_refs();
+        self.prune_dead_refs();
     }
-    /// Removes a user preset, if it exists.
-    pub fn remove(&mut self, name: &str) {
-        if let Some(preset) = self.user.shift_remove(name) {
-            // Old references are orphaned.
-            self.add_tombstone(name.to_owned(), preset.into_tombstone());
-            // Do not prune orphans, because that would take O(n) time.
-        }
+    /// Removes a user preset, if it exists. Returns the old value.
+    pub fn remove(&mut self, name: &str) -> Option<T> {
+        self.user.shift_remove(name).map(|mut preset| {
+            // Old references are dead.
+            self.add_tombstone(name.to_owned(), preset.take_tombstone());
+            // Do not prune dead refs, because that would take O(n) time.
+            preset.value
+        })
     }
     /// Moves the preset `from` to `to`, shifting all the presents in between.
     pub fn reorder_user_preset(&mut self, from: &str, to: &str, before_or_after: BeforeOrAfter) {
@@ -585,7 +600,7 @@ impl<T: PresetData> PresetsList<T> {
     }
 
     /// Adds a tombstone for a preset that was just deleted.
-    fn add_tombstone(&self, name: String, data: PresetTombstone<T>) {
+    pub(in crate::preferences) fn add_tombstone(&self, name: String, data: PresetTombstone<T>) {
         if !Preset::is_tombstone_empty(&data) {
             Preset::combine_tombstones(self.tombstones.lock().entry(name).or_default(), data);
         }
@@ -593,14 +608,14 @@ impl<T: PresetData> PresetsList<T> {
     /// Removes and returns the tombstone for a preset that was previously
     /// deleted. Returns `None` if no such preset existed, or if it did not need
     /// a tombstone.
-    fn take_tombstone(&self, name: &str) -> Option<PresetTombstone<T>> {
+    fn take_preset_tombstone(&self, name: &str) -> Option<PresetTombstone<T>> {
         self.tombstones.lock().remove(name)
     }
-    /// Removes unused orphan references. This takes O(n) time, so we only call
-    /// it after other operations that also take O(n) time.
-    fn prune_orphan_refs(&self) {
+    /// Removes unused dead references. This takes O(n) time, so we only call it
+    /// after other operations that also take O(n) time.
+    fn prune_dead_refs(&self) {
         self.tombstones.lock().retain(|_, tombstone| {
-            tombstone.orphaned_refs.retain(|o| o.is_used_elsewhere());
+            tombstone.dead_refs.retain(|o| o.is_used_elsewhere());
             !Preset::is_tombstone_empty(tombstone)
         });
     }

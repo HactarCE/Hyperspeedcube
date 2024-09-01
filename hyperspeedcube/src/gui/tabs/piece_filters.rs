@@ -2,7 +2,6 @@ use std::{collections::HashSet, hash::Hash};
 
 use egui::NumExt;
 use hyperpuzzle::{PieceMask, Puzzle};
-use indexmap::IndexMap;
 use itertools::Itertools;
 
 use crate::{
@@ -17,8 +16,8 @@ use crate::{
         util::EguiTempValue,
     },
     preferences::{
-        ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterRule, FilterSeqPreset,
-        Preferences, PresetsList, PuzzleFilterPreferences,
+        ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterPresetName,
+        FilterPresetRef, FilterRule, FilterSeqPreset, Preferences, PresetsList,
     },
     L,
 };
@@ -34,49 +33,81 @@ fn show_two_panels<R1, R2>(
     central_panel_min_size: f32,
     central_panel_ui: impl FnOnce(&mut egui::Ui, &mut App) -> R2,
 ) -> (egui::InnerResponse<R1>, egui::InnerResponse<R2>) {
-    let mut panel_frame = egui::Frame::central_panel(ui.style());
-    let panel_margin = panel_frame.inner_margin.sum().x;
-    panel_frame.inner_margin.bottom = 0.0;
-    panel_frame.inner_margin.top = 0.0;
+    // Unfortunately as of egui v0.28.1, the edges of the panel contents get cut
+    // off unless we have *some* inner margin. Setting a negative outer margin
+    // doesn't help.
+    let panel_frame = egui::Frame::default().inner_margin(2.0);
+
+    // TODO: file an egui bug! We shouldn't have to clear the background here.
+    // There's a bug where `SidePanel` doesn't respect the clip rect from parent
+    // `ScrollArea`s.
 
     let mut side_panel_frame = panel_frame;
     let mut central_panel_frame = panel_frame;
     match side {
         egui::panel::Side::Left => {
-            side_panel_frame.inner_margin.left = 0.0;
-            central_panel_frame.inner_margin.right = 0.0;
+            side_panel_frame.inner_margin.right = 8.0;
+            central_panel_frame.inner_margin.left = 8.0;
         }
         egui::panel::Side::Right => {
-            side_panel_frame.inner_margin.right = 0.0;
-            central_panel_frame.inner_margin.left = 0.0;
+            side_panel_frame.inner_margin.left = 8.0;
+            central_panel_frame.inner_margin.right = 8.0;
         }
     }
 
+    let side_panel_margin = side_panel_frame.total_margin().sum().x;
+    let central_panel_margin = central_panel_frame.total_margin().sum().x;
+
+    let panel_margin = side_panel_margin + central_panel_margin;
     let min_total_size = side_panel_min_size + central_panel_min_size + panel_margin;
     ui.set_min_width(min_total_size);
 
     let max_side_panel_size = ui.available_width() - central_panel_min_size - panel_margin;
 
-    let r1 = egui::SidePanel::left("piece_filters_side_panel")
-        .resizable(ui.available_width() > min_total_size)
-        .frame(side_panel_frame)
-        .min_width(side_panel_min_size)
-        .max_width(max_side_panel_size)
-        .show_inside(ui, |ui| side_panel_ui(ui, app));
-    let r2 = egui::CentralPanel::default()
-        .frame(central_panel_frame)
-        .show_inside(ui, |ui| central_panel_ui(ui, app));
+    // TODO: use `side`
 
-    (r1, r2)
+    let clip_rect = ui.max_rect();
+    egui::ScrollArea::horizontal()
+        // .max_width(ui.available_width())
+        .max_width(100.0)
+        .min_scrolled_width(10000.0)
+        // .min_scrolled_width(min_total_size)
+        .show(ui, |ui| {
+            let r1 = egui::SidePanel::left("piece_filters_side_panel")
+                .resizable(ui.available_width() > min_total_size)
+                .frame(side_panel_frame)
+                .min_width(side_panel_min_size + side_panel_margin)
+                .max_width(max_side_panel_size + side_panel_margin)
+                .show_inside(ui, |ui| {
+                    ui.set_clip_rect(egui::Rect::from_x_y_ranges(
+                        clip_rect.x_range(),
+                        egui::Rangef::EVERYTHING,
+                    ));
+                    side_panel_ui(ui, app)
+                });
+
+            let r2 = egui::CentralPanel::default()
+                .frame(central_panel_frame)
+                .show_inside(ui, |ui| {
+                    ui.set_clip_rect(egui::Rect::from_x_y_ranges(
+                        clip_rect.x_range(),
+                        egui::Rangef::EVERYTHING,
+                    ));
+                    central_panel_ui(ui, app)
+                });
+
+            (r1, r2)
+        })
+        .inner
 }
 
 // TODO: factor out this (and `ColorsTab` and `DevToolsTab`)
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 enum FiltersTab {
-    PresetsList,
     #[default]
-    CurrentPreset,
-    Both,
+    AdHoc,
+    PresetsList,
+    EditPresets,
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -92,34 +123,37 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.group(|ui| {
         ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
+            ui.selectable_value(&mut tab, FiltersTab::AdHoc, l.ad_hoc);
             ui.selectable_value(&mut tab, FiltersTab::PresetsList, l.presets_list);
-            ui.selectable_value(&mut tab, FiltersTab::CurrentPreset, l.current_preset);
-            ui.selectable_value(&mut tab, FiltersTab::Both, l.both);
+            ui.selectable_value(&mut tab, FiltersTab::EditPresets, l.edit_presets);
         });
     });
     tab_state.set(Some(tab));
 
-    ui.group(|ui| {
-        egui::ScrollArea::horizontal()
-            .auto_shrink(false)
-            .show(ui, |ui| match tab {
-                FiltersTab::PresetsList => show_filter_presets_list_ui(ui, app),
-                FiltersTab::CurrentPreset => {
-                    // TODO
-                    // show_current_filter_preset_ui(ui, app)
-                }
-                FiltersTab::Both => {
-                    show_two_panels(
-                        (ui, app),
-                        egui::panel::Side::Left,
-                        PRESET_LIST_MIN_WIDTH,
-                        show_filter_presets_list_ui,
-                        CURRENT_PRESET_MIN_WIDTH,
-                        // show_current_filter_preset_ui,
-                        |_, _| (), // TODO
-                    );
-                }
-            });
+    ui.group(|ui| match tab {
+        FiltersTab::AdHoc => {
+            app.active_puzzle_view.with(|p| p.view.filters.base = None);
+            show_current_filter_preset_ui(ui, app);
+        }
+        FiltersTab::PresetsList => show_filter_presets_list_ui(ui, app),
+        FiltersTab::EditPresets => {
+            show_two_panels(
+                (ui, app),
+                egui::panel::Side::Left,
+                PRESET_LIST_MIN_WIDTH,
+                |ui, app| {
+                    egui::ScrollArea::vertical()
+                        .auto_shrink(false)
+                        .show(ui, |ui| show_filter_presets_list_ui(ui, app))
+                },
+                CURRENT_PRESET_MIN_WIDTH,
+                |ui, app| {
+                    egui::ScrollArea::vertical()
+                        .auto_shrink(false)
+                        .show(ui, |ui| show_current_filter_preset_ui(ui, app))
+                },
+            );
+        }
     });
 }
 
@@ -129,20 +163,14 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
     ui.set_min_width(PRESET_LIST_MIN_WIDTH);
 
     let mut changed = false;
-    let mut changed_current = false;
 
     let Some(puz) = app.active_puzzle_view.ty() else {
         return;
     };
 
-    let Some((current_seq, current_preset)) = app.active_puzzle_view.with(|p| {
-        (
-            p.view.filters.sequence_name.clone(),
-            p.view.filters.preset_name.clone(),
-        )
-    }) else {
-        return;
-    };
+    let current = app
+        .active_puzzle_view
+        .with_opt(|p| p?.view.filters.base.clone());
 
     ui.horizontal(|ui| {
         ui.strong(l.saved_presets);
@@ -157,24 +185,32 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
 
     ui.visuals_mut().collapsing_header_frame = true;
 
-    let mut to_activate = None;
-    // let mut to_delete = None;
-    // let mut to_rename = None;
+    let mut preset_to_activate = None;
+    let mut preset_to_delete = None;
+    let mut preset_to_rename = None;
+    // let mut seq_to_delete = None; // TODO
+    // let mut seq_to_rename = None;
 
     // Show filter presets
     ui.scope(|ui| {
-        for i in 0..filter_prefs.presets.len() {
-            preset_dnd.vertical_reorder_by_handle(ui, (None, i), |ui, _is_dragging| {
-                // TODO
-                // show_preset_name(
-                //     ui,
-                //     filter_prefs,
-                //     (current_seq.as_ref(), current_preset.as_ref()),
-                //     (None, i),
-                //     &mut to_activate,
-                //     &mut to_rename,
-                //     &mut to_delete,
-                // );
+        let taken_names: HashSet<String> = filter_prefs
+            .presets
+            .user_presets()
+            .map(|p| p.name().clone())
+            .collect();
+
+        for preset in filter_prefs.presets.user_presets_mut() {
+            let name = FilterPresetName::new(preset.name().clone());
+            preset_dnd.vertical_reorder_by_handle(ui, name.clone(), |ui, _is_dragging| {
+                show_preset_name(
+                    ui,
+                    &taken_names,
+                    &current,
+                    name,
+                    &mut preset_to_activate,
+                    &mut preset_to_rename,
+                    &mut preset_to_delete,
+                );
             });
         }
     });
@@ -184,91 +220,81 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
             .map(|i| format!("Filter preset {i}"))
             .find(|s| !filter_prefs.presets.contains_key(s))
             .expect("ran out of preset names!");
-        filter_prefs.presets.save_preset(name, Default::default());
-        to_activate = Some((None, filter_prefs.presets.len() - 1));
+        filter_prefs
+            .presets
+            .save_preset(name.clone(), Default::default());
+        preset_to_activate = Some(FilterPresetName::new(name));
         changed = true;
-        changed_current = true;
     }
 
+    ui.separator();
+
+    ui.horizontal(|ui| {
+        ui.strong(L.piece_filters.saved_sequences);
+        ui.label(format!("({})", puz.name));
+        HelpHoverWidget::show_right_aligned(ui, L.help.piece_filter_sequences);
+    });
+
     // Show filter sequences
-    // let mut to_delete = None;
-    // let mut to_rename = None;
     ui.scope(|ui| {
-        for i in 0..filter_prefs.sequences.len() {
-            let Some((seq_name, seq)) = filter_prefs.sequences.nth_user_preset(i) else {
-                continue; // TODO: better way of looping over presets and modifying them?
-            };
-            let seq_name = seq_name.clone();
-            let preset_count = seq.value.len();
+        for seq_preset in filter_prefs.sequences.user_presets_mut() {
+            let taken_names: HashSet<String> = seq_preset
+                .value
+                .user_presets()
+                .map(|p| p.name().clone())
+                .collect();
+
+            let seq_name = seq_preset.name().clone();
+            let seq_list = &mut seq_preset.value;
             let is_any_dragging = seq_dnd.is_dragging();
-            seq_dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
-                egui::CollapsingHeader::new(seq_name)
+            seq_dnd.vertical_reorder_by_handle(ui, seq_name.clone(), |ui, _is_dragging| {
+                egui::CollapsingHeader::new(&seq_name)
                     .open(is_any_dragging.then_some(false))
+                    // TODO: default open when created, but not when reordered
                     .show_unindented(ui, |ui| {
-                        for j in 0..preset_count {
-                            let index = (Some(i), j);
-                            preset_dnd.vertical_reorder_by_handle(ui, index, |ui, _is_dragging| {
-                                ui.horizontal(|ui| {
-                                    ui.scope(|ui| {
-                                        let preset = &mut filter_prefs
-                                            .sequences
-                                            .nth_user_preset_mut(i)
-                                            .expect("TODO")
-                                            .1
-                                            .value
-                                            .nth_user_preset_mut(j)
-                                            .expect("TODO")
-                                            .1
-                                            .value;
-
-                                        if j == 0 {
-                                            ui.disable();
-                                        }
-                                        if j == 0 && preset.include_previous {
-                                            preset.include_previous = false;
-                                            changed = true;
-                                        }
-                                        let label;
-                                        let hover;
-                                        if preset.include_previous {
-                                            label = "★";
-                                            hover = L.piece_filters.ignore_previous;
-                                        } else {
-                                            let inactive_text_color = &mut ui
-                                                .visuals_mut()
-                                                .widgets
-                                                .inactive
-                                                .fg_stroke
-                                                .color;
-                                            *inactive_text_color =
-                                                inactive_text_color.gamma_multiply(0.3);
-                                            label = "⮩";
-                                            hover = L.piece_filters.include_privous;
-                                        }
-
-                                        if ui
-                                            .selectable_label(false, label)
-                                            .on_hover_text(hover)
-                                            .clicked()
-                                        {
-                                            preset.include_previous ^= true;
-                                            changed = true;
-                                        }
-                                    });
-
-                                    // TODO
-                                    // show_preset_name(
-                                    //     ui,
-                                    //     filter_prefs,
-                                    //     (current_seq.as_ref(), current_preset.as_ref()),
-                                    //     (Some(i), j),
-                                    //     &mut to_activate,
-                                    //     &mut to_rename,
-                                    //     &mut to_delete,
-                                    // );
-                                });
-                            });
+                        let mut is_first = true;
+                        for preset in seq_list.user_presets_mut() {
+                            let name = FilterPresetName {
+                                seq: Some(seq_name.clone()),
+                                preset: preset.name().clone(),
+                            };
+                            preset_dnd.vertical_reorder_by_handle(
+                                ui,
+                                name.clone(),
+                                |ui, _is_dragging| {
+                                    show_seq_preset_name(
+                                        ui,
+                                        &taken_names,
+                                        &current,
+                                        name,
+                                        &mut preset.value,
+                                        &mut preset_to_activate,
+                                        &mut preset_to_rename,
+                                        &mut preset_to_delete,
+                                        &mut changed,
+                                        is_first,
+                                    );
+                                },
+                            );
+                            is_first = false;
                         }
+
+                        ui.horizontal(|ui| {
+                            ui.add_space(ui.spacing().indent + ui.spacing().item_spacing.x + 29.0);
+                            if ui.button(L.piece_filters.add_preset).clicked() {
+                                let preset_name = (1..)
+                                    .map(|i| format!("Step {i}"))
+                                    .find(|s| !seq_list.contains_key(s))
+                                    .expect("ran out of preset names!");
+                                seq_list
+                                    .save_preset(preset_name.clone(), FilterSeqPreset::default());
+                                preset_to_activate = Some(FilterPresetName {
+                                    seq: Some(seq_name),
+                                    preset: preset_name,
+                                });
+                                changed = true;
+                            }
+                        });
                     });
             });
         }
@@ -279,337 +305,396 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
             .map(|i| format!("Filter sequence {i}"))
             .find(|s| !filter_prefs.sequences.contains_key(s))
             .expect("ran out of sequence names!");
-        let filter_name = "Step 1".to_owned();
+        let preset_name = "Step 1".to_owned();
         let mut seq = PresetsList::default();
-        seq.save_preset(filter_name.clone(), FilterSeqPreset::default());
+        seq.save_preset(preset_name.clone(), FilterSeqPreset::default());
         filter_prefs.sequences.save_preset(seq_name.clone(), seq);
-        to_activate = Some((Some(filter_prefs.sequences.len() - 1), 0));
+        preset_to_activate = Some(FilterPresetName {
+            seq: Some(seq_name),
+            preset: preset_name,
+        });
         changed = true;
-        changed_current = true;
     }
 
     changed |= preset_dnd.end_reorder(ui, filter_prefs);
-    // changed |= seq_dnd.end_reorder(ui, &mut filter_prefs.sequences); // TODO: reorder
+    changed |= seq_dnd.end_reorder(ui, &mut filter_prefs.sequences);
 
-    // if let Some(((seq, preset), new_name)) = to_rename {
-    //     // filter_prefs.rename_preset(seq, preset, new_name); // TODO: rename
-    //     changed_current = true; // maybe we changed the current one!
-    //                             // TODO: handle global rename
-    //     changed = true;
-    // }
-    // if let Some((seq, preset)) = to_delete {
-    //     // filter_prefs.remove_index(seq, preset); // TODO: remove
-    //     changed_current = true; // TODO: is this right?
-    //     changed = true;
-    // }
-
-    if let Some((seq, preset)) = to_activate {
-        // TODO: activate
-        // if let Some(filter_prefs) = app.prefs.filters.settings(&puz) {
-        //     app.with_active_puzzle_view(|p| p.view.filters.load_preset(filter_prefs, seq, preset));
-        //     changed_current = true;
-        // }
+    if let Some((old_name, new_name)) = preset_to_rename {
+        filter_prefs.rename_preset(&old_name, &new_name);
+        changed = true;
+    }
+    if let Some(name) = preset_to_delete {
+        filter_prefs.remove_preset(&name);
+        changed = true;
+    }
+    if let Some(name) = preset_to_activate {
+        app.active_puzzle_view
+            .with(|p| p.view.filters.load_preset(filter_prefs, &name));
     }
 
-    // Copy settings back to the active puzzle.
-    if changed_current {
+    if changed {
         app.active_puzzle_view
-            .with(|p| p.view.notify_filters_changed());
+            .with(|p| p.view.filters.mark_changed());
     }
     app.prefs.needs_save |= changed;
 }
 
-// fn show_preset_name(
-//     ui: &mut egui::Ui,
-//     filter_prefs: &mut PuzzleFilterPreferences,
-//     current: (Option<&String>, Option<&String>),
-//     (seq_index, preset_index): (Option<usize>, usize),
-//     to_activate: &mut Option<(Option<usize>, usize)>,
-//     to_rename: &mut Option<((Option<usize>, usize), String)>,
-//     to_delete: &mut Option<(Option<usize>, usize)>,
-// ) {
-//     let seq_name = seq_index.and_then(|i| Some(filter_prefs.sequences.get_index(i)?.0));
-//     // IIFE to mimic try_block
-//     let preset_name = (|| match seq_index {
-//         Some(i) => Some(
-//             filter_prefs
-//                 .sequences
-//                 .get_index(i)?
-//                 .1
-//                 .get_index(preset_index)?
-//                 .0,
-//         ),
-//         None => Some(filter_prefs.presets.get_index(preset_index)?.0),
-//     })();
+fn show_seq_preset_name(
+    ui: &mut egui::Ui,
+    taken_names: &HashSet<String>,
+    current: &Option<FilterPresetRef>,
+    name: FilterPresetName,
+    value: &mut FilterSeqPreset,
+    to_activate: &mut Option<FilterPresetName>,
+    to_rename: &mut Option<(FilterPresetName, String)>,
+    to_delete: &mut Option<FilterPresetName>,
+    changed: &mut bool,
+    is_first: bool,
+) {
+    ui.horizontal(|ui| {
+        // "Include previous" button
+        ui.scope(|ui| {
+            if is_first {
+                ui.disable();
+            }
+            if is_first && value.include_previous {
+                value.include_previous = false;
+                *changed = true;
+            }
+            let label;
+            let hover;
+            if value.include_previous {
+                let inactive_text_color = &mut ui.visuals_mut().widgets.inactive.fg_stroke.color;
+                *inactive_text_color = inactive_text_color.gamma_multiply(0.3);
+                label = "⮩";
+                hover = L.piece_filters.include_privous;
+            } else {
+                label = "★";
+                hover = L.piece_filters.ignore_previous;
+            }
 
-//     let is_active = (seq_name, preset_name) == current;
+            if ui
+                .selectable_label(false, label)
+                .on_hover_text(hover)
+                .clicked()
+            {
+                value.include_previous ^= true;
+                *changed = true;
+            }
+        });
 
-//     let Some(preset_name) = preset_name else {
-//         return;
-//     };
+        show_preset_name(
+            ui,
+            taken_names,
+            current,
+            name,
+            to_activate,
+            to_rename,
+            to_delete,
+        );
+    });
+}
 
-//     let r = ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
-//         let text = preset_name;
-//         ui.selectable_label(is_active, text)
-//     });
+fn show_preset_name(
+    ui: &mut egui::Ui,
+    taken_names: &HashSet<String>,
+    current: &Option<FilterPresetRef>,
+    name: FilterPresetName,
+    to_activate: &mut Option<FilterPresetName>,
+    to_rename: &mut Option<(FilterPresetName, String)>,
+    to_delete: &mut Option<FilterPresetName>,
+) {
+    let is_active = current.as_ref().is_some_and(|r| r.name() == name);
 
-//     let r = r.inner.on_hover_ui(|ui| {
-//         md(ui, L.click_to.activate.with(L.inputs.click));
-//         md(ui, L.click_to.rename.with(L.inputs.right_click));
-//         md(ui, L.click_to.delete.with(L.inputs.middle_click));
-//     });
+    let r = ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+        ui.selectable_label(is_active, &name.preset)
+    });
 
-//     let mods = ui.input(|input| input.modifiers);
-//     let cmd = mods.command;
-//     let alt = mods.alt;
+    let r = r.inner.on_hover_ui(|ui| {
+        md(ui, L.click_to.activate.with(L.inputs.click));
+        md(ui, L.click_to.rename.with(L.inputs.right_click));
+        md(ui, L.click_to.delete.with(L.inputs.middle_click));
+    });
 
-//     // Click to activate
-//     if r.clicked() {
-//         *to_activate = Some((seq_index, preset_index));
-//     }
+    let mods = ui.input(|input| input.modifiers);
+    let cmd = mods.command;
+    let alt = mods.alt;
 
-//     // Right-click to rename
-//     let mut popup = TextEditPopup::new(ui);
-//     if r.secondary_clicked() {
-//         popup.open(preset_name.clone());
-//     }
-//     let popup_response = popup.if_open(|popup| {
-//         let taken_names: HashSet<&str> =
-//             match seq_index.and_then(|i| filter_prefs.sequences.get_index(i)) {
-//                 Some((_, presets)) => presets.keys().map(|s| s.as_str()).collect(),
-//                 None => filter_prefs.presets.keys().map(|s| s.as_str()).collect(),
-//             };
-//         let validate_preset_rename = move |new_name: &str| {
-//             let l = &L.presets.piece_filters;
-//             if new_name.is_empty() {
-//                 Err(Some(l.errors.empty_name.into()))
-//             } else if taken_names.contains(&new_name) {
-//                 Err(Some(l.errors.name_conflict.into()))
-//             } else {
-//                 Ok(Some(l.actions.rename.into()))
-//             }
-//         };
+    // Click to activate
+    if r.clicked() {
+        *to_activate = Some(name.clone());
+    }
 
-//         popup
-//             .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
-//             .text_edit_hint(L.presets.piece_filters.new_name_hint)
-//             .confirm_button_validator(&validate_preset_rename)
-//             .delete_button_validator(&|_| Ok(Some(L.presets.color_schemes.actions.delete.into())))
-//             .at(ui, &r, egui::vec2(-4.0, -0.125))
-//             .show(ui)
-//     });
-//     if let Some(r) = popup_response {
-//         match r {
-//             TextEditPopupResponse::Confirm(new_name) => {
-//                 *to_rename = Some(((seq_index, preset_index), new_name));
-//             }
-//             TextEditPopupResponse::Delete => *to_delete = Some((seq_index, preset_index)),
-//             TextEditPopupResponse::Cancel => (),
-//         }
-//     }
+    // Right-click to rename
+    let mut popup = TextEditPopup::new(ui);
+    if r.secondary_clicked() {
+        popup.open(name.preset.clone());
+    }
+    let popup_response = popup.if_open(|popup| {
+        let validate_preset_rename = move |new_name: &str| {
+            let l = &L.presets.piece_filters;
+            if new_name.is_empty() {
+                Err(Some(l.errors.empty_name.into()))
+            } else if taken_names.contains(new_name) {
+                Err(Some(l.errors.name_conflict.into()))
+            } else {
+                Ok(Some(l.actions.rename.into()))
+            }
+        };
 
-//     // Alt+click to delete
-//     if r.middle_clicked() || alt && !cmd && r.clicked() {
-//         *to_delete = Some((seq_index, preset_index));
-//     }
-// }
+        popup
+            .text_edit_width(PRESET_NAME_TEXT_EDIT_WIDTH)
+            .text_edit_hint(L.presets.piece_filters.new_name_hint)
+            .confirm_button_validator(&validate_preset_rename)
+            .delete_button_validator(&|_| Ok(Some(L.presets.piece_filters.actions.delete.into())))
+            .at(ui, &r, egui::vec2(-4.0, 1.0))
+            .show(ui)
+    });
+    if let Some(r) = popup_response {
+        match r {
+            TextEditPopupResponse::Confirm(new_name) => {
+                *to_rename = Some((name.clone(), new_name));
+            }
+            TextEditPopupResponse::Delete => *to_delete = Some(name.clone()),
+            TextEditPopupResponse::Cancel => (),
+        }
+    }
 
-// fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
-//     ui.set_min_width(ui.available_width().at_least(CURRENT_PRESET_MIN_WIDTH));
+    // Alt+click to delete
+    if r.middle_clicked() || alt && !cmd && r.clicked() {
+        *to_delete = Some(name.clone());
+    }
+}
 
-//     let puz = app.active_puzzle_type();
-//     if !app.has_active_puzzle() {
-//         ui.disable();
-//     }
+fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
+    ui.set_min_width(ui.available_width().at_least(CURRENT_PRESET_MIN_WIDTH));
 
-//     let sequence_name = app
-//         .with_active_puzzle_view(|p| p.view.filters.sequence_name.clone())
-//         .flatten();
-//     let preset_name = app
-//         .with_active_puzzle_view(|p| p.view.filters.preset_name.clone())
-//         .flatten();
-//     let current_preset = app.with_active_puzzle_view(|p| p.view.filters.preset.clone());
+    let puz = app.active_puzzle_view.ty();
+    if puz.is_none() {
+        ui.disable();
+    }
 
-//     let mut filter_prefs = puz.as_ref().map(|puz| app.prefs.filters.settings_mut(puz));
-//     let saved_preset = filter_prefs
-//         .as_ref()
-//         .and_then(|filter_prefs| filter_prefs.get(sequence_name.as_ref(), preset_name.as_ref()));
+    let saved_preset_ref = app
+        .active_puzzle_view
+        .with_opt(|p| p?.view.filters.base.clone());
+    let current = app
+        .active_puzzle_view
+        .with(|p| p.view.filters.preset.clone());
 
-//     let is_unsaved = saved_preset != current_preset.as_ref();
+    let mut filter_prefs = puz.as_ref().map(|puz| app.prefs.filters_mut(&puz));
+    let saved_preset = filter_prefs
+        .as_ref()
+        .and_then(|filter_prefs| filter_prefs.get(&saved_preset_ref.as_ref()?.name()));
 
-//     let mut save_changes = false;
-//     ui.add(PresetHeaderUi::<()> {
-//         text: &L.presets.piece_filters,
-//         preset_name: preset_name.as_deref().unwrap_or(""),
+    let is_unsaved = saved_preset.as_ref().map(|f| &f.inner) != current.as_ref();
 
-//         help_contents: Some(L.help.piece_filters),
-//         yaml: None,
-//         save_status: if preset_name.is_some() {
-//             PresetSaveStatus::ManualSave {
-//                 is_unsaved,
-//                 overwrite: saved_preset.is_some(),
-//             }
-//         } else {
-//             PresetSaveStatus::CantSave {
-//                 message: L.piece_filters.cant_save,
-//             }
-//         },
+    let preset_name = saved_preset_ref.as_ref().map(|r| r.to_string());
 
-//         save_changes: &mut save_changes,
-//     });
-//     if save_changes {
-//         if let Some(filter_prefs) = &mut filter_prefs {
-//             if let Some(name) = preset_name.clone() {
-//                 if let Some(value) = current_preset {
-//                     filter_prefs.presets.insert(name, value);
-//                 }
-//             }
-//         }
-//     }
+    let mut save_changes = false;
+    ui.add(PresetHeaderUi::<()> {
+        text: &L.presets.piece_filters,
+        preset_name: preset_name.as_deref().unwrap_or(""),
 
-//     app.with_active_puzzle_view(|p| {
-//         let puz = p.puzzle();
-//         let colors = puz.colors.list.map_ref(|_, info| info.name.as_str());
-//         let piece_types = puz.piece_types.map_ref(|_, info| info.name.as_str());
+        help_contents: Some(L.help.piece_filters),
+        yaml: None,
+        save_status: if preset_name.is_some() {
+            PresetSaveStatus::ManualSave {
+                is_unsaved,
+                overwrite: saved_preset.is_some(),
+            }
+        } else {
+            PresetSaveStatus::CantSave {
+                message: L.piece_filters.cant_save,
+            }
+        },
 
-//         let mut style_options = vec![(None, crate::DEFAULT_STYLE_NAME.into())];
-//         for style in app.prefs.styles.custom.user_list() {
-//             style_options.push((Some(style.name.clone()), style.name.clone().into()));
-//         }
+        save_changes: &mut save_changes,
+    });
+    if save_changes {
+        if let Some(filter_prefs) = &mut filter_prefs {
+            if let Some(preset_ref) = saved_preset_ref {
+                if let Some(value) = current {
+                    filter_prefs.save_preset(
+                        &preset_ref.name(),
+                        FilterSeqPreset {
+                            inner: value,
+                            ..saved_preset.unwrap_or_default()
+                        },
+                    );
+                    app.prefs.needs_save = true;
+                }
+            }
+        }
+    }
 
-//         let mut changed = false;
+    app.active_puzzle_view.with(|p| {
+        let puz = p.puzzle();
+        let colors = puz.colors.list.map_ref(|_, info| info.name.as_str());
+        let piece_types = puz.piece_types.map_ref(|_, info| info.name.as_str());
 
-//         let active_rules = &mut p.view.filters.active_rules;
-//         let preset = &mut p.view.filters.preset;
+        let mut style_options = vec![(None, crate::DEFAULT_STYLE_NAME.into())];
+        for style in app.prefs.custom_styles.user_presets() {
+            style_options.push((Some(style.new_ref()), style.name().into()));
+        }
 
-//         active_rules.resize(preset.rules.len(), true);
+        let mut changed = false;
+        let mut new_fallback_state = None;
 
-//         egui::ScrollArea::vertical()
-//             .auto_shrink(false)
-//             .show(ui, |ui| {
-//                 let mut dnd = DragAndDrop::new(ui);
-//                 let is_any_dragging = dnd.is_dragging();
+        let active_rules = &mut p.view.filters.active_rules;
+        let preset = &mut p.view.filters.preset;
 
-//                 let mut remaining_pieces = PieceMask::new_full(puz.pieces.len());
-//                 let mut to_delete = None;
+        active_rules.resize(preset.rules.len(), true);
 
-//                 for (i, rule) in preset.rules.iter_mut().enumerate() {
-//                     let these_pieces = rule.set.eval(&puz);
+        egui::ScrollArea::vertical()
+            .auto_shrink(false)
+            .show(ui, |ui| {
+                let mut dnd = DragAndDrop::new(ui);
+                let is_any_dragging = dnd.is_dragging();
 
-//                     let affected_piece_count = (remaining_pieces.clone() & &these_pieces).len();
-//                     if active_rules[i] {
-//                         remaining_pieces &= !&these_pieces;
-//                     }
+                let mut remaining_pieces = PieceMask::new_full(puz.pieces.len());
+                let mut to_delete = None;
 
-//                     dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
-//                         ui.vertical(|ui| {
-//                             // TODO: it would be better to show the frame on
-//                             // just the collapsing headers we want, but then
-//                             // they aren't horizontally justified. This
-//                             // seems to be a bug in egui.
-//                             ui.visuals_mut().collapsing_header_frame = true;
-//                             ui.horizontal(|ui| {
-//                                 // TODO: singlular vs. plural
-//                                 let n = affected_piece_count.to_string();
-//                                 let r = ui.checkbox(
-//                                     &mut active_rules[i],
-//                                     md_inline(
-//                                         ui,
-//                                         L.piece_filters.show_n_pieces_with_style.with(&n),
-//                                     ),
-//                                 );
-//                                 changed |= r.changed();
+                for (i, rule) in preset.rules.iter_mut().enumerate() {
+                    let these_pieces = rule.set.eval(&puz);
 
-//                                 let r = &ui.add(FancyComboBox::new(
-//                                     unique_id!(i),
-//                                     &mut rule.style,
-//                                     &style_options,
-//                                 ));
-//                                 changed |= r.changed();
-//                             });
-//                             let previous_rule_piece_count =
-//                                 these_pieces.len() - affected_piece_count;
-//                             if previous_rule_piece_count > 0 {
-//                                 // TODO: singular vs. plural
-//                                 let n = previous_rule_piece_count.to_string();
-//                                 md(ui, L.piece_filters.n_match_previous_rule.with(&n));
-//                             }
+                    let affected_piece_count = (remaining_pieces.clone() & &these_pieces).len();
+                    if active_rules[i] {
+                        remaining_pieces &= !&these_pieces;
+                    }
 
-//                             match &mut rule.set {
-//                                 FilterPieceSet::Expr(expr) => {
-//                                     let r = &show_filter_expr_ui(ui, i, expr, &puz);
-//                                     changed |= r.changed();
-//                                 }
-//                                 FilterPieceSet::Checkboxes(checkboxes) => {
-//                                     let expr_string = checkboxes.to_string(&colors, &piece_types);
-//                                     let r = egui::CollapsingHeader::new(&expr_string)
-//                                         .id_source(unique_id!(i))
-//                                         .default_open(true)
-//                                         .open(is_any_dragging.then_some(false)) // TODO: reopen?
-//                                         .show_unindented(ui, |ui| {
-//                                             ui.visuals_mut().collapsing_header_frame = false;
-//                                             show_filter_checkboxes_ui(
-//                                                 i,
-//                                                 ui,
-//                                                 checkboxes,
-//                                                 &puz,
-//                                                 &p.view.colors.value,
-//                                                 &app.prefs,
-//                                                 &mut changed,
-//                                             );
-//                                         });
-//                                     r.header_response.context_menu(|ui| {
-//                                         if ui.button(L.piece_filters.convert_to_text_rule).clicked()
-//                                         {
-//                                             rule.set = FilterPieceSet::Expr(expr_string);
-//                                         }
-//                                     });
-//                                 }
-//                             }
+                    dnd.vertical_reorder_by_handle(ui, i, |ui, _is_dragging| {
+                        ui.vertical(|ui| {
+                            // TODO: it would be better to show the frame on
+                            // just the collapsing headers we want, but then
+                            // they aren't horizontally justified. This
+                            // seems to be a bug in egui.
+                            ui.visuals_mut().collapsing_header_frame = true;
+                            ui.horizontal(|ui| {
+                                // TODO: singlular vs. plural
+                                let n = affected_piece_count.to_string();
+                                let r = ui.checkbox(
+                                    &mut active_rules[i],
+                                    md_inline(
+                                        ui,
+                                        L.piece_filters.show_n_pieces_with_style.with(&n),
+                                    ),
+                                );
+                                changed |= r.changed();
 
-//                             if ui.button(L.piece_filters.delete_rule).clicked() {
-//                                 to_delete = Some(i);
-//                             }
+                                let r = &ui.add(FancyComboBox::new(
+                                    unique_id!(i),
+                                    &mut rule.style,
+                                    &style_options,
+                                ));
+                                changed |= r.changed();
+                            });
+                            let previous_rule_piece_count =
+                                these_pieces.len() - affected_piece_count;
+                            if previous_rule_piece_count > 0 {
+                                // TODO: singular vs. plural
+                                let n = previous_rule_piece_count.to_string();
+                                md(ui, L.piece_filters.n_match_previous_rule.with(&n));
+                            }
 
-//                             ui.add_space(ui.spacing().item_spacing.y * 2.0);
-//                         });
-//                     });
-//                 }
+                            match &mut rule.set {
+                                FilterPieceSet::Expr(expr) => {
+                                    let r = &show_filter_expr_ui(ui, i, expr, &puz);
+                                    changed |= r.changed();
+                                }
+                                FilterPieceSet::Checkboxes(checkboxes) => {
+                                    let expr_string = checkboxes.to_string(&colors, &piece_types);
+                                    let r = egui::CollapsingHeader::new(&expr_string)
+                                        .id_source(unique_id!(i))
+                                        // TODO: default open when created, but not when reordered
+                                        .open(is_any_dragging.then_some(false)) // TODO: reopen?
+                                        .show_unindented(ui, |ui| {
+                                            ui.visuals_mut().collapsing_header_frame = false;
+                                            show_filter_checkboxes_ui(
+                                                i,
+                                                ui,
+                                                checkboxes,
+                                                &puz,
+                                                &p.view.colors.value,
+                                                &app.prefs,
+                                                &mut changed,
+                                            );
+                                        });
+                                    r.header_response.context_menu(|ui| {
+                                        if ui.button(L.piece_filters.convert_to_text_rule).clicked()
+                                        {
+                                            rule.set = FilterPieceSet::Expr(expr_string);
+                                        }
+                                    });
+                                }
+                            }
 
-//                 if let Some(i) = to_delete {
-//                     preset.rules.remove(i);
-//                 }
+                            if ui.button(L.piece_filters.delete_rule).clicked() {
+                                to_delete = Some(i);
+                            }
 
-//                 changed |= dnd.end_reorder(ui, &mut preset.rules);
+                            ui.add_space(ui.spacing().item_spacing.y * 2.0);
+                        });
+                    });
+                }
 
-//                 ui.horizontal_wrapped(|ui| {
-//                     if ui.button(L.piece_filters.add_checkboxes_rule).clicked() {
-//                         preset.rules.push(FilterRule::new_checkboxes());
-//                     }
-//                     if ui.button(L.piece_filters.add_text_rule).clicked() {
-//                         preset.rules.push(FilterRule::new_expr());
-//                     }
-//                 });
+                if let Some(i) = to_delete {
+                    preset.rules.remove(i);
+                }
 
-//                 ui.separator();
+                changed |= dnd.end_reorder(ui, &mut preset.rules);
 
-//                 ui.horizontal(|ui| {
-//                     ui.label(L.piece_filters.show_remaining_peices_with_style);
-//                     let r = ui.add(FancyComboBox {
-//                         combo_box: egui::ComboBox::from_id_source(unique_id!()),
-//                         selected: &mut preset.fallback_style,
-//                         options: style_options.clone(),
-//                     });
-//                     changed |= r.changed();
-//                 });
-//             });
+                ui.horizontal_wrapped(|ui| {
+                    if ui.button(L.piece_filters.add_checkboxes_rule).clicked() {
+                        preset.rules.push(FilterRule::new_checkboxes());
+                    }
+                    if ui.button(L.piece_filters.add_text_rule).clicked() {
+                        preset.rules.push(FilterRule::new_expr());
+                    }
+                });
 
-//         // Copy settings back to the active puzzle.
-//         if changed {
-//             p.view.notify_filters_changed();
-//         }
-//     });
-// }
+                ui.separator();
+
+                let mut fallback_to_previous_filter =
+                    p.view.filters.combined_fallback_preset.is_some();
+                let r = ui.checkbox(
+                    &mut fallback_to_previous_filter,
+                    L.piece_filters.show_remaining_pieces_with_previous_filter,
+                );
+                if r.clicked() {
+                    changed = true;
+                    new_fallback_state = Some(fallback_to_previous_filter);
+                }
+
+                ui.horizontal(|ui| {
+                    if fallback_to_previous_filter {
+                        ui.disable();
+                    }
+                    ui.label(L.piece_filters.show_remaining_peices_with_style);
+                    let r = ui.add(FancyComboBox {
+                        combo_box: egui::ComboBox::from_id_source(unique_id!()),
+                        selected: &mut preset.fallback_style,
+                        options: style_options.clone(),
+                    });
+                    changed |= r.changed();
+                });
+            });
+
+        if let Some(fallback_to_previous_filter) = new_fallback_state {
+            changed = true;
+            if fallback_to_previous_filter {
+                p.view
+                    .filters
+                    .update_combined_fallback_preset(app.prefs.filters_mut(&puz));
+            } else {
+                p.view.filters.combined_fallback_preset = None;
+            }
+        }
+
+        if changed {
+            p.view.filters.mark_changed();
+        }
+    });
+}
 
 #[must_use]
 fn show_filter_expr_ui(

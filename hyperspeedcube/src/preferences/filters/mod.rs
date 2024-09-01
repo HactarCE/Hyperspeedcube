@@ -1,4 +1,8 @@
+use std::{collections::HashMap, fmt, sync::Arc};
+
 use hyperpuzzle::{PerColor, PerPieceType, PieceMask, Puzzle};
+use itertools::Itertools;
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 mod checkboxes;
@@ -9,7 +13,41 @@ pub use expr::*;
 
 use crate::ext::reorderable::{DragAndDropResponse, ReorderableCollection};
 
-use super::{schema, PieceStyle, PresetRef, PresetsList};
+use super::{schema, PieceStyle, PresetRef, PresetTombstone, PresetsList};
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub struct FilterPresetName {
+    pub seq: Option<String>,
+    pub preset: String,
+}
+impl FilterPresetName {
+    pub fn new(preset: String) -> Self {
+        Self { seq: None, preset }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FilterPresetRef {
+    pub seq: Option<PresetRef>,
+    pub preset: PresetRef,
+}
+impl fmt::Display for FilterPresetRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(seq) = &self.seq {
+            write!(f, "{} ~ ", seq.name())?;
+        }
+        write!(f, "{}", self.preset.name())?;
+        Ok(())
+    }
+}
+impl FilterPresetRef {
+    pub fn name(&self) -> FilterPresetName {
+        FilterPresetName {
+            seq: self.seq.as_ref().map(|r| r.name()),
+            preset: self.preset.name(),
+        }
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct PuzzleFilterPreferences {
@@ -38,236 +76,228 @@ impl schema::PrefsConvert for PuzzleFilterPreferences {
         self.sequences.reload_from_presets_map(
             sequences
                 .into_iter()
+                .filter(|(_, seq)| !seq.is_empty()) // Remove empty sequences
                 .map(|(name, seq)| (name, PresetsList::from_serde_map(ctx, seq))),
         );
     }
 }
-impl PuzzleFilterPreferences {
-    // pub fn get(
-    //     &self,
-    //     sequence_name: Option<&String>,
-    //     preset_name: Option<&String>,
-    // ) -> Option<&FilterPreset> {
-    //     match sequence_name {
-    //         Some(seq) => Some(&self.sequences.get(seq)?.value.get(preset_name?)?.inner),
-    //         None => self.presets.get(preset_name?),
-    //     }
-    // }
+impl ReorderableCollection<FilterPresetName> for PuzzleFilterPreferences {
+    fn reorder(&mut self, drag: DragAndDropResponse<FilterPresetName>) {
+        if drag.payload == drag.end || !self.has_preset(&drag.end) {
+            return;
+        }
 
-    // pub fn remove_index(
-    //     &mut self,
-    //     seq: Option<usize>,
-    //     preset: usize,
-    // ) -> Option<(String, FilterPresetSeq)> {
-    //     match seq {
-    //         Some(i) => {
-    //             let (_, seq) = self.sequences.get_index_mut(i)?;
-    //             seq.shift_remove_index(preset)
-    //         }
-    //         None => self
-    //             .presets
-    //             .shift_remove_index(preset)
-    //             .map(|(k, v)| (k, v.into())),
-    //     }
-    // }
-    // fn insert_index(
-    //     &mut self,
-    //     seq: Option<usize>,
-    //     preset: usize,
-    //     key: String,
-    //     value: FilterPresetSeq,
-    // ) {
-    //     match seq {
-    //         Some(i) => {
-    //             if let Some((_, seq)) = self.sequences.get_index_mut(i) {
-    //                 seq.shift_insert(preset, key, value);
-    //             }
-    //         }
-    //         None => {
-    //             self.presets.shift_insert(preset, key, value.inner);
-    //         }
-    //     }
-    // }
+        let preset = (|| match &drag.payload.seq {
+            Some(seq_name) => self
+                .sequences
+                .get_mut(seq_name)?
+                .value
+                .remove(&drag.payload.preset),
+            None => self
+                .presets
+                .remove(&drag.payload.preset)
+                .map(FilterSeqPreset::from),
+        })();
+        let Some(preset_value) = preset else {
+            return;
+        };
 
-    // pub fn rename_preset(&mut self, seq: Option<usize>, preset: usize, new_name: String) {
-    //     if let Some((_, v)) = self.remove_index(seq, preset) {
-    //         self.insert_index(seq, preset, new_name, v);
-    //     }
-    // }
-}
-impl ReorderableCollection<(Option<usize>, usize)> for PuzzleFilterPreferences {
-    fn reorder(&mut self, drag: DragAndDropResponse<(Option<usize>, usize)>) {
-        todo!()
-        // let (payload_seq, payload_preset) = drag.payload;
-        // let (end_seq, mut end_preset) = drag.end;
-        // if drag.before_or_after == Some(BeforeOrAfter::After) {
-        //     end_preset += 1;
-        // }
-        // if payload_seq == end_seq && end_preset > payload_preset {
-        //     end_preset -= 1;
-        // }
-        // if let Some((k, v)) = self.remove_index(payload_seq, payload_preset) {
-        //     self.insert_index(end_seq, end_preset, k, v);
-        // }
+        match drag.end.seq {
+            Some(seq_name) => {
+                let seq = &mut self
+                    .sequences
+                    .get_mut(&seq_name)
+                    .expect("filter sequence vanished!")
+                    .value;
+                let new_name =
+                    seq.save_preset_with_nonconflicting_name(&drag.payload.preset, preset_value);
+                seq.reorder(DragAndDropResponse {
+                    payload: new_name,
+                    end: drag.end.preset,
+                    before_or_after: drag.before_or_after,
+                });
+            }
+            None => {
+                let new_name = self
+                    .presets
+                    .save_preset_with_nonconflicting_name(&drag.payload.preset, preset_value.inner);
+                self.presets.reorder(DragAndDropResponse {
+                    payload: new_name,
+                    end: drag.end.preset,
+                    before_or_after: drag.before_or_after,
+                });
+            }
+        }
+
+        // Remove empty sequences
+        if let Some(seq_name) = &drag.payload.seq {
+            if let Some(seq) = self.sequences.get(seq_name) {
+                if seq.value.is_empty() {
+                    self.sequences.remove(seq_name);
+                }
+            }
+        }
     }
 }
+impl PuzzleFilterPreferences {
+    /// Returns whether a filter preset exists with the given name.
+    pub fn has_preset(&self, name: &FilterPresetName) -> bool {
+        match &name.seq {
+            Some(seq_name) => self
+                .sequences
+                .get(&seq_name)
+                .is_some_and(|seq| seq.value.contains_key(&name.preset)),
+            None => self.presets.contains_key(&name.preset),
+        }
+    }
 
-// /// List of filter sequences.
-// ///
-// /// Conceptually, this is similar to `PresetList<PresetList<FilterPresetSeq>>`,
-// /// but it correctly preserves references even when a whole filter sequence is
-// /// deleted and recreated.
-// #[derive(Debug, Default)]
-// pub struct FilterSequences {
-//     /// Internal [`PresetsList`]; we don't use any built-in presets.s
-//     inner: PresetsList<PresetsList<FilterSeqPreset>>,
-//     /// List of orphans from deleted sequences.
-//     orphans: Mutex<HashMap<String, OrphanedPresetData>>,
-// }
-// impl schema::PrefsConvert for FilterSequences {
-//     type DeserContext = PresetsList<PieceStyle>;
-//     type SerdeFormat = IndexMap<String, IndexMap<String, schema::current::FilterSeqPreset>>;
+    /// Removes a filter preset. Empty sequences are kept.
+    pub fn remove_preset(&mut self, name: &FilterPresetName) -> Option<FilterSeqPreset> {
+        match &name.seq {
+            Some(seq_name) => {
+                let seq = self.sequences.get_mut(&seq_name)?;
+                let ret = seq.value.remove(&name.preset);
 
-//     fn to_serde(&self) -> Self::SerdeFormat {
-//         self.inner
-//             .user
-//             .iter()
-//             .map(|(k, v)| (k.clone(), v.value.to_serde_map()))
-//             .collect()
-//     }
-//     fn reload_from_serde(&mut self, ctx: &Self::DeserContext, value: Self::SerdeFormat) {
-//         // Remove all presets. Orphaned references are saved.
-//         self.remove_all_seqs();
+                // Remove empty sequences
+                if seq.value.is_empty() {
+                    self.sequences.remove(seq_name);
+                }
 
-//         // Add presets back. Orphaned references are restored.
-//         for (k, v) in value {
-//             self.save_seq(k, v);
-//         }
-//     }
-// }
-// impl FilterSequences {
-//     /// Returns whether there are no filter sequences.
-//     pub fn is_empty(&self) -> bool {
-//         self.inner.is_empty()
-//     }
-//     /// Returns the number of filter sequences.
-//     pub fn len(&self) -> usize {
-//         self.inner.len()
-//     }
-//     /// Returns whether there is a filter sequence with the given name.
-//     pub fn contains_seq(&self, name: &str) -> bool {
-//         self.get_seq(name).is_some()
-//     }
+                ret
+            }
+            None => self.presets.remove(&name.preset).map(FilterSeqPreset::from),
+        }
+    }
+    /// Saves a filter preset, creating a filter sequence if necessary.
+    pub fn save_preset(&mut self, name: &FilterPresetName, value: FilterSeqPreset) {
+        match &name.seq {
+            Some(seq_name) => {
+                if !self.sequences.contains_key(seq_name) {
+                    self.sequences
+                        .save_preset(seq_name.clone(), PresetsList::default());
+                }
+                let seq = self
+                    .sequences
+                    .get_mut(seq_name)
+                    .expect("filter sequence vanished!");
 
-//     /// Iterates over all filter sequences.
-//     pub fn seqs(
-//         &self,
-//     ) -> impl Iterator<Item = (&String, impl Iterator<Item = &Preset<FilterSeqPreset>>)> {
-//         self.inner
-//             .user_presets()
-//             .map(|seq| (seq.name(), seq.value.user_presets()))
-//     }
+                seq.value.save_preset(name.preset.clone(), value);
+            }
+            None => {
+                self.presets.save_preset(name.preset.clone(), value.inner);
+            }
+        }
+    }
+    /// Renames a filter preset.
+    pub fn rename_preset(&mut self, old_name: &FilterPresetName, new_name: &str) {
+        match &old_name.seq {
+            Some(seq_name) => {
+                if let Some(seq) = self.sequences.get_mut(seq_name) {
+                    seq.value.rename(&old_name.preset, new_name);
+                }
+            }
+            None => self.presets.rename(&old_name.preset, new_name),
+        }
+    }
 
-//     /// Returns a reference to a sequence with the given name, even if one does
-//     /// not exist.
-//     pub fn new_seq_ref(&self, name: &str) -> PresetRef {
-//         self.inner.new_ref(name)
-//     }
+    /// Returns a filter preset.
+    pub fn get(&self, name: &FilterPresetName) -> Option<FilterSeqPreset> {
+        match &name.seq {
+            Some(seq_name) => {
+                let seq = &self.sequences.get(seq_name)?.value;
+                Some(seq.get(&name.preset)?.value.clone())
+            }
+            None => Some(FilterSeqPreset::from(
+                self.presets.get(&name.preset)?.value.clone(),
+            )),
+        }
+    }
+    /// Returns a reference to a filter preset with the given name, even if one
+    /// does not exist.
+    pub fn new_ref(&self, name: &FilterPresetName) -> FilterPresetRef {
+        match &name.seq {
+            Some(seq_name) => match self.sequences.get(seq_name) {
+                Some(seq) => FilterPresetRef {
+                    seq: Some(seq.new_ref()),
+                    preset: seq.value.new_ref(&name.preset),
+                },
+                None => {
+                    let seq_ref = PresetRef {
+                        name: Arc::new(Mutex::new(seq_name.to_owned())),
+                    };
+                    let preset_ref = PresetRef {
+                        name: Arc::new(Mutex::new(name.preset.clone())),
+                    };
 
-//     /// Returns a reference to preset with the given name, even if the preset or
-//     /// its sequence does not exist.
-//     pub fn new_preset_ref(&self, seq_name: &str, preset_name: &str) -> PresetRef {
-//         if let Some(seq) = self.inner.get(seq_name) {
-//             seq.value.new_ref(preset_name)
-//         } else if let Some(orphan_ref) = self
-//             .orphans
-//             .lock()
-//             .get(seq_name)
-//             .and_then(|seq_orphans| seq_orphans.get(preset_name))
-//             .and_then(|l| l.first())
-//         {
-//             orphan_ref.clone()
-//         } else {
-//             let new_ref = PresetRef {
-//                 name: Arc::new(Mutex::new(preset_name.to_owned())),
-//             };
-//             let new_orphans =
-//                 OrphanedPresetData::from_iter([(preset_name.to_owned(), vec![new_ref.clone()])]);
-//             self.add_orphans(seq_name.to_owned(), new_orphans);
-//             self.prune_orphans();
-//             new_ref
-//         }
-//     }
+                    self.sequences.add_tombstone(
+                        seq_name.to_owned(),
+                        PresetTombstone {
+                            dead_refs: vec![seq_ref.clone()],
+                            value_tombstone: HashMap::from_iter([(
+                                preset_ref.name(),
+                                PresetTombstone {
+                                    dead_refs: vec![preset_ref.clone()],
+                                    value_tombstone: (),
+                                },
+                            )]),
+                        },
+                    );
 
-//     /// Returns whether a preset has been modified.
-//     ///
-//     /// Returns `true` if the preset or sequence does not exist.
-//     pub fn is_modified(&self, seq_name: &str, p: &ModifiedPreset<FilterSeqPreset>) -> bool {
-//         match self.inner.get(seq_name) {
-//             Some(seq) => seq.value.is_modified(p),
-//             None => true,
-//         }
-//     }
-//     /// Returns whether the given sequence name is a valid name for a new
-//     /// sequence.
-//     pub fn is_seq_name_available(&self, new_name: &str) -> bool {
-//         self.inner.is_name_available(new_name)
-//     }
-//     /// Returns whether the given preset name is a valid name for a new preset.
-//     /// Always returns `true` if the sequence does not exist.
-//     pub fn is_preset_name_available(&self, seq_name: &str, new_name: &str) -> bool {
-//         match self.inner.get(seq_name) {
-//             Some(seq) => seq.value.is_name_available(new_name),
-//             None => true,
-//         }
-//     }
+                    FilterPresetRef {
+                        seq: Some(seq_ref),
+                        preset: preset_ref,
+                    }
+                }
+            },
+            None => FilterPresetRef {
+                seq: None,
+                preset: self.presets.new_ref(&name.preset),
+            },
+        }
+    }
 
-//     /// Returns the filter sequence with the given name, or `None` if it does
-//     /// not exist.
-//     pub fn get_seq(&self, name: &str) -> Option<&PresetsList<FilterSeqPreset>> {
-//         Some(&self.inner.get(name)?.value)
-//     }
-
-//     /// Saves a filter sequence, adding a new one if it does not already exist.
-//     pub fn save_seq(&mut self, name: String, presets: Vec<(String, FilterSeqPreset)>) {
-//         todo!();
-//         // self.inner.save_preset(name, presets)
-//         "do something here"
-//     }
-
-//     /// Removes all filter sequences.
-//     pub fn remove_all_seqs(&mut self) {
-//         for seq in self.inner.remove_all() {
-//             self.add_orphans(seq.name().clone(), seq.value.into_orphans());
-//         }
-//     }
-//     /// Removes a filter sequence, if it exists.
-//     pub fn remove_seq(&mut self, name: &str) {
-//         if let Some((_index, seq)) = self.inner.remove(name) {
-//             self.add_orphans(seq.name().clone(), seq.value.into_orphans());
-//         }
-//     }
-
-//     fn add_orphans(&self, seq_name: String, new_orphans: OrphanedPresetData) {
-//         let mut all_orphans = self.orphans.lock();
-//         let seq_orphans = all_orphans.entry(seq_name).or_default();
-//         for (k, v) in new_orphans {
-//             seq_orphans.entry(k).or_default().extend(v);
-//         }
-//     }
-//     fn take_orphans(&self, seq_name: &str) -> OrphanedPresetData {
-//         self.orphans.lock().remove(seq_name).unwrap_or_default()
-//     }
-//     fn prune_orphans(&self) {
-//         self.orphans.lock().retain(|_, orphan_list| {
-//             orphan_list.retain(|_, orphan_sublist| {
-//                 orphan_sublist.retain(|o| o.is_used_elsewhere());
-//                 !orphan_sublist.is_empty()
-//             });
-//             !orphan_list.is_empty()
-//         });
-//     }
-// }
+    /// Returns the fallbacks for a filter preset, as a single combined preset.
+    ///
+    /// Returns `None` if the preset is not in a sequence or if there are no
+    /// fallback presets.
+    pub fn combined_fallback_preset(&self, name: &FilterPresetName) -> Option<FilterPreset> {
+        let seq = &self.sequences.get(name.seq.as_ref()?)?.value;
+        let index = seq.get_user_preset_index_of(&name.preset)?;
+        let mut fallback_presets = (0..=index)
+            .rev()
+            .map_while(|i| seq.nth_user_preset(i))
+            .map(|(_name, preset)| &preset.value)
+            .take_while_inclusive(|p| p.include_previous)
+            .map(|p| &p.inner)
+            .skip(1);
+        let mut ret = fallback_presets.next()?.clone();
+        for p in fallback_presets {
+            ret.rules.extend_from_slice(&p.rules);
+            ret.fallback_style = p.fallback_style.clone();
+        }
+        Some(ret)
+    }
+    /// Returns the previous preset in the sequence, if there is one.
+    pub fn prev_preset_in_seq(&self, name: &FilterPresetName) -> Option<FilterPresetRef> {
+        let seq = &self.sequences.get(name.seq.as_ref()?)?;
+        let index = seq.value.get_user_preset_index_of(&name.preset)?;
+        let (_, preset) = seq.value.nth_user_preset(index.checked_sub(1)?)?;
+        Some(FilterPresetRef {
+            seq: Some(seq.new_ref()),
+            preset: preset.new_ref(),
+        })
+    }
+    /// Returns the next preset in the sequence, if there is one.
+    pub fn next_preset_in_seq(&self, name: &FilterPresetName) -> Option<FilterPresetRef> {
+        let seq = &self.sequences.get(name.seq.as_ref()?)?;
+        let index = seq.value.get_user_preset_index_of(&name.preset)?;
+        let (_, preset) = seq.value.nth_user_preset(index.checked_add(1)?)?;
+        Some(FilterPresetRef {
+            seq: Some(seq.new_ref()),
+            preset: preset.new_ref(),
+        })
+    }
+}
 
 /// Filter preset in a sequence.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -312,7 +342,9 @@ impl From<FilterPreset> for FilterSeqPreset {
 /// Filter preset (standalone; not in a sequence).
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct FilterPreset {
+    /// Filter rules, in order from highest priority to lowest priority.
     pub rules: Vec<FilterRule>,
+    /// Style to apply to pieces not covered by any rule.
     pub fallback_style: Option<PresetRef>,
 }
 impl schema::PrefsConvert for FilterPreset {
@@ -340,7 +372,10 @@ impl schema::PrefsConvert for FilterPreset {
     }
 }
 impl FilterPreset {
-    pub fn new(fallback_style: Option<PresetRef>) -> Self {
+    pub fn new_empty() -> Self {
+        Self::default()
+    }
+    pub fn new_with_single_rule(fallback_style: Option<PresetRef>) -> Self {
         Self {
             rules: vec![FilterRule::new_checkboxes()],
             fallback_style,
@@ -411,5 +446,54 @@ impl FilterPieceSet {
             Self::Expr(expr) => expr.to_string(),
             Self::Checkboxes(checkboxes) => checkboxes.to_string(colors, piece_types),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_filter_preset_renaming() {
+        let mut p = PuzzleFilterPreferences::default();
+        let ab = p.new_ref(&FilterPresetName {
+            seq: Some("a".to_owned()),
+            preset: "b".to_owned(),
+        });
+
+        assert!(p.sequences.is_empty());
+        assert!(p.presets.is_empty());
+        p.save_preset(
+            &FilterPresetName::new("a".to_owned()),
+            FilterSeqPreset::default(),
+        );
+        p.rename_preset(&FilterPresetName::new("a".to_owned()), "b");
+        p.rename_preset(&FilterPresetName::new("b".to_owned()), "c");
+        assert_eq!(ab.seq.clone().unwrap(), "a");
+        assert_eq!(ab.preset, "b");
+
+        p.save_preset(&ab.name(), FilterSeqPreset::default());
+        p.rename_preset(
+            &FilterPresetName {
+                seq: Some("a".to_owned()),
+                preset: "b".to_owned(),
+            },
+            "y",
+        );
+        p.sequences.rename(&ab.preset.name(), "x");
+        p.rename_preset(
+            &FilterPresetName {
+                seq: Some("x".to_owned()),
+                preset: "y".to_owned(),
+            },
+            "z",
+        );
+        assert_eq!(
+            ab.name(),
+            FilterPresetName {
+                seq: Some("x".to_owned()),
+                preset: "z".to_owned()
+            }
+        );
     }
 }

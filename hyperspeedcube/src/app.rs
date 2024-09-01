@@ -8,7 +8,7 @@ use crate::gfx::GraphicsState;
 use crate::gui::PuzzleWidget;
 use crate::preferences::{
     AnimationPreferences, InteractionPreferences, ModifiedPreset, Preferences,
-    PuzzleViewPreferencesSet, ViewPreferences,
+    PuzzleViewPreferencesSet,
 };
 
 pub struct App {
