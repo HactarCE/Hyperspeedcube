@@ -52,10 +52,10 @@ impl Default for ViewPreferences {
             fov_4d: 30.0,
 
             show_frontfaces: true,
-            show_backfaces: true,
-            show_behind_4d_camera: true,
+            show_backfaces: false,
+            show_behind_4d_camera: false,
 
-            show_internals: true,
+            show_internals: false,
             gizmo_scale: 1.0,
             facet_shrink: 0.0,
             sticker_shrink: 0.0,
@@ -63,7 +63,7 @@ impl Default for ViewPreferences {
 
             light_pitch: 0.0,
             light_yaw: 0.0,
-            face_light_intensity: 1.0,
+            face_light_intensity: 0.0,
             outline_light_intensity: 0.0,
 
             downscale_rate: 1,
