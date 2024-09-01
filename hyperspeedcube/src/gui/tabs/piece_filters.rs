@@ -25,82 +25,6 @@ use crate::{
 const PRESET_LIST_MIN_WIDTH: f32 = 200.0;
 const CURRENT_PRESET_MIN_WIDTH: f32 = 350.0;
 
-fn show_two_panels<R1, R2>(
-    (ui, app): (&mut egui::Ui, &mut App),
-    side: egui::panel::Side,
-    side_panel_min_size: f32,
-    side_panel_ui: impl FnOnce(&mut egui::Ui, &mut App) -> R1,
-    central_panel_min_size: f32,
-    central_panel_ui: impl FnOnce(&mut egui::Ui, &mut App) -> R2,
-) -> (egui::InnerResponse<R1>, egui::InnerResponse<R2>) {
-    // Unfortunately as of egui v0.28.1, the edges of the panel contents get cut
-    // off unless we have *some* inner margin. Setting a negative outer margin
-    // doesn't help.
-    let panel_frame = egui::Frame::default().inner_margin(2.0);
-
-    // TODO: file an egui bug! We shouldn't have to clear the background here.
-    // There's a bug where `SidePanel` doesn't respect the clip rect from parent
-    // `ScrollArea`s.
-
-    let mut side_panel_frame = panel_frame;
-    let mut central_panel_frame = panel_frame;
-    match side {
-        egui::panel::Side::Left => {
-            side_panel_frame.inner_margin.right = 8.0;
-            central_panel_frame.inner_margin.left = 8.0;
-        }
-        egui::panel::Side::Right => {
-            side_panel_frame.inner_margin.left = 8.0;
-            central_panel_frame.inner_margin.right = 8.0;
-        }
-    }
-
-    let side_panel_margin = side_panel_frame.total_margin().sum().x;
-    let central_panel_margin = central_panel_frame.total_margin().sum().x;
-
-    let panel_margin = side_panel_margin + central_panel_margin;
-    let min_total_size = side_panel_min_size + central_panel_min_size + panel_margin;
-    ui.set_min_width(min_total_size);
-
-    let max_side_panel_size = ui.available_width() - central_panel_min_size - panel_margin;
-
-    // TODO: use `side`
-
-    let clip_rect = ui.max_rect();
-    egui::ScrollArea::horizontal()
-        // .max_width(ui.available_width())
-        .max_width(100.0)
-        .min_scrolled_width(10000.0)
-        // .min_scrolled_width(min_total_size)
-        .show(ui, |ui| {
-            let r1 = egui::SidePanel::left("piece_filters_side_panel")
-                .resizable(ui.available_width() > min_total_size)
-                .frame(side_panel_frame)
-                .min_width(side_panel_min_size + side_panel_margin)
-                .max_width(max_side_panel_size + side_panel_margin)
-                .show_inside(ui, |ui| {
-                    ui.set_clip_rect(egui::Rect::from_x_y_ranges(
-                        clip_rect.x_range(),
-                        egui::Rangef::EVERYTHING,
-                    ));
-                    side_panel_ui(ui, app)
-                });
-
-            let r2 = egui::CentralPanel::default()
-                .frame(central_panel_frame)
-                .show_inside(ui, |ui| {
-                    ui.set_clip_rect(egui::Rect::from_x_y_ranges(
-                        clip_rect.x_range(),
-                        egui::Rangef::EVERYTHING,
-                    ));
-                    central_panel_ui(ui, app)
-                });
-
-            (r1, r2)
-        })
-        .inner
-}
-
 // TODO: factor out this (and `ColorsTab` and `DevToolsTab`)
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 enum FiltersTab {
@@ -122,45 +46,56 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut tab = tab_state.get().unwrap_or_default();
     ui.group(|ui| {
         ui.set_width(ui.available_width());
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut tab, FiltersTab::AdHoc, l.ad_hoc);
-            ui.selectable_value(&mut tab, FiltersTab::PresetsList, l.presets_list);
-            ui.selectable_value(&mut tab, FiltersTab::EditPresets, l.edit_presets);
-        });
+        egui::ScrollArea::horizontal()
+            .id_source("tab_select")
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut tab, FiltersTab::AdHoc, l.ad_hoc);
+                    ui.selectable_value(&mut tab, FiltersTab::PresetsList, l.presets_list);
+                    ui.selectable_value(&mut tab, FiltersTab::EditPresets, l.edit_presets);
+                });
+            });
     });
     tab_state.set(Some(tab));
 
-    ui.group(|ui| match tab {
-        FiltersTab::AdHoc => {
-            app.active_puzzle_view.with(|p| p.view.filters.base = None);
-            show_current_filter_preset_ui(ui, app);
-        }
-        FiltersTab::PresetsList => show_filter_presets_list_ui(ui, app),
-        FiltersTab::EditPresets => {
-            show_two_panels(
-                (ui, app),
-                egui::panel::Side::Left,
-                PRESET_LIST_MIN_WIDTH,
-                |ui, app| {
+    ui.group(|ui| {
+        egui::ScrollArea::horizontal()
+            .auto_shrink(false)
+            .show(ui, |ui| match tab {
+                FiltersTab::AdHoc => {
+                    app.active_puzzle_view.with(|p| p.view.filters.base = None);
                     egui::ScrollArea::vertical()
+                        .id_source("ad_hoc")
                         .auto_shrink(false)
-                        .show(ui, |ui| show_filter_presets_list_ui(ui, app))
-                },
-                CURRENT_PRESET_MIN_WIDTH,
-                |ui, app| {
-                    egui::ScrollArea::vertical()
-                        .auto_shrink(false)
-                        .show(ui, |ui| show_current_filter_preset_ui(ui, app))
-                },
-            );
-        }
+                        .show(ui, |ui| show_current_filter_preset_ui(ui, app));
+                }
+                FiltersTab::PresetsList => {
+                    ui.set_min_width(PRESET_LIST_MIN_WIDTH);
+                    show_filter_presets_list_ui(ui, app);
+                }
+                FiltersTab::EditPresets => {
+                    let h = ui.available_height();
+                    ui.horizontal(|ui| {
+                        ui.set_height(h);
+                        ui.vertical(|ui| {
+                            ui.set_width(PRESET_LIST_MIN_WIDTH);
+                            show_filter_presets_list_ui(ui, app);
+                        });
+                        ui.add(egui::Separator::default().grow(6.0));
+                        ui.vertical(|ui| {
+                            egui::ScrollArea::vertical()
+                                .id_source("ad_hoc")
+                                .auto_shrink(false)
+                                .show(ui, |ui| show_current_filter_preset_ui(ui, app));
+                        });
+                    });
+                }
+            });
     });
 }
 
 fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
     let l = L.presets.piece_filters;
-
-    ui.set_min_width(PRESET_LIST_MIN_WIDTH);
 
     let mut changed = false;
 
@@ -231,7 +166,6 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App) {
 
     ui.horizontal(|ui| {
         ui.strong(L.piece_filters.saved_sequences);
-        ui.label(format!("({})", puz.name));
         HelpHoverWidget::show_right_aligned(ui, L.help.piece_filter_sequences);
     });
 
@@ -467,7 +401,7 @@ fn show_preset_name(
 }
 
 fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
-    ui.set_min_width(ui.available_width().at_least(CURRENT_PRESET_MIN_WIDTH));
+    ui.set_min_width(CURRENT_PRESET_MIN_WIDTH);
 
     let puz = app.active_puzzle_view.ty();
     if puz.is_none() {
@@ -547,6 +481,7 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
 
         egui::ScrollArea::vertical()
             .auto_shrink(false)
+            .id_source("filter_preset_rules")
             .show(ui, |ui| {
                 let mut dnd = DragAndDrop::new(ui);
                 let is_any_dragging = dnd.is_dragging();

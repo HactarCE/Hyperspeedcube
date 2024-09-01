@@ -37,6 +37,11 @@ impl AppUi {
         crate::load_built_in_puzzles();
         crate::reload_user_puzzles();
 
+        // Override UI style.
+        cc.egui_ctx.style_mut(|style| {
+            style.spacing.scroll = egui::style::ScrollStyle::solid();
+        });
+
         // Initialize UI.
         let puzzle_view = Arc::new(Mutex::new(None));
         app.set_active_puzzle_view(&puzzle_view);
