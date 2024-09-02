@@ -1,0 +1,229 @@
+
+  '3x3x3':
+    presets: {}
+    sequences:
+      CFOP:
+        Cross:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: '''centers !D + U !''corners'
+          fallback_style: Hidden
+        F2L 1:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set:
+              colors: '12:34c'
+              piece_types: '6:00'
+          fallback_style: null
+        F2L 2:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set:
+              colors: '12:343'
+              piece_types: '6:00'
+          fallback_style: null
+        F2L 3:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set:
+              colors: '12:c43'
+              piece_types: '6:00'
+          fallback_style: null
+        F2L 4:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set:
+              colors: '12:c4c'
+              piece_types: '6:00'
+          fallback_style: null
+        Last layer:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set:
+              colors: '12:0c0'
+              piece_types: '6:00'
+          fallback_style: Hidden
+  '3x3x3x3':
+    presets: {}
+    sequences:
+      '3-block':
+        '4-cross':
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: '''centers + ''ridges O !L !R'
+          fallback_style: Hidden
+        Mid ~ B:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: B !I !R !L
+          fallback_style: null
+        Mid ~ F:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: F !I !R !L
+          fallback_style: null
+        Left:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: '''centers + !I !R !L + L !I !U !D !F !B'
+          fallback_style: Hidden
+        Left ~ UD:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: '!I !F !B L'
+          fallback_style: null
+        Left ~ B a:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: '!I L B !U !D'
+          fallback_style: null
+        Left ~ B b:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: '!I L B'
+          fallback_style: null
+        Left ~ F a:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: '!I L F !U !D'
+          fallback_style: null
+        Left ~ F b:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: '!I L F'
+          fallback_style: null
+        Right:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: '''centers + !I !R + R !I !U !D !F !B'
+          fallback_style: Hidden
+        Right ~ UD:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: '!I !F !B R'
+          fallback_style: null
+        Right ~ B a:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: '!I R B !U !D'
+          fallback_style: null
+        Right ~ B b:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: '!I R B'
+          fallback_style: null
+        Right ~ F a:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: '!I R F !U !D'
+          fallback_style: null
+        Right ~ F b:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: '!I R F'
+          fallback_style: null
+        OLC ~ 2c:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: I ('centers + 'ridges)
+          fallback_style: Hidden
+        OLC ~ 3c:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: I 'edges
+          fallback_style: Hidden
+        OLC ~ 4c:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: I 'corners
+          fallback_style: Hidden
+        OLC:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: I
+          fallback_style: Hidden
+        PLC ~ 2c:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: '''centers + I ''ridges'
+          fallback_style: Hidden
+        PLC ~ cross:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: I ('centers + 'ridges) + I U 'edges
+          fallback_style: Hidden
+        PLC ~ F2L:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: I !D
+          fallback_style: null
+        PLC ~ LL:
+          include_previous: true
+          skip: false
+          rules:
+          - style: null
+            set: I D
+          fallback_style: null
+        End:
+          include_previous: false
+          skip: false
+          rules:
+          - style: null
+            set: '@everything'
+          fallback_style: Hidden

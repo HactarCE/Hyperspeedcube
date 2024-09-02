@@ -44,7 +44,12 @@
 //! that should be preserved in the [`PresetTombstone`] along with top-level
 //! dead references.
 
-use std::{collections::HashMap, fmt, hash::Hash, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    hash::Hash,
+    sync::Arc,
+};
 
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -408,6 +413,11 @@ impl<T: PresetData> PresetsList<T> {
         itertools::chain(self.builtin_presets(), self.user_presets())
     }
 
+    /// Returns the set of names with existing presets.
+    pub fn taken_names(&self) -> HashSet<String> {
+        self.presets().map(|p| p.name.clone()).collect()
+    }
+
     /// Returns the `n`th saved user preset.
     pub fn nth_user_preset(&self, n: usize) -> Option<(&String, &Preset<T>)> {
         self.user.get_index(n)
@@ -530,11 +540,10 @@ impl<T: PresetData> PresetsList<T> {
         }
     }
     fn find_nonconflicting_name(&self, desired_name: &str) -> String {
-        (0..)
+        (1..)
             .map(|i| match i {
-                0 => desired_name.to_owned(),
-                1 => format!("{desired_name} (conflicting)"),
-                _ => format!("{desired_name} (conflicting {i})"),
+                ..=1 => desired_name.to_owned(),
+                2.. => format!("{desired_name} {i}"),
             })
             .find(|name| self.is_name_available(name))
             .expect("no name available")
@@ -703,6 +712,9 @@ impl PresetRef {
     }
     pub(in crate::preferences) fn is_used_elsewhere(&self) -> bool {
         Arc::strong_count(&self.name) > 1
+    }
+    pub fn ptr(&self) -> usize {
+        Arc::as_ptr(&self.name) as usize
     }
 }
 

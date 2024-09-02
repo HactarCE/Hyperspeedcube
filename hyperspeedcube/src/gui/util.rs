@@ -71,15 +71,15 @@ pub fn rounded_pixel_rect(
     (egui_rect, pixel_size)
 }
 
-pub fn text_size(ui: &egui::Ui, text: &str) -> egui::Vec2 {
+pub fn text_size(ui: &egui::Ui, text: impl Into<egui::WidgetText>) -> egui::Vec2 {
     let wrap = None;
     let max_width = f32::INFINITY;
-    egui::WidgetText::from(text)
+    text.into()
         .into_galley(ui, wrap, max_width, egui::TextStyle::Button)
         .size()
 }
 
-pub fn text_width(ui: &egui::Ui, text: &str) -> f32 {
+pub fn text_width(ui: &egui::Ui, text: impl Into<egui::WidgetText>) -> f32 {
     text_size(ui, text).x
 }
 

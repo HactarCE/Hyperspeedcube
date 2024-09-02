@@ -338,6 +338,14 @@ impl From<FilterPreset> for FilterSeqPreset {
         }
     }
 }
+impl FilterSeqPreset {
+    pub fn new_empty() -> Self {
+        FilterPreset::new_empty().into()
+    }
+    pub fn new_with_single_rule(fallback_style: Option<PresetRef>) -> Self {
+        FilterPreset::new_with_single_rule(fallback_style).into()
+    }
+}
 
 /// Filter preset (standalone; not in a sequence).
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

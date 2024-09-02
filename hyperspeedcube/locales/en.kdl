@@ -121,6 +121,7 @@ click_to {
   delete "{{click}} to delete"
   edit "{{click}} to edit"
   rename "{{click}} to rename"
+  rename_or_delete "{{click}} to rename or delete"
   reorder "{{click}} to reorder"
 }
 
@@ -188,6 +189,23 @@ presets {
     saved_presets "Filter presets"
     current "{{current}} piece filters"
     current_empty "Ad-hoc piece filters"
+    (PresetActions)actions {
+      add "Add filter preset"
+      rename "Rename filter preset"
+      delete "Delete filter preset"
+    }
+  }
+  (PresetStrings)piece_filter_sequences {
+    saved_presets "Filter sequences"
+    (PresetErrors)errors {
+      empty_name "Filter sequence name cannot be empty"
+      name_conflict "There is already a filter sequence with this name"
+    }
+    (PresetActions)actions {
+      add "Add filter sequence"
+      rename "Rename filter sequence"
+      delete "Delete filter sequence"
+    }
   }
   (PresetStrings)color_schemes {
     saved_presets "Saved color schemes"
@@ -524,17 +542,14 @@ library {
 }
 
 piece_filters {
-  ad_hoc "Ad-hoc filters"
-  presets_list "Presets list"
-  edit_presets "Edit presets"
+  tabs {
+    ad_hoc "Ad-hoc filters"
+    presets_list "Presets list"
+    edit_presets "Edit presets"
+  }
 
-  add_preset "Add filter preset"
-  add_sequence "Add filter sequence"
-  ignore_previous "Ignore previous"
-  include_privous "Include previous"
-  cant_save "Add a preset in the presets list"
-
-  saved_sequences "Filter sequences"
+  ignore_previous "**Ignore** previous filter"
+  include_previous "**Include** previous filter"
 
   show_n_pieces_with_style "Show **{{n}}** pieces with style"
   show_remaining_peices_with_style "Show remaining pieces with style"

@@ -108,8 +108,8 @@ custom_styles:
   presets:
     Hidden:
       interactable: false
-      face_opacity: 0.1
-      outline_opacity: 0.1
+      face_opacity: 0.05
+      outline_opacity: 0.05
       outline_size: 0.0
 view_3d:
   last_loaded: Default

@@ -94,6 +94,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         *prefs.changed |= r.changed();
     });
 
+    app.prefs.custom_styles.save_over_preset(&current);
+
     app.prefs.needs_save |= changed;
 }
 

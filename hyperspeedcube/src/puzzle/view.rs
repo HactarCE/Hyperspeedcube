@@ -14,6 +14,7 @@ use super::styles::*;
 use super::Camera;
 use crate::preferences::FilterPresetName;
 use crate::preferences::FilterPresetRef;
+use crate::preferences::FilterSeqPreset;
 use crate::preferences::ModifiedSimPrefs;
 use crate::preferences::ViewPrefsRefs;
 use crate::preferences::{
@@ -660,17 +661,27 @@ pub enum HoverMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PuzzleFiltersState {
     pub base: Option<FilterPresetRef>,
-    pub preset: FilterPreset,
+    pub current: FilterSeqPreset,
     pub combined_fallback_preset: Option<FilterPreset>,
     pub active_rules: Vec<bool>,
 
     changed: bool,
 }
 impl PuzzleFiltersState {
+    pub fn new_empty() -> Self {
+        Self {
+            base: None,
+            current: FilterSeqPreset::new_empty(),
+            combined_fallback_preset: None,
+            active_rules: vec![],
+            changed: true,
+        }
+    }
+
     pub fn new(fallback_style: Option<PresetRef>) -> Self {
         Self {
             base: None,
-            preset: FilterPreset::new_with_single_rule(fallback_style),
+            current: FilterSeqPreset::new_with_single_rule(fallback_style),
             combined_fallback_preset: None,
             active_rules: vec![],
             changed: true,
@@ -678,7 +689,8 @@ impl PuzzleFiltersState {
     }
 
     pub fn iter_active_rules(&self) -> impl DoubleEndedIterator<Item = &FilterRule> {
-        self.preset
+        self.current
+            .inner
             .rules
             .iter()
             .enumerate()
@@ -686,18 +698,39 @@ impl PuzzleFiltersState {
             .map(|(_i, rule)| rule)
     }
 
-    pub fn load_preset(&mut self, filter_prefs: &PuzzleFilterPreferences, name: &FilterPresetName) {
-        let preset_ref = filter_prefs.new_ref(name);
-        let preset = filter_prefs.get(name).unwrap_or_default().inner;
-        let fallback = filter_prefs.combined_fallback_preset(&preset_ref.name());
+    pub fn load_preset(
+        &mut self,
+        filter_prefs: &PuzzleFilterPreferences,
+        name: Option<&FilterPresetName>,
+    ) {
+        // IIFE to mimic try_block
+        match (|| Some((name?, filter_prefs.get(name?)?)))() {
+            Some((name, current)) => {
+                let preset_ref = filter_prefs.new_ref(name);
+                let fallback = filter_prefs.combined_fallback_preset(&preset_ref.name());
 
-        *self = Self {
-            base: Some(preset_ref),
-            preset,
-            combined_fallback_preset: fallback,
-            active_rules: vec![],
-            changed: true,
-        };
+                *self = Self {
+                    base: Some(preset_ref),
+                    current,
+                    combined_fallback_preset: fallback,
+                    active_rules: vec![],
+                    changed: true,
+                };
+            }
+            None => {
+                *self = Self {
+                    base: None,
+                    current: std::mem::take(&mut self.current),
+                    combined_fallback_preset: None,
+                    active_rules: std::mem::take(&mut self.active_rules),
+                    changed: true,
+                }
+            }
+        }
+    }
+    pub fn reload(&mut self, filter_prefs: &PuzzleFilterPreferences) {
+        let name = self.base.as_ref().map(|r| r.name());
+        self.load_preset(filter_prefs, name.as_ref());
     }
 
     pub fn update_combined_fallback_preset(&mut self, filter_prefs: &PuzzleFilterPreferences) {
@@ -707,13 +740,16 @@ impl PuzzleFiltersState {
                 self.combined_fallback_preset = new_fallback;
                 self.changed = true;
             }
+        } else if self.combined_fallback_preset.is_some() {
+            self.combined_fallback_preset = None;
+            self.changed = true;
         }
     }
 
     fn fallback_style(&self) -> &Option<PresetRef> {
         match &self.combined_fallback_preset {
             Some(p) => &p.fallback_style,
-            None => &self.preset.fallback_style,
+            None => &self.current.inner.fallback_style,
         }
     }
 
