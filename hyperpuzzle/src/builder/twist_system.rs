@@ -502,7 +502,7 @@ impl TwistSystemBuilder {
 
         // Add vertices to the mesh and record a map from vertex IDs in `space`
         // to vertex IDs in `mesh`.
-        let vertex_map: HashMap<VertexId, u32> = face_polygons
+        let vertex_map: HashMap<(VertexId, u32), u32> = face_polygons
             .iter()
             .flat_map(|&(polygon, twist)| {
                 let surface = get_gizmo_surface(twist);
@@ -511,7 +511,7 @@ impl TwistSystemBuilder {
             .map(|(vertex, surface)| {
                 let old_id = vertex.id();
                 let new_id = mesh.add_gizmo_vertex(vertex.pos(), surface)?;
-                eyre::Ok((old_id, new_id))
+                eyre::Ok(((old_id, surface), new_id))
             })
             .try_collect()?;
 
@@ -519,16 +519,19 @@ impl TwistSystemBuilder {
 
         // Generate mesh for face polygons and edges.
         for (face_polygon, twist) in face_polygons {
+            let surface = get_gizmo_surface(twist);
+
             let face_polygon = space.get(face_polygon).as_face()?;
 
             let triangles_start = mesh.triangle_count() as u32;
             let edges_start = mesh.edge_count() as u32;
 
             for edge in face_polygon.edge_endpoints()? {
-                mesh.edges.push(edge.map(|v| vertex_map[&v.id()]));
+                mesh.edges
+                    .push(edge.map(|v| vertex_map[&(v.id(), surface)]));
             }
             for tri in face_polygon.triangles()? {
-                mesh.triangles.push(tri.map(|v| vertex_map[&v]));
+                mesh.triangles.push(tri.map(|v| vertex_map[&(v, surface)]));
             }
 
             let triangles_end = mesh.triangle_count() as u32;
