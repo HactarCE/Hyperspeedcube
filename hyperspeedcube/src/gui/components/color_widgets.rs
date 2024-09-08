@@ -703,8 +703,11 @@ pub fn color_edit(
     // Left-click to edit
     let reopen = EguiTempFlag::new(ui);
     let mut hex_edit_popup = TextEditPopup::new(ui);
-    if r.clicked() || reopen.reset() {
+    if r.clicked() {
         hex_edit_popup.open(color.to_string());
+    }
+    if reopen.reset() {
+        hex_edit_popup.keep_open();
     }
     let popup_response = hex_edit_popup.if_open(|popup| {
         popup
