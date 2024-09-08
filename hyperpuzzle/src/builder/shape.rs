@@ -401,23 +401,37 @@ impl ShapeBuilder {
         let mut mesh = Mesh::new_empty(ndim);
         mesh.color_count = self.colors.len();
 
-        let piece_types = self.piece_types.map_ref(|_, piece_type| PieceTypeInfo {
-            name: piece_type.name.clone(),
-            display: self
-                .piece_type_display_names
-                .get(&piece_type.name)
-                .unwrap_or(&piece_type.name)
-                .clone(),
+        let piece_type_ids_new_to_old: PerPieceType<PieceType> = self
+            .pieces
+            .iter()
+            .filter_map(|(_, p)| p.piece_type)
+            .sorted()
+            .dedup()
+            .collect();
+        let mut piece_type_ids_old_to_new = self.piece_types.map_ref(|_, _| None);
+        for (new_id, &old_id) in &piece_type_ids_new_to_old {
+            piece_type_ids_old_to_new[old_id] = Some(new_id);
+        }
+
+        let piece_types = piece_type_ids_new_to_old.map(|_new_id, old_id| {
+            let piece_type = &self.piece_types[old_id];
+            PieceTypeInfo {
+                name: piece_type.name.clone(),
+                display: self
+                    .piece_type_display_names
+                    .get(&piece_type.name)
+                    .unwrap_or(&piece_type.name)
+                    .clone(),
+            }
         });
         if !self.overwritten_piece_types.is_empty() {
             let count = self.overwritten_piece_types.len();
             warn_fn(eyre!("{count} piece types overwritten"));
         }
 
-        // Check for bad spelling.
+        // Check for UK spelling, just to troll Luna Harran.
         for piece_type in piece_types.iter_values() {
             if piece_type.name.to_lowercase().contains("centre") {
-                // Nope out.
                 warn_fn(eyre!(
                     "incorrect spelling detected in piece type {:?}",
                     piece_type.name
@@ -441,9 +455,15 @@ impl ShapeBuilder {
 
             let piece_centroid = space.get(piece.polytope).centroid()?.center();
 
+            // IIFE to mimic try_block
+            let Some(piece_type) = (|| piece_type_ids_old_to_new[piece.piece_type?])() else {
+                warn_fn(eyre!("piece has no piece type"));
+                continue;
+            };
+
             let piece_id = pieces.push(PieceInfo {
                 stickers: smallvec![],
-                piece_type: piece.piece_type,
+                piece_type,
                 centroid: piece_centroid.clone(),
                 polytope: piece.polytope,
             })?;
@@ -881,11 +901,9 @@ fn build_piece_type_masks(
     let mut ret = HashMap::new();
 
     for (piece_type_id, piece_type_info) in piece_types {
-        let mask = PieceMask::from_iter(
-            pieces.len(),
-            pieces
-                .iter_filter(|_piece_id, piece_info| piece_info.piece_type == Some(piece_type_id)),
-        );
+        let piece_iter =
+            pieces.iter_filter(|_piece_id, piece_info| piece_info.piece_type == piece_type_id);
+        let mask = PieceMask::from_iter(pieces.len(), piece_iter);
 
         for path in PieceTypeHierarchy::path_prefixes(&piece_type_info.name) {
             match ret.entry(path.to_owned()) {

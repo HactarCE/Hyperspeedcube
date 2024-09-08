@@ -15,6 +15,7 @@ pub enum FilterExpr {
     Not(Box<FilterExpr>),
 
     OnlyColors(Vec<String>), // @only(...)
+    NoColor,                 // @nocolor
 
     Terminal(String), // colors, piece types, other symbols
 }
@@ -71,6 +72,7 @@ impl FilterExpr {
             }
 
             Self::OnlyColors(cs) => write!(f, "@only({})", cs.iter().join(", "))?,
+            Self::NoColor => write!(f, "@nocolor")?,
 
             Self::Terminal(s) => write!(f, "{s}")?,
         }
@@ -96,7 +98,7 @@ impl FilterExpr {
             Self::Or(exprs) => Self::simplify_union(exprs),
             Self::Not(inner) => inner.simplify_complement(),
 
-            Self::OnlyColors(colors) if colors.is_empty() => Self::Nothing,
+            Self::OnlyColors(colors) if colors.is_empty() => Self::NoColor,
 
             other => other, // Can't simplify anything else
         }
@@ -188,6 +190,12 @@ impl FilterExpr {
                     .iter_filter(|p, _| cs.iter().any(|c| puz.piece_has_color(p, *c)));
                 PieceMask::from_iter(len, piece_iter)
             }
+            Self::NoColor => {
+                let iter = puz
+                    .pieces
+                    .iter_filter(|p, _| puz.pieces[p].stickers.is_empty());
+                PieceMask::from_iter(len, iter)
+            }
 
             Self::Terminal(s) => {
                 if let Some(piece_type) = s.strip_prefix('\'') {
@@ -244,6 +252,7 @@ impl FilterExpr {
             Self::OnlyColors(cs) => {
                 references.extend(cs);
             }
+            Self::NoColor => (),
             Self::Terminal(s) => {
                 references.insert(s);
             }
@@ -333,6 +342,7 @@ mod parser {
                     }
                     return Some(FilterExpr::OnlyColors(colors));
                 }
+                "@nocolor" => return Some(FilterExpr::NoColor),
                 s => {
                     if NAME_REGEX.is_match(s) {
                         return Some(FilterExpr::Terminal(s.to_owned()));

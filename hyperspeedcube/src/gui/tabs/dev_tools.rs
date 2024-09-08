@@ -86,12 +86,10 @@ fn show_hover_info(ui: &mut egui::Ui, p: &mut PuzzleWidget) {
         ui.strong(format!("Piece {}", hov.piece));
         let piece_info = &puz.pieces[hov.piece];
         info_line(ui, "Sticker count", &piece_info.stickers.len().to_string());
-        if let Some(piece_type) = piece_info.piece_type {
-            ui.label("");
-            ui.strong(format!("Piece type {piece_type}"));
-            let piece_type_info = &puz.piece_types[piece_type];
-            info_line(ui, "Piece type name", &piece_type_info.name);
-        }
+        ui.label("");
+        ui.strong(format!("Piece type {}", piece_info.piece_type));
+        let piece_type_info = &puz.piece_types[piece_info.piece_type];
+        info_line(ui, "Piece type name", &piece_type_info.name);
         if let Some(sticker) = hov.sticker {
             ui.label("");
             ui.strong(format!("Sticker {sticker}"));

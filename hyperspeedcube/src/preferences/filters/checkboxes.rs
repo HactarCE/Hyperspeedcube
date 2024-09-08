@@ -31,7 +31,7 @@ impl FilterCheckboxes {
             if let Some(wants_piece_type) = state {
                 for piece in puz.pieces.iter_keys() {
                     if ret.contains(piece)
-                        && (puz.pieces[piece].piece_type == Some(piece_type)) != wants_piece_type
+                        && (puz.pieces[piece].piece_type == piece_type) != wants_piece_type
                     {
                         ret.remove(piece);
                     }
