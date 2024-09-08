@@ -18,7 +18,7 @@ mod twist_system;
 
 pub use axis_system::{AxisBuilder, AxisLayerBuilder, AxisSystemBuilder};
 pub use color_system::{ColorBuilder, ColorSystemBuilder};
-pub use naming_scheme::{BadName, NamingScheme};
+pub use naming_scheme::{BadName, Nameable, NamingScheme};
 pub use ordering::CustomOrdering;
 pub use puzzle::{PieceBuilder, PieceTypeBuilder, PuzzleBuilder};
 pub use shape::ShapeBuilder;

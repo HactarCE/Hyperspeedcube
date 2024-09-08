@@ -1,9 +1,19 @@
 use std::{collections::HashSet, fmt};
 
+use builder::Nameable;
 use itertools::{Itertools, PutBack};
 use regex::Regex;
 
 use hyperpuzzle::*;
+
+lazy_static! {
+    static ref COLOR_NAME_REGEX: Regex =
+        Regex::new(&format!(r"^{}$", Color::NAME_REGEX)).expect("bad regex");
+
+    /// Match a name, or any single symbol.
+    static ref TOKEN_REGEX: Regex =
+        Regex::new(r"['@]?([a-zA-Z_][a-zA-Z0-9_]*)|.").expect("bad regex");
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FilterExpr {
@@ -279,8 +289,8 @@ enum ParentExprType {
     Not = 2, // highest precedence
 }
 
-/// Extremely dubious parser for the filter expression language. It's optimized
-/// to always produce something reasonable and never produce an error.
+/// Dubious parser for the filter expression language. It's designed to always
+/// produce something reasonable and never produce an error.
 mod parser {
     use super::*;
 
@@ -307,11 +317,6 @@ mod parser {
     }
 
     fn eat_atom<'a>(tokens: &mut PutBack<impl Iterator<Item = &'a str>>) -> Option<FilterExpr> {
-        lazy_static! {
-            static ref NAME_REGEX: Regex =
-                Regex::new(&format!(r"^{}$", hyperpuzzle::NAME_REGEX)).expect("bad regex");
-        }
-
         loop {
             match tokens.next()? {
                 "(" => return Some(eat_union(tokens)),
@@ -333,7 +338,8 @@ mod parser {
                         match tokens.next() {
                             Some("(") => depth += 1,
                             Some(")") => depth -= 1,
-                            Some(other) if NAME_REGEX.is_match(other) => {
+                            Some(",") => (), // ignore commas
+                            Some(other) if COLOR_NAME_REGEX.is_match(other) => {
                                 colors.push(other.to_owned());
                             }
                             None => depth = 0,
@@ -344,9 +350,7 @@ mod parser {
                 }
                 "@nocolor" => return Some(FilterExpr::NoColor),
                 s => {
-                    if NAME_REGEX.is_match(s) {
-                        return Some(FilterExpr::Terminal(s.to_owned()));
-                    } else if s.chars().all(|c| c.is_whitespace()) || s == "&" {
+                    if s.chars().all(|c| c.is_whitespace()) || s == "&" {
                         continue;
                     } else {
                         return Some(FilterExpr::Terminal(s.to_owned()));
@@ -357,14 +361,8 @@ mod parser {
     }
 
     fn tokenize(s: &str) -> impl Iterator<Item = &'_ str> {
-        lazy_static! {
-            // match a name, or any single symbol
-            static ref TOKEN: Regex =
-                Regex::new(&format!(r"['@]?{}|.", hyperpuzzle::PIECE_TYPE_NAME)).expect("bad regex");
-        }
-
         // Just ignore unrecognized characters
-        TOKEN.find_iter(s).map(|m| m.as_str())
+        TOKEN_REGEX.find_iter(s).map(|m| m.as_str())
     }
 }
 

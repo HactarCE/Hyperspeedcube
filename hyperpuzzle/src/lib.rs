@@ -40,26 +40,16 @@ pub const DEFAULT_COLOR_SCHEME_NAME: &str = "Default";
 /// assigned.
 pub const DEFAULT_COLOR_GRADIENT_NAME: &str = "Rainbow";
 
-/// Regex matching allowed names for puzzle elements.
-///
-/// - Digits and `<` are reserved for auto-generated names.
-/// - Space and many special symbols are used in piece filter expressions.
-/// - Most other symbols are disallowed just for safety and
-///   forwards-compatibility.
-pub const NAME_REGEX: &str = r"[a-zA-Z_][a-zA-Z0-9_]*";
-
-/// Same as `NAME_REGEX` but also allows `/` symbols.
-pub const PIECE_TYPE_NAME: &str = r"[a-zA-Z_][a-zA-Z0-9_/]*";
-
-/// Returns `s` if it is a valid ID for a puzzle or puzzle element, or an error
-/// if it not.
+/// Returns `s` if it is a valid ID for a shared object (such as a puzzle or
+/// color system), or an error if it not.
 ///
 /// Internally, this calls [`validate_id_str()`].
 fn validate_id(s: String) -> eyre::Result<String> {
     validate_id_str(&s).map(|_| s)
 }
 
-/// Returns an error if `s` is not a valid ID for a puzzle or puzzle element.
+/// Returns an error if `s` is not a valid ID for a shared object (such as a
+/// puzzle or color system).
 fn validate_id_str(s: &str) -> eyre::Result<()> {
     if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_') {
         Ok(())

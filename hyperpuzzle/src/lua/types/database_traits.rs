@@ -173,7 +173,7 @@ where
     ) -> LuaResult<NamingScheme<I>> {
         // We need to rename all the entries at once, so just construct a new
         // naming scheme from scratch.
-        let mut new_names = NamingScheme::new();
+        let mut new_names = NamingScheme::new(self.names().regex_str());
 
         // First, assemble a list of all the renames that need to happen.
         let kv_pairs: Vec<(I, Option<String>)> = self.mapping_from_value(lua, new_names_value)?;
