@@ -48,6 +48,9 @@ pub const DEFAULT_COLOR_GRADIENT_NAME: &str = "Rainbow";
 ///   forwards-compatibility.
 pub const NAME_REGEX: &str = r"[a-zA-Z_][a-zA-Z0-9_]*";
 
+/// Same as `NAME_REGEX` but also allows `/` symbols.
+pub const PIECE_TYPE_NAME: &str = r"[a-zA-Z_][a-zA-Z0-9_/]*";
+
 /// Returns `s` if it is a valid ID for a puzzle or puzzle element, or an error
 /// if it not.
 ///

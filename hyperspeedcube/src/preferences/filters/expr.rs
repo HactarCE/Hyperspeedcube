@@ -348,9 +348,9 @@ mod parser {
 
     fn tokenize(s: &str) -> impl Iterator<Item = &'_ str> {
         lazy_static! {
-            // regex for symbols we actually care about: `[+|()!~]`
+            // match a name, or any single symbol
             static ref TOKEN: Regex =
-                Regex::new(&format!(r"['@]?{}|.", hyperpuzzle::NAME_REGEX)).expect("bad regex");
+                Regex::new(&format!(r"['@]?{}|.", hyperpuzzle::PIECE_TYPE_NAME)).expect("bad regex");
         }
 
         // Just ignore unrecognized characters
