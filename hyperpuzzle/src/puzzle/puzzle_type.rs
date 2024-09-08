@@ -26,6 +26,11 @@ pub struct Puzzle {
     pub stickers: PerSticker<StickerInfo>,
     /// List of piece types, indexed by ID.
     pub piece_types: PerPieceType<PieceTypeInfo>,
+    /// Hierarchy of piece types, in order.
+    pub piece_type_hierarchy: PieceTypeHierarchy,
+    /// Map from piece type names (including piece type _category_ names) to a
+    /// set of pieces that have that type.
+    pub piece_type_masks: HashMap<String, PieceMask>,
 
     /// Color system.
     pub colors: Arc<ColorSystem>,

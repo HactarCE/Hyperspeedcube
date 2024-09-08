@@ -191,14 +191,10 @@ impl FilterExpr {
 
             Self::Terminal(s) => {
                 if let Some(piece_type) = s.strip_prefix('\'') {
-                    // TODO: optimize O(n) linear search to O(1)
-                    match puz.piece_types.find(|_, t| t.name == *piece_type) {
-                        Some(t) => {
-                            let piece_iter =
-                                puz.pieces.iter_filter(|_, info| info.piece_type == Some(t));
-                            PieceMask::from_iter(len, piece_iter)
-                        }
-                        None => PieceMask::new_empty(len), // piece type doesn't exist!
+                    // If the piece type doesn't exist, return an empty mask.
+                    match puz.piece_type_masks.get(piece_type) {
+                        Some(mask) => mask.clone(),
+                        None => PieceMask::new_empty(len),
                     }
                 } else {
                     let color = s;
@@ -222,9 +218,10 @@ impl FilterExpr {
         for color_info in puz.colors.list.iter_values() {
             references.remove(&color_info.name);
         }
-        for piece_type_info in puz.piece_types.iter_values() {
-            references.remove(&format!("'{}", piece_type_info.name));
-        }
+        references.retain(|s| match s.strip_prefix('\'') {
+            Some(piece_type_name) => !puz.piece_type_masks.contains_key(piece_type_name),
+            None => true,
+        });
 
         if references.is_empty() {
             Ok(())
@@ -368,9 +365,13 @@ mod tests {
 
     #[test]
     fn test_filter_expressions() {
-        let colors = ["A", "B", "C", "D", "E", "F"].into_iter().collect();
-        let piece_types = ["p0", "p1", "p2", "p3", "p4", "p5"].into_iter().collect();
-        let s = |cb: &FilterCheckboxes| cb.to_string(&colors, &piece_types);
+        let colors = PerColor::from_iter(["A", "B", "C", "D", "E", "F"]);
+        let piece_types = PerPieceType::from_iter(["p0", "p1", "p2", "p3", "p4", "p5"]);
+        let mut hierarchy = PieceTypeHierarchy::new(6);
+        for (id, &name) in &piece_types {
+            hierarchy.set_piece_type_id(name, id).unwrap();
+        }
+        let s = |cb: &FilterCheckboxes| cb.to_string(&(&colors, &hierarchy));
 
         let init = FilterCheckboxes::new(&colors, &piece_types);
         let mut checkboxes;

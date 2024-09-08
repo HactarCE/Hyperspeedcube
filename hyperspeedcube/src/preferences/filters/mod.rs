@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt, sync::Arc};
 
-use hyperpuzzle::{PerColor, PerPieceType, PieceMask, Puzzle};
+use hyperpuzzle::{PieceMask, Puzzle};
 use itertools::Itertools;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -449,10 +449,10 @@ impl FilterPieceSet {
         }
     }
 
-    pub fn to_string(&self, colors: &PerColor<&str>, piece_types: &PerPieceType<&str>) -> String {
+    pub fn to_string(&self, ctx: &impl FilterCheckboxesCtx) -> String {
         match self {
             Self::Expr(expr) => expr.to_string(),
-            Self::Checkboxes(checkboxes) => checkboxes.to_string(colors, piece_types),
+            Self::Checkboxes(checkboxes) => checkboxes.to_string(ctx),
         }
     }
 }
@@ -488,7 +488,7 @@ mod tests {
             },
             "y",
         );
-        p.sequences.rename(&ab.preset.name(), "x");
+        p.sequences.rename("a", "x");
         p.rename_preset(
             &FilterPresetName {
                 seq: Some("x".to_owned()),

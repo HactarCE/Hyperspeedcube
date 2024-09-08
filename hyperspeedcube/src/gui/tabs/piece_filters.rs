@@ -3,7 +3,7 @@ use std::{
     hash::Hash,
 };
 
-use hyperpuzzle::{PieceMask, Puzzle};
+use hyperpuzzle::{PerPieceType, PieceMask, PieceTypeHierarchy, Puzzle};
 use itertools::Itertools;
 
 use crate::{
@@ -642,8 +642,6 @@ fn show_current_filter_preset_ui_contents(
     });
 
     let puz = p.puzzle();
-    let colors = puz.colors.list.map_ref(|_, info| info.name.as_str());
-    let piece_types = puz.piece_types.map_ref(|_, info| info.name.as_str());
 
     let mut changed = false;
     let mut changed_include_previous = false;
@@ -707,7 +705,7 @@ fn show_current_filter_preset_ui_contents(
                                 changed |= r.changed();
                             }
                             FilterPieceSet::Checkboxes(checkboxes) => {
-                                let expr_string = checkboxes.to_string(&colors, &piece_types);
+                                let expr_string = checkboxes.to_string(&*puz);
                                 let r = egui::CollapsingHeader::new(&expr_string)
                                     .id_source(unique_id!(i))
                                     // TODO: default open when created, but not when reordered
@@ -918,40 +916,71 @@ fn show_filter_checkboxes_ui(
         }
     });
 
-    let allowed_states = FilterCheckboxAllowedStates::NeutralHide;
-    egui::collapsing_header::CollapsingState::load_with_default_open(
-        ui.ctx(),
-        unique_id!(&id),
+    show_piece_type_hierarchy(
+        ui,
+        L.piece_filters.piece_types,
+        &puzzle.piece_type_hierarchy,
+        &mut filters.piece_types,
         true,
-    )
-    .show_header(ui, |ui| {
-        let mut common_state = get_common_state(filters.piece_types.iter_values());
-        let r = ui.add(FilterCheckbox::new(
-            allowed_states,
-            common_state.as_mut(),
-            L.piece_filters.piece_types,
-        ));
-        *changed |= r.changed();
-        if r.changed() {
-            filters.piece_types.fill(common_state.flatten());
-        }
-    })
-    .body(|ui| {
-        let states_iter = filters.piece_types.iter_values_mut();
-        let piece_type_infos_iter = puzzle.piece_types.iter_values();
-        for (state, piece_type_info) in states_iter.zip(piece_type_infos_iter) {
-            let r = &ui.add(
-                FilterCheckbox::new(allowed_states, Some(state), &piece_type_info.name).indent(),
-            );
-            *changed |= r.changed();
-        }
-    });
+        changed,
+    );
 }
 
 fn get_common_state<'a>(
     states: impl IntoIterator<Item = &'a Option<bool>>,
 ) -> Option<Option<bool>> {
     states.into_iter().all_equal_value().ok().cloned()
+}
+
+fn show_piece_type_hierarchy(
+    ui: &mut egui::Ui,
+    name: &str,
+    hierarchy: &PieceTypeHierarchy,
+    filter_states: &mut PerPieceType<Option<bool>>,
+    is_root: bool,
+    changed: &mut bool,
+) {
+    egui::collapsing_header::CollapsingState::load_with_default_open(
+        ui.ctx(),
+        egui::Id::new(hierarchy as *const _),
+        is_root,
+    )
+    .show_header(ui, |ui| {
+        let mut common_state =
+            get_common_state(hierarchy.types.iter().map(|ty| &filter_states[ty]));
+        let r = ui.add(FilterCheckbox::new(
+            FilterCheckboxAllowedStates::NeutralHide,
+            common_state.as_mut(),
+            name,
+        ));
+        *changed |= r.changed();
+        if r.changed() {
+            for ty in hierarchy.types.iter() {
+                filter_states[ty] = common_state.flatten();
+            }
+        }
+    })
+    .body(|ui| {
+        for (k, node) in &hierarchy.nodes {
+            let name = node.display.as_ref().unwrap_or(k);
+            match &node.contents {
+                hyperpuzzle::PieceTypeHierarchyNodeContents::Category(cat) => {
+                    show_piece_type_hierarchy(ui, name, &cat, filter_states, false, changed);
+                }
+                hyperpuzzle::PieceTypeHierarchyNodeContents::Type(ty) => {
+                    let r = &ui.add(
+                        FilterCheckbox::new(
+                            FilterCheckboxAllowedStates::NeutralHide,
+                            Some(&mut filter_states[*ty]),
+                            name,
+                        )
+                        .indent(),
+                    );
+                    *changed |= r.changed();
+                }
+            }
+        }
+    });
 }
 
 fn make_unique_filter_name(presets: &PresetsList<FilterPreset>) -> String {

@@ -77,6 +77,8 @@ pub type ColorSet = Set64<Color>;
 
 /// Dense set of pieces in a puzzle.
 pub type PieceMask = GenericMask<Piece>;
+/// Dense set of piece types in a puzzle.
+pub type PieceTypeMask = GenericMask<PieceType>;
 
 /// Piece info.
 #[derive(Debug, PartialEq)]
@@ -156,8 +158,13 @@ impl AsRef<str> for TwistInfo {
 /// Piece type info.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct PieceTypeInfo {
-    /// TODO: remove and replace with piece type hierarchy
+    /// Name for the piece type. (e.g., "center/oblique_1_2/left")
     pub name: String,
+    /// User-friendly display name for the piece type. (e.g., "Oblique (1, 2)
+    /// (left)")
+    ///
+    /// This is also stored in the piece type hierarchy.
+    pub display: String,
 }
 impl AsRef<str> for PieceTypeInfo {
     fn as_ref(&self) -> &str {

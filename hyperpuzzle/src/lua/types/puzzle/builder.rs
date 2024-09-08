@@ -79,19 +79,36 @@ impl LuaUserData for LuaPuzzleBuilder {
             this.cut(lua, cuts, CutMode::Slice, StickerMode::None)
         });
 
-        methods.add_method(
-            "mark_pieces",
-            |lua, this, (name, region): (String, LuaRegion)| {
-                this.lock()
-                    .shape
-                    .mark_piece_by_region(
-                        &name,
-                        |point| region.contains_point(point),
-                        lua_warn_fn(lua),
-                    )
-                    .into_lua_err()
-            },
-        );
+        methods.add_method("add_piece_type", |lua, this, args: LuaTable<'_>| {
+            let name: String;
+            let display: Option<String>;
+            unpack_table!(lua.unpack(args { name, display }));
+
+            if let Err(e) = this.lock().shape.get_or_add_piece_type(name, display) {
+                lua.warning(e.to_string(), false);
+            }
+            Ok(())
+        });
+        methods.add_method("mark_piece", |lua, this, args: LuaTable<'_>| {
+            let region: LuaRegion;
+            let name: String;
+            let display: Option<String>;
+            unpack_table!(lua.unpack(args {
+                region,
+                name,
+                display
+            }));
+
+            this.lock()
+                .shape
+                .mark_piece_by_region(
+                    &name,
+                    display,
+                    |point| region.contains_point(point),
+                    lua_warn_fn(lua),
+                )
+                .into_lua_err()
+        });
         methods.add_method("unify_piece_types", |lua, this, sym: LuaSymmetry| {
             let transforms = sym.chiral_safe_generators();
             this.lock()

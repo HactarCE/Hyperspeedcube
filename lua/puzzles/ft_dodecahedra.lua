@@ -52,7 +52,7 @@ function define_ft_dodecahedron(size, id, name)
       local F = self.axes.F
 
       if size == 0 then
-        self:mark_pieces('core', ~U'*') -- TODO: construct 'everything' region
+        self:mark_piece('core', ~U'*') -- TODO: construct 'everything' region
         return
       else
         local U_adj = symmetry{self.twists.U}:orbit(R('*')):union()
@@ -70,13 +70,13 @@ function define_ft_dodecahedron(size, id, name)
                 name = string.format('obliques (%d, %d) (right)', j-1, i-1)
               end
             end
-            self:mark_pieces(name, U(1) & R(i) & F(j))
+            self:mark_piece(name, U(1) & R(i) & F(j))
           end
         end
 
         for i = 2, size do
-          self:mark_pieces(string.format('t-centers (%d)', i-1), U(1) & F(i) & ~R(1, size) & ~L(1, size))
-          self:mark_pieces(string.format('wings (%d)', i-1), U(1) & F(1) & R(i))
+          self:mark_piece(string.format('t-centers (%d)', i-1), U(1) & F(i) & ~R(1, size) & ~L(1, size))
+          self:mark_piece(string.format('wings (%d)', i-1), U(1) & F(1) & R(i))
         end
 
         -- this is so, on a big cube, 'edges' and 'centers' can refer to 2c and 1c
@@ -87,10 +87,10 @@ function define_ft_dodecahedron(size, id, name)
           middle_prefix = ''
         end
 
-        self:mark_pieces(middle_prefix .. 'centers', U(1) & ~U_adj)
-        self:mark_pieces(middle_prefix .. 'edges', U(1) & F(1) & ~R(1, size) & ~L(1, size))
+        self:mark_piece(middle_prefix .. 'centers', U(1) & ~U_adj)
+        self:mark_piece(middle_prefix .. 'edges', U(1) & F(1) & ~R(1, size) & ~L(1, size))
 
-        self:mark_pieces('corners', U(1) & F(1) & R(1))
+        self:mark_piece('corners', U(1) & F(1) & R(1))
         self:unify_piece_types(sym.chiral)
       end
     end,
@@ -137,10 +137,10 @@ puzzles:add('megaminx_crystal', {
     local BR = self.axes.BR
     local DR = self.axes.DR
 
-    self:mark_pieces('centers', U(1) & symmetry{self.twists.U}:orbit(R(2)):intersection())
-    self:mark_pieces('megaminx edges', U(1) & F(1) & R(2) & L(2))
-    self:mark_pieces('corners', L(2) & BR(2) & DR(2) & U(1) & R(1) & F(1))
-    self:mark_pieces('crystal edges', L(1) & R(1))
+    self:mark_piece('centers', U(1) & symmetry{self.twists.U}:orbit(R(2)):intersection())
+    self:mark_piece('megaminx edges', U(1) & F(1) & R(2) & L(2))
+    self:mark_piece('corners', L(2) & BR(2) & DR(2) & U(1) & R(1) & F(1))
+    self:mark_piece('crystal edges', L(1) & R(1))
     self:unify_piece_types(sym.chiral)
   end,
 })
@@ -172,9 +172,9 @@ puzzles:add('pyraminx_crystal', {
     local F = self.axes.F
     local BR = self.axes.BR
     local DR = self.axes.DR
-    
-    self:mark_pieces('corners', L(2) & BR(2) & DR(2) & U(1))
-    self:mark_pieces('edges', L(1) & R(1))
+
+    self:mark_piece('corners', L(2) & BR(2) & DR(2) & U(1))
+    self:mark_piece('edges', L(1) & R(1))
     self:unify_piece_types(sym.chiral)
   end,
 })
@@ -208,10 +208,10 @@ puzzles:add('curvy_starminx', {
     local BL = self.axes.BL
     local DR = self.axes.DR
 
-    self:mark_pieces('corners', L(2) & BR(2) & DR(2) & U(1))
-    self:mark_pieces('edges', BR(2) & BL(2) & R(1) & L(1))
-    self:mark_pieces('x-centers', F(2) & R(1) & BR(1) & BL(1) & L(1))
-    self:mark_pieces('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
+    self:mark_piece('corners', L(2) & BR(2) & DR(2) & U(1))
+    self:mark_piece('edges', BR(2) & BL(2) & R(1) & L(1))
+    self:mark_piece('x-centers', F(2) & R(1) & BR(1) & BL(1) & L(1))
+    self:mark_piece('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
     self:unify_piece_types(sym.chiral)
   end,
 })
@@ -245,9 +245,9 @@ puzzles:add('starminx', {
     local BL = self.axes.BL
     local DR = self.axes.DR
 
-    self:mark_pieces('edges', BR(2) & BL(2) & R(1) & L(1))
-    self:mark_pieces('x-centers', U(2) & L(1) & R(1))
-    self:mark_pieces('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
+    self:mark_piece('edges', BR(2) & BL(2) & R(1) & L(1))
+    self:mark_piece('x-centers', U(2) & L(1) & R(1))
+    self:mark_piece('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
     self:unify_piece_types(sym.chiral)
   end,
 })
@@ -327,24 +327,24 @@ function define_pentultimate(size, name)
             name = string.format('obliques (%d, %d) (right)', i-1, j-1)
             name2 = string.format('obliques (%d, %d) (left)', i-1, j-1)
           end
-          self:mark_pieces(name, U(1) & BL(i) & DL(j))
+          self:mark_piece(name, U(1) & BL(i) & DL(j))
           if name2 ~= '' then
-            self:mark_pieces(name2, U(1) & BL(j) & DL(i))
+            self:mark_piece(name2, U(1) & BL(j) & DL(i))
           end
         end
       end
 
       for i = 2, floor(size/2) do
-        self:mark_pieces(string.format('outer x-centers (%d)', i-1), DR(i) & L(1) & BR(1))
-        self:mark_pieces(string.format('inner x-centers (%d)', i-1), DR(size+1-i) & L(1) & BR(1))
+        self:mark_piece(string.format('outer x-centers (%d)', i-1), DR(i) & L(1) & BR(1))
+        self:mark_piece(string.format('inner x-centers (%d)', i-1), DR(size+1-i) & L(1) & BR(1))
       end
 
       if size % 2 == 1 then
-        name = self:mark_pieces(middle_prefix .. 'x-centers', DR(center_layer) & L(1) & BR(1))
+        name = self:mark_piece(middle_prefix .. 'x-centers', DR(center_layer) & L(1) & BR(1))
       end
 
-      self:mark_pieces('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
-      self:mark_pieces('corners', L(1) & BR(1) & DR(1))
+      self:mark_piece('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
+      self:mark_piece('corners', L(1) & BR(1) & DR(1))
       self:unify_piece_types(sym.chiral)
     end,
   })
@@ -356,4 +356,3 @@ define_pentultimate(4, "Elite Pentultimate")
 define_pentultimate(5, "Royal Pentultimate")
 define_pentultimate(6, "6-layer Pentultimate")
 define_pentultimate(7, "God Emperor Pentultimate")
-

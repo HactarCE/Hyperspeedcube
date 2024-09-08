@@ -71,6 +71,8 @@ impl PuzzleBuilder {
             pieces,
             stickers,
             piece_types,
+            piece_type_hierarchy,
+            piece_type_masks,
         } = self.shape.build(warn_fn)?;
 
         // Build color system. TODO: cache this across puzzles?
@@ -100,6 +102,8 @@ impl PuzzleBuilder {
             pieces,
             stickers,
             piece_types,
+            piece_type_hierarchy,
+            piece_type_masks,
 
             colors,
 
@@ -175,6 +179,6 @@ impl PieceBuilder {
 /// Piece type of a puzzle during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct PieceTypeBuilder {
-    /// User-friendly name.
+    /// Name for the piece type. (e.g., "center/oblique_1_2/left")
     pub name: String,
 }

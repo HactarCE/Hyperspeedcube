@@ -237,7 +237,13 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                     });
                                 }
 
-                                None => todo!(),
+                                // TODO: is this correct handling?
+                                None => {
+                                    ui.colored_label(
+                                        ui.visuals().error_fg_color,
+                                        "missing orbit element",
+                                    );
+                                }
                             }
                         });
                     }

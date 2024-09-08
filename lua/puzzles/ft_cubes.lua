@@ -23,14 +23,6 @@ function define_ft_cube_3d(size)
     ndim = 3,
     name = string.format("FT Cube %d (%d^3)", size, size),
     colors = 'cube',
-    -- piece_types = {
-    --   { id = 'centers', name = "Centers" },
-    --   {
-    --     id = 'moving', name = "Moving pieces",
-    --     { id = 'edges', name = "Edges" },
-    --     { id = 'corners', name = "Corners" },
-    --   },
-    -- },
     build = function(self)
       local sym = cd'bc3'
       local shape = symmetries.cubic.cube()
@@ -59,45 +51,80 @@ function define_ft_cube_3d(size)
       local F = self.axes.F
 
       if size == 1 then
-        self:mark_pieces('core', ~U'*') -- TODO: construct 'everything' region
+        self:mark_piece{
+          region = ~U'*', -- TODO: construct 'everything' region
+          name = 'core',
+          display = "Core",
+        }
       else
         local U_adj = symmetry{self.twists.U}:orbit(R(1, precenter_layer)):union()
 
         -- Centers
+        self:add_piece_type{ name = 'center', display = "Center" }
+        self:add_piece_type{ name = 'edge', display = "Edge" }
         for i = 2, center_layer do
           for j = 2, precenter_layer do
-            local name
+            local name, display
             if i == center_layer and size % 2 == 1 then
-              name = string.format('t-centers (%d)', j-1)
+              name, display = string.fmt2('center/t_%d', "T-center (%d)", j-1)
             elseif i == j then
-              name = string.format('x-centers (%d)', i-1)
+              name, display = string.fmt2('center/x_%d', "X-center (%d)", i-1)
             else
               if i < j then
-                name = string.format('obliques (%d, %d) (left)', i-1, j-1)
+                name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
+                self:add_piece_type{ name = name, display = display }
+                name = name .. "/left"
+                display = display .. " (left)"
               else
-                name = string.format('obliques (%d, %d) (right)', j-1, i-1)
+                name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", j-1, i-1)
+                name = name .. "/right"
+                display = display .. " (right)"
               end
             end
-            self:mark_pieces(name, U(1) & R(i) & F(j))
+            self:mark_piece{
+              region = U(1) & R(i) & F(j),
+              name = name,
+              display = display,
+            }
           end
         end
 
         for i = 2, precenter_layer do
-          self:mark_pieces(string.format('wings (%d)', i-1), U(1) & R(1) & F(i))
+          local name, display = string.fmt2('edge/wing_%d', "Wing (%d)", i-1)
+          self:mark_piece{
+            region = U(1) & R(1) & F(i),
+            name = name,
+            display = display,
+          }
         end
 
         -- this is so, on a big cube, 'edges' and 'centers' can refer to 2c and 1c
-        local middle_prefix = ''
+        local middle_suffix = ''
+        local center_display, edge_display -- nil is ok here
         if size > 3 then
-          middle_prefix = 'middle '
+          middle_suffix = '/middle'
+          center_display = "Middle center"
+          edge_display = "Middle edge"
         end
 
         if size % 2 == 1 then
-          self:mark_pieces(middle_prefix .. 'centers', U(1) & ~U_adj)
-          self:mark_pieces(middle_prefix .. 'edges', U(1) & F(1) & ~R(1, precenter_layer) & ~L(1, precenter_layer))
+          self:mark_piece{
+            region = U(1) & ~U_adj,
+            name = 'center' .. middle_suffix,
+            display = center_display,
+          }
+          self:mark_piece{
+            region = U(1) & F(1) & ~R(1, precenter_layer) & ~L(1, precenter_layer),
+            name = 'edge' .. middle_suffix,
+            display = edge_display,
+          }
         end
 
-        self:mark_pieces('corners', U(1) & F(1) & R(1))
+        self:mark_piece{
+          region = U(1) & F(1) & R(1),
+          name = 'corner',
+          display = "Corner",
+        }
         self:unify_piece_types(sym.chiral)
       end
     end,
@@ -162,15 +189,15 @@ function define_ft_cube_4d(size)
       local I = self.axes.I
 
       if size == 1 then
-        self:mark_pieces('core', ~U'*') -- TODO: construct 'everything' region
+        self:mark_piece('core', ~U'*') -- TODO: construct 'everything' region
       else
         if size >= 3 then
           local mid = '{2-' .. (size-1) .. '}'
-          self:mark_pieces('centers', U(1) & R(mid) & F(mid) & I(mid))
-          self:mark_pieces('ridges', U(1) & R(1) & F(mid) & I(mid))
-          self:mark_pieces('edges', U(1) & R(1) & F(1) & I(mid))
+          self:mark_piece('centers', U(1) & R(mid) & F(mid) & I(mid))
+          self:mark_piece('ridges', U(1) & R(1) & F(mid) & I(mid))
+          self:mark_piece('edges', U(1) & R(1) & F(1) & I(mid))
         end
-        self:mark_pieces('corners', U(1) & F(1) & R(1) & I(1))
+        self:mark_piece('corners', U(1) & F(1) & R(1) & I(1))
         self:unify_piece_types(sym.chiral)
       end
     end,

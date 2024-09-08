@@ -6,6 +6,7 @@ use std::sync::Arc;
 use eyre::{bail, eyre, Context, OptionExt, Result};
 use hypermath::prelude::*;
 use hypershape::prelude::*;
+use indexmap::IndexMap;
 use itertools::Itertools;
 use smallvec::smallvec;
 
@@ -14,7 +15,8 @@ use crate::puzzle::*;
 
 // TODO: build color system separately and statically?
 
-const DEFAULT_PIECE_TYPE_NAME: &str = "pieces";
+const DEFAULT_PIECE_TYPE_NAME: &str = "piece";
+const DEFAULT_PIECE_TYPE_DISPLAY: &str = "Piece";
 
 /// Soup of pieces being constructed.
 #[derive(Debug)]
@@ -35,6 +37,8 @@ pub struct ShapeBuilder {
     piece_types: PerPieceType<PieceTypeBuilder>,
     /// Map from piece type name to ID.
     piece_types_by_name: HashMap<String, PieceType>,
+    /// Map from piece type name to user-friendly display name.
+    piece_type_display_names: IndexMap<String, String>,
     /// Piece types that got overwritten.
     overwritten_piece_types: Vec<(Piece, PieceType)>,
 
@@ -54,6 +58,7 @@ impl ShapeBuilder {
 
             piece_types: PerPieceType::new(),
             piece_types_by_name: HashMap::new(),
+            piece_type_display_names: IndexMap::new(),
             overwritten_piece_types: vec![],
 
             colors: ColorSystemBuilder::new(),
@@ -234,7 +239,33 @@ impl ShapeBuilder {
     }
     /// Returns the piece type with the given name, creating one if it does not
     /// exist.
-    pub fn get_or_add_piece_type(&mut self, name: String) -> Result<PieceType, IndexOverflow> {
+    pub fn get_or_add_piece_type(
+        &mut self,
+        name: String,
+        display: Option<String>,
+    ) -> Result<PieceType> {
+        for segment in name.split('/') {
+            crate::validate_id_str(segment)?;
+        }
+
+        // Check display name.
+        if let Some(new_display) = display {
+            match self.piece_type_display_names.entry(name.clone()) {
+                indexmap::map::Entry::Occupied(e) => {
+                    let old_display = e.get();
+                    if *old_display != new_display {
+                        bail!(
+                            "conflicting display names for piece type \
+                             {name:?}: {old_display:?} and {new_display:?}",
+                        );
+                    }
+                }
+                indexmap::map::Entry::Vacant(e) => {
+                    e.insert(new_display);
+                }
+            }
+        }
+
         // TODO: validate piece type name
         match self.piece_types_by_name.entry(name.clone()) {
             hash_map::Entry::Occupied(e) => Ok(*e.get()),
@@ -254,10 +285,17 @@ impl ShapeBuilder {
     pub fn mark_piece_by_region(
         &mut self,
         name: &str,
+        display: Option<String>,
         has_point: impl Fn(&Vector) -> bool,
         warn_fn: impl Fn(eyre::Error),
-    ) -> Result<(), IndexOverflow> {
-        let piece_type = self.get_or_add_piece_type(name.to_string())?;
+    ) -> Result<()> {
+        let piece_type = match self.get_or_add_piece_type(name.to_string(), display) {
+            Ok(id) => id,
+            Err(e) => {
+                warn_fn(e);
+                return Ok(());
+            }
+        };
         let mut count = 0;
 
         for piece in self.active_pieces.clone() {
@@ -334,15 +372,18 @@ impl ShapeBuilder {
     }
 
     /// Marks pieces without a piece type as having some default type.
-    pub fn mark_untyped_pieces(&mut self) -> Result<(), IndexOverflow> {
+    pub fn mark_untyped_pieces(&mut self) -> Result<()> {
         let untyped_pieces = self
             .active_pieces
             .iter()
             .filter(|&p| self.pieces[p].piece_type.is_none())
             .collect_vec();
         if !untyped_pieces.is_empty() {
+            self.piece_type_display_names
+                .entry(DEFAULT_PIECE_TYPE_NAME.to_string())
+                .or_insert_with(|| DEFAULT_PIECE_TYPE_DISPLAY.to_string());
             let default_piece_type =
-                self.get_or_add_piece_type(DEFAULT_PIECE_TYPE_NAME.to_string())?;
+                self.get_or_add_piece_type(DEFAULT_PIECE_TYPE_NAME.to_string(), None)?;
             for p in untyped_pieces {
                 if self.pieces[p].piece_type.is_none() {
                     self.mark_piece(p, default_piece_type);
@@ -353,7 +394,7 @@ impl ShapeBuilder {
     }
 
     /// Constructs a mesh and assembles piece & sticker data for the shape.
-    pub fn build(&self, warn_fn: impl Fn(eyre::Error)) -> Result<ShapeBuildOutput> {
+    pub fn build(&self, warn_fn: impl Copy + Fn(eyre::Error)) -> Result<ShapeBuildOutput> {
         let space = &self.space;
         let ndim = space.ndim();
 
@@ -362,6 +403,11 @@ impl ShapeBuilder {
 
         let piece_types = self.piece_types.map_ref(|_, piece_type| PieceTypeInfo {
             name: piece_type.name.clone(),
+            display: self
+                .piece_type_display_names
+                .get(&piece_type.name)
+                .unwrap_or(&piece_type.name)
+                .clone(),
         });
         if !self.overwritten_piece_types.is_empty() {
             let count = self.overwritten_piece_types.len();
@@ -502,11 +548,18 @@ impl ShapeBuilder {
             mesh.add_puzzle_surface(surface_data.centroid.center(), surface_data.normal)?;
         }
 
+        let piece_type_hierarchy =
+            build_piece_type_hierarchy(&piece_types, &self.piece_type_display_names, warn_fn);
+
+        let piece_type_masks = build_piece_type_masks(&pieces, &piece_types);
+
         Ok(ShapeBuildOutput {
             mesh,
             pieces,
             stickers,
             piece_types,
+            piece_type_hierarchy,
+            piece_type_masks,
         })
     }
 }
@@ -517,6 +570,8 @@ pub struct ShapeBuildOutput {
     pub pieces: PerPiece<PieceInfo>,
     pub stickers: PerSticker<StickerInfo>,
     pub piece_types: PerPieceType<PieceTypeInfo>,
+    pub piece_type_hierarchy: PieceTypeHierarchy,
+    pub piece_type_masks: HashMap<String, PieceMask>,
 }
 impl ShapeBuildOutput {
     fn new_empty(ndim: u8) -> Self {
@@ -525,6 +580,8 @@ impl ShapeBuildOutput {
             pieces: PerPiece::new(),
             stickers: PerSticker::new(),
             piece_types: PerPieceType::new(),
+            piece_type_hierarchy: PieceTypeHierarchy::new(0),
+            piece_type_masks: HashMap::new(),
         }
     }
 }
@@ -789,4 +846,58 @@ fn compute_sticker_shrink_vectors(
         (vertex.id(), shrink_vector)
     });
     Ok(shrink_vectors.collect())
+}
+
+fn build_piece_type_hierarchy(
+    piece_types: &PerPieceType<PieceTypeInfo>,
+    piece_type_display_names: &IndexMap<String, String>,
+    warn_fn: impl Fn(eyre::Report),
+) -> PieceTypeHierarchy {
+    let mut ret = PieceTypeHierarchy::new(piece_types.len());
+
+    for (path, display_name) in piece_type_display_names {
+        if let Err(e) = ret.set_display(path, display_name.clone()) {
+            warn_fn(e);
+        }
+    }
+
+    for (id, piece_type_info) in piece_types {
+        if let Err(e) = ret.set_piece_type_id(&piece_type_info.name, id) {
+            warn_fn(e);
+        }
+    }
+
+    for path in ret.paths_with_no_display_name() {
+        warn_fn(eyre!("piece type {path:?} has no display name"));
+    }
+
+    ret
+}
+
+fn build_piece_type_masks(
+    pieces: &PerPiece<PieceInfo>,
+    piece_types: &PerPieceType<PieceTypeInfo>,
+) -> HashMap<String, PieceMask> {
+    let mut ret = HashMap::new();
+
+    for (piece_type_id, piece_type_info) in piece_types {
+        let mask = PieceMask::from_iter(
+            pieces.len(),
+            pieces
+                .iter_filter(|_piece_id, piece_info| piece_info.piece_type == Some(piece_type_id)),
+        );
+
+        for path in PieceTypeHierarchy::path_prefixes(&piece_type_info.name) {
+            match ret.entry(path.to_owned()) {
+                hash_map::Entry::Occupied(e) => {
+                    *e.into_mut() |= &mask;
+                }
+                hash_map::Entry::Vacant(e) => {
+                    e.insert(mask.clone());
+                }
+            }
+        }
+    }
+
+    ret
 }

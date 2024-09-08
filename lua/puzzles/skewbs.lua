@@ -83,24 +83,24 @@ function define_skewb(size, name)
             name = string.format('obliques (%d, %d) (right)', i-1, j-1)
             name2 = string.format('obliques (%d, %d) (left)', i-1, j-1)
           end
-          self:mark_pieces(name, F(1) & L(i) & R(j))
+          self:mark_piece(name, F(1) & L(i) & R(j))
           if name2 ~= '' then
-            self:mark_pieces(name2, F(1) & L(j) & R(i))
+            self:mark_piece(name2, F(1) & L(j) & R(i))
           end
         end
       end
 
       for i = 2, floor(size/2) do
-        self:mark_pieces(string.format('outer x-centers (%d)', i-1), BD(i) & L(1) & R(1))
-        self:mark_pieces(string.format('inner x-centers (%d)', i-1), BD(size+1-i) & L(1) & R(1))
+        self:mark_piece(string.format('outer x-centers (%d)', i-1), BD(i) & L(1) & R(1))
+        self:mark_piece(string.format('inner x-centers (%d)', i-1), BD(size+1-i) & L(1) & R(1))
       end
 
       if size % 2 == 1 then
-        name = self:mark_pieces(middle_prefix .. 'x-centers', U(center_layer) & L(1) & R(1))
+        name = self:mark_piece(middle_prefix .. 'x-centers', U(center_layer) & L(1) & R(1))
       end
 
-      self:mark_pieces('centers', F(1) & R(1) & U(1) & L(1))
-      self:mark_pieces('corners', L(1) & R(1) & BD(1))
+      self:mark_piece('centers', F(1) & R(1) & U(1) & L(1))
+      self:mark_piece('corners', L(1) & R(1) & BD(1))
       self:unify_piece_types(sym.chiral)
     end,
   })
@@ -149,7 +149,7 @@ puzzles:add('dino_cube', {
     local U = self.axes.U
     local BD = self.axes.BD
 
-    self:mark_pieces('edges', R(1) & U(1))
+    self:mark_piece('edges', R(1) & U(1))
     self:unify_piece_types(sym.chiral)
   end,
 })
@@ -187,12 +187,9 @@ puzzles:add('compy_cube', {
     local U = self.axes.U
     local BD = self.axes.BD
 
-    self:mark_pieces('edges', R(1) & U(1))
-    self:mark_pieces('corners', U(1) & ~R(1) & ~L(1) & ~BD(1))
-    self:mark_pieces('core', sym:orbit(~U'*'):intersection())
+    self:mark_piece('edges', R(1) & U(1))
+    self:mark_piece('corners', U(1) & ~R(1) & ~L(1) & ~BD(1))
+    self:mark_piece('core', sym:orbit(~U'*'):intersection())
     self:unify_piece_types(sym.chiral)
   end,
 })
-
-
-

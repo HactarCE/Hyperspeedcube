@@ -48,9 +48,18 @@ pub const DEFAULT_COLOR_GRADIENT_NAME: &str = "Rainbow";
 ///   forwards-compatibility.
 pub const NAME_REGEX: &str = r"[a-zA-Z_][a-zA-Z0-9_]*";
 
+/// Returns `s` if it is a valid ID for a puzzle or puzzle element, or an error
+/// if it not.
+///
+/// Internally, this calls [`validate_id_str()`].
 fn validate_id(s: String) -> eyre::Result<String> {
+    validate_id_str(&s).map(|_| s)
+}
+
+/// Returns an error if `s` is not a valid ID for a puzzle or puzzle element.
+fn validate_id_str(s: &str) -> eyre::Result<()> {
     if !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_') {
-        Ok(s)
+        Ok(())
     } else {
         Err(eyre::eyre!(
             "invalid ID; ID must be nonempty and contain \

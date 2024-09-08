@@ -31,7 +31,7 @@ float-ord = "0.3.2"
 getrandom = { version = "*", features = ["js"] } # TODO: prefer `rand` crate
 image = "0.24.9"
 include_dir = "0.7.4"
-indexmap = { version = "2.2.6", features = ["serde"] } # must match serde_yml
+indexmap = { version = "2.4.0", features = ["serde"] } # must match serde_yml
 instant = "0.1.12"
 itertools = "0.13.0"
 key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }

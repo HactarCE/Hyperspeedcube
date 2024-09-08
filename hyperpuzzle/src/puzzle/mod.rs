@@ -6,6 +6,7 @@ mod layers;
 mod mesh;
 mod metric;
 mod notation;
+mod piece_type_hierarchy;
 mod puzzle_type;
 mod state;
 
@@ -16,5 +17,6 @@ pub use layers::LayerMask;
 pub use mesh::*;
 pub use metric::TwistMetric;
 pub use notation::Notation;
+pub use piece_type_hierarchy::*;
 pub use puzzle_type::Puzzle;
 pub use state::PuzzleState;

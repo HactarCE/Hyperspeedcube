@@ -8,3 +8,7 @@ math.rad = nil
 math.tau = math.pi * 2
 math.degree = math.pi / 180
 math.phi = (1 + math.sqrt(5)) / 2
+
+function string.fmt2(s1, s2, ...)
+  return string.format(s1, ...), string.format(s2, ...)
+end
