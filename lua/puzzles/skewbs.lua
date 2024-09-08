@@ -34,14 +34,6 @@ function define_skewb(size, name)
     meta = {
       author = 'Milo Jacquet',
     },
-    -- piece_types = {
-    --   { id = 'centers', name = "Centers" },
-    --   {
-    --     id = 'moving', name = "Moving pieces",
-    --     { id = 'edges', name = "Edges" },
-    --     { id = 'corners', name = "Corners" },
-    --   },
-    -- },
     build = function(self)
       local sym = cd'bc3'
       local shape = symmetries.cubic.cube()
@@ -63,44 +55,92 @@ function define_skewb(size, name)
 
       local center_layer = ceil(size/2)
 
-      local middle_prefix = ''
-      if size > 3 then
-        middle_prefix = 'middle '
-      end
-
       -- Centers
       for i = 2, center_layer do
         for j = i, size+1-i do
-          local name
-          local name2 = ''
+          local name, display
+          local name2, display2
           if i == j and j*2 - 1 == size then
-            name = middle_prefix .. 'edges'
+            if size > 3 then
+              name, display = 'edge/middle', "Middle edge"
+            else
+              name, display = 'edge', "Edge"
+            end
           elseif i == j then
-            name = string.format('wings (%d)', i-1)
+            name, display = string.fmt2("edge/wing_%d", "Wing (%d)", i-1)
           elseif i + j == size+1 then
-            name = string.format('t-centers (%d)', i-1)
+            name, display = string.fmt2('center/t_%d', "T-center (%d)", i-1)
           else
-            name = string.format('obliques (%d, %d) (right)', i-1, j-1)
-            name2 = string.format('obliques (%d, %d) (left)', i-1, j-1)
+            name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
+            self:add_piece_type{ name = name, display = display }
+            name2 = name .. '/right'
+            display2 = display .. " (right)"
+            name = name .. '/left'
+            display = display .. " (left)"
           end
-          self:mark_piece(name, F(1) & L(i) & R(j))
-          if name2 ~= '' then
-            self:mark_piece(name2, F(1) & L(j) & R(i))
+          self:mark_piece{
+            region = F(1) & L(j) & R(i),
+            name = name,
+            display = display,
+          }
+          if name2 ~= nil then
+            self:mark_piece{
+              region = F(1) & L(i) & R(j),
+              name = name2,
+              display = display2,
+            }
           end
         end
       end
 
       for i = 2, floor(size/2) do
-        self:mark_piece(string.format('outer x-centers (%d)', i-1), BD(i) & L(1) & R(1))
-        self:mark_piece(string.format('inner x-centers (%d)', i-1), BD(size+1-i) & L(1) & R(1))
+        local name, display = string.fmt2('center/x/outer_%d', "Outer X-center (%d)", i-1)
+        self:mark_piece{
+          region = BD(i) & L(1) & R(1),
+          name = name,
+          display = display,
+        }
+
+        local name, display = string.fmt2('center/x/inner_%d', "Inner X-center (%d)", i-1)
+        self:mark_piece{
+          region = BD(size+1-i) & L(1) & R(1),
+          name = name,
+          display = display,
+        }
       end
 
       if size % 2 == 1 then
-        name = self:mark_piece(middle_prefix .. 'x-centers', U(center_layer) & L(1) & R(1))
+        local name, display
+        if size > 3 then
+          name, display = 'center/x/middle', "Middle X-center"
+        else
+          name, display = 'center/x', "X-center"
+        end
+        name = self:mark_piece{
+          region = U(center_layer) & L(1) & R(1),
+          name = name,
+          display = display,
+        }
       end
 
-      self:mark_piece('centers', F(1) & R(1) & U(1) & L(1))
-      self:mark_piece('corners', L(1) & R(1) & BD(1))
+      local name, display
+      if size > 3 then
+        name, display = 'center/middle', "Middle center"
+      else
+        name, display = 'center', "Center"
+      end
+      self:mark_piece{
+        region = F(1) & R(1) & U(1) & L(1),
+        name = name,
+        display = display,
+      }
+
+      self:mark_piece{
+        region = L(1) & R(1) & BD(1),
+        name = 'corner',
+        display = "Corner",
+      }
+
       self:unify_piece_types(sym.chiral)
     end,
   })
@@ -149,7 +189,12 @@ puzzles:add('dino_cube', {
     local U = self.axes.U
     local BD = self.axes.BD
 
-    self:mark_piece('edges', R(1) & U(1))
+    self:mark_piece{
+      region =  R(1) & U(1),
+      name = 'edge',
+      display = "Edge",
+    }
+
     self:unify_piece_types(sym.chiral)
   end,
 })
@@ -187,9 +232,21 @@ puzzles:add('compy_cube', {
     local U = self.axes.U
     local BD = self.axes.BD
 
-    self:mark_piece('edges', R(1) & U(1))
-    self:mark_piece('corners', U(1) & ~R(1) & ~L(1) & ~BD(1))
-    self:mark_piece('core', sym:orbit(~U'*'):intersection())
+    self:mark_piece{
+      region = R(1) & U(1),
+      name = 'edge',
+      display = 'Edge',
+    }
+    self:mark_piece{
+      region = U(1) & ~R(1) & ~L(1) & ~BD(1),
+      name = 'corner',
+      display = 'Corner',
+    }
+    self:mark_piece{
+      region = sym:orbit(~U'*'):intersection(), -- TODO: construct 'everything' region
+      name = 'core',
+      display = 'Core',
+    }
     self:unify_piece_types(sym.chiral)
   end,
 })

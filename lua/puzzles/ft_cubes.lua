@@ -50,6 +50,7 @@ function define_ft_cube_3d(size)
       local U = self.axes.U
       local F = self.axes.F
 
+      -- Mark piece types
       if size == 1 then
         self:mark_piece{
           region = ~U'*', -- TODO: construct 'everything' region
@@ -61,7 +62,6 @@ function define_ft_cube_3d(size)
 
         -- Centers
         self:add_piece_type{ name = 'center', display = "Center" }
-        self:add_piece_type{ name = 'edge', display = "Edge" }
         for i = 2, center_layer do
           for j = 2, precenter_layer do
             local name, display
@@ -89,6 +89,8 @@ function define_ft_cube_3d(size)
           end
         end
 
+        -- Edges
+        self:add_piece_type{ name = 'edge', display = "Edge" }
         for i = 2, precenter_layer do
           local name, display = string.fmt2('edge/wing_%d', "Wing (%d)", i-1)
           self:mark_piece{
@@ -98,7 +100,7 @@ function define_ft_cube_3d(size)
           }
         end
 
-        -- this is so, on a big cube, 'edges' and 'centers' can refer to 2c and 1c
+        -- Middle centers and edges
         local middle_suffix = ''
         local center_display, edge_display -- nil is ok here
         if size > 3 then
@@ -125,6 +127,7 @@ function define_ft_cube_3d(size)
           name = 'corner',
           display = "Corner",
         }
+
         self:unify_piece_types(sym.chiral)
       end
     end,
@@ -189,15 +192,39 @@ function define_ft_cube_4d(size)
       local I = self.axes.I
 
       if size == 1 then
-        self:mark_piece('core', ~U'*') -- TODO: construct 'everything' region
+        self:mark_piece{
+          region = ~U'*', -- TODO: construct 'everything' region
+          name = 'core',
+          display = "Core",
+        }
       else
+        -- TODO: more piece types
+
         if size >= 3 then
           local mid = '{2-' .. (size-1) .. '}'
-          self:mark_piece('centers', U(1) & R(mid) & F(mid) & I(mid))
-          self:mark_piece('ridges', U(1) & R(1) & F(mid) & I(mid))
-          self:mark_piece('edges', U(1) & R(1) & F(1) & I(mid))
+          self:mark_piece{
+            region = U(1) & R(mid) & F(mid) & I(mid),
+            name = 'center',
+            display = 'Center',
+          }
+          self:mark_piece{
+            region = U(1) & R(1) & F(mid) & I(mid),
+            name = 'ridge',
+            display = 'Ridge',
+          }
+          self:mark_piece{
+            region = U(1) & R(1) & F(1) & I(mid),
+            name = 'edge',
+            display = 'Edge',
+          }
         end
-        self:mark_piece('corners', U(1) & F(1) & R(1) & I(1))
+
+        self:mark_piece{
+          region = U(1) & F(1) & R(1) & I(1),
+          name = 'corner',
+          display = "Corner",
+        }
+
         self:unify_piece_types(sym.chiral)
       end
     end,

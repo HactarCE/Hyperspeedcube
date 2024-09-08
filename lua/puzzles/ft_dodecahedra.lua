@@ -25,14 +25,6 @@ function define_ft_dodecahedron(size, id, name)
     meta = {
       author = {'Andrew Farkas', 'Milo Jacquet'},
     },
-    -- piece_types = {
-    --   { id = 'centers', name = "Centers" },
-    --   {
-    --     id = 'moving', name = "Moving pieces",
-    --     { id = 'edges', name = "Edges" },
-    --     { id = 'corners', name = "Corners" },
-    --   },
-    -- },
     build = function(self)
       local sym = cd'h3'
       local shape = symmetries.dodecahedral.dodecahedron()
@@ -46,51 +38,92 @@ function define_ft_dodecahedron(size, id, name)
         self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
       end
 
+      local center_layer = size + 1
       local R = self.axes.R
       local L = self.axes.L
       local U = self.axes.U
       local F = self.axes.F
 
+      -- Mark piece types
       if size == 0 then
-        self:mark_piece('core', ~U'*') -- TODO: construct 'everything' region
-        return
+        self:mark_piece{
+          region = ~U'*', -- TODO: construct 'everything' region
+          name = 'core',
+          display = "Core",
+        }
       else
         local U_adj = symmetry{self.twists.U}:orbit(R('*')):union()
 
         -- Centers
-        for i = 2, size do
+        self:add_piece_type{ name = 'center', display = "Center" }
+        for i = 2, center_layer do
           for j = 2, size do
-            local name
-            if i == j then
-              name = string.format('x-centers (%d)', i-1)
+            local region
+            if i == center_layer then
+              region = U(1) & F(j) & ~R(1, size) & ~L(1, size)
+            else
+              region = U(1) & R(i) & F(j)
+            end
+
+            local name, display
+            if i == center_layer then
+              name, display = string.fmt2('center/t_%d', "T-center (%d)", j-1)
+            elseif i == j then
+              name, display = string.fmt2('center/x_%d', "X-center (%d)", i-1)
             else
               if i < j then
-                name = string.format('obliques (%d, %d) (left)', i-1, j-1)
+                name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
+                self:add_piece_type{ name = name, display = display }
+                name = name .. '/left'
+                display = display .. " (left)"
               else
-                name = string.format('obliques (%d, %d) (right)', j-1, i-1)
+                name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
+                name = name .. '/right'
+                display = display .. " (right)"
               end
             end
-            self:mark_piece(name, U(1) & R(i) & F(j))
+            self:mark_piece{ region = region, name = name, display = display }
           end
         end
 
+        -- Edges
+        self:add_piece_type{ name = 'edge', display = "Edge" }
         for i = 2, size do
-          self:mark_piece(string.format('t-centers (%d)', i-1), U(1) & F(i) & ~R(1, size) & ~L(1, size))
-          self:mark_piece(string.format('wings (%d)', i-1), U(1) & F(1) & R(i))
+
+          local name, display = string.fmt2('edge/wing_%d', "Wing (%d)", i-1)
+          self:mark_piece{
+            region = U(1) & F(1) & R(i),
+            name = name,
+            display = display,
+          }
         end
 
-        -- this is so, on a big cube, 'edges' and 'centers' can refer to 2c and 1c
-        local middle_prefix
+        -- Middle centers and edges
+        local middle_suffix = ''
+        local center_display, edge_display -- nil is ok here
         if size > 1 then
-          middle_prefix = 'middle '
-        else
-          middle_prefix = ''
+          middle_suffix = '/middle'
+          center_display = "Middle center"
+          edge_display = "Middle edge"
         end
 
-        self:mark_piece(middle_prefix .. 'centers', U(1) & ~U_adj)
-        self:mark_piece(middle_prefix .. 'edges', U(1) & F(1) & ~R(1, size) & ~L(1, size))
+        self:mark_piece{
+          region = U(1) & ~U_adj,
+          name = 'center' .. middle_suffix,
+          display = center_display,
+        }
+        self:mark_piece{
+          region = U(1) & F(1) & ~R(1, size) & ~L(1, size),
+          name = 'edge' .. middle_suffix,
+          display = edge_display,
+        }
 
-        self:mark_piece('corners', U(1) & F(1) & R(1))
+        self:mark_piece{
+          region = U(1) & F(1) & R(1),
+          name = 'corner',
+          display = "Corner",
+        }
+
         self:unify_piece_types(sym.chiral)
       end
     end,
@@ -137,10 +170,26 @@ puzzles:add('megaminx_crystal', {
     local BR = self.axes.BR
     local DR = self.axes.DR
 
-    self:mark_piece('centers', U(1) & symmetry{self.twists.U}:orbit(R(2)):intersection())
-    self:mark_piece('megaminx edges', U(1) & F(1) & R(2) & L(2))
-    self:mark_piece('corners', L(2) & BR(2) & DR(2) & U(1) & R(1) & F(1))
-    self:mark_piece('crystal edges', L(1) & R(1))
+    self:mark_piece{
+      region = U(1) & symmetry{self.twists.U}:orbit(R(2)):intersection(),
+      name = 'center',
+      display = "Center",
+    }
+    self:mark_piece{
+      region = U(1) & F(1) & R(2) & L(2),
+      name = 'megaminx_edge',
+      display = "Megaminx edge",
+    }
+    self:mark_piece{
+      region = L(2) & BR(2) & DR(2) & U(1) & R(1) & F(1),
+      name = 'corner',
+      display = "Corner",
+    }
+    self:mark_piece{
+      region = L(1) & R(1),
+      name = 'crystal_edge',
+      display = "Crystal edge",
+    }
     self:unify_piece_types(sym.chiral)
   end,
 })
@@ -173,8 +222,16 @@ puzzles:add('pyraminx_crystal', {
     local BR = self.axes.BR
     local DR = self.axes.DR
 
-    self:mark_piece('corners', L(2) & BR(2) & DR(2) & U(1))
-    self:mark_piece('edges', L(1) & R(1))
+    self:mark_piece{
+      region = L(2) & BR(2) & DR(2) & U(1),
+      name = 'corner',
+      display = "Corner",
+    }
+    self:mark_piece{
+      region = L(1) & R(1),
+      name = 'edge',
+      display = "Edge",
+    }
     self:unify_piece_types(sym.chiral)
   end,
 })
@@ -192,7 +249,7 @@ puzzles:add('curvy_starminx', {
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    depth = 0.33 -- intermediate puzzle
+    local depth = 0.33 -- intermediate puzzle
     self.axes:add(shape:iter_poles(), {depth, -depth})
 
     -- Define twists
@@ -208,10 +265,26 @@ puzzles:add('curvy_starminx', {
     local BL = self.axes.BL
     local DR = self.axes.DR
 
-    self:mark_piece('corners', L(2) & BR(2) & DR(2) & U(1))
-    self:mark_piece('edges', BR(2) & BL(2) & R(1) & L(1))
-    self:mark_piece('x-centers', F(2) & R(1) & BR(1) & BL(1) & L(1))
-    self:mark_piece('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
+    self:mark_piece{
+      region = L(2) & BR(2) & DR(2) & U(1),
+      name = 'corner',
+      display = "Corner",
+    }
+    self:mark_piece{
+      region = BR(2) & BL(2) & R(1) & L(1),
+      name = 'edge',
+      display = "Edge",
+    }
+    self:mark_piece{
+      region = F(2) & R(1) & BR(1) & BL(1) & L(1),
+      name = 'x_center',
+      display = "X-center",
+    }
+    self:mark_piece{
+      region = F(1) & R(1) & BR(1) & BL(1) & L(1),
+      name = 'center',
+      display = "Center",
+    }
     self:unify_piece_types(sym.chiral)
   end,
 })
@@ -229,7 +302,7 @@ puzzles:add('starminx', {
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    depth = sqrt(5) - 2
+    local depth = sqrt(5) - 2
     self.axes:add(shape:iter_poles(), {depth, -depth})
 
     -- Define twists
@@ -245,9 +318,21 @@ puzzles:add('starminx', {
     local BL = self.axes.BL
     local DR = self.axes.DR
 
-    self:mark_piece('edges', BR(2) & BL(2) & R(1) & L(1))
-    self:mark_piece('x-centers', U(2) & L(1) & R(1))
-    self:mark_piece('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
+    self:mark_piece{
+      region = BR(2) & BL(2) & R(1) & L(1),
+      name = 'edge',
+      display = "edge",
+    }
+    self:mark_piece{
+      region = U(2) & L(1) & R(1),
+      name = 'x_center',
+      display = "X-center",
+    }
+    self:mark_piece{
+      region = F(1) & R(1) & BR(1) & BL(1) & L(1),
+      name = 'center',
+      display = "Center",
+    }
     self:unify_piece_types(sym.chiral)
   end,
 })
@@ -315,36 +400,84 @@ function define_pentultimate(size, name)
       -- Centers
       for i = 2, center_layer do
         for j = i, size+1-i do
-          local name
-          local name2 = ''
+          local name, display
+          local name2, display2
           if i == j and j*2 - 1 == size then
-            name = middle_prefix .. 'edges'
+            if size > 3 then
+              name = 'edge/middle'
+              display = "Middle edge"
+            else
+              name = 'edge'
+              display = "Edge"
+            end
           elseif i == j then
-            name = string.format('wings (%d)', i-1)
+            name, display = string.fmt2('edge/wing_%d', "Wing (%d)", i-1)
           elseif i + j == size+1 then
-            name = string.format('t-centers (%d)', i-1)
+            name, display = string.fmt2('center/t_%d', "T-center (%d)", i-1)
           else
-            name = string.format('obliques (%d, %d) (right)', i-1, j-1)
-            name2 = string.format('obliques (%d, %d) (left)', i-1, j-1)
+            name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
+            self:add_piece_type{ name = name, display = display }
+            name2 = name .. '/right'
+            display2 = display .. " (right)"
+            name = name .. '/left'
+            display = display .. " (left)"
           end
-          self:mark_piece(name, U(1) & BL(i) & DL(j))
-          if name2 ~= '' then
-            self:mark_piece(name2, U(1) & BL(j) & DL(i))
+          self:mark_piece{
+            region = U(1) & BL(j) & DL(i),
+            name = name,
+            display = display,
+          }
+          if name2 ~= nil then
+            self:mark_piece{
+              region = U(1) & BL(i) & DL(j),
+              name = name2,
+              display = display2,
+            }
           end
         end
       end
 
       for i = 2, floor(size/2) do
-        self:mark_piece(string.format('outer x-centers (%d)', i-1), DR(i) & L(1) & BR(1))
-        self:mark_piece(string.format('inner x-centers (%d)', i-1), DR(size+1-i) & L(1) & BR(1))
+        local name, display = string.fmt2('center/x_outer_%d', "Outer X-center (%d)", i-1)
+        self:mark_piece{
+          region = DR(i) & L(1) & BR(1),
+          name = name,
+          display = display
+        }
+        name, display = string.fmt2('center/x_inner_%d', "Inner X-center (%d)", i-1)
+        self:mark_piece{
+          region = DR(size+1-i) & L(1) & BR(1),
+          name = name,
+          display = display
+        }
       end
 
       if size % 2 == 1 then
-        name = self:mark_piece(middle_prefix .. 'x-centers', DR(center_layer) & L(1) & BR(1))
+        local name, display
+        if size > 3 then
+          name = 'center/x_middle'
+          display = "Middle X-center"
+        else
+          name = 'center/x'
+          display = "X-center"
+        end
+        name = self:mark_piece{
+          region = DR(center_layer) & L(1) & BR(1),
+          name = name,
+          display = display,
+        }
       end
 
-      self:mark_piece('centers', F(1) & R(1) & BR(1) & BL(1) & L(1))
-      self:mark_piece('corners', L(1) & BR(1) & DR(1))
+      self:mark_piece{
+        region = F(1) & R(1) & BR(1) & BL(1) & L(1),
+        name = 'center',
+        display = "Center",
+      }
+      self:mark_piece{
+        region = L(1) & BR(1) & DR(1),
+        name = 'corner',
+        display = "Corner",
+      }
       self:unify_piece_types(sym.chiral)
     end,
   })
