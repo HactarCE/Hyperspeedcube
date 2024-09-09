@@ -150,13 +150,13 @@ impl<'v, 's> TextEditPopup<'v, 's> {
 
     /// Opens the popup.
     pub fn open(&mut self, initial_value: String) {
-        self.ctx.memory_mut(|mem| mem.open_popup(self.new_name.id));
-        self.new_name.set(Some(initial_value));
+        self.keep_open(initial_value);
         self.is_first_frame = true;
     }
     /// Keeps the popup open, assuming it was already open.
-    pub fn keep_open(&mut self) {
+    pub fn keep_open(&mut self, initial_value: String) {
         self.ctx.memory_mut(|mem| mem.open_popup(self.new_name.id));
+        self.new_name.set(Some(initial_value));
     }
     /// Toggles the popup and returns whether it is now open.
     pub fn toggle(&mut self, initial_value: String) -> bool {

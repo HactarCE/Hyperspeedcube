@@ -707,7 +707,7 @@ pub fn color_edit(
         hex_edit_popup.open(color.to_string());
     }
     if reopen.reset() {
-        hex_edit_popup.keep_open();
+        hex_edit_popup.keep_open(color.to_string());
     }
     let popup_response = hex_edit_popup.if_open(|popup| {
         popup
