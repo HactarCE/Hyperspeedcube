@@ -193,7 +193,7 @@ impl<'a> ColorsUi<'a> {
                         ui.vertical(|ui| {
                             ui.add(
                                 egui::Label::new(egui::RichText::from(group_name).strong())
-                                    .wrap_mode(egui::TextWrapMode::Wrap),
+                                    .wrap_mode(egui::TextWrapMode::Extend),
                             );
                             ui.spacing_mut().item_spacing.x = small_space;
                             for (set_name, _set) in sets {
