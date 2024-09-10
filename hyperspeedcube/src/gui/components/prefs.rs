@@ -375,6 +375,7 @@ pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreference
         prefs_ui.checkbox(&l.realign_puzzle_on_release, access!(.realign_on_release));
         prefs_ui.checkbox(&l.realign_puzzle_on_keypress, access!(.realign_on_keypress));
         prefs_ui.checkbox(&l.smart_realign, access!(.smart_realign));
+        prefs_ui.checkbox(&l.middle_click_delete, access!(.middle_click_delete));
     });
 }
 pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) {

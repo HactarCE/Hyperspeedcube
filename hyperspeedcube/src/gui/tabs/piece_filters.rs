@@ -546,12 +546,8 @@ fn show_preset_name(
     let r = r.inner.on_hover_ui(|ui| {
         md(ui, L.click_to.activate.with(L.inputs.click));
         md(ui, L.click_to.rename.with(L.inputs.right_click));
-        md(ui, L.click_to.delete.with(L.inputs.middle_click));
+        crate::gui::md_middle_click_to_delete(ui);
     });
-
-    let mods = ui.input(|input| input.modifiers);
-    let cmd = mods.command;
-    let alt = mods.alt;
 
     // Click to activate
     if r.clicked() {
@@ -593,7 +589,7 @@ fn show_preset_name(
     }
 
     // Alt+click to delete
-    if r.middle_clicked() || alt && !cmd && r.clicked() {
+    if crate::gui::middle_clicked(ui, &r) {
         *to_delete = Some(name.clone());
     }
 }
@@ -638,7 +634,7 @@ fn show_current_filter_preset_ui_contents(
         yaml: None,
         save_status: PresetSaveStatus::Autosave,
 
-        save_changes: &mut false,
+        save_preset: &mut false,
     });
 
     let puz = p.puzzle();

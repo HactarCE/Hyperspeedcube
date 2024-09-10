@@ -11,4 +11,6 @@ pub struct InteractionPreferences {
     pub realign_on_release: bool,
     pub realign_on_keypress: bool,
     pub smart_realign: bool,
+
+    pub middle_click_delete: bool,
 }

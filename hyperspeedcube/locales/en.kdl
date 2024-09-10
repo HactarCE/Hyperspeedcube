@@ -128,7 +128,8 @@ click_to {
 inputs {
   click "**Click**"
   right_click "**Right-click**"
-  middle_click "**Middle-click** or **alt + click**"
+  middle_click_or_alt_click "**Middle-click** or **alt + click**"
+  alt_click "**Alt + click**"
   drag "**Drag**"
 }
 
@@ -342,6 +343,11 @@ prefs {
       (HoverStrings)smart_realign "Smart realign" {
         desc r#"
           When enabled, the puzzle snaps to the nearest similar orientation, not the original. This adds a full-puzzle rotation to the undo history.
+        "#
+      }
+      (HoverStrings)middle_click_delete "Middle click to delete" {
+        desc r#"
+          When enabled, **middle-click** on some UI elements (presets, custom colors, etc.) to delete them. **Alt+click** always works.
         "#
       }
     }

@@ -177,10 +177,6 @@ where
 
         let can_delete = self.presets.len() > 1;
 
-        let mods = ui.input(|input| input.modifiers);
-        let cmd = mods.command;
-        let alt = mods.alt;
-
         let mut preset_to_activate = None;
         let preset_to_edit = EguiTempValue::new(ui);
         let mut preset_to_delete = None;
@@ -231,7 +227,7 @@ where
                             L.click_to.activate.with(L.inputs.click),
                             L.click_to.rename.with(L.inputs.right_click),
                             L.click_to.reorder.with(L.inputs.drag),
-                            L.click_to.delete.with(L.inputs.middle_click),
+                            crate::gui::middle_click_to_delete_text(ui),
                         ] {
                             md(ui, action);
                         }
@@ -248,7 +244,7 @@ where
                     }
 
                     // Middle-click -> Delete preset
-                    if r.middle_clicked() || alt && !cmd && r.clicked() {
+                    if crate::gui::middle_clicked(ui, &r) {
                         preset_to_delete = Some(preset.name().clone());
                     }
 

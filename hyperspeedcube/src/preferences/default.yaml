@@ -46,6 +46,7 @@ interaction:
       realign_on_release: false
       realign_on_keypress: true
       smart_realign: true
+      middle_click_delete: true
 styles:
   dark_background_color: '#1b1b1b'
   light_background_color: '#f8f8f8'

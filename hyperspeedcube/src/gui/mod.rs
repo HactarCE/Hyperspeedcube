@@ -20,7 +20,7 @@ mod tabs;
 pub use tabs::{PuzzleWidget, Tab};
 
 pub use crate::app::App;
-use crate::preferences::ModifiedSimPrefs;
+use crate::{preferences::ModifiedSimPrefs, L};
 
 pub struct AppUi {
     pub app: App,
@@ -64,14 +64,17 @@ impl AppUi {
     }
 
     pub fn build(&mut self, ctx: &egui::Context) {
+        set_middle_click_delete(ctx, self.app.interaction_prefs.value.middle_click_delete);
+
+        let dark_mode = ctx.style().visuals.dark_mode;
+        let background_color = self.app.prefs.background_color(dark_mode);
+
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| menu_bar::build(ui, self));
 
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.label("todo");
         });
 
-        let dark_mode = ctx.style().visuals.dark_mode;
-        let background_color = self.app.prefs.background_color(dark_mode);
         egui::CentralPanel::default()
             .frame(egui::Frame::none().fill({
                 let [r, g, b] = background_color.rgb;
@@ -210,4 +213,32 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     fn on_add(&mut self, surface: SurfaceIndex, node: NodeIndex) {
         self.added_nodes.push((surface, node));
     }
+}
+
+fn middle_clicked(ui: &egui::Ui, r: &egui::Response) -> bool {
+    r.middle_clicked() && get_middle_click_delete(ui)
+        || ui.input(|input| input.modifiers.alt && !input.modifiers.command) && r.clicked()
+}
+fn get_middle_click_delete(ui: &egui::Ui) -> bool {
+    ui.data(|data| data.get_temp(middle_click_delete_id()))
+        .unwrap_or_default()
+}
+fn set_middle_click_delete(ctx: &egui::Context, middle_click_delete: bool) {
+    ctx.data_mut(|data| data.insert_temp(middle_click_delete_id(), middle_click_delete));
+}
+fn middle_click_delete_id() -> egui::Id {
+    unique_id!()
+}
+
+fn middle_click_to_delete_text(ui: &mut egui::Ui) -> String {
+    let input_text = if get_middle_click_delete(ui) {
+        L.inputs.middle_click_or_alt_click
+    } else {
+        L.inputs.alt_click
+    };
+    L.click_to.delete.with(&input_text)
+}
+fn md_middle_click_to_delete(ui: &mut egui::Ui) -> egui::Response {
+    let text = middle_click_to_delete_text(ui);
+    markdown::md(ui, text)
 }

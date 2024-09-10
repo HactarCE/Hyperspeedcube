@@ -685,17 +685,13 @@ pub fn color_edit(
         r = r.on_hover_ui(|ui| {
             md(ui, L.click_to.edit.with(L.inputs.click));
             md(ui, L.click_to.copy_hex.with(L.inputs.right_click));
-            md(ui, L.click_to.delete.with(L.inputs.middle_click));
+            crate::gui::md_middle_click_to_delete(ui);
         });
     }
 
-    let mods = ui.input(|input| input.modifiers);
-    let cmd = mods.command;
-    let alt = mods.alt;
-
     // Alt+click to delete
     if let Some(on_delete) = on_delete {
-        if r.middle_clicked() || alt && !cmd && r.clicked() {
+        if crate::gui::middle_clicked(ui, &r) {
             on_delete();
         }
     }
