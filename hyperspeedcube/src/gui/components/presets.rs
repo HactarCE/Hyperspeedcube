@@ -353,20 +353,16 @@ where
     ) where
         T: 'static + PartialEq + Serialize + for<'de> Deserialize<'de> + std::fmt::Debug,
     {
-        let mut save_changes = false;
-
-        let current_name = self.current.base.name();
+        let mut save_preset = false;
 
         let defaults = match self.presets.last_loaded() {
             Some(p) => p.value.clone(),
             None => T::default(),
         };
-        let is_unsaved = self.presets.is_modified(&self.current);
-        save_changes |= self.autosave && is_unsaved && self.presets.contains_key(&current_name);
 
         let yaml = PlaintextYamlEditor::<T>::new(ui);
 
-        let base_preset_name = current_name;
+        let base_preset_name = self.current.base.name();
 
         ui.add(PresetHeaderUi {
             text: self.text,
@@ -378,12 +374,12 @@ where
                 PresetSaveStatus::Autosave
             } else {
                 PresetSaveStatus::ManualSave {
-                    is_unsaved,
+                    is_unsaved: self.presets.is_modified(&self.current),
                     overwrite: self.presets.contains_key(&base_preset_name),
                 }
             },
 
-            save_changes: &mut save_changes,
+            save_preset: &mut save_preset,
         });
         ui.add_space(ui.spacing().item_spacing.y);
         egui::ScrollArea::new([true, self.vscroll])
@@ -411,7 +407,12 @@ where
                 }
             });
 
-        if save_changes {
+        let current_name = self.current.base.name();
+        save_preset |= self.autosave
+            && self.presets.is_modified(&self.current)
+            && self.presets.contains_key(&current_name);
+
+        if save_preset {
             self.presets.save_over_preset(&self.current);
             *self.changed = true;
         }
@@ -426,7 +427,7 @@ pub struct PresetHeaderUi<'a, T> {
     pub yaml: Option<(&'a PlaintextYamlEditor<T>, &'a T)>,
     pub save_status: PresetSaveStatus,
 
-    pub save_changes: &'a mut bool,
+    pub save_preset: &'a mut bool,
 }
 impl<T> egui::Widget for PresetHeaderUi<'_, T>
 where
@@ -437,7 +438,7 @@ where
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 // Save button
                 match self.save_status {
-                    PresetSaveStatus::CantSave { .. } | PresetSaveStatus::Autosave => (),
+                    PresetSaveStatus::Autosave => (),
                     PresetSaveStatus::ManualSave {
                         is_unsaved,
                         overwrite,
@@ -453,7 +454,7 @@ where
                                         L.presets.create_current.with(&current)
                                     }
                                 });
-                            *self.save_changes |= r.clicked();
+                            *self.save_preset |= r.clicked();
                         });
                     }
                 }
@@ -485,9 +486,6 @@ where
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PresetSaveStatus {
-    CantSave {
-        message: &'static str,
-    },
     Autosave,
     ManualSave {
         /// Whether the preset has unsaved changes. If this is `false`, then the
