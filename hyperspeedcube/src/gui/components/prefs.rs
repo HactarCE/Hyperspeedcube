@@ -126,7 +126,9 @@ impl<'a, T> PrefsUi<'a, T> {
 
     pub fn percent(&mut self, strings: &HoverStrings, access: Access<T, f32>) -> egui::Response {
         let reset_value = self.get_default(&access);
-        let reset_value_str = reset_value.as_ref().map(|v| v.to_string().into());
+        let reset_value_str = reset_value
+            .as_ref()
+            .map(|v| format!("{}%", v * 100.0).into());
         self.add(|current| WidgetWithReset {
             label: strings.label.into(),
             value: access.get_mut(current),
