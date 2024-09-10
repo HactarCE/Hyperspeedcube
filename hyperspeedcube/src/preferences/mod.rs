@@ -41,7 +41,6 @@ mod bundles {
     pub struct ModifiedSimPrefs<'a> {
         pub all: &'a Preferences,
         pub animation: &'a ModifiedPreset<AnimationPreferences>,
-        pub interaction: &'a ModifiedPreset<InteractionPreferences>,
     }
     #[derive(Debug, Copy, Clone)]
     pub struct ViewPrefsRefs<'a> {
@@ -93,7 +92,7 @@ pub struct Preferences {
     pub image_generator: ImageGeneratorPreferences,
 
     pub animation: PresetsList<AnimationPreferences>,
-    pub interaction: PresetsList<InteractionPreferences>,
+    pub interaction: InteractionPreferences,
     pub styles: StylePreferences,
     pub custom_styles: PresetsList<PieceStyle>,
 
@@ -139,7 +138,7 @@ impl schema::PrefsConvert for Preferences {
             info: info.clone(),
             image_generator: image_generator.clone(),
             animation: animation.to_serde(),
-            interaction: interaction.to_serde(),
+            interaction: interaction.clone(),
             styles: styles.clone(),
             custom_styles: custom_styles.to_serde(),
             view_3d: view_3d.to_serde(),

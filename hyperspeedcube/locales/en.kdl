@@ -178,10 +178,6 @@ presets {
     current "{{current}} animation settings"
     current_empty "No animation settings"
   }
-  (PresetStrings)interaction_settings {
-    current "{{current}} interaction settings"
-    current_empty "No interaction settings"
-  }
   (PresetStrings)view_settings {
     current "{{current}} view settings"
     current_empty "No view settings"
@@ -319,6 +315,7 @@ prefs {
     }
   }
   interaction {
+    title "Interaction settings"
     dialogs {
       title "Dialogs"
       (HoverStrings)confirm_discard_only_when_scrambled "Confirm discard only when scrambled" {
@@ -345,9 +342,19 @@ prefs {
           When enabled, the puzzle snaps to the nearest similar orientation, not the original. This adds a full-puzzle rotation to the undo history.
         "#
       }
+    }
+    ui {
+      title "Preferences UI"
       (HoverStrings)middle_click_delete "Middle click to delete" {
         desc r#"
           When enabled, **middle-click** on some UI elements (presets, custom colors, etc.) to delete them. **Alt+click** always works.
+        "#
+      }
+      (HoverStrings)reverse_filter_rules "Reverse filter rules" {
+        desc r#"
+          When **disabled**, piece filter rules are listed in order from **highest to lowest** priority, so **earlier rules override later ones**.
+
+          When **enabled**, piece filter rules are listed in order from **lowest to highest** priority, so **later rules override earlier ones**.
         "#
       }
     }
@@ -561,6 +568,7 @@ piece_filters {
   show_remaining_peices_with_style "Show remaining pieces with style"
   show_remaining_pieces_with_previous_filter "Show remaining pieces with previous filter"
   n_match_previous_rule "(**{{n}}** pieces match a previous rule instead)"
+  n_override_previous_rule "(**{{n}}** pieces override a previous rule)"
   convert_to_text_rule "Convert to text rule"
   delete_rule "Delete rule"
   add_checkboxes_rule "Add filter rule using checkboxes"

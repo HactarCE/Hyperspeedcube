@@ -274,7 +274,7 @@ impl PuzzleView {
                         let mut sim = self.sim.lock();
                         let axis = sim.partial_twist().as_ref()?.axis;
                         let axis_vector = &sim.puzzle_type().axes[axis].vector;
-                        if prefs.interaction.value.scale_twist_drag_by_radius {
+                        if prefs.all.interaction.scale_twist_drag_by_radius {
                             parallel_drag_delta = parallel_drag_delta
                                 / hov.position.rejected_from(axis_vector)?.mag();
                         }

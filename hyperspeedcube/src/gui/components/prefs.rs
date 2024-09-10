@@ -375,7 +375,12 @@ pub fn build_interaction_section(mut prefs_ui: PrefsUi<'_, InteractionPreference
         prefs_ui.checkbox(&l.realign_puzzle_on_release, access!(.realign_on_release));
         prefs_ui.checkbox(&l.realign_puzzle_on_keypress, access!(.realign_on_keypress));
         prefs_ui.checkbox(&l.smart_realign, access!(.smart_realign));
+    });
+
+    let l = &L.prefs.interaction.ui;
+    prefs_ui.collapsing(l.title, |mut prefs_ui| {
         prefs_ui.checkbox(&l.middle_click_delete, access!(.middle_click_delete));
+        prefs_ui.checkbox(&l.reverse_filter_rules, access!(.reverse_filter_rules));
     });
 }
 pub fn build_animation_section(mut prefs_ui: PrefsUi<'_, AnimationPreferences>) {

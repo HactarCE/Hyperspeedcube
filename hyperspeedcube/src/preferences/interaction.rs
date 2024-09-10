@@ -13,4 +13,5 @@ pub struct InteractionPreferences {
     pub smart_realign: bool,
 
     pub middle_click_delete: bool,
+    pub reverse_filter_rules: bool,
 }

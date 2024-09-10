@@ -7,8 +7,7 @@ use parking_lot::Mutex;
 use crate::gfx::GraphicsState;
 use crate::gui::PuzzleWidget;
 use crate::preferences::{
-    AnimationPreferences, InteractionPreferences, ModifiedPreset, Preferences,
-    PuzzleViewPreferencesSet,
+    AnimationPreferences, ModifiedPreset, Preferences, PuzzleViewPreferencesSet,
 };
 
 pub struct App {
@@ -19,7 +18,6 @@ pub struct App {
     pub active_puzzle_view: ActivePuzzleView,
 
     pub(crate) animation_prefs: ModifiedPreset<AnimationPreferences>,
-    pub(crate) interaction_prefs: ModifiedPreset<InteractionPreferences>,
 }
 
 impl App {
@@ -27,7 +25,6 @@ impl App {
         let prefs = Preferences::load(None);
 
         let animation_prefs = prefs.animation.load_last_loaded();
-        let interaction_prefs = prefs.interaction.load_last_loaded();
 
         Self {
             gfx: Arc::new(GraphicsState::new(
@@ -39,7 +36,6 @@ impl App {
             active_puzzle_view: ActivePuzzleView::default(),
 
             animation_prefs,
-            interaction_prefs,
         }
     }
 

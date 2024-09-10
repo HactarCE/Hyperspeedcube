@@ -64,7 +64,7 @@ impl AppUi {
     }
 
     pub fn build(&mut self, ctx: &egui::Context) {
-        set_middle_click_delete(ctx, self.app.interaction_prefs.value.middle_click_delete);
+        set_middle_click_delete(ctx, self.app.prefs.interaction.middle_click_delete);
 
         let dark_mode = ctx.style().visuals.dark_mode;
         let background_color = self.app.prefs.background_color(dark_mode);
@@ -116,7 +116,6 @@ impl AppUi {
                     let needs_redraw = sim.step(ModifiedSimPrefs {
                         all: &self.app.prefs,
                         animation: &self.app.animation_prefs,
-                        interaction: &self.app.interaction_prefs,
                     });
                     if needs_redraw {
                         // TODO: only request redraw for visible puzzles

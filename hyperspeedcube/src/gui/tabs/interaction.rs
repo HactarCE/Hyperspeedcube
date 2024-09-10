@@ -1,26 +1,21 @@
-use crate::{app::App, L};
+use crate::{app::App, preferences::DEFAULT_PREFS, L};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;
 
-    let presets = &mut app.prefs.interaction;
+    ui.group(|ui| {
+        ui.strong(L.prefs.interaction.title);
+        ui.separator();
 
-    let presets_ui = crate::gui::components::PresetsUi {
-        id: unique_id!(),
-        presets,
-        current: &mut app.interaction_prefs,
-        changed: &mut changed,
-        text: &L.presets.interaction_settings,
-        autosave: false,
-        vscroll: true,
-        help_contents: None,
-        extra_validation: None,
-    };
-    presets_ui.show(
-        ui,
-        None,
-        crate::gui::components::prefs::build_interaction_section,
-    );
+        let prefs_ui = crate::gui::components::PrefsUi {
+            ui,
+            current: &mut app.prefs.interaction,
+            defaults: Some(&DEFAULT_PREFS.interaction),
+            changed: &mut changed,
+        };
+
+        crate::gui::components::prefs::build_interaction_section(prefs_ui);
+    });
 
     app.prefs.needs_save |= changed;
 }

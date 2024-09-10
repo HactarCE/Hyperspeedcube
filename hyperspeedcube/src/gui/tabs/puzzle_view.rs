@@ -23,12 +23,7 @@ const SEND_CURSOR_POS: bool = false;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>) {
     let r = match &mut *puzzle_view.lock() {
-        Some(puzzle_view) => puzzle_view.ui(
-            ui,
-            &mut app.prefs,
-            &app.animation_prefs,
-            &app.interaction_prefs,
-        ),
+        Some(puzzle_view) => puzzle_view.ui(ui, &mut app.prefs, &app.animation_prefs),
         None => {
             // Hint to the user to load a puzzle.
             ui.allocate_ui_at_rect(ui.available_rect_before_wrap(), |ui| {
@@ -149,7 +144,6 @@ impl PuzzleWidget {
         ui: &mut egui::Ui,
         prefs: &mut Preferences,
         animation: &ModifiedPreset<AnimationPreferences>,
-        interaction: &ModifiedPreset<InteractionPreferences>,
     ) -> egui::Response {
         let puzzle = self.puzzle();
 
@@ -265,7 +259,6 @@ impl PuzzleWidget {
             ModifiedSimPrefs {
                 all: prefs,
                 animation,
-                interaction,
             },
         );
 

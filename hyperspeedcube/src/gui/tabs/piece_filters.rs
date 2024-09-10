@@ -657,7 +657,14 @@ fn show_current_filter_preset_ui_contents(
             let mut remaining_pieces = PieceMask::new_full(puz.pieces.len());
             let mut to_delete = None;
 
-            for (i, rule) in current.inner.rules.iter_mut().enumerate() {
+            let rules_iter = current.inner.rules.iter_mut().enumerate();
+            let rules_iter: Box<dyn Iterator<Item = (usize, &mut FilterRule)>> =
+                match prefs.interaction.reverse_filter_rules {
+                    true => Box::new(rules_iter.rev()),
+                    false => Box::new(rules_iter),
+                };
+
+            for (i, rule) in rules_iter {
                 let these_pieces = rule.set.eval(&puz);
 
                 let affected_piece_count = (remaining_pieces.clone() & &these_pieces).len();
@@ -692,7 +699,11 @@ fn show_current_filter_preset_ui_contents(
                         if previous_rule_piece_count > 0 {
                             // TODO: singular vs. plural
                             let n = previous_rule_piece_count.to_string();
-                            md(ui, L.piece_filters.n_match_previous_rule.with(&n));
+                            if prefs.interaction.reverse_filter_rules {
+                                md(ui, L.piece_filters.n_override_previous_rule.with(&n));
+                            } else {
+                                md(ui, L.piece_filters.n_match_previous_rule.with(&n));
+                            }
                         }
 
                         match &mut rule.set {

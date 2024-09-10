@@ -21,7 +21,7 @@ pub struct Preferences {
     pub image_generator: ImageGeneratorPreferences,
 
     pub animation: PresetsList<AnimationPreferences>,
-    pub interaction: PresetsList<InteractionPreferences>,
+    pub interaction: InteractionPreferences,
     pub styles: StylePreferences,
     pub custom_styles: PresetsList<PieceStyle>,
 
