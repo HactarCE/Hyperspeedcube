@@ -8,9 +8,12 @@ use crate::puzzle::{Camera, PieceStyleValues};
 pub(crate) struct PuzzleGeometryCacheKey {
     fov_3d: f32,
     fov_4d: f32,
+    show_frontfaces: bool,
+    show_backfaces: bool,
+    show_behind_camera: bool,
     show_internals: bool,
-    facet_scale: f32,
     gizmo_scale: f32,
+    facet_scale: f32,
     sticker_shrink: f32,
     piece_explode: f32,
 
@@ -74,9 +77,12 @@ impl DrawParams {
         PuzzleGeometryCacheKey {
             fov_3d: prefs.fov_3d,
             fov_4d: prefs.fov_4d,
+            show_backfaces: prefs.show_backfaces,
+            show_behind_camera: prefs.show_behind_4d_camera,
+            show_frontfaces: prefs.show_frontfaces,
             show_internals: self.show_internals(),
-            facet_scale: self.facet_scale(),
             gizmo_scale: self.gizmo_scale(),
+            facet_scale: self.facet_scale(),
             sticker_shrink: prefs.sticker_shrink,
             piece_explode: prefs.piece_explode,
 
