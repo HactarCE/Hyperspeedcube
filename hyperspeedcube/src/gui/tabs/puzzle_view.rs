@@ -166,7 +166,9 @@ impl PuzzleWidget {
         // moved.
         if r.drag_delta() != egui::Vec2::ZERO && self.view.drag_state().is_none() {
             let is_primary = ui.input(|input| input.pointer.primary_down());
-            if is_primary && self.view.puzzle_hover_state().is_some() {
+            let puzzle_supports_drag_twists = puzzle.ndim() == 3;
+            if is_primary && puzzle_supports_drag_twists && self.view.puzzle_hover_state().is_some()
+            {
                 self.view.set_drag_state(DragState::PreTwist);
             } else {
                 self.view.set_drag_state(DragState::ViewRot { z_axis: 2 });
