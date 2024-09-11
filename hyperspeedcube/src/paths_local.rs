@@ -4,7 +4,7 @@ use std::{env, path::Path};
 use directories::ProjectDirs;
 use eyre::{OptionExt, Result};
 
-const PREFS_FILE_NAME: &str = "hyperspeedcube";
+const PREFS_FILE_NAME: &str = "hsc2-prefs";
 const PREFS_FILE_EXTENSION: &str = "yaml";
 
 const LUA_DIR_NAME: &str = "lua";
@@ -18,6 +18,24 @@ pub fn get() -> Result<&'static AppPaths> {
 }
 pub fn prefs_file() -> Result<&'static Path> {
     Ok(&get()?.prefs_file)
+}
+pub fn backup_prefs_file_path(now: time::OffsetDateTime) -> Result<PathBuf> {
+    let mut ret = crate::paths::prefs_file()?.to_owned();
+    ret.pop();
+
+    ret.push(format!(
+        "{}_{:04}-{:02}-{:02}_{:02}-{:02}-{:02}_bak.{}",
+        crate::paths::PREFS_FILE_NAME,
+        now.year(),
+        now.month() as u8,
+        now.day(),
+        now.hour(),
+        now.minute(),
+        now.second(),
+        crate::paths::PREFS_FILE_EXTENSION,
+    ));
+
+    Ok(ret)
 }
 pub fn lua_dir() -> Result<&'static Path> {
     Ok(&get()?.lua_dir)
