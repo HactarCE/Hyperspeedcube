@@ -70,6 +70,8 @@ impl LuaUserData for LuaTwist {
                 .data_to_id(&TwistKey::new(this.axis, &transform).into_lua_err()?)
                 .map(|id| LuaTwist { id, db: puz.arc() }))
         });
+
+        methods.add_meta_method(LuaMetaMethod::Eq, |_lua, lhs, rhs: Self| Ok(lhs == &rhs));
     }
 }
 

@@ -27,6 +27,12 @@ impl<I: Clone, D> Clone for LuaDbEntry<I, D> {
         }
     }
 }
+impl<I: PartialEq, D> PartialEq for LuaDbEntry<I, D> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && Arc::ptr_eq(&self.db, &other.db)
+    }
+}
+impl<I: Eq, D> Eq for LuaDbEntry<I, D> {}
 
 impl<'lua, I, D> FromLua<'lua> for LuaDbEntry<I, D>
 where

@@ -40,6 +40,8 @@ impl LuaUserData for LuaColor {
                 Ok(format!("color({})", this.id))
             }
         });
+
+        methods.add_meta_method(LuaMetaMethod::Eq, |_lua, lhs, rhs: Self| Ok(lhs == &rhs));
     }
 }
 

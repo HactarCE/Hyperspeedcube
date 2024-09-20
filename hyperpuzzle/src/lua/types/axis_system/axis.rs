@@ -106,6 +106,8 @@ impl LuaUserData for LuaAxis {
                     .collect(),
             ))
         });
+
+        methods.add_meta_method(LuaMetaMethod::Eq, |_lua, lhs, rhs: Self| Ok(lhs == &rhs));
     }
 }
 
