@@ -204,6 +204,14 @@ pub enum LuaSymmetricSet<T> {
     /// Symmetric orbit of an object.
     Orbit(LuaOrbit),
 }
+impl<'lua, T: LuaTypeName + IntoLua<'lua>> IntoLua<'lua> for LuaSymmetricSet<T> {
+    fn into_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+        match self {
+            LuaSymmetricSet::Single(obj) => obj.into_lua(lua),
+            LuaSymmetricSet::Orbit(lua_orbit) => lua_orbit.into_lua(lua),
+        }
+    }
+}
 impl<'lua, T: LuaTypeName + FromLua<'lua>> FromLua<'lua> for LuaSymmetricSet<T> {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         if let Ok(orbit) = <_>::from_lua(value.clone(), lua) {
@@ -219,6 +227,58 @@ impl<'lua, T: LuaTypeName + FromLua<'lua>> FromLua<'lua> for LuaSymmetricSet<T> 
     }
 }
 impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
+    /// Applies a function to each object in the orbit and returns a new orbit.
+    pub fn map<U, F>(&self, lua: &'lua Lua, mut f: F) -> LuaResult<LuaSymmetricSet<U>>
+    where
+        U: Clone + IntoLua<'lua>,
+        F: FnMut(GeneratorSequence, Option<String>, T) -> LuaResult<U>,
+    {
+        match self {
+            LuaSymmetricSet::Single(v) => Ok(LuaSymmetricSet::Single(f(
+                GeneratorSequence::INIT,
+                None,
+                v.clone(),
+            )?)),
+            LuaSymmetricSet::Orbit(orbit) => {
+                let orbit_list: Vec<_> = orbit
+                    .orbit_list
+                    .iter()
+                    .cloned()
+                    .map(|element| {
+                        let old_value = Self::to_expected_type(lua, element.objects.first())?;
+                        let new_value =
+                            f(element.gen_seq.clone(), element.name.clone(), old_value)?;
+
+                        // Convert to Lua and then back into a `Transformable`.
+                        let lua_value = new_value.into_lua(lua)?;
+                        let transformable_new_value = Transformable::from_lua(lua_value, lua)?;
+
+                        LuaResult::Ok(OrbitElement {
+                            gen_seq: element.gen_seq,
+                            transform: element.transform,
+                            name: element.name,
+                            objects: vec![transformable_new_value],
+                        })
+                    })
+                    .try_collect()?;
+
+                let init = orbit_list
+                    .get(0)
+                    .ok_or_else(|| LuaError::external("empty orbit"))?
+                    .objects
+                    .iter()
+                    .map(|elem| elem.clone().into())
+                    .collect();
+
+                Ok(LuaSymmetricSet::Orbit(LuaOrbit {
+                    symmetry: orbit.symmetry.clone(),
+                    init,
+                    orbit_list,
+                    iter_index: Arc::new(AtomicUsize::new(0)),
+                }))
+            }
+        }
+    }
     /// Returns a list of all the objects in the orbit.
     pub fn to_vec(&self, lua: &'lua Lua) -> LuaResult<Vec<(GeneratorSequence, Option<String>, T)>> {
         match self {
@@ -242,13 +302,14 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
     }
 
     fn to_expected_type(lua: &'lua Lua, maybe_obj: Option<&Transformable>) -> LuaResult<T> {
-        let lua_value =
-            maybe_obj
-                .and_then(|obj| obj.into_lua(lua))
-                .ok_or(LuaError::external(format!(
+        let lua_value = maybe_obj
+            .and_then(|obj| obj.into_lua(lua))
+            .ok_or_else(|| {
+                LuaError::external(format!(
                     "expected orbit of {}",
-                    T::type_name(lua)?,
-                )))??;
+                    T::type_name(lua).unwrap_or("unknown"),
+                ))
+            })??;
         T::from_lua(lua_value, lua)
     }
 }

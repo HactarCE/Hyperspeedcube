@@ -97,7 +97,7 @@ impl LuaAxisSystem {
         lua: &'lua Lua,
         vectors: LuaSymmetricSet<LuaVector>,
         extra: Option<LuaTable<'lua>>,
-    ) -> LuaResult<Vec<LuaAxis>> {
+    ) -> LuaResult<LuaSymmetricSet<LuaAxis>> {
         let depths: Vec<hypermath::Float>;
         let slice: Option<bool>;
         if let Some(t) = extra {
@@ -127,15 +127,17 @@ impl LuaAxisSystem {
         }
         let depths = sorted_depths;
 
-        let mut puz = self.lock();
         let mut gen_seqs = vec![];
         let mut new_axes = vec![];
-        for (gen_seq, name, LuaVector(v)) in vectors.to_vec(lua)? {
+        let ret = vectors.map(lua, |gen_seq, name, LuaVector(v)| {
             gen_seqs.push(gen_seq);
+
+            let mut puz = self.lock();
 
             let id = puz.twists.axes.add(v.clone()).into_lua_err()?;
             puz.twists.axes.names.set_name(id, name, lua_warn_fn(lua));
-            new_axes.push(puz.wrap_id(id));
+            let new_axis = puz.wrap_id(id);
+            new_axes.push(new_axis.clone());
 
             let axis = puz.twists.axes.get_mut(id).into_lua_err()?;
             let mut layer_planes = vec![];
@@ -156,14 +158,16 @@ impl LuaAxisSystem {
                     puz.shape.slice(None, cut, None, None).into_lua_err()?;
                 }
             }
-        }
 
-        puz.twists.axes.axis_orbits.push(DevOrbit {
+            Ok(new_axis)
+        })?;
+
+        self.lock().twists.axes.axis_orbits.push(DevOrbit {
             kind: "axes",
             elements: new_axes.iter().map(|ax| Some(ax.id)).collect(),
             generator_sequences: gen_seqs,
         });
 
-        Ok(new_axes)
+        Ok(ret)
     }
 }
