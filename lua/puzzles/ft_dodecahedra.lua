@@ -47,7 +47,7 @@ function define_ft_dodecahedron(size, id, name)
       -- Mark piece types
       if size == 0 then
         self:mark_piece{
-          region = ~U'*', -- TODO: construct 'everything' region
+          region = EVERYWHERE,
           name = 'core',
           display = "Core",
         }

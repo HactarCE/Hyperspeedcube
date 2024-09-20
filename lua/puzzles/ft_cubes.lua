@@ -53,7 +53,7 @@ function define_ft_cube_3d(size)
       -- Mark piece types
       if size == 1 then
         self:mark_piece{
-          region = ~U'*', -- TODO: construct 'everything' region
+          region = EVERYWHERE,
           name = 'core',
           display = "Core",
         }
@@ -193,7 +193,7 @@ function define_ft_cube_4d(size)
 
       if size == 1 then
         self:mark_piece{
-          region = ~U'*', -- TODO: construct 'everything' region
+          region = EVERYWHERE,
           name = 'core',
           display = "Core",
         }
