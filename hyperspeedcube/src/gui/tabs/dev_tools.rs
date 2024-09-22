@@ -170,6 +170,7 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                     .elements
                                     .iter()
                                     .enumerate()
+                                    .sorted_by_key(|(_, elem)| **elem)
                                     .filter_map(|(i, elem)| {
                                         Some((i, elem.as_ref()?.name(&puz)?.clone()))
                                     })

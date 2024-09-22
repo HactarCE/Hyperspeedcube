@@ -19,7 +19,7 @@ impl PuzzleDevData {
 }
 
 /// Element of the puzzle.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum PuzzleElement {
     /// Twist axis
     Axis(Axis),
