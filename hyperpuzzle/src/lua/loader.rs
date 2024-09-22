@@ -123,8 +123,8 @@ impl LuaLoader {
             sandbox.raw_set("rot", lua.create_function(rot_fn)?)?;
 
             // `region` constants
-            sandbox.raw_set("EVERYWHERE", LuaRegion::Everything)?;
-            sandbox.raw_set("NOWHERE", LuaRegion::Nothing)?;
+            sandbox.raw_set("REGION_ALL", LuaRegion::Everything)?;
+            sandbox.raw_set("REGION_NONE", LuaRegion::Nothing)?;
 
             LuaResult::Ok(())
         })()
