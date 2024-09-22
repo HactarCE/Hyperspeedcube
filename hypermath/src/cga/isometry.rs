@@ -201,6 +201,8 @@ impl Isometry {
     }
     /// Transforms an OPNS blade by the isometry.
     pub fn transform_blade(&self, b: &Blade) -> Blade {
+        // TODO: we wouldn't need this funny special case if sandwich_blade()
+        // used the conjugate instead of the reverse!
         let sandwich_product = self.0.sandwich_blade(b);
         if self.is_reflection() {
             -sandwich_product

@@ -563,6 +563,8 @@ impl Multivector {
 
     /// Returns the scalar (dot) product of two multivectors.
     pub fn dot(&self, other: &Multivector) -> Float {
+        // TODO: this is probably wrong. e_minus^2 should be negative.
+
         let mut ret = 0.0;
 
         let mut self_terms = itertools::put_back(self.terms());
