@@ -308,8 +308,9 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
         }
     }
 
-    let mut s = format!("color_systems:add({id_string_literal}, {{\n");
+    let mut s = "color_systems:add{\n".to_owned();
 
+    s += &format!("  id = {id_string_literal},\n");
     s += &format!("  name = {name_string_literal},\n");
 
     let has_default_colors = schemes.len() == 1;
@@ -371,7 +372,7 @@ fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> 
         s += &format!("  default = {default_scheme:?},\n");
     }
 
-    s += "})\n";
+    s += "}\n";
     s
 }
 

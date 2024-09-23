@@ -1,4 +1,5 @@
-color_systems:add('hypercube', {
+color_systems:add{
+  id = 'hypercube',
   name = "Hypercube",
 
   colors = {
@@ -11,7 +12,7 @@ color_systems:add('hypercube', {
     { name = 'O', display = "Out",   default = "Pink" },
     { name = 'I', display = "In",    default = "Purple" },
   },
-})
+}
 
 function hypercube()
   return {

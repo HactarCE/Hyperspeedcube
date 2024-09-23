@@ -1,9 +1,11 @@
 local utils = require('utils')
 local symmetries = require('symmetries')
 
-puzzles:add('fcto', {
-  ndim = 3,
+puzzles:add{
+  id = 'fcto',
   name = "Face-And-Corner-Turning Octahedron",
+  version = '0.1.0',
+  ndim = 3,
   colors = 'octahedron',
   build = function(self)
     local sym = cd'bc3'
@@ -22,4 +24,4 @@ puzzles:add('fcto', {
       self.twists:add(axis, twist_transform, {gizmo_pole_distance = 2/sqrt(3)})
     end
   end,
-})
+}

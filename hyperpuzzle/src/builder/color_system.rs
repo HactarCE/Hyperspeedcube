@@ -21,7 +21,7 @@ impl ColorBuilder {}
 #[derive(Debug, Default, Clone)]
 pub struct ColorSystemBuilder {
     /// Color system ID.
-    pub id: Option<String>,
+    pub id: String,
     /// Name of the color system.
     pub name: Option<String>,
 
@@ -42,11 +42,27 @@ pub struct ColorSystemBuilder {
 
     /// Whether the color system has been modified.
     pub is_modified: bool,
+    /// Whether the color system is shared (as opposed to ad-hoc defined for a
+    /// single puzzle).
+    pub is_shared: bool,
 }
 impl ColorSystemBuilder {
-    /// Constructs a new empty color system.
-    pub fn new() -> Self {
-        Self::default()
+    /// Constructs a new shared color-system.
+    pub fn new_shared(id: String) -> Self {
+        Self {
+            id,
+            is_shared: true,
+            ..Default::default()
+        }
+    }
+
+    /// Constructs a new empty ad-hoc color system.
+    pub fn new_ad_hoc(puzzle_id: &str) -> Self {
+        Self {
+            id: format!("{PUZZLE_PREFIX}{puzzle_id}"),
+            is_shared: false,
+            ..Default::default()
+        }
     }
 
     /// Returns whether there are no colors in the color system.
@@ -159,18 +175,18 @@ impl ColorSystemBuilder {
         warn_fn: impl Copy + Fn(eyre::Report),
     ) -> Result<ColorSystem> {
         let mut id = self.id.clone();
-        if id.is_none() {
-            warn_fn(eyre!("color scheme is not shared"));
+        if self.is_shared {
+            if self.is_modified {
+                warn_fn(eyre!("shared color system cannot be modified"));
+                id = format!("{PUZZLE_PREFIX}{puzzle_id}");
+            }
+            if self.name.is_none() {
+                warn_fn(eyre!("color system has no name"));
+            }
+        } else {
+            warn_fn(eyre!("using ad-hoc color system"));
         }
-        if id.is_some() && self.is_modified {
-            warn_fn(eyre!("shared color system cannot be modified"));
-            id = None;
-        }
-        let id = id.unwrap_or_else(|| format!("{PUZZLE_PREFIX}{puzzle_id}"));
-        let name = self
-            .name
-            .clone()
-            .unwrap_or_else(|| crate::util::titlecase(self.id.as_deref().unwrap_or(puzzle_id)));
+        let name = self.name.clone().unwrap_or_else(|| self.id.clone());
 
         // map from old ID to new ID
         let color_id_map: HashMap<Color, Color> = self

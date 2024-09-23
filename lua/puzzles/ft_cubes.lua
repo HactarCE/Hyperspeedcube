@@ -18,10 +18,11 @@ local function ft_cube_cut_depths(ndim, size)
 end
 
 function define_ft_cube_3d(size)
-  local id = size .. 'x' .. size .. 'x' .. size
-  puzzles:add(id, {
-    ndim = 3,
+  puzzles:add{
+    id = size .. 'x' .. size .. 'x' .. size,
     name = string.format("FT Cube %d (%d^3)", size, size),
+    version = '0.1.0',
+    ndim = 3,
     colors = 'cube',
     build = function(self)
       local sym = cd'bc3'
@@ -131,7 +132,7 @@ function define_ft_cube_3d(size)
         self:unify_piece_types(sym.chiral)
       end
     end,
-  })
+  }
 end
 
 for size = 1, 21 do
@@ -143,9 +144,11 @@ function define_ft_cube_4d(size)
   local alpha = 0.8
 
   local id = size .. 'x' .. size .. 'x' .. size .. 'x' .. size
-  puzzles:add(id, {
-    ndim = 4,
+  puzzles:add{
+    id = id,
     name = string.format("Hypercube %d (%d^4)", size, size),
+    version = '0.1.0',
+    ndim = 4,
     colors = 'hypercube',
     build = function(self)
       local sym = cd'bc4'
@@ -228,16 +231,18 @@ function define_ft_cube_4d(size)
         self:unify_piece_types(sym.chiral)
       end
     end,
-  })
+  }
 end
 
 for size = 1, 9 do
   define_ft_cube_4d(size)
 end
 
-puzzles:add('opposite_colors_same_cube', {
-  ndim = 3,
+puzzles:add{
+  id = 'opposite_colors_same_cube',
   name = "Opposite colors are the same",
+  version = '0.1.0',
+  ndim = 3,
   colors = 'half_cube',
   build = function(self)
     local sym = cd'bc3'
@@ -258,4 +263,4 @@ puzzles:add('opposite_colors_same_cube', {
       self.twists:add(axis, twist_transform)
     end
   end,
-})
+}

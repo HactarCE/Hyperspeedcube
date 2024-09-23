@@ -1,9 +1,11 @@
 local utils = require('utils')
 local symmetries = require('symmetries')
 
-puzzles:add('cto', {
-  ndim = 3,
+puzzles:add{
+  id = 'cto',
   name = "Corner-Turning Octahedron",
+  version = '0.1.0',
+  ndim = 3,
   colors = 'octahedron',
   build = function(self)
     local sym = cd'bc3'
@@ -18,4 +20,4 @@ puzzles:add('cto', {
       self.twists:add(axis, twist_transform, {gizmo_pole_distance = sqrt(3)/3})
     end
   end,
-})
+}

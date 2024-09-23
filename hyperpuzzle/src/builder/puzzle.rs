@@ -16,6 +16,8 @@ pub struct PuzzleBuilder {
 
     /// Puzzle ID.
     pub id: String,
+    /// Puzzle specification version in the form `[major, minor, patch]`.
+    pub version: [usize; 3],
     /// Name of the puzzle.
     pub name: String,
 
@@ -26,14 +28,20 @@ pub struct PuzzleBuilder {
 }
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
-    pub fn new(id: String, name: String, ndim: u8) -> Result<Arc<Mutex<Self>>> {
-        let shape = ShapeBuilder::new_with_primordial_cube(Space::new(ndim))?;
+    pub fn new(
+        id: String,
+        name: String,
+        version: [usize; 3],
+        ndim: u8,
+    ) -> Result<Arc<Mutex<Self>>> {
+        let shape = ShapeBuilder::new_with_primordial_cube(Space::new(ndim), &id)?;
         let twists = TwistSystemBuilder::new();
         Ok(Arc::new_cyclic(|this| {
             Mutex::new(Self {
                 this: this.clone(),
 
                 id,
+                version,
                 name,
 
                 shape,
@@ -95,6 +103,7 @@ impl PuzzleBuilder {
             this: Weak::clone(this),
             name: self.name.clone(),
             id: self.id.clone(),
+            version: self.version,
 
             space: self.space(),
             mesh,

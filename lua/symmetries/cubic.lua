@@ -1,4 +1,5 @@
-color_systems:add('cube', {
+color_systems:add{
+  id = 'cube',
   name = "Cube",
 
   colors = {
@@ -29,7 +30,7 @@ color_systems:add('cube', {
     }},
   },
   default = "Western",
-})
+}
 
 function cube()
   return {

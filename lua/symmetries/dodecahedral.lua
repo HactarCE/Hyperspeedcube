@@ -1,4 +1,5 @@
-color_systems:add('dodecahedron', {
+color_systems:add{
+  id = 'dodecahedron',
   name = "Dodecahedron",
 
   colors = {
@@ -15,7 +16,7 @@ color_systems:add('dodecahedron', {
     { name = 'PB', display = "Para-back",  default = "Green Dyad [1]" },
     { name = 'PD', display = "Para-down",  default = "Gray" },
   },
-})
+}
 
 function dodecahedron()
   return {

@@ -13,7 +13,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     crate::LIBRARY.with(|lib| {
         for puzzle in lib.puzzles() {
             if ui
-                .button(format!("Load {}", puzzle.display_name()))
+                .button(format!(
+                    "Load {} v{}.{}.{}",
+                    puzzle.display_name(),
+                    puzzle.version[0],
+                    puzzle.version[1],
+                    puzzle.version[2],
+                ))
                 .clicked()
             {
                 app.load_puzzle(lib, &puzzle.id);

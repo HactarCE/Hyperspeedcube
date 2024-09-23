@@ -10,8 +10,8 @@ use crate::gui::components::color_assignment_popup;
 use crate::gui::util::EguiTempValue;
 use crate::gui::App;
 use crate::preferences::{
-    AnimationPreferences, InteractionPreferences, ModifiedPreset, ModifiedSimPrefs, Preferences,
-    PuzzleViewPreferencesSet, ViewPrefsRefs,
+    AnimationPreferences, ModifiedPreset, ModifiedSimPrefs, Preferences, PuzzleViewPreferencesSet,
+    ViewPrefsRefs,
 };
 use crate::puzzle::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 use crate::{gfx::*, L};
@@ -115,10 +115,6 @@ impl PuzzleWidget {
     /// Returns the puzzle type.
     pub fn puzzle(&self) -> Arc<Puzzle> {
         Arc::clone(self.sim().lock().puzzle_type())
-    }
-    /// Returns the view preferences set to use for the puzzle.
-    pub fn view_prefs_set(&self) -> PuzzleViewPreferencesSet {
-        PuzzleViewPreferencesSet::from_ndim(self.puzzle().ndim())
     }
 
     /// Reloads the active puzzle. Returns `true` if the reload was successful.

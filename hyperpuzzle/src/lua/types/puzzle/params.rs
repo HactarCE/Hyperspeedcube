@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::builder::{ColorSystemBuilder, PuzzleBuilder};
+use crate::builder::PuzzleBuilder;
 use crate::lua::lua_warn_fn;
 use crate::{LibraryDb, Puzzle};
 
@@ -10,13 +10,15 @@ use crate::{LibraryDb, Puzzle};
 pub struct PuzzleParams {
     /// String ID of the puzzle.
     pub id: String,
+    /// Version of the puzzle. (default = `[0, 0, 0]`)
+    pub version: [usize; 3],
     /// Number of dimensions of the space in which the puzzle is constructed.
     pub ndim: LuaNdim,
 
-    /// Color system.
-    pub colors: Option<ColorSystemParams>,
+    /// Color system ID.
+    pub colors: Option<String>,
 
-    /// User-friendly name for the puzzle.
+    /// User-friendly name for the puzzle. (default = same as ID)
     pub name: Option<String>,
     /// Alternative user-friendly names for the puzzle.
     pub aliases: Vec<String>,
@@ -36,17 +38,21 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         let table: LuaTable<'lua> = lua.unpack(value)?;
 
+        let id: String;
+        let version: Option<String>;
         let name: Option<String>;
         let ndim: LuaNdim;
         let build: LuaFunction<'lua>;
-        let colors: Option<ColorSystemParams>;
+        let colors: Option<String>;
         let aliases: Option<Vec<String>>;
         let meta: Option<LuaTable<'lua>>;
         let properties: Option<LuaTable<'lua>>;
         let remove_internals: Option<bool>;
 
         unpack_table!(lua.unpack(table {
+            id,
             name,
+            version,
             ndim,
             build,
 
@@ -59,6 +65,19 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
             remove_internals,
         }));
 
+        let id = crate::validate_id(id.clone()).into_lua_err()?;
+
+        let version = match version {
+            Some(s) => parse_puzzle_version_str(&s).unwrap_or_else(|e| {
+                lua.warning(format!("error in `version` for puzzle {id}: {e}"), false);
+                [0; 3]
+            }),
+            None => {
+                lua.warning(format!("missing `version` for puzzle {id}"), false);
+                [0; 3]
+            }
+        };
+
         let create_opt_registry_value = |v| -> LuaResult<Option<LuaRegistryKey>> {
             match v {
                 Some(v) => Ok(Some(lua.create_registry_value(v)?)),
@@ -67,7 +86,8 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
         };
 
         Ok(PuzzleParams {
-            id: String::new(), // This is overwritten in `puzzledb:add()`.
+            id,
+            version,
             ndim,
 
             colors,
@@ -89,10 +109,14 @@ impl PuzzleParams {
     pub fn build(&self, lua: &Lua) -> LuaResult<Arc<Puzzle>> {
         let LuaNdim(ndim) = self.ndim;
         let id = self.id.clone();
-        let name = self.name.clone().unwrap_or(self.id.clone());
-        let puzzle_builder = PuzzleBuilder::new(id, name, ndim).into_lua_err()?;
-        if let Some(colors) = &self.colors {
-            puzzle_builder.lock().shape.colors = colors.build(lua)?;
+        let name = self.name.clone().unwrap_or_else(|| {
+            lua.warning(format!("missing `name` for puzzle `{id}`"), false);
+            self.id.clone()
+        });
+        let version = self.version.clone();
+        let puzzle_builder = PuzzleBuilder::new(id, name, version, ndim).into_lua_err()?;
+        if let Some(colors_id) = &self.colors {
+            puzzle_builder.lock().shape.colors = LibraryDb::build_color_system(lua, colors_id)?;
         }
         if let Some(remove_internals) = self.remove_internals {
             puzzle_builder.lock().shape.remove_internals = remove_internals;
@@ -119,29 +143,18 @@ impl PuzzleParams {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum ColorSystemParams {
-    ById(String),
-    Bespoke(Box<ColorSystemBuilder>),
-}
-impl<'lua> FromLua<'lua> for ColorSystemParams {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        match value {
-            LuaValue::Table(t) => Ok(Self::Bespoke(Box::new(
-                crate::lua::types::color_system::from_lua_table(lua, None, t)?,
-            ))),
-            LuaValue::String(id) => Ok(Self::ById(id.to_string_lossy().into_owned())),
-            _ => Err(LuaError::external(
-                "expected string, table, or nil for `colors`",
-            )),
-        }
+fn parse_puzzle_version_str(version_string: &str) -> Result<[usize; 3], String> {
+    fn parse_component(s: &str) -> Result<usize, String> {
+        s.parse()
+            .map_err(|e| format!("invalid major version because {e}"))
     }
-}
-impl ColorSystemParams {
-    pub fn build(&self, lua: &Lua) -> LuaResult<ColorSystemBuilder> {
-        match self {
-            ColorSystemParams::ById(id) => LibraryDb::build_color_system(lua, id),
-            ColorSystemParams::Bespoke(colors) => Ok((**colors).clone()),
-        }
+
+    let mut segments = version_string.split('.');
+    let major = parse_component(segments.next().ok_or("missing major version")?)?;
+    let minor = parse_component(segments.next().unwrap_or("0"))?;
+    let patch = parse_component(segments.next().unwrap_or("0"))?;
+    if segments.next().is_some() {
+        return Err("too many segments; only the form `major.minor.patch` is accepted".to_owned());
     }
+    Ok([major, minor, patch])
 }

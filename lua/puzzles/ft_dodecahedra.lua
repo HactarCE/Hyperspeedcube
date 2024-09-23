@@ -18,9 +18,11 @@ local function ft_dodecahedron_cut_depths(size)
 end
 
 function define_ft_dodecahedron(size, id, name)
-  puzzles:add(id, {
-    ndim = 3,
+  puzzles:add{
+    id = id,
     name = string.format("FT Dodecahedron %d (%s)", size, name),
+    version = '0.1.0',
+    ndim = 3,
     colors = 'dodecahedron',
     meta = {
       author = {'Andrew Farkas', 'Milo Jacquet'},
@@ -127,7 +129,7 @@ function define_ft_dodecahedron(size, id, name)
         self:unify_piece_types(sym.chiral)
       end
     end,
-  })
+  }
 end
 
 define_ft_dodecahedron(0, 'dodecahedron', "Dodecahedron")
@@ -142,9 +144,11 @@ define_ft_dodecahedron(8, 'ronnaminx', "Ronnaminx")
 define_ft_dodecahedron(9, 'atlasminx', "Atlasminx") -- quettaminx
 define_ft_dodecahedron(10, 'minx_of_madness', "Minx of Madness") -- no metric prefix!
 
-puzzles:add('megaminx_crystal', {
-  ndim = 3,
+puzzles:add{
+  id = 'megaminx_crystal',
   name = 'Megaminx Crystal',
+  version = '0.1.0',
+  ndim = 3,
   colors = 'dodecahedron',
   meta = {
     author = 'Milo Jacquet',
@@ -192,11 +196,13 @@ puzzles:add('megaminx_crystal', {
     }
     self:unify_piece_types(sym.chiral)
   end,
-})
+}
 
-puzzles:add('pyraminx_crystal', {
-  ndim = 3,
+puzzles:add{
+  id = 'pyraminx_crystal',
   name = 'Pyraminx Crystal',
+  version = '0.1.0',
+  ndim = 3,
   colors = 'dodecahedron',
   meta = {
     author = 'Milo Jacquet',
@@ -234,11 +240,13 @@ puzzles:add('pyraminx_crystal', {
     }
     self:unify_piece_types(sym.chiral)
   end,
-})
+}
 
-puzzles:add('curvy_starminx', {
-  ndim = 3,
+puzzles:add{
+  id = 'curvy_starminx',
   name = 'Curvy Starminx',
+  version = '0.1.0',
+  ndim = 3,
   colors = 'dodecahedron',
   meta = {
     author = 'Milo Jacquet',
@@ -287,11 +295,13 @@ puzzles:add('curvy_starminx', {
     }
     self:unify_piece_types(sym.chiral)
   end,
-})
+}
 
-puzzles:add('starminx', {
-  ndim = 3,
+puzzles:add{
+  id = 'starminx',
   name = 'Starminx',
+  version = '0.1.0',
+  ndim = 3,
   colors = 'dodecahedron',
   meta = {
     author = 'Milo Jacquet',
@@ -335,7 +345,7 @@ puzzles:add('starminx', {
     }
     self:unify_piece_types(sym.chiral)
   end,
-})
+}
 
 
 local function pentultimate_cut_depths(size)
@@ -353,9 +363,11 @@ local function pentultimate_cut_depths(size)
 end
 
 function define_pentultimate(size, name)
-  puzzles:add(string.format("pentultimate_%d", size), {
-    ndim = 3,
+  puzzles:add{
+    id = string.format("pentultimate_%d", size),
     name = string.format("Pentultimate %d (%s)", size, name),
+    version = '0.1.0',
+    ndim = 3,
     colors = 'dodecahedron',
     meta = {
       author = 'Milo Jacquet',
@@ -480,7 +492,7 @@ function define_pentultimate(size, name)
       }
       self:unify_piece_types(sym.chiral)
     end,
-  })
+  }
 end
 
 define_pentultimate(2, "Pentultimate")

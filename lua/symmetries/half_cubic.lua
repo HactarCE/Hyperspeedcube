@@ -1,4 +1,5 @@
-color_systems:add('half_cube', {
+color_systems:add{
+  id = 'half_cube',
   name = "Half-cube",
 
   colors = {
@@ -6,4 +7,4 @@ color_systems:add('half_cube', {
     { name = 'Y', display = "Up/Down",    default = "White" },
     { name = 'Z', display = "Front/Back", default = "Blue" },
   },
-})
+}

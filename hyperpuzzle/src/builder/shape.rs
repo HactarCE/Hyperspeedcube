@@ -48,7 +48,7 @@ pub struct ShapeBuilder {
 }
 impl ShapeBuilder {
     /// Constructs a shape builder that starts with an empty Euclidean space.
-    pub fn new_empty(space: Arc<Space>) -> Self {
+    pub fn new_empty(space: Arc<Space>, puzzle_id: &str) -> Self {
         Self {
             space,
 
@@ -62,14 +62,14 @@ impl ShapeBuilder {
             piece_type_display_names: IndexMap::new(),
             overwritten_piece_types: vec![],
 
-            colors: ColorSystemBuilder::new(),
+            colors: ColorSystemBuilder::new_ad_hoc(puzzle_id),
         }
     }
 
     /// Constructs a shape builder that starts with a single solid piece (the
     /// primordial cube)
-    pub fn new_with_primordial_cube(space: Arc<Space>) -> Result<Self> {
-        let mut this = Self::new_empty(Arc::clone(&space));
+    pub fn new_with_primordial_cube(space: Arc<Space>, puzzle_id: &str) -> Result<Self> {
+        let mut this = Self::new_empty(Arc::clone(&space), puzzle_id);
         let primordial_cube = space.add_primordial_cube(crate::PRIMORDIAL_CUBE_RADIUS)?;
         let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new())?;
         let root_piece = this.pieces.push(root_piece_builder)?;

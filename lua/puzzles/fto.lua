@@ -9,9 +9,11 @@ function define_fto(size, name)
     name_suffix = ' (' .. name .. ')'
   end
 
-  puzzles:add('fto_' .. size, {
+  puzzles:add{
+    id = 'fto_' .. size,
+    name = "FT Octahedron " .. size .. name_suffix,
+    version = '0.1.0',
     ndim = 3,
-    name = 'FT Octahedron ' .. size .. name_suffix,
     colors = 'octahedron',
     meta = {
       author = {'Andrew Farkas', 'Milo Jacquet'},
@@ -29,7 +31,7 @@ function define_fto(size, name)
         self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
       end
     end,
-  })
+  }
 end
 
 define_fto(1, '')
@@ -39,4 +41,3 @@ define_fto(4, 'Master FTO')
 define_fto(5, '')
 define_fto(6, '')
 define_fto(7, '')
-

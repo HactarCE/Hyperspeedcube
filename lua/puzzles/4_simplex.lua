@@ -3,9 +3,11 @@ local symmetries = require('symmetries')
 local gizmo_size = 1
 
 function def_simplex(letter, depths)
-  puzzles:add('4_simplex_' .. string.lower(letter), {
-    ndim = 4,
+  puzzles:add{
+    id = '4_simplex_' .. string.lower(letter),
     name = "4-Simplex " .. letter,
+    version = '0.1.0',
+    ndim = 4,
     colors = '4_simplex',
     build = function(self)
       local sym = cd'a4'
@@ -46,7 +48,7 @@ function def_simplex(letter, depths)
         })
       end
     end,
-  })
+  }
 end
 
 def_simplex('A', {2/3}) -- simplex A = edges, no ridges

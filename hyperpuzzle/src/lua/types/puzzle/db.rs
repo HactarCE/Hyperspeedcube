@@ -13,10 +13,8 @@ impl LuaUserData for LuaPuzzleDb {
             Ok(LibraryDb::get(lua)?.lock().puzzles.len())
         });
 
-        methods.add_method("add", |lua, Self, pair| {
-            let (id, mut params): (String, PuzzleParams) = pair;
-            params.id = crate::validate_id(id.clone()).into_lua_err()?;
-            LibraryFile::get_current(lua)?.define_puzzle(id, params)
+        methods.add_method("add", |lua, Self, params| {
+            LibraryFile::get_current(lua)?.define_puzzle(params)
         });
     }
 }

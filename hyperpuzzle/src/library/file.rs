@@ -56,7 +56,8 @@ impl LibraryFile {
     }
 
     /// Defines a puzzle in the file.
-    pub(crate) fn define_puzzle(&self, id: String, params: PuzzleParams) -> LuaResult<()> {
+    pub(crate) fn define_puzzle(&self, params: PuzzleParams) -> LuaResult<()> {
+        let id = params.id.clone();
         match self
             .as_loading()?
             .puzzles
@@ -69,11 +70,8 @@ impl LibraryFile {
         }
     }
     /// Defines a color system in the file.
-    pub(crate) fn define_color_system(
-        &self,
-        id: String,
-        color_system: ColorSystemBuilder,
-    ) -> LuaResult<()> {
+    pub(crate) fn define_color_system(&self, color_system: ColorSystemBuilder) -> LuaResult<()> {
+        let id = color_system.id.clone();
         match self
             .as_loading()?
             .color_systems

@@ -27,9 +27,11 @@ function define_skewb(size, name)
     puzzle_name = string.format("Skewb %d (%s)", size, name)
   end
 
-  puzzles:add(string.format("skewb_%d", size), {
-    ndim = 3,
+  puzzles:add{
+    id = string.format("skewb_%d", size),
     name = puzzle_name,
+    version = '0.1.0',
+    ndim = 3,
     colors = 'cube',
     meta = {
       author = 'Milo Jacquet',
@@ -143,7 +145,7 @@ function define_skewb(size, name)
 
       self:unify_piece_types(sym.chiral)
     end,
-  })
+  }
 end
 
 define_skewb(2, "Skewb")
@@ -156,9 +158,11 @@ define_skewb(8, "")
 define_skewb(9, "")
 
 
-puzzles:add('dino_cube', {
-  ndim = 3,
+puzzles:add{
+  id = 'dino_cube',
   name = 'Dino Cube',
+  version = '0.1.0',
+  ndim = 3,
   colors = 'cube',
   meta = {
     author = 'Milo Jacquet',
@@ -197,11 +201,13 @@ puzzles:add('dino_cube', {
 
     self:unify_piece_types(sym.chiral)
   end,
-})
+}
 
-puzzles:add('compy_cube', {
-  ndim = 3,
+puzzles:add{
+  id = 'compy_cube',
   name = 'Compy Cube',
+  version = '0.1.0',
+  ndim = 3,
   colors = 'cube',
   meta = {
     author = 'Milo Jacquet',
@@ -249,4 +255,4 @@ puzzles:add('compy_cube', {
     }
     self:unify_piece_types(sym.chiral)
   end,
-})
+}

@@ -1,4 +1,5 @@
-color_systems:add('4_simplex', {
+color_systems:add{
+  id = '4_simplex',
   name = "4-Simplex",
 
   colors = {
@@ -8,7 +9,7 @@ color_systems:add('4_simplex', {
     { name = 'BR', display = "BR", default = "Blue" },
     { name = 'BL', display = "BL", default = "Red" },
   },
-})
+}
 
 
 function simplex_4d()

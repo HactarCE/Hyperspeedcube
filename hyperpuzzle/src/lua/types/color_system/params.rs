@@ -8,21 +8,16 @@ use crate::PerColor;
 /// Constructs a color system from a Lua specification.
 pub fn from_lua_table<'lua>(
     lua: &'lua Lua,
-    id: Option<String>,
     table: LuaTable<'lua>,
 ) -> LuaResult<ColorSystemBuilder> {
-    if !table.contains_key("colors")? {
-        let mut colors = ColorSystemBuilder::new();
-        add_colors_from_table(lua, &mut colors, table, true)?;
-        return Ok(colors);
-    }
-
+    let id: String;
     let name: Option<String>;
     let colors: LuaTable<'_>;
     let schemes: Option<LuaTable<'_>>;
     let default: Option<String>;
 
     unpack_table!(lua.unpack(table {
+        id,
         name,
         colors,
         schemes,
@@ -30,9 +25,8 @@ pub fn from_lua_table<'lua>(
     }));
     let colors_table = colors;
 
-    let mut colors = ColorSystemBuilder::new();
+    let mut colors = ColorSystemBuilder::new_shared(crate::validate_id(id).into_lua_err()?);
 
-    colors.id = id.map(crate::validate_id).transpose().into_lua_err()?;
     colors.name = name;
 
     // Set default color scheme.

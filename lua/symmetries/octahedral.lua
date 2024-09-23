@@ -1,4 +1,5 @@
-color_systems:add('octahedron', {
+color_systems:add{
+  id = 'octahedron',
   name = "Octahedron",
 
   colors = {
@@ -65,7 +66,7 @@ color_systems:add('octahedron', {
     }},
   },
   default = "Diansheng",
-})
+}
 
 function octahedron()
   return {
