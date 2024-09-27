@@ -57,6 +57,7 @@ serde = { version = "1.0.144", features = ["derive"] }
 serde_yml = "0.0.10"
 smallvec = { version = "1.8.0", features = ["serde", "union"] }
 strum = { version = "0.26.3", features = ["derive"] }
+sublime_fuzzy = "0.7.0"
 thiserror = "1.0.44"
 time = { version = "0.3.7", features = ["local-offset"] }
 

@@ -6,6 +6,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::{LibraryCommand, LibraryDb, LibraryFile};
+use crate::builder::ColorSystemBuilder;
 use crate::lua::{LuaLoader, LuaLogger, PuzzleParams};
 use crate::{LuaLogLine, Puzzle, TaskHandle};
 
@@ -156,6 +157,30 @@ impl Library {
                 Some(Arc::clone(&puzzle.params))
             })
             .sorted_by_cached_key(|params| params.name.clone())
+            .collect_vec()
+    }
+    /// Returns the list of loaded color systems, each with an ID and an
+    /// optional name.
+    pub fn color_systems(&self) -> Vec<(String, Option<String>)> {
+        self.db
+            .lock()
+            .color_systems
+            .iter()
+            .filter_map(|(id, file)| {
+                let Some(load_result) = file.as_completed() else {
+                    log::error!(
+                        "file {:?} owns color system {id:?} but is unloaded",
+                        file.name
+                    );
+                    return None;
+                };
+                let Some(color_system) = load_result.color_systems.get(id) else {
+                    log::error!("color system {id:?} not found in file {:?}", file.name);
+                    return None;
+                };
+                Some((color_system.id.clone(), color_system.name.clone()))
+            })
+            .sorted_by_cached_key(|(id, name)| name.as_ref().unwrap_or(id).clone())
             .collect_vec()
     }
     /// Builds a puzzle from a Lua specification.
