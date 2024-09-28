@@ -20,9 +20,9 @@ end
 -- n^3
 puzzle_generators:add{
   id = 'ft_cube',
-  name = "NxNxN Face-Turning Cube",
   version = '0.1.0',
 
+  name = "NxNxN Face-Turning Cube",
   meta = {
     authors = { "Andrew Farkas", "Milo Jacquet" },
   },
@@ -51,18 +51,14 @@ puzzle_generators:add{
     },
     {
       params = {4},
-      meta = {
-        aliases = { "Rubik's Revenge" },
-        external = { wca = '444' },
-      },
+      meta = { aliases = { "Rubik's Revenge" }, external = { wca = '444' } },
     },
     {
       params = {5},
-      meta = {
-        aliases = { "Professor's Cube" },
-        external = { wca = '555' },
-      },
+      meta = { aliases = { "Professor's Cube" }, external = { wca = '555' } },
     },
+    { params = {6}, meta = { external = { wca = '666' } } },
+    { params = {7}, meta = { external = { wca = '777' } } },
   },
 
   gen = function(params)
@@ -182,9 +178,9 @@ puzzle_generators:add{
 -- n^4
 puzzle_generators:add{
   id = 'ft_hypercube',
-  name = "NxNxNxN Face-Turning Hypercube",
   version = '0.1.0',
 
+  name = "NxNxNxN Face-Turning Hypercube",
   meta = {
     authors = { "Andrew Farkas", "Milo Jacquet" },
   },
@@ -287,32 +283,5 @@ puzzle_generators:add{
         end
       end,
     }
-  end,
-}
-
-puzzles:add{
-  id = 'opposite_colors_same_cube',
-  name = "Opposite colors are the same",
-  version = '0.1.0',
-  ndim = 3,
-  colors = 'half_cube',
-  build = function(self)
-    local sym = cd'bc3'
-    local shape = symmetries.cubic.cube()
-    self:carve(shape:iter_poles(), {
-      stickers = {
-        R = 'X', L = 'X',
-        U = 'Y', D = 'Y',
-        F = 'Z', B = 'Z',
-      },
-    })
-
-    -- Define axes and slices
-    self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, 2))
-
-    -- Define twists
-    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox], sym:thru(2, 1)) do
-      self.twists:add(axis, twist_transform)
-    end
   end,
 }

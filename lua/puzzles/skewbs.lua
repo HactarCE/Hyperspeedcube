@@ -19,144 +19,147 @@ local function skewb_cut_depths(size)
   return utils.layers_inclusive(outermost_cut, -outermost_cut, size-1)
 end
 
-function define_skewb(size, name)
-  local puzzle_name
-  if name == '' then
-    puzzle_name = string.format("Skewb %d", size)
-  else
-    puzzle_name = string.format("Skewb %d (%s)", size, name)
-  end
+puzzle_generators:add{
+  id = 'skewb',
+  version = '0.1.0',
 
-  puzzles:add{
-    id = string.format("skewb_%d", size),
-    name = puzzle_name,
-    version = '0.1.0',
-    ndim = 3,
-    colors = 'cube',
-    meta = {
-      author = 'Milo Jacquet',
-    },
-    build = function(self)
-      local sym = cd'bc3'
-      local shape = symmetries.cubic.cube()
-      self:carve(shape:iter_poles())
+  name = "N-Layer Skewb",
+  meta = {
+    authors = { "Milo Jacquet" }
+  },
 
-      -- Define axes and slices
-      self.axes:add(symmetries.octahedral.octahedron():iter_poles(), skewb_cut_depths(size))
+  params = {
+    { name = "Layers", type = 'int', default = 2, min = 2, max = 9 },
+  },
 
-      -- Define twists
-      for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
-        self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1.1})
-      end
+  examples = {
+    { params = {2}, name = "Skewb" },
+    { params = {3}, name = "Master Skewb" },
+    { params = {4}, name = "Elite Skewb" },
+    { params = {5}, name = "Royal Skewb" },
+  },
 
-      local R = self.axes.R
-      local L = self.axes.L
-      local U = self.axes.U
-      local F = self.axes.F
-      local BD = self.axes.BD
+  gen = function(params)
+    local size = params[1]
 
-      local center_layer = ceil(size/2)
+    return {
+      name = size .. "-Layer Skewb",
 
-      -- Centers
-      for i = 2, center_layer do
-        for j = i, size+1-i do
-          local name, display
-          local name2, display2
-          if i == j and j*2 - 1 == size then
-            if size > 3 then
-              name, display = 'edge/middle', "Middle edge"
+      colors = 'cube',
+
+      ndim = 3,
+      build = function(self)
+        local sym = cd'bc3'
+        local shape = symmetries.cubic.cube()
+        self:carve(shape:iter_poles())
+
+        -- Define axes and slices
+        self.axes:add(symmetries.octahedral.octahedron():iter_poles(), skewb_cut_depths(size))
+
+        -- Define twists
+        for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
+          self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1.1})
+        end
+
+        local R = self.axes.R
+        local L = self.axes.L
+        local U = self.axes.U
+        local F = self.axes.F
+        local BD = self.axes.BD
+
+        local center_layer = ceil(size/2)
+
+        -- Centers
+        for i = 2, center_layer do
+          for j = i, size+1-i do
+            local name, display
+            local name2, display2
+            if i == j and j*2 - 1 == size then
+              if size > 3 then
+                name, display = 'edge/middle', "Middle edge"
+              else
+                name, display = 'edge', "Edge"
+              end
+            elseif i == j then
+              name, display = string.fmt2("edge/wing_%d", "Wing (%d)", i-1)
+            elseif i + j == size+1 then
+              name, display = string.fmt2('center/t_%d', "T-center (%d)", i-1)
             else
-              name, display = 'edge', "Edge"
+              name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
+              self:add_piece_type{ name = name, display = display }
+              name2 = name .. '/right'
+              display2 = display .. " (right)"
+              name = name .. '/left'
+              display = display .. " (left)"
             end
-          elseif i == j then
-            name, display = string.fmt2("edge/wing_%d", "Wing (%d)", i-1)
-          elseif i + j == size+1 then
-            name, display = string.fmt2('center/t_%d', "T-center (%d)", i-1)
-          else
-            name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
-            self:add_piece_type{ name = name, display = display }
-            name2 = name .. '/right'
-            display2 = display .. " (right)"
-            name = name .. '/left'
-            display = display .. " (left)"
+            self:mark_piece{
+              region = F(1) & L(j) & R(i),
+              name = name,
+              display = display,
+            }
+            if name2 ~= nil then
+              self:mark_piece{
+                region = F(1) & L(i) & R(j),
+                name = name2,
+                display = display2,
+              }
+            end
           end
+        end
+
+        for i = 2, floor(size/2) do
+          local name, display = string.fmt2('center/x/outer_%d', "Outer X-center (%d)", i-1)
           self:mark_piece{
-            region = F(1) & L(j) & R(i),
+            region = BD(i) & L(1) & R(1),
             name = name,
             display = display,
           }
-          if name2 ~= nil then
-            self:mark_piece{
-              region = F(1) & L(i) & R(j),
-              name = name2,
-              display = display2,
-            }
-          end
+
+          local name, display = string.fmt2('center/x/inner_%d', "Inner X-center (%d)", i-1)
+          self:mark_piece{
+            region = BD(size+1-i) & L(1) & R(1),
+            name = name,
+            display = display,
+          }
         end
-      end
 
-      for i = 2, floor(size/2) do
-        local name, display = string.fmt2('center/x/outer_%d', "Outer X-center (%d)", i-1)
-        self:mark_piece{
-          region = BD(i) & L(1) & R(1),
-          name = name,
-          display = display,
-        }
+        if size % 2 == 1 then
+          local name, display
+          if size > 3 then
+            name, display = 'center/x/middle', "Middle X-center"
+          else
+            name, display = 'center/x', "X-center"
+          end
+          name = self:mark_piece{
+            region = U(center_layer) & L(1) & R(1),
+            name = name,
+            display = display,
+          }
+        end
 
-        local name, display = string.fmt2('center/x/inner_%d', "Inner X-center (%d)", i-1)
-        self:mark_piece{
-          region = BD(size+1-i) & L(1) & R(1),
-          name = name,
-          display = display,
-        }
-      end
-
-      if size % 2 == 1 then
         local name, display
         if size > 3 then
-          name, display = 'center/x/middle', "Middle X-center"
+          name, display = 'center/middle', "Middle center"
         else
-          name, display = 'center/x', "X-center"
+          name, display = 'center', "Center"
         end
-        name = self:mark_piece{
-          region = U(center_layer) & L(1) & R(1),
+        self:mark_piece{
+          region = F(1) & R(1) & U(1) & L(1),
           name = name,
           display = display,
         }
-      end
 
-      local name, display
-      if size > 3 then
-        name, display = 'center/middle', "Middle center"
-      else
-        name, display = 'center', "Center"
-      end
-      self:mark_piece{
-        region = F(1) & R(1) & U(1) & L(1),
-        name = name,
-        display = display,
-      }
+        self:mark_piece{
+          region = L(1) & R(1) & BD(1),
+          name = 'corner',
+          display = "Corner",
+        }
 
-      self:mark_piece{
-        region = L(1) & R(1) & BD(1),
-        name = 'corner',
-        display = "Corner",
-      }
-
-      self:unify_piece_types(sym.chiral)
-    end,
-  }
-end
-
-define_skewb(2, "Skewb")
-define_skewb(3, "Master Skewb")
-define_skewb(4, "Elite Skewb")
-define_skewb(5, "Royal Skewb")
-define_skewb(6, "")
-define_skewb(7, "")
-define_skewb(8, "")
-define_skewb(9, "")
-
+        self:unify_piece_types(sym.chiral)
+      end,
+    }
+  end,
+}
 
 puzzles:add{
   id = 'dino_cube',
@@ -167,14 +170,6 @@ puzzles:add{
   meta = {
     author = 'Milo Jacquet',
   },
-  -- piece_types = {
-  --   { id = 'centers', name = "Centers" },
-  --   {
-  --     id = 'moving', name = "Moving pieces",
-  --     { id = 'edges', name = "Edges" },
-  --     { id = 'corners', name = "Corners" },
-  --   },
-  -- },
   build = function(self)
     local sym = cd'bc3'
     local shape = symmetries.cubic.cube()
@@ -212,14 +207,6 @@ puzzles:add{
   meta = {
     author = 'Milo Jacquet',
   },
-  -- piece_types = {
-  --   { id = 'centers', name = "Centers" },
-  --   {
-  --     id = 'moving', name = "Moving pieces",
-  --     { id = 'edges', name = "Edges" },
-  --     { id = 'corners', name = "Corners" },
-  --   },
-  -- },
   build = function(self)
     local sym = cd'bc3'
     local shape = symmetries.cubic.cube()
