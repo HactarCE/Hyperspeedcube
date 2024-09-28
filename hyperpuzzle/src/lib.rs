@@ -83,3 +83,33 @@ pub fn generated_puzzle_id(
     }
     ret
 }
+
+fn compare_puzzle_ids(a: &str, b: &str) -> std::cmp::Ordering {
+    if a == b {
+        return std::cmp::Ordering::Equal;
+    }
+
+    let Some((a_id, a_params)) = crate::parse_generated_puzzle_id(a) else {
+        return a.cmp(b);
+    };
+    let Some((b_id, b_params)) = crate::parse_generated_puzzle_id(b) else {
+        return a.cmp(b);
+    };
+
+    match a_id.cmp(b_id) {
+        std::cmp::Ordering::Equal => (),
+        ord => return ord,
+    }
+
+    fn parse_float_else_str(s: &str) -> Result<float_ord::FloatOrd<f64>, &str> {
+        match s.parse::<f64>() {
+            Ok(n) => Ok(float_ord::FloatOrd(n)),
+            Err(_) => Err(s),
+        }
+    }
+
+    Iterator::cmp(
+        a_params.into_iter().map(parse_float_else_str),
+        b_params.into_iter().map(parse_float_else_str),
+    )
+}

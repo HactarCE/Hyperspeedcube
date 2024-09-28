@@ -65,7 +65,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     .flat_map(|gen| gen.examples.values())
                     .map(Arc::clone);
                 let puzzles = itertools::chain(single_puzzles, generated_puzzles)
-                    .sorted_by_key(|puz| puz.display_name().to_owned())
+                    .sorted()
                     .map(|p| (p.display_name().to_owned(), p))
                     .collect_vec();
                 filtered_list(ui, &search_query, &puzzles, "puzzles", |_ui, r, puzzle| {
@@ -119,6 +119,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 }
 
                                 if ui.button("Generate puzzle").clicked() {
+                                    ui.memory_mut(|mem| mem.close_popup());
                                     let puzzle_id = hyperpuzzle::generated_puzzle_id(
                                         &puzzle_generator.id,
                                         &popup_data.params,
@@ -398,6 +399,7 @@ fn show_tags_filter_menu(ui: &mut egui::Ui) {
         }
     });
 
+    checkbox(ui, "Generated");
     checkbox(ui, "Canonical");
     checkbox(ui, "Meme");
     checkbox(ui, "WCA");

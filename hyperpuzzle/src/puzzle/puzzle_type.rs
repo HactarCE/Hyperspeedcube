@@ -70,6 +70,28 @@ pub struct Puzzle {
     pub dev_data: PuzzleDevData,
 }
 
+/// Compare by puzzle ID.
+impl PartialEq for Puzzle {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+/// Compare by puzzle ID.
+impl Eq for Puzzle {}
+
+/// Compare by puzzle ID.
+impl PartialOrd for Puzzle {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+/// Compare by puzzle ID.
+impl Ord for Puzzle {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        crate::compare_puzzle_ids(&self.id, &other.id)
+    }
+}
+
 impl Puzzle {
     /// Returns an `Arc` reference to the puzzle type.
     pub fn arc(&self) -> Arc<Self> {

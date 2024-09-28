@@ -32,6 +32,28 @@ pub struct PuzzleSpec {
     pub remove_internals: Option<bool>,
 }
 
+/// Compare by puzzle ID.
+impl PartialEq for PuzzleSpec {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+/// Compare by puzzle ID.
+impl Eq for PuzzleSpec {}
+
+/// Compare by puzzle ID.
+impl PartialOrd for PuzzleSpec {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+/// Compare by puzzle ID.
+impl Ord for PuzzleSpec {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        crate::compare_puzzle_ids(&self.id, &other.id)
+    }
+}
+
 impl<'lua> FromLua<'lua> for PuzzleSpec {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         let table: LuaTable<'lua> = lua.unpack(value)?;
