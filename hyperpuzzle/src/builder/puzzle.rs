@@ -6,7 +6,7 @@ use hypershape::prelude::*;
 use parking_lot::Mutex;
 
 use super::{shape::ShapeBuildOutput, ShapeBuilder, TwistSystemBuilder};
-use crate::puzzle::*;
+use crate::{puzzle::*, Version};
 
 /// Puzzle being constructed.
 #[derive(Debug)]
@@ -16,10 +16,12 @@ pub struct PuzzleBuilder {
 
     /// Puzzle ID.
     pub id: String,
-    /// Puzzle specification version in the form `[major, minor, patch]`.
-    pub version: [usize; 3],
+    /// Puzzle specification version.
+    pub version: Version,
     /// Name of the puzzle.
     pub name: String,
+    /// Additional puzzle metadata.
+    pub meta: PuzzleMetadata,
 
     /// Shape of the puzzle.
     pub shape: ShapeBuilder,
@@ -28,14 +30,10 @@ pub struct PuzzleBuilder {
 }
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
-    pub fn new(
-        id: String,
-        name: String,
-        version: [usize; 3],
-        ndim: u8,
-    ) -> Result<Arc<Mutex<Self>>> {
+    pub fn new(id: String, name: String, version: Version, ndim: u8) -> Result<Arc<Mutex<Self>>> {
         let shape = ShapeBuilder::new_with_primordial_cube(Space::new(ndim), &id)?;
         let twists = TwistSystemBuilder::new();
+        let meta = PuzzleMetadata::default();
         Ok(Arc::new_cyclic(|this| {
             Mutex::new(Self {
                 this: this.clone(),
@@ -43,6 +41,7 @@ impl PuzzleBuilder {
                 id,
                 version,
                 name,
+                meta,
 
                 shape,
                 twists,
@@ -101,9 +100,10 @@ impl PuzzleBuilder {
 
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
-            name: self.name.clone(),
             id: self.id.clone(),
             version: self.version,
+            name: self.name.clone(),
+            meta: self.meta.clone(),
 
             space: self.space(),
             mesh,

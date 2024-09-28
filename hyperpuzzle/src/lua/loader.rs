@@ -6,7 +6,7 @@ use mlua::prelude::*;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::library::{LibraryDb, LibraryFile, LibraryFileLoadResult, LibraryFileLoadState};
+use crate::library::{LibraryDb, LibraryFile, LibraryFileLoadOutput, LibraryFileLoadState};
 
 macro_rules! lua_module {
     ($filename:literal) => {
@@ -96,6 +96,7 @@ impl LuaLoader {
 
             // Database
             sandbox.raw_set("puzzles", LuaPuzzleDb)?;
+            sandbox.raw_set("puzzle_generators", LuaPuzzleGeneratorDb)?;
             sandbox.raw_set("color_systems", LuaColorSystemDb)?;
 
             // `blade` constructors
@@ -256,7 +257,7 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
         // There must be no way to exit the function during this block.
         {
             *load_state =
-                LibraryFileLoadState::Loading(LibraryFileLoadResult::with_exports(exports_table));
+                LibraryFileLoadState::Loading(LibraryFileLoadOutput::with_exports(exports_table));
             // Set the currently-loading file.
             let old_file = self.lua.set_app_data::<Arc<LibraryFile>>(Arc::clone(&file));
 
@@ -278,16 +279,19 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
             match exec_result {
                 Ok(()) => {
                     {
-                        let LibraryFileLoadResult {
+                        let LibraryFileLoadOutput {
                             exports: _,
 
                             puzzles,
+                            puzzle_generators,
                             color_systems,
                         } = &*file.as_loading()?;
 
                         let mut db = self.db.lock();
                         let kv = |k: &String| (k.clone(), Arc::clone(&file));
                         db.puzzles.extend(puzzles.keys().map(kv));
+                        db.puzzle_generators
+                            .extend(puzzle_generators.keys().map(kv));
                         db.color_systems.extend(color_systems.keys().map(kv));
                     }
 

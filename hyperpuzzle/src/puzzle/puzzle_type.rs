@@ -3,6 +3,8 @@ use std::sync::{Arc, Weak};
 
 use hypershape::Space;
 
+use crate::Version;
+
 use super::*;
 
 /// Puzzle type info.
@@ -10,8 +12,6 @@ use super::*;
 pub struct Puzzle {
     /// Reference-counted pointer to this struct.
     pub this: Weak<Puzzle>,
-    /// Human-friendly name for the puzzle.
-    pub name: String,
     /// Internal ID for the puzzle.
     pub id: String,
     /// Semantic version for the puzzle, in the form `[major, minor, patch]`.
@@ -21,7 +21,11 @@ pub struct Puzzle {
     /// - Patch versions indicate any other changes, including user-facing
     ///   changes.
     /// - Major version `0` allows any breaking changes.
-    pub version: [usize; 3],
+    pub version: Version,
+    /// Human-friendly name for the puzzle.
+    pub name: String,
+    /// Additional puzzle metadata.
+    pub meta: PuzzleMetadata,
 
     /// Space containing a polytope for each piece.
     pub(crate) space: Arc<Space>,

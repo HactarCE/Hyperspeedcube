@@ -17,127 +17,173 @@ local function ft_cube_cut_depths(ndim, size)
   return utils.layers_inclusive(outermost_cut, -outermost_cut, size-1)
 end
 
-function define_ft_cube_3d(size)
-  puzzles:add{
-    id = size .. 'x' .. size .. 'x' .. size,
-    name = string.format("FT Cube %d (%d^3)", size, size),
-    version = '0.1.0',
-    ndim = 3,
-    colors = 'cube',
-    build = function(self)
-      local sym = cd'bc3'
-      local shape = symmetries.cubic.cube()
-      self:carve(shape:iter_poles())
+puzzle_generators:add{
+  id = 'ft_cube',
+  name = "NxNxN Face-Turning Cube",
+  version = '0.1.0',
 
-      -- Optimize piece ID usage by doing outermost cuts first
-      if size > 5 then
-        for _, v in sym:orbit(sym.oox.unit * ft_cube_cut_depths(3, size)[1]) do
-          self:slice(v)
+  meta =  {
+    author = "Andrew Farkas",
+  },
+
+  params = {
+    { name = "Layers", type = 'int', default = 3, min = 1, max = 17 },
+  },
+
+  examples = {
+    { params = {1} },
+    {
+      params = {2},
+      meta = {
+        aliases = { "Pocket Cube" },
+        external = { wca = '222' },
+        inventor = "Ernő Rubik",
+      }
+    },
+    {
+      params = {3},
+      meta = {
+        aliases = { "Rubik's Cube" },
+        external = { wca = '333' },
+        inventor = "Ernő Rubik",
+      },
+    },
+    {
+      params = {4},
+      meta = {
+        aliases = { "Rubik's Revenge" },
+        external = { wca = '444' },
+      },
+    },
+    {
+      params = {5},
+      meta = {
+        aliases = { "Professor's Cube" },
+        external = { wca = '555' },
+      },
+    },
+  },
+
+  gen = function(params)
+    local size = params[1]
+
+    return {
+      name = size .. "x" .. size .. "x" .. size,
+
+      colors = 'cube',
+
+      ndim = 3,
+      build = function(self)
+        local sym = cd'bc3'
+        local shape = symmetries.cubic.cube()
+        self:carve(shape:iter_poles())
+
+        -- Optimize piece ID usage by doing outermost cuts first
+        if size > 5 then
+          for _, v in sym:orbit(sym.oox.unit * ft_cube_cut_depths(3, size)[1]) do
+            self:slice(v)
+          end
         end
-      end
 
-      -- Define axes and slices
-      self.axes:add(shape:iter_poles(), ft_cube_cut_depths(3, size))
+        -- Define axes and slices
+        self.axes:add(shape:iter_poles(), ft_cube_cut_depths(3, size))
 
-      -- Define twists
-      for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
-        self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
-      end
+        -- Define twists
+        for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
+          self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
+        end
 
-      local center_layer = ceil(size/2)
-      local precenter_layer = floor(size/2)
-      local R = self.axes.R
-      local L = self.axes.L
-      local U = self.axes.U
-      local F = self.axes.F
+        local center_layer = ceil(size/2)
+        local precenter_layer = floor(size/2)
+        local R = self.axes.R
+        local L = self.axes.L
+        local U = self.axes.U
+        local F = self.axes.F
 
-      -- Mark piece types
-      if size == 1 then
-        self:mark_piece{
-          region = REGION_ALL,
-          name = 'core',
-          display = "Core",
-        }
-      else
-        local U_adj = symmetry{self.twists.U}:orbit(R(1, precenter_layer)):union()
+        -- Mark piece types
+        if size == 1 then
+          self:mark_piece{
+            region = REGION_ALL,
+            name = 'core',
+            display = "Core",
+          }
+        else
+          local U_adj = symmetry{self.twists.U}:orbit(R(1, precenter_layer)):union()
 
-        -- Centers
-        self:add_piece_type{ name = 'center', display = "Center" }
-        for i = 2, center_layer do
-          for j = 2, precenter_layer do
-            local name, display
-            if i == center_layer and size % 2 == 1 then
-              name, display = string.fmt2('center/t_%d', "T-center (%d)", j-1)
-            elseif i == j then
-              name, display = string.fmt2('center/x_%d', "X-center (%d)", i-1)
-            else
-              if i < j then
-                name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
-                self:add_piece_type{ name = name, display = display }
-                name = name .. "/left"
-                display = display .. " (left)"
+          -- Centers
+          self:add_piece_type{ name = 'center', display = "Center" }
+          for i = 2, center_layer do
+            for j = 2, precenter_layer do
+              local name, display
+              if i == center_layer and size % 2 == 1 then
+                name, display = string.fmt2('center/t_%d', "T-center (%d)", j-1)
+              elseif i == j then
+                name, display = string.fmt2('center/x_%d', "X-center (%d)", i-1)
               else
-                name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", j-1, i-1)
-                name = name .. "/right"
-                display = display .. " (right)"
+                if i < j then
+                  name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
+                  self:add_piece_type{ name = name, display = display }
+                  name = name .. "/left"
+                  display = display .. " (left)"
+                else
+                  name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", j-1, i-1)
+                  name = name .. "/right"
+                  display = display .. " (right)"
+                end
               end
+              self:mark_piece{
+                region = U(1) & R(i) & F(j),
+                name = name,
+                display = display,
+              }
             end
+          end
+
+          -- Edges
+          self:add_piece_type{ name = 'edge', display = "Edge" }
+          for i = 2, precenter_layer do
+            local name, display = string.fmt2('edge/wing_%d', "Wing (%d)", i-1)
             self:mark_piece{
-              region = U(1) & R(i) & F(j),
+              region = U(1) & R(1) & F(i),
               name = name,
               display = display,
             }
           end
-        end
 
-        -- Edges
-        self:add_piece_type{ name = 'edge', display = "Edge" }
-        for i = 2, precenter_layer do
-          local name, display = string.fmt2('edge/wing_%d', "Wing (%d)", i-1)
+          -- Middle centers and edges
+          local middle_suffix = ''
+          local center_display, edge_display -- nil is ok here
+          if size > 3 then
+            middle_suffix = '/middle'
+            center_display = "Middle center"
+            edge_display = "Middle edge"
+          end
+
+          if size % 2 == 1 then
+            self:mark_piece{
+              region = U(1) & ~U_adj,
+              name = 'center' .. middle_suffix,
+              display = center_display,
+            }
+            self:mark_piece{
+              region = U(1) & F(1) & ~R(1, precenter_layer) & ~L(1, precenter_layer),
+              name = 'edge' .. middle_suffix,
+              display = edge_display,
+            }
+          end
+
           self:mark_piece{
-            region = U(1) & R(1) & F(i),
-            name = name,
-            display = display,
+            region = U(1) & F(1) & R(1),
+            name = 'corner',
+            display = "Corner",
           }
+
+          self:unify_piece_types(sym.chiral)
         end
-
-        -- Middle centers and edges
-        local middle_suffix = ''
-        local center_display, edge_display -- nil is ok here
-        if size > 3 then
-          middle_suffix = '/middle'
-          center_display = "Middle center"
-          edge_display = "Middle edge"
-        end
-
-        if size % 2 == 1 then
-          self:mark_piece{
-            region = U(1) & ~U_adj,
-            name = 'center' .. middle_suffix,
-            display = center_display,
-          }
-          self:mark_piece{
-            region = U(1) & F(1) & ~R(1, precenter_layer) & ~L(1, precenter_layer),
-            name = 'edge' .. middle_suffix,
-            display = edge_display,
-          }
-        end
-
-        self:mark_piece{
-          region = U(1) & F(1) & R(1),
-          name = 'corner',
-          display = "Corner",
-        }
-
-        self:unify_piece_types(sym.chiral)
-      end
-    end,
-  }
-end
-
-for size = 1, 21 do
-  define_ft_cube_3d(size)
-end
+      end,
+    }
+  end,
+}
 
 function define_ft_cube_4d(size)
   local gizmo_size = 1.2

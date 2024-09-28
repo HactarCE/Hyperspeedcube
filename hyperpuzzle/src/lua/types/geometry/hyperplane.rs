@@ -120,7 +120,6 @@ impl LuaHyperplane {
         let normal: Option<LuaVector>;
         let point: Option<LuaPoint>;
         let pole: Option<LuaVector>;
-
         unpack_table!(lua.unpack(t {
             distance,
             normal,

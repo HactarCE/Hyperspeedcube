@@ -8,16 +8,23 @@ macro_rules! unpack_table {
         let mut pairs: ::std::collections::HashMap<String, ::mlua::Value<'_>> =
             table.clone().pairs().into_iter().collect::<::mlua::Result<_>>()?;
         $(
+            let key_str = $crate::lua::macros::key_str(stringify!($key));
             $key = ::mlua::ErrorContext::with_context(
-                $lua.unpack(pairs.remove(stringify!($key)).into_lua($lua)?),
-                |_| format!("bad value for key {:?}", stringify!($key)),
+                $lua.unpack(pairs.remove(key_str).into_lua($lua)?),
+                |e| format!("bad value for key {key_str:?}: {e}"),
             )?;
         )+
         if let Some(extra_key) = pairs.keys().next() {
             return Err(::mlua::Error::external(format!(
                 "unknown table key: {extra_key:?}; allowed keys: {:?}",
-                [$(stringify!($key)),+],
+                [$($crate::lua::macros::key_str(stringify!($key))),+],
             )));
         }
     };
+}
+
+pub(crate) fn key_str(s: &str) -> &str {
+    // strip `r#` prefix on raw identifiers
+    // because we use `type` as a table key
+    s.strip_prefix("r#").unwrap_or(s)
 }

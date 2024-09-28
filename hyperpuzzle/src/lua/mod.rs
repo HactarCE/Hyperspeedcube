@@ -53,3 +53,13 @@ fn result_to_ok_or_warn<T, E>(
         }
     }
 }
+
+fn create_opt_registry_value<'lua>(
+    lua: &'lua mlua::Lua,
+    v: Option<impl mlua::IntoLua<'lua>>,
+) -> mlua::Result<Option<mlua::RegistryKey>> {
+    match v {
+        Some(v) => Ok(Some(lua.create_registry_value(v)?)),
+        None => Ok(None),
+    }
+}

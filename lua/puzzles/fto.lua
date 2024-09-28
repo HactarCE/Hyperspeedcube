@@ -16,7 +16,7 @@ function define_fto(size, name)
     ndim = 3,
     colors = 'octahedron',
     meta = {
-      author = {'Andrew Farkas', 'Milo Jacquet'},
+      authors = {'Andrew Farkas', 'Milo Jacquet'},
     },
     build = function(self)
       local sym = cd'bc3'

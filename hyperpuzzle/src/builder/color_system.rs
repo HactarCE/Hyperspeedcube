@@ -65,6 +65,11 @@ impl ColorSystemBuilder {
         }
     }
 
+    /// Returns the name or the ID of the color system.
+    pub fn display_name(&self) -> &str {
+        self.name.as_deref().unwrap_or(&self.id)
+    }
+
     /// Returns whether there are no colors in the color system.
     pub fn is_empty(&self) -> bool {
         self.by_id.is_empty()

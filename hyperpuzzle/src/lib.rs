@@ -12,7 +12,7 @@ mod task;
 pub mod util;
 
 pub use library::*;
-pub use lua::LuaLogLine;
+pub use lua::{LuaLogLine, Version};
 pub use puzzle::*;
 pub use rgb::Rgb;
 pub use task::TaskHandle;
@@ -55,8 +55,31 @@ fn validate_id_str(s: &str) -> eyre::Result<()> {
         Ok(())
     } else {
         Err(eyre::eyre!(
-            "invalid ID; ID must be nonempty and contain \
-             only alphanumeric characters and '_'",
+            "invalid ID {s:?}; ID must be nonempty and \
+             contain only alphanumeric characters and '_'",
         ))
     }
+}
+
+/// Parses the ID of a generated puzzle into its components: the generator ID,
+/// and the parameters. Returns `None` if the ID is not a valid ID for a
+/// generated puzzle.
+pub fn parse_generated_puzzle_id(id: &str) -> Option<(&str, Vec<&str>)> {
+    let (generator_id, args) = id.split_once(':')?;
+    Some((generator_id, args.split(',').collect()))
+}
+
+/// Returns the ID of a generated puzzle.
+pub fn generated_puzzle_id(
+    generator_id: &str,
+    params: impl IntoIterator<Item = impl ToString>,
+) -> String {
+    let mut ret = generator_id.to_owned();
+    let mut is_first = true;
+    for param in params {
+        ret += if is_first { ":" } else { "," };
+        is_first = false;
+        ret += &param.to_string();
+    }
+    ret
 }

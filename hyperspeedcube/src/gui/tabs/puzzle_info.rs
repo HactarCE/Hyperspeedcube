@@ -12,6 +12,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         // TODO: rework this UI
 
         ui.label(format!("ID: {}", puz.id));
+        ui.label(format!("Version: {}", puz.version));
         ui.label(format!("Name: {}", puz.name));
         ui.label(format!("Piece count: {}", puz.pieces.len()));
         ui.label(format!("Sticker count: {}", puz.stickers.len()));

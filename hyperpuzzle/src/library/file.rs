@@ -5,8 +5,11 @@ use std::sync::Arc;
 use mlua::prelude::*;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 
-use super::LazyPuzzle;
-use crate::{builder::ColorSystemBuilder, lua::PuzzleParams};
+use super::{LazyPuzzle, LazyPuzzleGenerator};
+use crate::{
+    builder::ColorSystemBuilder,
+    lua::{PuzzleGenerator, PuzzleParams},
+};
 
 /// File stored in a [`super::Library`].
 #[derive(Debug)]
@@ -47,7 +50,7 @@ impl LibraryFile {
     /// currently being loaded.
     ///
     /// Returns an error if the file is not currently being loaded.
-    pub(crate) fn as_loading(&self) -> LuaResult<MappedMutexGuard<'_, LibraryFileLoadResult>> {
+    pub(crate) fn as_loading(&self) -> LuaResult<MappedMutexGuard<'_, LibraryFileLoadOutput>> {
         MutexGuard::try_map(self.load_state.lock(), |load_state| match load_state {
             LibraryFileLoadState::Loading(result) => Some(result),
             _ => None,
@@ -57,28 +60,42 @@ impl LibraryFile {
 
     /// Defines a puzzle in the file.
     pub(crate) fn define_puzzle(&self, params: PuzzleParams) -> LuaResult<()> {
-        let id = params.id.clone();
-        match self
-            .as_loading()?
-            .puzzles
-            .insert(id.clone(), LazyPuzzle::new(params))
-        {
-            Some(_old) => Err(LuaError::external(format!(
-                "duplicate puzzle with ID {id:?}",
-            ))),
-            None => Ok(()),
-        }
+        self.define_object(
+            |file_output| &mut file_output.puzzles,
+            params.id.clone(),
+            LazyPuzzle::new(params),
+            "puzzle",
+        )
+    }
+    /// Defines a puzzle generator in the file.
+    pub(crate) fn define_puzzle_generator(&self, generator: PuzzleGenerator) -> LuaResult<()> {
+        self.define_object(
+            |file_output| &mut file_output.puzzle_generators,
+            generator.id.clone(),
+            LazyPuzzleGenerator::new(generator),
+            "puzzle generator",
+        )
     }
     /// Defines a color system in the file.
     pub(crate) fn define_color_system(&self, color_system: ColorSystemBuilder) -> LuaResult<()> {
-        let id = color_system.id.clone();
-        match self
-            .as_loading()?
-            .color_systems
-            .insert(id.clone(), color_system)
-        {
+        self.define_object(
+            |file_output| &mut file_output.color_systems,
+            color_system.id.clone(),
+            Arc::new(color_system),
+            "color system",
+        )
+    }
+
+    fn define_object<O>(
+        &self,
+        get_hashmap: impl FnOnce(&mut LibraryFileLoadOutput) -> &mut HashMap<String, O>,
+        id: String,
+        obj: O,
+        obj_type_str: &str,
+    ) -> LuaResult<()> {
+        match get_hashmap(&mut *self.as_loading()?).insert(id.clone(), obj) {
             Some(_old) => Err(LuaError::external(format!(
-                "duplicate color system with ID {id:?}",
+                "duplicate {obj_type_str} with ID {id:?}",
             ))),
             None => Ok(()),
         }
@@ -93,7 +110,7 @@ impl LibraryFile {
     /// loaded.
     ///
     /// Returns `None` if the file has not yet been loaded.
-    pub(crate) fn as_completed(&self) -> Option<MappedMutexGuard<'_, LibraryFileLoadResult>> {
+    pub(crate) fn as_completed(&self) -> Option<MappedMutexGuard<'_, LibraryFileLoadOutput>> {
         MutexGuard::try_map(self.load_state.lock(), |load_state| {
             load_state.completed_mut()
         })
@@ -108,9 +125,9 @@ pub(crate) enum LibraryFileLoadState {
     #[default]
     Unloaded,
     /// The file is currently being loaded.
-    Loading(LibraryFileLoadResult),
+    Loading(LibraryFileLoadOutput),
     /// The file has been loaded.
-    Done(LuaResult<LibraryFileLoadResult>),
+    Done(LuaResult<LibraryFileLoadOutput>),
 }
 impl LibraryFileLoadState {
     /// Finish loading the file successfully.
@@ -136,7 +153,7 @@ impl LibraryFileLoadState {
         e
     }
     /// Returns a mutable reference to the completed load result for the file.
-    pub fn completed_mut(&mut self) -> Option<&mut LibraryFileLoadResult> {
+    pub fn completed_mut(&mut self) -> Option<&mut LibraryFileLoadOutput> {
         match self {
             LibraryFileLoadState::Done(result) => result.as_mut().ok(),
             _ => None,
@@ -146,20 +163,23 @@ impl LibraryFileLoadState {
 
 /// Data from loading a [`LibraryFile`].
 #[derive(Debug)]
-pub(crate) struct LibraryFileLoadResult {
+pub(crate) struct LibraryFileLoadOutput {
     /// Table of exports to other Lua code that imports this file.
     pub exports: LuaRegistryKey,
     /// Puzzles defined in this file, indexed by ID.
     pub puzzles: HashMap<String, LazyPuzzle>,
+    /// Puzzle generators defined in this file, indexed by ID.
+    pub puzzle_generators: HashMap<String, LazyPuzzleGenerator>,
     /// Color systems defined in this file, indexed by ID.
-    pub color_systems: HashMap<String, ColorSystemBuilder>,
+    pub color_systems: HashMap<String, Arc<ColorSystemBuilder>>,
 }
-impl LibraryFileLoadResult {
+impl LibraryFileLoadOutput {
     /// Constructs an empty load result.
     pub(crate) fn with_exports(exports_table: LuaRegistryKey) -> Self {
         Self {
             exports: exports_table,
             puzzles: HashMap::new(),
+            puzzle_generators: HashMap::new(),
             color_systems: HashMap::new(),
         }
     }

@@ -15,7 +15,6 @@ pub fn from_lua_table<'lua>(
     let colors: LuaTable<'_>;
     let schemes: Option<LuaTable<'_>>;
     let default: Option<String>;
-
     unpack_table!(lua.unpack(table {
         id,
         name,

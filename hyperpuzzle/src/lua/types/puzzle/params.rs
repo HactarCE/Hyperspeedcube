@@ -3,35 +3,33 @@ use std::sync::Arc;
 use super::*;
 use crate::builder::PuzzleBuilder;
 use crate::lua::lua_warn_fn;
-use crate::{LibraryDb, Puzzle};
+use crate::{LibraryDb, Puzzle, PuzzleMetadata, PuzzleMetadataExternal};
 
 /// Set of parameters that define a puzzle.
 #[derive(Debug)]
 pub struct PuzzleParams {
     /// String ID of the puzzle.
     pub id: String,
-    /// Version of the puzzle. (default = `[0, 0, 0]`)
-    pub version: [usize; 3],
+    /// Version of the puzzle.
+    pub version: Version,
+
     /// Number of dimensions of the space in which the puzzle is constructed.
     pub ndim: LuaNdim,
+    /// Lua function to build the puzzle.
+    user_build_fn: LuaRegistryKey,
 
     /// Color system ID.
     pub colors: Option<String>,
 
     /// User-friendly name for the puzzle. (default = same as ID)
     pub name: Option<String>,
-    /// Alternative user-friendly names for the puzzle.
-    pub aliases: Vec<String>,
     /// Lua table containing metadata about the puzzle.
-    pub meta: Option<LuaRegistryKey>,
+    pub meta: PuzzleMetadata,
     /// Lua table containing additional properties of the puzzle.
     pub properties: Option<LuaRegistryKey>,
 
     /// Whether to automatically remove internal pieces as they are constructed.
     pub remove_internals: Option<bool>,
-
-    /// Lua function to build the puzzle.
-    user_build_fn: LuaRegistryKey,
 }
 
 impl<'lua> FromLua<'lua> for PuzzleParams {
@@ -39,67 +37,53 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
         let table: LuaTable<'lua> = lua.unpack(value)?;
 
         let id: String;
-        let version: Option<String>;
-        let name: Option<String>;
+        let version: Version;
         let ndim: LuaNdim;
         let build: LuaFunction<'lua>;
+        let name: Option<String>;
         let colors: Option<String>;
-        let aliases: Option<Vec<String>>;
-        let meta: Option<LuaTable<'lua>>;
+        let meta: PuzzleMetadata;
         let properties: Option<LuaTable<'lua>>;
         let remove_internals: Option<bool>;
-
+        let __generated__: Option<bool>;
         unpack_table!(lua.unpack(table {
             id,
             name,
             version,
+
             ndim,
             build,
 
             colors,
 
-            aliases,
             meta,
             properties,
 
             remove_internals,
+
+            __generated__, // TODO: this can be hacked
         }));
 
-        let id = crate::validate_id(id.clone()).into_lua_err()?;
-
-        let version = match version {
-            Some(s) => parse_puzzle_version_str(&s).unwrap_or_else(|e| {
-                lua.warning(format!("error in `version` for puzzle {id}: {e}"), false);
-                [0; 3]
-            }),
-            None => {
-                lua.warning(format!("missing `version` for puzzle {id}"), false);
-                [0; 3]
-            }
-        };
-
-        let create_opt_registry_value = |v| -> LuaResult<Option<LuaRegistryKey>> {
-            match v {
-                Some(v) => Ok(Some(lua.create_registry_value(v)?)),
-                None => Ok(None),
-            }
+        let id = if __generated__ == Some(true) {
+            id // ID already validated
+        } else {
+            crate::validate_id(id).into_lua_err()?
         };
 
         Ok(PuzzleParams {
             id,
             version,
+
             ndim,
+            user_build_fn: lua.create_registry_value(build)?,
 
             colors,
 
             name,
-            aliases: aliases.unwrap_or_default(),
-            meta: create_opt_registry_value(meta)?,
-            properties: create_opt_registry_value(properties)?,
+            meta,
+            properties: crate::lua::create_opt_registry_value(lua, properties)?,
 
             remove_internals,
-
-            user_build_fn: lua.create_registry_value(build)?,
         })
     }
 }
@@ -143,18 +127,55 @@ impl PuzzleParams {
     }
 }
 
-fn parse_puzzle_version_str(version_string: &str) -> Result<[usize; 3], String> {
-    fn parse_component(s: &str) -> Result<usize, String> {
-        s.parse()
-            .map_err(|e| format!("invalid major version because {e}"))
-    }
+impl<'lua> FromLua<'lua> for PuzzleMetadata {
+    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        if value.is_nil() {
+            return Ok(PuzzleMetadata::default());
+        }
 
-    let mut segments = version_string.split('.');
-    let major = parse_component(segments.next().ok_or("missing major version")?)?;
-    let minor = parse_component(segments.next().unwrap_or("0"))?;
-    let patch = parse_component(segments.next().unwrap_or("0"))?;
-    if segments.next().is_some() {
-        return Err("too many segments; only the form `major.minor.patch` is accepted".to_owned());
+        let table: LuaTable<'lua> = lua.unpack(value)?;
+
+        let author: Option<String>;
+        let authors: Option<Vec<String>>;
+        let inventor: Option<String>;
+        let inventors: Option<Vec<String>>;
+        let aliases: Option<Vec<String>>;
+        let external: PuzzleMetadataExternal;
+        unpack_table!(lua.unpack(table {
+            author,
+            authors,
+            inventor,
+            inventors,
+            aliases,
+            external,
+        }));
+
+        let mut authors = authors.unwrap_or_default();
+        authors.extend(author);
+        let mut inventors = inventors.unwrap_or_default();
+        inventors.extend(inventor);
+        let aliases = aliases.unwrap_or_default();
+
+        Ok(PuzzleMetadata {
+            authors,
+            inventors,
+            aliases,
+            external,
+        })
     }
-    Ok([major, minor, patch])
+}
+
+impl<'lua> FromLua<'lua> for PuzzleMetadataExternal {
+    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        if value.is_nil() {
+            return Ok(PuzzleMetadataExternal::default());
+        }
+
+        let table: LuaTable<'lua> = lua.unpack(value)?;
+
+        let wca: Option<String>;
+        unpack_table!(lua.unpack(table { wca }));
+
+        Ok(PuzzleMetadataExternal { wca })
+    }
 }

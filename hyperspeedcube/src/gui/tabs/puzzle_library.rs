@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use hyperpuzzle::lua::{GeneratorParamType, GeneratorParamValue, PuzzleGenerator};
 use itertools::Itertools;
 
 use crate::{
@@ -10,33 +13,6 @@ use crate::{
 };
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    // crate::LIBRARY.with(|lib| {
-    //     for puzzle in lib.puzzles() {
-    //         if ui
-    //             .button(format!(
-    //                 "Load {} v{}.{}.{}",
-    //                 puzzle.display_name(),
-    //                 puzzle.version[0],
-    //                 puzzle.version[1],
-    //                 puzzle.version[2],
-    //             ))
-    //             .clicked()
-    //         {
-    //             app.load_puzzle(lib, &puzzle.id);
-    //         }
-    //     }
-    // });
-
-    use rand::prelude::*;
-    lazy_static! {
-        static ref R: Vec<usize> =
-            std::iter::from_fn(|| Some(rand::thread_rng().gen_range(0..5840)))
-                .take(100)
-                .collect();
-    }
-    let mut rands = R.to_vec();
-    let mut r = move || rands.pop().unwrap();
-
     let stored_search_query = EguiTempValue::new(ui);
     let mut search_query: String = stored_search_query.get().unwrap_or_default();
 
@@ -80,30 +56,83 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         ui.add_space(ui.spacing().item_spacing.y);
 
-        let candidates = match subtab {
-            SubTab::Puzzles => crate::LIBRARY
-                .with(|lib| lib.puzzles())
-                .into_iter()
-                .map(|p| p.display_name().to_owned())
-                .collect_vec(),
-            SubTab::Generators => vec![
-                "NxNxN".to_owned(),
-                "NxNxNxN".to_owned(),
-                "N-Layer Kilominx".to_owned(),
-                "N-Layer Megaminx".to_owned(),
-                "N-Layer Pentultimate".to_owned(),
-                "N-Layer Face-Turning Octahedron".to_owned(),
-                "N-Layer Corner-Turning Octahedron".to_owned(),
-                "N-Layer Skewb".to_owned(),
-            ],
-        };
+        crate::LIBRARY.with(|lib| match subtab {
+            SubTab::Puzzles => {
+                let single_puzzles = lib.puzzles();
+                let puzzle_generators = lib.puzzle_generators();
+                let generated_puzzles = puzzle_generators
+                    .iter()
+                    .flat_map(|gen| gen.examples.values())
+                    .map(Arc::clone);
+                let puzzles = itertools::chain(single_puzzles, generated_puzzles)
+                    .sorted_by_key(|puz| puz.display_name().to_owned())
+                    .map(|p| (p.display_name().to_owned(), p))
+                    .collect_vec();
+                filtered_list(ui, &search_query, &puzzles, "puzzles", |_ui, r, puzzle| {
+                    if r.clicked() {
+                        crate::LIBRARY.with(|lib| app.load_puzzle(lib, &puzzle.id));
+                    }
+                });
+            }
+            SubTab::Generators => {
+                let popup_data_stored = EguiTempValue::<PuzzleGeneratorPopupData>::new(ui);
+                let mut popup_data = popup_data_stored.get();
 
-        let plural_noun = match subtab {
-            SubTab::Puzzles => "puzzles",
-            SubTab::Generators => "puzzle generators",
-        };
+                let puzzle_generators = lib
+                    .puzzle_generators()
+                    .into_iter()
+                    .map(|g| (g.display_name().to_owned(), g))
+                    .collect_vec();
+                filtered_list(
+                    ui,
+                    &search_query,
+                    &puzzle_generators,
+                    "puzzle generators",
+                    |ui, r, puzzle_generator| {
+                        let popup_id = popup_data_stored.id.with(&puzzle_generator.id);
 
-        filtered_list(ui, &search_query, &candidates, plural_noun);
+                        if r.clicked() {
+                            ui.memory_mut(|mem| mem.open_popup(popup_id));
+                            popup_data = Some(PuzzleGeneratorPopupData::new(puzzle_generator));
+                        }
+
+                        let close_behavior = egui::PopupCloseBehavior::CloseOnClickOutside;
+                        if let Some(popup_data) = popup_data
+                            .as_mut()
+                            .filter(|data| data.id == puzzle_generator.id)
+                        {
+                            egui::popup_below_widget(ui, popup_id, &r, close_behavior, |ui| {
+                                ui.strong(puzzle_generator.display_name());
+
+                                for (param, value) in
+                                    std::iter::zip(&puzzle_generator.params, &mut popup_data.params)
+                                {
+                                    match param.ty {
+                                        GeneratorParamType::Int { min, max } => {
+                                            let GeneratorParamValue::Int(i) = value;
+                                            ui.horizontal(|ui| {
+                                                ui.add(egui::DragValue::new(i).range(min..=max));
+                                                ui.label(&param.name);
+                                            });
+                                        }
+                                    }
+                                }
+
+                                if ui.button("Generate puzzle").clicked() {
+                                    let puzzle_id = hyperpuzzle::generated_puzzle_id(
+                                        &puzzle_generator.id,
+                                        &popup_data.params,
+                                    );
+                                    crate::LIBRARY.with(|lib| app.load_puzzle(lib, &puzzle_id));
+                                };
+                            });
+                        }
+                    },
+                );
+
+                popup_data_stored.set(popup_data);
+            }
+        });
     });
 }
 
@@ -123,19 +152,24 @@ fn fuzzy_match(ui: &egui::Ui, query: &str, s: &str) -> Option<(egui::WidgetText,
     Some((md_inline(ui, md_source).into(), -m.score()))
 }
 
-fn filtered_list<'a>(ui: &mut egui::Ui, query: &str, candidates: &[String], plural_noun: &str) {
-    let filtered_candidates: Vec<egui::WidgetText> = if query.is_empty() {
+fn filtered_list<'a, T>(
+    ui: &mut egui::Ui,
+    query: &str,
+    candidates: &[(String, T)],
+    plural_noun: &str,
+    mut handle_resp: impl FnMut(&mut egui::Ui, egui::Response, &T),
+) {
+    let filtered_candidates: Vec<(egui::WidgetText, &T)> = if query.is_empty() {
         candidates
             .iter()
-            .map(|candidate| candidate.into())
+            .map(|(s, value)| (s.into(), value))
             .collect()
     } else {
         candidates
             .iter()
-            .sorted()
-            .flat_map(|candidate| fuzzy_match(ui, query, candidate))
-            .sorted_by_key(|(_text, score)| *score)
-            .map(|(text, _score)| text)
+            .flat_map(|(s, value)| Some((fuzzy_match(ui, query, s)?, value)))
+            .sorted_by_key(|((_text, score), _value)| *score)
+            .map(|((text, _score), value)| (text, value))
             .collect()
     };
 
@@ -153,8 +187,9 @@ fn filtered_list<'a>(ui: &mut egui::Ui, query: &str, candidates: &[String], plur
         .auto_shrink([false; 2])
         .show(ui, |ui| {
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
-                for s in filtered_candidates {
-                    ui.selectable_label(false, s);
+                for (s, obj) in filtered_candidates {
+                    let r = ui.selectable_label(false, s);
+                    handle_resp(ui, r, obj);
                 }
             })
         });
@@ -358,12 +393,30 @@ fn show_tags_filter_menu(ui: &mut egui::Ui) {
     });
 
     ui.menu_button("Color systems", |ui| {
-        for (id, name) in crate::LIBRARY.with(|lib| lib.color_systems()) {
-            checkbox(ui, name.as_ref().unwrap_or(&id));
+        for color_system in crate::LIBRARY.with(|lib| lib.color_systems()) {
+            checkbox(ui, color_system.display_name());
         }
     });
 
     checkbox(ui, "Canonical");
     checkbox(ui, "Meme");
     checkbox(ui, "WCA");
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+struct PuzzleGeneratorPopupData {
+    id: String,
+    params: Vec<GeneratorParamValue>,
+}
+impl PuzzleGeneratorPopupData {
+    fn new(puzzle_generator: &PuzzleGenerator) -> Self {
+        Self {
+            id: puzzle_generator.id.clone(),
+            params: puzzle_generator
+                .params
+                .iter()
+                .map(|param| param.default.clone())
+                .collect(),
+        }
+    }
 }

@@ -9,9 +9,11 @@ mod geometry;
 mod layer_system;
 mod orbit;
 mod puzzle;
+mod puzzle_generator;
 mod region;
 mod symmetry;
 mod twist_system;
+mod version;
 
 pub use axis_system::*;
 pub use color_system::*;
@@ -20,9 +22,11 @@ pub use geometry::*;
 pub use layer_system::*;
 pub use orbit::*;
 pub use puzzle::*;
+pub use puzzle_generator::*;
 pub use region::*;
 pub use symmetry::*;
 pub use twist_system::*;
+pub use version::*;
 pub use wrappers::*;
 
 /// Type that has a user-friendly name for error messages.
@@ -85,9 +89,7 @@ fn lua_convert_error(value: &LuaValue<'_>, to: &'static str) -> LuaError {
 }
 
 /// Returns the type name for a custom userdata type.
-pub fn lua_userdata_type_name<T: 'static + LuaUserData>(
-    lua: &Lua,
-) -> LuaResult<&'static str> {
+pub fn lua_userdata_type_name<T: 'static + LuaUserData>(lua: &Lua) -> LuaResult<&'static str> {
     Ok(lua_type_name(&LuaValue::UserData(lua.create_proxy::<T>()?)))
 }
 /// Returns the name of a Lua type.

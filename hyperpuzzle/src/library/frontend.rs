@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
 
@@ -5,9 +6,9 @@ use eyre::Result;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use super::{LibraryCommand, LibraryDb, LibraryFile};
+use super::{LibraryCommand, LibraryDb, LibraryFile, LibraryFileLoadOutput};
 use crate::builder::ColorSystemBuilder;
-use crate::lua::{LuaLoader, LuaLogger, PuzzleParams};
+use crate::lua::{LuaLoader, LuaLogger, PuzzleGenerator, PuzzleParams};
 use crate::{LuaLogLine, Puzzle, TaskHandle};
 
 /// Handle to a library of puzzles.
@@ -139,34 +140,39 @@ impl Library {
         self.read_directory(directory);
         self.load_files()
     }
-    /// Returns the full list of loaded puzzles.
+
+    /// Returns a list of loaded puzzles, not including generated puzzles.
     pub fn puzzles(&self) -> Vec<Arc<PuzzleParams>> {
-        self.db
-            .lock()
-            .puzzles
-            .iter()
-            .filter_map(|(id, file)| {
-                let Some(load_result) = file.as_completed() else {
-                    log::error!("file {:?} owns puzzle {id:?} but is unloaded", file.name);
-                    return None;
-                };
-                let Some(puzzle) = load_result.puzzles.get(id) else {
-                    log::error!("puzzle {id:?} not found in file {:?}", file.name);
-                    return None;
-                };
-                Some(Arc::clone(&puzzle.params))
-            })
-            .sorted_by_cached_key(|params| params.name.clone())
-            .collect_vec()
+        Self::get_objects(
+            &self.db.lock().puzzles,
+            |file_output| &file_output.puzzles,
+            |lazy_puzzle| Arc::clone(&lazy_puzzle.params),
+        )
     }
-    /// Returns the list of loaded color systems, each with an ID and an
-    /// optional name.
-    pub fn color_systems(&self) -> Vec<(String, Option<String>)> {
-        self.db
-            .lock()
-            .color_systems
+    /// Returns a list of loaded puzzle generators.
+    pub fn puzzle_generators(&self) -> Vec<Arc<PuzzleGenerator>> {
+        Self::get_objects(
+            &self.db.lock().puzzle_generators,
+            |file_output| &file_output.puzzle_generators,
+            |lazy_generator| Arc::clone(&lazy_generator.generator),
+        )
+    }
+    /// Returns a list of loaded color systems.
+    pub fn color_systems(&self) -> Vec<Arc<ColorSystemBuilder>> {
+        Self::get_objects(
+            &self.db.lock().color_systems,
+            |file_output| &file_output.color_systems,
+            Arc::clone,
+        )
+    }
+    fn get_objects<'a, O, T>(
+        id_map: &'a BTreeMap<String, Arc<LibraryFile>>,
+        access: impl 'a + Fn(&LibraryFileLoadOutput) -> &HashMap<String, O>,
+        map: impl 'a + Fn(&O) -> T,
+    ) -> Vec<T> {
+        id_map
             .iter()
-            .filter_map(|(id, file)| {
+            .filter_map(move |(id, file)| {
                 let Some(load_result) = file.as_completed() else {
                     log::error!(
                         "file {:?} owns color system {id:?} but is unloaded",
@@ -174,15 +180,15 @@ impl Library {
                     );
                     return None;
                 };
-                let Some(color_system) = load_result.color_systems.get(id) else {
+                let Some(obj) = access(&*load_result).get(id) else {
                     log::error!("color system {id:?} not found in file {:?}", file.name);
                     return None;
                 };
-                Some((color_system.id.clone(), color_system.name.clone()))
+                Some(map(obj))
             })
-            .sorted_by_cached_key(|(id, name)| name.as_ref().unwrap_or(id).clone())
-            .collect_vec()
+            .collect()
     }
+
     /// Builds a puzzle from a Lua specification.
     pub fn build_puzzle(&self, id: &str) -> TaskHandle<Result<Arc<Puzzle>>> {
         let task = TaskHandle::new();

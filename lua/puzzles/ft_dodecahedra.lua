@@ -25,7 +25,7 @@ function define_ft_dodecahedron(size, id, name)
     ndim = 3,
     colors = 'dodecahedron',
     meta = {
-      author = {'Andrew Farkas', 'Milo Jacquet'},
+      authors = {'Andrew Farkas', 'Milo Jacquet'},
     },
     build = function(self)
       local sym = cd'h3'
