@@ -17,13 +17,14 @@ local function ft_cube_cut_depths(ndim, size)
   return utils.layers_inclusive(outermost_cut, -outermost_cut, size-1)
 end
 
+-- n^3
 puzzle_generators:add{
   id = 'ft_cube',
   name = "NxNxN Face-Turning Cube",
   version = '0.1.0',
 
-  meta =  {
-    author = "Andrew Farkas",
+  meta = {
+    authors = { "Andrew Farkas", "Milo Jacquet" },
   },
 
   params = {
@@ -77,13 +78,6 @@ puzzle_generators:add{
         local sym = cd'bc3'
         local shape = symmetries.cubic.cube()
         self:carve(shape:iter_poles())
-
-        -- Optimize piece ID usage by doing outermost cuts first
-        if size > 5 then
-          for _, v in sym:orbit(sym.oox.unit * ft_cube_cut_depths(3, size)[1]) do
-            self:slice(v)
-          end
-        end
 
         -- Define axes and slices
         self.axes:add(shape:iter_poles(), ft_cube_cut_depths(3, size))

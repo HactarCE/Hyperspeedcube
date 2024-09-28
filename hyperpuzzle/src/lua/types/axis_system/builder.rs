@@ -154,7 +154,8 @@ impl LuaAxisSystem {
                 layer_planes.push(layer_plane);
             }
             if slice {
-                for cut in layer_planes {
+                // Cut in reverse (shallowest cut first) to optimize piece ID usage.
+                for cut in layer_planes.into_iter().rev() {
                     puz.shape.slice(None, cut, None, None).into_lua_err()?;
                 }
             }
