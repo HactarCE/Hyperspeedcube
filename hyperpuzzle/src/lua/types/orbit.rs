@@ -56,27 +56,14 @@ impl LuaUserData for LuaOrbit {
         methods.add_meta_method(LuaMetaMethod::Call, |lua, this, ()| {
             // Get the index of the Lua iteration.
             let index = this.iter_index.fetch_add(1, Ordering::Relaxed);
-
-            // Return multiple values.
-            let mut values = vec![];
-            if let Some(element) = this.orbit_list.get(index) {
-                let OrbitElement {
-                    gen_seq: _,
-                    transform,
-                    name,
-                    objects,
-                } = element;
-                // The first value is the transform.
-                values.push(LuaTransform(transform.clone()).into_lua(lua)?);
-                // Then push the objects.
-                for obj in objects {
-                    values.push(obj.into_nillable_lua(lua)?);
-                }
-                // Finally push the custom name, if there is one.
-                values.push(name.as_deref().into_lua(lua)?);
-            }
-            Ok(LuaMultiValue::from_vec(values))
+            this.get(lua, index)
         });
+
+        methods.add_meta_method(LuaMetaMethod::Index, |lua, this, LuaIndex(index)| {
+            Ok(this.get(lua, index)?.get(1).cloned())
+        });
+
+        methods.add_method("get", |lua, this, LuaIndex(index)| this.get(lua, index));
 
         methods.add_method("iter", |_lua, this, ()| {
             Ok(Self {
@@ -165,6 +152,29 @@ impl LuaOrbit {
     /// Returns the initial seed objects that this is the orbit of.
     pub fn init(&self) -> &[Transformable] {
         &self.init
+    }
+
+    /// Returns the values for the `index`th element of the orbit.
+    pub fn get<'lua>(&self, lua: &'lua Lua, index: usize) -> LuaResult<LuaMultiValue<'lua>> {
+        // Return multiple values.
+        let mut values = vec![];
+        if let Some(element) = self.orbit_list.get(index) {
+            let OrbitElement {
+                gen_seq: _,
+                transform,
+                name,
+                objects,
+            } = element;
+            // The first value is the transform.
+            values.push(LuaTransform(transform.clone()).into_lua(lua)?);
+            // Then push the objects.
+            for obj in objects {
+                values.push(obj.into_nillable_lua(lua)?);
+            }
+            // Finally push the custom name, if there is one.
+            values.push(name.as_deref().into_lua(lua)?);
+        }
+        Ok(LuaMultiValue::from_vec(values))
     }
 }
 
