@@ -65,7 +65,30 @@ end
 function layers_inclusive(start, stop, steps)
   local ret = {}
   for i = 1, steps do
-    ret[i] = (i - 1) / (steps - 1) * (stop - start) + start
+    if math.eq(start, stop) then
+      ret[i] = start
+    elseif steps <= 1 then
+      error(string.format(
+        "cannot build 1 layer in the range from %d to %d inclusive",
+        start,
+        stop
+      ))
+    else
+      ret[i] = (i - 1) / (steps - 1) * (stop - start) + start
+    end
   end
   return ret
+end
+
+-- Returns evenly-spaced layer depths for half of a puzzle
+function even_odd_layers(start, stop, layers)
+  local ret = {}
+
+  local half_layer_size = (stop - start) / layers
+  start = start + 2 * half_layer_size
+  if layers % 2 == 1 then
+    stop = stop - half_layer_size
+  end
+
+  return layers_inclusive(start, stop, floor(layers/2))
 end

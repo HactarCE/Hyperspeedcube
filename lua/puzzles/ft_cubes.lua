@@ -255,7 +255,7 @@ puzzle_generators:add{
           -- TODO: more piece types
 
           if size >= 3 then
-            local mid = '{2-' .. (size-1) .. '}'
+            local mid = '{2-' .. size-1 .. '}'
             self:mark_piece{
               region = U(1) & R(mid) & F(mid) & I(mid),
               name = 'center',
