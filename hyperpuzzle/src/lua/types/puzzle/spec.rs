@@ -5,9 +5,9 @@ use crate::builder::PuzzleBuilder;
 use crate::lua::lua_warn_fn;
 use crate::{LibraryDb, Puzzle, PuzzleMetadata, PuzzleMetadataExternal};
 
-/// Set of parameters that define a puzzle.
+/// Specification for a puzzle.
 #[derive(Debug)]
-pub struct PuzzleParams {
+pub struct PuzzleSpec {
     /// String ID of the puzzle.
     pub id: String,
     /// Version of the puzzle.
@@ -32,7 +32,7 @@ pub struct PuzzleParams {
     pub remove_internals: Option<bool>,
 }
 
-impl<'lua> FromLua<'lua> for PuzzleParams {
+impl<'lua> FromLua<'lua> for PuzzleSpec {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         let table: LuaTable<'lua> = lua.unpack(value)?;
 
@@ -70,7 +70,7 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
             crate::validate_id(id).into_lua_err()?
         };
 
-        Ok(PuzzleParams {
+        Ok(PuzzleSpec {
             id,
             version,
 
@@ -88,7 +88,7 @@ impl<'lua> FromLua<'lua> for PuzzleParams {
     }
 }
 
-impl PuzzleParams {
+impl PuzzleSpec {
     /// Runs initial setup, user Lua code, and final construction for a puzzle.
     pub fn build(&self, lua: &Lua) -> LuaResult<Arc<Puzzle>> {
         let LuaNdim(ndim) = self.ndim;

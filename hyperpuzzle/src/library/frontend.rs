@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 
 use super::{LibraryCommand, LibraryDb, LibraryFile, LibraryFileLoadOutput};
 use crate::builder::ColorSystemBuilder;
-use crate::lua::{LuaLoader, LuaLogger, PuzzleGenerator, PuzzleParams};
+use crate::lua::{LuaLoader, LuaLogger, PuzzleGeneratorSpec, PuzzleSpec};
 use crate::{LuaLogLine, Puzzle, TaskHandle};
 
 /// Handle to a library of puzzles.
@@ -142,15 +142,15 @@ impl Library {
     }
 
     /// Returns a list of loaded puzzles, not including generated puzzles.
-    pub fn puzzles(&self) -> Vec<Arc<PuzzleParams>> {
+    pub fn puzzles(&self) -> Vec<Arc<PuzzleSpec>> {
         Self::get_objects(
             &self.db.lock().puzzles,
             |file_output| &file_output.puzzles,
-            |lazy_puzzle| Arc::clone(&lazy_puzzle.params),
+            |lazy_puzzle| Arc::clone(&lazy_puzzle.spec),
         )
     }
     /// Returns a list of loaded puzzle generators.
-    pub fn puzzle_generators(&self) -> Vec<Arc<PuzzleGenerator>> {
+    pub fn puzzle_generators(&self) -> Vec<Arc<PuzzleGeneratorSpec>> {
         Self::get_objects(
             &self.db.lock().puzzle_generators,
             |file_output| &file_output.puzzle_generators,

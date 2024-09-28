@@ -2,8 +2,8 @@ use super::*;
 
 mod builder;
 mod db;
-mod params;
+mod spec;
 
 pub use builder::LuaPuzzleBuilder;
 pub use db::LuaPuzzleDb;
-pub use params::PuzzleParams;
+pub use spec::PuzzleSpec;

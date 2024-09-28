@@ -13,8 +13,8 @@ impl LuaUserData for LuaColorSystemDb {
             Ok(LibraryDb::get(lua)?.lock().color_systems.len())
         });
 
-        methods.add_method("add", |lua, Self, params| {
-            let color_system = super::from_lua_table(lua, params)?;
+        methods.add_method("add", |lua, Self, spec| {
+            let color_system = super::from_lua_table(lua, spec)?;
             LibraryFile::get_current(lua)?.define_color_system(color_system)
         });
     }

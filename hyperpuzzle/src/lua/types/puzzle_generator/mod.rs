@@ -11,9 +11,9 @@ pub use db::LuaPuzzleGeneratorDb;
 /// Maximum recursion depth for the puzzle metadata table.
 const MAX_METADATA_TABLE_RECURSION_DEPTH: usize = 5;
 
-/// Set of parameters that define a puzzle.
+/// Specification for a puzzle generator.
 #[derive(Debug)]
-pub struct PuzzleGenerator {
+pub struct PuzzleGeneratorSpec {
     /// String ID of the puzzle generator.
     pub id: String,
     /// Version of the puzzle geneartor.
@@ -22,7 +22,7 @@ pub struct PuzzleGenerator {
     /// Puzzle generation parameters.
     pub params: Vec<GeneratorParam>,
     /// Examples and special cases for generated puzzles.
-    pub examples: HashMap<String, Arc<PuzzleParams>>,
+    pub examples: HashMap<String, Arc<PuzzleSpec>>,
     /// Lua function to generate a puzzle definition.
     user_gen_fn: LuaRegistryKey,
 
@@ -34,14 +34,14 @@ pub struct PuzzleGenerator {
     pub meta: Option<LuaRegistryKey>,
 }
 
-impl<'lua> FromLua<'lua> for PuzzleGenerator {
+impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         let table: LuaTable<'lua> = lua.unpack(value)?;
 
         let id: String;
         let version: Version;
         let params: Vec<GeneratorParam>;
-        let examples: Option<Vec<PuzzleGeneratorExample>>;
+        let examples: Option<Vec<PuzzleGeneratorExample<'lua>>>;
         let name: Option<String>;
         let aliases: Option<Vec<String>>;
         let meta: Option<LuaTable<'lua>>;
@@ -61,7 +61,7 @@ impl<'lua> FromLua<'lua> for PuzzleGenerator {
 
         let id = crate::validate_id(id).into_lua_err()?;
 
-        let mut ret = PuzzleGenerator {
+        let mut ret = PuzzleGeneratorSpec {
             id: id.clone(),
             version,
 
@@ -77,9 +77,9 @@ impl<'lua> FromLua<'lua> for PuzzleGenerator {
         for example in examples.unwrap_or_default() {
             let generator_param_values = example.params.iter().map(|val| val.to_string()).collect();
             let id = crate::generated_puzzle_id(&id, &generator_param_values);
-            match ret.generate_puzzle_params(lua, generator_param_values, example.meta) {
-                Ok(PuzzleGeneratorOutput::Puzzle(puzzle_params)) => {
-                    ret.examples.insert(puzzle_params.id.clone(), puzzle_params);
+            match ret.generate_puzzle_spec(lua, generator_param_values, example.meta) {
+                Ok(PuzzleGeneratorOutput::Puzzle(puzzle_spec)) => {
+                    ret.examples.insert(puzzle_spec.id.clone(), puzzle_spec);
                 }
                 Ok(PuzzleGeneratorOutput::Redirect(other)) => {
                     lua.warning(
@@ -100,14 +100,14 @@ impl<'lua> FromLua<'lua> for PuzzleGenerator {
     }
 }
 
-impl PuzzleGenerator {
+impl PuzzleGeneratorSpec {
     /// Returns the name or the ID of the puzzle.
     pub fn display_name(&self) -> &str {
         self.name.as_deref().unwrap_or(&self.id)
     }
 
     /// Runs user Lua code to generate a puzzle _definition_.
-    pub fn generate_puzzle_params<'lua>(
+    pub fn generate_puzzle_spec<'lua>(
         &self,
         lua: &'lua Lua,
         generator_param_values: Vec<String>,
@@ -115,8 +115,8 @@ impl PuzzleGenerator {
     ) -> LuaResult<PuzzleGeneratorOutput> {
         let id = crate::generated_puzzle_id(&self.id, &generator_param_values);
 
-        if let Some(puzzle_params) = self.examples.get(&id) {
-            return Ok(PuzzleGeneratorOutput::Puzzle(Arc::clone(&puzzle_params)));
+        if let Some(puzzle_spec) = self.examples.get(&id) {
+            return Ok(PuzzleGeneratorOutput::Puzzle(Arc::clone(&puzzle_spec)));
         }
 
         let expected = self.params.len();
@@ -138,22 +138,25 @@ impl PuzzleGenerator {
             .call(gen_params_table)
             .context("error generating puzzle definition")?;
 
-        let puzzle_params = match user_gen_fn_output {
+        let puzzle_spec = match user_gen_fn_output {
             LuaValue::String(s) => {
                 return Ok(PuzzleGeneratorOutput::Redirect(
                     s.to_string_lossy().into_owned(),
                 ))
             }
             LuaValue::Table(tab) => tab,
-            _ => return Err(LuaError::external(
-                "return value of `gen` function must string (ID redirect) or table (puzzle params)",
-            )),
+            _ => {
+                return Err(LuaError::external(
+                    "return value of `gen` function must string \
+                     (ID redirect) or table (puzzle specification)",
+                ))
+            }
         };
 
         // Add metadata from a matching example, if there is one.
         if let Some(meta) = extra_metadata {
             let t = lua.create_table_from([("meta", meta)])?;
-            augment_table(lua, &puzzle_params, &t, MAX_METADATA_TABLE_RECURSION_DEPTH)?;
+            augment_table(lua, &puzzle_spec, &t, MAX_METADATA_TABLE_RECURSION_DEPTH)?;
         }
 
         // Add keys from generator.
@@ -162,10 +165,10 @@ impl PuzzleGenerator {
             ("version", self.version.into_lua(lua)?),
             ("__generated__", true.into_lua(lua)?),
         ])?;
-        augment_table(lua, &puzzle_params, &t, 1)?;
+        augment_table(lua, &puzzle_spec, &t, 1)?;
 
         Ok(PuzzleGeneratorOutput::Puzzle(Arc::new(
-            PuzzleParams::from_lua(puzzle_params.into_lua(lua)?, lua)?,
+            PuzzleSpec::from_lua(puzzle_spec.into_lua(lua)?, lua)?,
         )))
     }
 }
@@ -298,7 +301,7 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorExample<'lua> {
 
 pub enum PuzzleGeneratorOutput {
     /// Puzzle parameters.
-    Puzzle(Arc<PuzzleParams>),
+    Puzzle(Arc<PuzzleSpec>),
     /// Redirect to a different puzzle ID.
     Redirect(String),
 }

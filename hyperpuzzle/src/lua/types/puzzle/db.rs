@@ -13,8 +13,8 @@ impl LuaUserData for LuaPuzzleDb {
             Ok(LibraryDb::get(lua)?.lock().puzzles.len())
         });
 
-        methods.add_method("add", |lua, Self, params| {
-            LibraryFile::get_current(lua)?.define_puzzle(params)
+        methods.add_method("add", |lua, Self, spec| {
+            LibraryFile::get_current(lua)?.define_puzzle(spec)
         });
     }
 }

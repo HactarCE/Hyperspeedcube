@@ -74,10 +74,10 @@ impl LibraryDb {
                             }
 
                             let params = params.iter().map(|val| val.to_string()).collect();
-                            match cache.generator.generate_puzzle_params(lua, params, None) {
+                            match cache.generator.generate_puzzle_spec(lua, params, None) {
                                 Err(e) => Some(Err(e)),
-                                Ok(crate::lua::PuzzleGeneratorOutput::Puzzle(puzzle_params)) => {
-                                    match puzzle_params.build(lua) {
+                                Ok(crate::lua::PuzzleGeneratorOutput::Puzzle(puzzle_spec)) => {
+                                    match puzzle_spec.build(lua) {
                                         Ok(constructed_puzzle) => {
                                             cache.constructed.insert(
                                                 id.clone(),
@@ -116,7 +116,7 @@ impl LibraryDb {
                             if let Some(constructed) = &cache.constructed {
                                 return Some(Ok(Arc::clone(constructed)));
                             }
-                            match cache.params.build(lua) {
+                            match cache.spec.build(lua) {
                                 Ok(constructed_puzzle) => {
                                     cache.constructed = Some(Arc::clone(&constructed_puzzle));
                                     Some(Ok(constructed_puzzle))

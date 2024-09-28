@@ -8,7 +8,7 @@ use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 use super::{LazyPuzzle, LazyPuzzleGenerator};
 use crate::{
     builder::ColorSystemBuilder,
-    lua::{PuzzleGenerator, PuzzleParams},
+    lua::{PuzzleGeneratorSpec, PuzzleSpec},
 };
 
 /// File stored in a [`super::Library`].
@@ -59,16 +59,16 @@ impl LibraryFile {
     }
 
     /// Defines a puzzle in the file.
-    pub(crate) fn define_puzzle(&self, params: PuzzleParams) -> LuaResult<()> {
+    pub(crate) fn define_puzzle(&self, spec: PuzzleSpec) -> LuaResult<()> {
         self.define_object(
             |file_output| &mut file_output.puzzles,
-            params.id.clone(),
-            LazyPuzzle::new(params),
+            spec.id.clone(),
+            LazyPuzzle::new(spec),
             "puzzle",
         )
     }
     /// Defines a puzzle generator in the file.
-    pub(crate) fn define_puzzle_generator(&self, generator: PuzzleGenerator) -> LuaResult<()> {
+    pub(crate) fn define_puzzle_generator(&self, generator: PuzzleGeneratorSpec) -> LuaResult<()> {
         self.define_object(
             |file_output| &mut file_output.puzzle_generators,
             generator.id.clone(),

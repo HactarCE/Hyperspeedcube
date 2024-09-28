@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hyperpuzzle::lua::{GeneratorParamType, GeneratorParamValue, PuzzleGenerator};
+use hyperpuzzle::lua::{GeneratorParamType, GeneratorParamValue, PuzzleGeneratorSpec};
 use itertools::Itertools;
 
 use crate::{
@@ -409,7 +409,7 @@ struct PuzzleGeneratorPopupData {
     params: Vec<GeneratorParamValue>,
 }
 impl PuzzleGeneratorPopupData {
-    fn new(puzzle_generator: &PuzzleGenerator) -> Self {
+    fn new(puzzle_generator: &PuzzleGeneratorSpec) -> Self {
         Self {
             id: puzzle_generator.id.clone(),
             params: puzzle_generator

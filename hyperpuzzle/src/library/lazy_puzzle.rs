@@ -1,22 +1,22 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::lua::{PuzzleGenerator, PuzzleParams};
+use crate::lua::{PuzzleGeneratorSpec, PuzzleSpec};
 use crate::Puzzle;
 
 /// Puzzle defined in a Lua file that is cached when constructed.
 #[derive(Debug)]
 pub(crate) struct LazyPuzzle {
     /// Parameters to construct the puzzle.
-    pub params: Arc<PuzzleParams>,
+    pub spec: Arc<PuzzleSpec>,
     /// Cached constructed puzzle.
     pub constructed: Option<Arc<Puzzle>>,
 }
 impl LazyPuzzle {
     /// Returns a new lazy puzzle that has not yet been constructed.
-    pub fn new(params: PuzzleParams) -> Self {
+    pub fn new(spec: PuzzleSpec) -> Self {
         Self {
-            params: Arc::new(params),
+            spec: Arc::new(spec),
             constructed: None,
         }
     }
@@ -27,13 +27,13 @@ impl LazyPuzzle {
 #[derive(Debug)]
 pub(crate) struct LazyPuzzleGenerator {
     /// Generator to construct a puzzle.
-    pub generator: Arc<PuzzleGenerator>,
+    pub generator: Arc<PuzzleGeneratorSpec>,
     /// Cached constructed puzzles.
     pub constructed: HashMap<String, Arc<Puzzle>>,
 }
 impl LazyPuzzleGenerator {
     /// Returns a new lazy puzzle generator that has not yet been constructed.
-    pub fn new(generator: PuzzleGenerator) -> Self {
+    pub fn new(generator: PuzzleGeneratorSpec) -> Self {
         Self {
             generator: Arc::new(generator),
             constructed: HashMap::new(),
