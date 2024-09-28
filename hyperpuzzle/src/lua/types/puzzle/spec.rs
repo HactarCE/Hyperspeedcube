@@ -157,31 +157,21 @@ impl<'lua> FromLua<'lua> for PuzzleMetadata {
 
         let table: LuaTable<'lua> = lua.unpack(value)?;
 
-        let author: Option<String>;
-        let authors: Option<Vec<String>>;
-        let inventor: Option<String>;
-        let inventors: Option<Vec<String>>;
-        let aliases: Option<Vec<String>>;
+        let author: LuaVecString;
+        let inventor: LuaVecString;
+        let aliases: LuaVecString;
         let external: PuzzleMetadataExternal;
         unpack_table!(lua.unpack(table {
             author,
-            authors,
             inventor,
-            inventors,
             aliases,
             external,
         }));
 
-        let mut authors = authors.unwrap_or_default();
-        authors.extend(author);
-        let mut inventors = inventors.unwrap_or_default();
-        inventors.extend(inventor);
-        let aliases = aliases.unwrap_or_default();
-
         Ok(PuzzleMetadata {
-            authors,
-            inventors,
-            aliases,
+            authors: author.0,
+            inventors: inventor.0,
+            aliases: aliases.0,
             external,
         })
     }

@@ -9,14 +9,14 @@ mod multivector_index;
 mod ndim;
 mod numbers;
 mod sequence;
-mod string_or_table;
+mod vec_string;
 mod vector_index;
 
 pub use multivector_index::LuaMultivectorIndex;
 pub use ndim::LuaNdim;
 pub use numbers::{LuaIndex, LuaIntegerNoConvert, LuaMirrorIndex, LuaNumberNoConvert};
 pub use sequence::LuaSequence;
-pub use string_or_table::{LuaNilStringOrTable, NilStringOrRegisteredTable};
+pub use vec_string::LuaVecString;
 pub use vector_index::LuaVectorIndex;
 
 use super::*;
