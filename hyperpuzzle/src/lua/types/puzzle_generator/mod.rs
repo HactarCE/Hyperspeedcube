@@ -77,7 +77,7 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
         for example in examples.unwrap_or_default() {
             let generator_param_values = example.params.iter().map(|val| val.to_string()).collect();
             let id = crate::generated_puzzle_id(&id, &generator_param_values);
-            match ret.generate_puzzle_spec(lua, generator_param_values, example.meta) {
+            match ret.generate_puzzle_spec(lua, generator_param_values, Some(&example.extra_data)) {
                 Ok(PuzzleGeneratorOutput::Puzzle(puzzle_spec)) => {
                     ret.examples.insert(puzzle_spec.id.clone(), puzzle_spec);
                 }
@@ -111,7 +111,7 @@ impl PuzzleGeneratorSpec {
         &self,
         lua: &'lua Lua,
         generator_param_values: Vec<String>,
-        extra_metadata: Option<LuaTable<'lua>>,
+        extra_data: Option<&'lua LuaTable<'lua>>,
     ) -> LuaResult<PuzzleGeneratorOutput> {
         let id = crate::generated_puzzle_id(&self.id, &generator_param_values);
 
@@ -154,9 +154,22 @@ impl PuzzleGeneratorSpec {
         };
 
         // Add metadata from a matching example, if there is one.
-        if let Some(meta) = extra_metadata {
-            let t = lua.create_table_from([("meta", meta)])?;
-            augment_table(lua, &puzzle_spec, &t, MAX_METADATA_TABLE_RECURSION_DEPTH)?;
+        if let Some(extra) = extra_data {
+            if extra.contains_key("name")? {
+                // Move old name to an alias.
+                let old_name = puzzle_spec.raw_get::<_, LuaValue<'lua>>("name")?;
+                let meta = get_or_create_table_key(lua, &puzzle_spec, "meta")?;
+                let aliases = get_or_create_table_key(lua, &meta, "aliases")?;
+                aliases.raw_push(old_name)?;
+            }
+
+            augment_table(
+                lua,
+                &puzzle_spec,
+                extra,
+                MAX_METADATA_TABLE_RECURSION_DEPTH,
+                false, // no warning on overwrite
+            )?;
         }
 
         // Add keys from generator.
@@ -165,7 +178,7 @@ impl PuzzleGeneratorSpec {
             ("version", self.version.into_lua(lua)?),
             ("__generated__", true.into_lua(lua)?),
         ])?;
-        augment_table(lua, &puzzle_spec, &t, 1)?;
+        augment_table(lua, &puzzle_spec, &t, 1, true)?;
 
         Ok(PuzzleGeneratorOutput::Puzzle(Arc::new(
             PuzzleSpec::from_lua(puzzle_spec.into_lua(lua)?, lua)?,
@@ -282,20 +295,23 @@ impl fmt::Display for GeneratorParamValue {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct PuzzleGeneratorExample<'lua> {
     pub params: Vec<GeneratorParamValue>,
-    pub meta: Option<LuaTable<'lua>>,
+    pub extra_data: LuaTable<'lua>,
 }
 impl<'lua> FromLua<'lua> for PuzzleGeneratorExample<'lua> {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         let table: LuaTable<'lua> = lua.unpack(value)?;
 
         let params: Vec<GeneratorParamValue>;
-        let meta: Option<LuaTable<'_>>;
-        unpack_table!(lua.unpack(table { params, meta }));
+        let name: Option<LuaValue<'lua>>;
+        let meta: Option<LuaValue<'lua>>;
+        unpack_table!(lua.unpack(table { params, name, meta }));
 
-        Ok(PuzzleGeneratorExample { params, meta })
+        let extra_data = lua.create_table_from([("name", name), ("meta", meta)])?;
+
+        Ok(PuzzleGeneratorExample { params, extra_data })
     }
 }
 
@@ -311,20 +327,34 @@ fn augment_table<'lua>(
     destination: &LuaTable<'lua>,
     source: &LuaTable<'lua>,
     max_depth: usize,
+    warn: bool,
 ) -> LuaResult<()> {
     let Some(new_depth) = max_depth.checked_sub(1) else {
         return Err(LuaError::external("recursion limit exceeded"));
     };
 
+    let index_range = 0..source.raw_len() as i64;
+    for v in source.clone().sequence_values::<LuaValue<'_>>() {
+        destination.raw_push(v?)?;
+    }
+
     for pair in source.clone().pairs::<LuaValue<'_>, LuaValue<'_>>() {
         let (k, v) = pair?;
+
+        // Skip indices already covered.
+        if let LuaValue::Integer(i) = k {
+            if index_range.contains(&i) {
+                continue;
+            }
+        }
+
         if let (Ok(dst), LuaValue::Table(src)) =
             (destination.raw_get::<_, LuaTable<'_>>(k.clone()), &v)
         {
             // Both values are tables; recurse!
-            augment_table(lua, &dst, src, new_depth)?;
+            augment_table(lua, &dst, src, new_depth, warn)?;
         } else {
-            if destination.contains_key(k.clone())? {
+            if warn && destination.contains_key(k.clone())? {
                 lua.warning(format!("overwriting key {k:?}"), false);
             }
             destination.raw_set(k, v)?;
@@ -332,4 +362,15 @@ fn augment_table<'lua>(
     }
 
     Ok(())
+}
+
+fn get_or_create_table_key<'lua>(
+    lua: &'lua Lua,
+    t: &LuaTable<'lua>,
+    key: &str,
+) -> LuaResult<LuaTable<'lua>> {
+    if !t.contains_key(key)? {
+        t.raw_set(key, lua.create_table()?)?;
+    }
+    t.get(key)
 }
