@@ -2,10 +2,14 @@ use std::fmt;
 
 use super::*;
 
+/// Semantic-ish version for a puzzle or puzzle generator.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Version {
+    /// Major version number.
     pub major: u32,
+    /// Minor version number.
     pub minor: u32,
+    /// Patch version number.
     pub patch: u32,
 }
 impl fmt::Display for Version {

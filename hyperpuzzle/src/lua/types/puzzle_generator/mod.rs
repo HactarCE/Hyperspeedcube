@@ -186,6 +186,7 @@ impl PuzzleGeneratorSpec {
     }
 }
 
+/// Parameter for a generated puzzle.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeneratorParam {
     /// Human-friendly name.
@@ -196,6 +197,8 @@ pub struct GeneratorParam {
     pub default: GeneratorParamValue,
 }
 impl GeneratorParam {
+    /// Converts a Lua value to a value for this parameter and returns an error
+    /// if it is invalid.
     pub fn value_from_lua<'lua>(
         &self,
         lua: &'lua Lua,
@@ -223,6 +226,8 @@ impl GeneratorParam {
         }
     }
 
+    /// Converts a string to a value for this parameter and returns an error if
+    /// it is invalid.
     pub fn value_from_str<'lua>(&self, s: &str) -> LuaResult<GeneratorParamValue> {
         if s.is_empty() {
             return Ok(self.default.clone());
@@ -265,13 +270,22 @@ impl<'lua> FromLua<'lua> for GeneratorParam {
     }
 }
 
+/// Type of a parameter for a puzzle generator.
 #[derive(Debug, Clone, PartialEq)]
 pub enum GeneratorParamType {
-    Int { min: i64, max: i64 },
+    /// Integer.
+    Int {
+        /// Minimum value (inclusive).
+        min: i64,
+        /// Maximum value (inclusive).
+        max: i64,
+    },
 }
 
+/// Value of a parameter for a puzzle generator.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GeneratorParamValue {
+    /// Integer.
     Int(i64),
 }
 impl<'lua> FromLua<'lua> for GeneratorParamValue {
@@ -295,9 +309,13 @@ impl fmt::Display for GeneratorParamValue {
     }
 }
 
+/// Example of a generated puzzle, which can defined overrides for certain
+/// fields of the [`PuzzleSpec`].
 #[derive(Debug)]
 pub struct PuzzleGeneratorExample<'lua> {
+    /// Parameters for the generator.
     pub params: Vec<GeneratorParamValue>,
+    /// Overrides for the [`PuzzleSpec`].
     pub extra_data: LuaTable<'lua>,
 }
 impl<'lua> FromLua<'lua> for PuzzleGeneratorExample<'lua> {
@@ -315,6 +333,7 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorExample<'lua> {
     }
 }
 
+/// Output of a puzzle generator.
 pub enum PuzzleGeneratorOutput {
     /// Puzzle parameters.
     Puzzle(Arc<PuzzleSpec>),
