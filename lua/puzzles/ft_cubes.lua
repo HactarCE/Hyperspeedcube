@@ -185,104 +185,116 @@ puzzle_generators:add{
   end,
 }
 
-function define_ft_cube_4d(size)
-  local gizmo_size = 1.2
-  local alpha = 0.8
+-- n^4
+puzzle_generators:add{
+  id = 'ft_hypercube',
+  name = "NxNxNxN Face-Turning Hypercube",
+  version = '0.1.0',
 
-  local id = size .. 'x' .. size .. 'x' .. size .. 'x' .. size
-  puzzles:add{
-    id = id,
-    name = string.format("Hypercube %d (%d^4)", size, size),
-    version = '0.1.0',
-    ndim = 4,
-    colors = 'hypercube',
-    build = function(self)
-      local sym = cd'bc4'
-      local shape = symmetries.hypercubic.hypercube()
-      self:carve(shape:iter_poles())
+  meta = {
+    authors = { "Andrew Farkas", "Milo Jacquet" },
+  },
 
-      -- Define axes and slices
-      self.axes:add(shape:iter_poles(), ft_cube_cut_depths(4, size))
+  params = {
+    { name = "Layers", type = 'int', default = 3, min = 1, max = 9 },
+  },
 
-      -- Define twists
-      local a1 = self.axes[sym.ooox.unit]
-      local a2 = sym:thru(4):transform(a1)
-      local a3 = sym:thru(3):transform(a2)
-      local a4 = sym:thru(2):transform(a3)
-      local t = sym:thru(2, 1)
-      for _, axis1, axis2, twist_transform in sym.chiral:orbit(a1, a2, t) do
-        self.twists:add(axis1, twist_transform, {
-          name = axis2.name,
-          gizmo_pole_distance = gizmo_size,
-        })
-      end
+  gen = function(params)
+    local size = params[1]
 
-      local edge = a2.vector + a3.vector -- ridge orthogonal to `a1`
-      local init_transform = sym:thru(3, 1) -- rot{fix = a1.vector ^ edge, angle = PI}
-      for t, axis1, _edge, twist_transform in sym.chiral:orbit(a1, edge, init_transform) do
-        self.twists:add(axis1, twist_transform, {
-          name = t:transform(a2).name .. t:transform(a3).name,
-          gizmo_pole_distance = (1+alpha)/sqrt(2) * gizmo_size,
-        })
-      end
+    local gizmo_size = 1.2
+    local alpha = 0.8
 
-      local vertex = edge + a4.vector -- edge orthogonal to `a1`
-      local init_transform = sym:thru(3, 2)
-      for t, axis1, _vertex, twist_transform in sym.chiral:orbit(a1, vertex, init_transform) do
-        self.twists:add(axis1, twist_transform, {
-          name = t:transform(a2).name .. t:transform(a3).name .. t:transform(a4).name,
-          gizmo_pole_distance = (1+2*alpha)/sqrt(3) * gizmo_size,
-        })
-      end
+    return {
+      name = size .. "x" .. size .. "x" .. size .. "x" .. size,
 
-      local R = self.axes.R
-      local U = self.axes.U
-      local F = self.axes.F
-      local I = self.axes.I
+      colors = 'hypercube',
 
-      if size == 1 then
-        self:mark_piece{
-          region = REGION_ALL,
-          name = 'core',
-          display = "Core",
-        }
-      else
-        -- TODO: more piece types
+      ndim = 4,
+      build = function(self)
+        local sym = cd'bc4'
+        local shape = symmetries.hypercubic.hypercube()
+        self:carve(shape:iter_poles())
 
-        if size >= 3 then
-          local mid = '{2-' .. (size-1) .. '}'
-          self:mark_piece{
-            region = U(1) & R(mid) & F(mid) & I(mid),
-            name = 'center',
-            display = 'Center',
-          }
-          self:mark_piece{
-            region = U(1) & R(1) & F(mid) & I(mid),
-            name = 'ridge',
-            display = 'Ridge',
-          }
-          self:mark_piece{
-            region = U(1) & R(1) & F(1) & I(mid),
-            name = 'edge',
-            display = 'Edge',
-          }
+        -- Define axes and slices
+        self.axes:add(shape:iter_poles(), ft_cube_cut_depths(4, size))
+
+        -- Define twists
+        local a1 = self.axes[sym.ooox.unit]
+        local a2 = sym:thru(4):transform(a1)
+        local a3 = sym:thru(3):transform(a2)
+        local a4 = sym:thru(2):transform(a3)
+        local t = sym:thru(2, 1)
+        for _, axis1, axis2, twist_transform in sym.chiral:orbit(a1, a2, t) do
+          self.twists:add(axis1, twist_transform, {
+            name = axis2.name,
+            gizmo_pole_distance = gizmo_size,
+          })
         end
 
-        self:mark_piece{
-          region = U(1) & F(1) & R(1) & I(1),
-          name = 'corner',
-          display = "Corner",
-        }
+        local edge = a2.vector + a3.vector -- ridge orthogonal to `a1`
+        local init_transform = sym:thru(3, 1) -- rot{fix = a1.vector ^ edge, angle = PI}
+        for t, axis1, _edge, twist_transform in sym.chiral:orbit(a1, edge, init_transform) do
+          self.twists:add(axis1, twist_transform, {
+            name = t:transform(a2).name .. t:transform(a3).name,
+            gizmo_pole_distance = (1+alpha)/sqrt(2) * gizmo_size,
+          })
+        end
 
-        self:unify_piece_types(sym.chiral)
-      end
-    end,
-  }
-end
+        local vertex = edge + a4.vector -- edge orthogonal to `a1`
+        local init_transform = sym:thru(3, 2)
+        for t, axis1, _vertex, twist_transform in sym.chiral:orbit(a1, vertex, init_transform) do
+          self.twists:add(axis1, twist_transform, {
+            name = t:transform(a2).name .. t:transform(a3).name .. t:transform(a4).name,
+            gizmo_pole_distance = (1+2*alpha)/sqrt(3) * gizmo_size,
+          })
+        end
 
-for size = 1, 9 do
-  define_ft_cube_4d(size)
-end
+        local R = self.axes.R
+        local U = self.axes.U
+        local F = self.axes.F
+        local I = self.axes.I
+
+        if size == 1 then
+          self:mark_piece{
+            region = REGION_ALL,
+            name = 'core',
+            display = "Core",
+          }
+        else
+          -- TODO: more piece types
+
+          if size >= 3 then
+            local mid = '{2-' .. (size-1) .. '}'
+            self:mark_piece{
+              region = U(1) & R(mid) & F(mid) & I(mid),
+              name = 'center',
+              display = 'Center',
+            }
+            self:mark_piece{
+              region = U(1) & R(1) & F(mid) & I(mid),
+              name = 'ridge',
+              display = 'Ridge',
+            }
+            self:mark_piece{
+              region = U(1) & R(1) & F(1) & I(mid),
+              name = 'edge',
+              display = 'Edge',
+            }
+          end
+
+          self:mark_piece{
+            region = U(1) & F(1) & R(1) & I(1),
+            name = 'corner',
+            display = "Corner",
+          }
+
+          self:unify_piece_types(sym.chiral)
+        end
+      end,
+    }
+  end,
+}
 
 puzzles:add{
   id = 'opposite_colors_same_cube',
