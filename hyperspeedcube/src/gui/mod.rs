@@ -58,7 +58,7 @@ impl AppUi {
         );
         surface.split_below(right, 0.6, vec![Tab::LuaLogs]);
 
-        crate::LIBRARY.with(|lib| app.load_puzzle(lib, "3x3x3"));
+        crate::LIBRARY.with(|lib| app.load_puzzle(lib, "ft_cube:3"));
 
         AppUi { app, dock_state }
     }
