@@ -91,7 +91,7 @@ puzzle_generators:add{
     author = { "Andrew Farkas", "Luna Harran" },
   },
 
-  name = "Face-Turning Triangular Prism",
+  name = "Face-Turning Triangular Prism (Shallow)",
 
   params = {
     { name = "Width", type = 'int', default = 3, min = 1, max = 10 },
