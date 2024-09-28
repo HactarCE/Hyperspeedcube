@@ -399,7 +399,11 @@ impl ShapeBuilder {
     }
 
     /// Constructs a mesh and assembles piece & sticker data for the shape.
-    pub fn build(&self, warn_fn: impl Copy + Fn(eyre::Error)) -> Result<ShapeBuildOutput> {
+    pub fn build(
+        &self,
+        color_id_map: &HashMap<Color, Color>,
+        warn_fn: impl Copy + Fn(eyre::Error),
+    ) -> Result<ShapeBuildOutput> {
         let space = &self.space;
         let ndim = space.ndim();
 
@@ -508,7 +512,7 @@ impl ShapeBuilder {
                 if sticker.color != Color::INTERNAL {
                     let sticker_id = stickers.push(StickerInfo {
                         piece: piece_id,
-                        color: sticker.color,
+                        color: *color_id_map.get(&sticker.color).unwrap_or(&Color::INTERNAL),
                     })?;
                     pieces[piece_id].stickers.push(sticker_id);
                 }

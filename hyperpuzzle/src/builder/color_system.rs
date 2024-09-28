@@ -173,12 +173,14 @@ impl ColorSystemBuilder {
     }
 
     /// Validates and constructs a color system.
+    ///
+    /// Also returns a map from old color IDs to new color IDs.
     pub fn build(
         &self,
         puzzle_id: &str,
         dev_data: &mut PuzzleDevData,
         warn_fn: impl Copy + Fn(eyre::Report),
-    ) -> Result<ColorSystem> {
+    ) -> Result<(ColorSystem, HashMap<Color, Color>)> {
         let mut id = self.id.clone();
         if self.is_shared {
             if self.is_modified {
@@ -238,7 +240,7 @@ impl ColorSystemBuilder {
                 dev_orbit.map(|old_id| color_id_map.get(&old_id).copied().map(PuzzleElement::Color))
             }));
 
-        Ok(ColorSystem {
+        let color_system = ColorSystem {
             id,
             name,
 
@@ -246,6 +248,7 @@ impl ColorSystemBuilder {
 
             schemes,
             default_scheme,
-        })
+        };
+        Ok((color_system, color_id_map))
     }
 }

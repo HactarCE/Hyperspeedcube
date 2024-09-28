@@ -72,6 +72,10 @@ impl PuzzleBuilder {
     pub fn build(&self, warn_fn: impl Copy + Fn(eyre::Error)) -> Result<Arc<Puzzle>> {
         let mut dev_data = PuzzleDevData::new();
 
+        // Build color system. TODO: cache this across puzzles?
+        let (colors, color_id_map) = self.shape.colors.build(&self.id, &mut dev_data, warn_fn)?;
+        let colors = Arc::new(colors);
+
         // Build shape.
         let ShapeBuildOutput {
             mut mesh,
@@ -80,10 +84,7 @@ impl PuzzleBuilder {
             piece_types,
             piece_type_hierarchy,
             piece_type_masks,
-        } = self.shape.build(warn_fn)?;
-
-        // Build color system. TODO: cache this across puzzles?
-        let colors = Arc::new(self.shape.colors.build(&self.id, &mut dev_data, warn_fn)?);
+        } = self.shape.build(&color_id_map, warn_fn)?;
 
         // Build twist system.
         let (axes, twists, gizmo_twists) =
