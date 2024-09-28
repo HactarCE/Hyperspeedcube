@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
 
@@ -12,12 +13,16 @@ use crate::builder::{CustomOrdering, NamingScheme};
 use crate::lua::{lua_warn_fn, result_to_ok_or_warn};
 
 /// Lua handle to an object in a collection, indexed by some ID.
-#[derive(Debug)]
 pub struct LuaDbEntry<I, D> {
     /// ID of the object.
     pub id: I,
     /// Underlying database.
     pub db: Arc<Mutex<D>>,
+}
+impl<I: fmt::Debug, D> fmt::Debug for LuaDbEntry<I, D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LuaDbEntry").field("id", &self.id).finish()
+    }
 }
 impl<I: Clone, D> Clone for LuaDbEntry<I, D> {
     fn clone(&self) -> Self {
