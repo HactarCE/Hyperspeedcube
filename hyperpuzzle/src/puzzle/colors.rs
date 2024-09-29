@@ -86,6 +86,7 @@ pub fn ensure_color_scheme_is_valid<'a>(
 ) -> bool {
     let mut changed = false;
 
+    #[derive(Debug)]
     struct GradientMut<'a> {
         index: &'a mut usize,
         total: &'a mut usize,

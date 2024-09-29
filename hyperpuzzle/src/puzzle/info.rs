@@ -217,8 +217,19 @@ impl FromStr for DefaultColor {
         Ok((|| {
             let (set_name, index) = s.strip_suffix(']')?.split_once('[')?;
             let set_name = set_name.trim().to_string();
-            let index: usize = index.trim().parse::<usize>().ok()?.checked_sub(1)?; // 1-indexed
-            Some(Self::Set { set_name, index })
+            if let Some((index, total)) = index.split_once('/') {
+                let gradient_name = set_name;
+                let index = index.trim().parse::<usize>().ok()?.saturating_sub(1); // 1-indexed
+                let total = total.trim().parse::<usize>().ok()?;
+                Some(Self::Gradient {
+                    gradient_name,
+                    index,
+                    total,
+                })
+            } else {
+                let index = index.trim().parse::<usize>().ok()?.saturating_sub(1); // 1-indexed
+                Some(Self::Set { set_name, index })
+            }
         })()
         .unwrap_or(Self::Single { name }))
     }
@@ -234,7 +245,12 @@ impl fmt::Display for DefaultColor {
                 gradient_name,
                 index: numerator,
                 total: denominator,
-            } => write!(f, "{gradient_name} [{}/{}]", numerator + 1, denominator), // 1-indexed
+            } => write!(
+                f,
+                "{gradient_name} [{}/{}]",
+                numerator.saturating_add(1),
+                denominator,
+            ), // 1-indexed
         }
     }
 }
