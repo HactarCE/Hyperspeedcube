@@ -45,36 +45,75 @@ impl ColorSchemePreferences {
 
 #[derive(Debug, Default, Display, EnumString, EnumIter, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DefaultColorGradient {
+    #[strum(serialize = "Light Rainbow")]
+    LightRainbow,
     #[default]
     Rainbow,
-    // Sinebow,
-    // Turbo,
-    // Spectral,
-    // Cool,
-    // Warm,
-    // Plasma,
-    // Viridis,
-    // Cividis,
+    #[strum(serialize = "Dark Rainbow")]
+    DarkRainbow,
+    #[strum(serialize = "Darker Rainbow")]
+    DarkerRainbow,
+    Turbo,
+    Spectral,
+    Cool,
+    Warm,
+    Plasma,
+    Viridis,
+    Cividis,
 }
 impl DefaultColorGradient {
-    /// Returns the gradient as a [`colorous::Gradient`].
-    pub fn to_colorous(self) -> colorous::Gradient {
+    /// Returns whether the gradient is cyclic (ends at the same place it
+    /// starts).
+    fn is_cyclic(self) -> bool {
+        use DefaultColorGradient::*;
         match self {
-            Self::Rainbow => colorous::RAINBOW,
-            // Self::Sinebow => colorous::SINEBOW,
-            // Self::Turbo => colorous::TURBO,
-            // Self::Spectral => colorous::SPECTRAL,
-            // Self::Cool => colorous::COOL,
-            // Self::Warm => colorous::WARM,
-            // Self::Plasma => colorous::PLASMA,
-            // Self::Viridis => colorous::VIRIDIS,
-            // Self::Cividis => colorous::CIVIDIS,
+            LightRainbow | Rainbow | DarkRainbow | DarkerRainbow => true,
+            _ => false,
         }
     }
-    /// Samples the gradient at a point.
-    pub fn sample(self, index: usize, total: usize) -> Rgb {
-        let rgb = self.to_colorous().eval_rational(index, total).as_array();
-        Rgb { rgb }
+    /// Samples the gradient at `index` in the range `0..=total`.
+    pub fn eval_rational(self, index: usize, mut total: usize) -> Rgb {
+        if total == 0 {
+            total = 1;
+        }
+
+        let limit = match self.is_cyclic() {
+            true => total,      // Exclude endpoints on cyclic gradient
+            false => total - 1, // Include endpoints on non-cyclic gradient
+        };
+
+        self.eval_continuous(index.clamp(0, limit) as f64 / total as f64)
+    }
+    /// Samples the gradient at a point from 0.0 to 1.0.
+    pub fn eval_continuous(self, t: f64) -> Rgb {
+        fn eval(g: colorous::Gradient, t: f64) -> Rgb {
+            let rgb = g.eval_continuous(t).as_array();
+            Rgb { rgb }
+        }
+
+        match self {
+            Self::Rainbow => eval(colorous::SINEBOW, t),
+            Self::Turbo => eval(colorous::TURBO, t),
+            Self::Spectral => eval(colorous::SPECTRAL, t),
+            Self::Cool => eval(colorous::COOL, t),
+            Self::Warm => eval(colorous::WARM, t),
+            Self::Plasma => eval(colorous::PLASMA, t),
+            Self::Viridis => eval(colorous::VIRIDIS, t),
+            Self::Cividis => eval(colorous::CIVIDIS, t),
+
+            Self::LightRainbow => {
+                let rainbow = Self::Rainbow.eval_continuous(t);
+                crate::util::mix_colors(Rgb::WHITE, rainbow, 0.9)
+            }
+            Self::DarkRainbow => {
+                let rainbow = Self::Rainbow.eval_continuous(t);
+                crate::util::mix_colors(Rgb::BLACK, rainbow, 0.4)
+            }
+            Self::DarkerRainbow => {
+                let rainbow = Self::Rainbow.eval_continuous(t);
+                crate::util::mix_colors(Rgb::BLACK, rainbow, 0.2)
+            }
+        }
     }
     /// Returns a [`DefaultColor`] for the gradient
     pub fn default_color_at(self, index: usize, total: usize) -> DefaultColor {
@@ -184,7 +223,7 @@ impl GlobalColorPalette {
                 total,
             } => {
                 let gradient = gradient_name.parse::<DefaultColorGradient>().ok()?;
-                Some(gradient.sample(*index, *total))
+                Some(gradient.eval_rational(*index, *total))
             }
         }
     }

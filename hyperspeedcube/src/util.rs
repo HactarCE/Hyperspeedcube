@@ -158,6 +158,13 @@ fn rgb_to_lab(rgb: Rgb) -> (f32, f32, f32) {
     empfindung::ToLab::to_lab(&rgb_crate::RGB { r, g, b })
 }
 
+pub(crate) fn mix_colors(a: Rgb, b: Rgb, t: f32) -> Rgb {
+    let a = rgb_to_egui_rgba(a);
+    let b = rgb_to_egui_rgba(b);
+    let [r, g, b, _a] = (a * (1.0 - t) + b * t).to_srgba_unmultiplied();
+    Rgb { rgb: [r, g, b] }
+}
+
 pub fn funny_autonames() -> impl Iterator<Item = String> {
     std::iter::from_fn(move || {
         Some(if rand::thread_rng().gen_bool(0.2) {
