@@ -313,8 +313,8 @@ impl<'a> ColorsUi<'a> {
                     name.clone(),
                     DefaultColor::Gradient {
                         gradient_name: gradient_name.clone(),
-                        index: i + 1,
-                        total: total + 1,
+                        index: i.saturating_add(1),
+                        total: total.saturating_add(1),
                     },
                 );
             }
@@ -547,7 +547,7 @@ impl ColorButton {
 #[derive(Debug, Copy, Clone)]
 pub enum ColorOrGradient {
     Color(egui::Color32),
-    Gradient(colorous::Gradient),
+    Gradient(DefaultColorGradient),
 }
 impl From<Rgb> for ColorOrGradient {
     fn from(value: Rgb) -> Self {
@@ -556,7 +556,7 @@ impl From<Rgb> for ColorOrGradient {
 }
 impl From<DefaultColorGradient> for ColorOrGradient {
     fn from(value: DefaultColorGradient) -> Self {
-        Self::Gradient(value.to_colorous())
+        Self::Gradient(value)
     }
 }
 impl ColorOrGradient {
@@ -566,7 +566,7 @@ impl ColorOrGradient {
     pub fn middle_color(self) -> egui::Color32 {
         match self {
             Self::Color(c) => c,
-            Self::Gradient(g) => colorous_color_to_egui_color(g.eval_continuous(0.5)),
+            Self::Gradient(g) => crate::util::rgb_to_egui_color32(g.eval_continuous(0.5)),
         }
     }
     pub fn constrasting_text_color(self) -> egui::Color32 {
@@ -612,12 +612,12 @@ fn paint_colored_rect(
             if rounding > 0.0 {
                 let mut left = rect;
                 left.max.x = left.min.x + rounding * 2.0;
-                let left_color = colorous_color_to_egui_color(g.eval_continuous(0.0));
+                let left_color = crate::util::rgb_to_egui_color32(g.eval_continuous(0.0));
                 painter.rect_filled(left, rounding, left_color);
 
                 let mut right = rect;
                 right.min.x = right.max.x - rounding * 2.0;
-                let right_color = colorous_color_to_egui_color(g.eval_continuous(1.0));
+                let right_color = crate::util::rgb_to_egui_color32(g.eval_continuous(1.0));
                 painter.rect_filled(right, rounding, right_color);
 
                 rect.min.x += rounding;
@@ -643,17 +643,11 @@ fn paint_colored_rect(
                     },
                     rect.y_range(),
                 );
-                let rgb = g.eval_rational(i, block_count - 1).as_array();
-                let c = crate::util::rgb_to_egui_color32(Rgb { rgb });
+                let c = crate::util::rgb_to_egui_color32(g.eval_rational(i, block_count - 1));
                 egui::color_picker::show_color_at(painter, c, sliver);
             }
         }
     }
-}
-
-fn colorous_color_to_egui_color(c: colorous::Color) -> egui::Color32 {
-    let rgb = c.as_array();
-    crate::util::rgb_to_egui_color32(Rgb { rgb })
 }
 
 pub fn color_edit(
