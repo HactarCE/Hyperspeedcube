@@ -135,21 +135,29 @@ impl PuzzleGeneratorSpec {
 
         let user_gen_fn_output = lua
             .registry_value::<LuaFunction<'_>>(&self.user_gen_fn)?
-            .call(gen_params_table)
-            .context("error generating puzzle definition")?;
+            .call::<_, LuaMultiValue<'_>>(gen_params_table)
+            .context("error generating puzzle definition")?
+            .into_vec();
 
-        let puzzle_spec = match user_gen_fn_output {
-            LuaValue::String(s) => {
+        let puzzle_spec = match user_gen_fn_output.get(0) {
+            Some(LuaValue::String(s)) => {
+                let redirect_id = s.to_string_lossy();
                 return Ok(PuzzleGeneratorOutput::Redirect(
-                    s.to_string_lossy().into_owned(),
-                ))
+                    if let Some(val) = user_gen_fn_output.get(1) {
+                        let redirect_params =
+                            LuaSequence::<GeneratorParamValue>::from_lua(val.clone(), lua)?.0;
+                        crate::generated_puzzle_id(&redirect_id, redirect_params)
+                    } else {
+                        redirect_id.into_owned()
+                    },
+                ));
             }
-            LuaValue::Table(tab) => tab,
+            Some(LuaValue::Table(tab)) => tab,
             _ => {
                 return Err(LuaError::external(
                     "return value of `gen` function must string \
                      (ID redirect) or table (puzzle specification)",
-                ))
+                ));
             }
         };
 
