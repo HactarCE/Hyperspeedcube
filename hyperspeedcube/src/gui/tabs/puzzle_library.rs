@@ -111,7 +111,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                         GeneratorParamType::Int { min, max } => {
                                             let GeneratorParamValue::Int(i) = value;
                                             ui.horizontal(|ui| {
-                                                ui.add(egui::DragValue::new(i).range(min..=max));
+                                                ui.add(egui::Slider::new(i, min..=max));
                                                 ui.label(&param.name);
                                             });
                                         }
