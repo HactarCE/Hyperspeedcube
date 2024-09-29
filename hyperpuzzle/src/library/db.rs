@@ -186,13 +186,17 @@ impl LibraryDb {
             dependents: Mutex::new(vec![]),
         };
 
-        if let Some(existing_file) = self.files.get(&filename) {
-            if **existing_file == file {
-                // If the name, path, and contents are the same, then we don't
-                // need to reload it.
-                return;
-            }
-        }
+        // If the name, path, and contents are the same, then in theory we don't
+        // need to reload the file. In practice, this is actually really
+        // annoying and confusing when developing puzzles. If the user wants to
+        // reload, just reload.
+
+        // if let Some(existing_file) = self.files.get(&filename) {
+        //     if **existing_file == file {
+        //         //
+        //         return;
+        //     }
+        // }
 
         self.unload_file(&filename);
         self.files.insert(filename, Arc::new(file));
