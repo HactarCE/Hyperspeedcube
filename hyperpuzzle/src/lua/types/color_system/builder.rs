@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::*;
@@ -164,8 +165,15 @@ impl LuaColorSystem {
             }
 
             LuaValue::Function(f) => {
-                for &id in &*puz.ids_in_order() {
-                    let value = f.call(puz.wrap_id(id))?;
+                let colors = puz
+                    .ids_in_order()
+                    .iter()
+                    .map(|&id| puz.wrap_id(id))
+                    .collect_vec();
+                drop(puz); // Avoid a deadlock in `f.call()`
+                for color in colors {
+                    let id = color.id;
+                    let value = f.call(color)?;
                     mapping[id] = default_color_from_str(lua, Some(value));
                 }
             }
