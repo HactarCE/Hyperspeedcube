@@ -92,3 +92,13 @@ function even_odd_layers(start, stop, layers)
 
   return layers_inclusive(start, stop, floor(layers/2))
 end
+
+function nth_uppercase_name(n)
+  local ret = ''
+  while n > 0 do
+    n = n - 1
+    ret = string.char(string.byte('A') + (n%26)) .. ret
+    n = floor(n / 26)
+  end
+  return ret
+end

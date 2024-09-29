@@ -17,6 +17,10 @@ function ngonal_name(i)
   return NGONAL_NAMES[i] or i .. "-gonal"
 end
 
+local function side_face_name(i)
+  return 'F' .. utils.nth_uppercase_name(i)
+end
+
 function shallow_cut_ft_prism_name(n, width, height)
   local name = ngonal_name(n) .. " Prism"
   if width > 1 or height > 1 then
@@ -27,7 +31,7 @@ end
 
 function prism_face_order(n)
   local order = {'U', 'D'}
-  for i = 1, n do order[i+2] = 'F' .. i end
+  for i = 1, n do order[i+2] = side_face_name(i) end
   return order
 end
 
@@ -47,13 +51,13 @@ end
 function prism_side_poles(n)
   local sym = cd{n, 2}
   local names = {
-    F1 = {}
+    FA = {}
   }
   for i = 2, ceil(n/2) do
-    names['F' .. i] = {1, 'F' .. n-i+2}
+    names[side_face_name(i)] = {1, side_face_name(n-i+2)}
   end
   for i = 1, floor(n/2) do
-    names['F' .. n-i+1] = {2, 'F' .. i}
+    names[side_face_name(n-i+1)] = {2, side_face_name(i)}
   end
   return sym:orbit(sym.oxo.unit):named(names)
 end
@@ -69,7 +73,7 @@ function carve_prism(self, n)
   self.colors.U.default = "Mono Dyad [1]"
   self.colors.D.default = "Mono Dyad [2]"
   for i = 1, n do
-    self.colors['F' .. i].default = "Rainbow [" .. i .. "]"
+    self.colors[side_face_name(i)].default = "Rainbow [" .. i .. "]"
   end
 end
 
