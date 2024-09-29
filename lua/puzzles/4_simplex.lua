@@ -30,18 +30,18 @@ function def_simplex(letter, depths)
         })
       end
 
-      local edge = a2.vector + a3.vector -- ridge orthogonal to `a1`
-      local t = sym:thru(3, 1) -- rot{fix = a1.vector ^ edge, angle = PI}
-      for t, axis1, _edge, twist_transform in sym.chiral:orbit(a1, edge, t) do
+      local ridge = a2.vector + a3.vector -- ridge orthogonal to `a1`
+      local t = sym:thru(3, 1) -- rot{fix = a1.vector ^ ridge, angle = PI}
+      for t, axis1, _ridge, twist_transform in sym.chiral:orbit(a1, ridge, t) do
         self.twists:add(axis1, twist_transform, {
           name = axis1.name .. t:transform(a2).name .. t:transform(a3).name,
           gizmo_pole_distance = 1 * gizmo_size,
         })
       end
 
-      local vertex = edge + a4.vector -- edge orthogonal to `a1`
+      local edge = ridge + a4.vector -- edge orthogonal to `a1`
       local t = sym:thru(3, 2)
-      for t, axis1, _vertex, twist_transform in sym.chiral:orbit(a1, vertex, t) do
+      for t, axis1, _edge, twist_transform in sym.chiral:orbit(a1, edge, t) do
         self.twists:add(axis1, twist_transform, {
           name = axis1.name .. t:transform(a2).name .. t:transform(a3).name .. t:transform(a4).name,
           gizmo_pole_distance = 2/sqrt(3) * gizmo_size,

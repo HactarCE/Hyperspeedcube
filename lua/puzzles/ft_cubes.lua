@@ -222,18 +222,18 @@ puzzle_generators:add{
           })
         end
 
-        local edge = a2.vector + a3.vector -- ridge orthogonal to `a1`
-        local init_transform = sym:thru(3, 1) -- rot{fix = a1.vector ^ edge, angle = PI}
-        for t, axis1, _edge, twist_transform in sym.chiral:orbit(a1, edge, init_transform) do
+        local ridge = a2.vector + a3.vector -- ridge orthogonal to `a1`
+        local init_transform = sym:thru(3, 1) -- rot{fix = a1.vector ^ ridge, angle = PI}
+        for t, axis1, _ridge, twist_transform in sym.chiral:orbit(a1, ridge, init_transform) do
           self.twists:add(axis1, twist_transform, {
             name = t:transform(a2).name .. t:transform(a3).name,
             gizmo_pole_distance = (1+alpha)/sqrt(2) * gizmo_size,
           })
         end
 
-        local vertex = edge + a4.vector -- edge orthogonal to `a1`
+        local edge = ridge + a4.vector -- edge orthogonal to `a1`
         local init_transform = sym:thru(3, 2)
-        for t, axis1, _vertex, twist_transform in sym.chiral:orbit(a1, vertex, init_transform) do
+        for t, axis1, _edge, twist_transform in sym.chiral:orbit(a1, edge, init_transform) do
           self.twists:add(axis1, twist_transform, {
             name = t:transform(a2).name .. t:transform(a3).name .. t:transform(a4).name,
             gizmo_pole_distance = (1+2*alpha)/sqrt(3) * gizmo_size,
