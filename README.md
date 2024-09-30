@@ -6,7 +6,7 @@
 [Release badge]: https://img.shields.io/github/v/release/HactarCE/Hyperspeedcube
 [Release link]: https://github.com/HactarCE/Hyperspeedcube/releases/latest
 
-Hyperspeedcube is a modern, beginner-friendly 3D and 4D Rubik's cube simulator with customizable mouse and keyboard controls and advanced features for speedsolving. It's been used to break numerous speedsolving records.
+Hyperspeedcube is a modern, beginner-friendly 3D and 4D Rubik's cube simulator with thousands of puzzles, customizable mouse and keyboard controls, and a [Lua API for creating new puzzles](https://dev.hypercubing.xyz/hsc/puzzle-dev/). It has been used to break numerous speedsolving records and is the software of choice in the [Hypercubing community](https://hypercubing. xyz/).
 
 For more info, see [ajfarkas.dev/hyperspeedcube](https://ajfarkas.dev/hyperspeedcube/)
 
@@ -16,13 +16,14 @@ For more info, see [ajfarkas.dev/hyperspeedcube](https://ajfarkas.dev/hyperspeed
 
 This project consists of four crates, each depending on the previous ones:
 
-- `hypermath`, which implements vectors, matrices, conformal geometric algebra primitives, and common multi-purpose data structures
-- `hypershape`, which implements shape slicing and other geometric algorithms
-- `hyperpuzzle`, which implements puzzle construction and simulation via a Lua API
-- `hyperspeedcube`, which implements the UI frontend
+- `hypermath`, which provides vectors, matrices, projective geometric algebra primitives, and common multi-purpose data structures
+- `hypershape`, which provides shape slicing and other geometric algorithms
+- `hyperpuzzle`, which provides puzzle construction and simulation via a Lua API
+- `hyperspeedcube`, which provides the UI frontend
 
 ### Possible future plans
 
+- Move Lua API into `hyperpuzzle_lua` and make `hyperpuzzle` extensible by other crates
 - Split `hyperspeedcube` into `hyperspeedcube_core`, `hyperspeedcube_wgpu`, and `hyperspeedcube_egui`.
 - Alternatively: by default, `hyperspeedcube` has the `gui` feature enabled. By disabling it, you can use `hyperspeedcube` as a dependency in other projects and build your own frontend.
 
