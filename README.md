@@ -6,7 +6,7 @@
 [Release badge]: https://img.shields.io/github/v/release/HactarCE/Hyperspeedcube
 [Release link]: https://github.com/HactarCE/Hyperspeedcube/releases/latest
 
-Hyperspeedcube is a modern, beginner-friendly 3D and 4D Rubik's cube simulator with thousands of puzzles, customizable mouse and keyboard controls, and a [Lua API for creating new puzzles](https://dev.hypercubing.xyz/hsc/puzzle-dev/). It has been used to break numerous speedsolving records and is the software of choice in the [Hypercubing community](https://hypercubing. xyz/).
+Hyperspeedcube is a modern, beginner-friendly 3D and 4D Rubik's cube simulator with thousands of puzzles, customizable mouse and keyboard controls, and a [Lua API for creating new puzzles](https://dev.hypercubing.xyz/hsc/puzzle-dev/). It has been used to break numerous speedsolving records and is the software of choice in the [Hypercubing community](https://hypercubing.xyz/).
 
 For more info, see [ajfarkas.dev/hyperspeedcube](https://ajfarkas.dev/hyperspeedcube/)
 
