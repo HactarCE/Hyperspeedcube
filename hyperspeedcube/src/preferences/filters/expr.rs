@@ -418,7 +418,7 @@ mod tests {
         checkboxes.piece_types[PieceType(1)] = Some(false);
         assert_eq!("@only(E) !'p0 !'p1", s(&checkboxes));
         checkboxes.piece_types[PieceType(2)] = Some(false);
-        assert_eq!("@only(E) !'p0 !'p1 !'p2", s(&checkboxes));
+        assert_eq!("@only(E) ('p3 + 'p4 + 'p5)", s(&checkboxes));
         checkboxes.piece_types[PieceType(3)] = Some(false);
         assert_eq!("@only(E) ('p4 + 'p5)", s(&checkboxes));
         checkboxes.piece_types[PieceType(4)] = Some(false);
