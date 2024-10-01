@@ -17,8 +17,8 @@ pub struct LuaOrbit {
     symmetry: LuaSymmetry,
     init: Vec<Transformable>,
 
-    /// Elements of the orbit.
-    orbit_list: Vec<OrbitElement>,
+    /// Cosets of the orbit.
+    cosets: Vec<OrbitCoset>,
 
     iter_index: Arc<AtomicUsize>,
 }
@@ -44,14 +44,12 @@ impl LuaUserData for LuaOrbit {
         });
 
         fields.add_field_method_get("names", |lua, this| {
-            lua.create_sequence_from(this.orbit_list.iter().map(|elem| elem.name.clone()))
+            lua.create_sequence_from(this.cosets.iter().map(|elem| elem.name.clone()))
         });
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_meta_method(LuaMetaMethod::Len, |_lua, this, ()| {
-            Ok(this.orbit_list.len())
-        });
+        methods.add_meta_method(LuaMetaMethod::Len, |_lua, this, ()| Ok(this.cosets.len()));
 
         methods.add_meta_method(LuaMetaMethod::Call, |lua, this, ()| {
             // Get the index of the Lua iteration.
@@ -78,20 +76,21 @@ impl LuaUserData for LuaOrbit {
                 return Ok(this.clone());
             };
 
-            let mut motor_to_name = ApproxHashMap::new();
+            let mut coset_to_name = ApproxHashMap::new();
             for (name, gen_seq) in names_from_table(lua, names_table)? {
                 let motor = this.symmetry.motor_for_gen_seq(gen_seq)?;
-                if let Some(existing_name) = motor_to_name.insert(motor, name.clone()) {
+                let coset = this.init.iter().map(|t| motor.transform(t)).collect_vec();
+                if let Some(existing_name) = coset_to_name.insert(coset, name.clone()) {
                     lua.warning(
-                        format!("duplicate generator sequence: {name:?} and {existing_name:?}"),
+                        format!("duplicate coset: {name:?} and {existing_name:?}"),
                         false,
                     );
                 }
             }
 
             let mut ret = this.clone();
-            for elem in &mut ret.orbit_list {
-                if let Some(name) = motor_to_name.get(&elem.transform) {
+            for elem in &mut ret.cosets {
+                if let Some(name) = coset_to_name.get(&elem.objects) {
                     elem.name = Some(name.clone());
                 }
             }
@@ -100,7 +99,7 @@ impl LuaUserData for LuaOrbit {
 
         methods.add_method("intersection", |_lua, this, ()| {
             let mut ret = LuaRegion::Everything;
-            for elem in &this.orbit_list {
+            for elem in &this.cosets {
                 match elem.objects.first() {
                     Some(Transformable::Region(r)) => ret = ret & r.clone(),
                     _ => return Err(LuaError::external("expected orbit of regions")),
@@ -110,7 +109,7 @@ impl LuaUserData for LuaOrbit {
         });
         methods.add_method("union", |_lua, this, ()| {
             let mut ret = LuaRegion::Nothing;
-            for elem in &this.orbit_list {
+            for elem in &this.cosets {
                 match elem.objects.first() {
                     Some(Transformable::Region(r)) => ret = ret | r.clone(),
                     _ => return Err(LuaError::external("expected orbit of regions")),
@@ -128,7 +127,7 @@ impl LuaOrbit {
             .orbit(init.clone())
             .into_iter()
             // Assign empty names.
-            .map(|(gen_seq, transform, objects)| OrbitElement {
+            .map(|(gen_seq, transform, objects)| OrbitCoset {
                 gen_seq,
                 transform,
                 name: None,
@@ -140,7 +139,7 @@ impl LuaOrbit {
             symmetry,
             init,
 
-            orbit_list,
+            cosets: orbit_list,
 
             iter_index: Arc::new(AtomicUsize::new(0)),
         }
@@ -158,8 +157,8 @@ impl LuaOrbit {
     pub fn get<'lua>(&self, lua: &'lua Lua, index: usize) -> LuaResult<LuaMultiValue<'lua>> {
         // Return multiple values.
         let mut values = vec![];
-        if let Some(element) = self.orbit_list.get(index) {
-            let OrbitElement {
+        if let Some(element) = self.cosets.get(index) {
+            let OrbitCoset {
                 gen_seq: _,
                 transform,
                 name,
@@ -251,7 +250,7 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
             )?)),
             LuaSymmetricSet::Orbit(orbit) => {
                 let orbit_list: Vec<_> = orbit
-                    .orbit_list
+                    .cosets
                     .iter()
                     .cloned()
                     .map(|element| {
@@ -263,7 +262,7 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
                         let lua_value = new_value.into_lua(lua)?;
                         let transformable_new_value = Transformable::from_lua(lua_value, lua)?;
 
-                        LuaResult::Ok(OrbitElement {
+                        LuaResult::Ok(OrbitCoset {
                             gen_seq: element.gen_seq,
                             transform: element.transform,
                             name: element.name,
@@ -283,7 +282,7 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
                 Ok(LuaSymmetricSet::Orbit(LuaOrbit {
                     symmetry: orbit.symmetry.clone(),
                     init,
-                    orbit_list,
+                    cosets: orbit_list,
                     iter_index: Arc::new(AtomicUsize::new(0)),
                 }))
             }
@@ -294,7 +293,7 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
         match self {
             LuaSymmetricSet::Single(v) => Ok(vec![(GeneratorSequence::INIT, None, v.clone())]),
             LuaSymmetricSet::Orbit(orbit) => orbit
-                .orbit_list
+                .cosets
                 .iter()
                 .map(|element| {
                     let v = Self::to_expected_type(lua, element.objects.first())?;
@@ -324,9 +323,9 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
     }
 }
 
-/// Element in an orbit.
+/// Coset of an orbit.
 #[derive(Debug, Clone)]
-struct OrbitElement {
+struct OrbitCoset {
     gen_seq: GeneratorSequence,
     transform: Motor,
     name: Option<String>,
