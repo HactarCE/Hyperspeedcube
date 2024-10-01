@@ -225,6 +225,11 @@ impl<'a> Polytope<'a> {
             .boundary()
             .map(|e| e.map_id(|e| FacetId(e.0)))
     }
+    /// Returns whether any facet of the polytope is primordial (i.e., whether
+    /// this polytope touches the boundary of the primordial cube).
+    pub fn has_primordial_facet(self) -> bool {
+        self.facets().any(|f| f.is_primordial())
+    }
 }
 
 impl<'a> From<Facet<'a>> for Element<'a> {
@@ -237,8 +242,8 @@ impl<'a> Facet<'a> {
     pub fn ridges(self) -> ElementIter<'a> {
         self.as_element().boundary()
     }
-    /// Returns whether the facet is primordial (i.e., it is on the primordial
-    /// cube).
+    /// Returns whether the facet is primordial (i.e., whether it is on the
+    /// boundary of the primordial cube).
     pub fn is_primordial(self) -> bool {
         match self.space.polytopes.lock()[self.as_element().id] {
             PolytopeData::Polytope { is_primordial, .. } => is_primordial,

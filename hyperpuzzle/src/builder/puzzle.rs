@@ -151,18 +151,15 @@ pub struct PieceBuilder {
     cached_interior_point: Option<Vector>,
 }
 impl PieceBuilder {
-    pub(super) fn new(
-        polytope: SpaceRef<'_, impl ToElementId>,
-        stickers: VecMap<FacetId, Color>,
-    ) -> Result<Self> {
-        Ok(Self {
-            polytope: polytope.as_element().as_polytope()?.id(),
+    pub(super) fn new(polytope: Polytope<'_>, stickers: VecMap<FacetId, Color>) -> Self {
+        Self {
+            polytope: polytope.id(),
             cut_result: PieceSet::new(),
             stickers,
             piece_type: None,
 
             cached_interior_point: None,
-        })
+        }
     }
     /// Returns the color of a facet, or `Color::INTERNAL` if there is no
     /// color assigned.

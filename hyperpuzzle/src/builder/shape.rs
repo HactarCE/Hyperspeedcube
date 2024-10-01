@@ -71,7 +71,7 @@ impl ShapeBuilder {
     pub fn new_with_primordial_cube(space: Arc<Space>, puzzle_id: &str) -> Result<Self> {
         let mut this = Self::new_empty(Arc::clone(&space), puzzle_id);
         let primordial_cube = space.add_primordial_cube(crate::PRIMORDIAL_CUBE_RADIUS)?;
-        let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new())?;
+        let root_piece_builder = PieceBuilder::new(primordial_cube, VecMap::new());
         let root_piece = this.pieces.push(root_piece_builder)?;
         this.active_pieces.insert(root_piece);
         Ok(this)
@@ -188,21 +188,8 @@ impl ShapeBuilder {
                 }
             }
 
-            let new_inside_piece = match inside_polytope {
-                Some(p) if !(self.remove_internals && inside_stickers.is_empty()) => {
-                    let inside_piece = PieceBuilder::new(self.space.get(p), inside_stickers)?;
-                    Some(self.pieces.push(inside_piece)?)
-                }
-                _ => None,
-            };
-            let new_outside_piece = match outside_polytope {
-                Some(p) if !(self.remove_internals && outside_stickers.is_empty()) => {
-                    let outside_piece = PieceBuilder::new(self.space.get(p), outside_stickers)?;
-                    Some(self.pieces.push(outside_piece)?)
-                }
-                _ => None,
-            };
-
+            let new_inside_piece = self.add_opt_piece(inside_polytope, inside_stickers)?;
+            let new_outside_piece = self.add_opt_piece(outside_polytope, outside_stickers)?;
             self.active_pieces.extend(new_inside_piece);
             self.active_pieces.extend(new_outside_piece);
 
@@ -216,6 +203,23 @@ impl ShapeBuilder {
         }
 
         Ok(())
+    }
+
+    fn add_opt_piece(
+        &mut self,
+        polytope: Option<ElementId>,
+        stickers: VecMap<FacetId, Color>,
+    ) -> Result<Option<Piece>> {
+        let Some(polytope) = polytope else {
+            return Ok(None);
+        };
+        let p = self.space.get(polytope).as_polytope()?;
+
+        if self.remove_internals && stickers.is_empty() && !p.has_primordial_facet() {
+            return Ok(None);
+        }
+
+        Ok(Some(self.pieces.push(PieceBuilder::new(p, stickers))?))
     }
 
     /// Updates a piece set, replacing defunct pieces with their cut results.
