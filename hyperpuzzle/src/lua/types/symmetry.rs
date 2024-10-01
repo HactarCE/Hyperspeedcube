@@ -48,35 +48,69 @@ impl<T: Into<CoxeterGroup>> From<T> for LuaSymmetry {
 impl LuaSymmetry {
     /// Constructs a symmetry object from a Lua value (string or table)
     /// representing a Coxeter group.
-    pub fn construct_from_cd(v: LuaValue<'_>) -> LuaResult<Self> {
+    pub fn construct_from_cd<'lua>(
+        lua: &'lua Lua,
+        (v, basis): (LuaValue<'lua>, Option<LuaValue<'lua>>),
+    ) -> LuaResult<Self> {
         fn split_alpha_number(s: &str) -> Option<(&str, u8)> {
             let (num_index, _) = s.match_indices(char::is_numeric).next()?;
             let num = s[num_index..].parse().ok()?;
             Some((&s[0..num_index], num))
         }
 
+        let basis = match basis {
+            Some(LuaValue::String(basis_vector_string)) => Some(
+                basis_vector_string
+                    .to_string_lossy()
+                    .chars()
+                    .map(|c| {
+                        let LuaVectorIndex(axis) = c.to_string().parse().into_lua_err()?;
+                        LuaResult::Ok(Vector::unit(axis))
+                    })
+                    .try_collect()?,
+            ),
+            Some(val @ LuaValue::Table(_)) => {
+                let LuaSequence(basis_vector_values) = lua.unpack(val)?;
+                Some(
+                    basis_vector_values
+                        .into_iter()
+                        .map(|LuaVector(v)| v)
+                        .collect(),
+                )
+            }
+            Some(_) => {
+                return Err(LuaError::external(
+                    "basis must be string of vector chars or table of vectors",
+                ));
+            }
+            None => None,
+        };
+
         match v {
             LuaValue::String(s) => match s.to_string_lossy().to_ascii_lowercase().as_str() {
-                "e6" => FiniteCoxeterGroup::E6.try_into(),
-                "e7" => FiniteCoxeterGroup::E7.try_into(),
-                "e8" => FiniteCoxeterGroup::E8.try_into(),
-                "f4" => FiniteCoxeterGroup::F4.try_into(),
-                "g2" => FiniteCoxeterGroup::G2.try_into(),
-                "h2" => FiniteCoxeterGroup::H2.try_into(),
-                "h3" => FiniteCoxeterGroup::H3.try_into(),
-                "h4" => FiniteCoxeterGroup::H4.try_into(),
+                "e6" => FiniteCoxeterGroup::E6,
+                "e7" => FiniteCoxeterGroup::E7,
+                "e8" => FiniteCoxeterGroup::E8,
+                "f4" => FiniteCoxeterGroup::F4,
+                "g2" => FiniteCoxeterGroup::G2,
+                "h2" => FiniteCoxeterGroup::H2,
+                "h3" => FiniteCoxeterGroup::H3,
+                "h4" => FiniteCoxeterGroup::H4,
                 s => match split_alpha_number(s) {
-                    Some(("a", n)) => FiniteCoxeterGroup::A(n).try_into(),
-                    Some(("b" | "c" | "bc", n)) => FiniteCoxeterGroup::B(n).try_into(),
-                    Some(("d", n)) => FiniteCoxeterGroup::D(n).try_into(),
-                    Some(("i", n)) => FiniteCoxeterGroup::I(n).try_into(),
+                    Some(("a", n)) => FiniteCoxeterGroup::A(n),
+                    Some(("b" | "c" | "bc", n)) => FiniteCoxeterGroup::B(n),
+                    Some(("d", n)) => FiniteCoxeterGroup::D(n),
+                    Some(("i", n)) => FiniteCoxeterGroup::I(n),
                     _ => return Err(LuaError::external("unknown coxeter group string")),
                 },
-            },
+            }
+            .coxeter_group(basis),
+
             LuaValue::Table(t) => {
                 let indices: Vec<usize> = t.sequence_values().try_collect()?;
-                CoxeterGroup::new_linear(&indices)
+                CoxeterGroup::new_linear(&indices, basis)
             }
+
             _ => return lua_convert_err(&v, "string or table"),
         }
         .map(LuaSymmetry::from)
@@ -135,8 +169,7 @@ impl LuaSymmetry {
     pub fn dynkin_vector(&self, string: &str) -> LuaResult<Vector> {
         let coxeter = self.as_coxeter()?;
 
-        Ok(coxeter.mirror_basis().into_lua_err()?
-            * parse_dynkin_notation(coxeter.mirror_count(), string)?)
+        Ok(coxeter.mirror_basis() * parse_dynkin_notation(coxeter.mirror_count(), string)?)
     }
 
     fn vector_from_args<'lua>(
@@ -149,7 +182,7 @@ impl LuaSymmetry {
         if let Ok(string) = String::from_lua_multi(args.clone(), lua) {
             self.dynkin_vector(&string)
         } else if let Ok(LuaVector(v)) = <_>::from_lua_multi(args, lua) {
-            Ok(coxeter.mirror_basis().into_lua_err()? * v)
+            Ok(coxeter.mirror_basis() * v)
         } else {
             Err(LuaError::external(
                 "expected vector constructor or dynkin notation string",

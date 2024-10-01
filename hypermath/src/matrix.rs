@@ -203,21 +203,21 @@ impl Matrix {
     }
 
     /// Returns an iterator over the rows of the matrix.
-    pub fn rows(&self) -> impl Iterator<Item = MatrixRow<'_>> {
+    pub fn rows(&self) -> impl Iterator<Item = MatrixRow<'_>> + ExactSizeIterator {
         self.rows_ndim(self.ndim())
     }
     /// Returns an iterator over the columns of the matrix.
-    pub fn cols(&self) -> impl Iterator<Item = MatrixCol<'_>> {
+    pub fn cols(&self) -> impl Iterator<Item = MatrixCol<'_>> + ExactSizeIterator {
         self.cols_ndim(self.ndim())
     }
     /// Returns an iterator over the rows of the matrix, padded to `ndim`. Each
     /// individual row is not padded.
-    pub fn rows_ndim(&self, ndim: u8) -> impl Iterator<Item = MatrixRow<'_>> {
+    pub fn rows_ndim(&self, ndim: u8) -> impl Iterator<Item = MatrixRow<'_>> + ExactSizeIterator {
         (0..ndim).map(|i| self.row(i))
     }
     /// Returns an iterator over the columns of the matrix, padded to `ndim`.
     /// Each individual column is not padded.
-    pub fn cols_ndim(&self, ndim: u8) -> impl Iterator<Item = MatrixCol<'_>> {
+    pub fn cols_ndim(&self, ndim: u8) -> impl Iterator<Item = MatrixCol<'_>> + ExactSizeIterator {
         (0..ndim).map(|i| self.col(i))
     }
     /// Returns an iterator over the rows of two matrices, both padded to the

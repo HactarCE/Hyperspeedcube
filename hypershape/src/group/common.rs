@@ -84,6 +84,9 @@ pub enum GroupError {
     EuclideanCD,
     #[error("invalid coxeter-dynkin diagram")]
     BadCD,
+
+    #[error("invalid coxeter-dynkin basis")]
+    BadBasis,
 }
 impl From<IndexOverflow> for GroupError {
     fn from(value: IndexOverflow) -> Self {

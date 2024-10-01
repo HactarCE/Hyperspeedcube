@@ -5,7 +5,9 @@ use std::fmt;
 
 use hypermath::prelude::*;
 
-use super::{AbstractGroup, EggTable, GeneratorId, GroupBuilder, GroupElementId, GroupResult};
+use super::{
+    AbstractGroup, CoxeterGroup, EggTable, GeneratorId, GroupBuilder, GroupElementId, GroupResult,
+};
 
 /// [Finite Coxeter group](https://w.wiki/7PLd).
 ///
@@ -92,6 +94,14 @@ impl FiniteCoxeterGroup {
         Matrix::from_fn(self.generator_count(), |i, j| {
             self.coxeter_matrix_element(i, j) as f64
         })
+    }
+    /// Returns the corresponding [`CoxeterGroup`]
+    pub fn coxeter_group(self, basis: Option<Vec<Vector>>) -> GroupResult<CoxeterGroup> {
+        CoxeterGroup::from_matrix_index_fn(
+            self.generator_count(),
+            |i, j| self.coxeter_matrix_element(i, j) as _,
+            basis,
+        )
     }
 
     /// Constructs the full group structure using an _O(n)_ algorithm, where _n_

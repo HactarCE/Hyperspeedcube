@@ -110,7 +110,7 @@ impl LuaLoader {
             sandbox.raw_set("plane", lua.create_function(plane_fn)?)?;
 
             // `symmetry` constructors
-            let cd_fn = |_lua, v| LuaSymmetry::construct_from_cd(v);
+            let cd_fn = LuaSymmetry::construct_from_cd;
             sandbox.raw_set("cd", lua.create_function(cd_fn)?)?;
             let symmetry_fn = LuaSymmetry::construct_from_generators;
             sandbox.raw_set("symmetry", lua.create_function(symmetry_fn)?)?;

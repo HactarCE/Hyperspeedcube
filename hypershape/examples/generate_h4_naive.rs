@@ -6,7 +6,7 @@ use hypershape::group::{CoxeterGroup, Group};
 
 fn main() {
     let before = std::time::Instant::now();
-    let g = CoxeterGroup::new_linear(&[5, 3, 3])
+    let g = CoxeterGroup::new_linear(&[5, 3, 3], None)
         .unwrap()
         .group()
         .unwrap();
