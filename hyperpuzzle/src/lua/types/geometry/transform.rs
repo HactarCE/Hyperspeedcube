@@ -9,7 +9,9 @@ pub struct LuaTransform(pub Motor);
 
 impl<'lua> FromLua<'lua> for LuaTransform {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        cast_userdata(lua, &value)
+        // TODO: properly handle `pga::Motor` ndim
+        let ndim = LuaNdim::get(lua)?;
+        cast_userdata(lua, &value).map(|LuaTransform(t)| LuaTransform(t.to_ndim_at_least(ndim)))
     }
 }
 
@@ -48,6 +50,19 @@ impl LuaUserData for LuaTransform {
         methods.add_method("transform", |lua, Self(this), obj: Transformable| {
             this.transform(&obj).into_lua(lua).transpose()
         });
+        // TODO: clean this up and pick a name, dammit
+        fn transform_oriented(
+            _lua: &Lua,
+            LuaTransform(this): &LuaTransform,
+            LuaTransform(rhs): LuaTransform,
+        ) -> LuaResult<LuaTransform> {
+            let t = this.transform(&rhs);
+            let is_refl = this.is_reflection();
+            Ok(LuaTransform(if is_refl { t.reverse() } else { t }))
+        }
+        methods.add_method("transform_oriented", transform_oriented);
+        methods.add_method("transform_keep_orientation", transform_oriented);
+        methods.add_method("tfko", transform_oriented);
 
         // Comparison of transforms
         methods.add_meta_method(LuaMetaMethod::Eq, |_lua, Self(this), Self(other)| {
