@@ -21,7 +21,10 @@ pub struct Motor {
     /// values they correspond to.
     ///
     /// Terms are stored as the right complement of the actual terms. Take the
-    /// left complement of each term to get its original term.
+    /// left complement of each term to get its original term. In practice, when
+    /// using a motor to transform a multivector we take the right complement of
+    /// the multivector first, then sandwich the motor with it, then take the
+    /// left complement of the result.
     coefficients: Box<[Float]>,
 }
 
@@ -580,8 +583,7 @@ impl TransformByMotor for Blade {
             itertools::iproduct!(self.nonzero_terms(), m.nonzero_terms(), m.nonzero_terms())
         {
             let u = u.right_complement(ndim);
-            let r = r.reverse();
-            if let Some(product) = triple_geometric_product([l, u, r]) {
+            if let Some(product) = triple_geometric_product([l, u, r.reverse()]) {
                 let product = product.left_complement(ndim);
                 if product.grade() == self.grade() {
                     result[product.axes] += product.coef;
@@ -599,14 +601,14 @@ impl TransformByMotor for Blade {
 impl TransformByMotor for Motor {
     fn transform_by(&self, m: &Motor) -> Self {
         let ndim = std::cmp::max(m.ndim, self.ndim);
-        let mut result = Motor::zero(self.ndim, self.is_reflection);
+        let mut result = Motor::zero(ndim, self.is_reflection);
+        // Don't take the complement of `m` because it's already stored as the
+        // right complement.
         for (u, l, r) in
             itertools::iproduct!(self.nonzero_terms(), m.nonzero_terms(), m.nonzero_terms())
         {
-            let u = u.right_complement(ndim);
-            let r = r.reverse();
-            if let Some(product) = triple_geometric_product([l, u, r]) {
-                result += product.left_complement(ndim);
+            if let Some(product) = triple_geometric_product([l, u, r.reverse()]) {
+                result += product;
             }
         }
         result
