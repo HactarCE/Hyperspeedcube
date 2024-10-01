@@ -17,6 +17,8 @@ local function ft_cube_cut_depths(ndim, size)
   return utils.layers_inclusive(outermost_cut, -outermost_cut, size-1)
 end
 
+GIZMO_EDGE_FACTOR = 0.8
+
 -- n^3
 puzzle_generators:add{
   id = 'ft_cube',
@@ -192,9 +194,6 @@ puzzle_generators:add{
   gen = function(params)
     local size = params[1]
 
-    local gizmo_size = 1.2
-    local alpha = 0.8
-
     return {
       name = size .. "x" .. size .. "x" .. size .. "x" .. size,
 
@@ -218,7 +217,7 @@ puzzle_generators:add{
         for _, axis1, axis2, twist_transform in sym.chiral:orbit(a1, a2, t) do
           self.twists:add(axis1, twist_transform, {
             name = axis2.name,
-            gizmo_pole_distance = gizmo_size,
+            gizmo_pole_distance = 1,
           })
         end
 
@@ -227,7 +226,7 @@ puzzle_generators:add{
         for t, axis1, _ridge, twist_transform in sym.chiral:orbit(a1, ridge, init_transform) do
           self.twists:add(axis1, twist_transform, {
             name = t:transform(a2).name .. t:transform(a3).name,
-            gizmo_pole_distance = (1+alpha)/sqrt(2) * gizmo_size,
+            gizmo_pole_distance = (1 + GIZMO_EDGE_FACTOR) / sqrt(2),
           })
         end
 
@@ -236,7 +235,7 @@ puzzle_generators:add{
         for t, axis1, _edge, twist_transform in sym.chiral:orbit(a1, edge, init_transform) do
           self.twists:add(axis1, twist_transform, {
             name = t:transform(a2).name .. t:transform(a3).name .. t:transform(a4).name,
-            gizmo_pole_distance = (1+2*alpha)/sqrt(3) * gizmo_size,
+            gizmo_pole_distance = (1 + 2 * GIZMO_EDGE_FACTOR) / sqrt(3),
           })
         end
 
