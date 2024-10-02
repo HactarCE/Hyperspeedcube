@@ -92,7 +92,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                         let popup_id = popup_data_stored.id.with(&puzzle_generator.id);
 
                         if r.clicked() {
-                            ui.memory_mut(|mem| mem.open_popup(popup_id));
+                            ui.memory_mut(|mem| mem.toggle_popup(popup_id));
                             popup_data = Some(PuzzleGeneratorPopupData::new(puzzle_generator));
                         }
 
