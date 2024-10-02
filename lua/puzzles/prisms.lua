@@ -1,23 +1,22 @@
 local utils = require('utils')
+local polygonal = require('symmetries/polygonal')
+local linear = require('symmetries/linear')
 
-DIAG_GIZMO_FACTOR = 2/3
+-- TODO: variant of duoprism with factor of `polygon_edge_length(m)/2` and `polygon_edge_length(n)/2`
 
-NGONAL_NAMES = {
-  "Monogonal",
-  "Digonal",
-  "Triangular",
-  "Square",
-  "Pentagonal",
-  "Hexagonal",
-  "Heptagonal",
-  "Octagonal",
-  "Nonagonal",
-  "Decagonal",
+VERSION = '0.1.0'
+META = {
+  author = { "Andrew Farkas", "Luna Harran" },
 }
 
-function ngonal_name(i)
-  return NGONAL_NAMES[i] or i .. "-gonal"
-end
+PARAMS = {
+  polygon_size = function(name, min) return { name = name, type = 'int', default = 5, min = min or 3, max = 24 } end,
+  polygon_width = function(name) return { name = name, type = 'int', default = 3, min = 1, max = 10 } end,
+  line_height = function(name) return { name = name, type = 'int', default = 3, min = 1, max = 10 } end,
+}
+
+FACET_GIZMO_EDGE_FACTOR = 2/3
+RIDGE_GIZMO_FACTOR = 1/2
 
 local function get_default_color(color)
   local t = {
@@ -27,287 +26,302 @@ local function get_default_color(color)
     F = "Rainbow [0/0]",
 
     -- 4D
-    A = "Light Rainbow [0/0]",
-    B = "Dark Rainbow [0/0]",
-  };
+    A = "Dark Rainbow [0/0]",
+    B = "Light Rainbow [0/0]",
+  }
   return t[string.sub(color.name, 1, 1)]
 end
 
-local function side_face_name(prefix, i)
-  return prefix .. utils.nth_uppercase_name(i)
+local function facet_order(color_or_axis)
+  local s = color_or_axis.name
+  if s == 'U' then
+    return -2
+  elseif s == 'D' then
+    return -1
+  else
+    return utils.uppercase_name_to_n(s)
+  end
 end
 
-function shallow_cut_ft_prism_name(n, width, height)
-  local name = ngonal_name(n) .. " Prism"
+
+function ft_prism_name(n, width, height, cut_type)
+  local name = string.format("%s Prism", polygonal.ngonal_name(n))
   if width > 1 or height > 1 then
-    name = "Face-Turning " .. name .. " (Shallow " .. width .. "x" .. height .. ")"
+    name = string.format("Face-Turning %s (%s %dx%d)", name, cut_type, width, height)
   end
   return name
 end
 
-function shallow_cut_ft_duoprism_name(n, m, n_size, m_size)
-  local name = "{" .. n .. "}x{" .. m .. "} Duoprism"
+function ft_duoprism_name(n, m, n_size, m_size, n_cut_type, m_cut_type)
+  local name = string.format("{%d}x{%d} Duoprism", n, m)
   if n_size > 1 or m_size > 1 then
-    name = "Facet-Turning " .. name .. " (Shallow " .. n_size .. "x" .. m_size .. ")"
+    name = string.format("Facet-Turning %s (", name)
+    if m_cut_type == nil or n_cut_type == m_cut_type then
+      name = name .. string.format("%s %dx%d", n_cut_type, n_size, m_size)
+    else
+      name = name .. string.format("%s %d x %s %d", n_cut_type, n_size, m_cut_type, m_size)
+    end
+    name = name .. ")"
   end
   return name
 end
 
-function prism_face_order(n)
-  local order = {'U', 'D'}
-  for i = 1, n do order[i+2] = side_face_name('F', i) end
-  return order
-end
+function build_prism_puzzle(self, n, polygon_cut_depths, height)
+  local base_polygon = polygonal.ngon(n, 1)
+  local h = base_polygon.edge_length / 2
+  local line = linear.line(h, 'z', 'U', 'D')
 
-function duoprism_face_order(n, m)
-  local order = {}
-  for i = 1, n do order[i] = side_face_name('A', i) end
-  for i = 1, m do order[n+i] = side_face_name('B', i) end
-  return order
-end
+  local line_cut_depths = utils.layers.exclusive(h, -h, height-1)
 
--- Returns the length of an edge of an n-gonal polygon with inradius 1
-function polygon_edge_length(n)
-  return tan(pi/n)*2
-end
+  local base_colors, base_axes = utils.cut_shape(self, line, line_cut_depths, 'U', 'D')
+  local side_colors, side_axes = utils.cut_shape(self, base_polygon, polygon_cut_depths, 'F')
 
-function prism_base_poles(n)
-  local sym = cd{n, 2}
-  return sym:orbit(sym.oox.unit * polygon_edge_length(n)/2):named{
-    U = {},
-    D = {3},
-  }
-end
-
-function polygon_face_names(prefix, n, mirror1, mirror2)
-  local names = {
-    [side_face_name(prefix, 1)] = {}
-  }
-  for i = 2, ceil(n/2) do
-    names[side_face_name(prefix, i)] = {mirror1 or 1, side_face_name(prefix, n-i+2)}
-  end
-  for i = 1, floor(n/2) do
-    names[side_face_name(prefix, n-i+1)] = {mirror2 or 2, side_face_name(prefix, i)}
-  end
-  return names
-end
-
-function prism_side_poles(n)
-  local sym = cd{n, 2}
-  local names = polygon_face_names('F', n)
-  return sym:orbit(sym.oxo.unit):named(names)
-end
-
-function duoprism_poles(n, m)
-  local sym = cd{n, 2, m}
-  local poles_a = sym:orbit(sym.oxoo.unit):named(polygon_face_names('A', n))
-  local poles_b = sym:orbit(sym.ooox.unit):named(polygon_face_names('B', m, 3, 4))
-  return poles_a, poles_b
-end
-
-function carve_prism(self, n)
-  self:carve(prism_base_poles(n))
-  self:carve(prism_side_poles(n))
-  self.colors:reorder(prism_face_order(n))
+  self.colors:reorder(facet_order)
   self.colors:set_defaults(get_default_color)
-end
+  self.axes:reorder(facet_order)
 
-function carve_duoprism(self, n, m)
-  local sym = cd{n, 2, m}
-  local poles_a, poles_b = duoprism_poles(n, m)
-  self:carve(poles_a)
-  self:carve(poles_b)
-  self.colors:reorder(duoprism_face_order(n, m))
-  self.colors:set_defaults(get_default_color)
-end
-
-function add_prism_twists(self, n, base_axis, side_axis, h)
   local sym = cd{n, 2}
-  for _, axis, twist_transform in sym.chiral:orbit(base_axis, sym:thru(2, 1)) do
-    self.twists:add(axis, twist_transform, {gizmo_pole_distance = h})
+
+  local U = base_axes[1]
+  local F1 = side_axes[1]
+
+  local function add_twist_set(axis, twist_transform, twist_data)
+    for t in sym:orbit(axis) do
+      self.twists:add(t:transform(axis), t:transform_oriented(twist_transform), twist_data)
+    end
   end
-  for _, axis, twist_transform in sym.chiral:orbit(side_axis, sym:thru(3, 1)) do
-    self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
-  end
+
+  add_twist_set(U, sym:thru(2, 1), {gizmo_pole_distance = h})
+  add_twist_set(F1, sym:thru(3, 1), {gizmo_pole_distance = 1})
 end
 
-function add_duoprism_twists(self, n, m, axis_a, axis_b, which_set)
+function build_duoprism_puzzle(self, n, m, n_cut_depths, m_cut_depths, n_opposite_cut_depths, m_opposite_cut_depths)
+  local polygon_a = polygonal.ngon(n, 1, 'xy')
+  local polygon_b = polygonal.ngon(m, 1, 'zw')
+
+  local _colors_a, axes_a = utils.cut_shape(self, polygon_a, n_cut_depths, 'A')
+  local _colors_b, axes_b = utils.cut_shape(self, polygon_b, m_cut_depths, 'B')
+
+  local z1, y1
+  if n_opposite_cut_depths ~= nil then
+    local axes_z = self.axes:add(polygon_a:iter_vertices('Z'), n_opposite_cut_depths)
+    z1 = axes_z[1]
+  end
+  if m_opposite_cut_depths ~= nil then
+    local axes_y = self.axes:add(polygon_b:iter_vertices('Y'), m_opposite_cut_depths)
+    y1 = axes_y[1]
+  end
+
+  self.colors:reorder(facet_order)
+  self.colors:set_defaults(get_default_color)
+  self.axes:reorder(facet_order)
+
   local sym = cd{n, 2, m}
 
-  local p = ({n, m})[which_set]
+  local function add_twist_set(orbit_sym, twist_mirrors, axis, neighbor_axes, gizmo_pole_distance)
+    local twist_transform, coset_point = twist_transform_and_coset_point(sym, twist_mirrors)
+    for t in orbit_sym:orbit(coset_point) do
+      local name = ''
+      for _, neighbor in ipairs(neighbor_axes) do
+        name = name .. '_' .. t:transform(neighbor).name
+      end
 
-  local m1, m2, m3, m4 = 1, 2, 3, 4
-  if which_set == 2 then
-    m1, m2, m3, m4 = m3, m4, m1, m2
+      self.twists:add(t:transform(axis), t:transform_oriented(twist_transform), {
+        name = name,
+        gizmo_pole_distance = gizmo_pole_distance
+      })
+    end
   end
 
-  local h1 = polygon_edge_length(p)/2
-  local diag1 = utils.lerp(1/cos(pi/p), 1, DIAG_GIZMO_FACTOR)
+  -- Gizmo pole distances
+  local gizmo_base_a = polygon_a.edge_length / 2
+  local gizmo_base_b = polygon_b.edge_length / 2
+  local gizmo_edge_a = utils.lerp(polygon_a.outradius, 1, FACET_GIZMO_EDGE_FACTOR)
+  local gizmo_edge_b = utils.lerp(polygon_b.outradius, 1, FACET_GIZMO_EDGE_FACTOR)
 
-  local ax1 = ({axis_a, axis_b})[which_set]
-  local ax2 = sym:thru(m1, m2):transform(ax1)
-  for _, axis1, axis2, twist_transform in sym.chiral:orbit(ax1, ax2, sym:thru(m4, m3)) do
-    self.twists:add(axis1, twist_transform, {
-      name = '_' .. axis2.name,
-      gizmo_pole_distance = h1,
-    })
+  -- Symmetry that respects the orientations of both `polygon_a` and `polygon_b`
+  local chiral_sym = symmetry{sym:thru(2, 1), sym:thru(4, 3)}
+
+  local a1 = axes_a[1]
+  local a2 = sym:thru(2, 1):transform(a1)
+
+  local b1 = axes_b[1]
+  local b2 = sym:thru(4, 3):transform(b1)
+
+  -- A twists
+  add_twist_set(sym,        {3, 4}, a1, {a2}, gizmo_base_a)
+  add_twist_set(chiral_sym, {3, 1}, a1, {b1}, 1)
+  add_twist_set(chiral_sym, {1, 4}, a1, {b1, b2}, gizmo_edge_b)
+
+  -- B twists
+  add_twist_set(sym,        {1, 2}, b1, {b2}, gizmo_base_b)
+  add_twist_set(chiral_sym, {1, 3}, b1, {a1}, 1)
+  add_twist_set(chiral_sym, {3, 2}, b1, {a1, a2}, gizmo_edge_a)
+
+  -- Z twists (opposite A)
+  if z1 then
+    add_twist_set(sym,        {4, 3}, z1, {a1}, RIDGE_GIZMO_FACTOR)
+    add_twist_set(chiral_sym, {2, 3}, z1, {b1}, 1)
+    add_twist_set(chiral_sym, {4, 2}, z1, {b1, b2}, gizmo_edge_b)
   end
-  local ax2 = ({axis_b, axis_a})[which_set]
-  for _, axis1, axis2, twist_transform in sym.chiral:orbit(ax1, ax2, sym:thru(m3, m1)) do
-    self.twists:add(axis1, twist_transform, {
-      name = '_' .. axis2.name,
-      gizmo_pole_distance = 1,
-    })
-  end
-  local ax3 = sym:thru(m4, m3):transform(ax2)
-  local ridge = ax2.vector + ax3.vector -- ridge orthogonal to `a1`
-  for t, axis, _ridge, twist_transform in sym.chiral:orbit(ax1, ridge, sym:thru(m1, m4)) do
-    self.twists:add(axis, twist_transform, {
-      name = '_' .. t:transform(ax3).name .. '_' .. t:transform(ax2).name,
-      gizmo_pole_distance = diag1,
-    })
+
+  -- Y twists (opposite B)
+  if y1 then
+    add_twist_set(sym,        {2, 1}, y1, {b1}, RIDGE_GIZMO_FACTOR)
+    add_twist_set(chiral_sym, {4, 1}, y1, {a1}, 1)
+    add_twist_set(chiral_sym, {2, 4}, y1, {a1, a2}, gizmo_edge_a)
   end
 end
 
-puzzle_generators:add{
-  id = 'ft_prism_3',
-  version = '0.1.0',
+-- PRISM GENERATORS
 
-  meta = {
-    author = { "Andrew Farkas", "Luna Harran" },
-  },
-
-  name = "Face-Turning Triangular Prism (Shallow)",
-
-  params = {
-    { name = "Width", type = 'int', default = 3, min = 1, max = 10 },
-    { name = "Height", type = 'int', default = 3, min = 1, max = 5 },
-  },
-
-  examples = {
-    { params = {2,3}, name = "3-Layer Pentahedron" }, -- museum 10916
-    { params = {4,5}, name = "5-Layer Pentahedron" }, -- museum 11848
-  },
-
-  gen = function(params)
-    local width = params[1]
-    local height = params[2]
-
-    return {
-      name = shallow_cut_ft_prism_name(3, width, height),
-
-      ndim = 3,
-      build = function(self)
-        local sym = cd{3, 2}
-
-        carve_prism(self, 3)
-
-        local side_layers = utils.even_odd_layers(1, 0, width)
-        table.insert(side_layers, -2) -- allow edge turns
-
-        local h = polygon_edge_length(3)/2
-        local base_axes = self.axes:add(prism_base_poles(3), utils.layers_exclusive(h, -h, height-1))
-        local side_axes = self.axes:add(prism_side_poles(3), side_layers)
-        self.axes:reorder(prism_face_order(3))
-
-        add_prism_twists(self, 3, base_axes[1], side_axes[1], h)
-      end,
-    }
-  end,
-}
-
+-- Face-Turning Polygonal Prism (Shallow)
 puzzle_generators:add{
   id = 'ft_prism',
-  version = '0.1.0',
-
-  meta = {
-    author = { "Andrew Farkas", "Luna Harran" },
-  },
-
-  name = "Face-Turning Polygonal Prism (Shallow, 5+)",
-
+  version = VERSION,
+  meta = META,
+  name = "Face-Turning Polygonal Prism (Shallow)",
   params = {
-    { name = "Polygon size", type = 'int', default = 5, min = 5, max = 24 },
-    { name = "Width", type = 'int', default = 3, min = 1, max = 10 },
-    { name = "Height", type = 'int', default = 3, min = 1, max = 5 },
+    PARAMS.polygon_size("Polygon size"),
+    PARAMS.polygon_width("Width"),
+    PARAMS.line_height("Height"),
   },
-
-  examples = {},
-
   gen = function(params)
-    local n = params[1]
-    local width = params[2]
-    local height = params[3]
-
+    local n, width, height = table.unpack(params)
     return {
-      name = shallow_cut_ft_prism_name(n, width, height),
-
+      name = ft_prism_name(n, width, height, "Shallow"),
       ndim = 3,
       build = function(self)
-        local sym = cd{n, 2}
-
-        carve_prism(self, n)
-
-        local d = sin(2*pi/n) * polygon_edge_length(n)/2
-        local side_layers = utils.even_odd_layers(1, 1 - d, width)
-
-        local h = polygon_edge_length(n)/2
-        local base_axes = self.axes:add(prism_base_poles(n), utils.layers_exclusive(h, -h, height-1))
-        local side_axes = self.axes:add(prism_side_poles(n), side_layers)
-        self.axes:reorder(prism_face_order(n))
-
-        add_prism_twists(self, n, base_axes[1], side_axes[1], h)
+        local n_cuts = polygonal.ngon(n):shallow_cut_depths(width)
+        build_prism_puzzle(self, n, n_cuts, height)
       end,
     }
   end,
 }
 
+-- Face-Turning Triangular Prism (Triminx)
+puzzle_generators:add{
+  id = 'ft_prism_3_minx',
+  version = VERSION,
+  meta = META,
+  name = "Face-Turning Triangular Prism (Triminx)",
+  params = { PARAMS.polygon_width("Width"), PARAMS.line_height("Height") },
+  gen = function(params)
+    local width, height = table.unpack(params)
+    return {
+      name = ft_prism_name(3, width, height, "Triminx"),
+      ndim = 3,
+      build = function(self)
+        local n_cuts = polygonal.ngon(3):full_cut_depths(width)
+        build_prism_puzzle(self, 3, n_cuts, height)
+      end,
+    }
+  end,
+}
+
+
+
+-- DUOPRISM GENERATORS
+
+-- Facet-Turning Polygonal Duoprism (Shallow)
 puzzle_generators:add{
   id = 'ft_duoprism',
-  version = '0.1.0',
-
-  meta = {
-    author = { "Andrew Farkas", "Luna Harran" },
-  },
-
-  name = "Facet-Turning Polygonal Duoprism (Shallow, 5+)",
-
+  version = VERSION,
+  meta = META,
+  name = "Facet-Turning Polygonal Duoprism (Shallow)",
   params = {
-    { name = "Polygon A", type = 'int', default = 5, min = 5, max = 12 },
-    { name = "Polygon B", type = 'int', default = 5, min = 4, max = 12 },
-    { name = "Size A", type = 'int', default = 3, min = 1, max = 7 },
-    { name = "Size B", type = 'int', default = 3, min = 1, max = 7 },
+    PARAMS.polygon_size("Polygon A"),
+    PARAMS.polygon_size("Polygon B"),
+    PARAMS.polygon_width("Size A"),
+    PARAMS.polygon_width("Size B"),
   },
-
-  examples = {},
-
   gen = function(params)
-    local n = params[1]
-    local m = params[2]
-    local n_size = params[3]
-    local m_size = params[4]
-
+    local n, m, n_size, m_size = table.unpack(params)
     if n < m or (n == m and n_size < m_size) then
       return 'ft_duoprism', {m, n, m_size, n_size}
     end
-
     return {
-      name = shallow_cut_ft_duoprism_name(n, m, n_size, m_size),
-
+      name = ft_duoprism_name(n, m, n_size, m_size, "Shallow"),
       ndim = 4,
       build = function(self)
-        local sym = cd{n, 2, m}
+        local n_cuts = polygonal.ngon(n):shallow_cut_depths(n_size)
+        local m_cuts = polygonal.ngon(m):shallow_cut_depths(m_size)
+        build_duoprism_puzzle(self, n, m, n_cuts, m_cuts)
+      end,
+    }
+  end,
+}
 
-        carve_duoprism(self, n, m)
+-- Facet-Turning Onehundredagonal Duoprism
+puzzle_generators:add{
+  id = 'ft_duoprism_100_4',
+  version = VERSION,
+  meta = META,
+  name = "Facet-Turning Onehundredagonal Duoprism",
+  params = {
+    { name = "Size (100)", type = 'int', default = 3, min = 1, max = 3 },
+    { name = "Size (4)", type = 'int', default = 3, min = 1, max = 3 },
+  },
+  examples = {
+    { params = {1, 1} },
+    { params = {3, 3} },
+  },
+  gen = function(params)
+    local n_size, m_size = table.unpack(params)
+    return {
+      name = ft_duoprism_name(100, 4, n_size, m_size, "Shallow"),
+      ndim = 4,
+      build = function(self)
+        local n_cuts = polygonal.ngon(100):shallow_cut_depths(n_size)
+        local m_cuts = polygonal.ngon(4):shallow_cut_depths(m_size)
+        build_duoprism_puzzle(self, 100, 4, n_cuts, m_cuts)
+      end,
+    }
+  end,
+}
 
-        local poles_a, poles_b = duoprism_poles(n, m)
-        local da = sin(2*pi/n) * polygon_edge_length(n)/2
-        local db = sin(2*pi/m) * polygon_edge_length(m)/2
-        local axes_a = self.axes:add(poles_a, utils.even_odd_layers(1, 1 - da, n_size))
-        local axes_b = self.axes:add(poles_b, utils.even_odd_layers(1, 1 - db, m_size))
+puzzle_generators:add{
+  id = 'ft_duoprism_3_minx',
+  version = VERSION,
+  meta = META,
+  name = "Facet-Turning Polygonal Duoprism (Shallow, Triminx)",
+  params = {
+    PARAMS.polygon_size("Polygon A"),
+    PARAMS.polygon_width("Size A"),
+    PARAMS.polygon_width("Size (3)"),
+  },
+  gen = function(params)
+    local n, n_size, m_size = table.unpack(params)
+    return {
+      name = ft_duoprism_name(n, 3, n_size, m_size, "Shallow", "Triminx"),
+      ndim = 4,
+      build = function(self)
+        local n_cuts = polygonal.ngon(n):shallow_cut_depths(n_size)
+        local m_cuts, m_opp_cuts = polygonal.ngon(3):full_cut_depths(m_size)
+        build_duoprism_puzzle(self, n, 3, n_cuts, m_cuts, nil, m_opp_cuts)
+      end,
+    }
+  end,
+}
 
-        add_duoprism_twists(self, n, m, axes_a[1], axes_b[1], 1)
-        add_duoprism_twists(self, n, m, axes_a[1], axes_b[1], 2)
+puzzle_generators:add{
+  id = 'ft_duoprism_3_minx_3_minx',
+  version = VERSION,
+  meta = META,
+  name = "Facet-Turning Triangular Duoprism (Triminx)",
+  params = {
+    PARAMS.polygon_width("Size A"),
+    PARAMS.polygon_width("Size B"),
+  },
+  gen = function(params)
+    local n_size, m_size = table.unpack(params)
+    return {
+      name = ft_duoprism_name(3, 3, n_size, m_size, "Triminx", "Triminx"),
+      ndim = 4,
+      build = function(self)
+        local n_cuts, n_opposite_cuts = polygonal.ngon(3):full_cut_depths(n_size)
+        local m_cuts, m_opposite_cuts = polygonal.ngon(3):full_cut_depths(m_size)
+        build_duoprism_puzzle(self, 3, 3, n_cuts, m_cuts, n_opposite_cuts, m_opposite_cuts)
       end,
     }
   end,
