@@ -119,7 +119,14 @@ function build_duoprism_puzzle(self, n, m, n_cut_depths, m_cut_depths, n_opposit
   local sym = cd{n, 2, m}
 
   local function add_twist_set(orbit_sym, twist_mirrors, axis, neighbor_axes, gizmo_pole_distance)
-    local twist_transform, coset_point = twist_transform_and_coset_point(sym, twist_mirrors)
+    local twist_transform = sym:thru(table.unpack(twist_mirrors))
+
+    -- generate a point that is fixed by the twist transform
+    local coset_vec = vec()
+    for i = 1, #sym.mirror_vectors do coset_vec = coset_vec + vec{[i] = 1} end
+    for _, m in ipairs(twist_mirrors) do coset_vec = coset_vec - vec{[m] = 1} end
+    local coset_point = sym:vec(coset_vec)
+
     for t in orbit_sym:orbit(coset_point) do
       local name = ''
       for _, neighbor in ipairs(neighbor_axes) do
