@@ -3,14 +3,14 @@ color_systems:add{
   name = "Octahedron",
 
   colors = {
-    { name = "R", display = "Right"},
-    { name = "L", display = "Left"},
-    { name = "U", display = "Up"},
-    { name = "D", display = "Down"},
-    { name = "F", display = "Front"},
-    { name = "BR", display = "Back-right"},
-    { name = "BL", display = "Back-left"},
-    { name = "BD", display = "Back-down"},
+    { name = 'R', display = "Right"},
+    { name = 'L', display = "Left"},
+    { name = 'U', display = "Up"},
+    { name = 'D', display = "Down"},
+    { name = 'F', display = "Front"},
+    { name = 'BR', display = "Back-right"},
+    { name = 'BL', display = "Back-left"},
+    { name = 'BD', display = "Back-down"},
   },
 
   schemes = {
@@ -68,20 +68,20 @@ color_systems:add{
   default = "Diansheng",
 }
 
-function octahedron()
+function octahedron(scale, basis)
   return {
-    sym = cd'bc3',
-    iter_poles = function(self)
-      return self.sym:orbit(self.sym.xoo.unit):named({
-        R = {3, "D"},
-        L = {1, "F"},
-        U = {3, "BL"},
-        D = {2, "L"},
+    sym = cd('bc3', basis),
+    iter_poles = function(self, prefix)
+      return self.sym:orbit(self.sym.xoo.unit * (scale or 1)):named({
+        R = {3, 'D'},
+        L = {1, 'F'},
+        U = {3, 'BL'},
+        D = {2, 'L'},
         F = {},
-        BR = {2, "U"},
-        BL = {1, "D"},
-        BD = {1, "BR"}, -- B in standard notation
-      })
+        BR = {2, 'U'},
+        BL = {1, 'D'},
+        BD = {1, 'BR'}, -- B in standard notation
+      }):prefixed(prefix)
     end,
   }
 end

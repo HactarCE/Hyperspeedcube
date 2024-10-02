@@ -32,18 +32,18 @@ color_systems:add{
   default = "Western",
 }
 
-function cube()
+function cube(scale, basis)
   return {
-    sym = cd'bc3',
-    iter_poles = function(self)
-      return self.sym:orbit(self.sym.oox.unit):named({
+    sym = cd('bc3', basis),
+    iter_poles = function(self, prefix)
+      return self.sym:orbit(self.sym.oox.unit * (scale or 1)):named({
         F = {},
         U = {3, 'F'},
         R = {2, 'U'},
         L = {1, 'R'},
         D = {2, 'L'},
         B = {3, 'D'},
-      })
+      }):prefixed(prefix)
     end,
   }
 end

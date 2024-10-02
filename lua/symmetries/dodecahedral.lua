@@ -18,11 +18,11 @@ color_systems:add{
   },
 }
 
-function dodecahedron()
+function dodecahedron(scale, basis)
   return {
-    sym = cd'h3',
-    iter_poles = function(self)
-      return self.sym:orbit(self.sym.oox.unit):named({
+    sym = cd('h3', basis),
+    iter_poles = function(self, prefix)
+      return self.sym:orbit(self.sym.oox.unit * (scale or 1)):named({
         F = {},
         U = {3, 'F'},
         R = {2, 'U'},
@@ -35,7 +35,7 @@ function dodecahedron()
         PL = {1, 'PR'},
         PD = {2, 'PL'},
         PB = {3, 'PD'},
-      })
+      }):prefixed(prefix)
     end,
   }
 end

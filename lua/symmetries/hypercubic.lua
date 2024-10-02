@@ -14,20 +14,20 @@ color_systems:add{
   },
 }
 
-function hypercube()
+function hypercube(scale, basis)
   return {
-    sym = cd'bc4',
-    iter_poles = function(self)
-      return self.sym:orbit(self.sym.ooox.unit):named({
-        R = {2, "U"},
-        L = {1, "R"},
-        U = {3, "F"},
-        D = {2, "L"},
-        F = {4, "O"},
-        B = {3, "D"},
-        I = {4, "B"},
+    sym = cd('bc4', basis),
+    iter_poles = function(self, prefix)
+      return self.sym:orbit(self.sym.ooox.unit * (scale or 1)):named({
+        R = {2, 'U'},
+        L = {1, 'R'},
+        U = {3, 'F'},
+        D = {2, 'L'},
+        F = {4, 'O'},
+        B = {3, 'D'},
+        I = {4, 'B'},
         O = {},
-      })
+      }):prefixed(prefix)
     end,
   }
 end

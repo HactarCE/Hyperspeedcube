@@ -12,26 +12,26 @@ color_systems:add{
 }
 
 
-function simplex_4d()
+function simplex_4d(scale, basis)
   return {
-    sym = cd'a4',
-    iter_poles = function(self)
-      return self.sym:orbit(self.sym.ooox.unit):named({
+    sym = cd('a4', basis),
+    iter_poles = function(self, prefix)
+      return self.sym:orbit(self.sym.ooox.unit * (scale or 1)):named({
         O = {},
         D = {4, 'O'},
         F = {3, 'D'},
         BR = {2, 'F'},
         BL = {1, 'BR'},
-      })
+      }):prefixed(prefix)
     end,
-    iter_vertices = function(self)
-      return self.sym:orbit(self.sym.xooo.unit):named({
+    iter_vertices = function(self, prefix)
+      return self.sym:orbit(self.sym.xooo.unit * (scale or 1)):named({
         R = {},
         L = {1, 'R'},
         B = {2, 'L'},
         U = {3, 'B'},
         I = {4, 'U'},
-      })
+      }):prefixed(prefix)
     end,
   }
 end
