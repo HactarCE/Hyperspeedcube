@@ -97,6 +97,19 @@ impl LuaUserData for LuaOrbit {
             Ok(ret)
         });
 
+        methods.add_method("prefixed", |_lua, this, prefix: Option<String>| {
+            let mut ret = this.clone();
+            let Some(prefix) = prefix else {
+                return Ok(ret);
+            };
+            for coset in &mut ret.cosets {
+                if let Some(name) = &mut coset.name {
+                    *name = format!("{prefix}{name}");
+                }
+            }
+            Ok(ret)
+        });
+
         methods.add_method("intersection", |_lua, this, ()| {
             let mut ret = LuaRegion::Everything;
             for elem in &this.cosets {
