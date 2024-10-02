@@ -19,7 +19,7 @@ end
 function uppercase_name_to_n(name)
   local ret = 0
   for i = 1, #name do
-    ret = ret * 26 + string.byte(string.sub(name, i, i)) - string.byte('A') + 1
+    ret = ret * 26 + string.byte(name:sub(i, i)) - string.byte('A') + 1
   end
   return ret
 end

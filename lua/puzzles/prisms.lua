@@ -2,6 +2,9 @@ local utils = require('utils')
 local polygonal = require('symmetries/polygonal')
 local linear = require('symmetries/linear')
 
+local dodecahedral = require('symmetries/dodecahedral')
+local ft_dodecahedra = require('puzzles/ft_dodecahedra')
+
 -- TODO: variant of duoprism with factor of `polygon_edge_length(m)/2` and `polygon_edge_length(n)/2`
 
 VERSION = '0.1.0'
@@ -29,7 +32,7 @@ local function get_default_color(color)
     A = "Dark Rainbow [0/0]",
     B = "Light Rainbow [0/0]",
   }
-  return t[string.sub(color.name, 1, 1)]
+  return t[color.name:sub(1, 1)]
 end
 
 local function facet_order(color_or_axis)
@@ -39,7 +42,9 @@ local function facet_order(color_or_axis)
   elseif s == 'D' then
     return -1
   else
-    return utils.uppercase_name_to_n(s)
+    -- 1,000,000 still has integer precision on f32, but is way more than the
+    -- number of faces we should ever have
+    return utils.uppercase_name_to_n(s:sub(1, 1)) * 1000000 + utils.uppercase_name_to_n(s:sub(2))
   end
 end
 
@@ -180,6 +185,9 @@ function build_duoprism_puzzle(self, n, m, n_cut_depths, m_cut_depths, n_opposit
   end
 end
 
+
+
+
 -- PRISM GENERATORS
 
 -- Face-Turning Polygonal Prism (Shallow)
@@ -287,6 +295,7 @@ puzzle_generators:add{
   end,
 }
 
+-- Facet-Turning Polygonal Duoprism (Shallow, Triminx)
 puzzle_generators:add{
   id = 'ft_duoprism_3_minx',
   version = VERSION,
@@ -311,6 +320,7 @@ puzzle_generators:add{
   end,
 }
 
+-- Facet-Turning Triangular Duoprism (Triminx)
 puzzle_generators:add{
   id = 'ft_duoprism_3_minx_3_minx',
   version = VERSION,
@@ -329,6 +339,105 @@ puzzle_generators:add{
         local n_cuts, n_opposite_cuts = polygonal.ngon(3):full_cut_depths(n_size)
         local m_cuts, m_opposite_cuts = polygonal.ngon(3):full_cut_depths(m_size)
         build_duoprism_puzzle(self, 3, 3, n_cuts, m_cuts, n_opposite_cuts, m_opposite_cuts)
+      end,
+    }
+  end,
+}
+
+
+
+-- MEGAMINX PRISM GENERATOR
+
+
+function dodecahedron(scale, basis)
+  return {
+    sym = cd('h3', basis),
+    iter_poles = function(self, prefix)
+      return self.sym:orbit(self.sym.oox.unit * (scale or 1)):named({
+        F = {},
+        U = {3, 'F'},
+        R = {2, 'U'},
+        L = {1, 'R'},
+        DR = {2, 'L'},
+        DL = {1, 'DR'},
+        BR = {3, 'DR'},
+        BL = {3, 'DL'},
+        PR = {2, 'BL'},
+        PL = {1, 'PR'},
+        PD = {2, 'PL'},
+        PB = {3, 'PD'},
+      }):prefixed(prefix)
+    end,
+  }
+end
+
+
+-- N-Layer Megaminx Prism
+puzzle_generators:add{
+  id = 'ft_dodecahedron_prism',
+  version = VERSION,
+  meta = META,
+  name = "N-Layer Megaminx Prism",
+  params = {
+    { name = "Dodecahedron layers", type = 'int', default = 1, min = 0, max = 10 },
+    PARAMS.line_height("Prism layers"),
+  },
+  gen = function(params)
+    local dodecahedron_size, prism_size = table.unpack(params)
+
+    return {
+      -- TODO: better names that depend on megaminx layers
+      name = string.format("Megaminx Prism (%dx%d)", dodecahedron_size, prism_size),
+      ndim = 4,
+      colors = 'dodecahedron_prism',
+      build = function(self)
+        local dodeca = dodecahedral.dodecahedron()
+        local line = linear.line(1, 'w')
+
+        local dodeca_cuts = ft_dodecahedra.shallow_ft_dodecahedron_cut_depths(dodecahedron_size)
+        local line_cuts = utils.layers.double_ended(1, -1, prism_size)
+
+        local dodeca_colors, dodeca_axes = utils.cut_shape(self, dodeca, dodeca_cuts)
+        local base_colors, base_axes = utils.cut_shape(self, line, line_cuts, 'O', 'I')
+
+        local dodeca1 = dodeca_axes[1]
+        local base1 = base_axes[1]
+
+        local sym = cd{5, 3, 2}
+
+        for t in sym.chiral:orbit(sym.ooxx) do
+          self.twists:add(t:transform(base1), t:transform_oriented(sym:thru(1, 2)), {
+            name = t:transform(dodeca1).name,
+            gizmo_pole_distance = 1,
+          })
+        end
+
+        for t in sym.chiral:orbit(sym.ooxx) do
+          self.twists:add(t:transform(dodeca1), t:transform_oriented(sym:thru(2, 1)), {
+            name = t:transform(base1).name,
+            gizmo_pole_distance = 1,
+          })
+        end
+
+        local dodeca2 = sym:thru(3):transform(dodeca1)
+        local dodeca3 = sym:thru(2):transform(dodeca2)
+
+        local ridge_distance = tan(acos(dodeca1.vector:dot(dodeca2.vector))/2)
+        local edge_distance = ridge_distance / cos(pi/5)
+
+        for t in sym.chiral:orbit(sym.oxxo) do
+          self.twists:add(t:transform(dodeca1), t:transform_oriented(sym:thru(4, 1)), {
+            name = t:transform(dodeca2).name,
+            gizmo_pole_distance = ridge_distance,
+          })
+        end
+
+        for t in sym.chiral:orbit(sym.xoxo) do
+          self.twists:add(t:transform(dodeca1), t:transform_oriented(sym:thru(2, 4)), {
+            name = t:transform(dodeca2).name .. t:transform(dodeca3).name,
+            gizmo_pole_distance = utils.lerp(edge_distance, ridge_distance, RIDGE_GIZMO_FACTOR),
+          })
+        end
       end,
     }
   end,
