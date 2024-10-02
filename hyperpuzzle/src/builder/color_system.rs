@@ -217,8 +217,13 @@ impl ColorSystemBuilder {
             .schemes
             .iter()
             .map(|(name, default_colors)| {
-                let new_default_colors =
-                    default_colors.map_ref(|_, c| c.clone().unwrap_or_default());
+                let mut new_default_colors =
+                    PerColor::from(vec![DefaultColor::Unknown; self.len()]);
+                for (old_id, default_color) in default_colors {
+                    if let Some(&new_id) = color_id_map.get(&old_id) {
+                        new_default_colors[new_id] = default_color.clone().unwrap_or_default();
+                    }
+                }
                 (name.clone(), new_default_colors)
             })
             .collect();
