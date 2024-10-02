@@ -14,7 +14,7 @@ local function ft_dodecahedron_cut_depths(size)
     mechanical_limit = 1/29 * (10 + 7 * sqrt(5))
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return utils.layers_inclusive(outermost_cut, 1/phi, size)
+  return utils.layers.inclusive(outermost_cut, 1/phi, size)
 end
 
 puzzle_generators:add{
@@ -391,7 +391,7 @@ local function pentultimate_cut_depths(size)
     mechanical_limit = (-10 + 7 * sqrt(5)) / 29
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return utils.layers_inclusive(outermost_cut, -outermost_cut, size-1)
+  return utils.layers.inclusive(outermost_cut, -outermost_cut, size-1)
 end
 
 puzzle_generators:add{

@@ -16,7 +16,7 @@ local function skewb_cut_depths(size)
     mechanical_limit = sqrt(3) / 5
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return utils.layers_inclusive(outermost_cut, -outermost_cut, size-1)
+  return utils.layers.inclusive(outermost_cut, -outermost_cut, size-1)
 end
 
 puzzle_generators:add{

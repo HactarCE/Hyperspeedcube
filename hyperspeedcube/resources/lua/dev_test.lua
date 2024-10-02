@@ -24,7 +24,7 @@ puzzles:add{
     })
 
     -- Define axes and slices
-    self.axes:add(shape:iter_poles(), utils.layers_exclusive(1, -1, 2))
+    self.axes:add(shape:iter_poles(), utils.layers.exclusive(1, -1, 2))
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox], sym:thru(2, 1)) do
