@@ -20,9 +20,9 @@ impl LuaUserData for LuaColorSystem {
     }
 
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        LuaIdDatabase::<Color>::add_db_metamethods(methods, |Self(puz)| puz.lock());
-        LuaNamedIdDatabase::<Color>::add_named_db_methods(methods, |Self(puz)| puz.lock());
-        LuaOrderedIdDatabase::<Color>::add_ordered_db_methods(methods, |Self(puz)| puz.lock());
+        LuaIdDatabase::<Color>::add_db_metamethods(methods, |Self(puz)| &*puz);
+        LuaNamedIdDatabase::<Color>::add_named_db_methods(methods, |Self(puz)| &*puz);
+        LuaOrderedIdDatabase::<Color>::add_ordered_db_methods(methods, |Self(puz)| &puz);
 
         methods.add_method("add", |lua, this, data| this.add(lua, data));
 

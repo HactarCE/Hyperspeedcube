@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use hypermath::prelude::*;
 use itertools::Itertools;
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::Mutex;
 
 use super::*;
 use crate::builder::{CustomOrdering, NamingScheme};
@@ -98,29 +98,36 @@ where
     /// Constructs a mapping from ID to `T` from a Lua value, which may be a
     /// table of pairs `(id, T)` or a function from ID to `T`.
     fn mapping_from_value<T: FromLua<'lua>>(
-        &self,
+        this: &Mutex<Self>,
         lua: &'lua Lua,
         mapping_value: LuaValue<'lua>,
     ) -> LuaResult<Vec<(I, T)>> {
+        let db = this.lock();
         match mapping_value {
             LuaValue::Table(t) => Ok(t
                 .pairs()
                 .map(|pair| {
                     let (id, new_value) = pair?;
-                    LuaResult::Ok((self.value_to_id(lua, id)?, new_value))
+                    LuaResult::Ok((db.value_to_id(lua, id)?, new_value))
                 })
                 .filter_map(result_to_ok_or_warn(lua_warn_fn::<LuaError>(lua)))
                 .collect()),
 
-            LuaValue::Function(f) => Ok(self
-                .ids_in_order()
-                .iter()
-                .map(|id| {
-                    let new_value = f.call(self.wrap_id(id.clone()))?;
-                    Ok((id.clone(), new_value))
-                })
-                .filter_map(result_to_ok_or_warn(lua_warn_fn::<LuaError>(lua)))
-                .collect()),
+            LuaValue::Function(f) => {
+                let ids_in_order = db
+                    .ids_in_order()
+                    .iter()
+                    .map(|id| db.wrap_id(id.clone()))
+                    .collect_vec();
+
+                drop(db); // Unlock mutex
+
+                Ok(ids_in_order
+                    .into_iter()
+                    .map(|db_entry| Ok((db_entry.id.clone(), f.call(db_entry)?)))
+                    .filter_map(result_to_ok_or_warn(lua_warn_fn::<LuaError>(lua)))
+                    .collect())
+            }
 
             _ => lua_convert_err(&mapping_value, "table or function"),
         }
@@ -132,23 +139,23 @@ where
     /// - `__len` (metamethod)
     fn add_db_metamethods<T: 'static + mlua::UserData, M: LuaUserDataMethods<'lua, T>>(
         methods: &mut M,
-        lock: fn(&T) -> MutexGuard<'_, Self>,
+        as_mutex_db: fn(&T) -> &Mutex<Self>,
     ) {
         methods.add_meta_method(LuaMetaMethod::ToString, move |lua, this, ()| {
             let type_name = T::type_name(lua)?;
-            let ptr = lock(this).db_arc().data_ptr();
+            let ptr = as_mutex_db(this).lock().db_arc().data_ptr();
             Ok(format!("{type_name}({ptr:p})"))
         });
 
         methods.add_meta_method(LuaMetaMethod::Index, move |lua, this, index| {
-            let db = lock(this);
+            let db = as_mutex_db(this).lock();
             match db.value_to_id(lua, index) {
                 Ok(id) => Ok(Some(db.wrap_id(id))),
                 Err(_) => Ok(None),
             }
         });
         methods.add_meta_method(LuaMetaMethod::Len, move |_lua, this, ()| {
-            let db = lock(this);
+            let db = as_mutex_db(this).lock();
             Ok(db.db_len())
         });
     }
@@ -176,22 +183,19 @@ where
         })
     }
 
-    /// Renames all elements according to a table or function.
+    /// Renames all elements.
     fn rename_all(
         &mut self,
         lua: &'lua Lua,
-        new_names_value: LuaValue<'lua>,
+        ids_and_new_names: Vec<(I, Option<String>)>,
     ) -> LuaResult<NamingScheme<I>> {
         // We need to rename all the entries at once, so just construct a new
         // naming scheme from scratch.
         let mut new_names = NamingScheme::new(self.names().regex_str());
 
-        // First, assemble a list of all the renames that need to happen.
-        let kv_pairs: Vec<(I, Option<String>)> = self.mapping_from_value(lua, new_names_value)?;
-
         // Set the new names.
-        for (k, v) in kv_pairs {
-            new_names.set_name(k, v, lua_warn_fn(lua));
+        for (id, new_name) in ids_and_new_names {
+            new_names.set_name(id, new_name, lua_warn_fn(lua));
         }
 
         Ok(new_names)
@@ -201,11 +205,17 @@ where
     /// - `rename`
     fn add_named_db_methods<T: 'static, M: LuaUserDataMethods<'lua, T>>(
         methods: &mut M,
-        lock: fn(&T) -> MutexGuard<'_, Self>,
+        as_mutex_db: fn(&T) -> &Mutex<Self>,
     ) {
+        // Renames all elements according to a table or function.
         methods.add_method("rename", move |lua, this, new_names| {
-            let mut db = lock(this);
-            *db.names_mut() = db.rename_all(lua, new_names)?;
+            // First, assemble a list of all the renames that need to happen.
+            let ids_and_new_names: Vec<(I, Option<String>)> =
+                LuaIdDatabase::mapping_from_value(as_mutex_db(this), lua, new_names)?;
+
+            // Now lock the database and do all the renames at once.
+            let mut db = as_mutex_db(this).lock();
+            *db.names_mut() = db.rename_all(lua, ids_and_new_names)?;
             Ok(())
         });
     }
@@ -262,21 +272,6 @@ where
         })
     }
 
-    /// Reorders all elements according to a table or function.
-    fn reorder_all(&mut self, lua: &'lua Lua, new_ordering_value: LuaValue<'lua>) -> LuaResult<()> {
-        let new_order_keys: HashMap<I, f64> = if let LuaValue::Table(t) = new_ordering_value {
-            t.sequence_values()
-                .enumerate()
-                .map(|(i, elem)| LuaResult::Ok((self.value_to_id(lua, elem?)?, i as f64)))
-                .try_collect()?
-        } else {
-            self.mapping_from_value(lua, new_ordering_value)?
-                .into_iter()
-                .collect()
-        };
-
-        self.reorder_all_by_key(lua, new_order_keys)
-    }
     /// Reorders all elements according to a hashmap.
     fn reorder_all_by_key(
         &mut self,
@@ -315,16 +310,29 @@ where
     /// - `reorder`
     fn add_ordered_db_methods<T: 'static, M: LuaUserDataMethods<'lua, T>>(
         methods: &mut M,
-        lock: fn(&T) -> MutexGuard<'_, Self>,
+        as_mutex_db: fn(&T) -> &Mutex<Self>,
     ) {
         methods.add_method("swap", move |lua, this, (i, j)| {
-            let mut db = lock(this);
+            let mut db = as_mutex_db(this).lock();
             db.swap(lua, i, j)
         });
 
+        // Reorders all elements according to a table or function.
         methods.add_method("reorder", move |lua, this, new_ordering| {
-            let mut db = lock(this);
-            db.reorder_all(lua, new_ordering)
+            let new_order_keys: HashMap<I, f64> = if let LuaValue::Table(t) = new_ordering {
+                let db = as_mutex_db(this).lock();
+                t.sequence_values()
+                    .enumerate()
+                    .map(|(i, elem)| LuaResult::Ok((db.value_to_id(lua, elem?)?, i as f64)))
+                    .try_collect()?
+            } else {
+                Self::mapping_from_value(as_mutex_db(this), lua, new_ordering)?
+                    .into_iter()
+                    .collect()
+            };
+
+            let mut db = as_mutex_db(this).lock();
+            db.reorder_all_by_key(lua, new_order_keys)
         });
     }
 

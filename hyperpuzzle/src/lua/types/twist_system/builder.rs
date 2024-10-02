@@ -23,8 +23,8 @@ impl LuaUserData for LuaTwistSystem {
             Ok(format!("twistsystem(len={len})"))
         });
 
-        LuaIdDatabase::<Twist>::add_db_metamethods(methods, |Self(puz)| puz.lock());
-        LuaNamedIdDatabase::<Twist>::add_named_db_methods(methods, |Self(puz)| puz.lock());
+        LuaIdDatabase::<Twist>::add_db_metamethods(methods, |Self(puz)| &*puz);
+        LuaNamedIdDatabase::<Twist>::add_named_db_methods(methods, |Self(puz)| &*puz);
 
         methods.add_method("add", |lua, this, (axis, transform, data)| {
             this.add(lua, axis, transform, data)
