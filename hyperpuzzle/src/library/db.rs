@@ -7,8 +7,9 @@ use eyre::{eyre, Result};
 use mlua::prelude::*;
 use parking_lot::Mutex;
 
-use super::{LibraryFile, LibraryFileLoadOutput, LibraryFileLoadState};
+use super::{LibraryFile, LibraryFileLoadOutput, LibraryFileLoadState, PuzzleRequestResponse};
 use crate::builder::ColorSystemBuilder;
+use crate::lua::PuzzleGeneratorOutput;
 use crate::puzzle::Puzzle;
 
 const MAX_PUZZLE_REDIRECTS: usize = 20;
@@ -55,80 +56,70 @@ impl LibraryDb {
         let mut redirect_sequence = vec![id.clone()];
 
         for _ in 0..MAX_PUZZLE_REDIRECTS {
-            match crate::parse_generated_puzzle_id(&id) {
-                Some((generator_id, params)) => {
-                    enum Output {
-                        Puzzle(Arc<Puzzle>),
-                        Redirect(String),
+            let parsed_id = crate::parse_generated_puzzle_id(&id);
+
+            let puzzle_request_response = match &parsed_id {
+                Some((generator_id, _params)) => Self::get_file_result_for(
+                    lua,
+                    "puzzle generator",
+                    generator_id,
+                    |db| &db.puzzle_generators,
+                    |file_output| file_output.request_puzzle(&id),
+                )?,
+
+                None => Self::get_file_result_for(
+                    lua,
+                    "puzzle",
+                    &id,
+                    |db| &db.puzzles,
+                    |file_output| file_output.request_puzzle(&id),
+                )?,
+            };
+
+            let (puzzle_spec, store_in_cache) = match puzzle_request_response {
+                PuzzleRequestResponse::Generator {
+                    generator,
+                    generator_param_values,
+                    store_in_cache,
+                } => match generator.generate_puzzle_spec(lua, generator_param_values, None)? {
+                    PuzzleGeneratorOutput::Puzzle(spec) => (spec, store_in_cache),
+                    PuzzleGeneratorOutput::Redirect(new_id) => {
+                        redirect_sequence.push(new_id.clone());
+                        id = new_id;
+                        continue;
                     }
+                },
 
-                    let output: Output = Self::get_file_result_for(
-                        lua,
-                        "puzzle generator",
-                        generator_id,
-                        |db| &db.puzzle_generators,
-                        |file_output| {
-                            let cache = file_output.puzzle_generators.get_mut(generator_id)?;
-                            if let Some(constructed) = cache.constructed.get(&id) {
-                                return Some(Ok(Output::Puzzle(Arc::clone(&constructed))));
-                            }
+                PuzzleRequestResponse::Puzzle {
+                    spec,
+                    store_in_cache,
+                } => (spec, store_in_cache),
 
-                            let params = params.iter().map(|val| val.to_string()).collect();
-                            match cache.generator.generate_puzzle_spec(lua, params, None) {
-                                Err(e) => Some(Err(e)),
-                                Ok(crate::lua::PuzzleGeneratorOutput::Puzzle(puzzle_spec)) => {
-                                    match puzzle_spec.build(lua) {
-                                        Ok(constructed_puzzle) => {
-                                            cache.constructed.insert(
-                                                id.clone(),
-                                                Arc::clone(&constructed_puzzle),
-                                            );
-                                            Some(Ok(Output::Puzzle(constructed_puzzle)))
-                                        }
-                                        Err(e) => Some(Err(e)),
-                                    }
-                                }
-                                Ok(crate::lua::PuzzleGeneratorOutput::Redirect(new_id)) => {
-                                    Some(Ok(Output::Redirect(new_id)))
-                                }
-                            }
-                        },
-                    )??;
+                PuzzleRequestResponse::Cached(constructed_puzzle) => return Ok(constructed_puzzle),
+            };
 
-                    match output {
-                        Output::Puzzle(puz) => return Ok(puz),
-                        Output::Redirect(new_id) => {
-                            redirect_sequence.push(new_id.clone());
-                            id = new_id;
-                            continue;
-                        }
-                    }
-                }
+            let constructed_puzzle = puzzle_spec.build(lua)?;
 
-                None => {
-                    let output: Arc<Puzzle> = Self::get_file_result_for(
-                        lua,
-                        "puzzle",
-                        &id,
-                        |db| &db.puzzles,
-                        |file_output| {
-                            let cache = file_output.puzzles.get_mut(&id)?;
-                            if let Some(constructed) = &cache.constructed {
-                                return Some(Ok(Arc::clone(constructed)));
-                            }
-                            match cache.spec.build(lua) {
-                                Ok(constructed_puzzle) => {
-                                    cache.constructed = Some(Arc::clone(&constructed_puzzle));
-                                    Some(Ok(constructed_puzzle))
-                                }
-                                Err(e) => Some(Err(e)),
-                            }
-                        },
-                    )??;
+            // Store constructed puzzle in cache.
+            match parsed_id {
+                Some((generator_id, _params)) => Self::get_file_result_for(
+                    lua,
+                    "puzzle generator",
+                    generator_id,
+                    |db| &db.puzzle_generators,
+                    |file_output| store_in_cache(file_output, &constructed_puzzle),
+                )?,
 
-                    return Ok(output);
-                }
+                None => Self::get_file_result_for(
+                    lua,
+                    "puzzle",
+                    &id,
+                    |db| &db.puzzles,
+                    |file_output| store_in_cache(file_output, &constructed_puzzle),
+                )?,
             }
+
+            return Ok(constructed_puzzle);
         }
 
         Err(eyre!("too many puzzle redirects: {redirect_sequence:?}"))

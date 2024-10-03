@@ -9,6 +9,7 @@ use super::{LazyPuzzle, LazyPuzzleGenerator};
 use crate::{
     builder::ColorSystemBuilder,
     lua::{PuzzleGeneratorSpec, PuzzleSpec},
+    Puzzle,
 };
 
 /// File stored in a [`super::Library`].
@@ -183,4 +184,66 @@ impl LibraryFileLoadOutput {
             color_systems: HashMap::new(),
         }
     }
+
+    pub(super) fn request_puzzle(&self, puzzle_id: &str) -> Option<PuzzleRequestResponse> {
+        match crate::parse_generated_puzzle_id(puzzle_id) {
+            Some((generator_id, params)) => {
+                let cache = self.puzzle_generators.get(generator_id)?;
+                match cache.constructed.get(puzzle_id) {
+                    Some(constructed) => {
+                        Some(PuzzleRequestResponse::Cached(Arc::clone(constructed)))
+                    }
+                    None => {
+                        let param_values = params.iter().map(|val| val.to_string()).collect();
+                        let generator_id = generator_id.to_owned();
+                        let puzzle_id = puzzle_id.to_owned();
+                        Some(PuzzleRequestResponse::Generator {
+                            generator: Arc::clone(&cache.generator),
+                            generator_param_values: param_values,
+                            store_in_cache: Box::new(move |this, puzzle| {
+                                this.puzzle_generators
+                                    .get_mut(&generator_id)?
+                                    .constructed
+                                    .insert(puzzle_id, Arc::clone(puzzle));
+                                Some(())
+                            }),
+                        })
+                    }
+                }
+            }
+
+            None => {
+                let cache = self.puzzles.get(puzzle_id)?;
+                match &cache.constructed {
+                    Some(constructed) => {
+                        Some(PuzzleRequestResponse::Cached(Arc::clone(constructed)))
+                    }
+                    None => {
+                        let puzzle_id = puzzle_id.to_owned();
+                        Some(PuzzleRequestResponse::Puzzle {
+                            spec: Arc::clone(&cache.spec),
+                            store_in_cache: Box::new(move |file_output, puzzle| {
+                                file_output.puzzles.get_mut(&puzzle_id)?.constructed =
+                                    Some(Arc::clone(puzzle));
+                                Some(())
+                            }),
+                        })
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub(super) enum PuzzleRequestResponse {
+    Generator {
+        generator: Arc<PuzzleGeneratorSpec>,
+        generator_param_values: Vec<String>,
+        store_in_cache: Box<dyn FnOnce(&mut LibraryFileLoadOutput, &Arc<Puzzle>) -> Option<()>>,
+    },
+    Puzzle {
+        spec: Arc<PuzzleSpec>,
+        store_in_cache: Box<dyn FnOnce(&mut LibraryFileLoadOutput, &Arc<Puzzle>) -> Option<()>>,
+    },
+    Cached(Arc<Puzzle>),
 }
