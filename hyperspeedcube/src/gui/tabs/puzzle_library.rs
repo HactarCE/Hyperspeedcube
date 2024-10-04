@@ -233,15 +233,16 @@ fn show_tags_filter_menu(ui: &mut egui::Ui) {
 
     ui.strong("Shapes");
 
-    ui.menu_button("Platonic solids (3D)", |ui| {
+    ui.menu_button("Platonic solids", |ui| {
+        ui.strong("3D platonic solids");
         checkbox(ui, "All");
         checkbox(ui, "Cube");
         checkbox(ui, "Tetrahedon");
         checkbox(ui, "Dodecahedon");
         checkbox(ui, "Octahedon");
         checkbox(ui, "Icosahedon");
-    });
-    ui.menu_button("Platonic solids (4D)", |ui| {
+        ui.separator();
+        ui.strong("4D platonic solids");
         checkbox(ui, "All");
         checkbox(ui, "Hypercube");
         checkbox(ui, "4-Simplex");
@@ -249,8 +250,8 @@ fn show_tags_filter_menu(ui: &mut egui::Ui) {
         checkbox(ui, "24-Cell");
         checkbox(ui, "120-Cell");
         checkbox(ui, "600-Cell");
-    });
-    ui.menu_button("Platonic solids (5D+)", |ui| {
+        ui.separator();
+        ui.strong("5D+ platonic solids");
         checkbox(ui, "All");
         checkbox(ui, "N-Simplex");
         checkbox(ui, "N-Cube");
