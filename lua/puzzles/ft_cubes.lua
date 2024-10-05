@@ -26,7 +26,7 @@ puzzle_generators:add{
 
   name = "NxNxN Face-Turning Cube",
   meta = {
-    authors = { "Andrew Farkas", "Milo Jacquet" },
+    author = { "Andrew Farkas", "Milo Jacquet" },
   },
 
   params = {
@@ -184,11 +184,21 @@ puzzle_generators:add{
 
   name = "NxNxNxN Face-Turning Hypercube",
   meta = {
-    authors = { "Andrew Farkas", "Milo Jacquet" },
+    author = { "Andrew Farkas", "Milo Jacquet" },
   },
 
   params = {
     { name = "Layers", type = 'int', default = 3, min = 1, max = 9 },
+  },
+
+  examples = {
+    { params = {1} },
+    { params = {2} },
+    { params = {3} },
+    { params = {4} },
+    { params = {5} },
+    { params = {6} },
+    { params = {7} },
   },
 
   gen = function(params)

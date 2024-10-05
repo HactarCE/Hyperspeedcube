@@ -63,3 +63,26 @@ fn create_opt_registry_value<'lua>(
         None => Ok(None),
     }
 }
+
+fn deep_copy_value<'lua>(
+    lua: &'lua mlua::Lua,
+    value: mlua::Value<'lua>,
+) -> mlua::Result<mlua::Value<'lua>> {
+    match value {
+        mlua::Value::Table(table) => Ok(mlua::Value::Table(deep_copy_table(lua, table)?)),
+        _ => Ok(value),
+    }
+}
+fn deep_copy_table<'lua>(
+    lua: &'lua mlua::Lua,
+    table: mlua::Table<'lua>,
+) -> mlua::Result<mlua::Table<'lua>> {
+    let kv_pairs = table
+        .pairs()
+        .map(|pair| {
+            let (k, v) = pair?;
+            Ok((deep_copy_value(lua, k)?, deep_copy_value(lua, v)?))
+        })
+        .collect::<mlua::Result<Vec<_>>>()?;
+    lua.create_table_from(kv_pairs)
+}

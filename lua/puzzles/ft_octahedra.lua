@@ -7,7 +7,7 @@ puzzle_generators:add{
 
   name = "N-Layer Face-Turning Octahedron",
   meta = {
-    authors = { "Andrew Farkas", "Milo Jacquet" },
+    author = { "Andrew Farkas", "Milo Jacquet" },
   },
 
   params = {

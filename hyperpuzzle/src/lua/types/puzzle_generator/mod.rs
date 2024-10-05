@@ -31,7 +31,7 @@ pub struct PuzzleGeneratorSpec {
     /// Alternative user-friendly names for the puzzle generator.
     pub aliases: Vec<String>,
     /// Lua table containing metadata about the puzzle.
-    pub meta: Option<LuaRegistryKey>,
+    pub meta: LuaRegistryKey,
 }
 
 impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
@@ -71,7 +71,7 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
 
             name,
             aliases: aliases.unwrap_or_default(),
-            meta: crate::lua::create_opt_registry_value(lua, meta)?,
+            meta: lua.create_registry_value(meta)?,
         };
 
         for example in examples.unwrap_or_default() {
@@ -139,7 +139,7 @@ impl PuzzleGeneratorSpec {
             .context("error generating puzzle definition")?
             .into_vec();
 
-        let puzzle_spec = match user_gen_fn_output.get(0) {
+        let generated_spec = match user_gen_fn_output.get(0) {
             Some(LuaValue::String(s)) => {
                 let redirect_id = s.to_string_lossy();
                 return Ok(PuzzleGeneratorOutput::Redirect(
@@ -160,6 +160,17 @@ impl PuzzleGeneratorSpec {
                 ));
             }
         };
+
+        // Start with metadata from generator.
+        let starting_metadata = crate::lua::deep_copy_value(lua, lua.registry_value(&self.meta)?)?;
+        let puzzle_spec = lua.create_table_from([("meta", starting_metadata)])?;
+        augment_table(
+            lua,
+            &puzzle_spec,
+            generated_spec,
+            MAX_METADATA_TABLE_RECURSION_DEPTH,
+            false,
+        )?;
 
         // Add metadata from a matching example, if there is one.
         if let Some(extra) = extra_data {

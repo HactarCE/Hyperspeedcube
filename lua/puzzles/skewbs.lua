@@ -25,7 +25,7 @@ puzzle_generators:add{
 
   name = "N-Layer Skewb",
   meta = {
-    authors = { "Milo Jacquet" }
+    author = { "Milo Jacquet" }
   },
 
   params = {
