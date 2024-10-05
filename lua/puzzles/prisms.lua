@@ -348,6 +348,22 @@ puzzle_generators:add{
 
 -- MEGAMINX PRISM GENERATOR
 
+DODECAHEDRAL_PRISM_FACET_COLORS = {}
+for k, v in pairs(dodecahedral.FACE_COLORS) do
+  DODECAHEDRAL_PRISM_FACET_COLORS[k] = v
+end
+table.insert(DODECAHEDRAL_PRISM_FACET_COLORS, {
+  name = 'O', display = "Out", default = "Brown",
+})
+table.insert(DODECAHEDRAL_PRISM_FACET_COLORS, {
+  name = 'I', display = "In",  default = "Teal",
+})
+color_systems:add{
+  id = 'dodecahedron_prism',
+  name = "Dodecahedral Prism",
+
+  colors = DODECAHEDRAL_PRISM_FACET_COLORS,
+}
 
 function dodecahedron(scale, basis)
   return {
@@ -385,25 +401,29 @@ puzzle_generators:add{
   gen = function(params)
     local dodecahedron_size, prism_size = table.unpack(params)
 
+    local dodeca_info = ft_dodecahedra.SHALLOW_FT_DODECAHEDRA[dodecahedron_size]
+    local funny_name = dodeca_info and dodeca_info.name or "Megaminx"
+
     return {
       -- TODO: better names that depend on megaminx layers
-      name = string.format("Megaminx Prism (%dx%d)", dodecahedron_size, prism_size),
-      ndim = 4,
+      name = string.format("%s Prism (%dx%d)", funny_name, dodecahedron_size, prism_size),
       colors = 'dodecahedron_prism',
+      ndim = 4,
       build = function(self)
-        local dodeca = dodecahedral.dodecahedron()
-        local line = linear.line(1, 'w')
+        local dodeca = ft_dodecahedra.shallow_ft_dodecahedron(dodecahedron_size)
 
-        local dodeca_cuts = ft_dodecahedra.shallow_ft_dodecahedron_cut_depths(dodecahedron_size)
+        local line = linear.line(1, 'w')
         local line_cuts = utils.layers.double_ended(1, -1, prism_size)
 
-        local dodeca_colors, dodeca_axes = utils.cut_shape(self, dodeca, dodeca_cuts)
+        local dodeca_colors, dodeca_axes = dodeca:cut(self)
         local base_colors, base_axes = utils.cut_shape(self, line, line_cuts, 'O', 'I')
 
-        local dodeca1 = dodeca_axes[1]
-        local base1 = base_axes[1]
-
         local sym = cd{5, 3, 2}
+
+        local dodeca1 = dodeca_axes[1]
+        local dodeca2 = sym:thru(3):transform(dodeca1)
+        local dodeca3 = sym:thru(2):transform(dodeca2)
+        local base1 = base_axes[1]
 
         for t in sym.chiral:orbit(sym.ooxx) do
           self.twists:add(t:transform(base1), t:transform_oriented(sym:thru(1, 2)), {
@@ -411,6 +431,22 @@ puzzle_generators:add{
             gizmo_pole_distance = 1,
           })
         end
+
+        for t in sym.chiral:orbit(sym.oxox) do
+          self.twists:add(t:transform(base1), t:transform_oriented(sym:thru(1, 3)), {
+            name = t:transform(dodeca1).name .. t:transform(dodeca2).name,
+            gizmo_pole_distance = 1.08,
+          })
+        end
+
+        for t in sym.chiral:orbit(sym.xoox) do
+          self.twists:add(t:transform(base1), t:transform_oriented(sym:thru(2, 3)), {
+            name = t:transform(dodeca1).name .. t:transform(dodeca2).name .. t:transform(dodeca3).name,
+            gizmo_pole_distance = 1.12,
+          })
+        end
+
+
 
         for t in sym.chiral:orbit(sym.ooxx) do
           self.twists:add(t:transform(dodeca1), t:transform_oriented(sym:thru(2, 1)), {

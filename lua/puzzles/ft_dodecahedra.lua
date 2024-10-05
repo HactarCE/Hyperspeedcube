@@ -4,7 +4,48 @@ local symmetries = require('symmetries')
 local REALISITIC_PROPORTIONS = true
 local CORNER_STALK_SIZE = 0.03
 
-local function ft_dodecahedron_cut_depths(size)
+
+function shallow_ft_dodecahedron(puzzle, layers, scale, basis)
+  local shape = symmetries.dodecahedral.dodecahedron(scale, basis)
+
+  local cut_depths
+  do
+    if layers == 1 then
+      cut_depths = {1/phi}
+    else
+      local outermost_cut
+      local aesthetic_limit = 1 - (1 - 1/phi)/layers
+      local mechanical_limit = 1
+      if REALISITIC_PROPORTIONS then
+        mechanical_limit = 1/29 * (10 + 7 * sqrt(5))
+      end
+      outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
+      cut_depths = utils.layers.inclusive(outermost_cut, 1/phi, layers)
+    end
+  end
+
+  local colors, axes = utils.cut_shape(puzzle, shape, cut_depths, prefix)
+
+  return {
+    puzzle = puzzle,
+    colors = colors,
+    axes = axes,
+    twist_sets = {
+      {
+        axis = axes[1],
+        symmetry = shape.sym,
+        fix = shape.sym.xxx,
+        reflections = {
+          {shape.sym:thru(1), shape.sym.xoo},
+          {shape.sym:thru(2), shape.sym.oxo},
+        },
+      },
+    },
+  }
+end
+
+
+function shallow_ft_dodecahedron_cut_depths(size)
   if size == 1 then return {1/phi} end
 
   local outermost_cut
@@ -17,61 +58,58 @@ local function ft_dodecahedron_cut_depths(size)
   return utils.layers.inclusive(outermost_cut, 1/phi, size)
 end
 
+local SHALLOW_FT_DODECAHEDRON_EXAMPLES = {
+  { params = {0}, name = "Dodecahedron" },
+  { params = {1}, name = "Megaminx" },
+  { params = {2}, name = "Gigaminx" },
+  { params = {3}, name = "Teraminx" },
+  { params = {4}, name = "Petaminx" },
+  { params = {5}, name = "Examinx" },
+  { params = {6}, name = "Zettaminx" },
+  { params = {7}, name = "Yottaminx" },
+  { params = {8}, name = "Ronnaminx" },
+  {
+    params = {9},
+    name = "Atlasminx",
+    meta = { aliases = { "Quettaminx" } },
+  },
+  {
+    params = {10},
+    name = "Minx of Madness", -- no metric prefix
+  },
+}
+
+SHALLOW_FT_DODECAHEDRA = {}
+for _, example in ipairs(SHALLOW_FT_DODECAHEDRON_EXAMPLES) do
+  SHALLOW_FT_DODECAHEDRA[example.params[1]] = example
+end
+
 puzzle_generators:add{
   id = 'ft_dodecahedron',
   version = '0.1.0',
 
   name = "N-Layer Megaminx",
   meta = {
-    authors = {"Andrew Farkas", "Milo Jacquet"},
+    author = {"Andrew Farkas", "Milo Jacquet"},
   },
 
   params = {
     { name = "Layers", type = 'int', default = 1, min = 0, max = 10 },
   },
 
-  examples = {
-    { params = {0}, name = "Dodecahedron" },
-    { params = {1}, name = "Megaminx" },
-    { params = {2}, name = "Gigaminx" },
-    { params = {3}, name = "Teraminx" },
-    { params = {4}, name = "Petaminx" },
-    { params = {5}, name = "Examinx" },
-    { params = {6}, name = "Zettaminx" },
-    { params = {7}, name = "Yottaminx" },
-    { params = {8}, name = "Ronnaminx" },
-    {
-      params = {9},
-      name = "Atlasminx",
-      meta = { aliases = { "Quettaminx" } },
-    },
-    {
-      params = {10},
-      name = "Minx of Madness", -- no metric prefix
-    },
-  },
+  examples = SHALLOW_FT_DODECAHEDRON_EXAMPLES,
 
   gen = function(params)
     local size = params[1]
 
     return {
       name = size .. "-Layer Face-Turning Dodecahedron",
-
       colors = 'dodecahedron',
-
       ndim = 3,
       build = function(self)
         local sym = cd'h3'
-        local shape = symmetries.dodecahedral.dodecahedron()
-        self:carve(shape:iter_poles())
 
-        -- Define axes and slices
-        self.axes:add(shape:iter_poles(), ft_dodecahedron_cut_depths(size))
-
-        -- Define twists
-        for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
-          self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
-        end
+        utils.add_puzzle_twists(shallow_ft_dodecahedron(self, size))
 
         local center_layer = size + 1
         local R = self.axes.R
@@ -245,7 +283,7 @@ puzzles:add{
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    depth = 1/sqrt(5)
+    local depth = 1/sqrt(5)
     self.axes:add(shape:iter_poles(), {depth, -depth})
 
     -- Define twists
@@ -400,7 +438,7 @@ puzzle_generators:add{
 
   name = "N-Layer Pentultimate",
   meta = {
-    authors = { "Milo Jacquet" },
+    author = { "Milo Jacquet" },
   },
 
   params = {
