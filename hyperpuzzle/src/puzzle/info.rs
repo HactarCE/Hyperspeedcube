@@ -14,10 +14,10 @@ use crate::Rgb;
 hypermath::idx_struct! {
     /// ID of a **piece**, which is rigid component of the puzzle that moves
     /// together.
-    pub struct Piece(pub u16);
+    pub struct Piece(pub u32);
     /// ID of a **sticker**, which is a facet of a **piece** having a single
     /// color and belonging to a single **facet**.
-    pub struct Sticker(pub u16);
+    pub struct Sticker(pub u32);
     /// ID of a **twist gizmo face**, which is a single face that can be clicked
     /// to twist the puzzle.
     pub struct GizmoFace(pub u16);
