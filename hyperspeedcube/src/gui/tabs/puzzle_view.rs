@@ -190,6 +190,9 @@ impl PuzzleWidget {
             if modifiers.alt {
                 z_axis += 2;
             }
+            if modifiers.ctrl {
+                z_axis += 4;
+            }
             self.view.set_drag_state(DragState::ViewRot { z_axis });
         }
 
