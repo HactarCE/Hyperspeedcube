@@ -105,6 +105,9 @@ pub struct Preferences {
 
     /// Filter preferences for each puzzle.
     pub filters: BTreeMap<String, PuzzleFilterPreferences>,
+
+    /// Whether to show experimental puzzles.
+    pub show_experimental_puzzles: bool,
 }
 impl schema::PrefsConvert for Preferences {
     type DeserContext = ();
@@ -126,6 +129,7 @@ impl schema::PrefsConvert for Preferences {
             color_palette,
             color_schemes,
             filters,
+            show_experimental_puzzles,
         } = self;
 
         let filters = filters
@@ -146,6 +150,7 @@ impl schema::PrefsConvert for Preferences {
             color_palette: color_palette.to_serde(),
             color_schemes: color_schemes.to_serde(),
             filters,
+            show_experimental_puzzles: *show_experimental_puzzles,
         }
     }
     fn reload_from_serde(&mut self, ctx: &Self::DeserContext, value: Self::SerdeFormat) {
@@ -162,6 +167,7 @@ impl schema::PrefsConvert for Preferences {
             color_palette,
             color_schemes,
             filters,
+            show_experimental_puzzles,
         } = value;
 
         self.log_file = log_file;
@@ -178,6 +184,8 @@ impl schema::PrefsConvert for Preferences {
 
         self.color_palette.reload_from_serde(ctx, color_palette);
         self.color_schemes.reload_from_serde(ctx, color_schemes);
+
+        self.show_experimental_puzzles = show_experimental_puzzles;
 
         schema::reload_btreemap(&mut self.filters, &self.custom_styles, filters);
     }
@@ -295,10 +303,6 @@ impl Preferences {
             .map(|preset| preset.value)
             .unwrap_or(self.styles.default)
     }
-}
-
-fn is_false(x: &bool) -> bool {
-    !x
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]

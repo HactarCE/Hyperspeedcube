@@ -58,21 +58,55 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         crate::LIBRARY.with(|lib| match subtab {
             SubTab::Puzzles => {
-                let single_puzzles = lib.puzzles();
-                let puzzle_generators = lib.puzzle_generators();
-                let generated_puzzles = puzzle_generators
-                    .iter()
-                    .flat_map(|gen| gen.examples.values())
-                    .map(Arc::clone);
-                let puzzles = itertools::chain(single_puzzles, generated_puzzles)
-                    .sorted()
-                    .map(|p| (p.display_name().to_owned(), p))
-                    .collect_vec();
-                filtered_list(ui, &search_query, &puzzles, "puzzles", |_ui, r, puzzle| {
-                    if r.clicked() {
-                        crate::LIBRARY.with(|lib| app.load_puzzle(lib, &puzzle.id));
-                    }
-                });
+                filtered_list(
+                    ui,
+                    &search_query,
+                    &lib.puzzles()
+                        .into_iter()
+                        .map(|p| (p.display_name().to_owned(), p))
+                        .collect_vec(),
+                    "puzzles",
+                    |_ui, mut r, puzzle| {
+                        r = r.on_hover_ui(|ui| {
+                            fn comma_list(strings: &[String]) -> String {
+                                md_escape(&strings.iter().join(", ")).into_owned()
+                            }
+
+                            ui.strong(puzzle.display_name());
+
+                            if !puzzle.meta.inventors.is_empty() {
+                                md(
+                                    ui,
+                                    &format!(
+                                        "**Inventors:** {}",
+                                        comma_list(&puzzle.meta.inventors)
+                                    ),
+                                );
+                            }
+
+                            if !puzzle.meta.authors.is_empty() {
+                                md(
+                                    ui,
+                                    &format!("**Authors:** {}", comma_list(&puzzle.meta.authors)),
+                                );
+                            }
+
+                            if !puzzle.meta.aliases.is_empty() {
+                                md(
+                                    ui,
+                                    &format!("**Aliases:** {}", comma_list(&puzzle.meta.aliases)),
+                                );
+                            }
+
+                            if let Some(url) = puzzle.meta.external.wca_url() {
+                                ui.hyperlink_to("WCA leaderboards", url);
+                            }
+                        });
+                        if r.clicked() {
+                            crate::LIBRARY.with(|lib| app.load_puzzle(lib, &puzzle.id));
+                        }
+                    },
+                );
             }
             SubTab::Generators => {
                 let popup_data_stored = EguiTempValue::<PuzzleGeneratorPopupData>::new(ui);
@@ -197,213 +231,85 @@ fn filtered_list<'a, T>(
 }
 
 fn show_tags_filter_menu(ui: &mut egui::Ui) {
-    let mut checkbox = move |ui: &mut egui::Ui, s: &str| {
-        // ui.horizontal(|ui| {
-        ui.checkbox(&mut false, s);
-        // ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-        //     ui.label(format!("{}", r()));
-        // });
-        // });
-    };
+    for node in &*hyperpuzzle::TAGS_MENU {
+        show_tags_recursive(ui, node);
+    }
+}
 
-    ui.menu_button("Puzzle engine", |ui| {
-        checkbox(ui, "Euclidean");
-        checkbox(ui, "Conformal");
-        checkbox(ui, "Laminated");
+fn show_tags_recursive(ui: &mut egui::Ui, node: &hyperpuzzle::TagMenuNode) {
+    match node {
+        hyperpuzzle::TagMenuNode::Heading(s) => {
+            ui.strong(*s);
+        }
+        hyperpuzzle::TagMenuNode::Separator => {
+            ui.separator();
+        }
+        hyperpuzzle::TagMenuNode::Tag {
+            name,
+            display,
+            ty: _,
+            subtags: children,
+
+            section,
+            checkbox,
+            flatten,
+            hidden,
+            expected: _,
+        } => {
+            if *hidden {
+                return;
+            }
+
+            let show_contents = |ui: &mut egui::Ui| {
+                for child in children {
+                    show_tags_recursive(ui, child);
+                }
+            };
+
+            if *flatten {
+                show_contents(ui)
+            } else if *section {
+                ui.strong(*display);
+                show_contents(ui);
+            } else if *checkbox {
+                if children.is_empty() {
+                    tag_checkbox(ui, *display);
+                } else {
+                    tag_checkbox_menu(ui, *display, show_contents);
+                }
+            } else {
+                tag_submenu(ui, *display, show_contents);
+            }
+        }
+    }
+}
+
+fn tag_checkbox(ui: &mut egui::Ui, s: &str) {
+    // ui.horizontal(|ui| {
+    let r = ui.checkbox(&mut false, s);
+    r.on_hover_ui(|ui| {
+        md(
+            ui,
+            "**15** puzzles matching current filter\n\n**30** puzzles total",
+        );
     });
-    ui.menu_button("Rank", |ui| {
-        checkbox(ui, "Rank 3");
-        checkbox(ui, "Rank 4");
-        checkbox(ui, "Rank 5");
-        checkbox(ui, "Rank 6");
-        checkbox(ui, "Rank 7");
-    });
-    ui.menu_button("Dimension", |ui| {
-        checkbox(ui, "5D");
-        checkbox(ui, "6D");
-        checkbox(ui, "7D");
-    });
+    // ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+    //     ui.label(format!("{}", r()));
+    // });
+    // });
+}
+
+fn tag_checkbox_menu(ui: &mut egui::Ui, s: &str, contents: impl FnOnce(&mut egui::Ui)) {
     ui.horizontal(|ui| {
-        checkbox(ui, "2D");
-        checkbox(ui, "3D");
-        checkbox(ui, "4D");
-    });
-
-    ui.separator();
-
-    ui.strong("Shapes");
-
-    ui.menu_button("Platonic solids", |ui| {
-        ui.strong("3D platonic solids");
-        checkbox(ui, "All");
-        checkbox(ui, "Cube");
-        checkbox(ui, "Tetrahedon");
-        checkbox(ui, "Dodecahedon");
-        checkbox(ui, "Octahedon");
-        checkbox(ui, "Icosahedon");
-        ui.separator();
-        ui.strong("4D platonic solids");
-        checkbox(ui, "All");
-        checkbox(ui, "Hypercube");
-        checkbox(ui, "4-Simplex");
-        checkbox(ui, "16-Cell");
-        checkbox(ui, "24-Cell");
-        checkbox(ui, "120-Cell");
-        checkbox(ui, "600-Cell");
-        ui.separator();
-        ui.strong("5D+ platonic solids");
-        checkbox(ui, "All");
-        checkbox(ui, "N-Simplex");
-        checkbox(ui, "N-Cube");
-        checkbox(ui, "N-Orthoplex");
-    });
-    ui.menu_button("Prisms", |ui| {
-        checkbox(ui, "Simple prisms");
-        checkbox(ui, "Star prism");
-        checkbox(ui, "Antiprism");
-        checkbox(ui, "Duoprism");
-        checkbox(ui, "Stellation");
-    });
-    ui.menu_button("Compounds", |ui| {
-        checkbox(ui, "All");
-        checkbox(ui, "5 tetrahedra");
-    });
-    ui.menu_button("Nonconvex shapes", |ui| {
-        checkbox(ui, "All");
-        checkbox(ui, "Hemioctahedron");
-    });
-
-    ui.separator();
-
-    ui.strong("Twists");
-
-    ui.menu_button("Cut depths", |ui| {
-        checkbox(ui, "Shallow-cut");
-        checkbox(ui, "Cut to adjacent");
-        checkbox(ui, "Half-cut");
-        ui.menu_button("Deep-cut", |ui| {
-            checkbox(ui, "All");
-            checkbox(ui, "Deeper than adjacent");
-            checkbox(ui, "Deeper than origin");
+        ui.checkbox(&mut false, "");
+        ui.add_space(-10.0);
+        ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+            ui.menu_button(s, contents)
         });
     });
-
-    ui.menu_button("Turning elements", |ui| {
-        checkbox(ui, "Facet-turning");
-        checkbox(ui, "Ridge-turning");
-        checkbox(ui, "Edge-turning");
-        checkbox(ui, "Vertex-turning");
-        checkbox(ui, "Other");
-    });
-
-    ui.menu_button("Axis systems", |ui| {
-        checkbox(ui, "Cubic");
-        checkbox(ui, "Octahedral");
-        checkbox(ui, "Tetrahedral");
-        checkbox(ui, "Triangular");
-        checkbox(ui, "Rhombicuboctahedral");
-    });
-
-    ui.menu_button("Properties", |ui| {
-        checkbox(ui, "Doctrinaire");
-        checkbox(ui, "Jumbling");
-        ui.separator();
-        checkbox(ui, "Shapeshifting");
-        ui.separator();
-        checkbox(ui, "Reduced"); // ?
-        ui.separator();
-        checkbox(ui, "Twisting");
-        checkbox(ui, "Sliding");
-    });
-
-    ui.separator();
-
-    ui.strong("Solving");
-
-    ui.menu_button("Difficulties", |ui| {
-        checkbox(ui, "Trivial");
-        checkbox(ui, "Easy");
-        checkbox(ui, "3x3x3-like");
-        checkbox(ui, "Hard");
-        checkbox(ui, "Evil");
-        checkbox(ui, "Beyond Luna");
-    });
-
-    checkbox(ui, "Solved");
-
-    ui.separator();
-
-    ui.strong("Attribution");
-
-    ui.menu_button("Authors", |ui| {
-        for name in ["Milo Jacquet", "Andrew Farkas", "Luna Harran"]
-            .iter()
-            .sorted()
-        {
-            checkbox(ui, name);
-        }
-    });
-    ui.menu_button("Inventors", |ui| {
-        for name in ["Ernő Rubik", "Oskar van Deventer"].iter().sorted() {
-            checkbox(ui, name);
-        }
-    });
-
-    ui.separator();
-
-    ui.strong("Other");
-
-    ui.menu_button("Families", |ui| {
-        ui.menu_button("Cuboid", |ui| {
-            checkbox(ui, "All");
-            checkbox(ui, "180-only");
-            checkbox(ui, "Brick");
-            checkbox(ui, "Domino");
-            checkbox(ui, "Floppy");
-            checkbox(ui, "Pancake");
-            checkbox(ui, "Tower");
-        });
-        ui.menu_button("Gap", |ui| {
-            checkbox(ui, "All");
-            checkbox(ui, "Sliding gap");
-            checkbox(ui, "Rotating gap");
-        });
-        ui.menu_button("Multicore", |ui| {
-            checkbox(ui, "All");
-            checkbox(ui, "Siamese");
-        });
-        checkbox(ui, "Bermuda");
-        checkbox(ui, "Bubbloid");
-        checkbox(ui, "Fenzy");
-        checkbox(ui, "Loopover");
-        checkbox(ui, "Mixup");
-        checkbox(ui, "Square-1");
-        checkbox(ui, "Weirdling");
-    });
-
-    ui.menu_button("Variants", |ui| {
-        checkbox(ui, "Stickermod");
-        checkbox(ui, "Shapemod");
-        checkbox(ui, "Super");
-        checkbox(ui, "Real");
-        checkbox(ui, "Complex");
-        checkbox(ui, "Weirdling");
-        checkbox(ui, "Bump");
-        checkbox(ui, "Master");
-        checkbox(ui, "Bandaging");
-        checkbox(ui, "Unbandaging");
-    });
-
-    ui.menu_button("Color systems", |ui| {
-        for color_system in crate::LIBRARY.with(|lib| lib.color_systems()) {
-            checkbox(ui, color_system.display_name());
-        }
-    });
-
-    checkbox(ui, "Generated");
-    checkbox(ui, "Canonical");
-    checkbox(ui, "Meme");
-    checkbox(ui, "WCA");
+}
+fn tag_submenu(ui: &mut egui::Ui, s: &str, contents: impl FnOnce(&mut egui::Ui)) {
+    ui.menu_button(s, contents);
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]

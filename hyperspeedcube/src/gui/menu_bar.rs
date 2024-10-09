@@ -118,6 +118,14 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         show_tab_toggle(ui, app_ui, Tab::PuzzleLibrary);
         show_tab_toggle(ui, app_ui, Tab::PuzzleInfo);
 
+        ui.separator();
+
+        let r = ui.checkbox(
+            &mut app_ui.app.prefs.show_experimental_puzzles,
+            L.menu.puzzles.show_experimental,
+        );
+        app_ui.app.prefs.needs_save |= r.changed();
+
         ui.menu_button(L.menu.puzzles.custom, |ui| {
             if let Ok(lua_dir) = crate::paths::lua_dir() {
                 if ui.button(L.menu.puzzles.show_lua_dir).clicked() {

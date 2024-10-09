@@ -1,4 +1,7 @@
-use std::sync::{Arc, Weak};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Weak},
+};
 
 use eyre::Result;
 use hypermath::{vector, VecMap, Vector};
@@ -6,7 +9,7 @@ use hypershape::prelude::*;
 use parking_lot::Mutex;
 
 use super::{shape::ShapeBuildOutput, ShapeBuilder, TwistSystemBuilder};
-use crate::{puzzle::*, Version};
+use crate::{puzzle::*, TagValue, Version};
 
 /// Puzzle being constructed.
 #[derive(Debug)]
@@ -27,10 +30,18 @@ pub struct PuzzleBuilder {
     pub shape: ShapeBuilder,
     /// Twist system of the puzzle.
     pub twists: TwistSystemBuilder,
+
+    pub tags: HashMap<String, TagValue>,
 }
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
-    pub fn new(id: String, name: String, version: Version, ndim: u8) -> Result<Arc<Mutex<Self>>> {
+    pub fn new(
+        id: String,
+        name: String,
+        version: Version,
+        ndim: u8,
+        tags: HashMap<String, TagValue>,
+    ) -> Result<Arc<Mutex<Self>>> {
         let shape = ShapeBuilder::new_with_primordial_cube(Space::new(ndim), &id)?;
         let twists = TwistSystemBuilder::new();
         let meta = PuzzleMetadata::default();
@@ -45,6 +56,8 @@ impl PuzzleBuilder {
 
                 shape,
                 twists,
+
+                tags,
             })
         }))
     }
@@ -130,6 +143,8 @@ impl PuzzleBuilder {
             gizmo_twists,
 
             dev_data,
+
+            tags: self.tags.clone(),
         }))
     }
 }

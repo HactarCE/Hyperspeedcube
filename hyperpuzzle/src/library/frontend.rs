@@ -141,8 +141,20 @@ impl Library {
         self.load_files()
     }
 
-    /// Returns a list of loaded puzzles, not including generated puzzles.
+    /// Returns a list of loaded puzzles, including generated puzzles.
     pub fn puzzles(&self) -> Vec<Arc<PuzzleSpec>> {
+        let single_puzzles = self.non_generated_puzzles();
+        let puzzle_generators = self.puzzle_generators();
+        let generated_puzzles = puzzle_generators
+            .iter()
+            .flat_map(|gen| gen.examples.values())
+            .map(Arc::clone);
+        itertools::chain(single_puzzles, generated_puzzles)
+            .sorted()
+            .collect()
+    }
+    /// Returns a list of loaded puzzles, not including generated puzzles.
+    pub fn non_generated_puzzles(&self) -> Vec<Arc<PuzzleSpec>> {
         Self::get_objects(
             &self.db.lock().puzzles,
             |file_output| &file_output.puzzles,

@@ -34,6 +34,8 @@ pub struct Preferences {
 
     /// Filter preferences for each puzzle.
     pub filters: BTreeMap<String, PuzzleFilterPreferences>,
+
+    pub show_experimental_puzzles: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]

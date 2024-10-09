@@ -14,6 +14,7 @@ license = "GPL-2.0-or-later"
 workspace = true
 
 [dependencies]
+bitflags = "2.4.2"
 color-eyre = "0.6"
 disjoint = "0.8.0"
 eyre = "0.6"
@@ -21,6 +22,7 @@ float-ord = "0.3.2"
 hex = "0.4.3"
 indexmap = "2.4.0"
 itertools = "0.13.0"
+kdl = "4.6.0"
 lazy_static = "1.5.0"
 log = "0.4.17"
 parking_lot = "0.12.1"

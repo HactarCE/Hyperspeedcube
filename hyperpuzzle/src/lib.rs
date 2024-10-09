@@ -1,20 +1,26 @@
 //! Multidimensional twisty puzzle generator and simulator backend.
 
 #[macro_use]
+extern crate bitflags;
+#[macro_use]
 extern crate lazy_static;
 
 pub mod builder;
 mod library;
+mod lint;
 pub mod lua;
 mod puzzle;
 mod rgb;
+pub mod tags;
 mod task;
 pub mod util;
 
 pub use library::*;
+pub use lint::PuzzleLintOutput;
 pub use lua::{LuaLogLine, Version};
 pub use puzzle::*;
 pub use rgb::Rgb;
+pub use tags::*;
 pub use task::TaskHandle;
 
 /// Unsigned integer type used for [`LayerMask`].

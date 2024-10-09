@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use std::sync::Arc;
 
-use hyperpuzzle::{Color, ColorSystem, DevOrbit, Puzzle, PuzzleElement};
+use hyperpuzzle::{Color, ColorSystem, DevOrbit, Puzzle, PuzzleElement, PuzzleLintOutput};
 
 use crate::{
     app::App,
@@ -22,6 +22,7 @@ enum DevToolsTab {
     #[default]
     HoverInfo,
     LuaGenerator,
+    Linter,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -32,6 +33,8 @@ struct DevToolsState {
 
     loaded_orbit: DevOrbit<PuzzleElement>,
     names_and_order: Vec<(usize, String)>,
+
+    lint_results: Vec<PuzzleLintOutput>,
 }
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -53,6 +56,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 DevToolsTab::LuaGenerator,
                 L.dev.lua_generator,
             );
+            ui.selectable_value(&mut state.current_tab, DevToolsTab::Linter, L.dev.linter);
         });
 
         ui.separator();
@@ -65,6 +69,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     ui.label("No active puzzle");
                 }),
             DevToolsTab::LuaGenerator => show_lua_generator(ui, app, &mut state),
+            DevToolsTab::Linter => show_linter(ui, app, &mut state),
         };
     });
 
@@ -385,4 +390,75 @@ fn pad_to_common_length(strings: impl IntoIterator<Item = String>) -> Vec<String
         }
     }
     ret
+}
+
+fn show_linter(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {
+    ui.horizontal(|ui| {
+        if ui.button("Lint all puzzles").clicked() {
+            state.lint_results = crate::LIBRARY.with(|lib| {
+                lib.puzzles()
+                    .iter()
+                    .map(|puz| PuzzleLintOutput::from_spec(Arc::clone(puz)))
+                    .filter(|lint| !lint.all_good())
+                    .collect()
+            });
+        }
+    });
+
+    let mut override_state = None;
+    ui.horizontal(|ui| {
+        if ui.button("Collapse all").clicked() {
+            override_state = Some(false);
+        }
+        if ui.button("Expand all").clicked() {
+            override_state = Some(true);
+        }
+    });
+
+    ui.separator();
+
+    for lint in &state.lint_results {
+        egui::CollapsingHeader::new(lint.puzzle.display_name())
+            .id_source(&lint.puzzle.id)
+            .default_open(false)
+            .open(override_state)
+            .show_background(true)
+            .show(ui, |ui| {
+                let PuzzleLintOutput {
+                    puzzle: _,
+                    missing_tags,
+                } = lint;
+
+                if lint.all_good() {
+                    ui.label("All good!");
+                }
+
+                if !missing_tags.is_empty() {
+                    if ui.button("Copy Lua code to exclude tags").clicked() {
+                        let text = missing_tags
+                            .iter()
+                            .filter_map(|tag| tag.iter().exactly_one().ok())
+                            .map(|tag| format!("'!{tag}',\n"))
+                            .join("");
+                        ui.ctx().copy_text(text);
+                    }
+                    egui::CollapsingHeader::new("Missing tags")
+                        .id_source((&lint.puzzle.id, "missing_tags"))
+                        .default_open(true)
+                        .show(ui, |ui| {
+                            let markdown_text = missing_tags
+                                .iter()
+                                .map(|tag_set| {
+                                    let line = tag_set
+                                        .iter()
+                                        .map(|tag_name| format!("`{tag_name}`"))
+                                        .join(" OR ");
+                                    format!("- {line}")
+                                })
+                                .join("\n");
+                            md(ui, markdown_text);
+                        });
+                }
+            });
+    }
 }

@@ -1,9 +1,13 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::*;
 use crate::builder::PuzzleBuilder;
 use crate::lua::lua_warn_fn;
-use crate::{LibraryDb, Puzzle, PuzzleMetadata, PuzzleMetadataExternal};
+use crate::{
+    LibraryDb, Puzzle, PuzzleMetadata, PuzzleMetadataExternal, PuzzleProperties, TagType, TagValue,
+    TAGS,
+};
 
 /// Specification for a puzzle.
 #[derive(Debug)]
@@ -25,8 +29,8 @@ pub struct PuzzleSpec {
     pub name: Option<String>,
     /// Lua table containing metadata about the puzzle.
     pub meta: PuzzleMetadata,
-    /// Lua table containing additional properties of the puzzle.
-    pub properties: Option<LuaRegistryKey>,
+    /// Lua table containing tags for the puzzle.
+    pub tags: HashMap<String, TagValue>,
 
     /// Whether to automatically remove internal pieces as they are constructed.
     pub remove_internals: Option<bool>,
@@ -65,7 +69,9 @@ impl<'lua> FromLua<'lua> for PuzzleSpec {
         let name: Option<String>;
         let colors: Option<String>;
         let meta: PuzzleMetadata;
-        let properties: Option<LuaTable<'lua>>;
+        let tags: Option<LuaTable<'lua>>;
+        let __generator_tags__: Option<LuaTable<'lua>>; // from generator
+        let __example_tags__: Option<LuaTable<'lua>>; // from generator
         let remove_internals: Option<bool>;
         let __generated__: Option<bool>;
         unpack_table!(lua.unpack(table {
@@ -79,7 +85,9 @@ impl<'lua> FromLua<'lua> for PuzzleSpec {
             colors,
 
             meta,
-            properties,
+            tags,
+            __generator_tags__,
+            __example_tags__,
 
             remove_internals,
 
@@ -92,6 +100,28 @@ impl<'lua> FromLua<'lua> for PuzzleSpec {
             crate::validate_id(id).into_lua_err()?
         };
 
+        let mut tags_list = vec![];
+        // Set tags in order from lowest to highest priority
+        for tags_table in [__generator_tags__, tags, __example_tags__] {
+            if let Some(table) = tags_table {
+                unpack_tags_table(lua, &mut tags_list, table, "")?;
+            }
+        }
+
+        let mut tags = HashMap::new();
+        for (tag, value) in tags_list {
+            if !matches!(value, TagValue::False | TagValue::Inherited) {
+                // Add parent tags
+                let mut s = tag.as_str();
+                while let Some((rest, _)) = s.rsplit_once('/') {
+                    s = rest;
+                    tags.insert(s.to_owned(), TagValue::Inherited);
+                }
+            }
+
+            tags.insert(tag, value);
+        }
+
         Ok(PuzzleSpec {
             id,
             version,
@@ -103,7 +133,7 @@ impl<'lua> FromLua<'lua> for PuzzleSpec {
 
             name,
             meta,
-            properties: crate::lua::create_opt_registry_value(lua, properties)?,
+            tags,
 
             remove_internals,
         })
@@ -120,7 +150,8 @@ impl PuzzleSpec {
             self.id.clone()
         });
         let version = self.version.clone();
-        let puzzle_builder = PuzzleBuilder::new(id, name, version, ndim).into_lua_err()?;
+        let puzzle_builder =
+            PuzzleBuilder::new(id, name, version, ndim, self.tags.clone()).into_lua_err()?;
         if let Some(colors_id) = &self.colors {
             puzzle_builder.lock().shape.colors = LibraryDb::build_color_system(lua, colors_id)?;
         }
@@ -146,6 +177,14 @@ impl PuzzleSpec {
     /// Returns the name or the ID of the puzzle.
     pub fn display_name(&self) -> &str {
         self.name.as_deref().unwrap_or(&self.id)
+    }
+
+    /// Returns the URL of the puzzle's WCA page.
+    pub fn wca_url(&self) -> Option<String> {
+        Some(format!(
+            "https://www.worldcubeassociation.org/results/rankings/{}/single",
+            self.tags.get("external/wca")?.as_str()?,
+        ))
     }
 }
 
@@ -173,6 +212,10 @@ impl<'lua> FromLua<'lua> for PuzzleMetadata {
             inventors: inventor.0,
             aliases: aliases.0,
             external,
+            properties: PuzzleProperties::default(),
+            generated: false,
+            canonical: false,
+            meme: false,
         })
     }
 }
@@ -190,4 +233,101 @@ impl<'lua> FromLua<'lua> for PuzzleMetadataExternal {
 
         Ok(PuzzleMetadataExternal { wca })
     }
+}
+
+fn tag_value_from_lua<'lua>(
+    lua: &'lua Lua,
+    value: LuaValue<'lua>,
+    expected_type: TagType,
+) -> LuaResult<TagValue> {
+    if matches!(value, LuaValue::Boolean(false)) {
+        return Ok(TagValue::False);
+    }
+    match expected_type {
+        TagType::Bool => match bool::from_lua(value, lua)? {
+            true => Ok(TagValue::True),
+            false => Ok(TagValue::False),
+        },
+        TagType::Int => Ok(TagValue::Int(i64::from_lua(value, lua)?)),
+        TagType::Str => Ok(TagValue::Str(String::from_lua(value, lua)?)),
+        TagType::StrList => Ok(TagValue::StrList(LuaVecString::from_lua(value, lua)?.0)),
+        TagType::Puzzle => Ok(TagValue::Puzzle(String::from_lua(value, lua)?)),
+    }
+}
+
+fn unpack_tags_table<'lua>(
+    lua: &'lua Lua,
+    tags_list: &mut Vec<(String, TagValue)>,
+    table: LuaTable<'lua>,
+    prefix: &str,
+) -> LuaResult<()> {
+    let warn_unknown_tag =
+        |tag_name: &str| lua.warning(format!("unknown tag name {tag_name:?}"), false);
+
+    // Sequence entries -- key is ignored and value is tag name
+    for v in table.clone().sequence_values() {
+        let s: String = v?;
+        if let Some(rest) = s.strip_prefix('!') {
+            let tag_name = format!("{prefix}{rest}");
+            if TAGS.contains_key(&tag_name) {
+                tags_list.push((tag_name.to_owned(), TagValue::False));
+            } else {
+                warn_unknown_tag(&tag_name);
+            }
+        } else {
+            let tag_name = format!("{prefix}{s}");
+            if let Some(tag) = TAGS.get(&tag_name) {
+                match tag.ty {
+                    TagType::Bool => {
+                        tags_list.push((tag_name, TagValue::True));
+                    }
+                    ty => lua.warning(
+                        format!("tag {tag_name:?} requires a value of type {ty:?}"),
+                        false,
+                    ),
+                }
+            } else {
+                warn_unknown_tag(&tag_name);
+            }
+        }
+    }
+
+    // Non-sequence entry; key is tag name and value is tag value
+    for pair in table.pairs() {
+        let (k, v) = pair?;
+        match k {
+            LuaValue::Integer(_) => (), // sequence entries have already been handled
+
+            LuaValue::String(s) => {
+                let tag_name = format!("{prefix}{}", s.to_string_lossy());
+                let Some(tag) = TAGS.get(&tag_name) else {
+                    lua.warning(format!("unknown tag name {s:?}"), false);
+                    continue;
+                };
+
+                if !tag.ty.may_be_table() {
+                    if let LuaValue::Table(subtable) = v {
+                        unpack_tags_table(lua, tags_list, subtable, &format!("{tag_name}/"))?;
+                        continue;
+                    }
+                }
+
+                match tag_value_from_lua(lua, v, tag.ty) {
+                    Ok(tag_value) => {
+                        if tag_name.contains("abel") {
+                            println!("adding tag {tag_name} = {tag_value:?}");
+                        }
+                        tags_list.push((tag_name, tag_value));
+                    }
+                    Err(e) => {
+                        lua.warning(format!("bad tag value for {tag_name:?}: {e}"), false);
+                    }
+                }
+            }
+
+            _ => lua.warning(format!("bad key {k:?} in tag table"), false),
+        }
+    }
+
+    Ok(())
 }

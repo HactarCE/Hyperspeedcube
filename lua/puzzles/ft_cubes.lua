@@ -25,8 +25,30 @@ puzzle_generators:add{
   version = '0.1.0',
 
   name = "NxNxN Face-Turning Cube",
-  meta = {
+
+  colors = 'cube',
+
+  tags = {
+    builtin = '1.0.0',
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' }, -- TODO: museum & pcubes
+
     author = { "Andrew Farkas", "Milo Jacquet" },
+    '!inventor',
+
+    'shape/3d/platonic/cube',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/cubic', '!hybrid', '!multicore' },
+    colors = { '!multi_facet_per', '!multi_per_facet' },
+    cuts = { depth = { 'shallow' }, '!stored', '!wedge' },
+    turns_by = { 'face', 'facet' },
+    '!experimental',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
   },
 
   params = {
@@ -34,33 +56,53 @@ puzzle_generators:add{
   },
 
   examples = {
-    { params = {1} },
+    { params = {1}, tags = { 'algebraic/trivial', 'meme' } },
     {
       params = {2},
-      meta = {
+      tags = {
         aliases = { "Pocket Cube" },
-        external = { wca = '222' },
+        external = { gelatinbrain = '3.1.1', museum = 20, wca = '222' },
         inventor = "Ernő Rubik",
       }
     },
     {
       params = {3},
-      meta = {
+      tags = {
         aliases = { "Rubik's Cube" },
-        external = { wca = '333' },
+        external = { gelatinbrain = '3.1.2', museum = 7629, wca = '333' },
         inventor = "Ernő Rubik",
       },
     },
     {
       params = {4},
-      meta = { aliases = { "Rubik's Revenge" }, external = { wca = '444' } },
+      tags = {
+        aliases = { "Rubik's Revenge" },
+        external = { gelatinbrain = '3.1.3', museum = 265, wca = '444' },
+        inventor = "Peter Sebesteny",
+      },
     },
     {
       params = {5},
-      meta = { aliases = { "Professor's Cube" }, external = { wca = '555' } },
+      tags = {
+        aliases = { "Professor's Cube" },
+        external = { gelatinbrain = '3.1.4', museum = 6106, wca = '555' },
+        inventor = "Jürgen Hoffmann",
+      },
     },
-    { params = {6}, meta = { external = { wca = '666' } } },
-    { params = {7}, meta = { external = { wca = '777' } } },
+    {
+      params = {6},
+      tags = {
+        external = { museum = 3931, wca = '666' },
+        inventor = "Daniel Tseng",
+      },
+    },
+    {
+      params = {7},
+      tags = {
+        external = { museum = 1486, wca = '777' },
+        inventor = "Panagiotis Verdes",
+      },
+    },
   },
 
   gen = function(params)
@@ -69,7 +111,22 @@ puzzle_generators:add{
     return {
       name = size .. "x" .. size .. "x" .. size,
 
-      colors = 'cube',
+      tags = {
+        algebraic = {
+          abelian = size == 1,
+          trivial = size == 1,
+        },
+        canonical = size == 3,
+        completeness = {
+          complex = size == 1,
+          laminated = size <= 2,
+          real = size <= 3,
+          super = size <= 2,
+        },
+        ['cuts/depth/deep/to-adjacent'] = size % 2 == 0,
+        ['cuts/depth/half'] = size % 2 == 0,
+        meme = size == 1,
+      },
 
       ndim = 3,
       build = function(self)
@@ -187,8 +244,14 @@ puzzle_generators:add{
     author = { "Andrew Farkas", "Milo Jacquet" },
   },
 
+  colors = 'hypercube',
+
+  tags = {
+
+  },
+
   params = {
-    { name = "Layers", type = 'int', default = 3, min = 1, max = 9 },
+    { name = "Layers", type = 'int', default = 3, min = 1, max = 13 },
   },
 
   examples = {
@@ -206,8 +269,6 @@ puzzle_generators:add{
 
     return {
       name = size .. "x" .. size .. "x" .. size .. "x" .. size,
-
-      colors = 'hypercube',
 
       ndim = 4,
       build = function(self)

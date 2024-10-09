@@ -2654,6 +2654,7 @@ dependencies = [
 name = "hyperpuzzle"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.6.0",
  "color-eyre 0.6.3",
  "disjoint",
  "eyre",
@@ -2663,6 +2664,7 @@ dependencies = [
  "hypershape",
  "indexmap 2.4.0",
  "itertools",
+ "kdl",
  "lazy_static",
  "log",
  "mlua",

@@ -19,6 +19,11 @@ pub struct PuzzleGeneratorSpec {
     /// Version of the puzzle geneartor.
     pub version: Version,
 
+    /// Default color system.
+    pub colors: Option<String>,
+    /// Default tags.
+    pub tags: LuaRegistryKey,
+
     /// Puzzle generation parameters.
     pub params: Vec<GeneratorParam>,
     /// Examples and special cases for generated puzzles.
@@ -40,6 +45,8 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
 
         let id: String;
         let version: Version;
+        let colors: Option<String>;
+        let tags: Option<LuaTable<'lua>>;
         let params: Vec<GeneratorParam>;
         let examples: Option<Vec<PuzzleGeneratorExample<'lua>>>;
         let name: Option<String>;
@@ -49,6 +56,9 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
         unpack_table!(lua.unpack(table {
             id,
             version,
+
+            colors,
+            tags,
 
             params,
             examples,
@@ -64,6 +74,9 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
         let mut ret = PuzzleGeneratorSpec {
             id: id.clone(),
             version,
+
+            colors,
+            tags: lua.create_registry_value(tags)?,
 
             params,
             examples: HashMap::new(),
@@ -163,10 +176,14 @@ impl PuzzleGeneratorSpec {
 
         // Start with metadata from generator.
         let starting_metadata = crate::lua::deep_copy_value(lua, lua.registry_value(&self.meta)?)?;
-        let puzzle_spec = lua.create_table_from([("meta", starting_metadata)])?;
+        let puzzle_spec_table = lua.create_table_from([
+            ("colors", self.colors.as_deref().into_lua(lua)?),
+            ("meta", starting_metadata),
+            ("__generator_tags__", lua.registry_value(&self.tags)?),
+        ])?;
         augment_table(
             lua,
-            &puzzle_spec,
+            &puzzle_spec_table,
             generated_spec,
             MAX_METADATA_TABLE_RECURSION_DEPTH,
             false,
@@ -176,15 +193,15 @@ impl PuzzleGeneratorSpec {
         if let Some(extra) = extra_data {
             if extra.contains_key("name")? {
                 // Move old name to an alias.
-                let old_name = puzzle_spec.raw_get::<_, LuaValue<'lua>>("name")?;
-                let meta = get_or_create_table_key(lua, &puzzle_spec, "meta")?;
+                let old_name = puzzle_spec_table.raw_get::<_, LuaValue<'lua>>("name")?;
+                let meta = get_or_create_table_key(lua, &puzzle_spec_table, "meta")?;
                 let aliases = get_or_create_table_key(lua, &meta, "aliases")?;
                 aliases.raw_push(old_name)?;
             }
 
             augment_table(
                 lua,
-                &puzzle_spec,
+                &puzzle_spec_table,
                 extra,
                 MAX_METADATA_TABLE_RECURSION_DEPTH,
                 false, // no warning on overwrite
@@ -195,13 +212,13 @@ impl PuzzleGeneratorSpec {
         let t = lua.create_table_from([
             ("id", id.into_lua(lua)?),
             ("version", self.version.into_lua(lua)?),
-            ("__generated__", true.into_lua(lua)?),
+            ("__generated__", true.into_lua(lua)?), // necessary to skip ID validation
         ])?;
-        augment_table(lua, &puzzle_spec, &t, 1, true)?;
+        augment_table(lua, &puzzle_spec_table, &t, 1, true)?;
 
-        Ok(PuzzleGeneratorOutput::Puzzle(Arc::new(
-            PuzzleSpec::from_lua(puzzle_spec.into_lua(lua)?, lua)?,
-        )))
+        let mut puzzle_spec = PuzzleSpec::from_lua(puzzle_spec_table.into_lua(lua)?, lua)?;
+        puzzle_spec.meta.generated = true;
+        Ok(PuzzleGeneratorOutput::Puzzle(Arc::new(puzzle_spec)))
     }
 }
 
@@ -344,9 +361,16 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorExample<'lua> {
         let params: Vec<GeneratorParamValue>;
         let name: Option<LuaValue<'lua>>;
         let meta: Option<LuaValue<'lua>>;
-        unpack_table!(lua.unpack(table { params, name, meta }));
+        let tags: Option<LuaValue<'lua>>;
+        unpack_table!(lua.unpack(table {
+            params,
+            name,
+            meta,
+            tags,
+        }));
 
-        let extra_data = lua.create_table_from([("name", name), ("meta", meta)])?;
+        let extra_data =
+            lua.create_table_from([("name", name), ("meta", meta), ("__example_tags__", tags)])?;
 
         Ok(PuzzleGeneratorExample { params, extra_data })
     }

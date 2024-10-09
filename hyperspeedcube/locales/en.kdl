@@ -105,6 +105,7 @@ menu {
     custom "Custom puzzles"
     show_lua_dir "Show Lua directory"
     extract_lua "Extra built-in Lua files…"
+    show_experimental "Show experimental puzzles"
   }
   help {
     title "Help"
@@ -532,6 +533,7 @@ _debug {
 dev {
   hover_info "Hover info"
   lua_generator "Lua generator"
+  linter "Linter"
   logs {
     clear "Clear logs"
     filter "Filter:"
