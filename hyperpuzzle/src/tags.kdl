@@ -232,3 +232,4 @@ external "External" {
   (str)wca "World Cube Association" expected=true
 }
 experimental "Experimental" expected=true
+big "Big (slow to generate)"

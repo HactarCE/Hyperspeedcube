@@ -2,6 +2,7 @@ puzzles:add({
   id = '144cell',
   version = '0.1.0',
   name = "LunaJumble - 144-cell",
+  tags = { 'big' },
   ndim = 4,
   build = function(p)
     local sym = cd'f4'

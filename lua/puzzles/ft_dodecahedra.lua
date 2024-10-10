@@ -67,15 +67,17 @@ local SHALLOW_FT_DODECAHEDRON_EXAMPLES = {
   { params = {5}, name = "Examinx" },
   { params = {6}, name = "Zettaminx" },
   { params = {7}, name = "Yottaminx" },
-  { params = {8}, name = "Ronnaminx" },
+  { params = {8}, name = "Ronnaminx", tags = { 'big' } },
   {
     params = {9},
     name = "Atlasminx",
     meta = { aliases = { "Quettaminx" } },
+    tags = { 'big' },
   },
   {
     params = {10},
     name = "Minx of Madness", -- no metric prefix
+    tags = { 'big' },
   },
 }
 

@@ -67,6 +67,9 @@ puzzles:add{
   meta = {
     author = {"Andrew Farkas", "Milo Jacquet"},
   },
+  tags = {
+    'big',
+  },
   ndim = 4,
   build = function(self) build_120_cell(self, SHALLOW_CUT_DEPTH) end,
 }
@@ -77,6 +80,9 @@ puzzles:add{
   name = "Facet-Turning 120-Cell (Evil)",
   meta = {
     author = {"Andrew Farkas", "Milo Jacquet"},
+  },
+  tags = {
+    'big',
   },
   ndim = 4,
   build = function(self) build_120_cell(self, EVIL_CUT_DEPTH) end,
