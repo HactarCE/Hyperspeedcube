@@ -313,12 +313,7 @@ fn unpack_tags_table<'lua>(
                 }
 
                 match tag_value_from_lua(lua, v, tag.ty) {
-                    Ok(tag_value) => {
-                        if tag_name.contains("abel") {
-                            println!("adding tag {tag_name} = {tag_value:?}");
-                        }
-                        tags_list.push((tag_name, tag_value));
-                    }
+                    Ok(tag_value) => tags_list.push((tag_name, tag_value)),
                     Err(e) => {
                         lua.warning(format!("bad tag value for {tag_name:?}: {e}"), false);
                     }
