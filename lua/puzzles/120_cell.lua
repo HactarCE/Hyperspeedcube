@@ -53,7 +53,7 @@ puzzles:add{
   id = '120_cell',
   version = '0.1.0',
   name = "120-Cell",
-  meta = {
+  tags = {
     author = {"Andrew Farkas", "Milo Jacquet"},
   },
   ndim = 4,
@@ -64,10 +64,8 @@ puzzles:add{
   id = '120_cell_shallow',
   version = '0.1.0',
   name = "Facet-Turning 120-Cell (Shallow)",
-  meta = {
-    author = {"Andrew Farkas", "Milo Jacquet"},
-  },
   tags = {
+    author = {"Andrew Farkas", "Milo Jacquet"},
     'big',
   },
   ndim = 4,
@@ -78,10 +76,8 @@ puzzles:add{
   id = '120_cell_evil',
   version = '0.1.0',
   name = "Facet-Turning 120-Cell (Evil)",
-  meta = {
-    author = {"Andrew Farkas", "Milo Jacquet"},
-  },
   tags = {
+    author = {"Andrew Farkas", "Milo Jacquet"},
     'big',
   },
   ndim = 4,

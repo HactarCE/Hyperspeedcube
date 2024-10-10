@@ -74,31 +74,22 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
                             ui.strong(puzzle.display_name());
 
-                            if !puzzle.meta.inventors.is_empty() {
-                                md(
-                                    ui,
-                                    &format!(
-                                        "**Inventors:** {}",
-                                        comma_list(&puzzle.meta.inventors)
-                                    ),
-                                );
+                            let inventors = puzzle.inventors();
+                            if !inventors.is_empty() {
+                                md(ui, &format!("**Inventors:** {}", comma_list(inventors)));
                             }
 
-                            if !puzzle.meta.authors.is_empty() {
-                                md(
-                                    ui,
-                                    &format!("**Authors:** {}", comma_list(&puzzle.meta.authors)),
-                                );
+                            let authors = puzzle.authors();
+                            if !authors.is_empty() {
+                                md(ui, &format!("**Authors:** {}", comma_list(authors)));
                             }
 
-                            if !puzzle.meta.aliases.is_empty() {
-                                md(
-                                    ui,
-                                    &format!("**Aliases:** {}", comma_list(&puzzle.meta.aliases)),
-                                );
+                            let aliases = puzzle.aliases();
+                            if !aliases.is_empty() {
+                                md(ui, &format!("**Aliases:** {}", comma_list(aliases)));
                             }
 
-                            if let Some(url) = puzzle.meta.external.wca_url() {
+                            if let Some(url) = puzzle.wca_url() {
                                 ui.hyperlink_to("WCA leaderboards", url);
                             }
                         });

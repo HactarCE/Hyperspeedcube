@@ -26,8 +26,6 @@ puzzle_generators:add{
 
   name = "NxNxN Face-Turning Cube",
 
-  colors = 'cube',
-
   tags = {
     builtin = '1.0.0',
     external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' }, -- TODO: museum & pcubes
@@ -50,6 +48,8 @@ puzzle_generators:add{
     '!meme',
     '!shapeshifting',
   },
+
+  colors = 'cube',
 
   params = {
     { name = "Layers", type = 'int', default = 3, min = 1, max = 17 },
@@ -240,15 +240,12 @@ puzzle_generators:add{
   version = '0.1.0',
 
   name = "NxNxNxN Face-Turning Hypercube",
-  meta = {
+
+  tags = {
     author = { "Andrew Farkas", "Milo Jacquet" },
   },
 
   colors = 'hypercube',
-
-  tags = {
-
-  },
 
   params = {
     { name = "Layers", type = 'int', default = 3, min = 1, max = 13 },

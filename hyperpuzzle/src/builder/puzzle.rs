@@ -23,8 +23,6 @@ pub struct PuzzleBuilder {
     pub version: Version,
     /// Name of the puzzle.
     pub name: String,
-    /// Additional puzzle metadata.
-    pub meta: PuzzleMetadata,
 
     /// Shape of the puzzle.
     pub shape: ShapeBuilder,
@@ -44,7 +42,6 @@ impl PuzzleBuilder {
     ) -> Result<Arc<Mutex<Self>>> {
         let shape = ShapeBuilder::new_with_primordial_cube(Space::new(ndim), &id)?;
         let twists = TwistSystemBuilder::new();
-        let meta = PuzzleMetadata::default();
         Ok(Arc::new_cyclic(|this| {
             Mutex::new(Self {
                 this: this.clone(),
@@ -52,7 +49,6 @@ impl PuzzleBuilder {
                 id,
                 version,
                 name,
-                meta,
 
                 shape,
                 twists,
@@ -117,7 +113,6 @@ impl PuzzleBuilder {
             id: self.id.clone(),
             version: self.version,
             name: self.name.clone(),
-            meta: self.meta.clone(),
 
             space: self.space(),
             mesh,

@@ -27,8 +27,6 @@ pub struct PuzzleSpec {
 
     /// User-friendly name for the puzzle. (default = same as ID)
     pub name: Option<String>,
-    /// Lua table containing metadata about the puzzle.
-    pub meta: PuzzleMetadata,
     /// Lua table containing tags for the puzzle.
     pub tags: HashMap<String, TagValue>,
 
@@ -68,7 +66,6 @@ impl<'lua> FromLua<'lua> for PuzzleSpec {
         let build: LuaFunction<'lua>;
         let name: Option<String>;
         let colors: Option<String>;
-        let meta: PuzzleMetadata;
         let tags: Option<LuaTable<'lua>>;
         let __generator_tags__: Option<LuaTable<'lua>>; // from generator
         let __example_tags__: Option<LuaTable<'lua>>; // from generator
@@ -84,7 +81,6 @@ impl<'lua> FromLua<'lua> for PuzzleSpec {
 
             colors,
 
-            meta,
             tags,
             __generator_tags__,
             __example_tags__,
@@ -132,7 +128,6 @@ impl<'lua> FromLua<'lua> for PuzzleSpec {
             colors,
 
             name,
-            meta,
             tags,
 
             remove_internals,
@@ -179,6 +174,26 @@ impl PuzzleSpec {
         self.name.as_deref().unwrap_or(&self.id)
     }
 
+    /// Returns the authors list.
+    pub fn authors(&self) -> &[String] {
+        self.tags
+            .get("author")
+            .and_then(|v| v.as_str_list())
+            .unwrap_or(&[])
+    }
+    /// Returns the inventors list.
+    pub fn inventors(&self) -> &[String] {
+        self.tags
+            .get("inventor")
+            .and_then(|v| v.as_str_list())
+            .unwrap_or(&[])
+    }
+    pub fn aliases(&self) -> &[String] {
+        self.tags
+            .get("aliases")
+            .and_then(|v| v.as_str_list())
+            .unwrap_or(&[])
+    }
     /// Returns the URL of the puzzle's WCA page.
     pub fn wca_url(&self) -> Option<String> {
         Some(format!(

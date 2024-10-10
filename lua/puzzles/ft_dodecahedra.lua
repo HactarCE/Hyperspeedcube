@@ -71,8 +71,7 @@ local SHALLOW_FT_DODECAHEDRON_EXAMPLES = {
   {
     params = {9},
     name = "Atlasminx",
-    meta = { aliases = { "Quettaminx" } },
-    tags = { 'big' },
+    tags = { aliases = { "Quettaminx" }, 'big' },
   },
   {
     params = {10},
@@ -91,7 +90,7 @@ puzzle_generators:add{
   version = '0.1.0',
 
   name = "N-Layer Megaminx",
-  meta = {
+  tags = {
     author = {"Andrew Farkas", "Milo Jacquet"},
   },
 
@@ -222,7 +221,7 @@ puzzles:add{
   version = '0.1.0',
   ndim = 3,
   colors = 'dodecahedron',
-  meta = {
+  tags = {
     author = 'Milo Jacquet',
   },
   build = function(self)
@@ -276,7 +275,7 @@ puzzles:add{
   version = '0.1.0',
   ndim = 3,
   colors = 'dodecahedron',
-  meta = {
+  tags = {
     author = 'Milo Jacquet',
   },
   build = function(self)
@@ -320,7 +319,7 @@ puzzles:add{
   version = '0.1.0',
   ndim = 3,
   colors = 'dodecahedron',
-  meta = {
+  tags = {
     author = 'Milo Jacquet',
   },
   build = function(self)
@@ -375,7 +374,7 @@ puzzles:add{
   version = '0.1.0',
   ndim = 3,
   colors = 'dodecahedron',
-  meta = {
+  tags = {
     author = 'Milo Jacquet',
   },
   build = function(self)
@@ -439,7 +438,7 @@ puzzle_generators:add{
   version = '0.1.0',
 
   name = "N-Layer Pentultimate",
-  meta = {
+  tags = {
     author = { "Milo Jacquet" },
   },
 

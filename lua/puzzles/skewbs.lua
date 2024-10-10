@@ -24,7 +24,7 @@ puzzle_generators:add{
   version = '0.1.0',
 
   name = "N-Layer Skewb",
-  meta = {
+  tags = {
     author = { "Milo Jacquet" }
   },
 
@@ -167,7 +167,7 @@ puzzles:add{
   version = '0.1.0',
   ndim = 3,
   colors = 'cube',
-  meta = {
+  tags = {
     author = 'Milo Jacquet',
   },
   build = function(self)
@@ -204,7 +204,7 @@ puzzles:add{
   version = '0.1.0',
   ndim = 3,
   colors = 'cube',
-  meta = {
+  tags = {
     author = 'Milo Jacquet',
   },
   build = function(self)

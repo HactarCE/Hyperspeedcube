@@ -27,6 +27,12 @@ impl TagValue {
             _ => None,
         }
     }
+    pub fn as_str_list(&self) -> Option<&[String]> {
+        match self {
+            TagValue::StrList(vec) => Some(vec),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, EnumString)]

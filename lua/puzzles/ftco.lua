@@ -7,7 +7,7 @@ puzzles:add{
 
   name = "Face-Turning Cuboctahedron (Shallow)",
 
-  meta = {
+  tags = {
     author = "SuperSnowman16",
   },
 

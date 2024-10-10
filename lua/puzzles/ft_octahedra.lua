@@ -6,7 +6,7 @@ puzzle_generators:add{
   version = '0.1.0',
 
   name = "N-Layer Face-Turning Octahedron",
-  meta = {
+  tags = {
     author = { "Andrew Farkas", "Milo Jacquet" },
   },
 
@@ -25,7 +25,7 @@ puzzle_generators:add{
     local size = params[1]
 
     return {
-      name = size .. "-Layer Face-Turning Octahedron ",
+      name = size .. "-Layer Face-Turning Octahedron",
 
       colors = 'octahedron',
 

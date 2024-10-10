@@ -8,7 +8,7 @@ local ft_dodecahedra = require('puzzles/ft_dodecahedra')
 -- TODO: variant of duoprism with factor of `polygon_edge_length(m)/2` and `polygon_edge_length(n)/2`
 
 VERSION = '0.1.0'
-META = {
+TAGS = {
   author = { "Andrew Farkas", "Luna Harran" },
 }
 
@@ -194,7 +194,7 @@ end
 puzzle_generators:add{
   id = 'ft_prism',
   version = VERSION,
-  meta = META,
+  tags = TAGS,
   name = "Face-Turning Polygonal Prism (Shallow)",
   params = {
     PARAMS.polygon_size("Polygon size"),
@@ -218,7 +218,7 @@ puzzle_generators:add{
 puzzle_generators:add{
   id = 'ft_prism_3_minx',
   version = VERSION,
-  meta = META,
+  tags = TAGS,
   name = "Face-Turning Triangular Prism (Triminx)",
   params = { PARAMS.polygon_width("Width"), PARAMS.line_height("Height") },
   gen = function(params)
@@ -242,7 +242,7 @@ puzzle_generators:add{
 puzzle_generators:add{
   id = 'ft_duoprism',
   version = VERSION,
-  meta = META,
+  tags = TAGS,
   name = "Facet-Turning Polygonal Duoprism (Shallow)",
   params = {
     PARAMS.polygon_size("Polygon A"),
@@ -271,7 +271,7 @@ puzzle_generators:add{
 puzzle_generators:add{
   id = 'ft_duoprism_100_4',
   version = VERSION,
-  meta = META,
+  tags = TAGS,
   name = "Facet-Turning Onehundredagonal Duoprism",
   params = {
     { name = "Size (100)", type = 'int', default = 3, min = 1, max = 3 },
@@ -299,7 +299,7 @@ puzzle_generators:add{
 puzzle_generators:add{
   id = 'ft_duoprism_3_minx',
   version = VERSION,
-  meta = META,
+  tags = TAGS,
   name = "Facet-Turning Polygonal Duoprism (Shallow, Triminx)",
   params = {
     PARAMS.polygon_size("Polygon A"),
@@ -324,7 +324,7 @@ puzzle_generators:add{
 puzzle_generators:add{
   id = 'ft_duoprism_3_minx_3_minx',
   version = VERSION,
-  meta = META,
+  tags = TAGS,
   name = "Facet-Turning Triangular Duoprism (Triminx)",
   params = {
     PARAMS.polygon_width("Size A"),
@@ -392,7 +392,7 @@ end
 puzzle_generators:add{
   id = 'ft_dodecahedron_prism',
   version = VERSION,
-  meta = META,
+  tags = TAGS,
   name = "N-Layer Megaminx Prism",
   params = {
     { name = "Dodecahedron layers", type = 'int', default = 1, min = 0, max = 10 },
