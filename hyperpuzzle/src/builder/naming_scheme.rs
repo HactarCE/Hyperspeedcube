@@ -14,31 +14,28 @@ pub struct NamingScheme<I> {
     ids_to_display_names: HashMap<I, String>,
     names_to_ids: HashMap<String, I>,
 
-    name_validation_regex_str: String,
-    name_validation_regex: Regex,
+    name_validation_regex: &'static Regex,
 }
 impl<I: Nameable> Default for NamingScheme<I> {
     fn default() -> Self {
-        Self::new(I::NAME_REGEX)
+        Self::new(I::whole_name_regex())
     }
 }
 impl<I> NamingScheme<I> {
     /// Constructs a new naming scheme with no elements.
-    pub fn new(regex_str: &str) -> Self {
+    pub fn new(name_validation_regex: &'static Regex) -> Self {
         Self {
             ids_to_names: Default::default(),
             ids_to_display_names: Default::default(),
             names_to_ids: Default::default(),
 
-            name_validation_regex_str: regex_str.to_owned(),
-            name_validation_regex: Regex::new(&format!(r"^{regex_str}$")).expect("bad regex"),
+            name_validation_regex,
         }
     }
 
-    /// Returns the source regex used to validate names, excluding the
-    /// surrounding `^` and `$`.
-    pub fn regex_str(&self) -> &str {
-        &self.name_validation_regex_str
+    /// Returns the source regex used to validate names.
+    pub fn regex(&self) -> &'static Regex {
+        &self.name_validation_regex
     }
 }
 impl<I: Clone + Hash + Eq> NamingScheme<I> {
@@ -154,19 +151,27 @@ pub enum BadName {
 
 /// Puzzle element that can be named.
 pub trait Nameable {
-    /// Regex (not including `^` and `$`) that matches a string iff it is a
-    /// valid name for this kind of puzzle element.
-    const NAME_REGEX: &str;
+    /// Returns a regex (including `^` and `$`) that matches a string iff it is
+    /// a valid name for this kind of puzzle element.
+    fn whole_name_regex() -> &'static Regex;
 }
-impl Nameable for Color {
-    const NAME_REGEX: &str = r"[a-zA-Z_][a-zA-Z0-9_]*";
+macro_rules! impl_nameable {
+    ($type:ty, $regex_str:expr $(,)?) => {
+        impl Nameable for $type {
+            fn whole_name_regex() -> &'static Regex {
+                lazy_static! {
+                    static ref CACHED_REGEX: Regex =
+                        Regex::new(concat!("^", $regex_str, "$")).expect("bad regex");
+                }
+                &*CACHED_REGEX
+            }
+        }
+    };
 }
-impl Nameable for Axis {
-    const NAME_REGEX: &str = r"[a-zA-Z_][a-zA-Z0-9_]*";
-}
-impl Nameable for PieceType {
-    const NAME_REGEX: &str = r"[a-zA-Z_][a-zA-Z0-9_]*(/[a-zA-Z_][a-zA-Z0-9_]*)*";
-}
-impl Nameable for Twist {
-    const NAME_REGEX: &str = r"[a-zA-Z_][a-zA-Z0-9_]*'?";
-}
+impl_nameable!(Color, r"[a-zA-Z_][a-zA-Z0-9_]*");
+impl_nameable!(Axis, r"[a-zA-Z_][a-zA-Z0-9_]*");
+impl_nameable!(
+    PieceType,
+    r"[a-zA-Z_][a-zA-Z0-9_]*(/[a-zA-Z_][a-zA-Z0-9_]*)*",
+);
+impl_nameable!(Twist, r"[a-zA-Z_][a-zA-Z0-9_]*'?");

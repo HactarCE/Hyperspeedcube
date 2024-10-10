@@ -7,9 +7,6 @@ use regex::Regex;
 use hyperpuzzle::*;
 
 lazy_static! {
-    static ref COLOR_NAME_REGEX: Regex =
-        Regex::new(&format!(r"^{}$", Color::NAME_REGEX)).expect("bad regex");
-
     /// Match a name, or any single symbol.
     static ref TOKEN_REGEX: Regex =
         Regex::new(r"['@]?([a-zA-Z_][a-zA-Z0-9_]*)|.").expect("bad regex");
@@ -339,7 +336,7 @@ mod parser {
                             Some("(") => depth += 1,
                             Some(")") => depth -= 1,
                             Some(",") => (), // ignore commas
-                            Some(other) if COLOR_NAME_REGEX.is_match(other) => {
+                            Some(other) if Color::whole_name_regex().is_match(other) => {
                                 colors.push(other.to_owned());
                             }
                             None => depth = 0,

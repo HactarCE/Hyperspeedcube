@@ -8,7 +8,6 @@ use hypermath::prelude::*;
 use hypershape::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
-use regex::Regex;
 use smallvec::smallvec;
 
 use super::{ColorSystemBuilder, Nameable, PieceBuilder, PieceTypeBuilder};
@@ -250,11 +249,7 @@ impl ShapeBuilder {
         name: String,
         display: Option<String>,
     ) -> Result<PieceType> {
-        lazy_static! {
-            static ref PIECE_TYPE_NAME_REGEX: Regex =
-                Regex::new(&format!(r"^{}$", PieceType::NAME_REGEX)).expect("bad regex");
-        }
-        if !PIECE_TYPE_NAME_REGEX.is_match(&name) {
+        if !PieceType::whole_name_regex().is_match(&name) {
             bail!("invalid piece type name: {name:?}")
         }
 

@@ -191,7 +191,7 @@ where
     ) -> LuaResult<NamingScheme<I>> {
         // We need to rename all the entries at once, so just construct a new
         // naming scheme from scratch.
-        let mut new_names = NamingScheme::new(self.names().regex_str());
+        let mut new_names = NamingScheme::new(self.names().regex());
 
         // Set the new names.
         for (id, new_name) in ids_and_new_names {
