@@ -163,7 +163,8 @@ impl ShapeBuilder {
             }
 
             // Cut the old stickers.
-            for (&old_sticker_polytope, &old_color) in &self.pieces[old_piece].stickers {
+            for entry in &self.pieces[old_piece].stickers {
+                let (&old_sticker_polytope, &old_color) = (entry.key(), &entry.value);
                 match cut
                     .cut(old_sticker_polytope)
                     .context("error cutting sticker")?
