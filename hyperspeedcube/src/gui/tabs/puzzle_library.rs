@@ -1,6 +1,7 @@
-use std::sync::Arc;
-
-use hyperpuzzle::lua::{GeneratorParamType, GeneratorParamValue, PuzzleGeneratorSpec};
+use hyperpuzzle::{
+    lua::{GeneratorParamType, GeneratorParamValue, PuzzleGeneratorSpec},
+    TagValue,
+};
 use itertools::Itertools;
 
 use crate::{
@@ -246,8 +247,62 @@ fn show_tags_recursive(ui: &mut egui::Ui, node: &hyperpuzzle::TagMenuNode) {
             flatten,
             hidden,
             expected: _,
+            list,
         } => {
             if *hidden {
+                return;
+            }
+
+            if name.as_ref().is_some_and(|&name| {
+                crate::LIBRARY.with(|lib| {
+                    !lib.puzzles()
+                        .iter()
+                        .any(|puzzle| match puzzle.tags.get(name) {
+                            None | Some(TagValue::False) => false,
+                            _ => true,
+                        })
+                })
+            }) {
+                return;
+            }
+
+            if *list {
+                tag_checkbox_menu(ui, *&display, |ui| {
+                    match name {
+                        Some("colors/system") => crate::LIBRARY.with(|lib| {
+                            let mut color_systems = lib.color_systems();
+                            color_systems.sort_by_key(|cs| cs.display_name().to_owned()); // TODO: precompute this or something!
+                            for color_system in color_systems {
+                                tag_checkbox(ui, color_system.display_name());
+                            }
+                        }),
+                        Some("author") => crate::LIBRARY.with(|lib| {
+                            for author in lib
+                                .puzzles()
+                                .iter()
+                                .flat_map(|puzzle| puzzle.authors())
+                                .unique()
+                                .sorted()
+                            {
+                                tag_checkbox(ui, &author);
+                            }
+                        }),
+                        Some("inventor") => crate::LIBRARY.with(|lib| {
+                            for inventor in lib
+                                .puzzles()
+                                .iter()
+                                .flat_map(|puzzle| puzzle.inventors())
+                                .unique()
+                                .sorted()
+                            {
+                                tag_checkbox(ui, &inventor);
+                            }
+                        }),
+                        _ => {
+                            ui.colored_label(ui.visuals().error_fg_color, "invalid auto tag");
+                        }
+                    }
+                });
                 return;
             }
 

@@ -91,6 +91,8 @@ pub enum TagMenuNode {
         /// Whether this tag is expected to be specified on all puzzles built
         /// into the program.
         expected: bool,
+        /// Whether this tag should display a list of all possible values in the menu.
+        list: bool,
     },
 }
 impl TagMenuNode {
@@ -157,6 +159,7 @@ fn kdl_to_tag_list_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
                     let mut flatten = false;
                     let mut hidden = false;
                     let mut expected = false;
+                    let mut list = false;
                     for entry in node.entries() {
                         match entry.name().map(|ident| ident.value()) {
                             None => {
@@ -182,6 +185,9 @@ fn kdl_to_tag_list_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
                             }
                             Some("expected") => {
                                 expected = entry.value().as_bool().expect("expected bool value");
+                            }
+                            Some("list") => {
+                                list = entry.value().as_bool().expect("expected bool value");
                             }
                             Some(k) => panic!("unknown tag property key {k:?}"),
                         }
@@ -219,6 +225,7 @@ fn kdl_to_tag_list_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
                         flatten,
                         hidden,
                         expected,
+                        list,
                     }
                 }
             }

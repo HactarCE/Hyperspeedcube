@@ -118,6 +118,15 @@ impl<'lua> FromLua<'lua> for PuzzleSpec {
             tags.insert(tag, value);
         }
 
+        match colors.clone() {
+            Some(color_system_id) => {
+                tags.insert("colors/system".to_string(), TagValue::Str(color_system_id));
+            }
+            None => {
+                tags.remove("colors/system");
+            }
+        };
+
         Ok(PuzzleSpec {
             id,
             version,
@@ -188,6 +197,7 @@ impl PuzzleSpec {
             .and_then(|v| v.as_str_list())
             .unwrap_or(&[])
     }
+    /// Returns the aliases list.
     pub fn aliases(&self) -> &[String] {
         self.tags
             .get("aliases")

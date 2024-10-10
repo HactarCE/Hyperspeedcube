@@ -64,7 +64,8 @@ shape "Shape" expected=true checkbox=false section=true {
   }
 }
 
-colors "Color system" {
+colors "Colors" {
+  (str)system "Color system" expected=true list=true
   multi_per_facet "Multiple colors per facet" expected=true
   multi_facet_per "Multiple facets per color" expected=true
 }
@@ -212,8 +213,8 @@ meme "Meme" expected=true
 __separator
 
 attribution "Attribution" include_in_tag=false section=true {
-  (str_list)author "Author" expected=true
-  (str_list)inventor "Inventor" expected=true
+  (str_list)author "Author" expected=true list=true
+  (str_list)inventor "Inventor" expected=true list=true
 }
 
 __separator
