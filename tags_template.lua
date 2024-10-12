@@ -1,8 +1,8 @@
 tags = {
-  builtin = TODO,
+  builtin = nil,
   external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
 
-  author = TODO,
+  author = nil,
   '!inventor',
 
   'shape/TODO',
@@ -14,7 +14,7 @@ tags = {
   colors = { '!multi_per_facet', '!multi_facet_per' },
   completeness = { '!super', '!real', '!laminated', '!complex' },
   cuts = { '!depth', '!stored', '!wedge' },
-  turns_by = TODO,
+  turns_by = nil,
   '!experimental',
   '!family',
   '!variant',
