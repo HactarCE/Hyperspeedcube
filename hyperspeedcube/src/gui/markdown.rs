@@ -30,11 +30,15 @@ fn needs_escape(c: char) -> bool {
 /// Renders inline Markdown to an `egui::text::LayoutJob`.
 #[must_use]
 pub fn md_inline(ui: &egui::Ui, markdown: impl AsRef<str>) -> egui::text::LayoutJob {
+    let mut job = egui::text::LayoutJob::default();
+    append_md_inline(ui, &mut job, markdown);
+    job
+}
+
+pub fn append_md_inline(ui: &egui::Ui, job: &mut egui::text::LayoutJob, markdown: impl AsRef<str>) {
     let arena = comrak::Arena::new();
     let ast = comrak::parse_document(&arena, markdown.as_ref(), &options());
-    let mut job = egui::text::LayoutJob::default();
-    render_inline(&mut job, InlineFormatState::new_paragraph(ui), ast);
-    job
+    render_inline(job, InlineFormatState::new_paragraph(ui), ast);
 }
 
 pub fn md(ui: &mut egui::Ui, markdown: impl AsRef<str>) -> egui::Response {

@@ -59,32 +59,32 @@ puzzle_generators:add{
     { params = {1}, tags = { 'algebraic/trivial', 'meme' } },
     {
       params = {2},
+      aliases = { "Pocket Cube" },
       tags = {
-        aliases = { "Pocket Cube" },
         external = { gelatinbrain = '3.1.1', museum = 20, wca = '222' },
         inventor = "Ernő Rubik",
       }
     },
     {
       params = {3},
+      aliases = { "Rubik's Cube" },
       tags = {
-        aliases = { "Rubik's Cube" },
         external = { gelatinbrain = '3.1.2', museum = 7629, wca = '333' },
         inventor = "Ernő Rubik",
       },
     },
     {
       params = {4},
+      aliases = { "Rubik's Revenge" },
       tags = {
-        aliases = { "Rubik's Revenge" },
         external = { gelatinbrain = '3.1.3', museum = 265, wca = '444' },
         inventor = "Peter Sebesteny",
       },
     },
     {
       params = {5},
+      aliases = { "Professor's Cube" },
       tags = {
-        aliases = { "Professor's Cube" },
         external = { gelatinbrain = '3.1.4', museum = 6106, wca = '555' },
         inventor = "Jürgen Hoffmann",
       },

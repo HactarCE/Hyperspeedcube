@@ -23,6 +23,8 @@ pub struct PuzzleBuilder {
     pub version: Version,
     /// Name of the puzzle.
     pub name: String,
+    /// Aliases for the puzzle.
+    pub aliases: Vec<String>,
 
     /// Shape of the puzzle.
     pub shape: ShapeBuilder,
@@ -35,8 +37,9 @@ impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
     pub fn new(
         id: String,
-        name: String,
         version: Version,
+        name: String,
+        aliases: Vec<String>,
         ndim: u8,
         tags: HashMap<String, TagValue>,
     ) -> Result<Arc<Mutex<Self>>> {
@@ -49,6 +52,7 @@ impl PuzzleBuilder {
                 id,
                 version,
                 name,
+                aliases,
 
                 shape,
                 twists,
@@ -113,6 +117,7 @@ impl PuzzleBuilder {
             id: self.id.clone(),
             version: self.version,
             name: self.name.clone(),
+            aliases: self.aliases.clone(),
 
             space: self.space(),
             mesh,

@@ -71,7 +71,8 @@ local SHALLOW_FT_DODECAHEDRON_EXAMPLES = {
   {
     params = {9},
     name = "Atlasminx",
-    tags = { aliases = { "Quettaminx" }, 'big' },
+    aliases = { "Quettaminx" },
+    tags = { 'big' },
   },
   {
     params = {10},

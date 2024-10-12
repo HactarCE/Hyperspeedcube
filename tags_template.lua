@@ -1,6 +1,4 @@
 tags = {
-  aliases = TODO,
-
   builtin = TODO,
   external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
 

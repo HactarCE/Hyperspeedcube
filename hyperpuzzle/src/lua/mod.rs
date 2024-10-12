@@ -4,6 +4,7 @@
 mod macros;
 mod loader;
 mod logger;
+mod tags;
 mod types;
 
 pub(crate) use loader::*;

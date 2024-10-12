@@ -95,6 +95,7 @@ impl egui::Widget for FilterCheckbox<'_> {
         if self.color.is_some() {
             width += color_size.x + color_spacing;
         }
+        let text_is_empty = self.text.is_empty();
         let wrap_width = ui.available_width() - width;
         let wrap_mode = Some(egui::TextWrapMode::Wrap);
         let galley = self
@@ -104,7 +105,11 @@ impl egui::Widget for FilterCheckbox<'_> {
         width += text_width;
         let height = f32::max(icon_width, galley.size().y);
 
-        let desired_size = egui::Vec2::new(width, height).at_least(spacing.interact_size);
+        let desired_size = if self.color.is_none() && text_is_empty {
+            egui::Vec2::splat(icon_width)
+        } else {
+            egui::Vec2::new(width, height).at_least(spacing.interact_size)
+        };
 
         let (mut rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
 

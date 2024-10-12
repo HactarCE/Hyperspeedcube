@@ -24,6 +24,8 @@ pub struct Puzzle {
     pub version: Version,
     /// Human-friendly name for the puzzle.
     pub name: String,
+    /// Human-friendly aliases for the puzzle.
+    pub aliases: Vec<String>,
 
     /// Space containing a polytope for each piece.
     pub(crate) space: Arc<Space>,

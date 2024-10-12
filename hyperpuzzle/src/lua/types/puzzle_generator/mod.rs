@@ -2,14 +2,11 @@ use std::{collections::HashMap, fmt, sync::Arc};
 
 use itertools::Itertools;
 
-use super::*;
-
 mod db;
 
+use super::*;
+use crate::TagValue;
 pub use db::LuaPuzzleGeneratorDb;
-
-/// Maximum recursion depth for the puzzle metadata table.
-const MAX_METADATA_TABLE_RECURSION_DEPTH: usize = 5;
 
 /// Specification for a puzzle generator.
 #[derive(Debug)]
@@ -22,7 +19,7 @@ pub struct PuzzleGeneratorSpec {
     /// Default color system.
     pub colors: Option<String>,
     /// Default tags.
-    pub tags: LuaRegistryKey,
+    pub tags: HashMap<String, TagValue>,
 
     /// Puzzle generation parameters.
     pub params: Vec<GeneratorParam>,
@@ -46,7 +43,7 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
         let colors: Option<String>;
         let tags: Option<LuaTable<'lua>>;
         let params: Vec<GeneratorParam>;
-        let examples: Option<Vec<PuzzleGeneratorExample<'lua>>>;
+        let examples: Option<Vec<PuzzleGeneratorExample>>;
         let name: Option<String>;
         let aliases: Option<Vec<String>>;
         let gen: LuaFunction<'lua>;
@@ -66,13 +63,14 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
         }));
 
         let id = crate::validate_id(id).into_lua_err()?;
+        let tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
 
         let mut ret = PuzzleGeneratorSpec {
             id: id.clone(),
             version,
 
             colors,
-            tags: lua.create_registry_value(tags)?,
+            tags,
 
             params,
             examples: HashMap::new(),
@@ -85,7 +83,7 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
         for example in examples.unwrap_or_default() {
             let generator_param_values = example.params.iter().map(|val| val.to_string()).collect();
             let id = crate::generated_puzzle_id(&id, &generator_param_values);
-            match ret.generate_puzzle_spec(lua, generator_param_values, Some(&example.extra_data)) {
+            match ret.generate_puzzle_spec(lua, generator_param_values, Some(example)) {
                 Ok(PuzzleGeneratorOutput::Puzzle(puzzle_spec)) => {
                     ret.examples.insert(puzzle_spec.id.clone(), puzzle_spec);
                 }
@@ -119,7 +117,7 @@ impl PuzzleGeneratorSpec {
         &self,
         lua: &'lua Lua,
         generator_param_values: Vec<String>,
-        extra_data: Option<&'lua LuaTable<'lua>>,
+        matching_example: Option<PuzzleGeneratorExample>,
     ) -> LuaResult<PuzzleGeneratorOutput> {
         let id = crate::generated_puzzle_id(&self.id, &generator_param_values);
 
@@ -170,48 +168,71 @@ impl PuzzleGeneratorSpec {
         };
 
         // Inherit defaults from generator.
-        let puzzle_spec_table = lua.create_table_from([
-            ("colors", self.colors.as_deref().into_lua(lua)?),
-            ("__generator_tags__", lua.registry_value(&self.tags)?),
-        ])?;
-        augment_table(
-            lua,
-            &puzzle_spec_table,
-            generated_spec,
-            MAX_METADATA_TABLE_RECURSION_DEPTH,
-            false,
-        )?;
-
-        // Add metadata from a matching example, if there is one.
-        if let Some(extra) = extra_data {
-            if extra.contains_key("name")? {
-                // Move old name to an alias.
-                let old_name = puzzle_spec_table.raw_get::<_, LuaValue<'lua>>("name")?;
-                let tags = get_or_create_table_key(lua, &puzzle_spec_table, "tags")?;
-                let aliases = get_or_create_table_key(lua, &tags, "aliases")?;
-                aliases.raw_push(old_name)?;
+        let puzzle_spec_table = crate::lua::deep_copy_table(lua, generated_spec.clone())?;
+        {
+            // Set dummy ID (can't use the real ID because it isn't a valid ID).
+            if puzzle_spec_table.contains_key("id")? {
+                lua.warning("overwriting `id` outputted by puzzle generator", false);
             }
+            puzzle_spec_table.raw_set("id", "_")?;
 
-            augment_table(
-                lua,
-                &puzzle_spec_table,
-                extra,
-                MAX_METADATA_TABLE_RECURSION_DEPTH,
-                false, // no warning on overwrite
-            )?;
+            // Set version.
+            if puzzle_spec_table.contains_key("version")? {
+                lua.warning("overwriting `version` outputted by puzzle generator", false);
+            }
+            puzzle_spec_table.raw_set("version", self.version)?;
+
+            // Set color system, if it isn't already set.
+            if !puzzle_spec_table.contains_key("colors")? {
+                puzzle_spec_table.raw_set("colors", self.colors.as_deref())?;
+            }
         }
 
-        // Add keys from generator.
-        let t = lua.create_table_from([
-            ("id", id.into_lua(lua)?),
-            ("version", self.version.into_lua(lua)?),
-            ("__generated__", true.into_lua(lua)?), // necessary to skip ID validation
-        ])?;
-        augment_table(lua, &puzzle_spec_table, &t, 1, true)?;
+        // Generate the puzzle spec.
+        let mut puzzle_spec = PuzzleSpec::from_lua(puzzle_spec_table.into_lua(lua)?, lua)?;
 
-        Ok(PuzzleGeneratorOutput::Puzzle(Arc::new(
-            PuzzleSpec::from_lua(puzzle_spec_table.into_lua(lua)?, lua)?,
-        )))
+        // Now we can manually overwrite the ID.
+        puzzle_spec.id = id;
+
+        // Add data from the matching example.
+        if let Some(example) = matching_example {
+            let PuzzleGeneratorExample {
+                params: _,
+                name,
+                aliases,
+                tags,
+            } = example;
+
+            // Set name from the example, and move the auto-generated name to an
+            // alias.
+            if let Some(new_name) = name.clone() {
+                let old_name = puzzle_spec.name.replace(new_name);
+                puzzle_spec.aliases.extend(old_name);
+            }
+
+            // Add aliases from the example.
+            puzzle_spec.aliases.extend(aliases);
+
+            // Add tags from the example, and these tags should have the highest
+            // priority.
+            let tags_from_example = tags;
+            let tags_from_puzzle_spec = std::mem::take(&mut puzzle_spec.tags);
+            puzzle_spec.tags =
+                crate::lua::tags::merge_tag_sets(tags_from_example, tags_from_puzzle_spec);
+        }
+
+        // Add tags from generator.
+        let tags_from_generator = self.tags.iter().map(|(k, v)| (k.clone(), v.clone()));
+        puzzle_spec.tags = crate::lua::tags::merge_tag_sets(puzzle_spec.tags, tags_from_generator);
+
+        // Add `#generated` tag.
+        puzzle_spec
+            .tags
+            .insert("generated".to_owned(), TagValue::True);
+
+        crate::lua::tags::inherit_parent_tags(&mut puzzle_spec.tags);
+
+        Ok(PuzzleGeneratorOutput::Puzzle(Arc::new(puzzle_spec)))
     }
 }
 
@@ -341,24 +362,39 @@ impl fmt::Display for GeneratorParamValue {
 /// Example of a generated puzzle, which can defined overrides for certain
 /// fields of the [`PuzzleSpec`].
 #[derive(Debug)]
-pub struct PuzzleGeneratorExample<'lua> {
+pub struct PuzzleGeneratorExample {
     /// Parameters for the generator.
     pub params: Vec<GeneratorParamValue>,
-    /// Overrides for the [`PuzzleSpec`].
-    pub extra_data: LuaTable<'lua>,
+    /// Name override.
+    pub name: Option<String>,
+    /// Additional aliases.
+    pub aliases: Vec<String>,
+    /// Extra tags.
+    pub tags: HashMap<String, TagValue>,
 }
-impl<'lua> FromLua<'lua> for PuzzleGeneratorExample<'lua> {
+impl<'lua> FromLua<'lua> for PuzzleGeneratorExample {
     fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         let table: LuaTable<'lua> = lua.unpack(value)?;
 
         let params: Vec<GeneratorParamValue>;
-        let name: Option<LuaValue<'lua>>;
-        let tags: Option<LuaValue<'lua>>;
-        unpack_table!(lua.unpack(table { params, name, tags }));
+        let name: Option<String>;
+        let aliases: LuaVecString;
+        let tags: Option<LuaTable<'lua>>;
+        unpack_table!(lua.unpack(table {
+            params,
+            name,
+            aliases,
+            tags,
+        }));
 
-        let extra_data = lua.create_table_from([("name", name), ("__example_tags__", tags)])?;
+        let tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
 
-        Ok(PuzzleGeneratorExample { params, extra_data })
+        Ok(PuzzleGeneratorExample {
+            params,
+            name,
+            aliases: aliases.0,
+            tags,
+        })
     }
 }
 
@@ -368,57 +404,4 @@ pub enum PuzzleGeneratorOutput {
     Puzzle(Arc<PuzzleSpec>),
     /// Redirect to a different puzzle ID.
     Redirect(String),
-}
-
-fn augment_table<'lua>(
-    lua: &'lua Lua,
-    destination: &LuaTable<'lua>,
-    source: &LuaTable<'lua>,
-    max_depth: usize,
-    warn: bool,
-) -> LuaResult<()> {
-    let Some(new_depth) = max_depth.checked_sub(1) else {
-        return Err(LuaError::external("recursion limit exceeded"));
-    };
-
-    let index_range = 0..source.raw_len() as i64;
-    for v in source.clone().sequence_values::<LuaValue<'_>>() {
-        destination.raw_push(v?)?;
-    }
-
-    for pair in source.clone().pairs::<LuaValue<'_>, LuaValue<'_>>() {
-        let (k, v) = pair?;
-
-        // Skip indices already covered.
-        if let LuaValue::Integer(i) = k {
-            if index_range.contains(&i) {
-                continue;
-            }
-        }
-
-        if let (Ok(dst), LuaValue::Table(src)) =
-            (destination.raw_get::<_, LuaTable<'_>>(k.clone()), &v)
-        {
-            // Both values are tables; recurse!
-            augment_table(lua, &dst, src, new_depth, warn)?;
-        } else {
-            if warn && destination.contains_key(k.clone())? {
-                lua.warning(format!("overwriting key {k:?}"), false);
-            }
-            destination.raw_set(k, v)?;
-        }
-    }
-
-    Ok(())
-}
-
-fn get_or_create_table_key<'lua>(
-    lua: &'lua Lua,
-    t: &LuaTable<'lua>,
-    key: &str,
-) -> LuaResult<LuaTable<'lua>> {
-    if !t.contains_key(key)? {
-        t.raw_set(key, lua.create_table()?)?;
-    }
-    t.get(key)
 }

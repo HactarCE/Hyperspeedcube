@@ -1,5 +1,3 @@
-(str_list)aliases "Aliases" hidden=true
-
 shape "Shape" expected=true checkbox=false section=true {
   _3d "3D" {
     platonic "Platonic" {
@@ -65,7 +63,7 @@ shape "Shape" expected=true checkbox=false section=true {
 }
 
 colors "Colors" {
-  (str)system "Color system" expected=true list=true
+  (str)system "Color system" expected=true list=true auto=true
   multi_per_facet "Multiple colors per facet" expected=true
   multi_facet_per "Multiple facets per color" expected=true
 }
@@ -222,7 +220,7 @@ __separator
 __heading "Miscellaneous"
 
 solved "Solved"
-generated "Generated"
+generated "Generated" auto=true
 (str)builtin "Built-in" expected=true
 external "External" {
   (str)gelatinbrain "Gelatinbrain" expected=true
