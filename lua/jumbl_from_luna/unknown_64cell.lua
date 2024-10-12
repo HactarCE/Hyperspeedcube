@@ -3,7 +3,7 @@ puzzles:add({
   version = '0.1.0',
   name = "LunaJumble - [Shape] Unknown 64-cell",
   ndim = 4,
-  tags = { 'big' },
+  tags = { 'big', 'experimental' },
   build = function(p)
     local sym = cd'bc4'
     local xoox = sym.xoox.unit

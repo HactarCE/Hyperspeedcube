@@ -3,6 +3,7 @@ puzzles:add({
   version = '0.1.0',
   name = "LunaJumble - FTRD prism",
   ndim = 4,
+  tags = { 'experimental' },
   build = function(p)
     local sym = cd{4,3,2}
     local f1 = sym.oxoo.unit

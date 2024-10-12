@@ -48,7 +48,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.group(|ui| {
         ui.horizontal(|ui| {
             ui.menu_button("Filter", |ui| {
-                egui::ScrollArea::vertical().show(ui, show_tags_filter_menu);
+                egui::ScrollArea::vertical().show(ui, |ui| show_tags_filter_menu(ui, app));
             });
 
             ui.add(egui::TextEdit::singleline(&mut search_query).desired_width(f32::INFINITY));
@@ -222,13 +222,13 @@ fn filtered_list<'a, T>(
         });
 }
 
-fn show_tags_filter_menu(ui: &mut egui::Ui) {
+fn show_tags_filter_menu(ui: &mut egui::Ui, app: &mut App) {
     for node in &*hyperpuzzle::TAGS_MENU {
-        show_tags_recursive(ui, node);
+        show_tags_recursive(ui, app, node);
     }
 }
 
-fn show_tags_recursive(ui: &mut egui::Ui, node: &hyperpuzzle::TagMenuNode) {
+fn show_tags_recursive(ui: &mut egui::Ui, app: &mut App, node: &hyperpuzzle::TagMenuNode) {
     match node {
         hyperpuzzle::TagMenuNode::Heading(s) => {
             ui.strong(*s);
@@ -250,6 +250,10 @@ fn show_tags_recursive(ui: &mut egui::Ui, node: &hyperpuzzle::TagMenuNode) {
             list,
         } => {
             if *hidden {
+                return;
+            }
+
+            if name.as_deref() == Some("experimental") && !app.prefs.show_experimental_puzzles {
                 return;
             }
 
@@ -306,9 +310,9 @@ fn show_tags_recursive(ui: &mut egui::Ui, node: &hyperpuzzle::TagMenuNode) {
                 return;
             }
 
-            let show_contents = |ui: &mut egui::Ui| {
+            let mut show_contents = |ui: &mut egui::Ui| {
                 for child in children {
-                    show_tags_recursive(ui, child);
+                    show_tags_recursive(ui, app, child);
                 }
             };
 

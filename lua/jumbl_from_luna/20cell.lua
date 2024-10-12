@@ -3,6 +3,7 @@ puzzles:add({
   version = '0.1.0',
   name = "LunaJumble - 20-cell",
   ndim = 4,
+  tags = { 'experimental' },
   build = function(p)
     local sym = cd'a4'
     local xoox = sym.xoox.unit

@@ -3,6 +3,7 @@ puzzles:add({
   version = '0.1.0',
   name = "LunaJumble - Facet-turning Bijungatodecachoron",
   ndim = 4,
+  tags = { 'experimental' },
   build = function(p)
     local sym = cd'a4'
     local f1 = sym.oxoo.unit
