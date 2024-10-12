@@ -163,9 +163,9 @@ cuts flatten=true {
   depth "Cut depth" expected=true {
     shallow "Shallow"
     deep "Deep" {
-      to-adjacent "To adjacent"
-      past-adjacent "Past adjacent"
-      past-origin "Past origin"
+      to_adjacent "To adjacent"
+      past_adjacent "Past adjacent"
+      past_origin "Past origin"
     }
     half "Half-cut"
   }
@@ -195,7 +195,7 @@ family "Family" expected=true {
   loopover "Loopover"
   mixup "Mixup"
   skewb "Skewb"
-  square-one "Square-1"
+  square_one "Square-1"
   weirdling "Weirdling"
 }
 
