@@ -195,7 +195,7 @@ puzzle_generators:add{
                   name = name .. '/left'
                   display = display .. " (left)"
                 else
-                  name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
+                  name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", j-1, i-1)
                   name = name .. '/right'
                   display = display .. " (right)"
                 end
@@ -665,7 +665,13 @@ puzzle_generators:add{
           middle_prefix = 'middle '
         end
 
-        -- Centers
+        -- Centers and edges
+        self:add_piece_type{ name = 'center', display = "Center" }
+        self:add_piece_type{ name = 'edge', display = "Edge" }
+        if size >= 4 then
+          self:add_piece_type{ name = 'center/x', display = "X-center" }
+          self:add_piece_type{ name = 'center/diamond', display = "Diamond center" }
+        end
         for i = 2, center_layer do
           for j = i, size+1-i do
             local name, display
@@ -681,9 +687,9 @@ puzzle_generators:add{
             elseif i == j then
               name, display = string.fmt2('edge/wing_%d', "Wing (%d)", i-1)
             elseif i + j == size+1 then
-              name, display = string.fmt2('center/t_%d', "T-center (%d)", i-1)
+              name, display = string.fmt2('center/diamond/t_%d', "T-center (%d)", i-1)
             else
-              name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
+              name, display = string.fmt2('center/diamond/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
               self:add_piece_type{ name = name, display = display }
               name2 = name .. '/right'
               display2 = display .. " (right)"
@@ -706,13 +712,30 @@ puzzle_generators:add{
         end
 
         for i = 2, floor(size/2) do
-          local name, display = string.fmt2('center/x_outer_%d', "Outer X-center (%d)", i-1)
+          local name, display = string.fmt2('center/x/outer_%d', "Outer X-center (%d)", i-1)
           self:mark_piece{
             region = DR(i) & L(1) & BR(1),
             name = name,
             display = display
           }
-          name, display = string.fmt2('center/x_inner_%d', "Inner X-center (%d)", i-1)
+        end
+        if size % 2 == 1 then
+          local name, display
+          if size > 3 then
+            name = 'center/x/middle'
+            display = "Middle X-center"
+          else
+            name = 'center/x'
+            display = "X-center"
+          end
+          self:mark_piece{
+            region = DR(center_layer) & L(1) & BR(1),
+            name = name,
+            display = display,
+          }
+        end
+        for i = floor(size/2), 2, -1 do
+          local name, display = string.fmt2('center/x/inner_%d', "Inner X-center (%d)", i-1)
           self:mark_piece{
             region = DR(size+1-i) & L(1) & BR(1),
             name = name,
@@ -720,25 +743,9 @@ puzzle_generators:add{
           }
         end
 
-        if size % 2 == 1 then
-          local name, display
-          if size > 3 then
-            name = 'center/x_middle'
-            display = "Middle X-center"
-          else
-            name = 'center/x'
-            display = "X-center"
-          end
-          name = self:mark_piece{
-            region = DR(center_layer) & L(1) & BR(1),
-            name = name,
-            display = display,
-          }
-        end
-
         self:mark_piece{
           region = F(1) & R(1) & BR(1) & BL(1) & L(1),
-          name = 'center',
+          name = 'center/center',
           display = "Center",
         }
         self:mark_piece{
@@ -746,6 +753,7 @@ puzzle_generators:add{
           name = 'corner',
           display = "Corner",
         }
+
         self:unify_piece_types(sym.chiral)
       end,
     }
