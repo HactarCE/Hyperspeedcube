@@ -63,3 +63,14 @@ function add_puzzle_twists(puzzle_recipe)
     end
   end
 end
+
+-- Concatenates the sequences.
+function concatseq(...)
+  local ret = {}
+  for _, t in ipairs({...}) do
+    for _, v in ipairs(t) do
+      table.insert(ret, v)
+    end
+  end
+  return ret
+end

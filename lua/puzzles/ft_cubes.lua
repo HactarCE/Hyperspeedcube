@@ -14,7 +14,7 @@ local function ft_cube_cut_depths(ndim, size)
     mechanical_limit = 1 / sqrt(ndim-1)
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return utils.layers.inclusive(outermost_cut, -outermost_cut, size-1)
+  return utils.concateseq(utils.layers.inclusive(outermost_cut, -outermost_cut, size-1), -1)
 end
 
 GIZMO_EDGE_FACTOR = 0.8
@@ -28,7 +28,7 @@ puzzle_generators:add{
 
   tags = {
     builtin = '1.0.0',
-    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' }, -- TODO: museum & pcubes
+    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' }, -- TODO: museum & pcubes
 
     author = { "Andrew Farkas", "Milo Jacquet" },
     '!inventor',
@@ -123,7 +123,7 @@ puzzle_generators:add{
           real = size <= 3,
           super = size <= 2,
         },
-        ['cuts/depth/deep/to-adjacent'] = size % 2 == 0,
+        ['cuts/depth/deep/to_adjacent'] = size % 2 == 0,
         ['cuts/depth/half'] = size % 2 == 0,
         meme = size == 1,
       },
@@ -242,7 +242,26 @@ puzzle_generators:add{
   name = "NxNxNxN Face-Turning Hypercube",
 
   tags = {
+    builtin = '1.0.0',
+    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' }, -- TODO: museum & pcubes
+
     author = { "Andrew Farkas", "Milo Jacquet" },
+    '!inventor',
+
+    'shape/4d/platonic/hypercube',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!fused', 'orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '4d/elementary/hypercubic', '!hybrid', '!multicore' },
+    colors = { '!multi_facet_per', '!multi_per_facet' },
+    cuts = { depth = { 'shallow' }, '!stored', '!wedge' },
+    turns_by = { 'cell', 'facet' },
+    '!experimental',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
   },
 
   colors = 'hypercube',
@@ -266,6 +285,23 @@ puzzle_generators:add{
 
     return {
       name = size .. "x" .. size .. "x" .. size .. "x" .. size,
+
+      tags = {
+        algebraic = {
+          abelian = size == 1,
+          trivial = size == 1,
+        },
+        canonical = size == 3,
+        completeness = {
+          complex = size == 1,
+          laminated = size <= 2,
+          real = size <= 3,
+          super = size <= 2,
+        },
+        ['cuts/depth/deep/to_adjacent'] = size % 2 == 0,
+        ['cuts/depth/half'] = size % 2 == 0,
+        meme = size == 1,
+      },
 
       ndim = 4,
       build = function(self)

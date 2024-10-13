@@ -60,7 +60,14 @@ end
 
 local SHALLOW_FT_DODECAHEDRON_EXAMPLES = {
   { params = {0}, name = "Dodecahedron" },
-  { params = {1}, name = "Megaminx" },
+  {
+    params = {1},
+    name = "Megaminx",
+    aliases = "Hungarian Supernova",
+    tags = {
+      external = { wca = 'minx' },
+    },
+  },
   { params = {2}, name = "Gigaminx" },
   { params = {3}, name = "Teraminx" },
   { params = {4}, name = "Petaminx" },
@@ -91,8 +98,29 @@ puzzle_generators:add{
   version = '0.1.0',
 
   name = "N-Layer Megaminx",
+  colors = "dodecahedron",
+
   tags = {
-    author = {"Andrew Farkas", "Milo Jacquet"},
+    builtin = '1.0.0',
+    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' }, -- TODO: museum & pcubes
+
+    author = { "Andrew Farkas", "Milo Jacquet" },
+    '!inventor',
+
+    'shape/3d/platonic/dodecahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/dodecahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_facet_per', '!multi_per_facet' },
+    cuts = { depth = { 'shallow' }, '!stored', '!wedge' },
+    turns_by = { 'face', 'facet' },
+    '!experimental',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
   },
 
   params = {
@@ -106,7 +134,22 @@ puzzle_generators:add{
 
     return {
       name = size .. "-Layer Face-Turning Dodecahedron",
-      colors = 'dodecahedron',
+
+      tags = {
+        algebraic = {
+          abelian = size == 0,
+          trivial = size == 0,
+        },
+        canonical = size == 1,
+        completeness = {
+          complex = size == 0,
+          laminated = size == 0,
+          real = size <= 1,
+          super = size == 0,
+        },
+        meme = size == 0,
+      },
+
       ndim = 3,
       build = function(self)
         local sym = cd'h3'
@@ -222,9 +265,32 @@ puzzles:add{
   version = '0.1.0',
   ndim = 3,
   colors = 'dodecahedron',
+
   tags = {
-    author = 'Milo Jacquet',
+    builtin = '1.0.0',
+    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+
+    author = {"Milo Jacquet"},
+    '!inventor',
+
+    'shape/3d/platonic/dodecahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/dodecahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { 'depth/deep', '!stored', '!wedge' },
+    turns_by = { 'face', 'facet' },
+    '!experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
   },
+
   build = function(self)
     local sym = cd'h3'
     local shape = symmetries.dodecahedral.dodecahedron()
@@ -276,9 +342,32 @@ puzzles:add{
   version = '0.1.0',
   ndim = 3,
   colors = 'dodecahedron',
+
   tags = {
-    author = 'Milo Jacquet',
+    builtin = '1.0.0',
+    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+
+    author = {"Milo Jacquet"},
+    '!inventor',
+
+    'shape/3d/platonic/dodecahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/dodecahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { 'depth/deep/to_adjacent', '!stored', '!wedge' },
+    turns_by = { 'face', 'facet' },
+    '!experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
   },
+
   build = function(self)
     local sym = cd'h3'
     local shape = symmetries.dodecahedral.dodecahedron()
@@ -286,7 +375,7 @@ puzzles:add{
 
     -- Define axes and slices
     local depth = 1/sqrt(5)
-    self.axes:add(shape:iter_poles(), {depth, -depth})
+    self.axes:add(shape:iter_poles(), {depth, -depth, -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
@@ -320,9 +409,32 @@ puzzles:add{
   version = '0.1.0',
   ndim = 3,
   colors = 'dodecahedron',
+
   tags = {
-    author = 'Milo Jacquet',
+    builtin = '1.0.0',
+    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+
+    author = {"Milo Jacquet"},
+    '!inventor',
+
+    'shape/3d/platonic/dodecahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/dodecahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { 'depth/deep/to_adjacent', '!stored', '!wedge' },
+    turns_by = { 'face', 'facet' },
+    '!experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
   },
+
   build = function(self)
     local sym = cd'h3'
     local shape = symmetries.dodecahedral.dodecahedron()
@@ -330,7 +442,7 @@ puzzles:add{
 
     -- Define axes and slices
     local depth = 0.33 -- intermediate puzzle
-    self.axes:add(shape:iter_poles(), {depth, -depth})
+    self.axes:add(shape:iter_poles(), {depth, -depth, -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
@@ -375,9 +487,32 @@ puzzles:add{
   version = '0.1.0',
   ndim = 3,
   colors = 'dodecahedron',
+
   tags = {
-    author = 'Milo Jacquet',
+    builtin = '1.0.0',
+    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+
+    author = {"Milo Jacquet"},
+    '!inventor',
+
+    'shape/3d/platonic/dodecahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/dodecahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
+    turns_by = { 'face', 'facet' },
+    '!experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
   },
+
   build = function(self)
     local sym = cd'h3'
     local shape = symmetries.dodecahedral.dodecahedron()
@@ -385,7 +520,7 @@ puzzles:add{
 
     -- Define axes and slices
     local depth = sqrt(5) - 2
-    self.axes:add(shape:iter_poles(), {depth, -depth})
+    self.axes:add(shape:iter_poles(), {depth, -depth, -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
@@ -431,7 +566,7 @@ local function pentultimate_cut_depths(size)
     mechanical_limit = (-10 + 7 * sqrt(5)) / 29
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return utils.layers.inclusive(outermost_cut, -outermost_cut, size-1)
+  return utils.concatseq(utils.layers.inclusive(outermost_cut, -outermost_cut, size-1), {-1})
 end
 
 puzzle_generators:add{
@@ -439,8 +574,31 @@ puzzle_generators:add{
   version = '0.1.0',
 
   name = "N-Layer Pentultimate",
+  colors = "dodecahedron",
+
   tags = {
-    author = { "Milo Jacquet" },
+    builtin = '1.0.0',
+    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+
+    author = {"Milo Jacquet"},
+    '!inventor',
+
+    'shape/3d/platonic/dodecahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/dodecahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
+    turns_by = { 'face', 'facet' },
+    '!experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
   },
 
   params = {
@@ -461,7 +619,21 @@ puzzle_generators:add{
     return {
       name = size .. "-Layer Pentultimate",
 
-      colors = 'dodecahedron',
+      tags = {
+        algebraic = {
+          abelian = size == 1,
+          trivial = size == 1,
+        },
+        completeness = {
+          complex = size == 1,
+          laminated = size == 1,
+          real = size <= 2,
+          super = size == 1,
+        },
+        ['cuts/depth/deep/past_adjacent'] = size % 2 == 0,
+        ['cuts/depth/half'] = size % 2 == 0,
+        meme = size == 1,
+      },
 
       ndim = 3,
       build = function(self)

@@ -16,8 +16,9 @@ tags = {
   cuts = { '!depth', '!stored', '!wedge' },
   turns_by = nil,
   '!experimental',
+  '!canonical',
   '!family',
   '!variant',
   '!meme',
   '!shapeshifting',
-}
+},
