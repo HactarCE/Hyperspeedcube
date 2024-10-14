@@ -14,7 +14,6 @@ license = "GPL-2.0-or-later"
 workspace = true
 
 [dependencies]
-bitflags = "2.4.2"
 color-eyre = "0.6"
 disjoint = "0.8.0"
 eyre = "0.6"

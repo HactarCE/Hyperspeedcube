@@ -67,10 +67,8 @@ pub(super) fn inherit_parent_tags(tags: &mut HashMap<String, TagValue>) {
 
     for tag in inherited_tags {
         // Add parent tags
-        let mut s = tag.as_str();
-        while let Some((rest, _)) = s.rsplit_once('/') {
-            s = rest;
-            match tags.entry(s.to_owned()) {
+        for parent in crate::TAGS.ancestors(&tag) {
+            match tags.entry(parent.to_owned()) {
                 hash_map::Entry::Occupied(mut e) => match e.get() {
                     TagValue::False => {
                         e.insert(TagValue::Inherited);

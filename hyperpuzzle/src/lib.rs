@@ -1,8 +1,6 @@
 //! Multidimensional twisty puzzle generator and simulator backend.
 
 #[macro_use]
-extern crate bitflags;
-#[macro_use]
 extern crate lazy_static;
 
 pub mod builder;
@@ -11,7 +9,7 @@ mod lint;
 pub mod lua;
 mod puzzle;
 mod rgb;
-pub mod tags;
+mod tags;
 mod task;
 pub mod util;
 

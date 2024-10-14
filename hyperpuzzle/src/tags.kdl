@@ -1,4 +1,16 @@
-shape "Shape" expected=true checkbox=false section=true {
+__heading "Type"
+
+type inline=true {
+  shape "Shape" expected=true
+  puzzle "Puzzle" auto=true
+  generator "Generator" auto=true
+}
+
+__separator
+
+__heading "Shape"
+
+shape expected=true inline=true {
   _3d "3D" {
     platonic "Platonic" {
       cube "Cube"
@@ -63,7 +75,7 @@ shape "Shape" expected=true checkbox=false section=true {
 }
 
 colors "Colors" {
-  (str)system "Color system" expected=true list=true auto=true
+  (str)system "Color system" auto=true expected=true list=true
   multi_per_facet "Multiple colors per facet" expected=true
   multi_facet_per "Multiple facets per color" expected=true
 }
@@ -136,7 +148,7 @@ completeness "Completeness" {
 }
 
 algebraic "Algebraic properties" {
-  nonpseudo include_in_tag=false flatten=true expected=true {
+  nonpseudo expected=true include_in_tag=false inline=true {
     bandaged "Bandaged"
     doctrinaire "Doctrinaire"
     jumbling "Jumbling"
@@ -149,7 +161,7 @@ algebraic "Algebraic properties" {
   __separator
   abelian "Abelian" expected=true
   fused "Fused" expected=true
-  orientations flatten=true {
+  orientations inline=true {
     non_abelian "Non-abelian orientations" expected=true
   }
   // `trivial` means the state space is equivalent to a product of "lines,"
@@ -159,7 +171,11 @@ algebraic "Algebraic properties" {
   weird_orbits "Weird orbits" expected=true
 }
 
-cuts flatten=true {
+__separator
+
+__heading "Cuts"
+
+cuts inline=true {
   depth "Cut depth" expected=true {
     shallow "Shallow"
     deep "Deep" {
@@ -210,10 +226,10 @@ meme "Meme" expected=true
 
 __separator
 
-attribution "Attribution" include_in_tag=false section=true {
-  (str_list)author "Author" expected=true list=true
-  (str_list)inventor "Inventor" expected=true list=true
-}
+__heading "Attribution"
+
+(str_list)author "Author" expected=true list=true
+(str_list)inventor "Inventor" expected=true list=true
 
 __separator
 

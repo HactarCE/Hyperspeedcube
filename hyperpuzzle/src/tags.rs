@@ -1,6 +1,155 @@
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::Arc,
+};
 
 use strum::EnumString;
+
+lazy_static! {
+    /// Library of known tags, defined in `tags.kdl`.
+    pub static ref TAGS: TagLibrary = TagLibrary::load();
+
+}
+
+/// Library of known tags, defined in `tags.kdl`.
+#[derive(Debug)]
+pub struct TagLibrary {
+    menu: TagMenuNode,
+    list: Vec<Arc<str>>,
+    tag_data: HashMap<Arc<str>, TagData>,
+    expected: Vec<Vec<Arc<str>>>,
+}
+impl TagLibrary {
+    /// Returns the data for a tag, or `None` if no such tag exists.
+    pub fn get(&self, tag_name: &str) -> Option<TagData> {
+        self.tag_data.get(tag_name).copied()
+    }
+
+    /// Returns a list of tags as they should be arranged in the menu.
+    pub fn menu(&self) -> &TagMenuNode {
+        &self.menu
+    }
+
+    /// Returns a list of all tag names, in menu order.
+    pub fn all_tags(&self) -> &[Arc<str>] {
+        &self.list
+    }
+
+    /// Returns a list of tag sets. Every puzzle is expected to have at least
+    /// one tag from each set.
+    pub fn expected_tag_sets(&self) -> &[Vec<Arc<str>>] {
+        &self.expected
+    }
+
+    /// Returns the ancestors of a tag, not including the tag itself. For example,
+    /// the ancestors of `"shape/3d/cube"` are `["shape/3d", "shape"]`.
+    pub fn ancestors<'a>(&self, tag: &'a str) -> impl Iterator<Item = &'a str> {
+        std::iter::successors(Some(tag), |s| Some(s.rsplit_once(&['/', '='])?.0)).skip(1)
+    }
+
+    fn load() -> Self {
+        let top_level_menu_items = match include_str!("tags.kdl").parse() {
+            Ok(kdl_document) => kdl_to_tag_menu_node(&kdl_document, ""),
+            Err(e) => {
+                eprintln!("{e:#?}");
+                panic!("error parsing tags.kdl");
+            }
+        };
+        let menu = TagMenuNode::Tag {
+            name: None,
+            ty: TagType::Bool,
+            display: TagDisplay::Inline,
+            subtags: top_level_menu_items,
+            auto: false,
+            expected: false,
+            list: false,
+        };
+
+        // Recursively assemble the othe,r tag indexes from the menu
+        // specification. Order is important for `tags_list`.
+        let mut stack = vec![&menu];
+        let mut tags_list = vec![];
+        let mut tag_data_map = HashMap::new();
+        let mut expected_tag_sets = vec![];
+        while let Some(node) = stack.pop() {
+            match node {
+                TagMenuNode::Heading(_) | TagMenuNode::Separator => (),
+                TagMenuNode::Tag {
+                    name,
+                    ty,
+                    display: _,
+                    subtags,
+                    auto,
+                    expected,
+                    list: _,
+                } => {
+                    if let Some(name) = name {
+                        tags_list.push(Arc::clone(name));
+
+                        let data = TagData {
+                            ty: *ty,
+                            auto: *auto,
+                        };
+                        tag_data_map.insert(Arc::clone(name), data);
+
+                        if *expected {
+                            expected_tag_sets.push(vec![Arc::clone(name)]);
+                        }
+                    } else if *expected {
+                        expected_tag_sets.push(
+                            subtags
+                                .iter()
+                                .filter_map(|subtag| subtag.name())
+                                .map(Arc::clone)
+                                .collect(),
+                        );
+                    }
+
+                    // Add subtags to the queue.
+                    stack.extend(subtags.iter().rev());
+                }
+            }
+        }
+
+        Self {
+            menu,
+            list: tags_list,
+            tag_data: tag_data_map,
+            expected: expected_tag_sets,
+        }
+    }
+
+    /// Returns the authors list, given a map of tag values.
+    pub fn authors<'a>(&self, tag_values: &'a HashMap<String, TagValue>) -> &'a [String] {
+        tag_values
+            .get("author")
+            .and_then(|v| v.as_str_list())
+            .unwrap_or(&[])
+    }
+    /// Returns the inventors list, given a map of tag values.
+    pub fn inventors<'a>(&self, tag_values: &'a HashMap<String, TagValue>) -> &'a [String] {
+        tag_values
+            .get("inventor")
+            .and_then(|v| v.as_str_list())
+            .unwrap_or(&[])
+    }
+    /// Returns the URL of the puzzle's WCA page, given a map of tag values.
+    pub fn wca_url(&self, tag_values: &HashMap<String, TagValue>) -> Option<String> {
+        Some(format!(
+            "https://www.worldcubeassociation.org/results/rankings/{}/single",
+            tag_values.get("external/wca")?.as_str()?,
+        ))
+    }
+}
+
+/// How to display a node in the tag menu.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TagDisplay {
+    /// Display child tags inline.
+    Inline,
+    /// Display a submenu with this label.
+    Submenu(Arc<str>),
+}
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub enum TagValue {
@@ -33,6 +182,14 @@ impl TagValue {
             _ => None,
         }
     }
+    pub fn to_strings(&self) -> &[String] {
+        match self {
+            TagValue::Str(s) => std::slice::from_ref(s),
+            TagValue::StrList(vec) => &vec,
+            TagValue::Puzzle(p) => std::slice::from_ref(p),
+            _ => &[],
+        }
+    }
     pub fn as_str_list_mut(&mut self) -> Option<&mut Vec<String>> {
         match self {
             TagValue::StrList(vec) => Some(vec),
@@ -43,6 +200,22 @@ impl TagValue {
         match self {
             TagValue::False => false,
             _ => true,
+        }
+    }
+    pub fn is_present_with_value(&self, value_str: Option<&str>) -> bool {
+        if let Some(value_str) = value_str {
+            match self {
+                TagValue::False => value_str.eq_ignore_ascii_case("false") || value_str == "0",
+                TagValue::True | TagValue::Inherited => {
+                    value_str.eq_ignore_ascii_case("true") || value_str == "1"
+                }
+                TagValue::Int(i) => value_str == i.to_string(),
+                TagValue::Str(s) => value_str.eq_ignore_ascii_case(s),
+                TagValue::StrList(vec) => vec.iter().any(|s2| value_str.eq_ignore_ascii_case(&s2)),
+                TagValue::Puzzle(s) => value_str.eq_ignore_ascii_case(s),
+            }
+        } else {
+            self.is_present()
         }
     }
 }
@@ -71,7 +244,7 @@ impl TagType {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TagData {
     /// Type of data to store for the tag value.
     pub ty: TagType,
@@ -81,74 +254,43 @@ pub struct TagData {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TagMenuNode {
-    Heading(&'static str),
+    Heading(Arc<str>),
     Separator,
     Tag {
         /// Tag name, if there is one.
-        name: Option<&'static str>,
-        /// Display name for the tag or category.
-        display: &'static str,
+        name: Option<Arc<str>>,
         /// Type of data for the tag.
         ty: TagType,
-        /// Tags inside this category.
+        /// Display mode for the tag or category.
+        display: TagDisplay,
+        /// Subtags inside this category.
         subtags: Vec<TagMenuNode>,
 
-        // TODO: consolidate these bools into a single "display" value with enum variants
-        /// Whether to display the tag family as an inline section instead of a
-        /// submenu.
-        section: bool,
-        /// Whether to display a checkbox for the tag.
-        checkbox: bool,
-        /// Whether to display the contents of this tag inline.
-        flatten: bool,
-        /// Whether to hide the tag in the list.
-        hidden: bool,
+        /// Whether the value for this tag may only be autogenerated.
+        auto: bool,
         /// Whether this tag is expected to be specified on all puzzles built
         /// into the program.
         expected: bool,
         /// Whether this tag should display a list of all possible values in the menu.
         list: bool,
-        /// Whether the value for this tag may only be autogenerated.
-        auto: bool,
     },
 }
 impl TagMenuNode {
-    fn name(&self) -> Option<&'static str> {
+    fn name(&self) -> Option<&Arc<str>> {
         match self {
             TagMenuNode::Heading(_) | TagMenuNode::Separator => None,
-            TagMenuNode::Tag { name, .. } => *name,
+            TagMenuNode::Tag { name, .. } => name.as_ref(),
         }
     }
 }
 
-lazy_static! {
-    /// List of tags as they should be arranged in the menu.
-    pub static ref TAGS_MENU: Vec<TagMenuNode> = load_tag_menu();
-
-    /// Set of known tags, programmed in `tags.kdl`.
-    pub static ref TAGS: HashMap<String, TagData> = assemble_tag_data();
-
-    /// List of tags that should be explicitly specified on every puzzle.
-    pub(crate) static ref EXPECTED_TAGS: Vec<Vec<String>> = assemble_expected_tags();
-}
-
-fn load_tag_menu() -> Vec<TagMenuNode> {
-    match include_str!("tags.kdl").parse() {
-        Ok(kdl_document) => kdl_to_tag_list_node(&kdl_document, ""),
-        Err(e) => {
-            eprintln!("{e:#?}");
-            panic!("error parsing tags.kdl");
-        }
-    }
-}
-
-fn kdl_to_tag_list_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode> {
+fn kdl_to_tag_menu_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode> {
     kdl.nodes()
         .iter()
         .map(|node| {
             let name = node.name().value();
             match name {
-                "__heading" => TagMenuNode::Heading(leak_str(
+                "__heading" => TagMenuNode::Heading(Arc::from(
                     node.entries()[0]
                         .value()
                         .as_string()
@@ -170,160 +312,69 @@ fn kdl_to_tag_list_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
                         .unwrap_or_default();
 
                     let mut display = None;
-                    let mut section = false;
-                    let mut include_in_tag = true;
-                    let mut checkbox = true;
-                    let mut flatten = false;
-                    let mut hidden = false;
-                    let mut expected = false;
-                    let mut list = false;
                     let mut auto = false;
+                    let mut expected = false;
+                    let mut inline = false;
+                    let mut list = false;
+                    let mut include_in_tag = true; // default `true`!
                     for entry in node.entries() {
                         match entry.name().map(|ident| ident.value()) {
                             None => {
-                                display = Some(leak_str(
+                                display = Some(Arc::from(
                                     entry.value().as_string().expect("expected string value"),
                                 ));
                             }
-                            Some("section") => {
-                                section = entry.value().as_bool().expect("expected bool value");
+                            Some("auto") => {
+                                auto = entry.value().as_bool().expect("expected bool value");
+                            }
+                            Some("expected") => {
+                                expected = entry.value().as_bool().expect("expected bool value");
+                            }
+                            Some("inline") => {
+                                inline = entry.value().as_bool().expect("expected bool value");
+                            }
+                            Some("list") => {
+                                list = entry.value().as_bool().expect("expected bool value");
                             }
                             Some("include_in_tag") => {
                                 include_in_tag =
                                     entry.value().as_bool().expect("expected bool value");
                             }
-                            Some("checkbox") => {
-                                checkbox = entry.value().as_bool().expect("expected bool value");
-                            }
-                            Some("flatten") => {
-                                flatten = entry.value().as_bool().expect("expected bool value");
-                            }
-                            Some("hidden") => {
-                                hidden = entry.value().as_bool().expect("expected bool value");
-                            }
-                            Some("expected") => {
-                                expected = entry.value().as_bool().expect("expected bool value");
-                            }
-                            Some("list") => {
-                                list = entry.value().as_bool().expect("expected bool value");
-                            }
-                            Some("auto") => {
-                                auto = entry.value().as_bool().expect("expected bool value");
-                            }
                             Some(k) => panic!("unknown tag property key {k:?}"),
                         }
                     }
 
-                    checkbox &= include_in_tag;
-
-                    let display = display.unwrap_or_else(|| {
-                        if flatten {
-                            ""
-                        } else {
-                            panic!("tag {name:?} is missing display string")
-                        }
-                    });
-
                     let children = match node.children() {
                         Some(children) => {
                             if include_in_tag && !name.is_empty() {
-                                kdl_to_tag_list_node(children, &format!("{name}/"))
+                                kdl_to_tag_menu_node(children, &format!("{name}/"))
                             } else {
-                                kdl_to_tag_list_node(children, prefix)
+                                kdl_to_tag_menu_node(children, prefix)
                             }
                         }
                         None => vec![],
                     };
 
+                    let display =
+                        match inline {
+                            true => TagDisplay::Inline,
+                            false => TagDisplay::Submenu(display.unwrap_or_else(|| {
+                                panic!("tag {name:?} is missing display string")
+                            })),
+                        };
+
                     TagMenuNode::Tag {
-                        name: include_in_tag.then(|| leak_str(&name)),
+                        name: include_in_tag.then(|| Arc::from(name)),
                         display,
                         ty: tag_type,
                         subtags: children,
 
-                        section,
-                        checkbox,
-                        flatten,
-                        hidden,
+                        auto,
                         expected,
                         list,
-                        auto,
                     }
                 }
             }
         })
         .collect()
-}
-
-fn assemble_tag_data() -> HashMap<String, TagData> {
-    let mut all_tags = HashMap::new();
-    for node in &*TAGS_MENU {
-        assemble_tag_data_recursive(&mut all_tags, node);
-    }
-    all_tags
-}
-fn assemble_tag_data_recursive(all_tags: &mut HashMap<String, TagData>, node: &TagMenuNode) {
-    match node {
-        TagMenuNode::Heading(_) | TagMenuNode::Separator => (),
-        TagMenuNode::Tag {
-            name,
-            subtags,
-            ty,
-            auto,
-            ..
-        } => {
-            if let Some(name) = *name {
-                all_tags.insert(
-                    name.to_owned(),
-                    TagData {
-                        ty: *ty,
-                        auto: *auto,
-                    },
-                );
-            }
-            for subtag in subtags {
-                assemble_tag_data_recursive(all_tags, subtag);
-            }
-        }
-    }
-}
-
-fn assemble_expected_tags() -> Vec<Vec<String>> {
-    let mut expected_tags = vec![];
-    for node in &*TAGS_MENU {
-        assemble_expected_tags_recursive(&mut expected_tags, node);
-    }
-    expected_tags.sort();
-    expected_tags
-}
-fn assemble_expected_tags_recursive(expected_tags: &mut Vec<Vec<String>>, node: &TagMenuNode) {
-    match node {
-        TagMenuNode::Heading(_) | TagMenuNode::Separator => (),
-        TagMenuNode::Tag {
-            name,
-            subtags,
-            expected,
-            ..
-        } => {
-            if *expected {
-                match *name {
-                    Some(name) => expected_tags.push(vec![name.to_owned()]),
-                    None => expected_tags.push(
-                        subtags
-                            .iter()
-                            .filter_map(|subtag| subtag.name())
-                            .map(|s| s.to_owned())
-                            .collect(),
-                    ),
-                }
-            }
-            for subtag in subtags {
-                assemble_expected_tags_recursive(expected_tags, subtag);
-            }
-        }
-    }
-}
-
-fn leak_str(s: &str) -> &'static str {
-    Box::leak(s.to_owned().into_boxed_str())
 }

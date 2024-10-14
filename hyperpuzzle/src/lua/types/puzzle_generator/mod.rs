@@ -63,7 +63,10 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
         }));
 
         let id = crate::validate_id(id).into_lua_err()?;
-        let tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
+        let mut tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
+
+        // Add `#generator` tag.
+        tags.insert("type/generator".to_owned(), TagValue::True);
 
         let mut ret = PuzzleGeneratorSpec {
             id: id.clone(),
@@ -224,6 +227,9 @@ impl PuzzleGeneratorSpec {
         // Add tags from generator.
         let tags_from_generator = self.tags.iter().map(|(k, v)| (k.clone(), v.clone()));
         puzzle_spec.tags = crate::lua::tags::merge_tag_sets(puzzle_spec.tags, tags_from_generator);
+
+        // Remove `#generator` tag.
+        puzzle_spec.tags.remove("type/generator");
 
         // Add `#generated` tag.
         puzzle_spec

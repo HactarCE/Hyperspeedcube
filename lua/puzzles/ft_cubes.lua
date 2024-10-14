@@ -14,7 +14,7 @@ local function ft_cube_cut_depths(ndim, size)
     mechanical_limit = 1 / sqrt(ndim-1)
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return utils.concateseq(utils.layers.inclusive(outermost_cut, -outermost_cut, size-1), -1)
+  return utils.concatseq(utils.layers.inclusive(outermost_cut, -outermost_cut, size-1), {-1})
 end
 
 GIZMO_EDGE_FACTOR = 0.8

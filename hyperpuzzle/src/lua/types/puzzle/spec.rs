@@ -84,7 +84,11 @@ impl<'lua> FromLua<'lua> for PuzzleSpec {
         let mut tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
 
         if let Some(color_system_id) = colors.clone() {
-            tags.insert("colors/system".to_string(), TagValue::Str(color_system_id));
+            tags.insert("colors/system".to_owned(), TagValue::Str(color_system_id));
+        }
+
+        if !tags.contains_key("type/shape") {
+            tags.insert("type/puzzle".to_owned(), TagValue::True);
         }
 
         crate::lua::tags::inherit_parent_tags(&mut tags);
@@ -150,23 +154,14 @@ impl PuzzleSpec {
 
     /// Returns the authors list.
     pub fn authors(&self) -> &[String] {
-        self.tags
-            .get("author")
-            .and_then(|v| v.as_str_list())
-            .unwrap_or(&[])
+        crate::TAGS.authors(&self.tags)
     }
     /// Returns the inventors list.
     pub fn inventors(&self) -> &[String] {
-        self.tags
-            .get("inventor")
-            .and_then(|v| v.as_str_list())
-            .unwrap_or(&[])
+        crate::TAGS.inventors(&self.tags)
     }
     /// Returns the URL of the puzzle's WCA page.
     pub fn wca_url(&self) -> Option<String> {
-        Some(format!(
-            "https://www.worldcubeassociation.org/results/rankings/{}/single",
-            self.tags.get("external/wca")?.as_str()?,
-        ))
+        crate::TAGS.wca_url(&self.tags)
     }
 }

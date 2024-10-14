@@ -5,6 +5,7 @@ tags = {
   author = nil,
   '!inventor',
 
+  '!type/shape',
   'shape/TODO',
   algebraic = {
     'doctrinaire', 'pseudo/doctrinaire',

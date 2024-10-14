@@ -9,6 +9,7 @@ mod layer_mask;
 pub mod prefs;
 mod presets;
 mod reset;
+mod tag_menu;
 mod text_edit_popup;
 mod yaml_editor;
 
@@ -16,6 +17,7 @@ pub use color_widgets::*;
 pub use combo_boxes::*;
 pub use filter_checkbox::*;
 pub use hint::*;
+pub use tag_menu::*;
 pub use text_edit_popup::*;
 // pub use keybinds::*;
 pub use dnd::*;
