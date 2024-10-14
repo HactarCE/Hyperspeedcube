@@ -924,6 +924,7 @@ fn show_filter_checkboxes_ui(
     });
 
     show_piece_type_hierarchy(
+        unique_id!(&id),
         ui,
         L.piece_filters.piece_types,
         &puzzle.piece_type_hierarchy,
@@ -940,6 +941,7 @@ fn get_common_state<'a>(
 }
 
 fn show_piece_type_hierarchy(
+    id: egui::Id,
     ui: &mut egui::Ui,
     name: &str,
     hierarchy: &PieceTypeHierarchy,
@@ -949,7 +951,7 @@ fn show_piece_type_hierarchy(
 ) {
     egui::collapsing_header::CollapsingState::load_with_default_open(
         ui.ctx(),
-        egui::Id::new(hierarchy as *const _),
+        egui::Id::new(id.with(hierarchy as *const _)),
         is_root,
     )
     .show_header(ui, |ui| {
@@ -972,7 +974,7 @@ fn show_piece_type_hierarchy(
             let name = node.display.as_ref().unwrap_or(k);
             match &node.contents {
                 hyperpuzzle::PieceTypeHierarchyNodeContents::Category(cat) => {
-                    show_piece_type_hierarchy(ui, name, &cat, filter_states, false, changed);
+                    show_piece_type_hierarchy(id, ui, name, &cat, filter_states, false, changed);
                 }
                 hyperpuzzle::PieceTypeHierarchyNodeContents::Type(ty) => {
                     let r = &ui.add(
