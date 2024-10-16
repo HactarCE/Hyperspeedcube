@@ -162,6 +162,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                             EguiTempValue::<PuzzleGeneratorPopupData>::new(ui);
                         let mut generator_popup_data = generator_popup_data_stored.get();
 
+                        let show_experimental = app.prefs.show_experimental_puzzles
+                            || query
+                                .included_tags
+                                .iter()
+                                .any(|(tag, _value)| *tag == "experimental");
+
                         let query_results = crate::LIBRARY
                             .with(|lib| {
                                 itertools::chain(
@@ -171,6 +177,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                         .map(ListEntry::PuzzleGenerator),
                                 )
                             })
+                            .filter(|entry| show_experimental || !entry.is_experimental())
                             .filter_map(|entry| query.try_match(entry))
                             .sorted_unstable_by(|a, b| {
                                 Ord::cmp(&(-a.score, a.object.id()), &(-b.score, b.object.id()))
@@ -309,6 +316,9 @@ impl ListEntry {
         self.tags()
             .get(tag)
             .is_some_and(|v| v.is_present_with_value(value))
+    }
+    fn is_experimental(&self) -> bool {
+        hyperpuzzle::TAGS.is_experimental(self.tags())
     }
 }
 

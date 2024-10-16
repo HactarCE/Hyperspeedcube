@@ -5,7 +5,6 @@ use strum::EnumString;
 lazy_static! {
     /// Library of known tags, defined in `tags.kdl`.
     pub static ref TAGS: TagLibrary = TagLibrary::load();
-
 }
 
 /// Library of known tags, defined in `tags.kdl`.
@@ -136,6 +135,12 @@ impl TagLibrary {
             "https://www.worldcubeassociation.org/results/rankings/{}/single",
             tag_values.get("external/wca")?.as_str()?,
         ))
+    }
+    /// Returns whether the tag set contains the "experimental" tag.
+    pub fn is_experimental(&self, tag_values: &HashMap<String, TagValue>) -> bool {
+        tag_values
+            .get("experimental")
+            .is_some_and(|v| v.is_present())
     }
 }
 
