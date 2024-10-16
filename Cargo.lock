@@ -2725,7 +2725,7 @@ dependencies = [
 
 [[package]]
 name = "hyperspeedcube"
-version = "2.0.0-pre.15"
+version = "2.0.0-pre.16"
 dependencies = [
  "bitflags 2.6.0",
  "bitvec",
