@@ -107,6 +107,15 @@ async fn run() -> eframe::Result<()> {
     wgpu_options.device_descriptor = Arc::new(move |adapter| {
         let mut device_descriptor = old_device_descriptor_fn(adapter);
         device_descriptor.required_features |= wgpu::Features::CLEAR_TEXTURE;
+        // TODO: remove this debug print after v2.0.0-pre.16
+        dbg!(
+            device_descriptor
+                .required_limits
+                .max_storage_buffers_per_shader_stage
+        );
+        device_descriptor
+            .required_limits
+            .max_storage_buffers_per_shader_stage = 8;
         device_descriptor
     });
 
