@@ -6,10 +6,10 @@ puzzle_generators:add{
   version = '0.1.0',
 
   name = "N-Layer Face-Turning Octahedron",
-  
+
   tags = {
     builtin = '1.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
 
     author = { "Andrew Farkas", "Milo Jacquet" },
     '!inventor',

@@ -65,26 +65,65 @@ local SHALLOW_FT_DODECAHEDRON_EXAMPLES = {
     name = "Megaminx",
     aliases = "Hungarian Supernova",
     tags = {
-      external = { wca = 'minx' },
+      external = {
+        gelatinbrain = '1.1.1',
+        museum = 650,
+        wca = 'minx',
+      },
     },
   },
-  { params = {2}, name = "Gigaminx" },
-  { params = {3}, name = "Teraminx" },
-  { params = {4}, name = "Petaminx" },
-  { params = {5}, name = "Examinx" },
-  { params = {6}, name = "Zettaminx" },
-  { params = {7}, name = "Yottaminx" },
-  { params = {8}, name = "Ronnaminx", tags = { 'big' } },
-  {
-    params = {9},
-    name = "Atlasminx",
-    aliases = { "Quettaminx" },
-    tags = { 'big' },
+  { params = {2}, name = "Gigaminx",
+    tags = {
+      inventor = "Tyler Fox",
+      external = { gelatinbrain = '1.1.9', museum = 1475 },
+    },
+  },
+  { params = {3}, name = "Teraminx",
+    tags = {
+      inventor = "Andrew Cormier",
+      external = { gelatinbrain = '1.1.41', museum = 1477 },
+    },
+  },
+  { params = {4}, name = "Petaminx",
+    tags = {
+      inventor = "Andrew Cormier",
+      external = { museum = 1647 },
+    },
+  },
+  { params = {5}, name = "Examinx",
+    tags = {
+      inventor = "Matthew Bahner",
+      external = { museum = 4346 },
+    },
+  },
+  { params = {6}, name = "Zettaminx",
+    tags = {
+      external = { museum = 10786 },
+    },
+  },
+  { params = {7}, name = "Yottaminx",
+    tags = {
+      inventor = "Matthew Bahner",
+      external = { museum = 1185 },
+    },
+  },
+  { params = {8}, name = "Ronnaminx",
+    tags = { 'big' }, -- couldn't find on the museum, at time of writing
   },
   {
-    params = {10},
-    name = "Minx of Madness", -- no metric prefix
-    tags = { 'big' },
+    params = {9}, name = "Atlasminx", aliases = { "Quettaminx" },
+    tags = {
+      inventor = "Coren Broughton",
+      external = { museum = 9058 },
+      'big',
+    },
+  },
+  { params = {10}, name = "Minx of Madness", -- no metric prefix
+    -- couldn't find on the museum
+    tags = {
+      inventor = "Matthew Bahner",
+      'big',
+    },
   },
 }
 
@@ -102,7 +141,7 @@ puzzle_generators:add{
 
   tags = {
     builtin = '1.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' }, -- TODO: museum & pcubes
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
 
     author = { "Andrew Farkas", "Milo Jacquet" },
     '!inventor',
@@ -136,6 +175,8 @@ puzzle_generators:add{
       name = size .. "-Layer Face-Turning Dodecahedron",
 
       tags = {
+        ['type/shape'] = size == 0,
+        ['type/puzzle'] = size ~= 0,
         algebraic = {
           abelian = size == 0,
           trivial = size == 0,
@@ -260,19 +301,21 @@ function define_ft_dodecahedron(size, id, name)
 end
 
 puzzles:add{
-  id = 'megaminx_crystal',
-  name = 'Megaminx Crystal',
+  -- between a Megaminx Crystal (which has no centers) and a Pyraminx Crystal (which has no edges)
+  id = 'megaminx_crystal_intermediate',
+  name = 'Megaminx-Crystal Intermediate',
   version = '0.1.0',
   ndim = 3,
   colors = 'dodecahedron',
 
   tags = {
     builtin = '1.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+    external = { gelatinbrain = '1.1.2', '!hof', '!mc4d', '!museum', '!wca' },
 
     author = {"Milo Jacquet"},
     '!inventor',
 
+    'type/puzzle',
     'shape/3d/platonic/dodecahedron',
     algebraic = {
       'doctrinaire', 'pseudo/doctrinaire',
@@ -345,11 +388,12 @@ puzzles:add{
 
   tags = {
     builtin = '1.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+    external = { gelatinbrain = '1.1.3', '!hof', '!mc4d', museum = 652, '!wca' },
 
     author = {"Milo Jacquet"},
-    '!inventor',
+    inventor = "Aleh Hladzilin",
 
+    'type/puzzle',
     'shape/3d/platonic/dodecahedron',
     algebraic = {
       'doctrinaire', 'pseudo/doctrinaire',
@@ -406,17 +450,19 @@ puzzles:add{
 puzzles:add{
   id = 'curvy_starminx',
   name = 'Curvy Starminx',
+  aliases = {"Litestarminx"}, -- museum = 11394
   version = '0.1.0',
   ndim = 3,
   colors = 'dodecahedron',
 
   tags = {
     builtin = '1.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+    external = { gelatinbrain = '1.1.4', '!hof', '!mc4d', museum = 4344, '!wca' },
 
     author = {"Milo Jacquet"},
-    '!inventor',
+    inventor = "Mr. Fok",
 
+    'type/puzzle',
     'shape/3d/platonic/dodecahedron',
     algebraic = {
       'doctrinaire', 'pseudo/doctrinaire',
@@ -490,11 +536,12 @@ puzzles:add{
 
   tags = {
     builtin = '1.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+    external = { gelatinbrain = '1.1.5', '!hof', '!mc4d', museum = 1759, '!wca' },
 
     author = {"Milo Jacquet"},
-    '!inventor',
+    inventor = "Aleh Hladzilin",
 
+    'type/puzzle',
     'shape/3d/platonic/dodecahedron',
     algebraic = {
       'doctrinaire', 'pseudo/doctrinaire',
@@ -578,7 +625,7 @@ puzzle_generators:add{
 
   tags = {
     builtin = '1.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
 
     author = {"Milo Jacquet"},
     '!inventor',
@@ -606,11 +653,33 @@ puzzle_generators:add{
   },
 
   examples = {
-    { params = {2}, name = "Pentultimate" },
-    { params = {3}, name = "Master Pentultimate" },
-    { params = {4}, name = "Elite Pentultimate" },
-    { params = {5}, name = "Royal Pentultimate" },
-    { params = {7}, name = "God Emperor Pentultimate" },
+    { params = {2}, name = "Pentultimate",
+      tags = {
+        inventor = "Jason Smith",
+        external = { gelatinbrain = '1.1.7', museum = 1741 },
+      },
+    },
+    { params = {3}, name = "Master Pentultimate",
+      tags = {
+        inventor = "Scott Bedard",
+        external = { gelatinbrain = '1.1.6', museum = 1906 },
+      },
+    },
+    { params = {4}, name = "Elite Pentultimate",
+      tags = {
+        inventor = "Raphaël Mouflin",
+        external = { museum = 6529 },
+      },
+    },
+    { params = {5}, name = "Royal Pentultimate",
+      tags = {
+        inventor = "Eric Vergo",
+        external = { museum = 1909 },
+      },
+    },
+    { params = {7}, name = "God Emperor Pentultimate",
+      tags = { inventor = "Matthew Bahner" },
+    },
   },
 
   gen = function(params)
@@ -620,19 +689,14 @@ puzzle_generators:add{
       name = size .. "-Layer Pentultimate",
 
       tags = {
-        algebraic = {
-          abelian = size == 1,
-          trivial = size == 1,
-        },
+        'type/puzzle',
+        algebraic = { '!abelian', '!trivial' },
         completeness = {
-          complex = size == 1,
-          laminated = size == 1,
           real = size <= 2,
-          super = size == 1,
+          '!complex', '!laminated', '!super',
         },
-        ['cuts/depth/deep/past_adjacent'] = size % 2 == 0,
         ['cuts/depth/half'] = size % 2 == 0,
-        meme = size == 1,
+        '!meme',
       },
 
       ndim = 3,

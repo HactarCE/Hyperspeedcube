@@ -65,8 +65,14 @@ impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
         let id = crate::validate_id(id).into_lua_err()?;
         let mut tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
 
+        for tag in tags.keys().filter(|tag| tag.starts_with("type")) {
+            lua.warning(format!("generator {id} should not have tag {tag:?}"), false);
+        }
+
         // Add `#generator` tag.
         tags.insert("type/generator".to_owned(), TagValue::True);
+
+        crate::lua::tags::inherit_parent_tags(&mut tags);
 
         let mut ret = PuzzleGeneratorSpec {
             id: id.clone(),

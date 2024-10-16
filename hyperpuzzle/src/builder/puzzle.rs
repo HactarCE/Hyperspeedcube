@@ -31,6 +31,7 @@ pub struct PuzzleBuilder {
     /// Twist system of the puzzle.
     pub twists: TwistSystemBuilder,
 
+    /// Tags for the puzzle.
     pub tags: HashMap<String, TagValue>,
 }
 impl PuzzleBuilder {

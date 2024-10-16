@@ -87,10 +87,6 @@ impl<'lua> FromLua<'lua> for PuzzleSpec {
             tags.insert("colors/system".to_owned(), TagValue::Str(color_system_id));
         }
 
-        if !tags.contains_key("type/shape") {
-            tags.insert("type/puzzle".to_owned(), TagValue::True);
-        }
-
         crate::lua::tags::inherit_parent_tags(&mut tags);
 
         Ok(PuzzleSpec {

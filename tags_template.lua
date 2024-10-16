@@ -1,11 +1,11 @@
 tags = {
   builtin = nil,
-  external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' },
+  external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
 
   author = nil,
   '!inventor',
 
-  '!type/shape',
+  'type/puzzle',
   'shape/TODO',
   algebraic = {
     'doctrinaire', 'pseudo/doctrinaire',

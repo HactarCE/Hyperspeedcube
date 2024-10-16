@@ -28,7 +28,7 @@ puzzle_generators:add{
 
   tags = {
     builtin = '1.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' }, -- TODO: museum & pcubes
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' }, -- TODO: museum
 
     author = { "Andrew Farkas", "Milo Jacquet" },
     '!inventor',
@@ -112,6 +112,8 @@ puzzle_generators:add{
       name = size .. "x" .. size .. "x" .. size,
 
       tags = {
+        ['type/shape'] = size == 1,
+        ['type/puzzle'] = size ~= 1,
         algebraic = {
           abelian = size == 1,
           trivial = size == 1,
@@ -243,7 +245,7 @@ puzzle_generators:add{
 
   tags = {
     builtin = '1.0.0',
-    --external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!pcubes', '!wca' }, -- TODO: museum & pcubes
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
 
     author = { "Andrew Farkas", "Milo Jacquet" },
     '!inventor',
@@ -272,7 +274,7 @@ puzzle_generators:add{
 
   examples = {
     { params = {1} },
-    { params = {2} },
+    { params = {2}, tags = { external = { gelatinbrain = '8.1.1' } } },
     { params = {3} },
     { params = {4} },
     { params = {5} },
@@ -287,6 +289,8 @@ puzzle_generators:add{
       name = size .. "x" .. size .. "x" .. size .. "x" .. size,
 
       tags = {
+        ['type/shape'] = size == 1,
+        ['type/puzzle'] = size ~= 1,
         algebraic = {
           abelian = size == 1,
           trivial = size == 1,

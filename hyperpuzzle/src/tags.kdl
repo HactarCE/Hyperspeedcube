@@ -1,8 +1,8 @@
 __heading "Type"
 
-type inline=true {
-  shape "Shape" expected=true
-  puzzle "Puzzle" auto=true
+type expected=true inline=true {
+  shape "Shape"
+  puzzle "Puzzle"
   generator "Generator" auto=true
 }
 
@@ -243,7 +243,6 @@ external "External" {
   (str)hof "Hall Of Fame" expected=true
   mc4d "MagicCube4D" expected=true
   (int)museum "Twisty Puzzle Museum" expected=true
-  (str)pcubes "pCubes" expected=true
   (str)wca "World Cube Association" expected=true
 }
 experimental "Experimental" expected=true
