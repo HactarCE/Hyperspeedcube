@@ -113,9 +113,26 @@ async fn run() -> eframe::Result<()> {
                 .required_limits
                 .max_storage_buffers_per_shader_stage
         );
-        device_descriptor
-            .required_limits
-            .max_storage_buffers_per_shader_stage = 8;
+
+        // Mimic `egui_wgpu::WgpuConfiguration::default()` using default WebGL2
+        // limits. This ensures that errors are caught during native
+        // development, not at runtime on a system with only OpenGL or WebGL.
+        // This way we only request the functionality that we need.
+        let mut new_limits = wgpu::Limits::downlevel_webgl2_defaults();
+        new_limits.max_texture_dimension_2d =
+            device_descriptor.required_limits.max_texture_dimension_2d;
+
+        // Increase limits as needed for puzzle rendering.
+        new_limits.max_storage_buffers_per_shader_stage = 6; // default is 8
+        new_limits.max_compute_invocations_per_workgroup = 256; // same as default
+        new_limits.max_compute_workgroup_size_x = 256; // same as default
+        new_limits.max_compute_workgroup_size_y = 1; // default is 256
+        new_limits.max_compute_workgroup_size_z = 1; // default is 64
+        new_limits.max_storage_buffer_binding_size = 128 << 20; // 128 MiB, same as default
+        new_limits.max_compute_workgroups_per_dimension = 256; // default is 65535
+
+        device_descriptor.required_limits = new_limits;
+
         device_descriptor
     });
 
