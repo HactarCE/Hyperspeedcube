@@ -107,12 +107,6 @@ async fn run() -> eframe::Result<()> {
     wgpu_options.device_descriptor = Arc::new(move |adapter| {
         let mut device_descriptor = old_device_descriptor_fn(adapter);
         device_descriptor.required_features |= wgpu::Features::CLEAR_TEXTURE;
-        // TODO: remove this debug print after v2.0.0-pre.16
-        dbg!(
-            device_descriptor
-                .required_limits
-                .max_storage_buffers_per_shader_stage
-        );
 
         // Mimic `egui_wgpu::WgpuConfiguration::default()` using default WebGL2
         // limits. This ensures that errors are caught during native
@@ -124,12 +118,12 @@ async fn run() -> eframe::Result<()> {
 
         // Increase limits as needed for puzzle rendering.
         new_limits.max_storage_buffers_per_shader_stage = 6; // default is 8
-        new_limits.max_compute_invocations_per_workgroup = 256; // same as default
-        new_limits.max_compute_workgroup_size_x = 256; // same as default
+        new_limits.max_compute_invocations_per_workgroup = 64; // same as default
+        new_limits.max_compute_workgroup_size_x = 64; // same as default
         new_limits.max_compute_workgroup_size_y = 1; // default is 256
         new_limits.max_compute_workgroup_size_z = 1; // default is 64
         new_limits.max_storage_buffer_binding_size = 128 << 20; // 128 MiB, same as default
-        new_limits.max_compute_workgroups_per_dimension = 256; // default is 65535
+        new_limits.max_compute_workgroups_per_dimension = 65535; // default is 65535
 
         device_descriptor.required_limits = new_limits;
 

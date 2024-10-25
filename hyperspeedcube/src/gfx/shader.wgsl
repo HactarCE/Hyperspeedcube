@@ -595,7 +595,7 @@ struct PolygonsVertexOutput {
 }
 
 @compute
-@workgroup_size(256)
+@workgroup_size(64)
 fn compute_transform_points(@builtin(global_invocation_id) global_invocation_id: vec3<u32>) {
     let total = i32(arrayLength(&vertex_3d_positions));
     let index = i32(global_invocation_id.x);
