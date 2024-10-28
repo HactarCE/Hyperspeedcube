@@ -46,8 +46,8 @@ pub enum Transformable {
     },
 }
 
-impl<'lua> FromLua<'lua> for Transformable {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for Transformable {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         if value.is_nil() {
             None
         } else {
@@ -96,7 +96,7 @@ impl Transformable {
 
     /// Converts the object back into a Lua value. Returns `None` if there is no
     /// such transformed object (e.g., no such twist axis after transformation).
-    pub fn into_lua<'lua>(&self, lua: &'lua Lua) -> Option<LuaResult<LuaValue<'lua>>> {
+    pub fn into_lua(&self, lua: &Lua) -> Option<LuaResult<LuaValue>> {
         match self {
             Self::Axis { db, vector } => {
                 let db = Arc::clone(db);
@@ -127,7 +127,7 @@ impl Transformable {
     /// Converts the object back into a Lua value. Returns `Ok(LuaNil)` if there
     /// is no such transformed object (e.g., no such twist axis after
     /// transformation).
-    pub fn into_nillable_lua<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+    pub fn into_nillable_lua(&self, lua: &Lua) -> LuaResult<LuaValue> {
         self.into_lua(lua).transpose()?.into_lua(lua)
     }
 }

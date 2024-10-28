@@ -13,7 +13,7 @@ use crate::LayerMask;
 pub type LuaAxis = LuaDbEntry<Axis, PuzzleBuilder>;
 
 impl LuaUserData for LuaAxis {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("axis"));
 
         LuaNamedIdDatabase::<Axis>::add_named_db_entry_fields(fields);
@@ -41,12 +41,12 @@ impl LuaUserData for LuaAxis {
         });
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             this.lua_into_string()
         });
 
-        methods.add_meta_method(LuaMetaMethod::Call, |lua, this, args: LuaMultiValue<'_>| {
+        methods.add_meta_method(LuaMetaMethod::Call, |lua, this, args: LuaMultiValue| {
             let layer_count = this.layers().len()?;
             let validate_layer = |LuaIndex(n)| {
                 if n < layer_count {
@@ -57,7 +57,7 @@ impl LuaUserData for LuaAxis {
             };
 
             let layer_mask = if args.len() == 1 {
-                let arg: LuaValue<'_> = lua.unpack_multi(args)?;
+                let arg: LuaValue = lua.unpack_multi(args)?;
                 if let LuaValue::Table(t) = arg {
                     // list of individual layers
                     let mut ret = LayerMask::EMPTY;

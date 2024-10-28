@@ -25,18 +25,18 @@ pub enum LuaRegion {
     Not(Box<LuaRegion>),
 }
 
-impl<'lua> FromLua<'lua> for LuaRegion {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaRegion {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         cast_userdata(lua, &value)
     }
 }
 
 impl LuaUserData for LuaRegion {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("region"));
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             this.lua_into_string()
         });

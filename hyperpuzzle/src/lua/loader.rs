@@ -52,18 +52,24 @@ impl LuaLoader {
 
             // Monkeypatch builtin `type` function.
             let globals = lua.globals();
-            let type_fn = |_lua, v| Ok(lua_type_name(&v));
-            globals.raw_set("type", lua.create_function(type_fn)?)?;
+            globals.raw_set(
+                "type",
+                lua.create_function(|_lua, v| Ok(lua_type_name(&v)))?,
+            )?;
 
             // Monkeypatch math lib.
-            let math: LuaTable<'_> = globals.get("math")?;
+            let math: LuaTable = globals.get("math")?;
             let round_fn = lua.create_function(|_lua, x: LuaNumber| Ok(x.round()))?;
             math.raw_set("round", round_fn)?;
             // TODO: support other numbers
-            let eq_fn = |_lua, (a, b): (LuaNumber, LuaNumber)| Ok(hypermath::approx_eq(&a, &b));
-            math.raw_set("eq", lua.create_function(eq_fn)?)?;
-            let neq_fn = |_lua, (a, b): (LuaNumber, LuaNumber)| Ok(!hypermath::approx_eq(&a, &b));
-            math.raw_set("neq", lua.create_function(neq_fn)?)?;
+            let eq_fn = lua.create_function(|_lua, (a, b): (LuaNumber, LuaNumber)| {
+                Ok(hypermath::approx_eq(&a, &b))
+            });
+            math.raw_set("eq", eq_fn?)?;
+            let neq_fn = lua.create_function(|_lua, (a, b): (LuaNumber, LuaNumber)| {
+                Ok(!hypermath::approx_eq(&a, &b))
+            });
+            math.raw_set("neq", neq_fn?)?;
 
             if crate::CAPTURE_LUA_OUTPUT {
                 let logger2 = logger.clone();
@@ -82,7 +88,7 @@ impl LuaLoader {
             }
 
             // Grab the sandbox environment so we can insert our custom globals.
-            let sandbox: LuaTable<'_> = lua.globals().get("SANDBOX_ENV")?;
+            let sandbox: LuaTable = lua.globals().get("SANDBOX_ENV")?;
 
             // Constants
             sandbox.raw_set("_PUZZLE_ENGINE", crate::PUZZLE_ENGINE_VERSION_STRING)?;
@@ -90,9 +96,10 @@ impl LuaLoader {
 
             // Imports
             let db2 = Arc::clone(&db);
-            let require_fn =
-                move |lua, filename| LuaLoaderRef { lua, db: &db2 }.load_file_dependency(filename);
-            sandbox.raw_set("require", lua.create_function(require_fn)?)?;
+            let require_fn = lua.create_function(move |lua, filename| {
+                LuaLoaderRef { lua, db: &db2 }.load_file_dependency(filename)
+            });
+            sandbox.raw_set("require", require_fn?)?;
 
             // Database
             sandbox.raw_set("puzzles", LuaPuzzleDb)?;
@@ -100,14 +107,18 @@ impl LuaLoader {
             sandbox.raw_set("color_systems", LuaColorSystemDb)?;
 
             // `blade` constructors
-            let vec_fn = |lua, LuaVectorFromMultiValue(v)| LuaBlade::from_vector(lua, v);
-            sandbox.raw_set("vec", lua.create_function(vec_fn)?)?;
-            let point_fn = |lua, LuaPointFromMultiValue(v)| LuaBlade::from_point(lua, v);
-            sandbox.raw_set("point", lua.create_function(point_fn)?)?;
-            let blade_fn = |_lua, b: LuaBlade| Ok(b);
-            sandbox.raw_set("blade", lua.create_function(blade_fn)?)?;
-            let plane_fn = |lua, LuaHyperplaneFromMultivalue(h)| LuaBlade::from_hyperplane(lua, &h);
-            sandbox.raw_set("plane", lua.create_function(plane_fn)?)?;
+            let vec_fn = lua
+                .create_function(|lua, LuaVectorFromMultiValue(v)| LuaBlade::from_vector(lua, v));
+            sandbox.raw_set("vec", vec_fn?)?;
+            let point_fn =
+                lua.create_function(|lua, LuaPointFromMultiValue(v)| LuaBlade::from_point(lua, v))?;
+            sandbox.raw_set("point", point_fn)?;
+            let blade_fn = lua.create_function(|_lua, b: LuaBlade| Ok(b))?;
+            sandbox.raw_set("blade", blade_fn)?;
+            let plane_fn = lua.create_function(|lua, LuaHyperplaneFromMultivalue(h)| {
+                LuaBlade::from_hyperplane(lua, &h)
+            })?;
+            sandbox.raw_set("plane", plane_fn)?;
 
             // `symmetry` constructors
             let cd_fn = LuaSymmetry::construct_from_cd;
@@ -186,12 +197,12 @@ impl LuaLoader {
             .expect("error loading test file");
 
         let mut ran_any_tests = false;
-        for pair in env.pairs::<LuaValue<'_>, LuaValue<'_>>() {
+        for pair in env.pairs::<LuaValue, LuaValue>() {
             let (k, v) = pair.unwrap();
             let Ok(name) = self.lua.unpack::<String>(k) else {
                 continue;
             };
-            let Ok(function) = self.lua.unpack::<LuaFunction<'_>>(v) else {
+            let Ok(function) = self.lua.unpack::<LuaFunction>(v) else {
                 continue;
             };
             if name.starts_with("test_") {
@@ -205,10 +216,10 @@ impl LuaLoader {
                     let ndim: u8 = digit.to_string().parse().expect("bad ndim for test");
                     println!("Running {name:?} in {ndim}D space ...");
                     LuaSpace(hypershape::flat::Space::new(ndim))
-                        .with_this_as_global_space(&self.lua, || function.call::<(), ()>(()))
+                        .with_this_as_global_space(&self.lua, || function.call::<()>(()))
                 } else {
                     println!("Running {name:?} ...");
-                    function.call::<(), ()>(())
+                    function.call::<()>(())
                 }
                 .expect("test failed")
             }
@@ -224,7 +235,7 @@ struct LuaLoaderRef<'lua, 'db> {
 impl<'lua> LuaLoaderRef<'lua, '_> {
     /// Loads a file if it has not yet been loaded, and then returns the file's
     /// export table.
-    fn load_file(&self, filename: &str) -> LuaResult<LuaTable<'lua>> {
+    fn load_file(&self, filename: &str) -> LuaResult<LuaTable> {
         let db = self.db.lock();
 
         // If the file doesn't exist, return an error.
@@ -250,8 +261,8 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
             }
         }
 
-        let make_sandbox_fn: LuaFunction<'_> = self.lua.globals().get("make_sandbox")?;
-        let sandbox_env: LuaTable<'_> = make_sandbox_fn.call(filename)?;
+        let make_sandbox_fn: LuaFunction = self.lua.globals().get("make_sandbox")?;
+        let sandbox_env: LuaTable = make_sandbox_fn.call(filename)?;
         let exports_table = self.lua.create_registry_value(sandbox_env.clone())?;
 
         // There must be no way to exit the function during this block.
@@ -303,7 +314,7 @@ impl<'lua> LuaLoaderRef<'lua, '_> {
     }
 
     /// Records a file dependency, then loads it using `load_file()`.
-    fn load_file_dependency(&self, mut filename: String) -> LuaResult<LuaTable<'lua>> {
+    fn load_file_dependency(&self, mut filename: String) -> LuaResult<LuaTable> {
         if !filename.ends_with(".lua") {
             filename.push_str(".lua");
         }

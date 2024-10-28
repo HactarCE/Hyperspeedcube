@@ -28,7 +28,7 @@ fn lua_stack_trace(lua: &mlua::Lua) -> String {
 }
 
 /// Returns a table mapping between axis strings and axis numbers.
-fn lua_axes_table(lua: &mlua::Lua) -> mlua::Result<mlua::Table<'_>> {
+fn lua_axes_table(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     let axes_table = lua.create_table()?;
     for (i, c) in hypermath::AXIS_NAMES.chars().enumerate().take(6) {
         axes_table.set(LuaIndex(i), c.to_string())?;
@@ -55,19 +55,13 @@ fn result_to_ok_or_warn<T, E>(
     }
 }
 
-fn deep_copy_value<'lua>(
-    lua: &'lua mlua::Lua,
-    value: mlua::Value<'lua>,
-) -> mlua::Result<mlua::Value<'lua>> {
+fn deep_copy_value(lua: &mlua::Lua, value: mlua::Value) -> mlua::Result<mlua::Value> {
     match value {
         mlua::Value::Table(table) => Ok(mlua::Value::Table(deep_copy_table(lua, table)?)),
         _ => Ok(value),
     }
 }
-fn deep_copy_table<'lua>(
-    lua: &'lua mlua::Lua,
-    table: mlua::Table<'lua>,
-) -> mlua::Result<mlua::Table<'lua>> {
+fn deep_copy_table(lua: &mlua::Lua, table: mlua::Table) -> mlua::Result<mlua::Table> {
     let kv_pairs = table
         .pairs()
         .map(|pair| {

@@ -8,8 +8,8 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct LuaSpace(pub Arc<Space>);
 
-impl<'lua> FromLua<'lua> for LuaSpace {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaSpace {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         cast_userdata(lua, &value)
     }
 }
@@ -32,8 +32,8 @@ impl LuaSpace {
         lua: &Lua,
         f: impl FnOnce() -> LuaResult<R>,
     ) -> LuaResult<R> {
-        let old_space: LuaValue<'_> = lua.globals().get("SPACE")?;
-        let old_ndim: LuaValue<'_> = lua.globals().get("NDIM")?;
+        let old_space: LuaValue = lua.globals().get("SPACE")?;
+        let old_ndim: LuaValue = lua.globals().get("NDIM")?;
         lua.globals().set("SPACE", self.clone())?;
         lua.globals().set("NDIM", self.0.ndim())?;
         let result = f();
@@ -44,11 +44,11 @@ impl LuaSpace {
 }
 
 impl LuaUserData for LuaSpace {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("space"));
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
             Ok(format!("space(ndim = {})", this.ndim()))
         });

@@ -32,8 +32,8 @@ impl LuaMultivectorIndex {
     }
 }
 
-impl<'lua> FromLua<'lua> for LuaMultivectorIndex {
-    fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaMultivectorIndex {
+    fn from_lua(lua_value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         if let Ok(LuaVectorIndex(i)) = LuaVectorIndex::from_lua(lua_value.clone(), lua) {
             Ok(LuaMultivectorIndex {
                 axes: Axes::euclidean(i),

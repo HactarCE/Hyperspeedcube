@@ -30,8 +30,8 @@ pub enum LuaSymmetry {
     },
 }
 
-impl<'lua> FromLua<'lua> for LuaSymmetry {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaSymmetry {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         cast_userdata(lua, &value)
     }
 }
@@ -48,9 +48,9 @@ impl<T: Into<CoxeterGroup>> From<T> for LuaSymmetry {
 impl LuaSymmetry {
     /// Constructs a symmetry object from a Lua value (string or table)
     /// representing a Coxeter group.
-    pub fn construct_from_cd<'lua>(
-        lua: &'lua Lua,
-        (v, basis): (LuaValue<'lua>, Option<LuaValue<'lua>>),
+    pub fn construct_from_cd(
+        lua: &Lua,
+        (v, basis): (LuaValue, Option<LuaValue>),
     ) -> LuaResult<Self> {
         fn split_alpha_number(s: &str) -> Option<(&str, u8)> {
             let (num_index, _) = s.match_indices(char::is_numeric).next()?;
@@ -126,15 +126,12 @@ impl LuaSymmetry {
     }
 
     /// Constructs a symmetry object from a sequence of generators.
-    pub fn construct_from_generators<'lua>(
-        lua: &'lua Lua,
-        generators: LuaTable<'lua>,
-    ) -> LuaResult<Self> {
+    pub fn construct_from_generators(lua: &Lua, generators: LuaTable) -> LuaResult<Self> {
         Ok(Self::Custom {
             generators: generators
                 .sequence_values()
                 .map(|value| {
-                    let value: LuaValue<'_> = value?;
+                    let value: LuaValue = value?;
                     if let Ok(LuaTransform(t)) = lua.unpack(value.clone()) {
                         Ok(t)
                     } else if let Ok(t) = lua.unpack::<LuaTwist>(value.clone()) {
@@ -172,11 +169,7 @@ impl LuaSymmetry {
         Ok(coxeter.mirror_basis() * parse_dynkin_notation(coxeter.mirror_count(), string)?)
     }
 
-    fn vector_from_args<'lua>(
-        &self,
-        lua: &'lua Lua,
-        args: LuaMultiValue<'lua>,
-    ) -> LuaResult<Vector> {
+    fn vector_from_args(&self, lua: &Lua, args: LuaMultiValue) -> LuaResult<Vector> {
         let coxeter = self.as_coxeter()?;
 
         if let Ok(string) = String::from_lua_multi(args.clone(), lua) {
@@ -249,7 +242,7 @@ impl LuaSymmetry {
 }
 
 impl LuaUserData for LuaSymmetry {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("symmetry"));
 
         fields.add_field_method_get("ndim", |_lua, this| match this {
@@ -284,7 +277,7 @@ impl LuaUserData for LuaSymmetry {
         });
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| match this {
             LuaSymmetry::Coxeter { coxeter, chiral } => {
                 let mut s = coxeter.to_string();
@@ -306,7 +299,7 @@ impl LuaUserData for LuaSymmetry {
             }
         });
 
-        methods.add_method("orbit", |lua, this, args: LuaMultiValue<'_>| {
+        methods.add_method("orbit", |lua, this, args: LuaMultiValue| {
             let objects: Vec<Transformable> = args
                 .into_iter()
                 .map(|arg| Transformable::from_lua(arg, lua))
@@ -318,7 +311,7 @@ impl LuaUserData for LuaSymmetry {
             Ok(LuaVector(this.vector_from_args(lua, args)?))
         });
 
-        methods.add_method("thru", |lua, this, indices: LuaMultiValue<'_>| {
+        methods.add_method("thru", |lua, this, indices: LuaMultiValue| {
             let indices: Vec<u8> = indices
                 .into_iter()
                 .map(|v| LuaIndex::from_lua(v, lua).map(|LuaIndex(i)| i as u8))

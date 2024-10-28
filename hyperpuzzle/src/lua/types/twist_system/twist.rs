@@ -10,7 +10,7 @@ use crate::puzzle::Twist;
 pub type LuaTwist = LuaDbEntry<Twist, PuzzleBuilder>;
 
 impl LuaUserData for LuaTwist {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("twist"));
 
         LuaNamedIdDatabase::<Twist>::add_named_db_entry_fields(fields);
@@ -21,7 +21,7 @@ impl LuaUserData for LuaTwist {
         });
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             if let Some(name) = this.db.lock().twists.names.get(this.id) {
                 Ok(format!("twist({name:?})"))

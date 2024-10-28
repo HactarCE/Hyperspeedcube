@@ -6,14 +6,11 @@ use crate::lua::lua_warn_fn;
 use crate::PerColor;
 
 /// Constructs a color system from a Lua specification.
-pub fn from_lua_table<'lua>(
-    lua: &'lua Lua,
-    table: LuaTable<'lua>,
-) -> LuaResult<ColorSystemBuilder> {
+pub fn from_lua_table(lua: &Lua, table: LuaTable) -> LuaResult<ColorSystemBuilder> {
     let id: String;
     let name: Option<String>;
-    let colors: LuaTable<'_>;
-    let schemes: Option<LuaTable<'_>>;
+    let colors: LuaTable;
+    let schemes: Option<LuaTable>;
     let default: Option<String>;
     unpack_table!(lua.unpack(table {
         id,
@@ -38,7 +35,7 @@ pub fn from_lua_table<'lua>(
 
     // Add color schemes.
     if let Some(color_schemes_table) = schemes {
-        for scheme in color_schemes_table.sequence_values::<LuaTable<'_>>() {
+        for scheme in color_schemes_table.sequence_values::<LuaTable>() {
             let (name, mapping_table) =
                 scheme?.sequence_values().collect_tuple().ok_or_else(|| {
                     LuaError::external(
@@ -61,10 +58,10 @@ pub fn from_lua_table<'lua>(
     Ok(colors)
 }
 
-fn add_colors_from_table<'lua>(
-    lua: &'lua Lua,
+fn add_colors_from_table(
+    lua: &Lua,
     colors: &mut ColorSystemBuilder,
-    colors_table: LuaTable<'lua>,
+    colors_table: LuaTable,
     allow_default: bool,
 ) -> LuaResult<()> {
     for color in colors_table.sequence_values() {
@@ -100,7 +97,7 @@ fn add_colors_from_table<'lua>(
 fn add_color_scheme_from_table(
     colors: &mut ColorSystemBuilder,
     name: String,
-    mapping_table: LuaTable<'_>,
+    mapping_table: LuaTable,
 ) -> LuaResult<()> {
     let name_to_id = &colors.names.names_to_ids();
 

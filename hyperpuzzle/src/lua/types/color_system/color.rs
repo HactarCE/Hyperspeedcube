@@ -8,7 +8,7 @@ use crate::puzzle::Color;
 pub type LuaColor = LuaDbEntry<Color, PuzzleBuilder>;
 
 impl LuaUserData for LuaColor {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("color"));
 
         LuaNamedIdDatabase::add_named_db_entry_fields(fields);
@@ -32,7 +32,7 @@ impl LuaUserData for LuaColor {
         });
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             if let Some(name) = this.db.lock().names().get(this.id) {
                 Ok(format!("color({name:?})"))

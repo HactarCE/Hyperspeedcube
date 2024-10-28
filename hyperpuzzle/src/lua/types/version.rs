@@ -23,8 +23,8 @@ impl fmt::Display for Version {
     }
 }
 /// Parses a basic semver string, where minor and patch versions are optional.
-impl<'lua> FromLua<'lua> for Version {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for Version {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         let Ok(version_string) = String::from_lua(value, lua) else {
             lua.warning(format!("expected version string"), false);
             return Ok(Self::default());
@@ -60,8 +60,8 @@ impl<'lua> FromLua<'lua> for Version {
         }
     }
 }
-impl<'lua> IntoLua<'lua> for Version {
-    fn into_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+impl IntoLua for Version {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
         self.to_string().into_lua(lua)
     }
 }

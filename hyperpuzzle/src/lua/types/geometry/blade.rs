@@ -7,8 +7,8 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct LuaBlade(pub Blade);
 
-impl<'lua> FromLua<'lua> for LuaBlade {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaBlade {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         if let Ok(m) = cast_userdata(lua, &value) {
             Ok(m)
         } else if let Ok(h) = cast_userdata::<LuaHyperplane>(lua, &value) {
@@ -25,7 +25,7 @@ impl<'lua> FromLua<'lua> for LuaBlade {
 }
 
 impl LuaUserData for LuaBlade {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("blade"));
 
         fields.add_field_method_get("ndim", |_lua, Self(b)| Ok(b.ndim()));
@@ -45,10 +45,10 @@ impl LuaUserData for LuaBlade {
                 .ok_or_else(|| LuaError::external("cannot normalize zero blade"))
         });
         fields.add_field_method_get("normalize", |_lua, _| {
-            Err::<LuaValue<'_>, _>(LuaError::external("use `.unit` instead"))
+            Err::<LuaValue, _>(LuaError::external("use `.unit` instead"))
         });
         fields.add_field_method_get("normalized", |_lua, Self(_)| {
-            Err::<LuaValue<'_>, _>(LuaError::external("use `.unit` instead"))
+            Err::<LuaValue, _>(LuaError::external("use `.unit` instead"))
         });
 
         fields.add_field_method_get("mag2", |_lua, Self(this)| Ok(this.mag2()));
@@ -58,7 +58,7 @@ impl LuaUserData for LuaBlade {
         fields.add_field_method_get("weight", |_lua, Self(this)| Ok(Self(this.weight())));
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(b), ()| {
             if let Some(p) = b.to_point() {
                 Ok(format!("point{p}"))
@@ -118,7 +118,7 @@ impl LuaUserData for LuaBlade {
         });
 
         // blade * number; number * blade
-        methods.add_meta_function(LuaMetaMethod::Mul, |lua, args: LuaMultiValue<'_>| {
+        methods.add_meta_function(LuaMetaMethod::Mul, |lua, args: LuaMultiValue| {
             if let Ok((Self(v), a)) = lua.unpack_multi(args.clone()) {
                 let a: Float = a;
                 Ok(Self(v * a))
@@ -126,7 +126,7 @@ impl LuaUserData for LuaBlade {
                 let a: Float = a;
                 Ok(Self(v * a))
             } else {
-                let [a, b]: [LuaValue<'_>; 2] = lua.unpack_multi(args)?;
+                let [a, b]: [LuaValue; 2] = lua.unpack_multi(args)?;
                 Err(LuaError::external(format!(
                     "cannot multiply {} and {}",
                     a.type_name(),
@@ -164,7 +164,7 @@ impl LuaUserData for LuaBlade {
         // blade[index]
         methods.add_meta_method(
             LuaMetaMethod::Index,
-            |lua, Self(this), arg: LuaValue<'_>| match lua.unpack(arg) {
+            |lua, Self(this), arg: LuaValue| match lua.unpack(arg) {
                 Ok(LuaMultivectorIndex { axes, sign, .. }) => Ok(this.get(axes).map(|&x| x * sign)),
                 Err(_) => Ok(None),
             },
@@ -174,7 +174,7 @@ impl LuaUserData for LuaBlade {
         // to mutate aliased blades, which is very confusing.
         methods.add_meta_method(
             LuaMetaMethod::NewIndex,
-            |_lua, Self(_), _: LuaMultiValue<'_>| -> LuaResult<()> {
+            |_lua, Self(_), _: LuaMultiValue| -> LuaResult<()> {
                 Err(LuaError::external(
                     "mutation of blades is not allowed. \
                      construct a new blade instead.",

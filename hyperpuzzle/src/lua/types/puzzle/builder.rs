@@ -13,14 +13,14 @@ use crate::{Color, DevOrbit};
 #[derive(Debug, Clone)]
 pub struct LuaPuzzleBuilder(pub Arc<Mutex<PuzzleBuilder>>);
 
-impl<'lua> FromLua<'lua> for LuaPuzzleBuilder {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaPuzzleBuilder {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         cast_userdata(lua, &value)
     }
 }
 
 impl LuaUserData for LuaPuzzleBuilder {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("puzzle"));
 
         fields.add_field_method_get("id", |_lua, this| Ok(this.lock().id.clone()));
@@ -32,7 +32,7 @@ impl LuaUserData for LuaPuzzleBuilder {
         fields.add_field_method_get("twists", |_lua, this| Ok(LuaTwistSystem(this.arc())));
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             Ok(format!("puzzle({:?})", this.lock().name))
         });
@@ -40,7 +40,7 @@ impl LuaUserData for LuaPuzzleBuilder {
         methods.add_method("carve", |lua, this, (cuts, args)| {
             let sticker_mode;
             if let Some(table) = args {
-                let stickers: LuaValue<'_>;
+                let stickers: LuaValue;
                 unpack_table!(lua.unpack(table { stickers }));
                 if stickers.is_nil() {
                     sticker_mode = StickerMode::NewColor; // default
@@ -79,7 +79,7 @@ impl LuaUserData for LuaPuzzleBuilder {
             this.cut(lua, cuts, CutMode::Slice, StickerMode::None)
         });
 
-        methods.add_method("add_piece_type", |lua, this, args: LuaTable<'_>| {
+        methods.add_method("add_piece_type", |lua, this, args: LuaTable| {
             let name: String;
             let display: Option<String>;
             unpack_table!(lua.unpack(args { name, display }));
@@ -89,7 +89,7 @@ impl LuaUserData for LuaPuzzleBuilder {
             }
             Ok(())
         });
-        methods.add_method("mark_piece", |lua, this, args: LuaTable<'_>| {
+        methods.add_method("mark_piece", |lua, this, args: LuaTable| {
             let region: LuaRegion;
             let name: String;
             let display: Option<String>;

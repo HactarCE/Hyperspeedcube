@@ -6,8 +6,8 @@ use super::*;
 #[derive(Debug, Default, Clone)]
 pub struct LuaHyperplaneSet(pub Vec<Hyperplane>);
 
-impl<'lua> FromLua<'lua> for LuaHyperplaneSet {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaHyperplaneSet {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         if value.is_nil() {
             Ok(Self(vec![]))
         } else if let Ok(LuaHyperplane(h)) = lua.unpack(value.clone()) {
@@ -26,8 +26,8 @@ impl<'lua> FromLua<'lua> for LuaHyperplaneSet {
 #[derive(Debug, Clone)]
 pub struct LuaHyperplaneFromMultivalue(pub Hyperplane);
 
-impl<'lua> FromLuaMulti<'lua> for LuaHyperplaneFromMultivalue {
-    fn from_lua_multi(values: LuaMultiValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLuaMulti for LuaHyperplaneFromMultivalue {
+    fn from_lua_multi(values: LuaMultiValue, lua: &Lua) -> LuaResult<Self> {
         let hyperplane = if values.len() == 2 {
             let LuaVector(normal) = <_>::from_lua(values.get(0).unwrap_or(&LuaNil).clone(), lua)?;
             let distance: Float = <_>::from_lua(values.get(1).unwrap_or(&LuaNil).clone(), lua)?;
@@ -48,8 +48,8 @@ impl<'lua> FromLuaMulti<'lua> for LuaHyperplaneFromMultivalue {
 #[derive(Debug, Clone)]
 pub struct LuaHyperplane(pub Hyperplane);
 
-impl<'lua> FromLua<'lua> for LuaHyperplane {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaHyperplane {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         if let Ok(this) = cast_userdata(lua, &value) {
             Ok(this)
         } else if let Ok(LuaVector(v)) = lua.unpack(value.clone()) {
@@ -75,7 +75,7 @@ impl<'lua> FromLua<'lua> for LuaHyperplane {
 }
 
 impl LuaUserData for LuaHyperplane {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("hyperplane"));
 
         fields.add_field_method_get("ndim", |_lua, Self(this)| Ok(this.normal().ndim()));
@@ -91,7 +91,7 @@ impl LuaUserData for LuaHyperplane {
         });
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_method("signed_distance", |_lua, Self(this), LuaPoint(p)| {
             Ok(this.signed_distance_to_point(p))
         });
@@ -104,8 +104,8 @@ impl LuaUserData for LuaHyperplane {
 
 impl LuaHyperplane {
     /// Constructs a plane from a table of values.
-    pub fn construct_from_table(lua: &Lua, t: LuaTable<'_>) -> LuaResult<Self> {
-        let arg_count = t.clone().pairs::<LuaValue<'_>, LuaValue<'_>>().count();
+    pub fn construct_from_table(lua: &Lua, t: LuaTable) -> LuaResult<Self> {
+        let arg_count = t.clone().pairs::<LuaValue, LuaValue>().count();
         let ensure_args_len = |n| {
             if n == arg_count {
                 Ok(())

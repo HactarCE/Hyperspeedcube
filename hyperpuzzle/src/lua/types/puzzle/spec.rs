@@ -55,18 +55,18 @@ impl Ord for PuzzleSpec {
     }
 }
 
-impl<'lua> FromLua<'lua> for PuzzleSpec {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        let table: LuaTable<'lua> = lua.unpack(value)?;
+impl FromLua for PuzzleSpec {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
+        let table: LuaTable = lua.unpack(value)?;
 
         let id: String;
         let version: Version;
         let name: Option<String>;
         let aliases: Option<Vec<String>>;
-        let tags: Option<LuaTable<'lua>>;
+        let tags: Option<LuaTable>;
         let colors: Option<String>;
         let ndim: LuaNdim;
-        let build: LuaFunction<'lua>;
+        let build: LuaFunction;
         let remove_internals: Option<bool>;
         unpack_table!(lua.unpack(table {
             id,
@@ -130,7 +130,7 @@ impl PuzzleSpec {
         let space = puzzle_builder.lock().space();
 
         let () = LuaSpace(space).with_this_as_global_space(lua, || {
-            lua.registry_value::<LuaFunction<'_>>(&self.user_build_fn)?
+            lua.registry_value::<LuaFunction>(&self.user_build_fn)?
                 .call(LuaPuzzleBuilder(Arc::clone(&puzzle_builder)))
                 .context("error executing puzzle definition")
         })?;

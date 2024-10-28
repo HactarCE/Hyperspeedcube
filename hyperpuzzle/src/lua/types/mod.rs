@@ -43,7 +43,7 @@ impl<T: 'static + LuaUserData> LuaTypeName for T {
 /// Casts userdata to `T` if it is the correct type; otherwise returns an error.
 pub fn cast_userdata<T: 'static + LuaUserData + Clone>(
     lua: &Lua,
-    value: &LuaValue<'_>,
+    value: &LuaValue,
 ) -> LuaResult<T> {
     match value.as_userdata().and_then(|d| d.borrow::<T>().ok()) {
         Some(value) => Ok(value.clone()),
@@ -57,15 +57,15 @@ pub fn cast_userdata<T: 'static + LuaUserData + Clone>(
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(super) struct LuaStaticStr(&'static str);
 impl LuaUserData for LuaStaticStr {}
-impl<'lua> FromLua<'lua> for LuaStaticStr {
-    fn from_lua(value: LuaValue<'lua>, _lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaStaticStr {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
         value
             .as_userdata()
             .ok_or(LuaError::FromLuaConversionError {
                 // Don't use our custom `lua_type_name()` because that could
                 // potentially cause infinite recursion!
                 from: value.type_name(),
-                to: "Rust `&'static str`",
+                to: "Rust `&'static str`".to_owned(),
                 message: None,
             })?
             .borrow()
@@ -75,15 +75,15 @@ impl<'lua> FromLua<'lua> for LuaStaticStr {
 
 /// Shortcut function to construct the obvious
 /// [`LuaError::FromLuaConversionError`].
-fn lua_convert_err<T>(value: &LuaValue<'_>, to: &'static str) -> Result<T, LuaError> {
+fn lua_convert_err<T>(value: &LuaValue, to: impl ToString) -> Result<T, LuaError> {
     Err(lua_convert_error(value, to))
 }
 /// Shortcut function to construct the obvious
 /// [`LuaError::FromLuaConversionError`].
-fn lua_convert_error(value: &LuaValue<'_>, to: &'static str) -> LuaError {
+fn lua_convert_error(value: &LuaValue, to: impl ToString) -> LuaError {
     LuaError::FromLuaConversionError {
         from: lua_type_name(value),
-        to,
+        to: to.to_string(),
         message: None,
     }
 }
@@ -99,7 +99,7 @@ pub fn lua_userdata_type_name<T: 'static + LuaUserData>(lua: &Lua) -> LuaResult<
 ///
 /// For userdata types defined in this crate, the `"type"` metadata key is used
 /// instead, which gives better information to users of the Lua API.
-pub fn lua_type_name(value: &LuaValue<'_>) -> &'static str {
+pub fn lua_type_name(value: &LuaValue) -> &'static str {
     // IIFE to mimic try_block
     match (|| {
         value
@@ -115,6 +115,6 @@ pub fn lua_type_name(value: &LuaValue<'_>) -> &'static str {
 }
 
 /// Sets the metatable on `table` to make it read-only.
-pub fn seal_table<'lua>(lua: &'lua Lua, table: &LuaTable<'lua>) -> LuaResult<()> {
-    lua.globals().get::<_, LuaFunction<'_>>("seal")?.call(table)
+pub fn seal_table(lua: &Lua, table: &LuaTable) -> LuaResult<()> {
+    lua.globals().get::<LuaFunction>("seal")?.call(table)
 }

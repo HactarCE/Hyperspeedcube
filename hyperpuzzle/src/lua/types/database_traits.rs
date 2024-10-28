@@ -39,17 +39,17 @@ impl<I: PartialEq, D> PartialEq for LuaDbEntry<I, D> {
 }
 impl<I: Eq, D> Eq for LuaDbEntry<I, D> {}
 
-impl<'lua, I, D> FromLua<'lua> for LuaDbEntry<I, D>
+impl<'lua, I, D> FromLua for LuaDbEntry<I, D>
 where
     Self: 'static + LuaUserData + Clone,
 {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         cast_userdata(lua, &value)
     }
 }
 
 /// Database of Lua values referenced using some sort of unique ID.
-pub trait LuaIdDatabase<'lua, I>: 'static + Sized
+pub trait LuaIdDatabase<I>: 'static + Sized
 where
     I: 'static + Clone,
     LuaDbEntry<I, Self>: LuaUserData,
@@ -67,15 +67,11 @@ where
     /// Converts a [`LuaValue`] to an entry ID, or returns an error if no such
     /// entry exists. Many different types are accepted depending on the
     /// collection; most often, names and indices are accepted.
-    fn value_to_id(&self, lua: &'lua Lua, value: LuaValue<'lua>) -> LuaResult<I>;
+    fn value_to_id(&self, lua: &Lua, value: LuaValue) -> LuaResult<I>;
 
     /// Converts a [`LuaValue`] to an entry ID if it is a [`LuaDbEntry`]
     /// userdata value, or returns `None` if it is not.
-    fn value_to_id_by_userdata(
-        &self,
-        lua: &'lua Lua,
-        value: &LuaValue<'lua>,
-    ) -> Option<LuaResult<I>>
+    fn value_to_id_by_userdata(&self, lua: &Lua, value: &LuaValue) -> Option<LuaResult<I>>
     where
         LuaDbEntry<I, Self>: LuaUserData,
     {
@@ -97,10 +93,10 @@ where
 
     /// Constructs a mapping from ID to `T` from a Lua value, which may be a
     /// table of pairs `(id, T)` or a function from ID to `T`.
-    fn mapping_from_value<T: FromLua<'lua>>(
+    fn mapping_from_value<T: FromLua>(
         this: &Mutex<Self>,
-        lua: &'lua Lua,
-        mapping_value: LuaValue<'lua>,
+        lua: &Lua,
+        mapping_value: LuaValue,
     ) -> LuaResult<Vec<(I, T)>> {
         let db = this.lock();
         match mapping_value {
@@ -137,7 +133,7 @@ where
     /// - `__tostring` (metamethod)
     /// - `__index` (metamethod)
     /// - `__len` (metamethod)
-    fn add_db_metamethods<T: 'static + mlua::UserData, M: LuaUserDataMethods<'lua, T>>(
+    fn add_db_metamethods<T: 'static + mlua::UserData, M: LuaUserDataMethods<T>>(
         methods: &mut M,
         as_mutex_db: fn(&T) -> &Mutex<Self>,
     ) {
@@ -162,7 +158,7 @@ where
 }
 
 /// Extension of [`LuaIdDatabase`] to support naming elements.
-pub trait LuaNamedIdDatabase<'lua, I>: LuaIdDatabase<'lua, I>
+pub trait LuaNamedIdDatabase<I>: LuaIdDatabase<I>
 where
     I: 'static + Clone + Hash + Eq,
     LuaDbEntry<I, Self>: LuaUserData,
@@ -175,9 +171,9 @@ where
     /// Converts a [`LuaValue`] to an entry ID if it is a string containing an
     /// element name, or returns `None` if it is not.
     #[must_use]
-    fn value_to_id_by_name(&self, _lua: &'lua Lua, value: &LuaValue<'lua>) -> Option<LuaResult<I>> {
+    fn value_to_id_by_name(&self, _lua: &Lua, value: &LuaValue) -> Option<LuaResult<I>> {
         let s = value.as_str()?;
-        Some(match self.names().names_to_ids().get(s) {
+        Some(match self.names().names_to_ids().get(&*s) {
             Some(id) => Ok(id.clone()),
             None => Err(LuaError::external(format!("no entry named {s:?}"))),
         })
@@ -186,7 +182,7 @@ where
     /// Renames all elements.
     fn rename_all(
         &mut self,
-        lua: &'lua Lua,
+        lua: &Lua,
         ids_and_new_names: Vec<(I, Option<String>)>,
     ) -> LuaResult<NamingScheme<I>> {
         // We need to rename all the entries at once, so just construct a new
@@ -203,7 +199,7 @@ where
 
     /// Defines the following methods on a database:
     /// - `rename`
-    fn add_named_db_methods<T: 'static, M: LuaUserDataMethods<'lua, T>>(
+    fn add_named_db_methods<T: 'static, M: LuaUserDataMethods<T>>(
         methods: &mut M,
         as_mutex_db: fn(&T) -> &Mutex<Self>,
     ) {
@@ -222,7 +218,7 @@ where
 
     /// Defines the following fields on a database entry:
     /// - `name`
-    fn add_named_db_entry_fields<F: LuaUserDataFields<'lua, LuaDbEntry<I, Self>>>(fields: &mut F) {
+    fn add_named_db_entry_fields<F: LuaUserDataFields<LuaDbEntry<I, Self>>>(fields: &mut F) {
         fields.add_field_method_get("name", |_lua, this| {
             let db = this.db.lock();
             Ok(db.names().get(this.id.clone()))
@@ -238,7 +234,7 @@ where
 
 /// Extension of [`LuaIdDatabase`] to enforce a total ordering on entries. Also,
 /// the ID must be an [`IndexNewtype`].
-pub trait LuaOrderedIdDatabase<'lua, I>: LuaIdDatabase<'lua, I>
+pub trait LuaOrderedIdDatabase<I>: LuaIdDatabase<I>
 where
     I: 'static + IndexNewtype,
     LuaDbEntry<I, Self>: LuaUserData,
@@ -251,7 +247,7 @@ where
 
     /// Converts a [`LuaValue`] to an entry ID if it is an index, or returns
     /// `None` if it is not.
-    fn value_to_id_by_index(&self, lua: &'lua Lua, value: &LuaValue<'lua>) -> Option<LuaResult<I>> {
+    fn value_to_id_by_index(&self, lua: &Lua, value: &LuaValue) -> Option<LuaResult<I>> {
         let LuaIndex(i) = lua.unpack(value.clone()).ok()?;
         Some(match self.ordering().ids_in_order().get(i) {
             Some(&id) => Ok(id),
@@ -273,11 +269,7 @@ where
     }
 
     /// Reorders all elements according to a hashmap.
-    fn reorder_all_by_key(
-        &mut self,
-        _lua: &'lua Lua,
-        new_order_keys: HashMap<I, f64>,
-    ) -> LuaResult<()> {
+    fn reorder_all_by_key(&mut self, _lua: &Lua, new_order_keys: HashMap<I, f64>) -> LuaResult<()> {
         // By default, leave unspecified entries in the same order at the end.
         // This sort is guaranteed to be stable.
         let mut new_ordering: Vec<I> = self.ordering().ids_in_order().to_vec();
@@ -298,7 +290,7 @@ where
     }
 
     /// Swaps two elements.
-    fn swap(&mut self, lua: &'lua Lua, i: LuaValue<'lua>, j: LuaValue<'lua>) -> LuaResult<()> {
+    fn swap(&mut self, lua: &Lua, i: LuaValue, j: LuaValue) -> LuaResult<()> {
         let i = self.value_to_id(lua, i)?;
         let j = self.value_to_id(lua, j)?;
         self.ordering_mut().swap(i, j);
@@ -308,7 +300,7 @@ where
     /// Defines the following methods on a database:
     /// - `swap`
     /// - `reorder`
-    fn add_ordered_db_methods<T: 'static, M: LuaUserDataMethods<'lua, T>>(
+    fn add_ordered_db_methods<T: 'static, M: LuaUserDataMethods<T>>(
         methods: &mut M,
         as_mutex_db: fn(&T) -> &Mutex<Self>,
     ) {
@@ -338,9 +330,7 @@ where
 
     /// Defines the following fields on a database entry:
     /// - `index`
-    fn add_ordered_db_entry_fields<F: LuaUserDataFields<'lua, LuaDbEntry<I, Self>>>(
-        fields: &mut F,
-    ) {
+    fn add_ordered_db_entry_fields<F: LuaUserDataFields<LuaDbEntry<I, Self>>>(fields: &mut F) {
         fields.add_field_method_get("index", |_lua, this| {
             let db = this.db.lock();
             db.ordering().get_index(this.id).into_lua_err()

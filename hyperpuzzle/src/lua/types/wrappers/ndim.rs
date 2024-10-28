@@ -6,12 +6,12 @@ use super::*;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LuaNdim(pub u8);
 
-impl<'lua> FromLua<'lua> for LuaNdim {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaNdim {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         let LuaIntegerNoConvert(i) = lua.unpack(value)?;
         LuaNdim::try_from(i).map_err(|e| LuaError::FromLuaConversionError {
             from: "number",
-            to: "number of dimensions",
+            to: "number of dimensions".to_owned(),
             message: Some(e),
         })
     }

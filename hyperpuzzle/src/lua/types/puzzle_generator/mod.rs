@@ -34,19 +34,19 @@ pub struct PuzzleGeneratorSpec {
     pub aliases: Vec<String>,
 }
 
-impl<'lua> FromLua<'lua> for PuzzleGeneratorSpec {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        let table: LuaTable<'lua> = lua.unpack(value)?;
+impl FromLua for PuzzleGeneratorSpec {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
+        let table: LuaTable = lua.unpack(value)?;
 
         let id: String;
         let version: Version;
         let colors: Option<String>;
-        let tags: Option<LuaTable<'lua>>;
+        let tags: Option<LuaTable>;
         let params: Vec<GeneratorParam>;
         let examples: Option<Vec<PuzzleGeneratorExample>>;
         let name: Option<String>;
         let aliases: Option<Vec<String>>;
-        let gen: LuaFunction<'lua>;
+        let gen: LuaFunction;
         unpack_table!(lua.unpack(table {
             id,
             version,
@@ -122,9 +122,9 @@ impl PuzzleGeneratorSpec {
     }
 
     /// Runs user Lua code to generate a puzzle _definition_.
-    pub fn generate_puzzle_spec<'lua>(
+    pub fn generate_puzzle_spec(
         &self,
-        lua: &'lua Lua,
+        lua: &Lua,
         generator_param_values: Vec<String>,
         matching_example: Option<PuzzleGeneratorExample>,
     ) -> LuaResult<PuzzleGeneratorOutput> {
@@ -149,10 +149,11 @@ impl PuzzleGeneratorSpec {
         let gen_params_table = lua.create_sequence_from(params.clone())?;
 
         let user_gen_fn_output = lua
-            .registry_value::<LuaFunction<'_>>(&self.user_gen_fn)?
-            .call::<_, LuaMultiValue<'_>>(gen_params_table)
+            .registry_value::<LuaFunction>(&self.user_gen_fn)?
+            .call::<LuaMultiValue>(gen_params_table)
             .context("error generating puzzle definition")?
-            .into_vec();
+            .into_iter()
+            .collect_vec();
 
         let generated_spec = match user_gen_fn_output.get(0) {
             Some(LuaValue::String(s)) => {
@@ -163,7 +164,7 @@ impl PuzzleGeneratorSpec {
                             LuaSequence::<GeneratorParamValue>::from_lua(val.clone(), lua)?.0;
                         crate::generated_puzzle_id(&redirect_id, redirect_params)
                     } else {
-                        redirect_id.into_owned()
+                        redirect_id
                     },
                 ));
             }
@@ -261,11 +262,7 @@ pub struct GeneratorParam {
 impl GeneratorParam {
     /// Converts a Lua value to a value for this parameter and returns an error
     /// if it is invalid.
-    pub fn value_from_lua<'lua>(
-        &self,
-        lua: &'lua Lua,
-        mut value: LuaValue<'lua>,
-    ) -> LuaResult<GeneratorParamValue> {
+    pub fn value_from_lua(&self, lua: &Lua, mut value: LuaValue) -> LuaResult<GeneratorParamValue> {
         if value.is_nil() {
             value = self.default.clone().into_lua(lua)?;
         }
@@ -290,7 +287,7 @@ impl GeneratorParam {
 
     /// Converts a string to a value for this parameter and returns an error if
     /// it is invalid.
-    pub fn value_from_str<'lua>(&self, s: &str) -> LuaResult<GeneratorParamValue> {
+    pub fn value_from_str(&self, s: &str) -> LuaResult<GeneratorParamValue> {
         if s.is_empty() {
             return Ok(self.default.clone());
         }
@@ -301,9 +298,9 @@ impl GeneratorParam {
         }
     }
 }
-impl<'lua> FromLua<'lua> for GeneratorParam {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        let table: LuaTable<'lua> = lua.unpack(value)?;
+impl FromLua for GeneratorParam {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
+        let table: LuaTable = lua.unpack(value)?;
 
         let name: String;
         let r#type: String;
@@ -350,14 +347,14 @@ pub enum GeneratorParamValue {
     /// Integer.
     Int(i64),
 }
-impl<'lua> FromLua<'lua> for GeneratorParamValue {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for GeneratorParamValue {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         None.or_else(|| lua.unpack(value).map(Self::Int).ok())
             .ok_or_else(|| LuaError::external("invalid generator parameter"))
     }
 }
-impl<'lua> IntoLua<'lua> for GeneratorParamValue {
-    fn into_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+impl IntoLua for GeneratorParamValue {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
         match self {
             GeneratorParamValue::Int(i) => i.into_lua(lua),
         }
@@ -384,14 +381,14 @@ pub struct PuzzleGeneratorExample {
     /// Extra tags.
     pub tags: HashMap<String, TagValue>,
 }
-impl<'lua> FromLua<'lua> for PuzzleGeneratorExample {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        let table: LuaTable<'lua> = lua.unpack(value)?;
+impl FromLua for PuzzleGeneratorExample {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
+        let table: LuaTable = lua.unpack(value)?;
 
         let params: Vec<GeneratorParamValue>;
         let name: Option<String>;
         let aliases: LuaVecString;
-        let tags: Option<LuaTable<'lua>>;
+        let tags: Option<LuaTable>;
         unpack_table!(lua.unpack(table {
             params,
             name,

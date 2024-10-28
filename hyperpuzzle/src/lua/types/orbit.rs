@@ -23,14 +23,14 @@ pub struct LuaOrbit {
     iter_index: Arc<AtomicUsize>,
 }
 
-impl<'lua> FromLua<'lua> for LuaOrbit {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaOrbit {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         cast_userdata(lua, &value)
     }
 }
 
 impl LuaUserData for LuaOrbit {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("orbit"));
 
         fields.add_field_method_get("symmetry", |_lua, this| Ok(this.symmetry.clone()));
@@ -48,7 +48,7 @@ impl LuaUserData for LuaOrbit {
         });
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::Len, |_lua, this, ()| Ok(this.cosets.len()));
 
         methods.add_meta_method(LuaMetaMethod::Call, |lua, this, ()| {
@@ -167,7 +167,7 @@ impl LuaOrbit {
     }
 
     /// Returns the values for the `index`th element of the orbit.
-    pub fn get<'lua>(&self, lua: &'lua Lua, index: usize) -> LuaResult<LuaMultiValue<'lua>> {
+    pub fn get(&self, lua: &Lua, index: usize) -> LuaResult<LuaMultiValue> {
         // Return multiple values.
         let mut values = vec![];
         if let Some(element) = self.cosets.get(index) {
@@ -186,16 +186,13 @@ impl LuaOrbit {
             // Finally push the custom name, if there is one.
             values.push(name.as_deref().into_lua(lua)?);
         }
-        Ok(LuaMultiValue::from_vec(values))
+        Ok(LuaMultiValue::from_iter(values))
     }
 }
 
 /// Constructs an assignment of names based on a table for a particular symmetry
 /// group.
-pub fn names_from_table<'lua>(
-    lua: &'lua Lua,
-    table: LuaTable<'lua>,
-) -> LuaResult<Vec<(String, Vec<u8>)>> {
+pub fn names_from_table(lua: &Lua, table: LuaTable) -> LuaResult<Vec<(String, Vec<u8>)>> {
     let mut key_value_dependencies = vec![];
 
     for pair in table.pairs() {
@@ -226,16 +223,16 @@ pub enum LuaSymmetricSet<T> {
     /// Symmetric orbit of an object.
     Orbit(LuaOrbit),
 }
-impl<'lua, T: LuaTypeName + IntoLua<'lua>> IntoLua<'lua> for LuaSymmetricSet<T> {
-    fn into_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+impl<'lua, T: LuaTypeName + IntoLua> IntoLua for LuaSymmetricSet<T> {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
         match self {
             LuaSymmetricSet::Single(obj) => obj.into_lua(lua),
             LuaSymmetricSet::Orbit(lua_orbit) => lua_orbit.into_lua(lua),
         }
     }
 }
-impl<'lua, T: LuaTypeName + FromLua<'lua>> FromLua<'lua> for LuaSymmetricSet<T> {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl<'lua, T: LuaTypeName + FromLua> FromLua for LuaSymmetricSet<T> {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         if let Ok(orbit) = <_>::from_lua(value.clone(), lua) {
             Ok(Self::Orbit(orbit))
         } else if let Ok(v) = <_>::from_lua(value.clone(), lua) {
@@ -248,11 +245,11 @@ impl<'lua, T: LuaTypeName + FromLua<'lua>> FromLua<'lua> for LuaSymmetricSet<T> 
         }
     }
 }
-impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
+impl<'lua, T: LuaTypeName + FromLua + Clone> LuaSymmetricSet<T> {
     /// Applies a function to each object in the orbit and returns a new orbit.
-    pub fn map<U, F>(&self, lua: &'lua Lua, mut f: F) -> LuaResult<LuaSymmetricSet<U>>
+    pub fn map<U, F>(&self, lua: &Lua, mut f: F) -> LuaResult<LuaSymmetricSet<U>>
     where
-        U: Clone + IntoLua<'lua>,
+        U: Clone + IntoLua,
         F: FnMut(GeneratorSequence, Option<String>, T) -> LuaResult<U>,
     {
         match self {
@@ -302,7 +299,7 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
         }
     }
     /// Returns a list of all the objects in the orbit.
-    pub fn to_vec(&self, lua: &'lua Lua) -> LuaResult<Vec<(GeneratorSequence, Option<String>, T)>> {
+    pub fn to_vec(&self, lua: &Lua) -> LuaResult<Vec<(GeneratorSequence, Option<String>, T)>> {
         match self {
             LuaSymmetricSet::Single(v) => Ok(vec![(GeneratorSequence::INIT, None, v.clone())]),
             LuaSymmetricSet::Orbit(orbit) => orbit
@@ -316,14 +313,14 @@ impl<'lua, T: LuaTypeName + FromLua<'lua> + Clone> LuaSymmetricSet<T> {
         }
     }
     /// Returns the initial object from which the others are generated.
-    pub fn first(&self, lua: &'lua Lua) -> LuaResult<T> {
+    pub fn first(&self, lua: &Lua) -> LuaResult<T> {
         match self {
             LuaSymmetricSet::Single(v) => Ok(v.clone()),
             LuaSymmetricSet::Orbit(orbit) => Self::to_expected_type(lua, orbit.init().first()),
         }
     }
 
-    fn to_expected_type(lua: &'lua Lua, maybe_obj: Option<&Transformable>) -> LuaResult<T> {
+    fn to_expected_type(lua: &Lua, maybe_obj: Option<&Transformable>) -> LuaResult<T> {
         let lua_value = maybe_obj
             .and_then(|obj| obj.into_lua(lua))
             .ok_or_else(|| {
@@ -345,12 +342,12 @@ struct OrbitCoset {
     objects: Vec<Transformable>,
 }
 
-fn gen_seq_and_opt_name_from_value<'lua>(
-    lua: &'lua Lua,
-    value: LuaValue<'lua>,
+fn gen_seq_and_opt_name_from_value(
+    lua: &Lua,
+    value: LuaValue,
 ) -> LuaResult<(Vec<u8>, Option<String>)> {
-    let mut seq: Vec<LuaValue<'_>> = LuaTable::from_lua(value, lua)?
-        .sequence_values::<LuaValue<'_>>()
+    let mut seq: Vec<LuaValue> = LuaTable::from_lua(value, lua)?
+        .sequence_values::<LuaValue>()
         .try_collect()?;
     let init_name = match seq.last().cloned() {
         Some(LuaValue::String(s)) => {

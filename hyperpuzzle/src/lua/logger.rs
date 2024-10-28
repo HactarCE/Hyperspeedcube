@@ -51,9 +51,9 @@ impl LuaLogger {
 
     /// Returns a Lua function that calls `string.format()` on its arguments and
     /// then logs the result as an info line.
-    pub(super) fn lua_info_fn<'lua>(&self, lua: &'lua Lua) -> LuaResult<LuaFunction<'lua>> {
+    pub(super) fn lua_info_fn(&self, lua: &Lua) -> LuaResult<LuaFunction> {
         let this = self.clone();
-        lua.create_function(move |lua, args: LuaMultiValue<'_>| {
+        lua.create_function(move |lua, args: LuaMultiValue| {
             let args: Vec<String> = args.iter().map(|arg| arg.to_string()).try_collect()?;
             this.info(lua, args.into_iter().join("\t"));
             Ok(())

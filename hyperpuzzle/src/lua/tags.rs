@@ -7,9 +7,9 @@ use crate::{TagType, TagValue, TAGS};
 
 use super::LuaVecString;
 
-pub(super) fn unpack_tags_table<'lua>(
-    lua: &'lua Lua,
-    table: Option<LuaTable<'lua>>,
+pub(super) fn unpack_tags_table(
+    lua: &Lua,
+    table: Option<LuaTable>,
 ) -> LuaResult<HashMap<String, TagValue>> {
     let mut tags = HashMap::new();
     if let Some(table) = table {
@@ -83,10 +83,10 @@ pub(super) fn inherit_parent_tags(tags: &mut HashMap<String, TagValue>) {
     }
 }
 
-fn unpack_tags_table_recursive<'lua>(
-    lua: &'lua Lua,
+fn unpack_tags_table_recursive(
+    lua: &Lua,
     tags: &mut HashMap<String, TagValue>,
-    table: LuaTable<'lua>,
+    table: LuaTable,
     prefix: &str,
 ) -> LuaResult<()> {
     let warn_unknown_tag =
@@ -163,11 +163,7 @@ fn unpack_tags_table_recursive<'lua>(
     Ok(())
 }
 
-fn tag_value_from_lua<'lua>(
-    lua: &'lua Lua,
-    value: LuaValue<'lua>,
-    expected_type: TagType,
-) -> LuaResult<TagValue> {
+fn tag_value_from_lua(lua: &Lua, value: LuaValue, expected_type: TagType) -> LuaResult<TagValue> {
     if matches!(value, LuaValue::Boolean(false)) {
         return Ok(TagValue::False);
     }

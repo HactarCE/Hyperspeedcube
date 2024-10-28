@@ -4,8 +4,8 @@ macro_rules! unpack_table {
     (
         $lua:ident.unpack($table:ident { $($key:ident),+ $(,)? })
     ) => {
-        let table: ::mlua::Table<'_> = $table;
-        let mut pairs: ::hypermath::collections::VecMap<String, ::mlua::Value<'_>> =
+        let table: ::mlua::Table = $table;
+        let mut pairs: ::hypermath::collections::VecMap<String, ::mlua::Value> =
             table.clone().pairs().into_iter().collect::<::mlua::Result<_>>()?;
         $(
             let key_str = $crate::lua::macros::key_str(stringify!($key));

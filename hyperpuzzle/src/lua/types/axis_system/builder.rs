@@ -17,11 +17,11 @@ use crate::DevOrbit;
 pub struct LuaAxisSystem(pub Arc<Mutex<PuzzleBuilder>>);
 
 impl LuaUserData for LuaAxisSystem {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("axissystem"));
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         LuaIdDatabase::<Axis>::add_db_metamethods(methods, |Self(puz)| &*puz);
         LuaNamedIdDatabase::<Axis>::add_named_db_methods(methods, |Self(puz)| &*puz);
         LuaOrderedIdDatabase::<Axis>::add_ordered_db_methods(methods, |Self(puz)| &*puz);
@@ -41,11 +41,11 @@ impl LuaUserData for LuaAxisSystem {
     }
 }
 
-impl<'lua> LuaIdDatabase<'lua, Axis> for PuzzleBuilder {
+impl LuaIdDatabase<Axis> for PuzzleBuilder {
     const ELEMENT_NAME_SINGULAR: &'static str = "axis";
     const ELEMENT_NAME_PLURAL: &'static str = "axes";
 
-    fn value_to_id(&self, lua: &'lua Lua, value: LuaValue<'lua>) -> LuaResult<Axis> {
+    fn value_to_id(&self, lua: &Lua, value: LuaValue) -> LuaResult<Axis> {
         self.value_to_id_by_userdata(lua, &value)
             .or_else(|| self.value_to_id_by_name(lua, &value))
             .or_else(|| self.value_to_id_by_index(lua, &value))
@@ -66,7 +66,7 @@ impl<'lua> LuaIdDatabase<'lua, Axis> for PuzzleBuilder {
         Cow::Borrowed(self.twists.axes.ordering.ids_in_order())
     }
 }
-impl<'lua> LuaOrderedIdDatabase<'lua, Axis> for PuzzleBuilder {
+impl LuaOrderedIdDatabase<Axis> for PuzzleBuilder {
     fn ordering(&self) -> &CustomOrdering<Axis> {
         &self.twists.axes.ordering
     }
@@ -74,7 +74,7 @@ impl<'lua> LuaOrderedIdDatabase<'lua, Axis> for PuzzleBuilder {
         &mut self.twists.axes.ordering
     }
 }
-impl<'lua> LuaNamedIdDatabase<'lua, Axis> for PuzzleBuilder {
+impl LuaNamedIdDatabase<Axis> for PuzzleBuilder {
     fn names(&self) -> &NamingScheme<Axis> {
         &self.twists.axes.names
     }
@@ -92,16 +92,16 @@ impl LuaAxisSystem {
 
     /// Adds a new symmetric set of twist axes and returns a table containing
     /// them in sequence.
-    pub fn add<'lua>(
+    pub fn add(
         &self,
-        lua: &'lua Lua,
+        lua: &Lua,
         vectors: LuaSymmetricSet<LuaVector>,
-        extra: Option<LuaTable<'lua>>,
+        extra: Option<LuaTable>,
     ) -> LuaResult<LuaSymmetricSet<LuaAxis>> {
         let depths: Vec<hypermath::Float>;
         let slice: Option<bool>;
         if let Some(t) = extra {
-            let layers: LuaTable<'lua>;
+            let layers: LuaTable;
             if t.len()? > 0 || t.is_empty() {
                 slice = t.get("slice")?;
                 layers = t;

@@ -134,7 +134,7 @@ impl LibraryFileLoadState {
     /// Finish loading the file successfully.
     ///
     /// Returns an error if the file is not currently being loaded.
-    pub(crate) fn complete_ok<'lua>(&mut self, lua: &'lua Lua) -> LuaResult<LuaTable<'lua>> {
+    pub(crate) fn complete_ok(&mut self, lua: &Lua) -> LuaResult<LuaTable> {
         match std::mem::take(self) {
             LibraryFileLoadState::Loading(load_result) => {
                 let exports_table = lua.registry_value(&load_result.exports);

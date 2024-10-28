@@ -13,11 +13,11 @@ use crate::puzzle::Twist;
 pub struct LuaTwistSystem(pub Arc<Mutex<PuzzleBuilder>>);
 
 impl LuaUserData for LuaTwistSystem {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("twistsystem"));
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
             let len = this.lock().twists.len();
             Ok(format!("twistsystem(len={len})"))
@@ -32,11 +32,11 @@ impl LuaUserData for LuaTwistSystem {
     }
 }
 
-impl<'lua> LuaIdDatabase<'lua, Twist> for PuzzleBuilder {
+impl LuaIdDatabase<Twist> for PuzzleBuilder {
     const ELEMENT_NAME_SINGULAR: &'static str = "twist";
     const ELEMENT_NAME_PLURAL: &'static str = "twists";
 
-    fn value_to_id(&self, lua: &'lua Lua, value: LuaValue<'lua>) -> LuaResult<Twist> {
+    fn value_to_id(&self, lua: &Lua, value: LuaValue) -> LuaResult<Twist> {
         self.value_to_id_by_userdata(lua, &value)
             .or_else(|| self.value_to_id_by_name(lua, &value))
             .unwrap_or_else(|| lua_convert_err(&value, "axis, string, or integer index"))
@@ -53,7 +53,7 @@ impl<'lua> LuaIdDatabase<'lua, Twist> for PuzzleBuilder {
     }
 }
 
-impl<'lua> LuaNamedIdDatabase<'lua, Twist> for PuzzleBuilder {
+impl LuaNamedIdDatabase<Twist> for PuzzleBuilder {
     fn names(&self) -> &NamingScheme<Twist> {
         &self.twists.names
     }
@@ -64,12 +64,12 @@ impl<'lua> LuaNamedIdDatabase<'lua, Twist> for PuzzleBuilder {
 
 impl LuaTwistSystem {
     /// Adds a new twist.
-    fn add<'lua>(
+    fn add(
         &self,
-        lua: &'lua Lua,
+        lua: &Lua,
         axis: LuaAxis,
         transform: LuaTransform,
-        data: Option<LuaTable<'lua>>,
+        data: Option<LuaTable>,
     ) -> LuaResult<Option<LuaTwist>> {
         let multipliers: Option<bool>;
         let inverse: Option<bool>;
@@ -78,7 +78,7 @@ impl LuaTwistSystem {
         let suffix: Option<String>;
         let inv_name: Option<String>;
         let inv_suffix: Option<String>;
-        let name_fn: Option<LuaFunction<'_>>;
+        let name_fn: Option<LuaFunction>;
         let qtm: Option<usize>;
         let gizmo_pole_distance: Option<f32>;
         if let Some(data_table) = data {

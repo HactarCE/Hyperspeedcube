@@ -8,8 +8,8 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct LuaVectorFromMultiValue(pub Vector);
 
-impl<'lua> FromLuaMulti<'lua> for LuaVectorFromMultiValue {
-    fn from_lua_multi(values: LuaMultiValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLuaMulti for LuaVectorFromMultiValue {
+    fn from_lua_multi(values: LuaMultiValue, lua: &Lua) -> LuaResult<Self> {
         match values.get(0) {
             None => Ok(Self(vector![])),
             Some(v) if v.is_number() || v.is_integer() => values
@@ -19,7 +19,7 @@ impl<'lua> FromLuaMulti<'lua> for LuaVectorFromMultiValue {
                 .map(Self),
             Some(_) if values.len() > 1 => Err(LuaError::FromLuaConversionError {
                 from: "values",
-                to: "numbers",
+                to: "numbers".to_owned(),
                 message: None,
             }),
             Some(v) => match lua.unpack(v.clone()) {
@@ -34,8 +34,8 @@ impl<'lua> FromLuaMulti<'lua> for LuaVectorFromMultiValue {
 #[derive(Debug, Clone)]
 pub struct LuaVector(pub Vector);
 
-impl<'lua> FromLua<'lua> for LuaVector {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaVector {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         match value {
             LuaValue::Table(t) => Self::construct_from_table(t),
             LuaValue::String(s) => {
@@ -48,7 +48,7 @@ impl<'lua> FromLua<'lua> for LuaVector {
                         Some(v) => Ok(Self(v)),
                         None => Err(LuaError::FromLuaConversionError {
                             from: "blade",
-                            to: "vector",
+                            to: "vector".to_owned(),
                             message: format!("expected 1-blade; got {}-blade", b.grade()).into(),
                         }),
                     }
@@ -62,8 +62,8 @@ impl<'lua> FromLua<'lua> for LuaVector {
     }
 }
 
-impl<'lua> IntoLua<'lua> for LuaVector {
-    fn into_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+impl IntoLua for LuaVector {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
         let ndim = LuaNdim::get(lua)?;
         LuaBlade(pga::Blade::from_vector(ndim, self.0)).into_lua(lua)
     }
@@ -77,7 +77,7 @@ impl LuaTypeName for LuaVector {
 
 impl LuaVector {
     /// Constructs a vector from a table of values.
-    pub fn construct_from_table(t: LuaTable<'_>) -> LuaResult<Self> {
+    pub fn construct_from_table(t: LuaTable) -> LuaResult<Self> {
         let mut ret = vector![];
         for pair in t.pairs() {
             let (LuaVectorIndex(k), v): (_, Float) = pair?;

@@ -7,8 +7,8 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct LuaTransform(pub Motor);
 
-impl<'lua> FromLua<'lua> for LuaTransform {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaTransform {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         // TODO: properly handle `pga::Motor` ndim
         let ndim = LuaNdim::get(lua)?;
         cast_userdata(lua, &value).map(|LuaTransform(t)| LuaTransform(t.to_ndim_at_least(ndim)))
@@ -16,7 +16,7 @@ impl<'lua> FromLua<'lua> for LuaTransform {
 }
 
 impl LuaUserData for LuaTransform {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("transform"));
 
         fields.add_field_method_get("ndim", |_lua, Self(this)| Ok(this.ndim()));
@@ -25,17 +25,17 @@ impl LuaUserData for LuaTransform {
 
         fields.add_field_method_get("rev", |_lua, Self(this)| Ok(Self(this.reverse())));
         fields.add_field_method_get("reverse", |_lua, _| {
-            Err::<LuaValue<'_>, _>(LuaError::external("use `.rev` instead"))
+            Err::<LuaValue, _>(LuaError::external("use `.rev` instead"))
         });
     }
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, Self(this), ()| {
             Ok(format!("transform({this})"))
         });
 
         // Composition of transforms
-        methods.add_meta_method(LuaMetaMethod::Mul, |lua, Self(this), rhs: LuaValue<'_>| {
+        methods.add_meta_method(LuaMetaMethod::Mul, |lua, Self(this), rhs: LuaValue| {
             if let Ok(LuaTransform(rhs)) = <_>::from_lua(rhs.clone(), lua) {
                 Ok(Self(this * rhs))
             } else {
@@ -77,7 +77,7 @@ impl LuaTransform {
         Ok(Self(Motor::ident(LuaNdim::get(lua)?)))
     }
     /// Constructs a rotation from a table of values.
-    pub fn construct_rotation(lua: &Lua, t: LuaTable<'_>) -> LuaResult<Self> {
+    pub fn construct_rotation(lua: &Lua, t: LuaTable) -> LuaResult<Self> {
         let ndim = LuaNdim::get(lua)?;
 
         let fix: Option<LuaBlade>;
@@ -167,7 +167,7 @@ impl LuaTransform {
                 } else {
                     return Err(LuaError::FromLuaConversionError {
                         from: "blade",
-                        to: "point, vector, or hyperplane",
+                        to: "point, vector, or hyperplane".to_owned(),
                         message: None,
                     });
                 }

@@ -9,14 +9,14 @@ use super::*;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LuaVectorIndex(pub u8);
 
-impl<'lua> FromLua<'lua> for LuaVectorIndex {
-    fn from_lua(value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+impl FromLua for LuaVectorIndex {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         if let Ok(LuaIndex(i)) = lua.unpack(value.clone()) {
             match u8::try_from(i) {
                 Ok(i) => Ok(LuaVectorIndex(i)),
                 Err(_) => Err(LuaError::FromLuaConversionError {
                     from: "number",
-                    to: "vector index",
+                    to: "vector index".to_owned(),
                     message: Some("out of range".to_string()),
                 }),
             }
@@ -25,7 +25,7 @@ impl<'lua> FromLua<'lua> for LuaVectorIndex {
                 Ok(LuaVectorIndex(i)) => Ok(LuaVectorIndex(i)),
                 Err(e) => Err(LuaError::FromLuaConversionError {
                     from: "string",
-                    to: "vector index",
+                    to: "vector index".to_owned(),
                     message: Some(e),
                 }),
             }
@@ -35,8 +35,8 @@ impl<'lua> FromLua<'lua> for LuaVectorIndex {
     }
 }
 
-impl<'lua> IntoLua<'lua> for LuaVectorIndex {
-    fn into_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+impl IntoLua for LuaVectorIndex {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
         self.0.checked_add(1).into_lua(lua)
     }
 }
