@@ -30,6 +30,8 @@ macro_rules! unsupported_on_web {
 }
 
 pub struct App {
+    pub(crate) timer_start_end: (Option<std::time::Instant>, Option<std::time::Instant>),
+
     pub(crate) prefs: Preferences,
 
     events: EventLoopProxy<AppEvent>,
@@ -62,6 +64,7 @@ pub struct App {
 impl App {
     pub(crate) fn new(event_loop: &EventLoop<AppEvent>, initial_file: Option<PathBuf>) -> Self {
         let mut this = Self {
+            timer_start_end: (None, None),
             prefs: Preferences::load(None),
 
             events: event_loop.create_proxy(),
@@ -862,10 +865,11 @@ impl App {
     #[cfg(target_arch = "wasm32")]
     pub(crate) fn save_in_local_storage(&mut self) {
         let Some(local_storage) = web_sys::window().unwrap().local_storage().unwrap() else {
-            return
+            return;
         };
-        let Ok(log_file_contents) = crate::logfile::serialize(&self.puzzle, LogFileFormat::Hsc) else {
-            return
+        let Ok(log_file_contents) = crate::logfile::serialize(&self.puzzle, LogFileFormat::Hsc)
+        else {
+            return;
         };
         let _ = local_storage.set_item(Self::LOCAL_STORAGE_KEY, &log_file_contents);
         self.puzzle.mark_saved_in_local_storage();
@@ -873,13 +877,17 @@ impl App {
     #[cfg(target_arch = "wasm32")]
     fn try_load_from_local_storage(&mut self) {
         let Some(local_storage) = web_sys::window().unwrap().local_storage().unwrap() else {
-            return
+            return;
         };
-        let Some(log_file_contents) = local_storage.get_item(Self::LOCAL_STORAGE_KEY).ok().flatten() else {
-            return
+        let Some(log_file_contents) = local_storage
+            .get_item(Self::LOCAL_STORAGE_KEY)
+            .ok()
+            .flatten()
+        else {
+            return;
         };
         let Ok((p, warnings)) = crate::logfile::deserialize(&log_file_contents) else {
-            return
+            return;
         };
         if self.confirm_load_puzzle(&warnings) {
             self.puzzle = p;
