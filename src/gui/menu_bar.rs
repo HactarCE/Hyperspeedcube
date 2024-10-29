@@ -92,6 +92,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App) {
             windows::PUZZLE_CONTROLS.menu_button_toggle(ui);
             windows::KEYBIND_SETS.menu_button_toggle(ui);
             windows::MODIFIER_KEYS.menu_button_toggle(ui);
+            windows::TIMER.menu_button_toggle(ui);
         });
 
         ui.menu_button("Help", |ui| {

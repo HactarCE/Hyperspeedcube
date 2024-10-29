@@ -7,6 +7,7 @@ mod mousebinds_table;
 mod piece_filters;
 mod puzzle_controls;
 mod settings;
+mod timer;
 mod welcome;
 
 use crate::app::App;
@@ -19,6 +20,7 @@ pub(crate) use mousebinds_table::*;
 pub(crate) use piece_filters::*;
 pub(crate) use puzzle_controls::*;
 pub(crate) use settings::*;
+pub(crate) use timer::*;
 pub(crate) use welcome::*;
 
 pub const FLOATING_WINDOW_OPACITY: f32 = 0.98;
@@ -37,6 +39,7 @@ pub const ALL: &[Window] = &[
     PUZZLE_CONTROLS,
     PIECE_FILTERS,
     MODIFIER_KEYS,
+    TIMER,
     // Settings
     APPEARANCE_SETTINGS,
     INTERACTION_SETTINGS,
