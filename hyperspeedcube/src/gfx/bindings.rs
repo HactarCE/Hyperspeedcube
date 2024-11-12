@@ -155,18 +155,18 @@ pub(in crate::gfx) trait BindGroupsTrait<'a>: Sized {
     }
 }
 
-pub(in crate::gfx) trait WgpuPassExt<'pass> {
-    fn set_bind_groups<'a: 'pass>(&mut self, bind_groups: &'a BindGroups);
+pub(in crate::gfx) trait WgpuPassExt {
+    fn set_bind_groups(&mut self, bind_groups: &BindGroups);
 }
-impl<'pass> WgpuPassExt<'pass> for wgpu::RenderPass<'pass> {
-    fn set_bind_groups<'a: 'pass>(&mut self, bind_groups: &'a BindGroups) {
+impl WgpuPassExt for wgpu::RenderPass<'_> {
+    fn set_bind_groups(&mut self, bind_groups: &BindGroups) {
         for (i, bind_group) in bind_groups.bind_groups.iter().enumerate() {
             self.set_bind_group(i as u32, &bind_group.base, &bind_group.offsets);
         }
     }
 }
-impl<'pass> WgpuPassExt<'pass> for wgpu::ComputePass<'pass> {
-    fn set_bind_groups<'a: 'pass>(&mut self, bind_groups: &'a BindGroups) {
+impl WgpuPassExt for wgpu::ComputePass<'_> {
+    fn set_bind_groups(&mut self, bind_groups: &BindGroups) {
         for (i, bind_group) in bind_groups.bind_groups.iter().enumerate() {
             self.set_bind_group(i as u32, &bind_group.base, &bind_group.offsets);
         }

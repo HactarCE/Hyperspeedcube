@@ -108,11 +108,11 @@ impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
         vec![]
     }
 
-    fn paint<'a>(
-        &'a self,
+    fn paint(
+        &self,
         _info: egui::PaintCallbackInfo,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        callback_resources: &'a eframe::egui_wgpu::CallbackResources,
+        render_pass: &mut wgpu::RenderPass<'static>,
+        callback_resources: &eframe::egui_wgpu::CallbackResources,
     ) {
         let Some(bind_groups) = callback_resources
             .get::<HashMap<usize, BindGroups>>()

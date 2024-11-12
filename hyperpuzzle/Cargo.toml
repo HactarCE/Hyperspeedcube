@@ -31,12 +31,9 @@ mlua = { version = "0.10.0", features = ["lua54", "send", "vendored"] }
 serde = { version = "1.0.176", features = ["derive"] }
 smallvec = { version = "1.11.0", features = ["const_new", "union"] }
 strum = { version = "0.26.3", features = ["derive"] }
-thiserror = "1.0.58"
-tinyset = "0.4.15"
+thiserror = "2.0.3"
+tinyset = "0.5.1"
 walkdir = "2.4.0"
 
 hypermath = { path = "../hypermath" }
 hypershape = { path = "../hypershape" }
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm_thread = "0.2.0"

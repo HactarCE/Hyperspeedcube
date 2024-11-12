@@ -15,7 +15,7 @@ workspace = true
 
 [dependencies]
 approx = "0.5.1"
-ball-tree = "0.4.0"
+ball-tree = "0.5.1"
 bitflags = "2.4.2"
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 bytemuck = { version = "1.13.1", optional = true }
@@ -26,7 +26,7 @@ num-traits = "0.2.16"
 parking_lot = "0.12.1"
 serde = { version = "1.0.176", features = ["derive"], optional = true }
 smallvec = { version = "1.11.0", features = ["const_new", "union"] }
-tinyset = "0.4.15"
+tinyset = "0.5.1"
 
 [features]
 serde = ["dep:serde", "smallvec/serde"]

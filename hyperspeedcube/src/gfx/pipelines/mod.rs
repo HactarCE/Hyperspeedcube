@@ -168,6 +168,7 @@ impl RenderPipelineDescriptor<'_> {
                 targets: &[self.fragment_target],
             }),
             multiview: None,
+            cache: None,
         })
     }
 }
@@ -189,6 +190,7 @@ impl ComputePipelineDescriptor<'_> {
             module: shader_module,
             entry_point: self.entry_point,
             compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
         })
     }
 }
