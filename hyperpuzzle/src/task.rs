@@ -53,14 +53,6 @@ impl<T> TaskHandle<T> {
             false => None,
         }
     }
-    /// Calls the callback when the task completes successfully, if that ever
-    /// happens.
-    pub fn on_complete(self, callback: impl 'static + Send + FnOnce(T))
-    where
-        T: 'static + Send,
-    {
-        std::thread::spawn(move || callback(self.take_result_blocking()));
-    }
 }
 
 /// Task that will be completed asynchronously on another thread.

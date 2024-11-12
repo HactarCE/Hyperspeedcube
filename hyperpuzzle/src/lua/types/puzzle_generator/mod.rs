@@ -43,7 +43,7 @@ impl FromLua for PuzzleGeneratorSpec {
         let colors: Option<String>;
         let tags: Option<LuaTable>;
         let params: Vec<GeneratorParam>;
-        let examples: Option<Vec<PuzzleGeneratorExample>>;
+        let examples: Option<Vec<PuzzleGeneratorOverrides>>;
         let name: Option<String>;
         let aliases: Option<Vec<String>>;
         let gen: LuaFunction;
@@ -122,11 +122,14 @@ impl PuzzleGeneratorSpec {
     }
 
     /// Runs user Lua code to generate a puzzle _definition_.
+    ///
+    /// Even if `overrides` is `None`, overrides for known example puzzles will
+    /// be applied.
     pub fn generate_puzzle_spec(
         &self,
         lua: &Lua,
         generator_param_values: Vec<String>,
-        matching_example: Option<PuzzleGeneratorExample>,
+        overrides: Option<PuzzleGeneratorOverrides>,
     ) -> LuaResult<PuzzleGeneratorOutput> {
         let id = crate::generated_puzzle_id(&self.id, &generator_param_values);
 
@@ -205,13 +208,13 @@ impl PuzzleGeneratorSpec {
         puzzle_spec.id = id;
 
         // Add data from the matching example.
-        if let Some(example) = matching_example {
-            let PuzzleGeneratorExample {
+        if let Some(overrides) = overrides {
+            let PuzzleGeneratorOverrides {
                 params: _,
                 name,
                 aliases,
                 tags,
-            } = example;
+            } = overrides;
 
             // Set name from the example, and move the auto-generated name to an
             // alias.
@@ -368,10 +371,11 @@ impl fmt::Display for GeneratorParamValue {
     }
 }
 
-/// Example of a generated puzzle, which can defined overrides for certain
-/// fields of the [`PuzzleSpec`].
+/// Overrides and additions for certain fields of a [`PuzzleSpec`].
+///
+/// This is all the data associated with an example puzzle.
 #[derive(Debug)]
-pub struct PuzzleGeneratorExample {
+pub struct PuzzleGeneratorOverrides {
     /// Parameters for the generator.
     pub params: Vec<GeneratorParamValue>,
     /// Name override.
@@ -381,7 +385,7 @@ pub struct PuzzleGeneratorExample {
     /// Extra tags.
     pub tags: HashMap<String, TagValue>,
 }
-impl FromLua for PuzzleGeneratorExample {
+impl FromLua for PuzzleGeneratorOverrides {
     fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         let table: LuaTable = lua.unpack(value)?;
 
@@ -398,7 +402,7 @@ impl FromLua for PuzzleGeneratorExample {
 
         let tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
 
-        Ok(PuzzleGeneratorExample {
+        Ok(PuzzleGeneratorOverrides {
             params,
             name,
             aliases: aliases.0,

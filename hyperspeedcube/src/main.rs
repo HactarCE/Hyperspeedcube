@@ -201,7 +201,7 @@ fn load_built_in_puzzles() {
     });
 }
 
-fn reload_user_puzzles() {
+fn load_user_puzzles() {
     let Ok(lua_dir) = crate::paths::lua_dir() else {
         log::error!("Error locating Lua directory");
         return;

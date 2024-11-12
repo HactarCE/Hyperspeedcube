@@ -35,7 +35,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 if r.on_hover_text("Refresh").clicked()
                     || ui.input(|input| input.key_pressed(egui::Key::F5))
                 {
-                    crate::reload_user_puzzles();
+                    crate::load_user_puzzles();
                 }
             }
 

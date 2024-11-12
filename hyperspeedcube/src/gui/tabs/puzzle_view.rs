@@ -119,7 +119,7 @@ impl PuzzleWidget {
 
     /// Reloads the active puzzle. Returns `true` if the reload was successful.
     pub fn reload(&mut self, lib: &hyperpuzzle::Library, prefs: &mut Preferences) -> bool {
-        crate::reload_user_puzzles();
+        crate::load_user_puzzles();
         let current_puzzle = self.puzzle();
         let gfx = Arc::clone(&self.renderer.lock().gfx);
         if let Some(mut new_puzzle_view) = Self::new(lib, &gfx, prefs, &current_puzzle.id) {

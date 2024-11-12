@@ -6,7 +6,7 @@ use mlua::prelude::*;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::library::{LibraryDb, LibraryFile, LibraryFileLoadOutput, LibraryFileLoadState};
+use crate::{library::LibraryDb, LibraryFileLoadState};
 
 macro_rules! lua_module {
     ($filename:literal) => {
@@ -22,12 +22,14 @@ const LUA_MODULES: &[(&str, &str)] = &[
 ];
 
 /// Lua runtime for loading Lua files.
-#[derive(Debug)]
+///
+/// The contents of this struct are refcounted, so it's cheap to clone.
+#[derive(Debug, Clone)]
 pub(crate) struct LuaLoader {
     /// Lua instance.
     lua: Lua,
     /// Database of shapes, puzzles, etc.
-    db: Arc<Mutex<LibraryDb>>,
+    pub(crate) db: Arc<Mutex<LibraryDb>>,
     /// Handle to the Lua logger.
     logger: LuaLogger,
 }
@@ -41,15 +43,16 @@ impl LuaLoader {
         )
         .expect("error initializing Lua runtime");
 
+        let this = Self { lua, db, logger };
+        let Self { lua, db, logger } = &this; // still use local variables
+
         // Register library.
         lua.set_app_data(Arc::clone(&db));
 
-        let logger2 = logger.clone();
+        let this2 = this.clone();
 
         // IIFE to mimic try_block
         (|| {
-            let logger = logger2;
-
             // Monkeypatch builtin `type` function.
             let globals = lua.globals();
             globals.raw_set(
@@ -95,10 +98,8 @@ impl LuaLoader {
             sandbox.raw_set("AXES", lua_axes_table(&lua)?)?;
 
             // Imports
-            let db2 = Arc::clone(&db);
-            let require_fn = lua.create_function(move |lua, filename| {
-                LuaLoaderRef { lua, db: &db2 }.load_file_dependency(filename)
-            });
+            let require_fn =
+                lua.create_function(move |_, filename: String| this2.load_file(filename));
             sandbox.raw_set("require", require_fn?)?;
 
             // Database
@@ -142,23 +143,14 @@ impl LuaLoader {
         })()
         .expect("error initializing Lua environment");
 
-        LuaLoader { lua, db, logger }
+        this
     }
 
     /// Loads all files that have not yet been loaded.
     pub fn load_all_files(&self) {
-        let files = self.db.lock().files.values().cloned().collect_vec();
-        for file in files {
-            if !file.is_loaded() {
-                self.try_load_file(&file.name);
-            }
-        }
-    }
-
-    fn as_ref(&self) -> LuaLoaderRef<'_, '_> {
-        LuaLoaderRef {
-            lua: &self.lua,
-            db: &self.db,
+        let filenames = self.db.lock().files.keys().cloned().collect_vec();
+        for filename in filenames {
+            self.try_load_file(&filename);
         }
     }
 
@@ -167,17 +159,21 @@ impl LuaLoader {
     pub fn build_puzzle(&self, id: &str) -> Result<Arc<crate::Puzzle>> {
         let result = LibraryDb::build_puzzle(&self.lua, id);
         if let Err(e) = &result {
-            let file = LibraryDb::get(&self.lua)
-                .ok()
-                .and_then(|lib| Some(lib.lock().puzzles.get(id)?.name.clone()));
-            self.logger.error(file, e);
+            let filename = LibraryDb::get(&self.lua).ok().and_then(|lib| {
+                Some(
+                    crate::TAGS
+                        .filename(&lib.lock().puzzles.get(id)?.tags)
+                        .to_owned(),
+                )
+            });
+            self.logger.error(filename, e);
         }
         result
     }
     /// Loads a file if it has not yet been loaded. If loading fails, an error
     /// is reported to the Lua console.
     fn try_load_file(&self, filename: &str) {
-        if let Err(e) = self.as_ref().load_file(filename) {
+        if let Err(e) = self.load_file(filename) {
             self.logger.error(
                 Some(filename.to_string()),
                 e.clone()
@@ -191,10 +187,7 @@ impl LuaLoader {
         self.db
             .lock()
             .add_file(filename.to_string(), None, contents.to_string());
-        let env = self
-            .as_ref()
-            .load_file(filename)
-            .expect("error loading test file");
+        let env = self.load_file(filename).expect("error loading test file");
 
         let mut ran_any_tests = false;
         for pair in env.pairs::<LuaValue, LuaValue>() {
@@ -226,138 +219,94 @@ impl LuaLoader {
         }
         assert!(ran_any_tests, "no tests ran!");
     }
-}
 
-struct LuaLoaderRef<'lua, 'db> {
-    lua: &'lua Lua,
-    db: &'db Mutex<LibraryDb>,
-}
-impl<'lua> LuaLoaderRef<'lua, '_> {
     /// Loads a file if it has not yet been loaded, and then returns the file's
     /// export table.
-    fn load_file(&self, filename: &str) -> LuaResult<LuaTable> {
-        let db = self.db.lock();
+    fn load_file(&self, filename: impl ToString) -> LuaResult<LuaTable> {
+        let mut filename = filename.to_string();
+        if !filename.ends_with(".lua") {
+            filename.push_str(".lua");
+        }
+        let dirname = filename
+            .strip_suffix(".lua")
+            .unwrap_or(&filename)
+            .to_owned();
+
+        let mut db = self.db.lock();
 
         // If the file doesn't exist, return an error.
-        let Some(file) = db.files.get(filename) else {
+        let Some(file) = db.files.get_mut(&filename) else {
             return Err(LuaError::external(format!("no such file {filename:?}")));
         };
-        let file = Arc::clone(file);
 
-        // If the file was already loaded, then return that.
-        let mut load_state = file.load_state.lock();
-        match &*load_state {
-            LibraryFileLoadState::Unloaded => (), // Good! We're about to load it.
-            LibraryFileLoadState::Loading(_) => {
+        // Check if the file was already loaded or is currently being loaded..
+        match &file.load_state {
+            LibraryFileLoadState::Unloaded => (), // happy path
+            LibraryFileLoadState::Loading => {
                 return Err(LuaError::external(format!(
                     "recursive dependency on file {filename:?}",
                 )));
             }
-            LibraryFileLoadState::Done(load_result) => {
-                return match load_result {
-                    Ok(f) => self.lua.registry_value(&f.exports),
-                    Err(e) => Err(e.clone()),
-                };
-            }
+            LibraryFileLoadState::Loaded(result) => return result.clone(),
         }
 
-        let make_sandbox_fn: LuaFunction = self.lua.globals().get("make_sandbox")?;
-        let sandbox_env: LuaTable = make_sandbox_fn.call(filename)?;
-        let exports_table = self.lua.create_registry_value(sandbox_env.clone())?;
+        let file_contents = file.contents.clone();
 
-        // There must be no way to exit the function during this block.
+        let make_sandbox_fn: LuaFunction = self.lua.globals().get("make_sandbox")?;
+        let sandbox_env: LuaTable = make_sandbox_fn.call(filename.clone())?;
+        let sandbox_env2: LuaTable = sandbox_env.clone(); // pointer to same table
+        let exports_table = self.lua.create_table()?;
+        let this = self.clone();
+        let index_metamethod =
+            self.lua
+                .create_function(move |lua, (_table, index): (LuaTable, LuaValue)| {
+                    if let Some(exported_value) =
+                        sandbox_env2.get::<Option<LuaValue>>(index.clone())?
+                    {
+                        Ok(exported_value)
+                    } else if let Ok(index_string) = String::from_lua(index, lua) {
+                        println!("trying to open {index_string}");
+                        let subfilename = format!("{dirname}/{index_string}");
+                        Ok(LuaValue::Table(this.load_file(subfilename)?))
+                    } else {
+                        Ok(LuaNil)
+                    }
+                })?;
+        let exports_metatable = self
+            .lua
+            .create_table_from([(LuaMetaMethod::Index.name(), index_metamethod)])?;
+        exports_table.set_metatable(Some(exports_metatable));
+
+        // There must be no way to exit the function during this block, or else
+        // the file load result will never be stored and the file will be
+        // eternally loading.
         {
-            *load_state =
-                LibraryFileLoadState::Loading(LibraryFileLoadOutput::with_exports(exports_table));
-            // Set the currently-loading file.
-            let old_file = self.lua.set_app_data::<Arc<LibraryFile>>(Arc::clone(&file));
+            // Mark the file as loading.
+            file.start_loading();
 
             // Unlock the mutexes before we execute user code.
-            drop(load_state);
             drop(db);
 
             let chunk = self
                 .lua
-                .load(&file.contents)
+                .load(&file_contents)
                 .set_name(format!("@{filename}"))
                 .set_environment(sandbox_env.clone());
-            let exec_result = chunk.exec();
 
-            match old_file {
-                Some(f) => self.lua.set_app_data::<Arc<LibraryFile>>(f),
-                None => self.lua.remove_app_data::<Arc<LibraryFile>>(),
-            };
-            match exec_result {
-                Ok(()) => {
-                    {
-                        let LibraryFileLoadOutput {
-                            exports: _,
+            let exec_result = chunk.exec().map(|()| exports_table);
 
-                            puzzles,
-                            puzzle_generators,
-                            color_systems,
-                        } = &*file.as_loading()?;
-
-                        let mut db = self.db.lock();
-                        let kv = |k: &String| (k.clone(), Arc::clone(&file));
-                        db.puzzles.extend(puzzles.keys().map(kv));
-                        db.puzzle_generators
-                            .extend(puzzle_generators.keys().map(kv));
-                        db.color_systems.extend(color_systems.keys().map(kv));
-                    }
-
-                    file.load_state.lock().complete_ok(self.lua)
+            match self.db.lock().files.get_mut(&filename) {
+                Some(file) => {
+                    file.finish_loading(exec_result.clone());
+                    exec_result
                 }
-                Err(e) => Err(file.load_state.lock().complete_err(e)),
-            }
-        }
-    }
-
-    /// Records a file dependency, then loads it using `load_file()`.
-    fn load_file_dependency(&self, mut filename: String) -> LuaResult<LuaTable> {
-        if !filename.ends_with(".lua") {
-            filename.push_str(".lua");
-        }
-
-        let current_file = LibraryFile::get_current(self.lua)?;
-
-        // Handle basic globs.
-        if let Some(prefix) = filename.strip_suffix("/*.lua") {
-            // Assemble a list of files to load.
-            let files_to_load = self
-                .db
-                .lock()
-                .files
-                .iter()
-                // Don't depend on the current file.
-                .filter(|(_file_key, lib_file)| !Arc::ptr_eq(lib_file, &current_file))
-                // Depend on files that match the glob pattern.
-                .filter_map(|(k, v)| Some((k, k.strip_prefix(prefix)?.strip_prefix('/')?, v)))
-                .map(|(file_key, table_key, lib_file)| {
-                    // Record the dependency.
-                    lib_file.dependents.lock().push(Arc::clone(&current_file));
-                    // Remove the `.lua` suffix for the table key.
-                    let table_key = table_key.strip_suffix(".lua").unwrap_or(table_key);
-                    (table_key.to_owned(), file_key.to_owned())
-                })
-                .collect_vec();
-
-            // Unlock the database, then load all those files.
-            let return_table = self.lua.create_table()?;
-            let mut ret = Ok(return_table.clone());
-            for (table_key, file_key) in files_to_load {
-                match self.load_file(&file_key) {
-                    Ok(exports) => return_table.raw_set(table_key, exports)?,
-                    Err(e) => ret = Err(e),
+                None => {
+                    // this shouldn't ever happen
+                    let e = "file disappeared during loading";
+                    log::error!("{e}");
+                    Err(LuaError::external(e))
                 }
             }
-            return ret;
         }
-
-        if let Some(dependency) = self.db.lock().files.get(&filename) {
-            // Record the dependency.
-            dependency.dependents.lock().push(current_file);
-        }
-        self.load_file(&filename)
     }
 }

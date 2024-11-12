@@ -49,9 +49,9 @@ where
 }
 
 /// Database of Lua values referenced using some sort of unique ID.
-pub trait LuaIdDatabase<I>: 'static + Sized
+pub trait LuaIdDatabase<I>: 'static + Sized + Send
 where
-    I: 'static + Clone,
+    I: 'static + Clone + Send,
     LuaDbEntry<I, Self>: LuaUserData,
 {
     /// User-friendly string for a single object in the collection.
@@ -160,7 +160,7 @@ where
 /// Extension of [`LuaIdDatabase`] to support naming elements.
 pub trait LuaNamedIdDatabase<I>: LuaIdDatabase<I>
 where
-    I: 'static + Clone + Hash + Eq,
+    I: 'static + Clone + Hash + Eq + Send,
     LuaDbEntry<I, Self>: LuaUserData,
 {
     /// Returns a reference to the naming scheme of the database.

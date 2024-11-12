@@ -27,7 +27,7 @@ log = "0.4.17"
 parking_lot = "0.12.1"
 rand = "0.8.5"
 regex = "1.6.0"
-mlua = { version = "0.10.0", features = ["lua54", "error-send", "vendored"] }
+mlua = { version = "0.10.0", features = ["lua54", "send", "vendored"] }
 serde = { version = "1.0.176", features = ["derive"] }
 smallvec = { version = "1.11.0", features = ["const_new", "union"] }
 strum = { version = "0.26.3", features = ["derive"] }

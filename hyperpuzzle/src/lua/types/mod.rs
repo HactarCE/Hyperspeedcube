@@ -101,14 +101,7 @@ pub fn lua_userdata_type_name<T: 'static + LuaUserData>(lua: &Lua) -> LuaResult<
 /// instead, which gives better information to users of the Lua API.
 pub fn lua_type_name(value: &LuaValue) -> &'static str {
     // IIFE to mimic try_block
-    match (|| {
-        value
-            .as_userdata()?
-            .get_metatable()
-            .ok()?
-            .get("type")
-            .ok()?
-    })() {
+    match (|| value.as_userdata()?.metatable().ok()?.get("type").ok()?)() {
         Some(LuaStaticStr(s)) => s,
         None => value.type_name(),
     }

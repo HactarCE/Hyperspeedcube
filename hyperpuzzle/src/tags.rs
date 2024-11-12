@@ -136,6 +136,14 @@ impl TagLibrary {
             tag_values.get("external/wca")?.as_str()?,
         ))
     }
+    /// Returns the filename where the puzzle was defined, given a map of tag
+    /// values.
+    pub fn filename<'a>(&self, tag_values: &'a HashMap<String, TagValue>) -> &'a str {
+        tag_values
+            .get("file")
+            .and_then(|v| v.as_str())
+            .unwrap_or("<unknown>")
+    }
     /// Returns whether the tag set contains the "experimental" tag.
     pub fn is_experimental(&self, tag_values: &HashMap<String, TagValue>) -> bool {
         tag_values

@@ -1,15 +1,15 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use eyre::{eyre, Result};
 use mlua::prelude::*;
 use parking_lot::Mutex;
 
-use super::{LibraryFile, LibraryFileLoadOutput, LibraryFileLoadState, PuzzleRequestResponse};
+use super::{Library, LibraryFile, LibraryFileLoadState};
 use crate::builder::ColorSystemBuilder;
-use crate::lua::PuzzleGeneratorOutput;
+use crate::lua::{PuzzleGeneratorOutput, PuzzleGeneratorSpec, PuzzleSpec};
 use crate::puzzle::Puzzle;
 
 const MAX_PUZZLE_REDIRECTS: usize = 20;
@@ -17,19 +17,27 @@ const MAX_PUZZLE_REDIRECTS: usize = 20;
 /// Global library of shapes, puzzles, twist systems, etc.
 #[derive(Default)]
 pub(crate) struct LibraryDb {
-    /// Map from filename to file.
-    pub files: HashMap<String, Arc<LibraryFile>>,
+    /// File contents by file path, only for unloaded files.
+    pub files: HashMap<String, LibraryFile>,
 
-    /// Map from the ID of a puzzle to the file in which it was defined.
-    pub puzzles: BTreeMap<String, Arc<LibraryFile>>,
-    /// Map from the ID of a puzzle to the file in which it was defined.
-    pub puzzle_generators: BTreeMap<String, Arc<LibraryFile>>,
-    /// Map from the ID of a color system to the file in which it was defined.
-    pub color_systems: BTreeMap<String, Arc<LibraryFile>>,
+    /// Loaded puzzles by ID.
+    pub puzzles: BTreeMap<String, Arc<PuzzleSpec>>,
+    /// Loaded puzzle generators by ID.
+    pub puzzle_generators: BTreeMap<String, Arc<PuzzleGeneratorSpec>>,
+    /// Loaded color systems by ID.
+    pub color_systems: BTreeMap<String, Arc<ColorSystemBuilder>>,
+
+    /// Cache of constructed puzzles.
+    pub puzzle_cache: HashMap<String, Arc<Puzzle>>,
 }
 impl fmt::Debug for LibraryDb {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_set().entries(self.files.keys()).finish()
+        f.debug_struct("LibraryDb")
+            .field("files", &self.files.keys())
+            .field("puzzles", &self.puzzles.keys())
+            .field("puzzle_generators", &self.puzzle_generators.keys())
+            .field("color_systems", &self.color_systems.keys())
+            .finish()
     }
 }
 impl LibraryDb {
@@ -56,68 +64,45 @@ impl LibraryDb {
         let mut redirect_sequence = vec![id.clone()];
 
         for _ in 0..MAX_PUZZLE_REDIRECTS {
-            let parsed_id = crate::parse_generated_puzzle_id(&id);
+            let db = LibraryDb::get(lua)?;
+            let db_guard = db.lock();
 
-            let puzzle_request_response = match &parsed_id {
-                Some((generator_id, _params)) => Self::get_file_result_for(
-                    lua,
-                    "puzzle generator",
-                    generator_id,
-                    |db| &db.puzzle_generators,
-                    |file_output| file_output.request_puzzle(&id),
-                )?,
+            // Return cached puzzle if it was already constructed.
+            if let Some(cached) = db_guard.puzzle_cache.get(&id) {
+                return Ok(Arc::clone(cached));
+            }
 
-                None => Self::get_file_result_for(
-                    lua,
-                    "puzzle",
-                    &id,
-                    |db| &db.puzzles,
-                    |file_output| file_output.request_puzzle(&id),
-                )?,
-            };
-
-            let (puzzle_spec, store_in_cache) = match puzzle_request_response {
-                PuzzleRequestResponse::Generator {
-                    generator,
-                    generator_param_values,
-                    store_in_cache,
-                } => match generator.generate_puzzle_spec(lua, generator_param_values, None)? {
-                    PuzzleGeneratorOutput::Puzzle(spec) => (spec, store_in_cache),
-                    PuzzleGeneratorOutput::Redirect(new_id) => {
-                        redirect_sequence.push(new_id.clone());
-                        id = new_id;
-                        continue;
+            let puzzle_spec = match crate::parse_generated_puzzle_id(&id) {
+                Some((generator_id, params)) => {
+                    let generator = db_guard
+                        .puzzle_generators
+                        .get(generator_id)
+                        .ok_or_else(|| eyre!("no puzzle generator with ID {generator_id:?}"))?;
+                    let generator_param_values = params.into_iter().map(str::to_owned).collect();
+                    match generator.generate_puzzle_spec(lua, generator_param_values, None)? {
+                        PuzzleGeneratorOutput::Puzzle(spec) => spec,
+                        PuzzleGeneratorOutput::Redirect(new_id) => {
+                            redirect_sequence.push(new_id.clone());
+                            id = new_id;
+                            continue;
+                        }
                     }
-                },
-
-                PuzzleRequestResponse::Puzzle {
-                    spec,
-                    store_in_cache,
-                } => (spec, store_in_cache),
-
-                PuzzleRequestResponse::Cached(constructed_puzzle) => return Ok(constructed_puzzle),
+                }
+                None => Arc::clone(
+                    db_guard
+                        .puzzles
+                        .get(&id)
+                        .ok_or_else(|| eyre!("no puzzle with ID {id:?}"))?,
+                ),
             };
+
+            drop(db_guard);
 
             let constructed_puzzle = puzzle_spec.build(lua)?;
 
-            // Store constructed puzzle in cache.
-            match parsed_id {
-                Some((generator_id, _params)) => Self::get_file_result_for(
-                    lua,
-                    "puzzle generator",
-                    generator_id,
-                    |db| &db.puzzle_generators,
-                    |file_output| store_in_cache(file_output, &constructed_puzzle),
-                )?,
-
-                None => Self::get_file_result_for(
-                    lua,
-                    "puzzle",
-                    &id,
-                    |db| &db.puzzles,
-                    |file_output| store_in_cache(file_output, &constructed_puzzle),
-                )?,
-            }
+            db.lock()
+                .puzzle_cache
+                .insert(id, Arc::clone(&constructed_puzzle));
 
             return Ok(constructed_puzzle);
         }
@@ -130,107 +115,55 @@ impl LibraryDb {
     /// Returns an error if an internal error occurred or if the user's code
     /// produced errors.
     pub fn build_color_system(lua: &Lua, id: &str) -> LuaResult<ColorSystemBuilder> {
-        Self::get_file_result_for(
-            lua,
-            "color system",
-            id,
-            |db| &db.color_systems,
-            |file_output| Some((**file_output.color_systems.get(id)?).clone()),
-        )
+        let err = || LuaError::external(format!("no color system with ID {id:?}"));
+        Ok((**LibraryDb::get(lua)?
+            .lock()
+            .color_systems
+            .get(id)
+            .ok_or_else(err)?)
+        .clone())
     }
 
-    fn get_file_result_for<O>(
-        lua: &Lua,
-        kind_of_thing: &str,
-        id: &str,
-        access_lib_db: impl FnOnce(&LibraryDb) -> &BTreeMap<String, Arc<LibraryFile>>,
-        access_result: impl FnOnce(&mut LibraryFileLoadOutput) -> Option<O>,
-    ) -> LuaResult<O> {
-        let err_not_found = || LuaError::external(format!("no {kind_of_thing} with ID {id:?}"));
-        let db = LibraryDb::get(lua)?;
-        let db_guard = db.lock();
-        let file = Arc::clone(
-            access_lib_db(&*db_guard)
-                .get(id)
-                .ok_or_else(err_not_found)?,
-        );
-        drop(db_guard);
-        let mut file_result = file.as_completed().ok_or_else(|| {
-            LuaError::external(format!(
-                "file {:?} owns {kind_of_thing} with ID {id:?} but is unloaded",
-                file.name,
-            ))
-        })?;
-        access_result(&mut *file_result).ok_or_else(err_not_found)
-    }
-
-    /// Adds a file to the Lua library. It will not immediately be loaded.
+    /// Adds a file to the Lua library.
     ///
-    /// If the filename conflicts with an existing one, then the existing file
-    /// will be unloaded and overwritten.
+    /// See [`crate::Library::add_file()`].
     pub fn add_file(&mut self, filename: String, path: Option<PathBuf>, contents: String) {
-        let file = LibraryFile {
-            name: filename.clone(),
-            path,
-            contents,
-            load_state: Mutex::new(LibraryFileLoadState::Unloaded),
-            dependents: Mutex::new(vec![]),
-        };
+        self.files.insert(
+            filename.clone(),
+            LibraryFile {
+                name: filename,
+                path,
+                contents,
 
-        // If the name, path, and contents are the same, then in theory we don't
-        // need to reload the file. In practice, this is actually really
-        // annoying and confusing when developing puzzles. If the user wants to
-        // reload, just reload.
-
-        // if let Some(existing_file) = self.files.get(&filename) {
-        //     if **existing_file == file {
-        //         //
-        //         return;
-        //     }
-        // }
-
-        self.unload_file(&filename);
-        self.files.insert(filename, Arc::new(file));
+                load_state: LibraryFileLoadState::Unloaded,
+            },
+        );
     }
 
-    /// Unloads a file.
-    pub fn unload_file(&mut self, filename: &str) {
-        // If the file doesn't exist, don't worry about it.
-        let Some(file) = self.files.get_mut(filename) else {
-            return;
-        };
-
-        let dependents = std::mem::take(&mut *file.dependents.lock());
-        let load_state = std::mem::take(&mut *file.load_state.lock());
-
-        for dep in dependents {
-            self.unload_file(&dep.name);
-        }
-
-        if let LibraryFileLoadState::Done(Ok(result)) = load_state {
-            let LibraryFileLoadOutput {
-                exports: _,
-
-                puzzles,
-                puzzle_generators,
-                color_systems,
-            } = result;
-
-            for puzzle_id in puzzles.keys() {
-                self.puzzles.remove(puzzle_id);
-            }
-            for puzzle_generator_id in puzzle_generators.keys() {
-                self.puzzle_generators.remove(puzzle_generator_id);
-            }
-            for color_system_id in color_systems.keys() {
-                self.color_systems.remove(color_system_id);
-            }
+    /// Reads a file from the disk and adds it to the Lua library.
+    ///
+    /// See [`crate::Library::read_file()`].
+    pub fn read_file(&mut self, filename: String, path: PathBuf) {
+        let file_path = path.strip_prefix(".").unwrap_or(&path);
+        match std::fs::read_to_string(file_path) {
+            Ok(contents) => self.add_file(filename, Some(file_path.to_path_buf()), contents),
+            Err(e) => log::error!("error loading {file_path:?}: {e}"),
         }
     }
 
-    /// Unloads and removes a file from the Lua library.
-    pub fn remove_file(&mut self, filename: &str) {
-        self.unload_file(filename);
-        self.files.remove(filename);
+    pub fn read_directory(&mut self, directory: &Path) {
+        for entry in walkdir::WalkDir::new(directory).follow_links(true) {
+            match entry {
+                Ok(entry) => {
+                    let path = entry.path();
+                    if path.extension().is_some_and(|ext| ext == "lua") {
+                        let relative_path = path.strip_prefix(directory).unwrap_or(path);
+                        let name = Library::relative_path_to_filename(relative_path);
+                        self.read_file(name, path.to_owned());
+                    }
+                }
+                Err(e) => log::warn!("error reading filesystem entry: {e:?}"),
+            }
+        }
     }
 }

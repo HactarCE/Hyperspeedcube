@@ -1,5 +1,5 @@
 use super::*;
-use crate::library::{LibraryDb, LibraryFile};
+use crate::library::LibraryDb;
 
 /// Lua handle to the library of all known puzzles.
 #[derive(Debug, Default, Copy, Clone)]
@@ -14,7 +14,12 @@ impl LuaUserData for LuaPuzzleGeneratorDb {
         });
 
         methods.add_method("add", |lua, Self, spec| {
-            LibraryFile::get_current(lua)?.define_puzzle_generator(spec)
+            let generator_spec = PuzzleGeneratorSpec::from_lua(spec, lua)?;
+            LibraryDb::get(lua)?
+                .lock()
+                .puzzle_generators
+                .insert(generator_spec.id.clone(), Arc::new(generator_spec));
+            Ok(())
         });
     }
 }

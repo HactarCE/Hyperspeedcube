@@ -1,7 +1,3 @@
-for k, v in pairs(require('utils/*')) do
-  _G[k] = v
-end
-
 function lerp(a, b, t)
   return a + (b-a)*t
 end

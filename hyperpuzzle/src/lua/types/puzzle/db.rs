@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use super::*;
-use crate::library::{LibraryDb, LibraryFile};
+use crate::library::LibraryDb;
 
 /// Lua handle to the library of all known puzzles.
 #[derive(Debug, Default, Copy, Clone)]
@@ -14,7 +16,12 @@ impl LuaUserData for LuaPuzzleDb {
         });
 
         methods.add_method("add", |lua, Self, spec| {
-            LibraryFile::get_current(lua)?.define_puzzle(spec)
+            let puzzle_spec = PuzzleSpec::from_lua(spec, lua)?;
+            LibraryDb::get(lua)?
+                .lock()
+                .puzzles
+                .insert(puzzle_spec.id.clone(), Arc::new(puzzle_spec));
+            Ok(())
         });
     }
 }

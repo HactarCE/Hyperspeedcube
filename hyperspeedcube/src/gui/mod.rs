@@ -35,7 +35,7 @@ impl AppUi {
 
         // Initialize puzzle library.
         crate::load_built_in_puzzles();
-        crate::reload_user_puzzles();
+        crate::load_user_puzzles();
 
         // Override UI style.
         cc.egui_ctx.style_mut(|style| {

@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use super::*;
-use crate::library::{LibraryDb, LibraryFile};
+use crate::library::LibraryDb;
 
 /// Lua handle to the library of all known color systems.
 #[derive(Debug, Default, Copy, Clone)]
@@ -15,7 +17,11 @@ impl LuaUserData for LuaColorSystemDb {
 
         methods.add_method("add", |lua, Self, spec| {
             let color_system = super::from_lua_table(lua, spec)?;
-            LibraryFile::get_current(lua)?.define_color_system(color_system)
+            LibraryDb::get(lua)?
+                .lock()
+                .color_systems
+                .insert(color_system.id.clone(), Arc::new(color_system));
+            Ok(())
         });
     }
 }
