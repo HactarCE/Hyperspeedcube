@@ -1,6 +1,3 @@
-local utils = require('utils')
-local symmetries = require('symmetries')
-
 puzzles:add{
   id = 'cto',
   name = "Corner-Turning Octahedron",
@@ -9,7 +6,7 @@ puzzles:add{
   colors = 'octahedron',
   build = function(self)
     local sym = cd'bc3'
-    local shape = symmetries.octahedral.octahedron()
+    local shape = lib.symmetries.octahedral.octahedron()
     self:carve(shape:iter_poles())
 
     -- Define axes and slices

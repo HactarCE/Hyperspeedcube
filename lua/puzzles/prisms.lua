@@ -1,9 +1,9 @@
-local utils = require('utils')
-local polygonal = require('symmetries/polygonal')
-local linear = require('symmetries/linear')
+local utils = lib.utils
+local polygonal = lib.symmetries.polygonal
+local linear = lib.symmetries.linear
 
-local dodecahedral = require('symmetries/dodecahedral')
-local ft_dodecahedra = require('puzzles/ft_dodecahedra')
+local dodecahedral = lib.symmetries.dodecahedral
+local ft_dodecahedra = lib.puzzles.ft_dodecahedra
 
 -- TODO: variant of duoprism with factor of `polygon_edge_length(m)/2` and `polygon_edge_length(n)/2`
 

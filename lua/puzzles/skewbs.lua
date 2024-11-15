@@ -1,6 +1,3 @@
-local utils = require('utils')
-local symmetries = require('symmetries')
-
 local REALISITIC_PROPORTIONS = true
 local CORNER_STALK_SIZE = 0.03
 
@@ -16,7 +13,7 @@ local function skewb_cut_depths(size)
     mechanical_limit = sqrt(3) / 5
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return utils.layers.inclusive(outermost_cut, -outermost_cut, size-1)
+  return lib.utils.layers.inclusive(outermost_cut, -outermost_cut, size-1)
 end
 
 puzzle_generators:add{
@@ -50,11 +47,11 @@ puzzle_generators:add{
       ndim = 3,
       build = function(self)
         local sym = cd'bc3'
-        local shape = symmetries.cubic.cube()
+        local shape = lib.symmetries.cubic.cube()
         self:carve(shape:iter_poles())
 
         -- Define axes and slices
-        self.axes:add(symmetries.octahedral.octahedron():iter_poles(), skewb_cut_depths(size))
+        self.axes:add(lib.symmetries.octahedral.octahedron():iter_poles(), skewb_cut_depths(size))
 
         -- Define twists
         for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
@@ -172,11 +169,11 @@ puzzles:add{
   },
   build = function(self)
     local sym = cd'bc3'
-    local shape = symmetries.cubic.cube()
+    local shape = lib.symmetries.cubic.cube()
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    self.axes:add(symmetries.octahedral.octahedron():iter_poles(), {1/sqrt(3)})
+    self.axes:add(lib.symmetries.octahedral.octahedron():iter_poles(), {1/sqrt(3)})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
@@ -209,11 +206,11 @@ puzzles:add{
   },
   build = function(self)
     local sym = cd'bc3'
-    local shape = symmetries.cubic.cube()
+    local shape = lib.symmetries.cubic.cube()
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    self.axes:add(symmetries.octahedral.octahedron():iter_poles(), {0.82})
+    self.axes:add(lib.symmetries.octahedral.octahedron():iter_poles(), {0.82})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do

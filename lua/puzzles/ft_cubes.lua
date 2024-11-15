@@ -1,5 +1,4 @@
-local utils = require('utils')
-local symmetries = require('symmetries')
+local utils = lib.utils
 
 local REALISITIC_PROPORTIONS = true
 local CORNER_STALK_SIZE = 0.1
@@ -133,7 +132,7 @@ puzzle_generators:add{
       ndim = 3,
       build = function(self)
         local sym = cd'bc3'
-        local shape = symmetries.cubic.cube()
+        local shape = lib.symmetries.cubic.cube()
         self:carve(shape:iter_poles())
 
         -- Define axes and slices
@@ -310,7 +309,7 @@ puzzle_generators:add{
       ndim = 4,
       build = function(self)
         local sym = cd'bc4'
-        local shape = symmetries.hypercubic.hypercube()
+        local shape = lib.symmetries.hypercubic.hypercube()
         self:carve(shape:iter_poles())
 
         -- Define axes and slices

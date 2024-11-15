@@ -1,5 +1,3 @@
-local symmetries = require('symmetries')
-
 GIZMO_EDGE_FACTOR = 0.8
 
 function build_48_cell_puzzle(self, shape_name)
@@ -14,7 +12,7 @@ function build_48_cell_puzzle(self, shape_name)
 
 
   if shape_name == 'hypercube' then
-    self:carve(cubic_sym:orbit(sym.ooox.unit):named(symmetries.hypercubic.HYPERCUBE_FACET_NAMES))
+    self:carve(cubic_sym:orbit(sym.ooox.unit):named(lib.symmetries.hypercubic.HYPERCUBE_FACET_NAMES))
   elseif shape_name == 'orthoplex' then
     self:carve(cubic_sym:orbit(sym:thru(4):transform(sym.ooox.unit)))
   elseif shape_name == 'octaplex' then

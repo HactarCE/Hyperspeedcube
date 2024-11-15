@@ -1,4 +1,4 @@
-local utils = require('utils')
+local utils = lib.utils
 
 NGONAL_NAMES = {
   "Monogonal",

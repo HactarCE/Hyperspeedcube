@@ -1,12 +1,11 @@
-local utils = require('utils')
-local symmetries = require('symmetries')
+local utils = lib.utils
 
 local REALISITIC_PROPORTIONS = true
 local CORNER_STALK_SIZE = 0.03
 
 
 function shallow_ft_dodecahedron(puzzle, layers, scale, basis)
-  local shape = symmetries.dodecahedral.dodecahedron(scale, basis)
+  local shape = lib.symmetries.dodecahedral.dodecahedron(scale, basis)
 
   local cut_depths
   do
@@ -336,7 +335,7 @@ puzzles:add{
 
   build = function(self)
     local sym = cd'h3'
-    local shape = symmetries.dodecahedral.dodecahedron()
+    local shape = lib.symmetries.dodecahedral.dodecahedron()
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
@@ -414,7 +413,7 @@ puzzles:add{
 
   build = function(self)
     local sym = cd'h3'
-    local shape = symmetries.dodecahedral.dodecahedron()
+    local shape = lib.symmetries.dodecahedral.dodecahedron()
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
@@ -483,7 +482,7 @@ puzzles:add{
 
   build = function(self)
     local sym = cd'h3'
-    local shape = symmetries.dodecahedral.dodecahedron()
+    local shape = lib.symmetries.dodecahedral.dodecahedron()
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
@@ -562,7 +561,7 @@ puzzles:add{
 
   build = function(self)
     local sym = cd'h3'
-    local shape = symmetries.dodecahedral.dodecahedron()
+    local shape = lib.symmetries.dodecahedral.dodecahedron()
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
@@ -702,7 +701,7 @@ puzzle_generators:add{
       ndim = 3,
       build = function(self)
         local sym = cd'h3'
-        local shape = symmetries.dodecahedral.dodecahedron()
+        local shape = lib.symmetries.dodecahedral.dodecahedron()
         self:carve(shape:iter_poles())
 
         -- Define axes and slices

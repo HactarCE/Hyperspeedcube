@@ -11,8 +11,9 @@ pub struct LibraryFile {
     /// The path to the file. If specified, this may be used to reload the file
     /// if it changes.
     pub path: Option<PathBuf>,
-    /// Contents of the file. This should be valid Lua code.
-    pub contents: String,
+    /// Contents of the file. This should be valid Lua code if this is a real
+    /// file.
+    pub contents: Option<String>,
 
     /// State of the file: unloaded, loading, or loaded (with either an error or
     /// a table of exports).

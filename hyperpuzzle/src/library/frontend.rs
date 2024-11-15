@@ -34,7 +34,8 @@ impl Library {
         let (logger, log_rx) = LuaLogger::new();
 
         let db = LibraryDb::new();
-        let loader = LuaLoader::new(Arc::clone(&db), logger);
+        let loader =
+            LuaLoader::new(Arc::clone(&db), logger).expect("error initializing Lua environment");
 
         std::thread::spawn(move || {
             for command in cmd_rx {

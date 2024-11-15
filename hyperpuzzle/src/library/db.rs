@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -19,6 +19,8 @@ const MAX_PUZZLE_REDIRECTS: usize = 20;
 pub(crate) struct LibraryDb {
     /// File contents by file path, only for unloaded files.
     pub files: HashMap<String, LibraryFile>,
+    /// Set of directories that contain files.
+    pub directories: HashSet<String>,
 
     /// Loaded puzzles by ID.
     pub puzzles: BTreeMap<String, Arc<PuzzleSpec>>,
@@ -128,12 +130,17 @@ impl LibraryDb {
     ///
     /// See [`crate::Library::add_file()`].
     pub fn add_file(&mut self, filename: String, path: Option<PathBuf>, contents: String) {
+        let mut dirname = filename.as_str();
+        while let Some((prefix, _)) = dirname.rsplit_once('/') {
+            dirname = prefix;
+            self.directories.insert(dirname.to_string());
+        }
         self.files.insert(
             filename.clone(),
             LibraryFile {
                 name: filename,
                 path,
-                contents,
+                contents: Some(contents),
 
                 load_state: LibraryFileLoadState::Unloaded,
             },

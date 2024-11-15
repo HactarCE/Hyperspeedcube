@@ -1,6 +1,3 @@
-local utils = require('utils')
-local symmetries = require('symmetries')
-
 puzzles:add{
   id = 'ftco',
   version = '0.1.0',
@@ -20,8 +17,8 @@ puzzles:add{
     self:carve(sym:orbit(xoo))
 
     -- Define axes and slices
-    self.axes:add(sym:orbit(oox), utils.layers.exclusive(sqrt(3)*3/4, 0, 1))
-    self.axes:add(sym:orbit(xoo), utils.layers.exclusive(1.5, 0, 1))
+    self.axes:add(sym:orbit(oox), lib.utils.layers.exclusive(sqrt(3)*3/4, 0, 1))
+    self.axes:add(sym:orbit(xoo), lib.utils.layers.exclusive(1.5, 0, 1))
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do

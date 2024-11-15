@@ -1,5 +1,4 @@
-local utils = require('utils')
-local symmetries = require('symmetries')
+local utils = lib.utils
 
 puzzle_generators:add{
   id = 'ft_octahedron',
@@ -73,7 +72,7 @@ puzzle_generators:add{
       ndim = 3,
       build = function(self)
         local sym = cd'bc3'
-        local shape = symmetries.octahedral.octahedron()
+        local shape = lib.symmetries.octahedral.octahedron()
         self:carve(shape:iter_poles())
 
         -- Define axes and slices

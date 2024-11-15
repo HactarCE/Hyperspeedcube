@@ -55,6 +55,21 @@ fn result_to_ok_or_warn<T, E>(
     }
 }
 
+fn create_sealed_table_with_index_metamethod(
+    lua: &mlua::Lua,
+    index_metamethod: mlua::Function,
+) -> mlua::Result<mlua::Table> {
+    let table = lua.create_table()?;
+    let newindex_metamethod =
+        lua.create_function(|_lua, ()| Err::<(), _>(mlua::Error::external("table is sealed")))?;
+    let metatable = lua.create_table_from([
+        (mlua::MetaMethod::Index.name(), index_metamethod),
+        (mlua::MetaMethod::NewIndex.name(), newindex_metamethod),
+    ])?;
+    table.set_metatable(Some(metatable));
+    Ok(table)
+}
+
 fn deep_copy_value(lua: &mlua::Lua, value: mlua::Value) -> mlua::Result<mlua::Value> {
     match value {
         mlua::Value::Table(table) => Ok(mlua::Value::Table(deep_copy_table(lua, table)?)),
