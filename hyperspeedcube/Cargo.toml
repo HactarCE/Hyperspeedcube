@@ -20,7 +20,7 @@ bytemuck = { version = "1.9.1", features = ["derive"] }
 cgmath = "0.18.0"
 colorous = "1.0.10"
 comrak = "0.29.0"
-config = { version = "0.14.1", features = ["preserve_order"] }
+config = { version = "0.13.4", features = ["preserve_order"] } # blocked on https://github.com/rust-cli/config-rs/issues/531
 # Fork of color-eyre that does not re-export color_owo, which otherwise clogs editor completions
 color-eyre = { git = "https://github.com/FlareFlo/color-eyre.git", rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1", default-features = false, features = ["track-caller", "capture-spantrace"] }
 empfindung = "0.2.6"
