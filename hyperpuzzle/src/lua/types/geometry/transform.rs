@@ -61,8 +61,6 @@ impl LuaUserData for LuaTransform {
             Ok(LuaTransform(if is_refl { t.reverse() } else { t }))
         }
         methods.add_method("transform_oriented", transform_oriented);
-        methods.add_method("transform_keep_orientation", transform_oriented);
-        methods.add_method("tfko", transform_oriented);
 
         // Comparison of transforms
         methods.add_meta_method(LuaMetaMethod::Eq, |_lua, Self(this), Self(other)| {
