@@ -235,7 +235,7 @@ __separator
 
 __heading "Miscellaneous"
 
-solved "Solved"
+solved "Solved" auto=true
 generated "Generated" auto=true
 (str)builtin "Built-in" expected=true
 external "External" {
