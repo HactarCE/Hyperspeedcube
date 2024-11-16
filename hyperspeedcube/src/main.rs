@@ -222,12 +222,9 @@ fn open_dir(dir: &std::path::Path) {
 
 #[cfg(not(debug_assertions))]
 fn init_human_panic() {
-    let human_panic_metadata = human_panic::Metadata {
-        name: TITLE.into(),
-        version: env!("CARGO_PKG_VERSION").into(),
-        authors: env!("CARGO_PKG_AUTHORS").into(),
-        homepage: env!("CARGO_PKG_REPOSITORY").into(),
-    };
+    let human_panic_metadata = human_panic::Metadata::new(TITLE, env!("CARGO_PKG_VERSION"))
+        .authors(env!("CARGO_PKG_AUTHORS"))
+        .homepage(env!("CARGO_PKG_REPOSITORY"));
 
     let std_panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
