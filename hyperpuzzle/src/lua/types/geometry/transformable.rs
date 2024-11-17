@@ -1,4 +1,4 @@
-// TODO: this doesn't correctly handle missing elements (e.g., mising one axis
+// TODO: this doesn't correctly handle missing elements (e.g., missing one axis
 // but the others should still work)
 
 use std::hash::Hash;

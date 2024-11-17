@@ -50,17 +50,14 @@ impl LuaUserData for LuaTransform {
         methods.add_method("transform", |lua, Self(this), obj: Transformable| {
             this.transform(&obj).into_lua(lua).transpose()
         });
-        // TODO: clean this up and pick a name, dammit
-        fn transform_oriented(
-            _lua: &Lua,
-            LuaTransform(this): &LuaTransform,
-            LuaTransform(rhs): LuaTransform,
-        ) -> LuaResult<LuaTransform> {
-            let t = this.transform(&rhs);
-            let is_refl = this.is_reflection();
-            Ok(LuaTransform(if is_refl { t.reverse() } else { t }))
-        }
-        methods.add_method("transform_oriented", transform_oriented);
+        methods.add_method(
+            "transform_oriented",
+            |_lua, LuaTransform(this), LuaTransform(rhs)| {
+                let t = this.transform(&rhs);
+                let is_refl = this.is_reflection();
+                Ok(LuaTransform(if is_refl { t.reverse() } else { t }))
+            },
+        );
 
         // Comparison of transforms
         methods.add_meta_method(LuaMetaMethod::Eq, |_lua, Self(this), Self(other)| {
