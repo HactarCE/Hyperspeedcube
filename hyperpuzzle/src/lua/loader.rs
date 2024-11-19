@@ -281,7 +281,7 @@ impl LuaLoader {
             crate::lua::create_sealed_table_with_index_metamethod(&self.lua, index_metamethod)?;
 
         let Some(file_contents) = file.contents.clone() else {
-            return Ok(exports_table); // fake file!
+            return Ok(exports_table); // fake file! (probably a directory)
         };
 
         // There must be no way to exit the function during this block, or else

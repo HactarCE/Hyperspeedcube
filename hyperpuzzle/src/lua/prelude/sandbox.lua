@@ -1,5 +1,11 @@
 -- See http://lua-users.org/wiki/SandBoxes
 
+-- Globals that should be accessible from user code
+local ALLOWED_GLOBALS = {
+  NDIM = true,
+  SPACE = true,
+}
+
 SANDBOX_ENV = {
   -- Built-in constants
   _VERSION = _VERSION,
@@ -65,14 +71,25 @@ SANDBOX_ENV = {
   -- Rust code will inject more entries into this table
 }
 
+local function block_newindex()
+  error('table is sealed')
+end
+
 -- Prevent modifications to globals
-READ_ONLY_METATABLE = {__newindex = function() error('table is sealed') end}
+READ_ONLY_METATABLE = {__newindex = block_newindex}
 function seal(t) setmetatable(t, READ_ONLY_METATABLE) end
 seal(math)
 seal(string)
 seal(table)
 seal(utf8)
-seal(SANDBOX_ENV)
+setmetatable(SANDBOX_ENV, {
+  __newindex = block_newindex,
+  __index = function(_table, index)
+    if ALLOWED_GLOBALS[index] then
+      return _G[index]
+    end
+  end,
+})
 
 function make_sandbox(filename)
   -- Construct a new table so that it's easy to see what globals have been added
