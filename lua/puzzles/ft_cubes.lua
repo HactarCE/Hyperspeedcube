@@ -27,7 +27,7 @@ puzzle_generators:add{
 
   tags = {
     builtin = '1.0.0',
-    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' }, -- TODO: museum
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
 
     author = { "Andrew Farkas", "Milo Jacquet" },
     '!inventor',
