@@ -289,6 +289,13 @@ fn transform_point_to_3d(vertex_index: i32, surface: i32, piece: i32) -> Transfo
     let orientation = sign(u_2d.x * v_2d.y - u_2d.y * v_2d.x) * sign(z_divisor);
     ret.normal = normalize(cross(u_3d, v_3d)) * orientation;
 
+    if NDIM == 3 {
+        let show = orientation == 0.0
+            || (orientation > 0.0 && draw_params.show_frontfaces != 0)
+            || (orientation < 0.0 && draw_params.show_backfaces != 0);
+        ret.cull |= !show;
+    }
+
     return ret;
 }
 
