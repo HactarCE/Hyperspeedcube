@@ -188,7 +188,7 @@ impl Axes {
         if euclidean_bits == 0 {
             return None;
         }
-        let total_bits = std::mem::size_of_val(&euclidean_bits) as u32 * 8;
+        let total_bits = size_of_val(&euclidean_bits) as u32 * 8;
         Some((total_bits - 1 - euclidean_bits.leading_zeros()) as u8)
     }
 }

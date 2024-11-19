@@ -70,7 +70,7 @@ impl GraphicsState {
         len: usize,
         usage: wgpu::BufferUsages,
     ) -> wgpu::Buffer {
-        let size = std::mem::size_of::<T>() * len.at_least(1); // don't make an empty buffer
+        let size = size_of::<T>() * len.at_least(1); // don't make an empty buffer
         self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(&label.to_string()),
             size: wgpu::util::align_to(size as u64, wgpu::COPY_BUFFER_ALIGNMENT),

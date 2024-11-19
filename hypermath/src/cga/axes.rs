@@ -101,7 +101,7 @@ impl Axes {
     /// this set of axes.
     pub fn min_euclidean_ndim(self) -> u8 {
         let bits = self.bits();
-        let total_bits = std::mem::size_of_val(&bits) as u32 * 8;
+        let total_bits = size_of_val(&bits) as u32 * 8;
         (total_bits - 2).saturating_sub(bits.leading_zeros()) as u8
     }
     /// Returns the Euclidean axis, if it is exactly one axis and that axis is
