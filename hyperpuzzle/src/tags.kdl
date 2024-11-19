@@ -148,7 +148,7 @@ completeness "Completeness" {
 }
 
 algebraic "Algebraic properties" {
-  nonpseudo expected=true include_in_tag=false inline=true {
+  total expected=true include_in_tag=false inline=true {
     bandaged "Bandaged"
     doctrinaire "Doctrinaire"
     jumbling "Jumbling"
