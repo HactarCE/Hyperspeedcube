@@ -398,6 +398,7 @@ puzzle_generators:add{
     { name = "Dodecahedron layers", type = 'int', default = 1, min = 0, max = 10 },
     PARAMS.line_height("Prism layers"),
   },
+  examples = { { params = {1, 3} } },
   gen = function(params)
     local dodecahedron_size, prism_size = table.unpack(params)
 
@@ -410,12 +411,12 @@ puzzle_generators:add{
       colors = 'dodecahedron_prism',
       ndim = 4,
       build = function(self)
-        local dodeca = ft_dodecahedra.shallow_ft_dodecahedron(dodecahedron_size)
+        local dodeca = ft_dodecahedra.shallow_ft_dodecahedron(self, dodecahedron_size)
 
         local line = linear.line(1, 'w')
         local line_cuts = utils.layers.double_ended(1, -1, prism_size)
 
-        local dodeca_colors, dodeca_axes = dodeca:cut(self)
+        local dodeca_colors, dodeca_axes = dodeca.colors, dodeca.axes
         local base_colors, base_axes = utils.cut_shape(self, line, line_cuts, 'O', 'I')
 
         local sym = cd{5, 3, 2}
