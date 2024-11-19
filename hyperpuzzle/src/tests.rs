@@ -113,6 +113,16 @@ fn load_puzzle_library() -> Library {
     lib
 }
 
+#[test]
+fn build_7x7x7x7() {
+    let lib = load_puzzle_library();
+    let (result, time) = time_it("Building puzzle 7x7x7x7", || {
+        lib.build_puzzle("ft_hypercube:7").take_result_blocking()
+    });
+    result.expect("failed to build puzzle");
+    println!("Done in {time:?}");
+}
+
 fn time_it<T>(task: impl fmt::Display, f: impl FnOnce() -> T) -> (T, std::time::Duration) {
     print!("{task} ...");
     std::io::stdout().flush().expect("error flushing stdout");

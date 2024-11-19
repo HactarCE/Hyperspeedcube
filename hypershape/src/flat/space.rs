@@ -11,7 +11,7 @@ pub struct Space {
     /// Primordial cube.
     pub(super) primordial_cube: Mutex<Option<PolytopeId>>,
 
-    // TODO: consider using `boxcar` for vectors and `dashmap` for hashmaps
+    // TODO: consider using `scc`
     pub(super) vertices: Mutex<PerVertex<Vector>>,
     pub(super) vertex_data_to_id: Mutex<ApproxHashMap<Vector, VertexId>>,
 
