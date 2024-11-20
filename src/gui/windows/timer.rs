@@ -12,7 +12,7 @@ pub(crate) const TIMER: Window = Window {
         if ui
             .add(egui::Button::new(
                 egui::RichText::new(match app.timer_start_end {
-                    (None, None) => "click".into(),
+                    (None, None) => "Start".into(),
                     (None, Some(_)) => panic!("invalid timer state"),
                     (Some(start), None) => duration_to_str(start.elapsed()),
                     (Some(start), Some(end)) => duration_to_str(end - start),
