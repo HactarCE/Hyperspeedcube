@@ -33,6 +33,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Smart realign option (always enabled)
 
+## [1.0.9] - 2024-11-20
+
+### Fixed
+
+- Crash when starting timer on web
+
 ## [1.0.8] - 2024-11-20
 
 ### Added

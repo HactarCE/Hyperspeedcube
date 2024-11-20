@@ -4,7 +4,7 @@ resolver = "2"
 
 [workspace.package]
 name = "hyperspeedcube"
-version = "1.0.8"
+version = "1.0.9"
 authors = ["Andrew Farkas"]
 edition = "2021"
 homepage = "https://dev.hypercubing.xyz/internals/"
