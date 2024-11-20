@@ -12,6 +12,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
+## [1.0.9] - 2024-11-20
+
+### Fixed
+
+- Crash when starting timer on web
+
 ## [1.0.8] - 2024-11-20
 
 ### Added

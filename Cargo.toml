@@ -1,6 +1,6 @@
 [package]
 name = "hyperspeedcube"
-version = "1.0.8"
+version = "1.0.9"
 authors = ["Andrew Farkas"]
 edition = "2021"
 rust-version = "1.65"
@@ -83,7 +83,7 @@ winres = "0.1"
 [package.metadata.winres]
 FileDescription = "Hyperspeedcube"
 ProductName = "Hyperspeedcube"
-ProductVersion = "1.0.8"
+ProductVersion = "1.0.9"
 OriginalFilename = "hyperspeedcube.exe"
 LegalCopyright = "Copyright © 2022 HactarCE"
 
