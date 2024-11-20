@@ -1,4 +1,4 @@
-name: build
+name: Build
 
 on:
   push:
@@ -15,8 +15,8 @@ jobs:
     name: Build Windows latest
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -31,7 +31,7 @@ jobs:
       - name: Build Hyperspeedcube
         run: cargo build --release
       - name: Upload executable
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_win64
           path: target/release/hyperspeedcube.exe
@@ -40,8 +40,8 @@ jobs:
     name: Build Linux latest
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -64,9 +64,9 @@ jobs:
       - name: Build Hyperspeedcube
         run: cargo build --release
       - name: Make tarball
-        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz target/release/hyperspeedcube
+        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz -C target/release hyperspeedcube
       - name: Upload executable
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux
           path: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_linux.tar.gz
@@ -75,8 +75,8 @@ jobs:
     name: Build macOS latest
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -87,6 +87,7 @@ jobs:
         with:
             toolchain: stable
             components: clippy
+            target: x86_64-apple-darwin
             override: true
       - name: Install cargo-bundle
         uses: actions-rs/install@v0.1
@@ -94,14 +95,18 @@ jobs:
           crate: cargo-bundle
           version: latest
           use-tool-cache: true
-      - name: Build Hyperspeedcube
+      - name: Build Hyperspeedcube (arm64)
         run: cargo build --release
+      - name: Build Hyperspeedcube (x86_64)
+        run: cargo build --release --target=x86_64-apple-darwin
+      - name: Merge universal binary
+        run: lipo -create -output target/release/hyperspeedcube target/x86_64-apple-darwin/release/hyperspeedcube target/release/hyperspeedcube
       - name: Make app
-        run: cargo bundle --release
+        run: CARGO_BUNDLE_SKIP_BUILD= cargo bundle --release
       - name: Make tarball
-        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz target/release/bundle/osx/Hyperspeedcube.app
+        run: tar -czf hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz -C target/release/bundle/osx Hyperspeedcube.app
       - name: Upload app
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos
           path: hyperspeedcube_v${{ env.HYPERSPEEDCUBE_VERSION }}_macos.tar.gz
