@@ -30,7 +30,7 @@ macro_rules! unsupported_on_web {
 }
 
 pub struct App {
-    pub(crate) timer_start_end: (Option<std::time::Instant>, Option<std::time::Instant>),
+    pub(crate) timer_start_end: (Option<instant::Instant>, Option<instant::Instant>),
 
     pub(crate) prefs: Preferences,
 
