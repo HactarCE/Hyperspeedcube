@@ -3,6 +3,9 @@ members = [ "hypermath", "hypershape", "hyperpuzzle", "hyperstrings", "hyperspee
 resolver = "2"
 
 [workspace.package]
+name = "hyperspeedcube"
+version = "1.0.8"
+authors = ["Andrew Farkas"]
 edition = "2021"
 homepage = "https://dev.hypercubing.xyz/internals/"
 repository = "https://github.com/HactarCE/Hyperspeedcube/"

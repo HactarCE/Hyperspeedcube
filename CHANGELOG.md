@@ -5,9 +5,12 @@ All notable changes to Hyperspeedcube will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 [@Edan-Purple]: https://github.com/Edan-Purple
+[@JosieElliston]: https://github.com/JosieElliston
 [@Leoongithub]: https://github.com/Leoongithub
+[@milojacquet]: https://github.com/milojacquet
 [@picuber]: https://github.com/picuber
 [@Sonicpineapple]: https://github.com/Sonicpineapple
+[@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
 ## [2.0.0-pre.12-dev] - 2024-05-31
 
@@ -29,6 +32,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Removed
 
 - Smart realign option (always enabled)
+
+## [1.0.8] - 2024-11-20
+
+### Added
+
+- Built-in timer ([@JosieElliston] [#65](https://github.com/HactarCE/Hyperspeedcube/pull/65))
+
+### Fixed
+
+- Glitchy window size on program start ([@thatcomputerguy0101] [#49](https://github.com/HactarCE/Hyperspeedcube/pull/49))
+- macOS universal binary ([@thatcomputerguy0101] [#51](https://github.com/HactarCE/Hyperspeedcube/pull/51))
+
+## [1.0.7] - 2024-06-06
+
+### Fixed
+
+- Crash due to keybinds reference font size ([#36](https://github.com/HactarCE/Hyperspeedcube/issues/36))
+
+## [1.0.6] - 2023-10-18
+
+### Added
+
+- Fallback copy/paste on web ([@milojacquet] [#37](https://github.com/HactarCE/Hyperspeedcube/pull/37))
 
 ## [1.0.5] - 2023-01-21
 

@@ -85,7 +85,7 @@ fn main() -> eframe::Result<()> {
 #[cfg(target_arch = "wasm32")]
 fn main() -> eframe::Result<()> {
     // Initialize logging.
-    wasm_logger::init(wasm_logger::Config::default());
+    wasm_logger::init(wasm_logger::Config::new(log::Level::Warn));
 
     // Log panics using `console.error`.
     console_error_panic_hook::set_once();

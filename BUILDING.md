@@ -7,7 +7,8 @@ If you tell me you have trouble building HSC and it turns out you _don't_ have t
 ## Building on Linux or macOS
 
 1. Download/install Cargo.
-2. Clone this project and build/run:
+2. On Linux, install build-time dependencies: `sudo apt install cmake libglib2.0-dev libatk1.0-dev libgtk-3-dev libxkbcommon-x11-dev`
+3. Clone this project and build/run:
 
 ```sh
 git clone https://github.com/HactarCE/Hyperspeedcube
@@ -28,8 +29,11 @@ The first build may take ~10 minutes or more. Remove `--release` to disable opti
 ## Building for web
 
 1. Follow instructions above to run the native version first.
-2. Install Trunk with `cargo install --locked trunk`
-3. Run `trunk serve` to build and serve on <http://127.0.0.1:8080>. Trunk will rebuild automatically if you edit the project. Open <http://127.0.0.1:8080/index.html#dev> in a browser.
+2. Install wasm32 target with `rustup target add wasm32-unknown-unknown`
+3. Install Trunk with `cargo install --locked trunk`
+4. Run `trunk serve` to build and serve on <http://127.0.0.1:8080>. Trunk will rebuild automatically if you edit the project. Open <http://127.0.0.1:8080/index.html#dev> in a browser.
+
+If you get an error on `trunk serve` about failing to downloat wasm-bindgen, try installing wasm-bindgen-cli with `cargo install --locked wasm-bindgen-cli --version 0.2.83`. In case I haven't updated this guide, check `Cargo.toml` (or `hyperspeedcube/Cargo.toml`) for the version in use.
 
 Note that `assets/sw.js` script will try to cache the app, and loads the cached version when it cannot connect to server allowing the app to work offline (like PWA). appending `#dev` to `index.html` will skip this caching, allowing to load the latest builds during development.
 
