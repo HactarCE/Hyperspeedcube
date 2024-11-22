@@ -30,8 +30,6 @@ macro_rules! unsupported_on_web {
 }
 
 pub struct App {
-    pub(crate) timer_start_end: (Option<instant::Instant>, Option<instant::Instant>),
-
     pub(crate) prefs: Preferences,
 
     events: EventLoopProxy<AppEvent>,
@@ -64,7 +62,6 @@ pub struct App {
 impl App {
     pub(crate) fn new(event_loop: &EventLoop<AppEvent>, initial_file: Option<PathBuf>) -> Self {
         let mut this = Self {
-            timer_start_end: (None, None),
             prefs: Preferences::load(None),
 
             events: event_loop.create_proxy(),

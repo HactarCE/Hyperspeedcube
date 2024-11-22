@@ -50,6 +50,7 @@ const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 #[derive(Delegate, Debug)]
 #[delegate(PuzzleType, target = "puzzle")]
 pub struct PuzzleController {
+    pub timer_start_end: (Option<instant::Instant>, Option<instant::Instant>),
     /// Latest puzzle state, not including any transient rotation.
     puzzle: Puzzle,
     /// Twist animation state.
@@ -126,6 +127,7 @@ impl PuzzleController {
     /// Constructs a new PuzzleController with a solved puzzle.
     pub fn new(ty: PuzzleTypeEnum) -> Self {
         Self {
+            timer_start_end: (None, None),
             puzzle: Puzzle::new(ty),
             twist_anim: TwistAnimationState::default(),
             view_settings_anim: ViewSettingsAnimState::default(),
@@ -184,7 +186,7 @@ impl PuzzleController {
     }
     /// Reset and then scramble the puzzle completely.
     pub fn scramble_full(&mut self) -> Result<(), &'static str> {
-        self.reset();
+        self.reset(); // TODO(HactarCE): Reset is already called scramble_n; this is redundant.
         self.scramble_n(self.scramble_moves_count())?;
         self.scramble_state = ScrambleState::Full;
         Ok(())
@@ -219,8 +221,23 @@ impl PuzzleController {
 
         self.mark_unsaved();
         self.redo_buffer.clear();
-        // Canonicalize twist.
         twist = self.canonicalize_twist(twist);
+        
+        // Start the timer if
+        // the twist wasn't a rotation
+        // and the timer isn't already started
+        // and the puzzle has finished being scrambled.
+        if twist.layers != self.all_layers()
+            && self.timer_start_end.0.is_none()
+            && !self.scramble.is_empty()
+        {
+            assert!(
+                self.timer_start_end.1.is_none(),
+                "invalid timer state: everything with an end must have a start"
+            );
+            self.timer_start_end.0 = Some(instant::Instant::now());
+        }
+        
         if collapse && self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
             // This twist is the reverse of the last one, so just undo the last
             // one.
@@ -833,6 +850,7 @@ impl PuzzleController {
         );
         if has_been_scrambled && self.is_solved() {
             self.scramble_state = ScrambleState::Solved;
+            self.timer_start_end.1 = Some(instant::Instant::now());
             true
         } else {
             false
