@@ -1,33 +1,23 @@
-use instant::{Duration, Instant};
+use instant::Duration;
 
 use super::Window;
 
-// TODO: start/stop timer with keyboard input (Command::ToggleTimer maybe)
-// TODO: start timer on mouse-release instead of mouse-down
-// TODO: allow resizing the window
+// TODO: blind / bld support
 
 pub(crate) const TIMER: Window = Window {
     name: "Timer",
     build: |ui, app| {
-        if ui
-            .add(egui::Button::new(
-                egui::RichText::new(match app.timer_start_end {
-                    (None, None) => "Start".into(),
-                    (None, Some(_)) => panic!("invalid timer state"),
-                    (Some(start), None) => duration_to_str(start.elapsed()),
-                    (Some(start), Some(end)) => duration_to_str(end - start),
-                })
-                .size(20.0),
-            ))
-            .clicked()
-        {
-            app.timer_start_end = match app.timer_start_end {
-                (None, None) => (Some(Instant::now()), None),
-                (None, Some(_)) => panic!("invalid timer state"),
-                (Some(start), None) => (Some(start), Some(Instant::now())),
-                (Some(_), Some(_)) => (Some(Instant::now()), None),
-            };
-        }
+        ui.add(egui::Button::new(
+            egui::RichText::new(match app.puzzle.timer_start_end {
+                (None, None) => "Ready".into(),
+                (None, Some(_)) => {
+                    panic!("invalid timer state: everything with an end must have a start")
+                }
+                (Some(start), None) => duration_to_str(start.elapsed()),
+                (Some(start), Some(end)) => duration_to_str(end - start),
+            })
+            .size(20.0),
+        ));
     },
     ..Window::DEFAULT
 };
