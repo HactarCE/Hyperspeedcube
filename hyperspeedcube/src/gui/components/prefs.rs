@@ -469,11 +469,9 @@ pub fn build_view_section(
         }
         let showing_internals = prefs_ui.current.show_internals;
 
-        if view_prefs_set == Some(PuzzleViewPreferencesSet::Dim4D) {
-            prefs_ui.num(&l.gizmo_scale, access!(.gizmo_scale), |dv| {
-                dv.fixed_decimals(2).range(0.1..=5.0_f32).speed(0.01)
-            });
-        }
+        prefs_ui.num(&l.gizmo_scale, access!(.gizmo_scale), |dv| {
+            dv.fixed_decimals(2).range(0.1..=5.0_f32).speed(0.01)
+        });
         prefs_ui.add_enabled_ui(
             !showing_internals,
             l.disabled_when_showing_internals,
