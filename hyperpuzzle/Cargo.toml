@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 keywords = ["cubing", "hypercubing", "rubik", "conformal-geometric-algebra", "4d"]
 categories = ["algorithms", "mathematics", "simulation"]
-license = "GPL-2.0-or-later"
+license = "GPL-3.0-or-later"
 
 [lints]
 workspace = true

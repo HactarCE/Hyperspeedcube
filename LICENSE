@@ -1,5 +1,5 @@
 The `hypermath` and `hypershape` crates are licensed under [MIT](https://opensource.org/license/mit) OR [Apache v2.0](https://apache.org/licenses/LICENSE-2.0).
 
-The `hyperpuzzle` and `hyperspeedcube` crates are licensed under [GNU GPLv2](https://choosealicense.com/licenses/gpl-2.0/) or later.
+The `hyperpuzzle` and `hyperspeedcube` crates are licensed under [GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0/) or later.
 
 If you want to use all or part of the source code for Hyperspeedcube for a purpose that is forbidden by this license, contact me (Andrew Farkas) via an issue or discussion on this repository and we may be able to work something out.
