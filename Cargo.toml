@@ -3,11 +3,10 @@ members = [ "hypermath", "hypershape", "hyperpuzzle", "hyperstrings", "hyperspee
 resolver = "2"
 
 [workspace.package]
-name = "hyperspeedcube"
-version = "1.0.9"
 authors = ["Andrew Farkas"]
+documentation = "https://dev.hypercubing.xyz/internals/"
 edition = "2021"
-homepage = "https://dev.hypercubing.xyz/internals/"
+homepage = "https://ajfarkas.dev/projects/hyperspeedcube/"
 repository = "https://github.com/HactarCE/Hyperspeedcube/"
 rust-version = "1.81.0"
 
