@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::sync::Arc;
 
 // - egui heading is 18.0
 // - egui body text is 12.5
@@ -36,9 +37,12 @@ pub fn md_inline(ui: &egui::Ui, markdown: impl AsRef<str>) -> egui::text::Layout
 }
 
 pub fn append_md_inline(ui: &egui::Ui, job: &mut egui::text::LayoutJob, markdown: impl AsRef<str>) {
+    let style = Arc::clone(ui.style());
     let arena = comrak::Arena::new();
     let ast = comrak::parse_document(&arena, markdown.as_ref(), &options());
-    render_inline(job, InlineFormatState::new_paragraph(ui), ast);
+    for child in ast.children() {
+        render_inline_with_job(job, InlineFormatState::new_paragraph(ui, &style), child);
+    }
 }
 
 pub fn md(ui: &mut egui::Ui, markdown: impl AsRef<str>) -> egui::Response {
@@ -62,7 +66,10 @@ fn options() -> comrak::Options<'static> {
 
 #[derive(Copy, Clone)]
 struct InlineFormatState<'a> {
-    ui: &'a egui::Ui,
+    text_color: egui::Color32,
+    strong_text_color: egui::Color32,
+    style: &'a egui::Style,
+
     bold: bool,
     italics: bool,
     underline: bool,
@@ -73,9 +80,12 @@ struct InlineFormatState<'a> {
     size: Option<f32>,
 }
 impl<'a> InlineFormatState<'a> {
-    pub fn new_paragraph(ui: &'a egui::Ui) -> Self {
+    pub fn new_paragraph(ui: &egui::Ui, style: &'a egui::Style) -> Self {
         Self {
-            ui,
+            text_color: ui.visuals().text_color(),
+            strong_text_color: ui.visuals().strong_text_color(),
+            style,
+
             bold: false,
             italics: false,
             underline: false,
@@ -87,7 +97,7 @@ impl<'a> InlineFormatState<'a> {
         }
     }
 
-    pub fn new_heading(ui: &'a egui::Ui, level: u8) -> Self {
+    pub fn new_heading(ui: &egui::Ui, style: &'a egui::Style, level: u8) -> Self {
         let i = usize::from(level)
             .saturating_sub(1)
             .clamp(0, HEADING_SIZES.len() - 1);
@@ -95,7 +105,7 @@ impl<'a> InlineFormatState<'a> {
         Self {
             size: Some(HEADING_SIZES[i]),
             bold: true,
-            ..Self::new_paragraph(ui)
+            ..Self::new_paragraph(ui, style)
         }
     }
 
@@ -108,10 +118,10 @@ impl<'a> InlineFormatState<'a> {
             egui::TextStyle::Body
         };
 
-        let mut font_id = style.resolve(self.ui.style());
+        let mut font_id = style.resolve(&self.style);
         let color = match self.bold {
-            true => self.ui.visuals().strong_text_color(),
-            false => self.ui.visuals().text_color(),
+            true => self.strong_text_color,
+            false => self.text_color,
         };
         if let Some(size) = self.size {
             font_id.size = size;
@@ -202,22 +212,18 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
         comrak::nodes::NodeValue::HtmlBlock(_) => not_implemented_label(ui, "HtmlBlock"),
 
         comrak::nodes::NodeValue::Paragraph => {
-            let format_state = InlineFormatState::new_paragraph(ui);
-            let mut job = egui::text::LayoutJob::default();
-            job.wrap.max_width = ui.available_width();
-            render_children_inline(&mut job, format_state, node);
-            ui.label(job);
+            let style = Arc::clone(ui.style());
+            let format_state = InlineFormatState::new_paragraph(ui, &style);
+            render_children_wrapped(ui, format_state, node);
         }
 
         comrak::nodes::NodeValue::Heading(heading) => {
             if heading.level > 1 {
                 ui.add_space(ui.spacing().item_spacing.y * 2.0); // extra spacing above headings
             }
-            let format_state = InlineFormatState::new_heading(ui, heading.level);
-            let mut job = egui::text::LayoutJob::default();
-            job.wrap.max_width = ui.available_width();
-            render_children_inline(&mut job, format_state, node);
-            ui.label(job);
+            let style = Arc::clone(ui.style());
+            let format_state = InlineFormatState::new_heading(ui, &style, heading.level);
+            render_children_wrapped(ui, format_state, node);
         }
         comrak::nodes::NodeValue::ThematicBreak => {
             ui.separator();
@@ -257,19 +263,82 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
     }
 }
 
-fn render_children_inline<'a>(
+fn render_children_wrapped<'a>(
+    ui: &mut egui::Ui,
+    state: InlineFormatState<'_>,
+    node: &'a comrak::nodes::AstNode<'a>,
+) {
+    if node
+        .descendants()
+        .any(|child| matches!(child.data.borrow().value, comrak::nodes::NodeValue::Link(_)))
+    {
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+            for child in node.children() {
+                render_inline_with_ui(ui, state, child);
+            }
+        });
+    } else {
+        let mut job = egui::text::LayoutJob::default();
+        render_children_inline_with_job(&mut job, state, node);
+        ui.label(job);
+    }
+}
+
+fn render_inline_with_ui<'a>(
+    ui: &mut egui::Ui,
+    mut state: InlineFormatState<'_>,
+    node: &'a comrak::nodes::AstNode<'a>,
+) {
+    match &node.data.borrow().value {
+        comrak::nodes::NodeValue::Link(link_node) => {
+            let mut job = egui::text::LayoutJob::default();
+            state.text_color = ui.visuals().hyperlink_color;
+            state.strong_text_color = ui.visuals().hyperlink_color;
+            for child in node.children() {
+                render_inline_with_job(&mut job, state, child);
+            }
+
+            // We can't render a link as part of a larger job, so we do it here
+            // while we have `ui` instead of `job`.
+            ui.hyperlink_to(job, &link_node.url)
+                .on_hover_text(&link_node.url);
+        }
+        _ => {
+            let mut job = egui::text::LayoutJob::default();
+            render_inline_no_recurse(&mut job, &mut state, node);
+            ui.label(job);
+
+            for child in node.children() {
+                render_inline_with_ui(ui, state, child);
+            }
+        }
+    }
+}
+
+fn render_inline_with_job<'a>(
+    job: &mut egui::text::LayoutJob,
+    mut state: InlineFormatState<'_>,
+    node: &'a comrak::nodes::AstNode<'a>,
+) {
+    render_inline_no_recurse(job, &mut state, node);
+    render_children_inline_with_job(job, state, node);
+}
+
+fn render_children_inline_with_job<'a>(
     job: &mut egui::text::LayoutJob,
     state: InlineFormatState<'_>,
     node: &'a comrak::nodes::AstNode<'a>,
 ) {
     for child in node.children() {
-        render_inline(job, state, child);
+        render_inline_with_job(job, state, child);
     }
 }
-fn render_inline<'a>(
+
+fn render_inline_no_recurse(
     job: &mut egui::text::LayoutJob,
-    mut state: InlineFormatState<'_>,
-    node: &'a comrak::nodes::AstNode<'a>,
+    state: &mut InlineFormatState<'_>,
+    node: &comrak::nodes::AstNode<'_>,
 ) {
     match &node.data.borrow().value {
         comrak::nodes::NodeValue::Text(s) => job.append(s, 0.0, state.text_format()),
@@ -301,10 +370,6 @@ fn render_inline<'a>(
 
         _ => (), // ignore block nodes
     }
-
-    for child in node.children() {
-        render_inline(job, state, child);
-    }
 }
 
 fn not_implemented_label(ui: &mut egui::Ui, feature: &str) {
@@ -315,7 +380,7 @@ fn not_implemented_label(ui: &mut egui::Ui, feature: &str) {
 }
 fn append_not_implemented(
     job: &mut egui::text::LayoutJob,
-    state: InlineFormatState<'_>,
+    state: &InlineFormatState,
     feature: &str,
 ) {
     let mut text_format = state.text_format();
