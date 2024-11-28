@@ -380,7 +380,7 @@ fn not_implemented_label(ui: &mut egui::Ui, feature: &str) {
 }
 fn append_not_implemented(
     job: &mut egui::text::LayoutJob,
-    state: &InlineFormatState,
+    state: &InlineFormatState<'_>,
     feature: &str,
 ) {
     let mut text_format = state.text_format();
