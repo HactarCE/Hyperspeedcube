@@ -180,6 +180,13 @@ impl AppUi {
             self.dock_state.remove_tab(index);
         }
     }
+
+    pub fn set_tab_state(&mut self, tab: &Tab, new_state: bool) {
+        match new_state {
+            true => self.open_tab(&tab),
+            false => self.close_tab(&tab),
+        }
+    }
 }
 
 struct TabViewer<'a> {

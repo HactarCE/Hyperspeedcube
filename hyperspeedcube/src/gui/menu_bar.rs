@@ -9,7 +9,7 @@ pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             let version_text = egui::RichText::new(PROGRAM).small();
             let version_button = egui::Button::new(version_text).frame(false);
             if ui.add(version_button).clicked() {
-                // TODO: open "about" window
+                app_ui.set_tab_state(&Tab::About, !app_ui.has_tab(&Tab::About));
             }
 
             #[cfg(target_arch = "wasm32")]
@@ -52,10 +52,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     fn show_tab_toggle(ui: &mut egui::Ui, app_ui: &mut AppUi, tab: Tab) {
         let mut open = app_ui.has_tab(&tab);
         if ui.checkbox(&mut open, tab.menu_name()).clicked() {
-            match open {
-                true => app_ui.open_tab(&tab),
-                false => app_ui.close_tab(&tab),
-            }
+            app_ui.set_tab_state(&tab, open);
         }
     }
 
@@ -155,7 +152,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     ui.menu_button(L.menu.help.title, |ui| {
         ui.heading(L.menu.help.guides);
         let _ = ui.button("Welcome");
-        let _ = ui.button("About");
+        show_tab_toggle(ui, app_ui, Tab::About);
         ui.separator();
         show_tab_toggle(ui, app_ui, Tab::KeybindsReference);
     });

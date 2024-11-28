@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use eyre::{eyre, Result};
+use itertools::Itertools;
 use mlua::prelude::*;
 use parking_lot::Mutex;
 
@@ -172,5 +173,20 @@ impl LibraryDb {
                 Err(e) => log::warn!("error reading filesystem entry: {e:?}"),
             }
         }
+    }
+
+    pub fn authors(&self) -> Vec<String> {
+        // TODO: cache this when loading files
+        let mut ret = HashSet::new();
+        ret.extend(self.puzzles.values().flat_map(|p| p.authors()));
+        ret.extend(
+            self.puzzle_generators
+                .values()
+                .flat_map(|g| crate::TAGS.authors(&g.tags)),
+        );
+        ret.into_iter()
+            .map(|s| s.to_string())
+            .sorted()
+            .collect_vec()
     }
 }

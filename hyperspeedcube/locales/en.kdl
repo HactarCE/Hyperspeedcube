@@ -4,6 +4,7 @@ tabs {
     puzzle_library "Puzzle library"
     puzzle_info "Puzzle info"
     keybinds_reference "Keybinds reference"
+    about "About"
 
     colors "Colors"
     styles "Styles"
@@ -35,6 +36,7 @@ tabs {
     puzzle_library "Puzzle Library"
     puzzle_info "Puzzle Info"
     keybinds_reference "Keybinds Reference"
+    about "About"
 
     colors "Colors"
     styles "Styles"
@@ -651,6 +653,49 @@ help {
     Loading a preset discards unsaved changes.
   "#
 }
+
+created_by "Created by **Andrew Farkas (HactarCE)**"
+created_by_url "https://ajfarkas.dev/"
+licensed_under "Licensed under **{{license}}**"
+about r#"
+  Dedicated to **Andrey Astrelin**
+
+  ## Acknowledgements
+
+  **Edan Moar**, **Rowan Fortier**, **Melody Griesen**, and **Sam Boxdorfer**  
+  _for supporting me on Ko-fi during development_
+
+  **Luna Harran**  
+  _for her incessant whining that inspired this program, and for her extensive puzzle knowledge and geometric insight that made it possible_
+
+  **Milo Jacquet**  
+  _for his many contributions to the design of the puzzle definition API, and for developing the leaderboard server_
+
+  **Andreas Thompson**  
+  _for designing the piece filters UI_
+
+  **Alan Everett (thatcomputerguy0101)**  
+  _for various bugfixes_
+
+  **My friends**  
+  _for putting up with my rants about tangent points at infinity_
+
+  **The Hypercubers Discord server**  
+  _for their endless patience and for keeping me company in voice chat over several years_
+
+  ## Other twisty puzzle software
+
+  Algorithms and inspiration taken from these programs:
+
+  - [Magic Puzzle Ultimate](https://superliminal.com/andrey/mpu/) by Andrey Astrelin
+  - [Magic Cube 4D](https://superliminal.com/cube/) by Melinda Green, Don Hatch, and others
+  - [pCubes](http://twistypuzzles.com/forum/viewtopic.php?f=1&t=27054) by Boris
+  - [Virtual Magic Polyhedra](https://github.com/Hypercubers/gelatinbrain) by gelatinbrain
+
+  ## Puzzle definition authors
+
+  {{author_list}}
+"#
 
 _crash {
   _app_crashed "{{app}} crashed"

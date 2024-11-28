@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+mod about;
 mod animations;
 mod camera;
 mod colors;
@@ -38,6 +39,8 @@ pub enum Tab {
     PuzzleView(Arc<Mutex<Option<PuzzleWidget>>>),
     PuzzleLibrary,
     PuzzleInfo,
+    KeybindsReference,
+    About,
 
     Colors,
     Styles,
@@ -61,8 +64,6 @@ pub enum Tab {
     Timeline,
     Timer,
 
-    KeybindsReference,
-
     LuaLogs,
     DevTools,
 
@@ -85,6 +86,7 @@ impl Tab {
             Tab::PuzzleLibrary => l.puzzle_library,
             Tab::PuzzleInfo => l.puzzle_info,
             Tab::KeybindsReference => l.keybinds_reference,
+            Tab::About => l.about,
 
             Tab::Colors => l.colors,
             Tab::Styles => l.styles,
@@ -123,6 +125,7 @@ impl Tab {
             Tab::PuzzleLibrary => l.puzzle_library.into(),
             Tab::PuzzleInfo => l.puzzle_info.into(),
             Tab::KeybindsReference => l.keybinds_reference.into(),
+            Tab::About => l.about.into(),
 
             Tab::Colors => l.colors.into(),
             Tab::Styles => l.styles.into(),
@@ -156,6 +159,8 @@ impl Tab {
             Tab::PuzzleView(puzzle_view) => puzzle_view::show(ui, app, puzzle_view),
             Tab::PuzzleLibrary => puzzle_library::show(ui, app),
             Tab::PuzzleInfo => puzzle_info::show(ui, app),
+            Tab::KeybindsReference => keybinds_reference::show(ui, app),
+            Tab::About => about::show(ui, app),
 
             Tab::Colors => colors::show(ui, app),
             Tab::Styles => styles::show(ui, app),
@@ -176,8 +181,6 @@ impl Tab {
             Tab::Scrambler => scrambler::show(ui, app),
             Tab::Timeline => timeline::show(ui, app),
             Tab::Timer => timer::show(ui, app),
-
-            Tab::KeybindsReference => keybinds_reference::show(ui, app),
 
             Tab::LuaLogs => lua_logs::show(ui, app),
             Tab::DevTools => dev_tools::show(ui, app),

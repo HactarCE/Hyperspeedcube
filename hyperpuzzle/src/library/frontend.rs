@@ -172,6 +172,10 @@ impl Library {
     pub fn color_systems(&self) -> Vec<Arc<ColorSystemBuilder>> {
         self.db.lock().color_systems.values().cloned().collect()
     }
+    /// Returns a list of puzzle authors.
+    pub fn authors(&self) -> Vec<String> {
+        self.db.lock().authors()
+    }
 
     /// Builds a puzzle from a Lua specification.
     pub fn build_puzzle(&self, id: &str) -> TaskHandle<Result<Arc<Puzzle>>> {
