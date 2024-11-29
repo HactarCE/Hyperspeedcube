@@ -49,35 +49,7 @@ impl LuaLoader {
         // Register library.
         lua.set_app_data(Arc::clone(&db));
 
-        // Monkeypatch builtin `type` function.
-        let globals = lua.globals();
-        globals.raw_set(
-            "type",
-            lua.create_function(|_lua, v| Ok(lua_type_name(&v)))?,
-        )?;
-
-        // Monkeypatch math lib.
-        let math: LuaTable = globals.get("math")?;
-        let round_fn = lua.create_function(|_lua, x: LuaNumber| Ok(x.round()))?;
-        math.raw_set("round", round_fn)?;
-        // TODO: support other numbers
-        let eq_fn = lua.create_function(|_lua, (a, b): (LuaNumber, LuaNumber)| {
-            Ok(hypermath::approx_eq(&a, &b))
-        });
-        math.raw_set("eq", eq_fn?)?;
-        let neq_fn = lua.create_function(|_lua, (a, b): (LuaNumber, LuaNumber)| {
-            Ok(!hypermath::approx_eq(&a, &b))
-        });
-        math.raw_set("neq", neq_fn?)?;
-
-        if crate::CAPTURE_LUA_OUTPUT {
-            let logger2 = logger.clone();
-            globals.raw_set("print", logger2.lua_info_fn(&lua)?)?;
-            lua.set_warning_function(move |lua, msg, _to_continue| {
-                logger2.warn(lua, msg);
-                Ok(())
-            });
-        }
+        super::env::monkeypatch_lua_environment(&lua, logger)?;
 
         for (module_name, module_source) in LUA_MODULES {
             log::info!("Loading Lua module {module_name:?}");
@@ -89,57 +61,7 @@ impl LuaLoader {
         // Grab the sandbox environment so we can insert our custom globals.
         let sandbox: LuaTable = lua.globals().get("SANDBOX_ENV")?;
 
-        // Constants
-        sandbox.raw_set("_PUZZLE_ENGINE", crate::PUZZLE_ENGINE_VERSION_STRING)?;
-        sandbox.raw_set("AXES", lua_axes_table(&lua)?)?;
-
-        // Imports
-        let this2 = this.clone();
-        let index_metamethod = lua.create_function(
-            move |_lua, (_lib_table, index_string): (LuaTable, String)| {
-                this2.load_file(index_string)
-            },
-        )?;
-        let lib_table =
-            crate::lua::create_sealed_table_with_index_metamethod(lua, index_metamethod)?;
-        sandbox.raw_set("lib", lib_table)?;
-
-        // Database
-        sandbox.raw_set("puzzles", LuaPuzzleDb)?;
-        sandbox.raw_set("puzzle_generators", LuaPuzzleGeneratorDb)?;
-        sandbox.raw_set("color_systems", LuaColorSystemDb)?;
-
-        // `blade` constructors
-        let vec_fn =
-            lua.create_function(|lua, LuaVectorFromMultiValue(v)| LuaBlade::from_vector(lua, v));
-        sandbox.raw_set("vec", vec_fn?)?;
-        let point_fn =
-            lua.create_function(|lua, LuaPointFromMultiValue(v)| LuaBlade::from_point(lua, v))?;
-        sandbox.raw_set("point", point_fn)?;
-        let blade_fn = lua.create_function(|_lua, b: LuaBlade| Ok(b))?;
-        sandbox.raw_set("blade", blade_fn)?;
-        let plane_fn = lua.create_function(|lua, LuaHyperplaneFromMultivalue(h)| {
-            LuaBlade::from_hyperplane(lua, &h)
-        })?;
-        sandbox.raw_set("plane", plane_fn)?;
-
-        // `symmetry` constructors
-        let cd_fn = LuaSymmetry::construct_from_cd;
-        sandbox.raw_set("cd", lua.create_function(cd_fn)?)?;
-        let symmetry_fn = LuaSymmetry::construct_from_generators;
-        sandbox.raw_set("symmetry", lua.create_function(symmetry_fn)?)?;
-
-        // `transform` constructors
-        let ident_fn = LuaTransform::construct_identity;
-        sandbox.raw_set("ident", lua.create_function(ident_fn)?)?;
-        let refl_fn = LuaTransform::construct_reflection;
-        sandbox.raw_set("refl", lua.create_function(refl_fn)?)?;
-        let rot_fn = LuaTransform::construct_rotation;
-        sandbox.raw_set("rot", lua.create_function(rot_fn)?)?;
-
-        // `region` constants
-        sandbox.raw_set("REGION_ALL", LuaRegion::Everything)?;
-        sandbox.raw_set("REGION_NONE", LuaRegion::Nothing)?;
+        super::env::init_lua_environment(&lua, &sandbox, this.clone())?;
 
         LuaResult::Ok(this)
     }
@@ -237,7 +159,7 @@ impl LuaLoader {
 
     /// Loads a file if it has not yet been loaded, and then returns the file's
     /// export table.
-    fn load_file(&self, name: String) -> LuaResult<LuaTable> {
+    pub(super) fn load_file(&self, name: String) -> LuaResult<LuaTable> {
         let filename = format!("{name}.lua");
         let dirname = name;
 
