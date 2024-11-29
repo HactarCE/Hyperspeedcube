@@ -4,12 +4,8 @@ use crate::gui::ext::ResponseExt;
 
 use super::Window;
 
-// TODO: resizing
-
-// TODO: add .DS_store to gitignore after removing the .DS_store files
-
+// TODO: resizing of timer text (eg keybind reference)
 // TODO: should Timer/Stopwatch be in components?
-// TODO: instead of panicking, fail better
 
 pub(crate) const TIMER: Window = Window {
     name: "Timer",
@@ -49,12 +45,11 @@ impl Stopwatch {
         *self = Stopwatch::NotStarted;
     }
 
-    // TODO: in release, reset instead of panicking
     fn start(&mut self) {
         if let Self::NotStarted = self {
             *self = Self::Running(Instant::now());
         } else {
-            panic!("can only start a NotStarted timer");
+            debug_assert!(false, "Can only start a NotStarted timer. This is a horrible unrecoverable logic error in the scope of timer, but it's recoverable in the scope of the entire program.");
             self.reset();
         }
     }
@@ -63,7 +58,7 @@ impl Stopwatch {
         if let Self::Running(beginning) = *self {
             *self = Self::Stopped(beginning.elapsed());
         } else {
-            panic!("can only stop a Running timer");
+            debug_assert!(false, "Can only stop a Running timer. This is a horrible unrecoverable logic error in the scope of timer, but it's recoverable in the scope of the entire program.");
             self.reset();
         }
     }
@@ -97,14 +92,12 @@ impl Timer {
     }
 
     pub(crate) fn on_solve(&mut self) {
-        // if !self.is_blind && matches!(self.stopwatch, Stopwatch::Running(_)) {
         if !self.is_blind {
             self.stopwatch.stop();
         }
     }
 
     pub(crate) fn on_blindfold_off(&mut self) {
-        // if self.is_blind && matches!(self.stopwatch, Stopwatch::Running(_)) {
         if self.is_blind {
             self.stopwatch.stop();
         }
