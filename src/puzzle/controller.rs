@@ -232,16 +232,6 @@ impl PuzzleController {
         self.redo_buffer.clear();
         twist = self.canonicalize_twist(twist);
 
-        // if !self.timer.is_blind()
-        // && matches!(self.timer.stopwatch, crate::gui::windows::Stopwatch::NotStarted)
-        // // the twist isn't a rotation
-        // && twist.layers != self.all_layers()
-        // // the puzzle has finished being scrambled
-        // && !self.scramble.is_empty()
-        // {
-        //     self.timer.stopwatch.start();
-        // }
-
         if collapse && self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
             // This twist is the reverse of the last one, so just undo the last
             // one.
