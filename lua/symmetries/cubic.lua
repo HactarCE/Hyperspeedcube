@@ -45,5 +45,22 @@ function cube(scale, basis)
         B = {3, 'D'},
       }):prefixed(prefix)
     end,
+    iter_edge_poles = function(self, prefix)
+      local charset = names.charset
+      return self.sym:orbit(self.sym.oxo.unit * (scale or 1) * sqrt(2)):named({
+        [charset'FU'] = {},
+        [charset'FR'] = {2, 'FU'},
+        [charset'FL'] = {1, 'FR'},
+        [charset'FD'] = {2, 'FL'},
+        [charset'UR'] = {3, 'FR'},
+        [charset'UL'] = {3, 'FL'},
+        [charset'DR'] = {2, 'UL'},
+        [charset'DL'] = {1, 'DR'},
+        [charset'BU'] = {3, 'FD'},
+        [charset'BR'] = {2, 'BU'},
+        [charset'BL'] = {1, 'BR'},
+        [charset'BD'] = {2, 'BL'},
+      }):prefixed(prefix)
+    end,
   }
 end

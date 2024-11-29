@@ -9,7 +9,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::{CustomOrdering, NamingScheme};
+use crate::builder::{CustomOrdering, NameSet, NamingScheme};
 use crate::lua::{lua_warn_fn, result_to_ok_or_warn};
 
 /// Lua handle to an object in a collection, indexed by some ID.
@@ -183,7 +183,7 @@ where
     fn rename_all(
         &mut self,
         lua: &Lua,
-        ids_and_new_names: Vec<(I, Option<String>)>,
+        ids_and_new_names: Vec<(I, Option<LuaNameSet>)>,
     ) -> LuaResult<NamingScheme<I>> {
         // We need to rename all the entries at once, so just construct a new
         // naming scheme from scratch.
@@ -191,6 +191,7 @@ where
 
         // Set the new names.
         for (id, new_name) in ids_and_new_names {
+            let new_name = new_name.map(|LuaNameSet(name_set)| name_set);
             new_names.set_name(id, new_name, lua_warn_fn(lua));
         }
 
@@ -206,13 +207,40 @@ where
         // Renames all elements according to a table or function.
         methods.add_method("rename", move |lua, this, new_names| {
             // First, assemble a list of all the renames that need to happen.
-            let ids_and_new_names: Vec<(I, Option<String>)> =
+            let ids_and_new_names: Vec<(I, Option<LuaNameSet>)> =
                 LuaIdDatabase::mapping_from_value(as_mutex_db(this), lua, new_names)?;
 
             // Now lock the database and do all the renames at once.
             let mut db = as_mutex_db(this).lock();
             *db.names_mut() = db.rename_all(lua, ids_and_new_names)?;
             Ok(())
+        });
+        methods.add_meta_function(LuaMetaMethod::Concat, |lua, (lhs, rhs)| {
+            let (a, b) = if let Ok(this) = cast_userdata::<LuaDbEntry<I, Self>>(lua, &lhs) {
+                let db = this.db.lock();
+                (
+                    db.names()
+                        .get(this.id.clone())
+                        .map(|s| LuaNameSet(s.clone()))
+                        .into_lua(lua)?,
+                    rhs,
+                )
+            } else if let Ok(this) = cast_userdata::<LuaDbEntry<I, Self>>(lua, &rhs) {
+                let db = this.db.lock();
+                (
+                    lhs,
+                    db.names()
+                        .get(this.id.clone())
+                        .map(|s| LuaNameSet(s.clone()))
+                        .into_lua(lua)?,
+                )
+            } else {
+                return Err(LuaError::external("invalid metamethod call"));
+            };
+
+            lua.globals()
+                .get::<LuaFunction>("builtin_concat")?
+                .call::<LuaNameSet>((a, b))
         });
     }
 
@@ -221,10 +249,11 @@ where
     fn add_named_db_entry_fields<F: LuaUserDataFields<LuaDbEntry<I, Self>>>(fields: &mut F) {
         fields.add_field_method_get("name", |_lua, this| {
             let db = this.db.lock();
-            Ok(db.names().get(this.id.clone()))
+            Ok(db.names().get(this.id.clone()).cloned().map(LuaNameSet))
         });
-        fields.add_field_method_set("name", |lua, this, new_name| {
+        fields.add_field_method_set("name", |lua, this, new_name: Option<LuaNameSet>| {
             let mut db = this.db.lock();
+            let new_name = new_name.map(|LuaNameSet(name_set)| name_set);
             db.names_mut()
                 .set_name(this.id.clone(), new_name, lua_warn_fn(lua));
             Ok(())

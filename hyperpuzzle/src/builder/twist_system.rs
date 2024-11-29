@@ -1,6 +1,6 @@
 use std::collections::{hash_map, HashMap};
 
-use eyre::{bail, eyre, OptionExt, Result, WrapErr};
+use eyre::{bail, ensure, eyre, OptionExt, Result, WrapErr};
 use float_ord::FloatOrd;
 use hypermath::collections::approx_hashmap::FloatHash;
 use hypermath::collections::{ApproxHashMap, ApproxHashMapKey, IndexOutOfRange};
@@ -9,7 +9,7 @@ use hypershape::{ElementId, Space, ToElementId};
 use itertools::Itertools;
 use pga::{Blade, Motor};
 
-use super::{AxisSystemBuilder, CustomOrdering};
+use super::{AxisSystemBuilder, CustomOrdering, NameSet};
 use crate::builder::NamingScheme;
 use crate::puzzle::{Axis, PerTwist, Twist};
 use crate::{
@@ -123,7 +123,11 @@ impl TwistSystemBuilder {
 
         // Check that there is not already an identical twist.
         if let Some(&id) = self.data_to_id.get(&key) {
-            let name = self.names.get(id).unwrap_or_default();
+            let name = self
+                .names
+                .get(id)
+                .and_then(|name| name.canonical_name())
+                .unwrap_or_default();
             return Ok(Err(BadTwist::DuplicateTwist { id, name }));
         }
 
@@ -139,7 +143,7 @@ impl TwistSystemBuilder {
     pub fn add_named(
         &mut self,
         data: TwistBuilder,
-        name: String,
+        name: NameSet,
         warn_fn: impl Fn(String),
     ) -> Result<Option<Twist>> {
         let id = match self.add(data)? {
@@ -182,19 +186,21 @@ impl TwistSystemBuilder {
         // Assemble list of axes.
         let mut axes = PerAxis::new();
         let mut axis_id_map = HashMap::new(); // map from old ID to new ID
-        for (old_id, (name, _display)) in super::iter_autonamed(
+        for (old_id, (name_set, _display)) in super::iter_autonamed(
             &self.axes.names,
             &self.axes.ordering,
             crate::util::iter_uppercase_letter_names(),
-            warn_fn,
         ) {
             let old_axis = self.axes.get(old_id)?;
             let vector = old_axis.vector().clone();
             let layers = old_axis
                 .build_layers()
-                .wrap_err_with(|| format!("building axis {name:?}"))?;
+                .wrap_err_with(|| format!("building axis {name_set:?}"))?;
+            let mut string_set = name_set.string_set()?;
+            ensure!(!string_set.is_empty(), "axis is missing canonical name");
             let new_id = axes.push(AxisInfo {
-                name,
+                name: string_set.remove(0),
+                aliases: string_set, // all except first
                 vector,
                 layers,
             })?;
@@ -212,11 +218,24 @@ impl TwistSystemBuilder {
         for old_id in self.alphabetized() {
             let old_twist = self.get(old_id)?;
             let axis = *axis_id_map.get(&old_twist.axis).ok_or_eyre("bad axis ID")?;
+
+            let (name, aliases);
+            match self.names.get(old_id) {
+                Some(name_set) => {
+                    let mut string_set = name_set.string_set()?;
+                    ensure!(!string_set.is_empty(), "twist is missing canonical name");
+                    name = string_set.remove(0);
+                    aliases = string_set; // all except first
+                }
+                None => {
+                    name = (old_id.0 + 1).to_string(); // 1-indexed
+                    aliases = vec![];
+                }
+            };
+
             let new_id = twists.push(TwistInfo {
-                name: match self.names.get(old_id) {
-                    Some(s) => s.clone(),
-                    None => (old_id.0 + 1).to_string(), // 1-indexed
-                },
+                name,
+                aliases,
                 qtm: old_twist.qtm,
                 axis,
                 transform: old_twist.transform.clone(),
@@ -305,8 +324,10 @@ impl TwistSystemBuilder {
             let new_twist_id = twists.next_idx()?;
             let twist = twists.get_mut(id)?;
             twist.reverse = new_twist_id;
+            let rev_twist_name = |original| format!("<reverse of {original:?}>");
             let new_twist_info = TwistInfo {
-                name: format!("<reverse of {:?}>", twist.name),
+                name: rev_twist_name(&twist.name),
+                aliases: twist.aliases.iter().map(rev_twist_name).collect(),
                 qtm: twist.qtm,
                 axis: twist.axis,
                 transform: twist.transform.reverse(),

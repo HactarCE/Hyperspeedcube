@@ -5,7 +5,7 @@ use hypermath::Vector;
 use parking_lot::{MappedMutexGuard, MutexGuard};
 
 use super::*;
-use crate::builder::{AxisBuilder, PuzzleBuilder};
+use crate::builder::{AxisBuilder, NameSet, PuzzleBuilder};
 use crate::puzzle::Axis;
 use crate::LayerMask;
 
@@ -125,10 +125,10 @@ impl LuaAxis {
         Ok(axes.get(self.id).into_lua_err()?.vector().clone())
     }
     /// Returns the name of the axis, or `None` if one has not been assigned.
-    pub fn name(&self) -> Option<String> {
+    pub fn name(&self) -> Option<NameSet> {
         let puz = self.db.lock();
         let axes = &puz.twists.axes;
-        axes.names.get(self.id)
+        axes.names.get(self.id).cloned()
     }
     /// Returns the layer system of the axis.
     pub fn layers(&self) -> LuaLayerSystem {

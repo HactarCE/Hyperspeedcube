@@ -1,4 +1,5 @@
 use hypershape::GeneratorSequence;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -6,6 +7,7 @@ use hypermath::pga::Motor;
 use hypermath::ApproxHashMap;
 use itertools::Itertools;
 
+use crate::builder::NameSet;
 use crate::lua::lua_warn_fn;
 use crate::util::lazy_resolve;
 
@@ -43,9 +45,9 @@ impl LuaUserData for LuaOrbit {
             )
         });
 
-        fields.add_field_method_get("names", |lua, this| {
-            lua.create_sequence_from(this.cosets.iter().map(|elem| elem.name.clone()))
-        });
+        // fields.add_field_method_get("names", |lua, this| {
+        //     lua.create_sequence_from(this.cosets.iter().map(|elem| elem.name.clone()))
+        // });
     }
 
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
@@ -97,14 +99,14 @@ impl LuaUserData for LuaOrbit {
             Ok(ret)
         });
 
-        methods.add_method("prefixed", |_lua, this, prefix: Option<String>| {
+        methods.add_method("prefixed", |_lua, this, prefix: Option<LuaNameSet>| {
             let mut ret = this.clone();
             let Some(prefix) = prefix else {
                 return Ok(ret);
             };
             for coset in &mut ret.cosets {
                 if let Some(name) = &mut coset.name {
-                    *name = format!("{prefix}{name}");
+                    *name = NameSet::new_seq([prefix.0.clone(), name.clone()]);
                 }
             }
             Ok(ret)
@@ -184,7 +186,7 @@ impl LuaOrbit {
                 values.push(obj.into_nillable_lua(lua)?);
             }
             // Finally push the custom name, if there is one.
-            values.push(name.as_deref().into_lua(lua)?);
+            values.push(name.clone().map(LuaNameSet).into_lua(lua)?);
         }
         Ok(LuaMultiValue::from_iter(values))
     }
@@ -192,13 +194,37 @@ impl LuaOrbit {
 
 /// Constructs an assignment of names based on a table for a particular symmetry
 /// group.
-pub fn names_from_table(lua: &Lua, table: LuaTable) -> LuaResult<Vec<(String, Vec<u8>)>> {
+pub fn names_from_table(lua: &Lua, table: LuaTable) -> LuaResult<Vec<(NameSet, Vec<u8>)>> {
     let mut key_value_dependencies = vec![];
 
+    let mut name_sets = HashMap::<String, NameSet>::new();
+    let mut canonical_name_map = HashMap::<String, String>::new();
+
     for pair in table.pairs() {
-        let (k, v) = pair?;
+        let (LuaNameSet(name_set), v) = pair?;
         let (gen_seq, init_name) = gen_seq_and_opt_name_from_value(lua, v)?;
-        key_value_dependencies.push((k, (gen_seq, init_name)));
+
+        let canonical_name = name_set
+            .canonical_name()
+            .ok_or_else(|| LuaError::external("empty name set"))?;
+        for name in name_set.string_set().map_err(LuaError::external)? {
+            canonical_name_map.insert(name, canonical_name.clone());
+        }
+        name_sets.insert(canonical_name.clone(), name_set);
+        key_value_dependencies.push((canonical_name, (gen_seq, init_name)));
+    }
+
+    let canonicalize = |s: &mut String| {
+        if let Some(canonicalized) = canonical_name_map.get(s) {
+            *s = canonicalized.clone();
+        }
+    };
+
+    // Canonicalize names in `key_value_dependencies`.
+    for (_key, (_gen_seq, end)) in &mut key_value_dependencies {
+        if let Some(ending_name) = end {
+            canonicalize(ending_name);
+        }
     }
 
     // Resolve lazy evaluation.
@@ -212,6 +238,7 @@ pub fn names_from_table(lua: &Lua, table: LuaTable) -> LuaResult<Vec<(String, Ve
         lua_warn_fn(lua),
     )
     .into_iter()
+    .filter_map(|(k, v)| Some((name_sets.remove(&k)?, v)))
     .collect())
 }
 
@@ -250,7 +277,7 @@ impl<'lua, T: LuaTypeName + FromLua + Clone> LuaSymmetricSet<T> {
     pub fn map<U, F>(&self, lua: &Lua, mut f: F) -> LuaResult<LuaSymmetricSet<U>>
     where
         U: Clone + IntoLua,
-        F: FnMut(GeneratorSequence, Option<String>, T) -> LuaResult<U>,
+        F: FnMut(GeneratorSequence, Option<NameSet>, T) -> LuaResult<U>,
     {
         match self {
             LuaSymmetricSet::Single(v) => Ok(LuaSymmetricSet::Single(f(
@@ -299,7 +326,7 @@ impl<'lua, T: LuaTypeName + FromLua + Clone> LuaSymmetricSet<T> {
         }
     }
     /// Returns a list of all the objects in the orbit.
-    pub fn to_vec(&self, lua: &Lua) -> LuaResult<Vec<(GeneratorSequence, Option<String>, T)>> {
+    pub fn to_vec(&self, lua: &Lua) -> LuaResult<Vec<(GeneratorSequence, Option<NameSet>, T)>> {
         match self {
             LuaSymmetricSet::Single(v) => Ok(vec![(GeneratorSequence::INIT, None, v.clone())]),
             LuaSymmetricSet::Orbit(orbit) => orbit
@@ -338,7 +365,7 @@ impl<'lua, T: LuaTypeName + FromLua + Clone> LuaSymmetricSet<T> {
 struct OrbitCoset {
     gen_seq: GeneratorSequence,
     transform: Motor,
-    name: Option<String>,
+    name: Option<NameSet>,
     objects: Vec<Transformable>,
 }
 

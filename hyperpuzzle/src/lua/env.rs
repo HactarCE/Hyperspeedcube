@@ -1,4 +1,7 @@
+use itertools::Itertools;
 use mlua::prelude::*;
+
+use crate::builder::NameSet;
 
 use super::*;
 
@@ -94,6 +97,33 @@ pub(super) fn init_lua_environment(lua: &Lua, env: &LuaTable, loader: LuaLoader)
     // `region` constants
     env.raw_set("REGION_ALL", LuaRegion::Everything)?;
     env.raw_set("REGION_NONE", LuaRegion::Nothing)?;
+
+    // `name` constructors
+    fn unpack_name_sets(lua: &Lua, args: LuaMultiValue) -> LuaResult<Vec<NameSet>> {
+        args.into_iter()
+            .map(|arg| lua.unpack::<LuaNameSet>(arg))
+            .map_ok(|LuaNameSet(s)| s)
+            .try_collect()
+    }
+    let names_seq_fn = lua.create_function(move |lua, args| {
+        Ok(LuaNameSet(NameSet::new_seq(unpack_name_sets(lua, args)?)))
+    })?;
+    let names_set_fn = lua.create_function(move |lua, args| {
+        Ok(LuaNameSet(NameSet::new_set(unpack_name_sets(lua, args)?)))
+    })?;
+    let names_any_fn = lua.create_function(move |lua, args| {
+        Ok(LuaNameSet(NameSet::any(unpack_name_sets(lua, args)?)))
+    })?;
+    let names_charset_fn =
+        lua.create_function(move |_lua, s: String| Ok(LuaNameSet(NameSet::new_set(s.chars()))))?;
+    let names_table = lua.create_table_from([
+        ("seq", names_seq_fn),
+        ("set", names_set_fn),
+        ("any", names_any_fn),
+        ("charset", names_charset_fn),
+    ])?;
+    seal_table(lua, &names_table)?;
+    env.raw_set("names", names_table)?;
 
     Ok(())
 }

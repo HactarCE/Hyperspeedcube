@@ -37,7 +37,11 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
         ui.add_space(10.0);
         ui.heading("Colors");
         for color in puz.colors.list.iter_values() {
-            let name = &color.name;
+            let mut name = color.name.to_string();
+            for alias in &color.aliases {
+                name.push_str(", ");
+                name.push_str(&alias);
+            }
             let display = &color.display;
             ui.label(format!("• {name} = {display}"));
         }

@@ -33,6 +33,7 @@ pub const PUZZLE_ENGINE_VERSION_STRING: &str =
 const CAPTURE_LUA_OUTPUT: bool = !cfg!(test);
 
 const MAX_TWIST_REPEAT: usize = 50;
+const MAX_NAME_SET_SIZE: usize = 100;
 
 /// Radius of the promordial cube, which determines the maximum extent of all
 /// vertices along any axis.

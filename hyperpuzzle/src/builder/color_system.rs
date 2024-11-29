@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use eyre::{eyre, Result};
+use eyre::{ensure, eyre, OptionExt, Result};
 use hypermath::prelude::*;
 use indexmap::IndexMap;
 use itertools::Itertools;
 
-use super::{BadName, CustomOrdering, NamingScheme};
+use super::{BadName, CustomOrdering, NameSet, NamingScheme};
 use crate::{
     Color, ColorInfo, ColorSystem, DefaultColor, DevOrbit, PerColor, PuzzleDevData, PuzzleElement,
 };
@@ -152,10 +152,11 @@ impl ColorSystemBuilder {
     /// system if it does not already exist.
     pub fn get_or_add_with_name(
         &mut self,
-        name: String,
+        name: NameSet,
         warn_fn: impl Fn(BadName),
     ) -> Result<Color> {
-        if let Some(&id) = self.names.names_to_ids().get(&name) {
+        let s = name.canonical_name().ok_or_eyre(BadName::EmptySet)?;
+        if let Some(&id) = self.names.names_to_ids().get(&s) {
             Ok(id)
         } else {
             let id = self.add()?;
@@ -208,9 +209,16 @@ impl ColorSystemBuilder {
             &self.names,
             &self.ordering,
             crate::util::iter_uppercase_letter_names(),
-            warn_fn,
         )
-        .map(|(_id, (name, display))| eyre::Ok(ColorInfo { name, display }))
+        .map(|(_id, (name_set, display))| {
+            let mut string_set = name_set.string_set()?;
+            ensure!(!string_set.is_empty(), "color is missing canonical name");
+            eyre::Ok(ColorInfo {
+                name: string_set.remove(0),
+                aliases: string_set, // all except first
+                display,
+            })
+        })
         .try_collect()?;
 
         let mut schemes: IndexMap<String, PerColor<DefaultColor>> = self

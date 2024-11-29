@@ -323,7 +323,7 @@ puzzle_generators:add{
         local t = sym:thru(2, 1)
         for _, axis1, axis2, twist_transform in sym.chiral:orbit(a1, a2, t) do
           self.twists:add(axis1, twist_transform, {
-            name = axis2.name,
+            name = axis2,
             gizmo_pole_distance = 1,
           })
         end
@@ -332,7 +332,7 @@ puzzle_generators:add{
         local init_transform = sym:thru(3, 1) -- rot{fix = a1.vector ^ ridge, angle = PI}
         for t, axis1, _ridge, twist_transform in sym.chiral:orbit(a1, ridge, init_transform) do
           self.twists:add(axis1, twist_transform, {
-            name = t:transform(a2).name .. t:transform(a3).name,
+            name = names.set(t:transform(a2), t:transform(a3)),
             gizmo_pole_distance = (1 + GIZMO_EDGE_FACTOR) / sqrt(2),
           })
         end
@@ -341,7 +341,7 @@ puzzle_generators:add{
         local init_transform = sym:thru(3, 2)
         for t, axis1, _edge, twist_transform in sym.chiral:orbit(a1, edge, init_transform) do
           self.twists:add(axis1, twist_transform, {
-            name = t:transform(a2).name .. t:transform(a3).name .. t:transform(a4).name,
+            name = names.set(t:transform(a2), t:transform(a3), t:transform(a4)),
             gizmo_pole_distance = (1 + 2 * GIZMO_EDGE_FACTOR) / sqrt(3),
           })
         end

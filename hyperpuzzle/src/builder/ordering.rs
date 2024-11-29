@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use hypermath::collections::{GenericVec, IndexNewtype, IndexOutOfRange, IndexOverflow};
 use itertools::Itertools;
 
+use super::NameSet;
+
 /// Mutable ordering of elements. By default, elements remain in insertion
 /// order.
 #[derive(Debug, Default, Clone)]
@@ -106,11 +108,11 @@ impl<I: IndexNewtype> CustomOrdering<I> {
     /// Sorts the list lexicographically by name (case-sensitive). If multiple
     /// elements have no name, they will be placed at the beginning of the list
     /// in the order they were defined.
-    pub fn sort_by_name(&mut self, id_to_name: &HashMap<I, String>) {
+    pub fn sort_by_name(&mut self, id_to_name: &HashMap<I, NameSet>) {
         let new_order = self
             .index_by_id
             .iter_keys()
-            .sorted_by_key(|id| id_to_name.get(id));
+            .sorted_by_key(|id| id_to_name.get(id)?.canonical_name());
         for (index, id) in new_order.enumerate() {
             // Ignore errors; it doesn't matter.
             let _ = self.swap_to_index(id, index);
@@ -202,7 +204,7 @@ mod tests {
             ["o kama", "sona", "e", "toki", "pona"]
                 .into_iter()
                 .enumerate()
-                .map(|(i, name)| (Index(i as u8), name.to_string())),
+                .map(|(i, name)| (Index(i as u8), NameSet::from(name))),
         );
         ordering.sort_by_name(&id_to_name);
         assert_eq!(ordering.ids_in_order(), &[2, 0, 4, 1, 3].map(Index))

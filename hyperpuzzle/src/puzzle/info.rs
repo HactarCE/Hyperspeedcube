@@ -107,6 +107,8 @@ pub struct StickerInfo {
 pub struct AxisInfo {
     /// Name for the twist axis. (e.g, "U", "R", etc.)
     pub name: String,
+    /// Additional names for the twist axis.
+    pub aliases: Vec<String>,
     /// Vector preserved by all twists of the axis.
     pub vector: Vector,
     /// Layer.
@@ -132,6 +134,8 @@ pub struct LayerInfo {
 pub struct TwistInfo {
     /// Human-friendly name for the twist. (e.g., "U2", "R'", etc.)
     pub name: String,
+    /// Additional names for the twist.
+    pub aliases: Vec<String>,
 
     /// Value of this twist in quarter turn metric.
     pub qtm: usize,
@@ -177,6 +181,8 @@ impl AsRef<str> for PieceTypeInfo {
 pub struct ColorInfo {
     /// Name for the color. (e.g., "U", "R", etc.)
     pub name: String,
+    /// Additional names for the color.
+    pub aliases: Vec<String>,
     /// Display name for the color. (e.g., "Up", "Right", etc.)
     pub display: String,
 }

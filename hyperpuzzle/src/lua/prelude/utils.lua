@@ -12,3 +12,8 @@ math.phi = (1 + math.sqrt(5)) / 2
 function string.fmt2(s1, s2, ...)
   return string.format(s1, ...), string.format(s2, ...)
 end
+
+-- for use from Rust code
+function builtin_concat(a, b)
+  return a .. b
+end

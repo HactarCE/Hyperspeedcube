@@ -58,7 +58,7 @@ impl LuaUserData for LuaPuzzleBuilder {
                         mapping_table
                             .pairs()
                             .map(|pair| {
-                                let (name, color_name) = pair?;
+                                let (name, LuaNameSet(color_name)) = pair?;
                                 let color = color_system
                                     .get_or_add_with_name(color_name, lua_warn_fn(lua))?;
                                 eyre::Ok((name, color))
@@ -148,10 +148,8 @@ impl LuaPuzzleBuilder {
 
             let color = match &sticker_mode {
                 StickerMode::NewColor => Some({
-                    match name
-                        .as_ref()
-                        .and_then(|s| shape.colors.names.names_to_ids().get(s))
-                    {
+                    let name_string = name.as_ref().and_then(|name| name.canonical_name());
+                    match name_string.and_then(|s| shape.colors.names.names_to_ids().get(&s)) {
                         // Use an existing color unmodified.
                         Some(&existing_color) => existing_color,
                         // Create new color.
@@ -164,7 +162,13 @@ impl LuaPuzzleBuilder {
                 }),
                 StickerMode::None => None,
                 StickerMode::Color(c) => Some(*c),
-                StickerMode::Map(m) => name.map(|s| m[&s]),
+                StickerMode::Map(m) => name.as_ref().and_then(|name| match name.string_set() {
+                    Ok(strings) => strings.iter().find_map(|s| m.get(s)).copied(),
+                    Err(e) => {
+                        lua.warning(e.to_string(), false);
+                        None
+                    }
+                }),
             };
             colors_assigned.push(color);
 

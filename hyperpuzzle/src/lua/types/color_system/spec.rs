@@ -67,7 +67,7 @@ fn add_colors_from_table(
     for color in colors_table.sequence_values() {
         let t = color?;
 
-        let name: Option<String>;
+        let name: Option<LuaNameSet>;
         let display: Option<String>;
         let default: Option<String>;
         unpack_table!(lua.unpack(t {
@@ -75,6 +75,7 @@ fn add_colors_from_table(
             display,
             default,
         }));
+        let name = name.map(|LuaNameSet(name_set)| name_set);
 
         if default.is_some() && !allow_default {
             lua.warning(
@@ -85,7 +86,7 @@ fn add_colors_from_table(
 
         let id = colors.add().into_lua_err()?;
         colors.names.set_name(id, name, lua_warn_fn(lua));
-        colors.names.set_display(id, display);
+        colors.names.set_display(id, display, lua_warn_fn(lua));
         if let Some(s) = default {
             colors.set_default_color(id, Some(s.parse().into_lua_err()?));
         }

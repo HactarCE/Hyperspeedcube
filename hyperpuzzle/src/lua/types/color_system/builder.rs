@@ -5,7 +5,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::{CustomOrdering, NamingScheme, PuzzleBuilder};
+use crate::builder::{CustomOrdering, NameSet, NamingScheme, PuzzleBuilder};
 use crate::lua::lua_warn_fn;
 use crate::puzzle::Color;
 use crate::{DefaultColor, PerColor};
@@ -80,7 +80,7 @@ impl LuaNamedIdDatabase<Color> for PuzzleBuilder {
 impl LuaColorSystem {
     /// Adds a new color.
     fn add(&self, lua: &Lua, data: LuaValue) -> LuaResult<LuaColor> {
-        let name: Option<String>;
+        let name: Option<LuaNameSet>;
         let display: Option<String>;
         let default: Option<String>;
         if let Ok(s) = lua.unpack(data.clone()) {
@@ -96,13 +96,14 @@ impl LuaColorSystem {
         } else {
             return lua_convert_err(&data, "hyperplane or table");
         };
+        let name = name.map(|LuaNameSet(name_set)| name_set);
 
         let mut puz = self.0.lock();
         let colors = &mut puz.shape.colors;
         let id = colors.add().into_lua_err()?;
         colors.set_default_color(id, default_color_from_str(lua, default));
         colors.names.set_name(id, name, lua_warn_fn(lua));
-        colors.names.set_display(id, display);
+        colors.names.set_display(id, display, lua_warn_fn(lua));
         Ok(puz.wrap_id(id))
     }
 
