@@ -11,7 +11,7 @@ use crate::puzzle::TwistMetric;
 pub fn build(ui: &mut egui::Ui, app: &mut App) {
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         // Right-aligned segments
-        bld_toggle(ui, app);
+        blindfold_toggle(ui, app);
         ui.separator();
 
         twist_count(ui, app);
@@ -69,10 +69,9 @@ pub(super) fn modifier_toggles(ui: &mut egui::Ui, app: &mut App, big: bool) {
     }
 }
 
-fn bld_toggle(ui: &mut egui::Ui, app: &mut App) {
-    let bld = &mut app.prefs.colors.blindfold;
+fn blindfold_toggle(ui: &mut egui::Ui, app: &mut App) {
     let r = ui
-        .selectable_label(*bld, "BLD")
+        .selectable_label(app.prefs.colors.blindfold, "Blindfold")
         .on_hover_explanation("Blindfold mode", "Hides sticker colors");
     if r.clicked() {
         app.event(Command::ToggleBlindfold);

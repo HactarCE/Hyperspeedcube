@@ -50,7 +50,6 @@ const TWIST_INTERPOLATION_FN: InterpolateFn = interpolate::COSINE;
 #[derive(Delegate, Debug)]
 #[delegate(PuzzleType, target = "puzzle")]
 pub struct PuzzleController {
-    pub timer_start_end: (Option<instant::Instant>, Option<instant::Instant>),
     /// Latest puzzle state, not including any transient rotation.
     puzzle: Puzzle,
     /// Twist animation state.
@@ -127,7 +126,6 @@ impl PuzzleController {
     /// Constructs a new PuzzleController with a solved puzzle.
     pub fn new(ty: PuzzleTypeEnum) -> Self {
         Self {
-            timer_start_end: (None, None),
             puzzle: Puzzle::new(ty),
             twist_anim: TwistAnimationState::default(),
             view_settings_anim: ViewSettingsAnimState::default(),
@@ -182,11 +180,13 @@ impl PuzzleController {
             self.twist(Twist::from_rng(self.ty()))?;
         }
         self.add_scramble_marker(ScrambleState::Partial);
+        // if self.timer.is_blind() {
+        //     self.timer.stopwatch.start();
+        // }
         Ok(())
     }
-    /// Reset and then scramble the puzzle completely.
+    /// Scramble the puzzle completely.
     pub fn scramble_full(&mut self) -> Result<(), &'static str> {
-        self.reset(); // TODO(HactarCE): Reset is already called scramble_n; this is redundant.
         self.scramble_n(self.scramble_moves_count())?;
         self.scramble_state = ScrambleState::Full;
         Ok(())
@@ -202,6 +202,15 @@ impl PuzzleController {
         } else {
             self.scramble_state = new_scramble_state;
         }
+    }
+
+    pub fn is_non_rotation(&self, mut twist: Twist) -> bool {
+        twist.layers &= self.all_layers(); // Restrict layer mask.
+        if twist.layers == LayerMask(0) {
+            return false;
+        }
+        twist = self.canonicalize_twist(twist);
+        twist.layers != self.all_layers()
     }
 
     /// Adds a twist to the back of the twist queue.
@@ -222,22 +231,17 @@ impl PuzzleController {
         self.mark_unsaved();
         self.redo_buffer.clear();
         twist = self.canonicalize_twist(twist);
-        
-        // Start the timer if
-        // the twist wasn't a rotation
-        // and the timer isn't already started
-        // and the puzzle has finished being scrambled.
-        if twist.layers != self.all_layers()
-            && self.timer_start_end.0.is_none()
-            && !self.scramble.is_empty()
-        {
-            assert!(
-                self.timer_start_end.1.is_none(),
-                "invalid timer state: everything with an end must have a start"
-            );
-            self.timer_start_end.0 = Some(instant::Instant::now());
-        }
-        
+
+        // if !self.timer.is_blind()
+        // && matches!(self.timer.stopwatch, crate::gui::windows::Stopwatch::NotStarted)
+        // // the twist isn't a rotation
+        // && twist.layers != self.all_layers()
+        // // the puzzle has finished being scrambled
+        // && !self.scramble.is_empty()
+        // {
+        //     self.timer.stopwatch.start();
+        // }
+
         if collapse && self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
             // This twist is the reverse of the last one, so just undo the last
             // one.
@@ -850,7 +854,6 @@ impl PuzzleController {
         );
         if has_been_scrambled && self.is_solved() {
             self.scramble_state = ScrambleState::Solved;
-            self.timer_start_end.1 = Some(instant::Instant::now());
             true
         } else {
             false

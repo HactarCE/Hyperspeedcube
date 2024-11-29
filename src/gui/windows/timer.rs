@@ -1,26 +1,115 @@
-use instant::Duration;
+use instant::{Duration, Instant};
+
+use crate::gui::ext::ResponseExt;
 
 use super::Window;
 
-// TODO: blind / bld support
+// TODO: resizing
+
+// TODO: add .DS_store to gitignore after removing the .DS_store files
+
+// TODO: should Timer/Stopwatch be in components?
+// TODO: instead of panicking, fail better
 
 pub(crate) const TIMER: Window = Window {
     name: "Timer",
     build: |ui, app| {
         ui.add(egui::Button::new(
-            egui::RichText::new(match app.puzzle.timer_start_end {
-                (None, None) => "Ready".into(),
-                (None, Some(_)) => {
-                    panic!("invalid timer state: everything with an end must have a start")
-                }
-                (Some(start), None) => duration_to_str(start.elapsed()),
-                (Some(start), Some(end)) => duration_to_str(end - start),
+            egui::RichText::new(match app.timer.stopwatch {
+                Stopwatch::NotStarted => "Ready".into(),
+                Stopwatch::Running(start) => duration_to_str(start.elapsed()),
+                Stopwatch::Stopped(duration) => duration_to_str(duration),
             })
             .size(20.0),
         ));
+        if ui
+            .selectable_label(app.timer.is_blind, "Blind mode")
+            .on_hover_explanation(
+                "normal mode : blind mode",
+                "start on (first twist : scramble)\nstop on (solved : blindfold off)\ntoggling will reset the timer and puzzle",
+            )
+            .clicked()
+        {
+            app.timer.is_blind ^= true;
+            app.timer.stopwatch.reset();
+            app.puzzle.reset();
+        }
     },
     ..Window::DEFAULT
 };
+
+#[derive(Debug)]
+pub(crate) enum Stopwatch {
+    NotStarted,
+    Running(Instant),
+    Stopped(Duration),
+}
+impl Stopwatch {
+    fn reset(&mut self) {
+        *self = Stopwatch::NotStarted;
+    }
+
+    // TODO: in release, reset instead of panicking
+    fn start(&mut self) {
+        if let Self::NotStarted = self {
+            *self = Self::Running(Instant::now());
+        } else {
+            panic!("can only start a NotStarted timer");
+            self.reset();
+        }
+    }
+
+    fn stop(&mut self) {
+        if let Self::Running(beginning) = *self {
+            *self = Self::Stopped(beginning.elapsed());
+        } else {
+            panic!("can only stop a Running timer");
+            self.reset();
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct Timer {
+    stopwatch: Stopwatch,
+    is_blind: bool,
+}
+impl Timer {
+    pub(crate) fn new() -> Self {
+        Self {
+            stopwatch: Stopwatch::NotStarted,
+            is_blind: false,
+        }
+    }
+
+    pub(crate) fn on_scramble(&mut self) {
+        self.stopwatch.reset();
+        if self.is_blind {
+            self.stopwatch.start();
+        }
+    }
+
+    pub(crate) fn on_non_rotation_twist(&mut self) {
+        // check if the twist is the first one
+        if !self.is_blind && matches!(self.stopwatch, Stopwatch::NotStarted) {
+            self.stopwatch.start();
+        }
+    }
+
+    pub(crate) fn on_solve(&mut self) {
+        // if !self.is_blind && matches!(self.stopwatch, Stopwatch::Running(_)) {
+        if !self.is_blind {
+            self.stopwatch.stop();
+        }
+    }
+
+    pub(crate) fn on_blindfold_off(&mut self) {
+        // if self.is_blind && matches!(self.stopwatch, Stopwatch::Running(_)) {
+        if self.is_blind {
+            self.stopwatch.stop();
+        }
+    }
+}
 
 fn duration_to_str(duration: Duration) -> String {
     let milliseconds = duration.as_millis();
