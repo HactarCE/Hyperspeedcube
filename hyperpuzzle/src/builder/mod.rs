@@ -4,10 +4,6 @@
 //! independently. These builders are a rare place where we accept mutable
 //! aliasing in the Lua API, so the Rust API must also have mutable aliasing.
 
-use std::collections::HashSet;
-
-use eyre::eyre;
-
 mod axis_system;
 mod color_system;
 mod name;
