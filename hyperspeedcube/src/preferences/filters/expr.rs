@@ -192,9 +192,12 @@ impl FilterExpr {
                     .iter()
                     .filter_map(|color_name| puz.colors.list.find(|_, c| c.name == *color_name))
                     .collect_vec();
-                let piece_iter = puz
-                    .pieces
-                    .iter_filter(|p, _| cs.iter().any(|c| puz.piece_has_color(p, *c)));
+                let piece_iter = puz.pieces.iter_filter(|_piece, piece_info| {
+                    piece_info
+                        .stickers
+                        .iter()
+                        .all(|&sticker| cs.contains(&puz.stickers[sticker].color))
+                });
                 PieceMask::from_iter(len, piece_iter)
             }
             Self::NoColor => {
