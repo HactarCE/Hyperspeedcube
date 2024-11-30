@@ -124,7 +124,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         app_ui.app.prefs.needs_save |= r.changed();
 
         ui.menu_button(L.menu.puzzles.custom, |ui| {
-            if let Ok(lua_dir) = crate::paths::lua_dir() {
+            if let Ok(lua_dir) = hyperprefs::paths::lua_dir() {
                 if ui.button(L.menu.puzzles.show_lua_dir).clicked() {
                     ui.close_menu();
                     crate::open_dir(lua_dir);

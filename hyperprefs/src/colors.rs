@@ -4,8 +4,6 @@ use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
 use indexmap::IndexMap;
 use itertools::Itertools;
 
-use crate::L;
-
 use super::{schema, PresetsList, DEFAULT_PREFS_RAW};
 
 pub type ColorScheme = IndexMap<String, DefaultColor>;
@@ -103,15 +101,15 @@ impl DefaultColorGradient {
 
             Self::LightRainbow => {
                 let rainbow = Self::Rainbow.eval_continuous(t);
-                crate::util::mix_colors(Rgb::WHITE, rainbow, 0.9)
+                hyperpuzzle::Rgb::mix(Rgb::WHITE, rainbow, 0.9)
             }
             Self::DarkRainbow => {
                 let rainbow = Self::Rainbow.eval_continuous(t);
-                crate::util::mix_colors(Rgb::BLACK, rainbow, 0.4)
+                hyperpuzzle::Rgb::mix(Rgb::BLACK, rainbow, 0.4)
             }
             Self::DarkerRainbow => {
                 let rainbow = Self::Rainbow.eval_continuous(t);
-                crate::util::mix_colors(Rgb::BLACK, rainbow, 0.2)
+                hyperpuzzle::Rgb::mix(Rgb::BLACK, rainbow, 0.2)
             }
         }
     }
@@ -261,28 +259,18 @@ impl GlobalColorPalette {
         changed
     }
 
-    pub fn groups_of_sets(&self) -> Vec<(String, Vec<(&String, &[Rgb])>)> {
+    pub fn groups_of_sets(
+        &self,
+        get_group_name: impl Fn(usize) -> String,
+    ) -> Vec<(String, Vec<(&String, &[Rgb])>)> {
         self.builtin_color_sets
             .iter()
             .sorted_by_key(|(_, colors)| colors.len())
             .chunk_by(|(_, colors)| colors.len())
             .into_iter()
             .map(|(value, sets)| {
-                let group_name = match value {
-                    1 => L.colors.set_sizes._1.to_string(),
-                    2 => L.colors.set_sizes._2.to_string(),
-                    3 => L.colors.set_sizes._3.to_string(),
-                    4 => L.colors.set_sizes._4.to_string(),
-                    5 => L.colors.set_sizes._5.to_string(),
-                    6 => L.colors.set_sizes._6.to_string(),
-                    7 => L.colors.set_sizes._7.to_string(),
-                    8 => L.colors.set_sizes._8.to_string(),
-                    9 => L.colors.set_sizes._9.to_string(),
-                    10 => L.colors.set_sizes._10.to_string(),
-                    n => L.colors.set_sizes.n.with(&n.to_string()),
-                };
                 (
-                    group_name,
+                    get_group_name(value),
                     sets.map(|(name, rgbs)| (name, rgbs.as_slice())).collect(),
                 )
             })

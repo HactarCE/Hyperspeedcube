@@ -1,6 +1,10 @@
 use std::ops::RangeInclusive;
 
 use egui::NumExt;
+use hyperprefs::{
+    AnimationPreferences, InteractionPreferences, InterpolateFn, PuzzleViewPreferencesSet,
+    StyleColorMode, ViewPreferences,
+};
 use hyperpuzzle::Rgb;
 use strum::VariantArray;
 
@@ -8,10 +12,6 @@ use crate::gui::components::WidgetWithReset;
 use crate::gui::ext::*;
 use crate::gui::util::Access;
 use crate::locales::HoverStrings;
-use crate::preferences::{
-    AnimationPreferences, InteractionPreferences, InterpolateFn, PuzzleViewPreferencesSet,
-    StyleColorMode, ViewPreferences,
-};
 use crate::L;
 
 const FOV_4D_RANGE: RangeInclusive<f32> = -5.0..=120.0;
@@ -306,12 +306,46 @@ impl<'a, T> PrefsUi<'a, T> {
         strings: &HoverStrings,
         access: Access<T, InterpolateFn>,
     ) -> egui::Response {
+        /// Returns the human-friendly strings for the interpolation function.
+        fn get_strings(f: InterpolateFn) -> &'static HoverStrings {
+            let l = &L.prefs.animations.twists.interpolations;
+            match f {
+                InterpolateFn::Lerp => &l.lerp,
+                InterpolateFn::Cosine => &l.cosine,
+                InterpolateFn::Cubic => &l.cubic,
+                InterpolateFn::Circular => &l.circular,
+                InterpolateFn::Bounce => &l.bounce,
+                InterpolateFn::Overshoot => &l.overshoot,
+                InterpolateFn::Underdamped => &l.underdamped,
+                InterpolateFn::CriticallyDamped => &l.critically_damped,
+                InterpolateFn::CriticallyDried => &l.critically_dried,
+                InterpolateFn::Random => &l.random,
+            }
+        }
+
+        /// Returns the D&D alignment of the interpolation function.
+        pub fn get_dnd_alignment(f: InterpolateFn) -> &'static str {
+            let l = &L.prefs.animations.twists.interpolations.alignments;
+            match f {
+                InterpolateFn::Lerp => l.true_neutral,
+                InterpolateFn::Cosine => l.neutral_good,
+                InterpolateFn::Cubic => l.lawful_neutral,
+                InterpolateFn::Circular => l.neutral_evil,
+                InterpolateFn::Bounce => l.chaotic_neutral,
+                InterpolateFn::Overshoot => l.chaotic_good,
+                InterpolateFn::Underdamped => l.lawful_evil,
+                InterpolateFn::CriticallyDamped => l.lawful_good,
+                InterpolateFn::CriticallyDried => l.chaotic_evil,
+                InterpolateFn::Random => l.eldritch,
+            }
+        }
+
         let reset_value = self.get_default(&access);
         self.add(|current| WidgetWithReset {
             label: strings.label.into(),
             value: access.get_mut(current),
             reset_value,
-            reset_value_str: reset_value.map(|v| v.strings().label.into()),
+            reset_value_str: reset_value.map(|v| get_strings(v).label.into()),
             make_widget: |value| {
                 move |ui: &mut egui::Ui| {
                     let mut changed = false;
@@ -321,21 +355,23 @@ impl<'a, T> PrefsUi<'a, T> {
                     let mut r = egui::ComboBox::from_id_source(id)
                         .width_to_fit(
                             ui,
-                            InterpolateFn::VARIANTS.iter().map(|f| f.strings().label),
+                            InterpolateFn::VARIANTS
+                                .iter()
+                                .map(|f| get_strings(*f).label),
                         )
-                        .selected_text(value.strings().label)
+                        .selected_text(get_strings(*value).label)
                         .show_ui(ui, |ui| {
                             for &f in InterpolateFn::VARIANTS {
-                                let desc = f.strings().desc;
+                                let desc = get_strings(f).desc;
                                 let alignment_str = L
                                     .prefs
                                     .animations
                                     .twists
                                     .interpolations
                                     .alignment
-                                    .with(f.alignment());
+                                    .with(get_dnd_alignment(f));
                                 if ui
-                                    .selectable_label(*value == f, f.strings().label)
+                                    .selectable_label(*value == f, get_strings(f).label)
                                     .on_hover_explanation("", &format!("{alignment_str}\n\n{desc}"))
                                     .clicked()
                                 {

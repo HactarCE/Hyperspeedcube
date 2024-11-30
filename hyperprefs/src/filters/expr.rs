@@ -368,7 +368,7 @@ mod parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::preferences::filters::*;
+    use crate::filters::*;
     use hyperpuzzle::*;
 
     #[test]

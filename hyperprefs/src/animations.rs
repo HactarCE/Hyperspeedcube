@@ -19,8 +19,6 @@ pub mod interpolation {
     use rand::Rng;
     use serde::{Deserialize, Serialize};
 
-    use crate::{locales::HoverStrings, L};
-
     /// Function that maps a float from the range 0.0 to 1.0 to another float
     /// from 0.0 to 1.0.
     #[derive(
@@ -96,40 +94,6 @@ pub mod interpolation {
                 Self::CriticallyDried => 1.0 - Self::CriticallyDamped.interpolate(1.0 - t),
 
                 Self::Random => t + rand::thread_rng().gen_range(-3.0..3.0) * t * (t - 1.0),
-            }
-        }
-
-        /// Returns the human-friendly strings for the interpolation function.
-        pub fn strings(self) -> &'static HoverStrings {
-            let l = &L.prefs.animations.twists.interpolations;
-            match self {
-                Self::Lerp => &l.lerp,
-                Self::Cosine => &l.cosine,
-                Self::Cubic => &l.cubic,
-                Self::Circular => &l.circular,
-                Self::Bounce => &l.bounce,
-                Self::Overshoot => &l.overshoot,
-                Self::Underdamped => &l.underdamped,
-                Self::CriticallyDamped => &l.critically_damped,
-                Self::CriticallyDried => &l.critically_dried,
-                Self::Random => &l.random,
-            }
-        }
-
-        /// Returns the D&D alignment of the interpolation function.
-        pub fn alignment(self) -> &'static str {
-            let l = &L.prefs.animations.twists.interpolations.alignments;
-            match self {
-                Self::Lerp => l.true_neutral,
-                Self::Cosine => l.neutral_good,
-                Self::Cubic => l.lawful_neutral,
-                Self::Circular => l.neutral_evil,
-                Self::Bounce => l.chaotic_neutral,
-                Self::Overshoot => l.chaotic_good,
-                Self::Underdamped => l.lawful_evil,
-                Self::CriticallyDamped => l.lawful_good,
-                Self::CriticallyDried => l.chaotic_evil,
-                Self::Random => l.eldritch,
             }
         }
     }

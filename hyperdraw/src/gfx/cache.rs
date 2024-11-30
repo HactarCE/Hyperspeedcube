@@ -64,7 +64,7 @@ impl CachedTexture2d {
     }
 }
 
-pub(crate) struct CachedTexture<S> {
+pub struct CachedTexture<S> {
     inner: CachedTextureInner<S>,
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
@@ -92,10 +92,6 @@ impl<S: PartialEq + Copy> CachedTexture<S> {
             texture,
             view,
         }
-    }
-
-    pub fn format(&self) -> wgpu::TextureFormat {
-        self.inner.format
     }
 
     pub fn clone(&self, label: String) -> Self {

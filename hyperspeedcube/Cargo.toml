@@ -2,10 +2,12 @@
 name = "hyperspeedcube"
 description = "Multidimensional twisty puzzle simulator"
 version = "2.0.0-pre.17"
-authors = ["HactarCE"]
+authors.workspace = true
+documentation.workspace = true
 edition.workspace = true
-homepage = "https://ajfarkas.dev/hyperspeedcube/"
+homepage.workspace = true
 repository.workspace = true
+rust-version.workspace = true
 keywords = ["cubing", "hypercubing", "rubik", "game", "4d"]
 categories = ["games", "mathematics", "simulation"]
 license = "GPL-3.0-or-later"
@@ -61,8 +63,10 @@ sublime_fuzzy = "0.7.0"
 thiserror = "2.0.3"
 time = { version = "0.3.7", features = ["local-offset"] }
 
+hyperdraw = { path = "../hyperdraw" }
 hypermath = { path = "../hypermath" }
-hyperpuzzle = { path = "../hyperpuzzle" }
+hyperprefs = { path = "../hyperprefs" }
+hyperpuzzle = { path = "../hyperpuzzle", features = ["ecolor", "oklab"] }
 hypershape = { path = "../hypershape" }
 
 # Windowing and UI (versions must match; generally limited by egui_dock)

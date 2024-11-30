@@ -3,6 +3,11 @@ use std::{
     hash::Hash,
 };
 
+use hyperprefs::{
+    ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterPreset, FilterPresetName,
+    FilterPresetRef, FilterRule, FilterSeqPreset, Preferences, PresetRef, PresetsList,
+    PuzzleFilterPreferences,
+};
 use hyperpuzzle::{PerPieceType, PieceMask, PieceTypeHierarchy, Puzzle};
 use itertools::Itertools;
 
@@ -16,11 +21,6 @@ use crate::{
         },
         markdown::{md, md_inline},
         util::{text_width, EguiTempValue},
-    },
-    preferences::{
-        ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterPreset, FilterPresetName,
-        FilterPresetRef, FilterRule, FilterSeqPreset, Preferences, PresetRef, PresetsList,
-        PuzzleFilterPreferences,
     },
     puzzle::PuzzleFiltersState,
     L,
@@ -893,7 +893,7 @@ fn show_filter_checkboxes_ui(
             for ((state, rgb), color_info) in states_iter.zip(rgbs_iter).zip(color_infos_iter) {
                 let r = &ui.add(
                     FilterCheckbox::new(allowed_states, Some(state), &color_info.display)
-                        .color(crate::util::rgb_to_egui_color32(rgb))
+                        .color(rgb.to_egui_color32())
                         .indent(),
                 );
                 *changed |= r.changed();

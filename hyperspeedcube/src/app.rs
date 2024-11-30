@@ -1,14 +1,14 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 
+use egui::mutex::RwLock;
+use hyperdraw::GraphicsState;
+use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences, PuzzleViewPreferencesSet};
 use hyperpuzzle::Puzzle;
 use parking_lot::Mutex;
 
-use crate::gfx::GraphicsState;
 use crate::gui::PuzzleWidget;
-use crate::preferences::{
-    AnimationPreferences, ModifiedPreset, Preferences, PuzzleViewPreferencesSet,
-};
+use crate::L;
 
 pub struct App {
     pub(crate) gfx: Arc<GraphicsState>,
@@ -18,17 +18,24 @@ pub struct App {
     pub active_puzzle_view: ActivePuzzleView,
 
     pub(crate) animation_prefs: ModifiedPreset<AnimationPreferences>,
+
+    egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
 }
 
 impl App {
     pub(crate) fn new(cc: &eframe::CreationContext<'_>, _initial_file: Option<PathBuf>) -> Self {
         let prefs = Preferences::load(None);
 
-        let animation_prefs = prefs.animation.load_last_loaded();
+        let animation_prefs = prefs
+            .animation
+            .load_last_loaded(&L.presets.default_preset_name);
 
+        let wgpu_render_state = cc.wgpu_render_state.as_ref().expect("no wgpu render state");
         Self {
             gfx: Arc::new(GraphicsState::new(
-                cc.wgpu_render_state.as_ref().expect("no wgpu render state"),
+                Arc::clone(&wgpu_render_state.device),
+                Arc::clone(&wgpu_render_state.queue),
+                wgpu_render_state.target_format,
             )),
 
             prefs,
@@ -36,6 +43,8 @@ impl App {
             active_puzzle_view: ActivePuzzleView::default(),
 
             animation_prefs,
+
+            egui_wgpu_renderer: Arc::clone(&wgpu_render_state.renderer),
         }
     }
 
@@ -75,9 +84,14 @@ impl App {
 
     pub(crate) fn load_puzzle(&mut self, lib: &hyperpuzzle::Library, puzzle_id: &str) {
         if self.active_puzzle_view.view().is_some() {
-            if let Some(new_puzzle_view) =
-                PuzzleWidget::new(lib, &self.gfx, &mut self.prefs, puzzle_id)
-            {
+            let egui_wgpu_renderer = Arc::clone(&self.egui_wgpu_renderer);
+            if let Some(new_puzzle_view) = PuzzleWidget::new(
+                lib,
+                &self.gfx,
+                egui_wgpu_renderer,
+                &mut self.prefs,
+                puzzle_id,
+            ) {
                 self.set_active_puzzle(Some(new_puzzle_view));
             }
         }

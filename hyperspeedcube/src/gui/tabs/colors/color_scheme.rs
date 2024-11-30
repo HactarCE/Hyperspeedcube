@@ -1,11 +1,7 @@
+use hyperprefs::{ColorScheme, GlobalColorPalette};
 use hyperpuzzle::ColorSystem;
 
-use crate::{
-    app::App,
-    gui::components::PresetsUi,
-    preferences::{ColorScheme, GlobalColorPalette},
-    L,
-};
+use crate::{app::App, gui::components::PresetsUi, L};
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let id = unique_id!();

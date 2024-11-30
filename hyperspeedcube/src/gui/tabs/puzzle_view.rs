@@ -1,7 +1,11 @@
-use eyre::Result;
+use std::fmt;
 use std::sync::Arc;
 
+use egui::mutex::RwLock;
+use eyre::Result;
+use hyperdraw::*;
 use hypermath::prelude::*;
+use hyperprefs::{AnimationPreferences, Preferences, PuzzleViewPreferencesSet};
 use hyperpuzzle::{GizmoFace, Puzzle};
 use image::ImageBuffer;
 use parking_lot::Mutex;
@@ -9,12 +13,8 @@ use parking_lot::Mutex;
 use crate::gui::components::color_assignment_popup;
 use crate::gui::util::EguiTempValue;
 use crate::gui::App;
-use crate::preferences::{
-    AnimationPreferences, ModifiedPreset, ModifiedSimPrefs, Preferences, PuzzleViewPreferencesSet,
-    ViewPrefsRefs,
-};
 use crate::puzzle::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
-use crate::{gfx::*, L};
+use crate::L;
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging
 /// purposes, but causes the puzzle to redraw every frame that the mouse moves,
@@ -23,7 +23,7 @@ const SEND_CURSOR_POS: bool = false;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>) {
     let r = match &mut *puzzle_view.lock() {
-        Some(puzzle_view) => puzzle_view.ui(ui, &mut app.prefs, &app.animation_prefs),
+        Some(puzzle_view) => puzzle_view.ui(ui, &mut app.prefs, &app.animation_prefs.value),
         None => {
             // Hint to the user to load a puzzle.
             ui.allocate_ui_at_rect(ui.available_rect_before_wrap(), |ui| {
@@ -40,23 +40,40 @@ pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<Puz
     }
 }
 
-#[derive(Debug)]
 pub struct PuzzleWidget {
     /// View into a puzzle simulation.
     pub view: PuzzleView,
 
-    /// Puzzle renderer. This is wrapped in an `Arc<Mutex<T>>` because egui
-    /// needs access to it during rendering, when we are not in control.
-    renderer: Arc<Mutex<PuzzleRenderer>>,
+    renderer: PuzzleRenderer,
+    egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
+    egui_texture_id: Option<egui::TextureId>,
 
     queued_arrows: Vec<[Vector; 2]>,
 
     pub wants_focus: bool,
 }
+impl Drop for PuzzleWidget {
+    fn drop(&mut self) {
+        if let Some(id) = self.egui_texture_id {
+            self.egui_wgpu_renderer.write().free_texture(&id);
+        }
+    }
+}
+impl fmt::Debug for PuzzleWidget {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PuzzleWidget")
+            .field("view", &self.view)
+            .field("egui_texture_id", &self.egui_texture_id)
+            .field("queued_arrows", &self.queued_arrows)
+            .field("wants_focus", &self.wants_focus)
+            .finish_non_exhaustive()
+    }
+}
 impl PuzzleWidget {
     pub(crate) fn new(
         lib: &hyperpuzzle::Library,
         gfx: &Arc<GraphicsState>,
+        egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
         prefs: &mut Preferences,
         puzzle_id: &str,
     ) -> Option<Self> {
@@ -71,36 +88,34 @@ impl PuzzleWidget {
                 log::info!("Built {:?} in {:?}", p.name, start_time.elapsed());
                 log::info!("Updated active puzzle");
                 let sim = &Arc::new(Mutex::new(PuzzleSimulation::new(&p)));
-                Some(Self::with_sim(gfx, sim, prefs))
+                Some(Self::with_sim(gfx, egui_wgpu_renderer, sim, prefs))
             }
         }
     }
     pub(crate) fn with_sim(
         gfx: &Arc<GraphicsState>,
+        egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
         sim: &Arc<Mutex<PuzzleSimulation>>,
         prefs: &mut Preferences,
     ) -> Self {
         let puz = Arc::clone(sim.lock().puzzle_type());
-        let view = prefs[PuzzleViewPreferencesSet::from_ndim(puz.ndim())].load_last_loaded();
-        let colors = prefs
+        let view_preset = prefs[PuzzleViewPreferencesSet::from_ndim(puz.ndim())]
+            .load_last_loaded(&L.presets.default_preset_name);
+        let color_scheme = prefs
             .color_schemes
             .get_mut(&puz.colors)
             .schemes
-            .load_last_loaded();
+            .load_last_loaded(&L.presets.default_preset_name);
 
-        let view = PuzzleView::new(
-            sim,
-            ViewPrefsRefs {
-                all: prefs,
-                view: &view,
-                colors: &colors,
-            },
-        );
+        let view = PuzzleView::new(sim, prefs, view_preset.clone(), color_scheme.clone());
         let puzzle = view.puzzle();
-        let renderer = Arc::new(Mutex::new(PuzzleRenderer::new(gfx, &puzzle)));
+        let renderer = PuzzleRenderer::new(gfx, &puzzle);
         Self {
             view,
+
             renderer,
+            egui_wgpu_renderer,
+            egui_texture_id: None,
 
             queued_arrows: vec![],
 
@@ -121,8 +136,11 @@ impl PuzzleWidget {
     pub fn reload(&mut self, lib: &hyperpuzzle::Library, prefs: &mut Preferences) -> bool {
         crate::load_user_puzzles();
         let current_puzzle = self.puzzle();
-        let gfx = Arc::clone(&self.renderer.lock().gfx);
-        if let Some(mut new_puzzle_view) = Self::new(lib, &gfx, prefs, &current_puzzle.id) {
+        let gfx = Arc::clone(&self.renderer.gfx);
+        let egui_wgpu_renderer = Arc::clone(&self.egui_wgpu_renderer);
+        if let Some(mut new_puzzle_view) =
+            Self::new(lib, &gfx, egui_wgpu_renderer, prefs, &current_puzzle.id)
+        {
             // Copy view and color settings from the current puzzle view.
             new_puzzle_view.view.camera.view_preset = self.view.camera.view_preset.clone();
             new_puzzle_view.view.colors = self.view.colors.clone();
@@ -139,7 +157,7 @@ impl PuzzleWidget {
         &mut self,
         ui: &mut egui::Ui,
         prefs: &mut Preferences,
-        animation: &ModifiedPreset<AnimationPreferences>,
+        animation: &AnimationPreferences,
     ) -> egui::Response {
         let puzzle = self.puzzle();
 
@@ -235,12 +253,10 @@ impl PuzzleWidget {
             return r;
         }
 
-        let renderer = self.renderer.lock();
-
         // Redraw each frame until the image is stable and we have computed 3D
         // vertex positions.
-        if renderer.puzzle_vertex_3d_positions.get().is_none()
-            || renderer.gizmo_vertex_3d_positions.get().is_none()
+        if self.renderer.puzzle_vertex_3d_positions.get().is_none()
+            || self.renderer.gizmo_vertex_3d_positions.get().is_none()
         {
             ui.ctx().request_repaint();
         }
@@ -249,18 +265,16 @@ impl PuzzleWidget {
             PuzzleViewInput {
                 cursor_pos,
                 target_size,
-                puzzle_vertex_3d_positions: renderer.puzzle_vertex_3d_positions.get(),
-                gizmo_vertex_3d_positions: renderer.gizmo_vertex_3d_positions.get(),
+                puzzle_vertex_3d_positions: self.renderer.puzzle_vertex_3d_positions.get(),
+                gizmo_vertex_3d_positions: self.renderer.gizmo_vertex_3d_positions.get(),
                 exceeded_twist_drag_threshold,
                 hover_mode: match ui.input(|input| input.modifiers.shift) {
                     true => Some(HoverMode::Piece),
                     false => Some(HoverMode::TwistGizmo),
                 },
             },
-            ModifiedSimPrefs {
-                all: prefs,
-                animation,
-            },
+            prefs,
+            animation,
         );
 
         // Click = twist
@@ -316,10 +330,6 @@ impl PuzzleWidget {
             }
         }
 
-        let dark_mode = ui.visuals().dark_mode;
-        let background_color = prefs.background_color(dark_mode).rgb;
-        let internals_color = prefs.styles.internals_color.rgb;
-
         // Ensure that the color scheme is valid. Ignore whether it actually got
         // modified.
         let _ = prefs
@@ -353,8 +363,7 @@ impl PuzzleWidget {
                 Some(DragState::Canceled | DragState::PreTwist | DragState::Twist) | None => false,
             },
 
-            background_color,
-            internals_color,
+            internals_color: prefs.styles.internals_color.rgb,
             sticker_colors,
             piece_styles: self.view.styles.values(prefs),
             piece_transforms: self.view.sim.lock().piece_transforms().map_ref(
@@ -364,18 +373,11 @@ impl PuzzleWidget {
 
         // Draw puzzle.
         let painter = ui.painter_at(r.rect);
-        let background_color =
-            crate::util::rgb_to_egui_color32(prefs.background_color(ui.visuals().dark_mode));
+        let dark_mode = ui.visuals().dark_mode;
+        let background_color = prefs.background_color(dark_mode).to_egui_color32();
         ui.painter().rect_filled(r.rect, 0.0, background_color);
-        ui.painter()
-            .add(eframe::egui_wgpu::Callback::new_paint_callback(
-                r.rect,
-                PuzzleRenderResources {
-                    gfx: Arc::clone(&renderer.gfx),
-                    renderer: Arc::clone(&self.renderer),
-                    draw_params,
-                },
-            ));
+        let texture_id = self.update_puzzle_texture(&draw_params);
+        egui::Image::new((texture_id, r.rect.size())).paint_at(ui, r.rect);
 
         self.queued_arrows.extend(self.view.drag_delta_3d());
 
@@ -413,7 +415,7 @@ impl PuzzleWidget {
         };
 
         // Draw gizmos (TODO: move to GPU?)
-        if let Some(gizmo_vertex_3d_positions) = renderer.gizmo_vertex_3d_positions.get() {
+        if let Some(gizmo_vertex_3d_positions) = self.renderer.gizmo_vertex_3d_positions.get() {
             if let Some(axis) = self.view.temp_gizmo_highlight.take() {
                 for (gizmo_face, &twist) in &puzzle.gizmo_twists {
                     if puzzle.twists[twist].axis == axis {
@@ -475,12 +477,56 @@ impl PuzzleWidget {
         r
     }
 
+    fn update_puzzle_texture(&mut self, draw_params: &DrawParams) -> egui::TextureId {
+        let command_encoder_descriptor = wgpu::CommandEncoderDescriptor {
+            label: Some("puzzle"),
+        };
+        let device = &self.renderer.gfx.device;
+        let mut encoder = device.create_command_encoder(&command_encoder_descriptor);
+        let result = self.renderer.draw_puzzle(&mut encoder, &draw_params);
+        if let Err(e) = result {
+            log::error!("{e}");
+        }
+        self.renderer.gfx.queue.submit([encoder.finish()]);
+
+        // egui expects sRGB colors in the shader, so we have to read the
+        // sRGB texture as though it were linear to prevent the GPU from
+        // doing gamma conversion.
+        let output_texture = &self.renderer.output_texture().texture;
+        let texture_view = output_texture.create_view(&wgpu::TextureViewDescriptor {
+            format: Some(output_texture.format().remove_srgb_suffix()),
+            ..Default::default()
+        });
+        let mut egui_wgpu_renderer = self.egui_wgpu_renderer.write();
+        let gfx = &self.renderer.gfx;
+        match self.egui_texture_id {
+            Some(egui_texture_id) => {
+                egui_wgpu_renderer.update_egui_texture_from_wgpu_texture(
+                    &gfx.device,
+                    &texture_view,
+                    self.renderer.filter_mode,
+                    egui_texture_id,
+                );
+                egui_texture_id
+            }
+            None => {
+                let egui_texture_id = egui_wgpu_renderer.register_native_texture(
+                    &gfx.device,
+                    &texture_view,
+                    self.renderer.filter_mode,
+                );
+                self.egui_texture_id = Some(egui_texture_id);
+                egui_texture_id
+            }
+        }
+    }
+
     pub fn screenshot(
         &mut self,
         width: u32,
         height: u32,
     ) -> Result<ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
-        self.renderer.lock().screenshot(width, height)
+        self.renderer.screenshot(width, height)
     }
 }
 

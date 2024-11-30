@@ -10,25 +10,20 @@ extern crate strum;
 
 use std::sync::Arc;
 
+pub use hyperprefs::IS_OFFICIAL_BUILD;
+
 use gui::AppUi;
 use hyperpuzzle::Library;
 use parking_lot::Mutex;
 
 #[macro_use]
 mod debug;
+mod app;
 mod commands;
-mod ext;
 mod gui;
 mod locales;
 // mod logfile;
-mod app;
-mod gfx;
-#[cfg_attr(not(target_arch = "wasm32"), path = "paths_local.rs")]
-#[cfg_attr(target_arch = "wasm32", path = "paths_web.rs")]
-mod paths;
-mod preferences;
 mod puzzle;
-mod serde_impl;
 mod util;
 
 /// Strings for the current locale.
@@ -38,7 +33,6 @@ const L: locales::Lang = locales::en::LANG;
 
 const TITLE: &str = "Hyperspeedcube";
 const APP_ID: &str = "Hyperspeedcube";
-const IS_OFFICIAL_BUILD: bool = std::option_env!("HSC_OFFICIAL_BUILD").is_some();
 const ICON_32_PNG_DATA: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
 
 thread_local! {
@@ -202,7 +196,7 @@ fn load_built_in_puzzles() {
 }
 
 fn load_user_puzzles() {
-    let Ok(lua_dir) = crate::paths::lua_dir() else {
+    let Ok(lua_dir) = hyperprefs::paths::lua_dir() else {
         log::error!("Error locating Lua directory");
         return;
     };

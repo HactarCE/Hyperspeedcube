@@ -1,11 +1,9 @@
 use std::{any::Any, hash::Hash};
 
 use float_ord::FloatOrd;
+use hyperprefs::ext::reorderable::{BeforeOrAfter, DragAndDropResponse, ReorderableCollection};
 
-use crate::{
-    ext::reorderable::{BeforeOrAfter, DragAndDropResponse, ReorderableCollection},
-    gui::util::EguiTempValue,
-};
+use crate::gui::util::EguiTempValue;
 
 const REORDER_STROKE_WIDTH: f32 = 2.0;
 const DROP_ZONE_STROKE_WIDTH: f32 = 2.0;

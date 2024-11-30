@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 
-use crate::preferences::{PresetData, PresetsList};
+use crate::{PresetData, PresetsList};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct DragAndDropResponse<Payload, End = Payload> {
@@ -149,3 +149,5 @@ impl<T: PresetData> ReorderableCollection<String> for PresetsList<T> {
 //         }
 //     }
 // }
+
+// TODO: test reordering

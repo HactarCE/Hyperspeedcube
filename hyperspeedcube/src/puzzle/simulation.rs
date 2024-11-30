@@ -3,11 +3,11 @@ use std::sync::Arc;
 use float_ord::FloatOrd;
 use hypermath::pga::{Axes, Motor};
 use hypermath::{Vector, VectorRef};
+use hyperprefs::AnimationPreferences;
 use hyperpuzzle::{Axis, LayerMask, PerPiece, PieceMask, Puzzle, PuzzleState, Twist};
 use instant::{Duration, Instant};
 
 use super::animations::{BlockingAnimationState, TwistAnimation, TwistAnimationState};
-use crate::preferences::ModifiedSimPrefs;
 
 const ASSUMED_FPS: f32 = 120.0;
 
@@ -64,12 +64,12 @@ impl PuzzleSimulation {
     }
     /// Updates the piece transforms. This is called every frame that the puzzle
     /// is in motion.
-    fn update_piece_transforms(&mut self, prefs: ModifiedSimPrefs<'_>) {
+    fn update_piece_transforms(&mut self, animation_prefs: &AnimationPreferences) {
         self.cached_piece_transforms = self
             .twist_anim
             .current()
             .map(|(anim, t)| {
-                let t = prefs.animation.value.twist_interpolation.interpolate(t);
+                let t = animation_prefs.twist_interpolation.interpolate(t);
                 let start = &anim.initial_transform;
                 let end = &anim.final_transform;
                 let m = Motor::slerp_infallible(start, end, t as _);
@@ -132,7 +132,7 @@ impl PuzzleSimulation {
     /// Advances the puzzle geometry and internal state to the next frame, using
     /// the given time delta between this frame and the last. Returns whether
     /// the puzzle must be redrawn.
-    pub fn step(&mut self, prefs: ModifiedSimPrefs<'_>) -> bool {
+    pub fn step(&mut self, animation_prefs: &AnimationPreferences) -> bool {
         let now = Instant::now();
         let delta = match self.last_frame_time {
             Some(then) => now - then,
@@ -156,11 +156,11 @@ impl PuzzleSimulation {
         //     }
         // }
 
-        if self.twist_anim.proceed(delta, prefs) {
-            self.update_piece_transforms(prefs);
+        if self.twist_anim.proceed(delta, animation_prefs) {
+            self.update_piece_transforms(&animation_prefs);
             needs_redraw = true;
         }
-        needs_redraw |= self.blocking_anim.proceed(&prefs.animation.value);
+        needs_redraw |= self.blocking_anim.proceed(&animation_prefs);
 
         if needs_redraw {
             self.last_frame_time = Some(now);
@@ -194,7 +194,7 @@ impl PuzzleSimulation {
         &mut self,
         surface_normal: Vector,
         parallel_drag_delta: Vector,
-        prefs: ModifiedSimPrefs<'_>,
+        animation_prefs: &AnimationPreferences,
     ) {
         let puzzle = Arc::clone(self.puzzle_type());
         if let Some(partial) = &mut self.partial_twist_drag_state {
@@ -210,7 +210,7 @@ impl PuzzleSimulation {
             let new_transform = Motor::from_angle_in_normalized_plane(3, &v2, &v1, angle);
             partial.transform = new_transform;
         }
-        self.update_piece_transforms(prefs);
+        self.update_piece_transforms(&animation_prefs);
     }
     /// Cancels a partial twist and animates the pieces back.
     ///

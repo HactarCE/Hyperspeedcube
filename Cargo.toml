@@ -1,5 +1,5 @@
 [workspace]
-members = [ "hypermath", "hypershape", "hyperpuzzle", "hyperstrings", "hyperspeedcube" ]
+members = [ "hypermath", "hypershape", "hyperpuzzle", "hyperstrings", "hyperspeedcube" , "hyperdraw", "hyperprefs"]
 resolver = "2"
 
 [workspace.package]
@@ -30,6 +30,7 @@ stable_sort_primitive = "warn"
 too_many_arguments = "allow"
 undocumented_unsafe_blocks = "warn"
 uninlined_format_args = "warn"
+unused_crate_dependencies = "warn"
 unwrap_used = "warn"
 
 multiple_crate_versions = { level = "allow", priority = 1 }

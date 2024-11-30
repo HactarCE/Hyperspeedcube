@@ -12,18 +12,17 @@ use std::ops::Range;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{mpsc, Arc};
 
-use egui::NumExt;
 use eyre::{bail, OptionExt, Result};
 use hypermath::prelude::*;
+use hyperprefs::StyleColorMode;
 use hyperpuzzle::{Mesh, PerPiece, PerSticker, Piece, PieceMask, Puzzle, Rgb, Sticker};
 use image::ImageBuffer;
 use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::SmallVec;
 
-use crate::preferences::StyleColorMode;
-
 use super::bindings::{BindGroups, WgpuPassExt};
+use super::cache::CachedTexture;
 use super::draw_params::{GizmoGeometryCacheKey, PuzzleGeometryCacheKey};
 use super::structs::*;
 use super::{pipelines, CachedTexture1d, CachedTexture2d, DrawParams, GraphicsState};
@@ -61,71 +60,6 @@ pub struct PuzzleRenderResources {
 impl PuzzleRenderResources {
     fn unique_key(&self) -> usize {
         Arc::as_ptr(&self.renderer) as usize
-    }
-}
-
-impl eframe::egui_wgpu::CallbackTrait for PuzzleRenderResources {
-    fn prepare(
-        &self,
-        _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
-        _screen_descriptor: &eframe::egui_wgpu::ScreenDescriptor,
-        egui_encoder: &mut wgpu::CommandEncoder,
-        callback_resources: &mut eframe::egui_wgpu::CallbackResources,
-    ) -> Vec<wgpu::CommandBuffer> {
-        let mut renderer = self.renderer.lock();
-
-        let result = renderer.draw_puzzle(egui_encoder, &self.draw_params);
-        if let Err(e) = result {
-            log::error!("{e}");
-        }
-
-        // egui expects sRGB colors in the shader, so we have to read the sRGB
-        // texture as though it were linear to prevent the GPU from doing gamma
-        // conversion.
-        let src_format = renderer.buffers.composite_texture.format();
-        let src_format_with_no_conversion = Some(src_format.remove_srgb_suffix());
-        let texture = &renderer.buffers.composite_texture.texture;
-        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor {
-            format: src_format_with_no_conversion,
-            ..Default::default()
-        });
-
-        let pipeline = &self.gfx.pipelines.blit_to_egui;
-        let bind_groups = pipeline.bind_groups(pipelines::blit::Bindings {
-            src_texture: &texture_view,
-            src_sampler: match self.draw_params.cam.prefs().downscale_interpolate {
-                true => &self.gfx.bilinear_sampler,
-                false => &self.gfx.nearest_neighbor_sampler,
-            },
-        });
-
-        callback_resources
-            .entry()
-            .or_insert(HashMap::new())
-            .insert(self.unique_key(), bind_groups);
-
-        vec![]
-    }
-
-    fn paint(
-        &self,
-        _info: egui::PaintCallbackInfo,
-        render_pass: &mut wgpu::RenderPass<'static>,
-        callback_resources: &eframe::egui_wgpu::CallbackResources,
-    ) {
-        let Some(bind_groups) = callback_resources
-            .get::<HashMap<usize, BindGroups>>()
-            .and_then(|map| map.get(&self.unique_key()))
-        else {
-            log::error!("lost bind groups for blitting puzzle view");
-            return;
-        };
-
-        render_pass.set_pipeline(&self.gfx.pipelines.blit_to_egui.pipeline);
-        render_pass.set_bind_groups(bind_groups);
-        render_pass.set_vertex_buffer(0, self.gfx.uv_vertex_buffer.slice(..));
-        render_pass.draw(0..4, 0..1);
     }
 }
 
@@ -177,7 +111,7 @@ macro_rules! struct_with_constructor {
 }
 
 #[derive(Debug)]
-pub(crate) struct PuzzleRenderer {
+pub struct PuzzleRenderer {
     /// Graphics state.
     pub gfx: Arc<GraphicsState>,
     /// Static model data, which does not change and so can be shared among all
@@ -203,6 +137,8 @@ pub(crate) struct PuzzleRenderer {
 
     /// Most recently used draw parameters.
     last_draw_params: Option<DrawParams>,
+    /// Filter mode to use when scaling the render.
+    pub filter_mode: wgpu::FilterMode,
 
     polygon_texture_needs_clear: bool,
     edge_ids_texture_needs_clear: bool,
@@ -225,6 +161,7 @@ impl Clone for PuzzleRenderer {
             is_placeholder_model: self.is_placeholder_model,
 
             last_draw_params: None,
+            filter_mode: wgpu::FilterMode::default(),
 
             polygon_texture_needs_clear: false,
             edge_ids_texture_needs_clear: false,
@@ -270,10 +207,15 @@ impl PuzzleRenderer {
             gizmo_vertex_3d_positions: CachedGpuCompute::new(Arc::clone(gfx)),
 
             last_draw_params: None,
+            filter_mode: wgpu::FilterMode::default(),
 
             polygon_texture_needs_clear: false,
             edge_ids_texture_needs_clear: false,
         }
+    }
+
+    pub fn output_texture(&self) -> &CachedTexture<[u32; 2]> {
+        &self.buffers.composite_texture
     }
 
     pub fn screenshot(
@@ -402,6 +344,11 @@ impl PuzzleRenderer {
         encoder: &mut wgpu::CommandEncoder,
         draw_params: &DrawParams,
     ) -> Result<()> {
+        self.filter_mode = match draw_params.cam.prefs().downscale_interpolate {
+            true => wgpu::FilterMode::Linear,
+            false => wgpu::FilterMode::Nearest,
+        };
+
         self.puzzle_vertex_3d_positions
             .update_cache_key_and_invalidate(draw_params.puzzle_geometry_cache_key());
         self.gizmo_vertex_3d_positions
@@ -495,12 +442,12 @@ impl PuzzleRenderer {
         // Write the draw parameters.
         {
             let near_plane_z = if fov_signum > 0.0 {
-                (camera_z - Z_EPSILON).at_most(Z_CLIP)
+                f32::min(Z_CLIP, camera_z - Z_EPSILON) // at most Z_CLIP
             } else {
                 Z_CLIP
             };
             let far_plane_z = if fov_signum < 0.0 {
-                (camera_z + Z_EPSILON).at_least(-Z_CLIP)
+                f32::max(-Z_CLIP, camera_z + Z_EPSILON) // at least -Z_CLIP
             } else {
                 -Z_CLIP
             };

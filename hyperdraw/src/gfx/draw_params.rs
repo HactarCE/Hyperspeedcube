@@ -1,11 +1,11 @@
 use hypermath::prelude::*;
 use hyperpuzzle::{PerPiece, PieceMask};
 
-use crate::puzzle::{Camera, PieceStyleValues};
+use crate::{Camera, PieceStyleValues};
 
 /// Complete set of values that determines 3D puzzle vertex positions.
 #[derive(Debug, Default, Clone, PartialEq)]
-pub(crate) struct PuzzleGeometryCacheKey {
+pub struct PuzzleGeometryCacheKey {
     fov_3d: f32,
     fov_4d: f32,
     show_frontfaces: bool,
@@ -27,7 +27,7 @@ pub(crate) struct PuzzleGeometryCacheKey {
 
 /// Complete set of values that determines 3D gizmo vertex positions.
 #[derive(Debug, Default, Clone, PartialEq)]
-pub(crate) struct GizmoGeometryCacheKey {
+pub struct GizmoGeometryCacheKey {
     fov_3d: f32,
     fov_4d: f32,
     gizmo_scale: f32,
@@ -37,7 +37,7 @@ pub(crate) struct GizmoGeometryCacheKey {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct DrawParams {
+pub struct DrawParams {
     /// Number of dimensions of the puzzle.
     ///
     /// This should be the same as the rotation matrix in the camera, and the
@@ -55,7 +55,6 @@ pub(crate) struct DrawParams {
     /// Whether the cursor is currently dragging the view.
     pub is_dragging_view: bool,
 
-    pub background_color: [u8; 3],
     pub internals_color: [u8; 3],
     pub sticker_colors: Vec<[u8; 3]>,
     pub piece_styles: Vec<(PieceStyleValues, PieceMask)>,

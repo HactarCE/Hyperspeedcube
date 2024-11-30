@@ -14,18 +14,16 @@ For more info, see [ajfarkas.dev/hyperspeedcube](https://ajfarkas.dev/hyperspeed
 
 ## Project structure
 
-This project consists of four crates, each depending on the previous ones:
+This project consists of six crates, each depending on the previous ones:
 
 - `hypermath`, which provides vectors, matrices, projective geometric algebra primitives, and common multi-purpose data structures
 - `hypershape`, which provides shape slicing and other geometric algorithms
 - `hyperpuzzle`, which provides puzzle construction and simulation via a Lua API
+- `hyperprefs`, which provides user preferences
+- `hyperdraw`, which renders the puzzle to a texture using [wgpu]
 - `hyperspeedcube`, which provides the UI frontend
 
-### Possible future plans
-
-- Move Lua API into `hyperpuzzle_lua` and make `hyperpuzzle` extensible by other crates
-- Split `hyperspeedcube` into `hyperspeedcube_core`, `hyperspeedcube_wgpu`, and `hyperspeedcube_egui`.
-- Alternatively: by default, `hyperspeedcube` has the `gui` feature enabled. By disabling it, you can use `hyperspeedcube` as a dependency in other projects and build your own frontend.
+[wgpu]: https://wgpu.rs/
 
 ## License & contributing
 

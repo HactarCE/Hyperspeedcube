@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use hyperprefs::{ModifiedPreset, PresetData, PresetsList};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -11,7 +12,6 @@ use crate::gui::ext::ResponseExt;
 use crate::gui::markdown::{md, md_bold_user_text, md_inline};
 use crate::gui::util::EguiTempValue;
 use crate::locales::PresetStrings;
-use crate::preferences::{ModifiedPreset, PresetData, PresetsList};
 use crate::L;
 
 pub const PRESET_NAME_TEXT_EDIT_WIDTH: f32 = 150.0;

@@ -12,9 +12,9 @@ mod state;
 mod structs;
 
 use cache::{CachedTexture1d, CachedTexture2d};
-pub(crate) use draw_params::DrawParams;
-pub(crate) use puzzle::{PuzzleRenderResources, PuzzleRenderer};
-pub(crate) use state::GraphicsState;
+pub use draw_params::DrawParams;
+pub use puzzle::{PuzzleRenderResources, PuzzleRenderer};
+pub use state::GraphicsState;
 
 /// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.
 fn pad_buffer_to_wgpu_copy_buffer_alignment<T: Default + bytemuck::NoUninit>(buf: &mut Vec<T>) {

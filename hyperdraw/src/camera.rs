@@ -1,8 +1,7 @@
 use cgmath::{EuclideanSpace, InnerSpace};
 use eyre::{bail, Result};
 use hypermath::prelude::*;
-
-use crate::preferences::{ModifiedPreset, ViewPreferences};
+use hyperprefs::{ModifiedPreset, ViewPreferences};
 
 /// `w_divisor` below which geometry gets clipped.
 const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
@@ -19,7 +18,7 @@ pub struct Camera {
     pub zoom: f32,
 }
 impl Camera {
-    /// Returns the view preferences that the camera is using
+    /// Returns the view preferences that the camera is using.
     pub fn prefs(&self) -> &ViewPreferences {
         &self.view_preset.value
     }

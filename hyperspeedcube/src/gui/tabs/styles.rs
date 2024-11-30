@@ -1,3 +1,4 @@
+use hyperprefs::{PieceStyle, StylePreferences, DEFAULT_PREFS};
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
@@ -7,7 +8,6 @@ use crate::{
         markdown::{md, md_bold_user_text},
         util::EguiTempValue,
     },
-    preferences::{PieceStyle, StylePreferences, DEFAULT_PREFS},
     L,
 };
 
@@ -66,7 +66,10 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     ui.add_space(ui.spacing().item_spacing.x);
 
-    let mut current = app.prefs.custom_styles.load_last_loaded();
+    let mut current = app
+        .prefs
+        .custom_styles
+        .load_last_loaded(&L.presets.default_preset_name);
 
     let help_contents = L.help.custom_piece_styles;
     let presets_ui = gui::components::PresetsUi {

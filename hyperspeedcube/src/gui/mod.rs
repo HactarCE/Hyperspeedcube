@@ -20,7 +20,7 @@ mod tabs;
 pub use tabs::{PuzzleWidget, Tab};
 
 pub use crate::app::App;
-use crate::{preferences::ModifiedSimPrefs, L};
+use crate::L;
 
 pub struct AppUi {
     pub app: App,
@@ -113,10 +113,7 @@ impl AppUi {
                         puzzle_view_to_focus = Some(i);
                     }
                     let mut sim = puzzle_view.sim().lock();
-                    let needs_redraw = sim.step(ModifiedSimPrefs {
-                        all: &self.app.prefs,
-                        animation: &self.app.animation_prefs,
-                    });
+                    let needs_redraw = sim.step(&self.app.animation_prefs.value);
                     if needs_redraw {
                         // TODO: only request redraw for visible puzzles
                         ctx.request_repaint();

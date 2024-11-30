@@ -16,7 +16,6 @@ use crate::{
         markdown::{md, md_escape},
         util::EguiTempValue,
     },
-    L,
 };
 
 pub const ID_MATCH_PENALTY: isize = 60;
@@ -29,7 +28,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     ui.group(|ui| {
         ui.horizontal(|ui| {
-            if crate::paths::lua_dir().is_ok() {
+            if hyperprefs::paths::lua_dir().is_ok() {
                 let r = ui.add(egui::Button::new("🔃").min_size(BIG_ICON_BUTTON_SIZE));
                 // TODO: global F5 keybind
                 if r.on_hover_text("Refresh").clicked()

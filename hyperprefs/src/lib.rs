@@ -3,19 +3,23 @@
 //! For a list of key names, see `VirtualKeyCode` in this file:
 //! <https://github.com/rust-windowing/winit/blob/master/src/event.rs>
 
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate strum;
+
 use std::collections::BTreeMap;
 use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
-use std::sync::mpsc;
 
 use bitvec::vec::BitVec;
 use eyre::{eyre, OptionExt};
 use hyperpuzzle::{Puzzle, Rgb};
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 mod animations;
 mod colors;
+pub mod ext;
 mod filters;
 mod image_generator;
 mod info;
@@ -23,44 +27,20 @@ mod interaction;
 // mod keybinds;
 // mod mousebinds;
 #[cfg(not(target_arch = "wasm32"))]
-mod persist_local;
-#[cfg(target_arch = "wasm32")]
-mod persist_web;
+pub mod paths;
+pub mod persist;
 mod presets;
 mod schema;
+mod serde_impl;
 mod styles;
 mod view;
 
-/// Convenient bundles of preferences that are often used together.
-///
-/// TODO: reconsider these
-mod bundles {
-    use super::*;
-
-    #[derive(Debug, Copy, Clone)]
-    pub struct ModifiedSimPrefs<'a> {
-        pub all: &'a Preferences,
-        pub animation: &'a ModifiedPreset<AnimationPreferences>,
-    }
-    #[derive(Debug, Copy, Clone)]
-    pub struct ViewPrefsRefs<'a> {
-        pub all: &'a Preferences,
-        pub view: &'a ModifiedPreset<ViewPreferences>,
-        pub colors: &'a ModifiedPreset<ColorScheme>,
-    }
-}
-
 pub use animations::*;
-pub use bundles::*;
 pub use colors::*;
 pub use filters::*;
 pub use image_generator::*;
 pub use info::*;
 pub use interaction::*;
-#[cfg(not(target_arch = "wasm32"))]
-use persist_local as persist;
-#[cfg(target_arch = "wasm32")]
-use persist_web as persist;
 pub use presets::*;
 pub use schema::PrefsConvert;
 pub use styles::*;
@@ -69,15 +49,13 @@ pub use view::*;
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
 
+pub const IS_OFFICIAL_BUILD: bool = std::option_env!("HSC_OFFICIAL_BUILD").is_some();
+
 lazy_static! {
     static ref DEFAULT_PREFS_RAW: schema::current::Preferences =
         serde_yml::from_str(DEFAULT_PREFS_STR).expect("error loading default preferences");
     pub static ref DEFAULT_PREFS: Preferences =
         Preferences::from_serde(&(), DEFAULT_PREFS_RAW.clone());
-    static ref PREFS_SAVE_THREAD: (
-        mpsc::Sender<PrefsSaveCommand>,
-        Mutex<Option<std::thread::JoinHandle<()>>>
-    ) = spawn_save_thread();
 }
 
 #[derive(Debug, Default)]
@@ -209,6 +187,9 @@ impl IndexMut<PuzzleViewPreferencesSet> for Preferences {
     }
 }
 impl Preferences {
+    /// Loads preferences from `user_config_source`. If loading fails, then the
+    /// existing preferences are backed up (if possible) and `backup` (or else
+    /// the default preferences) is returned.
     pub fn load(backup: Option<Self>) -> Self {
         let mut config = config::Config::builder()
             .set_default("version", schema::CURRENT_VERSION)
@@ -253,16 +234,16 @@ impl Preferences {
     pub fn save(&mut self) {
         self.needs_save = false;
         self.needs_save_eventually = false;
-        let (tx, _join_handle) = &*PREFS_SAVE_THREAD;
-        if let Err(e) = tx.send(PrefsSaveCommand::Save(self.to_serde())) {
+        let (tx, _join_handle) = &*persist::PREFS_SAVE_THREAD;
+        if let Err(e) = tx.send(persist::PrefsSaveCommand::Save(self.to_serde())) {
             log::error!("Error saving preferences: {e}");
         }
     }
     pub fn block_on_final_save(&mut self) {
         // IIFE to mimic try_block
         let result = (|| -> eyre::Result<()> {
-            let (tx, join_handle) = &*PREFS_SAVE_THREAD;
-            tx.send(PrefsSaveCommand::Quit)?;
+            let (tx, join_handle) = &*persist::PREFS_SAVE_THREAD;
+            tx.send(persist::PrefsSaveCommand::Quit)?;
             let join_handle = join_handle
                 .lock()
                 .take()
@@ -346,36 +327,6 @@ impl PuzzleViewPreferencesSet {
             4.. => Self::Dim4D,
         }
     }
-}
-
-fn spawn_save_thread() -> (
-    mpsc::Sender<PrefsSaveCommand>,
-    Mutex<Option<std::thread::JoinHandle<()>>>,
-) {
-    let (tx, rx) = mpsc::channel();
-
-    let join_handle = std::thread::spawn(move || {
-        for command in rx {
-            match command {
-                PrefsSaveCommand::Save(prefs) => {
-                    let result = persist::save(&prefs.to_serde());
-                    match result {
-                        Ok(()) => log::debug!("Saved preferences"),
-                        Err(e) => log::error!("Error saving preferences: {e}"),
-                    }
-                }
-                PrefsSaveCommand::Quit => return,
-            }
-        }
-    });
-
-    (tx, Mutex::new(Some(join_handle)))
-}
-
-#[derive(Debug)]
-enum PrefsSaveCommand {
-    Save(schema::current::Preferences),
-    Quit,
 }
 
 #[cfg(test)]

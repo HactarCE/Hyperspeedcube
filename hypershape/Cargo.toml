@@ -2,10 +2,12 @@
 name = "hypershape"
 description = "Multidimensional shape slicing and other geometric algorithms developed for Hyperspeedcube"
 version = "0.1.0"
-authors = ["Andrew Farkas"]
+authors.workspace = true
+documentation.workspace = true
 edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
+rust-version.workspace = true
 keywords = ["cubing", "hypercubing", "rubik", "game", "4d"]
 categories = ["algorithms", "mathematics"]
 license = "MIT OR Apache-2.0"

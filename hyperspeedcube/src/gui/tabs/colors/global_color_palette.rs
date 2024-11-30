@@ -1,5 +1,6 @@
 use egui::Widget;
 use float_ord::FloatOrd;
+use hyperprefs::{GlobalColorPalette, PrefsConvert, DEFAULT_PREFS};
 use hyperpuzzle::Rgb;
 use itertools::Itertools;
 use rand::Rng;
@@ -12,7 +13,6 @@ use crate::gui::components::{
 };
 use crate::gui::ext::ResponseExt;
 use crate::gui::util::EguiTempValue;
-use crate::preferences::{GlobalColorPalette, PrefsConvert, DEFAULT_PREFS};
 use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
@@ -104,7 +104,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
     ui.horizontal(|ui| {
         if ui.button(L.colors.actions.add).clicked() {
             let custom_colors = &mut prefs.current.custom_colors;
-            let name = custom_colors.make_nonconflicting_funny_name();
+            let name = custom_colors.make_nonconflicting_funny_name(crate::util::funny_autonames());
             let rgb = rand::thread_rng().gen();
             custom_colors.save_preset(name, Rgb { rgb });
             custom_colors.move_index(custom_colors.len() - 1, 0);
@@ -122,9 +122,8 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
 
             let text = L.colors.actions.sort_by_lightness;
             if ui.button(text).clicked() {
-                custom_colors.sort_by_key_or_reverse(|_, preset| {
-                    FloatOrd(crate::util::rgb_to_oklab(preset.value).l)
-                });
+                custom_colors
+                    .sort_by_key_or_reverse(|_, preset| FloatOrd(preset.value.to_oklab().l));
                 *prefs.changed = true;
             }
         });

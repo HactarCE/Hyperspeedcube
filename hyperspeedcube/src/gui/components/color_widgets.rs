@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
+use hyperprefs::{
+    ext::reorderable::{BeforeOrAfter, DragAndDropResponse},
+    ColorScheme, DefaultColorGradient, GlobalColorPalette,
+};
 use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
 use strum::IntoEnumIterator;
 
 use crate::{
-    ext::reorderable::{BeforeOrAfter, DragAndDropResponse},
     gui::{markdown::md, util::EguiTempFlag},
-    preferences::{ColorScheme, DefaultColorGradient, GlobalColorPalette},
     puzzle::PuzzleView,
     L,
 };
@@ -188,7 +190,23 @@ impl<'a> ColorsUi<'a> {
 
         egui::ScrollArea::horizontal().show(ui, |ui| {
             ui.horizontal(|ui| {
-                for (group_name, sets) in self.palette.groups_of_sets() {
+                fn get_group_name(set_size: usize) -> String {
+                    match set_size {
+                        1 => L.colors.set_sizes._1.to_string(),
+                        2 => L.colors.set_sizes._2.to_string(),
+                        3 => L.colors.set_sizes._3.to_string(),
+                        4 => L.colors.set_sizes._4.to_string(),
+                        5 => L.colors.set_sizes._5.to_string(),
+                        6 => L.colors.set_sizes._6.to_string(),
+                        7 => L.colors.set_sizes._7.to_string(),
+                        8 => L.colors.set_sizes._8.to_string(),
+                        9 => L.colors.set_sizes._9.to_string(),
+                        10 => L.colors.set_sizes._10.to_string(),
+                        n => L.colors.set_sizes.n.with(&n.to_string()),
+                    }
+                }
+
+                for (group_name, sets) in self.palette.groups_of_sets(get_group_name) {
                     ui.group(|ui| {
                         ui.vertical(|ui| {
                             ui.add(
@@ -551,7 +569,7 @@ pub enum ColorOrGradient {
 }
 impl From<Rgb> for ColorOrGradient {
     fn from(value: Rgb) -> Self {
-        Self::Color(crate::util::rgb_to_egui_color32(value))
+        Self::Color(value.to_egui_color32())
     }
 }
 impl From<DefaultColorGradient> for ColorOrGradient {
@@ -566,7 +584,7 @@ impl ColorOrGradient {
     pub fn middle_color(self) -> egui::Color32 {
         match self {
             Self::Color(c) => c,
-            Self::Gradient(g) => crate::util::rgb_to_egui_color32(g.eval_continuous(0.5)),
+            Self::Gradient(g) => g.eval_continuous(0.5).to_egui_color32(),
         }
     }
     pub fn constrasting_text_color(self) -> egui::Color32 {
@@ -612,12 +630,12 @@ fn paint_colored_rect(
             if rounding > 0.0 {
                 let mut left = rect;
                 left.max.x = left.min.x + rounding * 2.0;
-                let left_color = crate::util::rgb_to_egui_color32(g.eval_continuous(0.0));
+                let left_color = g.eval_continuous(0.0).to_egui_color32();
                 painter.rect_filled(left, rounding, left_color);
 
                 let mut right = rect;
                 right.min.x = right.max.x - rounding * 2.0;
-                let right_color = crate::util::rgb_to_egui_color32(g.eval_continuous(1.0));
+                let right_color = g.eval_continuous(1.0).to_egui_color32();
                 painter.rect_filled(right, rounding, right_color);
 
                 rect.min.x += rounding;
@@ -643,7 +661,7 @@ fn paint_colored_rect(
                     },
                     rect.y_range(),
                 );
-                let c = crate::util::rgb_to_egui_color32(g.eval_rational(i, block_count - 1));
+                let c = g.eval_rational(i, block_count - 1).to_egui_color32();
                 egui::color_picker::show_color_at(painter, c, sliver);
             }
         }
@@ -661,8 +679,7 @@ pub fn color_edit(
     size.x *= 1.5;
     let mut r = show_color_button(ui, *color, false, size, egui::Sense::click());
 
-    let contrasting_text_color =
-        crate::util::contrasting_text_color(crate::util::rgb_to_egui_color32(*color));
+    let contrasting_text_color = crate::util::contrasting_text_color(color.to_egui_color32());
     ui.put(
         r.rect,
         egui::Label::new(
@@ -708,11 +725,11 @@ pub fn color_edit(
             .confirm_button_validator(&|s| s.parse::<Rgb>().map(|_| None).map_err(|_| None))
             .show_with(ui, |ui| {
                 // TODO: custom color picker
-                let mut egui_color = crate::util::rgb_to_egui_color32(*color);
+                let mut egui_color = color.to_egui_color32();
                 let alpha = egui::color_picker::Alpha::Opaque;
                 ui.spacing_mut().slider_width = 220.0;
                 if egui::color_picker::color_picker_color32(ui, &mut egui_color, alpha) {
-                    *color = crate::util::egui_color32_to_rgb(egui_color);
+                    *color = egui_color.into();
                     reopen.set();
                     changed = true;
                 }

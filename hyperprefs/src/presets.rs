@@ -56,10 +56,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::schema;
-use crate::{
-    ext::reorderable::{BeforeOrAfter, DragAndDropResponse, ReorderableCollection},
-    L,
-};
+use crate::ext::reorderable::{BeforeOrAfter, DragAndDropResponse, ReorderableCollection};
 
 pub const MODIFIED_SUFFIX: &str = " (modified)";
 
@@ -76,8 +73,8 @@ pub enum PresetKind {
 /// [`PresetRef`]s to inner presets).
 #[derive(Debug)]
 pub struct PresetTombstone<T: PresetData> {
-    pub(in crate::preferences) dead_refs: Vec<PresetRef>,
-    pub(in crate::preferences) value_tombstone: T::Tombstone,
+    pub(crate) dead_refs: Vec<PresetRef>,
+    pub(crate) value_tombstone: T::Tombstone,
 }
 impl<T: PresetData> Default for PresetTombstone<T> {
     fn default() -> Self {
@@ -257,13 +254,13 @@ where
     }
 }
 impl<T: PresetData + schema::PrefsConvert> PresetsList<T> {
-    pub(in crate::preferences) fn to_serde_map(&self) -> IndexMap<String, T::SerdeFormat> {
+    pub(crate) fn to_serde_map(&self) -> IndexMap<String, T::SerdeFormat> {
         self.user
             .iter()
             .map(|(name, preset)| (name.clone(), preset.value.to_serde()))
             .collect()
     }
-    pub(in crate::preferences) fn from_serde_map(
+    pub(crate) fn from_serde_map(
         ctx: &T::DeserContext,
         map: IndexMap<String, T::SerdeFormat>,
     ) -> Self {
@@ -271,7 +268,7 @@ impl<T: PresetData + schema::PrefsConvert> PresetsList<T> {
         ret.reload_from_serde_map(ctx, map);
         ret
     }
-    pub(in crate::preferences) fn reload_from_serde_map(
+    pub(crate) fn reload_from_serde_map(
         &mut self,
         ctx: &T::DeserContext,
         map: IndexMap<String, T::SerdeFormat>,
@@ -442,7 +439,7 @@ impl<T: PresetData> PresetsList<T> {
     }
     /// Loads the most-recently-loaded preset, or returns some reasonable value
     /// otherwise.
-    pub fn load_last_loaded(&self) -> ModifiedPreset<T>
+    pub fn load_last_loaded(&self, default_preset_name: &str) -> ModifiedPreset<T>
     where
         T: Default + Clone,
     {
@@ -453,7 +450,7 @@ impl<T: PresetData> PresetsList<T> {
         {
             Some(p) => p.to_modifiable(),
             None => ModifiedPreset {
-                base: self.new_ref(&L.presets.default_preset_name),
+                base: self.new_ref(default_preset_name),
                 value: T::default(),
             },
         }
@@ -548,8 +545,11 @@ impl<T: PresetData> PresetsList<T> {
             .find(|name| self.is_name_available(name))
             .expect("no name available")
     }
-    pub fn make_nonconflicting_funny_name(&self) -> String {
-        crate::util::funny_autonames()
+    pub fn make_nonconflicting_funny_name(
+        &self,
+        mut autonames: impl Iterator<Item = String>,
+    ) -> String {
+        autonames
             .find(|name| !self.contains_key(name))
             .expect("ran out of autonames!")
     }
@@ -609,7 +609,7 @@ impl<T: PresetData> PresetsList<T> {
     }
 
     /// Adds a tombstone for a preset that was just deleted.
-    pub(in crate::preferences) fn add_tombstone(&self, name: String, data: PresetTombstone<T>) {
+    pub(crate) fn add_tombstone(&self, name: String, data: PresetTombstone<T>) {
         if !Preset::is_tombstone_empty(&data) {
             Preset::combine_tombstones(self.tombstones.lock().entry(name).or_default(), data);
         }
@@ -682,7 +682,7 @@ impl<T> Preset<T> {
 /// Reference to a preset.
 #[derive(Debug, Clone)]
 pub struct PresetRef {
-    pub(in crate::preferences) name: Arc<Mutex<String>>,
+    pub(crate) name: Arc<Mutex<String>>,
 }
 impl fmt::Display for PresetRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -710,7 +710,7 @@ impl PresetRef {
     pub fn name(&self) -> String {
         self.name.lock().clone()
     }
-    pub(in crate::preferences) fn is_used_elsewhere(&self) -> bool {
+    pub(crate) fn is_used_elsewhere(&self) -> bool {
         Arc::strong_count(&self.name) > 1
     }
     pub fn ptr(&self) -> usize {

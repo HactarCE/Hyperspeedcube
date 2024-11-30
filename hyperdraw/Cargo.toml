@@ -1,0 +1,29 @@
+[package]
+name = "hyperdraw"
+version = "0.1.0"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[dependencies]
+bytemuck = { version = "1.9.1", features = ["derive"] }
+cgmath = "0.18.0"
+eyre = "0.6"
+image = "0.25.5"
+itertools = "0.13.0"
+log = "0.4.17"
+parking_lot = "0.12.1"
+smallvec = { version = "1.8.0", features = ["serde", "union"] }
+
+hypermath = { path = "../hypermath" }
+hyperprefs = { path = "../hyperprefs" }
+hyperpuzzle = { path = "../hyperpuzzle" }
+
+wgpu = { version = "22.0.0", features = ["webgl"] } # must match eframe

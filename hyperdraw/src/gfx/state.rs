@@ -1,21 +1,20 @@
 use std::fmt;
 use std::sync::Arc;
 
-use egui::NumExt;
 use wgpu::util::DeviceExt;
 
 use super::pipelines::Pipelines;
 
-/// Graphics state for the whole window.
-pub(crate) struct GraphicsState {
-    pub(in crate::gfx) device: Arc<wgpu::Device>,
-    pub(in crate::gfx) queue: Arc<wgpu::Queue>,
+/// WGPU graphics state.
+pub struct GraphicsState {
+    pub device: Arc<wgpu::Device>,
+    pub queue: Arc<wgpu::Queue>,
 
-    pub(in crate::gfx) pipelines: Pipelines,
+    pub(crate) pipelines: Pipelines,
 
-    pub(in crate::gfx) uv_vertex_buffer: wgpu::Buffer,
-    pub(in crate::gfx) nearest_neighbor_sampler: wgpu::Sampler,
-    pub(in crate::gfx) bilinear_sampler: wgpu::Sampler,
+    pub(crate) uv_vertex_buffer: wgpu::Buffer,
+    pub(crate) nearest_neighbor_sampler: wgpu::Sampler,
+    pub(crate) bilinear_sampler: wgpu::Sampler,
 }
 impl fmt::Debug for GraphicsState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -23,11 +22,11 @@ impl fmt::Debug for GraphicsState {
     }
 }
 impl GraphicsState {
-    pub(crate) fn new(render_state: &eframe::egui_wgpu::RenderState) -> Self {
-        let device = Arc::clone(&render_state.device);
-        let queue = Arc::clone(&render_state.queue);
-        let target_format = render_state.target_format;
-
+    pub fn new(
+        device: Arc<wgpu::Device>,
+        queue: Arc<wgpu::Queue>,
+        target_format: wgpu::TextureFormat,
+    ) -> Self {
         let pipelines = Pipelines::new(&device, target_format);
 
         let uv_vertex_buffer = create_buffer_init::<super::structs::UvVertex>(
@@ -70,7 +69,7 @@ impl GraphicsState {
         len: usize,
         usage: wgpu::BufferUsages,
     ) -> wgpu::Buffer {
-        let size = size_of::<T>() * len.at_least(1); // don't make an empty buffer
+        let size = size_of::<T>() * std::cmp::max(1, len); // don't make an empty buffer
         self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(&label.to_string()),
             size: wgpu::util::align_to(size as u64, wgpu::COPY_BUFFER_ALIGNMENT),

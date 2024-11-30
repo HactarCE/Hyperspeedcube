@@ -800,6 +800,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
+name = "by_address"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64fa3c856b712db6612c019f14756e64e4bcea13337a6b33b696333a9eaa2d06"
+
+[[package]]
 name = "bytemuck"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2469,6 +2475,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
+name = "hyperdraw"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "cgmath",
+ "eyre",
+ "hypermath",
+ "hyperprefs",
+ "hyperpuzzle",
+ "image",
+ "itertools 0.13.0",
+ "log",
+ "parking_lot",
+ "smallvec",
+ "wgpu",
+]
+
+[[package]]
 name = "hypermath"
 version = "0.1.0"
 dependencies = [
@@ -2488,11 +2512,66 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperprefs"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.6.0",
+ "bitvec",
+ "bytemuck",
+ "cgmath",
+ "color-eyre 0.6.2",
+ "colorous",
+ "comrak",
+ "config",
+ "directories",
+ "empfindung",
+ "env_logger",
+ "eyre",
+ "float-ord",
+ "getrandom",
+ "hypermath",
+ "hyperpuzzle",
+ "image",
+ "include_dir",
+ "indexmap 2.6.0",
+ "instant",
+ "itertools 0.13.0",
+ "key-names",
+ "lazy_static",
+ "log",
+ "monostate",
+ "names",
+ "num_enum 0.7.3",
+ "oklab",
+ "once_cell",
+ "opener",
+ "optick",
+ "optick-attr",
+ "palette",
+ "parking_lot",
+ "png",
+ "pollster 0.4.0",
+ "rand",
+ "regex",
+ "rfd",
+ "rgb",
+ "send_wrapper",
+ "serde",
+ "serde_yml",
+ "smallvec",
+ "strum",
+ "sublime_fuzzy",
+ "thiserror 2.0.3",
+ "time",
+]
+
+[[package]]
 name = "hyperpuzzle"
 version = "0.1.0"
 dependencies = [
  "color-eyre 0.6.3",
  "disjoint",
+ "ecolor",
  "eyre",
  "float-ord",
  "hex",
@@ -2504,6 +2583,7 @@ dependencies = [
  "lazy_static",
  "log",
  "mlua",
+ "oklab",
  "parking_lot",
  "rand",
  "regex",
@@ -2565,7 +2645,9 @@ dependencies = [
  "float-ord",
  "getrandom",
  "human-panic",
+ "hyperdraw",
  "hypermath",
+ "hyperprefs",
  "hyperpuzzle",
  "hypershape",
  "hyperstrings",
@@ -4101,6 +4183,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb37767f6569cd834a413442455e0f066d0d522de8630436e2a1761d9726ba56"
 
 [[package]]
+name = "palette"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cbf71184cc5ecc2e4e1baccdb21026c20e5fc3dcf63028a086131b3ab00b6e6"
+dependencies = [
+ "approx 0.5.1",
+ "fast-srgb8",
+ "palette_derive",
+ "phf",
+]
+
+[[package]]
+name = "palette_derive"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5030daf005bface118c096f510ffb781fc28f9ab6a32ab224d8631be6851d30"
+dependencies = [
+ "by_address",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.87",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4203,6 +4309,48 @@ checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
  "fixedbitset",
  "indexmap 2.6.0",
+]
+
+[[package]]
+name = "phf"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ade2d8b8f33c7333b51bcf0428d37e217e9f32192ae4772156f65063b8ce03dc"
+dependencies = [
+ "phf_macros",
+ "phf_shared",
+]
+
+[[package]]
+name = "phf_generator"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48e4cc64c2ad9ebe670cb8fd69dd50ae301650392e81c05f9bfcb2d5bdbc24b0"
+dependencies = [
+ "phf_shared",
+ "rand",
+]
+
+[[package]]
+name = "phf_macros"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3444646e286606587e49f3bcf1679b8cef1dc2c5ecc29ddacaffc305180d464b"
+dependencies = [
+ "phf_generator",
+ "phf_shared",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.87",
+]
+
+[[package]]
+name = "phf_shared"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90fcb95eef784c2ac79119d1dd819e162b5da872ce6f3c3abe1e8ca1c082f72b"
+dependencies = [
+ "siphasher",
 ]
 
 [[package]]

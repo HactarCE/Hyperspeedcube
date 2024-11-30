@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use hyperdraw::PieceStyleValues;
+use hyperprefs::{Preferences, PresetRef};
 use hyperpuzzle::{Piece, PieceMask};
-
-use crate::preferences::{Preferences, PresetRef, StyleColorMode};
 
 /// Returns a closure that updates the given style state.
 #[macro_export]
@@ -161,19 +161,6 @@ impl PuzzleStyleStates {
     }
 }
 
-/// Values for how to draw a piece, depending on its style state.
-#[derive(Debug, Default, Copy, Clone, PartialEq)]
-pub struct PieceStyleValues {
-    pub face_opacity: u8, // TODO: linear or gamma??
-    pub face_color: StyleColorMode,
-
-    pub outline_opacity: u8,
-    pub outline_color: StyleColorMode,
-    pub outline_lighting: bool,
-
-    pub outline_size: f32,
-}
-
 /// Style state for a piece.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct PieceStyleState {
@@ -258,8 +245,8 @@ impl PieceStyleState {
             )
             .map_fixed_color(|c| {
                 // TODO: blocking pieces animation is invisible when using
-                // [`StyleColorMode::FromSticker`]
-                crate::util::lerp_colors(
+                // `StyleColorMode::FromSticker`
+                hyperpuzzle::Rgb::mix(
                     c,
                     styles.blocking_outline_color,
                     self.blocking_amount as f32 / 255.0,

@@ -57,7 +57,7 @@ impl<'de, T: Default + Serialize + Deserialize<'de> + Clone> PrefsConvert for T 
     }
 }
 
-pub(in crate::preferences) fn reload_btreemap<K: Ord, V: PrefsConvert>(
+pub(crate) fn reload_btreemap<K: Ord, V: PrefsConvert>(
     old: &mut BTreeMap<K, V>,
     ctx: &V::DeserContext,
     new: BTreeMap<K, V::SerdeFormat>,

@@ -4,8 +4,8 @@ use hyperpuzzle::{DefaultColor, Rgb};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::preferences::FilterPieceSet;
-pub use crate::preferences::{
+use crate::FilterPieceSet;
+pub use crate::{
     AnimationPreferences, ImageGeneratorPreferences, InfoPreferences, InteractionPreferences,
     PieceStyle, StylePreferences, ViewPreferences,
 };
