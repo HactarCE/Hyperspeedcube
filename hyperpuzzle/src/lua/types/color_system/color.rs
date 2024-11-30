@@ -33,6 +33,8 @@ impl LuaUserData for LuaColor {
     }
 
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
+        LuaNamedIdDatabase::add_named_db_entry_methods(methods);
+
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             if let Some(name) = this.db.lock().names().get(this.id) {
                 Ok(format!("color({name:?})"))

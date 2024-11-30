@@ -215,6 +215,27 @@ where
             *db.names_mut() = db.rename_all(lua, ids_and_new_names)?;
             Ok(())
         });
+    }
+
+    /// Defines the following fields on a database entry:
+    /// - `name`
+    fn add_named_db_entry_fields<F: LuaUserDataFields<LuaDbEntry<I, Self>>>(fields: &mut F) {
+        fields.add_field_method_get("name", |_lua, this| {
+            let db = this.db.lock();
+            Ok(db.names().get(this.id.clone()).cloned().map(LuaNameSet))
+        });
+        fields.add_field_method_set("name", |lua, this, new_name: Option<LuaNameSet>| {
+            let mut db = this.db.lock();
+            let new_name = new_name.map(|LuaNameSet(name_set)| name_set);
+            db.names_mut()
+                .set_name(this.id.clone(), new_name, lua_warn_fn(lua));
+            Ok(())
+        });
+    }
+
+    /// Defines the following methods on a database entry:
+    /// - concatenation operator `..`
+    fn add_named_db_entry_methods<M: LuaUserDataMethods<LuaDbEntry<I, Self>>>(methods: &mut M) {
         methods.add_meta_function(LuaMetaMethod::Concat, |lua, (lhs, rhs)| {
             let (a, b) = if let Ok(this) = cast_userdata::<LuaDbEntry<I, Self>>(lua, &lhs) {
                 let db = this.db.lock();
@@ -241,22 +262,6 @@ where
             lua.globals()
                 .get::<LuaFunction>("builtin_concat")?
                 .call::<LuaNameSet>((a, b))
-        });
-    }
-
-    /// Defines the following fields on a database entry:
-    /// - `name`
-    fn add_named_db_entry_fields<F: LuaUserDataFields<LuaDbEntry<I, Self>>>(fields: &mut F) {
-        fields.add_field_method_get("name", |_lua, this| {
-            let db = this.db.lock();
-            Ok(db.names().get(this.id.clone()).cloned().map(LuaNameSet))
-        });
-        fields.add_field_method_set("name", |lua, this, new_name: Option<LuaNameSet>| {
-            let mut db = this.db.lock();
-            let new_name = new_name.map(|LuaNameSet(name_set)| name_set);
-            db.names_mut()
-                .set_name(this.id.clone(), new_name, lua_warn_fn(lua));
-            Ok(())
         });
     }
 }

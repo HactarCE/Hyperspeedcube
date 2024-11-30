@@ -33,6 +33,8 @@ impl LuaUserData for LuaNameSet {
         fields.add_field_method_get("list", |_lua, this| {
             this.0.string_set().map_err(LuaError::external)
         });
+
+        fields.add_field_method_get("canonical", |_lua, this| Ok(this.0.canonical_name()));
     }
 
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {

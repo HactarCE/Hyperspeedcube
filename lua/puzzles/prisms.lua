@@ -32,11 +32,11 @@ local function get_default_color(color)
     A = "Dark Rainbow [0/0]",
     B = "Light Rainbow [0/0]",
   }
-  return t[color.name:sub(1, 1)]
+  return t[color.name.canonical:sub(1, 1)]
 end
 
 local function facet_order(color_or_axis)
-  local s = color_or_axis.name
+  local s = color_or_axis.name.canonical
   if s == 'U' then
     return -2
   elseif s == 'D' then

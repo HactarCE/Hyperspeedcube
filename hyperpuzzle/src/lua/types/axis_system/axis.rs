@@ -16,8 +16,8 @@ impl LuaUserData for LuaAxis {
     fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("axis"));
 
-        LuaNamedIdDatabase::<Axis>::add_named_db_entry_fields(fields);
-        LuaOrderedIdDatabase::<Axis>::add_ordered_db_entry_fields(fields);
+        LuaNamedIdDatabase::add_named_db_entry_fields(fields);
+        LuaOrderedIdDatabase::add_ordered_db_entry_fields(fields);
 
         fields.add_field_method_get("vector", |_lua, this| {
             let puz = this.db.lock();
@@ -42,6 +42,8 @@ impl LuaUserData for LuaAxis {
     }
 
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
+        LuaNamedIdDatabase::add_named_db_entry_methods(methods);
+
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             this.lua_into_string()
         });

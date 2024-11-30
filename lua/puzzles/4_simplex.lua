@@ -23,7 +23,7 @@ function def_simplex(letter, depths)
       local t = sym:thru(2, 1)
       for _, axis1, axis2, twist_transform in sym.chiral:orbit(a1, a2, t) do
         self.twists:add(axis1, twist_transform, {
-          name = axis1.name .. axis2.name,
+          name = axis2,
           gizmo_pole_distance = 2/sqrt(3) * gizmo_size,
         })
       end
@@ -32,7 +32,7 @@ function def_simplex(letter, depths)
       local t = sym:thru(3, 1) -- rot{fix = a1.vector ^ ridge, angle = PI}
       for t, axis1, _ridge, twist_transform in sym.chiral:orbit(a1, ridge, t) do
         self.twists:add(axis1, twist_transform, {
-          name = axis1.name .. t:transform(a2).name .. t:transform(a3).name,
+          name = names.set(t:transform(a2), t:transform(a3)),
           gizmo_pole_distance = 1 * gizmo_size,
         })
       end
@@ -41,7 +41,7 @@ function def_simplex(letter, depths)
       local t = sym:thru(3, 2)
       for t, axis1, _edge, twist_transform in sym.chiral:orbit(a1, edge, t) do
         self.twists:add(axis1, twist_transform, {
-          name = axis1.name .. t:transform(a2).name .. t:transform(a3).name .. t:transform(a4).name,
+          name = names.set(t:transform(a2) .. t:transform(a3) .. t:transform(a4)),
           gizmo_pole_distance = 2/sqrt(3) * gizmo_size,
         })
       end

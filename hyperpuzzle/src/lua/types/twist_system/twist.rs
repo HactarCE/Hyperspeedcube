@@ -13,7 +13,7 @@ impl LuaUserData for LuaTwist {
     fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
         fields.add_meta_field("type", LuaStaticStr("twist"));
 
-        LuaNamedIdDatabase::<Twist>::add_named_db_entry_fields(fields);
+        LuaNamedIdDatabase::add_named_db_entry_fields(fields);
 
         fields.add_field_method_get("axis", |_lua, this| this.axis());
         fields.add_field_method_get("transform", |_lua, this| {
@@ -22,6 +22,8 @@ impl LuaUserData for LuaTwist {
     }
 
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
+        LuaNamedIdDatabase::add_named_db_entry_methods(methods);
+
         methods.add_meta_method(LuaMetaMethod::ToString, |_lua, this, ()| {
             if let Some(name) = this.db.lock().twists.names.get(this.id) {
                 Ok(format!("twist({name:?})"))
