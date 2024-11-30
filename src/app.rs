@@ -30,7 +30,7 @@ macro_rules! unsupported_on_web {
 }
 
 pub struct App {
-    pub(crate) timer_start_end: (Option<instant::Instant>, Option<instant::Instant>),
+    pub(crate) timer: crate::gui::windows::Timer,
 
     pub(crate) prefs: Preferences,
 
@@ -64,7 +64,8 @@ pub struct App {
 impl App {
     pub(crate) fn new(event_loop: &EventLoop<AppEvent>, initial_file: Option<PathBuf>) -> Self {
         let mut this = Self {
-            timer_start_end: (None, None),
+            timer: crate::gui::windows::Timer::new(),
+
             prefs: Preferences::load(None),
 
             events: event_loop.create_proxy(),
@@ -205,12 +206,14 @@ impl App {
                             n,
                             if n == 1 { "move" } else { "moves" }
                         ));
+                        self.timer.on_scramble();
                     }
                 }
                 Command::ScrambleFull => {
                     if self.confirm_discard_changes("scramble") {
                         self.puzzle.scramble_full()?;
                         self.set_status_ok("Scrambled fully");
+                        self.timer.on_scramble();
                     }
                 }
 
@@ -225,6 +228,8 @@ impl App {
                     self.prefs.colors.blindfold ^= true;
                     if self.prefs.colors.blindfold {
                         self.puzzle.visible_pieces_mut().fill(true);
+                    } else {
+                        self.timer.on_blindfold_off();
                     }
                     self.prefs.needs_save = true;
                     self.request_redraw_puzzle();
@@ -234,6 +239,9 @@ impl App {
             },
 
             AppEvent::Twist(twist) => {
+                if self.puzzle.is_non_rotation(twist) {
+                    self.timer.on_non_rotation_twist();
+                }
                 self.puzzle.twist(twist)?;
             }
 
@@ -364,6 +372,9 @@ impl App {
             if let Some(twists) = self.puzzle.hovered_twists() {
                 if let Some(mut t) = get_twist(twists) {
                     t.layers = self.gripped_layers(t.layers);
+                    if self.puzzle.is_non_rotation(t) {
+                        self.timer.on_non_rotation_twist();
+                    }
                     self.puzzle.twist(t)?;
                 }
             }
@@ -751,7 +762,10 @@ impl App {
         self.puzzle.set_grip(self.grip(), &self.prefs.interaction);
 
         if self.puzzle.check_just_solved() {
-            self.set_status_ok("Solved!");
+            if !self.prefs.colors.blindfold {
+                self.set_status_ok("Solved!");
+            }
+            self.timer.on_solve();
         }
     }
 

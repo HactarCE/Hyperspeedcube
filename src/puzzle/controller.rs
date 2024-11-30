@@ -182,9 +182,8 @@ impl PuzzleController {
         self.add_scramble_marker(ScrambleState::Partial);
         Ok(())
     }
-    /// Reset and then scramble the puzzle completely.
+    /// Scramble the puzzle completely.
     pub fn scramble_full(&mut self) -> Result<(), &'static str> {
-        self.reset();
         self.scramble_n(self.scramble_moves_count())?;
         self.scramble_state = ScrambleState::Full;
         Ok(())
@@ -200,6 +199,15 @@ impl PuzzleController {
         } else {
             self.scramble_state = new_scramble_state;
         }
+    }
+
+    pub fn is_non_rotation(&self, mut twist: Twist) -> bool {
+        twist.layers &= self.all_layers(); // Restrict layer mask.
+        if twist.layers == LayerMask(0) {
+            return false;
+        }
+        twist = self.canonicalize_twist(twist);
+        twist.layers != self.all_layers()
     }
 
     /// Adds a twist to the back of the twist queue.
@@ -219,8 +227,8 @@ impl PuzzleController {
 
         self.mark_unsaved();
         self.redo_buffer.clear();
-        // Canonicalize twist.
         twist = self.canonicalize_twist(twist);
+
         if collapse && self.undo_buffer.last() == Some(&self.reverse_twist(twist).into()) {
             // This twist is the reverse of the last one, so just undo the last
             // one.
