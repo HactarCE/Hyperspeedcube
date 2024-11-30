@@ -109,6 +109,7 @@ puzzle_generators:add{
 
     return {
       name = size .. "x" .. size .. "x" .. size,
+      aliases = { size .. "^" .. 3 },
 
       tags = {
         ['type/shape'] = size == 1,
@@ -286,6 +287,7 @@ puzzle_generators:add{
 
     return {
       name = size .. "x" .. size .. "x" .. size .. "x" .. size,
+      aliases = { size .. "^" .. 4 },
 
       tags = {
         ['type/shape'] = size == 1,
