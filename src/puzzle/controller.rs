@@ -180,9 +180,6 @@ impl PuzzleController {
             self.twist(Twist::from_rng(self.ty()))?;
         }
         self.add_scramble_marker(ScrambleState::Partial);
-        // if self.timer.is_blind() {
-        //     self.timer.stopwatch.start();
-        // }
         Ok(())
     }
     /// Scramble the puzzle completely.
