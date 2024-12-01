@@ -24,7 +24,7 @@ This project consists of many crates, each depending on the previous ones:
 - `hyperpuzzleview`, which tracks puzzle state, interaction, and animations
 - `hyperspeedcube`, which provides a UI frontend based on [egui]
 
-There is also `hyperstrings`, which generates localizations for Hyperspeedcube (currently only American English) from `hyperspeedcube/locales/*.kdl` into the `hyperspeedcube/locales.rs`.
+There is also `hyperstrings`, which generates localizations for Hyperspeedcube (currently only American English) from `hyperspeedcube/locales/*.kdl` into the `hyperspeedcube/src/locales.rs`.
 
 [wgpu]: https://wgpu.rs/
 [egui]: https://github.com/emilk/egui
