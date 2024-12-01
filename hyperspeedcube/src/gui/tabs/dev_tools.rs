@@ -64,7 +64,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                     ui.label("No active puzzle");
                 }),
             DevToolsTab::LuaGenerator => show_lua_generator(ui, app, &mut state),
-            DevToolsTab::Linter => show_linter(ui, app, &mut state),
+            DevToolsTab::Linter => show_linter(ui, &mut state),
         };
     });
 
@@ -386,7 +386,7 @@ fn pad_to_common_length(strings: impl IntoIterator<Item = String>) -> Vec<String
     ret
 }
 
-fn show_linter(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {
+fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
     ui.horizontal(|ui| {
         if ui.button("Lint all puzzles").clicked() {
             state.lint_results = crate::LIBRARY.with(|lib| {
@@ -413,7 +413,7 @@ fn show_linter(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {
 
     for lint in &state.lint_results {
         egui::CollapsingHeader::new(lint.puzzle.display_name())
-            .id_source(&lint.puzzle.id)
+            .id_salt(&lint.puzzle.id)
             .default_open(false)
             .open(override_state)
             .show_background(true)
@@ -437,7 +437,7 @@ fn show_linter(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsState) {
                         ui.ctx().copy_text(text);
                     }
                     egui::CollapsingHeader::new("Missing tags")
-                        .id_source((&lint.puzzle.id, "missing_tags"))
+                        .id_salt((&lint.puzzle.id, "missing_tags"))
                         .default_open(true)
                         .show(ui, |ui| {
                             let markdown_text = missing_tags

@@ -143,13 +143,13 @@ impl PuzzleCommand {
                 }
             }
             PuzzleCommand::Twist {
-                axis,
-                direction,
-                layers,
+                axis: _,
+                direction: _,
+                layers: _,
             } => todo!("description of twist command"),
             PuzzleCommand::Recenter { axis } => {
                 match axis.as_ref().and_then(|name| ty.axis_by_name.get(name)) {
-                    Some(twist_axis) => todo!("description of recenter command"),
+                    Some(_twist_axis) => todo!("description of recenter command"),
                     None => "Recenter".to_string(),
                 }
             }

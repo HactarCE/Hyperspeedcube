@@ -1,7 +1,7 @@
 //! Multidimensional twisty puzzle simulator.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![allow(missing_docs)] // TODO: remove
+#![allow(unused)] // TODO: remove
 
 #[macro_use]
 extern crate lazy_static;

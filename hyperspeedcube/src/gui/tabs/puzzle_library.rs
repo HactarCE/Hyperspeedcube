@@ -1,11 +1,10 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt;
 use std::ops::Range;
 use std::sync::Arc;
 
 use hyperpuzzle::lua::{GeneratorParamType, GeneratorParamValue, PuzzleGeneratorSpec, PuzzleSpec};
-use hyperpuzzle::{TagSet, TagValue};
+use hyperpuzzle::TagSet;
 use itertools::Itertools;
 use regex::Regex;
 
@@ -15,6 +14,7 @@ use crate::gui::components::{
 };
 use crate::gui::markdown::{md, md_escape};
 use crate::gui::util::EguiTempValue;
+use crate::L;
 
 pub const ID_MATCH_PENALTY: isize = 60;
 pub const ALIAS_MATCH_PENALTY: isize = 50;
@@ -29,7 +29,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             if hyperprefs::paths::lua_dir().is_ok() {
                 let r = ui.add(egui::Button::new("🔃").min_size(BIG_ICON_BUTTON_SIZE));
                 // TODO: global F5 keybind
-                if r.on_hover_text("Refresh").clicked()
+                if r.on_hover_text(L.library.refresh).clicked()
                     || ui.input(|input| input.key_pressed(egui::Key::F5))
                 {
                     crate::load_user_puzzles();
@@ -55,7 +55,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                             .show(ui)
                             .inner;
                         });
-                        r.response.on_hover_text("Filter by tag");
+                        r.response.on_hover_text(L.library.filter_by_tag);
                     },
                 )
             });
@@ -272,7 +272,7 @@ fn show_puzzle_generator_ui(
         }
     }
 
-    if ui.button("Generate puzzle").clicked() {
+    if ui.button(L.library.generate_puzzle).clicked() {
         ui.memory_mut(|mem| mem.close_popup());
         let puzzle_id = hyperpuzzle::generated_puzzle_id(&puzzle_generator.id, &popup_data.params);
         crate::LIBRARY.with(|lib| app.load_puzzle(lib, &puzzle_id));

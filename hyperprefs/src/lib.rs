@@ -88,6 +88,9 @@ pub struct Preferences {
 
     /// Whether to show experimental puzzles.
     pub show_experimental_puzzles: bool,
+
+    // TODO: remove this when implementing keybinds
+    pub keybinds: std::marker::PhantomData<crate::serde_impl::KeyMappingCodeSerde>,
 }
 impl schema::PrefsConvert for Preferences {
     type DeserContext = ();
@@ -110,6 +113,7 @@ impl schema::PrefsConvert for Preferences {
             color_schemes,
             filters,
             show_experimental_puzzles,
+            keybinds: _,
         } = self;
 
         let filters = filters

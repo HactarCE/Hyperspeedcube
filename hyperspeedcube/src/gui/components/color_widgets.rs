@@ -495,7 +495,7 @@ impl ColorButton {
                 egui::InnerResponse::new((), r.clone())
             };
 
-            ui.allocate_ui_at_rect(r.rect, |ui| {
+            ui.allocate_new_ui(egui::UiBuilder::new().max_rect(r.rect), |ui| {
                 if let Some(dnd) = &mut colors_ui.dnd {
                     dnd.draggable(ui, puzzle_color.clone(), put_puzzle_color_label);
                 } else {

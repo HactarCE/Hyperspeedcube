@@ -35,7 +35,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         egui::ScrollArea::vertical()
             .auto_shrink(false)
-            .id_source(ui.id().with(yaml.is_open(ui)))
+            .id_salt(ui.id().with(yaml.is_open(ui)))
             .show(ui, |ui| {
                 match yaml.is_open(ui) {
                     true => {

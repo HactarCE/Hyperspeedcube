@@ -280,7 +280,7 @@ impl<'a, T> PrefsUi<'a, T> {
                         }
 
                         let r = ui.add(crate::gui::components::FancyComboBox {
-                            combo_box: egui::ComboBox::from_id_source(id),
+                            combo_box: egui::ComboBox::from_id_salt(id),
                             selected: value,
                             options,
                         });
@@ -352,7 +352,7 @@ impl<'a, T> PrefsUi<'a, T> {
 
                     let id = ui.next_auto_id();
                     ui.skip_ahead_auto_ids(1);
-                    let mut r = egui::ComboBox::from_id_source(id)
+                    let mut r = egui::ComboBox::from_id_salt(id)
                         .width_to_fit(
                             ui,
                             InterpolateFn::VARIANTS

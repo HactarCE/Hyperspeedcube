@@ -367,7 +367,7 @@ impl egui::Widget for CommandSelectWidget<'_, PuzzleKeybindsAccessor> {
             }
             if let Some(filter_mode) = self.cmd.filter_mode_mut() {
                 let r = ui.add(FancyComboBox {
-                    combo_box: egui::ComboBox::from_id_source(unique_id!(self.idx)),
+                    combo_box: egui::ComboBox::from_id_salt(unique_id!(self.idx)),
                     selected: filter_mode,
                     options: FilterMode::iter()
                         .map(|mode| (mode, Cow::Borrowed(mode.into())))

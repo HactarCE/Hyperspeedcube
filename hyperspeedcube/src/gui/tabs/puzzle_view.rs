@@ -27,10 +27,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<Puz
         Some(puzzle_view) => puzzle_view.ui(ui, &mut app.prefs, &app.animation_prefs.value),
         None => {
             // Hint to the user to load a puzzle.
-            ui.allocate_ui_at_rect(ui.available_rect_before_wrap(), |ui| {
-                ui.centered_and_justified(|ui| {
-                    ui.label(L.puzzle_view.select_a_puzzle);
-                });
+            ui.centered_and_justified(|ui| {
+                ui.label(L.puzzle_view.select_a_puzzle);
             })
             .response
         }

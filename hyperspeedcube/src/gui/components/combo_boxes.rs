@@ -16,12 +16,12 @@ pub struct FancyComboBox<'a, T> {
 }
 impl<'a> FancyComboBox<'a, String> {
     pub fn new_strings<O: 'a + AsRef<str>>(
-        id_source: impl Hash,
+        id_salt: impl Hash,
         selected: &'a mut String,
         options: impl IntoIterator<Item = &'a O>,
     ) -> Self {
         Self {
-            combo_box: egui::ComboBox::from_id_source(id_source),
+            combo_box: egui::ComboBox::from_id_salt(id_salt),
             selected,
             options: options
                 .into_iter()
@@ -33,7 +33,7 @@ impl<'a> FancyComboBox<'a, String> {
 }
 impl<'a, T: Clone> FancyComboBox<'a, T> {
     pub fn new<'b>(
-        id_source: impl Hash,
+        id_salt: impl Hash,
         selected: &'a mut T,
         options: impl Into<Cow<'b, [(T, Cow<'a, str>)]>>,
     ) -> Self
@@ -41,7 +41,7 @@ impl<'a, T: Clone> FancyComboBox<'a, T> {
         'a: 'b,
     {
         Self {
-            combo_box: egui::ComboBox::from_id_source(id_source),
+            combo_box: egui::ComboBox::from_id_salt(id_salt),
             selected,
             options: Cow::into_owned(options.into()),
         }
@@ -49,7 +49,7 @@ impl<'a, T: Clone> FancyComboBox<'a, T> {
 }
 impl<'a> FancyComboBox<'a, Option<String>> {
     pub fn new_optional<O: 'a + AsRef<str>>(
-        id_source: impl Hash,
+        id_salt: impl Hash,
         selected: &'a mut Option<String>,
         options: impl IntoIterator<Item = &'a O>,
     ) -> Self {
@@ -60,7 +60,7 @@ impl<'a> FancyComboBox<'a, Option<String>> {
             .collect_vec();
         options.insert(0, (None, NONE_TEXT.into()));
         Self {
-            combo_box: egui::ComboBox::from_id_source(id_source),
+            combo_box: egui::ComboBox::from_id_salt(id_salt),
             selected,
             options,
         }
@@ -105,7 +105,7 @@ impl<T: Clone + PartialEq> egui::Widget for FancyComboBox<'_, T> {
 macro_rules! enum_combobox {
     (
         $ui:expr,
-        $id_source:expr,
+        $id_salt:expr,
         match ($mut_value:expr) {
             $($name:expr => $variant_start:ident $(:: $variant_cont:ident)* $(($($paren_args:tt)*))? $({$($brace_args:tt)*})?),*
             $(,)?
@@ -114,7 +114,7 @@ macro_rules! enum_combobox {
         {
             let mut changed = false;
 
-            let mut response = egui::ComboBox::from_id_source($id_source)
+            let mut response = egui::ComboBox::from_id_salt($id_salt)
                 .width_to_fit($ui, vec![$($name),*])
                 .selected_text(match $mut_value {
                     $($variant_start $(:: $variant_cont)* { .. } => $name),*

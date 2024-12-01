@@ -41,7 +41,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.group(|ui| {
         ui.set_width(ui.available_width());
         egui::ScrollArea::horizontal()
-            .id_source("tab_select")
+            .id_salt("tab_select")
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.selectable_value(&mut tab, FiltersTab::AdHoc, l.ad_hoc);
@@ -59,7 +59,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 FiltersTab::AdHoc => {
                     app.active_puzzle_view.with(|p| p.view.filters.base = None);
                     egui::ScrollArea::vertical()
-                        .id_source("current_filter")
+                        .id_salt("current_filter")
                         .auto_shrink(false)
                         .show(ui, |ui| show_current_filter_preset_ui(ui, app));
                 }
@@ -78,7 +78,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                         ui.add(egui::Separator::default().grow(6.0));
                         ui.vertical(|ui| {
                             egui::ScrollArea::vertical()
-                                .id_source("current_filter")
+                                .id_salt("current_filter")
                                 .auto_shrink(false)
                                 .show(ui, |ui| show_current_filter_preset_ui(ui, app));
                         });
@@ -95,7 +95,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App, allow_ad_hoc: b
 
     app.active_puzzle_view.with_opt(|p| {
         egui::ScrollArea::vertical()
-            .id_source("filter_presets_list")
+            .id_salt("filter_presets_list")
             .show(ui, |ui| {
                 let ad_hoc_rect = allow_ad_hoc.then(|| reserve_space_for_ad_hoc_preset_name(ui));
 
@@ -249,7 +249,7 @@ fn show_filter_presets_list_ui_contents(
         let seq_list = &mut seq_preset.value;
         seq_dnd.vertical_reorder_by_handle(ui, seq_name.clone(), |ui, _is_dragging| {
             let r = egui::CollapsingHeader::new(&seq_name)
-                .id_source(seq_ptr)
+                .id_salt(seq_ptr)
                 .open(
                     is_any_dragging
                         .then_some(false)
@@ -492,8 +492,7 @@ fn show_seq_preset_name(
 }
 
 fn reserve_space_for_ad_hoc_preset_name(ui: &mut egui::Ui) -> egui::Rect {
-    ui.scope(|ui| {
-        ui.set_sizing_pass();
+    ui.scope_builder(egui::UiBuilder::new().sizing_pass().invisible(), |ui| {
         let _ = ui.selectable_label(false, "");
         ui.separator();
     })
@@ -507,7 +506,7 @@ fn show_ad_hoc_preset_name(
     current: &Option<FilterPresetRef>,
 ) -> egui::Response {
     let rect = egui::Rect::from_x_y_ranges(ui.max_rect().x_range(), rect.y_range());
-    ui.allocate_ui_at_rect(rect, |ui| {
+    ui.allocate_new_ui(egui::UiBuilder::new().max_rect(rect), |ui| {
         let r = ui
             .with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
                 ui.selectable_label(current.is_none(), L.piece_filters.tabs.ad_hoc)
@@ -637,7 +636,7 @@ fn show_current_filter_preset_ui_contents(
 
     egui::ScrollArea::vertical()
         .auto_shrink(false)
-        .id_source("filter_preset_rules")
+        .id_salt("filter_preset_rules")
         .show(ui, |ui| {
             let active_rules = &mut p.view.filters.active_rules;
             let current = &mut p.view.filters.current;
@@ -707,7 +706,7 @@ fn show_current_filter_preset_ui_contents(
                             FilterPieceSet::Checkboxes(checkboxes) => {
                                 let expr_string = checkboxes.to_string(&*puz);
                                 let r = egui::CollapsingHeader::new(&expr_string)
-                                    .id_source(unique_id!(i))
+                                    .id_salt(unique_id!(i))
                                     // TODO: default open when created, but not when reordered
                                     .open(is_any_dragging.then_some(false)) // TODO: reopen?
                                     .show_unindented(ui, |ui| {
@@ -780,11 +779,15 @@ fn show_current_filter_preset_ui_contents(
                 }
             }
 
-            ui.add_visible_ui(!current.include_previous, |ui| {
+            let mut ui_builder = egui::UiBuilder::new();
+            if current.include_previous {
+                ui_builder = ui_builder.invisible();
+            }
+            ui.scope_builder(ui_builder, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(L.piece_filters.show_remaining_peices_with_style);
                     let r = ui.add(FancyComboBox {
-                        combo_box: egui::ComboBox::from_id_source(unique_id!()),
+                        combo_box: egui::ComboBox::from_id_salt(unique_id!()),
                         selected: &mut current.inner.fallback_style,
                         options: style_options.clone(),
                     });
@@ -827,7 +830,7 @@ fn show_filter_expr_ui(
         }
         let r = ui.add(
             egui::TextEdit::multiline(expr_string)
-                .id_source(unique_id!(i))
+                .id_salt(unique_id!(i))
                 .font(egui::TextStyle::Monospace)
                 .desired_width(f32::INFINITY)
                 .desired_rows(1),

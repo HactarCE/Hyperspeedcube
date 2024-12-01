@@ -555,7 +555,9 @@ image_generator {
 }
 
 library {
-  reload_all_files "Reload all files"
+  refresh "Refresh"
+  filter_by_tag "Filter by tag"
+  generate_puzzle "Generate puzzle"
 }
 
 piece_filters {
