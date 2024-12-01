@@ -13,53 +13,25 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [dependencies]
-bitflags = "2.4.2"
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
-bytemuck = { version = "1.9.1", features = ["derive"] }
-cgmath = "0.18.0"
 colorous = "1.0.10"
-comrak = "0.29.0"
 config = { version = "0.13.4", features = ["preserve_order"] } # blocked on https://github.com/rust-cli/config-rs/issues/531
-# Fork of color-eyre that does not re-export color_owo, which otherwise clogs editor completions
-color-eyre = { git = "https://github.com/FlareFlo/color-eyre.git", rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1", default-features = false, features = ["track-caller", "capture-spantrace"] }
-empfindung = "0.2.6"
 eyre = "0.6"
 directories = "5.0.1"
-env_logger = "0.11.5"
-float-ord = "0.3.2"
-getrandom = { version = "*", features = ["js"] } # TODO: prefer `rand` crate
-image = "0.25.5"
-include_dir = "0.7.4"
 indexmap = { version = "2.4.0", features = ["serde"] } # must match serde_yml
-instant = "0.1.13"
 itertools = "0.13.0"
 key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }
 lazy_static = "1.5.0"
 log = "0.4.17"
 monostate = "0.1.1"
-names = { version = "0.14.0", default-features = false }
-num_enum = "0.7.3"
-oklab = "1.0.1"
-once_cell = "1.9.0"
-opener = "0.7.0"
-optick = { version = "1.3.4", optional = true }
-optick-attr = { version = "0.3.0", optional = true }
-palette = "0.7.6"
 parking_lot = "0.12.1"
-png = "0.17.5"
-pollster = "0.4.0"
 rand = "*"
 regex = "1.6.0"
-rfd = "0.15.0"
-rgb_crate = { package = "rgb", version = "*" } # as required by empfindung
-send_wrapper = "0.6"
 serde = { version = "1.0.144", features = ["derive"] }
 serde_yml = "0.0.12"
-smallvec = { version = "1.8.0", features = ["serde", "union"] }
 strum = { version = "0.26.3", features = ["derive"] }
-sublime_fuzzy = "0.7.0"
 thiserror = "2.0.3"
 time = { version = "0.3.7", features = ["local-offset"] }
 
 hypermath = { path = "../hypermath" }
-hyperpuzzle = { path = "../hyperpuzzle" }
+hyperpuzzle = { path = "../hyperpuzzle", features = ["ecolor"] }

@@ -19,22 +19,18 @@ workspace = true
 eyre = "0.6"
 float-ord = "0.3.2"
 itertools = "0.13.0"
-log = "0.4.17"
 parking_lot = "0.12.1"
 rayon = "1.7.0"
 slab = "0.4.8"
 smallvec = { version = "1.9.0", features = ["const_new", "union"] }
-serde = { version = "1.0.176", features = ["derive"], optional = true }
 thiserror = "2.0.3"
 tinyset = "0.5.1"
-tracing = { version = "0.1.37" }
-tracing-log = { version = "0.2.0" }
-tracing-subscriber = { version = "0.3.17", default-features = false, features = ["env-filter", "fmt", "ansi", "json", "registry"] }
+tracing = "0.1.37"
 
 hypermath = { path = "../hypermath" }
 
 [dev-dependencies]
-tracing-error = { version = "0.2.0" }
 color-eyre = "0.6"
 env_logger = "*"
-test-log = { version = "0.2.12", features = ["trace"] }
+tracing-error = "0.2.0"
+tracing-subscriber = { version = "0.3.17", default-features = false, features = ["env-filter", "fmt", "ansi", "json", "registry"] }

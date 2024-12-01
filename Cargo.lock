@@ -800,12 +800,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
-name = "by_address"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64fa3c856b712db6612c019f14756e64e4bcea13337a6b33b696333a9eaa2d06"
-
-[[package]]
 name = "bytemuck"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2242,10 +2236,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4567c8db10ae91089c99af84c68c38da3ec2f087c3f82960bcdbf3656b6f4d7"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "wasi",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -2505,7 +2497,6 @@ dependencies = [
  "itertools 0.13.0",
  "log",
  "num-traits",
- "parking_lot",
  "serde",
  "smallvec",
  "tinyset",
@@ -2515,52 +2506,25 @@ dependencies = [
 name = "hyperprefs"
 version = "0.1.0"
 dependencies = [
- "bitflags 2.6.0",
  "bitvec",
- "bytemuck",
- "cgmath",
- "color-eyre 0.6.2",
  "colorous",
- "comrak",
  "config",
  "directories",
- "empfindung",
- "env_logger",
  "eyre",
- "float-ord",
- "getrandom",
  "hypermath",
  "hyperpuzzle",
- "image",
- "include_dir",
  "indexmap 2.6.0",
- "instant",
  "itertools 0.13.0",
  "key-names",
  "lazy_static",
  "log",
  "monostate",
- "names",
- "num_enum 0.7.3",
- "oklab",
- "once_cell",
- "opener",
- "optick",
- "optick-attr",
- "palette",
  "parking_lot",
- "png",
- "pollster 0.4.0",
  "rand",
  "regex",
- "rfd",
- "rgb",
- "send_wrapper",
  "serde",
  "serde_yml",
- "smallvec",
  "strum",
- "sublime_fuzzy",
  "thiserror 2.0.3",
  "time",
 ]
@@ -2569,7 +2533,6 @@ dependencies = [
 name = "hyperpuzzle"
 version = "0.1.0"
 dependencies = [
- "color-eyre 0.6.3",
  "disjoint",
  "ecolor",
  "eyre",
@@ -2585,7 +2548,6 @@ dependencies = [
  "mlua",
  "oklab",
  "parking_lot",
- "rand",
  "regex",
  "serde",
  "smallvec",
@@ -2605,18 +2567,14 @@ dependencies = [
  "float-ord",
  "hypermath",
  "itertools 0.13.0",
- "log",
  "parking_lot",
  "rayon",
- "serde",
  "slab",
  "smallvec",
- "test-log",
  "thiserror 2.0.3",
  "tinyset",
  "tracing",
  "tracing-error",
- "tracing-log",
  "tracing-subscriber",
 ]
 
@@ -2624,16 +2582,10 @@ dependencies = [
 name = "hyperspeedcube"
 version = "2.0.0-pre.17"
 dependencies = [
- "bitflags 2.6.0",
- "bitvec",
- "bytemuck",
  "cgmath",
  "color-eyre 0.6.2",
- "colorous",
  "comrak",
- "config",
  "console_error_panic_hook",
- "directories",
  "eframe",
  "egui",
  "egui-winit",
@@ -2643,46 +2595,34 @@ dependencies = [
  "env_logger",
  "eyre",
  "float-ord",
- "getrandom",
  "human-panic",
  "hyperdraw",
  "hypermath",
  "hyperprefs",
  "hyperpuzzle",
- "hypershape",
  "hyperstrings",
  "image",
  "include_dir",
- "indexmap 2.6.0",
  "instant",
  "itertools 0.13.0",
  "js-sys",
  "key-names",
  "lazy_static",
  "log",
- "monostate",
  "names",
- "num_enum 0.7.3",
- "oklab",
- "once_cell",
  "opener",
  "optick",
  "optick-attr",
  "parking_lot",
- "png",
  "pollster 0.4.0",
  "rand",
  "regex",
  "rfd",
  "rgb",
- "send_wrapper",
  "serde",
  "serde_yml",
- "smallvec",
  "strum",
  "sublime_fuzzy",
- "thiserror 2.0.3",
- "time",
  "tracing-subscriber",
  "tracing-wasm",
  "wasm-bindgen",
@@ -4183,30 +4123,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb37767f6569cd834a413442455e0f066d0d522de8630436e2a1761d9726ba56"
 
 [[package]]
-name = "palette"
-version = "0.7.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cbf71184cc5ecc2e4e1baccdb21026c20e5fc3dcf63028a086131b3ab00b6e6"
-dependencies = [
- "approx 0.5.1",
- "fast-srgb8",
- "palette_derive",
- "phf",
-]
-
-[[package]]
-name = "palette_derive"
-version = "0.7.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5030daf005bface118c096f510ffb781fc28f9ab6a32ab224d8631be6851d30"
-dependencies = [
- "by_address",
- "proc-macro2",
- "quote",
- "syn 2.0.87",
-]
-
-[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4309,48 +4225,6 @@ checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
  "fixedbitset",
  "indexmap 2.6.0",
-]
-
-[[package]]
-name = "phf"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ade2d8b8f33c7333b51bcf0428d37e217e9f32192ae4772156f65063b8ce03dc"
-dependencies = [
- "phf_macros",
- "phf_shared",
-]
-
-[[package]]
-name = "phf_generator"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48e4cc64c2ad9ebe670cb8fd69dd50ae301650392e81c05f9bfcb2d5bdbc24b0"
-dependencies = [
- "phf_shared",
- "rand",
-]
-
-[[package]]
-name = "phf_macros"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3444646e286606587e49f3bcf1679b8cef1dc2c5ecc29ddacaffc305180d464b"
-dependencies = [
- "phf_generator",
- "phf_shared",
- "proc-macro2",
- "quote",
- "syn 2.0.87",
-]
-
-[[package]]
-name = "phf_shared"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90fcb95eef784c2ac79119d1dd819e162b5da872ce6f3c3abe1e8ca1c082f72b"
-dependencies = [
- "siphasher",
 ]
 
 [[package]]
@@ -4984,12 +4858,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "send_wrapper"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd0b0ec5f1c1ca621c432a25813d8d60c88abe6d3e08a3eb9cf37d97a0fe3d73"
-
-[[package]]
 name = "serde"
 version = "1.0.215"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5455,28 +5323,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "test-log"
-version = "0.2.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3dffced63c2b5c7be278154d76b479f9f9920ed34e7574201407f0b14e2bbb93"
-dependencies = [
- "env_logger",
- "test-log-macros",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "test-log-macros"
-version = "0.2.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5999e24eaa32083191ba4e425deb75cdf25efefabe5aaccb7446dd0d4122a3f5"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.87",
-]
-
-[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5722,9 +5568,9 @@ dependencies = [
 
 [[package]]
 name = "tracing"
-version = "0.1.40"
+version = "0.1.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3523ab5a71916ccf420eebdf5521fcef02141234bbc0b8a49f2fdc4544364ef"
+checksum = "784e0ac535deb450455cbfa28a6f0df145ea1bb7ae51b821cf5e7927fdcfbdd0"
 dependencies = [
  "pin-project-lite",
  "tracing-attributes",
@@ -5733,9 +5579,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.27"
+version = "0.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
+checksum = "395ae124c09f9e6918a2310af6038fba074bcf474ac352496d5910dd59a2226d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5744,9 +5590,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.32"
+version = "0.1.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
+checksum = "e672c95779cf947c5311f83787af4fa8fffd12fb27e4993211a84bdfd9610f9c"
 dependencies = [
  "once_cell",
  "valuable",
@@ -5775,9 +5621,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-serde"
-version = "0.1.3"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc6b213177105856957181934e4920de57730fc69bf42c37ee5bb664d406d9e1"
+checksum = "704b1aeb7be0d0a84fc9828cae51dab5970fee5088f83d1dd7ee6f6246fc6ff1"
 dependencies = [
  "serde",
  "tracing-core",
@@ -5785,9 +5631,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.18"
+version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad0f048c97dbd9faa9b7df56362b8ebcaa52adb06b498c050d2f4e32f90a7a8b"
+checksum = "e8189decb5ac0fa7bc8b96b7cb9b2701d60d48805aca84a238004d665fcc4008"
 dependencies = [
  "matchers",
  "nu-ansi-term",

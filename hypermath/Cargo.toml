@@ -25,7 +25,6 @@ float-ord = "0.3.2"
 itertools = "0.13.0"
 log = "0.4.17"
 num-traits = "0.2.16"
-parking_lot = "0.12.1"
 serde = { version = "1.0.176", features = ["derive"], optional = true }
 smallvec = { version = "1.11.0", features = ["const_new", "union"] }
 tinyset = "0.5.1"
