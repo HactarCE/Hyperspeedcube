@@ -71,13 +71,11 @@ pub(in crate::gfx) struct Pipelines {
     pub render_edge_ids: render_edge_ids::Pipeline,
     /// Composite polygons and edges into antialiased output.
     pub render_composite_puzzle: render_composite_puzzle::Pipeline,
-    /// Blit a texture onto egui.
-    pub blit_to_egui: blit::Pipeline,
     /// Blit a texture onto another texture for exporting an image.
     pub blit_to_export: blit::Pipeline,
 }
 impl Pipelines {
-    pub(super) fn new(device: &Arc<wgpu::Device>, target_format: wgpu::TextureFormat) -> Self {
+    pub(super) fn new(device: &Arc<wgpu::Device>) -> Self {
         let shader_modules_by_dimension = (MIN_NDIM..=MAX_NDIM)
             .map(|ndim| device.create_shader_module(include_wgsl!("../shader.wgsl", ndim)))
             .collect_vec();
@@ -93,14 +91,6 @@ impl Pipelines {
             render_polygons: render_polygons::Pipeline::new(device, shader_module),
             render_edge_ids: render_edge_ids::Pipeline::new(device, shader_module),
             render_composite_puzzle: render_composite_puzzle::Pipeline::new(device, shader_module),
-            blit_to_egui: blit::Pipeline::new(
-                device,
-                shader_module,
-                blit::PipelineParams {
-                    target_format,
-                    premultiply_alpha: true,
-                },
-            ),
             blit_to_export: blit::Pipeline::new(
                 device,
                 shader_module,

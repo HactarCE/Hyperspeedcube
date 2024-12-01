@@ -1,4 +1,4 @@
-use cgmath::{EuclideanSpace, InnerSpace};
+use cgmath::EuclideanSpace;
 use eyre::{bail, Result};
 use hypermath::prelude::*;
 use hyperprefs::{ModifiedPreset, ViewPreferences};
@@ -9,12 +9,15 @@ const W_DIVISOR_CLIPPING_PLANE: f32 = 0.1;
 /// Parameters controlling the camera and lighting.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Camera {
+    /// Current view settings.
     pub view_preset: ModifiedPreset<ViewPreferences>,
 
     /// Width and height of the target in pixels.
     pub target_size: [u32; 2],
 
+    /// Rotation to apply to the puzzle before drawing it.
     pub rot: pga::Motor,
+    /// Linear factor by which to scale the puzzle before drawing it.
     pub zoom: f32,
 }
 impl Camera {
@@ -34,7 +37,7 @@ impl Camera {
         Ok(min_dimen * zoom)
     }
     /// Returns the size of a pixel in screen space.
-    pub fn compute_pixel_size(target_size: [u32; 2], zoom: f32) -> Result<f32> {
+    fn compute_pixel_size(target_size: [u32; 2], zoom: f32) -> Result<f32> {
         Ok(1.0 / Self::compute_pixel_scale(target_size, zoom)?)
     }
 
@@ -88,10 +91,7 @@ impl Camera {
     /// coordinates.
     ///
     /// Be sure to divide by the W coordinate before putting this on the screen.
-    pub fn project_point_to_3d_screen_space(
-        &self,
-        p: impl VectorRef,
-    ) -> Option<cgmath::Vector4<f32>> {
+    fn project_point_to_3d_screen_space(&self, p: impl VectorRef) -> Option<cgmath::Vector4<f32>> {
         // This mimics a similar function in the WGSL shader.
         let p = self.rot.transform_point(p); // Rotate
         let p = hypermath_to_cgmath_vec4(p); // Convert to cgmath vector
@@ -107,6 +107,7 @@ impl Camera {
         p.w = self.z_divisor(p.z);
         Some(p)
     }
+    /// Projects a 3D point in screen space to normalized device coordinates.
     pub fn project_3d_screen_space_to_ndc(
         &self,
         p: cgmath::Vector4<f32>,
@@ -128,7 +129,7 @@ impl Camera {
     fn project_3d_to_2d(&self, p: cgmath::Point3<f32>) -> cgmath::Point2<f32> {
         cgmath::point2(p.x, p.y) / self.z_divisor(p.z)
     }
-    pub fn scale_screen_space_to_ndc(&self, p: cgmath::Point2<f32>) -> Option<cgmath::Point2<f32>> {
+    fn scale_screen_space_to_ndc(&self, p: cgmath::Point2<f32>) -> Option<cgmath::Point2<f32>> {
         let xy_scale = self.xy_scale().ok()?;
         let x = p.x * xy_scale.x;
         let y = p.y * xy_scale.y;
@@ -173,19 +174,6 @@ impl Camera {
     pub fn camera_4d_pos(&self) -> Vector {
         let global_camera_4d_pos = vector![0.0, 0.0, 0.0, self.camera_4d_w() as Float];
         self.rot.reverse().transform_point(global_camera_4d_pos)
-    }
-    /// Returns whether to a 4D frontface/backface is unculled based on its
-    /// pole.
-    pub fn is_4d_face_unculled(&self, pole: impl VectorRef) -> bool {
-        let p = self.rot.transform_point(pole); // Rotate
-        let p = hypermath_to_cgmath_vec4(p); // Convert to cgmath vector
-        let p = p * self.global_scale(); // Scale
-
-        let dot_product_result = p.dot(p - cgmath::vec4(0.0, 0.0, 0.0, self.camera_4d_w()));
-
-        dot_product_result == 0.0
-            || (dot_product_result > 0.0 && self.prefs().show_frontfaces)
-            || (dot_product_result < 0.0 && self.prefs().show_backfaces)
     }
 }
 

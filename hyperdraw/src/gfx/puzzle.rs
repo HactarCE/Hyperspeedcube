@@ -21,8 +21,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 use smallvec::SmallVec;
 
-use super::bindings::{BindGroups, WgpuPassExt};
-use super::cache::CachedTexture;
+use super::bindings::WgpuPassExt;
 use super::draw_params::{GizmoGeometryCacheKey, PuzzleGeometryCacheKey};
 use super::structs::*;
 use super::{pipelines, CachedTexture1d, CachedTexture2d, DrawParams, GraphicsState};
@@ -50,18 +49,6 @@ const OUTLINE_RADIUS_SCALE_FACTOR: f32 = 0.005;
 ///
 /// TODO: instead of this, move each outline slightly inward toward its polygon
 const OUTLINE_RADIUS_INTERNALS_SCALE: f32 = 0.95;
-
-pub struct PuzzleRenderResources {
-    pub gfx: Arc<GraphicsState>,
-    pub renderer: Arc<Mutex<PuzzleRenderer>>,
-    pub draw_params: DrawParams,
-}
-
-impl PuzzleRenderResources {
-    fn unique_key(&self) -> usize {
-        Arc::as_ptr(&self.renderer) as usize
-    }
-}
 
 // Increment buffer IDs so each buffer has a different label in graphics
 // debuggers.
@@ -110,6 +97,9 @@ macro_rules! struct_with_constructor {
     };
 }
 
+/// Renderer for a puzzle.
+///
+/// Many GPU structures and intermediate results are cached.
 #[derive(Debug)]
 pub struct PuzzleRenderer {
     /// Graphics state.
@@ -170,6 +160,7 @@ impl Clone for PuzzleRenderer {
 }
 
 impl PuzzleRenderer {
+    /// Constructs a new puzzle renderer.
     pub fn new(gfx: &Arc<GraphicsState>, puzzle: &Arc<Puzzle>) -> Self {
         let is_empty_model = puzzle.mesh.is_empty() || puzzle.pieces.is_empty();
 
@@ -214,22 +205,13 @@ impl PuzzleRenderer {
         }
     }
 
-    pub fn output_texture(&self) -> &CachedTexture<[u32; 2]> {
-        &self.buffers.composite_texture
-    }
-
+    /// Repeats the most recent puzzle render at a new size and returns the
+    /// result as an [`ImageBuffer`].
     pub fn screenshot(
         &mut self,
         width: u32,
         height: u32,
     ) -> Result<ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
-        let mut encoder = self
-            .gfx
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("screenshot_encoder"),
-            });
-
         let screenshot_size = wgpu::Extent3d {
             width,
             height,
@@ -241,7 +223,9 @@ impl PuzzleRenderer {
             bail!("no draw params");
         };
         draw_params.cam.target_size = [width, height];
-        self.draw_puzzle(&mut encoder, &draw_params)?;
+        self.draw_puzzle(&draw_params)?;
+
+        let mut encoder = self.gfx.encoder.lock();
 
         let output_texture = self.gfx.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("screenshot_texture"),
@@ -313,6 +297,8 @@ impl PuzzleRenderer {
             screenshot_size,
         );
 
+        drop(encoder);
+
         let output_buffer = Arc::new(output_buffer);
         let buffer_slice = output_buffer.slice(..);
 
@@ -321,9 +307,9 @@ impl PuzzleRenderer {
         // We have to create the mapping THEN `device.poll()` before awaiting
         // the future. Otherwise the application will freeze.
         let output_buffer_ref = Arc::clone(&output_buffer);
-        self.gfx.device.poll(wgpu::Maintain::wait_for(
-            self.gfx.queue.submit(std::iter::once(encoder.finish())),
-        ));
+        self.gfx
+            .device
+            .poll(wgpu::Maintain::wait_for(self.gfx.submit()));
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             result.expect("error mapping buffer slice");
             let data = output_buffer_ref.slice(..).get_mapped_range();
@@ -339,11 +325,8 @@ impl PuzzleRenderer {
         rx.recv_timeout(std::time::Duration::from_secs(5))?
     }
 
-    pub fn draw_puzzle(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        draw_params: &DrawParams,
-    ) -> Result<()> {
+    /// Draws the puzzle to a texture and returns it.
+    pub fn draw_puzzle(&mut self, draw_params: &DrawParams) -> Result<&CachedTexture2d> {
         self.filter_mode = match draw_params.cam.prefs().downscale_interpolate {
             true => wgpu::FilterMode::Linear,
             false => wgpu::FilterMode::Nearest,
@@ -368,7 +351,7 @@ impl PuzzleRenderer {
                     "Recomputing 3D vertex positions for puzzle {:?}",
                     self.puzzle_name,
                 );
-                self.compute_3d_vertex_positions(encoder)?;
+                self.compute_3d_vertex_positions()?;
             }
 
             // Render each bucket. Use `is_first` to clear the texture only on
@@ -376,16 +359,16 @@ impl PuzzleRenderer {
             let mut is_first = true;
             self.polygon_texture_needs_clear = true;
             self.edge_ids_texture_needs_clear = true;
-            let opacity_buckets = self.init_buffers(encoder, draw_params)?;
+            let opacity_buckets = self.init_buffers(draw_params)?;
             for bucket in opacity_buckets {
-                self.render_polygons(encoder, &bucket, is_first)?;
-                self.render_edge_ids(encoder, &bucket, is_first)?;
-                self.render_composite_puzzle(encoder, bucket.opacity, is_first)?;
+                self.render_polygons(&bucket, is_first)?;
+                self.render_edge_ids(&bucket, is_first)?;
+                self.render_composite_puzzle(bucket.opacity, is_first)?;
 
                 is_first = false;
             }
             if is_first {
-                encoder.clear_texture(
+                self.gfx.encoder.lock().clear_texture(
                     &self.buffers.composite_texture.texture,
                     &wgpu::ImageSubresourceRange::default(),
                 );
@@ -410,15 +393,11 @@ impl PuzzleRenderer {
             }
         }
 
-        Ok(())
+        Ok(&self.buffers.composite_texture)
     }
 
     /// Initializes buffers and returns the number of triangles to draw.
-    fn init_buffers(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        draw_params: &DrawParams,
-    ) -> Result<Vec<GeometryBucket>> {
+    fn init_buffers(&mut self, draw_params: &DrawParams) -> Result<Vec<GeometryBucket>> {
         let draw_params = if self.is_placeholder_model {
             Cow::Owned(super::placeholder::modify_draw_params(draw_params.clone()))
         } else {
@@ -723,7 +702,6 @@ impl PuzzleRenderer {
                     let triangles_buffer_start = triangles_buffer_index;
                     for piece in face_pieces.iter() {
                         self.write_geometry_for_piece(
-                            encoder,
                             piece,
                             GeometryType::Faces,
                             draw_params.cam.prefs().show_internals,
@@ -735,7 +713,6 @@ impl PuzzleRenderer {
                     let edges_buffer_start = edges_buffer_index;
                     for piece in outline_pieces.iter() {
                         self.write_geometry_for_piece(
-                            encoder,
                             piece,
                             GeometryType::Edges,
                             draw_params.cam.prefs().show_internals,
@@ -762,7 +739,7 @@ impl PuzzleRenderer {
     }
     fn write_geometry_for_piece(
         &self,
-        encoder: &mut wgpu::CommandEncoder,
+
         piece: Piece,
         geometry_type: GeometryType,
         include_internals: bool,
@@ -782,7 +759,7 @@ impl PuzzleRenderer {
                 GeometryType::Faces => &self.model.piece_internals_triangle_ranges[piece],
                 GeometryType::Edges => &self.model.piece_internals_edge_ranges[piece],
             };
-            self.write_geometry(encoder, geometry_type, src, dst, index_range, dst_offset);
+            self.write_geometry(geometry_type, src, dst, index_range, dst_offset);
         }
 
         for &sticker in &self.puzzle_pieces[piece] {
@@ -790,12 +767,12 @@ impl PuzzleRenderer {
                 GeometryType::Faces => &self.model.sticker_triangle_ranges[sticker],
                 GeometryType::Edges => &self.model.sticker_edge_ranges[sticker],
             };
-            self.write_geometry(encoder, geometry_type, src, dst, index_range, dst_offset);
+            self.write_geometry(geometry_type, src, dst, index_range, dst_offset);
         }
     }
     fn write_geometry(
         &self,
-        encoder: &mut wgpu::CommandEncoder,
+
         geometry_type: GeometryType,
         src: &wgpu::Buffer,
         dst: &wgpu::Buffer,
@@ -810,7 +787,7 @@ impl PuzzleRenderer {
 
         let start = index_range.start * numbers_per_entry;
         let len = index_range.len() as u32 * numbers_per_entry;
-        encoder.copy_buffer_to_buffer(
+        self.gfx.encoder.lock().copy_buffer_to_buffer(
             src,
             start as u64 * INDEX_SIZE,
             dst,
@@ -820,10 +797,12 @@ impl PuzzleRenderer {
         *destination_offset += len;
     }
 
-    fn compute_3d_vertex_positions(&mut self, encoder: &mut wgpu::CommandEncoder) -> Result<()> {
+    fn compute_3d_vertex_positions(&mut self) -> Result<()> {
         if self.model.is_empty() {
             return Ok(());
         }
+
+        let mut encoder = self.gfx.encoder.lock();
 
         let pipeline = self
             .gfx
@@ -860,12 +839,9 @@ impl PuzzleRenderer {
         Ok(())
     }
 
-    fn render_polygons(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        bucket: &GeometryBucket,
-        clear: bool,
-    ) -> Result<()> {
+    fn render_polygons(&mut self, bucket: &GeometryBucket, clear: bool) -> Result<()> {
+        let mut encoder = self.gfx.encoder.lock();
+
         if bucket.triangles_range.is_empty() {
             if clear {
                 encoder.clear_texture(&self.buffers.polygons_texture.texture, &Default::default());
@@ -885,7 +861,7 @@ impl PuzzleRenderer {
             ids_texture: &self.buffers.polygons_texture.view,
             ids_depth_texture: &self.buffers.polygons_depth_texture.view,
         }
-        .begin_pass(encoder);
+        .begin_pass(&mut encoder);
 
         render_pass.set_pipeline(&pipeline.pipeline);
         render_pass.set_bind_groups(&bind_groups);
@@ -901,12 +877,9 @@ impl PuzzleRenderer {
         Ok(())
     }
 
-    fn render_edge_ids(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        bucket: &GeometryBucket,
-        clear: bool,
-    ) -> Result<()> {
+    fn render_edge_ids(&mut self, bucket: &GeometryBucket, clear: bool) -> Result<()> {
+        let mut encoder = self.gfx.encoder.lock();
+
         if bucket.edges_range.is_empty() {
             if clear {
                 encoder.clear_texture(&self.buffers.edge_ids_texture.texture, &Default::default());
@@ -929,7 +902,7 @@ impl PuzzleRenderer {
             ids_texture: &self.buffers.edge_ids_texture.view,
             ids_depth_texture: &self.buffers.edge_ids_depth_texture.view,
         }
-        .begin_pass(encoder);
+        .begin_pass(&mut encoder);
 
         render_pass.set_pipeline(&pipeline.pipeline);
         render_pass.set_bind_groups(&bind_groups);
@@ -939,12 +912,9 @@ impl PuzzleRenderer {
         Ok(())
     }
 
-    fn render_composite_puzzle(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        alpha: f32,
-        clear: bool,
-    ) -> Result<()> {
+    fn render_composite_puzzle(&mut self, alpha: f32, clear: bool) -> Result<()> {
+        let mut encoder = self.gfx.encoder.lock();
+
         let pipeline = &self.gfx.pipelines.render_composite_puzzle;
 
         let bind_groups = pipeline.bind_groups(pipelines::render_composite_puzzle::Bindings {
@@ -967,7 +937,7 @@ impl PuzzleRenderer {
             clear,
             target: &self.buffers.composite_texture.view,
         }
-        .begin_pass(encoder);
+        .begin_pass(&mut encoder);
 
         render_pass.set_pipeline(&pipeline.pipeline);
         render_pass.set_bind_groups(&bind_groups);

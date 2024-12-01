@@ -377,8 +377,11 @@ impl PuzzleWidget {
         let dark_mode = ui.visuals().dark_mode;
         let background_color = prefs.background_color(dark_mode).to_egui_color32();
         ui.painter().rect_filled(r.rect, 0.0, background_color);
-        let texture_id = self.update_puzzle_texture(&draw_params);
-        egui::Image::new((texture_id, r.rect.size())).paint_at(ui, r.rect);
+
+        match self.update_puzzle_texture(&draw_params) {
+            Ok(texture_id) => egui::Image::new((texture_id, r.rect.size())).paint_at(ui, r.rect),
+            Err(e) => log::error!("{e}"),
+        }
 
         self.queued_arrows.extend(self.view.drag_delta_3d());
 
@@ -478,22 +481,12 @@ impl PuzzleWidget {
         r
     }
 
-    fn update_puzzle_texture(&mut self, draw_params: &DrawParams) -> egui::TextureId {
-        let command_encoder_descriptor = wgpu::CommandEncoderDescriptor {
-            label: Some("puzzle"),
-        };
-        let device = &self.renderer.gfx.device;
-        let mut encoder = device.create_command_encoder(&command_encoder_descriptor);
-        let result = self.renderer.draw_puzzle(&mut encoder, &draw_params);
-        if let Err(e) = result {
-            log::error!("{e}");
-        }
-        self.renderer.gfx.queue.submit([encoder.finish()]);
+    fn update_puzzle_texture(&mut self, draw_params: &DrawParams) -> Result<egui::TextureId> {
+        let output_texture = &self.renderer.draw_puzzle(&draw_params)?.texture;
 
         // egui expects sRGB colors in the shader, so we have to read the
         // sRGB texture as though it were linear to prevent the GPU from
         // doing gamma conversion.
-        let output_texture = &self.renderer.output_texture().texture;
         let texture_view = output_texture.create_view(&wgpu::TextureViewDescriptor {
             format: Some(output_texture.format().remove_srgb_suffix()),
             ..Default::default()
@@ -508,7 +501,7 @@ impl PuzzleWidget {
                     self.renderer.filter_mode,
                     egui_texture_id,
                 );
-                egui_texture_id
+                Ok(egui_texture_id)
             }
             None => {
                 let egui_texture_id = egui_wgpu_renderer.register_native_texture(
@@ -517,7 +510,7 @@ impl PuzzleWidget {
                     self.renderer.filter_mode,
                 );
                 self.egui_texture_id = Some(egui_texture_id);
-                egui_texture_id
+                Ok(egui_texture_id)
             }
         }
     }

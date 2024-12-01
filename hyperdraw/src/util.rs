@@ -1,3 +1,5 @@
+/// Iterator over adjacent pairs in a cycle. See
+/// [`IterCyclicPairsExt::cyclic_pairs()`].
 pub struct CyclicPairsIter<I: Iterator> {
     first: Option<I::Item>,
     prev: Option<I::Item>,
@@ -23,7 +25,22 @@ where
     }
 }
 
+/// Extension trait for `.cyclic_pairs()`.
 pub trait IterCyclicPairsExt: Iterator + Sized {
+    /// Returns an iterator over adjacent pairs in a cycle.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use hyperdraw::IterCyclicPairsExt;
+    ///
+    /// let mut iter = [1, 2, 3, 4].into_iter().cyclic_pairs();
+    /// assert_eq!(Some((1, 2)), iter.next());
+    /// assert_eq!(Some((2, 3)), iter.next());
+    /// assert_eq!(Some((3, 4)), iter.next());
+    /// assert_eq!(Some((4, 1)), iter.next());
+    /// assert_eq!(None, iter.next());
+    /// ```
     fn cyclic_pairs(self) -> CyclicPairsIter<Self>;
 }
 impl<I> IterCyclicPairsExt for I

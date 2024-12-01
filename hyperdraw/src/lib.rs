@@ -1,9 +1,11 @@
-pub mod camera;
-pub mod gfx;
-pub mod styles;
-pub mod util;
+//! Twisty puzzle rendering engine.
 
-pub use camera::Camera;
-pub use gfx::{DrawParams, GraphicsState, PuzzleRenderResources, PuzzleRenderer};
-pub use styles::PieceStyleValues;
-pub use util::{CyclicPairsIter, IterCyclicPairsExt};
+mod camera;
+mod gfx;
+mod styles;
+mod util;
+
+pub use camera::*;
+pub use gfx::*;
+pub use styles::*;
+pub use util::*;

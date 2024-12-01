@@ -36,6 +36,10 @@ pub struct GizmoGeometryCacheKey {
     rot: Option<pga::Motor>,
 }
 
+/// Parameters controlling how a puzzle is drawn, including its state.
+///
+/// This does not include static information, such as the initial geometry of
+/// all the stickers.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DrawParams {
     /// Number of dimensions of the puzzle.
@@ -55,9 +59,14 @@ pub struct DrawParams {
     /// Whether the cursor is currently dragging the view.
     pub is_dragging_view: bool,
 
+    /// RGB for internal faces.
     pub internals_color: [u8; 3],
+    /// RGB for each sticker color.
     pub sticker_colors: Vec<[u8; 3]>,
+    /// Styles for sets of pieces. The piece masks should be disjoint and their
+    /// union should be the set of all pieces in the puzzle.
     pub piece_styles: Vec<(PieceStyleValues, PieceMask)>,
+    /// N-dimensional transform for each piece.
     pub piece_transforms: PerPiece<Matrix>,
 }
 impl DrawParams {
@@ -103,15 +112,23 @@ impl DrawParams {
         }
     }
 
+    /// Whether internal stickers are visible.
     pub fn show_internals(&self) -> bool {
         self.cam.prefs().show_internals && self.ndim == 3
     }
+    /// Linear scale factor for twist gizmos. (0 to infinity)
     pub fn gizmo_scale(&self) -> f32 {
         self.cam.prefs().gizmo_scale * self.facet_scale()
     }
+    /// Linear scale factor for facets, calculated from facet shrink. (0 to 1)
+    ///
+    /// When showing internals, this is always 1.
     pub fn facet_scale(&self) -> f32 {
         1.0 - self.facet_shrink()
     }
+    /// Shrink factor for facets. (0 to 1)
+    ///
+    /// When showing internals, this is always 0.
     pub fn facet_shrink(&self) -> f32 {
         if self.show_internals() {
             0.0
@@ -119,6 +136,9 @@ impl DrawParams {
             self.cam.prefs().facet_shrink
         }
     }
+    /// Linear sticker shrink factor. (0 to 1)
+    ///
+    /// When showing internals, this is always 0.
     pub fn sticker_shrink(&self) -> f32 {
         if self.show_internals() {
             0.0
@@ -126,6 +146,10 @@ impl DrawParams {
             self.cam.prefs().sticker_shrink
         }
     }
+    /// Returns whether outlines are allowed to use the sticker color.
+    ///
+    /// In the future, this may be limited to cases where sticker outlines are
+    /// unlikely to overlap.
     pub fn outlines_may_use_sticker_color(&self) -> bool {
         // always allow
         true

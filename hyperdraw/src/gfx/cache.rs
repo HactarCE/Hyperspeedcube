@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use super::GraphicsState;
 
-pub(crate) type CachedTexture1d = CachedTexture<u32>;
+/// 1D cached texture. The cache is invalidated if the texture changes size.
+pub type CachedTexture1d = CachedTexture<u32>;
 impl CachedTexture1d {
+    /// Constructs a new cached texture.
     pub fn new(
         gfx: Arc<GraphicsState>,
         label: String,
@@ -27,6 +29,8 @@ impl CachedTexture1d {
         })
     }
 
+    /// Writes raw data directly to the texture. The texture is resized to fit
+    /// the data.
     pub fn write<T: bytemuck::Pod>(&mut self, data: &[T]) {
         self.set_size(data.len() as u32);
         self.inner.gfx.queue.write_texture(
@@ -38,8 +42,10 @@ impl CachedTexture1d {
     }
 }
 
-pub(crate) type CachedTexture2d = CachedTexture<[u32; 2]>;
+/// 2D cached texture. The cache is invalidated if the texture changes size.
+pub type CachedTexture2d = CachedTexture<[u32; 2]>;
 impl CachedTexture2d {
+    /// Constructs a new cached texture.
     pub fn new(
         gfx: Arc<GraphicsState>,
         label: String,
@@ -64,9 +70,14 @@ impl CachedTexture2d {
     }
 }
 
+/// Cached texture. The cache is invalidated if the texture changes size.
+///
+/// `S` is a type representing the size of the texture.
 pub struct CachedTexture<S> {
     inner: CachedTextureInner<S>,
+    /// Underlying texture.
     pub texture: wgpu::Texture,
+    /// Default view of the texture.
     pub view: wgpu::TextureView,
 }
 impl<S: PartialEq + Copy> CachedTexture<S> {
@@ -94,6 +105,8 @@ impl<S: PartialEq + Copy> CachedTexture<S> {
         }
     }
 
+    /// Makes a new texture with the same descriptor except for a different
+    /// label.
     pub fn clone(&self, label: String) -> Self {
         Self::new_generic(CachedTextureInner {
             label,
@@ -101,6 +114,7 @@ impl<S: PartialEq + Copy> CachedTexture<S> {
         })
     }
 
+    /// Resizes the texture.
     pub fn set_size(&mut self, size: S) {
         // Invalidate the buffer if it is the wrong size.
         if size != self.inner.size {

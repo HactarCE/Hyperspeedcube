@@ -11,9 +11,9 @@ mod puzzle;
 mod state;
 mod structs;
 
-use cache::{CachedTexture1d, CachedTexture2d};
+pub use cache::{CachedTexture, CachedTexture1d, CachedTexture2d};
 pub use draw_params::DrawParams;
-pub use puzzle::{PuzzleRenderResources, PuzzleRenderer};
+pub use puzzle::PuzzleRenderer;
 pub use state::GraphicsState;
 
 /// Pads a buffer to `wgpu::COPY_BUFFER_ALIGNMENT`.

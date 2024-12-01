@@ -129,6 +129,9 @@ impl AppUi {
             self.app.set_active_puzzle_view(puzzle_view);
         }
 
+        // Submit wgpu commands before egui does.
+        self.app.gfx.submit();
+
         // TODO: key combo popup
         // key_combo_popup::build(ctx, app);
     }

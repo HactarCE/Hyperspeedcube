@@ -35,7 +35,6 @@ impl App {
             gfx: Arc::new(GraphicsState::new(
                 Arc::clone(&wgpu_render_state.device),
                 Arc::clone(&wgpu_render_state.queue),
-                wgpu_render_state.target_format,
             )),
 
             prefs,

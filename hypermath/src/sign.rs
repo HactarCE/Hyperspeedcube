@@ -68,7 +68,7 @@ impl Sign {
 
 /// Implements `Mul<Sign>` for a type.
 ///
-/// ```rust
+/// ```
 /// # use hypermath::prelude::*;
 /// #[derive(Debug, Copy, Clone)]
 /// struct MyStruct(f32);

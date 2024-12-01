@@ -1,20 +1,23 @@
 use std::fmt;
 use std::sync::Arc;
 
+use parking_lot::Mutex;
 use wgpu::util::DeviceExt;
 
 use super::pipelines::Pipelines;
 
 /// WGPU graphics state.
+#[allow(missing_docs)]
 pub struct GraphicsState {
     pub device: Arc<wgpu::Device>,
     pub queue: Arc<wgpu::Queue>,
+    pub(super) encoder: Mutex<wgpu::CommandEncoder>,
 
-    pub(crate) pipelines: Pipelines,
+    pub(super) pipelines: Pipelines,
 
-    pub(crate) uv_vertex_buffer: wgpu::Buffer,
-    pub(crate) nearest_neighbor_sampler: wgpu::Sampler,
-    pub(crate) bilinear_sampler: wgpu::Sampler,
+    pub(super) uv_vertex_buffer: wgpu::Buffer,
+    pub(super) nearest_neighbor_sampler: wgpu::Sampler,
+    pub(super) bilinear_sampler: wgpu::Sampler,
 }
 impl fmt::Debug for GraphicsState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -22,12 +25,11 @@ impl fmt::Debug for GraphicsState {
     }
 }
 impl GraphicsState {
-    pub fn new(
-        device: Arc<wgpu::Device>,
-        queue: Arc<wgpu::Queue>,
-        target_format: wgpu::TextureFormat,
-    ) -> Self {
-        let pipelines = Pipelines::new(&device, target_format);
+    /// Constructs a new [`GraphicsState`].
+    pub fn new(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>) -> Self {
+        let encoder = Mutex::new(create_command_encoder(&device));
+
+        let pipelines = Pipelines::new(&device);
 
         let uv_vertex_buffer = create_buffer_init::<super::structs::UvVertex>(
             &device,
@@ -45,6 +47,7 @@ impl GraphicsState {
         Self {
             device,
             queue,
+            encoder,
 
             pipelines,
 
@@ -53,6 +56,14 @@ impl GraphicsState {
             nearest_neighbor_sampler,
             bilinear_sampler,
         }
+    }
+
+    /// Submit enqueued commands for the frame. **This must be called each frame
+    /// before egui does its rendering.**
+    pub fn submit(&self) -> wgpu::SubmissionIndex {
+        let new_encoder = create_command_encoder(&self.device);
+        let old_encoder = std::mem::replace(&mut *self.encoder.lock(), new_encoder);
+        self.queue.submit([old_encoder.finish()])
     }
 
     pub(super) fn create_buffer_init<T: Default + bytemuck::NoUninit>(
@@ -139,4 +150,8 @@ fn create_buffer_init<T: Default + bytemuck::NoUninit>(
         contents: bytemuck::cast_slice::<T, u8>(contents.as_slice()),
         usage,
     })
+}
+
+fn create_command_encoder(device: &wgpu::Device) -> wgpu::CommandEncoder {
+    device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None })
 }
