@@ -23,20 +23,82 @@ use crate::L;
 const SEND_CURSOR_POS: bool = false;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>) {
-    let r = match &mut *puzzle_view.lock() {
-        Some(puzzle_view) => puzzle_view.ui(ui, &mut app.prefs, &app.animation_prefs.value),
-        None => {
-            // Hint to the user to load a puzzle.
-            ui.centered_and_justified(|ui| {
-                ui.label(L.puzzle_view.select_a_puzzle);
-            })
-            .response
+    let r;
+    let mut puzzle_view_guard = puzzle_view.lock();
+    match &mut *puzzle_view_guard {
+        Some(puzzle_view) => {
+            r = puzzle_view.ui(ui, &mut app.prefs, &app.animation_prefs.value);
+            drop(puzzle_view_guard);
         }
-    };
+        None => {
+            drop(puzzle_view_guard);
+            r = show_puzzle_load_hint(ui, app, puzzle_view);
+        }
+    }
 
     if r.gained_focus() {
         app.set_active_puzzle_view(puzzle_view);
     }
+}
+
+fn show_puzzle_load_hint(
+    ui: &mut egui::Ui,
+    app: &mut App,
+    puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>,
+) -> egui::Response {
+    show_centered_with_sizing_pass(ui, true, true, |ui| {
+        ui.spacing_mut().button_padding *= 4.0;
+        ui.spacing_mut().item_spacing *= 4.0;
+        ui.heading("Load a puzzle");
+        show_centered_with_sizing_pass(ui, true, false, |ui| {
+            ui.horizontal(|ui| {
+                if ui.button("3D Rubik's Cube").clicked() {
+                    app.load_puzzle("ft_cube:3");
+                }
+                if ui.button("4D Rubik's Cube").clicked() {
+                    app.load_puzzle("ft_hypercube:3");
+                }
+            });
+        });
+        if ui.button("See the full list").clicked() {
+            todo!("open & focus puzzle list")
+        }
+    })
+    .response
+}
+
+fn show_centered_with_sizing_pass<R>(
+    ui: &mut egui::Ui,
+    horizontal: bool,
+    vertical: bool,
+    mut f: impl FnMut(&mut egui::Ui) -> R,
+) -> egui::InnerResponse<R> {
+    let total_rect = ui.max_rect();
+    let mut r = ui.scope_builder(
+        egui::UiBuilder::new()
+            .layout(egui::Layout::top_down(egui::Align::LEFT))
+            .sizing_pass()
+            .invisible(),
+        &mut f,
+    );
+    let size = r.response.rect.size();
+    if !ui.is_sizing_pass() {
+        let mut desired_rect = egui::Rect::from_center_size(total_rect.center(), size);
+        let go_back = total_rect.min - desired_rect.min;
+        if !horizontal {
+            desired_rect.translate(egui::vec2(go_back.x, 0.0));
+        }
+        if !vertical {
+            desired_rect.translate(egui::vec2(0.0, go_back.y));
+        }
+        r = ui.allocate_new_ui(
+            egui::UiBuilder::new()
+                .layout(egui::Layout::top_down(egui::Align::Center))
+                .max_rect(desired_rect),
+            f,
+        );
+    }
+    r
 }
 
 pub struct PuzzleWidget {
@@ -70,14 +132,15 @@ impl fmt::Debug for PuzzleWidget {
 }
 impl PuzzleWidget {
     pub(crate) fn new(
-        lib: &hyperpuzzle::Library,
         gfx: &Arc<GraphicsState>,
         egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
         prefs: &mut Preferences,
         puzzle_id: &str,
     ) -> Option<Self> {
         let start_time = Instant::now();
-        let result = lib.build_puzzle(puzzle_id).take_result_blocking();
+        let result = crate::LIBRARY
+            .with(|lib| lib.build_puzzle(puzzle_id))
+            .take_result_blocking();
         match result {
             Err(e) => {
                 log::error!("{e:?}");
@@ -132,13 +195,13 @@ impl PuzzleWidget {
     }
 
     /// Reloads the active puzzle. Returns `true` if the reload was successful.
-    pub fn reload(&mut self, lib: &hyperpuzzle::Library, prefs: &mut Preferences) -> bool {
+    pub fn reload(&mut self, prefs: &mut Preferences) -> bool {
         crate::load_user_puzzles();
         let current_puzzle = self.puzzle();
         let gfx = Arc::clone(&self.renderer.gfx);
         let egui_wgpu_renderer = Arc::clone(&self.egui_wgpu_renderer);
         if let Some(mut new_puzzle_view) =
-            Self::new(lib, &gfx, egui_wgpu_renderer, prefs, &current_puzzle.id)
+            Self::new(&gfx, egui_wgpu_renderer, prefs, &current_puzzle.id)
         {
             // Copy view and color settings from the current puzzle view.
             new_puzzle_view.view.camera.view_preset = self.view.camera.view_preset.clone();
@@ -243,9 +306,7 @@ impl PuzzleWidget {
             }
         }
 
-        if r.has_focus()
-            && ui.input(|input| input.key_pressed(egui::Key::F5))
-            && crate::LIBRARY.with(|lib| self.reload(lib, prefs))
+        if r.has_focus() && ui.input(|input| input.key_pressed(egui::Key::F5)) && self.reload(prefs)
         {
             // Don't even try to redraw the puzzle. Just wait for the
             // next frame.

@@ -81,16 +81,12 @@ impl App {
         });
     }
 
-    pub(crate) fn load_puzzle(&mut self, lib: &hyperpuzzle::Library, puzzle_id: &str) {
+    pub(crate) fn load_puzzle(&mut self, puzzle_id: &str) {
         if self.active_puzzle_view.view().is_some() {
             let egui_wgpu_renderer = Arc::clone(&self.egui_wgpu_renderer);
-            if let Some(new_puzzle_view) = PuzzleWidget::new(
-                lib,
-                &self.gfx,
-                egui_wgpu_renderer,
-                &mut self.prefs,
-                puzzle_id,
-            ) {
+            if let Some(new_puzzle_view) =
+                PuzzleWidget::new(&self.gfx, egui_wgpu_renderer, &mut self.prefs, puzzle_id)
+            {
                 self.set_active_puzzle(Some(new_puzzle_view));
             }
         }

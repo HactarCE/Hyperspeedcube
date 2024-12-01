@@ -186,7 +186,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                             match obj {
                                 ListEntry::Puzzle(puzzle) => {
                                     if r.clicked() {
-                                        crate::LIBRARY.with(|lib| app.load_puzzle(lib, &puzzle.id));
+                                        app.load_puzzle(&puzzle.id);
                                     }
                                 }
 
@@ -275,7 +275,7 @@ fn show_puzzle_generator_ui(
     if ui.button(L.library.generate_puzzle).clicked() {
         ui.memory_mut(|mem| mem.close_popup());
         let puzzle_id = hyperpuzzle::generated_puzzle_id(&puzzle_generator.id, &popup_data.params);
-        crate::LIBRARY.with(|lib| app.load_puzzle(lib, &puzzle_id));
+        app.load_puzzle(&puzzle_id);
     };
 }
 
