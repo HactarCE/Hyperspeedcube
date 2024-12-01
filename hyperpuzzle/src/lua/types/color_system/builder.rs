@@ -5,7 +5,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::{CustomOrdering, NameSet, NamingScheme, PuzzleBuilder};
+use crate::builder::{CustomOrdering, NamingScheme, PuzzleBuilder};
 use crate::lua::lua_warn_fn;
 use crate::puzzle::Color;
 use crate::{DefaultColor, PerColor};

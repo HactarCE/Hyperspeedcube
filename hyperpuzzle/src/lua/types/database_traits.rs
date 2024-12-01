@@ -9,7 +9,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::builder::{CustomOrdering, NameSet, NamingScheme};
+use crate::builder::{CustomOrdering, NamingScheme};
 use crate::lua::{lua_warn_fn, result_to_ok_or_warn};
 
 /// Lua handle to an object in a collection, indexed by some ID.

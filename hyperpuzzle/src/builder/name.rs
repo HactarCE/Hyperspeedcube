@@ -217,16 +217,6 @@ impl AstNode {
         }
     }
 
-    fn concat(&self, other: &Self) -> Self {
-        AstNode::Seq(match (self, other) {
-            (AstNode::Never, _) | (_, AstNode::Never) => return AstNode::Never,
-            (AstNode::Seq(a), AstNode::Seq(b)) => itertools::chain(a, b).cloned().collect(),
-            (a, AstNode::Seq(b)) => itertools::chain(std::iter::once(a), b).cloned().collect(),
-            (AstNode::Seq(a), b) => itertools::chain(a, std::iter::once(b)).cloned().collect(),
-            (a, b) => vec![a.clone(), b.clone()],
-        })
-    }
-
     fn any_of(options: impl IntoIterator<Item = impl Into<Self>>) -> Self {
         let mut ret = vec![];
         for option in options {

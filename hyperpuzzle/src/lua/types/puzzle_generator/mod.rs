@@ -9,7 +9,7 @@ mod db;
 pub use db::LuaPuzzleGeneratorDb;
 
 use super::*;
-use crate::TagValue;
+use crate::{TagSet, TagValue};
 
 /// Specification for a puzzle generator.
 #[derive(Debug)]
@@ -22,7 +22,7 @@ pub struct PuzzleGeneratorSpec {
     /// Default color system.
     pub colors: Option<String>,
     /// Default tags.
-    pub tags: HashMap<String, TagValue>,
+    pub tags: TagSet,
 
     /// Puzzle generation parameters.
     pub params: Vec<GeneratorParam>,
@@ -68,12 +68,13 @@ impl FromLua for PuzzleGeneratorSpec {
         let id = crate::validate_id(id).into_lua_err()?;
         let mut tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
 
-        for tag in tags.keys().filter(|tag| tag.starts_with("type")) {
+        for tag in tags.0.keys().filter(|tag| tag.starts_with("type")) {
             lua.warning(format!("generator {id} should not have tag {tag:?}"), false);
         }
 
         // Add `#generator` tag.
-        tags.insert("type/generator".to_owned(), TagValue::True);
+        tags.insert_named("type/generator", TagValue::True)
+            .map_err(LuaError::external)?;
 
         crate::lua::tags::inherit_parent_tags(&mut tags);
 
@@ -238,16 +239,17 @@ impl PuzzleGeneratorSpec {
         }
 
         // Add tags from generator.
-        let tags_from_generator = self.tags.iter().map(|(k, v)| (k.clone(), v.clone()));
+        let tags_from_generator = self.tags.clone();
         puzzle_spec.tags = crate::lua::tags::merge_tag_sets(puzzle_spec.tags, tags_from_generator);
 
         // Remove `#generator` tag.
-        puzzle_spec.tags.remove("type/generator");
+        puzzle_spec.tags.0.remove("type/generator");
 
         // Add `#generated` tag.
         puzzle_spec
             .tags
-            .insert("generated".to_owned(), TagValue::True);
+            .insert_named("generated", TagValue::True)
+            .map_err(LuaError::external)?;
 
         crate::lua::tags::inherit_parent_tags(&mut puzzle_spec.tags);
 
@@ -386,7 +388,7 @@ pub struct PuzzleGeneratorOverrides {
     /// Additional aliases.
     pub aliases: Vec<String>,
     /// Extra tags.
-    pub tags: HashMap<String, TagValue>,
+    pub tags: TagSet,
 }
 impl FromLua for PuzzleGeneratorOverrides {
     fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {

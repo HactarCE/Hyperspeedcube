@@ -1,27 +1,21 @@
-use std::collections::{hash_map, HashMap};
+use std::collections::hash_map;
 
 use itertools::Itertools;
 use mlua::prelude::*;
 
 use super::LuaVecString;
-use crate::{TagType, TagValue, TAGS};
+use crate::{TagSet, TagType, TagValue, TAGS};
 
-pub(super) fn unpack_tags_table(
-    lua: &Lua,
-    table: Option<LuaTable>,
-) -> LuaResult<HashMap<String, TagValue>> {
-    let mut tags = HashMap::new();
+pub(super) fn unpack_tags_table(lua: &Lua, table: Option<LuaTable>) -> LuaResult<TagSet> {
+    let mut tags = TagSet::new();
     if let Some(table) = table {
         unpack_tags_table_recursive(lua, &mut tags, table, "")?;
     }
     Ok(tags)
 }
 
-pub(super) fn merge_tag_sets(
-    mut higher_priority: HashMap<String, TagValue>,
-    lower_priority: impl IntoIterator<Item = (String, TagValue)>,
-) -> HashMap<String, TagValue> {
-    for (tag_name, tag_value) in lower_priority {
+pub(super) fn merge_tag_sets(mut higher_priority: TagSet, lower_priority: TagSet) -> TagSet {
+    for (tag_name, tag_value) in lower_priority.0 {
         if matches!(tag_value, TagValue::Inherited) {
             continue;
         }
@@ -31,7 +25,7 @@ pub(super) fn merge_tag_sets(
             TagValue::Inherited => (),
 
             // Concatenate string lists
-            TagValue::StrList(vec) => match higher_priority.entry(tag_name) {
+            TagValue::StrList(vec) => match higher_priority.0.entry(tag_name) {
                 hash_map::Entry::Occupied(mut e) => {
                     if let Some(str_list) = e.get_mut().as_str_list_mut() {
                         str_list.extend(vec);
@@ -47,7 +41,7 @@ pub(super) fn merge_tag_sets(
             | TagValue::Int(_)
             | TagValue::Str(_)
             | TagValue::Puzzle(_) => {
-                if let hash_map::Entry::Vacant(e) = higher_priority.entry(tag_name) {
+                if let hash_map::Entry::Vacant(e) = higher_priority.0.entry(tag_name) {
                     e.insert(tag_value);
                 }
             }
@@ -57,8 +51,9 @@ pub(super) fn merge_tag_sets(
     higher_priority
 }
 
-pub(super) fn inherit_parent_tags(tags: &mut HashMap<String, TagValue>) {
+pub(super) fn inherit_parent_tags(tags: &mut TagSet) {
     let inherited_tags = tags
+        .0
         .iter()
         .filter(|(_k, v)| !matches!(v, TagValue::False | TagValue::Inherited))
         .map(|(k, _v)| k.to_owned())
@@ -66,8 +61,11 @@ pub(super) fn inherit_parent_tags(tags: &mut HashMap<String, TagValue>) {
 
     for tag in inherited_tags {
         // Add parent tags
-        for parent in crate::TAGS.ancestors(&tag) {
-            match tags.entry(parent.to_owned()) {
+        for parent_name in crate::TAGS.ancestors(&tag) {
+            let Ok(parent) = tags.entry_named(parent_name) else {
+                continue;
+            };
+            match parent {
                 hash_map::Entry::Occupied(mut e) => match e.get() {
                     TagValue::False => {
                         e.insert(TagValue::Inherited);
@@ -84,43 +82,33 @@ pub(super) fn inherit_parent_tags(tags: &mut HashMap<String, TagValue>) {
 
 fn unpack_tags_table_recursive(
     lua: &Lua,
-    tags: &mut HashMap<String, TagValue>,
+    tags: &mut TagSet,
     table: LuaTable,
     prefix: &str,
 ) -> LuaResult<()> {
-    let warn_unknown_tag =
-        |tag_name: &str| lua.warning(format!("unknown tag name {tag_name:?}"), false);
-
     // Sequence entries -- key is ignored and value is tag name
     for v in table.clone().sequence_values() {
         let s: String = v?;
         if let Some(rest) = s.strip_prefix('!') {
             let tag_name = format!("{prefix}{rest}");
             match TAGS.get(&tag_name) {
-                Some(tag) if tag.auto => {
+                Ok(tag) if tag.auto => {
                     lua.warning(format!("tag {tag_name:?} cannot be added manually"), false);
                 }
-                Some(_) => {
-                    tags.insert(tag_name.to_owned(), TagValue::False);
-                }
-                None => {
-                    warn_unknown_tag(&tag_name);
-                }
+                Ok(tag) => tags.insert(tag, TagValue::False),
+                Err(e) => lua.warning(e.to_string(), false),
             }
         } else {
             let tag_name = format!("{prefix}{s}");
-            if let Some(tag) = TAGS.get(&tag_name) {
-                match tag.ty {
-                    TagType::Bool => {
-                        tags.insert(tag_name, TagValue::True);
-                    }
+            match TAGS.get(&tag_name) {
+                Ok(tag) => match tag.ty {
+                    TagType::Bool => tags.insert(tag, TagValue::True),
                     ty => lua.warning(
                         format!("tag {tag_name:?} requires a value of type {ty:?}"),
                         false,
                     ),
-                }
-            } else {
-                warn_unknown_tag(&tag_name);
+                },
+                Err(e) => lua.warning(e.to_string(), false),
             }
         }
     }
@@ -133,9 +121,12 @@ fn unpack_tags_table_recursive(
 
             LuaValue::String(s) => {
                 let tag_name = format!("{prefix}{}", s.to_string_lossy());
-                let Some(tag) = TAGS.get(&tag_name) else {
-                    lua.warning(format!("unknown tag name {s:?}"), false);
-                    continue;
+                let tag = match TAGS.get(&tag_name) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        lua.warning(e.to_string(), false);
+                        continue;
+                    }
                 };
 
                 if !tag.ty.may_be_table() {
@@ -147,7 +138,7 @@ fn unpack_tags_table_recursive(
 
                 match tag_value_from_lua(lua, v, tag.ty) {
                     Ok(tag_value) => {
-                        tags.insert(tag_name, tag_value);
+                        tags.insert(tag, tag_value);
                     }
                     Err(e) => {
                         lua.warning(format!("bad tag value for {tag_name:?}: {e}"), false);

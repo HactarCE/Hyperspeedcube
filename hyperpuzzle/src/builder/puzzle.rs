@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
 use eyre::Result;
@@ -9,7 +8,7 @@ use parking_lot::Mutex;
 use super::shape::ShapeBuildOutput;
 use super::{ShapeBuilder, TwistSystemBuilder};
 use crate::puzzle::*;
-use crate::{TagValue, Version};
+use crate::{TagSet, Version};
 
 /// Puzzle being constructed.
 #[derive(Debug)]
@@ -32,7 +31,7 @@ pub struct PuzzleBuilder {
     pub twists: TwistSystemBuilder,
 
     /// Tags for the puzzle.
-    pub tags: HashMap<String, TagValue>,
+    pub tags: TagSet,
 }
 impl PuzzleBuilder {
     /// Constructs a new puzzle builder with a primordial cube.
@@ -42,7 +41,7 @@ impl PuzzleBuilder {
         name: String,
         aliases: Vec<String>,
         ndim: u8,
-        tags: HashMap<String, TagValue>,
+        tags: TagSet,
     ) -> Result<Arc<Mutex<Self>>> {
         let shape = ShapeBuilder::new_with_primordial_cube(Space::new(ndim), &id)?;
         let twists = TwistSystemBuilder::new();

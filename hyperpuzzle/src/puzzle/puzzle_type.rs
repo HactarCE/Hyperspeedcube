@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use hypershape::Space;
 
 use super::*;
-use crate::{TagValue, Version};
+use crate::{TagSet, Version};
 
 /// Puzzle type info.
 #[derive(Debug)]
@@ -68,7 +68,8 @@ pub struct Puzzle {
     /// Data for puzzle developers.
     pub dev_data: PuzzleDevData,
 
-    pub tags: HashMap<String, TagValue>,
+    /// Tags for the puzzle.
+    pub tags: TagSet,
 }
 
 /// Compare by puzzle ID.

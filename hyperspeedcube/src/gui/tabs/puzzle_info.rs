@@ -67,7 +67,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             .sorted_by_key(|(tag, _value)| *tag)
             .filter_map(|(tag, value)| match value {
                 hyperpuzzle::TagValue::False => show_excluded.then(|| format!("!{tag}")),
-                hyperpuzzle::TagValue::True => Some(tag.clone()),
+                hyperpuzzle::TagValue::True => Some(tag.to_string()),
                 hyperpuzzle::TagValue::Inherited => show_inherited.then(|| format!("({tag})")),
                 hyperpuzzle::TagValue::Int(i) => Some(format!("{tag} = {i}")),
                 hyperpuzzle::TagValue::Str(s) => {

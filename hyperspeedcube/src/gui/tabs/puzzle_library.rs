@@ -5,7 +5,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use hyperpuzzle::lua::{GeneratorParamType, GeneratorParamValue, PuzzleGeneratorSpec, PuzzleSpec};
-use hyperpuzzle::TagValue;
+use hyperpuzzle::{TagSet, TagValue};
 use itertools::Itertools;
 use regex::Regex;
 
@@ -174,7 +174,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                         .map(ListEntry::PuzzleGenerator),
                                 )
                             })
-                            .filter(|entry| show_experimental || !entry.is_experimental())
+                            .filter(|entry| show_experimental || !entry.tags().is_experimental())
                             .filter_map(|entry| query.try_match(entry))
                             .sorted_unstable_by(|a, b| {
                                 Ord::cmp(&(-a.score, a.object.id()), &(-b.score, b.object.id()))
@@ -303,19 +303,11 @@ impl ListEntry {
             ListEntry::PuzzleGenerator(g) => &g.aliases,
         }
     }
-    fn tags(&self) -> &HashMap<String, TagValue> {
+    fn tags(&self) -> &TagSet {
         match self {
             ListEntry::Puzzle(p) => &p.tags,
             ListEntry::PuzzleGenerator(g) => &g.tags,
         }
-    }
-    fn has_tag(&self, tag: &str, value: Option<&str>) -> bool {
-        self.tags()
-            .get(tag)
-            .is_some_and(|v| v.is_present_with_value(value))
-    }
-    fn is_experimental(&self) -> bool {
-        hyperpuzzle::TAGS.is_experimental(self.tags())
     }
 }
 
@@ -351,10 +343,9 @@ impl<'a> QuerySegment<'a> {
     fn as_incomplete_tag_mut(&mut self) -> Option<&'_ mut &'a str> {
         match self {
             QuerySegment::Whitespace(_) | QuerySegment::Word(_) => None,
-            QuerySegment::Tag { tag_name, .. } => hyperpuzzle::TAGS
-                .get(tag_name)
-                .is_none()
-                .then_some(tag_name),
+            QuerySegment::Tag { tag_name, .. } => {
+                hyperpuzzle::TAGS.get(tag_name).is_err().then_some(tag_name)
+            }
         }
     }
 }
@@ -487,8 +478,8 @@ impl<'a> Query<'a> {
                     value,
                 } => {
                     let tag_name_text_format = match hyperpuzzle::TAGS.get(tag_name) {
-                        Some(_) => &symbol_text_format,
-                        None => &error_text_format,
+                        Ok(_) => &symbol_text_format,
+                        Err(_) => &error_text_format,
                     };
                     job.append(prefix, 0.0, value_text_format.clone());
                     job.append("#", 0.0, tag_name_text_format.clone());
@@ -510,10 +501,11 @@ impl<'a> Query<'a> {
     }
 
     fn try_match(&self, object: ListEntry) -> Option<FuzzyQueryMatch> {
+        let tags = object.tags();
         let mut include = self.included_tags.iter();
         let mut exclude = self.excluded_tags.iter();
-        if !(include.all(|(tag, value)| object.has_tag(tag, value.as_deref()))
-            && exclude.all(|(tag, value)| !object.has_tag(tag, value.as_deref())))
+        if !(include.all(|(tag, value)| tags.meets_search_criterion(tag, value.as_deref()))
+            && exclude.all(|(tag, value)| !tags.meets_search_criterion(tag, value.as_deref())))
         {
             return None;
         }
@@ -567,6 +559,7 @@ impl<'a> Query<'a> {
         })
     }
 
+    /// Returns whether the search query is totally empty.
     fn is_empty(&self) -> bool {
         self.text.is_empty() && self.included_tags.is_empty() && self.excluded_tags.is_empty()
     }
@@ -670,12 +663,12 @@ impl egui::Widget for FuzzyQueryMatch {
                 md_escape(&strings.iter().join(", ")).into_owned()
             }
 
-            let inventors = hyperpuzzle::TAGS.inventors(self.object.tags());
+            let inventors = self.object.tags().inventors();
             if !inventors.is_empty() {
                 md(ui, &format!("**Inventors:** {}", comma_list(inventors)));
             }
 
-            let authors = hyperpuzzle::TAGS.authors(self.object.tags());
+            let authors = self.object.tags().authors();
             if !authors.is_empty() {
                 md(ui, &format!("**Authors:** {}", comma_list(authors)));
             }
@@ -685,7 +678,7 @@ impl egui::Widget for FuzzyQueryMatch {
                 md(ui, &format!("**Aliases:** {}", comma_list(aliases)));
             }
 
-            if let Some(url) = hyperpuzzle::TAGS.wca_url(self.object.tags()) {
+            if let Some(url) = self.object.tags().wca_url() {
                 ui.hyperlink_to("WCA leaderboards", url);
             }
         })

@@ -1,25 +1,21 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::fmt;
 
-use strum::EnumString;
-
-lazy_static! {
-    /// Library of known tags, defined in `tags.kdl`.
-    pub static ref TAGS: TagLibrary = TagLibrary::load();
-}
+use super::*;
 
 /// Library of known tags, defined in `tags.kdl`.
 #[derive(Debug)]
-pub struct TagLibrary {
+pub struct AllTags {
     menu: TagMenuNode,
     list: Vec<Arc<str>>,
     tag_data: HashMap<Arc<str>, TagData>,
     expected: Vec<Vec<Arc<str>>>,
 }
-impl TagLibrary {
+impl AllTags {
     /// Returns the data for a tag, or `None` if no such tag exists.
-    pub fn get(&self, tag_name: &str) -> Option<TagData> {
-        self.tag_data.get(tag_name).copied()
+    pub fn get(&self, tag_name: &str) -> Result<&TagData, UnknownTag> {
+        self.tag_data.get(tag_name).ok_or_else(|| UnknownTag {
+            name: tag_name.to_owned(),
+        })
     }
 
     /// Returns a list of tags as they should be arranged in the menu.
@@ -40,12 +36,12 @@ impl TagLibrary {
 
     /// Returns the ancestors of a tag, not including the tag itself. For example,
     /// the ancestors of `"shape/3d/cube"` are `["shape/3d", "shape"]`.
-    pub fn ancestors<'a>(&self, tag: &'a str) -> impl Iterator<Item = &'a str> {
+    pub fn ancestors<'a>(&'a self, tag: &'a str) -> impl 'a + Iterator<Item = &'a str> {
         std::iter::successors(Some(tag), |s| Some(s.rsplit_once(&['/', '='])?.0)).skip(1)
     }
 
-    fn load() -> Self {
-        let top_level_menu_items = match include_str!("tags.kdl").parse() {
+    pub(super) fn load() -> Self {
+        let top_level_menu_items = match include_str!("../tags.kdl").parse() {
             Ok(kdl_document) => kdl_to_tag_menu_node(&kdl_document, ""),
             Err(e) => {
                 eprintln!("{e:#?}");
@@ -84,6 +80,7 @@ impl TagLibrary {
                         tags_list.push(Arc::clone(name));
 
                         let data = TagData {
+                            name: Arc::clone(name),
                             ty: *ty,
                             auto: *auto,
                         };
@@ -115,183 +112,16 @@ impl TagLibrary {
             expected: expected_tag_sets,
         }
     }
-
-    /// Returns the authors list, given a map of tag values.
-    pub fn authors<'a>(&self, tag_values: &'a HashMap<String, TagValue>) -> &'a [String] {
-        tag_values
-            .get("author")
-            .and_then(|v| v.as_str_list())
-            .unwrap_or(&[])
-    }
-    /// Returns the inventors list, given a map of tag values.
-    pub fn inventors<'a>(&self, tag_values: &'a HashMap<String, TagValue>) -> &'a [String] {
-        tag_values
-            .get("inventor")
-            .and_then(|v| v.as_str_list())
-            .unwrap_or(&[])
-    }
-    /// Returns the URL of the puzzle's WCA page, given a map of tag values.
-    pub fn wca_url(&self, tag_values: &HashMap<String, TagValue>) -> Option<String> {
-        Some(format!(
-            "https://www.worldcubeassociation.org/results/rankings/{}/single",
-            tag_values.get("external/wca")?.as_str()?,
-        ))
-    }
-    /// Returns the filename where the puzzle was defined, given a map of tag
-    /// values.
-    pub fn filename<'a>(&self, tag_values: &'a HashMap<String, TagValue>) -> &'a str {
-        tag_values
-            .get("file")
-            .and_then(|v| v.as_str())
-            .unwrap_or("<unknown>")
-    }
-    /// Returns whether the tag set contains the "experimental" tag.
-    pub fn is_experimental(&self, tag_values: &HashMap<String, TagValue>) -> bool {
-        tag_values
-            .get("experimental")
-            .is_some_and(|v| v.is_present())
-    }
 }
 
-/// How to display a node in the tag menu.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum TagDisplay {
-    /// Display child tags inline.
-    Inline,
-    /// Display a submenu with this label.
-    Submenu(Arc<str>),
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnknownTag {
+    pub name: String,
 }
-
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub enum TagValue {
-    /// Not present (allowed for any type)
-    #[default]
-    False,
-    /// Present (allowed only for boolean)
-    True,
-    /// Present due to subtag
-    Inherited,
-    /// Integer
-    Int(i64),
-    /// String
-    Str(String),
-    /// List of strings
-    StrList(Vec<String>),
-    /// Puzzle ID
-    Puzzle(String),
-}
-impl TagValue {
-    pub fn as_str(&self) -> Option<&str> {
-        match self {
-            TagValue::Str(s) => Some(s),
-            _ => None,
-        }
-    }
-    pub fn as_str_list(&self) -> Option<&[String]> {
-        match self {
-            TagValue::StrList(vec) => Some(vec),
-            _ => None,
-        }
-    }
-    pub fn to_strings(&self) -> &[String] {
-        match self {
-            TagValue::Str(s) => std::slice::from_ref(s),
-            TagValue::StrList(vec) => &vec,
-            TagValue::Puzzle(p) => std::slice::from_ref(p),
-            _ => &[],
-        }
-    }
-    pub fn as_str_list_mut(&mut self) -> Option<&mut Vec<String>> {
-        match self {
-            TagValue::StrList(vec) => Some(vec),
-            _ => None,
-        }
-    }
-    pub fn is_present(&self) -> bool {
-        match self {
-            TagValue::False => false,
-            _ => true,
-        }
-    }
-    pub fn is_present_with_value(&self, value_str: Option<&str>) -> bool {
-        if let Some(value_str) = value_str {
-            match self {
-                TagValue::False => value_str.eq_ignore_ascii_case("false") || value_str == "0",
-                TagValue::True | TagValue::Inherited => {
-                    value_str.eq_ignore_ascii_case("true") || value_str == "1"
-                }
-                TagValue::Int(i) => value_str == i.to_string(),
-                TagValue::Str(s) => value_str.eq_ignore_ascii_case(s),
-                TagValue::StrList(vec) => vec.iter().any(|s2| value_str.eq_ignore_ascii_case(&s2)),
-                TagValue::Puzzle(s) => value_str.eq_ignore_ascii_case(s),
-            }
-        } else {
-            self.is_present()
-        }
-    }
-}
-
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, EnumString)]
-#[strum(serialize_all = "snake_case")]
-pub enum TagType {
-    /// Boolean (present vs. not present)
-    #[default]
-    Bool,
-    /// Integer
-    Int,
-    /// String
-    Str,
-    /// List of strings
-    StrList,
-    /// Puzzle ID
-    Puzzle,
-}
-impl TagType {
-    pub(crate) fn may_be_table(self) -> bool {
-        match self {
-            TagType::Bool | TagType::Int | TagType::Str | TagType::Puzzle => false,
-            TagType::StrList => true,
-        }
-    }
-}
-
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct TagData {
-    /// Type of data to store for the tag value.
-    pub ty: TagType,
-    /// Whether the tag can only be added automatically.
-    pub auto: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum TagMenuNode {
-    Heading(Arc<str>),
-    Separator,
-    Tag {
-        /// Tag name, if there is one.
-        name: Option<Arc<str>>,
-        /// Type of data for the tag.
-        ty: TagType,
-        /// Display mode for the tag or category.
-        display: TagDisplay,
-        /// Subtags inside this category.
-        subtags: Vec<TagMenuNode>,
-
-        /// Whether the value for this tag may only be autogenerated.
-        auto: bool,
-        /// Whether this tag is expected to be specified on all puzzles built
-        /// into the program.
-        expected: bool,
-        /// Whether this tag should display a list of all possible values in the menu.
-        list: bool,
-    },
-}
-impl TagMenuNode {
-    fn name(&self) -> Option<&Arc<str>> {
-        match self {
-            TagMenuNode::Heading(_) | TagMenuNode::Separator => None,
-            TagMenuNode::Tag { name, .. } => name.as_ref(),
-        }
+impl std::error::Error for UnknownTag {}
+impl fmt::Display for UnknownTag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unknown tag {:?}", self.name)
     }
 }
 

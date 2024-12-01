@@ -62,7 +62,7 @@ fn build_all_puzzles() -> Result<(), String> {
     let mut failed = vec![];
     let mut times = vec![];
     for puzzle in lib.puzzles() {
-        if puzzle.tags.contains_key("big") {
+        if puzzle.tags.0.contains_key("big") {
             println!(
                 "Skipping big puzzle {} ({})",
                 puzzle.display_name(),

@@ -177,16 +177,15 @@ impl LibraryDb {
 
     pub fn authors(&self) -> Vec<String> {
         // TODO: cache this when loading files
-        let mut ret = HashSet::new();
-        ret.extend(self.puzzles.values().flat_map(|p| p.authors()));
-        ret.extend(
+        itertools::chain(
+            self.puzzles.values().flat_map(|p| p.tags.authors()),
             self.puzzle_generators
                 .values()
-                .flat_map(|g| crate::TAGS.authors(&g.tags)),
-        );
-        ret.into_iter()
-            .map(|s| s.to_string())
-            .sorted()
-            .collect_vec()
+                .flat_map(|g| g.tags.authors()),
+        )
+        .unique()
+        .map(|s| s.to_string())
+        .sorted()
+        .collect_vec()
     }
 }

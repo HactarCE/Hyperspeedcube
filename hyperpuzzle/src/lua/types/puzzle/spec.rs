@@ -1,10 +1,9 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::*;
 use crate::builder::PuzzleBuilder;
 use crate::lua::lua_warn_fn;
-use crate::{LibraryDb, Puzzle, TagValue};
+use crate::{LibraryDb, Puzzle, TagSet, TagValue};
 
 /// Specification for a puzzle.
 #[derive(Debug)]
@@ -19,7 +18,7 @@ pub struct PuzzleSpec {
     /// Aliases for the puzzle.
     pub aliases: Vec<String>,
     /// Lua table containing tags for the puzzle.
-    pub tags: HashMap<String, TagValue>,
+    pub tags: TagSet,
 
     /// Color system ID.
     pub colors: Option<String>,
@@ -84,7 +83,8 @@ impl FromLua for PuzzleSpec {
         let mut tags = crate::lua::tags::unpack_tags_table(lua, tags)?;
 
         if let Some(color_system_id) = colors.clone() {
-            tags.insert("colors/system".to_owned(), TagValue::Str(color_system_id));
+            tags.insert_named("colors/system", TagValue::Str(color_system_id))
+                .map_err(LuaError::external)?;
         }
 
         crate::lua::tags::inherit_parent_tags(&mut tags);
@@ -146,18 +146,5 @@ impl PuzzleSpec {
     /// Returns the name or the ID of the puzzle.
     pub fn display_name(&self) -> &str {
         self.name.as_deref().unwrap_or(&self.id)
-    }
-
-    /// Returns the authors list.
-    pub fn authors(&self) -> &[String] {
-        crate::TAGS.authors(&self.tags)
-    }
-    /// Returns the inventors list.
-    pub fn inventors(&self) -> &[String] {
-        crate::TAGS.inventors(&self.tags)
-    }
-    /// Returns the URL of the puzzle's WCA page.
-    pub fn wca_url(&self) -> Option<String> {
-        crate::TAGS.wca_url(&self.tags)
     }
 }

@@ -94,13 +94,9 @@ impl LuaLoader {
     pub fn build_puzzle(&self, id: &str) -> Result<Arc<crate::Puzzle>> {
         let result = LibraryDb::build_puzzle(&self.lua, id);
         if let Err(e) = &result {
-            let filename = LibraryDb::get(&self.lua).ok().and_then(|lib| {
-                Some(
-                    crate::TAGS
-                        .filename(&lib.lock().puzzles.get(id)?.tags)
-                        .to_owned(),
-                )
-            });
+            let filename = LibraryDb::get(&self.lua)
+                .ok()
+                .and_then(|lib| Some(lib.lock().puzzles.get(id)?.tags.filename().to_owned()));
             self.logger.error(filename, e);
         }
         result
