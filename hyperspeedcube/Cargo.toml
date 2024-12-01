@@ -26,7 +26,6 @@ env_logger = "0.11.5"
 float-ord = "0.3.2"
 image = "0.25.5"
 include_dir = "0.7.4"
-instant = "0.1.13"
 itertools = "0.13.0"
 key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }
 lazy_static = "1.5.0"
@@ -45,6 +44,7 @@ serde = { version = "1.0.144", features = ["derive"] }
 serde_yml = "0.0.12"
 strum = { version = "0.26.3", features = ["derive"] }
 sublime_fuzzy = "0.7.0"
+web-time = "1.1.0"
 
 hyperdraw = { path = "../hyperdraw" }
 hypermath = { path = "../hypermath" }

@@ -9,6 +9,7 @@ use hyperprefs::{AnimationPreferences, Preferences, PuzzleViewPreferencesSet};
 use hyperpuzzle::{GizmoFace, Puzzle};
 use image::ImageBuffer;
 use parking_lot::Mutex;
+use web_time::Instant;
 
 use crate::gui::components::color_assignment_popup;
 use crate::gui::util::EguiTempValue;
@@ -77,7 +78,7 @@ impl PuzzleWidget {
         prefs: &mut Preferences,
         puzzle_id: &str,
     ) -> Option<Self> {
-        let start_time = instant::Instant::now();
+        let start_time = Instant::now();
         let result = lib.build_puzzle(puzzle_id).take_result_blocking();
         match result {
             Err(e) => {

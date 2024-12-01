@@ -1,6 +1,6 @@
 use hyperprefs::AnimationPreferences;
 use hyperpuzzle::Piece;
-use instant::Instant;
+use web_time::Instant;
 
 /// State of the animation that indicates which pieces are blocking a turn.
 #[derive(Debug, Clone)]

@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use hypermath::pga;
 use hyperprefs::AnimationPreferences;
 use hyperpuzzle::{PieceMask, PuzzleState};
-use instant::Duration;
+use web_time::Duration;
 
 /// If at least this much of a twist is animated in one frame, just skip the
 /// animation to reduce unnecessary flashing.
