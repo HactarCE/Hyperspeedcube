@@ -278,11 +278,6 @@ impl<T: PresetData + schema::PrefsConvert> PresetsList<T> {
     }
 }
 impl<T: PresetData> PresetsList<T> {
-    pub(super) fn from_presets_map(map: impl IntoIterator<Item = (String, T)>) -> Self {
-        let mut ret = Self::default();
-        ret.reload_from_presets_map(map);
-        ret
-    }
     pub(super) fn reload_from_presets_map(&mut self, map: impl IntoIterator<Item = (String, T)>) {
         // Remove all presets. Dead references are saved.
         self.remove_all();

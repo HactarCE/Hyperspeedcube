@@ -9,26 +9,6 @@ pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<BitVec,
     Ok(b16_string_to_bitvec(&<String>::deserialize(deserializer)?))
 }
 
-pub mod opt {
-    use super::*;
-
-    pub fn serialize<S: Serializer>(
-        value: &Option<BitVec>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        value
-            .as_ref()
-            .map(bitvec_to_b16_string)
-            .serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Option<BitVec>, D::Error> {
-        Ok(<Option<String>>::deserialize(deserializer)?.map(|s| b16_string_to_bitvec(&s)))
-    }
-}
-
 pub fn bitvec_to_b16_string(bits: &BitVec) -> String {
     let mut ret = bits.len().to_string();
     ret.push(':');

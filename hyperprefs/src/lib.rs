@@ -3,6 +3,8 @@
 //! For a list of key names, see `VirtualKeyCode` in this file:
 //! <https://github.com/rust-windowing/winit/blob/master/src/event.rs>
 
+#![allow(missing_docs)]
+
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
