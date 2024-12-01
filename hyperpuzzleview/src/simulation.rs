@@ -32,6 +32,7 @@ pub struct PuzzleSimulation {
     cached_piece_transforms: PerPiece<Motor>,
 }
 impl PuzzleSimulation {
+    /// Constructs a new simulation with a fresh puzzle state.
     pub fn new(puzzle: &Arc<Puzzle>) -> Self {
         let latest_state = PuzzleState::new(Arc::clone(puzzle));
         let cached_piece_transforms = latest_state.piece_transforms().clone();
@@ -48,12 +49,15 @@ impl PuzzleSimulation {
         }
     }
 
+    /// Returns the latest puzzle state, after all animations have completed.
     pub fn puzzle(&self) -> &PuzzleState {
         &self.latest_state
     }
+    /// Returns the puzzle type.
     pub fn puzzle_type(&self) -> &Arc<Puzzle> {
         self.latest_state.ty()
     }
+    /// Returns the number of dimensions of the puzzle view.
     pub fn ndim(&self) -> u8 {
         self.puzzle_type().ndim()
     }
@@ -171,6 +175,7 @@ impl PuzzleSimulation {
         needs_redraw
     }
 
+    /// Returns the state of the blocking pieces animation.
     pub fn blocking_pieces_anim(&self) -> &BlockingAnimationState {
         &self.blocking_anim
     }

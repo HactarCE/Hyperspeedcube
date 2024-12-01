@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use hyperprefs::Preferences;
 use hyperpuzzle::{Color, ColorSystem, DevOrbit, Puzzle, PuzzleElement, PuzzleLintOutput};
+use hyperpuzzleview::PuzzleView;
 use itertools::Itertools;
 
 use super::PuzzleWidget;
@@ -9,7 +10,6 @@ use crate::app::App;
 use crate::gui::components::{color_assignment_popup, DragAndDrop};
 use crate::gui::markdown::{md, md_bold_user_text};
 use crate::gui::util::EguiTempValue;
-use crate::puzzle::PuzzleView;
 use crate::L;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]

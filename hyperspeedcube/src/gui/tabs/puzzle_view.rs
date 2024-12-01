@@ -7,6 +7,7 @@ use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences, PuzzleViewPreferencesSet};
 use hyperpuzzle::{GizmoFace, Puzzle};
+use hyperpuzzleview::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 use image::ImageBuffer;
 use parking_lot::Mutex;
 use web_time::Instant;
@@ -14,7 +15,6 @@ use web_time::Instant;
 use crate::gui::components::color_assignment_popup;
 use crate::gui::util::EguiTempValue;
 use crate::gui::App;
-use crate::puzzle::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 use crate::L;
 
 /// Whether to send the mouse position to the GPU. This is useful for debugging

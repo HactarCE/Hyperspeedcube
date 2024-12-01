@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use hyperprefs::ext::reorderable::{BeforeOrAfter, DragAndDropResponse};
 use hyperprefs::{ColorScheme, DefaultColorGradient, GlobalColorPalette};
 use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
+use hyperpuzzleview::PuzzleView;
 use strum::IntoEnumIterator;
 
 use super::{TextEditPopup, TextEditPopupResponse};
 use crate::gui::markdown::md;
 use crate::gui::util::EguiTempFlag;
-use crate::puzzle::PuzzleView;
 use crate::L;
 
 /// Pixel resolution of gradients.

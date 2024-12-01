@@ -3,7 +3,7 @@
 Hyperspeedcube is the product of the majority of my (Andrew Farkas's) free time over the course of many years. I'd like to retain some control over it, while still allowing it to benefit the open-source community. For that reason:
 
 - The `hypermath` and `hypershape` crates are licensed under [MIT](https://opensource.org/license/mit) OR [Apache v2.0](https://apache.org/licenses/LICENSE-2.0).
-- The `hyperpuzzle` and `hyperspeedcube` crates are licensed under [GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0/) or later.
+- The `hyperpuzzle`, `hyperprefs`, `hyperdraw`, `hyperpuzzleview`, and `hyperspeedcube` crates are licensed under [GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0/) or later.
 
 **By contributing to the [HactarCE Hyperspeedcube repository](https://github.com/HactarCE/Hyperspeedcube), you agree that your contributions will be under the sole ownership of Andrew Farkas.** I (Andrew Farkas) retain the sole right to release modifications of Hyperspeedcube under licenses other than GNU GPL.
 

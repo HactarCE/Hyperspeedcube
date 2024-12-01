@@ -7,6 +7,7 @@ use hyperprefs::{
     PuzzleFilterPreferences,
 };
 use hyperpuzzle::{PerPieceType, PieceMask, PieceTypeHierarchy, Puzzle};
+use hyperpuzzleview::PuzzleFiltersState;
 use itertools::Itertools;
 
 use super::PuzzleWidget;
@@ -18,7 +19,6 @@ use crate::gui::components::{
 };
 use crate::gui::markdown::{md, md_inline};
 use crate::gui::util::{text_width, EguiTempValue};
-use crate::puzzle::PuzzleFiltersState;
 use crate::L;
 
 const PRESET_LIST_MIN_WIDTH: f32 = 200.0;

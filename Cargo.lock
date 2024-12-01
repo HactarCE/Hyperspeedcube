@@ -2518,7 +2518,6 @@ dependencies = [
  "key-names",
  "lazy_static",
  "log",
- "monostate",
  "parking_lot",
  "rand",
  "regex",
@@ -2555,6 +2554,22 @@ dependencies = [
  "thiserror 2.0.3",
  "tinyset",
  "walkdir",
+]
+
+[[package]]
+name = "hyperpuzzleview"
+version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "float-ord",
+ "hyperdraw",
+ "hypermath",
+ "hyperprefs",
+ "hyperpuzzle",
+ "itertools 0.13.0",
+ "log",
+ "parking_lot",
+ "web-time",
 ]
 
 [[package]]
@@ -2600,6 +2615,7 @@ dependencies = [
  "hypermath",
  "hyperprefs",
  "hyperpuzzle",
+ "hyperpuzzleview",
  "hyperstrings",
  "image",
  "include_dir",
@@ -3419,27 +3435,6 @@ dependencies = [
  "lua-src",
  "luajit-src",
  "pkg-config",
-]
-
-[[package]]
-name = "monostate"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d208407d7552cd041d8cdb69a1bc3303e029c598738177a3d87082004dc0e1e"
-dependencies = [
- "monostate-impl",
- "serde",
-]
-
-[[package]]
-name = "monostate-impl"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7ce64b975ed4f123575d11afd9491f2e37bbd5813fbfbc0f09ae1fbddea74e0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.87",
 ]
 
 [[package]]

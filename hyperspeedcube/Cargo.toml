@@ -50,6 +50,7 @@ hyperdraw = { path = "../hyperdraw" }
 hypermath = { path = "../hypermath" }
 hyperprefs = { path = "../hyperprefs" }
 hyperpuzzle = { path = "../hyperpuzzle", features = ["ecolor", "oklab"] }
+hyperpuzzleview = { path = "../hyperpuzzleview" }
 
 # Windowing and UI (versions must match; generally limited by egui_dock)
 eframe = { version = "0.29.1", default-features = false, features = ["accesskit", "default_fonts", "wayland", "web_screen_reader", "wgpu", "x11"] }

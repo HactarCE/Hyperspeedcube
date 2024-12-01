@@ -22,7 +22,6 @@ mod commands;
 mod gui;
 mod locales;
 // mod logfile;
-mod puzzle;
 mod util;
 
 /// Strings for the current locale.
@@ -50,11 +49,6 @@ static LUA_BUILTIN_DIR: include_dir::Dir<'_> = if crate::IS_OFFICIAL_BUILD {
 ///
 /// TODO: move this to preferences
 const TWIST_DRAG_THRESHOLD: f32 = 5.0;
-
-/// Speed multiplier for twists using mouse dragging.
-///
-/// TODO: reword this and move it to preferences
-const TWIST_DRAG_SPEED: f32 = 2.0;
 
 /// Name of the default piece style.
 pub const DEFAULT_STYLE_NAME: &str = "Default";

@@ -1,0 +1,28 @@
+[package]
+name = "hyperpuzzleview"
+version = "0.1.0"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+keywords = ["cubing", "hypercubing", "rubik", "conformal-geometric-algebra", "4d"]
+categories = ["algorithms", "mathematics", "simulation"]
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[dependencies]
+cgmath = "0.18.0"
+float-ord = "0.3.2"
+itertools = "0.13.0"
+log = "0.4.17"
+parking_lot = "0.12.1"
+web-time = "1.1.0"
+
+hyperdraw = { path = "../hyperdraw" }
+hypermath = { path = "../hypermath" }
+hyperprefs = { path = "../hyperprefs" }
+hyperpuzzle = { path = "../hyperpuzzle" }

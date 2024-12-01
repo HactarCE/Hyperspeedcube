@@ -14,16 +14,20 @@ For more info, see [ajfarkas.dev/hyperspeedcube](https://ajfarkas.dev/hyperspeed
 
 ## Project structure
 
-This project consists of six crates, each depending on the previous ones:
+This project consists of many crates, each depending on the previous ones:
 
 - `hypermath`, which provides vectors, matrices, projective geometric algebra primitives, and common multi-purpose data structures
 - `hypershape`, which provides shape slicing and other geometric algorithms
 - `hyperpuzzle`, which provides puzzle construction and simulation via a Lua API
 - `hyperprefs`, which provides user preferences
 - `hyperdraw`, which renders the puzzle to a texture using [wgpu]
-- `hyperspeedcube`, which provides the UI frontend
+- `hyperpuzzleview`, which tracks puzzle state, interaction, and animations
+- `hyperspeedcube`, which provides a UI frontend based on [egui]
+
+There is also `hyperstrings`, which generates localizations for Hyperspeedcube (currently only American English) from `hyperspeedcube/locales/*.kdl` into the `hyperspeedcube/locales.rs`.
 
 [wgpu]: https://wgpu.rs/
+[egui]: https://github.com/emilk/egui
 
 ## License & contributing
 

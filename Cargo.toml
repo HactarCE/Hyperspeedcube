@@ -1,5 +1,14 @@
 [workspace]
-members = [ "hypermath", "hypershape", "hyperpuzzle", "hyperstrings", "hyperspeedcube" , "hyperdraw", "hyperprefs"]
+members = [
+    "hyperdraw",
+    "hypermath",
+    "hyperprefs",
+    "hyperpuzzle",
+    "hyperpuzzleview",
+    "hypershape",
+    "hyperspeedcube" ,
+    "hyperstrings",
+]
 resolver = "2"
 
 [workspace.package]

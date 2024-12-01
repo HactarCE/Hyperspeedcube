@@ -24,11 +24,19 @@ pub struct PuzzleView {
     /// puzzle views can access the same state.
     pub sim: Arc<Mutex<PuzzleSimulation>>,
 
+    /// Camera defining how to view the puzzle.
     pub camera: Camera,
 
+    /// Current color scheme.
     pub colors: ModifiedPreset<ColorScheme>,
+    /// Color scheme to apply for only the current frame.
+    ///
+    /// This is used to preview a change to a color scheme (particularly when
+    /// hovering over UI elements that change the sticker colors when clicked).
     pub temp_colors: Option<ColorScheme>,
+    /// Computed piece styles based on the filters state.
     pub styles: PuzzleStyleStates,
+    /// Piece filters state.
     pub filters: PuzzleFiltersState,
 
     /// Latest screen-space cursor position.
@@ -38,6 +46,7 @@ pub struct PuzzleView {
     puzzle_hover_state: Option<PuzzleHoverState>,
     /// What twist gizmo the cursor is hovering over. This is frozen during a drag.
     gizmo_hover_state: Option<GizmoHoverState>,
+    /// Axis whose twist gizmo should be highlighted for only the current frame.
     pub temp_gizmo_highlight: Option<Axis>,
 
     /// Whether to show the piece being hovered. This is updated every frame.
@@ -50,7 +59,8 @@ pub struct PuzzleView {
     drag_state: Option<DragState>,
 }
 impl PuzzleView {
-    pub(crate) fn new(
+    /// Constructs a new puzzle view.
+    pub fn new(
         puzzle_simulation: &Arc<Mutex<PuzzleSimulation>>,
         prefs: &Preferences,
         view_preset: ModifiedPreset<ViewPreferences>,
@@ -85,6 +95,7 @@ impl PuzzleView {
         }
     }
 
+    /// Returns the puzzle type.
     pub fn puzzle(&self) -> Arc<Puzzle> {
         Arc::clone(self.sim.lock().puzzle_type())
     }
@@ -98,17 +109,21 @@ impl PuzzleView {
         Some(self.puzzle_hover_state.as_ref()?.piece)
     }
 
+    /// Returns the hovered twist gizmo element.
     pub fn gizmo_hover_state(&self) -> Option<GizmoHoverState> {
         self.gizmo_hover_state.clone()
     }
 
+    /// Sets the mouse drag state.
     pub fn set_drag_state(&mut self, new_drag_state: DragState) {
         self.confirm_drag();
         self.drag_state = Some(new_drag_state);
     }
+    /// Returns the mouse drag state.
     pub fn drag_state(&self) -> Option<DragState> {
         self.drag_state
     }
+    /// Completes a mouse drag.
     pub fn confirm_drag(&mut self) {
         if let Some(drag) = self.drag_state.take() {
             match drag {
@@ -119,6 +134,7 @@ impl PuzzleView {
             }
         }
     }
+    /// Cancels a mouse drag.
     pub fn cancel_drag(&mut self) {
         if let Some(drag) = self.drag_state.replace(DragState::Canceled) {
             match drag {
@@ -129,6 +145,11 @@ impl PuzzleView {
             }
         }
     }
+    /// Returns an approximation of the 3D vector along which the mouse has been
+    /// dragged. This may return `None` even while a drag is happening.
+    ///
+    /// This is supposed to be parallel to the sticker face that the mouse
+    /// initially clicked on.
     pub fn drag_delta_3d(&self) -> Option<[Vector; 2]> {
         // TODO: where does this method want to live? does it want to exist at all?
         let a = self.puzzle_hover_state()?.position;
@@ -375,11 +396,13 @@ impl PuzzleView {
             .max_by(|a, b| f32::total_cmp(&a.z, &b.z))
     }
 
-    pub(crate) fn reset_camera(&mut self) {
+    /// Resets the camera.
+    pub fn reset_camera(&mut self) {
         self.camera.rot = Motor::ident(self.puzzle().ndim());
     }
 
-    pub(crate) fn do_click_twist(&self, direction: Sign) {
+    /// Applies a twist to the puzzle based on the current mouse position.
+    pub fn do_click_twist(&self, direction: Sign) {
         let mut state = self.sim.lock();
         let puzzle = state.puzzle_type();
         let ndim = puzzle.ndim();
@@ -602,6 +625,7 @@ impl PuzzleHoverState {
     }
 }
 
+/// Hovered twist gizmo element.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GizmoHoverState {
     /// Screen-space Z coordinate.
@@ -618,10 +642,14 @@ pub struct GizmoHoverState {
     pub backface: bool,
 }
 
+/// State of a mouse drag.
 #[derive(Debug, Copy, Clone)]
 pub enum DragState {
     /// Rotating the camera.
-    ViewRot { z_axis: u8 },
+    ViewRot {
+        /// Which axis to exchange with X and Y.
+        z_axis: u8,
+    },
     /// Clicked and dragged on a piece. Once the user has dragged enough to
     /// determine a direction, the drag state will change to
     /// [`DragState::Twist`].
@@ -633,6 +661,7 @@ pub enum DragState {
     Canceled,
 }
 
+/// Input data for a puzzle view for one frame.
 pub struct PuzzleViewInput {
     /// Position of the cursor on the puzzle view, in screen space.
     pub cursor_pos: Option<cgmath::Point2<f32>>,
@@ -649,23 +678,35 @@ pub struct PuzzleViewInput {
     pub hover_mode: Option<HoverMode>,
 }
 
+/// Which kind of objects the user may interact with by hovering with the mouse.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum HoverMode {
+    /// Pieces of the puzzle.
     #[default]
     Piece,
+    /// Twist gizmos.
     TwistGizmo,
 }
 
+/// Piece filters state for a puzzle view.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PuzzleFiltersState {
+    /// Reference to the saved filter preset, if any.
     pub base: Option<FilterPresetRef>,
+    /// Filter preset data.
     pub current: FilterSeqPreset,
+    /// Combination of all fallback rules to apply to pieces not specified by
+    /// the current preset.
     pub combined_fallback_preset: Option<FilterPreset>,
+    /// For each rule: whether it is active. Inactive rules are ignored when
+    /// displaying the puzzle.
     pub active_rules: Vec<bool>,
 
+    /// Whether the piece filters have changed since the last frame.
     changed: bool,
 }
 impl PuzzleFiltersState {
+    /// Returns a new empty filters state with no rules and no fallback style.
     pub fn new_empty() -> Self {
         Self {
             base: None,
@@ -676,6 +717,8 @@ impl PuzzleFiltersState {
         }
     }
 
+    /// Returns a new default filters state with a single rule (to show all
+    /// pieces in default state) and an optional fallback style.
     pub fn new(fallback_style: Option<PresetRef>) -> Self {
         Self {
             base: None,
@@ -686,6 +729,7 @@ impl PuzzleFiltersState {
         }
     }
 
+    /// Iterates over active rules, skipping inactive ones.
     pub fn iter_active_rules(&self) -> impl DoubleEndedIterator<Item = &FilterRule> {
         self.current
             .inner
@@ -696,6 +740,7 @@ impl PuzzleFiltersState {
             .map(|(_i, rule)| rule)
     }
 
+    /// Loads a filter preset, overwriting the current state completely.
     pub fn load_preset(
         &mut self,
         filter_prefs: &PuzzleFilterPreferences,
@@ -726,11 +771,14 @@ impl PuzzleFiltersState {
             }
         }
     }
+    /// Reloads the current filter preset, overwriting the current state
+    /// completely.
     pub fn reload(&mut self, filter_prefs: &PuzzleFilterPreferences) {
         let name = self.base.as_ref().map(|r| r.name());
         self.load_preset(filter_prefs, name.as_ref());
     }
 
+    /// Updates the combined fallback preset.
     pub fn update_combined_fallback_preset(&mut self, filter_prefs: &PuzzleFilterPreferences) {
         if let Some(base) = &self.base {
             let new_fallback = filter_prefs.combined_fallback_preset(&base.name());
@@ -744,6 +792,7 @@ impl PuzzleFiltersState {
         }
     }
 
+    /// Returns the ultimate fallback style.
     fn fallback_style(&self) -> &Option<PresetRef> {
         match &self.combined_fallback_preset {
             Some(p) => &p.fallback_style,
@@ -751,6 +800,8 @@ impl PuzzleFiltersState {
         }
     }
 
+    /// Marks the filters as having changed, indicating that the puzzle view
+    /// should recompute piece styles on the next frame.
     pub fn mark_changed(&mut self) {
         self.changed = true;
     }
