@@ -1,12 +1,15 @@
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::collections::HashMap;
+use std::fmt;
+use std::sync::Arc;
 
 use itertools::Itertools;
 
 mod db;
 
+pub use db::LuaPuzzleGeneratorDb;
+
 use super::*;
 use crate::TagValue;
-pub use db::LuaPuzzleGeneratorDb;
 
 /// Specification for a puzzle generator.
 #[derive(Debug)]

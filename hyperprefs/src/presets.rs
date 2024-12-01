@@ -44,12 +44,10 @@
 //! that should be preserved in the [`PresetTombstone`] along with top-level
 //! dead references.
 
-use std::{
-    collections::{HashMap, HashSet},
-    fmt,
-    hash::Hash,
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::hash::Hash;
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 use itertools::Itertools;

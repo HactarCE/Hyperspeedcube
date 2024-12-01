@@ -1,6 +1,8 @@
 use itertools::Itertools;
 
-use crate::{app::App, gui::markdown::md, L};
+use crate::app::App;
+use crate::gui::markdown::md;
+use crate::L;
 
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
     ui.set_width(400.0);

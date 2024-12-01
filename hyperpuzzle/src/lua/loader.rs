@@ -6,7 +6,8 @@ use mlua::prelude::*;
 use parking_lot::Mutex;
 
 use super::*;
-use crate::{library::LibraryDb, LibraryFileLoadState};
+use crate::library::LibraryDb;
+use crate::LibraryFileLoadState;
 
 macro_rules! lua_module {
     ($filename:literal) => {

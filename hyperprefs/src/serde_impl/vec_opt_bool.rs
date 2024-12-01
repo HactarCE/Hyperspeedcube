@@ -1,4 +1,5 @@
-use hypermath::{collections::GenericVec, IndexNewtype};
+use hypermath::collections::GenericVec;
+use hypermath::IndexNewtype;
 use serde::{Deserializer, Serializer};
 
 pub fn serialize<S: Serializer, I: IndexNewtype>(

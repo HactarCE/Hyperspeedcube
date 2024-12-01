@@ -1,6 +1,5 @@
-use crate::L;
-
 use super::{AppUi, Tab};
+use crate::L;
 
 pub fn build(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     egui::menu::bar(ui, |ui| {

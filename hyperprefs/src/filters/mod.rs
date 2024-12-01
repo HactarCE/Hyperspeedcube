@@ -1,4 +1,6 @@
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::collections::HashMap;
+use std::fmt;
+use std::sync::Arc;
 
 use hyperpuzzle::{PieceMask, Puzzle};
 use itertools::Itertools;
@@ -11,9 +13,8 @@ mod expr;
 pub use checkboxes::*;
 pub use expr::*;
 
-use crate::ext::reorderable::{DragAndDropResponse, ReorderableCollection};
-
 use super::{schema, PieceStyle, PresetRef, PresetTombstone, PresetsList};
+use crate::ext::reorderable::{DragAndDropResponse, ReorderableCollection};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct FilterPresetName {

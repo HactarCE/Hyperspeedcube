@@ -30,9 +30,8 @@ mod view;
 
 pub use puzzle_view::PuzzleWidget;
 
-use crate::L;
-
 use super::App;
+use crate::L;
 
 #[derive(Debug, Clone)]
 pub enum Tab {

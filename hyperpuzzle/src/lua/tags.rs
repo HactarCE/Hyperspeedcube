@@ -3,9 +3,8 @@ use std::collections::{hash_map, HashMap};
 use itertools::Itertools;
 use mlua::prelude::*;
 
-use crate::{TagType, TagValue, TAGS};
-
 use super::LuaVecString;
+use crate::{TagType, TagValue, TAGS};
 
 pub(super) fn unpack_tags_table(
     lua: &Lua,

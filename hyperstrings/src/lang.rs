@@ -1,12 +1,9 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::path::Path;
 
 use itertools::Itertools;
-use kdl::KdlDocument;
-use kdl::KdlEntry;
+use kdl::{KdlDocument, KdlEntry};
 use owo_colors::OwoColorize;
 use regex::Regex;
 

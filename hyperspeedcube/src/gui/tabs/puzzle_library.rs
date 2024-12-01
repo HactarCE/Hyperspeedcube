@@ -1,22 +1,20 @@
-use std::{borrow::Cow, collections::HashMap, fmt, ops::Range, sync::Arc};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::fmt;
+use std::ops::Range;
+use std::sync::Arc;
 
-use hyperpuzzle::{
-    lua::{GeneratorParamType, GeneratorParamValue, PuzzleGeneratorSpec, PuzzleSpec},
-    TagValue,
-};
+use hyperpuzzle::lua::{GeneratorParamType, GeneratorParamValue, PuzzleGeneratorSpec, PuzzleSpec};
+use hyperpuzzle::TagValue;
 use itertools::Itertools;
 use regex::Regex;
 
-use crate::{
-    app::App,
-    gui::{
-        components::{
-            escape_tag_value, format_tag_and_value, unescape_tag_value, BIG_ICON_BUTTON_SIZE,
-        },
-        markdown::{md, md_escape},
-        util::EguiTempValue,
-    },
+use crate::app::App;
+use crate::gui::components::{
+    escape_tag_value, format_tag_and_value, unescape_tag_value, BIG_ICON_BUTTON_SIZE,
 };
+use crate::gui::markdown::{md, md_escape};
+use crate::gui::util::EguiTempValue;
 
 pub const ID_MATCH_PENALTY: isize = 60;
 pub const ALIAS_MATCH_PENALTY: isize = 50;

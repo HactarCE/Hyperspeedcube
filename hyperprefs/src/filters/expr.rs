@@ -1,10 +1,10 @@
-use std::{collections::HashSet, fmt};
+use std::collections::HashSet;
+use std::fmt;
 
 use builder::Nameable;
+use hyperpuzzle::*;
 use itertools::{Itertools, PutBack};
 use regex::Regex;
-
-use hyperpuzzle::*;
 
 lazy_static! {
     /// Match a name, or any single symbol.
@@ -368,8 +368,9 @@ mod parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::filters::*;
     use hyperpuzzle::*;
+
+    use crate::filters::*;
 
     #[test]
     fn test_filter_expressions() {

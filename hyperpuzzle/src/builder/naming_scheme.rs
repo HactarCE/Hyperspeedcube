@@ -4,10 +4,9 @@ use std::hash::Hash;
 use hypermath::IndexNewtype;
 use regex::Regex;
 
-use crate::{Axis, Color, PieceType, Twist};
-
 use super::name::TooManyNames;
 use super::NameSet;
+use crate::{Axis, Color, PieceType, Twist};
 
 /// Mutable assignment of names to elements. By default, all elements are
 /// unnamed.

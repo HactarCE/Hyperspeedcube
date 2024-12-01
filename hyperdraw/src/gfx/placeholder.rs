@@ -6,9 +6,8 @@ use hyperpuzzle::*;
 use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
 
-use crate::{IterCyclicPairsExt, PieceStyleValues};
-
 use super::DrawParams;
+use crate::{IterCyclicPairsExt, PieceStyleValues};
 
 pub fn pieces() -> PerPiece<SmallVec<[Sticker; 8]>> {
     vec![smallvec![Sticker(0), Sticker(1), Sticker(2)]].into()

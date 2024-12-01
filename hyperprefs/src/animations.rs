@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
-
 pub use interpolation::InterpolateFn;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
 #[serde(default)]

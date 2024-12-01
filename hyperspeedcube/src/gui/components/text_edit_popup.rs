@@ -1,8 +1,7 @@
 use std::borrow::Cow;
 
-use crate::gui::util::EguiTempValue;
-
 use super::BIG_ICON_BUTTON_SIZE;
+use crate::gui::util::EguiTempValue;
 
 /// Function that returns `Ok` if the button should be enabled or `Err` if it
 /// should not be. The contained value is the hover text.

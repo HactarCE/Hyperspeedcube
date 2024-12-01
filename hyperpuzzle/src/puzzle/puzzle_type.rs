@@ -3,9 +3,8 @@ use std::sync::{Arc, Weak};
 
 use hypershape::Space;
 
-use crate::{TagValue, Version};
-
 use super::*;
+use crate::{TagValue, Version};
 
 /// Puzzle type info.
 #[derive(Debug)]

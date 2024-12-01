@@ -5,16 +5,12 @@ use hyperpuzzle::{Color, ColorSystem, DevOrbit, Puzzle, PuzzleElement, PuzzleLin
 use itertools::Itertools;
 
 use super::PuzzleWidget;
-use crate::{
-    app::App,
-    gui::{
-        components::{color_assignment_popup, DragAndDrop},
-        markdown::{md, md_bold_user_text},
-        util::EguiTempValue,
-    },
-    puzzle::PuzzleView,
-    L,
-};
+use crate::app::App;
+use crate::gui::components::{color_assignment_popup, DragAndDrop};
+use crate::gui::markdown::{md, md_bold_user_text};
+use crate::gui::util::EguiTempValue;
+use crate::puzzle::PuzzleView;
+use crate::L;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 enum DevToolsTab {
@@ -287,9 +283,8 @@ fn puzzle_color_edit_button(
 }
 
 fn color_system_to_lua_code(color_system: &ColorSystem, prefs: &Preferences) -> String {
-    use hyperpuzzle::util::{escape_lua_table_key, lua_string_literal};
-
     use hyperprefs::MODIFIED_SUFFIX;
+    use hyperpuzzle::util::{escape_lua_table_key, lua_string_literal};
 
     let id_string_literal = lua_string_literal(&color_system.id);
     let name_string_literal = format!("{:?}", color_system.name); // escape using double quotes

@@ -1,5 +1,6 @@
-use parking_lot::Mutex;
 use std::sync::mpsc;
+
+use parking_lot::Mutex;
 
 #[cfg_attr(not(target_arch = "wasm32"), path = "local.rs")]
 #[cfg_attr(target_arch = "wasm32", path = "web.rs")]

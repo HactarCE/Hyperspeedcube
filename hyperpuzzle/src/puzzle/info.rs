@@ -1,4 +1,3 @@
-use serde::{de::Error, Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
@@ -6,6 +5,8 @@ use hypermath::collections::{GenericMask, GenericVec};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hypershape::PolytopeId;
+use serde::de::Error;
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tinyset::Set64;
 

@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::Path;
 
 use indexmap::IndexMap;
 use itertools::Itertools;
-use kdl::KdlDocument;
-use kdl::KdlIdentifier;
-use kdl::KdlNode;
+use kdl::{KdlDocument, KdlIdentifier, KdlNode};
 use owo_colors::OwoColorize;
 
 use crate::util;

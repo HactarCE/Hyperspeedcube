@@ -1,7 +1,5 @@
-use std::{
-    collections::{HashMap, HashSet},
-    hash::Hash,
-};
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 use hyperprefs::{
     ColorScheme, FilterCheckboxes, FilterExpr, FilterPieceSet, FilterPreset, FilterPresetName,
@@ -11,22 +9,17 @@ use hyperprefs::{
 use hyperpuzzle::{PerPieceType, PieceMask, PieceTypeHierarchy, Puzzle};
 use itertools::Itertools;
 
-use crate::{
-    app::App,
-    gui::{
-        components::{
-            DragAndDrop, FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates,
-            HelpHoverWidget, PresetHeaderUi, PresetSaveStatus, TextEditPopup,
-            TextEditPopupResponse, PRESET_NAME_TEXT_EDIT_WIDTH,
-        },
-        markdown::{md, md_inline},
-        util::{text_width, EguiTempValue},
-    },
-    puzzle::PuzzleFiltersState,
-    L,
-};
-
 use super::PuzzleWidget;
+use crate::app::App;
+use crate::gui::components::{
+    DragAndDrop, FancyComboBox, FilterCheckbox, FilterCheckboxAllowedStates, HelpHoverWidget,
+    PresetHeaderUi, PresetSaveStatus, TextEditPopup, TextEditPopupResponse,
+    PRESET_NAME_TEXT_EDIT_WIDTH,
+};
+use crate::gui::markdown::{md, md_inline};
+use crate::gui::util::{text_width, EguiTempValue};
+use crate::puzzle::PuzzleFiltersState;
+use crate::L;
 
 const PRESET_LIST_MIN_WIDTH: f32 = 200.0;
 const CURRENT_PRESET_MIN_WIDTH: f32 = 350.0;

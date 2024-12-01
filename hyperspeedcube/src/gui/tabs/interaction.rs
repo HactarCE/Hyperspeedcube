@@ -1,6 +1,7 @@
 use hyperprefs::DEFAULT_PREFS;
 
-use crate::{app::App, L};
+use crate::app::App;
+use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let mut changed = false;

@@ -1,7 +1,5 @@
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-};
+use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
 

@@ -10,9 +10,8 @@ extern crate strum;
 
 use std::sync::Arc;
 
-pub use hyperprefs::IS_OFFICIAL_BUILD;
-
 use gui::AppUi;
+pub use hyperprefs::IS_OFFICIAL_BUILD;
 use hyperpuzzle::Library;
 use parking_lot::Mutex;
 

@@ -1,5 +1,6 @@
-use hypershape::GeneratorSequence;
 use std::hash::Hash;
+
+use hypershape::GeneratorSequence;
 
 use super::*;
 

@@ -2,7 +2,9 @@ use std::path::Path;
 
 use eyre::{OptionExt, Result};
 
-use crate::{app::App, gui::util::EguiTempValue, L};
+use crate::app::App;
+use crate::gui::util::EguiTempValue;
+use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let l = L.image_generator;

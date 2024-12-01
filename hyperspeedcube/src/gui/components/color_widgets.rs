@@ -1,19 +1,15 @@
 use std::collections::HashMap;
 
-use hyperprefs::{
-    ext::reorderable::{BeforeOrAfter, DragAndDropResponse},
-    ColorScheme, DefaultColorGradient, GlobalColorPalette,
-};
+use hyperprefs::ext::reorderable::{BeforeOrAfter, DragAndDropResponse};
+use hyperprefs::{ColorScheme, DefaultColorGradient, GlobalColorPalette};
 use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
 use strum::IntoEnumIterator;
 
-use crate::{
-    gui::{markdown::md, util::EguiTempFlag},
-    puzzle::PuzzleView,
-    L,
-};
-
 use super::{TextEditPopup, TextEditPopupResponse};
+use crate::gui::markdown::md;
+use crate::gui::util::EguiTempFlag;
+use crate::puzzle::PuzzleView;
+use crate::L;
 
 /// Pixel resolution of gradients.
 const GRADIENT_RESOLUTION: usize = 1;

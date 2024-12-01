@@ -15,16 +15,16 @@ mod yaml_editor;
 
 pub use color_widgets::*;
 pub use combo_boxes::*;
-pub use filter_checkbox::*;
-pub use hint::*;
-pub use tag_menu::*;
-pub use text_edit_popup::*;
 // pub use keybinds::*;
 pub use dnd::*;
+pub use filter_checkbox::*;
+pub use hint::*;
 pub use layer_mask::*;
 pub use prefs::PrefsUi;
 pub use presets::*;
 pub use reset::*;
+pub use tag_menu::*;
+pub use text_edit_popup::*;
 pub use yaml_editor::*;
 
 use crate::L;

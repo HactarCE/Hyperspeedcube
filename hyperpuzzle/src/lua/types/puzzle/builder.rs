@@ -1,7 +1,7 @@
-use itertools::Itertools;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::*;

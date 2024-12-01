@@ -1,8 +1,7 @@
 use egui::NumExt;
 
-use crate::locales::HoverStrings;
-
 use super::markdown::md;
+use crate::locales::HoverStrings;
 
 pub const EXPLANATION_TOOLTIP_WIDTH: f32 = 200.0;
 

@@ -1,17 +1,16 @@
-use hypershape::GeneratorSequence;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use hypermath::pga::Motor;
 use hypermath::ApproxHashMap;
+use hypershape::GeneratorSequence;
 use itertools::Itertools;
 
+use super::*;
 use crate::builder::NameSet;
 use crate::lua::lua_warn_fn;
 use crate::util::lazy_resolve;
-
-use super::*;
 
 /// Lua orbit object.
 #[derive(Debug, Clone)]

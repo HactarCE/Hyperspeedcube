@@ -1,4 +1,5 @@
-use crate::{app::App, L};
+use crate::app::App;
+use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     ui.add_enabled_ui(app.active_puzzle_view.has_puzzle(), |ui| {

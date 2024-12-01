@@ -1,6 +1,7 @@
 use hyperpuzzle::LayerMask;
 
-use crate::{app::App, L};
+use crate::app::App;
+use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     app.active_puzzle_view.with_opt(|p| {

@@ -1,4 +1,5 @@
-use std::{any::Any, marker::PhantomData};
+use std::any::Any;
+use std::marker::PhantomData;
 
 pub struct Access<T, U> {
     pub get_ref: Box<dyn Fn(&T) -> &U>,

@@ -1,15 +1,15 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Weak},
-};
+use std::collections::HashMap;
+use std::sync::{Arc, Weak};
 
 use eyre::Result;
 use hypermath::{vector, VecMap, Vector};
 use hypershape::prelude::*;
 use parking_lot::Mutex;
 
-use super::{shape::ShapeBuildOutput, ShapeBuilder, TwistSystemBuilder};
-use crate::{puzzle::*, TagValue, Version};
+use super::shape::ShapeBuildOutput;
+use super::{ShapeBuilder, TwistSystemBuilder};
+use crate::puzzle::*;
+use crate::{TagValue, Version};
 
 /// Puzzle being constructed.
 #[derive(Debug)]

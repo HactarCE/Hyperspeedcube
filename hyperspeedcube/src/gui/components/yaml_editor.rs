@@ -2,9 +2,9 @@ use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{gui::ext::ResponseExt, L};
-
 use super::BIG_ICON_BUTTON_SIZE;
+use crate::gui::ext::ResponseExt;
+use crate::L;
 
 #[derive(Debug, Clone)]
 struct PlaintextYamlEditorState {

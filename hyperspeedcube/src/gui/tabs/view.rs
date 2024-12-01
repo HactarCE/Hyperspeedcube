@@ -1,6 +1,8 @@
 use hyperprefs::{ModifiedPreset, PresetsList, PuzzleViewPreferencesSet, ViewPreferences};
 
-use crate::{app::App, gui::components::PresetsUi, L};
+use crate::app::App;
+use crate::gui::components::PresetsUi;
+use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let id = unique_id!();

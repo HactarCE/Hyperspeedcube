@@ -1,4 +1,6 @@
-use std::{fmt, io::Write, path::Path};
+use std::fmt;
+use std::io::Write;
+use std::path::Path;
 
 use eyre::Result;
 

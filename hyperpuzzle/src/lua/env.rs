@@ -1,9 +1,8 @@
 use itertools::Itertools;
 use mlua::prelude::*;
 
-use crate::builder::NameSet;
-
 use super::*;
+use crate::builder::NameSet;
 
 /// Returns a table mapping between axis strings and axis numbers.
 fn lua_axes_table(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {

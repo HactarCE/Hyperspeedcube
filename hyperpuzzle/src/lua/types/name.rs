@@ -1,6 +1,5 @@
-use crate::builder::NameSet;
-
 use super::*;
+use crate::builder::NameSet;
 
 /// Lua name object.
 #[derive(Debug, Clone)]
