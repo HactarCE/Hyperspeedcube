@@ -135,7 +135,11 @@ function test_symmetry_thru_3d()
 end
 
 function test_get_ndim_3d()
-  assert(3, vec(1).ndim)
-  assert(3, cd'bc2'.ndim)
-  assert(3, cd'bc2':thru(1).ndim)
+  assert(3 == NDIM)
+  assert(3 == vec(1).ndim)
+  assert(2 == cd'bc2'.ndim)
+  assert(2 == cd'bc2':thru(1).ndim)
+  local z = vec('z')
+  assert(z == cd'bc2':thru(1):transform(z))
+  assert(3 == cd'bc2':thru(1):transform(z).ndim)
 end

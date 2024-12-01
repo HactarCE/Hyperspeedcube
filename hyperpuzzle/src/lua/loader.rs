@@ -126,9 +126,14 @@ impl LuaLoader {
         let env = self
             .load_file(filename.to_string())
             .expect("error loading test file");
+        let raw_exports = env
+            .metatable()
+            .expect("no metatable on sandbox env")
+            .raw_get::<LuaTable>("env")
+            .expect("no __index metamethod on sandbox env");
 
         let mut ran_any_tests = false;
-        for pair in env.pairs::<LuaValue, LuaValue>() {
+        for pair in raw_exports.pairs::<LuaValue, LuaValue>() {
             let (k, v) = pair.unwrap();
             let Ok(name) = self.lua.unpack::<String>(k) else {
                 continue;
@@ -161,7 +166,11 @@ impl LuaLoader {
     /// Loads a file if it has not yet been loaded, and then returns the file's
     /// export table.
     pub(super) fn load_file(&self, name: String) -> LuaResult<LuaTable> {
-        let filename = format!("{name}.lua");
+        let filename = if name.ends_with(".lua") {
+            name.clone()
+        } else {
+            format!("{name}.lua")
+        };
         let dirname = name;
 
         let mut db = self.db.lock();
@@ -202,6 +211,13 @@ impl LuaLoader {
                 })?;
         let exports_table =
             crate::lua::create_sealed_table_with_index_metamethod(&self.lua, index_metamethod)?;
+
+        // Save `sandbox_env` for usage in tests.
+        #[cfg(test)]
+        exports_table
+            .metatable()
+            .expect("missing metatable")
+            .raw_set("env", &sandbox_env)?;
 
         let Some(file_contents) = file.contents.clone() else {
             return Ok(exports_table); // fake file! (probably a directory)
