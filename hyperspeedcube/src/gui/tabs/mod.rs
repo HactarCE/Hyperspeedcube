@@ -45,9 +45,9 @@ pub enum Tab {
     Styles,
     View,
     Animations,
-    Interaction,
 
     // Input
+    Interaction,
     Keybinds,
     Mousebinds,
 
