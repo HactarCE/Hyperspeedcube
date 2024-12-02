@@ -58,7 +58,7 @@ impl Library {
                     }
 
                     LibraryCommand::LoadFiles { progress } => {
-                        loader.load_all_files();
+                        loader.reload_all_files();
                         progress.complete(());
                     }
 

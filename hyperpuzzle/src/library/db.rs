@@ -57,6 +57,16 @@ impl LibraryDb {
         ))
     }
 
+    /// Deletes everything from the library except for the files and their contents.
+    pub fn clear_objects(&mut self) {
+        *self = Self {
+            files: std::mem::take(&mut self.files),
+            directories: std::mem::take(&mut self.directories),
+
+            ..Default::default()
+        }
+    }
+
     /// Constructs the puzzle with ID `id`, or returns a previously cached
     /// result if it has already been constructed.
     ///

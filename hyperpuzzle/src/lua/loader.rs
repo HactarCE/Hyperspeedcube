@@ -67,9 +67,11 @@ impl LuaLoader {
         LuaResult::Ok(this)
     }
 
-    /// Loads all files that have not yet been loaded.
-    pub fn load_all_files(&self) {
+    /// Clears the library and loads all files.
+    pub fn reload_all_files(&self) {
         let mut db = self.db.lock();
+
+        db.clear_objects();
 
         for dirname in db.directories.iter().cloned().collect_vec() {
             db.files
