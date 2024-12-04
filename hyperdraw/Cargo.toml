@@ -13,17 +13,16 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [dependencies]
-bytemuck = { version = "1.9.1", features = ["derive"] }
-cgmath = "0.18.0"
-eyre = "0.6"
-image = "0.25.5"
-itertools = "0.13.0"
-log = "0.4.17"
-parking_lot = "0.12.1"
-smallvec = { version = "1.8.0", features = ["serde", "union"] }
+hypermath = { workspace = true }
+hyperprefs = { workspace = true }
+hyperpuzzle = { workspace = true }
 
-hypermath = { path = "../hypermath" }
-hyperprefs = { path = "../hyperprefs" }
-hyperpuzzle = { path = "../hyperpuzzle" }
-
-wgpu = { version = "22.0.0", features = ["webgl"] } # must match eframe
+bytemuck = { workspace = true }
+cgmath = { workspace = true }
+eyre = { workspace = true }
+image = { workspace = true }
+itertools = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+smallvec = { workspace = true, features = ["serde"] }
+wgpu = { workspace = true }

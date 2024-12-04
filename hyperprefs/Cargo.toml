@@ -13,24 +13,24 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [dependencies]
-bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
-colorous = "1.0.10"
-config = { version = "0.13.4", features = ["preserve_order"] } # blocked on https://github.com/rust-cli/config-rs/issues/531
-eyre = "0.6"
-directories = "5.0.1"
-indexmap = { version = "2.4.0", features = ["serde"] } # must match serde_yml
-itertools = "0.13.0"
-key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }
-lazy_static = "1.5.0"
-log = "0.4.17"
-parking_lot = "0.12.1"
-rand = "*"
-regex = "1.6.0"
-serde = { version = "1.0.144", features = ["derive"] }
-serde_yml = "0.0.12"
-strum = { version = "0.26.3", features = ["derive"] }
-thiserror = "2.0.3"
-time = { version = "0.3.7", features = ["local-offset"] }
-
 hypermath = { path = "../hypermath" }
 hyperpuzzle = { path = "../hyperpuzzle", features = ["ecolor"] }
+
+bitvec = { workspace = true }
+colorous = { workspace = true }
+config = { workspace = true }
+directories = { workspace = true }
+eyre = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+itertools = { workspace = true }
+key-names = { workspace = true }
+lazy_static = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_yml = { workspace = true }
+strum = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }

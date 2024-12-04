@@ -16,27 +16,28 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [dependencies]
-disjoint = "0.8.0"
-eyre = "0.6"
-float-ord = "0.3.2"
-hex = "0.4.3"
-indexmap = "2.4.0"
-itertools = "0.13.0"
-kdl = "4.6.0"
-lazy_static = "1.5.0"
-log = "0.4.17"
-parking_lot = "0.12.1"
-regex = "1.6.0"
-mlua = { version = "0.10.0", features = ["lua54", "send", "vendored"] }
-serde = { version = "1.0.176", features = ["derive"] }
-smallvec = { version = "1.11.0", features = ["const_new", "union"] }
-strum = { version = "0.26.3", features = ["derive"] }
-thiserror = "2.0.3"
-tinyset = "0.5.1"
-walkdir = "2.4.0"
-
 hypermath = { path = "../hypermath" }
 hypershape = { path = "../hypershape" }
 
-ecolor = { version = "0.29.1", optional = true }
-oklab = { version = "1.0.1", optional = true }
+disjoint = { workspace = true }
+eyre = { workspace = true }
+float-ord = { workspace = true }
+hex = { workspace = true }
+indexmap = { workspace = true }
+itertools = { workspace = true }
+kdl = { workspace = true }
+lazy_static = { workspace = true }
+log = { workspace = true }
+mlua = { workspace = true }
+parking_lot = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+smallvec = { workspace = true }
+strum = { workspace = true }
+thiserror = { workspace = true }
+tinyset = { workspace = true }
+walkdir = { workspace = true }
+
+# Color conversions
+ecolor = { workspace = true, optional = true }
+oklab = { workspace = true, optional = true }

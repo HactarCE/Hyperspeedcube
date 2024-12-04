@@ -56,7 +56,7 @@ pub fn md(ui: &mut egui::Ui, markdown: impl AsRef<str>) -> egui::Response {
     .response
 }
 
-fn options() -> comrak::Options<'static> {
+fn options() -> comrak::Options {
     let mut options = comrak::Options::default();
     options.extension.strikethrough = true;
     options.extension.superscript = true;
@@ -139,9 +139,10 @@ impl<'a> InlineFormatState<'a> {
                 true => egui::Stroke::new(1.0, color),
                 false => egui::Stroke::NONE,
             },
-            valign: match self.superscript {
-                true => egui::Align::TOP,
-                false => egui::Align::BOTTOM,
+            valign: match (self.superscript, self.subscript) {
+                (true, false) => egui::Align::TOP,
+                (false, true) => egui::Align::BOTTOM,
+                _ => egui::Align::Center,
             },
             ..Default::default()
         }
@@ -258,6 +259,7 @@ fn render_block<'a>(ui: &mut egui::Ui, node: &'a comrak::nodes::AstNode<'a>) {
         comrak::nodes::NodeValue::Escaped => (), // inline
         comrak::nodes::NodeValue::WikiLink(_) => (), // inline
         comrak::nodes::NodeValue::Underline => (), // inline
+        comrak::nodes::NodeValue::Subscript => (), // inline
         comrak::nodes::NodeValue::SpoileredText => (), // inline
         comrak::nodes::NodeValue::EscapedTag(_) => (), // inline
     }
@@ -363,6 +365,7 @@ fn render_inline_no_recurse(
         comrak::nodes::NodeValue::Escaped => (),
         comrak::nodes::NodeValue::WikiLink(_) => append_not_implemented(job, state, "WikiLink"),
         comrak::nodes::NodeValue::Underline => state.underline = true,
+        comrak::nodes::NodeValue::Subscript => state.subscript = true,
         comrak::nodes::NodeValue::SpoileredText => {
             append_not_implemented(job, state, "SpoileredText");
         }

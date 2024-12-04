@@ -16,49 +16,48 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [dependencies]
-cgmath = "0.18.0"
-comrak = "0.29.0"
-# Fork of color-eyre that does not re-export color_owo, which otherwise clogs editor completions
-color-eyre = { git = "https://github.com/FlareFlo/color-eyre.git", rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1", default-features = false, features = ["track-caller", "capture-spantrace"] }
-empfindung = "0.2.6"
-eyre = "0.6"
-env_logger = "0.11.5"
-float-ord = "0.3.2"
-image = "0.25.5"
-include_dir = "0.7.4"
-itertools = "0.13.0"
-key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }
-lazy_static = "1.5.0"
-log = "0.4.17"
-names = { version = "0.14.0", default-features = false }
-opener = "0.7.0"
-optick = { version = "1.3.4", optional = true }
-optick-attr = { version = "0.3.0", optional = true }
-parking_lot = "0.12.1"
-pollster = "0.4.0"
-rand = "*"
-regex = "1.6.0"
-rfd = "0.15.0"
-rgb_crate = { package = "rgb", version = "*" } # as required by empfindung
-serde = { version = "1.0.144", features = ["derive"] }
-serde_yml = "0.0.12"
-strum = { version = "0.26.3", features = ["derive"] }
-sublime_fuzzy = "0.7.0"
-web-time = "1.1.0"
-
 hyperdraw = { path = "../hyperdraw" }
 hypermath = { path = "../hypermath" }
 hyperprefs = { path = "../hyperprefs" }
 hyperpuzzle = { path = "../hyperpuzzle", features = ["ecolor", "oklab"] }
 hyperpuzzleview = { path = "../hyperpuzzleview" }
 
-# Windowing and UI (versions must match; generally limited by egui_dock)
-eframe = { version = "0.29.1", default-features = false, features = ["accesskit", "default_fonts", "wayland", "web_screen_reader", "wgpu", "x11"] }
-egui = "0.29.1"
-egui_dock = "0.14.0"
-egui_extras = { version = "0.29.1", features = ["svg"] }
-winit = { version = "0.30.5", features = ["serde"] } # must match eframe
-wgpu = { version = "22.0.0", features = ["webgl"] } # must match eframe
+cgmath = { workspace = true }
+color-eyre = { workspace = true }
+comrak = { workspace = true }
+eframe = { workspace = true }
+egui = { workspace = true }
+egui_dock = { workspace = true }
+egui_extras = { workspace = true }
+empfindung = { workspace = true }
+env_logger = { workspace = true }
+eyre = { workspace = true }
+float-ord = { workspace = true }
+image = { workspace = true }
+include_dir = { workspace = true }
+itertools = { workspace = true }
+key-names = { workspace = true }
+lab = { workspace = true }
+lazy_static = { workspace = true }
+log = { workspace = true }
+names = { workspace = true }
+opener = { workspace = true }
+parking_lot = { workspace = true }
+pollster = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
+rfd = { workspace = true }
+serde = { workspace = true }
+serde_yml = { workspace = true }
+strum = { workspace = true }
+sublime_fuzzy = { workspace = true }
+web-time = { workspace = true }
+wgpu = { workspace = true }
+winit = { workspace = true }
+
+# Profiling
+optick = { version = "1.3.4", optional = true }
+optick-attr = { version = "0.3.0", optional = true }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -68,7 +67,7 @@ tracing-subscriber = "0.3"
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
-egui-winit = { version = "0.29.1", default-features = false, features = ["links"] }
+# egui-winit = { version = "0.29.1", default-features = false, features = ["links"] } # TODO: is this necessary?
 js-sys = "=0.3.72"
 tracing-wasm = "0.2"
 wasm-bindgen = "0.2"

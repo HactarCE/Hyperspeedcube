@@ -49,3 +49,106 @@ opt-level = 1
 
 [profile.dev.package.backtrace]
 opt-level = 3
+
+[workspace.dependencies]
+
+# Crates that are part of the project
+hyperdraw = { path = "hyperdraw" }
+hypermath = { path = "hypermath" }
+hyperprefs = { path = "hyperprefs" }
+hyperpuzzle = { path = "hyperpuzzle" }
+hyperpuzzleview = { path = "hyperpuzzleview" }
+hypershape = { path = "hypershape" }
+hyperspeedcube = { path = "hyperspeedcube" }
+hyperstrings = { path = "hyperstrings" }
+key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }
+
+# Data structures
+ball-tree = { version = "0.5.1" }
+bitflags = { version = "2.6.0" }
+bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
+disjoint = { version = "0.8.0" }
+indexmap = { version = "2.7.0" } # must match serde_yml
+smallvec = { version = "1.13.2", features = ["union"] }
+slab = { version = "0.4.9" }
+tinyset = { version = "0.5.1" }
+
+# Serialization and filesystem
+comrak = { version = "0.31.0" }
+config = { version = "0.13.4", features = ["preserve_order"] } # blocked on https://github.com/rust-cli/config-rs/issues/531
+directories = { version = "5.0.1" }
+hex = { version = "0.4.3" }
+image = { version = "0.25.5" }
+include_dir = { version = "0.7.4" }
+kdl = { version = "4.7.0" }
+serde = { version = "1.0.176", features = ["derive"] }
+serde_yml = { version = "0.0.12" }
+strum = { version = "0.26.3", features = ["derive"] }
+walkdir = { version = "2.4.0" }
+
+# String manipulation
+ident_case = { version = "1.0.1" }
+regex = { version = "1.11.1" }
+sublime_fuzzy = { version = "0.7.0" }
+unindent = { version = "0.2.3" }
+
+# Math
+approx = { version = "0.5.1" }
+cgmath = { version = "0.18.0" }
+float-ord = { version = "0.3.2" }
+num-traits = { version = "0.2.19" }
+
+# Logging & error handling
+env_logger = { version = "0.11.5" }
+eyre = { version = "0.6.12" }
+log = { version = "0.4.22" }
+owo-colors = { version = "4.1.0" }
+thiserror = { version = "2.0.4" }
+tracing = { version = "0.1.41" }
+tracing-error = { version = "0.2.1" }
+tracing-subscriber = { version = "0.3.17", default-features = false, features = ["env-filter", "fmt", "ansi", "json", "registry"] }
+# color-eyre defined at the bottom of the file
+
+# Core windowing, graphics, and UI (versions must match; generally limited by egui_dock)
+eframe = { version = "0.29.1", default-features = false, features = ["accesskit", "default_fonts", "wayland", "web_screen_reader", "wgpu", "x11"] }
+ecolor = { version = "0.29.1" }
+egui = { version = "0.29.1" }
+egui_dock = { version = "0.14.0" }
+egui_extras = { version = "0.29.1", features = ["svg"] }
+winit = { version = "0.30.5", features = ["serde"] } # must match eframe
+wgpu = { version = "22.0.0", features = ["webgl"] } # must match eframe
+
+# Other windowing and UI
+opener = { version = "0.7.0" }
+rfd = {version = "0.15.1" }
+
+# Colors
+colorous = { version = "1.0.15" }
+empfindung = { version = "0.2.6", default-features = false, features = ["lab"] }
+oklab = { version = "1.0.1" }
+lab = { version = "0.11.0" } # as required by empfindung
+
+# Async and multithreading
+parking_lot = { version = "0.12.1" }
+pollster = { version = "0.4.0" }
+rayon = { version = "1.7.0" }
+
+# Lua
+mlua = { version = "0.10.0", features = ["lua54", "send", "vendored"] }
+
+# Other dependencies
+bytemuck = { version = "1.20.0", features = ["derive"] }
+itertools = { version = "0.13.0" }
+lazy_static = { version = "1.5.0" }
+names = { version = "0.14.0", default-features = false }
+rand = { version = "0.8.5" }
+time = { version = "0.3.37", features = ["local-offset"] }
+web-time = { version = "1.1.0" }
+
+# Fork of color-eyre that does not re-export color_owo, which otherwise clogs
+# editor completions. Blocked on https://github.com/eyre-rs/eyre/pull/188
+[workspace.dependencies.color-eyre]
+git = "https://github.com/FlareFlo/color-eyre.git"
+rev = "3bc103d5ffd7e26a71a6894579ef721e7b6c3ce1"
+default-features = false
+features = ["track-caller", "capture-spantrace"]

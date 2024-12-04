@@ -17,8 +17,8 @@ pub(crate) fn egui_color_distance(a: egui::Color32, b: egui::Color32) -> f32 {
     empfindung::cie00::diff(egui_color32_to_lab(a), egui_color32_to_lab(b))
 }
 fn egui_color32_to_lab(color: egui::Color32) -> (f32, f32, f32) {
-    let [r, g, b, _] = color.to_array();
-    empfindung::ToLab::to_lab(&rgb_crate::RGB { r, g, b })
+    let rgba = color.to_array();
+    empfindung::ToLab::to_lab(&lab::Lab::from_rgba(&rgba))
 }
 
 pub fn funny_autonames() -> impl Iterator<Item = String> {

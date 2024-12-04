@@ -15,14 +15,14 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [dependencies]
-cgmath = "0.18.0"
-float-ord = "0.3.2"
-itertools = "0.13.0"
-log = "0.4.17"
-parking_lot = "0.12.1"
-web-time = "1.1.0"
-
 hyperdraw = { path = "../hyperdraw" }
 hypermath = { path = "../hypermath" }
 hyperprefs = { path = "../hyperprefs" }
 hyperpuzzle = { path = "../hyperpuzzle" }
+
+cgmath = { workspace = true }
+float-ord = { workspace = true }
+itertools = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+web-time = { workspace = true }
