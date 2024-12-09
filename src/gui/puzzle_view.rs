@@ -33,7 +33,7 @@ pub fn build(ui: &mut egui::Ui, app: &mut App, puzzle_texture_id: egui::TextureI
     );
 
     // Update app cursor position.
-    app.cursor_pos = r.hover_pos().map(|pos| {
+    app.cursor_pos = r.hover_pos().or(r.interact_pointer_pos()).map(|pos| {
         let p = (pos - egui_rect.min) / egui_rect.size();
         // Transform from egui to wgpu coordinates.
         cgmath::point2(p.x * 2.0 - 1.0, 1.0 - p.y * 2.0)
