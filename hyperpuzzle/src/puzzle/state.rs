@@ -3,7 +3,7 @@ use std::sync::Arc;
 use hypermath::prelude::*;
 use itertools::Itertools;
 
-use crate::{Axis, LayerMask, PerPiece, Piece, PieceMask, Puzzle, Twist};
+use crate::{Axis, LayerMask, LayeredTwist, PerPiece, Piece, PieceMask, Puzzle};
 
 /// Instance of a puzzle with a particular state.
 #[derive(Debug, Clone)]
@@ -47,9 +47,9 @@ impl PuzzleState {
 
     /// Does a twist, or returns an error containing the set of pieces that
     /// prevented the twist.
-    pub fn do_twist(&self, twist: Twist, layers: LayerMask) -> Result<Self, Vec<Piece>> {
-        let twist = &self.puzzle_type.twists[twist];
-        let grip = self.compute_grip(twist.axis, layers);
+    pub fn do_twist(&self, twist: LayeredTwist) -> Result<Self, Vec<Piece>> {
+        let twist_info = &self.puzzle_type.twists[twist.transform];
+        let grip = self.compute_grip(twist_info.axis, twist.layers);
 
         // Check for split pieces, which prevent the turn.
         let split_pieces = grip
@@ -61,7 +61,7 @@ impl PuzzleState {
 
         let piece_transforms = self.piece_transforms.map_ref(|piece, piece_transform| {
             if grip[piece] == WhichSide::Inside {
-                &twist.transform * &self.piece_transforms[piece]
+                &twist_info.transform * &self.piece_transforms[piece]
             } else {
                 piece_transform.clone()
             }

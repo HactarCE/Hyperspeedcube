@@ -142,6 +142,15 @@ statuses {
   error "Error: {{error}}"
 }
 
+confirm_discard {
+  title "Unsaved changes"
+
+  exit "Discard puzzle state and exit?"
+  open_another_file "Discard puzzle state and open another file?"
+  reset_puzzle "Discard puzzle state and reset puzzle?"
+  scramble "Discard puzzle state and scramble?"
+}
+
 reset "Reset"
 reset_to_value "Reset to {{value}}"
 

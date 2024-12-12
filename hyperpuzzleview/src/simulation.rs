@@ -4,10 +4,13 @@ use float_ord::FloatOrd;
 use hypermath::pga::{Axes, Motor};
 use hypermath::{Vector, VectorRef};
 use hyperprefs::AnimationPreferences;
-use hyperpuzzle::{Axis, LayerMask, PerPiece, PieceMask, Puzzle, PuzzleState, Twist};
+use hyperpuzzle::{Axis, LayerMask, LayeredTwist, PerPiece, PieceMask, Puzzle, PuzzleState};
+use hyperpuzzlelog::{Scramble, ScrambleInfo, ScrambleType};
+use smallvec::{smallvec, SmallVec};
 use web_time::{Duration, Instant};
 
 use super::animations::{BlockingAnimationState, TwistAnimation, TwistAnimationState};
+use super::{Action, ReplayEvent};
 
 const ASSUMED_FPS: f32 = 120.0;
 
@@ -17,6 +20,17 @@ const ASSUMED_FPS: f32 = 120.0;
 pub struct PuzzleSimulation {
     /// Latest puzzle state, not including any transient rotation.
     latest_state: PuzzleState,
+
+    /// Scramble applied to the puzzle initially.
+    scramble: Option<Scramble>,
+    /// Whether the puzzle has unsaved changes.
+    has_unsaved_changes: bool,
+    /// Stack of actions to undo.
+    undo_stack: Vec<Action>,
+    /// Stack of actions to redo.
+    redo_stack: Vec<Action>,
+    /// List of actions to save in the replay file.
+    replay: Vec<ReplayEvent>,
 
     /// Time of last frame, or `None` if we are not in the middle of an animation.
     last_frame_time: Option<Instant>,
@@ -38,6 +52,12 @@ impl PuzzleSimulation {
         let cached_piece_transforms = latest_state.piece_transforms().clone();
         Self {
             latest_state,
+
+            scramble: None,
+            has_unsaved_changes: false,
+            undo_stack: vec![],
+            redo_stack: vec![],
+            replay: vec![],
 
             last_frame_time: None,
             twist_anim: TwistAnimationState::default(),
@@ -88,14 +108,119 @@ impl PuzzleSimulation {
             .unwrap_or_else(|| self.latest_state.piece_transforms().clone());
     }
 
+    /// Returns whether the puzzle has unsaved changes.
+    pub fn has_unsaved_changes(&self) -> bool {
+        self.has_unsaved_changes
+    }
+    /// Mark the puzzle as having no unsaved changes.
+    pub fn clear_unsaved_changes(&mut self) {
+        self.has_unsaved_changes = false;
+    }
+
+    /// Returns the scramble, or `None` if the puzzle has not been scrambled.
+    ///
+    /// To scramble the puzzle, call [`Self::scramble()`].
+    pub fn get_scramble(&self) -> &Option<Scramble> {
+        &self.scramble
+    }
+    /// Returns whether the puzzle has been fully scrambled.
+    pub fn has_been_fully_scrambled(&self) -> bool {
+        self.scramble
+            .as_ref()
+            .is_some_and(|scramble| scramble.info.ty == ScrambleType::Full)
+    }
+
+    /// Resets the puzzle state and replay log.
+    pub fn reset(&mut self) {
+        *self = Self::new(self.puzzle_type());
+    }
+    /// Resets and scrambles the puzzle.
+    pub fn scramble(&mut self, scramble_info: ScrambleInfo) {
+        // TODO: generate moves
+        self.event(ReplayEvent::Scramble(Scramble {
+            info: scramble_info,
+            twists: "R U".to_string(),
+        }));
+    }
+    /// Plays a replay event on the puzzle.
+    pub fn event(&mut self, event: ReplayEvent) {
+        self.replay.push(event.clone());
+        match event {
+            ReplayEvent::Undo => self.undo(),
+            ReplayEvent::Redo => self.redo(),
+            ReplayEvent::Scramble(scramble_info) => {
+                self.reset();
+                // for twist in &scramble_info.twists {
+                //     self.do_twist(twist);
+                // }
+                self.scramble = Some(scramble_info);
+            }
+            ReplayEvent::Twists(twists) => self.do_action(Action::Twists(twists)),
+            _ => (),
+        }
+    }
+
+    /// Returns whether there is an action available to undo.
+    pub fn has_undo(&self) -> bool {
+        !self.undo_stack.is_empty()
+    }
+    /// Returns whether there is an action available to redo.
+    pub fn has_redo(&self) -> bool {
+        !self.redo_stack.is_empty()
+    }
+
+    fn undo(&mut self) {
+        if let Some(action) = self.undo_stack.pop() {
+            if let Some(reverse_action) = self.do_action_internal(action) {
+                self.redo_stack.push(reverse_action);
+            }
+        }
+    }
+    fn redo(&mut self) {
+        if let Some(action) = self.redo_stack.pop() {
+            if let Some(reverse_action) = self.do_action_internal(action) {
+                self.undo_stack.push(reverse_action);
+            }
+        }
+    }
+
+    /// Does an undoable action and saves it to the undo stack.
+    ///
+    /// Clears the redo stack if applicable.
+    fn do_action(&mut self, action: Action) {
+        self.has_unsaved_changes = true;
+        self.redo_stack.clear();
+        if let Some(reverse_action) = self.do_action_internal(action) {
+            self.undo_stack.push(reverse_action);
+        }
+    }
+    /// Does an undoable action and then returns the reverse action.
+    fn do_action_internal(&mut self, action: Action) -> Option<Action> {
+        self.has_unsaved_changes = true;
+        match action {
+            Action::Twists(twists) => {
+                let reverse_twists = twists
+                    .iter()
+                    .rev()
+                    .map_while(|&twist| self.do_twist(twist))
+                    .collect::<SmallVec<_>>();
+                (!reverse_twists.is_empty()).then(|| Action::Twists(reverse_twists))
+            }
+        }
+    }
+
     /// Executes a twist on the puzzle and queues the appropriate animation.
+    /// Returns the inverse twist if successful.
     ///
     /// Any in-progress partial twist is canceled.
-    pub fn do_twist(&mut self, twist: Twist, layers: LayerMask) {
+    ///
+    /// This does **not** affect the undo stack. Use [`Self::event()`] instead
+    /// if that's desired.
+    fn do_twist(&mut self, twist: LayeredTwist) -> Option<LayeredTwist> {
         let puzzle = Arc::clone(self.puzzle_type());
-        let twist_info = &puzzle.twists[twist];
+        let twist_info = puzzle.twists.get(twist.transform).ok()?;
         let axis = twist_info.axis;
-        let grip = self.latest_state.compute_gripped_pieces(axis, layers);
+        let grip = self.latest_state.compute_gripped_pieces(axis, twist.layers);
 
         let mut initial_transform = Motor::ident(self.ndim());
         if let Some(partial) = self.partial_twist_drag_state.take() {
@@ -108,7 +233,7 @@ impl PuzzleSimulation {
             }
         }
 
-        match self.latest_state.do_twist(twist, layers) {
+        match self.latest_state.do_twist(twist) {
             Ok(new_state) => {
                 let state = std::mem::replace(&mut self.latest_state, new_state);
                 self.twist_anim.push(TwistAnimation {
@@ -118,6 +243,10 @@ impl PuzzleSimulation {
                     final_transform: twist_info.transform.clone(),
                 });
                 self.blocking_anim.clear();
+                Some(LayeredTwist {
+                    layers: twist.layers,
+                    transform: twist_info.reverse,
+                })
             }
             Err(blocking_pieces) => {
                 if !initial_transform.is_ident() {
@@ -129,6 +258,7 @@ impl PuzzleSimulation {
                     });
                 }
                 self.blocking_anim.set(blocking_pieces);
+                None
             }
         }
     }
@@ -203,11 +333,13 @@ impl PuzzleSimulation {
     ) {
         let puzzle = Arc::clone(self.puzzle_type());
         if let Some(partial) = &mut self.partial_twist_drag_state {
-            let axis_vector = &puzzle.axes[partial.axis].vector;
-            let Some(v1) = surface_normal.cross_product_3d(axis_vector).normalize() else {
+            let Ok(axis) = puzzle.axes.get(partial.axis) else {
                 return;
             };
-            let Some(v2) = axis_vector.cross_product_3d(&v1).normalize() else {
+            let Some(v1) = surface_normal.cross_product_3d(&axis.vector).normalize() else {
+                return;
+            };
+            let Some(v2) = axis.vector.cross_product_3d(&v1).normalize() else {
                 return;
             };
             // TODO: consider scaling by torque (i.e., radius)
@@ -256,7 +388,12 @@ impl PuzzleSimulation {
                 let dot_with_twist = Motor::dot(&partial.transform, &twist_info.transform).abs();
                 let dot_with_identity = partial.transform.get(Axes::SCALAR).abs();
                 if dot_with_twist > dot_with_identity {
-                    self.do_twist(twist, partial.layers);
+                    let twist = LayeredTwist {
+                        layers: partial.layers,
+                        transform: twist,
+                    };
+                    self.event(ReplayEvent::DragTwist);
+                    self.event(ReplayEvent::Twists(smallvec![twist]));
                 } else {
                     // The identity twist is closer.
                     self.cancel_partial_twist();

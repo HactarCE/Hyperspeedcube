@@ -187,6 +187,11 @@ impl AppUi {
             false => self.close_tab(&tab),
         }
     }
+
+    /// Helper method wrapper around [`App::confirm_discard_changes()`].
+    pub(crate) fn confirm_discard(&mut self, description: &str) -> bool {
+        self.app.confirm_discard_changes(description)
+    }
 }
 
 struct TabViewer<'a> {

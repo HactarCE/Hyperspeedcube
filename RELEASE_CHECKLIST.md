@@ -1,1 +1,1 @@
-1. Check for unused dependencies.
+1. Check for unused dependencies with `cargo machete`

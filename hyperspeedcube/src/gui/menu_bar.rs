@@ -1,3 +1,6 @@
+use hyperpuzzlelog::ScrambleType;
+use hyperpuzzleview::ReplayEvent;
+
 use super::{AppUi, Tab};
 use crate::L;
 
@@ -68,16 +71,39 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         let _ = ui.button(L.menu.file.exit);
     });
     ui.menu_button(L.menu.edit.title, |ui| {
-        let _ = ui.button(L.menu.edit.undo_twist);
-        let _ = ui.button(L.menu.edit.redo_twist);
+        let undo_button = egui::Button::new(L.menu.edit.undo_twist);
+        if ui.add_enabled(app_ui.app.has_undo(), undo_button).clicked() {
+            app_ui.app.undo();
+        }
+        let redo_button = egui::Button::new(L.menu.edit.redo_twist);
+        if ui.add_enabled(app_ui.app.has_redo(), redo_button).clicked() {
+            app_ui.app.redo();
+        }
         ui.separator();
-        let _ = ui.button(L.menu.edit.reset_puzzle);
+        if ui.button(L.menu.edit.reset_puzzle).clicked()
+            && app_ui.confirm_discard(L.confirm_discard.reset_puzzle)
+        {
+            app_ui.app.reset_puzzle();
+            ui.close_menu();
+        }
     });
     ui.menu_button(L.menu.scramble.title, |ui| {
-        let _ = ui.button(L.menu.scramble.full);
+        if ui.button(L.menu.scramble.full).clicked()
+            && app_ui.confirm_discard(&L.confirm_discard.scramble)
+        {
+            app_ui.app.scramble(ScrambleType::Full);
+        }
         ui.separator();
-        let _ = ui.button(L.menu.scramble.one);
-        let _ = ui.button(L.menu.scramble.two);
+        if ui.button(L.menu.scramble.one).clicked()
+            && app_ui.confirm_discard(&L.confirm_discard.scramble)
+        {
+            app_ui.app.scramble(ScrambleType::Partial(1));
+        }
+        if ui.button(L.menu.scramble.two).clicked()
+            && app_ui.confirm_discard(&L.confirm_discard.scramble)
+        {
+            app_ui.app.scramble(ScrambleType::Partial(2));
+        }
         ui.separator();
         show_tab_toggle(ui, app_ui, Tab::Scrambler);
     });

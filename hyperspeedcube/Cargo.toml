@@ -20,6 +20,7 @@ hyperdraw = { path = "../hyperdraw" }
 hypermath = { path = "../hypermath" }
 hyperprefs = { path = "../hyperprefs" }
 hyperpuzzle = { path = "../hyperpuzzle", features = ["ecolor", "oklab"] }
+hyperpuzzlelog = { path = "../hyperpuzzlelog" }
 hyperpuzzleview = { path = "../hyperpuzzleview" }
 
 cgmath = { workspace = true }
@@ -49,6 +50,7 @@ regex = { workspace = true }
 rfd = { workspace = true }
 serde = { workspace = true }
 serde_yml = { workspace = true }
+smallvec = { workspace = true }
 strum = { workspace = true }
 sublime_fuzzy = { workspace = true }
 web-time = { workspace = true }

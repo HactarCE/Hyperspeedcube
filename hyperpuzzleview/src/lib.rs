@@ -1,12 +1,16 @@
 //! Puzzle user interface state manager, to ensure consistent feel across
 //! frontends.
 
+mod action;
 mod animations;
+mod replay_event;
 mod simulation;
 mod styles;
 mod util;
 mod view;
 
+pub use action::Action;
+pub use replay_event::ReplayEvent;
 pub use simulation::PuzzleSimulation;
 pub use view::{DragState, HoverMode, PuzzleFiltersState, PuzzleView, PuzzleViewInput};
 

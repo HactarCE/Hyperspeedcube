@@ -1,0 +1,83 @@
+// Hyperspeedcube puzzle log
+version 2
+program name="Hyperspeedcube" version="2.0.0-pre.15"
+solve {
+    puzzle id="ft_cube:3" version="1.0"
+    duration (milliseconds open)
+    solved true
+    sessions {
+        session start= end= duration=
+        session start= end= duration=
+        session start= end= duration=
+        session start= end= duration=
+    }
+    macros {
+        macro name="user's name for macro" hash=whatever_hash {
+            twist ...
+        }
+        macro name="user's name for macro" hash=whatever_hash {
+            twist ...
+        }
+        macro name="user's name for macro" hash=whatever_hash {
+            twist ...
+        }
+        macro name="user's name for macro" hash=whatever_hash {
+            twist ...
+        }
+    }
+    keybinds {
+
+    }
+    vantages {
+
+    }
+    filters {
+        filter name="user's name for filter" hash=whatever_hash {
+            rule style="Default" pieces="'center"
+            rule style="greyed" pieces="'edge"
+        }
+    }
+    scramble full timestamp="(UTC timestamp)" seed=238749261590 {
+        twist "R'"
+    }
+    log {
+        twist
+
+        scramble
+
+        twists "(UR)"
+
+
+        view {
+
+        }
+        key_down scancode="a" keycode="a" timestamp="(UTC timestamp)"
+        key_up scancode="a" keycode="a" timestamp="(UTC timestamp)"
+        twist "OD2"
+        gizmo_click button="left" target="OD"
+        gizmo_click button="left" "OD"
+        gizmo_click button="right" "OD"
+        gizmo_click button="middle" "OD" shift=true
+        twist "OD'"
+
+        branch 71 base=70 {
+            note "F2L-a #3"
+            twist "OD2"
+        }
+        branch_start 70
+        note "F2L-a #3"
+        twist "OD2"
+        branch_end 72
+        branch_start 72
+        ....
+        branch_end 73
+
+
+        filter ""
+        twist "OR"
+        end_scramble
+        end_session time="(UTC timestamp)"
+        keybind_mode_switch (??)
+        end_solve (UTC timestamp?) (UTC timestamp?)
+    }
+}

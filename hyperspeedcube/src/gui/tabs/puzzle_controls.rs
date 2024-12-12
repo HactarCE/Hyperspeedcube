@@ -1,4 +1,6 @@
-use hyperpuzzle::LayerMask;
+use hyperpuzzle::{LayerMask, LayeredTwist};
+use hyperpuzzleview::ReplayEvent;
+use smallvec::smallvec;
 
 use crate::app::App;
 use crate::L;
@@ -10,9 +12,11 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             return;
         };
 
-        for (twist, info) in &p.puzzle().twists {
+        for (transform, info) in &p.puzzle().twists {
             if ui.button(&info.name).clicked() {
-                p.sim().lock().do_twist(twist, LayerMask(1));
+                let layers = LayerMask::default();
+                let twist = LayeredTwist { layers, transform };
+                p.sim().lock().event(ReplayEvent::Twists(smallvec![twist]));
             }
         }
     });

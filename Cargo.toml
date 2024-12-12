@@ -4,6 +4,7 @@ members = [
     "hypermath",
     "hyperprefs",
     "hyperpuzzle",
+    "hyperpuzzlelog",
     "hyperpuzzleview",
     "hypershape",
     "hyperspeedcube" ,
@@ -138,6 +139,7 @@ mlua = { version = "0.10.0", features = ["lua54", "send", "vendored"] }
 
 # Other dependencies
 bytemuck = { version = "1.20.0", features = ["derive"] }
+chrono = { version = "0.4.38" }
 itertools = { version = "0.13.0" }
 lazy_static = { version = "1.5.0" }
 names = { version = "0.14.0", default-features = false }

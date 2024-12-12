@@ -1,0 +1,23 @@
+[package]
+name = "hyperpuzzlelog"
+version = "0.1.0"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+hypermath = { path = "../hypermath" }
+hyperpuzzle = { path = "../hyperpuzzle" }
+
+chrono = { workspace = true }
+itertools = { workspace = true }
+kdl = { workspace = true }
+serde = { workspace = true }
+serde_yml = { workspace = true }
+
+[lints]
+workspace = true

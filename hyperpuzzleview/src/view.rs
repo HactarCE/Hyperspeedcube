@@ -11,11 +11,14 @@ use hyperprefs::{
     FilterSeqPreset, ModifiedPreset, Preferences, PresetRef, PuzzleFilterPreferences,
     ViewPreferences,
 };
+use hyperpuzzle::LayeredTwist;
 use hyperpuzzle::{Axis, GizmoFace, LayerMask, PerPiece, Piece, PieceMask, Puzzle, Sticker};
 use parking_lot::Mutex;
+use smallvec::smallvec;
 
 use super::simulation::PuzzleSimulation;
 use super::styles::*;
+use super::ReplayEvent;
 
 /// View into a puzzle simulation, which has its own piece filters.
 #[derive(Debug)]
@@ -408,14 +411,27 @@ impl PuzzleView {
         let ndim = puzzle.ndim();
 
         if let Some(hov) = &self.gizmo_hover_state {
-            let twist = puzzle.gizmo_twists[hov.gizmo_face];
-            match direction {
-                Sign::Pos => state.do_twist(twist, LayerMask(1)),
+            let Ok(&target) = puzzle.gizmo_twists.get(hov.gizmo_face) else {
+                return;
+            };
+            let layers = LayerMask::default();
+            let transform = match direction {
                 Sign::Neg => {
-                    let rev_twist = puzzle.twists[twist].reverse;
-                    state.do_twist(rev_twist, LayerMask(1));
+                    let Ok(twist_info) = puzzle.twists.get(target) else {
+                        return;
+                    };
+                    twist_info.reverse
                 }
-            }
+                Sign::Pos => target,
+            };
+            let twist = LayeredTwist { layers, transform };
+
+            state.event(ReplayEvent::GizmoClick {
+                layers,
+                target,
+                reverse: direction == Sign::Neg,
+            });
+            state.event(ReplayEvent::Twists(smallvec![twist]));
         } else if let Some(hov) = &self.puzzle_hover_state {
             if puzzle.ndim() == 3 {
                 // Only do a move if we are hovering a sticker.
@@ -458,8 +474,11 @@ impl PuzzleView {
                     let score = Motor::dot(&puzzle.twists[twist].transform, &target);
                     (Sign::from(score) * direction, FloatOrd(score.abs()))
                 });
-                if let Some(twist) = best_twist {
-                    state.do_twist(twist, LayerMask(1));
+                if let Some(transform) = best_twist {
+                    let layers = LayerMask::default();
+                    let twist = LayeredTwist { layers, transform };
+                    state.event(ReplayEvent::DragTwist);
+                    state.event(ReplayEvent::Twists(smallvec![twist]));
                 }
             }
         }

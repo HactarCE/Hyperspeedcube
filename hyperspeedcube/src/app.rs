@@ -5,7 +5,10 @@ use egui::mutex::RwLock;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences, PuzzleViewPreferencesSet};
 use hyperpuzzle::Puzzle;
+use hyperpuzzlelog::{ScrambleInfo, ScrambleType, Timestamp};
+use hyperpuzzleview::ReplayEvent;
 use parking_lot::Mutex;
+use rand::Rng;
 
 use crate::gui::PuzzleWidget;
 use crate::L;
@@ -90,6 +93,71 @@ impl App {
                 self.set_active_puzzle(Some(new_puzzle_view));
             }
         }
+    }
+
+    pub(crate) fn has_undo(&self) -> bool {
+        self.active_puzzle_view
+            .with(|p| p.sim().lock().has_undo())
+            .unwrap_or(false)
+    }
+    pub(crate) fn has_redo(&self) -> bool {
+        self.active_puzzle_view
+            .with(|p| p.sim().lock().has_redo())
+            .unwrap_or(false)
+    }
+    pub(crate) fn undo(&self) {
+        self.active_puzzle_view
+            .with(|p| p.sim().lock().event(ReplayEvent::Undo));
+    }
+    pub(crate) fn redo(&self) {
+        self.active_puzzle_view
+            .with(|p| p.sim().lock().event(ReplayEvent::Redo));
+    }
+    pub(crate) fn reset_puzzle(&self) {
+        self.active_puzzle_view.with(|p| p.sim().lock().reset());
+    }
+    pub(crate) fn scramble(&self, ty: ScrambleType) {
+        self.active_puzzle_view.with(|p| {
+            p.sim().lock().scramble(ScrambleInfo {
+                ty,
+                time: hyperpuzzlelog::now(),
+                seed: rand::thread_rng().gen(),
+            });
+        });
+    }
+
+    /// Shows a dialog asking the user to confirm discarding the puzzle state,
+    /// and returns `true` if they do confirm. The dialog is only shown if there
+    /// are unsaved changes that the user might want to save.
+    ///
+    /// Returns `false` if there is no puzzle.
+    pub(crate) fn confirm_discard_changes(&mut self, description: &str) -> bool {
+        self.active_puzzle_view
+            .with(|p| {
+                let sim = p.sim().lock();
+
+                let mut needs_save = sim.has_unsaved_changes();
+
+                if self.prefs.interaction.confirm_discard_only_when_scrambled
+                    && !sim.has_been_fully_scrambled()
+                {
+                    needs_save = false;
+                }
+
+                let confirm = !needs_save
+                    || rfd::MessageDialog::new()
+                        .set_title(L.confirm_discard.title)
+                        .set_description(description)
+                        .set_buttons(rfd::MessageButtons::YesNo)
+                        .show()
+                        == rfd::MessageDialogResult::Yes;
+                if confirm {
+                    self.prefs.log_file = None;
+                    self.prefs.needs_save = true;
+                }
+                confirm
+            })
+            .unwrap_or(false)
     }
 }
 

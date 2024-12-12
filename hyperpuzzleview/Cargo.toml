@@ -19,10 +19,12 @@ hyperdraw = { path = "../hyperdraw" }
 hypermath = { path = "../hypermath" }
 hyperprefs = { path = "../hyperprefs" }
 hyperpuzzle = { path = "../hyperpuzzle" }
+hyperpuzzlelog = { path = "../hyperpuzzlelog" }
 
 cgmath = { workspace = true }
 float-ord = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
+smallvec = { workspace = true }
 web-time = { workspace = true }
