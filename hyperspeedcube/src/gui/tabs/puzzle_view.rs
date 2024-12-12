@@ -6,7 +6,7 @@ use eyre::Result;
 use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences, PuzzleViewPreferencesSet};
-use hyperpuzzle::{GizmoFace, Puzzle};
+use hyperpuzzle::{GizmoFace, LayerMask, Puzzle};
 use hyperpuzzleview::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 use image::ImageBuffer;
 use parking_lot::Mutex;
@@ -338,11 +338,34 @@ impl PuzzleWidget {
         );
 
         // Click = twist
+        let mut layers = LayerMask::EMPTY;
+        for (i, k) in [
+            egui::Key::Num1,
+            egui::Key::Num2,
+            egui::Key::Num3,
+            egui::Key::Num4,
+            egui::Key::Num5,
+            egui::Key::Num6,
+            egui::Key::Num7,
+            egui::Key::Num8,
+            egui::Key::Num9,
+            egui::Key::Num0,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            if ui.input(|input| input.key_down(k)) {
+                layers |= LayerMask::from(i as u8);
+            }
+        }
+        if layers == LayerMask::EMPTY {
+            layers = LayerMask::default();
+        }
         if r.clicked() && modifiers.is_none() {
-            self.view.do_click_twist(Sign::Neg);
+            self.view.do_click_twist(layers, Sign::Neg);
         }
         if r.secondary_clicked() && modifiers.is_none() {
-            self.view.do_click_twist(Sign::Pos);
+            self.view.do_click_twist(layers, Sign::Pos);
         }
 
         // Ctrl+shift+click = edit sticker color

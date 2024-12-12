@@ -405,7 +405,7 @@ impl PuzzleView {
     }
 
     /// Applies a twist to the puzzle based on the current mouse position.
-    pub fn do_click_twist(&self, direction: Sign) {
+    pub fn do_click_twist(&self, layers: LayerMask, direction: Sign) {
         let mut state = self.sim.lock();
         let puzzle = state.puzzle_type();
         let ndim = puzzle.ndim();
@@ -414,7 +414,6 @@ impl PuzzleView {
             let Ok(&target) = puzzle.gizmo_twists.get(hov.gizmo_face) else {
                 return;
             };
-            let layers = LayerMask::default();
             let transform = match direction {
                 Sign::Neg => {
                     let Ok(twist_info) = puzzle.twists.get(target) else {
@@ -475,7 +474,6 @@ impl PuzzleView {
                     (Sign::from(score) * direction, FloatOrd(score.abs()))
                 });
                 if let Some(transform) = best_twist {
-                    let layers = LayerMask::default();
                     let twist = LayeredTwist { layers, transform };
                     state.event(ReplayEvent::DragTwist);
                     state.event(ReplayEvent::Twists(smallvec![twist]));
