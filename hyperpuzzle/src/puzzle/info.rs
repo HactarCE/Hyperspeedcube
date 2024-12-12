@@ -15,27 +15,44 @@ use crate::Rgb;
 hypermath::idx_struct! {
     /// ID of a **piece**, which is rigid component of the puzzle that moves
     /// together.
+    #[derive(Serialize, Deserialize)]
     pub struct Piece(pub u32);
+
     /// ID of a **sticker**, which is a facet of a **piece** having a single
     /// color and belonging to a single **facet**.
+    #[derive(Serialize, Deserialize)]
     pub struct Sticker(pub u32);
+
     /// ID of a **twist gizmo face**, which is a single face that can be clicked
     /// to twist the puzzle.
+    #[derive(Serialize, Deserialize)]
     pub struct GizmoFace(pub u16);
+
     /// ID of a **surface**, which is an external facet of the puzzle shared by
     /// one or more **stickers**.
+    #[derive(Serialize, Deserialize)]
     pub struct Surface(pub u16);
+
     /// ID of a **color** that appears on stickers.
+    #[derive(Serialize, Deserialize)]
     pub struct Color(pub u16);
+
     /// ID of a **twist axis**, an organizational unit containing several
     /// **twists**.
+    #[derive(Serialize, Deserialize)]
     pub struct Axis(pub u16);
+
     /// ID of a **twist**, which is a single move that can be applied to the
     /// puzzle.
+    #[derive(Serialize, Deserialize)]
     pub struct Twist(pub u32);
+
     /// ID of a **layer**, which is a region of the puzzle for each axis that may be twisted by a move on that axis.
+    #[derive(Serialize, Deserialize)]
     pub struct Layer(pub u8);
+
     /// ID of a **piece type**, a subset of the **pieces** of the puzzle.
+    #[derive(Serialize, Deserialize)]
     pub struct PieceType(pub u16);
 }
 

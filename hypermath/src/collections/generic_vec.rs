@@ -52,7 +52,6 @@ macro_rules! idx_struct {
     ) => {
         $(
             $(#[$attr])*
-            #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
             #[derive(Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
             #[repr(transparent)]
             $struct_vis struct $struct_name($inner_vis $inner_type);

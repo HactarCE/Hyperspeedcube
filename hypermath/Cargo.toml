@@ -20,7 +20,7 @@ approx = { workspace = true }
 ball-tree = { workspace = true }
 bitflags = { workspace = true }
 bitvec = { workspace = true }
-bytemuck = { workspace = true }
+bytemuck = { workspace = true, optional = true }
 float-ord = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
