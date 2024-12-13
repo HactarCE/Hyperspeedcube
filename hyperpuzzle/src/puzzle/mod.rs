@@ -8,6 +8,7 @@ mod metric;
 mod notation;
 mod piece_type_hierarchy;
 mod puzzle_type;
+mod scramble;
 mod state;
 mod twist;
 
@@ -20,5 +21,6 @@ pub use metric::TwistMetric;
 pub use notation::Notation;
 pub use piece_type_hierarchy::*;
 pub use puzzle_type::Puzzle;
+pub use scramble::{ScrambleInfo, ScrambleType};
 pub use state::PuzzleState;
 pub use twist::LayeredTwist;

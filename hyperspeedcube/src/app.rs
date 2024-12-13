@@ -4,8 +4,7 @@ use std::sync::{Arc, Weak};
 use egui::mutex::RwLock;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences, PuzzleViewPreferencesSet};
-use hyperpuzzle::Puzzle;
-use hyperpuzzlelog::{ScrambleInfo, ScrambleType, Timestamp};
+use hyperpuzzle::{Puzzle, ScrambleInfo, ScrambleType};
 use hyperpuzzleview::ReplayEvent;
 use parking_lot::Mutex;
 use rand::Rng;
@@ -118,11 +117,7 @@ impl App {
     }
     pub(crate) fn scramble(&self, ty: ScrambleType) {
         self.active_puzzle_view.with(|p| {
-            p.sim().lock().scramble(ScrambleInfo {
-                ty,
-                time: hyperpuzzlelog::now(),
-                seed: rand::thread_rng().gen(),
-            });
+            p.sim().lock().scramble(ScrambleInfo::new(ty));
         });
     }
 

@@ -4,8 +4,11 @@ use float_ord::FloatOrd;
 use hypermath::pga::{Axes, Motor};
 use hypermath::{Vector, VectorRef};
 use hyperprefs::AnimationPreferences;
-use hyperpuzzle::{Axis, LayerMask, LayeredTwist, PerPiece, PieceMask, Puzzle, PuzzleState};
-use hyperpuzzlelog::{Scramble, ScrambleInfo, ScrambleType};
+use hyperpuzzle::{
+    Axis, LayerMask, LayeredTwist, PerPiece, PieceMask, Puzzle, PuzzleState, ScrambleInfo,
+    ScrambleType,
+};
+use hyperpuzzlelog::Scramble;
 use smallvec::{smallvec, SmallVec};
 use web_time::{Duration, Instant};
 
@@ -107,6 +110,11 @@ impl PuzzleSimulation {
             })
             .unwrap_or_else(|| self.latest_state.piece_transforms().clone());
     }
+    /// Updates the piece transforms, ignoring the current animation state. This
+    /// is called after updating the puzzle state with no animation.
+    fn update_piece_transforms_static(&mut self) {
+        self.cached_piece_transforms = self.latest_state.piece_transforms().clone();
+    }
 
     /// Returns whether the puzzle has unsaved changes.
     pub fn has_unsaved_changes(&self) -> bool {
@@ -135,11 +143,15 @@ impl PuzzleSimulation {
         *self = Self::new(self.puzzle_type());
     }
     /// Resets and scrambles the puzzle.
+    ///
+    /// This generates the appropriate [`ReplayEvent::Scramble`] and then
+    /// executes it.
     pub fn scramble(&mut self, scramble_info: ScrambleInfo) {
-        // TODO: generate moves
+        let ty = self.puzzle_type();
+        let (twists, _state) = ty.new_scrambled(scramble_info);
         self.event(ReplayEvent::Scramble(Scramble {
             info: scramble_info,
-            twists: "R U".to_string(),
+            twists: hyperpuzzlelog::notation::format_twists(&ty.twists, twists),
         }));
     }
     /// Plays a replay event on the puzzle.
@@ -148,12 +160,26 @@ impl PuzzleSimulation {
         match event {
             ReplayEvent::Undo => self.undo(),
             ReplayEvent::Redo => self.redo(),
-            ReplayEvent::Scramble(scramble_info) => {
+            ReplayEvent::Scramble(scramble) => {
                 self.reset();
-                // for twist in &scramble_info.twists {
-                //     self.do_twist(twist);
-                // }
-                self.scramble = Some(scramble_info);
+                let ty = Arc::clone(self.puzzle_type());
+                for twist in
+                    hyperpuzzlelog::notation::parse_twists(&ty.twist_by_name, &scramble.twists)
+                {
+                    match twist {
+                        Ok(twist) => match self.latest_state.do_twist(twist) {
+                            Ok(new_state) => self.latest_state = new_state,
+                            Err(e) => {
+                                log::error!(
+                                    "twist {twist:?} blocked in scramble due to pieces {e:?}"
+                                )
+                            }
+                        },
+                        Err(e) => log::error!("error parsing twist in scramble: {e}"),
+                    }
+                }
+                self.update_piece_transforms_static();
+                self.replay.push(ReplayEvent::Scramble(scramble));
             }
             ReplayEvent::Twists(twists) => self.do_action(Action::Twists(twists)),
             _ => (),

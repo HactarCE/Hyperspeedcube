@@ -1,4 +1,4 @@
-use hyperpuzzlelog::ScrambleType;
+use hyperpuzzle::ScrambleType;
 use hyperpuzzleview::ReplayEvent;
 
 use super::{AppUi, Tab};

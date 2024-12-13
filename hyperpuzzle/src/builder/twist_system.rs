@@ -27,6 +27,8 @@ pub struct TwistBuilder {
     pub qtm: usize,
     /// Distance of the pole for the corresponding facet in the 4D facet gizmo.
     pub gizmo_pole_distance: Option<f32>,
+    /// Whether to include this twist in scrambles.
+    pub include_in_scrambles: bool,
 }
 impl TwistBuilder {
     /// Canonicalizes the twist.
@@ -241,6 +243,7 @@ impl TwistSystemBuilder {
                 transform: old_twist.transform.clone(),
                 opposite: None,    // will be assigned later
                 reverse: Twist(0), // will be assigned later
+                include_in_scrambles: old_twist.include_in_scrambles,
             })?;
             twist_id_map.insert(old_id, new_id);
 
@@ -325,6 +328,7 @@ impl TwistSystemBuilder {
             let twist = twists.get_mut(id)?;
             twist.reverse = new_twist_id;
             let rev_twist_name = |original| format!("<reverse of {original:?}>");
+            let is_self_reverse = twist.transform.is_self_reverse();
             let new_twist_info = TwistInfo {
                 name: rev_twist_name(&twist.name),
                 aliases: twist.aliases.iter().map(rev_twist_name).collect(),
@@ -333,6 +337,7 @@ impl TwistSystemBuilder {
                 transform: twist.transform.reverse(),
                 opposite: None,
                 reverse: id,
+                include_in_scrambles: !is_self_reverse,
             };
             twists.push(new_twist_info)?;
         }

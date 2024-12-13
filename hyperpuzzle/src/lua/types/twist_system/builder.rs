@@ -195,6 +195,7 @@ impl LuaTwistSystem {
                     transform,
                     qtm,
                     gizmo_pole_distance,
+                    include_in_scrambles: true,
                 },
                 get_name(1)?,
                 lua_warn_fn(lua),
@@ -205,6 +206,7 @@ impl LuaTwistSystem {
         };
         if inverse {
             let transform = base_transform.reverse();
+            let is_equivalent_to_reverse = base_transform.is_self_reverse();
             twists
                 .add_named(
                     TwistBuilder {
@@ -212,6 +214,7 @@ impl LuaTwistSystem {
                         transform,
                         qtm,
                         gizmo_pole_distance: gizmo_pole_distance.filter(|_| ndim > 3),
+                        include_in_scrambles: !is_equivalent_to_reverse,
                     },
                     get_name(-1)?,
                     lua_warn_fn(lua),
@@ -254,6 +257,7 @@ impl LuaTwistSystem {
                         transform,
                         qtm: qtm * i as usize,
                         gizmo_pole_distance: None, // no gizmo for multiples
+                        include_in_scrambles: true,
                     },
                     get_name(i)?,
                     lua_warn_fn(lua),
@@ -262,6 +266,7 @@ impl LuaTwistSystem {
 
             if inverse {
                 let transform = previous_transform.reverse();
+                let is_equivalent_to_reverse = previous_transform.is_self_reverse();
                 twists
                     .add_named(
                         TwistBuilder {
@@ -269,6 +274,7 @@ impl LuaTwistSystem {
                             transform,
                             qtm: qtm * i as usize,
                             gizmo_pole_distance: None, // no gizmo for multiples
+                            include_in_scrambles: !is_equivalent_to_reverse,
                         },
                         get_name(-i)?,
                         lua_warn_fn(lua),

@@ -16,8 +16,11 @@ hyperpuzzle = { path = "../hyperpuzzle" }
 chrono = { workspace = true }
 itertools = { workspace = true }
 kdl = { workspace = true }
+lazy_static = { workspace = true }
+regex = { workspace = true }
 serde = { workspace = true }
 serde_yml = { workspace = true }
+thiserror = { workspace = true }
 
 [lints]
 workspace = true

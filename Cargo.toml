@@ -138,7 +138,9 @@ rayon = { version = "1.7.0" }
 mlua = { version = "0.10.2", features = ["lua54", "send", "vendored"] }
 
 # Hashing and PRNG
-rand = { version = "0.9.0-beta.1" }
+rand = { version = "0.9.0-beta.1" } # must match rand_chacha
+rand_chacha = { version = "0.9.0-beta.1" } # needs stable output
+sha2 = { version = "0.10.8" }
 
 # Other dependencies
 bytemuck = { version = "1.20.0", features = ["derive"] }

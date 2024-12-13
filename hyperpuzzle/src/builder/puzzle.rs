@@ -3,6 +3,7 @@ use std::sync::{Arc, Weak};
 use eyre::Result;
 use hypermath::{vector, VecMap, Vector};
 use hypershape::prelude::*;
+use itertools::Itertools;
 use parking_lot::Mutex;
 
 use super::shape::ShapeBuildOutput;
@@ -112,6 +113,9 @@ impl PuzzleBuilder {
             .map(|(id, info)| (info.name.clone(), id))
             .collect();
 
+        let mut scramble_twists = twists.iter_keys().collect_vec();
+        scramble_twists.sort_by_cached_key(|&twist| twists[twist].min_name());
+
         Ok(Arc::new_cyclic(|this| Puzzle {
             this: Weak::clone(this),
             id: self.id.clone(),
@@ -130,7 +134,8 @@ impl PuzzleBuilder {
 
             colors,
 
-            scramble_moves_count: 500, // TODO
+            scramble_twists,
+            full_scramble_length: crate::FULL_SCRAMBLE_LENGTH,
 
             notation: Notation {},
 

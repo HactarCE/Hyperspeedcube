@@ -3,23 +3,17 @@
 
 #![allow(missing_docs)]
 
-use hyperpuzzle::LayerMask;
+#[macro_use]
+extern crate lazy_static;
+
+use hyperpuzzle::{LayerMask, ScrambleInfo, ScrambleType, Timestamp};
 use kdl::*;
 
-mod notation;
+pub mod notation;
 
 /// Log file version. This **MUST** be incremented whenever breaking changes are
 /// made to the log file format.
 pub const LOG_FILE_VERSION: i64 = 2;
-
-/// Type used for UTC timestamps in log files.
-pub type Timestamp = chrono::DateTime<chrono::Utc>;
-
-/// Returns the UTC timestamp for the present moment, according to the system
-/// clock.
-pub fn now() -> Timestamp {
-    chrono::Utc::now()
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogFile {
@@ -162,32 +156,14 @@ impl Scramble {
             twists,
         } = self;
         let mut node = KdlNode::new("scramble");
-        node.push(*ty);
+        node.push(match *ty {
+            ScrambleType::Full => KdlValue::from("full"),
+            ScrambleType::Partial(n) => KdlValue::from(n as i64),
+        });
         node.push(("time", time.to_string()));
         node.push(("seed", *seed as i64));
         set_children_to_events_list(&mut node, &[LogEvent::Twists(twists.to_owned())]);
         node
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ScrambleInfo {
-    pub ty: ScrambleType,
-    pub time: Timestamp,
-    pub seed: u32,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ScrambleType {
-    Full,
-    Partial(u32),
-}
-impl From<ScrambleType> for KdlValue {
-    fn from(value: ScrambleType) -> Self {
-        match value {
-            ScrambleType::Full => "full".into(),
-            ScrambleType::Partial(n) => (n as i64).into(),
-        }
     }
 }
 
@@ -272,7 +248,7 @@ mod tests {
                     scramble: Some(Scramble {
                         info: ScrambleInfo {
                             ty: ScrambleType::Partial(3),
-                            time: chrono::Utc::now(),
+                            time: Timestamp::now(),
                             seed: 42,
                         },
                         twists: "R U L'".to_string(),
@@ -280,8 +256,12 @@ mod tests {
                     log: vec![
                         LogEvent::Scramble,
                         LogEvent::Twists("L U' R'".to_string()),
-                        LogEvent::EndSolve { time: now() },
-                        LogEvent::EndSession { time: now() },
+                        LogEvent::EndSolve {
+                            time: Timestamp::now()
+                        },
+                        LogEvent::EndSession {
+                            time: Timestamp::now()
+                        },
                     ]
                 }]
             }

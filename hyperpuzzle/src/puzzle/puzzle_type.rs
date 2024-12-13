@@ -1,7 +1,11 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::sync::{Arc, Weak};
 
 use hypershape::Space;
+use rand::seq::IndexedRandom;
+use rand::{Rng, SeedableRng};
+use sha2::Digest;
 
 use super::*;
 use crate::{TagSet, Version};
@@ -46,8 +50,10 @@ pub struct Puzzle {
     /// Color system.
     pub colors: Arc<ColorSystem>,
 
+    /// Set of twists used to scramble the puzzle, in a future-compatible order.
+    pub scramble_twists: Vec<Twist>,
     /// Number of moves for a full scramble.
-    pub scramble_moves_count: usize,
+    pub full_scramble_length: u32,
 
     /// Move notation.
     pub notation: Notation,
@@ -103,6 +109,47 @@ impl Puzzle {
     pub fn new_solved_state(&self) -> PuzzleState {
         PuzzleState::new(self.arc())
     }
+    /// Constructs a new scrambled instance of the puzzle.
+    pub fn new_scrambled(&self, scramble: ScrambleInfo) -> (Vec<LayeredTwist>, PuzzleState) {
+        let ScrambleInfo { ty, time, seed } = scramble;
+
+        let mut sha256 = sha2::Sha256::new();
+        sha256.write(time.to_string().as_bytes()).unwrap();
+        sha256.write(&seed.to_le_bytes()).unwrap(); // native endianness on x86 and Apple Silicon
+        let digest = sha256.finalize();
+
+        let mut rng =
+            rand_chacha::ChaCha12Rng::from_seed(<[u8; 32]>::try_from(&digest[..32]).unwrap());
+
+        let scramble_length = match ty {
+            ScrambleType::Full => self.full_scramble_length,
+            ScrambleType::Partial(n) => n,
+        };
+
+        let random_twists = std::iter::from_fn(|| {
+            let random_twist = *self.scramble_twists.choose(&mut rng)?;
+
+            let axis = self.axis_of(random_twist);
+            let layer_count = self.axes[axis].layers.len().max(1) as crate::LayerMaskUint;
+            let random_layer_mask = LayerMask(rng.random_range(1..(1 << layer_count)));
+
+            Some(LayeredTwist {
+                layers: random_layer_mask,
+                transform: random_twist,
+            })
+        });
+
+        let mut twists_applied = vec![];
+        let mut state = self.new_solved_state();
+        for twist in random_twists.take(scramble_length as usize) {
+            if let Ok(new_state) = state.do_twist(twist) {
+                twists_applied.push(twist);
+                state = new_state;
+            }
+        }
+
+        (twists_applied, state)
+    }
 
     /// Returns the number of dimensions of the puzzle.
     pub fn ndim(&self) -> u8 {
@@ -120,14 +167,14 @@ impl Puzzle {
     pub(crate) fn opposite_twist_axis(&self, _axis: Axis) -> Option<Axis> {
         todo!()
     }
-    pub(crate) fn axis_of(&self, _twist: Twist) -> Axis {
-        todo!()
+    pub(crate) fn axis_of(&self, twist: Twist) -> Axis {
+        self.twists[twist].axis
     }
     pub(crate) fn all_layers(&self) -> LayerMask {
         todo!()
     }
-    pub(crate) fn count_quarter_turns(&self, _twist: Twist) -> usize {
-        todo!()
+    pub(crate) fn count_quarter_turns(&self, twist: Twist) -> usize {
+        self.twists[twist].qtm
     }
     /// Returns a twist that recenters the given twist axis.
     pub fn make_recenter_twist(&self, _twist_axis: String) -> Result<(Twist, LayerMask), ()> {

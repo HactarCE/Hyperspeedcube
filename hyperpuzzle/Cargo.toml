@@ -19,6 +19,7 @@ workspace = true
 hypermath = { path = "../hypermath" }
 hypershape = { path = "../hypershape" }
 
+chrono = { workspace = true }
 disjoint = { workspace = true }
 eyre = { workspace = true }
 float-ord = { workspace = true }
@@ -30,8 +31,11 @@ lazy_static = { workspace = true }
 log = { workspace = true }
 mlua = { workspace = true }
 parking_lot = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
+sha2 = { workspace = true }
 smallvec = { workspace = true }
 strum = { workspace = true }
 thiserror = { workspace = true }

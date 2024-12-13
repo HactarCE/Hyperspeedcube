@@ -11,6 +11,7 @@ mod puzzle;
 mod rgb;
 mod tags;
 mod task;
+mod timestamp;
 pub mod util;
 
 pub use library::*;
@@ -20,6 +21,10 @@ pub use puzzle::*;
 pub use rgb::Rgb;
 pub use tags::*;
 pub use task::TaskHandle;
+pub use timestamp::Timestamp;
+
+/// Re-export of `chrono`.
+pub use chrono;
 
 /// Unsigned integer type used for [`LayerMask`].
 pub type LayerMaskUint = u32;
@@ -34,6 +39,9 @@ const CAPTURE_LUA_OUTPUT: bool = !cfg!(test);
 
 const MAX_TWIST_REPEAT: usize = 50;
 const MAX_NAME_SET_SIZE: usize = 100;
+
+/// Default length for a full scramble
+pub const FULL_SCRAMBLE_LENGTH: u32 = 5000;
 
 /// Radius of the promordial cube, which determines the maximum extent of all
 /// vertices along any axis.

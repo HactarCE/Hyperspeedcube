@@ -170,10 +170,22 @@ pub struct TwistInfo {
 
     /// Reverse twist, which undoes this one.
     pub reverse: Twist,
+
+    /// Whether to include this twist in scrambles.
+    pub include_in_scrambles: bool,
 }
 impl AsRef<str> for TwistInfo {
     fn as_ref(&self) -> &str {
         &self.name
+    }
+}
+impl TwistInfo {
+    /// Returns the lexicographically first name or alias.
+    pub fn min_name(&self) -> &String {
+        match self.aliases.iter().min() {
+            Some(min_alias) => std::cmp::min(min_alias, &self.name),
+            None => &self.name,
+        }
     }
 }
 
