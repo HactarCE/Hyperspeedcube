@@ -1,6 +1,6 @@
 use cgmath::SquareMatrix;
 use float_ord::FloatOrd;
-use rand::seq::SliceRandom;
+use rand::seq::{IndexedRandom, SliceRandom};
 use rand::Rng;
 
 pub const INVALID_STR: &str = "<invalid>";
@@ -23,7 +23,7 @@ fn egui_color32_to_lab(color: egui::Color32) -> (f32, f32, f32) {
 
 pub fn funny_autonames() -> impl Iterator<Item = String> {
     std::iter::from_fn(move || {
-        Some(if rand::thread_rng().gen_bool(0.2) {
+        Some(if rand::rng().random_bool(0.2) {
             format!("{} {}", gen_adjective(), gen_noun())
         } else {
             gen_noun()
@@ -33,14 +33,10 @@ pub fn funny_autonames() -> impl Iterator<Item = String> {
 fn gen_adjective() -> String {
     hyperpuzzle::util::titlecase(
         names::ADJECTIVES
-            .choose(&mut rand::thread_rng())
+            .choose(&mut rand::rng())
             .unwrap_or(&"adjectivish"),
     )
 }
 fn gen_noun() -> String {
-    hyperpuzzle::util::titlecase(
-        names::NOUNS
-            .choose(&mut rand::thread_rng())
-            .unwrap_or(&"noun"),
-    )
+    hyperpuzzle::util::titlecase(names::NOUNS.choose(&mut rand::rng()).unwrap_or(&"noun"))
 }

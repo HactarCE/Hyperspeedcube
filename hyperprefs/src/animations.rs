@@ -92,7 +92,7 @@ pub mod interpolation {
                 }
                 Self::CriticallyDried => 1.0 - Self::CriticallyDamped.interpolate(1.0 - t),
 
-                Self::Random => t + rand::thread_rng().gen_range(-3.0..3.0) * t * (t - 1.0),
+                Self::Random => t + rand::rng().random_range(-3.0..3.0) * t * (t - 1.0),
             }
         }
     }
