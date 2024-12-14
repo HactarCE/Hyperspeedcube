@@ -52,7 +52,7 @@ impl PuzzleSimulation {
     /// Constructs a new simulation with a fresh puzzle state.
     pub fn new(puzzle: &Arc<Puzzle>) -> Self {
         let latest_state = PuzzleState::new(Arc::clone(puzzle));
-        let cached_piece_transforms = latest_state.piece_transforms().clone();
+        let cached_piece_transforms = latest_state.piece_transforms();
         Self {
             latest_state,
 
@@ -108,12 +108,12 @@ impl PuzzleSimulation {
                         .partial_piece_transforms(&partial.grip, &partial.transform)
                 })
             })
-            .unwrap_or_else(|| self.latest_state.piece_transforms().clone());
+            .unwrap_or_else(|| self.latest_state.piece_transforms());
     }
     /// Updates the piece transforms, ignoring the current animation state. This
     /// is called after updating the puzzle state with no animation.
     fn update_piece_transforms_static(&mut self) {
-        self.cached_piece_transforms = self.latest_state.piece_transforms().clone();
+        self.cached_piece_transforms = self.latest_state.piece_transforms();
     }
 
     /// Returns whether the puzzle has unsaved changes.
@@ -143,16 +143,16 @@ impl PuzzleSimulation {
         *self = Self::new(self.puzzle_type());
     }
     /// Resets and scrambles the puzzle.
-    ///
-    /// This generates the appropriate [`ReplayEvent::Scramble`] and then
-    /// executes it.
     pub fn scramble(&mut self, scramble_info: ScrambleInfo) {
+        self.reset();
         let ty = self.puzzle_type();
-        let (twists, _state) = ty.new_scrambled(scramble_info);
-        self.event(ReplayEvent::Scramble(Scramble {
+        let (twists, state) = ty.new_scrambled(scramble_info);
+        self.replay.push(ReplayEvent::Scramble(Scramble {
             info: scramble_info,
             twists: hyperpuzzlelog::notation::format_twists(&ty.twists, twists),
         }));
+        self.latest_state = state;
+        self.update_piece_transforms_static();
     }
     /// Plays a replay event on the puzzle.
     pub fn event(&mut self, event: ReplayEvent) {

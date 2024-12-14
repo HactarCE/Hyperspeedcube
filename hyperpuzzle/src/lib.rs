@@ -41,7 +41,7 @@ const MAX_TWIST_REPEAT: usize = 50;
 const MAX_NAME_SET_SIZE: usize = 100;
 
 /// Default length for a full scramble
-pub const FULL_SCRAMBLE_LENGTH: u32 = 5000;
+pub const FULL_SCRAMBLE_LENGTH: u32 = 1000;
 
 /// Radius of the promordial cube, which determines the maximum extent of all
 /// vertices along any axis.

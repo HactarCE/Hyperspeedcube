@@ -69,6 +69,7 @@ puzzles:add{
     'big',
   },
   ndim = 4,
+  scramble = 5000,
   build = function(self) build_120_cell(self, SHALLOW_CUT_DEPTH) end,
 }
 
@@ -81,5 +82,6 @@ puzzles:add{
     'big',
   },
   ndim = 4,
+  scramble = 5000,
   build = function(self) build_120_cell(self, EVIL_CUT_DEPTH) end,
 }

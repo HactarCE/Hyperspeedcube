@@ -31,6 +31,9 @@ pub struct PuzzleBuilder {
     /// Twist system of the puzzle.
     pub twists: TwistSystemBuilder,
 
+    /// Number of moves for a full scramble.
+    pub full_scramble_length: u32,
+
     /// Tags for the puzzle.
     pub tags: TagSet,
 }
@@ -57,6 +60,8 @@ impl PuzzleBuilder {
 
                 shape,
                 twists,
+
+                full_scramble_length: crate::FULL_SCRAMBLE_LENGTH,
 
                 tags,
             })
@@ -135,7 +140,7 @@ impl PuzzleBuilder {
             colors,
 
             scramble_twists,
-            full_scramble_length: crate::FULL_SCRAMBLE_LENGTH,
+            full_scramble_length: self.full_scramble_length,
 
             notation: Notation {},
 

@@ -30,6 +30,8 @@ pub struct PuzzleSpec {
 
     /// Whether to automatically remove internal pieces as they are constructed.
     pub remove_internals: Option<bool>,
+    /// Number of moves for a full scramble.
+    pub full_scramble_length: Option<u32>,
 }
 
 /// Compare by puzzle ID.
@@ -67,6 +69,7 @@ impl FromLua for PuzzleSpec {
         let ndim: LuaNdim;
         let build: LuaFunction;
         let remove_internals: Option<bool>;
+        let scramble: Option<u32>;
         unpack_table!(lua.unpack(table {
             id,
             version,
@@ -77,6 +80,7 @@ impl FromLua for PuzzleSpec {
             ndim,
             build,
             remove_internals,
+            scramble,
         }));
 
         let id = crate::validate_id(id).into_lua_err()?;
@@ -103,6 +107,7 @@ impl FromLua for PuzzleSpec {
             user_build_fn: lua.create_registry_value(build)?,
 
             remove_internals,
+            full_scramble_length: scramble,
         })
     }
 }
@@ -126,6 +131,9 @@ impl PuzzleSpec {
         }
         if let Some(remove_internals) = self.remove_internals {
             puzzle_builder.lock().shape.remove_internals = remove_internals;
+        }
+        if let Some(full_scramble_length) = self.full_scramble_length {
+            puzzle_builder.lock().full_scramble_length = full_scramble_length;
         }
         let space = puzzle_builder.lock().space();
 
