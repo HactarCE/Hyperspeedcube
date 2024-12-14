@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use float_ord::FloatOrd;
@@ -9,7 +10,7 @@ use hyperpuzzle::{
     ScrambleType,
 };
 use hyperpuzzlelog::Scramble;
-use smallvec::{smallvec, SmallVec};
+use smallvec::smallvec;
 use web_time::{Duration, Instant};
 
 use super::animations::{BlockingAnimationState, TwistAnimation, TwistAnimationState};
@@ -34,6 +35,12 @@ pub struct PuzzleSimulation {
     redo_stack: Vec<Action>,
     /// List of actions to save in the replay file.
     replay: Vec<ReplayEvent>,
+    /// Whether the puzzle has been solved.
+    solved: bool,
+    /// Total duration from previous sessions.
+    old_duration: i64,
+    /// Time that the puzzle was loaded.
+    load_time: Instant,
 
     /// Time of last frame, or `None` if we are not in the middle of an animation.
     last_frame_time: Option<Instant>,
@@ -47,6 +54,9 @@ pub struct PuzzleSimulation {
 
     /// Latest visual piece transforms.
     cached_piece_transforms: PerPiece<Motor>,
+
+    /// Last loaded/saved log file.
+    pub last_log_file: Option<PathBuf>,
 }
 impl PuzzleSimulation {
     /// Constructs a new simulation with a fresh puzzle state.
@@ -61,6 +71,9 @@ impl PuzzleSimulation {
             undo_stack: vec![],
             redo_stack: vec![],
             replay: vec![],
+            solved: false,
+            old_duration: 0,
+            load_time: Instant::now(),
 
             last_frame_time: None,
             twist_anim: TwistAnimationState::default(),
@@ -69,6 +82,8 @@ impl PuzzleSimulation {
             partial_twist_drag_state: None,
 
             cached_piece_transforms,
+
+            last_log_file: None,
         }
     }
 
@@ -112,7 +127,8 @@ impl PuzzleSimulation {
     }
     /// Updates the piece transforms, ignoring the current animation state. This
     /// is called after updating the puzzle state with no animation.
-    fn update_piece_transforms_static(&mut self) {
+    fn skip_twist_animations(&mut self) {
+        self.twist_anim = TwistAnimationState::default();
         self.cached_piece_transforms = self.latest_state.piece_transforms();
     }
 
@@ -147,12 +163,14 @@ impl PuzzleSimulation {
         self.reset();
         let ty = self.puzzle_type();
         let (twists, state) = ty.new_scrambled(scramble_info);
-        self.replay.push(ReplayEvent::Scramble(Scramble {
+        let scramble = Scramble {
             info: scramble_info,
             twists: hyperpuzzlelog::notation::format_twists(&ty.twists, twists),
-        }));
+        };
+        self.scramble = Some(scramble.clone());
+        self.replay.push(ReplayEvent::Scramble(scramble));
         self.latest_state = state;
-        self.update_piece_transforms_static();
+        self.skip_twist_animations();
     }
     /// Plays a replay event on the puzzle.
     pub fn event(&mut self, event: ReplayEvent) {
@@ -162,6 +180,7 @@ impl PuzzleSimulation {
             ReplayEvent::Redo => self.redo(),
             ReplayEvent::Scramble(scramble) => {
                 self.reset();
+                self.scramble = Some(scramble.clone());
                 let ty = Arc::clone(self.puzzle_type());
                 for twist in
                     hyperpuzzlelog::notation::parse_twists(&ty.twist_by_name, &scramble.twists)
@@ -172,13 +191,13 @@ impl PuzzleSimulation {
                             Err(e) => {
                                 log::error!(
                                     "twist {twist:?} blocked in scramble due to pieces {e:?}"
-                                )
+                                );
                             }
                         },
                         Err(e) => log::error!("error parsing twist in scramble: {e}"),
                     }
                 }
-                self.update_piece_transforms_static();
+                self.skip_twist_animations();
                 self.replay.push(ReplayEvent::Scramble(scramble));
             }
             ReplayEvent::Twists(twists) => self.do_action(Action::Twists(twists)),
@@ -197,15 +216,15 @@ impl PuzzleSimulation {
 
     fn undo(&mut self) {
         if let Some(action) = self.undo_stack.pop() {
-            if let Some(reverse_action) = self.do_action_internal(action) {
-                self.redo_stack.push(reverse_action);
+            if self.undo_action_internal(&action) {
+                self.redo_stack.push(action);
             }
         }
     }
     fn redo(&mut self) {
         if let Some(action) = self.redo_stack.pop() {
-            if let Some(reverse_action) = self.do_action_internal(action) {
-                self.undo_stack.push(reverse_action);
+            if self.do_action_internal(&action) {
+                self.undo_stack.push(action);
             }
         }
     }
@@ -216,35 +235,49 @@ impl PuzzleSimulation {
     fn do_action(&mut self, action: Action) {
         self.has_unsaved_changes = true;
         self.redo_stack.clear();
-        if let Some(reverse_action) = self.do_action_internal(action) {
-            self.undo_stack.push(reverse_action);
-        }
+        self.do_action_internal(&action);
+        self.undo_stack.push(action);
     }
-    /// Does an undoable action and then returns the reverse action.
-    fn do_action_internal(&mut self, action: Action) -> Option<Action> {
+    /// Does an undoable action. Returns `true` if the action had any effect.
+    fn do_action_internal(&mut self, action: &Action) -> bool {
         self.has_unsaved_changes = true;
         match action {
             Action::Twists(twists) => {
-                let reverse_twists = twists
+                let mut any_effect = false;
+                for &twist in twists {
+                    any_effect |= self.do_twist(twist);
+                }
+                any_effect
+            }
+        }
+    }
+    /// Undoes an action. Returns `true` if the action had any effect.
+    fn undo_action_internal(&mut self, action: &Action) -> bool {
+        self.has_unsaved_changes = true;
+        let puz = self.puzzle_type();
+        match action {
+            Action::Twists(twists) => self.do_action_internal(&Action::Twists(
+                twists
                     .iter()
                     .rev()
-                    .map_while(|&twist| self.do_twist(twist))
-                    .collect::<SmallVec<_>>();
-                (!reverse_twists.is_empty()).then(|| Action::Twists(reverse_twists))
-            }
+                    .filter_map(|twist| twist.rev(&puz).ok())
+                    .collect(),
+            )),
         }
     }
 
     /// Executes a twist on the puzzle and queues the appropriate animation.
-    /// Returns the inverse twist if successful.
+    /// Returns whether the twist was successful.
     ///
     /// Any in-progress partial twist is canceled.
     ///
     /// This does **not** affect the undo stack. Use [`Self::event()`] instead
     /// if that's desired.
-    fn do_twist(&mut self, twist: LayeredTwist) -> Option<LayeredTwist> {
+    fn do_twist(&mut self, twist: LayeredTwist) -> bool {
         let puzzle = Arc::clone(self.puzzle_type());
-        let twist_info = puzzle.twists.get(twist.transform).ok()?;
+        let Ok(twist_info) = puzzle.twists.get(twist.transform) else {
+            return false;
+        };
         let axis = twist_info.axis;
         let grip = self.latest_state.compute_gripped_pieces(axis, twist.layers);
 
@@ -269,10 +302,7 @@ impl PuzzleSimulation {
                     final_transform: twist_info.transform.clone(),
                 });
                 self.blocking_anim.clear();
-                Some(LayeredTwist {
-                    layers: twist.layers,
-                    transform: twist_info.reverse,
-                })
+                true
             }
             Err(blocking_pieces) => {
                 if !initial_transform.is_ident() {
@@ -284,7 +314,7 @@ impl PuzzleSimulation {
                     });
                 }
                 self.blocking_anim.set(blocking_pieces);
-                None
+                false
             }
         }
     }
@@ -431,6 +461,109 @@ impl PuzzleSimulation {
                 self.cancel_partial_twist();
             }
         }
+    }
+
+    /// Returns a log file as a string.
+    pub fn serialize(&self) -> hyperpuzzlelog::Solve {
+        let puz = self.puzzle_type();
+
+        let mut log = vec![];
+        if self.scramble.is_some() {
+            log.push(hyperpuzzlelog::LogEvent::Scramble);
+        }
+        for action in &self.undo_stack {
+            match action {
+                Action::Twists(twists) => {
+                    if twists.is_empty() {
+                        continue;
+                    }
+                    let mut s = hyperpuzzlelog::notation::format_twists(
+                        &puz.twists,
+                        twists.iter().copied(),
+                    );
+                    if twists.len() > 1 {
+                        s.insert(0, '(');
+                        s.push(')');
+                    }
+                    if let Some(hyperpuzzlelog::LogEvent::Twists(twists_str)) = log.last_mut() {
+                        *twists_str += " ";
+                        *twists_str += &s;
+                    } else {
+                        log.push(hyperpuzzlelog::LogEvent::Twists(s));
+                    }
+                }
+            }
+        }
+
+        hyperpuzzlelog::Solve {
+            puzzle: hyperpuzzlelog::Puzzle {
+                id: puz.id.clone(),
+                version: puz.version.to_string(),
+            },
+            solved: self.solved,
+            duration: Some(self.old_duration + self.load_time.elapsed().as_millis() as i64),
+            scramble: self.scramble.clone(),
+            log,
+        }
+    }
+
+    /// Loads a log file from a string.
+    pub fn deserialize(puzzle: &Arc<Puzzle>, solve: &hyperpuzzlelog::Solve) -> Self {
+        let hyperpuzzlelog::Solve {
+            puzzle: _,
+            solved,
+            duration,
+            scramble,
+            log,
+        } = solve;
+
+        let mut ret = Self::new(puzzle);
+        ret.solved = *solved;
+        ret.old_duration = duration.unwrap_or(0);
+        for event in log {
+            match event {
+                hyperpuzzlelog::LogEvent::Scramble => {
+                    let Some(scramble) = scramble else { continue };
+                    ret.event(ReplayEvent::Scramble(scramble.clone()));
+                }
+                hyperpuzzlelog::LogEvent::Click {
+                    layers,
+                    target,
+                    reverse,
+                } => {
+                    // TODO: handle errors
+                    let Some(target) = puzzle.twist_by_name.get(target) else {
+                        continue;
+                    };
+                    ret.event(ReplayEvent::GizmoClick {
+                        layers: *layers,
+                        target: *target,
+                        reverse: *reverse,
+                    });
+                }
+                hyperpuzzlelog::LogEvent::Twists(twists_str) => {
+                    for group in hyperpuzzlelog::notation::parse_grouped_twists(
+                        &puzzle.twist_by_name,
+                        twists_str,
+                    ) {
+                        // TODO: handle errors
+                        let group = group.into_iter().filter_map(Result::ok).collect();
+                        ret.event(ReplayEvent::Twists(group));
+                    }
+                }
+                hyperpuzzlelog::LogEvent::EndSolve { time } => {
+                    ret.event(ReplayEvent::EndSolve { time: *time });
+                }
+                hyperpuzzlelog::LogEvent::EndSession { time } => {
+                    ret.event(ReplayEvent::EndSession { time: *time });
+                }
+            }
+        }
+        ret.has_unsaved_changes = false;
+
+        ret.skip_twist_animations();
+
+        ret
     }
 }
 

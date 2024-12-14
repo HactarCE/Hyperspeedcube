@@ -2586,6 +2586,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_yml",
+ "smallvec",
  "thiserror 2.0.6",
 ]
 

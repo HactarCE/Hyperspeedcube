@@ -59,16 +59,34 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     }
 
     ui.menu_button(L.menu.file.title, |ui| {
-        let _ = ui.button(L.menu.file.open);
-        let _ = ui.button(L.menu.file.open_clipboard);
+        if ui.button(L.menu.file.open).clicked()
+            && app_ui.confirm_discard(L.confirm_discard.open_another_file)
+        {
+            ui.close_menu();
+            app_ui.app.open_file();
+        }
         ui.separator();
-        let _ = ui.button(L.menu.file.save);
-        let _ = ui.button(L.menu.file.save_as);
+        if ui.button(L.menu.file.save).clicked() {
+            ui.close_menu();
+            app_ui.app.save_file();
+        }
+        if ui.button(L.menu.file.save_as).clicked() {
+            ui.close_menu();
+            app_ui.app.save_file_as();
+        }
         ui.separator();
-        let _ = ui.button(L.menu.file.copy_hsc);
-        let _ = ui.button(L.menu.file.copy_log);
+        if ui.button(L.menu.file.copy_hsc).clicked() {
+            ui.close_menu();
+            if let Some(copy_text) = app_ui.app.serialize_puzzle_log() {
+                ui.ctx().copy_text(copy_text);
+            }
+        }
+        // let _ = ui.button(L.menu.file.copy_log);
         ui.separator();
-        let _ = ui.button(L.menu.file.exit);
+        if ui.button(L.menu.file.exit).clicked() && app_ui.confirm_discard(L.confirm_discard.exit) {
+            ui.close_menu();
+            todo!("exit, but not on web");
+        }
     });
     ui.menu_button(L.menu.edit.title, |ui| {
         let undo_button = egui::Button::new(L.menu.edit.undo_twist);

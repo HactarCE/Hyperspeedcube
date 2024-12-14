@@ -21,7 +21,6 @@ mod app;
 mod commands;
 mod gui;
 mod locales;
-// mod logfile;
 mod util;
 
 /// Strings for the current locale.
@@ -38,6 +37,10 @@ thread_local! {
 }
 lazy_static! {
     static ref LIBRARY_LOG_LINES: Mutex<Vec<hyperpuzzle::LuaLogLine>> = Mutex::new(vec![]);
+    static ref PROGRAM: hyperpuzzlelog::Program = hyperpuzzlelog::Program {
+        name: Some(TITLE.to_string()),
+        version: Some(env!("CARGO_PKG_VERSION").to_string()),
+    };
 }
 static LUA_BUILTIN_DIR: include_dir::Dir<'_> = if crate::IS_OFFICIAL_BUILD {
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/../lua")

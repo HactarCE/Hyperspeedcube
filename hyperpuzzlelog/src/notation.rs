@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use hyperpuzzle::{LayerMask, LayeredTwist, PerTwist, Twist, TwistInfo};
 use itertools::Itertools;
 use regex::Regex;
+use smallvec::{smallvec, SmallVec};
 
 pub fn format_twists(
     all_twists: &PerTwist<TwistInfo>,
@@ -14,6 +15,26 @@ pub fn format_twists(
         .join(" ")
 }
 
+pub fn parse_grouped_twists<'a>(
+    twists_by_name: &'a HashMap<String, Twist>,
+    s: &'a str,
+) -> Vec<SmallVec<[Result<LayeredTwist, TwistParseError<'a>>; 1]>> {
+    // TODO: handle more than 2 nested parens, and also maybe commutator notation
+    let mut ret = vec![];
+    let mut start = 0;
+    while start < s.len() {
+        let end = start + s[start..].find('(').unwrap_or(s.len() - start);
+        ret.extend(parse_twists(twists_by_name, &s[start..end]).map(|result| smallvec![result]));
+        start = end.saturating_add(1).min(s.len());
+        let end = start + s[start..].find(')').unwrap_or(s.len() - start);
+        let group: SmallVec<_> = parse_twists(twists_by_name, &s[start..end]).collect();
+        if !group.is_empty() {
+            ret.push(group);
+        }
+        start = end.saturating_add(1).min(s.len());
+    }
+    ret
+}
 pub fn parse_twists<'a>(
     twists_by_name: &'a HashMap<String, Twist>,
     s: &'a str,

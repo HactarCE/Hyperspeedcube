@@ -94,6 +94,92 @@ impl App {
         }
     }
 
+    fn prompt_file_save_path() -> Option<PathBuf> {
+        rfd::FileDialog::new()
+            .add_filter("Hyperspeedcube Log Files", &["hsc"])
+            .add_filter("All files", &["*"])
+            .save_file()
+    }
+    fn prompt_file_load_path() -> Option<PathBuf> {
+        rfd::FileDialog::new()
+            .add_filter("Hyperspeedcube Log Files", &["hsc"])
+            .add_filter("All files", &["*"])
+            .pick_file()
+    }
+
+    pub(crate) fn save_file(&mut self) {
+        if let Some(contents) = self.serialize_puzzle_log() {
+            let last_file_path = self
+                .active_puzzle_view
+                .with(|p| p.sim().lock().last_log_file.clone())
+                .flatten();
+            if let Some(path) = last_file_path.or_else(Self::prompt_file_save_path) {
+                // TODO: handle error
+                std::fs::write(path.clone(), contents);
+                self.active_puzzle_view
+                    .with(|p| p.sim().lock().last_log_file = Some(path));
+            }
+        }
+    }
+    pub(crate) fn save_file_as(&mut self) {
+        if let Some(contents) = self.serialize_puzzle_log() {
+            if let Some(path) = Self::prompt_file_save_path() {
+                // TODO: handle error
+                std::fs::write(path.clone(), contents);
+                self.active_puzzle_view
+                    .with(|p| p.sim().lock().last_log_file = Some(path));
+            }
+        }
+    }
+    pub(crate) fn serialize_puzzle_log(&mut self) -> Option<String> {
+        let solve = self.active_puzzle_view.with(|p| p.sim().lock().serialize());
+        Some(
+            hyperpuzzlelog::LogFile {
+                program: Some(crate::PROGRAM.clone()),
+                solves: vec![solve?],
+            }
+            .serialize(),
+        )
+    }
+    pub(crate) fn open_file(&mut self) {
+        if let Some(path) = Self::prompt_file_load_path() {
+            // TODO: handle error
+            if let Ok(contents) = std::fs::read_to_string(path) {
+                self.paste_from_string(&contents);
+            }
+        }
+    }
+    pub(crate) fn paste_from_string(&mut self, s: &str) {
+        // TODO: handle error
+        match hyperpuzzlelog::LogFile::deserialize(s) {
+            Ok(log_file) => {
+                // TODO: load multiple solves at once
+                if let Some(first_solve) = log_file.solves.first() {
+                    // TODO: new tab if none exists
+                    self.active_puzzle_view.with(|p| {
+                        // TODO: check puzzle version
+                        // TODO: don't block
+                        match crate::LIBRARY
+                            .with(|lib| lib.build_puzzle(&first_solve.puzzle.id))
+                            .take_result_blocking()
+                        {
+                            Ok(puzzle) => {
+                                *p.sim().lock() = hyperpuzzleview::PuzzleSimulation::deserialize(
+                                    &puzzle,
+                                    first_solve,
+                                );
+                            }
+                            Err(e) => {
+                                log::error!("error constructing puzzle specified in log file: {e}");
+                            }
+                        }
+                    });
+                }
+            }
+            Err(e) => log::error!("error loading log file: {e}"),
+        }
+    }
+
     pub(crate) fn has_undo(&self) -> bool {
         self.active_puzzle_view
             .with(|p| p.sim().lock().has_undo())
