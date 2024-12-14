@@ -78,8 +78,8 @@ macro_rules! idx_struct {
             }
 
             impl $crate::collections::generic_vec::IndexNewtype for $struct_name {
-                const MAX: Self = Self(<$inner_type>::MAX);
-                const MAX_INDEX: usize = <$inner_type>::MAX as usize;
+                const MAX: Self = Self($crate::idx_struct!(@conservative_max($inner_type)));
+                const MAX_INDEX: usize = $crate::idx_struct!(@conservative_max($inner_type)) as usize;
                 const TYPE_NAME: &'static str = stringify!($struct_name);
 
                 fn try_from_usize(index: usize) -> Result<Self, $crate::collections::generic_vec::IndexOverflow> {
@@ -87,12 +87,18 @@ macro_rules! idx_struct {
                         Ok(i) => Ok(Self(i)),
                         Err(_) => Err($crate::collections::generic_vec::IndexOverflow {
                             type_name: stringify!($struct_name),
-                            max_value: <$inner_type>::MAX as u64,
+                            max_value: $crate::idx_struct!(@conservative_max($inner_type)) as u64,
                         }),
                     }
                 }
             }
         )+
+    };
+
+    (@ conservative_max ($inner_type:ty)) => {
+        // max value for the type, but we subtract 1 if it's larger than a u16
+        // (so overflow is less likely `usize`)
+        <$inner_type>::MAX - (<$inner_type>::MAX as usize > u16::MAX as usize) as $inner_type
     };
 }
 
@@ -133,7 +139,7 @@ pub trait IndexNewtype:
     /// reaching the maximum value.
     fn iter(count: usize) -> IndexIter<Self> {
         // Clip to `Self::MAX`
-        let count = std::cmp::min(count, Self::MAX_INDEX.saturating_add(1));
+        let count = std::cmp::min(count, Self::MAX_INDEX + 1);
         IndexIter {
             range: 0..count,
             _phantom: PhantomData,
@@ -383,7 +389,10 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
 }
 impl<I: IndexNewtype, E> std::iter::FromIterator<E> for GenericVec<I, E> {
     fn from_iter<T: IntoIterator<Item = E>>(iter: T) -> Self {
-        let values = iter.into_iter().take(I::MAX_INDEX + 1).collect_vec();
+        let values = iter
+            .into_iter()
+            .take(I::MAX_INDEX.saturating_add(1))
+            .collect_vec();
         GenericVec {
             values,
             _phantom: PhantomData,
@@ -392,7 +401,7 @@ impl<I: IndexNewtype, E> std::iter::FromIterator<E> for GenericVec<I, E> {
 }
 impl<I: IndexNewtype, E> From<Vec<E>> for GenericVec<I, E> {
     fn from(mut values: Vec<E>) -> Self {
-        values.truncate(I::MAX_INDEX + 1);
+        values.truncate(I::MAX_INDEX.saturating_add(1));
         GenericVec {
             values,
             _phantom: PhantomData,
