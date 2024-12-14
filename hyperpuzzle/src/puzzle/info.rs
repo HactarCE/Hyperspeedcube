@@ -146,6 +146,14 @@ pub struct LayerInfo {
     /// Plane that bounds the top of the layer, if any.
     pub(crate) top: Option<Hyperplane>,
 }
+impl TransformByMotor for LayerInfo {
+    fn transform_by(&self, m: &Motor) -> Self {
+        Self {
+            bottom: m.transform(&self.bottom),
+            top: self.top.as_ref().map(|t| m.transform(t)),
+        }
+    }
+}
 
 /// Twist info.
 #[derive(Debug)]
