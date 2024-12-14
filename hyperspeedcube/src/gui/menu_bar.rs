@@ -88,18 +88,26 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         }
     });
     ui.menu_button(L.menu.scramble.title, |ui| {
-        if ui.button(L.menu.scramble.full).clicked()
+        let can_scramble = app_ui
+            .app
+            .active_puzzle_view
+            .with(|p| p.puzzle().can_scramble())
+            .unwrap_or(false);
+        let full_scramble_button = egui::Button::new(L.menu.scramble.full);
+        if ui.add_enabled(can_scramble, full_scramble_button).clicked()
             && app_ui.confirm_discard(&L.confirm_discard.scramble)
         {
             app_ui.app.scramble(ScrambleType::Full);
         }
         ui.separator();
-        if ui.button(L.menu.scramble.one).clicked()
+        let scramble_1_button = egui::Button::new(L.menu.scramble.one);
+        if ui.add_enabled(can_scramble, scramble_1_button).clicked()
             && app_ui.confirm_discard(&L.confirm_discard.scramble)
         {
             app_ui.app.scramble(ScrambleType::Partial(1));
         }
-        if ui.button(L.menu.scramble.two).clicked()
+        let scramble_2_button = egui::Button::new(L.menu.scramble.two);
+        if ui.add_enabled(can_scramble, scramble_2_button).clicked()
             && app_ui.confirm_discard(&L.confirm_discard.scramble)
         {
             app_ui.app.scramble(ScrambleType::Partial(2));
