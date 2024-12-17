@@ -1,6 +1,5 @@
 {
   "recommendations": [
-    "rust-lang.rust-analyzer",
-    "lokalise.i18n-ally"
+    "rust-lang.rust-analyzer"
   ]
 }
