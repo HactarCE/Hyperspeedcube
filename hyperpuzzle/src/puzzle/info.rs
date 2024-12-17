@@ -226,8 +226,8 @@ pub struct ColorInfo {
 }
 
 /// Default color for a puzzle color.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub enum DefaultColor {
     // Unknown default color.
     #[default]

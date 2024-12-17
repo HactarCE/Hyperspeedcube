@@ -70,7 +70,6 @@ impl<T: Into<AstNode>> From<T> for NameSet {
 
 /// Error indicating that a name set is too big.
 #[derive(Debug, Clone)]
-#[allow(missing_docs)]
 pub struct TooManyNames {
     /// Canonical name.
     pub canonical: String,

@@ -56,8 +56,8 @@ impl Ord for Sign {
     }
 }
 
-#[allow(missing_docs)]
 impl Sign {
+    /// Returns +1 for [`Sign::Pos`] and -1 for [`Sign::Neg`].
     pub fn to_num<T: Signed>(self) -> T {
         match self {
             Sign::Pos => T::one(),

@@ -171,8 +171,8 @@ impl<I: Clone + Hash + Eq> NamingScheme<I> {
 }
 
 /// Error indicating a bad name.
-#[derive(thiserror::Error, Debug, Clone)]
 #[allow(missing_docs)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum BadName {
     #[error("name {name:?} is already taken")]
     AlreadyTaken { name: String },
