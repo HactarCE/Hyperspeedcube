@@ -31,7 +31,12 @@ pub enum ReplayEvent {
         /// Event timestamp
         time: Timestamp,
     },
-    /// End of a session (save + reload from disk)
+    /// Start of a session
+    StartSession {
+        /// Event timestamp
+        time: Timestamp,
+    },
+    /// End of a session
     EndSession {
         /// Event timestamp
         time: Timestamp,

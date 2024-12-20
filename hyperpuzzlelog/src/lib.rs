@@ -210,9 +210,10 @@ pub enum LogEvent {
     /// End of solve.
     ///
     /// This marks the first time that the puzzle reached a solved state and the
-    /// state was visible (i.e., not blindfolded)
+    /// state was visible (i.e., not blindfolded).
     #[kdl(name = "end-solve")]
     EndSolve {
+        /// Timestamp at which the solve ended.
         #[kdl(property("time"), proxy = KdlProxy)]
         time: Timestamp,
     },

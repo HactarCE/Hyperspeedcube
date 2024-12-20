@@ -555,6 +555,9 @@ impl PuzzleSimulation {
                 hyperpuzzlelog::LogEvent::EndSolve { time } => {
                     ret.event(ReplayEvent::EndSolve { time: *time });
                 }
+                hyperpuzzlelog::LogEvent::StartSession { time } => {
+                    ret.event(ReplayEvent::StartSession { time: *time });
+                }
                 hyperpuzzlelog::LogEvent::EndSession { time } => {
                     ret.event(ReplayEvent::EndSession { time: *time });
                 }
