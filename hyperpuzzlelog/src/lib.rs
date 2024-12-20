@@ -1,14 +1,13 @@
 //! Structures and serialization/deserialization for puzzle twist notation and
 //! log files.
 
-#![allow(missing_docs)]
-
 #[macro_use]
 extern crate lazy_static;
 
 use std::str::FromStr;
 
-use hyperpuzzle::{LayerMask, ScrambleInfo, ScrambleType, Timestamp};
+use hyperkdl::{DocSchema, ValueSchemaProxy};
+use hyperpuzzle::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
 use kdl::*;
 
 pub mod notation;
@@ -17,406 +16,262 @@ pub mod notation;
 /// made to the log file format.
 pub const LOG_FILE_VERSION: i64 = 2;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Top-level log file structure.
+///
+/// A single log file may contain multiple solves.
+#[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::Doc)]
 pub struct LogFile {
+    /// Information about the software that created the log file.
+    #[kdl(child("program"), optional)]
     pub program: Option<Program>,
+    /// List of solves.
+    #[kdl(children)]
     pub solves: Vec<Solve>,
 }
 impl LogFile {
     pub fn serialize(&self) -> String {
-        let Self { program, solves } = self;
-
-        let mut doc = KdlDocument::new();
-        let root_nodes = doc.nodes_mut();
+        let mut doc = self.to_kdl_doc();
 
         // version
-        root_nodes.push({
+        doc.nodes_mut().insert(0, {
             let mut node = KdlNode::new("version");
             node.set_leading("// Hyperspeedcube puzzle log\n");
             node.push(KdlEntry::new(LOG_FILE_VERSION));
             node
         });
 
-        // program
-        if let Some(program) = program {
-            root_nodes.push(program.to_kdl());
-        }
-
-        // solves
-        for solve in solves {
-            root_nodes.push(solve.to_kdl());
-        }
-
         doc.to_string()
     }
 
     pub fn deserialize(s: &str) -> Result<Self, KdlError> {
-        let mut program = None;
-        let mut solves = vec![];
+        // TODO: display warnings
 
         let doc = KdlDocument::from_str(s)?;
-        for node in doc.nodes() {
-            match node.name().value() {
-                "program" => program = Some(Program::from_kdl(node)),
-                "solve" => {
-                    // ignore invalid
-                    if let Some(solve) = Solve::from_kdl(node) {
-                        solves.push(solve);
-                    }
-                }
-                _ => (), // ignore unknown
-            }
-        }
-
-        Ok(Self { program, solves })
+        let mut warnings = vec![];
+        Ok(
+            Self::from_kdl_doc(&doc, hyperkdl::DeserCtx::new(&mut warnings))
+                // TODO: better error handling
+                .unwrap_or(Self {
+                    program: None,
+                    solves: vec![],
+                }),
+        )
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Information about the software that created the log file.
+#[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
 pub struct Program {
+    /// Name of the program.
+    #[kdl(property("name"), optional)]
     pub name: Option<String>,
+    /// Version number.
+    ///
+    /// - There should be no leading `v`.
+    /// - The version number should ideally follow [Semantic
+    ///   Versioning](https://semver.org/) with respect to the contents of the
+    ///   log file.
+    #[kdl(property("version"), optional)]
     pub version: Option<String>,
 }
-impl Program {
-    fn to_kdl(&self) -> KdlNode {
-        let Self { name, version } = self;
-        let mut node = KdlNode::new("program");
-        if let Some(name) = name {
-            node.push(("name", name.as_str()));
-        }
-        if let Some(version) = version {
-            node.push(("version", version.as_str()));
-        }
-        node
-    }
-    fn from_kdl(node: &KdlNode) -> Self {
-        let mut name = None;
-        let mut version = None;
-        for entry in node.entries() {
-            match entry.name().map(|name| name.value()) {
-                Some("name") => name = Some(entry.value().to_string()),
-                Some("version") => version = Some(entry.value().to_string()),
-                _ => (), // ignore unknown
-            }
-        }
-        Self { name, version }
-    }
-}
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Solve of a puzzle.
+#[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::Node, hyperkdl_derive::NodeContents)]
+#[kdl(name = "solve")]
 pub struct Solve {
+    /// Puzzle info.
+    ///
+    /// This is the only part of a solve that is strictly required.
+    #[kdl(child("puzzle"))]
     pub puzzle: Puzzle,
+    /// Whether the puzzle has been solved from a scramble.
+    ///
+    /// This is always `false` if the puzzle has not been fully scrambled. If at
+    /// any time the puzzle is in the solved state and the state is visible
+    /// (i.e., not blindfolded), then this flag is set to `true`. It remains
+    /// `true` even if additional moves are performed that make it unsolved. It
+    /// reverts to `false` if moves are _undone_ to make it no longer solved.
+    ///
+    /// This corresponds exactly to whether there is a [`LogEvent::EndSolve`] in
+    /// `log` that has _not_ been undone.
+    #[kdl(child("solved"), default = false)]
     pub solved: bool,
-    pub duration: Option<i64>, // milliseconds
+    /// Number of milliseconds that the log has been open for, across all
+    /// sessions.
+    #[kdl(child("duration"), optional)]
+    pub duration: Option<i64>,
+
     // pub macros: (),
     // pub keybinds: (),
     // pub vantages: (),
     // pub filters: (),
+    /// Scramble.
+    ///
+    /// This is applied to the puzzle with [`LogEvent::Scramble`].
+    #[kdl(child("scramble"), optional)]
     pub scramble: Option<Scramble>,
+    /// List of events.
+    ///
+    /// If the log includes replay events, then this includes a linear history
+    /// of all events in time, even if they were later undone.
+    ///
+    /// If the log does not include replay events, then undone events are not
+    /// included.
+    #[kdl(child("log"))]
     pub log: Vec<LogEvent>,
 }
-impl Solve {
-    fn to_kdl(&self) -> KdlNode {
-        let mut children = KdlDocument::new();
-        let nodes = children.nodes_mut();
-
-        let Self {
-            puzzle,
-            solved,
-            duration,
-            scramble,
-            log,
-        } = self;
-
-        // puzzle
-        nodes.push(puzzle.to_kdl());
-
-        // duration
-        if let Some(duration) = duration {
-            let mut node = KdlNode::new("duration");
-            node.push(*duration);
-            nodes.push(node);
-        }
-
-        // scramble
-        if let Some(scramble) = scramble {
-            nodes.push(scramble.to_kdl());
-        }
-
-        // solved
-        if scramble.is_some() {
-            nodes.push({
-                let mut node = KdlNode::new("solved");
-                node.push(*solved);
-                node
-            });
-        }
-
-        nodes.push({
-            let mut node = KdlNode::new("log");
-            set_children_to_events_list(&mut node, &log);
-            node
-        });
-
-        let mut node = KdlNode::new("solve");
-        node.set_children(children);
-        node
-    }
-    fn from_kdl(node: &KdlNode) -> Option<Solve> {
-        let mut puzzle = None;
-        let mut solved = false;
-        let mut duration = None;
-        let mut scramble = None;
-        let mut log = vec![];
-
-        for child in node.children()?.nodes() {
-            match child.name().value() {
-                "puzzle" => puzzle = Puzzle::from_kdl(child),
-                // IIFE to mimic try_block
-                "solved" => {
-                    solved = (|| child.entries().first()?.value().as_bool())().unwrap_or(false);
-                }
-                "duration" => {
-                    // IIFE to mimic try_block
-                    duration = (|| child.entries().first()?.value().as_i64())();
-                }
-                "scramble" => scramble = Scramble::from_kdl(child),
-                "log" => {
-                    if let Some(children) = child.children() {
-                        log.extend(children.nodes().iter().filter_map(LogEvent::from_kdl));
-                    }
-                }
-                _ => (), // ignore unknown
-            }
-        }
-
-        Some(Solve {
-            puzzle: puzzle?,
-            solved,
-            duration,
-            scramble,
-            log,
-        })
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Puzzle info.
+#[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
 pub struct Puzzle {
+    /// Puzzle ID.
+    #[kdl(property("id"))]
     pub id: String,
+    /// Puzzle version number.
+    ///
+    /// - There should be no leading `v`.
+    /// - The version number should ideally follow [Semantic
+    ///   Versioning](https://semver.org/) with respect to the contents of the
+    ///   log file.
+    #[kdl(property("version"))]
     pub version: String,
 }
-impl Puzzle {
-    fn to_kdl(&self) -> KdlNode {
-        let Self { id, version } = self;
-        let mut node = KdlNode::new("puzzle");
-        node.push(("id", id.as_str()));
-        node.push(("version", version.as_str()));
-        node
-    }
-    fn from_kdl(node: &KdlNode) -> Option<Self> {
-        let mut id = None;
-        let mut version = None;
-        for entry in node.entries() {
-            match entry.name().map(|name| name.value()) {
-                Some("id") => id = entry.value().as_string(),
-                Some("version") => version = entry.value().as_string(),
-                _ => (), // ignore unknown
-            }
-        }
-        Some(Self {
-            id: id.map(|s| s.to_owned())?,
-            version: version.map(|s| s.to_owned())?,
-        })
-    }
-}
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Scramble info.
+#[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::NodeContents)]
 pub struct Scramble {
-    pub info: ScrambleInfo,
+    /// Scramble type selected by the user.
+    #[kdl(argument, proxy = KdlProxy)]
+    pub ty: ScrambleType,
+    /// Optional timestamp at which the scramble was generated.
+    #[kdl(property("time"), optional, proxy = KdlProxy)]
+    pub time: Option<Timestamp>,
+    /// Optional random seed which, in conjunction with the timestamp,
+    /// deterministically generates the twists sequence.
+    ///
+    /// If this is not present, then the scramble is assumed to have been
+    /// generated nondeterministically.
+    #[kdl(property("seed"), optional)]
+    pub seed: Option<u32>,
+    /// Twist sequence to apply to the puzzle, using standard notation.
+    #[kdl(child("twists"))]
     pub twists: String,
 }
 impl Scramble {
-    fn to_kdl(&self) -> KdlNode {
-        let Self {
-            info: ScrambleInfo { ty, time, seed },
-            twists,
-        } = self;
-        let mut node = KdlNode::new("scramble");
-        node.push(match *ty {
-            ScrambleType::Full => KdlValue::from("full"),
-            ScrambleType::Partial(n) => KdlValue::from(n as i64),
-        });
-        node.push(("time", time.to_string()));
-        node.push(("seed", *seed as i64));
-        set_children_to_events_list(&mut node, &[LogEvent::Twists(twists.to_owned())]);
-        node
-    }
-    fn from_kdl(node: &KdlNode) -> Option<Self> {
-        let mut ty = None;
-        let mut time = None;
-        let mut seed = None;
-        let mut twists = String::new();
-        for entry in node.entries() {
-            let value = entry.value();
-            match entry.name().map(|name| name.value()) {
-                None => {
-                    ty = match value {
-                        KdlValue::RawString(s) | KdlValue::String(s) if s == "full" => {
-                            Some(ScrambleType::Full)
-                        }
-                        KdlValue::Base2(n)
-                        | KdlValue::Base8(n)
-                        | KdlValue::Base10(n)
-                        | KdlValue::Base16(n) => u32::try_from(*n).ok().map(ScrambleType::Partial),
-                        _ => None,
-                    };
-                }
-                Some("time") => time = value.as_string().and_then(|s| Timestamp::from_str(s).ok()),
-                Some("seed") => seed = value.as_i64().and_then(|i| u32::try_from(i).ok()),
-                _ => (), // ignore unknown
-            }
-        }
-        for child in node.children()?.nodes() {
-            match LogEvent::from_kdl(child) {
-                Some(LogEvent::Twists(new_twists)) => {
-                    if !twists.is_empty() {
-                        twists += " ";
-                    }
-                    twists.push_str(&new_twists);
-                }
-                _ => (), // ignore invalid
-            }
-        }
-        Some(Self {
-            info: ScrambleInfo {
-                ty: ty?,
-                time: time?,
-                seed: seed?,
-            },
-            twists,
+    /// Returns the parameters used to deterministically generated the twist
+    /// sequence.
+    ///
+    /// Returns `None` if the scramble was generated nondeterministically.
+    pub fn params(&self) -> Option<ScrambleParams> {
+        Some(ScrambleParams {
+            ty: self.ty,
+            time: self.time?,
+            seed: self.seed?,
         })
     }
+    /// Constructs a scramble from scramble parameters and a twist sequence.
+    pub fn new(params: ScrambleParams, twists: String) -> Self {
+        Self {
+            ty: params.ty,
+            time: Some(params.time),
+            seed: Some(params.seed),
+            twists,
+        }
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Event in a solve log.
+#[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::Node)]
 pub enum LogEvent {
+    /// Application of the scramble sequence.
+    #[kdl(name = "scramble")]
     Scramble,
+    /// **Replay-only.** Click of the mouse cursor on the puzzle.
+    #[kdl(name = "click")]
     Click {
+        /// Layer mask gripped.
+        #[kdl(property("layers"), proxy = KdlProxy)]
         layers: LayerMask,
+        /// String identifier for the area clicked.
+        #[kdl(property("target"))]
         target: String,
+        /// Whether a reverse click was performed.
+        ///
+        /// By convention, right mouse button typically performs a forward click
+        /// and left mouse button typically performs a reverse click.
+        #[kdl(property("reverse"), default)]
         reverse: bool,
     },
-    Twists(String),
+    /// Sequence of twists separated by spaces.
+    ///
+    /// Twists grouped using parentheses were executed as a single action, and
+    /// are undone/redone as a single action.
+    #[kdl(name = "twists")]
+    Twists(#[kdl(argument)] String),
+    /// End of solve.
+    ///
+    /// This marks the first time that the puzzle reached a solved state and the
+    /// state was visible (i.e., not blindfolded)
+    #[kdl(name = "end-solve")]
     EndSolve {
+        #[kdl(property("time"), proxy = KdlProxy)]
         time: Timestamp,
     },
+    /// **Replay-only.** Beginning of session.
+    ///
+    /// This marks the start of the log and times when the log was loaded.
+    #[kdl(name = "start-session")]
+    StartSession {
+        /// Timestamp at which the session started.
+        #[kdl(property("time"), proxy = KdlProxy)]
+        time: Timestamp,
+    },
+    /// **Replay-only.** End of session.
+    ///
+    /// This marks when the log file was saved.
+    #[kdl(name = "end-session")]
     EndSession {
+        /// Timestamp at which the session ended.
+        #[kdl(property("time"), proxy = KdlProxy)]
         time: Timestamp,
     },
 }
-impl LogEvent {
-    fn to_kdl(&self) -> KdlNode {
-        let mut node;
-        match self {
-            LogEvent::Scramble => node = KdlNode::new("scramble"),
 
-            LogEvent::Click {
-                layers,
-                target,
-                reverse,
-            } => {
-                node = KdlNode::new("click");
-                if !layers.is_default() {
-                    node.push(("layers", i64::from(layers.0)));
-                }
-                node.push(("target", target.as_str()));
-                if *reverse {
-                    node.push(("reverse", true));
-                }
-            }
-
-            LogEvent::Twists(twist_string) => {
-                node = KdlNode::new("twists");
-                node.push(twist_string.clone());
-            }
-
-            LogEvent::EndSolve { time } => {
-                node = KdlNode::new("end_solve");
-                node.push(("time", time.to_string()));
-            }
-
-            LogEvent::EndSession { time } => {
-                node = KdlNode::new("end_session");
-                node.push(("time", time.to_string()));
-            }
-        }
-        node
+struct KdlProxy;
+impl ValueSchemaProxy<LayerMask> for KdlProxy {
+    fn proxy_from_kdl_value(value: &KdlValue) -> Option<LayerMask> {
+        Some(LayerMask(u32::try_from(value.as_i64()?).ok()?))
     }
-    fn from_kdl(node: &KdlNode) -> Option<Self> {
-        match node.name().value() {
-            "scramble" => Some(LogEvent::Scramble),
-
-            "click" => {
-                let mut layers = None;
-                let mut target = None;
-                let mut reverse = None;
-                for entry in node.entries() {
-                    let value = entry.value();
-                    match entry.name().map(|name| name.value()) {
-                        Some("layers") => {
-                            layers = Some(LayerMask(u32::try_from(value.as_i64()?).ok()?));
-                        }
-                        Some("target") => target = value.as_string().map(str::to_owned),
-                        Some("reverse") => reverse = value.as_bool(),
-                        _ => (), // ignore unknown
-                    }
-                }
-                Some(LogEvent::Click {
-                    layers: layers.unwrap_or_default(),
-                    target: target?,
-                    reverse: reverse.unwrap_or(false),
-                })
-            }
-
-            "twists" => Some(LogEvent::Twists(
-                node.entries().first()?.value().as_string()?.to_owned(),
-            )),
-
-            "end_solve" => {
-                let mut time = None;
-                for entry in node.entries() {
-                    match entry.name().map(|name| name.value()) {
-                        Some("time") => {
-                            time = Some(Timestamp::from_str(entry.value().as_string()?).ok()?)
-                        }
-                        _ => (), // ignore unknown
-                    }
-                }
-                Some(LogEvent::EndSolve { time: time? })
-            }
-
-            "end_session" => {
-                let mut time = None;
-                for entry in node.entries() {
-                    match entry.name().map(|name| name.value()) {
-                        Some("time") => {
-                            time = Some(Timestamp::from_str(entry.value().as_string()?).ok()?)
-                        }
-                        _ => (), // ignore unknown
-                    }
-                }
-                Some(Self::EndSession { time: time? })
-            }
-
-            _ => None, // ignore unknown
-        }
+    fn proxy_to_kdl_value(value: &LayerMask) -> KdlValue {
+        KdlValue::Base10(i64::from(value.0))
     }
 }
-
-fn set_children_to_events_list(node: &mut KdlNode, events: &[LogEvent]) {
-    let mut children = KdlDocument::new();
-    *children.nodes_mut() = events.iter().map(|ev| ev.to_kdl()).collect();
-    node.set_children(children);
+impl ValueSchemaProxy<Timestamp> for KdlProxy {
+    fn proxy_from_kdl_value(value: &KdlValue) -> Option<Timestamp> {
+        Some(Timestamp::from_str(value.as_string()?).ok()?)
+    }
+    fn proxy_to_kdl_value(value: &Timestamp) -> KdlValue {
+        KdlValue::String(value.to_string())
+    }
+}
+impl ValueSchemaProxy<ScrambleType> for KdlProxy {
+    fn proxy_from_kdl_value(value: &KdlValue) -> Option<ScrambleType> {
+        match value {
+            KdlValue::RawString(s) | KdlValue::String(s) => match s.as_str() {
+                "full" => Some(ScrambleType::Full),
+                _ => None,
+            },
+            KdlValue::Base2(n) | KdlValue::Base8(n) | KdlValue::Base10(n) | KdlValue::Base16(n) => {
+                u32::try_from(*n).ok().map(ScrambleType::Partial)
+            }
+            _ => None,
+        }
+    }
+    fn proxy_to_kdl_value(value: &ScrambleType) -> KdlValue {
+        match *value {
+            ScrambleType::Full => KdlValue::from("full"),
+            ScrambleType::Partial(n) => KdlValue::from(n as i64),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -425,41 +280,41 @@ mod tests {
 
     #[test]
     fn test_puzzle_log_export() {
-        println!(
-            "{}",
-            LogFile {
-                program: Some(Program {
-                    name: Some("Hyperspeedcube".to_string()),
-                    version: Some("2.0.0-pre.15".to_string()),
+        let log_file = LogFile {
+            program: Some(Program {
+                name: Some("Hyperspeedcube".to_string()),
+                version: Some("2.0.0-pre.15".to_string()),
+            }),
+            solves: vec![Solve {
+                puzzle: Puzzle {
+                    id: "ft_cube:3".to_string(),
+                    version: "1.0.0".to_string(),
+                },
+                solved: true,
+                duration: Some(5 * 60 * 1000),
+                scramble: Some(Scramble {
+                    ty: ScrambleType::Partial(3),
+                    time: Some(Timestamp::now()),
+                    seed: Some(42),
+                    twists: "R U L'".to_string(),
                 }),
-                solves: vec![Solve {
-                    puzzle: Puzzle {
-                        id: "ft_cube:3".to_string(),
-                        version: "1.0.0".to_string(),
+                log: vec![
+                    LogEvent::Scramble,
+                    LogEvent::Twists("L U' R'".to_string()),
+                    LogEvent::EndSolve {
+                        time: Timestamp::now(),
                     },
-                    solved: true,
-                    duration: Some(5 * 60 * 1000),
-                    scramble: Some(Scramble {
-                        info: ScrambleInfo {
-                            ty: ScrambleType::Partial(3),
-                            time: Timestamp::now(),
-                            seed: 42,
-                        },
-                        twists: "R U L'".to_string(),
-                    }),
-                    log: vec![
-                        LogEvent::Scramble,
-                        LogEvent::Twists("L U' R'".to_string()),
-                        LogEvent::EndSolve {
-                            time: Timestamp::now()
-                        },
-                        LogEvent::EndSession {
-                            time: Timestamp::now()
-                        },
-                    ]
-                }]
-            }
-            .serialize()
-        );
+                    LogEvent::EndSession {
+                        time: Timestamp::now(),
+                    },
+                ],
+            }],
+        };
+        std::thread::sleep(std::time::Duration::from_millis(10)); // force timestamp to change
+        let serialized = log_file.serialize();
+        println!("{serialized}");
+        std::thread::sleep(std::time::Duration::from_millis(10)); // force timestamp to change
+        let deserialized = LogFile::deserialize(&serialized).unwrap();
+        assert_eq!(log_file, deserialized);
     }
 }

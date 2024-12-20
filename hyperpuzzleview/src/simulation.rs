@@ -6,7 +6,7 @@ use hypermath::pga::{Axes, Motor};
 use hypermath::{Vector, VectorRef};
 use hyperprefs::AnimationPreferences;
 use hyperpuzzle::{
-    Axis, LayerMask, LayeredTwist, PerPiece, PieceMask, Puzzle, PuzzleState, ScrambleInfo,
+    Axis, LayerMask, LayeredTwist, PerPiece, PieceMask, Puzzle, PuzzleState, ScrambleParams,
     ScrambleType,
 };
 use hyperpuzzlelog::Scramble;
@@ -149,9 +149,10 @@ impl PuzzleSimulation {
     }
     /// Returns whether the puzzle has been fully scrambled.
     pub fn has_been_fully_scrambled(&self) -> bool {
+        // TODO: only if "scramble" actually appears in the log file
         self.scramble
             .as_ref()
-            .is_some_and(|scramble| scramble.info.ty == ScrambleType::Full)
+            .is_some_and(|scramble| scramble.ty == ScrambleType::Full)
     }
 
     /// Resets the puzzle state and replay log.
@@ -159,14 +160,14 @@ impl PuzzleSimulation {
         *self = Self::new(self.puzzle_type());
     }
     /// Resets and scrambles the puzzle.
-    pub fn scramble(&mut self, scramble_info: ScrambleInfo) {
+    pub fn scramble(&mut self, params: ScrambleParams) {
         self.reset();
         let ty = self.puzzle_type();
-        let (twists, state) = ty.new_scrambled(scramble_info);
-        let scramble = Scramble {
-            info: scramble_info,
-            twists: hyperpuzzlelog::notation::format_twists(&ty.twists, twists),
-        };
+        let (twists, state) = ty.new_scrambled(params);
+        let scramble = Scramble::new(
+            params,
+            hyperpuzzlelog::notation::format_twists(&ty.twists, twists),
+        );
         self.scramble = Some(scramble.clone());
         self.replay.push(ReplayEvent::Scramble(scramble));
         self.latest_state = state;
@@ -501,7 +502,9 @@ impl PuzzleSimulation {
                 version: puz.version.to_string(),
             },
             solved: self.solved,
-            duration: Some(self.old_duration + self.load_time.elapsed().as_millis() as i64),
+            duration: Some(
+                dbg!(self.old_duration) + dbg!(self.load_time.elapsed().as_millis() as i64),
+            ),
             scramble: self.scramble.clone(),
             log,
         }
@@ -518,8 +521,6 @@ impl PuzzleSimulation {
         } = solve;
 
         let mut ret = Self::new(puzzle);
-        ret.solved = *solved;
-        ret.old_duration = duration.unwrap_or(0);
         for event in log {
             match event {
                 hyperpuzzlelog::LogEvent::Scramble => {
@@ -559,6 +560,8 @@ impl PuzzleSimulation {
                 }
             }
         }
+        ret.solved = *solved;
+        ret.old_duration = dbg!(duration).unwrap_or(0);
         ret.has_unsaved_changes = false;
 
         ret.skip_twist_animations();

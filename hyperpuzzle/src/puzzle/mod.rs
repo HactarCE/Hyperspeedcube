@@ -21,6 +21,6 @@ pub use metric::TwistMetric;
 pub use notation::Notation;
 pub use piece_type_hierarchy::*;
 pub use puzzle_type::Puzzle;
-pub use scramble::{ScrambleInfo, ScrambleType};
+pub use scramble::{ScrambleParams, ScrambleType};
 pub use state::PuzzleState;
 pub use twist::LayeredTwist;

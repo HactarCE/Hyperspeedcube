@@ -110,8 +110,8 @@ impl Puzzle {
         PuzzleState::new(self.arc())
     }
     /// Constructs a new scrambled instance of the puzzle.
-    pub fn new_scrambled(&self, scramble: ScrambleInfo) -> (Vec<LayeredTwist>, PuzzleState) {
-        let ScrambleInfo { ty, time, seed } = scramble;
+    pub fn new_scrambled(&self, scramble: ScrambleParams) -> (Vec<LayeredTwist>, PuzzleState) {
+        let ScrambleParams { ty, time, seed } = scramble;
 
         let mut sha256 = sha2::Sha256::new();
         sha256.write(time.to_string().as_bytes()).unwrap();

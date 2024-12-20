@@ -2,11 +2,10 @@ use rand::Rng;
 
 use crate::Timestamp;
 
-/// Info about how to generate a scramble.
-///
-/// Given a puzzle definition, this exactly determines the scramble content.
+/// Parameters to deterministically generate a twist sequence to scramble a
+/// puzzle.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct ScrambleInfo {
+pub struct ScrambleParams {
     /// Type of scramble to generate.
     pub ty: ScrambleType,
     /// Timestamp when the scramble was requested.
@@ -14,7 +13,7 @@ pub struct ScrambleInfo {
     /// Random seed, probably sourced from a "true" RNG provided by the OS.
     pub seed: u32,
 }
-impl ScrambleInfo {
+impl ScrambleParams {
     /// Generates a new random scramble based on the current time.
     pub fn new(ty: ScrambleType) -> Self {
         Self {

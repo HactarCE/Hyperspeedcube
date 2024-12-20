@@ -1,3 +1,5 @@
+//! Functions for parsing and formatting general puzzle twist notation.
+
 use std::collections::HashMap;
 
 use hyperpuzzle::{LayerMask, LayeredTwist, PerTwist, Twist, TwistInfo};
@@ -5,6 +7,7 @@ use itertools::Itertools;
 use regex::Regex;
 use smallvec::{smallvec, SmallVec};
 
+/// Formats a sequence of twists as a string.
 pub fn format_twists(
     all_twists: &PerTwist<TwistInfo>,
     twists: impl IntoIterator<Item = LayeredTwist>,
@@ -15,6 +18,7 @@ pub fn format_twists(
         .join(" ")
 }
 
+/// Parses a sequence of twists, allowing non-nested parenthetical groupings.
 pub fn parse_grouped_twists<'a>(
     twists_by_name: &'a HashMap<String, Twist>,
     s: &'a str,
@@ -35,6 +39,7 @@ pub fn parse_grouped_twists<'a>(
     }
     ret
 }
+/// Parses a sequence of twists with no parentheses.
 pub fn parse_twists<'a>(
     twists_by_name: &'a HashMap<String, Twist>,
     s: &'a str,
@@ -43,6 +48,7 @@ pub fn parse_twists<'a>(
         .map(|word| parse_twist(twists_by_name, word))
 }
 
+/// Parses a single twist.
 fn parse_twist<'a>(
     twists_by_name: &HashMap<String, Twist>,
     s: &'a str,
@@ -55,6 +61,8 @@ fn parse_twist<'a>(
     Ok(LayeredTwist { layers, transform })
 }
 
+/// Returns a layer mask from the beginning of `string` and the remainder of
+/// `string` after the layer mask.
 fn strip_layer_mask_prefix<'a>(
     string: &'a str,
 ) -> Result<(Option<LayerMask>, &'a str), TwistParseError<'a>> {
@@ -89,6 +97,8 @@ fn strip_layer_mask_prefix<'a>(
     })
 }
 
+/// Error encountered while parsing a twist.
+#[allow(missing_docs)]
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
 pub enum TwistParseError<'a> {
     #[error("bad layer mask: {0:?}")]

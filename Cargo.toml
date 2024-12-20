@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "hyperdraw",
+    "hyperkdl",
+    "hyperkdl_derive",
     "hypermath",
     "hyperprefs",
     "hyperpuzzle",
@@ -82,6 +84,7 @@ hex = { version = "0.4.3" }
 image = { version = "0.25.5" }
 include_dir = { version = "0.7.4" }
 kdl = { version = "4.7.0" }
+miette = { version = "7.4.0" } # must match kdl
 serde = { version = "1.0.216", features = ["derive"] }
 serde_yml = { version = "0.0.12" }
 strum = { version = "0.26.3", features = ["derive"] }
@@ -141,6 +144,11 @@ mlua = { version = "0.10.2", features = ["lua54", "send", "vendored"] }
 rand = { version = "0.9.0-beta.1" } # must match rand_chacha
 rand_chacha = { version = "0.9.0-beta.1" } # needs stable output
 sha2 = { version = "0.10.8" }
+
+# Procedural macro utilities
+proc-macro2 = { version = "1.0" }
+quote = { version = "1.0.37" }
+syn = { version = "2.0.90" }
 
 # Other dependencies
 bytemuck = { version = "1.20.0", features = ["derive"] }
