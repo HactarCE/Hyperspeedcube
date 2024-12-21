@@ -7,7 +7,7 @@ use hypermath::{Vector, VectorRef};
 use hyperprefs::AnimationPreferences;
 use hyperpuzzle::{
     Axis, LayerMask, LayeredTwist, PerPiece, PieceMask, Puzzle, PuzzleState, ScrambleParams,
-    ScrambleType,
+    ScrambleType, Timestamp,
 };
 use hyperpuzzlelog::Scramble;
 use smallvec::smallvec;
@@ -182,26 +182,10 @@ impl PuzzleSimulation {
             ReplayEvent::Scramble(scramble) => {
                 self.reset();
                 self.scramble = Some(scramble.clone());
-                let ty = Arc::clone(self.puzzle_type());
-                for twist in
-                    hyperpuzzlelog::notation::parse_twists(&ty.twist_by_name, &scramble.twists)
-                {
-                    match twist {
-                        Ok(twist) => match self.latest_state.do_twist(twist) {
-                            Ok(new_state) => self.latest_state = new_state,
-                            Err(e) => {
-                                log::error!(
-                                    "twist {twist:?} blocked in scramble due to pieces {e:?}"
-                                );
-                            }
-                        },
-                        Err(e) => log::error!("error parsing twist in scramble: {e}"),
-                    }
-                }
-                self.skip_twist_animations();
-                self.replay.push(ReplayEvent::Scramble(scramble));
+                self.do_action(Action::Scramble);
             }
             ReplayEvent::Twists(twists) => self.do_action(Action::Twists(twists)),
+            ReplayEvent::EndSolve { time } => self.do_action(Action::EndSolve { time }),
             _ => (),
         }
     }
@@ -216,16 +200,25 @@ impl PuzzleSimulation {
     }
 
     fn undo(&mut self) {
-        if let Some(action) = self.undo_stack.pop() {
-            if self.undo_action_internal(&action) {
-                self.redo_stack.push(action);
+        // Keep undoing until we find an action that can be undone.
+        while let Some(action) = self.undo_stack.pop() {
+            match self.undo_action_internal(&action) {
+                ActionResult::Fail => break, // do nothing
+                ActionResult::Success => {
+                    self.redo_stack.push(action);
+                    break;
+                }
+                ActionResult::KeepGoing => continue,
+                ActionResult::NotUndoable => break,
             }
         }
     }
     fn redo(&mut self) {
-        if let Some(action) = self.redo_stack.pop() {
+        // Keep redoing until we find an action that can be redone.
+        while let Some(action) = self.redo_stack.pop() {
             if self.do_action_internal(&action) {
                 self.undo_stack.push(action);
+                break;
             }
         }
     }
@@ -234,36 +227,82 @@ impl PuzzleSimulation {
     ///
     /// Clears the redo stack if applicable.
     fn do_action(&mut self, action: Action) {
-        self.has_unsaved_changes = true;
-        self.redo_stack.clear();
+        if !action.is_marker() {
+            self.has_unsaved_changes = true;
+            self.redo_stack.clear();
+        }
+        self.undo_stack.push(action.clone());
         self.do_action_internal(&action);
-        self.undo_stack.push(action);
     }
-    /// Does an undoable action. Returns `true` if the action had any effect.
+    /// Does an undoable action. Returns whether the action succeeded and
+    /// therefore should be saved to the undo stack.
     fn do_action_internal(&mut self, action: &Action) -> bool {
         self.has_unsaved_changes = true;
         match action {
+            Action::Scramble => match &self.scramble {
+                Some(scramble) => {
+                    let ty = Arc::clone(self.puzzle_type());
+                    for twist in
+                        hyperpuzzlelog::notation::parse_twists(&ty.twist_by_name, &scramble.twists)
+                    {
+                        match twist {
+                            Ok(twist) => match self.latest_state.do_twist(twist) {
+                                Ok(new_state) => self.latest_state = new_state,
+                                Err(e) => {
+                                    log::error!(
+                                        "twist {twist:?} blocked in scramble due to pieces {e:?}"
+                                    );
+                                }
+                            },
+                            Err(e) => log::error!("error parsing twist in scramble: {e}"),
+                        }
+                    }
+                    self.skip_twist_animations();
+                    true
+                }
+                None => false,
+            },
             Action::Twists(twists) => {
                 let mut any_effect = false;
                 for &twist in twists {
                     any_effect |= self.do_twist(twist);
                 }
+                if any_effect && !self.solved && self.scramble.is_some() && self.is_solved() {
+                    self.event(ReplayEvent::EndSolve {
+                        time: Timestamp::now(),
+                    });
+                }
                 any_effect
+            }
+            Action::EndSolve { .. } => {
+                self.solved = true;
+                true
             }
         }
     }
-    /// Undoes an action. Returns `true` if the action had any effect.
-    fn undo_action_internal(&mut self, action: &Action) -> bool {
+    /// Undoes an action. Returns the result of the action.
+    fn undo_action_internal(&mut self, action: &Action) -> ActionResult {
         self.has_unsaved_changes = true;
         let puz = self.puzzle_type();
         match action {
-            Action::Twists(twists) => self.do_action_internal(&Action::Twists(
-                twists
-                    .iter()
-                    .rev()
-                    .filter_map(|twist| twist.rev(&puz).ok())
-                    .collect(),
-            )),
+            Action::Scramble => ActionResult::NotUndoable,
+            Action::Twists(twists) => {
+                let had_effect = self.do_action_internal(&Action::Twists(
+                    twists
+                        .iter()
+                        .rev()
+                        .filter_map(|twist| twist.rev(&puz).ok())
+                        .collect(),
+                ));
+                match had_effect {
+                    true => ActionResult::Success,
+                    false => ActionResult::Fail,
+                }
+            }
+            Action::EndSolve { .. } => {
+                self.solved = false;
+                ActionResult::KeepGoing
+            }
         }
     }
 
@@ -469,11 +508,9 @@ impl PuzzleSimulation {
         let puz = self.puzzle_type();
 
         let mut log = vec![];
-        if self.scramble.is_some() {
-            log.push(hyperpuzzlelog::LogEvent::Scramble);
-        }
         for action in &self.undo_stack {
             match action {
+                Action::Scramble => log.push(hyperpuzzlelog::LogEvent::Scramble),
                 Action::Twists(twists) => {
                     if twists.is_empty() {
                         continue;
@@ -493,6 +530,9 @@ impl PuzzleSimulation {
                         log.push(hyperpuzzlelog::LogEvent::Twists(s));
                     }
                 }
+                Action::EndSolve { time } => {
+                    log.push(hyperpuzzlelog::LogEvent::EndSolve { time: *time })
+                }
             }
         }
 
@@ -501,10 +541,11 @@ impl PuzzleSimulation {
                 id: puz.id.clone(),
                 version: puz.version.to_string(),
             },
-            solved: self.solved,
-            duration: Some(
-                dbg!(self.old_duration) + dbg!(self.load_time.elapsed().as_millis() as i64),
-            ),
+            solved: self
+                .undo_stack
+                .iter()
+                .any(|event| matches!(event, Action::EndSolve { .. })),
+            duration: Some(self.old_duration + self.load_time.elapsed().as_millis() as i64),
             scramble: self.scramble.clone(),
             log,
         }
@@ -513,7 +554,7 @@ impl PuzzleSimulation {
     pub fn deserialize(puzzle: &Arc<Puzzle>, solve: &hyperpuzzlelog::Solve) -> Self {
         let hyperpuzzlelog::Solve {
             puzzle: _,
-            solved,
+            solved: _,
             duration,
             scramble,
             log,
@@ -562,8 +603,7 @@ impl PuzzleSimulation {
                 }
             }
         }
-        ret.solved = *solved;
-        ret.old_duration = dbg!(duration).unwrap_or(0);
+        ret.old_duration = duration.unwrap_or(0);
         ret.has_unsaved_changes = false;
 
         ret.skip_twist_animations();
@@ -575,6 +615,14 @@ impl PuzzleSimulation {
     pub fn is_solved(&self) -> bool {
         self.latest_state.is_solved()
     }
+    pub fn has_been_solved_via_flag(&self) -> bool {
+        self.solved
+    }
+    pub fn has_been_solved_via_undohist(&self) -> bool {
+        self.undo_stack
+            .iter()
+            .any(|ev| matches!(ev, Action::EndSolve { .. }))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -583,4 +631,16 @@ pub struct PartialTwistDragState {
     pub layers: LayerMask,
     pub grip: PieceMask,
     pub transform: Motor,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+enum ActionResult {
+    /// Undoing the action failed, so forget about it. (This should never happen.)
+    Fail,
+    /// Undoing the action had no effect so move onto the next one and we're done.
+    Success,
+    /// The action was just a marker, so undo/redo the next action as well if relevant.
+    KeepGoing,
+    /// The action cannot be undone.
+    NotUndoable,
 }

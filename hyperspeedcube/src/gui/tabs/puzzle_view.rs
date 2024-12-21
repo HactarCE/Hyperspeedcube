@@ -133,7 +133,7 @@ impl fmt::Debug for PuzzleWidget {
 impl PuzzleWidget {
     pub(crate) fn new(
         gfx: &Arc<GraphicsState>,
-        egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
+        egui_wgpu_renderer: &Arc<RwLock<eframe::egui_wgpu::Renderer>>,
         prefs: &mut Preferences,
         puzzle_id: &str,
     ) -> Option<Self> {
@@ -149,34 +149,25 @@ impl PuzzleWidget {
             Ok(p) => {
                 log::info!("Built {:?} in {:?}", p.name, start_time.elapsed());
                 log::info!("Updated active puzzle");
-                let sim = &Arc::new(Mutex::new(PuzzleSimulation::new(&p)));
-                Some(Self::with_sim(gfx, egui_wgpu_renderer, sim, prefs))
+                let sim = Arc::new(Mutex::new(PuzzleSimulation::new(&p)));
+                Some(Self::with_sim(gfx, egui_wgpu_renderer, &sim, prefs))
             }
         }
     }
     pub(crate) fn with_sim(
         gfx: &Arc<GraphicsState>,
-        egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
+        egui_wgpu_renderer: &Arc<RwLock<eframe::egui_wgpu::Renderer>>,
         sim: &Arc<Mutex<PuzzleSimulation>>,
         prefs: &mut Preferences,
     ) -> Self {
-        let puz = Arc::clone(sim.lock().puzzle_type());
-        let view_preset = prefs[PuzzleViewPreferencesSet::from_ndim(puz.ndim())]
-            .load_last_loaded(&L.presets.default_preset_name);
-        let color_scheme = prefs
-            .color_schemes
-            .get_mut(&puz.colors)
-            .schemes
-            .load_last_loaded(&L.presets.default_preset_name);
-
-        let view = PuzzleView::new(sim, prefs, view_preset.clone(), color_scheme.clone());
+        let view = PuzzleView::new(sim, prefs);
         let puzzle = view.puzzle();
         let renderer = PuzzleRenderer::new(gfx, &puzzle);
         Self {
             view,
 
             renderer,
-            egui_wgpu_renderer,
+            egui_wgpu_renderer: Arc::clone(egui_wgpu_renderer),
             egui_texture_id: None,
 
             queued_arrows: vec![],
@@ -198,11 +189,12 @@ impl PuzzleWidget {
     pub fn reload(&mut self, prefs: &mut Preferences) -> bool {
         crate::load_user_puzzles();
         let current_puzzle = self.puzzle();
-        let gfx = Arc::clone(&self.renderer.gfx);
-        let egui_wgpu_renderer = Arc::clone(&self.egui_wgpu_renderer);
-        if let Some(mut new_puzzle_view) =
-            Self::new(&gfx, egui_wgpu_renderer, prefs, &current_puzzle.id)
-        {
+        if let Some(mut new_puzzle_view) = Self::new(
+            &self.renderer.gfx,
+            &self.egui_wgpu_renderer,
+            prefs,
+            &current_puzzle.id,
+        ) {
             // Copy view and color settings from the current puzzle view.
             new_puzzle_view.view.camera.view_preset = self.view.camera.view_preset.clone();
             new_puzzle_view.view.colors = self.view.colors.clone();
@@ -536,7 +528,15 @@ impl PuzzleWidget {
             .anchor(egui::Align2::LEFT_BOTTOM, egui::Vec2::ZERO)
             .show(ui.ctx(), |ui| {
                 ui.set_width(egui_rect.width());
-                ui.label(format!("Solved: {}", self.sim().lock().is_solved()))
+                ui.label(format!("Solved: {}", self.sim().lock().is_solved()));
+                ui.label(format!(
+                    "Solved flag: {}",
+                    self.sim().lock().has_been_solved_via_flag()
+                ));
+                ui.label(format!(
+                    "Replay flag: {}",
+                    self.sim().lock().has_been_solved_via_undohist()
+                ));
             });
 
         // TODO: draw debug plane??

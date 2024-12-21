@@ -50,6 +50,7 @@ pub use view::*;
 
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
+pub const DEFAULT_PRESET_NAME: &str = "Default";
 
 pub const IS_OFFICIAL_BUILD: bool = std::option_env!("HSC_OFFICIAL_BUILD").is_some();
 

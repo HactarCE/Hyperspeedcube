@@ -211,6 +211,9 @@ pub enum LogEvent {
     ///
     /// This marks the first time that the puzzle reached a solved state and the
     /// state was visible (i.e., not blindfolded).
+    ///
+    /// This may appear multiple times in a replay file if the final twist was
+    /// undone and then the puzzle was later solved.
     #[kdl(name = "end-solve")]
     EndSolve {
         /// Timestamp at which the solve ended.

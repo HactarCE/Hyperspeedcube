@@ -166,8 +166,6 @@ presets {
   create_current "Create {{current}}"
   overwrite_current "Overwrite {{current}}"
 
-  default_preset_name "Default"
-
   // `default` is used as a fallback for others.
   (PresetStrings)default {
     saved_presets "Saved presets"

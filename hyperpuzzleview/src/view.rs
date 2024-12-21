@@ -6,10 +6,10 @@ use float_ord::FloatOrd;
 use hyperdraw::Camera;
 use hypermath::pga::*;
 use hypermath::prelude::*;
+use hyperprefs::PuzzleViewPreferencesSet;
 use hyperprefs::{
     AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,
     FilterSeqPreset, ModifiedPreset, Preferences, PresetRef, PuzzleFilterPreferences,
-    ViewPreferences,
 };
 use hyperpuzzle::LayeredTwist;
 use hyperpuzzle::{Axis, GizmoFace, LayerMask, PerPiece, Piece, PieceMask, Puzzle, Sticker};
@@ -63,12 +63,16 @@ pub struct PuzzleView {
 }
 impl PuzzleView {
     /// Constructs a new puzzle view.
-    pub fn new(
-        puzzle_simulation: &Arc<Mutex<PuzzleSimulation>>,
-        prefs: &Preferences,
-        view_preset: ModifiedPreset<ViewPreferences>,
-        color_prefs: ModifiedPreset<ColorScheme>,
-    ) -> Self {
+    pub fn new(puzzle_simulation: &Arc<Mutex<PuzzleSimulation>>, prefs: &mut Preferences) -> Self {
+        let puz = Arc::clone(puzzle_simulation.lock().puzzle_type());
+        let view_preset = prefs[PuzzleViewPreferencesSet::from_ndim(puz.ndim())]
+            .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
+        let colors = prefs
+            .color_schemes
+            .get_mut(&puz.colors)
+            .schemes
+            .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
+
         let simulation = puzzle_simulation.lock();
         let puzzle = simulation.puzzle_type();
 
@@ -82,7 +86,7 @@ impl PuzzleView {
                 zoom: 0.5,
             },
 
-            colors: color_prefs,
+            colors,
             temp_colors: None,
             styles: PuzzleStyleStates::new(puzzle.pieces.len()),
             filters: PuzzleFiltersState::new(prefs.first_custom_style()),

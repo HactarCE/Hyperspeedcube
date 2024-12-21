@@ -5,7 +5,7 @@ use egui::mutex::RwLock;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences, PuzzleViewPreferencesSet};
 use hyperpuzzle::{Puzzle, ScrambleParams, ScrambleType};
-use hyperpuzzleview::ReplayEvent;
+use hyperpuzzleview::{PuzzleView, ReplayEvent};
 use parking_lot::Mutex;
 use rand::Rng;
 
@@ -30,7 +30,7 @@ impl App {
 
         let animation_prefs = prefs
             .animation
-            .load_last_loaded(&L.presets.default_preset_name);
+            .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
 
         let wgpu_render_state = cc.wgpu_render_state.as_ref().expect("no wgpu render state");
         Self {
@@ -85,10 +85,12 @@ impl App {
 
     pub(crate) fn load_puzzle(&mut self, puzzle_id: &str) {
         if self.active_puzzle_view.view().is_some() {
-            let egui_wgpu_renderer = Arc::clone(&self.egui_wgpu_renderer);
-            if let Some(new_puzzle_view) =
-                PuzzleWidget::new(&self.gfx, egui_wgpu_renderer, &mut self.prefs, puzzle_id)
-            {
+            if let Some(new_puzzle_view) = PuzzleWidget::new(
+                &self.gfx,
+                &self.egui_wgpu_renderer,
+                &mut self.prefs,
+                puzzle_id,
+            ) {
                 self.set_active_puzzle(Some(new_puzzle_view));
             }
         }
@@ -164,10 +166,18 @@ impl App {
                             .take_result_blocking()
                         {
                             Ok(puzzle) => {
-                                *p.sim().lock() = hyperpuzzleview::PuzzleSimulation::deserialize(
-                                    &puzzle,
-                                    first_solve,
-                                );
+                                let sim = Arc::new(Mutex::new(
+                                    hyperpuzzleview::PuzzleSimulation::deserialize(
+                                        &puzzle,
+                                        first_solve,
+                                    ),
+                                ));
+                                *p = PuzzleWidget::with_sim(
+                                    &self.gfx,
+                                    &self.egui_wgpu_renderer,
+                                    &sim,
+                                    &mut self.prefs,
+                                )
                             }
                             Err(e) => {
                                 log::error!("error constructing puzzle specified in log file: {e}");
