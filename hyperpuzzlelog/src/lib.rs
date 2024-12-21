@@ -6,7 +6,7 @@ extern crate lazy_static;
 
 use std::str::FromStr;
 
-use hyperkdl::{DocSchema, ValueSchemaProxy};
+use hyperkdl::{DocSchema, ValueSchemaProxy, Warning};
 use hyperpuzzle::{LayerMask, ScrambleParams, ScrambleType, Timestamp};
 use kdl::*;
 
@@ -19,7 +19,7 @@ pub const LOG_FILE_VERSION: i64 = 2;
 /// Top-level log file structure.
 ///
 /// A single log file may contain multiple solves.
-#[derive(Debug, Clone, PartialEq, Eq, hyperkdl_derive::Doc)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, hyperkdl_derive::Doc)]
 pub struct LogFile {
     /// Information about the software that created the log file.
     #[kdl(child("program"), optional)]
@@ -29,6 +29,7 @@ pub struct LogFile {
     pub solves: Vec<Solve>,
 }
 impl LogFile {
+    /// Serializes the log file to a string.
     pub fn serialize(&self) -> String {
         let mut doc = self.to_kdl_doc();
 
@@ -43,19 +44,51 @@ impl LogFile {
         doc.to_string()
     }
 
-    pub fn deserialize(s: &str) -> Result<Self, KdlError> {
-        // TODO: display warnings
+    /// Deserializes a log file from a string.
+    pub fn deserialize(s: &str) -> Result<(Self, Vec<Warning>), KdlError> {
+        let mut doc = KdlDocument::from_str(s)?;
 
-        let doc = KdlDocument::from_str(s)?;
+        // Reject if no version number
+        let Some(version_node) = doc
+            .nodes_mut()
+            .iter_mut()
+            .position(|node| node.name().value() == "version")
+            .map(|i| doc.nodes_mut().remove(i))
+        else {
+            return Ok((
+                Self::default(),
+                vec![Warning {
+                    span: *doc.span(),
+                    msg: "missing log file format version number".to_owned(),
+                }],
+            ));
+        };
+        let Some(version_number) = (|| version_node.entries().iter().next()?.value().as_i64())()
+        else {
+            return Ok((
+                Self::default(),
+                vec![Warning {
+                    span: *version_node.span(),
+                    msg: "invalid log file format version number".to_owned(),
+                }],
+            ));
+        };
+
         let mut warnings = vec![];
-        Ok(
-            Self::from_kdl_doc(&doc, hyperkdl::DeserCtx::new(&mut warnings))
-                // TODO: better error handling
-                .unwrap_or(Self {
-                    program: None,
-                    solves: vec![],
-                }),
-        )
+
+        // Check version number
+        if version_number > LOG_FILE_VERSION {
+            warnings.push(Warning {
+                span: *version_node.span(),
+                msg: "this file was saved using a newer version, and might not load correctly"
+                    .to_owned(),
+            });
+        }
+
+        Ok((
+            Self::from_kdl_doc(&doc, hyperkdl::DeserCtx::new(&mut warnings)).unwrap_or_default(),
+            warnings,
+        ))
     }
 }
 
@@ -318,7 +351,7 @@ mod tests {
         let serialized = log_file.serialize();
         println!("{serialized}");
         std::thread::sleep(std::time::Duration::from_millis(10)); // force timestamp to change
-        let deserialized = LogFile::deserialize(&serialized).unwrap();
+        let (deserialized, _warnings) = LogFile::deserialize(&serialized).unwrap();
         assert_eq!(log_file, deserialized);
     }
 }

@@ -11,6 +11,12 @@ pub struct Warning {
     /// Warning message.
     pub msg: String,
 }
+impl fmt::Display for Warning {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { span, msg } = self;
+        write!(f, "{span:?}: {msg}")
+    }
+}
 
 /// KDL deserialization context.
 #[derive(Debug)]
@@ -46,8 +52,9 @@ impl<'a> DeserCtx<'a> {
 
     /// Adds a warning: "expected node name {expected:?}"
     #[doc(hidden)]
-    pub fn warn_wrong_node_name(&mut self, expected: &str, span: SourceSpan) {
-        self.warn(span, format!("expected node name {expected:?}"));
+    pub fn warn_wrong_node_name(&mut self, expected: &str, got: &str, span: SourceSpan) {
+        let msg = format!("expected node name {expected:?}; got {got:?}");
+        self.warn(span, msg);
     }
     /// Adds a warning: "invalid value"
     #[doc(hidden)]

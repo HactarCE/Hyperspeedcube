@@ -154,7 +154,11 @@ impl App {
     pub(crate) fn paste_from_string(&mut self, s: &str) {
         // TODO: handle error
         match hyperpuzzlelog::LogFile::deserialize(s) {
-            Ok(log_file) => {
+            Ok((log_file, warnings)) => {
+                for warning in warnings {
+                    log::warn!("warning while loading log file: {warning}");
+                }
+
                 // TODO: load multiple solves at once
                 if let Some(first_solve) = log_file.solves.first() {
                     // TODO: new tab if none exists

@@ -295,15 +295,15 @@ pub fn derive_kdl_node(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             let struct_attrs = crate::attrs::parse_kdl_struct_attrs(&input.attrs);
             let kdl_fields = crate::fields::parse_fields(&data_struct.fields);
 
-            let node_name = struct_attrs
+            let expected_node_name = struct_attrs
                 .node_name
                 .expect("missing #[kdl(name = ...)] attribute (required for #[derive(Node)])");
 
             let from_kdl_impl = TokenStream::from_iter([
                 // Check node name and add it to `ctx`
                 quote! {
-                    if node.name().value() != #node_name {
-                        ctx.warn_wrong_node_name(#node_name, *node.span());
+                    if #expected_node_name != node.name().value() {
+                        ctx.warn_wrong_node_name(#expected_node_name, node.name().value(), *node.span());
                         return None;
                     }
                     let mut ctx = ctx.with(::hyperkdl::KeyPathElem::Node(node.name()));
@@ -327,7 +327,7 @@ pub fn derive_kdl_node(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                     );
                     quote! { let #destructuring_pattern = self; }
                 },
-                crate::to_kdl::gen_construct_node(&node_name, &kdl_fields),
+                crate::to_kdl::gen_construct_node(&expected_node_name, &kdl_fields),
                 quote!(node),
             ]);
 
