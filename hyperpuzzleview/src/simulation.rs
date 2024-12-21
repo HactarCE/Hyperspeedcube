@@ -509,7 +509,6 @@ impl PuzzleSimulation {
             log,
         }
     }
-
     /// Loads a log file from a string.
     pub fn deserialize(puzzle: &Arc<Puzzle>, solve: &hyperpuzzlelog::Solve) -> Self {
         let hyperpuzzlelog::Solve {
@@ -570,6 +569,11 @@ impl PuzzleSimulation {
         ret.skip_twist_animations();
 
         ret
+    }
+
+    /// Returns whether the puzzle is currently solved.
+    pub fn is_solved(&self) -> bool {
+        self.latest_state.is_solved()
     }
 }
 

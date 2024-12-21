@@ -531,6 +531,14 @@ impl PuzzleWidget {
             }
         }
 
+        egui::Area::new(unique_id!())
+            .constrain_to(egui_rect)
+            .anchor(egui::Align2::LEFT_BOTTOM, egui::Vec2::ZERO)
+            .show(ui.ctx(), |ui| {
+                ui.set_width(egui_rect.width());
+                ui.label(format!("Solved: {}", self.sim().lock().is_solved()))
+            });
+
         // TODO: draw debug plane??
         // let group = hypershape::CoxeterGroup::new_linear(&[5, 3]).unwrap();
         // for mirror in group.mirrors() {

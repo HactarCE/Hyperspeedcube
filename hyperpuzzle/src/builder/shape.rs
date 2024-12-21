@@ -512,6 +512,7 @@ impl ShapeBuilder {
                 if sticker.color != Color::INTERNAL {
                     let sticker_id = stickers.push(StickerInfo {
                         piece: piece_id,
+                        plane: sticker.plane.clone(),
                         color: *color_id_map.get(&sticker.color).unwrap_or(&Color::INTERNAL),
                     })?;
                     pieces[piece_id].stickers.push(sticker_id);

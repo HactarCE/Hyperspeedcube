@@ -116,6 +116,8 @@ pub struct PieceInfo {
 pub struct StickerInfo {
     /// Piece that the sticker is part of.
     pub piece: Piece,
+    /// Hyperplane of the sticker.
+    pub plane: Hyperplane, // TODO: avoid storing a bunch of duplicates
     /// Color on the sticker.
     pub color: Color,
 }
