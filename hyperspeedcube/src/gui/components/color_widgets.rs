@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use hyperprefs::ext::reorderable::{BeforeOrAfter, DragAndDropResponse};
 use hyperprefs::{ColorScheme, DefaultColorGradient, GlobalColorPalette};
 use hyperpuzzle::{ColorSystem, DefaultColor, Rgb};
-use hyperpuzzleview::PuzzleView;
+use hyperpuzzle_view::PuzzleView;
 use strum::IntoEnumIterator;
 
 use super::{TextEditPopup, TextEditPopupResponse};

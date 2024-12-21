@@ -7,7 +7,7 @@ use hyperprefs::{
     PuzzleFilterPreferences,
 };
 use hyperpuzzle::{PerPieceType, PieceMask, PieceTypeHierarchy, Puzzle};
-use hyperpuzzleview::PuzzleFiltersState;
+use hyperpuzzle_view::PuzzleFiltersState;
 use itertools::Itertools;
 
 use super::PuzzleWidget;

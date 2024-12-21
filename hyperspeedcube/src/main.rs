@@ -37,7 +37,7 @@ thread_local! {
 }
 lazy_static! {
     static ref LIBRARY_LOG_LINES: Mutex<Vec<hyperpuzzle::LuaLogLine>> = Mutex::new(vec![]);
-    static ref PROGRAM: hyperpuzzlelog::Program = hyperpuzzlelog::Program {
+    static ref PROGRAM: hyperpuzzle_log::Program = hyperpuzzle_log::Program {
         name: Some(TITLE.to_string()),
         version: Some(env!("CARGO_PKG_VERSION").to_string()),
     };

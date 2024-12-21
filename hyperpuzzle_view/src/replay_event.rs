@@ -1,5 +1,5 @@
 use hyperpuzzle::{LayerMask, LayeredTwist, Timestamp, Twist};
-use hyperpuzzlelog::Scramble;
+use hyperpuzzle_log::Scramble;
 use smallvec::SmallVec;
 
 /// Event that is part of a replay.

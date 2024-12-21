@@ -1,5 +1,5 @@
 use hyperpuzzle::{LayerMask, LayeredTwist};
-use hyperpuzzleview::ReplayEvent;
+use hyperpuzzle_view::ReplayEvent;
 use smallvec::smallvec;
 
 use crate::app::App;

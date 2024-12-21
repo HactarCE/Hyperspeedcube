@@ -7,7 +7,7 @@ use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences, PuzzleViewPreferencesSet};
 use hyperpuzzle::{GizmoFace, LayerMask, Puzzle};
-use hyperpuzzleview::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
+use hyperpuzzle_view::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 use image::ImageBuffer;
 use parking_lot::Mutex;
 use web_time::Instant;
@@ -529,14 +529,6 @@ impl PuzzleWidget {
             .show(ui.ctx(), |ui| {
                 ui.set_width(egui_rect.width());
                 ui.label(format!("Solved: {}", self.sim().lock().is_solved()));
-                ui.label(format!(
-                    "Solved flag: {}",
-                    self.sim().lock().has_been_solved_via_flag()
-                ));
-                ui.label(format!(
-                    "Replay flag: {}",
-                    self.sim().lock().has_been_solved_via_undohist()
-                ));
             });
 
         // TODO: draw debug plane??

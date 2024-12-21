@@ -5,7 +5,7 @@ use egui::mutex::RwLock;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences, PuzzleViewPreferencesSet};
 use hyperpuzzle::{Puzzle, ScrambleParams, ScrambleType};
-use hyperpuzzleview::{PuzzleView, ReplayEvent};
+use hyperpuzzle_view::{PuzzleView, ReplayEvent};
 use parking_lot::Mutex;
 use rand::Rng;
 
@@ -136,7 +136,7 @@ impl App {
     pub(crate) fn serialize_puzzle_log(&mut self) -> Option<String> {
         let solve = self.active_puzzle_view.with(|p| p.sim().lock().serialize());
         Some(
-            hyperpuzzlelog::LogFile {
+            hyperpuzzle_log::LogFile {
                 program: Some(crate::PROGRAM.clone()),
                 solves: vec![solve?],
             }
@@ -153,7 +153,7 @@ impl App {
     }
     pub(crate) fn paste_from_string(&mut self, s: &str) {
         // TODO: handle error
-        match hyperpuzzlelog::LogFile::deserialize(s) {
+        match hyperpuzzle_log::LogFile::deserialize(s) {
             Ok((log_file, warnings)) => {
                 for warning in warnings {
                     log::warn!("warning while loading log file: {warning}");
@@ -171,7 +171,7 @@ impl App {
                         {
                             Ok(puzzle) => {
                                 let sim = Arc::new(Mutex::new(
-                                    hyperpuzzleview::PuzzleSimulation::deserialize(
+                                    hyperpuzzle_view::PuzzleSimulation::deserialize(
                                         &puzzle,
                                         first_solve,
                                     ),

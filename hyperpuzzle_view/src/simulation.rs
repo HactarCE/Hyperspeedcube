@@ -9,7 +9,7 @@ use hyperpuzzle::{
     Axis, LayerMask, LayeredTwist, PerPiece, PieceMask, Puzzle, PuzzleState, ScrambleParams,
     ScrambleType, Timestamp,
 };
-use hyperpuzzlelog::Scramble;
+use hyperpuzzle_log::Scramble;
 use smallvec::smallvec;
 use web_time::{Duration, Instant};
 
@@ -166,7 +166,7 @@ impl PuzzleSimulation {
         let (twists, state) = ty.new_scrambled(params);
         let scramble = Scramble::new(
             params,
-            hyperpuzzlelog::notation::format_twists(&ty.twists, twists),
+            hyperpuzzle_log::notation::format_twists(&ty.twists, twists),
         );
         self.scramble = Some(scramble.clone());
         self.replay.push(ReplayEvent::Scramble(scramble));
@@ -243,7 +243,7 @@ impl PuzzleSimulation {
                 Some(scramble) => {
                     let ty = Arc::clone(self.puzzle_type());
                     for twist in
-                        hyperpuzzlelog::notation::parse_twists(&ty.twist_by_name, &scramble.twists)
+                        hyperpuzzle_log::notation::parse_twists(&ty.twist_by_name, &scramble.twists)
                     {
                         match twist {
                             Ok(twist) => match self.latest_state.do_twist(twist) {
@@ -504,18 +504,18 @@ impl PuzzleSimulation {
     }
 
     /// Returns a log file as a string.
-    pub fn serialize(&self) -> hyperpuzzlelog::Solve {
+    pub fn serialize(&self) -> hyperpuzzle_log::Solve {
         let puz = self.puzzle_type();
 
         let mut log = vec![];
         for action in &self.undo_stack {
             match action {
-                Action::Scramble => log.push(hyperpuzzlelog::LogEvent::Scramble),
+                Action::Scramble => log.push(hyperpuzzle_log::LogEvent::Scramble),
                 Action::Twists(twists) => {
                     if twists.is_empty() {
                         continue;
                     }
-                    let mut s = hyperpuzzlelog::notation::format_twists(
+                    let mut s = hyperpuzzle_log::notation::format_twists(
                         &puz.twists,
                         twists.iter().copied(),
                     );
@@ -523,21 +523,21 @@ impl PuzzleSimulation {
                         s.insert(0, '(');
                         s.push(')');
                     }
-                    if let Some(hyperpuzzlelog::LogEvent::Twists(twists_str)) = log.last_mut() {
+                    if let Some(hyperpuzzle_log::LogEvent::Twists(twists_str)) = log.last_mut() {
                         *twists_str += " ";
                         *twists_str += &s;
                     } else {
-                        log.push(hyperpuzzlelog::LogEvent::Twists(s));
+                        log.push(hyperpuzzle_log::LogEvent::Twists(s));
                     }
                 }
                 Action::EndSolve { time } => {
-                    log.push(hyperpuzzlelog::LogEvent::EndSolve { time: *time })
+                    log.push(hyperpuzzle_log::LogEvent::EndSolve { time: *time })
                 }
             }
         }
 
-        hyperpuzzlelog::Solve {
-            puzzle: hyperpuzzlelog::Puzzle {
+        hyperpuzzle_log::Solve {
+            puzzle: hyperpuzzle_log::Puzzle {
                 id: puz.id.clone(),
                 version: puz.version.to_string(),
             },
@@ -551,8 +551,8 @@ impl PuzzleSimulation {
         }
     }
     /// Loads a log file from a string.
-    pub fn deserialize(puzzle: &Arc<Puzzle>, solve: &hyperpuzzlelog::Solve) -> Self {
-        let hyperpuzzlelog::Solve {
+    pub fn deserialize(puzzle: &Arc<Puzzle>, solve: &hyperpuzzle_log::Solve) -> Self {
+        let hyperpuzzle_log::Solve {
             puzzle: _,
             solved: _,
             duration,
@@ -563,11 +563,11 @@ impl PuzzleSimulation {
         let mut ret = Self::new(puzzle);
         for event in log {
             match event {
-                hyperpuzzlelog::LogEvent::Scramble => {
+                hyperpuzzle_log::LogEvent::Scramble => {
                     let Some(scramble) = scramble else { continue };
                     ret.event(ReplayEvent::Scramble(scramble.clone()));
                 }
-                hyperpuzzlelog::LogEvent::Click {
+                hyperpuzzle_log::LogEvent::Click {
                     layers,
                     target,
                     reverse,
@@ -582,8 +582,8 @@ impl PuzzleSimulation {
                         reverse: *reverse,
                     });
                 }
-                hyperpuzzlelog::LogEvent::Twists(twists_str) => {
-                    for group in hyperpuzzlelog::notation::parse_grouped_twists(
+                hyperpuzzle_log::LogEvent::Twists(twists_str) => {
+                    for group in hyperpuzzle_log::notation::parse_grouped_twists(
                         &puzzle.twist_by_name,
                         twists_str,
                     ) {
@@ -592,13 +592,13 @@ impl PuzzleSimulation {
                         ret.event(ReplayEvent::Twists(group));
                     }
                 }
-                hyperpuzzlelog::LogEvent::EndSolve { time } => {
+                hyperpuzzle_log::LogEvent::EndSolve { time } => {
                     ret.event(ReplayEvent::EndSolve { time: *time });
                 }
-                hyperpuzzlelog::LogEvent::StartSession { time } => {
+                hyperpuzzle_log::LogEvent::StartSession { time } => {
                     ret.event(ReplayEvent::StartSession { time: *time });
                 }
-                hyperpuzzlelog::LogEvent::EndSession { time } => {
+                hyperpuzzle_log::LogEvent::EndSession { time } => {
                     ret.event(ReplayEvent::EndSession { time: *time });
                 }
             }
@@ -614,14 +614,6 @@ impl PuzzleSimulation {
     /// Returns whether the puzzle is currently solved.
     pub fn is_solved(&self) -> bool {
         self.latest_state.is_solved()
-    }
-    pub fn has_been_solved_via_flag(&self) -> bool {
-        self.solved
-    }
-    pub fn has_been_solved_via_undohist(&self) -> bool {
-        self.undo_stack
-            .iter()
-            .any(|ev| matches!(ev, Action::EndSolve { .. }))
     }
 }
 

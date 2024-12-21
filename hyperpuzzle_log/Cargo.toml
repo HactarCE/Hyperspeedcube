@@ -1,5 +1,5 @@
 [package]
-name = "hyperpuzzlelog"
+name = "hyperpuzzle_log"
 version = "0.1.0"
 authors.workspace = true
 documentation.workspace = true
@@ -10,10 +10,10 @@ rust-version.workspace = true
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-hyperkdl = { path = "../hyperkdl" }
-hyperkdl_derive = { path = "../hyperkdl_derive" }
-hypermath = { path = "../hypermath" }
-hyperpuzzle = { path = "../hyperpuzzle" }
+hyperkdl = { workspace = true }
+hyperkdl_derive = { workspace = true }
+hypermath = { workspace = true }
+hyperpuzzle = { workspace = true }
 
 chrono = { workspace = true }
 itertools = { workspace = true }

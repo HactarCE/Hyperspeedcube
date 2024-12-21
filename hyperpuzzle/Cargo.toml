@@ -16,8 +16,8 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [dependencies]
-hypermath = { path = "../hypermath" }
-hypershape = { path = "../hypershape" }
+hypermath = { workspace = true }
+hypershape = { workspace = true }
 
 chrono = { workspace = true }
 disjoint = { workspace = true }

@@ -16,12 +16,12 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [dependencies]
-hyperdraw = { path = "../hyperdraw" }
-hypermath = { path = "../hypermath" }
-hyperprefs = { path = "../hyperprefs" }
-hyperpuzzle = { path = "../hyperpuzzle", features = ["ecolor", "oklab"] }
-hyperpuzzlelog = { path = "../hyperpuzzlelog" }
-hyperpuzzleview = { path = "../hyperpuzzleview" }
+hyperdraw = { workspace = true }
+hypermath = { workspace = true }
+hyperprefs = { workspace = true }
+hyperpuzzle = { workspace = true, features = ["ecolor", "oklab"] }
+hyperpuzzle_log = { workspace = true }
+hyperpuzzle_view = { workspace = true }
 
 cgmath = { workspace = true }
 color-eyre = { workspace = true }
@@ -92,7 +92,7 @@ optick = ["dep:optick", "dep:optick-attr"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 
 [build-dependencies]
-hyperstrings = { path = "../hyperstrings" }
+hyperstrings = { workspace = true }
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

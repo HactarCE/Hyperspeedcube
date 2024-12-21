@@ -13,8 +13,8 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [dependencies]
-hypermath = { path = "../hypermath" }
-hyperpuzzle = { path = "../hyperpuzzle", features = ["ecolor"] }
+hypermath = { workspace = true }
+hyperpuzzle = { workspace = true, features = ["ecolor"] }
 
 bitvec = { workspace = true }
 colorous = { workspace = true }

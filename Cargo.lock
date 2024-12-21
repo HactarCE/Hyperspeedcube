@@ -2591,7 +2591,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperpuzzlelog"
+name = "hyperpuzzle_log"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -2611,7 +2611,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperpuzzleview"
+name = "hyperpuzzle_view"
 version = "0.1.0"
 dependencies = [
  "cgmath",
@@ -2620,7 +2620,7 @@ dependencies = [
  "hypermath",
  "hyperprefs",
  "hyperpuzzle",
- "hyperpuzzlelog",
+ "hyperpuzzle_log",
  "itertools 0.13.0",
  "log",
  "parking_lot",
@@ -2670,8 +2670,8 @@ dependencies = [
  "hypermath",
  "hyperprefs",
  "hyperpuzzle",
- "hyperpuzzlelog",
- "hyperpuzzleview",
+ "hyperpuzzle_log",
+ "hyperpuzzle_view",
  "hyperstrings",
  "image",
  "include_dir",

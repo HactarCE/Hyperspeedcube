@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use hyperprefs::Preferences;
 use hyperpuzzle::{Color, ColorSystem, DevOrbit, Puzzle, PuzzleElement, PuzzleLintOutput};
-use hyperpuzzleview::PuzzleView;
+use hyperpuzzle_view::PuzzleView;
 use itertools::Itertools;
 
 use super::PuzzleWidget;

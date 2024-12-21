@@ -6,8 +6,8 @@ members = [
     "hypermath",
     "hyperprefs",
     "hyperpuzzle",
-    "hyperpuzzlelog",
-    "hyperpuzzleview",
+    "hyperpuzzle_log",
+    "hyperpuzzle_view",
     "hypershape",
     "hyperspeedcube" ,
     "hyperstrings",
@@ -57,10 +57,13 @@ opt-level = 3
 
 # Crates that are part of the project
 hyperdraw = { path = "hyperdraw" }
+hyperkdl = { path = "hyperkdl" }
+hyperkdl_derive = { path = "hyperkdl_derive" }
 hypermath = { path = "hypermath" }
 hyperprefs = { path = "hyperprefs" }
 hyperpuzzle = { path = "hyperpuzzle" }
-hyperpuzzleview = { path = "hyperpuzzleview" }
+hyperpuzzle_log = { path = "hyperpuzzle_log" }
+hyperpuzzle_view = { path = "hyperpuzzle_view" }
 hypershape = { path = "hypershape" }
 hyperspeedcube = { path = "hyperspeedcube" }
 hyperstrings = { path = "hyperstrings" }

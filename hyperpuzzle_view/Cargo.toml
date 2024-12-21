@@ -1,5 +1,5 @@
 [package]
-name = "hyperpuzzleview"
+name = "hyperpuzzle_view"
 version = "0.1.0"
 authors.workspace = true
 documentation.workspace = true
@@ -15,11 +15,11 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [dependencies]
-hyperdraw = { path = "../hyperdraw" }
-hypermath = { path = "../hypermath" }
-hyperprefs = { path = "../hyperprefs" }
-hyperpuzzle = { path = "../hyperpuzzle" }
-hyperpuzzlelog = { path = "../hyperpuzzlelog" }
+hyperdraw = { workspace = true }
+hypermath = { workspace = true }
+hyperprefs = { workspace = true }
+hyperpuzzle = { workspace = true }
+hyperpuzzle_log = { workspace = true }
 
 cgmath = { workspace = true }
 float-ord = { workspace = true }

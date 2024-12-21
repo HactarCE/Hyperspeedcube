@@ -16,7 +16,7 @@ license = "MIT OR Apache-2.0"
 workspace = true
 
 [dependencies]
-hypermath = { path = "../hypermath" }
+hypermath = { workspace = true }
 
 eyre = { workspace = true }
 float-ord = { workspace = true }
