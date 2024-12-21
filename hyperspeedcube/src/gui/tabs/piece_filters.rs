@@ -723,6 +723,7 @@ fn show_current_filter_preset_ui_contents(
                                     });
                                 r.header_response.context_menu(|ui| {
                                     if ui.button(L.piece_filters.convert_to_text_rule).clicked() {
+                                        changed = true;
                                         rule.set = FilterPieceSet::Expr(expr_string);
                                     }
                                 });
