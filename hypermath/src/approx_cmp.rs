@@ -34,6 +34,16 @@ pub fn approx_gt<T: AbsDiffEq<Epsilon = Float> + PartialOrd>(a: &T, b: &T) -> bo
     a > b && !approx_eq(a, b)
 }
 
+/// Returns whether one number is less than another or within `EPSILON` of it.
+pub fn approx_lt_eq<T: AbsDiffEq<Epsilon = Float> + PartialOrd>(a: &T, b: &T) -> bool {
+    a < b || approx_eq(a, b)
+}
+/// Returns whether one number is greater than another or within `EPSILON` of
+/// it.
+pub fn approx_gt_eq<T: AbsDiffEq<Epsilon = Float> + PartialOrd>(a: &T, b: &T) -> bool {
+    a > b || approx_eq(a, b)
+}
+
 /// Returns whether `x` has an absolute value greater than `EPSILON`.
 pub fn is_approx_nonzero<T: AbsDiffEq<Epsilon = Float> + Zero>(x: &T) -> bool {
     !approx_eq(x, &T::zero())
