@@ -1,10 +1,10 @@
 #![allow(missing_docs)] // TODO: remove this and rework the whole crate
 
+use hyperpuzzle::chrono::Duration;
+use hyperpuzzle::{LayeredTwist, Library, Timestamp, TwistMetric};
+use hyperpuzzle_log::{LogEvent, LogFile};
 use itertools::Itertools;
 use parking_lot::Mutex;
-
-use hyperpuzzle::{chrono::Duration, LayeredTwist, Library, Timestamp, TwistMetric};
-use hyperpuzzle_log::{LogEvent, LogFile};
 use smallvec::SmallVec;
 
 #[macro_use]
@@ -190,7 +190,8 @@ pub struct SolveVerification {
 
 #[cfg(test)]
 mod tests {
-    use hyperpuzzle::{chrono::TimeDelta, ScrambleParams, ScrambleType};
+    use hyperpuzzle::chrono::TimeDelta;
+    use hyperpuzzle::{ScrambleParams, ScrambleType};
     use hyperpuzzle_log::{Program, Puzzle};
 
     use super::*;

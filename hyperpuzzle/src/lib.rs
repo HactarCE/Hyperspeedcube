@@ -14,6 +14,8 @@ mod task;
 mod timestamp;
 pub mod util;
 
+/// Re-export of `chrono`.
+pub use chrono;
 pub use library::*;
 pub use lint::PuzzleLintOutput;
 pub use lua::{LuaLogLine, Version};
@@ -22,9 +24,6 @@ pub use rgb::Rgb;
 pub use tags::*;
 pub use task::TaskHandle;
 pub use timestamp::Timestamp;
-
-/// Re-export of `chrono`.
-pub use chrono;
 
 /// Unsigned integer type used for [`LayerMask`].
 pub type LayerMaskUint = u32;

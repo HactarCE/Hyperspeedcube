@@ -1,10 +1,10 @@
-use itertools::Itertools;
-use smallvec::{smallvec, SmallVec};
 use std::collections::hash_map;
 
 use eyre::{bail, eyre, OptionExt, Result};
 use hypermath::collections::{ApproxHashMap, IndexOutOfRange};
 use hypermath::prelude::*;
+use itertools::Itertools;
+use smallvec::{smallvec, SmallVec};
 
 use super::{CustomOrdering, NamingScheme};
 use crate::{Axis, DevOrbit, Layer, LayerInfo, LayerMask, PerAxis, PerLayer};

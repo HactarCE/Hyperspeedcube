@@ -6,13 +6,14 @@ use float_ord::FloatOrd;
 use hyperdraw::Camera;
 use hypermath::pga::*;
 use hypermath::prelude::*;
-use hyperprefs::PuzzleViewPreferencesSet;
 use hyperprefs::{
     AnimationPreferences, ColorScheme, FilterPreset, FilterPresetName, FilterPresetRef, FilterRule,
     FilterSeqPreset, ModifiedPreset, Preferences, PresetRef, PuzzleFilterPreferences,
+    PuzzleViewPreferencesSet,
 };
-use hyperpuzzle::LayeredTwist;
-use hyperpuzzle::{Axis, GizmoFace, LayerMask, PerPiece, Piece, PieceMask, Puzzle, Sticker};
+use hyperpuzzle::{
+    Axis, GizmoFace, LayerMask, LayeredTwist, PerPiece, Piece, PieceMask, Puzzle, Sticker,
+};
 use parking_lot::Mutex;
 use smallvec::smallvec;
 

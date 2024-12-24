@@ -1,7 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use eyre::{OptionExt, Result};
-use hypermath::{collections::GenericVec, idx_struct, prelude::*};
+use hypermath::collections::GenericVec;
+use hypermath::idx_struct;
+use hypermath::prelude::*;
 use hypershape::VertexId;
 use itertools::Itertools;
 use parking_lot::Mutex;

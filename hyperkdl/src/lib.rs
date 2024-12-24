@@ -1,6 +1,8 @@
 //! KDL serialization library.
 
+/// Re-export of `kdl`.
 pub use kdl;
+/// Re-export of `miette`.
 pub use miette;
 
 mod ctx;

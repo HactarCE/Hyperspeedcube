@@ -2,7 +2,8 @@ use std::fmt;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse::ParseBuffer, Token};
+use syn::parse::ParseBuffer;
+use syn::Token;
 
 use crate::fields::KdlFieldStyle;
 
