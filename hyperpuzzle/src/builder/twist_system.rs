@@ -219,7 +219,7 @@ impl TwistSystemBuilder {
 
             if let Some(&opposite_axis) = self
                 .axes
-                .vector_to_id(&axes[axis].vector)
+                .vector_to_id(&-&axes[axis].vector)
                 .and_then(|old_id| axis_id_map.get(&old_id))
             {
                 let self_layers = &axes[axis].layers;
