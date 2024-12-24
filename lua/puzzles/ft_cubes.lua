@@ -4,7 +4,7 @@ local REALISITIC_PROPORTIONS = true
 local CORNER_STALK_SIZE = 0.1
 
 local function ft_cube_cut_depths(ndim, size)
-  if size == 2 then return {0} end
+  if size == 2 then return {1, 0, -1} end
 
   local outermost_cut
   local aesthetic_limit = 1 - 2/size
