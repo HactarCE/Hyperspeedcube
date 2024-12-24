@@ -16,7 +16,9 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             if ui.button(&info.name).clicked() {
                 let layers = LayerMask::default();
                 let twist = LayeredTwist { layers, transform };
-                p.sim().lock().event(ReplayEvent::Twists(smallvec![twist]));
+                p.sim()
+                    .lock()
+                    .do_event(ReplayEvent::Twists(smallvec![twist]));
             }
         }
     });

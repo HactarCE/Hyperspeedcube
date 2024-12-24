@@ -2,6 +2,7 @@
 
 use std::env;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use directories::ProjectDirs;
 use eyre::{OptionExt, Result};
@@ -110,13 +111,18 @@ fn portable_paths() -> Option<AppPaths> {
 }
 
 fn portable_dir() -> Option<PathBuf> {
-    let exe_path = env::current_exe().ok()?.canonicalize().ok()?;
     if crate::IS_OFFICIAL_BUILD {
         // `/hyperspeedcube.exe`
+        let exe_path = env::current_exe().ok()?.canonicalize().ok()?;
         Some(exe_path.parent()?.to_path_buf())
     } else {
-        // `/target/debug/hyperspeedcube.exe`
-        Some(exe_path.parent()?.parent()?.parent()?.to_path_buf())
+        // `/hyperpaths/`
+        Some(
+            PathBuf::from_str(env!("CARGO_MANIFEST_DIR"))
+                .ok()?
+                .parent()?
+                .to_path_buf(),
+        )
     }
 }
 

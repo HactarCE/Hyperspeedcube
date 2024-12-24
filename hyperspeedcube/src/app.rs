@@ -206,17 +206,18 @@ impl App {
     }
     pub(crate) fn undo(&self) {
         self.active_puzzle_view
-            .with(|p| p.sim().lock().event(ReplayEvent::Undo));
+            .with(|p| p.sim().lock().do_event(ReplayEvent::Undo));
     }
     pub(crate) fn redo(&self) {
         self.active_puzzle_view
-            .with(|p| p.sim().lock().event(ReplayEvent::Redo));
+            .with(|p| p.sim().lock().do_event(ReplayEvent::Redo));
     }
     pub(crate) fn reset_puzzle(&self) {
         self.active_puzzle_view.with(|p| p.sim().lock().reset());
     }
     pub(crate) fn scramble(&self, ty: ScrambleType) {
         self.active_puzzle_view.with(|p| {
+            p.view.reset_camera();
             p.sim().lock().scramble(ScrambleParams::new(ty));
         });
     }

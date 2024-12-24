@@ -10,6 +10,7 @@ mod util;
 mod view;
 
 pub use action::Action;
+use action::UndoBehavior;
 pub use replay_event::ReplayEvent;
 pub use simulation::PuzzleSimulation;
 pub use view::{DragState, HoverMode, PuzzleFiltersState, PuzzleView, PuzzleViewInput};

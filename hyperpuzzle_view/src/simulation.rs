@@ -14,7 +14,7 @@ use smallvec::smallvec;
 use web_time::{Duration, Instant};
 
 use super::animations::{BlockingAnimationState, TwistAnimation, TwistAnimationState};
-use super::{Action, ReplayEvent};
+use super::{Action, ReplayEvent, UndoBehavior};
 
 const ASSUMED_FPS: f32 = 120.0;
 
@@ -35,10 +35,12 @@ pub struct PuzzleSimulation {
     redo_stack: Vec<Action>,
     /// List of actions to save in the replay file.
     replay: Vec<ReplayEvent>,
+    /// Whether the solve has been started.
+    started: bool,
     /// Whether the puzzle has been solved.
     solved: bool,
     /// Total duration from previous sessions.
-    old_duration: i64,
+    old_duration: Option<i64>,
     /// Time that the puzzle was loaded.
     load_time: Instant,
 
@@ -71,8 +73,9 @@ impl PuzzleSimulation {
             undo_stack: vec![],
             redo_stack: vec![],
             replay: vec![],
+            started: false,
             solved: false,
-            old_duration: 0,
+            old_duration: Some(0),
             load_time: Instant::now(),
 
             last_frame_time: None,
@@ -169,32 +172,55 @@ impl PuzzleSimulation {
             hyperpuzzle_log::notation::format_twists(&ty.twists, twists),
         );
         self.scramble = Some(scramble.clone());
-        self.replay.push(ReplayEvent::Scramble(scramble));
+        self.do_event(ReplayEvent::Scramble);
         self.latest_state = state;
         self.skip_twist_animations();
     }
     /// Plays a replay event on the puzzle.
-    pub fn event(&mut self, event: ReplayEvent) {
-        self.replay.push(event.clone());
+    pub fn do_event(&mut self, event: ReplayEvent) {
+        if matches!(event, ReplayEvent::Twists(_)) && self.scramble.is_some() && !self.started {
+            self.do_event(ReplayEvent::StartSolve {
+                time: Some(Timestamp::now()),
+                duration: self.file_duration(),
+            });
+        }
+        self.replay_event(event);
+    }
+    /// Plays a replay event on the puzzle when deserializing.
+    fn replay_event(&mut self, event: ReplayEvent) {
         match event {
             ReplayEvent::Undo => self.undo(),
             ReplayEvent::Redo => self.redo(),
-            ReplayEvent::Scramble(scramble) => {
+            ReplayEvent::Scramble => {
                 self.reset();
-                self.scramble = Some(scramble.clone());
                 self.do_action(Action::Scramble);
             }
-            ReplayEvent::Twists(twists) => self.do_action(Action::Twists(twists)),
-            ReplayEvent::EndSolve { time, duration } => {
-                self.do_action(Action::EndSolve { time, duration })
+            ReplayEvent::Twists(twists) => {
+                self.do_action(Action::Twists(twists));
             }
-            _ => (),
+            ReplayEvent::StartSolve { time, duration } => {
+                self.do_action(Action::StartSolve { time, duration });
+            }
+            ReplayEvent::EndSolve { time, duration } => {
+                self.do_action(Action::EndSolve { time, duration });
+            }
+            ReplayEvent::GizmoClick { .. }
+            | ReplayEvent::DragTwist
+            | ReplayEvent::StartSession { .. }
+            | ReplayEvent::EndSession { .. } => (),
         }
     }
 
     /// Returns whether there is an action available to undo.
     pub fn has_undo(&self) -> bool {
-        !self.undo_stack.is_empty()
+        for action in self.undo_stack.iter().rev() {
+            match action.undo_behavior() {
+                UndoBehavior::Action => return true,
+                UndoBehavior::Marker => continue, // find the next action
+                UndoBehavior::Boundary => return false, // cannot undo
+            }
+        }
+        false
     }
     /// Returns whether there is an action available to redo.
     pub fn has_redo(&self) -> bool {
@@ -204,14 +230,22 @@ impl PuzzleSimulation {
     fn undo(&mut self) {
         // Keep undoing until we find an action that can be undone.
         while let Some(action) = self.undo_stack.pop() {
-            match self.undo_action_internal(&action) {
-                ActionResult::Fail => break, // do nothing
-                ActionResult::Success => {
-                    self.redo_stack.push(action);
+            match action.undo_behavior() {
+                UndoBehavior::Action => {
+                    if self.undo_action_internal(&action) {
+                        self.redo_stack.push(action);
+                    }
                     break;
                 }
-                ActionResult::KeepGoing => continue,
-                ActionResult::NotUndoable => break,
+                UndoBehavior::Marker => {
+                    if self.undo_action_internal(&action) {
+                        self.redo_stack.push(action);
+                    }
+                }
+                UndoBehavior::Boundary => {
+                    self.undo_stack.push(action); // oops, put it back!
+                    break;
+                }
             }
         }
     }
@@ -229,15 +263,16 @@ impl PuzzleSimulation {
     ///
     /// Clears the redo stack if applicable.
     fn do_action(&mut self, action: Action) {
-        if !action.is_marker() {
-            self.has_unsaved_changes = true;
-            self.redo_stack.clear();
+        self.has_unsaved_changes = true;
+        match action.undo_behavior() {
+            UndoBehavior::Action => self.redo_stack.clear(),
+            UndoBehavior::Marker | UndoBehavior::Boundary => (),
         }
         self.undo_stack.push(action.clone());
         self.do_action_internal(&action);
     }
-    /// Does an undoable action. Returns whether the action succeeded and
-    /// therefore should be saved to the undo stack.
+    /// Does an undoable action. Returns whether the action should be saved to
+    /// the undo stack.
     fn do_action_internal(&mut self, action: &Action) -> bool {
         self.has_unsaved_changes = true;
         match action {
@@ -270,12 +305,16 @@ impl PuzzleSimulation {
                     any_effect |= self.do_twist(twist);
                 }
                 if any_effect && !self.solved && self.scramble.is_some() && self.is_solved() {
-                    self.event(ReplayEvent::EndSolve {
-                        time: Timestamp::now(),
-                        duration: Some(self.file_duration()),
+                    self.do_event(ReplayEvent::EndSolve {
+                        time: Some(Timestamp::now()),
+                        duration: self.file_duration(),
                     });
                 }
                 any_effect
+            }
+            Action::StartSolve { .. } => {
+                self.started = true;
+                true
             }
             Action::EndSolve { .. } => {
                 self.solved = true;
@@ -283,28 +322,24 @@ impl PuzzleSimulation {
             }
         }
     }
-    /// Undoes an action. Returns the result of the action.
-    fn undo_action_internal(&mut self, action: &Action) -> ActionResult {
+    /// Undoes an action. Returns whether the action should be saved to the redo
+    /// stack.
+    fn undo_action_internal(&mut self, action: &Action) -> bool {
         self.has_unsaved_changes = true;
         let puz = self.puzzle_type();
         match action {
-            Action::Scramble => ActionResult::NotUndoable,
-            Action::Twists(twists) => {
-                let had_effect = self.do_action_internal(&Action::Twists(
-                    twists
-                        .iter()
-                        .rev()
-                        .filter_map(|twist| twist.rev(&puz).ok())
-                        .collect(),
-                ));
-                match had_effect {
-                    true => ActionResult::Success,
-                    false => ActionResult::Fail,
-                }
-            }
+            Action::Scramble => false, // shouldn't be possible
+            Action::Twists(twists) => self.do_action_internal(&Action::Twists(
+                twists
+                    .iter()
+                    .rev()
+                    .filter_map(|twist| twist.rev(&puz).ok())
+                    .collect(),
+            )),
+            Action::StartSolve { .. } => false, // shouldn't be possible
             Action::EndSolve { .. } => {
                 self.solved = false;
-                ActionResult::KeepGoing
+                true
             }
         }
     }
@@ -491,8 +526,8 @@ impl PuzzleSimulation {
                         layers: partial.layers,
                         transform: twist,
                     };
-                    self.event(ReplayEvent::DragTwist);
-                    self.event(ReplayEvent::Twists(smallvec![twist]));
+                    self.do_event(ReplayEvent::DragTwist);
+                    self.do_event(ReplayEvent::Twists(smallvec![twist]));
                 } else {
                     // The identity twist is closer.
                     self.cancel_partial_twist();
@@ -507,8 +542,8 @@ impl PuzzleSimulation {
     }
 
     /// Returns the combined session time of the file, in milliseconds.
-    pub fn file_duration(&self) -> i64 {
-        self.old_duration + self.load_time.elapsed().as_millis() as i64
+    pub fn file_duration(&self) -> Option<i64> {
+        Some(self.old_duration? + self.load_time.elapsed().as_millis() as i64)
     }
 
     /// Returns a log file as a string.
@@ -538,6 +573,12 @@ impl PuzzleSimulation {
                         log.push(hyperpuzzle_log::LogEvent::Twists(s));
                     }
                 }
+                Action::StartSolve { time, duration } => {
+                    log.push(hyperpuzzle_log::LogEvent::StartSolve {
+                        time: *time,
+                        duration: *duration,
+                    });
+                }
                 Action::EndSolve { time, duration } => {
                     log.push(hyperpuzzle_log::LogEvent::EndSolve {
                         time: *time,
@@ -556,7 +597,7 @@ impl PuzzleSimulation {
                 .undo_stack
                 .iter()
                 .any(|event| matches!(event, Action::EndSolve { .. })),
-            duration: Some(self.file_duration()),
+            duration: self.file_duration(),
             scramble: self.scramble.clone(),
             log,
         }
@@ -575,8 +616,8 @@ impl PuzzleSimulation {
         for event in log {
             match event {
                 hyperpuzzle_log::LogEvent::Scramble => {
-                    let Some(scramble) = scramble else { continue };
-                    ret.event(ReplayEvent::Scramble(scramble.clone()));
+                    ret.scramble = scramble.clone();
+                    ret.replay_event(ReplayEvent::Scramble);
                 }
                 hyperpuzzle_log::LogEvent::Click {
                     layers,
@@ -587,7 +628,7 @@ impl PuzzleSimulation {
                     let Some(target) = puzzle.twist_by_name.get(target) else {
                         continue;
                     };
-                    ret.event(ReplayEvent::GizmoClick {
+                    ret.replay_event(ReplayEvent::GizmoClick {
                         layers: *layers,
                         target: *target,
                         reverse: *reverse,
@@ -600,24 +641,32 @@ impl PuzzleSimulation {
                     ) {
                         // TODO: handle errors
                         let group = group.into_iter().filter_map(Result::ok).collect();
-                        ret.event(ReplayEvent::Twists(group));
+                        ret.replay_event(ReplayEvent::Twists(group));
                     }
                 }
+                hyperpuzzle_log::LogEvent::StartSolve { time, duration } => {
+                    ret.started = true;
+                    ret.replay_event(ReplayEvent::StartSolve {
+                        time: *time,
+                        duration: *duration,
+                    });
+                }
                 hyperpuzzle_log::LogEvent::EndSolve { time, duration } => {
-                    ret.event(ReplayEvent::EndSolve {
+                    ret.solved = true;
+                    ret.replay_event(ReplayEvent::EndSolve {
                         time: *time,
                         duration: *duration,
                     });
                 }
                 hyperpuzzle_log::LogEvent::StartSession { time } => {
-                    ret.event(ReplayEvent::StartSession { time: *time });
+                    ret.replay_event(ReplayEvent::StartSession { time: *time });
                 }
                 hyperpuzzle_log::LogEvent::EndSession { time } => {
-                    ret.event(ReplayEvent::EndSession { time: *time });
+                    ret.replay_event(ReplayEvent::EndSession { time: *time });
                 }
             }
         }
-        ret.old_duration = duration.unwrap_or(0);
+        ret.old_duration = *duration;
         ret.has_unsaved_changes = false;
 
         ret.skip_twist_animations();
@@ -637,16 +686,4 @@ pub struct PartialTwistDragState {
     pub layers: LayerMask,
     pub grip: PieceMask,
     pub transform: Motor,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-enum ActionResult {
-    /// Undoing the action failed, so forget about it. (This should never happen.)
-    Fail,
-    /// Undoing the action had no effect so move onto the next one and we're done.
-    Success,
-    /// The action was just a marker, so undo/redo the next action as well if relevant.
-    KeepGoing,
-    /// The action cannot be undone.
-    NotUndoable,
 }

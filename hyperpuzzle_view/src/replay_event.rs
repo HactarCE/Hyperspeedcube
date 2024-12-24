@@ -1,5 +1,4 @@
 use hyperpuzzle::{LayerMask, LayeredTwist, Timestamp, Twist};
-use hyperpuzzle_log::Scramble;
 use smallvec::SmallVec;
 
 /// Event that is part of a replay.
@@ -10,7 +9,7 @@ pub enum ReplayEvent {
     /// Redo of the most recent redoable [`crate::Action`]
     Redo,
     /// Reset + scramble the puzzle
-    Scramble(Scramble),
+    Scramble,
     /// Click on a twist gizmo (does *not* actually apply the twist to the
     /// puzzle state)
     GizmoClick {
@@ -26,21 +25,28 @@ pub enum ReplayEvent {
     DragTwist,
     /// Twist applied to the puzzle state
     Twists(SmallVec<[LayeredTwist; 4]>),
+    /// Start of a solve (first move after being scrambled)
+    StartSolve {
+        /// Event timestamp
+        time: Option<Timestamp>,
+        /// Log file duration at the time
+        duration: Option<i64>,
+    },
     /// End of a solve (fully solved after being scrambled)
     EndSolve {
         /// Event timestamp
-        time: Timestamp,
+        time: Option<Timestamp>,
         /// Log file duration at the time
         duration: Option<i64>,
     },
     /// Start of a session
     StartSession {
         /// Event timestamp
-        time: Timestamp,
+        time: Option<Timestamp>,
     },
     /// End of a session
     EndSession {
         /// Event timestamp
-        time: Timestamp,
+        time: Option<Timestamp>,
     },
 }

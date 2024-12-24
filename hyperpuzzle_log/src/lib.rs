@@ -240,6 +240,22 @@ pub enum LogEvent {
     /// are undone/redone as a single action.
     #[kdl(name = "twists")]
     Twists(#[kdl(argument)] String),
+    /// Start of solve.
+    ///
+    /// This marks the first time that a twist was made on the puzzle after
+    /// scrambling.
+    ///
+    /// This cannot be undone, and so may only appear at most once in a log.
+    #[kdl(name = "start-solve")]
+    StartSolve {
+        /// Timestamp at which the solve started.
+        #[kdl(property("time"), proxy = KdlProxy)]
+        time: Option<Timestamp>,
+        /// Number of milliseconds that the log had been open for, across all
+        /// sessions, at the moment the solve started.
+        #[kdl(property("duration"))]
+        duration: Option<i64>,
+    },
     /// End of solve.
     ///
     /// This marks the first time that the puzzle reached a solved state and the
@@ -251,7 +267,7 @@ pub enum LogEvent {
     EndSolve {
         /// Timestamp at which the solve ended.
         #[kdl(property("time"), proxy = KdlProxy)]
-        time: Timestamp,
+        time: Option<Timestamp>,
         /// Number of milliseconds that the log had been open for, across all
         /// sessions, at the moment the solve ended.
         #[kdl(property("duration"))]
@@ -264,7 +280,7 @@ pub enum LogEvent {
     StartSession {
         /// Timestamp at which the session started.
         #[kdl(property("time"), proxy = KdlProxy)]
-        time: Timestamp,
+        time: Option<Timestamp>,
     },
     /// **Replay-only.** End of session.
     ///
@@ -273,7 +289,7 @@ pub enum LogEvent {
     EndSession {
         /// Timestamp at which the session ended.
         #[kdl(property("time"), proxy = KdlProxy)]
-        time: Timestamp,
+        time: Option<Timestamp>,
     },
 }
 
@@ -343,11 +359,11 @@ mod tests {
                     LogEvent::Scramble,
                     LogEvent::Twists("L U' R'".to_string()),
                     LogEvent::EndSolve {
-                        time: Timestamp::now(),
+                        time: Some(Timestamp::now()),
                         duration: Some(3000),
                     },
                     LogEvent::EndSession {
-                        time: Timestamp::now(),
+                        time: Some(Timestamp::now()),
                     },
                 ],
             }],

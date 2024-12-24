@@ -9,22 +9,39 @@ pub enum Action {
     /// Sequence of twists executed as a single unit. This is usually a single
     /// twist.
     Twists(SmallVec<[LayeredTwist; 4]>),
+    /// Start of solve. Cannot be undone.
+    StartSolve {
+        /// Event timestamp
+        time: Option<Timestamp>,
+        /// Log file duration at the time
+        duration: Option<i64>,
+    },
     /// End of solve. Undone automatically when undoing twists.
     EndSolve {
         /// Event timestamp
-        time: Timestamp,
+        time: Option<Timestamp>,
         /// Log file duration at the time
         duration: Option<i64>,
     },
 }
 impl Action {
-    /// Returns `true` for "marker" actions, which never appear in the redo
-    /// stack and are automatically undone as part of the action before them.
-    pub fn is_marker(&self) -> bool {
+    /// Returns the undo behavior for the action.
+    pub(crate) fn undo_behavior(&self) -> UndoBehavior {
         match self {
-            Action::Scramble => false,
-            Action::Twists(_) => false,
-            Action::EndSolve { .. } => true,
+            Action::Scramble => UndoBehavior::Boundary,
+            Action::Twists(_) => UndoBehavior::Action,
+            Action::StartSolve { .. } => UndoBehavior::Boundary,
+            Action::EndSolve { .. } => UndoBehavior::Marker,
         }
     }
+}
+
+pub(crate) enum UndoBehavior {
+    /// Action: can be undone and redone.
+    Action,
+    /// Marker: is automatically undone along with the preceding action, and is
+    /// never part of the undo history.
+    Marker,
+    /// Boundary: cannot be undone.
+    Boundary,
 }

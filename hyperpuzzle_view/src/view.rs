@@ -431,12 +431,12 @@ impl PuzzleView {
             };
             let twist = LayeredTwist { layers, transform };
 
-            state.event(ReplayEvent::GizmoClick {
+            state.do_event(ReplayEvent::GizmoClick {
                 layers,
                 target,
                 reverse: direction == Sign::Neg,
             });
-            state.event(ReplayEvent::Twists(smallvec![twist]));
+            state.do_event(ReplayEvent::Twists(smallvec![twist]));
         } else if let Some(hov) = &self.puzzle_hover_state {
             if puzzle.ndim() == 3 {
                 // Only do a move if we are hovering a sticker.
@@ -481,8 +481,8 @@ impl PuzzleView {
                 });
                 if let Some(transform) = best_twist {
                     let twist = LayeredTwist { layers, transform };
-                    state.event(ReplayEvent::DragTwist);
-                    state.event(ReplayEvent::Twists(smallvec![twist]));
+                    state.do_event(ReplayEvent::DragTwist);
+                    state.do_event(ReplayEvent::Twists(smallvec![twist]));
                 }
             }
         }
