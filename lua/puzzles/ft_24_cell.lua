@@ -79,5 +79,5 @@ local function def_ft_24_cell(id, name, depths)
   }
 end
 
-def_ft_24_cell('ft_24_cell_shallow', "Facet-Turning 24-cell (Shallow)", {2/3})
-def_ft_24_cell('ft_24_cell_half_cut', "Facet-Turning 24-cell (Half-Cut)", {0})
+def_ft_24_cell('ft_24_cell_shallow', "Facet-Turning 24-cell (Shallow)", {INF, 2/3})
+def_ft_24_cell('ft_24_cell_half_cut', "Facet-Turning 24-cell (Half-Cut)", {INF, 0, -INF})

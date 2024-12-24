@@ -41,6 +41,7 @@ SANDBOX_ENV = {
   exp = math.exp,
   floor = math.floor,
   fmod = math.fmod,
+  INF = math.huge,
   log = math.log,
   max = math.max,
   min = math.min,

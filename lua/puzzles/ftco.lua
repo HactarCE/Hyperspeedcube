@@ -17,8 +17,8 @@ puzzles:add{
     self:carve(sym:orbit(xoo))
 
     -- Define axes and slices
-    self.axes:add(sym:orbit(oox), lib.utils.layers.exclusive(sqrt(3)*3/4, 0, 1))
-    self.axes:add(sym:orbit(xoo), lib.utils.layers.exclusive(1.5, 0, 1))
+    self.axes:add(sym:orbit(oox), {INF, sqrt(3)/2 * 3/4})
+    self.axes:add(sym:orbit(xoo), {INF, 3/4})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do

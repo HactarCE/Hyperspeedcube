@@ -10,8 +10,8 @@ function shallow_ft_dodecahedron(puzzle, layers, scale, basis)
   local cut_depths
   do
     if layers == 1 then
-      cut_depths = {1/phi}
-    else
+      cut_depths = {1, 1/phi}
+    elseif layers > 1 then
       local outermost_cut
       local aesthetic_limit = 1 - (1 - 1/phi)/layers
       local mechanical_limit = 1
@@ -19,7 +19,7 @@ function shallow_ft_dodecahedron(puzzle, layers, scale, basis)
         mechanical_limit = 1/29 * (10 + 7 * sqrt(5))
       end
       outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-      cut_depths = utils.layers.inclusive(outermost_cut, 1/phi, layers)
+      cut_depths = utils.concatseq({1}, utils.layers.inclusive(outermost_cut, 1/phi, layers-1))
     end
   end
 
@@ -30,7 +30,7 @@ function shallow_ft_dodecahedron(puzzle, layers, scale, basis)
     colors = colors,
     axes = axes,
     twist_sets = {
-      {
+      axes and {
         axis = axes[1],
         symmetry = shape.sym,
         fix = shape.sym.xxx,
@@ -340,7 +340,7 @@ puzzles:add{
 
     -- Define axes and slices
     depth = 0.54 -- intermediate puzzle
-    self.axes:add(shape:iter_poles(), {depth, -depth})
+    self.axes:add(shape:iter_poles(), {1, depth, -depth, -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
@@ -418,7 +418,7 @@ puzzles:add{
 
     -- Define axes and slices
     local depth = 1/sqrt(5)
-    self.axes:add(shape:iter_poles(), {depth, -depth, -1})
+    self.axes:add(shape:iter_poles(), {1, depth, -depth, -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
@@ -487,7 +487,7 @@ puzzles:add{
 
     -- Define axes and slices
     local depth = 0.33 -- intermediate puzzle
-    self.axes:add(shape:iter_poles(), {depth, -depth, -1})
+    self.axes:add(shape:iter_poles(), {1, depth, -depth, -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
@@ -566,7 +566,7 @@ puzzles:add{
 
     -- Define axes and slices
     local depth = sqrt(5) - 2
-    self.axes:add(shape:iter_poles(), {depth, -depth, -1})
+    self.axes:add(shape:iter_poles(), {1, depth, -depth, -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
@@ -602,7 +602,7 @@ puzzles:add{
 
 
 local function pentultimate_cut_depths(size)
-  if size == 2 then return {0} end
+  if size == 2 then return {1, 0, -1} end
 
   local outermost_cut
   local aesthetic_limit = (1 - 2/(size+0.6)) * (sqrt(5) - 2)
@@ -612,7 +612,7 @@ local function pentultimate_cut_depths(size)
     mechanical_limit = (-10 + 7 * sqrt(5)) / 29
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return utils.concatseq(utils.layers.inclusive(outermost_cut, -outermost_cut, size-1), {-1})
+  return utils.concatseq({1}, utils.layers.inclusive(outermost_cut, -outermost_cut, size-2), {-1})
 end
 
 puzzle_generators:add{
@@ -648,7 +648,7 @@ puzzle_generators:add{
   },
 
   params = {
-    { name = "Layers", type = 'int', default = 2, min = 2, max = 7 },
+    { name = "Layers", type = 'int', default = 2, min = 2, max = 20 },
   },
 
   examples = {

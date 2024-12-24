@@ -1,6 +1,10 @@
 local gizmo_size = 1
 
+-- TODO: add face turns
+
 function def_simplex(letter, depths)
+  depths = lib.utils.concatseq({INF}, depths)
+
   puzzles:add{
     id = '4_simplex_' .. string.lower(letter),
     name = "4-Simplex " .. letter,

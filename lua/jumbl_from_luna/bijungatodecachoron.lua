@@ -40,7 +40,7 @@ puzzles:add({
 
     -- Define axes and slices
     for _,f in pairs(facets) do
-      p.axes:add(sym:orbit(f), {4/5})
+      p.axes:add(sym:orbit(f), {INF, 4/5})
     end
     p.axes:autoname()
 

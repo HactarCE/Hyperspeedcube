@@ -1,3 +1,9 @@
+local d = sqrt(3)
+local depths = lib.utils.layers.inclusive(d, 0, 3)
+depths[#depths] = nil -- delete central cut
+for i = #depths, 1, -1 do table.insert(depths, -depths[i]) end -- add opposite cuts
+CUT_DEPTHS = depths
+
 puzzles:add{
   id = 'cto',
   name = "Corner-Turning Octahedron",
@@ -10,7 +16,7 @@ puzzles:add{
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    self.axes:add(sym:orbit(sym.oox.unit), {2/3 * sqrt(3), 1/3 * sqrt(3)})
+    self.axes:add(sym:orbit(sym.oox.unit), CUT_DEPTHS)
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do

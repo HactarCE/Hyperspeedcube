@@ -5,6 +5,7 @@ use hypermath::collections::{GenericMask, GenericVec};
 use hypermath::pga::Motor;
 use hypermath::prelude::*;
 use hypershape::PolytopeId;
+use itertools::Itertools;
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -133,26 +134,41 @@ pub struct AxisInfo {
     pub vector: Vector,
     /// Layer.
     pub layers: PerLayer<LayerInfo>,
+    /// Opposite axis, which has a reversed layer list.
+    pub opposite: Option<Axis>,
 }
 impl AsRef<str> for AxisInfo {
     fn as_ref(&self) -> &str {
         &self.name
     }
 }
+impl AxisInfo {
+    pub(crate) fn layers_debug_str(&self) -> String {
+        format!(
+            "{:?}",
+            self.layers
+                .iter_values()
+                .map(|l| (l.top, l.bottom))
+                .collect_vec(),
+        )
+    }
+}
 
 /// Layer info.
 #[derive(Debug, PartialEq)]
 pub struct LayerInfo {
-    /// Plane that bounds the bottom of the layer.
-    pub(crate) bottom: Hyperplane,
-    /// Plane that bounds the top of the layer, if any.
-    pub(crate) top: Option<Hyperplane>,
+    /// Position along the axis vector from the origin that bounds the bottom of
+    /// the layer. **This may be infinite.**
+    pub(crate) bottom: Float,
+    /// Position along the axis vector from the origin that bounds the top of
+    /// the layer. **This may be infinite.**
+    pub(crate) top: Float,
 }
 impl TransformByMotor for LayerInfo {
-    fn transform_by(&self, m: &Motor) -> Self {
+    fn transform_by(&self, _m: &Motor) -> Self {
         Self {
-            bottom: m.transform(&self.bottom),
-            top: self.top.as_ref().map(|t| m.transform(t)),
+            bottom: self.bottom,
+            top: self.top,
         }
     }
 }

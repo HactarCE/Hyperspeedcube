@@ -1,44 +1,41 @@
 use std::{collections::HashMap, sync::Arc};
 
+use eyre::{OptionExt, Result};
 use hypermath::{collections::GenericVec, idx_struct, prelude::*};
 use hypershape::VertexId;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use crate::{Axis, LayerMask, LayeredTwist, PerPiece, Piece, PieceMask, Puzzle};
-
-use super::{AxisInfo, Layer, LayerInfo, PerAxis, PerLayer};
+use crate::{
+    Axis, AxisInfo, Layer, LayerMask, LayeredTwist, PerAxis, PerLayer, PerPiece, Piece, PieceMask,
+    Puzzle,
+};
 
 type PerCachedTransform<T> = GenericVec<CachedTransform, T>;
 idx_struct! {
     struct CachedTransform(usize);
 }
 
+// TODO: reconsider this
 #[derive(Debug)]
 struct CachedTransformData {
     pub motor: pga::Motor,
     pub rev_motor: pga::Motor,
-    pub transformed_cuts: PerAxis<Option<PerLayer<Option<LayerInfo>>>>,
+    pub transformed_vectors: PerAxis<Option<Vector>>,
 }
 impl CachedTransformData {
     fn new(motor: pga::Motor, axes: &PerAxis<AxisInfo>) -> Self {
-        let transformed_cuts = axes.map_ref(|_, _| None);
+        let transformed_vectors = axes.map_ref(|_, _| None);
         let rev_motor = motor.reverse();
         Self {
             motor,
             rev_motor,
-            transformed_cuts,
+            transformed_vectors,
         }
     }
-    fn reverse_transform_layer(
-        &mut self,
-        axis: Axis,
-        layer: Layer,
-        axes: &PerAxis<AxisInfo>,
-    ) -> &LayerInfo {
-        self.transformed_cuts[axis].get_or_insert_with(|| axes[axis].layers.map_ref(|_, _| None))
-            [layer]
-            .get_or_insert_with(|| self.rev_motor.transform(&axes[axis].layers[layer]))
+    fn reverse_transform_axis_vector(&mut self, axis: Axis, axes: &PerAxis<AxisInfo>) -> &Vector {
+        self.transformed_vectors[axis]
+            .get_or_insert_with(|| self.rev_motor.transform_vector(&axes[axis].vector))
     }
 }
 
@@ -175,97 +172,78 @@ impl PuzzleState {
             .filter_map(|layer| Some((layer, axis_info.layers.get(layer).ok()?)))
             .collect_vec();
 
-        let mut segments: Vec<(Layer, Option<Layer>)> = vec![];
-        for (layer, layer_info) in grip_layers {
-            if let Some((_, Some(prev_top))) = segments.last_mut() {
-                let prev_layer_info = &axis_info.layers[*prev_top];
-                if prev_layer_info.top == Some(layer_info.bottom.flip()) {
-                    *prev_top = layer;
+        let mut segments: Vec<(Float, Float)> = vec![];
+        for (_layer, layer_info) in grip_layers {
+            if let Some((_prev_top, prev_bottom)) = segments.last_mut() {
+                if approx_eq(&layer_info.top, prev_bottom) {
+                    *prev_bottom = layer_info.bottom;
                     continue;
                 }
             }
-            segments.push((layer, Some(layer)));
+            segments.push((layer_info.top, layer_info.bottom));
         }
 
-        let space = &self.puzzle_type.space;
-
-        let mut cached_transforms = self.cached_transforms.lock();
-
-        self.puzzle_type.pieces.map_ref(|piece, piece_info| {
-            // IIFE to mimic try_block
-            (|| {
-                let polytope = piece_info.polytope;
-                let piece_transform = &mut cached_transforms[self.piece_transforms[piece]];
-                let mut is_inside_any = false;
-                'per_segment: for &(bottom, top) in &segments {
-                    // bottom
-                    {
-                        let transformed_cut = &piece_transform
-                            .reverse_transform_layer(axis, bottom, &self.puzzle_type.axes)
-                            .bottom;
-                        match space.get(polytope).is_on_which_side_of(transformed_cut) {
-                            WhichSide::Outside => continue 'per_segment, // not in this segment; continue to next segment
-                            WhichSide::Split => return Ok(WhichSide::Split), // split by one segment; cannot turn!
-                            _ => (),
-                        }
-                    }
-
-                    // top
-                    if let Some(transformed_cut) = top.and_then(|top| {
-                        piece_transform
-                            .reverse_transform_layer(axis, top, &self.puzzle_type.axes)
-                            .top
-                            .as_ref()
-                    }) {
-                        match space.get(polytope).is_on_which_side_of(transformed_cut) {
-                            WhichSide::Outside => continue 'per_segment, // not in this segment; continue to next segment
-                            WhichSide::Split => return Ok(WhichSide::Split), // split by one segment; cannot turn!
-                            _ => (),
-                        }
-                    }
-
-                    // This piece wasn't excluded by either the bottom or the
-                    // top, so it should be good!
-                    is_inside_any = true;
+        self.puzzle_type.pieces.map_ref(|piece, _piece_info| {
+            let (piece_bottom, piece_top) = match self.piece_min_max_on_axis(piece, axis) {
+                Ok((min, max)) => (min, max),
+                Err(e) => {
+                    log::error!("{e}");
+                    return WhichSide::Split;
                 }
-                match is_inside_any {
-                    true => Ok(WhichSide::Inside),
-                    false => Ok(WhichSide::Outside),
+            };
+            for (segment_top, segment_bottom) in &segments {
+                if approx_lt_eq(segment_bottom, &piece_bottom)
+                    && approx_lt_eq(&piece_top, segment_top)
+                {
+                    // piece is completely inside the layer segment
+                    return WhichSide::Inside;
+                } else if approx_lt_eq(segment_top, &piece_bottom)
+                    || approx_lt_eq(&piece_top, segment_bottom)
+                {
+                    // piece is completely outside the layer segment
+                    continue;
+                } else {
+                    // piece is partly inside and partly outside the layer segment
+                    return WhichSide::Split;
                 }
-            })()
-            .unwrap_or_else(|e: eyre::Report| {
-                log::error!("{e}");
-                WhichSide::Split
-            })
+            }
+            // if not inside any segment, it's outside
+            WhichSide::Outside
         })
     }
 
     /// Returns the smallest layer mask on `axis` that contains `piece`.
     pub fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
+        let layers = &self.puzzle_type.axes.get(axis).ok()?.layers;
+
+        let (piece_bottom, piece_top) = self.piece_min_max_on_axis(piece, axis).ok()?;
+        let bottom_layer = layers
+            .find(|_, l| approx_lt_eq(&l.bottom, &piece_bottom))?
+            .0;
+        let top_layer = layers.find_rev(|_, l| approx_gt_eq(&l.top, &piece_top))?.0;
+
+        // Ensure layers are contiguous
+        for (higher, lower) in (top_layer..=bottom_layer).map(Layer).tuple_windows() {
+            if !approx_eq(&layers[higher].bottom, &layers[lower].top) {
+                return None;
+            }
+        }
+
+        Some(LayerMask::from(top_layer..=bottom_layer))
+    }
+
+    /// Returns the minimum and maximum coordinates along an axis that a piece's
+    /// vertices spans.
+    fn piece_min_max_on_axis(&self, piece: Piece, axis: Axis) -> Result<(Float, Float)> {
+        let mut cached_transforms = self.cached_transforms.lock();
+        let transformed_axis_vector = cached_transforms[self.piece_transforms[piece]]
+            .reverse_transform_axis_vector(axis, &self.puzzle_type.axes);
+
         let space = &self.puzzle_type.space;
-
-        let cached_transforms = self.cached_transforms.lock();
-        let piece_transform = &cached_transforms[self.piece_transforms[piece]].motor;
-
-        // TODO: This assumes the piece only spans one layer. It does not
-        //       account for bandaging.
-        self.ty().axes[axis]
-            .layers
-            .find(|_layer, layer_info| {
-                space
-                    .get(self.ty().pieces[piece].polytope)
-                    .vertex_set()
-                    .all(|v| {
-                        let p = piece_transform.transform_point(v.pos());
-                        layer_info.bottom.location_of_point(&p) != PointWhichSide::Outside && {
-                            match &layer_info.top {
-                                Some(top) => top.location_of_point(&p) != PointWhichSide::Outside,
-                                None => true,
-                            }
-                        }
-                    })
-            })
-            .map(LayerMask::from)
+        let piece_info = &self.puzzle_type.pieces[piece];
+        let vertex_set = space.get(piece_info.polytope).vertex_set();
+        let vertex_distances_along_axis = vertex_set.map(|p| p.pos().dot(transformed_axis_vector));
+        hypermath::util::min_max(vertex_distances_along_axis).ok_or_eyre("piece has no vertices")
     }
 
     /// Returns whether the puzzle is in a solved state.

@@ -78,13 +78,13 @@ function ngon(n, scale, basis)
 
     full_cut_depths = function(self, layer_count)
       local max_cut_depth = 1 - self.edge_depth
-      local ret1 = utils.layers.double_ended(scale, max_cut_depth * scale, layer_count)
+      local ret1 = utils.layers.inclusive(scale, max_cut_depth * scale, layer_count)
       local ret2
-      if n == 3 then ret2 = utils.layers.double_ended(-max_cut_depth * scale, -scale, layer_count) end
+      if n == 3 then ret2 = utils.layers.inclusive(-max_cut_depth * scale, -scale, layer_count) end
 
       -- local start, stop = 1, 1 - self.outradius
-      -- local ret1 = utils.layers.double_ended(start * scale, stop * scale, layer_count)
-      -- local ret2 = utils.layers.double_ended(-stop * scale, -start * scale, layer_count)
+      -- local ret1 = utils.layers.inclusive(start * scale, stop * scale, layer_count)
+      -- local ret2 = utils.layers.inclusive(-stop * scale, -start * scale, layer_count)
       return ret1, ret2
     end,
   }

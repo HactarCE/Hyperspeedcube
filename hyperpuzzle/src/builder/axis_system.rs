@@ -1,3 +1,5 @@
+use itertools::Itertools;
+use smallvec::{smallvec, SmallVec};
 use std::collections::hash_map;
 
 use eyre::{bail, eyre, OptionExt, Result};
@@ -10,12 +12,12 @@ use crate::{Axis, DevOrbit, Layer, LayerInfo, LayerMask, PerAxis, PerLayer};
 /// Layer of a twist axis during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct AxisLayerBuilder {
-    /// Hyperplane bounding the bottom of the layer.
-    pub bottom: Hyperplane,
-    /// Hyperplane bounding the top of the layer, which is inferred to be the
-    /// bottom of the next layer out (or unbounded, if this is the outermost
-    /// layer).
-    pub top: Option<Hyperplane>,
+    /// Position along the axis vector from the origin that bounds the bottom of
+    /// the layer. **This may be infinite.**
+    pub bottom: Float,
+    /// Position along the axis vector from the origin that bounds the top of
+    /// the layer. **This may be infinite.**
+    pub top: Float,
 }
 
 /// Twist axis during puzzle construction.
@@ -37,54 +39,48 @@ impl AxisBuilder {
     }
 
     /// Returns the hyperplanes bounding a layer.
-    pub fn boundary_of_layer(
-        &self,
-        layer: Layer,
-    ) -> Result<(Hyperplane, Option<Hyperplane>), IndexOutOfRange> {
+    pub fn boundary_of_layer(&self, layer: Layer) -> Result<SmallVec<[Hyperplane; 2]>> {
         let l = self.layers.get(layer)?;
-        Ok((
-            l.bottom.clone(),
-            l.top.clone().or_else(|| {
-                let prev_layer = Layer(layer.0.checked_sub(1)?);
-                Some(self.layers.get(prev_layer).ok()?.bottom.flip())
-            }),
-        ))
+        let mut ret = smallvec![];
+        if l.top.is_finite() {
+            ret.push(Hyperplane::new(&self.vector, l.top).ok_or_eyre("bad axis vector")?);
+        }
+        if l.bottom.is_finite() {
+            ret.push(
+                Hyperplane::new(&self.vector, l.bottom)
+                    .ok_or_eyre("bad axis vector")?
+                    .flip(),
+            );
+        }
+        Ok(ret)
     }
 
     /// Returns a union-of-intersections of bounded regions for the given layer
     /// mask.
-    pub fn plane_bounded_regions(&self, layer_mask: LayerMask) -> Result<Vec<Vec<Hyperplane>>> {
+    pub fn plane_bounded_regions(
+        &self,
+        layer_mask: LayerMask,
+    ) -> Result<Vec<SmallVec<[Hyperplane; 2]>>> {
         // TODO: optimize
         layer_mask
             .iter()
-            .map(|layer| {
-                let (btm, top) = self.boundary_of_layer(layer)?;
-                let mut ret = vec![btm];
-                ret.extend(top);
-                Ok(ret)
-            })
+            .map(|layer| self.boundary_of_layer(layer))
             .collect()
     }
 
     fn ensure_monotonic_layers(&self) -> Result<()> {
-        let mut layer_planes = vec![];
-        for layer in self.layers.iter_values() {
-            layer_planes.extend(layer.top.clone());
-            layer_planes.push(layer.bottom.flip());
-        }
-        for (a, b) in layer_planes.iter().zip(layer_planes.iter().skip(1)) {
-            // We expect `a` is above `b`.
-            if a == b {
-                continue;
+        let mut last_depth = Float::INFINITY;
+        for layer_info in self.layers.iter_values() {
+            let AxisLayerBuilder { bottom, top } = layer_info;
+            if !(approx_gt_eq(&last_depth, top) && approx_gt(top, bottom)) {
+                let depths = self
+                    .layers
+                    .iter_values()
+                    .map(|l| (l.top, l.bottom))
+                    .collect_vec();
+                bail!("axis layers {depths:?} are not sorted from outermost to innermost");
             }
-            if !approx_eq(&a.normal().dot(b.normal()).abs(), &1.0) {
-                bail!("axis layers are not parallel")
-            }
-            let is_b_below_a = a.location_of_point(b.pole()) == PointWhichSide::Inside;
-            let is_a_above_b = b.location_of_point(a.pole()) == PointWhichSide::Outside;
-            if !is_b_below_a || !is_a_above_b {
-                bail!("axis layers are not monotonic");
-            }
+            last_depth = *bottom;
         }
         Ok(())
     }
@@ -93,15 +89,9 @@ impl AxisBuilder {
         // Check that the layer planes are monotonic.
         self.ensure_monotonic_layers()?;
 
-        // Bound the top of each layer at the bottom of the previous one.
-        let mut last_bottom = None;
-        Ok(self.layers.map_ref(|_, layer| LayerInfo {
-            bottom: layer.bottom.clone(),
-            top: layer.top.clone().or(std::mem::replace(
-                &mut last_bottom,
-                Some(layer.bottom.flip()),
-            )),
-        }))
+        Ok(self
+            .layers
+            .map_ref(|_, &AxisLayerBuilder { bottom, top }| LayerInfo { bottom, top }))
     }
 }
 

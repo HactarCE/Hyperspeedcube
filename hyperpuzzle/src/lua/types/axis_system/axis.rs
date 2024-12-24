@@ -7,7 +7,7 @@ use parking_lot::{MappedMutexGuard, MutexGuard};
 use super::*;
 use crate::builder::{AxisBuilder, NameSet, PuzzleBuilder};
 use crate::puzzle::Axis;
-use crate::LayerMask;
+use crate::{LayerMask, LayerMaskUint};
 
 /// Lua handle for a twist axis in an axis system under construction.
 pub type LuaAxis = LuaDbEntry<Axis, PuzzleBuilder>;
@@ -51,7 +51,7 @@ impl LuaUserData for LuaAxis {
         methods.add_meta_method(LuaMetaMethod::Call, |lua, this, args: LuaMultiValue| {
             let layer_count = this.layers().len()?;
             let validate_layer = |LuaIndex(n)| {
-                if n < layer_count {
+                if n < LayerMaskUint::BITS as usize {
                     Ok(n as u8)
                 } else {
                     Err(LuaError::external("layer index out of range"))
@@ -92,21 +92,27 @@ impl LuaUserData for LuaAxis {
             };
 
             let puz = this.db.lock();
-            let plane_bounded_regions = puz
+            match puz
                 .twists
                 .axes
                 .get(this.id)
                 .into_lua_err()?
                 .plane_bounded_regions(layer_mask)
-                .into_lua_err()?;
-            Ok(LuaRegion::Or(
-                plane_bounded_regions
-                    .into_iter()
-                    .map(|layer_region| {
-                        LuaRegion::And(layer_region.into_iter().map(LuaRegion::HalfSpace).collect())
-                    })
-                    .collect(),
-            ))
+            {
+                Ok(plane_bounded_regions) => Ok(LuaRegion::Or(
+                    plane_bounded_regions
+                        .into_iter()
+                        .map(|layer_region| {
+                            let half_spaces = layer_region.into_iter().map(LuaRegion::HalfSpace);
+                            LuaRegion::And(half_spaces.collect())
+                        })
+                        .collect(),
+                )),
+                Err(e) => {
+                    lua.warning(format!("error computing region: {e}"), false);
+                    Ok(LuaRegion::Nothing)
+                }
+            }
         });
 
         methods.add_meta_method(LuaMetaMethod::Eq, |_lua, lhs, rhs: Self| Ok(lhs == &rhs));

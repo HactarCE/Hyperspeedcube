@@ -13,7 +13,7 @@ puzzles:add({
     -- p.colors:set_defaults(hypercubic.FACE_COLORS)
 
     -- -- Define axes and slices
-    p.axes:add(sym:orbit(xoox), {6/7})
+    p.axes:add(sym:orbit(xoox), {INF, 6/7})
     p.axes:autoname()
 
     -- Define twists

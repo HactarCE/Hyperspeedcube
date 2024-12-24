@@ -205,9 +205,56 @@ impl TwistSystemBuilder {
                 aliases: string_set, // all except first
                 vector,
                 layers,
+                opposite: None, // will be set later
             })?;
 
             axis_id_map.insert(old_id, new_id);
+        }
+
+        // Assign opposite axes.
+        for axis in axes.iter_keys() {
+            if axes[axis].opposite.is_some() {
+                continue; // already visited it
+            }
+
+            if let Some(&opposite_axis) = self
+                .axes
+                .vector_to_id(&axes[axis].vector)
+                .and_then(|old_id| axis_id_map.get(&old_id))
+            {
+                let self_layers = &axes[axis].layers;
+                let opposite_layers = &axes[opposite_axis].layers;
+
+                // Do the layers overlap?
+                let overlap = Option::zip(self_layers.last(), opposite_layers.last())
+                    .is_some_and(|(l1, l2)| l1.bottom < -l2.bottom);
+
+                if overlap {
+                    // Are the layers exactly the same, just reversed?
+                    let is_same_but_reversed = self_layers.len() == opposite_layers.len()
+                        && std::iter::zip(
+                            self_layers.iter_values().rev(),
+                            opposite_layers.iter_values(),
+                        )
+                        .all(|(l1, l2)| {
+                            approx_eq(&l1.top, &-l2.bottom) && approx_eq(&l1.bottom, &-l2.top)
+                        });
+
+                    if is_same_but_reversed {
+                        axes[axis].opposite = Some(opposite_axis);
+                        axes[opposite_axis].opposite = Some(axis);
+                    } else {
+                        let a1 = &axes[axis].name;
+                        let a2 = &axes[opposite_axis].name;
+                        let a1_layers = axes[axis].layers_debug_str();
+                        let a2_layers = axes[opposite_axis].layers_debug_str();
+                        warn_fn(eyre!(
+                            "axes {a1} and {a2} are opposite and overlapping, \
+                             but the layers do not match ({a1_layers} vs. {a2_layers})"
+                        ));
+                    }
+                }
+            }
         }
 
         let axis_id_map_reverse: HashMap<Axis, Axis> =

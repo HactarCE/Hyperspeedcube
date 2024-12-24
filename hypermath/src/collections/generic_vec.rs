@@ -363,6 +363,10 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
     pub fn find(&self, pred: impl FnMut(I, &E) -> bool) -> Option<I> {
         self.iter_filter(pred).next()
     }
+    /// Returns the last key for which a predicate returns `true`.
+    pub fn find_rev(&self, pred: impl FnMut(I, &E) -> bool) -> Option<I> {
+        self.iter_filter(pred).rev().next()
+    }
 
     /// Applies a function to every value in the collection and returns a new
     /// collection.

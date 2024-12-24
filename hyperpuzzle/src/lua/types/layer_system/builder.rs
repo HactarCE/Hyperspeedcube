@@ -1,4 +1,4 @@
-use hypermath::{Hyperplane, IndexNewtype};
+use hypermath::IndexNewtype;
 use parking_lot::MappedMutexGuard;
 
 use super::*;
@@ -25,12 +25,9 @@ impl LuaUserData for LuaLayerSystem {
         methods.add_meta_method(LuaMetaMethod::Index, move |lua, this, LuaIndex(index)| {
             let this = this.lock()?;
             match this.get(Layer::try_from_usize(index).into_lua_err()?) {
-                Ok(layer) => {
-                    let bottom = Some(LuaHyperplane(layer.bottom.clone())).into_lua(lua)?;
-                    let top = layer.top.clone().map(LuaHyperplane).into_lua(lua)?;
-                    lua.create_table_from([("bottom", bottom), ("top", top)])?
-                        .into_lua(lua)
-                }
+                Ok(layer) => lua
+                    .create_table_from([("bottom", layer.bottom), ("top", layer.top)])?
+                    .into_lua(lua),
                 Err(_) => Ok(LuaNil),
             }
         });
@@ -38,15 +35,9 @@ impl LuaUserData for LuaLayerSystem {
             Ok(this.lock()?.len())
         });
 
-        methods.add_method("add", |_lua, this, (bottom, top)| {
-            // Flip the bottom plane so that it faces up.
-            let LuaHyperplane(bottom) = bottom;
-            let bottom = bottom.flip();
-
-            // Leave the top plane as-is.
-            let top: Option<LuaHyperplane> = top;
-            let top = top.map(|LuaHyperplane(m)| m);
-
+        methods.add_method("add", |_lua, this, (bound1, bound2)| {
+            let bottom = f64::min(bound1, bound2);
+            let top = f64::max(bound1, bound2);
             this.lock()?
                 .push(AxisLayerBuilder { bottom, top })
                 .into_lua_err()?;
@@ -63,15 +54,6 @@ impl LuaLayerSystem {
         Ok(MappedMutexGuard::map(self.axis.lock()?, |axis| {
             &mut axis.layers
         }))
-    }
-
-    /// Returns all cuts in the layer.
-    pub fn cuts(&self) -> LuaResult<Vec<Hyperplane>> {
-        Ok(self
-            .lock()?
-            .iter_values()
-            .flat_map(|layer| itertools::chain([layer.bottom.clone()], layer.top.clone()))
-            .collect())
     }
 
     /// Returns whether there are no layers in the layer system.

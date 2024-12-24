@@ -158,6 +158,18 @@ pub fn pad_zip<A: Default, B: Default>(
         })
 }
 
+/// Returns the minimum and maximum values from an iterator of floats.
+pub fn min_max(elems: impl IntoIterator<Item = Float>) -> Option<(Float, Float)> {
+    let mut elems = elems.into_iter();
+    let mut min = elems.next()?;
+    let mut max = min;
+    for elem in elems {
+        min = Float::min(min, elem);
+        max = Float::max(max, elem);
+    }
+    Some((min, max))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

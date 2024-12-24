@@ -10,7 +10,7 @@ puzzles:add{
   build = function(self)
     local sym = cd'bc3'.chiral
     self:carve(sym:orbit(vec(1, 1/tribonacci_constant, tribonacci_constant)))
-    self.axes:add(sym:orbit(vec(1, 1/tribonacci_constant, tribonacci_constant)), {1.85})
+    self.axes:add(sym:orbit(vec(1, 1/tribonacci_constant, tribonacci_constant)), {INF, 1.85})
   end,
 }
 

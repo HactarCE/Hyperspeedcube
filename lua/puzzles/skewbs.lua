@@ -3,7 +3,7 @@ local CORNER_STALK_SIZE = 0.03
 
 
 local function skewb_cut_depths(size)
-  if size == 2 then return {0} end
+  if size == 2 then return {INF, 0, -INF} end
 
   local outermost_cut
   local aesthetic_limit = (1 - 2/(size+0.6)) * (1 / sqrt(3))
@@ -13,7 +13,7 @@ local function skewb_cut_depths(size)
     mechanical_limit = sqrt(3) / 5
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return lib.utils.layers.inclusive(outermost_cut, -outermost_cut, size-1)
+  return lib.utils.concatseq({INF}, lib.utils.layers.inclusive(outermost_cut, -outermost_cut, size-2), {-INF})
 end
 
 puzzle_generators:add{
@@ -173,7 +173,7 @@ puzzles:add{
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    self.axes:add(lib.symmetries.octahedral.octahedron():iter_poles(), {1/sqrt(3)})
+    self.axes:add(lib.symmetries.octahedral.octahedron():iter_poles(), {INF, 1/sqrt(3), -1/sqrt(3), -INF})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
@@ -210,7 +210,7 @@ puzzles:add{
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    self.axes:add(lib.symmetries.octahedral.octahedron():iter_poles(), {0.82})
+    self.axes:add(lib.symmetries.octahedral.octahedron():iter_poles(), {INF, 0.82})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do

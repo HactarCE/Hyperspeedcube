@@ -76,7 +76,7 @@ function build_prism_puzzle(self, n, polygon_cut_depths, height)
   local h = base_polygon.edge_length / 2
   local line = linear.line(h, 'z', 'U', 'D')
 
-  local line_cut_depths = utils.layers.exclusive(h, -h, height-1)
+  local line_cut_depths = utils.layers.inclusive(h, -h, height-1)
 
   local base_colors, base_axes = utils.cut_shape(self, line, line_cut_depths, 'U', 'D')
   local side_colors, side_axes = utils.cut_shape(self, base_polygon, polygon_cut_depths, 'F')
@@ -414,7 +414,7 @@ puzzle_generators:add{
         local dodeca = ft_dodecahedra.shallow_ft_dodecahedron(self, dodecahedron_size)
 
         local line = linear.line(1, 'w')
-        local line_cuts = utils.layers.double_ended(1, -1, prism_size)
+        local line_cuts = utils.layers.inclusive(1, -1, prism_size)
 
         local dodeca_colors, dodeca_axes = dodeca.colors, dodeca.axes
         local base_colors, base_axes = utils.cut_shape(self, line, line_cuts, 'O', 'I')

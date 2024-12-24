@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use float_ord::FloatOrd;
-use hypermath::Hyperplane;
+use hypermath::{Hyperplane, VectorRef};
 use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
@@ -130,6 +130,10 @@ impl LuaAxisSystem {
         let mut gen_seqs = vec![];
         let mut new_axes = vec![];
         let ret = vectors.map(lua, |gen_seq, name, LuaVector(v)| {
+            let v = v
+                .normalize()
+                .ok_or_else(|| LuaError::external("axis vector cannot be zero"))?;
+
             gen_seqs.push(gen_seq);
 
             let mut puz = self.lock();
@@ -140,23 +144,23 @@ impl LuaAxisSystem {
             new_axes.push(new_axis.clone());
 
             let axis = puz.twists.axes.get_mut(id).into_lua_err()?;
-            let mut layer_planes = vec![];
-            for &depth in &depths {
-                let layer_plane = Hyperplane::new(&v, depth)
-                    .ok_or("axis vector cannot be zero")
-                    .into_lua_err()?;
-                // Flip the bottom plane so that it faces up.
-                let layer = AxisLayerBuilder {
-                    bottom: layer_plane.flip(),
-                    top: None,
-                };
+            for (&top, &bottom) in depths.iter().tuple_windows() {
+                let layer = AxisLayerBuilder { bottom, top };
                 axis.layers.push(layer).into_lua_err()?;
-                layer_planes.push(layer_plane);
             }
             if slice {
-                // Cut in reverse (shallowest cut first) to optimize piece ID usage.
-                for cut in layer_planes.into_iter().rev() {
-                    puz.shape.slice(None, cut, None, None).into_lua_err()?;
+                // Do the shallowest cut first to optimize piece ID usage.
+                for &depth in depths
+                    .iter()
+                    .filter(|d| d.is_finite())
+                    .sorted_by_key(|d| FloatOrd(-d.abs()))
+                {
+                    let cut_plane = Hyperplane::new(&v, depth)
+                        .ok_or("axis vector cannot be zero")
+                        .into_lua_err()?;
+                    puz.shape
+                        .slice(None, cut_plane, None, None)
+                        .into_lua_err()?;
                 }
             }
 

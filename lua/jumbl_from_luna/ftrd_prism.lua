@@ -12,8 +12,8 @@ puzzles:add({
     p:carve(sym:orbit(i1))
 
     --p.axes:add(sym:orbit(pole):with(octahedral.AXIS_NAMES), {0})
-    p.axes:add(sym:orbit(f1), {2/3})
-    p.axes:add(sym:orbit(i1), {1/3})
+    p.axes:add(sym:orbit(f1), {INF, 2/3})
+    p.axes:add(sym:orbit(i1), {INF, 1/3})
 
     for _, axis, twist_transform in sym.chiral:orbit(p.axes[i1], sym:thru(2, 1)) do
       p.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})

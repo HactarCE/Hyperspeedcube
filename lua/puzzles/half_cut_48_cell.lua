@@ -26,7 +26,7 @@ function build_48_cell_puzzle(self, shape_name)
 
   -- self:carve(cubic_sym:orbit(sym.ooxx.unit) )
 
-  local axes1 = self.axes:add(sym:orbit(sym.ooox.unit), {0})
+  local axes1 = self.axes:add(sym:orbit(sym.ooox.unit), {INF, 0, -INF})
   for t in sym:orbit(sym.xoox) do
     self.twists:add(t:transform(axes1[1]), t:transform_oriented(sym:thru(3, 2)), {
       gizmo_pole_distance = 1,
@@ -43,7 +43,7 @@ function build_48_cell_puzzle(self, shape_name)
     })
   end
 
-  local axes2 = self.axes:add(sym:orbit(sym.xooo.unit), {0})
+  local axes2 = self.axes:add(sym:orbit(sym.xooo.unit), {INF, 0, -INF})
   for t in sym:orbit(sym.xoox) do
     self.twists:add(t:transform(axes2[1]), t:transform_oriented(sym:thru(3, 2)), {
       gizmo_pole_distance = 1,

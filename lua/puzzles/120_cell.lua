@@ -10,7 +10,7 @@ function build_120_cell(self, depth)
 
   self:carve(facet_poles)
   if depth ~= nil then
-    local axes = self.axes:add(facet_poles, {depth})
+    local axes = self.axes:add(facet_poles, {INF, depth})
 
     self.axes:autoname()
 

@@ -1,17 +1,19 @@
 puzzles:add{
   id = 'fcto',
-  name = "Face-And-Corner-Turning Octahedron",
+  name = "Comboctahedron",
+  aliases = { "Face-And-Corner-Turning Octahedron" },
   version = '0.1.0',
   ndim = 3,
   colors = 'octahedron',
+  -- TODO: tags. museum=1848
   build = function(self)
     local sym = cd'bc3'
     local shape = lib.symmetries.octahedral.octahedron()
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    self.axes:add(shape:iter_poles(), lib.utils.layers.exclusive(1, -1, 2))
-    self.axes:add(sym:orbit(sym.oox.unit), lib.utils.layers.exclusive(sqrt(3), 0, 2))
+    self.axes:add(shape:iter_poles(), lib.utils.layers.inclusive(1, -1, 3))
+    self.axes:add(sym:orbit(sym.oox.unit), lib.puzzles.cto.CUT_DEPTHS)
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do

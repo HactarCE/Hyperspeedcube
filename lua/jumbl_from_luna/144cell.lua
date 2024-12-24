@@ -35,7 +35,7 @@ puzzles:add({
     p.colors:set_defaults(t)
 
     -- Define axes and slices
-    p.axes:add(sym:orbit(xoox), {15/16})
+    p.axes:add(sym:orbit(xoox), {INF, 15/16})
     p.axes:autoname()
 
     -- Define twists
