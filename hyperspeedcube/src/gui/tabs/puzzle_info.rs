@@ -36,7 +36,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             let mut name = color.name.to_string();
             for alias in &color.aliases {
                 name.push_str(", ");
-                name.push_str(&alias);
+                name.push_str(alias);
             }
             let display = &color.display;
             ui.label(format!("• {name} = {display}"));

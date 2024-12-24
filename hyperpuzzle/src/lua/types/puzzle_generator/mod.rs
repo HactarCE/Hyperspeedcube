@@ -129,6 +129,7 @@ impl PuzzleGeneratorSpec {
     ///
     /// Even if `overrides` is `None`, overrides for known example puzzles will
     /// be applied.
+    #[allow(clippy::get_first)]
     pub fn generate_puzzle_spec(
         &self,
         lua: &Lua,
@@ -138,7 +139,7 @@ impl PuzzleGeneratorSpec {
         let id = crate::generated_puzzle_id(&self.id, &generator_param_values);
 
         if let Some(puzzle_spec) = self.examples.get(&id) {
-            return Ok(PuzzleGeneratorOutput::Puzzle(Arc::clone(&puzzle_spec)));
+            return Ok(PuzzleGeneratorOutput::Puzzle(Arc::clone(puzzle_spec)));
         }
 
         let expected = self.params.len();

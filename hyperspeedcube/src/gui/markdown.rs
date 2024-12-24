@@ -118,7 +118,7 @@ impl<'a> InlineFormatState<'a> {
             egui::TextStyle::Body
         };
 
-        let mut font_id = style.resolve(&self.style);
+        let mut font_id = style.resolve(self.style);
         let color = match self.bold {
             true => self.strong_text_color,
             false => self.text_color,

@@ -1,0 +1,3 @@
+# hyperpaths
+
+Paths for Hyperspeedcube

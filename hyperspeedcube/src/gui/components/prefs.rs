@@ -372,7 +372,7 @@ impl<'a, T> PrefsUi<'a, T> {
                                     .with(get_dnd_alignment(f));
                                 if ui
                                     .selectable_label(*value == f, get_strings(f).label)
-                                    .on_hover_explanation("", &format!("{alignment_str}\n\n{desc}"))
+                                    .on_hover_explanation("", format!("{alignment_str}\n\n{desc}"))
                                     .clicked()
                                 {
                                     *value = f;

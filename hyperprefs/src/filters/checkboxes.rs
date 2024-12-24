@@ -179,7 +179,7 @@ fn optimized_piece_type_expr(
 
         match &node.contents {
             PieceTypeHierarchyNodeContents::Category(cat) => {
-                let result = optimized_piece_type_expr(ctx, &cat, &path, mask);
+                let result = optimized_piece_type_expr(ctx, cat, &path, mask);
                 includes.extend(result.include);
                 excludes.extend(result.exclude);
             }

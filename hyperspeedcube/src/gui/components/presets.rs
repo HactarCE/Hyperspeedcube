@@ -134,7 +134,7 @@ where
     ) -> egui::Response {
         let current_name = self.current.base.name();
 
-        let is_current = preset_name == &current_name;
+        let is_current = preset_name == current_name;
 
         let max_width = ui.available_width() - ui.spacing().button_padding.x * 2.0;
         let elided_preset_name = elide_overflowing_line(ui, preset_name, max_width);
@@ -370,7 +370,7 @@ where
                 PresetSaveStatus::Autosave
             } else {
                 PresetSaveStatus::ManualSave {
-                    is_unsaved: self.presets.is_modified(&self.current),
+                    is_unsaved: self.presets.is_modified(self.current),
                     overwrite: self.presets.contains_key(&base_preset_name),
                 }
             },
@@ -405,11 +405,11 @@ where
 
         let current_name = self.current.base.name();
         save_preset |= self.autosave
-            && self.presets.is_modified(&self.current)
+            && self.presets.is_modified(self.current)
             && self.presets.contains_key(&current_name);
 
         if save_preset {
-            self.presets.save_over_preset(&self.current);
+            self.presets.save_over_preset(self.current);
             *self.changed = true;
         }
     }

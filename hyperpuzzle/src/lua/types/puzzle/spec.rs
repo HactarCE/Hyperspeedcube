@@ -117,7 +117,7 @@ impl PuzzleSpec {
     pub fn build(&self, lua: &Lua) -> LuaResult<Arc<Puzzle>> {
         let LuaNdim(ndim) = self.ndim;
         let id = self.id.clone();
-        let version = self.version.clone();
+        let version = self.version;
         let name = self.name.clone().unwrap_or_else(|| {
             lua.warning(format!("missing `name` for puzzle `{id}`"), false);
             self.id.clone()

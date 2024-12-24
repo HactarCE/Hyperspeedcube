@@ -41,6 +41,6 @@ fn show_contents(
     presets_ui
         .with_text(&L.presets.view_settings)
         .show(ui, presets_set, |prefs_ui| {
-            crate::gui::components::prefs::build_view_section(prefs_set, prefs_ui)
+            crate::gui::components::prefs::build_view_section(prefs_set, prefs_ui);
         });
 }

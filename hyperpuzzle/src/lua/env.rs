@@ -38,7 +38,7 @@ pub(super) fn monkeypatch_lua_environment(lua: &Lua, logger: &LuaLogger) -> LuaR
 
     if crate::CAPTURE_LUA_OUTPUT {
         let logger = logger.clone();
-        globals.raw_set("print", logger.lua_info_fn(&lua)?)?;
+        globals.raw_set("print", logger.lua_info_fn(lua)?)?;
         lua.set_warning_function(move |lua, msg, _to_continue| {
             logger.warn(lua, msg);
             Ok(())
@@ -51,7 +51,7 @@ pub(super) fn monkeypatch_lua_environment(lua: &Lua, logger: &LuaLogger) -> LuaR
 pub(super) fn init_lua_environment(lua: &Lua, env: &LuaTable, loader: LuaLoader) -> LuaResult<()> {
     // Constants
     env.raw_set("_PUZZLE_ENGINE", crate::PUZZLE_ENGINE_VERSION_STRING)?;
-    env.raw_set("AXES", lua_axes_table(&lua)?)?;
+    env.raw_set("AXES", lua_axes_table(lua)?)?;
 
     // Imports
     let index_metamethod = lua.create_function(

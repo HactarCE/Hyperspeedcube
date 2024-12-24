@@ -154,7 +154,7 @@
 //! - Loosen name overlap restrictions
 //! - Associative maps (indexmap, hashmap, etc.)
 
-#![allow(unused, missing_docs)]
+#![allow(unused, missing_docs, clippy::unwrap_used)]
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};

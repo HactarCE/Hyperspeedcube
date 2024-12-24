@@ -269,6 +269,7 @@ impl FilterExpr {
         }
     }
 
+    #[allow(clippy::should_implement_trait)] // this method is infallible
     pub fn from_str(s: &str) -> Self {
         parser::parse(s)
     }

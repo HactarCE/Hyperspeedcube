@@ -218,6 +218,7 @@ impl TwistInfo {
 /// Piece type info.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct PieceTypeInfo {
+    #[allow(clippy::doc_markdown)]
     /// Name for the piece type. (e.g., "center/oblique_1_2/left")
     pub name: String,
     /// User-friendly display name for the piece type. (e.g., "Oblique (1, 2)

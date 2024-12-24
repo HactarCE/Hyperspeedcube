@@ -110,12 +110,13 @@ impl Puzzle {
         PuzzleState::new(self.arc())
     }
     /// Constructs a new scrambled instance of the puzzle.
+    #[allow(clippy::unwrap_used)] // these are infallible
     pub fn new_scrambled(&self, scramble: ScrambleParams) -> (Vec<LayeredTwist>, PuzzleState) {
         let ScrambleParams { ty, time, seed } = scramble;
 
         let mut sha256 = sha2::Sha256::new();
-        sha256.write(time.to_string().as_bytes()).unwrap();
-        sha256.write(&seed.to_le_bytes()).unwrap(); // native endianness on x86 and Apple Silicon
+        sha256.write_all(time.to_string().as_bytes()).unwrap();
+        sha256.write_all(&seed.to_le_bytes()).unwrap(); // native endianness on x86 and Apple Silicon
         let digest = sha256.finalize();
 
         let mut rng =

@@ -113,7 +113,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
             .unwrap_or(false);
         let full_scramble_button = egui::Button::new(L.menu.scramble.full);
         if ui.add_enabled(can_scramble, full_scramble_button).clicked()
-            && app_ui.confirm_discard(&L.confirm_discard.scramble)
+            && app_ui.confirm_discard(L.confirm_discard.scramble)
         {
             app_ui.app.scramble(ScrambleType::Full);
             ui.close_menu();
@@ -121,14 +121,14 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         ui.separator();
         let scramble_1_button = egui::Button::new(L.menu.scramble.one);
         if ui.add_enabled(can_scramble, scramble_1_button).clicked()
-            && app_ui.confirm_discard(&L.confirm_discard.scramble)
+            && app_ui.confirm_discard(L.confirm_discard.scramble)
         {
             app_ui.app.scramble(ScrambleType::Partial(1));
             ui.close_menu();
         }
         let scramble_2_button = egui::Button::new(L.menu.scramble.two);
         if ui.add_enabled(can_scramble, scramble_2_button).clicked()
-            && app_ui.confirm_discard(&L.confirm_discard.scramble)
+            && app_ui.confirm_discard(L.confirm_discard.scramble)
         {
             app_ui.app.scramble(ScrambleType::Partial(2));
             ui.close_menu();

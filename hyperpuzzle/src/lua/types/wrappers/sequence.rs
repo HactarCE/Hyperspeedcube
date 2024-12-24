@@ -6,7 +6,7 @@ use super::*;
 /// contain sequential values.
 #[derive(Debug, Default, Clone)]
 pub struct LuaSequence<T>(pub Vec<T>);
-impl<'lua, T: FromLua> FromLua for LuaSequence<T> {
+impl<T: FromLua> FromLua for LuaSequence<T> {
     fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
         let LuaValue::Table(t) = value else {
             return lua_convert_err(&value, "table");

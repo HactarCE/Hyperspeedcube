@@ -1,5 +1,6 @@
 [package]
 name = "hyperpuzzle_log"
+description = "Log files for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true
 documentation.workspace = true
@@ -7,22 +8,19 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["cubing", "hypercubing", "rubik", "4d"]
+categories = ["filesystem"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
 hyperkdl = { workspace = true }
 hyperkdl_derive = { workspace = true }
-hypermath = { workspace = true }
 hyperpuzzle = { workspace = true }
 
-chrono = { workspace = true }
 itertools = { workspace = true }
 kdl = { workspace = true }
 lazy_static = { workspace = true }
-miette = { workspace = true }
 regex = { workspace = true }
-serde = { workspace = true }
-serde_yml = { workspace = true }
 smallvec = { workspace = true }
 thiserror = { workspace = true }
 

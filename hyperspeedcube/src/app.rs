@@ -181,7 +181,7 @@ impl App {
                                     &self.egui_wgpu_renderer,
                                     &sim,
                                     &mut self.prefs,
-                                )
+                                );
                             }
                             Err(e) => {
                                 log::error!("error constructing puzzle specified in log file: {e}");

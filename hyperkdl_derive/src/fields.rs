@@ -18,7 +18,7 @@ impl KdlField<'_> {
             KdlFieldStyle::Argument(i) => format!("argument #{}", i + 1),
             KdlFieldStyle::Property(k) => format!("property {k:?}"),
             KdlFieldStyle::ChildNode(k) => format!("child node {k:?}"),
-            KdlFieldStyle::Children => format!("children"),
+            KdlFieldStyle::Children => "children".to_string(),
         }
     }
 

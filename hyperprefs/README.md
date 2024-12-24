@@ -1,0 +1,3 @@
+# hyperprefs
+
+Preferences for Hyperspeedcube

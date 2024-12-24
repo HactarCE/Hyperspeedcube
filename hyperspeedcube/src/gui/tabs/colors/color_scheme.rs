@@ -15,12 +15,12 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             let mut changed = false;
 
             let color_system = &p.puzzle().colors;
-            let presets = &mut app.prefs.color_schemes.get_mut(&color_system).schemes;
+            let presets = &mut app.prefs.color_schemes.get_mut(color_system).schemes;
             let current = &mut p.view.colors;
 
             // Ensure that the active color scheme is valid.
             changed |= palette
-                .ensure_color_scheme_is_valid_for_color_system(&mut current.value, &color_system);
+                .ensure_color_scheme_is_valid_for_color_system(&mut current.value, color_system);
 
             let presets_ui = PresetsUi::new(id, presets, current, &mut changed);
             show_contents(
@@ -64,7 +64,7 @@ fn show_contents(
                 .drag_puzzle_colors(ui, true);
 
             let (changed, temp_scheme) =
-                colors_ui.show_compact_palette(ui, Some((prefs.current, &color_system)), None);
+                colors_ui.show_compact_palette(ui, Some((prefs.current, color_system)), None);
             *prefs.changed |= changed;
             if let Some(temp_scheme) = temp_scheme {
                 *temp_colors_override = Some(temp_scheme);

@@ -183,7 +183,7 @@ impl<T: PresetData> PresetData for PresetsList<T> {
         }
     }
     fn is_tombstone_empty(tombstone: &Self::Tombstone) -> bool {
-        tombstone.values().all(|t| Preset::is_tombstone_empty(t))
+        tombstone.values().all(Preset::is_tombstone_empty)
     }
 }
 
@@ -298,8 +298,8 @@ impl<T: PresetData> PresetsList<T> {
         let to_rename = self
             .user
             .keys()
+            .filter(|&k| builtin_presets.contains_key(k))
             .cloned()
-            .filter(|k| builtin_presets.contains_key(k))
             .collect_vec();
 
         // Remove old built-in presets.
@@ -481,7 +481,7 @@ impl<T: PresetData> PresetsList<T> {
     /// an existing one. Returns the new name.
     #[must_use]
     pub fn save_preset_with_nonconflicting_name(&mut self, desired_name: &str, value: T) -> String {
-        let name = self.find_nonconflicting_name(&desired_name);
+        let name = self.find_nonconflicting_name(desired_name);
         self.save_preset(name.clone(), value);
         name
     }
@@ -500,7 +500,7 @@ impl<T: PresetData> PresetsList<T> {
         while self.builtin.contains_key(&name) {
             // Keep looping until we get a free name, just in case the built-in
             // presets are named pathologically.
-            name += MODIFIED_SUFFIX
+            name += MODIFIED_SUFFIX;
         }
         name
     }
@@ -657,7 +657,7 @@ impl<T> Preset<T> {
         if named_refs.is_empty() {
             named_refs.push(PresetRef {
                 name: Arc::new(Mutex::new(self.name.clone())),
-            })
+            });
         }
         named_refs[0].clone()
     }

@@ -1,5 +1,6 @@
 [package]
 name = "hyperpuzzle_view"
+description = "View controller for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true
 documentation.workspace = true
@@ -7,8 +8,8 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-keywords = ["cubing", "hypercubing", "rubik", "conformal-geometric-algebra", "4d"]
-categories = ["algorithms", "mathematics", "simulation"]
+keywords = ["cubing", "hypercubing", "rubik", "4d"]
+categories = ["simulation"]
 license = "GPL-3.0-or-later"
 
 [lints]

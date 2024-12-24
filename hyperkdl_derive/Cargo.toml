@@ -1,5 +1,6 @@
 [package]
 name = "hyperkdl_derive"
+description = "Opinionated KDL serialization & deserialization derive macros for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true
 documentation.workspace = true
@@ -7,6 +8,8 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["serialization", "serialize-deserialize", "macro-derive", "derive"]
+categories = ["encoding"]
 license = "MIT OR Apache-2.0"
 
 [lib]

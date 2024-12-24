@@ -225,7 +225,7 @@ impl Lang {
                     warn_with(
                         "type mismatch",
                         src.at(node.span().offset()),
-                        &format!(
+                        format!(
                             "expected `{}`, got `{}`",
                             field_type.red(),
                             annotated_field_type.red(),

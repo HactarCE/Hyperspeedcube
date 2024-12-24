@@ -171,7 +171,7 @@ impl Mesh {
         self.v_tangents.extend(iter_f32(ndim, data.v_tangent));
         self.sticker_shrink_vectors
             .extend(iter_f32(ndim, data.sticker_shrink_vector));
-        self.piece_ids.push(data.piece_id.0 as u32);
+        self.piece_ids.push(data.piece_id.0);
         self.surface_ids.push(data.surface_id.0 as u32);
         self.polygon_ids.push(data.polygon_id);
 

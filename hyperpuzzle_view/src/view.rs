@@ -201,7 +201,7 @@ impl PuzzleView {
     ) {
         if self.filters.changed {
             self.filters.changed = false;
-            self.notify_filters_changed()
+            self.notify_filters_changed();
         }
 
         let PuzzleViewInput {
@@ -306,7 +306,7 @@ impl PuzzleView {
                         sim.update_partial_twist(
                             hov.normal_3d(),
                             parallel_drag_delta,
-                            &animation_prefs,
+                            animation_prefs,
                         );
                         Some(())
                     })();
@@ -333,7 +333,7 @@ impl PuzzleView {
             let puzzle = self.puzzle();
             let sim = self.sim.lock();
             let anim = sim.blocking_pieces_anim();
-            let amt = anim.blocking_amount(&animation_prefs);
+            let amt = anim.blocking_amount(animation_prefs);
             let pieces = PieceMask::from_iter(puzzle.pieces.len(), anim.pieces().iter().copied());
             self.styles.set_blocking_pieces(pieces, amt);
         }

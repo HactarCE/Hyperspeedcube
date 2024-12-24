@@ -37,7 +37,7 @@ impl AllTags {
     /// Returns the ancestors of a tag, not including the tag itself. For example,
     /// the ancestors of `"shape/3d/cube"` are `["shape/3d", "shape"]`.
     pub fn ancestors<'a>(&'a self, tag: &'a str) -> impl 'a + Iterator<Item = &'a str> {
-        std::iter::successors(Some(tag), |s| Some(s.rsplit_once(&['/', '='])?.0)).skip(1)
+        std::iter::successors(Some(tag), |s| Some(s.rsplit_once(['/', '='])?.0)).skip(1)
     }
 
     pub(super) fn load() -> Self {

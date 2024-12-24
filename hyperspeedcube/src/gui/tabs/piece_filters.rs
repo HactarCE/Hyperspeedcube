@@ -116,7 +116,7 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App, allow_ad_hoc: b
                         }
                     }
                     if changed {
-                        p.view.filters.reload(&filter_prefs);
+                        p.view.filters.reload(filter_prefs);
                     }
                 } else {
                     ui.disable();
@@ -459,14 +459,14 @@ fn show_seq_preset_name(
                 // the error message on the confirm button in the preset
                 // renaming popup
                 let w = f32::max(
-                    text_width(ui, md_inline(ui, &L.piece_filters.include_previous)),
-                    text_width(ui, md_inline(ui, &L.piece_filters.ignore_previous)),
+                    text_width(ui, md_inline(ui, L.piece_filters.include_previous)),
+                    text_width(ui, md_inline(ui, L.piece_filters.ignore_previous)),
                 );
 
                 r.show_tooltip_ui(|ui| {
                     ui.set_width(w.ceil());
                     md(ui, hover);
-                })
+                });
             }
             if r.clicked() {
                 value.include_previous ^= true;
@@ -593,7 +593,7 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
         } else {
             ui.label("No active puzzle");
         }
-    })
+    });
 }
 fn show_current_filter_preset_ui_contents(
     ui: &mut egui::Ui,
@@ -971,7 +971,7 @@ fn show_piece_type_hierarchy(
             let name = node.display.as_ref().unwrap_or(k);
             match &node.contents {
                 hyperpuzzle::PieceTypeHierarchyNodeContents::Category(cat) => {
-                    show_piece_type_hierarchy(id, ui, name, &cat, filter_states, false, changed);
+                    show_piece_type_hierarchy(id, ui, name, cat, filter_states, false, changed);
                 }
                 hyperpuzzle::PieceTypeHierarchyNodeContents::Type(ty) => {
                     let r = &ui.add(

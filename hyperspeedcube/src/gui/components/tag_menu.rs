@@ -17,7 +17,7 @@ pub struct TagMenu {
     show_experimental: bool,
 }
 impl TagMenu {
-    pub fn new<'a>(
+    pub fn new(
         included: impl IntoIterator<Item = String>,
         excluded: impl IntoIterator<Item = String>,
     ) -> Self {
@@ -119,28 +119,28 @@ impl TagMenu {
                                 .unique()
                                 .sorted()
                                 .map(|tag_value| {
-                                    self.tag_checkbox(ui, name, Some(&tag_value), &tag_value)
+                                    self.tag_checkbox(ui, name, Some(tag_value), tag_value)
                                 })
                                 .reduce(Option::or)
                                 .flatten()
                             }
                         })
                     } else {
-                        self.show_tag_menu_nodes(ui, &subtags)
+                        self.show_tag_menu_nodes(ui, subtags)
                     }
                 };
 
                 match display {
-                    hyperpuzzle::TagDisplay::Inline => self.show_tag_menu_nodes(ui, &subtags),
+                    hyperpuzzle::TagDisplay::Inline => self.show_tag_menu_nodes(ui, subtags),
                     hyperpuzzle::TagDisplay::Submenu(label) => {
                         if subtags.is_empty() && !*list {
                             if let Some(name) = name {
-                                self.tag_checkbox(ui, name, None, &label)
+                                self.tag_checkbox(ui, name, None, label)
                             } else {
                                 None // show nothing
                             }
                         } else {
-                            self.tag_checkbox_menu(ui, name.as_deref(), &label, |ui| {
+                            self.tag_checkbox_menu(ui, name.as_deref(), label, |ui| {
                                 egui::ScrollArea::vertical().show(ui, show_contents).inner
                             })
                         }

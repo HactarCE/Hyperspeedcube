@@ -249,7 +249,7 @@ pub enum LuaSymmetricSet<T> {
     /// Symmetric orbit of an object.
     Orbit(LuaOrbit),
 }
-impl<'lua, T: LuaTypeName + IntoLua> IntoLua for LuaSymmetricSet<T> {
+impl<T: LuaTypeName + IntoLua> IntoLua for LuaSymmetricSet<T> {
     fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
         match self {
             LuaSymmetricSet::Single(obj) => obj.into_lua(lua),
@@ -257,7 +257,7 @@ impl<'lua, T: LuaTypeName + IntoLua> IntoLua for LuaSymmetricSet<T> {
         }
     }
 }
-impl<'lua, T: LuaTypeName + FromLua> FromLua for LuaSymmetricSet<T> {
+impl<T: LuaTypeName + FromLua> FromLua for LuaSymmetricSet<T> {
     fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         if let Ok(orbit) = <_>::from_lua(value.clone(), lua) {
             Ok(Self::Orbit(orbit))
@@ -271,7 +271,7 @@ impl<'lua, T: LuaTypeName + FromLua> FromLua for LuaSymmetricSet<T> {
         }
     }
 }
-impl<'lua, T: LuaTypeName + FromLua + Clone> LuaSymmetricSet<T> {
+impl<T: LuaTypeName + FromLua + Clone> LuaSymmetricSet<T> {
     /// Applies a function to each object in the orbit and returns a new orbit.
     pub fn map<U, F>(&self, lua: &Lua, mut f: F) -> LuaResult<LuaSymmetricSet<U>>
     where
@@ -308,12 +308,10 @@ impl<'lua, T: LuaTypeName + FromLua + Clone> LuaSymmetricSet<T> {
                     .try_collect()?;
 
                 let init = orbit_list
-                    .get(0)
+                    .first()
                     .ok_or_else(|| LuaError::external("empty orbit"))?
                     .objects
-                    .iter()
-                    .map(|elem| elem.clone().into())
-                    .collect();
+                    .clone();
 
                 Ok(LuaSymmetricSet::Orbit(LuaOrbit {
                     symmetry: orbit.symmetry.clone(),

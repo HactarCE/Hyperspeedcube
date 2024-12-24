@@ -211,6 +211,7 @@ impl PieceBuilder {
 /// Piece type of a puzzle during puzzle construction.
 #[derive(Debug, Clone)]
 pub struct PieceTypeBuilder {
+    #[allow(clippy::doc_markdown)]
     /// Name for the piece type. (e.g., "center/oblique_1_2/left")
     pub name: String,
 }

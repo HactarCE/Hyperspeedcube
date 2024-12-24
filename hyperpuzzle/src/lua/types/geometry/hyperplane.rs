@@ -27,6 +27,7 @@ impl FromLua for LuaHyperplaneSet {
 pub struct LuaHyperplaneFromMultivalue(pub Hyperplane);
 
 impl FromLuaMulti for LuaHyperplaneFromMultivalue {
+    #[allow(clippy::get_first)]
     fn from_lua_multi(values: LuaMultiValue, lua: &Lua) -> LuaResult<Self> {
         let hyperplane = if values.len() == 2 {
             let LuaVector(normal) = <_>::from_lua(values.get(0).unwrap_or(&LuaNil).clone(), lua)?;

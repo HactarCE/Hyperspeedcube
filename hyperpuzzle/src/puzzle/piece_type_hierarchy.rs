@@ -30,7 +30,7 @@ impl PieceTypeHierarchy {
                 match &hierarchy.nodes.get(l)?.contents {
                     PieceTypeHierarchyNodeContents::Category(sub) => {
                         path = r;
-                        hierarchy = sub
+                        hierarchy = sub;
                     }
                     PieceTypeHierarchyNodeContents::Type(_) => break None,
                 }

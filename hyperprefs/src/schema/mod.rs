@@ -15,12 +15,10 @@ pub enum AnyVersion {
     V2(Box<v2::Preferences>),
 }
 impl AnyVersion {
-    pub fn to_current(self) -> current::Preferences {
-        loop {
-            match self {
-                AnyVersion::V2(p) => return *p,
-                // for future versions, migrate past versions one step forward
-            }
+    pub fn into_current(self) -> current::Preferences {
+        match self {
+            AnyVersion::V2(p) => *p,
+            // for future versions, migrate past versions one step forward
         }
     }
 }
@@ -53,7 +51,7 @@ impl<'de, T: Default + Serialize + Deserialize<'de> + Clone> PrefsConvert for T 
         self.clone()
     }
     fn reload_from_serde(&mut self, _ctx: &(), value: Self) {
-        *self = value
+        *self = value;
     }
 }
 

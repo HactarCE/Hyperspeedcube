@@ -39,7 +39,7 @@ impl<'a> DeserCtx<'a> {
                 parent: self.path.as_ref(),
                 key,
             }),
-            warnings: &mut self.warnings,
+            warnings: self.warnings,
         }
     }
 

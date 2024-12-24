@@ -39,7 +39,7 @@ impl<I: PartialEq, D> PartialEq for LuaDbEntry<I, D> {
 }
 impl<I: Eq, D> Eq for LuaDbEntry<I, D> {}
 
-impl<'lua, I, D> FromLua for LuaDbEntry<I, D>
+impl<I, D> FromLua for LuaDbEntry<I, D>
 where
     Self: 'static + LuaUserData + Clone,
 {

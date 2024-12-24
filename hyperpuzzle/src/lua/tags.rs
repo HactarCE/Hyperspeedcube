@@ -66,12 +66,11 @@ pub(super) fn inherit_parent_tags(tags: &mut TagSet) {
                 continue;
             };
             match parent {
-                hash_map::Entry::Occupied(mut e) => match e.get() {
-                    TagValue::False => {
+                hash_map::Entry::Occupied(mut e) => {
+                    if let TagValue::False = e.get() {
                         e.insert(TagValue::Inherited);
                     }
-                    _ => (),
-                },
+                }
                 hash_map::Entry::Vacant(e) => {
                     e.insert(TagValue::Inherited);
                 }

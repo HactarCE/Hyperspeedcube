@@ -26,7 +26,7 @@ impl fmt::Display for Version {
 impl FromLua for Version {
     fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         let Ok(version_string) = String::from_lua(value, lua) else {
-            lua.warning(format!("expected version string"), false);
+            lua.warning("expected version string", false);
             return Ok(Self::default());
         };
 

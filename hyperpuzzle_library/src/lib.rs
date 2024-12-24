@@ -120,7 +120,7 @@ pub fn verify(log_file: &LogFile) -> Vec<SolveVerification> {
                     LogEvent::Twists(twists_str) => {
                         for twist_group in hyperpuzzle_log::notation::parse_grouped_twists(
                             &puzzle.twist_by_name,
-                            &twists_str,
+                            twists_str,
                         ) {
                             twist_groups.push(twist_group.into_iter().try_collect().ok()?);
                         }

@@ -63,9 +63,7 @@ fn parse_twist<'a>(
 
 /// Returns a layer mask from the beginning of `string` and the remainder of
 /// `string` after the layer mask.
-fn strip_layer_mask_prefix<'a>(
-    string: &'a str,
-) -> Result<(Option<LayerMask>, &'a str), TwistParseError<'a>> {
+fn strip_layer_mask_prefix(string: &str) -> Result<(Option<LayerMask>, &str), TwistParseError<'_>> {
     const LAYER_PREFIX_PATTERN: &str = r"^(\{[\d\s,-]*\}|\d+)(.*)$";
     // match the whole string            ^                       $
     // capture                            (                 )
@@ -80,14 +78,14 @@ fn strip_layer_mask_prefix<'a>(
     // then capture the rest                                 (.*)
 
     lazy_static! {
-        static ref LAYER_PREFIX_REGEX: Regex = Regex::new(LAYER_PREFIX_PATTERN).unwrap();
+        static ref LAYER_PREFIX_REGEX: Regex = Regex::new(LAYER_PREFIX_PATTERN).expect("bad regex");
     }
 
     Ok(match LAYER_PREFIX_REGEX.captures(string) {
         Some(captures) => {
             // need `.get()` for lifetime reasons
-            let layers_str = captures.get(1).unwrap().as_str();
-            let rest_str = captures.get(2).unwrap().as_str();
+            let layers_str = captures.get(1).expect("missing regex group").as_str();
+            let rest_str = captures.get(2).expect("missing regex group").as_str();
             let layers = layers_str
                 .parse::<LayerMask>()
                 .map_err(|_| TwistParseError::BadLayerMask(layers_str))?;

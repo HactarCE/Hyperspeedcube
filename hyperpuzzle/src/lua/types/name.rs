@@ -13,9 +13,9 @@ impl FromLua for LuaNameSet {
             LuaValue::String(s) => Ok(Self(NameSet::from(s.to_string_lossy()))),
             LuaValue::UserData(userdata) => {
                 if let Ok(this) = userdata.borrow::<Self>() {
-                    return Ok(this.clone());
+                    Ok(this.clone())
                 } else if let Ok(this) = userdata.get("name") {
-                    return Ok(this);
+                    Ok(this)
                 } else {
                     cast_userdata(lua, &value) // easy way to get a good error message
                 }

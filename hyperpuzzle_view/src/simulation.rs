@@ -333,7 +333,7 @@ impl PuzzleSimulation {
                 twists
                     .iter()
                     .rev()
-                    .filter_map(|twist| twist.rev(&puz).ok())
+                    .filter_map(|twist| twist.rev(puz).ok())
                     .collect(),
             )),
             Action::StartSolve { .. } => false, // shouldn't be possible
@@ -425,10 +425,10 @@ impl PuzzleSimulation {
         // }
 
         if self.twist_anim.proceed(delta, animation_prefs) {
-            self.update_piece_transforms(&animation_prefs);
+            self.update_piece_transforms(animation_prefs);
             needs_redraw = true;
         }
-        needs_redraw |= self.blocking_anim.proceed(&animation_prefs);
+        needs_redraw |= self.blocking_anim.proceed(animation_prefs);
 
         if needs_redraw {
             self.last_frame_time = Some(now);
@@ -481,7 +481,7 @@ impl PuzzleSimulation {
             let new_transform = Motor::from_angle_in_normalized_plane(3, &v2, &v1, angle);
             partial.transform = new_transform;
         }
-        self.update_piece_transforms(&animation_prefs);
+        self.update_piece_transforms(animation_prefs);
     }
     /// Cancels a partial twist and animates the pieces back.
     ///
@@ -583,7 +583,7 @@ impl PuzzleSimulation {
                     log.push(hyperpuzzle_log::LogEvent::EndSolve {
                         time: *time,
                         duration: *duration,
-                    })
+                    });
                 }
             }
         }

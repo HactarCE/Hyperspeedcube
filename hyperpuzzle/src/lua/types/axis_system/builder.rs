@@ -22,9 +22,9 @@ impl LuaUserData for LuaAxisSystem {
     }
 
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
-        LuaIdDatabase::<Axis>::add_db_metamethods(methods, |Self(puz)| &*puz);
-        LuaNamedIdDatabase::<Axis>::add_named_db_methods(methods, |Self(puz)| &*puz);
-        LuaOrderedIdDatabase::<Axis>::add_ordered_db_methods(methods, |Self(puz)| &*puz);
+        LuaIdDatabase::<Axis>::add_db_metamethods(methods, |Self(puz)| puz);
+        LuaNamedIdDatabase::<Axis>::add_named_db_methods(methods, |Self(puz)| puz);
+        LuaOrderedIdDatabase::<Axis>::add_ordered_db_methods(methods, |Self(puz)| puz);
 
         methods.add_method("autoname", |lua, this, ()| {
             let autonames = crate::util::iter_uppercase_letter_names();

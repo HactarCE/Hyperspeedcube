@@ -9,6 +9,7 @@ use super::*;
 pub struct LuaVectorFromMultiValue(pub Vector);
 
 impl FromLuaMulti for LuaVectorFromMultiValue {
+    #[allow(clippy::get_first)]
     fn from_lua_multi(values: LuaMultiValue, lua: &Lua) -> LuaResult<Self> {
         match values.get(0) {
             None => Ok(Self(vector![])),

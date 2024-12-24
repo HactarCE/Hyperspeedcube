@@ -8,7 +8,7 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-keywords = ["cubing", "hypercubing", "rubik", "conformal-geometric-algebra", "4d"]
+keywords = ["cubing", "hypercubing", "rubik", "4d"]
 categories = ["algorithms", "mathematics", "simulation"]
 license = "GPL-3.0-or-later"
 

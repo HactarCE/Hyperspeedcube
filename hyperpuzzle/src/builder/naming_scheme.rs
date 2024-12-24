@@ -41,7 +41,7 @@ impl<I> NamingScheme<I> {
 
     /// Returns the source regex used to validate names.
     pub fn regex(&self) -> &'static Regex {
-        &self.name_validation_regex
+        self.name_validation_regex
     }
 }
 impl<I: Clone + Hash + Eq> NamingScheme<I> {

@@ -22,15 +22,16 @@ documentation = "https://dev.hypercubing.xyz/internals/"
 edition = "2021"
 homepage = "https://ajfarkas.dev/projects/hyperspeedcube/"
 repository = "https://github.com/HactarCE/Hyperspeedcube/"
-rust-version = "1.81.0"
+rust-version = "1.82.0"
 
 [workspace.lints.rust]
 missing_docs = "warn"
 rust_2018_idioms = "warn"
+unused_crate_dependencies = "warn"
 
 [workspace.lints.clippy]
-cargo = "warn"
-correctness = "deny"
+cargo = { level = "warn", priority = -1 }
+correctness = { level = "deny", priority = -1 }
 
 assigning_clones = "allow"
 comparison_chain = "allow"
@@ -44,7 +45,6 @@ stable_sort_primitive = "warn"
 too_many_arguments = "allow"
 undocumented_unsafe_blocks = "warn"
 uninlined_format_args = "warn"
-unused_crate_dependencies = "warn"
 unwrap_used = "warn"
 
 multiple_crate_versions = { level = "allow", priority = 1 }

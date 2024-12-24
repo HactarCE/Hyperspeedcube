@@ -183,8 +183,8 @@ impl AppUi {
 
     pub fn set_tab_state(&mut self, tab: &Tab, new_state: bool) {
         match new_state {
-            true => self.open_tab(&tab),
-            false => self.close_tab(&tab),
+            true => self.open_tab(tab),
+            false => self.close_tab(tab),
         }
     }
 
@@ -247,7 +247,7 @@ fn middle_click_to_delete_text(ui: &mut egui::Ui) -> String {
     } else {
         L.inputs.alt_click
     };
-    L.click_to.delete.with(&input_text)
+    L.click_to.delete.with(input_text)
 }
 fn md_middle_click_to_delete(ui: &mut egui::Ui) -> egui::Response {
     let text = middle_click_to_delete_text(ui);

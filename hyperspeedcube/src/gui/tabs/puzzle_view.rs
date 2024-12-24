@@ -564,7 +564,7 @@ impl PuzzleWidget {
     }
 
     fn update_puzzle_texture(&mut self, draw_params: &DrawParams) -> Result<egui::TextureId> {
-        let output_texture = &self.renderer.draw_puzzle(&draw_params)?.texture;
+        let output_texture = &self.renderer.draw_puzzle(draw_params)?.texture;
 
         // egui expects sRGB colors in the shader, so we have to read the
         // sRGB texture as though it were linear to prevent the GPU from
@@ -609,7 +609,7 @@ impl PuzzleWidget {
 fn show_gizmo_face(
     puzzle: &Puzzle,
     gizmo_face: GizmoFace,
-    gizmo_vertex_3d_positions: &Vec<cgmath::Vector4<f32>>,
+    gizmo_vertex_3d_positions: &[cgmath::Vector4<f32>],
     painter: &egui::Painter,
     project_to_egui: impl Fn(cgmath::Vector4<f32>) -> egui::Pos2,
     show_other_faces_on_same_gizmo: bool,

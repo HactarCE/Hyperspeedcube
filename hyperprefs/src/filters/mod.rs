@@ -146,7 +146,7 @@ impl PuzzleFilterPreferences {
         match &name.seq {
             Some(seq_name) => self
                 .sequences
-                .get(&seq_name)
+                .get(seq_name)
                 .is_some_and(|seq| seq.value.contains_key(&name.preset)),
             None => self.presets.contains_key(&name.preset),
         }
@@ -156,7 +156,7 @@ impl PuzzleFilterPreferences {
     pub fn remove_preset(&mut self, name: &FilterPresetName) -> Option<FilterSeqPreset> {
         match &name.seq {
             Some(seq_name) => {
-                let seq = self.sequences.get_mut(&seq_name)?;
+                let seq = self.sequences.get_mut(seq_name)?;
                 let ret = seq.value.remove(&name.preset);
 
                 // Remove empty sequences
@@ -413,7 +413,7 @@ impl schema::PrefsConvert for FilterRule {
         let schema::current::FilterRule { style, set } = value;
 
         self.style = style.map(|s| ctx.new_ref(&s));
-        self.set = FilterPieceSet::from_serde(&mut (), set);
+        self.set = FilterPieceSet::from_serde(&(), set);
     }
 }
 impl FilterRule {

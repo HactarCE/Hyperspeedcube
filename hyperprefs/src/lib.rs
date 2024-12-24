@@ -211,8 +211,8 @@ impl Preferences {
         config
             .build()
             .and_then(|c| c.try_deserialize::<schema::AnyVersion>())
-            .map(schema::AnyVersion::to_current)
-            .map(|value| schema::PrefsConvert::from_serde(&mut (), value))
+            .map(schema::AnyVersion::into_current)
+            .map(|value| schema::PrefsConvert::from_serde(&(), value))
             .unwrap_or_else(|e| {
                 log::warn!("Error loading preferences: {}", e);
 
@@ -227,7 +227,7 @@ impl Preferences {
                             .build()
                             .ok()?
                             .try_deserialize()
-                            .map(|value| schema::PrefsConvert::from_serde(&mut (), value))
+                            .map(|value| schema::PrefsConvert::from_serde(&(), value))
                             .ok()
                     })
                     .unwrap_or_default()

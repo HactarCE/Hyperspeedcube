@@ -48,9 +48,9 @@ impl LuaLoader {
         let Self { lua, db, logger } = &this; // still use local variables
 
         // Register library.
-        lua.set_app_data(Arc::clone(&db));
+        lua.set_app_data(Arc::clone(db));
 
-        super::env::monkeypatch_lua_environment(&lua, logger)?;
+        super::env::monkeypatch_lua_environment(lua, logger)?;
 
         for (module_name, module_source) in LUA_MODULES {
             log::info!("Loading Lua module {module_name:?}");
@@ -62,7 +62,7 @@ impl LuaLoader {
         // Grab the sandbox environment so we can insert our custom globals.
         let sandbox: LuaTable = lua.globals().get("SANDBOX_ENV")?;
 
-        super::env::init_lua_environment(&lua, &sandbox, this.clone())?;
+        super::env::init_lua_environment(lua, &sandbox, this.clone())?;
 
         LuaResult::Ok(this)
     }

@@ -304,7 +304,7 @@ impl ValueSchemaProxy<LayerMask> for KdlProxy {
 }
 impl ValueSchemaProxy<Timestamp> for KdlProxy {
     fn proxy_from_kdl_value(value: &KdlValue) -> Option<Timestamp> {
-        Some(Timestamp::from_str(value.as_string()?).ok()?)
+        Timestamp::from_str(value.as_string()?).ok()
     }
     fn proxy_to_kdl_value(value: &Timestamp) -> KdlValue {
         KdlValue::String(value.to_string())

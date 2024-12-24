@@ -1,11 +1,14 @@
+use std::fmt;
+
 use chrono::SubsecRound;
 
 /// Type used for UTC timestamps in log files.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Timestamp(chrono::DateTime<chrono::Utc>);
-impl ToString for Timestamp {
-    fn to_string(&self) -> String {
-        self.0.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+impl fmt::Display for Timestamp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = self.0.to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        write!(f, "{s}")
     }
 }
 impl std::str::FromStr for Timestamp {

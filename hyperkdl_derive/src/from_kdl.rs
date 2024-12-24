@@ -8,9 +8,9 @@ use crate::fields::{KdlField, KdlFieldStyle};
 pub(crate) fn gen_unpack_node_contents(kdl_fields: &[KdlField<'_>]) -> TokenStream {
     TokenStream::from_iter([
         // Unpack arguments and properties
-        crate::from_kdl::gen_unpack_entries(&quote!(node), &kdl_fields),
+        crate::from_kdl::gen_unpack_entries(&quote!(node), kdl_fields),
         // Unpack children
-        crate::from_kdl::gen_unpack_option_children(&quote!(node.children()), &kdl_fields),
+        crate::from_kdl::gen_unpack_option_children(&quote!(node.children()), kdl_fields),
     ])
 }
 

@@ -69,8 +69,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                         tag_name, value, ..
                     } = segment
                     {
-                        if tag_name == &action.tag
-                            && value.as_deref().map(Cow::Borrowed)
+                        if tag_name == action.tag
+                            && value.map(Cow::Borrowed)
                                 == action.value.as_deref().map(|s| escape_tag_value(s))
                         {
                             if found {
@@ -86,7 +86,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                             }
                         } else if tag_name.starts_with(&action.tag)
                             && action.value.is_none()
-                            && action.new_state == None
+                            && action.new_state.is_none()
                         {
                             // delete segment to remove subtag filter
                             continue;
@@ -141,7 +141,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                         for query_result in hyperpuzzle::TAGS
                             .all_tags()
                             .iter()
-                            .filter_map(|tag| SubstringQueryMatch::try_from(search_query, &tag))
+                            .filter_map(|tag| SubstringQueryMatch::try_from(search_query, tag))
                         {
                             let tag = query_result.string;
                             if ui.add(query_result).clicked() {
@@ -217,7 +217,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                                     app,
                                                     &puzzle_generator,
                                                     popup_data,
-                                                )
+                                                );
                                             },
                                         );
                                     }
@@ -293,8 +293,8 @@ impl ListEntry {
     }
     fn name(&self) -> &str {
         match self {
-            ListEntry::Puzzle(p) => &p.display_name(),
-            ListEntry::PuzzleGenerator(g) => &g.display_name(),
+            ListEntry::Puzzle(p) => p.display_name(),
+            ListEntry::PuzzleGenerator(g) => g.display_name(),
         }
     }
     fn aliases(&self) -> &[String] {
@@ -374,7 +374,7 @@ impl<'a> Query<'a> {
     fn from_str(s: &'a str) -> Self {
         lazy_static! {
             static ref SEGMENT_REGEX: Regex =
-                Regex::new(r#"\s+|([^"\s]|"([^"]*|\\")"?)+"#).unwrap();
+                Regex::new(r#"\s+|([^"\s]|"([^"]*|\\")"?)+"#).expect("bad regex");
         }
 
         let mut segments = vec![];
@@ -491,7 +491,7 @@ impl<'a> Query<'a> {
                                 false => &value_text_format,
                             };
                         job.append("=", 0.0, value_text_format.clone());
-                        job.append(*value, 0.0, value_text_format.clone());
+                        job.append(value, 0.0, value_text_format.clone());
                     }
                 }
             }
@@ -529,7 +529,7 @@ impl<'a> Query<'a> {
                 .map(|alias| ("Alias", alias.as_str(), ALIAS_MATCH_PENALTY))
         )
         .filter_map(|(property_name, property_text, penalty)| {
-            let match_info = sublime_fuzzy::best_match(&self.text, &property_text)?;
+            let match_info = sublime_fuzzy::best_match(&self.text, property_text)?;
             Some(AdditionalFuzzyQueryMatch {
                 property_name: property_name.to_owned(),
                 property_text: property_text.to_owned(),
@@ -665,17 +665,17 @@ impl egui::Widget for FuzzyQueryMatch {
 
             let inventors = self.object.tags().inventors();
             if !inventors.is_empty() {
-                md(ui, &format!("**Inventors:** {}", comma_list(inventors)));
+                md(ui, format!("**Inventors:** {}", comma_list(inventors)));
             }
 
             let authors = self.object.tags().authors();
             if !authors.is_empty() {
-                md(ui, &format!("**Authors:** {}", comma_list(authors)));
+                md(ui, format!("**Authors:** {}", comma_list(authors)));
             }
 
             let aliases = self.object.aliases();
             if !aliases.is_empty() {
-                md(ui, &format!("**Aliases:** {}", comma_list(aliases)));
+                md(ui, format!("**Aliases:** {}", comma_list(aliases)));
             }
 
             if let Some(url) = self.object.tags().wca_url() {

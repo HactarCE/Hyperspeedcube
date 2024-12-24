@@ -414,7 +414,7 @@ impl Schema {
                             warn_with(
                                 &format!("wrong type for field `{field_name}`"),
                                 src.at(children.span().offset()),
-                                &format!("expected {expected}; got {got}"),
+                                format!("expected {expected}; got {got}"),
                             );
                         }
                     }

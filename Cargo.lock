@@ -2620,18 +2620,13 @@ dependencies = [
 name = "hyperpuzzle_log"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "hyperkdl",
  "hyperkdl_derive",
- "hypermath",
  "hyperpuzzle",
  "itertools 0.13.0",
  "kdl",
  "lazy_static",
- "miette",
  "regex",
- "serde",
- "serde_yml",
  "smallvec",
  "thiserror 2.0.6",
 ]
@@ -2722,7 +2717,6 @@ dependencies = [
  "smallvec",
  "strum",
  "sublime_fuzzy",
- "tracing-subscriber",
  "tracing-wasm",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -5752,17 +5746,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-log"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee855f1f400bd0e5c02d150ae5de3840039a3f54b025156404e34c23c03f47c3"
-dependencies = [
- "log",
- "once_cell",
- "tracing-core",
-]
-
-[[package]]
 name = "tracing-serde"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5785,11 +5768,9 @@ dependencies = [
  "serde",
  "serde_json",
  "sharded-slab",
- "smallvec",
  "thread_local",
  "tracing",
  "tracing-core",
- "tracing-log",
  "tracing-serde",
 ]
 

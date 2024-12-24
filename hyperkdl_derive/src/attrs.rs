@@ -13,7 +13,7 @@ pub(crate) struct StructAttrs {
 
 pub(crate) fn parse_kdl_struct_attrs(attrs: &[syn::Attribute]) -> StructAttrs {
     let mut node_name = None;
-    for attr in crate::attrs::find_kdl_attrs(&attrs) {
+    for attr in crate::attrs::find_kdl_attrs(attrs) {
         match attr {
             KdlAttr::Name(name) => {
                 assert!(

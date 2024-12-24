@@ -1,5 +1,6 @@
 [package]
 name = "hyperprefs"
+description = "Preferences for Hyperspeedcube"
 version = "0.1.0"
 authors.workspace = true
 documentation.workspace = true
@@ -7,6 +8,8 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["cubing", "hypercubing", "rubik", "4d"]
+categories = ["filesystem"]
 license = "GPL-3.0-or-later"
 
 [lints]

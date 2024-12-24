@@ -136,7 +136,11 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
         };
         let name = name.clone();
         dnd.vertical_reorder_by_handle(ui, name.clone(), |ui, _is_dragging| {
-            let (_, preset) = prefs.current.custom_colors.nth_user_preset_mut(i).unwrap();
+            let (_, preset) = prefs
+                .current
+                .custom_colors
+                .nth_user_preset_mut(i)
+                .expect("user preset disappeared");
             let color = &mut preset.value;
 
             let on_delete = Some(|| to_delete = Some(name.clone()));
@@ -156,11 +160,7 @@ fn show_custom_colors_section(mut prefs_ui: PrefsUi<'_, GlobalColorPalette>) {
                     .text_edit_width(150.0)
                     .over(ui, &label_response, 2.75) // overwrite width if wider
                     .confirm_button_validator(&|new_name| {
-                        validate_single_color_name(
-                            &prefs.current,
-                            new_name,
-                            L.colors.actions.rename,
-                        )
+                        validate_single_color_name(prefs.current, new_name, L.colors.actions.rename)
                     })
                     .delete_button_validator(&|_| Ok(Some(L.colors.actions.delete.into())))
                     .show(ui)

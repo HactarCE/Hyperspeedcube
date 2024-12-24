@@ -71,7 +71,7 @@ impl TagValue {
     pub fn to_strings(&self) -> &[String] {
         match self {
             TagValue::Str(s) => std::slice::from_ref(s),
-            TagValue::StrList(vec) => &vec,
+            TagValue::StrList(vec) => vec,
             TagValue::Puzzle(p) => std::slice::from_ref(p),
             _ => &[],
         }
@@ -95,7 +95,7 @@ impl TagValue {
                 }
                 TagValue::Int(i) => value_str == i.to_string(),
                 TagValue::Str(s) => value_str.eq_ignore_ascii_case(s),
-                TagValue::StrList(vec) => vec.iter().any(|s2| value_str.eq_ignore_ascii_case(&s2)),
+                TagValue::StrList(vec) => vec.iter().any(|s2| value_str.eq_ignore_ascii_case(s2)),
                 TagValue::Puzzle(s) => value_str.eq_ignore_ascii_case(s),
             }
         } else {
