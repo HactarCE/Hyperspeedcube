@@ -7,8 +7,11 @@ use crate::{Float, EPSILON};
 
 /// Compares two numbers, but considers them equal if they are separated by less
 /// than `EPSILON`.
+///
+/// Handles infinity specially.
 pub fn approx_eq<T: AbsDiffEq<Epsilon = Float>>(a: &T, b: &T) -> bool {
-    approx::abs_diff_eq!(a, b, epsilon = EPSILON)
+    // use native float equality to handle infinities
+    a == b || approx::abs_diff_eq!(a, b, epsilon = EPSILON)
 }
 
 /// Compares two numbers, but considers them equal if they are separated by less
