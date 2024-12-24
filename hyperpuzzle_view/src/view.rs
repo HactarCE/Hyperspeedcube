@@ -264,6 +264,7 @@ impl PuzzleView {
                                         .axes
                                         .iter()
                                         .filter_map(|(axis, info)| {
+                                            // TODO: canoncalize axis based on layer mask
                                             let layers = puzzle.min_layer_mask(axis, hov.piece)?;
                                             let score = target.dot(info.vector.normalize()?).abs();
                                             if !is_approx_positive(&score) {
@@ -271,6 +272,7 @@ impl PuzzleView {
                                             }
                                             Some((axis, layers, score))
                                         })
+                                        // TODO: handle multiple good matches, maybe?
                                         .max_by_key(|(_, _, score)| FloatOrd(*score))
                                         .map(|(axis, layers, _)| (axis, layers))
                                 })();

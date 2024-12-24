@@ -13,6 +13,8 @@ pub enum Action {
     EndSolve {
         /// Event timestamp
         time: Timestamp,
+        /// Log file duration at the time
+        duration: Option<i64>,
     },
 }
 impl Action {

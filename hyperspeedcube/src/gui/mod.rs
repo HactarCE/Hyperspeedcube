@@ -34,8 +34,8 @@ impl AppUi {
         let mut app = App::new(cc, initial_file);
 
         // Initialize puzzle library.
-        crate::load_built_in_puzzles();
-        crate::load_user_puzzles();
+        hyperpuzzle_library::load_built_in_puzzles();
+        hyperpuzzle_library::load_user_puzzles();
 
         // Override UI style.
         cc.egui_ctx.style_mut(|style| {

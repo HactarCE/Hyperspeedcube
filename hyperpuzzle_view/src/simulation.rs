@@ -185,7 +185,9 @@ impl PuzzleSimulation {
                 self.do_action(Action::Scramble);
             }
             ReplayEvent::Twists(twists) => self.do_action(Action::Twists(twists)),
-            ReplayEvent::EndSolve { time } => self.do_action(Action::EndSolve { time }),
+            ReplayEvent::EndSolve { time, duration } => {
+                self.do_action(Action::EndSolve { time, duration })
+            }
             _ => (),
         }
     }
@@ -270,6 +272,7 @@ impl PuzzleSimulation {
                 if any_effect && !self.solved && self.scramble.is_some() && self.is_solved() {
                     self.event(ReplayEvent::EndSolve {
                         time: Timestamp::now(),
+                        duration: Some(self.file_duration()),
                     });
                 }
                 any_effect
@@ -503,6 +506,11 @@ impl PuzzleSimulation {
         }
     }
 
+    /// Returns the combined session time of the file, in milliseconds.
+    pub fn file_duration(&self) -> i64 {
+        self.old_duration + self.load_time.elapsed().as_millis() as i64
+    }
+
     /// Returns a log file as a string.
     pub fn serialize(&self) -> hyperpuzzle_log::Solve {
         let puz = self.puzzle_type();
@@ -530,8 +538,11 @@ impl PuzzleSimulation {
                         log.push(hyperpuzzle_log::LogEvent::Twists(s));
                     }
                 }
-                Action::EndSolve { time } => {
-                    log.push(hyperpuzzle_log::LogEvent::EndSolve { time: *time })
+                Action::EndSolve { time, duration } => {
+                    log.push(hyperpuzzle_log::LogEvent::EndSolve {
+                        time: *time,
+                        duration: *duration,
+                    })
                 }
             }
         }
@@ -545,7 +556,7 @@ impl PuzzleSimulation {
                 .undo_stack
                 .iter()
                 .any(|event| matches!(event, Action::EndSolve { .. })),
-            duration: Some(self.old_duration + self.load_time.elapsed().as_millis() as i64),
+            duration: Some(self.file_duration()),
             scramble: self.scramble.clone(),
             log,
         }
@@ -592,8 +603,11 @@ impl PuzzleSimulation {
                         ret.event(ReplayEvent::Twists(group));
                     }
                 }
-                hyperpuzzle_log::LogEvent::EndSolve { time } => {
-                    ret.event(ReplayEvent::EndSolve { time: *time });
+                hyperpuzzle_log::LogEvent::EndSolve { time, duration } => {
+                    ret.event(ReplayEvent::EndSolve {
+                        time: *time,
+                        duration: *duration,
+                    });
                 }
                 hyperpuzzle_log::LogEvent::StartSession { time } => {
                     ret.event(ReplayEvent::StartSession { time: *time });

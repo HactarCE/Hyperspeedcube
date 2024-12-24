@@ -95,7 +95,7 @@ impl TagMenu {
                     if *list {
                         let name = name.as_deref().unwrap_or("");
 
-                        crate::LIBRARY.with(|lib| {
+                        hyperpuzzle_library::LIBRARY.with(|lib| {
                             if name == "colors/system" {
                                 lib.color_systems()
                                     .iter()

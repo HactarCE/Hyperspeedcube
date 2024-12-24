@@ -389,7 +389,7 @@ fn pad_to_common_length(strings: impl IntoIterator<Item = String>) -> Vec<String
 fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
     ui.horizontal(|ui| {
         if ui.button("Lint all puzzles").clicked() {
-            state.lint_results = crate::LIBRARY.with(|lib| {
+            state.lint_results = hyperpuzzle_library::LIBRARY.with(|lib| {
                 lib.puzzles()
                     .iter()
                     .map(|puz| PuzzleLintOutput::from_spec(Arc::clone(puz)))

@@ -3,7 +3,7 @@
 //! For a list of key names, see `VirtualKeyCode` in this file:
 //! <https://github.com/rust-windowing/winit/blob/master/src/event.rs>
 
-#![allow(missing_docs)]
+#![allow(missing_docs)] // too many things to document
 
 #[macro_use]
 extern crate lazy_static;
@@ -28,8 +28,6 @@ mod info;
 mod interaction;
 // mod keybinds;
 // mod mousebinds;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod paths;
 pub mod persist;
 mod presets;
 mod schema;
@@ -51,8 +49,6 @@ pub use view::*;
 const PREFS_FILE_FORMAT: config::FileFormat = config::FileFormat::Yaml;
 const DEFAULT_PREFS_STR: &str = include_str!("default.yaml");
 pub const DEFAULT_PRESET_NAME: &str = "Default";
-
-pub const IS_OFFICIAL_BUILD: bool = std::option_env!("HSC_OFFICIAL_BUILD").is_some();
 
 lazy_static! {
     static ref DEFAULT_PREFS_RAW: schema::current::Preferences =

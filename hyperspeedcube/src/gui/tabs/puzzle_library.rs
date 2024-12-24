@@ -26,13 +26,13 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     ui.group(|ui| {
         ui.horizontal(|ui| {
-            if hyperprefs::paths::lua_dir().is_ok() {
+            if hyperpaths::lua_dir().is_ok() {
                 let r = ui.add(egui::Button::new("🔃").min_size(BIG_ICON_BUTTON_SIZE));
                 // TODO: global F5 keybind
                 if r.on_hover_text(L.library.refresh).clicked()
                     || ui.input(|input| input.key_pressed(egui::Key::F5))
                 {
-                    crate::load_user_puzzles();
+                    hyperpuzzle_library::load_user_puzzles();
                 }
             }
 
@@ -165,7 +165,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                                 .iter()
                                 .any(|(tag, _value)| *tag == "experimental");
 
-                        let query_results = crate::LIBRARY
+                        let query_results = hyperpuzzle_library::LIBRARY
                             .with(|lib| {
                                 itertools::chain(
                                     lib.puzzles().into_iter().map(ListEntry::Puzzle),

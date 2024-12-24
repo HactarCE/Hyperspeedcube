@@ -2,11 +2,11 @@ use eyre::Result;
 use serde::Serialize;
 
 pub fn user_config_source() -> Result<impl config::Source> {
-    Ok(config::File::from(crate::paths::prefs_file()?))
+    Ok(config::File::from(hyperpaths::prefs_file()?))
 }
 
 pub fn save(prefs_data: &impl Serialize) -> Result<()> {
-    let path = crate::paths::prefs_file()?;
+    let path = hyperpaths::prefs_file()?;
     if let Some(p) = path.parent() {
         std::fs::create_dir_all(p)?;
     }
@@ -15,12 +15,12 @@ pub fn save(prefs_data: &impl Serialize) -> Result<()> {
 }
 
 pub fn backup_prefs_file() {
-    let Ok(prefs_path) = crate::paths::prefs_file() else {
+    let Ok(prefs_path) = hyperpaths::prefs_file() else {
         return;
     };
 
     let now = time::OffsetDateTime::now_local().unwrap_or_else(|_| time::OffsetDateTime::now_utc());
-    let Ok(backup_path) = crate::paths::backup_prefs_file_path(now) else {
+    let Ok(backup_path) = hyperpaths::backup_prefs_file_path(now) else {
         return;
     };
 

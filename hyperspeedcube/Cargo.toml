@@ -18,8 +18,10 @@ workspace = true
 [dependencies]
 hyperdraw = { workspace = true }
 hypermath = { workspace = true }
+hyperpaths = { workspace = true }
 hyperprefs = { workspace = true }
 hyperpuzzle = { workspace = true, features = ["ecolor", "oklab"] }
+hyperpuzzle_library = { workspace = true }
 hyperpuzzle_log = { workspace = true }
 hyperpuzzle_view = { workspace = true }
 
@@ -35,7 +37,6 @@ env_logger = { workspace = true }
 eyre = { workspace = true }
 float-ord = { workspace = true }
 image = { workspace = true }
-include_dir = { workspace = true }
 itertools = { workspace = true }
 key-names = { workspace = true }
 lab = { workspace = true }

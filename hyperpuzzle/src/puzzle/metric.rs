@@ -2,7 +2,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumMessage};
 
-use super::{LayerMask, Puzzle, Twist};
+use super::{LayerMask, LayeredTwist, Puzzle};
 
 /// Convention for counting moves.
 #[allow(missing_docs)]
@@ -124,8 +124,8 @@ impl TwistMetric {
     pub fn count_twists(
         self,
         puzzle: &Puzzle,
-        twists: impl IntoIterator<Item = (Twist, LayerMask)>,
-    ) -> usize {
+        twists: impl IntoIterator<Item = LayeredTwist>,
+    ) -> u64 {
         #[allow(clippy::needless_late_init)]
         let slice_multiplier: fn(LayerMask, u8) -> u32;
 
@@ -134,24 +134,20 @@ impl TwistMetric {
                 let mut count = 0;
 
                 let mut prev_axis = None;
-                for (twist, layers) in twists {
-                    let twist_axis = puzzle.axis_of(twist);
-                    let opp = puzzle.opposite_twist_axis(twist_axis);
-                    let is_same_axis =
-                        prev_axis == Some(twist_axis) || opp.is_some() && prev_axis == opp;
+                for twist in twists {
+                    let axis = puzzle.twists[twist.transform].axis;
+                    let axis_info = &puzzle.axes[axis];
+                    let opp = axis_info.opposite;
+                    let is_same_axis = prev_axis == Some(axis) || opp.is_some() && prev_axis == opp;
                     if !is_same_axis {
-                        if layers == puzzle.all_layers() {
-                            prev_axis = None;
-                        } else {
-                            count += 1;
-                            prev_axis = Some(twist_axis);
-                        }
+                        count += 1;
+                        prev_axis = Some(axis);
                     }
                 }
 
                 return count;
             }
-            Self::Etm => return twists.into_iter().count(),
+            Self::Etm => return twists.into_iter().count() as u64,
 
             Self::Stm | Self::Qstm => {
                 slice_multiplier = |_, _| 1;
@@ -170,24 +166,13 @@ impl TwistMetric {
 
         let mut prev_axis = None;
         let mut prev_layers = None;
-        for (twist, layers) in twists {
-            let twist_axis = puzzle.axis_of(twist);
-            if layers == puzzle.all_layers() {
-                let opp = puzzle.opposite_twist_axis(twist_axis);
-                let is_same_axis =
-                    prev_axis == Some(twist_axis) || opp.is_some() && prev_axis == opp;
-                if !is_same_axis {
-                    // Axes may have shifted around, so clear them.
-                    prev_axis = None;
-                    prev_layers = None;
-                }
-                // Don't count full-puzzle rotations.
-                continue;
-            }
+        for twist in twists {
+            let twist_info = &puzzle.twists[twist.transform];
+            let axis = twist_info.axis;
 
             let direction_multiplier = if is_qtm {
-                puzzle.count_quarter_turns(twist)
-            } else if prev_axis == Some(twist_axis) && prev_layers == Some(layers) {
+                twist_info.qtm as u64
+            } else if prev_axis == Some(axis) && prev_layers == Some(twist.layers) {
                 // Same axis and layers as previous twist! This twist is
                 // free.
                 0
@@ -195,11 +180,11 @@ impl TwistMetric {
                 1
             };
 
-            prev_axis = Some(twist_axis);
-            prev_layers = Some(layers);
+            prev_axis = Some(axis);
+            prev_layers = Some(twist.layers);
 
-            let layer_count = puzzle.axes[twist_axis].layers.len() as u8;
-            count += direction_multiplier * slice_multiplier(layers, layer_count) as usize;
+            let layer_count = puzzle.axes[axis].layers.len() as u8;
+            count += direction_multiplier * slice_multiplier(twist.layers, layer_count) as u64;
         }
 
         count

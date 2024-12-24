@@ -1,8 +1,17 @@
+#![allow(missing_docs)]
+
 use std::env;
 use std::path::{Path, PathBuf};
 
 use directories::ProjectDirs;
 use eyre::{OptionExt, Result};
+
+#[macro_use]
+extern crate lazy_static;
+
+/// Whether this is an official build of the software (as opposed to a local
+/// build).
+pub const IS_OFFICIAL_BUILD: bool = std::option_env!("HSC_OFFICIAL_BUILD").is_some();
 
 const PREFS_FILE_NAME: &str = "hsc2-prefs";
 const PREFS_FILE_EXTENSION: &str = "yaml";
@@ -20,19 +29,19 @@ pub fn prefs_file() -> Result<&'static Path> {
     Ok(&get()?.prefs_file)
 }
 pub fn backup_prefs_file_path(now: time::OffsetDateTime) -> Result<PathBuf> {
-    let mut ret = crate::paths::prefs_file()?.to_owned();
+    let mut ret = prefs_file()?.to_owned();
     ret.pop();
 
     ret.push(format!(
         "{}_{:04}-{:02}-{:02}_{:02}-{:02}-{:02}_bak.{}",
-        crate::paths::PREFS_FILE_NAME,
+        PREFS_FILE_NAME,
         now.year(),
         now.month() as u8,
         now.day(),
         now.hour(),
         now.minute(),
         now.second(),
-        crate::paths::PREFS_FILE_EXTENSION,
+        PREFS_FILE_EXTENSION,
     ));
 
     Ok(ret)

@@ -129,7 +129,7 @@ impl Puzzle {
         let random_twists = std::iter::from_fn(|| {
             let random_twist = *self.scramble_twists.choose(&mut rng)?;
 
-            let axis = self.axis_of(random_twist);
+            let axis = self.twists[random_twist].axis;
             let layer_count = self.axes[axis].layers.len().max(1) as crate::LayerMaskUint;
             let random_layer_mask = LayerMask(rng.random_range(1..(1 << layer_count)));
 
@@ -164,18 +164,6 @@ impl Puzzle {
         })
     }
 
-    pub(crate) fn opposite_twist_axis(&self, _axis: Axis) -> Option<Axis> {
-        todo!()
-    }
-    pub(crate) fn axis_of(&self, twist: Twist) -> Axis {
-        self.twists[twist].axis
-    }
-    pub(crate) fn all_layers(&self) -> LayerMask {
-        todo!()
-    }
-    pub(crate) fn count_quarter_turns(&self, twist: Twist) -> usize {
-        self.twists[twist].qtm
-    }
     /// Returns a twist that recenters the given twist axis.
     pub fn make_recenter_twist(&self, _twist_axis: String) -> Result<(Twist, LayerMask), ()> {
         todo!()

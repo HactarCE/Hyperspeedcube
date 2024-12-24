@@ -11,7 +11,7 @@ extern crate strum;
 use std::sync::Arc;
 
 use gui::AppUi;
-pub use hyperprefs::IS_OFFICIAL_BUILD;
+pub use hyperpaths::IS_OFFICIAL_BUILD;
 use hyperpuzzle::Library;
 use parking_lot::Mutex;
 
@@ -32,21 +32,12 @@ const TITLE: &str = "Hyperspeedcube";
 const APP_ID: &str = "Hyperspeedcube";
 const ICON_32_PNG_DATA: &[u8] = include_bytes!("../resources/icon/hyperspeedcube_32x32.png");
 
-thread_local! {
-    static LIBRARY: hyperpuzzle::Library = Library::new();
-}
 lazy_static! {
-    static ref LIBRARY_LOG_LINES: Mutex<Vec<hyperpuzzle::LuaLogLine>> = Mutex::new(vec![]);
     static ref PROGRAM: hyperpuzzle_log::Program = hyperpuzzle_log::Program {
         name: Some(TITLE.to_string()),
         version: Some(env!("CARGO_PKG_VERSION").to_string()),
     };
 }
-static LUA_BUILTIN_DIR: include_dir::Dir<'_> = if crate::IS_OFFICIAL_BUILD {
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../lua")
-} else {
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources/lua")
-};
 
 /// Number of points that the mouse must be dragged to twist the puzzle.
 ///
@@ -162,43 +153,6 @@ impl eframe::App for AppUi {
         }
         prefs.block_on_final_save();
     }
-}
-
-fn load_built_in_puzzles() {
-    // TODO: load puzzle library async
-    let mut stack = vec![crate::LUA_BUILTIN_DIR.clone()];
-    LIBRARY.with(|lib| {
-        while let Some(dir) = stack.pop() {
-            for entry in dir.entries() {
-                match entry {
-                    include_dir::DirEntry::Dir(subdir) => {
-                        stack.push(subdir.clone());
-                    }
-                    include_dir::DirEntry::File(file) => {
-                        if file.path().extension().is_some_and(|ext| ext == "lua") {
-                            let name = Library::relative_path_to_filename(file.path());
-                            match file.contents_utf8() {
-                                Some(contents) => lib.add_file(name, None, contents.to_string()),
-                                None => {
-                                    log::error!("Error loading built-in file {name}");
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-fn load_user_puzzles() {
-    let Ok(lua_dir) = hyperprefs::paths::lua_dir() else {
-        log::error!("Error locating Lua directory");
-        return;
-    };
-    log::info!("Loading Lua files from path {}", lua_dir.to_string_lossy());
-    // TODO: load puzzle library async
-    LIBRARY.with(|lib| lib.load_directory(lua_dir).take_result_blocking());
 }
 
 fn open_dir(dir: &std::path::Path) {

@@ -25,7 +25,7 @@ pub fn show(ui: &mut egui::Ui, _app: &mut App) {
 
         ui.add_space(ui.spacing().item_spacing.y);
 
-        let author_list = crate::LIBRARY
+        let author_list = hyperpuzzle_library::LIBRARY
             .with(|lib| lib.authors())
             .into_iter()
             .map(|s| format!("- {s}"))

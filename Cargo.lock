@@ -2533,15 +2533,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperpaths"
+version = "0.1.0"
+dependencies = [
+ "directories",
+ "eyre",
+ "lazy_static",
+ "log",
+ "time",
+]
+
+[[package]]
 name = "hyperprefs"
 version = "0.1.0"
 dependencies = [
  "bitvec",
  "colorous",
  "config",
- "directories",
  "eyre",
  "hypermath",
+ "hyperpaths",
  "hyperpuzzle",
  "indexmap 2.7.0",
  "itertools 0.13.0",
@@ -2588,6 +2599,21 @@ dependencies = [
  "thiserror 2.0.6",
  "tinyset",
  "walkdir",
+]
+
+[[package]]
+name = "hyperpuzzle_library"
+version = "0.1.0"
+dependencies = [
+ "hyperpaths",
+ "hyperpuzzle",
+ "hyperpuzzle_log",
+ "include_dir",
+ "itertools 0.13.0",
+ "lazy_static",
+ "log",
+ "parking_lot",
+ "smallvec",
 ]
 
 [[package]]
@@ -2668,13 +2694,14 @@ dependencies = [
  "human-panic",
  "hyperdraw",
  "hypermath",
+ "hyperpaths",
  "hyperprefs",
  "hyperpuzzle",
+ "hyperpuzzle_library",
  "hyperpuzzle_log",
  "hyperpuzzle_view",
  "hyperstrings",
  "image",
- "include_dir",
  "itertools 0.13.0",
  "js-sys",
  "key-names",

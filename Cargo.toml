@@ -4,12 +4,14 @@ members = [
     "hyperkdl",
     "hyperkdl_derive",
     "hypermath",
+    "hyperpaths",
     "hyperprefs",
     "hyperpuzzle",
+    "hyperpuzzle_library",
     "hyperpuzzle_log",
     "hyperpuzzle_view",
     "hypershape",
-    "hyperspeedcube" ,
+    "hyperspeedcube",
     "hyperstrings",
 ]
 resolver = "2"
@@ -60,8 +62,10 @@ hyperdraw = { path = "hyperdraw" }
 hyperkdl = { path = "hyperkdl" }
 hyperkdl_derive = { path = "hyperkdl_derive" }
 hypermath = { path = "hypermath" }
+hyperpaths = { path = "hyperpaths" }
 hyperprefs = { path = "hyperprefs" }
 hyperpuzzle = { path = "hyperpuzzle" }
+hyperpuzzle_library = { path = "hyperpuzzle_library" }
 hyperpuzzle_log = { path = "hyperpuzzle_log" }
 hyperpuzzle_view = { path = "hyperpuzzle_view" }
 hypershape = { path = "hypershape" }

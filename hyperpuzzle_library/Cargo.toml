@@ -1,0 +1,24 @@
+[package]
+name = "hyperpuzzle_library"
+version = "0.1.0"
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+hyperpaths = { workspace = true }
+hyperpuzzle = { workspace = true }
+hyperpuzzle_log = { workspace = true }
+
+include_dir = { workspace = true }
+itertools = { workspace = true }
+lazy_static = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+smallvec = { workspace = true }
+
+[lints]
+workspace = true

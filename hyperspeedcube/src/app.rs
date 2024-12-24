@@ -165,7 +165,7 @@ impl App {
                     self.active_puzzle_view.with(|p| {
                         // TODO: check puzzle version
                         // TODO: don't block
-                        match crate::LIBRARY
+                        match hyperpuzzle_library::LIBRARY
                             .with(|lib| lib.build_puzzle(&first_solve.puzzle.id))
                             .take_result_blocking()
                         {

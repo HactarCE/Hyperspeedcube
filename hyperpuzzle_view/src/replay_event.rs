@@ -30,6 +30,8 @@ pub enum ReplayEvent {
     EndSolve {
         /// Event timestamp
         time: Timestamp,
+        /// Log file duration at the time
+        duration: Option<i64>,
     },
     /// Start of a session
     StartSession {

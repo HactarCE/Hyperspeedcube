@@ -138,7 +138,7 @@ impl PuzzleWidget {
         puzzle_id: &str,
     ) -> Option<Self> {
         let start_time = Instant::now();
-        let result = crate::LIBRARY
+        let result = hyperpuzzle_library::LIBRARY
             .with(|lib| lib.build_puzzle(puzzle_id))
             .take_result_blocking();
         match result {
@@ -187,7 +187,7 @@ impl PuzzleWidget {
 
     /// Reloads the active puzzle. Returns `true` if the reload was successful.
     pub fn reload(&mut self, prefs: &mut Preferences) -> bool {
-        crate::load_user_puzzles();
+        hyperpuzzle_library::load_user_puzzles();
         let current_puzzle = self.puzzle();
         if let Some(mut new_puzzle_view) = Self::new(
             &self.renderer.gfx,

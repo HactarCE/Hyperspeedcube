@@ -5,12 +5,12 @@ use crate::app::App;
 use crate::L;
 
 pub fn show(ui: &mut egui::Ui, _app: &mut App) {
-    let mut log_lines = crate::LIBRARY_LOG_LINES.lock();
+    let mut log_lines = hyperpuzzle_library::LIBRARY_LOG_LINES.lock();
     if ui.button(L.dev.logs.clear).clicked() {
         log_lines.clear();
     }
 
-    crate::LIBRARY.with(|lib| log_lines.extend(lib.pending_log_lines()));
+    hyperpuzzle_library::LIBRARY.with(|lib| log_lines.extend(lib.pending_log_lines()));
 
     let filter_string_id = unique_id!();
     let mut filter_string: String =

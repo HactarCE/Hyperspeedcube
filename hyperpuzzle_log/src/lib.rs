@@ -252,6 +252,10 @@ pub enum LogEvent {
         /// Timestamp at which the solve ended.
         #[kdl(property("time"), proxy = KdlProxy)]
         time: Timestamp,
+        /// Number of milliseconds that the log had been open for, across all
+        /// sessions, at the moment the solve ended.
+        #[kdl(property("duration"))]
+        duration: Option<i64>,
     },
     /// **Replay-only.** Beginning of session.
     ///
@@ -340,6 +344,7 @@ mod tests {
                     LogEvent::Twists("L U' R'".to_string()),
                     LogEvent::EndSolve {
                         time: Timestamp::now(),
+                        duration: Some(3000),
                     },
                     LogEvent::EndSession {
                         time: Timestamp::now(),

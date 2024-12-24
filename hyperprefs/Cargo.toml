@@ -14,12 +14,12 @@ workspace = true
 
 [dependencies]
 hypermath = { workspace = true }
+hyperpaths = { workspace = true }
 hyperpuzzle = { workspace = true, features = ["ecolor"] }
 
 bitvec = { workspace = true }
 colorous = { workspace = true }
 config = { workspace = true }
-directories = { workspace = true }
 eyre = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }

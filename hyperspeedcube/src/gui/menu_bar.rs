@@ -175,7 +175,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
         app_ui.app.prefs.needs_save |= r.changed();
 
         ui.menu_button(L.menu.puzzles.custom, |ui| {
-            if let Ok(lua_dir) = hyperprefs::paths::lua_dir() {
+            if let Ok(lua_dir) = hyperpaths::lua_dir() {
                 if ui.button(L.menu.puzzles.show_lua_dir).clicked() {
                     ui.close_menu();
                     crate::open_dir(lua_dir);
@@ -189,7 +189,7 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
                     .pick_folder()
                 {
                     dir_path.push("lua");
-                    match crate::LUA_BUILTIN_DIR.extract(&dir_path) {
+                    match hyperpuzzle_library::LUA_BUILTIN_DIR.extract(&dir_path) {
                         Ok(()) => crate::open_dir(&dir_path),
                         Err(e) => log::error!("Error extracting built-in Lua files: {e}"),
                     }
