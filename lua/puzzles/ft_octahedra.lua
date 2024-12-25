@@ -76,7 +76,7 @@ puzzle_generators:add{
         self:carve(shape:iter_poles())
 
         -- Define axes and slices
-        self.axes:add(shape:iter_poles(), utils.layers.inclusive(1, -1, size-1))
+        self.axes:add(shape:iter_poles(), utils.layers.inclusive(1, -1, size))
 
         -- Define twists
         for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
