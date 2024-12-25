@@ -104,7 +104,7 @@ where
             // around independently. Highlight the widget so that it looks like
             // it's still being hovered.
             let layer_id = egui::LayerId::new(egui::Order::Tooltip, id);
-            let mut r = ui.with_layer_id(layer_id, |ui| {
+            let mut r = ui.scope_builder(egui::UiBuilder::new().layer_id(layer_id), |ui| {
                 ui.set_opacity(self.dragging_opacity);
                 // `push_id()` is a workaround for https://github.com/emilk/egui/issues/2253
                 ui.push_id(id, |ui| add_contents(ui, true)).inner
