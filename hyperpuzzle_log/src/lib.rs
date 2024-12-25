@@ -32,11 +32,11 @@ impl LogFile {
     /// Serializes the log file to a string.
     pub fn serialize(&self) -> String {
         let mut doc = self.to_kdl_doc();
+        doc.set_leading("// Hyperspeedcube puzzle log\n");
 
         // version
         doc.nodes_mut().insert(0, {
             let mut node = KdlNode::new("version");
-            node.set_leading("// Hyperspeedcube puzzle log\n");
             node.push(KdlEntry::new(LOG_FILE_VERSION));
             node
         });

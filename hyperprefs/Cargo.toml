@@ -35,5 +35,3 @@ regex = { workspace = true }
 serde = { workspace = true }
 serde_yml = { workspace = true }
 strum = { workspace = true }
-thiserror = { workspace = true }
-time = { workspace = true }

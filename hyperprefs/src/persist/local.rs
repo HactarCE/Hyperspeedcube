@@ -15,19 +15,7 @@ pub fn save(prefs_data: &impl Serialize) -> Result<()> {
 }
 
 pub fn backup_prefs_file() {
-    let Ok(prefs_path) = hyperpaths::prefs_file() else {
-        return;
-    };
-
-    let now = time::OffsetDateTime::now_local().unwrap_or_else(|_| time::OffsetDateTime::now_utc());
-    let Ok(backup_path) = hyperpaths::backup_prefs_file_path(now) else {
-        return;
-    };
-
-    if std::fs::rename(prefs_path, &backup_path).is_ok() {
-        log::info!(
-            "Backup of old preferences stored at {}",
-            backup_path.display(),
-        );
+    if let Ok(path) = hyperpaths::prefs_file() {
+        hyperpaths::move_to_backup_file(path);
     }
 }

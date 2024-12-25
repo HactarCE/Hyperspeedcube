@@ -39,10 +39,14 @@ pub struct PuzzleSimulation {
     started: bool,
     /// Whether the puzzle has been solved.
     solved: bool,
+    /// Whether the solved state has been handled by the UI.
+    solved_state_handled: bool,
     /// Total duration from previous sessions.
     old_duration: Option<i64>,
     /// Time that the puzzle was loaded.
     load_time: Instant,
+    /// Whether the solve is single-session.
+    is_single_session: bool,
 
     /// Time of last frame, or `None` if we are not in the middle of an animation.
     last_frame_time: Option<Instant>,
@@ -75,8 +79,10 @@ impl PuzzleSimulation {
             replay: vec![],
             started: false,
             solved: false,
+            solved_state_handled: true,
             old_duration: Some(0),
             load_time: Instant::now(),
+            is_single_session: true,
 
             last_frame_time: None,
             twist_anim: TwistAnimationState::default(),
@@ -172,9 +178,10 @@ impl PuzzleSimulation {
             hyperpuzzle_log::notation::format_twists(&ty.twists, twists),
         );
         self.scramble = Some(scramble.clone());
-        self.do_event(ReplayEvent::Scramble);
-        self.latest_state = state;
+        self.do_action(Action::Scramble);
+        self.latest_state = state; // TODO: seems like this isn't necessary? but doing the twists again is wasting time
         self.skip_twist_animations();
+        self.solved_state_handled = false;
     }
     /// Plays a replay event on the puzzle.
     pub fn do_event(&mut self, event: ReplayEvent) {
@@ -188,11 +195,11 @@ impl PuzzleSimulation {
     }
     /// Plays a replay event on the puzzle when deserializing.
     fn replay_event(&mut self, event: ReplayEvent) {
+        self.replay.push(event.clone());
         match event {
             ReplayEvent::Undo => self.undo(),
             ReplayEvent::Redo => self.redo(),
             ReplayEvent::Scramble => {
-                self.reset();
                 self.do_action(Action::Scramble);
             }
             ReplayEvent::Twists(twists) => {
@@ -616,6 +623,7 @@ impl PuzzleSimulation {
         for event in log {
             match event {
                 hyperpuzzle_log::LogEvent::Scramble => {
+                    ret.reset();
                     ret.scramble = scramble.clone();
                     ret.replay_event(ReplayEvent::Scramble);
                 }
@@ -653,6 +661,7 @@ impl PuzzleSimulation {
                 }
                 hyperpuzzle_log::LogEvent::EndSolve { time, duration } => {
                     ret.solved = true;
+                    ret.solved_state_handled = true;
                     ret.replay_event(ReplayEvent::EndSolve {
                         time: *time,
                         duration: *duration,
@@ -668,15 +677,22 @@ impl PuzzleSimulation {
         }
         ret.old_duration = *duration;
         ret.has_unsaved_changes = false;
+        ret.is_single_session = false;
 
         ret.skip_twist_animations();
 
         ret
     }
 
-    /// Returns whether the puzzle is currently solved.
+    /// Returns whether the puzzle is _currently_ solved.
     pub fn is_solved(&self) -> bool {
         self.latest_state.is_solved()
+    }
+    /// Returns whether the puzzle was _just_ solved.
+    ///
+    /// This returns `true` at most once until the simulation is recreated.
+    pub fn handle_newly_solved_state(&mut self) -> bool {
+        self.solved && !std::mem::replace(&mut self.solved_state_handled, true)
     }
 }
 

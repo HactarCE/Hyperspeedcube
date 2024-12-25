@@ -277,7 +277,7 @@ impl TwistSystemBuilder {
                     aliases = string_set; // all except first
                 }
                 None => {
-                    name = (old_id.0 + 1).to_string(); // 1-indexed
+                    name = format!("T{}", old_id.0 + 1); // 1-indexed
                     aliases = vec![];
                 }
             };

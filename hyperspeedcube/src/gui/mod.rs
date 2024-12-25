@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
+use hyperpuzzle::TaskHandle;
 use parking_lot::Mutex;
 
 macro_rules! unique_id {
@@ -15,9 +16,11 @@ mod components;
 mod ext;
 mod markdown;
 mod menu_bar;
+mod modals;
 mod tabs;
 
 pub use tabs::{PuzzleWidget, Tab};
+use util::EguiTempValue;
 
 pub use crate::app::App;
 use crate::L;
@@ -101,6 +104,8 @@ impl AppUi {
                     self.dock_state
                         .push_to_first_leaf(Tab::PuzzleView(Arc::new(Mutex::new(None))));
                 }
+
+                modals::solve_complete::show(ui, &mut self.app);
             });
 
         // Animate puzzle views.
@@ -113,6 +118,7 @@ impl AppUi {
                         puzzle_view_to_focus = Some(i);
                     }
                     let mut sim = puzzle_view.sim().lock();
+                    // TODO: step once per simulation, not once per view
                     let needs_redraw = sim.step(&self.app.animation_prefs.value);
                     if needs_redraw {
                         // TODO: only request redraw for visible puzzles

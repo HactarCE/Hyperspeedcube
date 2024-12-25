@@ -6,6 +6,7 @@ use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences, PuzzleViewPreferencesSet};
 use hyperpuzzle::{Puzzle, ScrambleParams, ScrambleType};
 use hyperpuzzle_view::{PuzzleView, ReplayEvent};
+use hyperstats::StatsDb;
 use parking_lot::Mutex;
 use rand::Rng;
 
@@ -16,6 +17,7 @@ pub struct App {
     pub(crate) gfx: Arc<GraphicsState>,
 
     pub(crate) prefs: Preferences,
+    pub(crate) stats: StatsDb,
 
     pub active_puzzle_view: ActivePuzzleView,
 
@@ -27,6 +29,7 @@ pub struct App {
 impl App {
     pub(crate) fn new(cc: &eframe::CreationContext<'_>, _initial_file: Option<PathBuf>) -> Self {
         let prefs = Preferences::load(None);
+        let stats = hyperstats::load();
 
         let animation_prefs = prefs
             .animation
@@ -40,6 +43,7 @@ impl App {
             )),
 
             prefs,
+            stats,
 
             active_puzzle_view: ActivePuzzleView::default(),
 
@@ -217,7 +221,6 @@ impl App {
     }
     pub(crate) fn scramble(&self, ty: ScrambleType) {
         self.active_puzzle_view.with(|p| {
-            p.view.reset_camera();
             p.sim().lock().scramble(ScrambleParams::new(ty));
         });
     }

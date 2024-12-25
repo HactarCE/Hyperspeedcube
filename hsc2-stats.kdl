@@ -1,0 +1,13 @@
+// Hyperspeedcube PB database
+"2x2x1" {
+    fmc file="2x2x1/2024-12-25T02:20:24.199Z_stm1.hsc" stm=1
+    speed file="2x2x1/2024-12-25T02:20:24.199Z_stm1.hsc" duration=0
+}
+dino_cube {
+    fmc file="dino_cube/2024-12-25T02:30:06.110Z_stm28.hsc" stm=28
+    speed file="dino_cube/2024-12-25T02:30:06.110Z_stm28.hsc" duration=55766
+}
+ft_cube:3 {
+    fmc file="ft_cube~3/2024-12-25T02:24:27.794Z_stm83.hsc" stm=83
+    speed file="ft_cube~3/2024-12-25T02:24:27.794Z_stm83.hsc" duration=49298
+}

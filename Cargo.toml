@@ -12,6 +12,7 @@ members = [
     "hyperpuzzle_view",
     "hypershape",
     "hyperspeedcube",
+    "hyperstats",
     "hyperstrings",
 ]
 resolver = "2"
@@ -70,6 +71,7 @@ hyperpuzzle_log = { path = "hyperpuzzle_log" }
 hyperpuzzle_view = { path = "hyperpuzzle_view" }
 hypershape = { path = "hypershape" }
 hyperspeedcube = { path = "hyperspeedcube" }
+hyperstats = { path = "hyperstats" }
 hyperstrings = { path = "hyperstrings" }
 key-names = { git = "https://github.com/HactarCE/key-names.git", tag = "v1.5.1", features = ["winit"] }
 

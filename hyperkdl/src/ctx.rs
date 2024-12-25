@@ -32,7 +32,6 @@ impl<'a> DeserCtx<'a> {
     }
 
     /// Adds an element to the key path.
-    #[doc(hidden)]
     pub fn with<'b>(&'b mut self, key: KeyPathElem<'b>) -> DeserCtx<'b> {
         DeserCtx {
             path: Some(KeyPath {

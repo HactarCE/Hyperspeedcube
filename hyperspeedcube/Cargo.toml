@@ -24,6 +24,7 @@ hyperpuzzle = { workspace = true, features = ["ecolor", "oklab"] }
 hyperpuzzle_library = { workspace = true }
 hyperpuzzle_log = { workspace = true }
 hyperpuzzle_view = { workspace = true }
+hyperstats = { workspace = true }
 
 cgmath = { workspace = true }
 color-eyre = { workspace = true }
