@@ -198,7 +198,7 @@ pub struct SolveVerification {
 mod tests {
     use hyperpuzzle::chrono::TimeDelta;
     use hyperpuzzle::{ScrambleParams, ScrambleType};
-    use hyperpuzzle_log::{Program, Puzzle};
+    use hyperpuzzle_log::{LogFile, Puzzle};
 
     use super::*;
 
@@ -232,16 +232,10 @@ solve {
                 .collect::<Vec<Option<String>>>()
         });
 
-        let (log_file, warnings) = LogFile::deserialize(EXAMPLE_SOLVE).unwrap();
+        let (mut log_file, warnings) = LogFile::deserialize(EXAMPLE_SOLVE).unwrap();
         assert!(warnings.is_empty());
-        dbg!(verify(&log_file));
 
         let expected_verification = SolveVerification {
-            solve_index: 0,
-            program: Some(Program {
-                name: Some("Hyperspeedcube".to_string()),
-                version: Some("2.0.0-pre.17".to_string()),
-            }),
             puzzle: Puzzle {
                 id: "ft_cube:2".to_string(),
                 version: "0.1.0".to_string(),
@@ -259,6 +253,11 @@ solve {
             blindsolve_duration: None,
             time_completed: "2024-12-24T14:29:01.231Z".parse().unwrap(),
         };
-        assert_eq!(verify(&log_file), vec![expected_verification]);
+        assert_eq!(verify(&log_file.solves[0]), Some(expected_verification));
+
+        if let LogEvent::Twists(twists_str) = &mut log_file.solves[0].log[2] {
+            *twists_str = twists_str.strip_suffix(" R'").unwrap().to_string();
+        }
+        assert_eq!(verify(&log_file.solves[0]), None);
     }
 }
