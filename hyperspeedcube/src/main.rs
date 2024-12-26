@@ -55,7 +55,31 @@ fn main() -> eframe::Result<()> {
     #[cfg(debug_assertions)]
     color_eyre::install().expect("error initializing panic handler");
     #[cfg(not(debug_assertions))]
-    init_human_panic();
+    std::panic::set_hook(Box::new(|panic_info| {
+        let title = format!("{TITLE} crashed");
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        let contents = format!("{title}\n\n{panic_info}\n\n{backtrace}");
+        // IIFE to mimic try_block
+        let fs_result = (|| {
+            let dir = hyperpaths::solves_dir()?;
+            std::fs::create_dir_all(dir);
+            let filename = dir.join(format!("crash_{}.log", hyperpuzzle::Timestamp::now()));
+            std::fs::write(&filename, &contents)?;
+            eyre::Ok(filename)
+        })();
+        let msg = match fs_result {
+            Ok(filename) => format!("Crash report saved to {}", filename.to_string_lossy()),
+            Err(_) => format!("Error saving crash report to file\n\n{contents}"),
+        };
+        let description = "Please send this file to the developer along with \
+                           a description of what you did to cause the crash";
+        rfd::MessageDialog::new()
+            .set_level(rfd::MessageLevel::Error)
+            .set_title(title)
+            .set_description(format!("{msg}\n\n{description}"))
+            .set_buttons(rfd::MessageButtons::Ok)
+            .show();
+    }));
 
     #[cfg(feature = "deadlock_detection")]
     init_deadlock_detection();
@@ -133,31 +157,6 @@ fn open_dir(dir: &std::path::Path) {
     if let Err(e) = opener::open(dir) {
         log::error!("Error opening directory {dir:?}: {e}");
     }
-}
-
-#[cfg(not(debug_assertions))]
-fn init_human_panic() {
-    let human_panic_metadata = human_panic::Metadata::new(TITLE, env!("CARGO_PKG_VERSION"))
-        .authors(env!("CARGO_PKG_AUTHORS"))
-        .homepage(env!("CARGO_PKG_REPOSITORY"));
-
-    let std_panic_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        let file_path = human_panic::handle_dump(&human_panic_metadata, info);
-        human_panic::print_msg(file_path.as_ref(), &human_panic_metadata)
-            .expect("human-panic: printing error message to console failed");
-
-        rfd::MessageDialog::new()
-            .set_title(&L._crash._app_crashed.with(TITLE))
-            .set_description(&match file_path {
-                Some(fp) => L._crash._crash_report_saved.with(&fp.display().to_string()),
-                None => L._crash._error_saving_crash_report.to_string(),
-            })
-            .set_level(rfd::MessageLevel::Error)
-            .show();
-
-        std_panic_hook(info);
-    }));
 }
 
 /// Create a background thread that checks for deadlocks every 10 seconds.

@@ -61,6 +61,9 @@ pub fn solve_autosave_file(
 pub fn lua_dir() -> Result<&'static Path> {
     Ok(&get()?.lua_dir)
 }
+pub fn crash_report_dir() -> Result<&'static Path> {
+    Ok(&get()?.crash_report_dir)
+}
 
 /// Renames a file to create a backup. Emits a log message indicating success or
 /// failure.
@@ -117,6 +120,8 @@ struct AppPaths {
     pub solves_dir: PathBuf,
     /// Path to the Hyperspeedcube Lua directory.
     pub lua_dir: PathBuf,
+    /// Path to Hyperspeedcube crash reports.
+    pub crash_report_dir: PathBuf,
 }
 
 /// Returns the app paths.
@@ -149,6 +154,7 @@ fn nonportable_paths() -> Option<AppPaths> {
                     .join(format!("{STATS_FILE_NAME}.{STATS_FILE_EXTENSION}")),
                 solves_dir: dirs.data_dir().join(SOLVES_DIR_NAME),
                 lua_dir: dirs.data_dir().join(LUA_DIR_NAME),
+                crash_report_dir: dirs.cache_dir().to_path_buf(),
             })
         }
         None => {
@@ -167,6 +173,7 @@ fn portable_paths() -> Option<AppPaths> {
                 stats_file: dir.join(format!("{STATS_FILE_NAME}.{STATS_FILE_EXTENSION}")),
                 solves_dir: dir.join(SOLVES_DIR_NAME),
                 lua_dir: dir.join(LUA_DIR_NAME),
+                crash_report_dir: dir,
             })
         }
         None => {
