@@ -76,7 +76,7 @@ function build_prism_puzzle(self, n, polygon_cut_depths, height)
   local h = base_polygon.edge_length / 2
   local line = linear.line(h, 'z', 'U', 'D')
 
-  local line_cut_depths = utils.layers.inclusive(h, -h, height-1)
+  local line_cut_depths = utils.layers.inclusive(h, -h, height)
 
   local base_colors, base_axes = utils.cut_shape(self, line, line_cut_depths, 'U', 'D')
   local side_colors, side_axes = utils.cut_shape(self, base_polygon, polygon_cut_depths, 'F')
@@ -153,6 +153,8 @@ function build_duoprism_puzzle(self, n, m, n_cut_depths, m_cut_depths, n_opposit
 
   -- Symmetry that respects the orientations of both `polygon_a` and `polygon_b`
   local chiral_sym = symmetry{sym:thru(2, 1), sym:thru(4, 3)}
+
+  if not (axes_a and axes_b) then return end -- TODO: handle piece types
 
   local a1 = axes_a[1]
   local a2 = sym:thru(2, 1):transform(a1)

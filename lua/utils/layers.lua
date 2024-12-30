@@ -7,11 +7,7 @@
 -- Typically `start > stop`
 function inclusive(start, stop, layers)
   if layers < 1 then
-    error(string.format(
-      "cannot build 0 layers in the range from %d to %d inclusive",
-      start,
-      stop
-    ))
+    return nil
   end
 
   local ret = {}
