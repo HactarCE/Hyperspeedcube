@@ -91,7 +91,7 @@ pub(crate) fn gen_unpack_entries(node: impl ToTokens, kdl_fields: &[KdlField<'_>
                     arg_index += 1;
                 },
                 Some(name) => {
-                    let mut ctx = ctx.with(::hyperkdl::KeyPathElem::Property(name)); // TODO: maybe redundant?
+                    let mut ctx = ctx.reborrow();
                     match name.value() {
                         #property_match_arms
                         key => ctx.warn_unknown_property(key, *entry.span()),

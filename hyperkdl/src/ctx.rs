@@ -31,6 +31,14 @@ impl<'a> DeserCtx<'a> {
         DeserCtx { path, warnings }
     }
 
+    /// Reborrows the deserialization context with a different lifetime.
+    pub fn reborrow(&mut self) -> DeserCtx<'_> {
+        DeserCtx {
+            path: self.path,
+            warnings: self.warnings,
+        }
+    }
+
     /// Adds an element to the key path.
     pub fn with<'b>(&'b mut self, key: KeyPathElem<'b>) -> DeserCtx<'b> {
         DeserCtx {
