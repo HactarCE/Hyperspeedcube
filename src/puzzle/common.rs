@@ -312,13 +312,13 @@ impl Default for Puzzle {
 }
 impl Puzzle {
     /// Creates a new puzzle of a particular type.
-    pub fn new(ty: PuzzleTypeEnum) -> Puzzle {
+    pub fn new(ty: PuzzleTypeEnum) -> Self {
         match ty {
             PuzzleTypeEnum::Rubiks3D { layer_count } => {
-                Puzzle::Rubiks3D(Rubiks3D::new(layer_count))
+                Self::Rubiks3D(Rubiks3D::new(layer_count))
             }
             PuzzleTypeEnum::Rubiks4D { layer_count } => {
-                Puzzle::Rubiks4D(Rubiks4D::new(layer_count))
+                Self::Rubiks4D(Rubiks4D::new(layer_count))
             }
         }
     }
