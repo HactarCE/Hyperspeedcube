@@ -10,7 +10,6 @@ pub mod lua;
 mod puzzle;
 mod rgb;
 mod tags;
-mod task;
 mod timestamp;
 pub mod util;
 
@@ -22,7 +21,6 @@ pub use lua::{LuaLogLine, Version};
 pub use puzzle::*;
 pub use rgb::Rgb;
 pub use tags::*;
-pub use task::TaskHandle;
 pub use timestamp::Timestamp;
 
 /// Unsigned integer type used for [`LayerMask`].
@@ -38,6 +36,8 @@ const CAPTURE_LUA_OUTPUT: bool = !cfg!(test);
 
 const MAX_TWIST_REPEAT: usize = 50;
 const MAX_NAME_SET_SIZE: usize = 100;
+
+const MAX_PUZZLE_REDIRECTS: usize = 20;
 
 /// Default length for a full scramble
 pub const FULL_SCRAMBLE_LENGTH: u32 = 1000;

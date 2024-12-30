@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use hyperpuzzle::TaskHandle;
 use hyperpuzzle_library::SolveVerification;
 use hyperpuzzle_log::{LogFile, Solve};
 use hyperstats::NewPbs;
@@ -84,8 +83,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             solve_complete_popup.set(None);
         }
     } else {
-        app.active_puzzle_view.with(|p| {
-            let mut sim = p.sim().lock();
+        app.active_puzzle.with_sim(|sim| {
             if sim.has_been_fully_scrambled() && sim.handle_newly_solved_state() {
                 let solve = sim.serialize();
                 let verification = hyperpuzzle_library::verify_without_checking_solution(&solve)?;

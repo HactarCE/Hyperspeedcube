@@ -6,17 +6,17 @@ use crate::app::App;
 use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    app.active_puzzle_view.with_opt(|p| {
-        let Some(p) = p else {
+    app.active_puzzle.with_opt_view(|view| {
+        let Some(view) = view else {
             ui.label(L.no_active_puzzle);
             return;
         };
 
-        for (transform, info) in &p.puzzle().twists {
+        for (transform, info) in &view.puzzle().twists {
             if ui.button(&info.name).clicked() {
                 let layers = LayerMask::default();
                 let twist = LayeredTwist { layers, transform };
-                p.sim()
+                view.sim
                     .lock()
                     .do_event(ReplayEvent::Twists(smallvec![twist]));
             }

@@ -5,7 +5,8 @@ use egui::mutex::RwLock;
 use hyperdraw::GraphicsState;
 use hyperprefs::{AnimationPreferences, ModifiedPreset, Preferences, PuzzleViewPreferencesSet};
 use hyperpuzzle::{Puzzle, ScrambleParams, ScrambleType};
-use hyperpuzzle_view::{PuzzleView, ReplayEvent};
+use hyperpuzzle_log::Solve;
+use hyperpuzzle_view::{PuzzleSimulation, PuzzleView, ReplayEvent};
 use hyperstats::StatsDb;
 use parking_lot::Mutex;
 use rand::Rng;
@@ -19,7 +20,7 @@ pub struct App {
     pub(crate) prefs: Preferences,
     pub(crate) stats: StatsDb,
 
-    pub active_puzzle_view: ActivePuzzleView,
+    pub active_puzzle: ActivePuzzleWidget,
 
     pub(crate) animation_prefs: ModifiedPreset<AnimationPreferences>,
 
@@ -45,7 +46,7 @@ impl App {
             prefs,
             stats,
 
-            active_puzzle_view: ActivePuzzleView::default(),
+            active_puzzle: ActivePuzzleWidget::default(),
 
             animation_prefs,
 
@@ -53,50 +54,45 @@ impl App {
         }
     }
 
-    pub(crate) fn set_active_puzzle_view(
-        &mut self,
-        puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>,
-    ) {
-        self.active_puzzle_view = ActivePuzzleView::from(puzzle_view);
+    pub(crate) fn update_active_puzzle(&mut self, new_puzzle_widget: &Arc<Mutex<PuzzleWidget>>) {
+        self.active_puzzle = ActivePuzzleWidget(Arc::downgrade(new_puzzle_widget));
         self.notify_active_puzzle_changed();
     }
-    pub(crate) fn set_active_puzzle(&mut self, new_puzzle_view: Option<PuzzleWidget>) {
-        match self.active_puzzle_view.0.upgrade() {
-            Some(puzzle_view) => {
-                *puzzle_view.lock() = new_puzzle_view;
-                self.notify_active_puzzle_changed();
-            }
-            None => log::warn!("No active puzzle view"),
-        }
-    }
-    fn notify_active_puzzle_changed(&mut self) {
-        self.active_puzzle_view.with(|p| {
-            let view_prefs_set = PuzzleViewPreferencesSet::from_ndim(p.puzzle().ndim());
+    pub(super) fn notify_active_puzzle_changed(&mut self) {
+        self.active_puzzle.with_view(|view| {
+            let view_prefs_set = PuzzleViewPreferencesSet::from_ndim(view.puzzle().ndim());
             self.prefs
                 .view_presets_mut(view_prefs_set)
-                .set_last_loaded(p.view.camera.view_preset.base.name());
+                .set_last_loaded(view.camera.view_preset.base.name());
 
             self.prefs
                 .color_schemes
-                .get_mut(&p.puzzle().colors)
+                .get_mut(&view.puzzle().colors)
                 .schemes
-                .set_last_loaded(p.view.colors.base.name());
+                .set_last_loaded(view.colors.base.name());
 
             // TODO: add more presets here as relevant
             self.prefs.needs_save_eventually = true;
         });
     }
 
+    pub(crate) fn new_puzzle_widget(&self) -> Arc<Mutex<PuzzleWidget>> {
+        Arc::new(Mutex::new(PuzzleWidget::new(
+            &self.gfx,
+            &self.egui_wgpu_renderer,
+        )))
+    }
+
     pub(crate) fn load_puzzle(&mut self, puzzle_id: &str) {
-        if self.active_puzzle_view.view().is_some() {
-            if let Some(new_puzzle_view) = PuzzleWidget::new(
-                &self.gfx,
-                &self.egui_wgpu_renderer,
-                &mut self.prefs,
-                puzzle_id,
-            ) {
-                self.set_active_puzzle(Some(new_puzzle_view));
-            }
+        if let Some(puzzle_widget) = self.active_puzzle.widget() {
+            puzzle_widget.lock().load_puzzle(puzzle_id, &mut self.prefs);
+        }
+    }
+    pub(crate) fn load_solve(&mut self, solve: Solve) {
+        if let Some(puzzle_widget) = self.active_puzzle.widget() {
+            puzzle_widget
+                .lock()
+                .load_solve(Arc::new(solve), &mut self.prefs);
         }
     }
 
@@ -116,14 +112,14 @@ impl App {
     pub(crate) fn save_file(&mut self) {
         if let Some(contents) = self.serialize_puzzle_log() {
             let last_file_path = self
-                .active_puzzle_view
-                .with(|p| p.sim().lock().last_log_file.clone())
+                .active_puzzle
+                .with_sim(|sim| sim.last_log_file.clone())
                 .flatten();
             if let Some(path) = last_file_path.or_else(Self::prompt_file_save_path) {
                 // TODO: handle error
                 std::fs::write(path.clone(), contents);
-                self.active_puzzle_view
-                    .with(|p| p.sim().lock().last_log_file = Some(path));
+                self.active_puzzle
+                    .with_sim(|sim| sim.last_log_file = Some(path));
             }
         }
     }
@@ -132,13 +128,13 @@ impl App {
             if let Some(path) = Self::prompt_file_save_path() {
                 // TODO: handle error
                 std::fs::write(path.clone(), contents);
-                self.active_puzzle_view
-                    .with(|p| p.sim().lock().last_log_file = Some(path));
+                self.active_puzzle
+                    .with_sim(|sim| sim.last_log_file = Some(path));
             }
         }
     }
     pub(crate) fn serialize_puzzle_log(&mut self) -> Option<String> {
-        let solve = self.active_puzzle_view.with(|p| p.sim().lock().serialize());
+        let solve = self.active_puzzle.with_sim(|sim| sim.serialize());
         Some(
             hyperpuzzle_log::LogFile {
                 program: Some(crate::PROGRAM.clone()),
@@ -164,34 +160,8 @@ impl App {
                 }
 
                 // TODO: load multiple solves at once
-                if let Some(first_solve) = log_file.solves.first() {
-                    // TODO: new tab if none exists
-                    self.active_puzzle_view.with(|p| {
-                        // TODO: check puzzle version
-                        // TODO: don't block
-                        match hyperpuzzle_library::LIBRARY
-                            .with(|lib| lib.build_puzzle(&first_solve.puzzle.id))
-                            .take_result_blocking()
-                        {
-                            Ok(puzzle) => {
-                                let sim = Arc::new(Mutex::new(
-                                    hyperpuzzle_view::PuzzleSimulation::deserialize(
-                                        &puzzle,
-                                        first_solve,
-                                    ),
-                                ));
-                                *p = PuzzleWidget::with_sim(
-                                    &self.gfx,
-                                    &self.egui_wgpu_renderer,
-                                    &sim,
-                                    &mut self.prefs,
-                                );
-                            }
-                            Err(e) => {
-                                log::error!("error constructing puzzle specified in log file: {e}");
-                            }
-                        }
-                    });
+                if let Some(first_solve) = log_file.solves.into_iter().next() {
+                    self.load_solve(first_solve);
                 }
             }
             Err(e) => log::error!("error loading log file: {e}"),
@@ -199,29 +169,29 @@ impl App {
     }
 
     pub(crate) fn has_undo(&self) -> bool {
-        self.active_puzzle_view
-            .with(|p| p.sim().lock().has_undo())
+        self.active_puzzle
+            .with_sim(|sim| sim.has_undo())
             .unwrap_or(false)
     }
     pub(crate) fn has_redo(&self) -> bool {
-        self.active_puzzle_view
-            .with(|p| p.sim().lock().has_redo())
+        self.active_puzzle
+            .with_sim(|sim| sim.has_redo())
             .unwrap_or(false)
     }
     pub(crate) fn undo(&self) {
-        self.active_puzzle_view
-            .with(|p| p.sim().lock().do_event(ReplayEvent::Undo));
+        self.active_puzzle
+            .with_sim(|sim| sim.do_event(ReplayEvent::Undo));
     }
     pub(crate) fn redo(&self) {
-        self.active_puzzle_view
-            .with(|p| p.sim().lock().do_event(ReplayEvent::Redo));
+        self.active_puzzle
+            .with_sim(|sim| sim.do_event(ReplayEvent::Redo));
     }
     pub(crate) fn reset_puzzle(&self) {
-        self.active_puzzle_view.with(|p| p.sim().lock().reset());
+        self.active_puzzle.with_sim(|sim| sim.reset());
     }
     pub(crate) fn scramble(&self, ty: ScrambleType) {
-        self.active_puzzle_view.with(|p| {
-            p.sim().lock().scramble(ScrambleParams::new(ty));
+        self.active_puzzle.with_sim(|sim| {
+            sim.scramble(ScrambleParams::new(ty));
         });
     }
 
@@ -231,10 +201,8 @@ impl App {
     ///
     /// Returns `false` if there is no puzzle.
     pub(crate) fn confirm_discard_changes(&mut self, description: &str) -> bool {
-        self.active_puzzle_view
-            .with(|p| {
-                let sim = p.sim().lock();
-
+        self.active_puzzle
+            .with_sim(|sim| {
                 let mut needs_save = sim.has_unsaved_changes();
 
                 if self.prefs.interaction.confirm_discard_only_when_scrambled
@@ -261,33 +229,42 @@ impl App {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct ActivePuzzleView(Weak<Mutex<Option<PuzzleWidget>>>);
-impl From<&Arc<Mutex<Option<PuzzleWidget>>>> for ActivePuzzleView {
-    fn from(value: &Arc<Mutex<Option<PuzzleWidget>>>) -> Self {
+pub struct ActivePuzzleWidget(Weak<Mutex<PuzzleWidget>>);
+impl From<&Arc<Mutex<PuzzleWidget>>> for ActivePuzzleWidget {
+    fn from(value: &Arc<Mutex<PuzzleWidget>>) -> Self {
         Self(Arc::downgrade(value))
     }
 }
-impl ActivePuzzleView {
+impl ActivePuzzleWidget {
     pub fn ty(&self) -> Option<Arc<Puzzle>> {
-        self.with(|p| p.puzzle())
-    }
-    pub fn with<R>(&self, f: impl FnOnce(&mut PuzzleWidget) -> R) -> Option<R> {
-        Some(f(self.0.upgrade()?.lock().as_mut()?))
-    }
-    pub fn with_opt<R>(&self, f: impl FnOnce(Option<&mut PuzzleWidget>) -> R) -> R {
-        let mutex = self.0.upgrade();
-        let mut mutex_guard = mutex.as_ref().map(|m| m.lock());
-        f(mutex_guard.as_mut().and_then(|m| m.as_mut()))
+        self.with_view(|v| v.puzzle())
     }
 
-    /// Returns whether there is an active puzzle widget. It may not have a
-    /// puzzle in it.
-    pub fn view(&self) -> Option<Arc<Mutex<Option<PuzzleWidget>>>> {
+    pub fn contains(&self, other: &Arc<Mutex<PuzzleWidget>>) -> bool {
+        self.0.ptr_eq(&Arc::downgrade(other))
+    }
+
+    /// Returns the active puzzle widget, if any.
+    pub fn widget(&self) -> Option<Arc<Mutex<PuzzleWidget>>> {
         self.0.upgrade()
+    }
+    pub fn with_widget<R>(&self, f: impl FnOnce(&mut PuzzleWidget) -> R) -> Option<R> {
+        Some(f(&mut self.widget()?.lock()))
+    }
+    pub fn with_view<R>(&self, f: impl FnOnce(&mut PuzzleView) -> R) -> Option<R> {
+        Some(f(self.widget()?.lock().view_mut()?))
+    }
+    pub fn with_opt_view<R>(&self, f: impl FnOnce(Option<&mut PuzzleView>) -> R) -> R {
+        let mutex = self.widget();
+        let mut mutex_guard = mutex.as_ref().map(|m| m.lock());
+        f(mutex_guard.as_mut().and_then(|m| m.view_mut()))
+    }
+    pub fn with_sim<R>(&self, f: impl FnOnce(&mut PuzzleSimulation) -> R) -> Option<R> {
+        self.with_view(|v| f(&mut v.sim.lock()))
     }
 
     /// Returns whether there is an an active puzzle widget with a puzzle in it.
     pub fn has_puzzle(&self) -> bool {
-        self.with(|_| ()).is_some()
+        self.with_view(|_| ()).is_some()
     }
 }

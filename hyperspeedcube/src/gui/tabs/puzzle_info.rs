@@ -6,13 +6,13 @@ use crate::gui::util::EguiTempFlag;
 use crate::L;
 
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
-    app.active_puzzle_view.with_opt(|p| {
-        let Some(p) = p else {
+    app.active_puzzle.with_opt_view(|view| {
+        let Some(view) = view else {
             ui.label(L.no_active_puzzle);
             return;
         };
 
-        let puz = p.puzzle();
+        let puz = view.puzzle();
 
         // TODO: rework this UI
 

@@ -1,14 +1,16 @@
+use std::collections::hash_map;
 use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
 
-use eyre::Result;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-use super::{LibraryCommand, LibraryDb};
+use super::{
+    LibraryCommand, LibraryDb, NotifyWhenDropped, PuzzleBuildStatus, PuzzleCacheEntry, Waiter,
+};
 use crate::builder::ColorSystemBuilder;
 use crate::lua::{LuaLoader, LuaLogger, PuzzleGeneratorSpec, PuzzleSpec};
-use crate::{LuaLogLine, Puzzle, TaskHandle};
+use crate::{LuaLogLine, Puzzle};
 
 /// Handle to a library of puzzles.
 ///
@@ -40,30 +42,27 @@ impl Library {
         std::thread::spawn(move || {
             for command in cmd_rx {
                 match command {
-                    LibraryCommand::ReadDirectory {
-                        directory,
-                        progress,
-                    } => {
-                        loader.db.lock().read_directory(&directory);
-                        progress.complete(());
+                    LibraryCommand::Reset => {
+                        loader.db.lock().reset();
                     }
-
-                    LibraryCommand::ReadFile {
+                    LibraryCommand::ReadDirectory { directory } => {
+                        loader.db.lock().read_directory(&directory);
+                    }
+                    LibraryCommand::AddFile {
                         filename,
                         path,
-                        progress,
+                        contents,
                     } => {
-                        loader.db.lock().read_file(filename, path);
-                        progress.complete(());
+                        loader.db.lock().add_file(filename, path, contents);
                     }
-
-                    LibraryCommand::LoadFiles { progress } => {
-                        loader.reload_all_files();
-                        progress.complete(());
+                    LibraryCommand::LoadFiles => {
+                        loader.load_all_files();
                     }
-
-                    LibraryCommand::BuildPuzzle { id, progress } => {
-                        progress.complete(loader.build_puzzle(&id));
+                    LibraryCommand::BuildPuzzle { id } => {
+                        loader.build_puzzle(&id);
+                    }
+                    LibraryCommand::Wait(sender) => {
+                        let _ = sender.send(());
                     }
                 }
             }
@@ -89,34 +88,21 @@ impl Library {
     /// If the filename conflicts with an existing one, then the existing file
     /// will be unloaded and overwritten.
     pub fn add_file(&self, filename: String, path: Option<PathBuf>, contents: String) {
-        self.db.lock().add_file(filename, path, contents);
-    }
-    /// Reads a file from the disk and adds it to the Lua library. It will not
-    /// immediately be loaded. Logs an error if the file could not be read.
-    ///
-    /// If the filename conflicts with an existing one, then the existing file
-    /// will be overwritten.
-    pub fn read_file(&self, filename: String, path: PathBuf) -> TaskHandle<()> {
-        let task = TaskHandle::new();
-        self.send_command(LibraryCommand::ReadFile {
+        self.send_command(LibraryCommand::AddFile {
             filename,
             path,
-            progress: task.clone(),
+            contents,
         });
-        task
     }
     /// Reads a directory recursively and adds all files ending in `.lua` to the
     /// Lua library. They will not immediately be loaded.
     ///
     /// If any filename conflicts with an existing one, then the existing file
     /// will be overwritten.
-    pub fn read_directory(&self, directory: &Path) -> TaskHandle<()> {
-        let task = TaskHandle::new();
+    pub fn read_directory(&self, directory: &Path) {
         self.send_command(LibraryCommand::ReadDirectory {
             directory: directory.to_owned(),
-            progress: task.clone(),
         });
-        task
     }
     /// Canonicalizes a relative file path to make a suitable filename.
     pub fn relative_path_to_filename(path: &Path) -> String {
@@ -125,27 +111,9 @@ impl Library {
             .join("/")
     }
     /// Loads all files that haven't been loaded yet. Lua execution happens
-    /// asynchronously, so changes might not take effect immediately; use the
-    /// returned [`TaskHandle`] to check progress.
-    pub fn load_files(&self) -> TaskHandle<()> {
-        let task = TaskHandle::new();
-        self.send_command(LibraryCommand::LoadFiles {
-            progress: task.clone(),
-        });
-        task
-    }
-    /// Reads a directory recursively and adds all files ending in `.lua` to the
-    /// Lua library, then loads them all. Lua execution happens asynchronously,
-    /// so changes might not take effect immediately; use the returned
-    /// [`TaskHandle`] to check progress.
-    ///
-    /// If any filename conflicts with an existing one, then the existing file
-    /// will be overwritten.
-    pub fn load_directory(&self, directory: &Path) -> TaskHandle<()> {
-        // Commands are processed in the order they are received. This should
-        // _technically_ be atomic and isn't, but it hardly matters.
-        let _ = self.read_directory(directory);
-        self.load_files()
+    /// asynchronously, so changes might not take effect immediately.
+    pub fn load_files(&self) {
+        self.send_command(LibraryCommand::LoadFiles);
     }
 
     /// Returns a list of loaded puzzles, including generated puzzles.
@@ -178,17 +146,70 @@ impl Library {
     }
 
     /// Builds a puzzle from a Lua specification.
-    pub fn build_puzzle(&self, id: &str) -> TaskHandle<Result<Arc<Puzzle>>> {
-        let task = TaskHandle::new();
-        self.send_command(LibraryCommand::BuildPuzzle {
-            id: id.to_string(),
-            progress: task.clone(),
-        });
-        task
+    pub fn build_puzzle(&self, id: &str) -> PuzzleResult {
+        let mut id = id.to_owned();
+        for _ in 0..crate::MAX_PUZZLE_REDIRECTS {
+            return match self.db.lock().puzzle_cache.entry(id.to_string()) {
+                hash_map::Entry::Vacant(e) => {
+                    let notify = NotifyWhenDropped::new();
+                    let waiter = notify.waiter();
+                    let status = None;
+                    e.insert(Arc::new(Mutex::new(PuzzleCacheEntry::Building {
+                        notify,
+                        status,
+                    })));
+                    self.send_command(LibraryCommand::BuildPuzzle { id: id.to_string() });
+                    let status = None;
+                    PuzzleResult::Building { waiter, status }
+                }
+
+                hash_map::Entry::Occupied(e) => match &*e.get().lock() {
+                    PuzzleCacheEntry::Redirect(new_id) => {
+                        id = new_id.clone();
+                        continue;
+                    }
+                    PuzzleCacheEntry::Building { notify, status } => PuzzleResult::Building {
+                        waiter: notify.waiter(),
+                        status: status.clone(),
+                    },
+                    PuzzleCacheEntry::Ok(puzzle) => PuzzleResult::Ok(Arc::clone(puzzle)),
+                    PuzzleCacheEntry::Err => PuzzleResult::Err,
+                },
+            };
+        }
+        PuzzleResult::Err // too many redirects
+    }
+
+    pub fn build_puzzle_blocking(&self, id: &str) -> Result<Arc<Puzzle>, ()> {
+        loop {
+            match self.build_puzzle(id) {
+                PuzzleResult::Ok(puzzle) => return Ok(puzzle),
+                PuzzleResult::Building { waiter, .. } => waiter.wait(),
+                PuzzleResult::Err => return Err(()),
+            }
+        }
     }
 
     /// Creates a new library with a fresh Lua state.
-    pub fn reset(&mut self) {
-        *self = Library::new();
+    pub fn reset(&self) {
+        self.send_command(LibraryCommand::Reset);
     }
+
+    /// Waits until all pending library tasks are completed.
+    ///
+    /// **This method is blocking.**
+    pub fn wait(&self) {
+        let (tx, rx) = mpsc::sync_channel(0);
+        self.send_command(LibraryCommand::Wait(tx));
+        let _ = rx.recv();
+    }
+}
+
+pub enum PuzzleResult {
+    Ok(Arc<Puzzle>),
+    Building {
+        waiter: Waiter,
+        status: Option<PuzzleBuildStatus>,
+    },
+    Err,
 }

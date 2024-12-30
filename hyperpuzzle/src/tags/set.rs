@@ -31,22 +31,22 @@ impl TagSet {
 
     /// Returns the URL of the puzzle's WCA page.
     pub fn wca_url(&self) -> Option<String> {
+        // TODO: museum URL also
         Some(format!(
             "https://www.worldcubeassociation.org/results/rankings/{}/single",
-            self.0.get("external/wca")?.as_str()?,
+            self.get("external/wca")?.as_str()?,
         ))
     }
     /// Returns the filename where the puzzle was defined, or `"<unknown>"` if
     /// it cannot be found.
     pub fn filename(&self) -> &str {
-        self.0
-            .get("file")
+        self.get("file")
             .and_then(|v| v.as_str())
             .unwrap_or("<unknown>")
     }
     /// Returns whether the tag set contains the "experimental" tag.
     pub fn is_experimental(&self) -> bool {
-        self.0.get("experimental").is_some_and(|v| v.is_present())
+        self.get("experimental").is_some_and(|v| v.is_present())
     }
 
     /// Returns whether a tag set meets a search criterion. If `value_str` is

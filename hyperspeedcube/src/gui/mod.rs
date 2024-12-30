@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
-use hyperpuzzle::TaskHandle;
 use parking_lot::Mutex;
 
+// TODO: use `#[track_caller]` with `std::panic::Location`?
 macro_rules! unique_id {
     ($($args:tt)*) => {
         egui::Id::new((file!(), line!(), column!(), $($args)*))
@@ -37,8 +37,7 @@ impl AppUi {
         let mut app = App::new(cc, initial_file);
 
         // Initialize puzzle library.
-        hyperpuzzle_library::load_built_in_puzzles();
-        hyperpuzzle_library::load_user_puzzles();
+        hyperpuzzle_library::load_puzzles();
 
         // Override UI style.
         cc.egui_ctx.style_mut(|style| {
@@ -46,9 +45,10 @@ impl AppUi {
         });
 
         // Initialize UI.
-        let puzzle_view = Arc::new(Mutex::new(None));
-        app.set_active_puzzle_view(&puzzle_view);
-        let mut dock_state = egui_dock::DockState::new(vec![Tab::PuzzleView(puzzle_view)]);
+        let puzzle_widget = app.new_puzzle_widget();
+        app.update_active_puzzle(&puzzle_widget);
+        app.load_puzzle("ft_cube:3");
+        let mut dock_state = egui_dock::DockState::new(vec![Tab::Puzzle(puzzle_widget)]);
         let main = NodeIndex::root();
         let surface = dock_state.main_surface_mut();
         let [main, left] =
@@ -60,8 +60,6 @@ impl AppUi {
             vec![Tab::PieceFilters, Tab::DevTools, Tab::Styles, Tab::View],
         );
         surface.split_below(right, 0.6, vec![Tab::LuaLogs]);
-
-        app.load_puzzle("ft_cube:3");
 
         AppUi { app, dock_state }
     }
@@ -98,26 +96,27 @@ impl AppUi {
                 for index in tab_viewer.added_nodes {
                     self.dock_state.set_focused_node_and_surface(index);
                     self.dock_state
-                        .push_to_focused_leaf(Tab::PuzzleView(Arc::new(Mutex::new(None))));
+                        .push_to_focused_leaf(Tab::Puzzle(self.app.new_puzzle_widget()));
                 }
                 if self.dock_state.iter_all_tabs().next().is_none() {
                     self.dock_state
-                        .push_to_first_leaf(Tab::PuzzleView(Arc::new(Mutex::new(None))));
+                        .push_to_first_leaf(Tab::Puzzle(self.app.new_puzzle_widget()));
                 }
 
                 modals::solve_complete::show(ui, &mut self.app);
             });
 
         // Animate puzzle views.
-        let mut puzzle_view_to_focus = None;
+        let mut puzzle_widget_to_focus = None;
         for (i, tab) in self.dock_state.iter_all_tabs() {
-            if let Tab::PuzzleView(puzzle_widget) = tab {
-                if let Some(puzzle_view) = &mut *puzzle_widget.lock() {
-                    if puzzle_view.wants_focus {
-                        puzzle_view.wants_focus = false;
-                        puzzle_view_to_focus = Some(i);
-                    }
-                    let mut sim = puzzle_view.sim().lock();
+            if let Tab::Puzzle(puzzle_widget) = tab {
+                let mut puzzle_widget = puzzle_widget.lock();
+                if puzzle_widget.wants_focus {
+                    puzzle_widget.wants_focus = false;
+                    puzzle_widget_to_focus = Some(i);
+                }
+                if let Some(sim) = puzzle_widget.sim() {
+                    let mut sim = sim.lock();
                     // TODO: step once per simulation, not once per view
                     let needs_redraw = sim.step(&self.app.animation_prefs.value);
                     if needs_redraw {
@@ -127,12 +126,14 @@ impl AppUi {
                 }
             }
         }
-        if let Some(i) = puzzle_view_to_focus {
+        if let Some(i) = puzzle_widget_to_focus {
             self.dock_state.set_focused_node_and_surface(i);
         }
 
-        if let Some((_rect, Tab::PuzzleView(puzzle_view))) = self.dock_state.find_active_focused() {
-            self.app.set_active_puzzle_view(puzzle_view);
+        if let Some((_rect, Tab::Puzzle(p))) = self.dock_state.find_active_focused() {
+            if !self.app.active_puzzle.contains(p) {
+                self.app.update_active_puzzle(&p);
+            }
         }
 
         // Submit wgpu commands before egui does.
@@ -214,7 +215,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn id(&mut self, tab: &mut Self::Tab) -> egui::Id {
         match tab {
-            Tab::PuzzleView(puz) => egui::Id::new(Arc::as_ptr(puz)),
+            Tab::Puzzle(puz) => egui::Id::new(Arc::as_ptr(puz)),
             _ => egui::Id::new(tab.title().text()),
         }
     }

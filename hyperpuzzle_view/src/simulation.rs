@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::mpsc;
 use std::sync::Arc;
 
 use float_ord::FloatOrd;
@@ -7,7 +8,7 @@ use hypermath::{Vector, VectorRef};
 use hyperprefs::AnimationPreferences;
 use hyperpuzzle::{
     Axis, LayerMask, LayeredTwist, PerPiece, PieceMask, Puzzle, PuzzleState, ScrambleParams,
-    ScrambleType, Timestamp,
+    ScrambleProgress, ScrambleType, ScrambledPuzzle, Timestamp,
 };
 use hyperpuzzle_log::Scramble;
 use smallvec::smallvec;
@@ -20,10 +21,15 @@ const ASSUMED_FPS: f32 = 120.0;
 
 /// Puzzle simulation, which manages the puzzle state, animations, undo stack,
 /// etc.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PuzzleSimulation {
     /// Latest puzzle state, not including any transient rotation.
     latest_state: PuzzleState,
+
+    scramble_waiting: Option<(
+        Arc<ScrambleProgress>,
+        mpsc::Receiver<Option<ScrambledPuzzle>>,
+    )>,
 
     /// Scramble applied to the puzzle initially.
     scramble: Option<Scramble>,
@@ -64,6 +70,13 @@ pub struct PuzzleSimulation {
     /// Last loaded/saved log file.
     pub last_log_file: Option<PathBuf>,
 }
+impl Drop for PuzzleSimulation {
+    fn drop(&mut self) {
+        if let Some((progress, _)) = &self.scramble_waiting {
+            progress.request_cancel();
+        }
+    }
+}
 impl PuzzleSimulation {
     /// Constructs a new simulation with a fresh puzzle state.
     pub fn new(puzzle: &Arc<Puzzle>) -> Self {
@@ -71,6 +84,8 @@ impl PuzzleSimulation {
         let cached_piece_transforms = latest_state.piece_transforms();
         Self {
             latest_state,
+
+            scramble_waiting: None,
 
             scramble: None,
             has_unsaved_changes: false,
@@ -170,16 +185,48 @@ impl PuzzleSimulation {
     }
     /// Resets and scrambles the puzzle.
     pub fn scramble(&mut self, params: ScrambleParams) {
+        let ty = Arc::clone(self.puzzle_type());
+        let progress = Arc::new(ScrambleProgress::new());
+        let (tx, rx) = mpsc::channel();
+        self.scramble_waiting = Some((Arc::clone(&progress), rx));
+        std::thread::spawn(move || {
+            // ignore channel error
+            let _ = tx.send(ty.new_scrambled_with_progress(params, Some(progress)));
+        });
+    }
+    /// Returns progress on scrambling the puzzle.
+    pub fn scramble_progress(&mut self) -> Option<Arc<ScrambleProgress>> {
+        let (progress, rx) = self.scramble_waiting.as_ref()?;
+        match rx.try_recv() {
+            Err(mpsc::TryRecvError::Empty) => Some(Arc::clone(progress)), // still waiting
+            Err(mpsc::TryRecvError::Disconnected) | Ok(None) => {
+                log::error!("error scrambling puzzle");
+                self.scramble = None;
+                None
+            }
+            Ok(Some(scrambled)) => {
+                self.recv_scramble(scrambled);
+                None
+            }
+        }
+    }
+    fn recv_scramble(&mut self, scrambled: ScrambledPuzzle) {
+        let ScrambledPuzzle {
+            params,
+            twists,
+            state,
+        } = scrambled;
+
         self.reset();
         let ty = self.puzzle_type();
-        let (twists, state) = ty.new_scrambled(params);
         let scramble = Scramble::new(
             params,
             hyperpuzzle_log::notation::format_twists(&ty.twists, twists),
         );
         self.scramble = Some(scramble.clone());
-        self.do_action(Action::Scramble);
-        self.latest_state = state; // TODO: seems like this isn't necessary? but doing the twists again is wasting time
+        self.undo_stack.push(Action::Scramble);
+        self.replay.push(ReplayEvent::Scramble);
+        self.latest_state = state;
         self.skip_twist_animations();
         self.solved_state_handled = false;
     }

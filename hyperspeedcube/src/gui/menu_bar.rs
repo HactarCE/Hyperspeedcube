@@ -108,8 +108,8 @@ fn draw_menu_buttons(ui: &mut egui::Ui, app_ui: &mut AppUi) {
     ui.menu_button(L.menu.scramble.title, |ui| {
         let can_scramble = app_ui
             .app
-            .active_puzzle_view
-            .with(|p| p.puzzle().can_scramble())
+            .active_puzzle
+            .with_view(|view| view.puzzle().can_scramble())
             .unwrap_or(false);
         let full_scramble_button = egui::Button::new(L.menu.scramble.full);
         if ui.add_enabled(can_scramble, full_scramble_button).clicked()

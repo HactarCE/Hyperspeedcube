@@ -9,7 +9,7 @@ use crate::L;
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let l = L.image_generator;
 
-    let has_active_puzzle = app.active_puzzle_view.has_puzzle();
+    let has_active_puzzle = app.active_puzzle.has_puzzle();
 
     let mut changed = false;
 
@@ -106,13 +106,15 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 }
 
 fn save_screenshot(app: &mut App, path: &Path) -> Result<()> {
-    app.active_puzzle_view.with_opt(|p| {
-        let p = p.ok_or_eyre("no active puzzle")?;
-        p.screenshot(
-            app.prefs.image_generator.width,
-            app.prefs.image_generator.height,
-        )?
-        .save(path)?;
-        Ok(())
-    })
+    app.active_puzzle
+        .with_view(|view| {
+            Ok(view
+                .renderer
+                .screenshot(
+                    app.prefs.image_generator.width,
+                    app.prefs.image_generator.height,
+                )?
+                .save(path)?)
+        })
+        .ok_or_eyre("no active puzzle")?
 }

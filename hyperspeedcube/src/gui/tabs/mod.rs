@@ -18,24 +18,24 @@ mod modifier_keys;
 mod mousebinds;
 mod move_input;
 mod piece_filters;
+mod puzzle;
 mod puzzle_controls;
 mod puzzle_info;
 mod puzzle_library;
-mod puzzle_view;
 mod scrambler;
 mod styles;
 mod timeline;
 mod timer;
 mod view;
 
-pub use puzzle_view::PuzzleWidget;
+pub use puzzle::PuzzleWidget;
 
 use super::App;
 use crate::L;
 
 #[derive(Debug, Clone)]
 pub enum Tab {
-    PuzzleView(Arc<Mutex<Option<PuzzleWidget>>>),
+    Puzzle(Arc<Mutex<PuzzleWidget>>),
     PuzzleLibrary,
     PuzzleInfo,
     KeybindsReference,
@@ -72,7 +72,7 @@ pub enum Tab {
 impl PartialEq for Tab {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::PuzzleView(_), Self::PuzzleView(_)) => true,
+            (Self::Puzzle(_), Self::Puzzle(_)) => true,
             _ => std::mem::discriminant(self) == std::mem::discriminant(other),
         }
     }
@@ -81,7 +81,7 @@ impl Tab {
     pub fn menu_name(&self) -> &'static str {
         let l = &L.tabs.menu;
         match self {
-            Tab::PuzzleView(_) => l.puzzle_view,
+            Tab::Puzzle(_) => l.puzzle,
             Tab::PuzzleLibrary => l.puzzle_library,
             Tab::PuzzleInfo => l.puzzle_info,
             Tab::KeybindsReference => l.keybinds_reference,
@@ -117,10 +117,7 @@ impl Tab {
     pub fn title(&self) -> egui::WidgetText {
         let l = &L.tabs.titles;
         match self {
-            Tab::PuzzleView(p) => match &*p.lock() {
-                Some(p) => p.puzzle().name.clone().into(),
-                None => l.puzzle_view.into(),
-            },
+            Tab::Puzzle(puzzle_widget) => puzzle_widget.lock().title().into(),
             Tab::PuzzleLibrary => l.puzzle_library.into(),
             Tab::PuzzleInfo => l.puzzle_info.into(),
             Tab::KeybindsReference => l.keybinds_reference.into(),
@@ -155,7 +152,7 @@ impl Tab {
 
     pub fn ui(&mut self, ui: &mut egui::Ui, app: &mut App) {
         match self {
-            Tab::PuzzleView(puzzle_view) => puzzle_view::show(ui, app, puzzle_view),
+            Tab::Puzzle(puzzle_widget) => puzzle::show(ui, app, puzzle_widget),
             Tab::PuzzleLibrary => puzzle_library::show(ui, app),
             Tab::PuzzleInfo => puzzle_info::show(ui, app),
             Tab::KeybindsReference => keybinds_reference::show(ui, app),

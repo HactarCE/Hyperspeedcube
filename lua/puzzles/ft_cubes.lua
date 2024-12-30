@@ -4,6 +4,7 @@ local REALISITIC_PROPORTIONS = true
 local CORNER_STALK_SIZE = 0.1
 
 local function ft_cube_cut_depths(ndim, size)
+  assert(size > 1)
   if size == 2 then return {1, 0, -1} end
 
   local outermost_cut
@@ -17,6 +18,14 @@ local function ft_cube_cut_depths(ndim, size)
 end
 
 GIZMO_EDGE_FACTOR = 0.8
+
+puzzles:add{
+  id = 'funny',
+  ndim = 3,
+  build = function(self)
+    error()
+  end,
+}
 
 -- n^3
 puzzle_generators:add{
@@ -136,6 +145,15 @@ puzzle_generators:add{
         local shape = lib.symmetries.cubic.cube()
         self:carve(shape:iter_poles())
 
+        if size == 1 then
+          self:mark_piece{
+            region = REGION_ALL,
+            name = 'core',
+            display = "Core",
+          }
+          return
+        end
+
         -- Define axes and slices
         self.axes:add(shape:iter_poles(), ft_cube_cut_depths(3, size))
 
@@ -152,85 +170,77 @@ puzzle_generators:add{
         local F = self.axes.F
 
         -- Mark piece types
-        if size == 1 then
-          self:mark_piece{
-            region = REGION_ALL,
-            name = 'core',
-            display = "Core",
-          }
-        else
-          local U_adj = symmetry{self.twists.U}:orbit(R(1, precenter_layer)):union()
+        local U_adj = symmetry{self.twists.U}:orbit(R(1, precenter_layer)):union()
 
-          -- Centers
-          self:add_piece_type{ name = 'center', display = "Center" }
-          for i = 2, center_layer do
-            for j = 2, precenter_layer do
-              local name, display
-              if i == center_layer and size % 2 == 1 then
-                name, display = string.fmt2('center/t_%d', "T-center (%d)", j-1)
-              elseif i == j then
-                name, display = string.fmt2('center/x_%d', "X-center (%d)", i-1)
+        -- Centers
+        self:add_piece_type{ name = 'center', display = "Center" }
+        for i = 2, center_layer do
+          for j = 2, precenter_layer do
+            local name, display
+            if i == center_layer and size % 2 == 1 then
+              name, display = string.fmt2('center/t_%d', "T-center (%d)", j-1)
+            elseif i == j then
+              name, display = string.fmt2('center/x_%d', "X-center (%d)", i-1)
+            else
+              if i < j then
+                name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
+                self:add_piece_type{ name = name, display = display }
+                name = name .. "/left"
+                display = display .. " (left)"
               else
-                if i < j then
-                  name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
-                  self:add_piece_type{ name = name, display = display }
-                  name = name .. "/left"
-                  display = display .. " (left)"
-                else
-                  name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", j-1, i-1)
-                  name = name .. "/right"
-                  display = display .. " (right)"
-                end
+                name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", j-1, i-1)
+                name = name .. "/right"
+                display = display .. " (right)"
               end
-              self:mark_piece{
-                region = U(1) & R(i) & F(j),
-                name = name,
-                display = display,
-              }
             end
-          end
-
-          -- Edges
-          self:add_piece_type{ name = 'edge', display = "Edge" }
-          for i = 2, precenter_layer do
-            local name, display = string.fmt2('edge/wing_%d', "Wing (%d)", i-1)
             self:mark_piece{
-              region = U(1) & R(1) & F(i),
+              region = U(1) & R(i) & F(j),
               name = name,
               display = display,
             }
           end
-
-          -- Middle centers and edges
-          local middle_suffix = ''
-          local center_display, edge_display -- nil is ok here
-          if size > 3 then
-            middle_suffix = '/middle'
-            center_display = "Middle center"
-            edge_display = "Middle edge"
-          end
-
-          if size % 2 == 1 then
-            self:mark_piece{
-              region = U(1) & ~U_adj,
-              name = 'center' .. middle_suffix,
-              display = center_display,
-            }
-            self:mark_piece{
-              region = U(1) & F(1) & ~R(1, precenter_layer) & ~L(1, precenter_layer),
-              name = 'edge' .. middle_suffix,
-              display = edge_display,
-            }
-          end
-
-          self:mark_piece{
-            region = U(1) & F(1) & R(1),
-            name = 'corner',
-            display = "Corner",
-          }
-
-          self:unify_piece_types(sym.chiral)
         end
+
+        -- Edges
+        self:add_piece_type{ name = 'edge', display = "Edge" }
+        for i = 2, precenter_layer do
+          local name, display = string.fmt2('edge/wing_%d', "Wing (%d)", i-1)
+          self:mark_piece{
+            region = U(1) & R(1) & F(i),
+            name = name,
+            display = display,
+          }
+        end
+
+        -- Middle centers and edges
+        local middle_suffix = ''
+        local center_display, edge_display -- nil is ok here
+        if size > 3 then
+          middle_suffix = '/middle'
+          center_display = "Middle center"
+          edge_display = "Middle edge"
+        end
+
+        if size % 2 == 1 then
+          self:mark_piece{
+            region = U(1) & ~U_adj,
+            name = 'center' .. middle_suffix,
+            display = center_display,
+          }
+          self:mark_piece{
+            region = U(1) & F(1) & ~R(1, precenter_layer) & ~L(1, precenter_layer),
+            name = 'edge' .. middle_suffix,
+            display = edge_display,
+          }
+        end
+
+        self:mark_piece{
+          region = U(1) & F(1) & R(1),
+          name = 'corner',
+          display = "Corner",
+        }
+
+        self:unify_piece_types(sym.chiral)
       end,
     }
   end,
@@ -313,6 +323,15 @@ puzzle_generators:add{
         local sym = cd'bc4'
         local shape = lib.symmetries.hypercubic.hypercube()
         self:carve(shape:iter_poles())
+
+        if size == 1 then
+          self:mark_piece{
+            region = REGION_ALL,
+            name = 'core',
+            display = "Core",
+          }
+          return
+        end
 
         -- Define axes and slices
         self.axes:add(shape:iter_poles(), ft_cube_cut_depths(4, size))

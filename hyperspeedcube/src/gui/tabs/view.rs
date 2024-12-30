@@ -7,13 +7,13 @@ use crate::L;
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let id = unique_id!();
 
-    app.active_puzzle_view.with_opt(|p| {
-        if let Some(p) = p {
+    app.active_puzzle.with_opt_view(|view| {
+        if let Some(view) = view {
             let mut changed = false;
 
-            let prefs_set = PuzzleViewPreferencesSet::from_ndim(p.puzzle().ndim());
+            let prefs_set = PuzzleViewPreferencesSet::from_ndim(view.puzzle().ndim());
             let presets = app.prefs.view_presets_mut(prefs_set);
-            let current = &mut p.view.camera.view_preset;
+            let current = &mut view.camera.view_preset;
             let presets_ui = PresetsUi::new(id, presets, current, &mut changed);
             show_contents(ui, Some(prefs_set), presets_ui);
 

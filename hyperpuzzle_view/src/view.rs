@@ -4,6 +4,8 @@ use std::sync::Arc;
 use cgmath::{InnerSpace, SquareMatrix};
 use float_ord::FloatOrd;
 use hyperdraw::Camera;
+use hyperdraw::GraphicsState;
+use hyperdraw::PuzzleRenderer;
 use hypermath::pga::*;
 use hypermath::prelude::*;
 use hyperprefs::{
@@ -27,6 +29,9 @@ pub struct PuzzleView {
     /// Puzzle state. This is wrapped in an `Arc<Mutex<T>>` so that multiple
     /// puzzle views can access the same state.
     pub sim: Arc<Mutex<PuzzleSimulation>>,
+
+    /// Puzzle renderer.
+    pub renderer: PuzzleRenderer,
 
     /// Camera defining how to view the puzzle.
     pub camera: Camera,
@@ -63,9 +68,13 @@ pub struct PuzzleView {
     drag_state: Option<DragState>,
 }
 impl PuzzleView {
-    /// Constructs a new puzzle view.
-    pub fn new(puzzle_simulation: &Arc<Mutex<PuzzleSimulation>>, prefs: &mut Preferences) -> Self {
-        let puz = Arc::clone(puzzle_simulation.lock().puzzle_type());
+    /// Constructs a new puzzle view with an existing simulation.
+    pub fn new(
+        gfx: &Arc<GraphicsState>,
+        sim: &Arc<Mutex<PuzzleSimulation>>,
+        prefs: &mut Preferences,
+    ) -> Self {
+        let puz = Arc::clone(sim.lock().puzzle_type());
         let view_preset = prefs[PuzzleViewPreferencesSet::from_ndim(puz.ndim())]
             .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
         let colors = prefs
@@ -74,11 +83,13 @@ impl PuzzleView {
             .schemes
             .load_last_loaded(hyperprefs::DEFAULT_PRESET_NAME);
 
-        let simulation = puzzle_simulation.lock();
+        let simulation = sim.lock();
         let puzzle = simulation.puzzle_type();
 
         Self {
-            sim: Arc::clone(puzzle_simulation),
+            sim: Arc::clone(sim),
+
+            renderer: PuzzleRenderer::new(gfx, puzzle),
 
             camera: Camera {
                 view_preset,

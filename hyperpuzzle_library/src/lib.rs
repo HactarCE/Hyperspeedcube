@@ -22,10 +22,13 @@ pub static LUA_BUILTIN_DIR: include_dir::Dir<'_> = if hyperpaths::IS_OFFICIAL_BU
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources/lua")
 };
 
-pub fn load_built_in_puzzles() {
-    // TODO: load puzzle library async
-    let mut stack = vec![LUA_BUILTIN_DIR.clone()];
+/// Loads or reloads all puzzles.
+pub fn load_puzzles() {
     LIBRARY.with(|lib| {
+        lib.reset();
+
+        // Load built-in puzzles
+        let mut stack = vec![LUA_BUILTIN_DIR.clone()];
         while let Some(dir) = stack.pop() {
             for entry in dir.entries() {
                 match entry {
@@ -37,26 +40,25 @@ pub fn load_built_in_puzzles() {
                             let name = Library::relative_path_to_filename(file.path());
                             match file.contents_utf8() {
                                 Some(contents) => lib.add_file(name, None, contents.to_string()),
-                                None => {
-                                    log::error!("Error loading built-in file {name}");
-                                }
+                                None => log::error!("Error loading built-in file {name}"),
                             }
                         }
                     }
                 }
             }
         }
-    });
-}
 
-pub fn load_user_puzzles() {
-    let Ok(lua_dir) = hyperpaths::lua_dir() else {
-        log::error!("Error locating Lua directory");
-        return;
-    };
-    log::info!("Loading Lua files from path {}", lua_dir.to_string_lossy());
-    // TODO: load puzzle library async
-    LIBRARY.with(|lib| lib.load_directory(lua_dir).take_result_blocking());
+        // Load user puzzles
+        let Ok(lua_dir) = hyperpaths::lua_dir() else {
+            log::error!("Error locating Lua directory");
+            return;
+        };
+        log::info!("Reading Lua files from path {}", lua_dir.to_string_lossy());
+        lib.read_directory(lua_dir);
+        log::info!("Loading Lua files");
+        lib.load_files();
+        lib.wait();
+    });
 }
 
 lazy_static! {
@@ -79,14 +81,11 @@ fn verify_internal(solve: &Solve, check_solution: bool) -> Option<SolveVerificat
     let scramble = solve.scramble.clone()?;
     let scramble_params = scramble.params()?;
 
-    log::info!("building puzzle {}", solve.puzzle.id);
-    let puzzle = match LIBRARY
-        .with(|lib| lib.build_puzzle(&solve.puzzle.id))
-        .take_result_blocking()
-    {
+    log::info!("building puzzle {} for verification", solve.puzzle.id);
+    let puzzle = match LIBRARY.with(|lib| lib.build_puzzle_blocking(&solve.puzzle.id)) {
         Ok(p) => p,
-        Err(e) => {
-            log::error!("error building puzzle {}: {e}", solve.puzzle.id);
+        Err(()) => {
+            log::error!("error building puzzle {}", solve.puzzle.id);
             return None;
         }
     };
@@ -95,8 +94,8 @@ fn verify_internal(solve: &Solve, check_solution: bool) -> Option<SolveVerificat
         hyperpuzzle_log::notation::parse_twists(&puzzle.twist_by_name, &scramble.twists)
             .try_collect()
             .ok()?;
-    let (expected_scramble_twists, _puzzle_state) = puzzle.new_scrambled(scramble_params);
-    let is_scramble_correct = expected_scramble_twists == scramble_twists;
+    let expected_scrambled_puzzle = puzzle.new_scrambled(scramble_params); // TODO: this may be very slow
+    let is_scramble_correct = expected_scrambled_puzzle.twists == scramble_twists;
 
     let mut log = solve.log.iter();
 
@@ -223,8 +222,7 @@ solve {
     }
 }"#;
 
-        crate::load_built_in_puzzles();
-        crate::load_user_puzzles();
+        crate::load_puzzles();
         crate::LIBRARY.with(|lib| {
             lib.puzzles()
                 .iter()

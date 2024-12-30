@@ -73,7 +73,7 @@ fn build_all_puzzles() -> Result<(), String> {
 
         let (result, time) = time_it(
             format!("Building puzzle {} ({})", puzzle.display_name(), puzzle.id),
-            || lib.build_puzzle(&puzzle.id).take_result_blocking(),
+            || lib.build_puzzle_blocking(&puzzle.id),
         );
         match result {
             Ok(_) => {
@@ -109,8 +109,7 @@ fn build_all_puzzles() -> Result<(), String> {
 fn load_puzzle_library() -> Library {
     let lib = Library::new();
     time_it("Loading all puzzles", || {
-        lib.load_directory(Path::new("../lua"))
-            .take_result_blocking()
+        lib.read_directory(Path::new("../lua"))
     });
     lib
 }
@@ -119,7 +118,7 @@ fn load_puzzle_library() -> Library {
 fn build_7x7x7x7() {
     let lib = load_puzzle_library();
     let (result, time) = time_it("Building puzzle 7x7x7x7", || {
-        lib.build_puzzle("ft_hypercube:7").take_result_blocking()
+        lib.build_puzzle_blocking("ft_hypercube:7")
     });
     result.expect("failed to build puzzle");
     println!("Done in {time:?}");

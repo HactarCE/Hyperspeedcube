@@ -58,8 +58,8 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
         match state.current_tab {
             DevToolsTab::HoverInfo => app
-                .active_puzzle_view
-                .with(|p| show_hover_info(ui, p))
+                .active_puzzle
+                .with_view(|view| show_hover_info(ui, view))
                 .unwrap_or_else(|| {
                     ui.label("No active puzzle");
                 }),
@@ -71,18 +71,14 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
     egui_stored_state.set(Some(state));
 }
 
-fn show_hover_info(ui: &mut egui::Ui, p: &mut PuzzleWidget) {
+fn show_hover_info(ui: &mut egui::Ui, view: &mut PuzzleView) {
     let info_line = |ui: &mut egui::Ui, label: &str, text: &str| {
         md(ui, format!("{label} = {}", md_bold_user_text(text)))
     };
 
-    let puz = p.puzzle();
+    let puz = view.puzzle();
 
-    if let Some(hov) = p
-        .view
-        .puzzle_hover_state()
-        .filter(|_| p.view.show_puzzle_hover)
-    {
+    if let Some(hov) = view.puzzle_hover_state().filter(|_| view.show_puzzle_hover) {
         ui.strong(format!("Piece {}", hov.piece));
         let piece_info = &puz.pieces[hov.piece];
         info_line(ui, "Sticker count", &piece_info.stickers.len().to_string());
@@ -102,11 +98,7 @@ fn show_hover_info(ui: &mut egui::Ui, p: &mut PuzzleWidget) {
         }
     }
 
-    if let Some(hov) = p
-        .view
-        .gizmo_hover_state()
-        .filter(|_| p.view.show_gizmo_hover)
-    {
+    if let Some(hov) = view.gizmo_hover_state().filter(|_| view.show_gizmo_hover) {
         ui.strong(format!("Gizmo {}", hov.gizmo_face));
         info_line(ui, "Backface?", &hov.backface.to_string());
         info_line(ui, "Z", &format!("{:.3}", hov.z));
@@ -140,15 +132,15 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
     ui.with_layout(
         egui::Layout::top_down_justified(egui::Align::Center),
         |ui| {
-            if !app.active_puzzle_view.has_puzzle() {
+            if !app.active_puzzle.has_puzzle() {
                 ui.disable();
             }
 
             let r = &ui.button("Copy color system definition");
-            app.active_puzzle_view.with(|p| {
+            app.active_puzzle.with_view(|view| {
                 let text_to_copy = r
                     .clicked()
-                    .then(|| color_system_to_lua_code(&p.puzzle().colors, &app.prefs));
+                    .then(|| color_system_to_lua_code(&view.puzzle().colors, &app.prefs));
                 crate::gui::components::copy_on_click(ui, r, text_to_copy);
             });
 
@@ -156,8 +148,8 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
 
             if state.loaded_orbit.is_empty() {
                 ui.menu_button("Load orbit from current puzzle", |ui| {
-                    app.active_puzzle_view.with(|p| {
-                        let puz = p.puzzle();
+                    app.active_puzzle.with_view(|view| {
+                        let puz = view.puzzle();
                         for (i, orbit) in puz.dev_data.orbits.iter().enumerate() {
                             if ui
                                 .button(format!("#{} - {}", i + 1, orbit.description()))
@@ -212,9 +204,9 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
                                 Some(PuzzleElement::Axis(axis)) => {
                                     let r = ui.add(text_edit);
                                     if r.hovered() || r.has_focus() {
-                                        app.active_puzzle_view.with(|p| {
-                                            if Arc::ptr_eq(&p.puzzle(), &puz) {
-                                                p.view.temp_gizmo_highlight = Some(*axis);
+                                        app.active_puzzle.with_view(|view| {
+                                            if Arc::ptr_eq(&view.puzzle(), &puz) {
+                                                view.temp_gizmo_highlight = Some(*axis);
                                             }
                                         });
                                     }
@@ -222,13 +214,10 @@ fn show_lua_generator(ui: &mut egui::Ui, app: &mut App, state: &mut DevToolsStat
 
                                 Some(PuzzleElement::Color(color)) => {
                                     ui.horizontal(|ui| {
-                                        app.active_puzzle_view.with(|p| {
-                                            if Arc::ptr_eq(&p.puzzle(), &puz) {
+                                        app.active_puzzle.with_view(|view| {
+                                            if Arc::ptr_eq(&view.puzzle(), &puz) {
                                                 puzzle_color_edit_button(
-                                                    ui,
-                                                    &mut p.view,
-                                                    &app.prefs,
-                                                    *color,
+                                                    ui, view, &app.prefs, *color,
                                                 );
                                             }
                                         });

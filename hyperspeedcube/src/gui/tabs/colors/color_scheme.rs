@@ -10,38 +10,26 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
 
     let palette = &app.prefs.color_palette;
 
-    app.active_puzzle_view.with_opt(|p| {
-        if let Some(p) = p {
+    app.active_puzzle.with_opt_view(|view| {
+        if let Some(view) = view {
             let mut changed = false;
 
-            let color_system = &p.puzzle().colors;
+            let color_system = &view.puzzle().colors;
             let presets = &mut app.prefs.color_schemes.get_mut(color_system).schemes;
-            let current = &mut p.view.colors;
+            let current = &mut view.colors;
 
             // Ensure that the active color scheme is valid.
             changed |= palette
                 .ensure_color_scheme_is_valid_for_color_system(&mut current.value, color_system);
 
             let presets_ui = PresetsUi::new(id, presets, current, &mut changed);
-            show_contents(
-                ui,
-                palette,
-                color_system,
-                presets_ui,
-                &mut p.view.temp_colors,
-            );
+            show_contents(ui, palette, color_system, presets_ui, &mut view.temp_colors);
 
             app.prefs.needs_save |= changed;
         } else {
             ui.disable();
-
-            show_contents(
-                ui,
-                palette,
-                &ColorSystem::new_empty(),
-                dummy_presets_ui!(id),
-                &mut None,
-            );
+            let color_system = ColorSystem::new_empty();
+            show_contents(ui, palette, &color_system, dummy_presets_ui!(id), &mut None);
         }
     });
 }

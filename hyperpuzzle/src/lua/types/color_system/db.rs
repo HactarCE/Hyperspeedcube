@@ -12,12 +12,12 @@ impl LuaUserData for LuaColorSystemDb {
     }
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(LuaMetaMethod::Len, |lua, Self, ()| {
-            Ok(LibraryDb::get(lua)?.lock().color_systems.len())
+            Ok(LibraryDb::get(lua).lock().color_systems.len())
         });
 
         methods.add_method("add", |lua, Self, spec| {
             let color_system = super::from_lua_table(lua, spec)?;
-            LibraryDb::get(lua)?
+            LibraryDb::get(lua)
                 .lock()
                 .color_systems
                 .insert(color_system.id.clone(), Arc::new(color_system));

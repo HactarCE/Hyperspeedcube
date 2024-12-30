@@ -7,7 +7,7 @@ use hyperprefs::{
     PuzzleFilterPreferences,
 };
 use hyperpuzzle::{PerPieceType, PieceMask, PieceTypeHierarchy, Puzzle};
-use hyperpuzzle_view::PuzzleFiltersState;
+use hyperpuzzle_view::{PuzzleFiltersState, PuzzleView};
 use itertools::Itertools;
 
 use super::PuzzleWidget;
@@ -57,7 +57,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
             .auto_shrink(false)
             .show(ui, |ui| match tab {
                 FiltersTab::AdHoc => {
-                    app.active_puzzle_view.with(|p| p.view.filters.base = None);
+                    app.active_puzzle.with_view(|view| view.filters.base = None);
                     egui::ScrollArea::vertical()
                         .id_salt("current_filter")
                         .auto_shrink(false)
@@ -93,30 +93,30 @@ fn show_filter_presets_list_ui(ui: &mut egui::Ui, app: &mut App, allow_ad_hoc: b
 
     let fallback_style = app.prefs.first_custom_style();
 
-    app.active_puzzle_view.with_opt(|p| {
+    app.active_puzzle.with_opt_view(|view| {
         egui::ScrollArea::vertical()
             .id_salt("filter_presets_list")
             .show(ui, |ui| {
                 let ad_hoc_rect = allow_ad_hoc.then(|| reserve_space_for_ad_hoc_preset_name(ui));
 
-                if let Some(p) = p {
-                    let puz = p.puzzle();
+                if let Some(view) = view {
+                    let puz = view.puzzle();
                     let filter_prefs = app.prefs.filters_mut(&puz);
                     show_filter_presets_list_ui_contents(
                         ui,
                         Some(&puz),
                         filter_prefs,
-                        &mut p.view.filters,
+                        &mut view.filters,
                         &mut changed,
                         fallback_style,
                     );
                     if let Some(rect) = ad_hoc_rect {
-                        if show_ad_hoc_preset_name(ui, rect, &p.view.filters.base).clicked() {
-                            p.view.filters.load_preset(filter_prefs, None);
+                        if show_ad_hoc_preset_name(ui, rect, &view.filters.base).clicked() {
+                            view.filters.load_preset(filter_prefs, None);
                         }
                     }
                     if changed {
-                        p.view.filters.reload(filter_prefs);
+                        view.filters.reload(filter_prefs);
                     }
                 } else {
                     ui.disable();
@@ -587,9 +587,9 @@ fn show_preset_name(
 }
 
 fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
-    app.active_puzzle_view.with_opt(|p| {
-        if let Some(p) = p {
-            show_current_filter_preset_ui_contents(ui, &mut app.prefs, p);
+    app.active_puzzle.with_opt_view(|view| {
+        if let Some(view) = view {
+            show_current_filter_preset_ui_contents(ui, &mut app.prefs, view);
         } else {
             ui.label("No active puzzle");
         }
@@ -598,7 +598,7 @@ fn show_current_filter_preset_ui(ui: &mut egui::Ui, app: &mut App) {
 fn show_current_filter_preset_ui_contents(
     ui: &mut egui::Ui,
     prefs: &mut Preferences,
-    p: &mut PuzzleWidget,
+    view: &mut PuzzleView,
 ) {
     ui.set_min_width(CURRENT_PRESET_MIN_WIDTH);
 
@@ -607,16 +607,16 @@ fn show_current_filter_preset_ui_contents(
         style_options.push((Some(style.new_ref()), style.name().to_owned().into()));
     }
 
-    let puz = p.puzzle();
+    let puz = view.puzzle();
     let filter_prefs = prefs.filters_mut(&puz);
 
-    if let Some(preset_ref) = &p.view.filters.base {
+    if let Some(preset_ref) = &view.filters.base {
         if !filter_prefs.has_preset(&preset_ref.name()) {
-            p.view.filters.base = None;
+            view.filters.base = None;
         }
     }
 
-    let preset_name = p.view.filters.base.as_ref().map(|r| r.to_string());
+    let preset_name = view.filters.base.as_ref().map(|r| r.to_string());
 
     ui.add(PresetHeaderUi::<()> {
         text: &L.presets.piece_filters,
@@ -629,7 +629,7 @@ fn show_current_filter_preset_ui_contents(
         save_preset: &mut false,
     });
 
-    let puz = p.puzzle();
+    let puz = view.puzzle();
 
     let mut changed = false;
     let mut changed_include_previous = false;
@@ -638,8 +638,8 @@ fn show_current_filter_preset_ui_contents(
         .auto_shrink(false)
         .id_salt("filter_preset_rules")
         .show(ui, |ui| {
-            let active_rules = &mut p.view.filters.active_rules;
-            let current = &mut p.view.filters.current;
+            let active_rules = &mut view.filters.active_rules;
+            let current = &mut view.filters.current;
 
             active_rules.resize(current.inner.rules.len(), true);
 
@@ -716,7 +716,7 @@ fn show_current_filter_preset_ui_contents(
                                             ui,
                                             checkboxes,
                                             &puz,
-                                            &p.view.colors.value,
+                                            &view.colors.value,
                                             prefs,
                                             &mut changed,
                                         );
@@ -759,12 +759,7 @@ fn show_current_filter_preset_ui_contents(
 
             ui.separator();
 
-            if p.view
-                .filters
-                .base
-                .as_ref()
-                .is_some_and(|r| r.seq.is_some())
-            {
+            if view.filters.base.as_ref().is_some_and(|r| r.seq.is_some()) {
                 let r = ui.checkbox(
                     &mut current.include_previous,
                     L.piece_filters.show_remaining_pieces_with_previous_filter,
@@ -798,19 +793,18 @@ fn show_current_filter_preset_ui_contents(
         });
 
     if changed {
-        p.view.filters.mark_changed();
+        view.filters.mark_changed();
 
         let filter_prefs = prefs.filters_mut(&puz);
-        if let Some(preset_ref) = &p.view.filters.base {
-            filter_prefs.save_preset(&preset_ref.name(), p.view.filters.current.clone());
+        if let Some(preset_ref) = &view.filters.base {
+            filter_prefs.save_preset(&preset_ref.name(), view.filters.current.clone());
             prefs.needs_save = true;
         }
     }
 
     if changed_include_previous {
         // Update fallback *after* saving changes to preferences.
-        p.view
-            .filters
+        view.filters
             .update_combined_fallback_preset(prefs.filters_mut(&puz));
     }
 }

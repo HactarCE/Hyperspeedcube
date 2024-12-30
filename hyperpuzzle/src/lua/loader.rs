@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use eyre::Result;
 use itertools::Itertools;
 use mlua::prelude::*;
 use parking_lot::Mutex;
@@ -68,10 +67,8 @@ impl LuaLoader {
     }
 
     /// Clears the library and loads all files.
-    pub fn reload_all_files(&self) {
+    pub fn load_all_files(&self) {
         let mut db = self.db.lock();
-
-        db.clear_objects();
 
         for dirname in db.directories.iter().cloned().collect_vec() {
             db.files
@@ -93,19 +90,13 @@ impl LuaLoader {
 
     /// Builds a puzzle, or returns a cached puzzle if it has already been
     /// built.
-    pub fn build_puzzle(&self, id: &str) -> Result<Arc<crate::Puzzle>> {
-        let result = LibraryDb::build_puzzle(&self.lua, id);
-        if let Err(e) = &result {
-            let filename = LibraryDb::get(&self.lua)
-                .ok()
-                .and_then(|lib| Some(lib.lock().puzzles.get(id)?.tags.filename().to_owned()));
-            self.logger.error(filename, e);
-        }
-        result
+    pub fn build_puzzle(&self, id: &str) {
+        LibraryDb::build_puzzle(&self.lua, &self.logger, id);
     }
     /// Loads a file if it has not yet been loaded. If loading fails, an error
     /// is reported to the Lua console.
     fn try_load_file(&self, filename: &str) {
+        // TODO: simplify this; just load all files at once
         let name = filename.strip_suffix(".lua").unwrap_or(filename);
         if let Err(e) = self.load_file(name.to_string()) {
             self.logger.error(

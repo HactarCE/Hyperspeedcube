@@ -1,12 +1,15 @@
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 
 use egui::mutex::RwLock;
-use eyre::Result;
+use eyre::{bail, OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
 use hyperprefs::{AnimationPreferences, Preferences, PuzzleViewPreferencesSet};
-use hyperpuzzle::{GizmoFace, LayerMask, Puzzle};
+use hyperpuzzle::{
+    GizmoFace, LayerMask, Puzzle, PuzzleBuildStatus, PuzzleResult, ScrambleProgress,
+};
+use hyperpuzzle_log::Solve;
 use hyperpuzzle_view::{DragState, HoverMode, PuzzleSimulation, PuzzleView, PuzzleViewInput};
 use image::ImageBuffer;
 use parking_lot::Mutex;
@@ -22,29 +25,26 @@ use crate::L;
 /// even when not necessary.
 const SEND_CURSOR_POS: bool = false;
 
-pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>) {
-    let r;
-    let mut puzzle_view_guard = puzzle_view.lock();
-    match &mut *puzzle_view_guard {
-        Some(puzzle_view) => {
-            r = puzzle_view.ui(ui, &mut app.prefs, &app.animation_prefs.value);
-            drop(puzzle_view_guard);
-        }
-        None => {
-            drop(puzzle_view_guard);
-            r = show_puzzle_load_hint(ui, app, puzzle_view);
-        }
+pub fn show(ui: &mut egui::Ui, app: &mut App, puzzle_widget: &Arc<Mutex<PuzzleWidget>>) {
+    let (r, changed);
+    {
+        let mut puzzle_widget_guard = puzzle_widget.lock();
+        r = ui
+            .scope(|ui| puzzle_widget_guard.ui(ui, &mut app.prefs, &app.animation_prefs.value))
+            .response;
+        changed = std::mem::take(&mut puzzle_widget_guard.puzzle_changed);
     }
 
-    if r.gained_focus() {
-        app.set_active_puzzle_view(puzzle_view);
+    if changed {
+        app.notify_active_puzzle_changed();
     }
 }
 
+// TODO: refactor this
 fn show_puzzle_load_hint(
     ui: &mut egui::Ui,
-    app: &mut App,
-    puzzle_view: &Arc<Mutex<Option<PuzzleWidget>>>,
+    puzzle_widget: &mut PuzzleWidget,
+    prefs: &mut Preferences,
 ) -> egui::Response {
     show_centered_with_sizing_pass(ui, true, true, |ui| {
         ui.spacing_mut().button_padding *= 4.0;
@@ -53,10 +53,10 @@ fn show_puzzle_load_hint(
         show_centered_with_sizing_pass(ui, true, false, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("3D Rubik's Cube").clicked() {
-                    app.load_puzzle("ft_cube:3");
+                    puzzle_widget.load_puzzle("ft_cube:3", prefs);
                 }
                 if ui.button("4D Rubik's Cube").clicked() {
-                    app.load_puzzle("ft_hypercube:3");
+                    puzzle_widget.load_puzzle("ft_hypercube:3", prefs);
                 }
             });
         });
@@ -102,16 +102,19 @@ fn show_centered_with_sizing_pass<R>(
 }
 
 pub struct PuzzleWidget {
-    /// View into a puzzle simulation.
-    pub view: PuzzleView,
+    /// ID of the puzzle that was requested (which might not be the puzzle that
+    /// is currently loaded).
+    puzzle_id: Option<String>,
+    contents: PuzzleWidgetContents,
 
-    renderer: PuzzleRenderer,
+    gfx: Arc<GraphicsState>,
     egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
     egui_texture_id: Option<egui::TextureId>,
 
     queued_arrows: Vec<[Vector; 2]>,
 
     pub wants_focus: bool,
+    pub puzzle_changed: bool,
 }
 impl Drop for PuzzleWidget {
     fn drop(&mut self) {
@@ -123,7 +126,8 @@ impl Drop for PuzzleWidget {
 impl fmt::Debug for PuzzleWidget {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PuzzleWidget")
-            .field("view", &self.view)
+            .field("puzzle_id", &self.puzzle_id)
+            .field("contents", &self.contents)
             .field("egui_texture_id", &self.egui_texture_id)
             .field("queued_arrows", &self.queued_arrows)
             .field("wants_focus", &self.wants_focus)
@@ -134,75 +138,133 @@ impl PuzzleWidget {
     pub(crate) fn new(
         gfx: &Arc<GraphicsState>,
         egui_wgpu_renderer: &Arc<RwLock<eframe::egui_wgpu::Renderer>>,
-        prefs: &mut Preferences,
-        puzzle_id: &str,
-    ) -> Option<Self> {
-        let start_time = Instant::now();
-        let result = hyperpuzzle_library::LIBRARY
-            .with(|lib| lib.build_puzzle(puzzle_id))
-            .take_result_blocking();
-        match result {
-            Err(e) => {
-                log::error!("{e:?}");
-                None
-            }
-            Ok(p) => {
-                log::info!("Built {:?} in {:?}", p.name, start_time.elapsed());
-                log::info!("Updated active puzzle");
-                let sim = Arc::new(Mutex::new(PuzzleSimulation::new(&p)));
-                Some(Self::with_sim(gfx, egui_wgpu_renderer, &sim, prefs))
-            }
-        }
+    ) -> Self {
+        Self::with_contents(
+            gfx,
+            &egui_wgpu_renderer,
+            None,
+            PuzzleWidgetContents::NoPuzzle,
+        )
     }
-    pub(crate) fn with_sim(
+    fn with_contents(
         gfx: &Arc<GraphicsState>,
         egui_wgpu_renderer: &Arc<RwLock<eframe::egui_wgpu::Renderer>>,
-        sim: &Arc<Mutex<PuzzleSimulation>>,
-        prefs: &mut Preferences,
+        puzzle_id: Option<String>,
+        contents: PuzzleWidgetContents,
     ) -> Self {
-        let view = PuzzleView::new(sim, prefs);
-        let puzzle = view.puzzle();
-        let renderer = PuzzleRenderer::new(gfx, &puzzle);
         Self {
-            view,
+            puzzle_id,
+            contents,
 
-            renderer,
+            gfx: Arc::clone(gfx),
             egui_wgpu_renderer: Arc::clone(egui_wgpu_renderer),
             egui_texture_id: None,
 
             queued_arrows: vec![],
 
             wants_focus: false,
+            puzzle_changed: true,
         }
     }
 
+    pub(crate) fn load_puzzle(&mut self, puzzle_id: &str, prefs: &mut Preferences) {
+        self.load(puzzle_id, None, prefs);
+    }
+    pub(crate) fn load_solve(&mut self, solve: Arc<Solve>, prefs: &mut Preferences) {
+        let id = solve.puzzle.id.clone();
+        self.load(&id, Some(solve), prefs);
+    }
+    fn load(&mut self, puzzle_id: &str, solve: Option<Arc<Solve>>, prefs: &mut Preferences) {
+        // TODO: notify app that puzzle view updated
+        self.puzzle_id = Some(puzzle_id.to_string());
+        let t = web_time::Instant::now();
+        match hyperpuzzle_library::LIBRARY.with(|lib| lib.build_puzzle(puzzle_id)) {
+            PuzzleResult::Ok(puzzle) => match solve {
+                Some(solve) => {
+                    let (tx, rx) = mpsc::sync_channel(0);
+                    std::thread::spawn(move || {
+                        tx.send(Ok(PuzzleSimulation::deserialize(&puzzle, &solve)))
+                    });
+                    self.contents = PuzzleWidgetContents::LoadingFile { rx };
+                }
+                None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(&puzzle))), prefs),
+            },
+            PuzzleResult::Building { waiter, status } => {
+                self.contents = PuzzleWidgetContents::BuildingPuzzle {
+                    status,
+                    solve_to_load: None,
+                };
+            }
+            PuzzleResult::Err => {
+                if self.puzzle_id.as_deref() != Some(puzzle_id) {
+                    let gfx = &self.gfx;
+                    let sim = Arc::new(Mutex::new(PuzzleSimulation::new(
+                        &hyperpuzzle::PLACEHOLDER_PUZZLE,
+                    )));
+                    self.contents = PuzzleWidgetContents::Error(PuzzleView::new(gfx, &sim, prefs));
+                    self.puzzle_changed = true;
+                }
+            }
+        }
+    }
+    fn set_sim(&mut self, sim: &Arc<Mutex<PuzzleSimulation>>, prefs: &mut Preferences) {
+        self.contents = PuzzleWidgetContents::Puzzle(PuzzleView::new(&self.gfx, &sim, prefs));
+        self.puzzle_changed = true;
+    }
+
+    pub(crate) fn title(&self) -> String {
+        let puzzle_id = self.puzzle_id.as_deref().unwrap_or("<unknown>");
+        match &self.contents {
+            PuzzleWidgetContents::NoPuzzle => L.tabs.titles.puzzle.empty.to_string(),
+            PuzzleWidgetContents::Puzzle(puzzle_view) => puzzle_view.puzzle().name.clone(),
+            PuzzleWidgetContents::BuildingPuzzle { .. }
+            | PuzzleWidgetContents::LoadingFile { .. } => {
+                L.tabs.titles.puzzle.loading.with(puzzle_id)
+            }
+            PuzzleWidgetContents::Error(puzzle_view) => L.tabs.titles.puzzle.error.with(puzzle_id),
+        }
+    }
+
+    pub fn view(&self) -> Option<&PuzzleView> {
+        match &self.contents {
+            PuzzleWidgetContents::NoPuzzle => None,
+            PuzzleWidgetContents::Puzzle(puzzle_view) => Some(puzzle_view),
+            PuzzleWidgetContents::BuildingPuzzle { .. } => None,
+            PuzzleWidgetContents::LoadingFile { .. } => None,
+            PuzzleWidgetContents::Error(puzzle_view) => None, // don't accept input
+        }
+    }
+    pub fn view_mut(&mut self) -> Option<&mut PuzzleView> {
+        match &mut self.contents {
+            PuzzleWidgetContents::NoPuzzle => None,
+            PuzzleWidgetContents::Puzzle(puzzle_view) => Some(puzzle_view),
+            PuzzleWidgetContents::BuildingPuzzle { .. } => None,
+            PuzzleWidgetContents::LoadingFile { .. } => None,
+            PuzzleWidgetContents::Error(puzzle_view) => None, // don't accept input
+        }
+    }
     /// Returns the puzzle simulation.
-    pub fn sim(&self) -> &Arc<Mutex<PuzzleSimulation>> {
-        &self.view.sim
+    pub fn sim(&self) -> Option<Arc<Mutex<PuzzleSimulation>>> {
+        Some(Arc::clone(&self.view()?.sim))
     }
     /// Returns the puzzle type.
-    pub fn puzzle(&self) -> Arc<Puzzle> {
-        Arc::clone(self.sim().lock().puzzle_type())
+    pub fn puzzle(&self) -> Option<Arc<Puzzle>> {
+        Some(self.view()?.puzzle())
     }
 
-    /// Reloads the active puzzle. Returns `true` if the reload was successful.
-    pub fn reload(&mut self, prefs: &mut Preferences) -> bool {
-        hyperpuzzle_library::load_user_puzzles();
-        let current_puzzle = self.puzzle();
-        if let Some(mut new_puzzle_view) = Self::new(
-            &self.renderer.gfx,
-            &self.egui_wgpu_renderer,
-            prefs,
-            &current_puzzle.id,
-        ) {
-            // Copy view and color settings from the current puzzle view.
-            new_puzzle_view.view.camera.view_preset = self.view.camera.view_preset.clone();
-            new_puzzle_view.view.colors = self.view.colors.clone();
-
-            *self = new_puzzle_view;
-            true
-        } else {
-            false
+    /// Reloads all files and the current puzzle.
+    pub fn reload(&mut self, prefs: &mut Preferences) {
+        // TODO: keybind should be global, not just in puzzle view
+        hyperpuzzle_library::load_puzzles();
+        if let Some(id) = self.puzzle_id.take() {
+            self.load_puzzle(&id, prefs);
+        }
+    }
+    /// Clears any error state and reloads a puzzle.
+    fn reload_current_puzzle(&mut self, prefs: &mut Preferences) {
+        match self.puzzle_id.clone() {
+            Some(id) => self.load_puzzle(&id, prefs),
+            None => self.contents = PuzzleWidgetContents::NoPuzzle,
         }
     }
 
@@ -212,49 +274,100 @@ impl PuzzleWidget {
         ui: &mut egui::Ui,
         prefs: &mut Preferences,
         animation: &AnimationPreferences,
-    ) -> egui::Response {
-        let puzzle = self.puzzle();
+    ) {
+        match &self.contents {
+            PuzzleWidgetContents::BuildingPuzzle { solve_to_load, .. } => {
+                if let Some(puzzle_id) = self.puzzle_id.clone() {
+                    self.load(&puzzle_id, solve_to_load.clone(), prefs);
+                    ui.ctx().request_repaint_after_secs(0.2); // try again soon
+                }
+            }
+            PuzzleWidgetContents::LoadingFile { rx } => match rx.try_recv() {
+                Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
+                Err(mpsc::TryRecvError::Empty) => (), // keep waiting
+                Ok(Err(e)) => {
+                    // TODO: report error
+                    self.reload_current_puzzle(prefs);
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    // TODO: report error
+                    self.reload_current_puzzle(prefs);
+                }
+            },
+            _ => (),
+        }
+
+        let rect = ui.available_rect_before_wrap();
+        if let Some(scramble_progress) = self.sim().and_then(|sim| sim.lock().scramble_progress()) {
+            ui.scope(|ui| {
+                ui.multiply_opacity(0.5);
+                self.show_puzzle_view(ui, prefs, animation)
+            });
+            let (done, total) = scramble_progress.fraction();
+            ui.put(rect, egui::Label::new(format!("SCRAMBLING {done}/{total}")));
+            ui.ctx().request_repaint();
+        } else {
+            self.show_puzzle_view(ui, prefs, animation);
+        }
+        match &mut self.contents {
+            PuzzleWidgetContents::NoPuzzle => {
+                show_puzzle_load_hint(ui, self, prefs);
+            }
+            PuzzleWidgetContents::Puzzle(_puzzle_view) => (), // already done!
+            PuzzleWidgetContents::BuildingPuzzle { status, .. } => {
+                ui.put(rect, egui::Label::new("CONSTRUCTING PUZZLE"));
+            }
+            PuzzleWidgetContents::LoadingFile { .. } => {
+                ui.put(rect, egui::Label::new("LOADING FILE"));
+            }
+            PuzzleWidgetContents::Error(_puzzle_view) => (),
+        }
+    }
+
+    fn show_puzzle_view(
+        &mut self,
+        ui: &mut egui::Ui,
+        prefs: &mut Preferences,
+        animation: &AnimationPreferences,
+    ) {
+        let Some(view) = self.contents.as_view_mut() else {
+            return;
+        };
+        let puzzle = view.puzzle();
 
         // Allocate space in the UI.
         let (egui_rect, target_size) = crate::gui::util::rounded_pixel_rect(
             ui,
             ui.available_rect_before_wrap(),
-            self.view.camera.prefs().downscale_rate,
+            view.camera.prefs().downscale_rate,
         );
         let r = ui.allocate_rect(egui_rect, egui::Sense::click_and_drag());
-
-        // Request focus on click.
-        if r.is_pointer_button_down_on() {
-            r.request_focus();
-            self.wants_focus = true;
-        }
 
         // egui reports `r.dragged()` whenever the mouse is held, even if it
         // didn't move, so we manually keep track of whether the mouse has
         // moved.
-        if r.drag_delta() != egui::Vec2::ZERO && self.view.drag_state().is_none() {
+        if r.drag_delta() != egui::Vec2::ZERO && view.drag_state().is_none() {
             let is_primary = ui.input(|input| input.pointer.primary_down());
             let puzzle_supports_drag_twists = puzzle.ndim() == 3;
-            if is_primary && puzzle_supports_drag_twists && self.view.puzzle_hover_state().is_some()
-            {
-                self.view.set_drag_state(DragState::PreTwist);
+            if is_primary && puzzle_supports_drag_twists && view.puzzle_hover_state().is_some() {
+                view.set_drag_state(DragState::PreTwist);
             } else {
-                self.view.set_drag_state(DragState::ViewRot { z_axis: 2 });
+                view.set_drag_state(DragState::ViewRot { z_axis: 2 });
             }
         }
         // Confirm drag on mouse button release.
         if !r.dragged() {
-            self.view.confirm_drag();
+            view.confirm_drag();
         }
         // Cancel drag on ESC key press.
         if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
-            self.view.cancel_drag();
+            view.cancel_drag();
         }
 
         let modifiers = ui.input(|input| input.modifiers);
 
         // Change which axis we're rotating depending on modifiers.
-        if matches!(self.view.drag_state(), Some(DragState::ViewRot { .. })) {
+        if matches!(view.drag_state(), Some(DragState::ViewRot { .. })) {
             let mut z_axis = 2;
             if modifiers.shift {
                 z_axis += 1;
@@ -265,7 +378,7 @@ impl PuzzleWidget {
             if modifiers.ctrl {
                 z_axis += 4;
             }
-            self.view.set_drag_state(DragState::ViewRot { z_axis });
+            view.set_drag_state(DragState::ViewRot { z_axis });
         }
 
         let exceeded_twist_drag_threshold = ui
@@ -286,39 +399,39 @@ impl PuzzleWidget {
                 let mut ndc = (egui_pos - r.rect.center()) * 2.0 / r.rect.size();
                 ndc.y = -ndc.y;
                 // Convert to screen space.
-                let s = self.view.camera.xy_scale().ok()?;
+                let s = view.camera.xy_scale().ok()?;
                 Some(cgmath::point2(ndc.x / s.x, ndc.y / s.y))
             })();
 
-            if self.view.drag_state().is_none() {
+            if view.drag_state().is_none() {
                 // Adjust camera zoom using scroll wheel.
-                let cam = &mut self.view.camera;
+                let cam = &mut view.camera;
                 cam.zoom *= (scroll_delta.y / 500.0).exp2();
                 cam.zoom = cam.zoom.clamp(2.0_f32.powf(-6.0), 2.0_f32.powf(8.0));
             }
         }
 
-        if r.has_focus() && ui.input(|input| input.key_pressed(egui::Key::F5)) && self.reload(prefs)
-        {
-            // Don't even try to redraw the puzzle. Just wait for the
-            // next frame.
-            return r;
+        if r.has_focus() && ui.input(|input| input.key_pressed(egui::Key::F5)) {
+            self.reload(prefs);
+            // Don't even try to redraw the puzzle. Just wait for the next
+            // frame.
+            return;
         }
 
         // Redraw each frame until the image is stable and we have computed 3D
         // vertex positions.
-        if self.renderer.puzzle_vertex_3d_positions.get().is_none()
-            || self.renderer.gizmo_vertex_3d_positions.get().is_none()
+        if view.renderer.puzzle_vertex_3d_positions.get().is_none()
+            || view.renderer.gizmo_vertex_3d_positions.get().is_none()
         {
             ui.ctx().request_repaint();
         }
 
-        self.view.update(
+        view.update(
             PuzzleViewInput {
                 cursor_pos,
                 target_size,
-                puzzle_vertex_3d_positions: self.renderer.puzzle_vertex_3d_positions.get(),
-                gizmo_vertex_3d_positions: self.renderer.gizmo_vertex_3d_positions.get(),
+                puzzle_vertex_3d_positions: view.renderer.puzzle_vertex_3d_positions.get(),
+                gizmo_vertex_3d_positions: view.renderer.gizmo_vertex_3d_positions.get(),
                 exceeded_twist_drag_threshold,
                 hover_mode: match ui.input(|input| input.modifiers.shift) {
                     true => Some(HoverMode::Piece),
@@ -354,17 +467,17 @@ impl PuzzleWidget {
             layers = LayerMask::default();
         }
         if r.clicked() && modifiers.is_none() {
-            self.view.do_click_twist(layers, Sign::Neg);
+            view.do_click_twist(layers, Sign::Neg);
         }
         if r.secondary_clicked() && modifiers.is_none() {
-            self.view.do_click_twist(layers, Sign::Pos);
+            view.do_click_twist(layers, Sign::Pos);
         }
 
         // Ctrl+shift+click = edit sticker color
         let editing_color = EguiTempValue::new(ui);
         let mut is_first_frame = false;
         if r.secondary_clicked() && modifiers.command && modifiers.shift && !modifiers.alt {
-            if let Some(hov) = self.view.puzzle_hover_state() {
+            if let Some(hov) = view.puzzle_hover_state() {
                 if let Some(sticker) = hov.sticker {
                     ui.memory_mut(|mem| mem.open_popup(editing_color.id));
                     editing_color.set(Some(puzzle.stickers[sticker].color));
@@ -382,12 +495,7 @@ impl PuzzleWidget {
             }
             let area_response = area.show(ui.ctx(), |ui| {
                 egui::Frame::menu(ui.style()).show(ui, |ui| {
-                    color_assignment_popup(
-                        ui,
-                        &mut self.view,
-                        &prefs.color_palette,
-                        editing_color.get(),
-                    );
+                    color_assignment_popup(ui, view, &prefs.color_palette, editing_color.get());
                 });
             });
 
@@ -409,16 +517,9 @@ impl PuzzleWidget {
         // modified.
         let _ = prefs
             .color_palette
-            .ensure_color_scheme_is_valid_for_color_system(
-                &mut self.view.colors.value,
-                &puzzle.colors,
-            );
+            .ensure_color_scheme_is_valid_for_color_system(&mut view.colors.value, &puzzle.colors);
 
-        let color_map = self
-            .view
-            .temp_colors
-            .as_ref()
-            .unwrap_or(&self.view.colors.value);
+        let color_map = view.temp_colors.as_ref().unwrap_or(&view.colors.value);
         let sticker_colors = puzzle
             .colors
             .list
@@ -426,24 +527,28 @@ impl PuzzleWidget {
             .map(|color_info| prefs.color_palette.get(color_map.get(&color_info.name)?))
             .map(|maybe_rgb| maybe_rgb.unwrap_or_default().rgb)
             .collect();
-        self.view.temp_colors = None; // Remove temporary colors
+        view.temp_colors = None; // Remove temporary colors
 
         let draw_params = DrawParams {
             ndim: puzzle.ndim(),
-            cam: self.view.camera.clone(),
+            cam: view.camera.clone(),
 
             cursor_pos: cursor_pos.filter(|_| SEND_CURSOR_POS),
-            is_dragging_view: match self.view.drag_state() {
+            is_dragging_view: match view.drag_state() {
                 Some(DragState::ViewRot { .. }) => true,
                 Some(DragState::Canceled | DragState::PreTwist | DragState::Twist) | None => false,
             },
 
             internals_color: prefs.styles.internals_color.rgb,
             sticker_colors,
-            piece_styles: self.view.styles.values(prefs),
-            piece_transforms: self.view.sim.lock().piece_transforms().map_ref(
-                |_piece, transform| transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim()),
-            ),
+            piece_styles: view.styles.values(prefs),
+            piece_transforms: view
+                .sim
+                .lock()
+                .piece_transforms()
+                .map_ref(|_piece, transform| {
+                    transform.euclidean_rotation_matrix().at_ndim(puzzle.ndim())
+                }),
         };
 
         // Draw puzzle.
@@ -456,11 +561,15 @@ impl PuzzleWidget {
             Ok(texture_id) => egui::Image::new((texture_id, r.rect.size())).paint_at(ui, r.rect),
             Err(e) => log::error!("{e}"),
         }
+        // Reborrow after calling `self.update_puzzle_texture()` method.
+        let Some(view) = self.contents.as_view_mut() else {
+            return;
+        };
 
-        self.queued_arrows.extend(self.view.drag_delta_3d());
+        self.queued_arrows.extend(view.drag_delta_3d());
 
         let project_point = |p: &Vector| {
-            let ndc = self.view.camera.project_point_to_ndc(p)?;
+            let ndc = view.camera.project_point_to_ndc(p)?;
             let egui_pos = egui::vec2(ndc.x * 0.5 + 0.5, ndc.y * -0.5 + 0.5);
             Some(r.rect.lerp_inside(egui_pos))
         };
@@ -483,8 +592,7 @@ impl PuzzleWidget {
         }
 
         let to_egui = |screen_space: cgmath::Vector4<f32>| {
-            let ndc = self
-                .view
+            let ndc = view
                 .camera
                 .project_3d_screen_space_to_ndc(screen_space)
                 .unwrap_or(cgmath::Point2::new(f32::NAN, f32::NAN));
@@ -493,8 +601,8 @@ impl PuzzleWidget {
         };
 
         // Draw gizmos (TODO: move to GPU?)
-        if let Some(gizmo_vertex_3d_positions) = self.renderer.gizmo_vertex_3d_positions.get() {
-            if let Some(axis) = self.view.temp_gizmo_highlight.take() {
+        if let Some(gizmo_vertex_3d_positions) = view.renderer.gizmo_vertex_3d_positions.get() {
+            if let Some(axis) = view.temp_gizmo_highlight.take() {
                 for (gizmo_face, &twist) in &puzzle.gizmo_twists {
                     if puzzle.twists[twist].axis == axis {
                         show_gizmo_face(
@@ -507,11 +615,7 @@ impl PuzzleWidget {
                         );
                     }
                 }
-            } else if let Some(hover) = self
-                .view
-                .gizmo_hover_state()
-                .filter(|_| self.view.show_gizmo_hover)
-            {
+            } else if let Some(hover) = view.gizmo_hover_state().filter(|_| view.show_gizmo_hover) {
                 show_gizmo_face(
                     &puzzle,
                     hover.gizmo_face,
@@ -528,7 +632,7 @@ impl PuzzleWidget {
             .anchor(egui::Align2::LEFT_BOTTOM, egui::Vec2::ZERO)
             .show(ui.ctx(), |ui| {
                 ui.set_width(egui_rect.width());
-                ui.label(format!("Solved: {}", self.sim().lock().is_solved()));
+                ui.label(format!("Solved: {}", view.sim.lock().is_solved()));
             });
 
         // TODO: draw debug plane??
@@ -560,11 +664,21 @@ impl PuzzleWidget {
         //     Some(())
         // })();
 
-        r
+        // Request focus on click.
+        if r.is_pointer_button_down_on() {
+            r.request_focus(); // TODO: what does this do
+            self.wants_focus = true;
+        }
     }
 
     fn update_puzzle_texture(&mut self, draw_params: &DrawParams) -> Result<egui::TextureId> {
-        let output_texture = &self.renderer.draw_puzzle(draw_params)?.texture;
+        let renderer = &mut self
+            .contents
+            .as_view_mut()
+            .ok_or_eyre("no puzzle view")?
+            .renderer;
+
+        let output_texture = &renderer.draw_puzzle(draw_params)?.texture;
 
         // egui expects sRGB colors in the shader, so we have to read the
         // sRGB texture as though it were linear to prevent the GPU from
@@ -574,13 +688,13 @@ impl PuzzleWidget {
             ..Default::default()
         });
         let mut egui_wgpu_renderer = self.egui_wgpu_renderer.write();
-        let gfx = &self.renderer.gfx;
+        let gfx = &renderer.gfx;
         match self.egui_texture_id {
             Some(egui_texture_id) => {
                 egui_wgpu_renderer.update_egui_texture_from_wgpu_texture(
                     &gfx.device,
                     &texture_view,
-                    self.renderer.filter_mode,
+                    renderer.filter_mode,
                     egui_texture_id,
                 );
                 Ok(egui_texture_id)
@@ -589,20 +703,12 @@ impl PuzzleWidget {
                 let egui_texture_id = egui_wgpu_renderer.register_native_texture(
                     &gfx.device,
                     &texture_view,
-                    self.renderer.filter_mode,
+                    renderer.filter_mode,
                 );
                 self.egui_texture_id = Some(egui_texture_id);
                 Ok(egui_texture_id)
             }
         }
-    }
-
-    pub fn screenshot(
-        &mut self,
-        width: u32,
-        height: u32,
-    ) -> Result<ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
-        self.renderer.screenshot(width, height)
     }
 }
 
@@ -652,5 +758,44 @@ fn show_gizmo_face(
         let edge =
             puzzle.mesh.edges[edge_id as usize].map(|i| gizmo_vertex_3d_positions[i as usize]);
         painter.line_segment(edge.map(&project_to_egui), stroke_strong);
+    }
+}
+
+#[derive(Debug, Default)]
+pub enum PuzzleWidgetContents {
+    /// No puzzle has been selected.
+    #[default]
+    NoPuzzle,
+    /// Ordinary puzzle view.
+    Puzzle(PuzzleView),
+    /// Waiting for a puzzle to build.
+    BuildingPuzzle {
+        status: Option<PuzzleBuildStatus>,
+        solve_to_load: Option<Arc<Solve>>,
+    },
+    LoadingFile {
+        rx: mpsc::Receiver<Result<PuzzleSimulation, ()>>,
+    },
+    /// Error containing a placeholder puzzle view.
+    Error(PuzzleView),
+}
+impl PuzzleWidgetContents {
+    fn as_view(&self) -> Option<&PuzzleView> {
+        match self {
+            PuzzleWidgetContents::NoPuzzle
+            | PuzzleWidgetContents::BuildingPuzzle { .. }
+            | PuzzleWidgetContents::LoadingFile { .. } => None,
+            PuzzleWidgetContents::Puzzle(puzzle_view)
+            | PuzzleWidgetContents::Error(puzzle_view) => Some(puzzle_view),
+        }
+    }
+    fn as_view_mut(&mut self) -> Option<&mut PuzzleView> {
+        match self {
+            PuzzleWidgetContents::NoPuzzle
+            | PuzzleWidgetContents::BuildingPuzzle { .. }
+            | PuzzleWidgetContents::LoadingFile { .. } => None,
+            PuzzleWidgetContents::Puzzle(puzzle_view)
+            | PuzzleWidgetContents::Error(puzzle_view) => Some(puzzle_view),
+        }
     }
 }

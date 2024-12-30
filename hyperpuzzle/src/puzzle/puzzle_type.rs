@@ -5,10 +5,43 @@ use std::sync::{Arc, Weak};
 use hypershape::Space;
 use rand::seq::IndexedRandom;
 use rand::{Rng, SeedableRng};
+use scramble::{ScrambleProgress, ScrambledPuzzle};
 use sha2::Digest;
 
 use super::*;
 use crate::{TagSet, Version};
+
+lazy_static! {
+    pub static ref PLACEHOLDER_PUZZLE: Arc<Puzzle> = Arc::new_cyclic(|this| Puzzle {
+        this: Weak::clone(this),
+        id: "~placeholder".to_string(),
+        version: Version {
+            major: 0,
+            minor: 0,
+            patch: 0
+        },
+        name: "🤔".to_string(),
+        aliases: vec![],
+        space: Space::new(3),
+        mesh: Mesh::new_empty(3),
+        pieces: PerPiece::new(),
+        stickers: PerSticker::new(),
+        piece_types: PerPieceType::new(),
+        piece_type_hierarchy: PieceTypeHierarchy::new(0),
+        piece_type_masks: HashMap::new(),
+        colors: Arc::new(ColorSystem::new_empty()),
+        scramble_twists: vec![],
+        full_scramble_length: 0,
+        notation: Notation {},
+        axes: PerAxis::new(),
+        axis_by_name: HashMap::new(),
+        twists: PerTwist::new(),
+        twist_by_name: HashMap::new(),
+        gizmo_twists: PerGizmoFace::new(),
+        dev_data: PuzzleDevData::new(),
+        tags: TagSet::new(),
+    });
+}
 
 /// Puzzle type info.
 #[derive(Debug)]
@@ -110,9 +143,20 @@ impl Puzzle {
         PuzzleState::new(self.arc())
     }
     /// Constructs a new scrambled instance of the puzzle.
+    pub fn new_scrambled(&self, params: ScrambleParams) -> ScrambledPuzzle {
+        self.new_scrambled_with_progress(params, None)
+            .expect("scramble unexpectedly canceled")
+    }
+    /// Constructs a new scrambled instance of the puzzle.
+    ///
+    /// Takes an optional `progress` argument that tracks progress.
     #[allow(clippy::unwrap_used)] // these are infallible
-    pub fn new_scrambled(&self, scramble: ScrambleParams) -> (Vec<LayeredTwist>, PuzzleState) {
-        let ScrambleParams { ty, time, seed } = scramble;
+    pub fn new_scrambled_with_progress(
+        &self,
+        params: ScrambleParams,
+        progress: Option<Arc<ScrambleProgress>>,
+    ) -> Option<ScrambledPuzzle> {
+        let ScrambleParams { ty, time, seed } = params;
 
         let mut sha256 = sha2::Sha256::new();
         sha256.write_all(time.to_string().as_bytes()).unwrap();
@@ -126,6 +170,10 @@ impl Puzzle {
             ScrambleType::Full => self.full_scramble_length,
             ScrambleType::Partial(n) => n,
         };
+
+        if let Some(progress) = &progress {
+            progress.set_total(scramble_length);
+        }
 
         let random_twists = std::iter::from_fn(|| {
             let random_twist = *self.scramble_twists.choose(&mut rng)?;
@@ -142,14 +190,24 @@ impl Puzzle {
 
         let mut twists_applied = vec![];
         let mut state = self.new_solved_state();
-        for twist in random_twists.take(scramble_length as usize) {
+        for (i, twist) in random_twists.take(scramble_length as usize).enumerate() {
             if let Ok(new_state) = state.do_twist(twist) {
                 twists_applied.push(twist);
                 state = new_state;
             }
+            if let Some(progress) = &progress {
+                if progress.is_cancel_requested() {
+                    return None;
+                }
+                progress.set_progress(i as u32);
+            }
         }
 
-        (twists_applied, state)
+        Some(ScrambledPuzzle {
+            params,
+            twists: twists_applied,
+            state,
+        })
     }
 
     /// Returns the number of dimensions of the puzzle.

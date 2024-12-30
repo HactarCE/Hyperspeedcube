@@ -1,6 +1,6 @@
 tabs {
   menu {
-    puzzle_view "New puzzle view"
+    puzzle "New puzzle view"
     puzzle_library "Puzzle library"
     puzzle_info "Puzzle info"
     keybinds_reference "Keybinds reference"
@@ -32,7 +32,11 @@ tabs {
     debug "Debug output"
   }
   titles {
-    puzzle_view "No Puzzle"
+    puzzle {
+      empty "No Puzzle"
+      loading "Loading {{id}}"
+      error "Error loading {{id}}"
+    }
     puzzle_library "Puzzle Library"
     puzzle_info "Puzzle Info"
     keybinds_reference "Keybinds Reference"

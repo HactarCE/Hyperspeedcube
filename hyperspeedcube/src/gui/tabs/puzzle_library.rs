@@ -32,7 +32,7 @@ pub fn show(ui: &mut egui::Ui, app: &mut App) {
                 if r.on_hover_text(L.library.refresh).clicked()
                     || ui.input(|input| input.key_pressed(egui::Key::F5))
                 {
-                    hyperpuzzle_library::load_user_puzzles();
+                    hyperpuzzle_library::load_puzzles();
                 }
             }
 
