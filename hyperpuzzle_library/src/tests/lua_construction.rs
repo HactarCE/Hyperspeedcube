@@ -1,15 +1,9 @@
-use std::fmt;
 use std::io::Write;
-use std::path::Path;
 
 use eyre::Result;
+use hyperpuzzle::PuzzleLintOutput;
 
-use crate::*;
-
-#[test]
-fn load_all_puzzle_definitions() {
-    load_puzzle_library();
-}
+use super::{load_puzzle_library, time_it};
 
 #[test]
 fn lint_all_puzzle_definitions() -> Result<(), String> {
@@ -106,14 +100,6 @@ fn build_all_puzzles() -> Result<(), String> {
     }
 }
 
-fn load_puzzle_library() -> Library {
-    let lib = Library::new();
-    time_it("Loading all puzzles", || {
-        lib.read_directory(Path::new("../lua"))
-    });
-    lib
-}
-
 #[test]
 fn build_7x7x7x7() {
     let lib = load_puzzle_library();
@@ -122,14 +108,4 @@ fn build_7x7x7x7() {
     });
     result.expect("failed to build puzzle");
     println!("Done in {time:?}");
-}
-
-fn time_it<T>(task: impl fmt::Display, f: impl FnOnce() -> T) -> (T, std::time::Duration) {
-    print!("{task} ...");
-    std::io::stdout().flush().expect("error flushing stdout");
-    let t1 = std::time::Instant::now();
-    let ret = f();
-    let elapsed = t1.elapsed();
-    println!(" done in {elapsed:?}");
-    (ret, elapsed)
 }

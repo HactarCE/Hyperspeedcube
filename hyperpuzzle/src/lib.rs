@@ -125,6 +125,3 @@ fn compare_puzzle_ids(a: &str, b: &str) -> std::cmp::Ordering {
         b_params.into_iter().map(parse_float_else_str),
     )
 }
-
-#[cfg(test)]
-mod tests;
