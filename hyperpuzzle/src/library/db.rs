@@ -280,6 +280,6 @@ pub struct Waiter(Arc<(Mutex<bool>, Condvar)>);
 impl Waiter {
     pub fn wait(self) {
         let (mutex, condvar) = &*self.0;
-        condvar.wait_while(&mut mutex.lock(), |is_done| *is_done);
+        condvar.wait_while(&mut mutex.lock(), |is_done| !*is_done);
     }
 }
