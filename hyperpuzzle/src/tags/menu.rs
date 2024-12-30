@@ -55,6 +55,7 @@ impl AllTags {
             subtags: top_level_menu_items,
             auto: false,
             expected: false,
+            hidden: false,
             list: false,
         };
 
@@ -74,6 +75,7 @@ impl AllTags {
                     subtags,
                     auto,
                     expected,
+                    hidden: _,
                     list: _,
                 } => {
                     if let Some(name) = name {
@@ -156,6 +158,7 @@ fn kdl_to_tag_menu_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
                     let mut auto = false;
                     let mut expected = false;
                     let mut inline = false;
+                    let mut hidden = false;
                     let mut list = false;
                     let mut include_in_tag = true; // default `true`!
                     for entry in node.entries() {
@@ -170,6 +173,9 @@ fn kdl_to_tag_menu_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
                             }
                             Some("expected") => {
                                 expected = entry.value().as_bool().expect("expected bool value");
+                            }
+                            Some("hidden") => {
+                                hidden = entry.value().as_bool().expect("expected bool value");
                             }
                             Some("inline") => {
                                 inline = entry.value().as_bool().expect("expected bool value");
@@ -212,6 +218,7 @@ fn kdl_to_tag_menu_node(kdl: &kdl::KdlDocument, prefix: &str) -> Vec<TagMenuNode
 
                         auto,
                         expected,
+                        hidden,
                         list,
                     }
                 }

@@ -85,8 +85,13 @@ impl TagMenu {
 
                 auto: _,
                 expected: _,
+                hidden,
                 list,
             } => {
+                if *hidden {
+                    return None;
+                }
+
                 if name.as_deref() == Some("experimental") && !self.show_experimental {
                     return None;
                 }

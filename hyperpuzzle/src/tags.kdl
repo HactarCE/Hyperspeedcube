@@ -247,3 +247,5 @@ external "External" {
 }
 experimental "Experimental" expected=true
 big "Big (slow to generate)"
+
+file "File" auto=true hidden=true

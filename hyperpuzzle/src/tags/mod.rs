@@ -163,6 +163,8 @@ pub enum TagMenuNode {
         /// Whether this tag is expected to be specified on all puzzles built
         /// into the program.
         expected: bool,
+        /// Whether this tag should be hidden in the tag menu.
+        hidden: bool,
         /// Whether this tag should display a list of all possible values in the menu.
         list: bool,
     },

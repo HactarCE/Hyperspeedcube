@@ -91,6 +91,11 @@ impl FromLua for PuzzleSpec {
                 .map_err(LuaError::external)?;
         }
 
+        if let Some(filename) = crate::lua::lua_current_filename(lua) {
+            tags.insert_named("file", TagValue::Str(filename))
+                .map_err(LuaError::external)?;
+        }
+
         crate::lua::tags::inherit_parent_tags(&mut tags);
 
         Ok(PuzzleSpec {

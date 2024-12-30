@@ -76,6 +76,12 @@ impl FromLua for PuzzleGeneratorSpec {
         tags.insert_named("type/generator", TagValue::True)
             .map_err(LuaError::external)?;
 
+        // Add `#file` tag.
+        if let Some(filename) = crate::lua::lua_current_filename(lua) {
+            tags.insert_named("file", TagValue::Str(filename))
+                .map_err(LuaError::external)?;
+        }
+
         crate::lua::tags::inherit_parent_tags(&mut tags);
 
         let mut ret = PuzzleGeneratorSpec {
