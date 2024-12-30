@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use egui_dock::{NodeIndex, SurfaceIndex, TabIndex};
+use markdown::md;
 use parking_lot::Mutex;
 
 // TODO: use `#[track_caller]` with `std::panic::Location`?
@@ -20,7 +21,7 @@ mod modals;
 mod tabs;
 
 pub use tabs::{PuzzleWidget, Tab};
-use util::EguiTempValue;
+use util::{EguiTempFlag, EguiTempValue};
 
 pub use crate::app::App;
 use crate::L;
@@ -66,6 +67,24 @@ impl AppUi {
 
     pub fn build(&mut self, ctx: &egui::Context) {
         set_middle_click_delete(ctx, self.app.prefs.interaction.middle_click_delete);
+
+        if !self.app.prefs.eula {
+            egui::Modal::new(unique_id!()).show(ctx, |ui| {
+                md(ui, L.eula);
+                let flag = EguiTempFlag::new(ui);
+                let mut flag_value = flag.get();
+                ui.checkbox(&mut flag_value, L.eula_checkbox);
+                match flag_value {
+                    true => flag.set(),
+                    false => flag.reset(),
+                };
+                ui.add_enabled_ui(flag_value, |ui| {
+                    if ui.button("Ok").clicked() {
+                        self.app.prefs.eula = true;
+                    }
+                })
+            });
+        }
 
         let dark_mode = ctx.style().visuals.dark_mode;
         let background_color = self.app.prefs.background_color(dark_mode);

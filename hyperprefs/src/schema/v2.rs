@@ -14,6 +14,8 @@ pub use crate::{
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct Preferences {
+    pub eula: bool,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
 

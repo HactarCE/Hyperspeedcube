@@ -62,6 +62,8 @@ pub struct Preferences {
     pub needs_save: bool,
     pub needs_save_eventually: bool,
 
+    pub eula: bool,
+
     pub log_file: Option<PathBuf>,
 
     pub info: InfoPreferences,
@@ -97,6 +99,7 @@ impl schema::PrefsConvert for Preferences {
         let Self {
             needs_save: _,
             needs_save_eventually: _,
+            eula,
             log_file,
             info,
             image_generator,
@@ -119,6 +122,7 @@ impl schema::PrefsConvert for Preferences {
             .collect();
 
         schema::current::Preferences {
+            eula: *eula,
             log_file: log_file.clone(),
             info: info.clone(),
             image_generator: image_generator.clone(),
@@ -136,6 +140,7 @@ impl schema::PrefsConvert for Preferences {
     }
     fn reload_from_serde(&mut self, ctx: &Self::DeserContext, value: Self::SerdeFormat) {
         let schema::current::Preferences {
+            eula,
             log_file,
             info,
             image_generator,
@@ -151,6 +156,7 @@ impl schema::PrefsConvert for Preferences {
             show_experimental_puzzles,
         } = value;
 
+        self.eula = eula;
         self.log_file = log_file;
         self.info = info;
         self.image_generator = image_generator;

@@ -721,3 +721,39 @@ _crash {
     Error saving crash report
   "#
 }
+
+eula r#"
+  # Read this before using this software
+
+  This is a **prerelease** version of Hyperspeedcube. All of the following is unstable and subject to change:
+
+  - Lua API for defining puzzles
+  - Built-in puzzles
+  - Log file format (so solves may not be readable using future versions)
+  - Preferences format (so your configuration may be reset without warning)
+
+  Also, the program may crash and lose your progress.
+
+  ---
+
+  You are **encouraged** to do the following:
+
+  - Play with puzzles that are implemented, including developing methods and FMC/speedsolving strategies
+  - Play with the UI and give feedback on it (except for UI that is obviously temporary)
+  - Find and report bugs
+
+  ---
+
+  Please **do not** solve puzzles, because the log files may become readable, and we will Soon™ have an automatic leaderboard that solves will be optionally uploaded to.
+
+  We will **NOT** be accepting speedsolves done using a prerelease version of HSC2, for several reasons:
+
+  - Correctness (we don't know if the puzzle simulations and scrambles are correct)
+  - Stability (many things in the program are subject to change)
+  - Equity (not everyone has access to this version of the program)
+  - Logistics (we don't have the manpower to verify leaderboard submissions for so many new puzzles)
+
+  ---
+"#
+
+eula_checkbox "I promise I won't use HSC2 for speedsolves until it's officially released (and all the other stuff above)"
