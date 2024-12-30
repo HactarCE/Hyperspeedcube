@@ -2,6 +2,8 @@
 //! isometries of 4D Euclidean space. This is also useful as an imprecise
 //! benchmark.
 
+#![allow(unused_crate_dependencies)]
+
 use hypershape::group::{CoxeterGroup, Group};
 
 fn main() {

@@ -24,5 +24,8 @@ log = { workspace = true }
 parking_lot = { workspace = true }
 smallvec = { workspace = true }
 
+[dev-dependencies]
+eyre = { workspace = true }
+
 [lints]
 workspace = true

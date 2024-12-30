@@ -1,4 +1,4 @@
-use std::collections::{hash_map, BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -68,11 +68,6 @@ impl LibraryDb {
         let mut id = id.to_owned();
         let mut redirect_sequence = vec![];
         let db = LibraryDb::get(lua);
-
-        enum BuildPuzzleResult {
-            Old(Arc<Mutex<Arc<Puzzle>>>),
-            New(Arc<Puzzle>),
-        }
 
         for _ in 0..crate::MAX_PUZZLE_REDIRECTS {
             redirect_sequence.push(id.clone());

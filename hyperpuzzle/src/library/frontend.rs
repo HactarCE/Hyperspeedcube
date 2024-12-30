@@ -145,7 +145,9 @@ impl Library {
         self.db.lock().authors()
     }
 
-    /// Builds a puzzle from a Lua specification.
+    /// Requests a puzzle. Returns the result of building the puzzle if it has
+    /// already been built; otherwise returns the latest status report from the
+    /// thread building the puzzle.
     pub fn build_puzzle(&self, id: &str) -> PuzzleResult {
         let mut id = id.to_owned();
         for _ in 0..crate::MAX_PUZZLE_REDIRECTS {
@@ -180,6 +182,7 @@ impl Library {
         PuzzleResult::Err // too many redirects
     }
 
+    /// Requests a puzzle and blocks until it is ready, then returns it.
     pub fn build_puzzle_blocking(&self, id: &str) -> Result<Arc<Puzzle>, ()> {
         loop {
             match self.build_puzzle(id) {

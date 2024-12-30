@@ -2614,6 +2614,7 @@ dependencies = [
 name = "hyperpuzzle_library"
 version = "0.1.0"
 dependencies = [
+ "eyre",
  "hyperpaths",
  "hyperpuzzle",
  "hyperpuzzle_log",
@@ -2663,7 +2664,6 @@ name = "hypershape"
 version = "0.1.0"
 dependencies = [
  "color-eyre",
- "env_logger",
  "eyre",
  "float-ord",
  "hypermath",

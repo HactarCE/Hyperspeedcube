@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicBool, AtomicU32};
 
-use parking_lot::Mutex;
 use rand::Rng;
 
 use crate::Timestamp;

@@ -1,6 +1,8 @@
 //! Example that generates the H4 Coxeter group using the Todd-Coxeter
 //! algorithm. This is also useful as an imprecise benchmark.
 
+#![allow(unused_crate_dependencies)]
+
 use hypershape::group::{FiniteCoxeterGroup, Group};
 
 fn main() {
