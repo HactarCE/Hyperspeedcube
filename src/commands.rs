@@ -169,16 +169,17 @@ impl PuzzleCommand {
             }
 
             Self::Filter { mode, filter_name } => match filter_name.as_str() {
-                "Next" => "➡".to_string(),
-                "Previous" => "⬅".to_string(),
+                "Next" => "➡",
+                "Previous" => "⬅",
                 _ => match mode {
-                    FilterMode::ShowExactly => "👁".to_string(),
-                    FilterMode::Show => "👁".to_string(),
-                    FilterMode::Hide => "ｘ".to_string(),
-                    FilterMode::HideAllExcept => "❎".to_string(),
-                    FilterMode::Toggle => "~".to_string(),
+                    FilterMode::ShowExactly => "👁",
+                    FilterMode::Show => "👁",
+                    FilterMode::Hide => "ｘ",
+                    FilterMode::HideAllExcept => "❎",
+                    FilterMode::Toggle => "~",
                 },
-            },
+            }
+            .to_string(),
 
             Self::KeybindSet { keybind_set_name } => format!("{keybind_set_name}"),
             Self::ViewPreset { view_preset_name } => format!("{view_preset_name}"),

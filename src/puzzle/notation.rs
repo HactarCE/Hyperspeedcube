@@ -66,12 +66,10 @@ impl NotationScheme {
         for (alias_str, alias) in &self.aliases {
             if alias.matches(twist) {
                 write!(f, "{alias_str}")?;
-                match alias {
-                    Alias::AxisLayers(..) => {
-                        return self.format_direction(f, twist.axis, twist.direction)
-                    }
-                    Alias::EntireTwist(..) => return Ok(()),
-                }
+                return match alias {
+                    Alias::AxisLayers(..) => self.format_direction(f, twist.axis, twist.direction),
+                    Alias::EntireTwist(..) => Ok(()),
+                };
             }
         }
 

@@ -1018,7 +1018,7 @@ pub struct Grip {
 impl BitOr<&Grip> for Grip {
     type Output = Self;
 
-    fn bitor(mut self, rhs: &Grip) -> Self::Output {
+    fn bitor(mut self, rhs: &Self) -> Self {
         self |= rhs;
         self
     }
