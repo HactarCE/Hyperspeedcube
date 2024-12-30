@@ -47,30 +47,21 @@ where
     }
 }
 
+pub fn bound_min(a: Point3<f32>, b: Point3<f32>) -> Point3<f32> {
+    Point3::new(a.x.min(b.x), a.y.min(b.y), a.z.min(b.z))
+}
+
+pub fn bound_max(a: Point3<f32>, b: Point3<f32>) -> Point3<f32> {
+    Point3::new(a.x.max(b.x), a.y.max(b.y), a.z.max(b.z))
+}
+
 pub fn min_and_max_bound(verts: &[Point3<f32>]) -> (Point3<f32>, Point3<f32>) {
     let mut min_bound = verts[0];
     let mut max_bound = verts[0];
 
     for v in &verts[1..] {
-        if v.x < min_bound.x {
-            min_bound.x = v.x;
-        }
-        if v.y < min_bound.y {
-            min_bound.y = v.y;
-        }
-        if v.z < min_bound.z {
-            min_bound.z = v.z;
-        }
-
-        if v.x > max_bound.x {
-            max_bound.x = v.x;
-        }
-        if v.y > max_bound.y {
-            max_bound.y = v.y;
-        }
-        if v.z > max_bound.z {
-            max_bound.z = v.z;
-        }
+        min_bound = bound_min(*v, min_bound);
+        max_bound = bound_max(*v, max_bound);
     }
 
     (min_bound, max_bound)

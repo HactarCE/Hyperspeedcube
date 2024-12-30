@@ -265,25 +265,8 @@ impl Polygon {
         let mut min_bound = verts[0];
         let mut max_bound = verts[0];
         for v in &verts[1..] {
-            if v.x < min_bound.x {
-                min_bound.x = v.x;
-            }
-            if v.y < min_bound.y {
-                min_bound.y = v.y;
-            }
-            if v.z < min_bound.z {
-                min_bound.z = v.z;
-            }
-
-            if v.x > max_bound.x {
-                max_bound.x = v.x;
-            }
-            if v.y > max_bound.y {
-                max_bound.y = v.y;
-            }
-            if v.z > max_bound.z {
-                max_bound.z = v.z;
-            }
+            min_bound = util::bound_min(*v, min_bound);
+            max_bound = util::bound_max(*v, max_bound);
         }
 
         let normal = (verts[1] - verts[0]).cross(verts[2] - verts[0]).normalize();
