@@ -902,7 +902,7 @@ impl Axis {
     /// (The cross product of the returned axes is the opposite of the input.)
     /// This is more convenient for twisty puzzles, where clockwise rotations
     /// are the default.
-    fn perpendiculars(self) -> [Axis; 2] {
+    fn perpendiculars(self) -> [Self; 2] {
         use Axis::*;
         match self {
             X => [Z, Y], // X+ => rotate from Z+ to Y+.
@@ -912,16 +912,16 @@ impl Axis {
     }
 
     /// Returns an iterator over all axes.
-    fn iter() -> impl Iterator<Item = Axis> {
-        [Axis::X, Axis::Y, Axis::Z].into_iter()
+    fn iter() -> impl Iterator<Item = Self> {
+        [Self::X, Self::Y, Self::Z].into_iter()
     }
 
     /// Returns the unit vector along this axis.
     fn unit_vec3(self) -> Vector3<f32> {
         match self {
-            Axis::X => Vector3::unit_x(),
-            Axis::Y => Vector3::unit_y(),
-            Axis::Z => Vector3::unit_z(),
+            Self::X => Vector3::unit_x(),
+            Self::Y => Vector3::unit_y(),
+            Self::Z => Vector3::unit_z(),
         }
     }
 }

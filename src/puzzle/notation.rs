@@ -35,8 +35,8 @@ pub(super) enum TwistDirectionName {
 impl TwistDirectionName {
     fn for_axis(&self, axis: TwistAxis) -> &str {
         match self {
-            TwistDirectionName::Same(name) => name,
-            TwistDirectionName::PerAxis(names) => &names[axis.0 as usize],
+            Self::Same(name) => name,
+            Self::PerAxis(names) => &names[axis.0 as usize],
         }
     }
 }

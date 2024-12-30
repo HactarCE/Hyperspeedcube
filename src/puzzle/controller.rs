@@ -984,12 +984,12 @@ impl From<Twist> for HistoryEntry {
 impl HistoryEntry {
     pub fn twist(self) -> Option<Twist> {
         match self {
-            HistoryEntry::Twist(twist) => Some(twist),
+            Self::Twist(twist) => Some(twist),
         }
     }
     pub fn to_string(self, notation: &NotationScheme) -> String {
         match self {
-            HistoryEntry::Twist(twist) => notation.twist_to_string(twist),
+            Self::Twist(twist) => notation.twist_to_string(twist),
         }
     }
 }

@@ -145,7 +145,7 @@ impl Key {
         use KeyMappingCode as Sc;
         use VirtualKeyCode as Vk;
         match self {
-            Self::Sc(Sc::ShiftLeft | Sc::ShiftRight) => true,
+            Self::Sc(Sc::ShiftLeft | Sc::ShiftRight) |
             Self::Vk(Vk::LShift | Vk::RShift) => true,
             _ => false,
         }
@@ -154,7 +154,7 @@ impl Key {
         use KeyMappingCode as Sc;
         use VirtualKeyCode as Vk;
         match self {
-            Self::Sc(Sc::ControlLeft | Sc::ControlRight) => true,
+            Self::Sc(Sc::ControlLeft | Sc::ControlRight) |
             Self::Vk(Vk::LControl | Vk::RControl) => true,
             _ => false,
         }
@@ -163,7 +163,7 @@ impl Key {
         use KeyMappingCode as Sc;
         use VirtualKeyCode as Vk;
         match self {
-            Self::Sc(Sc::AltLeft | Sc::AltRight) => true,
+            Self::Sc(Sc::AltLeft | Sc::AltRight) |
             Self::Vk(Vk::LAlt | Vk::RAlt) => true,
             _ => false,
         }
@@ -172,7 +172,7 @@ impl Key {
         use KeyMappingCode as Sc;
         use VirtualKeyCode as Vk;
         match self {
-            Self::Sc(Sc::MetaLeft | Sc::MetaRight) => true,
+            Self::Sc(Sc::MetaLeft | Sc::MetaRight) |
             Self::Vk(Vk::LWin | Vk::RWin) => true,
             _ => false,
         }

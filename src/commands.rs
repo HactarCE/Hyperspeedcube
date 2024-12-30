@@ -47,27 +47,27 @@ pub enum Command {
 impl Command {
     pub(crate) fn short_description(&self) -> String {
         match self {
-            Command::Open => "🗁".to_owned(),
-            Command::Save => "💾".to_owned(),
-            Command::SaveAs => "Save As".to_owned(),
-            Command::Exit => "Exit".to_owned(),
+            Self::Open => "🗁".to_owned(),
+            Self::Save => "💾".to_owned(),
+            Self::SaveAs => "Save As".to_owned(),
+            Self::Exit => "Exit".to_owned(),
 
-            Command::CopyHscLog => "🗐".to_owned(),
-            Command::CopyMc4dLog => "🗐".to_owned(),
-            Command::PasteLog => "📋".to_owned(),
+            Self::CopyHscLog => "🗐".to_owned(),
+            Self::CopyMc4dLog => "🗐".to_owned(),
+            Self::PasteLog => "📋".to_owned(),
 
-            Command::Undo => "⮪".to_owned(),
-            Command::Redo => "⮫".to_owned(),
-            Command::Reset => "⟲".to_owned(),
+            Self::Undo => "⮪".to_owned(),
+            Self::Redo => "⮫".to_owned(),
+            Self::Reset => "⟲".to_owned(),
 
-            Command::ScrambleN(n) => format!("🔀 {n}"),
-            Command::ScrambleFull => "🔀".to_owned(),
+            Self::ScrambleN(n) => format!("🔀 {n}"),
+            Self::ScrambleFull => "🔀".to_owned(),
 
-            Command::NewPuzzle(ty) => format!("New {}", ty.name()),
+            Self::NewPuzzle(ty) => format!("New {}", ty.name()),
 
-            Command::ToggleBlindfold => "BLD".to_owned(),
+            Self::ToggleBlindfold => "BLD".to_owned(),
 
-            Command::None => String::new(),
+            Self::None => String::new(),
         }
     }
 }
@@ -130,7 +130,7 @@ pub enum PuzzleCommand {
 impl PuzzleCommand {
     pub fn short_description(&self, ty: PuzzleTypeEnum) -> String {
         match self {
-            PuzzleCommand::Grip { axis, layers } => {
+            Self::Grip { axis, layers } => {
                 let layers = layers.to_layer_mask(ty.layer_count());
                 let mut s = String::new();
                 if layers != LayerMask(0) || axis.is_none() {
@@ -141,7 +141,7 @@ impl PuzzleCommand {
                 }
                 s
             }
-            PuzzleCommand::Twist {
+            Self::Twist {
                 axis,
                 direction,
                 layers,
@@ -151,7 +151,7 @@ impl PuzzleCommand {
                 ty.twist_direction_from_name(direction).unwrap_or_default(),
                 layers.to_layer_mask(ty.layer_count()),
             ),
-            PuzzleCommand::Recenter { axis } => {
+            Self::Recenter { axis } => {
                 match axis
                     .as_deref()
                     .and_then(|axis_name| ty.twist_axis_from_name(axis_name))
@@ -168,7 +168,7 @@ impl PuzzleCommand {
                 }
             }
 
-            PuzzleCommand::Filter { mode, filter_name } => match filter_name.as_str() {
+            Self::Filter { mode, filter_name } => match filter_name.as_str() {
                 "Next" => "➡".to_string(),
                 "Previous" => "⬅".to_string(),
                 _ => match mode {
@@ -180,10 +180,10 @@ impl PuzzleCommand {
                 },
             },
 
-            PuzzleCommand::KeybindSet { keybind_set_name } => format!("{keybind_set_name}"),
-            PuzzleCommand::ViewPreset { view_preset_name } => format!("{view_preset_name}"),
+            Self::KeybindSet { keybind_set_name } => format!("{keybind_set_name}"),
+            Self::ViewPreset { view_preset_name } => format!("{view_preset_name}"),
 
-            PuzzleCommand::None => String::new(),
+            Self::None => String::new(),
         }
     }
 

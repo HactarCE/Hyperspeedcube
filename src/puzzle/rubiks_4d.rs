@@ -1437,20 +1437,20 @@ enum Axis {
 impl Axis {
     fn symbol_lower(self) -> char {
         match self {
-            Axis::X => 'x',
-            Axis::Y => 'y',
-            Axis::Z => 'z',
-            Axis::W => 'w',
+            Self::X => 'x',
+            Self::Y => 'y',
+            Self::Z => 'z',
+            Self::W => 'w',
         }
     }
 
     /// Returns the unit vector along this axis.
     fn unit_vec4<S: BaseNum>(self) -> Vector4<S> {
         match self {
-            Axis::X => Vector4::unit_x(),
-            Axis::Y => Vector4::unit_y(),
-            Axis::Z => Vector4::unit_z(),
-            Axis::W => Vector4::unit_w(),
+            Self::X => Vector4::unit_x(),
+            Self::Y => Vector4::unit_y(),
+            Self::Z => Vector4::unit_z(),
+            Self::W => Vector4::unit_w(),
         }
     }
 }

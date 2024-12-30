@@ -621,20 +621,20 @@ pub enum Sign {
     Neg = -1,
 }
 impl Neg for Sign {
-    type Output = Sign;
-    fn neg(self) -> Sign {
+    type Output = Self;
+    fn neg(self) -> Self {
         match self {
-            Sign::Pos => Sign::Neg,
-            Sign::Neg => Sign::Pos,
+            Self::Pos => Self::Neg,
+            Self::Neg => Self::Pos,
         }
     }
 }
 impl Mul<Sign> for Sign {
-    type Output = Sign;
-    fn mul(self, rhs: Sign) -> Sign {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
         match self {
-            Sign::Pos => rhs,
-            Sign::Neg => -rhs,
+            Self::Pos => rhs,
+            Self::Neg => -rhs,
         }
     }
 }
@@ -642,8 +642,8 @@ impl Sign {
     /// Returns an integer representation of the sign (either -1 or 1).
     pub const fn int(self) -> i8 {
         match self {
-            Sign::Pos => 1,
-            Sign::Neg => -1,
+            Self::Pos => 1,
+            Self::Neg => -1,
         }
     }
     /// Returns a floating-point representation of the sign (either -1.0 or
@@ -652,8 +652,8 @@ impl Sign {
         self.int() as f32
     }
     /// Returns an iterator over all signs.
-    pub fn iter() -> impl Clone + Iterator<Item = Sign> {
-        [Sign::Pos, Sign::Neg].into_iter()
+    pub fn iter() -> impl Clone + Iterator<Item = Self> {
+        [Self::Pos, Self::Neg].into_iter()
     }
 }
 

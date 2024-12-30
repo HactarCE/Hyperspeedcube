@@ -71,8 +71,8 @@ pub enum LogFileFormat {
 impl LogFileFormat {
     pub fn extension(self) -> &'static str {
         match self {
-            LogFileFormat::Hsc => "hsc",
-            LogFileFormat::Mc4d => "log",
+            Self::Hsc => "hsc",
+            Self::Mc4d => "log",
         }
     }
 }
