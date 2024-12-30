@@ -21,8 +21,8 @@ pub(super) enum Alias {
 impl Alias {
     fn matches(self, twist: Twist) -> bool {
         match self {
-            Alias::AxisLayers(axis, layers) => axis == twist.axis && layers == twist.layers,
-            Alias::EntireTwist(t) => t == twist,
+            Self::AxisLayers(axis, layers) => axis == twist.axis && layers == twist.layers,
+            Self::EntireTwist(t) => t == twist,
         }
     }
 }

@@ -57,8 +57,8 @@ impl PrefsCompat {
     }
     pub fn version(&self) -> u32 {
         match self {
-            PrefsCompat::V1 { .. } => 1,
-            PrefsCompat::V0 { .. } => 0,
+            Self::V1 { .. } => 1,
+            Self::V0 { .. } => 0,
         }
     }
 }
