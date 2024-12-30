@@ -253,7 +253,7 @@ async fn run() {
                             // Only refresh the size if that is not detected
                             gfx.resize(*new_size)
                         }
-                    },
+                    }
                     WindowEvent::ScaleFactorChanged {
                         scale_factor,
                         new_inner_size,
