@@ -12,6 +12,7 @@ use super::*;
 use crate::{TagSet, Version};
 
 lazy_static! {
+    /// Hard-coded placeholder puzzle with no pieces, no stickers, no mesh, etc.
     pub static ref PLACEHOLDER_PUZZLE: Arc<Puzzle> = Arc::new_cyclic(|this| Puzzle {
         this: Weak::clone(this),
         id: "~placeholder".to_string(),

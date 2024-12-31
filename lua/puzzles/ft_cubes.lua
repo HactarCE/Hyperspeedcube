@@ -19,14 +19,6 @@ end
 
 GIZMO_EDGE_FACTOR = 0.8
 
-puzzles:add{
-  id = 'funny',
-  ndim = 3,
-  build = function(self)
-    error()
-  end,
-}
-
 -- n^3
 puzzle_generators:add{
   id = 'ft_cube',

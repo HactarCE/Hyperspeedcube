@@ -102,10 +102,8 @@ fn show_centered_with_sizing_pass<R>(
 }
 
 pub struct PuzzleWidget {
-    /// ID of the puzzle that was requested (which might not be the puzzle that
-    /// is currently loaded).
-    puzzle_id: Option<String>,
     contents: PuzzleWidgetContents,
+    loading: Option<PuzzleWidgetLoading>,
 
     gfx: Arc<GraphicsState>,
     egui_wgpu_renderer: Arc<RwLock<eframe::egui_wgpu::Renderer>>,
@@ -126,8 +124,8 @@ impl Drop for PuzzleWidget {
 impl fmt::Debug for PuzzleWidget {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PuzzleWidget")
-            .field("puzzle_id", &self.puzzle_id)
             .field("contents", &self.contents)
+            .field("loading", &self.loading)
             .field("egui_texture_id", &self.egui_texture_id)
             .field("queued_arrows", &self.queued_arrows)
             .field("wants_focus", &self.wants_focus)
@@ -139,22 +137,9 @@ impl PuzzleWidget {
         gfx: &Arc<GraphicsState>,
         egui_wgpu_renderer: &Arc<RwLock<eframe::egui_wgpu::Renderer>>,
     ) -> Self {
-        Self::with_contents(
-            gfx,
-            &egui_wgpu_renderer,
-            None,
-            PuzzleWidgetContents::NoPuzzle,
-        )
-    }
-    fn with_contents(
-        gfx: &Arc<GraphicsState>,
-        egui_wgpu_renderer: &Arc<RwLock<eframe::egui_wgpu::Renderer>>,
-        puzzle_id: Option<String>,
-        contents: PuzzleWidgetContents,
-    ) -> Self {
         Self {
-            puzzle_id,
-            contents,
+            contents: PuzzleWidgetContents::None,
+            loading: None,
 
             gfx: Arc::clone(gfx),
             egui_wgpu_renderer: Arc::clone(egui_wgpu_renderer),
@@ -168,40 +153,41 @@ impl PuzzleWidget {
     }
 
     pub(crate) fn load_puzzle(&mut self, puzzle_id: &str, prefs: &mut Preferences) {
-        self.load(puzzle_id, None, prefs);
+        self.load(puzzle_id.to_owned(), None, prefs);
     }
     pub(crate) fn load_solve(&mut self, solve: Arc<Solve>, prefs: &mut Preferences) {
         let id = solve.puzzle.id.clone();
-        self.load(&id, Some(solve), prefs);
+        self.load(id, Some(solve), prefs);
     }
-    fn load(&mut self, puzzle_id: &str, solve: Option<Arc<Solve>>, prefs: &mut Preferences) {
-        // TODO: notify app that puzzle view updated
-        self.puzzle_id = Some(puzzle_id.to_string());
-        let t = web_time::Instant::now();
-        match hyperpuzzle_library::LIBRARY.with(|lib| lib.build_puzzle(puzzle_id)) {
+    fn load(&mut self, puzzle_id: String, solve: Option<Arc<Solve>>, prefs: &mut Preferences) {
+        match hyperpuzzle_library::LIBRARY.with(|lib| lib.build_puzzle(&puzzle_id)) {
             PuzzleResult::Ok(puzzle) => match solve {
                 Some(solve) => {
                     let (tx, rx) = mpsc::sync_channel(0);
                     std::thread::spawn(move || {
                         tx.send(Ok(PuzzleSimulation::deserialize(&puzzle, &solve)))
                     });
-                    self.contents = PuzzleWidgetContents::LoadingFile { rx };
+                    self.loading = Some(PuzzleWidgetLoading::LoadingFile { puzzle_id, rx });
                 }
                 None => self.set_sim(&Arc::new(Mutex::new(PuzzleSimulation::new(&puzzle))), prefs),
             },
             PuzzleResult::Building { waiter, status } => {
-                self.contents = PuzzleWidgetContents::BuildingPuzzle {
+                self.loading = Some(PuzzleWidgetLoading::BuildingPuzzle {
+                    puzzle_id,
                     status,
                     solve_to_load: None,
-                };
+                });
             }
             PuzzleResult::Err => {
-                if self.puzzle_id.as_deref() != Some(puzzle_id) {
+                if self.contents.puzzle_id().as_ref() != Some(&puzzle_id) {
                     let gfx = &self.gfx;
                     let sim = Arc::new(Mutex::new(PuzzleSimulation::new(
                         &hyperpuzzle::PLACEHOLDER_PUZZLE,
                     )));
-                    self.contents = PuzzleWidgetContents::Error(PuzzleView::new(gfx, &sim, prefs));
+                    self.contents = PuzzleWidgetContents::Placeholder {
+                        puzzle_id: puzzle_id.to_string(),
+                        view: PuzzleView::new(gfx, &sim, prefs),
+                    };
                     self.puzzle_changed = true;
                 }
             }
@@ -209,38 +195,36 @@ impl PuzzleWidget {
     }
     fn set_sim(&mut self, sim: &Arc<Mutex<PuzzleSimulation>>, prefs: &mut Preferences) {
         self.contents = PuzzleWidgetContents::Puzzle(PuzzleView::new(&self.gfx, &sim, prefs));
+        self.loading = None;
         self.puzzle_changed = true;
     }
 
     pub(crate) fn title(&self) -> String {
-        let puzzle_id = self.puzzle_id.as_deref().unwrap_or("<unknown>");
-        match &self.contents {
-            PuzzleWidgetContents::NoPuzzle => L.tabs.titles.puzzle.empty.to_string(),
-            PuzzleWidgetContents::Puzzle(puzzle_view) => puzzle_view.puzzle().name.clone(),
-            PuzzleWidgetContents::BuildingPuzzle { .. }
-            | PuzzleWidgetContents::LoadingFile { .. } => {
+        match &self.loading {
+            Some(PuzzleWidgetLoading::BuildingPuzzle { puzzle_id, .. })
+            | Some(PuzzleWidgetLoading::LoadingFile { puzzle_id, .. }) => {
                 L.tabs.titles.puzzle.loading.with(puzzle_id)
             }
-            PuzzleWidgetContents::Error(puzzle_view) => L.tabs.titles.puzzle.error.with(puzzle_id),
+            None => match &self.contents {
+                PuzzleWidgetContents::None => L.tabs.titles.puzzle.empty.to_string(),
+                PuzzleWidgetContents::Puzzle(puzzle_view) => puzzle_view.puzzle().name.clone(),
+                PuzzleWidgetContents::Placeholder { puzzle_id, .. } => {
+                    L.tabs.titles.puzzle.error.with(puzzle_id)
+                }
+            },
         }
     }
 
     pub fn view(&self) -> Option<&PuzzleView> {
         match &self.contents {
-            PuzzleWidgetContents::NoPuzzle => None,
             PuzzleWidgetContents::Puzzle(puzzle_view) => Some(puzzle_view),
-            PuzzleWidgetContents::BuildingPuzzle { .. } => None,
-            PuzzleWidgetContents::LoadingFile { .. } => None,
-            PuzzleWidgetContents::Error(puzzle_view) => None, // don't accept input
+            _ => None,
         }
     }
     pub fn view_mut(&mut self) -> Option<&mut PuzzleView> {
         match &mut self.contents {
-            PuzzleWidgetContents::NoPuzzle => None,
             PuzzleWidgetContents::Puzzle(puzzle_view) => Some(puzzle_view),
-            PuzzleWidgetContents::BuildingPuzzle { .. } => None,
-            PuzzleWidgetContents::LoadingFile { .. } => None,
-            PuzzleWidgetContents::Error(puzzle_view) => None, // don't accept input
+            _ => None,
         }
     }
     /// Returns the puzzle simulation.
@@ -256,15 +240,8 @@ impl PuzzleWidget {
     pub fn reload(&mut self, prefs: &mut Preferences) {
         // TODO: keybind should be global, not just in puzzle view
         hyperpuzzle_library::load_puzzles();
-        if let Some(id) = self.puzzle_id.take() {
+        if let Some(id) = self.contents.puzzle_id() {
             self.load_puzzle(&id, prefs);
-        }
-    }
-    /// Clears any error state and reloads a puzzle.
-    fn reload_current_puzzle(&mut self, prefs: &mut Preferences) {
-        match self.puzzle_id.clone() {
-            Some(id) => self.load_puzzle(&id, prefs),
-            None => self.contents = PuzzleWidgetContents::NoPuzzle,
         }
     }
 
@@ -275,52 +252,47 @@ impl PuzzleWidget {
         prefs: &mut Preferences,
         animation: &AnimationPreferences,
     ) {
-        match &self.contents {
-            PuzzleWidgetContents::BuildingPuzzle { solve_to_load, .. } => {
-                if let Some(puzzle_id) = self.puzzle_id.clone() {
-                    self.load(&puzzle_id, solve_to_load.clone(), prefs);
-                    ui.ctx().request_repaint_after_secs(0.2); // try again soon
-                }
-            }
-            PuzzleWidgetContents::LoadingFile { rx } => match rx.try_recv() {
-                Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
-                Err(mpsc::TryRecvError::Empty) => (), // keep waiting
-                Ok(Err(e)) => {
-                    // TODO: report error
-                    self.reload_current_puzzle(prefs);
-                }
-                Err(mpsc::TryRecvError::Disconnected) => {
-                    // TODO: report error
-                    self.reload_current_puzzle(prefs);
-                }
-            },
-            _ => (),
-        }
+        let scramble_progress = self.sim().and_then(|sim| sim.lock().scramble_progress());
+        let puzzle_view_opacity = if self.loading.is_some() || scramble_progress.is_some() {
+            0.5
+        } else {
+            1.0
+        };
 
         let rect = ui.available_rect_before_wrap();
-        if let Some(scramble_progress) = self.sim().and_then(|sim| sim.lock().scramble_progress()) {
-            ui.scope(|ui| {
-                ui.multiply_opacity(0.5);
-                self.show_puzzle_view(ui, prefs, animation)
-            });
+
+        ui.scope(|ui| {
+            ui.multiply_opacity(puzzle_view_opacity);
+            self.show_puzzle_view(ui, prefs, animation)
+        });
+
+        if let Some(loading) = self.loading.take() {
+            match loading {
+                PuzzleWidgetLoading::BuildingPuzzle {
+                    puzzle_id,
+                    status,
+                    solve_to_load,
+                } => {
+                    ui.put(rect, egui::Label::new("CONSTRUCTING PUZZLE"));
+                    self.load(puzzle_id, solve_to_load, prefs);
+                    ui.ctx().request_repaint_after_secs(0.2); // try again soon
+                }
+                PuzzleWidgetLoading::LoadingFile { puzzle_id, rx } => {
+                    ui.put(rect, egui::Label::new("LOADING FILE"));
+                    match rx.try_recv() {
+                        Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
+                        Err(mpsc::TryRecvError::Empty) => (), // keep waiting
+                        Ok(Err(e)) => self.loading = None,    // TODO: report error
+                        Err(mpsc::TryRecvError::Disconnected) => self.loading = None, // TODO: report error
+                    }
+                }
+            }
+        } else if let Some(scramble_progress) = scramble_progress {
             let (done, total) = scramble_progress.fraction();
             ui.put(rect, egui::Label::new(format!("SCRAMBLING {done}/{total}")));
             ui.ctx().request_repaint();
-        } else {
-            self.show_puzzle_view(ui, prefs, animation);
-        }
-        match &mut self.contents {
-            PuzzleWidgetContents::NoPuzzle => {
-                show_puzzle_load_hint(ui, self, prefs);
-            }
-            PuzzleWidgetContents::Puzzle(_puzzle_view) => (), // already done!
-            PuzzleWidgetContents::BuildingPuzzle { status, .. } => {
-                ui.put(rect, egui::Label::new("CONSTRUCTING PUZZLE"));
-            }
-            PuzzleWidgetContents::LoadingFile { .. } => {
-                ui.put(rect, egui::Label::new("LOADING FILE"));
-            }
-            PuzzleWidgetContents::Error(_puzzle_view) => (),
+        } else if matches!(self.contents, PuzzleWidgetContents::None) {
+            show_puzzle_load_hint(ui, self, prefs);
         }
     }
 
@@ -763,39 +735,49 @@ fn show_gizmo_face(
 
 #[derive(Debug, Default)]
 pub enum PuzzleWidgetContents {
-    /// No puzzle has been selected.
+    /// No puzzle view.
     #[default]
-    NoPuzzle,
+    None,
     /// Ordinary puzzle view.
     Puzzle(PuzzleView),
-    /// Waiting for a puzzle to build.
-    BuildingPuzzle {
-        status: Option<PuzzleBuildStatus>,
-        solve_to_load: Option<Arc<Solve>>,
-    },
-    LoadingFile {
-        rx: mpsc::Receiver<Result<PuzzleSimulation, ()>>,
-    },
-    /// Error containing a placeholder puzzle view.
-    Error(PuzzleView),
+    /// Placeholder puzzle view, with the ID of the puzzle that tried to load.
+    Placeholder { puzzle_id: String, view: PuzzleView },
 }
 impl PuzzleWidgetContents {
     fn as_view(&self) -> Option<&PuzzleView> {
         match self {
-            PuzzleWidgetContents::NoPuzzle
-            | PuzzleWidgetContents::BuildingPuzzle { .. }
-            | PuzzleWidgetContents::LoadingFile { .. } => None,
-            PuzzleWidgetContents::Puzzle(puzzle_view)
-            | PuzzleWidgetContents::Error(puzzle_view) => Some(puzzle_view),
+            PuzzleWidgetContents::None => None,
+            PuzzleWidgetContents::Puzzle(view) => Some(view),
+            PuzzleWidgetContents::Placeholder { view, .. } => Some(view),
         }
     }
     fn as_view_mut(&mut self) -> Option<&mut PuzzleView> {
         match self {
-            PuzzleWidgetContents::NoPuzzle
-            | PuzzleWidgetContents::BuildingPuzzle { .. }
-            | PuzzleWidgetContents::LoadingFile { .. } => None,
-            PuzzleWidgetContents::Puzzle(puzzle_view)
-            | PuzzleWidgetContents::Error(puzzle_view) => Some(puzzle_view),
+            PuzzleWidgetContents::None => None,
+            PuzzleWidgetContents::Puzzle(view) => Some(view),
+            PuzzleWidgetContents::Placeholder { view, .. } => Some(view),
         }
     }
+    fn puzzle_id(&self) -> Option<String> {
+        match self {
+            PuzzleWidgetContents::None => None,
+            PuzzleWidgetContents::Puzzle(view) => Some(view.puzzle().id.clone()),
+            PuzzleWidgetContents::Placeholder { puzzle_id, .. } => Some(puzzle_id.clone()),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum PuzzleWidgetLoading {
+    /// Waiting for a puzzle to build.
+    BuildingPuzzle {
+        puzzle_id: String,
+        status: Option<PuzzleBuildStatus>,
+        solve_to_load: Option<Arc<Solve>>,
+    },
+    /// Waiting for a log file to load.
+    LoadingFile {
+        puzzle_id: String,
+        rx: mpsc::Receiver<Result<PuzzleSimulation, ()>>,
+    },
 }
