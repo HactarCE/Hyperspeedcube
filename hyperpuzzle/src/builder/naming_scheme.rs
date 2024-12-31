@@ -205,8 +205,5 @@ macro_rules! impl_nameable {
 }
 impl_nameable!(Color, r"[a-zA-Z_][a-zA-Z0-9_]*");
 impl_nameable!(Axis, r"[a-zA-Z_][a-zA-Z0-9_]*");
-impl_nameable!(
-    PieceType,
-    r"[a-zA-Z_][a-zA-Z0-9_]*(/[a-zA-Z_][a-zA-Z0-9_]*)*",
-);
+impl_nameable!(PieceType, r"[a-zA-Z_][a-zA-Z0-9_]*(/[a-zA-Z0-9_]*)*");
 impl_nameable!(Twist, r"[a-zA-Z_][a-zA-Z0-9_]*'?");

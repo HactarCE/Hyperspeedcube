@@ -4,7 +4,8 @@ local REALISITIC_PROPORTIONS = true
 local CORNER_STALK_SIZE = 0.03
 
 
-function shallow_ft_dodecahedron(puzzle, layers, scale, basis)
+-- Cut shape and add twists
+function construct_shallow_ft_dodecahedron(puzzle, layers, scale, basis)
   local shape = lib.symmetries.dodecahedral.dodecahedron(scale, basis)
 
   local cut_depths
@@ -23,24 +24,13 @@ function shallow_ft_dodecahedron(puzzle, layers, scale, basis)
     end
   end
 
-  local colors, axes = utils.cut_shape(puzzle, shape, cut_depths, prefix)
+  local colors, axes = utils.cut_ft_shape(puzzle, shape, cut_depths)
 
-  return {
-    puzzle = puzzle,
-    colors = colors,
-    axes = axes,
-    twist_sets = {
-      axes and {
-        axis = axes[1],
-        symmetry = shape.sym,
-        fix = shape.sym.xxx,
-        reflections = {
-          {shape.sym:thru(1), shape.sym.xoo},
-          {shape.sym:thru(2), shape.sym.oxo},
-        },
-      },
-    },
-  }
+  if axes then
+    for t, ax, rot in shape.sym.chiral:orbit(axes[1], shape.sym:thru(2, 1)) do
+      puzzle.twists:add(ax, rot, { gizmo_pole_distance = 1 })
+    end
+  end
 end
 
 
@@ -194,7 +184,7 @@ puzzle_generators:add{
       build = function(self)
         local sym = cd'h3'
 
-        utils.add_puzzle_twists(shallow_ft_dodecahedron(self, size))
+        construct_shallow_ft_dodecahedron(self, size)
 
         local center_layer = size + 1
         local R = self.axes.R
@@ -288,16 +278,6 @@ puzzle_generators:add{
     }
   end,
 }
-
-function define_ft_dodecahedron(size, id, name)
-  puzzles:add{
-    id = id,
-    name = string.format("FT Dodecahedron %d (%s)", size, name),
-    version = '0.1.0',
-    ndim = 3,
-    colors = 'dodecahedron',
-  }
-end
 
 puzzles:add{
   -- between a Megaminx Crystal (which has no centers) and a Pyraminx Crystal (which has no edges)

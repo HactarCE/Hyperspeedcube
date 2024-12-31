@@ -78,8 +78,8 @@ function build_prism_puzzle(self, n, polygon_cut_depths, height)
 
   local line_cut_depths = utils.layers.inclusive(h, -h, height)
 
-  local base_colors, base_axes = utils.cut_shape(self, line, line_cut_depths, 'U', 'D')
-  local side_colors, side_axes = utils.cut_shape(self, base_polygon, polygon_cut_depths, 'F')
+  local base_colors, base_axes = utils.cut_ft_shape(self, line, line_cut_depths, 'U', 'D')
+  local side_colors, side_axes = utils.cut_ft_shape(self, base_polygon, polygon_cut_depths, 'F')
 
   self.colors:reorder(facet_order)
   self.colors:set_defaults(get_default_color)
@@ -104,8 +104,8 @@ function build_duoprism_puzzle(self, n, m, n_cut_depths, m_cut_depths, n_opposit
   local polygon_a = polygonal.ngon(n, 1, 'xy')
   local polygon_b = polygonal.ngon(m, 1, 'zw')
 
-  local _colors_a, axes_a = utils.cut_shape(self, polygon_a, n_cut_depths, 'A')
-  local _colors_b, axes_b = utils.cut_shape(self, polygon_b, m_cut_depths, 'B')
+  local _colors_a, axes_a = utils.cut_ft_shape(self, polygon_a, n_cut_depths, 'A')
+  local _colors_b, axes_b = utils.cut_ft_shape(self, polygon_b, m_cut_depths, 'B')
 
   local z1, y1
   if n_opposite_cut_depths ~= nil then
@@ -419,7 +419,7 @@ puzzle_generators:add{
         local line_cuts = utils.layers.inclusive(1, -1, prism_size)
 
         local dodeca_colors, dodeca_axes = dodeca.colors, dodeca.axes
-        local base_colors, base_axes = utils.cut_shape(self, line, line_cuts, 'O', 'I')
+        local base_colors, base_axes = utils.cut_ft_shape(self, line, line_cuts, 'O', 'I')
 
         local sym = cd{5, 3, 2}
 

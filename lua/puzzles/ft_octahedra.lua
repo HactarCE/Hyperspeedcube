@@ -151,7 +151,7 @@ puzzle_generators:add{
               for j = 2, size-1 do
                 local k = size + 1 - i - j
                 if i <= j and j <= k then
-                  local name, display = string.fmt2('center/thin/_%d_%d_%d', "Thin triangle (%d, %d, %d)", i-1, j-1, k-1)
+                  local name, display = string.fmt2('center/thin/%d_%d_%d', "Thin triangle (%d, %d, %d)", i-1, j-1, k-1)
                   if i == j and j == k then
                     self:mark_piece{
                       region = U(1) & R(i) & L(j) & BD(k),
@@ -181,7 +181,7 @@ puzzle_generators:add{
 
                 local k = size + 2 - i - j
                 if i <= j and j <= k then
-                  local name, display = string.fmt2('center/thick/_%d_%d_%d', "Thick triangle (%d, %d, %d)", i-1, j-1, k-1)
+                  local name, display = string.fmt2('center/thick/%d_%d_%d', "Thick triangle (%d, %d, %d)", i-1, j-1, k-1)
                   if i == j and j == k then
                     self:mark_piece{
                       region = U(1) & R(i) & L(j) & BD(k),

@@ -20,44 +20,11 @@ function uppercase_name_to_n(name)
   return ret
 end
 
-function cut_shape(puzzle, shape, cut_depths, ...)
+function cut_ft_shape(puzzle, shape, cut_depths, ...)
   local poles = shape:iter_poles(...)
   local colors = puzzle:carve(poles)
   local axes = cut_depths and puzzle.axes:add(poles, cut_depths)
   return colors, axes
-end
-
-function add_puzzle_twists(puzzle_recipe)
-  local puzzle = puzzle_recipe.puzzle
-
-  for _, twist_set in ipairs(puzzle_recipe.twist_sets) do
-    for i, refl1 in ipairs(twist_set.reflections) do
-      local g1, unfix1 = table.unpack(refl1)
-      assert(g1.is_refl) -- TODO: handle if `g1` is a rotation
-      for j, refl2 in ipairs(twist_set.reflections) do
-        local g2, unfix2 = table.unpack(refl2)
-        assert(g2.is_refl)
-        if i >= j then goto continue end
-
-        local twist_transform = g2 * g1
-
-        local fix = twist_set.fix - unfix1 - unfix2
-
-        for t in twist_set.symmetry:orbit(fix) do
-          if puzzle.ndim == 3 then
-            puzzle.twists:add(t:transform(twist_set.axis), t:transform_oriented(twist_transform), { gizmo_pole_distance = 1 })
-          elseif puzzle.ndim == 4 then
-            error('todo')
-          else
-            error("can't do other dimensions")
-          end
-        end
-
-
-        ::continue::
-      end
-    end
-  end
 end
 
 -- Concatenates the sequences.
@@ -69,4 +36,37 @@ function concatseq(...)
     end
   end
   return ret
+end
+
+-- Functions for generating layer cut tables
+layers = {}
+
+-- Returns evenly-spaced layer depths, including both endpoints
+--
+-- Typically `start > stop`
+function layers.inclusive(start, stop, layer_count)
+  if layer_count < 1 then
+    return nil
+  end
+
+  local ret = {}
+  for i = 0, layer_count do
+    ret[i + 1] = start + (stop - start) * i / layer_count
+  end
+  return ret
+end
+
+-- Returns evenly-spaced layer depths for half of a puzzle
+--
+-- For even numbers of layers, includes both endpoints
+-- For odd numbers of layers, includes `start` but not `stop`
+--
+-- Expects `start > stop`
+function layers.even_odd(start, stop, layer_count)
+  local half_layer_size = (stop - start) / layer_count
+  if layer_count % 2 == 1 then
+    stop = stop - half_layer_size
+  end
+
+  return layers.inclusive(start, stop, floor(layer_count/2))
 end
