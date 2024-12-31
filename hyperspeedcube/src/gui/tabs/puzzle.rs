@@ -2,6 +2,7 @@ use std::fmt;
 use std::sync::{mpsc, Arc};
 
 use egui::mutex::RwLock;
+use egui::Widget;
 use eyre::{bail, OptionExt, Result};
 use hyperdraw::*;
 use hypermath::prelude::*;
@@ -253,46 +254,68 @@ impl PuzzleWidget {
         animation: &AnimationPreferences,
     ) {
         let scramble_progress = self.sim().and_then(|sim| sim.lock().scramble_progress());
-        let puzzle_view_opacity = if self.loading.is_some() || scramble_progress.is_some() {
-            0.5
-        } else {
-            1.0
-        };
+        let loading_something = self.loading.is_some() || scramble_progress.is_some();
 
         let rect = ui.available_rect_before_wrap();
 
         ui.scope(|ui| {
-            ui.multiply_opacity(puzzle_view_opacity);
+            if loading_something {
+                ui.disable();
+                ui.multiply_opacity(0.5);
+            }
             self.show_puzzle_view(ui, prefs, animation)
         });
 
+        let mut loading_header = None;
+        let mut loading_progress = None;
         if let Some(loading) = self.loading.take() {
-            match loading {
-                PuzzleWidgetLoading::BuildingPuzzle {
-                    puzzle_id,
-                    status,
-                    solve_to_load,
-                } => {
-                    ui.put(rect, egui::Label::new("CONSTRUCTING PUZZLE"));
-                    self.load(puzzle_id, solve_to_load, prefs);
-                    ui.ctx().request_repaint_after_secs(0.2); // try again soon
-                }
-                PuzzleWidgetLoading::LoadingFile { puzzle_id, rx } => {
-                    ui.put(rect, egui::Label::new("LOADING FILE"));
-                    match rx.try_recv() {
-                        Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
-                        Err(mpsc::TryRecvError::Empty) => (), // keep waiting
-                        Ok(Err(e)) => self.loading = None,    // TODO: report error
-                        Err(mpsc::TryRecvError::Disconnected) => self.loading = None, // TODO: report error
+            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(), |ui| {
+                match loading {
+                    PuzzleWidgetLoading::BuildingPuzzle {
+                        puzzle_id,
+                        status,
+                        solve_to_load,
+                    } => {
+                        loading_header = Some(L.puzzle_view.constructing_puzzle);
+                        self.load(puzzle_id, solve_to_load, prefs);
+                        ui.ctx().request_repaint_after_secs(0.2); // try again soon
+                    }
+                    PuzzleWidgetLoading::LoadingFile { puzzle_id, rx } => {
+                        loading_header = Some(L.puzzle_view.loading_log);
+                        match rx.try_recv() {
+                            Ok(Ok(sim)) => self.set_sim(&Arc::new(Mutex::new(sim)), prefs),
+                            Err(mpsc::TryRecvError::Empty) => (), // keep waiting
+                            Ok(Err(e)) => self.loading = None,    // TODO: report error
+                            Err(mpsc::TryRecvError::Disconnected) => self.loading = None, // TODO: report error
+                        }
                     }
                 }
-            }
+                ui.ctx().request_repaint();
+            });
         } else if let Some(scramble_progress) = scramble_progress {
-            let (done, total) = scramble_progress.fraction();
-            ui.put(rect, egui::Label::new(format!("SCRAMBLING {done}/{total}")));
-            ui.ctx().request_repaint();
+            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(), |ui| {
+                let (done, total) = scramble_progress.fraction();
+                loading_header = Some(L.puzzle_view.scrambling);
+                loading_progress = Some(done as f32 / total as f32);
+                ui.ctx().request_repaint();
+            });
         } else if matches!(self.contents, PuzzleWidgetContents::None) {
             show_puzzle_load_hint(ui, self, prefs);
+        }
+
+        if let Some(header_text) = loading_header {
+            crate::gui::util::centered_popup_area(ui.ctx(), rect, unique_id!(), |ui| {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.heading(header_text);
+                });
+                if let Some(progress) = loading_progress {
+                    egui::ProgressBar::new(progress)
+                        .desired_width(200.0) // reasonable width
+                        .show_percentage()
+                        .ui(ui);
+                }
+            });
         }
     }
 

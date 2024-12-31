@@ -221,3 +221,17 @@ pub fn clicked_elsewhere(ui: &egui::Ui, r: &egui::Response) -> bool {
                 .is_some_and(|pos| !r.rect.contains(pos))
     })
 }
+
+pub fn centered_popup_area<R>(
+    ctx: &egui::Context,
+    rect: egui::Rect,
+    id: egui::Id,
+    contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> egui::InnerResponse<R> {
+    egui::Area::new(id)
+        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+        .constrain_to(rect)
+        .show(ctx, |ui| {
+            egui::Frame::popup(ui.style()).show(ui, contents).inner
+        })
+}

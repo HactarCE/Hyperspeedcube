@@ -597,6 +597,10 @@ piece_filters {
 
 puzzle_view {
   select_a_puzzle "Select a puzzle from the puzzle list"
+
+  constructing_puzzle "Constructing puzzle"
+  loading_log "Loading log file"
+  scrambling "Scrambling"
 }
 
 help {
