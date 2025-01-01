@@ -59,6 +59,20 @@ fn create_sealed_table_with_index_metamethod(
     Ok(table)
 }
 
+/// Sets the environment of the function to a new Lua environment with an
+/// `__index` metamethod pointing to the old environment. This sandboxes new
+/// global variables, but it's still possible to leak information by modifying
+/// existing global variables.
+fn protect_with_local_env(lua: &mlua::Lua, function: &mlua::Function) -> mlua::Result<()> {
+    let old_env = function.environment().unwrap_or_else(|| lua.globals());
+    let env = lua.create_table()?;
+    env.set_metatable(Some(
+        lua.create_table_from([(mlua::MetaMethod::Index.name(), old_env)])?,
+    ));
+    function.set_environment(env)?;
+    Ok(())
+}
+
 fn deep_copy_value(lua: &mlua::Lua, value: mlua::Value) -> mlua::Result<mlua::Value> {
     match value {
         mlua::Value::Table(table) => Ok(mlua::Value::Table(deep_copy_table(lua, table)?)),

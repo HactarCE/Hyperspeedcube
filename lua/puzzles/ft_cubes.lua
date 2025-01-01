@@ -19,10 +19,10 @@ end
 
 GIZMO_EDGE_FACTOR = 0.8
 
--- n^3
+-- NxNxN Face-Turning Cube generator
 puzzle_generators:add{
   id = 'ft_cube',
-  version = '0.1.0',
+  version = '1.0.0',
   name = "NxNxN Face-Turning Cube",
   colors = 'cube',
   params = {
@@ -39,25 +39,18 @@ puzzle_generators:add{
         local cut_depths = ft_cube_cut_depths(3, size)
         local colors, axes = utils.cut_ft_shape(self, shape, cut_depths)
 
-        -- Add twists
-        if axes then
-          for t, ax, rot in shape.sym.chiral:orbit(axes[1], shape.sym:thru(2, 1)) do
-            self.twists:add(ax, rot, { gizmo_pole_distance = 1 })
-          end
-        end
-
-        -- Mark piece types
         if size == 1 then
           lib.piece_types.mark_everything_core(self)
           return
         end
-        local U = self.axes.U
-        local F = self.axes.F
-        local R = self.axes.R
-        local U_adj = symmetry{self.twists.U}:orbit(R(1, floor(size/2))):union()
-        local UF_adj = R(1, floor(size/2)) | self.axes.L(1, floor(size/2))
-        local UFR_adj = REGION_NONE
-        lib.piece_types.triacron_subsets.mark_multilayer(self, size, U, F, R, U_adj, UF_adj, UFR_adj)
+
+        -- Define twists
+        for t, ax, rot in shape.sym.chiral:orbit(axes[1], shape.sym:thru(2, 1)) do
+          self.twists:add(ax, rot, { gizmo_pole_distance = 1 })
+        end
+
+        -- Mark piece types
+        lib.piece_types.triacron_subsets.mark_multilayer_UFRL(self, size)
         self:unify_piece_types(shape.sym.chiral) -- chiral because left vs. right obliques
       end,
 
@@ -133,7 +126,7 @@ puzzle_generators:add{
   },
 
   tags = {
-    builtin = '1.0.0',
+    builtin = '2.0.0',
     external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
 
     author = { "Andrew Farkas", "Milo Jacquet" },
@@ -156,10 +149,10 @@ puzzle_generators:add{
   },
 }
 
--- n^4
+-- NxNxNxN Face-Turning Hypercube generator
 puzzle_generators:add{
   id = 'ft_hypercube',
-  version = '0.1.0',
+  version = '1.0.0',
   name = "NxNxNxN Face-Turning Hypercube",
   colors = 'hypercube',
   params = {
@@ -178,11 +171,7 @@ puzzle_generators:add{
         self:carve(shape:iter_poles())
 
         if size == 1 then
-          self:mark_piece{
-            region = REGION_ALL,
-            name = 'core',
-            display = "Core",
-          }
+          lib.piece_types.mark_everything_core(self)
           return
         end
 
@@ -221,16 +210,8 @@ puzzle_generators:add{
         end
 
         -- Mark piece types
-        local U = self.axes.U
-        local F = self.axes.F
-        local R = self.axes.R
-        local I = self.axes.I
-        local U_adj = symmetry{self.twists.UR, self.twists.UF}:orbit(R(1, floor(size/2))):union()
-        local UF_adj = symmetry{self.twists.UF}:orbit(R(1, floor(size/2))):union()
-        local UFR_adj = I(1, floor(size/2)) | self.axes.O(1, floor(size/2))
-        local UFRI_adj = REGION_NONE
-        lib.piece_types.tetrahedracron_subsets.mark_multilayer(self, size, U, F, R, I, U_adj, UF_adj, UFR_adj, UFRI_adj)
-        self:unify_piece_types(sym.chiral)
+        lib.piece_types.tetrahedracron_subsets.mark_multilayer_UFRLIO(self, size)
+        self:unify_piece_types(sym.chiral) -- chiral because left vs. right obliques
       end,
 
       tags = {
@@ -265,7 +246,7 @@ puzzle_generators:add{
   },
 
   tags = {
-    builtin = '1.0.0',
+    builtin = '2.0.0',
     external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
 
     author = { "Andrew Farkas", "Milo Jacquet" },

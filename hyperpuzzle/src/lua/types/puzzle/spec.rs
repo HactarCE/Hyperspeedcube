@@ -98,6 +98,8 @@ impl FromLua for PuzzleSpec {
 
         crate::lua::tags::inherit_parent_tags(&mut tags);
 
+        crate::lua::protect_with_local_env(lua, &build)?;
+
         Ok(PuzzleSpec {
             id,
             version,

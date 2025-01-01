@@ -70,3 +70,9 @@ function layers.even_odd(start, stop, layer_count)
 
   return layers.inclusive(start, stop, floor(layer_count/2))
 end
+
+function unpack_named(env, elements)
+  for k,v in ipairs(elements) do
+    env[tostring(v.name)] = v
+  end
+end

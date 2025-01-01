@@ -79,25 +79,21 @@ impl LuaUserData for LuaPuzzleBuilder {
             this.cut(lua, cuts, CutMode::Slice, StickerMode::None)
         });
 
-        methods.add_method("add_piece_type", |lua, this, args: LuaTable| {
+        methods.add_method("add_piece_type", |lua, this, args| {
             let name: String;
             let display: Option<String>;
-            unpack_table!(lua.unpack(args { name, display }));
+            (name, display) = args;
 
             if let Err(e) = this.lock().shape.get_or_add_piece_type(name, display) {
                 lua.warning(e.to_string(), false);
             }
             Ok(())
         });
-        methods.add_method("mark_piece", |lua, this, args: LuaTable| {
+        methods.add_method("mark_piece", |lua, this, args| {
             let region: LuaRegion;
             let name: String;
             let display: Option<String>;
-            unpack_table!(lua.unpack(args {
-                region,
-                name,
-                display
-            }));
+            (region, name, display) = args;
 
             this.lock()
                 .shape
@@ -114,6 +110,10 @@ impl LuaUserData for LuaPuzzleBuilder {
             this.lock()
                 .shape
                 .unify_piece_types(&transforms, lua_warn_fn(lua));
+            Ok(())
+        });
+        methods.add_method("delete_untyped_pieces", |lua, this, ()| {
+            this.lock().shape.delete_untyped_pieces(lua_warn_fn(lua));
             Ok(())
         });
     }

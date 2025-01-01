@@ -378,11 +378,7 @@ impl ShapeBuilder {
 
     /// Marks pieces without a piece type as having some default type.
     pub fn mark_untyped_pieces(&mut self) -> Result<()> {
-        let untyped_pieces = self
-            .active_pieces
-            .iter()
-            .filter(|&p| self.pieces[p].piece_type.is_none())
-            .collect_vec();
+        let untyped_pieces = self.untyped_pieces();
         if !untyped_pieces.is_empty() {
             self.piece_type_display_names
                 .entry(DEFAULT_PIECE_TYPE_NAME.to_string())
@@ -396,6 +392,23 @@ impl ShapeBuilder {
             }
         }
         Ok(())
+    }
+
+    /// Deletes pieces without a specific piece type.
+    pub fn delete_untyped_pieces(&mut self, warn_fn: impl Fn(eyre::Error)) {
+        let untyped_pieces = self.untyped_pieces();
+        if untyped_pieces.is_empty() {
+            warn_fn(eyre!("no untyped pieces"));
+        }
+        for piece in untyped_pieces {
+            self.active_pieces.remove(&piece);
+        }
+    }
+    fn untyped_pieces(&self) -> Vec<Piece> {
+        self.active_pieces
+            .iter()
+            .filter(|&p| self.pieces[p].piece_type.is_none())
+            .collect_vec()
     }
 
     /// Constructs a mesh and assembles piece & sticker data for the shape.
