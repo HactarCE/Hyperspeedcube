@@ -233,7 +233,7 @@ fn general_polygon<'a>(mesh: &mut Mesh, verts: impl IntoIterator<Item = &'a Vect
 }
 
 fn add_ball(mesh: &mut Mesh, [x, y, z]: [f64; 3]) -> Result<()> {
-    add_edge_seq(mesh, &[[x, y, z], [x, y, z - 0.4]])
+    add_edge_seq(mesh, &[[x, y, z], [x, y + 0.01, z - 0.4]])
 }
 
 fn add_edge_seq(mesh: &mut Mesh, edges: &[[f64; 3]]) -> Result<()> {
