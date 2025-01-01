@@ -268,3 +268,80 @@ puzzle_generators:add{
     '!shapeshifting',
   },
 }
+
+-- N^D Face-Turning Hypercube generator
+puzzle_generators:add{
+  id = 'ft_nd_hypercube',
+  version = '1.0.0',
+  name = "N^D Facet-Turning Hypercube",
+  params = {
+    { name = "Layers", type = 'int', default = 3, min = 1, max = 13 },
+    { name = "Dimensions", type = 'int', default = 3, min = 2, max = 7 },
+  },
+  gen = function(params)
+    local size = params[1]
+    local ndim = params[2]
+
+    local name = size
+    for i = 2, ndim do
+      name = name .. "x" .. size
+    end
+
+    return {
+      name = name,
+      aliases = { size .. "^" .. ndim },
+      ndim = ndim,
+      build = function(self)
+        local sym = cd('bc' .. ndim)
+        local facet_pole = sym:vec{[ndim] = 1}.unit
+        self:carve(sym:orbit(facet_pole))
+
+        if size > 1 then
+          local cut_depths = ft_cube_cut_depths(ndim, size)
+          self.axes:add(sym:orbit(facet_pole), cut_depths)
+        end
+      end,
+
+      tags = {
+        ['type/shape'] = size == 1,
+        ['type/puzzle'] = size ~= 1,
+        algebraic = {
+          abelian = size == 1,
+          trivial = size == 1,
+        },
+        canonical = size == 3,
+        completeness = {
+          complex = size == 1,
+          laminated = size <= 2,
+          real = size <= 3,
+          super = size <= 2,
+        },
+        ['cuts/depth/deep/to_adjacent'] = size % 2 == 0,
+        ['cuts/depth/half'] = size % 2 == 0,
+        meme = size == 1,
+      },
+    }
+  end,
+
+  tags = {
+    builtin = '2.0.0',
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
+
+    author = { "Andrew Farkas" },
+    '!inventor',
+
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!fused', 'orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '!hybrid', '!multicore' },
+    colors = { '!multi_facet_per', '!multi_per_facet' },
+    cuts = { depth = { 'shallow' }, '!stored', '!wedge' },
+    turns_by = { 'facet' },
+    'experimental',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
+  },
+}
