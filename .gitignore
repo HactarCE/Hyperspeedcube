@@ -9,3 +9,4 @@ hyperspeedcube/src/locales.rs
 hsc2-prefs.yaml
 hsc2-stats.kdl
 solves/
+crash_*.log

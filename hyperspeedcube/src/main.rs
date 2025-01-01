@@ -61,8 +61,8 @@ fn main() -> eframe::Result<()> {
         let contents = format!("{title}\n\n{panic_info}\n\n{backtrace}");
         // IIFE to mimic try_block
         let fs_result = (|| {
-            let dir = hyperpaths::solves_dir()?;
-            std::fs::create_dir_all(dir);
+            let dir = hyperpaths::crash_report_dir()?;
+            std::fs::create_dir_all(dir)?;
             let filename = dir.join(format!("crash_{}.log", hyperpuzzle::Timestamp::now()));
             std::fs::write(&filename, &contents)?;
             eyre::Ok(filename)
