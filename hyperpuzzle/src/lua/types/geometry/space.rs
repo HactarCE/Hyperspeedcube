@@ -22,7 +22,7 @@ impl LuaSpace {
 
     /// Locks the global space and executes `f` with it.
     pub fn with<R>(lua: &Lua, f: impl FnOnce(&Arc<Space>) -> LuaResult<R>) -> LuaResult<R> {
-        f(&Self::get(lua)?.0).into_lua_err()
+        f(&Self::get(lua)?.0).map_err(|e| LuaError::external(format!("{e:#}")))
     }
 
     /// Sets a space to be the global space, executes `f`, and then restores the

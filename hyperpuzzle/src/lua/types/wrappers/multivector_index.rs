@@ -44,9 +44,8 @@ impl FromLua for LuaMultivectorIndex {
                 },
             })
         } else {
-            String::from_lua(lua_value, lua)?.parse()
+            String::from_lua(lua_value, lua)?.parse().into_lua_err()
         }
-        .into_lua_err()
     }
 }
 

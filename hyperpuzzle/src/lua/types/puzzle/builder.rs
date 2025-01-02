@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use eyre::Context;
 use itertools::Itertools;
 use parking_lot::{Mutex, MutexGuard};
 
@@ -64,7 +65,8 @@ impl LuaUserData for LuaPuzzleBuilder {
                                 eyre::Ok((name, color))
                             })
                             .try_collect()
-                            .into_lua_err()?,
+                            .wrap_err("error constructing color mapping")
+                            .map_err(|e| LuaError::external(format!("{e:#}")))?,
                     );
                 } else {
                     return Err(LuaError::external("bad value for key \"stickers\""));
@@ -173,9 +175,10 @@ impl LuaPuzzleBuilder {
             colors_assigned.push(color);
 
             match cut_mode {
-                CutMode::Carve => shape.carve(None, plane, color).into_lua_err()?,
-                CutMode::Slice => shape.slice(None, plane, color, color).into_lua_err()?,
+                CutMode::Carve => shape.carve(None, plane, color),
+                CutMode::Slice => shape.slice(None, plane, color, color),
             }
+            .map_err(|e| LuaError::external(format!("{e:#}")))?;
         }
 
         shape.colors.color_orbits.push(DevOrbit {

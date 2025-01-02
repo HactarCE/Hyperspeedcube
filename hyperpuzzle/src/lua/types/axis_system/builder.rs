@@ -160,7 +160,7 @@ impl LuaAxisSystem {
                         .into_lua_err()?;
                     puz.shape
                         .slice(None, cut_plane, None, None)
-                        .into_lua_err()?;
+                        .map_err(|e| LuaError::external(format!("{e:#}")))?;
                 }
             }
 

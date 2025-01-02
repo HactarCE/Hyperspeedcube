@@ -132,7 +132,7 @@ impl PuzzleSpec {
         let aliases = self.aliases.clone();
         let puzzle_builder =
             PuzzleBuilder::new(id, version, name, aliases, ndim, self.tags.clone())
-                .into_lua_err()?;
+                .map_err(|e| LuaError::external(format!("{e:#}")))?;
         if let Some(colors_id) = &self.colors {
             puzzle_builder.lock().shape.colors = LibraryDb::build_color_system(lua, colors_id)?;
         }
@@ -153,9 +153,14 @@ impl PuzzleSpec {
         let mut puzzle_builder = puzzle_builder.lock();
 
         // Assign default piece type to remaining pieces.
-        puzzle_builder.shape.mark_untyped_pieces().into_lua_err()?;
+        puzzle_builder
+            .shape
+            .mark_untyped_pieces()
+            .map_err(|e| LuaError::external(format!("{e:#}")))?;
 
-        puzzle_builder.build(lua_warn_fn(lua)).into_lua_err()
+        puzzle_builder
+            .build(lua_warn_fn(lua))
+            .map_err(|e| LuaError::external(format!("{e:#}")))
     }
 
     /// Returns the name or the ID of the puzzle.
