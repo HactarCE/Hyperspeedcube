@@ -1,4 +1,5 @@
 use hypermath::IndexNewtype;
+use itertools::Itertools;
 use parking_lot::MappedMutexGuard;
 
 use super::*;
@@ -35,13 +36,15 @@ impl LuaUserData for LuaLayerSystem {
             Ok(this.lock()?.len())
         });
 
-        methods.add_method("add", |_lua, this, (bound1, bound2)| {
-            let bottom = f64::min(bound1, bound2);
-            let top = f64::max(bound1, bound2);
-            this.lock()?
-                .push(AxisLayerBuilder { bottom, top })
-                .into_lua_err()?;
-
+        methods.add_method("add", |_lua, this, layer_boundaries: LuaTable| {
+            for (top, bottom) in layer_boundaries.sequence_values().tuple_windows() {
+                this.lock()?
+                    .push(AxisLayerBuilder {
+                        top: top?,
+                        bottom: bottom?,
+                    })
+                    .into_lua_err()?;
+            }
             Ok(())
         });
     }

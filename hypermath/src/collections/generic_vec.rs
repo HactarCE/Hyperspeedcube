@@ -364,7 +364,7 @@ impl<I: IndexNewtype, E> GenericVec<I, E> {
         self.iter_filter(pred).next()
     }
     /// Returns the last key for which a predicate returns `true`.
-    pub fn find_rev(&self, pred: impl FnMut(I, &E) -> bool) -> Option<I> {
+    pub fn rfind(&self, pred: impl FnMut(I, &E) -> bool) -> Option<I> {
         self.iter_filter(pred).next_back()
     }
 

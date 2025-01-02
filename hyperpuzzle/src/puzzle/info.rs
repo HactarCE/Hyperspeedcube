@@ -13,6 +13,8 @@ use tinyset::Set64;
 
 use crate::Rgb;
 
+use super::LayerMask;
+
 hypermath::idx_struct! {
     /// ID of a **piece**, which is rigid component of the puzzle that moves
     /// together.
@@ -151,6 +153,25 @@ impl AxisInfo {
                 .map(|l| (l.top, l.bottom))
                 .collect_vec(),
         )
+    }
+
+    pub(crate) fn is_layer_range_contiguous(&self, range: std::ops::RangeInclusive<u8>) -> bool {
+        range
+            .map(Layer)
+            .tuple_windows()
+            .all(|(higher, lower)| approx_eq(&self.layers[higher].bottom, &self.layers[lower].top))
+    }
+
+    pub(crate) fn contiguous_layer_range(&self, lo: Float, hi: Float) -> Option<LayerMask> {
+        let bottom_layer = self.layers.find(|_, l| approx_lt_eq(&l.bottom, &lo))?.0;
+        let top_layer = self.layers.rfind(|_, l| approx_gt_eq(&l.top, &hi))?.0;
+
+        // Ensure layers are contiguous
+        if !self.is_layer_range_contiguous(top_layer..=bottom_layer) {
+            return None;
+        }
+
+        Some(LayerMask::from(top_layer..=bottom_layer))
     }
 }
 

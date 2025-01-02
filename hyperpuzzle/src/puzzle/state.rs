@@ -10,8 +10,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 use crate::{
-    Axis, AxisInfo, Layer, LayerMask, LayeredTwist, PerAxis, PerLayer, PerPiece, Piece, PieceMask,
-    Puzzle,
+    Axis, AxisInfo, LayerMask, LayeredTwist, PerAxis, PerLayer, PerPiece, Piece, PieceMask, Puzzle,
 };
 
 type PerCachedTransform<T> = GenericVec<CachedTransform, T>;
@@ -217,22 +216,51 @@ impl PuzzleState {
 
     /// Returns the smallest layer mask on `axis` that contains `piece`.
     pub fn min_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
-        let layers = &self.puzzle_type.axes.get(axis).ok()?.layers;
-
         let (piece_bottom, piece_top) = self.piece_min_max_on_axis(piece, axis).ok()?;
-        let bottom_layer = layers
-            .find(|_, l| approx_lt_eq(&l.bottom, &piece_bottom))?
-            .0;
-        let top_layer = layers.find_rev(|_, l| approx_gt_eq(&l.top, &piece_top))?.0;
+        let axis_info = self.puzzle_type.axes.get(axis).ok()?;
+        axis_info.contiguous_layer_range(piece_bottom, piece_top)
+    }
+    /// Returns the smallest unblocked layer mask on `axis` that contains
+    /// `piece`.
+    pub fn min_drag_layer_mask(&self, axis: Axis, piece: Piece) -> Option<LayerMask> {
+        let ty = self.ty();
+        let axis_info = self.puzzle_type.axes.get(axis).ok()?;
 
-        // Ensure layers are contiguous
-        for (higher, lower) in (top_layer..=bottom_layer).map(Layer).tuple_windows() {
-            if !approx_eq(&layers[higher].bottom, &layers[lower].top) {
-                return None;
+        let mut floats = axis_info
+            .layers
+            .iter_values()
+            .flat_map(|layer_info| [layer_info.top, layer_info.bottom])
+            .collect_vec();
+        floats.insert(0, Float::INFINITY);
+        floats.push(-Float::INFINITY);
+        let mut i = 0;
+        while i < floats.len() - 1 {
+            if approx_eq(&floats[i], &floats[i + 1]) {
+                floats.remove(i);
             }
+            i += 1;
         }
 
-        Some(LayerMask::from(top_layer..=bottom_layer))
+        let mut min_of_all_pieces = Float::INFINITY;
+        let mut max_of_all_pieces = -Float::INFINITY;
+
+        for p in ty.pieces.iter_keys() {
+            let (min, max) = self.piece_min_max_on_axis(p, axis).ok()?;
+            min_of_all_pieces = Float::min(min_of_all_pieces, min);
+            max_of_all_pieces = Float::max(max_of_all_pieces, max);
+            floats.retain(|f| approx_lt_eq(f, &min) || approx_lt_eq(&max, f));
+        }
+
+        let (min, max) = self.piece_min_max_on_axis(piece, axis).ok()?;
+        let lo = *floats.iter().find(|&f| approx_lt_eq(f, &min))?;
+        let hi = *floats.iter().rfind(|&f| approx_lt_eq(&max, f))?;
+
+        // This includes all pieces
+        if approx_lt_eq(&lo, &min_of_all_pieces) && approx_lt_eq(&max_of_all_pieces, &hi) {
+            return None;
+        }
+
+        axis_info.contiguous_layer_range(lo, hi)
     }
 
     /// Returns the minimum and maximum coordinates along an axis that a piece's
