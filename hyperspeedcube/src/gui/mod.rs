@@ -111,6 +111,8 @@ impl AppUi {
                 egui_dock::DockArea::new(&mut self.dock_state)
                     .style(style)
                     .show_add_buttons(true)
+                    .show_leaf_close_all_buttons(false)
+                    .show_leaf_collapse_buttons(false)
                     .show_inside(ui, &mut tab_viewer);
                 for index in tab_viewer.added_nodes {
                     self.dock_state.set_focused_node_and_surface(index);
