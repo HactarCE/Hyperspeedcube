@@ -20,6 +20,8 @@ pub const ID_MATCH_PENALTY: isize = 60;
 pub const ALIAS_MATCH_PENALTY: isize = 50;
 pub const ADDITIONAL_MATCH_INDENT: &str = "    ";
 
+const GENERATOR_SLIDER_WIDTH: f32 = 200.0;
+
 pub fn show(ui: &mut egui::Ui, app: &mut App) {
     let stored_search_query_string = EguiTempValue::new(ui);
     let mut search_query_string: String = stored_search_query_string.get().unwrap_or_default();
@@ -265,7 +267,8 @@ fn show_puzzle_generator_ui(
             GeneratorParamType::Int { min, max } => {
                 let GeneratorParamValue::Int(i) = value;
                 ui.horizontal(|ui| {
-                    ui.add(egui::Slider::new(i, min..=max));
+                    ui.spacing_mut().slider_width = 200.0;
+                    ui.add(egui::Slider::new(i, min..=max).logarithmic(true));
                     ui.label(&param.name);
                 });
             }
