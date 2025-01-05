@@ -210,7 +210,7 @@ impl LuaPuzzleBuilder {
 
             match mode {
                 CutMode::Carve => shape.carve(piece_set.as_ref(), plane, color),
-                CutMode::Slice => shape.slice(piece_set.as_ref(), plane, color, color),
+                CutMode::Slice => shape.slice(piece_set.as_ref(), plane, color),
             }
             .map_err(|e| LuaError::external(format!("{e:#}")))?;
         }

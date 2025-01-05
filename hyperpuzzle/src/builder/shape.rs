@@ -106,10 +106,9 @@ impl ShapeBuilder {
         pieces: Option<&PieceSet>,
         cut_plane: Hyperplane,
         inside_color: Option<Color>,
-        outside_color: Option<Color>,
     ) -> Result<()> {
         let mut cut = Cut::slice(&self.space, cut_plane);
-        self.cut_and_deactivate_pieces(&mut cut, pieces, inside_color, outside_color)
+        self.cut_and_deactivate_pieces(&mut cut, pieces, inside_color, None)
     }
     fn cut_and_deactivate_pieces(
         &mut self,
@@ -169,15 +168,17 @@ impl ShapeBuilder {
                     .context("error cutting sticker")?
                 {
                     ElementCutOutput::Flush => {
-                        // Leave the sticker unchanged.
-                        inside_stickers.insert(old_sticker_polytope, old_color);
-                        outside_stickers.insert(old_sticker_polytope, old_color);
+                        // Assign new sticker color if we have a new one;
+                        // otherwise leave the sticker color unchanged.
+                        inside_stickers
+                            .insert(old_sticker_polytope, inside_color.unwrap_or(old_color));
+                        outside_stickers
+                            .insert(old_sticker_polytope, outside_color.unwrap_or(old_color));
                     }
                     ElementCutOutput::NonFlush {
                         inside, outside, ..
                     } => {
-                        // Use `get_or_insert()` instead to keep old color for
-                        // flush stickers instead of assigning the new color.
+                        // Leave the sticker color unchanged.
                         if let Some(p) = inside {
                             inside_stickers.insert(self.space.get(p).as_facet()?.id(), old_color);
                         }

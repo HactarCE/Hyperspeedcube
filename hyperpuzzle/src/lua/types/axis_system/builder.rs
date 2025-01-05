@@ -159,7 +159,7 @@ impl LuaAxisSystem {
                         .ok_or("axis vector cannot be zero")
                         .into_lua_err()?;
                     puz.shape
-                        .slice(None, cut_plane, None, None)
+                        .slice(None, cut_plane, None)
                         .map_err(|e| LuaError::external(format!("{e:#}")))?;
                 }
             }
