@@ -286,7 +286,19 @@ impl ShapeBuilder {
         self.piece_types_by_name.get(name).copied()
     }
 
-    /// Marks the type of all pieces in a region defined by a membership test.
+    /// Returns the set of active pieces in the region defined by a membership
+    /// test.
+    pub fn active_pieces_in_region<'a>(
+        &'a mut self,
+        has_point: impl 'a + Fn(&Vector) -> bool,
+    ) -> impl 'a + Iterator<Item = Piece> {
+        self.active_pieces
+            .clone()
+            .into_iter()
+            .filter(move |&p| has_point(self.pieces[p].interior_point(&self.space)))
+    }
+
+    /// Marks the type of all pieces in the region defined by a membership test.
     pub fn mark_piece_by_region(
         &mut self,
         name: &str,
@@ -303,11 +315,10 @@ impl ShapeBuilder {
         };
         let mut count = 0;
 
-        for piece in self.active_pieces.clone() {
-            if has_point(self.pieces[piece].interior_point(&self.space)) {
-                count += 1;
-                self.mark_piece(piece, piece_type);
-            }
+        let pieces_to_mark = self.active_pieces_in_region(has_point).collect_vec();
+        for piece in pieces_to_mark {
+            count += 1;
+            self.mark_piece(piece, piece_type);
         }
 
         if count != 1 {

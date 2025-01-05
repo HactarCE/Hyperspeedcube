@@ -109,11 +109,13 @@ impl LuaPuzzleBuilder {
             return Ok(CutArgs {
                 mode,
                 stickers: default_stickers,
+                region: None,
             });
         };
 
         let stickers: LuaValue;
-        unpack_table!(lua.unpack(args_table { stickers }));
+        let region: Option<LuaRegion>;
+        unpack_table!(lua.unpack(args_table { stickers, region }));
 
         let sticker_mode;
         if stickers.is_nil() {
@@ -148,6 +150,7 @@ impl LuaPuzzleBuilder {
         Ok(CutArgs {
             mode,
             stickers: sticker_mode,
+            region,
         })
     }
 
@@ -160,8 +163,11 @@ impl LuaPuzzleBuilder {
         args: Option<LuaTable>,
         default_sticker_mode: StickerMode,
     ) -> LuaResult<()> {
-        let CutArgs { mode, stickers } =
-            self.unpack_cut_args(lua, args, cut_mode, default_sticker_mode)?;
+        let CutArgs {
+            mode,
+            stickers,
+            region,
+        } = self.unpack_cut_args(lua, args, cut_mode, default_sticker_mode)?;
 
         let mut puz = self.lock();
         let shape = &mut puz.shape;
@@ -196,9 +202,15 @@ impl LuaPuzzleBuilder {
             };
             colors_assigned.push(color);
 
+            let piece_set = region.as_ref().map(|r| {
+                shape
+                    .active_pieces_in_region(|point| r.contains_point(point))
+                    .collect()
+            });
+
             match mode {
-                CutMode::Carve => shape.carve(None, plane, color),
-                CutMode::Slice => shape.slice(None, plane, color, color),
+                CutMode::Carve => shape.carve(piece_set.as_ref(), plane, color),
+                CutMode::Slice => shape.slice(piece_set.as_ref(), plane, color, color),
             }
             .map_err(|e| LuaError::external(format!("{e:#}")))?;
         }
@@ -218,6 +230,7 @@ impl LuaPuzzleBuilder {
 struct CutArgs {
     mode: CutMode,
     stickers: StickerMode,
+    region: Option<LuaRegion>,
 }
 
 /// Which pieces to keep when cutting the shape.
