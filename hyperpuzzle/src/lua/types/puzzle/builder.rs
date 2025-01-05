@@ -39,46 +39,11 @@ impl LuaUserData for LuaPuzzleBuilder {
         });
 
         methods.add_method("carve", |lua, this, (cuts, args)| {
-            let sticker_mode;
-            if let Some(table) = args {
-                let stickers: LuaValue;
-                unpack_table!(lua.unpack(table { stickers }));
-                if stickers.is_nil() {
-                    sticker_mode = StickerMode::NewColor; // default
-                } else if let Some(stickers) = stickers.as_boolean() {
-                    match stickers {
-                        true => sticker_mode = StickerMode::NewColor,
-                        false => sticker_mode = StickerMode::None,
-                    }
-                } else if let Ok(color) = LuaColor::from_lua(stickers.clone(), lua) {
-                    sticker_mode = StickerMode::Color(color.id);
-                } else if let LuaValue::Table(mapping_table) = stickers {
-                    let mut puz = this.lock();
-                    let color_system = &mut puz.shape.colors;
-                    sticker_mode = StickerMode::Map(
-                        mapping_table
-                            .pairs()
-                            .map(|pair| {
-                                let (name, LuaNameSet(color_name)) = pair?;
-                                let color = color_system
-                                    .get_or_add_with_name(color_name, lua_warn_fn(lua))?;
-                                eyre::Ok((name, color))
-                            })
-                            .try_collect()
-                            .wrap_err("error constructing color mapping")
-                            .map_err(|e| LuaError::external(format!("{e:#}")))?,
-                    );
-                } else {
-                    return Err(LuaError::external("bad value for key \"stickers\""));
-                }
-            } else {
-                sticker_mode = StickerMode::NewColor;
-            }
             // TODO: allow assigning face name when carving a single face (i.e., not using orbits)
-            this.cut(lua, cuts, CutMode::Carve, sticker_mode)
+            this.cut(lua, cuts, CutMode::Carve, args, StickerMode::NewColor)
         });
-        methods.add_method("slice", |lua, this, cuts| {
-            this.cut(lua, cuts, CutMode::Slice, StickerMode::None)
+        methods.add_method("slice", |lua, this, (cuts, args)| {
+            this.cut(lua, cuts, CutMode::Slice, args, StickerMode::None)
         });
 
         methods.add_method("add_piece_type", |lua, this, args| {
@@ -133,14 +98,71 @@ impl LuaPuzzleBuilder {
         Arc::clone(&self.0)
     }
 
+    fn unpack_cut_args(
+        &self,
+        lua: &Lua,
+        args: Option<LuaTable>,
+        mode: CutMode,
+        default_stickers: StickerMode,
+    ) -> LuaResult<CutArgs> {
+        let Some(args_table) = args else {
+            return Ok(CutArgs {
+                mode,
+                stickers: default_stickers,
+            });
+        };
+
+        let stickers: LuaValue;
+        unpack_table!(lua.unpack(args_table { stickers }));
+
+        let sticker_mode;
+        if stickers.is_nil() {
+            sticker_mode = default_stickers;
+        } else if let Some(stickers) = stickers.as_boolean() {
+            match stickers {
+                true => sticker_mode = default_stickers,
+                false => sticker_mode = StickerMode::None,
+            }
+        } else if let Ok(color) = LuaColor::from_lua(stickers.clone(), lua) {
+            sticker_mode = StickerMode::Color(color.id);
+        } else if let LuaValue::Table(mapping_table) = stickers {
+            let mut puz = self.lock();
+            let color_system = &mut puz.shape.colors;
+            sticker_mode = StickerMode::Map(
+                mapping_table
+                    .pairs()
+                    .map(|pair| {
+                        let (name, LuaNameSet(color_name)) = pair?;
+                        let color =
+                            color_system.get_or_add_with_name(color_name, lua_warn_fn(lua))?;
+                        eyre::Ok((name, color))
+                    })
+                    .try_collect()
+                    .wrap_err("error constructing color mapping")
+                    .map_err(|e| LuaError::external(format!("{e:#}")))?,
+            );
+        } else {
+            return Err(LuaError::external("bad value for key \"stickers\""));
+        }
+
+        Ok(CutArgs {
+            mode,
+            stickers: sticker_mode,
+        })
+    }
+
     /// Cut the puzzle.
     fn cut(
         &self,
         lua: &Lua,
         cuts: LuaSymmetricSet<LuaHyperplane>,
         cut_mode: CutMode,
-        sticker_mode: StickerMode,
+        args: Option<LuaTable>,
+        default_sticker_mode: StickerMode,
     ) -> LuaResult<()> {
+        let CutArgs { mode, stickers } =
+            self.unpack_cut_args(lua, args, cut_mode, default_sticker_mode)?;
+
         let mut puz = self.lock();
         let shape = &mut puz.shape;
         let mut gen_seqs = vec![];
@@ -148,7 +170,7 @@ impl LuaPuzzleBuilder {
         for (gen_seq, name, LuaHyperplane(plane)) in cuts.to_vec(lua)? {
             gen_seqs.push(gen_seq);
 
-            let color = match &sticker_mode {
+            let color = match &stickers {
                 StickerMode::NewColor => Some({
                     let name_string = name.as_ref().and_then(|name| name.canonical_name());
                     match name_string.and_then(|s| shape.colors.names.names_to_ids().get(&s)) {
@@ -174,7 +196,7 @@ impl LuaPuzzleBuilder {
             };
             colors_assigned.push(color);
 
-            match cut_mode {
+            match mode {
                 CutMode::Carve => shape.carve(None, plane, color),
                 CutMode::Slice => shape.slice(None, plane, color, color),
             }
@@ -189,6 +211,13 @@ impl LuaPuzzleBuilder {
 
         Ok(())
     }
+}
+
+/// Cut arguments.
+#[derive(Debug)]
+struct CutArgs {
+    mode: CutMode,
+    stickers: StickerMode,
 }
 
 /// Which pieces to keep when cutting the shape.
