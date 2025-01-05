@@ -17,9 +17,9 @@ puzzles:add{
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
       self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
     end
-    
+
     --Give axes labels for filters, twists, and to simplify following step
-    lib.utils.unpack_named(_ENV, self.axes)
+    lib.utils.unpack_named(_ENV, self.axes) 
 
     -- Add super-stickers on internal faces
     for i=3,-3,-2 do
@@ -43,8 +43,11 @@ puzzles:add{
     self:mark_piece(R(1) & L(1) & U(1) & ~D(1) & F(1) & B(1), 'anticenter', "Anti-Center")
     self:mark_piece(R(1) & L(1) & U(1) & D(1) & F(1) & B(1), 'anticore', "Anti-Core")
 
-    self:unify_piece_types(sym) -- Pattern piece-types around the puzzle
+    -- Pattern piece-types around the puzzle
+    self:unify_piece_types(sym)
+
   end,
+
   tags = {
     builtin = false,
     external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
