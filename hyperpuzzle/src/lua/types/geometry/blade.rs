@@ -11,8 +11,6 @@ impl FromLua for LuaBlade {
     fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
         if let Ok(m) = cast_userdata(lua, &value) {
             Ok(m)
-        } else if let Ok(h) = cast_userdata::<LuaHyperplane>(lua, &value) {
-            h.to_blade(lua)
         } else if let Ok(LuaVector(v)) = lua.unpack(value.clone()) {
             let ndim = enforce_ndim(lua, v.ndim())?;
             Ok(Self(Blade::from_vector(ndim, v)))
@@ -56,6 +54,18 @@ impl LuaUserData for LuaBlade {
 
         fields.add_field_method_get("bulk", |_lua, Self(this)| Ok(Self(this.bulk())));
         fields.add_field_method_get("weight", |_lua, Self(this)| Ok(Self(this.weight())));
+
+        // Hyperplane fields
+        fields.add_field_method_get("normal", |_lua, this| {
+            Ok(LuaVector(this.to_hyperplane()?.normal().clone()))
+        });
+        fields.add_field_method_get("distance", |_lua, this| {
+            Ok(this.to_hyperplane()?.distance())
+        });
+
+        fields.add_field_method_get("region", |_lua, this| {
+            Ok(LuaRegion::HalfSpace(this.to_hyperplane()?.clone()))
+        });
     }
 
     fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
@@ -200,6 +210,11 @@ impl LuaUserData for LuaBlade {
                 ))
             }
         });
+
+        // Hyperplane methods
+        methods.add_method("signed_distance", |_lua, this, LuaPoint(p)| {
+            Ok(this.to_hyperplane()?.signed_distance_to_point(p))
+        });
     }
 }
 
@@ -215,6 +230,12 @@ impl LuaBlade {
     /// Constructs a blade representing a hyperplane.
     pub fn from_hyperplane(lua: &Lua, h: &Hyperplane) -> LuaResult<Self> {
         Ok(Self(Blade::from_hyperplane(LuaNdim::get(lua)?, h)))
+    }
+
+    fn to_hyperplane(&self) -> LuaResult<Hyperplane> {
+        self.0
+            .to_hyperplane()
+            .ok_or_else(|| LuaError::external("expected hyperplane blade"))
     }
 }
 

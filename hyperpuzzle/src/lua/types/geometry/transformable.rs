@@ -29,8 +29,6 @@ pub enum Transformable {
     Blade(LuaBlade),
     /// Color in the color system of a shape.
     Color(Option<LuaColor>),
-    /// Hyperplane.
-    Hyperplane(LuaHyperplane),
     /// Region.
     Region(LuaRegion),
     /// Transform (isometry).
@@ -56,7 +54,6 @@ impl FromLua for Transformable {
             None.or_else(|| cast_userdata(lua, &value).and_then(Self::from_axis).ok())
                 .or_else(|| cast_userdata(lua, &value).and_then(Self::from_color).ok())
                 .or_else(|| cast_userdata(lua, &value).and_then(Self::from_twist).ok())
-                .or_else(|| cast_userdata(lua, &value).map(Self::Hyperplane).ok())
                 .or_else(|| cast_userdata(lua, &value).map(Self::Blade).ok())
                 .or_else(|| cast_userdata(lua, &value).map(Self::Transform).ok())
                 .or_else(|| cast_userdata(lua, &value).map(Self::Region).ok())
@@ -105,7 +102,6 @@ impl Transformable {
             }
             Self::Blade(b) => Some(b.clone().into_lua(lua)),
             Self::Color(c) => Some(c.clone().into_lua(lua)),
-            Self::Hyperplane(h) => Some(h.clone().into_lua(lua)),
             Self::Region(r) => Some(r.clone().into_lua(lua)),
             Self::Transform(t) => Some(t.clone().into_lua(lua)),
             Self::Twist {
@@ -148,7 +144,6 @@ impl TransformByMotor for Transformable {
             },
             Self::Blade(b) => Self::Blade(m.transform(b)),
             Self::Color(_) => Self::Color(None), // TODO: support transforming colors
-            Self::Hyperplane(LuaHyperplane(h)) => Self::Hyperplane(LuaHyperplane(m.transform(h))),
             Self::Region(r) => Self::Region(m.transform(r)),
             Self::Transform(LuaTransform(t)) => Self::Transform(LuaTransform(m.transform(t))),
             Self::Twist {
@@ -172,7 +167,6 @@ impl ApproxHashMapKey for Transformable {
             Self::Axis { db: _, vector } => vector.approx_hash(float_hash_fn).into(),
             Self::Blade(LuaBlade(b)) => b.approx_hash(float_hash_fn).into(),
             Self::Color(color) => color.as_ref().map(|c| c.id.0 as u64).into(),
-            Self::Hyperplane(LuaHyperplane(h)) => h.approx_hash(float_hash_fn).into(),
             Self::Region(r) => {
                 let mut planes = vec![];
                 let mut ast_structure = String::new();

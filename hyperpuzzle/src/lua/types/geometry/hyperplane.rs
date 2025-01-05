@@ -51,9 +51,7 @@ pub struct LuaHyperplane(pub Hyperplane);
 
 impl FromLua for LuaHyperplane {
     fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
-        if let Ok(this) = cast_userdata(lua, &value) {
-            Ok(this)
-        } else if let Ok(LuaVector(v)) = lua.unpack(value.clone()) {
+        if let Ok(LuaVector(v)) = lua.unpack(value.clone()) {
             Ok(Self(
                 Hyperplane::from_pole(v)
                     .ok_or("plane pole cannot be zero")
@@ -75,31 +73,15 @@ impl FromLua for LuaHyperplane {
     }
 }
 
-impl LuaUserData for LuaHyperplane {
-    fn add_fields<F: LuaUserDataFields<Self>>(fields: &mut F) {
-        fields.add_meta_field("type", LuaStaticStr("hyperplane"));
-
-        fields.add_field_method_get("ndim", |_lua, Self(this)| Ok(this.normal().ndim()));
-        fields.add_field_method_get("flip", |_lua, Self(this)| Ok(Self(this.flip())));
-        fields.add_field_method_get("normal", |_lua, Self(this)| {
-            Ok(LuaVector(this.normal().clone()))
-        });
-        fields.add_field_method_get("distance", |_lua, Self(this)| Ok(this.distance()));
-        fields.add_field_method_get("blade", |lua, this| this.to_blade(lua));
-
-        fields.add_field_method_get("region", |_lua, Self(this)| {
-            Ok(LuaRegion::HalfSpace(this.clone()))
-        });
+impl IntoLua for LuaHyperplane {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
+        self.to_blade(lua)?.into_lua(lua)
     }
+}
 
-    fn add_methods<M: LuaUserDataMethods<Self>>(methods: &mut M) {
-        methods.add_method("signed_distance", |_lua, Self(this), LuaPoint(p)| {
-            Ok(this.signed_distance_to_point(p))
-        });
-
-        methods.add_meta_method(LuaMetaMethod::Eq, |_lua, Self(this), Self(other)| {
-            Ok(approx_eq(this, &other))
-        });
+impl LuaTypeName for LuaHyperplane {
+    fn type_name(lua: &Lua) -> LuaResult<&'static str> {
+        Ok("hyperplane")
     }
 }
 
