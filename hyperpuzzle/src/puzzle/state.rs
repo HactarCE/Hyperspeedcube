@@ -281,16 +281,17 @@ impl PuzzleState {
     pub fn is_solved(&self) -> bool {
         let piece_transforms = self.piece_transforms();
 
-        // Each color may appear on at most one plane. Track that plane.
-        let mut color_planes = self.ty().colors.list.map_ref(|_, _| None);
+        // Each color may appear on at most one set of parallel planes. Track
+        // that normal vector.
+        let mut color_normals = self.ty().colors.list.map_ref(|_, _| None);
 
         self.ty().stickers.iter().all(|(_, sticker_info)| {
             let sticker_transform = &piece_transforms[sticker_info.piece];
-            let plane = sticker_transform.transform(&sticker_info.plane);
-            match color_planes.get_mut(sticker_info.color) {
-                Ok(Some(color_plane)) => approx_eq(color_plane, &plane),
+            let normal_vector = sticker_transform.transform_vector(sticker_info.plane.normal());
+            match color_normals.get_mut(sticker_info.color) {
+                Ok(Some(color_vector)) => approx_eq(color_vector, &normal_vector),
                 Ok(opt_color_plane @ None) => {
-                    *opt_color_plane = Some(plane);
+                    *opt_color_plane = Some(normal_vector);
                     true
                 }
                 Err(_) => {
