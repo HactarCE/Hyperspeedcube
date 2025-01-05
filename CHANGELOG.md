@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
-## [UNRELEASED] - 2025-01-05
+## [1.0.10] - 2025-01-05 - 2025-01-05
 
 ### Added
 
