@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<!-- Disable zooming: -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<head>
+    <!-- change this to your project name -->
+    <title>Hyperspeedcube</title>
+
+    <!-- config for our rust wasm binary. go to https://trunkrs.dev/assets/#rust for more customization -->
+    
+<script type="module" nonce="2ea74uU/bzYO3+wOPn1yYw==">
+import init, * as bindings from '/hyperspeedcube/hyperspeedcube.js';
+const wasm = await init('/hyperspeedcube/hyperspeedcube_bg.wasm');
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+
+    <link rel="icon" href="/hyperspeedcube/favicon.ico" integrity="sha384&#x2D;mNHE&#x2B;QKvn8g7h3RsFfmFlsqHZVmojuLRbN54LQiUrjCHJXnhyTfsfTYyXp0XHWUV"/>
+
+
+    
+    
+    
+    
+    
+    
+
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon_ios_touch_192.png">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="white">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#404040">
+
+    <style>
+        html {
+            /* Remove touch delay: */
+            touch-action: manipulation;
+        }
+
+        body {
+            /* Light mode background color for what is not covered by the egui canvas,
+            or where the egui canvas is translucent. */
+            background: #909090;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                /* Dark mode background color for what is not covered by the egui canvas,
+                or where the egui canvas is translucent. */
+                background: #404040;
+            }
+        }
+
+        /* Allow canvas to fill entire web page: */
+        html,
+        body {
+            overflow: hidden;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Position canvas in center-top: */
+        canvas {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 0%;
+            left: 0%;
+        }
+
+        .centered {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #f0f0f0;
+            font-size: 24px;
+            font-family: Ubuntu-Light, Helvetica, sans-serif;
+            text-align: center;
+        }
+
+        /* ---------------------------------------------- */
+        /* Loading animation from https://loading.io/css/ */
+        .lds-grid {
+            display: inline-block;
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+        .lds-grid div {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            animation: lds-grid 1.2s linear infinite;
+        }
+        .lds-grid div:nth-child(1) {
+            top: 8px;
+            left: 8px;
+            animation-delay: 0s;
+        }
+        .lds-grid div:nth-child(2) {
+            top: 8px;
+            left: 32px;
+            animation-delay: -0.4s;
+        }
+        .lds-grid div:nth-child(3) {
+            top: 8px;
+            left: 56px;
+            animation-delay: -0.8s;
+        }
+        .lds-grid div:nth-child(4) {
+            top: 32px;
+            left: 8px;
+            animation-delay: -0.4s;
+        }
+        .lds-grid div:nth-child(5) {
+            top: 32px;
+            left: 32px;
+            animation-delay: -0.8s;
+        }
+        .lds-grid div:nth-child(6) {
+            top: 32px;
+            left: 56px;
+            animation-delay: -1.2s;
+        }
+        .lds-grid div:nth-child(7) {
+            top: 56px;
+            left: 8px;
+            animation-delay: -0.8s;
+        }
+        .lds-grid div:nth-child(8) {
+            top: 56px;
+            left: 32px;
+            animation-delay: -1.2s;
+        }
+        .lds-grid div:nth-child(9) {
+            top: 56px;
+            left: 56px;
+            animation-delay: -1.6s;
+        }
+        @keyframes lds-grid {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes lds-dual-ring {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+    </style>
+    <style>
+
+        #modal {
+            position: absolute;
+            top: 20%;
+            left: 20%;
+            height: 60%;
+            width: 60%;
+            font-family: monospace;
+            padding: 10px;
+            overflow: scroll;
+            background-color: white;
+        }
+
+        .div-button {
+            background-color: #e0e0e0;
+            user-select: none;
+        }
+
+        #hidemodal {
+            position: fixed;
+            opacity: 1;
+            top: calc(20% + 10px);
+            right: calc(20% + 10px);
+            height: 15px;
+            width: 15px;
+            font-size: 20px;
+            line-height: 15px;
+            padding: 1px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #pastein {
+            width: 100%;
+            height: 100%;
+        }
+
+        #copyout {
+            margin: 0px;
+        }
+
+
+
+    </style>
+    <script>
+
+
+        // read the log file from localstorage and put it in the modal
+        window.requestCopyText = function(log){
+            const modal = document.getElementById("modal");
+            const copyOut = document.getElementById("copyout");
+            const pasteIn = document.getElementById("pastein");
+            const hideButton = document.getElementById("hidemodal");
+            hideButton.innerHTML = "X";
+            modal.classList.remove("hidden");
+            copyOut.classList.remove("hidden");
+            pasteIn.classList.add("hidden");
+            copyOut.innerHTML = log
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;");
+        }
+
+        // read a log file from the modal and send it to rust via magic (wasm binding)
+        window.requestPasteText = function(){
+            const modal = document.getElementById("modal");
+            const copyOut = document.getElementById("copyout");
+            const pasteIn = document.getElementById("pastein");
+            const hideButton = document.getElementById("hidemodal");
+            hideButton.innerHTML = "√";
+            modal.classList.remove("hidden");
+            copyOut.classList.add("hidden");
+            pasteIn.classList.remove("hidden");
+            pasteIn.value = "";
+
+            return new Promise((resolve, reject) => {
+                let intervalId = setInterval(() => {
+                    if (modal.classList.contains("hidden")){
+                        resolve(pasteIn.value);
+                        clearInterval(intervalId);
+                    }
+                }, 100);
+            });
+        }
+
+        // close the modal
+        function hideModal(){
+            const modal = document.getElementById("modal");
+            modal.classList.add("hidden")
+        }
+
+    </script>
+<link rel="modulepreload" href="/hyperspeedcube/hyperspeedcube.js" crossorigin=anonymous integrity="sha384-RI/FIEOsX68qFvzdoMnVN6o8PhPnygyW33fLWhNvX2t8jOTsksc6ghp+asamRHwd"><link rel="preload" href="/hyperspeedcube/hyperspeedcube_bg.wasm" crossorigin=anonymous integrity="sha384-tu6MoHkfVpl2JAUaCAiPUpr6+85O6hSts6EZzWR6BPl5t2RZEHTN2v2G3ahKSl31" as="fetch" type="application/wasm"></head>
+
+<body>
+    <div class="lds-grid centered" display><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+
+    <!-- The WASM code will resize the canvas dynamically -->
+    <!-- the id is hardcoded in main.rs . so, make sure both match. -->
+    <canvas id="hyperspeedcube_canvas" oncontextmenu="return false;"></canvas>
+
+    <!-- the div that holds the text to be copied or pasted -->
+    <div id="modal" class="hidden">
+        <pre id="copyout" class="hidden"></pre>
+        <textarea id="pastein" class="hidden" placeholder="Paste text here"></textarea>
+        <div id="hidemodal" class="div-button" onclick="hideModal();">X</div>
+    </div>
+
+    <!--Register Service Worker. this will cache the wasm / js scripts for offline use (for PWA functionality). -->
+    <!-- Force refresh (Ctrl + F5) to load the latest files instead of cached files  -->
+    <script>
+        // We disable caching during development so that we always view the latest version.
+        if ('serviceWorker' in navigator && window.location.hash !== "#dev") {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('sw.js');
+            });
+        }
+    </script>
+</body>
+
+</html>
+
+<!-- Powered by egui: https://github.com/emilk/egui/ -->
