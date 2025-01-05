@@ -1,7 +1,7 @@
 puzzles:add{
   id = 'complex_3x3x3',
   name = "Complex 3x3x3",
-  version = '0.1.0',
+  version = '1.0.0',
   ndim = 3,
   colors = 'cube',
   remove_internals = false,
