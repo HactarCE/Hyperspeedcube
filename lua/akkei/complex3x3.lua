@@ -20,6 +20,16 @@ puzzles:add{
 
     lib.utils.unpack_named(_ENV, self.axes) --Give axes labels for filters, twists, and to simplify following step
 
+    -- Add super-stickers on internal faces
+    for i=3,-3,-2 do
+        self:slice(plane(vec('x'), i/5), {stickers=self.colors.R})
+        self:slice(plane(vec('x')*-1, i/5), {stickers=self.colors.L})
+        self:slice(plane(vec('y'), i/5), {stickers=self.colors.U})
+        self:slice(plane(vec('y')*-1, i/5), {stickers=self.colors.D})
+        self:slice(plane(vec('z'), i/5), {stickers=self.colors.F})
+        self:slice(plane(vec('z')*-1, i/5), {stickers=self.colors.B})
+    end
+
     -- Mark one copy of each piece-type
     self:mark_piece(~R(1) & ~L(1) & ~U(1) & ~D(1) & ~F(1) & ~B(1), 'core', "Core")
     self:mark_piece(R(1) & ~L(1) & ~U(1) & ~D(1) & ~F(1) & ~B(1), 'center', "Center")
@@ -34,15 +44,7 @@ puzzles:add{
 
     self:unify_piece_types(sym) -- Pattern piece-types around the puzzle
 
-    -- Add super-stickers on internal faces
-    for i=3,-3,-2 do
-        self:slice(plane(vec('x'), i/5), {stickers=self.colors.R})
-        self:slice(plane(vec('x')*-1, i/5), {stickers=self.colors.L})
-        self:slice(plane(vec('y'), i/5), {stickers=self.colors.U})
-        self:slice(plane(vec('y')*-1, i/5), {stickers=self.colors.D})
-        self:slice(plane(vec('z'), i/5), {stickers=self.colors.F})
-        self:slice(plane(vec('z')*-1, i/5), {stickers=self.colors.B})
-    end
+
   end,
 
   tags = {
