@@ -86,11 +86,11 @@ pub(super) fn init_lua_environment(lua: &Lua, env: &LuaTable, loader: LuaLoader)
     env.raw_set("symmetry", lua.create_function(symmetry_fn)?)?;
 
     // `transform` constructors
-    let ident_fn = LuaTransform::construct_identity;
+    let ident_fn = LuaTransform::construct_identity_lua;
     env.raw_set("ident", lua.create_function(ident_fn)?)?;
-    let refl_fn = LuaTransform::construct_reflection;
+    let refl_fn = LuaTransform::construct_reflection_lua;
     env.raw_set("refl", lua.create_function(refl_fn)?)?;
-    let rot_fn = LuaTransform::construct_rotation;
+    let rot_fn = LuaTransform::construct_rotation_lua;
     env.raw_set("rot", lua.create_function(rot_fn)?)?;
 
     // `region` constants

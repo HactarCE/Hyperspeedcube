@@ -1,5 +1,6 @@
-use hypermath::pga::{Blade, Motor};
-use hypermath::{vector, Float, VectorRef};
+use eyre::{bail, ensure, Result};
+use hypermath::pga::{self, Blade, Motor};
+use hypermath::{vector, Float, Vector, VectorRef};
 
 use super::*;
 
@@ -68,11 +69,11 @@ impl LuaUserData for LuaTransform {
 
 impl LuaTransform {
     /// Constructs the identity transformation.
-    pub fn construct_identity(lua: &Lua, _: ()) -> LuaResult<Self> {
+    pub fn construct_identity_lua(lua: &Lua, _: ()) -> LuaResult<Self> {
         Ok(Self(Motor::ident(LuaNdim::get(lua)?)))
     }
     /// Constructs a rotation from a table of values.
-    pub fn construct_rotation(lua: &Lua, t: LuaTable) -> LuaResult<Self> {
+    pub fn construct_rotation_lua(lua: &Lua, t: LuaTable) -> LuaResult<Self> {
         let ndim = LuaNdim::get(lua)?;
 
         let fix: Option<LuaBlade>;
@@ -87,13 +88,29 @@ impl LuaTransform {
         }));
 
         let LuaBlade(fix) = fix.unwrap_or(LuaBlade(Blade::one(ndim)));
+        let from = from.map(|LuaVector(v)| v);
+        let to = to.map(|LuaVector(v)| v);
+
+        Ok(LuaTransform(
+            Self::construct_rotation(ndim, fix, from, to, angle)
+                .map_err(|e| LuaError::external(format!("{e:#}")))?,
+        ))
+    }
+
+    fn construct_rotation(
+        ndim: u8,
+        fix: Blade,
+        from: Option<Vector>,
+        to: Option<Vector>,
+        angle: Option<Float>,
+    ) -> Result<Motor> {
         let fix = fix.ensure_nonzero_weight();
 
         let half_angle = angle.map(|a| a / 2.0);
         let sincos_of_half_angle = half_angle.map(|a| (a.sin(), a.cos()));
 
         let (a, b) = match (from, to) {
-            (Some(LuaVector(from)), Some(LuaVector(to))) => {
+            (Some(from), Some(to)) => {
                 // IIFE to mimic try_block
                 (|| {
                     // Reject `from` and `to` from `fix`.
@@ -122,13 +139,29 @@ impl LuaTransform {
             }
 
             (None, None) if fix.antigrade() == 2 && !fix.is_zero() && angle.is_some() => {
-                let [from, perpendicular] = fix
+                let mut dual_basis: [Vector; 2] = fix
+                    .to_ndim_at_least(ndim)
                     .antidual()
                     .ensure_nonzero_weight()
                     .basis()
                     .try_into()
                     .map_err(|e| format!("bad basis for dual of `fix`: {e:?}"))
                     .into_lua_err()?;
+
+                let pss = Blade::wedge(
+                    &Blade::wedge(
+                        &Blade::from_vector(ndim, &dual_basis[0]),
+                        &Blade::from_vector(ndim, &dual_basis[1]),
+                    )
+                    .ok_or_else(|| LuaError::external("bad basis"))?,
+                    &fix,
+                )
+                .ok_or_else(|| LuaError::external("bad basis"))?;
+                if pss[pga::Axes::antiscalar(ndim)].is_sign_negative() {
+                    dual_basis.reverse();
+                }
+
+                let [from, perpendicular] = dual_basis;
 
                 let (sin, cos) = sincos_of_half_angle.unwrap_or((1.0, 0.0));
                 let a = from.clone();
@@ -137,16 +170,15 @@ impl LuaTransform {
                 (a, b)
             }
 
-            _ => return Err(LuaError::external("ambiguous rotation")),
+            _ => bail!("ambiguous rotation"),
         };
 
-        Ok(LuaTransform(Motor::from_normalized_vector_product(
-            ndim, a, b,
-        )))
+        Ok(Motor::from_normalized_vector_product(ndim, a, b))
     }
+
     /// Constructs a reflection through a vector, across a hyperplane, through a
     /// point, or through the origin.
-    pub fn construct_reflection(lua: &Lua, arg: Option<LuaBlade>) -> LuaResult<Self> {
+    pub fn construct_reflection_lua(lua: &Lua, arg: Option<LuaBlade>) -> LuaResult<Self> {
         let ndim = LuaNdim::get(lua)?;
 
         Ok(Self(match arg {
@@ -169,5 +201,59 @@ impl LuaTransform {
             }
             None => Motor::point_reflection(ndim, vector![]), // reflect through origin
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hypermath::assert_approx_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_fix_angle_rotation_direction() {
+        for ndim in 2..8 {
+            println!("Testing {ndim}D");
+
+            let fix = Blade::from_term(
+                ndim,
+                pga::Term::unit(
+                    (2..ndim)
+                        .map(|i| pga::Axes::euclidean(i))
+                        .fold(pga::Axes::empty(), |a, b| a | b),
+                ),
+            );
+            let t = LuaTransform::construct_rotation(
+                ndim,
+                fix,
+                None,
+                None,
+                Some(std::f64::consts::FRAC_PI_2),
+            )
+            .unwrap();
+            assert_approx_eq!(t.transform_vector(vector![1.0]), vector![0.0, 1.0]);
+
+            let fix = Blade::from_term(
+                ndim,
+                pga::Term::unit(
+                    (1..ndim - 1)
+                        .map(|i| pga::Axes::euclidean(i))
+                        .fold(pga::Axes::empty(), |a, b| a | b),
+                ),
+            );
+            let t = LuaTransform::construct_rotation(
+                ndim,
+                fix,
+                None,
+                None,
+                Some(std::f64::consts::FRAC_PI_2),
+            )
+            .unwrap();
+            // cyclic permutation of the basis vectors, so negate depending on
+            // parity of the permutation
+            let init = Vector::unit(ndim - 1);
+            let expected = vector![if ndim % 2 == 1 { 1.0 } else { -1.0 }];
+            assert_approx_eq!(t.transform_vector(init), expected);
+        }
     }
 }
