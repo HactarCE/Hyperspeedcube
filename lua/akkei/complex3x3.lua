@@ -50,7 +50,7 @@ puzzles:add{
 
   tags = {
     builtin = false,
-    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
+    external = { '!gelatinbrain', '!hof', '!mc4d', museum = 6777, '!wca' },
 
     author = "Jason White",
     '!inventor',
@@ -62,7 +62,7 @@ puzzles:add{
       '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
     },
     axes = { '3d/elementary/cubic', '!hybrid', '!multicore' },
-    colors = { '!multi_per_facet', '!multi_facet_per' },
+    colors = { '!multi_per_facet', 'multi_facet_per' },
     completeness = { 'super', '!real', '!laminated', 'complex' },
     cuts = { '!depth', '!stored', '!wedge' },
     turns_by = {'face', 'facet'},
