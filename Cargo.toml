@@ -53,9 +53,6 @@ multiple_crate_versions = { level = "allow", priority = 1 }
 [profile.dev]
 opt-level = 1
 
-[profile.dev.package.backtrace]
-opt-level = 3
-
 [workspace.dependencies]
 
 # Crates that are part of the project
