@@ -12,6 +12,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [@Sonicpineapple]: https://github.com/Sonicpineapple
 [@thatcomputerguy0101]: https://github.com/thatcomputerguy0101
 
+## [UNRELEASED] - 2025-01-05
+
+### Added
+
+- Timer auto-start and auto-stop ([@JosieElliston] [#66](https://github.com/HactarCE/Hyperspeedcube/pull/66))
+
+### Fixed
+
+- Status bar revealing solved state when blindfold is on ([@JosieElliston] [#66](https://github.com/HactarCE/Hyperspeedcube/pull/66))
+
 ## [1.0.9] - 2024-11-20
 
 ### Fixed
