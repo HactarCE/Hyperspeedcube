@@ -1,11 +1,10 @@
 local utils = lib.utils
 
 local REALISITIC_PROPORTIONS = true
-local CORNER_STALK_SIZE = 0.1
+CORNER_STALK_SIZE = 0.1
 
 local function ft_cube_cut_depths(ndim, layers)
   if layers < 2 then return end
-  if layers == 2 then return {1, 0, -1} end
 
   local outermost_cut
   local aesthetic_limit = 1 - 2/layers
@@ -14,7 +13,7 @@ local function ft_cube_cut_depths(ndim, layers)
     mechanical_limit = 1 / sqrt(ndim-1)
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return utils.concatseq({1}, utils.layers.inclusive(outermost_cut, -outermost_cut, layers-2), {-1})
+  return utils.layers.inclusive_inf(outermost_cut, -outermost_cut, layers)
 end
 
 GIZMO_EDGE_FACTOR = 0.8
@@ -24,9 +23,10 @@ puzzle_generators:add{
   id = 'ft_cube',
   version = '1.0.0',
   name = "NxNxN Face-Turning Cube",
+  aliases = {"N^3"},
   colors = 'cube',
   params = {
-    { name = "Layers", type = 'int', default = 3, min = 1, max = 17 },
+    { name = "Layers", type = 'int', default = 3, min = 1, max = 49 },
   },
   gen = function(params)
     local size = params[1]
@@ -154,6 +154,7 @@ puzzle_generators:add{
   id = 'ft_hypercube',
   version = '1.0.0',
   name = "NxNxNxN Face-Turning Hypercube",
+  aliases = {"N^4"},
   colors = 'hypercube',
   params = {
     { name = "Layers", type = 'int', default = 3, min = 1, max = 13 },

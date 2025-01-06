@@ -71,6 +71,20 @@ function layers.even_odd(start, stop, layer_count)
   return layers.inclusive(start, stop, floor(layer_count/2))
 end
 
+-- Returns evenly-spaced layer depths, including both endpoints and with `INF`
+-- and `-INF` on either side.
+function layers.inclusive_inf(start, stop, layer_count)
+  if layer_count < 1 then
+    return nil
+  elseif layer_count == 1 then
+    return {INF, -INF}
+  elseif layer_count == 2 then
+    return {INF, (start+stop)/2, -INF}
+  else
+    return concatseq({INF}, layers.inclusive(start, stop, layer_count-2), {-INF})
+  end
+end
+
 function unpack_named(env, elements)
   for k,v in ipairs(elements) do
     env[tostring(v.name)] = v

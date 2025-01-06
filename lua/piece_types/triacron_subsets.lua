@@ -32,7 +32,7 @@ function mark_multilayer_edges(puzzle, layers, U, F, U_adj, UF_adj)
   puzzle:add_piece_type('center', "Center")
   puzzle:add_piece_type('edge', "Edge")
 
-  -- Middle edge + center
+  -- Middle edges + centers
   local middle_center_region = U(1) & ~U_adj
   local middle_edge_region = U(1) & F(1) & ~UF_adj
   if layers > 1 then
@@ -65,7 +65,11 @@ function mark_multilayer_corners(puzzle, layers, U, F, R, UFR_adj)
   for i = 1, layers-1 do
     for j = 1, layers-1 do
       local region = U(1) & F(layers-i+1) & R(layers-j+1) & ~UFR_adj
-      puzzle:mark_piece(region, string.fmt2('center/%d_%d', "Center (%d, %d)", i, j))
+      if i == j then
+        puzzle:mark_piece(region, string.fmt2('center/%d_%d', "X-center (%d, %d)", i, j))
+      else
+        lib.piece_types.mark_left_right(puzzle, region, 'center/%d_%d', "oblique (%d, %d)", i, j)
+      end
     end
   end
 

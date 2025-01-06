@@ -25,7 +25,6 @@ end
 
 local function pentultimate_cut_depths(size)
   assert(size >= 2)
-  if size == 2 then return {1, 0, -1} end
 
   local outermost_cut
   local aesthetic_limit = (1 - 2/(size+0.6)) * (sqrt(5) - 2)
@@ -35,7 +34,7 @@ local function pentultimate_cut_depths(size)
     mechanical_limit = (-10 + 7 * sqrt(5)) / 29
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return utils.concatseq({1}, utils.layers.inclusive(outermost_cut, -outermost_cut, size-2), {-1})
+  return utils.layers.inclusive_inf(outermost_cut, -outermost_cut, size)
 end
 
 -- Cut shape and add twists
@@ -240,7 +239,7 @@ puzzle_generators:add{
         local shape = construct_ft_dodecahedron(self, cut_depths)
 
         -- Mark piece types
-        lib.utils.unpack_named(_ENV, self.axes)
+        utils.unpack_named(_ENV, self.axes)
         local UFR_adj = REGION_NONE
         lib.piece_types.triacron_subsets.mark_multilayer_corners(self, size, U, F, R, UFR_adj)
         self:unify_piece_types(shape.sym.chiral)
@@ -292,12 +291,12 @@ puzzles:add{
   colors = 'dodecahedron',
   build = function(self)
     local t = cos(pi/10) * tan(pi/5) / (2 - sin(pi/10))
-    local depth = lib.utils.lerp(MEGAMINX_DEPTH, CRYSTAL_DEPTH, t)
+    local depth = utils.lerp(MEGAMINX_DEPTH, CRYSTAL_DEPTH, t)
     local cut_depths = {1, depth, -depth, -1}
     local shape = construct_ft_dodecahedron(self, cut_depths)
 
     do -- Mark piece types
-      lib.utils.unpack_named(_ENV, self.axes)
+      utils.unpack_named(_ENV, self.axes)
 
       local region = U(1) & symmetry{self.twists.U}:orbit(R(2)):intersection()
       self:mark_piece(region, 'center', "Center")
@@ -355,17 +354,17 @@ puzzles:add{
     local shape = construct_ft_dodecahedron(self, cut_depths)
 
     -- Mark piece types
-    lib.utils.unpack_named(_ENV, self.axes)
-    self:mark_piece(L(2) & BR(2) & DR(2) & U(1), 'corner', "Corner")
+    utils.unpack_named(_ENV, self.axes)
     self:mark_piece(L(1) & R(1), 'edge', "Edge")
-    self:unify_piece_types(sym.chiral)
+    self:mark_piece(L(2) & BR(2) & DR(2) & U(1), 'corner', "Corner")
+    self:unify_piece_types(shape.sym.chiral)
   end,
 
   tags = {
     builtin = '2.0.0',
     external = { gelatinbrain = '1.1.3', '!hof', '!mc4d', museum = 652, '!wca' },
 
-    author = {"Milo Jacquet"},
+    author = "Milo Jacquet",
     inventor = "Aleh Hladzilin",
 
     'type/puzzle',
@@ -402,7 +401,7 @@ puzzles:add{
     local shape = construct_ft_dodecahedron(self, cut_depths)
 
     -- Mark piece types
-    lib.utils.unpack_named(_ENV, self.axes)
+    utils.unpack_named(_ENV, self.axes)
     self:mark_piece(L(2) & BR(2) & DR(2) & U(1), 'corner', "Corner")
     self:mark_piece(BR(2) & BL(2) & R(1) & L(1), 'edge', "Edge")
     self:mark_piece(F(2) & R(1) & BR(1) & BL(1) & L(1), 'x_center', "X-center")
@@ -414,7 +413,7 @@ puzzles:add{
     builtin = '2.0.0',
     external = { gelatinbrain = '1.1.4', '!hof', '!mc4d', museum = 4344, '!wca' },
 
-    author = {"Milo Jacquet"},
+    author = "Milo Jacquet",
     inventor = "Mr. Fok",
 
     'type/puzzle',
@@ -450,7 +449,7 @@ puzzles:add{
     local shape = construct_ft_dodecahedron(self, cut_depths)
 
     -- Mark piece types
-    lib.utils.unpack_named(_ENV, self.axes)
+    utils.unpack_named(_ENV, self.axes)
     self:mark_piece(BR(2) & BL(2) & R(1) & L(1), 'edge', "edge")
     self:mark_piece(U(2) & L(1) & R(1), 'x_center', "X-center")
     self:mark_piece(F(1) & R(1) & BR(1) & BL(1) & L(1), 'center', "Center")
@@ -461,7 +460,7 @@ puzzles:add{
     builtin = '2.0.0',
     external = { gelatinbrain = '1.1.5', '!hof', '!mc4d', museum = 1759, '!wca' },
 
-    author = {"Milo Jacquet"},
+    author = "Milo Jacquet",
     inventor = "Aleh Hladzilin",
 
     'type/puzzle',
@@ -503,7 +502,7 @@ puzzle_generators:add{
         local cut_depths = pentultimate_cut_depths(size)
         local shape = construct_ft_dodecahedron(self, cut_depths)
 
-        lib.utils.unpack_named(_ENV, self.axes)
+        utils.unpack_named(_ENV, self.axes)
 
         do -- Mark piece types
           self:add_piece_type('center', "Center")

@@ -38,7 +38,7 @@ function mark_multilayer_ridges(puzzle, layers, U, F, U_adj, UF_adj)
   puzzle:add_piece_type('center', "Center")
   puzzle:add_piece_type('ridge', "Ridge")
 
-  -- Middle ridge + center
+  -- Middle ridges + centers
   local middle_center_region = U(1) & ~U_adj
   local middle_ridge_region = U(1) & F(1) & ~UF_adj
   if layers > 1 then

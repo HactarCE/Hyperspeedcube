@@ -9,9 +9,24 @@
 -- that in the puzzle definition.
 
 function mark_everything_core(puzzle)
-  puzzle:mark_piece{
-    region = REGION_ALL,
-    name = 'core',
-    display = "Core",
-  }
+  puzzle:mark_piece(REGION_ALL, 'core', "Core")
+end
+
+-- Returns the string "Inner" if `i < threshold`, "Outer" if `i > threshold`, or
+-- "Middle" if `i == threshold`.
+function inner_outer_prefix(i, threshold)
+  if i < threshold then return "Inner" end
+  if i > threshold then return "Outer" end
+  if i == threshold then return "Middle" end
+end
+
+function mark_left_right(puzzle, region, name_pattern, display_pattern, i, j)
+  if i < j then
+    local sentencecased = display_pattern:sub(1, 1):upper() .. display_pattern:sub(2)
+    puzzle:add_piece_type(string.fmt2(name_pattern, sentencecased, i, j))
+    puzzle:add_piece_type(string.fmt2(name_pattern .. '/left', "Left " .. display_pattern, i, j))
+    puzzle:mark_piece(region, string.fmt2(name_pattern .. '/right', "Right " .. display_pattern, i, j))
+  else
+    puzzle:mark_piece(region, string.fmt2(name_pattern .. '/left', "Left " .. display_pattern, j, i))
+  end
 end
