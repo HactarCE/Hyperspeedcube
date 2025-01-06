@@ -2,9 +2,11 @@ local tribonacci_constant = (1 + 4*cosh(1/3 * acosh(2 + 3/8))) / 3
 
 puzzles:add{
   id = "pentagonal_icositetrahedron",
+  version = '0.1.0',
   name = "Pentagonal Icositetrahedron",
   tags = {
     "type/shape",
+    "experimental",
   },
   ndim = 3,
   build = function(self)

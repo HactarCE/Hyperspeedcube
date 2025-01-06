@@ -19,7 +19,7 @@ puzzles:add{
     end
 
     --Give axes labels for filters, twists, and to simplify following step
-    lib.utils.unpack_named(_ENV, self.axes) 
+    lib.utils.unpack_named(_ENV, self.axes)
 
     -- Add super-stickers on internal faces
     for i=3,-3,-2 do

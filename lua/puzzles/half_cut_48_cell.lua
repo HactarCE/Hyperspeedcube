@@ -67,6 +67,7 @@ puzzles:add{
   name = "Half-Cut 48-Cell (Hypercube)",
   tags = {
     author = {"Andrew Farkas", "Luna Harran", "Milo Jacquet"},
+    experimental = true,
   },
   colors = 'hypercube',
   ndim = 4,
@@ -79,6 +80,7 @@ puzzles:add{
   name = "Half-Cut 48-Cell (16-Cell)",
   tags = {
     author = {"Andrew Farkas", "Luna Harran", "Milo Jacquet"},
+    experimental = true,
   },
   ndim = 4,
   build = function(self) build_48_cell_puzzle(self, 'orthoplex') end,
@@ -90,6 +92,7 @@ puzzles:add{
   name = "Half-Cut 48-Cell (24-Cell)",
   tags = {
     author = {"Andrew Farkas", "Luna Harran", "Milo Jacquet"},
+    experimental = true,
   },
   ndim = 4,
   build = function(self) build_48_cell_puzzle(self, 'octaplex') end,
@@ -101,6 +104,7 @@ puzzles:add{
   name = "Half-Cut 48-Cell",
   tags = {
     author = {"Andrew Farkas", "Luna Harran", "Milo Jacquet"},
+    experimental = true,
   },
   ndim = 4,
   build = function(self) build_48_cell_puzzle(self, '48cell') end,
