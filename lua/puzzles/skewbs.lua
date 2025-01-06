@@ -1,10 +1,9 @@
+local utils = lib.utils
+
 local REALISITIC_PROPORTIONS = true
 local CORNER_STALK_SIZE = 0.03
 
-
 local function skewb_cut_depths(size)
-  if size == 2 then return {INF, 0, -INF} end
-
   local outermost_cut
   local aesthetic_limit = (1 - 2/(size+0.6)) * (1 / sqrt(3))
   local mechanical_limit = 1 / sqrt(3)
@@ -13,197 +12,243 @@ local function skewb_cut_depths(size)
     mechanical_limit = sqrt(3) / 5
   end
   outermost_cut = min(aesthetic_limit, mechanical_limit - CORNER_STALK_SIZE)
-  return lib.utils.concatseq({INF}, lib.utils.layers.inclusive(outermost_cut, -outermost_cut, size-2), {-INF})
+  return utils.layers.inclusive_inf(outermost_cut, -outermost_cut, size)
 end
 
+local function construct_vt_cube(puzzle, cut_depths)
+  local cube = lib.symmetries.cubic.cube()
+  local octahedron = lib.symmetries.octahedral.octahedron()
+
+  puzzle:carve(cube:iter_poles())
+
+  -- Define axes and slices
+  puzzle.axes:add(octahedron:iter_poles(), cut_depths)
+
+  local sym = octahedron.sym
+
+  -- Define twists
+  for _, axis, twist_transform in sym.chiral:orbit(puzzle.axes[sym.xoo.unit], sym:thru(3, 2)) do
+    puzzle.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
+  end
+
+  return cube, octahedron
+end
+
+-- N-Layer Skewb generator
 puzzle_generators:add{
   id = 'skewb',
-  version = '0.1.0',
-
+  version = '1.0.0',
   name = "N-Layer Skewb",
-  tags = {
-    author = { "Milo Jacquet" }
-  },
-
   params = {
     { name = "Layers", type = 'int', default = 2, min = 2, max = 9 },
   },
-
-  examples = {
-    { params = {2}, name = "Skewb" },
-    { params = {3}, name = "Master Skewb" },
-    { params = {4}, name = "Elite Skewb" },
-    { params = {5}, name = "Royal Skewb" },
-  },
-
   gen = function(params)
     local size = params[1]
-
     return {
       name = size .. "-Layer Skewb",
-
       colors = 'cube',
-
       ndim = 3,
       build = function(self)
-        local sym = cd'bc3'
-        local shape = lib.symmetries.cubic.cube()
-        self:carve(shape:iter_poles())
+        local _cube, octahedron = construct_vt_cube(self, skewb_cut_depths(size))
 
-        -- Define axes and slices
-        self.axes:add(lib.symmetries.octahedral.octahedron():iter_poles(), skewb_cut_depths(size))
+        utils.unpack_named(_ENV, self.axes)
 
-        -- Define twists
-        for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
-          self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1.1})
-        end
+        do -- Mark piece types
+          self:add_piece_type('center', "Center")
 
-        local R = self.axes.R
-        local L = self.axes.L
-        local U = self.axes.U
-        local F = self.axes.F
-        local BD = self.axes.BD
+          local center_layer = ceil((size+1)/2)
 
-        local center_layer = ceil(size/2)
-
-        -- Centers
-        for i = 2, center_layer do
-          for j = i, size+1-i do
-            local name, display
-            local name2, display2
-            if i == j and j*2 - 1 == size then
-              if size > 3 then
-                name, display = 'edge/middle', "Middle edge"
-              else
-                name, display = 'edge', "Edge"
-              end
-            elseif i == j then
-              name, display = string.fmt2("edge/wing_%d", "Wing (%d)", i-1)
-            elseif i + j == size+1 then
-              name, display = string.fmt2('center/t_%d', "T-center (%d)", i-1)
-            else
-              name, display = string.fmt2('center/oblique_%d_%d', "Oblique (%d, %d)", i-1, j-1)
-              self:add_piece_type{ name = name, display = display }
-              name2 = name .. '/right'
-              display2 = display .. " (right)"
-              name = name .. '/left'
-              display = display .. " (left)"
-            end
-            self:mark_piece{
-              region = F(1) & L(j) & R(i),
-              name = name,
-              display = display,
-            }
-            if name2 ~= nil then
-              self:mark_piece{
-                region = F(1) & L(i) & R(j),
-                name = name2,
-                display = display2,
-              }
-            end
-          end
-        end
-
-        for i = 2, floor(size/2) do
-          local name, display = string.fmt2('center/x/outer_%d', "Outer X-center (%d)", i-1)
-          self:mark_piece{
-            region = BD(i) & L(1) & R(1),
-            name = name,
-            display = display,
-          }
-
-          local name, display = string.fmt2('center/x/inner_%d', "Inner X-center (%d)", i-1)
-          self:mark_piece{
-            region = BD(size+1-i) & L(1) & R(1),
-            name = name,
-            display = display,
-          }
-        end
-
-        if size % 2 == 1 then
-          local name, display
-          if size > 3 then
-            name, display = 'center/x/middle', "Middle X-center"
+          -- Middle centers
+          local middle_center_region = F(1) & R(1) & U(1) & L(1)
+          if size >= 3 then
+            self:add_piece_type('edge', "Edge")
+            self:mark_piece(middle_center_region, 'center/0_0', "Middle center")
           else
-            name, display = 'center/x', "X-center"
+            self:mark_piece(middle_center_region, 'center')
           end
-          name = self:mark_piece{
-            region = U(center_layer) & L(1) & R(1),
-            name = name,
-            display = display,
-          }
+
+          -- X-centers
+          for i = 1, size-2 do
+            local prefix = lib.piece_types.inner_outer_prefix(i, (size-1)/2)
+            local name = string.format('center/0_%d', i)
+            local display = string.format('%s X-center (%d)', prefix, i)
+            self:mark_piece(U(i+1) & L(1) & R(1), name, display)
+          end
+
+          lib.piece_types.unknown_vt_guys.mark_diamond_pieces(self, size, F(1), L, R)
+
+          -- Corners
+          self:mark_piece(L(1) & R(1) & BD(1), 'corner', "Corner")
+
+          self:unify_piece_types(octahedron.sym.chiral)
         end
-
-        local name, display
-        if size > 3 then
-          name, display = 'center/middle', "Middle center"
-        else
-          name, display = 'center', "Center"
-        end
-        self:mark_piece{
-          region = F(1) & R(1) & U(1) & L(1),
-          name = name,
-          display = display,
-        }
-
-        self:mark_piece{
-          region = L(1) & R(1) & BD(1),
-          name = 'corner',
-          display = "Corner",
-        }
-
-        self:unify_piece_types(sym.chiral)
       end,
+
+      tags = {
+        'type/puzzle',
+        completeness = {
+          real = size == 2,
+        },
+        ['cuts/depth/half'] = size % 2 == 0,
+      }
     }
   end,
+
+  examples = {
+    { params = {2}, name = "Skewb",
+      aliases = { "Pyraminx Cube" },
+      tags = {
+        external = { gelatinbrain = '3.2.1', museum = 621, wca = 'skewb' },
+        inventor = "Tony Durham",
+      },
+    },
+    { params = {3}, name = "Master Skewb",
+      tags = {
+        external = { gelatinbrain = '3.2.2', museum = 1353 },
+        inventor = "Katsuhiko Okamoto",
+      }
+    },
+    { params = {4}, name = "Elite Skewb",
+      tags = {
+        external = { gelatinbrain = '3.2.3', museum = 2004 },
+        inventor = "Andrew Cormier",
+      },
+    },
+    { params = {5}, name = "Royal Skewb" }, -- no museum link? it's been built: https://www.youtube.com/watch?v=g-Orrt6I_2U
+    { params = {7},
+      tags = {
+        external = { museum = 11849 },
+        inventor = "Kairis Wu",
+      },
+    },
+  },
+
+  tags = {
+    builtin = '2.0.0',
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
+
+    author = { "Milo Jacquet", "Andrew Farkas" },
+    '!inventor',
+
+    'shape/3d/platonic/cube',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/octahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!laminated', '!complex' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
+    turns_by = { 'peak', 'vertex' },
+    '!experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
+  },
 }
 
+-- Dino Cube
 puzzles:add{
   id = 'dino_cube',
   name = 'Dino Cube',
-  version = '0.1.0',
+  version = '1.0.0',
   ndim = 3,
   colors = 'cube',
-  tags = {
-    author = 'Milo Jacquet',
-  },
   build = function(self)
-    local sym = cd'bc3'
-    local shape = lib.symmetries.cubic.cube()
-    self:carve(shape:iter_poles())
-
-    -- Define axes and slices
-    self.axes:add(lib.symmetries.octahedral.octahedron():iter_poles(), {INF, 1/sqrt(3), -1/sqrt(3), -INF})
+    local _cube, octahedron = construct_vt_cube(puzzle, {INF, 1/sqrt(3), -1/sqrt(3), -INF})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
       self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1.1})
     end
 
-    local R = self.axes.R
-    local L = self.axes.L
-    local U = self.axes.U
-    local BD = self.axes.BD
-
-    self:mark_piece{
-      region =  R(1) & U(1),
-      name = 'edge',
-      display = "Edge",
-    }
-
+    -- Mark piece types
+    utils.unpack_named(_ENV, self.axes)
+    self:mark_piece(R(1) & U(1), 'edge', "Edge")
     self:unify_piece_types(sym.chiral)
   end,
+
+  tags = {
+    builtin = '2.0.0',
+    external = { gelatinbrain = '3.2.4', '!hof', '!mc4d', museum = 5020, '!wca' },
+
+    author = { "Milo Jacquet", "Andrew Farkas" },
+    inventor = "Robert Webb",
+
+    'type/puzzle',
+    'shape/3d/platonic/cube',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/octahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { 'super', '!real', '!laminated', '!complex' },
+    cuts = { 'depth/deep/to_adjacent', '!stored', '!wedge' },
+    turns_by = { 'peak', 'vertex' },
+    '!experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
+  },
 }
 
+-- Dino Skewb
+puzzles:add{
+  id = 'dino_skewb',
+  name = 'Dino Skewb',
+  version = '1.0.0',
+  ndim = 3,
+  colors = 'cube',
+  remove_internals = false,
+  build = function(self)
+    local cube, octahedron = construct_vt_cube(self, {INF, 1/sqrt(3), 0, -1/sqrt(3), -INF})
+
+    -- Mark piece types
+    utils.unpack_named(_ENV, self.axes)
+    self:mark_piece(R(1) & U(1) & F(2) & L(2), 'center', "Center")
+    self:mark_piece(R(1) & U(1) & F(2) & L(3), 'wing', "Wing")
+    self:unify_piece_types(octahedron.sym.chiral)
+  end,
+
+  tags = {
+    builtin = '2.0.0',
+    external = { gelatinbrain = '3.2.4', '!hof', '!mc4d', museum = 5020, '!wca' },
+
+    author = { "Milo Jacquet", "Andrew Farkas" },
+    inventor = "Robert Webb",
+
+    'type/puzzle',
+    'shape/3d/platonic/cube',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/octahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { 'super', '!real', '!laminated', '!complex' },
+    cuts = { 'depth/deep/to_adjacent', 'depth/half', '!stored', '!wedge' },
+    turns_by = { 'peak', 'vertex' },
+    '!experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
+  },
+}
+
+-- Compy Cube
 puzzles:add{
   id = 'compy_cube',
   name = 'Compy Cube',
-  version = '0.1.0',
+  version = '1.0.0',
   ndim = 3,
   colors = 'cube',
-  tags = {
-    author = 'Milo Jacquet',
-  },
   build = function(self)
     local sym = cd'bc3'
     local shape = lib.symmetries.cubic.cube()
@@ -217,26 +262,37 @@ puzzles:add{
       self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1.1})
     end
 
-    local R = self.axes.R
-    local L = self.axes.L
-    local U = self.axes.U
-    local BD = self.axes.BD
-
-    self:mark_piece{
-      region = R(1) & U(1),
-      name = 'edge',
-      display = 'Edge',
-    }
-    self:mark_piece{
-      region = U(1) & ~R(1) & ~L(1) & ~BD(1),
-      name = 'corner',
-      display = 'Corner',
-    }
-    self:mark_piece{
-      region = sym:orbit(~U'*'):intersection(), -- TODO: construct 'everything' region
-      name = 'core',
-      display = 'Core',
-    }
+    -- Mark piece types
+    utils.unpack_named(_ENV, self.axes)
+    self:mark_piece(R(1) & U(1), 'edge', "Edge")
+    self:mark_piece(U(1) & ~R(1) & ~L(1) & ~BD(1), 'corner', "Corner")
+    self:mark_piece(sym:orbit(~U'*'):intersection(), 'core', "Core")
     self:unify_piece_types(sym.chiral)
   end,
+
+  tags = {
+    builtin = '2.0.0',
+    external = { '!gelatinbrain', '!hof', '!mc4d', museum = 5020, '!wca' }, -- surprisingly not in gelatinbrain
+
+    author = { "Milo Jacquet", "Andrew Farkas" },
+    inventor = "Robert Webb",
+
+    'type/puzzle',
+    'shape/3d/platonic/cube',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/octahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { 'super', '!real', '!laminated', '!complex' },
+    cuts = { 'depth/deep/to_adjacent', '!stored', '!wedge' },
+    turns_by = { 'peak', 'vertex' },
+    '!experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
+  },
 }
