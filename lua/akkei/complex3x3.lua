@@ -1,7 +1,7 @@
 puzzles:add{
   id = 'complex_3x3x3',
   name = "Complex 3x3x3",
-  version = '1.0.0',
+  version = '1.0.1',
   ndim = 3,
   colors = 'cube',
   remove_internals = false,
@@ -19,7 +19,7 @@ puzzles:add{
     end
 
     --Give axes labels for filters, twists, and to simplify following step
-    lib.utils.unpack_named(_ENV, self.axes) 
+    lib.utils.unpack_named(_ENV, self.axes)
 
     -- Add super-stickers on internal faces
     for i=3,-3,-2 do
