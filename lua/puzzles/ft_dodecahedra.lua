@@ -388,33 +388,159 @@ puzzles:add{
 }
 
 -- Curvy Starminx
-puzzles:add{
-  id = 'curvy_starminx',
-  version = '1.0.0',
-  name = 'Curvy Starminx',
-  aliases = { "Litestarminx" }, -- museum = 11394
-  ndim = 3,
-  colors = 'dodecahedron',
-  build = function(self)
-    local depth = 1/3
-    local cut_depths = {1, depth, -depth, -1}
-    local shape = construct_ft_dodecahedron(self, cut_depths)
+-- puzzles:add{
+--   id = 'curvy_starminx',
+--   version = '1.0.0',
+--   name = 'Curvy Starminx',
+--   aliases = { "Litestarminx" }, -- museum = 11394
+--   ndim = 3,
+--   colors = 'dodecahedron',
+--   build = function(self)
+--     local depth = 1/3
+--     local cut_depths = {1, depth, -depth, -1}
+--     local shape = construct_ft_dodecahedron(self, cut_depths)
 
-    -- Mark piece types
-    utils.unpack_named(_ENV, self.axes)
-    self:mark_piece(L(2) & BR(2) & DR(2) & U(1), 'corner', "Corner")
-    self:mark_piece(BR(2) & BL(2) & R(1) & L(1), 'edge', "Edge")
-    self:mark_piece(F(2) & R(1) & BR(1) & BL(1) & L(1), 'x_center', "X-center")
-    self:mark_piece(F(1) & R(1) & BR(1) & BL(1) & L(1), 'center', "Center")
-    self:unify_piece_types(shape.sym.chiral)
+--     -- Mark piece types
+--     utils.unpack_named(_ENV, self.axes)
+--     self:mark_piece(L(2) & BR(2) & DR(2) & U(1), 'corner', "Corner")
+--     self:mark_piece(BR(2) & BL(2) & R(1) & L(1), 'edge', "Edge")
+--     self:mark_piece(F(2) & R(1) & BR(1) & BL(1) & L(1), 'x_center', "X-center")
+--     self:mark_piece(F(1) & R(1) & BR(1) & BL(1) & L(1), 'center', "Center")
+--     self:unify_piece_types(shape.sym.chiral)
+--   end,
+
+--   tags = {
+--     builtin = '2.0.0',
+--     external = { gelatinbrain = '1.1.4', '!hof', '!mc4d', museum = 4344, '!wca' },
+
+--     author = "Milo Jacquet",
+--     inventor = "Mr. Fok",
+
+--     'type/puzzle',
+--     'shape/3d/platonic/dodecahedron',
+--     algebraic = {
+--       'doctrinaire', 'pseudo/doctrinaire',
+--       '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+--     },
+--     axes = { '3d/elementary/dodecahedral', '!hybrid', '!multicore' },
+--     colors = { '!multi_per_facet', '!multi_facet_per' },
+--     completeness = { '!super', '!real', '!laminated', '!complex' },
+--     cuts = { 'depth/deep/to_adjacent', '!stored', '!wedge' },
+--     turns_by = { 'face', 'facet' },
+--     '!experimental',
+--     '!canonical',
+--     '!family',
+--     '!variant',
+--     '!meme',
+--     '!shapeshifting',
+--   },
+-- }
+
+puzzle_generators:add{
+  id = 'curvy_starminx',
+  version = '0.1.0',
+  name = "N-Layer Curvy Starminx",
+
+  params = {
+    { name = "Layers", type = 'int', default = 1, min = 1, max = 13 },
+  },
+
+  gen = function(params)
+    local size = params[1]
+
+    return {
+      name = size .. "-Layer Curvy Starminx",
+
+      colors = 'dodecahedron',
+
+      ndim = 3,
+      build = function(self)
+        local mid_depth = 1/3
+        local half_range = sqrt(5) - 2 - 1/3 + 0.15
+        function curvy_starminx_cut_depths(layers)
+          if layers == 0 then
+            return {}
+          elseif layers == 1 then
+            return {1, mid_depth}
+          else
+            local layer_height = 2 * half_range / (layers + 1)
+            local outermost_cut = mid_depth + half_range - layer_height / 2
+            local innermost_cut = mid_depth - half_range + layer_height / 2
+            return utils.concatseq({1}, utils.layers.inclusive(outermost_cut, innermost_cut, layers-1))
+          end
+        end
+        -- local cut_depths = {1, depth, -depth, -1}
+        local cut_depths = curvy_starminx_cut_depths(size)
+        local shape = construct_ft_dodecahedron(self, cut_depths)
+
+        -- Mark piece types
+        lib.utils.unpack_named(_ENV, self.axes)
+
+        self:add_piece_type('center', "Center")
+        self:add_piece_type('edge', "Edge")
+        self:add_piece_type('point', "Point")
+        self:add_piece_type('corner', "Corner")
+
+        -- Center (to starminx point)
+        self:mark_piece(F(1) & R(1) & BR(1) & BL(1) & L(1), 'center/middle', "Center")
+        for i=0, size-1 do
+          for j=0, size-1 do
+            if j>0 then
+              local x = BR(i+1)
+              local y = BL(j+1)
+              local region = F(1) & R(1) & L(1) & x & y
+              self:mark_piece(region, string.fmt2('center/cpe_%d_%d', "CPE (%d, %d)", i, j))
+            end
+          end
+        end
+
+        -- Point (to corner)
+        self:mark_piece(~F('*') & R(1) & BR(1) & BL(1) & L(1), 'point/middle', "Point")
+        for i=0, size-1 do
+          for j=0, size-1 do
+            if i>0 or j>0 then
+              local x = R(i+1)
+              local y = L(j+1)
+              local region = ~F('*') & BR(1) & BL(1) & x & y
+              self:mark_piece(region, string.fmt2('point/pev_%d_%d', "PEV (%d, %d)", i, j))
+            end
+          end
+        end
+
+        -- Edge (to corner)
+        local base = ~(BR('*') | BL('*') | DL('*') | DR('*')) & L(1)
+        self:mark_piece(base & R(1), 'edge/middle', "Edge")
+        for i=1, size-1 do
+          local x = R(i+1)
+          local region = base & x
+          self:mark_piece(region, string.fmt2('edge/ev_%d', "EV (%d)", i))
+        end
+
+        -- Corner
+        self:mark_piece(~L('*') & ~BR('*') & ~DR('*') & U(1), 'corner', "Corner")
+
+
+        self:unify_piece_types(shape.sym.chiral)
+      end
+    }
   end,
+
+  examples = {
+    { 
+      params = {1}, 
+      name = "Curvy Starminx",
+      aliases = { "Litestarminx" }, -- museum = 11394
+      tags = { 
+        external = { gelatinbrain = '1.1.4', '!hof', '!mc4d', museum = 4344, '!wca' },
+        inventor = "Mr. Fok",
+      }
+    }
+  },
 
   tags = {
     builtin = '2.0.0',
-    external = { gelatinbrain = '1.1.4', '!hof', '!mc4d', museum = 4344, '!wca' },
 
-    author = "Milo Jacquet",
-    inventor = "Mr. Fok",
+    author = { "Milo Jacquet", "Luna Harran" },
 
     'type/puzzle',
     'shape/3d/platonic/dodecahedron',
