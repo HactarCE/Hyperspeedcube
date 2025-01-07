@@ -1,3 +1,5 @@
+local utils = lib.utils
+
 puzzles:add{
   id = 'complex_3x3x3',
   name = "Complex 3x3x3",
