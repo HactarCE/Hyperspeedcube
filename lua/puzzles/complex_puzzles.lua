@@ -74,3 +74,67 @@ puzzles:add{
     '!shapeshifting',
   },
 }
+
+puzzles:add{
+  id = 'complex_tetrahedron',
+  name = "Complex Tetrahedron",
+  version = '0.1.0',
+  ndim = 3,
+  remove_internals = false,
+  build = function(self)
+    local sym = cd'a3'
+    self:carve(sym:orbit(sym.xoo.unit))
+    
+    local d = 1/5
+
+    -- Define axes and slices
+    self.axes:add(sym:orbit(sym.oox.unit), {2+d, -d})
+    self.axes:add(sym:orbit(sym.xoo.unit), {d, -(2+d)})
+
+    -- Define twists
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.oox.unit], sym:thru(2, 1)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1.5})
+    end
+
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
+    end
+
+    --Give axes labels for filters, twists, and to simplify following step
+    lib.utils.unpack_named(_ENV, self.axes)
+
+    -- Add super-stickers on internal faces
+
+    -- Mark one copy of each piece-type
+
+    -- Pattern piece-types around the puzzle
+    self:unify_piece_types(sym)
+
+  end,
+
+  tags = {
+    builtin = false,
+    external = { '!gelatinbrain', '!hof', '!mc4d', museum = 6777, '!wca' },
+
+    author = "Jason White",
+    '!inventor',
+
+    'type/puzzle',
+    'shape/3d/platonic/cube',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/cubic', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { 'super', '!real', '!laminated', 'complex' },
+    cuts = { '!depth', '!stored', '!wedge' },
+    turns_by = {'face', 'facet'},
+    'experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
+  },
+}

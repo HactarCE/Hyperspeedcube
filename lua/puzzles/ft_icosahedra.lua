@@ -1,3 +1,9 @@
+-- TODO: Jumbling moves, pending an implementation that doesn't lead to runaway
+
+local radio7 = 5-2*sqrt(5)
+
+
+
 puzzles:add{
   id = 'eitangalaxy',
   name = "Eitan's Galaxy",
@@ -11,10 +17,10 @@ puzzles:add{
     self:carve(shape:iter_poles())
 
     -- Define axes and slices
-    local radio7 = 5-2*sqrt(5)
-    local radio3 = sqrt((6/(47+(21*sqrt(5))))+(((3*sqrt(3))-sqrt(15))/2)^2)
+    
+    local galaxy = sqrt((6/(47+(21*sqrt(5))))+(((3*sqrt(3))-sqrt(15))/2)^2)
 
-    self.axes:add(shape:iter_poles(), {1, radio3, radio7, -radio7, -radio3, -1})
+    self.axes:add(shape:iter_poles(), {1, galaxy, radio7, -radio7, -galaxy, -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
@@ -25,15 +31,21 @@ puzzles:add{
     lib.utils.unpack_named(_ENV, self.axes)
 
     -- Mark one copy of each piece-type
-    self:mark_piece(U(1) & F(1) & R(1) & FR(1) & UR(1), 'corner', "Corner")
-    self:mark_piece(U(1) & F(1) & R(1) & ~UR(1), 'wing', "Wing")
     self:mark_piece(U(1) & F(1) & UR(1) & UL(1), 'center', "Center")
     self:mark_piece(U(1) & F(1) & UR(2) & UL(1) & ~L(2) & ~FL(2), 'pentagon', "Pentagon")
+    self:mark_piece(U(1) & ~UR(1) & ~F(1) & ~UP(1) & ~UP(2) & ~L(1) & ~L(2), 'kite', "Kite")
+    self:mark_piece(UR(2) & UL(2) & FR(2) & FL(2), 'edge', "Edge")
+    self:mark_piece(U(1) & F(1) & R(1) & FR(1) & UR(1), 'corner', "Corner")
+    self:mark_piece(U(1) & F(1) & R(1) & ~UR(1), 'wing', "Wing")
     self:mark_piece(U(1) & F(1) & UR(2) & UL(1) & ~L(3) & ~FL(3), 'inner_long', "Inner Long")
-    self:mark_piece(UR(2) & UL(2) & FR(2) & FL(2), 'edge', 'Edge')
+    self:mark_piece(U(1) & F(1) & UR(1) & ~R(1) & ~FR(1) & ~UL(1) & ~UL(2), 'outer_long', "Outer Long")
+    self:mark_piece(U(1) & ~R(1) & ~R(2) & ~UL(1) & ~US(1) & US(2), 'thin/left', "Thin Left")
+    self:mark_piece(U(1) & ~L(1) & ~L(2) & ~UR(1) & ~UP(1) & UP(2), 'thin/right', "Thin Right")
+    self:mark_piece(U(1) & UL(1) & US(2) & UP(3), 'thick/left', "Thick Left")
+    self:mark_piece(U(1) & UR(1) & UP(2) & US(3), 'thick/Right', "Thick Right")
 
     -- Pattern piece-types around the puzzle
-    --self:unify_piece_types(sym)
+    self:unify_piece_types(sym.chiral)
 
   end,
 
@@ -45,12 +57,12 @@ puzzles:add{
     inventor = "Eitan Cher",
 
     'type/puzzle',
-    'shape/TODO',
+    'shape/3d/platonic/icosahedron',
     algebraic = {
-      'doctrinaire', 'pseudo/doctrinaire',
+      'doctrinaire', 'pseudo/doctrinaire', -- pending jumbling
       '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
     },
-    axes = { TODO, '!hybrid', '!multicore' },
+    axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
     cuts = { '!depth', '!stored', '!wedge' },
@@ -60,6 +72,6 @@ puzzles:add{
     '!family',
     '!variant',
     '!meme',
-    '!shapeshifting',
+    '!shapeshifting', -- pending jumbling
   },
 }
