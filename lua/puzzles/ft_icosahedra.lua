@@ -1,9 +1,12 @@
 -- TODO: Jumbling moves, pending an implementation that doesn't lead to runaway
 
 local radio4 = 1/phi
+local radio5 = phi^2/(2+(phi^2))
 local radio7 = 5-2*sqrt(5)
 local radio8 = 1/phi^2
 local radio11 = 1/phi^3
+local radio12 = 1/phi^4
+local radio13 = 1/((phi^4)+(phi^2))
 
 puzzles:add{
   id = 'eitangalaxy',
@@ -310,6 +313,71 @@ puzzles:add{
 
     author = "Jason White",
     inventor = "Eitan Cher",
+
+    'type/puzzle',
+    'shape/3d/platonic/icosahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire', -- pending jumbling
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { '!depth', '!stored', '!wedge' },
+    turns_by = {"face", "facet"},
+    '!experimental',
+    '!canonical',
+    'family/radiolarian',
+    '!variant',
+    '!meme',
+    '!shapeshifting', -- pending jumbling
+  },
+}
+
+puzzles:add{
+  id = 'radio5',
+  name = "Radiolarian 5",
+  aliases = {"Radio 5", "Cat's Cradle"},
+  version = '1.0.0',
+  ndim = 3,
+  colors = 'icosahedron',
+  build = function(self)
+    local sym = cd'h3'
+    local shape = lib.symmetries.icosahedral.icosahedron()
+
+    self:carve(shape:iter_poles())
+
+    -- Define axes and slices
+
+    self.axes:add(shape:iter_poles(), {1, radio5, -radio5, -1})
+
+    -- Define twists
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
+    end
+
+    --Give axes labels for filters, twists, and to simplify following step
+    lib.utils.unpack_named(_ENV, self.axes)
+
+    -- TODO: Mark one copy of each piece-type
+    self:mark_piece(U(1) & F(1) & UR(1) & UL(1) & ~R(1) & ~FR(1) & ~UP(1) & ~US(1) & ~FL(1) & ~L(1), 'center', "Center")
+    self:mark_piece(UR(1) & UL(1) & FR(1) & FL(1), 'edge', "Edge")
+    self:mark_piece(R(1) & UL(1) & ~US(1) & ~FR(1), 'edge_petals/right', "Edge Petal (Right)")
+    self:mark_piece(L(1) & UR(1) & ~UP(1) & ~FL(1), 'edge_petals/left', "Edge Petal (Left)")
+    self:mark_piece(U(1) & ~UL(1) & ~R(1) & ~FL(1) & ~US(1), 'wing', "Wing")
+    self:mark_piece(U(1) & F(1) & FR(1) & R(1) & UR(1) & ~UL(1) & ~FL(1) & ~DR(1) & ~S(1) & ~US(1), 'corner', "Corner")
+
+    -- Pattern piece-types around the puzzle
+    self:unify_piece_types(sym.chiral)
+
+  end,
+
+  tags = {
+    builtin = false,
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
+
+    author = "Jason White",
+    inventor = "Jason Smith",
 
     'type/puzzle',
     'shape/3d/platonic/icosahedron',
@@ -738,7 +806,7 @@ puzzles:add{
 
     -- Define axes and slices
 
-    self.axes:add(shape:iter_poles(), {1, radio11-0.09, -(radio11-0.09), -1})
+    self.axes:add(shape:iter_poles(), {1, radio12, -radio12, -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
@@ -756,6 +824,72 @@ puzzles:add{
     self:mark_piece(R(1) & L(1) & ~UP(1) & ~US(1) & ~DR(1) & ~DL(1), 'edge', "Edge")
     self:mark_piece(FL(1) & R(1) & UL(1) & ~L(1) & ~US(1) & ~DR(1), 'inner_wing', "Inner Wing")
     self:mark_piece(R(1) & L(1) & ~F(1), 'outer_wing', "Outer Wing")
+    self:mark_piece(F(1) & R(1) & L(1) & BR(1) & BL(1), 'corner', "Corner")
+
+    -- Pattern piece-types around the puzzle
+    self:unify_piece_types(sym.chiral)
+
+  end,
+
+  tags = {
+    builtin = false,
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
+
+    author = "Jason White",
+    inventor = "Jason Smith",
+
+    'type/puzzle',
+    'shape/3d/platonic/icosahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire', -- pending jumbling
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { '!depth', '!stored', '!wedge' },
+    turns_by = {"face", "facet"},
+    '!experimental',
+    '!canonical',
+    'family/radiolarian',
+    '!variant',
+    '!meme',
+    '!shapeshifting', -- pending jumbling
+  },
+}
+
+puzzles:add{
+  id = 'radio13',
+  name = "Radiolarian 13",
+  aliases = {"Radio 13", "Radio Gem"},
+  version = '1.0.0',
+  ndim = 3,
+  colors = 'icosahedron',
+  build = function(self)
+    local sym = cd'h3'
+    local shape = lib.symmetries.icosahedral.icosahedron()
+
+    self:carve(shape:iter_poles())
+
+    -- Define axes and slices
+
+    self.axes:add(shape:iter_poles(), {1, radio13, -radio13, -1})
+
+    -- Define twists
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
+    end
+
+    --Give axes labels for filters, twists, and to simplify following step
+    lib.utils.unpack_named(_ENV, self.axes)
+
+    -- TODO: Mark one copy of each piece-type
+    self:mark_piece(FR(1) & FL(1) & US(1) & UP(1) & R(1) & L(1), 'center', "Center")
+    self:mark_piece(R(1) & L(1) & ~FR(1) & FL(1), 'center_petals/right', "Center Petal (Right)")
+    self:mark_piece(R(1) & L(1) & ~FL(1) & FR(1), 'center_petals/left', "Center Petal (Left)")
+    self:mark_piece(R(1) & L(1) & ~FR(1) & ~FL(1) & ~BR(1) & ~BL(1), 'rhombus', "Rhombus")
+    self:mark_piece(R(1) & L(1) & ~UP(1) & ~US(1) & ~DR(1) & ~DL(1), 'edge', "Edge")
+    self:mark_piece(R(1) & L(1) & ~F(1), 'wing', "Wing")
     self:mark_piece(F(1) & R(1) & L(1) & BR(1) & BL(1), 'corner', "Corner")
 
     -- Pattern piece-types around the puzzle
