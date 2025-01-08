@@ -213,6 +213,7 @@ family "Family" expected=true {
   skewb "Skewb"
   square_one "Square-1"
   weirdling "Weirdling"
+  radiolarian "Radiolarian"
 }
 
 variant "Variant" expected=true {
