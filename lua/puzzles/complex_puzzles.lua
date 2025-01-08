@@ -1,5 +1,3 @@
-local utils = lib.utils
-
 puzzles:add{
   id = 'complex_3x3x3',
   name = "Complex 3x3x3",
@@ -153,6 +151,113 @@ puzzles:add{
     completeness = { 'super', '!real', '!laminated', 'complex' },
     cuts = { '!depth', '!stored', '!wedge' },
     turns_by = {'face', 'facet', 'vertex'},
+    '!experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting',
+  },
+}
+
+puzzles:add{
+  id = 'complex_triprism',
+  name = "Complex Triangular Prism",
+  version = '0.1.0',
+  ndim = 3,
+  remove_internals = false,
+  build = function(self)
+    local height = 1.6 -- height modifier (aesthetic)
+    local sym = cd{3,2}
+    local side = sym.xoo.unit
+    local top = sym.oox.unit
+
+    self:carve(sym:orbit(top*height)) -- oox = top
+    self:carve(sym:orbit(side)) -- xoo = side
+
+    -- Define axes and slices
+    self.axes:add(sym:orbit(top), {height*3/5, -height*1/5})
+    self.axes:add(sym:orbit(side), {1/4, -5/4})
+    self.axes:add(sym:orbit(-side), {5/4, -1/4})
+
+    -- Define twists
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[top], sym:thru(2, 1)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = height})
+    end
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[side], sym:thru(2, 3)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
+    end
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[-side], sym:thru(3, 2)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1.25})
+    end
+
+    --Give axes labels for filters, twists, and to simplify piece filters
+
+    -- Add super-stickers on internal faces
+    for i = 3, -3, -2 do
+    self:slice(plane(top, i*height/5), {stickers = self.colors[1]})
+    self:slice(plane(-top, i*height/5), {stickers = self.colors[2]})
+    end
+
+    self:slice(plane(side, 1/4), {stickers = self.colors[3]})
+    self:slice(plane(side, -5/4), {stickers = self.colors[3]})
+    local v2 = sym:thru(1):transform(side)
+    self:slice(plane(v2, 1/4), {stickers = self.colors[4]})
+    self:slice(plane(v2, -5/4), {stickers = self.colors[4]})
+    local v3 = sym:thru(2):transform(v2)
+    self:slice(plane(v3, 1/4), {stickers = self.colors[5]})
+    self:slice(plane(v3, -5/4), {stickers = self.colors[5]})
+    -- non-face-aligned stickers, to make the puzzle super
+    for i = 1, 3, 1 do
+    self.colors:add()
+    end
+    self:slice(plane(-side, -1/4), {stickers = self.colors[6]})
+    self:slice(plane(-side, 5/4), {stickers = self.colors[6]})
+    self:slice(plane(-v2, -1/4), {stickers = self.colors[7]})
+    self:slice(plane(-v2, 5/4), {stickers = self.colors[7]})
+    self:slice(plane(-v3, -1/4), {stickers = self.colors[8]})
+    self:slice(plane(-v3, 5/4), {stickers = self.colors[8]})
+
+    self.colors:set_defaults({"White", "Yellow", "Red", "Blue Triad[2]", "Green", "Red Tetrad [3]", "Blue Tetrad [3]", "Green Tetrad [3]"})
+
+    -- Mark one copy of each piece-type
+    local axs = self.axes
+    self:mark_piece(~axs[1](1) & ~axs[2](1) & ~axs[3](1) & ~axs[4](1) & ~axs[5](1), 'core', "Core")
+    self:mark_piece(axs[1](1) & ~axs[2](1) & ~axs[3](1) & ~axs[4](1) & ~axs[5](1), 'centers/top_center', "Top Center")
+    self:mark_piece(~axs[1](1) & ~axs[2](1) & axs[3](1) & ~axs[4](1) & ~axs[5](1), 'centers/side_center', "Side Center")
+    self:mark_piece(axs[1](1) & ~axs[2](1) & axs[3](1) & ~axs[4](1) & ~axs[5](1), 'edges/top_edge', "Top Edge")
+    self:mark_piece(~axs[1](1) & ~axs[2](1) & axs[3](1) & axs[4](1) & ~axs[5](1), 'edges/mid_edge', "Side Edge")
+    self:mark_piece(axs[1](1) & ~axs[2](1) & axs[3](1) & axs[4](1) & ~axs[5](1), 'corner', "Corner")
+    self:mark_piece(axs[1](1) & axs[2](1) & ~axs[3](1) & ~axs[4](1) & ~axs[5](1), 'axle', "Axle")
+    self:mark_piece(axs[1](1) & axs[2](1) & axs[3](1) & ~axs[4](1) & ~axs[5](1), 'triwall', "Triwall")
+    self:mark_piece(~axs[1](1) & ~axs[2](1) & axs[3](1) & axs[4](1) & axs[5](1), 'ring', "Ring")
+    self:mark_piece(~axs[1](1) & ~axs[2](1) & axs[3](1) & axs[4](1) & axs[5](1), 'ring', "Ring")
+    self:mark_piece(axs[1](1) & ~axs[2](1) & axs[3](1) & axs[4](1) & axs[5](1), 'anticenters/top', "Top Anti-center")
+    self:mark_piece(axs[1](1) & axs[2](1) & axs[3](1) & axs[4](1) & ~axs[5](1), 'anticenters/side', "Side Anti-center")
+    self:mark_piece(axs[1](1) & axs[2](1) & axs[3](1) & axs[4](1) & axs[5](1), 'anticore', "Anti-core")
+
+    -- Pattern piece-types around the puzzle
+    self:unify_piece_types(sym)
+  end,
+
+  tags = {
+    builtin = false,
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
+
+    author = "Jason White",
+    '!inventor',
+
+    'type/puzzle',
+    'shape/3d/prism',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire',
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { nil, '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { 'super', '!real', '!laminated', 'complex' },
+    cuts = { '!depth', '!stored', '!wedge' },
+    turns_by = {'face', 'facet', 'edge'},
     '!experimental',
     '!canonical',
     '!family',
