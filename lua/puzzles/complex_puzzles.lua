@@ -258,7 +258,7 @@ puzzles:add{
     completeness = { 'super', '!real', '!laminated', 'complex' },
     cuts = { '!depth', '!stored', '!wedge' },
     turns_by = {'face', 'facet', 'edge'},
-    '!experimental',
+    'experimental',
     '!canonical',
     '!family',
     '!variant',
