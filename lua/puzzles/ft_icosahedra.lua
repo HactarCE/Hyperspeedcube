@@ -9,6 +9,79 @@ local radio12 = 1/phi^4
 local radio13 = 1/((phi^4)+(phi^2))
 
 puzzles:add{
+  id = 'eitannebula',
+  name = "Eitan's Nebula",
+  version = '1.0.0',
+  ndim = 3,
+  colors = 'icosahedron',
+  build = function(self)
+    local sym = cd'h3'
+    local shape = lib.symmetries.icosahedral.icosahedron()
+
+    self:carve(shape:iter_poles())
+
+    -- Define axes and slices
+
+    local dif = 0.08
+
+    self.axes:add(shape:iter_poles(), {1, radio4+dif, radio4, -radio4, -radio4-dif, -1})
+
+    -- Define twists
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
+    end
+
+    --Give axes labels for filters, twists, and to simplify following step
+    lib.utils.unpack_named(_ENV, self.axes)
+
+    -- Mark one copy of each piece-type
+    self:mark_piece(U(1) & F(1) & UR(1) & UL(1), 'center', "Center")
+    self:mark_piece(U(1) & FR(1) & FL(2), 'center_trap', "Center Trapezoid")
+    self:mark_piece(FR(2) & FL(2) & U(1), 'center_rhomb', "Center Rhombus")
+    self:mark_piece(UR(1) & UL(1) & F(3) & US(3) & UP(3), 'pentagon', "Pentagon")
+    self:mark_piece(US(2) & UP(3) & U(1) & UL(1), 'outer_trap/oleft', "Outer Trapezoid (Left)")
+    self:mark_piece(UP(2) & US(3) & U(1) & UR(1), 'outer_trap/oright', "Outer Trapezoid (Right)")
+    self:mark_piece(US(2) & UP(2) & U(1), 'outer_rhomb', "Outer Rhombus")
+    self:mark_piece(U(1) & FR(2) & ~FL(1) & ~FL(2) & ~UR(1) & ~UR(2), 'edge_triangle/right', "Edge Triangle (Right)")
+    self:mark_piece(U(1) & FL(2) & ~FR(1) & ~FR(2) & ~UL(1) & ~UL(2), 'edge_triangle/left', "Edge Triangle (Left)")
+    self:mark_piece(UR(2) & FR(2) & U(1), 'inner_wing', "Inner Wing")
+    self:mark_piece(U(1) & FR(1) & R(3) & UR(1), 'middle_wing', "Middle Wing")
+    self:mark_piece(U(1) & FR(1) & R(2) & UR(1), 'outer_wing', "Outer Wing")
+    self:mark_piece(U(1) & F(1) & FR(1) & UR(1) & R(1), 'corner', "Corner")
+
+    -- Pattern piece-types around the puzzle
+    self:unify_piece_types(sym.chiral)
+
+  end,
+
+  tags = {
+    builtin = false,
+    external = { '!gelatinbrain', '!hof', '!mc4d', '!museum', '!wca' },
+
+    author = "Jason White",
+    inventor = "Eitan Cher",
+
+    'type/puzzle',
+    'shape/3d/platonic/icosahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire', -- pending jumbling
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { '!depth', '!stored', '!wedge' },
+    turns_by = {"face", "facet"},
+    'experimental',
+    '!canonical',
+    '!family',
+    '!variant',
+    '!meme',
+    '!shapeshifting', -- pending jumbling
+  },
+}
+
+puzzles:add{
   id = 'eitangalaxy',
   name = "Eitan's Galaxy",
   version = '1.0.0',
