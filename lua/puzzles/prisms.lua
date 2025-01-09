@@ -10,6 +10,7 @@ local ft_dodecahedra = lib.puzzles.ft_dodecahedra
 VERSION = '0.1.0'
 TAGS = {
   author = { "Andrew Farkas", "Luna Harran" },
+  experimental = true,
 }
 
 PARAMS = {

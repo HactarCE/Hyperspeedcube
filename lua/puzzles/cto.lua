@@ -23,4 +23,9 @@ puzzles:add{
       self.twists:add(axis, twist_transform, {gizmo_pole_distance = sqrt(3)/3})
     end
   end,
+
+  tags = {
+    author = "Andrew Farkas",
+    experimental = true,
+  }
 }

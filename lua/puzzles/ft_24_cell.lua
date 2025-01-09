@@ -1,11 +1,11 @@
 local gizmo_size = 0.75
 local alpha = 0.3
 
-local function def_ft_24_cell(id, name, depths)
+local function def_ft_24_cell(id, name, depths, piece_types_fn)
   puzzles:add{
     id = id,
-    name = name,
     version = '0.1.0',
+    name = name,
     ndim = 4,
     build = function(p)
       local sym = cd'f4'
@@ -75,9 +75,33 @@ local function def_ft_24_cell(id, name, depths)
           gizmo_pole_distance = gizmo_size,
         })
       end
+
+      piece_types_fn(p)
     end,
+
+    tags = {
+      author = {"Milo Jacquet", "Andrew Farkas"},
+      experimental = true,
+    },
   }
 end
 
-def_ft_24_cell('ft_24_cell_shallow', "Facet-Turning 24-cell (Shallow)", {INF, 2/3})
+def_ft_24_cell('ft_24_cell_shallow', "Facet-Turning 24-cell (Shallow)", {INF, 2/3}, function(self)
+  local sym = cd'f4'
+  lib.utils.unpack_named(_ENV, self.axes)
+
+  local ax1 = A
+  local cell_sym = symmetry{
+    sym:thru(1),
+    sym:thru(2),
+    sym:thru(3),
+  }
+  self:mark_piece(A(1) & ~cell_sym:orbit(G(1)):union(), 'center', "Center")
+  self:mark_piece(X(1) & M(1) & ~O(1) & ~S(1) & ~Q(1), 'ridge', "Ridge")
+  self:mark_piece(X(1) & M(1) & O(1) & ~T(1) & ~S(1) & ~U(1) & ~Q(1) & ~J(1) & ~H(1), 'edge', "Edge")
+  self:mark_piece(X(1) & M(1) & O(1) & ~T(1) & Q(1) & ~H(1), 'edgelet', "Edgelet")
+  self:mark_piece(X(1) & ~H(1) & O(1) & T(1) & M(1) & Q(1), 'subcorner', "Subcorner")
+  self:mark_piece(X(1) & H(1) & O(1) & T(1) & M(1) & Q(1), 'corner', "Corner")
+  self:unify_piece_types(sym)
+end)
 def_ft_24_cell('ft_24_cell_half_cut', "Facet-Turning 24-cell (Half-Cut)", {INF, 0, -INF})

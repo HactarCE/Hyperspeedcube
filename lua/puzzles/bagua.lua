@@ -4,6 +4,7 @@
 -- - center orientation hints?
 puzzles:add{
   id = 'bagua_cube',
+  version = '0.1.0',
   name = "Bagua Cube",
   ndim = 3,
   colors = 'cube',
@@ -57,10 +58,16 @@ puzzles:add{
       self:unify_piece_types(shape.sym.chiral) -- chiral because left vs. right obliques
     end
   end,
+
+  tags = {
+    author = "Andrew Farkas",
+    experimental = true,
+  },
 }
 
 puzzles:add{
   id = 'baguaminx',
+  version = '0.1.0',
   name = "Baguaminx",
   ndim = 3,
   colors = 'dodecahedron',
@@ -114,4 +121,9 @@ puzzles:add{
       self:unify_piece_types(shape.sym.chiral) -- chiral because left vs. right obliques
     end
   end,
+
+  tags = {
+    author = "Andrew Farkas",
+    experimental = true,
+  },
 }

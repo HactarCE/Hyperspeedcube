@@ -18,9 +18,11 @@ puzzles:add{
 
 puzzles:add{
   id = 'snub_cube',
+  version = '0.1.0',
   name = "Snub Cube",
   tags = {
-    "type/shape"
+    "type/shape",
+    experimental = true,
   },
   ndim = 3,
   build = function(self)

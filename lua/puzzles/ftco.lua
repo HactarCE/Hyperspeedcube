@@ -6,6 +6,7 @@ puzzles:add{
 
   tags = {
     author = "SuperSnowman16",
+    experimental = true,
   },
 
   ndim = 3,

@@ -7,8 +7,8 @@ function def_simplex(letter, depths)
 
   puzzles:add{
     id = '4_simplex_' .. string.lower(letter),
-    name = "4-Simplex " .. letter,
     version = '0.1.0',
+    name = "4-Simplex " .. letter,
     ndim = 4,
     colors = '4_simplex',
     build = function(self)
@@ -50,6 +50,8 @@ function def_simplex(letter, depths)
         })
       end
     end,
+
+    tags = { 'experimental' },
   }
 end
 

@@ -9,7 +9,7 @@ use super::PuzzleWidget;
 use crate::app::App;
 use crate::gui::components::{color_assignment_popup, DragAndDrop};
 use crate::gui::markdown::{md, md_bold_user_text};
-use crate::gui::util::EguiTempValue;
+use crate::gui::util::{EguiTempFlag, EguiTempValue};
 use crate::L;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
@@ -388,6 +388,9 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
         }
     });
 
+    let show_experimental_saved = EguiTempFlag::new(ui);
+    let mut show_experimental = show_experimental_saved.get();
+
     let mut override_state = None;
     ui.horizontal(|ui| {
         if ui.button("Collapse all").clicked() {
@@ -396,11 +399,24 @@ fn show_linter(ui: &mut egui::Ui, state: &mut DevToolsState) {
         if ui.button("Expand all").clicked() {
             override_state = Some(true);
         }
+        if ui
+            .checkbox(&mut show_experimental, "Show experimental")
+            .changed()
+        {
+            match show_experimental {
+                true => show_experimental_saved.set(),
+                false => show_experimental_saved.reset(),
+            };
+        }
     });
 
     ui.separator();
 
     for lint in &state.lint_results {
+        if !show_experimental && lint.puzzle.tags.is_experimental() {
+            continue;
+        }
+
         egui::CollapsingHeader::new(lint.puzzle.display_name())
             .id_salt(&lint.puzzle.id)
             .default_open(false)

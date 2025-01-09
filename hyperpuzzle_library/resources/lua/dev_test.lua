@@ -4,6 +4,7 @@ puzzles:add{
   version = '0.0.1',
   ndim = 3,
   build = function(p) p:carve(cd'bc3':orbit(cd'bc3'.oox.unit)) end,
+  tags = { 'experimental' },
 }
 
 puzzles:add{
@@ -31,4 +32,6 @@ puzzles:add{
       self.twists:add(axis, twist_transform)
     end
   end,
+
+  tags = { 'experimental' },
 }
