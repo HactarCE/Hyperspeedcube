@@ -735,7 +735,7 @@ puzzles:add{
 puzzles:add{
   id = 'radio10',
   name = "Radiolarian 10",
-  aliases = {"Radio 10"},
+  aliases = {"Radio 10", "Radio Nova"},
   version = '1.0.0',
   ndim = 3,
   colors = 'icosahedron',
