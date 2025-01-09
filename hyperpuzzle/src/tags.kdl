@@ -210,10 +210,10 @@ family "Family" expected=true {
   fenzy "Fenzy"
   loopover "Loopover"
   mixup "Mixup"
+  radiolarian "Radiolarian"
   skewb "Skewb"
   square_one "Square-1"
   weirdling "Weirdling"
-  radiolarian "Radiolarian"
 }
 
 variant "Variant" expected=true {

@@ -5,9 +5,9 @@ color_systems:add{
 
     colors = {
         { name = 'R', display = "Right", default = "Red" },
-        { name = 'F', display = "Left", default = "Green" },
+        { name = 'F', display = "Front", default = "Green" },
         { name = 'U', display = "Up", default = "Yellow" },
-        { name = 'L', display = "Back", default = "Blue" },
+        { name = 'L', display = "Left", default = "Blue" },
     },
 }
   
