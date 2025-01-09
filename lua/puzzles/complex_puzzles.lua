@@ -172,8 +172,8 @@ puzzles:add{
     local side = sym.xoo.unit
     local top = sym.oox.unit
 
-    self:carve(sym:orbit(top*height)) -- oox = top
-    self:carve(sym:orbit(side)) -- xoo = side
+    self:carve(sym:orbit(top*height))
+    self:carve(sym:orbit(side))
 
     -- Define axes and slices
     self.axes:add(sym:orbit(top), {height*3/5, -height*1/5})

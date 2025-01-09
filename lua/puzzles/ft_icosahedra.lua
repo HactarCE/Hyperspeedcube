@@ -154,6 +154,69 @@ puzzles:add{
 }
 
 puzzles:add{
+  id = 'radio01',
+  name = "Radiolarian 1",
+  aliases = {"Radio 1"},
+  version = '1.0.0',
+  ndim = 3,
+  colors = 'icosahedron',
+  build = function(self)
+    local sym = cd'h3'
+    local shape = lib.symmetries.icosahedral.icosahedron()
+
+    self:carve(shape:iter_poles())
+
+    -- Define axes and slices
+
+    self.axes:add(shape:iter_poles(), {1, 0.8, -0.8, -1})
+
+    -- Define twists
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
+    end
+
+    --Give axes labels for filters, twists, and to simplify following step
+    lib.utils.unpack_named(_ENV, self.axes)
+
+    -- TODO: Mark one copy of each piece-type
+    self:mark_piece(U(1) & ~F(1) & ~UR(1) & ~UL(1), 'center', "Center")
+    self:mark_piece(U(1) & F(1) & ~UR(1) & ~FR(1) & ~UL(1) & ~FL(1), 'edge', "Edge")
+    self:mark_piece(U(1) & F(1) & UR(1) & ~FR(1) & ~R(1) & ~UL(1), 'petal', "Petal")
+
+    -- Pattern piece-types around the puzzle
+    self:unify_piece_types(sym.chiral)
+    self:delete_untyped_pieces()
+
+  end,
+
+  tags = {
+    builtin = false,
+    external = { '!gelatinbrain', '!hof', '!mc4d', museum = 1744, '!wca' },
+
+    author = "Jason White",
+    inventor = "Jason Smith",
+
+    'type/puzzle',
+    'shape/3d/platonic/icosahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire', -- pending jumbling
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { '!depth', '!stored', '!wedge' },
+    turns_by = {"face", "facet"},
+    'experimental',
+    'canonical',
+    'family/radiolarian',
+    '!variant',
+    '!meme',
+    '!shapeshifting', -- pending jumbling
+  },
+}
+
+puzzles:add{
   id = 'radio01_5',
   name = "Radiolarian 1.5",
   aliases = {"Radio 1.5", "Radio Canon"},
@@ -206,7 +269,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/shallow', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     'canonical',
@@ -232,7 +295,7 @@ puzzles:add{
 
     -- Define axes and slices
 
-    self.axes:add(shape:iter_poles(), {1, 1-((1-radio4)*2/3), -1-((1-radio4)*2/3), -1})
+    self.axes:add(shape:iter_poles(), {1, 1-((1-radio4)*2/3), -1+((1-radio4)*2/3), -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
@@ -269,11 +332,73 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/to_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
     'family/radiolarian',
+    '!variant',
+    '!meme',
+    '!shapeshifting', -- pending jumbling
+  },
+}
+
+puzzles:add{
+  id = 'icosaix',
+  name = "Icosaix",
+  version = '1.0.0',
+  ndim = 3,
+  colors = 'icosahedron',
+  build = function(self)
+    local sym = cd'h3'
+    local shape = lib.symmetries.icosahedral.icosahedron()
+
+    self:carve(shape:iter_poles())
+
+    -- Define axes and slices
+
+    self.axes:add(shape:iter_poles(), {1, 1-((1-radio4)*2/3), -1+((1-radio4)*2/3), -1})
+
+    -- Define twists
+    for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
+      self.twists:add(axis, twist_transform, {gizmo_pole_distance = 1})
+    end
+
+    --Give axes labels for filters, twists, and to simplify following step
+    lib.utils.unpack_named(_ENV, self.axes)
+
+    -- TODO: Mark one copy of each piece-type
+    self:mark_piece(U(1) & F(1) & ~UR(1) & ~FR(1) & ~UL(1) & ~FL(1), 'edge', "Edge")
+    self:mark_piece(U(1) & F(1) & UR(1) & ~FR(1) & ~R(1) & ~UL(1), 'triangle', "Triangle")
+    self:mark_piece(U(1) & F(1) & FR(1) & R(1) & UR(1), 'corner', "Corner")
+
+    -- Pattern piece-types around the puzzle
+    self:unify_piece_types(sym.chiral)
+    self:delete_untyped_pieces()
+
+  end,
+
+  tags = {
+    builtin = false,
+    external = { '!gelatinbrain', '!hof', '!mc4d', museum = 2608, '!wca' },
+
+    author = "Jason White",
+    inventor = "Oskar van Deventer",
+
+    'type/puzzle',
+    'shape/3d/platonic/icosahedron',
+    algebraic = {
+      'doctrinaire', 'pseudo/doctrinaire', -- pending jumbling
+      '!abelian', '!fused', '!orientations/non_abelian', '!trivial', '!weird_orbits',
+    },
+    axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
+    colors = { '!multi_per_facet', '!multi_facet_per' },
+    completeness = { '!super', '!real', '!laminated', '!complex' },
+    cuts = { '!depth', '!stored', '!wedge' },
+    turns_by = {"face", "facet"},
+    'experimental',
+    '!canonical',
+    '!family',
     '!variant',
     '!meme',
     '!shapeshifting', -- pending jumbling
@@ -295,7 +420,7 @@ puzzles:add{
 
     -- Define axes and slices
 
-    self.axes:add(shape:iter_poles(), {1, 1-((1-radio4)*4/5), -1-((1-radio4)*4/5), -1})
+    self.axes:add(shape:iter_poles(), {1, 1-((1-radio4)*4/5), -1+((1-radio4)*4/5), -1})
 
     -- Define twists
     for _, axis, twist_transform in sym.chiral:orbit(self.axes[sym.xoo.unit], sym:thru(3, 2)) do
@@ -333,7 +458,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -396,7 +521,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -461,7 +586,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -527,7 +652,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -592,7 +717,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -658,7 +783,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -721,7 +846,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -788,7 +913,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -853,7 +978,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -920,7 +1045,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -986,7 +1111,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -1053,7 +1178,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/deep/past_adjacent', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',
@@ -1114,7 +1239,7 @@ puzzles:add{
     axes = { '3d/elementary/icosahedral', '!hybrid', '!multicore' },
     colors = { '!multi_per_facet', '!multi_facet_per' },
     completeness = { '!super', '!real', '!laminated', '!complex' },
-    cuts = { '!depth', '!stored', '!wedge' },
+    cuts = { 'depth/half', '!stored', '!wedge' },
     turns_by = {"face", "facet"},
     'experimental',
     '!canonical',

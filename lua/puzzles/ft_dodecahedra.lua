@@ -115,7 +115,7 @@ local SHALLOW_FT_DODECAHEDRON_EXAMPLES = {
   { params = {10}, name = "Minx of Madness", -- no metric prefix
     -- couldn't find on the museum
     tags = {
-      inventor = "Matthew Bahner",
+      inventor = "Coren Broughton",
       'big',
     },
   },
