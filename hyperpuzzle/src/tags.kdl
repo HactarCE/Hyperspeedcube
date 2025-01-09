@@ -242,6 +242,7 @@ external "External" {
   (str)gelatinbrain "Gelatinbrain" expected=true
   (str)hof "Hall Of Fame" expected=true
   mc4d "MagicCube4D" expected=true
+  (str_list)link "Link" hidden=true
   (int)museum "Twisty Puzzle Museum" expected=true
   (str)wca "World Cube Association" expected=true
 }
