@@ -154,7 +154,7 @@ puzzles:add{
 }
 
 puzzles:add{
-  id = 'radio1_5',
+  id = 'radio01_5',
   name = "Radiolarian 1.5",
   aliases = {"Radio 1.5", "Radio Canon"},
   version = '1.0.0',
@@ -218,7 +218,7 @@ puzzles:add{
 }
 
 puzzles:add{
-  id = 'radio2',
+  id = 'radio02',
   name = "Radiolarian 2",
   aliases = {"Radio 2", "Circo-Radiolarian"},
   version = '1.0.0',
@@ -281,7 +281,7 @@ puzzles:add{
 }
 
 puzzles:add{
-  id = 'radio3',
+  id = 'radio03',
   name = "Radiolarian 3",
   aliases = {"Radio 3"},
   version = '1.0.0',
@@ -345,7 +345,7 @@ puzzles:add{
 }
 
 puzzles:add{
-  id = 'radio4',
+  id = 'radio04',
   name = "Radiolarian 4",
   aliases = {"Radio 4", "Eitan's Star", "DeFTI"},
   version = '1.0.0',
@@ -408,7 +408,7 @@ puzzles:add{
 }
 
 puzzles:add{
-  id = 'radio5',
+  id = 'radio05',
   name = "Radiolarian 5",
   aliases = {"Radio 5", "Cat's Cradle"},
   version = '1.0.0',
@@ -473,7 +473,7 @@ puzzles:add{
 }
 
 puzzles:add{
-  id = 'radio6',
+  id = 'radio06',
   name = "Radiolarian 6",
   aliases = {"Radio 6", "Radio Web"},
   version = '1.0.0',
@@ -539,7 +539,7 @@ puzzles:add{
 }
 
 puzzles:add{
-  id = 'radio7',
+  id = 'radio07',
   name = "Radiolarian 7",
   aliases = {"Radio 7", "Radio Jewel"},
   version = '1.0.0',
@@ -604,7 +604,7 @@ puzzles:add{
 }
 
 puzzles:add{
-  id = 'radio8',
+  id = 'radio08',
   name = "Radiolarian 8",
   aliases = {"Radio 8", "Radio Jam"},
   version = '1.0.0',
@@ -670,7 +670,7 @@ puzzles:add{
 }
 
 puzzles:add{
-  id = 'radio9',
+  id = 'radio09',
   name = "Radiolarian 9",
   aliases = {"Radio 9", "Radio Crystal"},
   version = '1.0.0',
